@@ -1,164 +1,33 @@
 import os
 from typing import Generator, Optional, Tuple, List
 import time, math
-import inspect
 import PyInventory
 from Py4GWCoreLib import *
 import Py4GW
+from Py4GWCoreLib.py4gwcorelib_src import Utils
 from Py4GWCoreLib import (
     Agent,
     Botting,
     ConsoleLog,
-    Effects,
     GLOBAL_CACHE,
     Map,
     Player,
+    Quest,
     Routines,
     SharedCommandType,
-    AgentArray,
-    IniHandler,
+    AgentArray,  # Added import for AgentArray
 )
 from Py4GWCoreLib.botting_src.helpers import BottingHelpers
+from Py4GWCoreLib.routines_src import Yield
 from Py4GW_widget_manager import get_widget_handler
 from Sources.oazix.CustomBehaviors.primitives.botting.botting_helpers import BottingHelpers
 from Sources.oazix.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
+from Py4GWCoreLib.routines_src.Yield import Utils
+from Py4GWCoreLib.routines_src.Yield import Yield
+
 
 # ==================== CONFIGURATION ====================
 BOT_NAME = "BDS Farm rezone"
-
-# Widgets you want to force-manage at startup.
-# Edit these lists to choose which widgets to enable/disable.
-WIDGETS_TO_ENABLE: tuple[str, ...] = (
-    "LootManager",
-    "CustomBehaviors",
-    "ResurrectionScroll",
-    "Return to outpost on defeat",
-)
-WIDGETS_TO_DISABLE: tuple[str, ...] = ()
-
-# Difficulty selection (default: HM)
-_DIFFICULTY_SECTION = "BDS"
-_DIFFICULTY_VAR = "use_hard_mode"
-_use_hard_mode: bool = True
-_difficulty_loaded: bool = False
-
-# ==================== BDS STATISTICS ====================
-BDS_MODEL_IDS = list(range(1987, 2008))  # all BDS variants (domination → channeling)
-
-_BDS_STATS_SECTION = "BDS Stats"
-_bds_stats_path = os.path.join(Py4GW.Console.get_projects_path(), "Bots", "BDS", "bds_stats.ini")
-os.makedirs(os.path.dirname(_bds_stats_path), exist_ok=True)
-_bds_stats_ini = IniHandler(_bds_stats_path)
-
-_session_bds_found: int = 0
-_session_runs: int = 0
-_bds_pre_snapshot: set = set()  # (model_id, item_id) before chest open
-_session_bds_baselines: dict[str, int] = {}
-_session_start_times: dict[str, float] = {}
-
-_BDS_ICON_PATH = os.path.join(Py4GW.Console.get_projects_path(), "Bots", "BDS", "bds.png")
-
-
-def _key(email: str) -> str:
-    return email.replace("@", "_at_").replace(".", "_")
-
-
-def _snapshot_bds_before_chest() -> Generator:
-    global _bds_pre_snapshot
-    _bds_pre_snapshot = set()
-    for model_id in BDS_MODEL_IDS:
-        item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(model_id)
-        if item_id:
-            _bds_pre_snapshot.add((model_id, item_id))
-    ConsoleLog(BOT_NAME, f"[BDS Stats] Pre-chest snapshot: {len(_bds_pre_snapshot)} BDS in inventory")
-    yield
-
-
-def _record_bds_after_loot() -> Generator:
-    global _session_bds_found, _session_runs
-    post: set = set()
-    for model_id in BDS_MODEL_IDS:
-        item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(model_id)
-        if item_id:
-            post.add((model_id, item_id))
-
-    new_count = len(post - _bds_pre_snapshot)
-    _session_bds_found += new_count
-    _session_runs += 1
-
-    email = Player.GetAccountEmail()
-    k = _key(email)
-    # Resolve character name from ShMem (avoid showing account email in UI)
-    char_name = "Unknown Character"
-    for acc in GLOBAL_CACHE.ShMem.GetAllAccountData():
-        if acc.AccountEmail == email:
-            char_name = acc.AgentData.CharacterName or "Unknown Character"
-            break
-
-    prev_total = _bds_stats_ini.read_int(_BDS_STATS_SECTION, k + "_total", 0)
-    prev_runs  = _bds_stats_ini.read_int(_BDS_STATS_SECTION, k + "_runs",  0)
-    _bds_stats_ini.write_key(_BDS_STATS_SECTION, k + "_total",    str(prev_total + new_count))
-    _bds_stats_ini.write_key(_BDS_STATS_SECTION, k + "_runs",     str(prev_runs  + 1))
-    _bds_stats_ini.write_key(_BDS_STATS_SECTION, k + "_email",    email)
-    _bds_stats_ini.write_key(_BDS_STATS_SECTION, k + "_charname", char_name)
-
-    if new_count > 0:
-        ConsoleLog(BOT_NAME, f"[BDS Stats] {char_name}: +{new_count} BDS! Total: {prev_total + new_count} in {prev_runs + 1} runs")
-    else:
-        ConsoleLog(BOT_NAME, f"[BDS Stats] {char_name}: no BDS this run. Total: {prev_total} in {prev_runs + 1} runs")
-    yield
-
-
-def _draw_bds_stats() -> None:
-    import PyImGui
-    from Py4GWCoreLib import ImGui, Color
-
-    gold = Color(255, 210, 80, 255).to_tuple_normalized()
-    now = time.time()
-    rows: list[tuple[str, int, int, str, int]] = []
-
-    for account in GLOBAL_CACHE.ShMem.GetAllAccountData():
-        email = account.AccountEmail
-        if not email:
-            continue
-        char_name = account.AgentData.CharacterName or "Unknown Character"
-        k = _key(email)
-        total = _bds_stats_ini.read_int(_BDS_STATS_SECTION, k + "_total", 0)
-        runs = _bds_stats_ini.read_int(_BDS_STATS_SECTION, k + "_runs", 0)
-        rate = f"{(total / runs):.2f}/run" if runs > 0 else "-"
-
-        if char_name not in _session_bds_baselines:
-            _session_bds_baselines[char_name] = total
-            _session_start_times[char_name] = now
-        session_gained = max(0, total - _session_bds_baselines[char_name])
-        elapsed = max(1.0, now - _session_start_times[char_name])
-        per_hour = int((session_gained / elapsed) * 3600)
-        rows.append((char_name, total, runs, rate, per_hour))
-
-    ImGui.image(_BDS_ICON_PATH, (24, 24))
-    PyImGui.same_line(0, 8)
-    PyImGui.text_colored("BDS Statistics", gold)
-    PyImGui.text(f"Session total: {_session_bds_found} drops in {_session_runs} runs")
-
-    if not rows:
-        PyImGui.text("No account data available.")
-        return
-
-    rows.sort(key=lambda r: (r[1], r[2], r[0].lower()), reverse=True)
-    for i, (char_name, total, runs, rate, per_hour) in enumerate(rows):
-        if i > 0:
-            PyImGui.spacing()
-            PyImGui.separator()
-            PyImGui.spacing()
-
-        ImGui.image(_BDS_ICON_PATH, (18, 18))
-        PyImGui.same_line(0, 6)
-        PyImGui.text_colored(char_name, gold)
-        PyImGui.dummy(0, 2)
-        PyImGui.text(f"BDS dropped: {total}   |   Runs: {runs}   |   Rate: {rate}")
-        PyImGui.text(f"Session speed: {per_hour}/hr")
-        PyImGui.dummy(0, 3)
-
 TEXTURE = os.path.join(Py4GW.Console.get_projects_path(), "Bots","BDS","bds.png")
 
 # Map IDs
@@ -170,14 +39,11 @@ SoO_lvl3 = 583
 Great_Temple_of_Balthazar = 248
 EyeOfTheNorth = 642
 
-# Quest IDs
-LOST_SOULS_QUEST_ID = 0x324  # Lost Souls - abandon when in Vloxs Fall
-
 # Dialog IDs
 DWARVEN_BLESSING_DIALOG = 0x84
 SHANDRA_TAKE_DIALOGS = 0x832401
 SHANDRA_QUEST_REWARD_DIALOG = 0x832407
-
+SHANDRA_QUEST_ID = 0x324
 # Coordinates
 FENDI_CHEST_POSITION = (-15800.98,16901.23)
 SHANDRA_POSITION = (14067.01, -17253.24)
@@ -187,22 +53,15 @@ bot = Botting(
     bot_name=BOT_NAME,
     upkeep_auto_combat_active=True,
     upkeep_auto_loot_active=True,
-    upkeep_morale_active=True,
+    upkeep_four_leaf_clover_active=True,
+    upkeep_armor_of_salvation_active=False,
+    upkeep_essence_of_celerity_active=False,
+    upkeep_grail_of_might_active=False
 )
 
 # ==================== UTILITY FUNCTIONS ====================
 
 from typing import Dict, List, Tuple, Optional, Any, Callable, Generator
-
-
-def _abandon_lost_souls_if_in_vloxs_fall() -> None:
-    """Only when in Vloxs Fall: if Lost Souls (0x324) is in quest log, abandon it."""
-    if int(Map.GetMapID()) != Vloxs_Fall:
-        return
-    log_ids = bot.Quest.GetQuestLogIds() or []
-    if LOST_SOULS_QUEST_ID in log_ids:
-        bot.Quest.AbandonQuest(LOST_SOULS_QUEST_ID)
-        ConsoleLog(BOT_NAME, "Abandoned quest: Lost Souls (0x324)")
 
 # ==================== AUTO SHRINE + STEP REGISTRY ====================
 
@@ -219,6 +78,20 @@ _LAST_STEP_IDX: int = -1
 # Tune these
 SHRINE_MERGE_DIST = 450.0   # merge learned shrines within this radius
 RESUME_SEARCH_DIST = 1200.0 # max dist to find a nearby move step at rez
+
+def _verify_reward_taken_from_quest_log() -> Generator:
+    global TEKKS_REWARD_PENDING
+
+    quest_ids = Quest.GetQuestLogIds()
+
+    if SHANDRA_QUEST_ID not in quest_ids:
+        SHANDRA_REWARD_PENDING = True
+        ConsoleLog(BOT_NAME, "[FLAG] Reward confirmed: quest no longer in quest log", log=True)
+    else:
+        SHANDRA_REWARD_PENDING = False
+        ConsoleLog(BOT_NAME, "[FLAG] Reward NOT confirmed: quest still present in quest log", log=True)
+
+    yield
 
 def S_BlacklistModel(model_id: int):
     """Custom FSM step: add a MODEL ID to loot blacklist (script-only)."""
@@ -306,14 +179,6 @@ BDS_L2_PART2 = [
     (-8251, -3240),
     (-8278, -1670),
 ]
-BDS_L2_CLEANING = [
-    (-7506.89, -12236.26),
-    (-7435.12, -10649.25),
-    (-9013.61, -9772.06),
-    (-10324.58, -10434.43),
-    (-10371.20, -12510.16),
-    (-8836.63, -11471.01),
-]
 BDS_L3 = [
     (15692, 17111),
     (12969, 19842),
@@ -387,6 +252,191 @@ TORCH_MODEL_IDS = {22341, 22342}
 PICKUP_DIST = 180.0
 MOVE_TIMEOUT_MS = 9000
 
+def _move_to(x: float, y: float, tolerance: float = 180.0, max_tries: int = 60):
+    Player.Move(x, y)
+
+    for _ in range(max_tries):
+        px, py = Player.GetXY()
+        dist = Utils.Distance((px, py), (x, y))
+
+        if dist <= tolerance:
+            return True
+
+        yield from Routines.Yield.wait(100)
+
+    return False
+
+
+def _wait_for_map(map_name: str, max_tries: int = 120):
+    for _ in range(max_tries):
+        if Map.GetMapName() == map_name:
+            return True
+        yield from Routines.Yield.wait(500)
+    return False
+
+def Search_and_talk_with_Shandra(bot: Botting):
+    npc_name = "Shandra"
+
+    ConsoleLog(BOT_NAME, "[Shandra] Start quest take", log=True)
+
+    for attempt in range(1, 21):
+        ConsoleLog(BOT_NAME, f"[Shandra] Search {npc_name} attempt {attempt}/20", log=True)
+
+        agent_id = yield from Yield.Agents.GetAgentIDByName(npc_name)
+
+        if agent_id:
+            ConsoleLog(BOT_NAME, f"[Shandra] Found {npc_name} agent_id={agent_id}", log=True)
+
+            x, y = Agent.GetXY(agent_id)
+            ConsoleLog(BOT_NAME, f"[Shandra] Move to ({x}, {y})", log=True)
+
+            for i in range(150):
+                if i % 10 == 0:
+                    Player.Move(x, y)
+
+                px, py = Player.GetXY()
+                dist = Utils.Distance((px, py), (x, y))
+
+                if dist < 150:
+                    ConsoleLog(BOT_NAME, "[Shandra] Arrived near Shandra", log=True)
+                    break
+
+                yield from Routines.Yield.wait(100)
+            else:
+                ConsoleLog(BOT_NAME, "[Shandra] Could not reach Shandra", log=True)
+                yield
+                return
+
+            Player.ChangeTarget(agent_id)
+            yield from Routines.Yield.wait(500)
+
+            current_target = Player.GetTargetID()
+            ConsoleLog(BOT_NAME, f"[Shandra] Current target = {current_target}", log=True)
+
+            Player.Interact(agent_id)
+            yield from Routines.Yield.wait(800)
+
+            Player.ChangeTarget(agent_id)
+            yield from Routines.Yield.wait(500)
+
+            Player.Interact(agent_id)
+            yield from Routines.Yield.wait(800)
+
+            ConsoleLog(BOT_NAME, "[Shandra] Quest/Reward taken", log=True)
+            yield
+            return
+
+        yield from Routines.Yield.wait(500)
+
+def _interact_with_Shandra(bot: Botting, dialog_id: int, tolerance: float = 220.0):
+    npc_name = "Crewmember Shandra"
+
+    agent_id = yield from Yield.Agents.GetAgentIDByName(npc_name)
+    if not agent_id:
+        ConsoleLog(BOT_NAME, f"[Shandra] {npc_name} introuvable", log=True)
+        return False
+
+    x, y = Agent.GetXY(agent_id)
+    ConsoleLog(BOT_NAME, f"[Shandra] Found {npc_name} at ({x}, {y})", log=True)
+    
+    ok = yield from _move_to(x, y, tolerance=tolerance)
+    if not ok:
+        ConsoleLog(BOT_NAME, "[Shandra] Impossible d'approcher Shandra", log=True)
+        return False
+        
+
+    Player.Interact(agent_id)
+    yield from Routines.Yield.wait(800)
+    bot.Multibox.SendDialogToTarget(dialog_id)
+    yield from Routines.Yield.wait(1500)
+    return True
+
+
+def _recover_reward_and_retake_quest(bot: Botting) -> Generator:
+    global SHANDRA_REWARD_PENDING
+
+    ConsoleLog(BOT_NAME, "[RECOVERY] Late reward flow -> start", log=True)
+
+    # 1) Reward Shandra in Sparkfly
+    if Map.GetMapName() != "Arbayor Bay":
+        ConsoleLog(BOT_NAME, f"[RECOVERY] Mauvaise map pour reward: {Map.GetMapName()}", log=True)
+        yield
+        return
+
+    ok = yield from _interact_with_Shandra(bot, SHANDRA_QUEST_REWARD_DIALOG)
+    if not ok:
+        ConsoleLog(BOT_NAME, "[RECOVERY] Reward Shandra failed", log=True)
+        yield
+        return
+
+
+    # 2) Go to dungeon entrance
+    for x, y in [
+        (11177, -17683),(10218, -18864),(9519, -19968)]:
+        ok = yield from _move_to(x, y)
+        if not ok:
+            ConsoleLog(BOT_NAME, f"[RECOVERY] Failed move to ({x}, {y})", log=True)
+            yield
+            return
+
+    Player.Move(9240.07, -20260.95)
+    yield from Routines.Yield.wait(1000)
+
+    ok = yield from _wait_for_map("Shards of Oor (level 1)")
+    if not ok:
+        ConsoleLog(BOT_NAME, "[RECOVERY] Impossible to enter to Shards of Oor (level 1)", log=True)
+        yield
+        return
+
+    ConsoleLog(BOT_NAME, "[RECOVERY] Entered Shards of Oor (level 1)", log=True)
+
+    # 3) Exit dungeon
+    ok = yield from _move_to(-15650, 8900)
+    if not ok:
+        ConsoleLog(BOT_NAME, "[RECOVERY] Failed move to dungeon exit", log=True)
+        yield
+        return
+
+    yield from Routines.Yield.wait(1000)
+
+    ok = yield from _wait_for_map("Arbor Bay")
+    if not ok:
+        ConsoleLog(BOT_NAME, "[RECOVERY] Impossible to comeback to Arbor Bay", log=True)
+        yield
+        return
+
+    ConsoleLog(BOT_NAME, "[RECOVERY] Back to Arbor Bay", log=True)
+
+    # 4) Retake quest from Shandra
+    ok = yield from _interact_with_Shandra(bot, SHANDRA_QUEST_REWARD_DIALOG)
+    if not ok:
+        ConsoleLog(BOT_NAME, "[RECOVERY] Retake quest failed", log=True)
+        yield
+        return
+
+    ConsoleLog(BOT_NAME, "[RECOVERY] Late reward flow -> done", log=True)
+
+
+
+    bot.States.JumpToStepName("LOOP_RESTART_POINT")
+    yield
+
+SHANDRA_REWARD_PENDING = False
+
+
+def _post_return_flow(bot: Botting) -> Generator:
+    global SHANDRA_REWARD_PENDING
+
+    ConsoleLog(BOT_NAME, f"[POST-RETURN] Flag value = {SHANDRA_REWARD_PENDING}", log=True)
+
+    if not SHANDRA_REWARD_PENDING:
+        ConsoleLog(BOT_NAME, "[POST-RETURN] Reward NOT taken -> recovery flow", log=True)
+        yield from _recover_reward_and_retake_quest(bot)
+        yield
+        return
+
+    ConsoleLog(BOT_NAME, "[POST-RETURN] Reward taken -> continue", log=True)
+    yield
 
 
 def pickup_torch(max_scan_dist: float = 5000, attempts: int = 40) -> Generator:
@@ -522,148 +572,33 @@ def nearest_from_array(arr: List[int], max_dist: float) -> int:
     return int(arr[0]) if len(arr) > 0 else 0
 
 
-BRAZIER_INTERACT_ATTEMPTS = 4
-TORCH_BUFF_ID = 2545
-BRAZIER_MAX_RETRIES = 3
-BRAZIER_ARRIVE_DIST = 200.0
-BRAZIER_MOVE_POLL_MS = 150
-BRAZIER_MOVE_TIMEOUT_S = 30.0
+def interact_nearest_gadget(max_dist: float = 220.0) -> Generator:
+    gadgets = AgentArray.GetGadgetArray()
+    gad_id = nearest_from_array(gadgets, max_dist)
+    if not gad_id:
+        ConsoleLog(BOT_NAME, f"❌ No gadget within {max_dist}")
+        yield
+        return
 
-def _interact_brazier(label: str, result: list, max_dist: float = 220.0, attempts: int = BRAZIER_INTERACT_ATTEMPTS) -> Generator:
-    """Find the nearest gadget and interact with it. Logs once with the label and gadget id.
-    Sets result[0] = True if a gadget was found and interacted with."""
-    result[0] = False
-    logged = False
-    for attempt in range(attempts):
-        gadgets = AgentArray.GetGadgetArray()
-        gad_id = nearest_from_array(gadgets, max_dist)
-        if not gad_id:
-            yield from Routines.Yield.wait(300)
-            continue
+    ConsoleLog(BOT_NAME, f"Interacting with gadget {gad_id}")
+    Player.ChangeTarget(gad_id)
+    yield from Routines.Yield.wait(100)
 
-        if not logged:
-            ConsoleLog(BOT_NAME, f"[BRAZIER] {label} (gadget id: {gad_id})")
-            logged = True
-            result[0] = True
+    Player.Interact(gad_id, False)
+    yield from Routines.Yield.wait(100)
+    Player.Interact(gad_id, False)
+    yield from Routines.Yield.wait(100)
 
-        Player.ChangeTarget(gad_id)
-        yield from Routines.Yield.wait(150)
-        Player.Interact(gad_id, False)
-        yield from Routines.Yield.wait(400)
-
-    if not logged:
-        ConsoleLog(BOT_NAME, f"[BRAZIER] {label} - no gadget found within {max_dist}")
     yield
 
 
-def _move_to_xy_gen(
-    x: float,
-    y: float,
-    result: Optional[list] = None,
-    check_abort: Optional[Callable[[], bool]] = None,
-) -> Generator:
-    """Move to (x, y), yielding until arrival, timeout, or check_abort() returns True.
-    If result is provided, sets result[0] to 'arrived', 'timeout', or 'aborted'."""
-    if result is not None:
-        result[0] = "arrived"
-    deadline = time.time() + BRAZIER_MOVE_TIMEOUT_S
-    while True:
-        if check_abort is not None and check_abort():
-            if result is not None:
-                result[0] = "aborted"
-            break
-        px, py = Player.GetXY()
-        if _dist(px, py, x, y) <= BRAZIER_ARRIVE_DIST:
-            break
-        if time.time() > deadline:
-            if result is not None:
-                result[0] = "timeout"
-            ConsoleLog(BOT_NAME, f"[BRAZIER] Move timeout")
-            break
-        Player.Move(x, y)
-        yield from Routines.Yield.wait(BRAZIER_MOVE_POLL_MS)
-
-
-def _brazier_sequence_gen(points: list[tuple[float, float]], interact_dist: float = 200.0) -> Generator:
-    """Walk through brazier waypoints, checking the torch buff (2545) after each one.
-    If the buff has expired before the next brazier can be lit, go back to the
-    previous brazier, re-interact to refresh the torch, then retry."""
-    total = len(points)
-    idx = 0
-    interact_ok = [False]
-    move_result = ["arrived"]
-    while idx < total:
-        x, y = points[idx]
-        label = f"Brazier {idx + 1}/{total}"
-        need_buff_check = idx > 0
-
-        def _buff_expired():
-            return not Effects.HasEffect(Player.GetAgentID(), TORCH_BUFF_ID)
-
-        for retry in range(BRAZIER_MAX_RETRIES):
-            if retry:
-                ConsoleLog(BOT_NAME, f"[BRAZIER] Retry {retry} for {label}")
-
-            move_result[0] = "arrived"
-            check_abort = _buff_expired if need_buff_check else None
-            yield from _move_to_xy_gen(x, y, move_result, check_abort)
-
-            if move_result[0] == "aborted":
-                ConsoleLog(BOT_NAME, f"[BRAZIER] Buff expired during move, returning to previous brazier ({idx}/{total})")
-                prev_x, prev_y = points[idx - 1]
-                yield from _move_to_xy_gen(prev_x, prev_y)
-                yield from Routines.Yield.wait(250)
-                yield from _interact_brazier(f"Re-lighting brazier {idx}/{total}", interact_ok, interact_dist)
-                yield from Routines.Yield.wait(500)
-                continue
-
-            yield from Routines.Yield.wait(250)
-            yield from _interact_brazier(label, interact_ok, interact_dist)
-            yield from Routines.Yield.wait(500)
-
-            if not interact_ok[0]:
-                ConsoleLog(BOT_NAME, f"[BRAZIER] {label} - could not interact")
-                if idx > 0:
-                    prev_x, prev_y = points[idx - 1]
-                    ConsoleLog(BOT_NAME, f"[BRAZIER] Returning to previous brazier ({idx}/{total}) to re-light torch")
-                    yield from _move_to_xy_gen(prev_x, prev_y)
-                    yield from Routines.Yield.wait(250)
-                    yield from _interact_brazier(f"Re-lighting brazier {idx}/{total}", interact_ok, interact_dist)
-                    yield from Routines.Yield.wait(500)
-                continue
-            if idx == 0:
-                ConsoleLog(BOT_NAME, f"[BRAZIER] {label} lit (start)")
-                break
-            my_id = Player.GetAgentID()
-            if Effects.HasEffect(my_id, TORCH_BUFF_ID):
-                ConsoleLog(BOT_NAME, f"[BRAZIER] {label} lit")
-                break
-            prev_x, prev_y = points[idx - 1]
-            ConsoleLog(BOT_NAME, f"[BRAZIER] Buff expired, returning to previous brazier ({idx}/{total}) to re-light torch")
-            yield from _move_to_xy_gen(prev_x, prev_y)
-            yield from Routines.Yield.wait(250)
-            yield from _interact_brazier(f"Re-lighting brazier {idx}/{total}", interact_ok, interact_dist)
-            yield from Routines.Yield.wait(500)
-        else:
-            ConsoleLog(BOT_NAME, f"[BRAZIER] {label} failed after {BRAZIER_MAX_RETRIES} retries")
-
-        idx += 1
-
-    ConsoleLog(BOT_NAME, f"[BRAZIER] Sequence complete ({total} braziers)")
-    yield
-
-
-def _log_cleaning_room() -> Generator:
-    """Log message when L2 - Cleaning header state is reached."""
-    ConsoleLog(BOT_NAME, "Making sure no enemys are left")
-    yield
-
-
-def run_brazier_sequence(points: list[tuple[float, float]], interact_dist: float = 200.0) -> None:
-    bot.States.AddCustomState(
-        lambda p=points, d=interact_dist: _brazier_sequence_gen(p, d),
-        "Brazier sequence"
-    )
+def run_brazier_sequence(points: list[tuple[float,float]], interact_dist: float = 200.0) -> None:
+    for idx, (x, y) in enumerate(points, 1):
+        bot.Move.XY(x, y)
+        bot.Wait.UntilOutOfCombat()
+        bot.Wait.ForTime(250)
+        bot.States.AddCustomState(lambda d=interact_dist: interact_nearest_gadget(d), f"Interact nearest ({idx})")
+        bot.Wait.ForTime(350)
 
 
 FENDI_GADGET_ID = 8934
@@ -720,28 +655,27 @@ def TargetNearestNPC():
     if len(npc_array) > 0:
         Player.ChangeTarget(npc_array[0])
 
-CHEST_OPEN_ATTEMPTS = 3  # number of interact attempts per account
-
 def open_fendi_chest():
     """Multibox coordination for opening the final chest"""
     ConsoleLog(BOT_NAME, "Opening final chest with multibox...")
+
+    # (optionnel) debug si tu veux vérifier la zone
+    # yield from debug_nearby_gadgets()
 
     target = _target_fendi_chest_agent_id()
     if target == 0:
         ConsoleLog(BOT_NAME, "No Fendi chest found (gadget_id filter)!")
         return
 
-    sender_email = Player.GetAccountEmail()
-    accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
-
     Player.ChangeTarget(target)
     yield from Routines.Yield.wait(150)
 
-    # --- LEADER: interact multiple times to ensure chest opens ---
-    for attempt in range(CHEST_OPEN_ATTEMPTS):
-        ConsoleLog(BOT_NAME, f"Leader opening chest (attempt {attempt + 1}/{CHEST_OPEN_ATTEMPTS})")
-        Player.Interact(target, False)
-        yield from Routines.Yield.wait(500)
+    sender_email = Player.GetAccountEmail()
+    accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+
+        # --- LEADER: interact first ---
+    Player.Interact(target, False)
+    yield from Routines.Yield.wait(100)
 
     # Wait for the leader to finish
     while command_type_routine_in_message_is_active(sender_email, SharedCommandType.InteractWithTarget):
@@ -750,21 +684,17 @@ def open_fendi_chest():
         yield from Routines.Yield.wait(1000)
     yield from Routines.Yield.wait(5000)
 
-    # Command opening for all members with multiple attempts
+    # Command opening for all members
     for account in accounts:
         if not account.AccountEmail or sender_email == account.AccountEmail:
             continue
         ConsoleLog(BOT_NAME, f"Ordering {account.AccountEmail} to open chest")
-
-        for attempt in range(CHEST_OPEN_ATTEMPTS):
-            ConsoleLog(BOT_NAME, f"{account.AccountEmail} attempt {attempt + 1}/{CHEST_OPEN_ATTEMPTS}")
-            GLOBAL_CACHE.ShMem.SendMessage(
-                sender_email,
-                account.AccountEmail,
-                SharedCommandType.InteractWithTarget,
-                (target, 0, 0, 0),
-            )
-            yield from Routines.Yield.wait(1000)
+        GLOBAL_CACHE.ShMem.SendMessage(
+            sender_email,
+            account.AccountEmail,
+            SharedCommandType.InteractWithTarget,
+            (target, 0, 0, 0),
+        )
 
         while command_type_routine_in_message_is_active(account.AccountEmail, SharedCommandType.InteractWithTarget):
             yield from Routines.Yield.wait(1000)
@@ -816,7 +746,6 @@ def _on_party_wipe(bot: "Botting"):
         ],
         SoO_lvl3: [
             ("Secure return 1 - L3", 17544.0, 18810.0),
-            ("Secure return 2 - L3", -2964.1,7302.1),
             ("Secure return boss - L3", -9686.32, 2632)
         ],
     }
@@ -882,13 +811,13 @@ def S_Path(name: str, points: list[tuple[float, float]], map_id: Optional[int] =
 
 def UseSummons():
     """
-    Uses:
-    - Summons (model ID 30209)
-    - Legionnary Summoning Crystal (model ID 37810)
+    Uses only ONE summon with priority:
+    1. Summons (30209)
+    2. Legionnary Crystal (37810)
     """
 
     summons = [
-        ("Summons", 30209),
+        ("Tengu", 30209),
         ("Legionnary Crystal", 37810),
     ]
 
@@ -902,10 +831,16 @@ def UseSummons():
             GLOBAL_CACHE.Inventory.UseItem(item_id)
             yield from Routines.Yield.wait(1000)
             ConsoleLog("UseSummons", f"{name} used!", log=True)
+
+            yield
+            return  # STOP ici → on ne teste pas le second
+
         else:
             ConsoleLog("UseSummons", f"{name} not found in inventory", log=True)
 
+    ConsoleLog("UseSummons", "No summon found", log=True)
     yield
+
 
 def _step_anchor() -> Generator:
     yield
@@ -915,66 +850,12 @@ def loop_marker():
     ConsoleLog(BOT_NAME, "Starting new dungeon run...")
     yield
 
-def apply_widget_policy_step() -> Generator:
-    bot.Multibox.ApplyWidgetPolicy(
-        enable_widgets=WIDGETS_TO_ENABLE,
-        disable_widgets=WIDGETS_TO_DISABLE,
-        apply_local=True,
-    )
-    yield
 
-def _load_difficulty_setting() -> None:
-    global _use_hard_mode, _difficulty_loaded
-    if _difficulty_loaded:
-        return
-
-    if not bot.config.ini_key_initialized:
-        bot.config.ini_key = IniManager().ensure_key(
-            f"BottingClass/bot_{bot.config.bot_name}",
-            f"bot_{bot.config.bot_name}.ini",
-        )
-        if bot.config.ini_key:
-            IniManager().load_once(bot.config.ini_key)
-        bot.config.ini_key_initialized = True
-
-    if not bot.config.ini_key:
-        return
-
-    _use_hard_mode = bool(
-        IniManager().get(
-            key=bot.config.ini_key,
-            section=_DIFFICULTY_SECTION,
-            var_name=_DIFFICULTY_VAR,
-            default=True,
-        )
-    )
-    _difficulty_loaded = True
-
-def _save_difficulty_setting() -> None:
-    if not bot.config.ini_key:
-        return
-    IniManager().set(
-        key=bot.config.ini_key,
-        section=_DIFFICULTY_SECTION,
-        var_name=_DIFFICULTY_VAR,
-        value=_use_hard_mode,
-    )
-
-def _draw_difficulty_setting() -> None:
-    import PyImGui
-    global _use_hard_mode
-
-    _load_difficulty_setting()
-    new_hard_mode = PyImGui.checkbox("Hard Mode (HM)", _use_hard_mode)
-    if new_hard_mode != _use_hard_mode:
-        _use_hard_mode = new_hard_mode
-        _save_difficulty_setting()
-
-def _draw_bds_settings() -> None:
-    import PyImGui
-    PyImGui.text("BDS Settings")
-    PyImGui.separator()
-    _draw_difficulty_setting()
+def set_upkeeps(enabled: bool):
+    bot.Properties.ApplyNow("four_leaf_clover", "active", enabled)
+    bot.Properties.ApplyNow("armor_of_salvation", "active", enabled)
+    bot.Properties.ApplyNow("essence_of_celerity", "active", enabled)
+    bot.Properties.ApplyNow("grail_of_might", "active", enabled)
 
 # ==================== MAIN ROUTINE ====================
 
@@ -985,6 +866,8 @@ def farm_bds_routine(bot: Botting) -> None:
         on_player_critical_death=BottingHelpers.botting_unrecoverable_issue,
         on_party_death=BottingHelpers.botting_unrecoverable_issue,
         on_player_critical_stuck=BottingHelpers.botting_unrecoverable_issue) 
+    widget_handler = get_widget_handler()
+    widget_handler.enable_widget('Return to outpost on defeat')
     bot.Properties.Enable("pause_on_danger")
     # Register wipe callback
     bot.Events.OnPartyWipeCallback(lambda: OnPartyWipe(bot))
@@ -993,24 +876,18 @@ def farm_bds_routine(bot: Botting) -> None:
     
     # ===== START OF BOT =====
     bot.States.AddHeader(BOT_NAME)
-    bot.States.AddHeader("Enable Widgets")
-    bot.States.AddCustomState(apply_widget_policy_step, "Apply widget policy")
     bot.Templates.Aggressive()
     bot.Templates.Routines.PrepareForFarm(map_id_to_travel=Vloxs_Fall)
-    bot.States.AddCustomState(_abandon_lost_souls_if_in_vloxs_fall, "Abandon - Lost Souls (when in Vloxs Fall)")
-    bot.Multibox.RestockAllPcons()
-    bot.Multibox.RestockConset()
-    bot.Multibox.RestockResurrectionScroll(250)
 
 
     
     # ===== START OF LOOP =====
     bot.States.AddHeader(f"{BOT_NAME}_LOOP")
-    _load_difficulty_setting()
-    bot.Party.SetHardMode(_use_hard_mode)
+    bot.Party.SetHardMode(True)
     # Enable properties
     bot.Properties.Enable('auto_combat')
-    bot.States.AddCustomState(_step_anchor, "Reset farm")  # anchor for secure return on wipe    
+    bot.States.AddCustomState(_step_anchor, "Reset farm")  # anchor for secure return on wipe
+    bot.Quest.AbandonQuest(SHANDRA_QUEST_ID)
     # ===== GO TO DUNGEON =====
     bot.States.AddHeader("Go to Dungeon")
     bot.Move.XYAndExitMap(15505.38, 12460.59, target_map_id=Arbor_Bay)
@@ -1023,6 +900,7 @@ def farm_bds_routine(bot: Botting) -> None:
     bot.Multibox.SendDialogToTarget(DWARVEN_BLESSING_DIALOG)
     bot.Wait.ForTime(4000)
     bot.Multibox.UseAllConsumables()
+    
 
     IS_REPATHING = False
     # Path to Shandra
@@ -1051,6 +929,9 @@ def farm_bds_routine(bot: Botting) -> None:
     bot.Multibox.SendDialogToTarget(SHANDRA_TAKE_DIALOGS)
     bot.Wait.ForTime(4000)
     
+    # ===== LOOP RESTART POINT =====
+    bot.States.AddCustomState(loop_marker, "LOOP_RESTART_POINT")
+
     # Enter the dungeon
     bot.Move.XY(11177, -17683)
     bot.Move.XY(10218, -18864)
@@ -1058,8 +939,7 @@ def farm_bds_routine(bot: Botting) -> None:
     bot.Move.XY(9240.07, -20260.95)
 
 
-    # ===== LOOP RESTART POINT =====
-    bot.States.AddCustomState(loop_marker, "LOOP_RESTART_POINT")
+
 
 
     # Wait for change to Level 1
@@ -1229,9 +1109,9 @@ def farm_bds_routine(bot: Botting) -> None:
     bot.States.AddHeader("L2 - Brazier sequence 1")
     run_brazier_sequence([(float(x), float(y)) for x, y in BDS_L2_PART1])
     bot.States.AddHeader("L2 - Cleaning")
-    bot.States.AddCustomState(_log_cleaning_room, "Making sure no enemys are left")
     bot.States.AddCustomState(lambda: drop_bundle_safe(2, 250), "Drop bundle")
-    bot.Move.FollowAutoPath(BDS_L2_CLEANING)
+    bot.Move.XY(-8996, -11987)
+    bot.Move.XY(-8699, -10752)
     bot.States.AddCustomState(pickup_torch, "Pickup Torch")
 
     bot.States.AddHeader("Move to next room")
@@ -1246,13 +1126,16 @@ def farm_bds_routine(bot: Botting) -> None:
     (-11081.9,-5378.8),
     (-10071.6,-4396.5),
     (-9069.4,-4301.1),
-    (-8066.1,-4222.4),
-    (-7058.8,-4191.0)]
+    (-8066.1,-4222.4)]
     bot.Templates.Aggressive()
     if not IS_REPATHING:
         bot.Move.FollowAutoPath(path_room2)
     bot.Wait.UntilOutOfCombat()
 
+    bot.States.AddCustomState(lambda: drop_bundle_safe(2, 250), "Drop bundle")
+    bot.Move.XY(-7058.8,-4191.0)
+    bot.Wait.UntilOutOfCombat()
+    bot.States.AddCustomState(pickup_torch, "Pickup Torch")
 
 
     bot.States.AddCustomState(lambda: drop_bundle_safe(2, 250), "Drop bundle")
@@ -1267,7 +1150,7 @@ def farm_bds_routine(bot: Botting) -> None:
 
     bot.States.AddCustomState(lambda: drop_bundle_safe(2, 250), "Drop bundle")
     bot.Move.XY(-6798.8, -2436.4)
-
+    
     bot.States.AddHeader("L2 - Move to door")
     path_after_second_room = [
     (-9069.4,-4301.1),
@@ -1318,61 +1201,50 @@ def farm_bds_routine(bot: Botting) -> None:
 
     bot.States.AddHeader("L3 - Cleaning level")
     path_before_secure_return = [
-        (17544.5,18530.2),
-        (17231.2,17523.3),
-        (16811.3,16513.4),
-        (15803.0,17071.6),
-        (15004.8,18075.5),
-        (13998.4,18866.7),
-        (12990.9,19299.5),
-        (11988.8,19353.2),
-        (10986.4,19188.9),
-        (9985.7,18719.2),
-        (9402.1,17715.6),
-        (9076.9,17383.4),
-        (9133.0,16373.0),
-        (8496.5,15367.3),
-        (7978.0,14357.9),
-        (7105.7,13350.9),
-        (6236.1,12349.0),
-        (5524.4,11344.1),
-        (4813.8,10340.7),
-        (4095.0,9332.7),
-        (3091.4,8424.8),
-        (2078.2,8286.5),
-        (1926,5848),
-        (1069.7,8045.3),
-        (619.8,7044.0),
-        (-385.8,6478.3),
-        (-1123.5,7481.9),
-        (-2964.1,7302.1)]
-    bot.Templates.Aggressive()
-    if not IS_REPATHING:
-        bot.Move.FollowAutoPath(path_before_secure_return)
-    bot.Wait.UntilOutOfCombat()     
-
-    bot.States.AddHeader("Secure return 2 - L3")
-    bot.States.AddCustomState(_step_anchor, "Secure return 2 - L3")
-
-
-    bot.States.AddHeader("L3 - Cleaning level 2")
-    path_after_secure_return = [    
-        (-3139.7,7022.7),
-        (-4152.0,6469.6),
-        (-5154.0,5969.0),
-        (-5837.7,4968.0),
-        (-5832.1,3954.0),
-        (-6838.3,3495.2),
-        (-7845.7,4397.5),
-        (-8049.0,5403.5),
-        (-9049.9,5289.2),
-        (-10051.1,4604.6),
-        (-11057.4,4039.1),
-        (-10381.7,3037.7),
+            (17544.5,18530.2),
+            (17231.2,17523.3),
+            (16811.3,16513.4),
+            (15803.0,17071.6),
+            (15004.8,18075.5),
+            (13998.4,18866.7),
+            (12990.9,19299.5),
+            (11988.8,19353.2),
+            (10986.4,19188.9),
+            (9985.7,18719.2),
+            (9402.1,17715.6),
+            (9076.9,17383.4),
+            (9133.0,16373.0),
+            (8496.5,15367.3),
+            (7978.0,14357.9),
+            (7105.7,13350.9),
+            (6236.1,12349.0),
+            (5524.4,11344.1),
+            (4813.8,10340.7),
+            (4095.0,9332.7),
+            (3091.4,8424.8),
+            (2078.2,8286.5),
+            (1926,5848),
+            (1069.7,8045.3),
+            (619.8,7044.0),
+            (-385.8,6478.3),
+            (-1123.5,7481.9),
+            (-2964.1,7302.1), 
+            (-3139.7,7022.7),
+            (-4152.0,6469.6),
+            (-5154.0,5969.0),
+            (-5837.7,4968.0),
+            (-5832.1,3954.0),
+            (-6838.3,3495.2),
+            (-7845.7,4397.5),
+            (-8049.0,5403.5),
+            (-9049.9,5289.2),
+            (-10051.1,4604.6),
+            (-11057.4,4039.1),
+            (-10381.7,3037.7),
     ]
     bot.Templates.Aggressive()
     if not IS_REPATHING:
-        bot.Move.FollowAutoPath(path_after_secure_return)
+        bot.Move.FollowAutoPath(path_before_secure_return)
     bot.Wait.UntilOutOfCombat()
 
 
@@ -1387,7 +1259,6 @@ def farm_bds_routine(bot: Botting) -> None:
         (16111.00, 17556.00),
     ]
 
-    bot.Templates.Aggressive()
     if not IS_REPATHING:
         bot.Move.FollowAutoPath(path_to_take_torch)
     bot.Wait.UntilOutOfCombat()
@@ -1403,7 +1274,7 @@ def farm_bds_routine(bot: Botting) -> None:
     bot.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")   
     bot.States.AddHeader("L3 - Kill Brigant")
     bot.Move.XY(-9686.32, 2632)
-    bot.States.AddHeader("Secure return 2 - L3")
+    bot.States.AddHeader("Secure return boss - L3")
     bot.States.AddCustomState(_step_anchor, "Secure return boss - L3")
     bot.States.AddHeader("L3 - Move and open door")
     bot.Move.XY(-9252.32, 6396.40)
@@ -1443,137 +1314,39 @@ def farm_bds_routine(bot: Botting) -> None:
         bot.Move.FollowAutoPath(path_bds)
     bot.Wait.UntilOutOfCombat()
     bot.States.AddHeader("Chest opening")
+
         # ===== OPEN FINAL CHEST =====
-    bot.Move.XY(-15800.98,16901.23)
-    bot.States.AddCustomState(_snapshot_bds_before_chest, "BDS Pre-Chest Snapshot")
+    bot.Move.XY(-15800.98,16901.23) 
     bot.States.AddCustomState(open_fendi_chest, "Open Chest (All Accounts)")
-    bot.Wait.ForTime(6000)
-    bot.States.AddCustomState(open_fendi_chest, "Open Chest (All Accounts) - attempt 2")
-    bot.Wait.ForMapToChange(target_map_id=485)
-    #bot.States.AddCustomState(lambda:_wait_end_dungeon(), "Wait for end of dungeon and teleport")
+
+        # ===== REWARD =====
+    bot.States.AddHeader("End / Reward")
+    bot.States.AddCustomState(lambda: Search_and_talk_with_Shandra(bot), "Find Shandra and talk")
+    bot.Wait.ForTime(5000)
+    bot.Multibox.SendDialogToTarget(SHANDRA_QUEST_REWARD_DIALOG)
+    bot.Wait.ForTime(4000)
+    bot.States.AddCustomState(_verify_reward_taken_from_quest_log, "Verify reward from quest log")
 
     
-    bot.States.AddHeader("Quest sequence (reward + retake)")
-    # return to arbor bay and take reward
-    bot.Wait.ForTime(6000)  # let the map and NPCs fully load after teleport
-    bot.States.AddCustomState(_record_bds_after_loot, "Record BDS Stats")
-    bot.Move.XYAndInteractNPC(12056, -17882)
-    bot.Wait.ForTime(2000)  # wait for dialog window to open
-    bot.Multibox.SendDialogToTarget(SHANDRA_QUEST_REWARD_DIALOG)
-    bot.Wait.ForTime(2000)  # wait for reward to be processed
-
-    # enter the dungeon to reset it
-    bot.Move.XY(9240.07, -20260.95)
-    bot.States.AddCustomState(lambda: wait_for_map_change(SoO_lvl1, 60), "Wait for Level 1 - reset")
-    bot.Wait.ForTime(2000)  # wait for map to fully load before turning back
-
-    # go out of the dungeon
-    bot.Move.XY(-15650, 8900)
-    bot.States.AddCustomState(lambda: wait_for_map_change(Arbor_Bay, 60), "Wait for Arbor_Bay")
-    bot.Wait.ForTime(4000)  # wait for NPCs to load after returning to Arbor Bay
-
-    # Take Shandra's quest
-    bot.Move.XY(12056, -17882)
-    bot.Move.XYAndInteractNPC(12056, -17882)
-    bot.Wait.ForTime(2000)  # wait for dialog window to open
-    bot.Multibox.SendDialogToTarget(SHANDRA_TAKE_DIALOGS)
-    bot.Wait.ForTime(4000)
-
-    # enter the dungeon again
-    bot.Move.XY(9240.07, -20260.95)
-
+    # ===== NEXT RUN =====
+    bot.Wait.ForMapToChange(target_map_name="Arbor Bay")
+    bot.States.AddCustomState(lambda: _post_return_flow(bot), "Post-return quest handling")
     
     # ===== LOOP =====
     bot.States.JumpToStepName("LOOP_RESTART_POINT")
 
 
+
 # ==================== INITIALIZATION ====================
 
 bot.SetMainRoutine(farm_bds_routine)
-bot.UI.override_draw_config(_draw_bds_settings)
 
 
 # ==================== MAIN ====================
 
-def _draw_bds_window_with_stats_tab() -> None:
-    import PyImGui
-    from Py4GWCoreLib import ImGui, IniManager, Routines
-
-    main_child_dimensions = (500, 350)
-    iconwidth = 96
-
-    if not bot.config.ini_key_initialized:
-        bot.config.ini_key = IniManager().ensure_key(
-            f"BottingClass/bot_{bot.config.bot_name}",
-            f"bot_{bot.config.bot_name}.ini",
-        )
-        IniManager().load_once(bot.config.ini_key)
-        bot.config.ini_key_initialized = True
-        _load_difficulty_setting()
-
-    if not bot.config.ini_key:
-        return
-
-    if ImGui.Begin(
-        ini_key=bot.config.ini_key,
-        name=bot.config.bot_name,
-        p_open=True,
-        flags=PyImGui.WindowFlags.AlwaysAutoResize,
-    ):
-        if PyImGui.begin_tab_bar(bot.config.bot_name + "_tabs"):
-            if PyImGui.begin_tab_item("Main"):
-                if PyImGui.begin_child(f"{bot.config.bot_name} - Main", main_child_dimensions, True, PyImGui.WindowFlags.NoFlag):
-                    bot.UI._draw_main_child(main_child_dimensions, TEXTURE, iconwidth)
-                    PyImGui.end_child()
-                PyImGui.end_tab_item()
-
-            if PyImGui.begin_tab_item("Navigation"):
-                PyImGui.text("Jump to step (filtered by step index):")
-                bot.UI._draw_fsm_jump_button()
-                PyImGui.separator()
-                bot.UI.draw_fsm_tree_selector_ranged(child_size=main_child_dimensions)
-                PyImGui.end_tab_item()
-
-            if PyImGui.begin_tab_item("Settings"):
-                bot.UI._draw_settings_child()
-                PyImGui.end_tab_item()
-
-            if PyImGui.begin_tab_item("Help"):
-                bot.UI._draw_help_child()
-                PyImGui.end_tab_item()
-
-            if PyImGui.begin_tab_item("Debug"):
-                bot.UI.draw_debug_window()
-                PyImGui.end_tab_item()
-
-            if PyImGui.begin_tab_item("Statistics"):
-                _draw_bds_stats()
-                PyImGui.end_tab_item()
-
-            PyImGui.end_tab_bar()
-
-    ImGui.End(bot.config.ini_key)
-
-    if Routines.Checks.Map.MapValid():
-        bot.UI.DrawPath(
-            bot.config.config_properties.follow_path_color.get("value"),
-            bot.config.config_properties.use_occlusion.is_active(),
-            bot.config.config_properties.snap_to_ground_segments.get("value"),
-            bot.config.config_properties.floor_offset.get("value"),
-        )
-
-
 def main():
     bot.Update()
-    draw_window_sig = inspect.signature(bot.UI.draw_window)
-    if "extra_tabs" in draw_window_sig.parameters:
-        bot.UI.draw_window(
-            icon_path=TEXTURE,
-            main_child_dimensions=(500, 350),
-            extra_tabs=[("Statistics", _draw_bds_stats)],
-        )
-    else:
-        _draw_bds_window_with_stats_tab()
+    bot.UI.draw_window(icon_path=TEXTURE, main_child_dimensions=(500, 350))
 
 
 if __name__ == "__main__":
