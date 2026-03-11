@@ -104,8 +104,7 @@ class DarkAuraUtility(CustomSkillUtilityBase):
     
     @override
     def customized_debug_ui(self, current_state: BehaviorState) -> None:
-        PyImGui.bullet_text(f"require_soul_taker_or_masochism :")
-        self.require_soul_taker_or_masochism = PyImGui.checkbox("##require_soul_taker_or_masochism", self.require_soul_taker_or_masochism)
+        self.require_soul_taker_or_masochism = PyImGui.checkbox("require_soul_taker_or_masochism##require_soul_taker_or_masochism", self.require_soul_taker_or_masochism)
 
         target = self._get_target()
         if target is not None:

@@ -83,8 +83,7 @@ class GreatDwarfWeaponUtility(CustomSkillUtilityBase):
     
     @override
     def customized_debug_ui(self, current_state: BehaviorState) -> None:
-        PyImGui.bullet_text("should_target_ebon_vanguard_assassin :")
-        self.should_target_ebon_vanguard_assassin = PyImGui.checkbox("##gdw_prefer_model_target", self.should_target_ebon_vanguard_assassin)
+        self.should_target_ebon_vanguard_assassin = PyImGui.checkbox("should_target_ebon_vanguard_assassin##should_target_ebon_vanguard_assassin", self.should_target_ebon_vanguard_assassin)
 
     @override
     def has_persistence(self) -> bool:

@@ -12,12 +12,10 @@ from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_utility_base i
 from Sources.oazix.CustomBehaviors.skills.elementalist.glimmering_mark_utility import GlimmeringMarkUtility
 from Sources.oazix.CustomBehaviors.skills.elementalist.chain_lightning_utility import ChainLightningUtility
 from Sources.oazix.CustomBehaviors.skills.elementalist.shock_arrow_utility import ShockArrowUtility
-from Sources.oazix.CustomBehaviors.skills.generic.preparation_targeted_utility import PreparationTargetedUtility
 from Sources.oazix.CustomBehaviors.skills.generic.preparation_utility import PreparationUtility
 from Sources.oazix.CustomBehaviors.skills.mesmer.arcane_echo_utility import ArcaneEchoUtility
 from Sources.oazix.CustomBehaviors.skills.paragon.fall_back_utility import FallBackUtility
 from Sources.oazix.CustomBehaviors.skills.elementalist.shellshock_utility import ShellShockUtility
-# from Sources.oazix.CustomBehaviors.skills.generic.preparation_utility import PreparationUtility  # Intensity prep commented out
 from Sources.oazix.CustomBehaviors.skills.generic.keep_self_effect_up_utility import KeepSelfEffectUpUtility
 
 
@@ -114,13 +112,10 @@ class ElementalistGlimmeringMark_UtilitySkillBar(CustomBehaviorBaseUtility):
             allowed_states=[BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO, BehaviorState.FAR_FROM_AGGRO]
         )
 
-        self.fall_back_utility: CustomSkillUtilityBase = FallBackUtility(event_bus=self.event_bus, current_build=in_game_build)
-
     @property
     @override
     def custom_skills_in_behavior(self) -> list[CustomSkillUtilityBase]:
         return [
-            self.fall_back_utility,
             self.arcane_echo_utility,
             self.elemental_lord_kurzick_utility,
             self.elemental_lord_luxon_utility,
