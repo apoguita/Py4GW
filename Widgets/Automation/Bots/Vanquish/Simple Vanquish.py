@@ -55,7 +55,7 @@ def bot_routine(bot: Botting) -> None:
         bot.Move.FollowPathAndExitMap(BotSettings.COORD_TO_EXIT_MAP, target_map_id=BotSettings.EXPLORABLE_TO_TRAVEL)
 
     # Combat
-    bot.States.AddHeader("Start Combat") #4
+    bot.States.AddHeader("Vanquish Path") #4
     if "bless" in BotSettings.VANQUISH_PATH[0]:
         for i, entry in enumerate(BotSettings.VANQUISH_PATH):
             for key, value in entry.items():
@@ -74,8 +74,10 @@ def bot_routine(bot: Botting) -> None:
     else:
         bot.Move.FollowAutoPath(BotSettings.VANQUISH_PATH)
 
+    bot.Wait.UntilOutOfCombat()
+    
     #Reverse Route
-    bot.States.AddHeader("Reverse Kill Route") #5
+    bot.States.AddHeader("Reverse Vanquish Path") #5
     if "bless" in BotSettings.VANQUISH_PATH[0]:
         reversed_list = []
         for entry in reversed(BotSettings.VANQUISH_PATH):
