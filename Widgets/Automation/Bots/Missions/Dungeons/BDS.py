@@ -27,8 +27,8 @@ from Py4GWCoreLib.routines_src.Yield import Yield
 
 
 # ==================== CONFIGURATION ====================
-BOT_NAME = "BDS Farm"
-TEXTURE = os.path.join(Py4GW.Console.get_projects_path(), "Widgets","Automation","Bots","Missions","Dungeons","bds.png")
+BOT_NAME = "BDS Farm rezone"
+TEXTURE = os.path.join(Py4GW.Console.get_projects_path(), "Bots","BDS","bds.png")
 
 # Map IDs
 Vloxs_Fall = 624
@@ -345,8 +345,11 @@ def _interact_with_Shandra(bot: Botting, dialog_id: int, tolerance: float = 220.
         return False
         
 
+    Player.ChangeTarget(agent_id)
+    yield from Routines.Yield.wait(800)
     Player.Interact(agent_id)
     yield from Routines.Yield.wait(800)
+    Player.SendDialog(dialog_id)
     bot.Multibox.SendDialogToTarget(dialog_id)
     yield from Routines.Yield.wait(1500)
     return True
