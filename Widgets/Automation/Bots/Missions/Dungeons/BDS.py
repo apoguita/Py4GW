@@ -174,9 +174,19 @@ def _coro_sell_scrolls(mx: float, my: float) -> Generator:
     sell_ids = [int(item_id) for item_id in item_array
                 if int(GLOBAL_CACHE.Item.GetModelID(item_id)) in _SCROLL_MODEL_IDS]
     if not sell_ids:
-        ConsoleLog(BOT_NAME, "[Merchant] No scrolls to sell")
+        ConsoleLog(BOT_NAME, "[Merchant] No scrolls to sell in bags 1-4")
+        storage_hits = [(mid, GLOBAL_CACHE.Inventory.GetModelCountInStorage(mid))
+                        for mid in _SCROLL_MODEL_IDS]
+        storage_hits = [(mid, cnt) for mid, cnt in storage_hits if cnt > 0]
+        if storage_hits:
+            ConsoleLog(BOT_NAME, f"[Merchant] WARNING: scrolls found in STORAGE (InventoryPlus deposited them): {storage_hits}")
         yield
         return
+    for item_id in sell_ids:
+        val = GLOBAL_CACHE.Item.Properties.GetValue(item_id)
+        qty = GLOBAL_CACHE.Item.Properties.GetQuantity(item_id)
+        mid = GLOBAL_CACHE.Item.GetModelID(item_id)
+        ConsoleLog(BOT_NAME, f"[Merchant] Scroll queued: item_id={item_id} model={mid} qty={qty} value={val}")
     yield from bot.Move._coro_xy_and_interact_npc(mx, my, "GH Merchant (scrolls)")
     yield from Routines.Yield.wait(1200)
     ConsoleLog(BOT_NAME, f"[Merchant] Selling {len(sell_ids)} scroll(s) at merchant")
@@ -210,6 +220,7 @@ def _coro_sell_nonsalvageable_golds(mx: float, my: float) -> Generator:
 
 
 _MERCHANT_MANAGED_WIDGETS = ("InventoryPlus", "CustomBehaviors")
+_PRETRAVEL_DISABLE_WIDGETS = ("InventoryPlus",)  # disable before GH travel so deposit cycle doesn't run on GH entry
 
 
 def _disable_merchant_widgets() -> Generator:
@@ -229,6 +240,26 @@ def _disable_merchant_widgets() -> Generator:
                 )
     ConsoleLog(BOT_NAME, f"[Merchant] Disabled {_MERCHANT_MANAGED_WIDGETS} on all accounts")
     yield
+
+
+def _disable_inventoryplus_pretravel() -> Generator:
+    """Disable InventoryPlus on leader + alts BEFORE GH travel, so InventoryPlus cannot
+    run its auto-deposit cycle when accounts enter GH (which would send scrolls to storage)."""
+    from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler as _get_wh
+    ConsoleLog(BOT_NAME, "[Merchant] Pre-travel: disabling InventoryPlus on all accounts")
+    wh = _get_wh()
+    for name in _PRETRAVEL_DISABLE_WIDGETS:
+        wh.disable_widget(name)
+    _my_email = Player.GetAccountEmail()
+    for acc in GLOBAL_CACHE.ShMem.GetAllAccountData():
+        if acc.AccountEmail != _my_email:
+            for name in _PRETRAVEL_DISABLE_WIDGETS:
+                GLOBAL_CACHE.ShMem.SendMessage(
+                    _my_email, acc.AccountEmail,
+                    SharedCommandType.DisableWidget, (0, 0, 0, 0), (name, "", "", ""),
+                )
+    ConsoleLog(BOT_NAME, "[Merchant] Pre-travel: InventoryPlus disabled — waiting 1.5s for alts to process")
+    yield from Routines.Yield.wait(1500)
 
 
 def _reenable_merchant_widgets() -> Generator:
@@ -272,6 +303,10 @@ def _gh_merchant_setup(leave_party: bool = True) -> Generator:
                 GLOBAL_CACHE.ShMem.SendMessage(_my_email, acc.AccountEmail, SharedCommandType.LeaveParty, (0, 0, 0, 0), ("", "", "", ""))
         GLOBAL_CACHE.Party.LeaveParty()
         yield from Routines.Yield.wait(2000)
+
+    # ── Pre-travel: Disable InventoryPlus BEFORE GH entry so its auto-deposit cycle
+    #    cannot send scrolls (or other items) to storage when accounts enter GH. ──
+    yield from _disable_inventoryplus_pretravel()
 
     # ── Step 1: Send ALL accounts to their own Guild Hall (FoW pattern) ───────
     ConsoleLog(BOT_NAME, "[Merchant] Waiting for CustomBehaviorParty to be ready")
@@ -414,21 +449,31 @@ def _gh_merchant_setup(leave_party: bool = True) -> Generator:
         else:
             ConsoleLog(BOT_NAME, "[Merchant] No Rare Material Trader found — skipping rare mat sell")
 
-    # ── Step 7: Buy ectos with inventory gold when storage > threshold (leader + alts)
-    if _merchant_buy_ectos:
-        storage_gold = int(GLOBAL_CACHE.Inventory.GetGoldInStorage())
-        if storage_gold > _merchant_ecto_threshold and rare_xy:
-            rx, ry = rare_xy
-            ConsoleLog(BOT_NAME, f"[Merchant] Dispatching buy_ectoplasm to alts (storage={storage_gold:,})")
-            _dispatch_to_alts(
-                SharedCommandType.MerchantMaterials,
-                (rx, ry, _merchant_ecto_threshold, 0),
-                ("buy_ectoplasm", "0", "0", ""),  # use_storage_gold=False
+    # ── Step 7: Buy ectos from storage excess (leader + alts independently)
+    # Storage is PER-ACCOUNT in GW — each account checks its own storage independently.
+    # Always dispatch to alts so each alt can buy if ITS OWN storage exceeds threshold.
+    if _merchant_buy_ectos and rare_xy:
+        rx, ry = rare_xy
+        ConsoleLog(BOT_NAME, f"[Merchant] Dispatching buy_ectoplasm to all alts (threshold={_merchant_ecto_threshold:,})")
+        _dispatch_to_alts(
+            SharedCommandType.MerchantMaterials,
+            (rx, ry, _merchant_ecto_threshold, _merchant_ecto_threshold),
+            ("buy_ectoplasm", "1", "0", ""),  # use_storage_gold=True; each alt checks own storage
+        )
+        # Leader buys from its own storage independently
+        leader_storage = int(GLOBAL_CACHE.Inventory.GetGoldInStorage())
+        if leader_storage > _merchant_ecto_threshold:
+            ConsoleLog(BOT_NAME, f"[Merchant] Leader buying ectos (storage={leader_storage:,}, threshold={_merchant_ecto_threshold:,})")
+            yield from Routines.Yield.Merchant.BuyEctoplasm(
+                rx, ry,
+                use_storage_gold=True,
+                start_threshold=_merchant_ecto_threshold,
+                stop_threshold=_merchant_ecto_threshold,
             )
-            ConsoleLog(BOT_NAME, "[Merchant] Buying ectos with inventory gold (leader)")
-            yield from Routines.Yield.Merchant.BuyEctoplasm(rx, ry, use_storage_gold=False)
-        elif _merchant_buy_ectos:
-            ConsoleLog(BOT_NAME, "[Merchant] Ecto buy skipped (storage below threshold or no Rare Trader)")
+        else:
+            ConsoleLog(BOT_NAME, f"[Merchant] Leader storage ({leader_storage:,}) at/below threshold — skipping leader ecto buy")
+    elif _merchant_buy_ectos:
+        ConsoleLog(BOT_NAME, "[Merchant] Ecto buy skipped — no Rare Material Trader found")
 
     # ── Step 8: Wait for alts to finish their queued actions ─────────────────
     ConsoleLog(BOT_NAME, f"[Merchant] Waiting {_merchant_alt_wait_ms // 1000}s for alts to complete merchant actions")
