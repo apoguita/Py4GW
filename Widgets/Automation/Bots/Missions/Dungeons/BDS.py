@@ -28,7 +28,7 @@ from Py4GWCoreLib.routines_src.Yield import Yield
 
 # ==================== CONFIGURATION ====================
 BOT_NAME = "BDS Farm rezone"
-TEXTURE = os.path.join(Py4GW.Console.get_projects_path(), "Bots","BDS","bds.png")
+TEXTURE = os.path.join(Py4GW.Console.get_projects_path(), "Widgets","Automation","Bots","Missions","Dungeons","bds.png")
 
 # Map IDs
 Vloxs_Fall = 624
