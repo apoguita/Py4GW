@@ -156,7 +156,7 @@ def Search_and_talk_with_Shandra(bot: Botting):
         yield from Routines.Yield.wait(500)
 
 def _interact_with_Shandra(bot: Botting, dialog_id: int, tolerance: float = 220.0):
-    npc_name = "Crewmember Shandra"
+    npc_name = "Shandra, membre d'équipage"
 
     agent_id = yield from Yield.Agents.GetAgentIDByName(npc_name)
     if not agent_id:
@@ -188,7 +188,7 @@ def _recover_reward_and_retake_quest(bot: Botting) -> Generator:
     ConsoleLog(BOT_NAME, "[RECOVERY] Late reward flow -> start", log=True)
 
     # 1) Reward Shandra in Sparkfly
-    if Map.GetMapName() != "Arbayor Bay":
+    if Map.GetMapName() != "Arbor Bay":
         ConsoleLog(BOT_NAME, f"[RECOVERY] Mauvaise map pour reward: {Map.GetMapName()}", log=True)
         yield
         return
@@ -202,7 +202,7 @@ def _recover_reward_and_retake_quest(bot: Botting) -> Generator:
 
     # 2) Go to dungeon entrance
     for x, y in [
-        (11177, -17683),(10218, -18864),(9519, -19968)]:
+        (11177.00, -17683.00),(10218.00, -18864.00),(9519.00, -19968.00)]:
         ok = yield from _move_to(x, y)
         if not ok:
             ConsoleLog(BOT_NAME, f"[RECOVERY] Failed move to ({x}, {y})", log=True)
@@ -221,7 +221,7 @@ def _recover_reward_and_retake_quest(bot: Botting) -> Generator:
     ConsoleLog(BOT_NAME, "[RECOVERY] Entered Shards of Oor (level 1)", log=True)
 
     # 3) Exit dungeon
-    ok = yield from _move_to(-15650, 8900)
+    ok = yield from _move_to(-15650.00, 8900.00)
     if not ok:
         ConsoleLog(BOT_NAME, "[RECOVERY] Failed move to dungeon exit", log=True)
         yield
@@ -237,8 +237,10 @@ def _recover_reward_and_retake_quest(bot: Botting) -> Generator:
 
     ConsoleLog(BOT_NAME, "[RECOVERY] Back to Arbor Bay", log=True)
 
+
+
     # 4) Retake quest from Shandra
-    ok = yield from _interact_with_Shandra(bot, SHANDRA_QUEST_REWARD_DIALOG)
+    ok = yield from _interact_with_Shandra(bot, SHANDRA_TAKE_DIALOGS)
     if not ok:
         ConsoleLog(BOT_NAME, "[RECOVERY] Retake quest failed", log=True)
         yield
@@ -564,24 +566,6 @@ def debug_item_signature(max_dist: float = 2500.0) -> Generator:
         yield from Routines.Yield.wait(100)
 
     yield
-
-
-def _wait_end_dungeon() -> Generator:
-    ConsoleLog(BOT_NAME,"[WAIT] Waiting for dungeon end teleport")
-
-    timeout = time.time() + 180
-    while True:
-        if Map.GetMapID() == Arbor_Bay:
-            ConsoleLog(BOT_NAME,"[WAIT] Teleported to Arbor Bay")
-            yield
-            return
-
-        if time.time() > timeout:
-            ConsoleLog(BOT_NAME,"[WAIT] Timeout waiting for Arbor Bay teleport")
-            yield
-            return
-
-        yield from Routines.Yield.wait(500)
 
 
 INTERACTABLE_TYPES = {0x200, 0x400}  # coffres / portes / brasiers (comme ton AutoIt)
@@ -1252,17 +1236,15 @@ def farm_bds_routine(bot: Botting) -> None:
         bot.Move.FollowAutoPath(path)
     bot.Wait.UntilOutOfCombat()
     
-
+    # ===== LOOP RESTART POINT =====
+    bot.States.AddCustomState(loop_marker, "LOOP_RESTART_POINT")
     
     bot.States.AddCustomState(lambda: bot.Move.XY(12056.00,-17882), "Go to Shandra")
     # Take Shandra' quest
     bot.Move.XYAndInteractNPC((12056.00,-17882)[0], (12056.00,-17882)[1])
     bot.Multibox.SendDialogToTarget(SHANDRA_TAKE_DIALOGS)
     bot.Wait.ForTime(4000)
-    
-    
-    # ===== LOOP RESTART POINT =====
-    bot.States.AddCustomState(loop_marker, "LOOP_RESTART_POINT")
+
 
     # Enter the dungeon
     bot.Move.XY(11177, -17683)
