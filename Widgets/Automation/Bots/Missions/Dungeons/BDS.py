@@ -13,6 +13,7 @@ from Py4GWCoreLib import (
     GLOBAL_CACHE,
     Map,
     Player,
+    Range,
     Routines,
     SharedCommandType,
     AgentArray,
@@ -1164,6 +1165,81 @@ def open_fendi_chest():
     yield
 
 
+def resolve_fendi_fight() -> Generator:
+    """
+    Hold near Fendi's position, kill all enemies in compass range,
+    and require 20s stable verification with neither Fendi Nin
+    nor Soul of Fendi present before finishing.
+    """
+    boss_model_ids = {263, 203}
+    anchor_x, anchor_y = (-16022.9, 17889.9)
+    compass_sq = Range.Compass.value ** 2
+    anchor_soft_radius_sq = 750.0 ** 2
+    stable_verify_ms = 0
+
+    while stable_verify_ms < 20000:
+        if Map.GetMapID() != SoO_lvl3:
+            break
+        if not Routines.Checks.Map.MapValid():
+            yield from Routines.Yield.wait(500)
+            continue
+
+        player_pos = Player.GetXY()
+        if not player_pos:
+            yield from Routines.Yield.wait(500)
+            continue
+
+        dx_a = anchor_x - player_pos[0]
+        dy_a = anchor_y - player_pos[1]
+        if (dx_a * dx_a + dy_a * dy_a) > anchor_soft_radius_sq:
+            Player.Move(anchor_x, anchor_y)
+
+        nearest_id = 0
+        nearest_dist_sq = float("inf")
+        boss_present = False
+
+        for agent_id in AgentArray.GetEnemyArray():
+            if not Agent.IsAlive(agent_id):
+                continue
+            enemy_pos = Agent.GetXY(agent_id)
+            if not enemy_pos:
+                continue
+            ax = enemy_pos[0] - anchor_x
+            ay = enemy_pos[1] - anchor_y
+            if (ax * ax + ay * ay) > compass_sq:
+                continue
+            if Agent.GetModelID(agent_id) in boss_model_ids:
+                boss_present = True
+            px = enemy_pos[0] - player_pos[0]
+            py = enemy_pos[1] - player_pos[1]
+            dist_sq = px * px + py * py
+            if dist_sq < nearest_dist_sq:
+                nearest_dist_sq = dist_sq
+                nearest_id = agent_id
+
+        if nearest_id:
+            stable_verify_ms = 0
+            Player.ChangeTarget(nearest_id)
+            Player.Interact(nearest_id, True)
+            target_pos = Agent.GetXY(nearest_id)
+            if target_pos:
+                dx = target_pos[0] - player_pos[0]
+                dy = target_pos[1] - player_pos[1]
+                if (dx * dx + dy * dy) > (Range.Earshot.value ** 2):
+                    Player.Move(target_pos[0], target_pos[1])
+        else:
+            if not boss_present:
+                stable_verify_ms += 500
+            else:
+                stable_verify_ms = 0
+            Player.Move(anchor_x, anchor_y)
+
+        yield from Routines.Yield.wait(500)
+
+    ConsoleLog(BOT_NAME, "Fendi fight resolved -- area clear for 20s")
+    yield
+
+
 def wait_for_map_change(target_map_id, timeout_seconds=60):
     """Wait for map change with timeout"""
     ConsoleLog(BOT_NAME, f"Waiting for map change to {target_map_id}...")
@@ -1892,7 +1968,7 @@ def farm_bds_routine(bot: Botting) -> None:
     bot.Templates.Aggressive()
     if not IS_REPATHING:
         bot.Move.FollowAutoPath(path_bds)
-    bot.Wait.UntilOutOfCombat()
+    bot.States.AddCustomState(resolve_fendi_fight, "Resolve Fendi Fight")
     bot.States.AddHeader("Chest opening")
         # ===== OPEN FINAL CHEST =====
     bot.Move.XY(-15800.98,16901.23)
