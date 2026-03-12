@@ -1,10 +1,21 @@
 from Py4GWCoreLib import GLOBAL_CACHE, Utils, AgentArray, Routines, Agent, Player
+from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist
 from .constants import (
     Range,
     BLOOD_IS_POWER,
     BLOOD_RITUAL,
     MAX_NUM_PLAYERS,
 )
+
+
+def _filter_blacklisted(agent_id: int) -> int:
+    """Return 0 if the agent is blacklisted (by model ID or name), otherwise return agent_id unchanged."""
+    if agent_id == 0:
+        return 0
+    bl = EnemyBlacklist()
+    if bl.is_empty():
+        return agent_id
+    return 0 if bl.is_blacklisted(agent_id) else agent_id
 
 def GetAllAlliesArray(distance=Range.SafeCompass.value):
     #Pets are added here
@@ -113,49 +124,49 @@ def TargetNearestItem():
 
 
 def TargetClusteredEnemy(area=4500.0):
-    return Routines.Targeting.TargetClusteredEnemy(area)
+    return _filter_blacklisted(Routines.Targeting.TargetClusteredEnemy(area))
 
 def GetEnemyAttacking(max_distance=4500.0, aggressive_only = False):
-    return Routines.Targeting.GetEnemyAttacking(max_distance, aggressive_only)
+    return _filter_blacklisted(Routines.Targeting.GetEnemyAttacking(max_distance, aggressive_only))
 
 def GetEnemyCasting(max_distance=4500.0, aggressive_only = False):
-    return Routines.Targeting.GetEnemyCasting(max_distance, aggressive_only)
+    return _filter_blacklisted(Routines.Targeting.GetEnemyCasting(max_distance, aggressive_only))
 
 def GetEnemyCastingSpell(max_distance=4500.0, aggressive_only = False):
-    return Routines.Targeting.GetEnemyCastingSpell(max_distance, aggressive_only)
+    return _filter_blacklisted(Routines.Targeting.GetEnemyCastingSpell(max_distance, aggressive_only))
 
 def GetEnemyInjured(max_distance=4500.0, aggressive_only = False):
-    return Routines.Targeting.GetEnemyInjured(max_distance, aggressive_only)
+    return _filter_blacklisted(Routines.Targeting.GetEnemyInjured(max_distance, aggressive_only))
 
 def GetEnemyHealthy(max_distance=4500.0, aggressive_only = False):
-    return Routines.Targeting.GetEnemyHealthy(max_distance, aggressive_only)
+    return _filter_blacklisted(Routines.Targeting.GetEnemyHealthy(max_distance, aggressive_only))
 
 def GetEnemyConditioned(max_distance=4500.0, aggressive_only = False):
-    return Routines.Targeting.GetEnemyConditioned(max_distance, aggressive_only)
+    return _filter_blacklisted(Routines.Targeting.GetEnemyConditioned(max_distance, aggressive_only))
 
 def GetEnemyBleeding(max_distance=4500.0, aggressive_only = False):
-    return Routines.Targeting.GetEnemyBleeding(max_distance, aggressive_only)
+    return _filter_blacklisted(Routines.Targeting.GetEnemyBleeding(max_distance, aggressive_only))
 
 def GetEnemyPoisoned(max_distance=4500.0, aggressive_only = False):
-    return Routines.Targeting.GetEnemyPoisoned(max_distance, aggressive_only)
+    return _filter_blacklisted(Routines.Targeting.GetEnemyPoisoned(max_distance, aggressive_only))
     
 def GetEnemyCrippled(max_distance=4500.0, aggressive_only = False):
-    return Routines.Targeting.GetEnemyCrippled(max_distance, aggressive_only)
+    return _filter_blacklisted(Routines.Targeting.GetEnemyCrippled(max_distance, aggressive_only))
 
 def GetEnemyHexed(max_distance=4500.0, aggressive_only = False):
-    return Routines.Targeting.GetEnemyHexed(max_distance, aggressive_only)
+    return _filter_blacklisted(Routines.Targeting.GetEnemyHexed(max_distance, aggressive_only))
 
 def GetEnemyDegenHexed(max_distance=4500.0, aggressive_only = False):
-    return Routines.Targeting.GetEnemyDegenHexed(max_distance, aggressive_only)
+    return _filter_blacklisted(Routines.Targeting.GetEnemyDegenHexed(max_distance, aggressive_only))
 
 def GetEnemyEnchanted(max_distance=4500.0, aggressive_only = False):
-    return Routines.Targeting.GetEnemyEnchanted(max_distance, aggressive_only)
+    return _filter_blacklisted(Routines.Targeting.GetEnemyEnchanted(max_distance, aggressive_only))
 
 def GetEnemyMoving(max_distance=4500.0, aggressive_only = False):
-    return Routines.Targeting.GetEnemyMoving(max_distance, aggressive_only)
+    return _filter_blacklisted(Routines.Targeting.GetEnemyMoving(max_distance, aggressive_only))
 
 def GetEnemyKnockedDown(max_distance=4500.0, aggressive_only = False):
-    return Routines.Targeting.GetEnemyKnockedDown(max_distance, aggressive_only)
+    return _filter_blacklisted(Routines.Targeting.GetEnemyKnockedDown(max_distance, aggressive_only))
 
 def GetEnemyWithEffect(effect_skill_id, max_distance=4500.0, aggressive_only = False):
-    return Routines.Targeting.GetEnemyWithEffect(effect_skill_id, max_distance, aggressive_only)
+    return _filter_blacklisted(Routines.Targeting.GetEnemyWithEffect(effect_skill_id, max_distance, aggressive_only))

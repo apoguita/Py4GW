@@ -27,6 +27,7 @@ from Py4GWCoreLib.Overlay import Overlay
 from Py4GWCoreLib.Player import Player
 from Py4GWCoreLib.Map import Map
 from Py4GWCoreLib.Agent import Agent
+from Py4GWCoreLib.EnemyBlacklist import draw_blacklist_ui
 from Py4GWCoreLib.UIManager import UIManager
 from Py4GWCoreLib.enums_src.GameData_enums import Allegiance, Profession, ProfessionShort, Range
 from Py4GWCoreLib.enums_src.IO_enums import Key
@@ -2644,6 +2645,7 @@ def draw_party_search_overlay(cached_data: CacheData):
     
     pass
 
+
 def draw_configure_window(module_name : str, configure_window : WindowModule):
     
     global module_info
@@ -2881,6 +2883,12 @@ def draw_configure_window(module_name : str, configure_window : WindowModule):
                 ImGui.end_child()
                 ImGui.end_tab_item()
             
+            if ImGui.begin_tab_item("Blacklist"):
+                if ImGui.begin_child("##BlacklistSettingsChild", (0, 0)):
+                    draw_blacklist_ui()
+                ImGui.end_child()
+                ImGui.end_tab_item()
+
             if ImGui.begin_tab_item("Debug"):
                 if ImGui.begin_child("##DebugSettingsChild", (0, 0)):
                     show_debug = ImGui.checkbox("Show Debug Window", settings.ShowDebugWindow)

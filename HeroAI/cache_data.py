@@ -10,6 +10,7 @@ from Py4GWCoreLib import Timer, ThrottledTimer
 from Py4GWCoreLib import Range, Agent, ConsoleLog, Player
 from Py4GWCoreLib import AgentArray, Weapon, Routines
 from Py4GWCoreLib.IniManager import IniManager
+from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist
 
 INI_DIR = "HeroAI"
 MAIN_WINDOW_INI = "main_window.ini"
@@ -184,7 +185,15 @@ class CacheData:
         self.data.reset()   
         
     def InAggro(self, enemy_array, aggro_range = Range.Earshot.value):
-        return Routines.Checks.Agents.InAggro(aggro_range) 
+        bl = EnemyBlacklist()
+        if bl.is_empty():
+            return Routines.Checks.Agents.InAggro(aggro_range)
+        # Blacklist active: filter enemy array manually so blacklisted enemies
+        # never trigger the in-aggro state.
+        player_pos = Player.GetXY()
+        filtered = AgentArray.Filter.ByDistance(enemy_array, player_pos, aggro_range)
+        filtered = [e for e in filtered if Agent.IsAlive(e) and not bl.is_blacklisted(e)]
+        return len(filtered) > 0
         
     def UpdateCombat(self):
         self.combat_handler.Update(self)
