@@ -31,3 +31,15 @@ class _PLAYER:
 
     def BuySkill(self, skill_id: int, log: bool = False):
         self._helpers.Player.buy_skill(skill_id, log)
+
+    def HasSkillPoints(self) -> bool:
+        # Returns True if the player has at least one skill point available. Use for gating skill purchases.
+        from ...Player import Player
+        current, _ = Player.GetSkillPointData()
+        return current > 0
+
+    def GetSkillPoints(self) -> int:
+        # Returns the exact number of skill points available. Use when you need the count (e.g. logging, buying multiple skills).
+        from ...Player import Player
+        current, _ = Player.GetSkillPointData()
+        return current
