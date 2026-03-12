@@ -27,7 +27,7 @@ class BuffConfigurationPerPlayerEmail(CustomBuffTarget):
     account's email address for a given agent_id.
     """
 
-    def __init__(self, custom_skill: CustomSkill, custom_configuration: dict[str, BuffEmailEntry] | None = None):
+    def __init__(self, custom_skill: CustomSkill, custom_configuration: dict[str, BuffEmailEntry] | None = None, custom_order: list[str] | None = None):
 
         self.custom_skill: CustomSkill = custom_skill
         self.__lock = threading.RLock()
@@ -37,20 +37,57 @@ class BuffConfigurationPerPlayerEmail(CustomBuffTarget):
         else:
             self.__entries_by_email: dict[str, BuffEmailEntry] = {}
 
+        # Custom order list for user-defined sorting
+        if custom_order is not None:
+            self.__email_order: list[str] = custom_order
+        else:
+            self.__email_order: list[str] = []
+
         # Throttled timers for periodic refresh
         self.__scan_timer = ThrottledTimer(3000)    # scan accounts every 3s
         self.__refresh_timer = ThrottledTimer(2000) # refresh char/prof every 2s
 
     def serialize_to_string(self) -> str:
-        return ";".join([f"{entry.account_email}:{entry.is_activated}" for entry in self.__entries_by_email.values()])
-    
+        # Serialize both entries and order: "ENTRIES|email1:True;email2:False|ORDER|email1;email2"
+        entries_str = ";".join([f"{entry.account_email}:{entry.is_activated}" for entry in self.__entries_by_email.values()])
+        order_str = ";".join(self.__email_order)
+        return f"ENTRIES|{entries_str}|ORDER|{order_str}"
+
     @staticmethod
-    def instanciate_from_string(serialized_string: str) -> dict[str, BuffEmailEntry]:
+    def instanciate_from_string(serialized_string: str) -> tuple[dict[str, BuffEmailEntry], list[str]]:
+        """Returns (entries_dict, order_list)"""
         deserialized_configuration: dict[str, BuffEmailEntry] = {}
-        for configuration in serialized_string.split(";"):
-            email, is_activated = configuration.split(":")
-            deserialized_configuration[email] = BuffEmailEntry(email, is_activated == "True")
-        return deserialized_configuration
+        order_list: list[str] = []
+
+        # Parse new format with order
+        if "|ORDER|" in serialized_string:
+            parts = serialized_string.split("|ORDER|")
+            entries_part = parts[0].replace("ENTRIES|", "")
+            order_part = parts[1] if len(parts) > 1 else ""
+
+            # Parse entries
+            if entries_part:
+                for configuration in entries_part.split(";"):
+                    if ":" in configuration:
+                        email, is_activated = configuration.split(":")
+                        deserialized_configuration[email] = BuffEmailEntry(email, is_activated == "True")
+
+            # Parse order
+            if order_part:
+                order_list = [email for email in order_part.split(";") if email]
+        else:
+            # Legacy format without order
+            for configuration in serialized_string.split(";"):
+                if ":" in configuration:
+                    email, is_activated = configuration.split(":")
+                    deserialized_configuration[email] = BuffEmailEntry(email, is_activated == "True")
+
+        return deserialized_configuration, order_list
+
+    def set_email_order(self, order: list[str]) -> None:
+        """Set the custom email order for rendering."""
+        with self.__lock:
+            self.__email_order = order
 
     def get_by_email(self, email: str) -> BuffEmailEntry:
         with self.__lock:
@@ -83,15 +120,18 @@ class BuffConfigurationPerPlayerEmail(CustomBuffTarget):
     def get_agent_id_predicate(self) -> Callable[[int], bool]:
         return lambda agent_id: self.__should_apply_effect(agent_id)
 
+    def get_agent_id_ordering_predicate(self) -> Callable[[int], int]:
+        return lambda agent_id: self.__email_order.index(self.__get_email_for_agent(agent_id) or "")
+
     def __should_apply_effect(self, agent_id: int) -> bool:
         # Fast path: use stored agent_id mapping
-        try:
-            with self.__lock:
-                for entry in self.__entries_by_email.values():
-                    if entry.agent_id and int(entry.agent_id) == int(agent_id):
-                        return bool(entry.is_activated and self.__should_apply_effect_on_agent_id(agent_id))
-        except Exception:
-            pass
+        # try:
+        #     with self.__lock:
+        #         for entry in self.__entries_by_email.values():
+        #             if entry.agent_id and int(entry.agent_id) == int(agent_id):
+        #                 return bool(entry.is_activated and self.__should_apply_effect_on_agent_id(agent_id))
+        # except Exception:
+        #     pass
 
         # Fallback: resolve via SharedMemory (email lookup)
         email = self.__get_email_for_agent(agent_id)
@@ -223,14 +263,15 @@ class BuffConfigurationPerPlayerEmail(CustomBuffTarget):
             pass
 
     def render_buff_configuration(self):
-        """Render toggle buttons per account email.
+        """Render toggle buttons per account email with sortable order.
         - Every 3s: scan SharedMemory accounts and add missing emails (default deactivated)
         - Every 2s: refresh character name and profession prefix per email
-        - Each frame: render buttons reflecting is_activated state
+        - Each frame: render buttons reflecting is_activated state with up/down arrows
         """
         import PyImGui
         from Py4GWCoreLib import ImGui
         from Py4GWCoreLib.py4gwcorelib_src.Utils import Utils
+        from Py4GWCoreLib.ImGui_src.IconsFontAwesome5 import IconsFontAwesome5
 
         # Periodic: discover new accounts (3s)
         if self.__scan_timer.IsExpired():
@@ -248,6 +289,9 @@ class BuffConfigurationPerPlayerEmail(CustomBuffTarget):
                                 is_activated=False,
                                 agent_id=agent_id if agent_id > 0 else None
                             )
+                            # Add new email to the end of the order list
+                            if email not in self.__email_order:
+                                self.__email_order.append(email)
             except Exception:
                 pass
             finally:
@@ -274,20 +318,62 @@ class BuffConfigurationPerPlayerEmail(CustomBuffTarget):
         PyImGui.bullet_text("Buff configuration : ")
 
         with self.__lock:
-            entries_snapshot = list(self.__entries_by_email.values())
+            entries_snapshot = dict(self.__entries_by_email)
+            # Sync order list: add any missing emails, remove any deleted ones
+            current_emails = set(entries_snapshot.keys())
+            # Remove emails that no longer exist
+            self.__email_order = [e for e in self.__email_order if e in current_emails]
+            # Add new emails that aren't in the order list yet
+            for email in current_emails:
+                if email not in self.__email_order:
+                    self.__email_order.append(email)
+
+            order_snapshot = list(self.__email_order)
+
         if len(entries_snapshot) == 0:
             PyImGui.text("No known players yet.")
             return
 
-        # Stable ordering to avoid flicker: sort by email
-        sorted_entries = sorted(entries_snapshot, key=lambda e: (e.account_email or "").lower())
+        # Use custom order if available, otherwise sort alphabetically
+        if order_snapshot:
+            sorted_emails = order_snapshot
+        else:
+            sorted_emails = sorted(entries_snapshot.keys(), key=lambda e: (e or "").lower())
 
-        for entry in sorted_entries:
-            email = entry.account_email or "(unknown)"
+        for index, email in enumerate(sorted_emails):
+            entry = entries_snapshot.get(email)
+            if entry is None:
+                continue
+
+            PyImGui.push_id(f"email_row_{index}_{email}")
+
+            PyImGui.text(f"{index + 1}. ")
+            ImGui.show_tooltip("Priority")
+            PyImGui.same_line(0, 5)
+
+            # Up arrow button
+            if PyImGui.button(f"{IconsFontAwesome5.ICON_ARROW_UP}##up"):
+                if index > 0:
+                    with self.__lock:
+                        self.__email_order[index], self.__email_order[index-1] = self.__email_order[index-1], self.__email_order[index]
+            ImGui.show_tooltip("Move up")
+
+            PyImGui.same_line(0, 5)
+
+            # Down arrow button
+            if PyImGui.button(f"{IconsFontAwesome5.ICON_ARROW_DOWN}##down"):
+                if index < len(sorted_emails) - 1:
+                    with self.__lock:
+                        self.__email_order[index], self.__email_order[index+1] = self.__email_order[index+1], self.__email_order[index]
+            ImGui.show_tooltip("Move down")
+
+            PyImGui.same_line(0, 10)
+
+            # The toggle button
             char_name = entry.character_name or "Unknown"
             prof_prefix = entry.profession_prefix
             label = f"{prof_prefix} | {char_name} | {email}" if prof_prefix else f"{char_name} | {email}"
-            stable_id = f"##buff_toggle_{self.custom_skill.skill_name}_{email}"
+            stable_id = f"##buff_toggle"
 
             if entry.is_activated:
                 # Draw an emphasized bordered small button when active (consistent height)
@@ -304,3 +390,5 @@ class BuffConfigurationPerPlayerEmail(CustomBuffTarget):
                     with self.__lock:
                         entry.is_activated = True
                 ImGui.show_tooltip(f"Activate buff for {email}")
+
+            PyImGui.pop_id()

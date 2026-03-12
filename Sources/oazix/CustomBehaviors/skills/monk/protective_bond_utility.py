@@ -47,14 +47,20 @@ class ProtectiveBondUtility(CustomSkillUtilityBase):
 
     def _get_target(self) -> int | None:
 
-        target = custom_behavior_helpers.Targets.get_first_or_default_from_allies_ordered_by_priority(
+        targets = custom_behavior_helpers.Targets.get_all_possible_allies_ordered_by_priority_raw(
                 within_range=Range.Spellcast.value,
                 condition=lambda agent_id: self.buff_configuration.get_agent_id_predicate()(agent_id),
                 sort_key=(TargetingOrder.DISTANCE_ASC,),
                 range_to_count_enemies=None,
                 range_to_count_allies=None)
+        
+        if targets is None: return None
+        if len(targets) == 0: return None
 
-        return target
+        # sort by priority
+        targets.sort(key=lambda target: self.buff_configuration.get_agent_id_ordering_predicate()(target.agent_id))
+
+        return targets[0].agent_id
 
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
@@ -84,9 +90,7 @@ class ProtectiveBondUtility(CustomSkillUtilityBase):
 
     @override
     def customized_debug_ui(self, current_state: BehaviorState) -> None:
-        PyImGui.bullet_text(f"should_wait_for_heroic_refrain :")
-        PyImGui.same_line(0,0)
-        self.should_wait_for_heroic_refrain = PyImGui.checkbox("##should_wait_for_heroic_refrain", self.should_wait_for_heroic_refrain)
+        self.should_wait_for_heroic_refrain = PyImGui.checkbox("should_wait_for_heroic_refrain##should_wait_for_heroic_refrain", self.should_wait_for_heroic_refrain)
 
     @override
     def has_persistence(self) -> bool:

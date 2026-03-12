@@ -172,18 +172,12 @@ class InfuseHealthUtility(CustomSkillUtilityBase):
 
     @override
     def customized_debug_ui(self, current_state: BehaviorState) -> None:
-        PyImGui.bullet_text(f"sacrifice_life_limit_percent :")
-        self.sacrifice_life_limit_percent = PyImGui.input_float("##sacrifice_life_limit_percent", self.sacrifice_life_limit_percent)
-        PyImGui.bullet_text(f"sacrifice_life_limit_absolute :")
-        self.sacrifice_life_limit_absolute = PyImGui.input_int("##sacrifice_life_limit_absolute", self.sacrifice_life_limit_absolute)
-        PyImGui.bullet_text(f"require_aura_of_restoration :")
-        self.require_aura_of_restoration = PyImGui.checkbox("##require_aura_of_restoration", self.require_aura_of_restoration)
-        PyImGui.bullet_text(f"require_life_attunement :")
-        self.require_life_attunement = PyImGui.checkbox("##require_life_attunement", self.require_life_attunement)
-        PyImGui.bullet_text(f"should_cast_when_mana_low :")
-        self.should_cast_when_mana_low = PyImGui.checkbox("##should_cast_when_mana_low", self.should_cast_when_mana_low)
-        PyImGui.bullet_text(f"mana_low_threshold :")
-        self.mana_low_threshold = PyImGui.input_float("##mana_low_threshold", self.mana_low_threshold)
+        self.sacrifice_life_limit_percent = PyImGui.input_float("sacrifice_life_limit_percent##sacrifice_life_limit_percent", self.sacrifice_life_limit_percent)
+        self.sacrifice_life_limit_absolute = PyImGui.input_int("sacrifice_life_limit_absolute##sacrifice_life_limit_absolute", self.sacrifice_life_limit_absolute)
+        self.require_aura_of_restoration = PyImGui.checkbox("require_aura_of_restoration##require_aura_of_restoration", self.require_aura_of_restoration)
+        self.require_life_attunement = PyImGui.checkbox("require_life_attunement##require_life_attunement", self.require_life_attunement)
+        self.should_cast_when_mana_low = PyImGui.checkbox("should_cast_when_mana_low##should_cast_when_mana_low", self.should_cast_when_mana_low)
+        self.mana_low_threshold = PyImGui.input_float("mana_low_threshold##mana_low_threshold", self.mana_low_threshold)
 
     @override
     def has_persistence(self) -> bool:

@@ -14,5 +14,9 @@ class CustomBuffTarget:
         pass
 
     @abstractmethod
+    def get_agent_id_ordering_predicate(self) -> Callable[[int], int]:
+        pass
+
+    @abstractmethod
     def render_buff_configuration(self):
         pass

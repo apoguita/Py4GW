@@ -93,13 +93,9 @@ class BloodRitualUtility(CustomSkillUtilityBase):
 
     @override
     def customized_debug_ui(self, current_state: BehaviorState) -> None:
-        PyImGui.bullet_text(f"sacrifice_life_limit_percent :")
-        self.sacrifice_life_limit_percent = PyImGui.input_float("##sacrifice_life_limit_percent", self.sacrifice_life_limit_percent)
-        PyImGui.bullet_text(f"sacrifice_life_limit_absolute :")
-        self.sacrifice_life_limit_absolute = PyImGui.input_int("##sacrifice_life_limit_absolute", self.sacrifice_life_limit_absolute)
-        PyImGui.bullet_text(f"required_target_mana_lower_than_percent :")
-        self.required_target_mana_lower_than_percent = PyImGui.input_float("##required_target_mana_lower_than_percent", self.required_target_mana_lower_than_percent)
-
+        self.sacrifice_life_limit_percent = PyImGui.input_float("sacrifice_life_limit_percent##sacrifice_life_limit_percent", self.sacrifice_life_limit_percent)
+        self.sacrifice_life_limit_absolute = PyImGui.input_int("sacrifice_life_limit_absolute##sacrifice_life_limit_absolute", self.sacrifice_life_limit_absolute)
+        self.required_target_mana_lower_than_percent = PyImGui.input_float("required_target_mana_lower_than_percent##required_target_mana_lower_than_percent", self.required_target_mana_lower_than_percent)
 
     @override
     def has_persistence(self) -> bool:
