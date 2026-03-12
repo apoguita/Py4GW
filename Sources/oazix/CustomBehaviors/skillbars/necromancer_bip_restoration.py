@@ -50,15 +50,10 @@ class NecromancerBipRestoration_UtilitySkillBar(CustomBehaviorBaseUtility):
         self.wielders_boon_utility: CustomSkillUtilityBase = WieldersBoonUtility(event_bus=self.event_bus, current_build=in_game_build)
         self.resilient_weapon_utility: CustomSkillUtilityBase = ResilientWeaponUtility(event_bus=self.event_bus, current_build=in_game_build)
         self.mending_grip_utility: CustomSkillUtilityBase = MendingGripUtility(event_bus=self.event_bus, current_build=in_game_build)
-        self.flesh_of_my_flesh_utility: CustomSkillUtilityBase = GenericResurrectionUtility(event_bus=self.event_bus, skill=CustomSkill("Flesh_of_My_Flesh"), current_build=in_game_build, score_definition=ScoreStaticDefinition(94))
 
         # common
         self.ebon_vanguard_assassin_support: CustomSkillUtilityBase = EbonVanguardAssassinSupportUtility(event_bus=self.event_bus, score_definition=ScoreStaticDefinition(71), current_build=in_game_build, mana_required_to_cast=15)
         self.ebon_battle_standard_of_wisdom: CustomSkillUtilityBase = EbonBattleStandardOfWisdom(event_bus=self.event_bus, score_definition= ScorePerAgentQuantityDefinition(lambda agent_qte: 80 if agent_qte >= 3 else 60 if agent_qte <= 2 else 40), current_build=in_game_build, mana_required_to_cast=18)
-        self.i_am_unstopabble: CustomSkillUtilityBase = IAmUnstoppableUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScoreStaticDefinition(99))
-        self.fall_back_utility: CustomSkillUtilityBase = FallBackUtility(event_bus=self.event_bus, current_build=in_game_build)
-        self.signet_of_lost_souls_utility: CustomSkillUtilityBase = SignetOfLostSoulsUtility(event_bus=self.event_bus, current_build=in_game_build)
-        self.by_urals_hammer_utility: CustomSkillUtilityBase = ByUralsHammerUtility(event_bus=self.event_bus, current_build=in_game_build)
 
 
     @property
@@ -78,13 +73,8 @@ class NecromancerBipRestoration_UtilitySkillBar(CustomBehaviorBaseUtility):
             self.wielders_boon_utility,
             self.resilient_weapon_utility,
             self.mending_grip_utility,
-            self.flesh_of_my_flesh_utility,
             self.ebon_vanguard_assassin_support,
             self.ebon_battle_standard_of_wisdom,
-            self.i_am_unstopabble,
-            self.fall_back_utility,
-            self.signet_of_lost_souls_utility,
-            self.by_urals_hammer_utility,
         ]
 
     @property

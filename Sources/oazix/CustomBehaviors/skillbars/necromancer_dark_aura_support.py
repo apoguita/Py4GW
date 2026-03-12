@@ -37,7 +37,6 @@ class NecromancerDarkAuraSupport_UtilitySkillBar(CustomBehaviorBaseUtility):
 
         self.dark_aura: CustomSkillUtilityBase = DarkAuraUtility(event_bus=self.event_bus, score_definition=ScoreStaticDefinition(80), current_build=in_game_build, mana_required_to_cast=10)
 
-
         # optional
         self.great_dwarf_weapon_utility: CustomSkillUtilityBase = GreatDwarfWeaponUtility(event_bus=self.event_bus, current_build=in_game_build, mana_required_to_cast=15, score_definition=ScoreStaticDefinition(51))
         self.blood_is_power_utility: CustomSkillUtilityBase = BloodIsPowerUtility(event_bus=self.event_bus, current_build=in_game_build, sacrifice_life_limit_percent=0.55, required_target_mana_lower_than_percent=0.30,  score_definition=ScoreStaticDefinition(50))
@@ -49,13 +48,6 @@ class NecromancerDarkAuraSupport_UtilitySkillBar(CustomBehaviorBaseUtility):
         # common
         self.ebon_vanguard_assassin_support: CustomSkillUtilityBase = EbonVanguardAssassinSupportUtility(event_bus=self.event_bus, score_definition=ScoreStaticDefinition(71), current_build=in_game_build, mana_required_to_cast=15)
         self.ebon_battle_standard_of_wisdom: CustomSkillUtilityBase = EbonBattleStandardOfWisdom(event_bus=self.event_bus, score_definition= ScorePerAgentQuantityDefinition(lambda agent_qte: 80 if agent_qte >= 3 else 60 if agent_qte <= 2 else 40), current_build=in_game_build, mana_required_to_cast=18)
-        self.i_am_unstopabble: CustomSkillUtilityBase = IAmUnstoppableUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScoreStaticDefinition(99))
-        self.fall_back_utility: CustomSkillUtilityBase = FallBackUtility(event_bus=self.event_bus, current_build=in_game_build)
-        self.signet_of_lost_souls_utility: CustomSkillUtilityBase = SignetOfLostSoulsUtility(event_bus=self.event_bus, current_build=in_game_build)
-        self.by_urals_hammer_utility: CustomSkillUtilityBase = ByUralsHammerUtility(event_bus=self.event_bus, current_build=in_game_build)
-        self.assassins_promise_utility: CustomSkillUtilityBase = AssassinsPromiseUtility(event_bus=self.event_bus, current_build=in_game_build)
-        self.strength_of_honor_utility: CustomSkillUtilityBase = StrengthOfHonorUtility(event_bus=self.event_bus, current_build=in_game_build)
-        self.finish_him_utility: CustomSkillUtilityBase = FinishHimUtility(event_bus=self.event_bus, current_build=in_game_build)
 
     @property
     @override
@@ -68,16 +60,9 @@ class NecromancerDarkAuraSupport_UtilitySkillBar(CustomBehaviorBaseUtility):
             self.foul_feast_utility,
             self.ebon_vanguard_assassin_support,
             self.ebon_battle_standard_of_wisdom,
-            self.i_am_unstopabble,
-            self.fall_back_utility,
-            self.signet_of_lost_souls_utility,
-            self.by_urals_hammer_utility,
             self.soul_taker_utility,
             self.masochism_utility,
             self.dark_aura,
-            self.assassins_promise_utility,
-            self.strength_of_honor_utility,
-            self.finish_him_utility,
         ]
 
     @property

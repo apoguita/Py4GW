@@ -34,9 +34,7 @@ class PsychicInstabilityUtility(CustomSkillUtilityBase):
     @override
     def _execute(self, state: BehaviorState) -> Generator[Any | None, Any | None, BehaviorResult]:
 
-        condition = lambda agent_id: Agent.IsHexed(agent_id)
-        if not self.is_another_interrupt_ready(): # it's better to interrupt even without hex-effect
-            condition = lambda agent_id: True
+        condition = lambda agent_id: True
 
         action: Callable[[], Generator[Any, Any, BehaviorResult]] = lambda: (yield from custom_behavior_helpers.Actions.cast_skill_to_lambda(
             skill=self.custom_skill,

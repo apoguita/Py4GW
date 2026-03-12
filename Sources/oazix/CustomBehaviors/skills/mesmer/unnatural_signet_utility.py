@@ -64,8 +64,7 @@ class UnnaturalSignetUtility(CustomSkillUtilityBase):
 
     @override
     def customized_debug_ui(self, current_state: BehaviorState) -> None:
-        PyImGui.bullet_text(f"should_fallback_if_no_target_found :")
-        self.should_fallback_if_no_target_found = PyImGui.checkbox("##should_fallback_if_no_target_found", self.should_fallback_if_no_target_found)
+        self.should_fallback_if_no_target_found = PyImGui.checkbox("should_fallback_if_no_target_found##should_fallback_if_no_target_found", self.should_fallback_if_no_target_found)
 
     @override
     def has_persistence(self) -> bool:

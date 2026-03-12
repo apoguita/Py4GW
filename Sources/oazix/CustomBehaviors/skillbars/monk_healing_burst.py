@@ -56,15 +56,7 @@ class MonkHealingBurst_UtilitySkillBar(CustomBehaviorBaseUtility):
                                                              prep_skill=CustomSkill("Serpents_Quickness"), 
                                                              target_utilities=[self.seed_of_life_utility, self.selfless_spirit_luxon_utility, self.selfless_spirit_kurzick_utility], current_build=in_game_build, score_definition=ScoreStaticDefinition(94))
         self.dwarven_stability_utility: CustomSkillUtilityBase = KeepSelfEffectUpUtility(event_bus=self.event_bus, current_build=in_game_build, skill=CustomSkill("Dwarven_Stability"), score_definition=ScoreStaticDefinition(95))
-        self.rebirth_utility: CustomSkillUtilityBase = GenericResurrectionUtility(event_bus=self.event_bus, skill=CustomSkill("Rebirth"), current_build=in_game_build, score_definition=ScoreStaticDefinition(94))
         self.breath_of_the_great_dwarf_utility: CustomSkillUtilityBase = BreathOfTheGreatDwarfUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScorePerHealthGravityDefinition(9))
-
-        # common
-        self.i_am_unstopabble: CustomSkillUtilityBase = IAmUnstoppableUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScoreStaticDefinition(99))
-        self.fall_back_utility: CustomSkillUtilityBase = FallBackUtility(event_bus=self.event_bus, current_build=in_game_build)
-        self.signet_of_lost_souls_utility: CustomSkillUtilityBase = SignetOfLostSoulsUtility(event_bus=self.event_bus, current_build=in_game_build)
-        self.by_urals_hammer_utility: CustomSkillUtilityBase = ByUralsHammerUtility(event_bus=self.event_bus, current_build=in_game_build)
-        self.finish_him_utility: CustomSkillUtilityBase = FinishHimUtility(event_bus=self.event_bus, current_build=in_game_build)
 
         # we have an additionnal utility to drop the buff that we could have aquired from mimicry
         self.unyielding_aura_drop_utility: CustomSkillUtilityBase = UnyieldingAuraDropUtility(event_bus=self.event_bus, current_build=in_game_build)
@@ -87,13 +79,7 @@ class MonkHealingBurst_UtilitySkillBar(CustomBehaviorBaseUtility):
     @override
     def custom_skills_in_behavior(self) -> list[CustomSkillUtilityBase]:
         return [
-            self.i_am_unstopabble,
-            self.fall_back_utility,
-            self.signet_of_lost_souls_utility,
-            self.by_urals_hammer_utility,
             self.breath_of_the_great_dwarf_utility,
-            self.finish_him_utility,
-
             self.patient_spirit_utility,
             self.healing_burst_utility,
             self.seed_of_life_utility,
@@ -108,7 +94,6 @@ class MonkHealingBurst_UtilitySkillBar(CustomBehaviorBaseUtility):
             self.vigorous_spirit_utility,
             self.arcane_mimicry_utility,
             self.dwarven_stability_utility,
-            self.rebirth_utility,
         ]
 
     @property

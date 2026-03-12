@@ -351,6 +351,8 @@ class CombatClass:
     def get_combat_distance(self):
         return Range.Spellcast.value if self.in_aggro else Range.Earshot.value
 
+
+
     def GetAppropiateTarget(self, slot):
         v_target = 0
 

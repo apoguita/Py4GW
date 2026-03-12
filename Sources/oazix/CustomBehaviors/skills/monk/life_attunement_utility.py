@@ -79,4 +79,3 @@ class LifeAttunementUtility(CustomSkillUtilityBase):
     def persist_configuration_as_global(self):
         PersistenceLocator().skills.write_global(str(self.custom_skill.skill_name), "buff_configuration", self.buff_configuration.serialize_to_string())
         print("configuration saved as global")
-

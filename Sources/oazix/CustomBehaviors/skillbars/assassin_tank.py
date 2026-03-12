@@ -42,9 +42,7 @@ class AssassinTank_UtilitySkillBar(CustomBehaviorBaseUtility):
         self.death_blossom_utility: CustomSkillUtilityBase = RawCombotAttackUtility(event_bus=self.event_bus, skill=CustomSkill("Death_Blossom"), current_build=in_game_build, score_definition=ScoreCombotDefinition(40), mana_required_to_cast=15)
 
         #common
-        self.i_am_unstopabble: CustomSkillUtilityBase = IAmUnstoppableUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScoreStaticDefinition(45))
         self.ebon_vanguard_assassin_support: CustomSkillUtilityBase = EbonVanguardAssassinSupportUtility(event_bus=self.event_bus, score_definition=ScoreStaticDefinition(40), current_build=in_game_build, mana_required_to_cast=24)
-        self.by_urals_hammer_utility: CustomSkillUtilityBase = ByUralsHammerUtility(event_bus=self.event_bus, current_build=in_game_build)
 
     @property
     @override
@@ -56,7 +54,6 @@ class AssassinTank_UtilitySkillBar(CustomBehaviorBaseUtility):
             self.armor_of_earth_utility,
             self.critical_agility_utility,
             self.ebon_vanguard_assassin_support,
-            self.i_am_unstopabble,
             self.stoneflesh_aura_utility,
             self.silver_armor_utility,
             self.disrupting_dagger_utility,
@@ -64,7 +61,6 @@ class AssassinTank_UtilitySkillBar(CustomBehaviorBaseUtility):
             self.jagged_strike_utility,
             self.fox_fangs_utility,
             self.death_blossom_utility,
-            self.by_urals_hammer_utility,
         ]
 
     @property
