@@ -40,11 +40,12 @@ oldAngle = 0.0  # used for angle change
 hero_formation = [ 0.0, 45.0, -45.0, 90.0, -90.0, 135.0, -135.0, 180.0 , -180.0, 225.0, -225.0, 270.0] # position on the grid of heroes
 
 overlay_explorable_initialized = False
-show_area_rings = True
-show_hero_follow_grid = True
-show_distance_on_followers = True
-show_broadcast_follow_positions = True
-show_broadcast_follow_threshold_rings = True
+show_area_rings = False
+show_hero_follow_grid = False
+show_distance_on_followers = False
+show_broadcast_follow_positions = False
+show_broadcast_follow_threshold_rings = False
+show_flagging_window = False
 
 capture_flag_all = False
 capture_hero_flag = False

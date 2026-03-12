@@ -1024,8 +1024,6 @@ class UIManager:
         """
         Click the Nth dialog option (1-based). Returns True if dispatched.
         """
-        from .GWUI import GWUI
-
         ids = UIManager.GetDialogButtonIDs(debug)
         idx = choice - 1
         if idx < 0 or idx >= len(ids):
@@ -1040,7 +1038,7 @@ class UIManager:
                 f"Clicking dialog choice #{choice} -> frame {target}",
                 Console.MessageType.Info
             )
-        GWUI.FrameClick(target)
+        UIManager.FrameClick(target)
         return True
     
     @staticmethod
@@ -1204,16 +1202,14 @@ class UIManager:
         '''
         Confirm the max amount dialog such as those from Trading and Dropping items by clicking the relevant buttons.
         '''
-        from .GWUI import GWUI
-
         max_amount = UIManager.GetFrameIDByHash(4008686776)
         drop_offer_confirm = UIManager.GetFrameIDByHash(4014954629)
         
         if UIManager.FrameExists(max_amount):
-            GWUI.FrameClick(max_amount)
+            UIManager.FrameClick(max_amount)
             
         if UIManager.FrameExists(drop_offer_confirm):
-            GWUI.FrameClick(drop_offer_confirm)
+            UIManager.FrameClick(drop_offer_confirm)
     
 #region frameInfo
 @dataclass
@@ -1260,10 +1256,8 @@ class FrameInfo:
             UIManager().DrawFrameOutline(self.FrameID, color, thickness)
             
     def FrameClick(self):
-        from .GWUI import GWUI
-
         if self.FrameExists():
-            GWUI.FrameClick(self.FrameID)
+            UIManager.FrameClick(self.FrameID)
             
     def GetCoords(self):
         if self.FrameExists():

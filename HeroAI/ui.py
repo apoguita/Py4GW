@@ -112,6 +112,10 @@ def show_base_configure_consumables_window():
 def is_base_configure_consumables_window_open() -> bool:
     global configure_base_consumables_window_open
     return configure_base_consumables_window_open
+
+def is_party_window_open() -> bool:
+    from Py4GWCoreLib.UIManager import WindowFrames
+    return WindowFrames["PartyWindow"].FrameExists()
     
           
 def get_frame_texture_for_effect(skill_id: int) -> tuple[(GameTexture), TextureState, int]:
