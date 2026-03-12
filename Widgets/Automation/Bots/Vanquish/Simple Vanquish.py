@@ -161,11 +161,11 @@ def _draw_settings():
             _farm_configured[0] = True
 
     if _farm_configured[0]:
-        if PyImGui.button("Reload widget to change Map Settings", 250, 30):
-            #_farm_configured[0] = False
+        if PyImGui.button("Reset selected Map", 250, 30):
             bot.Stop()
-            #bot.config.FSM.reset()
-            #bot.config.initialized = False
+            bot.config.FSM = FSM(BotSettings.BOT_NAME)
+            bot.config.initialized = False
+            _farm_configured[0] = False          
     
     if PyImGui.button("Travel to Embark Beach", 250, 30):
         Map.Travel(857)
