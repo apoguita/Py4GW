@@ -16,6 +16,7 @@ MODULE_ICON = "Textures\\Module_Icons\\Pycons.png"
 try:
     from typing import Any, cast
     import os
+    import shutil
     import re
     import unicodedata
     import PyImGui
@@ -47,8 +48,18 @@ try:
     ALCOHOL_EFFECT_TICK_MS = 1000
     VAULT_RESTOCK_ACTION_MS = 800
     VAULT_RESTOCK_TARGET_QTY = 1
+    RESTOCK_MODE_BALANCED = 0
+    RESTOCK_MODE_WITHDRAW_ONLY = 1
+    RESTOCK_MODE_DEPOSIT_ONLY = 2
+    DEFAULT_RESTOCK_MODE = RESTOCK_MODE_BALANCED
+    MIN_RESTOCK_MOVE_CAP_PER_CYCLE = 1
+    MAX_RESTOCK_MOVE_CAP_PER_CYCLE = 2500
+    DEFAULT_RESTOCK_MOVE_CAP_PER_CYCLE = MAX_RESTOCK_MOVE_CAP_PER_CYCLE
     BLOCKED_ACTION_RETENTION_MS = 45000
     BLOCKED_ACTION_MAX_UI_ROWS = 4
+    EXPERIMENTAL_TEAM_FLAG_SYNC_DEFAULT = True
+    EXPERIMENTAL_MAINLOOP_REFRESH_QUEUE_DEFAULT = True
+    EXPERIMENTAL_MBDP_ENGINE_V2_DEFAULT = True
 
     # Brief cache so multiple "due" items don't rescan bags back-to-back
     INVENTORY_CACHE_MS = 1500
@@ -337,6 +348,8 @@ try:
 
     TOOLTIP_VISIBILITY_OPTIONS = ["Off", "On hover", "Always show"]
     TOOLTIP_LENGTH_OPTIONS = ["Short", "Long"]
+    ALCOHOL_PREFERENCE_OPTIONS = ["Smooth", "Strong-first", "Weak-first"]
+    RESTOCK_MODE_OPTIONS = ["Balanced", "Withdraw only", "Deposit only"]
     SETTINGS_CONSUMABLE_CATEGORY_ORDER = ["explorable", "mbdp", "outpost", "alcohol"]
 
     _TOOLTIP_TEXTS = {
@@ -375,6 +388,11 @@ try:
             "long": "Displays advanced per-item interval options so you can tune how frequently each selected item is checked. This is mostly for performance tuning or specialized pacing strategies.",
             "why": "Wrong interval tuning can increase item burn or delay important triggers.",
         },
+        "persist_main_runtime_toggles": {
+            "short": "Optionally save main-window ON/OFF toggles as defaults.",
+            "long": "When OFF, ON/OFF toggles in the main selected-items list are runtime-only and reset from saved defaults on reload. When ON, those same main-window toggles also update the corresponding saved enabled defaults in Settings.",
+            "why": "Leave OFF for temporary run-only overrides; turn ON when you want quick main-window changes to persist.",
+        },
         "auto_vault_restock": {
             "short": "Auto-restock missing selected consumables from Xunlai Vault.",
             "long": "When enabled, Pycons automatically opens the Xunlai Vault (in outposts) and withdraws missing selected consumables from storage so active upkeep items stay available.",
@@ -384,6 +402,16 @@ try:
             "short": "How often vault balancing checks run.",
             "long": "Controls how frequently Pycons runs the outpost vault-balancing pass for selected restock targets. Use a slower interval than consume checks to reduce chest churn and blocked actions.",
             "why": "Decoupling restock cadence from consume cadence keeps upkeep responsive without over-polling Xunlai actions.",
+        },
+        "restock_mode": {
+            "short": "Choose whether restock withdraws, deposits, or both.",
+            "long": "Balanced keeps inventory near target by withdrawing shortages first, then depositing excess. Withdraw only fills shortages and skips deposits. Deposit only removes excess and skips withdrawals.",
+            "why": "Use Balanced for full target maintenance, or one-way modes when you want tighter control over vault traffic.",
+        },
+        "restock_move_cap_per_cycle": {
+            "short": "Maximum quantity moved in one restock action.",
+            "long": "Limits how many units a single restock action may withdraw or deposit. Lower values reduce per-action inventory swings; higher values converge to target faster.",
+            "why": "Smaller moves can feel smoother during active play; larger moves finish balancing faster.",
         },
         "restock_keep_target_on_deselect": {
             "short": "Keep per-item restock target when item is deselected.",
@@ -434,6 +462,11 @@ try:
             "short": "Conserve rare alcohol using weaker options first.",
             "long": "Weak-first delays strong alcohol usage and climbs more gradually, useful when conserving expensive items matters more than speed.",
             "why": "Best for stretching inventory over long runs.",
+        },
+        "alcohol_preference_mode": {
+            "short": "Choose how alcohol strength is prioritized.",
+            "long": "Smooth aims to hit target efficiently with minimal waste. Strong-first prioritizes high-point alcohol for fastest ramp-up. Weak-first prioritizes lower-point alcohol to conserve stronger stock.",
+            "why": "This directly changes how quickly you reach target and how efficiently inventory is consumed.",
         },
         "mbdp_enabled": {
             "short": "Master toggle for morale/DP automation.",
@@ -678,6 +711,7 @@ try:
         "only_show_available_inventory",
         "only_show_selected_items",
         "show_advanced_intervals",
+        "persist_main_runtime_toggles",
         "auto_vault_restock",
         "restock_keep_target_on_deselect",
         "alcohol_enabled",
@@ -697,8 +731,11 @@ try:
         "only_show_available_inventory",
         "only_show_selected_items",
         "show_advanced_intervals",
+        "persist_main_runtime_toggles",
         "auto_vault_restock",
         "restock_interval_ms",
+        "restock_mode",
+        "restock_move_cap_per_cycle",
         "restock_keep_target_on_deselect",
         "alcohol_enabled",
         "alcohol_disable_effect",
@@ -869,6 +906,11 @@ try:
             except Exception:
                 pass
         cfg.restock_interval_ms = max(MIN_RESTOCK_INTERVAL_MS, int(getattr(cfg, "restock_interval_ms", DEFAULT_RESTOCK_INTERVAL_MS)))
+        cfg.restock_mode = max(RESTOCK_MODE_BALANCED, min(RESTOCK_MODE_DEPOSIT_ONLY, int(getattr(cfg, "restock_mode", DEFAULT_RESTOCK_MODE))))
+        cfg.restock_move_cap_per_cycle = max(
+            MIN_RESTOCK_MOVE_CAP_PER_CYCLE,
+            min(MAX_RESTOCK_MOVE_CAP_PER_CYCLE, int(getattr(cfg, "restock_move_cap_per_cycle", DEFAULT_RESTOCK_MOVE_CAP_PER_CYCLE))),
+        )
 
         for item in ALL_CONSUMABLES:
             k = str(item.get("key", "") or "")
@@ -893,58 +935,67 @@ try:
         _log(f"Loaded custom preset slot {slot}.", Console.MessageType.Info)
         return True
 
+    def _resolve_same_party_accounts_for_opt_toggle(self_email: str):
+        all_accounts = GLOBAL_CACHE.ShMem.GetAllAccountData() or []
+        me = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(self_email)
+        my_party_id = _acc_party_id(me) if me else 0
+        accounts = []
+        party_rows_count = 0
+        if my_party_id > 0:
+            for acc in all_accounts:
+                if not acc:
+                    continue
+                if not bool(getattr(acc, "IsAccount", False)):
+                    continue
+                if _acc_party_id(acc) != my_party_id:
+                    continue
+                accounts.append(acc)
+            return accounts, int(my_party_id), int(party_rows_count)
+
+        # Fallback path when shared-memory party IDs are unavailable:
+        # use live party roster names and map to shared-memory account names.
+        party_rows = _get_party_player_rows()
+        party_name_norms = {str(r.get("name_norm", "") or "") for r in party_rows if str(r.get("name_norm", "") or "")}
+        party_rows_count = len(party_rows)
+        for acc in all_accounts:
+            if not acc:
+                continue
+            if not bool(getattr(acc, "IsAccount", False)):
+                continue
+            cname = _normalize_name(_acc_name(acc))
+            if not cname:
+                continue
+            if cname in party_name_norms:
+                accounts.append(acc)
+        return accounts, int(my_party_id), int(party_rows_count)
+
+    def _set_team_opt_in_for_accounts(accounts, self_email: str, opt_in: bool):
+        updated = 0
+        seen = set()
+        toggled_names = []
+        value = "True" if bool(opt_in) else "False"
+        for acc in accounts:
+            email = _acc_email(acc)
+            if not email or email == self_email or email in seen:
+                continue
+            seen.add(email)
+            email_hash = hashlib.md5(email.encode()).hexdigest()[:8]
+            ini = IniHandler(_resolve_account_ini_path(email_hash, migrate_legacy=True, log_migration=False))
+            ini.write_key(INI_SECTION, "team_consume_opt_in", value)
+            updated += 1
+            nm = _acc_name(acc)
+            if nm:
+                toggled_names.append(nm)
+        return int(updated), toggled_names
+
     def _set_other_party_accounts_opt_in():
         try:
             self_email = str(Player.GetAccountEmail() or "")
             if not self_email:
                 _log("Could not set opt-in for others: local account email unavailable.", Console.MessageType.Warning)
                 return
-            all_accounts = GLOBAL_CACHE.ShMem.GetAllAccountData() or []
-            me = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(self_email)
-            my_party_id = _acc_party_id(me) if me else 0
-            accounts = []
-            party_rows_count = 0
-            if my_party_id > 0:
-                for acc in all_accounts:
-                    if not acc:
-                        continue
-                    if not bool(getattr(acc, "IsAccount", False)):
-                        continue
-                    if _acc_party_id(acc) != my_party_id:
-                        continue
-                    accounts.append(acc)
-            else:
-                # Fallback path when shared-memory party IDs are unavailable:
-                # use live party roster names and map to shared-memory account names.
-                party_rows = _get_party_player_rows()
-                party_name_norms = {str(r.get("name_norm", "") or "") for r in party_rows if str(r.get("name_norm", "") or "")}
-                party_rows_count = len(party_rows)
-                for acc in all_accounts:
-                    if not acc:
-                        continue
-                    if not bool(getattr(acc, "IsAccount", False)):
-                        continue
-                    cname = _normalize_name(_acc_name(acc))
-                    if not cname:
-                        continue
-                    if cname in party_name_norms:
-                        accounts.append(acc)
-
-            updated = 0
-            seen = set()
-            toggled_names = []
-            for acc in accounts:
-                email = _acc_email(acc)
-                if not email or email == self_email or email in seen:
-                    continue
-                seen.add(email)
-                email_hash = hashlib.md5(email.encode()).hexdigest()[:8]
-                ini = IniHandler(f"Widgets/Config/Pycons_{email_hash}.ini")
-                ini.write_key(INI_SECTION, "team_consume_opt_in", "True")
-                updated += 1
-                nm = _acc_name(acc)
-                if nm:
-                    toggled_names.append(nm)
+            accounts, my_party_id, party_rows_count = _resolve_same_party_accounts_for_opt_toggle(self_email)
+            updated, toggled_names = _set_team_opt_in_for_accounts(accounts, self_email, True)
             if updated == 0:
                 cfg.last_party_opt_toggle_summary = "Opt-in ON: none"
                 _log(
@@ -968,46 +1019,8 @@ try:
             if not self_email:
                 _log("Could not set opt-out for others: local account email unavailable.", Console.MessageType.Warning)
                 return
-            all_accounts = GLOBAL_CACHE.ShMem.GetAllAccountData() or []
-            me = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(self_email)
-            my_party_id = _acc_party_id(me) if me else 0
-            accounts = []
-            if my_party_id > 0:
-                for acc in all_accounts:
-                    if not acc:
-                        continue
-                    if not bool(getattr(acc, "IsAccount", False)):
-                        continue
-                    if _acc_party_id(acc) != my_party_id:
-                        continue
-                    accounts.append(acc)
-            else:
-                party_rows = _get_party_player_rows()
-                party_name_norms = {str(r.get("name_norm", "") or "") for r in party_rows if str(r.get("name_norm", "") or "")}
-                for acc in all_accounts:
-                    if not acc:
-                        continue
-                    if not bool(getattr(acc, "IsAccount", False)):
-                        continue
-                    cname = _normalize_name(_acc_name(acc))
-                    if cname and cname in party_name_norms:
-                        accounts.append(acc)
-
-            updated = 0
-            seen = set()
-            toggled_names = []
-            for acc in accounts:
-                email = _acc_email(acc)
-                if not email or email == self_email or email in seen:
-                    continue
-                seen.add(email)
-                email_hash = hashlib.md5(email.encode()).hexdigest()[:8]
-                ini = IniHandler(f"Widgets/Config/Pycons_{email_hash}.ini")
-                ini.write_key(INI_SECTION, "team_consume_opt_in", "False")
-                updated += 1
-                nm = _acc_name(acc)
-                if nm:
-                    toggled_names.append(nm)
+            accounts, _my_party_id_unused, _party_rows_count_unused = _resolve_same_party_accounts_for_opt_toggle(self_email)
+            updated, toggled_names = _set_team_opt_in_for_accounts(accounts, self_email, False)
             if updated == 0:
                 cfg.last_party_opt_toggle_summary = "Opt-in OFF: none"
                 _log("Set team consume opt-in OFF for 0 other party account(s). No non-party accounts were modified.", Console.MessageType.Warning)
@@ -1025,6 +1038,17 @@ try:
             ini = _get_ini_handler()
             new_broadcast = bool(ini.read_bool(INI_SECTION, "team_broadcast", bool(cfg.team_broadcast)))
             new_optin = bool(ini.read_bool(INI_SECTION, "team_consume_opt_in", bool(cfg.team_consume_opt_in)))
+
+            # Default (legacy) behavior: always mirror local flags from INI.
+            if not bool(getattr(cfg, "experimental_team_flag_sync", EXPERIMENTAL_TEAM_FLAG_SYNC_DEFAULT)):
+                cfg.team_broadcast = new_broadcast
+                cfg.team_consume_opt_in = new_optin
+                return
+
+            # Experimental behavior: avoid clobbering local unsaved edits.
+            if bool(getattr(cfg, "_dirty", False)):
+                return
+
             cfg.team_broadcast = new_broadcast
             cfg.team_consume_opt_in = new_optin
         except Exception:
@@ -1106,6 +1130,21 @@ try:
     ALL_BY_KEY = {c["key"]: c for c in ALL_CONSUMABLES}
     MB_DP_BY_KEY = {c["key"]: c for c in MB_DP_ITEMS}
     CONSET_KEYS = {"armor_of_salvation", "essence_of_celerity", "grail_of_might"}
+    MBDP_PARTY_KEYS = frozenset({
+        "elixir_of_valor",
+        "four_leaf_clover",
+        "honeycomb",
+        "oath_of_purity",
+        "powerstone_of_courage",
+        "rainbow_candy_cane",
+    })
+    MBDP_SELF_KEYS = frozenset({
+        "peppermint_candy_cane",
+        "pumpkin_cookie",
+        "refined_jelly",
+        "seal_of_the_dragon_empire",
+        "wintergreen_candy_cane",
+    })
 
     # Central MB/DP defaults (player-friendly effective scale)
     MBDP_DEFAULTS = {
@@ -1293,7 +1332,7 @@ try:
                 })
         return candidates
 
-    def _score_icon_candidate(key: str, label: str, cand: dict) -> int:
+    def _icon_match_profile(key: str, label: str) -> dict:
         key_norm = _normalize_icon_name(key.replace("_", " "))
         label_norm = _normalize_icon_name(label)
         key_tokens = _icon_tokens(key)
@@ -1301,23 +1340,40 @@ try:
         wanted = set(key_tokens) | set(label_tokens)
         for alias in CONSUMABLE_ICON_NAME_ALIASES.get(str(key or ""), ()):
             wanted.update(_icon_tokens(alias))
+        return {
+            "key_norm": key_norm,
+            "label_norm": label_norm,
+            "key_tokens": key_tokens,
+            "label_tokens": label_tokens,
+            "wanted": wanted,
+        }
+
+    def _score_icon_candidate(key: str, label: str, cand: dict, profile=None) -> int:
+        if profile is None:
+            profile = _icon_match_profile(key, label)
+        key_norm = str(profile.get("key_norm", "") or "")
+        label_norm = str(profile.get("label_norm", "") or "")
+        key_tokens = set(profile.get("key_tokens", set()) or set())
+        label_tokens = set(profile.get("label_tokens", set()) or set())
+        wanted = set(profile.get("wanted", set()) or set())
         if not wanted:
             return -1
-        overlap = wanted.intersection(set(cand.get("tokens", set())))
+        cand_tokens = set(cand.get("tokens", set()) or set())
+        overlap = wanted.intersection(cand_tokens)
         if not overlap:
             return -1
         strong_overlap = [t for t in overlap if len(t) >= 4]
         score = int(cand.get("priority", 0))
         score += len(overlap) * 7
         score += len(strong_overlap) * 11
-        cand_norms = set(cand.get("norm_variants", set()))
+        cand_norms = set(cand.get("norm_variants", set()) or set())
         if key_norm in cand_norms:
             score += 160
         if label_norm in cand_norms:
             score += 160
-        if key_tokens and key_tokens.issubset(set(cand.get("tokens", set()))):
+        if key_tokens and key_tokens.issubset(cand_tokens):
             score += 80
-        if label_tokens and label_tokens.issubset(set(cand.get("tokens", set()))):
+        if label_tokens and label_tokens.issubset(cand_tokens):
             score += 70
         if "\\textures\\consumables\\" in str(cand.get("path_lc", "")):
             score += 20
@@ -1339,10 +1395,11 @@ try:
                     return str(_icon_path_by_key_cache[k] or "")
         if _icon_candidates_cache is None:
             _icon_candidates_cache = _build_icon_candidates()
+        profile = _icon_match_profile(k, label)
         best_score = -1
         best_path = ""
         for cand in _icon_candidates_cache:
-            score = _score_icon_candidate(k, label, cand)
+            score = _score_icon_candidate(k, label, cand, profile)
             if score > best_score:
                 best_score = score
                 best_path = str(cand.get("path", "") or "")
@@ -1426,6 +1483,43 @@ try:
         changed = bool(current) != bool(state_now)
         return bool(current), bool(changed), False
 
+    def _draw_static_consumable_icon(
+        key: str,
+        label: str,
+        id_prefix: str,
+        icon_size: float = 18.0,
+        highlight_box: bool = False,
+    ) -> bool:
+        tooltip_text = _consumable_tooltip_with_label(key, label)
+        icon_path = _resolve_consumable_icon_path(key, label)
+        if not icon_path:
+            return False
+        pushed_colors = 0
+        try:
+            try:
+                if bool(highlight_box):
+                    PyImGui.push_style_color(PyImGui.ImGuiCol.Button, (0.10, 0.28, 0.12, 1.00))
+                    PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (0.14, 0.38, 0.16, 1.00))
+                    PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, (0.18, 0.46, 0.20, 1.00))
+                else:
+                    PyImGui.push_style_color(PyImGui.ImGuiCol.Button, (0.02, 0.02, 0.02, 1.00))
+                    PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (0.08, 0.08, 0.08, 1.00))
+                    PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, (0.00, 0.00, 0.00, 1.00))
+                pushed_colors = 3
+            except Exception:
+                pushed_colors = 0
+            ImGui.ImageButton(f"##{id_prefix}_icon_{key}", icon_path, float(icon_size), float(icon_size))
+        except Exception:
+            return False
+        finally:
+            if pushed_colors > 0:
+                try:
+                    PyImGui.pop_style_color(pushed_colors)
+                except Exception:
+                    pass
+        _tooltip_if_hovered(tooltip_text)
+        return True
+
     def _alcohol_display_label(spec: dict) -> str:
         base = str(spec.get("label", "") or "")
         pts = int(spec.get("drunk_add", 0) or 0)
@@ -1443,17 +1537,123 @@ try:
     import hashlib
     _ini_handler_cache = None
     _ini_path_cache = None
+    _ini_generic_fallback_logged = False
+    _ini_generic_cached_with_email_logged = False
+    _PYCONS_CONFIG_DIR = os.path.normpath(os.path.join("Widgets", "Config", "Pycons"))
+    _LEGACY_CONFIG_DIR = os.path.normpath(os.path.join("Widgets", "Config"))
+    _GENERIC_INI_PATH = os.path.normpath(os.path.join(_PYCONS_CONFIG_DIR, "Pycons.ini"))
+    _LEGACY_GENERIC_INI_PATH = os.path.normpath(os.path.join(_LEGACY_CONFIG_DIR, "Pycons.ini"))
+
+    def _norm_path_lower(path: str) -> str:
+        try:
+            return os.path.normpath(str(path or "")).replace("\\", "/").lower()
+        except Exception:
+            return str(path or "").replace("\\", "/").lower()
+
+    def _is_generic_ini_path(path: str) -> bool:
+        try:
+            p = _norm_path_lower(path)
+            return p == _norm_path_lower(_GENERIC_INI_PATH) or p == _norm_path_lower(_LEGACY_GENERIC_INI_PATH)
+        except Exception:
+            return False
+
+    def _ensure_pycons_config_dir() -> bool:
+        try:
+            os.makedirs(_PYCONS_CONFIG_DIR, exist_ok=True)
+            return True
+        except Exception:
+            return False
+
+    def _resolve_account_ini_path(email_hash: str, migrate_legacy: bool = True, log_migration: bool = False) -> str:
+        h = str(email_hash or "").strip()
+        if not h:
+            return _GENERIC_INI_PATH
+
+        canonical = os.path.normpath(os.path.join(_PYCONS_CONFIG_DIR, f"Pycons_{h}.ini"))
+        legacy = os.path.normpath(os.path.join(_LEGACY_CONFIG_DIR, f"Pycons_{h}.ini"))
+
+        if os.path.exists(canonical):
+            return canonical
+
+        if bool(migrate_legacy) and os.path.exists(legacy):
+            try:
+                _ensure_pycons_config_dir()
+                if not os.path.exists(canonical):
+                    shutil.copy2(legacy, canonical)
+                if bool(log_migration):
+                    ConsoleLog(BOT_NAME, f"Migrated config file: {legacy} -> {canonical}", Console.MessageType.Info)
+                return canonical
+            except Exception as e:
+                if bool(log_migration):
+                    ConsoleLog(BOT_NAME, f"Config migration failed ({legacy} -> {canonical}): {e}", Console.MessageType.Warning)
+                return legacy
+
+        _ensure_pycons_config_dir()
+        return canonical
+
+    def _resolve_generic_ini_path(migrate_legacy: bool = True, log_migration: bool = False) -> str:
+        canonical = str(_GENERIC_INI_PATH)
+        legacy = str(_LEGACY_GENERIC_INI_PATH)
+
+        if os.path.exists(canonical):
+            return canonical
+
+        if bool(migrate_legacy) and os.path.exists(legacy):
+            try:
+                _ensure_pycons_config_dir()
+                if not os.path.exists(canonical):
+                    shutil.copy2(legacy, canonical)
+                if bool(log_migration):
+                    ConsoleLog(BOT_NAME, f"Migrated config file: {legacy} -> {canonical}", Console.MessageType.Info)
+                return canonical
+            except Exception as e:
+                if bool(log_migration):
+                    ConsoleLog(BOT_NAME, f"Config migration failed ({legacy} -> {canonical}): {e}", Console.MessageType.Warning)
+                return legacy
+
+        _ensure_pycons_config_dir()
+        return canonical
     
     def _get_ini_handler():
-        global _ini_handler_cache, _ini_path_cache
+        global _ini_handler_cache, _ini_path_cache, _ini_generic_fallback_logged, _ini_generic_cached_with_email_logged
+        if _ini_handler_cache is not None:
+            if _is_generic_ini_path(_ini_path_cache):
+                try:
+                    account_email_live = str(Player.GetAccountEmail() or "")
+                except Exception:
+                    account_email_live = ""
+                if account_email_live and not _ini_generic_cached_with_email_logged:
+                    ConsoleLog(
+                        BOT_NAME,
+                        "Config handler is still bound to generic INI "
+                        f"({_ini_path_cache}) even though account email is now available "
+                        f"({account_email_live}). Restart/reload is required to rebind.",
+                        Console.MessageType.Warning,
+                    )
+                    _ini_generic_cached_with_email_logged = True
+            return _ini_handler_cache
         if _ini_handler_cache is None:
             account_email = Player.GetAccountEmail()
             if not account_email:
                 # Fallback to generic file if not logged in yet
-                _ini_path_cache = "Widgets/Config/Pycons.ini"
+                _ini_path_cache = _resolve_generic_ini_path(migrate_legacy=True, log_migration=True)
+                if not _ini_generic_fallback_logged:
+                    ConsoleLog(
+                        BOT_NAME,
+                        "Account email unavailable at config init; using generic INI "
+                        f"({_ini_path_cache}) for this session.",
+                        Console.MessageType.Warning,
+                    )
+                    _ini_generic_fallback_logged = True
             else:
                 email_hash = hashlib.md5(account_email.encode()).hexdigest()[:8]
-                _ini_path_cache = f"Widgets/Config/Pycons_{email_hash}.ini"
+                _ini_path_cache = _resolve_account_ini_path(email_hash, migrate_legacy=True, log_migration=True)
+            try:
+                parent_dir = os.path.dirname(str(_ini_path_cache or ""))
+                if parent_dir:
+                    os.makedirs(parent_dir, exist_ok=True)
+            except Exception:
+                pass
             _ini_handler_cache = IniHandler(_ini_path_cache)
             ConsoleLog(BOT_NAME, f"Using config file: {_ini_path_cache} (account: {account_email})", Console.MessageType.Info)
         return _ini_handler_cache
@@ -1464,12 +1664,30 @@ try:
             _get_ini_handler()  # Initialize if needed
         return _ini_path_cache
 
+    def _ini_key_exists(ini_handler, section: str, key: str) -> bool:
+        try:
+            val = ini_handler.read_key(section, key, None)
+            if val is None:
+                return False
+            txt = str(val)
+            return txt != ""
+        except Exception:
+            return False
+
     class Config:
         def __init__(self):
             ini_handler = _get_ini_handler()
             self.debug_logging = ini_handler.read_bool(INI_SECTION, "debug_logging", False)
             self.interval_ms = ini_handler.read_int(INI_SECTION, "interval_ms", 1500)
             self.restock_interval_ms = max(MIN_RESTOCK_INTERVAL_MS, int(ini_handler.read_int(INI_SECTION, "restock_interval_ms", DEFAULT_RESTOCK_INTERVAL_MS)))
+            self.restock_mode = max(
+                RESTOCK_MODE_BALANCED,
+                min(RESTOCK_MODE_DEPOSIT_ONLY, int(ini_handler.read_int(INI_SECTION, "restock_mode", DEFAULT_RESTOCK_MODE))),
+            )
+            self.restock_move_cap_per_cycle = max(
+                MIN_RESTOCK_MOVE_CAP_PER_CYCLE,
+                min(MAX_RESTOCK_MOVE_CAP_PER_CYCLE, int(ini_handler.read_int(INI_SECTION, "restock_move_cap_per_cycle", DEFAULT_RESTOCK_MOVE_CAP_PER_CYCLE))),
+            )
             self.show_selected_list = ini_handler.read_bool(INI_SECTION, "show_selected_list", True)
             self.only_show_available_inventory = ini_handler.read_bool(INI_SECTION, "only_show_available_inventory", False)
             self.only_show_selected_items = ini_handler.read_bool(INI_SECTION, "only_show_selected_items", False)
@@ -1488,6 +1706,7 @@ try:
 
             # Optional per-item min intervals
             self.show_advanced_intervals = ini_handler.read_bool(INI_SECTION, "show_advanced_intervals", False)
+            self.persist_main_runtime_toggles = ini_handler.read_bool(INI_SECTION, "persist_main_runtime_toggles", False)
             self.min_interval_ms = {}
             for c in CONSUMABLES:
                 k = c["key"]
@@ -1524,6 +1743,12 @@ try:
             self.settings_outpost_open = ini_handler.read_bool(INI_SECTION, "settings_outpost_open", False)
             self.settings_mbdp_open = ini_handler.read_bool(INI_SECTION, "settings_mbdp_open", False)
             self.settings_alcohol_open = ini_handler.read_bool(INI_SECTION, "settings_alcohol_open", False)
+            # Settings-window top-level section open/closed state
+            self.settings_ui_tooltip_open = ini_handler.read_bool(INI_SECTION, "settings_ui_tooltip_open", False)
+            self.settings_ui_alcohol_open = ini_handler.read_bool(INI_SECTION, "settings_ui_alcohol_open", False)
+            self.settings_ui_mbdp_open = ini_handler.read_bool(INI_SECTION, "settings_ui_mbdp_open", False)
+            self.settings_ui_presets_open = ini_handler.read_bool(INI_SECTION, "settings_ui_presets_open", False)
+            self.settings_ui_restock_open = ini_handler.read_bool(INI_SECTION, "settings_ui_restock_open", False)
 
             # Morale boost + DP upkeep settings
             self.mbdp_enabled = ini_handler.read_bool(INI_SECTION, "mbdp_enabled", bool(MBDP_DEFAULTS["mbdp_enabled"]))
@@ -1585,8 +1810,35 @@ try:
             # Team / multibox settings
             self.team_broadcast = ini_handler.read_bool(INI_SECTION, "team_broadcast", False)
             self.team_consume_opt_in = ini_handler.read_bool(INI_SECTION, "team_consume_opt_in", False)
+            self.experimental_team_flag_sync = ini_handler.read_bool(
+                INI_SECTION,
+                "experimental_team_flag_sync",
+                bool(EXPERIMENTAL_TEAM_FLAG_SYNC_DEFAULT),
+            )
+            self.experimental_mainloop_refresh_queue = ini_handler.read_bool(
+                INI_SECTION,
+                "experimental_mainloop_refresh_queue",
+                bool(EXPERIMENTAL_MAINLOOP_REFRESH_QUEUE_DEFAULT),
+            )
+            self.experimental_mbdp_engine_v2 = ini_handler.read_bool(
+                INI_SECTION,
+                "experimental_mbdp_engine_v2",
+                bool(EXPERIMENTAL_MBDP_ENGINE_V2_DEFAULT),
+            )
+
+            # Backfill newly introduced experimental flags into existing INIs so
+            # users/admins can see explicit values without manual edits.
+            _experimental_defaults_backfilled = False
+            if not _ini_key_exists(ini_handler, INI_SECTION, "experimental_team_flag_sync"):
+                _experimental_defaults_backfilled = True
+            if not _ini_key_exists(ini_handler, INI_SECTION, "experimental_mainloop_refresh_queue"):
+                _experimental_defaults_backfilled = True
+            if not _ini_key_exists(ini_handler, INI_SECTION, "experimental_mbdp_engine_v2"):
+                _experimental_defaults_backfilled = True
 
             self._dirty = bool(getattr(self, "_mbdp_targets_migrated", False))
+            if bool(_experimental_defaults_backfilled):
+                self._dirty = True
             self._save_timer = Timer()
             self._save_timer.Start()
             self._save_timer.Stop()
@@ -1605,6 +1857,16 @@ try:
             ini_handler.write_key(INI_SECTION, "debug_logging", str(bool(self.debug_logging)))
             ini_handler.write_key(INI_SECTION, "interval_ms", str(int(self.interval_ms)))
             ini_handler.write_key(INI_SECTION, "restock_interval_ms", str(int(max(MIN_RESTOCK_INTERVAL_MS, int(self.restock_interval_ms)))))
+            ini_handler.write_key(
+                INI_SECTION,
+                "restock_mode",
+                str(int(max(RESTOCK_MODE_BALANCED, min(RESTOCK_MODE_DEPOSIT_ONLY, int(self.restock_mode))))),
+            )
+            ini_handler.write_key(
+                INI_SECTION,
+                "restock_move_cap_per_cycle",
+                str(int(max(MIN_RESTOCK_MOVE_CAP_PER_CYCLE, min(MAX_RESTOCK_MOVE_CAP_PER_CYCLE, int(self.restock_move_cap_per_cycle))))),
+            )
             ini_handler.write_key(INI_SECTION, "show_selected_list", str(bool(self.show_selected_list)))
             ini_handler.write_key(INI_SECTION, "only_show_available_inventory", str(bool(self.only_show_available_inventory)))
             ini_handler.write_key(INI_SECTION, "only_show_selected_items", str(bool(self.only_show_selected_items)))
@@ -1619,6 +1881,7 @@ try:
                 ini_handler.write_key(INI_SECTION, f"preset_slot_{i}_name", str(self.preset_slot_names.get(i, _preset_slot_default_name(i))))
 
             ini_handler.write_key(INI_SECTION, "show_advanced_intervals", str(bool(self.show_advanced_intervals)))
+            ini_handler.write_key(INI_SECTION, "persist_main_runtime_toggles", str(bool(self.persist_main_runtime_toggles)))
             for k, v in self.min_interval_ms.items():
                 ini_handler.write_key(INI_SECTION, f"min_interval_{k}", str(int(max(0, int(v)))))
 
@@ -1650,6 +1913,14 @@ try:
             ini_handler.write_key(INI_SECTION, "settings_outpost_open", str(bool(self.settings_outpost_open)))
             ini_handler.write_key(INI_SECTION, "settings_mbdp_open", str(bool(self.settings_mbdp_open)))
             ini_handler.write_key(INI_SECTION, "settings_alcohol_open", str(bool(self.settings_alcohol_open)))
+            ini_handler.write_key(INI_SECTION, "settings_ui_tooltip_open", str(bool(self.settings_ui_tooltip_open)))
+            ini_handler.write_key(INI_SECTION, "settings_ui_alcohol_open", str(bool(self.settings_ui_alcohol_open)))
+            ini_handler.write_key(INI_SECTION, "settings_ui_mbdp_open", str(bool(self.settings_ui_mbdp_open)))
+            ini_handler.write_key(INI_SECTION, "settings_ui_presets_open", str(bool(self.settings_ui_presets_open)))
+            ini_handler.write_key(INI_SECTION, "settings_ui_restock_open", str(bool(self.settings_ui_restock_open)))
+            ini_handler.write_key(INI_SECTION, "experimental_team_flag_sync", str(bool(self.experimental_team_flag_sync)))
+            ini_handler.write_key(INI_SECTION, "experimental_mainloop_refresh_queue", str(bool(self.experimental_mainloop_refresh_queue)))
+            ini_handler.write_key(INI_SECTION, "experimental_mbdp_engine_v2", str(bool(self.experimental_mbdp_engine_v2)))
 
             for k, v in self.alcohol_selected.items():
                 ini_handler.write_key(INI_SECTION, f"alcohol_selected_{k}", str(bool(v)))
@@ -1667,8 +1938,11 @@ try:
             # Team / multibox settings
             # team_broadcast: When enabled, broadcasts item usage to other accounts
             # team_consume_opt_in: When enabled (on followers), consumes items when broadcasts are received
-            # Note: team_consume_opt_in is saved separately (below in settings window) to avoid conflicts
+            # Legacy behavior keeps team_consume_opt_in saved by immediate settings writes.
+            # Experimental team-flag sync writes both flags here to reduce refresh races.
             ini_handler.write_key(INI_SECTION, "team_broadcast", str(bool(self.team_broadcast)))
+            if bool(getattr(self, "experimental_team_flag_sync", EXPERIMENTAL_TEAM_FLAG_SYNC_DEFAULT)):
+                ini_handler.write_key(INI_SECTION, "team_consume_opt_in", str(bool(self.team_consume_opt_in)))
 
             for k, v in self.selected.items():
                 ini_handler.write_key(INI_SECTION, f"selected_{k}", str(bool(v)))
@@ -1764,6 +2038,7 @@ try:
     _inv_counts_by_model = {}
     _inv_ready_cached = True
     _inv_ready_ts = 0
+    _pending_refresh_due_ms = []
     _first_main_call = True
     _vault_deposit_dest_cooldown_until = {}
     _vault_last_confirmed_storage_bag_id = 0
@@ -1911,17 +2186,30 @@ try:
             _rt.runtime_alcohol_selected[k] = bool(cfg.alcohol_selected.get(k, False))
             _rt.runtime_alcohol_enabled[k] = bool(cfg.alcohol_enabled_items.get(k, False))
 
-    def _runtime_regular_selected(key: str) -> bool:
-        return bool(_rt.runtime_selected.get(key, bool(cfg.selected.get(key, False))))
-
     def _runtime_regular_enabled(key: str) -> bool:
         return bool(_rt.runtime_enabled.get(key, bool(cfg.enabled.get(key, False))))
 
-    def _runtime_alcohol_selected(key: str) -> bool:
-        return bool(_rt.runtime_alcohol_selected.get(key, bool(cfg.alcohol_selected.get(key, False))))
-
     def _runtime_alcohol_enabled(key: str) -> bool:
         return bool(_rt.runtime_alcohol_enabled.get(key, bool(cfg.alcohol_enabled_items.get(key, False))))
+
+    def _main_runtime_persist_enabled() -> bool:
+        return bool(getattr(cfg, "persist_main_runtime_toggles", False))
+
+    def _set_main_runtime_regular_enabled(key: str, enabled: bool):
+        value = bool(enabled)
+        _rt.runtime_enabled[key] = value
+        if _main_runtime_persist_enabled():
+            if bool(cfg.enabled.get(key, False)) != value:
+                cfg.enabled[key] = value
+                cfg.mark_dirty()
+
+    def _set_main_runtime_alcohol_enabled(key: str, enabled: bool):
+        value = bool(enabled)
+        _rt.runtime_alcohol_enabled[key] = value
+        if _main_runtime_persist_enabled():
+            if bool(cfg.alcohol_enabled_items.get(key, False)) != value:
+                cfg.alcohol_enabled_items[key] = value
+                cfg.mark_dirty()
 
     def _enabled_selected_keys():
         return [k for k in cfg.enabled.keys() if bool(cfg.selected.get(k, False)) and _runtime_regular_enabled(k)]
@@ -2057,12 +2345,19 @@ try:
 
         return True, target, pool_keys, in_explorable, now, cur_level
 
-    def _apply_regular_selection_change(key: str, selected: bool):
-        cfg.selected[key] = bool(selected)
-        _rt.runtime_selected[key] = bool(selected)
+    def _apply_selection_change_core(
+        key: str,
+        selected: bool,
+        selected_map: dict,
+        runtime_selected_map: dict,
+        enabled_map: dict,
+        runtime_enabled_map: dict,
+    ):
+        selected_map[key] = bool(selected)
+        runtime_selected_map[key] = bool(selected)
         if not bool(selected):
-            cfg.enabled[key] = False
-            _rt.runtime_enabled[key] = False
+            enabled_map[key] = False
+            runtime_enabled_map[key] = False
             _apply_restock_target_on_deselect(key)
             if not _any_selected_anywhere():
                 cfg.show_selected_list = False
@@ -2074,22 +2369,25 @@ try:
             request_expand_selected[0] = True
         cfg.mark_dirty()
 
+    def _apply_regular_selection_change(key: str, selected: bool):
+        _apply_selection_change_core(
+            key,
+            bool(selected),
+            cfg.selected,
+            _rt.runtime_selected,
+            cfg.enabled,
+            _rt.runtime_enabled,
+        )
+
     def _apply_alcohol_selection_change(key: str, selected: bool):
-        cfg.alcohol_selected[key] = bool(selected)
-        _rt.runtime_alcohol_selected[key] = bool(selected)
-        if not bool(selected):
-            cfg.alcohol_enabled_items[key] = False
-            _rt.runtime_alcohol_enabled[key] = False
-            _apply_restock_target_on_deselect(key)
-            if not _any_selected_anywhere():
-                cfg.show_selected_list = False
-                request_collapse_selected[0] = True
-        else:
-            _apply_restock_target_on_select(key)
-            if not bool(cfg.show_selected_list):
-                cfg.show_selected_list = True
-            request_expand_selected[0] = True
-        cfg.mark_dirty()
+        _apply_selection_change_core(
+            key,
+            bool(selected),
+            cfg.alcohol_selected,
+            _rt.runtime_alcohol_selected,
+            cfg.alcohol_enabled_items,
+            _rt.runtime_alcohol_enabled,
+        )
 
     # -------------------------
     # Skill resolution (robust)
@@ -2188,6 +2486,17 @@ try:
     # Inventory caching + stock counts
     # -------------------------
     def _schedule_refresh(delay_ms: int):
+        if bool(getattr(cfg, "experimental_mainloop_refresh_queue", EXPERIMENTAL_MAINLOOP_REFRESH_QUEUE_DEFAULT)):
+            try:
+                due_ms = int(_now_ms()) + max(0, int(delay_ms))
+            except Exception:
+                due_ms = int(_now_ms())
+            # Keep this bounded in pathological loops.
+            if len(_pending_refresh_due_ms) > 64:
+                del _pending_refresh_due_ms[0:len(_pending_refresh_due_ms) - 64]
+            _pending_refresh_due_ms.append(int(due_ms))
+            return
+
         try:
             t = threading.Timer(delay_ms / 1000.0, lambda: _refresh_inventory_cache(force=True))
             t.daemon = True
@@ -2197,6 +2506,28 @@ try:
                 _debug(f"Failed to schedule inventory refresh: {e}", Console.MessageType.Debug)
             except Exception:
                 pass
+
+    def _drain_scheduled_refresh_queue():
+        if not bool(getattr(cfg, "experimental_mainloop_refresh_queue", EXPERIMENTAL_MAINLOOP_REFRESH_QUEUE_DEFAULT)):
+            return
+        if not _pending_refresh_due_ms:
+            return
+
+        now = int(_now_ms())
+        due_count = 0
+        for due in _pending_refresh_due_ms:
+            try:
+                if int(due) <= int(now):
+                    due_count += 1
+            except Exception:
+                due_count += 1
+
+        if due_count <= 0:
+            return
+
+        # Coalesce multiple due entries into one forced refresh this frame.
+        del _pending_refresh_due_ms[0:due_count]
+        _refresh_inventory_cache(force=True)
 
     def _refresh_inventory_cache(force: bool = False) -> bool:
         global _inv_cache_items, _inv_cache_ts, _inv_counts_by_model
@@ -2485,6 +2816,20 @@ try:
             raw_val = int(VAULT_RESTOCK_TARGET_QTY)
         return max(0, min(2500, int(raw_val)))
 
+    def _restock_mode_value() -> int:
+        try:
+            raw_val = int(getattr(cfg, "restock_mode", DEFAULT_RESTOCK_MODE))
+        except Exception:
+            raw_val = int(DEFAULT_RESTOCK_MODE)
+        return max(RESTOCK_MODE_BALANCED, min(RESTOCK_MODE_DEPOSIT_ONLY, int(raw_val)))
+
+    def _restock_move_cap_per_cycle_value() -> int:
+        try:
+            raw_val = int(getattr(cfg, "restock_move_cap_per_cycle", DEFAULT_RESTOCK_MOVE_CAP_PER_CYCLE))
+        except Exception:
+            raw_val = int(DEFAULT_RESTOCK_MOVE_CAP_PER_CYCLE)
+        return max(MIN_RESTOCK_MOVE_CAP_PER_CYCLE, min(MAX_RESTOCK_MOVE_CAP_PER_CYCLE, int(raw_val)))
+
     def _selected_restock_specs() -> list[tuple[str, dict]]:
         out = []
         for spec in ALL_CONSUMABLES:
@@ -2627,6 +2972,40 @@ try:
                     continue
         return out
 
+    def _storage_slot_item_info(bag_id: int, slot: int) -> tuple[int, int]:
+        bag_id = int(bag_id or 0)
+        slot = int(slot)
+        if bag_id <= 0:
+            return 0, 0
+        for bag_enum, _bag, _size, items in _get_storage_bag_handles():
+            if int(bag_enum.value) != int(bag_id):
+                continue
+            for it in items:
+                try:
+                    if int(getattr(it, "slot", -99999) or -99999) != int(slot):
+                        continue
+                    item_id = int(getattr(it, "item_id", 0) or 0)
+                    model_id = int(getattr(it, "model_id", 0) or 0)
+                    return int(item_id), int(model_id)
+                except Exception:
+                    continue
+            return 0, 0
+        return 0, 0
+
+    def _allow_slot_edge_candidates(size: int, occupied: set[int]) -> tuple[bool, bool]:
+        size = int(size or 0)
+        has_zero = 0 in occupied
+        has_size = int(size) in occupied
+        allow_zero = bool(has_zero and (not has_size))
+        allow_size = bool(has_size and (not has_zero))
+        if bool(getattr(cfg, "debug_logging", False)) and (bool(allow_zero) or bool(allow_size)):
+            _debug(
+                f"Vault restock: slot edge candidates enabled (size={int(size)}, "
+                f"allow_zero={bool(allow_zero)}, allow_size={bool(allow_size)}).",
+                Console.MessageType.Debug,
+            )
+        return bool(allow_zero), bool(allow_size)
+
     def _empty_slot_candidates(size: int, occupied_slots: set[int]) -> list[int]:
         size = int(size or 0)
         if size <= 0:
@@ -2639,30 +3018,22 @@ try:
             except Exception:
                 continue
 
-        # Some runtime builds expose bag slots as 0-based and others as 1-based.
-        # Prefer free slots that are valid in both schemes first to avoid invalid
-        # "slot 0" / "slot size" destinations when moving to empty slots.
-        zero_based = [slot for slot in range(0, int(size)) if slot not in occupied]
-        one_based = [slot for slot in range(1, int(size) + 1) if slot not in occupied]
-        one_based_set = set(one_based)
-        shared = [slot for slot in zero_based if slot in one_based_set]
-
-        if shared:
-            primary = list(shared)
-        elif 0 in occupied and int(size) not in occupied:
-            primary = list(zero_based)
-        elif int(size) in occupied and 0 not in occupied:
-            primary = list(one_based)
-        else:
-            primary = list(one_based if one_based else zero_based)
+        # Prefer interior slots valid in both 0-based and 1-based schemes.
+        # Only use edge slots (0 or size) when indexing evidence is unambiguous.
+        shared = [slot for slot in range(1, int(size)) if slot not in occupied]
+        allow_zero_edge, allow_size_edge = _allow_slot_edge_candidates(int(size), occupied)
 
         out = []
-        for slot in list(primary) + list(one_based) + list(zero_based):
+        for slot in shared:
             slot = int(slot)
             if slot in occupied:
                 continue
             if slot not in out:
                 out.append(int(slot))
+        if bool(allow_zero_edge) and 0 not in occupied and 0 not in out:
+            out.append(0)
+        if bool(allow_size_edge) and int(size) not in occupied and int(size) not in out:
+            out.append(int(size))
         return out
 
     def _find_inventory_withdraw_destination(model_id: int, max_quantity: int, is_stackable: bool):
@@ -2767,9 +3138,9 @@ try:
                 if move_qty > 0:
                     empties.append((int(bag_enum.value), int(slot), int(move_qty), False))
 
-        # Deposit preference: highest existing partial stack first.
+        # Deposit preference: highest existing partial stack first, then safe empty
+        # slots in generated priority order (do not re-sort empties by slot).
         partials.sort(key=lambda d: (-int(d[4]), int(d[0]), int(d[1])))
-        empties.sort(key=lambda d: (int(d[0]), int(d[1])))
         merged = [(d[0], d[1], d[2], d[3]) for d in partials] + empties
 
         # When a previous deposit succeeded, prefer staying on that storage bag/tab.
@@ -2940,6 +3311,33 @@ try:
             for bag_id, slot, move_qty, _into_existing_stack in destinations:
                 move_qty = int(max(1, min(int(move_qty), int(max_move))))
                 try:
+                    # Re-validate destination occupancy immediately before MoveItem.
+                    # This prevents swaps when a candidate no longer points at a truly
+                    # empty slot (or expected same-model partial stack).
+                    dst_item_id, dst_model_id = _storage_slot_item_info(int(bag_id), int(slot))
+                    if bool(_into_existing_stack):
+                        if int(dst_item_id) <= 0 or int(dst_model_id) != int(model_id):
+                            if bool(getattr(cfg, "debug_logging", False)):
+                                _debug(
+                                    f"Vault restock: skipping deposit destination (model_id={int(model_id)}, "
+                                    f"dest={int(bag_id)}:{int(slot)}, into_existing=True, "
+                                    f"dst_item_id={int(dst_item_id)}, dst_model_id={int(dst_model_id)}).",
+                                    Console.MessageType.Debug,
+                                )
+                            _mark_deposit_dest_cooldown(int(model_id), int(bag_id), int(slot), 3000)
+                            continue
+                    else:
+                        if int(dst_item_id) > 0:
+                            if bool(getattr(cfg, "debug_logging", False)):
+                                _debug(
+                                    f"Vault restock: skipping deposit destination (model_id={int(model_id)}, "
+                                    f"dest={int(bag_id)}:{int(slot)}, into_existing=False, "
+                                    f"dst_item_id={int(dst_item_id)}, dst_model_id={int(dst_model_id)}).",
+                                    Console.MessageType.Debug,
+                                )
+                            _mark_deposit_dest_cooldown(int(model_id), int(bag_id), int(slot), 3000)
+                            continue
+
                     # Prefer direct MoveItem result for storage actions; queued wrappers can
                     # report optimistic success without confirming an actual move.
                     moved_ok = False
@@ -3036,7 +3434,14 @@ try:
 
         shortage_first = [c for c in candidates if int(c[5]) > 0]
         excess_second = [c for c in candidates if int(c[5]) < 0]
-        ordered_candidates = shortage_first + excess_second
+        restock_mode = int(_restock_mode_value())
+        if restock_mode == int(RESTOCK_MODE_WITHDRAW_ONLY):
+            ordered_candidates = shortage_first
+        elif restock_mode == int(RESTOCK_MODE_DEPOSIT_ONLY):
+            ordered_candidates = excess_second
+        else:
+            ordered_candidates = shortage_first + excess_second
+        move_cap_per_cycle = int(_restock_move_cap_per_cycle_value())
 
         for key, spec, model_id, _cur_count, _target_count, _delta in ordered_candidates:
             # Guard against runtime/UI changes while iterating candidates.
@@ -3076,7 +3481,7 @@ try:
                         _debug(f"Vault restock: no storage stock for {label}.")
                     continue
 
-                to_withdraw = max(1, min(int(live_delta), int(in_storage)))
+                to_withdraw = max(1, min(int(live_delta), int(in_storage), int(move_cap_per_cycle)))
                 try:
                     ok, moved_qty = _withdraw_model_amount(int(model_id), int(to_withdraw))
                 except Exception as e:
@@ -3116,6 +3521,7 @@ try:
                 continue
 
             excess = int(max(0, -int(live_delta)))
+            excess = int(min(int(excess), int(move_cap_per_cycle)))
             if excess <= 0:
                 continue
 
@@ -3431,6 +3837,9 @@ try:
 
     def _acc_player_morale(acc) -> int:
         try:
+            agent_data = getattr(acc, "AgentData", None)
+            if agent_data is not None and hasattr(agent_data, "Morale"):
+                return int(getattr(agent_data, "Morale", 0) or 0)
             return int(getattr(acc, "PlayerMorale", 0) or 0)
         except Exception:
             return 0
@@ -3445,7 +3854,7 @@ try:
         try:
             import hashlib
             email_hash = hashlib.md5(account_email.encode()).hexdigest()[:8]
-            ini = IniHandler(f"Widgets/Config/Pycons_{email_hash}.ini")
+            ini = IniHandler(_resolve_account_ini_path(email_hash, migrate_legacy=True, log_migration=False))
             is_broadcaster = bool(ini.read_bool(INI_SECTION, "team_broadcast", False))
             is_optin = bool(ini.read_bool(INI_SECTION, "team_consume_opt_in", False))
         except Exception:
@@ -3466,6 +3875,9 @@ try:
             return {"raw": raw, "effective": -dp, "morale_boost": 0, "dp": dp, "format": "dp_only"}
         eff = max(-60, min(10, raw - 100))
         return {"raw": raw, "effective": eff, "morale_boost": max(0, eff), "dp": max(0, -eff), "format": "effective"}
+
+    def _morale_states_for_targeting(states: list[dict]) -> list[dict]:
+        return [s for s in states if str(s.get("format", "")) != "unknown"]
 
     def _get_party_player_rows():
         rows = []
@@ -3632,7 +4044,13 @@ try:
             else:
                 if str(row.get("member_type", "")) not in ("hero", "mercenary", "henchman"):
                     continue
+            # API compatibility: some builds key Party.GetPartyMorale() by agent_id,
+            # others by login_number (player_id). Try both.
             raw = morale_by_agent.get(int(row["agent_id"]), None)
+            if raw is None:
+                login_number = int(row.get("login_number", 0) or 0)
+                if login_number > 0:
+                    raw = morale_by_agent.get(login_number, None)
             if raw is None:
                 acc = accounts_by_name.get(row["name_norm"])
                 if acc:
@@ -3665,7 +4083,307 @@ try:
         leader_email = _acc_email(broadcasters[0])
         return bool(self_email and leader_email and self_email == leader_email)
 
+    def _mbdp_tick_precheck() -> bool:
+        if not bool(cfg.mbdp_enabled):
+            return False
+        if not Routines.Checks.Map.MapValid():
+            return False
+        if _should_block_consumption():
+            return False
+        if not bool(_in_explorable()):
+            return False
+        if not (aftercast_timer.IsStopped() or aftercast_timer.HasElapsed(int(AFTERCAST_MS))):
+            return False
+        return True
+
+    def _mbdp_run_self_phase() -> bool:
+        self_state = _morale_state(int(Player.GetMorale() or 0))
+        self_dp = int(self_state["dp"])
+        self_eff = int(self_state["effective"])
+        st = _warn_timer_for("mbdp_self_state")
+        if st.IsStopped() or st.HasElapsed(2500):
+            st.Start()
+            _debug(f"MB/DP SELF state: raw={self_state['raw']} effective={_fmt_effective(self_eff)} dp={self_dp}")
+
+        # Self DP upkeep: remove-all first if high DP.
+        self_major_dp_threshold = max(0, -int(cfg.mbdp_self_dp_major_threshold))
+        self_minor_dp_threshold = max(0, -int(cfg.mbdp_self_dp_minor_threshold))
+
+        if self_dp >= self_major_dp_threshold:
+            spec, item_id = _find_item_enabled_and_available("peppermint_candy_cane")
+            if spec and item_id > 0:
+                _debug(
+                    f"MB/DP SELF fire {spec['label']}: raw={self_state['raw']} eff={_fmt_effective(self_eff)} "
+                    f"dp={self_dp} trigger={_fmt_effective(cfg.mbdp_self_dp_major_threshold)} (~{self_major_dp_threshold}% DP)"
+                )
+                if _use_item_id(item_id, spec["key"]):
+                    aftercast_timer.Start()
+                    _last_used_ms[spec["key"]] = _now_ms()
+                    return True
+
+        if self_dp >= self_minor_dp_threshold:
+            for key in ("refined_jelly", "wintergreen_candy_cane"):
+                spec, item_id = _find_item_enabled_and_available(key)
+                if spec and item_id > 0:
+                    _debug(
+                        f"MB/DP SELF fire {spec['label']}: raw={self_state['raw']} eff={_fmt_effective(self_eff)} "
+                        f"dp={self_dp} trigger={_fmt_effective(cfg.mbdp_self_dp_minor_threshold)} (~{self_minor_dp_threshold}% DP)"
+                    )
+                    if _use_item_id(item_id, spec["key"]):
+                        aftercast_timer.Start()
+                        _last_used_ms[spec["key"]] = _now_ms()
+                        return True
+                    break
+
+        # Self morale upkeep: only fire if gain would not be mostly wasted.
+        gain_if_10 = max(0, min(10, 10 - self_eff))
+        if self_eff < int(cfg.mbdp_self_morale_target_effective) and gain_if_10 >= int(cfg.mbdp_self_min_morale_gain):
+            order = ("seal_of_the_dragon_empire", "pumpkin_cookie") if bool(cfg.mbdp_prefer_seal_for_recharge) else ("pumpkin_cookie", "seal_of_the_dragon_empire")
+            for key in order:
+                spec, item_id = _find_item_enabled_and_available(key)
+                if spec and item_id > 0:
+                    _debug(
+                        f"MB/DP SELF fire {spec['label']}: raw={self_state['raw']} eff={_fmt_effective(self_eff)} dp={self_dp} "
+                        f"target={_fmt_effective(cfg.mbdp_self_morale_target_effective)} gain10={gain_if_10}"
+                    )
+                    if _use_item_id(item_id, spec["key"]):
+                        aftercast_timer.Start()
+                        _last_used_ms[spec["key"]] = _now_ms()
+                        return True
+                    break
+        return False
+
+    def _mbdp_prepare_party_context():
+        if not bool(cfg.team_broadcast):
+            return None
+        same_party_accounts = _get_same_party_accounts()
+        if not same_party_accounts:
+            return None
+        if not _coordinator_gate(same_party_accounts):
+            return None
+
+        party_rows, party_counts = _get_party_member_rows()
+        if not party_rows:
+            return None
+        party_human_name_norms = {r["name_norm"] for r in party_rows if bool(r.get("is_human", False)) and r.get("name_norm")}
+        self_email = str(Player.GetAccountEmail() or "")
+        self_name_norm = _normalize_name(Player.GetName())
+        if not self_name_norm:
+            for acc in same_party_accounts:
+                if _acc_email(acc) == self_email:
+                    self_name_norm = _normalize_name(_acc_name(acc))
+                    break
+        other_human_name_norms = set(party_human_name_norms)
+        if self_name_norm in other_human_name_norms:
+            other_human_name_norms.remove(self_name_norm)
+        else:
+            # If local name could not be resolved, avoid false "other human" positives in solo+NPC parties.
+            other_human_name_norms = set()
+        npc_member_count = int(party_counts["heroes"]) + int(party_counts["mercenaries"]) + int(party_counts["henchmen"])
+        _debug(
+            f"MB/DP PARTY roster: total={len(party_rows)} humans={party_counts['humans']} heroes={party_counts['heroes']} "
+            f"mercs={party_counts['mercenaries']} hench={party_counts['henchmen']}"
+        )
+
+        broadcasters = set()
+        optins = set()
+        recipients_emails = []
+        for acc in same_party_accounts:
+            email = _acc_email(acc)
+            name_norm = _normalize_name(_acc_name(acc))
+            if not email or not name_norm:
+                continue
+            b, o = _load_team_flags_for_email(email)
+            if b:
+                broadcasters.add(name_norm)
+            if o:
+                optins.add(name_norm)
+                if name_norm in party_human_name_norms and email != self_email:
+                    recipients_emails.append(email)
+
+        eligible_humans = party_human_name_norms.intersection(broadcasters.union(optins))
+        eligible_total = len(eligible_humans) + npc_member_count
+        if eligible_total < int(cfg.mbdp_party_min_members):
+            _debug(
+                f"MB/DP PARTY skip: eligible_total={eligible_total} (humans={len(eligible_humans)}, npc={npc_member_count}) "
+                f"< min_members={cfg.mbdp_party_min_members}"
+            )
+            return None
+        if other_human_name_norms and len(recipients_emails) < 1:
+            _debug(
+                f"MB/DP PARTY skip: no opted-in recipients among other humans in current party "
+                f"(other_humans={len(other_human_name_norms)})."
+            )
+            return None
+
+        if (not bool(cfg.mbdp_allow_partywide_in_human_parties)) and len(party_human_name_norms.difference(eligible_humans)) > 0:
+            _debug(
+                f"MB/DP PARTY skip: found non-eligible human party members ({len(party_human_name_norms.difference(eligible_humans))}); "
+                "enable 'allow party-wide in human parties' to override."
+            )
+            return None
+
+        now = _now_ms()
+        if _last_mbdp_party_ms > 0 and (now - int(_last_mbdp_party_ms)) < int(cfg.mbdp_party_min_interval_ms):
+            return None
+
+        states = _compute_party_morale_states(eligible_humans, party_rows, same_party_accounts)
+        if len(states) < int(cfg.mbdp_party_min_members):
+            _debug(
+                f"MB/DP PARTY skip: sampled_members={len(states)} < min_members={cfg.mbdp_party_min_members} "
+                f"(humans={party_counts['humans']} heroes={party_counts['heroes']} mercs={party_counts['mercenaries']} hench={party_counts['henchmen']})"
+            )
+            return None
+        if states:
+            _debug(f"MB/DP PARTY sample: {states[0]['name']} raw={states[0]['raw']} effective={_fmt_effective(states[0]['effective'])} dp={states[0]['dp']}")
+
+        total_dp = sum(int(s["dp"]) for s in states)
+        party_light_dp_threshold = max(0, -int(cfg.mbdp_party_light_dp_threshold))
+        party_heavy_dp_threshold = max(0, -int(cfg.mbdp_party_heavy_dp_threshold))
+        party_emergency_dp_threshold = max(0, -int(cfg.mbdp_powerstone_dp_threshold))
+        light_cnt = sum(1 for s in states if int(s["dp"]) >= party_light_dp_threshold)
+        heavy_cnt = sum(1 for s in states if int(s["dp"]) >= party_heavy_dp_threshold)
+        emergency_cnt = sum(1 for s in states if int(s["dp"]) >= party_emergency_dp_threshold)
+        target_states = _morale_states_for_targeting(states)
+        target_eff = int(cfg.mbdp_party_target_effective)
+        gain_5 = sum(max(0, min(5, target_eff - int(s["effective"]))) for s in target_states)
+        gain_10 = sum(max(0, min(10, target_eff - int(s["effective"]))) for s in target_states)
+        strict_target = int(cfg.mbdp_party_target_effective)
+        strict_target_missing = sum(max(0, strict_target - int(s["effective"])) for s in target_states)
+        strict_target_members = sum(1 for s in target_states if int(s["effective"]) < strict_target)
+
+        return {
+            "same_party_accounts": same_party_accounts,
+            "party_rows": party_rows,
+            "party_counts": party_counts,
+            "states": states,
+            "total_dp": int(total_dp),
+            "light_cnt": int(light_cnt),
+            "heavy_cnt": int(heavy_cnt),
+            "emergency_cnt": int(emergency_cnt),
+            "party_light_dp_threshold": int(party_light_dp_threshold),
+            "party_heavy_dp_threshold": int(party_heavy_dp_threshold),
+            "party_emergency_dp_threshold": int(party_emergency_dp_threshold),
+            "gain_5": int(gain_5),
+            "gain_10": int(gain_10),
+            "strict_target": int(strict_target),
+            "strict_target_missing": int(strict_target_missing),
+            "strict_target_members": int(strict_target_members),
+            "recipients_emails": list(recipients_emails),
+            "now": int(now),
+        }
+
+    def _mbdp_build_party_candidates(ctx: dict) -> list[tuple[str, str]]:
+        candidate_choices = []
+        if int(ctx["emergency_cnt"]) >= int(cfg.mbdp_party_min_members):
+            candidate_choices.append(
+                ("powerstone_of_courage", f"emergency_cnt={ctx['emergency_cnt']} trigger={_fmt_effective(cfg.mbdp_powerstone_dp_threshold)} (~{ctx['party_emergency_dp_threshold']}% DP)")
+            )
+        if int(ctx["heavy_cnt"]) >= int(cfg.mbdp_party_min_members):
+            candidate_choices.append(
+                ("oath_of_purity", f"heavy_cnt={ctx['heavy_cnt']} trigger={_fmt_effective(cfg.mbdp_party_heavy_dp_threshold)} (~{ctx['party_heavy_dp_threshold']}% DP)")
+            )
+        if int(ctx["light_cnt"]) >= int(cfg.mbdp_party_min_members):
+            candidate_choices.append(
+                ("four_leaf_clover", f"light_cnt={ctx['light_cnt']} trigger={_fmt_effective(cfg.mbdp_party_light_dp_threshold)} (~{ctx['party_light_dp_threshold']}% DP)")
+            )
+
+        leader_force_active = bool(cfg.mbdp_strict_party_plus10)
+        if leader_force_active:
+            # In leader force mode, morale spending is strictly target-driven.
+            # Only add morale candidates if party members are below the configured target.
+            if int(ctx["strict_target_missing"]) > 0:
+                strict_reason = (
+                    f"strict_target={_fmt_effective(int(ctx['strict_target']))} "
+                    f"members_below_target={ctx['strict_target_members']} total_missing={ctx['strict_target_missing']}"
+                )
+                candidate_choices.append(("elixir_of_valor", strict_reason))
+                if bool(cfg.selected.get("rainbow_candy_cane", False)) and _runtime_regular_enabled("rainbow_candy_cane"):
+                    candidate_choices.append(("rainbow_candy_cane", strict_reason + " fallback+5"))
+                candidate_choices.append(("honeycomb", strict_reason + " fallback+5"))
+        else:
+            if int(ctx["gain_10"]) >= int(cfg.mbdp_party_min_total_gain_10):
+                candidate_choices.append(("elixir_of_valor", f"gain10={ctx['gain_10']} min={cfg.mbdp_party_min_total_gain_10}"))
+            elif int(ctx["gain_5"]) >= int(cfg.mbdp_party_min_total_gain_5):
+                gain5_reason = f"gain5={ctx['gain_5']} min={cfg.mbdp_party_min_total_gain_5}"
+                if bool(cfg.selected.get("rainbow_candy_cane", False)) and _runtime_regular_enabled("rainbow_candy_cane"):
+                    candidate_choices.append(("rainbow_candy_cane", gain5_reason))
+                candidate_choices.append(("honeycomb", gain5_reason))
+        return candidate_choices
+
+    def _mbdp_select_candidate_item(candidate_choices: list[tuple[str, str]]):
+        chosen_key = None
+        chosen_reason = ""
+        spec = None
+        item_id = 0
+        tried_unavailable = []
+        tried_seen = set()
+        for key, key_reason in candidate_choices:
+            if key in tried_seen:
+                continue
+            tried_seen.add(key)
+            c_spec, c_item_id = _find_item_enabled_and_available(key)
+            if c_spec and c_item_id > 0:
+                chosen_key = key
+                chosen_reason = key_reason
+                spec = c_spec
+                item_id = c_item_id
+                break
+            tried_unavailable.append(key)
+        return chosen_key, chosen_reason, spec, int(item_id), tried_unavailable
+
+    def _mbdp_execute_party_phase(ctx: dict, candidate_choices: list[tuple[str, str]]) -> bool:
+        global _last_mbdp_party_ms
+        if not candidate_choices:
+            _debug(
+                f"MB/DP PARTY skip: members={len(ctx['states'])} total_dp={ctx['total_dp']} light={ctx['light_cnt']} heavy={ctx['heavy_cnt']} "
+                f"gain5={ctx['gain_5']} gain10={ctx['gain_10']}"
+            )
+            return False
+
+        _debug("MB/DP PARTY states: " + ", ".join([f"{s['name']} raw={s['raw']} eff={_fmt_effective(s['effective'])} dp={s['dp']}" for s in ctx["states"]]))
+        chosen_key, chosen_reason, spec, item_id, tried_unavailable = _mbdp_select_candidate_item(candidate_choices)
+        if not spec or item_id <= 0:
+            _debug(
+                "MB/DP PARTY skip: no available candidate item after fallback chain; "
+                f"tried={','.join(tried_unavailable)}"
+            )
+            return False
+        if tried_unavailable:
+            _debug(
+                f"MB/DP PARTY fallback: unavailable={','.join(tried_unavailable)} -> using {chosen_key}."
+            )
+
+        _debug(
+            f"MB/DP PARTY fire {spec['label']}: {chosen_reason}; members={len(ctx['states'])} total_dp={ctx['total_dp']} "
+            f"gain5={ctx['gain_5']} gain10={ctx['gain_10']} recipients={len(ctx['recipients_emails'])}"
+        )
+        if _use_item_id(item_id, spec["key"]):
+            _last_mbdp_party_ms = int(ctx["now"])
+            _last_used_ms[spec["key"]] = int(ctx["now"])
+            aftercast_timer.Start()
+            try:
+                _broadcast_use(int(spec.get("model_id", 0)), 1, 0, recipients=ctx["recipients_emails"])
+            except Exception:
+                pass
+            return True
+        return False
+
+    def _tick_morale_dp_v2() -> bool:
+        if not _mbdp_tick_precheck():
+            return False
+        if _mbdp_run_self_phase():
+            return True
+        ctx = _mbdp_prepare_party_context()
+        if not ctx:
+            return False
+        candidate_choices = _mbdp_build_party_candidates(ctx)
+        return _mbdp_execute_party_phase(ctx, candidate_choices)
+
     def _tick_morale_dp() -> bool:
+        if bool(getattr(cfg, "experimental_mbdp_engine_v2", EXPERIMENTAL_MBDP_ENGINE_V2_DEFAULT)):
+            return _tick_morale_dp_v2()
+
         global _last_mbdp_party_ms
         if not bool(cfg.mbdp_enabled):
             return False
@@ -3824,12 +4542,13 @@ try:
         light_cnt = sum(1 for s in states if int(s["dp"]) >= party_light_dp_threshold)
         heavy_cnt = sum(1 for s in states if int(s["dp"]) >= party_heavy_dp_threshold)
         emergency_cnt = sum(1 for s in states if int(s["dp"]) >= party_emergency_dp_threshold)
+        target_states = _morale_states_for_targeting(states)
         target_eff = int(cfg.mbdp_party_target_effective)
-        gain_5 = sum(max(0, min(5, target_eff - int(s["effective"]))) for s in states)
-        gain_10 = sum(max(0, min(10, target_eff - int(s["effective"]))) for s in states)
+        gain_5 = sum(max(0, min(5, target_eff - int(s["effective"]))) for s in target_states)
+        gain_10 = sum(max(0, min(10, target_eff - int(s["effective"]))) for s in target_states)
         strict_target = int(cfg.mbdp_party_target_effective)
-        strict_target_missing = sum(max(0, strict_target - int(s["effective"])) for s in states)
-        strict_target_members = sum(1 for s in states if int(s["effective"]) < strict_target)
+        strict_target_missing = sum(max(0, strict_target - int(s["effective"])) for s in target_states)
+        strict_target_members = sum(1 for s in target_states if int(s["effective"]) < strict_target)
 
         # Decision order: emergency -> deterministic DP -> smoothing DP -> morale.
         candidate_choices = []
@@ -4051,7 +4770,11 @@ try:
         _same_line(12)
         if _badge_button("ON" if enabled else "OFF", enabled=bool(enabled), id_suffix=f"{id_prefix}_btn_{key}"):
             enabled = not enabled
-        _tooltip_if_hovered(_consumable_tooltip_with_label(key, label))
+        _tooltip_if_hovered(
+            "Runtime-only toggle (not saved). Use Settings to set persistent defaults."
+            if not _main_runtime_persist_enabled()
+            else "Runtime toggle is also saved as the persistent enabled default."
+        )
         changed = (bool(enabled_now) != bool(enabled))
         return bool(enabled), bool(changed)
 
@@ -4209,29 +4932,17 @@ try:
             lvl = _alcohol_current_level(_now_ms())
             PyImGui.text(f"Now: {int(lvl)}/5")
 
-            # Preference (ONE LINE)
             PyImGui.text("Preference:")
             _same_line(10)
-
-            changed, v = ui_checkbox("Smooth##pycons_alc_pref_smooth_main", int(cfg.alcohol_preference) == 0)
-            _tooltip_if_hovered("Default Best all around. Keeps you near the target without burning high-point alcohol unnecessarily")
-            if changed and bool(v):
-                cfg.alcohol_preference = 0
+            changed, pref_idx = ui_combo("##pycons_alc_pref_main", int(cfg.alcohol_preference), ALCOHOL_PREFERENCE_OPTIONS)
+            if changed:
+                cfg.alcohol_preference = int(pref_idx)
                 cfg.mark_dirty()
-
-            _same_line(10)
-            changed, v = ui_checkbox("Strong-first##pycons_alc_pref_strong_main", int(cfg.alcohol_preference) == 1)
-            _tooltip_if_hovered("Good when you just want to be drunk ASAP (e.g., you zone in and want max level quickly)")
-            if changed and bool(v):
-                cfg.alcohol_preference = 1
-                cfg.mark_dirty()
-
-            _same_line(10)
-            changed, v = ui_checkbox("Weak-first##pycons_alc_pref_weak_main", int(cfg.alcohol_preference) == 2)
-            _tooltip_if_hovered("Good if you are trying to stretch rare/valuable alcohol and do not mind it taking longer to climb")
-            if changed and bool(v):
-                cfg.alcohol_preference = 2
-                cfg.mark_dirty()
+            _tooltip_if_hovered(
+                "Smooth: balanced target upkeep with less waste.\n"
+                "Strong-first: fastest ramp to target.\n"
+                "Weak-first: conserves stronger alcohol."
+            )
 
             PyImGui.separator()
 
@@ -4259,25 +4970,29 @@ try:
             cfg.mark_dirty()
 
         if expanded:
-            if PyImGui.button("Select All##pycons_main_select_all"):
+            if _main_runtime_persist_enabled():
+                PyImGui.text_disabled("Main-window toggles are saved to persistent defaults.")
+            else:
+                PyImGui.text_disabled("Main-window toggles are runtime-only (not saved). Use Settings for persistent defaults.")
+            if PyImGui.button("Enable all (runtime)##pycons_main_select_all"):
                 for c in ALL_CONSUMABLES:
                     k = c["key"]
                     if bool(cfg.selected.get(k, False)):
-                        _rt.runtime_enabled[k] = True
+                        _set_main_runtime_regular_enabled(k, True)
                 for a in ALCOHOL_ITEMS:
                     k = a["key"]
                     if bool(cfg.alcohol_selected.get(k, False)):
-                        _rt.runtime_alcohol_enabled[k] = True
+                        _set_main_runtime_alcohol_enabled(k, True)
             _same_line(10)
-            if PyImGui.button("Clear All##pycons_main_clear_all"):
+            if PyImGui.button("Disable all (runtime)##pycons_main_clear_all"):
                 for c in ALL_CONSUMABLES:
                     k = c["key"]
                     if bool(cfg.selected.get(k, False)):
-                        _rt.runtime_enabled[k] = False
+                        _set_main_runtime_regular_enabled(k, False)
                 for a in ALCOHOL_ITEMS:
                     k = a["key"]
                     if bool(cfg.alcohol_selected.get(k, False)):
-                        _rt.runtime_alcohol_enabled[k] = False
+                        _set_main_runtime_alcohol_enabled(k, False)
 
             selected_explorable_conset = [c for c in CONSUMABLES if c.get("use_where") == "explorable" and c.get("key") in CONSET_KEYS and bool(cfg.selected.get(c["key"], False))]
             selected_explorable_other = [c for c in CONSUMABLES if c.get("use_where") == "explorable" and c.get("key") not in CONSET_KEYS and bool(cfg.selected.get(c["key"], False))]
@@ -4302,7 +5017,7 @@ try:
                                 k, c["label"] + suffix, _runtime_regular_enabled(k), "pycons"
                             )
                             if chg:
-                                _rt.runtime_enabled[k] = bool(new_enabled)
+                                _set_main_runtime_regular_enabled(k, bool(new_enabled))
                         PyImGui.separator()
 
                     for c in selected_explorable_other:
@@ -4312,7 +5027,7 @@ try:
                             k, c["label"] + suffix, _runtime_regular_enabled(k), "pycons"
                         )
                         if chg:
-                            _rt.runtime_enabled[k] = bool(new_enabled)
+                            _set_main_runtime_regular_enabled(k, bool(new_enabled))
                     PyImGui.separator()
 
                 if selected_outpost:
@@ -4324,34 +5039,18 @@ try:
                             k, c["label"] + suffix, _runtime_regular_enabled(k), "pycons"
                         )
                         if chg:
-                            _rt.runtime_enabled[k] = bool(new_enabled)
+                            _set_main_runtime_regular_enabled(k, bool(new_enabled))
                     PyImGui.separator()
 
                 if selected_mbdp:
                     PyImGui.text("Morale Boost & Death Penalty:")
-                    mbdp_party_keys = {
-                        "elixir_of_valor",
-                        "four_leaf_clover",
-                        "honeycomb",
-                        "oath_of_purity",
-                        "powerstone_of_courage",
-                        "rainbow_candy_cane",
-                    }
-                    mbdp_self_keys = {
-                        "peppermint_candy_cane",
-                        "pumpkin_cookie",
-                        "refined_jelly",
-                        "seal_of_the_dragon_empire",
-                        "wintergreen_candy_cane",
-                    }
-
                     mbdp_by_key = {str(s.get("key", "")): s for s in MB_DP_ITEMS}
-                    missing_party_keys = sorted([k for k in mbdp_party_keys if k not in mbdp_by_key])
-                    missing_self_keys = sorted([k for k in mbdp_self_keys if k not in mbdp_by_key])
+                    missing_party_keys = sorted([k for k in MBDP_PARTY_KEYS if k not in mbdp_by_key])
+                    missing_self_keys = sorted([k for k in MBDP_SELF_KEYS if k not in mbdp_by_key])
 
-                    party_specs = [c for c in selected_mbdp if str(c.get("key", "")) in mbdp_party_keys]
-                    self_specs = [c for c in selected_mbdp if str(c.get("key", "")) in mbdp_self_keys]
-                    unmapped_specs = [c for c in selected_mbdp if str(c.get("key", "")) not in mbdp_party_keys and str(c.get("key", "")) not in mbdp_self_keys]
+                    party_specs = [c for c in selected_mbdp if str(c.get("key", "")) in MBDP_PARTY_KEYS]
+                    self_specs = [c for c in selected_mbdp if str(c.get("key", "")) in MBDP_SELF_KEYS]
+                    unmapped_specs = [c for c in selected_mbdp if str(c.get("key", "")) not in MBDP_PARTY_KEYS and str(c.get("key", "")) not in MBDP_SELF_KEYS]
 
                     PyImGui.text("Party:")
                     for c in sorted(party_specs, key=lambda x: str(x.get("label", "")).lower()):
@@ -4361,7 +5060,7 @@ try:
                             k, c["label"] + suffix, _runtime_regular_enabled(k), "pycons_mbdp"
                         )
                         if chg:
-                            _rt.runtime_enabled[k] = bool(new_enabled)
+                            _set_main_runtime_regular_enabled(k, bool(new_enabled))
 
                     if missing_party_keys:
                         PyImGui.text_disabled("Missing mapped party keys: " + ", ".join(missing_party_keys))
@@ -4375,7 +5074,7 @@ try:
                             k, c["label"] + suffix, _runtime_regular_enabled(k), "pycons_mbdp"
                         )
                         if chg:
-                            _rt.runtime_enabled[k] = bool(new_enabled)
+                            _set_main_runtime_regular_enabled(k, bool(new_enabled))
 
                     if missing_self_keys:
                         PyImGui.text_disabled("Missing mapped self keys: " + ", ".join(missing_self_keys))
@@ -4390,7 +5089,7 @@ try:
                                 k, c["label"] + suffix, _runtime_regular_enabled(k), "pycons_mbdp"
                             )
                             if chg:
-                                _rt.runtime_enabled[k] = bool(new_enabled)
+                                _set_main_runtime_regular_enabled(k, bool(new_enabled))
                     PyImGui.separator()
 
                 if selected_alcohol:
@@ -4403,7 +5102,7 @@ try:
                             k, _alcohol_display_label(a) + suffix, enabled_now, "pycons_alc"
                         )
                         if chg:
-                            _rt.runtime_alcohol_enabled[k] = bool(new_enabled)
+                            _set_main_runtime_alcohol_enabled(k, bool(new_enabled))
 
         ImGui.End(INI_KEY_MAIN)
 
@@ -4501,6 +5200,210 @@ try:
                 return True
         return False
 
+    def _draw_restock_target_item_row(key: str, spec: dict):
+        model_id = int(spec.get("model_id", 0) or 0)
+        known, cnt = _stock_status_for_model_id(model_id)
+        label = str(spec.get("label", key) or key)
+        current_target = _restock_target_for_key(key)
+
+        PyImGui.table_next_row()
+        PyImGui.table_next_column()
+        drew_icon = _draw_static_consumable_icon(
+            key,
+            label,
+            "pycons_restock_target",
+            icon_size=18.0,
+            highlight_box=True,
+        )
+        if drew_icon:
+            _same_line(10)
+        PyImGui.text(label)
+        _tooltip_if_hovered(_consumable_tooltip_with_label(key, label))
+
+        PyImGui.table_next_column()
+        PyImGui.text(str(int(cnt)) if known else "-")
+
+        PyImGui.table_next_column()
+        changed_target, new_target = ui_input_int_fixed(f"##pycons_restock_target_{key}", int(current_target), width=90.0)
+        if changed_target:
+            cfg.restock_targets[key] = max(0, min(2500, int(new_target)))
+            cfg.mark_dirty()
+
+    def _draw_settings_explorable_category(
+        explorable_force,
+        flt: str,
+        search_active: bool,
+        conset_has_match: bool,
+        explorable_other_has_match: bool,
+        explorable_consets: list,
+        explorable_other: list,
+        visible_regular_keys: list,
+        only_available_settings: bool,
+        only_selected_settings: bool,
+    ):
+        explorable_open = _collapsing_header_force(
+            "Explorable##pycons_hdr_explorable",
+            force_open=explorable_force,
+            default_open=bool(cfg.settings_explorable_open),
+        )
+        if bool(cfg.settings_explorable_open) != bool(explorable_open):
+            cfg.settings_explorable_open = bool(explorable_open)
+            cfg.mark_dirty()
+        if explorable_open:
+            before_explorable = len(visible_regular_keys)
+            if (not search_active) or conset_has_match:
+                PyImGui.text("Conset:")
+            for spec in explorable_consets:
+                _draw_settings_row(
+                    spec,
+                    flt,
+                    visible_regular_keys,
+                    only_available=only_available_settings,
+                    only_selected=only_selected_settings,
+                )
+
+            if (not search_active) or explorable_other_has_match:
+                PyImGui.separator()
+
+            for spec in explorable_other:
+                _draw_settings_row(
+                    spec,
+                    flt,
+                    visible_regular_keys,
+                    only_available=only_available_settings,
+                    only_selected=only_selected_settings,
+                )
+
+            if only_available_settings and len(visible_regular_keys) == before_explorable:
+                PyImGui.text_disabled("No available items.")
+
+            PyImGui.separator()
+
+    def _draw_settings_mbdp_category(
+        mbdp_force,
+        flt: str,
+        mbdp_items: list,
+        visible_regular_keys: list,
+        only_available_settings: bool,
+        only_selected_settings: bool,
+    ):
+        mbdp_open = _collapsing_header_force(
+            "Morale Boost & Death Penalty##pycons_hdr_mbdp",
+            force_open=mbdp_force,
+            default_open=bool(cfg.settings_mbdp_open),
+        )
+        if bool(cfg.settings_mbdp_open) != bool(mbdp_open):
+            cfg.settings_mbdp_open = bool(mbdp_open)
+            cfg.mark_dirty()
+        if mbdp_open:
+            before_mbdp = len(visible_regular_keys)
+            mbdp_by_key = {str(s.get("key", "")): s for s in mbdp_items}
+            party_specs = [mbdp_by_key[k] for k in MBDP_PARTY_KEYS if k in mbdp_by_key]
+            self_specs = [mbdp_by_key[k] for k in MBDP_SELF_KEYS if k in mbdp_by_key]
+            unmapped_specs = [s for s in mbdp_items if str(s.get("key", "")) not in MBDP_PARTY_KEYS and str(s.get("key", "")) not in MBDP_SELF_KEYS]
+
+            missing_party_keys = sorted([k for k in MBDP_PARTY_KEYS if k not in mbdp_by_key])
+            missing_self_keys = sorted([k for k in MBDP_SELF_KEYS if k not in mbdp_by_key])
+
+            PyImGui.text("Party:")
+            for spec in sorted(party_specs, key=lambda x: str(x.get("label", "")).lower()):
+                _draw_settings_row(
+                    spec,
+                    flt,
+                    visible_regular_keys,
+                    only_available=only_available_settings,
+                    only_selected=only_selected_settings,
+                )
+
+            if missing_party_keys:
+                PyImGui.text_disabled("Missing mapped party keys: " + ", ".join(missing_party_keys))
+
+            PyImGui.separator()
+            PyImGui.text("Self:")
+            for spec in sorted(self_specs, key=lambda x: str(x.get("label", "")).lower()):
+                _draw_settings_row(
+                    spec,
+                    flt,
+                    visible_regular_keys,
+                    only_available=only_available_settings,
+                    only_selected=only_selected_settings,
+                )
+
+            if missing_self_keys:
+                PyImGui.text_disabled("Missing mapped self keys: " + ", ".join(missing_self_keys))
+
+            if unmapped_specs:
+                PyImGui.separator()
+                PyImGui.text("Unmapped:")
+                for spec in sorted(unmapped_specs, key=lambda x: str(x.get("label", "")).lower()):
+                    _draw_settings_row(
+                        spec,
+                        flt,
+                        visible_regular_keys,
+                        only_available=only_available_settings,
+                        only_selected=only_selected_settings,
+                    )
+            if only_available_settings and len(visible_regular_keys) == before_mbdp:
+                PyImGui.text_disabled("No available items.")
+
+    def _draw_settings_outpost_category(
+        outpost_force,
+        flt: str,
+        outpost_items: list,
+        visible_regular_keys: list,
+        only_available_settings: bool,
+        only_selected_settings: bool,
+    ):
+        outpost_open = _collapsing_header_force(
+            "In-town speed boosts##pycons_hdr_outpost",
+            force_open=outpost_force,
+            default_open=bool(cfg.settings_outpost_open),
+        )
+        if bool(cfg.settings_outpost_open) != bool(outpost_open):
+            cfg.settings_outpost_open = bool(outpost_open)
+            cfg.mark_dirty()
+        if outpost_open:
+            before_outpost = len(visible_regular_keys)
+            for spec in outpost_items:
+                _draw_settings_row(
+                    spec,
+                    flt,
+                    visible_regular_keys,
+                    only_available=only_available_settings,
+                    only_selected=only_selected_settings,
+                )
+            if only_available_settings and len(visible_regular_keys) == before_outpost:
+                PyImGui.text_disabled("No available items.")
+
+    def _draw_settings_alcohol_category(
+        alcohol_force,
+        flt: str,
+        alcohol_items: list,
+        visible_alcohol_keys: list,
+        only_available_settings: bool,
+        only_selected_settings: bool,
+    ):
+        alcohol_open = _collapsing_header_force(
+            "Alcohol##pycons_hdr_alcohol",
+            force_open=alcohol_force,
+            default_open=bool(cfg.settings_alcohol_open),
+        )
+        if bool(cfg.settings_alcohol_open) != bool(alcohol_open):
+            cfg.settings_alcohol_open = bool(alcohol_open)
+            cfg.mark_dirty()
+        if alcohol_open:
+            before_alcohol = len(visible_alcohol_keys)
+            for spec in sorted(alcohol_items, key=lambda x: x.get("label", "")):
+                _draw_alcohol_settings_row(
+                    spec,
+                    flt,
+                    visible_alcohol_keys,
+                    only_available=only_available_settings,
+                    only_selected=only_selected_settings,
+                )
+            if only_available_settings and len(visible_alcohol_keys) == before_alcohol:
+                PyImGui.text_disabled("No available items.")
+
     def _draw_settings_window():
         if cfg is None:
             return  # Config not yet loaded
@@ -4553,6 +5456,15 @@ try:
             cfg.mark_dirty()
         _show_setting_tooltip("advanced_intervals")
 
+        changed, v = ui_checkbox(
+            "Persist main-window toggles to enabled defaults##pycons_persist_main_runtime_toggles",
+            bool(cfg.persist_main_runtime_toggles),
+        )
+        if changed:
+            cfg.persist_main_runtime_toggles = bool(v)
+            cfg.mark_dirty()
+        _show_setting_tooltip("persist_main_runtime_toggles")
+
         if PyImGui.button("Set all other party accounts: Opt-in ON##pycons_preset_set_other_optin"):
             _set_other_party_accounts_opt_in()
         _show_setting_tooltip("preset_set_others_optin")
@@ -4563,7 +5475,14 @@ try:
         PyImGui.text(f"Last party opt toggle: {str(cfg.last_party_opt_toggle_summary or 'None')}")
 
         PyImGui.separator()
-        if ui_collapsing_header("Tooltip settings##pycons_settings_tooltip_dropdown", False):
+        tooltip_section_open = ui_collapsing_header(
+            "Tooltip settings##pycons_settings_tooltip_dropdown",
+            bool(cfg.settings_ui_tooltip_open),
+        )
+        if bool(cfg.settings_ui_tooltip_open) != bool(tooltip_section_open):
+            cfg.settings_ui_tooltip_open = bool(tooltip_section_open)
+            cfg.mark_dirty()
+        if tooltip_section_open:
             changed, idx = ui_combo("Help visibility##pycons_tip_visibility", int(cfg.tooltip_visibility), TOOLTIP_VISIBILITY_OPTIONS)
             if changed:
                 cfg.tooltip_visibility = int(idx)
@@ -4584,7 +5503,14 @@ try:
             PyImGui.separator()
 
         # --- Alcohol settings (collapsed dropdown for compactness) ---
-        if ui_collapsing_header("Alcohol settings##pycons_settings_alcohol_dropdown", False):
+        alcohol_section_open = ui_collapsing_header(
+            "Alcohol settings##pycons_settings_alcohol_dropdown",
+            bool(cfg.settings_ui_alcohol_open),
+        )
+        if bool(cfg.settings_ui_alcohol_open) != bool(alcohol_section_open):
+            cfg.settings_ui_alcohol_open = bool(alcohol_section_open)
+            cfg.mark_dirty()
+        if alcohol_section_open:
             PyImGui.text("Alcohol upkeep:")
             _same_line(10)
             if _badge_button("ON" if cfg.alcohol_enabled else "OFF", enabled=bool(cfg.alcohol_enabled), id_suffix="pycons_settings_alcohol_toggle"):
@@ -4619,33 +5545,28 @@ try:
                 cfg.mark_dirty()
             _show_setting_tooltip("alcohol_target_level")
 
-            # Preference (ONE LINE)
             PyImGui.text("Preference:")
             _same_line(10)
-
-            changed, v = ui_checkbox("Smooth##pycons_alc_pref_smooth_settings", int(cfg.alcohol_preference) == 0)
-            _show_setting_tooltip("alcohol_preference_smooth")
-            if changed and bool(v):
-                cfg.alcohol_preference = 0
+            changed, pref_idx = ui_combo(
+                "##pycons_alc_pref_settings",
+                int(cfg.alcohol_preference),
+                ALCOHOL_PREFERENCE_OPTIONS,
+            )
+            if changed:
+                cfg.alcohol_preference = int(pref_idx)
                 cfg.mark_dirty()
-
-            _same_line(10)
-            changed, v = ui_checkbox("Strong-first##pycons_alc_pref_strong_settings", int(cfg.alcohol_preference) == 1)
-            _show_setting_tooltip("alcohol_preference_strong")
-            if changed and bool(v):
-                cfg.alcohol_preference = 1
-                cfg.mark_dirty()
-
-            _same_line(10)
-            changed, v = ui_checkbox("Weak-first##pycons_alc_pref_weak_settings", int(cfg.alcohol_preference) == 2)
-            _show_setting_tooltip("alcohol_preference_weak")
-            if changed and bool(v):
-                cfg.alcohol_preference = 2
-                cfg.mark_dirty()
+            _show_setting_tooltip("alcohol_preference_mode")
 
             PyImGui.separator()
 
-        if ui_collapsing_header("Morale Boost & Death Penalty settings##pycons_settings_mbdp_dropdown", False):
+        mbdp_section_open = ui_collapsing_header(
+            "Morale Boost & Death Penalty settings##pycons_settings_mbdp_dropdown",
+            bool(cfg.settings_ui_mbdp_open),
+        )
+        if bool(cfg.settings_ui_mbdp_open) != bool(mbdp_section_open):
+            cfg.settings_ui_mbdp_open = bool(mbdp_section_open)
+            cfg.mark_dirty()
+        if mbdp_section_open:
             PyImGui.text("MB/DP upkeep:")
             _same_line(10)
             if _badge_button("ON" if cfg.mbdp_enabled else "OFF", enabled=bool(cfg.mbdp_enabled), id_suffix="pycons_settings_mbdp_toggle"):
@@ -4792,7 +5713,14 @@ try:
 
             PyImGui.separator()
 
-        if ui_collapsing_header("MB/DP Presets##pycons_settings_presets_dropdown", False):
+        presets_section_open = ui_collapsing_header(
+            "MB/DP Presets##pycons_settings_presets_dropdown",
+            bool(cfg.settings_ui_presets_open),
+        )
+        if bool(cfg.settings_ui_presets_open) != bool(presets_section_open):
+            cfg.settings_ui_presets_open = bool(presets_section_open)
+            cfg.mark_dirty()
+        if presets_section_open:
             _show_setting_tooltip("presets_section")
             PyImGui.text(f"Active preset: {str(cfg.last_applied_preset or 'None')}")
             PyImGui.separator()
@@ -4858,7 +5786,14 @@ try:
                 _show_setting_tooltip("preset_load_slot")
             PyImGui.separator()
 
-        if ui_collapsing_header("Restock Settings##pycons_settings_restock_dropdown", False):
+        restock_section_open = ui_collapsing_header(
+            "Restock Settings##pycons_settings_restock_dropdown",
+            bool(cfg.settings_ui_restock_open),
+        )
+        if bool(cfg.settings_ui_restock_open) != bool(restock_section_open):
+            cfg.settings_ui_restock_open = bool(restock_section_open)
+            cfg.mark_dirty()
+        if restock_section_open:
             changed, v = ui_checkbox("Auto-restock from Xunlai Vault##pycons_auto_vault_restock", bool(cfg.auto_vault_restock))
             if changed:
                 cfg.auto_vault_restock = bool(v)
@@ -4878,6 +5813,22 @@ try:
                 cfg.restock_interval_ms = int(max(MIN_RESTOCK_INTERVAL_MS, int(v)))
                 cfg.mark_dirty()
             _show_setting_tooltip("restock_interval_ms")
+
+            changed, mode_idx = ui_combo("Restock mode##pycons_restock_mode", int(cfg.restock_mode), RESTOCK_MODE_OPTIONS)
+            if changed:
+                cfg.restock_mode = int(max(RESTOCK_MODE_BALANCED, min(RESTOCK_MODE_DEPOSIT_ONLY, int(mode_idx))))
+                cfg.mark_dirty()
+            _show_setting_tooltip("restock_mode")
+
+            PyImGui.text("Per-cycle move cap:")
+            _same_line(10)
+            changed, cap_val = ui_input_int_fixed("##pycons_restock_move_cap", int(cfg.restock_move_cap_per_cycle), width=120.0)
+            if changed:
+                cfg.restock_move_cap_per_cycle = int(
+                    max(MIN_RESTOCK_MOVE_CAP_PER_CYCLE, min(MAX_RESTOCK_MOVE_CAP_PER_CYCLE, int(cap_val)))
+                )
+                cfg.mark_dirty()
+            _show_setting_tooltip("restock_move_cap_per_cycle")
 
             PyImGui.text_wrapped("Choose target inventory amounts for selected items. Pycons will withdraw shortages and deposit excess while Xunlai Vault restock is enabled.")
             PyImGui.text_wrapped("Restock balancing follows the active item toggles in the main window.")
@@ -4905,6 +5856,8 @@ try:
                 PyImGui.text_disabled("No selected items. Select consumables first.")
             else:
                 selected_specs = sorted(selected_specs, key=lambda pair: str(pair[1].get("label", "")).lower())
+                selected_conset_specs = [pair for pair in selected_specs if str(pair[0]) in CONSET_KEYS]
+                selected_non_conset_specs = [pair for pair in selected_specs if str(pair[0]) not in CONSET_KEYS]
                 _refresh_inventory_cache(False)
 
                 if PyImGui.begin_table("pycons_restock_targets_table", 3):
@@ -4912,25 +5865,29 @@ try:
                     PyImGui.table_setup_column("In Inventory", PyImGui.TableColumnFlags.WidthFixed, 110.0)
                     PyImGui.table_setup_column("Target", PyImGui.TableColumnFlags.WidthFixed, 110.0)
 
-                    for key, spec in selected_specs:
-                        model_id = int(spec.get("model_id", 0) or 0)
-                        known, cnt = _stock_status_for_model_id(model_id)
-                        label = str(spec.get("label", key) or key)
-                        current_target = _restock_target_for_key(key)
-
+                    if selected_conset_specs:
                         PyImGui.table_next_row()
                         PyImGui.table_next_column()
-                        PyImGui.text(label)
-                        _tooltip_if_hovered(_consumable_tooltip_with_label(key, label))
-
+                        PyImGui.text("Conset:")
                         PyImGui.table_next_column()
-                        PyImGui.text(str(int(cnt)) if known else "-")
-
+                        PyImGui.text("")
                         PyImGui.table_next_column()
-                        changed_target, new_target = ui_input_int_fixed(f"##pycons_restock_target_{key}", int(current_target), width=90.0)
-                        if changed_target:
-                            cfg.restock_targets[key] = max(0, min(2500, int(new_target)))
-                            cfg.mark_dirty()
+                        PyImGui.text("")
+
+                        for key, spec in selected_conset_specs:
+                            _draw_restock_target_item_row(key, spec)
+
+                        if selected_non_conset_specs:
+                            PyImGui.table_next_row()
+                            PyImGui.table_next_column()
+                            PyImGui.separator()
+                            PyImGui.table_next_column()
+                            PyImGui.separator()
+                            PyImGui.table_next_column()
+                            PyImGui.separator()
+
+                    for key, spec in selected_non_conset_specs:
+                        _draw_restock_target_item_row(key, spec)
 
                     PyImGui.end_table()
 
@@ -4953,10 +5910,12 @@ try:
             explorable_consets = [c for c in CONSUMABLES if c.get("use_where") == "explorable" and c.get("key") in CONSET_KEYS]
             explorable_other = [c for c in CONSUMABLES if c.get("use_where") == "explorable" and c.get("key") not in CONSET_KEYS]
             outpost_items = [c for c in CONSUMABLES if c.get("use_where") == "outpost"]
-            mbdp_items = list(MB_DP_ITEMS)
-            alcohol_items = list(ALCOHOL_ITEMS)
+            mbdp_items = MB_DP_ITEMS
+            alcohol_items = ALCOHOL_ITEMS
 
-            explorable_has_match = search_active and (_list_has_match(explorable_consets, flt) or _list_has_match(explorable_other, flt))
+            conset_has_match = search_active and _list_has_match(explorable_consets, flt)
+            explorable_other_has_match = search_active and _list_has_match(explorable_other, flt)
+            explorable_has_match = search_active and (conset_has_match or explorable_other_has_match)
             outpost_has_match = search_active and _list_has_match(outpost_items, flt)
             mbdp_has_match = search_active and _list_has_match(mbdp_items, flt)
             alcohol_has_match = search_active and _list_has_match(alcohol_items, flt)
@@ -5010,7 +5969,6 @@ try:
             _show_setting_tooltip("only_show_selected_items")
             PyImGui.separator()
 
-            conset_has_match = search_active and _list_has_match(explorable_consets, flt)
             only_available_settings = bool(cfg.only_show_available_inventory)
             only_selected_settings = bool(cfg.only_show_selected_items)
             if only_available_settings:
@@ -5035,134 +5993,48 @@ try:
             visible_regular_keys = []
             visible_alcohol_keys = []
 
-            def _draw_explorable_category():
-                explorable_open = _collapsing_header_force(
-                    "Explorable##pycons_hdr_explorable",
-                    force_open=explorable_force,
-                    default_open=bool(cfg.settings_explorable_open),
-                )
-                if bool(cfg.settings_explorable_open) != bool(explorable_open):
-                    cfg.settings_explorable_open = bool(explorable_open)
-                    cfg.mark_dirty()
-                if explorable_open:
-                    before_explorable = len(visible_regular_keys)
-                    if (not search_active) or conset_has_match:
-                        PyImGui.text("Conset:")
-                    for spec in explorable_consets:
-                        _draw_settings_row(spec, flt, visible_regular_keys, only_available=only_available_settings, only_selected=only_selected_settings)
-
-                    if (not search_active) or _list_has_match(explorable_other, flt):
-                        PyImGui.separator()
-
-                    for spec in explorable_other:
-                        _draw_settings_row(spec, flt, visible_regular_keys, only_available=only_available_settings, only_selected=only_selected_settings)
-
-                    if only_available_settings and len(visible_regular_keys) == before_explorable:
-                        PyImGui.text_disabled("No available items.")
-
-                    PyImGui.separator()
-
-            def _draw_mbdp_category():
-                mbdp_open = _collapsing_header_force(
-                    "Morale Boost & Death Penalty##pycons_hdr_mbdp",
-                    force_open=mbdp_force,
-                    default_open=bool(cfg.settings_mbdp_open),
-                )
-                if bool(cfg.settings_mbdp_open) != bool(mbdp_open):
-                    cfg.settings_mbdp_open = bool(mbdp_open)
-                    cfg.mark_dirty()
-                if mbdp_open:
-                    before_mbdp = len(visible_regular_keys)
-                    mbdp_party_keys = {
-                        "elixir_of_valor",
-                        "four_leaf_clover",
-                        "honeycomb",
-                        "oath_of_purity",
-                        "powerstone_of_courage",
-                        "rainbow_candy_cane",
-                    }
-                    mbdp_self_keys = {
-                        "peppermint_candy_cane",
-                        "pumpkin_cookie",
-                        "refined_jelly",
-                        "seal_of_the_dragon_empire",
-                        "wintergreen_candy_cane",
-                    }
-
-                    mbdp_by_key = {str(s.get("key", "")): s for s in mbdp_items}
-                    party_specs = [mbdp_by_key[k] for k in mbdp_party_keys if k in mbdp_by_key]
-                    self_specs = [mbdp_by_key[k] for k in mbdp_self_keys if k in mbdp_by_key]
-                    unmapped_specs = [s for s in mbdp_items if str(s.get("key", "")) not in mbdp_party_keys and str(s.get("key", "")) not in mbdp_self_keys]
-
-                    missing_party_keys = sorted([k for k in mbdp_party_keys if k not in mbdp_by_key])
-                    missing_self_keys = sorted([k for k in mbdp_self_keys if k not in mbdp_by_key])
-
-                    PyImGui.text("Party:")
-                    for spec in sorted(party_specs, key=lambda x: str(x.get("label", "")).lower()):
-                        _draw_settings_row(spec, flt, visible_regular_keys, only_available=only_available_settings, only_selected=only_selected_settings)
-
-                    if missing_party_keys:
-                        PyImGui.text_disabled("Missing mapped party keys: " + ", ".join(missing_party_keys))
-
-                    PyImGui.separator()
-                    PyImGui.text("Self:")
-                    for spec in sorted(self_specs, key=lambda x: str(x.get("label", "")).lower()):
-                        _draw_settings_row(spec, flt, visible_regular_keys, only_available=only_available_settings, only_selected=only_selected_settings)
-
-                    if missing_self_keys:
-                        PyImGui.text_disabled("Missing mapped self keys: " + ", ".join(missing_self_keys))
-
-                    if unmapped_specs:
-                        PyImGui.separator()
-                        PyImGui.text("Unmapped:")
-                        for spec in sorted(unmapped_specs, key=lambda x: str(x.get("label", "")).lower()):
-                            _draw_settings_row(spec, flt, visible_regular_keys, only_available=only_available_settings, only_selected=only_selected_settings)
-                    if only_available_settings and len(visible_regular_keys) == before_mbdp:
-                        PyImGui.text_disabled("No available items.")
-
-            def _draw_outpost_category():
-                outpost_open = _collapsing_header_force(
-                    "In-town speed boosts##pycons_hdr_outpost",
-                    force_open=outpost_force,
-                    default_open=bool(cfg.settings_outpost_open),
-                )
-                if bool(cfg.settings_outpost_open) != bool(outpost_open):
-                    cfg.settings_outpost_open = bool(outpost_open)
-                    cfg.mark_dirty()
-                if outpost_open:
-                    before_outpost = len(visible_regular_keys)
-                    for spec in outpost_items:
-                        _draw_settings_row(spec, flt, visible_regular_keys, only_available=only_available_settings, only_selected=only_selected_settings)
-                    if only_available_settings and len(visible_regular_keys) == before_outpost:
-                        PyImGui.text_disabled("No available items.")
-
-            def _draw_alcohol_category():
-                alcohol_open = _collapsing_header_force(
-                    "Alcohol##pycons_hdr_alcohol",
-                    force_open=alcohol_force,
-                    default_open=bool(cfg.settings_alcohol_open),
-                )
-                if bool(cfg.settings_alcohol_open) != bool(alcohol_open):
-                    cfg.settings_alcohol_open = bool(alcohol_open)
-                    cfg.mark_dirty()
-                if alcohol_open:
-                    before_alcohol = len(visible_alcohol_keys)
-                    for spec in sorted(alcohol_items, key=lambda x: x.get("label", "")):
-                        _draw_alcohol_settings_row(spec, flt, visible_alcohol_keys, only_available=only_available_settings, only_selected=only_selected_settings)
-                    if only_available_settings and len(visible_alcohol_keys) == before_alcohol:
-                        PyImGui.text_disabled("No available items.")
-
-            category_renderers = {
-                "explorable": _draw_explorable_category,
-                "mbdp": _draw_mbdp_category,
-                "outpost": _draw_outpost_category,
-                "alcohol": _draw_alcohol_category,
-            }
-            category_keys = _ordered_consumable_category_keys(list(category_renderers.keys()))
+            category_keys = _ordered_consumable_category_keys(["explorable", "mbdp", "outpost", "alcohol"])
             for category_key in category_keys:
-                renderer = category_renderers.get(category_key)
-                if callable(renderer):
-                    renderer()
+                if category_key == "explorable":
+                    _draw_settings_explorable_category(
+                        explorable_force,
+                        flt,
+                        search_active,
+                        conset_has_match,
+                        explorable_other_has_match,
+                        explorable_consets,
+                        explorable_other,
+                        visible_regular_keys,
+                        only_available_settings,
+                        only_selected_settings,
+                    )
+                elif category_key == "mbdp":
+                    _draw_settings_mbdp_category(
+                        mbdp_force,
+                        flt,
+                        mbdp_items,
+                        visible_regular_keys,
+                        only_available_settings,
+                        only_selected_settings,
+                    )
+                elif category_key == "outpost":
+                    _draw_settings_outpost_category(
+                        outpost_force,
+                        flt,
+                        outpost_items,
+                        visible_regular_keys,
+                        only_available_settings,
+                        only_selected_settings,
+                    )
+                elif category_key == "alcohol":
+                    _draw_settings_alcohol_category(
+                        alcohol_force,
+                        flt,
+                        alcohol_items,
+                        visible_alcohol_keys,
+                        only_available_settings,
+                        only_selected_settings,
+                    )
 
             visible_count = len(visible_regular_keys) + len(visible_alcohol_keys)
             last_visible_count[0] = int(visible_count)
@@ -5238,6 +6110,8 @@ try:
         if _local_team_flags_refresh_timer.IsStopped() or _local_team_flags_refresh_timer.HasElapsed(1000):
             _local_team_flags_refresh_timer.Start()
             _refresh_local_team_flags_from_ini()
+
+        _drain_scheduled_refresh_queue()
 
         _draw_main_window()
         _draw_settings_window()
