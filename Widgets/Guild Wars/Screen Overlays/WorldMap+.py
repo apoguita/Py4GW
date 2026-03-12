@@ -1092,6 +1092,8 @@ _path_map_names:  list[str] = []   # map name steps for display
 
 # Cache for IsPath(current_map, target) – invalidated on map change
 _is_path_cache: dict[int, bool] = {}  # key = target map_id
+# Cache for maps reachable only via fast-travel (ft_id != current_map)
+_is_ft_path_cache: dict[int, bool] = {}  # key = target map_id
 
 # Tracks the last map for which 3D portal labels were built live
 _portal_3d_last_map: list[int] = [-1]
@@ -1623,6 +1625,64 @@ def MoveToMapID(target_map_id: int) -> bool:
     return _WP_MoveToMapID(target_map_id)
 
 
+def _travel_button_coroutine(target_map_id: int):
+    """Coroutine triggered by a Travel button click.
+
+    Steps:
+      1. Find the nearest unlocked outpost to the destination via fast travel.
+      2. If that outpost differs from the current map, fast-travel there and
+         wait for the map to load.
+      3. Build the route overlay from the new position and start MoveToMapid.
+    """
+    ft = GetNearestUnlockedOutpost(target_map_id)
+    ft_id = ft["map_id"] if ft else None
+
+    # ── Step 1: fast-travel to nearest unlocked outpost if needed ───────────
+    if ft_id and ft_id != Map.GetMapID():
+        Py4GW.Console.Log(MODULE_NAME,
+            f"Travel: fast-traveling to nearest outpost {ft_id} ({ft.get('name','?')}) "
+            f"before routing to {target_map_id}.",
+            Py4GW.Console.MessageType.Info)
+        Map.TravelToDistrict(ft_id, 0, 0)
+        _t0 = int(Utils.GetBaseTimestamp())
+        while not Map.IsMapLoading():
+            if int(Utils.GetBaseTimestamp()) - _t0 > 10_000:
+                break
+            yield from Routines.Yield.wait(150)
+        loaded = yield from Routines.Yield.Map.WaitforMapLoad(ft_id, log=False, timeout=60_000)
+        if not loaded:
+            Py4GW.Console.Log(MODULE_NAME,
+                f"Travel: could not load fast-travel map {ft_id}, aborting.",
+                Py4GW.Console.MessageType.Warning)
+            return
+        yield from Routines.Yield.wait(500)
+
+    # ── Step 2: build route overlay and start movement ──────────────────────
+    current_map = Map.GetMapID()
+    route = GetPath(current_map, target_map_id)
+    if route.get("found"):
+        _travel_route_overlay[:] = _build_route_overlay(route)
+        _path_map_names[:] = route.get("map_names", [])
+        gids: list[int] = []
+        for wp in route.get("waypoints", []):
+            gids.extend([wp["exit_gid"], wp["enter_gid"]])
+        _path_gids[:] = gids
+        _now = int(Utils.GetBaseTimestamp())
+        _num_hops = max(0, len(_path_map_names) - 1)
+        _travel_route_start_ms[0] = _now
+        _travel_hop_times[:] = [(_now, 0)] + [(0, 0)] * (_num_hops - 1)
+        _travel_prev_done_count[0] = 0
+    else:
+        _travel_route_overlay.clear()
+        _path_gids.clear()
+        _path_map_names.clear()
+        _travel_route_start_ms[0] = 0
+        _travel_hop_times.clear()
+        _travel_prev_done_count[0] = -1
+
+    MoveToMapid(target_map_id)
+
+
 def _should_show(rtype: int) -> bool:
     if rtype in (_RT_EXPLORABLE, _RT_OUTPOST, _RT_TOWN, _RT_CITY,
                  _RT_MISSION_OUT, _RT_COOP, _RT_CHALLENGE, _RT_COMPETITIVE, _RT_ELITE):
@@ -1681,6 +1741,8 @@ def _draw_portal_ids_3d() -> None:
 def _draw_overlay() -> None:
     """Draw map rects and connection lines on top of the GW World Map."""
     if not Map.WorldMap.IsWindowOpen():
+        return
+    if Map.WorldMap.GetZoom() != 1:
         return
 
     frame_info = Map.WorldMap.GetFrameInfo()
@@ -2143,84 +2205,84 @@ def _draw_overlay() -> None:
                 if pa and pb:
                     PyImGui.draw_list_add_line(pa[0], pa[1], pb[0], pb[1], link_color, 1.5)
 
-        # ── Pass 4: draw computed portal path ──────────────────────────────
-        if _path_gids:
-            path_line_col  = Utils.RGBToColor( 50, 220, 255, 220)
-            path_done_col  = Utils.RGBToColor( 80,  80,  80, 100)  # dimmed for traveled
-            path_dot_col   = Utils.RGBToColor(255, 255, 255, 240)
-            path_dot_rim   = Utils.RGBToColor( 30, 150, 200, 255)
-            path_done_rim  = Utils.RGBToColor( 80,  80,  80, 120)
+    # ── Pass 4: draw computed portal path (always, regardless of _show_portals) ─
+    if _path_gids:
+        path_line_col  = Utils.RGBToColor( 50, 220, 255, 220)
+        path_done_col  = Utils.RGBToColor( 80,  80,  80, 100)  # dimmed for traveled
+        path_dot_col   = Utils.RGBToColor(255, 255, 255, 240)
+        path_dot_rim   = Utils.RGBToColor( 30, 150, 200, 255)
+        path_done_rim  = Utils.RGBToColor( 80,  80,  80, 120)
 
-            first_pending = _path_first_pending_idx()
+        first_pending = _path_first_pending_idx()
 
-            # Collect icon-space positions for every GID in the path
-            path_icon: dict[int, tuple[float, float]] = {}
-            for pgid in _path_gids:
-                km = _GLOBAL_ID_TO_PORTAL.get(pgid)
-                if km is None:
-                    continue
-                mid, lidx = km
-                if mid not in _PORTAL_BUILT:
-                    bnd2 = _ICON_BOUNDS.get(mid)
-                    if bnd2:
-                        _ensure_portal_dots(mid, is_live=(mid == current_map))
-                for pt in _PORTAL_ICON_POS.get(mid, []):
-                    if pt[3] == lidx:
-                        path_icon[pgid] = (pt[0], pt[1])
-                        break
+        # Collect icon-space positions for every GID in the path
+        path_icon: dict[int, tuple[float, float]] = {}
+        for pgid in _path_gids:
+            km = _GLOBAL_ID_TO_PORTAL.get(pgid)
+            if km is None:
+                continue
+            mid, lidx = km
+            if mid not in _PORTAL_BUILT:
+                bnd2 = _ICON_BOUNDS.get(mid)
+                if bnd2:
+                    _ensure_portal_dots(mid, is_live=(mid == current_map))
+            for pt in _PORTAL_ICON_POS.get(mid, []):
+                if pt[3] == lidx:
+                    path_icon[pgid] = (pt[0], pt[1])
+                    break
 
-            # Draw segments between consecutive GIDs
-            for seg_idx in range(len(_path_gids) - 1):
-                gid_a = _path_gids[seg_idx]
-                gid_b = _path_gids[seg_idx + 1]
-                pa_ix = path_icon.get(gid_a)
-                pb_ix = path_icon.get(gid_b)
-                if pa_ix is None or pb_ix is None:
-                    continue
-                sa = _i2s(pa_ix[0], pa_ix[1])
-                sb = _i2s(pb_ix[0], pb_ix[1])
-                if seg_idx < first_pending:
-                    PyImGui.draw_list_add_line(sa[0], sa[1], sb[0], sb[1], path_done_col, 1.5)
-                else:
-                    PyImGui.draw_list_add_line(sa[0], sa[1], sb[0], sb[1], path_line_col, 2.5)
+        # Draw segments between consecutive GIDs
+        for seg_idx in range(len(_path_gids) - 1):
+            gid_a = _path_gids[seg_idx]
+            gid_b = _path_gids[seg_idx + 1]
+            pa_ix = path_icon.get(gid_a)
+            pb_ix = path_icon.get(gid_b)
+            if pa_ix is None or pb_ix is None:
+                continue
+            sa = _i2s(pa_ix[0], pa_ix[1])
+            sb = _i2s(pb_ix[0], pb_ix[1])
+            if seg_idx < first_pending:
+                PyImGui.draw_list_add_line(sa[0], sa[1], sb[0], sb[1], path_done_col, 1.5)
+            else:
+                PyImGui.draw_list_add_line(sa[0], sa[1], sb[0], sb[1], path_line_col, 2.5)
 
-            # Draw dots at each portal position
-            for dot_idx, pgid in enumerate(_path_gids):
-                pa_ix = path_icon.get(pgid)
-                if pa_ix is None:
-                    continue
-                px, py = _i2s(pa_ix[0], pa_ix[1])
-                if dot_idx < first_pending:
-                    PyImGui.draw_list_add_circle_filled(px, py, 5.0, path_done_col, 12)
-                    PyImGui.draw_list_add_circle(px, py, 5.0, path_done_rim, 12, 1.0)
-                else:
-                    PyImGui.draw_list_add_circle_filled(px, py, 7.0, path_dot_col, 12)
-                    PyImGui.draw_list_add_circle(px, py, 7.0, path_dot_rim, 12, 1.5)
+        # Draw dots at each portal position
+        for dot_idx, pgid in enumerate(_path_gids):
+            pa_ix = path_icon.get(pgid)
+            if pa_ix is None:
+                continue
+            px, py = _i2s(pa_ix[0], pa_ix[1])
+            if dot_idx < first_pending:
+                PyImGui.draw_list_add_circle_filled(px, py, 5.0, path_done_col, 12)
+                PyImGui.draw_list_add_circle(px, py, 5.0, path_done_rim, 12, 1.0)
+            else:
+                PyImGui.draw_list_add_circle_filled(px, py, 7.0, path_dot_col, 12)
+                PyImGui.draw_list_add_circle(px, py, 7.0, path_dot_rim, 12, 1.5)
 
-        # ── Pass 5: draw MoveToNextWaypoint local AutoPathing path ──────────
-        if _mtnw_path:
-            mtnw_icon = _mtnw_path_icon_points(current_map)
-            if len(mtnw_icon) >= 2:
-                mtnw_line_col = Utils.RGBToColor(255, 110, 255, 230)
-                mtnw_dot_col  = Utils.RGBToColor(255, 220, 255, 235)
-                mtnw_cur_col  = Utils.RGBToColor(255, 255, 120, 255)
+    # ── Pass 5: draw MoveToNextWaypoint local AutoPathing path (always) ──────
+    if _mtnw_path:
+        mtnw_icon = _mtnw_path_icon_points(current_map)
+        if len(mtnw_icon) >= 2:
+            mtnw_line_col = Utils.RGBToColor(255, 110, 255, 230)
+            mtnw_dot_col  = Utils.RGBToColor(255, 220, 255, 235)
+            mtnw_cur_col  = Utils.RGBToColor(255, 255, 120, 255)
 
-                # Polyline
-                for i in range(len(mtnw_icon) - 1):
-                    a = _i2s(mtnw_icon[i][0], mtnw_icon[i][1])
-                    b = _i2s(mtnw_icon[i + 1][0], mtnw_icon[i + 1][1])
-                    PyImGui.draw_list_add_line(a[0], a[1], b[0], b[1], mtnw_line_col, 2.0)
+            # Polyline
+            for i in range(len(mtnw_icon) - 1):
+                a = _i2s(mtnw_icon[i][0], mtnw_icon[i][1])
+                b = _i2s(mtnw_icon[i + 1][0], mtnw_icon[i + 1][1])
+                PyImGui.draw_list_add_line(a[0], a[1], b[0], b[1], mtnw_line_col, 2.0)
 
-                # Sparse waypoint dots
-                step = 3 if len(mtnw_icon) > 30 else 1
-                for i in range(0, len(mtnw_icon), step):
-                    s = _i2s(mtnw_icon[i][0], mtnw_icon[i][1])
-                    PyImGui.draw_list_add_circle_filled(s[0], s[1], 3.2, mtnw_dot_col, 10)
+            # Sparse waypoint dots
+            step = 3 if len(mtnw_icon) > 30 else 1
+            for i in range(0, len(mtnw_icon), step):
+                s = _i2s(mtnw_icon[i][0], mtnw_icon[i][1])
+                PyImGui.draw_list_add_circle_filled(s[0], s[1], 3.2, mtnw_dot_col, 10)
 
-                # Highlight current target waypoint
-                if 0 <= _mtnw_path_index[0] < len(mtnw_icon):
-                    c = _i2s(mtnw_icon[_mtnw_path_index[0]][0], mtnw_icon[_mtnw_path_index[0]][1])
-                    PyImGui.draw_list_add_circle(c[0], c[1], 7.0, mtnw_cur_col, 16, 1.8)
+            # Highlight current target waypoint
+            if 0 <= _mtnw_path_index[0] < len(mtnw_icon):
+                c = _i2s(mtnw_icon[_mtnw_path_index[0]][0], mtnw_icon[_mtnw_path_index[0]][1])
+                PyImGui.draw_list_add_circle(c[0], c[1], 7.0, mtnw_cur_col, 16, 1.8)
 
     # ── Route overlay: GetPath result drawn on the world map ─────────────────
     if _wp_route_overlay and _show_wp_demo[0]:
@@ -2295,6 +2357,8 @@ def _draw_travel_buttons() -> None:
     """
     if not Map.WorldMap.IsWindowOpen() or not _travel_btn_data:
         return
+    if Map.WorldMap.GetZoom() != 1:
+        return
 
     current_map = Map.GetMapID()
     if current_map <= 0:
@@ -2311,14 +2375,31 @@ def _draw_travel_buttons() -> None:
         PyImGui.WindowFlags.NoBackground      |
         PyImGui.WindowFlags.NoSavedSettings
     )
+    # Direct path colors (green)
     btn_col         = (0.10, 0.55, 0.15, 0.88)
     btn_col_hovered = (0.15, 0.75, 0.22, 0.95)
     btn_col_active  = (0.20, 0.90, 0.28, 1.00)
+    # Fast-travel-only colors (blue)
+    btn_col_ft         = (0.10, 0.35, 0.75, 0.88)
+    btn_col_ft_hovered = (0.15, 0.50, 0.90, 0.95)
+    btn_col_ft_active  = (0.20, 0.60, 1.00, 1.00)
 
     for rep_id, btn_x, btn_y in _travel_btn_data:
+        # Check direct path from current map
         if rep_id not in _is_path_cache:
             _is_path_cache[rep_id] = IsPath(current_map, rep_id)
-        if not _is_path_cache[rep_id]:
+        direct = _is_path_cache[rep_id]
+
+        # Check fast-travel path: nearest unlocked outpost → target
+        if not direct and rep_id not in _is_ft_path_cache:
+            ft = GetNearestUnlockedOutpost(rep_id)
+            if ft and ft["map_id"] != current_map:
+                _is_ft_path_cache[rep_id] = True
+            else:
+                _is_ft_path_cache[rep_id] = False
+        via_ft = not direct and _is_ft_path_cache.get(rep_id, False)
+
+        if not direct and not via_ft:
             continue
 
         PyImGui.set_next_window_pos(btn_x, btn_y)
@@ -2327,40 +2408,45 @@ def _draw_travel_buttons() -> None:
             PyImGui.end()
             continue
 
-        PyImGui.push_style_color(PyImGui.ImGuiCol.Button,        btn_col)
-        PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, btn_col_hovered)
-        PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive,  btn_col_active)
+        if via_ft:
+            PyImGui.push_style_color(PyImGui.ImGuiCol.Button,        btn_col_ft)
+            PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, btn_col_ft_hovered)
+            PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive,  btn_col_ft_active)
+        else:
+            PyImGui.push_style_color(PyImGui.ImGuiCol.Button,        btn_col)
+            PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, btn_col_hovered)
+            PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive,  btn_col_active)
         PyImGui.set_cursor_pos(0.0, 0.0)
         if PyImGui.button(f"##t{rep_id}", btn_w, btn_h):
-            route = GetPath(current_map, rep_id)
-            if route.get("found"):
-                _travel_route_overlay[:] = _build_route_overlay(route)
-                _path_map_names[:] = route.get("map_names", [])
-                gids: list[int] = []
-                for wp in route.get("waypoints", []):
-                    gids.extend([wp["exit_gid"], wp["enter_gid"]])
-                _path_gids[:] = gids
-                # Initialise hop timers
-                _now = int(Utils.GetBaseTimestamp())
-                _num_hops = max(0, len(_path_map_names) - 1)
-                _travel_route_start_ms[0] = _now
-                _travel_hop_times[:] = [(_now, 0)] + [(0, 0)] * (_num_hops - 1)
-                _travel_prev_done_count[0] = 0
-            else:
-                _travel_route_overlay.clear()
-                _path_gids.clear()
-                _path_map_names.clear()
-                _travel_route_start_ms[0] = 0
-                _travel_hop_times.clear()
-                _travel_prev_done_count[0] = -1
-            MoveToMapid(rep_id)
+            GLOBAL_CACHE.Coroutines.append(_travel_button_coroutine(rep_id))
         PyImGui.pop_style_color(3)
 
         if PyImGui.is_item_hovered():
             meta = _MAP_META.get(rep_id)
             name = meta[1] if meta else f"Map {rep_id}"
+            ft_info = GetNearestUnlockedOutpost(rep_id)
+            ft_id_tip = ft_info["map_id"] if ft_info else None
+            ft_name   = ft_info["name"]   if ft_info else "?"
+            ft_dist   = ft_info["distance"] if ft_info else None
             PyImGui.begin_tooltip()
             PyImGui.text(f"Travel to: {name}")
+            if ft_id_tip == rep_id:
+                # Target itself is an unlocked outpost → direct fast-travel, no walking
+                PyImGui.text("(direct fast-travel)")
+            elif ft_id_tip and ft_id_tip != current_map:
+                # Need to fast-travel to an intermediate outpost first
+                PyImGui.text(f"via fast-travel: {ft_name}")
+                if ft_dist is not None:
+                    PyImGui.text(f"Distance: {ft_dist:,.0f} units")
+                else:
+                    PyImGui.text("Distance: unknown")
+            else:
+                # Already at the nearest outpost → walking distance only
+                dist = _path_distance(current_map, rep_id)
+                if dist is not None:
+                    PyImGui.text(f"Distance: {dist:,.0f} units")
+                else:
+                    PyImGui.text("Distance: unknown")
             PyImGui.end_tooltip()
 
         PyImGui.end()
@@ -3185,6 +3271,7 @@ def main() -> None:
             _PORTAL_ICON_POS.pop(cmap, None)
             _PMAP_GAME_BOUNDS.pop(cmap, None)
             _is_path_cache.clear()
+            _is_ft_path_cache.clear()
             _debug_last_map[0] = cmap
             # Only wipe route data when no runner is active.
             # While the bot is travelling, the route must stay visible.

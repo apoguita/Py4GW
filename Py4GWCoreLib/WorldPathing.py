@@ -313,14 +313,23 @@ class WorldPathing:
     def GetNearestUnlockedOutpost(self, target_map_id: int) -> dict | None:
         """Return the nearest unlocked non-explorable map to target_map_id.
 
-        BFS outward through the combined adjacency.  At each hop level ALL
-        candidates are collected, then sorted by game-unit distance so the
-        truly closest one is returned.
+        Candidates are found via BFS and ranked by a combined cost:
+
+          cost = path_distance(candidate → target)
+                 + hop_count * HOP_PENALTY
+
+        HOP_PENALTY is a synthetic distance added per hop so that a nearby
+        outpost 1 hop away is strongly preferred over one 3 hops away, but
+        within the same hop band the actual portal-to-portal game-unit distance
+        is decisive.  If no game-unit coords are available for a candidate,
+        hop_count alone is used as a fallback.
 
         Return value:
           { "map_id": int, "name": str, "hops": int, "distance": float | None }
         or None when no unlocked outpost is reachable.
         """
+        HOP_PENALTY = 5_000.0   # game units added per hop (roughly 1 zone width)
+
         combined = self.get_world_adj()
         if target_map_id not in combined:
             return None
@@ -338,40 +347,44 @@ class WorldPathing:
 
         visited: set[int] = {target_map_id}
         queue:   deque    = deque([(target_map_id, 0)])
+        candidates: list  = []
 
+        # BFS to collect *all* reachable unlocked outposts, not just the
+        # nearest hop tier — we need the full set to rank by combined cost.
         while queue:
-            current_hops      = queue[0][1]
-            candidates: list  = []
-
-            while queue and queue[0][1] == current_hops:
-                cur, hops = queue.popleft()
-                for nb in combined.get(cur, set()):
-                    if nb in visited:
-                        continue
-                    visited.add(nb)
-                    meta = WorldPathing._MAP_META.get(nb)
-                    if (meta
-                            and meta[0] != WorldPathing._RT_EXPLORABLE
-                            and Map.IsMapUnlocked(nb)):
-                        dist = self.path_distance(nb, target_map_id)
-                        candidates.append({
-                            "map_id":   nb,
-                            "name":     meta[1],
-                            "hops":     hops + 1,
-                            "distance": dist,
-                        })
+            cur, hops = queue.popleft()
+            for nb in combined.get(cur, set()):
+                if nb in visited:
+                    continue
+                visited.add(nb)
+                meta = WorldPathing._MAP_META.get(nb)
+                if (meta
+                        and meta[0] != WorldPathing._RT_EXPLORABLE
+                        and Map.IsMapUnlocked(nb)):
+                    dist = self.path_distance(nb, target_map_id)
+                    if dist is not None:
+                        cost = dist + hops * HOP_PENALTY
                     else:
-                        queue.append((nb, hops + 1))
+                        # No coordinates available: penalise heavily by hop count only
+                        cost = (hops + 1) * HOP_PENALTY * 10
+                    candidates.append({
+                        "map_id":   nb,
+                        "name":     meta[1],
+                        "hops":     hops + 1,
+                        "distance": dist,
+                        "_cost":    cost,
+                    })
+                # Always continue BFS through non-outpost nodes so we can
+                # reach outposts that are deeper in the graph.
+                queue.append((nb, hops + 1))
 
-            if candidates:
-                candidates.sort(key=lambda c: (
-                    c["hops"],
-                    c["distance"] if c["distance"] is not None else float("inf"),
-                    c["map_id"],
-                ))
-                return candidates[0]
+        if not candidates:
+            return None
 
-        return None
+        candidates.sort(key=lambda c: (c["_cost"], c["hops"], c["map_id"]))
+        best = candidates[0]
+        best.pop("_cost", None)
+        return best
 
     # ── Internal helpers ───────────────────────────────────────────────────────
 
