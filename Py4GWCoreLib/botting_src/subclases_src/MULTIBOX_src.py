@@ -166,5 +166,9 @@ class _MULTIBOX:
 
     def KickAccount(self, account_email: str):
         self._helpers.Multibox.kick_account_by_email(account_email)
-        
+
+    def AbandonQuest(self, quest_id: int):
+        """Abandon a quest for the leader and broadcast to all other accounts via multibox messaging."""
+        self._helpers.Multibox.abandon_quest(quest_id)
+
 #endregion

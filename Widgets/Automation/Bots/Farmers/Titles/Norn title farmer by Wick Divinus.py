@@ -174,6 +174,7 @@ def bot_routine(bot: Botting) -> None:
     bot.Wait.ForTime(10000)
 
     # The Path to Revelations (The quest is required beforehand, otherwise the enemies will not spawn)
+    bot.Move.XY(19416.26, 1142.77)
     bot.Move.XY(24169.45, -4288.69)
     bot.Move.XY(24169.45, -4288.69)
     bot.Move.XY(19745, -2718)
@@ -457,11 +458,15 @@ def _draw_title_track():
             else:
                 next_required = tier.required
                 break
+        is_maxed = tiers and pts >= tiers[-1].required
+        PyImGui.separator()
+        PyImGui.text(f"{name}  [{tier_name}]")
+        if is_maxed:
+            PyImGui.text_colored("Maximum rank achieved. Title complete.", (0.4, 1.0, 0.4, 1.0))
+            continue
         gained = pts - _session_baselines[name]
         elapsed = now - _session_start_times[name]
         pts_hr = int(gained / elapsed * 3600) if elapsed > 0 else 0
-        PyImGui.separator()
-        PyImGui.text(f"{name}  [{tier_name}]")
         PyImGui.text(f"Points: {pts:,} / {next_required:,}")
         if next_required > prev_required:
             frac = min((pts - prev_required) / (next_required - prev_required), 1.0)
@@ -471,7 +476,7 @@ def _draw_title_track():
 REFORGED_TEXTURE = os.path.join(Py4GW.Console.get_projects_path(), "Sources", "Wick Divinus bots", "Reforged_Icon.png")
 def main():
     bot.Update()
-    bot.UI.draw_window(icon_path=REFORGED_TEXTURE, additional_ui=_draw_title_track)
+    bot.UI.draw_window(icon_path=REFORGED_TEXTURE, extra_tabs=[("Statistics", _draw_title_track)])
 
 if __name__ == "__main__":
     main()

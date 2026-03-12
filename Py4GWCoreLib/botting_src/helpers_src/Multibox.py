@@ -544,6 +544,33 @@ class _Multibox:
     def disable_widget(self, widget_name: str):
         yield from self._disable_widget_message(widget_name)
 
+    def _abandon_quest_message(self, quest_id: int):
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Routines import Routines
+        from ...Quest import Quest
+        sender_email = Player.GetAccountEmail()
+        accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+        # Abandon locally for the leader
+        Quest.AbandonQuest(quest_id)
+        ConsoleLog("Messaging", f"AbandonQuest ({quest_id}) executed locally", log=False)
+        # Broadcast to all other accounts
+        for account in accounts:
+            if account.AccountEmail == sender_email:
+                continue
+            ConsoleLog("Messaging", f"Sending AbandonQuest ({quest_id}) to {account.AccountEmail}", log=False)
+            GLOBAL_CACHE.ShMem.SendMessage(
+                sender_email,
+                account.AccountEmail,
+                SharedCommandType.AbandonQuest,
+                (float(quest_id), 0.0, 0.0, 0.0),
+            )
+            yield from Routines.Yield.wait(300)
+        yield
+
+    @_yield_step(label="AbandonQuest", counter_key="ABANDON_QUEST")
+    def abandon_quest(self, quest_id: int):
+        yield from self._abandon_quest_message(quest_id)
+
     def get_all_account_data(self) -> List[_AccountData]:
         return self._get_all_account_data()
 
