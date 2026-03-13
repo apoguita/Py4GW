@@ -109,6 +109,8 @@ def bot_routine(bot: Botting) -> None:
     else:
         BotSettings.VANQUISH_PATH = list(reversed(BotSettings.VANQUISH_PATH))
         bot.Move.FollowAutoPath(BotSettings.VANQUISH_PATH)
+    
+    bot.Stop()
 
 def PrepareForBattle(bot: Botting):                  
     bot.Items.Restock.ArmorOfSalvation()
@@ -120,10 +122,12 @@ def PrepareForBattle(bot: Botting):
 region_index = 0
 map_index = 0
 _farm_configured = [False]
+prev_map_id = 0
 
 def _draw_settings():
     global region_index
     global map_index
+    global prev_map_id    
 
     #Region combo
     PyImGui.text("Region & Map Selection")
@@ -155,18 +159,15 @@ def _draw_settings():
     BotSettings.TRANSIT_EXPLORABLE = ids.get("transit_id")
     if getattr(mod, f"{map_selected}_transit_path", []):
         BotSettings.TRANSIT_PATH = getattr(mod, f"{map_selected}_transit_path", [])
-
-    if not _farm_configured[0]:
-        if PyImGui.button("Select Map to Vanquish", 250, 30):
-            _farm_configured[0] = True
-
-    if _farm_configured[0]:
-        if PyImGui.button("Reset selected Map", 250, 30):
-            bot.Stop()
-            bot.config.FSM = FSM(BotSettings.BOT_NAME)
-            bot.config.initialized = False
-            _farm_configured[0] = False          
     
+    if prev_map_id != BotSettings.EXPLORABLE_TO_TRAVEL :
+        bot.Stop()
+        bot.config.FSM = FSM(BotSettings.BOT_NAME)
+        bot.config.initialized = False
+        prev_map_id = BotSettings.EXPLORABLE_TO_TRAVEL
+        _farm_configured[0] = True      
+
+    PyImGui.separator()   
     if PyImGui.button("Travel to Embark Beach", 250, 30):
         Map.Travel(857)
 
@@ -208,8 +209,7 @@ def _draw_settings_debug():
     PyImGui.text(f"BotSettings.COORD_TO_EXIT_MAP: {BotSettings.COORD_TO_EXIT_MAP[-1]}")
     PyImGui.text(f"BotSettings.VANQUISH_PATH: {BotSettings.VANQUISH_PATH[-1]}")
     PyImGui.text(f"BotSettings.TRANSIT_EXPLORABLE: {BotSettings.TRANSIT_EXPLORABLE}")
-    PyImGui.text(f"BotSettings.TRANSIT_PATH: {BotSettings.TRANSIT_PATH[-1]}")
-    
+    PyImGui.text(f"BotSettings.TRANSIT_PATH: {BotSettings.TRANSIT_PATH[-1]}")    
 
 def _draw_help():
     PyImGui.text("Developed by: Aura")
