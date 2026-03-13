@@ -418,7 +418,8 @@ class Yield:
             import random
             from .Checks import Checks
             from ..Pathing import AutoPathing
-        
+            from ..Map import Map as _Map
+
             #log = True #force logging
             detailed_log = False #always detailed log for now
 
@@ -428,6 +429,12 @@ class Yield:
             max_retries = 30  # after this, send stuck command
             stuck_count = 0
             max_stuck_commands = 2  # after this, do PixelStack recovery
+
+            # Capture starting map so we can detect fast transitions (new map valid before next tick)
+            _initial_map_id = _Map.GetMapID()
+
+            def _map_still_valid() -> bool:
+                return Checks.Map.MapValid() and _Map.GetMapID() == _initial_map_id
 
             if total_points == 0:
                 ConsoleLog("FollowPath", "Empty path provided, treating as success.", Console.MessageType.Warning, log=log)
@@ -497,24 +504,24 @@ class Yield:
                 ConsoleLog("FollowPath", f"Starting point {idx+1}/{total_points} - ({target_x}, {target_y}) distance {Utils.Distance(Player.GetXY(), (target_x, target_y))}", Console.MessageType.Info, log=detailed_log)
 
 
-                if not Checks.Map.MapValid():
+                if not _map_still_valid():
                     ConsoleLog("FollowPath", "Map invalid before starting point, aborting.", Console.MessageType.Error, log=log)
-            
+
                     ActionQueueManager().ResetAllQueues()
                     return False
-                
+
                 if stop_on_party_wipe and (
                         Checks.Party.IsPartyWiped() or GLOBAL_CACHE.Party.IsPartyDefeated()
                     ):
                         ConsoleLog("FollowPath", "Party wiped detected, stopping all movement.", Console.MessageType.Warning, log=True  )
                         ActionQueueManager().ResetAllQueues()
-                        return False 
+                        return False
 
                 Player.Move(target_x, target_y)
                 ConsoleLog("FollowPath", f"Issued move command to ({target_x}, {target_y}).", Console.MessageType.Debug, log=detailed_log)
-        
+
                 yield from Yield.wait(250)
-                if not Checks.Map.MapValid(): ActionQueueManager().ResetAllQueues(); return False
+                if not _map_still_valid(): ActionQueueManager().ResetAllQueues(); return False
 
                 current_x, current_y = Player.GetXY()
                 previous_distance = Utils.Distance((current_x, current_y), (target_x, target_y))
@@ -522,16 +529,16 @@ class Yield:
                 while True:
                     ConsoleLog("FollowPath", "Movement loop iteration...", Console.MessageType.Debug, log=detailed_log)
 
-                    if not Checks.Map.MapValid():
-                        ConsoleLog("FollowPath", "Map became invalid mid-run, aborting movement.", Console.MessageType.Warning, log=log)
-                
+                    if not _map_still_valid():
+                        ConsoleLog("FollowPath", "Map changed or became invalid mid-run, aborting movement.", Console.MessageType.Warning, log=log)
+
                         ActionQueueManager().ResetAllQueues()
                         return False
-                    
+
                     if custom_exit_condition():
                         ConsoleLog("FollowPath", "Custom exit condition met, stopping movement.", Console.MessageType.Info, log=log)
                         return False
-                    
+
                     if stop_on_party_wipe and (
                         Checks.Party.IsPartyWiped() or GLOBAL_CACHE.Party.IsPartyDefeated()
                     ):
@@ -542,14 +549,21 @@ class Yield:
 
                     if Agent.IsValid(Player.GetAgentID()) and Agent.IsCasting(Player.GetAgentID()):
                         ConsoleLog("FollowPath", "Player casting detected, waiting 750ms...", Console.MessageType.Debug, log=detailed_log)
-                
+
                         yield from Yield.wait(750)
                         continue
-                    
+
                     if custom_pause_fn:
                         was_paused = False
                         while custom_pause_fn():
                             was_paused = True
+                            if not _map_still_valid():
+                                ConsoleLog("FollowPath", "Map changed while movement was paused, aborting.", Console.MessageType.Warning, log=log)
+                                ActionQueueManager().ResetAllQueues()
+                                return False
+                            if custom_exit_condition():
+                                ConsoleLog("FollowPath", "Custom exit condition met while movement was paused, stopping movement.", Console.MessageType.Info, log=log)
+                                return False
                             if stop_on_party_wipe and (Checks.Map.MapValid() and
                                     (Checks.Party.IsPartyWiped() or GLOBAL_CACHE.Party.IsPartyDefeated())
                                 ):
@@ -590,7 +604,7 @@ class Yield:
                             target_x, target_y = path_points[idx]
                             Player.Move(target_x, target_y)
                             yield from Yield.wait(250)
-                            if not Checks.Map.MapValid():
+                            if not _map_still_valid():
                                 ActionQueueManager().ResetAllQueues()
                                 return False
                             current_x, current_y = Player.GetXY()
@@ -598,9 +612,9 @@ class Yield:
                             retries = 0
                             stuck_count = 0
                             continue
-                    
-                    if not Checks.Map.MapValid(): ActionQueueManager().ResetAllQueues(); return False
-                    
+
+                    if not _map_still_valid(): ActionQueueManager().ResetAllQueues(); return False
+
                     current_time = Utils.GetBaseTimestamp()
                     delta = current_time - start_time
                     if delta > timeout and timeout > 0:
@@ -614,7 +628,7 @@ class Yield:
                         offset_x = random.uniform(-5, 5)
                         offset_y = random.uniform(-5, 5)
                         ConsoleLog("FollowPath", f"move to {target_x + offset_x}, {target_y + offset_y}", Console.MessageType.Info, log=log)
-                        if not Checks.Map.MapValid():
+                        if not _map_still_valid():
                             ActionQueueManager().ResetAllQueues()
                             return False
                         Player.Move(target_x + offset_x, target_y + offset_y)
@@ -622,28 +636,28 @@ class Yield:
                         if retries >= max_retries:
                             Player.SendChatCommand("stuck")
                             ConsoleLog("FollowPath", "No progress made, sending /stuck command.", Console.MessageType.Warning, log=log)
-                    
+
                             retries = 0
                             stuck_count += 1
 
                             # --- PixelStack recovery if too many stucks ---
                             if stuck_count >= max_stuck_commands:
                                 ConsoleLog("FollowPath", "Too many stucks, performing strafe recovery.", Console.MessageType.Warning, log=log)
-                        
+
                                 start_x, start_y = Player.GetXY()
 
                                 # Backwards
                                 yield from Yield.Movement.WalkBackwards(1000)
-                                if not Checks.Map.MapValid(): ActionQueueManager().ResetAllQueues(); return False
+                                if not _map_still_valid(): ActionQueueManager().ResetAllQueues(); return False
                                 # Strafe left
                                 yield from Yield.Movement.StrafeLeft(1000)
-                                if not Checks.Map.MapValid(): ActionQueueManager().ResetAllQueues(); return False
+                                if not _map_still_valid(): ActionQueueManager().ResetAllQueues(); return False
 
                                 # Strafe right if no movement
                                 left_x, left_y = Player.GetXY()
                                 if Utils.Distance((start_x, start_y), (left_x, left_y)) < 50:
                                     yield from Yield.Movement.StrafeRight(1000)
-                                    if not Checks.Map.MapValid(): ActionQueueManager().ResetAllQueues(); return False
+                                    if not _map_still_valid(): ActionQueueManager().ResetAllQueues(); return False
 
                                 stuck_count = 0  # reset after recovery
                     else:
@@ -651,7 +665,7 @@ class Yield:
                         stuck_count = 0  # reset stuck count if making progress
                         ConsoleLog("FollowPath", "Progress detected, reset retry counters.", Console.MessageType.Debug, log=detailed_log)
 
-                    if not Checks.Map.MapValid(): ActionQueueManager().ResetAllQueues(); return False
+                    if not _map_still_valid(): ActionQueueManager().ResetAllQueues(); return False
                     #common
                     previous_distance = current_distance
 

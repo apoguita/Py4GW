@@ -723,6 +723,9 @@ class AutoPathing:
 
         while True:
             yield from Routines.Yield.wait(100)
+            current_map_id = Map.GetMapID()
+            if not current_map_id or Map.IsMapLoading() or current_map_id != map_id:
+                return []  # map changed while pathfinding — abort cleanly
             status = path_planner.get_status()
             if status == PyPathing.PathStatus.Ready:
                 yield
