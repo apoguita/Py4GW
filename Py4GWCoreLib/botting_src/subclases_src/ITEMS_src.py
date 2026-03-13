@@ -111,6 +111,14 @@ class _ITEMS:
         """
         self._helpers.Items.use_summoning_stone()
 
+    def UseConset(self):
+        """Uses only conset items (Essence of Celerity, Grail of Might, Armor of Salvation). Skips any already active."""
+        self._helpers.Items.use_conset()
+
+    def UsePcons(self):
+        """Uses only pcon items (Cupcake, Golden Egg, Candy Corn, Candy Apple, Pumpkin Pie, Drake Kabob, Skalefin Soup, Pahnai Salad, War Supplies). Skips any already active."""
+        self._helpers.Items.use_pcons()
+
     def UseAllConsumables(self):
         """
         Uses all consumables for the current player only (not multibox).

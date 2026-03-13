@@ -595,6 +595,71 @@ class _Items:
                 GLOBAL_CACHE.Inventory.UseItem(item_id)
                 yield from Routines.Yield.wait(500)
 
+    @_yield_step(label="UseConset", counter_key="USE_CONSET")
+    def use_conset(self) -> Generator[Any, Any, None]:
+        """
+        Uses only conset items (Essence of Celerity, Grail of Might, Armor of Salvation)
+        for the current player. Skips any whose effect is already active.
+        """
+        from ...Routines import Routines
+        from ...GlobalCache import GLOBAL_CACHE
+
+        conset_effects = [
+            (ModelID.Essence_Of_Celerity.value, GLOBAL_CACHE.Skill.GetID("Essence_of_Celerity_item_effect")),
+            (ModelID.Grail_Of_Might.value,       GLOBAL_CACHE.Skill.GetID("Grail_of_Might_item_effect")),
+            (ModelID.Armor_Of_Salvation.value,   GLOBAL_CACHE.Skill.GetID("Armor_of_Salvation_item_effect")),
+        ]
+
+        yield from Routines.Yield.wait(500)
+
+        for consumable_model_id, effect_skill_id in conset_effects:
+            if hasattr(GLOBAL_CACHE, "Effects") and callable(getattr(GLOBAL_CACHE.Effects, "HasEffect", None)):
+                if GLOBAL_CACHE.Effects.HasEffect(Player.GetAgentID(), effect_skill_id):
+                    continue
+            elif hasattr(GLOBAL_CACHE.Inventory, "HasEffect") and callable(getattr(GLOBAL_CACHE.Inventory, "HasEffect", None)):
+                if GLOBAL_CACHE.Inventory.HasEffect(Player.GetAgentID(), effect_skill_id):
+                    continue
+            item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(consumable_model_id)
+            if item_id:
+                GLOBAL_CACHE.Inventory.UseItem(item_id)
+                yield from Routines.Yield.wait(500)
+
+    @_yield_step(label="UsePcons", counter_key="USE_PCONS")
+    def use_pcons(self) -> Generator[Any, Any, None]:
+        """
+        Uses only pcon items (Birthday Cupcake, Golden Egg, Candy Corn, Candy Apple,
+        Pumpkin Pie, Drake Kabob, Skalefin Soup, Pahnai Salad, War Supplies)
+        for the current player. Skips any whose effect is already active.
+        """
+        from ...Routines import Routines
+        from ...GlobalCache import GLOBAL_CACHE
+
+        pcon_effects = [
+            (ModelID.Birthday_Cupcake.value,      GLOBAL_CACHE.Skill.GetID("Birthday_Cupcake_skill")),
+            (ModelID.Golden_Egg.value,             GLOBAL_CACHE.Skill.GetID("Golden_Egg_skill")),
+            (ModelID.Candy_Corn.value,             GLOBAL_CACHE.Skill.GetID("Candy_Corn_skill")),
+            (ModelID.Candy_Apple.value,            GLOBAL_CACHE.Skill.GetID("Candy_Apple_skill")),
+            (ModelID.Slice_Of_Pumpkin_Pie.value,  GLOBAL_CACHE.Skill.GetID("Pie_Induced_Ecstasy")),
+            (ModelID.Drake_Kabob.value,            GLOBAL_CACHE.Skill.GetID("Drake_Skin")),
+            (ModelID.Bowl_Of_Skalefin_Soup.value, GLOBAL_CACHE.Skill.GetID("Skale_Vigor")),
+            (ModelID.Pahnai_Salad.value,           GLOBAL_CACHE.Skill.GetID("Pahnai_Salad_item_effect")),
+            (ModelID.War_Supplies.value,           GLOBAL_CACHE.Skill.GetID("Well_Supplied")),
+        ]
+
+        yield from Routines.Yield.wait(500)
+
+        for consumable_model_id, effect_skill_id in pcon_effects:
+            if hasattr(GLOBAL_CACHE, "Effects") and callable(getattr(GLOBAL_CACHE.Effects, "HasEffect", None)):
+                if GLOBAL_CACHE.Effects.HasEffect(Player.GetAgentID(), effect_skill_id):
+                    continue
+            elif hasattr(GLOBAL_CACHE.Inventory, "HasEffect") and callable(getattr(GLOBAL_CACHE.Inventory, "HasEffect", None)):
+                if GLOBAL_CACHE.Inventory.HasEffect(Player.GetAgentID(), effect_skill_id):
+                    continue
+            item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(consumable_model_id)
+            if item_id:
+                GLOBAL_CACHE.Inventory.UseItem(item_id)
+                yield from Routines.Yield.wait(500)
+
     @_yield_step(label="UseSummoningStone", counter_key="USE_SUMMONING_STONE")
     def use_summoning_stone(self) -> Generator[Any, Any, None]:
         """

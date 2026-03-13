@@ -94,11 +94,22 @@ class _MULTIBOX:
         self._helpers.Multibox.use_consumable((ModelID.War_Supplies.value, GLOBAL_CACHE.Skill.GetID("Well_Supplied"), 0, 0))
    
    
-    def UsePConSet(self):
+    def UseConset(self):
         self.UseEssenceOfCelerity()
         self.UseGrailOfMight()
         self.UseArmorOfSalvation()
-        
+
+    def UsePcons(self):
+        self.UseBirthdayCupcake()
+        self.UseGoldenEgg()
+        self.UseCandyCorn()
+        self.UseCandyApple()
+        self.UsePumpkinPie()
+        self.UseDrakeKabob()
+        self.UseBowlOfSkalefinSoup()
+        self.UsePahnaiSalad()
+        self.UseWarSupplies()
+
     def UseAllConsumables(self):
         self.UseEssenceOfCelerity()
         self.UseGrailOfMight()
