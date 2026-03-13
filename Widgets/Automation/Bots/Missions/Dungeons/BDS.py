@@ -2085,6 +2085,32 @@ def _draw_bds_window_with_stats_tab() -> None:
             bot.config.config_properties.floor_offset.get("value"),
         )
 
+def tooltip():
+    import PyImGui
+    from Py4GWCoreLib import ImGui, Color
+    PyImGui.begin_tooltip()
+
+    # Title
+    title_color = Color(255, 200, 100, 255)
+    ImGui.push_font("Regular", 20)
+    PyImGui.text_colored("Bone Dragon Staff Farmer bot", title_color.to_tuple_normalized())
+    ImGui.pop_font()
+    PyImGui.spacing()
+    PyImGui.separator()
+    # Description
+    PyImGui.text("multi-account bot to farm Bone Dragon Staff")
+    PyImGui.spacing()
+    PyImGui.bullet_text("Requirements:")
+    PyImGui.bullet_text("- Any number of accounts, but for best performance, 8 well-geared accounts is recommended")
+    PyImGui.bullet_text("- Custom Behavior widget enabled on all accounts")
+    PyImGui.bullet_text("- Launch the script on the party leader only")
+    PyImGui.bullet_text("Designed for Normal Mode (NM) and Hard Mode (HM), check bot settings for more details.")
+    
+    # Credits
+    PyImGui.text_colored("Credits:", title_color.to_tuple_normalized())
+    PyImGui.bullet_text("Developed by Oo SKY oO")
+    PyImGui.bullet_text("Contributors: Wick-Divinus and Sloppynacho")
+    PyImGui.end_tooltip()
 
 def main():
     bot.Update()
