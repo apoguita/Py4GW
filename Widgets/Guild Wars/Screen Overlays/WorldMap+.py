@@ -76,6 +76,9 @@ _ICON_BOUNDS:   dict[int, tuple[float, float, float, float] | None] = {}
 _MAP_CENTROIDS: dict[int, tuple[float, float]] = {}
 # map_id -> set of adjacent map_ids (derived from _ALL_EDGES in _build_cache)
 _MAP_NEIGHBORS: dict[int, set[int]] = {}
+# Maps that appear in portal_links.json (gid // 1000).
+# Populated in _build_cache() after _load_portal_links() completes.
+_CONNECTED_MAP_IDS: set[int] = set()
 # Loaded from JSON at startup: map_id -> [dx_icon, dy_icon]
 _PMAP_OFFSETS:  dict[int, tuple[float, float]] = {}
 # Off-map dungeons: map_id -> (anchor_map_id, side)
@@ -97,6 +100,7 @@ _PORTAL_ALL_DATA: dict[int, list[dict]] = {}
 _live_portal_cache: dict[int, list[dict]] = {}
 _LIVE_PORTAL_CACHE_FILE = os.path.join(_SCRIPT_DIR, "portal_live_cache.json")
 _PORTAL_ALL_FILE = os.path.join(_SCRIPT_DIR, "portal_all.json")
+_CUSTOM_PLACEMENTS_FILE = os.path.join(_SCRIPT_DIR, "custom_placements.json")
 
 
 # ── Region type constants ──────────────────────────────────────────────────────
@@ -906,6 +910,151 @@ def _save_portal_links() -> None:
                           Py4GW.Console.MessageType.Warning)
 
 
+def _apply_custom_dungeon_placement(entrance_gid: int, dungeon_map_id: int, dungeon_name: str) -> None:
+    """Register a custom dungeon icon on the world map positioned at entrance_gid,
+    and link entrance_gid ⇔ dungeon_map_id*1000 in _PORTAL_LINKS.
+    Safe to call at any time (load or runtime).
+    """
+    entrance_map = entrance_gid // 1000
+    dungeon_portal_gid = dungeon_map_id * 1000
+
+    # 1. Map metadata
+    # Force rtype = explorable (2) so GetNearestUnlockedOutpost never treats
+    # this dungeon as a fast-travel destination (dungeons require walking in).
+    if dungeon_map_id not in _MAP_META:
+        try:
+            info = MapMethods.GetMapInfo(dungeon_map_id)
+            camp = int(info.campaign) if info else 4
+        except Exception:
+            camp = 4
+        _MAP_META[dungeon_map_id] = (2, dungeon_name, camp)
+    else:
+        old = _MAP_META[dungeon_map_id]
+        _MAP_META[dungeon_map_id] = (2, dungeon_name, old[2])
+
+    # 2. Find entrance portal icon-space position (needs _PORTAL_ALL_DATA loaded)
+    _ensure_portal_dots(entrance_map, is_live=False)
+    dots = _PORTAL_ICON_POS.get(entrance_map, [])
+    px = py = None
+    for dot in dots:
+        if len(dot) >= 5 and int(dot[4]) == entrance_gid:
+            px, py = float(dot[0]), float(dot[1])
+            break
+    if px is None:  # fallback: centroid of entrance map
+        ctr = _MAP_CENTROIDS.get(entrance_map)
+        if ctr:
+            px, py = ctr
+        else:
+            bnd = _ICON_BOUNDS.get(entrance_map)
+            if bnd:
+                px, py = (bnd[0] + bnd[2]) * 0.5, (bnd[1] + bnd[3]) * 0.5
+            else:
+                Py4GW.Console.Log(MODULE_NAME,
+                    f"Custom dungeon: no icon bounds for entrance map {entrance_map}, skipping.",
+                    Py4GW.Console.MessageType.Warning)
+                return
+
+    # 3. Icon bounds: small 16×16 box centered on portal dot
+    half = 8.0
+    icon_bnd = (px - half, py - half, px + half, py + half)
+    _ICON_BOUNDS[dungeon_map_id] = icon_bnd
+
+    # 4. Draw group
+    if not any(dungeon_map_id in g[0] for g in _DRAW_GROUPS):
+        meta = _MAP_META[dungeon_map_id]
+        _DRAW_GROUPS.append((frozenset({dungeon_map_id}), icon_bnd, dungeon_name, meta[0], meta[2]))
+
+    # 5. Portal link (bidirectional)
+    _PORTAL_LINKS[entrance_gid]       = dungeon_portal_gid
+    _PORTAL_LINKS[dungeon_portal_gid] = entrance_gid
+
+    # 6. Global ID lookups
+    _GLOBAL_ID_TO_PORTAL[dungeon_portal_gid]          = (dungeon_map_id, 0)
+    _PORTAL_TO_GLOBAL_ID[(dungeon_map_id, 0)]         = dungeon_portal_gid
+
+    # 7. Portal catalog entry so the dot is drawn inside the dungeon icon
+    _PORTAL_ALL_DATA[dungeon_map_id] = [{
+        "portal_index": 0,
+        "global_id":    dungeon_portal_gid,
+        "linked_to":    entrance_gid,
+    }]
+    _PORTAL_ICON_POS[dungeon_map_id] = [(px, py, _map_name_cached(entrance_map), 0, dungeon_portal_gid)]
+    _PORTAL_BUILT.add(dungeon_map_id)
+
+    # 8. Adjacency for pathing
+    edge = (min(entrance_map, dungeon_map_id), max(entrance_map, dungeon_map_id))
+    if edge not in _ALL_EDGES:
+        _ALL_EDGES.add(edge)
+        _MAP_ADJACENCY.setdefault(entrance_map, set()).add(dungeon_map_id)
+        _MAP_ADJACENCY.setdefault(dungeon_map_id, set()).add(entrance_map)
+        _MAP_NEIGHBORS.setdefault(entrance_map, set()).add(dungeon_map_id)
+        _MAP_NEIGHBORS.setdefault(dungeon_map_id, set()).add(entrance_map)
+        _wp_invalidate_world_adj()
+
+    # 9. Visibility + tracking
+    _MANUAL_PORTAL_MAPS.add(dungeon_map_id)
+    _CONNECTED_MAP_IDS.add(dungeon_map_id)
+    _CUSTOM_DUNGEON_MAP_IDS.add(dungeon_map_id)
+    Py4GW.Console.Log(MODULE_NAME,
+        f"Custom dungeon: [{dungeon_map_id}] {dungeon_name} placed at portal {entrance_gid} (map {entrance_map}).",
+        Py4GW.Console.MessageType.Info)
+
+
+def _load_custom_placements() -> None:
+    """Load custom_placements.json and apply each dungeon placement.
+    Must be called AFTER _load_portal_all_data() so portal dot positions are available.
+    """
+    if not os.path.isfile(_CUSTOM_PLACEMENTS_FILE):
+        return
+    try:
+        with open(_CUSTOM_PLACEMENTS_FILE, "r", encoding="utf-8-sig") as fh:
+            data = json.load(fh)
+        count = 0
+        for entry in data.get("placements", []):
+            entrance_gid   = int(entry["entrance_portal_gid"])
+            dungeon_map_id = int(entry["dungeon_map_id"])
+            dungeon_name   = str(entry.get("dungeon_name", f"Dungeon {dungeon_map_id}"))
+            _apply_custom_dungeon_placement(entrance_gid, dungeon_map_id, dungeon_name)
+            count += 1
+        if count:
+            Py4GW.Console.Log(MODULE_NAME,
+                f"Custom dungeon placements loaded: {count} entries.",
+                Py4GW.Console.MessageType.Info)
+    except Exception as e:
+        Py4GW.Console.Log(MODULE_NAME, f"Custom placements load error: {e}",
+                          Py4GW.Console.MessageType.Warning)
+
+
+def _save_custom_placements() -> None:
+    """Persist custom dungeon placements to custom_placements.json."""
+    entries = []
+    for dungeon_map_id in sorted(_CUSTOM_DUNGEON_MAP_IDS):
+        dungeon_portal_gid = dungeon_map_id * 1000
+        entrance_gid = _PORTAL_LINKS.get(dungeon_portal_gid)
+        if not entrance_gid:
+            continue
+        meta = _MAP_META.get(dungeon_map_id)
+        name = meta[1] if meta else f"Map {dungeon_map_id}"
+        entries.append({
+            "entrance_portal_gid": entrance_gid,
+            "dungeon_map_id":      dungeon_map_id,
+            "dungeon_name":        name,
+        })
+    try:
+        out = {
+            "_comment": "Custom dungeon placements for WorldMap+. entrance_portal_gid: the portal in the explorable that leads into the dungeon (map_id*1000 + portal_index).",
+            "placements": entries,
+        }
+        with open(_CUSTOM_PLACEMENTS_FILE, "w", encoding="utf-8") as fh:
+            json.dump(out, fh, indent=2, ensure_ascii=False)
+        Py4GW.Console.Log(MODULE_NAME,
+            f"Custom placements saved: {len(entries)} entries.",
+            Py4GW.Console.MessageType.Info)
+    except Exception as e:
+        Py4GW.Console.Log(MODULE_NAME, f"Custom placements save error: {e}",
+                          Py4GW.Console.MessageType.Warning)
+
+
 def _inject_offmap_positions() -> None:
     """Force synthetic icon-space bounds for all maps listed in _OFFMAP_PLACEMENTS."""
     gap = 10   # icon-space pixel gap between the injected box and its anchor
@@ -947,6 +1096,20 @@ def _build_cache() -> None:
             _ICON_BOUNDS[mid] = None
             continue
 
+        # Only populate _MAP_META for maps with a recognised name.
+        # Maps that return "Unknown Map ID" are internal/special maps that
+        # should not appear as fast-travel candidates.
+        try:
+            _raw_name = Map.GetMapName(mid)
+        except Exception:
+            _raw_name = None
+        if not _raw_name or _raw_name == "Unknown Map ID":
+            # No valid name → skip _MAP_META (but still process icon bounds below)
+            _name = None
+        else:
+            _name = _raw_name
+            _MAP_META[mid] = (int(info.type), _name, int(info.campaign))
+
         # Note: flag 0x20 ("hidden from standard world map") is intentionally NOT used
         # as an exclusion criterion here.  Several outposts (e.g. map 30, Ruins of Surmia)
         # carry this flag but still have valid icon-space coordinates and travel portals.
@@ -976,13 +1139,7 @@ def _build_cache() -> None:
 
         _ICON_BOUNDS[mid] = (l, t, r, b)
 
-        try:
-            name = Map.GetMapName(mid) or f"Map {mid}"
-        except Exception:
-            name = f"Map {mid}"
-        _MAP_META[mid] = (int(info.type), name, int(info.campaign))
-
-    # ── Inject synthetic positions for off-map dungeons ────────────────────
+    # ── Inject synthetic positions for built-in off-map dungeons (e.g. map 604) ────
     _inject_offmap_positions()
 
     # ── Post-process: centroids, neighbor map, draw groups ─────────────────
@@ -1023,6 +1180,27 @@ def _build_cache() -> None:
         lbl = "\n".join(m[1] for m in meta_list)
         _DRAW_GROUPS.append((frozenset(mids), bnd, lbl, rtype, camp))
 
+    # Inject mutual edges between pmap-sharing maps into the global adjacency graph.
+    # Maps that share the same world-map icon bound are physically co-located and
+    # must be treated as directly reachable from each other so that IsPath() and
+    # GetNearestUnlockedOutpost() return correct results for all IDs in a group.
+    _pmap_new_edges = False
+    for group_ids, *_ in _DRAW_GROUPS:
+        ids = sorted(group_ids)
+        for i in range(len(ids)):
+            for j in range(i + 1, len(ids)):
+                a, b = ids[i], ids[j]
+                edge = (min(a, b), max(a, b))
+                if edge not in _ALL_EDGES:
+                    _ALL_EDGES.add(edge)
+                    _MAP_ADJACENCY.setdefault(a, set()).add(b)
+                    _MAP_ADJACENCY.setdefault(b, set()).add(a)
+                    _MAP_NEIGHBORS.setdefault(a, set()).add(b)
+                    _MAP_NEIGHBORS.setdefault(b, set()).add(a)
+                    _pmap_new_edges = True
+    if _pmap_new_edges:
+        _wp_invalidate_world_adj()
+
     _cache_built = True
     n = sum(1 for v in _ICON_BOUNDS.values() if v is not None)
     g = len(_DRAW_GROUPS)
@@ -1032,6 +1210,12 @@ def _build_cache() -> None:
     _load_portal_destinations()   # also calls _load_portal_links() at the end
     _load_portal_all_data()
     linked_maps = {int(gid // 1000) for gid in _PORTAL_LINKS.keys()}
+    # Maps appearing in portal_links.json are the only ones shown when Developer is off.
+    _CONNECTED_MAP_IDS.clear()
+    _CONNECTED_MAP_IDS.update(linked_maps)
+    # Custom dungeon placements must be applied AFTER portal_all data is loaded
+    # so that _ensure_portal_dots can resolve entrance portal icon positions.
+    _load_custom_placements()
     missing_linked = [mid for mid in linked_maps if mid not in _PORTAL_ALL_DATA]
     if (not _PORTAL_ALL_DATA) or missing_linked:
         _rebuild_portal_all_data()
@@ -1061,12 +1245,13 @@ _show_other          = [False]
 _show_pmap_current   = [False]
 _show_pmap_all       = [False]
 _pmap_opacity        = [0.2]
-_show_portals        = [True]
-_show_portals_3d     = [True]
-_show_portal_ids     = [True]
+_show_portals        = [False]
+_show_portals_3d     = [False]
+_show_portal_ids     = [False]
 _show_labels         = [True]
 _opacity             = [0.75]
 _show_debug          = [False]
+_show_developer      = [False]
 _show_player_cross        = [False]
 _show_reachable_unvisited = [False]
 
@@ -1085,6 +1270,12 @@ _link_input_b    = [0]
 _link_click_mode  = [False]  # click-to-link mode active
 _link_pending_gid = [0]     # first selected portal GID (waiting for second click)
 _moveto_portal_id = [0]     # portal ID entered for Move To
+# Custom dungeon placement editor state
+_cp_entrance_gid  = [0]        # entrance portal GID (e.g. 556002)
+_cp_dungeon_id    = [0]        # dungeon map ID   (e.g. 581)
+_cp_dungeon_name  = [""]       # dungeon display name (mutable string)
+# Tracks which map IDs were added via custom dungeon placements (for save filter)
+_CUSTOM_DUNGEON_MAP_IDS: set[int] = set()
 
 # ── Route path state (driven by travel buttons / MoveToMapid) ────────────────
 _path_gids:       list[int] = []   # ordered GID sequence: [exit1,enter1,exit2,enter2,...]
@@ -1407,26 +1598,36 @@ def GetFastTravelMaps() -> list[dict]:
     return result
 
 
-def GetNearestUnlockedOutpost(target_map_id: int) -> dict | None:
-    """Return the nearest unlocked non-explorable map to target_map_id.
+def GetNearestUnlockedOutpost(
+    target_map_id: int,
+    from_map_id: int | None = None,
+) -> dict | None:
+    """Return the best unlocked outpost to fast-travel to for reaching
+    *target_map_id*.  When *from_map_id* is given the cost also accounts
+    for how far that outpost is from the player's current position.
 
-    Delegates to WorldPathing.GetNearestUnlockedOutpost — see that function for
-    full documentation.  Available here so widget-local code can call it without
-    importing WorldPathing directly.
+    Delegates to WorldPathing.GetNearestUnlockedOutpost.
 
     Return value:
       { "map_id": int, "name": str, "hops": int, "distance": float | None }
     or None if no unlocked outpost is reachable.
     """
-    return _WP_GetNearestUnlockedOutpost(target_map_id)
+    # Inject live portal game-positions so path_distance can use tp.x/tp.y
+    # coordinates (real game units) rather than falling back to None for
+    # maps not yet present in portal_links.json.
+    _WP._PORTAL_ICON_POS_EXT = _PORTAL_ICON_POS
+    return _WP_GetNearestUnlockedOutpost(target_map_id, from_map_id)
 
 
-def GetNearestFastTravelTo(target_map_id: int) -> dict | None:
-    """Convenience alias for GetNearestUnlockedOutpost(target_map_id).
+def GetNearestFastTravelTo(
+    target_map_id: int,
+    from_map_id: int | None = None,
+) -> dict | None:
+    """Convenience alias for GetNearestUnlockedOutpost.
 
     Kept for backwards-compatibility and readability in travel-UI code.
     """
-    return GetNearestUnlockedOutpost(target_map_id)
+    return GetNearestUnlockedOutpost(target_map_id, from_map_id)
 
 
 def _unlock_all_coroutine():
@@ -1446,7 +1647,7 @@ def _unlock_all_coroutine():
                 if meta is None or meta[0] == _RT_EXPLORABLE:
                     continue
                 dist = _path_distance(cmap, m["map_id"])
-                ft   = GetNearestFastTravelTo(m["map_id"])
+                ft   = GetNearestFastTravelTo(m["map_id"], cmap)
                 entry = dict(m)
                 entry["distance"]   = dist
                 entry["nearest_ft"] = ft
@@ -1629,33 +1830,37 @@ def _travel_button_coroutine(target_map_id: int):
     """Coroutine triggered by a Travel button click.
 
     Steps:
-      1. Find the nearest unlocked outpost to the destination via fast travel.
-      2. If that outpost differs from the current map, fast-travel there and
-         wait for the map to load.
-      3. Build the route overlay from the new position and start MoveToMapid.
+      1. If no direct portal path exists, find the nearest unlocked outpost
+         and fast-travel there.  Skip this step when the player is already
+         reachable from the current map via portals.
+      2. Build the route overlay from the current position and start MoveToMapid.
     """
-    ft = GetNearestUnlockedOutpost(target_map_id)
-    ft_id = ft["map_id"] if ft else None
+    current_map_at_start = Map.GetMapID()
 
-    # ── Step 1: fast-travel to nearest unlocked outpost if needed ───────────
-    if ft_id and ft_id != Map.GetMapID():
-        Py4GW.Console.Log(MODULE_NAME,
-            f"Travel: fast-traveling to nearest outpost {ft_id} ({ft.get('name','?')}) "
-            f"before routing to {target_map_id}.",
-            Py4GW.Console.MessageType.Info)
-        Map.TravelToDistrict(ft_id, 0, 0)
-        _t0 = int(Utils.GetBaseTimestamp())
-        while not Map.IsMapLoading():
-            if int(Utils.GetBaseTimestamp()) - _t0 > 10_000:
-                break
-            yield from Routines.Yield.wait(150)
-        loaded = yield from Routines.Yield.Map.WaitforMapLoad(ft_id, log=False, timeout=60_000)
-        if not loaded:
+    # Only fast-travel when there is no direct portal path from here to target.
+    if not IsPath(current_map_at_start, target_map_id):
+        ft = GetNearestUnlockedOutpost(target_map_id, current_map_at_start)
+        ft_id = ft["map_id"] if ft else None
+
+        # ── Step 1: fast-travel to nearest unlocked outpost if needed ───────────
+        if ft_id and ft_id != current_map_at_start:
             Py4GW.Console.Log(MODULE_NAME,
-                f"Travel: could not load fast-travel map {ft_id}, aborting.",
-                Py4GW.Console.MessageType.Warning)
-            return
-        yield from Routines.Yield.wait(500)
+                f"Travel: fast-traveling to nearest outpost {ft_id} ({ft.get('name','?')}) "
+                f"before routing to {target_map_id}.",
+                Py4GW.Console.MessageType.Info)
+            Map.TravelToDistrict(ft_id, 0, 0)
+            _t0 = int(Utils.GetBaseTimestamp())
+            while not Map.IsMapLoading():
+                if int(Utils.GetBaseTimestamp()) - _t0 > 10_000:
+                    break
+                yield from Routines.Yield.wait(150)
+            loaded = yield from Routines.Yield.Map.WaitforMapLoad(ft_id, log=False, timeout=60_000)
+            if not loaded:
+                Py4GW.Console.Log(MODULE_NAME,
+                    f"Travel: could not load fast-travel map {ft_id}, aborting.",
+                    Py4GW.Console.MessageType.Warning)
+                return
+            yield from Routines.Yield.wait(500)
 
     # ── Step 2: build route overlay and start movement ──────────────────────
     current_map = Map.GetMapID()
@@ -1697,6 +1902,8 @@ _PORTAL_3D_LABEL_RADIUS = 1000.0  # kept for reference, no longer used as filter
 
 def _draw_portal_ids_3d() -> None:
     """Draw portal GIDs as 3D world-space labels near the player."""
+    if not _show_developer[0]:
+        return
     if not _show_portals_3d[0]:
         return
     if Map.IsMapLoading():
@@ -1741,8 +1948,6 @@ def _draw_portal_ids_3d() -> None:
 def _draw_overlay() -> None:
     """Draw map rects and connection lines on top of the GW World Map."""
     if not Map.WorldMap.IsWindowOpen():
-        return
-    if Map.WorldMap.GetZoom() != 1:
         return
 
     frame_info = Map.WorldMap.GetFrameInfo()
@@ -1870,6 +2075,11 @@ def _draw_overlay() -> None:
         min_dim = min(abs(rw), abs(rh))
 
         is_current = current_map in group_ids
+        # When Developer mode is off, skip the frame for maps that have no
+        # portal connections at all (not in _CONNECTED_MAP_IDS).
+        has_portals = any(mid in _CONNECTED_MAP_IDS for mid in group_ids)
+        if not is_current and not has_portals and not _show_developer[0]:
+            continue
         if is_current:
             PyImGui.draw_list_add_rect(x1, y1, x2, y2, cur_border, 2.0, 0, 2.0)
             current_highlight_drawn = True
@@ -1893,9 +2103,11 @@ def _draw_overlay() -> None:
 
         # Collect travel buttons FIRST so label drawing knows the horizontal indent.
         btn_ids_here: set[int] = set()
-        if not is_current and rw >= 28.0 and (y2 - y1) >= 14.0:
+        if rw >= 28.0 and (y2 - y1) >= 14.0:
             for i, mid in enumerate(sorted_ids):
                 if mid == current_map or mid in _travel_btn_seen:
+                    continue
+                if not _show_developer[0] and mid not in _CONNECTED_MAP_IDS:
                     continue
                 raw_lbl = f"{lines[i] if i < len(lines) else lines[-1]} [{mid}]"
                 if frames_on:
@@ -1914,6 +2126,8 @@ def _draw_overlay() -> None:
             lbl_color = Utils.RGBToColor(255, 255, 255, min(255, alpha + 80))
             for i, line in enumerate(lines):
                 mid     = sorted_ids[i] if i < len(sorted_ids) else -1
+                if not _show_developer[0] and mid >= 0 and mid != current_map and mid not in _CONNECTED_MAP_IDS:
+                    continue
                 raw     = f"{line} [{mid}]" if mid >= 0 else line
                 has_btn = mid in btn_ids_here
                 if frames_on:
@@ -1946,7 +2160,7 @@ def _draw_overlay() -> None:
                     PyImGui.draw_list_add_text(x1 + 2.0, y1 + 2.0, lbl_color, cur_name)
 
     # ── Pass 2b: draw pmap trapezoids for all visible maps ───────────────
-    if _show_pmap_current[0] or _show_pmap_all[0]:
+    if (_show_pmap_current[0] or _show_pmap_all[0]) and _show_developer[0]:
         pmap_alpha = max(1, min(255, int(_pmap_opacity[0] * 255)))
         trap_color = Utils.RGBToColor(180, 255, 180, pmap_alpha)
         for rep_id, icon_bnd, is_current, _grp in visible_groups:
@@ -1974,7 +2188,10 @@ def _draw_overlay() -> None:
                     trap_color)
 
     # ── Pass 3: draw travel portal dots for all visible maps ────────────────
-    if _show_portals[0]:
+    # visible_portal_sx is populated by Pass 3 and consumed by the custom dungeon
+    # button block below; must be declared here so the latter always has access.
+    visible_portal_sx: dict[int, tuple[float, float]] = {}  # global_id -> (sx, sy)
+    if _show_portals[0] and _show_developer[0]:
         portal_fill          = Utils.RGBToColor(255,  80,  80, 230)
         portal_border        = Utils.RGBToColor(255, 200, 200, 255)
         portal_fill_linked   = Utils.RGBToColor( 60, 210,  60, 230)
@@ -2019,7 +2236,7 @@ def _draw_overlay() -> None:
                     _link_click_mode[0]  = False
 
         # Collect icon positions visible this frame for link-line drawing
-        visible_portal_sx: dict[int, tuple[float, float]] = {}  # global_id -> (sx, sy)
+        # (dict already declared before Pass 3)
 
         # Collect all portal dots, group co-located portals by pixel position
         # key = (round(sx), round(sy))  ->  list of (gid, linked, pending)
@@ -2205,6 +2422,40 @@ def _draw_overlay() -> None:
                 if pa and pb:
                     PyImGui.draw_list_add_line(pa[0], pa[1], pb[0], pb[1], link_color, 1.5)
 
+    # ── Custom dungeon travel buttons: one green button per entrance portal ───
+    # These appear regardless of _show_portals / Developer mode, because the
+    # entrance portals are part of normal (non-developer) visible maps.
+    for dungeon_mid in _CUSTOM_DUNGEON_MAP_IDS:
+        if dungeon_mid in _travel_btn_seen:
+            continue
+        dungeon_portal_gid = dungeon_mid * 1000
+        entrance_gid = _PORTAL_LINKS.get(dungeon_portal_gid)
+        if not entrance_gid:
+            continue
+        # Find screen position of the entrance portal dot
+        epos = visible_portal_sx.get(entrance_gid)
+        if epos is None:
+            # Try to resolve via icon pos even if not in visible_portal_sx
+            emap = entrance_gid // 1000
+            _ensure_portal_dots(emap, is_live=(emap == current_map))
+            for dot in _PORTAL_ICON_POS.get(emap, []):
+                if len(dot) >= 5 and int(dot[4]) == entrance_gid:
+                    epos = _i2s(float(dot[0]), float(dot[1]))
+                    break
+        if epos is None:
+            continue
+        # Place button 8px below the portal dot, horizontally centered on it
+        bx = epos[0] - 8.0
+        by = epos[1] + 6.0
+        _travel_btn_seen.add(dungeon_mid)
+        _travel_btn_data.append((dungeon_mid, bx, by))
+        # Draw dungeon name label to the right of the button (same style as regular map labels)
+        d_meta   = _MAP_META.get(dungeon_mid)
+        d_name   = d_meta[1] if d_meta else f"Map {dungeon_mid}"
+        raw_lbl  = f"{d_name} [{dungeon_mid}]"
+        lbl_col  = Utils.RGBToColor(255, 255, 255, 220)
+        PyImGui.draw_list_add_text(bx + 20.0, by, lbl_col, raw_lbl)
+
     # ── Pass 4: draw computed portal path (always, regardless of _show_portals) ─
     if _path_gids:
         path_line_col  = Utils.RGBToColor( 50, 220, 255, 220)
@@ -2293,7 +2544,7 @@ def _draw_overlay() -> None:
         _draw_route_segments(_travel_route_overlay, _i2s, draw_link=False)
 
     # ── Player position cross ─────────────────────────────────────────────────
-    if _show_player_cross[0]:
+    if _show_player_cross[0] and _show_developer[0]:
         icon_pos = _get_player_icon_pos(current_map)
         if icon_pos is not None:
             sx, sy = _i2s(icon_pos[0], icon_pos[1])
@@ -2357,8 +2608,6 @@ def _draw_travel_buttons() -> None:
     """
     if not Map.WorldMap.IsWindowOpen() or not _travel_btn_data:
         return
-    if Map.WorldMap.GetZoom() != 1:
-        return
 
     current_map = Map.GetMapID()
     if current_map <= 0:
@@ -2391,8 +2640,11 @@ def _draw_travel_buttons() -> None:
         direct = _is_path_cache[rep_id]
 
         # Check fast-travel path: nearest unlocked outpost → target
+        # For custom dungeon maps you cannot fast-travel there directly, but
+        # GetNearestUnlockedOutpost finds the nearest outpost from which you *can*
+        # walk to the dungeon — the coroutine will FT there first, then walk.
         if not direct and rep_id not in _is_ft_path_cache:
-            ft = GetNearestUnlockedOutpost(rep_id)
+            ft = GetNearestUnlockedOutpost(rep_id, current_map)
             if ft and ft["map_id"] != current_map:
                 _is_ft_path_cache[rep_id] = True
             else:
@@ -2424,29 +2676,37 @@ def _draw_travel_buttons() -> None:
         if PyImGui.is_item_hovered():
             meta = _MAP_META.get(rep_id)
             name = meta[1] if meta else f"Map {rep_id}"
-            ft_info = GetNearestUnlockedOutpost(rep_id)
-            ft_id_tip = ft_info["map_id"] if ft_info else None
-            ft_name   = ft_info["name"]   if ft_info else "?"
-            ft_dist   = ft_info["distance"] if ft_info else None
             PyImGui.begin_tooltip()
             PyImGui.text(f"Travel to: {name}")
-            if ft_id_tip == rep_id:
-                # Target itself is an unlocked outpost → direct fast-travel, no walking
-                PyImGui.text("(direct fast-travel)")
-            elif ft_id_tip and ft_id_tip != current_map:
-                # Need to fast-travel to an intermediate outpost first
-                PyImGui.text(f"via fast-travel: {ft_name}")
-                if ft_dist is not None:
-                    PyImGui.text(f"Distance: {ft_dist:,.0f} units")
-                else:
-                    PyImGui.text("Distance: unknown")
-            else:
-                # Already at the nearest outpost → walking distance only
+            if direct:
+                # Green button: direct portal path exists → walking only, no FT needed
                 dist = _path_distance(current_map, rep_id)
                 if dist is not None:
                     PyImGui.text(f"Distance: {dist:,.0f} units")
                 else:
                     PyImGui.text("Distance: unknown")
+            else:
+                # Blue button: no direct path → show FT outpost info
+                ft_info = GetNearestUnlockedOutpost(rep_id, current_map)
+                ft_id_tip = ft_info["map_id"] if ft_info else None
+                ft_name   = ft_info["name"]   if ft_info else "?"
+                ft_dist   = ft_info["distance"] if ft_info else None
+                if ft_id_tip == rep_id:
+                    # Target itself is an unlocked outpost → direct fast-travel
+                    PyImGui.text("(direct fast-travel)")
+                elif ft_id_tip and ft_id_tip != current_map:
+                    # Need to fast-travel to an intermediate outpost first
+                    PyImGui.text(f"via fast-travel: {ft_name}")
+                    if ft_dist is not None:
+                        PyImGui.text(f"Distance: {ft_dist:,.0f} units")
+                    else:
+                        PyImGui.text("Distance: unknown")
+                else:
+                    dist = _path_distance(current_map, rep_id)
+                    if dist is not None:
+                        PyImGui.text(f"Distance: {dist:,.0f} units")
+                    else:
+                        PyImGui.text("Distance: unknown")
             PyImGui.end_tooltip()
 
         PyImGui.end()
@@ -2594,6 +2854,8 @@ def _draw_travel_roadmap() -> None:
 
 def _draw_worldpathing_demo() -> None:
     """Right-side panel for live testing of IsPath / GetPath / MoveToNextWaypoint."""
+    if not _show_developer[0]:
+        return
     if not _show_wp_demo[0]:
         return
     if not Map.WorldMap.IsWindowOpen():
@@ -2878,25 +3140,29 @@ def _draw_legend() -> None:
     PyImGui.separator()
     PyImGui.push_item_width(win_w - 16.0)
     _show_frames[0]      = PyImGui.checkbox("Draw all Frames##wmp",   _show_frames[0])
-    _show_portals[0]     = PyImGui.checkbox("Draw Portals##wmp",    _show_portals[0])
-    if _show_portals[0]:
-        _show_portals_3d[0] = PyImGui.checkbox("  Draw 3D Portals##wmp", _show_portals_3d[0])
-        _show_portal_ids[0] = PyImGui.checkbox("  Show Portal IDs##wmp",  _show_portal_ids[0])
-    #_show_other[0]       = PyImGui.checkbox("Other / PvP##wmp",   _show_other[0])
-    _show_pmap_current[0] = PyImGui.checkbox("Navmap Current Map##wmp", _show_pmap_current[0])
-    _show_pmap_all[0]     = PyImGui.checkbox("Navmap All##wmp",         _show_pmap_all[0])
-    if _show_pmap_current[0] or _show_pmap_all[0]:
-        _pmap_opacity[0] = PyImGui.slider_float("Navmap opacity##wmp", _pmap_opacity[0], 0.01, 1.0)
-    _show_player_cross[0] = PyImGui.checkbox("Player position##wmp", _show_player_cross[0])
     _show_reachable_unvisited[0] = PyImGui.checkbox(
         "  Reachable (not visited)##wmp", _show_reachable_unvisited[0])
     PyImGui.pop_item_width()
 
     PyImGui.separator()
-    _show_wp_demo[0] = PyImGui.checkbox("WorldPathing Demo##wmp", _show_wp_demo[0])
-    _show_debug[0] = PyImGui.checkbox("Diagnostics##wmp", _show_debug[0])
-    if _show_debug[0]:
-        _draw_diagnostics()
+    _show_developer[0] = PyImGui.checkbox("Developer##wmp", _show_developer[0])
+    if _show_developer[0]:
+        PyImGui.push_item_width(win_w - 16.0)
+        _show_portals[0]     = PyImGui.checkbox("  Draw Portals##wmp",    _show_portals[0])
+        if _show_portals[0]:
+            _show_portals_3d[0] = PyImGui.checkbox("    Draw 3D Portals##wmp", _show_portals_3d[0])
+            _show_portal_ids[0] = PyImGui.checkbox("    Show Portal IDs##wmp",  _show_portal_ids[0])
+        #_show_other[0]       = PyImGui.checkbox("  Other / PvP##wmp",   _show_other[0])
+        _show_pmap_current[0] = PyImGui.checkbox("  Navmap Current Map##wmp", _show_pmap_current[0])
+        _show_pmap_all[0]     = PyImGui.checkbox("  Navmap All##wmp",         _show_pmap_all[0])
+        if _show_pmap_current[0] or _show_pmap_all[0]:
+            _pmap_opacity[0] = PyImGui.slider_float("  Navmap opacity##wmp", _pmap_opacity[0], 0.01, 1.0)
+        _show_player_cross[0] = PyImGui.checkbox("  Player position##wmp", _show_player_cross[0])
+        _show_wp_demo[0] = PyImGui.checkbox("  WorldPathing Demo##wmp", _show_wp_demo[0])
+        _show_debug[0] = PyImGui.checkbox("  Portal Editor##wmp", _show_debug[0])
+        if _show_debug[0]:
+            _draw_diagnostics()
+        PyImGui.pop_item_width()
 
 
 def _draw_reachable_list_panel() -> None:
@@ -2927,7 +3193,7 @@ def _draw_reachable_list_panel() -> None:
             if meta is None or meta[0] == _RT_EXPLORABLE:
                 continue
             dist  = _path_distance(cmap, m["map_id"])
-            ft    = GetNearestFastTravelTo(m["map_id"])
+            ft    = GetNearestFastTravelTo(m["map_id"], cmap)
             entry = dict(m)
             entry["distance"] = dist
             entry["nearest_ft"] = ft
@@ -3031,7 +3297,7 @@ def _draw_reachable_list_panel() -> None:
 
 def _draw_portal_link_editor() -> None:
     """Dedicated panel for portal linking, positioned right of the legend panel."""
-    if not Map.WorldMap.IsWindowOpen() or not _show_debug[0] or not _show_portals[0]:
+    if not Map.WorldMap.IsWindowOpen() or not _show_developer[0] or not _show_debug[0]:
         return
 
     fi = Map.WorldMap.GetFrameInfo()
@@ -3201,6 +3467,98 @@ def _draw_portal_link_editor() -> None:
         pass
     n = sum(1 for v in _ICON_BOUNDS.values() if v is not None)
     PyImGui.text(f"Maps: {n}  Edges: {len(_ALL_EDGES)}")
+
+    # ── Custom Dungeon Placements ──────────────────────────────────────────
+    PyImGui.separator()
+    title_col2 = Utils.RGBToColor(180, 255, 180, 255)
+    tx2, ty2 = PyImGui.get_cursor_screen_pos()
+    PyImGui.dummy(int(win_w), 16)
+    PyImGui.draw_list_add_text(tx2, ty2, title_col2, "Custom Dungeon Placements")
+    PyImGui.text_disabled("Portal GID         Dungeon Map ID")
+
+    PyImGui.push_item_width((win_w - 24.0) * 0.5)
+    _cp_entrance_gid[0] = PyImGui.input_int("##cp_egid", _cp_entrance_gid[0])
+    PyImGui.same_line(0.0, -1.0)
+    _cp_dungeon_id[0]   = PyImGui.input_int("##cp_dmid", _cp_dungeon_id[0])
+    PyImGui.pop_item_width()
+    PyImGui.push_item_width(win_w - 16.0)
+    _cp_dungeon_name[0] = PyImGui.input_text("##cp_dname", _cp_dungeon_name[0], 64)
+    PyImGui.pop_item_width()
+
+    # Hint: resolve entrance portal
+    egid = _cp_entrance_gid[0]
+    if egid > 0:
+        emap = egid // 1000
+        en   = (_MAP_META.get(emap) or (None, f"Map {emap}"))[1]
+        PyImGui.text_disabled(f"  Entrance: {en} p{egid % 1000} (map {emap})")
+
+    can_add = (
+        _cp_entrance_gid[0] > 0
+        and _cp_dungeon_id[0] > 0
+        and _cp_entrance_gid[0] // 1000 != _cp_dungeon_id[0]
+        and _cp_dungeon_name[0].strip() != ""
+        and _ICON_BOUNDS.get(_cp_entrance_gid[0] // 1000) is not None
+    )
+    if not can_add:
+        PyImGui.begin_disabled(True)
+    if PyImGui.button("Add##cp_add", (win_w - 20.0) * 0.5, 0):
+        _apply_custom_dungeon_placement(
+            _cp_entrance_gid[0], _cp_dungeon_id[0], _cp_dungeon_name[0].strip()
+        )
+        _save_custom_placements()
+        invalidate_portal_adj()
+        invalidate_reachable_adj()
+        _save_portal_links()
+    if not can_add:
+        PyImGui.end_disabled()
+
+    PyImGui.same_line(0.0, -1.0)
+    can_remove = (
+        _cp_dungeon_id[0] > 0
+        and _cp_dungeon_id[0] in _CUSTOM_DUNGEON_MAP_IDS
+    )
+    if not can_remove:
+        PyImGui.begin_disabled(True)
+    if PyImGui.button("Remove##cp_rem", (win_w - 20.0) * 0.5, 0):
+        dmid = _cp_dungeon_id[0]
+        dportal = dmid * 1000
+        epid = _PORTAL_LINKS.pop(dportal, None)
+        if epid:
+            _PORTAL_LINKS.pop(epid, None)
+        _PORTAL_ALL_DATA.pop(dmid, None)
+        _PORTAL_ICON_POS.pop(dmid, None)
+        _PORTAL_BUILT.discard(dmid)
+        _MANUAL_PORTAL_MAPS.discard(dmid)
+        _CONNECTED_MAP_IDS.discard(dmid)
+        _CUSTOM_DUNGEON_MAP_IDS.discard(dmid)
+        _DRAW_GROUPS[:] = [g for g in _DRAW_GROUPS if dmid not in g[0]]
+        _ICON_BOUNDS.pop(dmid, None)
+        for nb in list(_MAP_NEIGHBORS.get(dmid, [])):
+            _MAP_NEIGHBORS.get(nb, set()).discard(dmid)
+            _MAP_ADJACENCY.get(nb, set()).discard(dmid)
+        _MAP_NEIGHBORS.pop(dmid, None)
+        _MAP_ADJACENCY.pop(dmid, None)
+        if epid:
+            edge = (min(dmid, epid // 1000), max(dmid, epid // 1000))
+            _ALL_EDGES.discard(edge)
+        _wp_invalidate_world_adj()
+        invalidate_portal_adj()
+        invalidate_reachable_adj()
+        _save_custom_placements()
+        _save_portal_links()
+    if not can_remove:
+        PyImGui.end_disabled()
+
+    # List existing custom placements
+    if _CUSTOM_DUNGEON_MAP_IDS:
+        PyImGui.spacing()
+        for dmid in sorted(_CUSTOM_DUNGEON_MAP_IDS):
+            dportal = dmid * 1000
+            epid    = _PORTAL_LINKS.get(dportal, 0)
+            cn      = (_MAP_META.get(dmid) or (None, f"Map {dmid}"))[1]
+            emap    = epid // 1000 if epid else 0
+            en      = (_MAP_META.get(emap) or (None, f"Map {emap}"))[1] if emap else "?"
+            PyImGui.text_disabled(f"  [{dmid}] {cn} ← portal {epid} ({en})")
 
     PyImGui.end()
 

@@ -1,0 +1,70 @@
+{
+  "_comment": "Custom dungeon placements for WorldMap+. entrance_portal_gid: the portal in the explorable that leads into the dungeon (map_id*1000 + portal_index).",
+  "placements": [
+    {
+      "entrance_portal_gid": 191001,
+      "dungeon_map_id": 190,
+      "dungeon_name": "Sorrows Furnace"
+    },
+    {
+      "entrance_portal_gid": 651003,
+      "dungeon_map_id": 570,
+      "dungeon_name": "Catacombs of Kathandrax"
+    },
+    {
+      "entrance_portal_gid": 651001,
+      "dungeon_map_id": 573,
+      "dungeon_name": "Rragars Menagerie"
+    },
+    {
+      "entrance_portal_gid": 485002,
+      "dungeon_map_id": 581,
+      "dungeon_name": "Shards of Orr"
+    },
+    {
+      "entrance_portal_gid": 569001,
+      "dungeon_map_id": 584,
+      "dungeon_name": "Arachnis Haunt"
+    },
+    {
+      "entrance_portal_gid": 558002,
+      "dungeon_map_id": 612,
+      "dungeon_name": "Bloodstone Caves"
+    },
+    {
+      "entrance_portal_gid": 558003,
+      "dungeon_map_id": 615,
+      "dungeon_name": "Bogroot Growths"
+    },
+    {
+      "entrance_portal_gid": 553000,
+      "dungeon_map_id": 617,
+      "dungeon_name": "Ravens Point"
+    },
+    {
+      "entrance_portal_gid": 566002,
+      "dungeon_map_id": 620,
+      "dungeon_name": "Slavers Exile"
+    },
+    {
+      "entrance_portal_gid": 513000,
+      "dungeon_map_id": 628,
+      "dungeon_name": "Sepulchre of Dragrimmar"
+    },
+    {
+      "entrance_portal_gid": 546001,
+      "dungeon_map_id": 630,
+      "dungeon_name": "Frostmaws Burrows"
+    },
+    {
+      "entrance_portal_gid": 482002,
+      "dungeon_map_id": 635,
+      "dungeon_name": "Darkrime Delves"
+    },
+    {
+      "entrance_portal_gid": 569000,
+      "dungeon_map_id": 658,
+      "dungeon_name": "Oolas Lab"
+    }
+  ]
+}

@@ -174,6 +174,8 @@ class WorldPathing:
         self.MTNW_ARRIVAL_RADIUS         = 200.0
         self.MTNW_WAYPOINT_RADIUS        = 140.0
         self.MTNW_PUSHTHROUGH_TIMEOUT_MS = 6000
+        self.MTNW_NUDGE_STEP             = 200.0   # units per forward nudge after pushthrough timeout
+        self.MTNW_NUDGE_MAX_STEPS        = 5        # max forward nudges before giving up
         self.MTM_HOP_MAX_ATTEMPTS        = 6
         self.MTM_HOP_TIMEOUT_MS          = 120_000
         self.MTM_LOAD_TIMEOUT_MS         = 60_000
@@ -292,6 +294,10 @@ class WorldPathing:
                 edge     = gid_map.get(cur, {}).get(nb)
                 new_path = path + [(cur, nb, edge)]
                 if nb == end_map:
+                    # Direct adjacency (1 hop, no intermediate map to measure through):
+                    # the player is at the portal entrance — cost is essentially zero.
+                    if len(new_path) == 1:
+                        return 0.0
                     total       = 0.0
                     has_coords  = False
                     prev_enter: int | None = None
@@ -299,8 +305,11 @@ class WorldPathing:
                         exit_gid  = e[0] if e else None
                         enter_gid = e[1] if e else None
                         if prev_enter is not None and exit_gid is not None:
-                            pa = self.portal_game_pos.get(prev_enter)
-                            pb = self.portal_game_pos.get(exit_gid)
+                            # Use _get_portal_game_xy so that live coords from
+                            # _PORTAL_ICON_POS_EXT (WorldMap+ tp.x/tp.y entries) are
+                            # consulted as fallback, not just portal_links.json.
+                            pa = self._get_portal_game_xy(prev_enter)
+                            pb = self._get_portal_game_xy(exit_gid)
                             if pa and pb:
                                 total += math.hypot(pb[0] - pa[0], pb[1] - pa[1])
                                 has_coords = True
@@ -310,19 +319,27 @@ class WorldPathing:
                 queue.append((nb, new_path))
         return None
 
-    def GetNearestUnlockedOutpost(self, target_map_id: int) -> dict | None:
-        """Return the nearest unlocked non-explorable map to target_map_id.
+    def GetNearestUnlockedOutpost(
+        self,
+        target_map_id: int,
+        from_map_id: int | None = None,
+    ) -> dict | None:
+        """Return the best unlocked non-explorable outpost to fast-travel to
+        in order to reach *target_map_id* on foot from *from_map_id*.
 
-        Candidates are found via BFS and ranked by a combined cost:
+        When *from_map_id* is given (the player's current map), the combined
+        cost keeps both legs into account:
 
-          cost = path_distance(candidate → target)
-                 + hop_count * HOP_PENALTY
+          cost = path_distance(candidate → target)          # walking leg
+                 + hops_to_target    * HOP_PENALTY          # structural depth
+                 + hops_from_player  * HOP_PENALTY          # fast-travel cost
 
-        HOP_PENALTY is a synthetic distance added per hop so that a nearby
-        outpost 1 hop away is strongly preferred over one 3 hops away, but
-        within the same hop band the actual portal-to-portal game-unit distance
-        is decisive.  If no game-unit coords are available for a candidate,
-        hop_count alone is used as a fallback.
+        The hops_from_player term favourises outposts that are also close to
+        the player's current position, so that the round trip
+        "FT somewhere → walk to target" is minimised.
+
+        When *from_map_id* is None or not present in the graph the old
+        target-only cost is used (backward-compatible).
 
         Return value:
           { "map_id": int, "name": str, "hops": int, "distance": float | None }
@@ -334,6 +351,7 @@ class WorldPathing:
         if target_map_id not in combined:
             return None
 
+        # ── Special case: target itself is an unlocked outpost ────────────────
         meta0 = WorldPathing._MAP_META.get(target_map_id)
         if (meta0
                 and meta0[0] != WorldPathing._RT_EXPLORABLE
@@ -345,12 +363,25 @@ class WorldPathing:
                 "distance": 0.0,
             }
 
+        # ── Pre-compute hop distances FROM the player's current map ───────────
+        # BFS from from_map_id → hop count to every reachable map.
+        player_hops: dict[int, int] = {}
+        if from_map_id is not None and from_map_id in combined:
+            pq: deque = deque([(from_map_id, 0)])
+            pv: set[int] = {from_map_id}
+            while pq:
+                cur, d = pq.popleft()
+                player_hops[cur] = d
+                for nb in combined.get(cur, set()):
+                    if nb not in pv:
+                        pv.add(nb)
+                        pq.append((nb, d + 1))
+
+        # ── BFS from target to collect all reachable unlocked outposts ────────
         visited: set[int] = {target_map_id}
         queue:   deque    = deque([(target_map_id, 0)])
         candidates: list  = []
 
-        # BFS to collect *all* reachable unlocked outposts, not just the
-        # nearest hop tier — we need the full set to rank by combined cost.
         while queue:
             cur, hops = queue.popleft()
             for nb in combined.get(cur, set()):
@@ -360,13 +391,14 @@ class WorldPathing:
                 meta = WorldPathing._MAP_META.get(nb)
                 if (meta
                         and meta[0] != WorldPathing._RT_EXPLORABLE
+                        and meta[1] != "Unknown Map ID"
                         and Map.IsMapUnlocked(nb)):
                     dist = self.path_distance(nb, target_map_id)
+                    ft_hops = player_hops.get(nb, hops + 1)  # hops from player → outpost
                     if dist is not None:
-                        cost = dist + hops * HOP_PENALTY
+                        cost = dist + (hops + ft_hops) * HOP_PENALTY
                     else:
-                        # No coordinates available: penalise heavily by hop count only
-                        cost = (hops + 1) * HOP_PENALTY * 10
+                        cost = (hops + 1 + ft_hops) * HOP_PENALTY * 10
                     candidates.append({
                         "map_id":   nb,
                         "name":     meta[1],
@@ -374,14 +406,15 @@ class WorldPathing:
                         "distance": dist,
                         "_cost":    cost,
                     })
-                # Always continue BFS through non-outpost nodes so we can
-                # reach outposts that are deeper in the graph.
                 queue.append((nb, hops + 1))
 
         if not candidates:
             return None
 
-        candidates.sort(key=lambda c: (c["_cost"], c["hops"], c["map_id"]))
+        # Primary sort by hops (hop count from target via BFS) — the most
+        # reliable proximity metric.  Path-distance is only a tiebreaker when
+        # two candidates are the same number of hops away.
+        candidates.sort(key=lambda c: (c["hops"], c["_cost"], c["map_id"]))
         best = candidates[0]
         best.pop("_cost", None)
         return best
@@ -394,7 +427,7 @@ class WorldPathing:
             return meta[1]
         try:
             name = Map.GetMapName(mid)
-            if name:
+            if name and name != "Unknown Map ID":
                 WorldPathing._MAP_META[mid] = (0, name, 0)
                 return name
         except Exception:
@@ -458,11 +491,33 @@ class WorldPathing:
             return [], []
 
         adj = self._get_portal_adj()
-        if start_map not in adj or end_map not in adj:
+
+        # Bridge case: start_map is not in portal_adj (e.g. an outpost not listed in
+        # portal_links.json that is co-located with its explorable).  Find the first
+        # world_adj neighbour that IS in portal_adj and use it as the effective start.
+        # The waypoint's from_map will still be reported as start_map so that
+        # _mtm_autorun_coroutine correctly picks the hop from the actual current map.
+        effective_start = start_map
+        if start_map not in adj:
+            world_adj = self.get_world_adj()
+            bridge = next(
+                (nb for nb in sorted(world_adj.get(start_map, set()))
+                 if nb in adj and nb != start_map),
+                None,
+            )
+            if bridge is None:
+                return [], []
+            # Co-located direct case (bridge == end): no portal waypoints possible;
+            # IsPath handles this via world_adj check, GetPath returns no waypoints.
+            if bridge == end_map:
+                return [], []
+            effective_start = bridge
+
+        if end_map not in adj:
             return [], []
 
-        queue:   deque    = deque([(start_map, [])])
-        visited: set[int] = {start_map}
+        queue:   deque    = deque([(effective_start, [])])
+        visited: set[int] = {start_map, effective_start}
         while queue:
             cur_map, hops = queue.popleft()
             for exit_gid, enter_gid, next_map in adj.get(cur_map, []):
@@ -529,6 +584,12 @@ class WorldPathing:
         """Return True if a portal-linked route exists from start to target."""
         if start_map_id == target_map_id:
             return True
+        # Direct world-adj check handles co-located maps not in portal_adj
+        # (e.g. an outpost that shares icon bounds with its adjacent explorable).
+        adj = self._get_portal_adj()
+        if start_map_id not in adj:
+            if target_map_id in self.get_world_adj().get(start_map_id, set()):
+                return True
         gids, _ = self._find_map_path(start_map_id, target_map_id)
         return len(gids) > 0
 
@@ -668,14 +729,27 @@ class WorldPathing:
                         break
                     Player.Move(goal_x, goal_y)
                     yield from Routines.Yield.wait(100)
-                # Timeout without map change: nudge 100 units in the player's facing direction
-                try:
-                    _fcos = Agent.GetRotationCos(Player.GetAgentID())
-                    _fsin = Agent.GetRotationSin(Player.GetAgentID())
-                    _nx, _ny = Player.GetXY()
-                    Player.Move(_nx + _fcos * 100.0, _ny + _fsin * 100.0)
-                except Exception:
-                    pass
+                # Pushthrough timeout: nudge forward in steps until portal triggers
+                _nudge_map = Map.GetMapID()
+                for _nudge_idx in range(self.MTNW_NUDGE_MAX_STEPS):
+                    if job_id != self.mtnw_job_id[0]:
+                        return
+                    if Map.IsMapLoading() or Map.GetMapID() != _nudge_map:
+                        self._mtnw_clear()
+                        return
+                    try:
+                        _fcos = Agent.GetRotationCos(Player.GetAgentID())
+                        _fsin = Agent.GetRotationSin(Player.GetAgentID())
+                        _nx, _ny = Player.GetXY()
+                        Player.Move(_nx + _fcos * self.MTNW_NUDGE_STEP, _ny + _fsin * self.MTNW_NUDGE_STEP)
+                    except Exception:
+                        break
+                    _nd_start = Utils.GetBaseTimestamp()
+                    while Utils.GetBaseTimestamp() - _nd_start < 500:
+                        if Map.IsMapLoading() or Map.GetMapID() != _nudge_map:
+                            self._mtnw_clear()
+                            return
+                        yield from Routines.Yield.wait(100)
                 self._mtnw_clear()
                 return
 
@@ -739,14 +813,27 @@ class WorldPathing:
                         break
                     Player.Move(goal_x, goal_y)
                     yield from Routines.Yield.wait(100)
-                # Timeout without map change: nudge 100 units in the player's facing direction
-                try:
-                    _fcos = Agent.GetRotationCos(Player.GetAgentID())
-                    _fsin = Agent.GetRotationSin(Player.GetAgentID())
-                    _nx, _ny = Player.GetXY()
-                    Player.Move(_nx + _fcos * 100.0, _ny + _fsin * 100.0)
-                except Exception:
-                    pass
+                # Pushthrough timeout: nudge forward in steps until portal triggers
+                _nudge_map = Map.GetMapID()
+                for _nudge_idx in range(self.MTNW_NUDGE_MAX_STEPS):
+                    if job_id != self.mtnw_job_id[0]:
+                        return
+                    if Map.IsMapLoading() or Map.GetMapID() != _nudge_map:
+                        self._mtnw_clear()
+                        return
+                    try:
+                        _fcos = Agent.GetRotationCos(Player.GetAgentID())
+                        _fsin = Agent.GetRotationSin(Player.GetAgentID())
+                        _nx, _ny = Player.GetXY()
+                        Player.Move(_nx + _fcos * self.MTNW_NUDGE_STEP, _ny + _fsin * self.MTNW_NUDGE_STEP)
+                    except Exception:
+                        break
+                    _nd_start = Utils.GetBaseTimestamp()
+                    while Utils.GetBaseTimestamp() - _nd_start < 500:
+                        if Map.IsMapLoading() or Map.GetMapID() != _nudge_map:
+                            self._mtnw_clear()
+                            return
+                        yield from Routines.Yield.wait(100)
                 self._mtnw_clear()
                 return
 
@@ -1044,8 +1131,8 @@ def invalidate_world_adj() -> None:
 def path_distance(start_map: int, end_map: int):
     return _wp.path_distance(start_map, end_map)
 
-def GetNearestUnlockedOutpost(target_map_id: int):
-    return _wp.GetNearestUnlockedOutpost(target_map_id)
+def GetNearestUnlockedOutpost(target_map_id: int, from_map_id: int | None = None):
+    return _wp.GetNearestUnlockedOutpost(target_map_id, from_map_id)
 
 def _map_name_cached(mid: int) -> str:
     return _wp._map_name_cached(mid)
