@@ -2245,7 +2245,8 @@ class Yield:
         def Upkeep_Morale(target_morale=110):
             from .Checks import Checks
 
-            # Party-wide morale items: affect all members, so check party morale too
+            # Party-wide morale items: affect all members, so check party morale too.
+            # Player-only items must not be spent trying to raise party morale.
             PARTY_MORALE_MODELS = frozenset(
                 m.value if hasattr(m, "value") else int(m)
                 for m in (
@@ -2281,17 +2282,19 @@ class Yield:
 
             while player_morale < target_morale or min_party < target_morale:
                 item_id = 0
+                need_player_morale = player_morale < target_morale
+                need_party_morale = min_party < target_morale
 
-                # If any party member is below target, prefer party-wide items first
-                if min_party < target_morale:
+                # If any party member is below target, only party-wide morale items can help.
+                if need_party_morale:
                     for model_id in morale_models:
                         if model_id in PARTY_MORALE_MODELS:
                             item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(model_id)
                             if item_id:
                                 break
 
-                # Fall back to any item (covers player-only case or no party item available)
-                if not item_id:
+                # Only use player-only morale items when the player still needs morale.
+                if not item_id and need_player_morale:
                     for model_id in morale_models:
                         item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(model_id)
                         if item_id:
