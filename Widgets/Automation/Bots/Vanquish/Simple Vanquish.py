@@ -56,16 +56,19 @@ def bot_routine(bot: Botting) -> None:
 
     # Combat
     bot.States.AddHeader("Vanquish Path") #4
+    bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Starting Vanquish Path")
     if "bless" in BotSettings.VANQUISH_PATH[0]:
         for i, entry in enumerate(BotSettings.VANQUISH_PATH):
             for key, value in entry.items():
                 if key == "bless":
+                    bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Taking Blessing")
                     bot.Move.XY(*value)
                     bot.Wait.ForTime(1500)
                     bot.Move.XYAndInteractNPC(*value)
                     bot.Multibox.SendDialogToTarget(0x84) # eotn blessings
                     bot.Multibox.SendDialogToTarget(0x85) # NF blessings
                 elif key == "junundu":
+                    bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Taking Junundu")
                     bot.Move.XY(*value)
                     bot.Wait.ForTime(1500)
                     bot.Move.XYAndInteractGadget(*value)
@@ -78,6 +81,7 @@ def bot_routine(bot: Botting) -> None:
     
     #Reverse Route
     bot.States.AddHeader("Reverse Vanquish Path") #5
+    bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Starting Reverse Path")
     if "bless" in BotSettings.VANQUISH_PATH[0]:
         reversed_list = []
         for entry in reversed(BotSettings.VANQUISH_PATH):
@@ -109,8 +113,9 @@ def bot_routine(bot: Botting) -> None:
     else:
         BotSettings.VANQUISH_PATH = list(reversed(BotSettings.VANQUISH_PATH))
         bot.Move.FollowAutoPath(BotSettings.VANQUISH_PATH)
-    
-    bot.Stop()
+
+    bot.Wait.UntilOutOfCombat()
+    bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Finished")
 
 def PrepareForBattle(bot: Botting):                  
     bot.Items.Restock.ArmorOfSalvation()
@@ -163,6 +168,7 @@ def _draw_settings():
     if prev_map_id != BotSettings.EXPLORABLE_TO_TRAVEL :
         bot.Stop()
         bot.config.FSM = FSM(BotSettings.BOT_NAME)
+        bot.config.counters.clear_all()
         bot.config.initialized = False
         prev_map_id = BotSettings.EXPLORABLE_TO_TRAVEL
         _farm_configured[0] = True      
