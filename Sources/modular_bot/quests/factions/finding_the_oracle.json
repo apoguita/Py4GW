@@ -1,0 +1,26 @@
+{
+  "name": "Finding The Oracle",
+  "max_heroes": 8,
+  "hero_team": "party_8",
+  "take_quest": {
+    "outpost_id": 274,
+    "quest_npc_location": [-11925, 5841],
+    "dialog_id": ["0x816401"],
+    "wait_ms": 500,
+    "name": "Take Quest"
+  },
+  "steps": [
+    {"type": "set_anchor", "phase": "Finding The Oracle"},
+    {"type": "exit_map", "name": "Leave map", "x": -12083, "y": 9886, "target_map_id": 232},
+    {"type": "dialog", "name": "Chat with Mhenlo", "npc": "BROTHER_MHENLO", "id": "0x816404"},
+    {"type": "auto_path", "name": "To portal", "points": [[-13016, 15540]]},
+    {"type": "exit_map", "name": "Leave map", "x": -16176, "y": -15826, "target_map_id": 240},
+
+    {"type": "set_anchor", "phase": "Bukdek byway"},
+    {"type": "auto_path", "name": "To Nika", "points": [[7364, -4304]]},
+    {"type": "wait", "phase": "Nika talking", "ms":10000},
+    {"type": "auto_path", "name": "To Nika", "points": [[7364, -4304]]},
+    {"type": "dialogs", "name": "Reward Time", "npc": "NIKA", "id": ["0x816407"]}
+
+  ]
+}
