@@ -281,7 +281,7 @@ class RangerSkills:
         skill.SkillType = SkillType.Skill.value
         skill.TargetAllegiance = Skilltarget.Pet.value
         skill.Nature = SkillNature.Healing.value
-        skill.unique_property = True
+        skill.Conditions.UniqueProperty = True
         skill.Conditions.LessLife = 0.7
         skill_data[skill.SkillID] = skill
 

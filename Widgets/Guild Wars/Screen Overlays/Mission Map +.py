@@ -829,7 +829,7 @@ class MissionMap:
         self.snap_path_computing: bool = False
         self.snap_path_index: int = 0
         self.snap_path_following: bool = False
-        self.snap_enabled: bool = True
+        self.snap_enabled: bool = False
 
         self.ally_marker = GLOBAL_CONFIGS.get("Ally")
         self.player_marker = GLOBAL_CONFIGS.get("Player")

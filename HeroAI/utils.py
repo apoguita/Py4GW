@@ -76,11 +76,20 @@ def CheckForEffect(agent_id, skill_id, cached_data : Optional[CacheData] = None)
         if acc.IsSlotActive and acc.AgentData.AgentID == agent_id and SameMapOrPartyAsAccount(acc) and acc.AgentPartyData.PartyID == cached_data.party.party_id:
             return any(buff.SkillId == skill_id for buff in acc.AgentData.Buffs.Buffs)        
 
-    allegiance , _ = Agent.GetAllegiance(agent_id)
-    if allegiance == Allegiance.SpiritPet.value and not Agent.IsSpawned(agent_id):
-        ## spirit pets do not have buffs in shared memory, so we check effects only
-        return True 
-    
+    owned_pet_id = GLOBAL_CACHE.Party.Pets.GetPetID(Player.GetAgentID())
+    if agent_id == Player.GetAgentID() or (owned_pet_id != 0 and agent_id == owned_pet_id):
+        return GLOBAL_CACHE.Effects.HasEffect(agent_id, skill_id)
+
+    allegiance, allegiance_name = Agent.GetAllegiance(agent_id)
+    if allegiance == Allegiance.SpiritPet.value:
+        # Shared memory should be the source of truth for pets and spirits. If a
+        # spirit/pet target is not represented there and it's not our own pet,
+        # treat it as already buffed to avoid recast loops on inaccessible units.
+        return True
+
+    if allegiance_name in ("Ally", "NPC/Minipet"):
+        return True
+
     return GLOBAL_CACHE.Effects.HasEffect(agent_id, skill_id)
 
 def GetEffectAndBuffIds(agent_id, cached_data : Optional[CacheData] = None) -> list[int]:

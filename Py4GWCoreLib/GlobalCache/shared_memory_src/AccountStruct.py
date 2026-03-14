@@ -1,4 +1,4 @@
-from ctypes import Structure, c_uint, c_bool, c_wchar
+from ctypes import Structure, c_uint, c_bool, c_wchar, c_uint64
 import Py4GW
 from PyParty import HeroPartyMember, PetInfo
 from Py4GWCoreLib import ThrottledTimer
@@ -83,6 +83,8 @@ class AccountStruct(Structure):
         ("IsPet", c_bool),
         ("IsNPC", c_bool),
         ("IsIsolated", c_bool),
+        ("InAggro", c_bool),
+        ("InAggroTick64", c_uint64),
 
         ("LastUpdated", c_uint),
     ]
@@ -112,6 +114,8 @@ class AccountStruct(Structure):
     IsPet: bool
     IsNPC: bool
     IsIsolated: bool
+    InAggro: bool
+    InAggroTick64: int
 
     LastUpdated: int
     
@@ -141,10 +145,13 @@ class AccountStruct(Structure):
         self.IsPet = False
         self.IsNPC = False
         self.IsIsolated = False
+        self.InAggro = False
+        self.InAggroTick64 = 0
 
         self.LastUpdated = 0
         
     def from_context(self, account_email:str , slot_index: int) -> None:
+        from ... import Range, Routines
         from ...Map import Map
         from ...Player import Player
         from ...Party import Party
@@ -154,6 +161,9 @@ class AccountStruct(Structure):
         
         force_full = (self.LastUpdated == 0)
 
+        previous_in_aggro = bool(self.InAggro)
+        previous_in_aggro_tick64 = int(self.InAggroTick64)
+
         self.SlotNumber = slot_index
         self.IsSlotActive = True
         self.IsAccount = True
@@ -161,6 +171,8 @@ class AccountStruct(Structure):
         self.IsHero = False
         self.IsPet = False
         self.IsNPC = False
+        self.InAggro = previous_in_aggro
+        self.InAggroTick64 = previous_in_aggro_tick64
         self.AgentData.OwnerAgentID = 0
         self.AgentData.HeroID = 0
         
@@ -172,7 +184,7 @@ class AccountStruct(Structure):
         
         if self.AccountName == "":
             self.AccountName = Player.GetAccountName() if Player.IsPlayerLoaded() else ""
-        
+
         agent_id = Player.GetAgentID()
         self.AgentData.from_context(agent_id, throttle_key=slot_index)
 
@@ -184,6 +196,10 @@ class AccountStruct(Structure):
                 self.FactionData.from_context()
                 self.ExperienceData.from_context()
                 _player_meta_stage[slot_index] = 0
+                
+                self.InAggro = bool(Routines.Checks.Agents.InAggro(Range.Earshot.value))
+                self.InAggroTick64 = Py4GW.Game.get_tick_count64() if self.InAggro else 0
+        
             else:
                 meta_stage = _player_meta_stage.get(slot_index, 0)
                 if meta_stage == 0:
@@ -192,9 +208,12 @@ class AccountStruct(Structure):
                     self.RankData.from_context()
                 elif meta_stage == 2:
                     self.FactionData.from_context()
-                else:
+                elif meta_stage == 3:
                     self.ExperienceData.from_context()
-                _player_meta_stage[slot_index] = (meta_stage + 1) % 4
+                else:
+                    self.InAggro = bool(Routines.Checks.Agents.InAggro(Range.Earshot.value))
+                    self.InAggroTick64 = Py4GW.Game.get_tick_count64() if self.InAggro else 0
+                _player_meta_stage[slot_index] = (meta_stage + 1) % 5
             meta_timer.Reset()
 
         progress_timer = _get_slot_timer(_player_progress_timers, slot_index, SHMEM_PLAYER_PROGRESS_UPDATE_THROTTLE_MS)
@@ -251,6 +270,8 @@ class AccountStruct(Structure):
         self.IsHero = True
         self.IsPet = False
         self.IsNPC = False
+        self.InAggro = False
+        self.InAggroTick64 = 0
         
         if Map.IsMapLoading(): return
         if not Player.IsPlayerLoaded(): return
@@ -359,6 +380,8 @@ class AccountStruct(Structure):
         self.IsHero = False
         self.IsPet = True
         self.IsNPC = False
+        self.InAggro = False
+        self.InAggroTick64 = 0
         
         agent_id = pet_data.agent_id
         self.AgentData.from_context(agent_id, throttle_key=slot_index)
@@ -369,6 +392,9 @@ class AccountStruct(Structure):
         self.AgentData.Morale = 100
         self.AgentData.TargetID = pet_data.locked_target_id
         self.AgentData.LoginNumber = 0
+        self.AgentPartyData.PartyID = Party.GetPartyID()
+        self.AgentPartyData.PartyPosition = Party.GetOwnPartyNumber()
+        self.AgentPartyData.IsTicked = False
         self.AgentPartyData.IsPartyLeader = False
 
         meta_timer = _get_slot_timer(_pet_meta_timers, slot_index, SHMEM_PET_EXTRA_UPDATE_THROTTLE_MS)
@@ -376,6 +402,10 @@ class AccountStruct(Structure):
             if force_full:
                 self.AgentData.Skillbar.reset()
                 self.AgentPartyData.reset()
+                self.AgentPartyData.PartyID = Party.GetPartyID()
+                self.AgentPartyData.PartyPosition = Party.GetOwnPartyNumber()
+                self.AgentPartyData.IsTicked = False
+                self.AgentPartyData.IsPartyLeader = False
                 self.RankData.reset()
                 _pet_meta_stage[slot_index] = 0
             else:
@@ -384,6 +414,10 @@ class AccountStruct(Structure):
                     self.AgentData.Skillbar.reset()
                 elif meta_stage == 1:
                     self.AgentPartyData.reset()
+                    self.AgentPartyData.PartyID = Party.GetPartyID()
+                    self.AgentPartyData.PartyPosition = Party.GetOwnPartyNumber()
+                    self.AgentPartyData.IsTicked = False
+                    self.AgentPartyData.IsPartyLeader = False
                 else:
                     self.RankData.reset()
                 _pet_meta_stage[slot_index] = (meta_stage + 1) % 3

@@ -267,34 +267,38 @@ class VectorFields:
 
 class BumperCarVectorFields:
     class Body:
-        def __init__(self, position, radius, velocity=(0.0, 0.0), weight=1.0, body_id=None):
+        def __init__(self, position, radius, weight=1.0, body_id=None):
             self.position = (float(position[0]), float(position[1]))
             self.radius = max(0.0, float(radius))
-            self.velocity = (float(velocity[0]), float(velocity[1]))
             self.weight = max(0.0, float(weight))
             self.body_id = body_id
 
     def __init__(
         self,
         probe_position,
-        target_position,
+        target_position=None,
         probe_radius=0.0,
-        probe_velocity=(0.0, 0.0),
-        time_horizon=0.35,
-        target_weight=1.0,
-        collision_weight=2.5,
-        tangent_weight=0.35,
-        arrival_radius=1.0,
+        probe_id=None,
+        contact_strength=1.0,
+        penetration_strength=1.0,
+        max_step_size=0.0,
+        contact_epsilon=0.0,
     ):
+        """
+        Resolve local body separation only.
+
+        The solver treats touching radii as a collision and produces a short
+        escape destination away from the combined pressure of every invading
+        body. It intentionally does not encode follow/combat policy, role
+        logic, or long-range target seeking.
+        """
         self.probe_position = (float(probe_position[0]), float(probe_position[1]))
-        self.target_position = (float(target_position[0]), float(target_position[1]))
         self.probe_radius = max(0.0, float(probe_radius))
-        self.probe_velocity = (float(probe_velocity[0]), float(probe_velocity[1]))
-        self.time_horizon = max(0.0, float(time_horizon))
-        self.target_weight = max(0.0, float(target_weight))
-        self.collision_weight = max(0.0, float(collision_weight))
-        self.tangent_weight = max(0.0, float(tangent_weight))
-        self.arrival_radius = max(0.0, float(arrival_radius))
+        self.probe_id = probe_id
+        self.contact_strength = max(0.0, float(contact_strength))
+        self.penetration_strength = max(0.0, float(penetration_strength))
+        self.max_step_size = max(0.0, float(max_step_size))
+        self.contact_epsilon = max(0.0, float(contact_epsilon))
         self._bodies: list[BumperCarVectorFields.Body] = []
 
     @staticmethod
@@ -314,6 +318,10 @@ class BumperCarVectorFields:
         return (a[0] * b[0]) + (a[1] * b[1])
 
     @staticmethod
+    def _cross_z(a, b):
+        return (a[0] * b[1]) - (a[1] * b[0])
+
+    @staticmethod
     def _length(v):
         return math.hypot(v[0], v[1])
 
@@ -328,89 +336,92 @@ class BumperCarVectorFields:
     def _perpendicular(v):
         return (-v[1], v[0])
 
+    @staticmethod
+    def _clamp(value, minimum, maximum):
+        return max(minimum, min(maximum, value))
+
     def set_probe_position(self, position):
         self.probe_position = (float(position[0]), float(position[1]))
 
-    def set_probe_velocity(self, velocity):
-        self.probe_velocity = (float(velocity[0]), float(velocity[1]))
+    def set_probe_id(self, probe_id):
+        self.probe_id = probe_id
 
-    def set_target_position(self, position):
-        self.target_position = (float(position[0]), float(position[1]))
+    def set_probe_radius(self, probe_radius):
+        self.probe_radius = max(0.0, float(probe_radius))
+
+    def set_max_step_size(self, max_step_size):
+        self.max_step_size = max(0.0, float(max_step_size))
 
     def add_body(self, position, radius, velocity=(0.0, 0.0), weight=1.0, body_id=None):
-        self._bodies.append(self.Body(position, radius, velocity, weight, body_id))
+        self._bodies.append(self.Body(position, radius, weight, body_id))
 
     def clear_bodies(self):
         self._bodies.clear()
 
-    def _desired_vector(self):
-        to_target = self._sub(self.target_position, self.probe_position)
-        distance = self._length(to_target)
-        if distance <= self.arrival_radius:
-            return (0.0, 0.0)
-        return self._normalize(to_target)
+    def _stable_scalar(self, value):
+        if value is None:
+            return 0
+        try:
+            return int(value)
+        except Exception:
+            return sum(ord(ch) for ch in str(value))
 
-    def _resolve_away_vector(self, body, desired_vector):
+    def _resolve_away_vector(self, body):
         delta = self._sub(self.probe_position, body.position)
         distance = self._length(delta)
         if distance > 0.000001:
             return self._normalize(delta)
 
-        fallback = desired_vector
-        if self._length(fallback) <= 0.000001:
-            fallback = self._sub(self.target_position, body.position)
-        if self._length(fallback) <= 0.000001:
-            seed = 1.0 if (body.body_id is None or int(body.body_id) % 2 == 0) else -1.0
-            return (seed, 0.0)
-        return self._normalize(fallback)
+        probe_scalar = self._stable_scalar(self.probe_id)
+        body_scalar = self._stable_scalar(body.body_id)
+        selector = 1.0 if ((probe_scalar + body_scalar) % 2 == 0) else -1.0
+        return self._normalize((selector, float(((probe_scalar ^ body_scalar) % 3) - 1)))
 
-    def _collision_response(self, body, desired_vector):
-        combined_radius = self.probe_radius + body.radius
-        away = self._resolve_away_vector(body, desired_vector)
+    def _collision_response(self, body):
+        combined_radius = self.probe_radius + body.radius + self.contact_epsilon
         center_delta = self._sub(body.position, self.probe_position)
         center_distance = self._length(center_delta)
-        overlap = combined_radius - center_distance
-
-        relative_velocity = self._sub(self.probe_velocity, body.velocity)
-        if self._length(relative_velocity) <= 0.000001:
-            relative_velocity = desired_vector
-        future_delta = self._add(center_delta, self._scale(relative_velocity, self.time_horizon))
-        future_distance = self._length(future_delta)
-        future_overlap = combined_radius - future_distance
-
-        if overlap <= 0.0 and future_overlap <= 0.0:
+        penetration = combined_radius - center_distance
+        if penetration < 0.0:
             return (0.0, 0.0)
 
-        penetration = max(overlap, future_overlap, 0.0001)
-        response = self._scale(away, penetration * body.weight)
-
-        tangent = self._perpendicular(away)
-        if self._dot(tangent, desired_vector) < 0.0:
-            tangent = self._scale(tangent, -1.0)
-        tangent_strength = 0.0
-        if abs(self._dot(away, desired_vector)) > 0.75:
-            tangent_strength = penetration * self.tangent_weight * body.weight
-
-        return self._add(response, self._scale(tangent, tangent_strength))
+        away = self._resolve_away_vector(body)
+        strength = (self.contact_strength + (penetration * self.penetration_strength)) * body.weight
+        return self._scale(away, strength)
 
     def compute_vector(self):
-        desired_vector = self._desired_vector()
         collision_vector = (0.0, 0.0)
 
         for body in self._bodies:
             collision_vector = self._add(
                 collision_vector,
-                self._collision_response(body, desired_vector)
+                self._collision_response(body)
             )
 
-        return self._add(
-            self._scale(desired_vector, self.target_weight),
-            self._scale(collision_vector, self.collision_weight)
-        )
+        return collision_vector
 
     def compute_direction(self):
         return self._normalize(self.compute_vector())
 
-    def compute_next_position(self, step_distance):
+    def has_collisions(self):
+        for body in self._bodies:
+            combined_radius = self.probe_radius + body.radius + self.contact_epsilon
+            if self._length(self._sub(body.position, self.probe_position)) <= combined_radius:
+                return True
+        return False
+
+    def compute_step_distance(self, max_step_size=None):
+        vector = self.compute_vector()
+        magnitude = self._length(vector)
+        if magnitude <= 0.000001:
+            return 0.0
+
+        step_cap = self.max_step_size if max_step_size is None else max(0.0, float(max_step_size))
+        if step_cap <= 0.0:
+            return magnitude
+        return self._clamp(magnitude, 0.0, step_cap)
+
+    def compute_next_position(self, max_step_size=None):
         direction = self.compute_direction()
-        return self._add(self.probe_position, self._scale(direction, max(0.0, float(step_distance))))
+        step_distance = self.compute_step_distance(max_step_size=max_step_size)
+        return self._add(self.probe_position, self._scale(direction, step_distance))

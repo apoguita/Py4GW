@@ -268,11 +268,11 @@ class AllAccounts(Structure):
         """Set pet data for the account with the given email."""
         from ...Player import Player
         from ...Party import Party
+        from ...Agent import Agent
         
         owner_agent_id = Player.GetAgentID()
         pet_info = Party.Pets.GetPetInfo(owner_agent_id)
-        # if not pet_info or pet_info.agent_id == 102298104:
-        if not pet_info or (not pet_info.agent_id in Party.GetOthers()):
+        if not pet_info or not Agent.IsValid(pet_info.agent_id):
             return
         
         index = self.GetPetSlotByPetData(pet_info)
