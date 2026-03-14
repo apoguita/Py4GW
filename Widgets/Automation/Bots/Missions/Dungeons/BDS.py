@@ -36,6 +36,7 @@ WIDGETS_TO_ENABLE: tuple[str, ...] = (
     "Return to outpost on defeat",
 )
 WIDGETS_TO_DISABLE: tuple[str, ...] = ()
+_ALT_ONLY_DISABLE_WIDGETS: tuple[str, ...] = (os.path.splitext(os.path.basename(__file__))[0],)
 
 # Difficulty selection (default: HM)
 _DIFFICULTY_SECTION = "BDS"
@@ -162,6 +163,27 @@ def _get_leftover_material_item_ids(batch_size: int = 10) -> list[int]:
         if 0 < qty < batch_size:
             leftovers.append(int(item_id))
     return leftovers
+
+
+def _disable_widgets_on_alts_only(widget_names: tuple[str, ...]) -> Generator:
+    if not widget_names:
+        yield
+        return
+
+    my_email = Player.GetAccountEmail()
+    for account in GLOBAL_CACHE.ShMem.GetAllAccountData():
+        account_email = str(getattr(account, "AccountEmail", "") or "")
+        if not account_email or account_email == my_email:
+            continue
+        for widget_name in widget_names:
+            GLOBAL_CACHE.ShMem.SendMessage(
+                my_email,
+                account_email,
+                SharedCommandType.DisableWidget,
+                (0, 0, 0, 0),
+                (widget_name, "", "", ""),
+            )
+    yield from Routines.Yield.wait(500)
 
 
 _SCROLL_MODEL_IDS = {5594, 5595, 5611, 5853, 5975, 5976, 21233}
@@ -526,6 +548,7 @@ def _snapshot_bds_before_chest() -> Generator:
 def _record_bds_after_loot() -> Generator:
     global _session_bds_found, _session_runs
     new_count = 0
+
     for model_id in BDS_MODEL_IDS:
         post_count = GLOBAL_CACHE.Inventory.GetModelCount(model_id)
         pre_count = _bds_pre_snapshot.get(model_id, 0)
@@ -627,6 +650,14 @@ def drop_bundle_safe(times: int = 2, delay_ms: int = 250) -> Generator:
         yield from Routines.Yield.wait(delay_ms)
     yield
 
+def _toggle_wait_for_party(enabled: bool) -> None:
+    _set_custom_utility_enabled(
+        enabled,
+        skill_names=("wait_if_party_member_too_far",),
+        class_names=("WaitIfPartyMemberTooFarUtility",),
+    )
+
+
 def _set_custom_utility_enabled(
     enabled: bool,
     *,
@@ -647,6 +678,7 @@ def _set_custom_utility_enabled(
 
     return False
 
+
 def _get_custom_behavior(initialize_if_needed: bool = True):
     loader = CustomBehaviorLoader()
     behavior = loader.custom_combat_behavior
@@ -656,13 +688,6 @@ def _get_custom_behavior(initialize_if_needed: bool = True):
         behavior = loader.custom_combat_behavior
 
     return behavior
-
-def _toggle_wait_for_party(enabled: bool) -> None:
-    _set_custom_utility_enabled(
-        enabled,
-        skill_names=("wait_if_party_member_too_far",),
-        class_names=("WaitIfPartyMemberTooFarUtility",),
-    )
 
 def TrackCurrentStep(bot: "Botting") -> None:
     """Update last step name + idx (best-effort)."""
@@ -1385,6 +1410,7 @@ def apply_widget_policy_step() -> Generator:
         disable_widgets=WIDGETS_TO_DISABLE,
         apply_local=True,
     )
+    yield from _disable_widgets_on_alts_only(_ALT_ONLY_DISABLE_WIDGETS)
     yield
 
 def _load_difficulty_setting() -> None:
@@ -1508,7 +1534,7 @@ def farm_bds_routine(bot: Botting) -> None:
     bot.Templates.Routines.UseCustomBehaviors(
         on_player_critical_death=BottingHelpers.botting_unrecoverable_issue,
         on_party_death=BottingHelpers.botting_unrecoverable_issue,
-        on_player_critical_stuck=BottingHelpers.botting_unrecoverable_issue) 
+        on_player_critical_stuck=BottingHelpers.botting_unrecoverable_issue)
     bot.Properties.Enable("pause_on_danger")
     # Register wipe callback
     bot.Events.OnPartyWipeCallback(lambda: OnPartyWipe(bot))
@@ -1549,7 +1575,7 @@ def farm_bds_routine(bot: Botting) -> None:
     bot.Wait.ForTime(4000)
     bot.Multibox.SendDialogToTarget(DWARVEN_BLESSING_DIALOG)
     bot.Wait.ForTime(4000)
-    bot.Items.UseAllConsumables()
+    bot.Multibox.UseAllConsumables()
 
     IS_REPATHING = False
     # Path to Shandra
@@ -1612,7 +1638,7 @@ def farm_bds_routine(bot: Botting) -> None:
     
     # Use consumables
     bot.States.AddCustomState(UseSummons, "Use Summons")
-    bot.Items.UseAllConsumables()
+    bot.Multibox.UseAllConsumables()
     bot.Templates.Aggressive()
 
     path_before_bridgant = [
@@ -1726,7 +1752,7 @@ def farm_bds_routine(bot: Botting) -> None:
  
     # Use consumables
     bot.States.AddCustomState(UseSummons, "Use Summons")
-    bot.Items.UseAllConsumables()
+    bot.Multibox.UseAllConsumables()
     bot.Templates.Aggressive()
     # --- Path to torch area (atomisé) ---
     path_before_torch = [
@@ -1849,7 +1875,7 @@ def farm_bds_routine(bot: Botting) -> None:
     # Use consumables
 
     bot.States.AddCustomState(UseSummons, "Use Summons")
-    bot.Items.UseAllConsumables()
+    bot.Multibox.UseAllConsumables()
     bot.Templates.Aggressive()
 
     bot.States.AddHeader("L3 - Cleaning level")

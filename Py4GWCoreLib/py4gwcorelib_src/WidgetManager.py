@@ -125,6 +125,10 @@ class Py4GWLibrary:
         
         self._pending_disable_widget : "Widget | None" = None
         self._request_disable_popup = False 
+        self._one_button_dragged = False
+        self._current_window_pos : Optional[tuple[float, float]] = None
+        self._pending_window_pos : Optional[tuple[float, float]] = None
+        self._single_button_window_pos : Optional[tuple[float, float]] = None
         
         self.win_size : Optional[tuple[float, float]] = None
         self.previous_size : Optional[tuple[float, float]] = None
@@ -281,6 +285,14 @@ class Py4GWLibrary:
             IniManager().save_vars(self.ini_key)
     
     def set_layout_mode(self, mode : LayoutMode):
+        if self.layout_mode is LayoutMode.SingleButton and self._current_window_pos is not None:
+            self._single_button_window_pos = self._current_window_pos
+
+        if mode is LayoutMode.SingleButton:
+            self._pending_window_pos = self._single_button_window_pos or self._current_window_pos
+        elif self._current_window_pos is not None:
+            self._pending_window_pos = self._current_window_pos
+
         match mode:
             case LayoutMode.Library:                
                 self.win_size = self.previous_size or (900, 600)
@@ -297,6 +309,13 @@ class Py4GWLibrary:
         IniManager().set(key=self.ini_key, section="Configuration", var_name="layout", value=mode.name)
         self.queue_filter_widgets = True
         pass
+
+    def _apply_pending_window_pos(self) -> None:
+        if self._pending_window_pos is not None:
+            PyImGui.set_next_window_pos(self._pending_window_pos, PyImGui.ImGuiCond.Always)
+
+    def _consume_pending_window_pos(self) -> None:
+        self._pending_window_pos = None
 
     def reload_widgets(self):
         self.widget_manager.discovered = False
@@ -542,12 +561,15 @@ class Py4GWLibrary:
     def draw_minimalistic_view(self):
         if self.win_size:
             PyImGui.set_next_window_size(self.win_size, PyImGui.ImGuiCond.Always)
+        self._apply_pending_window_pos()
         
         if self.focus_search:
             PyImGui.set_next_window_focus()
-            
+             
         if ImGui.Begin(ini_key=self.ini_key, name=self.module_name, flags=PyImGui.WindowFlags(PyImGui.WindowFlags.NoResize|PyImGui.WindowFlags.NoTitleBar|PyImGui.WindowFlags.NoScrollbar|PyImGui.WindowFlags.NoScrollWithMouse)):   
+            self._consume_pending_window_pos()
             win_size = PyImGui.get_window_size()
+            self._current_window_pos = PyImGui.get_window_pos()
             self.win_size = (win_size[0], win_size[1])
             ImGui.set_window_within_displayport(*self.win_size)
             style = ImGui.get_style()
@@ -598,13 +620,16 @@ class Py4GWLibrary:
     def draw_compact_view(self):
         if self.win_size:
             PyImGui.set_next_window_size(self.win_size, PyImGui.ImGuiCond.Always)
+        self._apply_pending_window_pos()
         
         if self.focus_search:
             PyImGui.set_next_window_focus()
-            
+             
         if ImGui.Begin(ini_key=self.ini_key, name=self.module_name, flags=PyImGui.WindowFlags.NoResize | PyImGui.WindowFlags.NoTitleBar):   
+            self._consume_pending_window_pos()
             window_hovered = PyImGui.is_window_hovered()
             win_size = PyImGui.get_window_size()
+            self._current_window_pos = PyImGui.get_window_pos()
             self.win_size = (win_size[0], win_size[1])
             ImGui.set_window_within_displayport(*self.win_size)
             
@@ -829,11 +854,14 @@ class Py4GWLibrary:
     def draw_libary_view(self):
         if self.win_size:
             PyImGui.set_next_window_size(self.win_size, PyImGui.ImGuiCond.Always)
+        self._apply_pending_window_pos()
         window_open = ImGui.Begin(ini_key=self.ini_key, name=self.module_name, flags=PyImGui.WindowFlags.MenuBar)
         
         if window_open:            
+            self._consume_pending_window_pos()
             win_size = PyImGui.get_window_size()
             win_pos = PyImGui.get_window_pos()
+            self._current_window_pos = win_pos
             self.win_size = (win_size[0], win_size[1])
             collapsed = PyImGui.is_window_collapsed()
             io = PyImGui.get_io()
@@ -1637,6 +1665,7 @@ class Py4GWLibrary:
     def draw_one_button_view(self): 
         if self.win_size:       
             PyImGui.set_next_window_size(self.win_size, PyImGui.ImGuiCond.Always)
+        self._apply_pending_window_pos()
             
         PyImGui.set_next_window_collapsed(False, PyImGui.ImGuiCond.Always)
         style = ImGui.get_style()
@@ -1653,16 +1682,15 @@ class Py4GWLibrary:
         ImGui.pop_theme()
         
         if win_open:
+            self._consume_pending_window_pos()
             win_size = PyImGui.get_window_size()
             self.win_size = (win_size[0], win_size[1])
             ImGui.set_window_within_displayport(*self.win_size)
             win_pos = PyImGui.get_window_pos()
-            win_center = (win_pos[0] + self.win_size[0] / 2, win_pos[1] + self.win_size[1] / 2)
-            radius = (min(self.win_size) - (padding * 2)) / 2
+            self._current_window_pos = win_pos
             io = PyImGui.get_io()
             mouse_pos = (io.mouse_pos_x, io.mouse_pos_y)
-            in_radius = (mouse_pos[0] - win_center[0]) ** 2 + (mouse_pos[1] - win_center[1]) ** 2 < radius ** 2
-            win_hovered = PyImGui.is_window_hovered() and in_radius
+            win_hovered = PyImGui.is_window_hovered()
             
             button_size = PyImGui.get_content_region_avail()[0] * (1 if win_hovered else 0.8)
             
@@ -1670,14 +1698,27 @@ class Py4GWLibrary:
                 PyImGui.set_cursor_pos((self.win_size[0] - button_size) / 2, (self.win_size[1] - button_size) / 2)
             
             cx, cy = PyImGui.get_cursor_pos()
-            ImGui.image(self.big_logo, (button_size, button_size))              
+            ImGui.image(self.big_logo, (button_size, button_size))
             PyImGui.set_cursor_pos(cx, cy)
-            ImGui.dummy(button_size, button_size)
-            if in_radius:       
-                if PyImGui.is_item_clicked(0):
+            PyImGui.invisible_button("##widget_manager_one_button_drag", button_size, button_size)
+
+            drag_delta = PyImGui.get_mouse_drag_delta(0, 6.0)
+            is_dragging_button = PyImGui.is_item_active() and PyImGui.is_mouse_dragging(0, 6.0)
+            item_hovered = PyImGui.is_item_hovered()
+            if is_dragging_button:
+                self._one_button_dragged = True
+                PyImGui.set_window_pos(win_pos[0] + drag_delta[0], win_pos[1] + drag_delta[1], PyImGui.ImGuiCond.Always)
+                PyImGui.reset_mouse_drag_delta(0)
+
+            if item_hovered:
+                if PyImGui.is_mouse_released(0) and not self._one_button_dragged:
                     self.set_layout_mode(self.previous_mode)
                 
-                ImGui.show_tooltip(f"Open Widget Manager")
+                if not is_dragging_button:
+                    ImGui.show_tooltip(f"Open Widget Manager")
+
+            if PyImGui.is_mouse_released(0):
+                self._one_button_dragged = False
                 
         ImGui.End(self.ini_key)
 #endregion
