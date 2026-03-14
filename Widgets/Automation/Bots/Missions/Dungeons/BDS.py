@@ -782,7 +782,7 @@ def pickup_torch(max_scan_dist: float = 5000, attempts: int = 40) -> Generator:
     inv = PyInventory.PyInventory()
     me = int(Player.GetAgentID())
 
-    ConsoleLog("TORCH", "scan+pickup start")
+    ConsoleLog("TORCH", "Scanning for Torch")
 
     for _ in range(attempts):
         arr = AgentArray.GetItemArray()
@@ -892,14 +892,14 @@ def pickup_torch(max_scan_dist: float = 5000, attempts: int = 40) -> Generator:
                 still_there = False
 
             if not still_there:
-                ConsoleLog("TORCH", "✅ picked")
+                ConsoleLog("TORCH", "Torch picked up")
                 yield
                 return
 
-        ConsoleLog("TORCH", "pickup attempt failed -> retry")
+        ConsoleLog("TORCH", "Torch pickup attempt failed -> retry")
         yield from Routines.Yield.wait(200)
 
-    ConsoleLog("TORCH", "❌ pickup failed")
+    ConsoleLog("TORCH", "Torch pickup failed")
     yield
 
 
@@ -1044,7 +1044,7 @@ def _brazier_sequence_gen(points: list[tuple[float, float]], interact_dist: floa
 
 def _log_cleaning_room() -> Generator:
     """Log message when L2 - Cleaning header state is reached."""
-    ConsoleLog(BOT_NAME, "Making sure no enemys are left")
+    ConsoleLog(BOT_NAME, "Clearing room level 2")
     yield
 
 
@@ -1171,7 +1171,7 @@ def resolve_fendi_fight() -> Generator:
     and require 20s stable verification with neither Fendi Nin
     nor Soul of Fendi present before finishing.
     """
-    boss_model_ids = {263, 203}
+    boss_model_ids = {7064, 7065} #Fendi Nin and Soul of Fendi
     anchor_x, anchor_y = (-16022.9, 17889.9)
     compass_sq = Range.Compass.value ** 2
     anchor_soft_radius_sq = 750.0 ** 2
@@ -1236,7 +1236,7 @@ def resolve_fendi_fight() -> Generator:
 
         yield from Routines.Yield.wait(500)
 
-    ConsoleLog(BOT_NAME, "Fendi fight resolved -- area clear for 20s")
+    ConsoleLog(BOT_NAME, "Fendi is dead -- area clear for 20s. Goodluck on chest ^.^")
     yield
 
 
@@ -1556,8 +1556,11 @@ def farm_bds_routine(bot: Botting) -> None:
     path = [
     (13455.43, 10678.00),
     (9850.00, 5025.00),
-    (11256.59, 1742.31),
-    (11736.00, 70.00),
+    (11207.11, 1872.32),
+    #(11256.59, 1742.31),
+    (10452.02, 178.50),
+    #(10870.85, -3558.11),
+    #(11736.00, 70.00),
     (10782.86, -3321.00),
     (8360.94, -6550.00),
     (10382.85, -12342.00),
@@ -1747,6 +1750,8 @@ def farm_bds_routine(bot: Botting) -> None:
 
 
     bot.Move.XY(-9259, -17322)
+    bot.Move.XY(-9971.23, -17633.08)
+    bot.Move.XY(-11136.85, -17201.66)
     bot.States.AddCustomState(pickup_torch, "Pickup Torch")
 
     bot.Move.XY(-11030.3,-17474.0)
@@ -1766,6 +1771,10 @@ def farm_bds_routine(bot: Botting) -> None:
     bot.States.AddCustomState(lambda: drop_bundle_safe(2, 250), "Drop bundle")
     
     bot.Move.XY(-10958.2,-4529.5)
+    bot.Move.XY(-11690.64, -3802.55)
+    bot.Move.XY(-10958.2,-4529.5)
+    bot.Move.XY(-11032.11, -5389.71)
+    bot.Move.XY(-11090.10, -6890.14)
     bot.States.AddCustomState(pickup_torch, "Pickup Torch")
 
     path_room2 = [
@@ -1929,6 +1938,7 @@ def farm_bds_routine(bot: Botting) -> None:
     bot.States.AddCustomState(lambda: drop_bundle_safe(2, 250), "Drop bundle")
     bot.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")   
     bot.States.AddHeader("L3 - Kill Brigant")
+    bot.Move.XY(-11878.79, 2166.51)
     bot.Move.XY(-9686.32, 2632)
     bot.States.AddHeader("Secure return 2 - L3")
     bot.States.AddCustomState(_step_anchor, "Secure return boss - L3")
@@ -1939,30 +1949,15 @@ def farm_bds_routine(bot: Botting) -> None:
     bot.States.AddHeader("L3 - Path to Fendi")
     # --- Boss path ---
     path_bds = [
-        (-8751.4,6187.9),
-        (-9254.5,6661.8),
-        (-9548.7,7161.9),
-        (-9842.2,7662.6),
-        (-9860.5,8165.6),
-        (-9378.4,8667.0),
-        (-8870.8,9148.9),
-        (-8736.4,9654.1),
-        (-9112.1,10163.0),
-        (-9541.0,10674.6),
-        (-9930.0,11184.1),
-        (-10433.0,11428.1),
-        (-10938.3,11856.4),
-        (-11444.7,12274.6),
-        (-11956.5,12758.7),
-        (-12457.3,13242.3),
-        (-12960.7,13501.0),
-        (-13466.4,13844.3),
-        (-13970.4,14245.7),
-        (-14475.7,14709.8),
-        (-14979.2,15046.5),
-        (-15480.8,15521.6),
-        (-16022.9,17889.9),
-
+        (-8871.19, 6152.95),
+        (-9326.33, 6862.55),
+        (-10044.56, 7921.78),
+        (-8408.54, 9475.41),
+        (-10049.41, 11259.31),
+        (-11381.15, 12387.01),
+        (-12304.50, 13319.24),
+        (-14736.33, 15054.21),
+        (-15162.24, 15579.30),
     ]
 
     bot.Templates.Aggressive()
@@ -2090,6 +2085,32 @@ def _draw_bds_window_with_stats_tab() -> None:
             bot.config.config_properties.floor_offset.get("value"),
         )
 
+def tooltip():
+    import PyImGui
+    from Py4GWCoreLib import ImGui, Color
+    PyImGui.begin_tooltip()
+
+    # Title
+    title_color = Color(255, 200, 100, 255)
+    ImGui.push_font("Regular", 20)
+    PyImGui.text_colored("Bone Dragon Staff Farmer bot", title_color.to_tuple_normalized())
+    ImGui.pop_font()
+    PyImGui.spacing()
+    PyImGui.separator()
+    # Description
+    PyImGui.text("multi-account bot to farm Bone Dragon Staff")
+    PyImGui.spacing()
+    PyImGui.bullet_text("Requirements:")
+    PyImGui.bullet_text("- Any number of accounts, but for best performance, 8 well-geared accounts is recommended")
+    PyImGui.bullet_text("- Custom Behavior widget enabled on all accounts")
+    PyImGui.bullet_text("- Launch the script on the party leader only")
+    PyImGui.bullet_text("Designed for Normal Mode (NM) and Hard Mode (HM), check bot settings for more details.")
+    
+    # Credits
+    PyImGui.text_colored("Credits:", title_color.to_tuple_normalized())
+    PyImGui.bullet_text("Developed by Oo SKY oO")
+    PyImGui.bullet_text("Contributors: Wick-Divinus, Sloppynacho, XLeek, Yodz, Le Z")
+    PyImGui.end_tooltip()
 
 def main():
     bot.Update()
