@@ -403,18 +403,34 @@ def DrawWindow():
                 icon_rect[2:],
             )
             
-            if PyImGui.invisible_button("##Open Travel Window", button_rect[2], button_rect[3]):
+            PyImGui.invisible_button("##Open Travel Window", button_rect[2], button_rect[3])
+
+            item_hovered = PyImGui.is_item_hovered()
+            item_active = PyImGui.is_item_active()
+            item_dragging = item_active and PyImGui.is_mouse_dragging(0, 6.0)
+
+            if item_dragging:
+                is_dragging = True
+                delta = PyImGui.get_mouse_drag_delta(0, 6.0)
+                PyImGui.reset_mouse_drag_delta(0)
+                widget_config.button_position = (
+                    widget_config.button_position[0] + delta[0],
+                    widget_config.button_position[1] + delta[1],
+                )
+                widget_config.request_save()
+
+                window_module.end_pos = window_module.window_pos = (
+                    int(window_module.window_pos[0] + delta[0]),
+                    int(window_module.window_pos[1] + delta[1]),
+                )
+
+            if item_hovered and PyImGui.is_mouse_released(0) and not is_dragging:
                 window_module.open = not window_module.open
                 PyImGui.set_next_window_pos(window_module.window_pos[0], window_module.window_pos[1])
-            
-            elif PyImGui.is_item_active(): 
-                delta = PyImGui.get_mouse_drag_delta(0, 0.0)                    
-                PyImGui.reset_mouse_drag_delta(0)
-                widget_config.button_position = (widget_config.button_position[0] + delta[0], widget_config.button_position[1] + delta[1])
-                widget_config.request_save()
-                
-                window_module.end_pos = window_module.window_pos = (int(window_module.window_pos[0] + delta[0]), int(window_module.window_pos[1] + delta[1]))
-                # window_module.open = False
+
+            if PyImGui.is_mouse_released(0):
+                is_dragging = False
+
             ImGui.show_tooltip("Click to open travel window\nDrag to reposition button")
             
             PyImGui.end()
@@ -579,9 +595,6 @@ def DrawWindow():
                 window_rect = (window_x, window_y, window_module.window_size[0], window_module.window_size[1])     
                 if not ImGui.is_mouse_in_rect(button_rect) and not ImGui.is_mouse_in_rect(window_rect):
                     window_module.open = False
-                    
-                elif ImGui.is_mouse_in_rect(button_rect):
-                    window_module.open = not window_module.open
                                  
                                    
                 
