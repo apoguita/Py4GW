@@ -64,6 +64,10 @@ NPC_TARGETS: dict[str, AgentTargetValue] = {
     "KROMRIL_THE_ETERNAL": (((143, 60, 231, 221, 50, 213, 172, 33, 0, 0),), "Kromril the Eternal"),
     "MIKO_THE_UNCHAINED": (((153, 60, 144, 135, 227, 178, 148, 90, 0, 0),), "Miko the Unchained"),
     "NIMROS_THE_HUNTER": (((151, 60, 106, 254, 155, 244, 189, 59, 0, 0),), "Nimros the Hunter"),
+    "NIKA": (((203, 94, 0, 243, 160, 248, 38, 109, 0, 0),), "Nika"),
+    "FISHMONGER_BIHZUN": (((113, 96, 50, 191, 11, 216, 178, 28, 0, 0),), "Fishmonger Bihzun"),
+    "LOUD_KOU": (((213, 95, 115, 159, 143, 243, 151, 49, 0, 0),), "Loud Kou"),
+    "ADEPT_NAI": (((173, 76, 22, 253, 52, 170, 169, 27, 0, 0),), "Adept Nai"),
     "WAILING_LORD": (((40, 31, 154, 140, 42, 223, 196, 52, 0, 0),), "Wailing Lord"),
     # "TOWER_OF_COURAGE_NPC": (((1, 129, 216, 71, 88, 179, 225, 255, 119, 64, 0, 0),), "Tower of Courage NPC"),
 }

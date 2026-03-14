@@ -1,0 +1,22 @@
+{
+  "name": "Finding The Oracle",
+  "max_heroes": 8,
+  "hero_team": "party_8",
+  "steps": [
+    {"type": "set_anchor", "phase": "Closer to the stars"},
+    {"type": "auto_path", "name": "To Nika", "points": [[7364, -4304]]},
+    {"type": "dialogs", "name": "Reward Time", "npc": "NIKA", "id": ["0x816501"]},
+    {"type": "auto_path", "name": "To Marketplace", "points": [[-13871, -11052]]},
+    {"type": "exit_map", "name": "Enter Marketplace", "x": -14110, "y": -13509, "target_map_id": 303},
+    {"type": "exit_map", "name": "Enter Wajjun", "x": 10496, "y": 14777, "target_map_id": 239},
+    {"type": "auto_path", "name": "To Fishmonger", "points": [[-225, 10850]]},
+    {"type": "dialogs", "name": "blackmail time", "npc": "FISHMONGER_BIHZUN", "id": ["0x816504"]},
+    {"type": "auto_path", "name": "Defend Fishmonger", "points": [[-238, 10847]], "ms":10000, "repeat":15},
+    {"type": "dialogs", "name": "blackmail time", "npc": "FISHMONGER_BIHZUN", "id": ["0x816504"]},
+    {"type": "auto_path", "name": "To Naphui", "points": [[8979, -19670]]},
+    {"type": "dialogs", "name": "Loud Kou", "npc": "LOUD_KOU", "id": ["0x816504","0x800008","0x800009","0x80000B"]},
+    {"type": "wait_map_change", "target_map_id": 216},
+    {"type": "auto_path", "name": "To Nai", "points": [[-19804, 9222]], "anchor": true},
+    {"type": "dialog", "name": "get reward", "npc": "ADEPT_NAI", "id":"0x816507"}
+  ]
+}

@@ -6,6 +6,10 @@ from typing import Callable
 from .step_context import StepContext
 from .step_selectors import resolve_agent_xy_from_step
 from .step_utils import log_recipe, parse_step_bool, parse_step_int, wait_after_step
+from .inventory_recipe import (
+    CONS_COMMON_MATERIAL_MODEL_IDS,
+    NON_CONS_COMMON_MATERIAL_MODEL_IDS,
+)
 
 _SELECTOR_OVERRIDE_KEYS = (
     "x",
@@ -147,6 +151,379 @@ def _apply_default_npc_selector(step: dict, selector_kind: str) -> None:
     if _step_has_explicit_agent_selector(step):
         return
     step["npc"] = _resolve_default_npc_selector(selector_kind)
+
+
+def _count_model_in_inventory(model_id: int) -> int:
+    from Py4GWCoreLib import GLOBAL_CACHE
+
+    bag_list = GLOBAL_CACHE.ItemArray.CreateBagList(1, 2, 3, 4)
+    item_array = GLOBAL_CACHE.ItemArray.GetItemArray(bag_list)
+    count = 0
+    for item_id in item_array:
+        if int(GLOBAL_CACHE.Item.GetModelID(item_id)) == int(model_id):
+            count += max(1, int(GLOBAL_CACHE.Item.Properties.GetQuantity(item_id)))
+    return int(count)
+
+
+def _get_id_kit_count() -> int:
+    from Py4GWCoreLib import ModelID
+
+    return _count_model_in_inventory(ModelID.Identification_Kit.value) + _count_model_in_inventory(
+        ModelID.Superior_Identification_Kit.value
+    )
+
+
+def _get_salvage_kit_count() -> int:
+    from Py4GWCoreLib import ModelID
+
+    return _count_model_in_inventory(ModelID.Salvage_Kit.value)
+
+
+def _get_leftover_material_item_ids(batch_size: int = 10) -> list[int]:
+    from Py4GWCoreLib import GLOBAL_CACHE
+
+    bag_list = GLOBAL_CACHE.ItemArray.CreateBagList(1, 2, 3, 4)
+    item_array = GLOBAL_CACHE.ItemArray.GetItemArray(bag_list)
+    leftovers: list[int] = []
+    for item_id in item_array:
+        if not GLOBAL_CACHE.Item.Type.IsMaterial(item_id):
+            continue
+        if GLOBAL_CACHE.Item.Type.IsRareMaterial(item_id):
+            continue
+        qty = int(GLOBAL_CACHE.Item.Properties.GetQuantity(item_id))
+        if 0 < qty < int(batch_size):
+            leftovers.append(int(item_id))
+    return leftovers
+
+
+def _get_nonsalvageable_gold_item_ids() -> list[int]:
+    from Py4GWCoreLib import GLOBAL_CACHE
+
+    bag_list = GLOBAL_CACHE.ItemArray.CreateBagList(1, 2, 3, 4)
+    item_array = GLOBAL_CACHE.ItemArray.GetItemArray(bag_list)
+    sell_ids: list[int] = []
+    for item_id in item_array:
+        _, rarity = GLOBAL_CACHE.Item.Rarity.GetRarity(item_id)
+        if rarity != "Gold":
+            continue
+        if not GLOBAL_CACHE.Item.Usage.IsIdentified(item_id):
+            continue
+        if GLOBAL_CACHE.Item.Usage.IsSalvageable(item_id):
+            continue
+        sell_ids.append(int(item_id))
+    return sell_ids
+
+
+def _resolve_inventory_location_key(location_raw: str, return_map_id: int) -> str:
+    key = str(location_raw or "auto").strip().lower()
+    if key == "auto":
+        if int(return_map_id or 0) in SUPPORTED_MAP_NPC_SELECTORS:
+            return f"map_{int(return_map_id)}"
+        return "guild_hall"
+    if key == "guild_hall":
+        return "guild_hall"
+    if key.startswith("map_"):
+        return key
+    try:
+        return f"map_{int(key)}"
+    except (TypeError, ValueError):
+        return "guild_hall"
+
+
+def _resolve_inventory_material_mode(mode_raw: str) -> str:
+    mode = str(mode_raw or "").strip().lower()
+    aliases = {
+        "sell_all_common_materials": "sell_all",
+        "deposit_cons_sell_non_cons": "deposit_cons_sell_non_cons",
+        "sell_non_cons_deposit_cons": "deposit_cons_sell_non_cons",
+        "deposit_all": "deposit_all",
+        "sell_all": "sell_all",
+        "none": "none",
+    }
+    return aliases.get(mode, "deposit_cons_sell_non_cons")
+
+
+def _yield_cb_leave_party(ctx: StepContext, multibox: bool) -> Callable[[], object]:
+    from Py4GWCoreLib import ConsoleLog
+    from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
+    from Sources.oazix.CustomBehaviors.primitives.parties.party_command_contants import PartyCommandConstants
+
+    def _coro():
+        if multibox:
+            yield from ctx.bot.Wait._coro_until_condition(lambda: CustomBehaviorParty().is_ready_for_action(), duration=100)
+            ok = bool(CustomBehaviorParty().schedule_action(PartyCommandConstants.leave_current_party))
+            if not ok:
+                ConsoleLog(f"Recipe:{ctx.recipe_name}", "inventory_setup: multibox leave_party schedule failed; using local fallback.")
+                ctx.bot.Party.LeaveParty()
+            else:
+                yield from ctx.bot.Wait._coro_until_condition(lambda: CustomBehaviorParty().is_ready_for_action(), duration=100)
+        else:
+            ctx.bot.Party.LeaveParty()
+        yield from ctx.bot.Wait._coro_for_time(1000)
+
+    return _coro
+
+
+def _yield_travel_gh(ctx: StepContext, multibox: bool, wait_time: int) -> Callable[[], object]:
+    from Py4GWCoreLib import ConsoleLog, Map
+    from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
+    from Sources.oazix.CustomBehaviors.primitives.parties.party_command_contants import PartyCommandConstants
+
+    def _coro():
+        if multibox:
+            yield from ctx.bot.Wait._coro_until_condition(lambda: CustomBehaviorParty().is_ready_for_action(), duration=100)
+            ok = bool(CustomBehaviorParty().schedule_action(PartyCommandConstants.travel_gh))
+            if not ok:
+                ConsoleLog(f"Recipe:{ctx.recipe_name}", "inventory_setup: multibox travel_gh schedule failed; using local fallback.")
+                if not Map.IsGuildHall():
+                    Map.TravelGH()
+            else:
+                yield from ctx.bot.Wait._coro_until_condition(lambda: CustomBehaviorParty().is_ready_for_action(), duration=100)
+        else:
+            if not Map.IsGuildHall():
+                ctx.bot.Map.TravelGH(wait_time=wait_time)
+        yield from ctx.bot.Wait._coro_for_time(wait_time)
+
+    return _coro
+
+
+def _yield_restock_consumables(ctx: StepContext) -> Callable[[], object]:
+    def _coro():
+        from Py4GWCoreLib import Inventory
+
+        if not Inventory.IsStorageOpen():
+            Inventory.OpenXunlaiWindow()
+            yield from ctx.bot.Wait._coro_for_time(1000)
+
+        restock_specs = (
+            ("birthday_cupcake", "restock_birthday_cupcake"),
+            ("candy_apple", "restock_candy_apple"),
+            ("honeycomb", "restock_honeycomb"),
+            ("war_supplies", "restock_war_supplies"),
+            ("essence_of_celerity", "restock_essence_of_celerity"),
+            ("grail_of_might", "restock_grail_of_might"),
+            ("armor_of_salvation", "restock_armor_of_salvation"),
+            ("golden_egg", "restock_golden_egg"),
+            ("candy_corn", "restock_candy_corn"),
+            ("slice_of_pumpkin_pie", "restock_slice_of_pumpkin_pie"),
+            ("drake_kabob", "restock_drake_kabob"),
+            ("bowl_of_skalefin_soup", "restock_bowl_of_skalefin_soup"),
+            ("pahnai_salad", "restock_pahnai_salad"),
+        )
+
+        for prop_name, method_name in restock_specs:
+            if not ctx.bot.Properties.exists(prop_name):
+                continue
+            is_active = bool(ctx.bot.Properties.Get(prop_name, "active"))
+            qty = int(ctx.bot.Properties.Get(prop_name, "restock_quantity") or 0)
+            if not is_active or qty <= 0:
+                continue
+            method = getattr(ctx.bot.helpers.Restock, method_name, None)
+            if callable(method):
+                yield from method()
+        yield
+
+    return _coro
+
+
+def _yield_inventory_setup(ctx: StepContext, step: dict) -> Callable[[], object]:
+    from Py4GWCoreLib import GLOBAL_CACHE, Map, Player, Routines, SharedCommandType
+
+    multibox = parse_step_bool(step.get("multibox", True), True)
+    leave_party = parse_step_bool(step.get("leave_party", True), True)
+    wait_time = max(1000, parse_step_int(step.get("ms", 5000), 5000))
+    return_map_id = parse_step_int(step.get("return_map_id", 0), 0)
+    location_key = _resolve_inventory_location_key(step.get("location", "auto"), return_map_id)
+    id_kits_target = max(0, parse_step_int(step.get("id_kits_target", 3), 3))
+    salvage_kits_target = max(0, parse_step_int(step.get("salvage_kits_target", 10), 10))
+    buy_ectoplasm = parse_step_bool(step.get("buy_ectoplasm", False), False)
+    use_storage_gold = parse_step_bool(step.get("use_storage_gold", False), False)
+    start_storage_gold_threshold = max(0, parse_step_int(step.get("start_storage_gold_threshold", 900_000), 900_000))
+    stop_storage_gold_threshold = max(0, parse_step_int(step.get("stop_storage_gold_threshold", 500_000), 500_000))
+    material_mode = _resolve_inventory_material_mode(step.get("material_mode", "deposit_cons_sell_non_cons"))
+    restock_consumables = parse_step_bool(step.get("restock_consumables", False), False)
+    multibox_wait_step_ms = max(10, parse_step_int(step.get("multibox_wait_step_ms", 50), 50))
+    multibox_wait_timeout_ms = max(1_000, parse_step_int(step.get("multibox_wait_timeout_ms", 30_000), 30_000))
+
+    def _coro():
+        sender_email = Player.GetAccountEmail()
+
+        if location_key == "guild_hall":
+            if leave_party:
+                yield from _yield_cb_leave_party(ctx, multibox)()
+            yield from _yield_travel_gh(ctx, multibox, wait_time)()
+        elif return_map_id > 0 and int(Map.GetMapID() or 0) != return_map_id:
+            yield from ctx.bot.Map._coro_travel(return_map_id, "")
+            yield from ctx.bot.Wait._coro_for_time(wait_time)
+            if multibox:
+                yield from ctx.bot.helpers.Multibox.summon_all_accounts()
+                yield from ctx.bot.Wait._coro_for_time(1500)
+
+        selector_step = dict(step)
+        _apply_default_npc_selector(selector_step, "merchant")
+        merchant_xy = resolve_agent_xy_from_step(
+            selector_step,
+            recipe_name=ctx.recipe_name,
+            step_idx=ctx.step_idx,
+            agent_kind="npc",
+        )
+        if merchant_xy is None:
+            log_recipe(ctx, "inventory_setup: failed to resolve Merchant coordinates.")
+            yield
+            return
+        mx, my = merchant_xy
+
+        sent_messages: list[tuple[str, int]] = []
+        if multibox:
+            for account_email in _iter_other_account_emails():
+                message_index = GLOBAL_CACHE.ShMem.SendMessage(
+                    sender_email,
+                    account_email,
+                    SharedCommandType.MerchantItems,
+                    (mx, my, float(id_kits_target), float(salvage_kits_target)),
+                )
+                sent_messages.append((account_email, int(message_index)))
+
+        yield from ctx.bot.Move._coro_xy_and_interact_npc(mx, my, step.get("name", "Inventory Setup"))
+        yield from ctx.bot.Wait._coro_for_time(1200)
+
+        for _ in range(2):
+            id_kits_to_buy = max(0, id_kits_target - _get_id_kit_count())
+            salvage_kits_to_buy = max(0, salvage_kits_target - _get_salvage_kit_count())
+            if id_kits_to_buy <= 0 and salvage_kits_to_buy <= 0:
+                break
+            yield from Routines.Yield.Merchant.BuyIDKits(id_kits_to_buy)
+            yield from Routines.Yield.Merchant.BuySalvageKits(salvage_kits_to_buy)
+            yield from Routines.Yield.wait(150)
+
+        if multibox:
+            yield from _wait_for_outbound_messages(
+                ctx,
+                "inventory_setup.restock_kits",
+                sent_messages,
+                SharedCommandType.MerchantItems,
+                wait_step_ms=multibox_wait_step_ms,
+                timeout_ms=multibox_wait_timeout_ms,
+            )
+
+        if restock_consumables:
+            yield from _yield_restock_consumables(ctx)()
+
+        if material_mode != "none":
+            selector_step = dict(step)
+            _apply_default_npc_selector(selector_step, "materials")
+            material_xy = resolve_agent_xy_from_step(
+                selector_step,
+                recipe_name=ctx.recipe_name,
+                step_idx=ctx.step_idx,
+                agent_kind="npc",
+            )
+            if material_xy is not None:
+                tx, ty = material_xy
+                if material_mode in ("sell_all", "deposit_cons_sell_non_cons"):
+                    selected_models = None if material_mode == "sell_all" else set(NON_CONS_COMMON_MATERIAL_MODEL_IDS)
+                    extra_data = ("sell", _encode_material_model_filter(selected_models), "", "")
+                    sent_messages = []
+                    if multibox:
+                        for account_email in _iter_other_account_emails():
+                            message_index = GLOBAL_CACHE.ShMem.SendMessage(
+                                sender_email,
+                                account_email,
+                                SharedCommandType.MerchantMaterials,
+                                (float(tx), float(ty), 0.0, 0.0),
+                                extra_data,
+                            )
+                            sent_messages.append((account_email, int(message_index)))
+                    yield from Routines.Yield.Merchant.SellMaterialsAtTrader(tx, ty, selected_models=selected_models)
+                    if multibox:
+                        yield from _wait_for_outbound_messages(
+                            ctx,
+                            "inventory_setup.sell_materials",
+                            sent_messages,
+                            SharedCommandType.MerchantMaterials,
+                            wait_step_ms=multibox_wait_step_ms,
+                            timeout_ms=multibox_wait_timeout_ms,
+                        )
+
+                if material_mode in ("deposit_all", "deposit_cons_sell_non_cons"):
+                    selected_models = None if material_mode == "deposit_all" else set(CONS_COMMON_MATERIAL_MODEL_IDS)
+                    extra_data = ("deposit", _encode_material_model_filter(selected_models), "0", "0")
+                    sent_messages = []
+                    if multibox:
+                        for account_email in _iter_other_account_emails():
+                            message_index = GLOBAL_CACHE.ShMem.SendMessage(
+                                sender_email,
+                                account_email,
+                                SharedCommandType.MerchantMaterials,
+                                (0.0, 0.0, 0.0, 0.0),
+                                extra_data,
+                            )
+                            sent_messages.append((account_email, int(message_index)))
+                    yield from Routines.Yield.Merchant.DepositMaterials(selected_models=selected_models, max_deposit_items=None)
+                    if multibox:
+                        yield from _wait_for_outbound_messages(
+                            ctx,
+                            "inventory_setup.deposit_materials",
+                            sent_messages,
+                            SharedCommandType.MerchantMaterials,
+                            wait_step_ms=multibox_wait_step_ms,
+                            timeout_ms=multibox_wait_timeout_ms,
+                        )
+
+        if buy_ectoplasm:
+            selector_step = dict(step)
+            _apply_default_npc_selector(selector_step, "rare_materials")
+            rare_xy = resolve_agent_xy_from_step(
+                selector_step,
+                recipe_name=ctx.recipe_name,
+                step_idx=ctx.step_idx,
+                agent_kind="npc",
+            )
+            if rare_xy is not None:
+                rx, ry = rare_xy
+                sent_messages = []
+                if multibox:
+                    extra_data = ("buy_ectoplasm", "1" if use_storage_gold else "0", "0", "")
+                    for account_email in _iter_other_account_emails():
+                        message_index = GLOBAL_CACHE.ShMem.SendMessage(
+                            sender_email,
+                            account_email,
+                            SharedCommandType.MerchantMaterials,
+                            (float(rx), float(ry), float(start_storage_gold_threshold), float(stop_storage_gold_threshold)),
+                            extra_data,
+                        )
+                        sent_messages.append((account_email, int(message_index)))
+                yield from Routines.Yield.Merchant.BuyEctoplasm(
+                    x=rx,
+                    y=ry,
+                    use_storage_gold=use_storage_gold,
+                    start_threshold=start_storage_gold_threshold,
+                    stop_threshold=stop_storage_gold_threshold,
+                    max_ecto_to_buy=None,
+                )
+                if multibox:
+                    yield from _wait_for_outbound_messages(
+                        ctx,
+                        "inventory_setup.buy_ectoplasm",
+                        sent_messages,
+                        SharedCommandType.MerchantMaterials,
+                        wait_step_ms=multibox_wait_step_ms,
+                        timeout_ms=multibox_wait_timeout_ms,
+                    )
+
+        if return_map_id > 0 and int(Map.GetMapID() or 0) != return_map_id:
+            yield from ctx.bot.Map._coro_travel(return_map_id, "")
+            yield from ctx.bot.Wait._coro_for_time(wait_time)
+
+        if multibox and return_map_id > 0:
+            yield from ctx.bot.helpers.Multibox.summon_all_accounts()
+            yield from ctx.bot.Wait._coro_for_time(2000)
+            yield from ctx.bot.helpers.Multibox.invite_all_accounts()
+            yield from ctx.bot.Wait._coro_for_time(1000)
+
+        yield
+
+    return _coro
 
 
 def handle_restock_kits(ctx: StepContext) -> None:
@@ -418,6 +795,8 @@ def handle_deposit_materials(ctx: StepContext) -> None:
     multibox_wait_timeout_ms = max(1_000, parse_step_int(ctx.step.get("multibox_wait_timeout_ms", 30_000), 30_000))
     max_deposit_items_raw = parse_step_int(ctx.step.get("max_deposit_items", 0), 0)
     max_deposit_items = max_deposit_items_raw if max_deposit_items_raw > 0 else None
+    exact_quantity_raw = parse_step_int(ctx.step.get("exact_quantity", 250), 250)
+    exact_quantity = exact_quantity_raw if exact_quantity_raw > 0 else None
     reverse_material_map = {material_name.lower(): int(model_id.value) for model_id, material_name in MaterialMap.items()}
 
     selected_models: set[int] | None = None
@@ -449,6 +828,7 @@ def handle_deposit_materials(ctx: StepContext) -> None:
             log_recipe(ctx, "deposit_materials: opening Xunlai window.")
         deposit_metrics = yield from Routines.Yield.Merchant.DepositMaterials(
             selected_models=selected_models,
+            exact_quantity=exact_quantity,
             max_deposit_items=max_deposit_items,
         )
         log_recipe(ctx, f"deposit_materials metrics: {deposit_metrics}")
@@ -456,7 +836,7 @@ def handle_deposit_materials(ctx: StepContext) -> None:
         if multibox:
             sender_email = Player.GetAccountEmail()
             account_emails = _iter_other_account_emails()
-            extra_data = ("deposit", _encode_material_model_filter(selected_models), str(max_deposit_items or 0), "")
+            extra_data = ("deposit", _encode_material_model_filter(selected_models), str(max_deposit_items or 0), str(exact_quantity or 0))
             sent_messages: list[tuple[str, int]] = []
             for account_email in account_emails:
                 message_index = GLOBAL_CACHE.ShMem.SendMessage(
@@ -480,6 +860,194 @@ def handle_deposit_materials(ctx: StepContext) -> None:
         yield
 
     ctx.bot.States.AddCustomState(_deposit_local, f"{name} Execute")
+    wait_after_step(ctx.bot, ctx.step)
+
+
+def handle_sell_nonsalvageable_golds(ctx: StepContext) -> None:
+    from Py4GWCoreLib import GLOBAL_CACHE, Player, Routines, SharedCommandType
+
+    selector_step = dict(ctx.step)
+    name = ctx.step.get("name", "Sell Non-Salvageable Golds")
+    multibox = parse_step_bool(ctx.step.get("multibox", False), False)
+    multibox_wait_step_ms = max(10, parse_step_int(ctx.step.get("multibox_wait_step_ms", 50), 50))
+    multibox_wait_timeout_ms = max(1_000, parse_step_int(ctx.step.get("multibox_wait_timeout_ms", 30_000), 30_000))
+
+    def _sell_local():
+        step_selector = dict(selector_step)
+        _apply_default_npc_selector(step_selector, "merchant")
+        coords = resolve_agent_xy_from_step(
+            step_selector,
+            recipe_name=ctx.recipe_name,
+            step_idx=ctx.step_idx,
+            agent_kind="npc",
+        )
+        if coords is None:
+            log_recipe(ctx, "sell_nonsalvageable_golds: failed to resolve Merchant coordinates.")
+            yield
+            return
+
+        x, y = coords
+        sent_messages: list[tuple[str, int]] = []
+        if multibox:
+            sender_email = Player.GetAccountEmail()
+            for account_email in _iter_other_account_emails():
+                message_index = GLOBAL_CACHE.ShMem.SendMessage(
+                    sender_email,
+                    account_email,
+                    SharedCommandType.MerchantMaterials,
+                    (float(x), float(y), 0.0, 0.0),
+                    ("sell_nonsalvageable_golds", "", "", ""),
+                )
+                sent_messages.append((account_email, int(message_index)))
+
+        sell_ids = _get_nonsalvageable_gold_item_ids()
+        if sell_ids:
+            yield from ctx.bot.Move._coro_xy_and_interact_npc(x, y, name)
+            yield from ctx.bot.Wait._coro_for_time(1200)
+            yield from Routines.Yield.Merchant.SellItems(sell_ids, log=True)
+            log_recipe(ctx, f"sell_nonsalvageable_golds: sold {len(sell_ids)} item(s).")
+        else:
+            log_recipe(ctx, "sell_nonsalvageable_golds: no eligible gold items.")
+
+        if multibox:
+            yield from _wait_for_outbound_messages(
+                ctx,
+                "sell_nonsalvageable_golds",
+                sent_messages,
+                SharedCommandType.MerchantMaterials,
+                wait_step_ms=multibox_wait_step_ms,
+                timeout_ms=multibox_wait_timeout_ms,
+            )
+        yield
+
+    ctx.bot.States.AddCustomState(_sell_local, f"{name} Execute")
+    wait_after_step(ctx.bot, ctx.step)
+
+
+def handle_sell_leftover_materials(ctx: StepContext) -> None:
+    from Py4GWCoreLib import GLOBAL_CACHE, Player, Routines, SharedCommandType
+
+    selector_step = dict(ctx.step)
+    name = ctx.step.get("name", "Sell Leftover Materials")
+    multibox = parse_step_bool(ctx.step.get("multibox", False), False)
+    batch_size = max(1, parse_step_int(ctx.step.get("batch_size", 10), 10))
+    multibox_wait_step_ms = max(10, parse_step_int(ctx.step.get("multibox_wait_step_ms", 50), 50))
+    multibox_wait_timeout_ms = max(1_000, parse_step_int(ctx.step.get("multibox_wait_timeout_ms", 30_000), 30_000))
+
+    def _sell_local():
+        step_selector = dict(selector_step)
+        _apply_default_npc_selector(step_selector, "merchant")
+        coords = resolve_agent_xy_from_step(
+            step_selector,
+            recipe_name=ctx.recipe_name,
+            step_idx=ctx.step_idx,
+            agent_kind="npc",
+        )
+        if coords is None:
+            log_recipe(ctx, "sell_leftover_materials: failed to resolve Merchant coordinates.")
+            yield
+            return
+
+        x, y = coords
+        sent_messages: list[tuple[str, int]] = []
+        if multibox:
+            sender_email = Player.GetAccountEmail()
+            for account_email in _iter_other_account_emails():
+                message_index = GLOBAL_CACHE.ShMem.SendMessage(
+                    sender_email,
+                    account_email,
+                    SharedCommandType.MerchantMaterials,
+                    (float(x), float(y), 0.0, 0.0),
+                    ("sell_merchant_leftovers", "", str(batch_size), ""),
+                )
+                sent_messages.append((account_email, int(message_index)))
+
+        sell_ids = _get_leftover_material_item_ids(batch_size=batch_size)
+        if sell_ids:
+            yield from ctx.bot.Move._coro_xy_and_interact_npc(x, y, name)
+            yield from ctx.bot.Wait._coro_for_time(1200)
+            yield from Routines.Yield.Merchant.SellItems(sell_ids, log=True)
+            log_recipe(ctx, f"sell_leftover_materials: sold {len(sell_ids)} stack(s) with qty < {batch_size}.")
+        else:
+            log_recipe(ctx, f"sell_leftover_materials: no common material stacks below {batch_size}.")
+
+        if multibox:
+            yield from _wait_for_outbound_messages(
+                ctx,
+                "sell_leftover_materials",
+                sent_messages,
+                SharedCommandType.MerchantMaterials,
+                wait_step_ms=multibox_wait_step_ms,
+                timeout_ms=multibox_wait_timeout_ms,
+            )
+        yield
+
+    ctx.bot.States.AddCustomState(_sell_local, f"{name} Execute")
+    wait_after_step(ctx.bot, ctx.step)
+
+
+def handle_sell_scrolls(ctx: StepContext) -> None:
+    from Py4GWCoreLib import GLOBAL_CACHE, Player, Routines, SharedCommandType
+
+    selector_step = dict(ctx.step)
+    name = ctx.step.get("name", "Sell Scrolls")
+    multibox = parse_step_bool(ctx.step.get("multibox", False), False)
+    multibox_wait_step_ms = max(10, parse_step_int(ctx.step.get("multibox_wait_step_ms", 50), 50))
+    multibox_wait_timeout_ms = max(1_000, parse_step_int(ctx.step.get("multibox_wait_timeout_ms", 30_000), 30_000))
+    scroll_models = set(int(v) for v in ctx.step.get("scroll_models", [5594, 5595, 5611, 5853, 5975, 5976, 21233]))
+
+    def _sell_local():
+        step_selector = dict(selector_step)
+        _apply_default_npc_selector(step_selector, "merchant")
+        coords = resolve_agent_xy_from_step(
+            step_selector,
+            recipe_name=ctx.recipe_name,
+            step_idx=ctx.step_idx,
+            agent_kind="npc",
+        )
+        if coords is None:
+            log_recipe(ctx, "sell_scrolls: failed to resolve Merchant coordinates.")
+            yield
+            return
+
+        x, y = coords
+        sent_messages: list[tuple[str, int]] = []
+        if multibox:
+            sender_email = Player.GetAccountEmail()
+            filter_raw = ",".join(str(mid) for mid in sorted(scroll_models))
+            for account_email in _iter_other_account_emails():
+                message_index = GLOBAL_CACHE.ShMem.SendMessage(
+                    sender_email,
+                    account_email,
+                    SharedCommandType.MerchantMaterials,
+                    (float(x), float(y), 0.0, 0.0),
+                    ("sell_scrolls", filter_raw, "", ""),
+                )
+                sent_messages.append((account_email, int(message_index)))
+
+        bag_list = GLOBAL_CACHE.ItemArray.CreateBagList(1, 2, 3, 4)
+        item_array = GLOBAL_CACHE.ItemArray.GetItemArray(bag_list)
+        sell_ids = [int(item_id) for item_id in item_array if int(GLOBAL_CACHE.Item.GetModelID(item_id)) in scroll_models]
+        if sell_ids:
+            yield from ctx.bot.Move._coro_xy_and_interact_npc(x, y, name)
+            yield from ctx.bot.Wait._coro_for_time(1200)
+            yield from Routines.Yield.Merchant.SellItems(sell_ids, log=True)
+            log_recipe(ctx, f"sell_scrolls: sold {len(sell_ids)} scroll(s).")
+        else:
+            log_recipe(ctx, "sell_scrolls: no matching scrolls.")
+
+        if multibox:
+            yield from _wait_for_outbound_messages(
+                ctx,
+                "sell_scrolls",
+                sent_messages,
+                SharedCommandType.MerchantMaterials,
+                wait_step_ms=multibox_wait_step_ms,
+                timeout_ms=multibox_wait_timeout_ms,
+            )
+        yield
+
+    ctx.bot.States.AddCustomState(_sell_local, f"{name} Execute")
     wait_after_step(ctx.bot, ctx.step)
 
 
@@ -581,10 +1149,157 @@ def handle_buy_ectoplasm(ctx: StepContext) -> None:
     wait_after_step(ctx.bot, ctx.step)
 
 
+def handle_inventory_setup(ctx: StepContext) -> None:
+    ctx.bot.States.AddCustomState(_yield_inventory_setup(ctx, ctx.step), ctx.step.get("name", "Inventory Setup"))
+    wait_after_step(ctx.bot, ctx.step)
+
+
+def handle_inventory_guard(ctx: StepContext) -> None:
+    name = ctx.step.get("name", "Inventory Guard")
+    id_kits_min = max(0, parse_step_int(ctx.step.get("id_kits_min", ctx.step.get("id_kits_target", 3)), 3))
+    salvage_kits_min = max(
+        0,
+        parse_step_int(ctx.step.get("salvage_kits_min", ctx.step.get("salvage_kits_target", 10)), 10),
+    )
+
+    def _guard():
+        current_id_kits = _get_id_kit_count()
+        current_salvage_kits = _get_salvage_kit_count()
+        if current_id_kits >= id_kits_min and current_salvage_kits >= salvage_kits_min:
+            log_recipe(
+                ctx,
+                f"inventory_guard: skipped (id_kits={current_id_kits}, salvage_kits={current_salvage_kits}, mins={id_kits_min}/{salvage_kits_min}).",
+            )
+            yield
+            return
+
+        log_recipe(
+            ctx,
+            f"inventory_guard: triggering setup (id_kits={current_id_kits}, salvage_kits={current_salvage_kits}, mins={id_kits_min}/{salvage_kits_min}).",
+        )
+        yield from _yield_inventory_setup(ctx, ctx.step)()
+
+    ctx.bot.States.AddCustomState(_guard, name)
+    wait_after_step(ctx.bot, ctx.step)
+
+
+def handle_inventory_cleanup(ctx: StepContext) -> None:
+    """Composite action for BDS-style GH cleanup/restock/reform sequence."""
+    from .action_registry import STEP_HANDLERS
+
+    multibox = parse_step_bool(ctx.step.get("multibox", True), True)
+    raw_map_id = ctx.step.get("map_id", None)
+    map_id: int | None
+    if raw_map_id is None:
+        map_id = None
+    elif isinstance(raw_map_id, str) and raw_map_id.strip().lower() in ("", "none", "null"):
+        map_id = None
+    else:
+        parsed_map_id = max(0, parse_step_int(raw_map_id, 0))
+        map_id = parsed_map_id if parsed_map_id > 0 else None
+    id_kits = max(0, parse_step_int(ctx.step.get("id_kits", 3), 3))
+    salvage_kits = max(0, parse_step_int(ctx.step.get("salvage_kits", 10), 10))
+    batch_size = max(1, parse_step_int(ctx.step.get("batch_size", 10), 10))
+    state: dict[str, int] = {"origin_map_id": 0}
+
+    cleanup_steps: list[dict] = [
+        {"type": "__capture_origin_map", "name": "Capture Origin Map"},
+        {"type": "resign", "name": "Resign All", "ms": 1000},
+        {"type": "leave_party", "name": "Leave Party", "multibox": multibox},
+        {"type": "travel_gh", "name": "Travel GH", "multibox": multibox, "ms": 7000},
+        {
+            "type": "deposit_materials",
+            "name": "Store Craft Mats",
+            "materials": ["Pile_Of_Glittering_Dust", "Bone", "Iron_Ingot", "Feather", "Plant_Fiber"],
+            "exact_quantity": 0,
+            "multibox": multibox,
+            "ms": 500,
+        },
+        {"type": "sell_materials", "name": "Sell Trader Mats", "multibox": multibox},
+        {"type": "sell_nonsalvageable_golds", "name": "Sell Non-Salv Golds", "npc": "MERCHANT", "multibox": multibox},
+        {
+            "type": "sell_leftover_materials",
+            "name": "Sell <10 Common Mats",
+            "npc": "MERCHANT",
+            "batch_size": batch_size,
+            "multibox": multibox,
+        },
+        {
+            "type": "restock_kits",
+            "name": "Restock Kits",
+            "npc": "MERCHANT",
+            "id_kits": id_kits,
+            "salvage_kits": salvage_kits,
+            "multibox": multibox,
+        },
+    ]
+
+    if map_id is None:
+        cleanup_steps.append({"type": "__travel_back_origin_map", "name": "Travel Back To Origin", "ms": 4000})
+    else:
+        cleanup_steps.append({"type": "travel", "name": f"Travel to map {map_id}", "target_map_id": map_id, "ms": 4000})
+
+    if multibox:
+        cleanup_steps.extend(
+            [
+                {"type": "summon_all_accounts", "name": "Summon Alts", "ms": 5000},
+                {"type": "invite_all_accounts", "name": "Invite Alts"},
+            ]
+        )
+    else:
+        log_recipe(ctx, "inventory_cleanup: multibox disabled, skipping summon/invite steps.")
+
+    for sub_idx, step in enumerate(cleanup_steps):
+        step_type = str(step.get("type", "")).strip()
+        if step_type == "__capture_origin_map":
+            def _capture_origin():
+                from Py4GWCoreLib import Map
+                state["origin_map_id"] = int(Map.GetMapID() or 0)
+                log_recipe(ctx, f"inventory_cleanup: captured origin map_id={state['origin_map_id']}.")
+            ctx.bot.States.AddCustomState(_capture_origin, str(step.get("name", "Capture Origin Map")))
+            continue
+        if step_type == "__travel_back_origin_map":
+            def _travel_back_origin():
+                from Py4GWCoreLib import Map
+                target_map_id = int(state.get("origin_map_id", 0) or 0)
+                if target_map_id <= 0:
+                    log_recipe(ctx, "inventory_cleanup: no captured origin map; skipping return travel.")
+                    yield
+                    return
+                if int(Map.GetMapID() or 0) != target_map_id:
+                    yield from ctx.bot.Map._coro_travel(target_map_id, "")
+                yield
+            ctx.bot.States.AddCustomState(_travel_back_origin, str(step.get("name", "Travel Back To Origin")))
+            wait_after_step(ctx.bot, step)
+            continue
+
+        handler = STEP_HANDLERS.get(step_type)
+        if handler is None:
+            log_recipe(ctx, f"inventory_cleanup: missing handler for sub-step {step_type!r}.")
+            continue
+        sub_ctx = StepContext(
+            bot=ctx.bot,
+            step=step,
+            step_idx=sub_idx,
+            recipe_name=ctx.recipe_name,
+            step_type=step_type,
+            step_display=str(step.get("name", step_type)),
+        )
+        handler(sub_ctx)
+
+    wait_after_step(ctx.bot, ctx.step)
+
+
 HANDLERS: dict[str, Callable[[StepContext], None]] = {
     "restock_kits": handle_restock_kits,
     "restock_cons": handle_restock_cons,
     "sell_materials": handle_sell_materials,
     "deposit_materials": handle_deposit_materials,
+    "sell_nonsalvageable_golds": handle_sell_nonsalvageable_golds,
+    "sell_leftover_materials": handle_sell_leftover_materials,
+    "sell_scrolls": handle_sell_scrolls,
     "buy_ectoplasm": handle_buy_ectoplasm,
+    "inventory_setup": handle_inventory_setup,
+    "inventory_guard": handle_inventory_guard,
+    "inventory_cleanup": handle_inventory_cleanup,
 }

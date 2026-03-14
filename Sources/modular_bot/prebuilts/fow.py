@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable, Optional
 
+from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist
+from Py4GWCoreLib.py4gwcorelib_src.Lootconfig_src import LootConfig
 from Py4GWCoreLib.enums_src.Map_enums import name_to_map_id, outposts
 from Py4GWCoreLib.enums_src.Item_enums import MaterialMap
 from Py4GWCoreLib.enums_src.Model_enums import ModelID
@@ -35,6 +37,7 @@ EMBARK_BEACH_MAP_ID = int(name_to_map_id["Embark Beach"])
 EYE_OF_THE_NORTH_MAP_ID = 642
 FOW_MAP_ID = int(name_to_map_id["The Fissure of Woe"])
 FOW_SCROLL_MODEL_ID = int(ModelID.Passage_Scroll_Fow.value)
+UNHOLY_TEXT_MODEL_ID = 2619
 
 CONSUMABLE_RESTOCK_DEFAULTS = {
     "grail_of_might": 3,
@@ -160,6 +163,11 @@ def build_fow_phases(
     debug_hook: Optional[Callable[[str], None]] = None,
 ) -> list[Phase]:
     def _fow_setup(bot) -> None:
+        bot.States.AddCustomState(lambda: EnemyBlacklist().add_name("Wailing Lord"), "Blacklist Wailing Lord")
+        bot.States.AddCustomState(
+            lambda: LootConfig().AddToBlacklist(UNHOLY_TEXT_MODEL_ID),
+            "Blacklist Unholy Text Loot",
+        )
         entrypoint_name, entrypoint_map_id = _resolve_entrypoint(options.entrypoint)
         inventory_location_key, inventory_location_name = _resolve_inventory_management_location(
             options.inventory_management_location

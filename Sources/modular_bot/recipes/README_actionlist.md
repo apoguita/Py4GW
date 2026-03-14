@@ -130,6 +130,11 @@ Special case:
 {"type": "restock_kits", "npc": "MERCHANT", "id_kits": 2, "salvage_kits": 8}
 {"type": "restock_kits", "x": 0, "y": 0, "id_kits": 1, "salvage_kits": 4, "multibox": true}
 {"type": "restock_cons"}
+{"type": "sell_nonsalvageable_golds", "npc": "MERCHANT", "multibox": true}
+{"type": "sell_leftover_materials", "npc": "MERCHANT", "batch_size": 10, "multibox": true}
+{"type": "sell_scrolls", "npc": "MERCHANT", "multibox": true}
+{"type": "deposit_materials", "materials": ["Bone", "Feather"], "exact_quantity": 0, "multibox": true}
+{"type": "inventory_cleanup", "map_id": 485, "multibox": true}
 {"type": "auto_path", "name": "Wait in place", "points": [[0, 0]], "ms": 25000, "repeat": 20}
 ```
 
@@ -180,6 +185,24 @@ Special case:
   The recipe step enables each matching property when that property exists, is currently disabled,
   and its `restock_quantity` is greater than `0`.
   The `OpenXunlaiWindow()` attempt uses a fixed `1000ms` wait.
+- `deposit_materials` accepts optional `exact_quantity` (default `250`).
+  Set `exact_quantity` to `0` to deposit any stack size.
+- `sell_nonsalvageable_golds` sells identified, non-salvageable gold items at merchant.
+  Optional: `multibox` (default `false`).
+- `sell_leftover_materials` sells non-rare common material stacks below `batch_size` (default `10`) at merchant.
+  Optional: `multibox` (default `false`).
+- `sell_scrolls` sells configurable scroll model IDs at merchant.
+  Optional: `scroll_models` list (default BDS scroll set), `multibox` (default `false`).
+- `inventory_cleanup` is a composite step that runs:
+  resign -> leave_party -> travel_gh -> deposit crafting mats -> sell trader mats ->
+  sell non-salvageable golds -> sell leftover common mats -> sell scrolls -> restock kits ->
+  (optional) travel to `map_id` -> summon/invite alts.
+  Parameters:
+  `map_id` (optional, default `None`; when omitted/`null`/`"none"` it returns to the map where cleanup was triggered),
+  `multibox` (default `true`),
+  `id_kits` (default `3`),
+  `salvage_kits` (default `10`),
+  `batch_size` (default `10`).
 - `follow_model` follows an NPC/agent model ID at `follow_range`.
   Optional `timeout_ms` exits after that duration.
 - `set_anchor` updates ModularBot runtime recovery anchor.

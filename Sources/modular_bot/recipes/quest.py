@@ -19,6 +19,7 @@ if TYPE_CHECKING:
 
 from ..phase import Phase
 from ..hero_setup import get_team_for_size, load_hero_teams
+from .inventory_recipe import build_auto_inventory_guard_step
 from .modular_actions import register_step as _register_shared_step
 from .runner_common import count_expanded_steps, register_recipe_context, register_repeated_steps
 
@@ -156,7 +157,9 @@ def quest_run(bot: "Botting", quest_name: str) -> None:
     hero_team = str(data.get("hero_team", "") or "")
     take_quest = data.get("take_quest")
     steps = data.get("steps", [])
-    register_recipe_context(bot, str(display_name), total_steps=count_expanded_steps(steps))
+    inventory_guard_step = build_auto_inventory_guard_step("quest", data)
+    total_steps = count_expanded_steps(steps) + (1 if inventory_guard_step and inventory_guard_step.get("check_on_start", True) else 0)
+    register_recipe_context(bot, str(display_name), total_steps=total_steps)
 
     travel_outpost_id = (take_quest or {}).get("outpost_id")
 
@@ -164,6 +167,9 @@ def quest_run(bot: "Botting", quest_name: str) -> None:
     if travel_outpost_id:
         bot.Party.LeaveParty()
         bot.Map.Travel(target_map_id=travel_outpost_id)
+
+    if inventory_guard_step and inventory_guard_step.get("check_on_start", True):
+        _register_shared_step(bot, inventory_guard_step, 0, recipe_name="Quest")
 
     # 2. Add heroes from config
     expected_heroes = 0
