@@ -420,6 +420,7 @@ class Checks:
         def InDanger(aggro_area=Range.Earshot, aggressive_only = False):
             from ..AgentArray import AgentArray
             from ..Agent import Agent
+            from ..EnemyBlacklist import EnemyBlacklist
             if not Checks.Map.MapValid():
                 return False
 
@@ -441,12 +442,17 @@ class Checks:
             is_alive = Agent.IsAlive
             is_aggressive = Agent.IsAggressive
 
+            bl = EnemyBlacklist()
+            bl_empty = bl.is_empty()
+
             for agent_id in enemy_array:
                 if agent_id == player_id:
                     continue
                 if not is_alive(agent_id):
                     continue
                 if aggressive_only and not is_aggressive(agent_id):
+                    continue
+                if not bl_empty and bl.is_blacklisted(agent_id):
                     continue
 
                 enemy_pos = get_xy(agent_id)
