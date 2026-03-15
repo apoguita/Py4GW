@@ -18,7 +18,6 @@ from Sources.oazix.CustomBehaviors.skills.monk.protective_spirit_utility import 
 from Sources.oazix.CustomBehaviors.skills.monk.seed_of_life_utility import SeedOfLifeUtility
 from Sources.oazix.CustomBehaviors.skills.monk.shield_of_absorption_utility import ShieldOfAbsorptionUtility
 from Sources.oazix.CustomBehaviors.skills.monk.unyielding_aura_utility import UnyieldingAuraUtility
-from Sources.oazix.CustomBehaviors.skills.necromancer.signet_of_lost_souls_utility import SignetOfLostSoulsUtility
 from Sources.oazix.CustomBehaviors.skills.paragon.fall_back_utility import FallBackUtility
 from Sources.oazix.CustomBehaviors.skills.mesmer.arcane_mimicry_utility import ArcaneMimicryUtility
 

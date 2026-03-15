@@ -26,7 +26,6 @@ from Sources.oazix.CustomBehaviors.skills.monk.shield_of_absorption_utility impo
 from Sources.oazix.CustomBehaviors.skills.monk.unyielding_aura_drop_utility import UnyieldingAuraDropUtility
 from Sources.oazix.CustomBehaviors.skills.monk.unyielding_aura_utility import UnyieldingAuraUtility
 from Sources.oazix.CustomBehaviors.skills.monk.vigorous_spirit_utility import VigorousSpiritUtility
-from Sources.oazix.CustomBehaviors.skills.necromancer.signet_of_lost_souls_utility import SignetOfLostSoulsUtility
 from Sources.oazix.CustomBehaviors.skills.paragon.fall_back_utility import FallBackUtility
 from Sources.oazix.CustomBehaviors.skills.mesmer.arcane_mimicry_utility import ArcaneMimicryUtility
 
