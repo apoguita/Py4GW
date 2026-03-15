@@ -309,51 +309,6 @@ def WaitTillQuestDone(bot_instance: Botting, quest_id: int) -> None:
     bot_instance.Wait.UntilCondition(lambda: Quest.IsQuestCompleted(quest_id))
 
 
-def _move_around_blacklisted(
-    bot_instance: Botting,
-    target_x: float,
-    target_y: float,
-    step_name: str = "",
-    offset: float = 500.0,
-    check_radius: float = 350.0,
-) -> None:
-    """Move to (target_x, target_y). If a blacklisted enemy lies on the direct path
-    at runtime, insert a perpendicular detour waypoint to route around it."""
-    import math
-
-    def _coro():
-        from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist
-        bl = EnemyBlacklist()
-        px, py = Player.GetXY()
-        dx, dy = target_x - px, target_y - py
-        dist = math.sqrt(dx * dx + dy * dy)
-
-        if not bl.is_empty() and dist > 1:
-            nx, ny = dx / dist, dy / dist
-            perp_x, perp_y = -ny, nx
-            for agent_id in AgentArray.GetEnemyArray():
-                if not Agent.IsAlive(agent_id):
-                    continue
-                if not bl.is_blacklisted(agent_id):
-                    continue
-                ex, ey = Agent.GetXY(agent_id)
-                proj = (ex - px) * nx + (ey - py) * ny
-                perp_dist = abs((ex - px) * perp_x + (ey - py) * perp_y)
-                if 0 < proj < dist and perp_dist < check_radius:
-                    mid_x = px + nx * (dist * 0.5) + perp_x * offset
-                    mid_y = py + ny * (dist * 0.5) + perp_y * offset
-                    yield from Routines.Yield.Movement.FollowPath(
-                        path_points=[(mid_x, mid_y), (target_x, target_y)],
-                    )
-                    return
-
-        yield from Routines.Yield.Movement.FollowPath(
-            path_points=[(target_x, target_y)],
-        )
-
-    label = step_name or f"MoveAroundBL_{target_x:.0f}_{target_y:.0f}"
-    bot_instance.config.FSM.AddYieldRoutineStep(name=label, coroutine_fn=_coro)
-
 
 def _move_with_unstuck(
     bot_instance: Botting,
