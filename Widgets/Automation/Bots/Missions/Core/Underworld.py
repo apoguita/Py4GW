@@ -284,6 +284,30 @@ def _restart_main_loop(bot_instance: Botting, reason: str) -> None:
 
 # region â”€â”€ Utility Functions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
+def _use_consets_now() -> None:
+    """Use conset items immediately at runtime (not via the FSM yield-step decorator).
+
+    Called via AddCustomState so BotSettings.UseCons is evaluated at FSM
+    *execution* time, not at build time.  Skips any conset whose buff is
+    already active on the player.
+    """
+    if not BotSettings.UseCons:
+        return
+    from Py4GWCoreLib.enums_src.Model_enums import ModelID as _ModelID
+    conset_info = (
+        (_ModelID.Essence_Of_Celerity.value, GLOBAL_CACHE.Skill.GetID("Essence_of_Celerity_item_effect")),
+        (_ModelID.Grail_Of_Might.value,      GLOBAL_CACHE.Skill.GetID("Grail_of_Might_item_effect")),
+        (_ModelID.Armor_Of_Salvation.value,  GLOBAL_CACHE.Skill.GetID("Armor_of_Salvation_item_effect")),
+    )
+    player_id = Player.GetAgentID()
+    for model_id, effect_id in conset_info:
+        if GLOBAL_CACHE.Effects.HasEffect(player_id, effect_id):
+            continue
+        item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(model_id)
+        if item_id:
+            GLOBAL_CACHE.Inventory.UseItem(item_id)
+
+
 def _ensure_minimum_gold(bot_instance: Botting, minimum_gold: int = 1000, withdraw_amount: int = 10000) -> None:
     """Withdraw gold from storage if the character carries less than minimum_gold."""
     def _check_and_restock():
@@ -591,13 +615,20 @@ def Enter_UW(bot_instance: Botting) -> None:
     bot_instance.States.AddCustomState(_mark_entered_dungeon, "Mark: entered dungeon")
     bot_instance.Properties.ApplyNow("pause_on_danger", "active", True)
 
-    if BotSettings.UseCons:
-        # Enable auto-renewal so Properties re-applies each conset when it expires
-        bot_instance.Properties.ApplyNow("armor_of_salvation",  "active", True)
-        bot_instance.Properties.ApplyNow("essence_of_celerity", "active", True)
-        bot_instance.Properties.ApplyNow("grail_of_might",      "active", True)
-        # Immediately consume one set of consets on entry
-        bot_instance.Items.UseConset()
+    # Enable conset auto-renewal and consume one set right after entering the dungeon.
+    # Both AddCustomState calls are ALWAYS added to the FSM so that BotSettings.UseCons
+    # is evaluated at *execution* time, not at build time.  The user can toggle the
+    # 'Use Consets' checkbox in the UI without restarting the bot.
+    bot_instance.States.AddCustomState(
+        lambda: (
+            bot_instance.Properties.ApplyNow("armor_of_salvation",  "active", True),
+            bot_instance.Properties.ApplyNow("essence_of_celerity", "active", True),
+            bot_instance.Properties.ApplyNow("grail_of_might",      "active", True),
+        ) if BotSettings.UseCons else None,
+        "Enable Conset Auto-renewal (runtime check)")
+    bot_instance.States.AddCustomState(
+        _use_consets_now,
+        "Use Consets (runtime check)")
 
 # endregion
 
