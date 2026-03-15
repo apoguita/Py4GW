@@ -72,7 +72,7 @@ def handle_flag_heroes(ctx: StepContext) -> None:
 
 
 def handle_flag_all_accounts(ctx: StepContext) -> None:
-    from Py4GWCoreLib import ConsoleLog
+    from Py4GWCoreLib import ConsoleLog, GLOBAL_CACHE, Player
     from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import (
         CustomBehaviorParty,
     )
@@ -81,22 +81,51 @@ def handle_flag_all_accounts(ctx: StepContext) -> None:
         x = float(ctx.step["x"])
         y = float(ctx.step["y"])
         party = CustomBehaviorParty()
-        assigned = party.party_flagging_manager.auto_assign_emails_if_none_assigned()
+        manager = party.party_flagging_manager
 
-        try:
-            party.party_flagging_manager.update_formation_positions(x, y, 0.0, formation_type="preset_2")
-        except Exception as exc:
+        my_email = Player.GetAccountEmail()
+        my_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(my_email)
+        if my_account is None:
             ConsoleLog(
                 f"Recipe:{ctx.recipe_name}",
-                f"flag_all_accounts failed at index {ctx.step_idx}: {exc}",
+                f"flag_all_accounts failed at index {ctx.step_idx}: leader account data unavailable.",
             )
             return
 
-        if assigned:
+        # Rebuild assignments every call to avoid stale mapping after travels/rezones.
+        manager.clear_all_flags()
+
+        assigned = 0
+        for account in GLOBAL_CACHE.ShMem.GetAllAccountData():
+            if account.AccountEmail == my_email:
+                continue
+
+            is_in_same_map = (
+                my_account.AgentData.Map.MapID == account.AgentData.Map.MapID
+                and my_account.AgentData.Map.Region == account.AgentData.Map.Region
+                and my_account.AgentData.Map.District == account.AgentData.Map.District
+            )
+            if not is_in_same_map:
+                continue
+
+            if assigned >= 12:
+                break
+
+            manager.set_flag_account_email(assigned, account.AccountEmail)
+            manager.set_flag_position(assigned, x, y)
+            assigned += 1
+
+        if assigned <= 0:
             ConsoleLog(
                 f"Recipe:{ctx.recipe_name}",
-                "flag_all_accounts auto-assigned current party emails to shared flags.",
+                f"flag_all_accounts: no same-map alt accounts found at index {ctx.step_idx}.",
             )
+            return
+
+        ConsoleLog(
+            f"Recipe:{ctx.recipe_name}",
+            f"flag_all_accounts assigned and flagged {assigned} account(s) at ({x:.0f}, {y:.0f}).",
+        )
 
     ctx.bot.States.AddCustomState(
         _flag_all_accounts,

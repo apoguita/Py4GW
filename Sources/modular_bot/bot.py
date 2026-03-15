@@ -110,6 +110,51 @@ def _ensure_cb_loot_wait_enabled() -> None:
     if changed:
         ConsoleLog("ModularBot", f"Enabled {skill_name} for custom behaviors runtime.")
 
+
+def _modular_cb_skill_reinject_daemon():
+    """
+    ModularBot-only guard:
+    re-inject enabled CB utility skills when CB swaps to a new behavior instance
+    (e.g., during outpost/map transitions in multi-step setup flows).
+    """
+    try:
+        from Sources.oazix.CustomBehaviors.primitives.botting.botting_manager import BottingManager
+        from Sources.oazix.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
+        from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
+    except Exception:
+        while True:
+            yield from Routines.Yield.wait(1000)
+
+    loader = CustomBehaviorLoader()
+    manager = BottingManager()
+    injected_instance_id: Optional[int] = None
+
+    while True:
+        try:
+            if loader.custom_combat_behavior is None:
+                loader.initialize_custom_behavior_candidate()
+
+            instance = loader.custom_combat_behavior
+            if instance is not None:
+                current_instance_id = id(instance)
+                if injected_instance_id != current_instance_id:
+                    skills = (
+                        manager.get_enabled_aggressive_skills()
+                        if CustomBehaviorParty().get_party_is_combat_enabled()
+                        else manager.get_enabled_pacifist_skills()
+                    )
+                    manager.inject_enabled_skills(skills, instance)
+                    injected_instance_id = current_instance_id
+                    ConsoleLog(
+                        "ModularBot",
+                        "Re-injected CB utility skills after behavior refresh.",
+                    )
+        except Exception:
+            pass
+
+        yield from Routines.Yield.wait(250)
+
+
 class ModularBot:
     """
     A bot composed of :class:`Phase` objects, built on top of
@@ -294,6 +339,10 @@ class ModularBot:
                 on_player_critical_death=self._cb_on_death,
                 on_player_critical_stuck=self._cb_on_stuck,
                 on_party_death=self._cb_on_party_death,
+            )
+            bot.States.AddManagedCoroutine(
+                "ModularBot_CBSkillReinjectDaemon",
+                _modular_cb_skill_reinject_daemon,
             )
             # Keep party cohesion in CB mode: wait/recover if members are behind or dead-behind.
             bot.Events.OnPartyMemberBehindCallback(
