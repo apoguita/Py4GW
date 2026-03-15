@@ -18,7 +18,9 @@ from Sources.oazix.CustomBehaviors.skills.generic.raw_simple_heal_utility import
 from Sources.oazix.CustomBehaviors.skills.monk.cure_hex_utility import CureHexUtility
 from Sources.oazix.CustomBehaviors.skills.monk.dismiss_condition_utility import DismissConditionUtility
 from Sources.oazix.CustomBehaviors.skills.monk.draw_conditions_utility import DrawConditionsUtility
+from Sources.oazix.CustomBehaviors.skills.monk.dwaynas_kiss_utility import DwaynasKissUtility
 from Sources.oazix.CustomBehaviors.skills.monk.protective_spirit_utility import ProtectiveSpiritUtility
+from Sources.oazix.CustomBehaviors.skills.monk.reversal_of_fortune_utility import ReversalOfFortuneUtility
 from Sources.oazix.CustomBehaviors.skills.monk.seed_of_life_utility import SeedOfLifeUtility
 from Sources.oazix.CustomBehaviors.skills.monk.shield_of_absorption_utility import ShieldOfAbsorptionUtility
 from Sources.oazix.CustomBehaviors.skills.monk.unyielding_aura_drop_utility import UnyieldingAuraDropUtility
@@ -44,6 +46,8 @@ class MonkHealingBurst_UtilitySkillBar(CustomBehaviorBaseUtility):
        
         self.protective_spirit_utility: CustomSkillUtilityBase = ProtectiveSpiritUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScorePerHealthGravityDefinition(8))
         self.shield_of_absorption_utility: CustomSkillUtilityBase = ShieldOfAbsorptionUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScorePerHealthGravityDefinition(8))
+        self.dwaynas_kiss_utility: CustomSkillUtilityBase = DwaynasKissUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScorePerHealthGravityDefinition(7))
+        self.reversal_of_fortune_utility: CustomSkillUtilityBase = ReversalOfFortuneUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScorePerHealthGravityDefinition(6))
 
         self.cure_hex_utility: CustomSkillUtilityBase = CureHexUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScoreStaticDefinition(50))
         self.dismiss_condition_utility: CustomSkillUtilityBase = DismissConditionUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScoreStaticDefinition(50))

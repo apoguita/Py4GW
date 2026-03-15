@@ -51,26 +51,23 @@ class CustomSkillUtilityBase:
     @abstractmethod
     def are_common_pre_checks_valid(self, current_state: BehaviorState) -> bool:
         if current_state is BehaviorState.IDLE: return False
+
         if self.allowed_states is not None and current_state not in self.allowed_states:
             if constants.DEBUG:
-                if self.utility_skill_typology == UtilitySkillTypology.COMBAT and current_state == BehaviorState.IN_AGGRO:
-                    print(f'PreCheck Reject - Wrong State {self.custom_skill.skill_name}')
+                print(f'PreCheck Reject - Wrong State {self.custom_skill.skill_name}')
             return False
         if custom_behavior_helpers.Resources.get_player_absolute_energy() < self.mana_required_to_cast:
             if constants.DEBUG:
-                if self.utility_skill_typology == UtilitySkillTypology.COMBAT and current_state == BehaviorState.IN_AGGRO:
-                    print(f'PreCheck Reject - Energy Requirement for Utility {self.custom_skill.skill_name}')
+                print(f'PreCheck Reject - Energy Requirement for Utility {self.custom_skill.skill_name}')
             return False
         if not Routines.Checks.Skills.IsSkillSlotReady(self.custom_skill.skill_slot):
             if constants.DEBUG:
-                if self.utility_skill_typology == UtilitySkillTypology.COMBAT and current_state == BehaviorState.IN_AGGRO:
-                    print(f'PreCheck Reject - IsSkillSlotReady {self.custom_skill.skill_name}')
+                print(f"custom_skill.skill_slot: {self.custom_skill.skill_slot}")
+                print(f'PreCheck Reject - IsSkillSlotReady {self.custom_skill.skill_name}')
             return False
         if not custom_behavior_helpers.Resources.has_enough_resources(self.custom_skill):
-
             if constants.DEBUG:
-                if self.utility_skill_typology == UtilitySkillTypology.COMBAT and current_state == BehaviorState.IN_AGGRO:
-                    print(f'PreCheck Reject - Resources Requirement for Ability {self.custom_skill.skill_name}')
+                print(f'PreCheck Reject - Resources Requirement for Ability {self.custom_skill.skill_name}')
             return False
         return True
     
@@ -86,7 +83,6 @@ class CustomSkillUtilityBase:
         if not self.is_enabled:
             if constants.DEBUG: print(f'I Am Not Enabled {self.custom_skill.skill_name}')
             return None
-
         if self.custom_skill.skill_slot == 0 and self.custom_skill.skill_id != 0:
             print(f'PreCheck Reject {self.custom_skill.skill_name} was missing its skill slot, reloading.')
             self.custom_skill.skill_slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(self.custom_skill.skill_id) if self.custom_skill.skill_id != 0 else 0
@@ -96,6 +92,7 @@ class CustomSkillUtilityBase:
                 if self.utility_skill_typology == UtilitySkillTypology.COMBAT and current_state == BehaviorState.IN_AGGRO and current_state in self.allowed_states:
                     print(f'PreCheck Reject {self.custom_skill.skill_name}')
             return None
+
         if self.utility_skill_typology == UtilitySkillTypology.COMBAT and not CustomBehaviorParty().get_party_is_combat_enabled():
             if constants.DEBUG: print(f'Reject Combat Not Enabled {self.custom_skill.skill_name}')
             return None

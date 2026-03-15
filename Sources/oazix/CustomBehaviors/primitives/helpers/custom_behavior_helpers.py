@@ -65,7 +65,7 @@ class Helpers:
         delay = activation_time if activation_time > aftercast else aftercast
         if constants.DEBUG: print(f"{skill_casted.skill_name} let's wait for aftercast :{delay}ms | activation_time:{activation_time} | aftercast:{aftercast}")
 
-        yield from Helpers.wait_for(delay + 200)  # 200ms more to really avoid double-cast
+        yield from Helpers.wait_for(delay + 50)  # 200ms more to really avoid double-cast
 
     @staticmethod
     def wait_for_or_until_completion(milliseconds: int, action: Callable[[], Generator[Any, Any, BehaviorResult]]) -> Generator[Any, Any, BehaviorResult]:
@@ -363,7 +363,7 @@ class Actions:
 
         if target_agent_id is not None: 
             Player.ChangeTarget(target_agent_id)
-            yield from Helpers.wait_for(50)
+            yield from Helpers.wait_for(20)
             
         Routines.Sequential.Skills.CastSkillSlot(skill.skill_slot)
         if call_target:
