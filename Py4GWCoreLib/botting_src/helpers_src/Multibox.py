@@ -54,6 +54,7 @@ class _Multibox:
             self.PlayerFacingAngle = account_data.AgentData.RotationAngle
             self.PlayerTargetID = account_data.AgentData.TargetID
             self.PlayerLoginNumber = account_data.AgentData.LoginNumber
+            self.PlayerPrimaryProfession = int(account_data.AgentData.Profession[0]) if account_data.AgentData.Profession else 0
             self.PlayerIsTicked = account_data.AgentPartyData.IsTicked
             self.PartyID = account_data.AgentPartyData.PartyID
             self.PartyPosition = account_data.AgentPartyData.PartyPosition
@@ -192,6 +193,24 @@ class _Multibox:
         
         if not player_data:
             return
+
+        # Invite order priority:
+        # 1) melee-like first (R/W/A/D), 2) Mesmer, 3) Paragon, 4) Necro, 5) Ritualist, 6) others.
+        melee_professions = {1, 2, 7, 10}
+        priority_by_profession = {
+            5: 1,  # Mesmer
+            9: 2,  # Paragon
+            4: 3,  # Necromancer
+            8: 4,  # Ritualist
+        }
+
+        def _invite_priority(account: "_Multibox._AccountData") -> tuple[int, str]:
+            prof = int(getattr(account, "PlayerPrimaryProfession", 0) or 0)
+            if prof in melee_professions:
+                return (0, str(getattr(account, "CharacterName", "") or ""))
+            return (priority_by_profession.get(prof, 5), str(getattr(account, "CharacterName", "") or ""))
+
+        all_accounts.sort(key=_invite_priority)
         
         for account in all_accounts:
             if (player_data.MapID == account.MapID and
