@@ -724,57 +724,50 @@ def _return_to_arbor_bay_after_merchant() -> Generator:
 
 
 def _rebuild_party_after_merchant() -> Generator:
-    ConsoleLog(BOT_NAME, "[Merchant] Rebuilding party after GH restock (Multibox flow)")
-    player_data = bot.Multibox._get_player_data()
-    all_accounts = bot.Multibox._get_all_account_data()
-    if not player_data:
-        ConsoleLog(BOT_NAME, "[Merchant] Missing leader account data; skipping party rebuild", Py4GW.Console.MessageType.Warning)
+    from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
+    from Sources.oazix.CustomBehaviors.primitives.parties.party_command_contants import PartyCommandConstants
+
+    ConsoleLog(BOT_NAME, "[Merchant] Rebuilding party after GH restock (CustomBehaviorParty)")
+
+    _cb_deadline = time.time() + 15.0
+    while not CustomBehaviorParty().is_ready_for_action() and time.time() < _cb_deadline:
+        yield from Routines.Yield.wait(100)
+
+    if not CustomBehaviorParty().is_ready_for_action():
+        ConsoleLog(BOT_NAME, "[Merchant] Party behavior not ready for summon", Py4GW.Console.MessageType.Warning)
         yield
         return
 
-    district_number = max(0, int(player_data.MapDistrict) - 1)
+    _ok = bool(CustomBehaviorParty().schedule_action(PartyCommandConstants.summon_all_to_current_map))
+    if not _ok:
+        ConsoleLog(BOT_NAME, "[Merchant] Failed to schedule summon_all_to_current_map", Py4GW.Console.MessageType.Warning)
+        yield
+        return
 
-    # Match PrepareForFarm summon behavior: move all alts to leader map/region/district.
-    for account in all_accounts:
-        if account.AccountEmail == player_data.AccountEmail:
-            continue
-        if (
-            player_data.MapID == account.MapID
-            and player_data.MapRegion == account.MapRegion
-            and player_data.MapDistrict == account.MapDistrict
-            and player_data.MapLanguage == account.MapLanguage
-        ):
-            continue
-        GLOBAL_CACHE.ShMem.SendMessage(
-            player_data.AccountEmail,
-            account.AccountEmail,
-            SharedCommandType.TravelToMap,
-            (player_data.MapID, player_data.MapRegion, district_number, player_data.MapLanguage),
-        )
-        yield from Routines.Yield.wait(500)
+    # Let summon travel/actions settle before invite.
+    _cb_deadline = time.time() + 25.0
+    while not CustomBehaviorParty().is_ready_for_action() and time.time() < _cb_deadline:
+        yield from Routines.Yield.wait(200)
+    yield from Routines.Yield.wait(1200)
 
-    # Match PrepareForFarm settle before invite.
-    yield from Routines.Yield.wait(4000)
+    _cb_deadline = time.time() + 15.0
+    while not CustomBehaviorParty().is_ready_for_action() and time.time() < _cb_deadline:
+        yield from Routines.Yield.wait(100)
 
-    # Invite all alts on leader's map/district and not already in leader party.
-    for account in all_accounts:
-        if account.AccountEmail == player_data.AccountEmail:
-            continue
-        if (
-            player_data.MapID == account.MapID
-            and player_data.MapRegion == account.MapRegion
-            and player_data.MapDistrict == account.MapDistrict
-            and player_data.MapLanguage == account.MapLanguage
-            and player_data.PartyID != account.PartyID
-        ):
-            GLOBAL_CACHE.Party.Players.InvitePlayer(account.CharacterName)
-            GLOBAL_CACHE.ShMem.SendMessage(
-                player_data.AccountEmail,
-                account.AccountEmail,
-                SharedCommandType.InviteToParty,
-                (0, 0, 0, 0),
-            )
-            yield from Routines.Yield.wait(500)
+    if not CustomBehaviorParty().is_ready_for_action():
+        ConsoleLog(BOT_NAME, "[Merchant] Party behavior not ready for invite", Py4GW.Console.MessageType.Warning)
+        yield
+        return
+
+    _ok = bool(CustomBehaviorParty().schedule_action(PartyCommandConstants.invite_all_to_leader_party))
+    if not _ok:
+        ConsoleLog(BOT_NAME, "[Merchant] Failed to schedule invite_all_to_leader_party", Py4GW.Console.MessageType.Warning)
+        yield
+        return
+
+    _cb_deadline = time.time() + 20.0
+    while not CustomBehaviorParty().is_ready_for_action() and time.time() < _cb_deadline:
+        yield from Routines.Yield.wait(200)
 
 
 def _gh_merchant_setup_for_alt_salvage_threshold() -> Generator:
