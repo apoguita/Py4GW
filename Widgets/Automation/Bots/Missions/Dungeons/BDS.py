@@ -271,7 +271,7 @@ def _wait_for_map(map_name: str, max_tries: int = 120):
     return False
 
 def _verify_reward_taken_from_quest_log() -> Generator:
-    global TEKKS_REWARD_PENDING
+    global SHANDRA_REWARD_PENDING
 
     quest_ids = Quest.GetQuestLogIds()
 
@@ -437,7 +437,20 @@ def _recover_reward_and_retake_quest(bot: Botting) -> Generator:
     yield
 
 SHANDRA_REWARD_PENDING = False
+L3_BOSS_ROUTE_UNLOCKED = False
 
+def _reset_l3_boss_route_flag() -> Generator:
+    global L3_BOSS_ROUTE_UNLOCKED
+    L3_BOSS_ROUTE_UNLOCKED = False
+    ConsoleLog(BOT_NAME, "[L3] Boss route unlocked = False")
+    yield
+
+
+def _set_l3_boss_route_flag() -> Generator:
+    global L3_BOSS_ROUTE_UNLOCKED
+    L3_BOSS_ROUTE_UNLOCKED = True
+    ConsoleLog(BOT_NAME, "[L3] Boss route unlocked = True")
+    yield
 
 def _post_return_flow(bot: Botting) -> Generator:
     global SHANDRA_REWARD_PENDING
@@ -1451,6 +1464,7 @@ def wait_for_map_change(target_map_id, timeout_seconds=60):
 
 
 def _on_party_wipe(bot: "Botting"):
+    global L3_BOSS_ROUTE_UNLOCKED
     # Wait until we are alive again
     while Agent.IsDead(Player.GetAgentID()):
         yield from bot.Wait._coro_for_time(1000)
@@ -1465,7 +1479,7 @@ def _on_party_wipe(bot: "Botting"):
     # These should be the JUMPABLE step names (anchors), not just visual headers.
     SHRINES_BY_MAP = {
         SoO_lvl1: [
-            ("Secure return - L1", -11686, 10427),
+            ("Secure return - L1", 8503.9,12143.5),
             ("Secure return 1 - L1", 15953.0, 11902.0)
         ],
         SoO_lvl2: [
@@ -1511,7 +1525,13 @@ def _on_party_wipe(bot: "Botting"):
         bot.config.FSM.resume()
         return
 
-    chosen = pick_nearest_anchor(map_id, float(player_x), float(player_y))
+    if map_id == SoO_lvl3:
+        if L3_BOSS_ROUTE_UNLOCKED:
+            chosen = "Secure return boss - L3"
+        else:
+            chosen = "Secure return 1 - L3"
+    else:
+        chosen = pick_nearest_anchor(map_id, float(player_x), float(player_y))                          
 
     ConsoleLog("Res Check", f"↩ wipe-route -> {chosen} (map={map_id}, pos=({player_x:.0f},{player_y:.0f}))")
     bot.config.FSM.jump_to_state_by_name(chosen)
@@ -1765,7 +1785,6 @@ def farm_bds_routine(bot: Botting) -> None:
         bot.Move.FollowAutoPath(path)
     bot.Wait.UntilOutOfCombat()
     
-
     # ===== LOOP RESTART POINT =====
     bot.States.AddCustomState(loop_marker, "LOOP_RESTART_POINT")
     
@@ -1780,8 +1799,6 @@ def farm_bds_routine(bot: Botting) -> None:
     bot.Move.XY(10218, -18864)
     bot.Move.XY(9519, -19968)
     bot.Move.XY(9240.07, -20260.95)
-
-
 
 
     # Wait for change to Level 1
@@ -1837,7 +1854,8 @@ def farm_bds_routine(bot: Botting) -> None:
     if not IS_REPATHING:
         bot.Move.FollowAutoPath(path_before_bridgant)
 
-
+    bot.States.AddHeader("Secure return - L1")
+    bot.States.AddCustomState(_step_anchor, "Secure return - L1")  # anchor for secure return on wipe
 
     path_before_door= [
         (9196.0,11484.4),
@@ -1858,8 +1876,8 @@ def farm_bds_routine(bot: Botting) -> None:
         bot.Move.FollowAutoPath(path_before_door)
     bot.Wait.UntilOutOfCombat()
     bot.Move.XY(15953, 11902)
-    bot.States.AddHeader("Secure return - L1")
-    bot.States.AddCustomState(_step_anchor, "Secure return - L1")  # anchor for secure return on wipe    
+    bot.States.AddHeader("Secure return 1 - L1")
+    bot.States.AddCustomState(_step_anchor, "Secure return 1 - L1")  # anchor for secure return on wipe    
     
     path_before_door2 = [    
         (15927.4,11684.7),
@@ -2072,7 +2090,7 @@ def farm_bds_routine(bot: Botting) -> None:
         (1069.7,8045.3),
         (619.8,7044.0),
         (-385.8,6478.3),
-        (-1123.5,7481.9),
+        (-1123.5,7481.9), #ICI CE TROUVE LE SHRINE DONC SI JE MEURT APRES JE REVIENS ICI DONC MAIS SI JE MEURT AU BOSS C4EST ICI QUE JE REVIS
         (-2964.1,7302.1),
         (-3139.7,7022.7),
         (-4152.0,6469.6),
@@ -2092,7 +2110,7 @@ def farm_bds_routine(bot: Botting) -> None:
         bot.Move.FollowAutoPath(path_before_secure_return)
     bot.Wait.UntilOutOfCombat()
 
-
+    bot.States.AddCustomState(_reset_l3_boss_route_flag, "Reset L3 boss route flag")
     bot.States.AddHeader("L3 - Path to torch")
     path_to_take_torch = [
         (-4723.00, 6703.00),
@@ -2121,6 +2139,7 @@ def farm_bds_routine(bot: Botting) -> None:
     bot.States.AddHeader("L3 - Kill Brigant")
     bot.Move.XY(-11878.79, 2166.51)
     bot.Move.XY(-9686.32, 2632)
+    bot.States.AddCustomState(_set_l3_boss_route_flag, "Set L3 boss route flag")
     bot.States.AddHeader("Secure return boss - L3")
     bot.States.AddCustomState(_step_anchor, "Secure return boss - L3")
     bot.States.AddHeader("L3 - Move and open door")
@@ -2150,9 +2169,6 @@ def farm_bds_routine(bot: Botting) -> None:
     bot.Move.XY(-15800.98,16901.23)
     bot.States.AddCustomState(_snapshot_bds_before_chest, "BDS Pre-Chest Snapshot")
     bot.States.AddCustomState(open_fendi_chest, "Open Chest (All Accounts)")
-    bot.Wait.ForTime(6000)
-    bot.States.AddCustomState(open_fendi_chest, "Open Chest (All Accounts) - attempt 2")
-    bot.Wait.ForMapToChange(target_map_id=485)
     
     
     bot.States.AddHeader("Quest sequence (reward + retake)")
