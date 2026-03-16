@@ -13,6 +13,8 @@ from Sources.oazix.CustomBehaviors.primitives.skills.bonds.custom_buff_multiple_
 from Sources.oazix.CustomBehaviors.primitives.skills.bonds.custom_buff_target_per_profession import BuffConfigurationPerProfession
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
+from Sources.oazix.CustomBehaviors.primitives.skills.utility_skill_capability import UtilitySkillCapability
+from Sources.oazix.CustomBehaviors.skills.capabilities.should_wait_for_heroic_refrain import ShouldWaitForHeroicRefrain
 
 
 class ProtectiveBondUtility(CustomSkillUtilityBase):
@@ -21,8 +23,7 @@ class ProtectiveBondUtility(CustomSkillUtilityBase):
         current_build: list[CustomSkill],
         score_definition: ScoreStaticDefinition = ScoreStaticDefinition(20),
         mana_required_to_cast: int = 20,
-        allowed_states: list[BehaviorState] = [BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO, BehaviorState.FAR_FROM_AGGRO],
-        should_wait_for_heroic_refrain: bool = False
+        allowed_states: list[BehaviorState] = [BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO, BehaviorState.FAR_FROM_AGGRO]
         ) -> None:
 
         super().__init__(
@@ -34,7 +35,6 @@ class ProtectiveBondUtility(CustomSkillUtilityBase):
             allowed_states=allowed_states)
 
         self.score_definition: ScoreStaticDefinition = score_definition
-        self.heroic_refrain_skill = CustomSkill("Heroic_Refrain")
 
         data: str | None = PersistenceLocator().skills.read(self.custom_skill.skill_name, "buff_configuration")
         if data is not None:
@@ -42,8 +42,7 @@ class ProtectiveBondUtility(CustomSkillUtilityBase):
         else:
             self.buff_configuration: CustomBuffMultipleTarget = CustomBuffMultipleTarget(event_bus, self.custom_skill, buff_configuration_per_profession= BuffConfigurationPerProfession.BUFF_CONFIGURATION_ALL)
 
-        self.should_wait_for_heroic_refrain = bool(int(PersistenceLocator().skills.read_or_default(self.custom_skill.skill_name, "should_wait_for_heroic_refrain", str(int(should_wait_for_heroic_refrain)))))
-
+        self.add_capability(lambda x: ShouldWaitForHeroicRefrain(x.custom_skill, False))
 
     def _get_target(self) -> int | None:
 
@@ -68,12 +67,6 @@ class ProtectiveBondUtility(CustomSkillUtilityBase):
         target = self._get_target()
         if target is None: return None
 
-        # Check if we should wait for Heroic Refrain buff
-        if self.should_wait_for_heroic_refrain:
-            has_heroic_refrain = Routines.Checks.Effects.HasBuff(Player.GetAgentID(), self.heroic_refrain_skill.skill_id)
-            if not has_heroic_refrain:
-                return None  # Don't cast without Heroic Refrain
-
         return self.score_definition.get_score()
 
     @override
@@ -89,21 +82,23 @@ class ProtectiveBondUtility(CustomSkillUtilityBase):
         return self.buff_configuration
 
     @override
-    def customized_debug_ui(self, current_state: BehaviorState) -> None:
-        self.should_wait_for_heroic_refrain = PyImGui.checkbox("should_wait_for_heroic_refrain##should_wait_for_heroic_refrain", self.should_wait_for_heroic_refrain)
-
-    @override
     def has_persistence(self) -> bool:
         return True
 
     @override
     def persist_configuration_for_account(self):
+        super().persist_configuration_for_account()
         PersistenceLocator().skills.write_for_account(str(self.custom_skill.skill_name), "buff_configuration", self.buff_configuration.serialize_to_string())
-        PersistenceLocator().skills.write_for_account(str(self.custom_skill.skill_name), "should_wait_for_heroic_refrain", str(int(self.should_wait_for_heroic_refrain)))
         print("configuration saved for account")
 
     @override
     def persist_configuration_as_global(self):
+        super().persist_configuration_as_global()
         PersistenceLocator().skills.write_global(str(self.custom_skill.skill_name), "buff_configuration", self.buff_configuration.serialize_to_string())
-        PersistenceLocator().skills.write_global(str(self.custom_skill.skill_name), "should_wait_for_heroic_refrain", str(int(self.should_wait_for_heroic_refrain)))
         print("configuration saved as global")
+
+    @override
+    def delete_persisted_configuration(self):
+        super().delete_persisted_configuration()
+        PersistenceLocator().skills.delete(str(self.custom_skill.skill_name), "buff_configuration")
+        print("configuration deleted")
