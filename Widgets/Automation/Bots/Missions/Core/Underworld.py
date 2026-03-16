@@ -1,4 +1,4 @@
-from Py4GWCoreLib import Botting, Routines, Agent, AgentArray, Player, Utils, AutoPathing, GLOBAL_CACHE, ConsoleLog, Map, Pathing, FlagPreference, Party, IniHandler
+﻿from Py4GWCoreLib import Botting, Routines, Agent, AgentArray, Player, Utils, AutoPathing, GLOBAL_CACHE, ConsoleLog, Map, Pathing, FlagPreference, Party, IniHandler
 import os
 from Py4GWCoreLib.enums_src.Multiboxing_enums import SharedCommandType
 from Sources.oazix.CustomBehaviors.gui.flag_panel.flag_backward_grid_placement import FlagBackwardGridPlacement
@@ -13,6 +13,7 @@ import PyImGui
 import Py4GW
 
 #0x84
+#3078 Dhuum Ghost buff
 MODULE_NAME = "Underworld Helper"
 MODULE_ICON = "Textures/Module_Icons/Underworld.png"
 
@@ -36,15 +37,17 @@ def _mark_entered_dungeon() -> None:
 
 class InventorySettings:
     """Settings for between-run inventory management."""
-    RefillEnabled: bool = bool(_ini.read_bool(BOT_NAME, "inv_refill_enabled", True))
-    RestockCons:   bool = bool(_ini.read_bool(BOT_NAME, "inv_restock_cons",    True))
-    DepositMaterials: bool = bool(_ini.read_bool(BOT_NAME, "inv_deposit_mats", True))
+    RefillEnabled:    bool = bool(_ini.read_bool(BOT_NAME, "inv_refill_enabled", True))
+    RestockKits:      bool = bool(_ini.read_bool(BOT_NAME, "inv_restock_kits",   True))
+    RestockCons:      bool = bool(_ini.read_bool(BOT_NAME, "inv_restock_cons",   True))
+    DepositMaterials: bool = bool(_ini.read_bool(BOT_NAME, "inv_deposit_mats",   True))
 
     @classmethod
     def save(cls) -> None:
         _ini.write_key(BOT_NAME, "inv_refill_enabled", str(cls.RefillEnabled))
-        _ini.write_key(BOT_NAME, "inv_restock_cons",    str(cls.RestockCons))
-        _ini.write_key(BOT_NAME, "inv_deposit_mats",    str(cls.DepositMaterials))
+        _ini.write_key(BOT_NAME, "inv_restock_kits",   str(cls.RestockKits))
+        _ini.write_key(BOT_NAME, "inv_restock_cons",   str(cls.RestockCons))
+        _ini.write_key(BOT_NAME, "inv_deposit_mats",   str(cls.DepositMaterials))
 
 
 class BotSettings:
@@ -331,99 +334,144 @@ def _move_with_unstuck(
     target_x: float,
     target_y: float,
     step_name: str = "",
-    stuck_check_ms: int = 1500,
+    stuck_check_ms: int = 2000,
     stuck_threshold: float = 80.0,
-    backup_ms: int = 700,
-    detour_offset: float = 600.0,
-    max_detours: int = 3,
+    backup_ms: int = 1000,
+    max_retries: int = 30,
+    timeout: int = 60_000,
 ) -> None:
-    """Move to (target_x, target_y) with real-time stuck recovery.
+    """Move to (target_x, target_y) using navmesh A* pathfinding.
 
-    Every stuck_check_ms the coroutine checks whether the player moved at least
-    stuck_threshold units.  If not, it walks backwards for backup_ms and then
-    inserts a perpendicular detour waypoint (alternating left/right each attempt)
-    to get around the obstacle before resuming towards the original target.
-    Falls back to FollowPath after max_detours exhausted attempts.
+    1. Build a navmesh path via AutoPathing().get_path_to() – walks around walls.
+    2. Follow it with FollowPath (which already handles stuck/retry internally).
+    3. If we get stuck anyway: /stuck → walk backwards → rebuild path and retry.
+       After max_retries give up with a warning.
     """
     import math
-    import random
 
     def _coro():
+        import heapq as _heapq
+        from Py4GWCoreLib.Pathing import AutoPathing, AStar, AStarNode, chaikin_smooth_path, densify_path2d
+        from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist
         tolerance = 150.0
         tx, ty = target_x, target_y
-        detour_parity = 1  # +1 = left of travel dir, -1 = right; flips each attempt
 
-        for attempt in range(max_detours + 1):
+        # ── Local A* subclass: treats blacklisted-enemy trapezoids as walls ──
+        class _AStarBlocking(AStar):
+            def __init__(self, navmesh, skip):
+                super().__init__(navmesh)
+                self._skip = skip
+
+            def search(self, start_pos, goal_pos):
+                s_id = self.navmesh.find_trapezoid_id_by_coord(start_pos)
+                g_id = self.navmesh.find_trapezoid_id_by_coord(goal_pos)
+                if s_id is None or g_id is None:
+                    return False
+                ol: list = []
+                _heapq.heappush(ol, AStarNode(s_id, 0, self.heuristic(s_id, g_id)))
+                came: dict = {}
+                cost: dict = {s_id: 0}
+                while ol:
+                    cur = _heapq.heappop(ol)
+                    if cur.id == g_id:
+                        self._reconstruct(came, g_id)
+                        self.path.insert(0, start_pos)
+                        self.path.append(goal_pos)
+                        return True
+                    for nb in self.navmesh.get_neighbors(cur.id):
+                        if nb in self._skip:
+                            continue
+                        nc = cost[cur.id] + self.heuristic(cur.id, nb)
+                        if nb not in cost or nc < cost[nb]:
+                            cost[nb] = nc
+                            _heapq.heappush(ol, AStarNode(nb, nc, nc + self.heuristic(nb, g_id), cur.id))
+                            came[nb] = cur.id
+                return False
+
+        # ── Collect trapezoid IDs occupied by blacklisted enemies ─────────
+        _skip_nodes: set[int] = set()
+        _navmesh = AutoPathing().get_navmesh()
+        if _navmesh:
+            _bl = EnemyBlacklist()
+            for _eid in AgentArray.GetEnemyArray():
+                if _bl.is_blacklisted(_eid) and Agent.IsAlive(_eid):
+                    _ex, _ey = Agent.GetXY(_eid)
+                    _tid = _navmesh.find_trapezoid_id_by_coord((_ex, _ey))
+                    if _tid is not None:
+                        _skip_nodes.add(_tid)
+
+        for attempt in range(max_retries + 1):
             px, py = Player.GetXY()
             if math.sqrt((tx - px) ** 2 + (ty - py) ** 2) <= tolerance:
                 return  # already there
 
-            # GW ignores repeated Player.Move with identical coords — always add small jitter.
-            Player.Move(tx + random.uniform(-8, 8), ty + random.uniform(-8, 8))
-            snapshot_pos = (px, py)
-            snapshot_time = Utils.GetBaseTimestamp()
-            reached = False
-            cpx, cpy = px, py
+            # ── Step 1: build navmesh path ────────────────────────────────
+            ConsoleLog(
+                BOT_NAME,
+                f"[Move] Building path to ({tx:.0f},{ty:.0f}) attempt {attempt + 1}/{max_retries + 1}",
+                Py4GW.Console.MessageType.Info,
+            )
+            # Use obstacle-aware A* when blacklisted enemies block the way;
+            # fall back to standard get_path_to otherwise.
+            path = None
+            if _skip_nodes and _navmesh:
+                _cpx, _cpy = Player.GetXY()
+                _ast = _AStarBlocking(_navmesh, _skip_nodes)
+                if _ast.search((_cpx, _cpy), (tx, ty)):
+                    _raw = _ast.get_path()
+                    _sm  = _navmesh.smooth_path_by_los(_raw, margin=100, step_dist=200.0)
+                    path = densify_path2d(_sm)
+            if path is None:
+                path = yield from AutoPathing().get_path_to(tx, ty)
 
-            while True:
-                yield from Routines.Yield.wait(250)
-                cpx, cpy = Player.GetXY()
+            if path:
+                # ── Step 2: follow the computed path ─────────────────────
+                reached = yield from Routines.Yield.Movement.FollowPath(
+                    path_points=path,
+                    tolerance=tolerance,
+                    timeout=timeout,
+                )
+                if reached:
+                    return
+                # FollowPath timed out or got stuck internally
+                ConsoleLog(
+                    BOT_NAME,
+                    f"[Move] FollowPath did not reach ({tx:.0f},{ty:.0f}) on attempt {attempt + 1}.",
+                    Py4GW.Console.MessageType.Warning,
+                )
+            else:
+                # Navmesh returned nothing (same trapezoid / very close) → direct move
+                ConsoleLog(
+                    BOT_NAME,
+                    f"[Move] No navmesh path to ({tx:.0f},{ty:.0f}), using direct FollowPath.",
+                    Py4GW.Console.MessageType.Info,
+                )
+                reached = yield from Routines.Yield.Movement.FollowPath(
+                    path_points=[(tx, ty)],
+                    tolerance=tolerance,
+                    timeout=timeout,
+                )
+                if reached:
+                    return
 
-                if math.sqrt((tx - cpx) ** 2 + (ty - cpy) ** 2) <= tolerance:
-                    reached = True
-                    break
-
-                # Re-issue with fresh jitter each frame so GW never ignores the command
-                Player.Move(tx + random.uniform(-8, 8), ty + random.uniform(-8, 8))
-
-                now = Utils.GetBaseTimestamp()
-                if now - snapshot_time >= stuck_check_ms:
-                    movement = math.sqrt((cpx - snapshot_pos[0]) ** 2 + (cpy - snapshot_pos[1]) ** 2)
-                    if movement < stuck_threshold:
-                        break  # stuck detected
-                    # Made progress — reset snapshot
-                    snapshot_pos = (cpx, cpy)
-                    snapshot_time = now
-
-            if reached:
+            if attempt >= max_retries:
+                ConsoleLog(
+                    BOT_NAME,
+                    f"[Move] Max retries reached for ({tx:.0f},{ty:.0f}), giving up.",
+                    Py4GW.Console.MessageType.Warning,
+                )
                 return
 
-            if attempt >= max_detours:
-                # All detours used — hand off to FollowPath as last resort (45 s hard timeout)
-                ConsoleLog(BOT_NAME, f"[Unstuck] Max detours reached, using FollowPath fallback to ({tx:.0f},{ty:.0f})", Py4GW.Console.MessageType.Warning)
-                yield from Routines.Yield.Movement.FollowPath(path_points=[(tx, ty)], timeout=45_000)
-                return
-
-            ConsoleLog(BOT_NAME, f"[Unstuck] Stuck detected en route to ({tx:.0f},{ty:.0f}), attempt {attempt + 1}/{max_detours}", Py4GW.Console.MessageType.Warning)
-
-            # Step 1: /stuck command — free GW-side recovery, may teleport us clear
+            # ── Step 3: recovery before next attempt ─────────────────────
             Player.SendChatCommand("stuck")
             yield from Routines.Yield.wait(1000)
+
             cpx, cpy = Player.GetXY()
             if math.sqrt((tx - cpx) ** 2 + (ty - cpy) ** 2) <= tolerance:
-                return  # /stuck resolved it
+                return  # /stuck teleported us close enough
 
-            # Step 2: walk backwards to create distance from the obstacle
             yield from Routines.Yield.Movement.WalkBackwards(backup_ms)
-
-            # Step 3: compute perpendicular bypass from the backed-up position
-            px, py = Player.GetXY()
-            dx, dy = tx - px, ty - py
-            dist = math.sqrt(dx * dx + dy * dy)
-            if dist < 50:
-                return  # close enough after backing up
-
-            nx, ny = dx / dist, dy / dist
-            perp_x, perp_y = (-ny, nx) if detour_parity > 0 else (ny, -nx)
-            detour_parity = -detour_parity
-
-            mid_x = px + nx * min(dist * 0.4, 400.0) + perp_x * detour_offset
-            mid_y = py + ny * min(dist * 0.4, 400.0) + perp_y * detour_offset
-
-            ConsoleLog(BOT_NAME, f"[Unstuck] Detour via ({mid_x:.0f},{mid_y:.0f}) then ({tx:.0f},{ty:.0f})", Py4GW.Console.MessageType.Info)
-
-            # Move to the detour waypoint; the for-loop then re-attempts the final target
-            yield from Routines.Yield.Movement.FollowPath(path_points=[(mid_x, mid_y)])
+            yield from Routines.Yield.wait(300)
 
     label = step_name or f"MoveUnstuck_{target_x:.0f}_{target_y:.0f}"
     bot_instance.config.FSM.AddYieldRoutineStep(name=label, coroutine_fn=_coro)
@@ -481,7 +529,7 @@ def bot_routine(bot: Botting):
 
 def Enter_UW(bot_instance: Botting):
     bot_instance.States.AddHeader("Enter Underworld")
-    _do_inventory_refill(bot_instance) ##????
+    #_do_inventory_refill(bot_instance)
     _ensure_minimum_gold(bot_instance)
 
     if BotSettings.UseCons:
@@ -1043,17 +1091,54 @@ def _do_inventory_refill(bot_instance: Botting) -> None:
     if not InventorySettings.RefillEnabled:
         return
 
+    # 1. Travel to Guild Hall (same as FoW)
     bot_instance.Map.TravelGH(wait_time=7000)
 
-    if InventorySettings.RestockCons and BotSettings.UseCons:
-        bot_instance.Multibox.RestockConset(10)
+    # 2. Restock ID kits + Salvage kits from GH merchant (3 rounds, like FoW)
+    if InventorySettings.RestockKits:
+        def _restock_kits_coro():
+            npc_array = AgentArray.GetNPCMinipetArray()
+            merchant_id = None
+            for agent_id in npc_array:
+                if "merchant" in (Agent.GetNameByID(agent_id) or "").lower():
+                    merchant_id = agent_id
+                    break
+            if merchant_id is None:
+                ConsoleLog(BOT_NAME, "[Inventory] No Merchant NPC found in Guild Hall.", Py4GW.Console.MessageType.Warning)
+                yield
+                return
+            mx, my = Agent.GetXY(merchant_id)
+            yield from Routines.Yield.Movement.FollowPath(path_points=[(mx, my)])
+            yield from Routines.Yield.Player.InteractAgent(merchant_id)
+            yield from Routines.Yield.wait(1500)
+            yield from Routines.Yield.Merchant.BuyIDKits(2)
+            yield from Routines.Yield.Merchant.BuySalvageKits(5)
+            yield
+        for _ in range(3):
+            bot_instance.States.AddCustomState(_restock_kits_coro, "Restock Kits")
 
+    # 3. Restock consets from Xunlai chest (same pattern as FoW's handle_restock_cons)
+    if InventorySettings.RestockCons and BotSettings.UseCons:
+        bot_instance.States.AddCustomState(
+            lambda: GLOBAL_CACHE.Inventory.OpenXunlaiWindow() if not GLOBAL_CACHE.Inventory.IsStorageOpen() else None,
+            "Open Xunlai for Cons Restock",
+        )
+        bot_instance.Wait.ForTime(1000)
+
+        def _restock_cons_coro():
+            from Py4GWCoreLib.enums_src.Model_enums import ModelID
+            yield from Routines.Yield.Items.RestockItems(ModelID.Essence_Of_Celerity.value, 10)
+            yield from Routines.Yield.Items.RestockItems(ModelID.Grail_Of_Might.value, 10)
+            yield from Routines.Yield.Items.RestockItems(ModelID.Armor_Of_Salvation.value, 10)
+        bot_instance.States.AddCustomState(_restock_cons_coro, "Restock Consets")
+
+    # 4. Deposit full material stacks to Xunlai chest (same as FoW's handle_deposit_materials)
     if InventorySettings.DepositMaterials:
         def _deposit_coro():
             yield from Routines.Yield.Merchant.DepositMaterials()
-        bot_instance.config.FSM.AddYieldRoutineStep("Deposit Materials", _deposit_coro)
+        bot_instance.States.AddCustomState(_deposit_coro, "Deposit Materials")
 
-    # Travel back to UW outpost
+    # 5. Travel back to UW outpost
     bot_instance.Map.Travel(target_map_id=138)
     bot_instance.Wait.ForMapLoad(target_map_id=138)
 
@@ -1125,6 +1210,10 @@ def _draw_inventory_settings() -> None:
     PyImGui.begin_disabled(not InventorySettings.RefillEnabled)
     PyImGui.text_wrapped("After each run: travel to Guild Hall, restock, then return.")
     PyImGui.separator()
+    new_val = PyImGui.checkbox("Restock ID & Salvage Kits (3 rounds)", InventorySettings.RestockKits)
+    if new_val != InventorySettings.RestockKits:
+        InventorySettings.RestockKits = new_val
+        changed = True
     new_val = PyImGui.checkbox("Restock Consets from Xunlai Chest", InventorySettings.RestockCons)
     if new_val != InventorySettings.RestockCons:
         InventorySettings.RestockCons = new_val
