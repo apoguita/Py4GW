@@ -2,7 +2,7 @@ import os
 from Py4GWCoreLib import Botting
 
 MODULE_NAME = "Eye of Argon shield"
-MODULE_ICON = "Textures\\Module_Icons\\Darkroot's Daggers.png"
+MODULE_ICON = "Textures\\Module_Icons\\Eye_of_Argon.png"
 
 class BotSettings:
     BOT_NAME = "Eye of Argon shield Farm"
