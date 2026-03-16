@@ -1549,7 +1549,8 @@ def farm_bds_routine(bot: Botting) -> None:
     bot.Wait.ForTime(4000)
     bot.Multibox.SendDialogToTarget(DWARVEN_BLESSING_DIALOG)
     bot.Wait.ForTime(4000)
-    bot.Items.UseAllConsumables()
+    bot.Multibox.UseAllConsumables()
+
 
     IS_REPATHING = False
     # Path to Shandra
@@ -1612,7 +1613,8 @@ def farm_bds_routine(bot: Botting) -> None:
     
     # Use consumables
     bot.States.AddCustomState(UseSummons, "Use Summons")
-    bot.Items.UseAllConsumables()
+    bot.Multibox.UseAllConsumables()
+
     bot.Templates.Aggressive()
 
     path_before_bridgant = [
@@ -1726,7 +1728,8 @@ def farm_bds_routine(bot: Botting) -> None:
  
     # Use consumables
     bot.States.AddCustomState(UseSummons, "Use Summons")
-    bot.Items.UseAllConsumables()
+    bot.Multibox.UseAllConsumables()
+
     bot.Templates.Aggressive()
     # --- Path to torch area (atomisé) ---
     path_before_torch = [
@@ -1849,7 +1852,8 @@ def farm_bds_routine(bot: Botting) -> None:
     # Use consumables
 
     bot.States.AddCustomState(UseSummons, "Use Summons")
-    bot.Items.UseAllConsumables()
+    bot.Multibox.UseAllConsumables()
+
     bot.Templates.Aggressive()
 
     bot.States.AddHeader("L3 - Cleaning level")
