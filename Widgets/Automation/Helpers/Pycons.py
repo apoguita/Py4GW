@@ -1668,7 +1668,7 @@ try:
     # Lazy INI handler creation to ensure account email is available
     import hashlib
     _ini_handler_cache = None
-    _ini_path_cache = None
+    _ini_path_cache: str | None = None
     _ini_generic_fallback_logged = False
     _ini_generic_cached_with_email_logged = False
     _PYCONS_CONFIG_DIR = os.path.normpath(os.path.join("Widgets", "Config", "Pycons"))
@@ -1676,13 +1676,13 @@ try:
     _GENERIC_INI_PATH = os.path.normpath(os.path.join(_PYCONS_CONFIG_DIR, "Pycons.ini"))
     _LEGACY_GENERIC_INI_PATH = os.path.normpath(os.path.join(_LEGACY_CONFIG_DIR, "Pycons.ini"))
 
-    def _norm_path_lower(path: str) -> str:
+    def _norm_path_lower(path: str | None) -> str:
         try:
             return os.path.normpath(str(path or "")).replace("\\", "/").lower()
         except Exception:
             return str(path or "").replace("\\", "/").lower()
 
-    def _is_generic_ini_path(path: str) -> bool:
+    def _is_generic_ini_path(path: str | None) -> bool:
         try:
             p = _norm_path_lower(path)
             return p == _norm_path_lower(_GENERIC_INI_PATH) or p == _norm_path_lower(_LEGACY_GENERIC_INI_PATH)
