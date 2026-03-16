@@ -2122,7 +2122,7 @@ def To_Consulate_Docks(bot: Botting):
     bot.Move.XY(-5271.00, 16740.00)
     bot.Wait.ForMapLoad(target_map_id=429)
     #bot.Move.XYAndDialog(-4631.86, 16711.79, 0x85)
-    exec_fn = lambda: QuestLoop(724, -4631.86, 16711.79, 0x85, mode="step")
+    exec_fn = lambda: QuestLoop(000, -4631.86, 16711.79, 0x85, mode="skip")
     bot.States.AddCustomState(exec_fn, "Unlock Docks")
     bot.Wait.ForMapToChange(target_map_id=493)
 
