@@ -2082,7 +2082,7 @@ def farm_bds_routine(bot: Botting) -> None:
     bot.Templates.Aggressive()
 
     bot.States.AddHeader("L3 - Cleaning level")
-    path_before_secure_return = [
+    path_before_flag = [
         (17544.5,18530.2),
         (17231.2,17523.3),
         (16811.3,16513.4),
@@ -2109,8 +2109,15 @@ def farm_bds_routine(bot: Botting) -> None:
         (1069.7,8045.3),
         (619.8,7044.0),
         (-385.8,6478.3),
-        (-1123.5,7481.9), #ICI CE TROUVE LE SHRINE DONC SI JE MEURT APRES JE REVIENS ICI DONC MAIS SI JE MEURT AU BOSS C4EST ICI QUE JE REVIS
-        (-2964.1,7302.1),
+        (-1123.5,7481.9)]
+    bot.Templates.Aggressive()
+    if not IS_REPATHING:
+        bot.Move.FollowAutoPath(path_before_flag)
+    bot.Wait.UntilOutOfCombat()
+
+    bot.States.AddCustomState(_reset_l3_boss_route_flag, "Reset L3 boss route flag") #ICI CE TROUVE LE SHRINE DONC SI JE MEURT APRES JE REVIENS ICI DONC MAIS SI JE MEURT AU BOSS C4EST ICI QUE JE REVIS
+        
+    path2=[(-2964.1,7302.1),
         (-3139.7,7022.7),
         (-4152.0,6469.6),
         (-5154.0,5969.0),
@@ -2126,10 +2133,9 @@ def farm_bds_routine(bot: Botting) -> None:
     ]
     bot.Templates.Aggressive()
     if not IS_REPATHING:
-        bot.Move.FollowAutoPath(path_before_secure_return)
+        bot.Move.FollowAutoPath(path2)
     bot.Wait.UntilOutOfCombat()
 
-    bot.States.AddCustomState(_reset_l3_boss_route_flag, "Reset L3 boss route flag")
     bot.States.AddHeader("L3 - Path to torch")
     path_to_take_torch = [
         (-4723.00, 6703.00),
@@ -2187,16 +2193,9 @@ def farm_bds_routine(bot: Botting) -> None:
         # ===== OPEN FINAL CHEST =====
     bot.Move.XY(-15800.98,16901.23)
     bot.States.AddCustomState(_snapshot_bds_before_chest, "BDS Pre-Chest Snapshot")
-    bot.States.AddCustomState(open_fendi_chest, "Open Chest (All Accounts)")
-    
-    
-
-    
-        # ===== OPEN FINAL CHEST =====
-    bot.States.AddCustomState(_snapshot_bds_before_chest, "BDS Pre-Chest Snapshot")    
     bot.Move.XY(-15800.98,16901.23) 
-        
-        
+    bot.States.AddCustomState(open_fendi_chest, "Open Chest (All Accounts)")
+    bot.States.AddCustomState(_record_bds_after_loot, "Record BDS Stats After Loot")
     bot.States.AddHeader("Quest sequence (reward + retake)")
     bot.States.AddCustomState(lambda: Search_and_talk_with_Shandra(bot), "Find Shandra and talk")
     bot.Wait.ForTime(5000)
