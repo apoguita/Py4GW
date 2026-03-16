@@ -26,7 +26,7 @@ class NecrosisUtility(CustomSkillUtilityBase):
             in_game_build=current_build,
             score_definition=score_definition)
         
-        self.score_definition: ScorePerAgentQuantityDefinition = score_definition
+        self.score_definition: ScoreStaticDefinition = score_definition
 
     def _get_targets(self) -> list[custom_behavior_helpers.SortableAgentData]:
          
@@ -41,7 +41,7 @@ class NecrosisUtility(CustomSkillUtilityBase):
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
         targets = self._get_targets()
         if len(targets) == 0: return None
-        return self.score_definition.get_score(len(targets))
+        return self.score_definition.get_score()
 
     @override
     def _execute(self, state: BehaviorState) -> Generator[Any, None, BehaviorResult]:

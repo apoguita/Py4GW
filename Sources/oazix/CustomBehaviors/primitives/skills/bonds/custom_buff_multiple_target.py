@@ -71,8 +71,11 @@ class CustomBuffMultipleTarget():
             return CustomBuffMultipleTarget.from_profession_config(event_bus, custom_skill, buff_configuration=buff_configuration_per_profession)
         
         elif buff_mode == CustomBuffTargetMode.PER_EMAIL:
-            buff_configuration_per_email: dict[str, BuffEmailEntry] = BuffConfigurationPerPlayerEmail.instanciate_from_string(serialized_configuration)
-            return CustomBuffMultipleTarget.from_email_config(event_bus, custom_skill, buff_configuration=buff_configuration_per_email)
+            buff_configuration_per_email, email_order = BuffConfigurationPerPlayerEmail.instanciate_from_string(serialized_configuration)
+            instance = CustomBuffMultipleTarget.from_email_config(event_bus, custom_skill, buff_configuration=buff_configuration_per_email)
+            # Set the custom order on the email configuration
+            instance.buff_configuration_per_email.set_email_order(email_order)
+            return instance
         else:
             raise Exception(f"Unknown buff mode: {buff_mode}")
 
@@ -85,6 +88,14 @@ class CustomBuffMultipleTarget():
             return self.buff_configuration_per_profession.get_agent_id_predicate()
         elif self.buff_mode == CustomBuffTargetMode.PER_EMAIL:
             return self.buff_configuration_per_email.get_agent_id_predicate()
+        else:
+            raise Exception(f"Unknown buff mode: {self.buff_mode}")
+        
+    def get_agent_id_ordering_predicate(self) -> Callable[[int], int]:
+        if self.buff_mode == CustomBuffTargetMode.PER_PROFESSION:
+            return self.buff_configuration_per_profession.get_agent_id_ordering_predicate()
+        elif self.buff_mode == CustomBuffTargetMode.PER_EMAIL:
+            return self.buff_configuration_per_email.get_agent_id_ordering_predicate()
         else:
             raise Exception(f"Unknown buff mode: {self.buff_mode}")
 

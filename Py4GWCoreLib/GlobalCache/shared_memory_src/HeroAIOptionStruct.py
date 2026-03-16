@@ -20,6 +20,7 @@ class HeroAIOptionStruct(Structure):
         ("FollowPos", Vec3f),
         ("FollowMoveThreshold", c_float),
         ("FollowMoveThresholdCombat", c_float),
+        ("LeaderFollowReady", c_bool),
         ("FollowOffset", Vec2f),
         ("FlagPos", Vec2f),
         ("AllFlag", Vec2f),
@@ -40,6 +41,7 @@ class HeroAIOptionStruct(Structure):
     FollowPos : Vec3f
     FollowMoveThreshold : float
     FollowMoveThresholdCombat : float
+    LeaderFollowReady : bool
     FollowOffset : Vec2f
     FlagPos : Vec2f
     AllFlag : Vec2f
@@ -60,6 +62,7 @@ class HeroAIOptionStruct(Structure):
         self.FollowPos = Vec3f(0.0, 0.0, 0.0)
         self.FollowMoveThreshold = -1.0
         self.FollowMoveThresholdCombat = -1.0
+        self.LeaderFollowReady = False
         self.FollowOffset = Vec2f(0.0, 0.0)
         self.FlagPos = Vec2f(0.0, 0.0)
         self.AllFlag = Vec2f(0.0, 0.0)

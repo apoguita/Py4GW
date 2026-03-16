@@ -35,8 +35,6 @@ class AssassinCriticalHit_UtilitySkillBar(CustomBehaviorBaseUtility):
         #common
         self.ebon_vanguard_assassin_support: CustomSkillUtilityBase = EbonVanguardAssassinSupportUtility(event_bus=self.event_bus, score_definition=ScoreStaticDefinition(66), current_build=in_game_build, mana_required_to_cast=15)
         self.ebon_battle_standard_of_honor_utility: CustomSkillUtilityBase = EbonBattleStandardOfHonorUtility(event_bus=self.event_bus, score_definition=ScorePerAgentQuantityDefinition(lambda agent_qte: 45 if agent_qte >= 3 else 35 if agent_qte <= 2 else 25), current_build=in_game_build,  mana_required_to_cast=15)
-        self.i_am_unstopabble: CustomSkillUtilityBase = IAmUnstoppableUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScoreStaticDefinition(99))
-        self.by_urals_hammer_utility: CustomSkillUtilityBase = ByUralsHammerUtility(event_bus=self.event_bus, current_build=in_game_build)
 
     @property
     @override
@@ -47,11 +45,9 @@ class AssassinCriticalHit_UtilitySkillBar(CustomBehaviorBaseUtility):
             self.burst_of_aggression_utility,
             self.ebon_vanguard_assassin_support,
             self.ebon_battle_standard_of_honor_utility,
-            self.i_am_unstopabble,
             self.jagged_strike_utility,
             self.fox_fangs_utility,
             self.death_blossom_utility,
-            self.by_urals_hammer_utility,
         ]
 
     @property

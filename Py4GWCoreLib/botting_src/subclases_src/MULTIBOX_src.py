@@ -94,11 +94,22 @@ class _MULTIBOX:
         self._helpers.Multibox.use_consumable((ModelID.War_Supplies.value, GLOBAL_CACHE.Skill.GetID("Well_Supplied"), 0, 0))
    
    
-    def UsePConSet(self):
+    def UseConset(self):
         self.UseEssenceOfCelerity()
         self.UseGrailOfMight()
         self.UseArmorOfSalvation()
-        
+
+    def UsePcons(self):
+        self.UseBirthdayCupcake()
+        self.UseGoldenEgg()
+        self.UseCandyCorn()
+        self.UseCandyApple()
+        self.UsePumpkinPie()
+        self.UseDrakeKabob()
+        self.UseBowlOfSkalefinSoup()
+        self.UsePahnaiSalad()
+        self.UseWarSupplies()
+
     def UseAllConsumables(self):
         self.UseEssenceOfCelerity()
         self.UseGrailOfMight()
@@ -166,5 +177,9 @@ class _MULTIBOX:
 
     def KickAccount(self, account_email: str):
         self._helpers.Multibox.kick_account_by_email(account_email)
-        
+
+    def AbandonQuest(self, quest_id: int):
+        """Abandon a quest for the leader and broadcast to all other accounts via multibox messaging."""
+        self._helpers.Multibox.abandon_quest(quest_id)
+
 #endregion

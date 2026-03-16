@@ -12,7 +12,7 @@ from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
 
 from .constants import MAX_NUM_PLAYERS, NUMBER_OF_SKILLS
 from .types import SkillType, SkillNature, Skilltarget
-from .globals import capture_mouse_timer, show_area_rings, show_hero_follow_grid, show_distance_on_followers, show_broadcast_follow_positions, show_broadcast_follow_threshold_rings, hero_formation
+from .globals import capture_mouse_timer, show_area_rings, show_hero_follow_grid, show_distance_on_followers, show_broadcast_follow_positions, show_broadcast_follow_threshold_rings, hero_formation, show_flagging_window
 from .utils import IsHeroFlagged, DrawFlagAll, DrawHeroFlag, DistanceFromWaypoint, SameMapAsAccount
 from HeroAI.settings import Settings
 
@@ -396,8 +396,7 @@ class HeroAI_Windows():
     show_follow_formations_quick_window = False
     follow_formations_ini_key = ""
     follow_formations_settings_key = ""
-    follow_runtime_ini_key = ""
-    follow_runtime_ini_vars_registered = False
+    follow_window_ini_vars_registered = False
     follow_formations_names: list[str] = []
     follow_formations_ids: list[str] = []
     follow_formations_selected_index = 0
@@ -436,66 +435,81 @@ class HeroAI_Windows():
             HeroAI_Windows.follow_formations_ini_key = im.ensure_global_key("HeroAI", "FollowModule_Formations.ini")
         if not HeroAI_Windows.follow_formations_settings_key:
             HeroAI_Windows.follow_formations_settings_key = im.ensure_global_key("HeroAI", "FollowModule_Settings.ini")
-        if not HeroAI_Windows.follow_runtime_ini_key:
-            HeroAI_Windows.follow_runtime_ini_key = im.ensure_global_key("HeroAI", "FollowRuntime.ini")
-        if HeroAI_Windows.follow_runtime_ini_key and not HeroAI_Windows.follow_runtime_ini_vars_registered:
-            im.add_float(HeroAI_Windows.follow_runtime_ini_key, "follow_move_threshold_default", "FollowRuntime", "follow_move_threshold_default", float(Range.Area.value))
-            im.add_float(HeroAI_Windows.follow_runtime_ini_key, "follow_move_threshold_combat", "FollowRuntime", "follow_move_threshold_combat", float(Range.Touch.value))
-            im.add_float(HeroAI_Windows.follow_runtime_ini_key, "follow_move_threshold_flagged", "FollowRuntime", "follow_move_threshold_flagged", 0.0)
-            im.add_str(HeroAI_Windows.follow_runtime_ini_key, "follow_move_threshold_default_mode", "FollowRuntime", "follow_move_threshold_default_mode", "Area")
-            im.add_str(HeroAI_Windows.follow_runtime_ini_key, "follow_move_threshold_combat_mode", "FollowRuntime", "follow_move_threshold_combat_mode", "Touch")
-            im.add_str(HeroAI_Windows.follow_runtime_ini_key, "follow_move_threshold_flagged_mode", "FollowRuntime", "follow_move_threshold_flagged_mode", "Zero")
-            HeroAI_Windows.follow_runtime_ini_vars_registered = True
         return bool(HeroAI_Windows.follow_formations_ini_key and HeroAI_Windows.follow_formations_settings_key)
 
     @staticmethod
-    def _load_follow_runtime_config():
-        if not HeroAI_Windows._ensure_follow_module_ini_keys() or not HeroAI_Windows.follow_runtime_ini_key:
+    def _ensure_follow_window_ini_vars(ini_key: str):
+        if not ini_key:
             return
         im = IniManager()
-        try:
-            im.reload(HeroAI_Windows.follow_runtime_ini_key)
-            node = im._get_node(HeroAI_Windows.follow_runtime_ini_key)
-            if node:
-                node.vars_loaded = False
-            im.load_once(HeroAI_Windows.follow_runtime_ini_key)
-        except Exception:
-            pass
+        if not HeroAI_Windows.follow_window_ini_vars_registered:
+            im.add_bool(ini_key, "show_broadcast_follow_positions", "FollowRuntime", "show_broadcast_follow_positions", True)
+            im.add_bool(ini_key, "show_broadcast_follow_threshold_rings", "FollowRuntime", "show_broadcast_follow_threshold_rings", True)
+            im.add_bool(ini_key, "show_flagging_window", "FollowRuntime", "show_flagging_window", False)
+            im.add_float(ini_key, "follow_move_threshold_default", "FollowRuntime", "follow_move_threshold_default", float(Range.Area.value))
+            im.add_float(ini_key, "follow_move_threshold_combat", "FollowRuntime", "follow_move_threshold_combat", float(Range.Touch.value))
+            im.add_float(ini_key, "follow_move_threshold_flagged", "FollowRuntime", "follow_move_threshold_flagged", 0.0)
+            im.add_str(ini_key, "follow_move_threshold_default_mode", "FollowRuntime", "follow_move_threshold_default_mode", "Area")
+            im.add_str(ini_key, "follow_move_threshold_combat_mode", "FollowRuntime", "follow_move_threshold_combat_mode", "Touch")
+            im.add_str(ini_key, "follow_move_threshold_flagged_mode", "FollowRuntime", "follow_move_threshold_flagged_mode", "Zero")
+            HeroAI_Windows.follow_window_ini_vars_registered = True
+        im.load_once(ini_key)
+
+    @staticmethod
+    def _load_follow_runtime_config(ini_key: str):
+        global show_broadcast_follow_positions, show_broadcast_follow_threshold_rings, show_flagging_window
+        if not HeroAI_Windows._ensure_follow_module_ini_keys() or not ini_key:
+            return
+        HeroAI_Windows._ensure_follow_window_ini_vars(ini_key)
+        im = IniManager()
+        show_broadcast_follow_positions = bool(
+            im.getBool(ini_key, "show_broadcast_follow_positions", True, section="FollowRuntime")
+        )
+        show_broadcast_follow_threshold_rings = bool(
+            im.getBool(ini_key, "show_broadcast_follow_threshold_rings", True, section="FollowRuntime")
+        )
+        show_flagging_window = bool(
+            im.getBool(ini_key, "show_flagging_window", False, section="FollowRuntime")
+        )
         HeroAI_Windows.follow_move_threshold_default = max(
             0.0,
-            float(im.getFloat(HeroAI_Windows.follow_runtime_ini_key, "follow_move_threshold_default", float(Range.Area.value), section="FollowRuntime"))
+            float(im.getFloat(ini_key, "follow_move_threshold_default", float(Range.Area.value), section="FollowRuntime"))
         )
         HeroAI_Windows.follow_move_threshold_combat = max(
             0.0,
-            float(im.getFloat(HeroAI_Windows.follow_runtime_ini_key, "follow_move_threshold_combat", float(Range.Touch.value), section="FollowRuntime"))
+            float(im.getFloat(ini_key, "follow_move_threshold_combat", float(Range.Touch.value), section="FollowRuntime"))
         )
         HeroAI_Windows.follow_move_threshold_flagged = max(
             0.0,
-            float(im.getFloat(HeroAI_Windows.follow_runtime_ini_key, "follow_move_threshold_flagged", 0.0, section="FollowRuntime"))
+            float(im.getFloat(ini_key, "follow_move_threshold_flagged", 0.0, section="FollowRuntime"))
         )
         HeroAI_Windows.follow_move_threshold_default_mode = str(
-            im.getStr(HeroAI_Windows.follow_runtime_ini_key, "follow_move_threshold_default_mode", "Area", section="FollowRuntime")
+            im.getStr(ini_key, "follow_move_threshold_default_mode", "Area", section="FollowRuntime")
         )
         HeroAI_Windows.follow_move_threshold_combat_mode = str(
-            im.getStr(HeroAI_Windows.follow_runtime_ini_key, "follow_move_threshold_combat_mode", "Touch", section="FollowRuntime")
+            im.getStr(ini_key, "follow_move_threshold_combat_mode", "Touch", section="FollowRuntime")
         )
         HeroAI_Windows.follow_move_threshold_flagged_mode = str(
-            im.getStr(HeroAI_Windows.follow_runtime_ini_key, "follow_move_threshold_flagged_mode", "Zero", section="FollowRuntime")
+            im.getStr(ini_key, "follow_move_threshold_flagged_mode", "Zero", section="FollowRuntime")
         )
 
     @staticmethod
-    def _save_follow_runtime_config():
-        if not HeroAI_Windows._ensure_follow_module_ini_keys() or not HeroAI_Windows.follow_runtime_ini_key:
+    def _save_follow_runtime_config(ini_key: str):
+        global show_broadcast_follow_positions, show_broadcast_follow_threshold_rings, show_flagging_window
+        if not HeroAI_Windows._ensure_follow_module_ini_keys() or not ini_key:
             return
         im = IniManager()
-        key = HeroAI_Windows.follow_runtime_ini_key
-        im.set(key, "follow_move_threshold_default", float(HeroAI_Windows.follow_move_threshold_default), section="FollowRuntime")
-        im.set(key, "follow_move_threshold_combat", float(HeroAI_Windows.follow_move_threshold_combat), section="FollowRuntime")
-        im.set(key, "follow_move_threshold_flagged", float(HeroAI_Windows.follow_move_threshold_flagged), section="FollowRuntime")
-        im.set(key, "follow_move_threshold_default_mode", str(HeroAI_Windows.follow_move_threshold_default_mode), section="FollowRuntime")
-        im.set(key, "follow_move_threshold_combat_mode", str(HeroAI_Windows.follow_move_threshold_combat_mode), section="FollowRuntime")
-        im.set(key, "follow_move_threshold_flagged_mode", str(HeroAI_Windows.follow_move_threshold_flagged_mode), section="FollowRuntime")
-        im.save_vars(key)
+        HeroAI_Windows._ensure_follow_window_ini_vars(ini_key)
+        im.set(ini_key, "show_broadcast_follow_positions", bool(show_broadcast_follow_positions), section="FollowRuntime")
+        im.set(ini_key, "show_broadcast_follow_threshold_rings", bool(show_broadcast_follow_threshold_rings), section="FollowRuntime")
+        im.set(ini_key, "show_flagging_window", bool(show_flagging_window), section="FollowRuntime")
+        im.set(ini_key, "follow_move_threshold_default", float(HeroAI_Windows.follow_move_threshold_default), section="FollowRuntime")
+        im.set(ini_key, "follow_move_threshold_combat", float(HeroAI_Windows.follow_move_threshold_combat), section="FollowRuntime")
+        im.set(ini_key, "follow_move_threshold_flagged", float(HeroAI_Windows.follow_move_threshold_flagged), section="FollowRuntime")
+        im.set(ini_key, "follow_move_threshold_default_mode", str(HeroAI_Windows.follow_move_threshold_default_mode), section="FollowRuntime")
+        im.set(ini_key, "follow_move_threshold_combat_mode", str(HeroAI_Windows.follow_move_threshold_combat_mode), section="FollowRuntime")
+        im.set(ini_key, "follow_move_threshold_flagged_mode", str(HeroAI_Windows.follow_move_threshold_flagged_mode), section="FollowRuntime")
+        im.save_vars(ini_key)
 
     @staticmethod
     def _load_follow_formations_quick_data():
@@ -565,18 +579,16 @@ class HeroAI_Windows():
 
     @staticmethod
     def DrawFollowFormationsQuickWindow(cached_data:CacheData):
-        global show_broadcast_follow_positions, show_broadcast_follow_threshold_rings
+        global show_broadcast_follow_positions, show_broadcast_follow_threshold_rings, show_flagging_window
         if not HeroAI_Windows.show_follow_formations_quick_window:
             return
 
-        w = cached_data.HeroAI_windows.follow_formations_window
-        w.initialize()
-        if w.begin():
+        if ImGui.Begin(ini_key=cached_data.formation_window_ini_key,name="Follow Formations Quick Settings", p_open=True, flags=PyImGui.WindowFlags.AlwaysAutoResize):
             HeroAI_Windows._load_follow_formations_quick_data()
-            HeroAI_Windows._load_follow_runtime_config()
+            HeroAI_Windows._load_follow_runtime_config(cached_data.formation_window_ini_key)
             if PyImGui.button("Refresh Formations"):
                 HeroAI_Windows._load_follow_formations_quick_data()
-                HeroAI_Windows._load_follow_runtime_config()
+                HeroAI_Windows._load_follow_runtime_config(cached_data.formation_window_ini_key)
 
             if HeroAI_Windows.follow_formations_names:
                 idx = PyImGui.combo(
@@ -589,17 +601,25 @@ class HeroAI_Windows():
             else:
                 PyImGui.text_disabled("No saved follow formations found.")
 
-            show_broadcast_follow_positions = PyImGui.checkbox(
+            dirty_runtime_cfg = False
+
+            new_show_broadcast_follow_positions = PyImGui.checkbox(
                 "Draw Followers FollowPos (3D)",
                 show_broadcast_follow_positions
             )
-            show_broadcast_follow_threshold_rings = PyImGui.checkbox(
+            if new_show_broadcast_follow_positions != show_broadcast_follow_positions:
+                show_broadcast_follow_positions = new_show_broadcast_follow_positions
+                dirty_runtime_cfg = True
+
+            new_show_broadcast_follow_threshold_rings = PyImGui.checkbox(
                 "Draw Followers Threshold Rings (3D)",
                 show_broadcast_follow_threshold_rings
             )
+            if new_show_broadcast_follow_threshold_rings != show_broadcast_follow_threshold_rings:
+                show_broadcast_follow_threshold_rings = new_show_broadcast_follow_threshold_rings
+                dirty_runtime_cfg = True
             presets = HeroAI_Windows._follow_threshold_presets()
             preset_names = [name for name, _ in presets]
-            dirty_runtime_cfg = False
 
             d_idx = PyImGui.combo(
                 "Follow Threshold Preset",
@@ -656,15 +676,20 @@ class HeroAI_Windows():
                 dirty_runtime_cfg = True
 
             if dirty_runtime_cfg:
-                HeroAI_Windows._save_follow_runtime_config()
+                HeroAI_Windows._save_follow_runtime_config(cached_data.formation_window_ini_key)
 
             if Map.IsExplorable() and Player.GetAgentID() == GLOBAL_CACHE.Party.GetPartyLeaderID():
-                PyImGui.separator()
-                if PyImGui.collapsing_header("Flagging", PyImGui.TreeNodeFlags.DefaultOpen):
-                    HeroAI_Windows.DrawFlaggingWindow(cached_data)
+                new_show_flagging_window = PyImGui.checkbox("Show Flagging Window", show_flagging_window)
+                if new_show_flagging_window != show_flagging_window:
+                    show_flagging_window = new_show_flagging_window
+                    HeroAI_Windows._save_follow_runtime_config(cached_data.formation_window_ini_key)
 
-        w.process_window()
-        w.end()
+        ImGui.End(ini_key=cached_data.formation_window_ini_key)
+        
+        if show_flagging_window and Map.IsExplorable() and Player.GetAgentID() == GLOBAL_CACHE.Party.GetPartyLeaderID():
+            if ImGui.Begin(ini_key=cached_data.flagging_window_ini_key,name="Flagging Window", p_open=True, flags=PyImGui.WindowFlags.AlwaysAutoResize):
+                HeroAI_Windows.DrawFlaggingWindow(cached_data)
+            ImGui.End(ini_key=cached_data.flagging_window_ini_key)
         
     @staticmethod
     def DrawBuffWindow(cached_data:CacheData):
@@ -880,42 +905,43 @@ class HeroAI_Windows():
             if account:
                 DrawHeroFlag(options.FlagPos.x, options.FlagPos.y)
 
-        if show_broadcast_follow_positions or show_broadcast_follow_threshold_rings:
-            segments = 24
-            Overlay().BeginDraw()
-            for i in range(1, MAX_NUM_PLAYERS):
-                options: HeroAIOptionStruct | None = options_by_party[i]
-                account: AccountStruct | None = accounts_by_party[i]
-                if options is None or account is None or not account.IsSlotActive:
-                    continue
-                fx = float(options.FollowPos.x)
-                fy = float(options.FollowPos.y)
-                if abs(fx) < 0.001 and abs(fy) < 0.001:
-                    continue
-                fz = Overlay().FindZ(fx, fy, 0)
-                if show_broadcast_follow_positions:
-                    Overlay().DrawPoly3D(
-                        fx, fy, fz,
-                        radius=Range.Touch.value / 3,
-                        color=Utils.RGBToColor(0, 255, 255, 140),
-                        numsegments=segments,
-                        thickness=2.0
-                    )
-                    Overlay().DrawText3D(
-                        fx, fy, fz - 110,
-                        f"F{i}",
-                        color=Utils.RGBToColor(0, 255, 255, 220),
-                        autoZ=False, centered=True, scale=1.8
-                    )
-                if show_broadcast_follow_threshold_rings:
-                    thr = max(0.0, float(getattr(options, "FollowMoveThreshold", 0.0)))
-                    if thr > 0.0:
+        if GLOBAL_CACHE.Party.GetPartyLeaderID() == Player.GetAgentID() and Map.IsExplorable():
+            if show_broadcast_follow_positions or show_broadcast_follow_threshold_rings:
+                segments = 24
+                Overlay().BeginDraw()
+                for i in range(1, MAX_NUM_PLAYERS):
+                    options: HeroAIOptionStruct | None = options_by_party[i]
+                    account: AccountStruct | None = accounts_by_party[i]
+                    if options is None or account is None or not account.IsSlotActive:
+                        continue
+                    fx = float(options.FollowPos.x)
+                    fy = float(options.FollowPos.y)
+                    if abs(fx) < 0.001 and abs(fy) < 0.001:
+                        continue
+                    fz = Overlay().FindZ(fx, fy, 0)
+                    if show_broadcast_follow_positions:
                         Overlay().DrawPoly3D(
                             fx, fy, fz,
-                            radius=thr,
-                            color=Utils.RGBToColor(255, 215, 0, 110),
-                            numsegments=max(24, segments),
+                            radius=Range.Touch.value / 3,
+                            color=Utils.RGBToColor(0, 255, 255, 140),
+                            numsegments=segments,
                             thickness=2.0
+                        )
+                        Overlay().DrawText3D(
+                            fx, fy, fz - 110,
+                            f"F{i}",
+                            color=Utils.RGBToColor(0, 255, 255, 220),
+                            autoZ=False, centered=True, scale=1.8
+                        )
+                    if show_broadcast_follow_threshold_rings:
+                        thr = max(0.0, float(getattr(options, "FollowMoveThreshold", 0.0)))
+                        if thr > 0.0:
+                            Overlay().DrawPoly3D(
+                                fx, fy, fz,
+                                radius=thr,
+                                color=Utils.RGBToColor(255, 215, 0, 110),
+                                numsegments=max(24, segments),
+                                thickness=2.0
                         )
             Overlay().EndDraw()
 
@@ -944,37 +970,53 @@ class HeroAI_Windows():
             PyImGui.text("No Follower or Heroes to Flag.")
             return
 
-        if PyImGui.collapsing_header("Flagging"):
-            if PyImGui.begin_table("Flags",3):
-                PyImGui.table_next_row()
-                PyImGui.table_next_column()
-                if party_size >= 2:
-                    HeroAI_Windows.HeroFlags[0] = ImGui.toggle_button("1", IsHeroFlagged(1), 30, 30)
-                PyImGui.table_next_column()
-                if party_size >= 3:
-                    HeroAI_Windows.HeroFlags[1] = ImGui.toggle_button("2", IsHeroFlagged(2),30,30)
-                PyImGui.table_next_column()
-                if party_size >= 4:
-                    HeroAI_Windows.HeroFlags[2] = ImGui.toggle_button("3", IsHeroFlagged(3),30,30)
-                PyImGui.table_next_row()
-                PyImGui.table_next_column()
-                if party_size >= 5:
-                    HeroAI_Windows.HeroFlags[3] = ImGui.toggle_button("4", IsHeroFlagged(4),30,30)
-                PyImGui.table_next_column()
-                HeroAI_Windows.AllFlag = ImGui.toggle_button("All", IsHeroFlagged(0), 30, 30)
-                PyImGui.table_next_column()
-                if party_size >= 6:
-                    HeroAI_Windows.HeroFlags[4] = ImGui.toggle_button("5", IsHeroFlagged(5),30,30)
-                PyImGui.table_next_row()
-                PyImGui.table_next_column()
-                if party_size >= 7:
-                    HeroAI_Windows.HeroFlags[5] = ImGui.toggle_button("6", IsHeroFlagged(6),30,30)
-                PyImGui.table_next_column()
-                if party_size >= 8:
-                    HeroAI_Windows.HeroFlags[6] = ImGui.toggle_button("7", IsHeroFlagged(7), 30, 30)
-                PyImGui.table_next_column()
-                HeroAI_Windows.ClearFlags = ImGui.toggle_button("X", HeroAI_Windows.HeroFlags[7],30,30)
-                PyImGui.end_table()
+        #if PyImGui.collapsing_header("Flagging"):
+        if PyImGui.button("Pin Down Flag Position"):
+            leader_x, leader_y = Agent.GetXY(GLOBAL_CACHE.Party.GetPartyLeaderID())
+            leader_options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsByPartyNumber(0)
+            if leader_options:
+                leader_options.AllFlag.x = leader_x
+                leader_options.AllFlag.y = leader_y
+                leader_options.IsFlagged = True
+                leader_options.FlagFacingAngle = Agent.GetRotationAngle(GLOBAL_CACHE.Party.GetPartyLeaderID())
+            GLOBAL_CACHE.Party.Heroes.FlagAllHeroes(leader_x, leader_y)
+            HeroAI_Windows.AllFlag = True
+            HeroAI_Windows.capture_hero_flag = False
+            HeroAI_Windows.capture_flag_all = False
+            HeroAI_Windows.capture_hero_index = 0
+            HeroAI_Windows.one_time_set_flag = False
+            capture_mouse_timer.Stop()
+            
+        if PyImGui.begin_table("Flags",3):
+            PyImGui.table_next_row()
+            PyImGui.table_next_column()
+            if party_size >= 2:
+                HeroAI_Windows.HeroFlags[0] = ImGui.toggle_button("1", IsHeroFlagged(1), 30, 30)
+            PyImGui.table_next_column()
+            if party_size >= 3:
+                HeroAI_Windows.HeroFlags[1] = ImGui.toggle_button("2", IsHeroFlagged(2),30,30)
+            PyImGui.table_next_column()
+            if party_size >= 4:
+                HeroAI_Windows.HeroFlags[2] = ImGui.toggle_button("3", IsHeroFlagged(3),30,30)
+            PyImGui.table_next_row()
+            PyImGui.table_next_column()
+            if party_size >= 5:
+                HeroAI_Windows.HeroFlags[3] = ImGui.toggle_button("4", IsHeroFlagged(4),30,30)
+            PyImGui.table_next_column()
+            HeroAI_Windows.AllFlag = ImGui.toggle_button("All", IsHeroFlagged(0), 30, 30)
+            PyImGui.table_next_column()
+            if party_size >= 6:
+                HeroAI_Windows.HeroFlags[4] = ImGui.toggle_button("5", IsHeroFlagged(5),30,30)
+            PyImGui.table_next_row()
+            PyImGui.table_next_column()
+            if party_size >= 7:
+                HeroAI_Windows.HeroFlags[5] = ImGui.toggle_button("6", IsHeroFlagged(6),30,30)
+            PyImGui.table_next_column()
+            if party_size >= 8:
+                HeroAI_Windows.HeroFlags[6] = ImGui.toggle_button("7", IsHeroFlagged(7), 30, 30)
+            PyImGui.table_next_column()
+            HeroAI_Windows.ClearFlags = ImGui.toggle_button("X", HeroAI_Windows.HeroFlags[7],30,30)
+            PyImGui.end_table()
                     
                     
         if HeroAI_Windows.AllFlag != IsHeroFlagged(0):
@@ -1825,8 +1867,15 @@ class HeroAI_Windows():
                 ImGui.pop_font()
                 ImGui.show_tooltip("Pick up Loot")
                 ImGui.push_font("Regular",10)
-                PyImGui.same_line(0,-1)
-                  
+                
+
+                PyImGui.end_table()
+
+            PyImGui.separator()
+            if PyImGui.begin_table("MessagingTable_Row2", 1):
+                PyImGui.table_next_row()
+                PyImGui.table_next_column()
+     
                 from HeroAI import ui  
                 v = ui.is_base_configure_consumables_window_open()
                 new_v = ImGui.toggle_button(label=f"{IconsFontAwesome5.ICON_CANDY_CANE}##consumables",
@@ -1839,23 +1888,37 @@ class HeroAI_Windows():
                 ImGui.pop_font()
                 ImGui.show_tooltip("Consumables")
                 ImGui.push_font("Regular",10)
-
-                PyImGui.end_table()
-
-            PyImGui.separator()
-            if PyImGui.begin_table("MessagingTable_Row2", 1):
-                PyImGui.table_next_row()
-                PyImGui.table_next_column()
+                PyImGui.same_line(0,-1)
+                
                 fv = HeroAI_Windows.show_follow_formations_quick_window
                 new_fv = ImGui.toggle_button(
-                    label=f"{IconsFontAwesome5.ICON_PROJECT_DIAGRAM}##follow_formations_quick",
+                    label=f"{IconsFontAwesome5.ICON_PERSON_WALKING_ARROW_RIGHT}##follow_formations_quick",
                     v=fv,
-                    width=(btn_size * 2),
-                    height=btn_size
-                )
+                    width=btn_size, 
+                    height=btn_size)
+
                 if new_fv != fv:
                     HeroAI_Windows.show_follow_formations_quick_window = new_fv
-                ImGui.show_tooltip("Follow Formations Quick Access")
+                ImGui.pop_font()
+                ImGui.show_tooltip("Follow Formations")
+                ImGui.push_font("Regular",10)
+                
+                PyImGui.same_line(0,-1)
+                fv = ui.is_party_window_open()
+                new_fv = ImGui.toggle_button(
+                    label=f"{IconsFontAwesome5.ICON_PEOPLE_GROUP}##open_party_window",
+                    v=fv,
+                    width=btn_size, 
+                    height=btn_size)
+
+                if new_fv != fv:
+                    Keystroke.PressAndRelease(Key.P.value)
+
+                ImGui.pop_font()
+                ImGui.show_tooltip("Open Party Window")
+                ImGui.push_font("Regular",10)
+                
+                
                 PyImGui.end_table()
             PyImGui.end_child()
         ImGui.pop_font()
@@ -1916,5 +1979,6 @@ class HeroAI_Windows():
                 style.ItemSpacing.pop_style_var()
                 
         ImGui.End(cached_data.ini_key)
+        
         HeroAI_Windows.DrawFollowFormationsQuickWindow(cached_data)
         

@@ -93,4 +93,3 @@ class MendingUtility(CustomSkillUtilityBase):
     def delete_persisted_configuration(self):
         PersistenceLocator().skills.delete(str(self.custom_skill.skill_name), "buff_configuration")
         print("configuration deleted")
-

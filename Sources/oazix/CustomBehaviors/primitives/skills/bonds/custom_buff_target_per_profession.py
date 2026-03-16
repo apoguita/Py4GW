@@ -79,6 +79,10 @@ class BuffConfigurationPerProfession(CustomBuffTarget):
     @override
     def get_agent_id_predicate(self) -> Callable[[int], bool]:
         return lambda agent_id: self.__should_apply_effect(agent_id)
+    
+    @override
+    def get_agent_id_ordering_predicate(self) -> Callable[[int], int]:
+        return lambda agent_id: 0
 
     def __should_apply_effect(self, agent_id: int) -> bool:
         for target_configuration in self.__target_configurations:

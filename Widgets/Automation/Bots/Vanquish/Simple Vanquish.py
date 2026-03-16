@@ -48,35 +48,74 @@ def bot_routine(bot: Botting) -> None:
     # Travel
     bot.States.AddHeader("Travelling to Explorable") #3
     if BotSettings.TRANSIT_EXPLORABLE:
-            bot.Move.XYAndExitMap(*BotSettings.COORD_TO_EXIT_MAP[-1], target_map_id=BotSettings.TRANSIT_EXPLORABLE)
+            bot.Move.FollowPathAndExitMap(BotSettings.COORD_TO_EXIT_MAP, target_map_id=BotSettings.TRANSIT_EXPLORABLE)
             bot.Move.FollowAutoPath(BotSettings.TRANSIT_PATH)
             bot.Wait.ForMapToChange(BotSettings.EXPLORABLE_TO_TRAVEL)
     else:
-        bot.Move.XYAndExitMap(*BotSettings.COORD_TO_EXIT_MAP[-1], target_map_id=BotSettings.EXPLORABLE_TO_TRAVEL)
-  
+        bot.Move.FollowPathAndExitMap(BotSettings.COORD_TO_EXIT_MAP, target_map_id=BotSettings.EXPLORABLE_TO_TRAVEL)
+
     # Combat
-    bot.States.AddHeader("Start Combat") #4
+    bot.States.AddHeader("Vanquish Path") #4
+    bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Starting Vanquish Path")
     if "bless" in BotSettings.VANQUISH_PATH[0]:
         for i, entry in enumerate(BotSettings.VANQUISH_PATH):
             for key, value in entry.items():
                 if key == "bless":
+                    bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Taking Blessing")
+                    bot.Move.XY(*value)
+                    bot.Wait.ForTime(1500)
                     bot.Move.XYAndInteractNPC(*value)
-                    bot.Multibox.SendDialogToTarget(0x84)
-                    bot.Multibox.SendDialogToTarget(0x85)
+                    bot.Multibox.SendDialogToTarget(0x84) # eotn blessings
+                    bot.Multibox.SendDialogToTarget(0x85) # NF blessings
+                elif key == "junundu":
+                    bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Taking Junundu")
+                    bot.Move.XY(*value)
+                    bot.Wait.ForTime(1500)
+                    bot.Move.XYAndInteractGadget(*value)
                 elif key == "path":
                     bot.Move.FollowAutoPath(value)
     else:
         bot.Move.FollowAutoPath(BotSettings.VANQUISH_PATH)
-       
-    bot.States.AddHeader("Reverse Kill Route") #5
 
-    if "bless" in BotSettings.VANQUISH_PATH[-1]:
-        BotSettings.VANQUISH_PATH = [point for entry in BotSettings.VANQUISH_PATH for point in entry["path"]] 
-        BotSettings.VANQUISH_PATH = list(reversed(BotSettings.VANQUISH_PATH))
-        bot.Move.FollowAutoPath(BotSettings.VANQUISH_PATH)
+    bot.Wait.UntilOutOfCombat()
+    
+    #Reverse Route
+    bot.States.AddHeader("Reverse Vanquish Path") #5
+    bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Starting Reverse Path")
+    if "bless" in BotSettings.VANQUISH_PATH[0]:
+        reversed_list = []
+        for entry in reversed(BotSettings.VANQUISH_PATH):
+            reversed_keys = list(entry.keys())[::-1]
+            reversed_entry = {}
+            for key in reversed_keys:
+                value = entry[key]
+                if isinstance(value, list):
+                    reversed_entry[key] = value[::-1]
+                else:
+                        reversed_entry[key] = value
+            reversed_list.append(reversed_entry)
+        BotSettings.VANQUISH_PATH = reversed_list
+
+        for i, entry in enumerate(BotSettings.VANQUISH_PATH):
+            for key, value in entry.items():
+                if key == "bless":
+                    bot.Move.XY(*value)
+                    bot.Wait.ForTime(1500)
+                    bot.Move.XYAndInteractNPC(*value)
+                    bot.Multibox.SendDialogToTarget(0x84) # eotn blessings
+                    bot.Multibox.SendDialogToTarget(0x85) # NF blessings
+                elif key == "junundu":
+                    bot.Move.XY(*value)
+                    bot.Wait.ForTime(1500)
+                    bot.Move.XYAndInteractGadget(*value)
+                elif key == "path":
+                    bot.Move.FollowAutoPath(value)
     else:
         BotSettings.VANQUISH_PATH = list(reversed(BotSettings.VANQUISH_PATH))
         bot.Move.FollowAutoPath(BotSettings.VANQUISH_PATH)
+
+    bot.Wait.UntilOutOfCombat()
+    bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Finished")
 
 def PrepareForBattle(bot: Botting):                  
     bot.Items.Restock.ArmorOfSalvation()
@@ -88,10 +127,12 @@ def PrepareForBattle(bot: Botting):
 region_index = 0
 map_index = 0
 _farm_configured = [False]
+prev_map_id = 0
 
 def _draw_settings():
     global region_index
     global map_index
+    global prev_map_id    
 
     #Region combo
     PyImGui.text("Region & Map Selection")
@@ -123,18 +164,16 @@ def _draw_settings():
     BotSettings.TRANSIT_EXPLORABLE = ids.get("transit_id")
     if getattr(mod, f"{map_selected}_transit_path", []):
         BotSettings.TRANSIT_PATH = getattr(mod, f"{map_selected}_transit_path", [])
-
-    if not _farm_configured[0]:
-        if PyImGui.button("Select Map to Vanquish", 250, 30):
-            _farm_configured[0] = True
-
-    if _farm_configured[0]:
-        if PyImGui.button("Reload widget to change Map Settings", 250, 30):
-            #_farm_configured[0] = False
-            bot.Stop()
-            #bot.config.FSM.reset()
-            #bot.config.initialized = False
     
+    if prev_map_id != BotSettings.EXPLORABLE_TO_TRAVEL :
+        bot.Stop()
+        bot.config.FSM = FSM(BotSettings.BOT_NAME)
+        bot.config.counters.clear_all()
+        bot.config.initialized = False
+        prev_map_id = BotSettings.EXPLORABLE_TO_TRAVEL
+        _farm_configured[0] = True      
+
+    PyImGui.separator()   
     if PyImGui.button("Travel to Embark Beach", 250, 30):
         Map.Travel(857)
 
@@ -176,8 +215,7 @@ def _draw_settings_debug():
     PyImGui.text(f"BotSettings.COORD_TO_EXIT_MAP: {BotSettings.COORD_TO_EXIT_MAP[-1]}")
     PyImGui.text(f"BotSettings.VANQUISH_PATH: {BotSettings.VANQUISH_PATH[-1]}")
     PyImGui.text(f"BotSettings.TRANSIT_EXPLORABLE: {BotSettings.TRANSIT_EXPLORABLE}")
-    PyImGui.text(f"BotSettings.TRANSIT_PATH: {BotSettings.TRANSIT_PATH[-1]}")
-    
+    PyImGui.text(f"BotSettings.TRANSIT_PATH: {BotSettings.TRANSIT_PATH[-1]}")    
 
 def _draw_help():
     PyImGui.text("Developed by: Aura")

@@ -61,13 +61,11 @@ class BlazingFinaleUtility(CustomSkillUtilityBase):
 
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
-
         if self._get_target() is None: return None
         return self.score_definition.get_score()
 
     @override
     def _execute(self, state: BehaviorState) -> Generator[Any, None, BehaviorResult]:
-
         target = self._get_target()
         if target is None: return BehaviorResult.ACTION_SKIPPED
         result = yield from custom_behavior_helpers.Actions.cast_skill_to_target(self.custom_skill, target)

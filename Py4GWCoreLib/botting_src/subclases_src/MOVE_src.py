@@ -99,7 +99,7 @@ class _MOVE:
                 self._config.FSM.pause()
                 return True  # continue FSM without halting
 
-            if exit_condition:
+            if exit_condition():
                 return True
 
             self._Events.on_unmanaged_fail()

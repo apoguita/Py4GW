@@ -13,6 +13,7 @@ from Py4GWCoreLib import (
     GLOBAL_CACHE,
     Map,
     Player,
+    Range,
     Routines,
     SharedCommandType,
     AgentArray,
@@ -47,20 +48,202 @@ _difficulty_loaded: bool = False
 # ==================== BDS STATISTICS ====================
 BDS_MODEL_IDS = list(range(1987, 2008))  # all BDS variants (domination → channeling)
 
-_BDS_STATS_SECTION = "BDS Stats"
-_bds_stats_path = os.path.join(Py4GW.Console.get_projects_path(), "Bots", "BDS", "bds_stats.ini")
-os.makedirs(os.path.dirname(_bds_stats_path), exist_ok=True)
-_bds_stats_ini = IniHandler(_bds_stats_path)
+_bds_ini_path = os.path.join(Py4GW.Console.get_projects_path(), "Bots", "BDS", "bds_settings.ini")
+os.makedirs(os.path.dirname(_bds_ini_path), exist_ok=True)
+_bds_ini = IniHandler(_bds_ini_path)
 
+# In-memory session stats (leader only, reset on reload)
 _session_bds_found: int = 0
 _session_runs: int = 0
-_bds_pre_snapshot: set = set()  # (model_id, item_id) before chest open
-_session_bds_baselines: dict[str, int] = {}
-_session_start_times: dict[str, float] = {}
+_bds_pre_snapshot: dict[int, int] = {}  # model_id -> count before chest open
 
 _BDS_ICON_PATH = os.path.join(Py4GW.Console.get_projects_path(), "Bots", "BDS", "bds.png")
 
-DWARVEN_BLESSING_DIALOG = 0x84
+# ==================== MERCHANT SETTINGS ====================
+_MERCHANT_SECTION = "BDS Merchant"
+_merchant_enabled: bool = False
+_merchant_id_kits_target: int = 2
+_merchant_salvage_kits_target: int = 5
+_merchant_sell_materials: bool = False
+_merchant_sell_rare_mats: bool = False
+_merchant_buy_ectos: bool = False
+_merchant_ecto_threshold: int = 800_000
+_merchant_alt_wait_ms: int = 90_000
+_merchant_loaded: bool = False
+
+
+def _load_merchant_settings() -> None:
+    global _merchant_enabled, _merchant_id_kits_target, _merchant_salvage_kits_target, _merchant_sell_materials, _merchant_sell_rare_mats, _merchant_buy_ectos, _merchant_ecto_threshold, _merchant_alt_wait_ms, _merchant_loaded
+    if _merchant_loaded:
+        return
+    _merchant_enabled = _bds_ini.read_bool(_MERCHANT_SECTION, "enabled", False)
+    _merchant_id_kits_target = _bds_ini.read_int(_MERCHANT_SECTION, "id_kits_target", 2)
+    _merchant_salvage_kits_target = _bds_ini.read_int(_MERCHANT_SECTION, "salvage_kits_target", 5)
+    _merchant_sell_materials = _bds_ini.read_bool(_MERCHANT_SECTION, "sell_materials", False)
+    _merchant_sell_rare_mats = _bds_ini.read_bool(_MERCHANT_SECTION, "sell_rare_mats", False)
+    _merchant_buy_ectos = _bds_ini.read_bool(_MERCHANT_SECTION, "buy_ectos", False)
+    _merchant_ecto_threshold = _bds_ini.read_int(_MERCHANT_SECTION, "ecto_threshold", 800_000)
+    _merchant_alt_wait_ms = _bds_ini.read_int(_MERCHANT_SECTION, "alt_wait_ms", 90_000)
+    _merchant_loaded = True
+
+
+def _save_merchant_settings() -> None:
+    _bds_ini.write_key(_MERCHANT_SECTION, "enabled", str(_merchant_enabled))
+    _bds_ini.write_key(_MERCHANT_SECTION, "id_kits_target", str(_merchant_id_kits_target))
+    _bds_ini.write_key(_MERCHANT_SECTION, "salvage_kits_target", str(_merchant_salvage_kits_target))
+    _bds_ini.write_key(_MERCHANT_SECTION, "sell_materials", str(_merchant_sell_materials))
+    _bds_ini.write_key(_MERCHANT_SECTION, "sell_rare_mats", str(_merchant_sell_rare_mats))
+    _bds_ini.write_key(_MERCHANT_SECTION, "buy_ectos", str(_merchant_buy_ectos))
+    _bds_ini.write_key(_MERCHANT_SECTION, "ecto_threshold", str(_merchant_ecto_threshold))
+    _bds_ini.write_key(_MERCHANT_SECTION, "alt_wait_ms", str(_merchant_alt_wait_ms))
+
+
+def _find_npc_xy_by_name(name_fragment: str, max_dist: float = 5000.0):
+    """Find the nearest NPC whose display name contains name_fragment."""
+    npcs = AgentArray.GetNPCMinipetArray()
+    npcs = AgentArray.Filter.ByDistance(npcs, Player.GetXY(), max_dist)
+    for npc_id in npcs:
+        npc_name = Agent.GetNameByID(int(npc_id))
+        if name_fragment.lower() in npc_name.lower():
+            return Agent.GetXY(int(npc_id))
+    return None
+
+
+def _count_model_in_inventory(model_id: int) -> int:
+    bag_list = GLOBAL_CACHE.ItemArray.CreateBagList(1, 2, 3, 4)
+    item_array = GLOBAL_CACHE.ItemArray.GetItemArray(bag_list)
+    count = 0
+    for item_id in item_array:
+        if int(GLOBAL_CACHE.Item.GetModelID(item_id)) == int(model_id):
+            count += max(1, int(GLOBAL_CACHE.Item.Properties.GetQuantity(item_id)))
+    return count
+
+
+def _coro_sell_rare_mats_at_trader(x: float, y: float, model_ids: set[int]) -> Generator:
+    """Sell rare material items (by model ID) to the trader at (x, y), one unit at a time.
+    Bypasses SellMaterialsAtTrader which skips IsRareMaterial items."""
+    yield from Routines.Yield.Movement.FollowPath([(x, y)])
+    yield from Routines.Yield.wait(100)
+    yield from Routines.Yield.Agents.InteractWithAgentXY(x, y)
+    yield from Routines.Yield.wait(1000)
+
+    bag_list = GLOBAL_CACHE.ItemArray.CreateBagList(1, 2, 3, 4)
+    item_array = GLOBAL_CACHE.ItemArray.GetItemArray(bag_list)
+    sold_total = 0
+    for item_id in item_array:
+        if int(GLOBAL_CACHE.Item.GetModelID(item_id)) not in model_ids:
+            continue
+        stack_qty = int(GLOBAL_CACHE.Item.Properties.GetQuantity(item_id))
+        while stack_qty > 0:
+            quoted = yield from Routines.Yield.Merchant._wait_for_quote(
+                GLOBAL_CACHE.Trading.Trader.RequestSellQuote, item_id,
+                timeout_ms=750, step_ms=10)
+            if quoted <= 0:
+                break
+            GLOBAL_CACHE.Trading.Trader.SellItem(item_id, quoted)
+            new_qty = yield from Routines.Yield.Merchant._wait_for_stack_quantity_drop(
+                item_id, stack_qty, timeout_ms=750, step_ms=10)
+            if new_qty >= stack_qty:
+                break
+            sold_total += stack_qty - new_qty
+            stack_qty = new_qty
+    ConsoleLog(BOT_NAME, f"[Merchant] Sold {sold_total} rare material unit(s) at trader")
+
+
+def _get_leftover_material_item_ids(batch_size: int = 10) -> list[int]:
+    """Return item IDs of common (non-rare) material stacks with quantity < batch_size."""
+    bag_list = GLOBAL_CACHE.ItemArray.CreateBagList(1, 2, 3, 4)
+    item_array = GLOBAL_CACHE.ItemArray.GetItemArray(bag_list)
+    leftovers: list[int] = []
+    for item_id in item_array:
+        if not GLOBAL_CACHE.Item.Type.IsMaterial(item_id):
+            continue
+        if GLOBAL_CACHE.Item.Type.IsRareMaterial(item_id):
+            continue
+        qty = int(GLOBAL_CACHE.Item.Properties.GetQuantity(item_id))
+        if 0 < qty < batch_size:
+            leftovers.append(int(item_id))
+    return leftovers
+
+
+_SCROLL_MODEL_IDS = {5594, 5595, 5611, 5853, 5975, 5976, 21233}
+_SCROLL_MODEL_FILTER = "5594,5595,5611,5853,5975,5976,21233"
+
+
+def _coro_sell_scrolls(mx: float, my: float) -> Generator:
+    """Sell XP/insight scrolls to the GH merchant."""
+    bag_list = GLOBAL_CACHE.ItemArray.CreateBagList(1, 2, 3, 4)
+    item_array = GLOBAL_CACHE.ItemArray.GetItemArray(bag_list)
+    sell_ids = [int(item_id) for item_id in item_array
+                if int(GLOBAL_CACHE.Item.GetModelID(item_id)) in _SCROLL_MODEL_IDS]
+    if not sell_ids:
+        ConsoleLog(BOT_NAME, "[Merchant] No scrolls to sell in bags 1-4")
+        storage_hits = [(mid, GLOBAL_CACHE.Inventory.GetModelCountInStorage(mid))
+                        for mid in _SCROLL_MODEL_IDS]
+        storage_hits = [(mid, cnt) for mid, cnt in storage_hits if cnt > 0]
+        if storage_hits:
+            ConsoleLog(BOT_NAME, f"[Merchant] WARNING: scrolls found in STORAGE (InventoryPlus deposited them): {storage_hits}")
+        yield
+        return
+    for item_id in sell_ids:
+        val = GLOBAL_CACHE.Item.Properties.GetValue(item_id)
+        qty = GLOBAL_CACHE.Item.Properties.GetQuantity(item_id)
+        mid = GLOBAL_CACHE.Item.GetModelID(item_id)
+        ConsoleLog(BOT_NAME, f"[Merchant] Scroll queued: item_id={item_id} model={mid} qty={qty} value={val}")
+    yield from bot.Move._coro_xy_and_interact_npc(mx, my, "GH Merchant (scrolls)")
+    yield from Routines.Yield.wait(1200)
+    ConsoleLog(BOT_NAME, f"[Merchant] Selling {len(sell_ids)} scroll(s) at merchant")
+    yield from Routines.Yield.Merchant.SellItems(sell_ids, log=True)
+    yield from Routines.Yield.wait(300)
+
+
+def _coro_sell_nonsalvageable_golds(mx: float, my: float) -> Generator:
+    """Sell all identified, non-salvageable gold items (e.g. anniversary weapons) to the GH merchant."""
+    bag_list = GLOBAL_CACHE.ItemArray.CreateBagList(1, 2, 3, 4)
+    item_array = GLOBAL_CACHE.ItemArray.GetItemArray(bag_list)
+    sell_ids = []
+    for item_id in item_array:
+        _, rarity = GLOBAL_CACHE.Item.Rarity.GetRarity(item_id)
+        if rarity != "Gold":
+            continue
+        if not GLOBAL_CACHE.Item.Usage.IsIdentified(item_id):
+            continue
+        if GLOBAL_CACHE.Item.Usage.IsSalvageable(item_id):
+            continue
+        sell_ids.append(int(item_id))
+    if not sell_ids:
+        ConsoleLog(BOT_NAME, "[Merchant] No non-salvageable gold items to sell")
+        yield
+        return
+    yield from bot.Move._coro_xy_and_interact_npc(mx, my, "GH Merchant (non-salvageable golds)")
+    yield from Routines.Yield.wait(1200)
+    ConsoleLog(BOT_NAME, f"[Merchant] Selling {len(sell_ids)} non-salvageable gold item(s) at merchant")
+    yield from Routines.Yield.Merchant.SellItems(sell_ids, log=True)
+    yield from Routines.Yield.wait(300)
+
+
+_MERCHANT_MANAGED_WIDGETS = ("InventoryPlus", "CustomBehaviors")
+_PRETRAVEL_DISABLE_WIDGETS = ("InventoryPlus",)  # disable before GH travel so deposit cycle doesn't run on GH entry
+
+
+def _disable_merchant_widgets() -> Generator:
+    """Disable InventoryPlus and CustomBehaviors on leader + all alts during GH merchant ops."""
+    from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler as _get_wh
+    ConsoleLog(BOT_NAME, "[Merchant] Disabling managed widgets on all accounts")
+    wh = _get_wh()
+    for name in _MERCHANT_MANAGED_WIDGETS:
+        wh.disable_widget(name)
+    _my_email = Player.GetAccountEmail()
+    for acc in GLOBAL_CACHE.ShMem.GetAllAccountData():
+        if acc.AccountEmail != _my_email:
+            for name in _MERCHANT_MANAGED_WIDGETS:
+                GLOBAL_CACHE.ShMem.SendMessage(
+                    _my_email, acc.AccountEmail,
+                    SharedCommandType.DisableWidget, (0, 0, 0, 0), (name, "", "", ""),
+                )
+    ConsoleLog(BOT_NAME, f"[Merchant] Disabled {_MERCHANT_MANAGED_WIDGETS} on all accounts")
+    yield
+
 SHANDRA_TAKE_DIALOGS = 0x832401
 SHANDRA_QUEST_REWARD_DIALOG = 0x832407
 SHANDRA_QUEST_ID = 0x324
@@ -156,11 +339,11 @@ def Search_and_talk_with_Shandra(bot: Botting):
         yield from Routines.Yield.wait(500)
 
 def _interact_with_Shandra(bot: Botting, dialog_id: int, tolerance: float = 220.0):
-    npc_name = "Shandra, membre d'équipage"
+    npc_name = "Crewmember Shandra"
 
     agent_id = yield from Yield.Agents.GetAgentIDByName(npc_name)
     if not agent_id:
-        ConsoleLog(BOT_NAME, f"[Shandra] {npc_name} introuvable", log=True)
+        ConsoleLog(BOT_NAME, f"[Shandra] {npc_name} not found", log=True)
         return False
 
     x, y = Agent.GetXY(agent_id)
@@ -168,7 +351,7 @@ def _interact_with_Shandra(bot: Botting, dialog_id: int, tolerance: float = 220.
     
     ok = yield from _move_to(x, y, tolerance=tolerance)
     if not ok:
-        ConsoleLog(BOT_NAME, "[Shandra] Impossible d'approcher Shandra", log=True)
+        ConsoleLog(BOT_NAME, "[Shandra] Impossible to approach Shandra", log=True)
         return False
         
 
@@ -270,53 +453,304 @@ def _post_return_flow(bot: Botting) -> Generator:
     ConsoleLog(BOT_NAME, "[POST-RETURN] Reward taken -> continue", log=True)
     yield
 
-def _key(email: str) -> str:
-    return email.replace("@", "_at_").replace(".", "_")
+
+
+def _disable_inventoryplus_pretravel() -> Generator:
+    """Disable InventoryPlus on leader + alts BEFORE GH travel, so InventoryPlus cannot
+    run its auto-deposit cycle when accounts enter GH (which would send scrolls to storage)."""
+    from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler as _get_wh
+    ConsoleLog(BOT_NAME, "[Merchant] Pre-travel: disabling InventoryPlus on all accounts")
+    wh = _get_wh()
+    for name in _PRETRAVEL_DISABLE_WIDGETS:
+        wh.disable_widget(name)
+    _my_email = Player.GetAccountEmail()
+    for acc in GLOBAL_CACHE.ShMem.GetAllAccountData():
+        if acc.AccountEmail != _my_email:
+            for name in _PRETRAVEL_DISABLE_WIDGETS:
+                GLOBAL_CACHE.ShMem.SendMessage(
+                    _my_email, acc.AccountEmail,
+                    SharedCommandType.DisableWidget, (0, 0, 0, 0), (name, "", "", ""),
+                )
+    ConsoleLog(BOT_NAME, "[Merchant] Pre-travel: InventoryPlus disabled — waiting 1.5s for alts to process")
+    yield from Routines.Yield.wait(1500)
+
+
+def _reenable_merchant_widgets() -> Generator:
+    """Re-enable InventoryPlus and CustomBehaviors on leader + all alts after GH merchant ops.
+    Called once all accounts are back in Vlox's Falls, ready to enter the dungeon."""
+    from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler as _get_wh
+    ConsoleLog(BOT_NAME, "[Merchant] Re-enabling managed widgets on all accounts")
+    wh = _get_wh()
+    for name in _MERCHANT_MANAGED_WIDGETS:
+        wh.enable_widget(name)
+    _my_email = Player.GetAccountEmail()
+    for acc in GLOBAL_CACHE.ShMem.GetAllAccountData():
+        if acc.AccountEmail != _my_email:
+            for name in _MERCHANT_MANAGED_WIDGETS:
+                GLOBAL_CACHE.ShMem.SendMessage(
+                    _my_email, acc.AccountEmail,
+                    SharedCommandType.EnableWidget, (0, 0, 0, 0), (name, "", "", ""),
+                )
+    ConsoleLog(BOT_NAME, f"[Merchant] Re-enabled {_MERCHANT_MANAGED_WIDGETS} on all accounts")
+    yield
+
+
+def _gh_merchant_setup(leave_party: bool = True) -> Generator:
+    """Travel to Guild Hall (all accounts via SharedMemory), restock kits, sell materials,
+    sell leftover stacks and optionally buy ectos. Mirrors the FoW modular bot pattern."""
+    from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
+    from Sources.oazix.CustomBehaviors.primitives.parties.party_command_contants import PartyCommandConstants
+    from Py4GWCoreLib.enums_src.Model_enums import ModelID as _ModelID
+
+    _load_merchant_settings()
+    if not _merchant_enabled:
+        yield
+        return
+
+    # ── Step 0 (startup only): Leave current party on all accounts ────────────
+    if leave_party:
+        ConsoleLog(BOT_NAME, "[Merchant] Leaving party on all accounts before GH travel")
+        _my_email = Player.GetAccountEmail()
+        for acc in GLOBAL_CACHE.ShMem.GetAllAccountData():
+            if acc.AccountEmail != _my_email:
+                GLOBAL_CACHE.ShMem.SendMessage(_my_email, acc.AccountEmail, SharedCommandType.LeaveParty, (0, 0, 0, 0), ("", "", "", ""))
+        GLOBAL_CACHE.Party.LeaveParty()
+        yield from Routines.Yield.wait(2000)
+
+    # ── Pre-travel: Disable InventoryPlus BEFORE GH entry so its auto-deposit cycle
+    #    cannot send scrolls (or other items) to storage when accounts enter GH. ──
+    yield from _disable_inventoryplus_pretravel()
+
+    # ── Step 1: Send ALL accounts to their own Guild Hall (FoW pattern) ───────
+    ConsoleLog(BOT_NAME, "[Merchant] Waiting for CustomBehaviorParty to be ready")
+    _cb_deadline = time.time() + 30
+    while not CustomBehaviorParty().is_ready_for_action() and time.time() < _cb_deadline:
+        yield from Routines.Yield.wait(100)
+
+    ConsoleLog(BOT_NAME, "[Merchant] Scheduling GH travel for all accounts")
+    _ok = bool(CustomBehaviorParty().schedule_action(PartyCommandConstants.travel_gh))
+    if not _ok:
+        ConsoleLog(BOT_NAME, "[Merchant] CB schedule failed — falling back to local TravelGH")
+        if not Map.IsGuildHall():
+            Map.TravelGH()
+
+    # Wait for all accounts to arrive at their GH
+    _cb_deadline = time.time() + 60
+    while not CustomBehaviorParty().is_ready_for_action() and time.time() < _cb_deadline:
+        yield from Routines.Yield.wait(200)
+
+    # Ensure leader is in GH
+    _gh_deadline = time.time() + 30
+    while not Map.IsGuildHall() and time.time() < _gh_deadline:
+        yield from Routines.Yield.wait(500)
+
+    if not Map.IsGuildHall():
+        ConsoleLog(BOT_NAME, "[Merchant] Failed to reach Guild Hall — skipping merchant step")
+        yield
+        return
+
+    yield from Routines.Yield.wait(3000)  # wait for NPCs to finish loading
+
+    # ── Disable CustomBehavior and InventoryPlus on all accounts during merchant ops ──
+    yield from _disable_merchant_widgets()
+
+    # ── Helpers ───────────────────────────────────────────────────────────────
+    _my_email = Player.GetAccountEmail()
+
+    def _dispatch_to_alts(command, params, extra_data=("", "", "", "")):
+        for _acc in GLOBAL_CACHE.ShMem.GetAllAccountData():
+            if _acc.AccountEmail != _my_email:
+                GLOBAL_CACHE.ShMem.SendMessage(_my_email, _acc.AccountEmail, command, params, extra_data)
+
+    # ── Step 2: Find NPC coordinates ──────────────────────────────────────────
+    _RARE_MAT_MODELS = {935, 936}  # Diamond=935, Onyx Gemstone=936
+    _RARE_MAT_FILTER  = "935,936"  # encoded for ShMem dispatch
+
+    merchant_xy   = _find_npc_xy_by_name("Merchant")
+    mat_xy        = _find_npc_xy_by_name("Material Trader") if _merchant_sell_materials else None
+    rare_xy       = _find_npc_xy_by_name("Rare") if (_merchant_buy_ectos or _merchant_sell_rare_mats) else None
+
+    # ── Step 3: Sell materials at trader (leader + alts) ─────────────────────
+    if _merchant_sell_materials:
+        if mat_xy:
+            tmx, tmy = mat_xy
+            ConsoleLog(BOT_NAME, f"[Merchant] Dispatching sell_materials to alts, trader at ({tmx:.0f}, {tmy:.0f})")
+            _dispatch_to_alts(
+                SharedCommandType.MerchantMaterials,
+                (tmx, tmy, 0, 0),
+                ("sell", "", "", ""),
+            )
+            ConsoleLog(BOT_NAME, "[Merchant] Selling materials at trader (leader)")
+            yield from Routines.Yield.Merchant.SellMaterialsAtTrader(tmx, tmy)
+            yield from Routines.Yield.wait(2000)  # give alts time to start processing sell_materials
+        else:
+            ConsoleLog(BOT_NAME, "[Merchant] No Material Trader NPC found")
+
+        # ── Step 4: Sell leftover stacks < 10 to regular merchant (leader + alts)
+        if merchant_xy:
+            mx, my = merchant_xy
+            ConsoleLog(BOT_NAME, "[Merchant] Dispatching sell_merchant_leftovers to alts")
+            _dispatch_to_alts(
+                SharedCommandType.MerchantMaterials,
+                (mx, my, 0, 0),
+                ("sell_merchant_leftovers", "", "", ""),
+            )
+            leftover_ids = _get_leftover_material_item_ids()
+            if leftover_ids:
+                ConsoleLog(BOT_NAME, f"[Merchant] Selling {len(leftover_ids)} leftover stacks (leader)")
+                yield from bot.Move._coro_xy_and_interact_npc(mx, my, "GH Merchant (leftovers)")
+                yield from Routines.Yield.wait(1200)
+                yield from Routines.Yield.Merchant.SellItems(leftover_ids, log=True)
+                yield from Routines.Yield.wait(300)
+
+    # ── Step 5: Sell non-salvageable gold items (anniversary weapons) to merchant ─
+    if merchant_xy:
+        mx, my = merchant_xy
+        ConsoleLog(BOT_NAME, "[Merchant] Dispatching sell_nonsalvageable_golds to alts")
+        _dispatch_to_alts(
+            SharedCommandType.MerchantMaterials,
+            (mx, my, 0, 0),
+            ("sell_nonsalvageable_golds", "", "", ""),
+        )
+        yield from _coro_sell_nonsalvageable_golds(mx, my)
+
+    # ── Step 6: Sell XP/insight scrolls to merchant (leader + alts) ──────────
+    if merchant_xy:
+        mx, my = merchant_xy
+        ConsoleLog(BOT_NAME, "[Merchant] Dispatching sell_scrolls to alts")
+        _dispatch_to_alts(
+            SharedCommandType.MerchantMaterials,
+            (mx, my, 0, 0),
+            ("sell_scrolls", _SCROLL_MODEL_FILTER, "", ""),
+        )
+        yield from _coro_sell_scrolls(mx, my)
+
+    # ── Step 7: Restock kits (leader + alts) — after all selling to maximise free space
+    if merchant_xy:
+        mx, my = merchant_xy
+        ConsoleLog(BOT_NAME, f"[Merchant] Merchant at ({mx:.0f}, {my:.0f}) — dispatching kits to alts")
+        _dispatch_to_alts(
+            SharedCommandType.MerchantItems,
+            (mx, my, _merchant_id_kits_target, _merchant_salvage_kits_target),
+        )
+        yield from bot.Move._coro_xy_and_interact_npc(mx, my, "GH Merchant")
+        yield from Routines.Yield.wait(1200)
+        id_kits     = _count_model_in_inventory(_ModelID.Identification_Kit.value)
+        sup_id_kits = _count_model_in_inventory(_ModelID.Superior_Identification_Kit.value)
+        salvage_kits = _count_model_in_inventory(_ModelID.Salvage_Kit.value)
+        id_to_buy      = max(0, _merchant_id_kits_target     - (id_kits + sup_id_kits))
+        salvage_to_buy = max(0, _merchant_salvage_kits_target - salvage_kits)
+        ConsoleLog(BOT_NAME, f"[Merchant] Buying {id_to_buy} ID kits, {salvage_to_buy} salvage kits")
+        yield from Routines.Yield.Merchant.BuyIDKits(id_to_buy, log=True)
+        yield from Routines.Yield.Merchant.BuySalvageKits(salvage_to_buy, log=True)
+        yield from Routines.Yield.wait(300)
+    else:
+        ConsoleLog(BOT_NAME, "[Merchant] No Merchant NPC found — skipping kit purchase")
+
+    # ── Step 6: Sell Diamonds & Onyx to Rare Material Trader (leader + alts) ──
+    if _merchant_sell_rare_mats:
+        if rare_xy:
+            rx, ry = rare_xy
+            ConsoleLog(BOT_NAME, "[Merchant] Dispatching sell_rare_mats (Diamond/Onyx) to alts")
+            _dispatch_to_alts(
+                SharedCommandType.MerchantMaterials,
+                (rx, ry, 0, 0),
+                ("sell_rare_mats", _RARE_MAT_FILTER, "", ""),
+            )
+            ConsoleLog(BOT_NAME, "[Merchant] Selling Diamond/Onyx at Rare Material Trader (leader)")
+            yield from _coro_sell_rare_mats_at_trader(rx, ry, _RARE_MAT_MODELS)
+        else:
+            ConsoleLog(BOT_NAME, "[Merchant] No Rare Material Trader found — skipping rare mat sell")
+
+    # ── Step 7: Buy ectos from storage excess (leader + alts independently)
+    # Storage is PER-ACCOUNT in GW — each account checks its own storage independently.
+    # Always dispatch to alts so each alt can buy if ITS OWN storage exceeds threshold.
+    if _merchant_buy_ectos and rare_xy:
+        rx, ry = rare_xy
+        ConsoleLog(BOT_NAME, f"[Merchant] Dispatching buy_ectoplasm to all alts (threshold={_merchant_ecto_threshold:,})")
+        _dispatch_to_alts(
+            SharedCommandType.MerchantMaterials,
+            (rx, ry, _merchant_ecto_threshold, _merchant_ecto_threshold),
+            ("buy_ectoplasm", "1", "0", ""),  # use_storage_gold=True; each alt checks own storage
+        )
+        # Leader buys from its own storage independently
+        leader_storage = int(GLOBAL_CACHE.Inventory.GetGoldInStorage())
+        if leader_storage > _merchant_ecto_threshold:
+            ConsoleLog(BOT_NAME, f"[Merchant] Leader buying ectos (storage={leader_storage:,}, threshold={_merchant_ecto_threshold:,})")
+            yield from Routines.Yield.Merchant.BuyEctoplasm(
+                rx, ry,
+                use_storage_gold=True,
+                start_threshold=_merchant_ecto_threshold,
+                stop_threshold=_merchant_ecto_threshold,
+            )
+        else:
+            ConsoleLog(BOT_NAME, f"[Merchant] Leader storage ({leader_storage:,}) at/below threshold — skipping leader ecto buy")
+    elif _merchant_buy_ectos:
+        ConsoleLog(BOT_NAME, "[Merchant] Ecto buy skipped — no Rare Material Trader found")
+
+    # ── Step 8: Wait for alts to finish their queued actions ─────────────────
+    ConsoleLog(BOT_NAME, f"[Merchant] Waiting {_merchant_alt_wait_ms // 1000}s for alts to complete merchant actions")
+    yield from Routines.Yield.wait(_merchant_alt_wait_ms)
+
+    # ── Step 9: Return to Vlox's Fall ────────────────────────────────────────
+    ConsoleLog(BOT_NAME, "[Merchant] Returning to Vlox's Fall")
+    yield from bot.Map._coro_travel(Vloxs_Fall, "")
+    ConsoleLog(BOT_NAME, "[Merchant] Guild Hall merchant run complete")
+    yield
+
+
+def _gh_merchant_setup_if_inventory_full() -> Generator:
+    """After quest reward: if only 1 free inventory slot remains, resign to outpost then run the full GH merchant routine."""
+    free_slots = int(GLOBAL_CACHE.Inventory.GetFreeSlotCount())
+    if free_slots > 1:
+        yield
+        return
+    ConsoleLog(BOT_NAME, f"[Merchant] Inventory nearly full ({free_slots} free slot) — resigning to outpost then triggering GH merchant run")
+
+    # Resign all accounts (except leader) so they return to outpost
+    _my_email = Player.GetAccountEmail()
+    for acc in GLOBAL_CACHE.ShMem.GetAllAccountData():
+        if acc.AccountEmail != _my_email:
+            GLOBAL_CACHE.ShMem.SendMessage(_my_email, acc.AccountEmail, SharedCommandType.Resign, (0, 0, 0, 0), ("", "", "", ""))
+    # Leader resigns itself directly
+    Player.SendChatCommand("resign")
+    yield from Routines.Yield.wait(500)
+
+    # Wait until leader is back in an outpost
+    yield from bot.Wait._coro_until_on_outpost()
+
+    yield from _gh_merchant_setup(leave_party=False)
+    yield from _reenable_merchant_widgets()
 
 
 def _snapshot_bds_before_chest() -> Generator:
     global _bds_pre_snapshot
-    _bds_pre_snapshot = set()
+    _bds_pre_snapshot = {}
     for model_id in BDS_MODEL_IDS:
-        item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(model_id)
-        if item_id:
-            _bds_pre_snapshot.add((model_id, item_id))
-    ConsoleLog(BOT_NAME, f"[BDS Stats] Pre-chest snapshot: {len(_bds_pre_snapshot)} BDS in inventory")
+        count = GLOBAL_CACHE.Inventory.GetModelCount(model_id)
+        if count > 0:
+            _bds_pre_snapshot[model_id] = count
+    total_pre = sum(_bds_pre_snapshot.values())
+    ConsoleLog(BOT_NAME, f"[BDS Stats] Pre-chest snapshot: {total_pre} BDS in inventory")
     yield
 
 
 def _record_bds_after_loot() -> Generator:
     global _session_bds_found, _session_runs
-    post: set = set()
+    new_count = 0
     for model_id in BDS_MODEL_IDS:
-        item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(model_id)
-        if item_id:
-            post.add((model_id, item_id))
-
-    new_count = len(post - _bds_pre_snapshot)
+        post_count = GLOBAL_CACHE.Inventory.GetModelCount(model_id)
+        pre_count = _bds_pre_snapshot.get(model_id, 0)
+        if post_count > pre_count:
+            new_count += post_count - pre_count
     _session_bds_found += new_count
     _session_runs += 1
 
-    email = Player.GetAccountEmail()
-    k = _key(email)
-    # Resolve character name from ShMem (avoid showing account email in UI)
-    char_name = "Unknown Character"
-    for acc in GLOBAL_CACHE.ShMem.GetAllAccountData():
-        if acc.AccountEmail == email:
-            char_name = acc.AgentData.CharacterName or "Unknown Character"
-            break
-
-    prev_total = _bds_stats_ini.read_int(_BDS_STATS_SECTION, k + "_total", 0)
-    prev_runs  = _bds_stats_ini.read_int(_BDS_STATS_SECTION, k + "_runs",  0)
-    _bds_stats_ini.write_key(_BDS_STATS_SECTION, k + "_total",    str(prev_total + new_count))
-    _bds_stats_ini.write_key(_BDS_STATS_SECTION, k + "_runs",     str(prev_runs  + 1))
-    _bds_stats_ini.write_key(_BDS_STATS_SECTION, k + "_email",    email)
-    _bds_stats_ini.write_key(_BDS_STATS_SECTION, k + "_charname", char_name)
-
+    rate = f"{(_session_bds_found / _session_runs):.2f}/run" if _session_runs > 0 else "-"
     if new_count > 0:
-        ConsoleLog(BOT_NAME, f"[BDS Stats] {char_name}: +{new_count} BDS! Total: {prev_total + new_count} in {prev_runs + 1} runs")
+        ConsoleLog(BOT_NAME, f"[BDS Stats] +{new_count} BDS this run! Session: {_session_bds_found} in {_session_runs} runs ({rate})")
     else:
-        ConsoleLog(BOT_NAME, f"[BDS Stats] {char_name}: no BDS this run. Total: {prev_total} in {prev_runs + 1} runs")
+        ConsoleLog(BOT_NAME, f"[BDS Stats] No BDS this run. Session: {_session_bds_found} in {_session_runs} runs ({rate})")
     yield
 
 
@@ -325,50 +759,14 @@ def _draw_bds_stats() -> None:
     from Py4GWCoreLib import ImGui, Color
 
     gold = Color(255, 210, 80, 255).to_tuple_normalized()
-    now = time.time()
-    rows: list[tuple[str, int, int, str, int]] = []
 
-    for account in GLOBAL_CACHE.ShMem.GetAllAccountData():
-        email = account.AccountEmail
-        if not email:
-            continue
-        char_name = account.AgentData.CharacterName or "Unknown Character"
-        k = _key(email)
-        total = _bds_stats_ini.read_int(_BDS_STATS_SECTION, k + "_total", 0)
-        runs = _bds_stats_ini.read_int(_BDS_STATS_SECTION, k + "_runs", 0)
-        rate = f"{(total / runs):.2f}/run" if runs > 0 else "-"
-
-        if char_name not in _session_bds_baselines:
-            _session_bds_baselines[char_name] = total
-            _session_start_times[char_name] = now
-        session_gained = max(0, total - _session_bds_baselines[char_name])
-        elapsed = max(1.0, now - _session_start_times[char_name])
-        per_hour = int((session_gained / elapsed) * 3600)
-        rows.append((char_name, total, runs, rate, per_hour))
-
-    ImGui.image(_BDS_ICON_PATH, (24, 24))
-    PyImGui.same_line(0, 8)
-    PyImGui.text_colored("BDS Statistics", gold)
-    PyImGui.text(f"Session total: {_session_bds_found} drops in {_session_runs} runs")
-
-    if not rows:
-        PyImGui.text("No account data available.")
-        return
-
-    rows.sort(key=lambda r: (r[1], r[2], r[0].lower()), reverse=True)
-    for i, (char_name, total, runs, rate, per_hour) in enumerate(rows):
-        if i > 0:
-            PyImGui.spacing()
-            PyImGui.separator()
-            PyImGui.spacing()
-
-        ImGui.image(_BDS_ICON_PATH, (18, 18))
-        PyImGui.same_line(0, 6)
-        PyImGui.text_colored(char_name, gold)
-        PyImGui.dummy(0, 2)
-        PyImGui.text(f"BDS dropped: {total}   |   Runs: {runs}   |   Rate: {rate}")
-        PyImGui.text(f"Session speed: {per_hour}/hr")
-        PyImGui.dummy(0, 3)
+    _bds_icon_exists = os.path.isfile(_BDS_ICON_PATH)
+    if _bds_icon_exists:
+        ImGui.image(_BDS_ICON_PATH, (24, 24))
+        PyImGui.same_line(0, 8)
+    PyImGui.text_colored("BDS Statistics (this session)", gold)
+    rate = f"{(_session_bds_found / _session_runs):.2f}/run" if _session_runs > 0 else "-"
+    PyImGui.text(f"BDS dropped: {_session_bds_found}   |   Runs: {_session_runs}   |   Rate: {rate}")
 
 TEXTURE = os.path.join(Py4GW.Console.get_projects_path(), "Bots","BDS","bds.png")
 
@@ -396,24 +794,16 @@ SHANDRA_POSITION = (14067.01, -17253.24)
 # ==================== GLOBAL VARIABLES ====================
 bot = Botting(
     bot_name=BOT_NAME,
-    upkeep_auto_combat_active=True,
+    upkeep_auto_combat_active=False,
     upkeep_auto_loot_active=True,
     upkeep_morale_active=True,
+    upkeep_auto_inventory_management_active=True,
 )
 
 # ==================== UTILITY FUNCTIONS ====================
 
 from typing import Dict, List, Tuple, Optional, Any, Callable, Generator
 
-
-def _abandon_lost_souls_if_in_vloxs_fall() -> None:
-    """Only when in Vloxs Fall: if Lost Souls (0x324) is in quest log, abandon it."""
-    if int(Map.GetMapID()) != Vloxs_Fall:
-        return
-    log_ids = bot.Quest.GetQuestLogIds() or []
-    if LOST_SOULS_QUEST_ID in log_ids:
-        bot.Quest.AbandonQuest(LOST_SOULS_QUEST_ID)
-        ConsoleLog(BOT_NAME, "Abandoned quest: Lost Souls (0x324)")
 
 # ==================== AUTO SHRINE + STEP REGISTRY ====================
 
@@ -567,7 +957,6 @@ def debug_item_signature(max_dist: float = 2500.0) -> Generator:
 
     yield
 
-
 INTERACTABLE_TYPES = {0x200, 0x400}  # coffres / portes / brasiers (comme ton AutoIt)
 
 
@@ -586,7 +975,7 @@ def pickup_torch(max_scan_dist: float = 5000, attempts: int = 40) -> Generator:
     inv = PyInventory.PyInventory()
     me = int(Player.GetAgentID())
 
-    ConsoleLog("TORCH", "scan+pickup start")
+    ConsoleLog("TORCH", "Scanning for Torch")
 
     for _ in range(attempts):
         arr = AgentArray.GetItemArray()
@@ -696,14 +1085,14 @@ def pickup_torch(max_scan_dist: float = 5000, attempts: int = 40) -> Generator:
                 still_there = False
 
             if not still_there:
-                ConsoleLog("TORCH", "✅ picked")
+                ConsoleLog("TORCH", "Torch picked up")
                 yield
                 return
 
-        ConsoleLog("TORCH", "pickup attempt failed -> retry")
+        ConsoleLog("TORCH", "Torch pickup attempt failed -> retry")
         yield from Routines.Yield.wait(200)
 
-    ConsoleLog("TORCH", "❌ pickup failed")
+    ConsoleLog("TORCH", "Torch pickup failed")
     yield
 
 
@@ -848,7 +1237,7 @@ def _brazier_sequence_gen(points: list[tuple[float, float]], interact_dist: floa
 
 def _log_cleaning_room() -> Generator:
     """Log message when L2 - Cleaning header state is reached."""
-    ConsoleLog(BOT_NAME, "Making sure no enemys are left")
+    ConsoleLog(BOT_NAME, "Clearing room level 2")
     yield
 
 
@@ -969,6 +1358,81 @@ def open_fendi_chest():
     yield
 
 
+def resolve_fendi_fight() -> Generator:
+    """
+    Hold near Fendi's position, kill all enemies in compass range,
+    and require 20s stable verification with neither Fendi Nin
+    nor Soul of Fendi present before finishing.
+    """
+    boss_model_ids = {7064, 7065} #Fendi Nin and Soul of Fendi
+    anchor_x, anchor_y = (-16022.9, 17889.9)
+    compass_sq = Range.Compass.value ** 2
+    anchor_soft_radius_sq = 750.0 ** 2
+    stable_verify_ms = 0
+
+    while stable_verify_ms < 20000:
+        if Map.GetMapID() != SoO_lvl3:
+            break
+        if not Routines.Checks.Map.MapValid():
+            yield from Routines.Yield.wait(500)
+            continue
+
+        player_pos = Player.GetXY()
+        if not player_pos:
+            yield from Routines.Yield.wait(500)
+            continue
+
+        dx_a = anchor_x - player_pos[0]
+        dy_a = anchor_y - player_pos[1]
+        if (dx_a * dx_a + dy_a * dy_a) > anchor_soft_radius_sq:
+            Player.Move(anchor_x, anchor_y)
+
+        nearest_id = 0
+        nearest_dist_sq = float("inf")
+        boss_present = False
+
+        for agent_id in AgentArray.GetEnemyArray():
+            if not Agent.IsAlive(agent_id):
+                continue
+            enemy_pos = Agent.GetXY(agent_id)
+            if not enemy_pos:
+                continue
+            ax = enemy_pos[0] - anchor_x
+            ay = enemy_pos[1] - anchor_y
+            if (ax * ax + ay * ay) > compass_sq:
+                continue
+            if Agent.GetModelID(agent_id) in boss_model_ids:
+                boss_present = True
+            px = enemy_pos[0] - player_pos[0]
+            py = enemy_pos[1] - player_pos[1]
+            dist_sq = px * px + py * py
+            if dist_sq < nearest_dist_sq:
+                nearest_dist_sq = dist_sq
+                nearest_id = agent_id
+
+        if nearest_id:
+            stable_verify_ms = 0
+            Player.ChangeTarget(nearest_id)
+            Player.Interact(nearest_id, True)
+            target_pos = Agent.GetXY(nearest_id)
+            if target_pos:
+                dx = target_pos[0] - player_pos[0]
+                dy = target_pos[1] - player_pos[1]
+                if (dx * dx + dy * dy) > (Range.Earshot.value ** 2):
+                    Player.Move(target_pos[0], target_pos[1])
+        else:
+            if not boss_present:
+                stable_verify_ms += 500
+            else:
+                stable_verify_ms = 0
+            Player.Move(anchor_x, anchor_y)
+
+        yield from Routines.Yield.wait(500)
+
+    ConsoleLog(BOT_NAME, "Fendi is dead -- area clear for 20s. Goodluck on chest ^.^")
+    yield
+
+
 def wait_for_map_change(target_map_id, timeout_seconds=60):
     """Wait for map change with timeout"""
     ConsoleLog(BOT_NAME, f"Waiting for map change to {target_map_id}...")
@@ -1009,7 +1473,6 @@ def _on_party_wipe(bot: "Botting"):
         ],
         SoO_lvl3: [
             ("Secure return 1 - L3", 17544.0, 18810.0),
-            ("Secure return 2 - L3", -2964.1,7302.1),
             ("Secure return boss - L3", -9686.32, 2632)
         ],
     }
@@ -1163,11 +1626,71 @@ def _draw_difficulty_setting() -> None:
         _use_hard_mode = new_hard_mode
         _save_difficulty_setting()
 
+def _draw_merchant_settings() -> None:
+    import PyImGui
+    global _merchant_enabled, _merchant_id_kits_target, _merchant_salvage_kits_target, _merchant_sell_materials, _merchant_sell_rare_mats, _merchant_buy_ectos, _merchant_ecto_threshold, _merchant_alt_wait_ms
+
+    _load_merchant_settings()
+
+    PyImGui.separator()
+    PyImGui.text("Merchant (Guild Hall) — runs once on startup")
+    PyImGui.separator()
+
+    new_enabled = PyImGui.checkbox("Restock kits / sell materials on startup", _merchant_enabled)
+    if new_enabled != _merchant_enabled:
+        _merchant_enabled = new_enabled
+        _save_merchant_settings()
+
+    if _merchant_enabled:
+        PyImGui.push_item_width(100)
+        new_id = PyImGui.input_int("ID Kits target##bds_id", _merchant_id_kits_target)
+        if new_id != _merchant_id_kits_target:
+            _merchant_id_kits_target = max(0, new_id)
+            _save_merchant_settings()
+
+        new_sal = PyImGui.input_int("Salvage Kits target##bds_sal", _merchant_salvage_kits_target)
+        if new_sal != _merchant_salvage_kits_target:
+            _merchant_salvage_kits_target = max(0, new_sal)
+            _save_merchant_settings()
+        PyImGui.pop_item_width()
+
+        new_sell = PyImGui.checkbox("Sell common materials##bds_sell", _merchant_sell_materials)
+        if new_sell != _merchant_sell_materials:
+            _merchant_sell_materials = new_sell
+            _save_merchant_settings()
+
+        new_rare = PyImGui.checkbox("Sell Diamond & Onyx to Rare Material Trader##bds_rare_mats", _merchant_sell_rare_mats)
+        if new_rare != _merchant_sell_rare_mats:
+            _merchant_sell_rare_mats = new_rare
+            _save_merchant_settings()
+
+        new_ectos = PyImGui.checkbox("Buy Glob of Ectoplasm when storage over threshold##bds_ectos", _merchant_buy_ectos)
+        if new_ectos != _merchant_buy_ectos:
+            _merchant_buy_ectos = new_ectos
+            _save_merchant_settings()
+
+        if _merchant_buy_ectos:
+            new_thresh = PyImGui.input_int("Storage threshold (gold)##bds_ecto_thresh", _merchant_ecto_threshold)
+            if new_thresh != _merchant_ecto_threshold:
+                _merchant_ecto_threshold = max(0, new_thresh)
+                _save_merchant_settings()
+
+        PyImGui.push_item_width(100)
+        new_wait = PyImGui.input_int("Alt wait time (ms)##bds_alt_wait", _merchant_alt_wait_ms)
+        if new_wait != _merchant_alt_wait_ms:
+            _merchant_alt_wait_ms = max(10_000, new_wait)
+            _save_merchant_settings()
+        PyImGui.pop_item_width()
+        PyImGui.same_line(0, 6)
+        PyImGui.text("(time given to alts to reach NPCs and finish)")
+
+
 def _draw_bds_settings() -> None:
     import PyImGui
     PyImGui.text("BDS Settings")
     PyImGui.separator()
     _draw_difficulty_setting()
+    _draw_merchant_settings()
 
 # ==================== MAIN ROUTINE ====================
 
@@ -1188,9 +1711,12 @@ def farm_bds_routine(bot: Botting) -> None:
     bot.States.AddHeader(BOT_NAME)
     bot.States.AddHeader("Enable Widgets")
     bot.States.AddCustomState(apply_widget_policy_step, "Apply widget policy")
+    bot.States.AddCustomState(lambda: _gh_merchant_setup(leave_party=True), "GH Merchant Setup")
     bot.Templates.Aggressive()
+    bot.Multibox.AbandonQuest(LOST_SOULS_QUEST_ID)
     bot.Templates.Routines.PrepareForFarm(map_id_to_travel=Vloxs_Fall)
-    bot.States.AddCustomState(_abandon_lost_souls_if_in_vloxs_fall, "Abandon - Lost Souls (when in Vloxs Fall)")
+    bot.States.AddCustomState(_reenable_merchant_widgets, "Re-enable widgets (all in Vlox's Falls)")
+    bot.Multibox.AbandonQuest(LOST_SOULS_QUEST_ID)
     bot.Multibox.RestockAllPcons()
     bot.Multibox.RestockConset()
     bot.Multibox.RestockResurrectionScroll(250)
@@ -1215,15 +1741,18 @@ def farm_bds_routine(bot: Botting) -> None:
     bot.Wait.ForTime(4000)
     bot.Multibox.SendDialogToTarget(DWARVEN_BLESSING_DIALOG)
     bot.Wait.ForTime(4000)
-    bot.Multibox.UseAllConsumables()
+    bot.Items.UseAllConsumables()
 
     IS_REPATHING = False
     # Path to Shandra
     path = [
     (13455.43, 10678.00),
     (9850.00, 5025.00),
-    (11256.59, 1742.31),
-    (11736.00, 70.00),
+    (11207.11, 1872.32),
+    #(11256.59, 1742.31),
+    (10452.02, 178.50),
+    #(10870.85, -3558.11),
+    #(11736.00, 70.00),
     (10782.86, -3321.00),
     (8360.94, -6550.00),
     (10382.85, -12342.00),
@@ -1236,6 +1765,7 @@ def farm_bds_routine(bot: Botting) -> None:
         bot.Move.FollowAutoPath(path)
     bot.Wait.UntilOutOfCombat()
     
+
     # ===== LOOP RESTART POINT =====
     bot.States.AddCustomState(loop_marker, "LOOP_RESTART_POINT")
     
@@ -1244,13 +1774,14 @@ def farm_bds_routine(bot: Botting) -> None:
     bot.Move.XYAndInteractNPC((12056.00,-17882)[0], (12056.00,-17882)[1])
     bot.Multibox.SendDialogToTarget(SHANDRA_TAKE_DIALOGS)
     bot.Wait.ForTime(4000)
-
-
+    
     # Enter the dungeon
     bot.Move.XY(11177, -17683)
     bot.Move.XY(10218, -18864)
     bot.Move.XY(9519, -19968)
     bot.Move.XY(9240.07, -20260.95)
+
+
 
 
     # Wait for change to Level 1
@@ -1273,7 +1804,7 @@ def farm_bds_routine(bot: Botting) -> None:
     
     # Use consumables
     bot.States.AddCustomState(UseSummons, "Use Summons")
-    bot.Multibox.UseAllConsumables()
+    bot.Items.UseAllConsumables()
     bot.Templates.Aggressive()
 
     path_before_bridgant = [
@@ -1387,7 +1918,7 @@ def farm_bds_routine(bot: Botting) -> None:
  
     # Use consumables
     bot.States.AddCustomState(UseSummons, "Use Summons")
-    bot.Multibox.UseAllConsumables()
+    bot.Items.UseAllConsumables()
     bot.Templates.Aggressive()
     # --- Path to torch area (atomisé) ---
     path_before_torch = [
@@ -1411,6 +1942,8 @@ def farm_bds_routine(bot: Botting) -> None:
 
 
     bot.Move.XY(-9259, -17322)
+    bot.Move.XY(-9971.23, -17633.08)
+    bot.Move.XY(-11136.85, -17201.66)
     bot.States.AddCustomState(pickup_torch, "Pickup Torch")
 
     bot.Move.XY(-11030.3,-17474.0)
@@ -1430,6 +1963,10 @@ def farm_bds_routine(bot: Botting) -> None:
     bot.States.AddCustomState(lambda: drop_bundle_safe(2, 250), "Drop bundle")
     
     bot.Move.XY(-10958.2,-4529.5)
+    bot.Move.XY(-11690.64, -3802.55)
+    bot.Move.XY(-10958.2,-4529.5)
+    bot.Move.XY(-11032.11, -5389.71)
+    bot.Move.XY(-11090.10, -6890.14)
     bot.States.AddCustomState(pickup_torch, "Pickup Torch")
 
     path_room2 = [
@@ -1504,7 +2041,7 @@ def farm_bds_routine(bot: Botting) -> None:
     # Use consumables
 
     bot.States.AddCustomState(UseSummons, "Use Summons")
-    bot.Multibox.UseAllConsumables()
+    bot.Items.UseAllConsumables()
     bot.Templates.Aggressive()
 
     bot.States.AddHeader("L3 - Cleaning level")
@@ -1536,18 +2073,7 @@ def farm_bds_routine(bot: Botting) -> None:
         (619.8,7044.0),
         (-385.8,6478.3),
         (-1123.5,7481.9),
-        (-2964.1,7302.1)]
-    bot.Templates.Aggressive()
-    if not IS_REPATHING:
-        bot.Move.FollowAutoPath(path_before_secure_return)
-    bot.Wait.UntilOutOfCombat()     
-
-    bot.States.AddHeader("Secure return 2 - L3")
-    bot.States.AddCustomState(_step_anchor, "Secure return 2 - L3")
-
-
-    bot.States.AddHeader("L3 - Cleaning level 2")
-    path_after_secure_return = [    
+        (-2964.1,7302.1),
         (-3139.7,7022.7),
         (-4152.0,6469.6),
         (-5154.0,5969.0),
@@ -1563,7 +2089,7 @@ def farm_bds_routine(bot: Botting) -> None:
     ]
     bot.Templates.Aggressive()
     if not IS_REPATHING:
-        bot.Move.FollowAutoPath(path_after_secure_return)
+        bot.Move.FollowAutoPath(path_before_secure_return)
     bot.Wait.UntilOutOfCombat()
 
 
@@ -1593,8 +2119,9 @@ def farm_bds_routine(bot: Botting) -> None:
     bot.States.AddCustomState(lambda: drop_bundle_safe(2, 250), "Drop bundle")
     bot.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")   
     bot.States.AddHeader("L3 - Kill Brigant")
+    bot.Move.XY(-11878.79, 2166.51)
     bot.Move.XY(-9686.32, 2632)
-    bot.States.AddHeader("Secure return 2 - L3")
+    bot.States.AddHeader("Secure return boss - L3")
     bot.States.AddCustomState(_step_anchor, "Secure return boss - L3")
     bot.States.AddHeader("L3 - Move and open door")
     bot.Move.XY(-9252.32, 6396.40)
@@ -1603,46 +2130,36 @@ def farm_bds_routine(bot: Botting) -> None:
     bot.States.AddHeader("L3 - Path to Fendi")
     # --- Boss path ---
     path_bds = [
-        (-8751.4,6187.9),
-        (-9254.5,6661.8),
-        (-9548.7,7161.9),
-        (-9842.2,7662.6),
-        (-9860.5,8165.6),
-        (-9378.4,8667.0),
-        (-8870.8,9148.9),
-        (-8736.4,9654.1),
-        (-9112.1,10163.0),
-        (-9541.0,10674.6),
-        (-9930.0,11184.1),
-        (-10433.0,11428.1),
-        (-10938.3,11856.4),
-        (-11444.7,12274.6),
-        (-11956.5,12758.7),
-        (-12457.3,13242.3),
-        (-12960.7,13501.0),
-        (-13466.4,13844.3),
-        (-13970.4,14245.7),
-        (-14475.7,14709.8),
-        (-14979.2,15046.5),
-        (-15480.8,15521.6),
-        (-16022.9,17889.9),
-
+        (-8871.19, 6152.95),
+        (-9326.33, 6862.55),
+        (-10044.56, 7921.78),
+        (-8408.54, 9475.41),
+        (-10049.41, 11259.31),
+        (-11381.15, 12387.01),
+        (-12304.50, 13319.24),
+        (-14736.33, 15054.21),
+        (-15162.24, 15579.30),
     ]
 
     bot.Templates.Aggressive()
     if not IS_REPATHING:
         bot.Move.FollowAutoPath(path_bds)
-    bot.Wait.UntilOutOfCombat()
+    bot.States.AddCustomState(resolve_fendi_fight, "Resolve Fendi Fight")
     bot.States.AddHeader("Chest opening")
-
+        # ===== OPEN FINAL CHEST =====
+    bot.Move.XY(-15800.98,16901.23)
+    bot.States.AddCustomState(_snapshot_bds_before_chest, "BDS Pre-Chest Snapshot")
+    bot.States.AddCustomState(open_fendi_chest, "Open Chest (All Accounts)")
+    bot.Wait.ForTime(6000)
+    bot.States.AddCustomState(open_fendi_chest, "Open Chest (All Accounts) - attempt 2")
+    bot.Wait.ForMapToChange(target_map_id=485)
+    
     
     bot.States.AddHeader("Quest sequence (reward + retake)")
     
         # ===== OPEN FINAL CHEST =====
     bot.States.AddCustomState(_snapshot_bds_before_chest, "BDS Pre-Chest Snapshot")    
     bot.Move.XY(-15800.98,16901.23) 
-    bot.States.AddCustomState(open_fendi_chest, "Open Chest (All Accounts)")
-    bot.States.AddCustomState(_record_bds_after_loot, "Record BDS Stats")
         # ===== REWARD =====
     bot.States.AddHeader("End / Reward")
     bot.States.AddCustomState(lambda: Search_and_talk_with_Shandra(bot), "Find Shandra and talk")
@@ -1735,6 +2252,32 @@ def _draw_bds_window_with_stats_tab() -> None:
             bot.config.config_properties.floor_offset.get("value"),
         )
 
+def tooltip():
+    import PyImGui
+    from Py4GWCoreLib import ImGui, Color
+    PyImGui.begin_tooltip()
+
+    # Title
+    title_color = Color(255, 200, 100, 255)
+    ImGui.push_font("Regular", 20)
+    PyImGui.text_colored("Bone Dragon Staff Farmer bot", title_color.to_tuple_normalized())
+    ImGui.pop_font()
+    PyImGui.spacing()
+    PyImGui.separator()
+    # Description
+    PyImGui.text("multi-account bot to farm Bone Dragon Staff")
+    PyImGui.spacing()
+    PyImGui.bullet_text("Requirements:")
+    PyImGui.bullet_text("- Any number of accounts, but for best performance, 8 well-geared accounts is recommended")
+    PyImGui.bullet_text("- Custom Behavior widget enabled on all accounts")
+    PyImGui.bullet_text("- Launch the script on the party leader only")
+    PyImGui.bullet_text("Designed for Normal Mode (NM) and Hard Mode (HM), check bot settings for more details.")
+    
+    # Credits
+    PyImGui.text_colored("Credits:", title_color.to_tuple_normalized())
+    PyImGui.bullet_text("Developed by Oo SKY oO")
+    PyImGui.bullet_text("Contributors: Wick-Divinus, Sloppynacho, XLeek, Yodz, Le Z")
+    PyImGui.end_tooltip()
 
 def main():
     bot.Update()

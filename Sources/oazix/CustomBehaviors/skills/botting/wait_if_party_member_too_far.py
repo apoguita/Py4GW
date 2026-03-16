@@ -68,8 +68,7 @@ class WaitIfPartyMemberTooFarUtility(CustomSkillUtilityBase):
 
     @override
     def customized_debug_ui(self, current_state: BehaviorState) -> None:
-        PyImGui.bullet_text(f"max_distance :")
-        self.max_distance = PyImGui.input_float("##max_distance", self.max_distance)
+        self.max_distance = PyImGui.input_float("max_distance##max_distance", self.max_distance)
 
     @override
     def has_persistence(self) -> bool:

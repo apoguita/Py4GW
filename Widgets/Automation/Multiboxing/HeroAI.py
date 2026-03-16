@@ -1,5 +1,6 @@
 #region Imports
 import math
+import os
 import random
 import sys
 import traceback
@@ -23,6 +24,7 @@ from HeroAI.windows import (HeroAI_FloatingWindows ,HeroAI_Windows,)
 from HeroAI.ui import (draw_configure_window, draw_skip_cutscene_overlay)
 from Py4GWCoreLib import (GLOBAL_CACHE, Agent, ActionQueueManager, LootConfig,
                           Range, Routines, ThrottledTimer, SharedCommandType, Utils)
+from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
 
 #region GLOBALS
 FOLLOW_COMBAT_DISTANCE = 25.0  # if body blocked, we get close enough.
@@ -174,11 +176,51 @@ following_flag = False
 last_follow_move_point: tuple[float, float] | None = None
 follow_map_entry_signature: tuple[int, int, int, int] | None = None
 follow_require_front_after_map_entry = False
+FOLLOW_MODULE_NAME = "FollowingModule"
+FOLLOW_INI_FILENAMES = (
+    "FollowModule_Formations.ini",
+    "FollowModule_Settings.ini",
+)
+follow_ini_bootstrap_disable_after_create = False
+printed_widget_list = False
+
+def _follow_ini_paths() -> list[str]:
+    base_path = os.path.join(
+        Py4GW.Console.get_projects_path(),
+        "Settings",
+        "Global",
+        "HeroAI",
+    )
+    return [os.path.join(base_path, filename) for filename in FOLLOW_INI_FILENAMES]
+
+def _follow_ini_ready() -> bool:
+    return all(os.path.exists(path) for path in _follow_ini_paths())
+
+def EnsureFollowModuleIni() -> None:
+    global follow_ini_bootstrap_disable_after_create
+
+    if _follow_ini_ready():
+        if follow_ini_bootstrap_disable_after_create:
+            widget_handler = get_widget_handler()
+            if widget_handler.is_widget_enabled(FOLLOW_MODULE_NAME):
+                widget_handler.disable_widget(FOLLOW_MODULE_NAME)
+            follow_ini_bootstrap_disable_after_create = False
+        return
+    widget_handler = get_widget_handler()
+    if widget_handler.is_widget_enabled(FOLLOW_MODULE_NAME):
+        return
+
+    widget_handler.enable_widget(FOLLOW_MODULE_NAME)
+    follow_ini_bootstrap_disable_after_create = True
+
 def Follow(cached_data: CacheData) -> BehaviorTree.NodeState:
     global last_follow_move_point, follow_map_entry_signature, follow_require_front_after_map_entry
     
     options = cached_data.account_options
     if not options or not options.Following:  # halt operation if following is disabled
+        return BehaviorTree.NodeState.FAILURE
+
+    if not bool(getattr(options, "LeaderFollowReady", False)):
         return BehaviorTree.NodeState.FAILURE
     
     if not cached_data.follow_throttle_timer.IsExpired():
@@ -227,13 +269,20 @@ def Follow(cached_data: CacheData) -> BehaviorTree.NodeState:
     yy = follow_y
     if last_follow_move_point is not None:
         last_x, last_y = last_follow_move_point
-        if abs(xx - last_x) <= 0.0001 and abs(yy - last_y) <= 0.0001:
+        if abs(xx - last_x) <= 10 and abs(yy - last_y) <= 10:
             xx += random.uniform(-5.0, 5.0)
             yy += random.uniform(-5.0, 5.0)
 
     ActionQueueManager().ResetQueue("ACTION")
-    #Player.Move(xx, yy, follow_z)
-    Player.Move(xx, yy)
+    if follow_z == 0:
+        #Player.Move(xx, yy, follow_z)
+        Player.Move(xx, yy)
+    else:
+        from Py4GWCoreLib.UIManager import UIManager
+        from Py4GWCoreLib.enums_src.UI_enums import ControlAction
+        ActionQueueManager().AddAction("ACTION",UIManager.Keypress,ControlAction.ControlAction_TargetPartyMember1.value, 0)
+        ActionQueueManager().AddAction("ACTION",UIManager.Keypress,ControlAction.ControlAction_Follow.value, 0)
+
 
     last_follow_move_point = (xx, yy)
     follow_require_front_after_map_entry = False
@@ -527,6 +576,9 @@ def main():
     
     try:        
         cached_data.Update()  
+
+        if not _follow_ini_ready():
+            get_widget_handler().enable_widget(FOLLOW_MODULE_NAME)
         HeroAI_FloatingWindows.update()
         handle_UI(cached_data)  
         

@@ -45,54 +45,23 @@ from .shared_memory_src.AgentDataStruct import AgentDataStruct
 from .shared_memory_src.AccountStruct import AccountStruct
 from .shared_memory_src.AllAccounts import AllAccounts
 
-#region SharedMemoryManager    
-class Py4GWSharedMemoryManager:
-    _instance = None  # Singleton instance
-    def __new__(cls, name=SHMEM_SHARED_MEMORY_FILE_NAME, num_players=SHMEM_MAX_PLAYERS):
-        if cls._instance is None:
-            cls._instance = super(Py4GWSharedMemoryManager, cls).__new__(cls)
-            cls._instance._initialized = False  # Ensure __init__ runs only once
-        return cls._instance
-    
-    def __init__(self, name=SHMEM_SHARED_MEMORY_FILE_NAME, max_num_players=SHMEM_MAX_PLAYERS):
-        if not self._initialized:
-            self.shm_name = name
-            self.max_num_players = max_num_players
-            self.size = sizeof(AllAccounts)
-            self._follow_formations_ini_key = ""
-            self._follow_settings_ini_key = ""
-            self._follow_runtime_ini_key = ""
-            self._follow_ini_reload_timer = ThrottledTimer(1000)
-            self._follow_ini_vars_registered = False
-            self._follow_selected_id_cache = ""
-            self._follow_points_cache: list[tuple[float, float]] = []
-            self._follow_move_threshold_default = float(Range.Area.value)
-            self._follow_move_threshold_combat = float(Range.Touch.value)
-            self._follow_move_threshold_flagged = 0.0
-            self._follow_map_signature = None
-            self._follow_hold_until_leader_moves = False
-            self._follow_leader_entry_pos: tuple[float, float] | None = None
-        
-        # Create or attach shared memory
-        try:
-            self.shm = shared_memory.SharedMemory(name=self.shm_name)
-            ConsoleLog(SHMEM_MODULE_NAME, "Attached to existing shared memory.", Py4GW.Console.MessageType.Info)
-            
-        except FileNotFoundError:
-            self.shm = shared_memory.SharedMemory(name=self.shm_name, create=True, size=self.size)
-            self.ResetAllData()  # Initialize all player data
-            
-            ConsoleLog(SHMEM_MODULE_NAME, "Shared memory area created.", Py4GW.Console.MessageType.Success)
-            
-        except BufferError:
-            ConsoleLog(SHMEM_MODULE_NAME, "Shared memory area already exists but could not be attached.", Py4GW.Console.MessageType.Error)
-            raise
+class FollowFormationPublisher:
+    def __init__(self, shared_memory_manager: "Py4GWSharedMemoryManager"):
+        self.shared_memory_manager = shared_memory_manager
+        self._follow_formations_ini_key = ""
+        self._follow_settings_ini_key = ""
+        self._follow_runtime_ini_key = ""
+        self._follow_ini_reload_timer = ThrottledTimer(1000)
+        self._follow_ini_vars_registered = False
+        self._follow_selected_id_cache = ""
+        self._follow_points_cache: list[tuple[float, float]] = []
+        self._follow_move_threshold_default = float(Range.Area.value)
+        self._follow_move_threshold_combat = float(Range.Touch.value)
+        self._follow_move_threshold_flagged = 0.0
+        self._follow_map_signature = None
+        self._follow_hold_until_leader_moves = False
+        self._follow_leader_entry_pos: tuple[float, float] | None = None
 
-        self._hero_update_timer = ThrottledTimer(SHMEM_HERO_UPDATE_THROTTLE_MS)
-        self._pet_update_timer = ThrottledTimer(SHMEM_PET_UPDATE_THROTTLE_MS)
-        self._initialized = True
-
-    #region Follow Formation Publisher (leader-side shared-memory producer)
     def _ensure_global_ini_key_strict(self, path: str, filename: str) -> str:
         im = IniManager()
         key = im.ensure_global_key(path, filename)
@@ -124,8 +93,6 @@ class Py4GWSharedMemoryManager:
             im.add_str(self._follow_settings_ini_key, "selected", "Formations", "selected", "")
         if self._follow_formations_ini_key:
             im.add_int(self._follow_formations_ini_key, "formation_count", "Formations", "count", 0)
-            # Pre-register point readers for any possible selected formation ID section.
-            # We register lazily per active section below; this just marks setup complete.
         if self._follow_runtime_ini_key:
             im.add_float(self._follow_runtime_ini_key, "follow_move_threshold_default", "FollowRuntime", "follow_move_threshold_default", float(Range.Area.value))
             im.add_float(self._follow_runtime_ini_key, "follow_move_threshold_combat", "FollowRuntime", "follow_move_threshold_combat", float(Range.Touch.value))
@@ -195,7 +162,6 @@ class Py4GWSharedMemoryManager:
 
         sec = f"FormationId:{selected_id}"
         if not im.read_key(self._follow_formations_ini_key, sec, "name", ""):
-            # Backward compatibility with name-keyed sections if needed.
             count = max(0, im.read_int(self._follow_formations_ini_key, sec_formations, "count", 0))
             for i in range(count):
                 fid = str(im.read_key(self._follow_formations_ini_key, sec_formations, f"id_{i}", "") or "").strip()
@@ -226,7 +192,6 @@ class Py4GWSharedMemoryManager:
 
     @staticmethod
     def _rotate_local_to_world(local_x: float, local_y: float, facing_angle: float) -> tuple[float, float]:
-        # Match FollowingModule 3D preview / original local-coordinate convention.
         angle = float(facing_angle) - (math.pi / 2.0)
         c = -math.cos(angle)
         s = -math.sin(angle)
@@ -248,8 +213,7 @@ class Py4GWSharedMemoryManager:
     def _is_nonzero_vec2(v: Vec2f) -> bool:
         return abs(float(v.x)) > 0.001 or abs(float(v.y)) > 0.001
 
-    def PublishFormationFollowPoints(self):
-        # Producer runs only on leader client; followers consume FollowPos in HeroAI runtime.
+    def publish(self):
         try:
             if not Party.IsPartyLoaded():
                 return
@@ -265,7 +229,7 @@ class Py4GWSharedMemoryManager:
         if not account_email:
             return
 
-        all_accounts = self.GetAllAccounts()
+        all_accounts = self.shared_memory_manager.GetAllAccounts()
         leader_index = all_accounts.GetSlotByEmail(account_email)
         if leader_index < 0:
             return
@@ -275,12 +239,11 @@ class Py4GWSharedMemoryManager:
         if not leader_account.IsSlotActive or not leader_account.IsAccount or leader_account.IsIsolated:
             return
 
-        # Never publish active follow coordinates in outposts/loading screens.
         if (not Map.IsMapReady()) or Map.IsMapLoading() or (not Map.IsExplorable()):
             self._follow_map_signature = None
             self._follow_hold_until_leader_moves = False
             self._follow_leader_entry_pos = None
-            for i in range(self.max_num_players):
+            for i in range(self.shared_memory_manager.max_num_players):
                 acc = all_accounts.AccountData[i]
                 if not (acc.IsSlotActive and acc.IsAccount) or acc.IsIsolated:
                     continue
@@ -294,6 +257,7 @@ class Py4GWSharedMemoryManager:
                 opts.FollowOffset.y = 0.0
                 opts.FollowMoveThreshold = -1.0
                 opts.FollowMoveThresholdCombat = -1.0
+                opts.LeaderFollowReady = False
             return
 
         points = self._get_follow_points()
@@ -318,7 +282,7 @@ class Py4GWSharedMemoryManager:
             if Utils.Distance((leader_x, leader_y), (entry_x, entry_y)) > 1.0:
                 self._follow_hold_until_leader_moves = False
 
-        for i in range(self.max_num_players):
+        for i in range(self.shared_memory_manager.max_num_players):
             acc = all_accounts.AccountData[i]
             if not (acc.IsSlotActive and acc.IsAccount) or acc.IsIsolated:
                 continue
@@ -328,12 +292,12 @@ class Py4GWSharedMemoryManager:
             party_pos = int(acc.AgentPartyData.PartyPosition)
             opts = all_accounts.HeroAIOptions[i]
 
-            # Skip leader slot but clear stale local offset for consistency.
             if party_pos <= 0:
                 opts.FollowOffset.x = 0.0
                 opts.FollowOffset.y = 0.0
                 opts.FollowMoveThreshold = -1.0
                 opts.FollowMoveThresholdCombat = -1.0
+                opts.LeaderFollowReady = (not self._follow_hold_until_leader_moves)
                 continue
 
             slot_index = party_pos - 1
@@ -350,6 +314,7 @@ class Py4GWSharedMemoryManager:
                     opts.FollowPos.z = 0.0
                 opts.FollowMoveThreshold = -1.0
                 opts.FollowMoveThresholdCombat = -1.0
+                opts.LeaderFollowReady = False
                 continue
 
             local_x, local_y = points[slot_index]
@@ -357,15 +322,14 @@ class Py4GWSharedMemoryManager:
             opts.FollowOffset.y = float(local_y)
             opts.FollowMoveThreshold = float(self._follow_move_threshold_default)
             opts.FollowMoveThresholdCombat = float(self._follow_move_threshold_combat)
+            opts.LeaderFollowReady = False
 
             if self._follow_hold_until_leader_moves:
                 opts.FollowPos.x = float(acc.AgentData.Pos.x)
                 opts.FollowPos.y = float(acc.AgentData.Pos.y)
                 opts.FollowPos.z = float(leader_zplane)
-                # Hold in place until the leader actually moves after map load.
                 continue
 
-            # Precedence: personal flag -> all-flag -> leader follow anchor.
             if bool(opts.IsFlagged) and self._is_nonzero_vec2(opts.FlagPos):
                 opts.FollowPos.x = float(opts.FlagPos.x)
                 opts.FollowPos.y = float(opts.FlagPos.y)
@@ -389,6 +353,45 @@ class Py4GWSharedMemoryManager:
             opts.FollowPos.x = anchor_x + rx
             opts.FollowPos.y = anchor_y + ry
             opts.FollowPos.z = float(leader_zplane)
+            opts.LeaderFollowReady = True
+
+#region SharedMemoryManager    
+class Py4GWSharedMemoryManager:
+    _instance = None  # Singleton instance
+    def __new__(cls, name=SHMEM_SHARED_MEMORY_FILE_NAME, num_players=SHMEM_MAX_PLAYERS):
+        if cls._instance is None:
+            cls._instance = super(Py4GWSharedMemoryManager, cls).__new__(cls)
+            cls._instance._initialized = False  # Ensure __init__ runs only once
+        return cls._instance
+    
+    def __init__(self, name=SHMEM_SHARED_MEMORY_FILE_NAME, max_num_players=SHMEM_MAX_PLAYERS):
+        if not self._initialized:
+            self.shm_name = name
+            self.max_num_players = max_num_players
+            self.size = sizeof(AllAccounts)
+            self.follow_publisher = FollowFormationPublisher(self)
+        
+        # Create or attach shared memory
+        try:
+            self.shm = shared_memory.SharedMemory(name=self.shm_name)
+            ConsoleLog(SHMEM_MODULE_NAME, "Attached to existing shared memory.", Py4GW.Console.MessageType.Info)
+            
+        except FileNotFoundError:
+            self.shm = shared_memory.SharedMemory(name=self.shm_name, create=True, size=self.size)
+            self.ResetAllData()  # Initialize all player data
+            
+            ConsoleLog(SHMEM_MODULE_NAME, "Shared memory area created.", Py4GW.Console.MessageType.Success)
+            
+        except BufferError:
+            ConsoleLog(SHMEM_MODULE_NAME, "Shared memory area already exists but could not be attached.", Py4GW.Console.MessageType.Error)
+            raise
+
+        self._hero_update_timer = ThrottledTimer(SHMEM_HERO_UPDATE_THROTTLE_MS)
+        self._pet_update_timer = ThrottledTimer(SHMEM_PET_UPDATE_THROTTLE_MS)
+        self._initialized = True
+
+    def PublishFormationFollowPoints(self):
+        self.follow_publisher.publish()
         
     #Base Methods
     def GetBaseTimestamp(self):

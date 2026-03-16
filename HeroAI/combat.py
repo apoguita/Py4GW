@@ -351,6 +351,8 @@ class CombatClass:
     def get_combat_distance(self):
         return Range.Spellcast.value if self.in_aggro else Range.Earshot.value
 
+
+
     def GetAppropiateTarget(self, slot):
         v_target = 0
 
@@ -647,8 +649,12 @@ class CombatClass:
             if (self.skills[slot].skill_id == self.comfort_animal or
                 self.skills[slot].skill_id == self.heal_as_one
                 ):
-                LessLife = Agent.GetHealth(vTarget) < Conditions.LessLife
-                dead = Agent.IsDead(vTarget)
+                from Py4GWCoreLib.Party import Party
+                pet_data = Party.Pets.GetPetInfo(Player.GetAgentID())
+                if not pet_data or pet_data.agent_id == 0:
+                    return False
+                LessLife = Agent.GetHealth(pet_data.agent_id) < Conditions.LessLife
+                dead = Agent.IsDead(pet_data.agent_id)
                 return LessLife or dead
 
             if (self.skills[slot].skill_id == self.never_rampage_alone):
