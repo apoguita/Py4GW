@@ -285,7 +285,7 @@ def _verify_reward_taken_from_quest_log() -> Generator:
     yield
 
 def Search_and_talk_with_Shandra(bot: Botting):
-    npc_name = "Shandra"
+    npc_name = "Crewmember Shandra"
 
     ConsoleLog(BOT_NAME, "[Shandra] Start quest take", log=True)
 
