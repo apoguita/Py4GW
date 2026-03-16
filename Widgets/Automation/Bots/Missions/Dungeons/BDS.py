@@ -285,14 +285,14 @@ def _verify_reward_taken_from_quest_log() -> Generator:
     yield
 
 def Search_and_talk_with_Shandra(bot: Botting):
-    npc_name = "Crewmember Shandra"
+    npc_name = Crewmember Shandra
 
     ConsoleLog(BOT_NAME, "[Shandra] Start quest take", log=True)
 
     for attempt in range(1, 21):
         ConsoleLog(BOT_NAME, f"[Shandra] Search {npc_name} attempt {attempt}/20", log=True)
 
-        agent_id = yield from Yield.Agents.GetAgentIDByName(npc_name)
+        agent_id = find_nearest_npc_by_name(npc_name, 2000.0)
 
         if agent_id:
             ConsoleLog(BOT_NAME, f"[Shandra] Found {npc_name} agent_id={agent_id}", log=True)
@@ -338,32 +338,51 @@ def Search_and_talk_with_Shandra(bot: Botting):
 
         yield from Routines.Yield.wait(500)
 
-def _interact_with_Shandra(bot: Botting, dialog_id: int, tolerance: float = 220.0):
-    npc_name = "Crewmember Shandra"
+def find_nearest_npc_by_name(name_fragment: str, max_dist: float = 2000.0) -> int:
+    """Find nearest NPC whose name contains name_fragment."""
+    player_pos = Player.GetXY()
 
-    agent_id = yield from Yield.Agents.GetAgentIDByName(npc_name)
+    npcs = AgentArray.GetNPCMinipetArray()
+    npcs = AgentArray.Filter.ByDistance(npcs, player_pos, max_dist)
+    npcs = AgentArray.Sort.ByDistance(npcs, player_pos)
+
+    for npc_id in npcs:
+        npc_id = int(npc_id)
+
+        try:
+            npc_name = Agent.GetNameByID(npc_id)
+        except Exception:
+            continue
+
+        if name_fragment.lower() in npc_name.lower():
+            return npc_id
+
+    return 0
+
+def _interact_with_Shandra(bot: Botting, dialog_id: int, tolerance: float = 220.0):
+    npc_name = Crewmember Shandra
+
+    agent_id = find_nearest_npc_by_name(npc_name, 2000.0)
     if not agent_id:
-        ConsoleLog(BOT_NAME, f"[Shandra] {npc_name} not found", log=True)
+        ConsoleLog(BOT_NAME, f"[Shandra] {npc_name} not found nearby", log=True)
         return False
 
     x, y = Agent.GetXY(agent_id)
-    ConsoleLog(BOT_NAME, f"[Shandra] Found {npc_name} at ({x}, {y})", log=True)
-    
+    ConsoleLog(BOT_NAME, f"[Shandra] Found {npc_name} at ({x}, {y}) agent_id={agent_id}", log=True)
+
     ok = yield from _move_to(x, y, tolerance=tolerance)
     if not ok:
         ConsoleLog(BOT_NAME, "[Shandra] Impossible to approach Shandra", log=True)
         return False
-        
 
     Player.ChangeTarget(agent_id)
     yield from Routines.Yield.wait(800)
     Player.Interact(agent_id)
     yield from Routines.Yield.wait(800)
     Player.SendDialog(dialog_id)
-    bot.Multibox.SendDialogToTarget(dialog_id)
     yield from Routines.Yield.wait(1500)
-    return True
 
+    return True
 
 def _recover_reward_and_retake_quest(bot: Botting) -> Generator:
     global SHANDRA_REWARD_PENDING
@@ -2171,13 +2190,14 @@ def farm_bds_routine(bot: Botting) -> None:
     bot.States.AddCustomState(open_fendi_chest, "Open Chest (All Accounts)")
     
     
-    bot.States.AddHeader("Quest sequence (reward + retake)")
+
     
         # ===== OPEN FINAL CHEST =====
     bot.States.AddCustomState(_snapshot_bds_before_chest, "BDS Pre-Chest Snapshot")    
     bot.Move.XY(-15800.98,16901.23) 
-        # ===== REWARD =====
-    bot.States.AddHeader("End / Reward")
+        
+        
+    bot.States.AddHeader("Quest sequence (reward + retake)")
     bot.States.AddCustomState(lambda: Search_and_talk_with_Shandra(bot), "Find Shandra and talk")
     bot.Wait.ForTime(5000)
     bot.Multibox.SendDialogToTarget(SHANDRA_QUEST_REWARD_DIALOG)
