@@ -23,6 +23,8 @@ from Py4GWCoreLib.botting_src.helpers import BottingHelpers
 from Py4GW_widget_manager import get_widget_handler
 from Sources.oazix.CustomBehaviors.primitives.botting.botting_helpers import BottingHelpers
 from Sources.oazix.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
+from Py4GWCoreLib.routines_src.Yield import Utils
+from Py4GWCoreLib.routines_src.Yield import Yield
 
 # ==================== CONFIGURATION ====================
 BOT_NAME = "BDS Farm rezone"
@@ -67,6 +69,8 @@ _ALT_SALVAGE_TRIGGER_THRESHOLD = 2
 _ALT_SALVAGE_POLL_TIMEOUT_MS = 200
 _ALT_SALVAGE_POLL_MAX_TOTAL_MS = 10_000
 _merchant_enabled: bool = False
+_merchant_id_kits_target: int = 2
+_merchant_salvage_kits_target: int = 5
 _merchant_id_kits_target: int = _FIXED_ID_KITS_TARGET
 _merchant_salvage_kits_target: int = _FIXED_SALVAGE_KITS_TARGET
 _merchant_store_consumable_materials: bool = False
@@ -74,6 +78,7 @@ _merchant_sell_materials: bool = False
 _merchant_sell_rare_mats: bool = False
 _merchant_buy_ectos: bool = False
 _merchant_ecto_threshold: int = 800_000
+_merchant_alt_wait_ms: int = 90_000
 _DEFAULT_ALT_SETTLE_WAIT_MS = 2000
 _MAX_ALT_SETTLE_WAIT_MS = 5000
 _merchant_alt_wait_ms: int = _DEFAULT_ALT_SETTLE_WAIT_MS
@@ -381,6 +386,248 @@ def _disable_merchant_widgets() -> Generator:
                 )
     ConsoleLog(BOT_NAME, f"[Merchant] Disabled {_MERCHANT_MANAGED_WIDGETS} on all accounts")
     yield
+
+SHANDRA_TAKE_DIALOGS = 0x832401
+SHANDRA_QUEST_REWARD_DIALOG = 0x832407
+SHANDRA_QUEST_ID = 0x324
+
+def _move_to(x: float, y: float, tolerance: float = 180.0, max_tries: int = 60):
+    Player.Move(x, y)
+
+    for _ in range(max_tries):
+        px, py = Player.GetXY()
+        dist = Utils.Distance((px, py), (x, y))
+
+        if dist <= tolerance:
+            return True
+
+        yield from Routines.Yield.wait(100)
+
+    return False
+
+
+def _wait_for_map(map_name: str, max_tries: int = 120):
+    for _ in range(max_tries):
+        if Map.GetMapName() == map_name:
+            return True
+        yield from Routines.Yield.wait(500)
+    return False
+
+def _verify_reward_taken_from_quest_log() -> Generator:
+    global SHANDRA_REWARD_PENDING
+
+    quest_ids = Quest.GetQuestLogIds()
+
+    if SHANDRA_QUEST_ID not in quest_ids:
+        SHANDRA_REWARD_PENDING = True
+        ConsoleLog(BOT_NAME, "[FLAG] Reward confirmed: quest no longer in quest log", log=True)
+    else:
+        SHANDRA_REWARD_PENDING = False
+        ConsoleLog(BOT_NAME, "[FLAG] Reward NOT confirmed: quest still present in quest log", log=True)
+
+    yield
+
+def Search_and_talk_with_Shandra(bot: Botting):
+    npc_name = "Shandra, membre d'équipage"
+
+    ConsoleLog(BOT_NAME, "[Shandra] Start quest take", log=True)
+
+    for attempt in range(1, 21):
+        ConsoleLog(BOT_NAME, f"[Shandra] Search {npc_name} attempt {attempt}/20", log=True)
+
+        agent_id = find_nearest_npc_by_name(npc_name, 2000.0)
+
+        if agent_id:
+            ConsoleLog(BOT_NAME, f"[Shandra] Found {npc_name} agent_id={agent_id}", log=True)
+
+            x, y = Agent.GetXY(agent_id)
+            ConsoleLog(BOT_NAME, f"[Shandra] Move to ({x}, {y})", log=True)
+
+            for i in range(150):
+                if i % 10 == 0:
+                    Player.Move(x, y)
+
+                px, py = Player.GetXY()
+                dist = Utils.Distance((px, py), (x, y))
+
+                if dist < 150:
+                    ConsoleLog(BOT_NAME, "[Shandra] Arrived near Shandra", log=True)
+                    break
+
+                yield from Routines.Yield.wait(100)
+            else:
+                ConsoleLog(BOT_NAME, "[Shandra] Could not reach Shandra", log=True)
+                yield
+                return
+
+            Player.ChangeTarget(agent_id)
+            yield from Routines.Yield.wait(500)
+
+            current_target = Player.GetTargetID()
+            ConsoleLog(BOT_NAME, f"[Shandra] Current target = {current_target}", log=True)
+
+            Player.Interact(agent_id)
+            yield from Routines.Yield.wait(800)
+
+            Player.ChangeTarget(agent_id)
+            yield from Routines.Yield.wait(500)
+
+            Player.Interact(agent_id)
+            yield from Routines.Yield.wait(800)
+
+            ConsoleLog(BOT_NAME, "[Shandra] Quest/Reward taken", log=True)
+            yield
+            return
+
+        yield from Routines.Yield.wait(500)
+
+def find_nearest_npc_by_name(name_fragment: str, max_dist: float = 2000.0) -> int:
+    """Find nearest NPC whose name contains name_fragment."""
+    player_pos = Player.GetXY()
+
+    npcs = AgentArray.GetNPCMinipetArray()
+    npcs = AgentArray.Filter.ByDistance(npcs, player_pos, max_dist)
+    npcs = AgentArray.Sort.ByDistance(npcs, player_pos)
+
+    for npc_id in npcs:
+        npc_id = int(npc_id)
+
+        try:
+            npc_name = Agent.GetNameByID(npc_id)
+        except Exception:
+            continue
+
+        if name_fragment.lower() in npc_name.lower():
+            return npc_id
+
+    return 0
+
+def _interact_with_Shandra(bot: Botting, dialog_id: int, tolerance: float = 220.0):
+    npc_name = "Shandra, membre d'équipage"
+
+    agent_id = find_nearest_npc_by_name(npc_name, 2000.0)
+    if not agent_id:
+        ConsoleLog(BOT_NAME, f"[Shandra] {npc_name} not found nearby", log=True)
+        return False
+
+    x, y = Agent.GetXY(agent_id)
+    ConsoleLog(BOT_NAME, f"[Shandra] Found {npc_name} at ({x}, {y}) agent_id={agent_id}", log=True)
+
+    ok = yield from _move_to(x, y, tolerance=tolerance)
+    if not ok:
+        ConsoleLog(BOT_NAME, "[Shandra] Impossible to approach Shandra", log=True)
+        return False
+
+    Player.ChangeTarget(agent_id)
+    yield from Routines.Yield.wait(800)
+    Player.Interact(agent_id)
+    yield from Routines.Yield.wait(800)
+    Player.SendDialog(dialog_id)
+    yield from Routines.Yield.wait(1500)
+
+    return True
+
+def _recover_reward_and_retake_quest(bot: Botting) -> Generator:
+    global SHANDRA_REWARD_PENDING
+
+    ConsoleLog(BOT_NAME, "[RECOVERY] Late reward flow -> start", log=True)
+
+    # 1) Reward Shandra in Sparkfly
+    if Map.GetMapName() != "Arbor Bay":
+        ConsoleLog(BOT_NAME, f"[RECOVERY] Mauvaise map pour reward: {Map.GetMapName()}", log=True)
+        yield
+        return
+
+    ok = yield from _interact_with_Shandra(bot, SHANDRA_QUEST_REWARD_DIALOG)
+    if not ok:
+        ConsoleLog(BOT_NAME, "[RECOVERY] Reward Shandra failed", log=True)
+        yield
+        return
+
+
+    # 2) Go to dungeon entrance
+    for x, y in [
+        (11177.00, -17683.00),(10218.00, -18864.00),(9519.00, -19968.00)]:
+        ok = yield from _move_to(x, y)
+        if not ok:
+            ConsoleLog(BOT_NAME, f"[RECOVERY] Failed move to ({x}, {y})", log=True)
+            yield
+            return
+
+    Player.Move(9240.07, -20260.95)
+    yield from Routines.Yield.wait(1000)
+
+    ok = yield from _wait_for_map("Shards of Oor (level 1)")
+    if not ok:
+        ConsoleLog(BOT_NAME, "[RECOVERY] Impossible to enter to Shards of Oor (level 1)", log=True)
+        yield
+        return
+
+    ConsoleLog(BOT_NAME, "[RECOVERY] Entered Shards of Oor (level 1)", log=True)
+
+    # 3) Exit dungeon
+    ok = yield from _move_to(-15650.00, 8900.00)
+    if not ok:
+        ConsoleLog(BOT_NAME, "[RECOVERY] Failed move to dungeon exit", log=True)
+        yield
+        return
+
+    yield from Routines.Yield.wait(1000)
+
+    ok = yield from _wait_for_map("Arbor Bay")
+    if not ok:
+        ConsoleLog(BOT_NAME, "[RECOVERY] Impossible to comeback to Arbor Bay", log=True)
+        yield
+        return
+
+    ConsoleLog(BOT_NAME, "[RECOVERY] Back to Arbor Bay", log=True)
+
+
+
+    # 4) Retake quest from Shandra
+    ok = yield from _interact_with_Shandra(bot, SHANDRA_TAKE_DIALOGS)
+    if not ok:
+        ConsoleLog(BOT_NAME, "[RECOVERY] Retake quest failed", log=True)
+        yield
+        return
+
+    ConsoleLog(BOT_NAME, "[RECOVERY] Late reward flow -> done", log=True)
+
+
+
+    bot.States.JumpToStepName("LOOP_RESTART_POINT")
+    yield
+
+SHANDRA_REWARD_PENDING = False
+L3_BOSS_ROUTE_UNLOCKED = False
+
+def _reset_l3_boss_route_flag() -> Generator:
+    global L3_BOSS_ROUTE_UNLOCKED
+    L3_BOSS_ROUTE_UNLOCKED = False
+    ConsoleLog(BOT_NAME, "[L3] Boss route unlocked = False")
+    yield
+
+
+def _set_l3_boss_route_flag() -> Generator:
+    global L3_BOSS_ROUTE_UNLOCKED
+    L3_BOSS_ROUTE_UNLOCKED = True
+    ConsoleLog(BOT_NAME, "[L3] Boss route unlocked = True")
+    yield
+
+def _post_return_flow(bot: Botting) -> Generator:
+    global SHANDRA_REWARD_PENDING
+
+    ConsoleLog(BOT_NAME, f"[POST-RETURN] Flag value = {SHANDRA_REWARD_PENDING}", log=True)
+
+    if not SHANDRA_REWARD_PENDING:
+        ConsoleLog(BOT_NAME, "[POST-RETURN] Reward NOT taken -> recovery flow", log=True)
+        yield from _recover_reward_and_retake_quest(bot)
+        yield
+        return
+
+    ConsoleLog(BOT_NAME, "[POST-RETURN] Reward taken -> continue", log=True)
+    yield
+
 
 
 def _disable_inventoryplus_pretravel() -> Generator:
@@ -711,6 +958,168 @@ def _gh_merchant_setup(leave_party: bool = True) -> Generator:
     ConsoleLog(BOT_NAME, "[Merchant] Guild Hall merchant run complete")
     yield
 
+def _resign_all_to_outpost_before_merchant() -> Generator:
+    ConsoleLog(BOT_NAME, "[Merchant] Resigning all accounts before Guild Hall merchant routine")
+    start_map_id = int(Map.GetMapID())
+    my_email = Player.GetAccountEmail()
+    for acc in GLOBAL_CACHE.ShMem.GetAllAccountData():
+        if acc.AccountEmail != my_email:
+            GLOBAL_CACHE.ShMem.SendMessage(my_email, acc.AccountEmail, SharedCommandType.Resign, (0, 0, 0, 0), ("", "", "", ""))
+    Player.SendChatCommand("resign")
+    yield from Routines.Yield.wait(500)
+
+    map_change_deadline = time.time() + 45.0
+    while time.time() < map_change_deadline:
+        if int(Map.GetMapID()) != start_map_id:
+            break
+        yield from Routines.Yield.wait(250)
+
+    yield from bot.Wait._coro_until_on_outpost()
+
+
+def _return_to_arbor_bay_after_merchant() -> Generator:
+    if int(Map.GetMapID()) == Arbor_Bay:
+        yield from Routines.Yield.wait(_POST_RETURN_TO_ARBOR_SETTLE_MS)
+        yield
+        return
+    if int(Map.GetMapID()) != Vloxs_Fall:
+        yield from bot.Map._coro_travel(Vloxs_Fall, "")
+    yield from bot.Wait._coro_until_on_outpost()
+    yield from bot.Move._coro_xy_and_exit_map(15505.38, 12460.59, target_map_id=Arbor_Bay, step_name="Return to Arbor Bay")
+    yield from Routines.Yield.wait(_POST_RETURN_TO_ARBOR_SETTLE_MS)
+
+
+def _rebuild_party_after_merchant() -> Generator:
+    from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
+    from Sources.oazix.CustomBehaviors.primitives.parties.party_command_contants import PartyCommandConstants
+
+    ConsoleLog(BOT_NAME, "[Merchant] Rebuilding party after GH restock (CustomBehaviorParty)")
+
+    _cb_deadline = time.time() + 15.0
+    while not CustomBehaviorParty().is_ready_for_action() and time.time() < _cb_deadline:
+        yield from Routines.Yield.wait(100)
+
+    if not CustomBehaviorParty().is_ready_for_action():
+        ConsoleLog(BOT_NAME, "[Merchant] Party behavior not ready for summon", Py4GW.Console.MessageType.Warning)
+        yield
+        return
+
+    _ok = bool(CustomBehaviorParty().schedule_action(PartyCommandConstants.summon_all_to_current_map))
+    if not _ok:
+        ConsoleLog(BOT_NAME, "[Merchant] Failed to schedule summon_all_to_current_map", Py4GW.Console.MessageType.Warning)
+        yield
+        return
+
+    # Let summon travel/actions settle before invite.
+    _cb_deadline = time.time() + 25.0
+    while not CustomBehaviorParty().is_ready_for_action() and time.time() < _cb_deadline:
+        yield from Routines.Yield.wait(200)
+    yield from Routines.Yield.wait(1200)
+
+    _cb_deadline = time.time() + 15.0
+    while not CustomBehaviorParty().is_ready_for_action() and time.time() < _cb_deadline:
+        yield from Routines.Yield.wait(100)
+
+    if not CustomBehaviorParty().is_ready_for_action():
+        ConsoleLog(BOT_NAME, "[Merchant] Party behavior not ready for invite", Py4GW.Console.MessageType.Warning)
+        yield
+        return
+
+    _ok = bool(CustomBehaviorParty().schedule_action(PartyCommandConstants.invite_all_to_leader_party))
+    if not _ok:
+        ConsoleLog(BOT_NAME, "[Merchant] Failed to schedule invite_all_to_leader_party", Py4GW.Console.MessageType.Warning)
+        yield
+        return
+
+    _cb_deadline = time.time() + 20.0
+    while not CustomBehaviorParty().is_ready_for_action() and time.time() < _cb_deadline:
+        yield from Routines.Yield.wait(200)
+
+def _write_local_salvage_kit_count() -> None:
+    from Py4GWCoreLib.enums_src.Model_enums import ModelID as _ModelID
+
+    email = Player.GetAccountEmail()
+    salvage_count = int(GLOBAL_CACHE.Inventory.GetModelCount(_ModelID.Salvage_Kit.value))
+    _bds_ini.write_key(_ALT_SALVAGE_SECTION, _account_key(email), str(salvage_count))
+
+def _request_alt_salvage_kit_counts() -> Generator:
+    my_email = Player.GetAccountEmail()
+    alt_accounts = [acc for acc in GLOBAL_CACHE.ShMem.GetAllAccountData() if acc.AccountEmail != my_email]
+    for acc in alt_accounts:
+        _bds_ini.write_key(_ALT_SALVAGE_SECTION, _account_key(acc.AccountEmail), str(-1))
+
+    pending_accounts = alt_accounts
+    max_attempts = max(1, _ALT_SALVAGE_POLL_MAX_TOTAL_MS // max(1, _ALT_SALVAGE_POLL_TIMEOUT_MS))
+    for _attempt in range(max_attempts):
+        if not pending_accounts:
+            break
+
+        for acc in pending_accounts:
+            GLOBAL_CACHE.ShMem.SendMessage(
+                my_email,
+                acc.AccountEmail,
+                SharedCommandType.MerchantItems,
+                (0, 0, 0, 0),
+                ("report_salvage_kits", _bds_ini_path, _ALT_SALVAGE_SECTION, _account_key(acc.AccountEmail)),
+            )
+
+        yield from Routines.Yield.wait(_ALT_SALVAGE_POLL_TIMEOUT_MS)
+        pending_accounts = [
+            acc for acc in pending_accounts
+            if _bds_ini.read_int(_ALT_SALVAGE_SECTION, _account_key(acc.AccountEmail), -1) < 0
+        ]
+
+    if pending_accounts:
+        pending_names = [acc.AgentData.CharacterName or acc.AccountEmail for acc in pending_accounts]
+        ConsoleLog(
+            BOT_NAME,
+            f"[Merchant] No salvage count reply after {max_attempts} attempts ({_ALT_SALVAGE_POLL_MAX_TOTAL_MS} ms max) from: {', '.join(pending_names)}. Skipping them this check.",
+            Py4GW.Console.MessageType.Warning,
+        )
+
+def _account_key(email: str) -> str:
+    return email.replace("@", "_at_").replace(".", "_")
+
+def _alts_need_salvage_restock() -> tuple[bool, list[str], list[str]]:
+    my_email = Player.GetAccountEmail()
+    ini_reader = IniHandler(_bds_ini_path)
+    low_accounts: list[str] = []
+    unknown_accounts: list[str] = []
+    for acc in GLOBAL_CACHE.ShMem.GetAllAccountData():
+        if acc.AccountEmail == my_email:
+            continue
+        count = ini_reader.read_int(_ALT_SALVAGE_SECTION, _account_key(acc.AccountEmail), -1)
+        char_name = acc.AgentData.CharacterName or acc.AccountEmail
+        if count < 0:
+            unknown_accounts.append(char_name)
+            continue
+        if count < _ALT_SALVAGE_TRIGGER_THRESHOLD:
+            low_accounts.append(f"{char_name} ({count})")
+    return len(low_accounts) > 0, low_accounts, unknown_accounts
+
+def _gh_merchant_setup_for_alt_salvage_threshold() -> Generator:
+    _write_local_salvage_kit_count()
+    yield from _request_alt_salvage_kit_counts()
+    needs_restock, low_accounts, unknown_accounts = _alts_need_salvage_restock()
+    if unknown_accounts:
+        ConsoleLog(
+            BOT_NAME,
+            f"[Merchant] Alt salvage count unknown this pass: {', '.join(unknown_accounts)}",
+            Py4GW.Console.MessageType.Warning,
+        )
+    if not needs_restock:
+        yield
+        return
+
+    ConsoleLog(
+        BOT_NAME,
+        f"[Merchant] Alt salvage trigger hit: {', '.join(low_accounts)}. Running Guild Hall merchant routine.",
+    )
+    yield from _resign_all_to_outpost_before_merchant()
+    yield from _gh_merchant_setup(leave_party=True)
+    yield from _reenable_merchant_widgets()
+    yield from _return_to_arbor_bay_after_merchant()
+    yield from _rebuild_party_after_merchant()
 
 def _resign_all_to_outpost_before_merchant() -> Generator:
     ConsoleLog(BOT_NAME, "[Merchant] Resigning all accounts before Guild Hall merchant routine")
@@ -1080,25 +1489,6 @@ def debug_item_signature(max_dist: float = 2500.0) -> Generator:
         yield from Routines.Yield.wait(100)
 
     yield
-
-
-def _wait_end_dungeon() -> Generator:
-    ConsoleLog(BOT_NAME,"[WAIT] Waiting for dungeon end teleport")
-
-    timeout = time.time() + 180
-    while True:
-        if Map.GetMapID() == Arbor_Bay:
-            ConsoleLog(BOT_NAME,"[WAIT] Teleported to Arbor Bay")
-            yield
-            return
-
-        if time.time() > timeout:
-            ConsoleLog(BOT_NAME,"[WAIT] Timeout waiting for Arbor Bay teleport")
-            yield
-            return
-
-        yield from Routines.Yield.wait(500)
-
 
 INTERACTABLE_TYPES = {0x200, 0x400}  # coffres / portes / brasiers (comme ton AutoIt)
 
@@ -1594,6 +1984,7 @@ def wait_for_map_change(target_map_id, timeout_seconds=60):
 
 
 def _on_party_wipe(bot: "Botting"):
+    global L3_BOSS_ROUTE_UNLOCKED
     # Wait until we are alive again
     while Agent.IsDead(Player.GetAgentID()):
         yield from bot.Wait._coro_for_time(1000)
@@ -1608,7 +1999,7 @@ def _on_party_wipe(bot: "Botting"):
     # These should be the JUMPABLE step names (anchors), not just visual headers.
     SHRINES_BY_MAP = {
         SoO_lvl1: [
-            ("Secure return - L1", -11686, 10427),
+            ("Secure return - L1", 8503.9,12143.5),
             ("Secure return 1 - L1", 15953.0, 11902.0)
         ],
         SoO_lvl2: [
@@ -1616,7 +2007,6 @@ def _on_party_wipe(bot: "Botting"):
         ],
         SoO_lvl3: [
             ("Secure return 1 - L3", 17544.0, 18810.0),
-            ("Secure return 2 - L3", -2964.1,7302.1),
             ("Secure return boss - L3", -9686.32, 2632)
         ],
     }
@@ -1655,7 +2045,13 @@ def _on_party_wipe(bot: "Botting"):
         bot.config.FSM.resume()
         return
 
-    chosen = pick_nearest_anchor(map_id, float(player_x), float(player_y))
+    if map_id == SoO_lvl3:
+        if L3_BOSS_ROUTE_UNLOCKED:
+            chosen = "Secure return boss - L3"
+        else:
+            chosen = "Secure return 1 - L3"
+    else:
+        chosen = pick_nearest_anchor(map_id, float(player_x), float(player_y))                          
 
     ConsoleLog("Res Check", f"↩ wipe-route -> {chosen} (map={map_id}, pos=({player_x:.0f},{player_y:.0f}))")
     bot.config.FSM.jump_to_state_by_name(chosen)
@@ -1917,7 +2313,8 @@ def farm_bds_routine(bot: Botting) -> None:
         bot.Move.FollowAutoPath(path)
     bot.Wait.UntilOutOfCombat()
     
-
+    # ===== LOOP RESTART POINT =====
+    bot.States.AddCustomState(loop_marker, "LOOP_RESTART_POINT")
     
     bot.States.AddCustomState(lambda: bot.Move.XY(12056.00,-17882), "Go to Shandra")
     # Take Shandra' quest
@@ -1930,10 +2327,6 @@ def farm_bds_routine(bot: Botting) -> None:
     bot.Move.XY(10218, -18864)
     bot.Move.XY(9519, -19968)
     bot.Move.XY(9240.07, -20260.95)
-
-
-    # ===== LOOP RESTART POINT =====
-    bot.States.AddCustomState(loop_marker, "LOOP_RESTART_POINT")
 
 
     # Wait for change to Level 1
@@ -1989,7 +2382,8 @@ def farm_bds_routine(bot: Botting) -> None:
     if not IS_REPATHING:
         bot.Move.FollowAutoPath(path_before_bridgant)
 
-
+    bot.States.AddHeader("Secure return - L1")
+    bot.States.AddCustomState(_step_anchor, "Secure return - L1")  # anchor for secure return on wipe
 
     path_before_door= [
         (9196.0,11484.4),
@@ -2010,8 +2404,8 @@ def farm_bds_routine(bot: Botting) -> None:
         bot.Move.FollowAutoPath(path_before_door)
     bot.Wait.UntilOutOfCombat()
     bot.Move.XY(15953, 11902)
-    bot.States.AddHeader("Secure return - L1")
-    bot.States.AddCustomState(_step_anchor, "Secure return - L1")  # anchor for secure return on wipe    
+    bot.States.AddHeader("Secure return 1 - L1")
+    bot.States.AddCustomState(_step_anchor, "Secure return 1 - L1")  # anchor for secure return on wipe    
     
     path_before_door2 = [    
         (15927.4,11684.7),
@@ -2197,7 +2591,7 @@ def farm_bds_routine(bot: Botting) -> None:
     bot.Templates.Aggressive()
 
     bot.States.AddHeader("L3 - Cleaning level")
-    path_before_secure_return = [
+    path_before_flag = [
         (17544.5,18530.2),
         (17231.2,17523.3),
         (16811.3,16513.4),
@@ -2224,19 +2618,15 @@ def farm_bds_routine(bot: Botting) -> None:
         (1069.7,8045.3),
         (619.8,7044.0),
         (-385.8,6478.3),
-        (-1123.5,7481.9),
-        (-2964.1,7302.1)]
+        (-1123.5,7481.9)]
     bot.Templates.Aggressive()
     if not IS_REPATHING:
-        bot.Move.FollowAutoPath(path_before_secure_return)
-    bot.Wait.UntilOutOfCombat()     
+        bot.Move.FollowAutoPath(path_before_flag)
+    bot.Wait.UntilOutOfCombat()
 
-    bot.States.AddHeader("Secure return 2 - L3")
-    bot.States.AddCustomState(_step_anchor, "Secure return 2 - L3")
-
-
-    bot.States.AddHeader("L3 - Cleaning level 2")
-    path_after_secure_return = [    
+    bot.States.AddCustomState(_reset_l3_boss_route_flag, "Reset L3 boss route flag") #ICI CE TROUVE LE SHRINE DONC SI JE MEURT APRES JE REVIENS ICI DONC MAIS SI JE MEURT AU BOSS C4EST ICI QUE JE REVIS
+        
+    path2=[(-2964.1,7302.1),
         (-3139.7,7022.7),
         (-4152.0,6469.6),
         (-5154.0,5969.0),
@@ -2252,9 +2642,8 @@ def farm_bds_routine(bot: Botting) -> None:
     ]
     bot.Templates.Aggressive()
     if not IS_REPATHING:
-        bot.Move.FollowAutoPath(path_after_secure_return)
+        bot.Move.FollowAutoPath(path2)
     bot.Wait.UntilOutOfCombat()
-
 
     bot.States.AddHeader("L3 - Path to torch")
     path_to_take_torch = [
@@ -2284,7 +2673,8 @@ def farm_bds_routine(bot: Botting) -> None:
     bot.States.AddHeader("L3 - Kill Brigant")
     bot.Move.XY(-11878.79, 2166.51)
     bot.Move.XY(-9686.32, 2632)
-    bot.States.AddHeader("Secure return 2 - L3")
+    bot.States.AddCustomState(_set_l3_boss_route_flag, "Set L3 boss route flag")
+    bot.States.AddHeader("Secure return boss - L3")
     bot.States.AddCustomState(_step_anchor, "Secure return boss - L3")
     bot.States.AddHeader("L3 - Move and open door")
     bot.Move.XY(-9252.32, 6396.40)
@@ -2312,44 +2702,22 @@ def farm_bds_routine(bot: Botting) -> None:
         # ===== OPEN FINAL CHEST =====
     bot.Move.XY(-15800.98,16901.23)
     bot.States.AddCustomState(_snapshot_bds_before_chest, "BDS Pre-Chest Snapshot")
+    bot.Move.XY(-15800.98,16901.23) 
     bot.States.AddCustomState(open_fendi_chest, "Open Chest (All Accounts)")
-    bot.Wait.ForTime(6000)
-    bot.States.AddCustomState(open_fendi_chest, "Open Chest (All Accounts) - attempt 2")
-    bot.Wait.ForMapToChange(target_map_id=485)
-    #bot.States.AddCustomState(lambda:_wait_end_dungeon(), "Wait for end of dungeon and teleport")
+    bot.States.AddCustomState(_record_bds_after_loot, "Record BDS Stats After Loot")
+    bot.States.AddHeader("Quest sequence (reward + retake)")
+    bot.States.AddCustomState(lambda: Search_and_talk_with_Shandra(bot), "Find Shandra and talk")
+    bot.Wait.ForTime(5000)
+    bot.Multibox.SendDialogToTarget(SHANDRA_QUEST_REWARD_DIALOG)
+    bot.Wait.ForTime(4000)
+    bot.States.AddCustomState(_verify_reward_taken_from_quest_log, "Verify reward from quest log")
 
     
-    bot.States.AddHeader("Quest sequence (reward + retake)")
-    # return to arbor bay and take reward
-    bot.Wait.ForTime(6000)  # let the map and NPCs fully load after teleport
-    bot.States.AddCustomState(_record_bds_after_loot, "Record BDS Stats")
-    bot.Move.XYAndInteractNPC(12056, -17882)
-    bot.Wait.ForTime(2000)  # wait for dialog window to open
-    bot.Multibox.SendDialogToTarget(SHANDRA_QUEST_REWARD_DIALOG)
-    bot.Wait.ForTime(2000)  # wait for reward to be processed
+    # ===== NEXT RUN =====
+    bot.Wait.ForMapToChange(target_map_name="Arbor Bay")
     bot.States.AddCustomState(_gh_merchant_setup_if_inventory_full, "GH Merchant if inventory full")
     bot.States.AddCustomState(_gh_merchant_setup_for_alt_salvage_threshold, "GH Merchant if alt salvage kits are low")
-
-    # enter the dungeon to reset it
-    bot.Move.XY(9240.07, -20260.95)
-    bot.States.AddCustomState(lambda: wait_for_map_change(SoO_lvl1, 60), "Wait for Level 1 - reset")
-    bot.Wait.ForTime(2000)  # wait for map to fully load before turning back
-
-    # go out of the dungeon
-    bot.Move.XY(-15650, 8900)
-    bot.States.AddCustomState(lambda: wait_for_map_change(Arbor_Bay, 60), "Wait for Arbor_Bay")
-    bot.Wait.ForTime(4000)  # wait for NPCs to load after returning to Arbor Bay
-
-    # Take Shandra's quest
-    bot.Move.XY(12056, -17882)
-    bot.Move.XYAndInteractNPC(12056, -17882)
-    bot.Wait.ForTime(2000)  # wait for dialog window to open
-    bot.Multibox.SendDialogToTarget(SHANDRA_TAKE_DIALOGS)
-    bot.Wait.ForTime(4000)
-
-    # enter the dungeon again
-    bot.Move.XY(9240.07, -20260.95)
-
+    bot.States.AddCustomState(lambda: _post_return_flow(bot), "Post-return quest handling")
     
     # ===== LOOP =====
     bot.States.JumpToStepName("LOOP_RESTART_POINT")
