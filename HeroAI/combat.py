@@ -149,6 +149,15 @@ class CombatClass:
         self.is_targeting_enabled = options.Targeting if options is not None else False
         self.is_combat_enabled = options.Combat if options is not None else False
         self.is_skill_enabled = options.Skills if options is not None else [False]*MAX_SKILLS
+
+    def ApplyBlockedSkillIDs(self, blocked_skill_ids: list[int] | None = None) -> None:
+        blocked_ids = {int(skill_id) for skill_id in (blocked_skill_ids or []) if int(skill_id) != 0}
+        if len(self.is_skill_enabled) != MAX_SKILLS:
+            self.is_skill_enabled = [True] * MAX_SKILLS
+
+        for slot in range(MAX_SKILLS):
+            skill_id = int(GLOBAL_CACHE.SkillBar.GetSkillIDBySlot(slot + 1) or 0)
+            self.is_skill_enabled[slot] = self.is_skill_enabled[slot] and skill_id not in blocked_ids
         
 
     def PrioritizeSkills(self):
@@ -337,7 +346,8 @@ class CombatClass:
 
 
     def GetPartyTarget(self):
-        party_target = self.GetPartyTargetID()
+        from Py4GWCoreLib import Party
+        party_target = Party.GetPartyTarget()
         if self.is_targeting_enabled and party_target != 0:
             current_target = Player.GetTargetID()
             if current_target != party_target:
@@ -1148,6 +1158,41 @@ class CombatClass:
         if nearest != 0:
             self.SafeInteract(nearest)
             return True
+
+        return False
+
+    def HandleAutoAttack(self, cached_data) -> bool:
+        if cached_data is None or not self.is_combat_enabled or self.in_casting_routine:
+            return False
+
+        target_id = Player.GetTargetID()
+        _, target_allegiance = Agent.GetAllegiance(target_id)
+
+        if target_id == 0 or Agent.IsDead(target_id) or (target_allegiance != "Enemy"):
+            if (
+                not Agent.IsAttacking(Player.GetAgentID())
+                and not Agent.IsCasting(Player.GetAgentID())
+                and not Agent.IsMoving(Player.GetAgentID())
+            ):
+                if self.ChooseTarget():
+                    cached_data.auto_attack_timer.Reset()
+                    return True
+
+        if (
+            cached_data.auto_attack_timer.HasElapsed(cached_data.auto_attack_time)
+            and cached_data.data.weapon_type != 0
+        ):
+            if (
+                not Agent.IsAttacking(Player.GetAgentID())
+                and not Agent.IsCasting(Player.GetAgentID())
+                and not Agent.IsMoving(Player.GetAgentID())
+            ):
+                self.ChooseTarget()
+            cached_data.auto_attack_timer.Reset()
+            self.ResetSkillPointer()
+            return True
+
+        return False
         
         
         
@@ -1237,7 +1282,7 @@ class CombatClass:
             Py4GW.Console.Log("HeroAI", f"Error in UseAlcoholIfAvailable: {e}", Py4GW.Console.MessageType.Warning)
         return False
 
-    def HandleCombat(self,ooc=False):
+    def HandleCombat(self, cached_data=None, ooc=False):
         """
         tries to Execute the next skill in the skill order.
         """
@@ -1249,7 +1294,7 @@ class CombatClass:
             
         if not is_skill_ready:
             self.AdvanceSkillPointer()
-            return False
+            return self.HandleAutoAttack(cached_data) if not ooc else False
         
         is_ooc_skill = self.IsOOCSkill(slot)
 
@@ -1262,15 +1307,15 @@ class CombatClass:
  
         if not is_read_to_cast:
             self.AdvanceSkillPointer()
-            return False
+            return self.HandleAutoAttack(cached_data) if not ooc else False
         
 
         if target_agent_id == 0:
             self.AdvanceSkillPointer()
-            return False
+            return self.HandleAutoAttack(cached_data) if not ooc else False
 
         if not Agent.IsLiving(target_agent_id):
-            return False
+            return self.HandleAutoAttack(cached_data) if not ooc else False
         
         # Auto-use alcohol before alcohol-dependent PVE skills for optimal effect
         alcohol_skills = [

@@ -1,7 +1,8 @@
 import Py4GW
 from Py4GWCoreLib import (Routines, Item, Botting, ActionQueueManager, ConsoleLog, Player, GLOBAL_CACHE, Agent, HeroType)
-from Py4GWCoreLib.Builds import SF_Assassin_Barbarous, SF_Derv_Barbarous
-from Py4GWCoreLib.Builds.BuildHelpers import BuildDangerHelper, DangerTable
+from Py4GWCoreLib.Builds.CombatAutomatorExcluded.SF_Assassin_Barbarous import SF_Assassin_Barbarous
+from Py4GWCoreLib.Builds.CombatAutomatorExcluded.SF_Derv_Barbarous import SF_Derv_Barbarous
+from Py4GWCoreLib.Builds.CombatAutomatorExcluded.BuildHelpers import BuildDangerHelper, DangerTable
 from Sources.Sasemoi.bot_helpers import BotStuckHelper
 from Sources.Sasemoi.utils.inventory_utils import filter_valuable_inscription_type, get_unidentified_items, filter_valuable_weapon_type, filter_valuable_rune_type
 from Sources.Sasemoi.bot_helpers.bot_mystic_healing_support import MysticHealingSupport

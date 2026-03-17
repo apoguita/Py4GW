@@ -1,5 +1,6 @@
 from typing import override
 
+from Sources.oazix.CustomBehaviors.primitives.scores.score_boosted_definition import ScoreBoostedDefinition
 from Sources.oazix.CustomBehaviors.primitives.scores.score_per_agent_quantity_definition import ScorePerAgentQuantityDefinition
 from Sources.oazix.CustomBehaviors.primitives.scores.score_per_health_gravity_definition import ScorePerHealthGravityDefinition
 from Sources.oazix.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
@@ -22,6 +23,7 @@ from Sources.oazix.CustomBehaviors.skills.necromancer.blood_is_power_utility imp
 from Sources.oazix.CustomBehaviors.skills.necromancer.dark_aura_utility import DarkAuraUtility
 from Sources.oazix.CustomBehaviors.skills.necromancer.foul_feast_utility import FoulFeastUtility
 from Sources.oazix.CustomBehaviors.skills.necromancer.signet_of_lost_souls_utility import SignetOfLostSoulsUtility
+from Sources.oazix.CustomBehaviors.skills.necromancer.strip_enchantment_utility import StripEnchantmentUtility
 from Sources.oazix.CustomBehaviors.skills.paragon.fall_back_utility import FallBackUtility
 
 
@@ -34,20 +36,22 @@ class NecromancerDarkAuraSupport_UtilitySkillBar(CustomBehaviorBaseUtility):
         # core skills
         self.soul_taker_utility: CustomSkillUtilityBase = KeepSelfEffectUpUtility(event_bus=self.event_bus, skill=CustomSkill("Soul_Taker"), current_build=in_game_build, score_definition=ScoreStaticDefinition(90))
         self.masochism_utility: CustomSkillUtilityBase = KeepSelfEffectUpUtility(event_bus=self.event_bus, skill=CustomSkill("Masochism"), current_build=in_game_build, score_definition=ScoreStaticDefinition(89))
-
         self.dark_aura: CustomSkillUtilityBase = DarkAuraUtility(event_bus=self.event_bus, score_definition=ScoreStaticDefinition(80), current_build=in_game_build, mana_required_to_cast=10)
-
-        # optional
         self.great_dwarf_weapon_utility: CustomSkillUtilityBase = GreatDwarfWeaponUtility(event_bus=self.event_bus, current_build=in_game_build, mana_required_to_cast=15, score_definition=ScoreStaticDefinition(51))
-        self.blood_is_power_utility: CustomSkillUtilityBase = BloodIsPowerUtility(event_bus=self.event_bus, current_build=in_game_build, sacrifice_life_limit_percent=0.55, required_target_mana_lower_than_percent=0.30,  score_definition=ScoreStaticDefinition(50))
-        self.foul_feast_utility: CustomSkillUtilityBase = FoulFeastUtility(event_bus=self.event_bus, current_build=in_game_build, mana_required_to_cast=15, score_definition=ScoreStaticDefinition(49)) # let's keep 15 mana to not be out of mana spamming it
 
+
+        # optionnal skills  # let's keep 15 mana for the core skills
+        # ordered by priority
+        optionnal_required_mana = 15
+        self.blood_is_power_utility: CustomSkillUtilityBase = BloodIsPowerUtility(event_bus=self.event_bus, current_build=in_game_build, sacrifice_life_limit_percent=0.55, required_target_mana_lower_than_percent=0.30,  score_definition=ScoreStaticDefinition(50))
+        self.foul_feast_utility: CustomSkillUtilityBase = FoulFeastUtility(event_bus=self.event_bus, current_build=in_game_build, mana_required_to_cast=optionnal_required_mana, score_definition=ScoreStaticDefinition(49))
         self.breath_of_the_great_dwarf_utility: CustomSkillUtilityBase = BreathOfTheGreatDwarfUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScorePerHealthGravityDefinition(9))
-        self.blood_bond_utility: CustomSkillUtilityBase = BloodBondUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScorePerAgentQuantityDefinition(lambda enemy_qte: 25 if enemy_qte >= 2 else 0), mana_required_to_cast=15)
+        self.blood_bond_utility: CustomSkillUtilityBase = BloodBondUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScorePerAgentQuantityDefinition(lambda enemy_qte: 25 if enemy_qte >= 2 else 12), mana_required_to_cast=optionnal_required_mana)
+        self.strip_enchantment_utility: CustomSkillUtilityBase = StripEnchantmentUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScoreStaticDefinition(24), mana_required_to_cast=optionnal_required_mana)
 
         # common
-        self.ebon_vanguard_assassin_support: CustomSkillUtilityBase = EbonVanguardAssassinSupportUtility(event_bus=self.event_bus, score_definition=ScoreStaticDefinition(71), current_build=in_game_build, mana_required_to_cast=15)
-        self.ebon_battle_standard_of_wisdom: CustomSkillUtilityBase = EbonBattleStandardOfWisdom(event_bus=self.event_bus, score_definition= ScorePerAgentQuantityDefinition(lambda agent_qte: 80 if agent_qte >= 3 else 60 if agent_qte <= 2 else 40), current_build=in_game_build, mana_required_to_cast=18)
+        self.signet_of_lost_souls_utility: CustomSkillUtilityBase = SignetOfLostSoulsUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScoreBoostedDefinition(23, 70), mana_required_to_cast=0)
+        self.ebon_vanguard_assassin_support: CustomSkillUtilityBase = EbonVanguardAssassinSupportUtility(event_bus=self.event_bus, score_definition=ScoreStaticDefinition(20), current_build=in_game_build, mana_required_to_cast=15)
 
     @property
     @override
@@ -59,7 +63,6 @@ class NecromancerDarkAuraSupport_UtilitySkillBar(CustomBehaviorBaseUtility):
             self.blood_bond_utility,
             self.foul_feast_utility,
             self.ebon_vanguard_assassin_support,
-            self.ebon_battle_standard_of_wisdom,
             self.soul_taker_utility,
             self.masochism_utility,
             self.dark_aura,
@@ -72,3 +75,4 @@ class NecromancerDarkAuraSupport_UtilitySkillBar(CustomBehaviorBaseUtility):
             self.dark_aura.custom_skill,
             self.foul_feast_utility.custom_skill,
         ]
+0

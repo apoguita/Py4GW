@@ -12,7 +12,6 @@ from Sources.oazix.CustomBehaviors.skills.generic.raw_aoe_attack_utility import 
 from Sources.oazix.CustomBehaviors.skills.monk.castigation_signet_utility import CastigationSignetUtility
 from Sources.oazix.CustomBehaviors.skills.monk.smite_hex_utility import SmiteHexUtility
 from Sources.oazix.CustomBehaviors.skills.monk.smite_condition_utility import SmiteConditionUtility
-from Sources.oazix.CustomBehaviors.skills.necromancer.signet_of_lost_souls_utility import SignetOfLostSoulsUtility
 from Sources.oazix.CustomBehaviors.skills.paragon.fall_back_utility import FallBackUtility
 
 

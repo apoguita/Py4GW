@@ -181,13 +181,23 @@ def render():
                                 PyImGui.text_colored(f"{skill.mana_required_to_cast}",  Utils.RGBToNormal(27, 126, 246, 255))
                                 allowed_names = [x.name for x in (skill.allowed_states or [])]
                                 PyImGui.bullet_text(f"allowed in : {allowed_names}")
-                                PyImGui.bullet_text(f"pre_check : {skill.are_common_pre_checks_valid(instance.get_final_state())}")
-                                PyImGui.bullet_text(f"Slot:{skill.custom_skill.skill_slot}")
-                                PyImGui.bullet_text(f"score max up-to:{skill.score_definition.score_definition_debug_ui()}")
+                                PyImGui.bullet_text(f"are_common_pre_checks_valid : {skill.are_common_pre_checks_valid(instance.get_final_state())}")
+                                PyImGui.bullet_text(f"are_capabilities_satisfied : {skill.are_capabilities_satisfied()}")
+                                PyImGui.bullet_text(f"slot:{skill.custom_skill.skill_slot}")
+                                PyImGui.bullet_text(f"score_definition:{skill.score_definition.score_definition_debug_ui()}")
                                 buff_configuration: CustomBuffMultipleTarget | None = skill.get_buff_configuration()
                                 if buff_configuration is not None:
                                     buff_configuration.render_buff_configuration()
+                                
+                                # capabilities debug ui
+                                for capability in skill.get_capabilities():
+                                    PyImGui.bullet_text(f"capability: {capability.capability_name}")
+                                    capability.render_debug_ui()
+
+                                # customized_debug_ui
                                 skill.customized_debug_ui(instance.get_final_state())
+
+
 
                             PyImGui.table_next_row()
                         PyImGui.end_table()

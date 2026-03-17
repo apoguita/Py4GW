@@ -18,7 +18,6 @@ from Sources.oazix.CustomBehaviors.skills.generic.minion_invocation_from_corpse_
 from Sources.oazix.CustomBehaviors.skills.necromancer.blood_bond_utility import BloodBondUtility
 from Sources.oazix.CustomBehaviors.skills.necromancer.blood_is_power_utility import BloodIsPowerUtility
 from Sources.oazix.CustomBehaviors.skills.necromancer.blood_of_the_master import BloodOfTheMasterUtility
-from Sources.oazix.CustomBehaviors.skills.necromancer.signet_of_lost_souls_utility import SignetOfLostSoulsUtility
 from Sources.oazix.CustomBehaviors.skills.paragon.fall_back_utility import FallBackUtility
 from Sources.oazix.CustomBehaviors.skills.ritualist.mend_body_and_soul_utility import MendBodyAndSoulUtility
 from Sources.oazix.CustomBehaviors.skills.ritualist.life_utility import LifeUtility

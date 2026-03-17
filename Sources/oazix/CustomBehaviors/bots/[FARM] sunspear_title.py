@@ -30,14 +30,14 @@ def bot_routine(bot_instance: Botting):
     PartyFollowingManager().set_party_following_behavior_state(FollowingBehaviorPriority.LOW_PRIORITY) 
 
     # we just disable all to be super speed, the farm is trivial
-    BottingManager().configure_aggressive_skill(MoveToEnemyIfCloseEnoughUtility.Name, enabled=False)
-    BottingManager().configure_aggressive_skill(MoveToPartyMemberIfInAggroUtility.Name,enabled=False)
-    BottingManager().configure_aggressive_skill(WaitIfLockTakenUtility.Name, enabled=False)
-    BottingManager().configure_aggressive_skill(WaitIfPartyMemberTooFarUtility.Name, enabled=False)
-    BottingManager().configure_aggressive_skill(MoveToPartyMemberIfDeadUtility.Name, enabled=False)
-    BottingManager().configure_aggressive_skill(WaitIfPartyMemberManaTooLowUtility.Name, enabled=False)
-    BottingManager().configure_aggressive_skill(WaitIfPartyMemberNeedsToLootUtility.Name, enabled=False)
-    BottingManager().configure_aggressive_skill(WaitIfInAggroUtility.Name, enabled=False)
+    BottingManager().configure_aggressive_skill(MoveToEnemyIfCloseEnoughUtility.Name, enabled=True)
+    BottingManager().configure_aggressive_skill(MoveToPartyMemberIfInAggroUtility.Name,enabled=True)
+    BottingManager().configure_aggressive_skill(WaitIfLockTakenUtility.Name, enabled=True)
+    BottingManager().configure_aggressive_skill(WaitIfPartyMemberTooFarUtility.Name, enabled=True)
+    BottingManager().configure_aggressive_skill(MoveToPartyMemberIfDeadUtility.Name, enabled=True)
+    BottingManager().configure_aggressive_skill(WaitIfPartyMemberManaTooLowUtility.Name, enabled=True)
+    BottingManager().configure_aggressive_skill(WaitIfPartyMemberNeedsToLootUtility.Name, enabled=True)
+    BottingManager().configure_aggressive_skill(WaitIfInAggroUtility.Name, enabled=True)
 
     # Set Flags
     FlagBackwardGridPlacement.apply_backward_grid_to_flag_manager()

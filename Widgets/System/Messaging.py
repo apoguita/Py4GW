@@ -23,6 +23,7 @@ from Py4GWCoreLib import IniHandler
 from Py4GWCoreLib.Py4GWcorelib import Keystroke
 from Py4GWCoreLib.Quest import Quest
 from Py4GWCoreLib.enums_src.Model_enums import ModelID
+from Widgets.Automation.Helpers.Pycons import resolve_pycons_account_ini_path
 from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
 from Py4GWCoreLib.GlobalCache.shared_memory_src.SharedMessageStruct import SharedMessageStruct
 
@@ -599,6 +600,33 @@ def MerchantItems(index: int, message: SharedMessageStruct):
         wait_ms += 250
     _merchant_busy = True
 
+    def _extra_data(message: SharedMessageStruct) -> tuple[str, str, str, str]:
+        values: list[str] = []
+        for raw in message.ExtraData:
+            try:
+                values.append(_c_wchar_array_to_str(raw))
+            except Exception:
+                values.append("")
+        while len(values) < 4:
+            values.append("")
+        return tuple(values[:4])
+
+    extra0, extra1, extra2, extra3 = _extra_data(message)
+    mode = extra0.strip().lower()
+
+    if mode == "report_salvage_kits":
+        try:
+            salvage_kits_in_inv = int(GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Salvage_Kit.value))
+            ini_path = str(extra1 or "").strip()
+            ini_section = str(extra2 or "").strip()
+            ini_key = str(extra3 or "").strip()
+            if ini_path and ini_section and ini_key:
+                IniHandler(ini_path).write_key(ini_section, ini_key, str(salvage_kits_in_inv))
+        finally:
+            _merchant_busy = False
+            GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+
     try:
         x = float(message.Params[0])
         y = float(message.Params[1])
@@ -690,9 +718,19 @@ def MerchantMaterials(index: int, message: SharedMessageStruct):
             return None
         return parsed if parsed > 0 else None
 
-    extra0, extra1, extra2, _ = _extra_data(message)
+    extra0, extra1, extra2, extra3 = _extra_data(message)
     mode = extra0.strip().lower()
     selected_models = _parse_selected_models(extra1)
+
+    def _parse_exact_quantity(raw: str, default: int = 250) -> int | None:
+        value = str(raw).strip()
+        if value == "":
+            return int(default)
+        try:
+            parsed = int(value)
+        except Exception:
+            return int(default)
+        return parsed if parsed > 0 else None
 
     try:
         x = float(message.Params[0])
@@ -732,6 +770,7 @@ def MerchantMaterials(index: int, message: SharedMessageStruct):
         elif mode == "deposit":
             deposit_metrics = yield from Routines.Yield.Merchant.DepositMaterials(
                 selected_models=selected_models,
+                exact_quantity=_parse_exact_quantity(extra3, default=250),
                 max_deposit_items=_parse_positive_int(extra2),
             )
             ConsoleLog(MODULE_NAME, f"MerchantMaterials deposit metrics: {deposit_metrics}", Console.MessageType.Info, False)
@@ -1475,7 +1514,6 @@ def _should_block_item_use() -> bool:
     if not _inventory_ready():
         return True
     return False
-
 def UseItem(index: int, message: SharedMessageStruct):
     ConsoleLog(MODULE_NAME, "UseItem: received broadcast.", Console.MessageType.Info, False)
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
@@ -1483,13 +1521,8 @@ def UseItem(index: int, message: SharedMessageStruct):
     # Check if the user has opted in to team broadcasts (Pycons setting)
     # Use Player.GetAccountEmail() to match the hash used by Pycons.py
     try:
-        # Get the current account's email (must match how Pycons computes the hash)
         account_email = Player.GetAccountEmail()
-        # Create account-specific INI path by using email hash to avoid special chars
-        import hashlib
-        email_hash = hashlib.md5(account_email.encode()).hexdigest()[:8]
-        ini_path = f"Widgets/Config/Pycons_{email_hash}.ini"
-        
+        ini_path = resolve_pycons_account_ini_path(account_email)
         ini_handler = IniHandler(ini_path)
         opt_in = ini_handler.read_bool("Pycons", "team_consume_opt_in", False)
         receiver_require_enabled = ini_handler.read_bool("Pycons", "mbdp_receiver_require_enabled", True)

@@ -1,7 +1,7 @@
 import Py4GW
 from Py4GWCoreLib import (Routines, Item, Botting, ActionQueueManager, Agent, ConsoleLog, GLOBAL_CACHE, ItemArray, Bags, HeroType, Player)
-from Py4GWCoreLib.Builds import SF_Assassin_Hells_Precipice
-from Py4GWCoreLib.Builds.BuildHelpers import BuildDangerHelper, DangerTable
+from Py4GWCoreLib.Builds.CombatAutomatorExcluded.SF_Assassin_HP import SF_Assassin_Hells_Precipice
+from Py4GWCoreLib.Builds.CombatAutomatorExcluded.BuildHelpers import BuildDangerHelper, DangerTable
 from Sources.Sasemoi.bot_helpers import BotStuckHelper
 from Sources.Sasemoi.bot_helpers.bot_mystic_healing_support import MysticHealingSupport
 

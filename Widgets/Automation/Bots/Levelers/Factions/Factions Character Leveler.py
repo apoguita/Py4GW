@@ -5,8 +5,8 @@ import PyImGui
 from Py4GW import Game
 from Py4GWCoreLib import (GLOBAL_CACHE, Routines, Range, Py4GW, ConsoleLog, ModelID, Botting,
                           AutoPathing, ImGui, ActionQueueManager, Map, Agent, Player, UIManager, GWUI, HeroType, Skill, AgentArray)
-from Py4GWCoreLib.Builds import KeiranThackerayEOTN
-from Py4GWCoreLib.Builds.AutoCombat import AutoCombat
+from Py4GWCoreLib.Builds.Any.KeiranThackerayEOTN import KeiranThackerayEOTN
+from Py4GWCoreLib.Builds.Any.AutoCombat import AutoCombat
 from Py4GWCoreLib.ImGui_src.types import Alignment
 from Py4GWCoreLib.enums_src.UI_enums import UIMessage
 from Py4GWCoreLib.py4gwcorelib_src.Color import Color
@@ -2122,7 +2122,7 @@ def To_Consulate_Docks(bot: Botting):
     bot.Move.XY(-5271.00, 16740.00)
     bot.Wait.ForMapLoad(target_map_id=429)
     #bot.Move.XYAndDialog(-4631.86, 16711.79, 0x85)
-    exec_fn = lambda: QuestLoop(724, -4631.86, 16711.79, 0x85, mode="step")
+    exec_fn = lambda: QuestLoop(000, -4631.86, 16711.79, 0x85, mode="skip")
     bot.States.AddCustomState(exec_fn, "Unlock Docks")
     bot.Wait.ForMapToChange(target_map_id=493)
 

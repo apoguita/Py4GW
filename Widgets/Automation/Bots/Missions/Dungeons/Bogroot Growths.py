@@ -4,9 +4,11 @@ from typing import Any
 import Py4GW
 from Py4GWCoreLib import (
     Agent,
+    AgentArray,
     Botting,
     ConsoleLog,
     GLOBAL_CACHE,
+    IniHandler,
     Map,
     Player,
     Quest,
@@ -21,6 +23,14 @@ from Py4GWCoreLib.routines_src.Yield import Utils
 # ==================== CONFIGURATION ====================
 BOT_NAME = "Froggy Farm rezone"
 TEXTURE = os.path.join(Py4GW.Console.get_projects_path(), "Bots", "textures", "froggy.png")
+WIDGETS_TO_ENABLE: tuple[str, ...] = (
+    "LootManager",
+    "CustomBehaviors",
+    "ResurrectionScroll",
+    "Return to outpost on defeat",
+)
+WIDGETS_TO_DISABLE: tuple[str, ...] = ()
+_ALT_ONLY_DISABLE_WIDGETS: tuple[str, ...] = (os.path.splitext(os.path.basename(__file__))[0],)
 
 # Map IDs
 MAP_GADDS_ENCAMPMENT = 638
@@ -502,9 +512,11 @@ def farm_froggy_routine(bot: Botting) -> None:
     bot.States.AddHeader(BOT_NAME)
     bot.Templates.Aggressive()
     bot.Templates.Routines.PrepareForFarm(map_id_to_travel=MAP_GADDS_ENCAMPMENT)
+    bot.States.AddCustomState(_reenable_merchant_widgets, "Re-enable merchant widgets")
     
     # ===== START OF LOOP =====
     bot.States.AddHeader(f"{BOT_NAME}_LOOP")
+    bot.States.AddCustomState(loop_marker, "RUN_START_POINT")
     bot.Party.SetHardMode(True)
     bot.Properties.Enable('auto_combat')
     bot.Quest.AbandonQuest(TEKKS_QUEST_ID)
@@ -804,13 +816,18 @@ def farm_froggy_routine(bot: Botting) -> None:
 # ==================== INITIALIZATION ====================
 
 bot.SetMainRoutine(farm_froggy_routine)
+bot.UI.override_draw_config(_draw_bogroot_settings)
 
 
 # ==================== MAIN ====================
 
 def main():
     bot.Update()
-    bot.UI.draw_window(icon_path=TEXTURE, main_child_dimensions=(400, 450))
+    draw_window_sig = inspect.signature(bot.UI.draw_window)
+    if "extra_tabs" in draw_window_sig.parameters:
+        bot.UI.draw_window(icon_path=TEXTURE, main_child_dimensions=(400, 450))
+    else:
+        bot.UI.draw_window(icon_path=TEXTURE, main_child_dimensions=(400, 450))
 
 
 if __name__ == "__main__":

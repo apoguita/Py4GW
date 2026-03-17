@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable, Optional
 
+from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist
+from Py4GWCoreLib.py4gwcorelib_src.Lootconfig_src import LootConfig
 from Py4GWCoreLib.enums_src.Map_enums import name_to_map_id, outposts
 from Py4GWCoreLib.enums_src.Item_enums import MaterialMap
 from Py4GWCoreLib.enums_src.Model_enums import ModelID
@@ -35,6 +37,7 @@ EMBARK_BEACH_MAP_ID = int(name_to_map_id["Embark Beach"])
 EYE_OF_THE_NORTH_MAP_ID = 642
 FOW_MAP_ID = int(name_to_map_id["The Fissure of Woe"])
 FOW_SCROLL_MODEL_ID = int(ModelID.Passage_Scroll_Fow.value)
+UNHOLY_TEXT_MODEL_ID = 2619
 
 CONSUMABLE_RESTOCK_DEFAULTS = {
     "grail_of_might": 3,
@@ -94,6 +97,8 @@ class ModularFowOptions:
     use_consumables: bool = True
     restock_consumables: bool = True
     auto_loot: bool = True
+    upkeep_auto_inventory_management_active: bool = False
+    skip_merchant_actions: bool = False
     debug_logging: bool = False
     entrypoint: str = DEFAULT_FOW_ENTRYPOINT_KEY
     sell_non_cons_materials: bool = False
@@ -160,6 +165,50 @@ def build_fow_phases(
     debug_hook: Optional[Callable[[str], None]] = None,
 ) -> list[Phase]:
     def _fow_setup(bot) -> None:
+        def _configure_cb_following_spread() -> None:
+            try:
+                from Py4GWCoreLib import GLOBAL_CACHE, ConsoleLog
+                from Sources.oazix.CustomBehaviors.primitives.following_behavior_priority import (
+                    FollowingBehaviorPriority,
+                )
+                from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import (
+                    CustomBehaviorParty,
+                )
+
+                party = CustomBehaviorParty()
+                party.set_party_is_following_enabled(True)
+                party.set_party_following_behavior_priority(FollowingBehaviorPriority.LOW_PRIORITY)
+
+                manager = party.party_following_manager
+                updated = 0
+                for account in GLOBAL_CACHE.ShMem.GetAllAccountData():
+                    email = str(getattr(account, "AccountEmail", "") or "").strip()
+                    if not email:
+                        continue
+                    manager.initialize_account_forces(email)
+                    current_leader = manager.get_is_attraction_leader_active(email)
+                    current_enemies = manager.get_is_repulsion_enemies_active(email)
+                    manager.set_account_forces(
+                        email,
+                        is_repulsion_allies_active=True,
+                        is_attraction_leader_active=current_leader,
+                        is_repulsion_enemies_active=current_enemies,
+                    )
+                    updated += 1
+
+                ConsoleLog(
+                    "FoWSetup",
+                    f"CB following set to LOW_PRIORITY; allies repulsion enabled for {updated} account(s).",
+                )
+            except Exception as exc:
+                _debug(debug_hook, f"Failed to configure CB following spread: {exc}")
+
+        bot.States.AddCustomState(_configure_cb_following_spread, "Configure CB Following Spread")
+        bot.States.AddCustomState(lambda: EnemyBlacklist().add_name("Wailing Lord"), "Blacklist Wailing Lord")
+        bot.States.AddCustomState(
+            lambda: LootConfig().AddToBlacklist(UNHOLY_TEXT_MODEL_ID),
+            "Blacklist Unholy Text Loot",
+        )
         entrypoint_name, entrypoint_map_id = _resolve_entrypoint(options.entrypoint)
         inventory_location_key, inventory_location_name = _resolve_inventory_management_location(
             options.inventory_management_location
@@ -170,6 +219,8 @@ def build_fow_phases(
             "Registering FoW setup steps "
             f"(hard_mode={options.hard_mode}, use_consumables={options.use_consumables}, "
             f"restock_consumables={options.restock_consumables}, auto_loot={options.auto_loot}, "
+            f"upkeep_auto_inventory_management_active={options.upkeep_auto_inventory_management_active}, "
+            f"skip_merchant_actions={options.skip_merchant_actions}, "
             f"entrypoint={entrypoint_name}, sell_non_cons_materials={options.sell_non_cons_materials}, "
             f"sell_all_common_materials={options.sell_all_common_materials}, buy_ectoplasm={options.buy_ectoplasm}, "
             f"inventory_management_location={inventory_location_name})",
@@ -178,26 +229,32 @@ def build_fow_phases(
             {"type": "leave_party", "name": "Leave Party", "multibox": True},
             {"type": "set_auto_looting", "enabled": bool(options.auto_loot)},
         ]
-        setup_steps[1:1] = _build_inventory_setup_steps(inventory_location_key)
-        
-        for _ in range(3):
-            setup_steps.append({"type": "restock_kits", "name": "Restock Kits", "id_kits": 2, "salvage_kits": 5, "multibox": True})
-            
-        if options.use_consumables and options.restock_consumables:
-            setup_steps.append({"type": "restock_cons"})
 
-        if options.sell_all_common_materials or materials_to_sell:
-            sell_step = {"type": "sell_materials", "name": "Sell Materials", "multibox": True, "ms": 5000}
-            if materials_to_sell is not None:
-                sell_step["materials"] = materials_to_sell
-            setup_steps.append(sell_step)
+        if not options.skip_merchant_actions:
+            setup_steps[1:1] = _build_inventory_setup_steps(inventory_location_key)
 
-        setup_steps.append({"type": "deposit_materials", "name": "Deposit Full Material Stacks", "multibox": True, "ms": 5000})
-        
-        if options.buy_ectoplasm:
+            for _ in range(3):
+                setup_steps.append(
+                    {"type": "restock_kits", "name": "Restock Kits", "id_kits": 2, "salvage_kits": 5, "multibox": True}
+                )
+
+            if options.use_consumables and options.restock_consumables:
+                setup_steps.append({"type": "restock_cons"})
+
+            if options.sell_all_common_materials or materials_to_sell:
+                sell_step = {"type": "sell_materials", "name": "Sell Materials", "multibox": True, "ms": 5000}
+                if materials_to_sell is not None:
+                    sell_step["materials"] = materials_to_sell
+                setup_steps.append(sell_step)
+
             setup_steps.append(
-                {"type": "buy_ectoplasm", "name": "Buy Ectoplasm", "use_storage_gold": False, "multibox": True, "ms": 5000}
+                {"type": "deposit_materials", "name": "Deposit Full Material Stacks", "multibox": True, "ms": 5000}
             )
+
+            if options.buy_ectoplasm:
+                setup_steps.append(
+                    {"type": "buy_ectoplasm", "name": "Buy Ectoplasm", "use_storage_gold": False, "multibox": True, "ms": 5000}
+                )
 
         setup_steps.extend(
             [
@@ -276,7 +333,7 @@ def create_modular_fow_bot(
         settings_ui=settings_ui,
         help_ui=help_ui,
         config_draw_path=True,
-        upkeep_auto_inventory_management_active=True,
+        upkeep_auto_inventory_management_active=bool(options.upkeep_auto_inventory_management_active),
         upkeep_summoning_stone_active=True,
         upkeep_grail_of_might_active=True,
         upkeep_essence_of_celerity_active=True,
