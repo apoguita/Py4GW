@@ -28,9 +28,6 @@ from Sources.oazix.CustomBehaviors.skills.generic.raw_simple_attack_utility impo
 from Sources.oazix.CustomBehaviors.skills.necromancer.putrid_explosion_utility import (
     PutridExplosionUtility,
 )
-from Sources.oazix.CustomBehaviors.skills.necromancer.signet_of_lost_souls_utility import (
-    SignetOfLostSoulsUtility,
-)
 
 
 class NecromancerPromiseSpiker_UtilitySkillBar(CustomBehaviorBaseUtility):
@@ -102,10 +99,6 @@ class NecromancerPromiseSpiker_UtilitySkillBar(CustomBehaviorBaseUtility):
             score_definition=ScoreStaticDefinition(69),
             mana_required_to_cast=5,
         )
-        self.signet_of_lost_souls_utility: CustomSkillUtilityBase = SignetOfLostSoulsUtility(
-            event_bus=self.event_bus,
-            current_build=in_game_build,
-        )
 
     @property
     @override
@@ -120,7 +113,6 @@ class NecromancerPromiseSpiker_UtilitySkillBar(CustomBehaviorBaseUtility):
             self.putrid_explosion_utility,
             self.pain_inverter_utility,
             self.angorodons_gaze_utility,
-            self.signet_of_lost_souls_utility,
         ]
 
     @property

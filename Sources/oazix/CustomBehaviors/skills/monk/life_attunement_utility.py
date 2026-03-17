@@ -11,6 +11,7 @@ from Sources.oazix.CustomBehaviors.primitives.scores.score_static_definition imp
 from Sources.oazix.CustomBehaviors.primitives.skills.bonds.custom_buff_multiple_target import CustomBuffMultipleTarget, CustomBuffTargetMode
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
+from Sources.oazix.CustomBehaviors.skills.capabilities.should_wait_for_heroic_refrain import ShouldWaitForHeroicRefrain
 
 
 class LifeAttunementUtility(CustomSkillUtilityBase):
@@ -38,6 +39,8 @@ class LifeAttunementUtility(CustomSkillUtilityBase):
             self.buff_configuration: CustomBuffMultipleTarget = CustomBuffMultipleTarget.instanciate_from_string(self.event_bus, self.custom_skill, data)
         else:
             self.buff_configuration: CustomBuffMultipleTarget = CustomBuffMultipleTarget(event_bus, self.custom_skill, buff_mode=CustomBuffTargetMode.PER_EMAIL)
+
+        self.add_capability(lambda x: ShouldWaitForHeroicRefrain(x.custom_skill, False))
 
     def _get_target(self) -> int | None:
         target = custom_behavior_helpers.Targets.get_first_or_default_from_allies_ordered_by_priority(
@@ -72,10 +75,18 @@ class LifeAttunementUtility(CustomSkillUtilityBase):
 
     @override
     def persist_configuration_for_account(self):
+        super().persist_configuration_for_account()
         PersistenceLocator().skills.write_for_account(str(self.custom_skill.skill_name), "buff_configuration", self.buff_configuration.serialize_to_string())
         print("configuration saved for account")
 
     @override
     def persist_configuration_as_global(self):
+        super().persist_configuration_as_global()
         PersistenceLocator().skills.write_global(str(self.custom_skill.skill_name), "buff_configuration", self.buff_configuration.serialize_to_string())
         print("configuration saved as global")
+
+    @override
+    def delete_persisted_configuration(self):
+        super().delete_persisted_configuration()
+        PersistenceLocator().skills.delete(str(self.custom_skill.skill_name), "buff_configuration")
+        print("configuration deleted")

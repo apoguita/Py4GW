@@ -11,21 +11,21 @@ from Sources.oazix.CustomBehaviors.primitives.scores.score_static_definition imp
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
 
-class LeechSignetUtility(CustomSkillUtilityBase):
+class ComplicateUtility(CustomSkillUtilityBase):
 
     def __init__(self,
-                    event_bus: EventBus,
-                    current_build: list[CustomSkill],
-                    score_definition: ScoreStaticDefinition = ScoreStaticDefinition(82),
-            ) -> None:
+                event_bus: EventBus,
+                current_build: list[CustomSkill],
+                score_definition: ScoreStaticDefinition = ScoreStaticDefinition(91),
+        ) -> None:
 
-            super().__init__(
-                event_bus=event_bus,
-                skill=CustomSkill("Leech_Signet"),
-                in_game_build=current_build,
-                score_definition=score_definition)
-            
-            self.score_definition: ScoreStaticDefinition = score_definition
+        super().__init__(
+            event_bus=event_bus,
+            skill=CustomSkill("Complicate"),
+            in_game_build=current_build,
+            score_definition=score_definition)
+        
+        self.score_definition: ScoreStaticDefinition = score_definition
 
     def detect_casting_enemies(self) -> list[SortableAgentData]:
         targets = custom_behavior_helpers.Targets.get_all_possible_enemies_ordered_by_priority_raw(
@@ -38,7 +38,6 @@ class LeechSignetUtility(CustomSkillUtilityBase):
 
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
-        if Agent.GetEnergy(Player.GetAgentID()) > 0.6: return None
         targets = self.detect_casting_enemies()
         if len(targets) == 0: return None
         return self.score_definition.get_score()
@@ -62,3 +61,6 @@ class LeechSignetUtility(CustomSkillUtilityBase):
         # result = yield from custom_behavior_helpers.Actions.cast_skill_to_target(self.custom_skill, target_agent_id=target_id)
         
         return result
+
+        
+

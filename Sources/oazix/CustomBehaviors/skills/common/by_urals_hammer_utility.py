@@ -19,7 +19,7 @@ class ByUralsHammerUtility(CustomSkillUtilityBase):
     def __init__(self,
         event_bus: EventBus,
         current_build: list[CustomSkill],
-        score_definition: ScorePerAgentQuantityDefinition = ScorePerAgentQuantityDefinition(lambda allies_qte: 99 if allies_qte >= 3 else 1),
+        score_definition: ScorePerAgentQuantityDefinition = ScorePerAgentQuantityDefinition(lambda allies_qte: 99 if allies_qte >= 2 else 1),
         mana_required_to_cast: int = 0,
         allowed_states: list[BehaviorState] = [BehaviorState.IN_AGGRO]
         ) -> None:
@@ -44,7 +44,8 @@ class ByUralsHammerUtility(CustomSkillUtilityBase):
 
         allies_qte = custom_behavior_helpers.Targets.get_all_possible_allies_ordered_by_priority_raw(
             within_range=Range.Earshot.value,
-            condition=lambda agent_id: not Agent.IsAlive(agent_id) and agent_id != player_agent_id,
+            condition=lambda agent_id: agent_id != player_agent_id,
+            is_alive=False,
             sort_key=(TargetingOrder.DISTANCE_ASC, )
         )
         if len(allies_qte) == 0: return None

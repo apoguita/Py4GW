@@ -13,22 +13,22 @@ from Sources.oazix.CustomBehaviors.primitives.skills.bonds.custom_buff_multiple_
 from Sources.oazix.CustomBehaviors.primitives.skills.bonds.custom_buff_target_per_profession import BuffConfigurationPerProfession
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
-from Sources.oazix.CustomBehaviors.primitives.skills.utility_skill_capability import UtilitySkillCapability
 from Sources.oazix.CustomBehaviors.skills.capabilities.should_wait_for_heroic_refrain import ShouldWaitForHeroicRefrain
 
 
-class ProtectiveBondUtility(CustomSkillUtilityBase):
+class LifeBondUtility(CustomSkillUtilityBase):
     def __init__(self,
         event_bus: EventBus,
         current_build: list[CustomSkill],
         score_definition: ScoreStaticDefinition = ScoreStaticDefinition(20),
         mana_required_to_cast: int = 20,
-        allowed_states: list[BehaviorState] = [BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO, BehaviorState.FAR_FROM_AGGRO]
+        allowed_states: list[BehaviorState] = [BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO, BehaviorState.FAR_FROM_AGGRO],
+        should_wait_for_heroic_refrain: bool = False
         ) -> None:
 
         super().__init__(
             event_bus=event_bus,
-            skill=CustomSkill("Protective_Bond"),
+            skill=CustomSkill("Life_Bond"),
             in_game_build=current_build,
             score_definition=score_definition,
             mana_required_to_cast=mana_required_to_cast,
@@ -42,7 +42,8 @@ class ProtectiveBondUtility(CustomSkillUtilityBase):
         else:
             self.buff_configuration: CustomBuffMultipleTarget = CustomBuffMultipleTarget(event_bus, self.custom_skill, buff_configuration_per_profession= BuffConfigurationPerProfession.BUFF_CONFIGURATION_ALL)
 
-        self.add_capability(lambda x: ShouldWaitForHeroicRefrain(x.custom_skill, False))
+        self.add_capability(lambda x: ShouldWaitForHeroicRefrain(x.custom_skill, should_wait_for_heroic_refrain))
+
 
     def _get_target(self) -> int | None:
 

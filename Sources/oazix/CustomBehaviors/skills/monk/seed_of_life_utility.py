@@ -90,15 +90,18 @@ class SeedOfLifeUtility(CustomSkillUtilityBase):
 
     @override
     def persist_configuration_for_account(self):
+        super().persist_configuration_for_account()
         PersistenceLocator().skills.write_for_account(str(self.custom_skill.skill_name), "buff_configuration", self.buff_configuration.serialize_to_string())
         print("configuration saved for account")
 
     @override
     def persist_configuration_as_global(self):
+        super().persist_configuration_as_global()
         PersistenceLocator().skills.write_global(str(self.custom_skill.skill_name), "buff_configuration", self.buff_configuration.serialize_to_string())
         print("configuration saved as global")
 
     @override
     def delete_persisted_configuration(self):
+        super().delete_persisted_configuration()
         PersistenceLocator().skills.delete(str(self.custom_skill.skill_name), "buff_configuration")
         print("configuration deleted")
