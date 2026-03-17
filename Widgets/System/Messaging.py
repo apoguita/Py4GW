@@ -1,5 +1,3 @@
-import hashlib
-import os
 import time
 from datetime import datetime
 from datetime import timezone
@@ -25,6 +23,7 @@ from Py4GWCoreLib import IniHandler
 from Py4GWCoreLib.Py4GWcorelib import Keystroke
 from Py4GWCoreLib.Quest import Quest
 from Py4GWCoreLib.enums_src.Model_enums import ModelID
+from Widgets.Automation.Helpers.Pycons import resolve_pycons_account_ini_path
 from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
 from Py4GWCoreLib.GlobalCache.shared_memory_src.SharedMessageStruct import SharedMessageStruct
 
@@ -1515,37 +1514,6 @@ def _should_block_item_use() -> bool:
     if not _inventory_ready():
         return True
     return False
-
-
-def _resolve_pycons_account_ini_path(account_email: str) -> str:
-    """
-    Mirror Pycons account-config resolution for receiver-side safety checks.
-    Prefer the canonical Pycons subdirectory path, but keep the legacy root
-    path as a fallback for users that have not been migrated yet.
-    """
-    canonical_dir = os.path.normpath(os.path.join("Widgets", "Config", "Pycons"))
-    legacy_dir = os.path.normpath(os.path.join("Widgets", "Config"))
-    canonical_generic = os.path.normpath(os.path.join(canonical_dir, "Pycons.ini"))
-    legacy_generic = os.path.normpath(os.path.join(legacy_dir, "Pycons.ini"))
-
-    email = str(account_email or "").strip()
-    if not email:
-        if os.path.exists(canonical_generic):
-            return canonical_generic
-        if os.path.exists(legacy_generic):
-            return legacy_generic
-        return canonical_generic
-
-    email_hash = hashlib.md5(email.encode()).hexdigest()[:8]
-    canonical = os.path.normpath(os.path.join(canonical_dir, f"Pycons_{email_hash}.ini"))
-    legacy = os.path.normpath(os.path.join(legacy_dir, f"Pycons_{email_hash}.ini"))
-
-    if os.path.exists(canonical):
-        return canonical
-    if os.path.exists(legacy):
-        return legacy
-    return canonical
-
 def UseItem(index: int, message: SharedMessageStruct):
     ConsoleLog(MODULE_NAME, "UseItem: received broadcast.", Console.MessageType.Info, False)
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
@@ -1554,7 +1522,7 @@ def UseItem(index: int, message: SharedMessageStruct):
     # Use Player.GetAccountEmail() to match the hash used by Pycons.py
     try:
         account_email = Player.GetAccountEmail()
-        ini_path = _resolve_pycons_account_ini_path(account_email)
+        ini_path = resolve_pycons_account_ini_path(account_email)
         ini_handler = IniHandler(ini_path)
         opt_in = ini_handler.read_bool("Pycons", "team_consume_opt_in", False)
         receiver_require_enabled = ini_handler.read_bool("Pycons", "mbdp_receiver_require_enabled", True)

@@ -1,3 +1,6 @@
+import hashlib
+import os
+
 # ---- REQUIRED BY WIDGET HANDLER (define immediately) ----
 def configure():
     pass
@@ -13,9 +16,52 @@ _INIT_ERROR = None
 MODULE_NAME = "Pycons"
 MODULE_ICON = "Textures\\Module_Icons\\Pycons.png"
 
+_PYCONS_CONFIG_DIR = os.path.normpath(os.path.join("Widgets", "Config", "Pycons"))
+_LEGACY_CONFIG_DIR = os.path.normpath(os.path.join("Widgets", "Config"))
+
+
+def _hash_account_email(account_email: str) -> str:
+    email = str(account_email or "").strip()
+    if not email:
+        return ""
+    return hashlib.md5(email.encode()).hexdigest()[:8]
+
+
+def get_pycons_generic_ini_candidates() -> tuple[str, str]:
+    canonical = os.path.normpath(os.path.join(_PYCONS_CONFIG_DIR, "Pycons.ini"))
+    legacy = os.path.normpath(os.path.join(_LEGACY_CONFIG_DIR, "Pycons.ini"))
+    return canonical, legacy
+
+
+def get_pycons_account_ini_candidates(account_email: str) -> tuple[str, str]:
+    email_hash = _hash_account_email(account_email)
+    if not email_hash:
+        return get_pycons_generic_ini_candidates()
+
+    canonical = os.path.normpath(os.path.join(_PYCONS_CONFIG_DIR, f"Pycons_{email_hash}.ini"))
+    legacy = os.path.normpath(os.path.join(_LEGACY_CONFIG_DIR, f"Pycons_{email_hash}.ini"))
+    return canonical, legacy
+
+
+def resolve_pycons_generic_ini_path() -> str:
+    canonical, legacy = get_pycons_generic_ini_candidates()
+    if os.path.exists(canonical):
+        return canonical
+    if os.path.exists(legacy):
+        return legacy
+    return canonical
+
+
+def resolve_pycons_account_ini_path(account_email: str) -> str:
+    canonical, legacy = get_pycons_account_ini_candidates(account_email)
+    if os.path.exists(canonical):
+        return canonical
+    if os.path.exists(legacy):
+        return legacy
+    return canonical
+
 try:
     from typing import Any, cast
-    import os
     import shutil
     import re
     import unicodedata
@@ -33,7 +79,7 @@ try:
         ImGui,          # NEW: needed for persisted windows
         SharedCommandType,
     )
-    from Py4GWCoreLib import ItemArray, Bag, Item, Effects, Player, Party, Bags
+    from Py4GWCoreLib import ItemArray, Bag, Item, Effects, Player, Party, Bags, Agent, Quest
     from Py4GWCoreLib.IniManager import IniManager  # NEW: persisted windows
     import threading
 
@@ -72,6 +118,44 @@ try:
     FALLBACK_SHORT_MS = 10 * 60 * 1000
     FALLBACK_MEDIUM_MS = 20 * 60 * 1000
     FALLBACK_LONG_MS = 30 * 60 * 1000
+    SUMMONING_STONE_DURATION_MS = 30 * 60 * 1000
+    IGNEOUS_SUMMON_DURATION_MS = 60 * 60 * 1000
+    SUMMONING_SICKNESS_EFFECT_ID = 2886
+    SUMMONING_RESTRICTED_QUEST_IDS = frozenset({
+        490,  # The Council is Called
+        503,  # All's Well That Ends Well
+        504,  # Warning Kehanni
+        505,  # Calling the Order
+        507,  # Pledge of the Merchant Princes
+        581,  # Heart or Mind: Garden in Danger
+        586,  # Heart or Mind: Ronjok in Danger
+        683,  # Securing Champions Dawn
+        730,  # Gain Goren
+        737,  # Battle Preparations
+    })
+    SUMMONING_RESTRICTED_MAP_IDS = frozenset({
+        119,  # Augury Rock mission
+        351,  # Divine Path
+        423,  # The Tribunal
+        436,  # Command Post
+        503,  # Throne of Secrets
+        700,  # The Norn Fighting Tournament
+        710,  # Epilogue
+        840,  # Lion's Arch Keep
+    })
+    SUMMONING_UNIQUE_PARTY_MODEL_IDS = frozenset({
+        513,         # Fire Imp (existing summon detection path)
+        1726,        # Fire Imp (model data variant)
+        8028,        # Legionnaire
+        9055, 9076,  # Tengu Support Flare - Warrior
+        9056, 9077,  # Tengu Support Flare - Ranger
+        9058, 9079,  # Tengu Support Flare - Monk
+        9060, 9081,  # Tengu Support Flare - Mesmer
+        9062, 9083,  # Tengu Support Flare - Ritualist
+        9065, 9086,  # Tengu Support Flare - Assassin
+        9067, 9088,  # Tengu Support Flare - Elementalist
+        9069, 9090,  # Tengu Support Flare - Necromancer
+    })
 
     # Scan only these bags, and only on-demand
     SCAN_BAGS = [Bag.Backpack, Bag.Belt_Pouch, Bag.Bag_1, Bag.Bag_2]
@@ -89,8 +173,14 @@ try:
         "witchs_brew": ("witchs brew", "witch brew", "witch's brew"),
         "hunters_ale": ("hunters ale", "hunter ale"),
         "elixir_of_valor": ("elixir of valor",),
+        "igneous_summoning_stone": ("igneous summoning stone",),
+        "imperial_guard_reinforcement_order": ("imperial guard reinforcement order", "imperial guard summon"),
+        "legionnaire_summoning_crystal": ("legionnaire summoning crystal",),
+        "mercantile_summoning_stone": ("mercantile summoning stone", "merchant summon", "merchant summoning stone"),
         "powerstone_of_courage": ("powerstone of courage",),
         "seal_of_the_dragon_empire": ("seal of the dragon empire",),
+        "shining_blade_war_horn": ("shining blade war horn", "shining blade summon"),
+        "tengu_support_flare": ("tengu support flare", "tengu summon"),
     }
     # Explicit filename overrides for known consumables when deterministic mapping is preferred.
     CONSUMABLE_ICON_FILE_OVERRIDES = {
@@ -235,6 +325,13 @@ try:
             "header_active": (0.35, 0.27, 0.12, 0.96),
             "text": (0.96, 0.88, 0.72, 1.00),
             "meta": (0.88, 0.76, 0.54, 1.00),
+        },
+        "summoning": {
+            "header": (0.19, 0.13, 0.08, 0.82),
+            "header_hovered": (0.25, 0.18, 0.10, 0.90),
+            "header_active": (0.31, 0.22, 0.12, 0.96),
+            "text": (0.96, 0.88, 0.76, 1.00),
+            "meta": (0.88, 0.77, 0.60, 1.00),
         },
         "alcohol": {
             "header": (0.22, 0.13, 0.08, 0.82),
@@ -444,7 +541,7 @@ try:
     TOOLTIP_LENGTH_OPTIONS = ["Short", "Long"]
     ALCOHOL_PREFERENCE_OPTIONS = ["Smooth", "Strong-first", "Weak-first"]
     RESTOCK_MODE_OPTIONS = ["Balanced", "Withdraw only", "Deposit only"]
-    SETTINGS_CONSUMABLE_CATEGORY_ORDER = ["explorable", "mbdp", "outpost", "alcohol"]
+    SETTINGS_CONSUMABLE_CATEGORY_ORDER = ["explorable", "summoning", "mbdp", "outpost", "alcohol"]
 
     _TOOLTIP_TEXTS = {
         "tooltip_visibility": {
@@ -654,7 +751,7 @@ try:
         },
         "filter_search": {
             "short": "Filter consumables by name.",
-            "long": "Search text filter for consumables lists in the settings window. Works across explorable, outpost, MB/DP, and alcohol groups.",
+            "long": "Search text filter for consumables lists in the settings window. Works across explorable, summoning, outpost, MB/DP, and alcohol groups.",
             "why": "Speeds up setup when many items exist.",
         },
         "select_all_visible": {
@@ -1064,8 +1161,7 @@ try:
             if not email or email == self_email or email in seen:
                 continue
             seen.add(email)
-            email_hash = hashlib.md5(email.encode()).hexdigest()[:8]
-            ini = IniHandler(_resolve_account_ini_path(email_hash, migrate_legacy=True, log_migration=False))
+            ini = IniHandler(_resolve_account_ini_path(email, migrate_legacy=True, log_migration=False))
             ini.write_key(INI_SECTION, "team_consume_opt_in", value)
             updated += 1
             nm = _acc_name(acc)
@@ -1189,6 +1285,29 @@ try:
         {"key": "slice_of_pumpkin_pie", "label": "Slice of Pumpkin Pie", "model_id": int(ModelID.Slice_Of_Pumpkin_Pie.value), "skills": ["Pie_Induced_Ecstasy"], "use_where": "explorable"},
         {"key": "war_supplies", "label": "War Supplies", "model_id": int(ModelID.War_Supplies.value), "skills": ["Well_Supplied"], "use_where": "explorable"},
 
+        # Summoning (runtime priority order matches existing botting summon upkeep)
+        {"key": "legionnaire_summoning_crystal", "label": "Legionnaire Summoning Crystal", "model_id": int(_model_id_value("Legionnaire_Summoning_Crystal", 0)), "use_where": "summoning", "summon_duration_ms": SUMMONING_STONE_DURATION_MS},
+        {"key": "igneous_summoning_stone", "label": "Igneous Summoning Stone", "model_id": int(_model_id_value("Igneous_Summoning_Stone", 0)), "use_where": "summoning", "summon_duration_ms": IGNEOUS_SUMMON_DURATION_MS},
+        {"key": "amber_summoning_stone", "label": "Amber Summoning Stone", "model_id": int(_model_id_value("Amber_Summon", 0)), "use_where": "summoning", "summon_duration_ms": SUMMONING_STONE_DURATION_MS},
+        {"key": "arctic_summoning_stone", "label": "Arctic Summoning Stone", "model_id": int(_model_id_value("Arctic_Summon", 0)), "use_where": "summoning", "summon_duration_ms": SUMMONING_STONE_DURATION_MS},
+        {"key": "automaton_summoning_stone", "label": "Automaton Summoning Stone", "model_id": int(_model_id_value("Automaton_Summon", 0)), "use_where": "summoning", "summon_duration_ms": SUMMONING_STONE_DURATION_MS},
+        {"key": "celestial_summoning_stone", "label": "Celestial Summoning Stone", "model_id": int(_model_id_value("Celestial_Summon", 0)), "use_where": "summoning", "summon_duration_ms": SUMMONING_STONE_DURATION_MS},
+        {"key": "chitinous_summoning_stone", "label": "Chitinous Summoning Stone", "model_id": int(_model_id_value("Chitinous_Summon", 0)), "use_where": "summoning", "summon_duration_ms": SUMMONING_STONE_DURATION_MS},
+        {"key": "demonic_summoning_stone", "label": "Demonic Summoning Stone", "model_id": int(_model_id_value("Demonic_Summon", 0)), "use_where": "summoning", "summon_duration_ms": SUMMONING_STONE_DURATION_MS},
+        {"key": "fossilized_summoning_stone", "label": "Fossilized Summoning Stone", "model_id": int(_model_id_value("Fossilized_Summon", 0)), "use_where": "summoning", "summon_duration_ms": SUMMONING_STONE_DURATION_MS},
+        {"key": "frosty_summoning_stone", "label": "Frosty Summoning Stone", "model_id": int(_model_id_value("Frosty_Summon", 0)), "use_where": "summoning", "summon_duration_ms": SUMMONING_STONE_DURATION_MS},
+        {"key": "gelatinous_summoning_stone", "label": "Gelatinous Summoning Stone", "model_id": int(_model_id_value("Gelatinous_Summon", 0)), "use_where": "summoning", "summon_duration_ms": SUMMONING_STONE_DURATION_MS},
+        {"key": "ghastly_summoning_stone", "label": "Ghastly Summoning Stone", "model_id": int(_model_id_value("Ghastly_Summon", 0)), "use_where": "summoning", "summon_duration_ms": SUMMONING_STONE_DURATION_MS},
+        {"key": "imperial_guard_reinforcement_order", "label": "Imperial Guard Reinforcement Order", "model_id": int(_model_id_value("Imperial_Guard_Summon", 0)), "use_where": "summoning", "summon_duration_ms": SUMMONING_STONE_DURATION_MS},
+        {"key": "jadeite_summoning_stone", "label": "Jadeite Summoning Stone", "model_id": int(_model_id_value("Jadeite_Summon", 0)), "use_where": "summoning", "summon_duration_ms": SUMMONING_STONE_DURATION_MS},
+        {"key": "mercantile_summoning_stone", "label": "Mercantile Summoning Stone", "model_id": int(_model_id_value("Merchant_Summon", 0)), "use_where": "summoning", "summon_duration_ms": SUMMONING_STONE_DURATION_MS},
+        {"key": "mischievous_summoning_stone", "label": "Mischievous Summoning Stone", "model_id": int(_model_id_value("Mischievous_Summon", 0)), "use_where": "summoning", "summon_duration_ms": SUMMONING_STONE_DURATION_MS},
+        {"key": "mysterious_summoning_stone", "label": "Mysterious Summoning Stone", "model_id": int(_model_id_value("Mysterious_Summon", 0)), "use_where": "summoning", "summon_duration_ms": SUMMONING_STONE_DURATION_MS},
+        {"key": "mystical_summoning_stone", "label": "Mystical Summoning Stone", "model_id": int(_model_id_value("Mystical_Summon", 0)), "use_where": "summoning", "summon_duration_ms": SUMMONING_STONE_DURATION_MS},
+        {"key": "shining_blade_war_horn", "label": "Shining Blade War Horn", "model_id": int(_model_id_value("Shining_Blade_Summon", 0)), "use_where": "summoning", "summon_duration_ms": SUMMONING_STONE_DURATION_MS},
+        {"key": "tengu_support_flare", "label": "Tengu Support Flare", "model_id": int(_model_id_value("Tengu_Summon", 0)), "use_where": "summoning", "summon_duration_ms": SUMMONING_STONE_DURATION_MS},
+        {"key": "zaishen_summoning_stone", "label": "Zaishen Summoning Stone", "model_id": int(_model_id_value("Zaishen_Summon", 0)), "use_where": "summoning", "summon_duration_ms": SUMMONING_STONE_DURATION_MS},
+
         # Outpost-only (alphabetical by label)
         {"key": "chocolate_bunny", "label": "Chocolate Bunny", "model_id": int(_model_id_value("Chocolate_Bunny", 0)), "skills": ["Sugar_Jolt_(long)"], "use_where": "outpost", "require_effect_id": True, "fallback_duration_ms": FALLBACK_LONG_MS},
         {"key": "creme_brulee", "label": "Crème Brûlée", "model_id": int(_model_id_value("Creme_Brulee", 0)), "skills": ["Sugar_Jolt_(long)"], "use_where": "outpost", "require_effect_id": True, "fallback_duration_ms": FALLBACK_LONG_MS},
@@ -1197,6 +1316,8 @@ try:
         {"key": "red_bean_cake", "label": "Red Bean Cake", "model_id": int(_model_id_value("Red_Bean_Cake", 0)), "skills": ["Sugar_Rush_(medium)"], "use_where": "outpost", "require_effect_id": True, "fallback_duration_ms": FALLBACK_MEDIUM_MS},
         {"key": "sugary_blue_drink", "label": "Sugary Blue Drink", "model_id": int(_model_id_value("Sugary_Blue_Drink", 0)), "skills": ["Sugar_Jolt_(short)"], "use_where": "outpost", "require_effect_id": False, "fallback_duration_ms": FALLBACK_SHORT_MS},
     ]
+
+    SUMMONING_ITEMS = [c for c in CONSUMABLES if str(c.get("use_where", "")).lower() == "summoning"]
 
     MB_DP_ITEMS = [
         # Self-only morale
@@ -1221,6 +1342,7 @@ try:
 
     ALL_CONSUMABLES = CONSUMABLES + MB_DP_ITEMS
     ALL_BY_KEY = {c["key"]: c for c in ALL_CONSUMABLES}
+    SUMMONING_BY_KEY = {c["key"]: c for c in SUMMONING_ITEMS}
     MB_DP_BY_KEY = {c["key"]: c for c in MB_DP_ITEMS}
     CONSET_KEYS = {"armor_of_salvation", "essence_of_celerity", "grail_of_might"}
     MBDP_PARTY_KEYS = frozenset({
@@ -1325,6 +1447,15 @@ try:
         tooltip = str(CONSUMABLE_TOOLTIPS.get(str(key or ""), "") or "").strip()
         if tooltip:
             return tooltip
+        summon_spec = SUMMONING_BY_KEY.get(str(key or ""))
+        if summon_spec:
+            duration_ms = int(summon_spec.get("summon_duration_ms", SUMMONING_STONE_DURATION_MS) or SUMMONING_STONE_DURATION_MS)
+            duration_minutes = max(1, int(round(float(duration_ms) / 60000.0)))
+            return (
+                f"Summons an allied creature to assist you for up to {duration_minutes} minutes. "
+                "Using a summoning item applies Summoning Sickness for 10 minutes. "
+                "Do not use while Summoning Sickness is active or while another summoned ally is already present."
+            )
         return "No description available."
 
     def _consumable_tooltip_with_label(key: str, label: str) -> str:
@@ -1666,15 +1797,13 @@ try:
     # Config (dirty-save throttled)
     # -------------------------
     # Lazy INI handler creation to ensure account email is available
-    import hashlib
     _ini_handler_cache = None
     _ini_path_cache: str | None = None
     _ini_generic_fallback_logged = False
     _ini_generic_cached_with_email_logged = False
-    _PYCONS_CONFIG_DIR = os.path.normpath(os.path.join("Widgets", "Config", "Pycons"))
-    _LEGACY_CONFIG_DIR = os.path.normpath(os.path.join("Widgets", "Config"))
-    _GENERIC_INI_PATH = os.path.normpath(os.path.join(_PYCONS_CONFIG_DIR, "Pycons.ini"))
-    _LEGACY_GENERIC_INI_PATH = os.path.normpath(os.path.join(_LEGACY_CONFIG_DIR, "Pycons.ini"))
+    _GENERIC_INI_PATH, _LEGACY_GENERIC_INI_PATH = get_pycons_generic_ini_candidates()
+    _PYCONS_CONFIG_DIR = os.path.dirname(_GENERIC_INI_PATH)
+    _LEGACY_CONFIG_DIR = os.path.dirname(_LEGACY_GENERIC_INI_PATH)
 
     def _norm_path_lower(path: str | None) -> str:
         try:
@@ -1696,13 +1825,12 @@ try:
         except Exception:
             return False
 
-    def _resolve_account_ini_path(email_hash: str, migrate_legacy: bool = True, log_migration: bool = False) -> str:
-        h = str(email_hash or "").strip()
-        if not h:
-            return _GENERIC_INI_PATH
+    def _resolve_account_ini_path(account_email: str, migrate_legacy: bool = True, log_migration: bool = False) -> str:
+        email = str(account_email or "").strip()
+        if not email:
+            return _resolve_generic_ini_path(migrate_legacy=migrate_legacy, log_migration=log_migration)
 
-        canonical = os.path.normpath(os.path.join(_PYCONS_CONFIG_DIR, f"Pycons_{h}.ini"))
-        legacy = os.path.normpath(os.path.join(_LEGACY_CONFIG_DIR, f"Pycons_{h}.ini"))
+        canonical, legacy = get_pycons_account_ini_candidates(email)
 
         if os.path.exists(canonical):
             return canonical
@@ -1724,8 +1852,7 @@ try:
         return canonical
 
     def _resolve_generic_ini_path(migrate_legacy: bool = True, log_migration: bool = False) -> str:
-        canonical = str(_GENERIC_INI_PATH)
-        legacy = str(_LEGACY_GENERIC_INI_PATH)
+        canonical, legacy = get_pycons_generic_ini_candidates()
 
         if os.path.exists(canonical):
             return canonical
@@ -1778,8 +1905,7 @@ try:
                     )
                     _ini_generic_fallback_logged = True
             else:
-                email_hash = hashlib.md5(account_email.encode()).hexdigest()[:8]
-                _ini_path_cache = _resolve_account_ini_path(email_hash, migrate_legacy=True, log_migration=True)
+                _ini_path_cache = _resolve_account_ini_path(account_email, migrate_legacy=True, log_migration=True)
             try:
                 parent_dir = os.path.dirname(str(_ini_path_cache or ""))
                 if parent_dir:
@@ -1813,8 +1939,7 @@ try:
             return False
 
         old_path = str(_ini_path_cache or "")
-        email_hash = hashlib.md5(account_email.encode()).hexdigest()[:8]
-        new_path = _resolve_account_ini_path(email_hash, migrate_legacy=True, log_migration=True)
+        new_path = _resolve_account_ini_path(account_email, migrate_legacy=True, log_migration=True)
         if _norm_path_lower(new_path) == _norm_path_lower(old_path):
             return False
 
@@ -1930,6 +2055,7 @@ try:
 
             # Settings-window consumables group open/closed state
             self.settings_explorable_open = ini_handler.read_bool(INI_SECTION, "settings_explorable_open", False)
+            self.settings_summoning_open = ini_handler.read_bool(INI_SECTION, "settings_summoning_open", False)
             self.settings_outpost_open = ini_handler.read_bool(INI_SECTION, "settings_outpost_open", False)
             self.settings_mbdp_open = ini_handler.read_bool(INI_SECTION, "settings_mbdp_open", False)
             self.settings_alcohol_open = ini_handler.read_bool(INI_SECTION, "settings_alcohol_open", False)
@@ -2093,6 +2219,7 @@ try:
             ini_handler.write_key(INI_SECTION, "mbdp_prefer_seal_for_recharge", str(bool(self.mbdp_prefer_seal_for_recharge)))
             ini_handler.write_key(INI_SECTION, "force_team_morale_value", str(int(self.force_team_morale_value)))
             ini_handler.write_key(INI_SECTION, "settings_explorable_open", str(bool(self.settings_explorable_open)))
+            ini_handler.write_key(INI_SECTION, "settings_summoning_open", str(bool(self.settings_summoning_open)))
             ini_handler.write_key(INI_SECTION, "settings_outpost_open", str(bool(self.settings_outpost_open)))
             ini_handler.write_key(INI_SECTION, "settings_mbdp_open", str(bool(self.settings_mbdp_open)))
             ini_handler.write_key(INI_SECTION, "settings_alcohol_open", str(bool(self.settings_alcohol_open)))
@@ -2662,6 +2789,127 @@ try:
         if bool(in_explorable):
             return bool(cfg.alcohol_use_explorable)
         return bool(cfg.alcohol_use_outpost)
+
+    def _is_summoning_spec(spec: dict) -> bool:
+        return str(spec.get("use_where", "") or "").strip().lower() == "summoning"
+
+    def _party_player_agent_ids() -> set[int]:
+        out = set()
+        try:
+            me = int(Player.GetAgentID() or 0)
+            if me > 0:
+                out.add(me)
+        except Exception:
+            pass
+        try:
+            for player in Party.GetPlayers() or []:
+                try:
+                    login_number = int(getattr(player, "login_number", 0) or 0)
+                    if login_number <= 0:
+                        continue
+                    agent_id = int(Party.Players.GetAgentIDByLoginNumber(login_number) or 0)
+                    if agent_id > 0:
+                        out.add(agent_id)
+                except Exception:
+                    continue
+        except Exception:
+            pass
+        return out
+
+    def _has_active_party_summon() -> bool:
+        owner_ids = _party_player_agent_ids()
+        try:
+            others = Party.GetOthers() or []
+        except Exception:
+            others = []
+
+        for other in others:
+            try:
+                agent_id = int(other or 0)
+            except Exception:
+                agent_id = 0
+            if agent_id <= 0:
+                continue
+            try:
+                if not Agent.IsAlive(agent_id):
+                    continue
+            except Exception:
+                continue
+            try:
+                if Agent.IsSpirit(agent_id) or Agent.IsMinion(agent_id):
+                    continue
+            except Exception:
+                pass
+
+            try:
+                model_id = int(Agent.GetModelID(agent_id) or 0)
+            except Exception:
+                model_id = 0
+            if model_id in SUMMONING_UNIQUE_PARTY_MODEL_IDS:
+                return True
+
+            try:
+                owner_id = int(Agent.GetOwnerID(agent_id) or 0)
+            except Exception:
+                owner_id = 0
+            if owner_id > 0 and owner_id in owner_ids:
+                try:
+                    if Agent.IsNPC(agent_id):
+                        return True
+                except Exception:
+                    return True
+
+        return False
+
+    def _summoning_block_reason(key: str, in_explorable: bool) -> str:
+        if not bool(in_explorable):
+            return "summoning items require an explorable area"
+
+        if str(key or "") == "igneous_summoning_stone":
+            try:
+                if int(Player.GetLevel() or 0) >= 20:
+                    return "Igneous Summoning Stone is only usable below level 20"
+            except Exception:
+                pass
+
+        try:
+            current_sp, _ = Player.GetSkillPointData()
+            if int(current_sp or 0) <= 0:
+                return "no skill points available for summoning"
+        except Exception:
+            pass
+
+        try:
+            if int(Map.GetMapID() or 0) in SUMMONING_RESTRICTED_MAP_IDS:
+                return "summoning items are blocked in this area"
+        except Exception:
+            pass
+
+        try:
+            active_quests = set(int(qid) for qid in (Quest.GetQuestLogIds() or []))
+            if active_quests.intersection(SUMMONING_RESTRICTED_QUEST_IDS):
+                return "summoning items are blocked in this quest context"
+        except Exception:
+            pass
+
+        if _has_effect(int(SUMMONING_SICKNESS_EFFECT_ID)):
+            return "Summoning Sickness is active"
+
+        if _has_active_party_summon():
+            return "a summoned ally is already active"
+
+        return ""
+
+    def _record_summoning_block(key: str, label: str, reason: str):
+        if not reason:
+            return
+        slug = re.sub(r"[^a-z0-9]+", "_", f"{key}_{reason}".lower()).strip("_")[:56]
+        code = f"summon_block_{slug}"
+        _record_blocked_action(code, f"{label}: {reason}")
+        wt = _warn_timer_for(code)
+        if wt.IsStopped() or wt.HasElapsed(8000):
+            wt.Start()
+            _debug(f"Skipping {label}: {reason}.", Console.MessageType.Info)
 
     # -------------------------
     # Inventory caching + stock counts
@@ -4051,9 +4299,7 @@ try:
         if cached and (now - int(cached[0])) < int(TEAM_SETTINGS_CACHE_MS):
             return bool(cached[1]), bool(cached[2])
         try:
-            import hashlib
-            email_hash = hashlib.md5(account_email.encode()).hexdigest()[:8]
-            ini = IniHandler(_resolve_account_ini_path(email_hash, migrate_legacy=True, log_migration=False))
+            ini = IniHandler(_resolve_account_ini_path(account_email, migrate_legacy=True, log_migration=False))
             is_broadcaster = bool(ini.read_bool(INI_SECTION, "team_broadcast", False))
             is_optin = bool(ini.read_bool(INI_SECTION, "team_consume_opt_in", False))
         except Exception:
@@ -4600,6 +4846,12 @@ try:
             if not _allowed_here(spec, in_explorable):
                 continue
 
+            if _is_summoning_spec(spec):
+                summon_block_reason = _summoning_block_reason(key, in_explorable)
+                if summon_block_reason:
+                    _record_summoning_block(key, str(spec.get("label", key) or key), summon_block_reason)
+                    continue
+
             effect_id = _resolve_effect_id_for(key, spec)
 
             if effect_id and _has_effect(effect_id):
@@ -4644,10 +4896,11 @@ try:
                 t.Start()
                 aftercast_timer.Start()
                 _last_used_ms[key] = _now_ms()
-                try:
-                    _broadcast_use(model_id, 1, effect_id)
-                except Exception:
-                    pass
+                if not _is_summoning_spec(spec):
+                    try:
+                        _broadcast_use(model_id, 1, effect_id)
+                    except Exception:
+                        pass
                 # Force refresh inventory cache to show accurate count after consumption
                 _refresh_inventory_cache(force=True)
                 return True
@@ -4843,6 +5096,7 @@ try:
     def _selected_list_child_height(
         selected_explorable_conset: list,
         selected_explorable_other: list,
+        selected_summoning: list,
         selected_outpost: list,
         selected_mbdp: list,
         selected_alcohol: list,
@@ -4859,6 +5113,8 @@ try:
                 rows += 1.0 + float(len(selected_explorable_conset)) + 0.5
             if selected_explorable_other:
                 rows += float(len(selected_explorable_other)) + 0.6
+        if selected_summoning:
+            rows += 1.0 + float(len(selected_summoning)) + 0.6
         if selected_outpost:
             rows += 1.0 + float(len(selected_outpost)) + 0.6
         if selected_mbdp:
@@ -5012,19 +5268,24 @@ try:
 
             selected_explorable_conset = [c for c in CONSUMABLES if c.get("use_where") == "explorable" and c.get("key") in CONSET_KEYS and bool(cfg.selected.get(c["key"], False))]
             selected_explorable_other = [c for c in CONSUMABLES if c.get("use_where") == "explorable" and c.get("key") not in CONSET_KEYS and bool(cfg.selected.get(c["key"], False))]
+            selected_summoning = sorted(
+                [c for c in CONSUMABLES if c.get("use_where") == "summoning" and bool(cfg.selected.get(c["key"], False))],
+                key=lambda x: str(x.get("label", "")).lower(),
+            )
             selected_outpost = [c for c in CONSUMABLES if c.get("use_where") == "outpost" and bool(cfg.selected.get(c["key"], False))]
             selected_mbdp = [c for c in MB_DP_ITEMS if bool(cfg.selected.get(c["key"], False))]
             selected_alcohol = [a for a in ALCOHOL_ITEMS if bool(cfg.alcohol_selected.get(a["key"], False))]
             # Keep the main selected-items panel stable even when inventory hits 0.
             # Availability filtering remains in the Settings browser.
 
-            any_selected = bool(selected_explorable_conset or selected_explorable_other or selected_outpost or selected_mbdp or selected_alcohol)
+            any_selected = bool(selected_explorable_conset or selected_explorable_other or selected_summoning or selected_outpost or selected_mbdp or selected_alcohol)
             if not any_selected:
                 PyImGui.text_disabled("None selected. Open Settings and pick consumables.")
             else:
                 child_height = _selected_list_child_height(
                     selected_explorable_conset,
                     selected_explorable_other,
+                    selected_summoning,
                     selected_outpost,
                     selected_mbdp,
                     selected_alcohol,
@@ -5058,6 +5319,17 @@ try:
                             k = c["key"]
                             new_enabled, chg = _draw_main_row_checkbox_and_badge(
                                 k, c["label"], _runtime_regular_enabled(k), "pycons", int(c.get("model_id", 0))
+                            )
+                            if chg:
+                                _set_main_runtime_regular_enabled(k, bool(new_enabled))
+                        PyImGui.separator()
+
+                    if selected_summoning:
+                        _section_text("Summoning Stones/Items:", "summoning")
+                        for c in selected_summoning:
+                            k = c["key"]
+                            new_enabled, chg = _draw_main_row_checkbox_and_badge(
+                                k, c["label"], _runtime_regular_enabled(k), "pycons_summon", int(c.get("model_id", 0))
                             )
                             if chg:
                                 _set_main_runtime_regular_enabled(k, bool(new_enabled))
@@ -5419,6 +5691,37 @@ try:
                 )
             if only_available_settings and len(visible_regular_keys) == before_outpost:
                 PyImGui.text_disabled("No available items.")
+
+    def _draw_settings_summoning_category(
+        summoning_force,
+        flt: str,
+        summoning_items: list,
+        visible_regular_keys: list,
+        only_available_settings: bool,
+        only_selected_settings: bool,
+    ):
+        summoning_open = _styled_collapsing_header_force(
+            "Summoning Stones/Items##pycons_hdr_summoning",
+            summoning_force,
+            bool(cfg.settings_summoning_open),
+            "summoning",
+        )
+        if bool(cfg.settings_summoning_open) != bool(summoning_open):
+            cfg.settings_summoning_open = bool(summoning_open)
+            cfg.mark_dirty()
+        if summoning_open:
+            before_summoning = len(visible_regular_keys)
+            for spec in sorted(summoning_items, key=lambda x: str(x.get("label", "")).lower()):
+                _draw_settings_row(
+                    spec,
+                    flt,
+                    visible_regular_keys,
+                    only_available=only_available_settings,
+                    only_selected=only_selected_settings,
+                )
+            if only_available_settings and len(visible_regular_keys) == before_summoning:
+                PyImGui.text_disabled("No available items.")
+            PyImGui.separator()
 
     def _draw_settings_alcohol_category(
         alcohol_force,
@@ -5969,6 +6272,7 @@ try:
 
             explorable_consets = [c for c in CONSUMABLES if c.get("use_where") == "explorable" and c.get("key") in CONSET_KEYS]
             explorable_other = [c for c in CONSUMABLES if c.get("use_where") == "explorable" and c.get("key") not in CONSET_KEYS]
+            summoning_items = [c for c in CONSUMABLES if c.get("use_where") == "summoning"]
             outpost_items = [c for c in CONSUMABLES if c.get("use_where") == "outpost"]
             mbdp_items = MB_DP_ITEMS
             alcohol_items = ALCOHOL_ITEMS
@@ -5976,6 +6280,7 @@ try:
             conset_has_match = search_active and _list_has_match(explorable_consets, flt)
             explorable_other_has_match = search_active and _list_has_match(explorable_other, flt)
             explorable_has_match = search_active and (conset_has_match or explorable_other_has_match)
+            summoning_has_match = search_active and _list_has_match(summoning_items, flt)
             outpost_has_match = search_active and _list_has_match(outpost_items, flt)
             mbdp_has_match = search_active and _list_has_match(mbdp_items, flt)
             alcohol_has_match = search_active and _list_has_match(alcohol_items, flt)
@@ -5991,6 +6296,7 @@ try:
                 _refresh_inventory_cache(False)
 
             current_explorable_force = False if collapse_now else (True if explorable_has_match else (False if search_active else None))
+            current_summoning_force = False if collapse_now else (True if summoning_has_match else (False if search_active else None))
             current_outpost_force = False if collapse_now else (True if outpost_has_match else (False if search_active else None))
             current_mbdp_force = False if collapse_now else (True if mbdp_has_match else (False if search_active else None))
             current_alcohol_force = False if collapse_now else (True if alcohol_has_match else (False if search_active else None))
@@ -6006,6 +6312,14 @@ try:
                 )
                 current_visible_count += _count_visible_settings_specs(
                     explorable_other,
+                    flt,
+                    only_available=only_available_settings,
+                    only_selected=only_selected_settings,
+                    alcohol=False,
+                )
+            if _effective_section_open(current_summoning_force, bool(cfg.settings_summoning_open)):
+                current_visible_count += _count_visible_settings_specs(
+                    summoning_items,
                     flt,
                     only_available=only_available_settings,
                     only_selected=only_selected_settings,
@@ -6081,16 +6395,19 @@ try:
 
             if pending_expand_all:
                 explorable_force = True
+                summoning_force = True
                 outpost_force = True
                 mbdp_force = True
                 alcohol_force = True
             elif pending_collapse_all:
                 explorable_force = False
+                summoning_force = False
                 outpost_force = False
                 mbdp_force = False
                 alcohol_force = False
             else:
                 explorable_force = False if collapse_now else (True if explorable_has_match else (False if search_active else None))
+                summoning_force = False if collapse_now else (True if summoning_has_match else (False if search_active else None))
                 outpost_force = False if collapse_now else (True if outpost_has_match else (False if search_active else None))
                 mbdp_force = False if collapse_now else (True if mbdp_has_match else (False if search_active else None))
                 alcohol_force = False if collapse_now else (True if alcohol_has_match else (False if search_active else None))
@@ -6098,7 +6415,7 @@ try:
             visible_regular_keys = []
             visible_alcohol_keys = []
 
-            category_keys = _ordered_consumable_category_keys(["explorable", "mbdp", "outpost", "alcohol"])
+            category_keys = _ordered_consumable_category_keys(["explorable", "summoning", "mbdp", "outpost", "alcohol"])
             for category_key in category_keys:
                 if category_key == "explorable":
                     _draw_settings_explorable_category(
@@ -6109,6 +6426,15 @@ try:
                         explorable_other_has_match,
                         explorable_consets,
                         explorable_other,
+                        visible_regular_keys,
+                        only_available_settings,
+                        only_selected_settings,
+                    )
+                elif category_key == "summoning":
+                    _draw_settings_summoning_category(
+                        summoning_force,
+                        flt,
+                        summoning_items,
                         visible_regular_keys,
                         only_available_settings,
                         only_selected_settings,
