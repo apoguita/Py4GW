@@ -15,10 +15,10 @@ class BotSettings:
     COORD_TO_ENTER_MAP = (-20222,-14488)
     KILLING_PATH:list[tuple[float, float]] = [
     (-18697,-12296),
-    (-18374,-9273),
-    (-17825,-15320),
-    (-17082,-17377),
-]
+    (-18557,-10503),
+    (-17265,-15287),
+    (-17158,-16655),
+    ]
     BOUNTY_COORDS = (-17223.00, -12543.00)
     BOUNTY_DIALOG = 0x85
     TEXTURE = os.path.join(Py4GW.Console.get_projects_path(), "Textures", "Skill_Icons", "[1816] - Sunspear Rebirth Signet.jpg")
