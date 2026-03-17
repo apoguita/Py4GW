@@ -7,7 +7,6 @@
     {"type": "path_to_target", "enemy": "SHARD_WOLF"},
     {"type": "path_to_target", "enemy": "SHARD_WOLF"},
     {"type": "path_to_target", "enemy": "SHARD_WOLF"},
-    {"type": "auto_path", "name": "clear the darkest boy", "points": [[13440, -738], [16729, -1837]]},
-    {"type": "auto_path", "name": "path to Miko", "points": [[15252, -966], [17578, 3008], [12243, 7454], [12030, 6319]]}
+    {"type": "auto_path", "name": "clear the darkest boy", "points": [[13440, -738], [16729, -1837]], "ms":5000}
     ]
 }
