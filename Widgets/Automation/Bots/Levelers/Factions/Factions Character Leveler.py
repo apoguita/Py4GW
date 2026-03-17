@@ -5,8 +5,8 @@ import PyImGui
 from Py4GW import Game
 from Py4GWCoreLib import (GLOBAL_CACHE, Routines, Range, Py4GW, ConsoleLog, ModelID, Botting,
                           AutoPathing, ImGui, ActionQueueManager, Map, Agent, Player, UIManager, GWUI, HeroType, Skill, AgentArray)
-from Py4GWCoreLib.Builds import KeiranThackerayEOTN
-from Py4GWCoreLib.Builds.AutoCombat import AutoCombat
+from Py4GWCoreLib.Builds.Any.KeiranThackerayEOTN import KeiranThackerayEOTN
+from Py4GWCoreLib.Builds.Any.AutoCombat import AutoCombat
 from Py4GWCoreLib.ImGui_src.types import Alignment
 from Py4GWCoreLib.enums_src.UI_enums import UIMessage
 from Py4GWCoreLib.py4gwcorelib_src.Color import Color

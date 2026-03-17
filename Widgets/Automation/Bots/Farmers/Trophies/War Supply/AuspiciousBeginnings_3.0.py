@@ -3,7 +3,7 @@ from typing import Literal, Tuple
 import time
 
 from Py4GW_widget_manager import get_widget_handler
-from Py4GWCoreLib.Builds import KeiranThackerayEOTN
+from Py4GWCoreLib.Builds.Any.KeiranThackerayEOTN import KeiranThackerayEOTN
 from Py4GWCoreLib import (GLOBAL_CACHE, Routines, Range, Py4GW, ConsoleLog, ModelID, Botting,
                           Map, ImGui, ActionQueueManager, Agent, Player, AgentArray, Pathing,
                           TitleID, TITLE_TIERS)

@@ -24,7 +24,7 @@ _test_running = False
 _single_step_bot = Botting("ScriptHelperSingleStepRunner")
 _single_step_running = False
 _single_step_status = ""
-_single_step_input = '{"type": "auto_path", "name": "move it", "points": []},'
+_single_step_input = '{"type": "auto_path", "name": "move it", "points": [[]], "pause_on_combat": true},'
 _single_step_payload = None
 
 

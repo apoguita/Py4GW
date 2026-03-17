@@ -1,4 +1,5 @@
-from Py4GWCoreLib.Builds import ShadowFormAssassinVaettir, ShadowFormMesmerVaettir
+from Py4GWCoreLib.Builds.CombatAutomatorExcluded.ShadowFormAssassinVaettir import ShadowFormAssassinVaettir
+from Py4GWCoreLib.Builds.CombatAutomatorExcluded.ShadowFormMesmerVaettir import ShadowFormMesmerVaettir
 from .LogConsole import LogConsole
 from Py4GWCoreLib import GLOBAL_CACHE, Agent
 from Py4GWCoreLib import Routines

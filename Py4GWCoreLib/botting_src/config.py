@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 from ..SkillManager import SkillManager
 from ..Py4GWcorelib import FSM
 from ..BuildMgr import BuildMgr
-from ..Builds import AutoCombat
+from ..Builds.Any.AutoCombat import AutoCombat
 from .property import StepNameCounters, UpkeepData, ConfigProperties
 from .event import Events
     
