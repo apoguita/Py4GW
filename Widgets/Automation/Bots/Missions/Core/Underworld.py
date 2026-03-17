@@ -1,3 +1,4 @@
+
 from Py4GWCoreLib import Botting, Routines, Agent, AgentArray, Player, Utils, AutoPathing, GLOBAL_CACHE, ConsoleLog, Map, Pathing, FlagPreference, Party, IniHandler
 import os
 from Py4GWCoreLib.enums_src.Multiboxing_enums import SharedCommandType
@@ -21,7 +22,7 @@ MODULE_ICON = "Textures/Module_Icons/Underworld.png"
 BOT_NAME = "Underworld Helper"
 _ini_file = os.path.join(Py4GW.Console.get_projects_path(), "Widgets", "Config", "UnderworldBot.ini")
 _ini = IniHandler(_ini_file)
-bot = Botting(BOT_NAME, config_draw_path=True)
+bot = Botting(BOT_NAME, config_draw_path=True, upkeep_auto_inventory_management_active=True)
 bot.Templates.Aggressive()
 # Override the help window
 bot.UI.override_draw_help(lambda: _draw_help())
@@ -358,9 +359,25 @@ def _move_with_unstuck(
 
         # ── Local A* subclass: treats blacklisted-enemy trapezoids as walls ──
         class _AStarBlocking(AStar):
-            def __init__(self, navmesh, skip):
+            def __init__(
+                self,
+                navmesh,
+                avoid_points,
+                hard_block_radius: float = 50.0,
+                soft_avoid_radius: float = 100.0,
+                soft_penalty: float = 1400.0,
+            ):
                 super().__init__(navmesh)
-                self._skip = skip
+                self._avoid_points = avoid_points
+                self._hard_block_radius = hard_block_radius
+                self._soft_avoid_radius = soft_avoid_radius
+                self._soft_penalty = soft_penalty
+
+            def _min_dist_to_avoid_points(self, node_id: int) -> float:
+                if not self._avoid_points:
+                    return float("inf")
+                nx, ny = self.navmesh.get_position(node_id)
+                return min(math.hypot(nx - ax, ny - ay) for ax, ay in self._avoid_points)
 
             def search(self, start_pos, goal_pos):
                 s_id = self.navmesh.find_trapezoid_id_by_coord(start_pos)
@@ -379,26 +396,28 @@ def _move_with_unstuck(
                         self.path.append(goal_pos)
                         return True
                     for nb in self.navmesh.get_neighbors(cur.id):
-                        if nb in self._skip:
+                        d = self._min_dist_to_avoid_points(nb)
+                        if d <= self._hard_block_radius:
                             continue
-                        nc = cost[cur.id] + self.heuristic(cur.id, nb)
+                        penalty = 0.0
+                        if d < self._soft_avoid_radius:
+                            penalty = ((self._soft_avoid_radius - d) / self._soft_avoid_radius) * self._soft_penalty
+                        nc = cost[cur.id] + self.heuristic(cur.id, nb) + penalty
                         if nb not in cost or nc < cost[nb]:
                             cost[nb] = nc
                             _heapq.heappush(ol, AStarNode(nb, nc, nc + self.heuristic(nb, g_id), cur.id))
                             came[nb] = cur.id
                 return False
 
-        # ── Collect trapezoid IDs occupied by blacklisted enemies ─────────
-        _skip_nodes: set[int] = set()
+        # ── Collect positions of blacklisted enemies for soft avoidance ───
+        _avoid_points: list[tuple[float, float]] = []
         _navmesh = AutoPathing().get_navmesh()
         if _navmesh:
             _bl = EnemyBlacklist()
             for _eid in AgentArray.GetEnemyArray():
                 if _bl.is_blacklisted(_eid) and Agent.IsAlive(_eid):
                     _ex, _ey = Agent.GetXY(_eid)
-                    _tid = _navmesh.find_trapezoid_id_by_coord((_ex, _ey))
-                    if _tid is not None:
-                        _skip_nodes.add(_tid)
+                    _avoid_points.append((_ex, _ey))
 
         for attempt in range(max_retries + 1):
             px, py = Player.GetXY()
@@ -414,9 +433,9 @@ def _move_with_unstuck(
             # Use obstacle-aware A* when blacklisted enemies block the way;
             # fall back to standard get_path_to otherwise.
             path = None
-            if _skip_nodes and _navmesh:
+            if _avoid_points and _navmesh:
                 _cpx, _cpy = Player.GetXY()
-                _ast = _AStarBlocking(_navmesh, _skip_nodes)
+                _ast = _AStarBlocking(_navmesh, _avoid_points)
                 if _ast.search((_cpx, _cpy), (tx, ty)):
                     _raw = _ast.get_path()
                     _sm  = _navmesh.smooth_path_by_los(_raw, margin=100, step_dist=200.0)
@@ -621,9 +640,9 @@ def Restore_Vale(bot_instance: Botting):
         bot_instance.Move.XY(-8660, 5655, "To the Vale 1")
         bot_instance.Move.XY(-9431, 1659, "To the Vale 2")
         bot_instance.Move.XY(-11123, 2531, "To the Vale 3")
-        bot_instance.Move.XY(-10212, 251 , "To the Vale 4")
-        bot_instance.Move.XY(-13085, 849 , "To the Vale 5")
-        bot_instance.Move.XY(-15274, 1432 , "To the Vale 6")
+        bot_instance.Move.XY(-11926, 1146 , "To the Vale 4")
+        bot_instance.Move.XY(-10691, 98 , "To the Vale 5")
+        bot_instance.Move.XY(-15424, 1319 , "To the Vale 6")
         bot_instance.Move.XY(-13246, 5110 , "To the Vale 7")
         
         bot_instance.Move.XYAndInteractNPC(-13275, 5261, "go to NPC")
@@ -649,18 +668,26 @@ def Wrathfull_Spirits(bot_instance: Botting):
         bot_instance.Templates.Pacifist()
         bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(False), "Disable WaitIfPartyMemberTooFar")
         bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(False), "Disable WaitIfInAggro")
-        bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_combat_enabled(False), "Disable Combat")
+        #bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_combat_enabled(False), "Disable Combat")
+        bot_instance.States.AddCustomState(
+            lambda: __import__("Py4GWCoreLib.EnemyBlacklist", fromlist=["EnemyBlacklist"]).EnemyBlacklist().add_name("tortured spirit"),
+            "Blacklist Tortured Spirit",
+        )
         bot_instance.Move.XY(-13422, 973, "Wrathfull Spirits 1")
         bot_instance.Templates.Aggressive()
-        bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_combat_enabled(True), "Enable Combat")
+        bot_instance.States.AddCustomState(
+            lambda: __import__("Py4GWCoreLib.EnemyBlacklist", fromlist=["EnemyBlacklist"]).EnemyBlacklist().remove_name("tortured spirit"),
+            "Unblacklist Tortured Spirit",
+        )
+        #bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_combat_enabled(True), "Enable Combat")
         bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar") 
         bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
         bot_instance.Move.XY(-10207, 1746, "Wrathfull Spirits 2")
         bot_instance.Move.XY(-13287, 1996, "Wrathfull Spirits 3")
-        bot_instance.Move.XY(-15226, 4129 , "Wrathfull Spirits 4")
+        bot_instance.Move.XY(-14486, 7113, "Wrathfull Spirits 4")
+        bot_instance.Move.XY(-15226, 4129 , "Wrathfull Spirits 5")
         bot_instance.Move.XYAndInteractNPC(-13275, 5261, "go to NPC")
-        #bot_instance.Dialogs.AtXY(5755, 12769, 0x7F, "Back to Chamber")
-        #bot_instance.Dialogs.AtXY(5755, 12769, 0x86, "Back to Chamber")
+        bot_instance.Dialogs.AtXY(5755, 12769, 0x806E07, "Take Reward")
         bot_instance.Dialogs.AtXY(5755, 12769, 0x8D, "Back to Chamber")
         bot_instance.Wait.ForTime(3000)
 
@@ -821,13 +848,12 @@ def Servants_of_Grenth(bot_instance: Botting):
         bot_instance.Party.UnflagAllHeroes()
         bot_instance.Party.FlagAllHeroes(3032, 20148)
         bot_instance.Party.UnflagAllHeroes()
-        bot_instance.Wait.ForTime(5000)
+        WaitTillQuestDone(bot_instance, 104)
         bot_instance.Party.UnflagAllHeroes()
         bot_instance.States.AddCustomState(
             lambda: CustomBehaviorParty().party_flagging_manager.clear_all_flags(),
             "Clear Flags",
         )
-        bot_instance.Wait.ForTime(10000)
         bot_instance.Move.XYAndInteractNPC(554, 18384, "go to NPC")
         #bot_instance.Dialogs.AtXY(5755, 12769, 0x7F, "Back to Chamber")
         #bot_instance.Dialogs.AtXY(5755, 12769, 0x86, "Back to Chamber")
