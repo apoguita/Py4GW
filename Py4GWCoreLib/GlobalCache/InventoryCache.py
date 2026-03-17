@@ -597,30 +597,33 @@ class InventoryCache:
         moved_any = False
         model_id = self.item_cache.GetModelID(item_id)
 
+        # Fill every partial stack across all target bags before using empty slots.
+        if is_stackable:
+            for bag_enum, bag in storage_bags:
+                items = bag.GetItems()
+                for item in items:
+                    if item.model_id != model_id:
+                        continue
+
+                    if is_dye:
+                        item_dye_info = self.item_cache.Customization.GetDyeInfo(item.item_id)
+                        if item_dye_info.dye1.ToInt() != dye1_to_match:
+                            continue
+
+                    current_qty = self.item_cache.Properties.GetQuantity(item.item_id)
+                    if current_qty < MAX_STACK_SIZE:
+                        space_left = MAX_STACK_SIZE - current_qty
+                        to_move = min(space_left, remaining_quantity)
+                        to_move = min(to_move, ammount) if ammount > 0 else to_move
+                        if to_move > 0:
+                            self.MoveItem(item_id, bag_enum.value, item.slot, to_move)
+                            remaining_quantity -= to_move
+                            moved_any = True
+                            if remaining_quantity == 0:
+                                return True
+
         for bag_enum, bag in storage_bags:
             items = bag.GetItems()
-
-            # === Fill partial stacks ===
-            if is_stackable:
-                for item in items:
-                    if item.model_id == model_id:
-                        
-                        if is_dye:
-                            item_dye_info = self.item_cache.Customization.GetDyeInfo(item.item_id)
-                            if item_dye_info.dye1.ToInt() != dye1_to_match:
-                                continue
-                    
-                        current_qty = self.item_cache.Properties.GetQuantity(item.item_id)
-                        if current_qty < MAX_STACK_SIZE:
-                            space_left = MAX_STACK_SIZE - current_qty
-                            to_move = min(space_left, remaining_quantity)
-                            to_move = min(to_move, ammount) if ammount > 0 else to_move
-                            if to_move > 0:
-                                self.MoveItem(item_id, bag_enum.value, item.slot, to_move)
-                                remaining_quantity -= to_move
-                                moved_any = True
-                                if remaining_quantity == 0:
-                                    return True
 
             # === Fill empty slots ===
             occupied_slots = {item.slot for item in items}
@@ -667,16 +670,15 @@ class InventoryCache:
             dye_info = self.item_cache.Customization.GetDyeInfo(item_id)
             dye1_to_match = dye_info.dye1.ToInt()
 
-        for bag_enum in inventory_bags:
-            try:
-                bag = PyInventory.Bag(bag_enum.value, bag_enum.name)
-                size = bag.GetSize()
-                items = bag.GetItems()
-            except Exception:
-                continue
+        # Fill every partial stack across all inventory bags before using empty slots.
+        if is_stackable:
+            for bag_enum in inventory_bags:
+                try:
+                    bag = PyInventory.Bag(bag_enum.value, bag_enum.name)
+                    items = bag.GetItems()
+                except Exception:
+                    continue
 
-            # Fill existing partial stacks
-            if is_stackable:
                 for item in items:
                     if item.model_id != model_id:
                         continue
@@ -697,6 +699,14 @@ class InventoryCache:
                             moved_any = True
                             if remaining_quantity == 0:
                                 return True
+
+        for bag_enum in inventory_bags:
+            try:
+                bag = PyInventory.Bag(bag_enum.value, bag_enum.name)
+                size = bag.GetSize()
+                items = bag.GetItems()
+            except Exception:
+                continue
 
             # Fill empty slots
             occupied_slots = {item.slot for item in items}
