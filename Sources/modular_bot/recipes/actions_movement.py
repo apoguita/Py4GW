@@ -18,7 +18,27 @@ def handle_path(ctx: StepContext) -> None:
 def handle_auto_path(ctx: StepContext) -> None:
     points = [tuple(p) for p in ctx.step["points"]]
     name = ctx.step.get("name", f"AutoPath {ctx.step_idx + 1}")
+    pause_on_combat = parse_step_bool(ctx.step.get("pause_on_combat", False), False)
+    pause_on_danger_was_active = bool(ctx.bot.Properties.IsActive("pause_on_danger"))
+
+    if pause_on_combat:
+        # Enable before movement executes (FSM runtime), not during step registration.
+        ctx.bot.States.AddCustomState(
+            lambda: ctx.bot.Properties.ApplyNow("pause_on_danger", "active", True),
+            f"{name}: Enable Pause On Combat",
+        )
+
     ctx.bot.Move.FollowAutoPath(points, step_name=name)
+
+    if pause_on_combat:
+        # Restore previous setting after movement completes.
+        ctx.bot.States.AddCustomState(
+            lambda was_active=pause_on_danger_was_active: ctx.bot.Properties.ApplyNow(
+                "pause_on_danger", "active", was_active
+            ),
+            f"{name}: Restore Pause On Combat",
+        )
+
     wait_after_step(ctx.bot, ctx.step)
 
 
