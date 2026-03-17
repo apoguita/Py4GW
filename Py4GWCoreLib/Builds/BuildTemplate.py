@@ -100,7 +100,7 @@ class PhaseAwareBuildTemplate(BuildMgr):
         # Keep a local dictionary if your build wants easy named access to the
         # custom skill configuration objects.
         self.custom_skills = {
-            name: self._get_custom_skill(skill_id)
+            name: self.GetCustomSkill(skill_id)
             for name, skill_id in self.skill_ids.items()
         }
 
@@ -202,7 +202,7 @@ class SinglePhaseBuildTemplate(BuildMgr):
             # "skill_name": GLOBAL_CACHE.Skill.GetID("Skill_Name"),
         }
         self.custom_skills = {
-            name: self._get_custom_skill(skill_id)
+            name: self.GetCustomSkill(skill_id)
             for name, skill_id in self.skill_ids.items()
         }
         self.status = BuildStatus.Wait

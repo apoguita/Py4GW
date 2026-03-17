@@ -1717,10 +1717,10 @@ def draw_command_panel(window: WindowModule, cached_data: CacheData):
         table_width = avail_x
         btn_size = (table_width / 5) - 4
         
-        from HeroAI.windows import HeroAI_Windows
+        from HeroAI.ui_base import HeroAI_BaseUI
         
         if ImGui.begin_child("##GlobalHeroOptionsChild",( table_width, (btn_size  * 2) - 6), False, PyImGui.WindowFlags.NoScrollbar | PyImGui.WindowFlags.NoScrollWithMouse):
-            HeroAI_Windows.DrawPanelButtons("command_panel", cached_data.global_options, set_global=True)
+            HeroAI_BaseUI.DrawPanelButtons("command_panel", cached_data.global_options, set_global=True)
 
         ImGui.end_child()                
 

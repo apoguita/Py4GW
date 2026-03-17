@@ -6,7 +6,7 @@ import inspect
 from pathlib import Path
 from typing import Any, Callable
 
-#region build
+#region BuildMgr
 class BuildMgr:
     from Py4GWCoreLib import Profession
     def __init__(
@@ -59,11 +59,11 @@ class BuildMgr:
         return self.required_secondary == profession
 
     def _get_current_skills(self) -> list[int]:
-        from Py4GWCoreLib import GLOBAL_CACHE
+        from Py4GWCoreLib.Skillbar import SkillBar
 
         skills: list[int] = []
         for i in range(8):
-            skill = GLOBAL_CACHE.SkillBar.GetSkillIDBySlot(i + 1)
+            skill = SkillBar.GetSkillIDBySlot(i + 1)
             if skill:
                 skills.append(skill)
         return skills
@@ -153,7 +153,7 @@ class BuildMgr:
     def SetSkillCastingFn(self, handler: Callable[[], Any] | None) -> None:
         self._local_skill_casting_handler = handler
 
-    def _can_process(self) -> bool:
+    def CanProcess(self) -> bool:
         from Py4GWCoreLib import Agent, Player, Routines
 
         return (
@@ -163,17 +163,82 @@ class BuildMgr:
             and not Agent.IsDead(Player.GetAgentID())
         )
 
-    def _refresh_priority_target(self) -> None:
-        from Py4GWCoreLib import Player
-
-        self.priority_target = Player.GetTargetID()
-
-    def _get_custom_skill(self, skill_id: int):
+    def GetCustomSkill(self, skill_id: int):
         from HeroAI.custom_skill import CustomSkillClass
 
         if self._custom_skill_data_handler is None:
             self._custom_skill_data_handler = CustomSkillClass()
         return self._custom_skill_data_handler.get_skill(skill_id)
+    
+    def _pick_fallback_target(self, target_type: str) -> int:
+        from HeroAI.targeting import GetEnemyInjured
+        from Py4GWCoreLib import Range
+        from Py4GWCoreLib.Agent import Agent
+        
+        return_target = 0
+        if target_type == "EnemyInjured":
+            return_target = GetEnemyInjured(Range.Earshot.value)
+            
+        if Agent.IsValid(return_target) and not Agent.IsDead(return_target):
+            return return_target 
+        return 0
+
+    def _resolve_target(self, target_type: str = "EnemyInjured", show_log: bool = False) -> tuple[bool, bool]:
+        from Py4GWCoreLib import Party, Agent
+        party_target = Party.GetPartyTarget()
+        self._debug(f"_acquire_target start current={self.current_target_id} party_target={party_target}", show_log)
+
+        if Agent.IsValid(party_target) and not Agent.IsDead(party_target):
+            desired_target = party_target
+            target_source = "party"
+        elif Agent.IsValid(self.current_target_id) and not Agent.IsDead(self.current_target_id):
+            desired_target = self.current_target_id
+            target_source = "current"
+        else:
+            desired_target = self._pick_fallback_target(target_type)
+            target_source = "fallback"
+
+        if Agent.IsValid(desired_target) and not Agent.IsDead(desired_target):
+            target_changed = desired_target != self.current_target_id
+            self.current_target_id = desired_target
+            if target_changed:
+                self._debug(f"Selected new {target_source} target {self.current_target_id}", show_log)
+            else:
+                self._debug(f"Keeping {target_source} target {self.current_target_id}", show_log)
+            return True, target_changed
+
+        self.current_target_id = 0
+        self._debug("No valid target acquired", show_log)
+        return False, False
+
+    def AcquireTarget(
+        self,
+        target_type: str = "EnemyInjured",
+        wait_ms: int = 100,
+        show_debug: bool = False,
+    ):
+        if False:
+            yield
+
+        from Py4GWCoreLib import Player, Routines
+
+        target_acquired, target_changed = self._resolve_target(target_type, show_log=show_debug)
+        if not target_acquired:
+            self._debug(f"Target acquisition failed, waiting {wait_ms}ms", show_debug)
+            yield from Routines.Yield.wait(wait_ms)
+            return False
+
+        if target_changed or Player.GetTargetID() != self.current_target_id:
+            self._debug(
+                f"Settling target desired={self.current_target_id} "
+                f"player_target={Player.GetTargetID()} changed={target_changed}",
+                show_debug,
+            )
+            yield from Routines.Yield.Agents.ChangeTarget(self.current_target_id)
+            return False
+
+        return True
+    
 
     def _resolve_extra_condition(self, extra_condition: bool | Callable[[], bool]) -> bool:
         if callable(extra_condition):
@@ -190,11 +255,10 @@ class BuildMgr:
             yield from result
 
     def _process_phase(self, handler: Callable[[], Any] | None, is_in_combat: bool):
-        if not self._can_process():
+        if not self.CanProcess():
             yield
             return
 
-        self._refresh_priority_target()
         yield from self._yield_from_handler(handler)
 
         fallback = self.ResolveFallback()
@@ -208,11 +272,10 @@ class BuildMgr:
         yield
 
     def _process_skill_casting_phase(self, handler: Callable[[], Any] | None):
-        if not self._can_process():
+        if not self.CanProcess():
             yield
             return
 
-        self._refresh_priority_target()
         yield from self._yield_from_handler(handler)
 
         fallback = self.ResolveFallback()
@@ -269,7 +332,7 @@ class BuildMgr:
         log: bool = False,
         aftercast_delay: int = 1000,
     ):
-        from Py4GWCoreLib import GLOBAL_CACHE, Player, Routines, ConsoleLog, Console
+        from Py4GWCoreLib import GLOBAL_CACHE, Player, Routines, ConsoleLog, Console, SkillBar, Skill
         if False:
             yield
 
@@ -282,13 +345,13 @@ class BuildMgr:
         if not Routines.Checks.Skills.IsSkillIDReady(skill_id):
             return False
 
-        slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(skill_id)
+        slot = SkillBar.GetSlotBySkillID(skill_id)
         if not (1 <= slot <= 8):
             return False
 
         GLOBAL_CACHE.SkillBar.UseSkill(slot, aftercast_delay=aftercast_delay)
         if log:
-            ConsoleLog("CastSkillID", f"Cast {GLOBAL_CACHE.Skill.GetName(skill_id)}, slot: {slot}", Console.MessageType.Info, log=log)
+            ConsoleLog("CastSkillID", f"Cast {Skill.GetName(skill_id)}, slot: {slot}", Console.MessageType.Info, log=log)
         self.SetTickSuccess()
 
         return True
@@ -300,7 +363,7 @@ class BuildMgr:
         log: bool = True,
         aftercast_delay: int = 1000,
     ):
-        from Py4GWCoreLib import GLOBAL_CACHE, Player, Routines, ConsoleLog, Console
+        from Py4GWCoreLib import GLOBAL_CACHE, Player, Routines, ConsoleLog, Console, SkillBar
         if False:
             yield
 
@@ -311,7 +374,7 @@ class BuildMgr:
         if not self._resolve_extra_condition(extra_condition):
             return False
 
-        skill_id = GLOBAL_CACHE.SkillBar.GetSkillIDBySlot(slot)
+        skill_id = SkillBar.GetSkillIDBySlot(slot)
         if not skill_id:
             return False
         if not Routines.Checks.Skills.HasEnoughEnergy(Player.GetAgentID(), skill_id):
@@ -367,8 +430,14 @@ class BuildMgr:
         This method can be overridden in child classes if needed.
         """
         yield from Routines.Yield.Skills.LoadSkillbar(self.template_code, log=False)
+        
+    def _debug(self,message: str, enable: bool = True) -> None:
+        from Py4GWCoreLib import ConsoleLog
+        import Py4GW
+        ConsoleLog(self.build_name, message, Py4GW.Console.MessageType.Info, log=enable)
 
 
+#region BuildRegistry
 class BuildRegistry:
     _cached_build_types: list[type[BuildMgr]] | None = None
 
