@@ -11,7 +11,8 @@ from Py4GWCoreLib import AutoInventoryHandler
 from Py4GWCoreLib import IniHandler
 from Py4GWCoreLib import Agent, Player
 from Py4GWCoreLib import ConsoleLog
-from Py4GWCoreLib.Builds import ShadowFormAssassinVaettir, ShadowFormMesmerVaettir
+from Py4GWCoreLib.Builds.CombatAutomatorExcluded.ShadowFormAssassinVaettir import ShadowFormAssassinVaettir
+from Py4GWCoreLib.Builds.CombatAutomatorExcluded.ShadowFormMesmerVaettir import ShadowFormMesmerVaettir
 
 
 

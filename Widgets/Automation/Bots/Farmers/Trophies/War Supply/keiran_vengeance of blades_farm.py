@@ -3,7 +3,7 @@ from Py4GWCoreLib import (GLOBAL_CACHE, Routines, Range, ModelID, Botting,
 
 
 
-from Py4GWCoreLib.Builds import KeiranThackerayEOTN
+from Py4GWCoreLib.Builds.Any.KeiranThackerayEOTN import KeiranThackerayEOTN
 import Py4GW
 
 
