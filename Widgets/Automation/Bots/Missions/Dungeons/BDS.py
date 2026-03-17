@@ -61,14 +61,25 @@ _BDS_ICON_PATH = os.path.join(Py4GW.Console.get_projects_path(), "Bots", "BDS", 
 
 # ==================== MERCHANT SETTINGS ====================
 _MERCHANT_SECTION = "BDS Merchant"
+_ALT_SALVAGE_SECTION = "BDS Alt Salvage Kits"
+_FIXED_ID_KITS_TARGET = 3
+_FIXED_SALVAGE_KITS_TARGET = 10
+_ALT_SALVAGE_TRIGGER_THRESHOLD = 2
+_ALT_SALVAGE_POLL_TIMEOUT_MS = 200
+_ALT_SALVAGE_POLL_MAX_TOTAL_MS = 10_000
 _merchant_enabled: bool = False
-_merchant_id_kits_target: int = 2
-_merchant_salvage_kits_target: int = 5
+_merchant_id_kits_target: int = _FIXED_ID_KITS_TARGET
+_merchant_salvage_kits_target: int = _FIXED_SALVAGE_KITS_TARGET
+_merchant_store_consumable_materials: bool = False
 _merchant_sell_materials: bool = False
 _merchant_sell_rare_mats: bool = False
 _merchant_buy_ectos: bool = False
 _merchant_ecto_threshold: int = 800_000
-_merchant_alt_wait_ms: int = 90_000
+_DEFAULT_ALT_SETTLE_WAIT_MS = 2000
+_MAX_ALT_SETTLE_WAIT_MS = 5000
+_merchant_alt_wait_ms: int = _DEFAULT_ALT_SETTLE_WAIT_MS
+_POST_RETURN_TO_ARBOR_SETTLE_MS = 4000
+_POST_WIDGET_REENABLE_SETTLE_MS = 2500
 _merchant_loaded: bool = False
 
 
@@ -285,7 +296,7 @@ def _verify_reward_taken_from_quest_log() -> Generator:
     yield
 
 def Search_and_talk_with_Shandra(bot: Botting):
-    npc_name = Crewmember Shandra
+    npc_name = "Shandra, membre d'équipage"
 
     ConsoleLog(BOT_NAME, "[Shandra] Start quest take", log=True)
 
@@ -360,7 +371,7 @@ def find_nearest_npc_by_name(name_fragment: str, max_dist: float = 2000.0) -> in
     return 0
 
 def _interact_with_Shandra(bot: Botting, dialog_id: int, tolerance: float = 220.0):
-    npc_name = Crewmember Shandra
+    npc_name = "Shandra, membre d'équipage"
 
     agent_id = find_nearest_npc_by_name(npc_name, 2000.0)
     if not agent_id:
@@ -730,6 +741,168 @@ def _gh_merchant_setup(leave_party: bool = True) -> Generator:
     ConsoleLog(BOT_NAME, "[Merchant] Guild Hall merchant run complete")
     yield
 
+def _resign_all_to_outpost_before_merchant() -> Generator:
+    ConsoleLog(BOT_NAME, "[Merchant] Resigning all accounts before Guild Hall merchant routine")
+    start_map_id = int(Map.GetMapID())
+    my_email = Player.GetAccountEmail()
+    for acc in GLOBAL_CACHE.ShMem.GetAllAccountData():
+        if acc.AccountEmail != my_email:
+            GLOBAL_CACHE.ShMem.SendMessage(my_email, acc.AccountEmail, SharedCommandType.Resign, (0, 0, 0, 0), ("", "", "", ""))
+    Player.SendChatCommand("resign")
+    yield from Routines.Yield.wait(500)
+
+    map_change_deadline = time.time() + 45.0
+    while time.time() < map_change_deadline:
+        if int(Map.GetMapID()) != start_map_id:
+            break
+        yield from Routines.Yield.wait(250)
+
+    yield from bot.Wait._coro_until_on_outpost()
+
+
+def _return_to_arbor_bay_after_merchant() -> Generator:
+    if int(Map.GetMapID()) == Arbor_Bay:
+        yield from Routines.Yield.wait(_POST_RETURN_TO_ARBOR_SETTLE_MS)
+        yield
+        return
+    if int(Map.GetMapID()) != Vloxs_Fall:
+        yield from bot.Map._coro_travel(Vloxs_Fall, "")
+    yield from bot.Wait._coro_until_on_outpost()
+    yield from bot.Move._coro_xy_and_exit_map(15505.38, 12460.59, target_map_id=Arbor_Bay, step_name="Return to Arbor Bay")
+    yield from Routines.Yield.wait(_POST_RETURN_TO_ARBOR_SETTLE_MS)
+
+
+def _rebuild_party_after_merchant() -> Generator:
+    from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
+    from Sources.oazix.CustomBehaviors.primitives.parties.party_command_contants import PartyCommandConstants
+
+    ConsoleLog(BOT_NAME, "[Merchant] Rebuilding party after GH restock (CustomBehaviorParty)")
+
+    _cb_deadline = time.time() + 15.0
+    while not CustomBehaviorParty().is_ready_for_action() and time.time() < _cb_deadline:
+        yield from Routines.Yield.wait(100)
+
+    if not CustomBehaviorParty().is_ready_for_action():
+        ConsoleLog(BOT_NAME, "[Merchant] Party behavior not ready for summon", Py4GW.Console.MessageType.Warning)
+        yield
+        return
+
+    _ok = bool(CustomBehaviorParty().schedule_action(PartyCommandConstants.summon_all_to_current_map))
+    if not _ok:
+        ConsoleLog(BOT_NAME, "[Merchant] Failed to schedule summon_all_to_current_map", Py4GW.Console.MessageType.Warning)
+        yield
+        return
+
+    # Let summon travel/actions settle before invite.
+    _cb_deadline = time.time() + 25.0
+    while not CustomBehaviorParty().is_ready_for_action() and time.time() < _cb_deadline:
+        yield from Routines.Yield.wait(200)
+    yield from Routines.Yield.wait(1200)
+
+    _cb_deadline = time.time() + 15.0
+    while not CustomBehaviorParty().is_ready_for_action() and time.time() < _cb_deadline:
+        yield from Routines.Yield.wait(100)
+
+    if not CustomBehaviorParty().is_ready_for_action():
+        ConsoleLog(BOT_NAME, "[Merchant] Party behavior not ready for invite", Py4GW.Console.MessageType.Warning)
+        yield
+        return
+
+    _ok = bool(CustomBehaviorParty().schedule_action(PartyCommandConstants.invite_all_to_leader_party))
+    if not _ok:
+        ConsoleLog(BOT_NAME, "[Merchant] Failed to schedule invite_all_to_leader_party", Py4GW.Console.MessageType.Warning)
+        yield
+        return
+
+    _cb_deadline = time.time() + 20.0
+    while not CustomBehaviorParty().is_ready_for_action() and time.time() < _cb_deadline:
+        yield from Routines.Yield.wait(200)
+
+def _write_local_salvage_kit_count() -> None:
+    from Py4GWCoreLib.enums_src.Model_enums import ModelID as _ModelID
+
+    email = Player.GetAccountEmail()
+    salvage_count = int(GLOBAL_CACHE.Inventory.GetModelCount(_ModelID.Salvage_Kit.value))
+    _bds_ini.write_key(_ALT_SALVAGE_SECTION, _account_key(email), str(salvage_count))
+
+def _request_alt_salvage_kit_counts() -> Generator:
+    my_email = Player.GetAccountEmail()
+    alt_accounts = [acc for acc in GLOBAL_CACHE.ShMem.GetAllAccountData() if acc.AccountEmail != my_email]
+    for acc in alt_accounts:
+        _bds_ini.write_key(_ALT_SALVAGE_SECTION, _account_key(acc.AccountEmail), str(-1))
+
+    pending_accounts = alt_accounts
+    max_attempts = max(1, _ALT_SALVAGE_POLL_MAX_TOTAL_MS // max(1, _ALT_SALVAGE_POLL_TIMEOUT_MS))
+    for _attempt in range(max_attempts):
+        if not pending_accounts:
+            break
+
+        for acc in pending_accounts:
+            GLOBAL_CACHE.ShMem.SendMessage(
+                my_email,
+                acc.AccountEmail,
+                SharedCommandType.MerchantItems,
+                (0, 0, 0, 0),
+                ("report_salvage_kits", _bds_ini_path, _ALT_SALVAGE_SECTION, _account_key(acc.AccountEmail)),
+            )
+
+        yield from Routines.Yield.wait(_ALT_SALVAGE_POLL_TIMEOUT_MS)
+        pending_accounts = [
+            acc for acc in pending_accounts
+            if _bds_ini.read_int(_ALT_SALVAGE_SECTION, _account_key(acc.AccountEmail), -1) < 0
+        ]
+
+    if pending_accounts:
+        pending_names = [acc.AgentData.CharacterName or acc.AccountEmail for acc in pending_accounts]
+        ConsoleLog(
+            BOT_NAME,
+            f"[Merchant] No salvage count reply after {max_attempts} attempts ({_ALT_SALVAGE_POLL_MAX_TOTAL_MS} ms max) from: {', '.join(pending_names)}. Skipping them this check.",
+            Py4GW.Console.MessageType.Warning,
+        )
+
+def _account_key(email: str) -> str:
+    return email.replace("@", "_at_").replace(".", "_")
+
+def _alts_need_salvage_restock() -> tuple[bool, list[str], list[str]]:
+    my_email = Player.GetAccountEmail()
+    ini_reader = IniHandler(_bds_ini_path)
+    low_accounts: list[str] = []
+    unknown_accounts: list[str] = []
+    for acc in GLOBAL_CACHE.ShMem.GetAllAccountData():
+        if acc.AccountEmail == my_email:
+            continue
+        count = ini_reader.read_int(_ALT_SALVAGE_SECTION, _account_key(acc.AccountEmail), -1)
+        char_name = acc.AgentData.CharacterName or acc.AccountEmail
+        if count < 0:
+            unknown_accounts.append(char_name)
+            continue
+        if count < _ALT_SALVAGE_TRIGGER_THRESHOLD:
+            low_accounts.append(f"{char_name} ({count})")
+    return len(low_accounts) > 0, low_accounts, unknown_accounts
+
+def _gh_merchant_setup_for_alt_salvage_threshold() -> Generator:
+    _write_local_salvage_kit_count()
+    yield from _request_alt_salvage_kit_counts()
+    needs_restock, low_accounts, unknown_accounts = _alts_need_salvage_restock()
+    if unknown_accounts:
+        ConsoleLog(
+            BOT_NAME,
+            f"[Merchant] Alt salvage count unknown this pass: {', '.join(unknown_accounts)}",
+            Py4GW.Console.MessageType.Warning,
+        )
+    if not needs_restock:
+        yield
+        return
+
+    ConsoleLog(
+        BOT_NAME,
+        f"[Merchant] Alt salvage trigger hit: {', '.join(low_accounts)}. Running Guild Hall merchant routine.",
+    )
+    yield from _resign_all_to_outpost_before_merchant()
+    yield from _gh_merchant_setup(leave_party=True)
+    yield from _reenable_merchant_widgets()
+    yield from _return_to_arbor_bay_after_merchant()
+    yield from _rebuild_party_after_merchant()
 
 def _gh_merchant_setup_if_inventory_full() -> Generator:
     """After quest reward: if only 1 free inventory slot remains, resign to outpost then run the full GH merchant routine."""
@@ -2206,6 +2379,8 @@ def farm_bds_routine(bot: Botting) -> None:
     
     # ===== NEXT RUN =====
     bot.Wait.ForMapToChange(target_map_name="Arbor Bay")
+    bot.States.AddCustomState(_gh_merchant_setup_if_inventory_full, "GH Merchant if inventory full")
+    bot.States.AddCustomState(_gh_merchant_setup_for_alt_salvage_threshold, "GH Merchant if alt salvage kits are low")
     bot.States.AddCustomState(lambda: _post_return_flow(bot), "Post-return quest handling")
     
     # ===== LOOP =====
