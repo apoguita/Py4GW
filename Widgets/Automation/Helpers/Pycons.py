@@ -1,3 +1,6 @@
+import hashlib
+import os
+
 # ---- REQUIRED BY WIDGET HANDLER (define immediately) ----
 def configure():
     pass
@@ -13,9 +16,52 @@ _INIT_ERROR = None
 MODULE_NAME = "Pycons"
 MODULE_ICON = "Textures\\Module_Icons\\Pycons.png"
 
+_PYCONS_CONFIG_DIR = os.path.normpath(os.path.join("Widgets", "Config", "Pycons"))
+_LEGACY_CONFIG_DIR = os.path.normpath(os.path.join("Widgets", "Config"))
+
+
+def _hash_account_email(account_email: str) -> str:
+    email = str(account_email or "").strip()
+    if not email:
+        return ""
+    return hashlib.md5(email.encode()).hexdigest()[:8]
+
+
+def get_pycons_generic_ini_candidates() -> tuple[str, str]:
+    canonical = os.path.normpath(os.path.join(_PYCONS_CONFIG_DIR, "Pycons.ini"))
+    legacy = os.path.normpath(os.path.join(_LEGACY_CONFIG_DIR, "Pycons.ini"))
+    return canonical, legacy
+
+
+def get_pycons_account_ini_candidates(account_email: str) -> tuple[str, str]:
+    email_hash = _hash_account_email(account_email)
+    if not email_hash:
+        return get_pycons_generic_ini_candidates()
+
+    canonical = os.path.normpath(os.path.join(_PYCONS_CONFIG_DIR, f"Pycons_{email_hash}.ini"))
+    legacy = os.path.normpath(os.path.join(_LEGACY_CONFIG_DIR, f"Pycons_{email_hash}.ini"))
+    return canonical, legacy
+
+
+def resolve_pycons_generic_ini_path() -> str:
+    canonical, legacy = get_pycons_generic_ini_candidates()
+    if os.path.exists(canonical):
+        return canonical
+    if os.path.exists(legacy):
+        return legacy
+    return canonical
+
+
+def resolve_pycons_account_ini_path(account_email: str) -> str:
+    canonical, legacy = get_pycons_account_ini_candidates(account_email)
+    if os.path.exists(canonical):
+        return canonical
+    if os.path.exists(legacy):
+        return legacy
+    return canonical
+
 try:
     from typing import Any, cast
-    import os
     import shutil
     import re
     import unicodedata
@@ -1064,8 +1110,7 @@ try:
             if not email or email == self_email or email in seen:
                 continue
             seen.add(email)
-            email_hash = hashlib.md5(email.encode()).hexdigest()[:8]
-            ini = IniHandler(_resolve_account_ini_path(email_hash, migrate_legacy=True, log_migration=False))
+            ini = IniHandler(_resolve_account_ini_path(email, migrate_legacy=True, log_migration=False))
             ini.write_key(INI_SECTION, "team_consume_opt_in", value)
             updated += 1
             nm = _acc_name(acc)
@@ -1666,15 +1711,13 @@ try:
     # Config (dirty-save throttled)
     # -------------------------
     # Lazy INI handler creation to ensure account email is available
-    import hashlib
     _ini_handler_cache = None
     _ini_path_cache: str | None = None
     _ini_generic_fallback_logged = False
     _ini_generic_cached_with_email_logged = False
-    _PYCONS_CONFIG_DIR = os.path.normpath(os.path.join("Widgets", "Config", "Pycons"))
-    _LEGACY_CONFIG_DIR = os.path.normpath(os.path.join("Widgets", "Config"))
-    _GENERIC_INI_PATH = os.path.normpath(os.path.join(_PYCONS_CONFIG_DIR, "Pycons.ini"))
-    _LEGACY_GENERIC_INI_PATH = os.path.normpath(os.path.join(_LEGACY_CONFIG_DIR, "Pycons.ini"))
+    _GENERIC_INI_PATH, _LEGACY_GENERIC_INI_PATH = get_pycons_generic_ini_candidates()
+    _PYCONS_CONFIG_DIR = os.path.dirname(_GENERIC_INI_PATH)
+    _LEGACY_CONFIG_DIR = os.path.dirname(_LEGACY_GENERIC_INI_PATH)
 
     def _norm_path_lower(path: str | None) -> str:
         try:
@@ -1696,13 +1739,12 @@ try:
         except Exception:
             return False
 
-    def _resolve_account_ini_path(email_hash: str, migrate_legacy: bool = True, log_migration: bool = False) -> str:
-        h = str(email_hash or "").strip()
-        if not h:
-            return _GENERIC_INI_PATH
+    def _resolve_account_ini_path(account_email: str, migrate_legacy: bool = True, log_migration: bool = False) -> str:
+        email = str(account_email or "").strip()
+        if not email:
+            return _resolve_generic_ini_path(migrate_legacy=migrate_legacy, log_migration=log_migration)
 
-        canonical = os.path.normpath(os.path.join(_PYCONS_CONFIG_DIR, f"Pycons_{h}.ini"))
-        legacy = os.path.normpath(os.path.join(_LEGACY_CONFIG_DIR, f"Pycons_{h}.ini"))
+        canonical, legacy = get_pycons_account_ini_candidates(email)
 
         if os.path.exists(canonical):
             return canonical
@@ -1724,8 +1766,7 @@ try:
         return canonical
 
     def _resolve_generic_ini_path(migrate_legacy: bool = True, log_migration: bool = False) -> str:
-        canonical = str(_GENERIC_INI_PATH)
-        legacy = str(_LEGACY_GENERIC_INI_PATH)
+        canonical, legacy = get_pycons_generic_ini_candidates()
 
         if os.path.exists(canonical):
             return canonical
@@ -1778,8 +1819,7 @@ try:
                     )
                     _ini_generic_fallback_logged = True
             else:
-                email_hash = hashlib.md5(account_email.encode()).hexdigest()[:8]
-                _ini_path_cache = _resolve_account_ini_path(email_hash, migrate_legacy=True, log_migration=True)
+                _ini_path_cache = _resolve_account_ini_path(account_email, migrate_legacy=True, log_migration=True)
             try:
                 parent_dir = os.path.dirname(str(_ini_path_cache or ""))
                 if parent_dir:
@@ -1813,8 +1853,7 @@ try:
             return False
 
         old_path = str(_ini_path_cache or "")
-        email_hash = hashlib.md5(account_email.encode()).hexdigest()[:8]
-        new_path = _resolve_account_ini_path(email_hash, migrate_legacy=True, log_migration=True)
+        new_path = _resolve_account_ini_path(account_email, migrate_legacy=True, log_migration=True)
         if _norm_path_lower(new_path) == _norm_path_lower(old_path):
             return False
 
@@ -4051,9 +4090,7 @@ try:
         if cached and (now - int(cached[0])) < int(TEAM_SETTINGS_CACHE_MS):
             return bool(cached[1]), bool(cached[2])
         try:
-            import hashlib
-            email_hash = hashlib.md5(account_email.encode()).hexdigest()[:8]
-            ini = IniHandler(_resolve_account_ini_path(email_hash, migrate_legacy=True, log_migration=False))
+            ini = IniHandler(_resolve_account_ini_path(account_email, migrate_legacy=True, log_migration=False))
             is_broadcaster = bool(ini.read_bool(INI_SECTION, "team_broadcast", False))
             is_optin = bool(ini.read_bool(INI_SECTION, "team_consume_opt_in", False))
         except Exception:
