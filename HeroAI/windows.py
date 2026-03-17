@@ -1,5 +1,5 @@
 from operator import index
-from Py4GWCoreLib import GLOBAL_CACHE, Map,IconsFontAwesome5, ImGui, Utils, Overlay, Range, SharedCommandType, ConsoleLog, Color
+from Py4GWCoreLib import GLOBAL_CACHE, Map,IconsFontAwesome5, ImGui, Utils, Overlay, Range, SharedCommandType, ConsoleLog, Color, ColorPalette
 from Py4GWCoreLib import UIManager, ModelID, GLOBAL_CACHE, WindowFrames
 from Py4GWCoreLib import Agent, Player
 from Py4GWCoreLib import (Routines, ActionQueueManager,Key, Keystroke, ThrottledTimer)
@@ -355,6 +355,22 @@ class HeroAI_Windows():
     capture_hero_index = -1
     capture_hero_flag = False
     capture_flag_all = False
+    show_build_match_window = False
+    _build_match_timer = ThrottledTimer(750)
+    _build_match_rows: list[tuple[int, str, int, int, str, str, str]] = []
+    _build_registry = None
+    _profession_palette_names = {
+        1: "GW_Warrior",
+        2: "GW_Ranger",
+        3: "GW_Monk",
+        4: "GW_Necromancer",
+        5: "GW_Mesmer",
+        6: "GW_Elementalist",
+        7: "GW_Assassin",
+        8: "GW_Ritualist",
+        9: "GW_Paragon",
+        10: "GW_Dervish",
+    }
     
     
     outline_color:Color = Color(255, 255, 255, 255)
@@ -389,6 +405,234 @@ class HeroAI_Windows():
         "Alcohol": ButtonColor(button_color = Color(58, 41, 50, 255),hovered_color = Color(169, 145, 111, 255),active_color = Color(173, 173, 156, 255), texture_path="Textures\\Consumables\\Trimmed\\Dwarven_Ale.png"),
         "Blank": ButtonColor(button_color= Color(0, 0, 0, 0), hovered_color=Color(0, 0, 0, 0), active_color=Color(0, 0, 0, 0)),
     }
+
+    @staticmethod
+    def _get_build_registry():
+        if HeroAI_Windows._build_registry is None:
+            from Py4GWCoreLib.BuildMgr import BuildRegistry
+
+            HeroAI_Windows._build_registry = BuildRegistry(default_fallback_name="HeroAI")
+        return HeroAI_Windows._build_registry
+
+    @staticmethod
+    def _profession_label(profession_value: int) -> str:
+        from Py4GWCoreLib import Profession
+
+        if profession_value == 0:
+            return ""
+        try:
+            return Profession(int(profession_value)).name
+        except Exception:
+            return str(profession_value)
+
+    @staticmethod
+    def _profession_color(profession_value: int) -> Color:
+        palette_name = HeroAI_Windows._profession_palette_names.get(int(profession_value))
+        if not palette_name:
+            return ColorPalette.GetColor("white")
+        return ColorPalette.GetColor(palette_name)
+
+    @staticmethod
+    def _refresh_build_match_rows(cached_data: CacheData) -> None:
+        if not HeroAI_Windows._build_match_timer.IsExpired() and HeroAI_Windows._build_match_rows:
+            return
+
+        from Py4GWCoreLib import Profession
+
+        rows: list[tuple[int, str, int, int, str, str, str]] = []
+        registry = HeroAI_Windows._get_build_registry()
+        sorted_accounts = sorted(cached_data.party.accounts.values(), key=lambda acc: acc.AgentPartyData.PartyPosition)
+
+        for account in sorted_accounts:
+            if not account or not account.IsSlotActive:
+                continue
+            if account.AgentPartyData.PartyID != GLOBAL_CACHE.Party.GetPartyID():
+                continue
+            if account.IsPet or account.IsNPC:
+                continue
+
+            primary_value = int(account.AgentData.Profession[0])
+            secondary_value = int(account.AgentData.Profession[1])
+            primary_label = HeroAI_Windows._profession_label(primary_value)
+            secondary_label = HeroAI_Windows._profession_label(secondary_value)
+            profession_label = f"{primary_label}{('/' + secondary_label) if secondary_label else ''}"
+            skill_ids = [int(skill.Id) for skill in account.AgentData.Skillbar.Skills if int(skill.Id) != 0]
+
+            fallback_name = "HeroAI"
+            resolved_build = registry.ResolveBuild(
+                current_primary=Profession(primary_value),
+                current_secondary=Profession(secondary_value),
+                current_skills=skill_ids,
+                fallback_name=fallback_name,
+            )
+
+            if resolved_build is not None:
+                build_name = str(getattr(resolved_build, "build_name", "") or resolved_build.__class__.__name__)
+            else:
+                build_name = fallback_name
+            source_label = "Fallback" if (resolved_build is None or resolved_build.is_fallback_candidate) else "Matched"
+            rows.append((
+                int(account.AgentPartyData.PartyPosition),
+                str(account.AgentData.CharacterName),
+                primary_value,
+                secondary_value,
+                profession_label,
+                build_name,
+                source_label,
+            ))
+
+        HeroAI_Windows._build_match_rows = rows
+        HeroAI_Windows._build_match_timer.Reset()
+
+    @staticmethod
+    def _dump_build_match_debug(cached_data: CacheData) -> None:
+        from Py4GWCoreLib import ConsoleLog, Profession
+
+        registry = HeroAI_Windows._get_build_registry()
+        sorted_accounts = sorted(cached_data.party.accounts.values(), key=lambda acc: acc.AgentPartyData.PartyPosition)
+
+        ConsoleLog("HeroAI", "=== Build Match Debug Dump ===")
+        build_types = registry.GetBuildTypes()
+        ConsoleLog("HeroAI", f"[BuildDebug] Scanned build type count={len(build_types)}")
+        for build_type in build_types:
+            try:
+                build = registry._instantiate_build(build_type)
+                if build is None:
+                    ConsoleLog("HeroAI", f"[BuildDebug] Instantiate returned None for class={build_type.__name__}")
+                    continue
+
+                ConsoleLog(
+                    "HeroAI",
+                    f"[BuildDebug] Instantiated class={build_type.__name__} "
+                    f"build_name={getattr(build, 'build_name', '')!r} "
+                    f"template_only={getattr(build, 'is_template_only', False)} "
+                    f"fallback={getattr(build, 'is_fallback_candidate', False)} "
+                    f"fixed={getattr(build, 'IsFixedBuild', False)} "
+                    f"compatible={getattr(build, 'is_combat_automator_compatible', True)}"
+                )
+            except Exception as exc:
+                ConsoleLog("HeroAI", f"[BuildDebug] Instantiate exception for class={build_type.__name__}: {exc!r}")
+
+        for account in sorted_accounts:
+            if not account or not account.IsSlotActive:
+                continue
+            if account.AgentPartyData.PartyID != GLOBAL_CACHE.Party.GetPartyID():
+                continue
+            if account.IsPet or account.IsNPC:
+                continue
+
+            primary_value = int(account.AgentData.Profession[0])
+            secondary_value = int(account.AgentData.Profession[1])
+            primary_prof = Profession(primary_value)
+            secondary_prof = Profession(secondary_value)
+            skill_ids = [int(skill.Id) for skill in account.AgentData.Skillbar.Skills if int(skill.Id) != 0]
+            fallback_name = "HeroAI"
+
+            resolved_build = registry.ResolveBuild(
+                current_primary=primary_prof,
+                current_secondary=secondary_prof,
+                current_skills=skill_ids,
+                fallback_name=fallback_name,
+            )
+
+            resolved_class = resolved_build.__class__.__name__ if resolved_build is not None else "None"
+            resolved_name = str(getattr(resolved_build, "build_name", "") if resolved_build is not None else fallback_name)
+            resolved_source = "Fallback" if (resolved_build is None or resolved_build.is_fallback_candidate) else "Matched"
+
+            ConsoleLog(
+                "HeroAI",
+                f"[BuildDebug] Pos={int(account.AgentPartyData.PartyPosition) + 1} "
+                f"Name={account.AgentData.CharacterName} "
+                f"Prof={primary_prof.name}/{secondary_prof.name} "
+                f"Skills={skill_ids}"
+            )
+            ConsoleLog(
+                "HeroAI",
+                f"[BuildDebug] Resolved class={resolved_class} build_name={resolved_name!r} source={resolved_source}"
+            )
+
+            all_matchables = registry._iter_matchable_builds()
+            ConsoleLog("HeroAI", f"[BuildDebug] Matchable build count={len(all_matchables)}")
+
+            scored_candidates: list[tuple[int, str, str]] = []
+            for build in all_matchables:
+                score = build.ScoreMatch(
+                    current_primary=primary_prof,
+                    current_secondary=secondary_prof,
+                    current_skills=skill_ids,
+                )
+                ConsoleLog(
+                    "HeroAI",
+                    f"[BuildDebug] Build class={build.__class__.__name__} "
+                    f"build_name={getattr(build, 'build_name', '')!r} "
+                    f"required_primary={getattr(build.required_primary, 'name', build.required_primary)} "
+                    f"required_secondary={getattr(build.required_secondary, 'name', build.required_secondary)} "
+                    f"required_skills={list(getattr(build, 'required_skills', []))} "
+                    f"optional_skills={list(getattr(build, 'optional_skills', []))} "
+                    f"score={score}"
+                )
+                if score >= 0:
+                    scored_candidates.append((score, build.__class__.__name__, str(getattr(build, "build_name", ""))))
+
+            scored_candidates.sort(key=lambda item: item[0], reverse=True)
+            if not scored_candidates:
+                ConsoleLog("HeroAI", "[BuildDebug] No matchable build qualified.")
+            else:
+                for score, class_name, build_name in scored_candidates:
+                    ConsoleLog(
+                        "HeroAI",
+                        f"[BuildDebug] Candidate score={score} class={class_name} build_name={build_name!r}"
+                    )
+
+            fallback_candidates = registry._iter_fallback_builds()
+            for build in fallback_candidates:
+                ConsoleLog(
+                    "HeroAI",
+                    f"[BuildDebug] Fallback class={build.__class__.__name__} build_name={getattr(build, 'build_name', '')!r}"
+                )
+        ConsoleLog("HeroAI", "=== End Build Match Debug Dump ===")
+
+    @staticmethod
+    def DrawBuildMatchesWindow(cached_data: CacheData):
+        if not HeroAI_Windows.show_build_match_window:
+            return
+
+        HeroAI_Windows._refresh_build_match_rows(cached_data)
+
+        if ImGui.Begin(ini_key=cached_data.ini_key, name="HeroAI Build Matches", p_open=True, flags=PyImGui.WindowFlags.AlwaysAutoResize):
+            PyImGui.text("Resolved from each account's shared-memory profession pair and skillbar.")
+            PyImGui.same_line(0, 12)
+            if PyImGui.button("Debug##build_match_debug"):
+                HeroAI_Windows._dump_build_match_debug(cached_data)
+            PyImGui.separator()
+
+            if not HeroAI_Windows._build_match_rows:
+                PyImGui.text("No party accounts available.")
+            else:
+                for party_pos, character_name, primary_value, secondary_value, profession_label, build_name, source_label in HeroAI_Windows._build_match_rows:
+                    PyImGui.text(f"{party_pos + 1}. {character_name}")
+                    if profession_label:
+                        PyImGui.same_line(220, 0)
+                        primary_prof = HeroAI_Windows._profession_label(primary_value)
+                        secondary_prof = HeroAI_Windows._profession_label(secondary_value)
+                        if secondary_prof:
+                            PyImGui.text_colored(primary_prof, HeroAI_Windows._profession_color(primary_value).to_tuple_normalized())
+                            PyImGui.same_line(0, 0)
+                            PyImGui.text("/")
+                            PyImGui.same_line(0, 0)
+                            PyImGui.text_colored(secondary_prof, HeroAI_Windows._profession_color(secondary_value).to_tuple_normalized())
+                        else:
+                            PyImGui.text_colored(primary_prof, HeroAI_Windows._profession_color(primary_value).to_tuple_normalized())
+                    build_color = ColorPalette.GetColor("dodger_blue") if source_label == "Matched" else ColorPalette.GetColor("gw_gold")
+                    PyImGui.text("Build:")
+                    PyImGui.same_line(220, 0)
+                    PyImGui.text_colored(build_name, build_color.to_tuple_normalized())
+                    PyImGui.same_line(0, 14)
+                    status_color = ColorPalette.GetColor("dodger_blue") if source_label == "Matched" else ColorPalette.GetColor("gw_gold")
+                    PyImGui.text_colored(source_label, status_color.to_tuple_normalized())
+                    PyImGui.separator()
+
+        ImGui.End(cached_data.ini_key)
 
     show_confirm_dialog = False
     dialog_options = []
@@ -1917,6 +2161,19 @@ class HeroAI_Windows():
                 ImGui.pop_font()
                 ImGui.show_tooltip("Open Party Window")
                 ImGui.push_font("Regular",10)
+                PyImGui.same_line(0,-1)
+
+                bv = HeroAI_Windows.show_build_match_window
+                new_bv = ImGui.toggle_button(
+                    label="Builds##open_build_matches",
+                    v=bv,
+                    width=60,
+                    height=btn_size)
+
+                if new_bv != bv:
+                    HeroAI_Windows.show_build_match_window = new_bv
+
+                ImGui.show_tooltip("Show each party account's build resolved from shared-memory skillbars")
                 
                 
                 PyImGui.end_table()
@@ -1980,5 +2237,6 @@ class HeroAI_Windows():
                 
         ImGui.End(cached_data.ini_key)
         
+        HeroAI_Windows.DrawBuildMatchesWindow(cached_data)
         HeroAI_Windows.DrawFollowFormationsQuickWindow(cached_data)
         

@@ -46,6 +46,18 @@ class Party:
 
         # Return -1 if the player is not found in the party
         return -1
+    
+    @staticmethod
+    def GetPartyTarget():
+        if not Party.IsPartyLoaded():
+            return 0
+        
+        players = Party.GetPlayers()
+        target = players[0].called_target_id
+        if Agent.IsValid(target):
+            return target
+        return 0
+
 
     @staticmethod
     def GetPlayers():

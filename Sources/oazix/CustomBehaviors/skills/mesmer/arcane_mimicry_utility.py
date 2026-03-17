@@ -16,6 +16,7 @@ from Sources.oazix.CustomBehaviors.primitives.skills.bonds.custom_buff_multiple_
 from Sources.oazix.CustomBehaviors.primitives.skills.bonds.custom_buff_target_per_profession import BuffConfigurationPerProfession
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
+from Sources.oazix.CustomBehaviors.primitives.skills.utility_skill_capability import UtilitySkillCapability
 from Sources.oazix.CustomBehaviors.skills.generic.auto_combat_utility import AutoCombatUtility
 
 

@@ -23,6 +23,7 @@ from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill import CustomS
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_nature import CustomSkillNature
 from Sources.oazix.CustomBehaviors.primitives.scores.score_definition import ScoreDefinition
 from Sources.oazix.CustomBehaviors.primitives import constants
+from Sources.oazix.CustomBehaviors.primitives.skills.utility_skill_capability import UtilitySkillCapability
 from Sources.oazix.CustomBehaviors.primitives.skills.utility_skill_execution_strategy import UtilitySkillExecutionStrategy
 from Sources.oazix.CustomBehaviors.primitives.skills.utility_skill_typology import UtilitySkillTypology
 
@@ -35,7 +36,7 @@ class CustomSkillUtilityBase:
                 mana_required_to_cast: float = 0,
                 allowed_states: list[BehaviorState] = [BehaviorState.IN_AGGRO],
                 utility_skill_typology: UtilitySkillTypology = UtilitySkillTypology.COMBAT,
-                execution_strategy = UtilitySkillExecutionStrategy.EXECUTE_THROUGH_THE_END
+                execution_strategy = UtilitySkillExecutionStrategy.EXECUTE_THROUGH_THE_END,
                 ):
 
         self.event_bus: EventBus = event_bus
@@ -48,29 +49,45 @@ class CustomSkillUtilityBase:
         self.execution_strategy: UtilitySkillExecutionStrategy = execution_strategy
         self.score_definition: ScoreDefinition = score_definition
 
+        self._utility_skill_capabilites: list[UtilitySkillCapability] = []
+
+    def add_capability(self, capability: Callable[['CustomSkillUtilityBase'], UtilitySkillCapability] ) -> 'CustomSkillUtilityBase':
+        capability_instance: UtilitySkillCapability = capability(self)
+        if capability_instance.capability_name in [capability.capability_name for capability in self._utility_skill_capabilites]: 
+            raise Exception(f"Capability {capability_instance.capability_name} already added to {self.custom_skill.skill_name}")
+        self._utility_skill_capabilites.append(capability_instance)
+        return self
+
+    def get_capabilities(self) -> list[UtilitySkillCapability]:
+        return self._utility_skill_capabilites
+    
+    def are_capabilities_satisfied(self) -> bool:
+        for capability in self._utility_skill_capabilites:
+            if not capability.is_satisfied():
+                return False
+        return True
+
     @abstractmethod
     def are_common_pre_checks_valid(self, current_state: BehaviorState) -> bool:
         if current_state is BehaviorState.IDLE: return False
+
         if self.allowed_states is not None and current_state not in self.allowed_states:
-            if constants.DEBUG:
-                if self.utility_skill_typology == UtilitySkillTypology.COMBAT and current_state == BehaviorState.IN_AGGRO:
-                    print(f'PreCheck Reject - Wrong State {self.custom_skill.skill_name}')
+            if constants.DEBUG: print(f'PreCheck Reject - Wrong State {self.custom_skill.skill_name}')
             return False
         if custom_behavior_helpers.Resources.get_player_absolute_energy() < self.mana_required_to_cast:
-            if constants.DEBUG:
-                if self.utility_skill_typology == UtilitySkillTypology.COMBAT and current_state == BehaviorState.IN_AGGRO:
-                    print(f'PreCheck Reject - Energy Requirement for Utility {self.custom_skill.skill_name}')
+            if constants.DEBUG: print(f'PreCheck Reject - Energy Requirement for Utility {self.custom_skill.skill_name}')
             return False
         if not Routines.Checks.Skills.IsSkillSlotReady(self.custom_skill.skill_slot):
             if constants.DEBUG:
-                if self.utility_skill_typology == UtilitySkillTypology.COMBAT and current_state == BehaviorState.IN_AGGRO:
-                    print(f'PreCheck Reject - IsSkillSlotReady {self.custom_skill.skill_name}')
+                print(f"custom_skill.skill_slot: {self.custom_skill.skill_slot}")
+                print(f'PreCheck Reject - IsSkillSlotReady {self.custom_skill.skill_name}')
             return False
         if not custom_behavior_helpers.Resources.has_enough_resources(self.custom_skill):
-
-            if constants.DEBUG:
-                if self.utility_skill_typology == UtilitySkillTypology.COMBAT and current_state == BehaviorState.IN_AGGRO:
-                    print(f'PreCheck Reject - Resources Requirement for Ability {self.custom_skill.skill_name}')
+            if constants.DEBUG: print(f'PreCheck Reject - Resources Requirement for Ability {self.custom_skill.skill_name}')
+            return False
+        
+        if not self.are_capabilities_satisfied():
+            if constants.DEBUG: print(f'PreCheck Reject - Capabilities not satisfied for {self.custom_skill.skill_name}')
             return False
         return True
     
@@ -86,7 +103,6 @@ class CustomSkillUtilityBase:
         if not self.is_enabled:
             if constants.DEBUG: print(f'I Am Not Enabled {self.custom_skill.skill_name}')
             return None
-
         if self.custom_skill.skill_slot == 0 and self.custom_skill.skill_id != 0:
             print(f'PreCheck Reject {self.custom_skill.skill_name} was missing its skill slot, reloading.')
             self.custom_skill.skill_slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(self.custom_skill.skill_id) if self.custom_skill.skill_id != 0 else 0
@@ -96,6 +112,7 @@ class CustomSkillUtilityBase:
                 if self.utility_skill_typology == UtilitySkillTypology.COMBAT and current_state == BehaviorState.IN_AGGRO and current_state in self.allowed_states:
                     print(f'PreCheck Reject {self.custom_skill.skill_name}')
             return None
+
         if self.utility_skill_typology == UtilitySkillTypology.COMBAT and not CustomBehaviorParty().get_party_is_combat_enabled():
             if constants.DEBUG: print(f'Reject Combat Not Enabled {self.custom_skill.skill_name}')
             return None
@@ -184,25 +201,19 @@ class CustomSkillUtilityBase:
 
     @abstractmethod
     def has_persistence(self) -> bool:
-        return False
+        return False or any(capability.has_persistence() for capability in self._utility_skill_capabilites)
     
     @abstractmethod
     def delete_persisted_configuration(self):
-        '''
-        for ui button
-        '''
-        pass
+        for capability in self._utility_skill_capabilites:
+            capability.delete_persisted_configuration()
 
     @abstractmethod
     def persist_configuration_as_global(self):
-        '''
-        for ui button
-        '''
-        pass
+        for capability in self._utility_skill_capabilites:
+            capability.persist_configuration_as_global()
 
     @abstractmethod
     def persist_configuration_for_account(self):
-        '''
-        for ui button
-        '''
-        pass
+        for capability in self._utility_skill_capabilites:
+            capability.persist_configuration_for_account()

@@ -8,8 +8,8 @@ from Py4GWCoreLib.enums import ModelID, Range, TitleID
 
 from Py4GWCoreLib.BuildMgr import BuildMgr
 
-from Py4GWCoreLib.Builds import SF_Mes_vaettir
-from Py4GWCoreLib.Builds import SF_Ass_vaettir
+from Py4GWCoreLib.Builds.Mesmer.Me_A.SF_Mes_vaettir import SF_Mes_vaettir
+from Py4GWCoreLib.Builds.Assassin.A_Me.SF_Ass_vaettir import SF_Ass_vaettir
 
 from typing import List, Tuple
 

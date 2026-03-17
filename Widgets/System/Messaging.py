@@ -1,3 +1,5 @@
+import hashlib
+import os
 import time
 from datetime import datetime
 from datetime import timezone
@@ -599,6 +601,33 @@ def MerchantItems(index: int, message: SharedMessageStruct):
         wait_ms += 250
     _merchant_busy = True
 
+    def _extra_data(message: SharedMessageStruct) -> tuple[str, str, str, str]:
+        values: list[str] = []
+        for raw in message.ExtraData:
+            try:
+                values.append(_c_wchar_array_to_str(raw))
+            except Exception:
+                values.append("")
+        while len(values) < 4:
+            values.append("")
+        return tuple(values[:4])
+
+    extra0, extra1, extra2, extra3 = _extra_data(message)
+    mode = extra0.strip().lower()
+
+    if mode == "report_salvage_kits":
+        try:
+            salvage_kits_in_inv = int(GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Salvage_Kit.value))
+            ini_path = str(extra1 or "").strip()
+            ini_section = str(extra2 or "").strip()
+            ini_key = str(extra3 or "").strip()
+            if ini_path and ini_section and ini_key:
+                IniHandler(ini_path).write_key(ini_section, ini_key, str(salvage_kits_in_inv))
+        finally:
+            _merchant_busy = False
+            GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+
     try:
         x = float(message.Params[0])
         y = float(message.Params[1])
@@ -690,9 +719,19 @@ def MerchantMaterials(index: int, message: SharedMessageStruct):
             return None
         return parsed if parsed > 0 else None
 
-    extra0, extra1, extra2, _ = _extra_data(message)
+    extra0, extra1, extra2, extra3 = _extra_data(message)
     mode = extra0.strip().lower()
     selected_models = _parse_selected_models(extra1)
+
+    def _parse_exact_quantity(raw: str, default: int = 250) -> int | None:
+        value = str(raw).strip()
+        if value == "":
+            return int(default)
+        try:
+            parsed = int(value)
+        except Exception:
+            return int(default)
+        return parsed if parsed > 0 else None
 
     try:
         x = float(message.Params[0])
@@ -732,6 +771,7 @@ def MerchantMaterials(index: int, message: SharedMessageStruct):
         elif mode == "deposit":
             deposit_metrics = yield from Routines.Yield.Merchant.DepositMaterials(
                 selected_models=selected_models,
+                exact_quantity=_parse_exact_quantity(extra3, default=250),
                 max_deposit_items=_parse_positive_int(extra2),
             )
             ConsoleLog(MODULE_NAME, f"MerchantMaterials deposit metrics: {deposit_metrics}", Console.MessageType.Info, False)
@@ -1476,6 +1516,36 @@ def _should_block_item_use() -> bool:
         return True
     return False
 
+
+def _resolve_pycons_account_ini_path(account_email: str) -> str:
+    """
+    Mirror Pycons account-config resolution for receiver-side safety checks.
+    Prefer the canonical Pycons subdirectory path, but keep the legacy root
+    path as a fallback for users that have not been migrated yet.
+    """
+    canonical_dir = os.path.normpath(os.path.join("Widgets", "Config", "Pycons"))
+    legacy_dir = os.path.normpath(os.path.join("Widgets", "Config"))
+    canonical_generic = os.path.normpath(os.path.join(canonical_dir, "Pycons.ini"))
+    legacy_generic = os.path.normpath(os.path.join(legacy_dir, "Pycons.ini"))
+
+    email = str(account_email or "").strip()
+    if not email:
+        if os.path.exists(canonical_generic):
+            return canonical_generic
+        if os.path.exists(legacy_generic):
+            return legacy_generic
+        return canonical_generic
+
+    email_hash = hashlib.md5(email.encode()).hexdigest()[:8]
+    canonical = os.path.normpath(os.path.join(canonical_dir, f"Pycons_{email_hash}.ini"))
+    legacy = os.path.normpath(os.path.join(legacy_dir, f"Pycons_{email_hash}.ini"))
+
+    if os.path.exists(canonical):
+        return canonical
+    if os.path.exists(legacy):
+        return legacy
+    return canonical
+
 def UseItem(index: int, message: SharedMessageStruct):
     ConsoleLog(MODULE_NAME, "UseItem: received broadcast.", Console.MessageType.Info, False)
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
@@ -1483,13 +1553,8 @@ def UseItem(index: int, message: SharedMessageStruct):
     # Check if the user has opted in to team broadcasts (Pycons setting)
     # Use Player.GetAccountEmail() to match the hash used by Pycons.py
     try:
-        # Get the current account's email (must match how Pycons computes the hash)
         account_email = Player.GetAccountEmail()
-        # Create account-specific INI path by using email hash to avoid special chars
-        import hashlib
-        email_hash = hashlib.md5(account_email.encode()).hexdigest()[:8]
-        ini_path = f"Widgets/Config/Pycons_{email_hash}.ini"
-        
+        ini_path = _resolve_pycons_account_ini_path(account_email)
         ini_handler = IniHandler(ini_path)
         opt_in = ini_handler.read_bool("Pycons", "team_consume_opt_in", False)
         receiver_require_enabled = ini_handler.read_bool("Pycons", "mbdp_receiver_require_enabled", True)

@@ -285,7 +285,9 @@ class ImGui:
         from Py4GWCoreLib.IniManager import IniManager
         IniManager().begin_window_config(ini_key)
 
-        _, result = ImGui.begin_with_close(name, p_open, flags)
+        # begin_with_close returns (expanded, open). Persistence must key off
+        # the expanded state so collapsed windows do not save header-only sizes.
+        result, _ = ImGui.begin_with_close(name, p_open, flags)
 
         # mark only if window is active
         IniManager().track_window_collapsed(ini_key, result)

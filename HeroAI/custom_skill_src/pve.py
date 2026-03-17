@@ -750,10 +750,8 @@ class PVESkills:
         skill = CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Ursan_Rage")
         skill.SkillType = SkillType.Skill.value
-        skill.TargetAllegiance = Skilltarget.EnemyClustered.value
+        skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.OffensiveA.value
-        skill.Conditions.EnemiesInRange = 2
-        skill.Conditions.EnemiesInRangeArea = Range.Adjacent.value
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()

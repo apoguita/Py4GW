@@ -487,11 +487,13 @@ class SpreadDuringCombatUtility(CustomSkillUtilityBase):
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
 
-        if not self.throttle_timer.IsExpired():  return None
-
         # Get the current party following behavior
         party_behavior = CustomBehaviorParty().get_party_following_behavior()
         if party_behavior == FollowingBehaviorPriority.NONE: return None
+
+        if party_behavior == FollowingBehaviorPriority.HIGH_PRIORITY_WITH_THROTTLE:
+            if not self.throttle_timer.IsExpired():
+                return None
 
         my_pos = Player.GetXY()
         if my_pos is None: return None

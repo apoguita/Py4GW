@@ -148,6 +148,7 @@ class CustomBehaviorLoader:
             except Exception as e:
                 # if there are errors on buildign out a skill bar class load the other classes but log the errors that prevented this one from loading
                 print(f"Exception loading subclass: {e}")
+                raise e
 
 
 

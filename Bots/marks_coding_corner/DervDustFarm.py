@@ -12,8 +12,8 @@ from Bots.marks_coding_corner.utils.merch_utils import withdraw_gold
 from Bots.marks_coding_corner.utils.town_utils import return_to_outpost
 from Py4GW_widget_manager import get_widget_handler
 from Py4GWCoreLib import *
-from Py4GWCoreLib.Builds.DervDustFarmer import DervBuildFarmStatus
-from Py4GWCoreLib.Builds.DervDustFarmer import DervDustFarmer
+from Py4GWCoreLib.Builds.Dervish.D_A.DervDustFarmer import DervBuildFarmStatus
+from Py4GWCoreLib.Builds.Dervish.D_A.DervDustFarmer import DervDustFarmer
 
 DUST_FARMER = "Dust Farmer"
 TOA = "Temple of the Ages"
