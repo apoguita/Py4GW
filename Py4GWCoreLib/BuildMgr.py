@@ -26,6 +26,7 @@ class BuildMgr:
         is_template_only: bool = False,
     ):
         from Py4GWCoreLib import Profession
+        from Py4GWCoreLib import ThrottledTimer
         self.build_name = name
         self.required_primary: Profession = required_primary if required_primary is not None else Profession(0)
         self.required_secondary: Profession = required_secondary if required_secondary is not None else Profession(0)
@@ -51,6 +52,10 @@ class BuildMgr:
 
         self.minimum_required_match = len(self.required_skills)
         self.tick_state = None
+        self.current_target_id = 0
+        self._was_in_aggro = False
+        self._local_cast_timer = ThrottledTimer(0)
+        self._local_cast_timer.Stop()
         
     def ValidatePrimary(self, profession: Profession) -> bool:
         return self.required_primary == profession
@@ -169,16 +174,57 @@ class BuildMgr:
         if self._custom_skill_data_handler is None:
             self._custom_skill_data_handler = CustomSkillClass()
         return self._custom_skill_data_handler.get_skill(skill_id)
+
+    def GetEquippedSkillSlot(self, skill_id: int) -> int:
+        from Py4GWCoreLib.Skillbar import SkillBar
+
+        return int(SkillBar.GetSlotBySkillID(skill_id) or 0)
+
+    def IsSkillEquipped(self, skill_id: int) -> bool:
+        return 1 <= self.GetEquippedSkillSlot(skill_id) <= 8
+
+    def GetEquippedCustomSkill(self, skill_id: int):
+        if not self.IsSkillEquipped(skill_id):
+            return None
+        return self.GetCustomSkill(skill_id)
+
+    def ResetTarget(self) -> None:
+        self.current_target_id = 0
+
+    def _is_local_cast_pending(self) -> bool:
+        if self._local_cast_timer.IsStopped():
+            return False
+        if self._local_cast_timer.IsExpired():
+            self._local_cast_timer.Stop()
+            return False
+        return True
+
+    def _mark_local_cast_pending(self, aftercast_delay: int) -> None:
+        self._local_cast_timer.SetThrottleTime(max(0, int(aftercast_delay)))
+        self._local_cast_timer.Reset()
+
+    def _refresh_target_tracking(self) -> None:
+        from Py4GWCoreLib import Routines
+
+        in_aggro = bool(Routines.Checks.Agents.InAggro())
+        if self._was_in_aggro and not in_aggro:
+            self.ResetTarget()
+        self._was_in_aggro = in_aggro
     
     def _pick_fallback_target(self, target_type: str) -> int:
-        from HeroAI.targeting import GetEnemyInjured
+        from HeroAI.targeting import GetEnemyInjured, TargetClusteredEnemy
         from Py4GWCoreLib import Range
         from Py4GWCoreLib.Agent import Agent
         
         return_target = 0
-        if target_type == "EnemyInjured":
+        if target_type == "EnemyClustered":
+            return_target = TargetClusteredEnemy(Range.Earshot.value)
+            if not (Agent.IsValid(return_target) and not Agent.IsDead(return_target)):
+                return_target = GetEnemyInjured(Range.Earshot.value)
+                
+        elif target_type == "EnemyInjured":
             return_target = GetEnemyInjured(Range.Earshot.value)
-            
+             
         if Agent.IsValid(return_target) and not Agent.IsDead(return_target):
             return return_target 
         return 0
@@ -259,6 +305,7 @@ class BuildMgr:
             yield
             return
 
+        self._refresh_target_tracking()
         yield from self._yield_from_handler(handler)
 
         fallback = self.ResolveFallback()
@@ -276,6 +323,7 @@ class BuildMgr:
             yield
             return
 
+        self._refresh_target_tracking()
         yield from self._yield_from_handler(handler)
 
         fallback = self.ResolveFallback()
@@ -338,6 +386,8 @@ class BuildMgr:
 
         if not Routines.Checks.Map.IsExplorable():
             return False
+        if self._is_local_cast_pending():
+            return False
         if not self._resolve_extra_condition(extra_condition):
             return False
         if not Routines.Checks.Skills.HasEnoughEnergy(Player.GetAgentID(), skill_id):
@@ -348,8 +398,11 @@ class BuildMgr:
         slot = SkillBar.GetSlotBySkillID(skill_id)
         if not (1 <= slot <= 8):
             return False
+        if not Routines.Checks.Skills.HasEnoughAdrenalineBySlot(slot):
+            return False
 
         GLOBAL_CACHE.SkillBar.UseSkill(slot, aftercast_delay=aftercast_delay)
+        self._mark_local_cast_pending(aftercast_delay)
         if log:
             ConsoleLog("CastSkillID", f"Cast {Skill.GetName(skill_id)}, slot: {slot}", Console.MessageType.Info, log=log)
         self.SetTickSuccess()
@@ -371,6 +424,8 @@ class BuildMgr:
             return False
         if not (1 <= slot <= 8):
             return False
+        if self._is_local_cast_pending():
+            return False
         if not self._resolve_extra_condition(extra_condition):
             return False
 
@@ -381,8 +436,11 @@ class BuildMgr:
             return False
         if not Routines.Checks.Skills.IsSkillSlotReady(slot):
             return False
+        if not Routines.Checks.Skills.HasEnoughAdrenalineBySlot(slot):
+            return False
 
         GLOBAL_CACHE.SkillBar.UseSkill(slot, aftercast_delay=aftercast_delay)
+        self._mark_local_cast_pending(aftercast_delay)
         if log:
             ConsoleLog("CastSkillSlot", f"Cast {GLOBAL_CACHE.Skill.GetName(skill_id)}, slot: {slot}", Console.MessageType.Info, log=log)
         self.SetTickSuccess()
