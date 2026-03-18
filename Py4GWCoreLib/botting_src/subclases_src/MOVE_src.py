@@ -30,6 +30,7 @@ class _MOVE:
         
     def _coro_follow_path_to(self, forced_timeout = -1) -> Generator[Any, Any, bool]:
         from ...Routines import Routines
+        from ...Map import Map
         from ...py4gwcorelib_src.Lootconfig_src import LootConfig
         from ...enums import Range
         from ...GlobalCache import GLOBAL_CACHE
@@ -38,11 +39,37 @@ class _MOVE:
         log_actions = self._config.config_properties.log_actions.is_active()
         fsm = self.parent.config.FSM
         path = self._config.path
+        initial_map_id = Map.GetMapID()
+        initial_district = Map.GetDistrict()
+        initial_region_id = Map.GetRegion()[0]
+        initial_language_id = Map.GetLanguage()[0]
+        initial_instance_uptime = Map.GetInstanceUptime()
+
+        def map_transition_detected() -> bool:
+            # Any map-invalid/loading phase should let movement step exit cleanly.
+            if not Routines.Checks.Map.MapValid() or Map.IsMapLoading():
+                return True
+
+            if Map.GetMapID() != initial_map_id:
+                return True
+            if Map.GetDistrict() != initial_district:
+                return True
+            if Map.GetRegion()[0] != initial_region_id:
+                return True
+            if Map.GetLanguage()[0] != initial_language_id:
+                return True
+
+            current_instance_uptime = Map.GetInstanceUptime()
+            # Instance timer resets on zoning, including same-map/district hops.
+            if initial_instance_uptime > 0 and current_instance_uptime + 2000 < initial_instance_uptime:
+                return True
+
+            return False
 
         exit_condition = (
-            (lambda: not Routines.Checks.Map.MapValid() or Routines.Checks.Player.IsDead())
+            (lambda: map_transition_detected() or Routines.Checks.Player.IsDead())
             if self._config.config_properties.halt_on_death.is_active()
-            else (lambda: not Routines.Checks.Map.MapValid())
+            else map_transition_detected
         )
 
         # --- pause sources ---
@@ -90,6 +117,7 @@ class _MOVE:
             custom_pause_fn=pause_condition,
             timeout=f_timeout,
             tolerance=self._config.config_properties.movement_tolerance.get("value"),
+            map_transition_exit_success=True,
         )
 
         self._config.config_properties.follow_path_succeeded.set_now("value", success_movement)
