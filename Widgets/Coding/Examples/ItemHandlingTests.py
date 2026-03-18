@@ -463,11 +463,10 @@ def main():
                     PyImGui.push_item_width(-1)              
                     ImGui.input_text("##Decoded Output", decoded_ouput if decoded_ouput else "", PyImGui.InputTextFlags.ReadOnly)
                     PyImGui.table_next_column()  
-                    PyImGui.table_next_column()  
-                    
-                    
                         
                     for prop in ["name_enc", "singular_name", "complete_name_enc", "info_string"]:
+                        PyImGui.table_next_column()
+                        
                         ImGui.text(prop)
                         PyImGui.table_next_column()
                         
@@ -478,7 +477,7 @@ def main():
                         ImGui.text_wrapped(getattr(decoded, prop) if decoded and getattr(decoded, prop) else "")
                         PyImGui.table_next_column()
                         
-                        if ImGui.button(f"Copy##{prop}", 50):
+                        if ImGui.button(f"Copy Decoded##{prop}", -1):
                             try:
                                 copy_text = getattr(decoded, prop) if decoded and getattr(decoded, prop) else ""
                                 PyImGui.set_clipboard_text(copy_text)
@@ -486,78 +485,14 @@ def main():
                             except Exception as e:
                                 Py4GW.Console.Log(MODULE_NAME, f"Failed to copy {prop} to clipboard: {e}", Py4GW.Console.MessageType.Error)
                                 
-                        if ImGui.button(f"Encoded##{prop}", 50):
+                        if ImGui.button(f"Copy Encoded##{prop}", -1):
                             try:
                                 copy_text = int_list_to_hex_string(getattr(encoded, prop)) if encoded and getattr(encoded, prop) else ""
                                 PyImGui.set_clipboard_text(copy_text)
                                 Py4GW.Console.Log(MODULE_NAME, f"Copied {prop} to clipboard: {copy_text}")
                             except Exception as e:
                                 Py4GW.Console.Log(MODULE_NAME, f"Failed to copy {prop} to clipboard: {e}", Py4GW.Console.MessageType.Error)
-                        PyImGui.table_next_column()
                         
-                    PyImGui.table_next_row()
-                    PyImGui.table_next_column()
-                    
-                    decoded_parts = ItemName.decode_parts(bytes(encoded.complete_name_enc if encoded and encoded.complete_name_enc else []))
-                    encoded_parts = ItemName.encoded_parts(bytes(encoded.complete_name_enc if encoded and encoded.complete_name_enc else []))
-                    inspected_parts = ItemName.inspect_decoded(bytes(encoded.complete_name_enc if encoded and encoded.complete_name_enc else []))
-                    
-                    for i, substring in enumerate(inspected_parts.substrings):
-                        if substring.decoded and substring.encoded:
-                                PyImGui.table_next_column()
-                                
-                                PyImGui.input_text(f"##Inspected {i} Encoded", bytes_to_hex_string(substring.encoded), PyImGui.InputTextFlags.ReadOnly)
-                                PyImGui.table_next_column()
-                                
-                                PyImGui.input_text(f"##Inspected {i} Decoded", substring.decoded, PyImGui.InputTextFlags.ReadOnly)
-                                PyImGui.table_next_column()
-                                PyImGui.table_next_column()
-                    
-                    # ImGui.text("Prefix")
-                    # PyImGui.table_next_column()
-                    # ImGui.input_text("##Prefix Encoded", bytes_to_hex_string(encoded_parts.prefix) if encoded_parts and encoded_parts.prefix else "", PyImGui.InputTextFlags.ReadOnly)
-                    # PyImGui.table_next_column() 
-                    # ImGui.input_text("##Prefix Decoded", decoded_parts.prefix if decoded_parts and decoded_parts.prefix else "", PyImGui.InputTextFlags.ReadOnly)
-                    # PyImGui.table_next_row()
-                    # PyImGui.table_next_column()
-                    
-                    # ImGui.text("Suffix")
-                    # PyImGui.table_next_column()
-                    # ImGui.input_text("##Suffix Encoded", bytes_to_hex_string(encoded_parts.suffix) if encoded_parts and encoded_parts.suffix else "", PyImGui.InputTextFlags.ReadOnly)
-                    # PyImGui.table_next_column() 
-                    # ImGui.input_text("##Suffix Decoded", decoded_parts.suffix if decoded_parts and decoded_parts.suffix else "", PyImGui.InputTextFlags.ReadOnly)
-                    # PyImGui.table_next_row()
-                    # PyImGui.table_next_column()
-                    
-                    # ImGui.text("Markdown")
-                    # PyImGui.table_next_column()
-                    # ImGui.input_text("##Markdown Encoded", bytes_to_hex_string(encoded_parts.markdown) if encoded_parts and encoded_parts.markdown else "", PyImGui.InputTextFlags.ReadOnly)
-                    # PyImGui.table_next_column()
-                    # ImGui.input_text("##Markdown Decoded", decoded_parts.markdown if decoded_parts and decoded_parts.markdown else "", PyImGui.InputTextFlags.ReadOnly)
-                    # PyImGui.table_next_row()
-                    # PyImGui.table_next_column()
-                    
-                    # ImGui.text("Amount")
-                    # PyImGui.table_next_column()
-                    # ImGui.input_text("##Amount Encoded", int_list_to_hex_string([encoded_parts.num]) if encoded_parts and encoded_parts.num else "", PyImGui.InputTextFlags.ReadOnly)
-                    # PyImGui.table_next_column()
-                    # ImGui.input_text("##Amount Decoded", str(decoded_parts.num) if decoded_parts and decoded_parts.num else "" , PyImGui.InputTextFlags.ReadOnly)
-                    # PyImGui.table_next_row()
-                    # PyImGui.table_next_column()
-                    
-                    # ImGui.text("Singular")
-                    # PyImGui.table_next_column()
-                    # ImGui.input_text("##Singular Encoded", bytes_to_hex_string(encoded_parts.singular) if encoded_parts and encoded_parts.singular else "", PyImGui.InputTextFlags.ReadOnly)
-                    # PyImGui.table_next_column()
-                    # ImGui.input_text("##Singular Decoded", decoded_parts.singular if decoded_parts and decoded_parts.singular else "" , PyImGui.InputTextFlags.ReadOnly)
-                    # PyImGui.table_next_row()
-                    # PyImGui.table_next_column()
-                    
-                    # ImGui.text("Plural")
-                    # PyImGui.table_next_column()
-                    # ImGui.input_text("##Plural Encoded", bytes_to_hex_string(encoded_parts.plural) if encoded_parts and encoded_parts.plural else "", PyImGui.InputTextFlags.ReadOnly)
-                    # PyImGui.table_next_column()
-                    # ImGui.input_text("##Plural Decoded", decoded_parts.plural if decoded_parts and decoded_parts.plural else "" , PyImGui.InputTextFlags.ReadOnly)
                     PyImGui.pop_item_width()
                     PyImGui.pop_item_width()
                     PyImGui.end_table()
