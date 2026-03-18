@@ -42,6 +42,7 @@ def Fight(bot: Botting) -> None:
     bot.Move.XY(-6062, -2688,"Exit Outpost")
     bot.Wait.ForMapLoad(target_map_name="Magus Stones")
     PrepareForBattle(bot)
+    bot.States.AddManagedCoroutine("Anti-Stuck Watchdog", lambda: _anti_stuck_watchdog(bot))
     bot.Move.XY(14778.00, 13178.00)
     bot.Wait.ForTime(1500)
     bot.Move.XYAndInteractNPC(14778.00, 13178.00)
@@ -183,12 +184,54 @@ def Fight(bot: Botting) -> None:
 
 
 def PrepareForBattle(bot: Botting):
-    bot.Items.Restock.ArmorOfSalvation()
-    bot.Items.Restock.EssenceOfCelerity()
-    bot.Items.Restock.GrailOfMight()
-    bot.Items.Restock.WarSupplies()
-    bot.Items.Restock.BirthdayCupcake()
-    bot.Items.Restock.Honeycomb()
+
+    # Conset enabled in settings
+    if bot.Properties.Get("armor_of_salvation", "active"):
+        bot.Items.Restock.Conset()
+
+    # Pcons enabled in settings
+    if bot.Properties.Get("birthday_cupcake", "active"):
+        bot.Items.Restock.AllPcons()
+
+
+EXPLORABLE_TIMEOUT_SECONDS = 3 * 3600  # 3 hours
+
+
+def _anti_stuck_resign(bot: "Botting"):
+    """Called when the timeout fires: resign, wait for outpost, then restart."""
+    yield from bot.helpers.Multibox._resignParty()
+    while True:
+        yield from bot.Wait._coro_for_time(1000)
+        if not Routines.Checks.Map.MapValid():
+            continue
+        if Routines.Checks.Map.IsOutpost():
+            break
+    bot.States.JumpToStepName("[H]Enable Combat Mode_1")
+    bot.config.FSM.resume()
+    yield
+
+
+def _anti_stuck_watchdog(bot: "Botting"):
+    """Resign the party if stuck in explorable for more than 3 hours."""
+    explorable_entry_time = None
+    while True:
+        yield from bot.Wait._coro_for_time(60000)  # check every minute
+        if not Routines.Checks.Map.MapValid():
+            explorable_entry_time = None
+            continue
+        if Routines.Checks.Map.IsOutpost():
+            explorable_entry_time = None
+            continue
+        # We are in explorable
+        if explorable_entry_time is None:
+            explorable_entry_time = time.time()
+            continue
+        elapsed = time.time() - explorable_entry_time
+        if elapsed >= EXPLORABLE_TIMEOUT_SECONDS:
+            ConsoleLog(BOT_NAME, f"Anti-stuck: {elapsed/3600:.1f}h in explorable - resigning party.", Py4GW.Console.MessageType.Warning)
+            explorable_entry_time = None
+            bot.config.FSM.pause()
+            bot.config.FSM.AddManagedCoroutine("AntiStuck_Resign", lambda: _anti_stuck_resign(bot))
 
 
 def _on_party_wipe(bot: "Botting"):
@@ -221,27 +264,25 @@ def _draw_settings(bot: Botting):
     # Conset controls
     use_conset = bot.Properties.Get("armor_of_salvation", "active")
     use_conset = PyImGui.checkbox("Restock & use Conset", use_conset)
-    bot.Properties.ApplyNow("armor_of_salvation", "active", use_conset)
-    bot.Properties.ApplyNow("essence_of_celerity", "active", use_conset)
-    bot.Properties.ApplyNow("grail_of_might", "active", use_conset)
+    for key in ("armor_of_salvation", "essence_of_celerity", "grail_of_might"):
+        bot.Properties.ApplyNow(key, "active", use_conset)
 
-    # War Supplies controls
-    use_war_supplies = bot.Properties.Get("war_supplies", "active")
-    use_war_supplies = PyImGui.checkbox("Restock & use War Supplies", use_war_supplies)
-    bot.Properties.ApplyNow("war_supplies", "active", use_war_supplies)
-
-    # Birthday Cupcake controls
-    use_birthday_cupcake = bot.Properties.Get("birthday_cupcake", "active")
-    use_birthday_cupcake = PyImGui.checkbox("Restock & use Birthday Cupcakes", use_birthday_cupcake)
-    bot.Properties.ApplyNow("birthday_cupcake", "active", use_birthday_cupcake)
-
-    # Honeycomb controls
-    use_honeycomb = bot.Properties.Get("honeycomb", "active")
-    use_honeycomb = PyImGui.checkbox("Restock & use Honeycomb", use_honeycomb)
-    bot.Properties.ApplyNow("honeycomb", "active", use_honeycomb)
-    hc_restock_qty = bot.Properties.Get("honeycomb", "restock_quantity")
-    hc_restock_qty = PyImGui.input_int("Honeycomb Restock Quantity", hc_restock_qty)
-    bot.Properties.ApplyNow("honeycomb", "restock_quantity", hc_restock_qty)
+    # Pcons controls
+    use_pcons = bot.Properties.Get("birthday_cupcake", "active")
+    use_pcons = PyImGui.checkbox("Restock & use Pcons", use_pcons)
+    for key in (
+        "birthday_cupcake",
+        "golden_egg",
+        "candy_corn",
+        "candy_apple",
+        "slice_of_pumpkin_pie",
+        "drake_kabob",
+        "bowl_of_skalefin_soup",
+        "pahnai_salad",
+        "war_supplies",
+        "honeycomb",
+    ):
+        bot.Properties.ApplyNow(key, "active", use_pcons)
 
 def tooltip():
     import PyImGui
