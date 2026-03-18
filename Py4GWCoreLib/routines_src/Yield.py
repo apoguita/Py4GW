@@ -49,10 +49,40 @@ def _run_bt_tree(tree, return_bool: bool=False, throttle_ms: int = 100):
 
 class Yield:
     @staticmethod
-    def wait(ms: int):
+    def wait(ms: int, break_on_map_transition: bool = False):
         import time
+        if break_on_map_transition:
+            from .Checks import Checks
+            from ..Map import Map as _Map
+
+            initial_map_id = _Map.GetMapID()
+            initial_district = _Map.GetDistrict()
+            initial_region_id = _Map.GetRegion()[0]
+            initial_language_id = _Map.GetLanguage()[0]
+            initial_instance_uptime = _Map.GetInstanceUptime()
+
+            def _map_transition_detected() -> bool:
+                if not Checks.Map.MapValid() or _Map.IsMapLoading():
+                    return True
+                if _Map.GetMapID() != initial_map_id:
+                    return True
+                if _Map.GetDistrict() != initial_district:
+                    return True
+                if _Map.GetRegion()[0] != initial_region_id:
+                    return True
+                if _Map.GetLanguage()[0] != initial_language_id:
+                    return True
+
+                current_instance_uptime = _Map.GetInstanceUptime()
+                if initial_instance_uptime > 0 and current_instance_uptime + 2000 < initial_instance_uptime:
+                    return True
+
+                return False
+
         start = time.time()
         while (time.time() - start) * 1000 < ms:
+            if break_on_map_transition and _map_transition_detected():
+                break
             yield
 
 #region Player
