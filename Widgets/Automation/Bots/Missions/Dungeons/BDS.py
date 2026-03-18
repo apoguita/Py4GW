@@ -1,6 +1,6 @@
 import os
 from typing import Generator, Optional, Tuple, List
-import time, math
+import random, time, math
 import inspect
 import PyInventory
 from Py4GWCoreLib import *
@@ -43,6 +43,12 @@ _DIFFICULTY_SECTION = "BDS"
 _DIFFICULTY_VAR = "use_hard_mode"
 _use_hard_mode: bool = True
 _difficulty_loaded: bool = False
+
+# District randomizer (default: enabled)
+_DISTRICT_SECTION = "BDS"
+_DISTRICT_VAR = "randomize_district"
+_randomize_district: bool = True
+_district_loaded: bool = False
 
 # ==================== BDS STATISTICS ====================
 BDS_MODEL_IDS = list(range(1987, 2008))  # all BDS variants (domination → channeling)
@@ -707,7 +713,7 @@ def _gh_merchant_setup(leave_party: bool = True) -> Generator:
 
     # ── Step 9: Return to Vlox's Fall ────────────────────────────────────────
     ConsoleLog(BOT_NAME, "[Merchant] Returning to Vlox's Fall")
-    yield from bot.Map._coro_travel(Vloxs_Fall, "")
+    yield from _coro_travel_random_district(Vloxs_Fall)
     ConsoleLog(BOT_NAME, "[Merchant] Guild Hall merchant run complete")
     yield
 
@@ -737,7 +743,7 @@ def _return_to_arbor_bay_after_merchant() -> Generator:
         yield
         return
     if int(Map.GetMapID()) != Vloxs_Fall:
-        yield from bot.Map._coro_travel(Vloxs_Fall, "")
+        yield from _coro_travel_random_district(Vloxs_Fall)
     yield from bot.Wait._coro_until_on_outpost()
     yield from bot.Move._coro_xy_and_exit_map(15505.38, 12460.59, target_map_id=Arbor_Bay, step_name="Return to Arbor Bay")
     yield from Routines.Yield.wait(_POST_RETURN_TO_ARBOR_SETTLE_MS)
@@ -1707,6 +1713,23 @@ def UseSummons():
 
     yield
 
+_RANDOM_DISTRICTS = [
+    6,  # EuropeItalian
+    7,  # EuropeSpanish
+    8,  # EuropePolish
+    9,  # EuropeRussian
+]
+
+def _coro_travel_random_district(target_map_id: int) -> Generator:
+    if _randomize_district:
+        district = random.choice(_RANDOM_DISTRICTS)
+        ConsoleLog(BOT_NAME, f"Traveling to map {target_map_id} with random district {district}")
+        Map.TravelToDistrict(target_map_id, district=district)
+        yield from Routines.Yield.wait(500)
+        yield from bot.Wait._coro_for_map_load(target_map_id=target_map_id)
+    else:
+        yield from bot.Map._coro_travel(target_map_id, "")
+
 def _step_anchor() -> Generator:
     yield
 
@@ -1770,6 +1793,53 @@ def _draw_difficulty_setting() -> None:
     if new_hard_mode != _use_hard_mode:
         _use_hard_mode = new_hard_mode
         _save_difficulty_setting()
+
+def _load_district_setting() -> None:
+    global _randomize_district, _district_loaded
+    if _district_loaded:
+        return
+
+    if not bot.config.ini_key_initialized:
+        bot.config.ini_key = IniManager().ensure_key(
+            f"BottingClass/bot_{bot.config.bot_name}",
+            f"bot_{bot.config.bot_name}.ini",
+        )
+        if bot.config.ini_key:
+            IniManager().load_once(bot.config.ini_key)
+        bot.config.ini_key_initialized = True
+
+    if not bot.config.ini_key:
+        return
+
+    _randomize_district = bool(
+        IniManager().get(
+            key=bot.config.ini_key,
+            section=_DISTRICT_SECTION,
+            var_name=_DISTRICT_VAR,
+            default=True,
+        )
+    )
+    _district_loaded = True
+
+def _save_district_setting() -> None:
+    if not bot.config.ini_key:
+        return
+    IniManager().set(
+        key=bot.config.ini_key,
+        section=_DISTRICT_SECTION,
+        var_name=_DISTRICT_VAR,
+        value=_randomize_district,
+    )
+
+def _draw_district_setting() -> None:
+    import PyImGui
+    global _randomize_district
+
+    _load_district_setting()
+    new_val = PyImGui.checkbox("Randomize EU District", _randomize_district)
+    if new_val != _randomize_district:
+        _randomize_district = new_val
+        _save_district_setting()
 
 def _draw_merchant_settings() -> None:
     import PyImGui
@@ -1843,6 +1913,7 @@ def _draw_bds_settings() -> None:
     PyImGui.text("BDS Settings")
     PyImGui.separator()
     _draw_difficulty_setting()
+    _draw_district_setting()
     _draw_merchant_settings()
 
 # ==================== MAIN ROUTINE ====================
@@ -1867,7 +1938,15 @@ def farm_bds_routine(bot: Botting) -> None:
     bot.States.AddCustomState(lambda: _gh_merchant_setup(leave_party=True), "GH Merchant Setup")
     bot.Templates.Aggressive()
     bot.Multibox.AbandonQuest(LOST_SOULS_QUEST_ID)
-    bot.Templates.Routines.PrepareForFarm(map_id_to_travel=Vloxs_Fall)
+    bot.States.AddHeader("Prepare For Farm")
+    bot.Events.OnPartyMemberBehindCallback(lambda: bot.Templates.Routines.OnPartyMemberBehind())
+    bot.Events.OnPartyMemberInDangerCallback(lambda: bot.Templates.Routines.OnPartyMemberInDanger())
+    bot.Events.OnPartyMemberDeadBehindCallback(lambda: bot.Templates.Routines.OnPartyMemberDeathBehind())
+    bot.Multibox.KickAllAccounts()
+    bot.States.AddCustomState(lambda: _coro_travel_random_district(Vloxs_Fall), "Travel to Vlox's Falls")
+    bot.Multibox.SummonAllAccounts()
+    bot.Wait.ForTime(4000)
+    bot.Multibox.InviteAllAccounts()
     bot.States.AddCustomState(_reenable_merchant_widgets, "Re-enable widgets (all in Vlox's Falls)")
     bot.Multibox.RestockAllPcons()
     bot.Multibox.RestockConset()
