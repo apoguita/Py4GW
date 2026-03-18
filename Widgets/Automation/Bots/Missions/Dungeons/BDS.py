@@ -428,7 +428,7 @@ def _verify_reward_taken_from_quest_log() -> Generator:
     yield
 
 def Search_and_talk_with_Shandra(bot: Botting):
-    npc_name = "Shandra, membre d'équipage"
+    npc_name = "Crewmember Shandra"
 
     ConsoleLog(BOT_NAME, "[Shandra] Start quest take", log=True)
 
@@ -503,7 +503,7 @@ def find_nearest_npc_by_name(name_fragment: str, max_dist: float = 2000.0) -> in
     return 0
 
 def _interact_with_Shandra(bot: Botting, dialog_id: int, tolerance: float = 220.0):
-    npc_name = "Shandra, membre d'équipage"
+    npc_name = "Crewmember Shandra"
 
     agent_id = find_nearest_npc_by_name(npc_name, 2000.0)
     if not agent_id:
