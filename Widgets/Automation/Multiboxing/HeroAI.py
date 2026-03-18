@@ -19,6 +19,7 @@ from Py4GWCoreLib.routines_src.BehaviourTrees import BehaviorTree
 from HeroAI.cache_data import CacheData
 
 from HeroAI.windows import (HeroAI_FloatingWindows ,HeroAI_Windows,)
+from HeroAI.ui_base import HeroAI_BaseUI
 from HeroAI.ui import (draw_configure_window, draw_skip_cutscene_overlay)
 from Py4GWCoreLib import (GLOBAL_CACHE, Agent, ActionQueueManager, LootConfig,
                           Range, Routines, ThrottledTimer, SharedCommandType, Utils)
@@ -229,31 +230,19 @@ def Follow(cached_data: CacheData) -> BehaviorTree.NodeState:
     # Out of combat: keep follow non-blocking so OOC behavior can still run freely.
     return BehaviorTree.NodeState.FAILURE
 
-show_debug = False
-
-def draw_debug_window(cached_data: CacheData):
-    global HeroAI_BT, show_debug
-    import PyImGui
-    visible, show_debug = PyImGui.begin_with_close("HeroAI Debug", show_debug, 0)
-    if visible:
-        if HeroAI_BT is not None:
-            HeroAI_BT.draw()
-    PyImGui.end()
-        
-
 def handle_UI (cached_data: CacheData):    
-    global show_debug    
-    if not cached_data.ui_state_data.show_classic_controls:   
-        HeroAI_FloatingWindows.DrawEmbeddedWindow(cached_data)
+    global HeroAI_BT
+    if not cached_data.ui_state_data.show_classic_controls:
+        HeroAI_BaseUI.DrawEmbeddedWindow(cached_data)
     else:
-        HeroAI_Windows.DrawControlPanelWindow(cached_data)  
-        if HeroAI_FloatingWindows.settings.ShowPartyPanelUI:         
-            HeroAI_Windows.DrawFollowerUI(cached_data)
-        
-    if show_debug:
-        draw_debug_window(cached_data)
-        
-    HeroAI_FloatingWindows.show_ui(cached_data) 
+        HeroAI_BaseUI.DrawControlPanelWindow(cached_data)
+        if HeroAI_FloatingWindows.settings.ShowPartyPanelUI:
+            HeroAI_BaseUI.DrawFollowerUI(cached_data)
+
+    if HeroAI_BaseUI.show_debug:
+        HeroAI_BaseUI.draw_debug_window(HeroAI_BT)
+
+    HeroAI_FloatingWindows.show_ui(cached_data)
    
 def initialize(cached_data: CacheData) -> bool:  
     global build_contract_map_signature

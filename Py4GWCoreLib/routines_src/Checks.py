@@ -593,6 +593,34 @@ class Checks:
             return player_life > skill_life
 
         @staticmethod
+        def HasEnoughAdrenalineBySlot(skill_slot):
+            """
+            Purpose: Check if the equipped skill in the given slot has enough adrenaline.
+            Args:
+                skill_slot (int): The 1-based skill slot to check.
+            Returns: bool
+            """
+            from ..GlobalCache import GLOBAL_CACHE
+
+            if not (1 <= skill_slot <= 8):
+                return False
+
+            skill_id = int(GLOBAL_CACHE.SkillBar.GetSkillIDBySlot(skill_slot) or 0)
+            if skill_id == 0:
+                return False
+
+            skill_adrenaline = int(GLOBAL_CACHE.Skill.Data.GetAdrenaline(skill_id) or 0)
+            if skill_adrenaline == 0:
+                return True
+
+            skillbar_data = GLOBAL_CACHE.SkillBar.GetSkillData(skill_slot)
+            if skillbar_data is None:
+                return False
+
+            current_adrenaline = int(getattr(skillbar_data, "adrenaline_a", 0) or 0)
+            return current_adrenaline >= skill_adrenaline
+
+        @staticmethod
         def HasEnoughAdrenaline(agent_id, skill_id):
             """
             Purpose: Check if the player has enough adrenaline to use the skill.
@@ -601,16 +629,13 @@ class Checks:
                 skill_id (int): The skill ID to check.
             Returns: bool
             """
-            from ..GlobalCache import GLOBAL_CACHE
-            skill_adrenaline = GLOBAL_CACHE.Skill.Data.GetAdrenaline(skill_id)
-            skill_adrenaline_a = GLOBAL_CACHE.Skill.Data.GetAdrenalineA(skill_id)
-            if skill_adrenaline == 0:
-                return True
+            from ..Skillbar import SkillBar
 
-            if skill_adrenaline_a >= skill_adrenaline:
-                return True
+            slot = SkillBar.GetSlotBySkillID(skill_id)
+            if not (1 <= slot <= 8):
+                return False
 
-            return False
+            return Checks.Skills.HasEnoughAdrenalineBySlot(slot)
 
         @staticmethod
         def DaggerStatusPass(agent_id, skill_id):

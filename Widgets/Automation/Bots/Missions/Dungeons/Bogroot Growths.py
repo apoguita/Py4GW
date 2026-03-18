@@ -1,8 +1,6 @@
-import inspect
+from collections.abc import Generator
 import os
-import time
-from typing import Generator, Optional
-
+from typing import Any
 import Py4GW
 from Py4GWCoreLib import (
     Agent,
@@ -13,15 +11,17 @@ from Py4GWCoreLib import (
     IniHandler,
     Map,
     Player,
+    Quest,
     Routines,
-    SharedCommandType,
-)
-from Py4GWCoreLib.enums_src.GameData_enums import Profession
-
+    SharedCommandType)
+from Py4GWCoreLib.py4gwcorelib_src import Utils
+from Py4GWCoreLib.routines_src.Yield import Yield
+from Py4GW_widget_manager import get_widget_handler
+from Py4GWCoreLib.botting_src.helpers import BottingHelpers
+from Sources.oazix.CustomBehaviors.primitives.botting.botting_helpers import BottingHelpers
+from Py4GWCoreLib.routines_src.Yield import Utils
 # ==================== CONFIGURATION ====================
 BOT_NAME = "Froggy Farm rezone"
-MODULE_NAME = "Bogroot Growths (Froggy Farm)" 
-MODULE_ICON = "Textures\\Module_Icons\\Bogroot Growths.png"
 TEXTURE = os.path.join(Py4GW.Console.get_projects_path(), "Bots", "textures", "froggy.png")
 WIDGETS_TO_ENABLE: tuple[str, ...] = (
     "LootManager",
@@ -47,262 +47,306 @@ TEKKS_QUEST_REWARD_DIALOG = 0x833907
 CHEST_POSITION = (14982.66, -19122.0)
 TEKKS_POSITION = (14067.01, -17253.24)
 DUNGEON_PORTAL_POSITION = (13097.0, 26393.0)
+TEKKS_QUEST_ID = 0x339
+
+TEKKS_REWARD_PENDING = False
+
+def _verify_reward_taken_from_quest_log() -> Generator:
+    global TEKKS_REWARD_PENDING
+
+    quest_ids = Quest.GetQuestLogIds()
+
+    if TEKKS_QUEST_ID not in quest_ids:
+        TEKKS_REWARD_PENDING = True
+        ConsoleLog(BOT_NAME, "[FLAG] Reward confirmed: quest no longer in quest log", log=True)
+    else:
+        TEKKS_REWARD_PENDING = False
+        ConsoleLog(BOT_NAME, "[FLAG] Reward NOT confirmed: quest still present in quest log", log=True)
+
+    yield
 
 # ==================== GLOBAL VARIABLES ====================
-bot = Botting(BOT_NAME)
-_bogroot_ini_path = os.path.join(Py4GW.Console.get_projects_path(), "Bots", "Bogroot", "bogroot_settings.ini")
-os.makedirs(os.path.dirname(_bogroot_ini_path), exist_ok=True)
-_bogroot_ini = IniHandler(_bogroot_ini_path)
+bot = Botting(
+    bot_name=BOT_NAME,
+    upkeep_auto_combat_active=True,
+    upkeep_auto_loot_active=True,
+    upkeep_morale_active=False,
+    upkeep_four_leaf_clover_active=True,
+    upkeep_honeycomb_active=True,
+)
 
-_MERCHANT_SECTION = "Bogroot Merchant"
-_merchant_enabled: bool = False
-_merchant_id_kits_target: int = 2
-_merchant_salvage_kits_target: int = 5
-_merchant_sell_materials: bool = False
-_merchant_sell_rare_mats: bool = False
-_merchant_buy_ectos: bool = False
-_merchant_ecto_threshold: int = 800_000
-_merchant_alt_wait_ms: int = 90_000
-_merchant_loaded: bool = False
+TEKKS_POS = (14067.01, -17253.24)
 
-_MERCHANT_MANAGED_WIDGETS = ("InventoryPlus", "CustomBehaviors")
-_PRETRAVEL_DISABLE_WIDGETS = ("InventoryPlus",)
-_SCROLL_MODEL_IDS = {5594, 5595, 5611, 5853, 5975, 5976, 21233}
-_SCROLL_MODEL_FILTER = "5594,5595,5611,5853,5975,5976,21233"
-_CUSTOM_BEHAVIORS_WINDOW_NAME = "Custom behaviors - Multiboxing over utility-ai algorithm."
+def _mark_reward_not_taken():
+    global TEKKS_REWARD_PENDING
+    TEKKS_REWARD_PENDING = False
+    yield
+
+def _mark_reward_taken():
+    global TEKKS_REWARD_PENDING
+    TEKKS_REWARD_PENDING = True
+    yield
+
+def _on_party_wipe(bot: "Botting"):
+    # Wait until we are alive again
+    while Agent.IsDead(Player.GetAgentID()):
+        yield from bot.Wait._coro_for_time(1000)
+        if not Routines.Checks.Map.MapValid():
+            bot.config.FSM.resume()
+            return
+
+    ConsoleLog("Res Check", "We ressed retrying!")
+    yield from bot.Wait._coro_for_time(3000)
+
+    # Map-safe anchors (YOU said you replaced jumps by headers)
+    # These should be the JUMPABLE step names (anchors), not just visual headers.
+    SHRINES_BY_MAP = {
+        MAP_BOGROOT_L1: [
+            ("Secure return - L1", 19045.95, 7877.0),
+            ("Secure return 2 - L1", 5083.0, 2155.0),
+            ("Secure return 3 - L1", -1547.0, -8696.0)
+        ],
+        MAP_BOGROOT_L2: [
+            ("Secure return - L2", -14076.0, -19457.0),
+            ("Secure return 2 - L2", -955.0, 10984.0),
+            ("Secure return 3 - L2", 216.0, 11534.0),
+            ("Secure return - Boss", 19619.0, -11498.0)
+        ]
+    }
+
+    def pick_nearest_anchor(map_id: int, px: float, py: float) -> str:
+        candidates = SHRINES_BY_MAP.get(map_id)
+        if not candidates:
+            return "Reset farm"  # generic fallback anchor
+
+        best_name = candidates[0][0]
+        best_d2 = float("inf")
+        for name, sx, sy in candidates:
+            d2 = (px - sx) ** 2 + (py - sy) ** 2
+            if d2 < best_d2:
+                best_d2 = d2
+                best_name = name
+        return best_name
+
+    player_x, player_y = Player.GetXY()
+    map_id = int(Map.GetMapID())
+
+    bot.config.FSM.pause()
+
+    # Not in dungeon maps -> resign and go to generic secure return
+    if map_id not in ("Bogroot Growths (level 1)", "Bogroot Growths (level 2)"):
+        bot.Multibox.ResignParty()
+        yield from bot.Wait._coro_for_time(10000)
+        bot.config.FSM.jump_to_state_by_name("Reset farm")
+        bot.config.FSM.resume()
+        return
+
+    # Full party defeated -> let widget handle return
+    if GLOBAL_CACHE.Party.IsPartyDefeated():
+        yield from bot.Wait._coro_for_time(10000)
+        bot.config.FSM.jump_to_state_by_name("Reset farm")
+        bot.config.FSM.resume()
+        return
+
+    chosen = pick_nearest_anchor(map_id, float(player_x), float(player_y))
+
+    ConsoleLog("Res Check", f"↩ wipe-route -> {chosen} (map={map_id}, pos=({player_x:.0f},{player_y:.0f}))")
+    bot.config.FSM.jump_to_state_by_name(chosen)
+
+    bot.config.FSM.resume()
+    return
+
+from typing import Generator, Any
+
+def TargetAndMoveToTekks(bot: Botting) -> Generator[Any, Any, None]:
+    npc_name = "Tekks"
+
+    ConsoleLog(BOT_NAME, "[TEST] TargetAndMoveToTekks -> start", log=True)
+
+    while True:
+        agent_id = yield from Yield.Agents.GetAgentIDByName(npc_name)
+
+        if not agent_id:
+            ConsoleLog(BOT_NAME, "[TEST] Tekks not found, retrying...", log=True)
+            yield from Routines.Yield.wait(500)
+            continue
+
+        ConsoleLog(BOT_NAME, f"[TEST] Tekks found (agent_id={agent_id})", log=True)
+
+        # Cibler Tekks
+        Player.ChangeTarget(agent_id)
+        yield from Routines.Yield.wait(500)
+
+        # Récupérer ses coordonnées
+        x, y = Agent.GetXY(agent_id)
+        ConsoleLog(BOT_NAME, f"[TEST] Moving to Tekks at ({x}, {y})", log=True)
+
+        # Se déplacer vers Tekks
+        bot.Move.XYAndDialog(x, y, TEKKS_QUEST_TAKE_DIALOG)
+        yield from Routines.Yield.wait(1000)
+
+        # Cibler Tekks
+        Player.ChangeTarget(agent_id)
+        yield from Routines.Yield.wait(500)
+        
+
+        ConsoleLog(BOT_NAME, "[TEST] Target + move command sent", log=True)
+        return
+
+def _step_anchor() -> Generator:
+    yield
+
+def OnPartyWipe(bot: "Botting"):
+    ConsoleLog("on_party_wipe", "event triggered")
+    fsm = bot.config.FSM
+    fsm.pause()
+    fsm.AddManagedCoroutine("OnWipe_OPD", lambda: _on_party_wipe(bot))
 
 # ==================== UTILITY FUNCTIONS ====================
 
-def _force_custom_behaviors_collapsed() -> None:
-    """Bog-only workaround: keep the Custom Behaviors window collapsed when enabled."""
-    imgui_ini_path = os.path.join(os.getcwd(), "imgui.ini")
-    if not os.path.isfile(imgui_ini_path):
-        return
-
-    with open(imgui_ini_path, "r", encoding="utf-8") as f:
-        lines = f.readlines()
-
-    target_header = f"[Window][{_CUSTOM_BEHAVIORS_WINDOW_NAME}]"
-    changed = False
-    found_header = False
-
-    for idx, line in enumerate(lines):
-        if line.strip() != target_header:
-            continue
-
-        found_header = True
-        for j in range(idx + 1, len(lines)):
-            stripped = lines[j].strip()
-            if stripped.startswith("[Window]["):
-                break
-            if stripped.startswith("Collapsed="):
-                if stripped != "Collapsed=1":
-                    lines[j] = "Collapsed=1\n"
-                    changed = True
-                break
-        break
-
-    if not found_header:
-        if lines and lines[-1] and not lines[-1].endswith("\n"):
-            lines[-1] += "\n"
-        lines.extend([
-            f"{target_header}\n",
-            "Collapsed=1\n",
-        ])
-        changed = True
-
-    if changed:
-        with open(imgui_ini_path, "w", encoding="utf-8") as f:
-            f.writelines(lines)
 
 
-def _invite_accounts_by_profession_order() -> Generator:
-    """Bog-local invite ordering for easier team formation testing."""
-    def _default_invite_pass(pd) -> Generator:
-        for account in GLOBAL_CACHE.ShMem.GetAllAccountData():
-            if not account.AccountEmail or account.AccountEmail == pd.AccountEmail:
-                continue
-            if (
-                pd.MapID == account.MapID
-                and pd.MapRegion == account.MapRegion
-                and pd.MapDistrict == account.MapDistrict
-                and pd.MapLanguage == account.MapLanguage
-                and pd.PartyID != account.PartyID
-            ):
-                GLOBAL_CACHE.Party.Players.InvitePlayer(account.CharacterName)
-                GLOBAL_CACHE.ShMem.SendMessage(
-                    pd.AccountEmail,
-                    account.AccountEmail,
-                    SharedCommandType.InviteToParty,
-                    (0, 0, 0, 0),
-                )
-                yield from Routines.Yield.wait(500)
+def _move_to(x: float, y: float, tolerance: float = 180.0, max_tries: int = 60):
+    Player.Move(x, y)
 
-    player_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(Player.GetAccountEmail())
-    if not player_data:
-        ConsoleLog(BOT_NAME, "Invite order: no local account data, skipping ordered invite pass.")
-        return
+    for _ in range(max_tries):
+        px, py = Player.GetXY()
+        dist = Utils.Distance((px, py), (x, y))
 
-    melee_professions = {
-        Profession.Ranger.value,
-        Profession.Warrior.value,
-        Profession.Assassin.value,
-        Profession.Dervish.value,
-    }
-    priority_by_profession = {
-        Profession.Mesmer.value: 1,
-        Profession.Paragon.value: 2,
-        Profession.Necromancer.value: 3,
-        Profession.Ritualist.value: 4,
-    }
+        if dist <= tolerance:
+            return True
 
-    def _invite_priority(account) -> tuple[int, str]:
-        primary_profession = int(getattr(account.AgentData, "Profession", (0, 0))[0] or 0)
-        if primary_profession in melee_professions:
-            return (0, str(account.CharacterName or ""))
-        return (priority_by_profession.get(primary_profession, 5), str(account.CharacterName or ""))
+        yield from Routines.Yield.wait(100)
 
-    candidates = []
-    for account in GLOBAL_CACHE.ShMem.GetAllAccountData():
-        if not account.AccountEmail or account.AccountEmail == player_data.AccountEmail:
-            continue
-        if (
-            player_data.MapID == account.MapID
-            and player_data.MapRegion == account.MapRegion
-            and player_data.MapDistrict == account.MapDistrict
-            and player_data.MapLanguage == account.MapLanguage
-            and player_data.PartyID != account.PartyID
-        ):
-            candidates.append(account)
-
-    if not candidates:
-        ConsoleLog(BOT_NAME, "Invite order: no sorted candidates found, using default invite pass.")
-        yield from _default_invite_pass(player_data)
-        return
-
-    candidates.sort(key=_invite_priority)
-    invite_order = [str(account.CharacterName or account.AccountEmail) for account in candidates]
-    ConsoleLog(BOT_NAME, f"Inviting in profession order: {', '.join(invite_order)}")
-
-    invited_any = False
-    for account in candidates:
-        try:
-            GLOBAL_CACHE.Party.Players.InvitePlayer(account.CharacterName)
-            GLOBAL_CACHE.ShMem.SendMessage(
-                player_data.AccountEmail,
-                account.AccountEmail,
-                SharedCommandType.InviteToParty,
-                (0, 0, 0, 0),
-            )
-            invited_any = True
-            yield from Routines.Yield.wait(500)
-        except Exception as e:
-            ConsoleLog(BOT_NAME, f"Invite order: failed inviting {account.AccountEmail}: {e}")
-
-    if not invited_any:
-        ConsoleLog(BOT_NAME, "Invite order: no invites sent, using default invite pass.")
-        yield from _default_invite_pass(player_data)
-        return
-
-    # Safety pass: invite anyone still eligible but not yet in party.
-    yield from _default_invite_pass(player_data)
-    yield
+    return False
 
 
-def _prepare_for_farm_with_profession_order(map_id_to_travel: int) -> Generator:
-    """Bog-local copy of PrepareForFarm with custom invite ordering."""
-    bot.States.AddHeader("Prepare For Farm")
-    bot.Events.OnPartyMemberBehindCallback(lambda: bot.Templates.Routines.OnPartyMemberBehind())
-    bot.Events.OnPartyMemberInDangerCallback(lambda: bot.Templates.Routines.OnPartyMemberInDanger())
-    bot.Events.OnPartyMemberDeadBehindCallback(lambda: bot.Templates.Routines.OnPartyMemberDeathBehind())
-    bot.Multibox.KickAllAccounts()
-    bot.Map.Travel(target_map_id=map_id_to_travel)
-    bot.Multibox.SummonAllAccounts()
-    bot.Wait.ForTime(4000)
-    bot.States.AddCustomState(_invite_accounts_by_profession_order, "Invite all accounts (profession order)")
+def _wait_for_map(map_name: str, max_tries: int = 120):
+    for _ in range(max_tries):
+        if Map.GetMapName() == map_name:
+            return True
+        yield from Routines.Yield.wait(500)
+    return False
 
-def _load_merchant_settings() -> None:
-    global _merchant_enabled, _merchant_id_kits_target, _merchant_salvage_kits_target
-    global _merchant_sell_materials, _merchant_sell_rare_mats, _merchant_buy_ectos
-    global _merchant_ecto_threshold, _merchant_alt_wait_ms, _merchant_loaded
-    if _merchant_loaded:
-        return
-    _merchant_enabled = _bogroot_ini.read_bool(_MERCHANT_SECTION, "enabled", False)
-    _merchant_id_kits_target = _bogroot_ini.read_int(_MERCHANT_SECTION, "id_kits_target", 2)
-    _merchant_salvage_kits_target = _bogroot_ini.read_int(_MERCHANT_SECTION, "salvage_kits_target", 5)
-    _merchant_sell_materials = _bogroot_ini.read_bool(_MERCHANT_SECTION, "sell_materials", False)
-    _merchant_sell_rare_mats = _bogroot_ini.read_bool(_MERCHANT_SECTION, "sell_rare_mats", False)
-    _merchant_buy_ectos = _bogroot_ini.read_bool(_MERCHANT_SECTION, "buy_ectos", False)
-    _merchant_ecto_threshold = _bogroot_ini.read_int(_MERCHANT_SECTION, "ecto_threshold", 800_000)
-    _merchant_alt_wait_ms = _bogroot_ini.read_int(_MERCHANT_SECTION, "alt_wait_ms", 90_000)
-    _merchant_loaded = True
+def _interact_with_tekks(bot: Botting, dialog_id: int, tolerance: float = 220.0):
+    npc_name = "Tekks"
 
+    agent_id = yield from Yield.Agents.GetAgentIDByName(npc_name)
+    if not agent_id:
+        ConsoleLog(BOT_NAME, f"[Tekks] {npc_name} introuvable", log=True)
+        return False
 
-def _save_merchant_settings() -> None:
-    _bogroot_ini.write_key(_MERCHANT_SECTION, "enabled", str(_merchant_enabled))
-    _bogroot_ini.write_key(_MERCHANT_SECTION, "id_kits_target", str(_merchant_id_kits_target))
-    _bogroot_ini.write_key(_MERCHANT_SECTION, "salvage_kits_target", str(_merchant_salvage_kits_target))
-    _bogroot_ini.write_key(_MERCHANT_SECTION, "sell_materials", str(_merchant_sell_materials))
-    _bogroot_ini.write_key(_MERCHANT_SECTION, "sell_rare_mats", str(_merchant_sell_rare_mats))
-    _bogroot_ini.write_key(_MERCHANT_SECTION, "buy_ectos", str(_merchant_buy_ectos))
-    _bogroot_ini.write_key(_MERCHANT_SECTION, "ecto_threshold", str(_merchant_ecto_threshold))
-    _bogroot_ini.write_key(_MERCHANT_SECTION, "alt_wait_ms", str(_merchant_alt_wait_ms))
+    x, y = Agent.GetXY(agent_id)
+    ConsoleLog(BOT_NAME, f"[Tekks] Found {npc_name} at ({x}, {y})", log=True)
+    
+    ok = yield from _move_to(x, y, tolerance=tolerance)
+    if not ok:
+        ConsoleLog(BOT_NAME, "[Tekks] Impossible d'approcher Tekks", log=True)
+        return False
+        
+
+    Player.ChangeTarget(agent_id)
+    yield from Routines.Yield.wait(800)
+    Player.Interact(agent_id)
+    yield from Routines.Yield.wait(800)
+    Player.SendDialog(dialog_id)
+    bot.Multibox.SendDialogToTarget(dialog_id)
+    yield from Routines.Yield.wait(1500)
+    return True
 
 
-def _find_npc_xy_by_name(name_fragment: str, max_dist: float = 5000.0):
-    npcs = AgentArray.GetNPCMinipetArray()
-    npcs = AgentArray.Filter.ByDistance(npcs, Player.GetXY(), max_dist)
-    for npc_id in npcs:
-        npc_name = Agent.GetNameByID(int(npc_id))
-        if name_fragment.lower() in npc_name.lower():
-            return Agent.GetXY(int(npc_id))
-    return None
+def _recover_reward_and_retake_quest(bot: Botting) -> Generator:
+    global TEKKS_REWARD_PENDING
 
+    ConsoleLog(BOT_NAME, "[RECOVERY] Late reward flow -> start", log=True)
 
-def _get_leftover_material_item_ids(batch_size: int = 10) -> list[int]:
-    bag_list = GLOBAL_CACHE.ItemArray.CreateBagList(1, 2, 3, 4)
-    item_array = GLOBAL_CACHE.ItemArray.GetItemArray(bag_list)
-    leftovers: list[int] = []
-    for item_id in item_array:
-        if not GLOBAL_CACHE.Item.Type.IsMaterial(item_id):
-            continue
-        if GLOBAL_CACHE.Item.Type.IsRareMaterial(item_id):
-            continue
-        qty = int(GLOBAL_CACHE.Item.Properties.GetQuantity(item_id))
-        if 0 < qty < batch_size:
-            leftovers.append(int(item_id))
-    return leftovers
-
-
-def _disable_widgets_on_alts_only(widget_names: tuple[str, ...]) -> Generator:
-    if not widget_names:
+    # 1) Reward Tekks in Sparkfly
+    if Map.GetMapName() != "Sparkfly Swamp":
+        ConsoleLog(BOT_NAME, f"[RECOVERY] Mauvaise map pour reward: {Map.GetMapName()}", log=True)
         yield
         return
-    my_email = Player.GetAccountEmail()
-    for account in GLOBAL_CACHE.ShMem.GetAllAccountData():
-        account_email = str(getattr(account, "AccountEmail", "") or "")
-        if not account_email or account_email == my_email:
-            continue
-        for widget_name in widget_names:
-            GLOBAL_CACHE.ShMem.SendMessage(
-                my_email,
-                account_email,
-                SharedCommandType.DisableWidget,
-                (0, 0, 0, 0),
-                (widget_name, "", "", ""),
-            )
-    yield from Routines.Yield.wait(500)
+
+    
+    ok = yield from _interact_with_tekks(bot, TEKKS_QUEST_REWARD_DIALOG)
+    if not ok:
+        ConsoleLog(BOT_NAME, "[RECOVERY] Reward Tekks failed", log=True)
+        yield
+        return
+
+    # 2) Go to dungeon entrance
+    for x, y in [
+        (11676.01, 22685.0),
+        (11562.77, 24059.0)]:
+        ok = yield from _move_to(x, y)
+        if not ok:
+            ConsoleLog(BOT_NAME, f"[RECOVERY] Failed move to ({x}, {y})", log=True)
+            yield
+            return
+
+    # Ici, si nécessaire, interaction explicite avec le portail
+    # à adapter selon ton framework / la vraie coord du portail
+    Player.Move(13097.0, 26393.0)
+    yield from Routines.Yield.wait(1000)
+
+    ok = yield from _wait_for_map("Bogroot Growths (level 1)")
+    if not ok:
+        ConsoleLog(BOT_NAME, "[RECOVERY] Impossible d'entrer en Bogroot Growths (level 1)", log=True)
+        yield
+        return
+
+    ConsoleLog(BOT_NAME, "[RECOVERY] Entered Bogroot Growths (level 1)", log=True)
+
+    # 3) Exit dungeon
+    ok = yield from _move_to(14600.0, 470.0)
+    if not ok:
+        ConsoleLog(BOT_NAME, "[RECOVERY] Failed move to dungeon exit", log=True)
+        yield
+        return
+
+    yield from Routines.Yield.wait(1000)
+
+    ok = yield from _wait_for_map("Sparkfly Swamp")
+    if not ok:
+        ConsoleLog(BOT_NAME, "[RECOVERY] Impossible de revenir à Sparkfly Swamp", log=True)
+        yield
+        return
+
+    ConsoleLog(BOT_NAME, "[RECOVERY] Back to Sparkfly Swamp", log=True)
 
 
-def apply_widget_policy_step() -> Generator:
-    _force_custom_behaviors_collapsed()
-    bot.Multibox.ApplyWidgetPolicy(
-        enable_widgets=WIDGETS_TO_ENABLE,
-        disable_widgets=WIDGETS_TO_DISABLE,
-        apply_local=True,
-    )
-    yield from _disable_widgets_on_alts_only(_ALT_ONLY_DISABLE_WIDGETS)
+
+    Player.Move(11193.21, 22787.21)
+    yield from Routines.Yield.wait(8000)
+
+    # 4) Retake quest from Tekks
+    ok = yield from _interact_with_tekks(bot, TEKKS_QUEST_REWARD_DIALOG)
+    if not ok:
+        ConsoleLog(BOT_NAME, "[RECOVERY] Retake quest failed", log=True)
+        yield
+        return
+
+    ConsoleLog(BOT_NAME, "[RECOVERY] Late reward flow -> done", log=True)
+
+
+
+    bot.States.JumpToStepName("LOOP_RESTART_POINT")
     yield
+
+
+def _post_return_flow(bot: Botting) -> Generator:
+    global TEKKS_REWARD_PENDING
+
+    ConsoleLog(BOT_NAME, f"[POST-RETURN] Flag value = {TEKKS_REWARD_PENDING}", log=True)
+
+    if not TEKKS_REWARD_PENDING:
+        ConsoleLog(BOT_NAME, "[POST-RETURN] Reward NOT taken -> recovery flow", log=True)
+        yield from _recover_reward_and_retake_quest(bot)
+        yield
+        return
+
+    ConsoleLog(BOT_NAME, "[POST-RETURN] Reward taken -> continue", log=True)
+    yield
+
 
 def command_type_routine_in_message_is_active(account_email, shared_command_type):
     """Checks if a multibox command is active for an account"""
@@ -326,6 +370,12 @@ def open_bogroot_chest():
     sender_email = Player.GetAccountEmail()
     accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
     
+    
+    # --- LEADER: interact first ---
+    Player.Interact(target, False)
+    yield from Routines.Yield.wait(100)
+
+
     # Wait for the leader to finish
     while command_type_routine_in_message_is_active(sender_email, SharedCommandType.InteractWithTarget):
         yield from Routines.Yield.wait(250)
@@ -349,421 +399,117 @@ def open_bogroot_chest():
     yield
 
 
-def wait_for_map_change(target_map_id, timeout_seconds=60):
-    """Wait for map change with timeout"""
-    ConsoleLog(BOT_NAME, f"Waiting for map change to {target_map_id}...")
-    timeout = time.time() + timeout_seconds
-    while True:
-        current_map = Map.GetMapID()
-        if current_map == target_map_id:
-            ConsoleLog(BOT_NAME, f"Map change detected! Now in map {target_map_id}")
-            yield
-            return
-        if time.time() > timeout:
-            ConsoleLog(BOT_NAME, f"Timeout waiting for map {target_map_id}")
-            yield
-            return
-        yield from Routines.Yield.wait(500)
+def UseSummons():
+    """
+    Uses only ONE summon with priority:
+    1. Summons (30209)
+    2. Legionnary Crystal (37810)
+    """
 
-
-def _disable_inventoryplus_pretravel() -> Generator:
-    from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler as _get_wh
-
-    wh = _get_wh()
-    for name in _PRETRAVEL_DISABLE_WIDGETS:
-        wh.disable_widget(name)
-    my_email = Player.GetAccountEmail()
-    for acc in GLOBAL_CACHE.ShMem.GetAllAccountData():
-        if acc.AccountEmail != my_email:
-            for name in _PRETRAVEL_DISABLE_WIDGETS:
-                GLOBAL_CACHE.ShMem.SendMessage(
-                    my_email,
-                    acc.AccountEmail,
-                    SharedCommandType.DisableWidget,
-                    (0, 0, 0, 0),
-                    (name, "", "", ""),
-                )
-    yield from Routines.Yield.wait(1500)
-
-
-def _disable_merchant_widgets() -> Generator:
-    from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler as _get_wh
-
-    wh = _get_wh()
-    for name in _MERCHANT_MANAGED_WIDGETS:
-        wh.disable_widget(name)
-    my_email = Player.GetAccountEmail()
-    for acc in GLOBAL_CACHE.ShMem.GetAllAccountData():
-        if acc.AccountEmail != my_email:
-            for name in _MERCHANT_MANAGED_WIDGETS:
-                GLOBAL_CACHE.ShMem.SendMessage(
-                    my_email,
-                    acc.AccountEmail,
-                    SharedCommandType.DisableWidget,
-                    (0, 0, 0, 0),
-                    (name, "", "", ""),
-                )
-    yield
-
-
-def _reenable_merchant_widgets() -> Generator:
-    from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler as _get_wh
-
-    wh = _get_wh()
-    for name in _MERCHANT_MANAGED_WIDGETS:
-        wh.enable_widget(name)
-    my_email = Player.GetAccountEmail()
-    for acc in GLOBAL_CACHE.ShMem.GetAllAccountData():
-        if acc.AccountEmail != my_email:
-            for name in _MERCHANT_MANAGED_WIDGETS:
-                GLOBAL_CACHE.ShMem.SendMessage(
-                    my_email,
-                    acc.AccountEmail,
-                    SharedCommandType.EnableWidget,
-                    (0, 0, 0, 0),
-                    (name, "", "", ""),
-                )
-    yield
-
-
-def _coro_sell_scrolls(mx: float, my: float) -> Generator:
-    bag_list = GLOBAL_CACHE.ItemArray.CreateBagList(1, 2, 3, 4)
-    item_array = GLOBAL_CACHE.ItemArray.GetItemArray(bag_list)
-    sell_ids = [
-        int(item_id)
-        for item_id in item_array
-        if int(GLOBAL_CACHE.Item.GetModelID(item_id)) in _SCROLL_MODEL_IDS
+    summons = [
+        ("Tengu", 30209),
+        ("Legionnary Crystal", 37810),
     ]
-    if not sell_ids:
-        yield
-        return
-    yield from bot.Move._coro_xy_and_interact_npc(mx, my, "GH Merchant (scrolls)")
-    yield from Routines.Yield.wait(1200)
-    yield from Routines.Yield.Merchant.SellItems(sell_ids, log=True)
-    yield from Routines.Yield.wait(300)
 
+    for name, model_id in summons:
+        ConsoleLog("UseSummons", f"Searching for {name}...", log=True)
 
-def _coro_sell_nonsalvageable_golds(mx: float, my: float) -> Generator:
-    bag_list = GLOBAL_CACHE.ItemArray.CreateBagList(1, 2, 3, 4)
-    item_array = GLOBAL_CACHE.ItemArray.GetItemArray(bag_list)
-    sell_ids = []
-    for item_id in item_array:
-        _, rarity = GLOBAL_CACHE.Item.Rarity.GetRarity(item_id)
-        if rarity != "Gold":
-            continue
-        if not GLOBAL_CACHE.Item.Usage.IsIdentified(item_id):
-            continue
-        if GLOBAL_CACHE.Item.Usage.IsSalvageable(item_id):
-            continue
-        sell_ids.append(int(item_id))
-    if not sell_ids:
-        yield
-        return
-    yield from bot.Move._coro_xy_and_interact_npc(mx, my, "GH Merchant (non-salvageable golds)")
-    yield from Routines.Yield.wait(1200)
-    yield from Routines.Yield.Merchant.SellItems(sell_ids, log=True)
-    yield from Routines.Yield.wait(300)
+        item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(model_id)
 
+        if item_id:
+            ConsoleLog("UseSummons", f"{name} found (item_id: {item_id}), using...", log=True)
+            GLOBAL_CACHE.Inventory.UseItem(item_id)
+            yield from Routines.Yield.wait(1000)
+            ConsoleLog("UseSummons", f"{name} used!", log=True)
 
-def _coro_sell_rare_mats_at_trader(x: float, y: float, model_ids: set[int]) -> Generator:
-    yield from Routines.Yield.Movement.FollowPath([(x, y)])
-    yield from Routines.Yield.wait(100)
-    yield from Routines.Yield.Agents.InteractWithAgentXY(x, y)
-    yield from Routines.Yield.wait(1000)
-    bag_list = GLOBAL_CACHE.ItemArray.CreateBagList(1, 2, 3, 4)
-    item_array = GLOBAL_CACHE.ItemArray.GetItemArray(bag_list)
-    for item_id in item_array:
-        if int(GLOBAL_CACHE.Item.GetModelID(item_id)) not in model_ids:
-            continue
-        stack_qty = int(GLOBAL_CACHE.Item.Properties.GetQuantity(item_id))
-        while stack_qty > 0:
-            quoted = yield from Routines.Yield.Merchant._wait_for_quote(
-                GLOBAL_CACHE.Trading.Trader.RequestSellQuote,
-                item_id,
-                timeout_ms=750,
-                step_ms=10,
-            )
-            if quoted <= 0:
-                break
-            GLOBAL_CACHE.Trading.Trader.SellItem(item_id, quoted)
-            new_qty = yield from Routines.Yield.Merchant._wait_for_stack_quantity_drop(
-                item_id,
-                stack_qty,
-                timeout_ms=750,
-                step_ms=10,
-            )
-            if new_qty >= stack_qty:
-                break
-            stack_qty = new_qty
+            yield
+            return  # STOP ici → on ne teste pas le second
 
+        else:
+            ConsoleLog("UseSummons", f"{name} not found in inventory", log=True)
 
-def _gh_merchant_setup(leave_party: bool = True) -> Generator:
-    from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
-    from Sources.oazix.CustomBehaviors.primitives.parties.party_command_contants import PartyCommandConstants
-
-    _load_merchant_settings()
-    if not _merchant_enabled:
-        yield
-        return
-
-    if leave_party:
-        my_email = Player.GetAccountEmail()
-        for acc in GLOBAL_CACHE.ShMem.GetAllAccountData():
-            if acc.AccountEmail != my_email:
-                GLOBAL_CACHE.ShMem.SendMessage(
-                    my_email, acc.AccountEmail, SharedCommandType.LeaveParty, (0, 0, 0, 0), ("", "", "", "")
-                )
-        GLOBAL_CACHE.Party.LeaveParty()
-        yield from Routines.Yield.wait(2000)
-
-    yield from _disable_inventoryplus_pretravel()
-
-    cb_deadline = time.time() + 30
-    while not CustomBehaviorParty().is_ready_for_action() and time.time() < cb_deadline:
-        yield from Routines.Yield.wait(100)
-
-    if not bool(CustomBehaviorParty().schedule_action(PartyCommandConstants.travel_gh)) and not Map.IsGuildHall():
-        Map.TravelGH()
-
-    cb_deadline = time.time() + 60
-    while not CustomBehaviorParty().is_ready_for_action() and time.time() < cb_deadline:
-        yield from Routines.Yield.wait(200)
-
-    gh_deadline = time.time() + 30
-    while not Map.IsGuildHall() and time.time() < gh_deadline:
-        yield from Routines.Yield.wait(500)
-    if not Map.IsGuildHall():
-        yield
-        return
-
-    yield from Routines.Yield.wait(3000)
-    yield from _disable_merchant_widgets()
-
-    my_email = Player.GetAccountEmail()
-
-    def _dispatch_to_alts(command, params, extra_data=("", "", "", "")):
-        for acc in GLOBAL_CACHE.ShMem.GetAllAccountData():
-            if acc.AccountEmail != my_email:
-                GLOBAL_CACHE.ShMem.SendMessage(my_email, acc.AccountEmail, command, params, extra_data)
-
-    rare_mat_models = {935, 936}
-    rare_mat_filter = "935,936"
-    merchant_xy = _find_npc_xy_by_name("Merchant")
-    mat_xy = _find_npc_xy_by_name("Material Trader") if _merchant_sell_materials else None
-    rare_xy = _find_npc_xy_by_name("Rare") if (_merchant_buy_ectos or _merchant_sell_rare_mats) else None
-
-    if _merchant_sell_materials and mat_xy:
-        tmx, tmy = mat_xy
-        _dispatch_to_alts(SharedCommandType.MerchantMaterials, (tmx, tmy, 0, 0), ("sell", "", "", ""))
-        yield from Routines.Yield.Merchant.SellMaterialsAtTrader(tmx, tmy)
-        yield from Routines.Yield.wait(2000)
-        if merchant_xy:
-            mx, my = merchant_xy
-            _dispatch_to_alts(
-                SharedCommandType.MerchantMaterials,
-                (mx, my, 0, 0),
-                ("sell_merchant_leftovers", "", "", ""),
-            )
-            leftover_ids = _get_leftover_material_item_ids()
-            if leftover_ids:
-                yield from bot.Move._coro_xy_and_interact_npc(mx, my, "GH Merchant (leftovers)")
-                yield from Routines.Yield.wait(1200)
-                yield from Routines.Yield.Merchant.SellItems(leftover_ids, log=True)
-                yield from Routines.Yield.wait(300)
-
-    if merchant_xy:
-        mx, my = merchant_xy
-        _dispatch_to_alts(
-            SharedCommandType.MerchantMaterials,
-            (mx, my, 0, 0),
-            ("sell_nonsalvageable_golds", "", "", ""),
-        )
-        yield from _coro_sell_nonsalvageable_golds(mx, my)
-        _dispatch_to_alts(
-            SharedCommandType.MerchantMaterials,
-            (mx, my, 0, 0),
-            ("sell_scrolls", _SCROLL_MODEL_FILTER, "", ""),
-        )
-        yield from _coro_sell_scrolls(mx, my)
-
-        id_to_buy = max(0, _merchant_id_kits_target - int(GLOBAL_CACHE.Inventory.GetModelCount(5899)))
-        salvage_to_buy = max(0, _merchant_salvage_kits_target - int(GLOBAL_CACHE.Inventory.GetModelCount(2992)))
-        _dispatch_to_alts(
-            SharedCommandType.MerchantItems,
-            (mx, my, _merchant_id_kits_target, _merchant_salvage_kits_target),
-        )
-        yield from bot.Move._coro_xy_and_interact_npc(mx, my, "GH Merchant")
-        yield from Routines.Yield.wait(1200)
-        if id_to_buy > 0:
-            yield from Routines.Yield.Merchant.BuyIDKits(id_to_buy, log=True)
-        if salvage_to_buy > 0:
-            yield from Routines.Yield.Merchant.BuySalvageKits(salvage_to_buy, log=True)
-
-    if _merchant_sell_rare_mats and rare_xy:
-        rmx, rmy = rare_xy
-        _dispatch_to_alts(
-            SharedCommandType.MerchantMaterials,
-            (rmx, rmy, 0, 0),
-            ("sell_rare_mats", rare_mat_filter, "", ""),
-        )
-        yield from _coro_sell_rare_mats_at_trader(rmx, rmy, rare_mat_models)
-
-    if _merchant_buy_ectos and rare_xy:
-        rmx, rmy = rare_xy
-        _dispatch_to_alts(
-            SharedCommandType.MerchantMaterials,
-            (rmx, rmy, _merchant_ecto_threshold, 0),
-            ("buy_ectoplasm", "", "", ""),
-        )
-        if int(GLOBAL_CACHE.Inventory.GetStorageGold()) > _merchant_ecto_threshold:
-            yield from Routines.Yield.Merchant.BuyEctoplasm(rmx, rmy, _merchant_ecto_threshold, log=True)
-
-    yield from Routines.Yield.wait(_merchant_alt_wait_ms)
-    yield from bot.Map._coro_travel(MAP_GADDS_ENCAMPMENT, "")
+    ConsoleLog("UseSummons", "No summon found", log=True)
     yield
-
-
-def _gh_merchant_setup_if_inventory_full() -> Generator:
-    free_slots = int(GLOBAL_CACHE.Inventory.GetFreeSlotCount())
-    if free_slots > 1:
-        yield
-        return
-    my_email = Player.GetAccountEmail()
-    for acc in GLOBAL_CACHE.ShMem.GetAllAccountData():
-        if acc.AccountEmail != my_email:
-            GLOBAL_CACHE.ShMem.SendMessage(my_email, acc.AccountEmail, SharedCommandType.Resign, (0, 0, 0, 0), ("", "", "", ""))
-    Player.SendChatCommand("resign")
-    yield from Routines.Yield.wait(500)
-    yield from bot.Wait._coro_until_on_outpost()
-    yield from _gh_merchant_setup(leave_party=False)
-    yield from _reenable_merchant_widgets()
-    bot.config.FSM.jump_to_state_by_name("RUN_START_POINT")
-    yield
-
-
-def _draw_merchant_settings() -> None:
-    import PyImGui
-
-    global _merchant_enabled, _merchant_id_kits_target, _merchant_salvage_kits_target
-    global _merchant_sell_materials, _merchant_sell_rare_mats, _merchant_buy_ectos
-    global _merchant_ecto_threshold, _merchant_alt_wait_ms
-
-    _load_merchant_settings()
-    PyImGui.separator()
-    PyImGui.text("Merchant (Guild Hall)")
-
-    new_enabled = PyImGui.checkbox("Enable GH merchant cycle##bogroot_merchant", _merchant_enabled)
-    if new_enabled != _merchant_enabled:
-        _merchant_enabled = new_enabled
-        _save_merchant_settings()
-
-    PyImGui.push_item_width(90)
-    new_id = PyImGui.input_int("ID Kits target##bogroot_id", _merchant_id_kits_target)
-    if new_id != _merchant_id_kits_target:
-        _merchant_id_kits_target = max(0, new_id)
-        _save_merchant_settings()
-
-    new_sal = PyImGui.input_int("Salvage Kits target##bogroot_sal", _merchant_salvage_kits_target)
-    if new_sal != _merchant_salvage_kits_target:
-        _merchant_salvage_kits_target = max(0, new_sal)
-        _save_merchant_settings()
-    PyImGui.pop_item_width()
-
-    new_sell = PyImGui.checkbox("Sell common materials##bogroot_sell", _merchant_sell_materials)
-    if new_sell != _merchant_sell_materials:
-        _merchant_sell_materials = new_sell
-        _save_merchant_settings()
-
-    new_rare = PyImGui.checkbox("Sell Diamond & Onyx##bogroot_rare", _merchant_sell_rare_mats)
-    if new_rare != _merchant_sell_rare_mats:
-        _merchant_sell_rare_mats = new_rare
-        _save_merchant_settings()
-
-    new_ectos = PyImGui.checkbox("Buy ectos over storage threshold##bogroot_ectos", _merchant_buy_ectos)
-    if new_ectos != _merchant_buy_ectos:
-        _merchant_buy_ectos = new_ectos
-        _save_merchant_settings()
-
-    if _merchant_buy_ectos:
-        new_thresh = PyImGui.input_int("Storage threshold##bogroot_thresh", _merchant_ecto_threshold)
-        if new_thresh != _merchant_ecto_threshold:
-            _merchant_ecto_threshold = max(0, new_thresh)
-            _save_merchant_settings()
-
-    new_wait = PyImGui.input_int("Alt wait (ms)##bogroot_wait", _merchant_alt_wait_ms)
-    if new_wait != _merchant_alt_wait_ms:
-        _merchant_alt_wait_ms = max(10_000, new_wait)
-        _save_merchant_settings()
-
-
-def _draw_bogroot_settings() -> None:
-    import PyImGui
-
-    PyImGui.text("Bogroot Settings")
-    _draw_merchant_settings()
-
-
-def _on_party_wipe(bot: "Botting"):
-    while Agent.IsDead(Player.GetAgentID()):
-        yield from bot.Wait._coro_for_time(1000)
-        if not Routines.Checks.Map.MapValid():
-            bot.config.FSM.resume()
-            return
-    bot.config.FSM.jump_to_state_by_name("RUN_START_POINT")
-    bot.config.FSM.resume()
-
-
-def OnPartyWipe(bot: "Botting"):
-    ConsoleLog("on_party_wipe", "party wipe detected")
-    fsm = bot.config.FSM
-    fsm.pause()
-    fsm.AddManagedCoroutine("OnWipe_OPD", lambda: _on_party_wipe(bot))
-    
-    
-def UseTengu():
-    """Uses Tengu (item ID 30209)"""
-    ConsoleLog("UseTengu", "Searching for Tengu...", log=True)
-    
-    item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(30209)
-    
-    if item_id:
-        ConsoleLog("UseTengu", f"Tengu found (item_id: {item_id}), using...", log=True)
-        GLOBAL_CACHE.Inventory.UseItem(item_id)
-        yield from Routines.Yield.wait(1000)
-        ConsoleLog("UseTengu", "Tengu used!", log=True)
-    else:
-        ConsoleLog("UseTengu", "Tengu not found in inventory", log=True)
-    
-    yield    
-
 
 def loop_marker():
     """Empty marker for loop restart point"""
     ConsoleLog(BOT_NAME, "Starting new dungeon run...")
     yield
 
+def Search_and_talk_with_Tekks(bot: Botting):
+    npc_name = "Tekks"
+
+    ConsoleLog(BOT_NAME, "[Tekks] Start quest take", log=True)
+
+    for attempt in range(1, 21):
+        ConsoleLog(BOT_NAME, f"[Tekks] Search {npc_name} attempt {attempt}/20", log=True)
+
+        agent_id = yield from Yield.Agents.GetAgentIDByName(npc_name)
+
+        if agent_id:
+            ConsoleLog(BOT_NAME, f"[Tekks] Found {npc_name} agent_id={agent_id}", log=True)
+
+            x, y = Agent.GetXY(agent_id)
+            ConsoleLog(BOT_NAME, f"[Tekks] Move to ({x}, {y})", log=True)
+
+            for i in range(150):
+                if i % 10 == 0:
+                    Player.Move(x, y)
+
+                px, py = Player.GetXY()
+                dist = Utils.Distance((px, py), (x, y))
+
+                if dist < 150:
+                    ConsoleLog(BOT_NAME, "[Tekks] Arrived near Tekks", log=True)
+                    break
+
+                yield from Routines.Yield.wait(100)
+            else:
+                ConsoleLog(BOT_NAME, "[Tekks] Could not reach Tekks", log=True)
+                yield
+                return
+
+            Player.ChangeTarget(agent_id)
+            yield from Routines.Yield.wait(500)
+
+            current_target = Player.GetTargetID()
+            ConsoleLog(BOT_NAME, f"[Tekks] Current target = {current_target}", log=True)
+
+            Player.Interact(agent_id)
+            yield from Routines.Yield.wait(800)
+
+            Player.ChangeTarget(agent_id)
+            yield from Routines.Yield.wait(500)
+
+            Player.Interact(agent_id)
+            yield from Routines.Yield.wait(800)
+
+            ConsoleLog(BOT_NAME, "[Tekks] Quest/Reward taken", log=True)
+            yield
+            return
+
+        yield from Routines.Yield.wait(500)
 
 # ==================== MAIN ROUTINE ====================
 
 def farm_froggy_routine(bot: Botting) -> None:
     # ===== INITIAL CONFIGURATION =====
-    from Sources.oazix.CustomBehaviors.primitives.botting.botting_helpers import BottingHelpers as CustomBehaviorBottingHelpers
-
     bot.Templates.Routines.UseCustomBehaviors(
-        on_player_critical_death=CustomBehaviorBottingHelpers.botting_unrecoverable_issue,
-        on_party_death=CustomBehaviorBottingHelpers.botting_unrecoverable_issue,
-        on_player_critical_stuck=CustomBehaviorBottingHelpers.botting_unrecoverable_issue,
-    )
-
+        on_player_critical_death=BottingHelpers.botting_unrecoverable_issue,
+        on_party_death=BottingHelpers.botting_unrecoverable_issue,
+        on_player_critical_stuck=BottingHelpers.botting_unrecoverable_issue)
+    #CustomBehaviorParty().set_party_is_enabled(True)
+    widget_handler = get_widget_handler()
+    widget_handler.enable_widget('Return to outpost on defeat')
+    
     # Register wipe callback
-    condition = lambda: OnPartyWipe(bot)
-    bot.Events.OnPartyWipeCallback(condition)
-
+    bot.Events.OnPartyWipeCallback(lambda: OnPartyWipe(bot))
+    
+    # Enable properties
+    bot.Properties.Enable('auto_combat')
+    bot.States.AddCustomState(_step_anchor, "Reset farm")  # anchor for secure return on wipe    
     # ===== START OF BOT =====
     bot.States.AddHeader(BOT_NAME)
-    bot.States.AddHeader("Enable Widgets")
-    bot.States.AddCustomState(apply_widget_policy_step, "Apply widget policy")
-    bot.States.AddCustomState(lambda: _gh_merchant_setup(leave_party=True), "GH Merchant Setup")
     bot.Templates.Aggressive()
     bot.Templates.Routines.PrepareForFarm(map_id_to_travel=MAP_GADDS_ENCAMPMENT)
     bot.States.AddCustomState(_reenable_merchant_widgets, "Re-enable merchant widgets")
@@ -773,9 +519,10 @@ def farm_froggy_routine(bot: Botting) -> None:
     bot.States.AddCustomState(loop_marker, "RUN_START_POINT")
     bot.Party.SetHardMode(True)
     bot.Properties.Enable('auto_combat')
-    
+    bot.Quest.AbandonQuest(TEKKS_QUEST_ID)
     # ===== GO TO DUNGEON =====
     bot.States.AddHeader("Go to Dungeon")
+    bot.Templates.Aggressive()
     bot.Move.XYAndExitMap(-9451.37, -19766.40, target_map_id=MAP_SPARKFLY)
     bot.Wait.UntilOnExplorable()
     bot.Wait.ForTime(2000)
@@ -785,7 +532,7 @@ def farm_froggy_routine(bot: Botting) -> None:
     bot.Multibox.SendDialogToTarget(DWARVEN_BLESSING_DIALOG)
     bot.Wait.ForTime(4000)
     
-    #bot.States.AddCustomState(UseTengu, "Use Tengu") test
+    bot.States.AddCustomState(UseSummons, "UseSummons")
     
     # Path to Tekks
     bot.Move.XY(-8933.0, -18909.0)
@@ -816,29 +563,34 @@ def farm_froggy_routine(bot: Botting) -> None:
     bot.Move.XY(12503.0, 22721.0)
     bot.Wait.UntilOutOfCombat()
     bot.Wait.ForTime(3000)
-    
-    # Second blessing
-    bot.Move.XYAndInteractNPC(12503.0, 22721.0)
-    bot.Multibox.SendDialogToTarget(DWARVEN_BLESSING_DIALOG)
-    bot.Wait.ForTime(4000)
-    
-    # ===== LOOP RESTART POINT =====
+
+
+
+        # ===== LOOP RESTART POINT =====
     bot.States.AddCustomState(loop_marker, "LOOP_RESTART_POINT")
-    
+
+
     # Take Tekks' quest
-    bot.Move.XYAndInteractNPC((12461.80, 22661.57)[0], (12461.80, 22661.57)[1])
+    bot.States.AddCustomState(lambda: Search_and_talk_with_Tekks(bot), "Find Tekks and talk")
+    bot.Wait.ForTime(5000)
     bot.Multibox.SendDialogToTarget(TEKKS_QUEST_TAKE_DIALOG)
     bot.Wait.ForTime(4000)
     
+
+
     # Enter the dungeon
     bot.Move.XY(11676.01, 22685.0)
     bot.Move.XY(11562.77, 24059.0)
     bot.Move.XY(13097.0, 26393.0)
     bot.Wait.UntilOutOfCombat()
     bot.Wait.ForTime(2000)
+
+
     
     # ===== LEVEL 1 =====
     bot.States.AddHeader("Level 1")
+    bot.Templates.Aggressive()
+    bot.Templates.Aggressive()
     bot.Move.XY(18092.0, 4315.0)
     bot.Move.XY(19045.95, 7877.0)
     bot.Wait.UntilOutOfCombat()
@@ -849,10 +601,13 @@ def farm_froggy_routine(bot: Botting) -> None:
     bot.Multibox.SendDialogToTarget(DWARVEN_BLESSING_DIALOG)
     bot.Wait.ForTime(4000)
     
+    bot.States.AddHeader("Secure return - L1")
+    bot.States.AddCustomState(_step_anchor, "Secure return - L1")
+
     # Use consumables
     bot.Multibox.UseAllConsumables()
     bot.Wait.ForTime(3000)
-    #bot.States.AddCustomState(UseTengu, "Use Tengu")
+    bot.States.AddCustomState(UseSummons, "UseSummons")
     
     # Full path Level 1
     bot.Move.XY(16541.48, 8558.94)
@@ -862,6 +617,10 @@ def farm_froggy_routine(bot: Botting) -> None:
     bot.Move.XY(9752.17, 8241.79) #freez xy33
     bot.Move.XY(8238.36, 7434.97) # test antifreeze
     bot.Move.XY(6491.41, 5310.56)
+
+    bot.States.AddHeader("Secure return 2 - L1")
+    bot.States.AddCustomState(_step_anchor, "Secure return 2 - L1")
+
     bot.Move.XY(5097.64, 2204.33)
     bot.Move.XY(1228.15, 54.49)
     bot.Wait.ForTime(8000)
@@ -869,6 +628,10 @@ def farm_froggy_routine(bot: Botting) -> None:
     bot.Wait.ForTime(3000)
     bot.Move.XY(1228.15, 54.49)
     bot.Move.XY(141.23, -1965.14)
+    bot.States.AddHeader("Secure return 3 - L1")
+    bot.States.AddCustomState(_step_anchor, "Secure return 3 - L1")  # anchor for secure return on wipe
+
+
     bot.Move.XY(-1540.98, -5820.18)
     bot.Move.XY(-269.32, -8533.17)
     bot.Move.XY(-1230.10, -8608.68)
@@ -886,11 +649,11 @@ def farm_froggy_routine(bot: Botting) -> None:
     bot.Wait.UntilOutOfCombat()
     
     # Wait for change to Level 2
-    bot.States.AddCustomState(lambda: wait_for_map_change(MAP_BOGROOT_L2, 60), "Wait for Level 2")
-    bot.Wait.ForTime(2000)
+    bot.Wait.ForMapToChange(target_map_name="Bogroot Growths (level 2)")
     
     # ===== LEVEL 2 =====
     bot.States.AddHeader("Level 2")
+    bot.Templates.Aggressive()
     
     # Refresh consumables
     bot.Multibox.UseAllConsumables()
@@ -904,6 +667,9 @@ def farm_froggy_routine(bot: Botting) -> None:
     bot.Move.XYAndInteractNPC(-11055.0, -5551.0)
     bot.Multibox.SendDialogToTarget(DWARVEN_BLESSING_DIALOG)
     bot.Wait.ForTime(4000)
+
+    bot.States.AddHeader("Secure return - L2")
+    bot.States.AddCustomState(_step_anchor, "Secure return - L2")
     
     # Path to second blessing
     bot.Move.XY(-11522.0, -3486.0)
@@ -915,7 +681,7 @@ def farm_froggy_routine(bot: Botting) -> None:
     bot.Move.XY(-10535.0, -191.0)
     bot.Move.XY(-10262.0, -1167.0)
     bot.Wait.ForTime(8000)
-    bot.States.AddCustomState(UseTengu, "Use Tengu")
+    bot.States.AddCustomState(UseSummons, "UseSummons")
     bot.Move.XY(-9390.0, -393.0)
     bot.Move.XY(-8427.0, 1043.0)
     bot.Move.XY(-7297.0, 2371.0)
@@ -937,7 +703,10 @@ def farm_froggy_routine(bot: Botting) -> None:
     bot.Move.XYAndInteractNPC(-955.0, 10984.0)
     bot.Multibox.SendDialogToTarget(DWARVEN_BLESSING_DIALOG)
     bot.Wait.ForTime(4000)
-    
+
+    bot.States.AddHeader("Secure return 2 - L2")
+    bot.States.AddCustomState(_step_anchor, "Secure return 2 - L2")
+
     # Path to Patriarch's blessing
     bot.Move.XY(216.0, 11534.0)
     bot.Move.XY(1485.0, 12022.0)
@@ -961,6 +730,9 @@ def farm_froggy_routine(bot: Botting) -> None:
     bot.Multibox.SendDialogToTarget(DWARVEN_BLESSING_DIALOG)
     bot.Wait.ForTime(4000)
     
+    bot.States.AddHeader("Secure return 3 - L2")
+    bot.States.AddCustomState(_step_anchor, "Secure return 3 - L2")
+
     # Path to boss door
     bot.Move.XY(8372.0, 3448.0)
     bot.Move.XY(8714.0, 2151.0)
@@ -972,18 +744,12 @@ def farm_froggy_routine(bot: Botting) -> None:
     bot.Move.XY(11016.0, -5384.0)
     bot.Move.XY(12943.0, -6511.0)
     bot.Move.XY(15127.0, -6231.0)
-    bot.Wait.ForTime(8000)
     bot.Move.XY(16461.0, -6041.0)#here boss and key
     bot.Move.XY(16389.50, -4090.36)
-    bot.Wait.ForTime(3000)
     bot.Move.XY(15309.36, -2904.08)
-    bot.Wait.ForTime(3000)
     bot.Move.XY(14357.81, -5818.01)
-    bot.Wait.ForTime(3000)
     bot.Move.XY(16461.0, -6041.0)#here boss and key
-    bot.Wait.ForTime(9000)
     bot.Move.XY(17565.0, -6227.0)
-    bot.Wait.ForTime(3000)
     bot.Wait.UntilOutOfCombat()
     
     # Open boss door
@@ -1004,63 +770,44 @@ def farm_froggy_routine(bot: Botting) -> None:
     bot.Move.XY(18761.0, -12747.0)
     bot.Move.XY(19619.0, -11498.0)
     bot.Wait.UntilOutOfCombat()
-    bot.Wait.ForTime(3000)
     
     # Final blessing
+    bot.Templates.Aggressive()
     bot.Move.XYAndInteractNPC(19619.0, -11498.0)
     bot.Multibox.SendDialogToTarget(DWARVEN_BLESSING_DIALOG)
     bot.Wait.ForTime(4000)
-    
+    bot.States.AddHeader("Secure return - Boss")
+    bot.States.AddCustomState(_step_anchor, "Secure return - Boss")
+
+
     # ===== BOSS FIGHT =====
     bot.States.AddHeader("Boss Fight")
+    bot.Templates.Aggressive()
     bot.Move.XY(17582.52, -14231.0)
     bot.Move.XY(14794.47, -14929.0)
-    bot.Wait.ForTime(8000)
     bot.Move.XY(13609.12, -17286.0)
-    bot.Wait.ForTime(5000)
     bot.Move.XY(14079.80, -17776.0)
     bot.Move.XY(15116.40, -18733.0)
     bot.Move.XY(15914.68, -19145.53)
     bot.Wait.UntilOutOfCombat()
     
-    # ===== OPEN FINAL CHEST =====
+    # ===== CHEST =====
+    bot.Move.XY(15030.00, -19168.00)
+    bot.States.AddCustomState(open_bogroot_chest, "Open chest with all accounts")
+
+
+    # ===== REWARD =====
+    bot.States.AddHeader("End / Reward")
+    bot.States.AddCustomState(lambda: Search_and_talk_with_Tekks(bot), "Find Tekks and talk")
     bot.Wait.ForTime(5000)
-    bot.Interact.WithGadgetAtXY(CHEST_POSITION[0], CHEST_POSITION[1])
-    bot.States.AddCustomState(open_bogroot_chest, "Open Chest (All Accounts)")
-    bot.Wait.ForTime(5000)
-    
-    # ===== WAIT FOR TELEPORTATION =====
-    bot.States.AddCustomState(lambda: wait_for_map_change(MAP_SPARKFLY, 180), "Wait Dungeon End")
-    bot.Wait.ForMapLoad(MAP_SPARKFLY)
-    
-    # ===== TURN IN QUEST =====
-    bot.Wait.UntilOutOfCombat()
-    bot.Move.XY(12638.55, 22499.37)
-    bot.Move.XY(12397.78, 22595.02)
-    bot.Move.XY(12459.26, 22668.62)
-    bot.Move.XYAndInteractNPC(12503.0, 22721.0)
     bot.Multibox.SendDialogToTarget(TEKKS_QUEST_REWARD_DIALOG)
-    bot.Wait.ForTime(7000)
-    bot.States.AddCustomState(_gh_merchant_setup_if_inventory_full, "GH Merchant if inventory full")
-    
-    # ===== RESET DUNGEON =====
-    bot.States.AddHeader("Reset Dungeon")
-    ConsoleLog(BOT_NAME, "Resetting dungeon...")
-    
-    # Go back to dungeon portal
-    bot.Move.XY(11676.01, 22685.0)
-    bot.Move.XY(11562.77, 24059.0)
-    bot.Move.XY(13097.0, 26393.0)
-    bot.Wait.ForMapLoad(MAP_BOGROOT_L1)
-    
-    # Exit dungeon portal
-    bot.Move.XY(14600.0, 470.0)
-    bot.Wait.ForMapLoad(MAP_SPARKFLY)
-    bot.Move.XY(11562.77, 24059.0)
-    bot.Move.XY(11161.13, 23562.64)
-    bot.Move.XY(12120.30, 22588.55)
-    
-    ConsoleLog(BOT_NAME, "Dungeon reset complete - Restarting...")
+    bot.Wait.ForTime(4000)
+    bot.States.AddCustomState(_verify_reward_taken_from_quest_log, "Verify reward from quest log")
+
+
+    # ===== NEXT RUN =====
+    bot.Wait.ForMapToChange(target_map_name="Sparkfly Swamp")
+    bot.States.AddCustomState(lambda: _post_return_flow(bot), "Post-return quest handling")
     
     # ===== LOOP =====
     bot.States.JumpToStepName("LOOP_RESTART_POINT")
