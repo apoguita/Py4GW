@@ -6,6 +6,7 @@ from Sources.oazix.CustomBehaviors.primitives.helpers import custom_behavior_hel
 from Sources.oazix.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
+from Sources.oazix.CustomBehaviors.primitives.parties.shared_lock_manager import ShareLockType
 from Sources.oazix.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
@@ -79,12 +80,12 @@ class EmoReadinessUtility(CustomSkillUtilityBase):
         # Check if team is fully buffed
         if self._is_team_buffed():
             # Team is buffed, release lock if we have it
-            if lock_manager.is_any_lock_taken():
+            if lock_manager.is_any_lock_taken(ShareLockType.ACTIONS):
                 lock_manager.release_lock(self.lock_key)
             return None
 
         # Team is not buffed yet, return score only if we don't have the lock yet
-        if not lock_manager.is_any_lock_taken():
+        if not lock_manager.is_any_lock_taken(ShareLockType.ACTIONS):
             return self.score_definition.get_score()
 
         return None
@@ -98,7 +99,7 @@ class EmoReadinessUtility(CustomSkillUtilityBase):
         lock_manager = CustomBehaviorParty().get_shared_lock_manager()
 
         # Try to acquire lock
-        if lock_manager.try_aquire_lock(self.lock_key, timeout_seconds=30):
+        if lock_manager.try_aquire_lock(self.lock_key, timeout_seconds=30, lock_type=ShareLockType.ACTIONS):
             print(f"EmoReadinessUtility: Lock acquired")
         else:
             # Someone else has the lock, skip
@@ -117,7 +118,7 @@ class EmoReadinessUtility(CustomSkillUtilityBase):
     def customized_debug_ui(self, current_state: BehaviorState) -> None:
         import PyImGui
         lock_manager = CustomBehaviorParty().get_shared_lock_manager()
-        PyImGui.text(f"Lock taken: {lock_manager.is_any_lock_taken()}")
+        PyImGui.text(f"Lock taken: {lock_manager.is_any_lock_taken(ShareLockType.ACTIONS)}")
         PyImGui.text(f"Team buffed: {self._is_team_buffed()}")
 
         # Show individual utility status

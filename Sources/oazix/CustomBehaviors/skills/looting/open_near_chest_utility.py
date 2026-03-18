@@ -17,6 +17,7 @@ from Sources.oazix.CustomBehaviors.primitives.helpers.behavior_result import Beh
 from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Sources.oazix.CustomBehaviors.primitives.helpers.cooldown_timer import CooldownTimer
 from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
+from Sources.oazix.CustomBehaviors.primitives.parties.shared_lock_manager import ShareLockType
 from Sources.oazix.CustomBehaviors.primitives.scores.comon_score import CommonScore
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
@@ -98,7 +99,7 @@ class OpenNearChestUtility(CustomSkillUtilityBase):
             yield
             return BehaviorResult.ACTION_SKIPPED
 
-        if CustomBehaviorParty().get_shared_lock_manager().try_aquire_lock(lock_key) == False:
+        if CustomBehaviorParty().get_shared_lock_manager().try_aquire_lock(lock_key, lock_type=ShareLockType.ACTIONS) == False:
             # print(f"open_near_chest_utility_ FAIL try_aquire_lock")
             yield
             return BehaviorResult.ACTION_SKIPPED
