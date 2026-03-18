@@ -146,7 +146,7 @@ def Radar(bot: "Botting"):
         enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda a: Agent.IsAlive(a))
         closest_enemy = next(iter(enemy_array), 0)
         
-        if not closest_enemy == 0:
+        if closest_enemy != 0:
             closest_enemy_coord = Agent.GetXY(closest_enemy)
             ConsoleLog("Radar", f"Enemy detected at {closest_enemy_coord}.", Py4GW.Console.MessageType.Debug, True)
             bot.config.FSM.pause()
@@ -217,8 +217,12 @@ def _draw_settings():
         _farm_configured[0] = True      
 
     PyImGui.separator()   
-    if PyImGui.button("Travel to Embark Beach", 250, 30):
-        Map.Travel(857)
+    if Map.GetMapID() != 857:
+        if PyImGui.button("Travel to Embark Beach", 250, 30):
+            Map.Travel(857)
+    else:
+        if PyImGui.button("Move to Vanquish signpost", 250, 30):   
+            Player.Move(-428.00, -3439.00)
 
     _draw_settings_consumables()
     #_draw_settings_debug()
