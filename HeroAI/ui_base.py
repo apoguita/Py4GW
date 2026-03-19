@@ -48,6 +48,10 @@ class HeroAI_BaseUI:
     _build_match_rows: list[tuple[int, str, int, int, str, str, str]] = []
     _build_match_signature_cache: dict[int, tuple[tuple[int, int, tuple[int, ...]], tuple[int, str, int, int, str, str, str]]] = {}
     _build_registry = None
+    _supported_build_selected_key = ""
+    _supported_build_selected_skill_id = 0
+    _supported_build_last_detail_key = ""
+    _supported_builds_cache: dict[str, dict[str, object]] = {}
     _profession_palette_names = {
         1: "GW_Warrior",
         2: "GW_Ranger",
@@ -585,44 +589,345 @@ class HeroAI_BaseUI:
         ConsoleLog("HeroAI", "=== End Build Match Debug Dump ===")
 
     @staticmethod
+    def _get_supported_build_groups(registry) -> list[tuple[str, list[tuple[str, list[str]]]]]:
+        grouped_builds: dict[str, dict[str, list[str]]] = {}
+
+        for build in registry._iter_matchable_builds(match_only=True):
+            module_parts = build.__class__.__module__.split(".")
+            profession_group = module_parts[2] if len(module_parts) > 2 else "Other"
+            combo_group = module_parts[3] if len(module_parts) > 3 else "General"
+            build_name = str(getattr(build, "build_name", "") or build.__class__.__name__)
+
+            profession_entry = grouped_builds.setdefault(profession_group, {})
+            combo_entry = profession_entry.setdefault(combo_group, [])
+            if build_name not in combo_entry:
+                combo_entry.append(build_name)
+
+        supported_groups: list[tuple[str, list[tuple[str, list[str]]]]] = []
+        for profession_group in sorted(grouped_builds):
+            combo_groups: list[tuple[str, list[str]]] = []
+            for combo_group in sorted(grouped_builds[profession_group]):
+                combo_groups.append((combo_group, sorted(grouped_builds[profession_group][combo_group])))
+            supported_groups.append((profession_group, combo_groups))
+        return supported_groups
+
+    @staticmethod
+    def _draw_build_matches_tab() -> None:
+        if not HeroAI_BaseUI._build_match_rows:
+            PyImGui.text("No party accounts available.")
+            return
+
+        for party_pos, character_name, primary_value, secondary_value, profession_label, build_name, source_label in HeroAI_BaseUI._build_match_rows:
+            PyImGui.text(f"{party_pos + 1}. {character_name}")
+            if profession_label:
+                PyImGui.same_line(220, 0)
+                primary_prof = HeroAI_BaseUI._profession_label(primary_value)
+                secondary_prof = HeroAI_BaseUI._profession_label(secondary_value)
+                if secondary_prof:
+                    PyImGui.text_colored(primary_prof, HeroAI_BaseUI._profession_color(primary_value).to_tuple_normalized())
+                    PyImGui.same_line(0, 0)
+                    PyImGui.text("/")
+                    PyImGui.same_line(0, 0)
+                    PyImGui.text_colored(secondary_prof, HeroAI_BaseUI._profession_color(secondary_value).to_tuple_normalized())
+                else:
+                    PyImGui.text_colored(primary_prof, HeroAI_BaseUI._profession_color(primary_value).to_tuple_normalized())
+            build_color = ColorPalette.GetColor("dodger_blue") if source_label == "Matched" else ColorPalette.GetColor("gw_gold")
+            PyImGui.text("Build:")
+            PyImGui.same_line(220, 0)
+            PyImGui.text_colored(build_name, build_color.to_tuple_normalized())
+            PyImGui.same_line(0, 14)
+            status_color = ColorPalette.GetColor("dodger_blue") if source_label == "Matched" else ColorPalette.GetColor("gw_gold")
+            PyImGui.text_colored(source_label, status_color.to_tuple_normalized())
+            PyImGui.separator()
+
+    @staticmethod
+    def _build_browser_catalog(registry) -> list[dict[str, object]]:
+        grouped_builds: dict[str, dict[str, list[dict[str, object]]]] = {}
+        build_catalog: dict[str, dict[str, object]] = {}
+
+        for build in registry._iter_matchable_builds(match_only=True):
+            module_parts = build.__class__.__module__.split(".")
+            profession_group = module_parts[2] if len(module_parts) > 2 else "Other"
+            combo_group = module_parts[3] if len(module_parts) > 3 else "General"
+            build_name = str(getattr(build, "build_name", "") or build.__class__.__name__)
+            build_key = f"{build.__class__.__module__}.{build.__class__.__name__}"
+            required_skills = [int(skill_id) for skill_id in getattr(build, "required_skills", []) if int(skill_id) != 0]
+            optional_skills = [int(skill_id) for skill_id in getattr(build, "optional_skills", []) if int(skill_id) != 0]
+            supported_skills = [int(skill_id) for skill_id in build.GetSupportedSkills() if int(skill_id) != 0]
+
+            build_info = {
+                "key": build_key,
+                "name": build_name,
+                "class_name": build.__class__.__name__,
+                "template_code": str(getattr(build, "template_code", "") or ""),
+                "required_primary": int(getattr(build.required_primary, "value", 0)),
+                "required_secondary": int(getattr(build.required_secondary, "value", 0)),
+                "required_skills": required_skills,
+                "optional_skills": optional_skills,
+                "supported_skills": supported_skills,
+                "profession_group": profession_group,
+                "combo_group": combo_group,
+            }
+            build_catalog[build_key] = build_info
+
+            profession_entry = grouped_builds.setdefault(profession_group, {})
+            combo_entry = profession_entry.setdefault(combo_group, [])
+            combo_entry.append(build_info)
+
+        if not HeroAI_BaseUI._supported_build_selected_key and build_catalog:
+            HeroAI_BaseUI._supported_build_selected_key = next(iter(build_catalog.keys()))
+        elif HeroAI_BaseUI._supported_build_selected_key not in build_catalog:
+            HeroAI_BaseUI._supported_build_selected_key = next(iter(build_catalog.keys()), "")
+
+        HeroAI_BaseUI._supported_builds_cache = build_catalog
+
+        supported_groups: list[dict[str, object]] = []
+        for profession_group in sorted(grouped_builds):
+            combo_groups: list[dict[str, object]] = []
+            profession_count = 0
+            for combo_group in sorted(grouped_builds[profession_group]):
+                builds = sorted(grouped_builds[profession_group][combo_group], key=lambda item: str(item["name"]))
+                profession_count += len(builds)
+                combo_groups.append({
+                    "name": combo_group,
+                    "count": len(builds),
+                    "builds": builds,
+                })
+            supported_groups.append({
+                "name": profession_group,
+                "count": profession_count,
+                "combo_groups": combo_groups,
+            })
+        return supported_groups
+
+    @staticmethod
+    def _copy_build_template_to_clipboard(template_code: str) -> None:
+        if template_code:
+            PyImGui.set_clipboard_text(template_code)
+
+    @staticmethod
+    def _get_selected_supported_skill(skill_ids: list[int]) -> int:
+        normalized_skill_ids = [int(skill_id) for skill_id in skill_ids if int(skill_id) != 0]
+        if not normalized_skill_ids:
+            HeroAI_BaseUI._supported_build_selected_skill_id = 0
+            return 0
+        if HeroAI_BaseUI._supported_build_selected_skill_id not in normalized_skill_ids:
+            HeroAI_BaseUI._supported_build_selected_skill_id = normalized_skill_ids[0]
+        return HeroAI_BaseUI._supported_build_selected_skill_id
+
+    @staticmethod
+    def _draw_skill_info_card(skill_id: int, compact: bool = False, tooltip: bool = False) -> None:
+        if int(skill_id) == 0:
+            return
+
+        texture_path = GLOBAL_CACHE.Skill.ExtraData.GetTexturePath(skill_id)
+        skill_name = GLOBAL_CACHE.Skill.GetNameFromWiki(skill_id) or GLOBAL_CACHE.Skill.GetName(skill_id) or str(skill_id)
+        profession_value, profession_name = GLOBAL_CACHE.Skill.GetProfession(skill_id)
+        _skill_type_value, skill_type_name = GLOBAL_CACHE.Skill.GetType(skill_id)
+        energy_cost = int(GLOBAL_CACHE.Skill.Data.GetEnergyCost(skill_id))
+        adrenaline_cost = int(GLOBAL_CACHE.Skill.Data.GetAdrenaline(skill_id))
+        health_cost = int(GLOBAL_CACHE.Skill.Data.GetHealthCost(skill_id))
+        overcast_cost = int(GLOBAL_CACHE.Skill.Data.GetOvercast(skill_id))
+        activation_time = float(GLOBAL_CACHE.Skill.Data.GetActivation(skill_id))
+        aftercast_time = float(GLOBAL_CACHE.Skill.Data.GetAftercast(skill_id))
+        recharge_time = int(GLOBAL_CACHE.Skill.Data.GetRecharge(skill_id))
+        is_elite = bool(GLOBAL_CACHE.Skill.Flags.IsElite(skill_id))
+        campaign_name = GLOBAL_CACHE.Skill.GetCampaign(skill_id)[1]
+        concise_description = GLOBAL_CACHE.Skill.GetConciseDescription(skill_id) or GLOBAL_CACHE.Skill.GetDescription(skill_id) or ""
+
+        accent = HeroAI_BaseUI._profession_color(int(profession_value))
+        title_color = ColorPalette.GetColor("gw_gold") if is_elite else ColorPalette.GetColor("white")
+        icon_size = 56 if compact else 72
+        wrap_width = 360 if compact or tooltip else 520
+
+        PyImGui.begin_group()
+        ImGui.DrawTexture(texture_path, icon_size, icon_size)
+        PyImGui.same_line(0, 12)
+        PyImGui.begin_group()
+        ImGui.push_font("Bold", 16 if compact else 18)
+        PyImGui.text_colored(skill_name, title_color.to_tuple_normalized())
+        ImGui.pop_font()
+        PyImGui.text_colored(f"{profession_name} | {skill_type_name}", accent.to_tuple_normalized())
+        PyImGui.text_colored(campaign_name, ColorPalette.GetColor("gray").to_tuple_normalized())
+
+        meta_parts: list[str] = []
+        if health_cost > 0:
+            meta_parts.append(f"HP {health_cost}%")
+        if overcast_cost > 0:
+            meta_parts.append(f"OC {overcast_cost}")
+        if energy_cost > 0:
+            meta_parts.append(f"E {energy_cost}")
+        if adrenaline_cost > 0:
+            meta_parts.append(f"A {adrenaline_cost}")
+        if activation_time > 0:
+            meta_parts.append(f"Cast {activation_time:.2f}s")
+        if aftercast_time > 0 and not compact:
+            meta_parts.append(f"After {aftercast_time:.2f}s")
+        if recharge_time > 0:
+            meta_parts.append(f"Recharge {recharge_time}s")
+        if not meta_parts:
+            meta_parts.append(skill_type_name)
+        PyImGui.text(" | ".join(meta_parts))
+        PyImGui.push_text_wrap_pos(wrap_width)
+        PyImGui.text_wrapped(concise_description)
+        PyImGui.pop_text_wrap_pos()
+        PyImGui.end_group()
+        PyImGui.end_group()
+
+    @staticmethod
+    def _draw_skill_icon_grid(skill_ids: list[int], section_name: str) -> None:
+        PyImGui.text(f"{section_name} ({len(skill_ids)})")
+        if not skill_ids:
+            PyImGui.text_colored("None", ColorPalette.GetColor("gray").to_tuple_normalized())
+            return
+
+        cards_per_row = 8
+        for index, skill_id in enumerate(skill_ids):
+            is_selected = HeroAI_BaseUI._supported_build_selected_skill_id == int(skill_id)
+            if ImGui.image_toggle_button(f"{section_name}_{index}_{skill_id}", GLOBAL_CACHE.Skill.ExtraData.GetTexturePath(skill_id), is_selected, 42, 42):
+                HeroAI_BaseUI._supported_build_selected_skill_id = int(skill_id)
+
+            if PyImGui.is_item_hovered():
+                if PyImGui.begin_tooltip():
+                    HeroAI_BaseUI._draw_skill_info_card(int(skill_id), compact=True, tooltip=True)
+                    PyImGui.end_tooltip()
+
+            if (index + 1) % cards_per_row != 0 and index + 1 < len(skill_ids):
+                PyImGui.same_line(0, 8)
+
+    @staticmethod
+    def _draw_supported_build_details(selected_build: dict[str, object] | None) -> None:
+        if not selected_build:
+            PyImGui.text("Select a build from the tree to inspect its details.")
+            return
+
+        build_name = str(selected_build["name"])
+        build_key = str(selected_build["key"])
+        class_name = str(selected_build["class_name"])
+        template_code = str(selected_build["template_code"])
+        required_primary = int(selected_build["required_primary"])
+        required_secondary = int(selected_build["required_secondary"])
+        required_skills = list(selected_build["required_skills"])
+        optional_skills = list(selected_build["optional_skills"])
+        supported_skills = list(selected_build["supported_skills"])
+        all_detail_skills = list(dict.fromkeys([*required_skills, *optional_skills, *supported_skills]))
+
+        if HeroAI_BaseUI._supported_build_last_detail_key != build_key:
+            HeroAI_BaseUI._supported_build_last_detail_key = build_key
+            HeroAI_BaseUI._supported_build_selected_skill_id = int(all_detail_skills[0]) if all_detail_skills else 0
+
+        selected_skill_id = HeroAI_BaseUI._get_selected_supported_skill(all_detail_skills)
+
+        ImGui.push_font("Bold", 18)
+        PyImGui.text(build_name)
+        ImGui.pop_font()
+        PyImGui.text_colored(class_name, ColorPalette.GetColor("gray").to_tuple_normalized())
+        PyImGui.separator()
+
+        PyImGui.text("Professions")
+        primary_label = HeroAI_BaseUI._profession_label(required_primary) or "Any"
+        secondary_label = HeroAI_BaseUI._profession_label(required_secondary) or "Any"
+        PyImGui.text_colored(primary_label, HeroAI_BaseUI._profession_color(required_primary).to_tuple_normalized())
+        PyImGui.same_line(0, 8)
+        PyImGui.text("/")
+        PyImGui.same_line(0, 8)
+        PyImGui.text_colored(secondary_label, HeroAI_BaseUI._profession_color(required_secondary).to_tuple_normalized())
+        PyImGui.separator()
+
+        PyImGui.text("Template")
+        if template_code:
+            PyImGui.text_wrapped(template_code)
+            if PyImGui.button("Copy Template##copy_supported_build_template"):
+                HeroAI_BaseUI._copy_build_template_to_clipboard(template_code)
+        else:
+            PyImGui.text_colored("No template code.", ColorPalette.GetColor("gray").to_tuple_normalized())
+        PyImGui.separator()
+
+        HeroAI_BaseUI._draw_skill_icon_grid(required_skills, "Required Skills")
+        PyImGui.separator()
+        HeroAI_BaseUI._draw_skill_icon_grid(optional_skills, "Supported Extras")
+        PyImGui.separator()
+        HeroAI_BaseUI._draw_skill_icon_grid(supported_skills, "All Supported Skills")
+        PyImGui.separator()
+        PyImGui.text("Selected Skill")
+        if PyImGui.begin_child("SupportedBuildSelectedSkillPane", (0, 220), True, PyImGui.WindowFlags.NoFlag):
+            if selected_skill_id:
+                HeroAI_BaseUI._draw_skill_info_card(selected_skill_id, compact=False)
+            else:
+                PyImGui.text("Select a skill icon to inspect it here.")
+            PyImGui.end_child()
+
+    @staticmethod
+    def _draw_supported_builds_tab(registry) -> None:
+        supported_groups = HeroAI_BaseUI._build_browser_catalog(registry)
+        if not supported_groups:
+            PyImGui.text("No supported matchable builds discovered.")
+            return
+
+        PyImGui.text("Browse supported builds and inspect what the matcher can inherit from.")
+        PyImGui.separator()
+
+        avail_x, _avail_y = PyImGui.get_content_region_avail()
+        tree_width = min(320.0, max(250.0, avail_x * 0.34))
+        details_width = max(260.0, avail_x - tree_width - 16.0)
+
+        if PyImGui.begin_child("SupportedBuildTreePane", (tree_width, 0), True, PyImGui.WindowFlags.NoFlag):
+            for profession_group in supported_groups:
+                profession_name = str(profession_group["name"])
+                profession_count = int(profession_group["count"])
+                if not PyImGui.tree_node(f"{profession_name} ({profession_count})##supported_{profession_name}"):
+                    continue
+
+                for combo_group in profession_group["combo_groups"]:
+                    combo_name = str(combo_group["name"])
+                    combo_count = int(combo_group["count"])
+                    if not PyImGui.tree_node(f"{combo_name} ({combo_count})##supported_{profession_name}_{combo_name}"):
+                        continue
+
+                    for build_info in combo_group["builds"]:
+                        build_key = str(build_info["key"])
+                        build_name = str(build_info["name"])
+                        is_selected = HeroAI_BaseUI._supported_build_selected_key == build_key
+                        if ImGui.selectable(f"{build_name}##supported_build_{build_key}", is_selected, PyImGui.SelectableFlags.NoFlag, (0, 0)):
+                            HeroAI_BaseUI._supported_build_selected_key = build_key
+
+                    PyImGui.tree_pop()
+
+                PyImGui.tree_pop()
+            PyImGui.end_child()
+
+        PyImGui.same_line(0, 12)
+
+        if PyImGui.begin_child("SupportedBuildDetailsPane", (details_width, 0), True, PyImGui.WindowFlags.NoFlag):
+            selected_build = HeroAI_BaseUI._supported_builds_cache.get(HeroAI_BaseUI._supported_build_selected_key)
+            HeroAI_BaseUI._draw_supported_build_details(selected_build)
+            PyImGui.end_child()
+
+    @staticmethod
     def DrawBuildMatchesWindow(cached_data: CacheData):
         if not HeroAI_BaseUI.show_build_match_window:
             return
 
         HeroAI_BaseUI._refresh_build_match_rows(cached_data)
+        registry = HeroAI_BaseUI._get_build_registry()
+        PyImGui.set_next_window_size((980, 720), PyImGui.ImGuiCond.FirstUseEver)
 
-        if ImGui.Begin(ini_key=cached_data.ini_key, name="HeroAI Build Matches", p_open=True, flags=PyImGui.WindowFlags.AlwaysAutoResize):
-            PyImGui.text("Resolved from each account's shared-memory profession pair and skillbar.")
-            PyImGui.same_line(0, 12)
-            if PyImGui.button("Debug##build_match_debug"):
-                HeroAI_BaseUI._dump_build_match_debug(cached_data)
-            PyImGui.separator()
-
-            if not HeroAI_BaseUI._build_match_rows:
-                PyImGui.text("No party accounts available.")
-            else:
-                for party_pos, character_name, primary_value, secondary_value, profession_label, build_name, source_label in HeroAI_BaseUI._build_match_rows:
-                    PyImGui.text(f"{party_pos + 1}. {character_name}")
-                    if profession_label:
-                        PyImGui.same_line(220, 0)
-                        primary_prof = HeroAI_BaseUI._profession_label(primary_value)
-                        secondary_prof = HeroAI_BaseUI._profession_label(secondary_value)
-                        if secondary_prof:
-                            PyImGui.text_colored(primary_prof, HeroAI_BaseUI._profession_color(primary_value).to_tuple_normalized())
-                            PyImGui.same_line(0, 0)
-                            PyImGui.text("/")
-                            PyImGui.same_line(0, 0)
-                            PyImGui.text_colored(secondary_prof, HeroAI_BaseUI._profession_color(secondary_value).to_tuple_normalized())
-                        else:
-                            PyImGui.text_colored(primary_prof, HeroAI_BaseUI._profession_color(primary_value).to_tuple_normalized())
-                    build_color = ColorPalette.GetColor("dodger_blue") if source_label == "Matched" else ColorPalette.GetColor("gw_gold")
-                    PyImGui.text("Build:")
-                    PyImGui.same_line(220, 0)
-                    PyImGui.text_colored(build_name, build_color.to_tuple_normalized())
-                    PyImGui.same_line(0, 14)
-                    status_color = ColorPalette.GetColor("dodger_blue") if source_label == "Matched" else ColorPalette.GetColor("gw_gold")
-                    PyImGui.text_colored(source_label, status_color.to_tuple_normalized())
+        if ImGui.Begin(ini_key=cached_data.ini_key, name="HeroAI Build Matches", p_open=True, flags=PyImGui.WindowFlags.NoFlag):
+            if PyImGui.begin_tab_bar("HeroAIBuildMatchTabs"):
+                if PyImGui.begin_tab_item("Matches"):
+                    PyImGui.text("Resolved from each account's shared-memory profession pair and skillbar.")
+                    PyImGui.same_line(0, 12)
+                    if PyImGui.button("Debug##build_match_debug"):
+                        HeroAI_BaseUI._dump_build_match_debug(cached_data)
                     PyImGui.separator()
+                    HeroAI_BaseUI._draw_build_matches_tab()
+                    PyImGui.end_tab_item()
+
+                if PyImGui.begin_tab_item("Supported Builds"):
+                    HeroAI_BaseUI._draw_supported_builds_tab(registry)
+                    PyImGui.end_tab_item()
+
+                PyImGui.end_tab_bar()
 
         ImGui.End(cached_data.ini_key)
 

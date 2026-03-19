@@ -4,7 +4,7 @@ from Py4GWCoreLib.BuildMgr import BuildRegistry
 
 
 class HeroAI(BuildMgr):
-    def __init__(self, cached_data=None):
+    def __init__(self, cached_data=None, standalone_fallback: bool = False, match_only: bool = False):
         super().__init__(
             name="HeroAI",
             template_code="HEROAI",
@@ -12,6 +12,12 @@ class HeroAI(BuildMgr):
             IsFixedBuild=True,
         )
         self._cached_data = cached_data
+        self._standalone_fallback = standalone_fallback
+        if match_only:
+            self._build_registry = None
+            self._contract_map_signature = None
+            self._contract_build = None
+            return
         self._build_registry = BuildRegistry(
             default_fallback_name=self.build_name,
             build_init_kwargs={"cached_data": cached_data},
@@ -21,7 +27,8 @@ class HeroAI(BuildMgr):
 
     def set_cached_data(self, cached_data):
         self._cached_data = cached_data
-        self._build_registry.build_init_kwargs["cached_data"] = cached_data
+        if self._build_registry is not None:
+            self._build_registry.build_init_kwargs["cached_data"] = cached_data
 
     def ApplyBlockedSkillIDs(self, blocked_skill_ids: list[int] | None = None) -> None:
         cached_data = self._get_cached_data()
@@ -34,7 +41,8 @@ class HeroAI(BuildMgr):
             from HeroAI.cache_data import CacheData
 
             self._cached_data = CacheData()
-            self._build_registry.build_init_kwargs["cached_data"] = self._cached_data
+            if self._build_registry is not None:
+                self._build_registry.build_init_kwargs["cached_data"] = self._cached_data
         return self._cached_data
 
     def _get_map_signature(self) -> tuple[int, int, int, int]:
@@ -66,6 +74,12 @@ class HeroAI(BuildMgr):
             if self._contract_build is self:
                 self.set_cached_data(cached_data)
             return self._contract_build
+
+        if self._standalone_fallback:
+            self.set_cached_data(cached_data)
+            self._contract_map_signature = map_signature
+            self._contract_build = self
+            return self
 
         resolved_build = self._build_registry.ResolveBuild(
             fallback_name=self.build_name,

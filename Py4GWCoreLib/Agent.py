@@ -301,7 +301,17 @@ class Agent:
         if living is None:
             return False
         allegiance = Allegiance(living.allegiance)
-        return allegiance == Allegiance.SpiritPet
+        return allegiance == Allegiance.SpiritPet and Agent.IsSpawned(agent_id)
+
+    @staticmethod
+    def IsPet(agent_id: int) -> bool:
+        """Check if the agent is a pet."""
+        from .enums_src.GameData_enums import Allegiance
+        living = Agent.GetLivingAgentByID(agent_id)
+        if living is None:
+            return False
+        allegiance = Allegiance(living.allegiance)
+        return allegiance == Allegiance.SpiritPet and not Agent.IsSpawned(agent_id)
 
     @staticmethod
     def IsMinion(agent_id : int) -> bool:
@@ -1019,6 +1029,19 @@ class Agent:
         return living.weapon_type, name
 
     @staticmethod
+    def IsHoldingItem(agent_id: int) -> bool:
+        """
+        Purpose: Check if the agent is carrying a bundle / held item and cannot use a normal weapon attack.
+        Args: agent_id (int): The ID of the agent.
+        Returns: bool
+        """
+        living = Agent.GetLivingAgentByID(agent_id)
+        if living is None:
+            return False
+
+        return living.weapon_type == 0
+
+    @staticmethod
     def GetWeaponExtraData(agent_id: int) -> tuple[int, int, int, int]:
         """
         Purpose: Retrieve the weapon extra data of the agent.
@@ -1038,6 +1061,8 @@ class Agent:
         Args: agent_id (int): The ID of the agent.
         Returns: bool
         """
+        if Agent.IsPet(agent_id):
+            return True
         martial_weapon_types = ["Bow", "Axe", "Hammer", "Daggers", "Scythe", "Spear", "Sword"]
         weapon_type, weapon_name = Agent.GetWeaponType(agent_id)
         return weapon_name in martial_weapon_types
@@ -1058,6 +1083,8 @@ class Agent:
         Args: agent_id (int): The ID of the agent.
         Returns: bool
         """
+        if Agent.IsPet(agent_id):
+            return True
         melee_weapon_types = ["Axe", "Hammer", "Daggers", "Scythe", "Sword"]
         weapon_type, weapon_name = Agent.GetWeaponType(agent_id)
         return weapon_name in melee_weapon_types

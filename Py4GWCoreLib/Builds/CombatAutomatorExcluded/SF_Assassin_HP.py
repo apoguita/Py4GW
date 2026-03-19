@@ -30,7 +30,7 @@ def vector_angle(a: Tuple[float, float], b: Tuple[float, float]) -> float:
 
 #region SFAssassinBarbarous
 class SF_Assassin_Hells_Precipice(BuildMgr):
-    def __init__(self, build_danger_helper: BuildDangerHelper = BuildDangerHelper()):
+    def __init__(self, build_danger_helper: BuildDangerHelper | None = None, match_only: bool = False):
         super().__init__(
             name="SF Hells Precipice Assassin Runner",
             required_primary=Profession.Assassin,
@@ -48,6 +48,8 @@ class SF_Assassin_Hells_Precipice(BuildMgr):
                 GLOBAL_CACHE.Skill.GetID("Deaths_Charge"),
             ],
         )
+        if match_only:
+            return
         
         # Skill IDs
         self.glyph_of_swiftness = GLOBAL_CACHE.Skill.GetID("Glyph_of_Swiftness")
@@ -67,7 +69,7 @@ class SF_Assassin_Hells_Precipice(BuildMgr):
         self.is_looting = False
         self.routine_finished = False
 
-        self.build_danger_helper = build_danger_helper
+        self.build_danger_helper = build_danger_helper if build_danger_helper is not None else BuildDangerHelper()
 
     def SetRoutineFinished(self, routine_finished: bool):
         self.routine_finished = routine_finished

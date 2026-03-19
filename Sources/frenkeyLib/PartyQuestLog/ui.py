@@ -114,6 +114,7 @@ class UI():
             grouped_quests : dict[str, list[QuestNode]] = {}
             avail = PyImGui.get_content_region_avail()
             _, height = avail[0], avail[1] / 2
+            textured = style.Theme in ImGui.Textured_Themes
                     
             if quest_data.mission_map_quest is not None:
                 grouped_quests.setdefault(quest_data.mission_map_quest.quest_location, []).append(quest_data.mission_map_quest)

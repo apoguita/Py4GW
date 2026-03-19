@@ -162,13 +162,20 @@ def _farthest_from(array, origin_x: float, origin_y: float, max_dist: float = 0)
 # ── Build class ───────────────────────────────────────────────────────────────
 
 class KeiranThackerayEOTN(BuildMgr):
-    def __init__(self, fsm=None, bot=None, debug_fn: Optional[Callable[[], bool]] = None):
+    def __init__(self, fsm=None, bot=None, debug_fn: Optional[Callable[[], bool]] = None, match_only: bool = False):
         super().__init__(
             name="Keiran Thackeray EOTN",
             template_code="KeiranEOTN",
             fallback_name="AutoCombat",
             IsFixedBuild=True,
         )
+        if match_only:
+            self.debug_fn = debug_fn if debug_fn is not None else (lambda: False)
+            self.fsm = fsm
+            self.bot = bot
+            self.pause_reasons = set()
+            self.ai_paused_fsm = False
+            return
         self.debug_fn: Callable[[], bool] = debug_fn if debug_fn is not None else (lambda: False)
         self.SetFallback("AutoCombat", AutoCombat())
 

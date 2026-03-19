@@ -18,7 +18,7 @@ class _WAIT:
     #region coroutines (_coro_)
     def _coro_for_time(self, duration: int = 100):
         from ...Routines import Routines
-        yield from Routines.Yield.wait(duration)
+        yield from Routines.Yield.wait(duration, break_on_map_transition=True)
         
     def _coro_for_map_load(self, target_map_id, target_map_name=""):
         from ...Routines import Routines

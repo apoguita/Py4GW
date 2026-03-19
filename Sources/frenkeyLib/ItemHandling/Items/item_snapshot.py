@@ -1,6 +1,7 @@
 
 from typing import Optional
 
+import Py4GW
 from PyItem import DyeInfo, PyItem
 
 from Py4GWCoreLib.Item import Item
@@ -19,6 +20,12 @@ class ItemSnapshot:
         
         self.id: int = item_id
         self.is_valid: bool = item.IsItemValid(item_id) if item else False
+                
+        self.name_enc = bytes(PyItem.GetNameEnc(item_id)) if item_id > 0 and self.is_valid else None
+        self.info_string = "DISABLED"  # PyItem.GetInfoString(item_id) if item_id > 0 and self.is_valid else None
+        self.singular_name = bytes(PyItem.GetSingleItemName(item_id)) if item_id > 0 and self.is_valid else None
+        self.complete_name_enc = bytes(PyItem.GetCompleteNameEnc(item_id)) if item_id > 0 and self.is_valid else None
+                
         self.model_id: int = item.model_id if item else -1
         self.model_file_id: int = item.model_file_id if item else -1
         self.item_type: ItemType = ItemType(
@@ -62,10 +69,10 @@ class ItemSnapshot:
         self.inscription : Optional[Upgrade] = None
         
         self.modifiers = Item.Customization.Modifiers.GetModifiers(item_id)
-        parser = ItemModifierParser(self.modifiers)
+        parser = ItemModifierParser(self.modifiers, self.rarity)
         self.properties = parser.get_properties()
         
-        self.prefix, self.suffix, self.inscription = ItemMod.get_item_upgrades_from_properties(self.properties)
+        self.prefix, self.suffix, self.inscription = ItemMod.get_item_upgrades_from_properties(self.properties, self.rarity)
         
         requirement = next((p for p in self.properties if isinstance(p, AttributeRequirement)), None)        
         self.attribute = requirement.attribute if requirement else Attribute.None_
@@ -106,9 +113,9 @@ class ItemSnapshot:
         
         self.modifiers = Item.Customization.Modifiers.GetModifiers(self.id)
         
-        parser = ItemModifierParser(self.modifiers)
+        parser = ItemModifierParser(self.modifiers, self.rarity)
         self.properties = parser.get_properties()
-        self.prefix, self.suffix, self.inscription = ItemMod.get_item_upgrades_from_properties(self.properties)
+        self.prefix, self.suffix, self.inscription = ItemMod.get_item_upgrades_from_properties(self.properties, self.rarity)
         
     
     @staticmethod
@@ -127,3 +134,18 @@ class ItemSnapshot:
             return color if color is not None else DyeColor.NoColor
 
         return DyeColor.NoColor
+    
+    @classmethod
+    def create(cls, item_id: int, item_instance: Optional[PyItem] = None) -> 'Optional[ItemSnapshot]':
+        """
+        Create an item snapshot for the given item ID and instance.
+        Args:
+            item_id (int): The ID of the item to create a snapshot for.
+            item_instance (Optional[PyItem]): An optional PyItem instance to use for creating the snapshot. If not provided, a new instance will be created based on the item ID.
+        Returns:
+            ItemSnapshot: The created item snapshot.
+        """
+        item = item_instance if item_instance is not None else Item.item_instance(item_id) if item_id > 0 else None
+        is_valid = item.IsItemValid(item_id) if item else False
+        
+        return cls(item_id, item) if is_valid else None

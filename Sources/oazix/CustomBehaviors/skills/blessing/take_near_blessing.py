@@ -18,6 +18,7 @@ from Sources.oazix.CustomBehaviors.primitives.helpers import blessing_helper, cu
 from Sources.oazix.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
+from Sources.oazix.CustomBehaviors.primitives.parties.shared_lock_manager import ShareLockType
 from Sources.oazix.CustomBehaviors.primitives.scores.comon_score import CommonScore
 from Sources.oazix.CustomBehaviors.primitives.scores.score_definition import ScoreDefinition
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
@@ -102,7 +103,7 @@ class TakeNearBlessingUtility(CustomSkillUtilityBase):
         lock_key = f"take_near_blessing_{agent_id}"
 
         try:
-            lock_acquired = yield from CustomBehaviorParty().get_shared_lock_manager().wait_aquire_lock(lock_key, timeout_seconds=30)
+            lock_acquired = yield from CustomBehaviorParty().get_shared_lock_manager().wait_aquire_lock(lock_key, timeout_seconds=30, lock_type=ShareLockType.ACTIONS)
             if not lock_acquired:
                 if constants.DEBUG:
                     print(f"Fail acquiring lock {lock_key}.")

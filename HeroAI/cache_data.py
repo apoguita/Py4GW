@@ -55,6 +55,7 @@ class GameData:
             return False
         
         #Player data
+        self.weapon_type = Agent.GetWeaponType(Player.GetAgentID())[0]
         attributes = Agent.GetAttributes(Player.GetAgentID())
         self.fast_casting_exists = False
         self.fast_casting_level = 0
