@@ -23,7 +23,6 @@ class Ether_Renewal_Prot_Infuser(BuildMgr):
             required_primary=Profession.Elementalist,
             required_secondary=Profession.Monk,
             template_code="OgNDwaTPHzse1iWAAAAAAA",
-            is_template_only=True,
             required_skills=[
                 Aura_of_Restoration_ID,
                 Ether_Renewal_ID,
