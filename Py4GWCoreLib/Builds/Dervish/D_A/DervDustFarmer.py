@@ -27,7 +27,7 @@ class DervBuildFarmStatus:
 
 
 class DervDustFarmer(BuildMgr):
-    def __init__(self):
+    def __init__(self, match_only: bool = False):
         super().__init__(
             name="Derv Dust Farmer",
             required_primary=Profession.Dervish,
@@ -44,6 +44,8 @@ class DervDustFarmer(BuildMgr):
                 GLOBAL_CACHE.Skill.GetID("Mystic_Regeneration"),
             ],
         )
+        if match_only:
+            return
 
         self.SetFallback("AutoCombat", AutoCombat())
         # assign extra skill attributes from the already populated self.skills

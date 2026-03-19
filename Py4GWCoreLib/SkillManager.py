@@ -481,8 +481,7 @@ def _AreCastConditionsMet(slot,
 
             if (skills[slot].skill_id == unique_skills.clamor_of_souls):
                 energy = player_energy < Conditions.LessEnergy
-                weapon_type, _ = Agent.GetWeaponType(Player.GetAgentID())
-                return energy and weapon_type == 0
+                return energy and Agent.IsHoldingItem(Player.GetAgentID())
 
             if (skills[slot].skill_id == unique_skills.waste_not_want_not):
                 energy = player_energy < Conditions.LessEnergy
@@ -789,8 +788,7 @@ def _AreCastConditionsMet(slot,
                 number_of_features += 1
 
         if Conditions.IsHoldingItem:
-            weapon_type, _ = Agent.GetWeaponType(vTarget)
-            if weapon_type == 0:
+            if Agent.IsHoldingItem(vTarget):
                 number_of_features += 1
 
         if Conditions.LessLife != 0:
@@ -1513,8 +1511,7 @@ class SkillManager:
 
                 if (self.skills[slot].skill_id == self.unique_skills.clamor_of_souls):
                     energy = self.GetEnergyValues(Player.GetAgentID()) < Conditions.LessEnergy
-                    weapon_type, _ = Agent.GetWeaponType(Player.GetAgentID())
-                    return energy and weapon_type == 0
+                    return energy and Agent.IsHoldingItem(Player.GetAgentID())
 
                 if (self.skills[slot].skill_id == self.unique_skills.waste_not_want_not):
                     energy= self.GetEnergyValues(Player.GetAgentID()) < Conditions.LessEnergy
@@ -1804,8 +1801,7 @@ class SkillManager:
                     number_of_features += 1
 
             if Conditions.IsHoldingItem:
-                weapon_type, _ = Agent.GetWeaponType(vTarget)
-                if weapon_type == 0:
+                if Agent.IsHoldingItem(vTarget):
                     number_of_features += 1
 
             if Conditions.LessLife != 0:

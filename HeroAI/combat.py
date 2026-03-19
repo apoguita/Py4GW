@@ -497,7 +497,13 @@ class CombatClass:
         elif target_allegiance == Skilltarget.Pet:
             v_target = GLOBAL_CACHE.Party.Pets.GetPetID(Player.GetAgentID())
         elif target_allegiance == Skilltarget.DeadAlly:
-            v_target = Routines.Agents.GetDeadAlly(Range.Spellcast.value)
+            dead_ally_array = AgentArray.GetDeadAllyArray()
+            dead_ally_array = AgentArray.Filter.ByDistance(dead_ally_array, Player.GetXY(), Range.Spellcast.value)
+            spirit_pet_array = AgentArray.GetSpiritPetArray()
+            spirit_pet_array = AgentArray.Filter.ByDistance(spirit_pet_array, Player.GetXY(), Range.Spellcast.value)
+            dead_ally_array = AgentArray.Manipulation.Subtract(dead_ally_array, spirit_pet_array)
+            dead_ally_array = AgentArray.Sort.ByDistance(dead_ally_array, Player.GetXY())
+            v_target = dead_ally_array[0] if dead_ally_array else 0
         elif target_allegiance == Skilltarget.Spirit:
             v_target = Routines.Agents.GetNearestSpirit(Range.Spellcast.value)
         elif target_allegiance == Skilltarget.Minion:
@@ -592,8 +598,7 @@ class CombatClass:
 
             if (self.skills[slot].skill_id == self.clamor_of_souls):
                 energy = self.GetEnergyValues(Player.GetAgentID()) < Conditions.LessEnergy
-                weapon_type, _ = Agent.GetWeaponType(Player.GetAgentID())
-                return energy and weapon_type == 0
+                return energy and Agent.IsHoldingItem(Player.GetAgentID())
 
             if (self.skills[slot].skill_id == self.waste_not_want_not):
                 energy= self.GetEnergyValues(Player.GetAgentID()) < Conditions.LessEnergy
@@ -893,8 +898,7 @@ class CombatClass:
                 number_of_features += 1
 
         if Conditions.IsHoldingItem:
-            weapon_type, _ = Agent.GetWeaponType(vTarget)
-            if weapon_type == 0:
+            if Agent.IsHoldingItem(vTarget):
                 number_of_features += 1
 
         if Conditions.LessLife != 0:
@@ -924,10 +928,14 @@ class CombatClass:
             less_life = Conditions.LessLife
             
             allies_array = GetAllAlliesArray(area)
+            allies_array = AgentArray.Filter.ByCondition(allies_array, lambda agent_id: Agent.IsAlive(agent_id))
+            if len(allies_array) == 0:
+                return False
+
             total_group_life = 0.0
             for agent in allies_array:
                 total_group_life += Agent.GetHealth(agent)
-                
+                 
             total_group_life /= len(allies_array)
             
             if total_group_life < less_life:
@@ -1165,14 +1173,18 @@ class CombatClass:
         if cached_data is None or not self.is_combat_enabled or self.in_casting_routine:
             return False
 
+        player_id = Player.GetAgentID()
+        if Agent.IsHoldingItem(player_id):
+            return False
+
         target_id = Player.GetTargetID()
         _, target_allegiance = Agent.GetAllegiance(target_id)
 
         if target_id == 0 or Agent.IsDead(target_id) or (target_allegiance != "Enemy"):
             if (
-                not Agent.IsAttacking(Player.GetAgentID())
-                and not Agent.IsCasting(Player.GetAgentID())
-                and not Agent.IsMoving(Player.GetAgentID())
+                not Agent.IsAttacking(player_id)
+                and not Agent.IsCasting(player_id)
+                and not Agent.IsMoving(player_id)
             ):
                 if self.ChooseTarget():
                     cached_data.auto_attack_timer.Reset()
@@ -1183,9 +1195,9 @@ class CombatClass:
             and cached_data.data.weapon_type != 0
         ):
             if (
-                not Agent.IsAttacking(Player.GetAgentID())
-                and not Agent.IsCasting(Player.GetAgentID())
-                and not Agent.IsMoving(Player.GetAgentID())
+                not Agent.IsAttacking(player_id)
+                and not Agent.IsCasting(player_id)
+                and not Agent.IsMoving(player_id)
             ):
                 self.ChooseTarget()
             cached_data.auto_attack_timer.Reset()

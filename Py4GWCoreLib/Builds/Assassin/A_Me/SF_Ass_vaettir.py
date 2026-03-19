@@ -14,7 +14,7 @@ from Py4GWCoreLib import Map, Player
 
 #region SFAssassinVaettir
 class SF_Ass_vaettir(BuildMgr):
-    def __init__(self):
+    def __init__(self, match_only: bool = False):
         super().__init__(
             name="Shadow Form Assassin Vaettir",
             required_primary=Profession.Assassin,
@@ -31,6 +31,8 @@ class SF_Ass_vaettir(BuildMgr):
                 GLOBAL_CACHE.Skill.GetID("Channeling"),
             ]
         )
+        if match_only:
+            return
         
 
         self.wastrels_demise_slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(GLOBAL_CACHE.Skill.GetID("Wastrels_Demise"))

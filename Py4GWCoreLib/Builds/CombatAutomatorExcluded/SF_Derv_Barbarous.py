@@ -30,7 +30,7 @@ def vector_angle(a: Tuple[float, float], b: Tuple[float, float]) -> float:
 
 #region SFAssassinBarbarous
 class SF_Derv_Barbarous(BuildMgr):
-    def __init__(self, build_danger_helper: BuildDangerHelper = BuildDangerHelper()):
+    def __init__(self, build_danger_helper: BuildDangerHelper | None = None, match_only: bool = False):
         super().__init__(
             name="SF Barbarous Shore Dervish Runner",
             required_primary=Profession.Dervish,
@@ -48,6 +48,8 @@ class SF_Derv_Barbarous(BuildMgr):
                 GLOBAL_CACHE.Skill.GetID("I_Am_Unstoppable"),
             ],
         )
+        if match_only:
+            return
         
         # Skill IDs
         self.deadly_paradox = GLOBAL_CACHE.Skill.GetID("Deadly_Paradox")
@@ -66,7 +68,7 @@ class SF_Derv_Barbarous(BuildMgr):
         self._sf_timer = ThrottledTimer(600)
         self._sf_timer.Start()
 
-        self.build_danger_helper = build_danger_helper
+        self.build_danger_helper = build_danger_helper if build_danger_helper is not None else BuildDangerHelper()
 
     def SetRoutineFinished(self, routine_finished: bool):
         self.routine_finished = routine_finished

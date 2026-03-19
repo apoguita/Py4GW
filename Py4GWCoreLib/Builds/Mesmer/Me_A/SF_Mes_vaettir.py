@@ -14,7 +14,7 @@ from Py4GWCoreLib import Map, Player
 
 # region SFMesmerVaettir
 class SF_Mes_vaettir(BuildMgr):
-    def __init__(self):
+    def __init__(self, match_only: bool = False):
         super().__init__(
             name="Shadow Form Mesmer Vaettir",
             required_primary=Profession.Mesmer,
@@ -31,6 +31,8 @@ class SF_Mes_vaettir(BuildMgr):
                 GLOBAL_CACHE.Skill.GetID("Mantra_of_Earth"),
             ],
         )
+        if match_only:
+            return
 
         self.deadly_paradox_slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(GLOBAL_CACHE.Skill.GetID("Deadly_Paradox"))
         self.shadow_form_slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(GLOBAL_CACHE.Skill.GetID("Shadow_Form"))

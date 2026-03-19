@@ -27,7 +27,7 @@ class DervBuildFarmStatus:
 
 
 class DervBoneFarmer(BuildMgr):
-    def __init__(self):
+    def __init__(self, match_only: bool = False):
         super().__init__(
             name="Derv Bone Farmer",
             required_primary=Profession.Dervish,
@@ -44,6 +44,8 @@ class DervBoneFarmer(BuildMgr):
                 GLOBAL_CACHE.Skill.GetID("I_Am_Unstoppable"),
             ],
         )
+        if match_only:
+            return
 
         self.SetFallback("AutoCombat", AutoCombat())
         # assign extra skill attributes from the already populated self.skills
