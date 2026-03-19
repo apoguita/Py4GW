@@ -407,3 +407,17 @@ class PlayerMethods:
         from ...py4gwcorelib_src.Utils import Utils
         dialog_skill_id = Utils.SkillIdToDialogId(skill_id)
         PlayerMethods.SendRawDialog(dialog_skill_id)
+
+    @staticmethod
+    def SendBalthazarSkillUnlockDialog(skill_id: int, use_pvp_remap: bool = True) -> None:
+        """
+        Unlock a skill from the Priest of Balthazar vendor.
+
+        Args:
+            skill_id: The requested skill ID to unlock
+            use_pvp_remap: Whether to remap through Skill.ExtraData.GetIDPvP(...)
+        """
+        from ...py4gwcorelib_src.Utils import Utils
+
+        dialog_skill_id = Utils.BalthazarSkillIdToDialogId(skill_id, use_pvp_remap=use_pvp_remap)
+        PlayerMethods.SendRawDialog(dialog_skill_id)
