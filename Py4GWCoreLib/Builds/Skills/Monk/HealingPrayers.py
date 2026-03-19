@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 from Py4GWCoreLib.BuildMgr import BuildCoroutine
 from Py4GWCoreLib import AgentArray, Range, Routines, Utils
 from Py4GWCoreLib.Agent import Agent
+from Py4GWCoreLib.Player import Player
 from Py4GWCoreLib.Skill import Skill
 from HeroAI.targeting import GetAllAlliesArray
 from HeroAI.types import Skilltarget
@@ -145,6 +146,84 @@ class HealingPrayers:
             healing_burst_id,
             target_agent_id,
         ))
+    #endregion
+
+    #region I
+    def Infuse_Health(self) -> BuildCoroutine:
+        infuse_health_id: int = Skill.GetID("Infuse_Health")
+        chain_count_attr = "_infuse_health_chain_count"
+
+        def _get_infuse_health_chain_count() -> int:
+            chain_count = getattr(self.build, chain_count_attr, 0)
+            return int(chain_count if isinstance(chain_count, int) else 0)
+
+        def _set_infuse_health_chain_count(chain_count: int) -> None:
+            setattr(self.build, chain_count_attr, max(0, int(chain_count)))
+
+        def _can_cast_infuse_health() -> bool:
+            current_health = Agent.GetHealth(Player.GetAgentID())
+            chain_count = _get_infuse_health_chain_count()
+            if chain_count == 0:
+                return current_health >= 0.75
+            if chain_count == 1:
+                return current_health > 0.30
+            return False
+
+        def _resolve_infuse_health_target() -> int:
+            spike_candidates = set(self.build.GetPartySpikeCandidates(
+                drop_threshold=0.10,
+                sample_interval_ms=150,
+            ))
+
+            ally_array = Routines.Targeting.GetAllAlliesArray(Range.Spellcast.value)
+            ally_array = AgentArray.Filter.ByCondition(
+                ally_array,
+                lambda agent_id: Agent.IsAlive(agent_id),
+            )
+            ally_array = AgentArray.Filter.ByCondition(
+                ally_array,
+                lambda agent_id: agent_id != Player.GetAgentID(),
+            )
+            ally_array = AgentArray.Filter.ByCondition(
+                ally_array,
+                lambda agent_id: Agent.GetHealth(agent_id) < 0.25,
+            )
+            ally_array = AgentArray.Filter.ByCondition(
+                ally_array,
+                lambda agent_id: agent_id in spike_candidates,
+            )
+
+            ally_array = list(ally_array or [])
+            ally_array.sort(
+                key=lambda agent_id: (
+                    -self.build.GetPartyHealthDelta(agent_id),
+                    Agent.GetHealth(agent_id),
+                )
+            )
+            return ally_array[0] if ally_array else 0
+
+        if not self.build.IsSkillEquipped(infuse_health_id):
+            return False
+        if Agent.GetHealth(Player.GetAgentID()) >= 0.75:
+            _set_infuse_health_chain_count(0)
+        if not _can_cast_infuse_health():
+            return False
+
+        target_agent_id = _resolve_infuse_health_target()
+        if not target_agent_id:
+            return False
+
+        if (yield from self.build.CastSkillIDAndRestoreTarget(
+            skill_id=infuse_health_id,
+            target_agent_id=target_agent_id,
+            extra_condition=_can_cast_infuse_health,
+            log=False,
+            aftercast_delay=250,
+        )):
+            _set_infuse_health_chain_count(_get_infuse_health_chain_count() + 1)
+            return True
+
+        return False
 
     #region S
 

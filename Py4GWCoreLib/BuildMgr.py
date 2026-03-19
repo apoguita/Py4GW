@@ -67,6 +67,9 @@ class BuildMgr:
         self._was_in_aggro = False
         self._local_cast_timer = ThrottledTimer(0)
         self._local_cast_timer.Stop()
+        self._party_health_monitor: dict[int, dict[str, float]] = {}
+        self._party_health_monitor_timer = ThrottledTimer(150)
+        self._party_health_monitor_timer.Stop()
 
     def set_cached_data(self, cached_data: Any) -> None:
         """
@@ -364,6 +367,87 @@ class BuildMgr:
     def ResetTarget(self) -> None:
         self.current_target_id = 0
 
+    def ResetPartyHealthMonitor(self) -> None:
+        self._party_health_monitor.clear()
+        self._party_health_monitor_timer.Stop()
+
+    def _get_party_health_sample(self) -> list[int]:
+        from Py4GWCoreLib import AgentArray, Range, Routines
+        from Py4GWCoreLib.Agent import Agent
+
+        # Routines.Targeting.GetAllAlliesArray() includes pets by merging the
+        # filtered spirit/pet array and excluding spawned spirits.
+        ally_array = Routines.Targeting.GetAllAlliesArray(Range.SafeCompass.value)
+        ally_array = AgentArray.Filter.ByCondition(
+            ally_array,
+            lambda agent_id: Agent.IsAlive(agent_id),
+        )
+        return list(ally_array or [])
+
+    def UpdatePartyHealthMonitor(
+        self,
+        *,
+        sample_interval_ms: int = 150,
+        force: bool = False,
+    ) -> dict[int, dict[str, float]]:
+        from Py4GWCoreLib.Agent import Agent
+
+        self._party_health_monitor_timer.SetThrottleTime(max(1, int(sample_interval_ms)))
+        should_sample = force or self._party_health_monitor_timer.IsStopped() or self._party_health_monitor_timer.IsExpired()
+        if not should_sample:
+            return self._party_health_monitor
+
+        ally_array = self._get_party_health_sample()
+        active_agent_ids = set(ally_array)
+
+        for agent_id in list(self._party_health_monitor.keys()):
+            if agent_id not in active_agent_ids:
+                del self._party_health_monitor[agent_id]
+
+        for agent_id in ally_array:
+            current_health = float(Agent.GetHealth(agent_id))
+            previous_state = self._party_health_monitor.get(agent_id)
+            previous_health = current_health if previous_state is None else float(previous_state.get("health", current_health))
+            self._party_health_monitor[agent_id] = {
+                "health": current_health,
+                "drop": max(0.0, previous_health - current_health),
+            }
+
+        self._party_health_monitor_timer.Reset()
+        return self._party_health_monitor
+
+    def GetPartyHealthDelta(self, agent_id: int) -> float:
+        if not agent_id:
+            return 0.0
+        return float(self._party_health_monitor.get(agent_id, {}).get("drop", 0.0))
+
+    def GetPartySpikeCandidates(
+        self,
+        *,
+        drop_threshold: float = 0.10,
+        sample_interval_ms: int = 150,
+        force_sample: bool = False,
+    ) -> list[int]:
+        from Py4GWCoreLib.Agent import Agent
+
+        self.UpdatePartyHealthMonitor(
+            sample_interval_ms=sample_interval_ms,
+            force=force_sample,
+        )
+
+        candidates = [
+            agent_id
+            for agent_id, state in self._party_health_monitor.items()
+            if float(state.get("drop", 0.0)) >= drop_threshold and Agent.IsAlive(agent_id)
+        ]
+        candidates.sort(
+            key=lambda agent_id: (
+                -self.GetPartyHealthDelta(agent_id),
+                Agent.GetHealth(agent_id),
+            )
+        )
+        return candidates
+
     def _is_local_cast_pending(self) -> bool:
         if self._local_cast_timer.IsStopped():
             return False
@@ -382,6 +466,7 @@ class BuildMgr:
         in_aggro = bool(Routines.Checks.Agents.InAggro())
         if self._was_in_aggro and not in_aggro:
             self.ResetTarget()
+            self.ResetPartyHealthMonitor()
         self._was_in_aggro = in_aggro
 
     def _pick_clustered_target(
