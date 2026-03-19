@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from enum import Enum
 import time
 from collections import deque
 from ctypes import Structure, c_uint, c_wchar
@@ -13,13 +14,26 @@ MAX_SENDER_EMAIL_LEN = 64
 MAX_LOCK_HISTORY = 30
 LOCK_TTL_SECONDS = 30
 
+class ShareLockType(Enum):
+
+    '''
+    Skills is about locking combat skill targets.
+    '''
+    SKILLS = 1
+
+    '''
+    Action is about locking behaviors such as chests, blessing, buff readiness, etc...
+    '''
+    ACTIONS = 2
+
 class SharedLockEntry:
-    def __init__(self, key: str, acquired_at_seconds: int, sender_email: str, ttl_seconds: int = LOCK_TTL_SECONDS):
+    def __init__(self, key: str, acquired_at_seconds: int, sender_email: str, ttl_seconds: int = LOCK_TTL_SECONDS, lock_type: ShareLockType = ShareLockType.SKILLS):
 
         self.key: str = key
         self.acquired_at_seconds: int = acquired_at_seconds
         self.ttl_seconds: int = ttl_seconds
         self.sender_email: str = sender_email
+        self.lock_type: ShareLockType = lock_type
 
     @property
     def expires_at_seconds(self) -> int:
@@ -37,6 +51,7 @@ class SharedLockEntryStruct(Structure):
         ("ReleasedAt", c_uint),
         ("TTLSeconds", c_uint),
         ("SenderEmail", c_wchar * MAX_SENDER_EMAIL_LEN),
+        ("LockType", c_uint),
     ]
 
 class SharedLockHistoryStruct(Structure):
@@ -46,21 +61,23 @@ class SharedLockHistoryStruct(Structure):
         ("SenderEmail", c_wchar * MAX_SENDER_EMAIL_LEN),
         ("AcquiredAt", c_uint),
         ("ReleasedAt", c_uint),
+        ("LockType", c_uint),
     ]
 
 class SharedLockHistory:
-    def __init__(self, key: str, sender_email: str, acquired_at_seconds: int | None = None, released_at_seconds: int | None = None):
+    def __init__(self, key: str, sender_email: str, acquired_at_seconds: int | None = None, released_at_seconds: int | None = None, lock_type: ShareLockType = ShareLockType.SKILLS):
         self.key: str = key
         self.sender_email: str = sender_email
         self.acquired_at: int | None = int(time.time()) if acquired_at_seconds is None else acquired_at_seconds
         self.released_at: int | None = released_at_seconds
+        self.lock_type: ShareLockType = lock_type
 
 class SharedLockManager:
     def __init__(self, get_struct_callable):
         self._get_struct_callable = get_struct_callable
         # keep a small rolling history of lock events (newest at the end)
 
-    def get_lock_history(self) -> deque[SharedLockHistory]: 
+    def get_lock_history(self) -> deque[SharedLockHistory]:
         # Prefer shared memory ring buffer so history is visible across runtimes
         try:
             mem = self.__get_struct()
@@ -74,6 +91,8 @@ class SharedLockManager:
                     acquired_at = int(sh.AcquiredAt)
                     released_at = int(sh.ReleasedAt)
                     sender = sh.SenderEmail
+                    lock_type_value = int(getattr(sh, 'LockType', ShareLockType.SKILLS.value))
+                    lock_type = ShareLockType(lock_type_value) if lock_type_value in [e.value for e in ShareLockType] else ShareLockType.SKILLS
                     if key == "" and acquired_at == 0 and released_at == 0:
                         continue
                     result.append(
@@ -82,6 +101,7 @@ class SharedLockManager:
                             sender,
                             acquired_at_seconds=(acquired_at if acquired_at != 0 else None),
                             released_at_seconds=(released_at if released_at != 0 else None),
+                            lock_type=lock_type,
                         )
                     )
                 return result
@@ -154,7 +174,9 @@ class SharedLockManager:
 
             # 1) Evict expired entries
             ttl_seconds = getattr(mem.LockEntries[slot_index], 'TTLSeconds', LOCK_TTL_SECONDS)
-            if SharedLockEntry(key, acquired_at, sender_email=mem.LockEntries[slot_index].SenderEmail, ttl_seconds=ttl_seconds).is_expired(now_s):
+            lock_type_value = int(getattr(mem.LockEntries[slot_index], 'LockType', ShareLockType.SKILLS.value))
+            lock_type = ShareLockType(lock_type_value) if lock_type_value in [e.value for e in ShareLockType] else ShareLockType.SKILLS
+            if SharedLockEntry(key, acquired_at, sender_email=mem.LockEntries[slot_index].SenderEmail, ttl_seconds=ttl_seconds, lock_type=lock_type).is_expired(now_s):
                 self.__release_and_clear_slot(mem, slot_index, int(time.time()))
                 continue
 
@@ -180,7 +202,9 @@ class SharedLockManager:
         for i in range(MAX_LOCKS):
             if mem.LockEntries[i].Key != "" and mem.LockEntries[i].AcquiredAt != 0:
                 ttl_seconds = getattr(mem.LockEntries[i], 'TTLSeconds', LOCK_TTL_SECONDS)
-                entry = SharedLockEntry(mem.LockEntries[i].Key, mem.LockEntries[i].AcquiredAt, sender_email=mem.LockEntries[i].SenderEmail, ttl_seconds=ttl_seconds)
+                lock_type_value = int(getattr(mem.LockEntries[i], 'LockType', ShareLockType.SKILLS.value))
+                lock_type = ShareLockType(lock_type_value) if lock_type_value in [e.value for e in ShareLockType] else ShareLockType.SKILLS
+                entry = SharedLockEntry(mem.LockEntries[i].Key, mem.LockEntries[i].AcquiredAt, sender_email=mem.LockEntries[i].SenderEmail, ttl_seconds=ttl_seconds, lock_type=lock_type)
                 if entry.is_expired(now_s):
                     released_at_now = int(time.time())
                     mem.LockEntries[i].Key = ""
@@ -202,7 +226,9 @@ class SharedLockManager:
         for i in range(MAX_LOCKS):
             if mem.LockEntries[i].Key != "" and mem.LockEntries[i].AcquiredAt != 0:
                 ttl_seconds = getattr(mem.LockEntries[i], 'TTLSeconds', LOCK_TTL_SECONDS)
-                entry = SharedLockEntry(mem.LockEntries[i].Key, mem.LockEntries[i].AcquiredAt, sender_email=mem.LockEntries[i].SenderEmail, ttl_seconds=ttl_seconds)
+                lock_type_value = int(getattr(mem.LockEntries[i], 'LockType', ShareLockType.SKILLS.value))
+                lock_type = ShareLockType(lock_type_value) if lock_type_value in [e.value for e in ShareLockType] else ShareLockType.SKILLS
+                entry = SharedLockEntry(mem.LockEntries[i].Key, mem.LockEntries[i].AcquiredAt, sender_email=mem.LockEntries[i].SenderEmail, ttl_seconds=ttl_seconds, lock_type=lock_type)
                 if entry.is_expired(now_s):
                     mem.LockEntries[i].Key = ""
                     mem.LockEntries[i].AcquiredAt = 0
@@ -212,7 +238,7 @@ class SharedLockManager:
                 return i
         return None
 
-    def try_aquire_lock(self, key: str, timeout_seconds: int = LOCK_TTL_SECONDS) -> bool:
+    def try_aquire_lock(self, key: str, timeout_seconds: int = LOCK_TTL_SECONDS, lock_type: ShareLockType = ShareLockType.SKILLS) -> bool:
         if key is None or key == "":
             return False
         self.__dedupe_locks()
@@ -227,6 +253,8 @@ class SharedLockManager:
         mem.LockEntries[idx].ReleasedAt = 0
         mem.LockEntries[idx].TTLSeconds = timeout_seconds
         mem.LockEntries[idx].SenderEmail = f"{Player.GetAccountEmail()} | {Player.GetName()}"
+        if hasattr(mem.LockEntries[idx], "LockType"):
+            mem.LockEntries[idx].LockType = lock_type.value
         # final dedupe to collapse any rare duplicates due to races
         self.__dedupe_locks()
         # record history in shared memory ring
@@ -236,6 +264,7 @@ class SharedLockManager:
             mem.LockEntries[idx].SenderEmail,
             mem.LockEntries[idx].AcquiredAt,
             0,
+            lock_type,
         )
         # We successfully acquired the lock, return True
         return True
@@ -261,13 +290,15 @@ class SharedLockManager:
             mem.LockEntries[idx].SenderEmail = ""
 
     # ---------- Shared history ring buffer helpers ----------
-    def __append_shared_history(self, mem, key: str, sender_email: str, acquired_at: int, released_at: int) -> None:
+    def __append_shared_history(self, mem, key: str, sender_email: str, acquired_at: int, released_at: int, lock_type: ShareLockType = ShareLockType.SKILLS) -> None:
         try:
             idx = getattr(mem, "LockHistoryIdx", 0) % MAX_LOCK_HISTORY
             mem.LockHistoryEntries[idx].Key = key
             mem.LockHistoryEntries[idx].SenderEmail = sender_email
             mem.LockHistoryEntries[idx].AcquiredAt = acquired_at
             mem.LockHistoryEntries[idx].ReleasedAt = released_at
+            if hasattr(mem.LockHistoryEntries[idx], "LockType"):
+                mem.LockHistoryEntries[idx].LockType = lock_type.value
             mem.LockHistoryIdx = (idx + 1) % MAX_LOCK_HISTORY
         except Exception:
             pass
@@ -296,7 +327,9 @@ class SharedLockManager:
         for i in range(MAX_LOCKS):
             if mem.LockEntries[i].Key == key and mem.LockEntries[i].AcquiredAt != 0:
                 ttl_seconds = getattr(mem.LockEntries[i], 'TTLSeconds', LOCK_TTL_SECONDS)
-                entry = SharedLockEntry(mem.LockEntries[i].Key, mem.LockEntries[i].AcquiredAt, sender_email=mem.LockEntries[i].SenderEmail, ttl_seconds=ttl_seconds)
+                lock_type_value = int(getattr(mem.LockEntries[i], 'LockType', ShareLockType.SKILLS.value))
+                lock_type = ShareLockType(lock_type_value) if lock_type_value in [e.value for e in ShareLockType] else ShareLockType.SKILLS
+                entry = SharedLockEntry(mem.LockEntries[i].Key, mem.LockEntries[i].AcquiredAt, sender_email=mem.LockEntries[i].SenderEmail, ttl_seconds=ttl_seconds, lock_type=lock_type)
                 if entry.is_expired(now_s):
                     mem.LockEntries[i].Key = ""
                     mem.LockEntries[i].AcquiredAt = 0
@@ -308,11 +341,11 @@ class SharedLockManager:
                 return True
         return False
 
-    def wait_aquire_lock(self, key: str, timeout_seconds: int = 20) -> Generator[None, None, bool]:
+    def wait_aquire_lock(self, key: str, timeout_seconds: int = 20, lock_type: ShareLockType = ShareLockType.SKILLS) -> Generator[None, None, bool]:
         if timeout_seconds is None or timeout_seconds < 0:
             timeout_seconds = 20
         start_time_s = time.time()
-        while not self.try_aquire_lock(key):
+        while not self.try_aquire_lock(key, lock_type=lock_type):
             if (time.time() - start_time_s) >= timeout_seconds:
                 return False
             yield
@@ -326,31 +359,43 @@ class SharedLockManager:
         for i in range(MAX_LOCKS):
             if mem.LockEntries[i].Key != "" and mem.LockEntries[i].AcquiredAt != 0:
                 ttl_seconds = getattr(mem.LockEntries[i], 'TTLSeconds', LOCK_TTL_SECONDS)
+                lock_type_value = int(getattr(mem.LockEntries[i], 'LockType', ShareLockType.SKILLS.value))
+                lock_type = ShareLockType(lock_type_value) if lock_type_value in [e.value for e in ShareLockType] else ShareLockType.SKILLS
                 entry = SharedLockEntry(
                     mem.LockEntries[i].Key,
                     mem.LockEntries[i].AcquiredAt,
                     mem.LockEntries[i].SenderEmail,
                     ttl_seconds=ttl_seconds,
+                    lock_type=lock_type,
                 )
                 if not entry.is_expired(now_s):
                     result.append(entry)
         return result
 
-    def is_any_lock_taken(self) -> bool:
-        """Check if any lock is currently active (not expired)."""
+    def is_any_lock_taken(self, lock_type: ShareLockType | None = None) -> bool:
+        """Check if any lock is currently active (not expired).
+
+        Args:
+            lock_type: Optional filter by lock type. If None, checks all lock types.
+        """
         self.__dedupe_locks()
         mem = self.__get_struct()
         now_s = int(time.time())
         for i in range(MAX_LOCKS):
             if mem.LockEntries[i].Key != "" and mem.LockEntries[i].AcquiredAt != 0:
                 ttl_seconds = getattr(mem.LockEntries[i], 'TTLSeconds', LOCK_TTL_SECONDS)
+                lock_type_value = int(getattr(mem.LockEntries[i], 'LockType', ShareLockType.SKILLS.value))
+                entry_lock_type = ShareLockType(lock_type_value) if lock_type_value in [e.value for e in ShareLockType] else ShareLockType.SKILLS
                 entry = SharedLockEntry(
                     mem.LockEntries[i].Key,
                     mem.LockEntries[i].AcquiredAt,
                     mem.LockEntries[i].SenderEmail,
                     ttl_seconds=ttl_seconds,
+                    lock_type=entry_lock_type,
                 )
                 if not entry.is_expired(now_s):
-                    return True
+                    # If lock_type filter is specified, only return True if it matches
+                    if lock_type is None or entry_lock_type == lock_type:
+                        return True
         return False
 

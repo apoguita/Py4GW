@@ -59,7 +59,7 @@ class ByUralsHammerUtility(CustomSkillUtilityBase):
     def _execute(self, state: BehaviorState) -> Generator[Any, None, BehaviorResult]:
 
         lock_key = self._get_lock_key()
-        if CustomBehaviorParty().get_shared_lock_manager().try_aquire_lock(lock_key, ) == False: 
+        if CustomBehaviorParty().get_shared_lock_manager().try_aquire_lock(lock_key) == False: 
             yield 
             return BehaviorResult.ACTION_SKIPPED 
 
