@@ -1,4 +1,5 @@
 from typing import Any, Generator, override
+import time
 
 from Py4GWCoreLib import Agent, AgentArray, CombatEvents, GLOBAL_CACHE, Player, Range, ThrottledTimer
 from Py4GWCoreLib.CombatEvents import EventType
@@ -13,6 +14,8 @@ from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill import CustomS
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
 from Sources.oazix.CustomBehaviors.primitives.skills.bonds.custom_buff_multiple_target import CustomBuffMultipleTarget
 from Sources.oazix.CustomBehaviors.skills.monk.unyielding_aura_utility import UnyieldingAuraUtility
+
+#OQBDAqwDSPwQwRwSwTwAAAAAAA
 
 
 class PendingConditionUtility(CustomSkillUtilityBase):
@@ -68,7 +71,7 @@ class PendingConditionUtility(CustomSkillUtilityBase):
 
 
 class SpiritualHealingUtility(CustomSkillUtilityBase):
-    """Spiritual Healing: heal the lowest-HP ally under 70% health."""
+    """Spiritual Healing: heal the lowest-HP ally under 50% health."""
 
     def __init__(self, event_bus: EventBus, current_build: list[CustomSkill]):
         spiritual_healing_skill = AnyDhuum_UtilitySkillBar._resolve_custom_skill("Spiritual_Healing", "Spiritual Healing")
@@ -84,7 +87,7 @@ class SpiritualHealingUtility(CustomSkillUtilityBase):
     def _get_targets(self) -> list[custom_behavior_helpers.SortableAgentData]:
         return custom_behavior_helpers.Targets.get_all_possible_allies_ordered_by_priority_raw(
             within_range=Range.Spellcast.value * 1.2,
-            condition=lambda agent_id: Agent.GetHealth(agent_id) < 0.70,
+            condition=lambda agent_id: Agent.GetHealth(agent_id) < 0.50,
             sort_key=(TargetingOrder.HP_ASC, TargetingOrder.DISTANCE_ASC),
         )
 
@@ -254,7 +257,12 @@ class ReversalOfDeathUtility(CustomSkillUtilityBase):
 
 
 class DhuumsRestUtility(CustomSkillUtilityBase):
-    """Dhuum's Rest: always cast when available, but below key emergency skills."""
+    """Dhuum's Rest monitor: tracks Reaper activity, never casts from player."""
+
+    _reaper_dhuums_rest_pending: bool = False
+    _reaper_dhuums_rest_deadline_ms: float = 0.0
+    _reaper_force_fury_deadline_ms: float = 0.0
+    _REAPER_DHUUMS_REST_CAST_WINDOW_MS = 20000
 
     _REAPER_NAME_MATCHERS = (
         "reaper of the bone pits",
@@ -272,6 +280,19 @@ class DhuumsRestUtility(CustomSkillUtilityBase):
         EventType.INSTANT_SKILL_ACTIVATED,
     )
 
+    _DHUUMS_REST_CANDIDATES = (
+        "Dhuum_s_Rest",
+        "Dhuum's Rest",
+        "Dhuums_Rest",
+        "Dhuums_Rest_reaper_skill",
+    )
+    _PLAYER_DHUUMS_REST_CANDIDATES = (
+        "Dhuum_s_Rest",
+        "Dhuum's Rest",
+        "Dhuums_Rest",
+    )
+    _DHUUMS_REST_REAPER_SKILL_ID = 3079
+
     def __init__(self, event_bus: EventBus, current_build: list[CustomSkill]):
         dhuums_rest_skill = AnyDhuum_UtilitySkillBar._resolve_custom_skill("Dhuum_s_Rest", "Dhuum's Rest", "Dhuums_Rest")
         super().__init__(
@@ -285,6 +306,23 @@ class DhuumsRestUtility(CustomSkillUtilityBase):
         self._reaper_ids_refresh_timer = ThrottledTimer(1500)
         self._reaper_ids_refresh_timer.Reset()
         self._cached_reaper_ids: set[int] = set()
+        self._dhuums_rest_skill_ids: set[int] = set()
+        self._player_dhuums_rest_skill_ids: set[int] = set()
+        for name in self._DHUUMS_REST_CANDIDATES:
+            skill_id = AnyDhuum_UtilitySkillBar._resolve_skill_id(name)
+            if skill_id > 0:
+                self._dhuums_rest_skill_ids.add(int(skill_id))
+
+        for name in self._PLAYER_DHUUMS_REST_CANDIDATES:
+            skill_id = AnyDhuum_UtilitySkillBar._resolve_skill_id(name)
+            if skill_id > 0:
+                self._player_dhuums_rest_skill_ids.add(int(skill_id))
+
+        self._dhuums_rest_skill_ids.add(int(self._DHUUMS_REST_REAPER_SKILL_ID))
+
+        if int(self.custom_skill.skill_id) > 0:
+            self._dhuums_rest_skill_ids.add(int(self.custom_skill.skill_id))
+            self._player_dhuums_rest_skill_ids.add(int(self.custom_skill.skill_id))
 
     def _refresh_reaper_ids(self) -> None:
         if not self._reaper_ids_refresh_timer.IsExpired() and len(self._cached_reaper_ids) > 0:
@@ -301,28 +339,126 @@ class DhuumsRestUtility(CustomSkillUtilityBase):
         self._cached_reaper_ids = reaper_ids
         self._reaper_ids_refresh_timer.Reset()
 
-    def _latest_monitored_reaper_skill_id(self) -> int:
+    def _is_reaper_casting_dhuums_rest(self) -> bool:
+        self._refresh_reaper_ids()
+        if len(self._cached_reaper_ids) == 0:
+            return False
+
+        CombatEvents.update()
+        recent_skills = CombatEvents.get_recent_skills(1500)
+        for ts, caster_id, skill_id, target_id, event_type in reversed(recent_skills):
+            if int(event_type) not in self._ACTIVATION_EVENT_TYPES:
+                continue
+
+            caster_id_int = int(caster_id)
+            skill_id_int = int(skill_id)
+
+            # Only refresh the cast window when a known Reaper used the explicit reaper skill id.
+            if caster_id_int in self._cached_reaper_ids and skill_id_int == int(self._DHUUMS_REST_REAPER_SKILL_ID):
+                return True
+
+        return False
+
+    def _has_player_casted_dhuums_rest(self) -> bool:
+        player_id = int(Player.GetAgentID())
+        if player_id <= 0:
+            return False
+
+        if len(self._player_dhuums_rest_skill_ids) == 0:
+            return False
+
+        CombatEvents.update()
+        recent_skills = CombatEvents.get_recent_skills(3000)
+        for ts, caster_id, skill_id, target_id, event_type in reversed(recent_skills):
+            if int(caster_id) != player_id:
+                continue
+            if int(event_type) not in self._ACTIVATION_EVENT_TYPES:
+                continue
+            if int(skill_id) in self._player_dhuums_rest_skill_ids:
+                return True
+
+        return False
+
+    @classmethod
+    def is_reaper_dhuums_rest_pending(cls) -> bool:
+        now_ms = time.monotonic() * 1000.0
+        return now_ms < float(cls._reaper_dhuums_rest_deadline_ms)
+
+    @classmethod
+    def should_force_fury(cls) -> bool:
+        now_ms = time.monotonic() * 1000.0
+        return now_ms < float(cls._reaper_force_fury_deadline_ms)
+
+    def _get_latest_reaper_activation_skill_id(self) -> int:
         self._refresh_reaper_ids()
         if len(self._cached_reaper_ids) == 0:
             return 0
 
         CombatEvents.update()
-        recent_skills = CombatEvents.get_recent_skills(300)
+        recent_skills = CombatEvents.get_recent_skills(1500)
         for ts, caster_id, skill_id, target_id, event_type in reversed(recent_skills):
-            if int(caster_id) not in self._cached_reaper_ids:
-                continue
             if int(event_type) not in self._ACTIVATION_EVENT_TYPES:
+                continue
+            if int(caster_id) not in self._cached_reaper_ids:
                 continue
             return int(skill_id)
 
         return 0
 
+    def _update_pending_state_from_recent_events(self) -> bool:
+        self._refresh_reaper_ids()
+
+        if len(self._dhuums_rest_skill_ids) == 0:
+            DhuumsRestUtility._reaper_dhuums_rest_pending = False
+            return False
+
+        player_id = int(Player.GetAgentID())
+        CombatEvents.update()
+        recent_skills = CombatEvents.get_recent_skills(8000)
+
+        reaper_trigger_count = 0
+        player_cast_count = 0
+
+        for ts, caster_id, skill_id, target_id, event_type in recent_skills:
+            if int(event_type) not in self._ACTIVATION_EVENT_TYPES:
+                continue
+
+            caster_id_int = int(caster_id)
+            skill_id_int = int(skill_id)
+
+            # Most reliable signal: Reaper-only Dhuum's Rest skill id.
+            if skill_id_int == int(self._DHUUMS_REST_REAPER_SKILL_ID) and caster_id_int != player_id:
+                reaper_trigger_count += 1
+                continue
+
+            if caster_id_int in self._cached_reaper_ids and skill_id_int in self._dhuums_rest_skill_ids:
+                reaper_trigger_count += 1
+                continue
+
+            if caster_id_int == player_id and skill_id_int in self._player_dhuums_rest_skill_ids:
+                player_cast_count += 1
+
+        DhuumsRestUtility._reaper_dhuums_rest_pending = reaper_trigger_count > player_cast_count
+        return DhuumsRestUtility._reaper_dhuums_rest_pending
+
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
-        latest_reaper_skill_id = self._latest_monitored_reaper_skill_id()
-        if latest_reaper_skill_id != int(self.custom_skill.skill_id):
+        now_ms = time.monotonic() * 1000.0
+        latest_reaper_skill_id = self._get_latest_reaper_activation_skill_id()
+        if latest_reaper_skill_id > 0:
+            if latest_reaper_skill_id == int(self._DHUUMS_REST_REAPER_SKILL_ID):
+                DhuumsRestUtility._reaper_dhuums_rest_deadline_ms = now_ms + float(self._REAPER_DHUUMS_REST_CAST_WINDOW_MS)
+                DhuumsRestUtility._reaper_force_fury_deadline_ms = 0.0
+            else:
+                DhuumsRestUtility._reaper_force_fury_deadline_ms = now_ms + float(self._REAPER_DHUUMS_REST_CAST_WINDOW_MS)
+                DhuumsRestUtility._reaper_dhuums_rest_deadline_ms = 0.0
+
+        DhuumsRestUtility._reaper_dhuums_rest_pending = (
+            DhuumsRestUtility.is_reaper_dhuums_rest_pending() and not DhuumsRestUtility.should_force_fury()
+        )
+        if not DhuumsRestUtility._reaper_dhuums_rest_pending:
             return None
-        return 86.0
+        return 99.0
 
     @override
     def _execute(self, state: BehaviorState) -> Generator[Any | None, Any | None, BehaviorResult]:
@@ -357,6 +493,24 @@ class DhuumsRestUtility(CustomSkillUtilityBase):
 class GhostlyFuryUtility(CustomSkillUtilityBase):
     """Ghostly Fury: simple offensive spell cast on enemy targets."""
 
+    _REAPER_NAME_MATCHERS = (
+        "reaper of the bone pits",
+        "reaper of the chaos planes",
+        "reaper of the forgotten vale",
+        "reaper of the ice wastes",
+        "reaper of the labyrinth",
+        "reaper of the spawning pools",
+        "reaper of the twin serpent mountains",
+    )
+
+    _ACTIVATION_EVENT_TYPES = (
+        EventType.SKILL_ACTIVATED,
+        EventType.ATTACK_SKILL_ACTIVATED,
+        EventType.INSTANT_SKILL_ACTIVATED,
+    )
+
+    _GHOSTLY_FURY_CANDIDATES = ("Ghostly_Fury", "Ghostly Fury")
+
     def __init__(self, event_bus: EventBus, current_build: list[CustomSkill]):
         ghostly_fury_skill = AnyDhuum_UtilitySkillBar._resolve_custom_skill("Ghostly_Fury", "Ghostly Fury")
         super().__init__(
@@ -367,6 +521,17 @@ class GhostlyFuryUtility(CustomSkillUtilityBase):
             mana_required_to_cast=0,
             allowed_states=[BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO, BehaviorState.FAR_FROM_AGGRO],
         )
+        self._reaper_ids_refresh_timer = ThrottledTimer(1500)
+        self._reaper_ids_refresh_timer.Reset()
+        self._cached_reaper_ids: set[int] = set()
+        self._ghostly_fury_skill_ids: set[int] = set()
+        for name in self._GHOSTLY_FURY_CANDIDATES:
+            skill_id = AnyDhuum_UtilitySkillBar._resolve_skill_id(name)
+            if skill_id > 0:
+                self._ghostly_fury_skill_ids.add(int(skill_id))
+
+        if int(self.custom_skill.skill_id) > 0:
+            self._ghostly_fury_skill_ids.add(int(self.custom_skill.skill_id))
 
     def _get_target(self) -> int | None:
         return custom_behavior_helpers.Targets.get_nearest_or_default_from_enemy_ordered_by_priority(
@@ -375,8 +540,51 @@ class GhostlyFuryUtility(CustomSkillUtilityBase):
             condition=lambda agent_id: Agent.IsAlive(agent_id),
         )
 
+    def _refresh_reaper_ids(self) -> None:
+        if not self._reaper_ids_refresh_timer.IsExpired() and len(self._cached_reaper_ids) > 0:
+            return
+
+        reaper_ids: set[int] = set()
+        for agent_id in AgentArray.GetAllyArray():
+            name = (Agent.GetNameByID(agent_id) or "").strip().lower()
+            if not name:
+                continue
+            if any(matcher in name for matcher in self._REAPER_NAME_MATCHERS):
+                reaper_ids.add(int(agent_id))
+
+        self._cached_reaper_ids = reaper_ids
+        self._reaper_ids_refresh_timer.Reset()
+
+    def _is_reaper_casting_ghostly_fury(self) -> bool:
+        self._refresh_reaper_ids()
+        if len(self._cached_reaper_ids) == 0:
+            return False
+
+        if len(self._ghostly_fury_skill_ids) == 0:
+            return False
+
+        CombatEvents.update()
+        recent_skills = CombatEvents.get_recent_skills(1500)
+        for ts, caster_id, skill_id, target_id, event_type in reversed(recent_skills):
+            if int(caster_id) not in self._cached_reaper_ids:
+                continue
+            if int(event_type) not in self._ACTIVATION_EVENT_TYPES:
+                continue
+            if int(skill_id) in self._ghostly_fury_skill_ids:
+                return True
+
+        return False
+
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
+        if DhuumsRestUtility.should_force_fury():
+            if self._get_target() is None:
+                return None
+            return 100.0
+        if DhuumsRestUtility.is_reaper_dhuums_rest_pending():
+            return None
+        if not self._is_reaper_casting_ghostly_fury():
+            return None
         if self._get_target() is None:
             return None
         return 85.0
@@ -468,6 +676,12 @@ class AnyDhuum_UtilitySkillBar(CustomBehaviorBaseUtility):
             current_build=in_game_build,
         )
 
+        self.encase_skeletal_utility: CustomSkillUtilityBase = PendingConditionUtility(
+            event_bus=self.event_bus,
+            skill=self._resolve_custom_skill("Encase_Skeletal", "Encase Skeletal"),
+            current_build=in_game_build,
+        )
+
     @staticmethod
     def _resolve_skill_id(*names: str) -> int:
         for name in names:
@@ -490,15 +704,17 @@ class AnyDhuum_UtilitySkillBar(CustomBehaviorBaseUtility):
     def count_matches_between_custom_behavior_and_in_game_build(self) -> int:
         in_game_ids = set(self.skillbar_management.get_in_game_build().keys())
 
-        # Accept this profile when Dhuum-phase marker skill is present.
-        marker_id = self._resolve_skill_id(*self._DHUUM_MARKER_CANDIDATES)
-        if marker_id > 0 and marker_id in in_game_ids:
-            return 1
+        # Accept this profile as soon as one known Dhuum-bar skill is present.
+        detection_candidates: list[tuple[str, ...]] = [
+            self._DHUUM_MARKER_CANDIDATES,
+            ("Unyielding_Aura", "Unyielding Aura"),
+            *self._PREPARED_SKILL_CANDIDATES.values(),
+        ]
 
-        # Fallback: still match on classic UA rez bars.
-        ua_id = self._resolve_skill_id("Unyielding_Aura", "Unyielding Aura")
-        if ua_id > 0 and ua_id in in_game_ids:
-            return 1
+        for candidate_names in detection_candidates:
+            skill_id = self._resolve_skill_id(*candidate_names)
+            if skill_id > 0 and skill_id in in_game_ids:
+                return 1
 
         return 0
 
@@ -511,6 +727,7 @@ class AnyDhuum_UtilitySkillBar(CustomBehaviorBaseUtility):
             self.dhuums_rest_utility,
             self.reversal_of_death_utility,
             self.ghostly_fury_utility,
+            self.encase_skeletal_utility,
         ]
 
     @property

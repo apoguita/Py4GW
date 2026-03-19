@@ -1,6 +1,7 @@
 
 from Py4GWCoreLib import Botting, Routines, Agent, AgentArray, Player, Utils, AutoPathing, GLOBAL_CACHE, ConsoleLog, Map, Pathing, FlagPreference, Party, IniHandler
 import os
+from typing import Any, Generator
 from Py4GWCoreLib.enums_src.Multiboxing_enums import SharedCommandType
 from Sources.oazix.CustomBehaviors.gui.flag_panel.flag_backward_grid_placement import FlagBackwardGridPlacement
 from Sources.oazix.CustomBehaviors.primitives.botting.botting_helpers import BottingHelpers
@@ -560,6 +561,7 @@ def bot_routine(bot: Botting):
     _enqueue_section(bot, "TerrorwebQueen", "Terrorweb Queen", Terrorweb_Queen)
     _enqueue_section(bot, "RestorePit", "Restore Pit", Restore_Pit)
     _enqueue_section(bot, "ImprisonedSpirits", "Imprisoned Spirits", Imprisoned_Spirits)
+    _enqueue_section(bot, "Dhuum", "Dhuum", Dhuum)
     _enqueue_section(bot, "Repeat", "Repeat the whole thing", ResignAndRepeat)
     bot.States.AddHeader("END")
 
@@ -599,6 +601,23 @@ def enable_default_party_behavior(bot_instance: Botting):
 def Clear_the_Chamber(bot_instance: Botting):
     bot_instance.States.AddHeader("Clear the Chamber")
     CustomBehaviorParty().set_party_leader_email(Player.GetAccountEmail())    
+    #blacklist here
+    bot_instance.States.AddCustomState(
+        lambda: __import__("Py4GWCoreLib.EnemyBlacklist", fromlist=["EnemyBlacklist"]).EnemyBlacklist().add_name("obsidian guardian"),
+        "Blacklist Obsidian Guardian",
+    )
+    bot_instance.States.AddCustomState(
+        lambda: __import__("Py4GWCoreLib.EnemyBlacklist", fromlist=["EnemyBlacklist"]).EnemyBlacklist().add_name("vengeful aatxe"),
+        "Blacklist Vengeful Aatxe",
+    )
+    bot_instance.States.AddCustomState(
+        lambda: __import__("Py4GWCoreLib.EnemyBlacklist", fromlist=["EnemyBlacklist"]).EnemyBlacklist().add_name("chained soul"),
+        "Blacklist Chained Soul",
+    )
+    bot_instance.States.AddCustomState(
+        lambda: __import__("Py4GWCoreLib.EnemyBlacklist", fromlist=["EnemyBlacklist"]).EnemyBlacklist().remove_name("wastfull spirit"),
+        "Unblacklist Wastfull Spirit",
+    )
     enable_default_party_behavior(bot_instance)
     bot_instance.Move.XYAndInteractNPC(295, 7221, "go to NPC")
     bot_instance.Dialogs.AtXY(295, 7221, 0x806501, "take quest")
@@ -746,6 +765,10 @@ def Unwanted_Guests(bot_instance: Botting):
         
         #The Quest
         #1st Keeper
+        bot_instance.States.AddCustomState(
+        lambda: __import__("Py4GWCoreLib.EnemyBlacklist", fromlist=["EnemyBlacklist"]).EnemyBlacklist().add_name("obsidian behemoth"),
+        "Blacklist Obsidian Behemoth",
+    )
         _move_with_unstuck(bot_instance, -2965, 10260, "1st Keeper approach")
         bot_instance.Wait.ForTime(5000)
         bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_following_enabled(False), "Disable Following")
@@ -804,6 +827,11 @@ def Unwanted_Guests(bot_instance: Botting):
         bot_instance.Wait.ForTime(500)
         FocusKeeperOfSouls(bot_instance)
         _move_with_unstuck(bot_instance, 1256, 4623, "6th Keeper killed")
+
+        bot_instance.States.AddCustomState(
+        lambda: __import__("Py4GWCoreLib.EnemyBlacklist", fromlist=["EnemyBlacklist"]).EnemyBlacklist().remove_name("obsidian behemoth"),
+        "Unblacklist Obsidian Behemoth",
+    )
 
 def Restore_Wastes(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
@@ -1102,12 +1130,12 @@ def Imprisoned_Spirits(bot_instance: Botting):
         bot_instance.Move.XY(13212, 4978)
         IMPRISONED_SPIRITS_FLAG_POINTS = [
             (13652, 6117),
-            (13722, 6493),
-            (13759, 6817),
-            (12840, 3676),
-            (12559, 3647),
-            (12262, 3635),
-            (11912, 3622),
+            (13652, 6117),
+            (13652, 6117),
+            (12439, 2750),
+            (12439, 2761),
+            (12682, 2793),
+            (12322, 3016),
         ]
         _enqueue_spread_flags(bot_instance, IMPRISONED_SPIRITS_FLAG_POINTS)
         bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(False), "Disable WaitIfPartyMemberTooFar")
@@ -1115,7 +1143,6 @@ def Imprisoned_Spirits(bot_instance: Botting):
         bot_instance.Move.XYAndInteractNPC(8666, 6308, "go to NPC")
         bot_instance.Dialogs.AtXY(8666, 6308, 0x806901, "take quest")  
         bot_instance.Move.XY(13652, 6117) #Runter rennen zum linken team
-        bot_instance.Wait.ForTime(10000)
         bot_instance.States.AddCustomState(
             lambda: CustomBehaviorParty().party_flagging_manager.clear_all_flags(),
             "Clear Flags",
@@ -1126,10 +1153,54 @@ def Imprisoned_Spirits(bot_instance: Botting):
         ##warten bis quest fertig
 
         bot_instance.Move.XY(8692, 6292, "go to NPC")
-        bot_instance.Move.XYAndInteractNPC(8666, 6308, "go to NPC")
-        bot_instance.Multibox.SendDialogToTarget(0x806907)
-        bot.Wait.ForTime(1000)
-        bot_instance.Multibox.SendDialogToTarget(0x8C)
+        
+
+def Dhuum(bot_instance: Botting):
+    bot_instance.States.AddHeader("Dhuum Dialog")
+    bot_instance.Move.XYAndInteractNPC(8666, 6308, "go to NPC")
+
+    def _send_dhuum_dialog_in_sequence() -> Generator[Any | None, Any | None, None]:
+        sender_email = Player.GetAccountEmail()
+        sender_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(sender_email)
+        target_id = int(Player.GetTargetID())
+
+        if target_id <= 0:
+            ConsoleLog(BOT_NAME, "[Dhuum] Kein Target gefunden fuer Dialog 0x8C.", Py4GW.Console.MessageType.Warning)
+            yield
+            return
+
+        for account in GLOBAL_CACHE.ShMem.GetAllAccountData():
+            if account.AccountEmail == sender_email:
+                continue
+            if not bool(getattr(account, "IsSlotActive", True)):
+                continue
+            if bool(getattr(account, "IsIsolated", False)):
+                continue
+
+            if sender_account is not None:
+                same_instance = (
+                    int(sender_account.AgentData.Map.MapID) == int(account.AgentData.Map.MapID)
+                    and int(sender_account.AgentData.Map.Region) == int(account.AgentData.Map.Region)
+                    and int(sender_account.AgentData.Map.District) == int(account.AgentData.Map.District)
+                    and int(sender_account.AgentData.Map.Language) == int(account.AgentData.Map.Language)
+                )
+                if not same_instance:
+                    continue
+
+            GLOBAL_CACHE.ShMem.SendMessage(
+                sender_email,
+                account.AccountEmail,
+                SharedCommandType.SendDialogToTarget,
+                (target_id, 0x8C, 0, 0),
+            )
+            yield from Routines.Yield.wait(200)
+
+        # Local account triggers the same dialog last, with extra delay.
+        yield from Routines.Yield.wait(1000)
+        Player.SendDialog(0x8C)
+        yield from Routines.Yield.wait(200)
+
+    bot_instance.States.AddCustomState(_send_dhuum_dialog_in_sequence, "Dhuum Dialog Sequence")
 
 def _do_inventory_refill(bot_instance: Botting) -> None:
     """Travel to Guild Hall and restock inventory between runs."""

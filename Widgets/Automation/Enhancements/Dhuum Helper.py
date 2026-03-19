@@ -9,6 +9,7 @@ from Py4GWCoreLib import (
 	Py4GW,
 	Routines,
 	ThrottledTimer,
+	UIManager,
 	Utils,
 )
 import PyImGui
@@ -36,10 +37,21 @@ _interaction_running = False
 def _refresh_custom_behavior_after_skillbar_change() -> None:
 	try:
 		from Sources.oazix.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
-		CustomBehaviorLoader().refresh_custom_behavior_candidate()
+		loader = CustomBehaviorLoader()
+
+		# Local refresh sequence without private internals.
+		if loader.custom_combat_behavior is not None:
+			try:
+				loader.custom_combat_behavior.disable()
+			except Exception:
+				pass
+
+		loader.refresh_custom_behavior_candidate()
+		loader.initialize_custom_behavior_candidate()
+		behavior_name = loader.custom_combat_behavior.__class__.__name__ if loader.custom_combat_behavior is not None else "None"
 		Py4GW.Console.Log(
 			MODULE_NAME,
-			"Custom Behavior refresh requested after Dhuum dialog.",
+			f"Custom Behavior refreshed after Dhuum dialog. Active behavior: {behavior_name}",
 			Py4GW.Console.MessageType.Info,
 		)
 	except Exception as ex:
@@ -119,9 +131,35 @@ def _coro_interact_and_dialog(target_npc: int):
 
 		Player.ChangeTarget(target_npc)
 		yield from Routines.Yield.wait(100)
-		Player.Interact(target_npc)
-		yield from Routines.Yield.wait(450)
-		Player.SendDialog(0x84)
+
+		dialog_sent = False
+		for _ in range(8):
+			Player.Interact(target_npc)
+			yield from Routines.Yield.wait(2000)
+
+			if not UIManager.IsNPCDialogVisible():
+				continue
+
+			# Primary send path.
+			Player.SendDialog(0x84)
+			yield from Routines.Yield.wait(150)
+
+			# Fallback path used in other widgets.
+			if UIManager.IsNPCDialogVisible():
+				UIManager.ClickDialogButton(0x84)
+				yield from Routines.Yield.wait(150)
+
+			dialog_sent = True
+			break
+
+		if not dialog_sent:
+			Py4GW.Console.Log(
+				MODULE_NAME,
+				"Failed to send dialog 0x84: NPC dialog did not open in time.",
+				Py4GW.Console.MessageType.Warning,
+			)
+			return
+
 		# Skillbar can change after this dialog; trigger CB re-detection.
 		yield from Routines.Yield.wait(800)
 		_refresh_custom_behavior_after_skillbar_change()
