@@ -5125,6 +5125,41 @@ try:
         estimated = (line_h * max(3.0, rows)) + 16.0
         return float(max(MAIN_SELECTED_CHILD_MIN_HEIGHT, min(MAIN_SELECTED_CHILD_MAX_HEIGHT, estimated)))
 
+    def _begin_persistent_window_with_close_state(
+        ini_key: str,
+        name: str,
+        flags: int = PyImGui.WindowFlags.NoFlag,
+    ) -> tuple[bool, bool]:
+        ini = IniManager()
+        ini.begin_window_config(ini_key)
+
+        begin_result = ImGui.begin_with_close(name, True, flags)
+        if isinstance(begin_result, tuple) and len(begin_result) == 2:
+            expanded, window_open = bool(begin_result[0]), bool(begin_result[1])
+        else:
+            expanded = bool(begin_result)
+            window_open = bool(begin_result)
+
+        if ImGui._is_textured_theme():
+            window = ImGui.WindowModule._windows.get(name)
+            if window is not None:
+                window_open = bool(window.open)
+                expanded = bool(window.open and not window.collapse)
+
+        if window_open:
+            ini.track_window_collapsed(ini_key, expanded)
+            if expanded:
+                ini.mark_begin_success(ini_key)
+
+        return expanded, window_open
+
+    def _disable_pycons_widget():
+        try:
+            from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
+            get_widget_handler().disable_widget(MODULE_NAME)
+        except Exception as e:
+            _debug(f"Failed to disable Pycons widget: {e}", Console.MessageType.Warning)
+
     # -------------------------
     # Main Window
     # -------------------------
@@ -5135,7 +5170,14 @@ try:
             PyImGui.set_next_window_size(MAIN_WINDOW_DEFAULT_SIZE, PyImGui.ImGuiCond.FirstUseEver)
         except Exception:
             pass
-        if not ImGui.Begin(INI_KEY_MAIN, BOT_NAME):
+
+        window_expanded, window_open = _begin_persistent_window_with_close_state(INI_KEY_MAIN, BOT_NAME)
+        if not window_open:
+            ImGui.End(INI_KEY_MAIN)
+            show_settings[0] = False
+            _disable_pycons_widget()
+            return
+        if not window_expanded:
             ImGui.End(INI_KEY_MAIN)
             return
 
@@ -5762,7 +5804,15 @@ try:
         # Allow manual resizing of the Settings window by removing the
         # AlwaysAutoResize flag. Users can now expand/collapse and resize
         # the settings window to their preference.
-        if not ImGui.Begin(INI_KEY_SETTINGS, "Pycons - Settings##PyconsSettings"):
+        window_expanded, window_open = _begin_persistent_window_with_close_state(
+            INI_KEY_SETTINGS,
+            "Pycons - Settings##PyconsSettings",
+        )
+        if not window_open:
+            show_settings[0] = False
+            ImGui.End(INI_KEY_SETTINGS)
+            return
+        if not window_expanded:
             ImGui.End(INI_KEY_SETTINGS)
             return
 

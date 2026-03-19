@@ -7,6 +7,7 @@ from Sources.oazix.CustomBehaviors.primitives.helpers import custom_behavior_hel
 from Sources.oazix.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
+from Sources.oazix.CustomBehaviors.primitives.parties.shared_lock_manager import ShareLockType
 from Sources.oazix.CustomBehaviors.primitives.scores.comon_score import CommonScore
 from Sources.oazix.CustomBehaviors.primitives.scores.score_definition import ScoreDefinition
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
@@ -36,7 +37,7 @@ class WaitIfLockTakenUtility(CustomSkillUtilityBase):
 
         self.score_definition: ScoreStaticDefinition = ScoreStaticDefinition(0.00001)
         self.mana_limit = mana_limit
-        self.no_lock_timer = ThrottledTimer(3_500)
+        self.no_lock_timer = ThrottledTimer(2500)
         
     @override
     def are_common_pre_checks_valid(self, current_state: BehaviorState) -> bool:
@@ -50,7 +51,7 @@ class WaitIfLockTakenUtility(CustomSkillUtilityBase):
         # This prevents bots from continuing actions when no coordination is needed
 
         # If locks are active, continue executing (return score)
-        if CustomBehaviorParty().get_shared_lock_manager().is_any_lock_taken():
+        if CustomBehaviorParty().get_shared_lock_manager().is_any_lock_taken(ShareLockType.ACTIONS):
             self.no_lock_timer.Reset()  # Reset timer when locks are active
             return self.score_definition.get_score()
 

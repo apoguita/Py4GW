@@ -280,6 +280,16 @@ class BottingClass:
         self.config.FSM.reset()
         self.config.FSM.jump_to_state_by_name(step_name)
 
+    #region Travel helpers
+    def Travel_To_Random_District(
+        self,
+        target_map_id: int = 0,
+        target_map_name: str = "",
+        region_pool: str = "eu",
+    ) -> None:
+        """Travel to a random allowed region pool."""
+        self.Map.Travel_To_Random_District(target_map_id, target_map_name, region_pool)
+
     def Update(self):
         if self.config.fsm_running:
             self.config.state_description = "Running" if self.config.fsm_running else "Stopped"

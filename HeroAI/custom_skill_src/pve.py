@@ -314,7 +314,7 @@ class PVESkills:
         skill.TargetAllegiance = Skilltarget.OtherAlly.value
         skill.Nature = SkillNature.Buff.value
         skill.Conditions.LessLife = 0.8
-        skill.Conditions.IsPartyWide = False
+        skill.Conditions.IsPartyWide = True
         skill.Conditions.PartyWideArea = Range.SafeCompass.value
         skill_data[skill.SkillID] = skill
 

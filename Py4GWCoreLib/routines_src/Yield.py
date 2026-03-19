@@ -49,10 +49,40 @@ def _run_bt_tree(tree, return_bool: bool=False, throttle_ms: int = 100):
 
 class Yield:
     @staticmethod
-    def wait(ms: int):
+    def wait(ms: int, break_on_map_transition: bool = False):
         import time
+        if break_on_map_transition:
+            from .Checks import Checks
+            from ..Map import Map as _Map
+
+            initial_map_id = _Map.GetMapID()
+            initial_district = _Map.GetDistrict()
+            initial_region_id = _Map.GetRegion()[0]
+            initial_language_id = _Map.GetLanguage()[0]
+            initial_instance_uptime = _Map.GetInstanceUptime()
+
+            def _map_transition_detected() -> bool:
+                if not Checks.Map.MapValid() or _Map.IsMapLoading():
+                    return True
+                if _Map.GetMapID() != initial_map_id:
+                    return True
+                if _Map.GetDistrict() != initial_district:
+                    return True
+                if _Map.GetRegion()[0] != initial_region_id:
+                    return True
+                if _Map.GetLanguage()[0] != initial_language_id:
+                    return True
+
+                current_instance_uptime = _Map.GetInstanceUptime()
+                if initial_instance_uptime > 0 and current_instance_uptime + 2000 < initial_instance_uptime:
+                    return True
+
+                return False
+
         start = time.time()
         while (time.time() - start) * 1000 < ms:
+            if break_on_map_transition and _map_transition_detected():
+                break
             yield
 
 #region Player
@@ -413,7 +443,8 @@ class Yield:
             timeout: int = -1,
             progress_callback: Optional[Callable[[float], None]] = None,
             custom_pause_fn: Optional[Callable[[], bool]] = None,
-            stop_on_party_wipe: bool = True
+            stop_on_party_wipe: bool = True,
+            map_transition_exit_success: bool = False,
         ):
             import random
             from .Checks import Checks
@@ -435,6 +466,11 @@ class Yield:
 
             def _map_still_valid() -> bool:
                 return Checks.Map.MapValid() and _Map.GetMapID() == _initial_map_id
+
+            def _abort_on_map_invalid(msg: str) -> bool:
+                ConsoleLog("FollowPath", msg, Console.MessageType.Warning, log=log)
+                ActionQueueManager().ResetAllQueues()
+                return map_transition_exit_success
 
             if total_points == 0:
                 ConsoleLog("FollowPath", "Empty path provided, treating as success.", Console.MessageType.Warning, log=log)
@@ -505,10 +541,7 @@ class Yield:
 
 
                 if not _map_still_valid():
-                    ConsoleLog("FollowPath", "Map invalid before starting point, aborting.", Console.MessageType.Error, log=log)
-
-                    ActionQueueManager().ResetAllQueues()
-                    return False
+                    return _abort_on_map_invalid("Map invalid before starting point, aborting movement point.")
 
                 if stop_on_party_wipe and (
                         Checks.Party.IsPartyWiped() or GLOBAL_CACHE.Party.IsPartyDefeated()
@@ -521,7 +554,8 @@ class Yield:
                 ConsoleLog("FollowPath", f"Issued move command to ({target_x}, {target_y}).", Console.MessageType.Debug, log=detailed_log)
 
                 yield from Yield.wait(250)
-                if not _map_still_valid(): ActionQueueManager().ResetAllQueues(); return False
+                if not _map_still_valid():
+                    return _abort_on_map_invalid("Map changed or became invalid right after issuing move.")
 
                 current_x, current_y = Player.GetXY()
                 previous_distance = Utils.Distance((current_x, current_y), (target_x, target_y))
@@ -530,10 +564,7 @@ class Yield:
                     ConsoleLog("FollowPath", "Movement loop iteration...", Console.MessageType.Debug, log=detailed_log)
 
                     if not _map_still_valid():
-                        ConsoleLog("FollowPath", "Map changed or became invalid mid-run, aborting movement.", Console.MessageType.Warning, log=log)
-
-                        ActionQueueManager().ResetAllQueues()
-                        return False
+                        return _abort_on_map_invalid("Map changed or became invalid mid-run, aborting movement.")
 
                     if custom_exit_condition():
                         ConsoleLog("FollowPath", "Custom exit condition met, stopping movement.", Console.MessageType.Info, log=log)
@@ -558,9 +589,7 @@ class Yield:
                         while custom_pause_fn():
                             was_paused = True
                             if not _map_still_valid():
-                                ConsoleLog("FollowPath", "Map changed while movement was paused, aborting.", Console.MessageType.Warning, log=log)
-                                ActionQueueManager().ResetAllQueues()
-                                return False
+                                return _abort_on_map_invalid("Map changed while movement was paused, aborting.")
                             if custom_exit_condition():
                                 ConsoleLog("FollowPath", "Custom exit condition met while movement was paused, stopping movement.", Console.MessageType.Info, log=log)
                                 return False
@@ -605,15 +634,15 @@ class Yield:
                             Player.Move(target_x, target_y)
                             yield from Yield.wait(250)
                             if not _map_still_valid():
-                                ActionQueueManager().ResetAllQueues()
-                                return False
+                                return _abort_on_map_invalid("Map changed while resuming movement after pause.")
                             current_x, current_y = Player.GetXY()
                             previous_distance = Utils.Distance((current_x, current_y), (target_x, target_y))
                             retries = 0
                             stuck_count = 0
                             continue
 
-                    if not _map_still_valid(): ActionQueueManager().ResetAllQueues(); return False
+                    if not _map_still_valid():
+                        return _abort_on_map_invalid("Map changed while traversing path.")
 
                     current_time = Utils.GetBaseTimestamp()
                     delta = current_time - start_time
@@ -629,8 +658,7 @@ class Yield:
                         offset_y = random.uniform(-5, 5)
                         ConsoleLog("FollowPath", f"move to {target_x + offset_x}, {target_y + offset_y}", Console.MessageType.Info, log=log)
                         if not _map_still_valid():
-                            ActionQueueManager().ResetAllQueues()
-                            return False
+                            return _abort_on_map_invalid("Map changed before retrying move with offset.")
                         Player.Move(target_x + offset_x, target_y + offset_y)
                         retries += 1
                         if retries >= max_retries:
@@ -648,16 +676,19 @@ class Yield:
 
                                 # Backwards
                                 yield from Yield.Movement.WalkBackwards(1000)
-                                if not _map_still_valid(): ActionQueueManager().ResetAllQueues(); return False
+                                if not _map_still_valid():
+                                    return _abort_on_map_invalid("Map changed during backwards recovery.")
                                 # Strafe left
                                 yield from Yield.Movement.StrafeLeft(1000)
-                                if not _map_still_valid(): ActionQueueManager().ResetAllQueues(); return False
+                                if not _map_still_valid():
+                                    return _abort_on_map_invalid("Map changed during strafe-left recovery.")
 
                                 # Strafe right if no movement
                                 left_x, left_y = Player.GetXY()
                                 if Utils.Distance((start_x, start_y), (left_x, left_y)) < 50:
                                     yield from Yield.Movement.StrafeRight(1000)
-                                    if not _map_still_valid(): ActionQueueManager().ResetAllQueues(); return False
+                                    if not _map_still_valid():
+                                        return _abort_on_map_invalid("Map changed during strafe-right recovery.")
 
                                 stuck_count = 0  # reset after recovery
                     else:
@@ -665,7 +696,8 @@ class Yield:
                         stuck_count = 0  # reset stuck count if making progress
                         ConsoleLog("FollowPath", "Progress detected, reset retry counters.", Console.MessageType.Debug, log=detailed_log)
 
-                    if not _map_still_valid(): ActionQueueManager().ResetAllQueues(); return False
+                    if not _map_still_valid():
+                        return _abort_on_map_invalid("Map changed before finishing current waypoint.")
                     #common
                     previous_distance = current_distance
 

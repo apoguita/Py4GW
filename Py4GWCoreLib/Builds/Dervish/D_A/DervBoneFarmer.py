@@ -27,7 +27,7 @@ class DervBuildFarmStatus:
 
 
 class DervBoneFarmer(BuildMgr):
-    def __init__(self):
+    def __init__(self, match_only: bool = False):
         super().__init__(
             name="Derv Bone Farmer",
             required_primary=Profession.Dervish,
@@ -44,6 +44,8 @@ class DervBoneFarmer(BuildMgr):
                 GLOBAL_CACHE.Skill.GetID("I_Am_Unstoppable"),
             ],
         )
+        if match_only:
+            return
 
         self.SetFallback("AutoCombat", AutoCombat())
         # assign extra skill attributes from the already populated self.skills
@@ -62,6 +64,10 @@ class DervBoneFarmer(BuildMgr):
         # Build usage status
         self.status = DervBuildFarmStatus.Wait
         self.attacking = False
+
+    def _CastSkillID(self, skill_id:int, extra_condition:bool=True, log:bool=True, aftercast_delay:int=1000):
+        result = yield from Routines.Yield.Skills.CastSkillID(skill_id, extra_condition=extra_condition, log=log, aftercast_delay=aftercast_delay)
+        return result
 
     def swap_to_scythe(self):
         if Agent.GetWeaponType(Player.GetAgentID())[0] != Weapon.Scythe:
@@ -106,11 +112,11 @@ class DervBoneFarmer(BuildMgr):
 
         if self.status == DervBuildFarmStatus.Prepare:
             if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.vow_of_piety)) and not has_vow_of_piety:
-                yield from self.CastSkillID(self.vow_of_piety, aftercast_delay=750)
+                yield from self._CastSkillID(self.vow_of_piety, aftercast_delay=750)
                 return
 
             if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.grenths_aura)) and not has_grenths_aura:
-                yield from self.CastSkillID(self.grenths_aura, aftercast_delay=100)
+                yield from self._CastSkillID(self.grenths_aura, aftercast_delay=100)
                 return
 
             if (
@@ -118,7 +124,7 @@ class DervBoneFarmer(BuildMgr):
                 and has_grenths_aura
                 and has_vow_of_piety
             ):
-                yield from self.CastSkillID(self.vow_of_silence, aftercast_delay=100)
+                yield from self._CastSkillID(self.vow_of_silence, aftercast_delay=100)
                 return
 
         if self.status == DervBuildFarmStatus.Kill:
@@ -127,11 +133,11 @@ class DervBoneFarmer(BuildMgr):
                 and has_vow_of_silence
                 and not has_signet_of_mystic_speed
             ):
-                yield from self.CastSkillID(self.signet_of_mystic_speed, aftercast_delay=250)
+                yield from self._CastSkillID(self.signet_of_mystic_speed, aftercast_delay=250)
                 return
 
             if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.i_am_unstoppable)):
-                yield from self.CastSkillID(self.i_am_unstoppable, aftercast_delay=100)
+                yield from self._CastSkillID(self.i_am_unstoppable, aftercast_delay=100)
                 return
 
             if (
@@ -139,17 +145,17 @@ class DervBoneFarmer(BuildMgr):
                 and Routines.Yield.Skills.IsSkillIDUsable(self.vow_of_silence)
             ) and has_signet_of_mystic_speed:
                 ActionQueueManager().ResetAllQueues()
-                yield from self.CastSkillID(self.pious_fury, aftercast_delay=100)
+                yield from self._CastSkillID(self.pious_fury, aftercast_delay=100)
                 ActionQueueManager().ResetAllQueues()
                 has_pious_fury = Routines.Checks.Effects.HasBuff(player_agent_id, self.pious_fury)
                 if has_pious_fury:
                     ActionQueueManager().ResetAllQueues()
-                    yield from self.CastSkillID(self.grenths_aura, aftercast_delay=100)
+                    yield from self._CastSkillID(self.grenths_aura, aftercast_delay=100)
                     ActionQueueManager().ResetAllQueues()
                     has_grenths_aura = Routines.Checks.Effects.HasBuff(player_agent_id, self.grenths_aura)
                     if has_grenths_aura:
                         ActionQueueManager().ResetAllQueues()
-                        yield from self.CastSkillID(self.vow_of_silence, aftercast_delay=100)
+                        yield from self._CastSkillID(self.vow_of_silence, aftercast_delay=100)
                         ActionQueueManager().ResetAllQueues()
                 return
 
@@ -175,11 +181,11 @@ class DervBoneFarmer(BuildMgr):
                     yield from self.swap_to_scythe()
                     yield from Routines.Yield.Agents.InteractAgent(nearest_enemy)
                     if self.has_enough_adrenaline(self.crippling_victory_slot):
-                        yield from self.CastSkillID(self.crippling_victory, aftercast_delay=100)
+                        yield from self._CastSkillID(self.crippling_victory, aftercast_delay=100)
                         return
 
                     if self.has_enough_adrenaline(self.reap_impurities_slot):
-                        yield from self.CastSkillID(self.reap_impurities, aftercast_delay=100)
+                        yield from self._CastSkillID(self.reap_impurities, aftercast_delay=100)
                         return
         yield
         return
