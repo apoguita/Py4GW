@@ -78,7 +78,6 @@ class Config:
             "smart_splinter_enabled",
             "smart_vigorous_enabled",
             "smart_dark_aura_enabled",
-            "smart_healing_enabled",
             "hero_behaviour",
             "last_known_hero_behaviour",
             "conditions",
@@ -89,8 +88,7 @@ class Config:
             "smart_interrupt_toggled",
             "smart_incoming_fallback_enabled",
             "user_hex_input",
-            "user_skill_input",
-            "floating_window_enabled"
+            "user_skill_input"
         ]
 
         self.smart_follow_toggled = ini_handler.read_bool(MODULE_NAME, "smart_follow_toggled", False)
@@ -104,14 +102,12 @@ class Config:
         self.smart_splinter_enabled = ini_handler.read_bool(MODULE_NAME, "smart_splinter_enabled", False)
         self.smart_vigorous_enabled = ini_handler.read_bool(MODULE_NAME, "smart_vigorous_enabled", False)
         self.smart_dark_aura_enabled = ini_handler.read_bool(MODULE_NAME, "smart_dark_aura_enabled", False)
-        self.smart_healing_enabled = ini_handler.read_bool(MODULE_NAME, "smart_healing_enabled", False)
         self.hero_behaviour = ini_handler.read_int(MODULE_NAME, "hero_behaviour", 0)
         self.last_known_hero_behaviour = ini_handler.read_int(MODULE_NAME, "last_known_hero_behaviour", self.hero_behaviour)
         self.smart_con_cleanse_toggled = ini_handler.read_bool(MODULE_NAME, "smart_con_cleanse_toggled", False)
         self.smart_hex_cleanse_toggled = ini_handler.read_bool(MODULE_NAME, "smart_hex_cleanse_toggled", False)
         self.smart_interrupt_toggled = ini_handler.read_bool(MODULE_NAME, "smart_interrupt_toggled", False)
         self.smart_incoming_fallback_enabled = ini_handler.read_bool(MODULE_NAME, "smart_incoming_fallback_enabled", False)
-        self.floating_window_enabled = ini_handler.read_bool(MODULE_NAME, "floating_window_enabled", False)
         
         self.user_hex_input = ini_handler.read_key(MODULE_NAME, "user_hex_input", "")
         self.user_skill_input = ini_handler.read_key(MODULE_NAME, "user_skill_input", "")
@@ -212,13 +208,13 @@ class Config:
 
 
 widget_config = Config()
-window_module = ImGui.WindowModule(MODULE_NAME, window_name="Hero Helper", window_size=(200, 100), window_flags=PyImGui.WindowFlags.AlwaysAutoResize)
-config_module = ImGui.WindowModule(f"Config {MODULE_NAME}", window_name="Hero Helper Configuration", window_size=(300, 175), window_flags=PyImGui.WindowFlags.AlwaysAutoResize)
+config_module = ImGui.WindowModule(f"Config {MODULE_NAME}", window_name="Hero Helper Configuration", window_size=(300, 175), window_flags=PyImGui.WindowFlags.NoFlag)
 
 config_module.window_pos = (
     ini_handler.read_int(MODULE_NAME + " Config", "config_x", 100),
     ini_handler.read_int(MODULE_NAME + " Config", "config_y", 100)
 )
+config_module.window_size = (620, 460)
 
 
 class Helper:
@@ -288,9 +284,20 @@ class Helper:
         return False
     
     @staticmethod
+    def visible_checkbox(label, value):
+        PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBg, Utils.ColorToTuple(Utils.RGBToColor(80, 80, 80, 255)))
+        PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBgHovered, Utils.ColorToTuple(Utils.RGBToColor(105, 105, 105, 255)))
+        PyImGui.push_style_color(PyImGui.ImGuiCol.FrameBgActive, Utils.ColorToTuple(Utils.RGBToColor(125, 125, 125, 255)))
+        PyImGui.push_style_color(PyImGui.ImGuiCol.CheckMark, Utils.ColorToTuple(Utils.RGBToColor(80, 210, 255, 255)))
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Border, Utils.ColorToTuple(Utils.RGBToColor(170, 170, 170, 255)))
+        result = PyImGui.checkbox(label, value)
+        PyImGui.pop_style_color(5)
+        return result
+
+    @staticmethod
     def create_and_update_checkbox(label, config_attr, tooltip_text=None):
         prev = getattr(widget_config, config_attr)
-        curr = PyImGui.checkbox(label, prev)
+        curr = Helper.visible_checkbox(label, prev)
         setattr(widget_config, config_attr, curr)
 
         if curr != prev:
@@ -298,6 +305,33 @@ class Helper:
 
         if tooltip_text and PyImGui.is_item_hovered():
             PyImGui.set_tooltip(tooltip_text)
+
+    _profession_icon_ids = {
+        "Warrior": 1,
+        "Ranger": 2,
+        "Monk": 3,
+        "Necromancer": 4,
+        "Mesmer": 5,
+        "Elementalist": 6,
+        "Assassin": 7,
+        "Ritualist": 8,
+        "Paragon": 9,
+        "Dervish": 10,
+    }
+
+    @staticmethod
+    def get_profession_icon_path(profession_name: str) -> str:
+        prof_id = Helper._profession_icon_ids.get(profession_name)
+        if not prof_id:
+            return ""
+        return os.path.join(root_directory, f"Textures/Profession_Icons/[{prof_id}] - {profession_name}.png")
+
+    @staticmethod
+    def get_skill_icon_path(skill_name: str) -> str:
+        skill_id = Skill.GetID(skill_name)
+        if skill_id <= 0:
+            return ""
+        return GLOBAL_CACHE.Skill.ExtraData.GetTexturePath(skill_id)
 
     last_cast_logs = {}
     console_logs = []
@@ -1030,88 +1064,6 @@ def smart_bip():
     if result:
         execute_hero_skill(*result)
 
-def smart_healing():
-    if Party.GetHeroCount() == 0:
-        return
-    if not Helper.can_execute_with_delay("smart_healing", 500):
-        return
-
-    # Get allies (party members, heroes, henchmen) - excludes minions
-    ally_array = AgentArray.GetAllyArray()
-    if not ally_array:
-        return
-    
-    # Add pets to ally array
-    pet_array = AgentArray.GetSpiritPetArray()
-    if pet_array:
-        # Filter out spirits, keep only pets
-        pet_array = [agent_id for agent_id in pet_array if not Agent.IsSpawned(agent_id)]
-        ally_array = ally_array + pet_array
-    
-    spell_range = Helper.get_spell_cast_range()
-    player_pos = Player.GetXY()
-    
-    # Filter allies by distance and alive status
-    valid_allies = []
-    for agent_id in ally_array:
-        if not Helper.is_agent_alive(agent_id):
-            continue
-        distance = Utils.Distance(player_pos, Agent.GetXY(agent_id))
-        if distance > spell_range:
-            continue
-        health = Helper.get_hp_data(agent_id)
-        if health.percentage >= 0.90:
-            continue
-        valid_allies.append((agent_id, health.percentage))
-    
-    if not valid_allies:
-        return
-    
-    # Sort by health percentage (lowest first)
-    valid_allies.sort(key=lambda x: x[1])
-    target_id = valid_allies[0][0]
-    
-    # Common monk and ritualist healing skills to try in order of priority
-    healing_skills = [
-        # Monk healing skills
-        "Word_of_Healing",
-        "Patient_Spirit",
-        "Dwaynas_Kiss",
-        "Healing_Burst",
-        "Healing_Touch",
-        "Signet_of_Rejuvenation",
-        "Orison_of_Healing",
-        "Heal_Other",
-        "Healing_Breeze",
-        # Ritualist healing skills
-        "Mend_Body_and_Soul",
-        "Spirit_Light",
-        "Soothing_Memories",
-        "Weapon_of_Remedy",
-        "Vital_Weapon"
-    ]
-    
-    for skill_name in healing_skills:
-        skill_id = Skill.GetID(skill_name)
-        if skill_id == 0:
-            continue
-            
-        # Check if any hero has this skill and can cast it
-        result = Helper.smartcast_hero_skill(
-            skill_id=skill_id,
-            min_enemies=0,
-            enemy_range_check=spell_range,
-            effect_check=False,
-            cast_target_id=target_id,
-            distance_check_range=spell_range + 200,
-            allow_out_of_combat=True,
-            min_energy_perc=0.2
-        )
-        
-        if result:
-            execute_hero_skill(*result)
-            break  # Cast only one heal per cycle
-
 def smart_incoming_fallback():
     """Force heroes to use Incoming! and Fall Back! regardless of Essence of Celerity being active."""
     if Party.GetHeroCount() == 0:
@@ -1263,20 +1215,6 @@ def set_hero_behaviour(behaviour):
     Helper.log_event(message=f"Set all heroes to {behaviour_str}.")
 
 
-def colored_button(label: str, button_color=0, hovered_color=0, active_color=0, width=0, height=0):
-    PyImGui.push_style_color(PyImGui.ImGuiCol.Button, Utils.ColorToTuple(button_color))
-    PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, Utils.ColorToTuple(hovered_color))
-    PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, Utils.ColorToTuple(active_color))
-
-    clicked = PyImGui.button(label, width, height)
-
-    PyImGui.pop_style_color(3)
-    return clicked
-
-def color_toggle_button(label: str, state: bool, button_color=0, hovered_color=0, active_color=0, width=0, height=0):
-    icon = IconsFontAwesome5.ICON_CHECK_CIRCLE if state else IconsFontAwesome5.ICON_CIRCLE
-    return colored_button(f"{icon}##{label}", active_color if state else button_color, active_color, active_color, width, height)
-
 def toggle_config_value(label: str, attr: str, width: int = 0, height: int = 25, tooltip: str = ""):
     curr = getattr(widget_config, attr)
     toggled = ImGui.toggle_button(label, curr, width, height)
@@ -1288,6 +1226,18 @@ def toggle_config_value(label: str, attr: str, width: int = 0, height: int = 25,
     if tooltip and PyImGui.is_item_hovered():
         PyImGui.set_tooltip(tooltip)
 
+def draw_feature_status(label: str, enabled: bool):
+    status_icon = IconsFontAwesome5.ICON_CHECK if enabled else IconsFontAwesome5.ICON_TIMES
+    status_text = "Enabled" if enabled else "Disabled"
+    status_color = (
+        Utils.ColorToTuple(Utils.RGBToColor(80, 200, 120, 255))
+        if enabled else
+        Utils.ColorToTuple(Utils.RGBToColor(220, 90, 90, 255))
+    )
+    PyImGui.text(f"{label} Status:")
+    PyImGui.same_line(0, 6)
+    PyImGui.text_colored(f"{status_icon} {status_text}", status_color)
+
 def draw_tab_follow(config):
     PyImGui.text("Follow Delay (ms)")
     config.follow_delay = PyImGui.slider_int("##follow_delay_slider", config.follow_delay, 500, 2000)
@@ -1296,28 +1246,56 @@ def draw_tab_follow(config):
     config.follow_delay = max(500, min(2000, config.follow_delay))
     
 def draw_tab_smart_skills(config):
-    Helper.create_and_update_checkbox("Smart Blood is Power", "smart_bip_enabled", tooltip_text="Automatically cast Blood is Power on player when needed.")
-    PyImGui.same_line(0.0, 21)
-    Helper.create_and_update_checkbox("Smart Signet of Spirits", "smart_sos_enabled", tooltip_text="Automatically casts Signet of Spirits when necessary.")
+    PyImGui.text_disabled("Toggle automated hero support behaviors grouped by profession.")
+    PyImGui.separator()
+    skill_groups = [
+        ("Monk", [
+            ("Strength of Honor", "smart_honor_enabled", "[DISABLE HERO CASTING] Maintains Honor on melee player.", "Strength_of_Honor"),
+            ("Life Bond", "smart_life_bond_enabled", "[DISABLE HERO CASTING] Maintains Life Bond on melee player.", "Life_Bond"),
+            ("Vigorous Spirit", "smart_vigorous_enabled", "Casts Vigorous Spirit on melee player in combat.", "Vigorous_Spirit"),
+        ]),
+        ("Necromancer", [
+            ("Blood is Power", "smart_bip_enabled", "Automatically cast Blood is Power on player when needed.", "Blood_is_Power"),
+            ("Dark Aura", "smart_dark_aura_enabled", "Hero maintains Masochism on itself, then Dark Aura on Necromancer player.", "Dark_Aura"),
+        ]),
+        ("Paragon", [
+            ("Incoming!", "smart_incoming_fallback_enabled", "Hero uses Incoming! and Fall Back! even when Essence of Celerity is active.", "Incoming"),
+            ("Fall Back!", "smart_incoming_fallback_enabled", "Hero uses Incoming! and Fall Back! even when Essence of Celerity is active.", "Fall_Back"),
+        ]),
+        ("Ritualist", [
+            ("Signet of Spirits", "smart_sos_enabled", "Automatically casts Signet of Spirits when necessary.", "Signet_of_Spirits"),
+            ("Soul Twisting", "smart_st_enabled", "Automatically casts Shelter and Union based on combat conditions.", "Soul_Twisting"),
+            ("Splinter Weapon", "smart_splinter_enabled", "Casts Splinter on melee player in combat.", "Splinter_Weapon"),
+        ]),
+    ]
 
-    Helper.create_and_update_checkbox("Smart Soul Twisting", "smart_st_enabled", tooltip_text="Automatically casts Shelter and Union based on combat conditions.")
-    PyImGui.same_line(0.0, 31)
-    Helper.create_and_update_checkbox("Smart Strength of Honor", "smart_honor_enabled", tooltip_text="[DISABLE HERO CASTING] Maintains Honor on melee player.")
+    icon_size = 30
 
-    Helper.create_and_update_checkbox("Smart Life Bond", "smart_life_bond_enabled", tooltip_text="[DISABLE HERO CASTING] Maintains Life Bond on melee player.")
-    PyImGui.same_line(0.0, 60)
-    Helper.create_and_update_checkbox("Smart Dark Aura", "smart_dark_aura_enabled", tooltip_text="Hero maintains Masochism on itself, then Dark Aura on Necromancer player.")
+    for profession_name, skills in skill_groups:
+        profession_icon = Helper.get_profession_icon_path(profession_name)
+        if profession_icon and os.path.exists(profession_icon):
+            ImGui.DrawTexture(profession_icon, icon_size, icon_size)
+            PyImGui.same_line(0, 8)
 
-    Helper.create_and_update_checkbox("Smart Splinter Weapon", "smart_splinter_enabled", tooltip_text="Casts Splinter on melee player in combat.")
-    PyImGui.same_line(0.0, 10)
-    Helper.create_and_update_checkbox("Smart Vigorous Spirit", "smart_vigorous_enabled", tooltip_text="Casts Vigorous Spirit on melee player in combat.")
-    
-    Helper.create_and_update_checkbox("Smart Healing", "smart_healing_enabled", tooltip_text="Monk/Rit heals lowest health ally/pet (excludes minions).")
-    PyImGui.same_line(0.0, 10)
-    Helper.create_and_update_checkbox("Smart Incoming/Fall Back", "smart_incoming_fallback_enabled", tooltip_text="Hero uses Incoming! and Fall Back! even when Essence of Celerity is active.")
+        if PyImGui.collapsing_header(f"{profession_name}##{profession_name}_group", PyImGui.TreeNodeFlags.DefaultOpen):
+            for label, attr, tooltip, skill_name in skills:
+                skill_icon = Helper.get_skill_icon_path(skill_name)
+                if skill_icon and os.path.exists(skill_icon):
+                    ImGui.DrawTexture(skill_icon, icon_size, icon_size)
+                    PyImGui.same_line(0, 8)
+
+                previous = getattr(config, attr)
+                current = Helper.visible_checkbox(f"{label}##{attr}", previous)
+                setattr(config, attr, current)
+                if current != previous:
+                    Helper.log_event(message=f"{label} {'Enabled' if current else 'Disabled'}")
+                if tooltip and PyImGui.is_item_hovered():
+                    PyImGui.set_tooltip(tooltip)
+
+            PyImGui.spacing()
 
 def draw_tab_condition_cleanse(config):
-    if not PyImGui.collapsing_header("Condition Removal", PyImGui.TreeNodeFlags.DefaultOpen):
+    if not PyImGui.collapsing_header("Condition", PyImGui.TreeNodeFlags.DefaultOpen):
         return
 
     PyImGui.text_wrapped("Assign Prio Cleanse Conditions to Melee, Caster, or Both\n(Leave blank to keep default priority):")
@@ -1335,13 +1313,13 @@ def draw_tab_condition_cleanse(config):
             PyImGui.text(condition.replace("_", " "))
 
             PyImGui.table_next_column()
-            new_melee = PyImGui.checkbox(f"##melee_{condition}", data["melee"])
+            new_melee = Helper.visible_checkbox(f"##melee_{condition}", data["melee"])
 
             PyImGui.table_next_column()
-            new_caster = PyImGui.checkbox(f"##caster_{condition}", data["caster"])
+            new_caster = Helper.visible_checkbox(f"##caster_{condition}", data["caster"])
 
             PyImGui.table_next_column()
-            new_both = PyImGui.checkbox(f"##both_{condition}", data["both"])
+            new_both = Helper.visible_checkbox(f"##both_{condition}", data["both"])
 
             prev = (data["melee"], data["caster"], data["both"])
 
@@ -1375,7 +1353,8 @@ def draw_tab_condition_cleanse(config):
 
     PyImGui.same_line(0.0, -1)
     button_width = int(PyImGui.get_content_region_avail()[0])
-    toggle_config_value("Enable Condition Cleanse", "smart_con_cleanse_toggled", button_width, 25, "Toggle automatic condition cleansing")
+    toggle_config_value("Enable Condition", "smart_con_cleanse_toggled", button_width, 25, "Toggle automatic condition handling")
+    draw_feature_status("Condition", config.smart_con_cleanse_toggled)
 
 
 
@@ -1383,7 +1362,7 @@ def render_hex_group(title, hex_list):
     if not hex_list:
         return
 
-    if PyImGui.collapsing_header(f"Hexes to be priority removed from {title}", PyImGui.TreeNodeFlags.DefaultOpen):
+    if PyImGui.collapsing_header(f"Priority Hex for {title}", PyImGui.TreeNodeFlags.DefaultOpen):
         PyImGui.columns(2, f"{title}_hexes", False)
         midpoint = (len(hex_list) + 1) // 2
         for i, hex_name in enumerate(hex_list):
@@ -1393,7 +1372,7 @@ def render_hex_group(title, hex_list):
         PyImGui.columns(1, "hex_columns", False)
 
 def render_user_hex_editor(config):
-    if not PyImGui.collapsing_header("Hexes added by user", PyImGui.TreeNodeFlags.DefaultOpen):
+    if not PyImGui.collapsing_header("Hex added by user", PyImGui.TreeNodeFlags.DefaultOpen):
         return
 
     PyImGui.set_tooltip("These are hexes you manually added. Red circle to remove")
@@ -1430,11 +1409,11 @@ def render_user_hex_editor(config):
         config.user_hex_input = ""
 
 def draw_tab_hex_removal(config):
-    if not PyImGui.collapsing_header("Hex Removal", PyImGui.TreeNodeFlags.DefaultOpen):
+    if not PyImGui.collapsing_header("Hex", PyImGui.TreeNodeFlags.DefaultOpen):
         return
 
-    PyImGui.text_wrapped("These hexes will be prioritized for removal.")
-    PyImGui.set_tooltip("Hexes in each list will be removed automatically when detected.")
+    PyImGui.text_wrapped("These hexes will be prioritized.")
+    PyImGui.set_tooltip("Hex in each list will be removed automatically when detected.")
 
     render_hex_group("Melee", config.hexes_melee)
     render_hex_group("Casters", config.hexes_caster)
@@ -1445,7 +1424,8 @@ def draw_tab_hex_removal(config):
     available_width = PyImGui.get_content_region_avail()[0]
     button_width = int(available_width)
 
-    toggle_config_value("Enable Hex Cleanse", "smart_hex_cleanse_toggled", button_width, 25, "Toggle automatic hex removal")
+    toggle_config_value("Enable Hex", "smart_hex_cleanse_toggled", button_width, 25, "Toggle automatic hex handling")
+    draw_feature_status("Hex", config.smart_hex_cleanse_toggled)
 
 
 def draw_tab_interrupt(config):
@@ -1453,9 +1433,14 @@ def draw_tab_interrupt(config):
 
     if PyImGui.collapsing_header("Skills To Interrupt", PyImGui.TreeNodeFlags.DefaultOpen):
         for skill in config.skills_to_rupt:
-            PyImGui.text(f"- {skill.replace('_', ' ')}")
-            PyImGui.same_line(0, 5)
-            if PyImGui.button(f"##Remove_{skill}", 10, 10):
+            skill_icon = Helper.get_skill_icon_path(skill)
+            if skill_icon and os.path.exists(skill_icon):
+                ImGui.DrawTexture(skill_icon, 24, 24)
+                PyImGui.same_line(0, 8)
+
+            PyImGui.text(f"{skill.replace('_', ' ')}")
+            PyImGui.same_line(0, 8)
+            if PyImGui.button(f"##Remove_{skill}", 20, 20):
                 config.skills_to_rupt.remove(skill)
                 config.save_skills_to_rupt()
                 Helper.log_event(message=f"Removed {skill} from interrupt list")
@@ -1480,29 +1465,71 @@ def draw_tab_interrupt(config):
         config.user_skill_input = ""
 
     button_width = int(PyImGui.get_content_region_avail()[0])
-    toggle_config_value("Enable Hero Interrupt", "smart_interrupt_toggled", button_width, 25, "Toggle automatic hero interrupts")
+    toggle_config_value("Enable Hero Interrupt", "smart_interrupt_toggled", button_width, 34, "Toggle automatic hero interrupts")
+    draw_feature_status("Interrupt", config.smart_interrupt_toggled)
 
 def draw_config_tabs(widget_config):
+    def responsive_tab_label(icon, full_text, short_text, unique_id, max_width):
+        candidates = [
+            f"{icon} {full_text}",
+            f"{icon} {short_text}",
+            f"{icon}",
+        ]
+        chosen = candidates[-1]
+        for text in candidates:
+            if PyImGui.calc_text_size(text)[0] <= max_width:
+                chosen = text
+                break
+        return f"{chosen}##{unique_id}"
+
+    available_width = max(1.0, PyImGui.get_content_region_avail()[0])
+    per_tab_width = max(24.0, (available_width / 5.0) - 18.0)
+
     if not PyImGui.begin_tab_bar("Hero Helper Config Tabs"):
         return
 
-    if PyImGui.begin_tab_item("Follow"):
+    open_follow = PyImGui.begin_tab_item(
+        responsive_tab_label(IconsFontAwesome5.ICON_USER, "Follow", "Follow", "follow_tab", per_tab_width)
+    )
+    if PyImGui.is_item_hovered():
+        PyImGui.set_tooltip("Follow settings")
+    if open_follow:
         draw_tab_follow(widget_config)
         PyImGui.end_tab_item()
 
-    if PyImGui.begin_tab_item("Smart Skills"):
+    open_skills = PyImGui.begin_tab_item(
+        responsive_tab_label(IconsFontAwesome5.ICON_MAGIC, "Smart Skills", "Skills", "skills_tab", per_tab_width)
+    )
+    if PyImGui.is_item_hovered():
+        PyImGui.set_tooltip("Smart Skills")
+    if open_skills:
         draw_tab_smart_skills(widget_config)
         PyImGui.end_tab_item()
 
-    if PyImGui.begin_tab_item("Condition Cleanse"):
+    open_cond = PyImGui.begin_tab_item(
+        responsive_tab_label(IconsFontAwesome5.ICON_HEART, "Condition", "Cond", "cond_tab", per_tab_width)
+    )
+    if PyImGui.is_item_hovered():
+        PyImGui.set_tooltip("Condition")
+    if open_cond:
         draw_tab_condition_cleanse(widget_config)
         PyImGui.end_tab_item()
 
-    if PyImGui.begin_tab_item("Hex Removal"):
+    open_hex = PyImGui.begin_tab_item(
+        responsive_tab_label(IconsFontAwesome5.ICON_SHIELD_ALT, "Hex", "Hex", "hex_tab", per_tab_width)
+    )
+    if PyImGui.is_item_hovered():
+        PyImGui.set_tooltip("Hex")
+    if open_hex:
         draw_tab_hex_removal(widget_config)
         PyImGui.end_tab_item()
 
-    if PyImGui.begin_tab_item("Smart Interrupt"):
+    open_interrupt = PyImGui.begin_tab_item(
+        responsive_tab_label(IconsFontAwesome5.ICON_BOLT, "Smart Interrupt", "Interrupt", "interrupt_tab", per_tab_width)
+    )
+    if PyImGui.is_item_hovered():
+        PyImGui.set_tooltip("Smart Interrupt")
+    if open_interrupt:
         draw_tab_interrupt(widget_config)
         PyImGui.end_tab_item()
 
@@ -1529,26 +1556,13 @@ def _render_behavior_buttons():
         set_hero_behaviour(2)
 
 
-def _render_toggle_row(toggles):
-    for i, (label, config_key, tooltip) in enumerate(toggles):
-        state = getattr(widget_config, config_key)
-        if color_toggle_button(label, state,
-                               Utils.RGBToColor(26, 26, 26, 225),
-                               Utils.RGBToColor(255, 255, 255, 25),
-                               Utils.RGBToColor(0, 170, 255, 125)):
-            new_state = not state
-            setattr(widget_config, config_key, new_state)
-            Helper.log_event(message=f"{label} {'Enabled' if new_state else 'Disabled'}")
-
-        ImGui.show_tooltip(tooltip)
-        if i != len(toggles) - 1:
-            PyImGui.same_line(0, 1)
-
-
 def draw_options_window():
-    if not PyImGui.begin_child("Console", size=(280.0, 50.0), border=False, flags=0):
+    PyImGui.text_colored("Live Control Panel", Utils.ColorToTuple(Utils.RGBToColor(255, 210, 120, 255)))
+
+    if not PyImGui.begin_child("Console", size=(0.0, 70.0), border=True, flags=0):
         return
 
+    PyImGui.text_disabled("Event Log")
     for log in reversed(Helper.console_logs):
         PyImGui.text(log)
     PyImGui.end_child()
@@ -1565,107 +1579,10 @@ def draw_options_window():
         Helper.log_event(message=f"Hero Follow {'Enabled' if new_state else 'Disabled'}")
     widget_config.smart_follow_toggled = new_state
 
-    _render_toggle_row([
-        ("Smart BiP", "smart_bip_enabled", "Smart BiP"),
-        ("Smart SoS", "smart_sos_enabled", "Smart SoS"),
-        ("Smart ST", "smart_st_enabled", "Smart ST"),
-        ("Smart SoH", "smart_honor_enabled", "Smart SoH"),
-        ("Smart LB", "smart_life_bond_enabled", "Smart Life Bond"),
-        ("Smart SW", "smart_splinter_enabled", "Smart SW"),
-        ("Smart VS", "smart_vigorous_enabled", "Smart VS"),
-        ("Smart CC", "smart_con_cleanse_toggled", "Condition Cleanse"),
-        ("Smart HR", "smart_hex_cleanse_toggled", "Hex Removal"),
-        ("Smart Int", "smart_interrupt_toggled", "Smart Interrupt"),
-        ("Smart I/F", "smart_incoming_fallback_enabled", "Smart Incoming/Fall Back"),
-    ])
-
-def draw_window():
-    PyImGui.set_next_window_size(300, 200)
-
-    if not PyImGui.begin(window_module.window_name, window_module.window_flags | PyImGui.WindowFlags.NoScrollbar):
-        return
-
-    PyImGui.begin_group()
-    draw_options_window()
-    PyImGui.end()
-
-PARTY_WINDOW_HASH = 3332025202
-PARTY_WINDOW_FRAME_OUTPOST_OFFSETS = [1]
-PARTY_WINDOW_FRAME_EXPLORABLE_OFFSETS = [0]
-
-class Tabs(Enum):
-    party_default = 1
-    options_panel = 2
-    configs_panel = 3
-
-selected_tab:Tabs = Tabs.party_default
-
-def draw_frame_content(content_frame_id):
-    global selected_tab
-
-    if selected_tab == Tabs.party_default:
-        return
-
-    left, top, right, bottom = UIManager.GetFrameCoords(content_frame_id)
-    width, height = right - left, bottom - top
-
-    UIManager().DrawFrame(content_frame_id, Utils.RGBToColor(0, 0, 0, 255))
-
-    flags = (
-        PyImGui.WindowFlags.NoCollapse |
-        PyImGui.WindowFlags.NoTitleBar |
-        PyImGui.WindowFlags.NoResize |
-        PyImGui.WindowFlags.AlwaysHorizontalScrollbar |
-        PyImGui.WindowFlags.AlwaysVerticalScrollbar
-    )
-
-    PyImGui.push_style_var(ImGui.ImGuiStyleVar.WindowRounding, 0.0)
-    PyImGui.set_next_window_pos(left, top)
-    PyImGui.set_next_window_size(width, height)
-
-    if not PyImGui.begin("##help_framed_content", True, flags):
-        return
-
-    if selected_tab == Tabs.options_panel:
-        draw_options_window()
-        Helper.create_and_update_checkbox("Old Window", "floating_window_enabled", tooltip_text="enable the floating")
-    elif selected_tab == Tabs.configs_panel:
-        draw_config_tabs(widget_config)
-
-    PyImGui.end()
-
 def draw_embedded_window():
-    global selected_tab
-    parent_frame_id = UIManager.GetFrameIDByHash(PARTY_WINDOW_HASH)
-    if parent_frame_id == 0:
-        return
-    outpost_content_frame_id = UIManager.GetChildFrameID( PARTY_WINDOW_HASH, PARTY_WINDOW_FRAME_OUTPOST_OFFSETS)
-    explorable_content_frame_id = UIManager.GetChildFrameID( PARTY_WINDOW_HASH, PARTY_WINDOW_FRAME_EXPLORABLE_OFFSETS) 
-    
-    if Map.IsMapReady() and Map.IsExplorable():
-        content_frame_id = explorable_content_frame_id
-    else:
-        content_frame_id = outpost_content_frame_id
-    
-    left, top, right, bottom = UIManager.GetFrameCoords(parent_frame_id)
-    sidebar_width = 30
-    sidebar_height = bottom - top
-
-    flags = ImGui.PushTransparentWindow()
-    PyImGui.set_next_window_pos(left - sidebar_width - 2, top)
-    PyImGui.set_next_window_size(sidebar_width, sidebar_height)
-
-    if PyImGui.begin("HeroHelper Vertical Tabs", True, flags):
-        
-        if PyImGui.button(IconsFontAwesome5.ICON_BORDER_NONE + "##cleartab", -1, 0):  # -1 width, 0 height auto
-            selected_tab = Tabs.party_default
-        if PyImGui.button(IconsFontAwesome5.ICON_CHECK_SQUARE + "##optiontab", -1, 0):
-            selected_tab = Tabs.options_panel
-        if PyImGui.button(IconsFontAwesome5.ICON_LIST_OL + "##configtab", -1, 0):
-            selected_tab = Tabs.configs_panel
-        PyImGui.end()
-    ImGui.PopTransparentWindow()
-    draw_frame_content(content_frame_id)
+    # Embedded sidebar/party-frame config UI intentionally disabled.
+    # All configuration is now exposed through configure().
+    return
 
 def configure():
     global widget_config, config_module, ini_handler
@@ -1676,8 +1593,25 @@ def configure():
         config_module.first_run = False
         
     if PyImGui.begin(config_module.window_name, config_module.window_flags):
-        draw_config_tabs(widget_config)
-                
+        PyImGui.text_colored(f"{IconsFontAwesome5.ICON_COG} Hero Helper", Utils.ColorToTuple(Utils.RGBToColor(255, 210, 120, 255)))
+        PyImGui.same_line(0, 8)
+        PyImGui.text_disabled("Configuration Center")
+        PyImGui.separator()
+
+        if PyImGui.begin_tab_bar("Hero Helper Root Tabs"):
+            if PyImGui.begin_tab_item(f"{IconsFontAwesome5.ICON_SLIDERS_H} Controls"):
+                if PyImGui.begin_child("##herohelper_controls_panel", size=(0, 0), border=True, flags=0):
+                    draw_options_window()
+                    PyImGui.end_child()
+                PyImGui.end_tab_item()
+
+            if PyImGui.begin_tab_item(f"{IconsFontAwesome5.ICON_TOOLS} Configuration"):
+                if PyImGui.begin_child("##herohelper_config_panel", size=(0, 0), border=True, flags=0):
+                    draw_config_tabs(widget_config)
+                    PyImGui.end_child()
+                PyImGui.end_tab_item()
+
+            PyImGui.end_tab_bar()
 
         end_pos = PyImGui.get_window_pos()
         if end_pos[0] != config_module.window_pos[0] or end_pos[1] != config_module.window_pos[1]:
@@ -1707,7 +1641,7 @@ def tooltip():
     # Features
     PyImGui.text_colored("Features:", title_color.to_tuple_normalized())
     PyImGui.bullet_text("Smart Interrupt: High-speed automated interrupts on enemy casters")
-    PyImGui.bullet_text("Condition/Hex Removal: Priority-based cleansing of dangerous debuffs")
+    PyImGui.bullet_text("Condition/Hex: Priority-based cleansing of dangerous debuffs")
     PyImGui.bullet_text("Elite Management: Optimized logic for BiP, Soul Twisting, and SoS")
     PyImGui.bullet_text("Buff Maintenance: Automated upkeep of Splinter Weapon, Honor, and Life Bond")
     PyImGui.bullet_text("Smart Healing: Ally/Pet healing that excludes minions from targeting")
@@ -1756,14 +1690,8 @@ def main():
                 smart_bip()   
             if widget_config.smart_sos_enabled:
                 smart_sos()
-            if widget_config.smart_healing_enabled:
-                smart_healing()
             if widget_config.smart_incoming_fallback_enabled:
                 smart_incoming_fallback()
-
-        if widget_config.floating_window_enabled:
-            draw_window()
-        draw_embedded_window()
 
         if not action_queue.is_empty():
             action_queue.execute_next()
