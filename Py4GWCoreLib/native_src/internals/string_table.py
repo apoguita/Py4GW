@@ -202,8 +202,10 @@ _string_table: dict[int, bytes] = {}
 _string_table_loaded: bool = False
 _load_enqueued: bool = False
 _loaded_language: int = 0
+_string_tables_by_language: dict[int, dict[int, bytes]] = {}
 
 _decode_cache: dict[bytes, str] = {}
+_decode_cache_by_language: dict[tuple[int, bytes], str] = {}
 _pending: set[bytes] = set()
 
 from concurrent.futures import ThreadPoolExecutor as _TPE
@@ -223,25 +225,71 @@ _GRAMMAR_TAG_RE = re.compile(
     r'^\[(M|F|N|U|P|PM|PF|PN|m|u|null|proper|plur|sing)\]'
 )
 _INLINE_STYLE_TAG_RE = re.compile(r'\[(?:/?[bB])\]')
+_INLINE_GENDER_TAG_RE = re.compile(r'\[(f|m):"([^"]*)"\]')
+_INLINE_GENDER_PAIR_RE = re.compile(r'\[(m|f):"([^"]*)"\]\[(m|f):"([^"]*)"\]')
+_INDEFINITE_ARTICLE_RE = re.compile(r'\[(?:a|an)\](\s+)([A-Za-zÀ-ÖØ-öø-ÿ][A-Za-zÀ-ÖØ-öø-ÿ\'-]*)')
+_COLOR_TAG_RE = re.compile(r"<c=@[^>]+>(.*?)</c>")
+
+
+def _apply_inline_gender_tags(text: str, prefer_male: bool = True) -> str:
+    def _replace_pair(match: re.Match[str]) -> str:
+        first_tag, first_value, second_tag, second_value = match.groups()
+        preferred_tag = "m" if prefer_male else "f"
+        if first_tag == preferred_tag:
+            return first_value
+        if second_tag == preferred_tag:
+            return second_value
+        return first_value or second_value
+
+    def _replace_single(match: re.Match[str]) -> str:
+        tag, value = match.groups()
+        preferred_tag = "m" if prefer_male else "f"
+        return value if tag == preferred_tag else ""
+
+    text = _INLINE_GENDER_PAIR_RE.sub(_replace_pair, text)
+    return _INLINE_GENDER_TAG_RE.sub(_replace_single, text)
 
 
 def _postprocess_basic(text: str) -> str:
     text = _GRAMMAR_TAG_RE.sub('', text)
     text = _INLINE_STYLE_TAG_RE.sub('', text)
+    text = _apply_inline_gender_tags(text, prefer_male=True)
     for old, new in _BRACKET_SUBS.items():
         if old in text:
             text = text.replace(old, new)
     return text
 
 
-def _postprocess(text: str) -> str:
+def _choose_indefinite_article(word: str) -> str:
+    lower = word.lower()
+    if lower.startswith(("honest", "honor", "hour", "heir")):
+        return "an"
+    if lower.startswith(("uni", "use", "user", "euro", "one", "once")):
+        return "a"
+    return "an" if lower[:1] in {"a", "e", "i", "o", "u"} else "a"
+
+
+def _apply_indefinite_articles(text: str) -> str:
+    def _replace(match: re.Match[str]) -> str:
+        spacing = match.group(1)
+        word = match.group(2)
+        return f"{_choose_indefinite_article(word)}{spacing}{word}"
+
+    return _INDEFINITE_ARTICLE_RE.sub(_replace, text)
+
+
+def _postprocess(text: str, table: Optional[dict[int, bytes]] = None) -> str:
     text = _postprocess_basic(text)
     if "%str" in text:
-        text = _apply_substitutions(text)
+        text = _apply_substitutions(text, table)
+    if "[an]" in text or "[a]" in text:
+        text = _apply_indefinite_articles(text)
+    if "%%" in text:
+        text = text.replace("%%", "%")
     return text
 
 
-def _get_substitute_text(slot: int) -> str:
+def _get_substitute_text(slot: int, table: Optional[dict[int, bytes]] = None) -> str:
     """Resolve TextParser substitute_1/substitute_2 to display text."""
     tp = TextParser.get_context()
     if tp is None:
@@ -252,7 +300,8 @@ def _get_substitute_text(slot: int) -> str:
         return ""
 
     # Most common path in our custom decoder: substitute is another string-table index.
-    entry = _string_table.get(sub)
+    source_table = table if table is not None else _string_table
+    entry = source_table.get(sub)
     if entry is not None:
         text = _decode_entry(entry, 0)
         if text:
@@ -267,13 +316,13 @@ def _get_substitute_text(slot: int) -> str:
     return ""
 
 
-def _apply_substitutions(text: str) -> str:
+def _apply_substitutions(text: str, table: Optional[dict[int, bytes]] = None) -> str:
     if "%str1%" in text:
-        sub1 = _get_substitute_text(1)
+        sub1 = _get_substitute_text(1, table)
         if sub1:
             text = text.replace("%str1%", sub1)
     if "%str2%" in text:
-        sub2 = _get_substitute_text(2)
+        sub2 = _get_substitute_text(2, table)
         if sub2:
             text = text.replace("%str2%", sub2)
     return text
@@ -299,14 +348,15 @@ def _is_str_tag(cp: int) -> bool:
     return _STR_TAG_BASE <= cp <= _STR_TAG_MAX
 
 
-def _decode_codepoints_segment(segment: tuple[int, ...]) -> str:
+def _decode_codepoints_segment(segment: tuple[int, ...], table: Optional[dict[int, bytes]] = None) -> str:
     """Decode one codepoint segment (no inline arg tags inside)."""
     if not segment:
         return ""
     idx, key = _parse_codepoints(segment)
     if idx == 0:
         return ""
-    entry = _string_table.get(idx)
+    source_table = table if table is not None else _string_table
+    entry = source_table.get(idx)
     if entry is None:
         return ""
     text = _decode_entry(entry, key)
@@ -366,6 +416,17 @@ def _apply_plural_tags(text: str, num_value: Optional[int]) -> str:
     return text
 
 
+_NUM_PLACEHOLDER_RE = re.compile(r'%num\d+%')
+
+
+def _normalize_plain_text(text: str) -> str:
+    text = _apply_inline_gender_tags(text, prefer_male=True)
+    text = _apply_plural_tags(text, 1)
+    text = _NUM_PLACEHOLDER_RE.sub('', text)
+    text = _COLOR_TAG_RE.sub(r"\1", text)
+    return re.sub(r'\s{2,}', ' ', text).strip()
+
+
 def _best_arg_text(node: dict) -> str:
     """Pick the best resolved text from a node, descending through wrappers."""
     txt = (node.get("rendered") or "").strip()
@@ -419,7 +480,7 @@ def _consume_encoded_ref(codepoints: tuple[int, ...], start: int) -> int:
     return i
 
 
-def _parse_arg_blocks(codepoints: tuple[int, ...], i: int) -> tuple[dict[int, dict], dict[int, int], int]:
+def _parse_arg_blocks(codepoints: tuple[int, ...], i: int, table: Optional[dict[int, bytes]] = None) -> tuple[dict[int, dict], dict[int, int], int]:
     """Parse 0x0101..0x011F arg blocks starting at i."""
     n = len(codepoints)
     args: dict[int, dict] = {}
@@ -433,13 +494,13 @@ def _parse_arg_blocks(codepoints: tuple[int, ...], i: int) -> tuple[dict[int, di
             num_args[slot] = value
         else:
             slot = tag - 0x0109
-            arg_node, i = _decode_formatted_tree(codepoints, i + 1)
+            arg_node, i = _decode_formatted_tree(codepoints, i + 1, table)
             args[slot] = arg_node
 
     return args, num_args, i
 
 
-def _decode_formatted_tree(codepoints: tuple[int, ...], start: int = 0) -> tuple[dict, int]:
+def _decode_formatted_tree(codepoints: tuple[int, ...], start: int = 0, table: Optional[dict[int, bytes]] = None) -> tuple[dict, int]:
     """Decode one formatted expression and return ({template, rendered, args}, next_pos)."""
     n = len(codepoints)
     i = start
@@ -452,14 +513,14 @@ def _decode_formatted_tree(codepoints: tuple[int, ...], start: int = 0) -> tuple
             break
         i += 1
 
-    template = _decode_codepoints_segment(codepoints[head_start:i]) if i > head_start else ""
+    template = _decode_codepoints_segment(codepoints[head_start:i], table) if i > head_start else ""
     rendered = template
     args: dict[int, dict] = {}
     num_args: dict[int, int] = {}
 
     # Parse arg blocks: 0x0101 => num1, 0x010A => str1, ...
     if i < n and _is_arg_tag(codepoints[i]):
-        args, num_args, i = _parse_arg_blocks(codepoints, i)
+        args, num_args, i = _parse_arg_blocks(codepoints, i, table)
 
         # Ambiguous case: first token looked like num-tag but was actually a
         # string-ref digit (e.g. 0x0108), leaving unresolved tail data.
@@ -474,7 +535,7 @@ def _decode_formatted_tree(codepoints: tuple[int, ...], start: int = 0) -> tuple
         ):
             alt_end = _consume_encoded_ref(codepoints, start)
             if alt_end > start:
-                alt_template = _decode_codepoints_segment(codepoints[start:alt_end])
+                alt_template = _decode_codepoints_segment(codepoints[start:alt_end], table)
                 if alt_template:
                     template = alt_template
                     rendered = template
@@ -526,7 +587,7 @@ def _decode_formatted_tree(codepoints: tuple[int, ...], start: int = 0) -> tuple
     }, i
 
 
-def _decode_formatted_stream(codepoints: tuple[int, ...]) -> tuple[str, Optional[dict]]:
+def _decode_formatted_stream(codepoints: tuple[int, ...], table: Optional[dict[int, bytes]] = None) -> tuple[str, Optional[dict]]:
     """Decode full formatted stream with 0x0002 segment separators."""
     out: list[str] = []
     first_tree: Optional[dict] = None
@@ -544,7 +605,7 @@ def _decode_formatted_stream(codepoints: tuple[int, ...]) -> tuple[str, Optional
             i += 1
             continue
 
-        tree, ni = _decode_formatted_tree(codepoints, i)
+        tree, ni = _decode_formatted_tree(codepoints, i, table)
         if ni <= i:
             i += 1
             continue
@@ -560,19 +621,40 @@ def _decode_formatted_stream(codepoints: tuple[int, ...]) -> tuple[str, Optional
     i = 0
     while i < len(out):
         cur = out[i]
+        cur_lstripped = cur.lstrip()
         if re.search(r'%str\d+%', cur) and (i + 1) < len(out):
             nxt = out[i + 1]
             if nxt and not nxt.startswith("<c=@"):
                 cur = re.sub(r'%str\d+%', nxt, cur)
                 i += 1
-        compact.append(cur)
+                cur_lstripped = cur.lstrip()
+        # Parenthetical dull segments belong to the previous stat line.
+        if compact and cur.startswith("<c=@ItemDull>("):
+            compact[-1] = f"{compact[-1]} {cur}"
+        # Plain continuation fragments like ", ..." also belong to the previous line.
+        elif compact and not cur_lstripped.startswith("<c=@") and cur_lstripped[:1] in {",", ";", ":", ")", "]"}:
+            if "<c=@ItemDull>" in compact[-1] and compact[-1].endswith("</c>"):
+                compact[-1] = f"{compact[-1][:-4]}{cur_lstripped}</c>"
+            else:
+                compact[-1] = f"{compact[-1]}{cur_lstripped}"
+        elif compact and not cur_lstripped.startswith("<c=@"):
+            prev = compact[-1]
+            if "<c=@ItemDull>" in prev and prev.endswith(",</c>"):
+                if prev.endswith("),</c>"):
+                    compact[-1] = f"{prev[:-6]}, {cur_lstripped})</c>"
+                else:
+                    compact[-1] = f"{prev[:-4]} {cur_lstripped}</c>"
+            else:
+                compact.append(cur)
+        else:
+            compact.append(cur)
         i += 1
 
     return ('\n'.join(compact).strip(), first_tree)
 
 
-def _decode_formatted_codepoints(codepoints: tuple[int, ...], start: int = 0) -> tuple[str, int]:
-    node, i = _decode_formatted_tree(codepoints, start)
+def _decode_formatted_codepoints(codepoints: tuple[int, ...], start: int = 0, table: Optional[dict[int, bytes]] = None) -> tuple[str, int]:
+    node, i = _decode_formatted_tree(codepoints, start, table)
     return node.get("rendered", ""), i
 
 
@@ -583,8 +665,9 @@ def _load_dat_file(file_hash: str) -> Optional[bytes]:
     return read_dat_file_by_hash(file_hash)
 
 
-def _parse_string_file(file_data: bytes, start_index: int) -> int:
+def _parse_string_file(file_data: bytes, start_index: int, target_table: Optional[dict[int, bytes]] = None) -> int:
     """Parse all entries from a string file into _string_table. Returns count."""
+    table = target_table if target_table is not None else _string_table
     count = 0
     pos = 0
     idx = start_index
@@ -592,33 +675,28 @@ def _parse_string_file(file_data: bytes, start_index: int) -> int:
         entry_size = struct.unpack_from('<H', file_data, pos)[0]
         if entry_size < 6 or entry_size > 8192:
             break
-        _string_table[idx] = file_data[pos:pos + entry_size]
+        table[idx] = file_data[pos:pos + entry_size]
         pos += entry_size
         idx += 1
         count += 1
     return count
 
 
-def _do_load_string_table(language: int) -> None:
-    """Synchronous load — must run on the game thread.
-
-    Reads file slot metadata from TextParser, loads each dat file via
-    DatFileMethods, and parses all entries into _string_table.
-    Caller must ensure TextParser context is fresh (e.g. _update_ptr ran).
-    """
-    global _string_table_loaded, _loaded_language
-    if _string_table_loaded:
-        return
+def _load_table_for_language(language: int) -> dict[int, bytes]:
+    existing = _string_tables_by_language.get(language)
+    if existing is not None:
+        return existing
 
     tp = TextParser.get_context()
     if tp is None:
-        return
+        return {}
 
     epf = tp.entries_per_file
     if not epf:
-        return
+        return {}
 
     lang_slot = tp.language_slots[language]
+    table: dict[int, bytes] = {}
 
     for slot_idx in range(lang_slot.slot_count):
         file_slot = tp.get_file_slot(slot_idx, language)
@@ -630,8 +708,30 @@ def _do_load_string_table(language: int) -> None:
             continue
         if not file_data:
             continue
-        _parse_string_file(file_data, slot_idx * epf)
+        _parse_string_file(file_data, slot_idx * epf, table)
 
+    if table:
+        _string_tables_by_language[language] = table
+
+    return table
+
+
+def _do_load_string_table(language: int) -> None:
+    """Synchronous load — must run on the game thread.
+
+    Reads file slot metadata from TextParser, loads each dat file via
+    DatFileMethods, and parses all entries into _string_table.
+    Caller must ensure TextParser context is fresh (e.g. _update_ptr ran).
+    """
+    global _string_table_loaded, _loaded_language
+    if _string_table_loaded and _loaded_language == language:
+        return
+    table = _load_table_for_language(language)
+    if not table:
+        return
+
+    _string_table.clear()
+    _string_table.update(table)
     _string_table_loaded = True
     _loaded_language = language
 
@@ -661,8 +761,9 @@ def _get_client_language() -> int:
     return tp.language_id
 
 def switch_language(language: int) -> None:
-    global _string_table, _decode_cache, _string_table_loaded, _load_enqueued, _loaded_language
+    global _string_table, _decode_cache, _decode_cache_by_language, _string_table_loaded, _load_enqueued, _loaded_language
     _decode_cache.clear()
+    _decode_cache_by_language.clear()
     _string_table_loaded = False
     _load_enqueued = False
     _loaded_language = language
@@ -727,54 +828,54 @@ _rc4_decrypt = _rc4_cng() or _rc4_python
 
 # ─── Threaded decode helper ───────────────────────────────────────────
 
+def _decode_sync(raw: bytes, table: dict[int, bytes]) -> str:
+    n = len(raw) & ~1
+    if n < 2:
+        return ""
+
+    cp = struct.unpack_from(f'<{n >> 1}H', raw)
+    try:
+        cp = cp[:cp.index(0)]
+    except ValueError:
+        pass
+    if not cp:
+        return ""
+
+    idx, key = _parse_codepoints(cp)
+    legacy_text = ""
+    if idx != 0:
+        entry = table.get(idx)
+        if entry is not None:
+            t = _decode_entry(entry, key)
+            if t:
+                legacy_text = _postprocess(t, table)
+
+    has_arg_tags = any(_is_arg_tag(v) for v in cp)
+    has_term = any(v == 1 for v in cp)
+    has_sep = any(v == 2 for v in cp)
+    looks_formatted = has_arg_tags and (has_term or has_sep)
+    unresolved = bool(re.search(r'%str\d+%|%num\d+%|\[pl:"', legacy_text))
+
+    if looks_formatted or unresolved:
+        if has_sep:
+            text, _ = _decode_formatted_stream(cp, table)
+            if text:
+                return _postprocess(text, table)
+        else:
+            tree, _ = _decode_formatted_tree(cp, 0, table)
+            text = tree.get("rendered", "")
+            if text:
+                return _postprocess(text, table)
+
+    return legacy_text
+
+
 def _decode_and_cache(raw: bytes) -> None:
     """Unpack, parse, decode, postprocess in background thread, cache result."""
     try:
-        n = len(raw) & ~1
-        if n < 2:
-            return
-        cp = struct.unpack_from(f'<{n >> 1}H', raw)
-        try:
-            cp = cp[:cp.index(0)]
-        except ValueError:
-            pass
-        if not cp:
-            return
-
-        # 1) Legacy path first: this keeps skills/agents/general strings stable.
-        idx, key = _parse_codepoints(cp)
-        legacy_text = ""
-        if idx != 0:
-            entry = _string_table.get(idx)
-            if entry is not None:
-                t = _decode_entry(entry, key)
-                if t:
-                    legacy_text = _postprocess(t)
-
-        # 2) Formatted handling:
-        #    - names/placeholders: single expression
-        #    - descriptions: 0x0002-separated stream
-        has_arg_tags = any(_is_arg_tag(v) for v in cp)
-        has_term = any(v == 1 for v in cp)
-        has_sep = any(v == 2 for v in cp)
-        looks_formatted = has_arg_tags and (has_term or has_sep)
-        unresolved = bool(re.search(r'%str\d+%|%num\d+%|\[pl:"', legacy_text))
-
-        if looks_formatted or unresolved:
-            if has_sep:
-                text, _ = _decode_formatted_stream(cp)
-                if text:
-                    _decode_cache[raw] = _postprocess(text)
-                    return
-            else:
-                tree, _ = _decode_formatted_tree(cp, 0)
-                text = tree.get("rendered", "")
-                if text:
-                    _decode_cache[raw] = _postprocess(text)
-                    return
-
-        if legacy_text:
-            _decode_cache[raw] = legacy_text
+        decoded = _decode_sync(raw, _string_table)
+        if decoded:
+            _decode_cache[raw] = decoded
     finally:
         _pending.discard(raw)
 
@@ -784,7 +885,7 @@ def _decode_and_cache(raw: bytes) -> None:
 _PLAYER_PREFIX = b'\xa9\x0b'  # 0xBA9 as little-endian uint16
 
 
-def decode(raw: bytes) -> str:
+def decode(raw: bytes, language: Optional[int] = None) -> str:
     """Decode raw encoded-name bytes to a display string.
 
     Accepts the raw wchar_t bytes from GetAgentEncName (little-endian uint16
@@ -804,6 +905,22 @@ def decode(raw: bytes) -> str:
             chars.append(lo)
         return bytes(chars).decode('ascii', 'ignore')
 
+    requested_language = _loaded_language if language is None else int(language)
+    if language is not None and requested_language != _loaded_language:
+        cache_key = (requested_language, raw)
+        cached = _decode_cache_by_language.get(cache_key)
+        if cached is not None:
+            return cached
+
+        table = _load_table_for_language(requested_language)
+        if not table:
+            return ""
+
+        decoded = _decode_sync(raw, table)
+        if decoded:
+            _decode_cache_by_language[cache_key] = decoded
+        return decoded
+
     # Cache hit
     cached = _decode_cache.get(raw)
     if cached is not None:
@@ -820,3 +937,11 @@ def decode(raw: bytes) -> str:
     _pending.add(raw)
     _decode_pool.submit(_decode_and_cache, raw)
     return ""
+
+
+def decode_plain(raw: bytes, language: Optional[int] = None) -> str:
+    text = decode(raw, language=language)
+    if not text:
+        return ""
+
+    return _normalize_plain_text(text)

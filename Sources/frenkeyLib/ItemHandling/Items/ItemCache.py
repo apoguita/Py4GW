@@ -7,8 +7,6 @@ from PyItem import PyItem
 from Py4GWCoreLib.Item import Bag
 from Sources.frenkeyLib.ItemHandling.Items.item_snapshot import ItemSnapshot
 
-PERSISTENT = True
-
 class ItemCache:
     def __init__(self):
         self.items : dict[int, ItemSnapshot] = {}
@@ -23,8 +21,9 @@ class ItemCache:
             return None
         
         if item_id not in self.items:
-            snapshot = ItemSnapshot(item_id, item_instance)
-            if not snapshot.is_valid:
+            snapshot = ItemSnapshot.create(item_id, item_instance)
+            
+            if not snapshot or not snapshot.is_valid:
                 return None
             
             self.items[item_id] = snapshot
