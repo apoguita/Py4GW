@@ -324,9 +324,11 @@ def _set_flag_position(index: int, flag_x: int, flag_y: int) -> None:
     CustomBehaviorParty().party_flagging_manager.set_flag_position(index, flag_x, flag_y)
 
 
-def WaitTillQuestDone(bot_instance: Botting, quest_id: int) -> None:
+def WaitTillQuestDone(bot_instance: Botting) -> None:
     from Py4GWCoreLib.Quest import Quest
-    bot_instance.Wait.UntilCondition(lambda: Quest.IsQuestCompleted(quest_id))
+    bot_instance.Wait.UntilCondition(
+        lambda: (Quest.GetActiveQuest() > 0) and Quest.IsQuestCompleted(Quest.GetActiveQuest())
+    )
 
 
 
@@ -476,9 +478,24 @@ def _move_with_unstuck(
             if attempt >= max_retries:
                 ConsoleLog(
                     BOT_NAME,
-                    f"[Move] Max retries reached for ({tx:.0f},{ty:.0f}), giving up.",
+                    f"[Move] Max retries reached for ({tx:.0f},{ty:.0f}), jumping to previous step.",
                     Py4GW.Console.MessageType.Warning,
                 )
+                fsm = bot_instance.config.FSM
+                current_step_number = fsm.get_current_state_number()  # 1-based
+                previous_step_index = current_step_number - 2  # convert to 0-based previous index
+                if previous_step_index >= 0:
+                    fsm.pause()
+                    try:
+                        fsm.jump_to_state_by_step_number(previous_step_index)
+                    finally:
+                        fsm.resume()
+                else:
+                    ConsoleLog(
+                        BOT_NAME,
+                        "[Move] No previous step available to jump to.",
+                        Py4GW.Console.MessageType.Warning,
+                    )
                 return
 
             # ── Step 3: recovery before next attempt ─────────────────────
@@ -848,7 +865,7 @@ def Servants_of_Grenth(bot_instance: Botting):
         bot_instance.Party.UnflagAllHeroes()
         bot_instance.Party.FlagAllHeroes(3032, 20148)
         bot_instance.Party.UnflagAllHeroes()
-        WaitTillQuestDone(bot_instance, 104)
+        WaitTillQuestDone(bot_instance)
         bot_instance.Party.UnflagAllHeroes()
         bot_instance.States.AddCustomState(
             lambda: CustomBehaviorParty().party_flagging_manager.clear_all_flags(),
@@ -904,7 +921,7 @@ def Deamon_Assassin(bot_instance: Botting):
         bot_instance.Wait.ForTime(3000)
         bot_instance.Dialogs.AtXY(-8250, -5171, 0x806801, "take quest")
         bot_instance.Move.XY(-3645, -5820, "Deamon Assassin 1")
-        WaitTillQuestDone(bot_instance, 104)
+        WaitTillQuestDone(bot_instance)
         #ModelID Slayer 2391
 
 def Restore_Planes(bot_instance: Botting):
@@ -988,7 +1005,7 @@ def The_Four_Horsemen(bot_instance: Botting):
         ]
         _enqueue_spread_flags(bot_instance, THE_FOUR_HORSEMEN_FLAG_POINTS_2)
         bot_instance.Party.UnflagAllHeroes()
-        WaitTillQuestDone(bot_instance, 106)
+        WaitTillQuestDone(bot_instance)
         bot_instance.States.AddCustomState(
             lambda: CustomBehaviorParty().party_flagging_manager.clear_all_flags(),
             "Clear Flags",
@@ -1080,6 +1097,7 @@ def Imprisoned_Spirits(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_needs_to_loot(False), "Enable WaitIfPartyMemberNeedsToLoot")
     bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Enable WaitIfLockTaken")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Enable WaitIfPartyMemberManaTooLow")
+    bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_looting_enabled(False), "Disable Looting")
     if BotSettings.ImprisonedSpirits:
         bot_instance.Move.XY(13212, 4978)
         IMPRISONED_SPIRITS_FLAG_POINTS = [
@@ -1103,7 +1121,8 @@ def Imprisoned_Spirits(bot_instance: Botting):
             "Clear Flags",
         )
         bot_instance.Move.XY(12593, 1814)
-        WaitTillQuestDone(bot_instance, 105)
+        WaitTillQuestDone(bot_instance)
+        bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_looting_enabled(True), "Enable Looting")
         ##warten bis quest fertig
 
         bot_instance.Move.XY(8692, 6292, "go to NPC")
