@@ -12,6 +12,7 @@ Ether_Renewal_ID = Skill.GetID("Ether_Renewal")
 Protective_Spirit_ID = Skill.GetID("Protective_Spirit")
 Reversal_of_Fortune_ID = Skill.GetID("Reversal_of_Fortune")
 Breath_of_the_Great_Dwarf_ID = Skill.GetID("Breath_of_the_Great_Dwarf")
+Great_Dwarf_Weapon_ID = Skill.GetID("Great_Dwarf_Weapon")
 Vital_Blessing_ID = Skill.GetID("Vital_Blessing")
 Infuse_Health_ID = Skill.GetID("Infuse_Health")
 
@@ -31,6 +32,7 @@ class Ether_Renewal_Prot_Infuser(BuildMgr):
             ],
             optional_skills=[
                 Breath_of_the_Great_Dwarf_ID,
+                Great_Dwarf_Weapon_ID,
                 Vital_Blessing_ID,
                 Infuse_Health_ID,
             ],
@@ -79,6 +81,9 @@ class Ether_Renewal_Prot_Infuser(BuildMgr):
         self.UpdatePartyHealthMonitor(sample_interval_ms=150)
 
         if self.IsSkillEquipped(Infuse_Health_ID) and (yield from self.skills.Monk.HealingPrayers.Infuse_Health()):
+            return
+
+        if self.IsSkillEquipped(Great_Dwarf_Weapon_ID) and (yield from self.skills.Any.NoAttribute.Great_Dwarf_Weapon()):
             return
 
         if (yield from self.skills.Monk.ProtectionPrayers.Protective_Spirit()):
