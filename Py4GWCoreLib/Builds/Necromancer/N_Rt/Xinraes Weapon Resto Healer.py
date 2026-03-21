@@ -19,6 +19,9 @@ Enfeebling_Blood_ID = Skill.GetID("Enfeebling_Blood")
 Recovery_ID = Skill.GetID("Recovery")
 Breath_of_the_Great_Dwarf_ID = Skill.GetID("Breath_of_the_Great_Dwarf")
 Recuperation_ID = Skill.GetID("Recuperation")
+Weaken_Armor_ID = Skill.GetID("Weaken_Armor")
+Air_of_Superiority_ID =  Skill.GetID("Air_of_Superiority")
+Ebon_Vanguard_Assassin_Support_ID = Skill.GetID("Ebon_Vanguard_Assassin_Support")
 
 
 class Xinraes_Weapon_Resto_Healer(BuildMgr):
@@ -30,7 +33,7 @@ class Xinraes_Weapon_Resto_Healer(BuildMgr):
             template_code="OAhiYwh8AAAAAgqq0cyNMHnA",
             required_skills=[
                 Xinraes_Weapon_ID,
-                Signet_of_Lost_Souls_ID,
+                Life_ID,
                 Mend_Body_and_Soul_ID,
                 Spirit_Light_ID,
             ],
@@ -45,6 +48,10 @@ class Xinraes_Weapon_Resto_Healer(BuildMgr):
                 Recovery_ID,
                 Breath_of_the_Great_Dwarf_ID,
                 Recuperation_ID,
+                Ebon_Vanguard_Assassin_Support_ID,
+                Weaken_Armor_ID,
+                Air_of_Superiority_ID
+
             ],
         )
         if match_only:
@@ -57,6 +64,9 @@ class Xinraes_Weapon_Resto_Healer(BuildMgr):
     def _run_local_skill_logic(self):
         if not Routines.Checks.Skills.CanCast():
             return False
+
+        if self.IsSkillEquipped(Air_of_Superiority_ID) and (yield from self.skills.Any.NoAttribute.Air_of_Superiority()):
+            return True
 
         if (yield from self.skills.Ritualist.RestorationMagic.Mend_Body_and_Soul()):
             return True
@@ -76,10 +86,26 @@ class Xinraes_Weapon_Resto_Healer(BuildMgr):
         if not Routines.Checks.Agents.InAggro():
             return False
 
-        if self.IsSkillEquipped(Vital_Weapon_ID) and (yield from self.skills.Ritualist.Communing.Vital_Weapon()):
+
+        if self.IsSkillEquipped(You_Are_All_Weaklings_ID) and (yield from self.skills.Any.NoAttribute.You_Are_All_Weaklings()):
+            return True
+        
+        if (yield from self.skills.Ritualist.RestorationMagic.Spirit_Light()):
             return True
 
         if self.IsSkillEquipped(Life_ID) and (yield from self.skills.Ritualist.RestorationMagic.Life()):
+            return True
+
+        if (yield from self.skills.Necromancer.SoulReaping.Signet_of_Lost_Souls()):
+            return True
+    
+        if self.IsSkillEquipped(Ebon_Vanguard_Assassin_Support_ID) and (yield from self.skills.Any.NoAttribute.Ebon_Vanguard_Assassin_Support()):
+            return True
+
+        if self.IsSkillEquipped(Weaken_Armor_ID) and (yield from self.skills.Necromancer.Curses.Weaken_Armor()):
+            return True
+
+        if self.IsSkillEquipped(Vital_Weapon_ID) and (yield from self.skills.Ritualist.Communing.Vital_Weapon()):
             return True
 
         if self.IsSkillEquipped(Recovery_ID) and (yield from self.skills.Ritualist.RestorationMagic.Recovery()):
@@ -91,16 +117,7 @@ class Xinraes_Weapon_Resto_Healer(BuildMgr):
         if self.IsSkillEquipped(Breath_of_the_Great_Dwarf_ID) and (yield from self.skills.Any.NoAttribute.Breath_of_the_Great_Dwarf()):
             return True
 
-        if self.IsSkillEquipped(You_Are_All_Weaklings_ID) and (yield from self.skills.Any.NoAttribute.You_Are_All_Weaklings()):
-            return True
-
         if self.IsSkillEquipped(Enfeebling_Blood_ID) and (yield from self.skills.Necromancer.Curses.Enfeebling_Blood()):
-            return True
-
-        if (yield from self.skills.Necromancer.SoulReaping.Signet_of_Lost_Souls()):
-            return True
-
-        if (yield from self.skills.Ritualist.RestorationMagic.Spirit_Light()):
             return True
 
         return False

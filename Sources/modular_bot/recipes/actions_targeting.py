@@ -2,16 +2,15 @@ from __future__ import annotations
 
 from typing import Callable
 
+from .combat_engine import set_party_target as engine_set_party_target
 from .step_context import StepContext
 from .step_selectors import resolve_enemy_agent_id_from_step
+from .step_utils import log_recipe
 from .step_utils import parse_step_bool, parse_step_float, parse_step_int, wait_after_step
 
 
 def handle_target_enemy(ctx: StepContext) -> None:
     from Py4GWCoreLib import Player
-    from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import (
-        CustomBehaviorParty,
-    )
 
     set_party_target = parse_step_bool(ctx.step.get("set_party_target", False), False)
     step_name = ctx.step.get("name", "Target Enemy")
@@ -26,7 +25,7 @@ def handle_target_enemy(ctx: StepContext) -> None:
             return
         Player.ChangeTarget(target_agent_id)
         if set_party_target:
-            CustomBehaviorParty().set_party_custom_target(target_agent_id)
+            engine_set_party_target(target_agent_id)
 
     ctx.bot.States.AddCustomState(_target_enemy, step_name)
     wait_after_step(ctx.bot, ctx.step)
@@ -135,9 +134,41 @@ def handle_wait_model_has_quest(ctx: StepContext) -> None:
     wait_after_step(ctx.bot, ctx.step)
 
 
+def handle_add_enemy_blacklist(ctx: StepContext) -> None:
+    from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist
+
+    enemy_name = str(ctx.step.get("enemy_name", "")).strip()
+    if not enemy_name:
+        log_recipe(ctx, "add_enemy_blacklist requires non-empty 'enemy_name'.")
+        return
+
+    ctx.bot.States.AddCustomState(
+        lambda name=enemy_name: EnemyBlacklist().add_name(name),
+        ctx.step.get("name", f"Add Enemy Blacklist: {enemy_name}"),
+    )
+    wait_after_step(ctx.bot, ctx.step)
+
+
+def handle_remove_enemy_blacklist(ctx: StepContext) -> None:
+    from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist
+
+    enemy_name = str(ctx.step.get("enemy_name", "")).strip()
+    if not enemy_name:
+        log_recipe(ctx, "remove_enemy_blacklist requires non-empty 'enemy_name'.")
+        return
+
+    ctx.bot.States.AddCustomState(
+        lambda name=enemy_name: EnemyBlacklist().remove_name(name),
+        ctx.step.get("name", f"Remove Enemy Blacklist: {enemy_name}"),
+    )
+    wait_after_step(ctx.bot, ctx.step)
+
+
 HANDLERS: dict[str, Callable[[StepContext], None]] = {
     "target_enemy": handle_target_enemy,
     "debug_nearby_enemies": handle_debug_nearby_enemies,
     "debug_nearby_agents": handle_debug_nearby_agents,
     "wait_model_has_quest": handle_wait_model_has_quest,
+    "add_enemy_blacklist": handle_add_enemy_blacklist,
+    "remove_enemy_blacklist": handle_remove_enemy_blacklist,
 }

@@ -1,6 +1,8 @@
 {
-  "name": "FoW - Cleanse da forge",
+  "name": "Cleanse da forge",
   "steps": [
+        {"type": "auto_path", "name": "To Nimros", "points": [[2766, -14730]]},
+        {"type": "dialog", "name": "Start Hunt", "npc": "NIMROS_THE_HUNTER", "id": "0x80D001"},
         {"type": "auto_path", "name": "To Nimros", "points": [[2766, -14730]]},
         {"type": "dialog", "name": "Start Hunt", "npc": "NIMROS_THE_HUNTER", "id": "0x80D001"},
         {"type": "path_to_target", "enemy": "SHARD_WOLF"},

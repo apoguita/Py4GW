@@ -1,35 +1,13 @@
 {
-  "name": "Tower of Strength",
+  "name": "Slaves of Menzies",
   "steps": [
     {"type": "auto_path", "name": "path to Miko", "points": [[12009, 6356]]},
     {"type": "dialog", "name": "Start Hunt", "npc": "MIKO_THE_UNCHAINED", "id": "0x80CE01"},
     {"type": "auto_path", "name": "path to Miko", "points": [[12009, 6356]]},
     {"type": "dialog", "name": "Start Hunt", "npc": "MIKO_THE_UNCHAINED", "id": "0x80CE01"},
-    
-
-    {"type": "flag_all_accounts", "x": 12419, "y": 7882},
-    {"type": "set_auto_combat", "enabled": false},
-    {"type": "auto_path", "name": "Quick pull", "points": [[12412, 8408], [12419, 7882]]},
-    {"type": "set_auto_combat", "enabled": true},
-    {"type": "unflag_all_accounts"},
-    
     {"type": "auto_path", "name": "getting into position", "points": [[19000, 8400], [21462, 11027]]},
-
-    {"type": "flag_all_accounts", "x": 21462, "y": 11027},
-    {"type": "set_auto_combat", "enabled": false},
-    {"type": "auto_path", "name": "Quick pull", "points": [[22013, 13067],  [21462, 11027]]},
-    {"type": "set_auto_combat", "enabled": true},
-    {"type": "unflag_all_accounts"},
-
     {"type": "auto_path", "name": "moving closer", "points": [[22946, 12727]]},
-    {"type": "flag_all_accounts", "x": 22946, "y": 12727},
-    {"type": "set_auto_combat", "enabled": false},
-    {"type": "auto_path", "name": "Quick pull", "points": [[22998, 14706],  [22946, 12727]]},
-    {"type": "set_auto_combat", "enabled": true},
-    {"type": "unflag_all_accounts"},
-
     {"type": "auto_path", "name": "clear Overlords", "points": [[20900, 15900], [22511, 16038]]},
-    
     {"type": "auto_path", "name": "Wolf spot", "points": [[19240, 12803]]},
     {"type": "path_to_target", "enemy": "SHARD_WOLF"},
     {"type": "path_to_target", "enemy": "SHARD_WOLF"},

@@ -2,8 +2,17 @@ from __future__ import annotations
 
 from typing import Callable
 
+from .combat_engine import (
+    ENGINE_CUSTOM_BEHAVIORS,
+    ENGINE_HERO_AI,
+    flag_all_accounts as engine_flag_all_accounts,
+    resolve_active_engine,
+    set_auto_combat as engine_set_auto_combat,
+    set_auto_looting as engine_set_auto_looting,
+    unflag_all_accounts as engine_unflag_all_accounts,
+)
 from .step_context import StepContext
-from .step_utils import parse_step_bool, wait_after_step
+from .step_utils import debug_log_recipe, parse_step_bool, wait_after_step
 
 
 def handle_set_title(ctx: StepContext) -> None:
@@ -27,7 +36,7 @@ def handle_drop_bundle(ctx: StepContext) -> None:
 
 
 def handle_force_hero_state(ctx: StepContext) -> None:
-    from Py4GWCoreLib import ConsoleLog, Party
+    from Py4GWCoreLib import Party
 
     raw_state = str(ctx.step.get("state", "")).strip().lower()
     behavior_map = {
@@ -45,8 +54,8 @@ def handle_force_hero_state(ctx: StepContext) -> None:
         behavior = behavior_map.get(raw_state, -1)
 
     if behavior not in (0, 1, 2):
-        ConsoleLog(
-            f"Recipe:{ctx.recipe_name}",
+        debug_log_recipe(
+            ctx,
             f"Invalid force_hero_state at index {ctx.step_idx}: state={raw_state!r}, behavior={ctx.step.get('behavior')!r}",
         )
         return
@@ -72,60 +81,19 @@ def handle_flag_heroes(ctx: StepContext) -> None:
 
 
 def handle_flag_all_accounts(ctx: StepContext) -> None:
-    from Py4GWCoreLib import ConsoleLog, GLOBAL_CACHE, Player
-    from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import (
-        CustomBehaviorParty,
-    )
-
     def _flag_all_accounts() -> None:
         x = float(ctx.step["x"])
         y = float(ctx.step["y"])
-        party = CustomBehaviorParty()
-        manager = party.party_flagging_manager
-
-        my_email = Player.GetAccountEmail()
-        my_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(my_email)
-        if my_account is None:
-            ConsoleLog(
-                f"Recipe:{ctx.recipe_name}",
-                f"flag_all_accounts failed at index {ctx.step_idx}: leader account data unavailable.",
-            )
+        try:
+            changed = int(engine_flag_all_accounts(x, y))
+        except Exception as exc:
+            debug_log_recipe(ctx, f"flag_all_accounts failed at index {ctx.step_idx}: {exc}")
             return
 
-        # Rebuild assignments every call to avoid stale mapping after travels/rezones.
-        manager.clear_all_flags()
-
-        assigned = 0
-        for account in GLOBAL_CACHE.ShMem.GetAllAccountData():
-            if account.AccountEmail == my_email:
-                continue
-
-            is_in_same_map = (
-                my_account.AgentData.Map.MapID == account.AgentData.Map.MapID
-                and my_account.AgentData.Map.Region == account.AgentData.Map.Region
-                and my_account.AgentData.Map.District == account.AgentData.Map.District
-            )
-            if not is_in_same_map:
-                continue
-
-            if assigned >= 12:
-                break
-
-            manager.set_flag_account_email(assigned, account.AccountEmail)
-            manager.set_flag_position(assigned, x, y)
-            assigned += 1
-
-        if assigned <= 0:
-            ConsoleLog(
-                f"Recipe:{ctx.recipe_name}",
-                f"flag_all_accounts: no same-map alt accounts found at index {ctx.step_idx}.",
-            )
-            return
-
-        ConsoleLog(
-            f"Recipe:{ctx.recipe_name}",
-            f"flag_all_accounts assigned and flagged {assigned} account(s) at ({x:.0f}, {y:.0f}).",
-        )
+        if changed:
+            debug_log_recipe(ctx, f"flag_all_accounts applied to {changed} account(s).")
+        else:
+            debug_log_recipe(ctx, "flag_all_accounts had no eligible accounts.")
 
     ctx.bot.States.AddCustomState(
         _flag_all_accounts,
@@ -140,12 +108,12 @@ def handle_unflag_heroes(ctx: StepContext) -> None:
 
 
 def handle_unflag_all_accounts(ctx: StepContext) -> None:
-    from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import (
-        CustomBehaviorParty,
-    )
+    def _unflag_all_accounts() -> None:
+        changed = int(engine_unflag_all_accounts())
+        debug_log_recipe(ctx, f"unflag_all_accounts cleared flags for {changed} account(s).")
 
     ctx.bot.States.AddCustomState(
-        lambda: CustomBehaviorParty().party_flagging_manager.clear_all_flag_positions(),
+        _unflag_all_accounts,
         ctx.step.get("name", "Unflag All Accounts"),
     )
     wait_after_step(ctx.bot, ctx.step)
@@ -167,62 +135,79 @@ def handle_invite_all_accounts(ctx: StepContext) -> None:
 
 
 def handle_set_anchor(ctx: StepContext) -> None:
-    from Py4GWCoreLib import ConsoleLog
-
     target = str(ctx.step.get("phase", ctx.step.get("target", ctx.step.get("name", ""))) or "").strip()
     owner = getattr(ctx.bot, "_modular_owner", None)
     if owner is None or not hasattr(owner, "set_anchor"):
-        ConsoleLog(
-            f"Recipe:{ctx.recipe_name}",
-            f"set_anchor requires ModularBot owner; step index {ctx.step_idx}",
-        )
+        debug_log_recipe(ctx, f"set_anchor requires ModularBot owner; step index {ctx.step_idx}")
         return
     if not target:
         current_state = ctx.bot.config.FSM.current_state
         target = str(getattr(current_state, "name", "") or "").strip()
     if not owner.set_anchor(target):
-        ConsoleLog(
-            f"Recipe:{ctx.recipe_name}",
-            f"set_anchor could not resolve target at index {ctx.step_idx}: {target!r}",
-        )
+        debug_log_recipe(ctx, f"set_anchor could not resolve target at index {ctx.step_idx}: {target!r}")
         return
     wait_after_step(ctx.bot, ctx.step)
 
 
 def handle_set_auto_combat(ctx: StepContext) -> None:
-    from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import (
-        CustomBehaviorParty,
-    )
-
     enabled = parse_step_bool(ctx.step.get("enabled", True), True)
 
+    def _set_auto_combat_runtime(e: bool = enabled) -> None:
+        engine = resolve_active_engine()
+        engine_set_auto_combat(e)
+        # Keep template-driven toggles from clobbering external combat engines.
+        if engine == ENGINE_HERO_AI:
+            if ctx.bot.Properties.exists("hero_ai"):
+                ctx.bot.Properties.ApplyNow("hero_ai", "active", True)
+            if ctx.bot.Properties.exists("auto_combat"):
+                ctx.bot.Properties.ApplyNow("auto_combat", "active", False)
+            return
+        if engine == ENGINE_CUSTOM_BEHAVIORS:
+            if ctx.bot.Properties.exists("hero_ai"):
+                ctx.bot.Properties.ApplyNow("hero_ai", "active", False)
+            if ctx.bot.Properties.exists("auto_combat"):
+                ctx.bot.Properties.ApplyNow("auto_combat", "active", False)
+            return
+
+        if e:
+            ctx.bot.Templates.Aggressive()
+        else:
+            ctx.bot.Templates.Pacifist()
+
     ctx.bot.States.AddCustomState(
-        lambda e=enabled: CustomBehaviorParty().set_party_is_combat_enabled(e),
-        f"Set CB Combat {'On' if enabled else 'Off'}",
+        _set_auto_combat_runtime,
+        f"Set Combat {'On' if enabled else 'Off'}",
     )
-    if enabled:
-        ctx.bot.Templates.Aggressive()
-    else:
-        ctx.bot.Templates.Pacifist()
     wait_after_step(ctx.bot, ctx.step)
 
 
 def handle_set_auto_looting(ctx: StepContext) -> None:
-    from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import (
-        CustomBehaviorParty,
-    )
-
     enabled = parse_step_bool(ctx.step.get("enabled", True), True)
 
-    ctx.bot.States.AddCustomState(
-        lambda e=enabled: CustomBehaviorParty().set_party_is_looting_enabled(e),
-        f"Set CB Looting {'On' if enabled else 'Off'}",
-    )
+    def _set_auto_looting_runtime(e: bool = enabled) -> None:
+        engine = resolve_active_engine()
+        engine_set_auto_looting(e)
+        # External engines: keep Botting auto-loot in sync with requested
+        # looting state.
+        if engine == ENGINE_CUSTOM_BEHAVIORS:
+            if ctx.bot.Properties.exists("auto_loot"):
+                ctx.bot.Properties.ApplyNow("auto_loot", "active", bool(e))
+            return
+        # HeroAI mode: keep Botting auto-loot in sync with requested looting state.
+        if engine == ENGINE_HERO_AI:
+            if ctx.bot.Properties.exists("auto_loot"):
+                ctx.bot.Properties.ApplyNow("auto_loot", "active", bool(e))
+            return
 
-    if enabled:
-        ctx.bot.Properties.Enable("auto_loot")
-    else:
-        ctx.bot.Properties.Disable("auto_loot")
+        if e:
+            ctx.bot.Properties.Enable("auto_loot")
+        else:
+            ctx.bot.Properties.Disable("auto_loot")
+
+    ctx.bot.States.AddCustomState(
+        _set_auto_looting_runtime,
+        f"Set Looting {'On' if enabled else 'Off'}",
+    )
     wait_after_step(ctx.bot, ctx.step)
 
 

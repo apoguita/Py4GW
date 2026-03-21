@@ -3,14 +3,62 @@ from __future__ import annotations
 import random
 from typing import Callable
 
+from .combat_engine import outbound_messages_done, party_loot_wait_required, send_multibox_command
 from .step_context import StepContext
 from .step_selectors import resolve_enemy_agent_id_from_step
-from .step_utils import parse_step_bool, parse_step_float, parse_step_int, wait_after_step, log_recipe
+from .step_utils import debug_log_recipe, parse_step_bool, parse_step_float, parse_step_int, wait_after_step, log_recipe
+
+_PARTY_BACKEND_CB = "custom_behaviors"
+_PARTY_BACKEND_HERO_AI = "hero_ai"
+_PARTY_BACKEND_SHARED = "shared"
+
+
+def _resolve_party_backend() -> str:
+    """Choose party-control backend from currently enabled widgets."""
+    from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
+
+    widget_handler = get_widget_handler()
+    cb_enabled = bool(widget_handler.is_widget_enabled("CustomBehaviors"))
+    hero_ai_enabled = bool(widget_handler.is_widget_enabled("HeroAI"))
+
+    if cb_enabled and not hero_ai_enabled:
+        return _PARTY_BACKEND_CB
+    if hero_ai_enabled and not cb_enabled:
+        return _PARTY_BACKEND_HERO_AI
+    # Ambiguous (both on) or neither on: use shared command transport.
+    return _PARTY_BACKEND_SHARED
+
+
+def _add_pre_movement_loot_wait(ctx: StepContext, step_name: str) -> None:
+    """
+    Pause movement while party loot is pending (for CB/HeroAI runtimes).
+    """
+    if not parse_step_bool(ctx.step.get("wait_for_loot", True), True):
+        return
+
+    wait_timeout_ms = max(0, parse_step_int(ctx.step.get("loot_wait_timeout_ms", 30_000), 30_000))
+    poll_ms = max(50, parse_step_int(ctx.step.get("loot_wait_poll_ms", 300), 300))
+    loot_range = parse_step_float(ctx.step.get("loot_wait_range", 1_250.0), 1_250.0)
+
+    def _wait_for_party_loot():
+        from time import monotonic
+
+        from Py4GWCoreLib import Routines
+
+        if wait_timeout_ms <= 0:
+            return
+
+        deadline = monotonic() + (wait_timeout_ms / 1000.0)
+        while monotonic() < deadline and party_loot_wait_required(search_range=loot_range):
+            yield from Routines.Yield.wait(poll_ms)
+
+    ctx.bot.States.AddCustomState(_wait_for_party_loot, f"{step_name}: Wait Party Loot")
 
 
 def handle_path(ctx: StepContext) -> None:
     points = [tuple(p) for p in ctx.step["points"]]
     name = ctx.step.get("name", f"Path {ctx.step_idx + 1}")
+    _add_pre_movement_loot_wait(ctx, str(name))
     ctx.bot.Move.FollowAutoPath(points, step_name=name)
     wait_after_step(ctx.bot, ctx.step)
 
@@ -18,6 +66,7 @@ def handle_path(ctx: StepContext) -> None:
 def handle_auto_path(ctx: StepContext) -> None:
     points = [tuple(p) for p in ctx.step["points"]]
     name = ctx.step.get("name", f"AutoPath {ctx.step_idx + 1}")
+    _add_pre_movement_loot_wait(ctx, str(name))
     pause_on_combat = parse_step_bool(ctx.step.get("pause_on_combat", False), False)
     pause_on_danger_was_active = bool(ctx.bot.Properties.IsActive("pause_on_danger"))
 
@@ -46,6 +95,7 @@ def handle_auto_path_delayed(ctx: StepContext) -> None:
     points = [tuple(p) for p in ctx.step["points"]]
     name = ctx.step.get("name", f"AutoPathDelayed {ctx.step_idx + 1}")
     delay_ms = int(ctx.step.get("delay_ms", 35000))
+    _add_pre_movement_loot_wait(ctx, str(name))
     if delay_ms < 0:
         delay_ms = 0
     for point_i, (x, y) in enumerate(points):
@@ -73,6 +123,7 @@ def handle_wait_map_load(ctx: StepContext) -> None:
 def handle_move(ctx: StepContext) -> None:
     x, y = ctx.step["x"], ctx.step["y"]
     name = ctx.step.get("name", "")
+    _add_pre_movement_loot_wait(ctx, str(name or f"Move {ctx.step_idx + 1}"))
     ctx.bot.Move.XY(x, y, step_name=name)
     wait_after_step(ctx.bot, ctx.step)
 
@@ -84,6 +135,7 @@ def handle_path_to_target(ctx: StepContext) -> None:
     tolerance = parse_step_float(ctx.step.get("tolerance", 150.0), 150.0)
     required = parse_step_bool(ctx.step.get("required", True), True)
     step_name = ctx.step.get("name", "Path To Target")
+    _add_pre_movement_loot_wait(ctx, str(step_name))
 
     if max_dist <= 0:
         max_dist = Range.Compass.value
@@ -179,9 +231,8 @@ def handle_random_travel(ctx: StepContext) -> None:
             District.EuropeRussian.value,
         ]
 
-    district = int(random.choice(allowed_districts))
-
     def _travel() -> None:
+        district = int(random.choice(allowed_districts))
         Map.TravelToDistrict(target_map_id, district=district)
 
     ctx.bot.States.AddCustomState(_travel, ctx.step.get("name", f"Random Travel {ctx.step_idx + 1}"))
@@ -192,80 +243,138 @@ def handle_random_travel(ctx: StepContext) -> None:
 
 
 def handle_travel_gh(ctx: StepContext) -> None:
-    from Py4GWCoreLib import ConsoleLog, Map, Routines
+    from Py4GWCoreLib import GLOBAL_CACHE, Map, Player, Routines, SharedCommandType
 
     multibox = parse_step_bool(ctx.step.get("multibox", False), False)
-    wait_time = int(ctx.step.get("ms", ctx.step.get("wait_time", 4000)))
 
-    def _safe_local_travel_gh() -> None:
-        if Routines.Checks.Map.MapValid() and Routines.Checks.Map.IsExplorable():
-            ConsoleLog(
-                f"Recipe:{ctx.recipe_name}",
-                "travel_gh requested while explorable; resigning to outpost first.",
+    def _run_travel_gh() -> None:
+        def _prepare_local_for_gh() -> None:
+            if Routines.Checks.Map.MapValid() and Routines.Checks.Map.IsExplorable():
+                debug_log_recipe(ctx, "travel_gh requested while explorable; resigning to outpost first.")
+                if multibox:
+                    ctx.bot.Multibox.ResignParty()
+                else:
+                    ctx.bot.Party.Resign()
+                ctx.bot.Wait.UntilOnOutpost()
+                ctx.bot.Wait.ForTime(1000)
+
+        def _send_local_gh_message() -> list[tuple[str, int]]:
+            sender_email = Player.GetAccountEmail()
+            message_index = GLOBAL_CACHE.ShMem.SendMessage(
+                sender_email,
+                sender_email,
+                SharedCommandType.TravelToGuildHall,
+                (0, 0, 0, 0),
             )
-            ctx.bot.Multibox.ResignParty()
-            ctx.bot.Wait.UntilOnOutpost()
-            ctx.bot.Wait.ForTime(1000)
+            return [(sender_email, int(message_index))]
 
+        _prepare_local_for_gh()
         if Map.IsGuildHall():
-            ConsoleLog(f"Recipe:{ctx.recipe_name}", "Already in Guild Hall; skipping TravelGH.")
+            debug_log_recipe(ctx, "Already in Guild Hall; skipping TravelGH.")
             return
 
-        ctx.bot.Map.TravelGH(wait_time=wait_time)
+        backend = _resolve_party_backend()
+        if multibox and backend == _PARTY_BACKEND_CB:
+            try:
+                from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
+                from Sources.oazix.CustomBehaviors.primitives.parties.party_command_contants import PartyCommandConstants
 
-    if multibox:
-        from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import (
-            CustomBehaviorParty,
-        )
-        from Sources.oazix.CustomBehaviors.primitives.parties.party_command_contants import (
-            PartyCommandConstants,
-        )
-
-        ctx.bot.Wait.UntilCondition(lambda: CustomBehaviorParty().is_ready_for_action(), duration=100)
-
-        def _schedule_cb_travel_gh() -> None:
-            ok = bool(CustomBehaviorParty().schedule_action(PartyCommandConstants.travel_gh))
-            if not ok:
-                ConsoleLog(
-                    f"Recipe:{ctx.recipe_name}",
-                    "travel_gh multibox schedule failed; falling back to local TravelGH().",
+                ctx.bot.Wait.UntilCondition(lambda: CustomBehaviorParty().is_ready_for_action(), duration=100)
+                ok = bool(CustomBehaviorParty().schedule_action(PartyCommandConstants.travel_gh))
+                if ok:
+                    local_refs = _send_local_gh_message()
+                    ctx.bot.Wait.UntilCondition(
+                        lambda refs=local_refs: outbound_messages_done(refs, SharedCommandType.TravelToGuildHall),
+                        duration=100,
+                    )
+                    ctx.bot.Wait.UntilCondition(lambda: CustomBehaviorParty().is_ready_for_action(), duration=100)
+                    debug_log_recipe(ctx, "travel_gh: dispatched via CustomBehaviors scheduler + local self-message.")
+                else:
+                    debug_log_recipe(ctx, "travel_gh: CustomBehaviors scheduler not ready; falling back to shared command.")
+                    sent_refs = send_multibox_command(SharedCommandType.TravelToGuildHall)
+                    sent_refs.extend(_send_local_gh_message())
+                    ctx.bot.Wait.UntilCondition(
+                        lambda refs=sent_refs: outbound_messages_done(refs, SharedCommandType.TravelToGuildHall),
+                        duration=100,
+                    )
+            except Exception as exc:
+                debug_log_recipe(ctx, f"travel_gh: CustomBehaviors dispatch failed ({exc}); falling back to shared command.")
+                sent_refs = send_multibox_command(SharedCommandType.TravelToGuildHall)
+                sent_refs.extend(_send_local_gh_message())
+                ctx.bot.Wait.UntilCondition(
+                    lambda refs=sent_refs: outbound_messages_done(refs, SharedCommandType.TravelToGuildHall),
+                    duration=100,
                 )
-                _safe_local_travel_gh()
+        elif multibox and backend == _PARTY_BACKEND_HERO_AI:
+            debug_log_recipe(ctx, "travel_gh: HeroAI backend active, dispatching alts + local self-message.")
+            sent_refs = send_multibox_command(SharedCommandType.TravelToGuildHall)
+            sent_refs.extend(_send_local_gh_message())
+            ctx.bot.Wait.UntilCondition(
+                lambda refs=sent_refs: outbound_messages_done(refs, SharedCommandType.TravelToGuildHall),
+                duration=100,
+            )
+        elif multibox:
+            debug_log_recipe(ctx, "travel_gh: ambiguous/no engine widget state, dispatching shared GH travel command.")
+            sent_refs = send_multibox_command(SharedCommandType.TravelToGuildHall)
+            sent_refs.extend(_send_local_gh_message())
+            ctx.bot.Wait.UntilCondition(
+                lambda refs=sent_refs: outbound_messages_done(refs, SharedCommandType.TravelToGuildHall),
+                duration=100,
+            )
+        else:
+            local_refs = _send_local_gh_message()
+            ctx.bot.Wait.UntilCondition(
+                lambda refs=local_refs: outbound_messages_done(refs, SharedCommandType.TravelToGuildHall),
+                duration=100,
+            )
 
-        ctx.bot.States.AddCustomState(_schedule_cb_travel_gh, "Schedule CB Travel GH")
-        ctx.bot.Wait.UntilCondition(lambda: CustomBehaviorParty().is_ready_for_action(), duration=100)
-    else:
-        _safe_local_travel_gh()
+    ctx.bot.States.AddCustomState(_run_travel_gh, ctx.step.get("name", f"Travel GH {ctx.step_idx + 1}"))
     wait_after_step(ctx.bot, ctx.step)
 
 
 def handle_leave_party(ctx: StepContext) -> None:
+    from Py4GWCoreLib import SharedCommandType
+
     multibox = parse_step_bool(ctx.step.get("multibox", False), False)
+    def _run_leave_party() -> None:
+        sent_refs: list[tuple[str, int]] = []
+        used_cb_scheduler = False
 
-    if multibox:
-        from Py4GWCoreLib import ConsoleLog
-        from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import (
-            CustomBehaviorParty,
-        )
-        from Sources.oazix.CustomBehaviors.primitives.parties.party_command_contants import (
-            PartyCommandConstants,
-        )
+        backend = _resolve_party_backend()
+        if multibox and backend == _PARTY_BACKEND_CB:
+            # CB has its own party-command scheduler and is generally the most reliable
+            # "leave all accounts" path when that widget is active.
+            try:
+                from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
+                from Sources.oazix.CustomBehaviors.primitives.parties.party_command_contants import PartyCommandConstants
 
-        ctx.bot.Wait.UntilCondition(lambda: CustomBehaviorParty().is_ready_for_action(), duration=100)
+                ctx.bot.Wait.UntilCondition(lambda: CustomBehaviorParty().is_ready_for_action(), duration=100)
+                used_cb_scheduler = bool(CustomBehaviorParty().schedule_action(PartyCommandConstants.leave_current_party))
+                if used_cb_scheduler:
+                    ctx.bot.Wait.UntilCondition(lambda: CustomBehaviorParty().is_ready_for_action(), duration=100)
+                    debug_log_recipe(ctx, "leave_party: dispatched via CustomBehaviors scheduler.")
+                else:
+                    debug_log_recipe(ctx, "leave_party: CustomBehaviors scheduler not ready; falling back to shared command.")
+            except Exception as exc:
+                debug_log_recipe(ctx, f"leave_party: CustomBehaviors dispatch failed ({exc}); falling back to shared command.")
 
-        def _schedule_cb_leave_party() -> None:
-            ok = bool(CustomBehaviorParty().schedule_action(PartyCommandConstants.leave_current_party))
-            if not ok:
-                ConsoleLog(
-                    f"Recipe:{ctx.recipe_name}",
-                    "leave_party multibox schedule failed; falling back to local LeaveParty().",
+        if multibox:
+            if backend == _PARTY_BACKEND_HERO_AI:
+                debug_log_recipe(ctx, "leave_party: HeroAI backend active, dispatching shared leave command.")
+            elif backend == _PARTY_BACKEND_SHARED:
+                debug_log_recipe(ctx, "leave_party: ambiguous/no engine widget state, dispatching shared leave command.")
+            if not used_cb_scheduler:
+                sent_refs = send_multibox_command(SharedCommandType.LeaveParty)
+            ctx.bot.Party.LeaveParty()
+            if sent_refs:
+                ctx.bot.Wait.UntilCondition(
+                    lambda refs=sent_refs: outbound_messages_done(refs, SharedCommandType.LeaveParty),
+                    duration=100,
                 )
-                ctx.bot.Party.LeaveParty()
+        else:
+            ctx.bot.Party.LeaveParty()
 
-        ctx.bot.States.AddCustomState(_schedule_cb_leave_party, "Schedule CB Leave Party")
-        ctx.bot.Wait.UntilCondition(lambda: CustomBehaviorParty().is_ready_for_action(), duration=100)
-    else:
-        ctx.bot.Party.LeaveParty()
+    ctx.bot.States.AddCustomState(_run_leave_party, ctx.step.get("name", f"Leave Party {ctx.step_idx + 1}"))
     wait_after_step(ctx.bot, ctx.step)
 
 
