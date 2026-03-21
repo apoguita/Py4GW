@@ -67,9 +67,13 @@ class BuildMgr:
         self._was_in_aggro = False
         self._local_cast_timer = ThrottledTimer(0)
         self._local_cast_timer.Stop()
+        self._auto_attack_timer = ThrottledTimer(0)
+        self._auto_attack_timer.Stop()
+        self._auto_attack_time = 0
         self._party_health_monitor: dict[int, dict[str, float]] = {}
         self._party_health_monitor_timer = ThrottledTimer(150)
         self._party_health_monitor_timer.Stop()
+        self._party_health_monitor_window_ms = 1000
 
     def set_cached_data(self, cached_data: Any) -> None:
         """
@@ -212,9 +216,17 @@ class BuildMgr:
         return self.GetCustomSkill(skill_id)
 
     def ResolveAllyTarget(self, skill_id: int, custom_skill: CustomSkill | None = None) -> int:
-        from HeroAI.targeting import TargetAllyByPredicate, TargetLowestAllyEnergy
+        from HeroAI.targeting import (
+            TargetAllyByPredicate,
+            TargetLowestAlly,
+            TargetLowestAllyCaster,
+            TargetLowestAllyEnergy,
+            TargetLowestAllyMartial,
+            TargetLowestAllyMelee,
+            TargetLowestAllyRanged,
+        )
         from HeroAI.types import Skilltarget, SkillType
-        from Py4GWCoreLib import Agent, Player, Routines
+        from Py4GWCoreLib import Agent, AgentArray, Player, Routines, Skill
 
         if custom_skill is None:
             custom_skill = self.GetCustomSkill(skill_id)
@@ -222,6 +234,7 @@ class BuildMgr:
             return 0
 
         target_allegiance = custom_skill.TargetAllegiance
+        targeting_strict = bool(custom_skill.Conditions.TargetingStrict)
 
         if target_allegiance in (
             Skilltarget.Ally.value,
@@ -235,19 +248,27 @@ class BuildMgr:
             weapon_spell_predicate: TargetPredicate | None = None
             include_spirit_pets = False
             other_ally = target_allegiance == Skilltarget.OtherAlly.value
+            base_target = 0
             if custom_skill.SkillType == SkillType.WeaponSpell.value:
-                weapon_spell_predicate = lambda agent_id: not Agent.IsWeaponSpelled(agent_id)
-
-            if target_allegiance == Skilltarget.AllyCaster.value:
-                base_predicate = lambda agent_id: Agent.IsCaster(agent_id)
+                weapon_spell_predicate = lambda agent_id: not Routines.Checks.Agents.IsWeaponSpelled(agent_id)
+            if target_allegiance == Skilltarget.Ally.value:
+                base_target = TargetLowestAlly(other_ally=other_ally, filter_skill_id=skill_id)
+            elif target_allegiance == Skilltarget.AllyCaster.value:
+                base_target = TargetLowestAllyCaster(other_ally=other_ally, filter_skill_id=skill_id)
+                base_predicate = lambda agent_id: Routines.Checks.Agents.IsCaster(agent_id)
             elif target_allegiance == Skilltarget.AllyMartial.value:
-                base_predicate = lambda agent_id: Agent.IsMartial(agent_id)
+                base_target = TargetLowestAllyMartial(other_ally=other_ally, filter_skill_id=skill_id)
+                base_predicate = lambda agent_id: Routines.Checks.Agents.IsMartial(agent_id)
                 include_spirit_pets = True
             elif target_allegiance == Skilltarget.AllyMartialMelee.value:
-                base_predicate = lambda agent_id: Agent.IsMelee(agent_id)
+                base_target = TargetLowestAllyMelee(other_ally=other_ally, filter_skill_id=skill_id)
+                base_predicate = lambda agent_id: Routines.Checks.Agents.IsMelee(agent_id)
                 include_spirit_pets = True
             elif target_allegiance == Skilltarget.AllyMartialRanged.value:
-                base_predicate = lambda agent_id: Agent.IsRanged(agent_id)
+                base_target = TargetLowestAllyRanged(other_ally=other_ally, filter_skill_id=skill_id)
+                base_predicate = lambda agent_id: Routines.Checks.Agents.IsRanged(agent_id)
+            elif target_allegiance == Skilltarget.OtherAlly.value:
+                base_target = TargetLowestAlly(other_ally=True, filter_skill_id=skill_id)
 
             if weapon_spell_predicate is not None:
                 if base_predicate is None:
@@ -263,17 +284,34 @@ class BuildMgr:
                     less_energy=custom_skill.Conditions.LessEnergy,
                 )
 
-            return TargetAllyByPredicate(
-                predicate=self._build_custom_skill_target_predicate(
-                    base_predicate=base_predicate,
-                    custom_skill=custom_skill,
-                ),
+            predicate = self._build_custom_skill_target_predicate(
+                base_predicate=base_predicate,
+                custom_skill=custom_skill,
+            )
+            if base_target and (predicate is None or predicate(base_target)):
+                return base_target
+
+            filtered_target = TargetAllyByPredicate(
+                predicate=predicate,
                 other_ally=other_ally,
                 filter_skill_id=skill_id,
                 include_spirit_pets=include_spirit_pets,
             )
+            if filtered_target:
+                return filtered_target
+
+            if not targeting_strict and target_allegiance != Skilltarget.OtherAlly.value:
+                return TargetLowestAlly(other_ally=other_ally, filter_skill_id=skill_id)
+            return 0
         if target_allegiance == Skilltarget.DeadAlly.value:
-            return Routines.Agents.GetDeadAlly()
+            from Py4GWCoreLib.enums_src.GameData_enums import Range
+            dead_ally_array = AgentArray.GetDeadAllyArray()
+            dead_ally_array = AgentArray.Filter.ByDistance(dead_ally_array, Player.GetXY(), Range.Spellcast.value)
+            spirit_pet_array = AgentArray.GetSpiritPetArray()
+            spirit_pet_array = AgentArray.Filter.ByDistance(spirit_pet_array, Player.GetXY(), Range.Spellcast.value)
+            dead_ally_array = AgentArray.Manipulation.Subtract(dead_ally_array, spirit_pet_array)
+            dead_ally_array = AgentArray.Sort.ByDistance(dead_ally_array, Player.GetXY())
+            return dead_ally_array[0] if dead_ally_array else 0
         if target_allegiance == Skilltarget.Self.value:
             return Player.GetAgentID()
 
@@ -284,7 +322,7 @@ class BuildMgr:
         base_predicate: TargetPredicate | None = None,
         custom_skill: CustomSkill | None = None,
     ) -> TargetPredicate | None:
-        from Py4GWCoreLib import Agent
+        from Py4GWCoreLib import Agent, Routines
 
         if custom_skill is None:
             return base_predicate
@@ -296,17 +334,17 @@ class BuildMgr:
             checks.append(base_predicate)
 
         if conditions.HasHex:
-            checks.append(lambda agent_id: Agent.IsHexed(agent_id))
+            checks.append(lambda agent_id: Routines.Checks.Agents.IsHexed(agent_id))
         if conditions.HasEnchantment:
-            checks.append(lambda agent_id: Agent.IsEnchanted(agent_id))
+            checks.append(lambda agent_id: Routines.Checks.Agents.IsEnchanted(agent_id))
         if conditions.HasCondition:
-            checks.append(lambda agent_id: Agent.IsConditioned(agent_id))
+            checks.append(lambda agent_id: Routines.Checks.Agents.IsConditioned(agent_id))
         if conditions.IsAttacking:
-            checks.append(lambda agent_id: Agent.IsAttacking(agent_id))
+            checks.append(lambda agent_id: Routines.Checks.Agents.IsAttacking(agent_id))
         if conditions.IsKnockedDown:
-            checks.append(lambda agent_id: Agent.IsKnockedDown(agent_id))
+            checks.append(lambda agent_id: Routines.Checks.Agents.IsKnockedDown(agent_id))
         if conditions.IsAlive is False:
-            checks.append(lambda agent_id: not Agent.IsAlive(agent_id))
+            checks.append(lambda agent_id: not Routines.Checks.Agents.IsAlive(agent_id))
 
         if not checks:
             return None
@@ -315,8 +353,7 @@ class BuildMgr:
 
     def EvaluatePartyWideThreshold(self, skill_id: int, custom_skill: CustomSkill | None = None) -> bool:
         from HeroAI.targeting import GetAllAlliesArray
-        from Py4GWCoreLib import AgentArray, Range
-        from Py4GWCoreLib.Agent import Agent
+        from Py4GWCoreLib import AgentArray, Range, Routines
 
         if custom_skill is None:
             custom_skill = self.GetCustomSkill(skill_id)
@@ -331,14 +368,14 @@ class BuildMgr:
         ally_array = GetAllAlliesArray(area)
         ally_array = AgentArray.Filter.ByCondition(
             ally_array,
-            lambda agent_id: Agent.IsAlive(agent_id),
+            lambda agent_id: Routines.Checks.Agents.IsAlive(agent_id),
         )
         if not ally_array:
             return False
 
         total_group_life = 0.0
         for agent_id in ally_array:
-            total_group_life += Agent.GetHealth(agent_id)
+            total_group_life += Routines.Checks.Agents.GetHealth(agent_id)
 
         average_group_life = total_group_life / len(ally_array)
         return average_group_life <= conditions.LessLife
@@ -380,7 +417,7 @@ class BuildMgr:
         ally_array = Routines.Targeting.GetAllAlliesArray(Range.SafeCompass.value)
         ally_array = AgentArray.Filter.ByCondition(
             ally_array,
-            lambda agent_id: Agent.IsAlive(agent_id),
+            lambda agent_id: Routines.Checks.Agents.IsAlive(agent_id),
         )
         return list(ally_array or [])
 
@@ -388,15 +425,22 @@ class BuildMgr:
         self,
         *,
         sample_interval_ms: int = 150,
+        window_ms: int | None = None,
         force: bool = False,
     ) -> dict[int, dict[str, float]]:
-        from Py4GWCoreLib.Agent import Agent
+        from Py4GWCoreLib import Routines, Utils
+
+        if window_ms is None:
+            window_ms = self._party_health_monitor_window_ms
+        window_ms = max(1, int(window_ms))
+        self._party_health_monitor_window_ms = window_ms
 
         self._party_health_monitor_timer.SetThrottleTime(max(1, int(sample_interval_ms)))
         should_sample = force or self._party_health_monitor_timer.IsStopped() or self._party_health_monitor_timer.IsExpired()
         if not should_sample:
             return self._party_health_monitor
 
+        now_ms = int(Utils.GetBaseTimestamp())
         ally_array = self._get_party_health_sample()
         active_agent_ids = set(ally_array)
 
@@ -405,12 +449,24 @@ class BuildMgr:
                 del self._party_health_monitor[agent_id]
 
         for agent_id in ally_array:
-            current_health = float(Agent.GetHealth(agent_id))
+            current_health = float(Routines.Checks.Agents.GetHealth(agent_id))
             previous_state = self._party_health_monitor.get(agent_id)
             previous_health = current_health if previous_state is None else float(previous_state.get("health", current_health))
+            previous_sample_ms = now_ms if previous_state is None else int(previous_state.get("sample_ms", now_ms))
+            previous_drop = 0.0 if previous_state is None else float(previous_state.get("drop", 0.0))
+            elapsed_ms = max(0, now_ms - previous_sample_ms)
+            current_drop = max(0.0, previous_health - current_health)
+
+            if elapsed_ms >= window_ms:
+                accumulated_drop = current_drop
+            else:
+                retention_ratio = max(0.0, float(window_ms - elapsed_ms) / float(window_ms))
+                accumulated_drop = (previous_drop * retention_ratio) + current_drop
+
             self._party_health_monitor[agent_id] = {
                 "health": current_health,
-                "drop": max(0.0, previous_health - current_health),
+                "drop": max(0.0, min(1.0, accumulated_drop)),
+                "sample_ms": now_ms,
             }
 
         self._party_health_monitor_timer.Reset()
@@ -426,27 +482,50 @@ class BuildMgr:
         *,
         drop_threshold: float = 0.10,
         sample_interval_ms: int = 150,
+        window_ms: int | None = None,
         force_sample: bool = False,
     ) -> list[int]:
-        from Py4GWCoreLib.Agent import Agent
+        from Py4GWCoreLib import Routines
 
         self.UpdatePartyHealthMonitor(
             sample_interval_ms=sample_interval_ms,
+            window_ms=window_ms,
             force=force_sample,
         )
 
         candidates = [
             agent_id
             for agent_id, state in self._party_health_monitor.items()
-            if float(state.get("drop", 0.0)) >= drop_threshold and Agent.IsAlive(agent_id)
+            if float(state.get("drop", 0.0)) >= drop_threshold and Routines.Checks.Agents.IsAlive(agent_id)
         ]
         candidates.sort(
             key=lambda agent_id: (
                 -self.GetPartyHealthDelta(agent_id),
-                Agent.GetHealth(agent_id),
+                Routines.Checks.Agents.GetHealth(agent_id),
             )
         )
         return candidates
+
+    def IsPartySpikeTarget(
+        self,
+        agent_id: int,
+        *,
+        drop_threshold: float = 0.10,
+        sample_interval_ms: int = 150,
+        window_ms: int | None = None,
+        force_sample: bool = False,
+    ) -> bool:
+        from Py4GWCoreLib import Routines
+
+        if not agent_id or not Routines.Checks.Agents.IsAlive(agent_id):
+            return False
+
+        self.UpdatePartyHealthMonitor(
+            sample_interval_ms=sample_interval_ms,
+            window_ms=window_ms,
+            force=force_sample,
+        )
+        return self.GetPartyHealthDelta(agent_id) >= drop_threshold
 
     def _is_local_cast_pending(self) -> bool:
         if self._local_cast_timer.IsStopped():
@@ -524,6 +603,83 @@ class BuildMgr:
 
         cluster_targets = AgentArray.Sort.ByDistance(largest_cluster, player_pos)
         return cluster_targets[0] if cluster_targets else 0
+
+    def _prefer_melee_nearest_enemy(self, desired_target: int) -> int:
+        from Py4GWCoreLib import Agent, Player, Range, Routines, Utils
+
+        if not Routines.Checks.Agents.IsMelee(Player.GetAgentID()):
+            return desired_target
+
+        nearest_enemy = Routines.Agents.GetNearestEnemy(Range.Spellcast.value)
+        if not (Agent.IsValid(nearest_enemy) and not Agent.IsDead(nearest_enemy)):
+            return desired_target
+
+        if not (Agent.IsValid(desired_target) and not Agent.IsDead(desired_target)):
+            return nearest_enemy
+
+        player_pos = Player.GetXY()
+        nearby_enemies = Routines.Agents.GetFilteredEnemyArray(
+            player_pos[0],
+            player_pos[1],
+            Range.Spellcast.value,
+        )
+
+        contact_enemies = [
+            enemy_id
+            for enemy_id in nearby_enemies
+            if Agent.IsValid(enemy_id)
+            and not Agent.IsDead(enemy_id)
+            and Utils.Distance(player_pos, Agent.GetXY(enemy_id)) <= Range.Adjacent.value
+        ]
+
+        nearest_stable_enemy = 0
+        for enemy_id in nearby_enemies:
+            if Agent.IsMoving(enemy_id):
+                continue
+            nearest_stable_enemy = enemy_id
+            break
+
+        def _score_target(agent_id: int) -> float:
+            if not (Agent.IsValid(agent_id) and not Agent.IsDead(agent_id)):
+                return float("-inf")
+
+            distance = Utils.Distance(player_pos, Agent.GetXY(agent_id))
+            score = 0.0
+
+            # Melee wants targets that are likely to let us connect and keep
+            # swinging, not just the most "tactical" enemy on paper. We give a
+            # large bonus to static targets, then a smaller bonus to targets
+            # that are already close enough to hit without extra path churn.
+            if not Agent.IsMoving(agent_id):
+                score += 300.0
+            if distance <= Range.Touch.value:
+                score += 220.0
+            elif distance <= Range.Adjacent.value:
+                score += 120.0
+
+            score -= distance * 0.25
+
+            # Keep a light preference for the caller's desired target and for
+            # the nearest enemy, but let stability/connectability outweigh
+            # tactical desirability when melee would otherwise keep chasing.
+            if agent_id == desired_target:
+                score += 80.0
+            if agent_id == nearest_enemy:
+                score += 40.0
+
+            return score
+
+        if contact_enemies:
+            # Once melee already has enemies in immediate reach, prefer targets in
+            # that contact ring only. This prevents selecting a "better" target
+            # behind a front enemy and failing skills because the front line body
+            # blocks the path or keeps the character facing the wrong target.
+            best_contact_target = max(contact_enemies, key=_score_target)
+            return best_contact_target if _score_target(best_contact_target) != float("-inf") else desired_target
+
+        candidates = [desired_target, nearest_enemy, nearest_stable_enemy]
+        best_target = max(candidates, key=_score_target)
+        return best_target if _score_target(best_target) != float("-inf") else desired_target
     
     def _pick_fallback_target(self, target_type: str) -> int:
         from HeroAI.targeting import GetEnemyAttacking, GetEnemyInjured, TargetClusteredEnemy
@@ -556,19 +712,52 @@ class BuildMgr:
                  
         elif target_type == "EnemyInjured":
             return_target = GetEnemyInjured(Range.Earshot.value)
-             
+
+        return_target = self._prefer_melee_nearest_enemy(return_target)
+
         if Agent.IsValid(return_target) and not Agent.IsDead(return_target):
             return return_target 
         return 0
 
     def _resolve_target(self, target_type: str = "EnemyInjured", show_log: bool = False) -> tuple[bool, bool]:
-        from Py4GWCoreLib import Party, Agent
+        from Py4GWCoreLib import Party, Agent, Player, Routines, Range, Utils
         party_target = Party.GetPartyTarget()
         self._debug(f"_acquire_target start current={self.current_target_id} party_target={party_target}", show_log)
 
+        is_melee_player = Routines.Checks.Agents.IsMelee(Player.GetAgentID())
+        player_pos = Player.GetXY()
+
+        nearest_contact_enemy = 0
+        if is_melee_player:
+            nearby_enemies = Routines.Agents.GetFilteredEnemyArray(
+                player_pos[0],
+                player_pos[1],
+                Range.Adjacent.value,
+            )
+            for enemy_id in nearby_enemies:
+                if Agent.IsValid(enemy_id) and not Agent.IsDead(enemy_id):
+                    nearest_contact_enemy = enemy_id
+                    break
+
+        # Party target is an explicit caller directive and must override every
+        # other targeting heuristic. If one exists, stop here and use it.
         if Agent.IsValid(party_target) and not Agent.IsDead(party_target):
             desired_target = party_target
             target_source = "party"
+        # Melee gets first claim on its current live target only when no party
+        # target is set, so we do not repeatedly swap targets mid-approach as
+        # fallback preferences refresh. But once an enemy is already in
+        # immediate melee range, prefer that contact target over a farther
+        # current target so skills do not keep failing on a body-blocked enemy
+        # behind the front line.
+        elif is_melee_player and Agent.IsValid(self.current_target_id) and not Agent.IsDead(self.current_target_id):
+            current_target_distance = Utils.Distance(player_pos, Agent.GetXY(self.current_target_id))
+            if nearest_contact_enemy and current_target_distance > Range.Adjacent.value:
+                desired_target = self._prefer_melee_nearest_enemy(nearest_contact_enemy)
+                target_source = "contact"
+            else:
+                desired_target = self.current_target_id
+                target_source = "current"
         elif Agent.IsValid(self.current_target_id) and not Agent.IsDead(self.current_target_id):
             desired_target = self.current_target_id
             target_source = "current"
@@ -615,6 +804,100 @@ class BuildMgr:
             yield from Routines.Yield.Agents.ChangeTarget(self.current_target_id)
             return False
 
+        return True
+
+    def GetWeaponAttackAftercast(self) -> int:
+        from Py4GWCoreLib import Agent, Player
+        from Py4GWCoreLib.enums import Weapon
+
+        weapon_type, _ = Agent.GetWeaponType(Player.GetAgentID())
+        player_living = Agent.GetLivingAgentByID(Player.GetAgentID())
+        if player_living is None:
+            return 0
+
+        attack_speed = player_living.weapon_attack_speed
+        attack_speed_modifier = player_living.attack_speed_modifier if player_living.attack_speed_modifier != 0 else 1.0
+
+        if attack_speed == 0:
+            match weapon_type:
+                case Weapon.Bow.value:
+                    attack_speed = 2.475
+                case Weapon.Axe.value:
+                    attack_speed = 1.33
+                case Weapon.Hammer.value:
+                    attack_speed = 1.75
+                case Weapon.Daggers.value:
+                    attack_speed = 1.33
+                case Weapon.Scythe.value:
+                    attack_speed = 1.5
+                case Weapon.Spear.value:
+                    attack_speed = 1.5
+                case Weapon.Sword.value:
+                    attack_speed = 1.33
+                case Weapon.Scepter.value:
+                    attack_speed = 1.75
+                case Weapon.Scepter2.value:
+                    attack_speed = 1.75
+                case Weapon.Wand.value:
+                    attack_speed = 1.75
+                case Weapon.Staff1.value:
+                    attack_speed = 1.75
+                case Weapon.Staff.value:
+                    attack_speed = 1.75
+                case Weapon.Staff2.value:
+                    attack_speed = 1.75
+                case Weapon.Staff3.value:
+                    attack_speed = 1.75
+                case _:
+                    attack_speed = 1.75
+
+        return int((attack_speed / attack_speed_modifier) * 1000)
+
+    def ResetAutoAttack(self) -> None:
+        self._auto_attack_time = 0
+        self._auto_attack_timer.Stop()
+
+    def _refresh_auto_attack_timing(self) -> None:
+        self._auto_attack_time = max(0, int(self.GetWeaponAttackAftercast()))
+
+    def _need_auto_attack_reissue(self) -> bool:
+        from Py4GWCoreLib import Agent, Player
+
+        target_id = Player.GetTargetID()
+        _, target_allegiance = Agent.GetAllegiance(target_id)
+        if target_id == 0 or Agent.IsDead(target_id) or target_allegiance != "Enemy":
+            return True
+
+        if self._auto_attack_timer.IsStopped():
+            return True
+
+        return self._auto_attack_timer.IsExpired()
+
+    def AutoAttack(self, target_type: str = "EnemyInjured", show_debug: bool = False) -> BuildCoroutine:
+        if False:
+            yield
+
+        from Py4GWCoreLib import Agent, Player, Routines
+
+        player_id = Player.GetAgentID()
+        if not self.CanProcess() or self._is_local_cast_pending() or Agent.IsHoldingItem(player_id):
+            return False
+
+        self._refresh_auto_attack_timing()
+        if not self._need_auto_attack_reissue():
+            return False
+
+        target_acquired, target_changed = self._resolve_target(target_type, show_log=show_debug)
+        if not target_acquired:
+            return False
+
+        if target_changed or Player.GetTargetID() != self.current_target_id:
+            yield from Routines.Yield.Agents.ChangeTarget(self.current_target_id)
+
+        Player.Interact(self.current_target_id, False)
+        self._refresh_auto_attack_timing()
+        self._auto_attack_timer.SetThrottleTime(max(0, self._auto_attack_time))
+        self._auto_attack_timer.Reset()
         return True
     
 
@@ -749,19 +1032,24 @@ class BuildMgr:
     def _yield_from_handler(self, handler: BuildHandler | None) -> BuildCoroutine:
         if handler is None:
             yield
-            return
+            return None
 
         result = handler()
         if inspect.isgenerator(result):
-            yield from result
+            return (yield from result)
+        return result
 
     def _process_phase(self, handler: BuildHandler | None, is_in_combat: bool) -> BuildCoroutine:
         if not self.CanProcess():
             yield
             return
 
+        self.ResetTickState()
         self._refresh_target_tracking()
         yield from self._yield_from_handler(handler)
+
+        if self.DidTickSucceed():
+            return
 
         fallback = self.ResolveFallback()
         if fallback is not None:
@@ -773,17 +1061,34 @@ class BuildMgr:
 
         yield
 
-    def _process_skill_casting_phase(self, handler: BuildHandler | None) -> BuildCoroutine:
+    def _process_skill_casting_phase(
+        self,
+        handler: BuildHandler | None,
+        is_in_combat: bool | None = None,
+    ) -> BuildCoroutine:
         if not self.CanProcess():
             yield
             return
 
+        self.ResetTickState()
         self._refresh_target_tracking()
-        yield from self._yield_from_handler(handler)
+        handler_result = yield from self._yield_from_handler(handler)
+
+        if self.DidTickSucceed():
+            return
+
+        if handler_result is True:
+            self.SetTickSuccess()
+            return
 
         fallback = self.ResolveFallback()
         if fallback is not None:
-            yield from fallback.ProcessSkillCasting()
+            if is_in_combat is True:
+                yield from fallback.ProcessCombat()
+            elif is_in_combat is False:
+                yield from fallback.ProcessOOC()
+            else:
+                yield from fallback.ProcessSkillCasting()
             return
 
         yield
@@ -827,6 +1132,44 @@ class BuildMgr:
 
     def DidTickSucceed(self) -> bool:
         return getattr(self.tick_state, "name", None) == "SUCCESS"
+
+    def _validate_target_for_skill_cast(self, skill_id: int, target_agent_id: int) -> bool:
+        from HeroAI.types import Skilltarget, SkillType
+        from Py4GWCoreLib import Routines
+
+        if not target_agent_id:
+            return True
+
+        custom_skill = self.GetCustomSkill(skill_id)
+        if custom_skill is None:
+            return True
+
+        target_allegiance = custom_skill.TargetAllegiance
+        if target_allegiance == Skilltarget.AllyCaster.value:
+            if (
+                not Routines.Checks.Agents.IsCaster(target_agent_id)
+                or Routines.Checks.Agents.IsMartial(target_agent_id)
+            ):
+                return False
+        elif target_allegiance == Skilltarget.AllyMartial.value:
+            if (
+                not Routines.Checks.Agents.IsMartial(target_agent_id)
+            ):
+                return False
+        elif target_allegiance == Skilltarget.AllyMartialMelee.value:
+            if (
+                not Routines.Checks.Agents.IsMelee(target_agent_id)
+            ):
+                return False
+        elif target_allegiance == Skilltarget.AllyMartialRanged.value:
+            if not Routines.Checks.Agents.IsRanged(target_agent_id):
+                return False
+
+        if custom_skill.SkillType == SkillType.WeaponSpell.value:
+            if Routines.Checks.Agents.IsWeaponSpelled(target_agent_id):
+                return False
+
+        return True
 
     def CanCastSkillID(
         self,
@@ -899,6 +1242,8 @@ class BuildMgr:
             yield
 
         if not self.CanCastSkillID(skill_id, extra_condition=extra_condition):
+            return False
+        if not self._validate_target_for_skill_cast(skill_id, target_agent_id):
             return False
 
         slot = SkillBar.GetSlotBySkillID(skill_id)
@@ -988,6 +1333,8 @@ class BuildMgr:
             return False
 
         skill_id = SkillBar.GetSkillIDBySlot(slot)
+        if not self._validate_target_for_skill_cast(skill_id, target_agent_id):
+            return False
 
         GLOBAL_CACHE.SkillBar.UseSkill(slot, target_agent_id=target_agent_id, aftercast_delay=aftercast_delay)
         self._mark_local_cast_pending(aftercast_delay)
@@ -1001,7 +1348,7 @@ class BuildMgr:
         return True
 
 
-    def ProcessSkillCasting(self):
+    def ProcessSkillCasting(self) -> BuildCoroutine:
         if self._local_skill_casting_handler is not None:
             yield from self._process_skill_casting_phase(self._local_skill_casting_handler)
             return
@@ -1016,13 +1363,13 @@ class BuildMgr:
         else:
             yield from self.ProcessOOC()
 
-    def ProcessOOC(self):
+    def ProcessOOC(self) -> BuildCoroutine:
         if self._local_ooc_handler is None:
             yield from self.ProcessSkillCasting()
             return
         yield from self._process_phase(self._local_ooc_handler, is_in_combat=False)
 
-    def ProcessCombat(self):
+    def ProcessCombat(self) -> BuildCoroutine:
         if self._local_combat_handler is None:
             yield from self.ProcessSkillCasting()
             return

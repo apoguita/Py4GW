@@ -1,6 +1,6 @@
 from Py4GWCoreLib import Profession
 from Py4GWCoreLib import Routines
-from Py4GWCoreLib.Builds.Any.HeroAI import HeroAI as HeroAIBuild
+from Py4GWCoreLib.Builds.Any.HeroAI import HeroAI_Build
 from Py4GWCoreLib import BuildMgr
 from Py4GWCoreLib.Skill import Skill
 from Py4GWCoreLib.Builds.Skills import SkillsTemplate
@@ -32,31 +32,30 @@ class Healing_Burst(BuildMgr):
         if match_only:
             return
 
-        self.SetFallback("HeroAI", HeroAIBuild(standalone_fallback=True))
+        self.SetFallback("HeroAI", HeroAI_Build(standalone_fallback=True))
         self.SetSkillCastingFn(self._run_local_skill_logic)
         self.skills: SkillsTemplate = SkillsTemplate(self)
 
     def _run_local_skill_logic(self):
         if not Routines.Checks.Skills.CanCast():
-            yield from Routines.Yield.wait(100)
-            return
+            return False
 
         if (yield from self.skills.Monk.HealingPrayers.Healing_Burst()):
-            return
+            return True
 
         if (yield from self.skills.Monk.HealingPrayers.Dwaynas_Kiss()):
-            return
+            return True
 
         if (yield from self.skills.Monk.NoAttribute.Seed_of_Life()):
-            return
+            return True
 
         if (yield from self.skills.Monk.ProtectionPrayers.Draw_Conditions()):
-            return
+            return True
         
         if not (Routines.Checks.Agents.InAggro()):
-            return
+            return False
         
         if self.IsSkillEquipped(Vigorous_Spirit_ID) and (yield from self.skills.Monk.HealingPrayers.Vigorous_Spirit()):
-            return
+            return True
 
-        yield
+        return False

@@ -1,6 +1,6 @@
 from Py4GWCoreLib import Profession
 from Py4GWCoreLib import Routines
-from Py4GWCoreLib.Builds.Any.HeroAI import HeroAI as HeroAIBuild
+from Py4GWCoreLib.Builds.Any.HeroAI import HeroAI_Build
 from Py4GWCoreLib import BuildMgr
 from Py4GWCoreLib.Player import Player
 from Py4GWCoreLib.Skill import Skill
@@ -12,6 +12,7 @@ Ether_Renewal_ID = Skill.GetID("Ether_Renewal")
 Protective_Spirit_ID = Skill.GetID("Protective_Spirit")
 Reversal_of_Fortune_ID = Skill.GetID("Reversal_of_Fortune")
 Breath_of_the_Great_Dwarf_ID = Skill.GetID("Breath_of_the_Great_Dwarf")
+Great_Dwarf_Weapon_ID = Skill.GetID("Great_Dwarf_Weapon")
 Vital_Blessing_ID = Skill.GetID("Vital_Blessing")
 Infuse_Health_ID = Skill.GetID("Infuse_Health")
 
@@ -31,6 +32,7 @@ class Ether_Renewal_Prot_Infuser(BuildMgr):
             ],
             optional_skills=[
                 Breath_of_the_Great_Dwarf_ID,
+                Great_Dwarf_Weapon_ID,
                 Vital_Blessing_ID,
                 Infuse_Health_ID,
             ],
@@ -39,7 +41,7 @@ class Ether_Renewal_Prot_Infuser(BuildMgr):
         if match_only:
             return
 
-        self.SetFallback("HeroAI", HeroAIBuild(standalone_fallback=True))
+        self.SetFallback("HeroAI", HeroAI_Build(standalone_fallback=True))
         self.SetSkillCastingFn(self._run_local_skill_logic)
         self.skills: SkillsTemplate = SkillsTemplate(self)
 
@@ -61,33 +63,35 @@ class Ether_Renewal_Prot_Infuser(BuildMgr):
 
     def _run_local_skill_logic(self):
         if not Routines.Checks.Skills.CanCast():
-            yield from Routines.Yield.wait(100)
-            return
+            return False
 
         if (yield from self.skills.Elementalist.EnergyStorage.Aura_of_Restoration()):
-            return
+            return True
 
         if self.IsSkillEquipped(Vital_Blessing_ID) and (yield from self._vital_blessing_self_upkeep()):
-            return
+            return True
 
         if self.IsSkillEquipped(Breath_of_the_Great_Dwarf_ID) and (yield from self.skills.Any.NoAttribute.Breath_of_the_Great_Dwarf()):
-            return
+            return True
 
         if not Routines.Checks.Agents.InAggro():
-            return
+            return False
 
         self.UpdatePartyHealthMonitor(sample_interval_ms=150)
 
         if self.IsSkillEquipped(Infuse_Health_ID) and (yield from self.skills.Monk.HealingPrayers.Infuse_Health()):
-            return
+            return True
+
+        if self.IsSkillEquipped(Great_Dwarf_Weapon_ID) and (yield from self.skills.Any.NoAttribute.Great_Dwarf_Weapon()):
+            return True
 
         if (yield from self.skills.Monk.ProtectionPrayers.Protective_Spirit()):
-            return
+            return True
 
         if (yield from self.skills.Monk.ProtectionPrayers.Reversal_of_Fortune()):
-            return
+            return True
 
         if (yield from self.skills.Elementalist.EnergyStorage.Ether_Renewal()):
-            return
+            return True
 
-        yield
+        return False

@@ -125,9 +125,8 @@ def bot_routine(bot: Botting) -> None:
 
     # Vanquish Finished
     bot.States.AddHeader("Vanquish Finished") # 6
-    bot.States.RemoveManagedCoroutine("Radar")
-    bot.States.RemoveManagedCoroutine("VanquishWatchdog")
-    bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Vanquish Finished.")
+    bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Bot Stopped.")
+    bot.States.AddCustomState(lambda: _stop_bot(), "StopBot")
 
 def PrepareForBattle(bot: Botting):                  
     bot.Items.Restock.ArmorOfSalvation()
@@ -167,6 +166,10 @@ def VanquishWatchdog(bot: "Botting"):
             return
         yield from Routines.Yield.wait(500)
 
+def _stop_bot():
+    bot.Stop()
+    yield
+    
 region_index = 0
 map_index = 0
 _farm_configured = [False]

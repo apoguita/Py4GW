@@ -28,6 +28,10 @@ class HealingPrayers:
     def Dwaynas_Kiss(self) -> BuildCoroutine:
         dwaynas_kiss_id: int = Skill.GetID("Dwaynas_Kiss")
         dwaynas_kiss: CustomSkill = self.build.GetCustomSkill(dwaynas_kiss_id)
+        health_threshold: float = max(0.0, min(1.0, float(dwaynas_kiss.Conditions.LessLife or 0.80)))
+
+        def _is_valid_dwaynas_kiss_target(agent_id: int) -> bool:
+            return Agent.IsAlive(agent_id) and Agent.GetHealth(agent_id) <= health_threshold
 
         def _resolve_dwaynas_kiss_target() -> int:
             enchanted_target_skill: CustomSkill = deepcopy(dwaynas_kiss)
@@ -36,7 +40,7 @@ class HealingPrayers:
                 dwaynas_kiss_id,
                 enchanted_target_skill,
             )
-            if enchanted_target:
+            if enchanted_target and _is_valid_dwaynas_kiss_target(enchanted_target):
                 return enchanted_target
 
             hexed_target_skill: CustomSkill = deepcopy(dwaynas_kiss)
@@ -45,13 +49,16 @@ class HealingPrayers:
                 dwaynas_kiss_id,
                 hexed_target_skill,
             )
-            if hexed_target:
+            if hexed_target and _is_valid_dwaynas_kiss_target(hexed_target):
                 return hexed_target
 
-            return self.build.ResolveAllyTarget(
+            fallback_target = self.build.ResolveAllyTarget(
                 dwaynas_kiss_id,
                 dwaynas_kiss,
             )
+            if fallback_target and _is_valid_dwaynas_kiss_target(fallback_target):
+                return fallback_target
+            return 0
 
         if not self.build.IsSkillEquipped(dwaynas_kiss_id):
             return False
@@ -174,11 +181,6 @@ class HealingPrayers:
             return False
 
         def _resolve_infuse_health_target() -> int:
-            spike_candidates = set(self.build.GetPartySpikeCandidates(
-                drop_threshold=0.10,
-                sample_interval_ms=150,
-            ))
-
             ally_array = Routines.Targeting.GetAllAlliesArray(Range.Spellcast.value)
             ally_array = AgentArray.Filter.ByCondition(
                 ally_array,
@@ -190,11 +192,15 @@ class HealingPrayers:
             )
             ally_array = AgentArray.Filter.ByCondition(
                 ally_array,
-                lambda agent_id: Agent.GetHealth(agent_id) < 0.25,
+                lambda agent_id: Agent.GetHealth(agent_id) < 0.40,
             )
             ally_array = AgentArray.Filter.ByCondition(
                 ally_array,
-                lambda agent_id: agent_id in spike_candidates,
+                lambda agent_id: self.build.IsPartySpikeTarget(
+                    agent_id,
+                    drop_threshold=0.10,
+                    sample_interval_ms=150,
+                ),
             )
 
             ally_array = list(ally_array or [])

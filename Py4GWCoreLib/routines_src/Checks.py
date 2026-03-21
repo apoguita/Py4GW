@@ -417,6 +417,237 @@ class Checks:
         from ..enums_src.GameData_enums import Range
 
         @staticmethod
+        def _get_same_party_shared_agent_data(agent_id: int):
+            from ..GlobalCache import GLOBAL_CACHE
+            from ..Map import Map
+            from ..Party import Party
+
+            if not agent_id or not Map.IsMapReady():
+                return None
+
+            own_map_id = Map.GetMapID()
+            own_region = Map.GetRegion()[0]
+            own_district = Map.GetDistrict()
+            own_language = Map.GetLanguage()[0]
+            own_party_id = Party.GetPartyID()
+            party_members = {
+                int(Party.Players.GetAgentIDByLoginNumber(party_member.login_number) or 0)
+                for party_member in (Party.GetPlayers() or [])
+            }
+
+            for acc in GLOBAL_CACHE.ShMem.GetAllAccountData():
+                if not acc.IsSlotActive or acc.AgentData.AgentID != agent_id:
+                    continue
+
+                same_map = (
+                    own_map_id == acc.AgentData.Map.MapID
+                    and own_region == acc.AgentData.Map.Region
+                    and own_district == acc.AgentData.Map.District
+                    and own_language == acc.AgentData.Map.Language
+                )
+                same_party = agent_id in party_members and acc.AgentPartyData.PartyID == own_party_id
+                if same_map and same_party:
+                    return acc.AgentData
+
+            return None
+
+        @staticmethod
+        def _shared_agent_has_skill_equipped(agent_id: int, skill_id: int) -> bool:
+            if not agent_id or not skill_id:
+                return False
+
+            shared_agent_data = Checks.Agents._get_same_party_shared_agent_data(agent_id)
+            if shared_agent_data is None:
+                return False
+
+            return any(int(skill.Id) == skill_id for skill in shared_agent_data.Skillbar.Skills)
+
+        @staticmethod
+        def _get_shared_weapon_name(agent_id: int) -> tuple[int, str]:
+            from ..Agent import Agent
+            from ..enums_src.GameData_enums import Weapon, Weapon_Names
+
+            shared_agent_data = Checks.Agents._get_same_party_shared_agent_data(agent_id)
+            if shared_agent_data is None:
+                return Agent.GetWeaponType(agent_id)
+
+            weapon_type = int(shared_agent_data.WeaponType)
+            if weapon_type == 0:
+                return 0, "Unknown"
+
+            try:
+                weapon_type_enum = Weapon(weapon_type)
+            except ValueError:
+                return weapon_type, "Unknown"
+
+            return weapon_type, Weapon_Names.get(weapon_type_enum, "Unknown")
+
+        @staticmethod
+        def IsDead(agent_id: int) -> bool:
+            from ..Agent import Agent
+
+            shared_agent_data = Checks.Agents._get_same_party_shared_agent_data(agent_id)
+            if shared_agent_data is not None:
+                return bool(
+                    shared_agent_data.Is_Dead
+                    or shared_agent_data.Is_DeadByTypeMap
+                    or float(shared_agent_data.Health.Current) < 0.01
+                )
+            return bool(Agent.IsDead(agent_id) or Agent.GetHealth(agent_id) < 0.01)
+
+        @staticmethod
+        def IsAlive(agent_id: int) -> bool:
+            from ..Agent import Agent
+
+            shared_agent_data = Checks.Agents._get_same_party_shared_agent_data(agent_id)
+            if shared_agent_data is not None:
+                return (
+                    (not shared_agent_data.Is_Dead)
+                    and (not shared_agent_data.Is_DeadByTypeMap)
+                    and float(shared_agent_data.Health.Current) >= 0.01
+                )
+            return (not Agent.IsDead(agent_id)) and Agent.GetHealth(agent_id) >= 0.01
+
+        @staticmethod
+        def GetHealth(agent_id: int) -> float:
+            from ..Agent import Agent
+
+            shared_agent_data = Checks.Agents._get_same_party_shared_agent_data(agent_id)
+            if shared_agent_data is not None:
+                return float(shared_agent_data.Health.Current)
+            return float(Agent.GetHealth(agent_id))
+
+        @staticmethod
+        def IsHexed(agent_id: int) -> bool:
+            from ..Agent import Agent
+
+            shared_agent_data = Checks.Agents._get_same_party_shared_agent_data(agent_id)
+            if shared_agent_data is not None:
+                return bool(shared_agent_data.Is_Hexed)
+            return Agent.IsHexed(agent_id)
+
+        @staticmethod
+        def IsEnchanted(agent_id: int) -> bool:
+            from ..Agent import Agent
+
+            shared_agent_data = Checks.Agents._get_same_party_shared_agent_data(agent_id)
+            if shared_agent_data is not None:
+                return bool(shared_agent_data.Is_Enchanted)
+            return Agent.IsEnchanted(agent_id)
+
+        @staticmethod
+        def IsConditioned(agent_id: int) -> bool:
+            from ..Agent import Agent
+
+            shared_agent_data = Checks.Agents._get_same_party_shared_agent_data(agent_id)
+            if shared_agent_data is not None:
+                return bool(shared_agent_data.Is_Conditioned)
+            return Agent.IsConditioned(agent_id)
+
+        @staticmethod
+        def IsAttacking(agent_id: int) -> bool:
+            from ..Agent import Agent
+
+            shared_agent_data = Checks.Agents._get_same_party_shared_agent_data(agent_id)
+            if shared_agent_data is not None:
+                return int(shared_agent_data.AnimationCode) == 2
+            return Agent.IsAttacking(agent_id)
+
+        @staticmethod
+        def IsKnockedDown(agent_id: int) -> bool:
+            from ..Agent import Agent
+
+            shared_agent_data = Checks.Agents._get_same_party_shared_agent_data(agent_id)
+            if shared_agent_data is not None:
+                return bool(shared_agent_data.ModelState & 0x400)
+            return Agent.IsKnockedDown(agent_id)
+
+        @staticmethod
+        def IsWeaponSpelled(agent_id: int) -> bool:
+            from ..Agent import Agent
+
+            shared_agent_data = Checks.Agents._get_same_party_shared_agent_data(agent_id)
+            if shared_agent_data is not None:
+                return bool(shared_agent_data.Is_WeaponSpelled)
+            return Agent.IsWeaponSpelled(agent_id)
+
+        @staticmethod
+        def HasIllusionaryWeaponry(agent_id: int) -> bool:
+            from ..Skill import Skill
+
+            iw_skill_ids = (
+                Skill.GetID("Illusionary_Weaponry"),
+                Skill.GetID("Illusionary_Weaponry_(PVP)"),
+            )
+            for skill_id in iw_skill_ids:
+                if not skill_id:
+                    continue
+                if (
+                    Checks.Agents.HasEffect(agent_id, skill_id)
+                    or Checks.Agents._shared_agent_has_skill_equipped(agent_id, skill_id)
+                ):
+                    return True
+            return False
+
+        @staticmethod
+        def IsMartial(agent_id: int) -> bool:
+            from ..Agent import Agent
+
+            if Agent.IsPet(agent_id):
+                return True
+
+            if Checks.Agents.HasIllusionaryWeaponry(agent_id):
+                return False
+
+            weapon_type, weapon_name = Checks.Agents._get_shared_weapon_name(agent_id)
+            if weapon_type == 0:
+                return False
+
+            return weapon_name in {"Bow", "Axe", "Hammer", "Daggers", "Scythe", "Spear", "Sword"}
+
+        @staticmethod
+        def IsCaster(agent_id: int) -> bool:
+            from ..Agent import Agent
+
+            if Agent.IsPet(agent_id):
+                return False
+
+            weapon_type, _ = Checks.Agents._get_shared_weapon_name(agent_id)
+            if weapon_type == 0:
+                return False
+
+            return not Checks.Agents.IsMartial(agent_id)
+
+        @staticmethod
+        def IsMelee(agent_id: int) -> bool:
+            from ..Agent import Agent
+
+            if Agent.IsPet(agent_id):
+                return True
+
+            if Checks.Agents.HasIllusionaryWeaponry(agent_id):
+                return False
+
+            weapon_type, weapon_name = Checks.Agents._get_shared_weapon_name(agent_id)
+            if weapon_type == 0:
+                return False
+
+            return weapon_name in {"Axe", "Hammer", "Daggers", "Scythe", "Sword"}
+
+        @staticmethod
+        def IsRanged(agent_id: int) -> bool:
+            from ..Agent import Agent
+
+            if Agent.IsPet(agent_id):
+                return False
+
+            weapon_type, weapon_name = Checks.Agents._get_shared_weapon_name(agent_id)
+            if weapon_type == 0:
+                return False
+
+            return weapon_name in {"Bow", "Spear"}
+
+        @staticmethod
         def InDanger(aggro_area=Range.Earshot, aggressive_only = False):
             from ..AgentArray import AgentArray
             from ..Agent import Agent
@@ -551,12 +782,23 @@ class Checks:
             from ..GlobalCache import GLOBAL_CACHE
             from ..Skill import Skill
             from ..Agent import Agent
-            result = GLOBAL_CACHE.Effects.HasEffect(agent_id, skill_id)
+
+            if not agent_id or not skill_id:
+                return False
+
+            result = False
+
+            shared_agent_data = Checks.Agents._get_same_party_shared_agent_data(agent_id)
+            if shared_agent_data is not None:
+                result = any(buff.SkillId == skill_id for buff in shared_agent_data.Buffs.Buffs)
+
+            if not result:
+                result = GLOBAL_CACHE.Effects.HasEffect(agent_id, skill_id)
 
             if not result and not exact_weapon_spell:
                 skilltype, _ = Skill.GetType(skill_id)
                 if skilltype == 25: #SkillType.WeaponSpell.value:
-                    result = Agent.IsWeaponSpelled(agent_id)
+                    result = Checks.Agents.IsWeaponSpelled(agent_id)
 
             return result
 
