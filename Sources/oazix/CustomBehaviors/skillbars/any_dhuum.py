@@ -86,7 +86,7 @@ class SpiritualHealingUtility(CustomSkillUtilityBase):
     def _get_targets(self) -> list[custom_behavior_helpers.SortableAgentData]:
         return custom_behavior_helpers.Targets.get_all_possible_allies_ordered_by_priority_raw(
             within_range=Range.Spellcast.value * 1.2,
-            condition=lambda agent_id: Agent.GetHealth(agent_id) < 0.50,
+            condition=lambda agent_id: Agent.GetHealth(agent_id) < 0.70,
             sort_key=(TargetingOrder.HP_ASC, TargetingOrder.DISTANCE_ASC),
         )
 
