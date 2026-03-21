@@ -30,6 +30,7 @@ bot.UI.override_draw_help(lambda: _draw_help())
 bot.UI.override_draw_config(lambda: _draw_settings())  # Disable default config window
 MAIN_LOOP_HEADER_NAME = ""
 _entered_dungeon: bool = False  # set True once map 72 is loaded; watchdog uses this
+_king_frozenwind_model_id: int = 2403
 
 
 def _mark_entered_dungeon() -> None:
@@ -546,12 +547,6 @@ def bot_routine(bot: Botting):
 
     Enter_UW(bot)
     Clear_the_Chamber(bot)
-    _enqueue_section(bot, "RestoreVale", "Restore Vale", Restore_Vale)
-    _enqueue_section(bot, "WrathfullSpirits", "Wrathfull Spirits", Wrathfull_Spirits)
-    #_enqueue_section(bot, "EscortOfSouls", "Escort of Souls", Escort_of_Souls)
-    _enqueue_section(bot, "UnwantedGuests", "Unwanted Guests", Unwanted_Guests)
-    _enqueue_section(bot, "RestoreWastes", "Restore Wastes", Restore_Wastes)
-    _enqueue_section(bot, "ServantsOfGrenth", "Servants of Grenth", Servants_of_Grenth)
     _enqueue_section(bot, "PassTheMountains", "Pass the Mountains", Pass_The_Mountains)
     _enqueue_section(bot, "RestoreMountains", "Restore Mountains", Restore_Mountains)
     _enqueue_section(bot, "DeamonAssassin", "Deamon Assassin", Deamon_Assassin)
@@ -561,6 +556,13 @@ def bot_routine(bot: Botting):
     _enqueue_section(bot, "TerrorwebQueen", "Terrorweb Queen", Terrorweb_Queen)
     _enqueue_section(bot, "RestorePit", "Restore Pit", Restore_Pit)
     _enqueue_section(bot, "ImprisonedSpirits", "Imprisoned Spirits", Imprisoned_Spirits)
+    _enqueue_section(bot, "RestoreVale", "Restore Vale", Restore_Vale)
+    _enqueue_section(bot, "WrathfullSpirits", "Wrathfull Spirits", Wrathfull_Spirits)
+    #_enqueue_section(bot, "EscortOfSouls", "Escort of Souls", Escort_of_Souls)
+    _enqueue_section(bot, "UnwantedGuests", "Unwanted Guests", Unwanted_Guests)
+    _enqueue_section(bot, "RestoreWastes", "Restore Wastes", Restore_Wastes)
+    _enqueue_section(bot, "ServantsOfGrenth", "Servants of Grenth", Servants_of_Grenth)
+    
     _enqueue_section(bot, "Dhuum", "Dhuum", Dhuum)
     _enqueue_section(bot, "Repeat", "Repeat the whole thing", ResignAndRepeat)
     bot.States.AddHeader("END")
@@ -900,9 +902,7 @@ def Servants_of_Grenth(bot_instance: Botting):
             "Clear Flags",
         )
         bot_instance.Move.XYAndInteractNPC(554, 18384, "go to NPC")
-        #bot_instance.Dialogs.AtXY(5755, 12769, 0x7F, "Back to Chamber")
-        #bot_instance.Dialogs.AtXY(5755, 12769, 0x86, "Back to Chamber")
-        bot_instance.Dialogs.AtXY(5755, 12769, 0x8D, "Back to Chamber")
+        #bot_instance.Dialogs.AtXY(5755, 12769, 0x8D, "Back to Chamber")
         bot_instance.Wait.ForTime(3000)
 
 def Pass_The_Mountains(bot_instance: Botting):
@@ -1153,54 +1153,130 @@ def Imprisoned_Spirits(bot_instance: Botting):
         ##warten bis quest fertig
 
         bot_instance.Move.XY(8692, 6292, "go to NPC")
+        bot_instance.Dialogs.AtXY(5755, 12769, 0x8D, "Back to Chamber")
         
 
 def Dhuum(bot_instance: Botting):
     bot_instance.States.AddHeader("Dhuum Dialog")
-    bot_instance.Move.XYAndInteractNPC(8666, 6308, "go to NPC")
+    bot_instance.Move.XY(-11835, 17274)
 
-    def _send_dhuum_dialog_in_sequence() -> Generator[Any | None, Any | None, None]:
-        sender_email = Player.GetAccountEmail()
-        sender_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(sender_email)
-        target_id = int(Player.GetTargetID())
+    def _flag_all_mesmers() -> None:
+        flag_x, flag_y = -15022, 17277
+        manager = CustomBehaviorParty().party_flagging_manager
+        manager.clear_all_flags()
 
-        if target_id <= 0:
-            ConsoleLog(BOT_NAME, "[Dhuum] Kein Target gefunden fuer Dialog 0x8C.", Py4GW.Console.MessageType.Warning)
-            yield
-            return
+        my_email = Player.GetAccountEmail()
+        my_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(my_email)
 
-        for account in GLOBAL_CACHE.ShMem.GetAllAccountData():
-            if account.AccountEmail == sender_email:
-                continue
-            if not bool(getattr(account, "IsSlotActive", True)):
-                continue
-            if bool(getattr(account, "IsIsolated", False)):
-                continue
-
-            if sender_account is not None:
-                same_instance = (
-                    int(sender_account.AgentData.Map.MapID) == int(account.AgentData.Map.MapID)
-                    and int(sender_account.AgentData.Map.Region) == int(account.AgentData.Map.Region)
-                    and int(sender_account.AgentData.Map.District) == int(account.AgentData.Map.District)
-                    and int(sender_account.AgentData.Map.Language) == int(account.AgentData.Map.Language)
-                )
-                if not same_instance:
+        cb_mesmer_emails: list[str] = []
+        if my_account is not None:
+            for account in GLOBAL_CACHE.ShMem.GetAllAccountData():
+                if account.AccountEmail == my_email:
                     continue
 
-            GLOBAL_CACHE.ShMem.SendMessage(
-                sender_email,
-                account.AccountEmail,
-                SharedCommandType.SendDialogToTarget,
-                (target_id, 0x8C, 0, 0),
-            )
-            yield from Routines.Yield.wait(200)
+                is_same_map = (
+                    my_account.AgentData.Map.MapID == account.AgentData.Map.MapID
+                    and my_account.AgentData.Map.Region == account.AgentData.Map.Region
+                    and my_account.AgentData.Map.District == account.AgentData.Map.District
+                )
+                if not is_same_map:
+                    continue
 
-        # Local account triggers the same dialog last, with extra delay.
-        yield from Routines.Yield.wait(1000)
-        Player.SendDialog(0x8C)
-        yield from Routines.Yield.wait(200)
+                primary_prof, secondary_prof = account.AgentData.Profession
+                is_mesmer_account = int(primary_prof) == 5 or int(secondary_prof) == 5
+                if not is_mesmer_account:
+                    continue
 
-    bot_instance.States.AddCustomState(_send_dhuum_dialog_in_sequence, "Dhuum Dialog Sequence")
+                cb_index = len(cb_mesmer_emails)
+                if cb_index >= 12:
+                    break
+
+                manager.set_flag_account_email(cb_index, account.AccountEmail)
+                manager.set_flag_position(cb_index, flag_x, flag_y)
+                cb_mesmer_emails.append(account.AccountEmail)
+
+        heroes = Party.GetHeroes()
+        flagged_hero_slots: list[int] = []
+        for hero_slot, hero in enumerate(heroes, start=1):
+            hero_agent_id = int(hero.agent_id)
+            if hero_agent_id <= 0:
+                continue
+
+            primary_name, secondary_name = Agent.GetProfessionNames(hero_agent_id)
+            is_mesmer = (str(primary_name).lower() == "mesmer") or (str(secondary_name).lower() == "mesmer")
+            if not is_mesmer:
+                continue
+
+            # Native hero flagging is slot-based (1..n heroes in party), not agent-id based.
+            bot_instance.Party.FlagHero(hero_slot, flag_x, flag_y)
+            flagged_hero_slots.append(hero_slot)
+
+        if len(cb_mesmer_emails) == 0 and len(flagged_hero_slots) == 0:
+            ConsoleLog(BOT_NAME, "[Dhuum] Keine Mesmer (Accounts oder Heroes) zum Flaggen gefunden.", Py4GW.Console.MessageType.Warning)
+            return
+
+        ConsoleLog(
+            BOT_NAME,
+            f"[Dhuum] Mesmer-CB-Flags: {len(cb_mesmer_emails)}, Mesmer-Hero-Slots: {flagged_hero_slots}",
+            Py4GW.Console.MessageType.Info,
+        )
+
+    
+
+    def _talk_to_king_frozenwind() -> None:
+        global _king_frozenwind_model_id
+
+        target_name = "king frozenwind"
+        dialog_id = 0x846901
+
+        def _matches_target_via_enc_name(agent_id: int, needle: str) -> bool:
+            # Agent.GetNameByID already decodes the raw GetAgentEncName payload.
+            decoded_name = str(Agent.GetNameByID(agent_id) or "").strip().lower()
+            return needle in decoded_name
+
+        candidate_agent_ids = set(AgentArray.GetAgentArray())
+        candidate_agent_ids.update(AgentArray.GetAllyArray())
+
+        # Prefer model-id lookup once learned from a previous name match.
+        if _king_frozenwind_model_id > 0:
+            for agent_id in candidate_agent_ids:
+                if int(Agent.GetModelID(agent_id)) == int(_king_frozenwind_model_id):
+                    x, y = Agent.GetXY(agent_id)
+                    bot_instance.Move.XYAndInteractNPC(x, y, "Interact King Frozenwind")
+                    bot_instance.Dialogs.AtXY(x, y, dialog_id, "King Frozenwind dialog")
+                    return
+
+        king_agent_id = None
+        for agent_id in candidate_agent_ids:
+            if _matches_target_via_enc_name(agent_id, target_name):
+                king_agent_id = int(agent_id)
+                if _king_frozenwind_model_id <= 0:
+                    _king_frozenwind_model_id = int(Agent.GetModelID(agent_id))
+                break
+
+        if king_agent_id is None:
+            ConsoleLog(BOT_NAME, "[Dhuum] NPC 'King Frozenwind' not found.", Py4GW.Console.MessageType.Warning)
+            return
+
+        x, y = Agent.GetXY(king_agent_id)
+        bot_instance.Move.XYAndInteractNPC(x, y, "Interact King Frozenwind")
+        bot_instance.Dialogs.AtXY(x, y, dialog_id, "King Frozenwind dialog")
+
+    bot_instance.States.AddCustomState(_talk_to_king_frozenwind, "Talk to King Frozenwind")
+    bot_instance.Wait.ForTime(1000)
+
+    bot_instance.States.AddCustomState(_flag_all_mesmers, "Flag Mesmers for Dhuum")
+    bot_instance.Wait.ForTime(5000)
+
+    
+    bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_combat_enabled(False), "Disable Combat")
+    bot_instance.Move.XY(-13987, 17291, "Move to Dhuum fight")
+    bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_following_enabled(False), "Disable Following")
+    bot_instance.Wait.ForTime(10000)
+    bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_combat_enabled(True), "Enable Combat")
+    #Wait till Dhuum is dead
+    bot_instance.Wait.UntilOutOfCombat()
+
 
 def _do_inventory_refill(bot_instance: Botting) -> None:
     """Travel to Guild Hall and restock inventory between runs."""
