@@ -45,7 +45,7 @@ class ProtectionPrayers:
     def Protective_Spirit(self) -> BuildCoroutine:
         protective_spirit_id: int = Skill.GetID("Protective_Spirit")
         protective_spirit: CustomSkill = self.build.GetCustomSkill(protective_spirit_id)
-        sample_interval_ms = 150
+        sample_interval_ms = 500
         focused_drop_threshold = 0.10
 
         def _resolve_protective_spirit_target() -> int:
@@ -63,16 +63,15 @@ class ProtectionPrayers:
                 lambda agent_id: not Routines.Checks.Effects.HasBuff(agent_id, protective_spirit_id),
             )
 
-            spike_candidates = set(self.build.GetPartySpikeCandidates(
-                drop_threshold=focused_drop_threshold,
-                sample_interval_ms=sample_interval_ms,
-            ))
-
             best_target = 0
             best_drop = focused_drop_threshold
             best_health = 1.0
             for agent_id in ally_array:
-                if agent_id not in spike_candidates:
+                if not self.build.IsPartySpikeTarget(
+                    agent_id,
+                    drop_threshold=focused_drop_threshold,
+                    sample_interval_ms=sample_interval_ms,
+                ):
                     continue
                 sampled_drop = self.build.GetPartyHealthDelta(agent_id)
                 current_health = float(Agent.GetHealth(agent_id))
@@ -101,8 +100,8 @@ class ProtectionPrayers:
     def Reversal_of_Fortune(self) -> BuildCoroutine:
         reversal_of_fortune_id: int = Skill.GetID("Reversal_of_Fortune")
         reversal_of_fortune: CustomSkill = self.build.GetCustomSkill(reversal_of_fortune_id)
-        sample_interval_ms = 150
-        focused_drop_threshold = 0.10
+        sample_interval_ms = 500
+        focused_drop_threshold = 0.05
 
         def _resolve_reversal_of_fortune_target() -> int:
             ally_array: list[int] = list(GetAllAlliesArray(Range.Spellcast.value) or [])
@@ -119,13 +118,12 @@ class ProtectionPrayers:
                 lambda agent_id: not Routines.Checks.Effects.HasBuff(agent_id, reversal_of_fortune_id),
             )
 
-            spike_candidates = set(self.build.GetPartySpikeCandidates(
-                drop_threshold=focused_drop_threshold,
-                sample_interval_ms=sample_interval_ms,
-            ))
-
             def _priority(agent_id: int) -> tuple[int, int, float, float]:
-                is_spiking = agent_id in spike_candidates
+                is_spiking = self.build.IsPartySpikeTarget(
+                    agent_id,
+                    drop_threshold=focused_drop_threshold,
+                    sample_interval_ms=sample_interval_ms,
+                )
                 role_rank = 2
                 if Agent.IsMelee(agent_id):
                     role_rank = 0

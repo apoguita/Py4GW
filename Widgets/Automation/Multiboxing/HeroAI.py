@@ -7,7 +7,7 @@ import traceback
 import Py4GW
 import PyImGui
 
-from Py4GWCoreLib.Builds.Any.HeroAI import HeroAI as HeroAIBuild
+from Py4GWCoreLib.Builds.Any.HeroAI import HeroAI_Build
 
 MODULE_NAME = "HeroAI"
 MODULE_ICON = "Textures/Module_Icons/HeroAI.png"
@@ -29,7 +29,7 @@ from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
 LOOT_THROTTLE_CHECK = ThrottledTimer(250)
 
 cached_data = CacheData()
-heroai_build = HeroAIBuild(cached_data)
+heroai_build = HeroAI_Build(cached_data)
 map_quads : list[Map.Pathing.Quad] = []
 build_contract_map_signature: tuple[int, int, int, int] | None = None
 #region Looting
@@ -175,20 +175,27 @@ def Follow(cached_data: CacheData) -> BehaviorTree.NodeState:
     )
     if follow_map_entry_signature != map_sig:
         follow_map_entry_signature = map_sig
-        follow_require_front_after_map_entry = True
+        #follow_require_front_after_map_entry = True
+        follow_require_front_after_map_entry = False
         last_follow_move_point = None
 
     follow_x = float(options.FollowPos.x)
     follow_y = float(options.FollowPos.y)
-    follow_z = int(float(getattr(options.FollowPos, "z", 0.0)))
+    follow_z = int(float(options.FollowPos.z))
     if cached_data.data.in_aggro:
-        combat_threshold_raw = float(getattr(options, "FollowMoveThresholdCombat", -1.0))
+        combat_threshold_raw = float(options.FollowMoveThresholdCombat)
         if combat_threshold_raw >= 0.0:
             follow_distance = max(0.0, combat_threshold_raw)
         else:
-            follow_distance = max(0.0, float(getattr(options, "FollowMoveThreshold", 0.0)))
+            follow_distance = max(0.0, float(options.FollowMoveThreshold))
+
+        leader_agent_id = GLOBAL_CACHE.Party.GetPartyLeaderID()
+        if leader_agent_id:
+            leader_distance = Utils.Distance(Agent.GetXY(leader_agent_id), Player.GetXY())
+            if leader_distance <= follow_distance:
+                return BehaviorTree.NodeState.FAILURE
     else:
-        follow_distance = max(0.0, float(getattr(options, "FollowMoveThreshold", 0.0)))
+        follow_distance = max(0.0, float(options.FollowMoveThreshold))
     if Utils.Distance((follow_x, follow_y), Player.GetXY()) <= follow_distance:
         # Inside threshold: do not let follow preempt OOC/combat logic.
         return BehaviorTree.NodeState.FAILURE

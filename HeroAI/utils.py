@@ -5,7 +5,6 @@ from .constants import MAX_NUM_PLAYERS
 from .targeting import *
 from .cache_data import CacheData
 
-
 def SameMapAsAccount(account : AccountStruct):
     if not Map.IsMapReady():
         return False
@@ -71,14 +70,16 @@ def CheckForEffect(agent_id, skill_id, cached_data : Optional[CacheData] = None)
     check if the given agent has the effect or buff with the given skill id
     """    
     cached_data = cached_data if cached_data is not None else CacheData()
+
+    owned_pet_id = GLOBAL_CACHE.Party.Pets.GetPetID(Player.GetAgentID())
+    if agent_id == Player.GetAgentID() or (owned_pet_id != 0 and agent_id == owned_pet_id):
+        # Self-upkeep should use live local effects rather than shared-memory party
+        # state, which can lag and suppress recasts of expired buffs.
+        return GLOBAL_CACHE.Effects.HasEffect(agent_id, skill_id)
     
     for acc in cached_data.party:
         if acc.IsSlotActive and acc.AgentData.AgentID == agent_id and SameMapOrPartyAsAccount(acc) and acc.AgentPartyData.PartyID == cached_data.party.party_id:
             return any(buff.SkillId == skill_id for buff in acc.AgentData.Buffs.Buffs)        
-
-    owned_pet_id = GLOBAL_CACHE.Party.Pets.GetPetID(Player.GetAgentID())
-    if agent_id == Player.GetAgentID() or (owned_pet_id != 0 and agent_id == owned_pet_id):
-        return GLOBAL_CACHE.Effects.HasEffect(agent_id, skill_id)
 
     allegiance, allegiance_name = Agent.GetAllegiance(agent_id)
     if allegiance == Allegiance.SpiritPet.value:
@@ -91,6 +92,33 @@ def CheckForEffect(agent_id, skill_id, cached_data : Optional[CacheData] = None)
         return True
 
     return GLOBAL_CACHE.Effects.HasEffect(agent_id, skill_id)
+
+def HasIllusionaryWeaponry(agent_id, cached_data : Optional[CacheData] = None) -> bool:
+    cached_data = cached_data if cached_data is not None else CacheData()
+    iw_skill_ids = (
+        GLOBAL_CACHE.Skill.GetID("Illusionary_Weaponry"),
+        GLOBAL_CACHE.Skill.GetID("Illusionary_Weaponry_(PVP)"),
+    )
+    for acc in cached_data.party:
+        if (
+            acc.IsSlotActive
+            and acc.AgentData.AgentID == agent_id
+            and SameMapOrPartyAsAccount(acc)
+            and acc.AgentPartyData.PartyID == cached_data.party.party_id
+        ):
+            shared_skillbar_ids = {int(skill.Id) for skill in acc.AgentData.Skillbar.Skills if int(skill.Id) != 0}
+            for skill_id in iw_skill_ids:
+                if skill_id and (
+                    CheckForEffect(agent_id, skill_id, cached_data=cached_data)
+                    or skill_id in shared_skillbar_ids
+                ):
+                    return True
+            return False
+
+    return any(
+        skill_id and CheckForEffect(agent_id, skill_id, cached_data=cached_data)
+        for skill_id in iw_skill_ids
+    )
 
 def GetEffectAndBuffIds(agent_id, cached_data : Optional[CacheData] = None) -> list[int]:
     """

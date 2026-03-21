@@ -28,6 +28,10 @@ class HealingPrayers:
     def Dwaynas_Kiss(self) -> BuildCoroutine:
         dwaynas_kiss_id: int = Skill.GetID("Dwaynas_Kiss")
         dwaynas_kiss: CustomSkill = self.build.GetCustomSkill(dwaynas_kiss_id)
+        health_threshold: float = max(0.0, min(1.0, float(dwaynas_kiss.Conditions.LessLife or 0.80)))
+
+        def _is_valid_dwaynas_kiss_target(agent_id: int) -> bool:
+            return Agent.IsAlive(agent_id) and Agent.GetHealth(agent_id) <= health_threshold
 
         def _resolve_dwaynas_kiss_target() -> int:
             enchanted_target_skill: CustomSkill = deepcopy(dwaynas_kiss)
@@ -36,7 +40,7 @@ class HealingPrayers:
                 dwaynas_kiss_id,
                 enchanted_target_skill,
             )
-            if enchanted_target:
+            if enchanted_target and _is_valid_dwaynas_kiss_target(enchanted_target):
                 return enchanted_target
 
             hexed_target_skill: CustomSkill = deepcopy(dwaynas_kiss)
@@ -45,13 +49,16 @@ class HealingPrayers:
                 dwaynas_kiss_id,
                 hexed_target_skill,
             )
-            if hexed_target:
+            if hexed_target and _is_valid_dwaynas_kiss_target(hexed_target):
                 return hexed_target
 
-            return self.build.ResolveAllyTarget(
+            fallback_target = self.build.ResolveAllyTarget(
                 dwaynas_kiss_id,
                 dwaynas_kiss,
             )
+            if fallback_target and _is_valid_dwaynas_kiss_target(fallback_target):
+                return fallback_target
+            return 0
 
         if not self.build.IsSkillEquipped(dwaynas_kiss_id):
             return False
@@ -67,10 +74,12 @@ class HealingPrayers:
     def Healing_Burst(self) -> BuildCoroutine:
         healing_burst_id: int = Skill.GetID("Healing_Burst")
         healing_burst: CustomSkill = self.build.GetCustomSkill(healing_burst_id)
-        healing_burst_anchor_threshold: float = 0.65
-        healing_burst_cluster_threshold: float = 0.85
-        healing_burst_emergency_threshold: float = 0.45
-        healing_burst_min_other_injured: int = 2
+        # Health-fraction gate for valid direct-heal targets. Expected range: 0.0 to 1.0.
+        healing_burst_candidate_health_threshold: float = max(0.0, min(1.0, float(healing_burst.Conditions.LessLife or 0.80)))
+        # Nearby allies below this health fraction count as injured for splash-value scoring. Expected range: 0.0 to 1.0.
+        healing_burst_cluster_injured_health_threshold: float = 0.90
+        # Minimum raw cluster score bonus required before overriding the lowest ally with a more clustered target. Expected range: 0.0 and up.
+        healing_burst_min_cluster_score_bonus: float = 0.35
 
         def _get_healing_burst_candidates() -> list[int]:
             ally_array: list[int] = list(GetAllAlliesArray(Range.Spellcast.value) or [])
@@ -80,21 +89,21 @@ class HealingPrayers:
             )
             ally_array = AgentArray.Filter.ByCondition(
                 ally_array,
-                lambda agent_id: Agent.GetHealth(agent_id) <= healing_burst_anchor_threshold,
+                lambda agent_id: Agent.GetHealth(agent_id) <= healing_burst_candidate_health_threshold,
             )
             return list(ally_array or [])
 
-        def _score_healing_burst_target(anchor_agent_id: int, ally_array: list[int]) -> float:
+        def _score_healing_burst_target(anchor_agent_id: int, ally_array: list[int]) -> tuple[float, float]:
             anchor_health: float = Agent.GetHealth(anchor_agent_id)
             anchor_missing: float = max(0.0, 1.0 - anchor_health)
-            if anchor_health > healing_burst_anchor_threshold:
-                return -1.0
+            if anchor_health > healing_burst_candidate_health_threshold:
+                return -1.0, -1.0
 
             anchor_x: float
             anchor_y: float
             anchor_x, anchor_y = Agent.GetXY(anchor_agent_id)
             cluster_missing: float = 0.0
-            other_injured: int = 0
+            nearby_injured: int = 0
 
             for ally_agent_id in ally_array:
                 ally_x: float
@@ -104,36 +113,38 @@ class HealingPrayers:
                     continue
 
                 ally_health: float = Agent.GetHealth(ally_agent_id)
-                if ally_health >= healing_burst_cluster_threshold:
+                if ally_health >= healing_burst_cluster_injured_health_threshold:
                     continue
 
                 cluster_missing += max(0.0, 1.0 - ally_health)
-                if ally_agent_id != anchor_agent_id:
-                    other_injured += 1
+                nearby_injured += 1
 
-            if anchor_health <= healing_burst_emergency_threshold:
-                return 1000.0 + (anchor_missing * 100.0) + (cluster_missing * 10.0)
-
-            if other_injured < healing_burst_min_other_injured:
-                return -1.0
-
-            return (
-                (cluster_missing * 100.0)
-                + (anchor_missing * 40.0)
-                + (other_injured * 20.0)
+            baseline_score = (anchor_missing * 100.0) + (1.0 - anchor_health)
+            cluster_bonus = (
+                max(0.0, cluster_missing - anchor_missing) * 100.0
+                + max(0, nearby_injured - 1) * 15.0
             )
+            return baseline_score, cluster_bonus
 
         def _resolve_healing_burst_target() -> int:
             ally_array: list[int] = _get_healing_burst_candidates()
             if not ally_array:
                 return 0
 
-            best_target: int = 0
-            best_score: float = -1.0
+            lowest_target: int = min(ally_array, key=lambda agent_id: Agent.GetHealth(agent_id))
+            lowest_baseline_score, _ = _score_healing_burst_target(lowest_target, ally_array)
+            best_target: int = lowest_target
+            best_total_score: float = lowest_baseline_score
+
             for ally_agent_id in ally_array:
-                score: float = _score_healing_burst_target(ally_agent_id, ally_array)
-                if score > best_score:
-                    best_score = score
+                baseline_score, cluster_bonus = _score_healing_burst_target(ally_agent_id, ally_array)
+                total_score = baseline_score + cluster_bonus
+
+                if cluster_bonus < healing_burst_min_cluster_score_bonus:
+                    total_score = baseline_score
+
+                if total_score > best_total_score:
+                    best_total_score = total_score
                     best_target = ally_agent_id
 
             return best_target
@@ -170,11 +181,6 @@ class HealingPrayers:
             return False
 
         def _resolve_infuse_health_target() -> int:
-            spike_candidates = set(self.build.GetPartySpikeCandidates(
-                drop_threshold=0.10,
-                sample_interval_ms=150,
-            ))
-
             ally_array = Routines.Targeting.GetAllAlliesArray(Range.Spellcast.value)
             ally_array = AgentArray.Filter.ByCondition(
                 ally_array,
@@ -186,11 +192,15 @@ class HealingPrayers:
             )
             ally_array = AgentArray.Filter.ByCondition(
                 ally_array,
-                lambda agent_id: Agent.GetHealth(agent_id) < 0.25,
+                lambda agent_id: Agent.GetHealth(agent_id) < 0.40,
             )
             ally_array = AgentArray.Filter.ByCondition(
                 ally_array,
-                lambda agent_id: agent_id in spike_candidates,
+                lambda agent_id: self.build.IsPartySpikeTarget(
+                    agent_id,
+                    drop_threshold=0.10,
+                    sample_interval_ms=150,
+                ),
             )
 
             ally_array = list(ally_array or [])

@@ -79,9 +79,33 @@ class HeroAI_FloatingWindows():
         for agent_id in enemy_array:
             x, y, z = Agent.GetXYZ(agent_id)
             screen_x, screen_y = Overlay.WorldToScreen(x, y, z + 25)
-            if ImGui.floating_button(
-                f"{IconsFontAwesome5.ICON_CROSSHAIRS}", name=agent_id, x=screen_x - 12, y=screen_y - 12, width=25, height=25
-            ):
+            # --- Configuration for "O" (The Outer Ring) ---
+            o_x, o_y = screen_x - 12, screen_y - 12
+            o_w, o_h = 35, 35
+
+            # --- Configuration for "+" (The Inner Cross) ---
+            # Adjust these until the + is perfectly centered inside the O
+            plus_x, plus_y = o_x-2, o_y -10
+            plus_w, plus_h = 40, 40
+
+            clicked = False
+
+            # 1. Draw the "O" layer
+            if ImGui.floating_button(f"O", name=f"O_{agent_id}", 
+                                    x=o_x, y=o_y, 
+                                    width=o_w, height=o_h, 
+                                    font_size=30):
+                clicked = True
+
+            # 2. Draw the "+" layer with its own dimensions
+            if ImGui.floating_button(f"+", name=f"plus_{agent_id}", 
+                                    x=plus_x, y=plus_y, 
+                                    width=plus_w, height=plus_h, 
+                                    font_size=45):
+                clicked = True
+
+            # 3. Shared Logic
+            if clicked:
                 Player.ChangeTarget(agent_id)
                 Player.Interact(agent_id, True)
                 ActionQueueManager().AddAction("ACTION", Keystroke.PressAndReleaseCombo, [Key.Ctrl.value, Key.Space.value])

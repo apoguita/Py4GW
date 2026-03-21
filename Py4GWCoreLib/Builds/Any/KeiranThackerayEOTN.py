@@ -162,22 +162,10 @@ def _farthest_from(array, origin_x: float, origin_y: float, max_dist: float = 0)
 # ── Build class ───────────────────────────────────────────────────────────────
 
 class KeiranThackerayEOTN(BuildMgr):
-    def __init__(self, fsm=None, bot=None, debug_fn: Optional[Callable[[], bool]] = None, match_only: bool = False):
-        super().__init__(
-            name="Keiran Thackeray EOTN",
-            template_code="KeiranEOTN",
-            fallback_name="AutoCombat",
-            IsFixedBuild=True,
-        )
-        if match_only:
-            self.debug_fn = debug_fn if debug_fn is not None else (lambda: False)
-            self.fsm = fsm
-            self.bot = bot
-            self.pause_reasons = set()
-            self.ai_paused_fsm = False
-            return
+    def __init__(self, fsm=None, bot=None, debug_fn: Optional[Callable[[], bool]] = None):
+        super().__init__(name="AutoCombat Build")
         self.debug_fn: Callable[[], bool] = debug_fn if debug_fn is not None else (lambda: False)
-        self.SetFallback("AutoCombat", AutoCombat())
+        self.auto_combat_handler: BuildMgr = AutoCombat()
 
         self.natures_blessing   = GLOBAL_CACHE.Skill.GetID("Natures_Blessing")
         self.relentless_assault = GLOBAL_CACHE.Skill.GetID("Relentless_Assault")
@@ -185,14 +173,6 @@ class KeiranThackerayEOTN(BuildMgr):
         self.terminal_velocity  = GLOBAL_CACHE.Skill.GetID("Terminal_Velocity")
         self.gravestone_marker  = GLOBAL_CACHE.Skill.GetID("Gravestone_Marker")
         self.rain_of_arrows     = GLOBAL_CACHE.Skill.GetID("Rain_of_Arrows")
-        self.SetBlockedSkills([
-            self.natures_blessing,
-            self.relentless_assault,
-            self.keiran_sniper_shot,
-            self.terminal_velocity,
-            self.gravestone_marker,
-            self.rain_of_arrows,
-        ])
 
         # Priority-target state (persists between calls)
         self.last_target_check = 0.0
@@ -220,6 +200,9 @@ class KeiranThackerayEOTN(BuildMgr):
         self.bot           = bot
         self.pause_reasons: set = set()
         self.ai_paused_fsm = False
+
+        for slot in range(1, 7):
+            self.auto_combat_handler.auto_combat_handler.SetSkillEnabled(slot, False)
 
     def set_fsm(self, fsm) -> None:
         """Inject the bot's FSM so ProcessSkillCasting can pause/resume it."""
@@ -305,7 +288,6 @@ class KeiranThackerayEOTN(BuildMgr):
             self._clear_pause("miku_dead")
 
         # If Miku fell through the world, back track to start.
-        '''
         if miku_reset:
             if self.miku_reset_at == 0.0:
                 self.miku_reset_at = now                        # start the 5-second window
@@ -326,7 +308,6 @@ class KeiranThackerayEOTN(BuildMgr):
                 self.miku_reset_at = 0.0                        # reset after handling
         else:
             self.miku_reset_at = 0.0                            # Miku back — clear timer
-        '''
         # ── Spirit avoidance ──────────────────────────────────────────────────
         spirit_id = 0
         sp_x = sp_y = 0.0
@@ -489,10 +470,11 @@ class KeiranThackerayEOTN(BuildMgr):
         # ══════════════════════════════════════════════════════════════════════
 
         # ── Empathy / Spirit Shackles detection ───────────────────────────────
+        empathy_id = GLOBAL_CACHE.Skill.GetID("Empathy")
+        spirit_shackles_id = GLOBAL_CACHE.Skill.GetID("Spirit_Shackles")
         has_empathy = (
-            Routines.Checks.Agents.HasEffect(me_id, GLOBAL_CACHE.Skill.GetID("Empathy")) or
-            Routines.Checks.Agents.HasEffect(me_id, GLOBAL_CACHE.Skill.GetID("Empathy_(PVP)")) or
-            Routines.Checks.Agents.HasEffect(me_id, GLOBAL_CACHE.Skill.GetID("Spirit_Shackles"))
+            Routines.Checks.Agents.HasEffect(me_id, empathy_id) or
+            Routines.Checks.Agents.HasEffect(me_id, spirit_shackles_id)
         )
         if has_empathy:
             ActionQueueManager().ResetAllQueues()   # flush any queued interact/attack commands
@@ -549,7 +531,7 @@ class KeiranThackerayEOTN(BuildMgr):
                 miku_low_on_life = Agent.GetHealth(nearest_npc) < life_threshold
             if player_life < life_threshold or miku_low_on_life or has_empathy:
                 ActionQueueManager().ResetAllQueues()
-                yield from self.CastSkillID(self.natures_blessing, aftercast_delay=100)
+                yield from Routines.Yield.Skills.CastSkillID(self.natures_blessing, aftercast_delay=100)
                 return
 
         # ── Guard: only proceed when we can act ───────────────────────────────
@@ -565,22 +547,32 @@ class KeiranThackerayEOTN(BuildMgr):
             yield
             return
 
+        def _cast(target, skill_id):
+            if Routines.Checks.Map.IsExplorable():
+                yield from Routines.Yield.Agents.ChangeTarget(target)
+                yield from Routines.Yield.Skills.CastSkillID(skill_id, aftercast_delay=0)
+            yield
+
         # ── Skill ladder (only when the AI is in weapon range) ──────────────────────
         in_danger = Routines.Checks.Agents.InDanger(aggro_area=_WEAPON_RANGE)
+        keiran_sniper_ready = yield from Routines.Yield.Skills.IsSkillIDUsable(self.keiran_sniper_shot)
+        relentless_ready = yield from Routines.Yield.Skills.IsSkillIDUsable(self.relentless_assault)
+        terminal_ready = yield from Routines.Yield.Skills.IsSkillIDUsable(self.terminal_velocity)
+        gravestone_ready = yield from Routines.Yield.Skills.IsSkillIDUsable(self.gravestone_marker)
+        rain_ready = yield from Routines.Yield.Skills.IsSkillIDUsable(self.rain_of_arrows)
         if in_danger:
 
             # Keiran's Sniper Shot — finish a hexed enemy
-            if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.keiran_sniper_shot)):
+            if keiran_sniper_ready:
                 hexed_enemy = Routines.Targeting.GetEnemyHexed(2000)
                 if hexed_enemy != 0 and not has_empathy:
                     ActionQueueManager().ResetAllQueues()
                     self.last_cast_at = now
-                    yield from Routines.Yield.Agents.ChangeTarget(hexed_enemy)
-                    yield from self.CastSkillID(self.keiran_sniper_shot, aftercast_delay=0)
+                    yield from _cast(hexed_enemy, self.keiran_sniper_shot)
                     return
 
             # Relentless Assault — cleanse a condition from Keiran
-            if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.relentless_assault)):
+            if relentless_ready:
                 player_conditioned = (
                     Agent.IsDegenHexed(me_id) or
                     Agent.IsBleeding(me_id) or
@@ -594,51 +586,43 @@ class KeiranThackerayEOTN(BuildMgr):
                     target = self.locked_target_id or Routines.Targeting.GetEnemyInjured(_WEAPON_RANGE.value)
                     if target != 0:
                         self.last_cast_at = now
-                        yield from Routines.Yield.Agents.ChangeTarget(target)
-                        yield from self.CastSkillID(self.relentless_assault, aftercast_delay=0)
+                        yield from _cast(target, self.relentless_assault)
                         return
 
             # Terminal Velocity — interrupt a caster or apply to a bleeding enemy
-            if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.terminal_velocity)):
+            if terminal_ready:
                 if not has_empathy:
                     target = (self.locked_target_id or
                               Routines.Targeting.GetEnemyCasting(_WEAPON_RANGE.value) or
                               Routines.Targeting.GetEnemyBleeding(_WEAPON_RANGE.value))
                     if target != 0:
                         self.last_cast_at = now
-                        yield from Routines.Yield.Agents.ChangeTarget(target)
-                        yield from self.CastSkillID(self.terminal_velocity, aftercast_delay=0)
+                        yield from _cast(target, self.terminal_velocity)
                         return
 
             # Gravestone Marker — spirits first, then healthy enemies
-            if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.gravestone_marker)):
+            if gravestone_ready:
                 if not has_empathy:
                     target = (self.locked_target_id or
                               Routines.Targeting.GetNearestSpirit(_WEAPON_RANGE.value) or
                               Routines.Targeting.GetEnemyHealthy(_WEAPON_RANGE.value))
                     if target != 0:
                         self.last_cast_at = now
-                        yield from Routines.Yield.Agents.ChangeTarget(target)
-                        yield from self.CastSkillID(self.gravestone_marker, aftercast_delay=0)
+                        yield from _cast(target, self.gravestone_marker)
                         return
 
             # Rain of Arrows — spirits first, then clustered enemies
-            if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.rain_of_arrows)):
+            if rain_ready:
                 if not has_empathy:
                     target = (self.locked_target_id or
                               Routines.Targeting.GetNearestSpirit(_WEAPON_RANGE.value) or
                               Routines.Targeting.TargetClusteredEnemy(_WEAPON_RANGE.value))
                     if target != 0:
                         self.last_cast_at = now
-                        yield from Routines.Yield.Agents.ChangeTarget(target)
-                        yield from self.CastSkillID(self.rain_of_arrows, aftercast_delay=0)
+                        yield from _cast(target, self.rain_of_arrows)
                         return
 
         if not has_empathy:
-            fallback = self.ResolveFallback()
-            if fallback is not None:
-                yield from fallback.ProcessSkillCasting()
-            else:
-                yield
+            yield from self.auto_combat_handler.ProcessSkillCasting()
         else:
             yield  # don't let AutoCombat re-target and re-attack while Empathy/Spirit Shackles is active

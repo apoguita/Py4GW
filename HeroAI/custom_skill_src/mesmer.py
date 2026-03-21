@@ -522,13 +522,14 @@ class MesmerSkills:
         skill.SkillType = SkillType.Enchantment.value
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Buff.value
+        skill.Conditions.IsOutOfCombat = True
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Illusionary_Weaponry")
         skill.SkillType = SkillType.Enchantment.value
         skill.TargetAllegiance = Skilltarget.Self.value
-        skill.Nature = SkillNature.Buff.value
+        skill.Nature = SkillNature.SelfTargeted.value
         skill.Conditions.IsOutOfCombat = True
         skill_data[skill.SkillID] = skill
 
@@ -760,6 +761,7 @@ class MesmerSkills:
         skill.TargetAllegiance = Skilltarget.Ally.value
         skill.Nature = SkillNature.Hex_Removal.value
         skill.Conditions.HasHex = True
+        skill.Conditions.IsOutOfCombat = True
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()

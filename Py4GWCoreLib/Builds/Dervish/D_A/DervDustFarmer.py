@@ -63,6 +63,10 @@ class DervDustFarmer(BuildMgr):
         self.spiked = False
         self.spiking = False
 
+    def _CastSkillID(self, skill_id:int, extra_condition:bool=True, log:bool=True, aftercast_delay:int=1000):
+        result = yield from Routines.Yield.Skills.CastSkillID(skill_id, extra_condition=extra_condition, log=log, aftercast_delay=aftercast_delay)
+        return result
+
     def swap_to_scythe(self):
         if Agent.GetWeaponType(Player.GetAgentID())[0] != Weapon.Scythe:
             Keystroke.PressAndRelease(Key.F1.value)
@@ -124,7 +128,7 @@ class DervDustFarmer(BuildMgr):
             if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.dash)) and Agent.IsMoving(
                 Player.GetAgentID()
             ):
-                yield from self.CastSkillID(self.dash, aftercast_delay=100)
+                yield from self._CastSkillID(self.dash, aftercast_delay=100)
                 return
 
         player_agent_id = Player.GetAgentID()
@@ -139,7 +143,7 @@ class DervDustFarmer(BuildMgr):
             and player_hp < 0.80
             and not self.status == DervBuildFarmStatus.Setup
         ):
-            yield from self.CastSkillID(self.mystic_vigor, aftercast_delay=750)
+            yield from self._CastSkillID(self.mystic_vigor, aftercast_delay=750)
             return
 
         if (
@@ -147,7 +151,7 @@ class DervDustFarmer(BuildMgr):
             and not has_dwarven_stability
             and not self.status == DervBuildFarmStatus.Setup
         ):
-            yield from self.CastSkillID(self.dwarven_stability, aftercast_delay=250)
+            yield from self._CastSkillID(self.dwarven_stability, aftercast_delay=250)
             return
 
         if (
@@ -155,7 +159,7 @@ class DervDustFarmer(BuildMgr):
             and not has_mystic_regen
             and player_hp < 0.95
         ):
-            yield from self.CastSkillID(self.mystic_regen, aftercast_delay=750)
+            yield from self._CastSkillID(self.mystic_regen, aftercast_delay=750)
             return
 
         if self.status == DervBuildFarmStatus.Move:
@@ -166,7 +170,7 @@ class DervDustFarmer(BuildMgr):
                 and has_dwarven_stability
                 and Agent.IsMoving(Player.GetAgentID())
             ):
-                yield from self.CastSkillID(self.dash, aftercast_delay=100)
+                yield from self._CastSkillID(self.dash, aftercast_delay=100)
                 return
 
         if self.status == DervBuildFarmStatus.Ball:
@@ -226,11 +230,11 @@ class DervDustFarmer(BuildMgr):
                     and len(remaining_enemies) >= 2
                     and not has_grenths_aura
                 ) or player_hp < 0.50:
-                    yield from self.CastSkillID(self.grenths_aura, aftercast_delay=250)
+                    yield from self._CastSkillID(self.grenths_aura, aftercast_delay=250)
                     return
 
                 if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.vow_of_strength)) and not has_vow_of_strength:
-                    yield from self.CastSkillID(self.vow_of_strength, aftercast_delay=250)
+                    yield from self._CastSkillID(self.vow_of_strength, aftercast_delay=250)
                     return
                 has_vow_of_strength = Routines.Checks.Effects.HasBuff(player_agent_id, self.vow_of_strength)
 
@@ -245,10 +249,10 @@ class DervDustFarmer(BuildMgr):
                     and len(remaining_enemies) >= 2
                 ):
                     yield from Routines.Yield.Agents.TargetNearestEnemy(Range.Earshot.value)
-                    yield from self.CastSkillID(self.staggering_force, aftercast_delay=250)
+                    yield from self._CastSkillID(self.staggering_force, aftercast_delay=250)
                     has_staggering_force = Routines.Checks.Effects.HasBuff(player_agent_id, self.staggering_force)
                     if has_staggering_force and player_current_energy >= 10:
-                        yield from self.CastSkillID(self.eremites_attack, aftercast_delay=250)
+                        yield from self._CastSkillID(self.eremites_attack, aftercast_delay=250)
                         return
                 yield
                 return

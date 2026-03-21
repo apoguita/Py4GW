@@ -36,6 +36,17 @@ if (yield from self.skills.Monk.HealingPrayers.Healing_Burst()):
 
 If a behavior is broadly reusable across builds, it belongs in `BuildMgr`.
 
+For ally-aware shared behavior, `BuildMgr` also owns the data-source rule:
+- ally and party-member evaluation must use shared-capable checks when available
+- enemy evaluation remains local-only
+
+This applies to:
+- ally target resolution
+- ally role checks
+- ally health/state checks
+- party-wide threshold evaluation
+- party spike / health-delta monitoring
+
 ### SkillsTemplate owns
 
 - the root scaffold for reusable skill modules
@@ -131,6 +142,8 @@ Preferred helpers:
 - `self.build.CanCastSkillID(...)`
 - `self.build.CastSkillIDAndRestoreTarget(...)`
 
+When a skill is ally-targeted, prefer `BuildMgr` helpers over ad hoc direct selector calls so the shared-capable ally checks are preserved end to end.
+
 ### 4. Keep skill methods self-contained
 
 Preferred style:
@@ -176,6 +189,38 @@ For skill modules, prefer strong typing on:
 - local resolver return values
 
 This keeps IntelliSense useful without forcing extra registration steps.
+
+## Data-Source Constraints
+
+These constraints are now part of the `BuildMgr` contract:
+
+- Ally-facing shared methods must be party-aware.
+- Enemy-facing shared methods must remain local.
+- Base `Agent` is not the place to add shared-memory-specific party logic.
+- Shared-memory-capable logic belongs in higher layers such as `Checks`, `Targeting`, and `BuildMgr`.
+
+If a skill or selector bypasses `BuildMgr` and talks directly to local-only `Agent` role/state checks for allies, that is a contract violation unless the target is explicitly local-only.
+
+## Fallback Contract
+
+Fallback is a second-stage execution path, not a co-owner of the same tick.
+
+- Run local build logic first.
+- If the local logic succeeded for the tick, do not run fallback afterward in the same phase.
+- Only use fallback when the local build did not produce a successful action for that tick.
+
+This is especially important for melee builds, where fallback retargeting in the same tick can create left-right ping-pong behavior.
+
+## Melee Targeting Contract
+
+`BuildMgr` melee enemy targeting is intentionally different from caster targeting:
+
+- keep the current live melee target when possible
+- avoid swapping targets mid-approach just because a new tactical preference appeared
+- when selecting a new target, include target stability/connectability, not just tactical value
+- a reachable static target can be preferable to a more tactical moving target
+
+Caster targeting can remain more tactical because the cost of retargeting is lower.
 
 ## When To Keep Logic In The Build
 

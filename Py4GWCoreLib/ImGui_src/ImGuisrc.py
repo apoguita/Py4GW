@@ -3199,7 +3199,7 @@ class ImGui:
 
 
     @staticmethod
-    def floating_button(caption, x, y, width = 18, height = 18 , color: Color = Color(255, 255, 255, 255), name = ""):
+    def floating_button(caption, x, y, width = 18, height = 18 , color: Color = Color(255, 255, 255, 255), name = "", font_size: int = -1):
         if not name:
             name = caption
         
@@ -3226,10 +3226,14 @@ class ImGui:
 
         PyImGui.push_style_color(PyImGui.ImGuiCol.Text, color.to_tuple_normalized())
         result = False
+        
+        if font_size > 0:
+            ImGui.push_font("Regular", font_size)
         if PyImGui.begin(f"{caption}##invisible_buttonwindow{name}", flags):
             result = PyImGui.button(f"{caption}##floating_button{name}", width=width, height=height)
 
-            
+        if font_size > 0:
+            ImGui.pop_font()
         PyImGui.end()
         PyImGui.pop_style_color(5)  # Button, Hovered, Active, Text, WindowBg
         PyImGui.pop_style_var(2)

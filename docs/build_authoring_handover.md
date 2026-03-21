@@ -34,6 +34,17 @@ Put behavior in `BuildMgr` when it is generic and reusable:
 - target reset when combat breaks
 - generic target selection modes
 
+For ally-facing shared behavior, `BuildMgr` must use party-aware/shared-capable checks rather than raw local `Agent` state whenever the data may come from another party account:
+- ally alive/dead state
+- ally health
+- ally hex / enchantment / condition state
+- ally role checks such as caster / martial / melee / ranged
+- ally weapon-spell state
+
+Enemy-side behavior is different:
+- enemy checks stay local
+- do not convert enemy targeting or enemy state evaluation to shared-memory assumptions
+
 Keep behavior in the build when it is skill-specific:
 - conditional target preference based on that skill's effect
 - special tactical timing
@@ -69,11 +80,21 @@ The local loop should stay declarative:
 - Ally-targeted casts should restore the previous enemy target after use.
 - Do not break existing ally filtering behavior when improving selection.
 - Preserve built-in filtering and only refine final target choice carefully.
+- Shared ally checks must stay shared-capable all the way through the selector stack, not only in the final cast helper.
 
 ### Enemy Casts
 
 - Prefer dynamic target selection only when the skill can actually be cast.
 - Avoid target jitter from pre-emptive retargeting.
+- If a local build action succeeds for the tick, fallback should not run afterward in the same phase and retarget again.
+
+### Melee Enemy Selection
+
+- Melee targeting should be stickier than caster targeting.
+- Once melee has a live target, prefer keeping it rather than refreshing to a new "better" target mid-approach.
+- When melee must pick a new target, value target stability and connectability, not only tactical desirability.
+- A slightly less ideal static target can be better than a closer or more tactical target that causes repeated chase behavior.
+- Caster targeting can remain more tactical because reach is less punishing.
 
 ## Important Infrastructure Decisions
 
@@ -180,6 +201,8 @@ Method:
 - using target helpers that are too broad for the skill
 - reordering skill flow without explicit approval
 - breaking existing ally filtering when trying to improve ally ordering
+- fixing only the final skill method while leaving the upstream selector layer on local-only ally checks
+- letting fallback logic run after a successful local tick and retarget the same frame
 
 ## Style Guidelines
 
@@ -195,4 +218,3 @@ After each code change:
 - run `python -m py_compile` on changed Python files
 - confirm the change is behavioral, not accidental refactoring
 - preserve user-defined ordering unless explicitly told otherwise
-

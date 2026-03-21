@@ -1,6 +1,6 @@
 from Py4GWCoreLib import Profession
 from Py4GWCoreLib import Routines
-from Py4GWCoreLib.Builds.Any.HeroAI import HeroAI as HeroAIBuild
+from Py4GWCoreLib.Builds.Any.HeroAI import HeroAI_Build
 from Py4GWCoreLib import BuildMgr
 from Py4GWCoreLib.Skill import Skill
 from Py4GWCoreLib.Builds.Skills import SkillsTemplate
@@ -31,31 +31,30 @@ class Seven_Weapon_Stance_Axe(BuildMgr):
         if match_only:
             return
 
-        self.SetFallback("HeroAI", HeroAIBuild(standalone_fallback=True))
+        self.SetFallback("HeroAI", HeroAI_Build(standalone_fallback=True))
         self.SetSkillCastingFn(self._run_local_skill_logic)
         self.skills: SkillsTemplate = SkillsTemplate(self)
 
     def _run_local_skill_logic(self):
         if not Routines.Checks.Agents.InAggro():
-            return
+            return False
 
         if not Routines.Checks.Skills.CanCast():
-            yield from Routines.Yield.wait(100)
-            return
+            return False
 
         if (yield from self.skills.Warrior.Strength.Seven_Weapon_Stance()):
-            return
+            return True
 
         if self.IsSkillEquipped(Endure_Pain_ID) and (yield from self.skills.Warrior.Strength.Endure_Pain()):
-            return
+            return True
 
         if (yield from self.skills.Warrior.AxeMastery.Executioners_Strike()):
-            return
+            return True
 
         if (yield from self.skills.Warrior.AxeMastery.Cyclone_Axe()):
-            return
+            return True
 
         if (yield from self.skills.Warrior.NoAttribute.Whirlwind_Attack()):
-            return
+            return True
 
-        yield
+        return False

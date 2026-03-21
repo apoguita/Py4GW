@@ -125,20 +125,24 @@ def TargetLowestAllyEnergy(other_ally=False, filter_skill_id=0, less_energy=1.0)
 
 
 def TargetLowestAllyCaster(other_ally=False, filter_skill_id=0):
+    from Py4GWCoreLib import Routines
     distance = Range.Spellcast.value
     ally_array = AgentArray.GetAllyArray()
     ally_array = FilterAllyArray(ally_array, distance, other_ally, filter_skill_id)
-    ally_array = AgentArray.Filter.ByCondition(ally_array, lambda agent_id: Agent.IsCaster(agent_id))
+    ally_array = AgentArray.Filter.ByCondition(ally_array, lambda agent_id: Routines.Checks.Agents.IsCaster(agent_id))
 
     ally_array = SortAlliesByPartyPosition(ally_array)
     return Utils.GetFirstFromArray(ally_array)
 
 
 def TargetLowestAllyMartial(other_ally=False, filter_skill_id=0):
+    from Py4GWCoreLib import Routines
+    from .utils import HasIllusionaryWeaponry
     distance = Range.Spellcast.value
     ally_array = AgentArray.GetAllyArray()
     ally_array = FilterAllyArray(ally_array, distance, other_ally, filter_skill_id)
-    ally_array = AgentArray.Filter.ByCondition(ally_array, lambda agent_id: Agent.IsMartial(agent_id))
+    ally_array = AgentArray.Filter.ByCondition(ally_array, lambda agent_id: Routines.Checks.Agents.IsMartial(agent_id))
+    ally_array = AgentArray.Filter.ByCondition(ally_array, lambda agent_id: not HasIllusionaryWeaponry(agent_id))
     
     spirit_pet_array = AgentArray.GetSpiritPetArray()
     spirit_pet_array = FilterAllyArray(spirit_pet_array, distance, other_ally, filter_skill_id)
@@ -150,10 +154,13 @@ def TargetLowestAllyMartial(other_ally=False, filter_skill_id=0):
 
 
 def TargetLowestAllyMelee(other_ally=False, filter_skill_id=0):
+    from Py4GWCoreLib import Routines
+    from .utils import HasIllusionaryWeaponry
     distance = Range.Spellcast.value
     ally_array = AgentArray.GetAllyArray()
     ally_array = FilterAllyArray(ally_array, distance, other_ally, filter_skill_id)
-    ally_array = AgentArray.Filter.ByCondition(ally_array, lambda agent_id: Agent.IsMelee(agent_id))
+    ally_array = AgentArray.Filter.ByCondition(ally_array, lambda agent_id: Routines.Checks.Agents.IsMelee(agent_id))
+    ally_array = AgentArray.Filter.ByCondition(ally_array, lambda agent_id: not HasIllusionaryWeaponry(agent_id))
     
     spirit_pet_array = AgentArray.GetSpiritPetArray()
     spirit_pet_array = FilterAllyArray(spirit_pet_array, distance, other_ally, filter_skill_id)
@@ -165,10 +172,11 @@ def TargetLowestAllyMelee(other_ally=False, filter_skill_id=0):
 
 
 def TargetLowestAllyRanged(other_ally=False, filter_skill_id=0):
+    from Py4GWCoreLib import Routines
     distance = Range.Spellcast.value
     ally_array = AgentArray.GetAllyArray()
     ally_array = FilterAllyArray(ally_array, distance, other_ally, filter_skill_id)
-    ally_array = AgentArray.Filter.ByCondition(ally_array, lambda agent_id: Agent.IsRanged(agent_id))
+    ally_array = AgentArray.Filter.ByCondition(ally_array, lambda agent_id: Routines.Checks.Agents.IsRanged(agent_id))
     
     ally_array = SortAlliesByPartyPosition(ally_array)
     return Utils.GetFirstFromArray(ally_array)

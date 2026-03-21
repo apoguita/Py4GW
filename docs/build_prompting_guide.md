@@ -116,6 +116,8 @@ The most useful details to include are:
 - what condition makes it higher value
 - what fallback target should be used if the preferred condition is missing
 - any safety constraints like sacrifice health or spam throttling
+- whether ally-side logic must use shared party data
+- whether the target-selection issue is melee-specific or general
 
 ## Strong Prompt Patterns From This Session
 
@@ -150,6 +152,7 @@ When asking for a change, say which category it belongs to:
   - target helpers
   - cast helpers
   - fallback plumbing
+  - shared-capable ally checks
 
 - Local:
   - one build's target preference
@@ -171,6 +174,10 @@ Include constraints explicitly:
 - restore enemy target after ally casts
 - only change target if the skill is ready
 - keep the helper intent obvious
+- ally-facing shared methods must use shared-capable party data
+- enemy checks stay local
+- if local logic succeeds, fallback must not run afterward in the same phase
+- melee target changes should be sticky and stability-aware, not only distance- or tactic-driven
 
 These instructions are especially important in a codebase with layered automation like this one.
 
@@ -209,3 +216,12 @@ If you want a compact prompt that still works well, use:
 Add [skill] to [build]. Description: [text]. Custom skill: [fields]. Intended behavior: [rules]. Keep shared logic generic and local logic skill-specific. Do not reorder the existing flow.
 ```
 
+## Useful Constraint Phrases
+
+These additional phrases are especially useful in this codebase:
+
+- "For allies, use shared-capable party checks, not raw local Agent checks."
+- "Do not change enemy checks to shared-memory logic."
+- "Do not bypass BuildMgr for ally target resolution."
+- "If this affects melee targeting, keep the current target sticky and avoid mid-approach ping-pong."
+- "Do not let fallback retarget after a successful local tick."
