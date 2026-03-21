@@ -253,4 +253,4 @@ class SinglePhaseBuildTemplate(BuildMgr):
         - let BuildMgr handle the fallback automatically after this method
           finishes
         """
-        yield
+        return False

@@ -7,7 +7,7 @@ import traceback
 import Py4GW
 import PyImGui
 
-from Py4GWCoreLib.Builds.Any.HeroAI import HeroAI as HeroAIBuild
+from Py4GWCoreLib.Builds.Any.HeroAI import HeroAI_Build
 
 MODULE_NAME = "HeroAI"
 MODULE_ICON = "Textures/Module_Icons/HeroAI.png"
@@ -29,7 +29,7 @@ from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
 LOOT_THROTTLE_CHECK = ThrottledTimer(250)
 
 cached_data = CacheData()
-heroai_build = HeroAIBuild(cached_data)
+heroai_build = HeroAI_Build(cached_data)
 map_quads : list[Map.Pathing.Quad] = []
 build_contract_map_signature: tuple[int, int, int, int] | None = None
 #region Looting

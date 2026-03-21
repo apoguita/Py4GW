@@ -777,6 +777,9 @@ class Checks:
             from ..Skill import Skill
             from ..Agent import Agent
 
+            if not agent_id or not skill_id:
+                return False
+
             result = False
 
             shared_agent_data = Checks.Agents._get_same_party_shared_agent_data(agent_id)

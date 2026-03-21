@@ -321,6 +321,9 @@ class CombatClass:
         return GetEnergyValues(agent_id)
 
     def IsSkillReady(self, slot: int) -> bool:
+        if not (0 <= slot < len(self.skills)):
+            return False
+
         original_index = self.skill_order[slot] 
         
         if self.skills[slot].skill_id == 0:
@@ -970,6 +973,16 @@ class CombatClass:
             if(len(spirit_array) > 0):
                 number_of_features += 1
                     
+        pet_id = 0
+        if self.skills[slot].custom_skill_data.TargetAllegiance == Skilltarget.Pet.value:
+            pet_id = GLOBAL_CACHE.Party.Pets.GetPetID(Player.GetAgentID())
+            if pet_id == 0 or Routines.Checks.Agents.IsDead(pet_id):
+                return False
+            
+            if self.skills[slot].custom_skill_data.Nature == SkillNature.Buff.value:
+                if self.HasEffect(pet_id, self.skills[slot].skill_id):
+                    return False
+            
         if self.skills[slot].custom_skill_data.SkillType == SkillType.PetAttack.value:
             pet_id = GLOBAL_CACHE.Party.Pets.GetPetID(Player.GetAgentID())
             if Routines.Checks.Agents.IsDead(pet_id):
@@ -1055,10 +1068,9 @@ class CombatClass:
 
         return False
 
-
-
     def IsReadyToCast(self, slot: int) -> tuple[bool, int]:
         # --- Cheap target-independent checks first (avoid expensive target resolution) ---
+        skill_id = self.skills[slot].skill_id
 
         if Agent.IsCasting(Player.GetAgentID()):
             self.in_casting_routine = False
@@ -1068,21 +1080,21 @@ class CombatClass:
             return False, 0
 
         # Check if no skill is assigned to the slot
-        if self.skills[slot].skill_id == 0:
+        if skill_id == 0:
             self.in_casting_routine = False
             return False, 0
 
         # Check if the skill is recharging
-        if not Routines.Checks.Skills.IsSkillIDReady(self.skills[slot].skill_id):
+        if not Routines.Checks.Skills.IsSkillIDReady(skill_id):
             self.in_casting_routine = False
             return False, 0
 
         # Check if there is enough energy
         current_energy = self.GetEnergyValues(Player.GetAgentID()) * Agent.GetMaxEnergy(Player.GetAgentID())
-        energy_cost = Routines.Checks.Skills.GetEnergyCostWithEffects(self.skills[slot].skill_id, Player.GetAgentID())
+        energy_cost = Routines.Checks.Skills.GetEnergyCostWithEffects(skill_id, Player.GetAgentID())
 
         if self.expertise_exists:
-            energy_cost = Routines.Checks.Skills.apply_expertise_reduction(energy_cost, self.expertise_level, self.skills[slot].skill_id)
+            energy_cost = Routines.Checks.Skills.apply_expertise_reduction(energy_cost, self.expertise_level, skill_id)
 
         if current_energy < energy_cost:
             self.in_casting_routine = False
@@ -1091,24 +1103,24 @@ class CombatClass:
         # Check if there is enough health
         current_hp = Agent.GetHealth(Player.GetAgentID())
         target_hp = self.skills[slot].custom_skill_data.Conditions.SacrificeHealth
-        health_cost = GLOBAL_CACHE.Skill.Data.GetHealthCost(self.skills[slot].skill_id)
+        health_cost = GLOBAL_CACHE.Skill.Data.GetHealthCost(skill_id)
         if (current_hp < target_hp) and health_cost > 0:
             self.in_casting_routine = False
             return False, 0
 
         # Check if there is enough adrenaline
-        adrenaline_required = GLOBAL_CACHE.Skill.Data.GetAdrenaline(self.skills[slot].skill_id)
+        adrenaline_required = GLOBAL_CACHE.Skill.Data.GetAdrenaline(skill_id)
         if adrenaline_required > 0 and self.skills[slot].skillbar_data.adrenaline_a < adrenaline_required:
             self.in_casting_routine = False
             return False, 0
 
         # Check spirit buff (target-independent)
-        if self.SpiritBuffExists(self.skills[slot].skill_id):
+        if self.SpiritBuffExists(skill_id):
             self.in_casting_routine = False
             return False, 0
 
         # Cannot cast spells while Vow of Silence is active
-        _skill_type, _ = GLOBAL_CACHE.Skill.GetType(self.skills[slot].skill_id)
+        _skill_type, _ = GLOBAL_CACHE.Skill.GetType(skill_id)
         _VOW_SPELL_TYPES = (
             SkillType.Spell.value, SkillType.Hex.value, SkillType.Enchantment.value,
             SkillType.Well.value, SkillType.Ward.value, SkillType.Glyph.value,
@@ -1143,7 +1155,7 @@ class CombatClass:
             return False, v_target
 
         # Check if effect already exists on target (uses shared memory for party members)
-        if self.HasEffect(v_target, self.skills[slot].skill_id):
+        if self.HasEffect(v_target, skill_id):
             self.in_casting_routine = False
             return False, v_target
 
@@ -1269,6 +1281,29 @@ class CombatClass:
                     
         return int((attack_speed / attack_speed_modifier) * 1000)
 
+    def FindCastableSkill(self, ooc: bool = False) -> tuple[int, int]:
+        """
+        Scan the prioritized skill list and return the first castable skill slot
+        together with its resolved target. Returns (-1, 0) if nothing is castable.
+        """
+        for slot in range(MAX_SKILLS):
+            if not self.IsSkillReady(slot):
+                continue
+
+            if ooc and not self.IsOOCSkill(slot):
+                continue
+
+            is_ready_to_cast, target_agent_id = self.IsReadyToCast(slot)
+            if not is_ready_to_cast or target_agent_id == 0:
+                continue
+
+            if not Agent.IsLiving(target_agent_id):
+                continue
+
+            return slot, target_agent_id
+
+        return -1, 0
+
     def GetDrunkLevel(self) -> int:
         """
         Get current drunk level (0-5). Returns 0 if unable to determine.
@@ -1310,38 +1345,15 @@ class CombatClass:
 
     def HandleCombat(self, cached_data: CacheData | None = None, ooc: bool = False) -> bool:
         """
-        tries to Execute the next skill in the skill order.
+        Execute the first castable skill in the prioritized skill order.
         """
-       
-        slot = self.skill_pointer
+        slot, target_agent_id = self.FindCastableSkill(ooc=ooc)
+        if slot < 0:
+            self.ResetSkillPointer()
+            return self.HandleAutoAttack(cached_data) if not ooc else False
+
+        self.SetSkillPointer(slot)
         skill_id = self.skills[slot].skill_id
-        
-        is_skill_ready = self.IsSkillReady(slot)
-            
-        if not is_skill_ready:
-            self.AdvanceSkillPointer()
-            return self.HandleAutoAttack(cached_data) if not ooc else False
-        
-        is_ooc_skill = self.IsOOCSkill(slot)
-
-        if ooc and not is_ooc_skill:
-            self.AdvanceSkillPointer()
-            return False
-         
-         
-        is_read_to_cast, target_agent_id = self.IsReadyToCast(slot)
- 
-        if not is_read_to_cast:
-            self.AdvanceSkillPointer()
-            return self.HandleAutoAttack(cached_data) if not ooc else False
-        
-
-        if target_agent_id == 0:
-            self.AdvanceSkillPointer()
-            return self.HandleAutoAttack(cached_data) if not ooc else False
-
-        if not Agent.IsLiving(target_agent_id):
-            return self.HandleAutoAttack(cached_data) if not ooc else False
         
         # Auto-use alcohol before alcohol-dependent PVE skills for optimal effect
         alcohol_skills = [
@@ -1358,6 +1370,6 @@ class CombatClass:
         self.aftercast = 250
 
         self.aftercast_timer.Reset()
-        GLOBAL_CACHE.SkillBar.UseSkill(self.skill_order[self.skill_pointer]+1, target_agent_id)
+        GLOBAL_CACHE.SkillBar.UseSkill(self.skill_order[slot]+1, target_agent_id)
         self.ResetSkillPointer()
         return True

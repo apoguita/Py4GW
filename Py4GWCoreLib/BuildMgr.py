@@ -258,11 +258,11 @@ class BuildMgr:
                 base_predicate = lambda agent_id: Routines.Checks.Agents.IsCaster(agent_id)
             elif target_allegiance == Skilltarget.AllyMartial.value:
                 base_target = TargetLowestAllyMartial(other_ally=other_ally, filter_skill_id=skill_id)
-                base_predicate = lambda agent_id: Routines.Checks.Agents.IsMartial(agent_id) and not Routines.Checks.Agents.HasIllusionaryWeaponry(agent_id)
+                base_predicate = lambda agent_id: Routines.Checks.Agents.IsMartial(agent_id)
                 include_spirit_pets = True
             elif target_allegiance == Skilltarget.AllyMartialMelee.value:
                 base_target = TargetLowestAllyMelee(other_ally=other_ally, filter_skill_id=skill_id)
-                base_predicate = lambda agent_id: Routines.Checks.Agents.IsMelee(agent_id) and not Routines.Checks.Agents.HasIllusionaryWeaponry(agent_id)
+                base_predicate = lambda agent_id: Routines.Checks.Agents.IsMelee(agent_id)
                 include_spirit_pets = True
             elif target_allegiance == Skilltarget.AllyMartialRanged.value:
                 base_target = TargetLowestAllyRanged(other_ally=other_ally, filter_skill_id=skill_id)
@@ -624,6 +624,14 @@ class BuildMgr:
             Range.Spellcast.value,
         )
 
+        contact_enemies = [
+            enemy_id
+            for enemy_id in nearby_enemies
+            if Agent.IsValid(enemy_id)
+            and not Agent.IsDead(enemy_id)
+            and Utils.Distance(player_pos, Agent.GetXY(enemy_id)) <= Range.Adjacent.value
+        ]
+
         nearest_stable_enemy = 0
         for enemy_id in nearby_enemies:
             if Agent.IsMoving(enemy_id):
@@ -660,6 +668,14 @@ class BuildMgr:
                 score += 40.0
 
             return score
+
+        if contact_enemies:
+            # Once melee already has enemies in immediate reach, prefer targets in
+            # that contact ring only. This prevents selecting a "better" target
+            # behind a front enemy and failing skills because the front line body
+            # blocks the path or keeps the character facing the wrong target.
+            best_contact_target = max(contact_enemies, key=_score_target)
+            return best_contact_target if _score_target(best_contact_target) != float("-inf") else desired_target
 
         candidates = [desired_target, nearest_enemy, nearest_stable_enemy]
         best_target = max(candidates, key=_score_target)
@@ -704,20 +720,44 @@ class BuildMgr:
         return 0
 
     def _resolve_target(self, target_type: str = "EnemyInjured", show_log: bool = False) -> tuple[bool, bool]:
-        from Py4GWCoreLib import Party, Agent, Player, Routines
+        from Py4GWCoreLib import Party, Agent, Player, Routines, Range, Utils
         party_target = Party.GetPartyTarget()
         self._debug(f"_acquire_target start current={self.current_target_id} party_target={party_target}", show_log)
 
         is_melee_player = Routines.Checks.Agents.IsMelee(Player.GetAgentID())
+        player_pos = Player.GetXY()
 
-        # Melee gets first claim on its current live target so we do not
-        # repeatedly swap targets mid-approach as fallback preferences refresh.
-        if is_melee_player and Agent.IsValid(self.current_target_id) and not Agent.IsDead(self.current_target_id):
-            desired_target = self.current_target_id
-            target_source = "current"
-        elif Agent.IsValid(party_target) and not Agent.IsDead(party_target):
+        nearest_contact_enemy = 0
+        if is_melee_player:
+            nearby_enemies = Routines.Agents.GetFilteredEnemyArray(
+                player_pos[0],
+                player_pos[1],
+                Range.Adjacent.value,
+            )
+            for enemy_id in nearby_enemies:
+                if Agent.IsValid(enemy_id) and not Agent.IsDead(enemy_id):
+                    nearest_contact_enemy = enemy_id
+                    break
+
+        # Party target is an explicit caller directive and must override every
+        # other targeting heuristic. If one exists, stop here and use it.
+        if Agent.IsValid(party_target) and not Agent.IsDead(party_target):
             desired_target = party_target
             target_source = "party"
+        # Melee gets first claim on its current live target only when no party
+        # target is set, so we do not repeatedly swap targets mid-approach as
+        # fallback preferences refresh. But once an enemy is already in
+        # immediate melee range, prefer that contact target over a farther
+        # current target so skills do not keep failing on a body-blocked enemy
+        # behind the front line.
+        elif is_melee_player and Agent.IsValid(self.current_target_id) and not Agent.IsDead(self.current_target_id):
+            current_target_distance = Utils.Distance(player_pos, Agent.GetXY(self.current_target_id))
+            if nearest_contact_enemy and current_target_distance > Range.Adjacent.value:
+                desired_target = self._prefer_melee_nearest_enemy(nearest_contact_enemy)
+                target_source = "contact"
+            else:
+                desired_target = self.current_target_id
+                target_source = "current"
         elif Agent.IsValid(self.current_target_id) and not Agent.IsDead(self.current_target_id):
             desired_target = self.current_target_id
             target_source = "current"
@@ -992,11 +1032,12 @@ class BuildMgr:
     def _yield_from_handler(self, handler: BuildHandler | None) -> BuildCoroutine:
         if handler is None:
             yield
-            return
+            return None
 
         result = handler()
         if inspect.isgenerator(result):
-            yield from result
+            return (yield from result)
+        return result
 
     def _process_phase(self, handler: BuildHandler | None, is_in_combat: bool) -> BuildCoroutine:
         if not self.CanProcess():
@@ -1020,21 +1061,34 @@ class BuildMgr:
 
         yield
 
-    def _process_skill_casting_phase(self, handler: BuildHandler | None) -> BuildCoroutine:
+    def _process_skill_casting_phase(
+        self,
+        handler: BuildHandler | None,
+        is_in_combat: bool | None = None,
+    ) -> BuildCoroutine:
         if not self.CanProcess():
             yield
             return
 
         self.ResetTickState()
         self._refresh_target_tracking()
-        yield from self._yield_from_handler(handler)
+        handler_result = yield from self._yield_from_handler(handler)
 
         if self.DidTickSucceed():
             return
 
+        if handler_result is True:
+            self.SetTickSuccess()
+            return
+
         fallback = self.ResolveFallback()
         if fallback is not None:
-            yield from fallback.ProcessSkillCasting()
+            if is_in_combat is True:
+                yield from fallback.ProcessCombat()
+            elif is_in_combat is False:
+                yield from fallback.ProcessOOC()
+            else:
+                yield from fallback.ProcessSkillCasting()
             return
 
         yield
@@ -1078,6 +1132,44 @@ class BuildMgr:
 
     def DidTickSucceed(self) -> bool:
         return getattr(self.tick_state, "name", None) == "SUCCESS"
+
+    def _validate_target_for_skill_cast(self, skill_id: int, target_agent_id: int) -> bool:
+        from HeroAI.types import Skilltarget, SkillType
+        from Py4GWCoreLib import Routines
+
+        if not target_agent_id:
+            return True
+
+        custom_skill = self.GetCustomSkill(skill_id)
+        if custom_skill is None:
+            return True
+
+        target_allegiance = custom_skill.TargetAllegiance
+        if target_allegiance == Skilltarget.AllyCaster.value:
+            if (
+                not Routines.Checks.Agents.IsCaster(target_agent_id)
+                or Routines.Checks.Agents.IsMartial(target_agent_id)
+            ):
+                return False
+        elif target_allegiance == Skilltarget.AllyMartial.value:
+            if (
+                not Routines.Checks.Agents.IsMartial(target_agent_id)
+            ):
+                return False
+        elif target_allegiance == Skilltarget.AllyMartialMelee.value:
+            if (
+                not Routines.Checks.Agents.IsMelee(target_agent_id)
+            ):
+                return False
+        elif target_allegiance == Skilltarget.AllyMartialRanged.value:
+            if not Routines.Checks.Agents.IsRanged(target_agent_id):
+                return False
+
+        if custom_skill.SkillType == SkillType.WeaponSpell.value:
+            if Routines.Checks.Agents.IsWeaponSpelled(target_agent_id):
+                return False
+
+        return True
 
     def CanCastSkillID(
         self,
@@ -1150,6 +1242,8 @@ class BuildMgr:
             yield
 
         if not self.CanCastSkillID(skill_id, extra_condition=extra_condition):
+            return False
+        if not self._validate_target_for_skill_cast(skill_id, target_agent_id):
             return False
 
         slot = SkillBar.GetSlotBySkillID(skill_id)
@@ -1239,6 +1333,8 @@ class BuildMgr:
             return False
 
         skill_id = SkillBar.GetSkillIDBySlot(slot)
+        if not self._validate_target_for_skill_cast(skill_id, target_agent_id):
+            return False
 
         GLOBAL_CACHE.SkillBar.UseSkill(slot, target_agent_id=target_agent_id, aftercast_delay=aftercast_delay)
         self._mark_local_cast_pending(aftercast_delay)
@@ -1252,7 +1348,7 @@ class BuildMgr:
         return True
 
 
-    def ProcessSkillCasting(self):
+    def ProcessSkillCasting(self) -> BuildCoroutine:
         if self._local_skill_casting_handler is not None:
             yield from self._process_skill_casting_phase(self._local_skill_casting_handler)
             return
@@ -1267,13 +1363,13 @@ class BuildMgr:
         else:
             yield from self.ProcessOOC()
 
-    def ProcessOOC(self):
+    def ProcessOOC(self) -> BuildCoroutine:
         if self._local_ooc_handler is None:
             yield from self.ProcessSkillCasting()
             return
         yield from self._process_phase(self._local_ooc_handler, is_in_combat=False)
 
-    def ProcessCombat(self):
+    def ProcessCombat(self) -> BuildCoroutine:
         if self._local_combat_handler is None:
             yield from self.ProcessSkillCasting()
             return
