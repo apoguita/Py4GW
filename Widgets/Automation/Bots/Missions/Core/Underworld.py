@@ -632,6 +632,10 @@ def Clear_the_Chamber(bot_instance: Botting):
         lambda: __import__("Py4GWCoreLib.EnemyBlacklist", fromlist=["EnemyBlacklist"]).EnemyBlacklist().remove_name("wastfull spirit"),
         "Unblacklist Wastfull Spirit",
     )
+    bot_instance.States.AddCustomState(
+        lambda: __import__("Py4GWCoreLib.EnemyBlacklist", fromlist=["EnemyBlacklist"]).EnemyBlacklist().remove_name("obsidian behemoth"),
+        "Unblacklist Obsidian Behemoth",
+    )
     enable_default_party_behavior(bot_instance)
     bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_combat_enabled(False), "Disable Combat")
     bot_instance.Move.XYAndInteractNPC(295, 7221, "go to NPC")
@@ -673,6 +677,239 @@ def Clear_the_Chamber(bot_instance: Botting):
     #bot_instance.Dialogs.AtXY(-5806, 12831, 0x806D03, "take quest")
     bot_instance.Dialogs.AtXY(-5806, 12831, 0x806D01, "take quest")
     bot_instance.Wait.ForTime(3000)
+
+def Pass_The_Mountains(bot_instance: Botting):
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
+    bot_instance.States.AddCustomState(lambda: _toggle_move_if_aggro(True), "Enable MoveIfPartyMemberInAggro")
+    bot_instance.States.AddCustomState(lambda: _toggle_move_to_enemy_if_close_enough(False), "Enable MoveToEnemyIfCloseEnough")
+    bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(True), "Enable MoveToPartyMemberIfDead")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_needs_to_loot(False), "Enable WaitIfPartyMemberNeedsToLoot")
+    bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Enable WaitIfLockTaken")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Enable WaitIfPartyMemberManaTooLow")
+    bot_instance.Move.XY(-220, 1691, "Pass the Mountains 1")
+    bot_instance.Move.XY(7035, 1973, "Pass the Mountains 2")
+    bot_instance.Move.XY(8089, -3303, "Pass the Mountains 3")
+    bot_instance.Move.XY(8121, -6054, "Pass the Mountains 4")
+    
+
+def Restore_Mountains(bot_instance: Botting):
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
+    bot_instance.States.AddCustomState(lambda: _toggle_move_if_aggro(True), "Enable MoveIfPartyMemberInAggro")
+    bot_instance.States.AddCustomState(lambda: _toggle_move_to_enemy_if_close_enough(False), "Enable MoveToEnemyIfCloseEnough")
+    bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(True), "Enable MoveToPartyMemberIfDead")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_needs_to_loot(False), "Enable WaitIfPartyMemberNeedsToLoot")
+    bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Enable WaitIfLockTaken")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Enable WaitIfPartyMemberManaTooLow")
+    bot_instance.Move.XY(7013, -7582, "Restore the Mountains 1")
+    bot_instance.Move.XY(1420, -9126, "Restore the Mountains 2")
+    bot_instance.Move.XY(-8373, -5016, "Restore the Mountains 3")
+    bot_instance.Wait.ForTime(5000)
+
+def Deamon_Assassin(bot_instance: Botting):
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
+    bot_instance.States.AddCustomState(lambda: _toggle_move_if_aggro(True), "Enable MoveIfPartyMemberInAggro")
+    bot_instance.States.AddCustomState(lambda: _toggle_move_to_enemy_if_close_enough(False), "Enable MoveToEnemyIfCloseEnough")
+    bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(True), "Enable MoveToPartyMemberIfDead")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_needs_to_loot(False), "Enable WaitIfPartyMemberNeedsToLoot")
+    bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Enable WaitIfLockTaken")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Enable WaitIfPartyMemberManaTooLow")
+    bot_instance.Move.XYAndInteractNPC(-8250, -5171, "go to NPC")
+    bot_instance.Wait.ForTime(3000)
+    bot_instance.Dialogs.AtXY(-8250, -5171, 0x806801, "take quest")
+    bot_instance.Move.XY(-3645, -5820, "Deamon Assassin 1")
+    WaitTillQuestDone(bot_instance)
+    #ModelID Slayer 2391
+
+def Restore_Planes(bot_instance: Botting):
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
+    bot_instance.States.AddCustomState(lambda: _toggle_move_if_aggro(True), "Enable MoveIfPartyMemberInAggro")
+    bot_instance.States.AddCustomState(lambda: _toggle_move_to_enemy_if_close_enough(False), "Enable MoveToEnemyIfCloseEnough")
+    bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(True), "Enable MoveToPartyMemberIfDead")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_needs_to_loot(False), "Enable WaitIfPartyMemberNeedsToLoot")
+    bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Enable WaitIfLockTaken")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Enable WaitIfPartyMemberManaTooLow")
+    Wait_for_Spawns(bot_instance,10371, -10510)
+    bot_instance.States.AddCustomState(lambda: _toggle_move_to_enemy_if_close_enough(True), "Enable MoveToEnemyIfCloseEnough")
+    Wait_for_Spawns(bot_instance,12795, -8811)
+    Wait_for_Spawns(bot_instance,11180, -13780)
+    Wait_for_Spawns(bot_instance,13740, -15087)
+    bot_instance.Move.XY(11546, -13787, "Restore Planes 1")
+    bot_instance.Move.XY(8530, -11585, "Restore Planes 2")
+    Wait_for_Spawns(bot_instance,8533, -13394)
+    Wait_for_Spawns(bot_instance,8579, -20627)
+    Wait_for_Spawns(bot_instance,11218, -17404)
+
+def The_Four_Horsemen(bot_instance: Botting):
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
+    bot_instance.States.AddCustomState(lambda: _toggle_move_if_aggro(True), "Enable MoveIfPartyMemberInAggro")
+    bot_instance.States.AddCustomState(lambda: _toggle_move_to_enemy_if_close_enough(True), "Enable MoveToEnemyIfCloseEnough")
+    bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(True), "Enable MoveToPartyMemberIfDead")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_needs_to_loot(False), "Enable WaitIfPartyMemberNeedsToLoot")
+    bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Enable WaitIfLockTaken")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Enable WaitIfPartyMemberManaTooLow")
+    bot_instance.Move.XY(13473, -12091, "The Four Horseman 1")
+    bot_instance.Wait.ForTime(10000)
+    THE_FOUR_HORSEMEN_FLAG_POINTS = [
+        (13432, -12100),
+        (13246, -12440),
+        (13072, -12188),
+        (13216, -11841),
+        (13639, -11866),
+        (13745, -12151),
+        (13520, -12436),
+    ]
+    _enqueue_spread_flags(bot_instance, THE_FOUR_HORSEMEN_FLAG_POINTS)
+    bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_looting_enabled(False), "Disable Looting")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(False), "Disable WaitIfPartyMemberTooFar")
+    bot_instance.States.AddCustomState(lambda: _toggle_move_if_aggro(False), "Disable MoveIfPartyMemberInAggro")
+    bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_forced_state(BehaviorState.CLOSE_TO_AGGRO),"Force Close_to_Aggro",)
+    bot_instance.Move.XYAndInteractNPC(11371, -17990, "go to NPC")
+    bot_instance.Dialogs.AtXY(-8250, -5171, 0x806A01, "take quest")  
+    bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_forced_state(None),"Release Close_to_Aggro",)
+
+    bot_instance.Wait.ForTime(35000)
+
+    bot_instance.Move.XYAndInteractNPC(11371, -17990, "TP to Chamber")
+    #bot_instance.Dialogs.AtXY(11371, -17990, 0x7F, "take quest")
+    #bot_instance.Dialogs.AtXY(11371, -17990, 0x86, "take quest") 
+    bot_instance.Dialogs.AtXY(11371, -17990, 0x8D, "take quest") 
+    bot_instance.States.AddCustomState(
+        lambda: CustomBehaviorParty().party_flagging_manager.clear_all_flags(),
+        "Clear Flags",
+    )
+
+    bot_instance.Wait.ForTime(1000)
+
+    bot_instance.Move.XYAndInteractNPC(-5782, 12819, "TP back to Chaos")
+    #bot_instance.Dialogs.AtXY(11371, -17990, 0x7F, "take quest")
+    #bot_instance.Dialogs.AtXY(11371, -17990, 0x84, "take quest") 
+    bot_instance.Dialogs.AtXY(11371, -17990, 0x8B, "take quest") 
+    bot_instance.Wait.ForTime(1000)
+    bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_following_enabled(True), "Enable Following")
+    THE_FOUR_HORSEMEN_FLAG_POINTS_2 = [
+        (11318, -17670),
+        (11318, -17670),
+        (11221, -18335),
+        (11479, -18361),
+        (11806, -18134),
+        (11697, -17748),
+        (11354, -17530),
+    ]
+    _enqueue_spread_flags(bot_instance, THE_FOUR_HORSEMEN_FLAG_POINTS_2)
+    bot_instance.Party.UnflagAllHeroes()
+    WaitTillQuestDone(bot_instance)
+    bot_instance.States.AddCustomState(
+        lambda: CustomBehaviorParty().party_flagging_manager.clear_all_flags(),
+        "Clear Flags",
+    )
+    bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_following_enabled(True), "Enable Follow")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
+    bot_instance.States.AddCustomState(lambda: _toggle_move_if_aggro(True), "Enable MoveIfPartyMemberInAggro")
+    bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_looting_enabled(True), "Enable Looting")
+
+def Restore_Pools(bot_instance: Botting):
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
+    bot_instance.States.AddCustomState(lambda: _toggle_move_if_aggro(True), "Enable MoveIfPartyMemberInAggro")
+    bot_instance.States.AddCustomState(lambda: _toggle_move_to_enemy_if_close_enough(True), "Enable MoveToEnemyIfCloseEnough")
+    bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(True), "Enable MoveToPartyMemberIfDead")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_needs_to_loot(False), "Enable WaitIfPartyMemberNeedsToLoot")
+    bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Enable WaitIfLockTaken")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Enable WaitIfPartyMemberManaTooLow")
+    Wait_for_Spawns(bot_instance,4647, -16833)
+    Wait_for_Spawns(bot_instance,2098, -15543)
+    bot_instance.Move.XY(-12703, -10990, "Restore Pools 1")
+    bot_instance.Move.XY(-11849, -11986, "Restore Pools 2")
+    bot_instance.Move.XY(-7217, -19394, "Restore Pools 3")
+    bot_instance.Wait.ForTime(3000)
+
+def Terrorweb_Queen(bot_instance: Botting):
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
+    bot_instance.States.AddCustomState(lambda: _toggle_move_if_aggro(True), "Enable MoveIfPartyMemberInAggro")
+    bot_instance.States.AddCustomState(lambda: _toggle_move_to_enemy_if_close_enough(True), "Enable MoveToEnemyIfCloseEnough")
+    bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(True), "Enable MoveToPartyMemberIfDead")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_needs_to_loot(False), "Enable WaitIfPartyMemberNeedsToLoot")
+    bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Enable WaitIfLockTaken")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Enable WaitIfPartyMemberManaTooLow")
+    bot_instance.Move.XYAndInteractNPC(-6961, -19499, "go to NPC")
+    #bot_instance.Dialogs.AtXY(-6961, -19499, 0x806B03, "take quest")
+    bot_instance.Dialogs.AtXY(-6961, -19499, 0x806B01, "take quest")   
+    bot_instance.Move.XY(-12303, -15213, "Terrorweb Queen 1")
+    bot_instance.Move.XYAndInteractNPC(-6957, -19478, "go to NPC")
+    #bot_instance.Dialogs.AtXY(-6957, -19478, 0x7F, "Back to Chamber")
+    #bot_instance.Dialogs.AtXY(-6957, -19478, 0x84, "Back to Chamber")
+    bot_instance.Dialogs.AtXY(-6957, -19478, 0x8B, "Back to Chamber")
+    
+def Restore_Pit(bot_instance: Botting):
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
+    bot_instance.States.AddCustomState(lambda: _toggle_move_if_aggro(True), "Enable MoveIfPartyMemberInAggro")
+    bot_instance.States.AddCustomState(lambda: _toggle_move_to_enemy_if_close_enough(False), "Enable MoveToEnemyIfCloseEnough")
+    bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(True), "Enable MoveToPartyMemberIfDead")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_needs_to_loot(False), "Enable WaitIfPartyMemberNeedsToLoot")
+    bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Enable WaitIfLockTaken")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Enable WaitIfPartyMemberManaTooLow")
+    _toggle_move_if_aggro(False)
+    bot_instance.Move.XY(14178, -57, "Restore Pit 1")
+    bot_instance.Move.XY(15323, 2970, "Restore Pit 2")
+    bot_instance.Move.XY(15393, 406, "Restore Pit 3")
+    bot_instance.Move.FollowPath([
+        (15252, 316),
+        (13451, 1123),
+        (13181, 1419),
+        (13076, 1547),
+    ], step_name="Über die Brücke")
+    bot_instance.Move.XY(13216, 1428, "Restore Pit 4")
+    bot_instance.Move.XY(13896, 3670, "Restore Pit 5")
+    bot_instance.Move.XY(15382, 6581, "Restore Pit 6")
+    bot_instance.Move.XY(10620, 2665, "Restore Pit 7")
+    bot_instance.Move.XY(8644, 6242, "Restore Pit 8")
+    bot_instance.Wait.ForTime(3000)
+
+def Imprisoned_Spirits(bot_instance: Botting):
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
+    bot_instance.States.AddCustomState(lambda: _toggle_move_if_aggro(True), "Enable MoveIfPartyMemberInAggro")
+    bot_instance.States.AddCustomState(lambda: _toggle_move_to_enemy_if_close_enough(False), "Enable MoveToEnemyIfCloseEnough")
+    bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(True), "Enable MoveToPartyMemberIfDead")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_needs_to_loot(False), "Enable WaitIfPartyMemberNeedsToLoot")
+    bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Enable WaitIfLockTaken")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Enable WaitIfPartyMemberManaTooLow")
+    bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_looting_enabled(False), "Disable Looting")
+    bot_instance.Move.XY(13212, 4978)
+    IMPRISONED_SPIRITS_FLAG_POINTS = [
+        (13652, 6117),
+        (13652, 6117),
+        (13652, 6117),
+        (12439, 2750),
+        (12439, 2761),
+        (12682, 2793),
+        (12322, 3016),
+    ]
+    _enqueue_spread_flags(bot_instance, IMPRISONED_SPIRITS_FLAG_POINTS)
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(False), "Disable WaitIfPartyMemberTooFar")
+    bot_instance.Move.XY(8692, 6292, "go to NPC")
+    bot_instance.Move.XYAndInteractNPC(8666, 6308, "go to NPC")
+    bot_instance.Dialogs.AtXY(8666, 6308, 0x806901, "take quest")  
+    bot_instance.Move.XY(13652, 6117) #Runter rennen zum linken team
+    bot_instance.States.AddCustomState(
+        lambda: CustomBehaviorParty().party_flagging_manager.clear_all_flags(),
+        "Clear Flags",
+    )
+    bot_instance.Move.XY(12593, 1814)
+    WaitTillQuestDone(bot_instance)
+    bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_looting_enabled(True), "Enable Looting")
+    ##warten bis quest fertig
+
+    bot_instance.Move.XY(8692, 6292, "go to NPC")
+    bot_instance.Dialogs.AtXY(8692, 6292, 0x8D, "Back to Chamber")
+        
 
 def Restore_Vale(bot_instance: Botting):
 
@@ -896,241 +1133,6 @@ def Servants_of_Grenth(bot_instance: Botting):
         lambda: CustomBehaviorParty().party_flagging_manager.clear_all_flags(),
         "Clear Flags",
     )
-    bot_instance.Move.XYAndInteractNPC(554, 18384, "go to NPC")
-    #bot_instance.Dialogs.AtXY(5755, 12769, 0x8D, "Back to Chamber")
-    bot_instance.Wait.ForTime(3000)
-
-def Pass_The_Mountains(bot_instance: Botting):
-    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
-    bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
-    bot_instance.States.AddCustomState(lambda: _toggle_move_if_aggro(True), "Enable MoveIfPartyMemberInAggro")
-    bot_instance.States.AddCustomState(lambda: _toggle_move_to_enemy_if_close_enough(False), "Enable MoveToEnemyIfCloseEnough")
-    bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(True), "Enable MoveToPartyMemberIfDead")
-    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_needs_to_loot(False), "Enable WaitIfPartyMemberNeedsToLoot")
-    bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Enable WaitIfLockTaken")
-    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Enable WaitIfPartyMemberManaTooLow")
-    bot_instance.Move.XY(-220, 1691, "Pass the Mountains 1")
-    bot_instance.Move.XY(7035, 1973, "Pass the Mountains 2")
-    bot_instance.Move.XY(8089, -3303, "Pass the Mountains 3")
-    bot_instance.Move.XY(8121, -6054, "Pass the Mountains 4")
-    
-
-def Restore_Mountains(bot_instance: Botting):
-    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
-    bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
-    bot_instance.States.AddCustomState(lambda: _toggle_move_if_aggro(True), "Enable MoveIfPartyMemberInAggro")
-    bot_instance.States.AddCustomState(lambda: _toggle_move_to_enemy_if_close_enough(False), "Enable MoveToEnemyIfCloseEnough")
-    bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(True), "Enable MoveToPartyMemberIfDead")
-    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_needs_to_loot(False), "Enable WaitIfPartyMemberNeedsToLoot")
-    bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Enable WaitIfLockTaken")
-    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Enable WaitIfPartyMemberManaTooLow")
-    bot_instance.Move.XY(7013, -7582, "Restore the Mountains 1")
-    bot_instance.Move.XY(1420, -9126, "Restore the Mountains 2")
-    bot_instance.Move.XY(-8373, -5016, "Restore the Mountains 3")
-
-def Deamon_Assassin(bot_instance: Botting):
-    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
-    bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
-    bot_instance.States.AddCustomState(lambda: _toggle_move_if_aggro(True), "Enable MoveIfPartyMemberInAggro")
-    bot_instance.States.AddCustomState(lambda: _toggle_move_to_enemy_if_close_enough(False), "Enable MoveToEnemyIfCloseEnough")
-    bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(True), "Enable MoveToPartyMemberIfDead")
-    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_needs_to_loot(False), "Enable WaitIfPartyMemberNeedsToLoot")
-    bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Enable WaitIfLockTaken")
-    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Enable WaitIfPartyMemberManaTooLow")
-    bot_instance.Move.XYAndInteractNPC(-8250, -5171, "go to NPC")
-    bot_instance.Wait.ForTime(3000)
-    bot_instance.Dialogs.AtXY(-8250, -5171, 0x806801, "take quest")
-    bot_instance.Move.XY(-3645, -5820, "Deamon Assassin 1")
-    WaitTillQuestDone(bot_instance)
-    #ModelID Slayer 2391
-
-def Restore_Planes(bot_instance: Botting):
-    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
-    bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
-    bot_instance.States.AddCustomState(lambda: _toggle_move_if_aggro(True), "Enable MoveIfPartyMemberInAggro")
-    bot_instance.States.AddCustomState(lambda: _toggle_move_to_enemy_if_close_enough(False), "Enable MoveToEnemyIfCloseEnough")
-    bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(True), "Enable MoveToPartyMemberIfDead")
-    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_needs_to_loot(False), "Enable WaitIfPartyMemberNeedsToLoot")
-    bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Enable WaitIfLockTaken")
-    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Enable WaitIfPartyMemberManaTooLow")
-    Wait_for_Spawns(bot_instance,10371, -10510)
-    bot_instance.States.AddCustomState(lambda: _toggle_move_to_enemy_if_close_enough(True), "Enable MoveToEnemyIfCloseEnough")
-    Wait_for_Spawns(bot_instance,12795, -8811)
-    Wait_for_Spawns(bot_instance,11180, -13780)
-    Wait_for_Spawns(bot_instance,13740, -15087)
-    bot_instance.Move.XY(11546, -13787, "Restore Planes 1")
-    bot_instance.Move.XY(8530, -11585, "Restore Planes 2")
-    Wait_for_Spawns(bot_instance,8533, -13394)
-    Wait_for_Spawns(bot_instance,8579, -20627)
-    Wait_for_Spawns(bot_instance,11218, -17404)
-
-def The_Four_Horsemen(bot_instance: Botting):
-    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
-    bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
-    bot_instance.States.AddCustomState(lambda: _toggle_move_if_aggro(True), "Enable MoveIfPartyMemberInAggro")
-    bot_instance.States.AddCustomState(lambda: _toggle_move_to_enemy_if_close_enough(True), "Enable MoveToEnemyIfCloseEnough")
-    bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(True), "Enable MoveToPartyMemberIfDead")
-    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_needs_to_loot(False), "Enable WaitIfPartyMemberNeedsToLoot")
-    bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Enable WaitIfLockTaken")
-    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Enable WaitIfPartyMemberManaTooLow")
-    bot_instance.Move.XY(13473, -12091, "The Four Horseman 1")
-    bot_instance.Wait.ForTime(10000)
-    THE_FOUR_HORSEMEN_FLAG_POINTS = [
-        (13432, -12100),
-        (13246, -12440),
-        (13072, -12188),
-        (13216, -11841),
-        (13639, -11866),
-        (13745, -12151),
-        (13520, -12436),
-    ]
-    _enqueue_spread_flags(bot_instance, THE_FOUR_HORSEMEN_FLAG_POINTS)
-    bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_looting_enabled(False), "Disable Looting")
-    bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(False), "Disable WaitIfPartyMemberTooFar")
-    bot_instance.States.AddCustomState(lambda: _toggle_move_if_aggro(False), "Disable MoveIfPartyMemberInAggro")
-    bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_forced_state(BehaviorState.CLOSE_TO_AGGRO),"Force Close_to_Aggro",)
-    bot_instance.Move.XYAndInteractNPC(11371, -17990, "go to NPC")
-    bot_instance.Dialogs.AtXY(-8250, -5171, 0x806A01, "take quest")  
-    bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_forced_state(None),"Release Close_to_Aggro",)
-
-    bot_instance.Wait.ForTime(35000)
-
-    bot_instance.Move.XYAndInteractNPC(11371, -17990, "TP to Chamber")
-    #bot_instance.Dialogs.AtXY(11371, -17990, 0x7F, "take quest")
-    #bot_instance.Dialogs.AtXY(11371, -17990, 0x86, "take quest") 
-    bot_instance.Dialogs.AtXY(11371, -17990, 0x8D, "take quest") 
-    bot_instance.States.AddCustomState(
-        lambda: CustomBehaviorParty().party_flagging_manager.clear_all_flags(),
-        "Clear Flags",
-    )
-
-    bot_instance.Wait.ForTime(1000)
-
-    bot_instance.Move.XYAndInteractNPC(-5782, 12819, "TP back to Chaos")
-    #bot_instance.Dialogs.AtXY(11371, -17990, 0x7F, "take quest")
-    #bot_instance.Dialogs.AtXY(11371, -17990, 0x84, "take quest") 
-    bot_instance.Dialogs.AtXY(11371, -17990, 0x8B, "take quest") 
-    bot_instance.Wait.ForTime(1000)
-    bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_following_enabled(True), "Enable Following")
-    THE_FOUR_HORSEMEN_FLAG_POINTS_2 = [
-        (11318, -17670),
-        (11318, -17670),
-        (11221, -18335),
-        (11479, -18361),
-        (11806, -18134),
-        (11697, -17748),
-        (11354, -17530),
-    ]
-    _enqueue_spread_flags(bot_instance, THE_FOUR_HORSEMEN_FLAG_POINTS_2)
-    bot_instance.Party.UnflagAllHeroes()
-    WaitTillQuestDone(bot_instance)
-    bot_instance.States.AddCustomState(
-        lambda: CustomBehaviorParty().party_flagging_manager.clear_all_flags(),
-        "Clear Flags",
-    )
-    bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_following_enabled(True), "Enable Follow")
-    bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
-    bot_instance.States.AddCustomState(lambda: _toggle_move_if_aggro(True), "Enable MoveIfPartyMemberInAggro")
-    bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_looting_enabled(True), "Enable Looting")
-
-def Restore_Pools(bot_instance: Botting):
-    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
-    bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
-    bot_instance.States.AddCustomState(lambda: _toggle_move_if_aggro(True), "Enable MoveIfPartyMemberInAggro")
-    bot_instance.States.AddCustomState(lambda: _toggle_move_to_enemy_if_close_enough(True), "Enable MoveToEnemyIfCloseEnough")
-    bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(True), "Enable MoveToPartyMemberIfDead")
-    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_needs_to_loot(False), "Enable WaitIfPartyMemberNeedsToLoot")
-    bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Enable WaitIfLockTaken")
-    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Enable WaitIfPartyMemberManaTooLow")
-    Wait_for_Spawns(bot_instance,4647, -16833)
-    Wait_for_Spawns(bot_instance,2098, -15543)
-    bot_instance.Move.XY(-12703, -10990, "Restore Pools 1")
-    bot_instance.Move.XY(-11849, -11986, "Restore Pools 2")
-    bot_instance.Move.XY(-7217, -19394, "Restore Pools 3")
-    bot_instance.Wait.ForTime(3000)
-
-def Terrorweb_Queen(bot_instance: Botting):
-    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
-    bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
-    bot_instance.States.AddCustomState(lambda: _toggle_move_if_aggro(True), "Enable MoveIfPartyMemberInAggro")
-    bot_instance.States.AddCustomState(lambda: _toggle_move_to_enemy_if_close_enough(True), "Enable MoveToEnemyIfCloseEnough")
-    bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(True), "Enable MoveToPartyMemberIfDead")
-    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_needs_to_loot(False), "Enable WaitIfPartyMemberNeedsToLoot")
-    bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Enable WaitIfLockTaken")
-    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Enable WaitIfPartyMemberManaTooLow")
-    bot_instance.Move.XYAndInteractNPC(-6961, -19499, "go to NPC")
-    #bot_instance.Dialogs.AtXY(-6961, -19499, 0x806B03, "take quest")
-    bot_instance.Dialogs.AtXY(-6961, -19499, 0x806B01, "take quest")   
-    bot_instance.Move.XY(-12303, -15213, "Terrorweb Queen 1")
-    bot_instance.Move.XYAndInteractNPC(-6957, -19478, "go to NPC")
-    #bot_instance.Dialogs.AtXY(-6957, -19478, 0x7F, "Back to Chamber")
-    #bot_instance.Dialogs.AtXY(-6957, -19478, 0x84, "Back to Chamber")
-    bot_instance.Dialogs.AtXY(-6957, -19478, 0x8B, "Back to Chamber")
-    
-def Restore_Pit(bot_instance: Botting):
-    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
-    bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
-    bot_instance.States.AddCustomState(lambda: _toggle_move_if_aggro(True), "Enable MoveIfPartyMemberInAggro")
-    bot_instance.States.AddCustomState(lambda: _toggle_move_to_enemy_if_close_enough(False), "Enable MoveToEnemyIfCloseEnough")
-    bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(True), "Enable MoveToPartyMemberIfDead")
-    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_needs_to_loot(False), "Enable WaitIfPartyMemberNeedsToLoot")
-    bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Enable WaitIfLockTaken")
-    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Enable WaitIfPartyMemberManaTooLow")
-    _toggle_move_if_aggro(False)
-    bot_instance.Move.XY(14178, -57, "Restore Pit 1")
-    bot_instance.Move.XY(15323, 2970, "Restore Pit 2")
-    bot_instance.Move.XY(15393, 406, "Restore Pit 3")
-    bot_instance.Move.FollowPath([
-        (15252, 316),
-        (13451, 1123),
-        (13181, 1419),
-        (13076, 1547),
-    ], step_name="Über die Brücke")
-    bot_instance.Move.XY(13216, 1428, "Restore Pit 4")
-    bot_instance.Move.XY(13896, 3670, "Restore Pit 5")
-    bot_instance.Move.XY(15382, 6581, "Restore Pit 6")
-    bot_instance.Move.XY(10620, 2665, "Restore Pit 7")
-    bot_instance.Move.XY(8644, 6242, "Restore Pit 8")
-    bot_instance.Wait.ForTime(3000)
-
-def Imprisoned_Spirits(bot_instance: Botting):
-    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
-    bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
-    bot_instance.States.AddCustomState(lambda: _toggle_move_if_aggro(True), "Enable MoveIfPartyMemberInAggro")
-    bot_instance.States.AddCustomState(lambda: _toggle_move_to_enemy_if_close_enough(False), "Enable MoveToEnemyIfCloseEnough")
-    bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(True), "Enable MoveToPartyMemberIfDead")
-    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_needs_to_loot(False), "Enable WaitIfPartyMemberNeedsToLoot")
-    bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Enable WaitIfLockTaken")
-    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Enable WaitIfPartyMemberManaTooLow")
-    bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_looting_enabled(False), "Disable Looting")
-    bot_instance.Move.XY(13212, 4978)
-    IMPRISONED_SPIRITS_FLAG_POINTS = [
-        (13652, 6117),
-        (13652, 6117),
-        (13652, 6117),
-        (12439, 2750),
-        (12439, 2761),
-        (12682, 2793),
-        (12322, 3016),
-    ]
-    _enqueue_spread_flags(bot_instance, IMPRISONED_SPIRITS_FLAG_POINTS)
-    bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(False), "Disable WaitIfPartyMemberTooFar")
-    bot_instance.Move.XY(8692, 6292, "go to NPC")
-    bot_instance.Move.XYAndInteractNPC(8666, 6308, "go to NPC")
-    bot_instance.Dialogs.AtXY(8666, 6308, 0x806901, "take quest")  
-    bot_instance.Move.XY(13652, 6117) #Runter rennen zum linken team
-    bot_instance.States.AddCustomState(
-        lambda: CustomBehaviorParty().party_flagging_manager.clear_all_flags(),
-        "Clear Flags",
-    )
-    bot_instance.Move.XY(12593, 1814)
-    WaitTillQuestDone(bot_instance)
-    bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_looting_enabled(True), "Enable Looting")
-    ##warten bis quest fertig
-
-    bot_instance.Move.XY(8692, 6292, "go to NPC")
-    bot_instance.Dialogs.AtXY(5755, 12769, 0x8D, "Back to Chamber")
-        
 
 def Dhuum(bot_instance: Botting):
     bot_instance.States.AddHeader("Dhuum")
@@ -1209,7 +1211,7 @@ def Dhuum(bot_instance: Botting):
         )
 
     
-
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(False), "Disable WaitIfPartyMemberTooFar")
     bot_instance.Move.XY(-11278, 17297, "Wait For the King")
     bot_instance.Wait.UntilCondition(
         lambda: any(
@@ -1297,11 +1299,11 @@ def Dhuum(bot_instance: Botting):
 
     bot_instance.Wait.ForTime(5000)  # Wait for any stragglers to finish looting
     bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_looting_enabled(False), "Disable Looting")
-    bot.Move.XY(-14324, 17549)
+    bot_instance.Move.XY(-14324, 17549)
     bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_looting_enabled(True), "Enable Looting")
     bot_instance.Wait.ForTime(5000)
     bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_looting_enabled(False), "Disable Looting")
-    bot.Move.XY(-14243, 17017)
+    bot_instance.Move.XY(-14243, 17017)
     bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_looting_enabled(True), "Enable Looting")
     bot_instance.Wait.ForTime(5000)
 
@@ -1393,7 +1395,6 @@ def Wait_for_Spawns(bot_instance: Botting,x,y):
 
 
 def _draw_help():
-    import PyImGui
     PyImGui.text("Hey, this is my first bot in Python, be gentle :)")
     PyImGui.separator()
     PyImGui.text_wrapped("This Bot automates the Underworld")
@@ -1475,6 +1476,19 @@ def _draw_dhuum_settings() -> None:
                 DhuumSettings.set_sacrifice(email, new_val)
 
 
+def _draw_quest_settings():
+    _snapshot = (BotSettings.Repeat, BotSettings.UseCons)
+    BotSettings.Repeat = PyImGui.checkbox("Resign and Repeat after", BotSettings.Repeat)
+    BotSettings.UseCons = PyImGui.checkbox("Use Cons", BotSettings.UseCons)
+    _current = (BotSettings.Repeat, BotSettings.UseCons)
+    if _current != _snapshot:
+        BotSettings.save()
+
+
+
+
+bot.SetMainRoutine(bot_routine)
+
 def _draw_settings():
     if PyImGui.begin_tab_bar("##uw_settings_tabs"):
         if PyImGui.begin_tab_item("Quests"):
@@ -1488,19 +1502,6 @@ def _draw_settings():
             PyImGui.end_tab_item()
         PyImGui.end_tab_bar()
 
-
-def _draw_quest_settings():
-    _snapshot = (BotSettings.Repeat, BotSettings.UseCons)
-    BotSettings.Repeat = PyImGui.checkbox("Resign and Repeat after", BotSettings.Repeat)
-    BotSettings.UseCons = PyImGui.checkbox("Use Cons", BotSettings.UseCons)
-    _current = (BotSettings.Repeat, BotSettings.UseCons)
-    if _current != _snapshot:
-        BotSettings.save()
-
-
-
-
-bot.SetMainRoutine(bot_routine)
 
 def OnPartyWipe(bot: "Botting"):
     fsm = bot.config.FSM
