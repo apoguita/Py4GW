@@ -578,15 +578,62 @@ def _get_max_armor_data() -> dict:
 def GetArmorCrafterCoords() -> tuple[float, float]:
     return _get_max_armor_data()["crafter"]
 
+def _get_max_armor_requirements() -> list[tuple[int, int]]:
+    totals: dict[int, int] = {}
+    for _, mats, qtys in _get_max_armor_data()["pieces"]:
+        for mat, qty in zip(mats, qtys):
+            totals[mat] = totals.get(mat, 0) + qty
+    return list(totals.items())
+
+def _get_max_armor_material_groups() -> tuple[set[int], set[int]]:
+    data = _get_max_armor_data()
+    common = {mat for mat, _ in data["buy_common"]}
+    rare = {mat for mat, _ in data["buy_rare"]}
+    return common, rare
+
+def VerifyMaxArmorMaterials(bot: Botting) -> bool:
+    missing: list[tuple[int, int, int]] = []
+    for model_id, needed in _get_max_armor_requirements():
+        current = GLOBAL_CACHE.Inventory.GetModelCount(model_id)
+        if current < needed:
+            missing.append((model_id, current, needed))
+
+    if missing:
+        for model_id, current, needed in missing:
+            ConsoleLog("CraftMaxArmor", f"Missing material {model_id}: have {current}, need {needed}.", Py4GW.Console.MessageType.Error)
+        bot.helpers.Events.on_unmanaged_fail()
+        return False
+    return True
+
+def VerifyMaxArmorMaterialsState(bot: Botting) -> Generator[Any, Any, bool]:
+    if False:
+        yield
+    return VerifyMaxArmorMaterials(bot)
+
 def BuyMaxArmorMaterials(material_type: str = "common"):
-    for mat, count in _get_max_armor_data()[f"buy_{material_type}"]:
-        for _ in range(count):
+    common_mats, rare_mats = _get_max_armor_material_groups()
+    for mat, needed in _get_max_armor_requirements():
+        if material_type == "common" and mat not in common_mats:
+            continue
+        if material_type == "rare" and mat not in rare_mats:
+            continue
+
+        current = GLOBAL_CACHE.Inventory.GetModelCount(mat)
+        shortfall = max(0, needed - current)
+        buy_count = (shortfall + 9) // 10 if material_type == "common" else shortfall
+
+        for _ in range(buy_count):
             if not (yield from Routines.Yield.Merchant.BuyMaterial(mat)):
                 yield from Routines.Yield.wait(500)
                 yield from Routines.Yield.Merchant.BuyMaterial(mat)
         yield from Routines.Yield.wait(500)
 
 def DoCraftMaxArmor(bot: Botting):
+    if any(item_id == 0 for item_id, _, _ in _get_max_armor_data()["pieces"]):
+        ConsoleLog("CraftMaxArmor", "Missing armor piece mapping for current profession.", Py4GW.Console.MessageType.Error)
+        bot.helpers.Events.on_unmanaged_fail()
+        return False
+
     for item_id, mats, qtys in _get_max_armor_data()["pieces"]:
         result = yield from Routines.Yield.Items.CraftItem(item_id, 1000, mats, qtys)
         yield from Routines.Yield.wait(500)
@@ -965,7 +1012,6 @@ def Craft_Weapon(bot: Botting):
     bot.Wait.ForTime(1000)
     exec_fn = lambda: DoCraftWeapon(bot)
     bot.States.AddCustomState(exec_fn, "Craft Weapons")
-    bot.States.AddCustomState(_handle_bonus_bow, "Equip Custom/Crafted Bow from previous run")
 
 def Craft_Monastery_Armor(bot: Botting):
     bot.States.AddHeader("Craft monastery armor")
@@ -1294,6 +1340,7 @@ def Craft_Max_Armor(bot: Botting):
         exec_fn_rare = lambda: BuyMaxArmorMaterials("rare")
         bot.States.AddCustomState(exec_fn_rare, "Buy Rare Materials")
         bot.Wait.ForTime(2000)  # Wait for rare material purchases to complete
+    bot.States.AddCustomState(lambda: VerifyMaxArmorMaterialsState(bot), "Verify Max Armor Materials")
     crafter_x, crafter_y = GetArmorCrafterCoords()
     bot.Move.XY(crafter_x, crafter_y)
     bot.Move.XYAndInteractNPC(crafter_x, crafter_y)  # Armor crafter in Kaineng Center
@@ -1488,11 +1535,11 @@ def _handle_bonus_bow(bot: Botting):
 
     if BotSettings.CUSTOM_BOW_ID != 0:
         bonus_bow_id = BotSettings.CUSTOM_BOW_ID
-    has_bonus_bow = Routines.Checks.Inventory.IsModelInInventoryOrBank(bonus_bow_id)
+    has_bonus_bow = Routines.Checks.Inventory.IsModelInInventory(bonus_bow_id)
+
     if has_bonus_bow:
-        if not Routines.Checks.Inventory.IsModelInInventory(bonus_bow_id):
-            yield from Routines.Yield.Items.WithdrawItems(bonus_bow_id, 1)
         yield from bot.helpers.Items._equip(bonus_bow_id)
+    yield
 
 def Farm_Until_Level_20(bot: Botting):
     """Farm Auspicious Beginnings until level 20 using KeiranThackerayEOTN build (solo, no heroes)."""
