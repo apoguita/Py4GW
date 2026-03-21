@@ -4,7 +4,7 @@ This document captures the build design method used in this session so other con
 
 ## Core Philosophy
 
-Builds should be thin, explicit controllers on top of [`Py4GWCoreLib/BuildMgr.py`](c:/Users/Apo/Py4GW_python_files/Py4GWCoreLib/BuildMgr.py).
+Builds should be thin, explicit controllers on top of [`Py4GWCoreLib/BuildMgr.py`](/Py4GWCoreLib/BuildMgr.py).
 
 Use HeroAI custom-skill metadata as the source of truth for:
 - target allegiance

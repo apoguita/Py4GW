@@ -1,4 +1,4 @@
-from Py4GWCoreLib import Agent, Map, Player, Routines
+from Py4GWCoreLib import Agent, Map, Player, Profession, Routines
 from Py4GWCoreLib import BuildMgr
 from Py4GWCoreLib.BuildMgr import BuildRegistry
 
@@ -22,7 +22,7 @@ class HeroAI_Build(BuildMgr):
             default_fallback_name=self.build_name,
             build_init_kwargs={"cached_data": cached_data},
         )
-        self._contract_map_signature: tuple[int, int, int, int] | None = None
+        self._contract_signature: tuple[int, ...] | None = None
         self._contract_build: BuildMgr | None = None
 
     def set_cached_data(self, cached_data):
@@ -45,16 +45,21 @@ class HeroAI_Build(BuildMgr):
                 self._build_registry.build_init_kwargs["cached_data"] = self._cached_data
         return self._cached_data
 
-    def _get_map_signature(self) -> tuple[int, int, int, int]:
+    def _get_contract_signature(self) -> tuple[int, ...]:
+        primary_profession, secondary_profession = Agent.GetProfessions(Player.GetAgentID())
+        current_skills = tuple(int(skill_id) for skill_id in self._get_current_skills())
         return (
             int(Map.GetMapID()),
             int(Map.GetRegion()[0]),
             int(Map.GetDistrict()),
             int(Map.GetLanguage()[0]),
+            int(primary_profession),
+            int(secondary_profession),
+            *current_skills,
         )
 
     def _reset_contract(self) -> None:
-        self._contract_map_signature = None
+        self._contract_signature = None
         self._contract_build = None
 
     def ClearBuildContract(self) -> None:
@@ -69,26 +74,40 @@ class HeroAI_Build(BuildMgr):
             self._reset_contract()
             return None
 
-        map_signature = self._get_map_signature()
-        if self._contract_build is not None and self._contract_map_signature == map_signature:
+        contract_signature = self._get_contract_signature()
+        if self._contract_build is not None and self._contract_signature == contract_signature:
             if self._contract_build is self:
                 self.set_cached_data(cached_data)
             return self._contract_build
 
         if self._standalone_fallback:
             self.set_cached_data(cached_data)
-            self._contract_map_signature = map_signature
+            self._contract_signature = contract_signature
             self._contract_build = self
             return self
 
         if self._build_registry is None:
             self._reset_contract()
             return None
-        resolved_build = self._build_registry.ResolveBuild(
-            fallback_name=self.build_name,
-        )
 
-        if resolved_build is None:
+        current_primary_value, current_secondary_value = Agent.GetProfessions(Player.GetAgentID())
+        current_primary = Profession(current_primary_value)
+        current_secondary = Profession(current_secondary_value)
+        current_skills = self._get_current_skills()
+
+        resolved_build = None
+        best_score = -1
+        for build in self._build_registry._iter_matchable_builds():
+            score = build.ScoreMatch(
+                current_primary=current_primary,
+                current_secondary=current_secondary,
+                current_skills=current_skills,
+            )
+            if score > best_score:
+                best_score = score
+                resolved_build = build
+
+        if resolved_build is None or best_score <= 0:
             resolved_build = self
         elif isinstance(resolved_build, HeroAI_Build):
             resolved_build = self
@@ -96,7 +115,7 @@ class HeroAI_Build(BuildMgr):
         if resolved_build is self:
             self.set_cached_data(cached_data)
 
-        self._contract_map_signature = map_signature
+        self._contract_signature = contract_signature
         self._contract_build = resolved_build
         return resolved_build
 
