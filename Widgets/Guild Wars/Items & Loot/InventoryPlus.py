@@ -893,6 +893,8 @@ class InventoryPlusWidget:
         self.i_inventory_slot_prefix_cache: list[tuple[int, ...]] = []
         self.pop_up_open: bool = False
         self.show_config_window: bool = False
+        # Tracks WidgetManager-driven configure() sessions so Close can end config mode cleanly.
+        self._configure_session_active: bool = False
         
         self.PopUps: dict[str, ModelPopUp] = {}
         self.model_id_to_name = {member.value: name for name, member in ModelID.__members__.items()}
@@ -906,6 +908,16 @@ class InventoryPlusWidget:
         self.merchant_sell_quantities: dict[int, int] = {}
         
         self._init_popups()
+
+    def _close_config_window(self) -> None:
+        """Close the config window and clear WidgetManager configure mode."""
+        self.show_config_window = False
+        self._configure_session_active = False
+        try:
+            from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
+            get_widget_handler().set_widget_configuring("InventoryPlus", False)
+        except Exception:
+            pass
 
     def _init_popups(self):
         self.PopUps["Identification ModelID Lookup"] = ModelPopUp(
@@ -2589,7 +2601,7 @@ class InventoryPlusWidget:
                 PyImGui.end_tab_bar()
             PyImGui.separator()
             if PyImGui.button("Close"):
-                self.show_config_window = False
+                self._close_config_window()
             """PyImGui.same_line(0,-1)
             if PyImGui.button("Save & Close"):
                 self.save_to_ini()
@@ -2604,9 +2616,17 @@ InventoryPlusWidgetInstance = InventoryPlusWidget()
 def configure():
     if not InventoryPlusWidgetInstance.initialized:
         return
-    if InventoryPlusWidgetInstance.show_config_window:
+
+    # WidgetManager calls configure() every frame while "configuring" is active.
+    # Open only once per configure-session so the in-window Close button can persist.
+    if not InventoryPlusWidgetInstance._configure_session_active:
+        InventoryPlusWidgetInstance._configure_session_active = True
+        InventoryPlusWidgetInstance.show_config_window = True
         return
-    InventoryPlusWidgetInstance.show_config_window = True
+
+    # When user closes the config window, stop WidgetManager configure mode.
+    if not InventoryPlusWidgetInstance.show_config_window:
+        InventoryPlusWidgetInstance._close_config_window()
 
 
 def main():

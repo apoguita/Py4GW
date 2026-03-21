@@ -1,6 +1,7 @@
 from enum import IntEnum
 from typing import Callable
 from types import ModuleType
+import re
 import traceback
 import Py4GW
 import PyImGui
@@ -338,7 +339,7 @@ class Py4GWLibrary:
     def draw_search_tooltip(self):
         if PyImGui.is_item_hovered():
             PyImGui.begin_tooltip()
-            ImGui.text("Search widgets by name, folder, category or tags. Use ';' to separate multiple keywords.")            
+            ImGui.text("Search widgets by name, aliases, folder, category or tags. Use ';' to separate multiple keywords.")            
             ImGui.text("Special keywords:")
             ImGui.bullet_text("#enabled / #active / #on - Show only enabled widgets")
             ImGui.bullet_text("#disabled / #inactive / #off - Show only disabled widgets")
@@ -372,6 +373,38 @@ class Py4GWLibrary:
         if self.first_run:    
             self.win_size = win_size                    
             self.first_run = False
+
+    @staticmethod
+    def _normalize_search_text(text: str) -> str:
+        return re.sub(r"[^a-z0-9]+", "", (text or "").lower())
+
+    def _widget_matches_keywords(self, widget: "Widget", keywords: list[str]) -> bool:
+        search_fields = [
+            widget.name,
+            widget.plain_name,
+            widget.folder,
+            widget.category,
+            *widget.tags,
+            *widget.aliases,
+        ]
+        haystacks = [
+            ((field or "").lower(), self._normalize_search_text(field or ""))
+            for field in search_fields
+            if field
+        ]
+
+        for kw in keywords:
+            if not kw:
+                continue
+
+            normalized_kw = self._normalize_search_text(kw)
+            if not any(
+                kw in haystack or (normalized_kw and normalized_kw in normalized_haystack)
+                for haystack, normalized_haystack in haystacks
+            ):
+                return False
+
+        return True
             
     def filter_widgets(self, filter_text: str):        
         self.filtered_widgets.clear()     
@@ -428,7 +461,7 @@ class Py4GWLibrary:
                                         (w.category == self.category or not self.category) and 
                                         (self.path in w.widget_path or not self.path) and 
                                         (self.tag in w.tags or not self.tag) and 
-                                        all(kw in w.name.lower() or kw in w.plain_name.lower() or kw in w.folder.lower() for kw in keywords if keywords and kw)]
+                                        self._widget_matches_keywords(w, keywords)]
                 
                 match self.sort_mode:
                     case SortMode.ByName:
@@ -438,8 +471,7 @@ class Py4GWLibrary:
                     case SortMode.ByStatus:
                         self.filtered_widgets.sort(key=lambda w: (not w.enabled, w.name.lower()))
             case LayoutMode.Compact:
-                # check if all keywords are in name or folder
-                self.filtered_widgets = [w for w in prefiltered if all(kw in w.name.lower() or kw in w.plain_name.lower() or kw in w.folder.lower() for kw in keywords if keywords and kw)]
+                self.filtered_widgets = [w for w in prefiltered if self._widget_matches_keywords(w, keywords)]
 
     def draw_toggle_view_mode_button(self) -> bool:
         clicked = False
@@ -1772,6 +1804,7 @@ class Widget:
     name : str = field(default="", init=False, repr=False)
     image : str = field(default="", init=False, repr=False)
     tags : list[str] = field(default_factory=list, init=False)
+    aliases : list[str] = field(default_factory=list, init=False)
     category : str = field(default="", init=False)    
     
     @property
@@ -1838,6 +1871,7 @@ class Widget:
             self.name = getattr(self.module, 'MODULE_NAME', "") if hasattr(self.module, 'MODULE_NAME') else self.cleaned_name()
             self.category = getattr(self.module, 'MODULE_CATEGORY', "") if hasattr(self.module, 'MODULE_CATEGORY') else (self.widget_path.split('/')[0] if self.widget_path else "") #get first folder after Widgets 
             self.tags = getattr(self.module, 'MODULE_TAGS', []) if hasattr(self.module, 'MODULE_TAGS') else [folder for folder in self.widget_path.split('/') if folder]
+            self.aliases = [str(alias).strip() for alias in getattr(self.module, 'MODULE_ALIASES', []) if str(alias).strip()]
             self.image = os.path.join(base_path, getattr(self.module, 'MODULE_ICON', "") if hasattr(self.module, 'MODULE_ICON') else "Textures\\missing_texture.png")
             
             self.optional = getattr(self.module, 'OPTIONAL', True) if hasattr(self.module, 'OPTIONAL') else self.category not in ["System", "Py4GW"] # System and Py4GW widgets are non-optional by default, all others are optional by default
