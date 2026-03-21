@@ -48,6 +48,29 @@ class NoAttribute:
         ))
     #endregion
 
+    #region G
+    def Great_Dwarf_Weapon(self) -> BuildCoroutine:
+        great_dwarf_weapon_id: int = Skill.GetID("Great_Dwarf_Weapon")
+        great_dwarf_weapon: CustomSkill = self.build.GetCustomSkill(great_dwarf_weapon_id)
+
+        if not self.build.IsSkillEquipped(great_dwarf_weapon_id):
+            return False
+
+        target_agent_id = self.build.ResolveAllyTarget(
+            great_dwarf_weapon_id,
+            great_dwarf_weapon,
+        )
+        if not target_agent_id:
+            return False
+
+        return (yield from self.build.CastSkillIDAndRestoreTarget(
+            skill_id=great_dwarf_weapon_id,
+            target_agent_id=target_agent_id,
+            log=False,
+            aftercast_delay=250,
+        ))
+    #endregion
+
     #region Y
     def You_Are_All_Weaklings(self) -> BuildCoroutine:
         you_are_all_weaklings_id: int = Skill.GetID("You_Are_All_Weaklings")

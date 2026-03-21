@@ -3,7 +3,7 @@ from Py4GWCoreLib import BuildMgr
 from Py4GWCoreLib.BuildMgr import BuildRegistry
 
 
-class HeroAI(BuildMgr):
+class HeroAI_Build(BuildMgr):
     def __init__(self, cached_data=None, standalone_fallback: bool = False, match_only: bool = False):
         super().__init__(
             name="HeroAI",
@@ -81,13 +81,16 @@ class HeroAI(BuildMgr):
             self._contract_build = self
             return self
 
+        if self._build_registry is None:
+            self._reset_contract()
+            return None
         resolved_build = self._build_registry.ResolveBuild(
             fallback_name=self.build_name,
         )
 
         if resolved_build is None:
             resolved_build = self
-        elif isinstance(resolved_build, HeroAI):
+        elif isinstance(resolved_build, HeroAI_Build):
             resolved_build = self
 
         if resolved_build is self:
@@ -116,6 +119,12 @@ class HeroAI(BuildMgr):
         cached_data.UpdateCombat()
         return cached_data
 
+    def _get_phase_cached_data(self):
+        cached_data = self._get_cached_data()
+        if cached_data is None:
+            return None
+        return self._prepare_combat()
+
     def _run_contract(self, cached_data, is_in_combat: bool):
         contract_build = self.EnsureBuildContract(cached_data)
         if contract_build is None:
@@ -143,7 +152,7 @@ class HeroAI(BuildMgr):
 
     def ProcessOOC(self):
         self.ResetTickState()
-        cached_data = self._prepare_combat()
+        cached_data = self._get_phase_cached_data()
         if cached_data is None:
             self.SetTickFailure()
             yield from Routines.Yield.wait(250)
@@ -158,7 +167,7 @@ class HeroAI(BuildMgr):
 
     def ProcessCombat(self):
         self.ResetTickState()
-        cached_data = self._prepare_combat()
+        cached_data = self._get_phase_cached_data()
         if cached_data is None:
             self.SetTickFailure()
             yield from Routines.Yield.wait(250)
@@ -173,7 +182,7 @@ class HeroAI(BuildMgr):
 
     def ProcessSkillCasting(self):
         self.ResetTickState()
-        cached_data = self._prepare_combat()
+        cached_data = self._get_phase_cached_data()
         if cached_data is None:
             self.SetTickFailure()
             yield from Routines.Yield.wait(250)
@@ -183,3 +192,6 @@ class HeroAI(BuildMgr):
             yield from self.ProcessCombat()
         else:
             yield from self.ProcessOOC()
+
+
+HeroAI = HeroAI_Build

@@ -6,6 +6,7 @@ from Py4GWCoreLib.BuildMgr import BuildCoroutine
 from Py4GWCoreLib.Skill import Skill
 
 if TYPE_CHECKING:
+    from HeroAI.custom_skill_src.skill_types import CustomSkill
     from Py4GWCoreLib.BuildMgr import BuildMgr
 
 __all__ = ["Communing"]
@@ -18,10 +19,10 @@ class Communing:
     #region V
     def Vital_Weapon(self) -> BuildCoroutine:
         vital_weapon_id: int = Skill.GetID("Vital_Weapon")
-        vital_weapon = self.build.GetCustomSkill(vital_weapon_id)
 
         if not self.build.IsSkillEquipped(vital_weapon_id):
             return False
+        vital_weapon: CustomSkill = self.build.GetCustomSkill(vital_weapon_id)
         target_agent_id = self.build.ResolveAllyTarget(
             vital_weapon_id,
             vital_weapon,
