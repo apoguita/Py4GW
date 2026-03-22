@@ -113,6 +113,46 @@ class DhuumSettings:
         cls.save()
 
 
+class ImprisonedSpiritsSettings:
+    """Team assignments for the Imprisoned Spirits quest (left vs. right side)."""
+    _raw_left:  str = _ini.read_key(BOT_NAME, "imprisoned_left_emails",  "") or ""
+    _raw_right: str = _ini.read_key(BOT_NAME, "imprisoned_right_emails", "") or ""
+    LeftTeamEmails:  list[str] = [e.strip() for e in _raw_left.split(";")  if e.strip()]
+    RightTeamEmails: list[str] = [e.strip() for e in _raw_right.split(";") if e.strip()]
+
+    @classmethod
+    def save(cls) -> None:
+        _ini.write_key(BOT_NAME, "imprisoned_left_emails",  ";".join(cls.LeftTeamEmails))
+        _ini.write_key(BOT_NAME, "imprisoned_right_emails", ";".join(cls.RightTeamEmails))
+
+    @classmethod
+    def get_team(cls, email: str) -> str:
+        """Returns 'left' or 'right'. Defaults to 'right' if unassigned."""
+        if email in cls.LeftTeamEmails:
+            return "left"
+        return "right"
+
+    @classmethod
+    def set_team(cls, email: str, team: str) -> None:
+        cls.LeftTeamEmails  = [e for e in cls.LeftTeamEmails  if e != email]
+        cls.RightTeamEmails = [e for e in cls.RightTeamEmails if e != email]
+        if team == "left":
+            cls.LeftTeamEmails.append(email)
+        else:
+            cls.RightTeamEmails.append(email)
+        cls.save()
+
+    @classmethod
+    def apply_defaults_if_empty(cls, accounts: list) -> None:
+        """If no assignments saved yet, put first 3 on left, rest on right."""
+        if cls.LeftTeamEmails or cls.RightTeamEmails:
+            return
+        emails = [str(a.AccountEmail) for a in accounts]
+        cls.LeftTeamEmails  = emails[:3]
+        cls.RightTeamEmails = emails[3:]
+        cls.save()
+
+
 class BotSettings:
     Repeat:    bool = bool(_ini.read_bool(BOT_NAME, "quest_repeat",    False))
     UseCons:   bool = bool(_ini.read_bool(BOT_NAME, "quest_use_cons",  True))
@@ -407,6 +447,53 @@ def _set_flag_position(index: int, flag_x: int, flag_y: int) -> None:
     CustomBehaviorParty().party_flagging_manager.set_flag_position(index, flag_x, flag_y)
 
 
+def _enqueue_imprisoned_spirits_flags(bot_instance: Botting) -> None:
+    """Clear flags, then assign left/right team accounts to their respective flag positions.
+    The player's own account is excluded (it navigates via the bot FSM directly).
+    Left accounts → LEFT_POINTS sequentially; right accounts → RIGHT_POINTS sequentially."""
+    LEFT_POINTS  = [(13849, 6602), (13876, 6752), (13985, 6840), (13598, 6779)]
+    RIGHT_POINTS = [(12871, 2512), (12640, 2485), (12402, 2472), (12137, 2444), (12150, 2139)]
+
+    def _set_team_flags() -> None:
+        manager      = CustomBehaviorParty().party_flagging_manager
+        manager.clear_all_flags()
+        my_email     = Player.GetAccountEmail()
+        left_emails  = ImprisonedSpiritsSettings.LeftTeamEmails
+        right_emails = ImprisonedSpiritsSettings.RightTeamEmails
+
+        cb_idx = 0
+
+        left_pt = 0
+        for email in left_emails:
+            if email == my_email:
+                continue
+            if left_pt >= len(LEFT_POINTS):
+                break
+            x, y = LEFT_POINTS[left_pt]
+            manager.set_flag_account_email(cb_idx, email)
+            manager.set_flag_position(cb_idx, x, y)
+            ConsoleLog(BOT_NAME, f"[Imprisoned] Left  [{cb_idx}] {email} → ({x},{y})", Py4GW.Console.MessageType.Info)
+            cb_idx  += 1
+            left_pt += 1
+
+        right_pt = 0
+        for email in right_emails:
+            if email == my_email:
+                continue
+            if right_pt >= len(RIGHT_POINTS):
+                break
+            x, y = RIGHT_POINTS[right_pt]
+            manager.set_flag_account_email(cb_idx, email)
+            manager.set_flag_position(cb_idx, x, y)
+            ConsoleLog(BOT_NAME, f"[Imprisoned] Right [{cb_idx}] {email} → ({x},{y})", Py4GW.Console.MessageType.Info)
+            cb_idx   += 1
+            right_pt += 1
+
+        ConsoleLog(BOT_NAME, f"[Imprisoned] Flagged {cb_idx} account(s) total.", Py4GW.Console.MessageType.Info)
+
+    bot_instance.States.AddCustomState(_set_team_flags, "Set Imprisoned Spirits Team Flags")
+
+
 def WaitTillQuestDone(bot_instance: Botting) -> None:
     from Py4GWCoreLib.Quest import Quest
     bot_instance.Wait.UntilCondition(
@@ -425,6 +512,7 @@ def _move_with_unstuck(
     backup_ms: int = 1000,
     max_retries: int = 30,
     timeout: int = 60_000,
+    recalc_interval_ms: int = 4000,
 ) -> None:
     """Move to (target_x, target_y) using navmesh A* pathfinding. Never skips the step.
 
@@ -435,31 +523,32 @@ def _move_with_unstuck(
       0. Early-exit: already within `tolerance` → return.
 
       1. Refresh avoid-points:
-           Re-collect positions of all alive blacklisted enemies on every attempt
-           so the path reflects their current patrol positions, not where they were
-           when the coroutine started.
+           Re-collect positions of all alive blacklisted enemies on EVERY path build
+           so the route always reflects current patrol positions.
 
       2. Path building:
-           a. If blacklisted enemies exist, use _AStarBlocking:
-              - No hard-block (avoids dead-ends in narrow corridors).
-              - Quadratic soft penalty within 1200 units of each enemy (≈ aggro
-                range + buffer). Strong near centre, zero at boundary.
-                Forces the A* to route around the aggro bubble when there is
-                space, but lets it push through if there is truly no other way.
-              - Result is smoothed by LOS and densified.
-           b. Fallback: AutoPathing().get_path_to() (standard navmesh A*).
+           Always builds the standard navmesh path first (AutoPathing).
+           If blacklisted enemies are present, also builds a penalty-weighted
+           detour path (_AStarBlocking, quadratic soft penalty within 100 units —
+           tight radius so only the directly blocked nodes are penalised).
+           The two paths are compared by total Euclidean length:
+           - Detour shorter → route around the enemy.
+           - Standard shorter or equal → walk straight through (no other way).
+             No edge-hugging side effects.
 
-      3. Path following:
-           a. If a path was found: FollowPath(path, tolerance, timeout).
-           b. If no path: FollowPath([(tx, ty)], ...) for a direct move.
-           On success → return.
+      3. Path following in short segments (recalc_interval_ms, default 4 s):
+           Each segment runs FollowPath for at most recalc_interval_ms.
+           After each segment:
+           - Reached target → return.
+           - Made progress (moved closer) → rebuild path with fresh enemy
+             positions; attempt counter NOT incremented.
+           - No progress (truly stuck) → fall through to recovery (Step 5).
 
-      5. Max-retries reset with patrol wait:
-           After `max_retries` failed attempts, wait 5 s (enough for patrolling
-           blacklisted enemies to move out of a corridor) then reset attempt = 0.
+      4. Max-retries reset with patrol wait:
+           After `max_retries` failed attempts, wait 5 s then reset attempt = 0.
            The step is NEVER abandoned.
 
-      6. Recovery (between failed attempts):
+      5. Recovery (between failed attempts):
            /stuck → wait 1 s → distance check → walk backwards → wait 300 ms
            → increment attempt counter → back to step 0.
     """
@@ -472,13 +561,14 @@ def _move_with_unstuck(
         tolerance = 150.0
         tx, ty = target_x, target_y
 
-        # GW aggro bubble ≈ 1000 game units.
-        # We use only a soft penalty (no hard block) so A* can still find *a*
-        # path through a narrow corridor when there is truly no other option.
-        # The quadratic falloff means the strong penalty is concentrated near the
-        # enemy while still letting the algorithm pass if completely cornered.
-        _SOFT_AVOID_RADIUS = 1200.0  # penalty zone: aggro range + buffer
-        _SOFT_PENALTY      = 5000.0  # per-node cost added at the zone centre
+        # Tight penalty radius: only penalise nodes that are within 100 units of
+        # an enemy — close enough that the standard A* would pass through.
+        # Because the radius is small, the detour is compact and natural-looking.
+        # The comparison with the standard path (see below) ensures we only take
+        # the detour when it is actually shorter, so we still walk straight through
+        # a narrow corridor if there is no room to go around.
+        _SOFT_AVOID_RADIUS = 100.0
+        _SOFT_PENALTY      = 5000.0
 
         # ── Local A* subclass: avoids blacklisted-enemy positions ────────
         class _AStarBlocking(AStar):
@@ -547,50 +637,83 @@ def _move_with_unstuck(
                 + (f" (avoiding {len(_avoid_points)} blacklisted enemies)" if _avoid_points else ""),
                 Py4GW.Console.MessageType.Info,
             )
-            path = None
+            # Always build the standard navmesh path first.
+            path = yield from AutoPathing().get_path_to(tx, ty)
+
             if _avoid_points and _navmesh:
+                # Build the penalty-weighted detour path and compare lengths.
+                # If the detour is shorter (or equal) it routes around the bubble.
+                # If the only route IS through the bubble, the standard path will
+                # be shorter → we use it directly, avoiding edge-hugging behaviour.
                 _cpx, _cpy = Player.GetXY()
                 _ast = _AStarBlocking(_navmesh, _avoid_points)
                 if _ast.search((_cpx, _cpy), (tx, ty)):
-                    _raw = _ast.get_path()
-                    _sm  = _navmesh.smooth_path_by_los(_raw, margin=100, step_dist=200.0)
-                    path = densify_path2d(_sm)
-            if path is None:
-                path = yield from AutoPathing().get_path_to(tx, ty)
+                    _raw    = _ast.get_path()
+                    _sm     = _navmesh.smooth_path_by_los(_raw, margin=100, step_dist=200.0)
+                    _detour = densify_path2d(_sm)
 
-            if path:
-                # ── Step 2: follow the computed path ─────────────────────
-                reached = yield from Routines.Yield.Movement.FollowPath(
-                    path_points=path,
-                    tolerance=tolerance,
-                    timeout=timeout,
-                )
-                if reached:
-                    return
+                    def _path_len(pts):
+                        return sum(
+                            math.hypot(pts[i][0] - pts[i-1][0], pts[i][1] - pts[i-1][1])
+                            for i in range(1, len(pts))
+                        )
+
+                    _len_std    = _path_len(path)    if path    else float("inf")
+                    _len_detour = _path_len(_detour) if _detour else float("inf")
+
+                    if _len_detour < _len_std:
+                        ConsoleLog(
+                            BOT_NAME,
+                            f"[Move] Using detour path ({_len_detour:.0f} vs {_len_std:.0f} units) to avoid {len(_avoid_points)} enemies.",
+                            Py4GW.Console.MessageType.Info,
+                        )
+                        path = _detour
+                    else:
+                        ConsoleLog(
+                            BOT_NAME,
+                            f"[Move] No shorter detour found ({_len_detour:.0f} vs {_len_std:.0f} units) – walking through.",
+                            Py4GW.Console.MessageType.Info,
+                        )
+
+            _path_to_follow = path if path else [(tx, ty)]
+            if not path:
                 ConsoleLog(
                     BOT_NAME,
-                    f"[Move] FollowPath did not reach ({tx:.0f},{ty:.0f}) on attempt {attempt + 1}.",
-                    Py4GW.Console.MessageType.Warning,
-                )
-            else:
-                # Navmesh returned nothing → direct move
-                ConsoleLog(
-                    BOT_NAME,
-                    f"[Move] No navmesh path to ({tx:.0f},{ty:.0f}), using direct FollowPath.",
+                    f"[Move] No navmesh path to ({tx:.0f},{ty:.0f}), using direct move.",
                     Py4GW.Console.MessageType.Info,
                 )
-                reached = yield from Routines.Yield.Movement.FollowPath(
-                    path_points=[(tx, ty)],
-                    tolerance=tolerance,
-                    timeout=timeout,
-                )
-                if reached:
-                    return
+
+            # ── Step 3: follow in short segments, rebuild after each ──────
+            # Run FollowPath for at most recalc_interval_ms per segment.
+            # This lets us refresh enemy positions between segments so the
+            # path always routes around their current position.
+            _dist_before = math.hypot(tx - px, ty - py)
+            reached = yield from Routines.Yield.Movement.FollowPath(
+                path_points=_path_to_follow,
+                tolerance=tolerance,
+                timeout=recalc_interval_ms,
+            )
+            if reached:
+                return
+
+            # Check whether we made progress during the segment.
+            _nx, _ny = Player.GetXY()
+            _dist_after = math.hypot(tx - _nx, ty - _ny)
+            _progress = _dist_before - _dist_after
+
+            if _progress > stuck_threshold:
+                # Moving in the right direction – rebuild path, don't count as retry.
+                continue
+
+            # No meaningful progress → treat as a stuck attempt.
+            ConsoleLog(
+                BOT_NAME,
+                f"[Move] No progress toward ({tx:.0f},{ty:.0f}) on attempt {attempt + 1} "
+                f"(moved {_progress:.0f} units).",
+                Py4GW.Console.MessageType.Warning,
+            )
 
             if attempt >= max_retries:
-                # After max_retries failed attempts, wait several seconds so that
-                # patrolling blacklisted enemies have time to move out of the
-                # corridor before the next path rebuild.
                 ConsoleLog(
                     BOT_NAME,
                     f"[Move] Max retries reached for ({tx:.0f},{ty:.0f}) – waiting 5 s for enemies to clear, then retrying.",
@@ -600,7 +723,7 @@ def _move_with_unstuck(
                 attempt = 0
                 continue
 
-            # ── Step 3: recovery before next attempt ─────────────────────
+            # ── Step 5: recovery before next attempt ─────────────────────
             Player.SendChatCommand("stuck")
             yield from Routines.Yield.wait(1000)
 
@@ -1054,16 +1177,7 @@ def Imprisoned_Spirits(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Enable WaitIfPartyMemberManaTooLow")
     bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_looting_enabled(False), "Disable Looting")
     bot_instance.Move.XY(13212, 4978)
-    IMPRISONED_SPIRITS_FLAG_POINTS = [
-        (13652, 6117),
-        (13652, 6117),
-        (13652, 6117),
-        (12439, 2750),
-        (12439, 2761),
-        (12682, 2793),
-        (12322, 3016),
-    ]
-    _enqueue_spread_flags(bot_instance, IMPRISONED_SPIRITS_FLAG_POINTS)
+    _enqueue_imprisoned_spirits_flags(bot_instance)
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(False), "Disable WaitIfPartyMemberTooFar")
     bot_instance.Move.XY(8692, 6292, "go to NPC")
     bot_instance.Move.XYAndInteractNPC(8666, 6308, "go to NPC")
@@ -1735,6 +1849,57 @@ def _draw_inventory_settings() -> None:
         InventorySettings.save()
 
 
+def _draw_imprisoned_spirits_settings() -> None:
+    PyImGui.text_wrapped(
+        "Assign each multibox account to the Left or Right team for the Imprisoned Spirits quest."
+    )
+    PyImGui.separator()
+
+    all_accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+    if not all_accounts:
+        PyImGui.text("No multibox account data available.")
+        return
+
+    ImprisonedSpiritsSettings.apply_defaults_if_empty(all_accounts)
+
+    my_email = Player.GetAccountEmail()
+
+    table_flags = PyImGui.TableFlags.RowBg | PyImGui.TableFlags.BordersInnerV | PyImGui.TableFlags.BordersOuterH
+    if PyImGui.begin_table("##imprisoned_teams", 3, table_flags, 0.0, 0.0):
+        PyImGui.table_setup_column("Left",    PyImGui.TableColumnFlags.WidthFixed,   40.0)
+        PyImGui.table_setup_column("Right",   PyImGui.TableColumnFlags.WidthFixed,   40.0)
+        PyImGui.table_setup_column("Account", PyImGui.TableColumnFlags.WidthStretch, 0.0)
+        PyImGui.table_headers_row()
+
+        for account in all_accounts:
+            email     = str(account.AccountEmail)
+            char_name = str(account.AgentData.CharacterName) or email
+            is_self   = email == my_email
+            team      = ImprisonedSpiritsSettings.get_team(email)
+            team_idx  = 0 if team == "left" else 1
+
+            PyImGui.table_next_row()
+
+            if is_self:
+                PyImGui.begin_disabled(True)
+
+            PyImGui.table_next_column()
+            new_idx = PyImGui.radio_button(f"##left_{email}", team_idx, 0)
+
+            PyImGui.table_next_column()
+            new_idx = PyImGui.radio_button(f"##right_{email}", new_idx, 1)
+
+            PyImGui.table_next_column()
+            PyImGui.text(f"{char_name}  (this account)" if is_self else char_name)
+
+            if is_self:
+                PyImGui.end_disabled()
+            elif new_idx != team_idx:
+                ImprisonedSpiritsSettings.set_team(email, "left" if new_idx == 0 else "right")
+
+        PyImGui.end_table()
+
+
 def _draw_dhuum_settings() -> None:
     PyImGui.text_wrapped("Select the multibox accounts to be sacrificed in the Dhuum fight.")
     PyImGui.separator()
@@ -1799,6 +1964,9 @@ def _draw_settings():
             PyImGui.end_tab_item()
         if PyImGui.begin_tab_item("Inventory"):
             _draw_inventory_settings()
+            PyImGui.end_tab_item()
+        if PyImGui.begin_tab_item("Imprisoned Spirits"):
+            _draw_imprisoned_spirits_settings()
             PyImGui.end_tab_item()
         if PyImGui.begin_tab_item("Dhuum"):
             _draw_dhuum_settings()
