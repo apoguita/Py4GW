@@ -22,9 +22,9 @@ import Py4GW
 # ╠══════════════════════════════════════════════════════════════════
 # ║                                                                  
 # ║  [ ] Better antistuck at Unwanted Guests                                                         
-# ║  [ ] Kill the Chained Souls when we wait till the quest is done                                                        
-# ║  [ ] Blacklist Dreamrider to improve Plains speed                                                         
-# ║  [ ] add Inventory Management                                                          
+# ║  [X] Kill the Chained Souls when we wait till the quest is done                                                        
+# ║  [X] Blacklist Dreamrider to improve Plains speed                                                         
+# ║  [X] add Inventory Management                                                          
 # ║  [ ] unequip armor at dhuum to sacrifice selected heroes  
 # ║  [ ] add Heroai 
 # ║  [ ] Take the Dhuum quest earlier   
@@ -277,15 +277,35 @@ def _ensure_custom_botting_skills_enabled() -> None:
 
 def _reactivate_custom_behavior_for_step(bot_instance: Botting, step_label: str) -> None:
     """
-    Re-aktiviert die benötigte CB-Integration vor jedem größeren Schritt/Questabschnitt.
+    Reinitializes CB integration at the start of each quest section/step.
+
+    Called as a synchronous FSM state (not at registration time), so the behavior
+    instance is always the current one — including after map changes that recreate it.
+
+    Steps:
+      1. Ensure the 3 required botting skills are enabled in BottingManager config.
+      2. Clear all previously-injected additional utility skills from the current instance.
+      3. Synchronously re-inject all enabled aggressive skills from config.
+         -> This makes them immediately visible to _toggle_* calls that follow.
+      4. Register the CB daemon + critical-event handlers via UseCustomBehavior.
+
+    NOTE: We intentionally do NOT call SetBottingBehaviorAsAggressive here.
+    That helper appends a managed-coroutine-step at the END of the FSM chain,
+    meaning _set_botting_behavior_as_aggressive only runs after ALL section states
+    have already executed — too late for _toggle_* calls to find the skills.
     """
     behavior = _get_custom_behavior(initialize_if_needed=True)
     if behavior is None:
-        ConsoleLog(BOT_NAME, f"[CB] Kein Behavior für Schritt '{step_label}' verfügbar.", Py4GW.Console.MessageType.Warning)
+        ConsoleLog(BOT_NAME, f"[CB] No behavior found for step '{step_label}'. Skipping CB setup.", Py4GW.Console.MessageType.Warning)
         return
 
+    # Synchronously inject utility skills into the current behavior instance so
+    # they are present in get_skills_final_list() when _toggle_* states execute.
     _ensure_custom_botting_skills_enabled()
-    BottingFsmHelpers.SetBottingBehaviorAsAggressive(bot_instance)
+    _cb_config = BottingManager()
+    behavior.clear_additionnal_utility_skills()
+    _cb_config.inject_enabled_skills(_cb_config.get_enabled_aggressive_skills(), behavior)
+
     BottingFsmHelpers.UseCustomBehavior(
         bot_instance,
         on_player_critical_death=BottingHelpers.botting_unrecoverable_issue,
@@ -406,12 +426,42 @@ def _move_with_unstuck(
     max_retries: int = 30,
     timeout: int = 60_000,
 ) -> None:
-    """Move to (target_x, target_y) using navmesh A* pathfinding.
+    """Move to (target_x, target_y) using navmesh A* pathfinding. Never skips the step.
 
-    1. Build a navmesh path via AutoPathing().get_path_to() – walks around walls.
-    2. Follow it with FollowPath (which already handles stuck/retry internally).
-    3. If we get stuck anyway: /stuck → walk backwards → rebuild path and retry.
-       After max_retries give up with a warning.
+    Setup: one import block per call, then the retry loop.
+
+    Retry loop (while True – runs until the target is reached):
+
+      0. Early-exit: already within `tolerance` → return.
+
+      1. Refresh avoid-points:
+           Re-collect positions of all alive blacklisted enemies on every attempt
+           so the path reflects their current patrol positions, not where they were
+           when the coroutine started.
+
+      2. Path building:
+           a. If blacklisted enemies exist, use _AStarBlocking:
+              - No hard-block (avoids dead-ends in narrow corridors).
+              - Quadratic soft penalty within 1200 units of each enemy (≈ aggro
+                range + buffer). Strong near centre, zero at boundary.
+                Forces the A* to route around the aggro bubble when there is
+                space, but lets it push through if there is truly no other way.
+              - Result is smoothed by LOS and densified.
+           b. Fallback: AutoPathing().get_path_to() (standard navmesh A*).
+
+      3. Path following:
+           a. If a path was found: FollowPath(path, tolerance, timeout).
+           b. If no path: FollowPath([(tx, ty)], ...) for a direct move.
+           On success → return.
+
+      5. Max-retries reset with patrol wait:
+           After `max_retries` failed attempts, wait 5 s (enough for patrolling
+           blacklisted enemies to move out of a corridor) then reset attempt = 0.
+           The step is NEVER abandoned.
+
+      6. Recovery (between failed attempts):
+           /stuck → wait 1 s → distance check → walk backwards → wait 300 ms
+           → increment attempt counter → back to step 0.
     """
     import math
 
@@ -422,21 +472,19 @@ def _move_with_unstuck(
         tolerance = 150.0
         tx, ty = target_x, target_y
 
-        # ── Local A* subclass: treats blacklisted-enemy trapezoids as walls ──
+        # GW aggro bubble ≈ 1000 game units.
+        # We use only a soft penalty (no hard block) so A* can still find *a*
+        # path through a narrow corridor when there is truly no other option.
+        # The quadratic falloff means the strong penalty is concentrated near the
+        # enemy while still letting the algorithm pass if completely cornered.
+        _SOFT_AVOID_RADIUS = 1200.0  # penalty zone: aggro range + buffer
+        _SOFT_PENALTY      = 5000.0  # per-node cost added at the zone centre
+
+        # ── Local A* subclass: avoids blacklisted-enemy positions ────────
         class _AStarBlocking(AStar):
-            def __init__(
-                self,
-                navmesh,
-                avoid_points,
-                hard_block_radius: float = 50.0,
-                soft_avoid_radius: float = 100.0,
-                soft_penalty: float = 1400.0,
-            ):
+            def __init__(self, navmesh, avoid_points):
                 super().__init__(navmesh)
                 self._avoid_points = avoid_points
-                self._hard_block_radius = hard_block_radius
-                self._soft_avoid_radius = soft_avoid_radius
-                self._soft_penalty = soft_penalty
 
             def _min_dist_to_avoid_points(self, node_id: int) -> float:
                 if not self._avoid_points:
@@ -462,11 +510,11 @@ def _move_with_unstuck(
                         return True
                     for nb in self.navmesh.get_neighbors(cur.id):
                         d = self._min_dist_to_avoid_points(nb)
-                        if d <= self._hard_block_radius:
-                            continue
                         penalty = 0.0
-                        if d < self._soft_avoid_radius:
-                            penalty = ((self._soft_avoid_radius - d) / self._soft_avoid_radius) * self._soft_penalty
+                        if d < _SOFT_AVOID_RADIUS:
+                            # Quadratic: strong near centre, zero at boundary
+                            ratio = (_SOFT_AVOID_RADIUS - d) / _SOFT_AVOID_RADIUS
+                            penalty = ratio * ratio * _SOFT_PENALTY
                         nc = cost[cur.id] + self.heuristic(cur.id, nb) + penalty
                         if nb not in cost or nc < cost[nb]:
                             cost[nb] = nc
@@ -474,29 +522,31 @@ def _move_with_unstuck(
                             came[nb] = cur.id
                 return False
 
-        # ── Collect positions of blacklisted enemies for soft avoidance ───
-        _avoid_points: list[tuple[float, float]] = []
-        _navmesh = AutoPathing().get_navmesh()
-        if _navmesh:
-            _bl = EnemyBlacklist()
-            for _eid in AgentArray.GetEnemyArray():
-                if _bl.is_blacklisted(_eid) and Agent.IsAlive(_eid):
-                    _ex, _ey = Agent.GetXY(_eid)
-                    _avoid_points.append((_ex, _ey))
-
-        for attempt in range(max_retries + 1):
+        attempt = 0
+        while True:
             px, py = Player.GetXY()
             if math.sqrt((tx - px) ** 2 + (ty - py) ** 2) <= tolerance:
                 return  # already there
 
+            # ── Refresh enemy positions every attempt ─────────────────────
+            # Enemies patrol; stale positions from the coroutine start would
+            # waste detours around enemies that have already moved away.
+            _navmesh = AutoPathing().get_navmesh()
+            _avoid_points: list[tuple[float, float]] = []
+            if _navmesh:
+                _bl = EnemyBlacklist()
+                for _eid in AgentArray.GetEnemyArray():
+                    if _bl.is_blacklisted(_eid) and Agent.IsAlive(_eid):
+                        _ex, _ey = Agent.GetXY(_eid)
+                        _avoid_points.append((_ex, _ey))
+
             # ── Step 1: build navmesh path ────────────────────────────────
             ConsoleLog(
                 BOT_NAME,
-                f"[Move] Building path to ({tx:.0f},{ty:.0f}) attempt {attempt + 1}/{max_retries + 1}",
+                f"[Move] Building path to ({tx:.0f},{ty:.0f}) attempt {attempt + 1}"
+                + (f" (avoiding {len(_avoid_points)} blacklisted enemies)" if _avoid_points else ""),
                 Py4GW.Console.MessageType.Info,
             )
-            # Use obstacle-aware A* when blacklisted enemies block the way;
-            # fall back to standard get_path_to otherwise.
             path = None
             if _avoid_points and _navmesh:
                 _cpx, _cpy = Player.GetXY()
@@ -517,14 +567,13 @@ def _move_with_unstuck(
                 )
                 if reached:
                     return
-                # FollowPath timed out or got stuck internally
                 ConsoleLog(
                     BOT_NAME,
                     f"[Move] FollowPath did not reach ({tx:.0f},{ty:.0f}) on attempt {attempt + 1}.",
                     Py4GW.Console.MessageType.Warning,
                 )
             else:
-                # Navmesh returned nothing (same trapezoid / very close) → direct move
+                # Navmesh returned nothing → direct move
                 ConsoleLog(
                     BOT_NAME,
                     f"[Move] No navmesh path to ({tx:.0f},{ty:.0f}), using direct FollowPath.",
@@ -539,27 +588,17 @@ def _move_with_unstuck(
                     return
 
             if attempt >= max_retries:
+                # After max_retries failed attempts, wait several seconds so that
+                # patrolling blacklisted enemies have time to move out of the
+                # corridor before the next path rebuild.
                 ConsoleLog(
                     BOT_NAME,
-                    f"[Move] Max retries reached for ({tx:.0f},{ty:.0f}), jumping to previous step.",
+                    f"[Move] Max retries reached for ({tx:.0f},{ty:.0f}) – waiting 5 s for enemies to clear, then retrying.",
                     Py4GW.Console.MessageType.Warning,
                 )
-                fsm = bot_instance.config.FSM
-                current_step_number = fsm.get_current_state_number()  # 1-based
-                previous_step_index = current_step_number - 2  # convert to 0-based previous index
-                if previous_step_index >= 0:
-                    fsm.pause()
-                    try:
-                        fsm.jump_to_state_by_step_number(previous_step_index)
-                    finally:
-                        fsm.resume()
-                else:
-                    ConsoleLog(
-                        BOT_NAME,
-                        "[Move] No previous step available to jump to.",
-                        Py4GW.Console.MessageType.Warning,
-                    )
-                return
+                yield from Routines.Yield.wait(5000)
+                attempt = 0
+                continue
 
             # ── Step 3: recovery before next attempt ─────────────────────
             Player.SendChatCommand("stuck")
@@ -571,6 +610,7 @@ def _move_with_unstuck(
 
             yield from Routines.Yield.Movement.WalkBackwards(backup_ms)
             yield from Routines.Yield.wait(300)
+            attempt += 1
 
     label = step_name or f"MoveUnstuck_{target_x:.0f}_{target_y:.0f}"
     bot_instance.config.FSM.AddYieldRoutineStep(name=label, coroutine_fn=_coro)
@@ -645,6 +685,11 @@ def Enter_UW(bot_instance: Botting):
 
     bot_instance.States.AddHeader("Enter Underworld")
 
+    bot_instance.States.AddCustomState(
+        lambda: bot_instance.Multibox.ApplyWidgetPolicy(enable_widgets=("Custom Behavior",)),
+        "Enable Custom Behavior on all accounts",
+    )
+
     # ── Inventory refill at GH / configured outpost ───────────────────
     bot_instance.Multibox.KickAllAccounts()
     _do_inventory_refill(bot_instance)
@@ -707,6 +752,10 @@ def enable_default_party_behavior(bot_instance: Botting):
 
 def Clear_the_Chamber(bot_instance: Botting):
     bot_instance.States.AddHeader("Clear the Chamber")
+    bot_instance.States.AddCustomState(
+        lambda: _reactivate_custom_behavior_for_step(bot_instance, "Clear the Chamber"),
+        "[Setup] Clear the Chamber",
+    )
     CustomBehaviorParty().set_party_leader_email(Player.GetAccountEmail())    
     #blacklist here
     bot_instance.States.AddCustomState(
