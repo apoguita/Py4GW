@@ -935,7 +935,7 @@ def Imprisoned_Spirits(bot_instance: Botting):
     IMPRISONED_SPIRITS_FLAG_POINTS = [
         (13652, 6117),
         (13652, 6117),
-        (12439, 2750),
+        (13652, 6117),
         (12439, 2750),
         (12439, 2761),
         (12682, 2793),
@@ -957,7 +957,7 @@ def Imprisoned_Spirits(bot_instance: Botting):
         lambda: __import__("Py4GWCoreLib.EnemyBlacklist", fromlist=["EnemyBlacklist"]).EnemyBlacklist().remove_name("chained soul"),
         "Unblacklist Chained Soul",
     )
-    bot_instance.Move.XY(9815, 6763)
+    bot_instance.Move.XY(10437, 5005)
     WaitTillQuestDone(bot_instance)
     bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_looting_enabled(True), "Enable Looting")
     ##warten bis quest fertig
@@ -1189,6 +1189,7 @@ def Servants_of_Grenth(bot_instance: Botting):
         lambda: CustomBehaviorParty().party_flagging_manager.clear_all_flags(),
         "Clear Flags",
     )
+    bot_instance.Wait.ForTime(30000)
     
 
 def Dhuum(bot_instance: Botting):
@@ -1329,11 +1330,9 @@ def Dhuum(bot_instance: Botting):
 
     bot_instance.Wait.ForTime(5000)  # Wait for the fight to properly start
     
-    bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_combat_enabled(False), "Disable Combat")
     bot_instance.Move.XY(-13987, 17291, "Move to Dhuum fight")
     bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_following_enabled(False), "Disable Following")
     bot_instance.Wait.ForTime(2000)  # Wait till some Allies die
-    bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_combat_enabled(True), "Enable Combat")
     #Wait till Dhuum is dead
     bot_instance.Wait.UntilCondition(
         lambda: any(
