@@ -26,7 +26,8 @@ import Py4GW
 # ║  [ ] unequip armor at dhuum to sacrifice selected heroes  
 # ║  [ ] add Heroai 
 # ║  [ ] Take the Dhuum quest earlier   
-# ║  [ ] Fix the move to dead ally                                             
+# ║  [ ] Fix the move to dead ally    
+# ║  [ ] Make pits quest saver                                        
 # ║                                                                  
 # ╚══════════════════════════════════════════════════════════════════
 
@@ -923,7 +924,7 @@ def Imprisoned_Spirits(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
     bot_instance.States.AddCustomState(lambda: _toggle_move_if_aggro(True), "Enable MoveIfPartyMemberInAggro")
     bot_instance.States.AddCustomState(lambda: _toggle_move_to_enemy_if_close_enough(False), "Enable MoveToEnemyIfCloseEnough")
-    bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(True), "Enable MoveToPartyMemberIfDead")
+    bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(False), "Enable MoveToPartyMemberIfDead")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_needs_to_loot(False), "Enable WaitIfPartyMemberNeedsToLoot")
     bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Enable WaitIfLockTaken")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Enable WaitIfPartyMemberManaTooLow")
