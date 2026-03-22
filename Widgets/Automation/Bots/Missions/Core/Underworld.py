@@ -1,5 +1,7 @@
 
 from Py4GWCoreLib import Botting, Routines, Agent, AgentArray, Player, Utils, AutoPathing, GLOBAL_CACHE, ConsoleLog, Map, Pathing, FlagPreference, Party, IniHandler
+from Py4GWCoreLib.enums_src.Model_enums import ModelID
+from Py4GWCoreLib.enums_src.Map_enums import name_to_map_id
 import os
 import time
 from typing import Any, Generator
@@ -50,6 +52,16 @@ MAIN_LOOP_HEADER_NAME = ""
 _entered_dungeon: bool = False  # set True once map 72 is loaded; watchdog uses this
 _king_frozenwind_model_id: int = 2403
 
+UW_MAP_ID = 72
+UW_SCROLL_MODEL_ID = int(ModelID.Passage_Scroll_Uw.value)  # 3746
+UW_ENTRYPOINTS: dict[str, tuple[str, int]] = {
+    "embark_beach":       ("Embark Beach",       int(name_to_map_id["Embark Beach"])),
+    "temple_of_the_ages": ("Temple of the Ages", int(name_to_map_id["Temple of the Ages"])),
+    "chantry_of_secrets": ("Chantry of Secrets", int(name_to_map_id["Chantry of Secrets"])),
+    "zin_ku_corridor":    ("Zin Ku Corridor",     int(name_to_map_id["Zin Ku Corridor"])),
+}
+DEFAULT_UW_ENTRYPOINT_KEY = "embark_beach"
+
 
 def _mark_entered_dungeon() -> None:
     global _entered_dungeon
@@ -58,17 +70,25 @@ def _mark_entered_dungeon() -> None:
 
 class InventorySettings:
     """Settings for between-run inventory management."""
-    RefillEnabled:    bool = bool(_ini.read_bool(BOT_NAME, "inv_refill_enabled", True))
-    RestockKits:      bool = bool(_ini.read_bool(BOT_NAME, "inv_restock_kits",   True))
-    RestockCons:      bool = bool(_ini.read_bool(BOT_NAME, "inv_restock_cons",   True))
-    DepositMaterials: bool = bool(_ini.read_bool(BOT_NAME, "inv_deposit_mats",   True))
+    RefillEnabled:          bool = bool(_ini.read_bool(BOT_NAME, "inv_refill_enabled",      True))
+    RestockKits:            bool = bool(_ini.read_bool(BOT_NAME, "inv_restock_kits",         True))
+    RestockCons:            bool = bool(_ini.read_bool(BOT_NAME, "inv_restock_cons",         True))
+    DepositMaterials:       bool = bool(_ini.read_bool(BOT_NAME, "inv_deposit_mats",         True))
+    SellNonConsMaterials:   bool = bool(_ini.read_bool(BOT_NAME, "inv_sell_non_cons_mats",   False))
+    SellAllCommonMaterials: bool = bool(_ini.read_bool(BOT_NAME, "inv_sell_all_common_mats", False))
+    BuyEctoplasm:           bool = bool(_ini.read_bool(BOT_NAME, "inv_buy_ecto",             False))
+    InventoryLocation:      str  = str(_ini.read_key(BOT_NAME,  "inv_location",             "guild_hall") or "guild_hall")
 
     @classmethod
     def save(cls) -> None:
-        _ini.write_key(BOT_NAME, "inv_refill_enabled", str(cls.RefillEnabled))
-        _ini.write_key(BOT_NAME, "inv_restock_kits",   str(cls.RestockKits))
-        _ini.write_key(BOT_NAME, "inv_restock_cons",   str(cls.RestockCons))
-        _ini.write_key(BOT_NAME, "inv_deposit_mats",   str(cls.DepositMaterials))
+        _ini.write_key(BOT_NAME, "inv_refill_enabled",      str(cls.RefillEnabled))
+        _ini.write_key(BOT_NAME, "inv_restock_kits",        str(cls.RestockKits))
+        _ini.write_key(BOT_NAME, "inv_restock_cons",        str(cls.RestockCons))
+        _ini.write_key(BOT_NAME, "inv_deposit_mats",        str(cls.DepositMaterials))
+        _ini.write_key(BOT_NAME, "inv_sell_non_cons_mats",  str(cls.SellNonConsMaterials))
+        _ini.write_key(BOT_NAME, "inv_sell_all_common_mats",str(cls.SellAllCommonMaterials))
+        _ini.write_key(BOT_NAME, "inv_buy_ecto",            str(cls.BuyEctoplasm))
+        _ini.write_key(BOT_NAME, "inv_location",            str(cls.InventoryLocation))
 
 
 class DhuumSettings:
@@ -103,6 +123,15 @@ class BotSettings:
         _ini.write_key(BOT_NAME, "quest_repeat",    str(cls.Repeat))
         _ini.write_key(BOT_NAME, "quest_use_cons",  str(cls.UseCons))
         _ini.write_key(BOT_NAME, "quest_hardmode",  str(cls.HardMode))
+
+
+class EnterSettings:
+    """Settings for how the bot travels to and enters the Underworld."""
+    EntryPoint: str = str(_ini.read_key(BOT_NAME, "enter_entrypoint", DEFAULT_UW_ENTRYPOINT_KEY) or DEFAULT_UW_ENTRYPOINT_KEY)
+
+    @classmethod
+    def save(cls) -> None:
+        _ini.write_key(BOT_NAME, "enter_entrypoint", str(cls.EntryPoint))
 
 
 # Precomputed spread points keep Servants of Grenth flags spaced without extra imports.
@@ -574,8 +603,7 @@ def bot_routine(bot: Botting):
     # Set up the FSM states properly
     MAIN_LOOP_HEADER_NAME = _add_header_with_name(bot, "MAIN_LOOP")
 
-    bot.Map.Travel(target_map_id=138)
-    bot.Party.SetHardMode(BotSettings.HardMode)
+    
 
     Enter_UW(bot)
     Clear_the_Chamber(bot)
@@ -600,21 +628,66 @@ def bot_routine(bot: Botting):
     bot.States.AddHeader("END")
 
 def Enter_UW(bot_instance: Botting):
+    from Sources.modular_bot.recipes.step_context import StepContext
+    from Sources.modular_bot.recipes.actions_movement import handle_random_travel, handle_wait_map_change, handle_leave_party
+    from Sources.modular_bot.recipes.actions_party import handle_summon_all_accounts, handle_invite_all_accounts, handle_set_hard_mode
+    from Sources.modular_bot.recipes.actions_interaction import handle_use_item
+
+    def _make_ctx(step: dict) -> StepContext:
+        return StepContext(
+            bot=bot_instance,
+            step=step,
+            step_idx=0,
+            recipe_name="UW_Enter",
+            step_type=step.get("type", ""),
+            step_display=step.get("name", ""),
+        )
+
     bot_instance.States.AddHeader("Enter Underworld")
-    #_do_inventory_refill(bot_instance)
+
+    # ── Inventory refill at GH / configured outpost ───────────────────
+    bot_instance.Multibox.KickAllAccounts()
+    _do_inventory_refill(bot_instance)
     _ensure_minimum_gold(bot_instance)
 
     if BotSettings.UseCons:
-        # Withdraw 10 consets (Essence, Grail, Armor) per account from Xunlai chest
+        # Withdraw consets (Essence, Grail, Armor) per account from Xunlai chest
         bot_instance.Multibox.RestockConset(10)
 
-    CustomBehaviorParty().set_party_leader_email(Player.GetAccountEmail())
-    bot_instance.Move.XY(-4199, 19845, "go to Statue")
-    bot_instance.States.AddCustomState(lambda: Player.SendChatCommand("kneel"), "kneel")
-    bot_instance.Wait.ForTime(3000)
-    #bot_instance.Dialogs.AtXY(-4199, 19845, 0x85, "ask to enter")
-    bot_instance.Dialogs.AtXY(-4199, 19845, 0x86, "accept to enter")
-    bot_instance.Wait.ForMapLoad(target_map_id=72) # we are in the dungeon
+    # ── Leave any existing party (multibox-aware) ─────────────────────
+    handle_leave_party(_make_ctx({"type": "leave_party", "name": "Leave Party", "multibox": True}))
+
+    # ── Travel to the selected entrypoint ────────────────────────────
+    entrypoint_name, entrypoint_map_id = UW_ENTRYPOINTS.get(
+        EnterSettings.EntryPoint, UW_ENTRYPOINTS[DEFAULT_UW_ENTRYPOINT_KEY]
+    )
+    handle_random_travel(_make_ctx({
+        "type": "random_travel",
+        "name": f"Travel to {entrypoint_name}",
+        "target_map_id": entrypoint_map_id,
+    }))
+
+    # ── Form party ───────────────────────────────────────────────────
+    handle_summon_all_accounts(_make_ctx({"type": "summon_all_accounts", "name": "Summon Alts", "ms": 5000}))
+
+    # Wait until every account has loaded into the entrypoint map (up to 90 s).
+    _expected_map = entrypoint_map_id
+    bot_instance.Wait.UntilCondition(
+        lambda: all(int(acc.AgentData.Map.MapID) == _expected_map for acc in GLOBAL_CACHE.ShMem.GetAllAccountData()),
+        duration=20000,
+    )
+
+    handle_invite_all_accounts(_make_ctx({"type": "invite_all_accounts", "name": "Invite Alts"}))
+
+    # ── Apply hard mode before using scroll ──────────────────────────
+    handle_set_hard_mode(_make_ctx({"type": "set_hard_mode", "name": "Set Hard Mode", "enabled": BotSettings.HardMode}))
+
+    # ── Use UW scroll (model 3746) ───────────────────────────────────
+    handle_use_item(_make_ctx({"type": "use_item", "name": "Use UW Scroll", "model_id": UW_SCROLL_MODEL_ID}))
+
+    # ── Wait until inside the Underworld ────────────────────────────
+    handle_wait_map_change(_make_ctx({"type": "wait_map_change", "name": "Wait For UW", "target_map_id": UW_MAP_ID}))
+
     bot_instance.States.AddCustomState(_mark_entered_dungeon, "Mark entered dungeon")
     bot_instance.Properties.ApplyNow("pause_on_danger", "active", True)
 
@@ -1410,6 +1483,88 @@ def Dhuum(bot_instance: Botting):
 
 
 
+def _do_inventory_refill(bot_instance: Botting) -> None:
+    """Travel to the configured location and restock kits/cons/materials via the modular_bot handlers."""
+    if not InventorySettings.RefillEnabled:
+        return
+
+    # Ensure the map is fully loaded before any NPC interaction states run.
+    # This guards against starting on a loading screen or right after a resign.
+    bot_instance.Wait.UntilOnOutpost()
+
+    from Sources.modular_bot.prebuilts.fow import (
+        INVENTORY_MANAGEMENT_LOCATIONS,
+        DEFAULT_INVENTORY_MANAGEMENT_LOCATION_KEY,
+    )
+    from Sources.modular_bot.recipes.step_context import StepContext
+    from Sources.modular_bot.recipes.actions_movement import handle_travel_gh
+    from Sources.modular_bot.recipes.actions_inventory import (
+        handle_restock_kits,
+        handle_restock_cons,
+        handle_sell_materials,
+        handle_deposit_materials,
+    )
+
+    location = str(InventorySettings.InventoryLocation or DEFAULT_INVENTORY_MANAGEMENT_LOCATION_KEY)
+
+    def _make_ctx(step: dict) -> StepContext:
+        return StepContext(
+            bot=bot_instance,
+            step=step,
+            step_idx=0,
+            recipe_name="UW_Inventory",
+            step_type=step.get("type", ""),
+            step_display=step.get("name", ""),
+        )
+
+    # ── Travel to inventory location ──────────────────────────────────
+    if location == "guild_hall":
+        handle_travel_gh(_make_ctx({"type": "travel_gh", "name": "Travel to Guild Hall", "multibox": True, "ms": 7000}))
+    else:
+        try:
+            target_map_id = int(str(location).split("_", 1)[1])
+        except (IndexError, ValueError):
+            target_map_id = 0
+        if target_map_id > 0:
+            bot_instance.Map.Travel(target_map_id=target_map_id)
+            bot_instance.Wait.ForTime(15000)
+
+    # Wait for the map to be fully loaded before interacting with any NPCs.
+    bot_instance.Wait.UntilOnOutpost()
+
+    # ── Restock ID & Salvage Kits (3 rounds) ──────────────────────────
+    if InventorySettings.RestockKits:
+        kit_step = {"type": "restock_kits", "name": "Restock Kits", "id_kits": 2, "salvage_kits": 5, "multibox": True}
+        for _ in range(3):
+            handle_restock_kits(_make_ctx(kit_step))
+
+    # ── Restock Cons from Xunlai Chest ────────────────────────────────
+    if InventorySettings.RestockCons and BotSettings.UseCons:
+        handle_restock_cons(_make_ctx({"type": "restock_cons", "name": "Restock Consumables"}))
+
+    # ── Sell Materials ────────────────────────────────────────────────
+    if InventorySettings.SellAllCommonMaterials:
+        handle_sell_materials(_make_ctx({"type": "sell_materials", "name": "Sell All Common Materials", "multibox": True, "ms": 5000}))
+    elif InventorySettings.SellNonConsMaterials:
+        from Sources.modular_bot.prebuilts.fow import FOW_NON_CONS_COMMON_MATERIAL_MODELS
+        from Py4GWCoreLib.enums_src.Item_enums import MaterialMap
+        sell_names = [
+            material_name
+            for model_id, material_name in MaterialMap.items()
+            if model_id in FOW_NON_CONS_COMMON_MATERIAL_MODELS
+        ]
+        handle_sell_materials(_make_ctx({"type": "sell_materials", "name": "Sell Non-Cons Materials", "multibox": True, "ms": 5000, "materials": sell_names}))
+
+    # ── Deposit Full Material Stacks ──────────────────────────────────
+    if InventorySettings.DepositMaterials:
+        handle_deposit_materials(_make_ctx({"type": "deposit_materials", "name": "Deposit Full Material Stacks", "multibox": True, "ms": 5000}))
+
+    # ── Buy Ectoplasm ─────────────────────────────────────────────────
+    if InventorySettings.BuyEctoplasm:
+        from Sources.modular_bot.recipes.actions_inventory import handle_buy_ectoplasm
+        handle_buy_ectoplasm(_make_ctx({"type": "buy_ectoplasm", "name": "Buy Ectoplasm", "use_storage_gold": False, "multibox": True, "ms": 5000}))
+
+
 def ResignAndRepeat(bot_instance: Botting):
     if BotSettings.Repeat:
         bot_instance.Multibox.ResignParty()
@@ -1468,6 +1623,8 @@ def _draw_help():
 
 
 def _draw_inventory_settings() -> None:
+    from Sources.modular_bot.prebuilts.fow import INVENTORY_MANAGEMENT_LOCATIONS, DEFAULT_INVENTORY_MANAGEMENT_LOCATION_KEY
+
     changed = False
     new_val = PyImGui.checkbox("Enable Inventory Refill", InventorySettings.RefillEnabled)
     if new_val != InventorySettings.RefillEnabled:
@@ -1475,8 +1632,23 @@ def _draw_inventory_settings() -> None:
         changed = True
     PyImGui.separator()
     PyImGui.begin_disabled(not InventorySettings.RefillEnabled)
-    PyImGui.text_wrapped("After each run: travel to Guild Hall, restock, then return.")
+    PyImGui.text_wrapped("After each run: travel to the selected location, restock, then return.")
     PyImGui.separator()
+
+    # ── Location dropdown ─────────────────────────────────────────
+    location_keys   = list(INVENTORY_MANAGEMENT_LOCATIONS.keys())
+    location_labels = list(INVENTORY_MANAGEMENT_LOCATIONS.values())
+    current_key = str(InventorySettings.InventoryLocation or DEFAULT_INVENTORY_MANAGEMENT_LOCATION_KEY)
+    current_idx = location_keys.index(current_key) if current_key in location_keys else 0
+    PyImGui.text("Inventory Location:")
+    new_idx = PyImGui.combo("##inv_location", current_idx, location_labels)
+    if new_idx != current_idx:
+        InventorySettings.InventoryLocation = location_keys[new_idx]
+        changed = True
+
+    PyImGui.separator()
+
+    # ── Restock ───────────────────────────────────────────────────
     new_val = PyImGui.checkbox("Restock ID & Salvage Kits (3 rounds)", InventorySettings.RestockKits)
     if new_val != InventorySettings.RestockKits:
         InventorySettings.RestockKits = new_val
@@ -1488,10 +1660,27 @@ def _draw_inventory_settings() -> None:
     PyImGui.begin_disabled(not BotSettings.UseCons)
     PyImGui.text("  (requires 'Use Cons' to be enabled)")
     PyImGui.end_disabled()
+
+    PyImGui.separator()
+
+    # ── Materials ────────────────────────────────────────────────
     new_val = PyImGui.checkbox("Deposit Full Material Stacks to Chest", InventorySettings.DepositMaterials)
     if new_val != InventorySettings.DepositMaterials:
         InventorySettings.DepositMaterials = new_val
         changed = True
+    new_val = PyImGui.checkbox("Sell Non-Cons Materials at Merchant", InventorySettings.SellNonConsMaterials)
+    if new_val != InventorySettings.SellNonConsMaterials:
+        InventorySettings.SellNonConsMaterials = new_val
+        changed = True
+    new_val = PyImGui.checkbox("Sell All Common Materials at Merchant", InventorySettings.SellAllCommonMaterials)
+    if new_val != InventorySettings.SellAllCommonMaterials:
+        InventorySettings.SellAllCommonMaterials = new_val
+        changed = True
+    new_val = PyImGui.checkbox("Buy Ectoplasm from Materials Trader", InventorySettings.BuyEctoplasm)
+    if new_val != InventorySettings.BuyEctoplasm:
+        InventorySettings.BuyEctoplasm = new_val
+        changed = True
+
     PyImGui.end_disabled()
     if changed:
         InventorySettings.save()
@@ -1522,6 +1711,21 @@ def _draw_dhuum_settings() -> None:
                 DhuumSettings.set_sacrifice(email, new_val)
 
 
+def _draw_enter_settings() -> None:
+    entrypoint_keys   = list(UW_ENTRYPOINTS.keys())
+    entrypoint_labels = [label for label, _ in UW_ENTRYPOINTS.values()]
+    current_key = str(EnterSettings.EntryPoint or DEFAULT_UW_ENTRYPOINT_KEY)
+    current_idx = entrypoint_keys.index(current_key) if current_key in entrypoint_keys else 0
+
+    PyImGui.text_wrapped("Select the outpost to travel to before using the scroll.")
+    PyImGui.separator()
+    PyImGui.text("Entry Outpost:")
+    new_idx = PyImGui.combo("##uw_entrypoint", current_idx, entrypoint_labels)
+    if new_idx != current_idx:
+        EnterSettings.EntryPoint = entrypoint_keys[new_idx]
+        EnterSettings.save()
+
+
 def _draw_quest_settings():
     _snapshot = (BotSettings.Repeat, BotSettings.UseCons, BotSettings.HardMode)
     BotSettings.Repeat   = PyImGui.checkbox("Resign and Repeat after", BotSettings.Repeat)
@@ -1540,6 +1744,9 @@ def _draw_settings():
     if PyImGui.begin_tab_bar("##uw_settings_tabs"):
         if PyImGui.begin_tab_item("Quests"):
             _draw_quest_settings()
+            PyImGui.end_tab_item()
+        if PyImGui.begin_tab_item("Enter"):
+            _draw_enter_settings()
             PyImGui.end_tab_item()
         if PyImGui.begin_tab_item("Inventory"):
             _draw_inventory_settings()
