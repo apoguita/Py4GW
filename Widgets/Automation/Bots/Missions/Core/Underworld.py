@@ -935,7 +935,7 @@ def Imprisoned_Spirits(bot_instance: Botting):
     IMPRISONED_SPIRITS_FLAG_POINTS = [
         (13652, 6117),
         (13652, 6117),
-        (13652, 6117),
+        (12439, 2750),
         (12439, 2750),
         (12439, 2761),
         (12682, 2793),
@@ -1422,6 +1422,7 @@ def Wait_for_Spawns(bot_instance: Botting,x,y):
         
         if not enemies:
             print("No Mindblades found - Continuing...") 
+            bot_instance.Move.XY(x, y, "Go Back")
             return True
         
         print("Mindblades ... Waiting.")
