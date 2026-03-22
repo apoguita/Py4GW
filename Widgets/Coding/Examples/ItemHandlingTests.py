@@ -17,6 +17,7 @@ from Py4GWCoreLib.py4gwcorelib_src.BehaviorTree import BehaviorTree
 from Py4GWCoreLib.py4gwcorelib_src.Color import Color
 from Py4GWCoreLib.py4gwcorelib_src.Utils import Utils
 from Py4GWCoreLib.native_src.internals import string_table
+from Sources.frenkeyLib.ItemHandling.ConfigExamples.ExampleGUIs.LootConfigView import draw_loot_config_view
 
 Utils.ClearSubModules("ItemHandling")
 Utils.ClearSubModules("frenkeyLib.Core")
@@ -542,5 +543,8 @@ def main():
             except Exception as e:
                 Py4GW.Console.Log(MODULE_NAME, f"Error decoding item strings: {e}", Py4GW.Console.MessageType.Error)
 
+
+        draw_loot_config_view()
+        
     if collect:
         ITEM_COLLECTOR.run()

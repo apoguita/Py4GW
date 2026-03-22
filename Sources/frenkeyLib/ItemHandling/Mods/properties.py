@@ -6,6 +6,8 @@ from Sources.frenkeyLib.ItemHandling.Mods.decoded_modifier import DecodedModifie
 from Sources.frenkeyLib.ItemHandling.Mods.types import ItemBaneSpecies, ItemUpgradeId
 from Sources.frenkeyLib.ItemHandling.encoded_strings import GWStringEncoded, GWEncoded
 
+PERSISTENT = True
+
 if TYPE_CHECKING:
     from Sources.frenkeyLib.ItemHandling.Mods.upgrades import Upgrade
 
