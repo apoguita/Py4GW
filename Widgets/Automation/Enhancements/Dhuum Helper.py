@@ -33,6 +33,11 @@ _warned_missing_skill = False
 _handled_current_buff = False
 _interaction_running = False
 
+_MAX_NPC_FIND_RETRIES = 10   # × 1 s  → up to 10 s waiting for NPC to appear
+_MAX_MOVE_RETRIES     = 8    # × 1.5 s → up to 12 s to reach the NPC
+_MAX_DIALOG_RETRIES   = 8    # × 2 s  → up to 16 s for dialog to open
+_INTERACT_CLOSE_RANGE = 500.0
+
 
 def _refresh_custom_behavior_after_skillbar_change() -> None:
 	try:
@@ -126,25 +131,67 @@ def _coro_interact_and_dialog(target_npc: int):
 	global _interaction_running
 
 	try:
+		# ── Step 1: Find NPC ────────────────────────────────────────────
+		for attempt in range(_MAX_NPC_FIND_RETRIES):
+			if target_npc > 0:
+				break
+			Py4GW.Console.Log(
+				MODULE_NAME,
+				f"NPC not found, retrying {attempt + 1}/{_MAX_NPC_FIND_RETRIES} ...",
+				Py4GW.Console.MessageType.Info,
+			)
+			yield from Routines.Yield.wait(1000)
+			target_npc = _find_nearby_max()
+
 		if target_npc <= 0:
+			Py4GW.Console.Log(
+				MODULE_NAME,
+				"NPC not found after all retries - aborting.",
+				Py4GW.Console.MessageType.Warning,
+			)
 			return
 
+		# ── Step 2: Move to NPC ─────────────────────────────────────────
 		Player.ChangeTarget(target_npc)
 		yield from Routines.Yield.wait(100)
 
+		for attempt in range(_MAX_MOVE_RETRIES):
+			ax, ay = Agent.GetXY(target_npc)
+			px, py = Player.GetXY()
+			if Utils.Distance((px, py), (ax, ay)) <= _INTERACT_CLOSE_RANGE:
+				break
+			Py4GW.Console.Log(
+				MODULE_NAME,
+				f"Moving to NPC, attempt {attempt + 1}/{_MAX_MOVE_RETRIES} ...",
+				Py4GW.Console.MessageType.Info,
+			)
+			Player.Move(ax, ay)
+			yield from Routines.Yield.wait(1500)
+			# Re-resolve NPC id in case the agent slot changed after moving
+			new_id = _find_nearby_max()
+			if new_id > 0:
+				target_npc = new_id
+				Player.ChangeTarget(target_npc)
+
+		# ── Step 3: Interact and send dialog ────────────────────────────
 		dialog_sent = False
-		for _ in range(8):
+		for attempt in range(_MAX_DIALOG_RETRIES):
+			Py4GW.Console.Log(
+				MODULE_NAME,
+				f"Interacting with NPC, attempt {attempt + 1}/{_MAX_DIALOG_RETRIES} ...",
+				Py4GW.Console.MessageType.Info,
+			)
 			Player.Interact(target_npc)
 			yield from Routines.Yield.wait(2000)
 
 			if not UIManager.IsNPCDialogVisible():
 				continue
 
-			# Primary send path.
+			# Primary send path
 			Player.SendDialog(0x84)
 			yield from Routines.Yield.wait(150)
 
-			# Fallback path used in other widgets.
+			# Fallback path
 			if UIManager.IsNPCDialogVisible():
 				UIManager.ClickDialogButton(0x84)
 				yield from Routines.Yield.wait(150)
@@ -160,7 +207,7 @@ def _coro_interact_and_dialog(target_npc: int):
 			)
 			return
 
-		# Skillbar can change after this dialog; trigger CB re-detection.
+		# Skillbar may change after this dialog - trigger CB re-detection
 		yield from Routines.Yield.wait(800)
 		_refresh_custom_behavior_after_skillbar_change()
 		_DIALOG_COOLDOWN_TIMER.Reset()

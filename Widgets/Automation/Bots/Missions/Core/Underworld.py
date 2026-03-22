@@ -24,7 +24,8 @@ import Py4GW
 # ║  [ ] add Inventory Management                                                          
 # ║  [ ] unequip armor at dhuum to sacrifice selected heroes  
 # ║  [ ] add Heroai 
-# ║  [ ] Take the Dhuum quest earlier                                                 
+# ║  [ ] Take the Dhuum quest earlier   
+# ║  [ ] Fix the move to dead ally                                             
 # ║                                                                  
 # ╚══════════════════════════════════════════════════════════════════
 
@@ -91,13 +92,15 @@ class DhuumSettings:
 
 
 class BotSettings:
-    Repeat:  bool = bool(_ini.read_bool(BOT_NAME, "quest_repeat",   False))
-    UseCons: bool = bool(_ini.read_bool(BOT_NAME, "quest_use_cons", True))
+    Repeat:    bool = bool(_ini.read_bool(BOT_NAME, "quest_repeat",    False))
+    UseCons:   bool = bool(_ini.read_bool(BOT_NAME, "quest_use_cons",  True))
+    HardMode:  bool = bool(_ini.read_bool(BOT_NAME, "quest_hardmode",  False))
 
     @classmethod
     def save(cls) -> None:
-        _ini.write_key(BOT_NAME, "quest_repeat",   str(cls.Repeat))
-        _ini.write_key(BOT_NAME, "quest_use_cons", str(cls.UseCons))
+        _ini.write_key(BOT_NAME, "quest_repeat",    str(cls.Repeat))
+        _ini.write_key(BOT_NAME, "quest_use_cons",  str(cls.UseCons))
+        _ini.write_key(BOT_NAME, "quest_hardmode",  str(cls.HardMode))
 
 
 # Precomputed spread points keep Servants of Grenth flags spaced without extra imports.
@@ -570,7 +573,7 @@ def bot_routine(bot: Botting):
     MAIN_LOOP_HEADER_NAME = _add_header_with_name(bot, "MAIN_LOOP")
 
     bot.Map.Travel(target_map_id=138)
-    bot.Party.SetHardMode(False)
+    bot.Party.SetHardMode(BotSettings.HardMode)
 
     Enter_UW(bot)
     Clear_the_Chamber(bot)
@@ -1250,7 +1253,7 @@ def Dhuum(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_combat_enabled(False), "Disable Combat")
     bot_instance.Move.XY(-13987, 17291, "Move to Dhuum fight")
     bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_following_enabled(False), "Disable Following")
-    bot_instance.Wait.ForTime(6000)  # Wait till some Allies die
+    bot_instance.Wait.ForTime(2000)  # Wait till some Allies die
     bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_combat_enabled(True), "Enable Combat")
     #Wait till Dhuum is dead
     bot_instance.Wait.UntilCondition(
@@ -1437,10 +1440,11 @@ def _draw_dhuum_settings() -> None:
 
 
 def _draw_quest_settings():
-    _snapshot = (BotSettings.Repeat, BotSettings.UseCons)
-    BotSettings.Repeat = PyImGui.checkbox("Resign and Repeat after", BotSettings.Repeat)
-    BotSettings.UseCons = PyImGui.checkbox("Use Cons", BotSettings.UseCons)
-    _current = (BotSettings.Repeat, BotSettings.UseCons)
+    _snapshot = (BotSettings.Repeat, BotSettings.UseCons, BotSettings.HardMode)
+    BotSettings.Repeat   = PyImGui.checkbox("Resign and Repeat after", BotSettings.Repeat)
+    BotSettings.UseCons  = PyImGui.checkbox("Use Cons", BotSettings.UseCons)
+    BotSettings.HardMode = PyImGui.checkbox("Hard Mode", BotSettings.HardMode)
+    _current = (BotSettings.Repeat, BotSettings.UseCons, BotSettings.HardMode)
     if _current != _snapshot:
         BotSettings.save()
 
