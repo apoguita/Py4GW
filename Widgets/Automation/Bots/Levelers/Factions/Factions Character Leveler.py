@@ -63,15 +63,15 @@ def create_bot_routine(bot: Botting) -> None:
     Attribute_Points_Quest_2(bot)
     To_Gunnars_Hold(bot)
     Unlock_Kilroy_Stonekin(bot)
-    To_Longeyes_Edge(bot)
-    Unlock_NPC_For_Vaettir_Farm(bot)
     To_Lions_Arch(bot)
-    #To_Temple_of_The_Ages(bot)
     To_Kamadan(bot)
     To_Consulate_Docks(bot)
     Unlock_Olias(bot)
     Unlock_Remaining_Secondary_Professions(bot)
     Unlock_Mercenary_Heroes(bot)
+    To_Longeyes_Edge(bot)
+    Unlock_NPC_For_Vaettir_Farm(bot)
+    #To_Temple_of_The_Ages(bot)
 
 
 #region Helpers
@@ -272,7 +272,7 @@ def EquipSkillBar(skillbar = ""):
         elif profession == "Necromancer":
             skillbar = "OAVCErwSOw1ZQPoBoQRIA"
         elif profession == "Mesmer":
-            skillbar = "OQBBIskDcdG0DaAHUECA"
+            skillbar = "OQBCErwSOw1ZQPoBoQRIA"
         elif profession == "Elementalist":
             skillbar = "OgVCErwSOw1ZQPoBoQRIA"
         elif profession == "Ritualist":
@@ -1225,6 +1225,10 @@ def Complete_Skills_Training(bot: Botting) -> None:
     bot.Move.XYAndDialog(-8790.00, 10366.00, 0x84)
     bot.Wait.ForTime(3000)
     bot.Player.BuySkill(61)
+    primary, _ = Agent.GetProfessionNames(Player.GetAgentID())
+    if primary == "Mesmer":
+        bot.Wait.ForTime(250)
+        bot.Player.BuySkill(54)
     
 def _register_spirit_rift_watcher():
     bot.config.FSM.AddManagedCoroutine("SpiritRiftWatcher", _zen_daijun_interrupt_loop())
