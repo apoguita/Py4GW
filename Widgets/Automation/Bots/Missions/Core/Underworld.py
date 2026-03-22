@@ -1,6 +1,7 @@
 
 from Py4GWCoreLib import Botting, Routines, Agent, AgentArray, Player, Utils, AutoPathing, GLOBAL_CACHE, ConsoleLog, Map, Pathing, FlagPreference, Party, IniHandler
 import os
+import time
 from typing import Any, Generator
 from Py4GWCoreLib.enums_src.Multiboxing_enums import SharedCommandType
 from Sources.oazix.CustomBehaviors.gui.flag_panel.flag_backward_grid_placement import FlagBackwardGridPlacement
@@ -845,7 +846,6 @@ def Restore_Pools(bot_instance: Botting):
     bot_instance.Move.XY(-11849, -11986, "Restore Pools 2")
     bot_instance.Move.XY(-5974, -19739, "Restore Pools 3")
     bot_instance.Move.XY(-7217, -19394, "Restore Pools 4")
-    bot_instance.Wait.ForTime(3000)
 
 def Terrorweb_Queen(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
@@ -856,9 +856,9 @@ def Terrorweb_Queen(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_needs_to_loot(False), "Enable WaitIfPartyMemberNeedsToLoot")
     bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Enable WaitIfLockTaken")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Enable WaitIfPartyMemberManaTooLow")
-    bot_instance.Move.XYAndInteractNPC(-6961, -19499, "go to NPC")
+    bot_instance.Move.XYAndInteractNPC(-7217, -19394, "go to NPC")
     #bot_instance.Dialogs.AtXY(-6961, -19499, 0x806B03, "take quest")
-    bot_instance.Dialogs.AtXY(-6961, -19499, 0x806B01, "take quest")   
+    bot_instance.Dialogs.AtXY(-7217, -19394, 0x806B01, "take quest")   
     bot_instance.Move.XY(-12303, -15213, "Terrorweb Queen 1")
     bot_instance.Move.XYAndInteractNPC(-6957, -19478, "go to NPC")
     #bot_instance.Dialogs.AtXY(-6957, -19478, 0x7F, "Back to Chamber")
@@ -1139,7 +1139,7 @@ def Servants_of_Grenth(bot_instance: Botting):
     #bot_instance.Dialogs.AtXY(5755, 12769, 0x806603, "Back to Chamber")
     bot_instance.Dialogs.AtXY(5755, 12769, 0x806601, "Back to Chamber")
     bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_forced_state(None),"Release Close_to_Aggro",)
-
+    
     bot_instance.Move.XY(2700, 19952, "Servants of Grenth 2")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
     bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_following_enabled(True), "Enable Following")
@@ -1152,10 +1152,11 @@ def Servants_of_Grenth(bot_instance: Botting):
         lambda: CustomBehaviorParty().party_flagging_manager.clear_all_flags(),
         "Clear Flags",
     )
+    
 
 def Dhuum(bot_instance: Botting):
     bot_instance.States.AddHeader("Dhuum")
-    
+    bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_forced_state(None),"Release Close_to_Aggro",)
 
     def _flag_sacrifice_accounts() -> None:
         flag_x, flag_y = -15022, 17277
@@ -1230,7 +1231,47 @@ def Dhuum(bot_instance: Botting):
         )
 
     
+    _KING_TARGET_X = -11278.0
+    _KING_TARGET_Y =  17297.0
+    _KING_MODEL_ID =  2403
+    _KING_DEST_RADIUS   = 1500.0  # how close the King must be to his destination
+    _KING_FOLLOW_RADIUS = 1000.0  # how close we trail behind the King
+    _KING_TIMEOUT_S     = 600.0   # 10 min hard-timeout
+
+    def _coro_follow_king_to_destination():
+        """Follow model 2403 until it reaches the area around the destination coords."""
+        deadline = time.time() + _KING_TIMEOUT_S
+        ConsoleLog(BOT_NAME, "[Dhuum] Waiting for the King to walk to position ...", Py4GW.Console.MessageType.Info)
+        while time.time() < deadline:
+            king_id = next(
+                (a for a in AgentArray.GetAgentArray() if int(Agent.GetModelID(a)) == _KING_MODEL_ID),
+                None,
+            )
+            if king_id is None:
+                yield from Routines.Yield.wait(500)
+                continue
+
+            kx, ky = Agent.GetXY(king_id)
+
+            # Stop following once the King has reached his destination
+            if Utils.Distance((kx, ky), (_KING_TARGET_X, _KING_TARGET_Y)) <= _KING_DEST_RADIUS:
+                ConsoleLog(BOT_NAME, "[Dhuum] King has reached the position.", Py4GW.Console.MessageType.Info)
+                return
+
+            # Move towards the King if we are too far away
+            px, py = Player.GetXY()
+            if Utils.Distance((px, py), (kx, ky)) > _KING_FOLLOW_RADIUS:
+                Player.Move(kx, ky)
+
+            yield from Routines.Yield.wait(500)
+
+        ConsoleLog(BOT_NAME, "[Dhuum] Timed out waiting for the King - continuing anyway.", Py4GW.Console.MessageType.Warning)
+
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(False), "Disable WaitIfPartyMemberTooFar")
+    bot_instance.config.FSM.AddYieldRoutineStep(
+        name="Follow King to Destination",
+        coroutine_fn=_coro_follow_king_to_destination,
+    )
     bot_instance.Move.XY(-11278, 17297, "Wait For the King")
     bot_instance.Wait.UntilCondition(
         lambda: any(
@@ -1238,7 +1279,7 @@ def Dhuum(bot_instance: Botting):
             and Utils.Distance(Player.GetXY(), Agent.GetXY(agent_id)) <= 1100
             for agent_id in AgentArray.GetAgentArray()
         )
-    )  # Wait until model 2403 is in 500 range
+    )  # Wait until King is within interaction range
 
     bot_instance.Wait.ForTime(5000)
     bot_instance.Dialogs.WithModel(2403, 0x846901, "Talk to The King and start Dhuum fight")
@@ -1249,7 +1290,7 @@ def Dhuum(bot_instance: Botting):
         "Enable Dhuum Helper on all accounts",
     )
 
-    bot_instance.Wait.ForTime(20000)  # Wait for the fight to properly start
+    bot_instance.Wait.ForTime(5000)  # Wait for the fight to properly start
     
     bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_combat_enabled(False), "Disable Combat")
     bot_instance.Move.XY(-13987, 17291, "Move to Dhuum fight")
