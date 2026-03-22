@@ -655,6 +655,10 @@ def Clear_the_Chamber(bot_instance: Botting):
         lambda: __import__("Py4GWCoreLib.EnemyBlacklist", fromlist=["EnemyBlacklist"]).EnemyBlacklist().remove_name("obsidian behemoth"),
         "Unblacklist Obsidian Behemoth",
     )
+    bot_instance.States.AddCustomState(
+        lambda: __import__("Py4GWCoreLib.EnemyBlacklist", fromlist=["EnemyBlacklist"]).EnemyBlacklist().remove_name("banished dream rider"),
+        "Unblacklist Banished Dream Rider",
+    )
     enable_default_party_behavior(bot_instance)
     bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_combat_enabled(False), "Disable Combat")
     bot_instance.Move.XYAndInteractNPC(295, 7221, "go to NPC")
@@ -663,6 +667,8 @@ def Clear_the_Chamber(bot_instance: Botting):
     bot_instance.Move.XY(769, 6564, "Prepare to clear the chamber")
     bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_forced_state(BehaviorState.CLOSE_TO_AGGRO),"Force Close_to_Aggro",)
     bot_instance.Wait.ForTime(5000)
+    bot_instance.Multibox.UsePcons()
+    bot_instance.Items.UseSummoningStone()
 
     if BotSettings.UseCons:
         # Enable auto-renewal: Properties system re-pops each conset when it expires
@@ -691,9 +697,7 @@ def Clear_the_Chamber(bot_instance: Botting):
     bot_instance.Wait.ForTime(3000)
     
     bot_instance.Move.XYAndInteractNPC(-5806, 12831, "go to NPC")
-    bot_instance.Wait.ForTime(3000)
-    #bot_instance.Dialogs.AtXY(-5806, 12831, 0x806507, "take quest")
-    #bot_instance.Dialogs.AtXY(-5806, 12831, 0x806D03, "take quest")
+    bot_instance.Dialogs.AtXY(-5806, 12831, 0x806507, "take quest")
     bot_instance.Dialogs.AtXY(-5806, 12831, 0x806D01, "take quest")
     bot_instance.Wait.ForTime(3000)
 
@@ -736,7 +740,6 @@ def Deamon_Assassin(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Enable WaitIfLockTaken")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Enable WaitIfPartyMemberManaTooLow")
     bot_instance.Move.XYAndInteractNPC(-8250, -5171, "go to NPC")
-    bot_instance.Wait.ForTime(3000)
     bot_instance.Dialogs.AtXY(-8250, -5171, 0x806801, "take quest")
     bot_instance.Move.XY(-3645, -5820, "Deamon Assassin 1")
     WaitTillQuestDone(bot_instance)
@@ -751,6 +754,7 @@ def Restore_Planes(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_needs_to_loot(False), "Enable WaitIfPartyMemberNeedsToLoot")
     bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Enable WaitIfLockTaken")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Enable WaitIfPartyMemberManaTooLow")
+    '''
     Wait_for_Spawns(bot_instance,10371, -10510)
     bot_instance.States.AddCustomState(lambda: _toggle_move_to_enemy_if_close_enough(True), "Enable MoveToEnemyIfCloseEnough")
     Wait_for_Spawns(bot_instance,12795, -8811)
@@ -761,6 +765,18 @@ def Restore_Planes(bot_instance: Botting):
     Wait_for_Spawns(bot_instance,8533, -13394)
     Wait_for_Spawns(bot_instance,8579, -20627)
     Wait_for_Spawns(bot_instance,11218, -17404)
+    '''
+    bot_instance.States.AddCustomState(
+        lambda: __import__("Py4GWCoreLib.EnemyBlacklist", fromlist=["EnemyBlacklist"]).EnemyBlacklist().add_name("banished dream rider"),
+        "Blacklist Banished Dream Rider",
+    )
+    bot_instance.Move.XY(13837, -14736, "Restore Planes 1 left Rider")
+    bot_instance.States.AddCustomState(
+        lambda: __import__("Py4GWCoreLib.EnemyBlacklist", fromlist=["EnemyBlacklist"]).EnemyBlacklist().remove_name("banished dream rider"),
+        "Unblacklist Banished Dream Rider",
+    )
+    Wait_for_Spawns(bot_instance,11287, -17921)
+
 
 def The_Four_Horsemen(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
@@ -826,6 +842,8 @@ def The_Four_Horsemen(bot_instance: Botting):
         lambda: CustomBehaviorParty().party_flagging_manager.clear_all_flags(),
         "Clear Flags",
     )
+    bot_instance.Move.XYAndInteractNPC(11371, -17990, "go to NPC")
+    bot_instance.Dialogs.AtXY(-8250, -5171, 0x806A07, "take quest")  
     bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_following_enabled(True), "Enable Follow")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
     bot_instance.States.AddCustomState(lambda: _toggle_move_if_aggro(True), "Enable MoveIfPartyMemberInAggro")
@@ -840,12 +858,19 @@ def Restore_Pools(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_needs_to_loot(False), "Enable WaitIfPartyMemberNeedsToLoot")
     bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Enable WaitIfLockTaken")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Enable WaitIfPartyMemberManaTooLow")
+    '''
     Wait_for_Spawns(bot_instance,4647, -16833)
     Wait_for_Spawns(bot_instance,2098, -15543)
+    '''
+    bot_instance.States.AddCustomState(
+        lambda: __import__("Py4GWCoreLib.EnemyBlacklist", fromlist=["EnemyBlacklist"]).EnemyBlacklist().add_name("banished dream rider"),
+        "Blacklist Banished Dream Rider",
+    )
     bot_instance.Move.XY(-12703, -10990, "Restore Pools 1")
     bot_instance.Move.XY(-11849, -11986, "Restore Pools 2")
     bot_instance.Move.XY(-5974, -19739, "Restore Pools 3")
     bot_instance.Move.XY(-7217, -19394, "Restore Pools 4")
+    bot_instance.Move.XY(-5688, -19471, "Restore Pools 4")
 
 def Terrorweb_Queen(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
@@ -856,13 +881,11 @@ def Terrorweb_Queen(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_needs_to_loot(False), "Enable WaitIfPartyMemberNeedsToLoot")
     bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Enable WaitIfLockTaken")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Enable WaitIfPartyMemberManaTooLow")
-    bot_instance.Move.XYAndInteractNPC(-7217, -19394, "go to NPC")
-    #bot_instance.Dialogs.AtXY(-6961, -19499, 0x806B03, "take quest")
-    bot_instance.Dialogs.AtXY(-7217, -19394, 0x806B01, "take quest")   
-    bot_instance.Move.XY(-12303, -15213, "Terrorweb Queen 1")
+    bot_instance.Move.XYAndInteractNPC(-6890, -19454, "go to NPC")
+    bot_instance.Dialogs.AtXY(-6890, -19454, 0x806B01, "take quest")   
+    bot_instance.Move.XY(-12375, -15578, "Terrorweb Queen 1")
     bot_instance.Move.XYAndInteractNPC(-6957, -19478, "go to NPC")
-    #bot_instance.Dialogs.AtXY(-6957, -19478, 0x7F, "Back to Chamber")
-    #bot_instance.Dialogs.AtXY(-6957, -19478, 0x84, "Back to Chamber")
+    bot_instance.Dialogs.AtXY(-6957, -19478, 0x806B07, "Back to Chamber")
     bot_instance.Dialogs.AtXY(-6957, -19478, 0x8B, "Back to Chamber")
     
 def Restore_Pit(bot_instance: Botting):
@@ -876,6 +899,10 @@ def Restore_Pit(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Enable WaitIfPartyMemberManaTooLow")
     _toggle_move_if_aggro(False)
     bot_instance.Move.XY(14178, -57, "Restore Pit 1")
+    bot_instance.States.AddCustomState(
+        lambda: __import__("Py4GWCoreLib.EnemyBlacklist", fromlist=["EnemyBlacklist"]).EnemyBlacklist().remove_name("banished dream rider"),
+        "Unblacklist Banished Dream Rider",
+    )
     bot_instance.Move.XY(15323, 2970, "Restore Pit 2")
     bot_instance.Move.XY(15393, 406, "Restore Pit 3")
     bot_instance.Move.FollowPath([
@@ -922,6 +949,12 @@ def Imprisoned_Spirits(bot_instance: Botting):
         "Clear Flags",
     )
     bot_instance.Move.XY(12593, 1814)
+    bot_instance.Wait.ForTime(30000)
+    bot_instance.States.AddCustomState(
+        lambda: __import__("Py4GWCoreLib.EnemyBlacklist", fromlist=["EnemyBlacklist"]).EnemyBlacklist().remove_name("chained soul"),
+        "Unblacklist Chained Soul",
+    )
+    bot_instance.Move.XY(9815, 6763)
     WaitTillQuestDone(bot_instance)
     bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_looting_enabled(True), "Enable Looting")
     ##warten bis quest fertig
@@ -943,6 +976,7 @@ def Restore_Vale(bot_instance: Botting):
 
     bot_instance.Dialogs.AtXY(-5806, 12831, 0x806C03, "take quest")
     bot_instance.Dialogs.AtXY(-5806, 12831, 0x806C01, "take quest")
+    bot_instance.Items.UseSummoningStone()
     bot_instance.Move.XY(-8660, 5655, "To the Vale 1")
     bot_instance.Move.XY(-9431, 1659, "To the Vale 2")
     bot_instance.Move.XY(-11123, 2531, "To the Vale 3")
@@ -1307,6 +1341,10 @@ def Dhuum(bot_instance: Botting):
         )
     )  # Wait until the Underworld Chest (Gadget) appears near (-14381, 17283)
 
+
+    bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_combat_enabled(False), "Disable Combat")
+
+
     def _loot_underworld_chest():
         chest_id = next(
             (
@@ -1366,7 +1404,7 @@ def Dhuum(bot_instance: Botting):
     bot_instance.Move.XY(-14243, 17017)
     bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_looting_enabled(True), "Enable Looting")
     bot_instance.Wait.ForTime(5000)
-
+    bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_combat_enabled(True), "Enable Combat")
 
 
 
