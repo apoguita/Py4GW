@@ -711,6 +711,7 @@ def Pass_The_Mountains(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_needs_to_loot(False), "Enable WaitIfPartyMemberNeedsToLoot")
     bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Enable WaitIfLockTaken")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Enable WaitIfPartyMemberManaTooLow")
+    bot_instance.Move.XY(-1355 , 10210, "Pass the Mountains 0")
     bot_instance.Move.XY(-220, 1691, "Pass the Mountains 1")
     bot_instance.Move.XY(7035, 1973, "Pass the Mountains 2")
     bot_instance.Move.XY(8089, -3303, "Pass the Mountains 3")
@@ -776,6 +777,7 @@ def Restore_Planes(bot_instance: Botting):
         lambda: __import__("Py4GWCoreLib.EnemyBlacklist", fromlist=["EnemyBlacklist"]).EnemyBlacklist().remove_name("banished dream rider"),
         "Unblacklist Banished Dream Rider",
     )
+    Wait_for_Spawns(bot_instance,13790, -15568)
     Wait_for_Spawns(bot_instance,11287, -17921)
 
 
