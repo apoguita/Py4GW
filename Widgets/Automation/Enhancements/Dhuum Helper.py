@@ -209,6 +209,12 @@ def _coro_interact_and_dialog(target_npc: int):
 
 		# Skillbar may change after this dialog - trigger CB re-detection
 		yield from Routines.Yield.wait(800)
+		
+
+		# Move to safe position after resurrection
+		yield from Routines.Yield.wait(2000)
+		Player.Move(-13770, 17276)
+
 		_refresh_custom_behavior_after_skillbar_change()
 		_DIALOG_COOLDOWN_TIMER.Reset()
 	finally:
