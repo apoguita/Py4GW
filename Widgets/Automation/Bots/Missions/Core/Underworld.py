@@ -14,13 +14,28 @@ from pathlib import Path
 import PyImGui
 import Py4GW
 
-#0x84
+# ╔══════════════════════════════════════════════════════════════════
+# ║                     POSSIBLE IMPROVEMENTS                        
+# ╠══════════════════════════════════════════════════════════════════
+# ║                                                                  
+# ║  [ ] Better antistuck at Unwanted Guests                                                         
+# ║  [ ] Kill the Chained Souls when we wait till the quest is done                                                        
+# ║  [ ] Blacklist Dreamrider to improve Plains speed                                                         
+# ║  [ ] add Inventory Management                                                          
+# ║  [ ] unequip armor at dhuum to sacrifice selected heroes  
+# ║  [ ] add Heroai 
+# ║  [ ] Take the Dhuum quest earlier                                                 
+# ║                                                                  
+# ╚══════════════════════════════════════════════════════════════════
+
+
+
 #3078 Dhuum Ghost buff
-MODULE_NAME = "Underworld Helper"
+MODULE_NAME = "Underworld"
 MODULE_ICON = "Textures/Module_Icons/Underworld.png"
 
 # Override the help window
-BOT_NAME = "Underworld Helper"
+BOT_NAME = "Underworld"
 _ini_file = os.path.join(Py4GW.Console.get_projects_path(), "Widgets", "Config", "UnderworldBot.ini")
 _ini = IniHandler(_ini_file)
 bot = Botting(BOT_NAME, config_draw_path=True, upkeep_auto_inventory_management_active=True)
@@ -1308,61 +1323,6 @@ def Dhuum(bot_instance: Botting):
     bot_instance.Wait.ForTime(5000)
 
 
-def _do_inventory_refill(bot_instance: Botting) -> None:
-    """Travel to Guild Hall and restock inventory between runs."""
-    if not InventorySettings.RefillEnabled:
-        return
-
-    # 1. Travel to Guild Hall (same as FoW)
-    bot_instance.Map.TravelGH(wait_time=7000)
-
-    # 2. Restock ID kits + Salvage kits from GH merchant (3 rounds, like FoW)
-    if InventorySettings.RestockKits:
-        def _restock_kits_coro():
-            npc_array = AgentArray.GetNPCMinipetArray()
-            merchant_id = None
-            for agent_id in npc_array:
-                if "merchant" in (Agent.GetNameByID(agent_id) or "").lower():
-                    merchant_id = agent_id
-                    break
-            if merchant_id is None:
-                ConsoleLog(BOT_NAME, "[Inventory] No Merchant NPC found in Guild Hall.", Py4GW.Console.MessageType.Warning)
-                yield
-                return
-            mx, my = Agent.GetXY(merchant_id)
-            yield from Routines.Yield.Movement.FollowPath(path_points=[(mx, my)])
-            yield from Routines.Yield.Player.InteractAgent(merchant_id)
-            yield from Routines.Yield.wait(1500)
-            yield from Routines.Yield.Merchant.BuyIDKits(2)
-            yield from Routines.Yield.Merchant.BuySalvageKits(5)
-            yield
-        for _ in range(3):
-            bot_instance.States.AddCustomState(_restock_kits_coro, "Restock Kits")
-
-    # 3. Restock consets from Xunlai chest (same pattern as FoW's handle_restock_cons)
-    if InventorySettings.RestockCons and BotSettings.UseCons:
-        bot_instance.States.AddCustomState(
-            lambda: GLOBAL_CACHE.Inventory.OpenXunlaiWindow() if not GLOBAL_CACHE.Inventory.IsStorageOpen() else None,
-            "Open Xunlai for Cons Restock",
-        )
-        bot_instance.Wait.ForTime(1000)
-
-        def _restock_cons_coro():
-            from Py4GWCoreLib.enums_src.Model_enums import ModelID
-            yield from Routines.Yield.Items.RestockItems(ModelID.Essence_Of_Celerity.value, 10)
-            yield from Routines.Yield.Items.RestockItems(ModelID.Grail_Of_Might.value, 10)
-            yield from Routines.Yield.Items.RestockItems(ModelID.Armor_Of_Salvation.value, 10)
-        bot_instance.States.AddCustomState(_restock_cons_coro, "Restock Consets")
-
-    # 4. Deposit full material stacks to Xunlai chest (same as FoW's handle_deposit_materials)
-    if InventorySettings.DepositMaterials:
-        def _deposit_coro():
-            yield from Routines.Yield.Merchant.DepositMaterials()
-        bot_instance.States.AddCustomState(_deposit_coro, "Deposit Materials")
-
-    # 5. Travel back to UW outpost
-    bot_instance.Map.Travel(target_map_id=138)
-    bot_instance.Wait.ForMapLoad(target_map_id=138)
 
 
 def ResignAndRepeat(bot_instance: Botting):
