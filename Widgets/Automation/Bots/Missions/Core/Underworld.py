@@ -843,7 +843,8 @@ def Restore_Pools(bot_instance: Botting):
     Wait_for_Spawns(bot_instance,2098, -15543)
     bot_instance.Move.XY(-12703, -10990, "Restore Pools 1")
     bot_instance.Move.XY(-11849, -11986, "Restore Pools 2")
-    bot_instance.Move.XY(-7217, -19394, "Restore Pools 3")
+    bot_instance.Move.XY(-5974, -19739, "Restore Pools 3")
+    bot_instance.Move.XY(-7217, -19394, "Restore Pools 4")
     bot_instance.Wait.ForTime(3000)
 
 def Terrorweb_Queen(bot_instance: Botting):
