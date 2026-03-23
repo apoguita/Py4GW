@@ -47,13 +47,13 @@ class HolyInept(BuildMgr):
             yield from Routines.Yield.wait(100)
             return False
 
-        if self.IsSkillEquipped(Air_of_Superiority_ID) and (yield from self.skills.Any.NoAttribute.Air_of_Superiority()):
+        if self.IsSkillEquipped(Air_of_Superiority_ID) and (yield from self.skills.Any.PvE.Air_of_Superiority()):
             return True
 
         if not Routines.Checks.Agents.InAggro():
             return False
 
-        if self.IsSkillEquipped(Ebon_Vanguard_Assassin_Support_ID) and (yield from self.skills.Any.NoAttribute.Ebon_Vanguard_Assassin_Support()):
+        if self.IsSkillEquipped(Ebon_Vanguard_Assassin_Support_ID) and (yield from self.skills.Any.PvE.Ebon_Vanguard_Assassin_Support()):
             return True
 
         if self.IsSkillEquipped(Arcane_Conundrum_ID) and (yield from self.skills.Mesmer.IllusionMagic.Arcane_Conundrum()):

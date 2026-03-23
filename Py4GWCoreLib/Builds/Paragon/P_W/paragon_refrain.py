@@ -104,7 +104,7 @@ class Paragon_Refrain(BuildMgr):
         if self.IsSkillEquipped(Protectors_Defense_ID) and (yield from self.skills.Warrior.NoAttribute.Protectors_Defense()):
             return True
 
-        if self.IsSkillEquipped(Ebon_Vanguard_Assassin_Support_ID) and (yield from self.skills.Any.NoAttribute.Ebon_Vanguard_Assassin_Support()):
+        if self.IsSkillEquipped(Ebon_Vanguard_Assassin_Support_ID) and (yield from self.skills.Any.PvE.Ebon_Vanguard_Assassin_Support()):
             return True
 
         if self.IsSkillEquipped(Ebon_Battle_Standard_of_Wisdom_ID) and (yield from self.skills.Any.NoAttribute.Ebon_Battle_Standard_of_Wisdom()):

@@ -65,7 +65,7 @@ class Xinraes_Weapon_Resto_Healer(BuildMgr):
         if not Routines.Checks.Skills.CanCast():
             return False
 
-        if self.IsSkillEquipped(Air_of_Superiority_ID) and (yield from self.skills.Any.NoAttribute.Air_of_Superiority()):
+        if self.IsSkillEquipped(Air_of_Superiority_ID) and (yield from self.skills.Any.PvE.Air_of_Superiority()):
             return True
 
         if (yield from self.skills.Ritualist.RestorationMagic.Mend_Body_and_Soul()):
@@ -99,7 +99,7 @@ class Xinraes_Weapon_Resto_Healer(BuildMgr):
         if (yield from self.skills.Necromancer.SoulReaping.Signet_of_Lost_Souls()):
             return True
     
-        if self.IsSkillEquipped(Ebon_Vanguard_Assassin_Support_ID) and (yield from self.skills.Any.NoAttribute.Ebon_Vanguard_Assassin_Support()):
+        if self.IsSkillEquipped(Ebon_Vanguard_Assassin_Support_ID) and (yield from self.skills.Any.PvE.Ebon_Vanguard_Assassin_Support()):
             return True
 
         if self.IsSkillEquipped(Weaken_Armor_ID) and (yield from self.skills.Necromancer.Curses.Weaken_Armor()):

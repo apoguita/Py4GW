@@ -3,10 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from Py4GWCoreLib.BuildMgr import BuildCoroutine
-from Py4GWCoreLib import Range, Routines, GLOBAL_CACHE
-from Py4GWCoreLib.Agent import Agent
 from Py4GWCoreLib.Skill import Skill
-from .._targeting import EnemyClusterTargetingMixin
 
 if TYPE_CHECKING:
     from HeroAI.custom_skill_src.skill_types import CustomSkill
@@ -15,45 +12,51 @@ if TYPE_CHECKING:
 __all__ = ["DominationMagic"]
 
 
-class DominationMagic(EnemyClusterTargetingMixin):
+class DominationMagic:
     def __init__(self, build: BuildMgr) -> None:
         self.build: BuildMgr = build
 
-    #region C
-    def Cry_of_Frustration(self) -> BuildCoroutine:
-        from Py4GWCoreLib import Agent, Range, GLOBAL_CACHE
+    def _get_enemy_array(self, max_distance: float) -> list[int]:
+        from Py4GWCoreLib import Agent, AgentArray, Player, Routines
 
-        cry_of_frustration_id: int = Skill.GetID("Cry_of_Frustration")
-        if not self.build.IsSkillEquipped(cry_of_frustration_id):
-            return False
+        player_x, player_y = Player.GetXY()
+        enemy_array = Routines.Agents.GetFilteredEnemyArray(player_x, player_y, max_distance)
+        return AgentArray.Filter.ByCondition(
+            enemy_array,
+            lambda agent_id: Agent.IsValid(agent_id) and not Agent.IsDead(agent_id),
+        )
 
-        aoe_range = GLOBAL_CACHE.Skill.Data.GetAoERange(cry_of_frustration_id) or Range.Nearby.value
+    def _get_cluster_score(self, agent_id: int, cluster_radius: float) -> int:
+        from Py4GWCoreLib import Agent, AgentArray, Routines
 
-        def _is_enemy_using_skill(agent_id: int) -> bool:
-            return bool(
-                agent_id
-                and Agent.IsValid(agent_id)
-                and not Agent.IsDead(agent_id)
-                and Agent.IsCasting(agent_id)
+        if not agent_id or cluster_radius <= 0:
+            return 0
+
+        target_x, target_y = Agent.GetXY(agent_id)
+        nearby_enemies = Routines.Agents.GetFilteredEnemyArray(target_x, target_y, cluster_radius)
+        nearby_enemies = AgentArray.Filter.ByCondition(
+            nearby_enemies,
+            lambda enemy_id: Agent.IsValid(enemy_id) and not Agent.IsDead(enemy_id),
+        )
+        return max(0, len(nearby_enemies) - 1)
+
+    def _pick_best_target(self, agent_ids: list[int], cluster_radius: float) -> int:
+        from Py4GWCoreLib import Agent, Player, Utils
+
+        if not agent_ids:
+            return 0
+
+        player_pos = Player.GetXY()
+        scored_targets = [
+            (
+                self._get_cluster_score(agent_id, cluster_radius),
+                Utils.Distance(player_pos, Agent.GetXY(agent_id)),
+                agent_id,
             )
-
-        enemy_array = self._get_enemy_array(Range.Spellcast.value)
-        casting_targets = [
-            agent_id for agent_id in enemy_array
-            if _is_enemy_using_skill(agent_id)
+            for agent_id in agent_ids
         ]
-        target_agent_id = self._pick_best_target(casting_targets, aoe_range)
-
-        if not target_agent_id:
-            return False
-
-        return (yield from self.build.CastSkillIDAndRestoreTarget(
-            skill_id=cry_of_frustration_id,
-            target_agent_id=target_agent_id,
-            log=False,
-            aftercast_delay=250,
-        ))
-    #endregion
+        scored_targets.sort(key=lambda item: (-item[0], item[1]))
+        return scored_targets[0][2]
 
     #region E
     def Energy_Surge(self) -> BuildCoroutine:
@@ -92,11 +95,7 @@ class DominationMagic(EnemyClusterTargetingMixin):
         if not target_agent_id:
             current_target_id = Player.GetTargetID()
             best_enemy_target_id = self._pick_best_target(enemy_array, aoe_range)
-            if (
-                current_target_id in enemy_array
-                and Agent.IsValid(current_target_id)
-                and not Agent.IsDead(current_target_id)
-            ):
+            if Agent.IsValid(current_target_id) and not Agent.IsDead(current_target_id):
                 current_target_score = self._get_cluster_score(current_target_id, aoe_range)
                 best_enemy_score = self._get_cluster_score(best_enemy_target_id, aoe_range)
                 if current_target_score >= best_enemy_score:
@@ -116,14 +115,79 @@ class DominationMagic(EnemyClusterTargetingMixin):
         ))
     #endregion
 
+    #region C
+    def Cry_of_Frustration(self) -> BuildCoroutine:
+        from Py4GWCoreLib import Agent, Range, GLOBAL_CACHE
+
+        cry_of_frustration_id: int = Skill.GetID("Cry_of_Frustration")
+        aoe_range = GLOBAL_CACHE.Skill.Data.GetAoERange(cry_of_frustration_id) or Range.Nearby.value
+
+        def _is_enemy_using_skill(agent_id: int) -> bool:
+            return bool(
+                agent_id
+                and Agent.IsValid(agent_id)
+                and not Agent.IsDead(agent_id)
+                and Agent.IsCasting(agent_id)
+            )
+
+        enemy_array = self._get_enemy_array(Range.Spellcast.value)
+        casting_targets = [
+            agent_id for agent_id in enemy_array
+            if _is_enemy_using_skill(agent_id)
+        ]
+        target_agent_id = self._pick_best_target(casting_targets, aoe_range)
+
+        if not target_agent_id:
+            return False
+
+        return (yield from self.build.CastSkillIDAndRestoreTarget(
+            skill_id=cry_of_frustration_id,
+            target_agent_id=target_agent_id,
+            log=False,
+            aftercast_delay=250,
+        ))
+    #endregion
+
+    #region M
+    def Mistrust(self) -> BuildCoroutine:
+        from Py4GWCoreLib import Agent, Range, GLOBAL_CACHE
+
+        mistrust_id: int = Skill.GetID("Mistrust")
+        aoe_range = GLOBAL_CACHE.Skill.Data.GetAoERange(mistrust_id) or Range.Nearby.value
+
+        def _is_enemy_casting_spell(agent_id: int) -> bool:
+            if not agent_id:
+                return False
+            if not Agent.IsValid(agent_id) or Agent.IsDead(agent_id):
+                return False
+            if not Agent.IsCasting(agent_id):
+                return False
+            casting_skill_id = Agent.GetCastingSkillID(agent_id)
+            return bool(casting_skill_id and GLOBAL_CACHE.Skill.Flags.IsSpell(casting_skill_id))
+
+        enemy_array = self._get_enemy_array(Range.Spellcast.value)
+        casting_spell_targets = [
+            agent_id for agent_id in enemy_array
+            if _is_enemy_casting_spell(agent_id)
+        ]
+        target_agent_id = self._pick_best_target(casting_spell_targets, aoe_range)
+
+        if not target_agent_id:
+            return False
+
+        return (yield from self.build.CastSkillIDAndRestoreTarget(
+            skill_id=mistrust_id,
+            target_agent_id=target_agent_id,
+            log=False,
+            aftercast_delay=250,
+        ))
+    #endregion
+
     #region O
     def Overload(self) -> BuildCoroutine:
         from Py4GWCoreLib import Agent, Player, Range, GLOBAL_CACHE
 
         overload_id: int = Skill.GetID("Overload")
-        if not self.build.IsSkillEquipped(overload_id):
-            return False
-
         aoe_range = GLOBAL_CACHE.Skill.Data.GetAoERange(overload_id) or Range.Adjacent.value
 
         def _is_enemy_using_skill(agent_id: int) -> bool:
@@ -144,11 +208,7 @@ class DominationMagic(EnemyClusterTargetingMixin):
         if not target_agent_id:
             current_target_id = Player.GetTargetID()
             best_enemy_target_id = self._pick_best_target(enemy_array, aoe_range)
-            if (
-                current_target_id in enemy_array
-                and Agent.IsValid(current_target_id)
-                and not Agent.IsDead(current_target_id)
-            ):
+            if Agent.IsValid(current_target_id) and not Agent.IsDead(current_target_id):
                 current_target_score = self._get_cluster_score(current_target_id, aoe_range)
                 best_enemy_score = self._get_cluster_score(best_enemy_target_id, aoe_range)
                 if current_target_score >= best_enemy_score:
@@ -165,14 +225,13 @@ class DominationMagic(EnemyClusterTargetingMixin):
             target_agent_id=target_agent_id,
             log=False,
             aftercast_delay=250,
-            extra_condition=lambda: Agent.IsCasting(target_agent_id),
         ))
     #endregion
 
-
-
     #region P
     def Power_Drain(self) -> BuildCoroutine:
+        from Py4GWCoreLib import Routines, Range
+
         power_drain_id: int = Skill.GetID("Power_Drain")
 
         if not self.build.IsSkillEquipped(power_drain_id):
@@ -215,6 +274,8 @@ class DominationMagic(EnemyClusterTargetingMixin):
 
     #region U
     def Unnatural_Signet(self) -> BuildCoroutine:
+        from Py4GWCoreLib import Agent, Range, GLOBAL_CACHE
+
         unnatural_signet_id: int = Skill.GetID("Unnatural_Signet")
 
         if not self.build.IsSkillEquipped(unnatural_signet_id):

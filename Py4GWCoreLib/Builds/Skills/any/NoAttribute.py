@@ -18,23 +18,6 @@ class NoAttribute:
     def __init__(self, build: BuildMgr) -> None:
         self.build: BuildMgr = build
 
-    #region A
-    def Air_of_Superiority(self) -> BuildCoroutine:
-        air_of_superiority_id: int = Skill.GetID("Air_of_Superiority")
-        player_agent_id: int = Player.GetAgentID()
-
-        if not self.build.IsSkillEquipped(air_of_superiority_id):
-            return False
-        if Routines.Checks.Agents.HasEffect(player_agent_id, air_of_superiority_id):
-            return False
-
-        return (yield from self.build.CastSkillID(
-            skill_id=air_of_superiority_id,
-            log=False,
-            aftercast_delay=250
-        ))
-    #endregion
-
     #region B
     def Breath_of_the_Great_Dwarf(self) -> BuildCoroutine:
         breath_of_the_great_dwarf_id: int = Skill.GetID("Breath_of_the_Great_Dwarf")
@@ -89,28 +72,6 @@ class NoAttribute:
         ))
     #endregion
     
-    #region E
-    def Ebon_Vanguard_Assassin_Support(self) -> BuildCoroutine:
-        ebon_vanguard_assassin_support_id: int = Skill.GetID("Ebon_Vanguard_Assassin_Support")
-
-        if not self.build.IsSkillEquipped(ebon_vanguard_assassin_support_id):
-            return False
-        if not Routines.Checks.Agents.InAggro():
-            return False
-
-        target_agent_id = self.build._pick_clustered_target(Range.Spellcast.value)
-        if not target_agent_id:
-            return False
-
-        return (yield from self.build.CastSkillID(
-            skill_id=ebon_vanguard_assassin_support_id,
-            log=False,
-            aftercast_delay=250,
-            target_agent_id=target_agent_id,
-            extra_condition=lambda: Routines.Checks.Agents.InAggro(),
-        ))
-    #endregion
-
     #region Y
     def You_Are_All_Weaklings(self) -> BuildCoroutine:
         you_are_all_weaklings_id: int = Skill.GetID("You_Are_All_Weaklings")
