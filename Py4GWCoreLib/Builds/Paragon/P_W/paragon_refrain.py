@@ -61,6 +61,10 @@ class Paragon_Refrain(BuildMgr):
             yield from Routines.Yield.wait(100)
             return False
 
+        # Keep spear pressure up at all times; AutoAttack() only reissues when needed
+        # and bails out while a local cast is pending.
+        yield from self.AutoAttack()
+
         if self.IsSkillEquipped(Heroic_Refrain_ID) and (yield from self.skills.Paragon.Leadership.Heroic_Refrain()):
             return True
 
