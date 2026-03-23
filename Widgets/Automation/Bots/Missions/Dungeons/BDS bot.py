@@ -84,7 +84,6 @@ _merchant_id_kits_target: int = 2
 _merchant_salvage_kits_target: int = 5
 _merchant_id_kits_target: int = _FIXED_ID_KITS_TARGET
 _merchant_salvage_kits_target: int = _FIXED_SALVAGE_KITS_TARGET
-_merchant_inventory_threshold: int = 1
 _merchant_store_consumable_materials: bool = False
 _merchant_sell_materials: bool = False
 _merchant_sell_rare_mats: bool = False
@@ -623,13 +622,12 @@ def farm_bds_routine(bot: Botting) -> None:
 # --- Merchant Setup and Inventory Helpers ---
 
 def _load_merchant_settings() -> None:
-    global _merchant_enabled, _merchant_id_kits_target, _merchant_salvage_kits_target, _merchant_inventory_threshold, _merchant_store_consumable_materials, _merchant_sell_materials, _merchant_sell_rare_mats, _merchant_buy_ectos, _merchant_ecto_threshold, _merchant_alt_wait_ms, _merchant_loaded
+    global _merchant_enabled, _merchant_id_kits_target, _merchant_salvage_kits_target, _merchant_store_consumable_materials, _merchant_sell_materials, _merchant_sell_rare_mats, _merchant_buy_ectos, _merchant_ecto_threshold, _merchant_alt_wait_ms, _merchant_loaded
     if _merchant_loaded:
         return
     _merchant_enabled = _bds_ini.read_bool(_MERCHANT_SECTION, "enabled", False)
     _merchant_id_kits_target = _bds_ini.read_int(_MERCHANT_SECTION, "id_kits_target", _FIXED_ID_KITS_TARGET)
     _merchant_salvage_kits_target = _bds_ini.read_int(_MERCHANT_SECTION, "salvage_kits_target", _FIXED_SALVAGE_KITS_TARGET)
-    _merchant_inventory_threshold = max(0, _bds_ini.read_int(_MERCHANT_SECTION, "inventory_threshold", 1))
     _merchant_store_consumable_materials = _bds_ini.read_bool(_MERCHANT_SECTION, "store_consumable_materials", False)
     _merchant_sell_materials = _bds_ini.read_bool(_MERCHANT_SECTION, "sell_materials", False)
     _merchant_sell_rare_mats = _bds_ini.read_bool(_MERCHANT_SECTION, "sell_rare_mats", False)
@@ -643,7 +641,6 @@ def _save_merchant_settings() -> None:
     _bds_ini.write_key(_MERCHANT_SECTION, "enabled", str(_merchant_enabled))
     _bds_ini.write_key(_MERCHANT_SECTION, "id_kits_target", str(_merchant_id_kits_target))
     _bds_ini.write_key(_MERCHANT_SECTION, "salvage_kits_target", str(_merchant_salvage_kits_target))
-    _bds_ini.write_key(_MERCHANT_SECTION, "inventory_threshold", str(_merchant_inventory_threshold))
     _bds_ini.write_key(_MERCHANT_SECTION, "store_consumable_materials", str(_merchant_store_consumable_materials))
     _bds_ini.write_key(_MERCHANT_SECTION, "sell_materials", str(_merchant_sell_materials))
     _bds_ini.write_key(_MERCHANT_SECTION, "sell_rare_mats", str(_merchant_sell_rare_mats))
@@ -2585,7 +2582,7 @@ def _draw_district_setting() -> None:
 
 def _draw_merchant_settings() -> None:
     import PyImGui
-    global _merchant_enabled, _merchant_id_kits_target, _merchant_salvage_kits_target, _merchant_inventory_threshold, _merchant_store_consumable_materials, _merchant_sell_materials, _merchant_sell_rare_mats, _merchant_buy_ectos, _merchant_ecto_threshold, _merchant_alt_wait_ms
+    global _merchant_enabled, _merchant_id_kits_target, _merchant_salvage_kits_target, _merchant_store_consumable_materials, _merchant_sell_materials, _merchant_sell_rare_mats, _merchant_buy_ectos, _merchant_ecto_threshold, _merchant_alt_wait_ms
 
     _load_merchant_settings()
 
@@ -2608,11 +2605,6 @@ def _draw_merchant_settings() -> None:
         new_sal = PyImGui.input_int("Salvage Kits target##bds_sal", _merchant_salvage_kits_target)
         if new_sal != _merchant_salvage_kits_target:
             _merchant_salvage_kits_target = max(0, new_sal)
-            _save_merchant_settings()
-
-        new_inv = PyImGui.input_int("Free Inventory Slots target##bds_inv_thresh", _merchant_inventory_threshold)
-        if new_inv != _merchant_inventory_threshold:
-            _merchant_inventory_threshold = max(0, new_inv)
             _save_merchant_settings()
         PyImGui.pop_item_width()
 
@@ -2653,7 +2645,6 @@ def _draw_merchant_settings() -> None:
         PyImGui.pop_item_width()
         PyImGui.same_line(0, 6)
         PyImGui.text("(time given to alts to reach NPCs and finish)")
-
 
 
 def _draw_bds_settings() -> None:
@@ -2763,7 +2754,7 @@ def tooltip():
     # Credits
     PyImGui.text_colored("Credits:", title_color.to_tuple_normalized())
     PyImGui.bullet_text("Developed by Oo SKY oO")
-    PyImGui.bullet_text("Contributors: Wick-Divinus, Sloppynacho, XLeek, Yods, Le Z")
+    PyImGui.bullet_text("Contributors: Wick-Divinus, Sloppynacho, XLeek, Yodz, Le Z")
     PyImGui.end_tooltip()
 
 def main():
