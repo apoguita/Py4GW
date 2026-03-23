@@ -356,7 +356,7 @@ class KeiranThackerayEOTN(BuildMgr):
                 return
 
             # Basic avoidance when spirits are not present
-            if (spirit_id == 0 and (len(enemies_agro) > 4 or player_health < 0.5)) and now - self.last_movement_run >= 1.0:
+            if enemies_agro and (spirit_id == 0 and (len(enemies_agro) > 4 or player_health < 0.5)) and now - self.last_movement_run >= 1.0:
                 if self.debug:
                     Py4GW.Console.Log("Avoidance", f"Overwhelmed Trigger", Py4GW.Console.MessageType.Warning)
                 avg_x = sum(Agent.GetXY(eid)[0] for eid in enemies_agro) / len(enemies_agro)
@@ -392,7 +392,7 @@ class KeiranThackerayEOTN(BuildMgr):
                 self.miku_lazy_at = 0.0                             # condition cleared, reset timer
 
             # Kite if two or more enemies are within melee range
-            if len(enemies_close) > 1 and now - self.last_movement_run >= 1.0:
+            if enemies_agro and len(enemies_close) > 1 and now - self.last_movement_run >= 1.0:
                 if self.debug:
                     Py4GW.Console.Log("Avoidance", f"Melee Swarm Trigger", Py4GW.Console.MessageType.Warning)
                 avg_x = sum(Agent.GetXY(eid)[0] for eid in enemies_agro) / len(enemies_agro)

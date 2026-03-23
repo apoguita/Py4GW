@@ -6,7 +6,7 @@ It tracks the architecture assumptions relevant to MCP, the bridge-to-MCP mappin
 
 It is not the canonical full architecture document.
 
-For the full explicit architecture model, use [docs/Py4GW_Conceptual_Model.md](/c:/Users/Apo/Py4GW_python_files/docs/Py4GW_Conceptual_Model.md).
+For the full explicit architecture model, use [docs/Py4GW_Conceptual_Model.md](/docs/Py4GW_Conceptual_Model.md).
 
 ## Architectural Baseline
 
