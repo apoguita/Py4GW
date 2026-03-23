@@ -3,7 +3,7 @@ from typing import List, Tuple, Generator, Any
 import os
 import PyImGui
 from Py4GW import Game
-from Py4GWCoreLib import (GLOBAL_CACHE, Routines, Range, Py4GW, ConsoleLog, ModelID, Botting,
+from Py4GWCoreLib import (GLOBAL_CACHE, Routines, Range, Py4GW, ConsoleLog, ModelID, Bags, Botting,
                           AutoPathing, ImGui, ActionQueueManager, Map, Agent, Player, UIManager, GWUI, HeroType, Skill, AgentArray)
 from Py4GWCoreLib.Builds.Any.KeiranThackerayEOTN import KeiranThackerayEOTN
 from Py4GWCoreLib.Builds.Any.AutoCombat import AutoCombat
@@ -36,7 +36,7 @@ def create_bot_routine(bot: Botting) -> None:
     Craft_Weapon(bot)
     Craft_Monastery_Armor(bot)
     Destroy_Starter_Armor_And_Useless_Items(bot)
-    #Extend_Inventory_Space(bot) # Deactivated until function is fixed. Not bot related.
+    Extend_Inventory_Space(bot)
     To_Minister_Chos_Estate(bot)
     Unlock_Skills_Trainer(bot)
     Minister_Chos_Estate_Mission(bot)
@@ -977,27 +977,17 @@ def Craft_Monastery_Armor(bot: Botting):
 def Extend_Inventory_Space(bot: Botting):
     bot.States.AddHeader("Extend Inventory Space")
     bot.Map.Travel(target_map_name="Shing Jea Monastery")
-    bot.helpers.UI.open_all_bags()
     bot.Move.XY(-11866, 11444)
     bot.Move.XYAndInteractNPC(-11866, 11444) # Merchant NPC in Shingjea Monastery
-    bot.helpers.Merchant.buy_item(35, 1) # Buy Bag 1
-    yield from Routines.Yield.wait(250)
-    bot.helpers.Merchant.buy_item(35, 1) # Buy Bag 2
-    yield from Routines.Yield.wait(250)
-    bot.helpers.Merchant.buy_item(2988, 1) # Buy Bag 1
-    yield from Routines.Yield.wait(250)
-    bot.helpers.Merchant.buy_item(2988, 1) # Buy Bag 2
-    yield from Routines.Yield.wait(250)
-    bot.helpers.Merchant.buy_item(34, 1) # Buy Belt Pouch  
-    yield from Routines.Yield.wait(250)
-    bot.Items.MoveModelToBagSlot(34, 1, 0) # Move Belt Pouch to Bag 1 Slot 0
-    bot.UI.BagItemDoubleClick(bag_id=1, slot=0) 
-    yield from Routines.Yield.wait(500) # Wait for equip to complete
-    bot.Items.MoveModelToBagSlot(35, 1, 0)
-    bot.UI.BagItemDoubleClick(bag_id=1, slot=0)
-    yield from Routines.Yield.wait(500)
-    bot.Items.MoveModelToBagSlot(35, 1, 0)
-    bot.UI.BagItemDoubleClick(bag_id=1, slot=0)
+    bot.helpers.Merchant.buy_item(ModelID.Bag.value, 1) # Buy Bag 1
+    bot.Wait.ForTime(250)
+    bot.helpers.Merchant.buy_item(ModelID.Bag.value, 1) # Buy Bag 2
+    bot.Wait.ForTime(250)
+    bot.helpers.Merchant.buy_item(ModelID.Belt_Pouch.value, 1) # Buy Belt Pouch
+    bot.Wait.ForTime(250)
+    bot.Items.EquipInventoryBag(ModelID.Belt_Pouch.value, Bags.BeltPouch)
+    bot.Items.EquipInventoryBag(ModelID.Bag.value, Bags.Bag1)
+    bot.Items.EquipInventoryBag(ModelID.Bag.value, Bags.Bag2)
 
 def Unlock_Skills_Trainer(bot: Botting) -> None:
     bot.States.AddHeader("Unlock Skills Trainer")

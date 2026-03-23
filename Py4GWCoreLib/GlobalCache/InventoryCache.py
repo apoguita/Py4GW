@@ -480,6 +480,22 @@ class InventoryCache:
     
     def IsInventoryBagsOpen(self):
         return UIManager.IsWindowVisible(WindowID.WindowID_InventoryBags)
+
+    def GetBagContainerItem(self, bag_id: int) -> int:
+        try:
+            bag = PyInventory.Bag(int(bag_id), str(int(bag_id)))
+            bag.GetContext()
+            return int(getattr(bag, "container_item", 0) or 0)
+        except Exception:
+            return 0
+
+    def GetBagSize(self, bag_id: int) -> int:
+        try:
+            bag = PyInventory.Bag(int(bag_id), str(int(bag_id)))
+            bag.GetContext()
+            return int(bag.GetSize())
+        except Exception:
+            return 0
     
     def OpenXunlaiWindow(self) -> bool:
 
