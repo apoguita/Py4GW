@@ -1,4 +1,4 @@
-from Py4GWCoreLib import Botting, Routines, GLOBAL_CACHE, Agent, Player, ConsoleLog, IniManager
+from Py4GWCoreLib import Botting, Routines, GLOBAL_CACHE, ModelID, Agent, Player, ConsoleLog, IniManager
 from Py4GWCoreLib.enums_src.Title_enums import TitleID, TITLE_TIERS
 from Py4GWCoreLib.botting_src.property import Property
 import Py4GW
@@ -95,23 +95,28 @@ def _sync_consumable_toggles(bot: Botting) -> None:
         bot.Properties.ApplyNow(key, "active", use_pcons)
 
 
-CONSET_RESTOCK_MODELS = [
-    ModelID.Essence_Of_Celerity.value,
-    ModelID.Grail_Of_Might.value,
-    ModelID.Armor_Of_Salvation.value,
+# (model_id, effect_skill_name) — single source of truth for consumable use & restock
+CONSET_ITEMS: list[tuple[int, str]] = [
+    (ModelID.Essence_Of_Celerity.value, "Essence_of_Celerity_item_effect"),
+    (ModelID.Grail_Of_Might.value,      "Grail_of_Might_item_effect"),
+    (ModelID.Armor_Of_Salvation.value,  "Armor_of_Salvation_item_effect"),
 ]
 
-PCON_RESTOCK_MODELS = [
-    ModelID.Birthday_Cupcake.value,
-    ModelID.Candy_Apple.value,
-    ModelID.Golden_Egg.value,
-    ModelID.Candy_Corn.value,
+PCON_ITEMS: list[tuple[int, str]] = [
+    (ModelID.Birthday_Cupcake.value,      "Birthday_Cupcake_skill"),
+    (ModelID.Golden_Egg.value,            "Golden_Egg_skill"),
+    (ModelID.Candy_Corn.value,            "Candy_Corn_skill"),
+    (ModelID.Candy_Apple.value,           "Candy_Apple_skill"),
+    (ModelID.Slice_Of_Pumpkin_Pie.value,  "Pie_Induced_Ecstasy"),
+    (ModelID.Drake_Kabob.value,           "Drake_Skin"),
+    (ModelID.Bowl_Of_Skalefin_Soup.value, "Skale_Vigor"),
+    (ModelID.Pahnai_Salad.value,          "Pahnai_Salad_item_effect"),
+    (ModelID.War_Supplies.value,          "Well_Supplied"),
+]
+
+CONSET_RESTOCK_MODELS = [m for m, _ in CONSET_ITEMS]
+PCON_RESTOCK_MODELS   = [m for m, _ in PCON_ITEMS] + [
     ModelID.Honeycomb.value,
-    ModelID.War_Supplies.value,
-    ModelID.Slice_Of_Pumpkin_Pie.value,
-    ModelID.Drake_Kabob.value,
-    ModelID.Bowl_Of_Skalefin_Soup.value,
-    ModelID.Pahnai_Salad.value,
     ModelID.Scroll_Of_Resurrection.value,
 ]
 
@@ -123,16 +128,10 @@ def _restock_models_locally(model_ids: list[int], quantity: int):
 
 def _use_consumables_locally(consumable_effects: list[tuple[int, int]]):
     yield from Routines.Yield.wait(500)
-
-    for consumable_model_id, effect_skill_id in consumable_effects:
-        if hasattr(GLOBAL_CACHE, "Effects") and callable(getattr(GLOBAL_CACHE.Effects, "HasEffect", None)):
-            if GLOBAL_CACHE.Effects.HasEffect(Player.GetAgentID(), effect_skill_id):
-                continue
-        elif hasattr(GLOBAL_CACHE.Inventory, "HasEffect") and callable(getattr(GLOBAL_CACHE.Inventory, "HasEffect", None)):
-            if GLOBAL_CACHE.Inventory.HasEffect(Player.GetAgentID(), effect_skill_id):
-                continue
-
-        item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(consumable_model_id)
+    for model_id, skill_id in consumable_effects:
+        if GLOBAL_CACHE.Effects.HasEffect(Player.GetAgentID(), skill_id):
+            continue
+        item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(model_id)
         if item_id:
             GLOBAL_CACHE.Inventory.UseItem(item_id)
             yield from Routines.Yield.wait(500)
@@ -348,47 +347,15 @@ def _restock_consumables_if_enabled(bot: Botting):
 def _use_consumables_if_enabled(bot: Botting):
     _sync_consumable_toggles(bot)
     if _as_bool(bot.Properties.Get("use_conset", "active")):
-        yield from _use_consumables_locally([
-            (ModelID.Essence_Of_Celerity.value, GLOBAL_CACHE.Skill.GetID("Essence_of_Celerity_item_effect")),
-            (ModelID.Grail_Of_Might.value, GLOBAL_CACHE.Skill.GetID("Grail_of_Might_item_effect")),
-            (ModelID.Armor_Of_Salvation.value, GLOBAL_CACHE.Skill.GetID("Armor_of_Salvation_item_effect")),
-        ])
-        yield from bot.helpers.Multibox._use_consumable_message((ModelID.Essence_Of_Celerity.value,
-                                                                 GLOBAL_CACHE.Skill.GetID("Essence_of_Celerity_item_effect"), 0, 0))
-        yield from bot.helpers.Multibox._use_consumable_message((ModelID.Grail_Of_Might.value,
-                                                                 GLOBAL_CACHE.Skill.GetID("Grail_of_Might_item_effect"), 0, 0))
-        yield from bot.helpers.Multibox._use_consumable_message((ModelID.Armor_Of_Salvation.value,
-                                                                 GLOBAL_CACHE.Skill.GetID("Armor_of_Salvation_item_effect"), 0, 0))
+        items = [(m, GLOBAL_CACHE.Skill.GetID(s)) for m, s in CONSET_ITEMS]
+        yield from _use_consumables_locally(items)
+        for model_id, skill_id in items:
+            yield from bot.helpers.Multibox._use_consumable_message((model_id, skill_id, 0, 0))
     if _as_bool(bot.Properties.Get("use_pcons", "active")):
-        yield from _use_consumables_locally([
-            (ModelID.Birthday_Cupcake.value, GLOBAL_CACHE.Skill.GetID("Birthday_Cupcake_skill")),
-            (ModelID.Golden_Egg.value, GLOBAL_CACHE.Skill.GetID("Golden_Egg_skill")),
-            (ModelID.Candy_Corn.value, GLOBAL_CACHE.Skill.GetID("Candy_Corn_skill")),
-            (ModelID.Candy_Apple.value, GLOBAL_CACHE.Skill.GetID("Candy_Apple_skill")),
-            (ModelID.Slice_Of_Pumpkin_Pie.value, GLOBAL_CACHE.Skill.GetID("Pie_Induced_Ecstasy")),
-            (ModelID.Drake_Kabob.value, GLOBAL_CACHE.Skill.GetID("Drake_Skin")),
-            (ModelID.Bowl_Of_Skalefin_Soup.value, GLOBAL_CACHE.Skill.GetID("Skale_Vigor")),
-            (ModelID.Pahnai_Salad.value, GLOBAL_CACHE.Skill.GetID("Pahnai_Salad_item_effect")),
-            (ModelID.War_Supplies.value, GLOBAL_CACHE.Skill.GetID("Well_Supplied")),
-        ])
-        yield from bot.helpers.Multibox._use_consumable_message((ModelID.Birthday_Cupcake.value,
-                                                                 GLOBAL_CACHE.Skill.GetID("Birthday_Cupcake_skill"), 0, 0))
-        yield from bot.helpers.Multibox._use_consumable_message((ModelID.Golden_Egg.value,
-                                                                 GLOBAL_CACHE.Skill.GetID("Golden_Egg_skill"), 0, 0))
-        yield from bot.helpers.Multibox._use_consumable_message((ModelID.Candy_Corn.value,
-                                                                 GLOBAL_CACHE.Skill.GetID("Candy_Corn_skill"), 0, 0))
-        yield from bot.helpers.Multibox._use_consumable_message((ModelID.Candy_Apple.value,
-                                                                 GLOBAL_CACHE.Skill.GetID("Candy_Apple_skill"), 0, 0))
-        yield from bot.helpers.Multibox._use_consumable_message((ModelID.Slice_Of_Pumpkin_Pie.value,
-                                                                 GLOBAL_CACHE.Skill.GetID("Pie_Induced_Ecstasy"), 0, 0))
-        yield from bot.helpers.Multibox._use_consumable_message((ModelID.Drake_Kabob.value,
-                                                                 GLOBAL_CACHE.Skill.GetID("Drake_Skin"), 0, 0))
-        yield from bot.helpers.Multibox._use_consumable_message((ModelID.Bowl_Of_Skalefin_Soup.value,
-                                                                 GLOBAL_CACHE.Skill.GetID("Skale_Vigor"), 0, 0))
-        yield from bot.helpers.Multibox._use_consumable_message((ModelID.Pahnai_Salad.value,
-                                                                 GLOBAL_CACHE.Skill.GetID("Pahnai_Salad_item_effect"), 0, 0))
-        yield from bot.helpers.Multibox._use_consumable_message((ModelID.War_Supplies.value,
-                                                                 GLOBAL_CACHE.Skill.GetID("Well_Supplied"), 0, 0))
+        items = [(m, GLOBAL_CACHE.Skill.GetID(s)) for m, s in PCON_ITEMS]
+        yield from _use_consumables_locally(items)
+        for model_id, skill_id in items:
+            yield from bot.helpers.Multibox._use_consumable_message((model_id, skill_id, 0, 0))
 
 
 EXPLORABLE_TIMEOUT_SECONDS = 3 * 3600  # 3 hours
@@ -461,15 +428,16 @@ def _draw_settings(bot: Botting):
     _load_behavior_setting(bot)
     use_custom_behaviors = _as_bool(bot.Properties.Get("use_custom_behaviors", "active"))
     use_hero_ai = not use_custom_behaviors
-    new_use_hero_ai = PyImGui.checkbox("Use Hero AI", use_hero_ai)
+    new_use_hero_ai          = PyImGui.checkbox("Use Hero AI",          use_hero_ai)
     new_use_custom_behaviors = PyImGui.checkbox("Use Custom Behaviors", use_custom_behaviors)
-    desired_use_custom_behaviors = new_use_custom_behaviors
     if new_use_hero_ai != use_hero_ai:
-        desired_use_custom_behaviors = not new_use_hero_ai
+        desired = not new_use_hero_ai
     elif new_use_custom_behaviors != use_custom_behaviors:
-        desired_use_custom_behaviors = new_use_custom_behaviors
-    if desired_use_custom_behaviors != use_custom_behaviors:
-        bot.Properties.ApplyNow("use_custom_behaviors", "active", desired_use_custom_behaviors)
+        desired = new_use_custom_behaviors
+    else:
+        desired = use_custom_behaviors
+    if desired != use_custom_behaviors:
+        bot.Properties.ApplyNow("use_custom_behaviors", "active", desired)
         _save_behavior_setting(bot)
         _apply_behavior_mode(bot)
 
