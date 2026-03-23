@@ -7,12 +7,15 @@ from typing import Optional
 import PyImGui
 
 from Py4GWCoreLib.ImGui_src.IconsFontAwesome5 import IconsFontAwesome5
+from Py4GWCoreLib.ImGui_src.ImGuisrc import ImGui
 from Py4GWCoreLib.Item import Bag
 from Py4GWCoreLib.enums_src.GameData_enums import DyeColor
 from Py4GWCoreLib.enums_src.Item_enums import ItemType, Rarity
 from Py4GWCoreLib.enums_src.Model_enums import ModelID
+from Py4GWCoreLib.py4gwcorelib_src.Utils import Utils
 from Sources.frenkeyLib.ItemHandling.ConfigExamples.LootConfig import LootConfig
 from Sources.frenkeyLib.ItemHandling.Items.ItemCache import ITEM_CACHE
+from Sources.frenkeyLib.ItemHandling.Items.ItemData import ITEM_DATA
 from Sources.frenkeyLib.ItemHandling.Items.item_snapshot import ItemSnapshot
 from Sources.frenkeyLib.ItemHandling.Mods import properties as properties_module
 from Sources.frenkeyLib.ItemHandling.Mods import upgrades as upgrades_module
@@ -25,14 +28,17 @@ from Sources.frenkeyLib.ItemHandling.Rules.base_rule import (
     ItemTypeAndRarityRule,
     ItemTypesRule,
     ModelIdRule,
+    PropertyFilter,
     RaritiesRule,
     SalvagesToMaterialRule,
     WeaponSkinRule,
     WeaponTypeRule,
     UpgradeRule,
 )
+from Sources.frenkeyLib.ItemHandling.Rules.rule_descriptions import RULE_DESCRIPTIONS
 from Sources.frenkeyLib.ItemHandling.Rules.types import ItemAction
 from Sources.frenkeyLib.ItemHandling.encoded_strings import GWStringEncoded
+from Sources.frenkeyLib.ItemHandling.utility import IsWeaponType
 
 
 def _enum_members(enum_cls: EnumMeta) -> list[Enum]:
@@ -80,6 +86,7 @@ class LootConfigView:
         self.config = LootConfig()
         self.selected_rule_index: int = 0
         self.new_rule_type_index: int = 0
+        self.property_index: int = 0
         self.rule_search: str = ""
         self.preview_search: str = ""
         self.status_message: str = ""
@@ -101,6 +108,15 @@ class LootConfigView:
         self.upgrade_labels = [cls.__name__ for cls in self.upgrade_classes]
         self.property_classes = self._discover_property_classes()
         self.property_labels = [cls.__name__ for cls in self.property_classes]
+        
+        item_skins : list[str] = [item.skin for _, items in ITEM_DATA.data.items() for item in items.values() if item.skin] # filter out empty skins
+        self.item_skins = sorted(set(item_skins))
+        
+        weapon_skins : list[str] = [item.skin for _, items in ITEM_DATA.data.items() for item in items.values() if item.skin and IsWeaponType(item.item_type)] # filter out empty skins and only include weapon skins
+        self.weapon_skins = sorted(set(weapon_skins))
+        
+        self.item_skin_index : int = 0
+        self.weapon_skin_index : int = 0
 
     def _build_rule_type_names(self) -> list[str]:
         rule_classes = [
@@ -160,6 +176,7 @@ class LootConfigView:
             self.status_message = "Inventory cache refreshed."
 
         if self.status_message:
+            PyImGui.same_line(0, 5)
             PyImGui.text(self.status_message)
 
         table_flags = (
@@ -202,12 +219,22 @@ class LootConfigView:
             PyImGui.separator()
 
             self.rule_search = PyImGui.input_text("Filter##RuleFilter", self.rule_search)
-            self.new_rule_type_index = _safe_combo(
-                "Rule Type##NewRuleType",
-                self.new_rule_type_index,
-                self.rule_type_names,
-            )
-
+            if PyImGui.begin_combo("Rule Type##NewRuleType", Utils.humanize_string(self.rule_type_names[self.new_rule_type_index] if self.rule_type_names else "No Rule Types"), PyImGui.ImGuiComboFlags.NoFlag):
+                for index, rule_type_name in enumerate(self.rule_type_names):
+                    # PyImGui.text(rule_type_name)
+                    
+                    if PyImGui.selectable(Utils.humanize_string(rule_type_name), index == self.new_rule_type_index, PyImGui.SelectableFlags.NoFlag, (0.0, 0.0)):
+                        self.new_rule_type_index = index
+                            
+                    rule_description = RULE_DESCRIPTIONS.get(BaseRule._registry.get(rule_type_name), "No description available for this rule.")
+                    self.show_rule_tooltip(rule_type_name, rule_description) 
+                            
+                PyImGui.end_combo()
+                        
+            rule_description = RULE_DESCRIPTIONS.get(BaseRule._registry.get(self.rule_type_names[self.new_rule_type_index]), "No description available for this rule.")
+            if rule_description:
+                self.show_rule_tooltip(self.rule_type_names[self.new_rule_type_index], rule_description)    
+            
             if PyImGui.button("Add Empty Rule") and self.rule_type_names:
                 self._add_empty_rule(self.rule_type_names[self.new_rule_type_index])
 
@@ -250,6 +277,15 @@ class LootConfigView:
 
         PyImGui.end_child()
 
+    def show_rule_tooltip(self, rule_type_name, rule_description):
+        if rule_description:
+            if PyImGui.is_item_hovered():
+                PyImGui.set_next_window_size((400, 0), PyImGui.ImGuiCond.Always)
+                PyImGui.begin_tooltip()
+                ImGui.text_colored(Utils.humanize_string(rule_type_name), (255, 100, 0, 255), 15, "Bold")
+                ImGui.text_wrapped(rule_description)
+                PyImGui.end_tooltip()
+
     def _add_empty_rule(self, rule_type_name: str) -> None:
         rule_cls = BaseRule._registry.get(rule_type_name)
         if rule_cls is None:
@@ -277,9 +313,9 @@ class LootConfigView:
             else:
                 rule.name = PyImGui.input_text("Name", rule.name)
 
-                current_action = self.item_action_values.index(rule.action) if rule.action in self.item_action_values else 0
-                action_index = _safe_combo("Action", current_action, self.item_action_labels)
-                rule.action = ItemAction(self.item_action_values[action_index].value)
+                # current_action = self.item_action_values.index(rule.action) if rule.action in self.item_action_values else 0
+                # action_index = _safe_combo("Action", current_action, self.item_action_labels)
+                # rule.action = ItemAction(self.item_action_values[action_index].value)
 
                 PyImGui.text(f"Type: {type(rule).__name__}")
                 PyImGui.text(f"Valid: {'yes' if rule.is_valid() else 'no'}")
@@ -294,13 +330,13 @@ class LootConfigView:
                 elif isinstance(rule, DyesRule):
                     self._draw_multi_enum_rule("Dye Colors", rule.dye_colors, self.dye_values)
                 elif isinstance(rule, ItemSkinRule):
-                    self._draw_string_list_editor("Item Skins", rule.item_skins, "Skin")
+                    self.item_skin_index = self._draw_string_list_editor("Item Skins", rule.item_skins, "Skin", self.item_skins, self.item_skin_index)
                 elif isinstance(rule, ItemTypeAndRarityRule):
                     self._draw_multi_enum_rule("Item Types", rule.item_types, self.item_type_values)
                     PyImGui.separator()
                     self._draw_multi_enum_rule("Rarities", rule.rarities, self.rarity_values)
                 elif isinstance(rule, WeaponSkinRule):
-                    self._draw_string_list_editor("Weapon Skins", rule.weapon_skins, "Weapon Skin")
+                    self.weapon_skin_index = self._draw_string_list_editor("Weapon Skins", rule.weapon_skins, "Weapon Skin", self.weapon_skins, self.weapon_skin_index)
                     PyImGui.separator()
                     self._draw_requirement_editor(rule)
                     PyImGui.separator()
@@ -384,7 +420,7 @@ class LootConfigView:
         PyImGui.end_child()
 
     def _flatten_inventory_snapshot(self) -> list[tuple[str, int, Optional[ItemSnapshot]]]:
-        snapshot = ITEM_CACHE.get_inventory_snapshot(Bag.Backpack, Bag.Bag_2)
+        snapshot = ITEM_CACHE.get_inventory_snapshot(Bag.Backpack, Bag.Max)
         rows: list[tuple[str, int, Optional[ItemSnapshot]]] = []
         for bag, bag_snapshot in snapshot.items():
             for slot, item in bag_snapshot.items():
@@ -440,13 +476,20 @@ class LootConfigView:
                         selected_values.remove(value)
         PyImGui.end_child()
 
-    def _draw_string_list_editor(self, label: str, values: list[str], item_label: str) -> None:
-        PyImGui.text(label)
+    def _draw_string_list_editor(self, label: str, values: list[str], item_label: str, available_values: list[str] = [], selected_index: int = 0) -> int:
+        PyImGui.text(label + (f" ({len(available_values)})"))
         remove_index = -1
+        
+        selected_index = PyImGui.combo(f"##{label}Available", selected_index, available_values)  # Show available values in a combo box for reference
+        PyImGui.same_line(0, -1)
+        if PyImGui.button(f"Add {item_label}##{label}_AddAvailable") and available_values:
+            if selected_index >= 0 and selected_index < len(available_values):
+                if available_values[selected_index] not in values:
+                    values.append(available_values[selected_index])
+        
         if PyImGui.begin_child(f"{label}List", (0, 150), True, PyImGui.WindowFlags.NoFlag):
             for index, value in enumerate(values):
-                new_value = PyImGui.input_text(f"{item_label} {index + 1}##{label}_{index}", value)
-                values[index] = new_value
+                PyImGui.text(f"{value}")
                 PyImGui.same_line(0, -1)
                 if PyImGui.button(f"X##{label}_Delete_{index}"):
                     remove_index = index
@@ -454,9 +497,8 @@ class LootConfigView:
 
         if remove_index >= 0:
             del values[remove_index]
-
-        if PyImGui.button(f"Add {item_label}##{label}_Add"):
-            values.append("")
+            
+        return selected_index
 
     def _draw_model_id_rule(self, rule: ModelIdRule) -> None:
         model_index = self.model_id_values.index(rule.model_id) if rule.model_id in self.model_id_values else 0
@@ -485,19 +527,38 @@ class LootConfigView:
             except Exception:
                 pass
 
-    def _draw_property_filters_editor(self, properties: list) -> None:
+    def _draw_property_filters_editor(self, properties: list[PropertyFilter]) -> None:
         PyImGui.text("Property Filters")
         remove_index = -1
         if PyImGui.begin_child("PropertyFilterList", (0, 180), True, PyImGui.WindowFlags.NoFlag):
+            
+            prop = self.property_classes[self.property_index] if self.property_classes else None
+            
+            if PyImGui.begin_combo("Rule Type##NewRuleType", Utils.humanize_string(prop.__name__) if prop else "", PyImGui.ImGuiComboFlags.NoFlag):
+                for index, p in enumerate(self.property_classes):
+                    # PyImGui.text(rule_type_name)
+                    
+                    if PyImGui.selectable(Utils.humanize_string(p.__name__), index == self.property_index, PyImGui.SelectableFlags.NoFlag, (0.0, 0.0)):
+                        self.property_index = index
+                                                        
+                PyImGui.end_combo()
+            
+            PyImGui.same_line(0, -1)
+            if PyImGui.button("Add Property") and self.property_classes:
+                selected_class = self.property_classes[self.property_index] if self.property_classes and self.property_index < len(self.property_classes) else None
+                
+                try:
+                    if selected_class:
+                        properties.append({"property_type": selected_class.__name__, "modifier_arg": 0})
+                except Exception:
+                    pass
+            
+            PyImGui.separator()
+                                
             for index, prop in enumerate(properties):
                 property_type_name = str(prop.get("property_type", "")) if isinstance(prop, dict) else type(prop).__name__
                 modifier_arg = int(prop.get("modifier_arg", -1)) if isinstance(prop, dict) else int(prop.modifier.arg)
-
-                current_index = self.property_labels.index(property_type_name) if property_type_name in self.property_labels else 0
-                current_index = _safe_combo(f"Property Type##PropertyType_{index}", current_index, self.property_labels)
-                property_type_name = self.property_labels[current_index] if self.property_labels else ""
-                modifier_arg = PyImGui.input_int(f"Modifier Arg##PropertyArg_{index}", modifier_arg)
-                properties[index] = {"property_type": property_type_name, "modifier_arg": modifier_arg}
+                PyImGui.text(f"{Utils.humanize_string(property_type_name)}")
 
                 PyImGui.same_line(0, -1)
                 if PyImGui.button(f"X##PropertyDelete_{index}"):

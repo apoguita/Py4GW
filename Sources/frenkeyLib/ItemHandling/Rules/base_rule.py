@@ -331,16 +331,16 @@ class WeaponSkinRule(BaseRule):
                     if property_type_name not in item_properties_by_name:
                         return False
 
-                    item_prop = item_properties_by_name[property_type_name]
-                    if item_prop.modifier.arg != expected_modifier_arg:
-                        return False
+                    # item_prop = item_properties_by_name[property_type_name]
+                    # if item_prop.modifier.arg != expected_modifier_arg:
+                    #     return False
                 else:
                     if type(prop) not in item_properties:
                         return False
 
-                    item_prop = item_properties[type(prop)]
-                    if prop.modifier.arg != item_prop.modifier.arg:
-                        return False
+                    # item_prop = item_properties[type(prop)]
+                    # if prop.modifier.arg != item_prop.modifier.arg:
+                    #     return False
 
         return True
 
@@ -418,6 +418,7 @@ class WeaponTypeRule(BaseRule):
         if len(self.properties) > 0:
             item_properties = {type(p): p for p in item.properties}
             item_properties_by_name = {type(p).__name__: p for p in item.properties}
+            
             for prop in self.properties:
                 if isinstance(prop, dict):
                     property_type_name = str(prop.get("property_type", ""))
@@ -427,15 +428,15 @@ class WeaponTypeRule(BaseRule):
                         return False
 
                     item_prop = item_properties_by_name[property_type_name]
-                    if item_prop.modifier.arg != expected_modifier_arg:
-                        return False
+                    # if item_prop.modifier.arg != expected_modifier_arg:
+                    #     return False
                 else:
                     if type(prop) not in item_properties:
                         return False
 
                     item_prop = item_properties[type(prop)]
-                    if prop.modifier.arg != item_prop.modifier.arg:
-                        return False
+                    # if prop.modifier.arg != item_prop.modifier.arg:
+                    #     return False
 
         return True
 
