@@ -568,7 +568,9 @@ def main():
         main_child_dimensions: Tuple[int, int] = (350, 275)
         
         bot.Update()
-        bot.UI.draw_window(icon_path=full_path + "Keiran_art.png")
+        window_ready = bot.UI.draw_window(icon_path=full_path + "Keiran_art.png")
+        if not window_ready:
+            return
 
         if PyImGui.begin(bot.config.bot_name, PyImGui.WindowFlags.AlwaysAutoResize):
             if PyImGui.begin_tab_bar(bot.config.bot_name + "_tabs"):

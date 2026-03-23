@@ -15,8 +15,8 @@ This phase assumes:
 Files:
 
 - `Py4GWCoreLib/UIManager.py`
-- `C:\Users\Apo\Py4GW\include\py_ui.h`
-- `C:\Users\Apo\Py4GW\vendor\gwca\Source\UIMgr.cpp`
+- `/Py4GW/include/py_ui.h`
+- `/Py4GW/vendor/gwca/Source/UIMgr.cpp`
 
 Role:
 
@@ -37,7 +37,7 @@ Key public helpers in this layer:
 Files:
 
 - `stubs/Py4GW/UI.pyi`
-- `C:\Users\Apo\Py4GW\src\Py4GW_UI.cpp`
+- `/Py4GW/src/Py4GW_UI.cpp`
 
 Role:
 
@@ -55,11 +55,11 @@ The current Python wrapper used by the proven DevText path is:
 
 1. `UIManager.CreateWindow(...)` in `Py4GWCoreLib/UIManager.py`
 2. `UIManager.CreateWindowByFrameId(...)` in `Py4GWCoreLib/UIManager.py`
-3. `UIManager::CreateWindowByFrameId(...)` in `C:\Users\Apo\Py4GW\include\py_ui.h`
-4. `UIManager::CreateLabeledFrameByFrameId(...)` in `C:\Users\Apo\Py4GW\include\py_ui.h`
-5. `GW::UI::CreateUIComponent(...)` in `C:\Users\Apo\Py4GW\vendor\gwca\Source\UIMgr.cpp`
-6. `UIManager::SetFrameControllerAnchorMarginsByFrameIdEx(...)` in `C:\Users\Apo\Py4GW\include\py_ui.h`
-7. `UIManager::TriggerFrameRedrawByFrameId(...)` in `C:\Users\Apo\Py4GW\include\py_ui.h`
+3. `UIManager::CreateWindowByFrameId(...)` in `/Py4GW/include/py_ui.h`
+4. `UIManager::CreateLabeledFrameByFrameId(...)` in `/Py4GW/include/py_ui.h`
+5. `GW::UI::CreateUIComponent(...)` in `/Py4GW/vendor/gwca/Source/UIMgr.cpp`
+6. `UIManager::SetFrameControllerAnchorMarginsByFrameIdEx(...)` in `/Py4GW/include/py_ui.h`
+7. `UIManager::TriggerFrameRedrawByFrameId(...)` in `/Py4GW/include/py_ui.h`
 
 ### Verified wrapper behavior
 What the wrapper guarantees:
@@ -108,7 +108,7 @@ Source:
 
 - `UIManager.CreateTextLabelFrameByFrameId(...)`
 - `UIManager.CreateScrollableFrameByFrameId(...)`
-- `InitializeTypedComponentCallbacks()` in `C:\Users\Apo\Py4GW\vendor\gwca\Source\UIMgr.cpp`
+- `InitializeTypedComponentCallbacks()` in `/Py4GW/vendor/gwca/Source/UIMgr.cpp`
 
 Properties:
 

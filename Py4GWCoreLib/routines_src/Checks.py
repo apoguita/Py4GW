@@ -612,11 +612,12 @@ class Checks:
             if Agent.IsPet(agent_id):
                 return False
 
-            weapon_type, _ = Checks.Agents._get_shared_weapon_name(agent_id)
-            if weapon_type == 0:
+            caster_weapon_types = {"Wand", "Staff", "Staff1", "Staff2", "Staff3", "Scepter", "Scepter2"}
+            weapon_type, weapon_name = Checks.Agents._get_shared_weapon_name(agent_id)
+            if weapon_type == 0 or weapon_name == "Unknown":
                 return False
 
-            return not Checks.Agents.IsMartial(agent_id)
+            return weapon_name in caster_weapon_types
 
         @staticmethod
         def IsMelee(agent_id: int) -> bool:
