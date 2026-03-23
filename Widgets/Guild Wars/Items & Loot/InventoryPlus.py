@@ -931,6 +931,8 @@ class InventoryPlusWidget:
         self._xunlai_manager_bridge_path: str | None = None
         self._xunlai_manager_bridge_mtime: float | None = None
         self._source_mtime: float | None = None
+        self._xunlai_sort_anchor_side: str | None = None
+        self._xunlai_storage_visible_last_frame: bool = False
         self._xunlai_sort_icon_path = os.path.join(
             Py4GW.Console.get_projects_path(),
             "Sources",
@@ -1047,6 +1049,8 @@ class InventoryPlusWidget:
         from Py4GWCoreLib.UIManager import UIManager
 
         if not context.storage_visible:
+            self._xunlai_storage_visible_last_frame = False
+            self._xunlai_sort_anchor_side = None
             return
 
         left, top, right, bottom = UIManager.GetFrameCoords(self.XUNLAI_WINDOW_FRAME_HASH)
@@ -1078,24 +1082,29 @@ class InventoryPlusWidget:
         icon_label = "XunlaiChestSort"
         icon_button_size = 22
         progress_width = 84
-        panel_width = 96 if sort_running else 30
+        icon_window_width = 30
+        progress_window_width = 96
         outer_gap = 18
         io = PyImGui.get_io()
         display_width = float(getattr(io, "display_size_x", 0.0) or 0.0)
+        if not self._xunlai_storage_visible_last_frame or self._xunlai_sort_anchor_side is None:
+            required_width = progress_window_width if sort_running else icon_window_width
+            right_space = max(0.0, display_width - right) if display_width > 0 else right
+            left_space = max(0.0, left)
+            if right_space >= required_width + outer_gap:
+                self._xunlai_sort_anchor_side = "right"
+            elif left_space >= required_width + outer_gap:
+                self._xunlai_sort_anchor_side = "left"
+            else:
+                self._xunlai_sort_anchor_side = "right" if right_space >= left_space else "left"
+            self._xunlai_storage_visible_last_frame = True
 
-        place_on_left = False
-        if display_width > 0:
-            chest_center_x = (left + right) / 2.0
-            place_on_left = chest_center_x >= (display_width / 2.0)
+        icon_x = right + outer_gap
+        if self._xunlai_sort_anchor_side == "left":
+            icon_x = left - icon_window_width - outer_gap
 
-        panel_x = right + outer_gap
-        if place_on_left:
-            panel_x = left - panel_width - outer_gap
-
-        panel_x = max(0.0, panel_x)
-        panel_y = max(0.0, top)
-        PyImGui.set_next_window_pos(panel_x, panel_y)
-        PyImGui.set_next_window_size(panel_width, 0)
+        icon_x = max(0.0, icon_x)
+        icon_y = max(0.0, top)
         window_flags = (
             PyImGui.WindowFlags.AlwaysAutoResize |
             PyImGui.WindowFlags.NoTitleBar |
@@ -1104,6 +1113,8 @@ class InventoryPlusWidget:
             PyImGui.WindowFlags.NoScrollWithMouse
         )
 
+        PyImGui.set_next_window_pos(icon_x, icon_y)
+        PyImGui.set_next_window_size(icon_window_width, 0)
         if PyImGui.begin("##InventoryPlusXunlaiSortButton", True, window_flags):
             PyImGui.push_style_var2(PyImGui.ImGuiStyleVar.FramePadding, 1, 1)
             use_texture_button = os.path.exists(self._xunlai_sort_icon_path)
@@ -1124,7 +1135,6 @@ class InventoryPlusWidget:
                 if PyImGui.is_item_hovered():
                     tooltip_text = progress_text if progress_text else "Sorting Chest"
                     PyImGui.set_tooltip(tooltip_text)
-                PyImGui.progress_bar(progress_ratio, progress_width, 0, "")
             else:
                 clicked = False
                 if use_texture_button:
@@ -1144,6 +1154,24 @@ class InventoryPlusWidget:
                 if PyImGui.is_item_hovered():
                     PyImGui.set_tooltip("Sort Chest")
             PyImGui.pop_style_var(1)
+        PyImGui.end()
+
+        if not sort_running:
+            return
+
+        progress_x = right + outer_gap
+        if self._xunlai_sort_anchor_side == "left":
+            progress_x = left - progress_window_width - outer_gap
+
+        progress_x = max(0.0, progress_x)
+        progress_y = icon_y + icon_window_width + 6
+        PyImGui.set_next_window_pos(progress_x, progress_y)
+        PyImGui.set_next_window_size(progress_window_width, 0)
+
+        if PyImGui.begin("##InventoryPlusXunlaiSortProgress", True, window_flags):
+            if progress_text:
+                PyImGui.text_wrapped(progress_text)
+            PyImGui.progress_bar(progress_ratio, progress_width, 0, "")
         PyImGui.end()
 
     def _close_config_window(self) -> None:
