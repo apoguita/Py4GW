@@ -19,7 +19,6 @@ from Py4GWCoreLib import (
     AgentArray,
     IniHandler,
 )
-from Py4GWCoreLib.botting_src.helpers import BottingHelpers
 from Py4GW_widget_manager import get_widget_handler
 from Sources.oazix.CustomBehaviors.primitives.botting.botting_helpers import BottingHelpers
 from Sources.oazix.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
@@ -80,16 +79,14 @@ _ALT_SALVAGE_TRIGGER_THRESHOLD = 2
 _ALT_SALVAGE_POLL_TIMEOUT_MS = 200
 _ALT_SALVAGE_POLL_MAX_TOTAL_MS = 10_000
 _merchant_enabled: bool = False
-_merchant_id_kits_target: int = 2
-_merchant_salvage_kits_target: int = 5
 _merchant_id_kits_target: int = _FIXED_ID_KITS_TARGET
 _merchant_salvage_kits_target: int = _FIXED_SALVAGE_KITS_TARGET
+_inventory_slots_threshold: int = 4
 _merchant_store_consumable_materials: bool = False
 _merchant_sell_materials: bool = False
 _merchant_sell_rare_mats: bool = False
 _merchant_buy_ectos: bool = False
 _merchant_ecto_threshold: int = 800_000
-_merchant_alt_wait_ms: int = 90_000
 _DEFAULT_ALT_SETTLE_WAIT_MS = 2000
 _MAX_ALT_SETTLE_WAIT_MS = 5000
 _merchant_alt_wait_ms: int = _DEFAULT_ALT_SETTLE_WAIT_MS
@@ -111,6 +108,7 @@ EyeOfTheNorth = 642
 
 # Quest IDs
 LOST_SOULS_QUEST_ID = 0x324  # Lost Souls - abandon when in Vloxs Fall
+SHANDRA_QUEST_ID = LOST_SOULS_QUEST_ID
 
 # Dialog IDs
 DWARVEN_BLESSING_DIALOG = 0x84
@@ -186,16 +184,12 @@ def farm_bds_routine(bot: Botting) -> None:
     bot.Wait.ForTime(4000)
     bot.Multibox.UseAllConsumables()
 
-    IS_REPATHING = False
     # Path to Shandra
     path = [
     (13455.43, 10678.00),
     (9850.00, 5025.00),
     (11207.11, 1872.32),
-    #(11256.59, 1742.31),
     (10452.02, 178.50),
-    #(10870.85, -3558.11),
-    #(11736.00, 70.00),
     (10782.86, -3321.00),
     (8360.94, -6550.00),
     (10382.85, -12342.00),
@@ -204,8 +198,7 @@ def farm_bds_routine(bot: Botting) -> None:
     (10747.49, -17546.00),
     (11156.00, -17802.00),
 ]
-    if not IS_REPATHING:
-        bot.Move.FollowAutoPath(path)
+    bot.Move.FollowAutoPath(path)
     bot.Wait.UntilOutOfCombat()
     
     # ===== LOOP RESTART POINT =====
@@ -213,7 +206,7 @@ def farm_bds_routine(bot: Botting) -> None:
     
     bot.States.AddCustomState(lambda: bot.Move.XY(12056.00,-17882), "Go to Shandra")
     # Take Shandra' quest
-    bot.Move.XYAndInteractNPC((12056.00,-17882)[0], (12056.00,-17882)[1])
+    bot.Move.XYAndInteractNPC(12056.00, -17882)
     bot.Multibox.SendDialogToTarget(SHANDRA_TAKE_DIALOGS)
     bot.Wait.ForTime(4000)
     
@@ -274,8 +267,7 @@ def farm_bds_routine(bot: Botting) -> None:
         (6494.3,10739.2)]
     bot.Templates.Aggressive()
     bot.Wait.UntilOutOfCombat()
-    if not IS_REPATHING:
-        bot.Move.FollowAutoPath(path_before_bridgant)
+    bot.Move.FollowAutoPath(path_before_bridgant)
 
     bot.States.AddHeader("Level 1 - Secure Return Checkpoint 1")
     bot.States.AddCustomState(_step_anchor, "Secure return - L1")  # anchor for secure return on wipe
@@ -295,8 +287,7 @@ def farm_bds_routine(bot: Botting) -> None:
         (16689.2,12400.4),
         ]
     bot.Templates.Aggressive()
-    if not IS_REPATHING:
-        bot.Move.FollowAutoPath(path_before_door)
+    bot.Move.FollowAutoPath(path_before_door)
     bot.Wait.UntilOutOfCombat()
     bot.Move.XY(15953, 11902)
     bot.States.AddHeader("Level 1 - Secure Return Checkpoint 2")
@@ -313,8 +304,7 @@ def farm_bds_routine(bot: Botting) -> None:
     ]
 
     bot.Templates.Aggressive()
-    if not IS_REPATHING:
-        bot.Move.FollowAutoPath(path_before_door2)
+    bot.Move.FollowAutoPath(path_before_door2)
     bot.Wait.UntilOutOfCombat()
     # Door gadget
     bot.Move.XY(15100, 5443)
@@ -335,8 +325,7 @@ def farm_bds_routine(bot: Botting) -> None:
 
     ]
     bot.Templates.Aggressive()
-    if not IS_REPATHING:
-        bot.Move.FollowAutoPath(path_after_door)
+    bot.Move.FollowAutoPath(path_after_door)
     bot.Wait.UntilOutOfCombat()
 
     # Wait for change to Level 2
@@ -368,8 +357,7 @@ def farm_bds_routine(bot: Botting) -> None:
         (-16985.9,-16929.4),
     ]
     bot.Templates.Aggressive()
-    if not IS_REPATHING:
-        bot.Move.FollowAutoPath(path_before_torch)
+    bot.Move.FollowAutoPath(path_before_torch)
     bot.Wait.UntilOutOfCombat()
 
     # --- Torch chest + pickup ---
@@ -418,8 +406,7 @@ def farm_bds_routine(bot: Botting) -> None:
     (-8066.1,-4222.4),
     (-7058.8,-4191.0)]
     bot.Templates.Aggressive()
-    if not IS_REPATHING:
-        bot.Move.FollowAutoPath(path_room2)
+    bot.Move.FollowAutoPath(path_room2)
     bot.Wait.UntilOutOfCombat()
 
 
@@ -454,8 +441,7 @@ def farm_bds_routine(bot: Botting) -> None:
 
     ]
     bot.Templates.Aggressive()
-    if not IS_REPATHING:
-        bot.Move.FollowAutoPath(path_after_second_room)
+    bot.Move.FollowAutoPath(path_after_second_room)
     bot.Wait.UntilOutOfCombat()
 
     bot.States.AddHeader("Level 2 - Open Door")
@@ -515,8 +501,7 @@ def farm_bds_routine(bot: Botting) -> None:
         (-385.8,6478.3),
         (-1123.5,7481.9)]
     bot.Templates.Aggressive()
-    if not IS_REPATHING:
-        bot.Move.FollowAutoPath(path_before_flag)
+    bot.Move.FollowAutoPath(path_before_flag)
     bot.Wait.UntilOutOfCombat()
 
     bot.States.AddCustomState(_reset_l3_boss_route_flag, "Reset L3 boss route flag") #ICI CE TROUVE LE SHRINE DONC SI JE MEURT APRES JE REVIENS ICI DONC MAIS SI JE MEURT AU BOSS C4EST ICI QUE JE REVIS
@@ -536,8 +521,7 @@ def farm_bds_routine(bot: Botting) -> None:
         (-10381.7,3037.7),
     ]
     bot.Templates.Aggressive()
-    if not IS_REPATHING:
-        bot.Move.FollowAutoPath(path2)
+    bot.Move.FollowAutoPath(path2)
     bot.Wait.UntilOutOfCombat()
 
     bot.States.AddHeader("Level 3 - Path to Torch")
@@ -552,8 +536,7 @@ def farm_bds_routine(bot: Botting) -> None:
     ]
 
     bot.Templates.Aggressive()
-    if not IS_REPATHING:
-        bot.Move.FollowAutoPath(path_to_take_torch)
+    bot.Move.FollowAutoPath(path_to_take_torch)
     bot.Wait.UntilOutOfCombat()
 
     bot.States.AddCustomState(bot.Move.XYAndInteractGadget(16111.00, 17556), "Open Torch Chest")
@@ -590,8 +573,7 @@ def farm_bds_routine(bot: Botting) -> None:
     ]
 
     bot.Templates.Aggressive()
-    if not IS_REPATHING:
-        bot.Move.FollowAutoPath(path_bds)
+    bot.Move.FollowAutoPath(path_bds)
     bot.States.AddCustomState(resolve_fendi_fight, "Resolve Fendi Fight")
     bot.States.AddHeader("Final Chest")
         # ===== OPEN FINAL CHEST =====
@@ -622,12 +604,13 @@ def farm_bds_routine(bot: Botting) -> None:
 # --- Merchant Setup and Inventory Helpers ---
 
 def _load_merchant_settings() -> None:
-    global _merchant_enabled, _merchant_id_kits_target, _merchant_salvage_kits_target, _merchant_store_consumable_materials, _merchant_sell_materials, _merchant_sell_rare_mats, _merchant_buy_ectos, _merchant_ecto_threshold, _merchant_alt_wait_ms, _merchant_loaded
+    global _merchant_enabled, _merchant_id_kits_target, _merchant_salvage_kits_target, _inventory_slots_threshold, _merchant_store_consumable_materials, _merchant_sell_materials, _merchant_sell_rare_mats, _merchant_buy_ectos, _merchant_ecto_threshold, _merchant_alt_wait_ms, _merchant_loaded
     if _merchant_loaded:
         return
     _merchant_enabled = _bds_ini.read_bool(_MERCHANT_SECTION, "enabled", False)
     _merchant_id_kits_target = _bds_ini.read_int(_MERCHANT_SECTION, "id_kits_target", _FIXED_ID_KITS_TARGET)
     _merchant_salvage_kits_target = _bds_ini.read_int(_MERCHANT_SECTION, "salvage_kits_target", _FIXED_SALVAGE_KITS_TARGET)
+    _inventory_slots_threshold = max(0, _bds_ini.read_int(_MERCHANT_SECTION, "inventory_threshold", 1))
     _merchant_store_consumable_materials = _bds_ini.read_bool(_MERCHANT_SECTION, "store_consumable_materials", False)
     _merchant_sell_materials = _bds_ini.read_bool(_MERCHANT_SECTION, "sell_materials", False)
     _merchant_sell_rare_mats = _bds_ini.read_bool(_MERCHANT_SECTION, "sell_rare_mats", False)
@@ -641,6 +624,7 @@ def _save_merchant_settings() -> None:
     _bds_ini.write_key(_MERCHANT_SECTION, "enabled", str(_merchant_enabled))
     _bds_ini.write_key(_MERCHANT_SECTION, "id_kits_target", str(_merchant_id_kits_target))
     _bds_ini.write_key(_MERCHANT_SECTION, "salvage_kits_target", str(_merchant_salvage_kits_target))
+    _bds_ini.write_key(_MERCHANT_SECTION, "inventory_threshold", str(_inventory_slots_threshold))
     _bds_ini.write_key(_MERCHANT_SECTION, "store_consumable_materials", str(_merchant_store_consumable_materials))
     _bds_ini.write_key(_MERCHANT_SECTION, "sell_materials", str(_merchant_sell_materials))
     _bds_ini.write_key(_MERCHANT_SECTION, "sell_rare_mats", str(_merchant_sell_rare_mats))
@@ -921,10 +905,6 @@ def _disable_merchant_widgets() -> Generator:
     ConsoleLog(BOT_NAME, f"[Merchant] Disabled {_MERCHANT_MANAGED_WIDGETS} on all accounts")
     yield
 
-SHANDRA_TAKE_DIALOGS = 0x832401
-SHANDRA_QUEST_REWARD_DIALOG = 0x832407
-SHANDRA_QUEST_ID = 0x324
-
 def _move_to(x: float, y: float, tolerance: float = 180.0, max_tries: int = 60):
     Player.Move(x, y)
 
@@ -948,15 +928,15 @@ def _wait_for_map(map_name: str, max_tries: int = 120):
     return False
 
 def _verify_reward_taken_from_quest_log() -> Generator:
-    global SHANDRA_REWARD_PENDING
+    global SHANDRA_REWARD_TAKEN
 
     quest_ids = Quest.GetQuestLogIds()
 
     if SHANDRA_QUEST_ID not in quest_ids:
-        SHANDRA_REWARD_PENDING = True
+        SHANDRA_REWARD_TAKEN = True
         ConsoleLog(BOT_NAME, "[FLAG] Reward confirmed: quest no longer in quest log", log=True)
     else:
-        SHANDRA_REWARD_PENDING = False
+        SHANDRA_REWARD_TAKEN = False
         ConsoleLog(BOT_NAME, "[FLAG] Reward NOT confirmed: quest still present in quest log", log=True)
 
     yield
@@ -1064,7 +1044,7 @@ def _interact_with_Shandra(bot: Botting, dialog_id: int, tolerance: float = 220.
     return True
 
 def _recover_reward_and_retake_quest(bot: Botting) -> Generator:
-    global SHANDRA_REWARD_PENDING
+    global SHANDRA_REWARD_TAKEN
 
     ConsoleLog(BOT_NAME, "[RECOVERY] Late reward flow -> start", log=True)
 
@@ -1134,7 +1114,7 @@ def _recover_reward_and_retake_quest(bot: Botting) -> Generator:
     bot.States.JumpToStepName("LOOP_RESTART_POINT")
     yield
 
-SHANDRA_REWARD_PENDING = False
+SHANDRA_REWARD_TAKEN = False
 L3_BOSS_ROUTE_UNLOCKED = False
 
 def _reset_l3_boss_route_flag() -> Generator:
@@ -1151,11 +1131,11 @@ def _set_l3_boss_route_flag() -> Generator:
     yield
 
 def _post_return_flow(bot: Botting) -> Generator:
-    global SHANDRA_REWARD_PENDING
+    global SHANDRA_REWARD_TAKEN
 
-    ConsoleLog(BOT_NAME, f"[POST-RETURN] Flag value = {SHANDRA_REWARD_PENDING}", log=True)
+    ConsoleLog(BOT_NAME, f"[POST-RETURN] Flag value = {SHANDRA_REWARD_TAKEN}", log=True)
 
-    if not SHANDRA_REWARD_PENDING:
+    if not SHANDRA_REWARD_TAKEN:
         ConsoleLog(BOT_NAME, "[POST-RETURN] Reward NOT taken -> recovery flow", log=True)
         yield from _recover_reward_and_retake_quest(bot)
         yield
@@ -1600,7 +1580,7 @@ def _gh_merchant_setup_for_alt_salvage_threshold() -> Generator:
 def _gh_merchant_setup_if_inventory_full() -> Generator:
     """After quest reward: if only 1 free inventory slot remains, resign to outpost then run the full GH merchant routine."""
     free_slots = int(GLOBAL_CACHE.Inventory.GetFreeSlotCount())
-    if free_slots > 1:
+    if free_slots > _inventory_slots_threshold:
         yield
         return
     ConsoleLog(BOT_NAME, f"[Merchant] Inventory nearly full ({free_slots} free slot) â€” resigning to outpost then triggering GH merchant run")
@@ -1713,12 +1693,13 @@ def drop_bundle_safe(times: int = 2, delay_ms: int = 250) -> Generator:
         yield from Routines.Yield.wait(delay_ms)
     yield
 
-def _toggle_wait_for_party(enabled: bool) -> None:
+def _toggle_wait_for_party(enabled: bool) -> Generator:
     _set_custom_utility_enabled(
         enabled,
         skill_names=("wait_if_party_member_too_far",),
         class_names=("WaitIfPartyMemberTooFarUtility",),
     )
+    yield
 
 
 def _set_custom_utility_enabled(
@@ -2582,7 +2563,7 @@ def _draw_district_setting() -> None:
 
 def _draw_merchant_settings() -> None:
     import PyImGui
-    global _merchant_enabled, _merchant_id_kits_target, _merchant_salvage_kits_target, _merchant_store_consumable_materials, _merchant_sell_materials, _merchant_sell_rare_mats, _merchant_buy_ectos, _merchant_ecto_threshold, _merchant_alt_wait_ms
+    global _merchant_enabled, _merchant_id_kits_target, _merchant_salvage_kits_target, _inventory_slots_threshold, _merchant_store_consumable_materials, _merchant_sell_materials, _merchant_sell_rare_mats, _merchant_buy_ectos, _merchant_ecto_threshold, _merchant_alt_wait_ms
 
     _load_merchant_settings()
 
@@ -2605,6 +2586,11 @@ def _draw_merchant_settings() -> None:
         new_sal = PyImGui.input_int("Salvage Kits target##bds_sal", _merchant_salvage_kits_target)
         if new_sal != _merchant_salvage_kits_target:
             _merchant_salvage_kits_target = max(0, new_sal)
+            _save_merchant_settings()
+
+        new_inv = PyImGui.input_int("Free Inventory Slots target##bds_inv_thresh", _inventory_slots_threshold)
+        if new_inv != _inventory_slots_threshold:
+            _inventory_slots_threshold = max(0, new_inv)
             _save_merchant_settings()
         PyImGui.pop_item_width()
 
@@ -2754,7 +2740,7 @@ def tooltip():
     # Credits
     PyImGui.text_colored("Credits:", title_color.to_tuple_normalized())
     PyImGui.bullet_text("Developed by Oo SKY oO")
-    PyImGui.bullet_text("Contributors: Wick-Divinus, Sloppynacho, XLeek, Yodz, Le Z")
+    PyImGui.bullet_text("Contributors: Wick-Divinus, Sloppynacho, XLeek, Yods, Le Z")
     PyImGui.end_tooltip()
 
 def main():
