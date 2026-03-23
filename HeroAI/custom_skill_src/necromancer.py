@@ -58,7 +58,8 @@ class NecromancerSkills:
         skill.SkillType = SkillType.Signet.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.EnergyBuff.value
-        skill.Conditions.LessLife = 0.5
+        skill.Conditions.LessLife = 0.6
+        skill.Conditions.LessEnergy = 0.6
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -133,7 +134,7 @@ class NecromancerSkills:
         skill.TargetAllegiance = Skilltarget.OtherAlly.value
         skill.Nature = SkillNature.EnergyBuff.value
         skill.Conditions.LessEnergy = 0.4
-        skill.Conditions.SacrificeHealth = 0.5
+        skill.Conditions.SacrificeHealth = 0.3
         skill.Conditions.TargetingStrict = True
         skill_data[skill.SkillID] = skill
 

@@ -12,7 +12,7 @@ This session focused on three connected tracks:
 
 The project is not fully clean yet, but the ownership split is now much more coherent.
 
-`GWUI` in [GWUI.py](C:\Users\Apo\Py4GW_python_files\Py4GWCoreLib\GWUI.py) is now the intended Python-facing class for:
+`GWUI` in [GWUI.py](/Py4GWCoreLib/GWUI.py) is now the intended Python-facing class for:
 - UI construction
 - cloned/native window creation
 - frame mutation
@@ -20,7 +20,7 @@ The project is not fully clean yet, but the ownership split is now much more coh
 - rect control
 - title override helpers
 
-`UIManager` in [UIManager.py](C:\Users\Apo\Py4GW_python_files\Py4GWCoreLib\UIManager.py) is no longer supposed to act as a compatibility facade for `GWUI`. Earlier there had been a `#region GWUICompatibility` block, but that was removed because it created an unnecessary circular dependency pattern and blurred ownership.
+`UIManager` in [UIManager.py](/Py4GWCoreLib/UIManager.py) is no longer supposed to act as a compatibility facade for `GWUI`. Earlier there had been a `#region GWUICompatibility` block, but that was removed because it created an unnecessary circular dependency pattern and blurred ownership.
 
 The practical rule now is:
 - `UIManager` is the low-level/native bridge surface
@@ -59,7 +59,7 @@ There are now several native helpers exposed in `UIManager` and wrapped in `GWUI
 - `GetTextLabelCreatePayloadDiagnosticsByTemplateFrameId`
 - `GetTextLabelLiteralCreatePayloadDiagnostics`
 
-Relevant native implementation is in [py_ui.h](C:\Users\Apo\Py4GW\include\py_ui.h), and Python wrappers are in [GWUI.py](C:\Users\Apo\Py4GW_python_files\Py4GWCoreLib\GWUI.py).
+Relevant native implementation is in [py_ui.h](/Py4GW/include/py_ui.h), and Python wrappers are in [GWUI.py](/Py4GWCoreLib/GWUI.py).
 
 ### Core encoded-string behavior
 
@@ -231,7 +231,7 @@ Originally the clone-time title hook lived in separate files:
 That logic has now been migrated into `py_ui` itself.
 
 Current location:
-- [py_ui.h](C:\Users\Apo\Py4GW\include\py_ui.h)
+- [py_ui.h](/Py4GW/include/py_ui.h)
 
 It now lives in:
 - `namespace UIManagerTitleHook`
@@ -284,12 +284,12 @@ Important distinction:
 **C++ Environment Overview**
 
 Native project root:
-- `C:\Users\Apo\Py4GW`
+- `/Py4GW`
 
 Main relevant files in this session:
-- [py_ui.h](C:\Users\Apo\Py4GW\include\py_ui.h)
-- [py_ui.cpp](C:\Users\Apo\Py4GW\src\py_ui.cpp)
-- [CMakeLists.txt](C:\Users\Apo\Py4GW\CMakeLists.txt)
+- [py_ui.h](/Py4GW/include/py_ui.h)
+- [py_ui.cpp](/Py4GW/src/py_ui.cpp)
+- [CMakeLists.txt](/Py4GW/CMakeLists.txt)
 
 ### `py_ui.h`
 
@@ -336,12 +336,12 @@ The native DLL was rebuilt successfully after the migration and comment pass.
 **Python Environment Overview**
 
 Python project root:
-- `C:\Users\Apo\Py4GW_python_files`
+- `/`
 
 Main relevant files in this session:
-- [GWUI.py](C:\Users\Apo\Py4GW_python_files\Py4GWCoreLib\GWUI.py)
-- [UIManager.py](C:\Users\Apo\Py4GW_python_files\Py4GWCoreLib\UIManager.py)
-- [window_title_probe_test.py](C:\Users\Apo\Py4GW_python_files\window_title_probe_test.py)
+- [GWUI.py](/Py4GWCoreLib/GWUI.py)
+- [UIManager.py](/Py4GWCoreLib/UIManager.py)
+- [window_title_probe_test.py](/window_title_probe_test.py)
 
 ### `GWUI.py`
 
@@ -362,7 +362,7 @@ This is still present as the lower-level Python-native bridge layer, but it shou
 ### New Python title test script
 
 Added:
-- [window_title_probe_test.py](C:\Users\Apo\Py4GW_python_files\window_title_probe_test.py)
+- [window_title_probe_test.py](/window_title_probe_test.py)
 
 Purpose:
 - test clone-time full title override
@@ -386,8 +386,8 @@ This script is focused specifically on the title problem, unlike older broader t
 You asked for commentary on the native UI bridge.
 
 That pass was completed mainly in:
-- [py_ui.h](C:\Users\Apo\Py4GW\include\py_ui.h)
-- [py_ui.cpp](C:\Users\Apo\Py4GW\src\py_ui.cpp)
+- [py_ui.h](/Py4GW/include/py_ui.h)
+- [py_ui.cpp](/Py4GW/src/py_ui.cpp)
 
 The final state is:
 - `UIManager` methods now have terse per-function comments across the class
@@ -446,10 +446,10 @@ If you want, the next handoff artifact I can produce is a stricter “developer 
 - clone creation pipeline
 - Python API mapping to native calls.
 
-diff --git a/c:\Users\Apo\Py4GW_python_files\docs/native_ui_title_and_encoded_string_reference.md b/c:\Users\Apo\Py4GW_python_files\docs/native_ui_title_and_encoded_string_reference.md
+diff --git a/docs/native_ui_title_and_encoded_string_reference.md b/docs/native_ui_title_and_encoded_string_reference.md
 new file mode 100644
 --- /dev/null
-+++ b/c:\Users\Apo\Py4GW_python_files\docs/native_ui_title_and_encoded_string_reference.md
++++ b/docs/native_ui_title_and_encoded_string_reference.md
 @@ -0,0 +1,523 @@
 +# Native UI Title And Encoded String Reference
 +
@@ -470,13 +470,13 @@ new file mode 100644
 +### Python workspace
 +Path:
 +
-+- `C:\Users\Apo\Py4GW_python_files`
++- `/`
 +
 +Main files involved in this session:
 +
-+- [Py4GWCoreLib/GWUI.py](C:\Users\Apo\Py4GW_python_files\Py4GWCoreLib\GWUI.py)
-+- [Py4GWCoreLib/UIManager.py](C:\Users\Apo\Py4GW_python_files\Py4GWCoreLib\UIManager.py)
-+- [window_title_probe_test.py](C:\Users\Apo\Py4GW_python_files\window_title_probe_test.py)
++- [Py4GWCoreLib/GWUI.py](/Py4GWCoreLib/GWUI.py)
++- [Py4GWCoreLib/UIManager.py](/Py4GWCoreLib/UIManager.py)
++- [window_title_probe_test.py](/window_title_probe_test.py)
 +
 +Current role split:
 +
@@ -487,13 +487,13 @@ new file mode 100644
 +### Native C++ workspace
 +Path:
 +
-+- `C:\Users\Apo\Py4GW`
++- `/Py4GW`
 +
 +Main files involved in this session:
 +
-+- [include/py_ui.h](C:\Users\Apo\Py4GW\include\py_ui.h)
-+- [src/py_ui.cpp](C:\Users\Apo\Py4GW\src\py_ui.cpp)
-+- [CMakeLists.txt](C:\Users\Apo\Py4GW\CMakeLists.txt)
++- [include/py_ui.h](/Py4GW/include/py_ui.h)
++- [src/py_ui.cpp](/Py4GW/src/py_ui.cpp)
++- [CMakeLists.txt](/Py4GW/CMakeLists.txt)
 +
 +Important build note:
 +
@@ -639,7 +639,7 @@ new file mode 100644
 +
 +It was migrated into:
 +
-+- [include/py_ui.h](C:\Users\Apo\Py4GW\include\py_ui.h)
++- [include/py_ui.h](/Py4GW/include/py_ui.h)
 +
 +under:
 +
@@ -894,7 +894,7 @@ new file mode 100644
 +
 +New test harness:
 +
-+- [window_title_probe_test.py](C:\Users\Apo\Py4GW_python_files\window_title_probe_test.py)
++- [window_title_probe_test.py](/window_title_probe_test.py)
 +
 +Purpose:
 +

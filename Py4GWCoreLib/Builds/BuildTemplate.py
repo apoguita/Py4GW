@@ -44,13 +44,18 @@ class PhaseAwareBuildTemplate(BuildMgr):
     class provide the shared scaffolding:
     - map/explorable/can-act validation
     - priority target refresh
-    - automatic fallback delegation
+     - automatic fallback delegation
 
-    This keeps all builds consistent and avoids every build reimplementing
-    the same boilerplate.
+     This keeps all builds consistent and avoids every build reimplementing
+     the same boilerplate.
+
+    Important for build discovery:
+    - BuildRegistry may instantiate this class in `match_only` mode
+    - `match_only` construction must stay lean and metadata-only
+    - runtime-only setup belongs after the early return below
     """
 
-    def __init__(self):
+    def __init__(self, match_only: bool = False):
         super().__init__(
             name="Phase Aware Build Template",
             required_primary=Profession(0),
@@ -80,6 +85,14 @@ class PhaseAwareBuildTemplate(BuildMgr):
             ],
         )
 
+        # Keep the matcher path lean. BuildRegistry uses `match_only=True`
+        # when it only needs professions and supported skill ids for scoring.
+        # Do not allocate fallback handlers, custom skill data, timers, or
+        # other runtime state before this guard.
+        if match_only:
+            return
+
+        # Everything below is runtime-only state for the selected build handler.
         # Fallback executors handle the rest of the bar after local logic.
         # AutoCombat is the default example, but any executor build can be used.
         self.SetFallback("AutoCombat", AutoCombat())
@@ -90,15 +103,16 @@ class PhaseAwareBuildTemplate(BuildMgr):
         self.SetOOCFn(self._run_local_ooc_logic)
         self.SetCombatFn(self._run_local_combat_logic)
 
-        # Store frequently used skill ids once in __init__ so the build logic
-        # can reference them cheaply and clearly.
+        # Store frequently used skill ids once in the runtime path so the build
+        # logic can reference them cheaply and clearly.
         self.skill_ids = {
             # "skill_name": GLOBAL_CACHE.Skill.GetID("Skill_Name"),
         }
 
-        # HeroAI custom skill data is lazily served by BuildMgr._get_custom_skill.
-        # Keep a local dictionary if your build wants easy named access to the
-        # custom skill configuration objects.
+        # HeroAI custom skill data can be heavy, so load it only in the runtime
+        # path after the `match_only` guard. Keep a local dictionary if your
+        # build wants easy named access to the custom skill configuration
+        # objects.
         self.custom_skills = {
             name: self.GetCustomSkill(skill_id)
             for name, skill_id in self.skill_ids.items()
@@ -168,15 +182,20 @@ class SinglePhaseBuildTemplate(BuildMgr):
     - one generator already owns the whole local decision flow
     - separate OOC/combat handlers would just duplicate code
 
-    Like the phase-aware template, this class does not override the shared
-    scaffolding. Instead it registers a single local skill-casting handler and
-    lets BuildMgr handle:
-    - validation
-    - target refresh
-    - automatic fallback delegation through ProcessSkillCasting()
+     Like the phase-aware template, this class does not override the shared
+     scaffolding. Instead it registers a single local skill-casting handler and
+     lets BuildMgr handle:
+     - validation
+     - target refresh
+     - automatic fallback delegation through ProcessSkillCasting()
+
+    Important for build discovery:
+    - BuildRegistry may instantiate this class in `match_only` mode
+    - `match_only` construction must stay metadata-only
+    - runtime-only setup belongs after the early return below
     """
 
-    def __init__(self):
+    def __init__(self, match_only: bool = False):
         super().__init__(
             name="Single Phase Build Template",
             required_primary=Profession(0),
@@ -192,6 +211,13 @@ class SinglePhaseBuildTemplate(BuildMgr):
             ],
         )
 
+        # Build matching only needs the metadata passed to `super().__init__`.
+        # Keep expensive runtime setup below this guard so registry scoring
+        # stays fast even when many builds are discovered.
+        if match_only:
+            return
+
+        # Runtime-only execution state starts here.
         self.SetFallback("AutoCombat", AutoCombat())
 
         # Register one local callable. BuildMgr.ProcessSkillCasting() will call
@@ -201,6 +227,7 @@ class SinglePhaseBuildTemplate(BuildMgr):
         self.skill_ids = {
             # "skill_name": GLOBAL_CACHE.Skill.GetID("Skill_Name"),
         }
+        # Load custom-skill helpers only for the selected runtime build.
         self.custom_skills = {
             name: self.GetCustomSkill(skill_id)
             for name, skill_id in self.skill_ids.items()
@@ -226,4 +253,4 @@ class SinglePhaseBuildTemplate(BuildMgr):
         - let BuildMgr handle the fallback automatically after this method
           finishes
         """
-        yield
+        return False

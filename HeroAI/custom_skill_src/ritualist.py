@@ -583,6 +583,7 @@ class RitualistSkills:
         skill.SkillType = SkillType.WeaponSpell.value
         skill.TargetAllegiance = Skilltarget.AllyCaster.value
         skill.Nature = SkillNature.CustomC.value
+        skill.Conditions.TargetingStrict = True
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -597,6 +598,7 @@ class RitualistSkills:
         skill.SkillType = SkillType.WeaponSpell.value
         skill.TargetAllegiance = Skilltarget.AllyCaster.value
         skill.Nature = SkillNature.Buff.value
+        skill.Conditions.TargetingStrict = True
         skill_data[skill.SkillID] = skill
 
         #region RESTORATION_MAGIC

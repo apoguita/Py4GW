@@ -1,4 +1,4 @@
-from Py4GWCoreLib import Botting, Routines, GLOBAL_CACHE, ModelID, Map, Agent, ConsoleLog, Player
+from Py4GWCoreLib import Botting, Routines, GLOBAL_CACHE, ModelID, Map, Agent, ConsoleLog, Player, AgentArray, Map
 from Py4GWCoreLib import *
 import Py4GW
 import os
@@ -17,6 +17,9 @@ class BotSettings:
     COORD_TO_EXIT_MAP = []
     VANQUISH_PATH = []
     TRANSIT_PATH = [(0,0)]
+    WIDGETS_TO_ENABLE: tuple[str, ...] = (
+        "Titles",
+    )
 
 bot = Botting(BotSettings.BOT_NAME,
               upkeep_armor_of_salvation_restock=3,
@@ -33,20 +36,22 @@ bot = Botting(BotSettings.BOT_NAME,
               config_draw_path=True)
 
 def bot_routine(bot: Botting) -> None:
-    #events
+    # Widgets    
+    bot.Multibox.ApplyWidgetPolicy(enable_widgets=BotSettings.WIDGETS_TO_ENABLE)
+
+    # events
     condition = lambda: OnPartyWipe(bot)
     bot.Events.OnPartyWipeCallback(condition)
-    #end events
 
     # Combat preparations
-    bot.States.AddHeader(BotSettings.BOT_NAME) #2
+    bot.States.AddHeader(BotSettings.BOT_NAME) # 1
     bot.Templates.Multibox_Aggressive()
-    bot.Templates.Routines.PrepareForFarm(map_id_to_travel=BotSettings.OUTPOST_TO_TRAVEL)    
+    bot.Templates.Routines.PrepareForFarm(map_id_to_travel=BotSettings.OUTPOST_TO_TRAVEL) # 2
     bot.Party.SetHardMode(True)
     PrepareForBattle(bot)
 
     # Travel
-    bot.States.AddHeader("Travelling to Explorable") #3
+    bot.States.AddHeader("Travelling to Explorable") # 3
     if BotSettings.TRANSIT_EXPLORABLE:
             bot.Move.FollowPathAndExitMap(BotSettings.COORD_TO_EXIT_MAP, target_map_id=BotSettings.TRANSIT_EXPLORABLE)
             bot.Move.FollowAutoPath(BotSettings.TRANSIT_PATH)
@@ -54,21 +59,22 @@ def bot_routine(bot: Botting) -> None:
     else:
         bot.Move.FollowPathAndExitMap(BotSettings.COORD_TO_EXIT_MAP, target_map_id=BotSettings.EXPLORABLE_TO_TRAVEL)
 
-    # Combat
-    bot.States.AddHeader("Vanquish Path") #4
-    bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Starting Vanquish Path")
+    # Vanquish Path
+    bot.States.AddHeader("Vanquish Path") # 4
+    bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Starting Vanquish Path.")
+    bot.States.AddManagedCoroutine("VanquishWatchdog", lambda: VanquishWatchdog(bot))
     if "bless" in BotSettings.VANQUISH_PATH[0]:
         for i, entry in enumerate(BotSettings.VANQUISH_PATH):
             for key, value in entry.items():
                 if key == "bless":
-                    bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Taking Blessing")
+                    bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Taking Blessing.")
                     bot.Move.XY(*value)
                     bot.Wait.ForTime(1500)
                     bot.Move.XYAndInteractNPC(*value)
                     bot.Multibox.SendDialogToTarget(0x84) # eotn blessings
                     bot.Multibox.SendDialogToTarget(0x85) # NF blessings
                 elif key == "junundu":
-                    bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Taking Junundu")
+                    bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Taking Junundu.")
                     bot.Move.XY(*value)
                     bot.Wait.ForTime(1500)
                     bot.Move.XYAndInteractGadget(*value)
@@ -76,12 +82,12 @@ def bot_routine(bot: Botting) -> None:
                     bot.Move.FollowAutoPath(value)
     else:
         bot.Move.FollowAutoPath(BotSettings.VANQUISH_PATH)
-
     bot.Wait.UntilOutOfCombat()
     
-    #Reverse Route
-    bot.States.AddHeader("Reverse Vanquish Path") #5
-    bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Starting Reverse Path")
+    # Reverse Path with Radar
+    bot.States.AddHeader("Reverse Path with Radar") # 5
+    bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Starting Reverse Path with Radar.")
+    bot.States.AddManagedCoroutine("Radar", lambda: Radar(bot))
     if "bless" in BotSettings.VANQUISH_PATH[0]:
         reversed_list = []
         for entry in reversed(BotSettings.VANQUISH_PATH):
@@ -99,12 +105,14 @@ def bot_routine(bot: Botting) -> None:
         for i, entry in enumerate(BotSettings.VANQUISH_PATH):
             for key, value in entry.items():
                 if key == "bless":
+                    bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Taking Blessing.")
                     bot.Move.XY(*value)
                     bot.Wait.ForTime(1500)
                     bot.Move.XYAndInteractNPC(*value)
                     bot.Multibox.SendDialogToTarget(0x84) # eotn blessings
                     bot.Multibox.SendDialogToTarget(0x85) # NF blessings
                 elif key == "junundu":
+                    bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Taking Junundu.")
                     bot.Move.XY(*value)
                     bot.Wait.ForTime(1500)
                     bot.Move.XYAndInteractGadget(*value)
@@ -113,9 +121,12 @@ def bot_routine(bot: Botting) -> None:
     else:
         BotSettings.VANQUISH_PATH = list(reversed(BotSettings.VANQUISH_PATH))
         bot.Move.FollowAutoPath(BotSettings.VANQUISH_PATH)
-
     bot.Wait.UntilOutOfCombat()
-    bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Finished")
+
+    # Vanquish Finished
+    bot.States.AddHeader("Vanquish Finished") # 6
+    bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Bot Stopped.")
+    bot.States.AddCustomState(lambda: _stop_bot(), "StopBot")
 
 def PrepareForBattle(bot: Botting):                  
     bot.Items.Restock.ArmorOfSalvation()
@@ -124,6 +135,41 @@ def PrepareForBattle(bot: Botting):
     bot.Items.Restock.WarSupplies()
     bot.Items.Restock.Honeycomb()
 
+def Radar(bot: "Botting"):
+    ConsoleLog("Radar", f"Radar coroutine started.", Py4GW.Console.MessageType.Debug, True)
+    while True:
+        player_x, player_y = Player.GetXY()                
+        enemy_array = AgentArray.GetEnemyArray()
+        enemy_array = AgentArray.Filter.ByDistance(enemy_array, Player.GetXY(), 3000)
+        enemy_array = AgentArray.Sort.ByDistance(enemy_array, (player_x,player_y))
+        enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda a: Agent.IsAlive(a))
+        closest_enemy = next(iter(enemy_array), 0)
+        
+        if closest_enemy != 0:
+            closest_enemy_coord = Agent.GetXY(closest_enemy)
+            ConsoleLog("Radar", f"Enemy detected at {closest_enemy_coord}.", Py4GW.Console.MessageType.Debug, True)
+            bot.config.FSM.pause()
+            Player.Move(closest_enemy_coord[0], closest_enemy_coord[1])
+            yield from Routines.Yield.wait(500)
+        else:
+            bot.config.FSM.resume()
+            yield from Routines.Yield.wait(500)
+        yield from Routines.Yield.wait(500)
+
+def VanquishWatchdog(bot: "Botting"):
+    while True:
+        if Map.IsVanquishCompleted():
+            ConsoleLog("VanquishWatchdog", f"Vanquish trigger activated.", Py4GW.Console.MessageType.Debug, True)
+            bot.config.FSM.pause()
+            bot.config.FSM.jump_to_state_by_name("[H]Vanquish Finished_6")
+            bot.config.FSM.resume()
+            return
+        yield from Routines.Yield.wait(500)
+
+def _stop_bot():
+    bot.Stop()
+    yield
+    
 region_index = 0
 map_index = 0
 _farm_configured = [False]
@@ -174,8 +220,12 @@ def _draw_settings():
         _farm_configured[0] = True      
 
     PyImGui.separator()   
-    if PyImGui.button("Travel to Embark Beach", 250, 30):
-        Map.Travel(857)
+    if Map.GetMapID() != 857:
+        if PyImGui.button("Travel to Embark Beach", 250, 30):
+            Map.Travel(857)
+    else:
+        if PyImGui.button("Move to Vanquish signpost", 250, 30):   
+            Player.Move(-428.00, -3439.00)
 
     _draw_settings_consumables()
     #_draw_settings_debug()

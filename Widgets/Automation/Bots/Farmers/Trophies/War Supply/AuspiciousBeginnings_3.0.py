@@ -52,9 +52,7 @@ class BotSettings:
     DEBUG: bool = False
 
 
-_keiran_build = KeiranThackerayEOTN(debug_fn=lambda: BotSettings.DEBUG)
-bot = Botting("Auspicious Beginnings", custom_build=_keiran_build)
-_keiran_build.set_fsm(bot.config.FSM)
+bot = Botting("Auspicious Beginnings")
 bot.config.reset_pause_on_danger_fn(aggro_area=Range.Longbow)
 navmesh = None
      
@@ -101,9 +99,24 @@ def on_death(bot: "Botting"):
     fsm.pause()
     fsm.AddManagedCoroutine("OnDeath", _on_death(bot))
 
-def _EnableCombat(bot: Botting) -> None:
-    bot.OverrideBuild(KeiranThackerayEOTN(fsm=bot.config.FSM, debug_fn=lambda: BotSettings.DEBUG))
+def _build_keiran(bot: Botting) -> KeiranThackerayEOTN:
+    build = KeiranThackerayEOTN(fsm=bot.config.FSM, bot=bot, debug_fn=lambda: BotSettings.DEBUG)
+    build.set_fsm(bot.config.FSM)
+    build.set_bot(bot)
+    build.set_debug_fn(lambda: BotSettings.DEBUG)
+    return build
+
+def _EnableCombat(bot: Botting):
+    bot.OverrideBuild(_build_keiran(bot))
     bot.Templates.Aggressive(enable_imp=False)
+    bot.Properties.ApplyNow("pause_on_danger", "active", True)
+    bot.Properties.ApplyNow("halt_on_death", "active", False)
+    bot.Properties.ApplyNow("movement_timeout", "value", -1)
+    bot.Properties.ApplyNow("auto_combat", "active", True)
+    bot.Properties.ApplyNow("hero_ai", "active", False)
+    bot.Properties.ApplyNow("auto_loot", "active", True)
+    bot.Properties.ApplyNow("imp", "active", False)
+    yield
  
 def _DisableCombat(bot: Botting) -> None:
     bot.Templates.Pacifist()
@@ -372,7 +385,7 @@ def RunQuest(bot: Botting) -> None:
     bot.States.AddCustomState(exec_fn, "Navmesh Init")
     
     
-    _EnableCombat(bot)
+    bot.States.AddCustomState(lambda: _EnableCombat(bot), "EnableCombat")
     bot.Move.XY(11864.74, -4899.19)
     
     bot.States.AddCustomState(lambda: _handle_bonus_bow(bot), "HandleBonusBow")
@@ -555,7 +568,9 @@ def main():
         main_child_dimensions: Tuple[int, int] = (350, 275)
         
         bot.Update()
-        bot.UI.draw_window(icon_path=full_path + "Keiran_art.png")
+        window_ready = bot.UI.draw_window(icon_path=full_path + "Keiran_art.png")
+        if not window_ready:
+            return
 
         if PyImGui.begin(bot.config.bot_name, PyImGui.WindowFlags.AlwaysAutoResize):
             if PyImGui.begin_tab_bar(bot.config.bot_name + "_tabs"):

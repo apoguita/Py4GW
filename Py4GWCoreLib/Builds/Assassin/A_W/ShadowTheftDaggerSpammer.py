@@ -40,7 +40,7 @@ class BuildStatus:
 
 
 class AssassinShadowTheftDaggerSpammer(BuildMgr):
-    def __init__(self):
+    def __init__(self, match_only: bool = False):
         super().__init__(
             name="Assassin Shadow Theft Dagger Spammer",
             required_primary=Profession.Assassin,
@@ -57,6 +57,8 @@ class AssassinShadowTheftDaggerSpammer(BuildMgr):
                 GLOBAL_CACHE.Skill.GetID("Shadow_Theft"),
             ],
         )
+        if match_only:
+            return
         self.SetFallback("AutoCombat", AutoCombat())
 
         # === Skill References ===
