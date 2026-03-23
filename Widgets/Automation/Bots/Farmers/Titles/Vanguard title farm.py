@@ -1,3 +1,4 @@
+# region Imports & Config
 from Py4GWCoreLib import Botting, Routines, GLOBAL_CACHE, Agent, Player, ConsoleLog, IniManager, ModelID
 from Py4GWCoreLib.enums_src.Title_enums import TitleID, TITLE_TIERS
 from Py4GWCoreLib.botting_src.property import Property
@@ -106,8 +107,173 @@ PCON_RESTOCK_MODELS   = [m for m, _ in PCON_ITEMS] + [
     ModelID.Honeycomb.value,
     ModelID.Scroll_Of_Resurrection.value,
 ]
+# endregion
 
 
+# region Bot Routine
+def Routine(bot: Botting) -> None:
+    PrepareForCombat(bot)
+    Fight(bot)
+
+
+def PrepareForCombat(bot: Botting) -> None:
+    bot.States.AddHeader("Enable Combat Mode")
+    _load_behavior_setting(bot)
+    _load_consumable_settings(bot)
+    bot.Templates.Multibox_Aggressive()
+    _apply_behavior_mode(bot)
+    _sync_consumable_toggles(bot)
+    bot.Multibox.LeavePartyOnAllAccounts()
+    bot.Templates.Routines.PrepareForFarm(map_id_to_travel=DALADA_UPLANDS_OUTPOST_ID)
+    bot.States.AddCustomState(lambda: _restock_consumables_if_enabled(bot), "Restock Consumables If Enabled")
+    bot.Party.SetHardMode(True)
+
+
+def _do_bless_and_path(bot: Botting, bless_xy: tuple[float, float], path: list[tuple[float, float]], label: str) -> None:
+    bot.Move.XY(bless_xy[0], bless_xy[1], label)
+    bot.Wait.ForTime(1500)
+    bot.Move.XYAndInteractNPC(bless_xy[0], bless_xy[1])
+    bot.Multibox.SendDialogToTarget(0x84)
+    bot.Multibox.SendDialogToTarget(0x85)
+    bot.Move.FollowAutoPath(path)
+
+
+def Fight(bot: Botting) -> None:
+    # events
+    condition = lambda: OnPartyWipe(bot)
+    bot.Events.OnPartyWipeCallback(condition)
+    # end events
+
+    bot.States.AddHeader("Start Combat")
+    bot.Move.FollowPathAndExitMap(DALADA_UPLANDS_OUTPOST_PATH, target_map_id=DALADA_UPLANDS_MAP_ID)
+    bot.Wait.ForMapLoad(target_map_id=DALADA_UPLANDS_MAP_ID)
+    bot.Wait.ForTime(4000)
+    bot.States.AddCustomState(lambda: PrepareForBattle(bot), "Use Consumables If Enabled")
+    bot.States.AddManagedCoroutine("Anti-Stuck Watchdog", lambda: _anti_stuck_watchdog(bot))
+
+    # Path segment 1
+    _do_bless_and_path(bot, DALADA_SEGMENT_1_BLESS, DALADA_SEGMENT_1_PATH, "Taking Blessing")
+
+    # Path segment 2
+    _do_bless_and_path(bot, DALADA_SEGMENT_2_BLESS, DALADA_SEGMENT_2_PATH, "Taking Blessing")
+
+    # Path segment 3
+    _do_bless_and_path(bot, DALADA_SEGMENT_3_BLESS, DALADA_SEGMENT_3_PATH, "Taking Blessing")
+
+    # Path segment 4
+    _do_bless_and_path(bot, DALADA_SEGMENT_4_BLESS, DALADA_SEGMENT_4_PATH, "Taking Blessing")
+
+    bot.Multibox.ResignParty()
+    bot.Wait.UntilOnOutpost()
+    bot.Wait.ForTime(5000)
+    bot.States.JumpToStepName("[H]Enable Combat Mode_1")
+
+
+def PrepareForBattle(bot: Botting):
+    _sync_consumable_toggles(bot)
+    yield from _use_consumables_if_enabled(bot)
+
+
+bot.UI.override_draw_config(lambda: _draw_settings(bot))
+
+bot.SetMainRoutine(Routine)
+# endregion
+
+
+# region Consumables
+def _restock_consumables_if_enabled(bot: Botting):
+    _sync_consumable_toggles(bot)
+    if _as_bool(bot.Properties.Get("use_conset", "active")):
+        yield from _restock_models_locally(CONSET_RESTOCK_MODELS, 250)
+        yield from bot.helpers.Multibox._restock_conset_message(250)
+    if _as_bool(bot.Properties.Get("use_pcons", "active")):
+        yield from _restock_models_locally(PCON_RESTOCK_MODELS, 250)
+        yield from bot.helpers.Multibox._restock_all_pcons_message(250)
+
+
+def _use_consumables_if_enabled(bot: Botting):
+    _sync_consumable_toggles(bot)
+    if _as_bool(bot.Properties.Get("use_conset", "active")):
+        for model_id, skill_name in CONSET_ITEMS:
+            yield from bot.helpers.Multibox._use_consumable_message(
+                (model_id, GLOBAL_CACHE.Skill.GetID(skill_name), 0, 0))
+    if _as_bool(bot.Properties.Get("use_pcons", "active")):
+        for model_id, skill_name in PCON_ITEMS:
+            yield from bot.helpers.Multibox._use_consumable_message(
+                (model_id, GLOBAL_CACHE.Skill.GetID(skill_name), 0, 0))
+
+
+def _restock_models_locally(model_ids: list[int], quantity: int):
+    for model_id in model_ids:
+        yield from Routines.Yield.Items.RestockItems(model_id, quantity)
+# endregion
+
+
+# region Anti-Stuck
+EXPLORABLE_TIMEOUT_SECONDS = 3 * 3600  # 3 hours
+
+
+def _anti_stuck_resign(bot: "Botting"):
+    """Called when the timeout fires: resign, wait for outpost, then restart."""
+    yield from bot.helpers.Multibox._resignParty()
+    while True:
+        yield from bot.Wait._coro_for_time(1000)
+        if not Routines.Checks.Map.MapValid():
+            continue
+        if Routines.Checks.Map.IsOutpost():
+            break
+    bot.States.JumpToStepName("[H]Enable Combat Mode_1")
+    bot.config.FSM.resume()
+    yield
+
+
+def _anti_stuck_watchdog(bot: "Botting"):
+    """Resign the party if stuck in explorable for more than 3 hours."""
+    explorable_entry_time = None
+    while True:
+        yield from bot.Wait._coro_for_time(60000)  # check every minute
+        if not Routines.Checks.Map.MapValid():
+            explorable_entry_time = None
+            continue
+        if Routines.Checks.Map.IsOutpost():
+            explorable_entry_time = None
+            continue
+        # We are in explorable
+        if explorable_entry_time is None:
+            explorable_entry_time = time.time()
+            continue
+        elapsed = time.time() - explorable_entry_time
+        if elapsed >= EXPLORABLE_TIMEOUT_SECONDS:
+            ConsoleLog(BOT_NAME, f"Anti-stuck: {elapsed/3600:.1f}h in explorable - resigning party.", Py4GW.Console.MessageType.Warning)
+            explorable_entry_time = None
+            bot.config.FSM.pause()
+            bot.config.FSM.AddManagedCoroutine("AntiStuck_Resign", lambda: _anti_stuck_resign(bot))
+# endregion
+
+
+# region Events
+def _on_party_wipe(bot: "Botting"):
+    while Agent.IsDead(Player.GetAgentID()):
+        yield from bot.Wait._coro_for_time(1000)
+        if not Routines.Checks.Map.MapValid():
+            # Map invalid -> release FSM and exit
+            bot.config.FSM.resume()
+            return
+
+    # Player revived on same map -> jump to recovery step
+    bot.States.JumpToStepName("[H]Start Combat_2")
+    bot.config.FSM.resume()
+
+
+def OnPartyWipe(bot: "Botting"):
+    ConsoleLog("on_party_wipe", "event triggered")
+    fsm = bot.config.FSM
+    fsm.pause()
+    fsm.AddManagedCoroutine("OnWipe_OPD", lambda: _on_party_wipe(bot))
+# endregion
+
+
+# region Settings
 def _as_bool(value) -> bool:
     if isinstance(value, bool):
         return value
@@ -190,6 +356,7 @@ def _save_consumable_settings(bot: Botting) -> None:
         _as_bool(bot.Properties.Get("use_pcons", "active")),
     )
 
+
 def _sync_consumable_toggles(bot: Botting) -> None:
     use_conset = _as_bool(bot.Properties.Get("use_conset", "active"))
     use_pcons = _as_bool(bot.Properties.Get("use_pcons", "active"))
@@ -211,26 +378,6 @@ def _sync_consumable_toggles(bot: Botting) -> None:
     ):
         bot.Properties.ApplyNow(key, "active", use_pcons)
 
-
-def _restock_models_locally(model_ids: list[int], quantity: int):
-    for model_id in model_ids:
-        yield from Routines.Yield.Items.RestockItems(model_id, quantity)
-
-
-def _use_consumables_locally(consumable_effects: list[tuple[int, int]]):
-    yield from Routines.Yield.wait(500)
-    for model_id, skill_id in consumable_effects:
-        if GLOBAL_CACHE.Effects.HasEffect(Player.GetAgentID(), skill_id):
-            continue
-        item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(model_id)
-        if item_id:
-            GLOBAL_CACHE.Inventory.UseItem(item_id)
-            yield from Routines.Yield.wait(500)
-
-
-def Routine(bot: Botting) -> None:
-    PrepareForCombat(bot)
-    Fight(bot)
 
 def _apply_behavior_mode(bot: Botting) -> None:
     use_custom_behaviors = _as_bool(bot.Properties.Get("use_custom_behaviors", "active"))
@@ -260,154 +407,10 @@ def _apply_behavior_mode(bot: Botting) -> None:
         if not widget_handler.is_widget_enabled("HeroAI"):
             widget_handler.enable_widget("HeroAI")
         bot.Multibox.ApplyWidgetPolicy(enable_widgets=('HeroAI',), disable_widgets=('CustomBehaviors',), apply_local=False)
-
-def PrepareForCombat(bot: Botting) -> None:
-    bot.States.AddHeader("Enable Combat Mode")
-    _load_behavior_setting(bot)
-    _load_consumable_settings(bot)
-    bot.Templates.Multibox_Aggressive()
-    _apply_behavior_mode(bot)
-    _sync_consumable_toggles(bot)
-    bot.Multibox.LeavePartyOnAllAccounts()
-    bot.Templates.Routines.PrepareForFarm(map_id_to_travel=DALADA_UPLANDS_OUTPOST_ID)
-    bot.States.AddCustomState(lambda: _restock_consumables_if_enabled(bot), "Restock Consumables If Enabled")
-    bot.Party.SetHardMode(True)
+# endregion
 
 
-def _do_bless_and_path(bot: Botting, bless_xy: tuple[float, float], path: list[tuple[float, float]], label: str) -> None:
-    bot.Move.XY(bless_xy[0], bless_xy[1], label)
-    bot.Wait.ForTime(1500)
-    bot.Move.XYAndInteractNPC(bless_xy[0], bless_xy[1])
-    bot.Multibox.SendDialogToTarget(0x84)
-    bot.Multibox.SendDialogToTarget(0x85)
-    bot.Move.FollowAutoPath(path)
-
-
-def Fight(bot: Botting) -> None:
-    # events
-    condition = lambda: OnPartyWipe(bot)
-    bot.Events.OnPartyWipeCallback(condition)
-    # end events
-
-    bot.States.AddHeader("Start Combat")
-    bot.Move.FollowPathAndExitMap(DALADA_UPLANDS_OUTPOST_PATH, target_map_id=DALADA_UPLANDS_MAP_ID)
-    bot.Wait.ForMapLoad(target_map_id=DALADA_UPLANDS_MAP_ID)
-    bot.Wait.ForTime(4000)
-    bot.States.AddCustomState(lambda: PrepareForBattle(bot), "Use Consumables If Enabled")
-    bot.States.AddManagedCoroutine("Anti-Stuck Watchdog", lambda: _anti_stuck_watchdog(bot))
-
-    # Path segment 1
-    _do_bless_and_path(bot, DALADA_SEGMENT_1_BLESS, DALADA_SEGMENT_1_PATH, "Taking Blessing")
-
-    # Path segment 2
-    _do_bless_and_path(bot, DALADA_SEGMENT_2_BLESS, DALADA_SEGMENT_2_PATH, "Taking Blessing")
-
-    # Path segment 3
-    _do_bless_and_path(bot, DALADA_SEGMENT_3_BLESS, DALADA_SEGMENT_3_PATH, "Taking Blessing")
-
-    # Path segment 4
-    _do_bless_and_path(bot, DALADA_SEGMENT_4_BLESS, DALADA_SEGMENT_4_PATH, "Taking Blessing")
-
-    bot.Multibox.ResignParty()
-    bot.Wait.UntilOnOutpost()
-    bot.Wait.ForTime(5000)
-    bot.States.JumpToStepName("[H]Enable Combat Mode_1")
-
-
-def PrepareForBattle(bot: Botting):
-    _sync_consumable_toggles(bot)
-    yield from _use_consumables_if_enabled(bot)
-
-
-def _restock_consumables_if_enabled(bot: Botting):
-    _sync_consumable_toggles(bot)
-    if _as_bool(bot.Properties.Get("use_conset", "active")):
-        yield from _restock_models_locally(CONSET_RESTOCK_MODELS, 250)
-        yield from bot.helpers.Multibox._restock_conset_message(250)
-    if _as_bool(bot.Properties.Get("use_pcons", "active")):
-        yield from _restock_models_locally(PCON_RESTOCK_MODELS, 250)
-        yield from bot.helpers.Multibox._restock_all_pcons_message(250)
-
-
-def _use_consumables_if_enabled(bot: Botting):
-    _sync_consumable_toggles(bot)
-    if _as_bool(bot.Properties.Get("use_conset", "active")):
-        items = [(m, GLOBAL_CACHE.Skill.GetID(s)) for m, s in CONSET_ITEMS]
-        yield from _use_consumables_locally(items)
-        for model_id, skill_id in items:
-            yield from bot.helpers.Multibox._use_consumable_message((model_id, skill_id, 0, 0))
-    if _as_bool(bot.Properties.Get("use_pcons", "active")):
-        items = [(m, GLOBAL_CACHE.Skill.GetID(s)) for m, s in PCON_ITEMS]
-        yield from _use_consumables_locally(items)
-        for model_id, skill_id in items:
-            yield from bot.helpers.Multibox._use_consumable_message((model_id, skill_id, 0, 0))
-
-
-EXPLORABLE_TIMEOUT_SECONDS = 3 * 3600  # 3 hours
-
-
-def _anti_stuck_resign(bot: "Botting"):
-    """Called when the timeout fires: resign, wait for outpost, then restart."""
-    yield from bot.helpers.Multibox._resignParty()
-    while True:
-        yield from bot.Wait._coro_for_time(1000)
-        if not Routines.Checks.Map.MapValid():
-            continue
-        if Routines.Checks.Map.IsOutpost():
-            break
-    bot.States.JumpToStepName("[H]Enable Combat Mode_1")
-    bot.config.FSM.resume()
-    yield
-
-
-def _anti_stuck_watchdog(bot: "Botting"):
-    """Resign the party if stuck in explorable for more than 3 hours."""
-    explorable_entry_time = None
-    while True:
-        yield from bot.Wait._coro_for_time(60000)  # check every minute
-        if not Routines.Checks.Map.MapValid():
-            explorable_entry_time = None
-            continue
-        if Routines.Checks.Map.IsOutpost():
-            explorable_entry_time = None
-            continue
-        # We are in explorable
-        if explorable_entry_time is None:
-            explorable_entry_time = time.time()
-            continue
-        elapsed = time.time() - explorable_entry_time
-        if elapsed >= EXPLORABLE_TIMEOUT_SECONDS:
-            ConsoleLog(BOT_NAME, f"Anti-stuck: {elapsed/3600:.1f}h in explorable - resigning party.", Py4GW.Console.MessageType.Warning)
-            explorable_entry_time = None
-            bot.config.FSM.pause()
-            bot.config.FSM.AddManagedCoroutine("AntiStuck_Resign", lambda: _anti_stuck_resign(bot))
-
-
-def _on_party_wipe(bot: "Botting"):
-    while Agent.IsDead(Player.GetAgentID()):
-        yield from bot.Wait._coro_for_time(1000)
-        if not Routines.Checks.Map.MapValid():
-            # Map invalid -> release FSM and exit
-            bot.config.FSM.resume()
-            return
-
-    # Player revived on same map -> jump to recovery step
-    bot.States.JumpToStepName("[H]Start Combat_2")
-    bot.config.FSM.resume()
-
-
-def OnPartyWipe(bot: "Botting"):
-    ConsoleLog("on_party_wipe", "event triggered")
-    fsm = bot.config.FSM
-    fsm.pause()
-    fsm.AddManagedCoroutine("OnWipe_OPD", lambda: _on_party_wipe(bot))
-
-
-bot.UI.override_draw_config(lambda: _draw_settings(bot))
-
-bot.SetMainRoutine(Routine)
-
-
+# region GUI
 def _draw_settings(bot: Botting):
     import PyImGui
 
@@ -514,8 +517,10 @@ def _draw_title_track():
 
 
 REFORGED_TEXTURE = os.path.join(Py4GW.Console.get_projects_path(), "Textures", "Skill_Icons", "[2233] - Ebon Battle Standard of Honor.jpg")
+# endregion
 
 
+# region Entry Point
 def main():
     bot.Update()
     bot.UI.draw_window(icon_path=REFORGED_TEXTURE, extra_tabs=[("Statistics", _draw_title_track)])
@@ -523,3 +528,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+# endregion

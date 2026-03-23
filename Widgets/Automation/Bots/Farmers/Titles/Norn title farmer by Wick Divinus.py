@@ -1,3 +1,4 @@
+# region Imports & Config
 from Py4GWCoreLib import Botting, Routines, GLOBAL_CACHE, ModelID, Agent, Player, ConsoleLog, IniManager
 from Py4GWCoreLib.Map import Map
 from Py4GWCoreLib.enums_src.Title_enums import TitleID, TITLE_TIERS
@@ -89,6 +90,391 @@ bot.config.config_properties.use_custom_behaviors = Property(bot.config, "use_cu
 _SETTINGS_SECTION = "TitleBotSettings"
 _BEHAVIOR_MODE_KEY = "use_custom_behaviors"
 
+# (model_id, effect_skill_name) — single source of truth for consumable use & restock
+CONSET_ITEMS: list[tuple[int, str]] = [
+    (ModelID.Essence_Of_Celerity.value, "Essence_of_Celerity_item_effect"),
+    (ModelID.Grail_Of_Might.value,      "Grail_of_Might_item_effect"),
+    (ModelID.Armor_Of_Salvation.value,  "Armor_of_Salvation_item_effect"),
+]
+
+PCON_ITEMS: list[tuple[int, str]] = [
+    (ModelID.Birthday_Cupcake.value,      "Birthday_Cupcake_skill"),
+    (ModelID.Golden_Egg.value,            "Golden_Egg_skill"),
+    (ModelID.Candy_Corn.value,            "Candy_Corn_skill"),
+    (ModelID.Candy_Apple.value,           "Candy_Apple_skill"),
+    (ModelID.Slice_Of_Pumpkin_Pie.value,  "Pie_Induced_Ecstasy"),
+    (ModelID.Drake_Kabob.value,           "Drake_Skin"),
+    (ModelID.Bowl_Of_Skalefin_Soup.value, "Skale_Vigor"),
+    (ModelID.Pahnai_Salad.value,          "Pahnai_Salad_item_effect"),
+    (ModelID.War_Supplies.value,          "Well_Supplied"),
+]
+
+CONSET_RESTOCK_MODELS = [m for m, _ in CONSET_ITEMS]
+PCON_RESTOCK_MODELS   = [m for m, _ in PCON_ITEMS] + [
+    ModelID.Honeycomb.value,
+    ModelID.Scroll_Of_Resurrection.value,
+]
+# endregion
+
+
+# region Bot Routine
+def bot_routine(bot: Botting) -> None:
+    global Norn_Path
+    #events
+    condition = lambda: OnPartyWipe(bot)
+    bot.Events.OnPartyWipeCallback(condition)
+    #end events
+
+    bot.States.AddHeader(BOT_NAME)
+    _load_behavior_setting(bot)
+    bot.Templates.Multibox_Aggressive()
+    _apply_behavior_mode(bot)
+    _sync_consumable_toggles(bot)
+    bot.Multibox.LeavePartyOnAllAccounts()
+    bot.Templates.Routines.PrepareForFarm(map_id_to_travel=OLAFSTEAD)
+    bot.States.AddCustomState(lambda: _restock_consumables_if_enabled(bot), "Restock Consumables If Enabled")
+
+    bot.Party.SetHardMode(True)
+    auto_path_list = [(-328.0, 1240.0), (-1500.0, 1250.0)]
+    bot.Move.FollowPath(auto_path_list)
+    bot.Wait.ForMapLoad(target_map_id=553)
+    bot.States.AddHeader("Start Combat")
+    bot.States.AddCustomState(lambda: _use_consumables_if_enabled(bot), "Use Consumables If Enabled")
+    bot.States.AddManagedCoroutine("Upkeep Multibox Consumables", lambda: _upkeep_multibox_consumables(bot))
+    bot.States.AddManagedCoroutine("Anti-Stuck Watchdog", lambda: _anti_stuck_watchdog(bot))
+
+    # Initial path to first blessing
+    bot.Move.XY(-2484.73, 118.55, "Start")
+    bot.Move.XY(-3059.12, -419.00, "Move to bridge")
+    bot.Move.XY(-3301.01, -2008.23, "Move to shrine")
+    bot.Move.XY(-2034, -4512, "Move to blessing 1")
+    bot.Wait.ForTime(5000)
+    bot.Move.XYAndInteractNPC(-1892.00, -4505.00)
+    bot.Multibox.SendDialogToTarget(0x84) #Get Blessing 1
+    bot.Wait.ForTime(5000)
+
+    # Path to blessing 2
+    bot.Move.XY(-5278, -5771, "Aggro: Berzerker")
+    bot.Move.XY(-5456, -7921, "Aggro: Berzerker")
+    bot.Move.XY(-8793, -5837, "Aggro: Berzerker")
+    bot.Move.XY(-14092, -9662, "Aggro: Vaettir and Berzerker")
+    bot.Move.XY(-17260, -7906, "Aggro: Vaettir and Berzerker")
+    bot.Move.XY(-21964, -12877, "Aggro: Jotun")
+    bot.Move.XY(-25341.00, -11957.00)
+    bot.Wait.ForTime(5000)
+    bot.Move.XYAndInteractNPC(-25341.00, -11957.00)
+    bot.Multibox.SendDialogToTarget(0x84) # Edda Blessing 2
+    bot.Wait.ForTime(10000)
+
+    # Path to blessing 3
+    bot.Move.XY(-22275, -12462, "Move to area 2")
+    bot.Move.XY(-21671, -2163, "Aggro: Berzerker")
+    bot.Move.XY(-19592, 772, "Aggro: Berzerker")
+    bot.Move.XY(-13795, -751, "Aggro: Berzerker")
+    bot.Move.XY(-17012, -5376, "Aggro: Berzerker")
+    bot.Move.XY(-10606.23, -1625.26)
+    bot.Move.XY(-12158.00, -4277.00)
+    bot.Wait.ForTime(5000)
+    bot.Move.XYAndInteractNPC(-12158.00, -4277.00)
+    bot.Multibox.SendDialogToTarget(0x84) #Blessing 3
+    bot.Wait.ForTime(10000)
+
+    # Path to blessing 4
+    bot.Move.XY(-12071, -4274, "Aggro: Berzerker")
+    bot.Move.XY(-8351, -2633, "Move to regroup")
+    bot.Move.XY(-4362, -1610, "Aggro: Lake")
+    bot.Move.XY(-4316, 4033, "Aggro: Lake")
+    bot.Move.XY(-8809, 5639, "Aggro: Lake")
+    bot.Move.XY(-14916, 2475)
+    bot.Move.XY(-11204.00, 5479.00)
+    bot.Wait.ForTime(5000)
+    bot.Move.XYAndInteractNPC(-11204.00, 5479.00)
+    bot.Multibox.SendDialogToTarget(0x84) #Blessing 4
+    bot.Wait.ForTime(10000)
+
+    # Path to blessing 5
+    bot.Move.XY(-11282, 5466, "Aggro: Elemental")
+    bot.Move.XY(-16051, 6492, "Aggro: Elemental")
+    bot.Move.XY(-16934, 11145, "Aggro: Elemental")
+    bot.Move.XY(-19378, 14555)
+    bot.Move.XY(-22889.00, 14165.00)
+    bot.Wait.ForTime(5000)
+    bot.Move.XYAndInteractNPC(-22889.00, 14165.00)
+    bot.Multibox.SendDialogToTarget(0x84) #Blessing 5
+    bot.Wait.ForTime(10000)
+
+    # Path to blessing 6
+    bot.Move.XY(-22751, 14163, "Aggro: Elemental")
+    bot.Move.XY(-15932, 9386, "Move to camp")
+    bot.Move.XY(-13777, 8097, "Aggro: Lake")
+    bot.Move.XY(-2217.00, 14914.00)
+    bot.Wait.ForTime(5000)
+    bot.Move.XYAndInteractNPC(-2217.00, 14914.00)
+    bot.Multibox.SendDialogToTarget(0x84) #Blessing 6
+    bot.Wait.ForTime(10000)
+
+    # The Path to Revelations (The quest is required beforehand, otherwise the enemies will not spawn)
+    bot.Move.XY(19416.26, 1142.77)
+    bot.Move.XY(24169.45, -4288.69)
+    bot.Move.XY(24169.45, -4288.69)
+    bot.Move.XY(19745, -2718)
+    bot.Move.XY(23504, 1801) # First boss
+    bot.Wait.ForTime(10000)
+    bot.Wait.UntilOutOfCombat()
+    bot.Move.XY(23504, 1801) # Second boss
+    bot.Wait.ForTime(10000)
+    bot.Wait.UntilOutOfCombat()
+    bot.Move.XY(23504, 1801) # Third boss
+    bot.Wait.ForTime(10000)
+    bot.Wait.UntilOutOfCombat()
+    bot.Move.XY(23504, 1801) # Fourth boss
+    bot.Wait.ForTime(10000)
+    bot.Wait.UntilOutOfCombat()
+    bot.Move.XY(23504, 1801) # Fifth boss
+    bot.Wait.ForTime(10000)
+    bot.Wait.UntilOutOfCombat()
+    #bot.Move.XY(23504, 1801) # Sixth boss
+    #bot.Wait.ForTime(10000)
+    #bot.Wait.UntilOutOfCombat()
+
+    # Continue route
+    # bot.Move.XY(-2290, 14879, "Aggro: Modnir")
+    # bot.Wait.UntilOutOfCombat()
+    # bot.Move.XY(-1810, 4679, "Move to boss")
+    # bot.Wait.UntilOutOfCombat()
+    # bot.Move.XY(-6911, 5240, "Aggro: Boss")
+    # bot.Wait.UntilOutOfCombat()
+    # bot.Move.XY(-15471, 6384, "Move to regroup")
+    # bot.Wait.UntilOutOfCombat()
+    # bot.Move.XY(-411, 5874, "Aggro: Modniir")
+    # bot.Wait.UntilOutOfCombat()
+    # bot.Move.XY(2859, 3982, "Aggro: Ice Imp")
+    # bot.Wait.UntilOutOfCombat()
+    # bot.Move.XY(4909, -4259, "Aggro: Ice Imp")
+    # bot.Wait.UntilOutOfCombat()
+    # bot.Move.XY(7514, -6587, "Aggro: Berserker")
+    # bot.Wait.UntilOutOfCombat()
+    # bot.Move.XY(3800, -6182, "Aggro: Berserker")
+    # bot.Wait.UntilOutOfCombat()
+    # bot.Move.XY(7755, -11467, "Aggro: Elementals and Griffins")
+    # bot.Wait.UntilOutOfCombat()
+    # bot.Move.XY(15403, -4243, "Aggro: Elementals and Griffins")
+    # bot.Wait.UntilOutOfCombat()
+
+    # # Path to blessing 7
+    # bot.Move.XY(21597, -6798)
+    # bot.Wait.UntilOutOfCombat()
+    # bot.Move.XY(-2217.00, 14914.00)
+    # bot.Wait.ForTime(5000)
+    # bot.Move.XYAndInteractNPC(-2217.00, 14914.00)
+    # bot.Multibox.SendDialogToTarget(0x84) #Blessing 7
+    # bot.Wait.ForTime(10000)
+
+    # bot.Move.XY(24522, -6532, "Aggro: Unknown")
+    # bot.Wait.UntilOutOfCombat()
+    # bot.Move.XY(22883, -4248, "Aggro: Unknown")
+    # bot.Wait.UntilOutOfCombat()
+    # bot.Move.XY(18606, -1894, "Aggro: Unknown")
+    # bot.Wait.UntilOutOfCombat()
+    # bot.Move.XY(14969, -4048, "Aggro: Unknown")
+    # bot.Wait.UntilOutOfCombat()
+    # bot.Move.XY(13599, -7339, "Aggro: Ice Imp")
+    # bot.Wait.UntilOutOfCombat()
+    # bot.Move.XY(10056, -4967, "Aggro: Ice Imp")
+    # bot.Wait.UntilOutOfCombat()
+    # bot.Move.XY(10147, -1630, "Aggro: Ice Imp")
+    # bot.Wait.UntilOutOfCombat()
+
+    # # Path to blessing 8
+    # bot.Move.XY(8963, 4043, "Take blessing 8")
+    # bot.Wait.ForTime(5000)
+    # bot.Move.XYAndInteractNPC(8963, 4043)
+    # bot.Multibox.SendDialogToTarget(0x84) #Blessing 8
+    # bot.Wait.ForTime(10000)
+
+    # bot.Move.XY(9339.46, 3859.12, "Aggro: Unknown")
+    # bot.Wait.UntilOutOfCombat()
+    # bot.Move.XY(15576, 7156, "Aggro: Berserker")
+    # bot.Wait.UntilOutOfCombat()
+
+    # # Path to blessing 9
+    # bot.Move.XY(22838, 7914, "Take blessing 9")
+    # bot.Wait.ForTime(5000)
+    # bot.Move.XYAndInteractNPC(22838, 7914)
+    # bot.Multibox.SendDialogToTarget(0x84) #Blessing 9
+    # bot.Wait.ForTime(10000)
+
+    # # Final route section
+    # bot.Move.XY(22961, 12757, "Move to shrine")
+    # bot.Wait.UntilOutOfCombat()
+    # bot.Move.XY(18067, 8766, "Aggro: Modniir and Elemental")
+    # bot.Wait.UntilOutOfCombat()
+    # bot.Move.XY(13311, 11917, "Aggro: Area")
+    # bot.Wait.UntilOutOfCombat()
+    # bot.Move.XY(13714, 14520, "Aggro: Modniir and Elemental")
+    # bot.Wait.UntilOutOfCombat()
+    # bot.Move.XY(11126, 10443, "Aggro: Modniir and Elemental")
+    # bot.Wait.UntilOutOfCombat()
+    # bot.Move.XY(5575, 4696, "Aggro: Modniir and Elemental")
+    # bot.Wait.UntilOutOfCombat()
+    # bot.Move.XY(-503, 9182, "Aggro: Modniir and Elemental 2")
+    # bot.Wait.UntilOutOfCombat()
+    # bot.Move.XY(1582, 15275, "Aggro: Modniir and Elemental 2")
+    # bot.Wait.UntilOutOfCombat()
+    # bot.Move.XY(7857, 10409, "Aggro: Modniir and Elemental 2")
+    # bot.Wait.UntilOutOfCombat()
+
+    bot.Multibox.ResignParty()
+    bot.Wait.UntilOnOutpost()
+
+    bot.Wait.ForTime(5000)
+    bot.States.JumpToStepName("[H]Norn title farm by Wick Divinus_1")
+
+
+bot.UI.override_draw_config(lambda: _draw_settings(bot))
+
+bot.SetMainRoutine(bot_routine)
+# endregion
+
+
+# region Consumables
+def _restock_consumables_if_enabled(bot: Botting):
+    _sync_consumable_toggles(bot)
+    if _as_bool(bot.Properties.Get("use_conset", "active")):
+        yield from _restock_models_locally(CONSET_RESTOCK_MODELS, 250)
+        yield from bot.helpers.Multibox._restock_conset_message(250)
+    if _as_bool(bot.Properties.Get("use_pcons", "active")):
+        yield from _restock_models_locally(PCON_RESTOCK_MODELS, 250)
+        yield from bot.helpers.Multibox._restock_all_pcons_message(250)
+
+
+def _use_consumables_if_enabled(bot: Botting):
+    _sync_consumable_toggles(bot)
+    if _as_bool(bot.Properties.Get("use_conset", "active")):
+        for model_id, skill_name in CONSET_ITEMS:
+            yield from bot.helpers.Multibox._use_consumable_message(
+                (model_id, GLOBAL_CACHE.Skill.GetID(skill_name), 0, 0))
+    if _as_bool(bot.Properties.Get("use_pcons", "active")):
+        for model_id, skill_name in PCON_ITEMS:
+            yield from bot.helpers.Multibox._use_consumable_message(
+                (model_id, GLOBAL_CACHE.Skill.GetID(skill_name), 0, 0))
+
+
+def _restock_models_locally(model_ids: list[int], quantity: int):
+    for model_id in model_ids:
+        yield from Routines.Yield.Items.RestockItems(model_id, quantity)
+# endregion
+
+
+# region Upkeep & Anti-Stuck
+def _upkeep_multibox_consumables(bot: "Botting"):
+    while True:
+        yield from bot.Wait._coro_for_time(15000)
+        if not Routines.Checks.Map.MapValid() or Routines.Checks.Map.IsOutpost():
+            continue
+        if bot.Properties.Get("use_conset", "active"):
+            for model_id, skill_name in CONSET_ITEMS:
+                yield from bot.helpers.Multibox._use_consumable_message(
+                    (model_id, GLOBAL_CACHE.Skill.GetID(skill_name), 0, 0))
+        if bot.Properties.Get("use_pcons", "active"):
+            for model_id, skill_name in PCON_ITEMS:
+                yield from bot.helpers.Multibox._use_consumable_message(
+                    (model_id, GLOBAL_CACHE.Skill.GetID(skill_name), 0, 0))
+            for _ in range(4):
+                GLOBAL_CACHE.Inventory.UseItem(ModelID.Honeycomb.value)
+                yield from bot.Wait._coro_for_time(250)
+
+
+EXPLORABLE_TIMEOUT_SECONDS = 3 * 3600  # 3 hours
+
+
+def _anti_stuck_resign(bot: "Botting"):
+    """Called when the timeout fires: resign, wait for outpost, then restart."""
+    yield from bot.helpers.Multibox._resignParty()
+    while True:
+        yield from bot.Wait._coro_for_time(1000)
+        if not Routines.Checks.Map.MapValid():
+            continue
+        if Routines.Checks.Map.IsOutpost():
+            break
+    bot.States.JumpToStepName("[H]Norn title farm by Wick Divinus_1")
+    bot.config.FSM.resume()
+    yield
+
+
+def _anti_stuck_watchdog(bot: "Botting"):
+    """Resign the party if stuck in explorable for more than 3 hours."""
+    explorable_entry_time = None
+    while True:
+        yield from bot.Wait._coro_for_time(60000)  # check every minute
+        if not Routines.Checks.Map.MapValid():
+            explorable_entry_time = None
+            continue
+        if Routines.Checks.Map.IsOutpost():
+            explorable_entry_time = None
+            continue
+        # We are in explorable
+        if explorable_entry_time is None:
+            explorable_entry_time = time.time()
+            continue
+        elapsed = time.time() - explorable_entry_time
+        if elapsed >= EXPLORABLE_TIMEOUT_SECONDS:
+            ConsoleLog(BOT_NAME, f"Anti-stuck: {elapsed/3600:.1f}h in explorable — resigning party.", Py4GW.Console.MessageType.Warning)
+            explorable_entry_time = None
+            bot.config.FSM.pause()
+            bot.config.FSM.AddManagedCoroutine("AntiStuck_Resign", lambda: _anti_stuck_resign(bot))
+# endregion
+
+
+# region Events
+def _nearest_path_index(path: list, x: float, y: float) -> int:
+    best, best_dist = 0, float('inf')
+    for i, (px, py) in enumerate(path):
+        d = (px - x) ** 2 + (py - y) ** 2
+        if d < best_dist:
+            best_dist, best = d, i
+    return best
+
+
+def _all_accounts_alive() -> bool:
+    current_map = Map.GetMapID()
+    for account in GLOBAL_CACHE.ShMem.GetAllAccountData():
+        if account.AgentData.Map.MapID != current_map:
+            continue  # skip accounts not in the same explorable (other maps, outpost, etc.)
+        if account.AgentData.Health.Current <= 0:
+            return False
+    return True
+
+
+def _on_party_wipe(bot: "Botting"):
+    while Agent.IsDead(Player.GetAgentID()) or not _all_accounts_alive():
+        yield from bot.Wait._coro_for_time(1000)
+        if not Routines.Checks.Map.MapValid():
+            bot.config.FSM.resume()
+            return
+
+    # All accounts revived — resume route from nearest path point
+    pos = Player.GetXY()
+    if pos:
+        nearest_idx = _nearest_path_index(Norn_Path, pos[0], pos[1])
+        for (wx, wy) in Norn_Path[nearest_idx:]:
+            if not Routines.Checks.Map.MapValid():
+                break
+            yield from bot.Move._coro_xy(wx, wy)
+
+    bot.States.JumpToStepName("[H]Start Combat_3")
+    bot.config.FSM.resume()
+
+
+def OnPartyWipe(bot: "Botting"):
+    ConsoleLog("on_party_wipe", "event triggered")
+    fsm = bot.config.FSM
+    fsm.pause()
+    fsm.AddManagedCoroutine("OnWipe_OPD", lambda: _on_party_wipe(bot))
+# endregion
+
+
+# region Settings
 def _as_bool(value) -> bool:
     if isinstance(value, bool):
         return value
@@ -133,6 +519,7 @@ def _save_behavior_setting(bot: Botting) -> None:
         _as_bool(bot.Properties.Get("use_custom_behaviors", "active")),
     )
 
+
 def _sync_consumable_toggles(bot: Botting) -> None:
     use_conset = _as_bool(bot.Properties.Get("use_conset", "active"))
     use_pcons = _as_bool(bot.Properties.Get("use_pcons", "active"))
@@ -155,47 +542,6 @@ def _sync_consumable_toggles(bot: Botting) -> None:
         bot.Properties.ApplyNow(key, "active", use_pcons)
 
 
-# (model_id, effect_skill_name) — single source of truth for consumable use & restock
-CONSET_ITEMS: list[tuple[int, str]] = [
-    (ModelID.Essence_Of_Celerity.value, "Essence_of_Celerity_item_effect"),
-    (ModelID.Grail_Of_Might.value,      "Grail_of_Might_item_effect"),
-    (ModelID.Armor_Of_Salvation.value,  "Armor_of_Salvation_item_effect"),
-]
-
-PCON_ITEMS: list[tuple[int, str]] = [
-    (ModelID.Birthday_Cupcake.value,      "Birthday_Cupcake_skill"),
-    (ModelID.Golden_Egg.value,            "Golden_Egg_skill"),
-    (ModelID.Candy_Corn.value,            "Candy_Corn_skill"),
-    (ModelID.Candy_Apple.value,           "Candy_Apple_skill"),
-    (ModelID.Slice_Of_Pumpkin_Pie.value,  "Pie_Induced_Ecstasy"),
-    (ModelID.Drake_Kabob.value,           "Drake_Skin"),
-    (ModelID.Bowl_Of_Skalefin_Soup.value, "Skale_Vigor"),
-    (ModelID.Pahnai_Salad.value,          "Pahnai_Salad_item_effect"),
-    (ModelID.War_Supplies.value,          "Well_Supplied"),
-]
-
-CONSET_RESTOCK_MODELS = [m for m, _ in CONSET_ITEMS]
-PCON_RESTOCK_MODELS   = [m for m, _ in PCON_ITEMS] + [
-    ModelID.Honeycomb.value,
-    ModelID.Scroll_Of_Resurrection.value,
-]
-
-
-def _restock_models_locally(model_ids: list[int], quantity: int):
-    for model_id in model_ids:
-        yield from Routines.Yield.Items.RestockItems(model_id, quantity)
-
-
-def _use_consumables_locally(consumable_effects: list[tuple[int, int]]):
-    yield from Routines.Yield.wait(500)
-    for model_id, skill_id in consumable_effects:
-        if GLOBAL_CACHE.Effects.HasEffect(Player.GetAgentID(), skill_id):
-            continue
-        item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(model_id)
-        if item_id:
-            GLOBAL_CACHE.Inventory.UseItem(item_id)
-            yield from Routines.Yield.wait(500)
-                
 def _apply_behavior_mode(bot: Botting) -> None:
     use_custom_behaviors = _as_bool(bot.Properties.Get("use_custom_behaviors", "active"))
     from Py4GW_widget_manager import get_widget_handler
@@ -224,341 +570,10 @@ def _apply_behavior_mode(bot: Botting) -> None:
         if not widget_handler.is_widget_enabled("HeroAI"):
             widget_handler.enable_widget("HeroAI")
         bot.Multibox.ApplyWidgetPolicy(enable_widgets=('HeroAI',), disable_widgets=('CustomBehaviors',), apply_local=False)
-
-def bot_routine(bot: Botting) -> None:
-    global Norn_Path
-    #events
-    condition = lambda: OnPartyWipe(bot)
-    bot.Events.OnPartyWipeCallback(condition)
-    #end events
-    
-    bot.States.AddHeader(BOT_NAME)
-    _load_behavior_setting(bot)
-    bot.Templates.Multibox_Aggressive()
-    _apply_behavior_mode(bot)
-    _sync_consumable_toggles(bot)
-    bot.Multibox.LeavePartyOnAllAccounts()
-    bot.Templates.Routines.PrepareForFarm(map_id_to_travel=OLAFSTEAD)
-    bot.States.AddCustomState(lambda: _restock_consumables_if_enabled(bot), "Restock Consumables If Enabled")
-    
-    bot.Party.SetHardMode(True)
-    auto_path_list = [(-328.0, 1240.0), (-1500.0, 1250.0)]
-    bot.Move.FollowPath(auto_path_list)
-    bot.Wait.ForMapLoad(target_map_id=553)
-    bot.States.AddHeader("Start Combat")
-    bot.States.AddCustomState(lambda: _use_consumables_if_enabled(bot), "Use Consumables If Enabled")
-    bot.States.AddManagedCoroutine("Upkeep Multibox Consumables", lambda: _upkeep_multibox_consumables(bot))
-    bot.States.AddManagedCoroutine("Anti-Stuck Watchdog", lambda: _anti_stuck_watchdog(bot))
-    
-    # Initial path to first blessing
-    bot.Move.XY(-2484.73, 118.55, "Start")
-    bot.Move.XY(-3059.12, -419.00, "Move to bridge")
-    bot.Move.XY(-3301.01, -2008.23, "Move to shrine")
-    bot.Move.XY(-2034, -4512, "Move to blessing 1")
-    bot.Wait.ForTime(5000)
-    bot.Move.XYAndInteractNPC(-1892.00, -4505.00)
-    bot.Multibox.SendDialogToTarget(0x84) #Get Blessing 1
-    bot.Wait.ForTime(5000)
-    
-    # Path to blessing 2
-    bot.Move.XY(-5278, -5771, "Aggro: Berzerker")
-    bot.Move.XY(-5456, -7921, "Aggro: Berzerker")
-    bot.Move.XY(-8793, -5837, "Aggro: Berzerker")
-    bot.Move.XY(-14092, -9662, "Aggro: Vaettir and Berzerker")
-    bot.Move.XY(-17260, -7906, "Aggro: Vaettir and Berzerker")
-    bot.Move.XY(-21964, -12877, "Aggro: Jotun")
-    bot.Move.XY(-25341.00, -11957.00)
-    bot.Wait.ForTime(5000)
-    bot.Move.XYAndInteractNPC(-25341.00, -11957.00) 
-    bot.Multibox.SendDialogToTarget(0x84) # Edda Blessing 2
-    bot.Wait.ForTime(10000)
-    
-    # Path to blessing 3
-    bot.Move.XY(-22275, -12462, "Move to area 2")
-    bot.Move.XY(-21671, -2163, "Aggro: Berzerker")
-    bot.Move.XY(-19592, 772, "Aggro: Berzerker")
-    bot.Move.XY(-13795, -751, "Aggro: Berzerker")
-    bot.Move.XY(-17012, -5376, "Aggro: Berzerker")
-    bot.Move.XY(-10606.23, -1625.26)
-    bot.Move.XY(-12158.00, -4277.00)
-    bot.Wait.ForTime(5000)
-    bot.Move.XYAndInteractNPC(-12158.00, -4277.00)
-    bot.Multibox.SendDialogToTarget(0x84) #Blessing 3
-    bot.Wait.ForTime(10000)
-    
-    # Path to blessing 4
-    bot.Move.XY(-12071, -4274, "Aggro: Berzerker")
-    bot.Move.XY(-8351, -2633, "Move to regroup")
-    bot.Move.XY(-4362, -1610, "Aggro: Lake")
-    bot.Move.XY(-4316, 4033, "Aggro: Lake")
-    bot.Move.XY(-8809, 5639, "Aggro: Lake")
-    bot.Move.XY(-14916, 2475)
-    bot.Move.XY(-11204.00, 5479.00)
-    bot.Wait.ForTime(5000)
-    bot.Move.XYAndInteractNPC(-11204.00, 5479.00)
-    bot.Multibox.SendDialogToTarget(0x84) #Blessing 4
-    bot.Wait.ForTime(10000)
-    
-    # Path to blessing 5
-    bot.Move.XY(-11282, 5466, "Aggro: Elemental")
-    bot.Move.XY(-16051, 6492, "Aggro: Elemental")
-    bot.Move.XY(-16934, 11145, "Aggro: Elemental")
-    bot.Move.XY(-19378, 14555)
-    bot.Move.XY(-22889.00, 14165.00)
-    bot.Wait.ForTime(5000)
-    bot.Move.XYAndInteractNPC(-22889.00, 14165.00)
-    bot.Multibox.SendDialogToTarget(0x84) #Blessing 5
-    bot.Wait.ForTime(10000)
-    
-    # Path to blessing 6
-    bot.Move.XY(-22751, 14163, "Aggro: Elemental")
-    bot.Move.XY(-15932, 9386, "Move to camp")
-    bot.Move.XY(-13777, 8097, "Aggro: Lake")
-    bot.Move.XY(-2217.00, 14914.00)
-    bot.Wait.ForTime(5000)
-    bot.Move.XYAndInteractNPC(-2217.00, 14914.00)
-    bot.Multibox.SendDialogToTarget(0x84) #Blessing 6
-    bot.Wait.ForTime(10000)
-
-    # The Path to Revelations (The quest is required beforehand, otherwise the enemies will not spawn)
-    bot.Move.XY(19416.26, 1142.77)
-    bot.Move.XY(24169.45, -4288.69)
-    bot.Move.XY(24169.45, -4288.69)
-    bot.Move.XY(19745, -2718)
-    bot.Move.XY(23504, 1801) # First boss
-    bot.Wait.ForTime(10000)
-    bot.Wait.UntilOutOfCombat()
-    bot.Move.XY(23504, 1801) # Second boss
-    bot.Wait.ForTime(10000)
-    bot.Wait.UntilOutOfCombat()
-    bot.Move.XY(23504, 1801) # Third boss
-    bot.Wait.ForTime(10000)
-    bot.Wait.UntilOutOfCombat()
-    bot.Move.XY(23504, 1801) # Fourth boss
-    bot.Wait.ForTime(10000)
-    bot.Wait.UntilOutOfCombat()
-    bot.Move.XY(23504, 1801) # Fifth boss
-    bot.Wait.ForTime(10000)
-    bot.Wait.UntilOutOfCombat()
-    #bot.Move.XY(23504, 1801) # Sixth boss
-    #bot.Wait.ForTime(10000)
-    #bot.Wait.UntilOutOfCombat()
-    
-    # Continue route
-    # bot.Move.XY(-2290, 14879, "Aggro: Modnir")
-    # bot.Wait.UntilOutOfCombat()
-    # bot.Move.XY(-1810, 4679, "Move to boss")
-    # bot.Wait.UntilOutOfCombat()
-    # bot.Move.XY(-6911, 5240, "Aggro: Boss")
-    # bot.Wait.UntilOutOfCombat()
-    # bot.Move.XY(-15471, 6384, "Move to regroup")
-    # bot.Wait.UntilOutOfCombat()
-    # bot.Move.XY(-411, 5874, "Aggro: Modniir")
-    # bot.Wait.UntilOutOfCombat()
-    # bot.Move.XY(2859, 3982, "Aggro: Ice Imp")
-    # bot.Wait.UntilOutOfCombat()
-    # bot.Move.XY(4909, -4259, "Aggro: Ice Imp")
-    # bot.Wait.UntilOutOfCombat()
-    # bot.Move.XY(7514, -6587, "Aggro: Berserker")
-    # bot.Wait.UntilOutOfCombat()
-    # bot.Move.XY(3800, -6182, "Aggro: Berserker")
-    # bot.Wait.UntilOutOfCombat()
-    # bot.Move.XY(7755, -11467, "Aggro: Elementals and Griffins")
-    # bot.Wait.UntilOutOfCombat()
-    # bot.Move.XY(15403, -4243, "Aggro: Elementals and Griffins")
-    # bot.Wait.UntilOutOfCombat()
-    
-    # # Path to blessing 7
-    # bot.Move.XY(21597, -6798)
-    # bot.Wait.UntilOutOfCombat()
-    # bot.Move.XY(-2217.00, 14914.00)
-    # bot.Wait.ForTime(5000)
-    # bot.Move.XYAndInteractNPC(-2217.00, 14914.00)
-    # bot.Multibox.SendDialogToTarget(0x84) #Blessing 7
-    # bot.Wait.ForTime(10000)
-    
-    # bot.Move.XY(24522, -6532, "Aggro: Unknown")
-    # bot.Wait.UntilOutOfCombat()
-    # bot.Move.XY(22883, -4248, "Aggro: Unknown")
-    # bot.Wait.UntilOutOfCombat()
-    # bot.Move.XY(18606, -1894, "Aggro: Unknown")
-    # bot.Wait.UntilOutOfCombat()
-    # bot.Move.XY(14969, -4048, "Aggro: Unknown")
-    # bot.Wait.UntilOutOfCombat()
-    # bot.Move.XY(13599, -7339, "Aggro: Ice Imp")
-    # bot.Wait.UntilOutOfCombat()
-    # bot.Move.XY(10056, -4967, "Aggro: Ice Imp")
-    # bot.Wait.UntilOutOfCombat()
-    # bot.Move.XY(10147, -1630, "Aggro: Ice Imp")
-    # bot.Wait.UntilOutOfCombat()
-    
-    # # Path to blessing 8
-    # bot.Move.XY(8963, 4043, "Take blessing 8")
-    # bot.Wait.ForTime(5000)
-    # bot.Move.XYAndInteractNPC(8963, 4043)
-    # bot.Multibox.SendDialogToTarget(0x84) #Blessing 8
-    # bot.Wait.ForTime(10000)
-    
-    # bot.Move.XY(9339.46, 3859.12, "Aggro: Unknown")
-    # bot.Wait.UntilOutOfCombat()
-    # bot.Move.XY(15576, 7156, "Aggro: Berserker")
-    # bot.Wait.UntilOutOfCombat()
-    
-    # # Path to blessing 9
-    # bot.Move.XY(22838, 7914, "Take blessing 9")
-    # bot.Wait.ForTime(5000)
-    # bot.Move.XYAndInteractNPC(22838, 7914)
-    # bot.Multibox.SendDialogToTarget(0x84) #Blessing 9
-    # bot.Wait.ForTime(10000)
-    
-    # # Final route section
-    # bot.Move.XY(22961, 12757, "Move to shrine")
-    # bot.Wait.UntilOutOfCombat()
-    # bot.Move.XY(18067, 8766, "Aggro: Modniir and Elemental")
-    # bot.Wait.UntilOutOfCombat()
-    # bot.Move.XY(13311, 11917, "Aggro: Area")
-    # bot.Wait.UntilOutOfCombat()
-    # bot.Move.XY(13714, 14520, "Aggro: Modniir and Elemental")
-    # bot.Wait.UntilOutOfCombat()
-    # bot.Move.XY(11126, 10443, "Aggro: Modniir and Elemental")
-    # bot.Wait.UntilOutOfCombat()
-    # bot.Move.XY(5575, 4696, "Aggro: Modniir and Elemental")
-    # bot.Wait.UntilOutOfCombat()
-    # bot.Move.XY(-503, 9182, "Aggro: Modniir and Elemental 2")
-    # bot.Wait.UntilOutOfCombat()
-    # bot.Move.XY(1582, 15275, "Aggro: Modniir and Elemental 2")
-    # bot.Wait.UntilOutOfCombat()
-    # bot.Move.XY(7857, 10409, "Aggro: Modniir and Elemental 2")
-    # bot.Wait.UntilOutOfCombat()
-    
-    bot.Multibox.ResignParty()
-    bot.Wait.UntilOnOutpost()
-    
-    bot.Wait.ForTime(5000)
-    bot.States.JumpToStepName("[H]Norn title farm by Wick Divinus_1")
-    
-EXPLORABLE_TIMEOUT_SECONDS = 3 * 3600  # 3 hours
-
-def _anti_stuck_resign(bot: "Botting"):
-    """Called when the timeout fires: resign, wait for outpost, then restart."""
-    yield from bot.helpers.Multibox._resignParty()
-    while True:
-        yield from bot.Wait._coro_for_time(1000)
-        if not Routines.Checks.Map.MapValid():
-            continue
-        if Routines.Checks.Map.IsOutpost():
-            break
-    bot.States.JumpToStepName("[H]Norn title farm by Wick Divinus_1")
-    bot.config.FSM.resume()
-    yield
+# endregion
 
 
-def _anti_stuck_watchdog(bot: "Botting"):
-    """Resign the party if stuck in explorable for more than 3 hours."""
-    explorable_entry_time = None
-    while True:
-        yield from bot.Wait._coro_for_time(60000)  # check every minute
-        if not Routines.Checks.Map.MapValid():
-            explorable_entry_time = None
-            continue
-        if Routines.Checks.Map.IsOutpost():
-            explorable_entry_time = None
-            continue
-        # We are in explorable
-        if explorable_entry_time is None:
-            explorable_entry_time = time.time()
-            continue
-        elapsed = time.time() - explorable_entry_time
-        if elapsed >= EXPLORABLE_TIMEOUT_SECONDS:
-            ConsoleLog(BOT_NAME, f"Anti-stuck: {elapsed/3600:.1f}h in explorable — resigning party.", Py4GW.Console.MessageType.Warning)
-            explorable_entry_time = None
-            bot.config.FSM.pause()
-            bot.config.FSM.AddManagedCoroutine("AntiStuck_Resign", lambda: _anti_stuck_resign(bot))
-
-
-def _upkeep_multibox_consumables(bot: "Botting"):
-    while True:
-        yield from bot.Wait._coro_for_time(15000)
-        if not Routines.Checks.Map.MapValid() or Routines.Checks.Map.IsOutpost():
-            continue
-        if bot.Properties.Get("use_conset", "active"):
-            for model_id, skill_name in CONSET_ITEMS:
-                yield from bot.helpers.Multibox._use_consumable_message(
-                    (model_id, GLOBAL_CACHE.Skill.GetID(skill_name), 0, 0))
-        if bot.Properties.Get("use_pcons", "active"):
-            for model_id, skill_name in PCON_ITEMS:
-                yield from bot.helpers.Multibox._use_consumable_message(
-                    (model_id, GLOBAL_CACHE.Skill.GetID(skill_name), 0, 0))
-            for _ in range(4):
-                GLOBAL_CACHE.Inventory.UseItem(ModelID.Honeycomb.value)
-                yield from bot.Wait._coro_for_time(250)
-
-def _restock_consumables_if_enabled(bot: Botting):
-    _sync_consumable_toggles(bot)
-    if _as_bool(bot.Properties.Get("use_conset", "active")):
-        yield from _restock_models_locally(CONSET_RESTOCK_MODELS, 250)
-        yield from bot.helpers.Multibox._restock_conset_message(250)
-    if _as_bool(bot.Properties.Get("use_pcons", "active")):
-        yield from _restock_models_locally(PCON_RESTOCK_MODELS, 250)
-        yield from bot.helpers.Multibox._restock_all_pcons_message(250)
-
-def _use_consumables_if_enabled(bot: Botting):
-    _sync_consumable_toggles(bot)
-    if _as_bool(bot.Properties.Get("use_conset", "active")):
-        items = [(m, GLOBAL_CACHE.Skill.GetID(s)) for m, s in CONSET_ITEMS]
-        yield from _use_consumables_locally(items)
-        for model_id, skill_id in items:
-            yield from bot.helpers.Multibox._use_consumable_message((model_id, skill_id, 0, 0))
-    if _as_bool(bot.Properties.Get("use_pcons", "active")):
-        items = [(m, GLOBAL_CACHE.Skill.GetID(s)) for m, s in PCON_ITEMS]
-        yield from _use_consumables_locally(items)
-        for model_id, skill_id in items:
-            yield from bot.helpers.Multibox._use_consumable_message((model_id, skill_id, 0, 0))
-            
-def _nearest_path_index(path: list, x: float, y: float) -> int:
-    best, best_dist = 0, float('inf')
-    for i, (px, py) in enumerate(path):
-        d = (px - x) ** 2 + (py - y) ** 2
-        if d < best_dist:
-            best_dist, best = d, i
-    return best
-
-
-def _all_accounts_alive() -> bool:
-    current_map = Map.GetMapID()
-    for account in GLOBAL_CACHE.ShMem.GetAllAccountData():
-        if account.AgentData.Map.MapID != current_map:
-            continue  # skip accounts not in the same explorable (other maps, outpost, etc.)
-        if account.AgentData.Health.Current <= 0:
-            return False
-    return True
-
-
-def _on_party_wipe(bot: "Botting"):
-    while Agent.IsDead(Player.GetAgentID()) or not _all_accounts_alive():
-        yield from bot.Wait._coro_for_time(1000)
-        if not Routines.Checks.Map.MapValid():
-            bot.config.FSM.resume()
-            return
-
-    # All accounts revived — resume route from nearest path point
-    pos = Player.GetXY()
-    if pos:
-        nearest_idx = _nearest_path_index(Norn_Path, pos[0], pos[1])
-        for (wx, wy) in Norn_Path[nearest_idx:]:
-            if not Routines.Checks.Map.MapValid():
-                break
-            yield from bot.Move._coro_xy(wx, wy)
-
-    bot.States.JumpToStepName("[H]Start Combat_3")
-    bot.config.FSM.resume()
-    
-def OnPartyWipe(bot: "Botting"):
-    ConsoleLog("on_party_wipe", "event triggered")
-    fsm = bot.config.FSM
-    fsm.pause()
-    fsm.AddManagedCoroutine("OnWipe_OPD", lambda: _on_party_wipe(bot)) 
-
+# region GUI
 def _draw_settings(bot: Botting):
     import PyImGui
 
@@ -589,9 +604,6 @@ def _draw_settings(bot: Botting):
     bot.Properties.ApplyNow("use_pcons", "active", use_pcons)
     _sync_consumable_toggles(bot)
 
-bot.UI.override_draw_config(lambda: _draw_settings(bot))
-
-bot.SetMainRoutine(bot_routine)
 
 def tooltip():
     import PyImGui
@@ -613,8 +625,10 @@ def tooltip():
     PyImGui.bullet_text("Developed by Wick Divinus")
     PyImGui.end_tooltip()
 
+
 _session_baselines: dict[str, int] = {}
 _session_start_times: dict[str, float] = {}
+
 
 def _draw_title_track():
     global _session_baselines, _session_start_times
@@ -656,10 +670,17 @@ def _draw_title_track():
             PyImGui.progress_bar(frac, -1, 0, f"{pts - prev_required:,} / {next_required - prev_required:,}")
         PyImGui.text(f"+{gained:,}  ({pts_hr:,}/hr)")
 
+
 REFORGED_TEXTURE = os.path.join(Py4GW.Console.get_projects_path(), "Sources", "Wick Divinus bots", "Reforged_Icon.png")
+# endregion
+
+
+# region Entry Point
 def main():
     bot.Update()
     bot.UI.draw_window(icon_path=REFORGED_TEXTURE, extra_tabs=[("Statistics", _draw_title_track)])
 
+
 if __name__ == "__main__":
     main()
+# endregion

@@ -1,3 +1,4 @@
+# region Imports & Config
 from Py4GWCoreLib import Botting, Routines, GLOBAL_CACHE, ModelID, Agent, Player, ConsoleLog, IniManager
 from Py4GWCoreLib.enums_src.Title_enums import TitleID, TITLE_TIERS
 from Py4GWCoreLib.botting_src.property import Property
@@ -17,72 +18,6 @@ bot.config.config_properties.use_custom_behaviors = Property(bot.config, "use_cu
 
 _SETTINGS_SECTION = "TitleBotSettings"
 _BEHAVIOR_MODE_KEY = "use_custom_behaviors"
-
-def _as_bool(value) -> bool:
-    if isinstance(value, bool):
-        return value
-    if isinstance(value, (int, float)):
-        return value != 0
-    if isinstance(value, str):
-        return value.strip().lower() in ("1", "true", "yes", "on")
-    return bool(value)
-
-
-def _ensure_bot_ini(bot: Botting) -> str:
-    if not bot.config.ini_key_initialized:
-        bot.config.ini_key = IniManager().ensure_key(
-            f"BottingClass/bot_{bot.config.bot_name}",
-            f"bot_{bot.config.bot_name}.ini",
-        )
-        bot.config.ini_key_initialized = True
-    return bot.config.ini_key
-
-
-def _load_behavior_setting(bot: Botting) -> None:
-    ini_key = _ensure_bot_ini(bot)
-    if not ini_key:
-        return
-    saved_value = IniManager().read_bool(
-        ini_key,
-        _SETTINGS_SECTION,
-        _BEHAVIOR_MODE_KEY,
-        _as_bool(bot.Properties.Get("use_custom_behaviors", "active")),
-    )
-    bot.Properties.ApplyNow("use_custom_behaviors", "active", _as_bool(saved_value))
-
-
-def _save_behavior_setting(bot: Botting) -> None:
-    ini_key = _ensure_bot_ini(bot)
-    if not ini_key:
-        return
-    IniManager().write_key(
-        ini_key,
-        _SETTINGS_SECTION,
-        _BEHAVIOR_MODE_KEY,
-        _as_bool(bot.Properties.Get("use_custom_behaviors", "active")),
-    )
-
-def _sync_consumable_toggles(bot: Botting) -> None:
-    use_conset = _as_bool(bot.Properties.Get("use_conset", "active"))
-    use_pcons = _as_bool(bot.Properties.Get("use_pcons", "active"))
-
-    for key in ("armor_of_salvation", "essence_of_celerity", "grail_of_might"):
-        bot.Properties.ApplyNow(key, "active", use_conset)
-
-    for key in (
-        "birthday_cupcake",
-        "golden_egg",
-        "candy_corn",
-        "candy_apple",
-        "slice_of_pumpkin_pie",
-        "drake_kabob",
-        "bowl_of_skalefin_soup",
-        "pahnai_salad",
-        "war_supplies",
-        "honeycomb",
-    ):
-        bot.Properties.ApplyNow(key, "active", use_pcons)
-
 
 # (model_id, effect_skill_name) — single source of truth for consumable use & restock
 CONSET_ITEMS: list[tuple[int, str]] = [
@@ -108,55 +43,14 @@ PCON_RESTOCK_MODELS   = [m for m, _ in PCON_ITEMS] + [
     ModelID.Honeycomb.value,
     ModelID.Scroll_Of_Resurrection.value,
 ]
+# endregion
 
 
-def _restock_models_locally(model_ids: list[int], quantity: int):
-    for model_id in model_ids:
-        yield from Routines.Yield.Items.RestockItems(model_id, quantity)
-
-
-def _use_consumables_locally(consumable_effects: list[tuple[int, int]]):
-    yield from Routines.Yield.wait(500)
-    for model_id, skill_id in consumable_effects:
-        if GLOBAL_CACHE.Effects.HasEffect(Player.GetAgentID(), skill_id):
-            continue
-        item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(model_id)
-        if item_id:
-            GLOBAL_CACHE.Inventory.UseItem(item_id)
-            yield from Routines.Yield.wait(500)
-
-def _apply_behavior_mode(bot: Botting) -> None:
-    use_custom_behaviors = _as_bool(bot.Properties.Get("use_custom_behaviors", "active"))
-    from Py4GW_widget_manager import get_widget_handler
-    widget_handler = get_widget_handler()
-    custom_behavior_party = None
-    try:
-        from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
-        custom_behavior_party = CustomBehaviorParty()
-    except Exception:
-        custom_behavior_party = None
-    if use_custom_behaviors:
-        bot.Properties.Disable("hero_ai")
-        if custom_behavior_party is not None:
-            custom_behavior_party.set_party_is_enabled(True)
-        if not widget_handler.is_widget_enabled("CustomBehaviors"):
-            widget_handler.enable_widget("CustomBehaviors")
-        if widget_handler.is_widget_enabled("HeroAI"):
-            widget_handler.disable_widget("HeroAI")
-        bot.Multibox.ApplyWidgetPolicy(enable_widgets=('CustomBehaviors',), disable_widgets=('HeroAI',), apply_local=False)
-    else:
-        bot.Properties.Enable("hero_ai")
-        if custom_behavior_party is not None:
-            custom_behavior_party.set_party_is_enabled(False)
-        if widget_handler.is_widget_enabled("CustomBehaviors"):
-            widget_handler.disable_widget("CustomBehaviors")
-        if not widget_handler.is_widget_enabled("HeroAI"):
-            widget_handler.enable_widget("HeroAI")
-        bot.Multibox.ApplyWidgetPolicy(enable_widgets=('HeroAI',), disable_widgets=('CustomBehaviors',), apply_local=False)
-
+# region Bot Routine
 def Routine(bot: Botting) -> None:
     PrepareForCombat(bot)
     Snowman(bot)
+
 
 def PrepareForCombat(bot: Botting) -> None:
     bot.States.AddHeader("Enable Combat Mode")
@@ -168,6 +62,7 @@ def PrepareForCombat(bot: Botting) -> None:
     bot.Templates.Routines.PrepareForFarm(map_id_to_travel=639)
     bot.States.AddCustomState(lambda: _restock_consumables_if_enabled(bot), "Restock Consumables If Enabled")
     bot.Party.SetHardMode(True)
+
 
 def Snowman(bot: Botting):
     #events
@@ -222,6 +117,43 @@ def Snowman(bot: Botting):
     bot.Wait.ForMapToChange(target_map_id=639)
     bot.States.JumpToStepName("[H]Enable Combat Mode_1")
 
+
+bot.UI.override_draw_config(lambda: _draw_settings(bot))
+
+bot.SetMainRoutine(Routine)
+# endregion
+
+
+# region Consumables
+def _restock_consumables_if_enabled(bot: Botting):
+    _sync_consumable_toggles(bot)
+    if _as_bool(bot.Properties.Get("use_conset", "active")):
+        yield from _restock_models_locally(CONSET_RESTOCK_MODELS, 250)
+        yield from bot.helpers.Multibox._restock_conset_message(250)
+    if _as_bool(bot.Properties.Get("use_pcons", "active")):
+        yield from _restock_models_locally(PCON_RESTOCK_MODELS, 250)
+        yield from bot.helpers.Multibox._restock_all_pcons_message(250)
+
+
+def _use_consumables_if_enabled(bot: Botting):
+    _sync_consumable_toggles(bot)
+    if _as_bool(bot.Properties.Get("use_conset", "active")):
+        for model_id, skill_name in CONSET_ITEMS:
+            yield from bot.helpers.Multibox._use_consumable_message(
+                (model_id, GLOBAL_CACHE.Skill.GetID(skill_name), 0, 0))
+    if _as_bool(bot.Properties.Get("use_pcons", "active")):
+        for model_id, skill_name in PCON_ITEMS:
+            yield from bot.helpers.Multibox._use_consumable_message(
+                (model_id, GLOBAL_CACHE.Skill.GetID(skill_name), 0, 0))
+
+
+def _restock_models_locally(model_ids: list[int], quantity: int):
+    for model_id in model_ids:
+        yield from Routines.Yield.Items.RestockItems(model_id, quantity)
+# endregion
+
+
+# region Upkeep
 def _upkeep_multibox_consumables(bot: "Botting"):
     while True:
         yield from bot.Wait._coro_for_time(15000)
@@ -238,29 +170,10 @@ def _upkeep_multibox_consumables(bot: "Botting"):
             for _ in range(4):
                 GLOBAL_CACHE.Inventory.UseItem(ModelID.Honeycomb.value)
                 yield from bot.Wait._coro_for_time(250)
+# endregion
 
-def _restock_consumables_if_enabled(bot: Botting):
-    _sync_consumable_toggles(bot)
-    if _as_bool(bot.Properties.Get("use_conset", "active")):
-        yield from _restock_models_locally(CONSET_RESTOCK_MODELS, 250)
-        yield from bot.helpers.Multibox._restock_conset_message(250)
-    if _as_bool(bot.Properties.Get("use_pcons", "active")):
-        yield from _restock_models_locally(PCON_RESTOCK_MODELS, 250)
-        yield from bot.helpers.Multibox._restock_all_pcons_message(250)
 
-def _use_consumables_if_enabled(bot: Botting):
-    _sync_consumable_toggles(bot)
-    if _as_bool(bot.Properties.Get("use_conset", "active")):
-        items = [(m, GLOBAL_CACHE.Skill.GetID(s)) for m, s in CONSET_ITEMS]
-        yield from _use_consumables_locally(items)
-        for model_id, skill_id in items:
-            yield from bot.helpers.Multibox._use_consumable_message((model_id, skill_id, 0, 0))
-    if _as_bool(bot.Properties.Get("use_pcons", "active")):
-        items = [(m, GLOBAL_CACHE.Skill.GetID(s)) for m, s in PCON_ITEMS]
-        yield from _use_consumables_locally(items)
-        for model_id, skill_id in items:
-            yield from bot.helpers.Multibox._use_consumable_message((model_id, skill_id, 0, 0))
-            
+# region Events
 def _on_party_wipe(bot: "Botting"):
     while Agent.IsDead(Player.GetAgentID()):
         yield from bot.Wait._coro_for_time(1000)
@@ -272,13 +185,116 @@ def _on_party_wipe(bot: "Botting"):
     # Player revived on same map → jump to recovery step
     bot.States.JumpToStepName("[H]Start Combat_2")
     bot.config.FSM.resume()
-    
+
+
 def OnPartyWipe(bot: "Botting"):
     ConsoleLog("on_party_wipe", "event triggered")
     fsm = bot.config.FSM
     fsm.pause()
-    fsm.AddManagedCoroutine("OnWipe_OPD", lambda: _on_party_wipe(bot)) 
+    fsm.AddManagedCoroutine("OnWipe_OPD", lambda: _on_party_wipe(bot))
+# endregion
 
+
+# region Settings
+def _as_bool(value) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return value != 0
+    if isinstance(value, str):
+        return value.strip().lower() in ("1", "true", "yes", "on")
+    return bool(value)
+
+
+def _ensure_bot_ini(bot: Botting) -> str:
+    if not bot.config.ini_key_initialized:
+        bot.config.ini_key = IniManager().ensure_key(
+            f"BottingClass/bot_{bot.config.bot_name}",
+            f"bot_{bot.config.bot_name}.ini",
+        )
+        bot.config.ini_key_initialized = True
+    return bot.config.ini_key
+
+
+def _load_behavior_setting(bot: Botting) -> None:
+    ini_key = _ensure_bot_ini(bot)
+    if not ini_key:
+        return
+    saved_value = IniManager().read_bool(
+        ini_key,
+        _SETTINGS_SECTION,
+        _BEHAVIOR_MODE_KEY,
+        _as_bool(bot.Properties.Get("use_custom_behaviors", "active")),
+    )
+    bot.Properties.ApplyNow("use_custom_behaviors", "active", _as_bool(saved_value))
+
+
+def _save_behavior_setting(bot: Botting) -> None:
+    ini_key = _ensure_bot_ini(bot)
+    if not ini_key:
+        return
+    IniManager().write_key(
+        ini_key,
+        _SETTINGS_SECTION,
+        _BEHAVIOR_MODE_KEY,
+        _as_bool(bot.Properties.Get("use_custom_behaviors", "active")),
+    )
+
+
+def _sync_consumable_toggles(bot: Botting) -> None:
+    use_conset = _as_bool(bot.Properties.Get("use_conset", "active"))
+    use_pcons = _as_bool(bot.Properties.Get("use_pcons", "active"))
+
+    for key in ("armor_of_salvation", "essence_of_celerity", "grail_of_might"):
+        bot.Properties.ApplyNow(key, "active", use_conset)
+
+    for key in (
+        "birthday_cupcake",
+        "golden_egg",
+        "candy_corn",
+        "candy_apple",
+        "slice_of_pumpkin_pie",
+        "drake_kabob",
+        "bowl_of_skalefin_soup",
+        "pahnai_salad",
+        "war_supplies",
+        "honeycomb",
+    ):
+        bot.Properties.ApplyNow(key, "active", use_pcons)
+
+
+def _apply_behavior_mode(bot: Botting) -> None:
+    use_custom_behaviors = _as_bool(bot.Properties.Get("use_custom_behaviors", "active"))
+    from Py4GW_widget_manager import get_widget_handler
+    widget_handler = get_widget_handler()
+    custom_behavior_party = None
+    try:
+        from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
+        custom_behavior_party = CustomBehaviorParty()
+    except Exception:
+        custom_behavior_party = None
+    if use_custom_behaviors:
+        bot.Properties.Disable("hero_ai")
+        if custom_behavior_party is not None:
+            custom_behavior_party.set_party_is_enabled(True)
+        if not widget_handler.is_widget_enabled("CustomBehaviors"):
+            widget_handler.enable_widget("CustomBehaviors")
+        if widget_handler.is_widget_enabled("HeroAI"):
+            widget_handler.disable_widget("HeroAI")
+        bot.Multibox.ApplyWidgetPolicy(enable_widgets=('CustomBehaviors',), disable_widgets=('HeroAI',), apply_local=False)
+    else:
+        bot.Properties.Enable("hero_ai")
+        if custom_behavior_party is not None:
+            custom_behavior_party.set_party_is_enabled(False)
+        if widget_handler.is_widget_enabled("CustomBehaviors"):
+            widget_handler.disable_widget("CustomBehaviors")
+        if not widget_handler.is_widget_enabled("HeroAI"):
+            widget_handler.enable_widget("HeroAI")
+        bot.Multibox.ApplyWidgetPolicy(enable_widgets=('HeroAI',), disable_widgets=('CustomBehaviors',), apply_local=False)
+# endregion
+
+
+# region GUI
 def _draw_settings(bot: Botting):
     import PyImGui
 
@@ -309,9 +325,6 @@ def _draw_settings(bot: Botting):
     bot.Properties.ApplyNow("use_pcons", "active", use_pcons)
     _sync_consumable_toggles(bot)
 
-bot.UI.override_draw_config(lambda: _draw_settings(bot))
-
-bot.SetMainRoutine(Routine)
 
 def tooltip():
     import PyImGui
@@ -333,8 +346,10 @@ def tooltip():
     PyImGui.bullet_text("Developed by Wick Divinus")
     PyImGui.end_tooltip()
 
+
 _session_baselines: dict[str, int] = {}
 _session_start_times: dict[str, float] = {}
+
 
 def _draw_title_track():
     global _session_baselines, _session_start_times
@@ -376,10 +391,17 @@ def _draw_title_track():
             PyImGui.progress_bar(frac, -1, 0, f"{pts - prev_required:,} / {next_required - prev_required:,}")
         PyImGui.text(f"+{gained:,}  ({pts_hr:,}/hr)")
 
+
 REFORGED_TEXTURE = os.path.join(Py4GW.Console.get_projects_path(), "Sources", "Wick Divinus bots", "Reforged_Icon.png")
+# endregion
+
+
+# region Entry Point
 def main():
     bot.Update()
     bot.UI.draw_window(icon_path=REFORGED_TEXTURE, extra_tabs=[("Statistics", _draw_title_track)])
 
+
 if __name__ == "__main__":
     main()
+# endregion
