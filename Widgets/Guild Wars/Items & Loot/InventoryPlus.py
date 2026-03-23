@@ -1056,6 +1056,8 @@ class InventoryPlusWidget:
         left, top, right, bottom = UIManager.GetFrameCoords(self.XUNLAI_WINDOW_FRAME_HASH)
         if right <= left or bottom <= top:
             return
+        if (right - left) < 100 or (bottom - top) < 100:
+            return
 
         bridge = self._get_xunlai_manager_bridge()
         if bridge is None:
