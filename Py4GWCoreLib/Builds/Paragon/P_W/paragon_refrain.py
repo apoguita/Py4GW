@@ -70,10 +70,6 @@ class Paragon_Refrain(BuildMgr):
         if not Routines.Checks.Agents.InAggro():
             return False
 
-        # In combat, open with/maintain weapon pressure before skill rotation.
-        if (yield from self.AutoAttack(target_type="EnemyClustered")):
-            return True
-
         if self.IsSkillEquipped(Theres_Nothing_to_Fear_ID) and (yield from self.skills.Any.NoAttribute.Theres_Nothing_to_Fear()):
             return True
 
@@ -108,6 +104,9 @@ class Paragon_Refrain(BuildMgr):
             return True
 
         if self.IsSkillEquipped(Ebon_Battle_Standard_of_Wisdom_ID) and (yield from self.skills.Any.NoAttribute.Ebon_Battle_Standard_of_Wisdom()):
+            return True
+
+        if (yield from self.AutoAttack()):
             return True
 
         yield
