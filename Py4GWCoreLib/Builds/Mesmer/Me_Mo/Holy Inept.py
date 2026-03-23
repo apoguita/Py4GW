@@ -13,7 +13,7 @@ Air_of_Superiority_ID = Skill.GetID("Air_of_Superiority")
 Ebon_Vanguard_Assassin_Support_ID = Skill.GetID("Ebon_Vanguard_Assassin_Support")
 Ebon_Battle_Standard_of_Wisdom_ID = Skill.GetID("Ebon_Battle_Standard_of_Wisdom")
 Signet_of_Clumsiness_ID = Skill.GetID("Signet_of_Clumsiness")
-
+Power_Drain_ID = Skill.GetID("Power_Drain")
 
 class HolyInept(BuildMgr):
     def __init__(self, match_only: bool = False):
@@ -33,6 +33,7 @@ class HolyInept(BuildMgr):
                 Ebon_Vanguard_Assassin_Support_ID,
                 Ebon_Battle_Standard_of_Wisdom_ID,
                 Signet_of_Clumsiness_ID,
+                Power_Drain_ID
             ],
         )
         if match_only:
@@ -57,6 +58,9 @@ class HolyInept(BuildMgr):
             return True
 
         if self.IsSkillEquipped(Arcane_Conundrum_ID) and (yield from self.skills.Mesmer.IllusionMagic.Arcane_Conundrum()):
+            return True
+        
+        if (yield from self.skills.Mesmer.DominationMagic.Power_Drain()):
             return True
 
         if (yield from self.skills.Mesmer.IllusionMagic.Ineptitude()):
