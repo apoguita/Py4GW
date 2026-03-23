@@ -71,9 +71,6 @@ class Xinraes_Weapon_Resto_Healer(BuildMgr):
         if (yield from self.skills.Ritualist.RestorationMagic.Mend_Body_and_Soul()):
             return True
 
-        if (yield from self.skills.Ritualist.RestorationMagic.Xinraes_Weapon()):
-            return True
-
         if self.IsSkillEquipped(Wielders_Boon_ID) and (yield from self.skills.Ritualist.RestorationMagic.Wielders_Boon()):
             return True
 
@@ -85,7 +82,12 @@ class Xinraes_Weapon_Resto_Healer(BuildMgr):
 
         if not Routines.Checks.Agents.InAggro():
             return False
+    
+        if self.IsSkillEquipped(Ebon_Vanguard_Assassin_Support_ID) and (yield from self.skills.Any.PvE.Ebon_Vanguard_Assassin_Support()):
+            return True
 
+        if (yield from self.skills.Ritualist.RestorationMagic.Xinraes_Weapon()):
+            return True
 
         if self.IsSkillEquipped(You_Are_All_Weaklings_ID) and (yield from self.skills.Any.NoAttribute.You_Are_All_Weaklings()):
             return True
@@ -97,9 +99,6 @@ class Xinraes_Weapon_Resto_Healer(BuildMgr):
             return True
 
         if (yield from self.skills.Necromancer.SoulReaping.Signet_of_Lost_Souls()):
-            return True
-    
-        if self.IsSkillEquipped(Ebon_Vanguard_Assassin_Support_ID) and (yield from self.skills.Any.PvE.Ebon_Vanguard_Assassin_Support()):
             return True
 
         if self.IsSkillEquipped(Weaken_Armor_ID) and (yield from self.skills.Necromancer.Curses.Weaken_Armor()):

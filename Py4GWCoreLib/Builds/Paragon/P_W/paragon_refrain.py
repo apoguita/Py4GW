@@ -74,7 +74,7 @@ class Paragon_Refrain(BuildMgr):
         if (yield from self.AutoAttack(target_type="EnemyClustered")):
             return True
 
-        if self.IsSkillEquipped(Hasty_Refrain_ID) and (yield from self.skills.Paragon.Motivation.Hasty_Refrain()):
+        if self.IsSkillEquipped(Theres_Nothing_to_Fear_ID) and (yield from self.skills.Any.NoAttribute.Theres_Nothing_to_Fear()):
             return True
 
         if self.IsSkillEquipped(Aggressive_Refrain_ID) and (yield from self.skills.Paragon.Leadership.Aggressive_Refrain()):
@@ -92,7 +92,7 @@ class Paragon_Refrain(BuildMgr):
         if self.IsSkillEquipped(Save_Yourselves_kurzick_ID) and (yield from self.skills.Any.NoAttribute.Save_Yourselves_kurzick()):
             return True
 
-        if self.IsSkillEquipped(Theres_Nothing_to_Fear_ID) and (yield from self.skills.Any.NoAttribute.Theres_Nothing_to_Fear()):
+        if self.IsSkillEquipped(Hasty_Refrain_ID) and (yield from self.skills.Paragon.Motivation.Hasty_Refrain()):
             return True
 
         if self.IsSkillEquipped(Never_Surrender_ID) and (yield from self.skills.Paragon.Motivation.Never_Surrender()):
