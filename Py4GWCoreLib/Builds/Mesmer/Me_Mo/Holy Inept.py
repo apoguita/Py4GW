@@ -57,19 +57,19 @@ class HolyInept(BuildMgr):
         if self.IsSkillEquipped(Ebon_Vanguard_Assassin_Support_ID) and (yield from self.skills.Any.PvE.Ebon_Vanguard_Assassin_Support()):
             return True
 
-        if self.IsSkillEquipped(Arcane_Conundrum_ID) and (yield from self.skills.Mesmer.IllusionMagic.Arcane_Conundrum()):
-            return True
-        
         if (yield from self.skills.Mesmer.DominationMagic.Power_Drain()):
             return True
 
         if (yield from self.skills.Mesmer.IllusionMagic.Ineptitude()):
             return True
 
-        if (yield from self.skills.Monk.SmitingPrayers.Judges_Insight()):
+        if (yield from self.skills.Mesmer.IllusionMagic.Wandering_Eye()):
             return True
 
-        if (yield from self.skills.Mesmer.IllusionMagic.Wandering_Eye()):
+        if self.IsSkillEquipped(Arcane_Conundrum_ID) and (yield from self.skills.Mesmer.IllusionMagic.Arcane_Conundrum()):
+            return True
+
+        if (yield from self.skills.Monk.SmitingPrayers.Judges_Insight()):
             return True
 
         if self.IsSkillEquipped(Signet_of_Clumsiness_ID) and (yield from self.skills.Mesmer.IllusionMagic.Signet_of_Clumsiness()):
