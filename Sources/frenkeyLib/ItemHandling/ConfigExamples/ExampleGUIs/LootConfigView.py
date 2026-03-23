@@ -156,6 +156,8 @@ class LootConfigView:
         return classes
 
     def draw(self) -> None:
+        PyImGui.set_next_window_size((900, 600), PyImGui.ImGuiCond.Appearing)
+        PyImGui.begin("Loot Config Editor", PyImGui.WindowFlags.NoFlag)
         self._clamp_selection()
 
         PyImGui.text("Loot Config Editor")
@@ -201,6 +203,8 @@ class LootConfigView:
 
             PyImGui.end_table()
 
+        PyImGui.end()
+        
     def _clamp_selection(self) -> None:
         if not self.config.rules:
             self.selected_rule_index = 0
