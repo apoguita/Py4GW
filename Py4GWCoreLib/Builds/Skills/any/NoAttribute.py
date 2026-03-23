@@ -170,8 +170,8 @@ class NoAttribute:
         theres_nothing_to_fear_id: int = Skill.GetID("Theres_Nothing_to_Fear")
         return (yield from self._cast_protective_party_shout(
             theres_nothing_to_fear_id,
-            health_threshold=0.90,
-            minimum_allies=1,
+            health_threshold=1.1,
+            minimum_allies=0,
         ))
     #endregion
 
