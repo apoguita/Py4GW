@@ -157,12 +157,14 @@ class BotSettings:
     Repeat:    bool = bool(_ini.read_bool(BOT_NAME, "quest_repeat",    False))
     UseCons:   bool = bool(_ini.read_bool(BOT_NAME, "quest_use_cons",  True))
     HardMode:  bool = bool(_ini.read_bool(BOT_NAME, "quest_hardmode",  False))
+    BotMode:   str  = str(_ini.read_key(BOT_NAME,  "quest_bot_mode",  "custom_behavior") or "custom_behavior")
 
     @classmethod
     def save(cls) -> None:
         _ini.write_key(BOT_NAME, "quest_repeat",    str(cls.Repeat))
         _ini.write_key(BOT_NAME, "quest_use_cons",  str(cls.UseCons))
         _ini.write_key(BOT_NAME, "quest_hardmode",  str(cls.HardMode))
+        _ini.write_key(BOT_NAME, "quest_bot_mode",  str(cls.BotMode))
 
 
 class EnterSettings:
@@ -301,6 +303,7 @@ def _ensure_custom_botting_skills_enabled() -> None:
         "wait_if_party_member_too_far",
         "wait_if_in_aggro",
         "move_to_party_member_if_in_aggro",
+        "move_to_party_member_if_dead",
     }
 
     changed = False
@@ -508,7 +511,7 @@ def _move_with_unstuck(
     target_y: float,
     step_name: str = "",
     stuck_check_ms: int = 2000,
-    stuck_threshold: float = 80.0,
+    stuck_threshold: float = 120.0,
     backup_ms: int = 1000,
     max_retries: int = 30,
     timeout: int = 60_000,
@@ -914,7 +917,7 @@ def Clear_the_Chamber(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_forced_state(BehaviorState.CLOSE_TO_AGGRO),"Force Close_to_Aggro",)
     bot_instance.Wait.ForTime(5000)
     bot_instance.Multibox.UsePcons()
-    bot_instance.Items.UseSummoningStone()
+    #bot_instance.Items.UseSummoningStone()
 
     if BotSettings.UseCons:
         # Enable auto-renewal: Properties system re-pops each conset when it expires
@@ -1555,7 +1558,8 @@ def Dhuum(bot_instance: Botting):
         )
     )  # Wait until King is within interaction range
 
-    bot_instance.Wait.ForTime(5000)
+    bot_instance.Wait.ForTime(10000)
+    bot_instance.Dialogs.WithModel(2403, 0x846901, "Talk to The King and start Dhuum fight")
     bot_instance.Dialogs.WithModel(2403, 0x846901, "Talk to The King and start Dhuum fight")
     bot_instance.States.AddCustomState(_flag_sacrifice_accounts, "Flag Sacrifice Accounts")
     bot_instance.States.AddCustomState(_flag_survivor_accounts, "Flag Survivor Accounts")
@@ -1732,30 +1736,57 @@ def ResignAndRepeat(bot_instance: Botting):
     if BotSettings.Repeat:
         bot_instance.Multibox.ResignParty()
 
-def Wait_for_Spawns(bot_instance: Botting,x,y):
+def Wait_for_Spawns(bot_instance: Botting, x, y):
+    _TIMEOUT_S = 100.0
+
     bot_instance.Move.XY(x, y, "To the Vale")
-    def runtime_check_logic():
-        enemies = [e for e in AgentArray.GetEnemyArray() if Agent.IsAlive(e) and Agent.GetModelID(e) == 2380]
-        
-        if not enemies:
-            print("No Mindblades found - Continuing...") 
+
+    def _make_check(label: str):
+        """Returns a condition callable that times out after _TIMEOUT_S seconds.
+        On timeout: moves toward the nearest Mindblade instead of waiting."""
+        _deadline = [None]  # mutable cell so the lambda can write to it
+
+        def runtime_check_logic():
+            enemies = [e for e in AgentArray.GetEnemyArray() if Agent.IsAlive(e) and Agent.GetModelID(e) == 2380]
+
+            if not enemies:
+                print(f"No Mindblades found - Continuing... ({label})")
+                bot_instance.Move.XY(x, y, "Go Back")
+                _deadline[0] = None  # reset for any future reuse
+                return True
+
+            # Start (or keep) the timeout clock
+            import time as _time
+            now = _time.monotonic()
+            if _deadline[0] is None:
+                _deadline[0] = now + _TIMEOUT_S
+
+            if now >= _deadline[0]:
+                # Timeout: charge the nearest Mindblade
+                px, py = Player.GetXY()
+                nearest = min(enemies, key=lambda e: Utils.Distance((px, py), Agent.GetXY(e)))
+                ex, ey = Agent.GetXY(nearest)
+                print(f"Mindblades timeout after {_TIMEOUT_S:.0f}s - moving toward nearest ({label})")
+                Player.Move(ex, ey)
+                _deadline[0] = None  # reset so next call restarts the clock
+                return True  # unblock the wait and let the bot continue
+
+            print(f"Mindblades ... Waiting. ({label})")
             bot_instance.Move.XY(x, y, "Go Back")
-            return True
-        
-        print("Mindblades ... Waiting.")
-        bot_instance.Move.XY(x, y, "Go Back")
-        return False
-    
-    bot_instance.Wait.UntilCondition(runtime_check_logic)
+            return False
+
+        return runtime_check_logic
+
+    bot_instance.Wait.UntilCondition(_make_check("1"))
     bot_instance.Wait.ForTime(1000)
     bot_instance.Move.XY(x, y, "1")
-    bot_instance.Wait.UntilCondition(runtime_check_logic)
+    bot_instance.Wait.UntilCondition(_make_check("2"))
     bot_instance.Wait.ForTime(1000)
     bot_instance.Move.XY(x, y, "2")
-    bot_instance.Wait.UntilCondition(runtime_check_logic)
+    bot_instance.Wait.UntilCondition(_make_check("3"))
     bot_instance.Wait.ForTime(1000)
     bot_instance.Move.XY(x, y, "3")
-    bot_instance.Wait.UntilCondition(runtime_check_logic)
+    bot_instance.Wait.UntilCondition(_make_check("4"))
 
 
 def _draw_help():
@@ -1851,7 +1882,8 @@ def _draw_inventory_settings() -> None:
 
 def _draw_imprisoned_spirits_settings() -> None:
     PyImGui.text_wrapped(
-        "Assign each multibox account to the Left or Right team for the Imprisoned Spirits quest."
+        "Assign each multibox account to the Left or Right team for the Imprisoned Spirits quest." \
+        "Right team is generally more dangerus. An Sos could be helpfull for the left side."
     )
     PyImGui.separator()
 
@@ -1941,11 +1973,18 @@ def _draw_enter_settings() -> None:
 
 
 def _draw_quest_settings():
-    _snapshot = (BotSettings.Repeat, BotSettings.UseCons, BotSettings.HardMode)
+    _snapshot = (BotSettings.Repeat, BotSettings.UseCons, BotSettings.HardMode, BotSettings.BotMode)
     BotSettings.Repeat   = PyImGui.checkbox("Resign and Repeat after", BotSettings.Repeat)
     BotSettings.UseCons  = PyImGui.checkbox("Use Cons", BotSettings.UseCons)
     BotSettings.HardMode = PyImGui.checkbox("Hard Mode", BotSettings.HardMode)
-    _current = (BotSettings.Repeat, BotSettings.UseCons, BotSettings.HardMode)
+    PyImGui.separator()
+    PyImGui.text("Bot Mode:")
+    mode_idx = 0 if BotSettings.BotMode == "custom_behavior" else 1
+    new_mode_idx = PyImGui.radio_button("Custom Behavior##botmode", mode_idx, 0)
+    PyImGui.same_line(0, -1)
+    new_mode_idx = PyImGui.radio_button("HeroAI (not working)##botmode", new_mode_idx, 1)
+    BotSettings.BotMode = "custom_behavior" if new_mode_idx == 0 else "heroai"
+    _current = (BotSettings.Repeat, BotSettings.UseCons, BotSettings.HardMode, BotSettings.BotMode)
     if _current != _snapshot:
         BotSettings.save()
 
@@ -1956,10 +1995,9 @@ bot.SetMainRoutine(bot_routine)
 
 def _draw_settings():
     if PyImGui.begin_tab_bar("##uw_settings_tabs"):
-        if PyImGui.begin_tab_item("Quests"):
+        if PyImGui.begin_tab_item("General"):
             _draw_quest_settings()
-            PyImGui.end_tab_item()
-        if PyImGui.begin_tab_item("Enter"):
+            PyImGui.separator()
             _draw_enter_settings()
             PyImGui.end_tab_item()
         if PyImGui.begin_tab_item("Inventory"):
