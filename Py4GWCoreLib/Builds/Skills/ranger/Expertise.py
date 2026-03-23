@@ -23,13 +23,9 @@ class Expertise:
 
         if not self.build.IsSkillEquipped(together_as_one_id):
             return False
-        not_has_tao_buff = lambda: not Routines.Checks.Effects.HasBuff(Player.GetAgentID(), together_as_one_id)
-        if not not_has_tao_buff():
-            return False
 
         return (yield from self.build.CastSkillID(
             skill_id=together_as_one_id,
-            extra_condition=not_has_tao_buff,
             log=False,
             aftercast_delay=250,
         ))
