@@ -71,3 +71,24 @@ def log_recipe(ctx: StepContext, message: str) -> None:
     from Py4GWCoreLib import ConsoleLog
 
     ConsoleLog(f"Recipe:{ctx.recipe_name}", message)
+
+
+def recipe_debug_logging_enabled(ctx: StepContext) -> bool:
+    step = getattr(ctx, "step", {}) or {}
+    if isinstance(step, dict):
+        if "debug_logging" in step:
+            return parse_step_bool(step.get("debug_logging"), False)
+        if "debug_log" in step:
+            return parse_step_bool(step.get("debug_log"), False)
+        if "debug" in step:
+            return parse_step_bool(step.get("debug"), False)
+
+    return bool(getattr(ctx.bot.config, "modular_debug_logging", False))
+
+
+def debug_log_recipe(ctx: StepContext, message: str) -> None:
+    if not recipe_debug_logging_enabled(ctx):
+        return
+    from Py4GWCoreLib import ConsoleLog
+
+    ConsoleLog(f"Recipe:{ctx.recipe_name}", message)

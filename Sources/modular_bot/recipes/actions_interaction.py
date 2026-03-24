@@ -244,12 +244,7 @@ def handle_loot_chest(ctx: StepContext) -> None:
                 SharedCommandType.InteractWithTarget,
                 (target, 0, 0, 0),
             )
-
-            while _command_type_routine_in_message_is_active(account_email, SharedCommandType.InteractWithTarget):
-                yield from Routines.Yield.wait(2000)
-            while _command_type_routine_in_message_is_active(account_email, SharedCommandType.PickUpLoot):
-                yield from Routines.Yield.wait(2000)
-            yield from Routines.Yield.wait(2000)
+            yield from Routines.Yield.wait(3000)
 
         yield
 

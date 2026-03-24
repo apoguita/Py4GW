@@ -567,6 +567,14 @@ class UIManager:
         if not UIManager.FrameExists(frame_id):
             return
         PyUIManager.UIManager.button_click(frame_id)    
+
+    @staticmethod
+    def ButtonDoubleClick(frame_id: int) -> None:
+        from Py4GWCoreLib import UIManager
+
+        if not UIManager.FrameExists(frame_id):
+            return
+        PyUIManager.UIManager.button_double_click(frame_id)
         
     @staticmethod
     def TestMouseAction(

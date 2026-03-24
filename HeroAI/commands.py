@@ -274,12 +274,12 @@ class HeroAICommands:
         ui.show_configure_consumables_window()
 
     def __flag_heroes_command(self, accounts: list[AccountStruct]):
-        from HeroAI import windows
-        windows.HeroAI_Windows.capture_flag_all = True
-        windows.HeroAI_Windows.capture_hero_flag = True
-        windows.HeroAI_Windows.capture_hero_index = 0
-        windows.HeroAI_Windows.one_time_set_flag = False    
+        from HeroAI.ui_base import HeroAI_BaseUI
+        HeroAI_BaseUI.capture_flag_all = True
+        HeroAI_BaseUI.capture_hero_flag = True
+        HeroAI_BaseUI.capture_hero_index = 0
+        HeroAI_BaseUI.one_time_set_flag = False    
     
     def __unflag_heroes_command(self, accounts: list[AccountStruct]):
-        from HeroAI import windows
-        windows.HeroAI_Windows.ClearFlags = True
+        from HeroAI.ui_base import HeroAI_BaseUI
+        HeroAI_BaseUI.ClearFlags = True

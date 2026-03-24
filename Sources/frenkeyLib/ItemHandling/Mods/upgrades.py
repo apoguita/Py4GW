@@ -20,6 +20,8 @@ def _get_property_factory():
 def _humanize_identifier(name: str) -> str:
     return re.sub(r"(?<!^)(?=[A-Z])", " ", name).strip()
 
+PERSISTENT = True
+
 class Upgrade:
     """
     Abstract base class for item upgrades. Each specific upgrade type (e.g., Prefix, Suffix, Inscription) should inherit from this class and implement the necessary properties and methods.

@@ -152,14 +152,14 @@ def EnsureFollowModuleIni() -> None:
 
 def Follow(cached_data: CacheData) -> BehaviorTree.NodeState:
     global last_follow_move_point, follow_map_entry_signature, follow_require_front_after_map_entry
-    
+
+    def _is_nonzero_xy(x: float, y: float) -> bool:
+        return abs(float(x)) > 0.001 or abs(float(y)) > 0.001
+
     options = cached_data.account_options
     if not options or not options.Following:  # halt operation if following is disabled
         return BehaviorTree.NodeState.FAILURE
 
-    if not bool(getattr(options, "LeaderFollowReady", False)):
-        return BehaviorTree.NodeState.FAILURE
-    
     if not cached_data.follow_throttle_timer.IsExpired():
         return BehaviorTree.NodeState.FAILURE
 
@@ -179,23 +179,49 @@ def Follow(cached_data: CacheData) -> BehaviorTree.NodeState:
         follow_require_front_after_map_entry = False
         last_follow_move_point = None
 
-    follow_x = float(options.FollowPos.x)
-    follow_y = float(options.FollowPos.y)
-    follow_z = int(float(options.FollowPos.z))
+    leader_options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsByPartyNumber(0)
+    own_flag_active = bool(getattr(options, "IsFlagged", False)) and _is_nonzero_xy(
+        float(options.FlagPos.x),
+        float(options.FlagPos.y),
+    )
+    all_flag_active = (
+        leader_options is not None
+        and bool(getattr(leader_options, "IsFlagged", False))
+        and _is_nonzero_xy(float(leader_options.AllFlag.x), float(leader_options.AllFlag.y))
+    )
+
+    follow_threshold_raw = float(options.FollowMoveThreshold)
+    combat_threshold_raw = float(options.FollowMoveThresholdCombat)
+
+    if own_flag_active:
+        follow_x = float(options.FlagPos.x)
+        follow_y = float(options.FlagPos.y)
+        follow_z = 0
+    elif all_flag_active:
+        follow_x = float(leader_options.AllFlag.x)
+        follow_y = float(leader_options.AllFlag.y)
+        follow_z = 0
+    else:
+        if follow_threshold_raw < 0.0 and combat_threshold_raw < 0.0:
+            return BehaviorTree.NodeState.FAILURE
+        follow_x = float(options.FollowPos.x)
+        follow_y = float(options.FollowPos.y)
+        follow_z = int(float(options.FollowPos.z))
+
     if cached_data.data.in_aggro:
-        combat_threshold_raw = float(options.FollowMoveThresholdCombat)
         if combat_threshold_raw >= 0.0:
             follow_distance = max(0.0, combat_threshold_raw)
         else:
-            follow_distance = max(0.0, float(options.FollowMoveThreshold))
+            follow_distance = max(0.0, follow_threshold_raw)
 
-        leader_agent_id = GLOBAL_CACHE.Party.GetPartyLeaderID()
-        if leader_agent_id:
-            leader_distance = Utils.Distance(Agent.GetXY(leader_agent_id), Player.GetXY())
-            if leader_distance <= follow_distance:
-                return BehaviorTree.NodeState.FAILURE
+        if not own_flag_active and not all_flag_active:
+            leader_agent_id = GLOBAL_CACHE.Party.GetPartyLeaderID()
+            if leader_agent_id:
+                leader_distance = Utils.Distance(Agent.GetXY(leader_agent_id), Player.GetXY())
+                if leader_distance <= follow_distance:
+                    return BehaviorTree.NodeState.FAILURE
     else:
-        follow_distance = max(0.0, float(options.FollowMoveThreshold))
+        follow_distance = max(0.0, follow_threshold_raw)
     if Utils.Distance((follow_x, follow_y), Player.GetXY()) <= follow_distance:
         # Inside threshold: do not let follow preempt OOC/combat logic.
         return BehaviorTree.NodeState.FAILURE

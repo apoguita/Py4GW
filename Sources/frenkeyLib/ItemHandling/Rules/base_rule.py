@@ -12,7 +12,7 @@ from Sources.frenkeyLib.ItemHandling.Items.ItemCache import ITEM_CACHE
 from Sources.frenkeyLib.ItemHandling.Items.ItemData import DAMAGE_RANGES
 from Sources.frenkeyLib.ItemHandling.Items.item_snapshot import ItemSnapshot
 from Sources.frenkeyLib.ItemHandling.Mods.properties import ItemProperty
-from Sources.frenkeyLib.ItemHandling.Mods.upgrades import Upgrade
+from Sources.frenkeyLib.ItemHandling.Mods.upgrades import HeavyUpgrade, Upgrade
 from Sources.frenkeyLib.ItemHandling.Rules.types import ItemAction
 
 PropertyFilter = ItemProperty | dict[str, int | str]
@@ -331,16 +331,16 @@ class WeaponSkinRule(BaseRule):
                     if property_type_name not in item_properties_by_name:
                         return False
 
-                    item_prop = item_properties_by_name[property_type_name]
-                    if item_prop.modifier.arg != expected_modifier_arg:
-                        return False
+                    # item_prop = item_properties_by_name[property_type_name]
+                    # if item_prop.modifier.arg != expected_modifier_arg:
+                    #     return False
                 else:
                     if type(prop) not in item_properties:
                         return False
 
-                    item_prop = item_properties[type(prop)]
-                    if prop.modifier.arg != item_prop.modifier.arg:
-                        return False
+                    # item_prop = item_properties[type(prop)]
+                    # if prop.modifier.arg != item_prop.modifier.arg:
+                    #     return False
 
         return True
 
@@ -418,6 +418,7 @@ class WeaponTypeRule(BaseRule):
         if len(self.properties) > 0:
             item_properties = {type(p): p for p in item.properties}
             item_properties_by_name = {type(p).__name__: p for p in item.properties}
+            
             for prop in self.properties:
                 if isinstance(prop, dict):
                     property_type_name = str(prop.get("property_type", ""))
@@ -427,15 +428,15 @@ class WeaponTypeRule(BaseRule):
                         return False
 
                     item_prop = item_properties_by_name[property_type_name]
-                    if item_prop.modifier.arg != expected_modifier_arg:
-                        return False
+                    # if item_prop.modifier.arg != expected_modifier_arg:
+                    #     return False
                 else:
                     if type(prop) not in item_properties:
                         return False
 
                     item_prop = item_properties[type(prop)]
-                    if prop.modifier.arg != item_prop.modifier.arg:
-                        return False
+                    # if prop.modifier.arg != item_prop.modifier.arg:
+                    #     return False
 
         return True
 
@@ -496,7 +497,7 @@ class UpgradeRule(BaseRule):
             return False
 
         item = self.get_item(item_id)
-        return self.upgrade in [item.prefix, item.suffix, item.inscription] if item else False
+        return self.upgrade.id in [item.prefix.id if item.prefix else None, item.suffix.id if item.suffix else None, item.inscription.id if item.inscription else None] if item and self.upgrade else False
 
     def _serialize_data(self) -> dict[str, Any]:
         return {"upgrade_class": type(self.upgrade).__name__ if self.upgrade is not None else None}
@@ -505,7 +506,7 @@ class UpgradeRule(BaseRule):
         upgrade_class_name = data.get("upgrade_class", None)
         if not isinstance(upgrade_class_name, str):
             return
-
+        
         from Sources.frenkeyLib.ItemHandling.Mods import upgrades as upgrades_module        
 
         upgrade_cls = getattr(upgrades_module, upgrade_class_name, None)
@@ -523,7 +524,8 @@ class UpgradeRule(BaseRule):
 
         try:
             instance = upgrade_cls()
-        except Exception as ex:
+            
+        except Exception as ex: 
             Py4GW.Console.Log(
                 "UpgradeRule",
                 f"Failed to instantiate upgrade '{upgrade_class_name}' for rule '{self.name}': {type(ex).__name__}: {ex}",
@@ -557,4 +559,13 @@ class SalvagesToMaterialRule(BaseRule):
         
         common = [m.model_id for m in (item.data.common_salvage.values() if item.data.common_salvage else {})]
         rare = [m.model_id for m in (item.data.rare_salvage.values() if item.data.rare_salvage else {})]
+        
         return any(mat in common + rare for mat in self.materials)
+    
+    def _serialize_data(self) -> dict[str, Any]:
+        return {"materials": [mat.name for mat in self.materials]}
+    
+    def _deserialize_data(self, data: dict[str, Any]) -> None:
+        self.materials = [
+            ModelID[mat] for mat in data.get("materials", []) if isinstance(mat, str) and mat in ModelID.__members__
+        ]

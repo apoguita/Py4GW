@@ -116,3 +116,19 @@ def GetItemsLocations(item_ids: list[int]) -> list[tuple[Bag, int]]:
                 locations.append((bag_enum, slot))
     
     return locations
+
+@staticmethod
+def IsWeaponType(item_type : ItemType) -> bool:
+    return item_type in (
+            ItemType.Axe,
+            ItemType.Bow,
+            ItemType.Daggers,
+            ItemType.Hammer,
+            ItemType.Offhand,
+            ItemType.Scythe,
+            ItemType.Shield,
+            ItemType.Spear,
+            ItemType.Staff,
+            ItemType.Sword,
+            ItemType.Wand
+        )
