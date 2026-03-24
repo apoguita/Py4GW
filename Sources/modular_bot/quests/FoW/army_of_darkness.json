@@ -1,19 +1,14 @@
 {
-  "name": "FoW - Naughty Priest",
+  "name": "Naughty Priest",
   "steps": [
     {"type": "auto_path", "name": "To the Priest", "points": [[2361, 14877]]},
     {"type": "auto_path", "name": "book spot 1", "points": [[4200, 15193]]},
     {"type": "interact_item", "model_id": "UNHOLY_TEXT"},
-    {"type": "interact_item", "model_id": "UNHOLY_TEXT"},
     {"type": "auto_path", "name": "book spot 2", "points": [[2482, 14749]]},
-    {"type": "interact_item", "model_id": "UNHOLY_TEXT"},
     {"type": "interact_item", "model_id": "UNHOLY_TEXT"},
     {"type": "auto_path", "name": "book spot 3", "points": [[1184, 15347]]},
     {"type": "interact_item", "model_id": "UNHOLY_TEXT"},
-    {"type": "interact_item", "model_id": "UNHOLY_TEXT"},
     {"type": "auto_path", "name": "Wolf scan spot", "points": [[-762, 11836]]},
-    {"type": "path_to_target", "enemy": "SHARD_WOLF"},
-    {"type": "path_to_target", "enemy": "SHARD_WOLF"},
     {"type": "path_to_target", "enemy": "SHARD_WOLF"},
     {"type": "auto_path", "name": "Bring the book", "points": [[-7154, 11644]]},
     {"type": "dialog", "name": "Reward menzies", "x": -7382, "y": 11942, "id": "0x80CB07"}

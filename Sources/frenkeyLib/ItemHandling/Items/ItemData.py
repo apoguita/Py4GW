@@ -228,7 +228,6 @@ if not os.path.exists(item_json_path):
 class ItemDataContainer():
     def __init__(self):
         self.data : dict[ItemType, dict[int, ItemData]] = {}
-        self.ItemsBySkins: dict[str, list[ItemData]] = {}
         self.requires_save = False
         
         self.load_data()

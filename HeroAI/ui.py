@@ -1216,9 +1216,10 @@ def draw_buttons(account_data: AccountStruct, cached_data: CacheData, message_qu
         target_id = Player.GetTargetID() or Player.GetAgentID()
         
         def flag_hero_account():
-            windows.HeroAI_Windows.capture_flag_all = False
-            windows.HeroAI_Windows.capture_hero_flag = True
-            windows.HeroAI_Windows.capture_hero_index = account_data.AgentPartyData.PartyPosition  
+            from HeroAI.ui_base import HeroAI_BaseUI
+            HeroAI_BaseUI.capture_flag_all = False
+            HeroAI_BaseUI.capture_hero_flag = True
+            HeroAI_BaseUI.capture_hero_index = account_data.AgentPartyData.PartyPosition  
             return -1
         
         def clear_hero_flag():
@@ -1232,6 +1233,9 @@ def draw_buttons(account_data: AccountStruct, cached_data: CacheData, message_qu
             options.AllFlag.x = 0.0
             options.AllFlag.y = 0.0
             options.FlagFacingAngle = 0.0
+            party_pos = int(account_data.AgentPartyData.PartyPosition)
+            if 0 < party_pos <= GLOBAL_CACHE.Party.GetHeroCount():
+                GLOBAL_CACHE.Party.Heroes.UnflagHero(party_pos)
             return -1
         
         buttons = [

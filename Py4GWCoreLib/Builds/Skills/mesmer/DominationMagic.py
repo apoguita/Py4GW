@@ -6,6 +6,7 @@ from Py4GWCoreLib.BuildMgr import BuildCoroutine
 from Py4GWCoreLib.Skill import Skill
 
 if TYPE_CHECKING:
+    from HeroAI.custom_skill_src.skill_types import CustomSkill
     from Py4GWCoreLib.BuildMgr import BuildMgr
 
 __all__ = ["DominationMagic"]
@@ -221,6 +222,50 @@ class DominationMagic:
 
         return (yield from self.build.CastSkillIDAndRestoreTarget(
             skill_id=overload_id,
+            target_agent_id=target_agent_id,
+            log=False,
+            aftercast_delay=250,
+        ))
+    #endregion
+
+    #region P
+    def Power_Drain(self) -> BuildCoroutine:
+        from Py4GWCoreLib import Routines, Range
+
+        power_drain_id: int = Skill.GetID("Power_Drain")
+
+        if not self.build.IsSkillEquipped(power_drain_id):
+            return False
+
+        target_agent_id: int = Routines.Targeting.GetEnemyCastingSpell(Range.Spellcast.value)
+        if not target_agent_id:
+            return False
+
+        return (yield from self.build.CastSkillIDAndRestoreTarget(
+            skill_id=power_drain_id,
+            target_agent_id=target_agent_id,
+            log=False,
+            aftercast_delay=250,
+        ))
+    #endregion
+
+    #region S
+    def Shatter_Hex(self) -> BuildCoroutine:
+        shatter_hex_id: int = Skill.GetID("Shatter_Hex")
+        shatter_hex: CustomSkill = self.build.GetCustomSkill(shatter_hex_id)
+
+        if not self.build.IsSkillEquipped(shatter_hex_id):
+            return False
+
+        target_agent_id = self.build.ResolveAllyTarget(
+            shatter_hex_id,
+            shatter_hex,
+        )
+        if not target_agent_id:
+            return False
+
+        return (yield from self.build.CastSkillIDAndRestoreTarget(
+            skill_id=shatter_hex_id,
             target_agent_id=target_agent_id,
             log=False,
             aftercast_delay=250,

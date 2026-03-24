@@ -32,6 +32,9 @@ class _PLAYER:
     def BuySkill(self, skill_id: int, log: bool = False):
         self._helpers.Player.buy_skill(skill_id, log)
 
+    def UnlockBalthazarSkill(self, skill_id: int, use_pvp_remap: bool = True, log: bool = False):
+        self._helpers.Player.unlock_balthazar_skill(skill_id, use_pvp_remap, log)
+
     def HasSkillPoints(self) -> bool:
         # Returns True if the player has at least one skill point available. Use for gating skill purchases.
         from ...Player import Player

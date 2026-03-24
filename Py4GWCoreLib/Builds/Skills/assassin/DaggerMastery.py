@@ -17,7 +17,8 @@ class DaggerMastery:
         self.build: BuildMgr = build
 
     def _resolve_dagger_target(self) -> int:
-        target_acquired, _ = self.build._resolve_target("EnemyInjured")
+        target_type = getattr(self.build, "dagger_target_type", "EnemyInjured")
+        target_acquired, _ = self.build._resolve_target(target_type)
         if not target_acquired:
             return 0
         return self.build.current_target_id

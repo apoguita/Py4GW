@@ -21,9 +21,9 @@ class SaveYourselfsUtility(ProtectiveShoutUtility):
             event_bus: EventBus,
             skill: CustomSkill, # pass the luxon or kurzick skill here
             current_build: list[CustomSkill],
-            allies_health_less_than_percent: float = 0.8,
-            allies_quantity_required: int = 2,
-            score_definition: ScoreStaticDefinition = ScoreStaticDefinition(90),
+            allies_health_less_than_percent: float = 1,
+            allies_quantity_required: int = 1,
+            score_definition: ScoreStaticDefinition = ScoreStaticDefinition(99),
             mana_required_to_cast: int = 0,
             allowed_states: list[BehaviorState] = [BehaviorState.IN_AGGRO]
             ) -> None:
@@ -52,7 +52,7 @@ class SaveYourselfsUtility(ProtectiveShoutUtility):
 
         lock_key = f"Save_Yourselves_utility"
 
-        if CustomBehaviorParty().get_shared_lock_manager().try_aquire_lock(lock_key, timeout_seconds=6) == False:
+        if CustomBehaviorParty().get_shared_lock_manager().try_aquire_lock(lock_key, timeout_seconds=2) == False:
             yield
             return BehaviorResult.ACTION_SKIPPED
 
