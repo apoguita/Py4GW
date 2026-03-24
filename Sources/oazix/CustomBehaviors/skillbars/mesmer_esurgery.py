@@ -29,6 +29,7 @@ from Sources.oazix.CustomBehaviors.skills.mesmer.shatter_hex_utility import Shat
 from Sources.oazix.CustomBehaviors.skills.mesmer.spiritual_pain_utility import SpiritualPainUtility
 from Sources.oazix.CustomBehaviors.skills.mesmer.unnatural_signet_utility import UnnaturalSignetUtility
 from Sources.oazix.CustomBehaviors.skills.paragon.fall_back_utility import FallBackUtility
+from Sources.oazix.CustomBehaviors.skills.mesmer.overload_utility import OverloadUtility
 
 class MesmerESurgery_UtilitySkillBar(CustomBehaviorBaseUtility):
 

@@ -258,6 +258,33 @@ def FloatingMoveToggle(x: float, y: float, enabled: bool, margin: int = 8) -> bo
     return result
 
 
+def FloatingMapIdStrip(x: float, y: float, map_id: int, margin: int = 8) -> None:
+    win_x = x + margin + 2
+    win_y = y + margin + 52
+    PyImGui.set_next_window_pos(win_x, win_y)
+
+    flags = (
+        PyImGui.WindowFlags.NoCollapse |
+        PyImGui.WindowFlags.NoTitleBar |
+        PyImGui.WindowFlags.NoScrollbar |
+        PyImGui.WindowFlags.NoMove |
+        PyImGui.WindowFlags.AlwaysAutoResize |
+        PyImGui.WindowFlags.NoBackground
+    )
+    PyImGui.push_style_var2(ImGui.ImGuiStyleVar.WindowPadding, 2.0, 2.0)
+    PyImGui.push_style_var(ImGui.ImGuiStyleVar.WindowRounding, 0.0)
+    PyImGui.push_style_color(PyImGui.ImGuiCol.WindowBg, (0.0, 0.0, 0.0, 0.0))
+
+    if PyImGui.begin("##mm_map_id_strip", flags):
+        PyImGui.text(f"Map ID: {int(map_id)}")
+        if PyImGui.is_item_hovered():
+            ImGui.show_tooltip("Current Map ID")
+    PyImGui.end()
+
+    PyImGui.pop_style_color(1)
+    PyImGui.pop_style_var(2)
+
+
 def FloatingCoordsStrip(x, y, last_x, last_y, color, width=None, margin=8, label="Cords"):
     # place just above the bottom edge with a small margin
     win_x = x + margin
@@ -1495,6 +1522,11 @@ def draw():
             mission_map.snap_enabled = FloatingMoveToggle(
                 mission_map.left, mission_map.top,
                 mission_map.snap_enabled,
+            )
+            FloatingMapIdStrip(
+                mission_map.left,
+                mission_map.top,
+                Map.GetMapID(),
             )
             FloatingCoordsStrip(
                 mission_map.left,

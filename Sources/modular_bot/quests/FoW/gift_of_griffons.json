@@ -1,5 +1,5 @@
 {
-  "name": "Wailing lord",
+  "name": "Toy Horseys",
   "steps": [
     {"type": "auto_path", "name": "clearance", "points": [ [-21448, 15704], [-21291, 14579], [-22434, 14498]]},
     {"type": "dialog", "name": "Gift of Griffins", "npc": "WAILING_LORD", "id": "0x80CD01"},

@@ -3,7 +3,7 @@ import math
 import HeroAI.globals as hero_globals
 import PyImGui
 
-from Py4GWCoreLib import GLOBAL_CACHE, Agent, IconsFontAwesome5, ImGui, Map, Range, WindowFrames, Color, ColorPalette, ConsoleLog, SharedCommandType
+from Py4GWCoreLib import GLOBAL_CACHE, Agent, IconsFontAwesome5, ImGui, Map, Overlay, Range, Utils, WindowFrames, Color, ColorPalette, ConsoleLog, SharedCommandType
 from Py4GWCoreLib import Key, Keystroke, ThrottledTimer, UIManager
 from Py4GWCoreLib.GlobalCache.SharedMemory import AccountStruct, HeroAIOptionStruct
 from Py4GWCoreLib.IniManager import IniManager
@@ -11,7 +11,7 @@ from Py4GWCoreLib.Player import Player
 
 from HeroAI.cache_data import CacheData
 from HeroAI.constants import NUMBER_OF_SKILLS
-from HeroAI.utils import IsHeroFlagged
+from HeroAI.utils import DrawFlagAll, DrawHeroFlag, IsHeroFlagged
 from HeroAI.windows import HeroAI_FloatingWindows, HeroAI_Windows
 from .constants import MAX_NUM_PLAYERS, NUMBER_OF_SKILLS
 
@@ -52,6 +52,7 @@ class HeroAI_BaseUI:
     _supported_build_selected_skill_id = 0
     _supported_build_last_detail_key = ""
     _supported_builds_cache: dict[str, dict[str, object]] = {}
+    _flag_map_signature = None
     _profession_palette_names = {
         1: "GW_Warrior",
         2: "GW_Ranger",
@@ -93,6 +94,182 @@ class HeroAI_BaseUI:
         "Alcohol": ButtonColor(button_color=Color(58, 41, 50, 255), hovered_color=Color(169, 145, 111, 255), active_color=Color(173, 173, 156, 255), texture_path="Textures\\Consumables\\Trimmed\\Dwarven_Ale.png"),
         "Blank": ButtonColor(button_color=Color(0, 0, 0, 0), hovered_color=Color(0, 0, 0, 0), active_color=Color(0, 0, 0, 0)),
     }
+
+    @staticmethod
+    def _reset_flag_capture_state() -> None:
+        HeroAI_BaseUI.ClearFlags = False
+        HeroAI_BaseUI.one_time_set_flag = False
+        HeroAI_BaseUI.capture_hero_index = -1
+        HeroAI_BaseUI.capture_hero_flag = False
+        HeroAI_BaseUI.capture_flag_all = False
+        hero_globals.capture_mouse_timer.Stop()
+
+    @staticmethod
+    def _get_flag_option_pairs() -> tuple[list[HeroAIOptionStruct | None], list[AccountStruct | None], HeroAIOptionStruct | None]:
+        active_account_option_pairs: list[tuple[AccountStruct, HeroAIOptionStruct]] = GLOBAL_CACHE.ShMem.GetAllActiveAccountHeroAIPairs(sort_results=False)
+        options_by_party: list[HeroAIOptionStruct | None] = [None] * MAX_NUM_PLAYERS
+        accounts_by_party: list[AccountStruct | None] = [None] * MAX_NUM_PLAYERS
+
+        for account, options in active_account_option_pairs:
+            party_index = int(account.AgentPartyData.PartyPosition)
+            if 0 <= party_index < MAX_NUM_PLAYERS:
+                accounts_by_party[party_index] = account
+                options_by_party[party_index] = options
+
+        return options_by_party, accounts_by_party, options_by_party[0]
+
+    @staticmethod
+    def _clear_all_flags(options_by_party: list[HeroAIOptionStruct | None] | None = None) -> None:
+        party_heroes = GLOBAL_CACHE.Party.Heroes
+        if options_by_party is None:
+            options_by_party, _, _ = HeroAI_BaseUI._get_flag_option_pairs()
+
+        for i in range(MAX_NUM_PLAYERS):
+            options = options_by_party[i]
+            if options is not None:
+                options.IsFlagged = False
+                options.FlagPos.x = 0.0
+                options.FlagPos.y = 0.0
+                options.AllFlag.x = 0.0
+                options.AllFlag.y = 0.0
+                options.FlagFacingAngle = 0.0
+
+            party_heroes.UnflagHero(i)
+
+        party_heroes.UnflagAllHeroes()
+        HeroAI_BaseUI._reset_flag_capture_state()
+
+    @staticmethod
+    def _process_flagging_runtime(cached_data: CacheData) -> None:
+        if not Map.IsMapReady():
+            return
+
+        is_leader = Player.GetAgentID() == GLOBAL_CACHE.Party.GetPartyLeaderID()
+        if not is_leader:
+            HeroAI_BaseUI._reset_flag_capture_state()
+            HeroAI_BaseUI._flag_map_signature = None
+            return
+
+        options_by_party, accounts_by_party, leader_options = HeroAI_BaseUI._get_flag_option_pairs()
+
+        if not Map.IsExplorable():
+            if HeroAI_BaseUI._flag_map_signature is not None:
+                HeroAI_BaseUI._clear_all_flags(options_by_party)
+            HeroAI_BaseUI._flag_map_signature = None
+            hero_globals.show_flagging_window = False
+            return
+
+        map_signature = (
+            int(Map.GetMapID()),
+            int(Map.GetRegion()[0]),
+            int(Map.GetDistrict()),
+            int(Map.GetLanguage()[0]),
+            int(GLOBAL_CACHE.Party.GetPartyID()),
+        )
+        if HeroAI_BaseUI._flag_map_signature is not None and HeroAI_BaseUI._flag_map_signature != map_signature:
+            HeroAI_BaseUI._clear_all_flags(options_by_party)
+            options_by_party, accounts_by_party, leader_options = HeroAI_BaseUI._get_flag_option_pairs()
+        HeroAI_BaseUI._flag_map_signature = map_signature
+
+        if HeroAI_BaseUI.capture_hero_flag:
+            x, y, _ = Overlay().GetMouseWorldPos()
+            if HeroAI_BaseUI.capture_flag_all:
+                DrawFlagAll(x, y)
+            else:
+                DrawHeroFlag(x, y)
+
+            mouse_clicked = PyImGui.is_mouse_clicked(0)
+            if mouse_clicked and HeroAI_BaseUI.one_time_set_flag:
+                HeroAI_BaseUI.one_time_set_flag = False
+                return
+
+            if mouse_clicked:
+                capture_index = HeroAI_BaseUI.capture_hero_index
+                hero_count = GLOBAL_CACHE.Party.GetHeroCount()
+
+                if 0 < capture_index <= hero_count and not HeroAI_BaseUI.capture_flag_all:
+                    agent_id = GLOBAL_CACHE.Party.Heroes.GetHeroAgentIDByPartyPosition(capture_index)
+                    GLOBAL_CACHE.Party.Heroes.FlagHero(agent_id, x, y)
+                    HeroAI_BaseUI.one_time_set_flag = True
+                else:
+                    if capture_index == 0:
+                        hero_ai_index = 0
+                        GLOBAL_CACHE.Party.Heroes.FlagAllHeroes(x, y)
+                    else:
+                        hero_ai_index = capture_index - hero_count
+
+                    options = options_by_party[hero_ai_index] if 0 <= hero_ai_index < MAX_NUM_PLAYERS else None
+                    if options is not None:
+                        if capture_index == 0:
+                            options.AllFlag.x = x
+                            options.AllFlag.y = y
+                        else:
+                            options.FlagPos.x = x
+                            options.FlagPos.y = y
+                        options.IsFlagged = True
+                        options.FlagFacingAngle = Agent.GetRotationAngle(GLOBAL_CACHE.Party.GetPartyLeaderID())
+                    HeroAI_BaseUI.one_time_set_flag = True
+
+                HeroAI_BaseUI.capture_flag_all = False
+                HeroAI_BaseUI.capture_hero_flag = False
+                HeroAI_BaseUI.one_time_set_flag = False
+                hero_globals.capture_mouse_timer.Stop()
+
+        if leader_options and leader_options.IsFlagged:
+            DrawFlagAll(leader_options.AllFlag.x, leader_options.AllFlag.y)
+
+        for i in range(1, MAX_NUM_PLAYERS):
+            options = options_by_party[i]
+            account = accounts_by_party[i]
+            if options is None or not options.IsFlagged or account is None:
+                continue
+            DrawHeroFlag(options.FlagPos.x, options.FlagPos.y)
+
+        if hero_globals.show_broadcast_follow_positions or hero_globals.show_broadcast_follow_threshold_rings:
+            segments = 24
+            Overlay().BeginDraw()
+            for i in range(1, MAX_NUM_PLAYERS):
+                options = options_by_party[i]
+                account = accounts_by_party[i]
+                if options is None or account is None or not account.IsSlotActive:
+                    continue
+
+                fx = float(options.FollowPos.x)
+                fy = float(options.FollowPos.y)
+                if abs(fx) < 0.001 and abs(fy) < 0.001:
+                    continue
+
+                fz = Overlay().FindZ(fx, fy, 0)
+                if hero_globals.show_broadcast_follow_positions:
+                    Overlay().DrawPoly3D(
+                        fx, fy, fz,
+                        radius=Range.Touch.value / 3,
+                        color=Utils.RGBToColor(0, 255, 255, 140),
+                        numsegments=segments,
+                        thickness=2.0,
+                    )
+                    Overlay().DrawText3D(
+                        fx, fy, fz - 110,
+                        f"F{i}",
+                        color=Utils.RGBToColor(0, 255, 255, 220),
+                        autoZ=False,
+                        centered=True,
+                        scale=1.8,
+                    )
+                if hero_globals.show_broadcast_follow_threshold_rings:
+                    thr = max(0.0, float(getattr(options, "FollowMoveThreshold", 0.0)))
+                    if thr > 0.0:
+                        Overlay().DrawPoly3D(
+                            fx, fy, fz,
+                            radius=thr,
+                            color=Utils.RGBToColor(255, 215, 0, 110),
+                            numsegments=max(24, segments),
+                            thickness=2.0,
+                        )
+            Overlay().EndDraw()
+
+        if HeroAI_BaseUI.ClearFlags:
+            HeroAI_BaseUI._clear_all_flags(options_by_party)
 
     @staticmethod
     def DrawPanelButtons(identifier: str, source_game_option: HeroAIOptionStruct, set_global: bool = False):
@@ -428,18 +605,31 @@ class HeroAI_BaseUI:
         secondary_label = HeroAI_BaseUI._profession_label(secondary_value)
         profession_label = f"{primary_label}{('/' + secondary_label) if secondary_label else ''}"
 
+        primary_prof = Profession(primary_value)
+        secondary_prof = Profession(secondary_value)
+        best_score = -1
+        for build in registry._iter_matchable_builds(match_only=True):
+            score = build.ScoreMatch(
+                current_primary=primary_prof,
+                current_secondary=secondary_prof,
+                current_skills=list(skill_ids),
+            )
+            if score > best_score:
+                best_score = score
+
         resolved_build = registry.ResolveBuild(
-            current_primary=Profession(primary_value),
-            current_secondary=Profession(secondary_value),
+            current_primary=primary_prof,
+            current_secondary=secondary_prof,
             current_skills=list(skill_ids),
             fallback_name=fallback_name,
         )
 
-        if resolved_build is not None:
+        if resolved_build is not None and best_score > 0 and not resolved_build.is_fallback_candidate:
             build_name = str(getattr(resolved_build, "build_name", "") or resolved_build.__class__.__name__)
+            source_label = "Matched"
         else:
             build_name = fallback_name
-        source_label = "Fallback" if (resolved_build is None or resolved_build.is_fallback_candidate) else "Matched"
+            source_label = "Fallback"
         return (
             int(account.AgentPartyData.PartyPosition),
             str(account.AgentData.CharacterName),
@@ -532,6 +722,15 @@ class HeroAI_BaseUI:
             secondary_prof = Profession(secondary_value)
             skill_ids = [int(skill.Id) for skill in account.AgentData.Skillbar.Skills if int(skill.Id) != 0]
             fallback_name = "HeroAI"
+            best_score = -1
+            for build in registry._iter_matchable_builds(match_only=True):
+                score = build.ScoreMatch(
+                    current_primary=primary_prof,
+                    current_secondary=secondary_prof,
+                    current_skills=skill_ids,
+                )
+                if score > best_score:
+                    best_score = score
 
             resolved_build = registry.ResolveBuild(
                 current_primary=primary_prof,
@@ -541,8 +740,12 @@ class HeroAI_BaseUI:
             )
 
             resolved_class = resolved_build.__class__.__name__ if resolved_build is not None else "None"
-            resolved_name = str(getattr(resolved_build, "build_name", "") if resolved_build is not None else fallback_name)
-            resolved_source = "Fallback" if (resolved_build is None or resolved_build.is_fallback_candidate) else "Matched"
+            if resolved_build is not None and best_score > 0 and not resolved_build.is_fallback_candidate:
+                resolved_name = str(getattr(resolved_build, "build_name", "") or resolved_class)
+                resolved_source = "Matched"
+            else:
+                resolved_name = fallback_name
+                resolved_source = "Fallback"
 
             ConsoleLog(
                 "HeroAI",
@@ -1129,7 +1332,7 @@ class HeroAI_BaseUI:
             if party_size >= 8:
                 HeroAI_BaseUI.HeroFlags[6] = ImGui.toggle_button("7", IsHeroFlagged(7), 30, 30)
             PyImGui.table_next_column()
-            HeroAI_BaseUI.ClearFlags = ImGui.toggle_button("X", HeroAI_BaseUI.HeroFlags[7], 30, 30)
+            HeroAI_BaseUI.ClearFlags = ImGui.toggle_button("X", HeroAI_BaseUI.ClearFlags, 30, 30)
             PyImGui.end_table()
 
         if HeroAI_BaseUI.AllFlag != IsHeroFlagged(0):
@@ -1444,6 +1647,7 @@ class HeroAI_BaseUI:
         ImGui.End(cached_data.ini_key)
         HeroAI_BaseUI.DrawBuildMatchesWindow(cached_data)
         HeroAI_BaseUI.DrawFollowFormationsQuickWindow(cached_data)
+        HeroAI_BaseUI._process_flagging_runtime(cached_data)
 
     @staticmethod
     def draw_debug_window(heroai_bt=None):

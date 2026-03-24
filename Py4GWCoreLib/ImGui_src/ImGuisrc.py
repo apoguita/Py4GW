@@ -4,7 +4,7 @@ from Py4GWCoreLib.enums_src.IO_enums import Key, ModifierKey
 from ..Overlay import Overlay
 from ..enums import get_texture_for_model, ImguiFonts
 from ..Py4GWcorelib import Color, ColorPalette, ConsoleLog, Utils
-from typing import Tuple, TypeAlias, Optional, overload
+from typing import Callable, Tuple, TypeAlias, Optional, overload
 from .types import Alignment, HorizontalAlignment, ImGuiStyleVar, StyleTheme, ControlAppearance, TextDecorator, VerticalAlignment
 from .types import ImGuiStyleVar, StyleTheme, ControlAppearance, TextDecorator
 from .Style import Style
@@ -295,6 +295,19 @@ class ImGui:
             IniManager().mark_begin_success(ini_key)
 
         return result
+
+    @staticmethod
+    def BeginWithClose(ini_key: str, name: str, p_open=None, flags:int=PyImGui.WindowFlags.NoFlag) -> tuple[bool, bool]:
+        from Py4GWCoreLib.IniManager import IniManager
+        IniManager().begin_window_config(ini_key)
+
+        expanded, open_ = ImGui.begin_with_close(name, p_open, flags)
+
+        IniManager().track_window_collapsed(ini_key, expanded)
+        if expanded:
+            IniManager().mark_begin_success(ini_key)
+
+        return expanded, open_
     
     @staticmethod
     def begin (name: str, p_open: Optional[bool] = None, flags: int = PyImGui.WindowFlags.NoFlag) -> bool:
@@ -3640,6 +3653,201 @@ class ImGui:
     @staticmethod
     def PopTransparentWindow():
         PyImGui.pop_style_var(4)
+        
+    
+    class FloatingIcon:
+        #doc for this class can be found in:
+        #/Py4GWCoreLib/docs/floating_icon_class.md
+        def __init__(
+            self,
+            icon_path: str,
+            button_size: float = 45.0,
+            idle_icon_scale: float = 1.25,
+            hover_icon_scale: float = 1.45,
+            start_pos: tuple[float, float] = (40.0, 40.0),
+            window_id: str = "##floating_toggle_button",
+            window_name: str = "Floating Toggle",
+            tooltip_visible: str = "Hide UI",
+            tooltip_hidden: str = "Show UI",
+            drag_threshold: float = 6.0,
+            visible: bool = True,
+            toggle_ini_key: str = "",
+            toggle_section: str = "Configuration",
+            toggle_var_name: str = "visible",
+            toggle_default: bool = True,
+            on_toggle: Optional[Callable[[bool], None]] = None,
+            draw_callback: Optional[Callable[[], None]] = None,
+        ):
+            self.icon_path = icon_path
+            self.button_size = button_size
+            self.idle_icon_scale = idle_icon_scale
+            self.hover_icon_scale = hover_icon_scale
+            self.position = start_pos
+            self.window_id = window_id
+            self.window_name = window_name
+            self.tooltip_visible = tooltip_visible
+            self.tooltip_hidden = tooltip_hidden
+            self.drag_threshold = drag_threshold
+            self.visible = visible
+            self.toggle_ini_key = toggle_ini_key
+            self.toggle_section = toggle_section
+            self.toggle_var_name = toggle_var_name
+            self.toggle_default = toggle_default
+            self.on_toggle = on_toggle
+            self.draw_callback = draw_callback
+            self._dragged = False
+            self._visibility_loaded = False
+
+        def _ensure_visibility_var(self) -> None:
+            if not self.toggle_ini_key or not self.toggle_var_name:
+                return
+
+            from Py4GWCoreLib.IniManager import IniManager
+            IniManager().add_bool(
+                key=self.toggle_ini_key,
+                var_name=self.toggle_var_name,
+                section=self.toggle_section,
+                name=self.toggle_var_name,
+                default=self.toggle_default,
+            )
+
+        def _ensure_config_vars(self, ini_key: str) -> None:
+            if not ini_key:
+                return
+
+            from Py4GWCoreLib.IniManager import IniManager
+            IniManager().add_str(ini_key, "icon_path", "Floating Icon", "icon_path", self.icon_path)
+            IniManager().add_float(ini_key, "button_size", "Floating Icon", "button_size", float(self.button_size))
+            IniManager().add_float(ini_key, "idle_icon_scale", "Floating Icon", "idle_icon_scale", float(self.idle_icon_scale))
+            IniManager().add_float(ini_key, "hover_icon_scale", "Floating Icon", "hover_icon_scale", float(self.hover_icon_scale))
+
+        def load_config(self, ini_key: str) -> None:
+            if not ini_key:
+                return
+
+            from Py4GWCoreLib.IniManager import IniManager
+            self._ensure_config_vars(ini_key)
+            self.icon_path = IniManager().read_key(ini_key, "Floating Icon", "icon_path", self.icon_path)
+            self.button_size = IniManager().read_float(ini_key, "Floating Icon", "button_size", float(self.button_size))
+            self.idle_icon_scale = IniManager().read_float(ini_key, "Floating Icon", "idle_icon_scale", float(self.idle_icon_scale))
+            self.hover_icon_scale = IniManager().read_float(ini_key, "Floating Icon", "hover_icon_scale", float(self.hover_icon_scale))
+
+        def save_config(self, ini_key: str) -> None:
+            if not ini_key:
+                return
+
+            from Py4GWCoreLib.IniManager import IniManager
+            self._ensure_config_vars(ini_key)
+            IniManager().set(ini_key, "icon_path", self.icon_path, section="Floating Icon")
+            IniManager().set(ini_key, "button_size", float(self.button_size), section="Floating Icon")
+            IniManager().set(ini_key, "idle_icon_scale", float(self.idle_icon_scale), section="Floating Icon")
+            IniManager().set(ini_key, "hover_icon_scale", float(self.hover_icon_scale), section="Floating Icon")
+            IniManager().save_vars(ini_key)
+
+        def load_visibility(self) -> bool:
+            if not self.toggle_ini_key or not self.toggle_var_name:
+                return self.visible
+
+            from Py4GWCoreLib.IniManager import IniManager
+            self._ensure_visibility_var()
+            IniManager().load_once(self.toggle_ini_key)
+            self.visible = bool(IniManager().get(
+                key=self.toggle_ini_key,
+                section=self.toggle_section,
+                var_name=self.toggle_var_name,
+                default=self.toggle_default,
+            ))
+            self._visibility_loaded = True
+            return self.visible
+
+        def save_visibility(self) -> None:
+            if not self.toggle_ini_key or not self.toggle_var_name:
+                return
+
+            from Py4GWCoreLib.IniManager import IniManager
+            self._ensure_visibility_var()
+            IniManager().set(
+                key=self.toggle_ini_key,
+                section=self.toggle_section,
+                var_name=self.toggle_var_name,
+                value=self.visible,
+            )
+            IniManager().save_vars(self.toggle_ini_key)
+
+        def set_visible(self, value: bool, persist: bool = False, invoke_callback: bool = False) -> bool:
+            if self.visible == value:
+                return False
+
+            self.visible = value
+            if persist:
+                self.save_visibility()
+            if invoke_callback and self.on_toggle is not None:
+                self.on_toggle(self.visible)
+            return True
+
+        def sync_begin_with_close(self, open_: bool) -> bool:
+            self.set_visible(open_, persist=True, invoke_callback=False)
+            return self.visible
+
+        def draw(self, ini_key: str) -> bool:
+            if not self._visibility_loaded:
+                self.load_visibility()
+
+            toggled = False
+            flags = PyImGui.WindowFlags(
+                PyImGui.WindowFlags.NoResize
+                | PyImGui.WindowFlags.NoCollapse
+                | PyImGui.WindowFlags.NoTitleBar
+                | PyImGui.WindowFlags.NoScrollbar
+                | PyImGui.WindowFlags.NoScrollWithMouse
+                | PyImGui.WindowFlags.NoSavedSettings
+            )
+
+            padding = max(2.0, self.button_size * 0.05)
+            window_size = (self.button_size + padding * 2, self.button_size + padding * 2)
+            PyImGui.set_next_window_size(window_size, PyImGui.ImGuiCond.Always)
+            PyImGui.set_next_window_pos((self.position[0], self.position[1]), PyImGui.ImGuiCond.Always)
+            if ImGui.Begin(ini_key=ini_key, name=self.window_name, flags=flags):
+                win_pos = PyImGui.get_window_pos()
+                self.position = (win_pos[0], win_pos[1])
+
+                window_hovered = PyImGui.is_window_hovered()
+                scale = self.hover_icon_scale if window_hovered else self.idle_icon_scale
+                image_size = PyImGui.get_content_region_avail()[0] * scale
+                centered_pos = (window_size[0] - image_size) / 2
+                PyImGui.set_cursor_pos(centered_pos, centered_pos)
+
+                cursor_pos = PyImGui.get_cursor_pos()
+                ImGui.image(self.icon_path, (image_size, image_size))
+                PyImGui.set_cursor_pos(cursor_pos[0], cursor_pos[1])
+                PyImGui.invisible_button(f"{self.window_id}_hitbox", image_size, image_size)
+
+                drag_delta = PyImGui.get_mouse_drag_delta(0, self.drag_threshold)
+                is_dragging = PyImGui.is_item_active() and PyImGui.is_mouse_dragging(0, self.drag_threshold)
+                item_hovered = PyImGui.is_item_hovered()
+
+                if item_hovered and not is_dragging:
+                    PyImGui.set_tooltip(self.tooltip_visible if self.visible else self.tooltip_hidden)
+
+                if is_dragging:
+                    self._dragged = True
+                    new_pos = (win_pos[0] + drag_delta[0], win_pos[1] + drag_delta[1])
+                    self.position = new_pos
+                    PyImGui.set_window_pos(new_pos[0], new_pos[1], PyImGui.ImGuiCond.Always)
+                    PyImGui.reset_mouse_drag_delta(0)
+
+                if item_hovered and PyImGui.is_mouse_released(0) and not self._dragged:
+                    self.set_visible(not self.visible, persist=True, invoke_callback=True)
+                    toggled = True
+
+                if PyImGui.is_mouse_released(0):
+                    self._dragged = False
+
+            ImGui.End(ini_key)
+            if self.visible and self.draw_callback is not None:
+                self.draw_callback()
+            return toggled
+
 
 
         

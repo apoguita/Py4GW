@@ -156,6 +156,19 @@ class Yield:
             yield from _run_bt_tree(tree, throttle_ms=300)
 
         @staticmethod
+        def UnlockBalthazarSkill(skill_id: int, use_pvp_remap: bool = True, log: bool = False):
+            """
+            Purpose: Unlock a skill from the Priest of Balthazar vendor.
+            Args:
+                skill_id (int): The ID of the skill to unlock.
+                use_pvp_remap (bool) Optional: Whether to remap via PvP skill id. Default is True.
+                log (bool) Optional: Whether to log the action. Default is False.
+            Returns: None
+            """
+            tree = BT.Player.UnlockBalthazarSkill(skill_id, use_pvp_remap=use_pvp_remap, log=log)
+            yield from _run_bt_tree(tree, throttle_ms=300)
+
+        @staticmethod
         def SendChatCommand(command:str, log=False):
             """
             Purpose: Send a chat command.

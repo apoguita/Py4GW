@@ -91,6 +91,9 @@ class _ITEMS:
     def Equip(self, model_id: int):
         self._helpers.Items.equip(model_id)
 
+    def EquipInventoryBag(self, model_id: int, target_bag: int, timeout_ms: int = 2500):
+        self._helpers.Items.equip_inventory_bag(model_id, target_bag, timeout_ms)
+
     def EquipOnHero(self, hero_type, model_id: int):
         """Equip item (by model_id) on the hero matching hero_type (HeroType enum)."""
         self._helpers.Items.equip_on_hero(hero_type, model_id)
@@ -270,6 +273,5 @@ class _ITEMS:
 
         def ResurrectionScroll(self, quantity: int = 250):
             self._helpers.Restock.force_restock_item(ModelID.Scroll_Of_Resurrection.value, quantity)
-
 
 

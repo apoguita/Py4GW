@@ -3,7 +3,7 @@ from typing import List, Tuple, Generator, Any
 import os
 
 import PyImGui
-from Py4GWCoreLib import (GLOBAL_CACHE, Routines, Map, Player, Py4GW, ConsoleLog, ModelID, Botting,
+from Py4GWCoreLib import (GLOBAL_CACHE, Routines, Map, Player, Py4GW, ConsoleLog, ModelID, Bags, Botting,
                           Agent, ImGui, ActionQueueManager, HeroType)
 from Py4GWCoreLib.ImGui_src.types import Alignment
 from Py4GWCoreLib.py4gwcorelib_src.Color import Color
@@ -1374,23 +1374,17 @@ def Extend_Inventory_Space(bot: Botting):
     bot.States.AddHeader("Extend Inventory Space")
     bot.Map.Travel(target_map_id=248) #GTOB
     bot.Items.WithdrawGold(5000)
-    bot.helpers.UI.open_all_bags()
     bot.Move.XY(-6017.76, -5899.94)
     bot.Move.XYAndInteractNPC(-4861.00, -7441.00) # Merchant NPC in GTOB
-    bot.helpers.Merchant.buy_item(35, 1) # Buy Bag 1
+    bot.helpers.Merchant.buy_item(ModelID.Bag.value, 1) # Buy Bag 1
     bot.Wait.ForTime(250)
-    bot.helpers.Merchant.buy_item(35, 1) # Buy Bag 2
+    bot.helpers.Merchant.buy_item(ModelID.Bag.value, 1) # Buy Bag 2
     bot.Wait.ForTime(250)
-    bot.helpers.Merchant.buy_item(34, 1) # Buy Belt Pouch  
+    bot.helpers.Merchant.buy_item(ModelID.Belt_Pouch.value, 1) # Buy Belt Pouch
     bot.Wait.ForTime(250)
-    bot.Items.MoveModelToBagSlot(34, 1, 0) # Move Belt Pouch to Bag 1 Slot 0
-    bot.UI.BagItemDoubleClick(bag_id=1, slot=0) #Needs to be fixed
-    bot.Wait.ForTime(500) # Wait for equip to complete
-    bot.Items.MoveModelToBagSlot(35, 1, 0) 
-    bot.UI.BagItemDoubleClick(bag_id=1, slot=0) #Needs to be fixed
-    bot.Wait.ForTime(500)
-    bot.Items.MoveModelToBagSlot(35, 1, 0)
-    bot.UI.BagItemDoubleClick(bag_id=1, slot=0) #Needs to be fixed
+    bot.Items.EquipInventoryBag(ModelID.Belt_Pouch.value, Bags.BeltPouch)
+    bot.Items.EquipInventoryBag(ModelID.Bag.value, Bags.Bag1)
+    bot.Items.EquipInventoryBag(ModelID.Bag.value, Bags.Bag2)
 
 def Unlock_Remaining_Secondary_Professions(bot: Botting):
     bot.States.AddHeader("Unlock Remaining Secondary Professions")

@@ -13,6 +13,11 @@ class ModifierKey(IntFlag):
     Shift = 1 << 0
     Ctrl = 1 << 1
     Alt = 1 << 2
+
+
+class ImGuiKey(IntEnum):
+    Enter = 525
+    KeypadEnter = 615
     
 # region Key
 class Key(Enum):

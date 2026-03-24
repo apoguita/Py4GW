@@ -8,8 +8,10 @@ from Py4GWCoreLib.ImGui_src.ImGuisrc import ImGui
 from Py4GWCoreLib.ImGui_src.types import Alignment
 from Py4GWCoreLib.py4gwcorelib_src.Color import Color
 from Sources.modular_bot.prebuilts.fow import (
+    DEFAULT_FOW_COMBAT_WIDGET_KEY,
     DEFAULT_INVENTORY_MANAGEMENT_LOCATION_KEY,
     DEFAULT_FOW_ENTRYPOINT_KEY,
+    FOW_COMBAT_WIDGETS,
     FOW_ENTRYPOINTS,
     FOW_QUEST_ORDER,
     INVENTORY_MANAGEMENT_LOCATIONS,
@@ -55,6 +57,14 @@ class Config:
             )
             or DEFAULT_INVENTORY_MANAGEMENT_LOCATION_KEY
         )
+        self.post_gh_combat_widget = str(
+            ini_handler.read_key(
+                BOT_NAME,
+                "post_gh_combat_widget",
+                DEFAULT_FOW_COMBAT_WIDGET_KEY,
+            )
+            or DEFAULT_FOW_COMBAT_WIDGET_KEY
+        )
 
     def to_options(self) -> ModularFowOptions:
         return ModularFowOptions(
@@ -70,6 +80,7 @@ class Config:
             debug_logging=bool(self.debug_logging),
             entrypoint=self.entrypoint,
             inventory_management_location=self.inventory_management_location,
+            post_gh_combat_widget=self.post_gh_combat_widget,
         )
 
     def save_throttled(self):
@@ -93,6 +104,7 @@ class Config:
         ini_handler.write_key(BOT_NAME, "debug_logging", str(bool(self.debug_logging)))
         ini_handler.write_key(BOT_NAME, "entrypoint", str(self.entrypoint))
         ini_handler.write_key(BOT_NAME, "inventory_management_location", str(self.inventory_management_location))
+        ini_handler.write_key(BOT_NAME, "post_gh_combat_widget", str(self.post_gh_combat_widget))
 
 
 config = Config()
@@ -102,6 +114,8 @@ ENTRYPOINT_KEYS = list(FOW_ENTRYPOINTS.keys())
 ENTRYPOINT_LABELS = [label for label, _map_id in FOW_ENTRYPOINTS.values()]
 INVENTORY_LOCATION_KEYS = list(INVENTORY_MANAGEMENT_LOCATIONS.keys())
 INVENTORY_LOCATION_LABELS = [INVENTORY_MANAGEMENT_LOCATIONS[key] for key in INVENTORY_LOCATION_KEYS]
+COMBAT_WIDGET_KEYS = list(FOW_COMBAT_WIDGETS.keys())
+COMBAT_WIDGET_LABELS = [FOW_COMBAT_WIDGETS[key] for key in COMBAT_WIDGET_KEYS]
 
 
 def _entrypoint_index() -> int:
@@ -150,6 +164,34 @@ def _draw_inventory_location_combo(disabled: bool = False) -> None:
         new_location = INVENTORY_LOCATION_KEYS[selected_index]
         if new_location != config.inventory_management_location:
             config.inventory_management_location = new_location
+            if bot is not None:
+                _queue_rebuild()
+    if disabled:
+        PyImGui.end_disabled()
+
+
+def _combat_widget_index() -> int:
+    try:
+        return COMBAT_WIDGET_KEYS.index(config.post_gh_combat_widget)
+    except ValueError:
+        return 0
+
+
+def _draw_combat_widget_combo(disabled: bool = False) -> None:
+    if disabled:
+        PyImGui.begin_disabled(True)
+    PyImGui.text("Combat Engine")
+    PyImGui.push_item_width(PyImGui.get_content_region_avail()[0])
+    selected_index = PyImGui.combo(
+        "##FoWPostGhCombatWidget",
+        _combat_widget_index(),
+        COMBAT_WIDGET_LABELS,
+    )
+    PyImGui.pop_item_width()
+    if 0 <= selected_index < len(COMBAT_WIDGET_KEYS):
+        new_widget = COMBAT_WIDGET_KEYS[selected_index]
+        if new_widget != config.post_gh_combat_widget:
+            config.post_gh_combat_widget = new_widget
             if bot is not None:
                 _queue_rebuild()
     if disabled:
@@ -233,6 +275,34 @@ def _build_bot():
     )
 
 
+def _ensure_party_safety_callbacks_runtime() -> None:
+    """
+    Re-apply party safety callbacks at runtime for FoW runs.
+    This is idempotent and ensures callbacks stay wired in HeroAI mode.
+    """
+    if bot is None:
+        return
+    try:
+        bot.bot.Events.OnPartyMemberBehindCallback(
+            lambda: bot.bot.Templates.Routines.OnPartyMemberBehind()
+        )
+        bot.bot.Events.OnPartyMemberInDangerCallback(
+            lambda: bot.bot.Templates.Routines.OnPartyMemberInDanger()
+        )
+        bot.bot.Events.OnPartyMemberDeadBehindCallback(
+            lambda: bot.bot.Templates.Routines.OnPartyMemberDeathBehind()
+        )
+        behind_cb = bool(getattr(bot.bot.config.events.on_party_member_behind, "callback", None))
+        danger_cb = bool(getattr(bot.bot.config.events.on_party_member_in_danger, "callback", None))
+        dead_behind_cb = bool(getattr(bot.bot.config.events.on_party_member_dead_behind, "callback", None))
+        _debug(
+            "FoW safety callbacks armed "
+            f"(behind={behind_cb}, in_danger={danger_cb}, dead_behind={dead_behind_cb})"
+        )
+    except Exception as exc:
+        _debug(f"Failed to arm FoW safety callbacks: {exc}")
+
+
 def _start_bot() -> None:
     global bot, _BOT_REBUILD_PENDING
 
@@ -250,6 +320,7 @@ def _start_bot() -> None:
         )
 
     apply_fow_runtime_properties(bot.bot, config.to_options(), debug_hook=_debug)
+    _ensure_party_safety_callbacks_runtime()
     _debug(
         "Calling bot.Start(). "
         f"initialized={bot.bot.config.initialized} "
@@ -297,6 +368,7 @@ def _draw_prestart_window() -> None:
     config.sell_all_common_materials = PyImGui.checkbox("Sell All Common Materials", config.sell_all_common_materials)
     config.buy_ectoplasm = PyImGui.checkbox("Buy Ectoplasm", config.buy_ectoplasm)
     _draw_inventory_location_combo(disabled=config.skip_merchant_actions)
+    _draw_combat_widget_combo(disabled=config.skip_merchant_actions)
     PyImGui.end_disabled()
     _draw_entrypoint_combo()
     config.debug_logging = PyImGui.checkbox("Debug Logging", config.debug_logging)
@@ -387,6 +459,7 @@ def _draw_main() -> None:
         config.buy_ectoplasm = new_buy_ectoplasm
         _queue_rebuild()
     _draw_inventory_location_combo(disabled=is_running or config.skip_merchant_actions)
+    _draw_combat_widget_combo(disabled=is_running or config.skip_merchant_actions)
     PyImGui.end_disabled()
     _draw_entrypoint_combo(disabled=is_running)
     PyImGui.end_disabled()
@@ -411,6 +484,7 @@ def _draw_settings() -> None:
     _draw_inventory_location_combo(disabled=bool(bot is not None and bot.bot.config.fsm_running) or config.skip_merchant_actions)
     _draw_entrypoint_combo(disabled=bool(bot is not None and bot.bot.config.fsm_running))
     PyImGui.begin_disabled(config.skip_merchant_actions)
+    _draw_combat_widget_combo(disabled=is_running or config.skip_merchant_actions)
     new_sell_non_cons_materials = PyImGui.checkbox("Sell Non-Cons Materials", config.sell_non_cons_materials)
     if new_sell_non_cons_materials != config.sell_non_cons_materials:
         config.sell_non_cons_materials = new_sell_non_cons_materials

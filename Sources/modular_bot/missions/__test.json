@@ -1,44 +1,17 @@
 {
-  "name": "darkrime delves",
+  "name": "LOOT pls.",
   "steps": [
-    {"type": "auto_path", "name": "Using the back Entrance", "points": [[-11294, 15897]]},
-    {"type": "auto_path", "name": "safe path 1", "points": [[-11782, 13846]]},
-    {"type": "auto_path", "name": "safe path 2", "points": [[-12832, 12307]]},
-    {"type": "flag_all_accounts", "x": -12832, "y": 12307, "ms":2000},
-    {"type": "unflag_all_accounts"},
-    {"type": "path_to_target", "enemy": "SHARD_WOLF"},
-
-    {"type": "flag_all_accounts", "x": -13817, "y": 12819},
-    {"type": "auto_path", "name": "safe 3", "points": [[-13817, 12819]]},
-    {"type": "unflag_all_accounts"},
-    {"type": "wait_out_of_combat"},
-
-    {"type": "flag_all_accounts", "x": -16067, "y": 12062},
-    {"type": "auto_path", "name": "safe 4", "points": [[-16067, 12062]]},
-    {"type": "unflag_all_accounts"},
-    {"type": "wait_out_of_combat"},
-
-    {"type": "flag_all_accounts", "x": -16067, "y": 12062},
-    {"type": "auto_path", "name": "safe 5", "points": [[-16067, 12062]]},
-    {"type": "unflag_all_accounts"},
-    {"type": "wait_out_of_combat"},
-    
-    {"type": "flag_all_accounts", "x": -16067, "y": 12062},
-    {"type": "auto_path", "name": "safe 5", "points": [[-18790, 14839]]},
-    {"type": "unflag_all_accounts"},
-    {"type": "wait_out_of_combat"},
-    
-    
-    {"type": "set_auto_combat", "enabled": false},
-    {"type": "auto_path", "name": "pull 1", "points": [[-20239, 13914], [-18856, 14828]]},
-    {"type": "set_auto_combat", "enabled": true},
-    {"type": "unflag_all_accounts"},
-    {"type": "wait_out_of_combat"},
-
-    {"type": "auto_path", "name": "To Wailing Lord", "points": [[-17581, 15371],[-19410, 14395]]},
-    {"type": "flag_all_accounts", "x": -20181, "y": 13963},
-    {"type": "set_auto_combat", "enabled": false},
-    {"type": "auto_path", "name": "Quick pull", "points": [[-21170, 14822], [-20181, 13963]]},
-    {"type": "set_auto_combat", "enabled": true}
-    ]
+    {"type": "loot_chest", "gadget": "CHEST_OF_WOE", "multibox": true},
+    {"type": "set_auto_looting", "enabled": false},
+    {"type": "auto_path", "name": "reposition for Chest", "points": [[1865, 216]]},
+    {"type": "set_auto_looting", "enabled": true},
+    {"type": "loot_chest", "gadget": "CHEST_OF_WOE", "multibox": true},
+    {"type": "set_auto_looting", "enabled": false},
+    {"type": "auto_path", "name": "reposition for Chest", "points": [[1865, 216]]},
+    {"type": "set_auto_looting", "enabled": true, "ms":5000},
+    {"type": "set_auto_looting", "enabled": false},
+    {"type": "auto_path", "name": "reposition for Chest", "points": [[1865, 216]]},
+    {"type": "set_auto_looting", "enabled": true, "ms":5000},
+    {"type": "resign", "ms":15000}
+  ]
 }

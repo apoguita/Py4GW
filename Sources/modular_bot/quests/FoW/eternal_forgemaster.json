@@ -1,7 +1,10 @@
 {
-  "name": "FoW - ToC to Forge",
+  "name": "Let him Cook",
   "steps": [
     {"type": "auto_path", "name": "To Kromnl", "points": [[-15127, -2036], [-9092, -6192], [-4615, 2965], [-9907, 6948], [-3023, 9966], [-6595, 13499], [-6913, 10067], [-7280, 11820]]},
+    {"type": "dialog", "name": "Eternal Forgemaster", "npc": "ETERNAL_WEAPONSMITH", "id": "0x80D101"},
+    {"type": "dialog", "name": "Army of Darkness", "npc": "KROMRIL_THE_ETERNAL", "id": "0x80CB01"},
+    {"type": "auto_path", "name": "To Kromnl", "points": [[-7280, 11820]]},
     {"type": "dialog", "name": "Eternal Forgemaster", "npc": "ETERNAL_WEAPONSMITH", "id": "0x80D101"},
     {"type": "dialog", "name": "Army of Darkness", "npc": "KROMRIL_THE_ETERNAL", "id": "0x80CB01"},
     {"type": "auto_path", "name": "Open Forge", "points": [[-4677, 12072], [-301, 13675],[-929, 6405], [1725, 3037]]},
