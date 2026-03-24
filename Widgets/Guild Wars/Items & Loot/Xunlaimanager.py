@@ -3043,7 +3043,7 @@ def _draw_window():
 	if not SHOW_SETTINGS:
 		PyImGui.set_next_window_size(COMPACT_WINDOW_MIN_WIDTH, COMPACT_WINDOW_MIN_HEIGHT)
 	anchor_pos = _get_storage_anchor_position()
-	if anchor_pos is not None:
+	if anchor_pos is not None and not SHOW_SETTINGS:
 		PyImGui.set_next_window_pos(anchor_pos[0], anchor_pos[1])
 		window_flags |= PyImGui.WindowFlags.NoMove
 
@@ -3279,6 +3279,11 @@ def _draw_window():
 							_save_allowed_model_ids_for_storage(bag_enum)
 					PyImGui.end_tab_item()
 			PyImGui.end_tab_bar()
+
+		PyImGui.separator()
+		if PyImGui.button("Close Settings"):
+			SHOW_SETTINGS = False
+			ini_handler.write_key(INI_KEY, "show_settings", SHOW_SETTINGS)
 
 	window_size = PyImGui.get_window_size()
 	if isinstance(window_size, (tuple, list)) and len(window_size) >= 2:
