@@ -1,5 +1,6 @@
 from enum import Enum
 import re
+from typing import Optional
 from Py4GWCoreLib.enums_src.GameData_enums import Ailment, Attribute, DamageType, Profession, Reduced_Ailment
 from Py4GWCoreLib.enums_src.Item_enums import ItemType, Rarity
 from Py4GWCoreLib.native_src.internals import string_table
@@ -13,10 +14,11 @@ class GWStringEncoded:
         "<c=@ItemRare>",
     )
 
-    def __init__(self, encoded: bytes, fallback: str, placeholder_bytes: bytes = bytes()):
+    def __init__(self, encoded: bytes, fallback: str, placeholder_bytes: bytes = bytes(), placeholder_replacement: Optional[list[str]] = None):
         self.encoded = encoded
         self.fallback = fallback
         self.placeholder_bytes = placeholder_bytes
+        self.placeholder_replacement = placeholder_replacement
         self.__plain = ""
         self.__bonuses_only = ""
         self.__full = ""
@@ -35,7 +37,13 @@ class GWStringEncoded:
 
     def remove_placeholder(self, s: str) -> str:
         if self.placeholder_bytes:
-            return self.replace_multiple_whitespace(s.replace(string_table.decode(self.placeholder_bytes), "").strip())
+            s = self.replace_multiple_whitespace(s.replace(string_table.decode(self.placeholder_bytes), "").strip())
+        
+        if self.placeholder_replacement and ('%str1%' in s or '%str2%' in s or '%str3%' in s):
+            s = s.replace('%str1%', self.placeholder_replacement[0] if len(self.placeholder_replacement) > 0 else "")
+            s = s.replace('%str2%', self.placeholder_replacement[1] if len(self.placeholder_replacement) > 1 else "")
+            s = s.replace('%str3%', self.placeholder_replacement[2] if len(self.placeholder_replacement) > 2 else "")
+        
         return s
 
     @property
