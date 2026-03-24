@@ -1,184 +1,220 @@
+from dataclasses import dataclass
+from typing import Callable
+
 import PyImGui
 
-from HeroAI.cache_data import CacheData
-from HeroAI.custom_skill import CustomSkillClass
-from Py4GWCoreLib import Agent, GLOBAL_CACHE, Player, Py4GW, Routines
+from Py4GWCoreLib import IconsFontAwesome5, Py4GW
+from Py4GWCoreLib.ImGui import ImGui
+from Py4GWCoreLib.IniManager import IniManager
 
 
-FGJ_ID = GLOBAL_CACHE.Skill.GetID("For_Great_Justice")
-custom_skill_handler = CustomSkillClass()
-cached_data = CacheData()
-last_snapshot = "Press 'Capture FGJ Snapshot' to collect debug values."
+MODULE_NAME = "Widget Catalog Help"
+WINDOW_WIDTH = 960
+WINDOW_HEIGHT = 620
+TOPICS_PANE_WIDTH = 250.0
+INI_PATH = "Widgets/WidgetCatalog"
+INI_FILENAME = "WidgetCatalogHelp.ini"
+INI_KEY = ""
+INI_INIT = False
+WINDOW_VISIBLE = True
+WINDOW_VISIBILITY_INITIALIZED = False
 
 
-def _find_skill_slot(skill_id: int) -> int:
-    for slot in range(1, 9):
-        if int(GLOBAL_CACHE.SkillBar.GetSkillIDBySlot(slot) or 0) == skill_id:
-            return slot
-    return 0
+@dataclass(frozen=True)
+class HelpTopic:
+    topic_id: str
+    title: str
+    summary: str
+    render: Callable[[], None]
 
 
-def _find_prioritized_index(combat, skill_id: int) -> int:
-    for index, skill_data in enumerate(combat.skills):
-        if int(skill_data.skill_id or 0) == skill_id:
-            return index
-    return -1
+def _draw_topic_overview() -> None:
+    PyImGui.spacing()
+    ImGui.push_font("Bold", 40)
+    PyImGui.text_wrapped("Welcome to Py4GW")
+    ImGui.pop_font()
+    
+    PyImGui.spacing()
+    PyImGui.text_wrapped(
+        "Py4GW is a community toolkit for Guild Wars players. It brings together helpful windows, smart tools, automation, and everyday quality-of-life features in one place."
+    )
+
+    PyImGui.spacing()
+    PyImGui.text_wrapped(
+        "Some parts are there to give you better information. Some help you manage the game more comfortably. Some handle repetitive tasks for you. All of it is meant to make the game easier to navigate and more enjoyable to live in."
+    )
+
+    PyImGui.spacing()
+    PyImGui.text_wrapped(
+        "The goal of Py4GW is not just to add features. It is to give players a shared place where useful systems feel consistent, approachable, and worth relying on, whether you are here for convenience, customization, automation, or exploration."
+    )
+    
+    show_on_startup = not IniManager().getBool(INI_KEY, "show_on_startup", default=True, section="Configuration")
+    updated_show_on_startup = not PyImGui.checkbox("Show this Screen on startup", not show_on_startup)
+    if updated_show_on_startup != show_on_startup:
+        IniManager().set(
+            INI_KEY,
+            "show_on_startup",
+            not updated_show_on_startup,
+            section="Configuration",
+        )
+        IniManager().save_vars(INI_KEY)
 
 
-def _bool_text(value: bool) -> str:
-    return "yes" if value else "no"
+def _draw_topic_navigation() -> None:
+    PyImGui.text_wrapped("This split layout mirrors the help experience we want inside the Widget Catalog.")
+    PyImGui.spacing()
+    PyImGui.bullet_text("Use the left pane to choose a topic.")
+    PyImGui.bullet_text("Use the right pane to render the selected topic with any mix of text, tables, icons, buttons, or previews.")
+    PyImGui.bullet_text("This callback-based structure lets each topic evolve into its own custom layout.")
 
 
-def _draw_line(label: str, value) -> None:
-    PyImGui.text(f"{label}: {value}")
+def _draw_topic_planned_topics() -> None:
+    PyImGui.text_wrapped("These are good candidates for the next help chapters.")
+    PyImGui.spacing()
+    PyImGui.bullet_text("Favorites and how they are stored.")
+    PyImGui.bullet_text("Reloading widgets and understanding when a refresh is needed.")
+    PyImGui.bullet_text("Pausing optional or non-system widgets.")
+    PyImGui.bullet_text("Catalog settings, floating button behavior, and layout customization.")
+    PyImGui.bullet_text("Differences between the catalog UI and the advanced widget manager.")
 
 
-def _build_snapshot() -> str:
-    cached_data.Update()
-    cached_data.UpdateCombat()
+TOPICS: tuple[HelpTopic, ...] = (
+    HelpTopic(
+        topic_id="overview",
+        title="Overview",
+        summary="Py4GW's introduction.",
+        render=_draw_topic_overview,
+    ),
+    HelpTopic(
+        topic_id="navigation",
+        title="Navigation",
+        summary="How users move through topics and folders.",
+        render=_draw_topic_navigation,
+    ),
+    HelpTopic(
+        topic_id="planned_topics",
+        title="Planned Topics",
+        summary="What we can document next.",
+        render=_draw_topic_planned_topics,
+    ),
+)
 
-    combat = cached_data.combat_handler
-    player_id = Player.GetAgentID()
-    slot_1_based = _find_skill_slot(FGJ_ID)
-    raw_slot_index = slot_1_based - 1 if slot_1_based > 0 else -1
-    prioritized_index = _find_prioritized_index(combat, FGJ_ID)
-    fgj_custom = custom_skill_handler.get_skill(FGJ_ID)
-    selected_index, selected_target = combat.FindCastableSkill(ooc=False)
-    selected_skill_id = combat.skills[selected_index].skill_id if selected_index >= 0 else 0
 
-    lines = [
-        f"player_id={player_id}",
-        f"fgj_id={FGJ_ID}",
-        f"equipped_slot={slot_1_based if slot_1_based > 0 else 'not equipped'}",
-        f"raw_slot_index={raw_slot_index}",
-        f"prioritized_index={prioritized_index}",
-        f"in_aggro={cached_data.data.in_aggro}",
-        f"combat_enabled={combat.is_combat_enabled}",
-        f"targeting_enabled={combat.is_targeting_enabled}",
-        f"current_target={Player.GetTargetID()}",
-        f"local_has_effect={GLOBAL_CACHE.Effects.HasEffect(player_id, FGJ_ID)}",
-        f"combat_has_effect={combat.HasEffect(player_id, FGJ_ID)}",
-        f"custom_target={getattr(fgj_custom, 'TargetAllegiance', 'n/a')}",
-        f"custom_nature={getattr(fgj_custom, 'Nature', 'n/a')}",
-        f"custom_ooc={bool(getattr(fgj_custom.Conditions, 'IsOutOfCombat', False))}",
-        f"selected_castable_index={selected_index}",
-        f"selected_castable_skill_id={selected_skill_id}",
-        f"selected_castable_target={selected_target}",
-        f"fgj_would_be_selected={selected_index == prioritized_index and prioritized_index >= 0}",
-        f"can_cast_global={Routines.Checks.Skills.CanCast()}",
-        f"agent_casting={Agent.IsCasting(player_id)}",
-        f"skillbar_casting={GLOBAL_CACHE.SkillBar.GetCasting()}",
-    ]
+selected_topic_id = TOPICS[0].topic_id
 
-    if prioritized_index >= 0:
-        skill_data = combat.skills[prioritized_index]
-        target_agent_id = combat.GetAppropiateTarget(prioritized_index)
-        is_skill_ready = combat.IsSkillReady(prioritized_index)
-        is_ooc_skill = combat.IsOOCSkill(prioritized_index)
-        is_ready_to_cast, ready_target = combat.IsReadyToCast(prioritized_index)
-        target_living = Agent.IsLiving(target_agent_id) if target_agent_id else False
-        skillbar_data = skill_data.skillbar_data
 
-        lines.extend([
-            f"ordered_skill_id={skill_data.skill_id}",
-            f"skill_order_slot_index={prioritized_index}",
-            f"ordered_original_slot={combat.skill_order[prioritized_index] + 1}",
-            f"recharge={getattr(skillbar_data, 'recharge', 'n/a')}",
-            f"adrenaline_have={getattr(skillbar_data, 'adrenaline_a', 'n/a')}",
-            f"adrenaline_need={GLOBAL_CACHE.Skill.Data.GetAdrenaline(FGJ_ID)}",
-            f"is_skill_ready={is_skill_ready}",
-            f"is_ooc_skill={is_ooc_skill}",
-            f"appropriate_target={target_agent_id}",
-            f"target_living={target_living}",
-            f"ready_to_cast={is_ready_to_cast}",
-            f"ready_target={ready_target}",
-            f"conditions_met={combat.AreCastConditionsMet(prioritized_index, player_id)}",
-            f"energy_current={combat.GetEnergyValues(player_id) * Agent.GetMaxEnergy(player_id)}",
-            f"energy_cost={Routines.Checks.Skills.GetEnergyCostWithEffects(FGJ_ID, player_id)}",
-            f"health={Agent.GetHealth(player_id)}",
-        ])
-    else:
-        lines.append("fgj_status=not found in prioritized combat.skills")
+def _get_selected_topic() -> HelpTopic:
+    for topic in TOPICS:
+        if topic.topic_id == selected_topic_id:
+            return topic
+    return TOPICS[0]
 
-    return "\n".join(lines)
+
+def _draw_topics_pane() -> None:
+    global selected_topic_id
+
+    if PyImGui.begin_child("##help_topics", (TOPICS_PANE_WIDTH, 0.0), True):
+        PyImGui.text(f"{IconsFontAwesome5.ICON_LIST} Topics")
+        PyImGui.separator()
+
+        for topic in TOPICS:
+            if PyImGui.selectable(
+                f"{topic.title}##{topic.topic_id}",
+                topic.topic_id == selected_topic_id,
+                PyImGui.SelectableFlags.NoFlag,
+                (0.0, 0.0),
+            ):
+                selected_topic_id = topic.topic_id
+            if PyImGui.is_item_hovered():
+                PyImGui.show_tooltip(topic.summary)
+
+    PyImGui.end_child()
+
+
+def _draw_content_pane() -> None:
+    topic = _get_selected_topic()
+
+    if PyImGui.begin_child("##help_content", (0.0, 0.0), True):
+        PyImGui.text(f"{IconsFontAwesome5.ICON_BOOK} {topic.title}")
+        PyImGui.separator()
+        topic.render()
+
+    PyImGui.end_child()
+
+
+def _draw_help_window() -> None:
+    global WINDOW_VISIBLE
+
+    expanded, WINDOW_VISIBLE = ImGui.BeginWithClose(
+        ini_key=INI_KEY,
+        name=MODULE_NAME,
+        p_open=WINDOW_VISIBLE,
+        flags=PyImGui.WindowFlags.NoCollapse,
+    )
+
+    if expanded:
+        if PyImGui.begin_table(
+            "##help_layout",
+            2,
+            PyImGui.TableFlags.BordersInnerV | PyImGui.TableFlags.Resizable,
+        ):
+            PyImGui.table_setup_column("Topics", PyImGui.TableColumnFlags.WidthFixed, TOPICS_PANE_WIDTH)
+            PyImGui.table_setup_column("Content", PyImGui.TableColumnFlags.WidthStretch, 0.0)
+
+            PyImGui.table_next_column()
+            _draw_topics_pane()
+
+            PyImGui.table_next_column()
+            _draw_content_pane()
+
+            PyImGui.end_table()
+
+    ImGui.End(INI_KEY)
+
+
+def _ensure_ini() -> bool:
+    global INI_KEY, INI_INIT
+    if INI_INIT:
+        return True
+
+    if not INI_PATH:
+        return False
+
+    INI_KEY = IniManager().ensure_global_key(INI_PATH, INI_FILENAME)
+    if not INI_KEY:
+        return False
+
+    IniManager().add_bool(INI_KEY, "init", "Window config", "init", default=True)
+    IniManager().add_bool(INI_KEY, "show_on_startup", "Configuration", "show_on_startup", default=True)
+    IniManager().load_once(INI_KEY)
+    node = IniManager()._get_node(INI_KEY)
+    if node is not None and not node.ini_handler.has_key("Configuration", "show_on_startup"):
+        IniManager().set(INI_KEY, "show_on_startup", True, section="Configuration")
+    IniManager().set(INI_KEY, "init", True)
+    IniManager().save_vars(INI_KEY)
+    INI_INIT = True
+    return True
+
+
+def _apply_initial_visibility() -> None:
+    global WINDOW_VISIBLE, WINDOW_VISIBILITY_INITIALIZED
+    if WINDOW_VISIBILITY_INITIALIZED:
+        return
+
+    WINDOW_VISIBLE = IniManager().getBool(INI_KEY, "show_on_startup", default=True, section="Configuration")
+    WINDOW_VISIBILITY_INITIALIZED = True
 
 
 def main():
-    global last_snapshot
-    cached_data.Update()
-    cached_data.UpdateCombat()
-
-    combat = cached_data.combat_handler
-    player_id = Player.GetAgentID()
-    slot_1_based = _find_skill_slot(FGJ_ID)
-    raw_slot_index = slot_1_based - 1 if slot_1_based > 0 else -1
-    prioritized_index = _find_prioritized_index(combat, FGJ_ID)
-    fgj_custom = custom_skill_handler.get_skill(FGJ_ID)
-    selected_index, selected_target = combat.FindCastableSkill(ooc=False)
-    selected_skill_id = combat.skills[selected_index].skill_id if selected_index >= 0 else 0
-
-    if PyImGui.begin("FGJ Debug"):
-        if PyImGui.button("Capture FGJ Snapshot"):
-            last_snapshot = _build_snapshot()
-            for line in last_snapshot.splitlines():
-                Py4GW.Console.Log("FGJ Debug", line, Py4GW.Console.MessageType.Info)
-
-        _draw_line("player_id", player_id)
-        _draw_line("fgj_id", FGJ_ID)
-        _draw_line("equipped_slot", slot_1_based if slot_1_based > 0 else "not equipped")
-        _draw_line("raw_slot_index", raw_slot_index)
-        _draw_line("prioritized_index", prioritized_index)
-        _draw_line("in_aggro", _bool_text(cached_data.data.in_aggro))
-        _draw_line("combat_enabled", _bool_text(combat.is_combat_enabled))
-        _draw_line("targeting_enabled", _bool_text(combat.is_targeting_enabled))
-        _draw_line("current_target", Player.GetTargetID())
-        _draw_line("local_has_effect", _bool_text(GLOBAL_CACHE.Effects.HasEffect(player_id, FGJ_ID)))
-        _draw_line("combat_has_effect", _bool_text(combat.HasEffect(player_id, FGJ_ID)))
-        _draw_line("custom_target", getattr(fgj_custom, "TargetAllegiance", "n/a"))
-        _draw_line("custom_nature", getattr(fgj_custom, "Nature", "n/a"))
-        _draw_line("custom_ooc", _bool_text(bool(getattr(fgj_custom.Conditions, "IsOutOfCombat", False))))
-        _draw_line("selected_castable_index", selected_index)
-        _draw_line("selected_castable_skill_id", selected_skill_id)
-        _draw_line("selected_castable_target", selected_target)
-        _draw_line("fgj_would_be_selected", _bool_text(selected_index == prioritized_index and prioritized_index >= 0))
-
-        if prioritized_index >= 0:
-            skill_data = combat.skills[prioritized_index]
-            target_agent_id = combat.GetAppropiateTarget(prioritized_index)
-            is_skill_ready = combat.IsSkillReady(prioritized_index)
-            is_ooc_skill = combat.IsOOCSkill(prioritized_index)
-            is_ready_to_cast, ready_target = combat.IsReadyToCast(prioritized_index)
-            target_living = Agent.IsLiving(target_agent_id) if target_agent_id else False
-            skillbar_data = skill_data.skillbar_data
-
-            _draw_line("ordered_skill_id", skill_data.skill_id)
-            _draw_line("skill_order_slot_index", prioritized_index)
-            _draw_line("ordered_original_slot", combat.skill_order[prioritized_index] + 1)
-            _draw_line("recharge", getattr(skillbar_data, "recharge", "n/a"))
-            _draw_line("adrenaline_have", getattr(skillbar_data, "adrenaline_a", "n/a"))
-            _draw_line("adrenaline_need", GLOBAL_CACHE.Skill.Data.GetAdrenaline(FGJ_ID))
-            _draw_line("is_skill_ready", _bool_text(is_skill_ready))
-            _draw_line("is_ooc_skill", _bool_text(is_ooc_skill))
-            _draw_line("appropriate_target", target_agent_id)
-            _draw_line("target_living", _bool_text(target_living))
-            _draw_line("ready_to_cast", _bool_text(is_ready_to_cast))
-            _draw_line("ready_target", ready_target)
-            _draw_line("conditions_met", _bool_text(combat.AreCastConditionsMet(prioritized_index, player_id)))
-            _draw_line("can_cast_global", _bool_text(Routines.Checks.Skills.CanCast()))
-            _draw_line("agent_casting", _bool_text(Agent.IsCasting(player_id)))
-            _draw_line("skillbar_casting", GLOBAL_CACHE.SkillBar.GetCasting())
-            _draw_line("energy_current", combat.GetEnergyValues(player_id) * Agent.GetMaxEnergy(player_id))
-            _draw_line("energy_cost", Routines.Checks.Skills.GetEnergyCostWithEffects(FGJ_ID, player_id))
-            _draw_line("health", Agent.GetHealth(player_id))
-        else:
-            PyImGui.text("FGJ is not present in the prioritized HeroAI skill list.")
-
-        PyImGui.separator()
-        PyImGui.text("Press the button and copy the FGJ Debug lines from the Py4GW console.")
-        for line in last_snapshot.splitlines():
-            PyImGui.text(line)
-
-    PyImGui.end()
+    try:
+        if not _ensure_ini():
+            return
+        _apply_initial_visibility()
+        _draw_help_window()
+    except Exception as exc:
+        Py4GW.Console.Log(MODULE_NAME, f"Error: {exc}", Py4GW.Console.MessageType.Error)
+        raise
 
 
 if __name__ == "__main__":

@@ -3,6 +3,7 @@ import PyImGui
 from Py4GWCoreLib.IniManager import IniManager
 from Py4GWCoreLib.ImGui import ImGui
 from Py4GWCoreLib.enums_src.IO_enums import Key
+import Widgets.WidgetCatalog.Py4GW_widget_catalog as widget_catalog
 
 from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import LayoutMode, Py4GWLibrary, WidgetHandler, get_widget_handler
 import os
@@ -14,7 +15,7 @@ MODULE_NAME = "Widget Manager"
 # Config
 # ------------------------------------------------------------
 widget_manager : WidgetHandler = get_widget_handler()
-py4_gw_library : Optional[Py4GWLibrary] = None 
+py4_gw_library : Optional[Py4GWLibrary] = None
 
 INI_KEY = ""
 INI_PATH = "Widgets/WidgetManager"
@@ -24,6 +25,7 @@ def _add_config_vars():
     global INI_KEY
     IniManager().add_bool(key=INI_KEY, var_name="enable_all", section="Configuration", name="enable_all", default=True)
     IniManager().add_bool(key=INI_KEY, var_name="use_library", section="Configuration", name="use_library", default=True)
+    IniManager().add_bool(key=INI_KEY, var_name="show_main_window", section="Configuration", name="show_main_window", default=True)
     
     IniManager().add_int(key=INI_KEY, var_name="max_suggestions", section="Configuration", name="max_suggestions", default=10)
     IniManager().add_int(key=INI_KEY, var_name="single_button_size", section="Configuration", name="single_button_size", default=48)
@@ -73,7 +75,8 @@ def _add_config_vars():
         )
         
 def update():
-    #return #deprecated in place of callbacks
+    return 
+    # #deprecated in place of callbacks
     if widget_manager.enable_all:
         widget_manager.execute_enabled_widgets_update()
     
@@ -111,16 +114,22 @@ def main():
             
 
     if INI_KEY:
-        use_library = bool(IniManager().get(key=INI_KEY, var_name="use_library", default=True, section="Configuration"))
-        if use_library:
-            if py4_gw_library is None:
-                py4_gw_library = Py4GWLibrary(INI_KEY, MODULE_NAME, widget_manager)
-        
-            py4_gw_library.draw_window()
+        widget_catalog.main()
+        show_adavanced = widget_catalog.show_adavanced_enabled()
+
+        if show_adavanced:
+            use_library = bool(IniManager().get(key=INI_KEY, var_name="use_library", default=True, section="Configuration"))
+            if use_library:
+                if py4_gw_library is None:
+                    py4_gw_library = Py4GWLibrary(INI_KEY, MODULE_NAME, widget_manager)
+            
+                py4_gw_library.draw_window()
+            else:
+                if ImGui.Begin(ini_key=INI_KEY, name="Widget Manager", flags=PyImGui.WindowFlags.AlwaysAutoResize):
+                    widget_manager.draw_ui(INI_KEY)
+                ImGui.End(INI_KEY)
         else:
-            if ImGui.Begin(ini_key=INI_KEY, name="Widget Manager", flags=PyImGui.WindowFlags.AlwaysAutoResize):
-                widget_manager.draw_ui(INI_KEY)
-            ImGui.End(INI_KEY)
+            widget_catalog.draw()
     
     if widget_manager.enable_all:
         #deprecated in place of callbacks
