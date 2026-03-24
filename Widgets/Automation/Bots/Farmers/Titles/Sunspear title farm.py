@@ -6,7 +6,7 @@ import PyImGui
 import os
 import time
 
-MODULE_NAME = "Sunspear Title Farm copia"
+MODULE_NAME = "Sunspear Title Farm"
 MODULE_ICON = "Textures/Skill_Icons/[1816] - Sunspear Rebirth Signet.jpg"
 
 class BotSettings:
