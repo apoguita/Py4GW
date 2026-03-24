@@ -10,11 +10,13 @@ from PyItem import ItemModifier
 from Py4GWCoreLib.ImGui_src.IconsFontAwesome5 import IconsFontAwesome5
 from Py4GWCoreLib.ImGui_src.ImGuisrc import ImGui
 from Py4GWCoreLib.Item import Bag
+from Py4GWCoreLib.Map import Map
 from Py4GWCoreLib.enums_src.GameData_enums import DyeColor, Profession
 from Py4GWCoreLib.enums_src.Item_enums import ItemType, Rarity
 from Py4GWCoreLib.enums_src.Model_enums import ModelID
 from Py4GWCoreLib.py4gwcorelib_src.Utils import Utils
 from Sources.frenkeyLib.ItemHandling.ConfigExamples.LootConfig import LootConfig
+from Sources.frenkeyLib.ItemHandling.ItemTexture import ItemTexture
 from Sources.frenkeyLib.ItemHandling.Items.ItemCache import ITEM_CACHE
 from Sources.frenkeyLib.ItemHandling.Items.ItemData import ITEM_DATA
 from Sources.frenkeyLib.ItemHandling.Items.item_snapshot import ItemSnapshot
@@ -420,6 +422,8 @@ class LootConfigView:
         PyImGui.end_child()
 
     def _draw_preview_panel(self) -> None:
+        map_ready = Map.IsMapReady()
+        
         if PyImGui.begin_child("RulePreviewPane", (0, 0), True, PyImGui.WindowFlags.NoFlag):
             PyImGui.text("3. Inventory Preview")
             PyImGui.separator()
@@ -443,7 +447,9 @@ class LootConfigView:
                 | PyImGui.TableFlags.ScrollY
                 | PyImGui.TableFlags.SizingStretchProp
             )
-            if PyImGui.begin_table("LootPreviewTable", 5, table_flags):
+            
+            if PyImGui.begin_table("LootPreviewTable", 6, table_flags):
+                PyImGui.table_setup_column("Icon", PyImGui.TableColumnFlags.WidthFixed, 36)
                 PyImGui.table_setup_column("Bag", PyImGui.TableColumnFlags.WidthFixed, 65)
                 PyImGui.table_setup_column("Slot", PyImGui.TableColumnFlags.WidthFixed, 45)
                 PyImGui.table_setup_column("Item", PyImGui.TableColumnFlags.WidthStretch, 180)
@@ -458,6 +464,16 @@ class LootConfigView:
 
                     PyImGui.table_next_row()
                     PyImGui.table_next_column()
+                    
+                    x,y = PyImGui.get_cursor_pos()
+                    PyImGui.dummy(32, 32)
+                    
+                    if item and map_ready:
+                        PyImGui.set_cursor_pos(x, y)
+                        ImGui.DrawTexture(item.gw_dat_file_path, 32, 32)
+                        
+                    PyImGui.table_next_column()
+                    
                     PyImGui.text(bag_name)
                     PyImGui.table_next_column()
                     PyImGui.text(str(slot))

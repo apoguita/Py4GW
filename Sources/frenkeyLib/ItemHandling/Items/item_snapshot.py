@@ -28,6 +28,8 @@ class ItemSnapshot:
                 
         self.model_id: int = item.model_id if item else -1
         self.model_file_id: int = item.model_file_id if item else -1
+        self.gw_dat_file_path = f"gwdat://{self.model_file_id}" if self.model_file_id > 0 else ""
+        
         self.item_type: ItemType = ItemType(
             item.item_type.ToInt()) if item else ItemType.Unknown
         self.rarity: Rarity = Rarity(item.rarity.value) if item and item.rarity and item.rarity.value in Rarity._value2member_map_ else Rarity.White
