@@ -12,6 +12,7 @@ from Sources.oazix.CustomBehaviors.skills.common.ebon_battle_standard_of_wisdom_
 from Sources.oazix.CustomBehaviors.skills.common.ebon_vanguard_assassin_support_utility import EbonVanguardAssassinSupportUtility
 from Sources.oazix.CustomBehaviors.skills.common.great_dwarf_weapon_utility import GreatDwarfWeaponUtility
 from Sources.oazix.CustomBehaviors.skills.common.i_am_unstoppable_utility import IAmUnstoppableUtility
+from Sources.oazix.CustomBehaviors.skills.common.you_are_all_weaklings_utility import YouAreAllWeaklingsUtility
 from Sources.oazix.CustomBehaviors.skills.generic.generic_resurrection_utility import GenericResurrectionUtility
 from Sources.oazix.CustomBehaviors.skills.necromancer.blood_bond_utility import BloodBondUtility
 from Sources.oazix.CustomBehaviors.skills.necromancer.blood_is_power_utility import BloodIsPowerUtility
@@ -53,6 +54,7 @@ class NecromancerBipRestoration_UtilitySkillBar(CustomBehaviorBaseUtility):
         # common
         self.ebon_vanguard_assassin_support: CustomSkillUtilityBase = EbonVanguardAssassinSupportUtility(event_bus=self.event_bus, score_definition=ScoreStaticDefinition(71), current_build=in_game_build, mana_required_to_cast=15)
         self.ebon_battle_standard_of_wisdom: CustomSkillUtilityBase = EbonBattleStandardOfWisdom(event_bus=self.event_bus, score_definition= ScorePerAgentQuantityDefinition(lambda agent_qte: 80 if agent_qte >= 3 else 60 if agent_qte <= 2 else 40), current_build=in_game_build, mana_required_to_cast=18)
+        self.you_are_all_weaklings_utility: CustomSkillUtilityBase = YouAreAllWeaklingsUtility(event_bus=self.event_bus, current_build=in_game_build)
 
 
     @property
@@ -74,6 +76,7 @@ class NecromancerBipRestoration_UtilitySkillBar(CustomBehaviorBaseUtility):
             self.mending_grip_utility,
             self.ebon_vanguard_assassin_support,
             self.ebon_battle_standard_of_wisdom,
+            self.you_are_all_weaklings_utility,
         ]
 
     @property

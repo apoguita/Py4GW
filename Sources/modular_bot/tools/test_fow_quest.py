@@ -90,12 +90,27 @@ def _main_dimensions() -> tuple[int, int]:
     return (612, min(int(height * 1.15), 900))
 
 
+def _resolve_engine_runtime() -> tuple[bool, bool]:
+    try:
+        from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
+
+        handler = get_widget_handler()
+        cb_enabled = bool(handler.is_widget_enabled("CustomBehaviors"))
+        hero_ai_enabled = bool(handler.is_widget_enabled("HeroAI"))
+        return cb_enabled, hero_ai_enabled
+    except Exception:
+        return (False, False)
+
+
+_CB_ENABLED, _HERO_AI_ENABLED = _resolve_engine_runtime()
+
 bot = ModularBot(
     name="FoW Quest Tester",
     phases=[Phase("Run Selected FoW Quest", _run_selected_quest, condition=lambda: True)],
     loop=False,
-    template="aggressive",
-    use_custom_behaviors=True,
+    template="multibox_aggressive" if _HERO_AI_ENABLED else "aggressive",
+    use_custom_behaviors=bool(_CB_ENABLED and not _HERO_AI_ENABLED),
+    upkeep_hero_ai_active=bool(_HERO_AI_ENABLED),
     main_ui=_draw_main,
     main_child_dimensions=_main_dimensions(),
     settings_ui=_draw_settings,
