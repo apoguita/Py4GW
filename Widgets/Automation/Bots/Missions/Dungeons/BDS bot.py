@@ -1062,16 +1062,12 @@ def _recover_reward_and_retake_quest(bot: Botting) -> Generator:
 
 
     # 2) Go to dungeon entrance
+    ConsoleLog(BOT_NAME, "[RECOVERY] Moving to dungeon entrance", log=True)
     for x, y in [
         (11177.00, -17683.00),(10218.00, -18864.00),(9519.00, -19968.00)]:
-        ok = yield from _move_to(x, y)
-        if not ok:
-            ConsoleLog(BOT_NAME, f"[RECOVERY] Failed move to ({x}, {y})", log=True)
-            yield
-            return
+        yield from bot.Move._coro_xy(x, y, step_name="Recovery dungeon entrance")
 
-    Player.Move(9240.07, -20260.95)
-    yield from Routines.Yield.wait(1000)
+    yield from bot.Move._coro_xy(9240.07, -20260.95, step_name="Recovery dungeon entrance")
 
     ok = yield from _wait_for_map("Shards of Oor (level 1)")
     if not ok:
@@ -1081,14 +1077,9 @@ def _recover_reward_and_retake_quest(bot: Botting) -> Generator:
 
     ConsoleLog(BOT_NAME, "[RECOVERY] Entered Shards of Oor (level 1)", log=True)
 
-    # 3) Exit dungeon
-    ok = yield from _move_to(-15650.00, 8900.00)
-    if not ok:
-        ConsoleLog(BOT_NAME, "[RECOVERY] Failed move to dungeon exit", log=True)
-        yield
-        return
-
-    yield from Routines.Yield.wait(1000)
+    # 3) Exit dungeon 
+    ConsoleLog(BOT_NAME, "[RECOVERY] Moving to dungeon exit", log=True)
+    yield from bot.Move._coro_xy(-15650.00, 8900.00, step_name="Recovery dungeon exit")
 
     ok = yield from _wait_for_map("Arbor Bay")
     if not ok:
