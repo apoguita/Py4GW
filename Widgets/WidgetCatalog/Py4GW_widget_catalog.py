@@ -9,7 +9,7 @@ import PyImGui
 from Py4GWCoreLib import ColorPalette, IconsFontAwesome5, Py4GW
 from Py4GWCoreLib.ImGui import ImGui
 from Py4GWCoreLib.IniManager import IniManager
-from Py4GWCoreLib.enums_src.IO_enums import Key
+from Py4GWCoreLib.enums_src.IO_enums import ImGuiKey, Key
 from Py4GWCoreLib.py4gwcorelib_src.Color import Color
 from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import CatalogScope, WidgetCatalog, WidgetCatalogNode, WidgetCatalogQuery, WidgetHandler, get_widget_handler
 from typing import Any, Callable, cast
@@ -463,7 +463,13 @@ class WidgetCatalogTreePanel:
         _, item.text_value = ImGui.search_field(f"##{item.item_id}_input", item.text_value, placeholder="Search...")
         PyImGui.pop_item_width()
         view.search_text = item.text_value
-        submitted = (PyImGui.is_item_active() or PyImGui.is_item_focused()) and PyImGui.is_key_pressed(Key.Enter.value)
+        submitted = (
+            (PyImGui.is_item_active() or PyImGui.is_item_focused())
+            and (
+                PyImGui.is_key_pressed(ImGuiKey.Enter.value)
+                or PyImGui.is_key_pressed(ImGuiKey.KeypadEnter.value)
+            )
+        )
         if PyImGui.is_item_hovered():
             PyImGui.set_tooltip("Press <Enter> or click the search button to search")
         PyImGui.same_line(0, spacing)
