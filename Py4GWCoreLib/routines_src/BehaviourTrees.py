@@ -169,6 +169,33 @@ class BT:
             return BehaviorTree(tree)
 
         @staticmethod
+        def UnlockBalthazarSkill(skill_id: int, use_pvp_remap: bool = True, log: bool = False):
+            """
+            Purpose: Unlock a skill from the Priest of Balthazar vendor.
+            Args:
+                skill_id (int): The ID of the skill to unlock.
+                use_pvp_remap (bool) Optional: Whether to remap via PvP skill id. Default is True.
+                log (bool) Optional: Whether to log the action. Default is False.
+            Returns: None
+            """
+            def _unlock_balthazar_skill(skill_id: int, use_pvp_remap: bool):
+                Player.UnlockBalthazarSkill(skill_id, use_pvp_remap=use_pvp_remap)
+                ConsoleLog(
+                    "UnlockBalthazarSkill",
+                    f"Unlocking Balthazar skill {skill_id} (use_pvp_remap={use_pvp_remap}).",
+                    Console.MessageType.Info,
+                    log=log,
+                )
+                return BehaviorTree.NodeState.SUCCESS
+
+            tree = BehaviorTree.ActionNode(
+                name="UnlockBalthazarSkill",
+                action_fn=lambda: _unlock_balthazar_skill(skill_id, use_pvp_remap),
+                aftercast_ms=300,
+            )
+            return BehaviorTree(tree)
+
+        @staticmethod
         def Resign(log:bool=False):
             """
             Purpose: Resign from the current map.

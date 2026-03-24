@@ -5,7 +5,7 @@ from typing import Callable
 
 from .step_context import StepContext
 from .step_selectors import resolve_agent_xy_from_step
-from .step_utils import log_recipe, parse_step_bool, parse_step_int, wait_after_step
+from .step_utils import debug_log_recipe, log_recipe, parse_step_bool, parse_step_int, wait_after_step
 from .inventory_recipe import (
     CONS_COMMON_MATERIAL_MODEL_IDS,
     NON_CONS_COMMON_MATERIAL_MODEL_IDS,
@@ -56,6 +56,24 @@ SUPPORTED_MAP_NPC_SELECTORS: dict[int, dict[str, str]] = {
         "rare_materials": "NEHGOYO_RARE_MATERIAL_TRADER",
     },
 }
+
+_PARTY_BACKEND_CB = "custom_behaviors"
+_PARTY_BACKEND_HERO_AI = "hero_ai"
+_PARTY_BACKEND_SHARED = "shared"
+
+
+def _resolve_party_backend() -> str:
+    from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
+
+    widget_handler = get_widget_handler()
+    cb_enabled = bool(widget_handler.is_widget_enabled("CustomBehaviors"))
+    hero_ai_enabled = bool(widget_handler.is_widget_enabled("HeroAI"))
+
+    if cb_enabled and not hero_ai_enabled:
+        return _PARTY_BACKEND_CB
+    if hero_ai_enabled and not cb_enabled:
+        return _PARTY_BACKEND_HERO_AI
+    return _PARTY_BACKEND_SHARED
 
 
 def _wait_for_outbound_messages(
@@ -122,6 +140,103 @@ def _iter_other_account_emails() -> list[str]:
             continue
         account_emails.append(account_email)
     return account_emails
+
+
+def _parse_widget_names(raw_widgets: object) -> list[str]:
+    if isinstance(raw_widgets, str):
+        candidates = [part.strip() for part in raw_widgets.split(",")]
+    elif isinstance(raw_widgets, (list, tuple, set)):
+        candidates = [str(part).strip() for part in raw_widgets]
+    else:
+        candidates = []
+
+    seen: set[str] = set()
+    names: list[str] = []
+    for candidate in candidates:
+        if not candidate:
+            continue
+        key = candidate.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        names.append(candidate)
+    return names
+
+
+def _yield_toggle_widgets(ctx: StepContext, *, enabled: bool):
+    from Py4GWCoreLib import GLOBAL_CACHE, Player, Routines, SharedCommandType
+    from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
+
+    default_widgets = ["InventoryPlus", "CustomBehaviors"]
+    names = _parse_widget_names(ctx.step.get("widgets", default_widgets))
+    multibox = parse_step_bool(ctx.step.get("multibox", True), True)
+    wait_step_ms = max(10, parse_step_int(ctx.step.get("multibox_wait_step_ms", 50), 50))
+    timeout_ms = max(500, parse_step_int(ctx.step.get("multibox_timeout_ms", 30_000), 30_000))
+    wait_ms = max(0, parse_step_int(ctx.step.get("ms", 0), 0))
+    remember_key = str(ctx.step.get("remember_key", "") or "").strip()
+    restore_key = str(ctx.step.get("restore_key", "") or "").strip()
+
+    action_name = "enable_widgets" if enabled else "disable_widgets"
+    shared_command = SharedCommandType.EnableWidget if enabled else SharedCommandType.DisableWidget
+
+    def _toggle():
+        handler = get_widget_handler()
+        state_store = getattr(ctx.bot.config, "_modular_widget_state_store", None)
+        if not isinstance(state_store, dict):
+            state_store = {}
+            setattr(ctx.bot.config, "_modular_widget_state_store", state_store)
+
+        target_names = list(names)
+        if enabled and restore_key:
+            if restore_key in state_store:
+                restored = state_store.get(restore_key, [])
+                if isinstance(restored, (list, tuple)):
+                    target_names = [str(name).strip() for name in restored if str(name).strip()]
+
+        if not enabled and remember_key:
+            target_names = [name for name in target_names if handler.is_widget_enabled(name)]
+            state_store[remember_key] = list(target_names)
+
+        if not target_names:
+            log_recipe(ctx, f"{action_name}: skipped (no widget names).")
+            yield
+            return
+
+        for widget_name in target_names:
+            if enabled:
+                handler.enable_widget(widget_name)
+            else:
+                handler.disable_widget(widget_name)
+
+        if multibox:
+            sender_email = Player.GetAccountEmail()
+            sent_messages: list[tuple[str, int]] = []
+            for account_email in _iter_other_account_emails():
+                for widget_name in target_names:
+                    message_index = GLOBAL_CACHE.ShMem.SendMessage(
+                        sender_email,
+                        account_email,
+                        shared_command,
+                        (0, 0, 0, 0),
+                        (widget_name, "", "", ""),
+                    )
+                    sent_messages.append((account_email, int(message_index)))
+            yield from _wait_for_outbound_messages(
+                ctx,
+                action_name,
+                sent_messages,
+                shared_command,
+                wait_step_ms=wait_step_ms,
+                timeout_ms=timeout_ms,
+            )
+
+        if wait_ms > 0:
+            yield from Routines.Yield.wait(wait_ms)
+
+        log_recipe(ctx, f"{action_name}: {'enabled' if enabled else 'disabled'} {target_names} (multibox={multibox}).")
+        yield
+
+    return _toggle
 
 
 def _encode_material_model_filter(selected_models: set[int] | None) -> str:
@@ -244,45 +359,130 @@ def _resolve_inventory_material_mode(mode_raw: str) -> str:
 
 
 def _yield_cb_leave_party(ctx: StepContext, multibox: bool) -> Callable[[], object]:
-    from Py4GWCoreLib import ConsoleLog
-    from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
-    from Sources.oazix.CustomBehaviors.primitives.parties.party_command_contants import PartyCommandConstants
+    from Py4GWCoreLib import GLOBAL_CACHE, Player, SharedCommandType
 
     def _coro():
-        if multibox:
+        if not multibox:
+            ctx.bot.Party.LeaveParty()
+            yield from ctx.bot.Wait._coro_for_time(1000)
+            return
+
+        sender_email = Player.GetAccountEmail()
+        backend = _resolve_party_backend()
+        used_cb_scheduler = False
+        sent_messages: list[tuple[str, int]] = []
+
+        if backend == _PARTY_BACKEND_CB:
+            from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
+            from Sources.oazix.CustomBehaviors.primitives.parties.party_command_contants import PartyCommandConstants
+
             yield from ctx.bot.Wait._coro_until_condition(lambda: CustomBehaviorParty().is_ready_for_action(), duration=100)
             ok = bool(CustomBehaviorParty().schedule_action(PartyCommandConstants.leave_current_party))
-            if not ok:
-                ConsoleLog(f"Recipe:{ctx.recipe_name}", "inventory_setup: multibox leave_party schedule failed; using local fallback.")
-                ctx.bot.Party.LeaveParty()
-            else:
+            if ok:
+                used_cb_scheduler = True
                 yield from ctx.bot.Wait._coro_until_condition(lambda: CustomBehaviorParty().is_ready_for_action(), duration=100)
-        else:
-            ctx.bot.Party.LeaveParty()
+                debug_log_recipe(ctx, "inventory_setup: leave_party via CustomBehaviors scheduler.")
+            else:
+                debug_log_recipe(ctx, "inventory_setup: leave_party CB scheduler not ready; using shared fallback.")
+
+        if backend == _PARTY_BACKEND_HERO_AI:
+            debug_log_recipe(ctx, "inventory_setup: leave_party HeroAI backend; using shared dispatch.")
+        elif backend == _PARTY_BACKEND_SHARED:
+            debug_log_recipe(ctx, "inventory_setup: leave_party ambiguous/no engine; using shared dispatch.")
+
+        if not used_cb_scheduler:
+            for account_email in _iter_other_account_emails():
+                message_index = GLOBAL_CACHE.ShMem.SendMessage(
+                    sender_email,
+                    account_email,
+                    SharedCommandType.LeaveParty,
+                    (0, 0, 0, 0),
+                )
+                sent_messages.append((account_email, int(message_index)))
+
+        ctx.bot.Party.LeaveParty()
+        if sent_messages:
+            yield from _wait_for_outbound_messages(
+                ctx,
+                "inventory_setup.leave_party",
+                sent_messages,
+                SharedCommandType.LeaveParty,
+            )
         yield from ctx.bot.Wait._coro_for_time(1000)
 
     return _coro
 
 
-def _yield_travel_gh(ctx: StepContext, multibox: bool, wait_time: int) -> Callable[[], object]:
-    from Py4GWCoreLib import ConsoleLog, Map
-    from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
-    from Sources.oazix.CustomBehaviors.primitives.parties.party_command_contants import PartyCommandConstants
+def _yield_travel_gh(ctx: StepContext, multibox: bool, _wait_time: int) -> Callable[[], object]:
+    from Py4GWCoreLib import GLOBAL_CACHE, Map, Player, SharedCommandType
 
     def _coro():
-        if multibox:
+        def _send_local_gh_message():
+            sender_email = Player.GetAccountEmail()
+            message_index = GLOBAL_CACHE.ShMem.SendMessage(
+                sender_email,
+                sender_email,
+                SharedCommandType.TravelToGuildHall,
+                (0, 0, 0, 0),
+            )
+            refs = [(sender_email, int(message_index))]
+            yield from _wait_for_outbound_messages(
+                ctx,
+                "inventory_setup.travel_gh.local",
+                refs,
+                SharedCommandType.TravelToGuildHall,
+            )
+
+        if not multibox:
+            if not Map.IsGuildHall():
+                yield from _send_local_gh_message()
+            return
+
+        sender_email = Player.GetAccountEmail()
+        backend = _resolve_party_backend()
+        used_cb_scheduler = False
+        sent_messages: list[tuple[str, int]] = []
+
+        if backend == _PARTY_BACKEND_CB:
+            from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
+            from Sources.oazix.CustomBehaviors.primitives.parties.party_command_contants import PartyCommandConstants
+
             yield from ctx.bot.Wait._coro_until_condition(lambda: CustomBehaviorParty().is_ready_for_action(), duration=100)
             ok = bool(CustomBehaviorParty().schedule_action(PartyCommandConstants.travel_gh))
-            if not ok:
-                ConsoleLog(f"Recipe:{ctx.recipe_name}", "inventory_setup: multibox travel_gh schedule failed; using local fallback.")
-                if not Map.IsGuildHall():
-                    Map.TravelGH()
-            else:
+            if ok:
+                used_cb_scheduler = True
                 yield from ctx.bot.Wait._coro_until_condition(lambda: CustomBehaviorParty().is_ready_for_action(), duration=100)
+                debug_log_recipe(ctx, "inventory_setup: travel_gh via CustomBehaviors scheduler.")
+            else:
+                debug_log_recipe(ctx, "inventory_setup: travel_gh CB scheduler not ready; using shared fallback.")
+
+        if backend == _PARTY_BACKEND_HERO_AI:
+            debug_log_recipe(ctx, "inventory_setup: travel_gh HeroAI backend; dispatching alts + local self-message.")
+        elif backend == _PARTY_BACKEND_SHARED:
+            debug_log_recipe(ctx, "inventory_setup: travel_gh ambiguous/no engine; using shared dispatch.")
+
+        if not used_cb_scheduler:
+            for account_email in _iter_other_account_emails():
+                message_index = GLOBAL_CACHE.ShMem.SendMessage(
+                    sender_email,
+                    account_email,
+                    SharedCommandType.TravelToGuildHall,
+                    (0, 0, 0, 0),
+                )
+                sent_messages.append((account_email, int(message_index)))
+            if sent_messages:
+                yield from _wait_for_outbound_messages(
+                    ctx,
+                    "inventory_setup.travel_gh",
+                    sent_messages,
+                    SharedCommandType.TravelToGuildHall,
+                )
+
+            if not Map.IsGuildHall():
+                yield from _send_local_gh_message()
         else:
             if not Map.IsGuildHall():
-                ctx.bot.Map.TravelGH(wait_time=wait_time)
-        yield from ctx.bot.Wait._coro_for_time(wait_time)
+                yield from _send_local_gh_message()
 
     return _coro
 
@@ -626,7 +826,7 @@ def handle_restock_kits(ctx: StepContext) -> None:
 
 
 def handle_restock_cons(ctx: StepContext) -> None:
-    from Py4GWCoreLib import ConsoleLog, Inventory
+    from Py4GWCoreLib import Inventory
 
     name = ctx.step.get("name", "Restock Consumables")
     restock_specs = (
@@ -671,10 +871,7 @@ def handle_restock_cons(ctx: StepContext) -> None:
 
     if scheduled == 0:
         ctx.bot.States.AddCustomState(
-            lambda: ConsoleLog(
-                f"Recipe:{ctx.recipe_name}",
-                "restock_cons found no restock methods to execute.",
-            ),
+            lambda: debug_log_recipe(ctx, "restock_cons found no restock methods to execute."),
             f"{name} Warn: No Restock Methods",
         )
 
@@ -797,6 +994,9 @@ def handle_deposit_materials(ctx: StepContext) -> None:
     max_deposit_items = max_deposit_items_raw if max_deposit_items_raw > 0 else None
     exact_quantity_raw = parse_step_int(ctx.step.get("exact_quantity", 250), 250)
     exact_quantity = exact_quantity_raw if exact_quantity_raw > 0 else None
+    open_wait_ms = max(0, parse_step_int(ctx.step.get("open_wait_ms", 1000), 1000))
+    deposit_wait_ms = max(0, parse_step_int(ctx.step.get("deposit_wait_ms", 250), 250))
+    max_passes = max(1, parse_step_int(ctx.step.get("max_passes", 2), 2))
     reverse_material_map = {material_name.lower(): int(model_id.value) for model_id, material_name in MaterialMap.items()}
 
     selected_models: set[int] | None = None
@@ -830,6 +1030,9 @@ def handle_deposit_materials(ctx: StepContext) -> None:
             selected_models=selected_models,
             exact_quantity=exact_quantity,
             max_deposit_items=max_deposit_items,
+            open_wait_ms=open_wait_ms,
+            deposit_wait_ms=deposit_wait_ms,
+            max_passes=max_passes,
         )
         log_recipe(ctx, f"deposit_materials metrics: {deposit_metrics}")
 
@@ -1290,6 +1493,18 @@ def handle_inventory_cleanup(ctx: StepContext) -> None:
     wait_after_step(ctx.bot, ctx.step)
 
 
+def handle_disable_widgets(ctx: StepContext) -> None:
+    name = str(ctx.step.get("name", "Disable Widgets") or "Disable Widgets")
+    ctx.bot.States.AddCustomState(_yield_toggle_widgets(ctx, enabled=False), name)
+    wait_after_step(ctx.bot, ctx.step)
+
+
+def handle_enable_widgets(ctx: StepContext) -> None:
+    name = str(ctx.step.get("name", "Enable Widgets") or "Enable Widgets")
+    ctx.bot.States.AddCustomState(_yield_toggle_widgets(ctx, enabled=True), name)
+    wait_after_step(ctx.bot, ctx.step)
+
+
 HANDLERS: dict[str, Callable[[StepContext], None]] = {
     "restock_kits": handle_restock_kits,
     "restock_cons": handle_restock_cons,
@@ -1302,4 +1517,6 @@ HANDLERS: dict[str, Callable[[StepContext], None]] = {
     "inventory_setup": handle_inventory_setup,
     "inventory_guard": handle_inventory_guard,
     "inventory_cleanup": handle_inventory_cleanup,
+    "disable_widgets": handle_disable_widgets,
+    "enable_widgets": handle_enable_widgets,
 }

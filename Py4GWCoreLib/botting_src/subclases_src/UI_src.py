@@ -617,19 +617,23 @@ class _UI:
         iconwidth: int = 96,
         additional_ui: Optional[Callable[[], None]] = None,
         extra_tabs: Optional[list[tuple[str, Callable[[], None]]]] = None
-    ):
+    ) -> bool:
         from ...IniManager import IniManager
         from ...Routines import Routines
         from ...ImGui import ImGui
         
         if not self._config.ini_key_initialized:
-            self._config.ini_key = IniManager().ensure_key(f"BottingClass/bot_{self._config.bot_name}", f"bot_{self._config.bot_name}.ini")
-            IniManager().load_once(self._config.ini_key)
-            self._config.ini_key_initialized = True
+            ini_key = IniManager().ensure_key(f"BottingClass/bot_{self._config.bot_name}", f"bot_{self._config.bot_name}.ini")
+            if ini_key:
+                self._config.ini_key = ini_key
+                IniManager().load_once(self._config.ini_key)
+                self._config.ini_key_initialized = True
         
         if not self._config.ini_key:
-            return
-        
+            # Account-scoped INI keys may be unavailable for a few frames during startup.
+            # Skip drawing until a real key exists, then retry on the next frame.
+            return False
+
         if ImGui.Begin(ini_key=self._config.ini_key, name=self._config.bot_name, p_open=True, flags= PyImGui.WindowFlags.AlwaysAutoResize):
             if PyImGui.begin_tab_bar(self._config.bot_name + "_tabs"):
                 if PyImGui.begin_tab_item("Main"):
@@ -678,6 +682,7 @@ class _UI:
                 self._config.config_properties.use_occlusion.is_active(), 
                 self._config.config_properties.snap_to_ground_segments.get("value"), 
                 self._config.config_properties.floor_offset.get("value"))
+        return True
 
     #region Keybinds
     class _Keybinds:

@@ -19,6 +19,7 @@ from Sources.oazix.CustomBehaviors.skills.ritualist.protective_was_kaolai_utilit
 from Sources.oazix.CustomBehaviors.skills.ritualist.spirit_light_utility import SpiritLightUtility
 from Sources.oazix.CustomBehaviors.skills.ritualist.spirit_transfer_utility import SpiritTransferUtility
 from Sources.oazix.CustomBehaviors.skills.ritualist.xinraes_weapon_utility import XinraesWeaponUtility
+from Sources.oazix.CustomBehaviors.skills.common.you_are_all_weaklings_utility import YouAreAllWeaklingsUtility
 
 
 class NecromancerXinraeRestoration_UtilitySkillBar(CustomBehaviorBaseUtility):
@@ -45,6 +46,7 @@ class NecromancerXinraeRestoration_UtilitySkillBar(CustomBehaviorBaseUtility):
         # common
         self.ebon_vanguard_assassin_support: CustomSkillUtilityBase = EbonVanguardAssassinSupportUtility(event_bus=self.event_bus, score_definition=ScoreStaticDefinition(71), current_build=in_game_build, mana_required_to_cast=15)
         self.ebon_battle_standard_of_wisdom: CustomSkillUtilityBase = EbonBattleStandardOfWisdom(event_bus=self.event_bus, score_definition=ScorePerAgentQuantityDefinition(lambda agent_qte: 80 if agent_qte >= 3 else 60 if agent_qte <= 2 else 40), current_build=in_game_build, mana_required_to_cast=18)
+        self.you_are_all_weaklings_utility: CustomSkillUtilityBase = YouAreAllWeaklingsUtility(event_bus=self.event_bus, current_build=in_game_build)
 
     @property
     @override
@@ -63,6 +65,7 @@ class NecromancerXinraeRestoration_UtilitySkillBar(CustomBehaviorBaseUtility):
             self.weaken_armor_utility,
             self.ebon_vanguard_assassin_support,
             self.ebon_battle_standard_of_wisdom,
+            self.you_are_all_weaklings_utility,
         ]
 
     @property

@@ -50,11 +50,11 @@ class KeystoneSignet(BuildMgr):
         if (yield from self.skills.Mesmer.FastCasting.Symbolic_Celerity()):
             return True
         
-        if self.IsSkillEquipped(Hex_Eater_Signet_ID) and not Routines.Checks.Agents.InAggro():
+        if self.IsSkillEquipped(Hex_Eater_Signet_ID):
             if (yield from self.skills.Mesmer.InspirationMagic.Hex_Eater_Signet()):
                 return True
 
-        if self.IsSkillEquipped(Smite_Hex_ID) and not Routines.Checks.Agents.InAggro():
+        if self.IsSkillEquipped(Smite_Hex_ID):
             if (yield from self.skills.Monk.SmitingPrayers.Smite_Hex()):
                 return True
 

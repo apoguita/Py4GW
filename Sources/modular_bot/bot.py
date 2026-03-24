@@ -155,6 +155,24 @@ def _modular_cb_skill_reinject_daemon():
         yield from Routines.Yield.wait(250)
 
 
+def _is_hero_ai_runtime_active(bot: Botting) -> bool:
+    """
+    Detect HeroAI runtime activity for callback wiring decisions.
+    """
+    try:
+        if bot.Properties.exists("hero_ai") and bool(bot.Properties.IsActive("hero_ai")):
+            return True
+    except Exception:
+        pass
+
+    try:
+        from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
+
+        return bool(get_widget_handler().is_widget_enabled("HeroAI"))
+    except Exception:
+        return False
+
+
 class ModularBot:
     """
     A bot composed of :class:`Phase` objects, built on top of
@@ -344,7 +362,10 @@ class ModularBot:
                 "ModularBot_CBSkillReinjectDaemon",
                 _modular_cb_skill_reinject_daemon,
             )
-            # Keep party cohesion in CB mode: wait/recover if members are behind or dead-behind.
+
+        # Keep party cohesion in external engine modes (CB + HeroAI):
+        # wait/recover if members are behind, in danger, or dead-behind.
+        if self._use_cb or _is_hero_ai_runtime_active(bot):
             bot.Events.OnPartyMemberBehindCallback(
                 lambda: bot.Templates.Routines.OnPartyMemberBehind()
             )

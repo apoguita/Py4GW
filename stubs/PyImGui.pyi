@@ -91,6 +91,30 @@ class SelectableFlags(IntEnum):
     AllowDoubleClick = 1 << 2
     Disabled = 1 << 3
 
+class TabBarFlags(IntEnum):
+    NoFlag = 0
+    Reorderable = 1 << 0
+    AutoSelectNewTabs = 1 << 1
+    TabListPopupButton = 1 << 2
+    NoCloseWithMiddleMouseButton = 1 << 3
+    NoTabListScrollingButtons = 1 << 4
+    NoTooltip = 1 << 5
+    FittingPolicyResizeDown = 1 << 6
+    FittingPolicyScroll = 1 << 7
+    FittingPolicyMask_ = FittingPolicyResizeDown | FittingPolicyScroll
+    FittingPolicyDefault_ = FittingPolicyResizeDown
+
+class TabItemFlags(IntEnum):
+    NoFlag = 0
+    UnsavedDocument = 1 << 0
+    SetSelected = 1 << 1
+    NoCloseWithMiddleMouseButton = 1 << 2
+    NoPushId = 1 << 3
+    NoTooltip = 1 << 4
+    NoReorder = 1 << 5
+    Leading = 1 << 6
+    Trailing = 1 << 7
+
 class TableFlags(IntEnum):
     NoFlag = 0
     Resizable = 1 << 0
@@ -647,8 +671,10 @@ def table_set_column_enabled(column_index: int, enabled: bool) -> None: ...
 def table_set_column_offset(column_index: int, offset_x: float) -> None: ...
 
 # Tabs
-@staticmethod
+@overload
 def begin_tab_bar(str_id: str) -> bool: ...
+@overload
+def begin_tab_bar(str_id: str, flags: int) -> bool: ...
 @staticmethod
 def end_tab_bar() -> None: ...
 @overload

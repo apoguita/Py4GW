@@ -1,5 +1,5 @@
 {
-  "name": "FoW - Defend da forge",
+  "name": "Defend da forge",
   "steps": [
         {"type": "dialog", "name": "Start Defend", "npc": "ETERNAL_FORGEMASTER", "id": "0x80CA01"},
         {"type": "auto_path", "name": "Clear North", "points": [[1853, 2303], [1412, -884]]},

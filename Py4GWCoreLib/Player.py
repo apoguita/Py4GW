@@ -683,6 +683,15 @@ class Player:
 
         ActionQueueManager().AddAction("ACTION",
         PlayerMethods.SendSkillTrainerDialog, skill_id)
+
+    @staticmethod
+    def UnlockBalthazarSkill(skill_id: int, use_pvp_remap: bool = True):
+        """Unlock a skill from the Priest of Balthazar vendor."""
+        from .native_src.methods.PlayerMethods import PlayerMethods
+
+        ActionQueueManager().AddAction(
+        "ACTION",
+        PlayerMethods.SendBalthazarSkillUnlockDialog, skill_id, use_pvp_remap)
         
     
     #region Not Worked
