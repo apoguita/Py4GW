@@ -51,6 +51,7 @@ bot.UI.override_draw_config(lambda: _draw_settings())  # Disable default config 
 MAIN_LOOP_HEADER_NAME = ""
 _entered_dungeon: bool = False  # set True once map 72 is loaded; watchdog uses this
 _king_frozenwind_model_id: int = 2403
+_dead_ally_rescue_enabled: bool = True
 
 UW_MAP_ID = 72
 UW_SCROLL_MODEL_ID = int(ModelID.Passage_Scroll_Uw.value)  # 3746
@@ -756,12 +757,71 @@ def FocusKeeperOfSouls(bot_instance: Botting):
 
     bot_instance.States.AddCustomState(_focus_logic, "Focus Keeper of Souls")
 
+
+def _coro_move_to_dead_ally(bot_instance: Botting):
+    """While inside UW, move toward the nearest dead ally to assist recovery."""
+    move_cooldown_s = 1.0
+    min_move_distance = 220.0
+    last_move_at = 0.0
+    last_logged_target = 0
+
+    while True:
+        yield from Routines.Yield.wait(350)
+
+        if not bot_instance.config.fsm_running:
+            continue
+        if not _dead_ally_rescue_enabled:
+            continue
+        if not _entered_dungeon:
+            continue
+        if Map.GetMapID() != UW_MAP_ID:
+            continue
+
+        player_id = Player.GetAgentID()
+        player_pos = Player.GetXY()
+
+        dead_allies = [
+            ally_id
+            for ally_id in AgentArray.GetAllyArray()
+            if ally_id != player_id and Agent.IsDead(ally_id)
+        ]
+
+        if not dead_allies:
+            last_logged_target = 0
+            continue
+
+        target_id = min(
+            dead_allies,
+            key=lambda ally_id: Utils.Distance(player_pos, Agent.GetXY(ally_id)),
+        )
+        target_pos = Agent.GetXY(target_id)
+        distance_to_target = Utils.Distance(player_pos, target_pos)
+
+        if distance_to_target <= min_move_distance:
+            continue
+
+        now = time.monotonic()
+        if now - last_move_at < move_cooldown_s:
+            continue
+
+        if target_id != last_logged_target:
+            ConsoleLog(
+                BOT_NAME,
+                f"[Rescue] Dead ally detected ({target_id}). Moving to corpse.",
+                Py4GW.Console.MessageType.Warning,
+            )
+            last_logged_target = target_id
+
+        Player.Move(target_pos[0], target_pos[1])
+        last_move_at = now
+
 def bot_routine(bot: Botting):
 
     global MAIN_LOOP_HEADER_NAME
     bot.Events.OnPartyWipeCallback(lambda: OnPartyWipe(bot))
     CustomBehaviorParty().set_party_is_blessing_enabled(True)
     _setup_custom_behavior_integration(bot)
+    bot.config.FSM.AddManagedCoroutine("UW_MoveToDeadAlly", lambda: _coro_move_to_dead_ally(bot))
     _configure_startup_combat_widgets(bot)
     
     bot.Templates.Aggressive()
@@ -1494,6 +1554,10 @@ def Servants_of_Grenth(bot_instance: Botting):
 
 def Dhuum(bot_instance: Botting):
     bot_instance.States.AddHeader("Dhuum")
+    bot_instance.States.AddCustomState(
+        lambda: globals().__setitem__("_dead_ally_rescue_enabled", False),
+        "Disable Dead Ally Rescue",
+    )
     bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_forced_state(None),"Release Close_to_Aggro",)
 
     def _flag_sacrifice_accounts() -> None:
@@ -1708,6 +1772,10 @@ def Dhuum(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_looting_enabled(True), "Enable Looting")
     bot_instance.Wait.ForTime(5000)
     bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_combat_enabled(True), "Enable Combat")
+    bot_instance.States.AddCustomState(
+        lambda: globals().__setitem__("_dead_ally_rescue_enabled", True),
+        "Enable Dead Ally Rescue",
+    )
 
 
 
