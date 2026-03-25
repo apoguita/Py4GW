@@ -567,14 +567,6 @@ class UIManager:
         if not UIManager.FrameExists(frame_id):
             return
         PyUIManager.UIManager.button_click(frame_id)    
-
-    @staticmethod
-    def ButtonDoubleClick(frame_id: int) -> None:
-        from Py4GWCoreLib import UIManager
-
-        if not UIManager.FrameExists(frame_id):
-            return
-        PyUIManager.UIManager.button_double_click(frame_id)
         
     @staticmethod
     def TestMouseAction(
@@ -1324,6 +1316,12 @@ CancelEnterMissionButton = FrameInfo(
     ChildOffsets=[0,1,1]
 )
 
+ConfirmEnterMissionButton = FrameInfo(
+    WindowName="ConfirmEnterMissionButton",
+    ParentFrameHash=3617868957,
+    ChildOffsets=[2, 6, 100, 2, 6]
+)
+
 CharacterDeleteButtonFrame = FrameInfo(
     WindowName="DeleteCharacterButton",
     FrameHash=3379687503
@@ -1367,6 +1365,7 @@ WindowFrames["Inventory Bags"] = InventoryBags
 WindowFrames["MiniMap"] = MiniMapFrame
 WindowFrames["PartyWindow"] = PartyWindowFrame
 WindowFrames["CancelEnterMissionButton"] = CancelEnterMissionButton
+WindowFrames["ConfirmEnterMissionButton"] = ConfirmEnterMissionButton
 WindowFrames["DeleteCharacterButton"] = CharacterDeleteButtonFrame
 WindowFrames["FinalDeleteCharacterButton"] = CharacterFinalDeleteButtonFrame
 WindowFrames["CreateCharacterButton1"] = CreateCharacterButtonFrame1
