@@ -269,6 +269,26 @@ class _Multibox:
             if player_data.PartyID == account.PartyID and player_data.AccountEmail != account.AccountEmail:
                 GLOBAL_CACHE.Party.Players.KickPlayer(account.CharacterName)
                 yield from Routines.Yield.wait(500)
+
+    def _leave_party_on_all_accounts(self):
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Routines import Routines
+
+        sender_email = Player.GetAccountEmail()
+        accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+
+        for account in accounts:
+            if sender_email == account.AccountEmail:
+                continue
+
+            GLOBAL_CACHE.ShMem.SendMessage(
+                sender_email,
+                account.AccountEmail,
+                SharedCommandType.LeaveParty,
+                (0, 0, 0, 0),
+                ("", "", "", ""),
+            )
+            yield from Routines.Yield.wait(250)
         
     def _resignParty(self):
         from ...GlobalCache import GLOBAL_CACHE
@@ -481,7 +501,11 @@ class _Multibox:
     @_yield_step(label="KickAllAccounts", counter_key="KICK_ALL_ACCOUNTS")
     def kick_all_accounts(self):
         yield from self._kick_all_accounts()
-        
+
+    @_yield_step(label="LeavePartyOnAllAccounts", counter_key="LEAVE_PARTY_ON_ALL_ACCOUNTS")
+    def leave_party_on_all_accounts(self):
+        yield from self._leave_party_on_all_accounts()
+
     @_yield_step(label="KickAccountByEmail", counter_key="KICK_ACCOUNT_BY_EMAIL")
     def kick_account_by_email(self, email: str):
         yield from self._kick_account_by_email(email)
