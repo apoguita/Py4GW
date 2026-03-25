@@ -1805,32 +1805,32 @@ def Wait_for_Spawns(bot_instance: Botting, x, y):
     def _make_check(label: str):
         """Returns a condition callable that times out after _TIMEOUT_S seconds.
         On timeout: moves toward the nearest Mindblade instead of waiting."""
-        _deadline = [None]  # mutable cell so the lambda can write to it
+        deadline: float | None = None
 
         def runtime_check_logic():
+            nonlocal deadline
             enemies = [e for e in AgentArray.GetEnemyArray() if Agent.IsAlive(e) and Agent.GetModelID(e) == 2380]
 
             if not enemies:
                 print(f"No Mindblades found - Continuing... ({label})")
                 bot_instance.Move.XY(x, y, "Go Back")
-                _deadline[0] = None  # reset for any future reuse
+                deadline = None  # reset for any future reuse
                 return True
 
             # Start (or keep) the timeout clock
             import time as _time
             now = _time.monotonic()
-            if _deadline[0] is None:
-                _deadline[0] = now + _TIMEOUT_S
+            if deadline is None:
+                deadline = now + _TIMEOUT_S
 
-            deadline = _deadline[0]
-            if deadline is not None and now >= deadline:
+            if now >= deadline:
                 # Timeout: charge the nearest Mindblade
                 px, py = Player.GetXY()
                 nearest = min(enemies, key=lambda e: Utils.Distance((px, py), Agent.GetXY(e)))
                 ex, ey = Agent.GetXY(nearest)
                 print(f"Mindblades timeout after {_TIMEOUT_S:.0f}s - moving toward nearest ({label})")
                 Player.Move(ex, ey)
-                _deadline[0] = None  # reset so next call restarts the clock
+                deadline = None  # reset so next call restarts the clock
                 return True  # unblock the wait and let the bot continue
 
             print(f"Mindblades ... Waiting. ({label})")
