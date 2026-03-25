@@ -12,6 +12,7 @@ from Py4GWCoreLib import (
 	UIManager,
 	Utils,
 )
+from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
 import PyImGui
 
 MODULE_NAME = "Dhuum Helper"
@@ -37,6 +38,14 @@ _MAX_NPC_FIND_RETRIES = 10   # × 1 s  → up to 10 s waiting for NPC to appear
 _MAX_MOVE_RETRIES     = 8    # × 1.5 s → up to 12 s to reach the NPC
 _MAX_DIALOG_RETRIES   = 8    # × 2 s  → up to 16 s for dialog to open
 _INTERACT_CLOSE_RANGE = 500.0
+
+
+def _is_any_widget_enabled(*widget_names: str) -> bool:
+	try:
+		widget_handler = get_widget_handler()
+		return any(bool(widget_handler.is_widget_enabled(name)) for name in widget_names)
+	except Exception:
+		return False
 
 
 def _refresh_custom_behavior_after_skillbar_change() -> None:
@@ -65,6 +74,67 @@ def _refresh_custom_behavior_after_skillbar_change() -> None:
 			f"Custom Behavior refresh failed: {ex}",
 			Py4GW.Console.MessageType.Warning,
 		)
+
+
+def _refresh_heroai_build_after_skillbar_change() -> None:
+	try:
+		from Widgets.Automation.Multiboxing import HeroAI as HeroAI_Widget
+
+		# Force HeroAI build contract to be re-evaluated after the dialog skillbar swap.
+		HeroAI_Widget.heroai_build.ClearBuildContract()
+		HeroAI_Widget.build_contract_map_signature = None
+
+		try:
+			HeroAI_Widget.heroai_build.EnsureBuildContract(HeroAI_Widget.cached_data)
+		except Exception:
+			# If the widget is not fully initialized yet, it will rebuild on next normal tick.
+			pass
+
+		contract = HeroAI_Widget.heroai_build.GetBuildContract()
+		contract_name = contract.build_name if contract is not None else "None"
+		Py4GW.Console.Log(
+			MODULE_NAME,
+			f"HeroAI build refreshed after Dhuum dialog. Active build: {contract_name}",
+			Py4GW.Console.MessageType.Info,
+		)
+	except Exception as ex:
+		Py4GW.Console.Log(
+			MODULE_NAME,
+			f"HeroAI build refresh failed: {ex}",
+			Py4GW.Console.MessageType.Warning,
+		)
+
+
+def _refresh_active_combat_widget_after_skillbar_change() -> None:
+	# Execute only the relevant refresh path for the currently active combat widget.
+	heroai_enabled = _is_any_widget_enabled("HeroAI")
+	custom_behavior_enabled = _is_any_widget_enabled(
+		"CustomBehaviors",
+		"Custom Behavior",
+		"Custom Behaviors: Utility AI",
+	)
+
+	if heroai_enabled and not custom_behavior_enabled:
+		_refresh_heroai_build_after_skillbar_change()
+		return
+
+	if custom_behavior_enabled and not heroai_enabled:
+		_refresh_custom_behavior_after_skillbar_change()
+		return
+
+	if heroai_enabled and custom_behavior_enabled:
+		Py4GW.Console.Log(
+			MODULE_NAME,
+			"Both HeroAI and CustomBehaviors are enabled. Skipping refresh to avoid wrong re-initialization.",
+			Py4GW.Console.MessageType.Warning,
+		)
+		return
+
+	Py4GW.Console.Log(
+		MODULE_NAME,
+		"No supported combat widget enabled (HeroAI/CustomBehaviors). Skipping build refresh.",
+		Py4GW.Console.MessageType.Warning,
+	)
 
 
 def tooltip():
@@ -215,7 +285,7 @@ def _coro_interact_and_dialog(target_npc: int):
 		yield from Routines.Yield.wait(2000)
 		Player.Move(-13770, 17276)
 
-		_refresh_custom_behavior_after_skillbar_change()
+		_refresh_active_combat_widget_after_skillbar_change()
 		_DIALOG_COOLDOWN_TIMER.Reset()
 	finally:
 		_interaction_running = False

@@ -36,7 +36,12 @@ class _DIALOGS:
         yield from self._coro_disable_auto_combat()
         yield from self.parent.Interact._coro_with_model(model_id=model_id, dialog_id=dialog)
         yield from self._coro_restore_auto_combat()
-    
+
+    def _coro_with_enc_name(self, agent_name: str, dialog: int):
+        yield from self._coro_disable_auto_combat()
+        yield from self.parent.Interact._coro_with_enc_name(agent_name=agent_name, dialog_id=dialog)
+        yield from self._coro_restore_auto_combat()
+
     #region Yield Steps (ys_)
     @_yield_step("DisableAutoCombat","AUTO_DISABLE_AUTO_COMBAT")
     def ys_disable_auto_combat(self):
@@ -54,6 +59,10 @@ class _DIALOGS:
     def ys_with_model(self, model_id: int, dialog:int, step_name: str=""):
         yield from self._coro_with_model(model_id, dialog)
 
+    @_yield_step("WithEncName","DIALOG_WITH_ENC_NAME")
+    def ys_with_enc_name(self, agent_name: str, dialog: int, step_name: str=""):
+        yield from self._coro_with_enc_name(agent_name, dialog)
+
     #region Helpers
     def AtXY(self, x: float, y: float, dialog:int, step_name: str="") -> None:
         if step_name == "":
@@ -65,3 +74,8 @@ class _DIALOGS:
         if step_name == "":
             step_name = f"DialogWithModel_{self._config.get_counter('DIALOG_AT')}"
         self.ys_with_model(model_id, dialog)
+
+    def WithEncName(self, agent_name: str, dialog: int, step_name: str="") -> None:
+        if step_name == "":
+            step_name = f"DialogWithEncName_{self._config.get_counter('DIALOG_AT')}"
+        self.ys_with_enc_name(agent_name, dialog)

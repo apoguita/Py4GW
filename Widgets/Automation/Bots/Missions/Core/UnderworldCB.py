@@ -762,6 +762,7 @@ def bot_routine(bot: Botting):
     bot.Events.OnPartyWipeCallback(lambda: OnPartyWipe(bot))
     CustomBehaviorParty().set_party_is_blessing_enabled(True)
     _setup_custom_behavior_integration(bot)
+    _configure_startup_combat_widgets(bot)
     
     bot.Templates.Aggressive()
     
@@ -793,6 +794,70 @@ def bot_routine(bot: Botting):
     _enqueue_section(bot, "Repeat", "Repeat the whole thing", ResignAndRepeat)
     bot.States.AddHeader("END")
 
+
+def _configure_startup_combat_widgets(bot_instance: Botting) -> None:
+    def _active_multibox_emails() -> list[str]:
+        emails: list[str] = []
+        for account in (GLOBAL_CACHE.ShMem.GetAllAccountData() or []):
+            email = str(getattr(account, "AccountEmail", "") or "").strip()
+            if not email:
+                continue
+            if not bool(getattr(account, "IsSlotActive", True)):
+                continue
+            if bool(getattr(account, "IsIsolated", False)):
+                continue
+            emails.append(email)
+        return emails
+
+    def _broadcast_widget_command(widget_name: str, command: SharedCommandType, action_label: str) -> None:
+        sender_email = Player.GetAccountEmail()
+        recipients = _active_multibox_emails()
+
+        for account_email in recipients:
+            GLOBAL_CACHE.ShMem.SendMessage(
+                sender_email,
+                account_email,
+                command,
+                (0, 0, 0, 0),
+                (widget_name, "", "", ""),
+            )
+
+        ConsoleLog(
+            BOT_NAME,
+            f"[Startup] {action_label} '{widget_name}' for {len(recipients)} active account(s).",
+            Py4GW.Console.MessageType.Info,
+        )
+
+    bot_instance.States.AddCustomState(
+        lambda: ConsoleLog(BOT_NAME, "[Startup] Disabling HeroAI widget on all accounts.", Py4GW.Console.MessageType.Info),
+        "[Startup] Log Disable HeroAI Widget",
+    )
+    bot_instance.States.AddCustomState(
+        lambda: _broadcast_widget_command("HeroAI", SharedCommandType.DisableWidget, "Broadcasted disable"),
+        "Disable HeroAI on active accounts",
+    )
+    bot_instance.Wait.ForTime(2000)
+    bot_instance.States.AddCustomState(
+        lambda: ConsoleLog(BOT_NAME, "[Startup] Enabling CustomBehavior widgets on all accounts.", Py4GW.Console.MessageType.Info),
+        "[Startup] Log Enable CustomBehavior Widgets",
+    )
+    bot_instance.States.AddCustomState(
+        lambda: _broadcast_widget_command("CustomBehaviors", SharedCommandType.EnableWidget, "Broadcasted enable"),
+        "Enable CustomBehaviors on active accounts",
+    )
+    bot_instance.States.AddCustomState(
+        lambda: _broadcast_widget_command("Custom Behavior", SharedCommandType.EnableWidget, "Broadcasted enable"),
+        "Enable Custom Behavior on active accounts",
+    )
+    bot_instance.States.AddCustomState(
+        lambda: _broadcast_widget_command("Custom Behaviors: Utility AI", SharedCommandType.EnableWidget, "Broadcasted enable"),
+        "Enable Custom Behaviors: Utility AI on active accounts",
+    )
+    bot_instance.States.AddCustomState(
+        lambda: _broadcast_widget_command("Dhuum Helper", SharedCommandType.EnableWidget, "Broadcasted enable"),
+        "Enable Dhuum Helper on active accounts",
+    )
+
 def Enter_UW(bot_instance: Botting):
     from Sources.modular_bot.recipes.step_context import StepContext
     from Sources.modular_bot.recipes.actions_movement import handle_random_travel, handle_wait_map_change, handle_leave_party
@@ -810,11 +875,6 @@ def Enter_UW(bot_instance: Botting):
         )
 
     bot_instance.States.AddHeader("Enter Underworld")
-
-    bot_instance.States.AddCustomState(
-        lambda: bot_instance.Multibox.ApplyWidgetPolicy(enable_widgets=("Custom Behavior",)),
-        "Enable Custom Behavior on all accounts",
-    )
 
     # ── Inventory refill at GH / configured outpost ───────────────────
     bot_instance.Multibox.KickAllAccounts()
@@ -910,8 +970,9 @@ def Clear_the_Chamber(bot_instance: Botting):
     )
     enable_default_party_behavior(bot_instance)
     bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_combat_enabled(False), "Disable Combat")
-    bot_instance.Move.XYAndInteractNPC(295, 7221, "go to NPC")
-    bot_instance.Dialogs.AtXY(295, 7221, 0x806501, "take quest")
+    #bot_instance.Move.XYAndInteractNPC(295, 7221, "go to NPC")
+    #bot_instance.Dialogs.AtXY(295, 7221, 0x806501, "take quest")
+    bot_instance.Dialogs.WithEncName("Lost Soul",0x806501, "Take Clear the Chamber")
     bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_is_combat_enabled(True), "Enable Combat")
     bot_instance.Move.XY(769, 6564, "Prepare to clear the chamber")
     bot_instance.States.AddCustomState(lambda: CustomBehaviorParty().set_party_forced_state(BehaviorState.CLOSE_TO_AGGRO),"Force Close_to_Aggro",)
@@ -946,8 +1007,8 @@ def Clear_the_Chamber(bot_instance: Botting):
     bot_instance.Wait.ForTime(3000)
     
     bot_instance.Move.XYAndInteractNPC(-5806, 12831, "go to NPC")
-    bot_instance.Dialogs.AtXY(-5806, 12831, 0x806507, "take quest")
-    bot_instance.Dialogs.AtXY(-5806, 12831, 0x806D01, "take quest")
+    bot_instance.Dialogs.WithEncName("Reaper of the Labyrinth",0x806D01, "Take Restoring Grenth's Monuments")
+    #bot_instance.Dialogs.AtXY(-5806, 12831, 0x806D01, "take quest")
     bot_instance.Wait.ForTime(3000)
 
 def Pass_The_Mountains(bot_instance: Botting):
@@ -989,11 +1050,11 @@ def Deamon_Assassin(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_needs_to_loot(False), "Enable WaitIfPartyMemberNeedsToLoot")
     bot_instance.States.AddCustomState(lambda: _toggle_lock(False), "Enable WaitIfLockTaken")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_party_member_mana_too_low(False), "Enable WaitIfPartyMemberManaTooLow")
-    bot_instance.Move.XYAndInteractNPC(-8250, -5171, "go to NPC")
-    bot_instance.Dialogs.AtXY(-8250, -5171, 0x806801, "take quest")
+    #bot_instance.Move.XYAndInteractNPC(-8250, -5171, "go to NPC")
+    #bot_instance.Dialogs.AtXY(-8250, -5171, 0x806801, "take quest")
+    bot_instance.Dialogs.WithEncName("Reaper of the Twin Serpent Mountains",0x806801, "Take Deamon Assassin")
     bot_instance.Move.XY(-3645, -5820, "Deamon Assassin 1")
     WaitTillQuestDone(bot_instance)
-    #ModelID Slayer 2391
 
 def Restore_Planes(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
@@ -1790,30 +1851,24 @@ def Wait_for_Spawns(bot_instance: Botting, x, y):
 
 
 def _draw_help():
-    PyImGui.text("Hey, this is my first bot in Python, be gentle :)")
+    PyImGui.text_wrapped("This version is tuned for Custom Behaviors multibox runs.")
+    PyImGui.text("Startup widget policy now runs on all active accounts:")
+    PyImGui.bullet_text("HeroAI disabled")
+    PyImGui.bullet_text("CustomBehaviors enabled")
+    PyImGui.bullet_text("Dhuum Helper enabled")
+
     PyImGui.separator()
-    PyImGui.text_wrapped("This Bot automates the Underworld")
-    PyImGui.text("It is optimized for 8x Custom Behaviors, HeroAi dont work atm, Custom Behaviors could but needs to be tested more")
-    PyImGui.text_wrapped("Some quests are not easy to automate, so I recommend to watch the bot at least the first time to see how it works")
-    PyImGui.text_wrapped("Some quests are missing, I will add them when I have time, but feel free to contribute :)")
-    PyImGui.text_wrapped("Some quests are just not easy, because its the Underworld")
+    PyImGui.text("Current Status")
+    PyImGui.text_wrapped("Current status:")
+    PyImGui.text_wrapped("I'm working on creating a HeroAI version, but there are significant differences.")
+    PyImGui.text_wrapped("High risk of getting stuck: 'Unwanted Guests,' 'Dhuum' timing edge cases.")
+
     PyImGui.separator()
-    PyImGui.text("What is working Well:")
-    PyImGui.bullet_text("Restoring Grenth's Monuments (exept Pits)")
-    PyImGui.bullet_text("Wrathfull Spirits, Escort of Souls, Servants of Grenth, Deamon Assassin, The Four Horsemen, Terrorweb Queen")
-    PyImGui.text("What is working Bad:")
-    PyImGui.bullet_text("Imprisoned Spirits, Restore Pits")
-    PyImGui.text("What is not implemented::")
-    PyImGui.bullet_text("Unwanted Guests, The Nightman Cometh (Dhuum)")
+    PyImGui.text_wrapped("For the “Imprisoned Spirits” quest, 1–2 durable damage dealers are recommended for the left team.")
+    PyImGui.text_wrapped("In the Dhuum battle, 1-2 heroes will die and become ghosts. You can choose which ones.")
+
     PyImGui.separator()
-    PyImGui.text("Req:")
-    PyImGui.bullet_text("Highend Team")
-    PyImGui.bullet_text("For faster runs use Pcons (via Pcons widget)")
-    PyImGui.bullet_text("You have to do the missing quests manually")
-    PyImGui.bullet_text("Main Account sometimes leaves the team alone - Dont be the Healer")
-    PyImGui.bullet_text("You should either have some evas or 1 melee char to trigger traps in the mountains")
-    PyImGui.separator()
-    PyImGui.bullet_text("Have fun :) - sch0l0ka")
+    PyImGui.text_wrapped("The “Inventory” and “Enter” functions were borrowed from the fow bot—thanks for that")
 
 
 def _draw_inventory_settings() -> None:
@@ -1882,8 +1937,7 @@ def _draw_inventory_settings() -> None:
 
 def _draw_imprisoned_spirits_settings() -> None:
     PyImGui.text_wrapped(
-        "Assign each multibox account to the Left or Right team for the Imprisoned Spirits quest." \
-        "Right team is generally more dangerus. An Sos could be helpfull for the left side."
+        "Assign each multibox account to the Left or Right team for the Imprisoned Spirits quest."
     )
     PyImGui.separator()
 
