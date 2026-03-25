@@ -1822,7 +1822,8 @@ def Wait_for_Spawns(bot_instance: Botting, x, y):
             if _deadline[0] is None:
                 _deadline[0] = now + _TIMEOUT_S
 
-            if now >= _deadline[0]:
+            deadline = _deadline[0]
+            if deadline is not None and now >= deadline:
                 # Timeout: charge the nearest Mindblade
                 px, py = Player.GetXY()
                 nearest = min(enemies, key=lambda e: Utils.Distance((px, py), Agent.GetXY(e)))
@@ -1864,11 +1865,11 @@ def _draw_help():
     PyImGui.text_wrapped("High risk of getting stuck: 'Unwanted Guests,' 'Dhuum' timing edge cases.")
 
     PyImGui.separator()
-    PyImGui.text_wrapped("For the “Imprisoned Spirits” quest, 1–2 durable damage dealers are recommended for the left team.")
+    PyImGui.text_wrapped("For the Imprisoned Spirits quest, 1 or 2 durable damage dealers are recommended for the left team.")
     PyImGui.text_wrapped("In the Dhuum battle, 1-2 heroes will die and become ghosts. You can choose which ones.")
 
     PyImGui.separator()
-    PyImGui.text_wrapped("The “Inventory” and “Enter” functions were borrowed from the fow bot—thanks for that")
+    PyImGui.text_wrapped("The Inventory and Enter functions were borrowed from the fow bot—thanks for that")
 
 
 def _draw_inventory_settings() -> None:
