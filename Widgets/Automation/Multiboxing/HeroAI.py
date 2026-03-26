@@ -197,13 +197,12 @@ def Follow(cached_data: CacheData) -> BehaviorTree.NodeState:
         follow_x = float(options.FlagPos.x)
         follow_y = float(options.FlagPos.y)
         follow_z = 0
-    elif all_flag_active:
-        follow_x = float(leader_options.AllFlag.x)
-        follow_y = float(leader_options.AllFlag.y)
-        follow_z = 0
     else:
         if follow_threshold_raw < 0.0 and combat_threshold_raw < 0.0:
             return BehaviorTree.NodeState.FAILURE
+        # Shared memory already publishes the resolved per-follower target.
+        # For AllFlag this is the follower's rotated slot around the flag anchor,
+        # not the raw anchor point itself.
         follow_x = float(options.FollowPos.x)
         follow_y = float(options.FollowPos.y)
         follow_z = int(float(options.FollowPos.z))
