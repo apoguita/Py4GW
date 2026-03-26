@@ -1,12 +1,23 @@
 import math
 
 from dataclasses import dataclass, field
+from typing import Protocol
 
 from Py4GWCoreLib import Agent, Party, Player, Range, ThrottledTimer
 from Py4GWCoreLib.IniManager import IniManager
 from Py4GWCoreLib.Map import Map
 from Py4GWCoreLib.py4gwcorelib_src.Utils import Utils
+from Py4GWCoreLib.GlobalCache.shared_memory_src.AccountStruct import AccountStruct
+from Py4GWCoreLib.GlobalCache.shared_memory_src.AllAccounts import AllAccounts
+from Py4GWCoreLib.GlobalCache.shared_memory_src.HeroAIOptionStruct import HeroAIOptionStruct
 from Py4GWCoreLib.native_src.internals.types import Vec2f
+
+
+class SharedMemoryManagerProtocol(Protocol):
+    max_num_players: int
+
+    def GetAllAccounts(self) -> AllAccounts:
+        ...
 
 
 @dataclass(slots=True)
@@ -28,6 +39,7 @@ class FollowIniConfig:
     point_y_key_template: str = "p{index}_y"
     max_follow_slots: int = 11
     ini_reload_ms: int = 1000
+    publish_interval_ms: int = 250
 
 
 @dataclass(slots=True)
@@ -42,6 +54,7 @@ class FollowThresholdConfig:
 class FollowTuningConfig:
     nonzero_epsilon: float = 0.001
     leader_move_release_distance: float = 1.0
+    combat_grid_spacing: float = field(default_factory=lambda: float(Range.Touch.value))
 
 
 @dataclass(slots=True)
@@ -55,16 +68,19 @@ class FollowPublisherState:
     map_signature: tuple[int, int, int, int, int] | None = None
     hold_until_leader_moves: bool = False
     leader_entry_pos: tuple[float, float] | None = None
+    leader_in_combat_last: bool = False
+    combat_anchor_facing: float | None = None
 
 
 class FollowFormationPublisher:
-    def __init__(self, shared_memory_manager):
+    def __init__(self, shared_memory_manager: SharedMemoryManagerProtocol):
         self.shared_memory_manager = shared_memory_manager
         self.ini = FollowIniConfig()
         self.thresholds = FollowThresholdConfig()
         self.tuning = FollowTuningConfig()
         self.state = FollowPublisherState()
         self.ini_reload_timer = ThrottledTimer(self.ini.ini_reload_ms)
+        self.publish_timer = ThrottledTimer(self.ini.publish_interval_ms)
 
     def _ensure_global_ini_key_strict(self, path: str, filename: str) -> str:
         im = IniManager()
@@ -82,7 +98,7 @@ class FollowFormationPublisher:
             pass
         return key
 
-    def _ensure_follow_ini_keys(self):
+    def _ensure_follow_ini_keys(self) -> None:
         if not self.state.formations_ini_key:
             self.state.formations_ini_key = self._ensure_global_ini_key_strict(self.ini.global_ini_path, self.ini.formations_ini_name)
         if not self.state.settings_ini_key:
@@ -122,7 +138,7 @@ class FollowFormationPublisher:
             )
         self.state.ini_vars_registered = True
 
-    def _ini_reload_vars(self, key: str):
+    def _ini_reload_vars(self, key: str) -> None:
         if not key:
             return
         im = IniManager()
@@ -135,7 +151,7 @@ class FollowFormationPublisher:
         except Exception:
             pass
 
-    def _ensure_follow_section_var_defs(self, section: str):
+    def _ensure_follow_section_var_defs(self, section: str) -> None:
         if not self.state.formations_ini_key or not section:
             return
         im = IniManager()
@@ -147,7 +163,7 @@ class FollowFormationPublisher:
             im.add_float(self.state.formations_ini_key, f"{sec_tag}_{x_key}", section, x_key, 0.0)
             im.add_float(self.state.formations_ini_key, f"{sec_tag}_{y_key}", section, y_key, 0.0)
 
-    def _reload_thresholds(self, im: IniManager):
+    def _reload_thresholds(self, im: IniManager) -> None:
         if not self.state.runtime_ini_key:
             return
         self.thresholds.default_follow_threshold = max(
@@ -194,7 +210,7 @@ class FollowFormationPublisher:
                 break
         return section
 
-    def _reload_follow_points_from_ini(self):
+    def _reload_follow_points_from_ini(self) -> None:
         self._ensure_follow_ini_keys()
         if not self.state.formations_ini_key or not self.state.settings_ini_key:
             return
@@ -247,7 +263,7 @@ class FollowFormationPublisher:
         return ((local_x * c) - (local_y * s), (local_x * s) + (local_y * c))
 
     @staticmethod
-    def _same_party_and_map(a, b) -> bool:
+    def _same_party_and_map(a: AccountStruct, b: AccountStruct) -> bool:
         return (
             a.AgentPartyData.PartyID == b.AgentPartyData.PartyID and
             a.AgentData.Map.MapID == b.AgentData.Map.MapID and
@@ -259,10 +275,12 @@ class FollowFormationPublisher:
     def _is_nonzero_vec2(self, vec: Vec2f) -> bool:
         return abs(float(vec.x)) > self.tuning.nonzero_epsilon or abs(float(vec.y)) > self.tuning.nonzero_epsilon
 
-    def _clear_follow_publish_state(self, all_accounts, leader_account):
+    def _clear_follow_publish_state(self, all_accounts: AllAccounts, leader_account: AccountStruct) -> None:
         self.state.map_signature = None
         self.state.hold_until_leader_moves = False
         self.state.leader_entry_pos = None
+        self.state.leader_in_combat_last = False
+        self.state.combat_anchor_facing = None
         for index in range(self.shared_memory_manager.max_num_players):
             account = all_accounts.AccountData[index]
             if not (account.IsSlotActive and account.IsAccount) or account.IsIsolated:
@@ -279,14 +297,14 @@ class FollowFormationPublisher:
             options.FollowMoveThresholdCombat = self.thresholds.disabled_threshold
             options.LeaderFollowReady = False
 
-    def _apply_idle_slot(self, options):
+    def _apply_idle_slot(self, options: HeroAIOptionStruct) -> None:
         options.FollowOffset.x = 0.0
         options.FollowOffset.y = 0.0
         options.FollowMoveThreshold = self.thresholds.disabled_threshold
         options.FollowMoveThresholdCombat = self.thresholds.disabled_threshold
         options.LeaderFollowReady = (not self.state.hold_until_leader_moves)
 
-    def _apply_missing_point_slot(self, options, account, leader_zplane: int):
+    def _apply_missing_point_slot(self, options: HeroAIOptionStruct, account: AccountStruct, leader_zplane: int) -> None:
         options.FollowOffset.x = 0.0
         options.FollowOffset.y = 0.0
         if self.state.hold_until_leader_moves:
@@ -301,19 +319,34 @@ class FollowFormationPublisher:
         options.FollowMoveThresholdCombat = self.thresholds.disabled_threshold
         options.LeaderFollowReady = False
 
-    def _apply_held_slot(self, options, account, leader_zplane: int):
+    def _apply_held_slot(self, options: HeroAIOptionStruct, account: AccountStruct, leader_zplane: int) -> None:
         options.FollowPos.x = float(account.AgentData.Pos.x)
         options.FollowPos.y = float(account.AgentData.Pos.y)
         options.FollowPos.z = float(leader_zplane)
 
-    def _apply_personal_flag_slot(self, options, leader_zplane: int):
+    def _apply_personal_flag_slot(self, options: HeroAIOptionStruct, leader_zplane: int) -> None:
         options.FollowPos.x = float(options.FlagPos.x)
         options.FollowPos.y = float(options.FlagPos.y)
         options.FollowPos.z = float(leader_zplane)
         options.FollowMoveThreshold = self.thresholds.flagged_follow_threshold
         options.FollowMoveThresholdCombat = self.thresholds.flagged_follow_threshold
 
-    def _resolve_anchor(self, leader_options, leader_x: float, leader_y: float, leader_facing: float):
+    def _update_combat_anchor_facing(self, leader_in_combat: bool, leader_facing: float) -> None:
+        if leader_in_combat:
+            if (not self.state.leader_in_combat_last) or self.state.combat_anchor_facing is None:
+                self.state.combat_anchor_facing = float(leader_facing)
+        else:
+            self.state.combat_anchor_facing = None
+        self.state.leader_in_combat_last = leader_in_combat
+
+    def _resolve_anchor(
+        self,
+        leader_options: HeroAIOptionStruct,
+        leader_x: float,
+        leader_y: float,
+        leader_facing: float,
+        leader_in_combat: bool,
+    ) -> tuple[float, float, float, float, float]:
         if bool(leader_options.IsFlagged) and self._is_nonzero_vec2(leader_options.AllFlag):
             return (
                 float(leader_options.AllFlag.x),
@@ -325,12 +358,23 @@ class FollowFormationPublisher:
         return (
             float(leader_x),
             float(leader_y),
-            float(leader_facing),
+            float(self.state.combat_anchor_facing if leader_in_combat and self.state.combat_anchor_facing is not None else leader_facing),
             self.thresholds.default_follow_threshold,
             self.thresholds.combat_follow_threshold,
         )
 
-    def _publish_active_slot(self, options, local_x: float, local_y: float, anchor_x: float, anchor_y: float, facing: float, leader_zplane: int, move_threshold: float, combat_threshold: float):
+    def _publish_active_slot(
+        self,
+        options: HeroAIOptionStruct,
+        local_x: float,
+        local_y: float,
+        anchor_x: float,
+        anchor_y: float,
+        facing: float,
+        leader_zplane: int,
+        move_threshold: float,
+        combat_threshold: float,
+    ) -> None:
         options.FollowOffset.x = float(local_x)
         options.FollowOffset.y = float(local_y)
         options.FollowMoveThreshold = float(move_threshold)
@@ -341,7 +385,19 @@ class FollowFormationPublisher:
         options.FollowPos.z = float(leader_zplane)
         options.LeaderFollowReady = True
 
-    def publish(self):
+    def _snap_world_coord_to_grid_center(self, value: float) -> float:
+        spacing = max(self.tuning.combat_grid_spacing, self.tuning.nonzero_epsilon)
+        return round(float(value) / spacing) * spacing
+
+    def _snap_follow_pos_to_combat_grid(self, options: HeroAIOptionStruct) -> None:
+        options.FollowPos.x = self._snap_world_coord_to_grid_center(float(options.FollowPos.x))
+        options.FollowPos.y = self._snap_world_coord_to_grid_center(float(options.FollowPos.y))
+
+    def publish(self) -> None:
+        if not self.publish_timer.IsExpired():
+            return
+        self.publish_timer.Reset()
+
         try:
             if not Party.IsPartyLoaded():
                 return
@@ -357,13 +413,13 @@ class FollowFormationPublisher:
         if not account_email:
             return
 
-        all_accounts = self.shared_memory_manager.GetAllAccounts()
+        all_accounts: AllAccounts = self.shared_memory_manager.GetAllAccounts()
         leader_index = all_accounts.GetSlotByEmail(account_email)
         if leader_index < 0:
             return
 
-        leader_account = all_accounts.AccountData[leader_index]
-        leader_options = all_accounts.HeroAIOptions[leader_index]
+        leader_account: AccountStruct = all_accounts.AccountData[leader_index]
+        leader_options: HeroAIOptionStruct = all_accounts.HeroAIOptions[leader_index]
         if not leader_account.IsSlotActive or not leader_account.IsAccount or leader_account.IsIsolated:
             return
 
@@ -393,22 +449,25 @@ class FollowFormationPublisher:
             if Utils.Distance((leader_x, leader_y), (entry_x, entry_y)) > self.tuning.leader_move_release_distance:
                 self.state.hold_until_leader_moves = False
 
+        leader_in_combat = bool(getattr(leader_account, "InAggro", False))
+        self._update_combat_anchor_facing(leader_in_combat, leader_facing)
         anchor_x, anchor_y, anchor_facing, move_threshold, combat_threshold = self._resolve_anchor(
             leader_options,
             leader_x,
             leader_y,
             leader_facing,
+            leader_in_combat,
         )
 
         for index in range(self.shared_memory_manager.max_num_players):
-            account = all_accounts.AccountData[index]
+            account: AccountStruct = all_accounts.AccountData[index]
             if not (account.IsSlotActive and account.IsAccount) or account.IsIsolated:
                 continue
             if not self._same_party_and_map(leader_account, account):
                 continue
 
             party_pos = int(account.AgentPartyData.PartyPosition)
-            options = all_accounts.HeroAIOptions[index]
+            options: HeroAIOptionStruct = all_accounts.HeroAIOptions[index]
 
             if party_pos <= 0:
                 self._apply_idle_slot(options)
@@ -445,3 +504,5 @@ class FollowFormationPublisher:
                 move_threshold,
                 combat_threshold,
             )
+            if leader_in_combat:
+                self._snap_follow_pos_to_combat_grid(options)
