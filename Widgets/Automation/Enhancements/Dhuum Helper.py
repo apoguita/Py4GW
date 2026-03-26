@@ -28,6 +28,12 @@ _DIALOG_COOLDOWN_TIMER.Reset()
 _TARGET_NPC_NAME = "Mayor Alegheri"
 _TARGET_BUFF_NAME = "Curse of Dhuum"
 _NEARBY_NPC_RADIUS = 2000.0
+_HEROAI_WIDGET_NAME = "HeroAI"
+_CUSTOM_BEHAVIOR_WIDGET_NAMES = (
+	"CustomBehaviors",
+	"Custom Behavior",
+	"Custom Behaviors: Utility AI",
+)
 
 _buff_skill_id = 0
 _warned_missing_skill = False
@@ -46,6 +52,69 @@ def _is_any_widget_enabled(*widget_names: str) -> bool:
 		return any(bool(widget_handler.is_widget_enabled(name)) for name in widget_names)
 	except Exception:
 		return False
+
+
+def _disable_combat_widgets_for_dialog() -> dict:
+	state = {
+		"heroai_was_enabled": False,
+		"custom_enabled_names": [],
+	}
+
+	try:
+		widget_handler = get_widget_handler()
+
+		heroai_enabled = bool(widget_handler.is_widget_enabled(_HEROAI_WIDGET_NAME))
+		if heroai_enabled:
+			widget_handler.disable_widget(_HEROAI_WIDGET_NAME)
+			state["heroai_was_enabled"] = True
+
+		for name in _CUSTOM_BEHAVIOR_WIDGET_NAMES:
+			if bool(widget_handler.is_widget_enabled(name)):
+				widget_handler.disable_widget(name)
+				state["custom_enabled_names"].append(name)
+
+		if state["heroai_was_enabled"] or state["custom_enabled_names"]:
+			Py4GW.Console.Log(
+				MODULE_NAME,
+				"Temporarily disabled combat widgets for Dhuum dialog.",
+				Py4GW.Console.MessageType.Info,
+			)
+	except Exception as ex:
+		Py4GW.Console.Log(
+			MODULE_NAME,
+			f"Failed to disable combat widgets before dialog: {ex}",
+			Py4GW.Console.MessageType.Warning,
+		)
+
+	return state
+
+
+def _restore_combat_widgets_after_dialog(state: dict) -> None:
+	if not isinstance(state, dict):
+		return
+
+	try:
+		widget_handler = get_widget_handler()
+
+		if bool(state.get("heroai_was_enabled", False)) and not bool(widget_handler.is_widget_enabled(_HEROAI_WIDGET_NAME)):
+			widget_handler.enable_widget(_HEROAI_WIDGET_NAME)
+
+		for name in state.get("custom_enabled_names", []):
+			if not bool(widget_handler.is_widget_enabled(name)):
+				widget_handler.enable_widget(name)
+
+		if bool(state.get("heroai_was_enabled", False)) or bool(state.get("custom_enabled_names", [])):
+			Py4GW.Console.Log(
+				MODULE_NAME,
+				"Restored combat widget state after Dhuum dialog.",
+				Py4GW.Console.MessageType.Info,
+			)
+	except Exception as ex:
+		Py4GW.Console.Log(
+			MODULE_NAME,
+			f"Failed to restore combat widgets after dialog: {ex}",
+			Py4GW.Console.MessageType.Warning,
+		)
 
 
 def _refresh_custom_behavior_after_skillbar_change() -> None:
@@ -107,12 +176,8 @@ def _refresh_heroai_build_after_skillbar_change() -> None:
 
 def _refresh_active_combat_widget_after_skillbar_change() -> None:
 	# Execute only the relevant refresh path for the currently active combat widget.
-	heroai_enabled = _is_any_widget_enabled("HeroAI")
-	custom_behavior_enabled = _is_any_widget_enabled(
-		"CustomBehaviors",
-		"Custom Behavior",
-		"Custom Behaviors: Utility AI",
-	)
+	heroai_enabled = _is_any_widget_enabled(_HEROAI_WIDGET_NAME)
+	custom_behavior_enabled = _is_any_widget_enabled(*_CUSTOM_BEHAVIOR_WIDGET_NAMES)
 
 	if heroai_enabled and not custom_behavior_enabled:
 		_refresh_heroai_build_after_skillbar_change()
@@ -197,12 +262,36 @@ def _find_nearby_max() -> int:
 	return nearest_id
 
 
+def _is_valid_target_npc(agent_id: int) -> bool:
+	if int(agent_id) <= 0:
+		return False
+
+	try:
+		npc_ids = AgentArray.GetNPCMinipetArray()
+		if int(agent_id) not in {int(npc_id) for npc_id in npc_ids}:
+			return False
+
+		name = (Agent.GetNameByID(agent_id) or "").strip().lower()
+		return name == _TARGET_NPC_NAME.lower()
+	except Exception:
+		return False
+
+
+def _resolve_valid_target_npc(candidate_id: int) -> int:
+	if _is_valid_target_npc(candidate_id):
+		return int(candidate_id)
+	return _find_nearby_max()
+
+
 def _coro_interact_and_dialog(target_npc: int):
 	global _interaction_running
+	combat_widget_state = None
+	widgets_temporarily_disabled = False
 
 	try:
 		# ── Step 1: Find NPC ────────────────────────────────────────────
 		for attempt in range(_MAX_NPC_FIND_RETRIES):
+			target_npc = _resolve_valid_target_npc(target_npc)
 			if target_npc > 0:
 				break
 			Py4GW.Console.Log(
@@ -211,7 +300,7 @@ def _coro_interact_and_dialog(target_npc: int):
 				Py4GW.Console.MessageType.Info,
 			)
 			yield from Routines.Yield.wait(1000)
-			target_npc = _find_nearby_max()
+			target_npc = _resolve_valid_target_npc(0)
 
 		if target_npc <= 0:
 			Py4GW.Console.Log(
@@ -221,12 +310,44 @@ def _coro_interact_and_dialog(target_npc: int):
 			)
 			return
 
+		# Disable active combat widgets while approaching/using NPC dialog.
+		combat_widget_state = _disable_combat_widgets_for_dialog()
+		widgets_temporarily_disabled = True
+
 		# ── Step 2: Move to NPC ─────────────────────────────────────────
+		target_npc = _resolve_valid_target_npc(target_npc)
+		if target_npc <= 0:
+			Py4GW.Console.Log(
+				MODULE_NAME,
+				"NPC disappeared before targeting - aborting.",
+				Py4GW.Console.MessageType.Warning,
+			)
+			return
+
 		Player.ChangeTarget(target_npc)
 		yield from Routines.Yield.wait(100)
 
 		for attempt in range(_MAX_MOVE_RETRIES):
-			ax, ay = Agent.GetXY(target_npc)
+			target_npc = _resolve_valid_target_npc(target_npc)
+			if target_npc <= 0:
+				Py4GW.Console.Log(
+					MODULE_NAME,
+					"NPC disappeared while moving - aborting.",
+					Py4GW.Console.MessageType.Warning,
+				)
+				return
+
+			try:
+				ax, ay = Agent.GetXY(target_npc)
+			except Exception:
+				Py4GW.Console.Log(
+					MODULE_NAME,
+					"Failed to get NPC position - retrying.",
+					Py4GW.Console.MessageType.Warning,
+				)
+				yield from Routines.Yield.wait(300)
+				continue
+
 			px, py = Player.GetXY()
 			if Utils.Distance((px, py), (ax, ay)) <= _INTERACT_CLOSE_RANGE:
 				break
@@ -238,7 +359,7 @@ def _coro_interact_and_dialog(target_npc: int):
 			Player.Move(ax, ay)
 			yield from Routines.Yield.wait(1500)
 			# Re-resolve NPC id in case the agent slot changed after moving
-			new_id = _find_nearby_max()
+			new_id = _resolve_valid_target_npc(target_npc)
 			if new_id > 0:
 				target_npc = new_id
 				Player.ChangeTarget(target_npc)
@@ -246,11 +367,22 @@ def _coro_interact_and_dialog(target_npc: int):
 		# ── Step 3: Interact and send dialog ────────────────────────────
 		dialog_sent = False
 		for attempt in range(_MAX_DIALOG_RETRIES):
+			target_npc = _resolve_valid_target_npc(target_npc)
+			if target_npc <= 0:
+				Py4GW.Console.Log(
+					MODULE_NAME,
+					"NPC disappeared before interaction - aborting.",
+					Py4GW.Console.MessageType.Warning,
+				)
+				return
+
 			Py4GW.Console.Log(
 				MODULE_NAME,
 				f"Interacting with NPC, attempt {attempt + 1}/{_MAX_DIALOG_RETRIES} ...",
 				Py4GW.Console.MessageType.Info,
 			)
+			Player.ChangeTarget(target_npc)
+			yield from Routines.Yield.wait(100)
 			Player.Interact(target_npc)
 			yield from Routines.Yield.wait(2000)
 
@@ -285,9 +417,15 @@ def _coro_interact_and_dialog(target_npc: int):
 		yield from Routines.Yield.wait(2000)
 		Player.Move(-13770, 17276)
 
+		if widgets_temporarily_disabled:
+			_restore_combat_widgets_after_dialog(combat_widget_state)
+			widgets_temporarily_disabled = False
+
 		_refresh_active_combat_widget_after_skillbar_change()
 		_DIALOG_COOLDOWN_TIMER.Reset()
 	finally:
+		if widgets_temporarily_disabled:
+			_restore_combat_widgets_after_dialog(combat_widget_state)
 		_interaction_running = False
 
 

@@ -1,5 +1,5 @@
 
-from Py4GWCoreLib import Botting, Routines, Agent, AgentArray, Player, Utils, AutoPathing, GLOBAL_CACHE, ConsoleLog, Map, Pathing, FlagPreference, Party, IniHandler
+from Py4GWCoreLib import Botting, Routines, Agent, AgentArray, Player, Utils, AutoPathing, GLOBAL_CACHE, ConsoleLog, Map, Pathing, FlagPreference, Party, IniHandler, Overlay
 from Py4GWCoreLib.enums_src.Model_enums import ModelID
 from Py4GWCoreLib.enums_src.Map_enums import name_to_map_id
 import os
@@ -52,6 +52,12 @@ MAIN_LOOP_HEADER_NAME = ""
 _entered_dungeon: bool = False  # set True once map 72 is loaded; watchdog uses this
 _king_frozenwind_model_id: int = 2403
 _dead_ally_rescue_enabled: bool = True
+
+_DRAW_BLOCKED_AREAS_3D = True
+_BLOCKED_AREA_SEGMENTS = 48
+_BLOCKED_AREA_THICKNESS = 2.5
+_BLOCKED_AREA_COLOR = Utils.RGBToColor(255, 40, 40, 170)
+_BLOCKED_AREA_RADIUS = 200.0
 
 UW_MAP_ID = 72
 UW_SCROLL_MODEL_ID = int(ModelID.Passage_Scroll_Uw.value)  # 3746
@@ -511,8 +517,8 @@ def _move_with_unstuck(
     target_x: float,
     target_y: float,
     step_name: str = "",
-    stuck_check_ms: int = 2000,
-    stuck_threshold: float = 120.0,
+    stuck_check_ms: int = 1000,
+    stuck_threshold: float = 200.0,
     backup_ms: int = 1000,
     max_retries: int = 30,
     timeout: int = 60_000,
@@ -571,7 +577,7 @@ def _move_with_unstuck(
         # The comparison with the standard path (see below) ensures we only take
         # the detour when it is actually shorter, so we still walk straight through
         # a narrow corridor if there is no room to go around.
-        _SOFT_AVOID_RADIUS = 100.0
+        _SOFT_AVOID_RADIUS = _BLOCKED_AREA_RADIUS
         _SOFT_PENALTY      = 5000.0
 
         # ── Local A* subclass: avoids blacklisted-enemy positions ────────
@@ -815,6 +821,54 @@ def _coro_move_to_dead_ally(bot_instance: Botting):
         Player.Move(target_pos[0], target_pos[1])
         last_move_at = now
 
+
+def _coro_draw_blocked_areas_3d(bot_instance: Botting):
+    """Continuously draw blocked enemy avoid-zones on the ground while the UW run is active."""
+    if not _DRAW_BLOCKED_AREAS_3D:
+        return
+
+    try:
+        from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist
+    except Exception:
+        return
+
+    while True:
+        yield from Routines.Yield.wait(120)
+
+        if not bot_instance.config.fsm_running:
+            continue
+        if not _entered_dungeon:
+            continue
+        if Map.GetMapID() != UW_MAP_ID:
+            continue
+
+        try:
+            _bl = EnemyBlacklist()
+            _avoid_points: list[tuple[float, float]] = []
+            for _eid in AgentArray.GetEnemyArray():
+                if _bl.is_blacklisted(_eid) and Agent.IsAlive(_eid):
+                    _avoid_points.append(Agent.GetXY(_eid))
+
+            if not _avoid_points:
+                continue
+
+            _overlay = Overlay()
+            _overlay.BeginDraw()
+            for _ax, _ay in _avoid_points:
+                _az = _overlay.FindZ(_ax, _ay, 0)
+                _overlay.DrawPoly3D(
+                    _ax,
+                    _ay,
+                    _az,
+                    radius=_BLOCKED_AREA_RADIUS,
+                    color=_BLOCKED_AREA_COLOR,
+                    numsegments=_BLOCKED_AREA_SEGMENTS,
+                    thickness=_BLOCKED_AREA_THICKNESS,
+                )
+            _overlay.EndDraw()
+        except Exception:
+            pass
+
 def bot_routine(bot: Botting):
 
     global MAIN_LOOP_HEADER_NAME
@@ -822,6 +876,7 @@ def bot_routine(bot: Botting):
     CustomBehaviorParty().set_party_is_blessing_enabled(True)
     _setup_custom_behavior_integration(bot)
     bot.config.FSM.AddManagedCoroutine("UW_MoveToDeadAlly", lambda: _coro_move_to_dead_ally(bot))
+    bot.config.FSM.AddManagedCoroutine("UW_DrawBlockedAreas3D", lambda: _coro_draw_blocked_areas_3d(bot))
     _configure_startup_combat_widgets(bot)
     
     bot.Templates.Aggressive()
