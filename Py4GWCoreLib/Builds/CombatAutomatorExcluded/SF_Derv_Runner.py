@@ -49,10 +49,9 @@ _DEFAULT_CRIPPLE_KD_TABLE = (
     ([4955],                                            "Mesa"),
     ([2530, 2581],                                      "Tundra Giant"),
 )
-
-_DEFAULT_EXTREME_KD_DANGER = (
-    ([2530, 2581],                                            "Tundra Giant"),
-)
+_DEFAULT_EXTREME_KD_DANGER_LIST = [
+    "Tundra Giant"
+]
 # endregion
 
 def vector_angle(a: Tuple[float, float], b: Tuple[float, float]) -> float:
@@ -109,7 +108,10 @@ class SF_Derv_Runner(BuildMgr):
         self._sf_timer = ThrottledTimer(600)
         self._sf_timer.Start()
 
-        self.build_danger_helper = build_danger_helper if build_danger_helper is not None else BuildDangerHelper(cripple_kd_table=_DEFAULT_CRIPPLE_KD_TABLE, extreme_kd_danger=_DEFAULT_EXTREME_KD_DANGER)
+        _default_helper = BuildDangerHelper(cripple_kd_table=_DEFAULT_CRIPPLE_KD_TABLE)
+        _default_helper.extreme_kd_danger_list = _DEFAULT_EXTREME_KD_DANGER_LIST
+        _default_helper._rebuild_caches()
+        self.build_danger_helper = build_danger_helper if build_danger_helper is not None else _default_helper
 
     def SetRoutineFinished(self, routine_finished: bool):
         self.routine_finished = routine_finished
@@ -117,39 +119,46 @@ class SF_Derv_Runner(BuildMgr):
     def SetLootingSignal(self, is_looting: bool):
         self.is_looting = is_looting
 
-    # Taken from YAVB HoS logic, casts an optimal Heart of Shadow target
     def _CastHeartOfShadow(self):
-        center_point1 = (10980, -21532)
-        center_point2 = (11461, -17282)
-        player_pos = Player.GetXY()
-        
-        distance_to_center1 = Utils.Distance(player_pos, center_point1)
-        distance_to_center2 = Utils.Distance(player_pos, center_point2)
-        goal = center_point1 if distance_to_center1 < distance_to_center2 else center_point2
+        if False:
+            yield
 
-        #Compute direction to goal
-        to_goal = (goal[0] - player_pos[0], goal[1] - player_pos[1])
-        
-        best_enemy = 0
-        most_opposite_score = 1 
-        
+        player_pos = Player.GetXY()
+        heading = Agent.GetRotationAngle(Player.GetAgentID())
+        facing = (math.cos(heading), math.sin(heading))
+
         enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], Range.Spellcast.value)
-        
-        # Find enemy most opposite to goal direction
+
+        back_narrow, back_narrow_angle = 0, 0.0      # behind 15° cone (angle >= 165°), best = highest angle
+        back_wide, back_wide_angle = 0, 0.0           # behind 60° cone (angle >= 120°), best = highest angle
+        front_narrow, front_narrow_angle = 0, 181.0   # ahead 15° cone (angle <= 15°), best = lowest angle
+        front_wide, front_wide_angle = 0, 181.0       # ahead 60° cone (angle <= 60°), best = lowest angle
+
         for enemy in enemy_array:
             if Agent.IsDead(enemy):
                 continue
             enemy_pos = Agent.GetXY(enemy)
-            to_enemy = (enemy_pos[0] - player_pos[0], enemy_pos[1] - player_pos[1])
-            angle_score = vector_angle(to_goal, to_enemy)  # -1 is most opposite
-            if angle_score < most_opposite_score:
-                most_opposite_score = angle_score
-                best_enemy = enemy
-        if best_enemy:
-            yield from Routines.Yield.Agents.ChangeTarget(best_enemy)    
+            dx = enemy_pos[0] - player_pos[0]
+            dy = enemy_pos[1] - player_pos[1]
+
+            dot = facing[0] * dx + facing[1] * dy
+            det = facing[0] * dy - facing[1] * dx
+            angle = abs(math.degrees(math.atan2(det, dot)))
+
+            if angle >= 165.0 and angle > back_narrow_angle:
+                back_narrow, back_narrow_angle = enemy, angle
+            elif angle >= 120.0 and angle > back_wide_angle:
+                back_wide, back_wide_angle = enemy, angle
+            elif angle <= 15.0 and angle < front_narrow_angle:
+                front_narrow, front_narrow_angle = enemy, angle
+            elif angle <= 60.0 and angle < front_wide_angle:
+                front_wide, front_wide_angle = enemy, angle
+
+        target = back_narrow or back_wide or front_narrow or front_wide
+        if target:
+            yield from Routines.Yield.Agents.ChangeTarget(target)
         else:
             yield from Routines.Yield.Agents.TargetNearestEnemy(Range.Earshot.value)
-        
 
         yield from self.CastSkillID(self.heart_of_shadow, log=False, aftercast_delay=125)
     
@@ -157,11 +166,6 @@ class SF_Derv_Runner(BuildMgr):
         # "Death's Charge to the farthest enemy within the forward cone
         if False:
             yield
-
-        if not Routines.Checks.Skills.IsSkillIDReady(self.deaths_charge):
-            return
-        if not Routines.Checks.Skills.HasEnoughEnergy(Player.GetAgentID(), self.deaths_charge):
-            return
 
         player_pos = Player.GetXY()
         heading = Agent.GetRotationAngle(Player.GetAgentID())
