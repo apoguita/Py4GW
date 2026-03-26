@@ -9,6 +9,9 @@ ac_folder_path = os.path.join(projects_base_path, "Sources", "aC_Scripts")
 from Sources.aC_Scripts.aC_api import *
 MAPS_DIR = os.path.join(ac_folder_path,"PyQuishAI_maps")
 
+MODULE_NAME = "Simple Vanquish"
+MODULE_ICON = "Textures\\Module_Icons\\PyQuishAI.png"
+
 class BotSettings:
     BOT_NAME = "Simple Vanquish"
     OUTPOST_TO_TRAVEL = 0
