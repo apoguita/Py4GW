@@ -1128,6 +1128,9 @@ class WidgetCatalogWindow:
         self.tree_panel = WidgetCatalogTreePanel(self)
         self.detail_panel = WidgetCatalogDetailPanel(self)
         self.setup_snapshot = setup_snapshot()
+        self._virtual_query_cache_stamp: tuple | None = None
+        self._virtual_scope_cache: dict[str, list[str]] = {}
+        self._virtual_search_cache: dict[str, list[str]] = {}
         self.floating_button = ImGui.FloatingIcon(
             icon_path=os.path.join(Py4GW.Console.get_projects_path(), "python_icon_round.png"),
             window_id="##widget_catalog_floating_button",
@@ -1489,6 +1492,58 @@ class WidgetCatalogWindow:
             entries = []
 
         return {str(entry).strip() for entry in entries if str(entry).strip()}
+
+    def _build_virtual_query_cache_stamp(self, snapshot, favorite_ids: set[str]) -> tuple:
+        widget_ids = tuple(sorted(snapshot.widgets_by_id.keys()))
+        enabled_ids = tuple(widget_id for widget_id in widget_ids if snapshot.widgets_by_id[widget_id].enabled)
+        return (
+            widget_ids,
+            enabled_ids,
+            tuple(sorted(favorite_ids)),
+        )
+
+    def _ensure_virtual_query_cache(self, snapshot, favorite_ids: set[str]) -> None:
+        stamp = self._build_virtual_query_cache_stamp(snapshot, favorite_ids)
+        if stamp != self._virtual_query_cache_stamp:
+            self._virtual_query_cache_stamp = stamp
+            self._virtual_scope_cache.clear()
+            self._virtual_search_cache.clear()
+
+    def _get_virtual_scope_widget_ids(self, snapshot, scope: CatalogScope, favorite_ids: set[str]) -> list[str]:
+        self._ensure_virtual_query_cache(snapshot, favorite_ids)
+        cached = self._virtual_scope_cache.get(scope)
+        if cached is not None:
+            return list(cached)
+
+        query = WidgetCatalog.query(
+            snapshot,
+            WidgetCatalogQuery(
+                scope=scope,
+                favorite_ids=favorite_ids,
+            ),
+        )
+        query.sort(key=lambda widget: widget.cleaned_name().lower())
+        widget_ids = [widget.folder_script_name for widget in query]
+        self._virtual_scope_cache[scope] = widget_ids
+        return list(widget_ids)
+
+    def _get_virtual_search_widget_ids(self, snapshot, label: str, favorite_ids: set[str]) -> list[str]:
+        self._ensure_virtual_query_cache(snapshot, favorite_ids)
+        cached = self._virtual_search_cache.get(label)
+        if cached is not None:
+            return list(cached)
+
+        query = WidgetCatalog.query(
+            snapshot,
+            WidgetCatalogQuery(
+                text=label,
+                favorite_ids=favorite_ids,
+            ),
+        )
+        query.sort(key=lambda widget: widget.cleaned_name().lower())
+        widget_ids = [widget.folder_script_name for widget in query]
+        self._virtual_search_cache[label] = widget_ids
+        return list(widget_ids)
 
     def _save_favorite_ids(self, favorite_ids: set[str]) -> None:
         ini_key = self._manager_ini_key()
@@ -1859,45 +1914,34 @@ class WidgetCatalogWindow:
         PyImGui.set_cursor_screen_pos(x, y)
         ImGui.dummy(total_width, row_height)
 
-    def _make_virtual_scope_node(self, snapshot, label: str, scope: CatalogScope, path_prefix: str) -> WidgetCatalogNode:
-        query = WidgetCatalog.query(
-            snapshot,
-            WidgetCatalogQuery(
-                scope=scope,
-                favorite_ids=self._get_favorite_ids(),
-            ),
-        )
-        query.sort(key=lambda widget: widget.cleaned_name().lower())
+    def _make_virtual_scope_node(self, snapshot, label: str, scope: CatalogScope, path_prefix: str, favorite_ids: set[str]) -> WidgetCatalogNode:
         return WidgetCatalogNode(
             name=label,
             depth=1,
             parent=None,
             path=path_prefix,
             is_widget_container=True,
-            widget_ids=[widget.folder_script_name for widget in query],
+            widget_ids=self._get_virtual_scope_widget_ids(snapshot, scope, favorite_ids),
         )
 
-    def _make_virtual_search_node(self, snapshot, label: str, path_prefix: str) -> WidgetCatalogNode:
-        query = WidgetCatalog.query(
-            snapshot,
-            WidgetCatalogQuery(
-                text=label,
-                favorite_ids=self._get_favorite_ids(),
-            ),
-        )
-        query.sort(key=lambda widget: widget.cleaned_name().lower())
+    def _make_virtual_search_node(self, snapshot, label: str, path_prefix: str, favorite_ids: set[str]) -> WidgetCatalogNode:
         return WidgetCatalogNode(
             name=label,
             depth=1,
             parent=None,
             path=path_prefix,
             is_widget_container=True,
-            widget_ids=[widget.folder_script_name for widget in query],
+            widget_ids=self._get_virtual_search_widget_ids(snapshot, label, favorite_ids),
         )
 
     def _get_browser_tree(self, snapshot) -> WidgetCatalogNode:
         root = WidgetCatalogNode()
         active_view = self._get_active_view()
+        favorite_ids = self._get_favorite_ids()
+        active_search_labels = set(active_view.search_entries)
+        stale_search_labels = [label for label in self._virtual_search_cache if label not in active_search_labels]
+        for label in stale_search_labels:
+            self._virtual_search_cache.pop(label, None)
 
         search_node = WidgetCatalogNode(
             name="Search",
@@ -1912,15 +1956,16 @@ class WidgetCatalogWindow:
                 snapshot,
                 entry_label,
                 f"{self.SEARCH_ENTRY_PATH_PREFIX}{entry_index}",
+                favorite_ids,
             )
             search_entry_node.parent = root
             root.children[f"SearchEntry::{entry_index}::{entry_label}"] = search_entry_node
 
-        active_node = self._make_virtual_scope_node(snapshot, "Active", "active", self.ACTIVE_PATH)
+        active_node = self._make_virtual_scope_node(snapshot, "Active", "active", self.ACTIVE_PATH, favorite_ids)
         active_node.parent = root
         root.children[active_node.name] = active_node
 
-        favorites_node = self._make_virtual_scope_node(snapshot, "Favorites", "favorites", self.FAVORITES_PATH)
+        favorites_node = self._make_virtual_scope_node(snapshot, "Favorites", "favorites", self.FAVORITES_PATH, favorite_ids)
         favorites_node.parent = root
         root.children[favorites_node.name] = favorites_node
 
