@@ -197,24 +197,24 @@ def Follow(cached_data: CacheData) -> BehaviorTree.NodeState:
         follow_x = float(options.FlagPos.x)
         follow_y = float(options.FlagPos.y)
         follow_z = 0
-    elif all_flag_active:
-        follow_x = float(leader_options.AllFlag.x)
-        follow_y = float(leader_options.AllFlag.y)
-        follow_z = 0
     else:
         if follow_threshold_raw < 0.0 and combat_threshold_raw < 0.0:
             return BehaviorTree.NodeState.FAILURE
+        # Shared memory already publishes the resolved per-follower target.
+        # For AllFlag this is the follower's rotated slot around the flag anchor,
+        # not the raw anchor point itself.
         follow_x = float(options.FollowPos.x)
         follow_y = float(options.FollowPos.y)
         follow_z = int(float(options.FollowPos.z))
 
+    is_melee = Agent.IsMelee(Player.GetAgentID())
     if cached_data.data.in_aggro:
         if combat_threshold_raw >= 0.0:
             follow_distance = max(0.0, combat_threshold_raw)
         else:
             follow_distance = max(0.0, follow_threshold_raw)
 
-        if not own_flag_active and not all_flag_active:
+        if is_melee and not own_flag_active and not all_flag_active:
             leader_agent_id = GLOBAL_CACHE.Party.GetPartyLeaderID()
             if leader_agent_id:
                 leader_distance = Utils.Distance(Agent.GetXY(leader_agent_id), Player.GetXY())
@@ -257,8 +257,8 @@ def Follow(cached_data: CacheData) -> BehaviorTree.NodeState:
     last_follow_move_point = (xx, yy)
     follow_require_front_after_map_entry = False
     cached_data.follow_throttle_timer.Reset()
-    # In combat and out of range: fleeing/repositioning should preempt combat for this tick.
-    if cached_data.data.in_aggro:
+    # In combat and out of range: only melee follow should preempt combat.
+    if cached_data.data.in_aggro and is_melee:
         return BehaviorTree.NodeState.SUCCESS
     # Out of combat: keep follow non-blocking so OOC behavior can still run freely.
     return BehaviorTree.NodeState.FAILURE

@@ -834,6 +834,19 @@ class Map:
             return True
         ActionQueueManager().AddAction("ACTION", _cancel_enter_challenge)
 
+    @staticmethod
+    def ConfirmEnterChallenge() -> None:
+        """Click the extra confirm button that some missions show (e.g. Ruins of Surmia)."""
+        def _confirm_enter_challenge() -> bool:
+            ConfirmEnterMissionButton = WindowFrames.get("ConfirmEnterMissionButton", None)
+            if ConfirmEnterMissionButton is None:
+                return False
+            if not ConfirmEnterMissionButton.FrameExists():
+                return False
+            ConfirmEnterMissionButton.FrameClick()
+            return True
+        ActionQueueManager().AddAction("ACTION", _confirm_enter_challenge)
+
         
     
     #region MissionMap

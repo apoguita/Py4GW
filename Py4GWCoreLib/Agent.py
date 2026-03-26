@@ -130,8 +130,32 @@ class Agent:
     @staticmethod
     def IsNameReady(agent_id: int) -> bool:
         return Agent.GetNameByID(agent_id) != ""
- 
     
+    @staticmethod
+    def GetEncNameByID(agent_id: int) -> list[int]:
+        """Get the encoded name of an agent by its ID."""
+        enc_bytes = PyAgent.PyAgent.GetAgentEncName(agent_id)
+        return enc_bytes
+    
+    @staticmethod
+    def GetEncNameStrByID(agent_id: int) -> str:
+        """Get the encoded name of an agent by its ID as a readable debug string."""
+        enc_bytes = PyAgent.PyAgent.GetAgentEncName(agent_id)
+        if not enc_bytes:
+            return ""
+
+        trimmed_bytes: list[int] = []
+        for byte in enc_bytes:
+            if byte == 0:
+                break
+            trimmed_bytes.append(byte)
+
+        if not trimmed_bytes:
+            return ""
+
+        hex_part = " ".join(f"0x{byte:02X}" for byte in trimmed_bytes)
+        text_part = bytes(trimmed_bytes).decode("utf-8", errors="replace")
+        return f"{hex_part} {text_part}".strip()
     
     @staticmethod
     def GetAgentIDByName(name:str) -> int:
