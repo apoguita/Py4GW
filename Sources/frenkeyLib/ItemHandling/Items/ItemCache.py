@@ -29,8 +29,9 @@ class ItemCache:
                 return None
             
             self.items[item_id] = snapshot
+            
         elif bag is not None:
-            self.items[item_id].bag = bag
+            self.items[item_id].__bag = bag
         # else:
         #     self.items[item_id].update()
             

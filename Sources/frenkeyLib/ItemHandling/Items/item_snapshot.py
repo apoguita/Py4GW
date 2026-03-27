@@ -52,7 +52,7 @@ class ItemSnapshot:
         self.complete_name_enc = bytes(PyItem.GetCompleteNameEnc(item_id)) if item_id > 0 and self.is_valid else None
         self.names : GWStringEncoded = GWStringEncoded(self.name_enc or bytes(), "Unknown Item")
         
-        self.bag: Bag = bag if bag is not None else get_item_bag(item_id, item) if item and (item.is_inventory_item or item.is_storage_item) else Bag.NoBag
+        self.__bag: Optional[Bag] = bag if item and (item.is_inventory_item or item.is_storage_item) else Bag.NoBag
                 
         self.model_id: int = item.model_id if item else -1
         self.model_file_id: int = item.model_file_id if item else -1
@@ -120,6 +120,13 @@ class ItemSnapshot:
     @property
     def name(self) -> str:
         return string_table.decode(self.name_enc) if self.name_enc else ""
+    
+    @property
+    def bag(self) -> Bag:
+        if self.__bag is None:
+             self.__bag = get_item_bag(self.id) if self.is_inventory_item or self.is_storage_item else Bag.NoBag
+        
+        return self.__bag
 
     def same_kind_as(self, other: 'ItemSnapshot') -> bool:
         """
@@ -146,7 +153,7 @@ class ItemSnapshot:
         self.slot = item.slot
         self.is_inventory_item = item.is_inventory_item
         self.is_storage_item = item.is_storage_item
-        self.bag = get_item_bag(self.id, item) if item.is_inventory_item or item.is_storage_item else Bag.NoBag
+        self.__bag = get_item_bag(self.id, item) if item.is_inventory_item or item.is_storage_item else Bag.NoBag
         self.color = ItemSnapshot.get_color_from_info(self.dye_info)
         
         self.modifiers = Item.Customization.Modifiers.GetModifiers(self.id)
