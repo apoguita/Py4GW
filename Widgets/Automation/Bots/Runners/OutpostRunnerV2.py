@@ -135,9 +135,6 @@ def bot_routine(bot: Botting) -> None:
                     else entry["map_id"]
                 )
                 bot.Move.FollowAutoPath(seg_path)
-                # Safety re-move to last waypoint
-                last_x, last_y = seg_path[-1]
-                bot.Move.XY(last_x, last_y)
                 bot.Wait.ForMapToChange(next_map_id)
 
     # All runs finished
@@ -308,7 +305,7 @@ def _draw_help():
     PyImGui.bullet_text("+5e +20% enchant duration weapon")
     PyImGui.bullet_text("+45hp -2dmg while enchanted shield")
     PyImGui.bullet_text("x5 Windwalker insignias")
-    PyImGui.bullet_text("+1 head +1 Mysticism rune")
+    PyImGui.bullet_text("+1 head +1 Mysticism Rune")
     PyImGui.bullet_text("Major Vigor Rune")
     PyImGui.bullet_text("x3 Atunnement Rune")
     PyImGui.spacing()
