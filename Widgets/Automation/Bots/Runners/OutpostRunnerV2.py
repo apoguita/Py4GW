@@ -187,11 +187,18 @@ def _load_run_data(region_dir: str, run_name: str) -> QueuedRun:
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
 
-    run_prefix = run_name.lower()
-    ids = getattr(mod, f"{run_prefix}_ids", {})
+    def _getattr_ci(module, suffix, default=None):
+        """Case-insensitive getattr: find attribute ending with suffix."""
+        suffix_lower = suffix.lower()
+        for attr_name in dir(module):
+            if attr_name.lower().endswith(suffix_lower):
+                return getattr(module, attr_name)
+        return default
+
+    ids = _getattr_ci(mod, "_ids", {})
     outpost_id = ids.get("outpost_id", 0)
-    outpost_path = getattr(mod, f"{run_prefix}_outpost_path", [])
-    segments = getattr(mod, f"{run_prefix}_segments", [])
+    outpost_path = _getattr_ci(mod, "_outpost_path", [])
+    segments = _getattr_ci(mod, "_segments", [])
 
     region_name = os.path.basename(region_dir)
     display = f"[{region_name}] {run_name}"
