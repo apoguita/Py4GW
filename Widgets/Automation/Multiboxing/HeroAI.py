@@ -112,7 +112,6 @@ def HandleCombat(cached_data: CacheData):
 following_flag = False
 last_follow_move_point: tuple[float, float] | None = None
 follow_map_entry_signature: tuple[int, int, int, int] | None = None
-follow_require_front_after_map_entry = False
 FOLLOW_MODULE_NAME = "FollowingModule"
 FOLLOW_INI_FILENAMES = (
     "FollowModule_Formations.ini",
@@ -151,7 +150,7 @@ def EnsureFollowModuleIni() -> None:
     follow_ini_bootstrap_disable_after_create = True
 
 def Follow(cached_data: CacheData) -> BehaviorTree.NodeState:
-    global last_follow_move_point, follow_map_entry_signature, follow_require_front_after_map_entry
+    global last_follow_move_point, follow_map_entry_signature
 
     def _is_nonzero_xy(x: float, y: float) -> bool:
         return abs(float(x)) > 0.001 or abs(float(y)) > 0.001
@@ -175,8 +174,6 @@ def Follow(cached_data: CacheData) -> BehaviorTree.NodeState:
     )
     if follow_map_entry_signature != map_sig:
         follow_map_entry_signature = map_sig
-        #follow_require_front_after_map_entry = True
-        follow_require_front_after_map_entry = False
         last_follow_move_point = None
 
     leader_options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsByPartyNumber(0)
@@ -197,24 +194,24 @@ def Follow(cached_data: CacheData) -> BehaviorTree.NodeState:
         follow_x = float(options.FlagPos.x)
         follow_y = float(options.FlagPos.y)
         follow_z = 0
-    elif all_flag_active:
-        follow_x = float(leader_options.AllFlag.x)
-        follow_y = float(leader_options.AllFlag.y)
-        follow_z = 0
     else:
         if follow_threshold_raw < 0.0 and combat_threshold_raw < 0.0:
             return BehaviorTree.NodeState.FAILURE
+        # Shared memory already publishes the resolved per-follower target.
+        # For AllFlag this is the follower's rotated slot around the flag anchor,
+        # not the raw anchor point itself.
         follow_x = float(options.FollowPos.x)
         follow_y = float(options.FollowPos.y)
         follow_z = int(float(options.FollowPos.z))
 
+    is_melee = Agent.IsMelee(Player.GetAgentID())
     if cached_data.data.in_aggro:
         if combat_threshold_raw >= 0.0:
             follow_distance = max(0.0, combat_threshold_raw)
         else:
             follow_distance = max(0.0, follow_threshold_raw)
 
-        if not own_flag_active and not all_flag_active:
+        if is_melee and not own_flag_active and not all_flag_active:
             leader_agent_id = GLOBAL_CACHE.Party.GetPartyLeaderID()
             if leader_agent_id:
                 leader_distance = Utils.Distance(Agent.GetXY(leader_agent_id), Player.GetXY())
@@ -225,15 +222,6 @@ def Follow(cached_data: CacheData) -> BehaviorTree.NodeState:
     if Utils.Distance((follow_x, follow_y), Player.GetXY()) <= follow_distance:
         # Inside threshold: do not let follow preempt OOC/combat logic.
         return BehaviorTree.NodeState.FAILURE
-
-    if follow_require_front_after_map_entry:
-        px, py = Player.GetXY()
-        dx = follow_x - px
-        dy = follow_y - py
-        if abs(dx) > 0.001 or abs(dy) > 0.001:
-            facing = Agent.GetRotationAngle(Player.GetAgentID())
-            if ((dx * math.cos(facing)) + (dy * math.sin(facing))) <= 0.0:
-                return BehaviorTree.NodeState.FAILURE
 
     xx = follow_x
     yy = follow_y
@@ -255,10 +243,9 @@ def Follow(cached_data: CacheData) -> BehaviorTree.NodeState:
 
 
     last_follow_move_point = (xx, yy)
-    follow_require_front_after_map_entry = False
     cached_data.follow_throttle_timer.Reset()
-    # In combat and out of range: fleeing/repositioning should preempt combat for this tick.
-    if cached_data.data.in_aggro:
+    # In combat and out of range: only melee follow should preempt combat.
+    if cached_data.data.in_aggro and is_melee:
         return BehaviorTree.NodeState.SUCCESS
     # Out of combat: keep follow non-blocking so OOC behavior can still run freely.
     return BehaviorTree.NodeState.FAILURE
