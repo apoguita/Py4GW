@@ -39,7 +39,7 @@ class FollowIniConfig:
     point_y_key_template: str = "p{index}_y"
     max_follow_slots: int = 11
     ini_reload_ms: int = 1000
-    publish_interval_ms: int = 250
+    publish_interval_ms: int = 100
 
 
 @dataclass(slots=True)
@@ -63,6 +63,7 @@ class FollowPublisherState:
     settings_ini_key: str = ""
     runtime_ini_key: str = ""
     ini_vars_registered: bool = False
+    registered_follow_sections: set[str] = field(default_factory=set)
     selected_id_cache: str = ""
     points_cache: list[tuple[float, float]] = field(default_factory=list)
     map_signature: tuple[int, int, int, int, int] | None = None
@@ -70,6 +71,8 @@ class FollowPublisherState:
     leader_entry_pos: tuple[float, float] | None = None
     leader_in_combat_last: bool = False
     combat_anchor_facing: float | None = None
+    combat_anchor_cell: tuple[int, int] | None = None
+    combat_cached_follow_pos: dict[int, tuple[float, float, float]] = field(default_factory=dict)
 
 
 class FollowFormationPublisher:
@@ -138,14 +141,13 @@ class FollowFormationPublisher:
             )
         self.state.ini_vars_registered = True
 
-    def _ini_reload_vars(self, key: str) -> None:
+    def _load_ini_vars_once(self, key: str, force_var_refresh: bool = False) -> None:
         if not key:
             return
         im = IniManager()
         try:
-            im.reload(key)
             node = im._get_node(key)
-            if node:
+            if node and force_var_refresh:
                 node.vars_loaded = False
             im.load_once(key)
         except Exception:
@@ -153,6 +155,8 @@ class FollowFormationPublisher:
 
     def _ensure_follow_section_var_defs(self, section: str) -> None:
         if not self.state.formations_ini_key or not section:
+            return
+        if section in self.state.registered_follow_sections:
             return
         im = IniManager()
         sec_tag = section.replace(":", "_")
@@ -162,6 +166,8 @@ class FollowFormationPublisher:
             y_key = self.ini.point_y_key_template.format(index=index)
             im.add_float(self.state.formations_ini_key, f"{sec_tag}_{x_key}", section, x_key, 0.0)
             im.add_float(self.state.formations_ini_key, f"{sec_tag}_{y_key}", section, y_key, 0.0)
+        self.state.registered_follow_sections.add(section)
+        self._load_ini_vars_once(self.state.formations_ini_key, force_var_refresh=True)
 
     def _reload_thresholds(self, im: IniManager) -> None:
         if not self.state.runtime_ini_key:
@@ -216,9 +222,9 @@ class FollowFormationPublisher:
             return
 
         im = IniManager()
-        self._ini_reload_vars(self.state.settings_ini_key)
-        self._ini_reload_vars(self.state.formations_ini_key)
-        self._ini_reload_vars(self.state.runtime_ini_key)
+        self._load_ini_vars_once(self.state.settings_ini_key)
+        self._load_ini_vars_once(self.state.formations_ini_key)
+        self._load_ini_vars_once(self.state.runtime_ini_key)
         self._reload_thresholds(im)
 
         selected_id = self._resolve_selected_formation_id(im)
@@ -229,7 +235,6 @@ class FollowFormationPublisher:
 
         section = self._resolve_selected_formation_section(im, selected_id)
         self._ensure_follow_section_var_defs(section)
-        self._ini_reload_vars(self.state.formations_ini_key)
         sec_tag = section.replace(":", "_")
         point_count = max(
             0,
@@ -281,6 +286,8 @@ class FollowFormationPublisher:
         self.state.leader_entry_pos = None
         self.state.leader_in_combat_last = False
         self.state.combat_anchor_facing = None
+        self.state.combat_anchor_cell = None
+        self.state.combat_cached_follow_pos.clear()
         for index in range(self.shared_memory_manager.max_num_players):
             account = all_accounts.AccountData[index]
             if not (account.IsSlotActive and account.IsAccount) or account.IsIsolated:
@@ -389,25 +396,85 @@ class FollowFormationPublisher:
         spacing = max(self.tuning.combat_grid_spacing, self.tuning.nonzero_epsilon)
         return round(float(value) / spacing) * spacing
 
+    def _world_coord_to_grid_index(self, value: float) -> int:
+        spacing = max(self.tuning.combat_grid_spacing, self.tuning.nonzero_epsilon)
+        return int(round(float(value) / spacing))
+
+    def _grid_index_to_world_center(self, index: int) -> float:
+        spacing = max(self.tuning.combat_grid_spacing, self.tuning.nonzero_epsilon)
+        return float(index) * spacing
+
+    def _follow_pos_to_grid_cell(self, options: HeroAIOptionStruct) -> tuple[int, int]:
+        return (
+            self._world_coord_to_grid_index(float(options.FollowPos.x)),
+            self._world_coord_to_grid_index(float(options.FollowPos.y)),
+        )
+
+    def _world_pos_to_grid_cell(self, x: float, y: float) -> tuple[int, int]:
+        return (
+            self._world_coord_to_grid_index(x),
+            self._world_coord_to_grid_index(y),
+        )
+
     def _snap_follow_pos_to_combat_grid(self, options: HeroAIOptionStruct) -> None:
         options.FollowPos.x = self._snap_world_coord_to_grid_center(float(options.FollowPos.x))
         options.FollowPos.y = self._snap_world_coord_to_grid_center(float(options.FollowPos.y))
+
+    def _assign_unique_combat_grid_cell(
+        self,
+        options: HeroAIOptionStruct,
+        occupied_cells: set[tuple[int, int]],
+    ) -> None:
+        base_i, base_j = self._follow_pos_to_grid_cell(options)
+        if (base_i, base_j) not in occupied_cells:
+            chosen_i, chosen_j = base_i, base_j
+        else:
+            chosen_i, chosen_j = base_i, base_j
+            best_distance_sq = float("inf")
+            found = False
+            max_radius = self.ini.max_follow_slots
+            for radius in range(1, max_radius + 1):
+                for di in range(-radius, radius + 1):
+                    for dj in range(-radius, radius + 1):
+                        if max(abs(di), abs(dj)) != radius:
+                            continue
+                        candidate = (base_i + di, base_j + dj)
+                        if candidate in occupied_cells:
+                            continue
+                        distance_sq = float((di * di) + (dj * dj))
+                        if distance_sq < best_distance_sq:
+                            chosen_i, chosen_j = candidate
+                            best_distance_sq = distance_sq
+                            found = True
+                if found:
+                    break
+
+        occupied_cells.add((chosen_i, chosen_j))
+        options.FollowPos.x = self._grid_index_to_world_center(chosen_i)
+        options.FollowPos.y = self._grid_index_to_world_center(chosen_j)
+
+    def _set_cached_combat_follow_pos(self, slot_index: int, options: HeroAIOptionStruct) -> None:
+        self.state.combat_cached_follow_pos[slot_index] = (
+            float(options.FollowPos.x),
+            float(options.FollowPos.y),
+            float(options.FollowPos.z),
+        )
+
+    def _apply_cached_combat_follow_pos(self, slot_index: int, options: HeroAIOptionStruct) -> bool:
+        cached = self.state.combat_cached_follow_pos.get(slot_index)
+        if cached is None:
+            return False
+        follow_x, follow_y, follow_z = cached
+        options.FollowPos.x = float(follow_x)
+        options.FollowPos.y = float(follow_y)
+        options.FollowPos.z = float(follow_z)
+        options.LeaderFollowReady = True
+        return True
 
     def publish(self) -> None:
         if not self.publish_timer.IsExpired():
             return
         self.publish_timer.Reset()
-
-        try:
-            if not Party.IsPartyLoaded():
-                return
-            leader_agent_id = Party.GetPartyLeaderID()
-            if not Agent.IsValid(leader_agent_id):
-                return
-            if Player.GetAgentID() != leader_agent_id:
-                return
-        except Exception:
-            return
 
         account_email = Player.GetAccountEmail()
         if not account_email:
@@ -425,6 +492,15 @@ class FollowFormationPublisher:
 
         if (not Map.IsMapReady()) or Map.IsMapLoading() or (not Map.IsExplorable()):
             self._clear_follow_publish_state(all_accounts, leader_account)
+            return
+        
+
+        if not Party.IsPartyLoaded():
+            return
+        leader_agent_id = Party.GetPartyLeaderID()
+        if not Agent.IsValid(leader_agent_id):
+            return
+        if Player.GetAgentID() != leader_agent_id:
             return
 
         points = self._get_follow_points()
@@ -458,6 +534,20 @@ class FollowFormationPublisher:
             leader_facing,
             leader_in_combat,
         )
+        occupied_combat_cells: set[tuple[int, int]] = set()
+        recompute_combat_positions = False
+        if leader_in_combat:
+            current_anchor_cell = self._world_pos_to_grid_cell(anchor_x, anchor_y)
+            if self.state.combat_anchor_cell != current_anchor_cell:
+                self.state.combat_anchor_cell = current_anchor_cell
+                self.state.combat_cached_follow_pos.clear()
+                recompute_combat_positions = True
+            else:
+                for follow_x, follow_y, _follow_z in self.state.combat_cached_follow_pos.values():
+                    occupied_combat_cells.add(self._world_pos_to_grid_cell(float(follow_x), float(follow_y)))
+        else:
+            self.state.combat_anchor_cell = None
+            self.state.combat_cached_follow_pos.clear()
 
         for index in range(self.shared_memory_manager.max_num_players):
             account: AccountStruct = all_accounts.AccountData[index]
@@ -493,6 +583,29 @@ class FollowFormationPublisher:
                 self._apply_personal_flag_slot(options, leader_zplane)
                 continue
 
+            if leader_in_combat:
+                options.FollowOffset.x = float(local_x)
+                options.FollowOffset.y = float(local_y)
+                options.FollowMoveThreshold = float(move_threshold)
+                options.FollowMoveThresholdCombat = float(combat_threshold)
+                if (not recompute_combat_positions) and self._apply_cached_combat_follow_pos(slot_index, options):
+                    continue
+                self._publish_active_slot(
+                    options,
+                    local_x,
+                    local_y,
+                    anchor_x,
+                    anchor_y,
+                    anchor_facing,
+                    leader_zplane,
+                    move_threshold,
+                    combat_threshold,
+                )
+                self._snap_follow_pos_to_combat_grid(options)
+                self._assign_unique_combat_grid_cell(options, occupied_combat_cells)
+                self._set_cached_combat_follow_pos(slot_index, options)
+                continue
+
             self._publish_active_slot(
                 options,
                 local_x,
@@ -504,5 +617,3 @@ class FollowFormationPublisher:
                 move_threshold,
                 combat_threshold,
             )
-            if leader_in_combat:
-                self._snap_follow_pos_to_combat_grid(options)
