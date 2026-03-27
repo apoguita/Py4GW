@@ -13,34 +13,7 @@ from Sources.frenkeyLib.Core.encoded_names import ItemName
 from Sources.frenkeyLib.ItemHandling.Items.ItemCache import ITEM_CACHE
 from Sources.frenkeyLib.ItemHandling.Items.ItemData import ITEM_DATA, ItemData
 from Sources.frenkeyLib.ItemHandling.Items.item_snapshot import ItemSnapshot
-
-INVENTORY_BAGS = [
-    Bag.Backpack,
-    Bag.Belt_Pouch,
-    Bag.Bag_1,
-    Bag.Bag_2,
-    Bag.Equipment_Pack,
-    Bag.Equipped_Items,
-]
-
-STORAGE_BAGS = [
-    Bag.Material_Storage,
-    Bag.Storage_1,
-    Bag.Storage_2,
-    Bag.Storage_3,
-    Bag.Storage_4,
-    Bag.Storage_5,
-    Bag.Storage_6,
-    Bag.Storage_7,
-    Bag.Storage_8,
-    Bag.Storage_9,
-    Bag.Storage_10,
-    Bag.Storage_11,
-    Bag.Storage_12,
-    Bag.Storage_13,
-    Bag.Storage_14,
-]
-
+from Sources.frenkeyLib.ItemHandling.Items.types import INVENTORY_BAGS, STORAGE_BAGS
 
 class ItemCollector:
     def __init__(self, inventory_interval_ms: int = 5_000, save_interval_ms: int = 1_000):
