@@ -112,7 +112,6 @@ def HandleCombat(cached_data: CacheData):
 following_flag = False
 last_follow_move_point: tuple[float, float] | None = None
 follow_map_entry_signature: tuple[int, int, int, int] | None = None
-follow_require_front_after_map_entry = False
 FOLLOW_MODULE_NAME = "FollowingModule"
 FOLLOW_INI_FILENAMES = (
     "FollowModule_Formations.ini",
@@ -151,7 +150,7 @@ def EnsureFollowModuleIni() -> None:
     follow_ini_bootstrap_disable_after_create = True
 
 def Follow(cached_data: CacheData) -> BehaviorTree.NodeState:
-    global last_follow_move_point, follow_map_entry_signature, follow_require_front_after_map_entry
+    global last_follow_move_point, follow_map_entry_signature
 
     def _is_nonzero_xy(x: float, y: float) -> bool:
         return abs(float(x)) > 0.001 or abs(float(y)) > 0.001
@@ -175,8 +174,6 @@ def Follow(cached_data: CacheData) -> BehaviorTree.NodeState:
     )
     if follow_map_entry_signature != map_sig:
         follow_map_entry_signature = map_sig
-        #follow_require_front_after_map_entry = True
-        follow_require_front_after_map_entry = False
         last_follow_move_point = None
 
     leader_options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsByPartyNumber(0)
@@ -226,15 +223,6 @@ def Follow(cached_data: CacheData) -> BehaviorTree.NodeState:
         # Inside threshold: do not let follow preempt OOC/combat logic.
         return BehaviorTree.NodeState.FAILURE
 
-    if follow_require_front_after_map_entry:
-        px, py = Player.GetXY()
-        dx = follow_x - px
-        dy = follow_y - py
-        if abs(dx) > 0.001 or abs(dy) > 0.001:
-            facing = Agent.GetRotationAngle(Player.GetAgentID())
-            if ((dx * math.cos(facing)) + (dy * math.sin(facing))) <= 0.0:
-                return BehaviorTree.NodeState.FAILURE
-
     xx = follow_x
     yy = follow_y
     if last_follow_move_point is not None:
@@ -255,7 +243,6 @@ def Follow(cached_data: CacheData) -> BehaviorTree.NodeState:
 
 
     last_follow_move_point = (xx, yy)
-    follow_require_front_after_map_entry = False
     cached_data.follow_throttle_timer.Reset()
     # In combat and out of range: only melee follow should preempt combat.
     if cached_data.data.in_aggro and is_melee:
