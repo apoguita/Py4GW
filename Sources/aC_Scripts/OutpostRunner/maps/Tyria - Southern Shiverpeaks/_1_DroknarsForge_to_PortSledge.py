@@ -1,12 +1,12 @@
 from Py4GWCoreLib.enums import outpost_name_to_id, explorable_name_to_id
 
 # 1) IDs
-_1_droknarsforge_to_icecavesofsorrow_ids = {
+_1_DroknarsForge_to_PortSledge_ids = {
     "outpost_id": 20,
 }
 
 # 2) Outpost exit path
-_1_droknarsforge_to_icecavesofsorrow_outpost_path = [
+_1_DroknarsForge_to_PortSledge_outpost_path = [
     (3003,3940),
     (4992,3001),
     (5558,1588),
@@ -14,7 +14,7 @@ _1_droknarsforge_to_icecavesofsorrow_outpost_path = [
 ]
 
 # 3) Segments
-_1_droknarsforge_to_icecavesofsorrow_segments = [
+_1_DroknarsForge_to_PortSledge_segments = [
     {
         "map_id": 95,
         "path": [

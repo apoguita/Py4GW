@@ -17,18 +17,20 @@ class BotSettings:
     OUTPOST_TO_TRAVEL = 0
     EXPLORABLE_TO_TRAVEL = 0
     TRANSIT_EXPLORABLE = 0
+    TRANSIT_EXPLORABLE2 = 0
     COORD_TO_EXIT_MAP = []
     VANQUISH_PATH = []
     TRANSIT_PATH = [(0,0)]
+    TRANSIT_PATH2 = [(0,0)]
     WIDGETS_TO_ENABLE: tuple[str, ...] = (
         "Titles",
     )
 
 bot = Botting(BotSettings.BOT_NAME,
-              upkeep_armor_of_salvation_restock=3,
-              upkeep_essence_of_celerity_restock=3,
-              upkeep_grail_of_might_restock=3,
-              upkeep_war_supplies_restock=3,
+              upkeep_armor_of_salvation_restock=4,
+              upkeep_essence_of_celerity_restock=4,
+              upkeep_grail_of_might_restock=4,
+              upkeep_war_supplies_restock=4,
               upkeep_honeycomb_restock=20,
               upkeep_auto_loot_active=True,
               upkeep_armor_of_salvation_active=True,
@@ -55,7 +57,13 @@ def bot_routine(bot: Botting) -> None:
 
     # Travel
     bot.States.AddHeader("Travelling to Explorable") # 3
-    if BotSettings.TRANSIT_EXPLORABLE:
+    if BotSettings.TRANSIT_EXPLORABLE2:
+            bot.Move.FollowPathAndExitMap(BotSettings.COORD_TO_EXIT_MAP, target_map_id=BotSettings.TRANSIT_EXPLORABLE)
+            bot.Move.FollowAutoPath(BotSettings.TRANSIT_PATH)
+            bot.Wait.ForMapToChange(BotSettings.TRANSIT_EXPLORABLE2)
+            bot.Move.FollowAutoPath(BotSettings.TRANSIT_PATH2)
+            bot.Wait.ForMapToChange(BotSettings.EXPLORABLE_TO_TRAVEL)
+    elif BotSettings.TRANSIT_EXPLORABLE:
             bot.Move.FollowPathAndExitMap(BotSettings.COORD_TO_EXIT_MAP, target_map_id=BotSettings.TRANSIT_EXPLORABLE)
             bot.Move.FollowAutoPath(BotSettings.TRANSIT_PATH)
             bot.Wait.ForMapToChange(BotSettings.EXPLORABLE_TO_TRAVEL)
@@ -211,8 +219,11 @@ def _draw_settings():
     BotSettings.EXPLORABLE_TO_TRAVEL = ids.get("map_id")
     BotSettings.COORD_TO_EXIT_MAP = getattr(mod, f"{map_selected}_outpost_path", [])
     BotSettings.TRANSIT_EXPLORABLE = ids.get("transit_id")
+    BotSettings.TRANSIT_EXPLORABLE2 = ids.get("transit_id2")
     if getattr(mod, f"{map_selected}_transit_path", []):
         BotSettings.TRANSIT_PATH = getattr(mod, f"{map_selected}_transit_path", [])
+    if getattr(mod, f"{map_selected}_transit_path2", []):
+        BotSettings.TRANSIT_PATH2 = getattr(mod, f"{map_selected}_transit_path2", [])
     
     if prev_map_id != BotSettings.EXPLORABLE_TO_TRAVEL :
         bot.Stop()
@@ -268,10 +279,13 @@ def _draw_settings_debug():
     PyImGui.text(f"BotSettings.COORD_TO_EXIT_MAP: {BotSettings.COORD_TO_EXIT_MAP[-1]}")
     PyImGui.text(f"BotSettings.VANQUISH_PATH: {BotSettings.VANQUISH_PATH[-1]}")
     PyImGui.text(f"BotSettings.TRANSIT_EXPLORABLE: {BotSettings.TRANSIT_EXPLORABLE}")
-    PyImGui.text(f"BotSettings.TRANSIT_PATH: {BotSettings.TRANSIT_PATH[-1]}")    
+    PyImGui.text(f"BotSettings.TRANSIT_PATH: {BotSettings.TRANSIT_PATH[-1]}") 
+    PyImGui.text(f"BotSettings.TRANSIT_EXPLORABLE2: {BotSettings.TRANSIT_EXPLORABLE2}")
+    PyImGui.text(f"BotSettings.TRANSIT_PATH2: {BotSettings.TRANSIT_PATH2[-1]}")     
 
 def _draw_help():
     PyImGui.text("Developed by: Aura")
+    PyImGui.text("Map credits to: aC, Aura, AH and Simfoniya")
              
 def _on_party_wipe(bot: "Botting"):
     while Agent.IsDead(Player.GetAgentID()):
