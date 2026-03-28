@@ -61,7 +61,8 @@ FlameTempleCorridor_transit_path = [
     (17052,14409),
     (19976,15169),
     (21502,16356),
-    (21358,17351),
+    (21419,17256),
+    (21411,17437),
 ]
 
 FlameTempleCorridor_ids = {
