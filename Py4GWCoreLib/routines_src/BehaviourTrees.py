@@ -6,15 +6,18 @@ from ..Map import Map
 from ..Agent import Agent
 from ..Player import Player
 from ..enums_src.Title_enums import TITLE_NAME
+from ..enums_src.Model_enums import ModelID
 from ..UIManager import UIManager
-from ..enums_src.UI_enums import ControlAction
+from ..enums_src.GameData_enums import Range
 
 from Py4GWCoreLib.py4gwcorelib_src.BehaviorTree import BehaviorTree
 from enum import Enum, auto
+from typing import Callable, cast
 
 from .Checks import Checks
 
 import importlib
+import random
 
 class _RProxy:
     def __getattr__(self, name: str):
@@ -26,6 +29,242 @@ Routines = _RProxy()
 
 class BT:
     NodeState = BehaviorTree.NodeState
+    #region composite nodes
+    class Composite:
+        SequenceBuildable = Callable[[], BehaviorTree | BehaviorTree.Node] | BehaviorTree | BehaviorTree.Node
+
+        @staticmethod
+        def _resolve_subtree_factory(subtree_or_builder: "BT.Composite.SequenceBuildable") -> BehaviorTree:
+            subtree = subtree_or_builder() if callable(subtree_or_builder) else subtree_or_builder
+            subtree = cast(BehaviorTree | BehaviorTree.Node, subtree)
+            return BT.Composite._as_tree(subtree)
+
+        @staticmethod
+        def _as_tree(subtree: BehaviorTree | BehaviorTree.Node) -> BehaviorTree:
+            if isinstance(subtree, BehaviorTree):
+                return subtree
+            if isinstance(subtree, BehaviorTree.Node):
+                return BehaviorTree(subtree)
+            raise TypeError("Composite helpers expect a BehaviorTree or BehaviorTree.Node.")
+
+        @staticmethod
+        def Sequence(*subtrees: BehaviorTree | BehaviorTree.Node, name: str = "CompositeSequence") -> BehaviorTree:
+            children = [
+                BehaviorTree.SubtreeNode(
+                    name=f"Step{index + 1}",
+                    subtree_fn=lambda node, subtree=subtree: BT.Composite._as_tree(subtree),
+                )
+                for index, subtree in enumerate(subtrees)
+            ]
+            return BehaviorTree(BehaviorTree.SequenceNode(name=name, children=children))
+
+        @staticmethod
+        def SequenceNames(steps: list[tuple[str, "BT.Composite.SequenceBuildable"]]) -> list[str]:
+            return [step_name for step_name, _ in steps]
+
+        @staticmethod
+        def SequenceFrom(
+            steps: list[tuple[str, "BT.Composite.SequenceBuildable"]],
+            start_from: str | None = None,
+            name: str = "NamedSequence",
+        ) -> BehaviorTree:
+            if not steps:
+                return BehaviorTree(BehaviorTree.SequenceNode(name=name, children=[]))
+
+            start_index = 0
+            if start_from is not None:
+                step_names = BT.Composite.SequenceNames(steps)
+                if start_from not in step_names:
+                    raise ValueError(f"Unknown sequence step '{start_from}'. Valid values: {', '.join(step_names)}")
+                start_index = step_names.index(start_from)
+
+            children = [
+                BehaviorTree.SubtreeNode(
+                    name=step_name,
+                    subtree_fn=lambda node, subtree_or_builder=subtree_or_builder: BT.Composite._resolve_subtree_factory(subtree_or_builder),
+                )
+                for step_name, subtree_or_builder in steps[start_index:]
+            ]
+            return BehaviorTree(BehaviorTree.SequenceNode(name=name, children=children))
+
+        @staticmethod
+        def _MoveAndTarget(move_tree: BehaviorTree, target_tree: BehaviorTree) -> BehaviorTree:
+            return BT.Composite.Sequence(
+                move_tree,
+                target_tree,
+                name="MoveAndTarget",
+            )
+
+        @staticmethod
+        def _TargetAndInteract(target_tree: BehaviorTree, log: bool = False) -> BehaviorTree:
+            return BT.Composite.Sequence(
+                target_tree,
+                BT.Player.InteractTarget(log=log),
+                name="TargetAndInteract",
+            )
+
+        @staticmethod
+        def _MoveTargetAndInteract(move_tree: BehaviorTree, target_tree: BehaviorTree, log: bool = False) -> BehaviorTree:
+            return BT.Composite.Sequence(
+                move_tree,
+                target_tree,
+                BT.Player.InteractTarget(log=log),
+                name="MoveTargetAndInteract",
+            )
+
+        @staticmethod
+        def InteractAndDialog(dialog_id: str | int, log: bool = False) -> BehaviorTree:
+            return BT.Composite.Sequence(
+                BT.Player.InteractTarget(log=log),
+                BT.Player.SendDialog(dialog_id=dialog_id, log=log),
+                name="InteractAndDialog",
+            )
+
+        @staticmethod
+        def InteractAndAutomaticDialog(button_number: int, log: bool = False) -> BehaviorTree:
+            return BT.Composite.Sequence(
+                BT.Player.InteractTarget(log=log),
+                BT.Player.SendAutomaticDialog(button_number=button_number, log=log),
+                name="InteractAndAutomaticDialog",
+            )
+
+        @staticmethod
+        def _TargetInteractAndDialog(target_tree: BehaviorTree, dialog_id: str | int, log: bool = False) -> BehaviorTree:
+            return BT.Composite.Sequence(
+                target_tree,
+                BT.Player.InteractTarget(log=log),
+                BT.Player.SendDialog(dialog_id=dialog_id, log=log),
+                name="TargetInteractAndDialog",
+            )
+
+        @staticmethod
+        def _TargetInteractAndAutomaticDialog(
+            target_tree: BehaviorTree,
+            button_number: int,
+            log: bool = False,
+        ) -> BehaviorTree:
+            return BT.Composite.Sequence(
+                target_tree,
+                BT.Player.InteractTarget(log=log),
+                BT.Player.SendAutomaticDialog(button_number=button_number, log=log),
+                name="TargetInteractAndAutomaticDialog",
+            )
+
+        @staticmethod
+        def _MoveTargetInteractAndDialog(
+            move_tree: BehaviorTree,
+            target_tree: BehaviorTree,
+            dialog_id: str | int,
+            log: bool = False,
+        ) -> BehaviorTree:
+            return BT.Composite.Sequence(
+                move_tree,
+                target_tree,
+                BT.Player.InteractTarget(log=log),
+                BT.Player.SendDialog(dialog_id=dialog_id, log=log),
+                name="MoveTargetInteractAndDialog",
+            )
+
+        @staticmethod
+        def _MoveTargetInteractAndAutomaticDialog(
+            move_tree: BehaviorTree,
+            target_tree: BehaviorTree,
+            button_number: int,
+            log: bool = False,
+        ) -> BehaviorTree:
+            return BT.Composite.Sequence(
+                move_tree,
+                target_tree,
+                BT.Player.InteractTarget(log=log),
+                BT.Player.SendAutomaticDialog(button_number=button_number, log=log),
+                name="MoveTargetInteractAndAutomaticDialog",
+            )
+
+        @staticmethod
+        def MoveAndTarget(
+            x: float,
+            y: float,
+            target_distance: float = Range.Adjacent.value,
+            log: bool = False,
+        ) -> BehaviorTree:
+            return BT.Composite._MoveAndTarget(
+                move_tree=BT.Player.Move(x=x, y=y, log=log),
+                target_tree=BT.Agents.TargetNearestNPC(distance=target_distance, log=log),
+            )
+
+        @staticmethod
+        def TargetAndInteract(target_distance: float = 4500.0, log: bool = False) -> BehaviorTree:
+            return BT.Composite._TargetAndInteract(
+                target_tree=BT.Agents.TargetNearestNPC(distance=target_distance, log=log),
+                log=log,
+            )
+
+        @staticmethod
+        def MoveTargetAndInteract(
+            x: float,
+            y: float,
+            target_distance: float = Range.Adjacent.value,
+            log: bool = False,
+        ) -> BehaviorTree:
+            return BT.Composite._MoveTargetAndInteract(
+                move_tree=BT.Player.Move(x=x, y=y, log=log),
+                target_tree=BT.Agents.TargetNearestNPC(distance=target_distance, log=log),
+                log=log,
+            )
+
+        @staticmethod
+        def TargetInteractAndDialog(
+            target_distance: float = Range.Adjacent.value,
+            dialog_id: str | int = 0,
+            log: bool = False,
+        ) -> BehaviorTree:
+            return BT.Composite._TargetInteractAndDialog(
+                target_tree=BT.Agents.TargetNearestNPC(distance=target_distance, log=log),
+                dialog_id=dialog_id,
+                log=log,
+            )
+
+        @staticmethod
+        def TargetInteractAndAutomaticDialog(
+            target_distance: float = Range.Adjacent.value,
+            button_number: int = 0,
+            log: bool = False,
+        ) -> BehaviorTree:
+            return BT.Composite._TargetInteractAndAutomaticDialog(
+                target_tree=BT.Agents.TargetNearestNPC(distance=target_distance, log=log),
+                button_number=button_number,
+                log=log,
+            )
+
+        @staticmethod
+        def MoveTargetInteractAndDialog(
+            x: float,
+            y: float,
+            target_distance: float = Range.Adjacent.value,
+            dialog_id: str | int = 0,
+            log: bool = False,
+        ) -> BehaviorTree:
+            return BT.Composite._MoveTargetInteractAndDialog(
+                move_tree=BT.Player.Move(x=x, y=y, log=log),
+                target_tree=BT.Agents.TargetNearestNPC(distance=target_distance, log=log),
+                dialog_id=dialog_id,
+                log=log,
+            )
+
+        @staticmethod
+        def MoveTargetInteractAndAutomaticDialog(
+            x: float,
+            y: float,
+            target_distance: float = Range.Adjacent.value,
+            button_number: int = 0,
+            log: bool = False,
+        ) -> BehaviorTree:
+            return BT.Composite._MoveTargetInteractAndAutomaticDialog(
+                move_tree=BT.Player.Move(x=x, y=y, log=log),
+                target_tree=BT.Agents.TargetNearestNPC(distance=target_distance, log=log),
+                button_number=button_number,
+                log=log,
+            )
 
     #region Player
     class Player:
@@ -42,7 +281,7 @@ class BT:
                 ConsoleLog("InteractAgent", f"Interacted with agent {agent_id}.", Console.MessageType.Info, log=log)
                 return BehaviorTree.NodeState.SUCCESS
             
-            tree = BehaviorTree.ActionNode(name="InteractAgent", action_fn=lambda: _interact_agent(agent_id), aftercast_ms=100)
+            tree = BehaviorTree.ActionNode(name="InteractAgent", action_fn=lambda: _interact_agent(agent_id), aftercast_ms=250)
             return BehaviorTree(tree)
             
         @staticmethod
@@ -115,6 +354,32 @@ class BT:
                 return BehaviorTree.NodeState.SUCCESS
             
             tree = BehaviorTree.ActionNode(name="SendDialog", action_fn=lambda: _send_dialog(dialog_id), aftercast_ms=300)
+            return BehaviorTree(tree)
+
+        @staticmethod
+        def SendAutomaticDialog(button_number: int, log: bool = False):
+            """
+            Purpose: Send the currently visible automatic dialog choice by button index.
+            Args:
+                button_number (int): Visible button index starting at 0.
+                log (bool) Optional: Whether to log the action. Default is False.
+            Returns: None
+            """
+            def _send_automatic_dialog(button_number: int):
+                Player.SendAutomaticDialog(button_number)
+                ConsoleLog(
+                    "SendAutomaticDialog",
+                    f"Sent automatic dialog button {button_number}.",
+                    Console.MessageType.Info,
+                    log=log,
+                )
+                return BehaviorTree.NodeState.SUCCESS
+
+            tree = BehaviorTree.ActionNode(
+                name="SendAutomaticDialog",
+                action_fn=lambda: _send_automatic_dialog(button_number),
+                aftercast_ms=300,
+            )
             return BehaviorTree(tree)
         
         @staticmethod   
@@ -243,44 +508,455 @@ class BT:
             
             tree = BehaviorTree.ActionNode(name="PrintMessageToConsole", action_fn=lambda: _print_message_to_console(source, message, message_type), aftercast_ms=100)
             return BehaviorTree(tree)
+        
+        @staticmethod
+        def Wait(duration_ms: int, log: bool = False):
+            """
+            Purpose: Wait for a specified duration.
+            Args:
+                duration_ms (int): The duration to wait in milliseconds.
+                log (bool) Optional: Whether to log the action. Default is False.
+            Returns: A BehaviorTree subtree.
+            """
+            def _wait_started():
+                ConsoleLog("Wait", f"Waiting for {duration_ms}ms.", Console.MessageType.Info, log=log)
+                return BehaviorTree.NodeState.SUCCESS
 
+            tree = BehaviorTree(
+                BehaviorTree.SequenceNode(
+                    name="Wait",
+                    children=[
+                        BehaviorTree.ConditionNode(name="WaitStarted", condition_fn=_wait_started),
+                        BehaviorTree.WaitForTimeNode(name="WaitForTime", duration_ms=duration_ms),
+                    ],
+                )
+            )
+            return tree
+
+        #region Move
         @staticmethod
-        def Move(x:float, y:float, log=False):
+        def Move(
+            x: float,
+            y: float,
+            tolerance: float = 50.0,
+            timeout_ms: int = 5000,
+            stall_threshold_ms: int = 500,
+            pause_on_combat: bool = True,
+            pause_flag_key: str = "PAUSE_MOVEMENT",
+            log: bool = False,
+        ):
             """
-            Purpose: Move the player to the specified coordinates.
+            Purpose: Move the player to the specified coordinates using autopathing.
             Args:
                 x (float): The x coordinate.
                 y (float): The y coordinate.
+                tolerance (float): Arrival tolerance for each waypoint. Default is 50.0.
+                timeout_ms (int): Timeout budget for the current waypoint.
+                stall_threshold_ms (int): Time without progress before nudging again.
+                pause_on_combat (bool): Pause while combat is active on the blackboard.
+                pause_flag_key (str): Blackboard key used for external movement pauses.
                 log (bool) Optional: Whether to log the action. Default is False.
-            Returns: None
+            Returns: A BehaviorTree subtree.
             """
-            def _move(x:float, y:float):
-                Player.Move(x, y)
-                ConsoleLog("Move", f"Moving to ({x}, {y}).", Console.MessageType.Info, log=log)
-                return BehaviorTree.NodeState.SUCCESS
-            
-            tree = BehaviorTree.ActionNode(name="Move", action_fn=lambda: _move(x, y), aftercast_ms=100)
+            state = {
+                "path_gen": None,
+                "path_points": None,
+                "path_index": 0,
+                "last_distance": None,
+                "last_progress_ms": None,
+                "move_issued": False,
+                "completed": False,
+                "result_state": "",
+                "result_reason": "",
+                "initial_map_id": None,
+                "last_move_point": None,
+                "pause_logged": False,
+                "was_paused": False,
+                "resume_recovery_active": False,
+                "last_logged_waypoint_index": -1,
+            }
+
+            def _reset_runtime():
+                state["path_gen"] = None
+                state["path_points"] = None
+                state["path_index"] = 0
+                state["last_distance"] = None
+                state["last_progress_ms"] = None
+                state["move_issued"] = False
+                state["initial_map_id"] = None
+                state["last_move_point"] = None
+                state["pause_logged"] = False
+                state["was_paused"] = False
+                state["resume_recovery_active"] = False
+                state["last_logged_waypoint_index"] = -1
+
+            def _reset_result():
+                state["completed"] = False
+                state["result_state"] = ""
+                state["result_reason"] = ""
+
+            def _set_blackboard(node: BehaviorTree.Node, move_state: str, reason: str = ""):
+                path_points = [
+                    (float(path_x), float(path_y))
+                    for path_x, path_y in (state["path_points"] or [])
+                ]
+                current_waypoint = None
+                current_waypoint_index = -1
+                if state["path_points"] is not None and 0 <= state["path_index"] < len(state["path_points"]):
+                    waypoint_x, waypoint_y = state["path_points"][state["path_index"]]
+                    current_waypoint = (float(waypoint_x), float(waypoint_y))
+                    current_waypoint_index = int(state["path_index"])
+
+                node.blackboard["move_state"] = move_state
+                node.blackboard["move_reason"] = reason
+                node.blackboard["move_target"] = (x, y)
+                total_points = len(path_points)
+                node.blackboard["move_path_index"] = int(state["path_index"])
+                node.blackboard["move_path_count"] = int(total_points)
+                node.blackboard["move_path_points"] = path_points
+                node.blackboard["move_current_waypoint"] = current_waypoint
+                node.blackboard["move_current_waypoint_index"] = current_waypoint_index
+                node.blackboard["move_last_move_point"] = state["last_move_point"]
+                node.blackboard["move_resume_recovery_active"] = bool(state["resume_recovery_active"])
+
+            def _debug_enabled(node: BehaviorTree.Node) -> bool:
+                return log or (bool(node.blackboard.get("MOVE_DEBUG", False)) if node is not None else False)
+
+            def _finalize_move(node: BehaviorTree.Node, move_state: str, reason: str = ""):
+                state["completed"] = True
+                state["result_state"] = move_state
+                state["result_reason"] = reason
+                if move_state == "failed":
+                    ConsoleLog(
+                        "Move",
+                        f"Movement failed: reason={reason or 'unknown'}, target=({x}, {y}), path_index={state['path_index']}.",
+                        Console.MessageType.Warning,
+                        log=True,
+                    )
+                elif _debug_enabled(node):
+                    ConsoleLog(
+                        "Move",
+                        f"Finalizing move with state={move_state}, reason={reason or 'none'}, path_index={state['path_index']}.",
+                        Console.MessageType.Info if move_state == "finished" else Console.MessageType.Warning,
+                        log=True,
+                    )
+                _set_blackboard(node, move_state, reason)
+                _reset_runtime()
+
+            def _get_pause_reason(node: BehaviorTree.Node) -> str:
+                if pause_on_combat and bool(node.blackboard.get("COMBAT_ACTIVE", False)):
+                    return "combat"
+                if bool(node.blackboard.get(pause_flag_key, False)):
+                    return "external_pause"
+                if Checks.Player.IsCasting():
+                    return "casting"
+                return ""
+
+            def _issue_move(target_x: float, target_y: float):
+                move_x = target_x
+                move_y = target_y
+                last_move_point = state["last_move_point"]
+                if last_move_point is not None:
+                    last_x, last_y = last_move_point
+                    if abs(move_x - last_x) <= 10 and abs(move_y - last_y) <= 10:
+                        move_x += random.uniform(-5.0, 5.0)
+                        move_y += random.uniform(-5.0, 5.0)
+                Player.Move(move_x, move_y)
+                state["last_move_point"] = (move_x, move_y)
+                if log:
+                    if move_x != target_x or move_y != target_y:
+                        ConsoleLog(
+                            "Move",
+                            f"Moving to waypoint ({target_x}, {target_y}) with jittered point ({move_x}, {move_y}).",
+                            Console.MessageType.Info,
+                            log=log,
+                        )
+                    else:
+                        ConsoleLog("Move", f"Moving to waypoint ({target_x}, {target_y}).", Console.MessageType.Info, log=log)
+
+            def _move(node: BehaviorTree.Node):
+                from ..Pathing import AutoPathing
+                from ..Py4GWcorelib import Utils
+
+                now = Utils.GetBaseTimestamp()
+                if state["completed"] and state["result_state"] == "finished":
+                    if log:
+                        ConsoleLog("Move", f"Movement already finished ({state['result_reason']}).", Console.MessageType.Info, log=log)
+                    return BehaviorTree.NodeState.SUCCESS
+
+                if state["completed"] and state["result_state"] == "failed":
+                    if log:
+                        ConsoleLog("Move", f"Movement already failed ({state['result_reason']}).", Console.MessageType.Warning, log=log)
+                    return BehaviorTree.NodeState.FAILURE
+
+                if state["path_gen"] is None and state["path_points"] is None:
+                    _reset_result()
+                    state["initial_map_id"] = Map.GetMapID()
+                    state["path_gen"] = AutoPathing().get_path_to(x, y)
+                    if _debug_enabled(node):
+                        ConsoleLog("Move", f"Starting autopath to ({x}, {y}).", Console.MessageType.Info, log=True)
+                    _set_blackboard(node, "running")
+
+                if state["path_gen"] is not None:
+                    try:
+                        next(state["path_gen"])
+                        _set_blackboard(node, "running")
+                        return BehaviorTree.NodeState.RUNNING
+                    except StopIteration as path_result:
+                        state["path_points"] = list(path_result.value or [])
+                        state["path_gen"] = None
+                        state["path_index"] = 0
+                        state["move_issued"] = False
+                        state["last_distance"] = None
+                        state["last_progress_ms"] = now
+                        state["pause_logged"] = False
+                        state["last_logged_waypoint_index"] = -1
+
+                        if _debug_enabled(node):
+                            ConsoleLog(
+                                "Move",
+                                f"Autopath resolved with {len(state['path_points'])} points to ({x}, {y}).",
+                                Console.MessageType.Info,
+                                log=True,
+                            )
+
+                        current_pos = Player.GetXY()
+                        if Utils.Distance(current_pos, (x, y)) <= tolerance:
+                            if _debug_enabled(node):
+                                ConsoleLog("Move", "Already within tolerance of destination.", Console.MessageType.Success, log=True)
+                            _finalize_move(node, "finished")
+                            return BehaviorTree.NodeState.SUCCESS
+
+                        if len(state["path_points"]) == 0:
+                            if _debug_enabled(node):
+                                ConsoleLog("Move", "Autopath returned no path points; failing because there is no path to follow.", Console.MessageType.Warning, log=True)
+                            _finalize_move(node, "failed", "autopath_failed")
+                            return BehaviorTree.NodeState.FAILURE
+
+                if Checks.Player.IsDead():
+                    if log:
+                        ConsoleLog("Move", "Player is dead; movement remains active and waiting.", Console.MessageType.Warning, log=log)
+                    state["last_progress_ms"] = now
+                    state["was_paused"] = True
+                    _set_blackboard(node, "paused", "player_dead")
+                    return BehaviorTree.NodeState.RUNNING
+
+                pause_reason = _get_pause_reason(node)
+                if pause_reason:
+                    if not state["pause_logged"] and log:
+                            ConsoleLog("Move", f"Movement paused due to {pause_reason}.", Console.MessageType.Info, log=log)
+                    state["pause_logged"] = True
+                    state["was_paused"] = True
+                    state["last_progress_ms"] = now
+                    _set_blackboard(node, "paused", pause_reason)
+                    return BehaviorTree.NodeState.RUNNING
+                elif state["pause_logged"]:
+                    if log:
+                        ConsoleLog("Move", "Movement resumed.", Console.MessageType.Info, log=log)
+                    state["pause_logged"] = False
+                if state["was_paused"]:
+                    state["was_paused"] = False
+                    state["resume_recovery_active"] = True
+
+                if state["path_points"] is None or state["path_index"] >= len(state["path_points"]):
+                    if log:
+                        ConsoleLog("Move", "Movement finished with no remaining path points.", Console.MessageType.Success, log=log)
+                    _finalize_move(node, "finished")
+                    return BehaviorTree.NodeState.SUCCESS
+
+                target_x, target_y = state["path_points"][state["path_index"]]
+                if state["last_logged_waypoint_index"] != state["path_index"] and log:
+                    ConsoleLog(
+                        "Move",
+                        f"Tracking waypoint {state['path_index'] + 1}/{len(state['path_points'])} at ({target_x}, {target_y}).",
+                        Console.MessageType.Info,
+                        log=log,
+                    )
+                    state["last_logged_waypoint_index"] = state["path_index"]
+                current_pos = Player.GetXY()
+                current_distance = Utils.Distance(current_pos, (target_x, target_y))
+
+                if current_distance <= tolerance:
+                    state["path_index"] += 1
+                    state["move_issued"] = False
+                    state["last_distance"] = None
+                    state["last_progress_ms"] = now
+                    state["resume_recovery_active"] = False
+                    if log:
+                        ConsoleLog("Move", f"Reached waypoint, advancing to index {state['path_index']}.", Console.MessageType.Info, log=log)
+
+                    if state["path_index"] >= len(state["path_points"]):
+                        if log:
+                            ConsoleLog("Move", "Reached final destination.", Console.MessageType.Success, log=log)
+                        _finalize_move(node, "finished")
+                        return BehaviorTree.NodeState.SUCCESS
+
+                    target_x, target_y = state["path_points"][state["path_index"]]
+                    _issue_move(target_x, target_y)
+                    state["move_issued"] = True
+                    state["last_distance"] = Utils.Distance(Player.GetXY(), (target_x, target_y))
+                    state["last_progress_ms"] = now
+                    _set_blackboard(node, "running")
+                    return BehaviorTree.NodeState.RUNNING
+
+                if not state["move_issued"]:
+                    _issue_move(target_x, target_y)
+                    state["move_issued"] = True
+                    state["last_distance"] = current_distance
+                    state["last_progress_ms"] = now
+                    _set_blackboard(node, "running")
+                    return BehaviorTree.NodeState.RUNNING
+
+                if state["last_distance"] is None or current_distance < state["last_distance"] - 1.0:
+                    state["last_distance"] = current_distance
+                    state["last_progress_ms"] = now
+                elif state["last_progress_ms"] is not None and now - state["last_progress_ms"] >= stall_threshold_ms:
+                    if log:
+                        ConsoleLog(
+                            "Move",
+                            f"No progress for {stall_threshold_ms}ms, nudging waypoint ({target_x}, {target_y}).",
+                            Console.MessageType.Warning,
+                            log=log,
+                        )
+                    _issue_move(target_x, target_y)
+                    state["last_progress_ms"] = now
+                    state["last_distance"] = current_distance
+
+                _set_blackboard(node, "running")
+                return BehaviorTree.NodeState.RUNNING
+
+            timeout_state = {
+                "started_ms": None,
+                "waypoint_index": None,
+                "paused_since_ms": None,
+                "paused_total_ms": 0,
+            }
+
+            def _reset_timeout():
+                timeout_state["started_ms"] = None
+                timeout_state["waypoint_index"] = None
+                timeout_state["paused_since_ms"] = None
+                timeout_state["paused_total_ms"] = 0
+
+            def _timeout(node: BehaviorTree.Node):
+                from ..Py4GWcorelib import Utils
+
+                is_paused = bool(_get_pause_reason(node))
+                if state["completed"] and state["result_state"] == "finished":
+                    if log:
+                        ConsoleLog("Move", f"Timeout watcher finished because movement succeeded ({state['result_reason']}).", Console.MessageType.Info, log=log)
+                    _reset_timeout()
+                    return BehaviorTree.NodeState.SUCCESS
+
+                if state["completed"] and state["result_state"] == "failed":
+                    if log:
+                        ConsoleLog("Move", f"Timeout watcher finished because movement failed: {state['result_reason']}.", Console.MessageType.Info, log=log)
+                    _reset_timeout()
+                    return BehaviorTree.NodeState.SUCCESS
+
+                now = Utils.GetBaseTimestamp()
+
+                if is_paused:
+                    if timeout_state["paused_since_ms"] is None:
+                        timeout_state["paused_since_ms"] = now
+                    return BehaviorTree.NodeState.RUNNING
+
+                if state["path_points"] is None or state["path_index"] >= len(state["path_points"]):
+                    return BehaviorTree.NodeState.RUNNING
+
+                if timeout_state["waypoint_index"] != state["path_index"]:
+                    timeout_state["started_ms"] = now
+                    timeout_state["waypoint_index"] = state["path_index"]
+                    timeout_state["paused_since_ms"] = None
+                    timeout_state["paused_total_ms"] = 0
+                    return BehaviorTree.NodeState.RUNNING
+
+                if timeout_state["started_ms"] is None:
+                    timeout_state["started_ms"] = now
+                    timeout_state["waypoint_index"] = state["path_index"]
+                    return BehaviorTree.NodeState.RUNNING
+
+                if timeout_state["paused_since_ms"] is not None:
+                    timeout_state["started_ms"] = now
+                    timeout_state["paused_since_ms"] = None
+                    timeout_state["paused_total_ms"] = 0
+                    return BehaviorTree.NodeState.RUNNING
+
+                elapsed_ms = now - timeout_state["started_ms"] - timeout_state["paused_total_ms"]
+                effective_timeout_ms = timeout_ms * 3 if state["resume_recovery_active"] else timeout_ms
+                if effective_timeout_ms > 0 and elapsed_ms >= effective_timeout_ms:
+                    if log:
+                        ConsoleLog(
+                            "Move",
+                            f"Movement timed out after {elapsed_ms}ms on path_index={state['path_index']}.",
+                            Console.MessageType.Warning,
+                            log=log,
+                        )
+                    _finalize_move(node, "failed", "timeout")
+                    _reset_timeout()
+                    return BehaviorTree.NodeState.FAILURE
+
+                return BehaviorTree.NodeState.RUNNING
+
+            def _map_transition(node: BehaviorTree.Node):
+                if state["completed"] and state["result_state"] == "finished":
+                    return BehaviorTree.NodeState.SUCCESS
+
+                if state["completed"] and state["result_state"] == "failed":
+                    return BehaviorTree.NodeState.SUCCESS
+
+                current_map_id = Map.GetMapID()
+                initial_map_id = int(state["initial_map_id"] or 0)
+                map_loading = Map.IsMapLoading()
+                map_changed = (
+                    initial_map_id != 0
+                    and current_map_id != 0
+                    and current_map_id != initial_map_id
+                )
+
+                if map_loading or map_changed:
+                    reason = "map_loading" if map_loading else "map_changed"
+                    if _debug_enabled(node):
+                        ConsoleLog(
+                            "Move",
+                            f"Movement finished successfully due to {reason}.",
+                            Console.MessageType.Info,
+                            log=True,
+                        )
+                    _finalize_move(node, "finished", reason)
+                    return BehaviorTree.NodeState.SUCCESS
+
+                if not Checks.Map.MapValid():
+                    if _debug_enabled(node):
+                        ConsoleLog(
+                            "Move",
+                            "Map is temporarily invalid during movement; waiting without finalizing move.",
+                            Console.MessageType.Info,
+                            log=True,
+                        )
+                    return BehaviorTree.NodeState.RUNNING
+
+                return BehaviorTree.NodeState.RUNNING
+
+            move_node = BehaviorTree.ConditionNode(
+                name="MoveExecutor",
+                condition_fn=lambda node: _move(node),
+            )
+            timeout_node = BehaviorTree.ConditionNode(
+                name="MoveTimeout",
+                condition_fn=lambda node: _timeout(node),
+            )
+            map_transition_node = BehaviorTree.ConditionNode(
+                name="MoveMapTransition",
+                condition_fn=lambda node: _map_transition(node),
+            )
+            tree = BehaviorTree.ParallelNode(
+                name="Move",
+                children=[move_node, timeout_node, map_transition_node],
+            )
             return BehaviorTree(tree)
         
-        @staticmethod
-        def MoveXYZ(x:float, y:float, zplane:float, log=False):
-            """
-            Purpose: Move the player to the specified coordinates with z-plane.
-            Args:
-                x (float): The x coordinate.
-                y (float): The y coordinate.
-                zplane (float): The z-plane coordinate.
-                log (bool) Optional: Whether to log the action. Default is False.
-            Returns: None
-            """
-            def _move_xyz(x:float, y:float, zplane:float):
-                Player.Move(x, y, int(zplane))
-                ConsoleLog("MoveXYZ", f"Moving to ({x}, {y}, {zplane}).", Console.MessageType.Info, log=log)
-                return BehaviorTree.NodeState.SUCCESS
-            
-            tree = BehaviorTree.ActionNode(name="MoveXYZ", action_fn=lambda: _move_xyz(x, y, zplane), aftercast_ms=100)
-            return BehaviorTree(tree)
-        
+
     #region Skills
     class Skills:
         @staticmethod
@@ -573,6 +1249,161 @@ class BT:
             return tree
 
     class Items:
+        BONUS_ITEM_MODELS = [
+            ModelID.Bonus_Luminescent_Scepter.value,
+            ModelID.Bonus_Nevermore_Flatbow.value,
+            ModelID.Bonus_Rhinos_Charge.value,
+            ModelID.Bonus_Serrated_Shield.value,
+            ModelID.Bonus_Soul_Shrieker.value,
+            ModelID.Bonus_Tigers_Roar.value,
+            ModelID.Bonus_Wolfs_Favor.value,
+            ModelID.Igneous_Summoning_Stone.value,
+        ]
+
+        @staticmethod
+        def SpawnBonusItems(log: bool = False, aftercast_ms: int = 500) -> BehaviorTree:
+            def _spawn_bonus_items():
+                Player.SendChatCommand("bonus")
+                ConsoleLog("SpawnBonusItems", "Sent /bonus command.", Console.MessageType.Info, log=log)
+                return BehaviorTree.NodeState.SUCCESS
+
+            tree = BehaviorTree.ActionNode(
+                name="SpawnBonusItems",
+                action_fn=_spawn_bonus_items,
+                aftercast_ms=aftercast_ms,
+            )
+            return BehaviorTree(tree)
+
+        @staticmethod
+        def DestroyItem(
+            model_id: int,
+            log: bool = False,
+            required: bool = False,
+            aftercast_ms: int = 600,
+        ) -> BehaviorTree:
+            def _destroy_item():
+                item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(model_id)
+                if item_id == 0:
+                    ConsoleLog(
+                        "DestroyItem",
+                        f"Item model {model_id} was not found in inventory for destruction.",
+                        Console.MessageType.Warning if required else Console.MessageType.Info,
+                        log=True,
+                    )
+                    if required:
+                        ConsoleLog(
+                            "DestroyItem",
+                            f"Item model {model_id} was not found for destruction.",
+                            Console.MessageType.Warning,
+                            log=True if required else log,
+                        )
+                        return BehaviorTree.NodeState.FAILURE
+                    return BehaviorTree.NodeState.SUCCESS
+
+                GLOBAL_CACHE.Inventory.DestroyItem(item_id)
+                ConsoleLog(
+                    "DestroyItem",
+                    f"Queued destroy for item model {model_id} (item_id={item_id}).",
+                    Console.MessageType.Info,
+                    log=log,
+                )
+                return BehaviorTree.NodeState.SUCCESS
+
+            tree = BehaviorTree.ActionNode(
+                name="DestroyItem",
+                action_fn=_destroy_item,
+                aftercast_ms=aftercast_ms,
+            )
+            return BehaviorTree(tree)
+
+        @staticmethod
+        def DestroyBonusItems(
+            exclude_list: list[int] | None = None,
+            log: bool = False,
+            aftercast_ms: int = 100,
+        ) -> BehaviorTree:
+            excluded_models = set(exclude_list or [
+                ModelID.Igneous_Summoning_Stone.value,
+            ])
+            bonus_models_to_destroy = [
+                model_id
+                for model_id in BT.Items.BONUS_ITEM_MODELS
+                if model_id not in excluded_models
+            ]
+
+            return BT.Composite.Sequence(
+                BT.Player.PrintMessageToConsole(
+                    source="DestroyBonusItems",
+                    message=f"Destroy pass starting for models: {bonus_models_to_destroy}",
+                ),
+                *[
+                    BT.Items.DestroyItem(model_id=model_id, log=log, required=False, aftercast_ms=aftercast_ms)
+                    for model_id in bonus_models_to_destroy
+                ],
+                name="DestroyBonusItems",
+            )
+
+        @staticmethod
+        def WaitForAnyModelInInventory(
+            model_ids: list[int],
+            timeout_ms: int = 5000,
+            throttle_interval_ms: int = 100,
+            log: bool = False,
+        ) -> BehaviorTree:
+            def _wait_for_any_model() -> BehaviorTree.NodeState:
+                for model_id in model_ids:
+                    item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(model_id)
+                    if item_id != 0:
+                        ConsoleLog("WaitForAnyModelInInventory", f"Detected inventory model {model_id} as item_id={item_id}.", Console.MessageType.Info, log=log)
+                        return BehaviorTree.NodeState.SUCCESS
+                return BehaviorTree.NodeState.RUNNING
+
+            return BehaviorTree(
+                BehaviorTree.WaitUntilNode(
+                    name="WaitForAnyModelInInventory",
+                    condition_fn=_wait_for_any_model,
+                    throttle_interval_ms=throttle_interval_ms,
+                    timeout_ms=timeout_ms,
+                )
+            )
+
+        @staticmethod
+        def MoveModelToBagSlot(
+            model_id: int,
+            target_bag: int = 1,
+            slot: int = 0,
+            log: bool = False,
+            required: bool = True,
+            aftercast_ms: int = 250,
+        ) -> BehaviorTree:
+            def _move_model_to_bag_slot():
+                moved = GLOBAL_CACHE.Inventory.MoveModelToBagSlot(model_id, target_bag, slot)
+                if not moved:
+                    if required:
+                        ConsoleLog(
+                            "MoveModelToBagSlot",
+                            f"Failed to move model {model_id} to bag {target_bag} slot {slot}.",
+                            Console.MessageType.Warning,
+                            log=True if required else log,
+                        )
+                        return BehaviorTree.NodeState.FAILURE
+                    return BehaviorTree.NodeState.SUCCESS
+
+                ConsoleLog(
+                    "MoveModelToBagSlot",
+                    f"Moved model {model_id} to bag {target_bag} slot {slot}.",
+                    Console.MessageType.Info,
+                    log=log,
+                )
+                return BehaviorTree.NodeState.SUCCESS
+
+            tree = BehaviorTree.ActionNode(
+                name="MoveModelToBagSlot",
+                action_fn=_move_model_to_bag_slot,
+                aftercast_ms=aftercast_ms,
+            )
+            return BehaviorTree(tree)
+
         @staticmethod
         def GetItemNameByItemID(item_id: int) -> BehaviorTree:
             def _request_item_name(node):
@@ -618,38 +1449,222 @@ class BT:
             )
             return BehaviorTree(tree)
 
+        @staticmethod
+        def SpawnImp(
+            target_bag: int = 1,
+            slot: int = 0,
+            exclude_list: list[int] | None = None,
+            log: bool = False,
+            spawn_settle_ms: int = 250,
+        ) -> BehaviorTree:
+            imp_model_id = ModelID.Igneous_Summoning_Stone.value
+            effective_exclude_list = list(exclude_list or [
+                imp_model_id,
+            ])
+
+            if imp_model_id not in effective_exclude_list:
+                effective_exclude_list.append(imp_model_id)
+
+            return BT.Composite.Sequence(
+                BT.Items.SpawnBonusItems(log=log, aftercast_ms=spawn_settle_ms),
+                BT.Items.DestroyBonusItems(exclude_list=effective_exclude_list, log=log),
+                BT.Items.MoveModelToBagSlot(
+                    model_id=imp_model_id,
+                    target_bag=target_bag,
+                    slot=slot,
+                    log=log,
+                    required=True,
+                    aftercast_ms=spawn_settle_ms,
+                ),
+                name="SpawnImp",
+            )
+
+        @staticmethod
+        def OutpostImpService(
+            target_bag: int = 1,
+            slot: int = 0,
+            exclude_list: list[int] | None = None,
+            log: bool = False,
+        ) -> BehaviorTree:
+            state = {
+                "last_ready_map_id": 0,
+                "map_processed": False,
+                "spawn_tree": None,
+                "last_stage_log": "",
+            }
+
+            imp_model_id = ModelID.Igneous_Summoning_Stone.value
+            effective_exclude_list = list(exclude_list or [
+                imp_model_id,
+            ])
+            
+
+            def _reset_cache_data():
+                state["last_ready_map_id"] = 0
+                state["map_processed"] = False
+                state["last_stage_log"] = ""
+                if state["spawn_tree"] is not None:
+                    state["spawn_tree"].reset()
+                    state["spawn_tree"] = None
+
+
+            def _tick_outpost_imp_service(node: BehaviorTree.Node):
+                if Map.IsMapLoading() or not Checks.Map.MapValid() or not Map.IsMapReady():
+                    _reset_cache_data()
+                    return BehaviorTree.NodeState.RUNNING
+
+                current_map_id = Map.GetMapID()
+                if current_map_id == 0:
+                    return BehaviorTree.NodeState.RUNNING
+
+                if state["last_ready_map_id"] != current_map_id:
+                    state["last_ready_map_id"] = current_map_id
+                    state["map_processed"] = False
+                    if state["spawn_tree"] is not None:
+                        state["spawn_tree"].reset()
+                        state["spawn_tree"] = None
+
+                if not Map.IsOutpost():
+                    return BehaviorTree.NodeState.RUNNING
+
+                if state["map_processed"]:
+                    return BehaviorTree.NodeState.RUNNING
+
+                if state["spawn_tree"] is None:
+                    if GLOBAL_CACHE.Inventory.GetFirstModelID(imp_model_id) != 0:
+                        state["map_processed"] = True
+                        if log:
+                            ConsoleLog(
+                                "OutpostImpService",
+                                f"Imp model {imp_model_id} already present in bags for map {current_map_id}.",
+                                Console.MessageType.Info,
+                                log=log,
+                            )
+                        return BehaviorTree.NodeState.RUNNING
+
+                    state["spawn_tree"] = BT.Items.SpawnImp(
+                        target_bag=target_bag,
+                        slot=slot,
+                        exclude_list=effective_exclude_list,
+                        log=log,
+                    )
+
+                state["spawn_tree"].blackboard = node.blackboard
+                spawn_result = BehaviorTree.Node._normalize_state(state["spawn_tree"].tick())
+                if spawn_result is None:
+                    raise TypeError("OutpostImpService spawn tree returned a non-NodeState result.")
+
+                if spawn_result == BehaviorTree.NodeState.SUCCESS:
+                    if log:
+                        ConsoleLog(
+                            "OutpostImpService",
+                            f"Prepared imp model {imp_model_id} in outpost map {current_map_id}.",
+                            Console.MessageType.Success,
+                            log=log,
+                        )
+                    state["map_processed"] = True
+                    state["spawn_tree"].reset()
+                    state["spawn_tree"] = None
+                elif spawn_result == BehaviorTree.NodeState.FAILURE:
+                    ConsoleLog(
+                        "OutpostImpService",
+                        f"Failed to prepare imp model {imp_model_id} in outpost map {current_map_id}; idling until next map change.",
+                        Console.MessageType.Warning,
+                        log=True,
+                    )
+                    state["map_processed"] = True
+                    state["spawn_tree"].reset()
+                    state["spawn_tree"] = None
+
+                return BehaviorTree.NodeState.RUNNING
+
+            return BehaviorTree(
+                BehaviorTree.ConditionNode(
+                    name="OutpostImpService",
+                    condition_fn=_tick_outpost_imp_service,
+                )
+            )
+
+        @staticmethod
+        def ExplorableImpService(
+            imp_model_id: int = ModelID.Igneous_Summoning_Stone.value,
+            log: bool = False,
+            check_interval_ms: int = 1000,
+        ) -> BehaviorTree:
+            state = {
+                "last_attempt_ms": 0,
+            }
+
+            summoning_sickness_effect_id = 2886
+            summon_creature_model_ids = {
+                513,   # Fire Imp
+                1726,  # Fire Imp variant
+            }
+
+            def _has_alive_imp() -> bool:
+                for other in GLOBAL_CACHE.Party.GetOthers():
+                    if Agent.GetModelID(other) in summon_creature_model_ids and not Agent.IsDead(other):
+                        return True
+                return False
+
+            def _tick_explorable_imp_service(node: BehaviorTree.Node):
+                if Map.IsMapLoading() or not Checks.Map.MapValid() or not Map.IsMapReady():
+                    return BehaviorTree.NodeState.RUNNING
+
+                if not Map.IsExplorable():
+                    return BehaviorTree.NodeState.RUNNING
+
+                if Agent.IsDead(Player.GetAgentID()):
+                    return BehaviorTree.NodeState.RUNNING
+
+                if Player.GetLevel() >= 20:
+                    return BehaviorTree.NodeState.RUNNING
+
+                if GLOBAL_CACHE.Inventory.GetFirstModelID(imp_model_id) == 0:
+                    return BehaviorTree.NodeState.RUNNING
+
+                if GLOBAL_CACHE.Effects.HasEffect(Player.GetAgentID(), summoning_sickness_effect_id):
+                    return BehaviorTree.NodeState.RUNNING
+
+                if _has_alive_imp():
+                    return BehaviorTree.NodeState.RUNNING
+
+                from ..Py4GWcorelib import Utils
+                now = Utils.GetBaseTimestamp()
+
+                if now - int(state["last_attempt_ms"]) < check_interval_ms:
+                    return BehaviorTree.NodeState.RUNNING
+
+                item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(imp_model_id)
+                if item_id == 0:
+                    return BehaviorTree.NodeState.RUNNING
+
+                GLOBAL_CACHE.Inventory.UseItem(item_id)
+                state["last_attempt_ms"] = int(now)
+                if log:
+                    ConsoleLog(
+                        "ExplorableImpService",
+                        f"Used imp stone model {imp_model_id} in explorable map {Map.GetMapID()}.",
+                        Console.MessageType.Info,
+                        log=log,
+                    )
+
+                return BehaviorTree.NodeState.RUNNING
+
+            return BehaviorTree(
+                BehaviorTree.ConditionNode(
+                    name="ExplorableImpService",
+                    condition_fn=_tick_explorable_imp_service,
+                )
+            )
+
     #region Agents        
     class Agents:
         agent_ids = None
         @staticmethod
         def GetAgentIDByName(agent_name: str) -> BehaviorTree:
-            from ..AgentArray import AgentArray
-            def _request_names(node):
-                ids = AgentArray.GetAgentArray()
-                node.blackboard["agent_ids"] = ids
-
-                for aid in ids:
-                    Agent.RequestName(aid)
-
-                return BehaviorTree.NodeState.SUCCESS
-
-            def _check_names_ready(node):
-                for aid in node.blackboard["agent_ids"]:
-                    if not Agent.IsNameReady(aid):
-                        return BehaviorTree.NodeState.FAILURE
-                return BehaviorTree.NodeState.SUCCESS
-            
             def _search_name(node):
-                search_lower = agent_name.lower()
-                found = 0
-
-                for aid in node.blackboard["agent_ids"]:
-                    if Agent.IsNameReady(aid):
-                        name = Agent.GetNameByID(aid)
-                        if search_lower in name.lower():
-                            found = aid
-                            break
-
+                found = Agent.GetAgentIDByName(agent_name)
                 node.blackboard["result"] = found
                 return (BehaviorTree.NodeState.SUCCESS
                         if found != 0
@@ -657,21 +1672,7 @@ class BT:
 
             tree = BehaviorTree.SequenceNode(name="GetAgentIDByNameRoot",
                 children=[
-                    BehaviorTree.ActionNode(name="RequestAllNames",action_fn=_request_names),
-                    BehaviorTree.RepeaterUntilSuccessNode(name="WaitUntilAllNamesReadyRepeater",timeout_ms=2000,
-                        child=BehaviorTree.SelectorNode(name="WaitUntilAllNamesReadySelector",
-                            children=[
-                                BehaviorTree.ConditionNode(name="AllNamesReadyCheck",condition_fn=_check_names_ready),
-                                BehaviorTree.SequenceNode(name="WaitForThrottle",
-                                    children=[
-                                        BehaviorTree.WaitForTimeNode(name="Throttle100ms",duration_ms=100),
-                                        BehaviorTree.FailerNode(name="FailToRepeat")
-                                    ]
-                                ),
-                            ]
-                        )
-                    ),
-                    BehaviorTree.ActionNode(name="SearchName",action_fn=_search_name)
+                    BehaviorTree.ConditionNode(name="SearchName", condition_fn=_search_name)
                 ]
             )
             return BehaviorTree(tree)

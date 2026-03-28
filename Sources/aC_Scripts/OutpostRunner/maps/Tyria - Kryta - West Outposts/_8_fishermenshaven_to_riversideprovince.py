@@ -54,7 +54,7 @@ _8_fishermenshaven_to_riversideprovince_segments = [
             (-4151,-19998),
             (-6278,-19314),
             (-7494,-19933),
-],
+        ],
     },
     {
         "map_id": 73,

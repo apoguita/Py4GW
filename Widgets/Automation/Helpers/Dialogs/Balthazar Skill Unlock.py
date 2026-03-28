@@ -1,392 +1,63 @@
-from __future__ import annotations
-
 import json
 import os
 import time
-from dataclasses import dataclass
 from typing import List, Optional
 
 import Py4GW
-
-from Py4GWCoreLib import Agent, Color, Console, ConsoleLog, Dialog, ImGui, Map, Party, Player, PyImGui, Skill, Utils
+from Py4GWCoreLib import Agent, Color, Console, ConsoleLog, ImGui, Map, Party, Player, PyImGui, Skill
 
 MODULE_NAME = "Balthazar Skill Unlock"
 MODULE_ICON = "Textures/Module_Icons/Skill Learner.png"
 
 GREAT_TEMPLE_OF_BALTHAZAR_MAP_ID = 248
 PRIEST_OF_BALTHAZAR_MODEL_ID = 218
-DEFAULT_SEARCH_RESULT_LIMIT = 80
-SEARCH_RESULT_LIMIT = DEFAULT_SEARCH_RESULT_LIMIT
+BALTHAZAR_UNLOCK_DIALOG_MASK = 0x10000000
+PVP_REMAP_SENTINEL = 0x0D6C
+SEARCH_RESULT_LIMIT = 80
 SEND_THROTTLE_SECONDS = 0.4
 VERIFY_DELAY_SECONDS = 1.2
 VERIFY_TIMEOUT_SECONDS = 5.0
 
 
-@dataclass(frozen=True)
-class _SkillOption:
-    skill_id: int
-    name: str
+class SkillOption:
+    __slots__ = ("skill_id", "name")
 
+    def __init__(self, skill_id: int, name: str) -> None:
+        self.skill_id = int(skill_id)
+        self.name = str(name or "")
 
-@dataclass(frozen=True)
-class _BalthazarTargetSummary:
-    target_id: int
-    target_name: str
-    model_id: int
-
-
-@dataclass
-class _BalthazarSkillUnlockAttempt:
-    requested_skill_id: int
-    requested_skill_name: str
-    send_skill_id: int
-    raw_dialog_id: int
-    target_id: int
-    target_name: str
-    target_model_id: int
-    estimated_unlock_cost: int
-    balthazar_points_before: int
-    unlocked_requested_before: bool
-    unlocked_send_before: bool
-    sent_at: float = 0.0
-
-
-@dataclass(frozen=True)
-class _BalthazarSkillUnlockResult:
-    ok: bool
-    message: str
-    attempt: Optional[_BalthazarSkillUnlockAttempt] = None
-
-
-@dataclass(frozen=True)
-class _BalthazarSkillUnlockVerification:
-    complete: bool
-    success: bool
-    message: str
-    elapsed_seconds: float
-    balthazar_points_now: int
-    unlocked_requested_now: bool
-    unlocked_send_now: bool
-
-
-def _candidate_skill_json_paths() -> List[str]:
-    project_root = str(Py4GW.Console.get_projects_path() or "")
-    candidates = []
-    if project_root:
-        candidates.append(os.path.join(project_root, "Py4GWCoreLib", "skill_descriptions.json"))
-    candidates.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "Py4GWCoreLib", "skill_descriptions.json")))
-    return candidates
-
-
-def _parse_search_as_skill_id(query: str) -> int:
-    value = str(query or "").strip()
-    if not value:
-        return 0
-    try:
-        return int(value, 0)
-    except Exception:
-        return 0
-
-
-def _load_skill_catalog() -> tuple[List[_SkillOption], str]:
-    for path in _candidate_skill_json_paths():
-        if not os.path.exists(path):
-            continue
-        try:
-            with open(path, encoding="utf-8") as handle:
-                raw = json.load(handle)
-        except Exception as exc:
-            return [], f"Failed to read skill catalog: {exc}"
-
-        catalog: List[_SkillOption] = []
-        for key, payload in raw.items():
-            try:
-                skill_id = int(key)
-            except Exception:
-                continue
-            if skill_id <= 0 or not isinstance(payload, dict):
-                continue
-            name = str(payload.get("name", "") or "").strip()
-            if not name:
-                continue
-            catalog.append(_SkillOption(skill_id=skill_id, name=name))
-
-        catalog.sort(key=lambda item: (item.name.lower(), item.skill_id))
-        return catalog, ""
-
-    return [], "Could not locate Py4GWCoreLib/skill_descriptions.json."
-
-
-def _get_skill_option(skill_id: int, catalog_by_id: Optional[dict[int, _SkillOption]] = None) -> Optional[_SkillOption]:
-    if catalog_by_id is None:
-        return None
-    return catalog_by_id.get(int(skill_id or 0))
-
-
-def _get_skill_name(skill_id: int, catalog_by_id: Optional[dict[int, _SkillOption]] = None) -> str:
-    resolved = int(skill_id or 0)
-    if resolved <= 0:
-        return "None"
-
-    option = _get_skill_option(resolved, catalog_by_id)
-    if option is not None:
-        return option.name
-
-    try:
-        return str(Skill.GetName(resolved) or f"Skill {resolved}")
-    except Exception:
-        return f"Skill {resolved}"
-
-
-def _search_skill_catalog(
-    query: str,
-    catalog: List[_SkillOption],
-    catalog_by_id: dict[int, _SkillOption],
-    limit: int = DEFAULT_SEARCH_RESULT_LIMIT,
-) -> List[_SkillOption]:
-    query_text = str(query or "").strip()
-    if not query_text:
-        return []
-
-    numeric_id = _parse_search_as_skill_id(query_text)
-    if numeric_id > 0:
-        option = _get_skill_option(numeric_id, catalog_by_id)
-        if option is not None:
-            return [option]
-        return [_SkillOption(skill_id=numeric_id, name=_get_skill_name(numeric_id, catalog_by_id))]
-
-    if len(query_text) < 2:
-        return []
-
-    query_lower = query_text.lower()
-    exact_matches: List[_SkillOption] = []
-    prefix_matches: List[_SkillOption] = []
-    contains_matches: List[_SkillOption] = []
-
-    for item in catalog:
-        lowered = item.name.lower()
-        if lowered == query_lower:
-            exact_matches.append(item)
-        elif lowered.startswith(query_lower):
-            prefix_matches.append(item)
-        elif query_lower in lowered:
-            contains_matches.append(item)
-
-    results = exact_matches + prefix_matches + contains_matches
-    return results[: max(0, int(limit or 0))]
-
-
-def _get_current_balthazar_points() -> int:
-    try:
-        current_balth, _, _ = Player.GetBalthazarData()
-        return int(current_balth or 0)
-    except Exception:
-        return 0
-
-
-def _is_skill_unlocked(skill_id: int) -> bool:
-    resolved = int(skill_id or 0)
-    if resolved <= 0:
-        return False
-    try:
-        masks = Player.GetUnlockedCharacterSkills() or []
-    except Exception:
-        return False
-    index = resolved // 32
-    bit = resolved % 32
-    if index < 0 or index >= len(masks):
-        return False
-    return bool((int(masks[index]) >> bit) & 1)
-
-
-def _build_raw_dialog_id(skill_id: int, use_pvp_remap: bool = True) -> int:
-    return int(Utils.BalthazarSkillIdToDialogId(int(skill_id or 0), use_pvp_remap=use_pvp_remap) or 0)
-
-
-def _resolve_send_skill_id(skill_id: int, use_pvp_remap: bool = True) -> int:
-    raw_dialog_id = _build_raw_dialog_id(skill_id, use_pvp_remap=use_pvp_remap)
-    if raw_dialog_id <= 0:
-        return 0
-    return int(raw_dialog_id & 0xFFFF)
-
-
-def _estimated_unlock_cost(skill_id: int) -> int:
-    try:
-        return 3000 if bool(Skill.Flags.IsElite(skill_id)) else 1000
-    except Exception:
-        return 0
-
-
-def _get_target_summary(target_id: int = 0) -> _BalthazarTargetSummary:
-    resolved_target_id = int(target_id or Player.GetTargetID() or 0)
-    if resolved_target_id <= 0:
-        return _BalthazarTargetSummary(target_id=0, target_name="No current target", model_id=0)
-
-    try:
-        target_name = str(Agent.GetNameByID(resolved_target_id) or f"Target {resolved_target_id}")
-    except Exception:
-        target_name = f"Target {resolved_target_id}"
-    try:
-        model_id = int(Agent.GetModelID(resolved_target_id) or 0)
-    except Exception:
-        model_id = 0
-    return _BalthazarTargetSummary(
-        target_id=resolved_target_id,
-        target_name=target_name,
-        model_id=model_id,
+class PendingUnlock:
+    __slots__ = (
+        "requested_skill_id",
+        "send_skill_id",
+        "raw_dialog_id",
+        "balth_before",
+        "unlocked_requested_before",
+        "unlocked_send_before",
+        "sent_at",
     )
 
-
-def _build_unlock_attempt(
-    skill_id: int,
-    *,
-    target_id: int = 0,
-    use_pvp_remap: bool = True,
-    require_priest_target: bool = True,
-    allow_already_unlocked: bool = False,
-) -> _BalthazarSkillUnlockResult:
-    requested_skill_id = int(skill_id or 0)
-    if requested_skill_id <= 0:
-        return _BalthazarSkillUnlockResult(
-            ok=False,
-            message="Select a valid skill ID before sending an unlock request.",
-        )
-
-    target = _get_target_summary(target_id)
-    if require_priest_target and target.model_id != PRIEST_OF_BALTHAZAR_MODEL_ID:
-        return _BalthazarSkillUnlockResult(
-            ok=False,
-            message=(
-                f"Current target is {target.target_name} (model {target.model_id}), not Priest of Balthazar "
-                f"({PRIEST_OF_BALTHAZAR_MODEL_ID})."
-            ),
-        )
-
-    raw_dialog_id = _build_raw_dialog_id(requested_skill_id, use_pvp_remap=use_pvp_remap)
-    send_skill_id = _resolve_send_skill_id(requested_skill_id, use_pvp_remap=use_pvp_remap)
-    if raw_dialog_id <= 0 or send_skill_id <= 0:
-        return _BalthazarSkillUnlockResult(
-            ok=False,
-            message="Could not resolve a valid Balthazar send skill ID.",
-        )
-
-    unlocked_requested = _is_skill_unlocked(requested_skill_id)
-    unlocked_send = _is_skill_unlocked(send_skill_id)
-    if (unlocked_requested or unlocked_send) and not allow_already_unlocked:
-        return _BalthazarSkillUnlockResult(
-            ok=False,
-            message="Selected skill already appears unlocked. Enable override to send anyway.",
-        )
-
-    attempt = _BalthazarSkillUnlockAttempt(
-        requested_skill_id=requested_skill_id,
-        requested_skill_name=_get_skill_name(requested_skill_id),
-        send_skill_id=send_skill_id,
-        raw_dialog_id=raw_dialog_id,
-        target_id=target.target_id,
-        target_name=target.target_name,
-        target_model_id=target.model_id,
-        estimated_unlock_cost=_estimated_unlock_cost(requested_skill_id),
-        balthazar_points_before=_get_current_balthazar_points(),
-        unlocked_requested_before=unlocked_requested,
-        unlocked_send_before=unlocked_send,
-    )
-    return _BalthazarSkillUnlockResult(
-        ok=True,
-        message=(
-            f"Prepared Balthazar unlock for {attempt.requested_skill_name} "
-            f"using raw dialog 0x{attempt.raw_dialog_id:08X}."
-        ),
-        attempt=attempt,
-    )
-
-
-def _verify_unlock_attempt(
-    attempt: _BalthazarSkillUnlockAttempt,
-    *,
-    verify_delay_seconds: float = 0.0,
-    verify_timeout_seconds: Optional[float] = None,
-) -> _BalthazarSkillUnlockVerification:
-    elapsed = max(0.0, time.monotonic() - float(attempt.sent_at or 0.0))
-    unlocked_requested_now = _is_skill_unlocked(attempt.requested_skill_id)
-    unlocked_send_now = _is_skill_unlocked(attempt.send_skill_id)
-    balthazar_points_now = _get_current_balthazar_points()
-
-    if elapsed < verify_delay_seconds:
-        return _BalthazarSkillUnlockVerification(
-            complete=False,
-            success=False,
-            message=(
-                f"Waiting to verify {attempt.requested_skill_name} "
-                f"({elapsed:.2f}s < {verify_delay_seconds:.2f}s)."
-            ),
-            elapsed_seconds=elapsed,
-            balthazar_points_now=balthazar_points_now,
-            unlocked_requested_now=unlocked_requested_now,
-            unlocked_send_now=unlocked_send_now,
-        )
-
-    if (
-        (not attempt.unlocked_requested_before and unlocked_requested_now)
-        or (not attempt.unlocked_send_before and unlocked_send_now)
-    ):
-        return _BalthazarSkillUnlockVerification(
-            complete=True,
-            success=True,
-            message=(
-                f"Verified unlock for {attempt.requested_skill_name}. "
-                f"Balthazar faction: {attempt.balthazar_points_before} -> {balthazar_points_now}."
-            ),
-            elapsed_seconds=elapsed,
-            balthazar_points_now=balthazar_points_now,
-            unlocked_requested_now=unlocked_requested_now,
-            unlocked_send_now=unlocked_send_now,
-        )
-
-    if balthazar_points_now < attempt.balthazar_points_before:
-        return _BalthazarSkillUnlockVerification(
-            complete=True,
-            success=True,
-            message=(
-                f"Faction decreased after send ({attempt.balthazar_points_before} -> {balthazar_points_now}) "
-                f"for {attempt.requested_skill_name}. Unlock likely succeeded, but the bitmask has not been observed yet."
-            ),
-            elapsed_seconds=elapsed,
-            balthazar_points_now=balthazar_points_now,
-            unlocked_requested_now=unlocked_requested_now,
-            unlocked_send_now=unlocked_send_now,
-        )
-
-    if verify_timeout_seconds is not None and elapsed >= verify_timeout_seconds:
-        return _BalthazarSkillUnlockVerification(
-            complete=True,
-            success=False,
-            message=(
-                f"Sent 0x{attempt.raw_dialog_id:08X} for {attempt.requested_skill_name}, "
-                "but no unlock or faction change was verified."
-            ),
-            elapsed_seconds=elapsed,
-            balthazar_points_now=balthazar_points_now,
-            unlocked_requested_now=unlocked_requested_now,
-            unlocked_send_now=unlocked_send_now,
-        )
-
-    return _BalthazarSkillUnlockVerification(
-        complete=False,
-        success=False,
-        message=f"Unlock request still pending for {attempt.requested_skill_name}.",
-        elapsed_seconds=elapsed,
-        balthazar_points_now=balthazar_points_now,
-        unlocked_requested_now=unlocked_requested_now,
-        unlocked_send_now=unlocked_send_now,
-    )
+    def __init__(
+        self,
+        requested_skill_id: int,
+        send_skill_id: int,
+        raw_dialog_id: int,
+        balth_before: int,
+        unlocked_requested_before: bool,
+        unlocked_send_before: bool,
+        sent_at: float,
+    ) -> None:
+        self.requested_skill_id = int(requested_skill_id)
+        self.send_skill_id = int(send_skill_id)
+        self.raw_dialog_id = int(raw_dialog_id)
+        self.balth_before = int(balth_before)
+        self.unlocked_requested_before = bool(unlocked_requested_before)
+        self.unlocked_send_before = bool(unlocked_send_before)
+        self.sent_at = float(sent_at)
 
 
 class BalthazarSkillUnlockWidget:
     def __init__(self) -> None:
-        self.catalog_error = ""
-        self.skill_catalog: List[_SkillOption] = []
-        self.skill_catalog_by_id: dict[int, _SkillOption] = {}
         self.search_text = ""
         self.manual_skill_id = 0
         self.selected_skill_id = 0
@@ -395,55 +66,188 @@ class BalthazarSkillUnlockWidget:
         self.use_pvp_remap = True
         self.allow_without_priest_target = False
         self.allow_already_unlocked = False
-        self.matches: List[_SkillOption] = []
-        self.pending_unlock: Optional[_BalthazarSkillUnlockAttempt] = None
+        self.matches: List[SkillOption] = []
+        self.pending_unlock: Optional[PendingUnlock] = None
         self.last_send_time = 0.0
         self.last_search_signature = ""
-        self.refresh_skill_catalog()
+        self.skill_catalog: List[SkillOption] = []
+        self.catalog_error = ""
+        self.skill_catalog = self._load_skill_catalog()
 
-    def refresh_skill_catalog(self) -> None:
-        self.skill_catalog, self.catalog_error = _load_skill_catalog()
-        self.skill_catalog_by_id = {item.skill_id: item for item in self.skill_catalog}
+    def _candidate_skill_json_paths(self) -> List[str]:
+        project_root = str(Py4GW.Console.get_projects_path() or "")
+        script_dir = os.path.dirname(globals().get("__file__", MODULE_NAME))
+        candidates = []
+        if project_root:
+            candidates.append(os.path.join(project_root, "Py4GWCoreLib", "skill_descriptions.json"))
+        candidates.append(
+            os.path.abspath(
+                os.path.join(
+                    script_dir,
+                    "..",
+                    "..",
+                    "..",
+                    "..",
+                    "Py4GWCoreLib",
+                    "skill_descriptions.json",
+                )
+            )
+        )
+        return candidates
+
+    def _load_skill_catalog(self) -> List[SkillOption]:
+        for path in self._candidate_skill_json_paths():
+            if not os.path.exists(path):
+                continue
+            try:
+                with open(path, encoding="utf-8") as handle:
+                    raw = json.load(handle)
+            except Exception as exc:
+                self.catalog_error = f"Failed to read skill catalog: {exc}"
+                return []
+
+            catalog: List[SkillOption] = []
+            for key, payload in raw.items():
+                try:
+                    skill_id = int(key)
+                except Exception:
+                    continue
+                if skill_id <= 0:
+                    continue
+                if not isinstance(payload, dict):
+                    continue
+                name = str(payload.get("name", "") or "").strip()
+                if not name:
+                    continue
+                catalog.append(SkillOption(skill_id=skill_id, name=name))
+
+            catalog.sort(key=lambda item: (item.name.lower(), item.skill_id))
+            return catalog
+
+        self.catalog_error = "Could not locate Py4GWCoreLib/skill_descriptions.json."
+        return []
+
+    def _safe_skill_name(self, skill_id: int) -> str:
+        if skill_id <= 0:
+            return "None"
+        try:
+            return str(Skill.GetName(skill_id) or f"Skill {skill_id}")
+        except Exception:
+            return f"Skill {skill_id}"
+
+    def _parse_search_as_skill_id(self, text: str) -> int:
+        value = str(text or "").strip()
+        if not value:
+            return 0
+        try:
+            return int(value, 0)
+        except Exception:
+            return 0
+
+    def _skill_option_by_id(self, skill_id: int) -> Optional[SkillOption]:
+        if skill_id <= 0:
+            return None
+        for item in self.skill_catalog:
+            if item.skill_id == skill_id:
+                return item
+        return None
 
     def _refresh_matches(self) -> None:
-        signature = self.search_text
+        signature = f"{self.search_text}|{self.selected_skill_id}"
         if signature == self.last_search_signature:
             return
         self.last_search_signature = signature
-        self.matches = _search_skill_catalog(
-            self.search_text,
-            self.skill_catalog,
-            self.skill_catalog_by_id,
-            limit=SEARCH_RESULT_LIMIT,
-        )
+
+        query = str(self.search_text or "").strip().lower()
+        numeric_id = self._parse_search_as_skill_id(query)
+        results: List[SkillOption] = []
+
+        if numeric_id > 0:
+            option = self._skill_option_by_id(numeric_id)
+            if option is not None:
+                results.append(option)
+            else:
+                results.append(SkillOption(skill_id=numeric_id, name=self._safe_skill_name(numeric_id)))
+        elif len(query) >= 2:
+            exact_matches: List[SkillOption] = []
+            prefix_matches: List[SkillOption] = []
+            contains_matches: List[SkillOption] = []
+            for item in self.skill_catalog:
+                lowered = item.name.lower()
+                if lowered == query:
+                    exact_matches.append(item)
+                elif lowered.startswith(query):
+                    prefix_matches.append(item)
+                elif query in lowered:
+                    contains_matches.append(item)
+
+            results = exact_matches + prefix_matches + contains_matches
+            results = results[:SEARCH_RESULT_LIMIT]
+
+        self.matches = results
         if self.matches:
             self.selected_match_index = min(max(self.selected_match_index, 0), len(self.matches) - 1)
         else:
             self.selected_match_index = 0
 
-    def _skill_name(self, skill_id: int) -> str:
-        return _get_skill_name(skill_id, self.skill_catalog_by_id)
-
     def _current_balthazar_points(self) -> int:
-        return _get_current_balthazar_points()
+        try:
+            current_balth, _, _ = Player.GetBalthazarData()
+            return int(current_balth or 0)
+        except Exception:
+            return 0
 
     def _skill_is_unlocked(self, skill_id: int) -> bool:
-        return _is_skill_unlocked(skill_id)
+        if skill_id <= 0:
+            return False
+        try:
+            masks = Player.GetUnlockedCharacterSkills() or []
+        except Exception:
+            return False
+        index = skill_id // 32
+        bit = skill_id % 32
+        if index < 0 or index >= len(masks):
+            return False
+        return bool((int(masks[index]) >> bit) & 1)
 
-    def _resolve_send_skill_id(self, skill_id: int) -> int:
-        return _resolve_send_skill_id(skill_id, use_pvp_remap=self.use_pvp_remap)
-
-    def _build_raw_dialog_id(self, skill_id: int) -> int:
-        return _build_raw_dialog_id(skill_id, use_pvp_remap=self.use_pvp_remap)
+    def _normalize_send_skill_id(self, skill_id: int) -> int:
+        resolved = int(skill_id or 0)
+        if resolved <= 0:
+            return 0
+        if not self.use_pvp_remap:
+            return resolved
+        try:
+            pvp_id = int(Skill.ExtraData.GetIDPvP(resolved) or 0)
+        except Exception:
+            pvp_id = 0
+        if pvp_id == PVP_REMAP_SENTINEL:
+            return resolved
+        if pvp_id > 0 and pvp_id != resolved:
+            return pvp_id
+        return resolved
 
     def _estimated_unlock_cost(self, skill_id: int) -> int:
-        return _estimated_unlock_cost(skill_id)
+        try:
+            return 3000 if bool(Skill.Flags.IsElite(skill_id)) else 1000
+        except Exception:
+            return 0
 
     def _target_summary(self) -> tuple[int, str, int]:
-        target = _get_target_summary()
-        return target.target_id, target.target_name, target.model_id
+        target_id = int(Player.GetTargetID() or 0)
+        if target_id <= 0:
+            return 0, "No current target", 0
 
-    def _select_match(self, option: _SkillOption) -> None:
+        try:
+            target_name = str(Agent.GetNameByID(target_id) or f"Target {target_id}")
+        except Exception:
+            target_name = f"Target {target_id}"
+        try:
+            model_id = int(Agent.GetModelID(target_id) or 0)
+        except Exception:
+            model_id = 0
+        return target_id, target_name, model_id
+
+    def _select_match(self, option: SkillOption) -> None:
         self.selected_skill_id = int(option.skill_id)
         self.manual_skill_id = int(option.skill_id)
         self.status_message = f"Selected {option.name} [{option.skill_id}]."
@@ -459,31 +263,48 @@ class BalthazarSkillUnlockWidget:
             self.status_message = "Send throttled. Wait a moment before sending another unlock request."
             return
 
-        prepared = _build_unlock_attempt(
-            selected_skill_id,
-            use_pvp_remap=self.use_pvp_remap,
-            require_priest_target=not self.allow_without_priest_target,
-            allow_already_unlocked=self.allow_already_unlocked,
-        )
-        self.status_message = prepared.message
-        if not prepared.ok or prepared.attempt is None:
+        target_id, target_name, model_id = self._target_summary()
+        if not self.allow_without_priest_target and model_id != PRIEST_OF_BALTHAZAR_MODEL_ID:
+            self.status_message = (
+                f"Current target is {target_name} (model {model_id}), not Priest of Balthazar "
+                f"({PRIEST_OF_BALTHAZAR_MODEL_ID}). Enable override to send anyway."
+            )
             return
 
-        attempt = prepared.attempt
-        Player.UnlockBalthazarSkill(selected_skill_id, use_pvp_remap=self.use_pvp_remap)
-        attempt.sent_at = now
+        send_skill_id = self._normalize_send_skill_id(selected_skill_id)
+        if send_skill_id <= 0:
+            self.status_message = "Could not resolve a valid send skill ID."
+            return
+
+        unlocked_requested = self._skill_is_unlocked(selected_skill_id)
+        unlocked_send = self._skill_is_unlocked(send_skill_id)
+        if (unlocked_requested or unlocked_send) and not self.allow_already_unlocked:
+            self.status_message = "Selected skill already appears unlocked. Enable override to send anyway."
+            return
+
+        raw_dialog_id = BALTHAZAR_UNLOCK_DIALOG_MASK | (send_skill_id & 0xFFFF)
+        balth_before = self._current_balthazar_points()
+        Player.SendRawDialog(raw_dialog_id)
         self.last_send_time = now
-        self.pending_unlock = attempt
+        self.pending_unlock = PendingUnlock(
+            requested_skill_id=selected_skill_id,
+            send_skill_id=send_skill_id,
+            raw_dialog_id=raw_dialog_id,
+            balth_before=balth_before,
+            unlocked_requested_before=unlocked_requested,
+            unlocked_send_before=unlocked_send,
+            sent_at=now,
+        )
         self.status_message = (
-            f"Queued unlock request for {attempt.requested_skill_name} "
-            f"using raw dialog 0x{attempt.raw_dialog_id:08X}."
+            f"Sent unlock request for {self._safe_skill_name(selected_skill_id)} "
+            f"using raw dialog 0x{raw_dialog_id:08X}."
         )
         ConsoleLog(
             MODULE_NAME,
             (
-                f"Queued Balthazar unlock request target_id={attempt.target_id} "
-                f"model_id={attempt.target_model_id} requested_skill_id={attempt.requested_skill_id} "
-                f"send_skill_id={attempt.send_skill_id} raw_dialog=0x{attempt.raw_dialog_id:08X}"
+                f"Sent Balthazar unlock request target_id={target_id} model_id={model_id} "
+                f"requested_skill_id={selected_skill_id} send_skill_id={send_skill_id} "
+                f"raw_dialog=0x{raw_dialog_id:08X}"
             ),
             Console.MessageType.Info,
         )
@@ -493,18 +314,58 @@ class BalthazarSkillUnlockWidget:
         if pending is None:
             return
 
-        verification = _verify_unlock_attempt(
-            pending,
-            verify_delay_seconds=VERIFY_DELAY_SECONDS,
-            verify_timeout_seconds=VERIFY_TIMEOUT_SECONDS,
-        )
-        if verification.complete:
-            self.status_message = verification.message
+        elapsed = time.monotonic() - pending.sent_at
+        if elapsed < VERIFY_DELAY_SECONDS:
+            return
+
+        unlocked_requested_now = self._skill_is_unlocked(pending.requested_skill_id)
+        unlocked_send_now = self._skill_is_unlocked(pending.send_skill_id)
+        balth_now = self._current_balthazar_points()
+
+        if (
+            (not pending.unlocked_requested_before and unlocked_requested_now)
+            or (not pending.unlocked_send_before and unlocked_send_now)
+        ):
+            self.status_message = (
+                f"Verified unlock for {self._safe_skill_name(pending.requested_skill_id)}. "
+                f"Balthazar faction: {pending.balth_before} -> {balth_now}."
+            )
+            self.pending_unlock = None
+            return
+
+        if balth_now < pending.balth_before:
+            self.status_message = (
+                f"Faction decreased after send ({pending.balth_before} -> {balth_now}) "
+                f"for {self._safe_skill_name(pending.requested_skill_id)}. "
+                "Unlock likely succeeded, but the bitmask has not been observed yet."
+            )
+            self.pending_unlock = None
+            return
+
+        if elapsed >= VERIFY_TIMEOUT_SECONDS:
+            self.status_message = (
+                f"Sent 0x{pending.raw_dialog_id:08X} for {self._safe_skill_name(pending.requested_skill_id)}, "
+                "but no unlock/faction change was verified."
+            )
             self.pending_unlock = None
 
     def update(self) -> None:
         self._refresh_matches()
         self._update_pending_unlock()
+
+    def _recent_dialog_journal_entries(self) -> List[object]:
+        dialog_api = getattr(Py4GW, "Dialog", None)
+        if dialog_api is None:
+            return []
+
+        getter = getattr(dialog_api, "get_dialog_callback_journal_sent", None)
+        if getter is None:
+            return []
+
+        try:
+            return list(getter() or [])[-5:]
+        except Exception:
+            return []
 
     def _draw_status_panel(self) -> None:
         current_map_id = int(Map.GetMapID() or 0)
@@ -563,9 +424,9 @@ class BalthazarSkillUnlockWidget:
             PyImGui.text("No skill selected.")
             return
 
-        selected_name = self._skill_name(selected_skill_id)
-        send_skill_id = self._resolve_send_skill_id(selected_skill_id)
-        raw_dialog_id = self._build_raw_dialog_id(selected_skill_id)
+        selected_name = self._safe_skill_name(selected_skill_id)
+        send_skill_id = self._normalize_send_skill_id(selected_skill_id)
+        raw_dialog_id = BALTHAZAR_UNLOCK_DIALOG_MASK | (send_skill_id & 0xFFFF)
         requested_unlocked = self._skill_is_unlocked(selected_skill_id)
         send_unlocked = self._skill_is_unlocked(send_skill_id)
         estimated_cost = self._estimated_unlock_cost(selected_skill_id)
@@ -605,15 +466,19 @@ class BalthazarSkillUnlockWidget:
         PyImGui.text(f"Profession: {profession_name} | Campaign: {campaign_name} | Type: {type_name}")
         PyImGui.text(f"Playable: {is_playable} | PvP skill: {is_pvp} | Elite: {is_elite}")
         PyImGui.text(f"Estimated unlock cost: {estimated_cost if estimated_cost > 0 else 'Unknown'}")
-        PyImGui.text(f"Send skill ID: {send_skill_id} | Raw dialog: 0x{raw_dialog_id:08X}")
-        PyImGui.text(f"Unlocked bitmask: requested={requested_unlocked} | send-id={send_unlocked}")
+        PyImGui.text(
+            f"Send skill ID: {send_skill_id} | Raw dialog: 0x{raw_dialog_id:08X}"
+        )
+        PyImGui.text(
+            f"Unlocked bitmask: requested={requested_unlocked} | send-id={send_unlocked}"
+        )
         if concise:
             PyImGui.separator()
             PyImGui.text_wrapped(concise)
             PyImGui.separator()
 
         self.use_pvp_remap = bool(
-            PyImGui.checkbox("Use Balthazar vendor skill PvP ID remap", self.use_pvp_remap)
+            PyImGui.checkbox("Use PvP remap when Skill.ExtraData.GetIDPvP(...) differs", self.use_pvp_remap)
         )
         self.allow_without_priest_target = bool(
             PyImGui.checkbox("Allow send without Priest of Balthazar target", self.allow_without_priest_target)
@@ -638,14 +503,11 @@ class BalthazarSkillUnlockWidget:
         else:
             elapsed = time.monotonic() - pending.sent_at
             PyImGui.text(
-                f"Pending unlock: {pending.requested_skill_name} "
+                f"Pending unlock: {self._safe_skill_name(pending.requested_skill_id)} "
                 f"| raw=0x{pending.raw_dialog_id:08X} | elapsed={elapsed:.2f}s"
             )
 
-        try:
-            sent_entries = Dialog.get_dialog_callback_journal_sent()[-5:]
-        except Exception:
-            sent_entries = []
+        sent_entries = self._recent_dialog_journal_entries()
 
         if sent_entries:
             PyImGui.separator()
@@ -659,8 +521,8 @@ class BalthazarSkillUnlockWidget:
     def draw(self) -> None:
         if PyImGui.begin(MODULE_NAME):
             PyImGui.text_wrapped(
-                "Widget-owned Balthazar unlock workflow over the low-level Player/Utils primitives. "
-                "Select a skill, confirm the current target, and queue the vendor raw dialog family."
+                "Python-side prototype for the Priest of Balthazar skill-unlock vendor. "
+                "Select a skill, confirm the current target, and send the Balthazar unlock dialog family."
             )
             PyImGui.separator()
 
@@ -687,8 +549,8 @@ def tooltip() -> None:
     ImGui.pop_font()
     PyImGui.separator()
     PyImGui.text("Search or enter a skill ID, then send the Balthazar unlock dialog.")
-    PyImGui.text("Verification watches unlocked-skill bits and Balthazar faction after send.")
-    PyImGui.text("Low-level primitives: Player.UnlockBalthazarSkill(...) and Utils.BalthazarSkillIdToDialogId(...).")
+    PyImGui.text("The helper verifies result by watching unlocked-skill bits and Balthazar faction.")
+    PyImGui.text("It uses Player.SendRawDialog() through the approved UI message path.")
     PyImGui.end_tooltip()
 
 

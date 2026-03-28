@@ -47,6 +47,19 @@ width, height = 0, 0
 _merchant_busy: bool = False
 
 
+def _extra_data(message: SharedMessageStruct) -> tuple[str, str, str, str]:
+    """Extract the four ExtraData fields from a SharedMessageStruct as plain strings."""
+    values: list[str] = []
+    for raw in message.ExtraData:
+        try:
+            values.append(_c_wchar_array_to_str(raw))
+        except Exception:
+            values.append("")
+    while len(values) < 4:
+        values.append("")
+    return values[0], values[1], values[2], values[3]
+
+
 class HeroAIoptions:
     def __init__(self):
         self.Following = False
@@ -2008,6 +2021,55 @@ def RestockResurrectionScroll(index: int, message: SharedMessageStruct):
     ConsoleLog(MODULE_NAME, "RestockResurrectionScroll message processed and finished.", Console.MessageType.Info, False)
 # endregion
 
+# region InventoryQuery
+def InventoryQuery(index: int, message: SharedMessageStruct):
+    """Generic inventory count query.
+
+    Sub-commands (extra0):
+        report_inventory_count
+            Counts all items whose model ID falls in the inclusive range
+            [Params[0], Params[1]] and writes the total to an INI file.
+            extra1 = ini_path
+            extra2 = ini_section
+            extra3 = ini_key
+
+    Note: only contiguous model-ID ranges are currently supported via Params.
+    Non-contiguous ID sets would require a comma-separated encoding in ExtraData,
+    which is limited to 64 characters per slot (~12 IDs). Extend this handler
+    if a real non-contiguous use case arises.
+    """
+    def _extra_data(msg: SharedMessageStruct) -> tuple[str, str, str, str]:
+        values: list[str] = []
+        for raw in msg.ExtraData:
+            try:
+                values.append(_c_wchar_array_to_str(raw))
+            except Exception:
+                values.append("")
+        while len(values) < 4:
+            values.append("")
+        return values[0], values[1], values[2], values[3]
+    
+    GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
+    extra0, extra1, extra2, extra3 = _extra_data(message)
+    mode = extra0.strip().lower()
+
+    try:
+        if mode == "report_inventory_count":
+            range_start = int(message.Params[0])
+            range_end   = int(message.Params[1])
+            ini_path    = str(extra1 or "").strip()
+            ini_section = str(extra2 or "").strip()
+            ini_key     = str(extra3 or "").strip()
+            if ini_path and ini_section and ini_key and range_start > 0 and range_end >= range_start:
+                count = sum(int(GLOBAL_CACHE.Inventory.GetModelCount(mid))
+                            for mid in range(range_start, range_end + 1))
+                IniHandler(ini_path).write_key(ini_section, ini_key, str(count))
+    finally:
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+    yield
+
+# endregion
+
 # region ProcessMessages
 def ProcessMessages():
     account_email = Player.GetAccountEmail()
@@ -2112,6 +2174,8 @@ def ProcessMessages():
             GLOBAL_CACHE.Coroutines.append(RestockConset(index, message))
         case SharedCommandType.RestockResurrectionScroll:
             GLOBAL_CACHE.Coroutines.append(RestockResurrectionScroll(index, message))
+        case SharedCommandType.InventoryQuery:
+            GLOBAL_CACHE.Coroutines.append(InventoryQuery(index, message))
         case SharedCommandType.LootEx:
             # privately Handled Command, by frenkey
             pass

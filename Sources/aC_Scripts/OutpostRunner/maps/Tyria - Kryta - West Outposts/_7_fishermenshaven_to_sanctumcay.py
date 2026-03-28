@@ -15,7 +15,7 @@ _7_fishermenshaven_to_sanctumcay_outpost_path = [
 _7_fishermenshaven_to_sanctumcay_segments = [
     {
         "map_id": 63,
-        "path": [
+        "path":[
             (1806,11745),
             (1283,12828),
             (-2394,16142),
@@ -28,6 +28,7 @@ _7_fishermenshaven_to_sanctumcay_segments = [
             (1741,131),
             (2136,-2890),
             (1402,-6009),
+            (2379,-9057),
             (4962,-11275),
             (7656,-12250),
             (7449,-13217),
