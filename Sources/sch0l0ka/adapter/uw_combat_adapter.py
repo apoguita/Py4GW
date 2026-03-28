@@ -17,7 +17,7 @@ class UWCombatAdapter(ABC):
     """Abstract interface for the UW bot's combat-system integration.
 
     Concrete implementations swap between CustomBehavior and HeroAI without
-    changing any quest-section code in UnderworldCB.py.
+    changing any quest-section code in underworld.py.
     """
 
     # ── Event callback configuration ────────────────────────────────────

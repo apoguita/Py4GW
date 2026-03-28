@@ -1,6 +1,6 @@
 
 # ╔══════════════════════════════════════════════════════════════════════════════
-# ║  File    : UnderworldCB.py
+# ║  File    : underworld.py
 # ║  Purpose : Fully automated Guild Wars Underworld bot.
 # ║            Drives all quest sections from Chamber through Dhuum,
 # ║            handles entering  and exiting, inventory refill, conset
