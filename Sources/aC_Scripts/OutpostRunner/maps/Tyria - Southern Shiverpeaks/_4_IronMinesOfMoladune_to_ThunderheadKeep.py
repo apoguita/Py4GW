@@ -1,18 +1,18 @@
 from Py4GWCoreLib.enums import outpost_name_to_id, explorable_name_to_id
 
 # 1) IDs
-_3_IronMinesOfMoladune_to_ThunderheadKeep_ids = {
+_4_IronMinesOfMoladune_to_ThunderheadKeep_ids = {
     "outpost_id": 24,
 }
 
 # 2) Outpost exit path
-_3_IronMinesOfMoladune_to_ThunderheadKeep_outpost_path = [
+_4_IronMinesOfMoladune_to_ThunderheadKeep_outpost_path = [
     (-7025,-31884),
     (-7585,-31700),
 ]
 
 # 3) Segments
-_3_IronMinesOfMoladune_to_ThunderheadKeep_segments = [
+_4_IronMinesOfMoladune_to_ThunderheadKeep_segments = [
     {
         "map_id": 98,
         "path": [
