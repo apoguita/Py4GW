@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Type, TypeVar
 
 import Py4GW
 from PyItem import ItemModifier
@@ -8,10 +8,35 @@ from Py4GWCoreLib.enums_src.Item_enums import Rarity
 from Sources.frenkeyLib.ItemHandling.Mods.item_modifier_parser import ItemModifierParser
 from Sources.frenkeyLib.ItemHandling.Mods.properties import InscriptionProperty, ItemProperty, PrefixProperty, SuffixProperty
 from Sources.frenkeyLib.ItemHandling.Mods.types import ItemUpgradeType
-from Sources.frenkeyLib.ItemHandling.Mods.upgrades import Upgrade
-
+from Sources.frenkeyLib.ItemHandling.Mods.upgrades import FuriousUpgrade, Upgrade
 
 class ItemMod:
+    T = TypeVar("T", bound="Upgrade")
+
+    @staticmethod
+    def get_upgrade(upgrade_type: Type[T]) -> Optional[T]:
+        '''
+        Gets the upgrade of the specified type from the item properties. This is a helper method that combines the logic of getting the item modifiers, parsing them into properties, and extracting the relevant upgrade property. It also includes validation for inherent upgrades on green items.
+        Recommended usage is with an assignment expression to avoid unnecessary processing if the upgrade is not present or of the wrong type.
+        Example usage:
+        
+        if (upgrade := ItemMod.get_upgrade(FuriousUpgrade)) is not None and upgrade.chance == 20:
+            ...do something with the furious upgrade  
+        '''
+        
+        prefix, suffix, inscription = ItemMod.get_item_upgrades_from_properties([])
+
+        if prefix and isinstance(prefix, upgrade_type):
+            return prefix
+
+        if suffix and isinstance(suffix, upgrade_type):
+            return suffix
+
+        if inscription and isinstance(inscription, upgrade_type):
+            return inscription
+
+        return None
+    
     @staticmethod
     def validated_upgrades(rarity : Optional[Rarity] = None, prefix: Upgrade | None = None, suffix: Upgrade | None = None, inscription: Upgrade | None = None) -> tuple[Upgrade | None, Upgrade | None, Upgrade | None]:
         if rarity != Rarity.Green:

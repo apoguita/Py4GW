@@ -2,20 +2,45 @@
 from typing import Optional
 
 import Py4GW
+import PyInventory
 from PyItem import DyeInfo, PyItem
 
-from Py4GWCoreLib.Item import Item
+from Py4GWCoreLib.Item import Bag, Item
 from Py4GWCoreLib.enums_src.GameData_enums import Attribute, Profession, DyeColor
 from Py4GWCoreLib.enums_src.Item_enums import ItemType, Rarity
+from Py4GWCoreLib.native_src.internals import string_table
 from Sources.frenkeyLib.ItemHandling.Items.ItemData import ITEM_DATA, ItemData
+from Sources.frenkeyLib.ItemHandling.Items.types import INVENTORY_BAGS, STORAGE_BAGS
 from Sources.frenkeyLib.ItemHandling.Mods.ItemMod import ItemMod
 from Sources.frenkeyLib.ItemHandling.Mods.item_modifier_parser import ItemModifierParser
 from Sources.frenkeyLib.ItemHandling.Mods.properties import AttributeRequirement, DamageProperty, TargetItemTypeProperty
 from Sources.frenkeyLib.ItemHandling.Mods.upgrades import Upgrade
+from Sources.frenkeyLib.ItemHandling.encoded_strings import GWStringEncoded
+
+
+def get_item_bag(item_id: int, item_instance: Optional[PyItem] = None) -> Bag:
+    item = item_instance if item_instance and item_instance.item_id == item_id else Item.item_instance(item_id) if item_id > 0 else None
+
+    if not item or not item.IsItemValid(item_id):
+        return Bag.NoBag
+
+    bags_to_check : list[Bag] = []
+    if item.is_inventory_item:
+        bags_to_check.extend(INVENTORY_BAGS)
+        
+    if item.is_storage_item:
+        bags_to_check.extend(STORAGE_BAGS)
+
+    for bag in bags_to_check:
+        inventory_bag = PyInventory.Bag(bag.value, bag.name)
+        if inventory_bag.FindItemById(item_id):
+            return bag
+
+    return Bag.NoBag
 
 
 class ItemSnapshot:
-    def __init__(self, item_id: int, item_instance: Optional[PyItem] = None):
+    def __init__(self, item_id: int, item_instance: Optional[PyItem] = None, bag: Optional[Bag] = None):
         item = item_instance if item_instance and item_id == item_instance.item_id else Item.item_instance(item_id) if item_id > 0 else None
         
         self.id: int = item_id
@@ -25,9 +50,14 @@ class ItemSnapshot:
         self.info_string = "DISABLED"  # PyItem.GetInfoString(item_id) if item_id > 0 and self.is_valid else None
         self.singular_name = bytes(PyItem.GetSingleItemName(item_id)) if item_id > 0 and self.is_valid else None
         self.complete_name_enc = bytes(PyItem.GetCompleteNameEnc(item_id)) if item_id > 0 and self.is_valid else None
+        self.names : GWStringEncoded = GWStringEncoded(self.name_enc or bytes(), "Unknown Item")
+        
+        self.__bag: Optional[Bag] = bag if item and (item.is_inventory_item or item.is_storage_item) else Bag.NoBag
                 
         self.model_id: int = item.model_id if item else -1
         self.model_file_id: int = item.model_file_id if item else -1
+        self.gw_dat_file_path = f"gwdat://{self.model_file_id}" if self.model_file_id > 0 else ""
+        
         self.item_type: ItemType = ItemType(
             item.item_type.ToInt()) if item else ItemType.Unknown
         self.rarity: Rarity = Rarity(item.rarity.value) if item and item.rarity and item.rarity.value in Rarity._value2member_map_ else Rarity.White
@@ -86,6 +116,17 @@ class ItemSnapshot:
         self.target_item_type : ItemType = target_item_type.item_type if target_item_type else ItemType.Unknown
         
         self.data : Optional[ItemData] = ITEM_DATA.get_item_data(model_id=self.model_id, item_type=self.item_type) if self.model_id != -1 else None
+        
+    @property
+    def name(self) -> str:
+        return string_table.decode(self.name_enc) if self.name_enc else ""
+    
+    @property
+    def bag(self) -> Bag:
+        if self.__bag is None:
+             self.__bag = get_item_bag(self.id) if self.is_inventory_item or self.is_storage_item else Bag.NoBag
+        
+        return self.__bag
 
     def same_kind_as(self, other: 'ItemSnapshot') -> bool:
         """
@@ -109,6 +150,10 @@ class ItemSnapshot:
         self.uses = item.uses
         self.is_customized = item.is_customized
         self.dye_info = item.dye_info
+        self.slot = item.slot
+        self.is_inventory_item = item.is_inventory_item
+        self.is_storage_item = item.is_storage_item
+        self.__bag = get_item_bag(self.id, item) if item.is_inventory_item or item.is_storage_item else Bag.NoBag
         self.color = ItemSnapshot.get_color_from_info(self.dye_info)
         
         self.modifiers = Item.Customization.Modifiers.GetModifiers(self.id)
@@ -136,7 +181,7 @@ class ItemSnapshot:
         return DyeColor.NoColor
     
     @classmethod
-    def create(cls, item_id: int, item_instance: Optional[PyItem] = None) -> 'Optional[ItemSnapshot]':
+    def create(cls, item_id: int, item_instance: Optional[PyItem] = None, bag: Optional[Bag] = None) -> 'Optional[ItemSnapshot]':
         """
         Create an item snapshot for the given item ID and instance.
         Args:
@@ -148,4 +193,4 @@ class ItemSnapshot:
         item = item_instance if item_instance is not None else Item.item_instance(item_id) if item_id > 0 else None
         is_valid = item.IsItemValid(item_id) if item else False
         
-        return cls(item_id, item) if is_valid else None
+        return cls(item_id, item, bag) if is_valid else None
