@@ -128,18 +128,7 @@ class _INTERACT:
         agent_id = Routines.Agents.GetAgentIDByModelID(model_id)
         x,y = Agent.GetXY(agent_id)
         yield from self._coro_with_agent((x, y), dialog_id)
-
-    def _coro_with_enc_name(self, agent_name: str, dialog_id: int = 0):
-        from ...Routines import Routines
-        from ...Agent import Agent
-        agent_id = yield from Routines.Yield.Agents.GetAgentIDByName(agent_name)
-        if not agent_id:
-            self._Events.on_unmanaged_fail()
-            self._config.config_properties.dialog_at_succeeded.set_now("value", False)
-            return False
-        x, y = Agent.GetXY(agent_id)
-        yield from self._coro_with_agent((x, y), dialog_id)
-
+        
     def _coro_with_gadget_id(self, gadget_id: int):
         from ...Routines import Routines
         from ...Agent import Agent
@@ -191,11 +180,7 @@ class _INTERACT:
     @_yield_step("WithModel","INTERACT_WITH_MODEL")
     def ys_with_model(self, model_id: int, step_name: str=""):
         yield from self._coro_with_model(model_id)
-
-    @_yield_step("WithEncName","INTERACT_WITH_ENC_NAME")
-    def ys_with_enc_name(self, agent_name: str, step_name: str=""):
-        yield from self._coro_with_enc_name(agent_name)
-
+        
     @_yield_step("GetBlessing", "INTERACT_GET_BLESSING")
     def ys_get_blessing(self, step_name: str = ""):
         yield from self._coro_get_blessing()
@@ -219,10 +204,7 @@ class _INTERACT:
 
     def WithModel(self, model_id: int, step_name: str="") -> None:
         self.ys_with_model(model_id, step_name=step_name)
-
-    def WithEncName(self, agent_name: str, step_name: str="") -> None:
-        self.ys_with_enc_name(agent_name, step_name=step_name)
-
+        
     @_yield_step("GetBlessing", "INTERACT_GET_BLESSING")
     def GetBlessing(self, step_name: str = ""):
         self.ys_get_blessing(step_name=step_name)
