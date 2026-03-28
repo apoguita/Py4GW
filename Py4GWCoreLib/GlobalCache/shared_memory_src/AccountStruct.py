@@ -83,6 +83,7 @@ class AccountStruct(Structure):
         ("IsPet", c_bool),
         ("IsNPC", c_bool),
         ("IsIsolated", c_bool),
+        ("IsolationGroupID", c_uint),
         ("InAggro", c_bool),
         ("InAggroTick64", c_uint64),
 
@@ -114,6 +115,7 @@ class AccountStruct(Structure):
     IsPet: bool
     IsNPC: bool
     IsIsolated: bool
+    IsolationGroupID: int
     InAggro: bool
     InAggroTick64: int
 
@@ -145,6 +147,7 @@ class AccountStruct(Structure):
         self.IsPet = False
         self.IsNPC = False
         self.IsIsolated = False
+        self.IsolationGroupID = 0
         self.InAggro = False
         self.InAggroTick64 = 0
 

@@ -45,6 +45,7 @@ from .shared_memory_src.AccountStruct import AccountStruct
 from .shared_memory_src.AllAccounts import AllAccounts
 from HeroAI.following import FollowFormationPublisher
 
+
 #region SharedMemoryManager    
 class Py4GWSharedMemoryManager:
     _instance = None  # Singleton instance
@@ -121,7 +122,13 @@ class Py4GWSharedMemoryManager:
 
     def RemoveAccountIsolationByEmail(self, account_email: str) -> bool:
         return self.GetAllAccounts().RemoveAccountIsolationByEmail(account_email)
-    
+
+    def SetAccountGroupByEmail(self, account_email: str, group_id: int) -> bool:
+        return self.GetAllAccounts().SetAccountGroupByEmail(account_email, group_id)
+
+    def GetAccountGroupByEmail(self, account_email: str) -> int:
+        return self.GetAllAccounts().GetAccountGroupByEmail(account_email)
+
     def GetHeroSlotByHeroData(self, hero_data:HeroPartyMember) -> int:
         """Find the index of the hero with the given ID."""
         return self.GetAllAccounts().GetHeroSlotByHeroData(hero_data)
