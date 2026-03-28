@@ -40,7 +40,7 @@ import Py4GW
 # ║  [ ] unequip armor at dhuum to sacrifice selected heroes  
 # ║  [ ] add Heroai 
 # ║  [ ] Take the Dhuum quest earlier   
-# ║  [ ] Make pits quest saver                                        
+# ║  [ ] Make pits quest saver and fix 3d navigation                                       
 # ║                                                                  
 # ╚══════════════════════════════════════════════════════════════════
 
@@ -860,6 +860,7 @@ def enable_default_party_behavior(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_following_enabled(True), "Enable Follow")
+    bot_instance.States.AddCustomState(lambda: _get_adapter().set_combat_enabled(True), "Enable Combat")
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_looting_enabled(True), "Enable Looting")
 
 
@@ -929,7 +930,6 @@ def Clear_the_Chamber(bot_instance: Botting):
     bot_instance.Wait.ForTime(3000)
     
     bot_instance.Move.XYAndInteractNPC(-5806, 12831, "go to NPC")
-    #bot_instance.Dialogs.WithEncName("Reaper of the Labyrinth",0x806D01, "Take Restoring Grenth's Monuments")
     bot_instance.Dialogs.AtXY(-5806, 12831, 0x806D01, "take quest")
     bot_instance.Wait.ForTime(3000)
 
@@ -993,11 +993,13 @@ def Restore_Planes(bot_instance: Botting):
         lambda: __import__("Py4GWCoreLib.EnemyBlacklist", fromlist=["EnemyBlacklist"]).EnemyBlacklist().add_name("banished dream rider"),
         "Blacklist Banished Dream Rider",
     )
+    
     bot_instance.Move.XY(13837, -14736, "Restore Planes 1 left Rider")
     bot_instance.States.AddCustomState(
         lambda: __import__("Py4GWCoreLib.EnemyBlacklist", fromlist=["EnemyBlacklist"]).EnemyBlacklist().remove_name("banished dream rider"),
         "Unblacklist Banished Dream Rider",
     )
+    
     Wait_for_Spawns(bot_instance,13790, -15568)
     Wait_for_Spawns(bot_instance,11287, -17921)
 
@@ -1026,7 +1028,7 @@ def The_Four_Horsemen(bot_instance: Botting):
     bot_instance.Dialogs.AtXY(-8250, -5171, 0x806A01, "take quest")  
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_forced_state(None),"Release Close_to_Aggro",)
 
-    bot_instance.Wait.ForTime(35000)
+    bot_instance.Wait.ForTime(32000)
 
     bot_instance.Move.XYAndInteractNPC(11371, -17990, "TP to Chamber")
     #bot_instance.Dialogs.AtXY(11371, -17990, 0x7F, "take quest")
@@ -1492,7 +1494,7 @@ def Dhuum(bot_instance: Botting):
     # Activate the Spirit Form watchdog for the duration of the fight.
     bot_instance.States.AddCustomState(lambda: _set_dhuum_fight_active(True), "Enable Dhuum Spirit Form Watchdog")
     bot_instance.Move.XY(-13987, 17291, "Move to Dhuum fight")
-    bot_instance.States.AddCustomState(lambda: _get_adapter().set_following_enabled(False), "Disable Following")
+    #bot_instance.States.AddCustomState(lambda: _get_adapter().set_following_enabled(False), "Disable Following")
     bot_instance.Wait.ForTime(2000)  # Wait till some Allies die
     #Wait till Dhuum is dead
     bot_instance.Wait.UntilCondition(
@@ -1548,7 +1550,7 @@ def Dhuum(bot_instance: Botting):
                 ConsoleLog(BOT_NAME, f"[Dhuum] Sent InteractWithTarget (chest) to {email}", Py4GW.Console.MessageType.Info)
             yield from Routines.Yield.wait(5000)
 
-    bot_instance.States.AddCustomState(lambda: _get_adapter().set_following_enabled(True), "Enable Following")
+    #bot_instance.States.AddCustomState(lambda: _get_adapter().set_following_enabled(True), "Enable Following")
     bot_instance.States.AddCustomState(
         lambda: _get_adapter().clear_flags(),
         "Clear Flags",
@@ -1660,8 +1662,20 @@ def _do_inventory_refill(bot_instance: Botting) -> None:
 
 
 def ResignAndRepeat(bot_instance: Botting):
+    bot_instance.States.AddCustomState(_log_successful_run, "Log Successful Run")
     if BotSettings.Repeat:
         bot_instance.Multibox.ResignParty()
+
+
+def _log_successful_run() -> None:
+    """Append a timestamped successful-run entry to the wipe log file."""
+    entry = f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Run completed successfully.\n"
+    try:
+        with open(_WIPE_LOG_FILE, "a", encoding="utf-8") as f:
+            f.write(entry)
+    except OSError as exc:
+        ConsoleLog(BOT_NAME, f"[Run] Could not write run log: {exc}", Py4GW.Console.MessageType.Warning)
+    ConsoleLog(BOT_NAME, "[Run] Successful run logged.", Py4GW.Console.MessageType.Info)
 
 def Wait_for_Spawns(bot_instance: Botting, x, y):
     _TIMEOUT_S = 20.0
@@ -1712,20 +1726,17 @@ def Wait_for_Spawns(bot_instance: Botting, x, y):
 
 
 def _draw_help():
-    PyImGui.text_wrapped("This version is tuned for Custom Behaviors multibox runs.")
     PyImGui.text("Startup widget policy now runs on all active accounts:")
-    PyImGui.bullet_text("HeroAI disabled")
-    PyImGui.bullet_text("CustomBehaviors enabled")
-    PyImGui.bullet_text("Dhuum Helper enabled")
 
     PyImGui.separator()
     PyImGui.text("Current Status")
-    PyImGui.text_wrapped("Current status:")
     PyImGui.text_wrapped("I'm working on creating a HeroAI version, but there are significant differences.")
     PyImGui.text_wrapped("High risk of getting stuck: 'Unwanted Guests,' 'Dhuum' timing edge cases.")
+    PyImGui.text_wrapped("3d pathing in Pits is very rough, may cause getting stuck. Ranged leader works best.")
+    PyImGui.text_wrapped("HM is HARDMODE. Never finished a run. Maybe you can?")
 
     PyImGui.separator()
-    PyImGui.text_wrapped("For the Imprisoned Spirits quest, 1 or 2 durable damage dealers are recommended for the left team.")
+    PyImGui.text_wrapped("For the Imprisoned Spirits quest, 1 or 2 durable damage dealers are recommended for the left team. You need to figure out which ones.")
     PyImGui.text_wrapped("In the Dhuum battle, 1-2 heroes will die and become ghosts. You can choose which ones.")
 
     PyImGui.separator()
@@ -1927,8 +1938,43 @@ def _draw_settings():
         PyImGui.end_tab_bar()
 
 
+_WIPE_LOG_FILE = os.path.join(Py4GW.Console.get_projects_path(), "Widgets", "Config", "UnderworldBot_wipes.log")
+
+def _get_current_header(fsm) -> str:
+    """Return the clean name of the nearest preceding [H] header step, or 'unknown'."""
+    import re as _re
+    try:
+        steps = fsm.get_state_names()
+        current_idx = fsm.get_current_state_number()
+        if current_idx is None or current_idx < 0 or current_idx >= len(steps):
+            current_idx = len(steps) - 1
+        for i in range(current_idx, -1, -1):
+            name = steps[i]
+            if name.startswith("[H]"):
+                name = _re.sub(r'^\[H\]\s*', '', name)
+                name = _re.sub(r'_(?:\[\d+\]|\d+)$', '', name)
+                return name
+    except Exception:
+        pass
+    return "unknown"
+
+
+def _log_wipe_step(fsm) -> None:
+    """Append a timestamped wipe entry with the current FSM step name to the wipe log file."""
+    step_name = fsm.get_current_step_name()
+    header = _get_current_header(fsm)
+    entry = f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Wipe at step: {step_name} [{header}]\n"
+    try:
+        with open(_WIPE_LOG_FILE, "a", encoding="utf-8") as f:
+            f.write(entry)
+    except OSError as exc:
+        ConsoleLog(BOT_NAME, f"[WIPE] Could not write wipe log: {exc}", Py4GW.Console.MessageType.Warning)
+    ConsoleLog(BOT_NAME, f"[WIPE] Logged wipe at step: {step_name} [{header}]", Py4GW.Console.MessageType.Warning)
+
+
 def OnPartyWipe(bot: "Botting"):
     fsm = bot.config.FSM
+    _log_wipe_step(fsm)
     fsm.pause()
     fsm.AddManagedCoroutine("OnWipe_Underworld", lambda: _on_party_wipe(bot))
 
@@ -1949,15 +1995,65 @@ def _on_party_wipe(bot: "Botting"):
     _restart_main_loop(bot, "Player resurrected in instance")
 
 
+def _draw_run_log() -> None:
+    """Display the last 10 entries from the wipe/run log file."""
+    if PyImGui.button("Refresh##run_log"):
+        pass  # The read below happens every frame; button is a visual affordance only.
+    PyImGui.same_line(0, -1)
+    PyImGui.text(_WIPE_LOG_FILE)
+    PyImGui.separator()
+    try:
+        with open(_WIPE_LOG_FILE, "r", encoding="utf-8") as f:
+            lines = [l.rstrip("\n") for l in f.readlines() if l.strip()]
+        last_10 = lines[-10:] if len(lines) > 10 else lines
+        if not last_10:
+            PyImGui.text_wrapped("(log is empty)")
+        else:
+            for line in reversed(last_10):
+                PyImGui.text_wrapped(line)
+    except FileNotFoundError:
+        PyImGui.text_wrapped("(no log file yet — wipes and completed runs will appear here)")
+    except OSError as exc:
+        PyImGui.text_wrapped(f"Error reading log: {exc}")
+
+
+def _log_crash(exc: BaseException, tb: str) -> None:
+    """Append a timestamped crash entry with the full traceback to the log file."""
+    step_name = "unknown"
+    header = "unknown"
+    try:
+        step_name = bot.config.FSM.get_current_step_name()
+        header = _get_current_header(bot.config.FSM)
+    except Exception:
+        pass
+    entry = (
+        f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] CRASH at step: {step_name} [{header}]\n"
+        f"  {type(exc).__name__}: {exc}\n"
+    )
+    for line in tb.splitlines():
+        entry += f"  {line}\n"
+    entry += "\n"
+    try:
+        with open(_WIPE_LOG_FILE, "a", encoding="utf-8") as f:
+            f.write(entry)
+    except OSError:
+        pass  # Nothing we can do if the file itself fails
+
+
 def main():
-    if bot.config.fsm_running:
-        _get_adapter().sync_runtime()
-        # Watchdog: callback sometimes misses wipes — detect return to outpost by map ID
-        if _entered_dungeon and Map.GetMapID() == 138:
-            ConsoleLog(BOT_NAME, "[WIPE] Watchdog: back in outpost (map 138) without wipe callback — restarting.", Py4GW.Console.MessageType.Warning)
-            _restart_main_loop(bot, "Watchdog: returned to map 138")
-    bot.Update()
-    bot.UI.draw_window()
+    import traceback as _tb
+    try:
+        if bot.config.fsm_running:
+            _get_adapter().sync_runtime()
+            # Watchdog: callback sometimes misses wipes — detect return to outpost by map ID
+            if _entered_dungeon and Map.GetMapID() == 138:
+                ConsoleLog(BOT_NAME, "[WIPE] Watchdog: back in outpost (map 138) without wipe callback — restarting.", Py4GW.Console.MessageType.Warning)
+                _restart_main_loop(bot, "Watchdog: returned to map 138")
+        bot.Update()
+        bot.UI.draw_window(extra_tabs=[("Run Log", _draw_run_log)])
+    except Exception as exc:
+        _log_crash(exc, _tb.format_exc())
+        raise
 
 if __name__ == "__main__":
     main()

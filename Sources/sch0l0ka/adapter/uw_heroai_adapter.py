@@ -125,9 +125,17 @@ class UWHeroAIAdapter(UWCombatAdapter):
         )
 
     def reactivate_for_step(self, bot_instance, step_label: str) -> None:
+        # Re-broadcast "Enable HeroAI" so accounts whose widget was reset on map
+        # load (entering UW) get re-enabled at the start of each section.
+        self._broadcast_widget_command(
+            "HeroAI", SharedCommandType.EnableWidget, f"Re-enable for step '{step_label}'"
+        )
+        # Explicitly restore all combat options in case HeroAI re-initialized with
+        # defaults (Following=False, Combat=False, Looting=False) after the map load.
+        self._set_all_heroai_options(following=True, combat=True, looting=True)
         ConsoleLog(
             self._bot_name,
-            f"[HeroAI] Step '{step_label}' — HeroAI handles combat automatically.",
+            f"[HeroAI] Step '{step_label}' — re-enabled HeroAI and restored combat options.",
             Py4GW.Console.MessageType.Info,
         )
 

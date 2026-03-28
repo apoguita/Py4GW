@@ -271,6 +271,12 @@ class UWCombatAdapter(ABC):
                 # Re-pause every frame to outlast the CB daemon's periodic resume()
                 fsm.pause()
 
+                # If WaitIfPartyMemberTooFar was disabled while this coroutine
+                # was already running (e.g. Imprisoned Spirits flags section),
+                # exit cleanly so fsm.resume() is called via the finally block.
+                if not self._wait_for_party_enabled:
+                    return
+
                 if GLOBAL_CACHE.Party.IsPartyDefeated() or Routines.Checks.Party.IsPartyWiped():
                     # print(f"[{self._bot_name}][Watchdog] Party wiped/defeated — aborting party wait.")
                     return
