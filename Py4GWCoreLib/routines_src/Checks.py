@@ -353,6 +353,13 @@ class Checks:
                 return False
             return Map.IsInCinematic()
         
+        @staticmethod
+        def IsCombatReady():
+            from ..Map import Map
+            if not Checks.Map.MapValid():
+                return False
+            return Map.IsExplorable()
+        
 #region Inventory
     class Inventory:
         @staticmethod

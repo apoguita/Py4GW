@@ -141,12 +141,19 @@ class FollowFormationPublisher:
             )
         self.state.ini_vars_registered = True
 
-    def _load_ini_vars_once(self, key: str, force_var_refresh: bool = False) -> None:
+    def _load_ini_vars_once(
+        self,
+        key: str,
+        force_var_refresh: bool = False,
+        reload_from_disk: bool = False,
+    ) -> None:
         if not key:
             return
         im = IniManager()
         try:
             node = im._get_node(key)
+            if reload_from_disk:
+                im.reload(key)
             if node and force_var_refresh:
                 node.vars_loaded = False
             im.load_once(key)
@@ -222,9 +229,21 @@ class FollowFormationPublisher:
             return
 
         im = IniManager()
-        self._load_ini_vars_once(self.state.settings_ini_key)
-        self._load_ini_vars_once(self.state.formations_ini_key)
-        self._load_ini_vars_once(self.state.runtime_ini_key)
+        self._load_ini_vars_once(
+            self.state.settings_ini_key,
+            force_var_refresh=True,
+            reload_from_disk=True,
+        )
+        self._load_ini_vars_once(
+            self.state.formations_ini_key,
+            force_var_refresh=True,
+            reload_from_disk=True,
+        )
+        self._load_ini_vars_once(
+            self.state.runtime_ini_key,
+            force_var_refresh=True,
+            reload_from_disk=True,
+        )
         self._reload_thresholds(im)
 
         selected_id = self._resolve_selected_formation_id(im)

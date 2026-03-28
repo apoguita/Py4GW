@@ -12,6 +12,7 @@ from ..Map import Map
 
 from ..GlobalCache import GLOBAL_CACHE
 from ..Py4GWcorelib import ConsoleLog, Console, Utils, ActionQueueManager
+from ..py4gwcorelib_src.BehaviorTree import BehaviorTree
 
 from ..enums_src.Model_enums import ModelID
 from ..enums_src.UI_enums import ControlAction
@@ -35,7 +36,9 @@ def _run_bt_tree(tree, return_bool: bool=False, throttle_ms: int = 100):
     If return_bool is False -> just exits.
     """
     while True:
-        state = tree.tick()
+        state = BehaviorTree.Node._normalize_state(tree.tick())
+        if state is None:
+            raise TypeError("Yield runner received a non-NodeState tree result.")
 
         if state in (BT.NodeState.SUCCESS, BT.NodeState.FAILURE):
             yield
@@ -229,19 +232,6 @@ class Yield:
             tree = BT.Player.Move(x, y, log=log)
             yield from _run_bt_tree(tree , throttle_ms=100)
             
-        @staticmethod
-        def MoveXYZ(x:float, y:float, zplane:int, log=False):
-            """
-            Purpose: Move the player to the specified coordinates and z-plane.
-            Args:
-                x (float): The x coordinate.
-                y (float): The y coordinate.
-                zplane (int): The z-plane.
-                log (bool) Optional: Whether to log the action. Default is False.
-            Returns: None
-            """
-            tree = BT.Player.MoveXYZ(x, y, zplane, log=log)
-            yield from _run_bt_tree(tree , throttle_ms=100)
 
 #region Skills
     class Skills:       

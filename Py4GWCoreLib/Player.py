@@ -712,7 +712,55 @@ class Player:
             
         ActionQueueManager().AddAction("ACTION",
         Player.player_instance().SendDialog,dialog)
-        
+
+    @staticmethod
+    def SendAutomaticDialog(button_number: int):
+        """
+        Purpose: Send the currently visible dialog choice by its 0-based button position.
+        Args:
+            button_number (int): Visible button index starting at 0.
+        Returns: None
+        """
+        import PyDialog
+
+        if button_number < 0:
+            Py4GW.Console.Log(
+                "Player.SendAutomaticDialog",
+                f"Invalid button number: {button_number}. Button numbers start at 0.",
+                Py4GW.Console.MessageType.Warning,
+            )
+            return
+
+        try:
+            buttons = list(PyDialog.PyDialog.get_active_dialog_buttons())
+        except Exception as e:
+            Py4GW.Console.Log(
+                "Player.SendAutomaticDialog",
+                f"Failed to read active dialog buttons: {e}",
+                Py4GW.Console.MessageType.Error,
+            )
+            return
+
+        available_buttons = [button for button in buttons if getattr(button, "dialog_id", 0) != 0]
+        if not available_buttons:
+            Py4GW.Console.Log(
+                "Player.SendAutomaticDialog",
+                "No active dialog buttons are currently available.",
+                Py4GW.Console.MessageType.Warning,
+            )
+            return
+
+        if button_number >= len(available_buttons):
+            Py4GW.Console.Log(
+                "Player.SendAutomaticDialog",
+                f"Requested button {button_number}, but only indices 0..{len(available_buttons) - 1} are available.",
+                Py4GW.Console.MessageType.Warning,
+            )
+            return
+
+        selected_button = available_buttons[button_number]
+        Player.SendDialog(selected_button.dialog_id)
+         
     @staticmethod
     def RequestChatHistory():
         """
