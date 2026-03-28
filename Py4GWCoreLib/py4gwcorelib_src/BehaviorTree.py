@@ -103,8 +103,18 @@ class BehaviorTree:
             - Updates metadata
             """
             start = Utils.GetBaseTimestamp()
+            trace_enabled = bool(self.blackboard.get("BT_TRACE", False)) if isinstance(self.blackboard, dict) else False
+            if trace_enabled:
+                ConsoleLog("BT", f"ENTER {self.node_type}:{self.name}", Console.MessageType.Debug, log=True)
 
             result = self._tick_impl()   # <--- overridden in subclasses
+            normalized = self._normalize_state(result)
+            if normalized is None:
+                raise TypeError(
+                    f"{self.node_type}:{self.name} returned invalid state "
+                    f"{result!r} ({type(result).__name__}); expected BehaviorTree.NodeState."
+                )
+            result = normalized
 
             end = Utils.GetBaseTimestamp()
             
@@ -134,7 +144,40 @@ class BehaviorTree:
                     self.run_start_time = None  # reset for next activation
 
             self.last_state = result
+            if trace_enabled:
+                ConsoleLog("BT", f"EXIT  {self.node_type}:{self.name} -> {result}", Console.MessageType.Debug, log=True)
             return result
+
+        @staticmethod
+        def _normalize_state(result) -> Optional["BehaviorTree.NodeState"]:
+            if isinstance(result, BehaviorTree.NodeState):
+                return result
+            if isinstance(result, Enum) and result.name in BehaviorTree.NodeState.__members__:
+                return BehaviorTree.NodeState[result.name]
+            return None
+
+        @staticmethod
+        def _coerce_node(value) -> "BehaviorTree.Node":
+            if isinstance(value, BehaviorTree):
+                return value.root
+            if hasattr(value, "root") and hasattr(getattr(value, "root"), "tick") and hasattr(getattr(value, "root"), "get_children"):
+                return value.root
+            if isinstance(value, BehaviorTree.Node):
+                return value
+            if (
+                hasattr(value, "tick")
+                and hasattr(value, "reset")
+                and hasattr(value, "get_children")
+                and hasattr(value, "blackboard")
+            ):
+                return value
+            raise TypeError(
+                f"Expected a BehaviorTree or BehaviorTree.Node, got {type(value).__name__}."
+            )
+
+        @staticmethod
+        def _coerce_children(children) -> List["BehaviorTree.Node"]:
+            return [BehaviorTree.Node._coerce_node(child) for child in (children or [])]
         
         def reset(self) -> None:
             """
@@ -353,6 +396,7 @@ class BehaviorTree:
                 else:
                     result = self.action_fn()
                 # --- end blackboard support ---
+                result = self._normalize_state(result)
                 
                 # If action still running - return RUNNING
                 if result == BehaviorTree.NodeState.RUNNING:
@@ -379,6 +423,12 @@ class BehaviorTree:
                 return final  # SUCCESS or FAILURE (propagates action result)
 
             return BehaviorTree.NodeState.RUNNING
+
+        def reset(self) -> None:
+            super().reset()
+            self._action_done = False
+            self._action_result = None
+            self._start_time = None
         
     # --------------------------------------------------------
     #region ConditionNode
@@ -420,6 +470,10 @@ class BehaviorTree:
             else:
                 result = self.condition_fn()
 
+            normalized = self._normalize_state(result)
+            if normalized is not None:
+                return normalized
+
             # ---- CASE 1: NodeState directly ----
             if isinstance(result, BehaviorTree.NodeState):
                 return result
@@ -456,11 +510,21 @@ class BehaviorTree:
             super().__init__(name=name, node_type="Sequence", 
                              icon=IconsFontAwesome5.ICON_SORT_AMOUNT_DOWN_ALT,
                              color= ColorPalette.GetColor("dodger_blue"))
-            self.children: List[BehaviorTree.Node] = children or []
+            self.children: List[BehaviorTree.Node] = self._coerce_children(children)
             self.current: int = 0
 
         def get_children(self) -> List["BehaviorTree.Node"]:
             return self.children
+
+        def reset(self) -> None:
+            super().reset()
+            self.current = 0
+            for child in self.children:
+                child.reset()
+
+        def _reset_children(self) -> None:
+            for child in self.children:
+                child.reset()
 
         def _tick_impl(self) -> BehaviorTree.NodeState:
             while self.current < len(self.children):
@@ -469,7 +533,7 @@ class BehaviorTree:
                 child.blackboard = self.blackboard
                 # ----------------------------
 
-                result = child.tick()
+                result = self._normalize_state(child.tick())
 
                 if result is None:
                     ConsoleLog(
@@ -485,6 +549,7 @@ class BehaviorTree:
 
                 if result == BehaviorTree.NodeState.FAILURE:
                     self.current = 0
+                    self._reset_children()
                     return BehaviorTree.NodeState.FAILURE
 
                 # SUCCESS → continue to next child
@@ -492,6 +557,7 @@ class BehaviorTree:
 
             # Completed sequence
             self.current = 0
+            self._reset_children()
             return BehaviorTree.NodeState.SUCCESS
 
     # --------------------------------------------------------
@@ -514,11 +580,21 @@ class BehaviorTree:
             super().__init__(name=name, node_type="Selector", 
                              icon=IconsFontAwesome5.ICON_LIST_CHECK,
                              color= ColorPalette.GetColor("turquoise"))
-            self.children: List[BehaviorTree.Node] = children or []
+            self.children: List[BehaviorTree.Node] = self._coerce_children(children)
             self.current: int = 0
 
         def get_children(self) -> List["BehaviorTree.Node"]:
             return self.children
+
+        def reset(self) -> None:
+            super().reset()
+            self.current = 0
+            for child in self.children:
+                child.reset()
+
+        def _reset_children(self) -> None:
+            for child in self.children:
+                child.reset()
 
         def _tick_impl(self) -> BehaviorTree.NodeState:
             while self.current < len(self.children):
@@ -527,7 +603,7 @@ class BehaviorTree:
                 child.blackboard = self.blackboard
                 # -----------------------
 
-                result = child.tick()
+                result = self._normalize_state(child.tick())
 
                 if result is None:
                     ConsoleLog(
@@ -543,6 +619,7 @@ class BehaviorTree:
 
                 if result == BehaviorTree.NodeState.SUCCESS:
                     self.current = 0
+                    self._reset_children()
                     return BehaviorTree.NodeState.SUCCESS
 
                 # FAILURE → continue to next child
@@ -550,6 +627,7 @@ class BehaviorTree:
 
             # All children failed
             self.current = 0
+            self._reset_children()
             return BehaviorTree.NodeState.FAILURE
       
     # --------------------------------------------------------
@@ -572,10 +650,19 @@ class BehaviorTree:
             super().__init__(name=name, node_type="Choice", 
                              icon=IconsFontAwesome5.ICON_ARROW_UP_1_9,
                              color= ColorPalette.GetColor("olive"))
-            self.children: List[BehaviorTree.Node] = children or []
+            self.children: List[BehaviorTree.Node] = self._coerce_children(children)
 
         def get_children(self) -> List["BehaviorTree.Node"]:
             return self.children
+
+        def reset(self) -> None:
+            super().reset()
+            for child in self.children:
+                child.reset()
+
+        def _reset_children(self) -> None:
+            for child in self.children:
+                child.reset()
 
         def _tick_impl(self) -> BehaviorTree.NodeState:
             for child in self.children:
@@ -583,7 +670,7 @@ class BehaviorTree:
                 child.blackboard = self.blackboard
                 # ----------------------
 
-                result = child.tick()
+                result = self._normalize_state(child.tick())
 
                 if result is None:
                     ConsoleLog(
@@ -595,9 +682,12 @@ class BehaviorTree:
 
                 # The FIRST non-failure result is returned immediately
                 if result != BehaviorTree.NodeState.FAILURE:
+                    if result != BehaviorTree.NodeState.RUNNING:
+                        self._reset_children()
                     return result
 
             # All children returned FAILURE
+            self._reset_children()
             return BehaviorTree.NodeState.FAILURE
         
     # --------------------------------------------------------
@@ -620,12 +710,17 @@ class BehaviorTree:
             super().__init__(name=name, node_type="Repeater", 
                              icon=IconsFontAwesome5.ICON_HISTORY,
                              color= ColorPalette.GetColor("light_green"))
-            self.child = child
+            self.child = self._coerce_node(child)
             self.repeat_count = repeat_count
             self.current_count: int = 0
 
         def get_children(self) -> List["BehaviorTree.Node"]:
             return [self.child]
+
+        def reset(self) -> None:
+            super().reset()
+            self.current_count = 0
+            self.child.reset()
 
         def _tick_impl(self) -> BehaviorTree.NodeState:
             # ----- Blackboard -----
@@ -634,7 +729,7 @@ class BehaviorTree:
             # -----------------------
 
             while self.current_count < self.repeat_count:
-                result = self.child.tick()
+                result = self._normalize_state(self.child.tick())
 
                 if result is None:
                     ConsoleLog(
@@ -676,12 +771,17 @@ class BehaviorTree:
             super().__init__(name=name, node_type="RepeaterUntilSuccess", 
                              icon=IconsFontAwesome5.ICON_ROTATE_RIGHT,
                              color= ColorPalette.GetColor("light_yellow"))
-            self.child = child
+            self.child = self._coerce_node(child)
             self.timeout_ms = timeout_ms
             self.start_time = None
 
         def get_children(self) -> List["BehaviorTree.Node"]:
             return [self.child]
+
+        def reset(self) -> None:
+            super().reset()
+            self.start_time = None
+            self.child.reset()
 
         def _tick_impl(self) -> BehaviorTree.NodeState:
             # ---------- INIT TIME ----------
@@ -702,7 +802,7 @@ class BehaviorTree:
 
             # ---------- CHILD EXECUTION LOOP ----------
             while True:
-                result = self.child.tick()
+                result = self._normalize_state(self.child.tick())
 
                 if result is None:
                     ConsoleLog(
@@ -742,12 +842,17 @@ class BehaviorTree:
             super().__init__(name=name, node_type="RepeaterUntilFailure", 
                              icon=IconsFontAwesome5.ICON_ROTATE_LEFT,
                              color= ColorPalette.GetColor("light_pink"))
-            self.child = child
+            self.child = self._coerce_node(child)
             self.timeout_ms = timeout_ms
             self.start_time = None
             
         def get_children(self) -> List["BehaviorTree.Node"]:
             return [self.child]
+
+        def reset(self) -> None:
+            super().reset()
+            self.start_time = None
+            self.child.reset()
 
         def _tick_impl(self) -> BehaviorTree.NodeState:
             # ---------- INIT TIME ----------
@@ -768,7 +873,7 @@ class BehaviorTree:
 
             # ---------- CHILD EXECUTION LOOP ----------
             while True:
-                result = self.child.tick()
+                result = self._normalize_state(self.child.tick())
 
                 if result is None:
                     ConsoleLog(
@@ -809,12 +914,17 @@ class BehaviorTree:
             super().__init__(name=name, node_type="RepeaterForever", 
                              icon=IconsFontAwesome5.ICON_INFINITY,
                              color= ColorPalette.GetColor("creme"))
-            self.child = child
+            self.child = self._coerce_node(child)
             self.timeout_ms = timeout_ms
             self.start_time = None
             
         def get_children(self) -> List["BehaviorTree.Node"]:
             return [self.child]
+
+        def reset(self) -> None:
+            super().reset()
+            self.start_time = None
+            self.child.reset()
 
         def _tick_impl(self) -> BehaviorTree.NodeState:
             # ---------- INIT TIME ----------
@@ -860,10 +970,19 @@ class BehaviorTree:
             super().__init__(name=name, node_type="Parallel", 
                              icon=IconsFontAwesome5.ICON_PROJECT_DIAGRAM,
                              color= ColorPalette.GetColor("light_purple"))
-            self.children: List[BehaviorTree.Node] = children or []
+            self.children: List[BehaviorTree.Node] = self._coerce_children(children)
 
         def get_children(self) -> List["BehaviorTree.Node"]:
             return self.children
+
+        def reset(self) -> None:
+            super().reset()
+            for child in self.children:
+                child.reset()
+
+        def _reset_children(self) -> None:
+            for child in self.children:
+                child.reset()
 
         def _tick_impl(self) -> BehaviorTree.NodeState:
             # --- blackboard support ---
@@ -875,7 +994,7 @@ class BehaviorTree:
             all_success = True
 
             for child in self.children:
-                result = child.tick()
+                result = self._normalize_state(child.tick())
 
                 if result is None:
                     ConsoleLog(
@@ -886,12 +1005,14 @@ class BehaviorTree:
                     return BehaviorTree.NodeState.FAILURE
 
                 if result == BehaviorTree.NodeState.FAILURE:
+                    self._reset_children()
                     return BehaviorTree.NodeState.FAILURE
 
                 if result == BehaviorTree.NodeState.RUNNING:
                     all_success = False
 
             if all_success:
+                self._reset_children()
                 return BehaviorTree.NodeState.SUCCESS
 
             return BehaviorTree.NodeState.RUNNING
@@ -919,9 +1040,9 @@ class BehaviorTree:
                 • When you need to run another BehaviorTree as a child node.
         """
 
-        def __init__(self, subtree_fn: Callable[["BehaviorTree.Node"], "BehaviorTree"], name: str = "Subtree"):
+        def __init__(self, subtree_fn: Callable[["BehaviorTree.Node"], "BehaviorTree | BehaviorTree.Node"], name: str = "Subtree"):
             if not callable(subtree_fn):
-                raise TypeError("SubtreeNode requires a callable returning a BehaviorTree.")
+                raise TypeError("SubtreeNode requires a callable returning a BehaviorTree or BehaviorTree.Node.")
 
             super().__init__(
                 name=name,
@@ -936,7 +1057,8 @@ class BehaviorTree:
         def reset(self):
             super().reset()
             if self._subtree is not None:
-                self._subtree.root.reset()
+                self._subtree.reset()
+                self._subtree = None
 
         def _ensure_subtree(self):
             """
@@ -944,10 +1066,25 @@ class BehaviorTree:
             and pass THIS node to the factory, allowing dynamic values.
             """
             if self._subtree is None:
-                tree = self._factory(self)
-                if tree is None:
-                    raise ValueError("subtree_fn() returned None; expected a BehaviorTree.")
-                self._subtree = tree
+                subtree = self._factory(self)
+                if subtree is None:
+                    raise ValueError("subtree_fn() returned None; expected a BehaviorTree or BehaviorTree.Node.")
+                if isinstance(subtree, BehaviorTree):
+                    self._subtree = subtree
+                elif (
+                    hasattr(subtree, "root")
+                    and hasattr(subtree, "tick")
+                    and hasattr(subtree, "reset")
+                    and hasattr(getattr(subtree, "root"), "tick")
+                ):
+                    self._subtree = subtree
+                elif isinstance(subtree, BehaviorTree.Node):
+                    self._subtree = BehaviorTree(subtree)
+                else:
+                    raise TypeError(
+                        f"subtree_fn() returned invalid type {type(subtree).__name__}; "
+                        "expected a BehaviorTree or BehaviorTree.Node."
+                    )
 
         def get_children(self) -> List["BehaviorTree.Node"]:
             if self._subtree is not None:
@@ -987,10 +1124,14 @@ class BehaviorTree:
             super().__init__(name=name, node_type="Inverter", 
                              icon=IconsFontAwesome5.ICON_CIRCLE_MINUS,
                              color= ColorPalette.GetColor("purple"))
-            self.child = child
+            self.child = self._coerce_node(child)
 
         def get_children(self) -> List["BehaviorTree.Node"]:
             return [self.child]
+
+        def reset(self) -> None:
+            super().reset()
+            self.child.reset()
 
         def _tick_impl(self) -> BehaviorTree.NodeState:
             # ----- BLACKBOARD -----
@@ -1000,6 +1141,7 @@ class BehaviorTree:
 
             # Tick child
             result = self.child.tick()
+            result = self._normalize_state(result)
 
             if result is None:
                 ConsoleLog(
@@ -1052,6 +1194,7 @@ class BehaviorTree:
 
             # run check
             result = self.check_fn()
+            result = self._normalize_state(result) or result
 
             # invalid return
             if result is None:
@@ -1077,6 +1220,10 @@ class BehaviorTree:
 
             # continue waiting
             return BehaviorTree.NodeState.RUNNING
+
+        def reset(self) -> None:
+            super().reset()
+            self.start_time = None
      
     # --------------------------------------------------------
     #region WaitUntilNode
@@ -1159,6 +1306,8 @@ class BehaviorTree:
 
             #ConsoleLog("WaitUntilNode",f"[{self.name}] condition_fn returned: {result} (type={type(result).__name__})",log=True)
 
+            result = self._normalize_state(result) or result
+
             # --- NodeState ---
             if isinstance(result, BehaviorTree.NodeState):
                 #ConsoleLog("WaitUntilNode", f"[{self.name}] Returning NodeState: {result}",log=True)
@@ -1188,6 +1337,11 @@ class BehaviorTree:
             raise TypeError(
                 f"WaitUntilNode expected bool or NodeState, got: {type(result).__name__}"
             )
+
+        def reset(self) -> None:
+            super().reset()
+            self.start_time = None
+            self.last_check_time = None
 
 
     # --------------------------------------------------------
@@ -1279,6 +1433,8 @@ class BehaviorTree:
                 f"[{self.name}] condition_fn returned: {result} (type={type(result).__name__})",
                 log=True)
 
+            result = self._normalize_state(result) or result
+
             # --- Normalize bool ---
             if isinstance(result, bool):
                 result = (BehaviorTree.NodeState.SUCCESS if result
@@ -1308,6 +1464,11 @@ class BehaviorTree:
             raise TypeError(
                 f"WaitUntilSuccessNode expected bool or NodeState, got: {type(result).__name__}"
             )
+
+        def reset(self) -> None:
+            super().reset()
+            self.start_time = None
+            self.last_check_time = None
 
 
 
@@ -1399,6 +1560,8 @@ class BehaviorTree:
                 f"[{self.name}] condition_fn returned: {result} (type={type(result).__name__})",
                 log=True)
 
+            result = self._normalize_state(result) or result
+
             # --- Normalize bool ---
             if isinstance(result, bool):
                 result = (BehaviorTree.NodeState.SUCCESS if result
@@ -1419,6 +1582,11 @@ class BehaviorTree:
                 log=True)
 
             return BehaviorTree.NodeState.RUNNING
+
+        def reset(self) -> None:
+            super().reset()
+            self.start_time = None
+            self.last_check_time = None
 
 
 
@@ -1457,6 +1625,10 @@ class BehaviorTree:
                 return BehaviorTree.NodeState.SUCCESS
 
             return BehaviorTree.NodeState.RUNNING
+
+        def reset(self) -> None:
+            super().reset()
+            self.start_time = None
     
     # --------------------------------------------------------
     #region SucceederNode
@@ -1539,7 +1711,16 @@ class BehaviorTree:
         Ticks the root node once and returns its resulting NodeState.
         """
         self._propagate_blackboard(self.root)
-        return self.root.tick()
+        result = self.Node._normalize_state(self.root.tick())
+        if result is None:
+            raise TypeError("BehaviorTree root returned a non-NodeState result.")
+        return result
+
+    def reset(self) -> None:
+        """
+        Resets the root node and its subtree execution state.
+        """
+        self.root.reset()
 
     # -------- tree-level debug helpers --------
     def print(self) -> None:

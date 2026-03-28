@@ -136,8 +136,6 @@ def bot_routine(bot: Botting) -> None:
                 )
                 bot.Move.FollowAutoPath(seg_path)
                 bot.Wait.ForMapToChange(next_map_id)
-            else:
-                bot.Wait.ForMapLoad(entry["map_id"])
 
     # All runs finished
     bot.States.AddHeader("All Runs Finished")
@@ -189,11 +187,18 @@ def _load_run_data(region_dir: str, run_name: str) -> QueuedRun:
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
 
-    run_prefix = run_name.lower()
-    ids = getattr(mod, f"{run_prefix}_ids", {})
+    def _getattr_ci(module, suffix, default=None):
+        """Case-insensitive getattr: find attribute ending with suffix."""
+        suffix_lower = suffix.lower()
+        for attr_name in dir(module):
+            if attr_name.lower().endswith(suffix_lower):
+                return getattr(module, attr_name)
+        return default
+
+    ids = _getattr_ci(mod, "_ids", {})
     outpost_id = ids.get("outpost_id", 0)
-    outpost_path = getattr(mod, f"{run_prefix}_outpost_path", [])
-    segments = getattr(mod, f"{run_prefix}_segments", [])
+    outpost_path = _getattr_ci(mod, "_outpost_path", [])
+    segments = _getattr_ci(mod, "_segments", [])
 
     region_name = os.path.basename(region_dir)
     display = f"[{region_name}] {run_name}"
@@ -303,7 +308,19 @@ def _draw_settings_debug():
         PyImGui.text(f"  {i+1}. {qr.display} (outpost={qr.outpost_id}){marker}")
 
 def _draw_help():
+    PyImGui.text("Equipment")
+    PyImGui.bullet_text("+5e +20% enchant duration weapon")
+    PyImGui.bullet_text("+45hp -2dmg while enchanted shield")
+    PyImGui.bullet_text("x5 Windwalker insignias")
+    PyImGui.bullet_text("+1 head +1 Mysticism Rune")
+    PyImGui.bullet_text("Major Vigor Rune")
+    PyImGui.bullet_text("x3 Atunnement Rune")
+    PyImGui.spacing()
+    PyImGui.separator()
+    PyImGui.spacing()
     PyImGui.text("Developed by: Aura")
+    PyImGui.text("Credits to: aC original script")
+    
 # endregion
 
 # =============================================================================

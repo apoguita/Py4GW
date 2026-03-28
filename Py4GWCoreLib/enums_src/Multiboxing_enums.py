@@ -51,6 +51,7 @@ class SharedCommandType(IntEnum):
     RestockResurrectionScroll = 44
     EnableWidget = 45
     DisableWidget = 46
+    InventoryQuery = 47
 
     MultiBoxing = 990 # privately Handled Command, by frenkey
     CustomBehaviors = 997 # privately Handled Command, used in CustomBehaviors widget

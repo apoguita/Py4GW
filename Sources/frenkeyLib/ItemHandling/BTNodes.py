@@ -19,12 +19,11 @@ from Py4GWCoreLib.enums_src.Region_enums import ServerLanguage
 from Py4GWCoreLib.py4gwcorelib_src.BehaviorTree import BehaviorTree
 from Sources.frenkeyLib.ItemHandling.Items.ItemCache import ITEM_CACHE
 from Sources.frenkeyLib.ItemHandling.Items.item_snapshot import ItemSnapshot
+from Sources.frenkeyLib.ItemHandling.Items.types import INVENTORY_BAGS, STORAGE_BAGS
 from Sources.frenkeyLib.ItemHandling.Rules.types import MATERIAL_SLOTS, SalvageMode
 from Sources.frenkeyLib.ItemHandling.UIManagerExtensions import UIManagerExtensions
 from Sources.frenkeyLib.ItemHandling.utility import GetDestinationSlots, GetItemsLocations, HasSpaceForItem
 
-INVENTORY_BAGS = [Bag.Backpack, Bag.Belt_Pouch, Bag.Bag_1, Bag.Bag_2]
-STORAGE_BAGS = [Bag.Storage_1, Bag.Storage_2, Bag.Storage_3, Bag.Storage_4, Bag.Storage_5, Bag.Storage_6, Bag.Storage_7, Bag.Storage_8, Bag.Storage_9, Bag.Storage_10, Bag.Storage_11, Bag.Storage_12, Bag.Storage_13, Bag.Storage_14]
 SALVAGE_WINDOW_HASH = 684387150
 LESSER_CONFIRM_HASH = 140452905
 
@@ -415,6 +414,7 @@ class BTNodes:
                     if item is None or not item.is_valid or not item.is_inventory_item:
                         continue
                     
+                    Py4GW.Console.Log(node.name, f"Destroying '{item.names.full}' (ID: {item.id}) from bag {item.bag.name} slot {item.slot} quantity {item.quantity}")
                     Inventory.DestroyItem(item.id)
                     destroyed_any = True
 
@@ -644,7 +644,7 @@ class BTNodes:
                                     stack_item.quantity += qty_to_move  # simulate the move in the cache to get correct available space for subsequent stacks of the same item
                                     
                                     if qty <= 0:
-                                        Py4GW.Console.Log("GetTransferInstructions", f"Planned to move {qty_to_move} of '{item.data.names.get(ServerLanguage.English, 'Unknown') if item.data else 'Unknown Item'}' (ID: {item.id}) to Material Storage bag {Bag.Material_Storage.name} slot {slot}")
+                                        Py4GW.Console.Log("GetTransferInstructions", f"Planned to move {qty_to_move} of '{item.names.plain}' (ID: {item.id}) to Material Storage bag {Bag.Material_Storage.name} slot {slot}")
                                         break
                         
                         if qty <= 0:
@@ -721,7 +721,7 @@ class BTNodes:
                     for dest in bag.values():
                         for item, qty in dest.items:
                             Inventory.MoveItem(item.id, dest.bag.value, dest.slot, qty)
-                            Py4GW.Console.Log(node.name, f"Moving {qty} of '{item.data.names.get(ServerLanguage.English, 'Unknown') if item.data else 'Unknown Item'}' (ID: {item.id}) to bag {dest.bag.name} slot {dest.slot}")
+                            Py4GW.Console.Log(node.name, f"Moving {qty} of '{item.names.plain}' (ID: {item.id}) to bag {dest.bag.name} slot {dest.slot}")
                             moved_any = True
                 
                 return BehaviorTree.NodeState.SUCCESS if moved_any else BehaviorTree.NodeState.FAILURE
@@ -747,7 +747,7 @@ class BTNodes:
                     for dest in bag.values():
                         for item, qty in dest.items:
                             Inventory.MoveItem(item.id, dest.bag.value, dest.slot, qty)
-                            Py4GW.Console.Log(node.name, f"Moving {qty} of '{item.data.names.get(ServerLanguage.English, 'Unknown') if item.data else 'Unknown Item'}' (ID: {item.id}) to bag {dest.bag.name} slot {dest.slot}")
+                            Py4GW.Console.Log(node.name, f"Moving {qty} of '{item.names.plain}' (ID: {item.id}) to bag {dest.bag.name} slot {dest.slot}")
                             moved_any = True
                 
                 return BehaviorTree.NodeState.SUCCESS if moved_any else BehaviorTree.NodeState.FAILURE
@@ -805,7 +805,7 @@ class BTNodes:
                     for dest in bag.values():
                         for item, qty in dest.items:
                             Inventory.MoveItem(item.id, dest.bag.value, dest.slot, qty)
-                            Py4GW.Console.Log(node.name, f"Moving {qty} of '{item.data.names.get(ServerLanguage.English, 'Unknown') if item.data else 'Unknown Item'}' (ID: {item.id}) to bag {dest.bag.name} slot {dest.slot}")
+                            Py4GW.Console.Log(node.name, f"Moving {qty} of '{item.names.plain}' (ID: {item.id}) to bag {dest.bag.name} slot {dest.slot}")
 
                 return BehaviorTree.NodeState.SUCCESS
 
@@ -866,7 +866,7 @@ class BTNodes:
                 for dest in transfer_instructions.values():
                     for item, qty in dest.items:
                         Inventory.MoveItem(item.id, dest.bag.value, dest.slot, qty)
-                        Py4GW.Console.Log(node.name, f"Moving {qty} of '{item.data.names.get(ServerLanguage.English, 'Unknown') if item.data else 'Unknown Item'}' (ID: {item.id}) to Material Storage slot {dest.slot}")
+                        Py4GW.Console.Log(node.name, f"Moving {qty} of '{item.names.plain}' (ID: {item.id}) to Material Storage slot {dest.slot}")
                         moved_any = True
 
                 return BTNodes._success_if(moved_any or succeed_if_already_filled)
@@ -905,7 +905,7 @@ class BTNodes:
                             continue
                         
                         Inventory.MoveItem(source_item.id, target_bag.value, target_slot, qty_to_move)
-                        Py4GW.Console.Log(node.name, f"Moved {qty_to_move} of '{source_item.data.names.get(ServerLanguage.English, 'Unknown') if source_item.data else 'Unknown Item'}' (ID: {source_item.id}) from bag {source_bag.name} slot {source_slot} to bag {target_bag.name} slot {target_slot}")
+                        Py4GW.Console.Log(node.name, f"Moved {qty_to_move} of '{source_item.names.plain}' (ID: {source_item.id}) from bag {source_bag.name} slot {source_slot} to bag {target_bag.name} slot {target_slot}")
                         moved_any = True
                         target_item.quantity += qty_to_move
                         source_item.quantity -= qty_to_move
