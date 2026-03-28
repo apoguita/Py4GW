@@ -7,8 +7,9 @@ _1_ascaloncity_to_pikensquare_ids = {
 
 # 2) Outpost exit path (inside Ascalon City)
 _1_ascaloncity_to_pikensquare_outpost_path = [
-    (520, 1900),
-    (-300, 1900),
+    (1126,1876),
+    (520,1900),
+    (-300,1900),
 ]
 
 # 3) Segments 
