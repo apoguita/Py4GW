@@ -164,7 +164,11 @@ class UWHeroAIAdapter(UWCombatAdapter):
         pass  # HeroAI auto-detects the party leader.
 
     def set_following_enabled(self, enabled: bool) -> None:
-        self._set_all_heroai_options(following=enabled)
+        if enabled:
+            self._set_all_heroai_options(following=True)
+        else:
+            # Disable following but keep combat active so heroes still fight in place.
+            self._set_all_heroai_options(following=False, combat=True)
 
     def set_combat_enabled(self, enabled: bool) -> None:
         self._set_all_heroai_options(combat=enabled)
