@@ -127,7 +127,7 @@ def _run_ab_movement(bot: Botting) -> None:
     bot.Move.XY(-9311,-8500)
     bot.Move.XY(-12904,-7805)
     bot.Move.XY(-15338,-8893)
-    bot.Wait.UntilOnCombat()
+    bot.Wait.ForTime(10000)
     bot.Move.XY(-17952,-8940)
 
 def _run_avob_movement(bot: Botting) -> None:
@@ -547,7 +547,6 @@ def EnterQuest(bot: Botting) -> None:
     def _enter_quest(bot: Botting):
         mission = _get_active_mission()
         yield from bot.Move._coro_xy_and_dialog(-6662.00, 6584.00, dialog_id=mission.dialog_id)
-        Py4GW.Console.Log("fail state", "I am after Dialog", Py4GW.Console.MessageType.Warning)
 
     bot.States.AddCustomState(lambda: _enter_quest(bot), "EnterQuest")
 
