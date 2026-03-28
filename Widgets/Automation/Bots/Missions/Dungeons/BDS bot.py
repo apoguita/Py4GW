@@ -1075,11 +1075,12 @@ def _recover_reward_and_retake_quest(bot: Botting) -> Generator:
         yield
         return
 
+    yield from bot.Wait._coro_for_map_to_change(target_map_name="Shards of Oor (level 1)")
     ConsoleLog(BOT_NAME, "[RECOVERY] Entered Shards of Oor (level 1)", log=True)
 
-    # 3) Exit dungeon 
+    # 3) Exit dungeon
     ConsoleLog(BOT_NAME, "[RECOVERY] Moving to dungeon exit", log=True)
-    yield from bot.Move._coro_xy(-15650.00, 8900.00, step_name="Recovery dungeon exit")
+    yield from bot.Move._coro_xy_and_exit_map(-15650.00, 8900.00, target_map_name="Arbor Bay", step_name="Recovery dungeon exit")
 
     ok = yield from _wait_for_map("Arbor Bay")
     if not ok:
@@ -1088,7 +1089,6 @@ def _recover_reward_and_retake_quest(bot: Botting) -> Generator:
         return
 
     ConsoleLog(BOT_NAME, "[RECOVERY] Back to Arbor Bay", log=True)
-
 
 
     # 4) Retake quest from Shandra
