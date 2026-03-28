@@ -678,6 +678,242 @@ class PetModelID(IntEnum):
 
 # region ItemModels
 class ModelID(IntEnum):
+    # Weapon Families
+        #Amber
+        #Ancient
+        #Anniversary
+            #Anniversary_Axe_Engrave
+            #Anniversary_Flatbow_Oracle
+            #Anniversary_Shortbow_Whisper
+            #Anniversary_Daggers_Vengeance
+            #Anniversary_Hammer_Verdict
+            #Anniversary_Scythe_Sufferer
+            #Anniversary_Shield_Curtain
+            #Anniversary_Spear_Arbalest
+            #Anniversary_Staff_Unveil
+            #Anniversary_Sword_Prominence
+        #Asuran
+        #Aureate
+        #Balthazar's
+            #Balthazars_Axe = 000
+            #Balthazars_Bow = 000
+            #Balthazars_Daggers = 000
+            #Balthazars_Focus = 000
+            #Balthazars_Hammer = 000
+            #Balthazars_Scythe = 000
+            #Balthazars_Shield = 000
+            #Balthazars_Spear = 000
+            #Balthazars_Staff = 000
+            #Balthazars_Sword = 000
+            #Balthazars_Rod = 000
+        #Bronze
+        #Candy Cane
+        #Celestial
+        #Charr
+        #Charrslayer
+        #Crenellate
+        #Darkwing
+        #Dead
+        #Decade
+            #Decade_Axes_Rival_Skies
+            #Decade_Bow_Falling_Star
+            #Decade_Bow_Scorpions_Clutch
+            #Decade_Dagger_Dragons_Restraint
+            #Decade_Hammer_Bears_Roar
+            #Decade_Hammer_Roaring_Earth
+            #Decade_Scythe_Funeral_Fang
+            #Decade_Scythe_Souls_Repentance
+            #Decade_Spear_Mist_Piercer
+            #Decade_Spear_Suns_Revolution
+            #Decade_Staff_Astral_Pillar
+            #Decade_Staff_Dragons_Inheritance
+            #Decade_Staff_Hourglasss_Patience
+            #Decade_Staff_Snakes_Lineage
+            #Decade_Staff_Spirits_Absolution
+            #Decade_Staff_Underworld_Pillar
+            #Decade_Sword_Distant_Horizon
+            #Decade_Rod_All_the_World
+            #Decade_Rod_Antipode_Alloy
+            #Decade_Rod_Undying_Service
+            #Decade_Rod_Unicorns_Valor
+        #Deldrimor
+        #Crafted
+            #Deldrimor_Daggers
+        #Unique
+            #Deldrimor_Daggers_Green
+        #Desolation
+        #Destroyer
+        #Envoy
+        #Eternal
+        #Forgotten
+        #Gothic
+        #Imperial
+        #Jade
+        #Mursaat
+        #Norn
+        #Oppressor's
+        #Ornate
+        #Plagueborn
+        #Platinum
+        #Purity
+            #Axe_of_Purity = 000
+            #Bow_of_Purity = 000
+            #Daggers_of_Purity = 000
+            #Focus_of_Purity = 000
+            #Hammer_of_Purity = 000
+            #Scythe_of_Purity = 000
+            #Shield_of_Purity = 000
+            #Spear_of_Purity = 000
+            #Staff_of_Purity = 000
+            #Sword_of_Purity = 000
+            #Fan_of_Purity = 000
+        #Runic
+        #Shadow 
+        #Summit
+        #Suntouched
+        #Tengu
+        #Tormented
+        #Undead
+        #Vabbian
+        #Wintersday
+            #Peppermint_Daggers
+            #Wintergreen_Daggers	
+        #Zodiac
+
+    # Eye of the North
+        # Common Drops
+    #Arrowblade_Daggers = 000
+    #Crescent_Blades = 000
+    #Crude_Daggers = 000
+    #Glacial_Blades = 000
+    #Golden_Talons = 000
+    #Korambits = 000
+    #Savage_Daggers = 000
+        # Crafted
+    #Asuran_Daggers = 000
+    #Charrslayer_Daggers = 000
+    #Destroyer_Daggers = 000
+    #Norn_Daggers = 000
+        # Quest Reward
+    #Brass_Knuckles = 000
+    #Thunderfists_Brass_Knuckles = 000
+        #Dungeons
+            #Catacombs of Kathandrax
+                #Astral_Staff
+                #Emerald_Blade
+            #Hidesplitter	
+                #Dryad Bow
+                #Goldhorn Staff
+            #Cathedral of Flames
+                # Notched Blade
+            #Ooze Pit
+                # Cerulean Edge
+                # Chrysocola Staff
+            # Darkrime Delves
+                # Cobalt Staff
+                # Violet Edge
+            # Frostmaw's Burrows
+                # Bonecage Scythe
+                # Demoncrest Spear
+                # Demon Fangs
+                # Icicle Staff
+                # Silverwing Recurve Bow
+                # Tentacle Scythe
+            # Sepulchre of Dragrimmar
+            # Turquoise Staff
+            # Raven's Point
+                # Aureate Blade
+                # Eaglecrest Axe
+                # Wingcrest Maul
+            # Bogroot Growths
+                # Emerald Edge
+                # Frog Scepter
+                # Moldavite Staff
+            # Bloodstone Caves
+                # Ancient Moss Staff
+                # Topaz Scepter
+            # Shards of Orr
+                # Bone Dragon Staff
+                # Golden Hammer
+                # Suntouched Staff
+            # Oola's Lab
+                # Clockwork Scythe
+                # Crystal Flame Staff
+                # Signet Shield
+                # Steelhead Scythe
+                # Storm Daggers
+            # Arachni's Haunt
+                # Insectoid Scythe
+                # Insectoid Staff
+            # Slavers_Exile
+                # Draconic Aegis
+                # Voltaic Spear
+            # Heart of the Shiverpeaks
+                # Embercrest Staff
+                # Singing Blade
+        #Underworld
+            #Dhuums_Soul_Reaper
+        #Fissure_of_Woe
+        #The_Deep
+        #Urgoz_Warren
+
+    #Daggers
+
+    #Prophecies 
+
+    #Factions
+    Aureate_Daggers = 000
+    Celestial_Daggers = 000
+    Ceremonial_Daggers = 15166
+    Chromium_Shards = 000
+    Dirks = 000
+    Gilded_Daggers = 000
+    Jade_Daggers = 000
+    Kris_Daggers = 000
+    Oni_Daggers = 000
+    Plagueborn_Daggers = 000
+    Sai = 000
+    Starter_Daggers1 = 000
+    Stilletos = 000
+    Zodiac_Daggers = 000
+    Butterfly_Knives = 000
+    Dragon_Kamas = 000
+    Hooked_Daggers = 000
+    Kamas = 000
+    Kukris = 000
+    Platinum_Sickles = 000
+    Salient_Daggers = 000
+    Split_Chakrams = 000 
+
+    #Nightfall
+    
+    Ancient_Daggers = 000
+    Bronze_Daggers = 000
+    Jeweled_Daggers = 000
+    Ruby_Daggers = 000
+    Steel_Daggers = 000
+    Elonian_Daggers = 000
+    Talon_Daggers = 000
+    Tormented_Daggers = 000
+
+    #Beyond
+    Oppressors_Daggers = 000
+    Alaris_Double_Blades = 000
+    Imperial_Daggers = 000
+    Orokus_Slicers = 000
+
+    #Bonus Mission Pack
+
+    Mursaat_Daggers = 000
+    Undead_Daggers = 000
+    Charr_Daggers = 000
+    Tengu_Daggers = 000
+
+    #Promotional
+    
+    Dragon_Fangs_Promo = 000
+    Dragon_Fangs = 2460
+
     LesserStoneBlade = 1955
     GreaterStoneBlade = 1956
     ScorpionsBow = 2008
@@ -1058,7 +1294,6 @@ class ModelID(IntEnum):
     Cell_Key = 15565
     Ceratadon_Mini = 28416
     Cerebral_Tonic = 30626
-    Ceremonial_Daggers = 15166
     Champagne_Popper = 21810
     Champions_Zaishen_Strongbox = 36665
     Charr_Battle_Plan_Decoder = 27341
