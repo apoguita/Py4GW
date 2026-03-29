@@ -191,7 +191,9 @@ class UWHeroAIAdapter(UWCombatAdapter):
         pass  # No direct equivalent in HeroAI.
 
     def set_custom_target(self, agent_id: int) -> None:
-        Player.ChangeTarget(agent_id)
+        from Py4GWCoreLib import Agent
+        if agent_id and Agent.IsValid(agent_id):
+            Player.ChangeTarget(agent_id)
 
     # ── Flag management ──────────────────────────────────────────────────
 

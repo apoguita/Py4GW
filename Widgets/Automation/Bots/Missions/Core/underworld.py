@@ -17,7 +17,7 @@ for _mod_key in [k for k in _sys.modules if "sch0l0ka.adapter" in k]:
     del _sys.modules[_mod_key]
 del _sys
 
-from Py4GWCoreLib import Botting, Routines, Agent, AgentArray, Player, Utils, AutoPathing, GLOBAL_CACHE, ConsoleLog, Map, Pathing, FlagPreference, Party, IniHandler, Overlay
+from Py4GWCoreLib import Botting, Routines, Agent, AgentArray, Player, Utils, AutoPathing, GLOBAL_CACHE, ConsoleLog, Map, Pathing, FlagPreference, Party, IniHandler, Overlay, Item, ItemArray
 from Py4GWCoreLib.enums_src.Model_enums import ModelID
 from Py4GWCoreLib.enums_src.Map_enums import name_to_map_id
 import os
@@ -37,7 +37,7 @@ import Py4GW
 # ║  [X] Kill the Chained Souls when we wait till the quest is done                                                        
 # ║  [X] Blacklist Dreamrider to improve Plains speed                                                         
 # ║  [X] add Inventory Management                                                          
-# ║  [ ] unequip armor at dhuum to sacrifice selected heroes  
+# ║  [X] unequip armor at dhuum to sacrifice selected heroes  
 # ║  [ ] add Heroai 
 # ║  [ ] Take the Dhuum quest earlier   
 # ║  [ ] Make pits quest saver and fix 3d navigation                                       
@@ -62,6 +62,7 @@ bot.UI.override_draw_config(lambda: _draw_settings())  # Disable default config 
 MAIN_LOOP_HEADER_NAME = ""
 _entered_dungeon: bool = False      # set True once map 72 is loaded; watchdog uses this
 _dhuum_fight_active: bool = False   # set True from start of Dhuum fight to chest spawn
+_run_start_time: float = 0.0        # monotonic timestamp set when entering the dungeon
 _king_frozenwind_model_id: int = 2403
 _SKELETON_OF_DHUUM_MODEL_ID: int = 2392
 _DRAW_BLOCKED_AREAS_3D = True
@@ -69,6 +70,10 @@ _BLOCKED_AREA_SEGMENTS = 48
 _BLOCKED_AREA_THICKNESS = 2.5
 _BLOCKED_AREA_COLOR = Utils.RGBToColor(255, 40, 40, 170)
 _BLOCKED_AREA_RADIUS = 200.0
+_blacklist_draw_points: list[tuple[float, float]] = []  # legacy, kept for compatibility
+_active_move_path_3d: list[tuple[float, float, float]] = []  # current move path drawn every frame
+_pending_wipe_recovery: bool = False   # set by coroutine; consumed by main() before bot.Update()
+_pending_wipe_reason:   str  = ""      # human-readable label logged when the restart fires
 
 UW_MAP_ID = 72
 UW_SCROLL_MODEL_ID = int(ModelID.Passage_Scroll_Uw.value)  # 3746
@@ -102,8 +107,9 @@ def _get_adapter():
 
 
 def _mark_entered_dungeon() -> None:
-    global _entered_dungeon
+    global _entered_dungeon, _run_start_time
     _entered_dungeon = True
+    _run_start_time = time.monotonic()
 
 
 def _set_dhuum_fight_active(value: bool) -> None:
@@ -254,6 +260,7 @@ def _restart_main_loop(bot_instance: Botting, reason: str) -> None:
     target = MAIN_LOOP_HEADER_NAME
     fsm = bot_instance.config.FSM
     fsm.pause()
+    fsm.finished = False  # clear finished flag in case the FSM had reached its last state
     try:
         if target:
             fsm.jump_to_state_by_name(target)
@@ -261,11 +268,29 @@ def _restart_main_loop(bot_instance: Botting, reason: str) -> None:
         else:
             ConsoleLog(BOT_NAME, "[WIPE] MAIN_LOOP header missing, restarting from first state.", Py4GW.Console.MessageType.Warning)
             fsm.jump_to_state_by_step_number(0)
-    except ValueError:
+    except (ValueError, IndexError):
+        # ValueError  – state name not found; IndexError – states list empty
         ConsoleLog(BOT_NAME, f"[WIPE] Header '{target}' not found, restarting from first state.", Py4GW.Console.MessageType.Error)
-        fsm.jump_to_state_by_step_number(0)
+        try:
+            fsm.jump_to_state_by_step_number(0)
+        except (ValueError, IndexError):
+            ConsoleLog(BOT_NAME, "[WIPE] FSM has no states – cannot restart.", Py4GW.Console.MessageType.Error)
     finally:
         fsm.resume()
+
+
+def _request_wipe_restart(reason: str) -> None:
+    """Request a wipe-recovery restart from inside a managed coroutine.
+
+    Keeps the FSM paused and sets a flag that main() will consume BEFORE
+    the next bot.Update() call — guaranteeing the resume never happens from
+    inside FSM.update()'s managed-coroutines loop (which would allow
+    execute() to run with a potentially stale or None current_state).
+    """
+    global _pending_wipe_recovery, _pending_wipe_reason
+    _pending_wipe_recovery = True
+    _pending_wipe_reason   = reason
+
 
 def _ensure_minimum_gold(bot_instance: Botting, minimum_gold: int = 1000, withdraw_amount: int = 10000) -> None:
     def _check_and_restock():
@@ -371,79 +396,45 @@ def _move_with_unstuck(
     target_y: float,
     step_name: str = "",
     stuck_check_ms: int = 1000,
-    stuck_threshold: float = 200.0,
-    backup_ms: int = 1000,
-    max_retries: int = 30,
+    stuck_threshold: float = 50.0,
+    backup_ms: int = 800,
+    max_retries: int = 5,
     timeout: int = 60_000,
-    recalc_interval_ms: int = 4000,
+    recalc_interval_ms: int = 500,
 ) -> None:
-    """Move to (target_x, target_y) using navmesh A* pathfinding. Never skips the step.
+    """Move to (target_x, target_y) with continuous path recalculation every recalc_interval_ms.
 
-    Setup: one import block per call, then the retry loop.
-
-    Retry loop (while True – runs until the target is reached):
-
-      0. Early-exit: already within `tolerance` → return.
-
-      1. Refresh avoid-points:
-           Re-collect positions of all alive blacklisted enemies on EVERY path build
-           so the route always reflects current patrol positions.
-
-      2. Path building:
-           Always builds the standard navmesh path first (AutoPathing).
-           If blacklisted enemies are present, also builds a penalty-weighted
-           detour path (_AStarBlocking, quadratic soft penalty within 100 units —
-           tight radius so only the directly blocked nodes are penalised).
-           The two paths are compared by total Euclidean length:
-           - Detour shorter → route around the enemy.
-           - Standard shorter or equal → walk straight through (no other way).
-             No edge-hugging side effects.
-
-      3. Path following in short segments (recalc_interval_ms, default 4 s):
-           Each segment runs FollowPath for at most recalc_interval_ms.
-           After each segment:
-           - Reached target → return.
-           - Made progress (moved closer) → rebuild path with fresh enemy
-             positions; attempt counter NOT incremented.
-           - No progress (truly stuck) → fall through to recovery (Step 5).
-
-      4. Max-retries reset with patrol wait:
-           After `max_retries` failed attempts, wait 5 s then reset attempt = 0.
-           The step is NEVER abandoned.
-
-      5. Recovery (between failed attempts):
-           /stuck → wait 1 s → distance check → walk backwards → wait 300 ms
-           → increment attempt counter → back to step 0.
+    Every interval the path is rebuilt from the current player position, hard-avoiding
+    all navmesh nodes within 150 units of any blacklisted alive enemy.
+    If no avoiding path exists (narrow corridor), falls back to a direct navmesh path.
+    The active path is stored in _active_move_path_3d and drawn as cyan 3D lines every frame.
+    Stuck detection: if progress toward the target is less than stuck_threshold per interval
+    for max_retries consecutive intervals → /stuck + walk backwards.
     """
     import math
+    _AVOID_RADIUS = 150.0
 
     def _coro():
+        global _active_move_path_3d
         import heapq as _heapq
-        from Py4GWCoreLib.Pathing import AutoPathing, AStar, AStarNode, chaikin_smooth_path, densify_path2d
+        from Py4GWCoreLib.Pathing import AutoPathing, AStar, AStarNode, densify_path2d
         from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist
+
         tolerance = 150.0
         tx, ty = target_x, target_y
+        stuck_counter = 0
 
-        # Tight penalty radius: only penalise nodes that are within 100 units of
-        # an enemy — close enough that the standard A* would pass through.
-        # Because the radius is small, the detour is compact and natural-looking.
-        # The comparison with the standard path (see below) ensures we only take
-        # the detour when it is actually shorter, so we still walk straight through
-        # a narrow corridor if there is no room to go around.
-        _SOFT_AVOID_RADIUS = _BLOCKED_AREA_RADIUS
-        _SOFT_PENALTY      = 5000.0
-
-        # ── Local A* subclass: avoids blacklisted-enemy positions ────────
-        class _AStarBlocking(AStar):
-            def __init__(self, navmesh, avoid_points):
+        class _AStarAvoid(AStar):
+            """A* that hard-blocks any node within _AVOID_RADIUS of a blacklisted enemy."""
+            def __init__(self, navmesh, avoid_pts):
                 super().__init__(navmesh)
-                self._avoid_points = avoid_points
+                self._avoid = avoid_pts
 
-            def _min_dist_to_avoid_points(self, node_id: int) -> float:
-                if not self._avoid_points:
-                    return float("inf")
+            def _blocked(self, node_id: int) -> bool:
+                if not self._avoid:
+                    return False
                 nx, ny = self.navmesh.get_position(node_id)
-                return min(math.hypot(nx - ax, ny - ay) for ax, ay in self._avoid_points)
+                return any(math.hypot(nx - ax, ny - ay) < _AVOID_RADIUS for ax, ay in self._avoid)
 
             def search(self, start_pos, goal_pos):
                 s_id = self.navmesh.find_trapezoid_id_by_coord(start_pos)
@@ -462,141 +453,119 @@ def _move_with_unstuck(
                         self.path.append(goal_pos)
                         return True
                     for nb in self.navmesh.get_neighbors(cur.id):
-                        d = self._min_dist_to_avoid_points(nb)
-                        penalty = 0.0
-                        if d < _SOFT_AVOID_RADIUS:
-                            # Quadratic: strong near centre, zero at boundary
-                            ratio = (_SOFT_AVOID_RADIUS - d) / _SOFT_AVOID_RADIUS
-                            penalty = ratio * ratio * _SOFT_PENALTY
-                        nc = cost[cur.id] + self.heuristic(cur.id, nb) + penalty
+                        if nb != g_id and self._blocked(nb):
+                            continue
+                        nc = cost[cur.id] + self.heuristic(cur.id, nb)
                         if nb not in cost or nc < cost[nb]:
                             cost[nb] = nc
                             _heapq.heappush(ol, AStarNode(nb, nc, nc + self.heuristic(nb, g_id), cur.id))
                             came[nb] = cur.id
                 return False
 
-        attempt = 0
+        def _escape_point(px, py, avoid_pts) -> tuple[float, float] | None:
+            """Return the closest point that lies outside all avoid zones, or None if already clear."""
+            best_dist = float("inf")
+            best_pt: tuple[float, float] | None = None
+            for ax, ay in avoid_pts:
+                d = math.hypot(px - ax, py - ay)
+                if d < _AVOID_RADIUS:
+                    # Step directly away from this enemy just past the radius
+                    if d < 1.0:
+                        dx, dy = 1.0, 0.0
+                    else:
+                        dx, dy = (px - ax) / d, (py - ay) / d
+                    ex = ax + dx * (_AVOID_RADIUS + 20.0)
+                    ey = ay + dy * (_AVOID_RADIUS + 20.0)
+                    escape_d = math.hypot(ex - px, ey - py)
+                    if escape_d < best_dist:
+                        best_dist = escape_d
+                        best_pt = (ex, ey)
+            return best_pt
+
+        def _build_path(px, py, avoid_pts):
+            """Return (move_path, vis_path). move_path is densified for FollowPath,
+            vis_path is smoothed only (fewer points) for 3D drawing.
+            If the player is currently inside an avoid zone, a short escape segment
+            is prepended so the route leaves the zone first."""
+            navmesh = AutoPathing().get_navmesh()
+            if navmesh is None:
+                return [(tx, ty)], [(tx, ty)]
+
+            # If already inside a blocked zone, prepend an escape step.
+            escape = _escape_point(px, py, avoid_pts) if avoid_pts else None
+            start = escape if escape else (px, py)
+
+            for pts in (avoid_pts, []):
+                ast = _AStarAvoid(navmesh, pts)
+                if ast.search(start, (tx, ty)):
+                    raw = ast.get_path()
+                    try:
+                        smoothed = navmesh.smooth_path_by_los(raw, margin=100, step_dist=200.0) or raw
+                    except Exception:
+                        smoothed = raw
+                    if escape:
+                        smoothed = [escape] + smoothed
+                    return densify_path2d(smoothed), smoothed
+                if not avoid_pts:
+                    break  # already tried bare pass
+
+            return [(tx, ty)], [(tx, ty)]
+
         while True:
             px, py = Player.GetXY()
-            if math.sqrt((tx - px) ** 2 + (ty - py) ** 2) <= tolerance:
-                return  # already there
-
-            # ── Refresh enemy positions every attempt ─────────────────────
-            # Enemies patrol; stale positions from the coroutine start would
-            # waste detours around enemies that have already moved away.
-            _navmesh = AutoPathing().get_navmesh()
-            _avoid_points: list[tuple[float, float]] = []
-            if _navmesh:
-                _bl = EnemyBlacklist()
-                for _eid in AgentArray.GetEnemyArray():
-                    if _bl.is_blacklisted(_eid) and Agent.IsAlive(_eid):
-                        _ex, _ey = Agent.GetXY(_eid)
-                        _avoid_points.append((_ex, _ey))
-
-            # ── Step 1: build navmesh path ────────────────────────────────
-            ConsoleLog(
-                BOT_NAME,
-                f"[Move] Building path to ({tx:.0f},{ty:.0f}) attempt {attempt + 1}"
-                + (f" (avoiding {len(_avoid_points)} blacklisted enemies)" if _avoid_points else ""),
-                Py4GW.Console.MessageType.Info,
-            )
-            # Always build the standard navmesh path first.
-            path = yield from AutoPathing().get_path_to(tx, ty)
-
-            if _avoid_points and _navmesh:
-                # Build the penalty-weighted detour path and compare lengths.
-                # If the detour is shorter (or equal) it routes around the bubble.
-                # If the only route IS through the bubble, the standard path will
-                # be shorter → we use it directly, avoiding edge-hugging behaviour.
-                _cpx, _cpy = Player.GetXY()
-                _ast = _AStarBlocking(_navmesh, _avoid_points)
-                if _ast.search((_cpx, _cpy), (tx, ty)):
-                    _raw    = _ast.get_path()
-                    _sm     = _navmesh.smooth_path_by_los(_raw, margin=100, step_dist=200.0)
-                    _detour = densify_path2d(_sm)
-
-                    def _path_len(pts):
-                        return sum(
-                            math.hypot(pts[i][0] - pts[i-1][0], pts[i][1] - pts[i-1][1])
-                            for i in range(1, len(pts))
-                        )
-
-                    _len_std    = _path_len(path)    if path    else float("inf")
-                    _len_detour = _path_len(_detour) if _detour else float("inf")
-
-                    if _len_detour < _len_std:
-                        ConsoleLog(
-                            BOT_NAME,
-                            f"[Move] Using detour path ({_len_detour:.0f} vs {_len_std:.0f} units) to avoid {len(_avoid_points)} enemies.",
-                            Py4GW.Console.MessageType.Info,
-                        )
-                        path = _detour
-                    else:
-                        ConsoleLog(
-                            BOT_NAME,
-                            f"[Move] No shorter detour found ({_len_detour:.0f} vs {_len_std:.0f} units) – walking through.",
-                            Py4GW.Console.MessageType.Info,
-                        )
-
-            _path_to_follow = path if path else [(tx, ty)]
-            if not path:
-                ConsoleLog(
-                    BOT_NAME,
-                    f"[Move] No navmesh path to ({tx:.0f},{ty:.0f}), using direct move.",
-                    Py4GW.Console.MessageType.Info,
-                )
-
-            # ── Step 3: follow in short segments, rebuild after each ──────
-            # Run FollowPath for at most recalc_interval_ms per segment.
-            # This lets us refresh enemy positions between segments so the
-            # path always routes around their current position.
-            _dist_before = math.hypot(tx - px, ty - py)
-            reached = yield from Routines.Yield.Movement.FollowPath(
-                path_points=_path_to_follow,
-                tolerance=tolerance,
-                timeout=recalc_interval_ms,
-            )
-            if reached:
+            if math.hypot(tx - px, ty - py) <= tolerance:
+                _active_move_path_3d = []
                 return
 
-            # Check whether we made progress during the segment.
-            _nx, _ny = Player.GetXY()
-            _dist_after = math.hypot(tx - _nx, ty - _ny)
-            _progress = _dist_before - _dist_after
+            bl = EnemyBlacklist()
+            avoid_pts = [
+                Agent.GetXY(eid)
+                for eid in AgentArray.GetEnemyArray()
+                if bl.is_blacklisted(eid) and Agent.IsAlive(eid)
+            ]
 
-            if _progress > stuck_threshold:
-                # Moving in the right direction – rebuild path, don't count as retry.
-                continue
-
-            # No meaningful progress → treat as a stuck attempt.
-            ConsoleLog(
-                BOT_NAME,
-                f"[Move] No progress toward ({tx:.0f},{ty:.0f}) on attempt {attempt + 1} "
-                f"(moved {_progress:.0f} units).",
-                Py4GW.Console.MessageType.Warning,
+            # Only recalculate frequently when a blacklisted enemy is within 500 units.
+            enemy_nearby = any(
+                math.hypot(px - ax, py - ay) <= 500.0
+                for ax, ay in avoid_pts
             )
+            follow_timeout = recalc_interval_ms if enemy_nearby else 0  # 0 = no timeout, run to end
 
-            if attempt >= max_retries:
-                ConsoleLog(
-                    BOT_NAME,
-                    f"[Move] Max retries reached for ({tx:.0f},{ty:.0f}) – waiting 5 s for enemies to clear, then retrying.",
-                    Py4GW.Console.MessageType.Warning,
-                )
-                yield from Routines.Yield.wait(5000)
-                attempt = 0
-                continue
+            move_path, vis_path = _build_path(px, py, avoid_pts if enemy_nearby else [])
 
-            # ── Step 5: recovery before next attempt ─────────────────────
-            Player.SendChatCommand("stuck")
-            yield from Routines.Yield.wait(1000)
+            try:
+                _ov = Overlay()
+                _active_move_path_3d = [(x, y, _ov.FindZ(x, y, 0)) for x, y in vis_path]
+            except Exception:
+                _active_move_path_3d = []
 
-            cpx, cpy = Player.GetXY()
-            if math.sqrt((tx - cpx) ** 2 + (ty - cpy) ** 2) <= tolerance:
-                return  # /stuck teleported us close enough
+            reached = yield from Routines.Yield.Movement.FollowPath(
+                path_points=move_path,
+                tolerance=tolerance,
+                timeout=follow_timeout,
+            )
+            if reached:
+                _active_move_path_3d = []
+                return
 
-            yield from Routines.Yield.Movement.WalkBackwards(backup_ms)
-            yield from Routines.Yield.wait(300)
-            attempt += 1
+            npx, npy = Player.GetXY()
+            progress = math.hypot(tx - px, ty - py) - math.hypot(tx - npx, ty - npy)
+
+            if progress < stuck_threshold:
+                stuck_counter += 1
+                if stuck_counter >= max_retries:
+                    ConsoleLog(
+                        BOT_NAME,
+                        f"[Move] Stuck at ({px:.0f},{py:.0f}) → ({tx:.0f},{ty:.0f}). Recovering.",
+                        Py4GW.Console.MessageType.Warning,
+                    )
+                    Player.SendChatCommand("stuck")
+                    yield from Routines.Yield.wait(1000)
+                    yield from Routines.Yield.Movement.WalkBackwards(backup_ms)
+                    yield from Routines.Yield.wait(300)
+                    stuck_counter = 0
+            else:
+                stuck_counter = 0
 
     label = step_name or f"MoveUnstuck_{target_x:.0f}_{target_y:.0f}"
     bot_instance.config.FSM.AddYieldRoutineStep(name=label, coroutine_fn=_coro)
@@ -612,57 +581,71 @@ def FocusKeeperOfSouls(bot_instance: Botting):
         
         player_pos = Player.GetXY()
         closest_enemy = min(enemies, key=lambda e: ((player_pos[0] - Agent.GetXYZ(e)[0])**2 + (player_pos[1] - Agent.GetXYZ(e)[1])**2)**0.5)
-        _get_adapter().set_custom_target(closest_enemy)
+        if Agent.IsValid(closest_enemy):
+            _get_adapter().set_custom_target(closest_enemy)
 
     bot_instance.States.AddCustomState(_focus_logic, "Focus Keeper of Souls")
 
 
 def _coro_draw_blocked_areas_3d(bot_instance: Botting):
-    """Continuously draw blocked enemy avoid-zones on the ground while the UW run is active."""
+    """No-op placeholder — drawing is handled entirely by _draw_blocked_areas_overlay() in main()."""
+    while True:
+        yield from Routines.Yield.wait(500)
+
+
+def _draw_blocked_areas_overlay() -> None:
+    """Query blacklisted enemy positions and draw circles every frame. Called from main()."""
     if not _DRAW_BLOCKED_AREAS_3D:
         return
-
+    if Map.GetMapID() != UW_MAP_ID:
+        return
     try:
         from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist
+        _bl = EnemyBlacklist()
+        avoid_points = [
+            Agent.GetXY(_eid)
+            for _eid in AgentArray.GetEnemyArray()
+            if _bl.is_blacklisted(_eid) and Agent.IsAlive(_eid)
+        ]
+        if not avoid_points:
+            return
+        _overlay = Overlay()
+        _overlay.BeginDraw()
+        for _ax, _ay in avoid_points:
+            _az = _overlay.FindZ(_ax, _ay, 0)
+            _overlay.DrawPoly3D(
+                _ax,
+                _ay,
+                _az,
+                radius=_BLOCKED_AREA_RADIUS,
+                color=_BLOCKED_AREA_COLOR,
+                numsegments=_BLOCKED_AREA_SEGMENTS,
+                thickness=_BLOCKED_AREA_THICKNESS,
+            )
+        _overlay.EndDraw()
     except Exception:
+        pass
+
+
+def _draw_active_path_overlay() -> None:
+    """Draw the current move path as cyan 3D lines every frame. Called from main()."""
+    path = _active_move_path_3d
+    if not path or len(path) < 2:
         return
+    if Map.GetMapID() != UW_MAP_ID:
+        return
+    try:
+        _color = Utils.RGBToColor(0, 220, 255, 220)
+        _overlay = Overlay()
+        _overlay.BeginDraw()
+        for i in range(1, len(path)):
+            x1, y1, z1 = path[i - 1]
+            x2, y2, z2 = path[i]
+            _overlay.DrawLine3D(x1, y1, z1, x2, y2, z2, _color, 3.0)
+        _overlay.EndDraw()
+    except Exception:
+        pass
 
-    while True:
-        yield from Routines.Yield.wait(120)
-
-        if not bot_instance.config.fsm_running:
-            continue
-        if not _entered_dungeon:
-            continue
-        if Map.GetMapID() != UW_MAP_ID:
-            continue
-
-        try:
-            _bl = EnemyBlacklist()
-            _avoid_points: list[tuple[float, float]] = []
-            for _eid in AgentArray.GetEnemyArray():
-                if _bl.is_blacklisted(_eid) and Agent.IsAlive(_eid):
-                    _avoid_points.append(Agent.GetXY(_eid))
-
-            if not _avoid_points:
-                continue
-
-            _overlay = Overlay()
-            _overlay.BeginDraw()
-            for _ax, _ay in _avoid_points:
-                _az = _overlay.FindZ(_ax, _ay, 0)
-                _overlay.DrawPoly3D(
-                    _ax,
-                    _ay,
-                    _az,
-                    radius=_BLOCKED_AREA_RADIUS,
-                    color=_BLOCKED_AREA_COLOR,
-                    numsegments=_BLOCKED_AREA_SEGMENTS,
-                    thickness=_BLOCKED_AREA_THICKNESS,
-                )
-            _overlay.EndDraw()
-        except Exception:
-            pass
 
 def _coro_skeleton_dhuum_watchdog(bot: Botting):
     """Continuously target the nearest alive Skeleton of Dhuum within spell range
@@ -691,7 +674,9 @@ def _coro_skeleton_dhuum_watchdog(bot: Botting):
             continue
 
         nearest = min(skeletons, key=lambda e: Utils.Distance(player_pos, Agent.GetXY(e)))
-        _get_adapter().set_custom_target(nearest)
+        # Re-check validity: the agent may have died between loop and ChangeTarget call.
+        if Agent.IsValid(nearest):
+            _get_adapter().set_custom_target(nearest)
 
 
 def _coro_dhuum_spirit_form_watchdog(bot: Botting):
@@ -739,7 +724,12 @@ def _coro_dhuum_spirit_form_watchdog(bot: Botting):
 
 
 def bot_routine(bot: Botting):
-    global MAIN_LOOP_HEADER_NAME
+    global MAIN_LOOP_HEADER_NAME, _run_start_time
+
+    # Set a fallback start time so Duration is never 00:00:00 if _mark_entered_dungeon
+    # was not reached (e.g. bot started directly at a later section).
+    if _run_start_time == 0.0:
+        _run_start_time = time.monotonic()
 
     # ── One-time adapter and coroutine setup ──────────────────────────────────
     bot.Events.OnPartyWipeCallback(lambda: OnPartyWipe(bot))
@@ -1058,6 +1048,13 @@ def The_Four_Horsemen(bot_instance: Botting):
     ]
     _enqueue_spread_flags(bot_instance, THE_FOUR_HORSEMEN_FLAG_POINTS_2)
     bot_instance.Party.UnflagAllHeroes()
+    # Flag the player's own account to (11510, -18234) so CB keeps them at the wait
+    # position via FollowFlagUtility (active in all states incl. IN_AGGRO) instead of
+    # chasing enemies via the IN_AGGRO vector field movement.
+    bot_instance.States.AddCustomState(
+        lambda: _get_adapter().set_flag_for_email(Player.GetAccountEmail(), 7, 11510, -18234),
+        "Flag player to hold position",
+    )
     WaitTillQuestDone(bot_instance)
     bot_instance.States.AddCustomState(
         lambda: _get_adapter().clear_flags(),
@@ -1139,7 +1136,7 @@ def Imprisoned_Spirits(bot_instance: Botting):
         "Clear Flags",
     )
     bot_instance.Move.XY(12593, 1814)
-    bot_instance.Wait.ForTime(30000)
+    bot_instance.Wait.ForTime(40000)
     bot_instance.States.AddCustomState(
         lambda: __import__("Py4GWCoreLib.EnemyBlacklist", fromlist=["EnemyBlacklist"]).EnemyBlacklist().remove_name("chained soul"),
         "Unblacklist Chained Soul",
@@ -1351,6 +1348,55 @@ def Servants_of_Grenth(bot_instance: Botting):
     bot_instance.Wait.ForTime(30000)
     
 
+def _coro_reequip_sacrifice_armor() -> Generator[Any, Any, None]:
+    """Re-equip any armor from the backpack if this is a sacrifice account.
+    Called at the start of the Dhuum section to restore gear stripped in the previous run.
+    """
+    if not DhuumSettings.is_sacrifice(Player.GetAccountEmail()):
+        return
+    import PyInventory
+    backpack = PyInventory.Bag(1, "Backpack")
+    armor_ids = [
+        item.item_id
+        for item in backpack.GetItems()
+        if Item.Type.IsArmor(item.item_id)
+    ]
+    if not armor_ids:
+        return
+    ConsoleLog(BOT_NAME, f"[Dhuum] Re-equipping {len(armor_ids)} armor piece(s) from backpack.", Py4GW.Console.MessageType.Info)
+    for item_id in armor_ids:
+        GLOBAL_CACHE.Inventory.EquipItem(item_id, Player.GetAgentID())
+        yield from Routines.Yield.wait(750)
+
+
+def _coro_strip_sacrifice_armor() -> Generator[Any, Any, None]:
+    """Move all equipped armor pieces to the backpack if this is a sacrifice account.
+    Stripped armor is re-equipped at the start of the next Dhuum section.
+    """
+    if not DhuumSettings.is_sacrifice(Player.GetAccountEmail()):
+        return
+    import PyInventory
+    equipped_bag = PyInventory.Bag(22, "Equipped_Items")
+    armor_ids = [
+        item.item_id
+        for item in equipped_bag.GetItems()
+        if Item.Type.IsArmor(item.item_id)
+    ]
+    if not armor_ids:
+        ConsoleLog(BOT_NAME, "[Dhuum] No equipped armor found to strip.", Py4GW.Console.MessageType.Info)
+        return
+    backpack = PyInventory.Bag(1, "Backpack")
+    occupied_slots = {item.slot for item in backpack.GetItems()}
+    backpack_size = backpack.GetSize()
+    free_slots = [s for s in range(backpack_size) if s not in occupied_slots]
+    if len(free_slots) < len(armor_ids):
+        ConsoleLog(BOT_NAME, f"[Dhuum] Not enough free backpack slots to strip armor ({len(free_slots)} free, {len(armor_ids)} needed).", Py4GW.Console.MessageType.Warning)
+    ConsoleLog(BOT_NAME, f"[Dhuum] Stripping {min(len(armor_ids), len(free_slots))} armor piece(s).", Py4GW.Console.MessageType.Info)
+    for item_id, slot in zip(armor_ids, free_slots):
+        GLOBAL_CACHE.Inventory.MoveItem(item_id, 1, slot)
+        yield from Routines.Yield.wait(500)
+
+
 def Dhuum(bot_instance: Botting):
     #Spirit Form BuffId = 3134
     bot_instance.States.AddHeader("Dhuum")
@@ -1493,9 +1539,13 @@ def Dhuum(bot_instance: Botting):
 
     # Activate the Spirit Form watchdog for the duration of the fight.
     bot_instance.States.AddCustomState(lambda: _set_dhuum_fight_active(True), "Enable Dhuum Spirit Form Watchdog")
+    bot_instance.config.FSM.AddYieldRoutineStep(
+        name="Strip Sacrifice Armor",
+        coroutine_fn=_coro_strip_sacrifice_armor,
+    )
     bot_instance.Move.XY(-13987, 17291, "Move to Dhuum fight")
     #bot_instance.States.AddCustomState(lambda: _get_adapter().set_following_enabled(False), "Disable Following")
-    bot_instance.Wait.ForTime(2000)  # Wait till some Allies die
+    bot_instance.Wait.ForTime(4000)  # Wait till some Allies die
     #Wait till Dhuum is dead
     bot_instance.Wait.UntilCondition(
         lambda: any(
@@ -1510,7 +1560,10 @@ def Dhuum(bot_instance: Botting):
     # Deactivate the Spirit Form watchdog — Dhuum is dead.
     bot_instance.States.AddCustomState(lambda: _set_dhuum_fight_active(False), "Disable Dhuum Spirit Form Watchdog")
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_combat_enabled(False), "Disable Combat")
-
+    bot_instance.config.FSM.AddYieldRoutineStep(
+        name="Re-equip Sacrifice Armor",
+        coroutine_fn=_coro_reequip_sacrifice_armor,
+    )
 
     def _loot_underworld_chest():
         chest_id = next(
@@ -1669,7 +1722,9 @@ def ResignAndRepeat(bot_instance: Botting):
 
 def _log_successful_run() -> None:
     """Append a timestamped successful-run entry to the wipe log file."""
-    entry = f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Run completed successfully.\n"
+    elapsed_s = int(time.monotonic() - _run_start_time) if _run_start_time else 0
+    elapsed_str = f"{elapsed_s // 3600:02d}:{(elapsed_s % 3600) // 60:02d}:{elapsed_s % 60:02d}"
+    entry = f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Run completed successfully. Duration: {elapsed_str}\n"
     try:
         with open(_WIPE_LOG_FILE, "a", encoding="utf-8") as f:
             f.write(entry)
@@ -1919,6 +1974,13 @@ def _draw_quest_settings():
 
 bot.SetMainRoutine(bot_routine)
 
+def _draw_debug_settings():
+    global _DRAW_BLOCKED_AREAS_3D, _BLOCKED_AREA_RADIUS
+    _DRAW_BLOCKED_AREAS_3D = PyImGui.checkbox("Draw Blocked Areas (3D)", _DRAW_BLOCKED_AREAS_3D)
+    if _DRAW_BLOCKED_AREAS_3D:
+        _BLOCKED_AREA_RADIUS = PyImGui.slider_float("Blocked Area Radius", _BLOCKED_AREA_RADIUS, 50.0, 600.0)
+
+
 def _draw_settings():
     if PyImGui.begin_tab_bar("##uw_settings_tabs"):
         if PyImGui.begin_tab_item("General"):
@@ -1934,6 +1996,9 @@ def _draw_settings():
             PyImGui.end_tab_item()
         if PyImGui.begin_tab_item("Dhuum"):
             _draw_dhuum_settings()
+            PyImGui.end_tab_item()
+        if PyImGui.begin_tab_item("Debug"):
+            _draw_debug_settings()
             PyImGui.end_tab_item()
         PyImGui.end_tab_bar()
 
@@ -1963,6 +2028,11 @@ def _log_wipe_step(fsm) -> None:
     """Append a timestamped wipe entry with the current FSM step name to the wipe log file."""
     step_name = fsm.get_current_step_name()
     header = _get_current_header(fsm)
+    # Skip logging when the bot is already past the last quest section (END header).
+    # This happens when a resign/map-change after a successful run triggers the wipe
+    # callback before the FSM is torn down.
+    if header == "END":
+        return
     entry = f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Wipe at step: {step_name} [{header}]\n"
     try:
         with open(_WIPE_LOG_FILE, "a", encoding="utf-8") as f:
@@ -1988,11 +2058,15 @@ def _on_party_wipe(bot: "Botting"):
         if not Routines.Checks.Map.MapValid():
             ConsoleLog(BOT_NAME, "[WIPE] Returned to outpost after wipe, restarting run...", Py4GW.Console.MessageType.Warning)
             yield from Routines.Yield.wait(3000)
-            _restart_main_loop(bot, "Returned to outpost after wipe")
+            # Do NOT call _restart_main_loop() here — we are inside FSM.update()'s
+            # managed-coroutines loop, so calling fsm.resume() would un-pause the FSM
+            # mid-loop and allow execute() to run with a potentially stale current_state.
+            # Instead, flag main() to do the restart before the next bot.Update().
+            _request_wipe_restart("Returned to outpost after wipe")
             return
 
     ConsoleLog(BOT_NAME, "[WIPE] Player resurrected in instance, resuming...", Py4GW.Console.MessageType.Info)
-    _restart_main_loop(bot, "Player resurrected in instance")
+    _request_wipe_restart("Player resurrected in instance")
 
 
 def _draw_run_log() -> None:
@@ -2041,14 +2115,23 @@ def _log_crash(exc: BaseException, tb: str) -> None:
 
 
 def main():
+    global _pending_wipe_recovery, _pending_wipe_reason
     import traceback as _tb
     try:
+        _draw_blocked_areas_overlay()
+        _draw_active_path_overlay()
         if bot.config.fsm_running:
             _get_adapter().sync_runtime()
             # Watchdog: callback sometimes misses wipes — detect return to outpost by map ID
             if _entered_dungeon and Map.GetMapID() == 138:
                 ConsoleLog(BOT_NAME, "[WIPE] Watchdog: back in outpost (map 138) without wipe callback — restarting.", Py4GW.Console.MessageType.Warning)
                 _restart_main_loop(bot, "Watchdog: returned to map 138")
+        # If a wipe-recovery was requested by a managed coroutine, perform the FSM
+        # restart here — safely outside FSM.update()'s managed-coroutines loop.
+        if _pending_wipe_recovery:
+            _pending_wipe_recovery = False
+            _restart_main_loop(bot, _pending_wipe_reason)
+
         bot.Update()
         bot.UI.draw_window(extra_tabs=[("Run Log", _draw_run_log)])
     except Exception as exc:

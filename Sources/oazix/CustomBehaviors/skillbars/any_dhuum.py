@@ -2,6 +2,7 @@ from typing import Any, Generator, override
 import time
 
 from Py4GWCoreLib import Agent, AgentArray, CombatEvents, GLOBAL_CACHE, Party, Player, Range, ThrottledTimer
+from Py4GWCoreLib.Py4GWcorelib import Utils
 from Py4GWCoreLib.CombatEvents import EventType
 from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Sources.oazix.CustomBehaviors.primitives.bus.event_bus import EventBus
@@ -16,6 +17,23 @@ from Sources.oazix.CustomBehaviors.primitives.skills.bonds.custom_buff_multiple_
 from Sources.oazix.CustomBehaviors.skills.monk.unyielding_aura_utility import UnyieldingAuraUtility
 
 #OQBDAqwDSPwQwRwSwTwAAAAAAA
+
+_UW_CHEST_POS = (-13987, 17291)
+_UW_CHEST_RADIUS = 3000.0
+_UW_CHEST_NAME_FRAGMENT = "underworld chest"
+
+def _is_uw_chest_present() -> bool:
+    """Return True if the Underworld Chest (gadget) has spawned near the Dhuum arena."""
+    for agent_id in AgentArray.GetAgentArray():
+        if not Agent.IsGadget(agent_id):
+            continue
+        name = (Agent.GetNameByID(agent_id) or "").strip().lower()
+        if _UW_CHEST_NAME_FRAGMENT not in name:
+            continue
+        if Utils.Distance(_UW_CHEST_POS, Agent.GetXY(agent_id)) <= _UW_CHEST_RADIUS:
+            return True
+    return False
+
 
 class PendingConditionUtility(CustomSkillUtilityBase):
     """
@@ -82,6 +100,12 @@ class SpiritualHealingUtility(CustomSkillUtilityBase):
             mana_required_to_cast=0,
             allowed_states=[BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO, BehaviorState.FAR_FROM_AGGRO],
         )
+
+    @override
+    def are_common_pre_checks_valid(self, current_state: BehaviorState) -> bool:
+        if _is_uw_chest_present():
+            return False
+        return super().are_common_pre_checks_valid(current_state)
 
     def _get_targets(self) -> list[custom_behavior_helpers.SortableAgentData]:
         return custom_behavior_helpers.Targets.get_all_possible_allies_ordered_by_priority_raw(
@@ -150,6 +174,12 @@ class ReversalOfDeathUtility(CustomSkillUtilityBase):
             mana_required_to_cast=0,
             allowed_states=[BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO, BehaviorState.FAR_FROM_AGGRO],
         )
+
+    @override
+    def are_common_pre_checks_valid(self, current_state: BehaviorState) -> bool:
+        if _is_uw_chest_present():
+            return False
+        return super().are_common_pre_checks_valid(current_state)
 
     @staticmethod
     def _same_party_and_map(self_account, other_account) -> bool:
@@ -521,6 +551,8 @@ class DhuumsRestUtility(CustomSkillUtilityBase):
 
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
+        if _is_uw_chest_present():
+            return None
         if not DhuumsRestUtility.is_dhuums_rest_mode():
             return None
         return 97.0
@@ -583,6 +615,8 @@ class GhostlyFuryUtility(CustomSkillUtilityBase):
 
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
+        if _is_uw_chest_present():
+            return None
         if not DhuumsRestUtility.is_ghostly_fury_mode():
             return None
         if self._get_target() is None:

@@ -296,7 +296,12 @@ class UWCombatAdapter(ABC):
         finally:
             # print(f"[{self._bot_name}][Watchdog] Party wait coroutine ending — calling fsm.resume().")
             fsm.resume()
-            yield
+            # No yield here: the generator must complete (StopIteration) in the same
+            # bot.Update() call in which it exits, so that _named_managed is freed
+            # immediately.  A yield here creates a one-frame window where the old
+            # generator is still in managed_coroutines but no longer pausing the FSM,
+            # which causes AddManagedCoroutine to return False and the bot to miss
+            # the next "party behind" trigger.
 
     def _on_dead_behind_callback(self, bot_instance) -> None:
         if not self._dead_ally_rescue_enabled:
