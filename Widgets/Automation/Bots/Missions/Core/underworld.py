@@ -62,7 +62,7 @@ bot.UI.override_draw_config(lambda: _draw_settings())  # Disable default config 
 MAIN_LOOP_HEADER_NAME = ""
 _entered_dungeon: bool = False      # set True once map 72 is loaded; watchdog uses this
 _dhuum_fight_active: bool = False   # set True from start of Dhuum fight to chest spawn
-_run_start_time: float = 0.0        # monotonic timestamp set when entering the dungeon
+_run_start_uptime_ms: int = 0       # Map.GetInstanceUptime() value (ms) when the dungeon was entered
 _king_frozenwind_model_id: int = 2403
 _SKELETON_OF_DHUUM_MODEL_ID: int = 2392
 _DRAW_BLOCKED_AREAS_3D = True
@@ -74,6 +74,27 @@ _blacklist_draw_points: list[tuple[float, float]] = []  # legacy, kept for compa
 _active_move_path_3d: list[tuple[float, float, float]] = []  # current move path drawn every frame
 _pending_wipe_recovery: bool = False   # set by coroutine; consumed by main() before bot.Update()
 _pending_wipe_reason:   str  = ""      # human-readable label logged when the restart fires
+
+# ── Quest section completion tracking ────────────────────────────────────────
+_QUEST_ORDER: list[str] = [
+    "Clear the Chamber",
+    "Pass the Mountains",
+    "Restore Mountains",
+    "Deamon Assassin",
+    "Restore Planes",
+    "The Four Horsemen",
+    "Restore Pools",
+    "Terrorweb Queen",
+    "Restore Pit",
+    "Imprisoned Spirits",
+    "Restore Vale",
+    "Wrathfull Spirits",
+    "Unwanted Guests",
+    "Restore Wastes",
+    "Servants of Grenth",
+    "Dhuum",
+]
+_quest_completion_times: dict[str, int] = {}   # quest_name → GetInstanceUptime() ms at completion
 
 UW_MAP_ID = 72
 UW_SCROLL_MODEL_ID = int(ModelID.Passage_Scroll_Uw.value)  # 3746
@@ -107,14 +128,20 @@ def _get_adapter():
 
 
 def _mark_entered_dungeon() -> None:
-    global _entered_dungeon, _run_start_time
+    global _entered_dungeon, _run_start_uptime_ms
     _entered_dungeon = True
-    _run_start_time = time.monotonic()
+    _run_start_uptime_ms = Map.GetInstanceUptime()
 
 
 def _set_dhuum_fight_active(value: bool) -> None:
     global _dhuum_fight_active
     _dhuum_fight_active = value
+
+
+def _record_quest_done(name: str) -> None:
+    """Record the completion time (instance uptime ms) for a quest section."""
+    if name not in _quest_completion_times:
+        _quest_completion_times[name] = Map.GetInstanceUptime()
 
 
 class InventorySettings:
@@ -257,6 +284,7 @@ def _restart_main_loop(bot_instance: Botting, reason: str) -> None:
     global _entered_dungeon, _dhuum_fight_active
     _entered_dungeon = False
     _dhuum_fight_active = False
+    _quest_completion_times.clear()
     target = MAIN_LOOP_HEADER_NAME
     fsm = bot_instance.config.FSM
     fsm.pause()
@@ -724,12 +752,12 @@ def _coro_dhuum_spirit_form_watchdog(bot: Botting):
 
 
 def bot_routine(bot: Botting):
-    global MAIN_LOOP_HEADER_NAME, _run_start_time
+    global MAIN_LOOP_HEADER_NAME, _run_start_uptime_ms
 
     # Set a fallback start time so Duration is never 00:00:00 if _mark_entered_dungeon
     # was not reached (e.g. bot started directly at a later section).
-    if _run_start_time == 0.0:
-        _run_start_time = time.monotonic()
+    if _run_start_uptime_ms == 0:
+        _run_start_uptime_ms = Map.GetInstanceUptime()
 
     # ── One-time adapter and coroutine setup ──────────────────────────────────
     bot.Events.OnPartyWipeCallback(lambda: OnPartyWipe(bot))
@@ -922,6 +950,7 @@ def Clear_the_Chamber(bot_instance: Botting):
     bot_instance.Move.XYAndInteractNPC(-5806, 12831, "go to NPC")
     bot_instance.Dialogs.AtXY(-5806, 12831, 0x806D01, "take quest")
     bot_instance.Wait.ForTime(3000)
+    bot_instance.States.AddCustomState(lambda: _record_quest_done("Clear the Chamber"), "Record Clear the Chamber done")
 
 def Pass_The_Mountains(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
@@ -938,6 +967,7 @@ def Pass_The_Mountains(bot_instance: Botting):
     bot_instance.Move.XY(8001,  -2390, "Pass the Mountains 8")
     bot_instance.Move.XY(8705,  -5293, "Pass the Mountains 9")
     bot_instance.Move.XY(6528,  -7283, "Pass the Mountains 10")
+    bot_instance.States.AddCustomState(lambda: _record_quest_done("Pass the Mountains"), "Record Pass the Mountains done")
     
     
 
@@ -953,6 +983,7 @@ def Restore_Mountains(bot_instance: Botting):
     bot_instance.Move.XY(-6140, -5230, "Restore the Mountains 6")
     bot_instance.Move.XY(-7923, -4567, "Restore the Mountains 7")
     bot_instance.Wait.ForTime(5000)
+    bot_instance.States.AddCustomState(lambda: _record_quest_done("Restore Mountains"), "Record Restore Mountains done")
 
 def Deamon_Assassin(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
@@ -963,6 +994,7 @@ def Deamon_Assassin(bot_instance: Botting):
     #bot_instance.Dialogs.WithEncName("Reaper of the Twin Serpent Mountains",0x806801, "Take Deamon Assassin")
     bot_instance.Move.XY(-3645, -5820, "Deamon Assassin 1")
     WaitTillQuestDone(bot_instance)
+    bot_instance.States.AddCustomState(lambda: _record_quest_done("Deamon Assassin"), "Record Deamon Assassin done")
 
 def Restore_Planes(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
@@ -992,6 +1024,7 @@ def Restore_Planes(bot_instance: Botting):
     
     Wait_for_Spawns(bot_instance,13790, -15568)
     Wait_for_Spawns(bot_instance,11287, -17921)
+    bot_instance.States.AddCustomState(lambda: _record_quest_done("Restore Planes"), "Record Restore Planes done")
 
 
 def The_Four_Horsemen(bot_instance: Botting):
@@ -1060,11 +1093,13 @@ def The_Four_Horsemen(bot_instance: Botting):
         lambda: _get_adapter().clear_flags(),
         "Clear Flags",
     )
+    bot_instance.Wait.ForTime(10000)
     bot_instance.Move.XYAndInteractNPC(11371, -17990, "go to NPC")
     bot_instance.Dialogs.AtXY(-8250, -5171, 0x806A07, "take quest")  
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_following_enabled(True), "Enable Follow")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_looting_enabled(True), "Enable Looting")
+    bot_instance.States.AddCustomState(lambda: _record_quest_done("The Four Horsemen"), "Record The Four Horsemen done")
 
 def Restore_Pools(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
@@ -1083,6 +1118,7 @@ def Restore_Pools(bot_instance: Botting):
     bot_instance.Move.XY(-5974, -19739, "Restore Pools 3")
     bot_instance.Move.XY(-7217, -19394, "Restore Pools 4")
     bot_instance.Move.XY(-5688, -19471, "Restore Pools 4")
+    bot_instance.States.AddCustomState(lambda: _record_quest_done("Restore Pools"), "Record Restore Pools done")
 
 def Terrorweb_Queen(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
@@ -1094,6 +1130,7 @@ def Terrorweb_Queen(bot_instance: Botting):
     bot_instance.Move.XYAndInteractNPC(-6957, -19478, "go to NPC")
     bot_instance.Dialogs.AtXY(-6957, -19478, 0x806B07, "Back to Chamber")
     bot_instance.Dialogs.AtXY(-6957, -19478, 0x8B, "Back to Chamber")
+    bot_instance.States.AddCustomState(lambda: _record_quest_done("Terrorweb Queen"), "Record Terrorweb Queen done")
     
 def Restore_Pit(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
@@ -1118,6 +1155,7 @@ def Restore_Pit(bot_instance: Botting):
     bot_instance.Move.XY(10620, 2665, "Restore Pit 7")
     bot_instance.Move.XY(8644, 6242, "Restore Pit 8")
     bot_instance.Wait.ForTime(3000)
+    bot_instance.States.AddCustomState(lambda: _record_quest_done("Restore Pit"), "Record Restore Pit done")
 
 def Imprisoned_Spirits(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
@@ -1147,6 +1185,7 @@ def Imprisoned_Spirits(bot_instance: Botting):
 
     bot_instance.Move.XY(8692, 6292, "go to NPC")
     bot_instance.Dialogs.AtXY(8692, 6292, 0x8D, "Back to Chamber")
+    bot_instance.States.AddCustomState(lambda: _record_quest_done("Imprisoned Spirits"), "Record Imprisoned Spirits done")
         
 
 def Restore_Vale(bot_instance: Botting):
@@ -1167,6 +1206,7 @@ def Restore_Vale(bot_instance: Botting):
     bot_instance.Move.XY(-13246, 5110 , "To the Vale 7")
     bot_instance.Move.XYAndInteractNPC(-13275, 5261, "go to NPC")
     bot_instance.Wait.ForTime(3000)
+    bot_instance.States.AddCustomState(lambda: _record_quest_done("Restore Vale"), "Record Restore Vale done")
 
 def Wrathfull_Spirits(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
@@ -1201,6 +1241,7 @@ def Wrathfull_Spirits(bot_instance: Botting):
     bot_instance.Dialogs.AtXY(5755, 12769, 0x806E07, "Take Reward")
     bot_instance.Dialogs.AtXY(5755, 12769, 0x8D, "Back to Chamber")
     bot_instance.Wait.ForTime(3000)
+    bot_instance.States.AddCustomState(lambda: _record_quest_done("Wrathfull Spirits"), "Record Wrathfull Spirits done")
 
 def Escort_of_Souls(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
@@ -1295,6 +1336,7 @@ def Unwanted_Guests(bot_instance: Botting):
         lambda: __import__("Py4GWCoreLib.EnemyBlacklist", fromlist=["EnemyBlacklist"]).EnemyBlacklist().remove_name("obsidian behemoth"),
         "Unblacklist Obsidian Behemoth",
     )
+    bot_instance.States.AddCustomState(lambda: _record_quest_done("Unwanted Guests"), "Record Unwanted Guests done")
 
 def Restore_Wastes(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
@@ -1308,6 +1350,7 @@ def Restore_Wastes(bot_instance: Botting):
     bot_instance.Move.XY(-1452, 21202, "Restore Wastes 4")
     bot_instance.Move.XY(542, 18310, "Restore Wastes 5")
     bot_instance.Wait.ForTime(3000)
+    bot_instance.States.AddCustomState(lambda: _record_quest_done("Restore Wastes"), "Record Restore Wastes done")
 
 def Servants_of_Grenth(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
@@ -1346,6 +1389,7 @@ def Servants_of_Grenth(bot_instance: Botting):
         "Clear Flags",
     )
     bot_instance.Wait.ForTime(30000)
+    bot_instance.States.AddCustomState(lambda: _record_quest_done("Servants of Grenth"), "Record Servants of Grenth done")
     
 
 def _coro_reequip_sacrifice_armor() -> Generator[Any, Any, None]:
@@ -1629,6 +1673,7 @@ def Dhuum(bot_instance: Botting):
         lambda: _get_adapter().toggle_dead_ally_rescue(True),
         "Enable Dead Ally Rescue",
     )
+    bot_instance.States.AddCustomState(lambda: _record_quest_done("Dhuum"), "Record Dhuum done")
 
 
 
@@ -1722,7 +1767,8 @@ def ResignAndRepeat(bot_instance: Botting):
 
 def _log_successful_run() -> None:
     """Append a timestamped successful-run entry to the wipe log file."""
-    elapsed_s = int(time.monotonic() - _run_start_time) if _run_start_time else 0
+    import json as _json
+    elapsed_s = max(0, (Map.GetInstanceUptime() - _run_start_uptime_ms) // 1000) if _run_start_uptime_ms else 0
     elapsed_str = f"{elapsed_s // 3600:02d}:{(elapsed_s % 3600) // 60:02d}:{elapsed_s % 60:02d}"
     entry = f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Run completed successfully. Duration: {elapsed_str}\n"
     try:
@@ -1730,6 +1776,17 @@ def _log_successful_run() -> None:
             f.write(entry)
     except OSError as exc:
         ConsoleLog(BOT_NAME, f"[Run] Could not write run log: {exc}", Py4GW.Console.MessageType.Warning)
+    # Persist per-quest instance uptimes for the avg column.
+    if _quest_completion_times:
+        for quest_name in _QUEST_ORDER:
+            if quest_name in _quest_completion_times:
+                elapsed_q = _quest_completion_times[quest_name] // 1000
+                _quest_times_log.setdefault(quest_name, []).append(elapsed_q)
+        try:
+            with open(_QUEST_TIMES_FILE, "w", encoding="utf-8") as f:
+                _json.dump(_quest_times_log, f, indent=2)
+        except OSError as exc:
+            ConsoleLog(BOT_NAME, f"[Run] Could not write quest times log: {exc}", Py4GW.Console.MessageType.Warning)
     ConsoleLog(BOT_NAME, "[Run] Successful run logged.", Py4GW.Console.MessageType.Info)
 
 def Wait_for_Spawns(bot_instance: Botting, x, y):
@@ -2004,6 +2061,21 @@ def _draw_settings():
 
 
 _WIPE_LOG_FILE = os.path.join(Py4GW.Console.get_projects_path(), "Widgets", "Config", "UnderworldBot_wipes.log")
+_QUEST_TIMES_FILE = os.path.join(Py4GW.Console.get_projects_path(), "Widgets", "Config", "UnderworldBot_quest_times.json")
+
+def _load_quest_times_log() -> dict[str, list[int]]:
+    """Load per-quest elapsed-second lists from the JSON log, or return empty dict."""
+    import json as _json
+    try:
+        with open(_QUEST_TIMES_FILE, "r", encoding="utf-8") as f:
+            data = _json.load(f)
+        if isinstance(data, dict):
+            return {k: [int(v) for v in vs] for k, vs in data.items() if isinstance(vs, list)}
+    except (OSError, ValueError):
+        pass
+    return {}
+
+_quest_times_log: dict[str, list[int]] = _load_quest_times_log()
 
 def _get_current_header(fsm) -> str:
     """Return the clean name of the nearest preceding [H] header step, or 'unknown'."""
@@ -2114,6 +2186,54 @@ def _log_crash(exc: BaseException, tb: str) -> None:
         pass  # Nothing we can do if the file itself fails
 
 
+def _draw_main_additional_ui() -> None:
+    """Rendered in the Main tab below the progress bars."""
+    _color_done    = Utils.RGBToNormal(100, 255, 100, 255)
+    _color_pending = Utils.RGBToNormal(140, 140, 140, 255)
+    _color_avg     = Utils.RGBToNormal(255, 210, 80, 255)
+    PyImGui.text("Quest Progress")
+    if PyImGui.begin_table(
+        "##uw_quest_table", 3,
+        PyImGui.TableFlags.RowBg
+        | PyImGui.TableFlags.BordersOuterH
+        | PyImGui.TableFlags.BordersOuterV
+        | PyImGui.TableFlags.BordersInnerV,
+    ):
+        PyImGui.table_setup_column("Quest", PyImGui.TableColumnFlags.WidthStretch)
+        PyImGui.table_setup_column("Time",  PyImGui.TableColumnFlags.WidthFixed, 72)
+        PyImGui.table_setup_column("Avg",   PyImGui.TableColumnFlags.WidthFixed, 72)
+        PyImGui.table_headers_row()
+        for quest_name in _QUEST_ORDER:
+            PyImGui.table_next_row()
+            PyImGui.table_set_column_index(0)
+            done = quest_name in _quest_completion_times
+            PyImGui.text_colored(quest_name, _color_done if done else _color_pending)
+            PyImGui.table_set_column_index(1)
+            history = _quest_times_log.get(quest_name, [])
+            avg_s = int(sum(history) / len(history)) if history else None
+            if done:
+                uptime_s = _quest_completion_times[quest_name] // 1000
+                h, rem = divmod(uptime_s, 3600)
+                m, s = divmod(rem, 60)
+                if avg_s is None:
+                    time_color = _color_done
+                elif uptime_s <= avg_s:
+                    time_color = Utils.RGBToNormal(100, 255, 100, 255)
+                else:
+                    time_color = Utils.RGBToNormal(255, 80, 80, 255)
+                PyImGui.text_colored(f"{h:02d}:{m:02d}:{s:02d}", time_color)
+            else:
+                PyImGui.text_colored("--:--:--", _color_pending)
+            PyImGui.table_set_column_index(2)
+            if avg_s is not None:
+                ah, arem = divmod(avg_s, 3600)
+                am, as_ = divmod(arem, 60)
+                PyImGui.text_colored(f"{ah:02d}:{am:02d}:{as_:02d}", _color_avg)
+            else:
+                PyImGui.text_colored("--:--:--", _color_pending)
+        PyImGui.end_table()
+
+
 def main():
     global _pending_wipe_recovery, _pending_wipe_reason
     import traceback as _tb
@@ -2133,7 +2253,25 @@ def main():
             _restart_main_loop(bot, _pending_wipe_reason)
 
         bot.Update()
-        bot.UI.draw_window(extra_tabs=[("Run Log", _draw_run_log)])
+        bot.UI.draw_window(
+            main_child_dimensions=(350, 570),
+            additional_ui=_draw_main_additional_ui,
+            extra_tabs=[("Run Log", _draw_run_log)],
+        )
+    except ValueError as exc:
+        # CoreLib bug: FSM.update()'s except-StopIteration handler calls
+        # managed_coroutines.remove(routine) without a try/except.  If the
+        # routine was already removed from the list (rare edge case triggered
+        # by _start_coroutines() or a wipe callback), the remove raises
+        # ValueError.  The routine won't be in the next snapshot so the error
+        # is self-healing — we just must not let it crash the script.
+        if "list.remove" in str(exc):
+            ConsoleLog(BOT_NAME,
+                       "[WARN] Transient FSM coroutine list error (non-fatal) — bot continues.",
+                       Py4GW.Console.MessageType.Warning)
+        else:
+            _log_crash(exc, _tb.format_exc())
+            raise
     except Exception as exc:
         _log_crash(exc, _tb.format_exc())
         raise
