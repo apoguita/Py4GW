@@ -6,9 +6,9 @@ from Py4GWCoreLib import Routines
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.Player import Player
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
-from Sources.oazix.CustomBehaviors.primitives.skills.utility_skill_capability import UtilitySkillCapability
+from Sources.oazix.CustomBehaviors.primitives.skills.plugins.utility_skill_precondition import UtilitySkillPrecondition
 
-class ShouldWaitForSerpentsQuickness(UtilitySkillCapability):
+class ShouldWaitForSerpentsQuickness(UtilitySkillPrecondition):
     def __init__(self, parent_skill: CustomSkill, default_value: bool = False):
         super().__init__(parent_skill, "should_wait_for_serpents_quickness")
         from_persistence = self.load_from_persistence(str(int(default_value)))
@@ -17,7 +17,6 @@ class ShouldWaitForSerpentsQuickness(UtilitySkillCapability):
 
     @override
     def render_debug_ui(self):
-        PyImGui.text(f"Waiting for Serpents Quickness")
         hash = f"should_wait_for_serpents_quickness##should_wait_for_serpents_quickness_{self.parent_skill_name}"
         self.should_wait_for_serpents_quickness = PyImGui.checkbox(f"should_wait_for_serpents_quickness##{hash}", self.should_wait_for_serpents_quickness)
     

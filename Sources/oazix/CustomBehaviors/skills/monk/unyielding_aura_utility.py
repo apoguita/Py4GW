@@ -10,10 +10,9 @@ from Sources.oazix.CustomBehaviors.primitives.helpers.behavior_result import Beh
 from Sources.oazix.CustomBehaviors.primitives.helpers.targeting_order import TargetingOrder
 from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
 from Sources.oazix.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
-from Sources.oazix.CustomBehaviors.primitives.skills.bonds.custom_buff_multiple_target import CustomBuffMultipleTarget, CustomBuffTargetMode
-from Sources.oazix.CustomBehaviors.primitives.skills.bonds.custom_buff_target_per_profession import BuffConfigurationPerProfession
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
+from Sources.oazix.CustomBehaviors.skills.plugins.preconditions.should_wait_for_heroic_refrain import ShouldWaitForHeroicRefrain
 
 
 class UnyieldingAuraUtility(CustomSkillUtilityBase):
@@ -39,6 +38,7 @@ class UnyieldingAuraUtility(CustomSkillUtilityBase):
             allowed_states=allowed_states)
                 
         self.score_definition: ScoreStaticDefinition = score_definition
+        self.add_plugin_precondition(lambda x: ShouldWaitForHeroicRefrain(x.custom_skill, default_value= False))
 
     def _get_lock_key(self, agent_id: int) -> str:
         return f"Unyielding_Aura_Drop_{agent_id}"
@@ -55,8 +55,6 @@ class UnyieldingAuraUtility(CustomSkillUtilityBase):
             sort_key=(TargetingOrder.DISTANCE_ASC,),
             is_alive=False
         )
-    
-
 
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:

@@ -1,4 +1,4 @@
-from typing import override
+from typing import cast, override
 
 from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Sources.oazix.CustomBehaviors.primitives.scores.score_combot_definition import ScoreCombotDefinition
@@ -7,22 +7,21 @@ from Sources.oazix.CustomBehaviors.primitives.scores.score_static_definition imp
 from Sources.oazix.CustomBehaviors.primitives.skillbars.custom_behavior_base_utility import CustomBehaviorBaseUtility
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
-from Sources.oazix.CustomBehaviors.skills.common.auto_attack_utility import AutoAttackUtility
-from Sources.oazix.CustomBehaviors.skills.common.by_urals_hammer_utility import ByUralsHammerUtility
 from Sources.oazix.CustomBehaviors.skills.common.ebon_battle_standard_of_wisdom_utility import EbonBattleStandardOfWisdom
 from Sources.oazix.CustomBehaviors.skills.common.ebon_vanguard_assassin_support_utility import EbonVanguardAssassinSupportUtility
-from Sources.oazix.CustomBehaviors.skills.common.i_am_unstoppable_utility import IAmUnstoppableUtility
-from Sources.oazix.CustomBehaviors.skills.generic.generic_resurrection_utility import GenericResurrectionUtility
-from Sources.oazix.CustomBehaviors.skills.generic.auto_combat_utility import AutoCombatUtility
 from Sources.oazix.CustomBehaviors.skills.generic.keep_self_effect_up_utility import KeepSelfEffectUpUtility
 from Sources.oazix.CustomBehaviors.skills.generic.protective_shout_utility import ProtectiveShoutUtility
 from Sources.oazix.CustomBehaviors.skills.generic.raw_combot_attack_utility import RawCombotAttackUtility
 from Sources.oazix.CustomBehaviors.skills.paragon.blazing_finale_utility import BlazingFinaleUtility
-from Sources.oazix.CustomBehaviors.skills.paragon.fall_back_utility import FallBackUtility
 from Sources.oazix.CustomBehaviors.skills.paragon.heroic_refrain_utility import HeroicRefrainUtility
 from Sources.oazix.CustomBehaviors.skills.paragon.hasty_refrain_utility import HastyRefrainUtility
 from Sources.oazix.CustomBehaviors.skills.paragon.holy_spear_utility import HolySpearUtility
+from Sources.oazix.CustomBehaviors.skills.paragon.make_your_time_utility import MakeYourTimeUtility
+from Sources.oazix.CustomBehaviors.skills.plugins.preconditions.should_wait_for_adrenaline_consumer import ShouldWaitForAdrenalineConsumer
+from Sources.oazix.CustomBehaviors.skills.plugins.preconditions.should_wait_for_save_yourselves_finalized_on_allies import ShouldWaitForSaveYourselvesFinalizedOnAllies
 from Sources.oazix.CustomBehaviors.skills.warrior.protectors_defense_utility import ProtectorsDefenseUtility
+from Sources.oazix.CustomBehaviors.skills.warrior.save_yourselves import SaveYourselvesUtility
+from Sources.oazix.CustomBehaviors.skills.warrior.to_the_limit_utility import ToTheLimitUtility
 
 
 class ParagonRefrain_UtilitySkillBar(CustomBehaviorBaseUtility):
@@ -32,16 +31,28 @@ class ParagonRefrain_UtilitySkillBar(CustomBehaviorBaseUtility):
         in_game_build = list(self.skillbar_management.get_in_game_build().values())
 
         #core
-        self.hasty_refrain_utility: CustomSkillUtilityBase = HastyRefrainUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScoreStaticDefinition(40))
         self.heroic_refrain_utility: CustomSkillUtilityBase = HeroicRefrainUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScoreStaticDefinition(50))
         self.theyre_on_fire_utility: CustomSkillUtilityBase = KeepSelfEffectUpUtility(event_bus=self.event_bus, skill=CustomSkill("Theyre_on_Fire"), current_build=in_game_build, score_definition=ScoreStaticDefinition(80), allowed_states=[BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO, BehaviorState.FAR_FROM_AGGRO])
+        self.theres_nothing_to_fear: CustomSkillUtilityBase = ProtectiveShoutUtility(event_bus=self.event_bus, skill=CustomSkill("Theres_Nothing_to_Fear"), current_build=in_game_build, allies_health_less_than_percent=0.9, allies_quantity_required=1,score_definition= ScoreStaticDefinition(90), allowed_states=[BehaviorState.IN_AGGRO])
+
+        # adrenaline consumers
+        self.save_yourselves_luxon: CustomSkillUtilityBase = SaveYourselvesUtility(event_bus=self.event_bus, skill=CustomSkill("Save_Yourselves_luxon"), current_build=in_game_build,score_definition=ScoreStaticDefinition(89))
+        self.save_yourselves_kurzick: CustomSkillUtilityBase = SaveYourselvesUtility(event_bus=self.event_bus, skill=CustomSkill("Save_Yourselves_kurzick"), current_build=in_game_build, score_definition=ScoreStaticDefinition(89))
+
+        # adrenaline generators
+        self.for_great_justice: CustomSkillUtilityBase = KeepSelfEffectUpUtility(event_bus=self.event_bus, skill=CustomSkill("For_Great_Justice"), current_build=in_game_build, score_definition=ScoreStaticDefinition(80), allowed_states=[BehaviorState.IN_AGGRO])
+        
+        self.to_the_limit = ToTheLimitUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScoreStaticDefinition(79), allowed_states=[BehaviorState.IN_AGGRO])
+        self.to_the_limit.add_plugin_precondition(lambda x: ShouldWaitForSaveYourselvesFinalizedOnAllies(x.custom_skill, default_value=True))
+        self.to_the_limit.add_plugin_precondition(lambda x: ShouldWaitForAdrenalineConsumer(x.custom_skill, generated_strike_of_adrenaline=lambda: cast(ToTheLimitUtility, x).get_generated_strike_of_adrenaline(), adrenaline_consumers=[self.save_yourselves_luxon, self.save_yourselves_kurzick], default_value=True))
+        
+        self.make_your_time = MakeYourTimeUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScoreStaticDefinition(78), allowed_states=[BehaviorState.IN_AGGRO])
+        self.make_your_time.add_plugin_precondition(lambda x: ShouldWaitForSaveYourselvesFinalizedOnAllies(x.custom_skill, default_value=True))
+        self.make_your_time.add_plugin_precondition(lambda x: ShouldWaitForAdrenalineConsumer(x.custom_skill, generated_strike_of_adrenaline=lambda: cast(MakeYourTimeUtility, x).get_generated_strike_of_adrenaline(), adrenaline_consumers=[self.save_yourselves_luxon, self.save_yourselves_kurzick], default_value=True))
 
         #optional
-        self.theres_nothing_to_fear: CustomSkillUtilityBase = ProtectiveShoutUtility(event_bus=self.event_bus, skill=CustomSkill("Theres_Nothing_to_Fear"), current_build=in_game_build, allies_health_less_than_percent=0.9, allies_quantity_required=1,score_definition= ScoreStaticDefinition(90), allowed_states=[BehaviorState.IN_AGGRO])
-        self.save_yourselves_luxon: CustomSkillUtilityBase = ProtectiveShoutUtility(event_bus=self.event_bus, skill=CustomSkill("Save_Yourselves_luxon"), current_build=in_game_build, allies_health_less_than_percent=2, allies_quantity_required=1,score_definition=ScoreStaticDefinition(99), allowed_states=[BehaviorState.IN_AGGRO])
-        self.save_yourselves_kurzick: CustomSkillUtilityBase = ProtectiveShoutUtility(event_bus=self.event_bus, skill=CustomSkill("Save_Yourselves_kurzick"), current_build=in_game_build, allies_health_less_than_percent=2, allies_quantity_required=1,score_definition=ScoreStaticDefinition(99), allowed_states=[BehaviorState.IN_AGGRO])
+        self.hasty_refrain_utility: CustomSkillUtilityBase = HastyRefrainUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScoreStaticDefinition(40))
         self.never_surrender: CustomSkillUtilityBase = ProtectiveShoutUtility(event_bus=self.event_bus, skill=CustomSkill("Never_Surrender"), current_build=in_game_build, allies_health_less_than_percent=0.7,allies_quantity_required=2,score_definition=ScoreStaticDefinition(88), allowed_states=[BehaviorState.IN_AGGRO])
-
         self.blazing_finale_utility: CustomSkillUtilityBase = BlazingFinaleUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScoreStaticDefinition(33))
 
         self.jagged_strike_utility: CustomSkillUtilityBase = RawCombotAttackUtility(event_bus=self.event_bus, skill=CustomSkill("Jagged_Strike"), current_build=in_game_build, score_definition=ScoreCombotDefinition(40), mana_required_to_cast=13)
@@ -66,6 +77,9 @@ class ParagonRefrain_UtilitySkillBar(CustomBehaviorBaseUtility):
             self.save_yourselves_kurzick,
             self.never_surrender,
             self.blazing_finale_utility,
+            self.for_great_justice,
+            self.to_the_limit,
+            self.make_your_time,
 
             self.jagged_strike_utility,
             self.fox_fangs_utility,
@@ -74,9 +88,6 @@ class ParagonRefrain_UtilitySkillBar(CustomBehaviorBaseUtility):
             self.ebon_vanguard_assassin_support,
             self.ebon_battle_standard_of_wisdom,
             self.protectors_defense_utility,
-            self.jagged_strike_utility,
-            self.fox_fangs_utility,
-            self.death_blossom_utility,
         ]
 
     @property
