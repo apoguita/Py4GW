@@ -16,22 +16,20 @@ class BotSettings:
     BOT_NAME = "Simple Vanquish"
     OUTPOST_TO_TRAVEL = 0
     EXPLORABLE_TO_TRAVEL = 0
-    TRANSIT_EXPLORABLE = 0
-    TRANSIT_EXPLORABLE2 = 0
+    TRANSIT_EXPLORABLES = []       # lista escalable de transit map IDs
+    TRANSIT_PATHS = []             # lista escalable de transit paths
     COORD_TO_EXIT_MAP = []
     VANQUISH_PATH = []
-    TRANSIT_PATH = [(0,0)]
-    TRANSIT_PATH2 = [(0,0)]
     WIDGETS_TO_ENABLE: tuple[str, ...] = (
         "Titles",
     )
 
 bot = Botting(BotSettings.BOT_NAME,
-              upkeep_armor_of_salvation_restock=4,
-              upkeep_essence_of_celerity_restock=4,
-              upkeep_grail_of_might_restock=4,
-              upkeep_war_supplies_restock=4,
-              upkeep_honeycomb_restock=20,
+              upkeep_armor_of_salvation_restock=5,
+              upkeep_essence_of_celerity_restock=5,
+              upkeep_grail_of_might_restock=5,
+              upkeep_war_supplies_restock=5,
+              upkeep_honeycomb_restock=25,
               upkeep_auto_loot_active=True,
               upkeep_armor_of_salvation_active=True,
               upkeep_essence_of_celerity_active=True,
@@ -57,16 +55,15 @@ def bot_routine(bot: Botting) -> None:
 
     # Travel
     bot.States.AddHeader("Travelling to Explorable") # 3
-    if BotSettings.TRANSIT_EXPLORABLE2:
-            bot.Move.FollowPathAndExitMap(BotSettings.COORD_TO_EXIT_MAP, target_map_id=BotSettings.TRANSIT_EXPLORABLE)
-            bot.Move.FollowAutoPath(BotSettings.TRANSIT_PATH)
-            bot.Wait.ForMapToChange(BotSettings.TRANSIT_EXPLORABLE2)
-            bot.Move.FollowAutoPath(BotSettings.TRANSIT_PATH2)
-            bot.Wait.ForMapToChange(BotSettings.EXPLORABLE_TO_TRAVEL)
-    elif BotSettings.TRANSIT_EXPLORABLE:
-            bot.Move.FollowPathAndExitMap(BotSettings.COORD_TO_EXIT_MAP, target_map_id=BotSettings.TRANSIT_EXPLORABLE)
-            bot.Move.FollowAutoPath(BotSettings.TRANSIT_PATH)
-            bot.Wait.ForMapToChange(BotSettings.EXPLORABLE_TO_TRAVEL)
+    transit_count = len(BotSettings.TRANSIT_EXPLORABLES)
+    if transit_count > 0:
+        # Exit to first transit explorable
+        bot.Move.FollowPathAndExitMap(BotSettings.COORD_TO_EXIT_MAP, target_map_id=BotSettings.TRANSIT_EXPLORABLES[0])
+        for i in range(transit_count):
+            bot.Move.FollowAutoPath(BotSettings.TRANSIT_PATHS[i])
+            # Determine which map we expect after following this transit path
+            next_map = BotSettings.TRANSIT_EXPLORABLES[i + 1] if i + 1 < transit_count else BotSettings.EXPLORABLE_TO_TRAVEL
+            bot.Wait.ForMapToChange(next_map)
     else:
         bot.Move.FollowPathAndExitMap(BotSettings.COORD_TO_EXIT_MAP, target_map_id=BotSettings.EXPLORABLE_TO_TRAVEL)
 
@@ -94,7 +91,7 @@ def bot_routine(bot: Botting) -> None:
     else:
         bot.Move.FollowAutoPath(BotSettings.VANQUISH_PATH)
     bot.Wait.UntilOutOfCombat()
-    
+   
     # Reverse Path with Radar
     bot.States.AddHeader("Reverse Path with Radar") # 5
     bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Starting Reverse Path with Radar.")
@@ -155,7 +152,7 @@ def Radar(bot: "Botting"):
         enemy_array = AgentArray.Sort.ByDistance(enemy_array, (player_x,player_y))
         enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda a: Agent.IsAlive(a))
         closest_enemy = next(iter(enemy_array), 0)
-        
+       
         if closest_enemy != 0:
             closest_enemy_coord = Agent.GetXY(closest_enemy)
             ConsoleLog("Radar", f"Enemy detected at {closest_enemy_coord}.", Py4GW.Console.MessageType.Debug, True)
@@ -180,11 +177,40 @@ def VanquishWatchdog(bot: "Botting"):
 def _stop_bot():
     bot.Stop()
     yield
-    
+   
 region_index = 0
 map_index = 0
 _farm_configured = [False]
 prev_map_id = 0
+
+def _load_transit_data(mod, map_selected):
+    """
+    Dynamically loads N transit_id / transit_path pairs from the map module.
+    Looks for keys: transit_id, transit_id2, transit_id3, ... in the _ids dict
+    and variables: {map_selected}_transit_path, _transit_path2, _transit_path3, ...
+    Returns (transit_explorables_list, transit_paths_list)
+    """
+    ids = getattr(mod, f"{map_selected}_ids", {})
+    transit_explorables = []
+    transit_paths = []
+
+    # The first transit uses the key "transit_id" and suffix "_transit_path"
+    # Subsequent ones use "transit_id2", "transit_id3", ... and "_transit_path2", "_transit_path3", ...
+    i = 1
+    while True:
+        key = "transit_id" if i == 1 else f"transit_id{i}"
+        path_attr = f"{map_selected}_transit_path" if i == 1 else f"{map_selected}_transit_path{i}"
+
+        transit_id = ids.get(key, 0)
+        if not transit_id:
+            break
+
+        transit_explorables.append(transit_id)
+        path_data = getattr(mod, path_attr, [(0, 0)])
+        transit_paths.append(path_data)
+        i += 1
+
+    return transit_explorables, transit_paths
 
 def _draw_settings():
     global region_index
@@ -197,7 +223,7 @@ def _draw_settings():
     regions = sorted([d for d in os.listdir(MAPS_DIR) if os.path.isdir(os.path.join(MAPS_DIR, d))])
     region_index = PyImGui.combo("##Region", region_index, regions)
     REGION_DIR = os.path.join(MAPS_DIR, regions[region_index])
-  
+ 
     #Map combo
     maps = sorted([
         f[:-3] for f in os.listdir(REGION_DIR)
@@ -213,18 +239,15 @@ def _draw_settings():
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
 
-    BotSettings.VANQUISH_PATH = getattr(mod, map_selected, [])   
+    BotSettings.VANQUISH_PATH = getattr(mod, map_selected, [])  
     ids = getattr(mod, f"{map_selected}_ids", {})
     BotSettings.OUTPOST_TO_TRAVEL = ids.get("outpost_id")
     BotSettings.EXPLORABLE_TO_TRAVEL = ids.get("map_id")
     BotSettings.COORD_TO_EXIT_MAP = getattr(mod, f"{map_selected}_outpost_path", [])
-    BotSettings.TRANSIT_EXPLORABLE = ids.get("transit_id")
-    BotSettings.TRANSIT_EXPLORABLE2 = ids.get("transit_id2")
-    if getattr(mod, f"{map_selected}_transit_path", []):
-        BotSettings.TRANSIT_PATH = getattr(mod, f"{map_selected}_transit_path", [])
-    if getattr(mod, f"{map_selected}_transit_path2", []):
-        BotSettings.TRANSIT_PATH2 = getattr(mod, f"{map_selected}_transit_path2", [])
-    
+
+    # Load N transit explorables and paths dynamically
+    BotSettings.TRANSIT_EXPLORABLES, BotSettings.TRANSIT_PATHS = _load_transit_data(mod, map_selected)
+   
     if prev_map_id != BotSettings.EXPLORABLE_TO_TRAVEL :
         bot.Stop()
         bot.config.FSM = FSM(BotSettings.BOT_NAME)
@@ -233,12 +256,12 @@ def _draw_settings():
         prev_map_id = BotSettings.EXPLORABLE_TO_TRAVEL
         _farm_configured[0] = True      
 
-    PyImGui.separator()   
+    PyImGui.separator()  
     if Map.GetMapID() != 857:
         if PyImGui.button("Travel to Embark Beach", 250, 30):
             Map.Travel(857)
     else:
-        if PyImGui.button("Move to Vanquish signpost", 250, 30):   
+        if PyImGui.button("Move to Vanquish signpost", 250, 30):  
             Player.Move(-428.00, -3439.00)
 
     _draw_settings_consumables()
@@ -276,12 +299,15 @@ def _draw_settings_debug():
     PyImGui.text(f"_farm_configured: {_farm_configured[0]}")
     PyImGui.text(f"BotSettings.OUTPOST_TO_TRAVEL: {BotSettings.OUTPOST_TO_TRAVEL}")
     PyImGui.text(f"BotSettings.EXPLORABLE_TO_TRAVEL: {BotSettings.EXPLORABLE_TO_TRAVEL}")
-    PyImGui.text(f"BotSettings.COORD_TO_EXIT_MAP: {BotSettings.COORD_TO_EXIT_MAP[-1]}")
-    PyImGui.text(f"BotSettings.VANQUISH_PATH: {BotSettings.VANQUISH_PATH[-1]}")
-    PyImGui.text(f"BotSettings.TRANSIT_EXPLORABLE: {BotSettings.TRANSIT_EXPLORABLE}")
-    PyImGui.text(f"BotSettings.TRANSIT_PATH: {BotSettings.TRANSIT_PATH[-1]}") 
-    PyImGui.text(f"BotSettings.TRANSIT_EXPLORABLE2: {BotSettings.TRANSIT_EXPLORABLE2}")
-    PyImGui.text(f"BotSettings.TRANSIT_PATH2: {BotSettings.TRANSIT_PATH2[-1]}")     
+    PyImGui.text(f"BotSettings.COORD_TO_EXIT_MAP: {BotSettings.COORD_TO_EXIT_MAP[-1] if BotSettings.COORD_TO_EXIT_MAP else 'empty'}")
+    PyImGui.text(f"BotSettings.VANQUISH_PATH: {BotSettings.VANQUISH_PATH[-1] if BotSettings.VANQUISH_PATH else 'empty'}")
+    PyImGui.text(f"Transit count: {len(BotSettings.TRANSIT_EXPLORABLES)}")
+    for i in range(len(BotSettings.TRANSIT_EXPLORABLES)):
+        suffix = "" if i == 0 else str(i + 1)
+        tid = BotSettings.TRANSIT_EXPLORABLES[i]
+        tpath = BotSettings.TRANSIT_PATHS[i] if i < len(BotSettings.TRANSIT_PATHS) else []
+        PyImGui.text(f"  TRANSIT_EXPLORABLE{suffix}: {tid}")
+        PyImGui.text(f"  TRANSIT_PATH{suffix}[-1]: {tpath[-1] if tpath else 'empty'}")
 
 def _draw_help():
     PyImGui.text("Developed by: Aura")
@@ -298,7 +324,7 @@ def _on_party_wipe(bot: "Botting"):
     # Player revived on same map → jump to recovery step
     bot.States.JumpToStepName("[H]Start Combat_4")
     bot.config.FSM.resume()
-    
+   
 def OnPartyWipe(bot: "Botting"):
     ConsoleLog("on_party_wipe", "event triggered")
     fsm = bot.config.FSM
