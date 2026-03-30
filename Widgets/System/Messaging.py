@@ -634,6 +634,9 @@ def MerchantItems(index: int, message: SharedMessageStruct):
             ini_section = str(extra2 or "").strip()
             ini_key = str(extra3 or "").strip()
             if ini_path and ini_section and ini_key:
+                import os as _os
+                if not _os.path.isabs(ini_path):
+                    ini_path = _os.path.join(Py4GW.Console.get_projects_path(), ini_path)
                 IniHandler(ini_path).write_key(ini_section, ini_key, str(salvage_kits_in_inv))
         finally:
             _merchant_busy = False
@@ -2061,6 +2064,9 @@ def InventoryQuery(index: int, message: SharedMessageStruct):
             ini_section = str(extra2 or "").strip()
             ini_key     = str(extra3 or "").strip()
             if ini_path and ini_section and ini_key and range_start > 0 and range_end >= range_start:
+                import os as _os
+                if not _os.path.isabs(ini_path):
+                    ini_path = _os.path.join(Py4GW.Console.get_projects_path(), ini_path)
                 count = sum(int(GLOBAL_CACHE.Inventory.GetModelCount(mid))
                             for mid in range(range_start, range_end + 1))
                 IniHandler(ini_path).write_key(ini_section, ini_key, str(count))
