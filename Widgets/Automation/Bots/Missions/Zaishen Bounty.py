@@ -125,7 +125,7 @@ def bot_routine(bot: Botting) -> None:
         # -- Bounty Path --
         bot.States.AddHeader("Start Combat")
         bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Starting Bounty: {bounty.display}")
-        if bounty.bounty_path and isinstance(bounty.bounty_path[0], dict) and "bless" in bounty.bounty_path[0]:
+        if bounty.bounty_path and isinstance(bounty.bounty_path[0], dict):
             for i, entry in enumerate(bounty.bounty_path):
                 for key, value in entry.items():
                     if key == "bless":

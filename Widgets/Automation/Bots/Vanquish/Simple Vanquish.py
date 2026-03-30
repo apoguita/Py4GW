@@ -136,7 +136,7 @@ def bot_routine(bot: Botting) -> None:
         target_header = completed_header_names[vq_idx]
         bot.States.AddManagedCoroutine("VanquishWatchdog",
             lambda h=target_header: VanquishWatchdog(bot, h))
-        if vq.vanquish_path and isinstance(vq.vanquish_path[0], dict) and "bless" in vq.vanquish_path[0]:
+        if vq.vanquish_path and isinstance(vq.vanquish_path[0], dict):
             for i, entry in enumerate(vq.vanquish_path):
                 for key, value in entry.items():
                     if key == "bless":
@@ -160,7 +160,7 @@ def bot_routine(bot: Botting) -> None:
         # -- Reverse Path with Radar --
         bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Starting Reverse Path with Radar.")
         bot.States.AddManagedCoroutine("Radar", lambda: Radar(bot))
-        if vq.vanquish_path and isinstance(vq.vanquish_path[0], dict) and "bless" in vq.vanquish_path[0]:
+        if vq.vanquish_path and isinstance(vq.vanquish_path[0], dict):
             reversed_list = []
             for entry in reversed(vq.vanquish_path):
                 reversed_keys = list(entry.keys())[::-1]
