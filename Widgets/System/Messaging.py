@@ -20,6 +20,7 @@ from Py4GWCoreLib import SharedCommandType
 from Py4GWCoreLib import UIManager
 from Py4GWCoreLib import AutoPathing
 from Py4GWCoreLib import IniHandler
+from Py4GWCoreLib.GlobalCache.shared_memory_src.AccountStruct import AccountStruct
 from Py4GWCoreLib.Py4GWcorelib import Keystroke
 from Py4GWCoreLib.Quest import Quest
 from Py4GWCoreLib.enums_src.Model_enums import ModelID
@@ -1150,12 +1151,12 @@ def OpenChest(index: int, message: SharedMessageStruct):
                 map_district = Map.GetDistrict()
                 map_language = Map.GetLanguage()[0]
 
-                def on_same_map_and_party(account) -> bool:                    
+                def on_same_map_and_party(account : AccountStruct) -> bool:                    
                     return (account.AgentPartyData.PartyID == party_id and
-                            account.MapID == map_id and
-                            account.MapRegion == map_region and
-                            account.MapDistrict == map_district and
-                            account.MapLanguage == map_language)
+                            account.AgentData.Map.MapID == map_id and
+                            account.AgentData.Map.Region == map_region and
+                            account.AgentData.Map.District == map_district and
+                            account.AgentData.Map.Language == map_language)
                 
                 all_accounts = [account for account in GLOBAL_CACHE.ShMem.GetAllAccountData() if on_same_map_and_party(account) and account.AgentPartyData.PartyPosition > account_data.AgentPartyData.PartyPosition]
                 chest_pos = Agent.GetXY(chest_id)
