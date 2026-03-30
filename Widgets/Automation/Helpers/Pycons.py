@@ -2163,101 +2163,104 @@ try:
             self._save_timer.Start()
 
             ini_handler = _get_ini_handler()
-            ini_handler.write_key(INI_SECTION, "debug_logging", str(bool(self.debug_logging)))
-            ini_handler.write_key(INI_SECTION, "interval_ms", str(int(self.interval_ms)))
-            ini_handler.write_key(INI_SECTION, "restock_interval_ms", str(int(max(MIN_RESTOCK_INTERVAL_MS, int(self.restock_interval_ms)))))
-            ini_handler.write_key(
-                INI_SECTION,
-                "restock_mode",
-                str(int(max(RESTOCK_MODE_BALANCED, min(RESTOCK_MODE_DEPOSIT_ONLY, int(self.restock_mode))))),
-            )
-            ini_handler.write_key(
-                INI_SECTION,
+            config = ini_handler.reload()
+            if not config.has_section(INI_SECTION):
+                config.add_section(INI_SECTION)
+
+            def set_key(key: str, value):
+                config.set(INI_SECTION, str(key), str(value))
+
+            set_key("debug_logging", bool(self.debug_logging))
+            set_key("interval_ms", int(self.interval_ms))
+            set_key("restock_interval_ms", int(max(MIN_RESTOCK_INTERVAL_MS, int(self.restock_interval_ms))))
+            set_key("restock_mode", int(max(RESTOCK_MODE_BALANCED, min(RESTOCK_MODE_DEPOSIT_ONLY, int(self.restock_mode)))))
+            set_key(
                 "restock_move_cap_per_cycle",
-                str(int(max(MIN_RESTOCK_MOVE_CAP_PER_CYCLE, min(MAX_RESTOCK_MOVE_CAP_PER_CYCLE, int(self.restock_move_cap_per_cycle))))),
+                int(max(MIN_RESTOCK_MOVE_CAP_PER_CYCLE, min(MAX_RESTOCK_MOVE_CAP_PER_CYCLE, int(self.restock_move_cap_per_cycle)))),
             )
-            ini_handler.write_key(INI_SECTION, "show_selected_list", str(bool(self.show_selected_list)))
-            ini_handler.write_key(INI_SECTION, "only_show_available_inventory", str(bool(self.only_show_available_inventory)))
-            ini_handler.write_key(INI_SECTION, "only_show_selected_items", str(bool(self.only_show_selected_items)))
-            ini_handler.write_key(INI_SECTION, "auto_vault_restock", str(bool(self.auto_vault_restock)))
-            ini_handler.write_key(INI_SECTION, "restock_keep_target_on_deselect", str(bool(self.restock_keep_target_on_deselect)))
-            ini_handler.write_key(INI_SECTION, "tooltip_visibility", str(int(self.tooltip_visibility)))
-            ini_handler.write_key(INI_SECTION, "tooltip_length", str(int(self.tooltip_length)))
-            ini_handler.write_key(INI_SECTION, "tooltip_show_why", str(bool(self.tooltip_show_why)))
-            ini_handler.write_key(INI_SECTION, "last_applied_preset", str(self.last_applied_preset))
-            ini_handler.write_key(INI_SECTION, "last_party_opt_toggle_summary", str(self.last_party_opt_toggle_summary))
+            set_key("show_selected_list", bool(self.show_selected_list))
+            set_key("only_show_available_inventory", bool(self.only_show_available_inventory))
+            set_key("only_show_selected_items", bool(self.only_show_selected_items))
+            set_key("auto_vault_restock", bool(self.auto_vault_restock))
+            set_key("restock_keep_target_on_deselect", bool(self.restock_keep_target_on_deselect))
+            set_key("tooltip_visibility", int(self.tooltip_visibility))
+            set_key("tooltip_length", int(self.tooltip_length))
+            set_key("tooltip_show_why", bool(self.tooltip_show_why))
+            set_key("last_applied_preset", self.last_applied_preset)
+            set_key("last_party_opt_toggle_summary", self.last_party_opt_toggle_summary)
             for i in range(1, PRESET_SLOT_COUNT + 1):
-                ini_handler.write_key(INI_SECTION, f"preset_slot_{i}_name", str(self.preset_slot_names.get(i, _preset_slot_default_name(i))))
+                set_key(f"preset_slot_{i}_name", self.preset_slot_names.get(i, _preset_slot_default_name(i)))
 
-            ini_handler.write_key(INI_SECTION, "show_advanced_intervals", str(bool(self.show_advanced_intervals)))
-            ini_handler.write_key(INI_SECTION, "persist_main_runtime_toggles", str(bool(self.persist_main_runtime_toggles)))
+            set_key("show_advanced_intervals", bool(self.show_advanced_intervals))
+            set_key("persist_main_runtime_toggles", bool(self.persist_main_runtime_toggles))
             for k, v in self.min_interval_ms.items():
-                ini_handler.write_key(INI_SECTION, f"min_interval_{k}", str(int(max(0, int(v)))))
+                set_key(f"min_interval_{k}", int(max(0, int(v))))
 
-            ini_handler.write_key(INI_SECTION, "alcohol_enabled", str(bool(self.alcohol_enabled)))
-            ini_handler.write_key(INI_SECTION, "alcohol_disable_effect", str(bool(self.alcohol_disable_effect)))
-            ini_handler.write_key(INI_SECTION, "alcohol_target_level", str(int(self.alcohol_target_level)))
-            ini_handler.write_key(INI_SECTION, "alcohol_use_explorable", str(bool(self.alcohol_use_explorable)))
-            ini_handler.write_key(INI_SECTION, "alcohol_use_outpost", str(bool(self.alcohol_use_outpost)))
-            ini_handler.write_key(INI_SECTION, "alcohol_preference", str(int(self.alcohol_preference)))
-            ini_handler.write_key(INI_SECTION, "mbdp_enabled", str(bool(self.mbdp_enabled)))
-            ini_handler.write_key(INI_SECTION, "mbdp_allow_partywide_in_human_parties", str(bool(self.mbdp_allow_partywide_in_human_parties)))
-            ini_handler.write_key(INI_SECTION, "mbdp_receiver_require_enabled", str(bool(self.mbdp_receiver_require_enabled)))
-            ini_handler.write_key(INI_SECTION, "mbdp_self_dp_minor_threshold", str(int(self.mbdp_self_dp_minor_threshold)))
-            ini_handler.write_key(INI_SECTION, "mbdp_self_dp_major_threshold", str(int(self.mbdp_self_dp_major_threshold)))
-            ini_handler.write_key(INI_SECTION, "mbdp_self_morale_target_effective", str(int(self.mbdp_self_morale_target_effective)))
-            ini_handler.write_key(INI_SECTION, "mbdp_self_min_morale_gain", str(int(self.mbdp_self_min_morale_gain)))
-            ini_handler.write_key(INI_SECTION, "mbdp_party_target_effective", str(int(self.mbdp_party_target_effective)))
-            ini_handler.write_key(INI_SECTION, "mbdp_strict_party_plus10", str(bool(self.mbdp_strict_party_plus10)))
-            ini_handler.write_key(INI_SECTION, "mbdp_party_min_members", str(int(self.mbdp_party_min_members)))
-            ini_handler.write_key(INI_SECTION, "mbdp_party_min_interval_ms", str(int(self.mbdp_party_min_interval_ms)))
-            ini_handler.write_key(INI_SECTION, "mbdp_party_min_total_gain_5", str(int(self.mbdp_party_min_total_gain_5)))
-            ini_handler.write_key(INI_SECTION, "mbdp_party_min_total_gain_10", str(int(self.mbdp_party_min_total_gain_10)))
-            ini_handler.write_key(INI_SECTION, "mbdp_party_light_dp_threshold", str(int(self.mbdp_party_light_dp_threshold)))
-            ini_handler.write_key(INI_SECTION, "mbdp_party_heavy_dp_threshold", str(int(self.mbdp_party_heavy_dp_threshold)))
-            ini_handler.write_key(INI_SECTION, "mbdp_powerstone_dp_threshold", str(int(self.mbdp_powerstone_dp_threshold)))
-            ini_handler.write_key(INI_SECTION, "mbdp_prefer_seal_for_recharge", str(bool(self.mbdp_prefer_seal_for_recharge)))
-            ini_handler.write_key(INI_SECTION, "force_team_morale_value", str(int(self.force_team_morale_value)))
-            ini_handler.write_key(INI_SECTION, "settings_explorable_open", str(bool(self.settings_explorable_open)))
-            ini_handler.write_key(INI_SECTION, "settings_summoning_open", str(bool(self.settings_summoning_open)))
-            ini_handler.write_key(INI_SECTION, "settings_outpost_open", str(bool(self.settings_outpost_open)))
-            ini_handler.write_key(INI_SECTION, "settings_mbdp_open", str(bool(self.settings_mbdp_open)))
-            ini_handler.write_key(INI_SECTION, "settings_alcohol_open", str(bool(self.settings_alcohol_open)))
-            ini_handler.write_key(INI_SECTION, "settings_ui_tooltip_open", str(bool(self.settings_ui_tooltip_open)))
-            ini_handler.write_key(INI_SECTION, "settings_ui_alcohol_open", str(bool(self.settings_ui_alcohol_open)))
-            ini_handler.write_key(INI_SECTION, "settings_ui_mbdp_open", str(bool(self.settings_ui_mbdp_open)))
-            ini_handler.write_key(INI_SECTION, "settings_ui_presets_open", str(bool(self.settings_ui_presets_open)))
-            ini_handler.write_key(INI_SECTION, "settings_ui_restock_open", str(bool(self.settings_ui_restock_open)))
-            ini_handler.write_key(INI_SECTION, "experimental_team_flag_sync", str(bool(self.experimental_team_flag_sync)))
-            ini_handler.write_key(INI_SECTION, "experimental_mainloop_refresh_queue", str(bool(self.experimental_mainloop_refresh_queue)))
+            set_key("alcohol_enabled", bool(self.alcohol_enabled))
+            set_key("alcohol_disable_effect", bool(self.alcohol_disable_effect))
+            set_key("alcohol_target_level", int(self.alcohol_target_level))
+            set_key("alcohol_use_explorable", bool(self.alcohol_use_explorable))
+            set_key("alcohol_use_outpost", bool(self.alcohol_use_outpost))
+            set_key("alcohol_preference", int(self.alcohol_preference))
+            set_key("mbdp_enabled", bool(self.mbdp_enabled))
+            set_key("mbdp_allow_partywide_in_human_parties", bool(self.mbdp_allow_partywide_in_human_parties))
+            set_key("mbdp_receiver_require_enabled", bool(self.mbdp_receiver_require_enabled))
+            set_key("mbdp_self_dp_minor_threshold", int(self.mbdp_self_dp_minor_threshold))
+            set_key("mbdp_self_dp_major_threshold", int(self.mbdp_self_dp_major_threshold))
+            set_key("mbdp_self_morale_target_effective", int(self.mbdp_self_morale_target_effective))
+            set_key("mbdp_self_min_morale_gain", int(self.mbdp_self_min_morale_gain))
+            set_key("mbdp_party_target_effective", int(self.mbdp_party_target_effective))
+            set_key("mbdp_strict_party_plus10", bool(self.mbdp_strict_party_plus10))
+            set_key("mbdp_party_min_members", int(self.mbdp_party_min_members))
+            set_key("mbdp_party_min_interval_ms", int(self.mbdp_party_min_interval_ms))
+            set_key("mbdp_party_min_total_gain_5", int(self.mbdp_party_min_total_gain_5))
+            set_key("mbdp_party_min_total_gain_10", int(self.mbdp_party_min_total_gain_10))
+            set_key("mbdp_party_light_dp_threshold", int(self.mbdp_party_light_dp_threshold))
+            set_key("mbdp_party_heavy_dp_threshold", int(self.mbdp_party_heavy_dp_threshold))
+            set_key("mbdp_powerstone_dp_threshold", int(self.mbdp_powerstone_dp_threshold))
+            set_key("mbdp_prefer_seal_for_recharge", bool(self.mbdp_prefer_seal_for_recharge))
+            set_key("force_team_morale_value", int(self.force_team_morale_value))
+            set_key("settings_explorable_open", bool(self.settings_explorable_open))
+            set_key("settings_summoning_open", bool(self.settings_summoning_open))
+            set_key("settings_outpost_open", bool(self.settings_outpost_open))
+            set_key("settings_mbdp_open", bool(self.settings_mbdp_open))
+            set_key("settings_alcohol_open", bool(self.settings_alcohol_open))
+            set_key("settings_ui_tooltip_open", bool(self.settings_ui_tooltip_open))
+            set_key("settings_ui_alcohol_open", bool(self.settings_ui_alcohol_open))
+            set_key("settings_ui_mbdp_open", bool(self.settings_ui_mbdp_open))
+            set_key("settings_ui_presets_open", bool(self.settings_ui_presets_open))
+            set_key("settings_ui_restock_open", bool(self.settings_ui_restock_open))
+            set_key("experimental_team_flag_sync", bool(self.experimental_team_flag_sync))
+            set_key("experimental_mainloop_refresh_queue", bool(self.experimental_mainloop_refresh_queue))
 
             for k, v in self.alcohol_selected.items():
-                ini_handler.write_key(INI_SECTION, f"alcohol_selected_{k}", str(bool(v)))
+                set_key(f"alcohol_selected_{k}", bool(v))
             for k, v in self.alcohol_enabled_items.items():
-                ini_handler.write_key(INI_SECTION, f"alcohol_enabled_{k}", str(bool(v)))
+                set_key(f"alcohol_enabled_{k}", bool(v))
             for c in ALL_CONSUMABLES:
                 k = str(c.get("key", "") or "")
                 if k:
-                    ini_handler.write_key(INI_SECTION, f"restock_target_{k}", str(int(max(0, min(2500, int(self.restock_targets.get(k, VAULT_RESTOCK_TARGET_QTY) or 0))))))
+                    set_key(f"restock_target_{k}", int(max(0, min(2500, int(self.restock_targets.get(k, VAULT_RESTOCK_TARGET_QTY) or 0)))))
             for a in ALCOHOL_ITEMS:
                 k = str(a.get("key", "") or "")
                 if k:
-                    ini_handler.write_key(INI_SECTION, f"restock_target_{k}", str(int(max(0, min(2500, int(self.restock_targets.get(k, VAULT_RESTOCK_TARGET_QTY) or 0))))))
+                    set_key(f"restock_target_{k}", int(max(0, min(2500, int(self.restock_targets.get(k, VAULT_RESTOCK_TARGET_QTY) or 0)))))
 
             # Team / multibox settings
             # team_broadcast: When enabled, broadcasts item usage to other accounts
             # team_consume_opt_in: When enabled (on followers), consumes items when broadcasts are received
             # Legacy behavior keeps team_consume_opt_in saved by immediate settings writes.
             # Experimental team-flag sync writes both flags here to reduce refresh races.
-            ini_handler.write_key(INI_SECTION, "team_broadcast", str(bool(self.team_broadcast)))
+            set_key("team_broadcast", bool(self.team_broadcast))
             if bool(getattr(self, "experimental_team_flag_sync", EXPERIMENTAL_TEAM_FLAG_SYNC_DEFAULT)):
-                ini_handler.write_key(INI_SECTION, "team_consume_opt_in", str(bool(self.team_consume_opt_in)))
+                set_key("team_consume_opt_in", bool(self.team_consume_opt_in))
 
             for k, v in self.selected.items():
-                ini_handler.write_key(INI_SECTION, f"selected_{k}", str(bool(v)))
+                set_key(f"selected_{k}", bool(v))
             for k, v in self.enabled.items():
-                ini_handler.write_key(INI_SECTION, f"enabled_{k}", str(bool(v)))
+                set_key(f"enabled_{k}", bool(v))
 
+            ini_handler.save(config)
             self._dirty = False
 
     # Config will be lazy-loaded on first main() call to ensure account email is available
@@ -2352,7 +2355,6 @@ try:
     _vault_last_confirmed_storage_bag_id = 0
     _vault_pending_state = {}
     _vault_action_cooldown_until = {}
-
     def _now_ms() -> int:
         import time
         return int(time.time() * 1000)
@@ -6595,6 +6597,7 @@ try:
 
         _draw_main_window()
         _draw_settings_window()
+
         _tick_disable_alcohol_effect()
 
         cfg.save_if_dirty_throttled(750)
