@@ -417,6 +417,19 @@ def WaitTillQuestDone(bot_instance: Botting) -> None:
     )
 
 
+def _coro_hold_horsemen_position() -> Generator[Any, Any, None]:
+    """Move the player back to the Four Horsemen wait position every 5 s.
+    Runs once as a YieldRoutineStep; exits as soon as the quest is completed.
+    """
+    from Py4GWCoreLib.Quest import Quest
+    _HOLD_X, _HOLD_Y = 11510.0, -18234.0
+    _INTERVAL_MS = 5000
+    while True:
+        if (Quest.GetActiveQuest() > 0) and Quest.IsQuestCompleted(Quest.GetActiveQuest()):
+            return
+        Player.Move(_HOLD_X, _HOLD_Y)
+        yield from Routines.Yield.wait(_INTERVAL_MS)
+
 
 def _move_with_unstuck(
     bot_instance: Botting,
@@ -916,9 +929,10 @@ def Clear_the_Chamber(bot_instance: Botting):
     )
     enable_default_party_behavior(bot_instance)
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_combat_enabled(False), "Disable Combat")
-    #bot_instance.Move.XYAndInteractNPC(295, 7221, "go to NPC")
+    bot_instance.Move.XYAndInteractNPC(295, 7221, "go to NPC")
     bot_instance.Dialogs.AtXY(295, 7221, 0x806501, "take quest")
-    #bot_instance.Dialogs.WithEncName("Lost Soul",0x806501, "Take Clear the Chamber")
+    bot_instance.Multibox.SendDialogToTarget(0x806501)
+    #bot_instance.Dialogs.WithEnc Name("Lost Soul",0x806501, "Take Clear the Chamber")
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_combat_enabled(True), "Enable Combat")
     bot_instance.Move.XY(769, 6564, "Prepare to clear the chamber")
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_forced_state(BehaviorState.CLOSE_TO_AGGRO),"Force Close_to_Aggro",)
@@ -1081,14 +1095,19 @@ def The_Four_Horsemen(bot_instance: Botting):
     ]
     _enqueue_spread_flags(bot_instance, THE_FOUR_HORSEMEN_FLAG_POINTS_2)
     bot_instance.Party.UnflagAllHeroes()
-    # Flag the player's own account to (11510, -18234) so CB keeps them at the wait
-    # position via FollowFlagUtility (active in all states incl. IN_AGGRO) instead of
-    # chasing enemies via the IN_AGGRO vector field movement.
     bot_instance.States.AddCustomState(
-        lambda: _get_adapter().set_flag_for_email(Player.GetAccountEmail(), 7, 11510, -18234),
-        "Flag player to hold position",
+        lambda: bot_instance.Properties.ApplyNow("pause_on_danger", "active", False),
+        "Disable PauseOnDanger for Horsemen wait",
+    )
+    bot_instance.config.FSM.AddYieldRoutineStep(
+        name="Hold position at Horsemen",
+        coroutine_fn=_coro_hold_horsemen_position,
     )
     WaitTillQuestDone(bot_instance)
+    bot_instance.States.AddCustomState(
+        lambda: bot_instance.Properties.ApplyNow("pause_on_danger", "active", True),
+        "Re-enable PauseOnDanger after Horsemen",
+    )
     bot_instance.States.AddCustomState(
         lambda: _get_adapter().clear_flags(),
         "Clear Flags",
@@ -1113,6 +1132,9 @@ def Restore_Pools(bot_instance: Botting):
         lambda: __import__("Py4GWCoreLib.EnemyBlacklist", fromlist=["EnemyBlacklist"]).EnemyBlacklist().add_name("banished dream rider"),
         "Blacklist Banished Dream Rider",
     )
+    bot_instance.Move.XY(6869, -17771, "Restore Pools 1")
+    bot_instance.Move.XY(2867, -19746, "Restore Pools 1")
+    bot_instance.Move.XY(1753, -14703, "Restore Pools 1")
     bot_instance.Move.XY(-12703, -10990, "Restore Pools 1")
     bot_instance.Move.XY(-11849, -11986, "Restore Pools 2")
     bot_instance.Move.XY(-5974, -19739, "Restore Pools 3")
@@ -1126,7 +1148,7 @@ def Terrorweb_Queen(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(True), "Enable MoveToPartyMemberIfDead")
     bot_instance.Move.XYAndInteractNPC(-6890, -19454, "go to NPC")
     bot_instance.Dialogs.AtXY(-6890, -19454, 0x806B01, "take quest")   
-    bot_instance.Move.XY(-12375, -15578, "Terrorweb Queen 1")
+    bot_instance.Move.XY(-12432, -15874, "Terrorweb Queen 1")
     bot_instance.Move.XYAndInteractNPC(-6957, -19478, "go to NPC")
     bot_instance.Dialogs.AtXY(-6957, -19478, 0x806B07, "Back to Chamber")
     bot_instance.Dialogs.AtXY(-6957, -19478, 0x8B, "Back to Chamber")
@@ -1167,14 +1189,25 @@ def Imprisoned_Spirits(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(False), "Disable WaitIfPartyMemberTooFar")
     bot_instance.Move.XY(8692, 6292, "go to NPC")
     bot_instance.Move.XYAndInteractNPC(8666, 6308, "go to NPC")
-    bot_instance.Dialogs.AtXY(8666, 6308, 0x806901, "take quest")  
+    bot_instance.Dialogs.AtXY(8666, 6308, 0x806901, "take quest")
+    _is_timer: list[float] = [0.0]  # [monotonic start time], captured by closures below
+    bot_instance.States.AddCustomState(
+        lambda: _is_timer.__setitem__(0, time.monotonic()),
+        "Start Imprisoned Spirits Timer",
+    )
     bot_instance.Move.XY(13652, 6117)  # Run down towards the left team
+    bot_instance.Wait.UntilCondition(
+        lambda: time.monotonic() - _is_timer[0] >= 20.0
+    )
     bot_instance.States.AddCustomState(
         lambda: _get_adapter().clear_flags(),
         "Clear Flags",
     )
     bot_instance.Move.XY(12593, 1814)
     bot_instance.Wait.ForTime(40000)
+    bot_instance.Wait.UntilCondition(
+        lambda: time.monotonic() - _is_timer[0] >= 80.0
+    )
     bot_instance.States.AddCustomState(
         lambda: __import__("Py4GWCoreLib.EnemyBlacklist", fromlist=["EnemyBlacklist"]).EnemyBlacklist().remove_name("chained soul"),
         "Unblacklist Chained Soul",
@@ -1182,6 +1215,10 @@ def Imprisoned_Spirits(bot_instance: Botting):
     bot_instance.Move.XY(10437, 5005)
     WaitTillQuestDone(bot_instance)
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_looting_enabled(True), "Enable Looting")
+    bot_instance.States.AddCustomState(
+        lambda: __import__("Py4GWCoreLib.EnemyBlacklist", fromlist=["EnemyBlacklist"]).EnemyBlacklist().add_name("chained soul"),
+        "Blacklist Chained Soul",
+    )
 
     bot_instance.Move.XY(8692, 6292, "go to NPC")
     bot_instance.Dialogs.AtXY(8692, 6292, 0x8D, "Back to Chamber")
