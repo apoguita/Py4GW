@@ -1,4 +1,5 @@
 import math
+from typing import TYPE_CHECKING, TypedDict, cast
 
 import HeroAI.globals as hero_globals
 import PyImGui
@@ -17,6 +18,35 @@ from .constants import MAX_NUM_PLAYERS, NUMBER_OF_SKILLS
 
 from HeroAI.constants import (FOLLOW_DISTANCE_OUT_OF_COMBAT, MAX_NUM_PLAYERS, MELEE_RANGE_VALUE, PARTY_WINDOW_FRAME_EXPLORABLE_OFFSETS,
                               PARTY_WINDOW_FRAME_OUTPOST_OFFSETS, PARTY_WINDOW_HASH, RANGED_RANGE_VALUE)
+
+if TYPE_CHECKING:
+    from Py4GWCoreLib.BuildMgr import BuildRegistry
+
+
+class SupportedBuildInfo(TypedDict):
+    key: str
+    name: str
+    class_name: str
+    template_code: str
+    required_primary: int
+    required_secondary: int
+    required_skills: list[int]
+    optional_skills: list[int]
+    supported_skills: list[int]
+    profession_group: str
+    combo_group: str
+
+
+class SupportedBuildComboGroup(TypedDict):
+    name: str
+    count: int
+    builds: list[SupportedBuildInfo]
+
+
+class SupportedBuildProfessionGroup(TypedDict):
+    name: str
+    count: int
+    combo_groups: list[SupportedBuildComboGroup]
 
 
 class HeroAI_BaseUI:
@@ -47,11 +77,11 @@ class HeroAI_BaseUI:
     _build_match_timer = ThrottledTimer(750)
     _build_match_rows: list[tuple[int, str, int, int, str, str, str]] = []
     _build_match_signature_cache: dict[int, tuple[tuple[int, int, tuple[int, ...]], tuple[int, str, int, int, str, str, str]]] = {}
-    _build_registry = None
+    _build_registry: "BuildRegistry | None" = None
     _supported_build_selected_key = ""
     _supported_build_selected_skill_id = 0
     _supported_build_last_detail_key = ""
-    _supported_builds_cache: dict[str, dict[str, object]] = {}
+    _supported_builds_cache: dict[str, SupportedBuildInfo] = {}
     _flag_map_signature = None
     _profession_palette_names = {
         1: "GW_Warrior",
@@ -564,12 +594,12 @@ class HeroAI_BaseUI:
         ImGui.pop_font()
 
     @staticmethod
-    def _get_build_registry():
+    def _get_build_registry() -> "BuildRegistry":
         if HeroAI_BaseUI._build_registry is None:
             from Py4GWCoreLib.BuildMgr import BuildRegistry
 
             HeroAI_BaseUI._build_registry = BuildRegistry(default_fallback_name="HeroAI")
-        return HeroAI_BaseUI._build_registry
+        return cast("BuildRegistry", HeroAI_BaseUI._build_registry)
 
     @staticmethod
     def _profession_label(profession_value: int) -> str:
@@ -597,7 +627,7 @@ class HeroAI_BaseUI:
         return primary_value, secondary_value, skill_ids
 
     @staticmethod
-    def _build_match_row_from_account(account, registry, fallback_name: str):
+    def _build_match_row_from_account(account: AccountStruct, registry: "BuildRegistry", fallback_name: str) -> tuple[int, str, int, int, str, str, str]:
         from Py4GWCoreLib import Profession
 
         primary_value, secondary_value, skill_ids = HeroAI_BaseUI._get_build_signature(account)
@@ -792,7 +822,7 @@ class HeroAI_BaseUI:
         ConsoleLog("HeroAI", "=== End Build Match Debug Dump ===")
 
     @staticmethod
-    def _get_supported_build_groups(registry) -> list[tuple[str, list[tuple[str, list[str]]]]]:
+    def _get_supported_build_groups(registry: "BuildRegistry") -> list[tuple[str, list[tuple[str, list[str]]]]]:
         grouped_builds: dict[str, dict[str, list[str]]] = {}
 
         for build in registry._iter_matchable_builds(match_only=True):
@@ -844,9 +874,9 @@ class HeroAI_BaseUI:
             PyImGui.separator()
 
     @staticmethod
-    def _build_browser_catalog(registry) -> list[dict[str, object]]:
-        grouped_builds: dict[str, dict[str, list[dict[str, object]]]] = {}
-        build_catalog: dict[str, dict[str, object]] = {}
+    def _build_browser_catalog(registry: "BuildRegistry") -> list[SupportedBuildProfessionGroup]:
+        grouped_builds: dict[str, dict[str, list[SupportedBuildInfo]]] = {}
+        build_catalog: dict[str, SupportedBuildInfo] = {}
 
         for build in registry._iter_matchable_builds(match_only=True):
             module_parts = build.__class__.__module__.split(".")
@@ -858,7 +888,7 @@ class HeroAI_BaseUI:
             optional_skills = [int(skill_id) for skill_id in getattr(build, "optional_skills", []) if int(skill_id) != 0]
             supported_skills = [int(skill_id) for skill_id in build.GetSupportedSkills() if int(skill_id) != 0]
 
-            build_info = {
+            build_info: SupportedBuildInfo = {
                 "key": build_key,
                 "name": build_name,
                 "class_name": build.__class__.__name__,
@@ -884,12 +914,12 @@ class HeroAI_BaseUI:
 
         HeroAI_BaseUI._supported_builds_cache = build_catalog
 
-        supported_groups: list[dict[str, object]] = []
+        supported_groups: list[SupportedBuildProfessionGroup] = []
         for profession_group in sorted(grouped_builds):
-            combo_groups: list[dict[str, object]] = []
+            combo_groups: list[SupportedBuildComboGroup] = []
             profession_count = 0
             for combo_group in sorted(grouped_builds[profession_group]):
-                builds = sorted(grouped_builds[profession_group][combo_group], key=lambda item: str(item["name"]))
+                builds = sorted(grouped_builds[profession_group][combo_group], key=lambda item: item["name"])
                 profession_count += len(builds)
                 combo_groups.append({
                     "name": combo_group,
@@ -999,20 +1029,20 @@ class HeroAI_BaseUI:
                 PyImGui.same_line(0, 8)
 
     @staticmethod
-    def _draw_supported_build_details(selected_build: dict[str, object] | None) -> None:
+    def _draw_supported_build_details(selected_build: SupportedBuildInfo | None) -> None:
         if not selected_build:
             PyImGui.text("Select a build from the tree to inspect its details.")
             return
 
-        build_name = str(selected_build["name"])
-        build_key = str(selected_build["key"])
-        class_name = str(selected_build["class_name"])
-        template_code = str(selected_build["template_code"])
-        required_primary = int(selected_build["required_primary"])
-        required_secondary = int(selected_build["required_secondary"])
-        required_skills = list(selected_build["required_skills"])
-        optional_skills = list(selected_build["optional_skills"])
-        supported_skills = list(selected_build["supported_skills"])
+        build_name = selected_build["name"]
+        build_key = selected_build["key"]
+        class_name = selected_build["class_name"]
+        template_code = selected_build["template_code"]
+        required_primary = selected_build["required_primary"]
+        required_secondary = selected_build["required_secondary"]
+        required_skills = selected_build["required_skills"]
+        optional_skills = selected_build["optional_skills"]
+        supported_skills = selected_build["supported_skills"]
         all_detail_skills = list(dict.fromkeys([*required_skills, *optional_skills, *supported_skills]))
 
         if HeroAI_BaseUI._supported_build_last_detail_key != build_key:
@@ -1061,13 +1091,25 @@ class HeroAI_BaseUI:
             PyImGui.end_child()
 
     @staticmethod
-    def _draw_supported_builds_tab(registry) -> None:
+    def _draw_supported_builds_tab(registry: "BuildRegistry") -> None:
         supported_groups = HeroAI_BaseUI._build_browser_catalog(registry)
         if not supported_groups:
             PyImGui.text("No supported matchable builds discovered.")
             return
 
         PyImGui.text("Browse supported builds and inspect what the matcher can inherit from.")
+        btn_width = PyImGui.get_content_region_avail()[0] * 0.5 - 8
+        if PyImGui.button("Refresh all Builds##supported_builds_refresh", btn_width):
+            buildregisty = HeroAI_BaseUI._get_build_registry()
+            buildregisty.RefreshBuilds()
+        
+        PyImGui.same_line(0, 8)
+        
+        if PyImGui.button("Refresh all Builds on all Accounts##supported_builds_refresh", btn_width):
+            for account in GLOBAL_CACHE.ShMem.GetAllAccounts().AccountData:
+                if account.IsAccount:
+                    GLOBAL_CACHE.ShMem.SendMessage(account.AccountEmail, account.AccountEmail, SharedCommandType.RefreshHeroAIBuilds)
+                    
         PyImGui.separator()
 
         avail_x, _avail_y = PyImGui.get_content_region_avail()
@@ -1076,20 +1118,20 @@ class HeroAI_BaseUI:
 
         if PyImGui.begin_child("SupportedBuildTreePane", (tree_width, 0), True, PyImGui.WindowFlags.NoFlag):
             for profession_group in supported_groups:
-                profession_name = str(profession_group["name"])
-                profession_count = int(profession_group["count"])
+                profession_name = profession_group["name"]
+                profession_count = profession_group["count"]
                 if not PyImGui.tree_node(f"{profession_name} ({profession_count})##supported_{profession_name}"):
                     continue
 
                 for combo_group in profession_group["combo_groups"]:
-                    combo_name = str(combo_group["name"])
-                    combo_count = int(combo_group["count"])
+                    combo_name = combo_group["name"]
+                    combo_count = combo_group["count"]
                     if not PyImGui.tree_node(f"{combo_name} ({combo_count})##supported_{profession_name}_{combo_name}"):
                         continue
 
                     for build_info in combo_group["builds"]:
-                        build_key = str(build_info["key"])
-                        build_name = str(build_info["name"])
+                        build_key = build_info["key"]
+                        build_name = build_info["name"]
                         is_selected = HeroAI_BaseUI._supported_build_selected_key == build_key
                         if ImGui.selectable(f"{build_name}##supported_build_{build_key}", is_selected, PyImGui.SelectableFlags.NoFlag, (0, 0)):
                             HeroAI_BaseUI._supported_build_selected_key = build_key
@@ -1598,11 +1640,16 @@ class HeroAI_BaseUI:
 
     @staticmethod
     def DrawControlPanelWindow(cached_data: CacheData):
-        if not HeroAI_FloatingWindows.settings.ShowControlPanelWindow:
-            return
         if GLOBAL_CACHE.Party.GetOwnPartyNumber() != 0:
             return
+        
+        HeroAI_BaseUI.DrawBuildMatchesWindow(cached_data)
+        HeroAI_BaseUI.DrawFollowFormationsQuickWindow(cached_data)
+        HeroAI_BaseUI._process_flagging_runtime(cached_data)
 
+        if not HeroAI_FloatingWindows.settings.ShowControlPanelWindow:
+            return
+        
         def _close_spacing():
             PyImGui.dummy(0, 5)
             PyImGui.separator()
@@ -1645,9 +1692,6 @@ class HeroAI_BaseUI:
                 style.ItemSpacing.pop_style_var()
 
         ImGui.End(cached_data.ini_key)
-        HeroAI_BaseUI.DrawBuildMatchesWindow(cached_data)
-        HeroAI_BaseUI.DrawFollowFormationsQuickWindow(cached_data)
-        HeroAI_BaseUI._process_flagging_runtime(cached_data)
 
     @staticmethod
     def draw_debug_window(heroai_bt=None):

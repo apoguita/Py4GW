@@ -622,7 +622,7 @@ def MerchantItems(index: int, message: SharedMessageStruct):
                 values.append("")
         while len(values) < 4:
             values.append("")
-        return tuple(values[:4])
+        return values[0], values[1], values[2], values[3]
 
     extra0, extra1, extra2, extra3 = _extra_data(message)
     mode = extra0.strip().lower()
@@ -708,7 +708,7 @@ def MerchantMaterials(index: int, message: SharedMessageStruct):
                 values.append("")
         while len(values) < 4:
             values.append("")
-        return tuple(values[:4])
+        return values[0], values[1], values[2], values[3]
 
     def _parse_selected_models(raw: str) -> set[int] | None:
         if not raw.strip():
@@ -735,7 +735,7 @@ def MerchantMaterials(index: int, message: SharedMessageStruct):
     mode = extra0.strip().lower()
     selected_models = _parse_selected_models(extra1)
 
-    def _parse_exact_quantity(raw: str, default: int = 250) -> int | None:
+    def _parse_exact_quantity(raw: str, default: int = 250) -> int:
         value = str(raw).strip()
         if value == "":
             return int(default)
@@ -743,7 +743,7 @@ def MerchantMaterials(index: int, message: SharedMessageStruct):
             parsed = int(value)
         except Exception:
             return int(default)
-        return parsed if parsed > 0 else None
+        return parsed if parsed > 0 else 0
 
     try:
         x = float(message.Params[0])
@@ -2070,6 +2070,18 @@ def InventoryQuery(index: int, message: SharedMessageStruct):
 
 # endregion
 
+#region Reload Builds
+def RefreshHeroAIBuilds(index: int, message: SharedMessageStruct):
+    GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
+    from HeroAI.ui_base import HeroAI_BaseUI
+    registry = HeroAI_BaseUI._get_build_registry()
+    registry.RefreshBuilds()
+    yield from Routines.Yield.wait(100)
+    GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+    ConsoleLog(MODULE_NAME, "ReloadBuilds message processed and finished.", Console.MessageType.Info, False)
+
+# endregion
+
 # region ProcessMessages
 def ProcessMessages():
     account_email = Player.GetAccountEmail()
@@ -2176,6 +2188,8 @@ def ProcessMessages():
             GLOBAL_CACHE.Coroutines.append(RestockResurrectionScroll(index, message))
         case SharedCommandType.InventoryQuery:
             GLOBAL_CACHE.Coroutines.append(InventoryQuery(index, message))
+        case SharedCommandType.RefreshHeroAIBuilds:
+            GLOBAL_CACHE.Coroutines.append(RefreshHeroAIBuilds(index, message))
         case SharedCommandType.LootEx:
             # privately Handled Command, by frenkey
             pass

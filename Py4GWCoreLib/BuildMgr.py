@@ -6,6 +6,7 @@ import inspect
 import math
 from pathlib import Path
 import random
+import sys
 from typing import TYPE_CHECKING, Any, Callable, cast
 
 if TYPE_CHECKING:
@@ -1411,12 +1412,12 @@ class BuildRegistry:
         self._cached_runtime_fallback_builds: list[BuildMgr] | None = None
         self._cached_match_only_fallback_builds: list[BuildMgr] | None = None
 
-    @classmethod
-    def _scan_build_types(cls) -> list[type[BuildMgr]]:
+    @staticmethod
+    def _get_build_module_names() -> list[str]:
         builds_pkg = importlib.import_module("Py4GWCoreLib.Builds")
-        build_types: list[type[BuildMgr]] = []
+        module_names: list[str] = [builds_pkg.__name__]
 
-        seen_module_names: set[str] = set()
+        seen_module_names: set[str] = set(module_names)
         for module_path in Path(builds_pkg.__path__[0]).rglob("*.py"):
             if module_path.name == "__init__.py":
                 continue
@@ -1426,7 +1427,14 @@ class BuildRegistry:
             if module_name in seen_module_names:
                 continue
             seen_module_names.add(module_name)
+            module_names.append(module_name)
 
+        return module_names
+
+    @classmethod
+    def _scan_build_types(cls) -> list[type[BuildMgr]]:
+        build_types: list[type[BuildMgr]] = []
+        for module_name in cls._get_build_module_names()[1:]:
             module = importlib.import_module(module_name)
             for _, value in inspect.getmembers(module, inspect.isclass):
                 if value is BuildMgr:
@@ -1448,6 +1456,36 @@ class BuildRegistry:
     @classmethod
     def ClearCache(cls) -> None:
         cls._cached_build_types = None
+
+    @classmethod
+    def ReloadBuildModules(cls) -> None:
+        importlib.invalidate_caches()
+        module_names = cls._get_build_module_names()
+        for module_name in reversed(module_names):
+            module = sys.modules.get(module_name)
+            if module is None:
+                importlib.import_module(module_name)
+                continue
+            importlib.reload(module)
+
+    def _clear_instance_caches(self) -> None:
+        self._runtime_build_instances.clear()
+        self._match_only_build_instances.clear()
+        self._cached_runtime_builds = None
+        self._cached_match_only_builds = None
+        self._cached_runtime_matchable_builds = None
+        self._cached_match_only_matchable_builds = None
+        self._cached_runtime_fallback_builds = None
+        self._cached_match_only_fallback_builds = None
+
+    def RefreshBuilds(self) -> list[BuildMgr]:
+        self._clear_instance_caches()
+        self.ClearCache()
+        self.ReloadBuildModules()
+        self.ClearCache()
+        self._iter_builds(match_only=False)
+        self._iter_builds(match_only=True)
+        return self._iter_builds(match_only=False)
 
     def _call_build_ctor(self, build_type: type[BuildMgr], *args: Any, **kwargs: Any) -> BuildMgr | None:
         try:
