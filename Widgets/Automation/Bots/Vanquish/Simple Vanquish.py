@@ -16,6 +16,8 @@ class BotSettings:
     BOT_NAME = "Simple Vanquish"
     WIDGETS_TO_ENABLE: tuple[str, ...] = (
         "Titles",
+        "Return to outpost on defeat",
+        "ResurrectionScroll",
     )
 
 bot = Botting(BotSettings.BOT_NAME,
@@ -54,41 +56,45 @@ class QueuedVanquish:
 _queued_vanquishes: list[QueuedVanquish] = []
 _queue_version: int = 0
 _current_vq_index: int = 0
+_start_combat_header_names: list[str] = []
 # endregion
 
 # =============================================================================
 # region BOT ROUTINE
 # =============================================================================
 def bot_routine(bot: Botting) -> None:
-    global _current_vq_index
+    global _current_vq_index, _start_combat_header_names
 
     if not _queued_vanquishes:
         ConsoleLog(BotSettings.BOT_NAME, "No vanquishes queued!", Py4GW.Console.MessageType.Error)
         return
 
-    # Widgets
-    bot.Multibox.ApplyWidgetPolicy(enable_widgets=BotSettings.WIDGETS_TO_ENABLE)
-
     # Events
-    condition = lambda: OnPartyWipe(bot)
-    bot.Events.OnPartyWipeCallback(condition)
+    #condition = lambda: OnPartyWipe(bot)
+    #bot.Events.OnPartyWipeCallback(condition)
 
     # Main header
     bot.States.AddHeader(BotSettings.BOT_NAME)  # header counter = 1
     bot.Templates.Multibox_Aggressive()
+    bot.Multibox.ApplyWidgetPolicy(enable_widgets=BotSettings.WIDGETS_TO_ENABLE)
 
-    # Pre-calculate all "Vanquish Completed" header names.
-    # Each VQ iteration generates exactly 4 headers:
-    #   1. VQ_{idx}_{map_name}
-    #   2. Prepare For Farm  (inside PrepareForFarm)
-    #   3. Vanquish Finished_{idx}
-    #   4. Vanquish Completed_{idx}
+    # Pre-calculate header names.
+    # Each VQ generates exactly 5 headers:
+    #   1. VQ_{idx}_{name}
+    #   2. Prepare For Farm (inside PrepareForFarm)
+    #   3. Start Combat
+    #   4. Vanquish Failed_{idx}
+    #   5. Vanquish Completed_{idx}
     # The initial header (BOT_NAME) uses counter=1.
-    # So Completed_{N} gets counter = 5 + N*4
+    # So Start Combat_{N} gets counter = 4 + N*5
+    # And Completed_{N} gets counter = 6 + N*5
+    _start_combat_header_names = []
     completed_header_names = []
     for vq_idx in range(len(_queued_vanquishes)):
-        counter = 5 + vq_idx * 4
-        completed_header_names.append(f"[H]Vanquish Completed_{vq_idx}_{counter}")
+        sc_counter = 4 + vq_idx * 5
+        _start_combat_header_names.append(f"[H]Start Combat_{sc_counter}")
+        comp_counter = 6 + vq_idx * 5
+        completed_header_names.append(f"[H]Vanquish Completed_{vq_idx}_{comp_counter}")
 
     for vq_idx, vq in enumerate(_queued_vanquishes):
         is_last = (vq_idx == len(_queued_vanquishes) - 1)
@@ -125,6 +131,7 @@ def bot_routine(bot: Botting) -> None:
             bot.Move.FollowPathAndExitMap(vq.outpost_path, target_map_id=vq.explorable_id)
 
         # -- Vanquish Path (with Watchdog using pre-calculated header name) --
+        bot.States.AddHeader("Start Combat")
         bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Starting Vanquish: {vq.display}")
         target_header = completed_header_names[vq_idx]
         bot.States.AddManagedCoroutine("VanquishWatchdog",
@@ -187,30 +194,31 @@ def bot_routine(bot: Botting) -> None:
             bot.Move.FollowAutoPath(reversed_path)
         bot.Wait.UntilOutOfCombat()
 
-        # -- Vanquish Finished (path ended, VQ not completed - stay in map & stop) --
-        bot.States.AddHeader(f"Vanquish Finished_{vq_idx}")
+        # -- Vanquish FAILED (path ended, VQ not completed - stay in map & stop) --
+        bot.States.AddHeader(f"Vanquish Failed_{vq_idx}")
         bot.States.RemoveManagedCoroutine("Radar")
         bot.States.RemoveManagedCoroutine("VanquishWatchdog")
-        bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Path finished. VQ not completed. Staying in map.")
+        bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Vanquish FAILED. Stopping bot. Report on Discord.")
         bot.States.AddCustomState(lambda: _stop_bot(), f"StopBot_{vq_idx}")
 
         # -- Vanquish Completed (VQ completed) --
         bot.States.AddHeader(f"Vanquish Completed_{vq_idx}")
         bot.States.RemoveManagedCoroutine("Radar")
         bot.States.RemoveManagedCoroutine("VanquishWatchdog")
-        bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Vanquish Completed: {vq.display}")
         if is_last:
             # Last VQ: stay in map, no resign
-            bot.States.AddCustomState(lambda: _stop_bot(), f"StopBotLastVQ_{vq_idx}")
+            bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Vanquish queue SUCCESS. Stopping bot. Staying in map.")
+            #bot.States.AddCustomState(lambda: _stop_bot(), f"StopBotLastVQ_{vq_idx}")
         else:
-            # Not last: resign, go to outpost, continue to next VQ
+            # Not last VQ: resign, go to outpost, continue to next VQ
+            bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Vanquish SUCCESS: {vq.display}. Moving to next Vanquish.")
             bot.Multibox.ResignParty()
             bot.Wait.ForTime(1000)
             bot.Wait.UntilOnOutpost()
 
-    # All vanquishes finished (only reached if all non-last VQs completed + last VQ resign)
+    # All vanquishes finished
     bot.States.AddHeader("All Vanquishes Finished")
-    bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, "All vanquishes finished. Bot Stopped.")
+    #bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, "All vanquishes finished. Bot Stopped.")
     bot.States.AddCustomState(lambda: _stop_bot(), "StopBotFinal")
 
 def _stop_bot():
@@ -226,7 +234,7 @@ def Radar(bot: "Botting"):
     while True:
         player_x, player_y = Player.GetXY()
         enemy_array = AgentArray.GetEnemyArray()
-        enemy_array = AgentArray.Filter.ByDistance(enemy_array, Player.GetXY(), 3000)
+        enemy_array = AgentArray.Filter.ByDistance(enemy_array, Player.GetXY(), 4000)
         enemy_array = AgentArray.Sort.ByDistance(enemy_array, (player_x, player_y))
         enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda a: Agent.IsAlive(a))
         closest_enemy = next(iter(enemy_array), 0)
@@ -263,7 +271,10 @@ def _on_party_wipe(bot: "Botting"):
             bot.config.FSM.resume()
             return
 
-    bot.States.JumpToStepName("[H]Start Combat_4")
+    # Jump to the Start Combat header of the CURRENT vanquish
+    target = _start_combat_header_names[_current_vq_index]
+    ConsoleLog("on_party_wipe", f"Revived. Jumping to: {target}")
+    bot.config.FSM.jump_to_state_by_name(target)
     bot.config.FSM.resume()
 
 def OnPartyWipe(bot: "Botting"):
@@ -368,7 +379,7 @@ def _draw_settings():
         _queue_version += 1
 
     PyImGui.same_line(0, 10)
-    if _queued_vanquishes and PyImGui.button("Clear Maps", 120, 25):
+    if PyImGui.button("Clear Maps", 120, 25):
         _queued_vanquishes.clear()
         _queue_version += 1
 
@@ -377,7 +388,7 @@ def _draw_settings():
     PyImGui.text(f"Queued vanquishes: {len(_queued_vanquishes)}")
     to_remove = None
     for i, qv in enumerate(_queued_vanquishes):
-        marker = " <<<" if i == _current_vq_index and bot.config.initialized else ""
+        marker = " <-- CURRENT" if i == _current_vq_index and bot.config.initialized else ""
         PyImGui.text(f"  {i + 1}. {qv.display}{marker}")
         PyImGui.same_line(0, 10)
         if PyImGui.button(f"X##{i}", 20, 20):
@@ -423,9 +434,9 @@ def _draw_settings_consumables():
     use_honeycomb = bot.Properties.Get("honeycomb", "active")
     use_honeycomb = PyImGui.checkbox("Restock & use Honeycomb", use_honeycomb)
     bot.Properties.ApplyNow("honeycomb", "active", use_honeycomb)
-    hc_restock_qty = bot.Properties.Get("honeycomb", "restock_quantity")
-    hc_restock_qty = PyImGui.input_int("Honeycomb Restock Quantity", hc_restock_qty)
-    bot.Properties.ApplyNow("honeycomb", "restock_quantity", hc_restock_qty)
+    #hc_restock_qty = bot.Properties.Get("honeycomb", "restock_quantity")
+    #hc_restock_qty = PyImGui.input_int("Honeycomb Restock Quantity", hc_restock_qty)
+    #bot.Properties.ApplyNow("honeycomb", "restock_quantity", hc_restock_qty)
 
 def _draw_settings_debug():
     PyImGui.separator()
@@ -434,6 +445,7 @@ def _draw_settings_debug():
     PyImGui.text(f"_queue_version: {_queue_version}")
     PyImGui.text(f"_current_vq_index: {_current_vq_index}")
     PyImGui.text(f"_queued_vanquishes: {len(_queued_vanquishes)}")
+    PyImGui.text(f"_start_combat_header_names: {_start_combat_header_names}")
     for i, qv in enumerate(_queued_vanquishes):
         marker = " <-- CURRENT" if i == _current_vq_index else ""
         PyImGui.text(f"  {i+1}. {qv.display} (outpost={qv.outpost_id}, expl={qv.explorable_id}){marker}")
@@ -459,4 +471,5 @@ def main():
         bot.Update()
 
 if __name__ == "__main__":
-    Main()
+    main()
+# endregion
