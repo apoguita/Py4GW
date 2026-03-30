@@ -72,8 +72,8 @@ class RestorationMagic:
                 conditioned_allies = AgentArray.Sort.ByHealth(conditioned_allies)
                 lowest_conditioned_ally_id = conditioned_allies[0] if conditioned_allies else 0
                                 
-                if not low_allies or (Agent.GetHealth(lowest_conditioned_ally_id) * 1.2) <= Agent.GetHealth(low_allies[0]):
-                    return lowest_conditioned_ally_id                
+                if not low_allies or (Agent.GetHealth(lowest_conditioned_ally_id) * 0.8) <= Agent.GetHealth(low_allies[0]):
+                    return lowest_conditioned_ally_id
 
             ally_array = AgentArray.Sort.ByHealth(ally_array)
             return ally_array[0] if ally_array else 0
