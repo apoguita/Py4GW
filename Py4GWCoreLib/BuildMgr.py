@@ -1460,13 +1460,20 @@ class BuildRegistry:
     @classmethod
     def ReloadBuildModules(cls) -> None:
         importlib.invalidate_caches()
-        module_names = cls._get_build_module_names()
-        for module_name in reversed(module_names):
-            module = sys.modules.get(module_name)
-            if module is None:
-                importlib.import_module(module_name)
-                continue
-            importlib.reload(module)
+        build_package_prefix = "Py4GWCoreLib.Builds"
+        loaded_module_names = [
+            module_name
+            for module_name in sys.modules
+            if module_name == build_package_prefix or module_name.startswith(f"{build_package_prefix}.")
+        ]
+
+        # Drop child modules before parents so package re-exports are rebuilt
+        # from a clean import state on the next scan.
+        loaded_module_names.sort(key=lambda module_name: module_name.count("."), reverse=True)
+        for module_name in loaded_module_names:
+            sys.modules.pop(module_name, None)
+
+        importlib.import_module(build_package_prefix)
 
     def _clear_instance_caches(self) -> None:
         self._runtime_build_instances.clear()

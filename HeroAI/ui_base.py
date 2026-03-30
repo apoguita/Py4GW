@@ -1,5 +1,5 @@
 import math
-from typing import TYPE_CHECKING, TypedDict, cast
+from typing import TYPE_CHECKING, TypedDict
 
 import HeroAI.globals as hero_globals
 import PyImGui
@@ -10,6 +10,7 @@ from Py4GWCoreLib.GlobalCache.SharedMemory import AccountStruct, HeroAIOptionStr
 from Py4GWCoreLib.IniManager import IniManager
 from Py4GWCoreLib.Player import Player
 
+from HeroAI import build_runtime
 from HeroAI.cache_data import CacheData
 from HeroAI.constants import NUMBER_OF_SKILLS
 from HeroAI.utils import DrawFlagAll, DrawHeroFlag, IsHeroFlagged
@@ -77,7 +78,6 @@ class HeroAI_BaseUI:
     _build_match_timer = ThrottledTimer(750)
     _build_match_rows: list[tuple[int, str, int, int, str, str, str]] = []
     _build_match_signature_cache: dict[int, tuple[tuple[int, int, tuple[int, ...]], tuple[int, str, int, int, str, str, str]]] = {}
-    _build_registry: "BuildRegistry | None" = None
     _supported_build_selected_key = ""
     _supported_build_selected_skill_id = 0
     _supported_build_last_detail_key = ""
@@ -595,11 +595,11 @@ class HeroAI_BaseUI:
 
     @staticmethod
     def _get_build_registry() -> "BuildRegistry":
-        if HeroAI_BaseUI._build_registry is None:
-            from Py4GWCoreLib.BuildMgr import BuildRegistry
+        return build_runtime.get_registry()
 
-            HeroAI_BaseUI._build_registry = BuildRegistry(default_fallback_name="HeroAI")
-        return cast("BuildRegistry", HeroAI_BaseUI._build_registry)
+    @staticmethod
+    def _refresh_local_runtime_builds() -> None:
+        build_runtime.refresh_builds()
 
     @staticmethod
     def _profession_label(profession_value: int) -> str:
@@ -1100,14 +1100,14 @@ class HeroAI_BaseUI:
         PyImGui.text("Browse supported builds and inspect what the matcher can inherit from.")
         btn_width = PyImGui.get_content_region_avail()[0] * 0.5 - 8
         if PyImGui.button("Refresh all Builds##supported_builds_refresh", btn_width):
-            buildregisty = HeroAI_BaseUI._get_build_registry()
-            buildregisty.RefreshBuilds()
+            HeroAI_BaseUI._refresh_local_runtime_builds()
         
         PyImGui.same_line(0, 8)
         
         if PyImGui.button("Refresh all Builds on all Accounts##supported_builds_refresh", btn_width):
             for account in GLOBAL_CACHE.ShMem.GetAllAccounts().AccountData:
                 if account.IsAccount:
+                    ConsoleLog("HeroAI", f"Sending build refresh message to account {account.AccountEmail}")
                     GLOBAL_CACHE.ShMem.SendMessage(account.AccountEmail, account.AccountEmail, SharedCommandType.RefreshHeroAIBuilds)
                     
         PyImGui.separator()

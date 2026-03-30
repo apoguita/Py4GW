@@ -2074,9 +2074,10 @@ def InventoryQuery(index: int, message: SharedMessageStruct):
 #region Reload Builds
 def RefreshHeroAIBuilds(index: int, message: SharedMessageStruct):
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
-    from HeroAI.ui_base import HeroAI_BaseUI
-    registry = HeroAI_BaseUI._get_build_registry()
-    registry.RefreshBuilds()
+    from HeroAI import build_runtime
+
+    build_runtime.refresh_builds()
+
     yield from Routines.Yield.wait(100)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
     ConsoleLog(MODULE_NAME, "ReloadBuilds message processed and finished.", Console.MessageType.Info, False)
