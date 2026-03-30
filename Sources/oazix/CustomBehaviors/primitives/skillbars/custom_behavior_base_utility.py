@@ -253,7 +253,7 @@ class CustomBehaviorBaseUtility():
         return self.__final_skills_list
 
     def is_custom_behavior_match_in_game_build(self) -> bool:
-        if not Map.IsOutpost(): return True
+        if not Map.IsOutpost(): return True # THIS DEGRADE PERFORMANCE A LOT, DO NOT ENABLE UNLESS DEBUGGING // USEFULL WHEN CHANGING BUILD IN EXPLORABLE AREA
 
         utility_build_full:list[CustomSkillUtilityBase] = self.get_skills_final_list()
         is_completed:bool = self.complete_build_with_generic_skills

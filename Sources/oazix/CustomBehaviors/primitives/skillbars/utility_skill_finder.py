@@ -24,6 +24,7 @@ DEFAULT_SKILL_PACKAGES = [
     "Sources.oazix.CustomBehaviors.skills.warrior",
     "Sources.oazix.CustomBehaviors.skills.assassin",
     "Sources.oazix.CustomBehaviors.skills.ritualist",
+    "Sources.oazix.CustomBehaviors.skills.pve",
 ]
 
 def discover_all_utility_skills(
