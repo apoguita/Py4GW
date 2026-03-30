@@ -7,6 +7,7 @@ from Py4GWCoreLib.Builds.Any.HeroAI import HeroAI_Build
 from Py4GWCoreLib.routines_src.BehaviourTrees import BehaviorTree
 from Py4GWCoreLib import LootConfig, Range, SharedCommandType, ThrottledTimer
 
+from . import build_runtime
 from .cache_data import CacheData
 
 
@@ -20,10 +21,16 @@ class HeroAIHeadlessTree:
 
     def __init__(self, cached_data: CacheData | None = None, heroai_build: HeroAI_Build | None = None):
         self.cached_data = cached_data or CacheData()
-        self.heroai_build = heroai_build or HeroAI_Build(self.cached_data)
-        self._build_contract_map_signature: tuple[int, int, int, int] | None = None
+        self._heroai_build_override = heroai_build
         self._loot_throttle_check = ThrottledTimer(250)
         self.tree = self._build_tree()
+
+    @property
+    def heroai_build(self) -> HeroAI_Build:
+        if self._heroai_build_override is not None:
+            self._heroai_build_override.set_cached_data(self.cached_data)
+            return self._heroai_build_override
+        return build_runtime.get_runtime_build(self.cached_data)
 
     def _handle_looting(self) -> BehaviorTree.NodeState:
         options = self.cached_data.account_options
@@ -98,31 +105,20 @@ class HeroAIHeadlessTree:
 
     def initialize(self) -> bool:
         if not Routines.Checks.Map.MapValid():
-            self.heroai_build.ClearBuildContract()
-            self._build_contract_map_signature = None
+            build_runtime.clear_build_contract(self.cached_data)
             return False
 
         if not GLOBAL_CACHE.Party.IsPartyLoaded():
             return False
 
         if not Map.IsExplorable():
-            self.heroai_build.ClearBuildContract()
-            self._build_contract_map_signature = None
+            build_runtime.clear_build_contract(self.cached_data)
             return False
 
         if Map.IsInCinematic():
             return False
 
-        self.heroai_build.set_cached_data(self.cached_data)
-        map_signature = (
-            int(Map.GetMapID()),
-            int(Map.GetRegion()[0]),
-            int(Map.GetDistrict()),
-            int(Map.GetLanguage()[0]),
-        )
-        if self._build_contract_map_signature != map_signature:
-            self.heroai_build.EnsureBuildContract(self.cached_data)
-            self._build_contract_map_signature = map_signature
+        build_runtime.sync_build_contract(self.cached_data)
 
         self.cached_data.UpdateCombat()
         return True
@@ -140,8 +136,7 @@ class HeroAIHeadlessTree:
 
     def reset(self) -> None:
         self.tree.reset()
-        self.heroai_build.ClearBuildContract()
-        self._build_contract_map_signature = None
+        build_runtime.clear_build_contract(self.cached_data)
 
     def _build_tree(self):
         global_guard = BehaviorTree.SequenceNode(

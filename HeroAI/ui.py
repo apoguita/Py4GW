@@ -2885,6 +2885,7 @@ def draw_configure_window(module_name : str, configure_window : WindowModule):
                                                     
                                         hotbar.commands = new_commands
                                         settings.save_settings()
+                                ImGui.end_child()
                                 
                     ImGui.end_child()
                         

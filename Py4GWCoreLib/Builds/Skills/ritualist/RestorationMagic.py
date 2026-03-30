@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import Py4GW
+
 from Py4GWCoreLib.BuildMgr import BuildCoroutine
 from Py4GWCoreLib import AgentArray, Range, Routines
 from Py4GWCoreLib.Agent import Agent
@@ -55,19 +57,23 @@ class RestorationMagic:
                 ally_array,
                 lambda agent_id: Agent.IsAlive(agent_id),
             )
-            ally_array = AgentArray.Filter.ByCondition(
+            
+            conditioned_allies = AgentArray.Filter.ByCondition(
+                ally_array,
+                lambda agent_id: Agent.IsConditioned(agent_id),
+            ) if self._has_spirit_in_earshot() else []
+            
+            low_allies = AgentArray.Filter.ByCondition(
                 ally_array,
                 lambda agent_id: Agent.GetHealth(agent_id) < mend_body_and_soul.Conditions.LessLife,
             )
 
-            if self._has_spirit_in_earshot():
-                conditioned_allies = AgentArray.Filter.ByCondition(
-                    ally_array,
-                    lambda agent_id: Agent.IsConditioned(agent_id),
-                )
-                if conditioned_allies:
-                    conditioned_allies = AgentArray.Sort.ByHealth(conditioned_allies)
-                    return conditioned_allies[0]
+            if conditioned_allies:
+                conditioned_allies = AgentArray.Sort.ByHealth(conditioned_allies)
+                lowest_conditioned_ally_id = conditioned_allies[0] if conditioned_allies else 0
+                                
+                if not low_allies or (Agent.GetHealth(lowest_conditioned_ally_id) * 0.8) <= Agent.GetHealth(low_allies[0]):
+                    return lowest_conditioned_ally_id
 
             ally_array = AgentArray.Sort.ByHealth(ally_array)
             return ally_array[0] if ally_array else 0
