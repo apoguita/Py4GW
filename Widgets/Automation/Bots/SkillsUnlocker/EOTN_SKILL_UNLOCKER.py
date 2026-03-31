@@ -1196,29 +1196,26 @@ def Unlock_previous_skills(bot: Botting) -> None:
     bot.Wait.ForMapLoad(target_map_id=641)
 
     bot.Move.XYAndDialog(25203, -10694, 0x837C07)  # Rewards
-
+    bot.UI.CancelSkillRewardWindow()
     bot.States.AddHeader("[Unlock] Mental Block")
     bot.Properties.Enable("pause_on_danger")
     bot.Properties.Disable("halt_on_death")
     bot.Properties.Set("movement_timeout", value=-1)
     bot.Properties.Enable("auto_combat")
 
-    bot.Map.Travel(target_map_id=641)
-    bot.Wait.ForMapLoad(target_map_id=641)
-
     bot.Move.XYAndDialog(25203, -10694, 0x837701)  # Balthazar (take quest)
 
     bot.Map.Travel(target_map_id=639)
-    bot.Wait.ForMapLoad(target_map_id=639)
 
     bot.Move.XY(-22999, 6530)
     bot.Wait.ForMapLoad(target_map_id=566)
 
     # 4 hunting spots
     bot.Move.XY(-9761, -8000)   # spot 1
-    bot.Move.XY(7833, -8293)    # spot 2
+    bot.Move.XY(7622,-9747) # spot 2
     bot.Move.XY(11690, -6215)   # spot 3
     bot.Move.XY(15918, -2667)   # spot 4
+    
 
     bot.Wait.ForTime(3000)
     bot.Wait.UntilOutOfCombat()
@@ -1227,10 +1224,9 @@ def Unlock_previous_skills(bot: Botting) -> None:
     bot.Wait.ForMapLoad(target_map_id=639)
 
     bot.Map.Travel(target_map_id=641)
-    bot.Wait.ForMapLoad(target_map_id=641)
 
     bot.Move.XYAndDialog(25203, -10694, 0x837707)  # Rewards
-    
+    bot.UI.CancelSkillRewardWindow()
     bot.States.AddHeader("[Unlock] Radiation Field")
     bot.Map.Travel(target_map_name="Tarnished Haven")
     bot.Move.XYAndDialog(25203, -10694, 0x837801)  # Dwayana (take quest)
