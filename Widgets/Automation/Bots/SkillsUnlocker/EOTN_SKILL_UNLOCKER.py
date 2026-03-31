@@ -574,9 +574,7 @@ def Unlock_deft_strike(bot: Botting) -> None:
     bot.States.AddHeader("[Unlock] Deft Strike")    
     bot.Map.Travel(target_map_name="Eye of the North outpost")
 
-    bot.Move.XYAndDialog(-1856.00, 3073.00, 0x836401)
-    bot.Move.XYAndDialog(-1856.00, 3073.00, 0x836404)
-    bot.Move.XYAndDialog(-1856.00, 3073.00, 0x84)
+    bot.Move.XYAndDialog(-1856.00, 3073.00, 0x087)
     bot.Wait.ForMapLoad(target_map_name="Mano a Norn-o")
     bot.Move.XY(-1470.06,2672)
     bot.Move.XYAndDialog(-1856.00, 3073.00,0x836407)
