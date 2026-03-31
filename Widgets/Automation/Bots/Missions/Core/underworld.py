@@ -722,8 +722,9 @@ def _coro_skeleton_dhuum_watchdog(bot: Botting):
 
 def _coro_dhuum_spirit_form_watchdog(bot: Botting):
     """Monitor all ShMem party members during the Dhuum fight for the Spirit Form buff
-    (skill ID 3134).  As soon as an account gains the buff, its flag is moved to the
-    designated ghost position so it stays out of the way while dead."""
+    (skill ID 3134 — Spirit_Form_disguise).  As soon as an account gains the buff,
+    its flag is repositioned to the ghost position AND a PixelStack command is sent
+    so the ghost account immediately walks there."""
     _SPIRIT_FORM_SKILL_ID = 3134
     _SPIRIT_FLAG_X = -13922.0
     _SPIRIT_FLAG_Y = 17153.0
@@ -738,15 +739,24 @@ def _coro_dhuum_spirit_form_watchdog(bot: Botting):
             # Reset tracker when outside the fight so the next run starts clean.
             _already_flagged.clear()
             continue
-        if Map.GetMapID() != UW_MAP_ID:
+
+        current_map_id = Map.GetMapID()
+        if current_map_id != UW_MAP_ID:
             continue
 
+        my_email = Player.GetAccountEmail()
+
         for account in GLOBAL_CACHE.ShMem.GetAllAccountData() or []:
+            if not getattr(account, "IsSlotActive", True):
+                continue
             email = str(getattr(account, "AccountEmail", "") or "").strip()
             if not email or email in _already_flagged:
                 continue
+            # Only process accounts in the same map instance.
+            if getattr(account.AgentData.Map, "MapID", 0) != current_map_id:
+                continue
 
-            # Check the buff array for Spirit Form.
+            # Check the buff array for Spirit Form (buff ID 3134).
             has_spirit_form = any(
                 b.SkillId == _SPIRIT_FORM_SKILL_ID
                 for b in account.AgentData.Buffs.Buffs
@@ -758,10 +768,19 @@ def _coro_dhuum_spirit_form_watchdog(bot: Botting):
             _already_flagged.add(email)
             ConsoleLog(
                 BOT_NAME,
-                f"[Dhuum] {email} gained Spirit Form — moving flag to ghost position.",
+                f"[Dhuum] {email} gained Spirit Form — repositioning flag and sending to ghost position.",
                 Py4GW.Console.MessageType.Info,
             )
+            # Update the flag so CB/HeroAI keeps the ghost at the target position.
             _get_adapter().update_flag_position_for_email(email, _SPIRIT_FLAG_X, _SPIRIT_FLAG_Y)
+            # Send a direct PixelStack command so the ghost walks there immediately,
+            # bypassing any flag-polling delay on the receiving account.
+            GLOBAL_CACHE.ShMem.SendMessage(
+                sender_email=my_email,
+                receiver_email=email,
+                command=SharedCommandType.PixelStack,
+                params=(_SPIRIT_FLAG_X, _SPIRIT_FLAG_Y, 0.0, 0.0),
+            )
 
 
 def bot_routine(bot: Botting):
@@ -2074,6 +2093,38 @@ def _draw_debug_settings():
     if _DRAW_BLOCKED_AREAS_3D:
         _BLOCKED_AREA_RADIUS = PyImGui.slider_float("Blocked Area Radius", _BLOCKED_AREA_RADIUS, 50.0, 600.0)
 
+    PyImGui.separator()
+    PyImGui.text("Spirit Form (3134) — Active accounts:")
+    _SPIRIT_FORM_SKILL_ID = 3134
+    _color_has_buff   = Utils.RGBToNormal(100, 255, 100, 255)
+    _color_no_buff    = Utils.RGBToNormal(140, 140, 140, 255)
+    try:
+        accounts = GLOBAL_CACHE.ShMem.GetAllAccountData() or []
+        current_map_id = Map.GetMapID()
+        found_any = False
+        for account in accounts:
+            if not getattr(account, "IsSlotActive", True):
+                continue
+            email = str(getattr(account, "AccountEmail", "") or "").strip()
+            if not email:
+                continue
+            in_same_map = getattr(account.AgentData.Map, "MapID", 0) == current_map_id
+            has_buff = any(
+                b.SkillId == _SPIRIT_FORM_SKILL_ID
+                for b in account.AgentData.Buffs.Buffs
+                if b.SkillId != 0
+            )
+            if not has_buff:
+                continue
+            found_any = True
+            # Check if already flagged (in _already_flagged set of the watchdog)
+            label = email
+            PyImGui.text_colored(f"  {label}", _color_has_buff)
+        if not found_any:
+            PyImGui.text_colored("  (none)", _color_no_buff)
+    except Exception as _e:
+        PyImGui.text_colored(f"  Error reading ShMem: {_e}", Utils.RGBToNormal(255, 80, 80, 255))
+
 
 def _draw_settings():
     if PyImGui.begin_tab_bar("##uw_settings_tabs"):
@@ -2247,7 +2298,8 @@ def _draw_main_additional_ui() -> None:
             PyImGui.text_colored(quest_name, _color_done if done else _color_pending)
             PyImGui.table_set_column_index(1)
             history = _quest_times_log.get(quest_name, [])
-            avg_s = int(sum(history) / len(history)) if history else None
+            recent = history[-5:] if history else []
+            avg_s = int(sum(recent) / len(recent)) if recent else None
             if done:
                 uptime_s = _quest_completion_times[quest_name] // 1000
                 h, rem = divmod(uptime_s, 3600)
