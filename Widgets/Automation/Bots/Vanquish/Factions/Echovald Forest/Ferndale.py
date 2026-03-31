@@ -93,8 +93,9 @@ def bot_routine(bot: Botting) -> None:
     bot.Templates.Routines.PrepareForFarm(map_id_to_travel=HZH)
     
     bot.Party.SetHardMode(True)
-    bot.Move.XYAndExitMap(10446, -1147,210) #Ferndale
-    bot.Wait.ForTime(4000)
+    bot.Wait.ForTime(1000)
+    bot.Move.XYAndExitMap(10446, -1147, 210)  # Ferndale
+    bot.Wait.ForTime(5000)
     
     # Check faction allegiance and get blessing if needed
     current_luxon = Player.GetLuxonData()[0]
@@ -112,10 +113,12 @@ def bot_routine(bot: Botting) -> None:
     bot.Wait.UntilOutOfCombat()
     
     bot.Multibox.ResignParty()
+    bot.Wait.ForTime(3000)
     bot.Wait.UntilOnOutpost()
+    bot.Wait.ForTime(3000)
     
     bot.Multibox.DonateFaction()
-    bot.Wait.ForTime(20000)
+    bot.Wait.ForTime(25000)
     bot.States.JumpToStepName("[H]VQ Ferndale_1")
     
 def _upkeep_multibox_consumables(bot :"Botting"):
@@ -164,7 +167,7 @@ def _on_party_wipe(bot: "Botting"):
             return
 
     # Player revived on same map → jump to recovery step
-    bot.States.JumpToStepName("[H]Start Combat_3")
+    bot.States.JumpToStepName("ResignParty_23")
     bot.config.FSM.resume()
     
 def OnPartyWipe(bot: "Botting"):
@@ -176,6 +179,8 @@ def OnPartyWipe(bot: "Botting"):
 bot.SetMainRoutine(bot_routine)
 
 def main():
+    if not Routines.Checks.Map.MapValid():
+        return
     bot.Update()
     bot.UI.draw_window(icon_path=TEXTURE)
 

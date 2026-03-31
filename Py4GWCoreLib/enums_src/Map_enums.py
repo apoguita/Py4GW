@@ -236,6 +236,7 @@ outposts = {
     467: "Rollerbeetle Racing outpost",
     469: "Gate of Fear",
     473: "Gate of Secrets",
+    474: "Gate of Anguish",
     476: "Jennurs Horde outpost",
     477: "Nundu Bay outpost",
     478: "Gate of Desolation outpost",
