@@ -1,0 +1,25 @@
+{
+  "name": "Ruins of Morah",
+  "required_hero": ["General Morgahn"],
+  "steps": [
+    {"type": "travel", "name": "Travel to Outpost", "target_map_id": 480},
+    {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true, "required_hero": ["General Morgahn"]},
+    {"type": "auto_path", "name": "Path", "points": [[-3098, 13599], [-4758, 12996]]},
+    {"type": "dialogs", "id": ["0x81", "0x84"], "npc": "CAPTAIN_MEHHAN", "name": "Dialog - Captain Mehhan Outpost"},
+    {"type": "wait", "ms": 7200},
+    {"type": "auto_path", "name": "Path", "points": [[-4414, -6307]]},
+    {"type": "wait_for_map_load", "map_id": 480},
+    {"type": "auto_path", "name": "Path", "points": [[-4414, -6307]]},
+    {"type": "flag_heroes", "x": -4414, "y": -6307},
+    {"type": "set_auto_combat", "enabled": false},
+    {"type": "auto_path", "name": "Path", "points": [[-2494, -5438], [-4230, -6155]]},
+    {"type": "set_auto_combat", "enabled": true},
+    {"type": "auto_path", "name": "Path", "points": [[-4429, -6308]]},
+    {"type": "wait", "ms": 8000},
+    {"type": "set_auto_combat", "enabled": false},
+    {"type": "auto_path", "name": "Path", "points": [[-2827, -5532], [-4615, -6219]]},
+    {"type": "set_auto_combat", "enabled": true},
+    {"type": "unflag_heroes"},
+    {"type": "wait_for_map_load", "map_id": 450}
+  ]
+}

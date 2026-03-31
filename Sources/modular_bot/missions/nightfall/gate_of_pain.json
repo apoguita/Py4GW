@@ -1,0 +1,24 @@
+{
+  "name": "Gate of Pain",
+  "required_hero": ["Dunkoro"],
+  "steps": [
+    {"type": "travel", "name": "Travel to Outpost", "target_map_id": 494},
+    {"type": "auto_path", "name": "Path", "points": [[-14599, 3887], [-15068, 3333]]},
+    {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true, "required_hero": ["Dunkoro"]},
+    {"type": "dialogs", "id": ["0x81", "0x84"], "npc": "JARINDOK", "name": "Dialog - Jarindok"},
+    {"type": "wait", "ms": 9200},
+    {"type": "wait_for_map_load", "map_id": 494},
+    {"type": "auto_path", "name": "pre-path", "points": [[26156, -7688], [23130, -9431], [18595, -10875], [15266, -12130], [10988, -11961], [7709, -9382]]},
+    {"type": "auto_path", "name": "Tortureweb Dryder 1", "points": [[8435, -3406]]},
+    {"type": "auto_path", "name": "Emissary of Dhuum 1", "points": [[8058, -355]]},
+    {"type": "auto_path", "name": "Tortureweb Dryder 2", "points": [[3696, -3782]]},
+    {"type": "auto_path", "name": "Tortureweb Dryder 3", "points": [[1095, -6310]]},
+    {"type": "auto_path", "name": "Emissary of Dhuum 2", "points": [[3156, -9160]]},
+    {"type": "auto_path", "name": "Emissary of Dhuum 3", "points": [[1528, -5447], [7867, 753], [89, 476]]},
+    {"type": "auto_path", "name": "Tortureweb Dryder 4", "points": [[7867, 753], [4902, 5615], [7310, 7092]]},
+    {"type": "auto_path", "name": "Tortureweb Dryder 5", "points": [[1858, 5150]]},
+    {"type": "auto_path", "name": "Emissary of Dhuum 4", "points": [[-1917, 7772]]},
+    {"type": "auto_path", "name": "Tortureweb Dryder 6", "points": [[-2198, 4307]]},
+    {"type": "wait_for_map_load", "map_id": 469}
+  ]
+}

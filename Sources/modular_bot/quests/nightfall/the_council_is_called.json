@@ -1,0 +1,18 @@
+{
+  "name": "The Council is Called",
+  "steps": [
+    {"type": "travel", "name": "Travel to Kamadan Jewel of Istan", "target_map_id": 449},
+    {"type": "auto_path", "name": "To Dockmaster Ahlaro", "points": [[-8151, 9111], [-4625, 10059]]},
+    {"type": "dialog", "id": "0x81EA01", "npc": "DOCKMASTER_AHLARO", "name": "Dialog - Dockmaster Ahlaro"},
+    {"type": "auto_path", "name": "To Exit", "points": [[-8152, 9342], [-6780, 16693]]},
+    {"type": "exit_map", "name": "Leave Kamadan Jewel of Istan", "x": -5928, "y": 16758, "target_map_id": 429},
+    {"type": "auto_path", "name": "To Elder Dahut", "points": [[-4707, 16582]]},
+    {"type": "dialog", "id": "0x81EA04", "npc": "ELDER_DAHUT", "name": "Dialog - Elder Dahut"},
+    {"type": "auto_path", "name": "To Elder Nahlo", "points": [[-4664, 16850]]},
+    {"type": "dialog", "id": "0x81EA04", "npc": "ELDER_NAHLO", "name": "Dialog - Elder Nahlo"},
+    {"type": "auto_path", "name": "To Elder Suhl", "points": [[-4374, 16819]]},
+    {"type": "dialog", "id": "0x81EA04", "npc": "ELDER_SUHL", "name": "Dialog - Elder Suhl"},
+    {"type": "wait", "ms": 60000},
+    {"type": "dialog", "id": "0x81EA07", "npc": "ELDER_SUHL", "name": "Dialog - Elder Suhl"}
+  ]
+}

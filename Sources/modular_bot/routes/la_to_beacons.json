@@ -1,9 +1,8 @@
 {
-  "name": "LA to Beacons",
-  "outpost_id": 55,
-  "max_heroes": 8,
-  "hero_team": "party_8",
+  "name": "Lion's Arch to Beacons Perch",
   "steps": [
+    {"type": "travel", "name": "Travel to Route Outpost", "target_map_id": 55},
+    {"type": "load_party", "name": "Load Party", "max_heroes": 6, "team": "party_6"},
     {"type": "exit_map", "name": "Leave Lion's Arch", "x": 292, "y": 12443, "target_map_id": 58},
     {"type": "auto_path", "name": "North Kryta to Scoundrel's Rise", "points": [[6202, -18031], [11673, -10051], [14864, 11661], [19275, 10826], [20300, 11377]]},
     {"type": "wait_map_load", "map_id": 54},
@@ -15,4 +14,3 @@
     {"type": "wait_map_load", "map_id": 133}
   ]
 }
-

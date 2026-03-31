@@ -72,6 +72,11 @@ MANIFEST
 # Installer logs
 pip-log.txt
 pip-delete-this-directory.txt
+**/Py4GW_injection_log.txt
+**/Py4GW.ini
+**/loot_config.json
+**/loot_configs.json
+**/LootConfig.json
 
 # Unit test / coverage reports
 htmlcov/
