@@ -193,6 +193,8 @@ def OnPartyWipe(bot: "Botting"):
 bot.SetMainRoutine(bot_routine)
 
 def main():
+    if not Routines.Checks.Map.MapValid():
+        return
     bot.Update()
     bot.UI.draw_window(icon_path=TEXTURE)
 
