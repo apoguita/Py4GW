@@ -24,7 +24,8 @@ The runtime is split into three layers:
 
 2. `RoutinesBT` (`BehaviourTrees.py`)
    - A library of reusable behavior-tree helpers.
-   - These helpers return ready-to-run `BehaviorTree` instances for common game actions such as movement, targeting, dialog, map travel, imp handling, and composite flows.
+   - These helpers return ready-to-run `BehaviorTree` instances for common game actions such as movement, targeting, dialog, map travel, and imp handling.
+   - Discovery for the upcoming configurator is now expected to be metadata-driven from this layer.
 
 3. `BottingTree`
    - A wrapper/controller that runs:
@@ -57,6 +58,45 @@ So the relationship is:
 - `BehaviorTree` defines how trees run
 - `RoutinesBT` defines reusable trees
 - `BottingTree` decides which trees run together, when they start, and how scripts interact with them
+
+## Discovery Contract
+
+The BT helper layer is now expected to participate in configurator discovery through a shared docstring contract.
+
+The important rule is:
+
+- metadata is mandatory for discovery
+- no metadata means ignore
+
+This means the parser should not attempt to infer user-facing meaning from:
+
+- helper-only support code
+- low-level implementation details
+- nested local routines that did not opt in through metadata
+
+### Contract Shape
+
+Discoverable surfaces use:
+
+1. a human-readable description
+2. a structured `Meta:` block
+
+Current `Meta:` keys used in the BT helper preparation work:
+
+- `Expose`
+- `Audience`
+- `Display`
+- `Purpose`
+- `UserDescription`
+- `Notes`
+
+This applies to:
+
+- the BT root catalog surface in `BehaviourTrees.py`
+- grouped BT helper classes
+- BT helper routines that are intended to be visible to the upcoming configurator
+
+Support/helper code can still carry metadata too, typically with `Expose: false`, so discovery does not have to guess intent.
 
 ## BehaviorTree Concepts That Matter
 
@@ -119,6 +159,30 @@ Typical use:
 - `SequenceNode`: run steps in order
 - `ParallelNode`: run watchers/services beside a main task
 - `SubtreeNode`: build a child tree at runtime
+- `SwitchNode`: select one subtree from a runtime value such as profession, mode, or route variant
+
+## Current Preparation Status
+
+For the current session state:
+
+- `BehaviourTrees.py` is the intended BT helper catalog root
+- extracted BT helper group files now follow the shared contract guidance
+- BT helper discovery should be treated as metadata-gated rather than inference-driven
+- `Composite` is support/helper code, not a primary discovery target
+- `BottingTree` remains runtime/orchestration infrastructure, not a helper catalog source
+
+For the project status beyond metadata preparation:
+
+- BT discovery is already loading metadata successfully
+- parsed signatures are already available on the discoverable helper surface
+- stable call references are already available for generated code targets such as `RoutinesBT.Map.TravelToOutpost`
+- the remaining work is primarily taking discovered signatures, filling them with chosen values, and rendering valid Python calls
+
+This is why the current state is closer to generation than it may initially appear:
+
+- discovery is no longer the main blocker
+- helper identity is no longer the main blocker
+- the next bridge is parameter-value modeling and final code emission
 
 ### ActionNode
 
@@ -160,6 +224,32 @@ Current framework behavior:
 - next execution gets a fresh subtree instance
 
 This is critical for avoiding stale state across repeated planner executions.
+
+### SwitchNode
+
+`BehaviorTree.SwitchNode` is the generic value-based branch selector.
+
+Use it when:
+
+- a planner step depends on a runtime value already stored on the blackboard
+- the branch is not naturally modeled as selector success/failure
+- you want a single generic routing node instead of profession-specific or quest-specific wrappers
+
+Example:
+
+```python
+BehaviorTree.SwitchNode(
+    selector_fn=lambda node: node.blackboard.get("player_primary_profession_name", ""),
+    cases=[
+        ("Warrior", Warrior_001_Sequence),
+        ("Ranger", Ranger_001_Sequence),
+        ("Monk", Monk_001_Sequence),
+    ],
+    name="RunProfessionSequence",
+)
+```
+
+This is the preferred pattern for route/profession switching in scripts.
 
 ## Core Composition
 
@@ -255,6 +345,21 @@ Important constructor:
 botting_tree = BottingTree(INI_KEY, pause_on_combat=True)
 ```
 
+### Blackboard Access Helpers
+
+`BottingTree` also exposes direct shared-blackboard access helpers:
+
+- `GetBlackboardValue(key, default=None)`
+- `SetBlackboardValue(key, value)`
+- `ClearBlackboardValue(key)`
+- `HasBlackboardValue(key)`
+
+These are useful for:
+
+- UI state that depends on planner/runtime data
+- debug reads without importing helper internals
+- script-level flags that should live beside wrapper state
+
 ### Lifecycle API
 
 Main lifecycle methods:
@@ -332,6 +437,34 @@ Planner-related methods:
 
 This is intentionally owned by `BottingTree`, not `RoutinesBT`, because this is wrapper-level planner management.
 
+### Multi-Tree Script Pattern
+
+The wrapper is not limited to one script-global tree.
+
+A script can own multiple named `BottingTree` instances in a registry and tick them all from `main()`.
+
+Typical pattern:
+
+```python
+botting_trees: dict[str, BottingTree] = {}
+
+def _ensure_prepare_tree(auto_start: bool = False) -> BottingTree:
+    if "Prepare Character" not in botting_trees:
+        tree = BottingTree(INI_KEY)
+        tree.SetNamedPlannerSteps(get_sequence_builders(MODULE_NAME), name="All quests sequence")
+        botting_trees["Prepare Character"] = tree
+    tree = botting_trees["Prepare Character"]
+    if auto_start:
+        tree.Start()
+    return tree
+
+def main():
+    for tree in botting_trees.values():
+        tree.tick()
+```
+
+This is the preferred pattern when a UI has multiple independent buttons that should launch unrelated flows.
+
 ### Planner Terminal Behavior
 
 When the planner returns terminal state:
@@ -369,12 +502,12 @@ Example:
 
 ```python
 botting_tree.SetUpkeepTrees([
-    ("OutpostImpService", lambda: RoutinesBT.Items.OutpostImpService(
+    ("OutpostImpService", lambda: RoutinesBT.Upkeepers.OutpostImpService(
         target_bag=1,
         slot=0,
         log=False,
     )),
-    ("ExplorableImpService", lambda: RoutinesBT.Items.ExplorableImpService(
+    ("ExplorableImpService", lambda: RoutinesBT.Upkeepers.ExplorableImpService(
         log=False,
     )),
 ])
@@ -435,6 +568,20 @@ Important point:
 
 This avoids losing planner context during combat or looting.
 
+### HeroAI Toggle Trees
+
+`BottingTree` exposes reusable BT helpers that request HeroAI enable/disable through the wrapper blackboard.
+
+Helpers:
+
+- `BottingTree.EnableHeroAITree(reset_runtime=True)`
+- `BottingTree.DisableHeroAITree(reset_runtime=True)`
+- `BottingTree.ToggleHeroAITree(reset_runtime=True)`
+
+These return `BehaviorTree` instances and are meant to be used directly inside planner sequences.
+
+This is useful for scripted special cases where a planner temporarily needs to own combat behavior itself, then hand control back to headless HeroAI.
+
 ## RoutinesBT Overview
 
 `BehaviourTrees.py` exposes the helper namespace `BT`.
@@ -443,7 +590,6 @@ In scripts this is normally imported as `RoutinesBT`.
 
 Main helper groups:
 
-- `RoutinesBT.Composite`
 - `RoutinesBT.Player`
 - `RoutinesBT.Map`
 - `RoutinesBT.Items`
@@ -451,17 +597,7 @@ Main helper groups:
 
 These helpers return `BehaviorTree` instances and are meant to be used directly inside planner sequences or upkeep trees.
 
-## Composite Helpers
-
-`RoutinesBT.Composite` provides higher-level flows built from smaller helpers.
-
-Examples:
-
-- `MoveAndTarget(...)`
-- `TargetAndInteract(...)`
-- `MoveTargetAndInteract(...)`
-- `TargetInteractAndDialog(...)`
-- `TargetInteractAndAutomaticDialog(...)`
+Some routines are built by composing smaller helpers internally, but the main user-facing emphasis is on the grouped helper surfaces such as player, map, items, and agents.
 - `MoveTargetInteractAndDialog(...)`
 - `MoveTargetInteractAndAutomaticDialog(...)`
 
@@ -470,7 +606,7 @@ These are direct-access helpers. They take real routine parameters, not prebuilt
 Example:
 
 ```python
-RoutinesBT.Composite.MoveTargetInteractAndAutomaticDialog(
+RoutinesBT.Agents.MoveTargetInteractAndAutomaticDialog(
     x=9954.21,
     y=-472.19,
     button_number=0,
@@ -486,6 +622,8 @@ Examples:
 
 - `Wait(duration_ms, log=False)`
 - `PrintMessageToConsole(source, message)`
+- `LogMessageToBlackboard(source, message, ...)`
+- `LogMessage(source, message, ...)`
 - `SendAutomaticDialog(button_number, log=False)`
 - `SendDialog(dialog_id, log=False)`
 - `SendChatCommand(command, log=False)`
@@ -507,6 +645,29 @@ Example:
 ```python
 RoutinesBT.Player.Wait(duration_ms=250, log=False)
 ```
+
+### Player.LogMessage
+
+`RoutinesBT.Player.LogMessage(...)` is the preferred script-facing logging helper.
+
+It can:
+
+- print to console
+- write to the shared blackboard log history
+- do both at once
+
+Current blackboard log keys are fixed:
+
+- `last_log_message`
+- `last_log_message_data`
+- `blackboard_log_history`
+
+`to_console` can be either:
+
+- a boolean
+- a callable returning a boolean
+
+Passing a callable is useful for UI-driven runtime toggles, because already-instanced trees will read the current value when they execute instead of using a stale value captured at construction time.
 
 ### Player.Move
 
@@ -549,6 +710,29 @@ Published fields include:
 
 Movement failure always logs even when `log=False`.
 
+### Player.MoveDirect
+
+`RoutinesBT.Player.MoveDirect(...)` reuses the exact same movement runtime as `Move(...)`, but skips autopath generation and consumes a caller-supplied list of waypoints.
+
+Use it when:
+
+- the script already knows the exact point list to walk
+- you want the normal pause/recovery/timeout/stall behavior
+- you do not want autopath generation for that segment
+
+Example:
+
+```python
+RoutinesBT.Player.MoveDirect(
+    path_points=[
+        (-6316.87, -6808.10),
+        (-4833.97, -12199.93),
+        (-3464.73, -13135.62),
+    ],
+    log=False,
+)
+```
+
 ## Agent Helpers
 
 `RoutinesBT.Agents` contains target-acquisition helpers.
@@ -557,8 +741,17 @@ Examples include:
 
 - `TargetNearestNPC(...)`
 - name/model lookup helpers
+- `ClearEnemiesInArea(...)`
 
 The agent-name path is now based on synchronous lookup, not the old async request/wait pattern.
+
+Current reusable lookup/composition patterns also include model-based helpers such as:
+
+- `TargetAgentByModelID(...)`
+- `MoveAndTargetByModelID(...)`
+- `MoveTargetInteractAndAutomaticDialogByModelID(...)`
+
+These are useful when a script wants to reuse existing move/target/dialog composition but resolve the target from a model ID first.
 
 ## Map Helpers
 
@@ -583,13 +776,13 @@ Examples:
 - `DestroyBonusItems(...)`
 - `MoveModelToBagSlot(...)`
 - `SpawnAndDestroyBonusItems(...)`
-- `SpawnImp(...)`
-- `OutpostImpService(...)`
-- `ExplorableImpService(...)`
+- `Upkeepers.SpawnImp(...)`
+- `Upkeepers.OutpostImpService(...)`
+- `Upkeepers.ExplorableImpService(...)`
 
 ### SpawnImp
 
-`SpawnImp(...)` implements the current `/bonus` imp flow:
+`Upkeepers.SpawnImp(...)` implements the current `/bonus` imp flow:
 
 1. issue `/bonus`
 2. wait for inventory settle
@@ -599,14 +792,14 @@ Examples:
 
 ### OutpostImpService
 
-`OutpostImpService(...)` is the outpost-side upkeep.
+`Upkeepers.OutpostImpService(...)` is the outpost-side upkeep.
 
 Behavior:
 
 - resets when map context becomes invalid or loading
 - processes each ready outpost map once
 - if imp stone is already present, it idles
-- if missing, it runs `SpawnImp(...)`
+- if missing, it runs `Upkeepers.SpawnImp(...)`
 - after the map is processed, it idles until map change
 
 Important implementation detail:
@@ -615,7 +808,7 @@ If a `SpawnImp` subtree is already active, the service keeps ticking that subtre
 
 ### ExplorableImpService
 
-`ExplorableImpService(...)` is the explorable-side upkeep.
+`Upkeepers.ExplorableImpService(...)` is the explorable-side upkeep.
 
 Behavior:
 
@@ -766,12 +959,12 @@ def _get_sequence_builders():
 botting_tree = BottingTree(INI_KEY)
 
 botting_tree.SetUpkeepTrees([
-    ("OutpostImpService", lambda: RoutinesBT.Items.OutpostImpService(
+    ("OutpostImpService", lambda: RoutinesBT.Upkeepers.OutpostImpService(
         target_bag=1,
         slot=0,
         log=False,
     )),
-    ("ExplorableImpService", lambda: RoutinesBT.Items.ExplorableImpService(
+    ("ExplorableImpService", lambda: RoutinesBT.Upkeepers.ExplorableImpService(
         log=False,
     )),
 ])
@@ -799,6 +992,12 @@ Good reference points in the repo:
   - named sequence restart
   - upkeepers
   - path overlay drawing
+
+- [Absolute Pre-Searing.py](/c:/Users/Apo/Py4GW_python_files/Absolute%20Pre-Searing.py)
+  - multi-tree registry pattern
+  - button-triggered tree instancing
+  - blackboard-backed UI log panel
+  - runtime console-log toggle via `LogMessage(..., to_console=lambda: ...)`
 
 - [botting_tree_template.py](/c:/Users/Apo/Py4GW_python_files/botting_tree_template.py)
   - minimal wrapper setup

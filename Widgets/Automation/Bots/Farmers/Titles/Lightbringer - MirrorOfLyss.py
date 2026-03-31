@@ -226,6 +226,8 @@ def _draw_title_track():
 bot.SetMainRoutine(bot_routine)
 
 def main():
+    if Map.IsMapLoading():
+        return
     bot.Update()
     bot.UI.draw_window(icon_path=BotSettings.TEXTURE, additional_ui=_draw_title_track)
 

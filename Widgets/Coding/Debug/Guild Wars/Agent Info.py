@@ -59,8 +59,12 @@ def DrawMainWindow():
         _AGENT_ID = agent_id
         PyImGui.text(f"ID: {_AGENT_ID}")
         PyImGui.text(f"Name: {Agent.GetNameByID(_AGENT_ID)}")
+        PyImGui.text(f"EncString: {Agent.GetEncNameStrByID(_AGENT_ID)}")
         if PyImGui.button("Target Agent"):
             Player.ChangeTarget(_AGENT_ID)
+        PyImGui.same_line(0, -1)
+        if PyImGui.button("Copy encoded name to clipboard"):
+            PyImGui.set_clipboard_text(Agent.GetEncNameStrByID(_AGENT_ID) or "")
         PyImGui.separator()
         if PyImGui.collapsing_header(f"Positional Data:"):
             flags = PyImGui.TableFlags.Borders | PyImGui.TableFlags.SizingStretchSame | PyImGui.TableFlags.Resizable
@@ -439,7 +443,7 @@ def DrawMainWindow():
     target:AgentStruct | None = Agent.GetAgentByID(Player.GetTargetID() or 0)
 
     if PyImGui.begin(window_module.window_name, window_module.window_flags):
-        if PyImGui.begin_child("NearestAgents Info", size=(600, 230),border=True, flags=PyImGui.WindowFlags.HorizontalScrollbar):
+        if PyImGui.begin_child("NearestAgents Info", size=(600, 330),border=True, flags=PyImGui.WindowFlags.HorizontalScrollbar):
             headers = ["Closest", "ID", "Name", "{x,y,z}", "Type"]
             data = [
                 _format_agent_row("Player:", player),

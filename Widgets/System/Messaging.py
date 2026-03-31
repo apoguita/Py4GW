@@ -634,6 +634,9 @@ def MerchantItems(index: int, message: SharedMessageStruct):
             ini_section = str(extra2 or "").strip()
             ini_key = str(extra3 or "").strip()
             if ini_path and ini_section and ini_key:
+                import os as _os
+                if not _os.path.isabs(ini_path):
+                    ini_path = _os.path.join(Py4GW.Console.get_projects_path(), ini_path)
                 IniHandler(ini_path).write_key(ini_section, ini_key, str(salvage_kits_in_inv))
         finally:
             _merchant_busy = False
@@ -2061,6 +2064,9 @@ def InventoryQuery(index: int, message: SharedMessageStruct):
             ini_section = str(extra2 or "").strip()
             ini_key     = str(extra3 or "").strip()
             if ini_path and ini_section and ini_key and range_start > 0 and range_end >= range_start:
+                import os as _os
+                if not _os.path.isabs(ini_path):
+                    ini_path = _os.path.join(Py4GW.Console.get_projects_path(), ini_path)
                 count = sum(int(GLOBAL_CACHE.Inventory.GetModelCount(mid))
                             for mid in range(range_start, range_end + 1))
                 IniHandler(ini_path).write_key(ini_section, ini_key, str(count))
@@ -2068,6 +2074,35 @@ def InventoryQuery(index: int, message: SharedMessageStruct):
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
     yield
 
+# endregion
+
+# region EquipItem
+def EquipItem(index: int, message: SharedMessageStruct):
+    GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
+
+    if len(message.Params) < 1:
+        ConsoleLog(MODULE_NAME, "EquipItem: missing model_id param.", Console.MessageType.Warning)
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+
+    try:
+        model_id = int(message.Params[0])
+    except Exception:
+        ConsoleLog(MODULE_NAME, "EquipItem: invalid model_id.", Console.MessageType.Warning)
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+
+    item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(model_id)
+    if not item_id:
+        ConsoleLog(MODULE_NAME, f"EquipItem: model_id {model_id} not found in inventory.", Console.MessageType.Warning)
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+
+    GLOBAL_CACHE.Inventory.EquipItem(item_id, Player.GetAgentID())
+    yield from Routines.Yield.wait(750)
+
+    ConsoleLog(MODULE_NAME, f"EquipItem: equipped item_id {item_id} (model {model_id}).", Console.MessageType.Info, False)
+    GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
 # endregion
 
 # region ProcessMessages
@@ -2176,6 +2211,8 @@ def ProcessMessages():
             GLOBAL_CACHE.Coroutines.append(RestockResurrectionScroll(index, message))
         case SharedCommandType.InventoryQuery:
             GLOBAL_CACHE.Coroutines.append(InventoryQuery(index, message))
+        case SharedCommandType.EquipItem:
+            GLOBAL_CACHE.Coroutines.append(EquipItem(index, message))
         case SharedCommandType.LootEx:
             # privately Handled Command, by frenkey
             pass
