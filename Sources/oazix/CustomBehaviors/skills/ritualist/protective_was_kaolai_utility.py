@@ -43,6 +43,7 @@ class ProtectiveWasKaolaiUtility(CustomSkillUtilityBase):
         is_skill_ready: bool = Routines.Checks.Skills.IsSkillIDReady(self.custom_skill.skill_id) and custom_behavior_helpers.Resources.has_enough_resources(self.custom_skill)
         
         if not is_player_holding_an_item and is_skill_ready: return 90
+        if not is_player_holding_an_item and not is_skill_ready: return None
 
         # 3 allies or more with less than 40% health or average group health lower than 75%
         if custom_behavior_helpers.Heals.is_party_damaged(within_range=Range.Spirit.value, min_allies_count=3, less_health_than_percent=0.4) \
