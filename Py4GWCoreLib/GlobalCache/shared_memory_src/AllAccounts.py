@@ -100,8 +100,13 @@ class AllAccounts(Structure):
         except Exception:
             return 0
 
-    def _is_slot_isolated_legacy(self, index: int) -> bool:
-        """Original isolation logic: pure IsIsolated flag, hero/pet inherits owner."""
+    def _is_slot_isolated(self, index: int) -> bool:
+        local_g = self._get_local_group_id()
+        target_g = self._get_slot_group(index)
+        if local_g > 0:
+            return target_g != local_g
+        elif target_g > 0:
+            return True
         account = self.AccountData[index]
         if account.IsAccount:
             return bool(account.IsIsolated)
@@ -111,19 +116,7 @@ class AllAccounts(Structure):
         owner_index = self._find_account_slot_by_email(owner_email)
         if owner_index == -1:
             return False
-        owner_account = self.AccountData[owner_index]
-        return bool(owner_account.IsAccount and owner_account.IsIsolated)
-
-    def _is_slot_isolated(self, index: int) -> bool:
-        """Group-aware isolation: slot is hidden from local viewer."""
-        local_g = self._get_local_group_id()
-        target_g = self._get_slot_group(index)
-        if local_g > 0:
-            return target_g != local_g
-        elif target_g > 0:
-            return True  # ungrouped viewer can't see grouped target
-        else:
-            return self._is_slot_isolated_legacy(index)  # both ungrouped: legacy
+        return bool(self.AccountData[owner_index].IsAccount and self.AccountData[owner_index].IsIsolated)
 
     def _is_slot_isolated_from_viewer(self, index: int, viewer_index: int) -> bool:
         """Like _is_slot_isolated but with explicit viewer slot instead of local player."""
@@ -133,8 +126,16 @@ class AllAccounts(Structure):
             return target_g != viewer_g
         elif target_g > 0:
             return True
-        else:
-            return self._is_slot_isolated_legacy(index)
+        account = self.AccountData[index]
+        if account.IsAccount:
+            return bool(account.IsIsolated)
+        owner_email = account.AccountEmail
+        if not owner_email:
+            return False
+        owner_index = self._find_account_slot_by_email(owner_email)
+        if owner_index == -1:
+            return False
+        return bool(self.AccountData[owner_index].IsAccount and self.AccountData[owner_index].IsIsolated)
 
     def _find_account_slot_by_email(self, account_email: str) -> int:
         if not account_email:
