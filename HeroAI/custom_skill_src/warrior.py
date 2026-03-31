@@ -1029,6 +1029,7 @@ class WarriorSkills:
         skill.SkillType = SkillType.Stance.value
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Buff.value
+        skill.Conditions.MoreLife = 0.7
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
