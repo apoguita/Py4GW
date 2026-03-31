@@ -398,6 +398,8 @@ REFORGED_TEXTURE = os.path.join(Py4GW.Console.get_projects_path(), "Sources", "W
 
 # region Entry Point
 def main():
+    if Map.IsMapLoading():
+        return
     bot.Update()
     bot.UI.draw_window(icon_path=REFORGED_TEXTURE, extra_tabs=[("Statistics", _draw_title_track)])
 

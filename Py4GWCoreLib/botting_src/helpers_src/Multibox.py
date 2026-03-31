@@ -614,6 +614,45 @@ class _Multibox:
     def abandon_quest(self, quest_id: int):
         yield from self._abandon_quest_message(quest_id)
 
+    def _get_email_from_char_name(self, char_name: str) -> Optional[str]:
+        for account in self._get_all_account_data():
+            if account.CharacterName == char_name:
+                return account.AccountEmail
+        return None
+
+    def _equip_item_message(self, email: str, model_id: int):
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Routines import Routines
+        sender_email = Player.GetAccountEmail()
+        ConsoleLog("Messaging", f"Sending EquipItem ({model_id}) to {email}", log=False)
+        GLOBAL_CACHE.ShMem.SendMessage(sender_email, email, SharedCommandType.EquipItem, (float(model_id), 0.0, 0.0, 0.0))
+        yield from Routines.Yield.wait(500)
+
+    @_yield_step(label="EquipItemOnAccount", counter_key="EQUIP_ITEM_ON_ACCOUNT")
+    def equip_item_on_account(self, char_name: str, model_id: int):
+        email = self._get_email_from_char_name(char_name)
+        if not email:
+            ConsoleLog("Messaging", f"EquipItemOnAccount: no account found for char '{char_name}'", log=True)
+            return
+        yield from self._equip_item_message(email, model_id)
+
+    def _equip_item_on_all_accounts_message(self, char_name_to_model_id: dict):
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Routines import Routines
+        sender_email = Player.GetAccountEmail()
+        for char_name, model_id in char_name_to_model_id.items():
+            email = self._get_email_from_char_name(char_name)
+            if not email:
+                ConsoleLog("Messaging", f"EquipItemOnAllAccounts: no account found for char '{char_name}', skipping", log=True)
+                continue
+            ConsoleLog("Messaging", f"Sending EquipItem ({model_id}) to {char_name} ({email})", log=False)
+            GLOBAL_CACHE.ShMem.SendMessage(sender_email, email, SharedCommandType.EquipItem, (float(model_id), 0.0, 0.0, 0.0))
+            yield from Routines.Yield.wait(500)
+
+    @_yield_step(label="EquipItemOnAllAccounts", counter_key="EQUIP_ITEM_ON_ALL_ACCOUNTS")
+    def equip_item_on_all_accounts(self, char_name_to_model_id: dict):
+        yield from self._equip_item_on_all_accounts_message(char_name_to_model_id)
+
     def get_all_account_data(self) -> List[_AccountData]:
         return self._get_all_account_data()
 
