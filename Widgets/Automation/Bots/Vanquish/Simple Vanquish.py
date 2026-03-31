@@ -70,8 +70,8 @@ def bot_routine(bot: Botting) -> None:
         return
 
     # Events
-    #condition = lambda: OnPartyWipe(bot)
-    #bot.Events.OnPartyWipeCallback(condition)
+    condition = lambda: OnPartyWipe(bot)
+    bot.Events.OnPartyWipeCallback(condition)
 
     # Main header
     bot.States.AddHeader(BotSettings.BOT_NAME)  # header counter = 1
@@ -265,15 +265,46 @@ def VanquishWatchdog(bot: "Botting", completed_header_name: str):
 # region EVENTS
 # =============================================================================
 def _on_party_wipe(bot: "Botting"):
+    from Py4GWCoreLib.Pathing import AutoPathing
+
     while Agent.IsDead(Player.GetAgentID()):
         yield from bot.Wait._coro_for_time(1000)
         if not Routines.Checks.Map.MapValid():
             bot.config.FSM.resume()
             return
 
-    # Jump to the Start Combat header of the CURRENT vanquish
+    # Wait for shrine teleport to complete
+    yield from Routines.Yield.wait(2000)
+
+    # Get first waypoint of current vanquish path
+    vq = _queued_vanquishes[_current_vq_index]
+    if vq.vanquish_path:
+        first_point = vq.vanquish_path[0]
+        if isinstance(first_point, dict):
+            # Complex path: first value of first dict entry
+            goal_xy = list(first_point.values())[0]
+            if isinstance(goal_xy, list):
+                goal_xy = goal_xy[0]
+            goal_x, goal_y = goal_xy[0], goal_xy[1]
+        else:
+            goal_x, goal_y = first_point[0], first_point[1]
+
+        shrine_x, shrine_y = Player.GetXY()
+        ConsoleLog("on_party_wipe", f"Revived at ({shrine_x:.0f}, {shrine_y:.0f}). Pathing to start ({goal_x:.0f}, {goal_y:.0f})")
+
+        start = (shrine_x, shrine_y, 0)
+        goal = (goal_x, goal_y, 0)
+        path_back = yield from AutoPathing().get_path(start, goal)
+        if path_back:
+            yield from Routines.Yield.Movement.FollowPath(
+                path_points=[(p[0], p[1]) for p in path_back],
+                tolerance=200,
+                custom_pause_fn=bot.config.pause_on_danger_fn,
+            )
+
+    # Jump to Start Combat to re-execute the full path
     target = _start_combat_header_names[_current_vq_index]
-    ConsoleLog("on_party_wipe", f"Revived. Jumping to: {target}")
+    ConsoleLog("on_party_wipe", f"Jumping to: {target}")
     bot.config.FSM.jump_to_state_by_name(target)
     bot.config.FSM.resume()
 
