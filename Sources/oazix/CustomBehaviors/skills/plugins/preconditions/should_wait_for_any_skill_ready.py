@@ -5,9 +5,9 @@ import PyImGui
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
-from Sources.oazix.CustomBehaviors.primitives.skills.utility_skill_capability import UtilitySkillCapability
+from Sources.oazix.CustomBehaviors.primitives.skills.plugins.utility_skill_precondition import UtilitySkillPrecondition
 
-class ShouldWaitForAnySkillReady(UtilitySkillCapability):
+class ShouldWaitForAnySkillReady(UtilitySkillPrecondition):
     def __init__(self, parent_skill: CustomSkill, wait_for_skills: list[CustomSkill], default_value: bool = False):
         super().__init__(parent_skill, "should_wait_for_any_skill_ready")
         from_persistence = self.load_from_persistence(str(int(default_value)))
@@ -17,7 +17,6 @@ class ShouldWaitForAnySkillReady(UtilitySkillCapability):
 
     @override
     def render_debug_ui(self):
-        PyImGui.text(f"Waiting for any skill ready")
         for skill in self.wait_for_skills:
             PyImGui.same_line(0,0)
             PyImGui.text(f"  - {skill.skill_name}")
@@ -44,8 +43,3 @@ class ShouldWaitForAnySkillReady(UtilitySkillCapability):
                     return True
             return False
         return True
-
-    @override
-    def get_targetting_agent_id_predicate(self):
-        return lambda agent_id: True
-
