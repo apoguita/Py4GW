@@ -951,7 +951,6 @@ def Clear_the_Chamber(bot_instance: Botting):
     bot_instance.Move.XYAndInteractNPC(295, 7221, "go to NPC")
     bot_instance.Dialogs.AtXY(295, 7221, 0x806501, "take quest")
     bot_instance.Multibox.SendDialogToTarget(0x806501)
-    #bot_instance.Dialogs.WithEnc Name("Lost Soul",0x806501, "Take Clear the Chamber")
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_combat_enabled(True), "Enable Combat")
     bot_instance.Move.XY(769, 6564, "Prepare to clear the chamber")
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_forced_state(BehaviorState.CLOSE_TO_AGGRO),"Force Close_to_Aggro",)
@@ -981,7 +980,10 @@ def Clear_the_Chamber(bot_instance: Botting):
     bot_instance.Wait.ForTime(3000)
     
     bot_instance.Move.XYAndInteractNPC(-5806, 12831, "go to NPC")
+    #bot_instance.Dialogs.AtXY(-5806, 12831, 0x806507, "take quest")
+    bot_instance.Multibox.SendDialogToTarget(0x806507)
     bot_instance.Dialogs.AtXY(-5806, 12831, 0x806D01, "take quest")
+    bot_instance.Multibox.SendDialogToTarget(0x806D01)
     bot_instance.Wait.ForTime(3000)
     bot_instance.States.AddCustomState(lambda: _record_quest_done("Clear the Chamber"), "Record Clear the Chamber done")
 
