@@ -2793,9 +2793,6 @@ def _get_available_storage_bags(anniversary_slot_unlocked: bool):
 		if info["available"]:
 			available_bags.append(bag_enum)
 
-	if not anniversary_slot_unlocked and len(available_bags) > 0:
-		available_bags.pop()
-
 	return available_bags
 
 

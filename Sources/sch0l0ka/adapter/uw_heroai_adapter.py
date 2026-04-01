@@ -9,7 +9,7 @@
 # ╚══════════════════════════════════════════════════════════════════════════════
 
 import Py4GW
-from Py4GWCoreLib import Player, GLOBAL_CACHE, ConsoleLog
+from Py4GWCoreLib import Agent, Player, Utils, GLOBAL_CACHE, ConsoleLog
 from Py4GWCoreLib.enums_src.Multiboxing_enums import SharedCommandType
 
 from Sources.sch0l0ka.adapter.uw_combat_adapter import UWCombatAdapter
@@ -191,7 +191,6 @@ class UWHeroAIAdapter(UWCombatAdapter):
         pass  # No direct equivalent in HeroAI.
 
     def set_custom_target(self, agent_id: int) -> None:
-        from Py4GWCoreLib import Agent
         if agent_id and Agent.IsValid(agent_id):
             Player.ChangeTarget(agent_id)
 
@@ -235,7 +234,7 @@ class UWHeroAIAdapter(UWCombatAdapter):
 
         # Native GW hero flag (local party heroes)
         agent_id = GLOBAL_CACHE.Party.Heroes.GetHeroAgentIDByPartyPosition(party_pos)
-        if agent_id:
+        if agent_id and Agent.IsValid(agent_id):
             GLOBAL_CACHE.Party.Heroes.FlagHero(agent_id, x, y)
 
     def set_flag(self, index: int, x: float, y: float) -> None:
@@ -243,7 +242,7 @@ class UWHeroAIAdapter(UWCombatAdapter):
 
         # Native GW hero flag (works for heroes in the local party)
         agent_id = GLOBAL_CACHE.Party.Heroes.GetHeroAgentIDByPartyPosition(party_pos)
-        if agent_id:
+        if agent_id and Agent.IsValid(agent_id):
             GLOBAL_CACHE.Party.Heroes.FlagHero(agent_id, x, y)
 
         # HeroAI shared-memory flag (works for multibox-account followers)

@@ -8,7 +8,7 @@
 # ╚══════════════════════════════════════════════════════════════════════════════
 
 import Py4GW
-from Py4GWCoreLib import Player, GLOBAL_CACHE, ConsoleLog
+from Py4GWCoreLib import Agent, Player, GLOBAL_CACHE, ConsoleLog
 from Py4GWCoreLib.enums_src.Multiboxing_enums import SharedCommandType
 
 from Sources.oazix.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
@@ -257,7 +257,7 @@ class UWCBAdapter(UWCombatAdapter):
         # Native GW flag (used for heroes in the local party)
         party_pos = index + 1
         agent_id = GLOBAL_CACHE.Party.Heroes.GetHeroAgentIDByPartyPosition(party_pos)
-        if agent_id:
+        if agent_id and Agent.IsValid(agent_id):
             GLOBAL_CACHE.Party.Heroes.FlagHero(agent_id, x, y)
 
     def set_flag_for_email(

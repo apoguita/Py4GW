@@ -771,16 +771,23 @@ def _coro_dhuum_spirit_form_watchdog(bot: Botting):
                 f"[Dhuum] {email} gained Spirit Form — repositioning flag and sending to ghost position.",
                 Py4GW.Console.MessageType.Info,
             )
-            # Update the flag so CB/HeroAI keeps the ghost at the target position.
-            _get_adapter().update_flag_position_for_email(email, _SPIRIT_FLAG_X, _SPIRIT_FLAG_Y)
-            # Send a direct PixelStack command so the ghost walks there immediately,
-            # bypassing any flag-polling delay on the receiving account.
-            GLOBAL_CACHE.ShMem.SendMessage(
-                sender_email=my_email,
-                receiver_email=email,
-                command=SharedCommandType.PixelStack,
-                params=(_SPIRIT_FLAG_X, _SPIRIT_FLAG_Y, 0.0, 0.0),
-            )
+            try:
+                # Update the flag so CB/HeroAI keeps the ghost at the target position.
+                _get_adapter().update_flag_position_for_email(email, _SPIRIT_FLAG_X, _SPIRIT_FLAG_Y)
+                # Send a direct PixelStack command so the ghost walks there immediately,
+                # bypassing any flag-polling delay on the receiving account.
+                GLOBAL_CACHE.ShMem.SendMessage(
+                    sender_email=my_email,
+                    receiver_email=email,
+                    command=SharedCommandType.PixelStack,
+                    params=(_SPIRIT_FLAG_X, _SPIRIT_FLAG_Y, 0.0, 0.0),
+                )
+            except Exception as _e:
+                ConsoleLog(
+                    BOT_NAME,
+                    f"[Dhuum] Spirit Form watchdog error for {email}: {_e}",
+                    Py4GW.Console.MessageType.Warning,
+                )
 
 
 def bot_routine(bot: Botting):
@@ -1590,10 +1597,10 @@ def Dhuum(bot_instance: Botting):
         ConsoleLog(BOT_NAME, "[Dhuum] Waiting for the King to walk to position ...", Py4GW.Console.MessageType.Info)
         while time.time() < deadline:
             king_id = next(
-                (a for a in AgentArray.GetAgentArray() if int(Agent.GetModelID(a)) == _KING_MODEL_ID),
+                (a for a in AgentArray.GetAgentArray() if Agent.IsValid(a) and int(Agent.GetModelID(a)) == _KING_MODEL_ID),
                 None,
             )
-            if king_id is None:
+            if king_id is None or not Agent.IsValid(king_id):
                 yield from Routines.Yield.wait(500)
                 continue
 
@@ -1621,7 +1628,8 @@ def Dhuum(bot_instance: Botting):
     bot_instance.Move.XY(-11278, 17297, "Wait For the King")
     bot_instance.Wait.UntilCondition(
         lambda: any(
-            int(Agent.GetModelID(agent_id)) == 2403
+            Agent.IsValid(agent_id)
+            and int(Agent.GetModelID(agent_id)) == 2403
             and Utils.Distance(Player.GetXY(), Agent.GetXY(agent_id)) <= 1100
             for agent_id in AgentArray.GetAgentArray()
         )
@@ -1641,17 +1649,14 @@ def Dhuum(bot_instance: Botting):
 
     # Activate the Spirit Form watchdog for the duration of the fight.
     bot_instance.States.AddCustomState(lambda: _set_dhuum_fight_active(True), "Enable Dhuum Spirit Form Watchdog")
-    bot_instance.config.FSM.AddYieldRoutineStep(
-        name="Strip Sacrifice Armor",
-        coroutine_fn=_coro_strip_sacrifice_armor,
-    )
     bot_instance.Move.XY(-13987, 17291, "Move to Dhuum fight")
     #bot_instance.States.AddCustomState(lambda: _get_adapter().set_following_enabled(False), "Disable Following")
     bot_instance.Wait.ForTime(4000)  # Wait till some Allies die
     #Wait till Dhuum is dead
     bot_instance.Wait.UntilCondition(
         lambda: any(
-            Agent.IsGadget(agent_id)
+            Agent.IsValid(agent_id)
+            and Agent.IsGadget(agent_id)
             and "underworld chest" in (Agent.GetNameByID(agent_id) or "").strip().lower()
             and Utils.Distance((-14381.0, 17283.0), Agent.GetXY(agent_id)) <= 300
             for agent_id in AgentArray.GetAgentArray()
@@ -1662,16 +1667,13 @@ def Dhuum(bot_instance: Botting):
     # Deactivate the Spirit Form watchdog — Dhuum is dead.
     bot_instance.States.AddCustomState(lambda: _set_dhuum_fight_active(False), "Disable Dhuum Spirit Form Watchdog")
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_combat_enabled(False), "Disable Combat")
-    bot_instance.config.FSM.AddYieldRoutineStep(
-        name="Re-equip Sacrifice Armor",
-        coroutine_fn=_coro_reequip_sacrifice_armor,
-    )
 
     def _loot_underworld_chest():
         chest_id = next(
             (
                 agent_id for agent_id in AgentArray.GetAgentArray()
-                if Agent.IsGadget(agent_id)
+                if Agent.IsValid(agent_id)
+                and Agent.IsGadget(agent_id)
                 and "underworld chest" in (Agent.GetNameByID(agent_id) or "").strip().lower()
                 and Utils.Distance((-14381.0, 17283.0), Agent.GetXY(agent_id)) <= 300
             ),
