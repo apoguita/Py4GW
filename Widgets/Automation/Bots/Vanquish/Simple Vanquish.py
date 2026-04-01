@@ -161,9 +161,9 @@ def bot_routine(bot: Botting) -> None:
         _register_path(bot, vq.vanquish_path)
         bot.Wait.UntilOutOfCombat()
 
-        # -- Reverse Path with Radar (range=4000) --
-        bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Starting Reverse Path with Radar (range=4000).")
-        bot.States.AddManagedCoroutine("Radar", lambda: Radar(bot, radar_range=4000))
+        # -- Reverse Path with Radar (range=3500) --
+        bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Starting Reverse Path with Radar (range=3500).")
+        bot.States.AddManagedCoroutine("Radar", lambda: Radar(bot, radar_range=3500))
         if vq.vanquish_path and isinstance(vq.vanquish_path[0], dict):
             reversed_list = []
             for entry in reversed(vq.vanquish_path):
@@ -241,7 +241,7 @@ def _stop_bot():
 # =============================================================================
 # region COROUTINES
 # =============================================================================
-def Radar(bot: "Botting", radar_range: int = 4000):
+def Radar(bot: "Botting", radar_range: int = 3500):
     ConsoleLog("Radar", f"Radar coroutine started (range={radar_range}).", Py4GW.Console.MessageType.Debug, True)
     while True:
         player_x, player_y = Player.GetXY()
