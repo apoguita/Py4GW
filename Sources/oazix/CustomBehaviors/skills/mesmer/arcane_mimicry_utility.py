@@ -4,21 +4,17 @@ import PyImGui
 
 from Py4GWCoreLib import Player, Range, Routines
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
-from Sources.oazix.CustomBehaviors.PersistenceLocator import PersistenceLocator
 from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Sources.oazix.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Sources.oazix.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Sources.oazix.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Sources.oazix.CustomBehaviors.primitives.helpers.targeting_order import TargetingOrder
 from Sources.oazix.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
-from Sources.oazix.CustomBehaviors.primitives.skillbars import utility_skill_finder
-from Sources.oazix.CustomBehaviors.primitives.skills.bonds.custom_buff_multiple_target import CustomBuffMultipleTarget, CustomBuffTargetMode
 from Sources.oazix.CustomBehaviors.primitives.skills.bonds.custom_buff_target_per_profession import BuffConfigurationPerProfession
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
-from Sources.oazix.CustomBehaviors.primitives.skills.utility_skill_capability import UtilitySkillCapability
 from Sources.oazix.CustomBehaviors.skills.generic.auto_combat_utility import AutoCombatUtility
-
+from Sources.oazix.CustomBehaviors.skills.plugins.targeting_modifiers.buff_configurator import BuffConfigurator
 
 class ArcaneMimicryUtility(CustomSkillUtilityBase):
     """
@@ -50,13 +46,7 @@ class ArcaneMimicryUtility(CustomSkillUtilityBase):
         self.skill_to_copy_instance : CustomSkillUtilityBase | None = None
         self.pre_check_condition: Callable[[], bool] | None = pre_check_condition
 
-        # Load persisted configuration or default to none (empty list = all professions deactivated)
-        data: str | None = PersistenceLocator().skills.read(self.custom_skill.skill_name, "buff_configuration")
-        if data is not None:
-            self.buff_configuration: CustomBuffMultipleTarget = CustomBuffMultipleTarget.instanciate_from_string(self.event_bus, self.custom_skill, data)
-        else:
-            # Default to none - pass empty list so all professions are deactivated
-            self.buff_configuration: CustomBuffMultipleTarget = CustomBuffMultipleTarget(event_bus, self.custom_skill, buff_mode=CustomBuffTargetMode.PER_EMAIL)
+        self.add_plugin_targetting_modifier(lambda x: BuffConfigurator(event_bus, self.custom_skill, buff_configuration_per_profession= BuffConfigurationPerProfession.NONE))
 
     @override
     def are_common_pre_checks_valid(self, current_state: BehaviorState) -> bool:
@@ -70,7 +60,7 @@ class ArcaneMimicryUtility(CustomSkillUtilityBase):
     def _get_target(self) -> int | None:
         target = custom_behavior_helpers.Targets.get_first_or_default_from_allies_ordered_by_priority(
             within_range=Range.Spellcast.value * 1.2,
-            condition=lambda agent_id: self.buff_configuration.get_agent_id_predicate()(agent_id) and Player.GetAgentID() != agent_id,
+            condition=lambda agent_id: self.get_plugin_targeting_modifiers_filtering_predicate()(agent_id) and Player.GetAgentID() != agent_id,
             sort_key=(TargetingOrder.DISTANCE_ASC,),
             range_to_count_enemies=None,
             range_to_count_allies=None,
@@ -128,33 +118,6 @@ class ArcaneMimicryUtility(CustomSkillUtilityBase):
         PyImGui.bullet_text(f"skill_to_copy_instance : {self.skill_to_copy_instance}")
         if self.skill_to_copy_instance is not None: 
             self.skill_to_copy_instance.customized_debug_ui(current_state)
-            buff_config : CustomBuffMultipleTarget | None = self.skill_to_copy_instance.get_buff_configuration()
-            if buff_config is not None: buff_config.render_buff_configuration()
 
-    @override
-    def get_buff_configuration(self) -> CustomBuffMultipleTarget | None:
-        return self.buff_configuration
-
-    @override
-    def has_persistence(self) -> bool:
-        return True
-
-    @override
-    def persist_configuration_for_account(self):
-        PersistenceLocator().skills.write_for_account(
-            str(self.custom_skill.skill_name), "buff_configuration", self.buff_configuration.serialize_to_string()
-        )
-        print("configuration saved for account")
-
-    @override
-    def persist_configuration_as_global(self):
-        PersistenceLocator().skills.write_global(
-            str(self.custom_skill.skill_name), "buff_configuration", self.buff_configuration.serialize_to_string()
-        )
-        print("configuration saved as global")
-
-    @override
-    def delete_persisted_configuration(self):
-        PersistenceLocator().skills.delete(str(self.custom_skill.skill_name), "buff_configuration")
-        print("configuration deleted")
-
+            for plugin in self.skill_to_copy_instance.get_plugins():
+                plugin.render_debug_ui()

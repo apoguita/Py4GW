@@ -26,7 +26,7 @@ class DervBuildFarmStatus:
 
 
 class DervFeatherFarmer(BuildMgr):
-    def __init__(self):
+    def __init__(self, match_only: bool = False):
         super().__init__(
             name="Derv Feather Farmer",
             required_primary=Profession.Dervish,
@@ -43,6 +43,8 @@ class DervFeatherFarmer(BuildMgr):
                 GLOBAL_CACHE.Skill.GetID("Mystic_Regeneration"),
             ],
         )
+        if match_only:
+            return
 
         self.SetFallback("AutoCombat", AutoCombat())
         # assign extra skill attributes from the already populated self.skills
@@ -60,6 +62,10 @@ class DervFeatherFarmer(BuildMgr):
         self.spiked = False
         self.spiking = False
         self.current_sensali_count = 0
+
+    def _CastSkillID(self, skill_id:int, extra_condition:bool=True, log:bool=True, aftercast_delay:int=1000):
+        result = yield from Routines.Yield.Skills.CastSkillID(skill_id, extra_condition=extra_condition, log=log, aftercast_delay=aftercast_delay)
+        return result
 
     def swap_to_scythe(self):
         if Agent.GetWeaponType(Player.GetAgentID())[0] != Weapon.Scythe:
@@ -108,7 +114,7 @@ class DervFeatherFarmer(BuildMgr):
             if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.dash)) and Agent.IsMoving(
                 Player.GetAgentID()
             ):
-                yield from self.CastSkillID(self.dash, aftercast_delay=100)
+                yield from self._CastSkillID(self.dash, aftercast_delay=100)
                 return
 
         player_agent_id = Player.GetAgentID()
@@ -121,7 +127,7 @@ class DervFeatherFarmer(BuildMgr):
             and not has_intimidating_aura
             and not self.status == DervBuildFarmStatus.Setup
         ):
-            yield from self.CastSkillID(self.intimidating_aura, aftercast_delay=750)
+            yield from self._CastSkillID(self.intimidating_aura, aftercast_delay=750)
             return
 
         if (
@@ -129,7 +135,7 @@ class DervFeatherFarmer(BuildMgr):
             and not has_dwarven_stability
             and not self.status == DervBuildFarmStatus.Setup
         ):
-            yield from self.CastSkillID(self.dwarven_stability, aftercast_delay=250)
+            yield from self._CastSkillID(self.dwarven_stability, aftercast_delay=250)
             return
 
         player_hp = Agent.GetHealth(Player.GetAgentID())
@@ -138,7 +144,7 @@ class DervFeatherFarmer(BuildMgr):
             and not has_mystic_regen
             and player_hp < 0.95
         ):
-            yield from self.CastSkillID(self.mystic_regen, aftercast_delay=750)
+            yield from self._CastSkillID(self.mystic_regen, aftercast_delay=750)
             return
 
         if self.status == DervBuildFarmStatus.Move:
@@ -150,7 +156,7 @@ class DervFeatherFarmer(BuildMgr):
                 and has_intimidating_aura
                 and Agent.IsMoving(Player.GetAgentID())
             ):
-                yield from self.CastSkillID(self.dash, aftercast_delay=100)
+                yield from self._CastSkillID(self.dash, aftercast_delay=100)
                 return
 
         if self.status == DervBuildFarmStatus.Ball:
@@ -175,7 +181,7 @@ class DervFeatherFarmer(BuildMgr):
                 has_vow_of_strength = Routines.Checks.Effects.HasBuff(player_agent_id, self.vow_of_strength)
 
                 if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.sand_shards)) and not has_sand_shards:
-                    yield from self.CastSkillID(self.sand_shards, aftercast_delay=250)
+                    yield from self._CastSkillID(self.sand_shards, aftercast_delay=250)
                     return
 
                 if (
@@ -183,7 +189,7 @@ class DervFeatherFarmer(BuildMgr):
                     and has_sand_shards
                     and not has_vow_of_strength
                 ):
-                    yield from self.CastSkillID(self.vow_of_strength, aftercast_delay=250)
+                    yield from self._CastSkillID(self.vow_of_strength, aftercast_delay=250)
                     return
 
                 if (
@@ -194,14 +200,14 @@ class DervFeatherFarmer(BuildMgr):
                     and has_vow_of_strength
                     and has_sand_shards
                     and player_current_energy >= 15
-                ):
-                    yield from Routines.Yield.Agents.TargetNearestEnemy(Range.Spellcast.value)
-                    yield from self.CastSkillID(self.staggering_force, aftercast_delay=250)
-                    has_staggering_force = Routines.Checks.Effects.HasBuff(player_agent_id, self.staggering_force)
-                    if has_staggering_force and player_current_energy >= 10:
-                        yield from self.swap_to_scythe()
-                        yield from self.CastSkillID(self.eremites_attack, aftercast_delay=250)
-                        self.spiked = True
+                    ):
+                        yield from Routines.Yield.Agents.TargetNearestEnemy(Range.Spellcast.value)
+                        yield from self._CastSkillID(self.staggering_force, aftercast_delay=250)
+                        has_staggering_force = Routines.Checks.Effects.HasBuff(player_agent_id, self.staggering_force)
+                        if has_staggering_force and player_current_energy >= 10:
+                            yield from self.swap_to_scythe()
+                            yield from self._CastSkillID(self.eremites_attack, aftercast_delay=250)
+                            self.spiked = True
                         self.spiking = False
                         return
 
@@ -220,13 +226,13 @@ class DervFeatherFarmer(BuildMgr):
                         and len(remaining_enemies) >= 2
                         and not has_sand_shards
                     ):
-                        yield from self.CastSkillID(self.sand_shards, aftercast_delay=250)
+                        yield from self._CastSkillID(self.sand_shards, aftercast_delay=250)
                         return
 
                     if (
                         yield from Routines.Yield.Skills.IsSkillIDUsable(self.vow_of_strength)
                     ) and not has_vow_of_strength:
-                        yield from self.CastSkillID(self.vow_of_strength, aftercast_delay=250)
+                        yield from self._CastSkillID(self.vow_of_strength, aftercast_delay=250)
                         return
                     has_vow_of_strength = Routines.Checks.Effects.HasBuff(player_agent_id, self.vow_of_strength)
 
@@ -239,13 +245,13 @@ class DervFeatherFarmer(BuildMgr):
                         and has_sand_shards
                         and player_current_energy >= 12
                         and len(remaining_enemies) >= 2
-                    ):
-                        yield from Routines.Yield.Agents.TargetNearestEnemy(Range.Spellcast.value)
-                        yield from self.CastSkillID(self.staggering_force, aftercast_delay=250)
-                        has_staggering_force = Routines.Checks.Effects.HasBuff(player_agent_id, self.staggering_force)
-                        if has_staggering_force and player_current_energy >= 10:
-                            yield from self.CastSkillID(self.eremites_attack, aftercast_delay=250)
-                            return
+                        ):
+                            yield from Routines.Yield.Agents.TargetNearestEnemy(Range.Spellcast.value)
+                            yield from self._CastSkillID(self.staggering_force, aftercast_delay=250)
+                            has_staggering_force = Routines.Checks.Effects.HasBuff(player_agent_id, self.staggering_force)
+                            if has_staggering_force and player_current_energy >= 10:
+                                yield from self._CastSkillID(self.eremites_attack, aftercast_delay=250)
+                                return
 
                     yield
                     return

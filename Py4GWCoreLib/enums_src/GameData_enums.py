@@ -152,6 +152,7 @@ class Reduced_Ailment(IntEnum):
 
 #region DamageType
 class DamageType(IntEnum):
+    Unknown = -1
     Blunt = 0
     Piercing = 1
     Slashing = 2

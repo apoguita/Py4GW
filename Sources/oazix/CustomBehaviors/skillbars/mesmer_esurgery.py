@@ -22,12 +22,14 @@ from Sources.oazix.CustomBehaviors.skills.mesmer.cry_of_frustration_utility impo
 from Sources.oazix.CustomBehaviors.skills.mesmer.cry_of_pain_utility import CryOfPainUtility
 from Sources.oazix.CustomBehaviors.skills.mesmer.drain_enchantment_utility import DrainEnchantmentUtility
 from Sources.oazix.CustomBehaviors.skills.mesmer.mistrust_utility import MistrustUtility
+from Sources.oazix.CustomBehaviors.skills.mesmer.overload_utility import OverloadUtility
 from Sources.oazix.CustomBehaviors.skills.mesmer.power_drain_utility import PowerDrainUtility
 from Sources.oazix.CustomBehaviors.skills.mesmer.shatter_enchantment_utility import ShatterEnchantmentUtility
 from Sources.oazix.CustomBehaviors.skills.mesmer.shatter_hex_utility import ShatterHexUtility
 from Sources.oazix.CustomBehaviors.skills.mesmer.spiritual_pain_utility import SpiritualPainUtility
 from Sources.oazix.CustomBehaviors.skills.mesmer.unnatural_signet_utility import UnnaturalSignetUtility
 from Sources.oazix.CustomBehaviors.skills.paragon.fall_back_utility import FallBackUtility
+from Sources.oazix.CustomBehaviors.skills.mesmer.overload_utility import OverloadUtility
 
 class MesmerESurgery_UtilitySkillBar(CustomBehaviorBaseUtility):
 
@@ -51,7 +53,7 @@ class MesmerESurgery_UtilitySkillBar(CustomBehaviorBaseUtility):
 
         # aoe
         self.energy_surge_utility: CustomSkillUtilityBase = RawAoeAttackUtility(event_bus=self.event_bus, skill=CustomSkill("Energy_Surge"), current_build=in_game_build, score_definition=ScorePerAgentQuantityDefinition(lambda enemy_qte: 80 if enemy_qte >= 3 else 52 if enemy_qte <= 2 else 0), mana_required_to_cast=12)
-        self.overload_utility: CustomSkillUtilityBase = RawAoeAttackUtility(event_bus=self.event_bus, skill=CustomSkill("Overload"), current_build=in_game_build, mana_required_to_cast=15)
+        self.overload_utility: CustomSkillUtilityBase = OverloadUtility(event_bus=self.event_bus, current_build=in_game_build)
         self.chaos_storm_utility: CustomSkillUtilityBase = RawAoeAttackUtility(event_bus=self.event_bus, skill=CustomSkill("Chaos_Storm"), current_build=in_game_build, mana_required_to_cast=15)
         self.wastrels_demise_utility: CustomSkillUtilityBase = RawAoeAttackUtility(event_bus=self.event_bus, skill=CustomSkill("Wastrels_Demise"), current_build=in_game_build, mana_required_to_cast=15)
         self.spiritual_pain_utility: CustomSkillUtilityBase = SpiritualPainUtility(event_bus=self.event_bus, current_build=in_game_build, mana_required_to_cast=10)
@@ -99,8 +101,6 @@ class MesmerESurgery_UtilitySkillBar(CustomBehaviorBaseUtility):
             self.spiritual_pain_utility,
 
             self.power_drain_utility,
-
-            self.overload_utility,
 
             self.arcane_echo_utility,
             self.auspicious_incantation_utility,

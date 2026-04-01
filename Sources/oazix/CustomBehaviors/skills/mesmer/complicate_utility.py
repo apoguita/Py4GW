@@ -53,7 +53,7 @@ class ComplicateUtility(CustomSkillUtilityBase):
         # The reasoning behind this change is to make these skills more strategic in nature and, not coincidentally, more difficult for bots to execute. 
 
         Player.ChangeTarget(target_id)
-        yield from custom_behavior_helpers.Helpers.wait_for(251)
+        yield from custom_behavior_helpers.Helpers.wait_for(180)
         
         if not Agent.IsCasting(target_id): return BehaviorResult.ACTION_SKIPPED
         Player.ChangeTarget(target_id)

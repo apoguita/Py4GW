@@ -680,7 +680,7 @@ def render():
 
 
     for entry in CustomBehaviorParty().get_shared_lock_manager().get_current_locks():
-        PyImGui.text(f"entry={entry.key}-{entry.acquired_at_seconds}-{entry.expires_at_seconds}")
+        PyImGui.text(f"entry={entry.key}-{entry.acquired_at_seconds}-{entry.expires_at_seconds}-{entry.lock_type}")
 
     # Always draw a vertical indicator for the (custom or current) target
     draw_party_target_vertical_line()

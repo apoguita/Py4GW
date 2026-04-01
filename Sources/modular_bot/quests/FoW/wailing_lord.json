@@ -2,26 +2,13 @@
   "name": "Wailing lord",
   "steps": [
     {"type": "auto_path", "name": "Using the back Entrance", "points": [[-11294, 15897]]},
+    {"type": "add_enemy_blacklist", "enemy_name": "Wailing Lord"},
     {"type": "auto_path", "name": "to wolfo", "points": [[-12225, 13500], [-13011, 12108], [-14922, 12513]]},
     {"type": "path_to_target", "enemy": "SHARD_WOLF"},
-    {"type": "path_to_target", "enemy": "SHARD_WOLF"},
-    {"type": "path_to_target", "enemy": "SHARD_WOLF"},
-    {"type": "auto_path", "name": "backtrack", "points": [[-14922, 12513]]},
-    {"type": "flag_all_accounts", "x": -14922, "y": 12513},
-    {"type": "auto_path", "name": "backtrack", "points": [[-13011, 12108]]},
-    {"type": "flag_all_accounts", "x": -13011, "y": 12108},
-    {"type": "auto_path", "name": "backtrack", "points": [ [-12225, 13500]]},
-    {"type": "flag_all_accounts", "x": -12225, "y": 13500},
-    {"type": "unflag_all_accounts"},
-    {"type": "auto_path", "name": "To Wailing Lord", "points": [[-17581, 15371],[-19410, 14395]]},
-
-    {"type": "flag_all_accounts", "x": -19800, "y": 13950},
-    {"type": "set_auto_combat", "enabled": false},
-    {"type": "auto_path", "name": "Quick pull", "points": [[-21500, 14650]]},
-    {"type": "set_auto_combat", "enabled": true},
-    {"type": "unflag_all_accounts"},
+    {"type": "auto_path", "name": "To Wailing Lord", "points": [[-21254, 14651]]},
     {"type": "auto_path", "name": "sweep downstairs", "points": [[-19021, 11061], [-20432, 12077], [-19924, 9299], [-17795, 9806], [-14996, 8168]]},
     {"type": "auto_path", "name": "to Wailing Lord", "points": [[-18459, 9629], [-20705, 10996], [-21385, 15152]]},
-    {"type": "interact_gadget", "target": "CHEST", "repeat": 2}
+    {"type": "interact_gadget", "target": "CHEST", "repeat": 2},
+    {"type": "remove_enemy_blacklist", "enemy_name": "Wailing Lord"}
   ]
 }

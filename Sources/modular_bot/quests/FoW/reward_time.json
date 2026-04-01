@@ -1,7 +1,8 @@
 {
-  "name": "Gimme that obby edge.",
+  "name": "LOOT pls.",
   "steps": [
-    {"type": "auto_path", "name": "Run to Chest", "points": [[-12332, -3539], [-9712, -4812], [-6595, -3453], [-4494, 3700], [1752, 5342], [266, 1273], [1684, 323]]},
+    {"type": "auto_path", "name": "Run to Chest", "points": [[-12332, -3539], [-9712, -4812], [-6595, -3453], [-4494, 3700], [1752, 5342], [266, 1273], [1857, 215]]},
+    {"type": "wait", "ms":5000},
     {"type": "loot_chest", "gadget": "CHEST_OF_WOE", "multibox": true},
     {"type": "set_auto_looting", "enabled": false},
     {"type": "auto_path", "name": "reposition for Chest", "points": [[1865, 216]]},
@@ -13,6 +14,6 @@
     {"type": "set_auto_looting", "enabled": false},
     {"type": "auto_path", "name": "reposition for Chest", "points": [[1865, 216]]},
     {"type": "set_auto_looting", "enabled": true, "ms":5000},
-    {"type": "resign", "ms":10000}
+    {"type": "resign", "ms":15000}
   ]
 }

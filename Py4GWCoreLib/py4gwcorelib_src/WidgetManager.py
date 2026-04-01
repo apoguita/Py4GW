@@ -1,6 +1,7 @@
 from enum import IntEnum
 from typing import Callable
 from types import ModuleType
+import re
 import traceback
 import Py4GW
 import PyImGui
@@ -21,7 +22,7 @@ import PyImGui
 import PyCallback
 from dataclasses import dataclass, field
 from types import ModuleType
-from typing import Callable, Optional
+from typing import Callable, Iterable, Literal, Optional
 
 from Py4GWCoreLib.py4gwcorelib_src.Color import Color
 
@@ -86,6 +87,212 @@ class WidgetTreeNode:
                 parent=self
             )
         return self.children[name]
+
+
+CatalogScope = Literal["all", "favorites", "active", "inactive"]
+CatalogSort = Literal["name", "category", "status"]
+
+
+@dataclass
+class WidgetCatalogNode:
+    name: str = ""
+    depth: int = 0
+    parent: "WidgetCatalogNode | None" = None
+    path: str = ""
+    is_widget_container: bool = False
+    children: dict[str, "WidgetCatalogNode"] = field(default_factory=dict)
+    widget_ids: list[str] = field(default_factory=list)
+
+    def get_child(self, name: str) -> "WidgetCatalogNode":
+        child = self.children.get(name)
+        if child is None:
+            child_path = f"{self.path}/{name}" if self.path else name
+            child = WidgetCatalogNode(
+                name=name,
+                depth=self.depth + 1,
+                parent=self,
+                path=child_path,
+            )
+            self.children[name] = child
+        return child
+
+
+@dataclass(frozen=True)
+class WidgetCatalogSnapshot:
+    widgets_by_id: dict[str, "Widget"]
+    tree: WidgetCatalogNode
+    categories: list[str]
+    tags: list[str]
+    paths: list[str]
+    widget_container_paths: list[str]
+
+
+@dataclass
+class WidgetCatalogQuery:
+    text: str = ""
+    category: str = ""
+    path: str = ""
+    tag: str = ""
+    scope: CatalogScope = "all"
+    sort_by: CatalogSort = "name"
+    favorite_ids: set[str] = field(default_factory=set)
+
+
+class WidgetCatalog:
+    PRESET_WORDS: dict[str, list[str]] = {
+        "no_image": ["#no_image", "#noimg", "#noicon"],
+        "enabled": ["#enabled", "#active", "#on"],
+        "disabled": ["#disabled", "#inactive", "#off"],
+        "favorites": ["#favorites", "#favs", "#fav"],
+        "system": ["#system", "#sys"],
+    }
+
+    @classmethod
+    def snapshot_from_handler(cls, handler: "WidgetHandler") -> WidgetCatalogSnapshot:
+        return cls.snapshot_from_widgets(handler.widgets)
+
+    @classmethod
+    def snapshot_from_widgets(cls, widgets: dict[str, "Widget"]) -> WidgetCatalogSnapshot:
+        root = WidgetCatalogNode()
+        categories: set[str] = set()
+        tags: set[str] = set()
+        paths: set[str] = set()
+        widget_container_paths: set[str] = set()
+
+        for widget_id, widget in widgets.items():
+            node = root
+
+            if widget.category:
+                categories.add(widget.category)
+
+            for tag in widget.tags:
+                if tag:
+                    tags.add(tag)
+
+            if widget.widget_path:
+                widget_container_paths.add(widget.widget_path)
+                current_path = ""
+                for part in widget.widget_path.split("/"):
+                    current_path = f"{current_path}/{part}" if current_path else part
+                    paths.add(current_path)
+                    node = node.get_child(part)
+                node.is_widget_container = True
+
+            node.widget_ids.append(widget_id)
+
+        cls._sort_tree(root)
+
+        return WidgetCatalogSnapshot(
+            widgets_by_id=widgets,
+            tree=root,
+            categories=sorted(categories),
+            tags=sorted(tags),
+            paths=sorted(paths),
+            widget_container_paths=sorted(widget_container_paths),
+        )
+
+    @classmethod
+    def query(cls, snapshot: WidgetCatalogSnapshot, query: WidgetCatalogQuery) -> list["Widget"]:
+        widgets = list(snapshot.widgets_by_id.values())
+        keywords = [kw.strip().lower() for kw in query.text.lower().strip().split(";") if kw.strip()]
+
+        preset_checks = {key: False for key in cls.PRESET_WORDS}
+        remaining_keywords: list[str] = []
+
+        for kw in keywords:
+            matched_preset = False
+            for preset_name, preset_words in cls.PRESET_WORDS.items():
+                if kw in preset_words:
+                    preset_checks[preset_name] = True
+                    matched_preset = True
+            if not matched_preset:
+                remaining_keywords.append(kw)
+
+        favorite_ids = query.favorite_ids or set()
+
+        match query.scope:
+            case "favorites":
+                widgets = [widget for widget in widgets if widget.folder_script_name in favorite_ids]
+            case "active":
+                widgets = [widget for widget in widgets if widget.enabled]
+            case "inactive":
+                widgets = [widget for widget in widgets if not widget.enabled]
+
+        widgets = [
+            widget for widget in widgets
+            if (not preset_checks["enabled"] or widget.enabled)
+            and (not preset_checks["disabled"] or not widget.enabled)
+            and (not preset_checks["favorites"] or widget.folder_script_name in favorite_ids)
+            and (not preset_checks["no_image"] or cls._has_missing_icon(widget))
+            and (not preset_checks["system"] or widget.category == "System")
+            and (widget.category == query.category or not query.category)
+            and (query.tag in widget.tags or not query.tag)
+            and cls._matches_path(widget, query.path)
+            and cls._matches_keywords(widget, remaining_keywords)
+        ]
+
+        match query.sort_by:
+            case "category":
+                widgets.sort(key=lambda widget: ((widget.category or "").lower(), widget.name.lower()))
+            case "status":
+                widgets.sort(key=lambda widget: (not widget.enabled, widget.name.lower()))
+            case _:
+                widgets.sort(key=lambda widget: widget.name.lower())
+
+        return widgets
+
+    @classmethod
+    def tree_children(cls, node: WidgetCatalogNode) -> list[WidgetCatalogNode]:
+        return list(node.children.values())
+
+    @staticmethod
+    def _sort_tree(node: WidgetCatalogNode) -> None:
+        node.widget_ids.sort()
+        node.children = dict(sorted(node.children.items(), key=lambda item: item[0].lower()))
+        for child in node.children.values():
+            WidgetCatalog._sort_tree(child)
+
+    @staticmethod
+    def _normalize(text: str) -> str:
+        return re.sub(r"[^a-z0-9]+", "", (text or "").lower())
+
+    @staticmethod
+    def _matches_path(widget: "Widget", path: str) -> bool:
+        if not path:
+            return True
+        if not widget.widget_path:
+            return False
+        return widget.widget_path == path or widget.widget_path.startswith(f"{path}/")
+
+    @staticmethod
+    def _has_missing_icon(widget: "Widget") -> bool:
+        return (widget.image or "").replace("/", "\\").lower().endswith("textures\\missing_texture.png")
+
+    @classmethod
+    def _matches_keywords(cls, widget: "Widget", keywords: Iterable[str]) -> bool:
+        search_fields = [
+            widget.name,
+            widget.plain_name,
+            widget.folder,
+            widget.category,
+            *widget.tags,
+            *widget.aliases,
+        ]
+        haystacks = [
+            ((field or "").lower(), cls._normalize(field or ""))
+            for field in search_fields
+            if field
+        ]
+
+        for kw in keywords:
+            normalized_kw = cls._normalize(kw)
+            if not any(
+                kw in haystack or (normalized_kw and normalized_kw in normalized_haystack)
+                for haystack, normalized_haystack in haystacks
+            ):
+                return False
+
+        return True
                     
 class Py4GWLibrary:
     CATEGORY_COLUMN_MAX_WIDTH = 200
@@ -338,7 +545,7 @@ class Py4GWLibrary:
     def draw_search_tooltip(self):
         if PyImGui.is_item_hovered():
             PyImGui.begin_tooltip()
-            ImGui.text("Search widgets by name, folder, category or tags. Use ';' to separate multiple keywords.")            
+            ImGui.text("Search widgets by name, aliases, folder, category or tags. Use ';' to separate multiple keywords.")            
             ImGui.text("Special keywords:")
             ImGui.bullet_text("#enabled / #active / #on - Show only enabled widgets")
             ImGui.bullet_text("#disabled / #inactive / #off - Show only disabled widgets")
@@ -372,6 +579,38 @@ class Py4GWLibrary:
         if self.first_run:    
             self.win_size = win_size                    
             self.first_run = False
+
+    @staticmethod
+    def _normalize_search_text(text: str) -> str:
+        return re.sub(r"[^a-z0-9]+", "", (text or "").lower())
+
+    def _widget_matches_keywords(self, widget: "Widget", keywords: list[str]) -> bool:
+        search_fields = [
+            widget.name,
+            widget.plain_name,
+            widget.folder,
+            widget.category,
+            *widget.tags,
+            *widget.aliases,
+        ]
+        haystacks = [
+            ((field or "").lower(), self._normalize_search_text(field or ""))
+            for field in search_fields
+            if field
+        ]
+
+        for kw in keywords:
+            if not kw:
+                continue
+
+            normalized_kw = self._normalize_search_text(kw)
+            if not any(
+                kw in haystack or (normalized_kw and normalized_kw in normalized_haystack)
+                for haystack, normalized_haystack in haystacks
+            ):
+                return False
+
+        return True
             
     def filter_widgets(self, filter_text: str):        
         self.filtered_widgets.clear()     
@@ -428,7 +667,7 @@ class Py4GWLibrary:
                                         (w.category == self.category or not self.category) and 
                                         (self.path in w.widget_path or not self.path) and 
                                         (self.tag in w.tags or not self.tag) and 
-                                        all(kw in w.name.lower() or kw in w.plain_name.lower() or kw in w.folder.lower() for kw in keywords if keywords and kw)]
+                                        self._widget_matches_keywords(w, keywords)]
                 
                 match self.sort_mode:
                     case SortMode.ByName:
@@ -438,8 +677,7 @@ class Py4GWLibrary:
                     case SortMode.ByStatus:
                         self.filtered_widgets.sort(key=lambda w: (not w.enabled, w.name.lower()))
             case LayoutMode.Compact:
-                # check if all keywords are in name or folder
-                self.filtered_widgets = [w for w in prefiltered if all(kw in w.name.lower() or kw in w.plain_name.lower() or kw in w.folder.lower() for kw in keywords if keywords and kw)]
+                self.filtered_widgets = [w for w in prefiltered if self._widget_matches_keywords(w, keywords)]
 
     def draw_toggle_view_mode_button(self) -> bool:
         clicked = False
@@ -946,6 +1184,15 @@ class Py4GWLibrary:
                     ImGui.end_menu()                   
                 
                 if ImGui.begin_menu("Preferences"):
+                    if ImGui.menu_item("Switch to Base UI"):
+                        base_ui_key = IniManager().ensure_global_key("Widgets/WidgetCatalog", "WidgetCatalog.ini")
+                        if base_ui_key:
+                            IniManager().add_bool(key=base_ui_key, var_name="show_adavanced", section="Configuration", name="show_adavanced", default=False)
+                            IniManager().load_once(base_ui_key)
+                            IniManager().set(key=base_ui_key, var_name="show_adavanced", value=False, section="Configuration")
+                            IniManager().save_vars(base_ui_key)
+                    ImGui.show_tooltip("Switch to the base Py4GW UI.")
+
                     if ImGui.begin_menu("Layout"):                        
                         if ImGui.begin_menu("Startup View Mode"):
                             layout_mode = ImGui.radio_button("Last View", self.startup_layout, LayoutMode.LastView)
@@ -1772,6 +2019,7 @@ class Widget:
     name : str = field(default="", init=False, repr=False)
     image : str = field(default="", init=False, repr=False)
     tags : list[str] = field(default_factory=list, init=False)
+    aliases : list[str] = field(default_factory=list, init=False)
     category : str = field(default="", init=False)    
     
     @property
@@ -1838,12 +2086,11 @@ class Widget:
             self.name = getattr(self.module, 'MODULE_NAME', "") if hasattr(self.module, 'MODULE_NAME') else self.cleaned_name()
             self.category = getattr(self.module, 'MODULE_CATEGORY', "") if hasattr(self.module, 'MODULE_CATEGORY') else (self.widget_path.split('/')[0] if self.widget_path else "") #get first folder after Widgets 
             self.tags = getattr(self.module, 'MODULE_TAGS', []) if hasattr(self.module, 'MODULE_TAGS') else [folder for folder in self.widget_path.split('/') if folder]
+            self.aliases = [str(alias).strip() for alias in getattr(self.module, 'MODULE_ALIASES', []) if str(alias).strip()]
             self.image = os.path.join(base_path, getattr(self.module, 'MODULE_ICON', "") if hasattr(self.module, 'MODULE_ICON') else "Textures\\missing_texture.png")
             
             self.optional = getattr(self.module, 'OPTIONAL', True) if hasattr(self.module, 'OPTIONAL') else self.category not in ["System", "Py4GW"] # System and Py4GW widgets are non-optional by default, all others are optional by default
-            self.RegisterCallbacks()
-            self.PauseCallbacks()  # Start paused until explicitly enabled
-            
+              
         return True
     
     def set_configuring(self, state: bool):
@@ -1870,7 +2117,6 @@ class Widget:
         
     def PauseCallbacks(self):
         """Pause callbacks by id if they exist"""
-        self.RegisterCallbacks()  # Ensure callbacks are registered before trying to pause
         if self.update_callback_id:
             PyCallback.PyCallback.PauseById(self.update_callback_id)
         if self.draw_callback_id:
@@ -1880,7 +2126,6 @@ class Widget:
             
     def ResumeCallbacks(self):
         """Resume callbacks by id if they exist"""
-        self.RegisterCallbacks()  # Ensure callbacks are registered before trying to resume
         if self.update_callback_id:
             PyCallback.PyCallback.ResumeById(self.update_callback_id)
         if self.draw_callback_id:
@@ -1954,10 +2199,6 @@ class Widget:
         
     def enable(self):
         """Enable the widget"""
-        
-        #ensure callback
-        self.ResumeCallbacks()
-
         if self.enabled and self.module is not None: 
             return  # Already enabled
         
@@ -1965,6 +2206,9 @@ class Widget:
         self.__enabled = self.load_module()
         
         if self.enabled:
+            self.__paused = False
+            self.RegisterCallbacks()
+            self.ResumeCallbacks()
             try:
                 if self.on_enable:
                     self.on_enable()
@@ -2001,6 +2245,7 @@ class Widget:
         self.on_enable : Optional[Callable] = None
         self.on_disable : Optional[Callable] = None
         self.optional = True  
+        self.__paused = True
         
         self.load_module()
         
@@ -2581,6 +2826,37 @@ class WidgetHandler:
     #region  Public API
     def set_widget_ui_visibility(self, visible: bool):            
         self.show_ui = visible
+
+    def reload_widgets(self):
+        self.widget_initialized = False
+        self.discovered = False
+        self.discover()
+        self.widget_initialized = True
+
+    def set_optional_widgets_paused(self, paused: bool, sync_shared: bool = True):
+        if paused:
+            self.pause_optional_widgets()
+        else:
+            self.resume_optional_widgets()
+
+        if not sync_shared:
+            return
+
+        own_email = Player.GetAccountEmail()
+        for acc in GLOBAL_CACHE.ShMem.GetAllAccountData():
+            if acc.AccountEmail == own_email:
+                continue
+
+            GLOBAL_CACHE.ShMem.SendMessage(
+                own_email,
+                acc.AccountEmail,
+                SharedCommandType.PauseWidgets if paused else SharedCommandType.ResumeWidgets,
+            )
+
+    def toggle_optional_widgets_paused(self, sync_shared: bool = True) -> bool:
+        paused = not self.optional_widgets_paused
+        self.set_optional_widgets_paused(paused, sync_shared=sync_shared)
+        return self.optional_widgets_paused
         
     def pause_optional_widgets(self):
         for widget in self.widgets.values():

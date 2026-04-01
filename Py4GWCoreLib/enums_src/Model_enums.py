@@ -918,6 +918,7 @@ class ModelID(IntEnum):
     Ancient_Artifact = 19182
     Ancient_Elonian_Key = 15556
     Ancient_Eye = 464
+    Ancient_Moss_Staff = 2376
     Arachnis_Scythe = 26993
     Arcane_Crystal_Shard = 24634
     Archaic_Kappa_Shell = 850
@@ -929,6 +930,7 @@ class ModelID(IntEnum):
     Assassin_Tome = 21796
     Asura_Mini = 22189
     Augmented_Flesh = 826
+    Aureate_Blade = 2124
     Automaton_Summon = 30846
     Automatonic_Tonic = 30634
     Axe_Grip = 905
@@ -977,6 +979,7 @@ class ModelID(IntEnum):
     Blob_Of_Ooze = 27067
     Blood_Drinker_Pelt = 812
     Blue_Rock_Candy = 31151
+    Bo_Staff = 735
     Bog_Skale_Fin = 443
     Bogroots_Boss_Key = 2593
     Bolt_Of_Cloth = 925
@@ -1081,6 +1084,7 @@ class ModelID(IntEnum):
     Cottontail_Tonic = 31142
     Crate_Of_Fireworks = 29436
     Creme_Brulee = 15528
+    Crystal_Flame_Staff = 2366
     Curved_Minotaur_Horn = 495
     Dagger_Handle = 6331
     Dagger_Tang = 6323
@@ -1093,6 +1097,7 @@ class ModelID(IntEnum):
     Deldrimor_Steel_Ingot = 950
     Deldrimor_Talisman = 30693
     Delicious_Cake = 36681
+    Demoncrest_Spear = 2079
     Demonic_Fang = 473
     Demonic_Key = 19174
     Demonic_Relic = 1580
@@ -1106,6 +1111,7 @@ class ModelID(IntEnum):
     Destroyer_Core = 27033
     Destroyer_Of_Flesh_Mini = 22250
     Dhuum_Mini = 32822
+    Dhumms_Soul_Reaper = 32823
     Diamond = 935
     Diamond_Djinn_Essence = 19186
     Diamond_Key = 19175
@@ -1197,14 +1203,20 @@ class ModelID(IntEnum):
     Elixir_Of_Valor = 21227
     Elonian_Key = 5960
     Elonian_Leather_Square = 943
+    Emerald_Blade = 1976
     Enchanted_Lodestone = 431
     Enchanted_Vine = 834
     Encrusted_Lodestone = 451
     Encrypted_Charr_Battle_Plans = 27976
     Enslavement_Stone = 532
+    Envoy_Axe = 36679
     Envoy_Scythe = 36677
+    Envoy_Staff_Divine = 36674
+    Envoy_Sword = 36670
     Equipment_Requisition = 5817
     Essence_Of_Celerity = 24859
+    Eternal_Blade = 1045
+    Eternal_Bow = 133
     Evennia_Mini = 35128
     Everlasting_Mobstopper = 32558
     Expert_Salvage_Kit = 2991
@@ -1465,6 +1477,7 @@ class ModelID(IntEnum):
     Mischievious_Tonic = 31020
     Mischievous_Summon = 31022
     Modniir_Mane = 27043
+    Moldavite_Staff = 2328
     Molten_Claw = 503
     Molten_Eye = 506
     Molten_Heart = 514
@@ -1499,12 +1512,14 @@ class ModelID(IntEnum):
     Nornbear_Mini = 32519
     Oath_Of_Purity = 30206
     Obsidian_Burrower_Jaw = 472
+    Obsidian_Edge = 1900
     Obsidian_Key = 5971
     Obsidian_Shard = 945
     Oni_Claw = 817
     Oni_Mini = 15516
     Oni_Talon = 831
     Onyx_Gemstone = 936
+    Onyx_Scepter = 2394
     Oola_Mini = 34396
     Ooze_Mini = 30618
     Ophil_Nahualli_Mini = 34392
@@ -1623,6 +1638,7 @@ class ModelID(IntEnum):
     Shard_Wolf_Mini = 34389
     Shield_Handle = 15554
     Shimmering_Essence = 24633
+    Shimmering_Scale = 2566
     Shing_Jea_Key = 6537
     Shining_Blade_Ration = 35127
     Shining_Blade_Summon = 35126
@@ -1637,6 +1653,7 @@ class ModelID(IntEnum):
     Silver_Bullion_Coin = 1579
     Silver_Crimson_Skull_Coin = 808  
     Silver_Zaishen_Coin = 31204
+    Silverwing_Recurve_Bow = 2039
     Singed_Gargoyle_Skull = 480
     Sinister_Automatonic_Tonic = 4730
     Skale_Claw = 1604
@@ -1681,11 +1698,14 @@ class ModelID(IntEnum):
     Stone_Summit_Badge = 502
     Stone_Summit_Emblem = 27044
     Stoneroot_Key = 6536
+    Storm_Bow = 145
+    Storm_Daggers = 1986
     Stormy_Eye = 477
     Strategists_Zaishen_Strongbox = 36668
     Stygian_Gemstone = 21129
     Sugary_Blue_Drink = 21812
     Summit_Giant_Herder = 34391
+    Suntouched_Staff = 2381
     Superb_Charr_Carving = 27052
     Superior_Identification_Kit = 5899
     Superior_Salvage_Kit = 5900
@@ -1696,6 +1716,7 @@ class ModelID(IntEnum):
     Tempered_Glass_Vial = 939
     Temple_Guardian_Mini = 13792
     Tengu_Summon = 30209
+    Tentacle_Scythe = 2063
     Terrorweb_Dryder_Mini = 32518
     Thorn_Wolf_Mini = 22766
     Thorny_Carapace = 467
@@ -1727,6 +1748,7 @@ class ModelID(IntEnum):
     Vial_Of_Ink = 944
     Victory_Token = 18345
     Vizu_Mini = 22196
+    Voltaic_Spear = 2071
     Wand = 15552
     War_Supplies = 35121
     Warden_Horn = 822
@@ -1752,6 +1774,7 @@ class ModelID(IntEnum):
     Wintergreen_Sword = 16130
     Wintergreen_Wand = 15840
     Wintersday_Gift = 21491
+    Wingcrest_Maul = 2048
     Witchs_Brew = 6049
     Wood_Plank = 946
     Word_Of_Madness_Mini = 32516

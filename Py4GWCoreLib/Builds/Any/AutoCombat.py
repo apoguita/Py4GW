@@ -1,4 +1,3 @@
-
 from Py4GWCoreLib import Map
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib import ConsoleLog
@@ -9,12 +8,14 @@ from Py4GWCoreLib import SkillManager
 
 #region SFAssassinVaettir
 class AutoCombat(BuildMgr):
-    def __init__(self):
+    def __init__(self, match_only: bool = False):
         super().__init__(
             name="AutoCombat",
             template_code="AUTOHANDLER",
             is_fallback_candidate=True,
         )
+        if match_only:
+            return
         self.auto_combat_handler: SkillManager.Autocombat = SkillManager.Autocombat()
 
     def ApplyBlockedSkillIDs(self, blocked_skill_ids: list[int] | None = None) -> None:

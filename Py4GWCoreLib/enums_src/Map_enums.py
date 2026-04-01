@@ -236,6 +236,7 @@ outposts = {
     467: "Rollerbeetle Racing outpost",
     469: "Gate of Fear",
     473: "Gate of Secrets",
+    474: "Gate of Anguish",
     476: "Jennurs Horde outpost",
     477: "Nundu Bay outpost",
     478: "Gate of Desolation outpost",
@@ -716,6 +717,9 @@ map_variants_to_base: dict[int, int] = {
     818: 449,  # Kamadan Jewel of Istan - Halloween
     819: 449,  # Kamadan Jewel of Istan - Wintersday
     820: 449,  # Kamadan Jewel of Istan - Canthan New Year
+    
+    #War in Kryta variants
+    837: 17,  # Talmark Wilderness - War in Kryta
     
     # Eye of the North variants -> base EotN (642)
     821: 642,  # Eye of the North outpost - Wintersday

@@ -29,6 +29,7 @@ class ItemUpgradeType(IntEnum):
     AppliesToRune = 5
     
 class ModifierIdentifier(IntEnum):
+    None_ = 0x0
     Armor1 = 0x27b
     Armor2 = 0x23c
     ArmorEnergyRegen = 0x22e

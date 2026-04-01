@@ -1,20 +1,19 @@
-from typing import List, Any, Generator, Callable, override
+from typing import Any, Generator, override
 
 import PyImGui
 
-from Py4GWCoreLib import GLOBAL_CACHE, Player, Routines, Range
+from Py4GWCoreLib import Player, Range
 from Sources.oazix.CustomBehaviors.PersistenceLocator import PersistenceLocator
 from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Sources.oazix.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Sources.oazix.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Sources.oazix.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Sources.oazix.CustomBehaviors.primitives.helpers.targeting_order import TargetingOrder
-from Sources.oazix.CustomBehaviors.primitives.scores.score_per_agent_quantity_definition import ScorePerAgentQuantityDefinition
 from Sources.oazix.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
-from Sources.oazix.CustomBehaviors.primitives.skills.bonds.custom_buff_multiple_target import CustomBuffMultipleTarget
 from Sources.oazix.CustomBehaviors.primitives.skills.bonds.custom_buff_target_per_profession import BuffConfigurationPerProfession
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
+from Sources.oazix.CustomBehaviors.skills.plugins.targeting_modifiers.buff_configurator import BuffConfigurator
 
 class DarkAuraUtility(CustomSkillUtilityBase):
 
@@ -34,18 +33,10 @@ class DarkAuraUtility(CustomSkillUtilityBase):
             mana_required_to_cast=mana_required_to_cast,
             allowed_states=allowed_states)
 
-        self.score_definition: ScorePerAgentQuantityDefinition = score_definition
+        self.score_definition: ScoreStaticDefinition = score_definition
 
         # Use the buff configuration helper. Choose a sensible default config; change to per-profession if desired.
-        data: str | None = PersistenceLocator().skills.read(self.custom_skill.skill_name, "buff_configuration")
-        if data is not None:
-            self.buff_configuration: CustomBuffMultipleTarget = CustomBuffMultipleTarget.instanciate_from_string(self.event_bus, self.custom_skill, data)
-        else:
-            self.buff_configuration: CustomBuffMultipleTarget = CustomBuffMultipleTarget(
-                event_bus,
-                self.custom_skill,
-                buff_configuration_per_profession=BuffConfigurationPerProfession.BUFF_CONFIGURATION_ALL
-            )
+        self.add_plugin_targetting_modifier(lambda x: BuffConfigurator(event_bus, self.custom_skill, buff_configuration_per_profession= BuffConfigurationPerProfession.BUFF_CONFIGURATION_ALL))
 
         self.soul_taker_skill = CustomSkill("Soul_Taker")
         self.masochism_skill = CustomSkill("Masochism")
@@ -65,7 +56,7 @@ class DarkAuraUtility(CustomSkillUtilityBase):
         def condition(agent_id: int) -> bool:
             if Player.GetAgentID() == agent_id:
                 return False
-            if not self.buff_configuration.get_agent_id_predicate()(agent_id):
+            if not self.get_plugin_targeting_modifiers_filtering_predicate()(agent_id):
                 return False
             if not has_not_dark_aura(agent_id):
                 return False
@@ -85,51 +76,22 @@ class DarkAuraUtility(CustomSkillUtilityBase):
 
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
-
         target = self._get_target()
         if target is None: return None
         return self.score_definition.get_score()
 
     @override
     def _execute(self, state: BehaviorState) -> Generator[Any, None, BehaviorResult]:
-
         target = self._get_target()
         if target is None: return BehaviorResult.ACTION_SKIPPED
         result = yield from custom_behavior_helpers.Actions.cast_skill_to_target(self.custom_skill, target)
         return result
-
-    @override
-    def get_buff_configuration(self) -> CustomBuffMultipleTarget | None:
-        return self.buff_configuration
     
     @override
     def customized_debug_ui(self, current_state: BehaviorState) -> None:
         self.require_soul_taker_or_masochism = PyImGui.checkbox("require_soul_taker_or_masochism##require_soul_taker_or_masochism", self.require_soul_taker_or_masochism)
-
         target = self._get_target()
         if target is not None:
             PyImGui.bullet_text(f"target : {target}")
         else:
             PyImGui.bullet_text(f"no target found")
-
-    @override
-    def has_persistence(self) -> bool:
-        return True
-
-    @override
-    def persist_configuration_for_account(self):
-        PersistenceLocator().skills.write_for_account(str(self.custom_skill.skill_name), "buff_configuration", self.buff_configuration.serialize_to_string())
-        PersistenceLocator().skills.write_for_account(str(self.custom_skill.skill_name), "require_soul_taker_or_masochism", "1" if self.require_soul_taker_or_masochism else "0")
-        print("configuration saved for account")
-
-    @override
-    def persist_configuration_as_global(self):
-        PersistenceLocator().skills.write_global(str(self.custom_skill.skill_name), "buff_configuration", self.buff_configuration.serialize_to_string())
-        PersistenceLocator().skills.write_global(str(self.custom_skill.skill_name), "require_soul_taker_or_masochism", "1" if self.require_soul_taker_or_masochism else "0")
-        print("configuration saved as global")
-
-    @override
-    def delete_persisted_configuration(self):
-        PersistenceLocator().skills.delete(str(self.custom_skill.skill_name), "buff_configuration")
-        PersistenceLocator().skills.delete(str(self.custom_skill.skill_name), "require_soul_taker_or_masochism")
-        print("configuration deleted")

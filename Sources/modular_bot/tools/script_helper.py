@@ -26,6 +26,29 @@ _single_step_running = False
 _single_step_status = ""
 _single_step_input = '{"type": "auto_path", "name": "move it", "points": [[]], "pause_on_combat": true},'
 _single_step_payload = None
+DEBUG_LOGGING = False
+
+
+def _debug_log(message: str) -> None:
+    if not DEBUG_LOGGING:
+        return
+    ConsoleLog("Script Helper", message)
+
+
+def _sync_engine_upkeep(bot: Botting) -> None:
+    """Keep helper runner from unintentionally toggling HeroAI off."""
+    try:
+        from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
+
+        handler = get_widget_handler()
+        hero_ai_enabled = bool(handler.is_widget_enabled("HeroAI"))
+        if bot.Properties.exists("hero_ai"):
+            bot.Properties.ApplyNow("hero_ai", "active", hero_ai_enabled)
+        if hero_ai_enabled and bot.Properties.exists("auto_combat"):
+            # Avoid running auto-combat upkeep at the same time as HeroAI.
+            bot.Properties.ApplyNow("auto_combat", "active", False)
+    except Exception as exc:
+        _debug_log(f"Engine upkeep sync failed: {exc}")
 
 
 def _run_test_mission(bot: Botting) -> None:
@@ -46,7 +69,7 @@ def _run_single_step(bot: Botting) -> None:
     try:
         register_step(bot, _single_step_payload, 0, "ScriptHelperSingleStep")
     except Exception as exc:
-        ConsoleLog("Script Helper", f"Single step registration failed: {exc}")
+        _debug_log(f"Single step registration failed: {exc}")
     finally:
         _single_step_payload = None
 
@@ -114,15 +137,13 @@ def main():
                 _test_bot.Stop()
                 _test_bot.config.initialized = False
                 _test_bot.config.FSM.reset()
+                _sync_engine_upkeep(_test_bot)
                 _test_bot.Start()
                 _test_running = True
-                ConsoleLog("Script Helper", f"Started mission: {_TEST_MISSION_NAME}")
+                _debug_log(f"Started mission: {_TEST_MISSION_NAME}")
             except FileNotFoundError:
                 _test_running = False
-                ConsoleLog(
-                    "Script Helper",
-                    f"Mission file not found: Sources/modular_bot/missions/{_TEST_MISSION_NAME}.json",
-                )
+                _debug_log(f"Mission file not found: Sources/modular_bot/missions/{_TEST_MISSION_NAME}.json")
         if target_id and Agent.IsValid(target_id):
             target_x, target_y = Agent.GetXY(target_id)
             target_coords = _fmt_xy(target_x, target_y)
@@ -158,7 +179,7 @@ def main():
             except Exception as exc:
                 _single_step_running = False
                 _single_step_status = f"Invalid step JSON: {exc}"
-                ConsoleLog("Script Helper", _single_step_status)
+                _debug_log(_single_step_status)
                 parsed = None
 
             if parsed is not None:
@@ -166,15 +187,16 @@ def main():
                     _single_step_bot.Stop()
                     _single_step_bot.config.initialized = False
                     _single_step_bot.config.FSM.reset()
+                    _sync_engine_upkeep(_single_step_bot)
                     _single_step_payload = parsed
                     _single_step_bot.Start()
                     _single_step_running = True
                     _single_step_status = f"Executing: {parsed.get('type')}"
-                    ConsoleLog("Script Helper", f"Executing single step: {parsed}")
+                    _debug_log(f"Executing single step: {parsed}")
                 except Exception as exc:
                     _single_step_running = False
                     _single_step_status = f"Failed to execute step: {exc}"
-                    ConsoleLog("Script Helper", _single_step_status)
+                    _debug_log(_single_step_status)
         if PyImGui.button("Copy Step JSON"):
             PyImGui.set_clipboard_text(str(_single_step_input or ""))
         if _single_step_status:

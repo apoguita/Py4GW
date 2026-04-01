@@ -756,6 +756,8 @@ def tooltip():
 
 
 def main():
+    if Map.IsMapLoading():
+        return
     bot.Update()
     draw_ui()
 

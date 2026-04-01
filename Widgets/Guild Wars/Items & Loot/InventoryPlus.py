@@ -1,5 +1,8 @@
 import PyImGui
 import Py4GW
+import importlib.util
+import os
+import sys
 from Py4GWCoreLib.IniManager import IniManager
 from Py4GWCoreLib.ImGui import ImGui
 from Py4GWCoreLib.py4gwcorelib_src.AutoInventoryHandler import AutoInventoryHandler
@@ -36,11 +39,13 @@ class InventoryInteractionContext:
     # Build this once per frame so colorize and click targeting share the same slot resolution.
     f9_visible: bool = False
     i_visible: bool = False
+    storage_visible: bool = False
     item_data_by_bag_slot: dict[tuple[int, int], ItemSlotData] = field(default_factory=dict)
     bag_sizes: dict[int, int] = field(default_factory=dict)
     i_inventory_frame_id: int = 0
     i_bags_bar_bottom: int = 0
     i_slot_frame_ids: dict[tuple[int, int], int] = field(default_factory=dict)
+    storage_slot_frame_ids: dict[tuple[int, int], int] = field(default_factory=dict)
     
 @dataclass
 class IdentificationSettings:
@@ -868,7 +873,33 @@ def _salvage_all(cfg: SalvageSettings, selected_kit: ItemSlotData | None = None)
     )
 
 
+def _withdraw_all_matching_model_from_storage(model_id: int):
+    from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
+    from Py4GWCoreLib.Py4GWcorelib import Console, ConsoleLog
+    from Py4GWCoreLib.Routines import Routines
+
+    if model_id <= 0:
+        return
+
+    while GLOBAL_CACHE.Inventory.GetModelCountInStorage(model_id) > 0:
+        storage_item_id = GLOBAL_CACHE.Inventory.GetfirstModelIDInStorage(model_id)
+        if storage_item_id == 0:
+            break
+
+        if not GLOBAL_CACHE.Inventory.WithdrawItemFromStorage(storage_item_id):
+            ConsoleLog(
+                "Inventory Plus",
+                f"Stopped bulk withdraw for model_id={model_id}; inventory may be full.",
+                Console.MessageType.Warning,
+            )
+            break
+
+        yield from Routines.Yield.wait(200)
+
+
 class InventoryPlusWidget:
+    XUNLAI_WINDOW_FRAME_HASH = 2315448754
+
     def __init__(self):
         from Py4GWCoreLib.UIManager import FrameInfo
         from Py4GWCoreLib.enums_src.Model_enums import ModelID
@@ -893,6 +924,23 @@ class InventoryPlusWidget:
         self.i_inventory_slot_prefix_cache: list[tuple[int, ...]] = []
         self.pop_up_open: bool = False
         self.show_config_window: bool = False
+        # Tracks WidgetManager-driven configure() sessions so Close can end config mode cleanly.
+        self._configure_session_active: bool = False
+        self._xunlai_manager_bridge = None
+        self._xunlai_manager_bridge_error: str | None = None
+        self._xunlai_manager_bridge_path: str | None = None
+        self._xunlai_manager_bridge_mtime: float | None = None
+        self._source_mtime: float | None = None
+        self._xunlai_sort_anchor_side: str | None = None
+        self._xunlai_storage_visible_last_frame: bool = False
+        self._xunlai_sort_icon_path = os.path.join(
+            Py4GW.Console.get_projects_path(),
+            "Sources",
+            "frenkeyLib",
+            "LootEx",
+            "textures",
+            "xunlai_chest.png",
+        )
         
         self.PopUps: dict[str, ModelPopUp] = {}
         self.model_id_to_name = {member.value: name for name, member in ModelID.__members__.items()}
@@ -906,6 +954,237 @@ class InventoryPlusWidget:
         self.merchant_sell_quantities: dict[int, int] = {}
         
         self._init_popups()
+
+    def _get_xunlai_manager_bridge(self):
+        from Py4GWCoreLib.Py4GWcorelib import Console, ConsoleLog
+
+        module_name = "_inventoryplus_xunlai_manager_bridge"
+
+        candidate_paths = []
+        current_file = globals().get("__file__", "")
+        if current_file:
+            candidate_paths.append(os.path.join(os.path.dirname(current_file), "Xunlaimanager.py"))
+        candidate_paths.append(
+            os.path.join(
+                Py4GW.Console.get_projects_path(),
+                "Widgets",
+                "Guild Wars",
+                "Items & Loot",
+                "Xunlaimanager.py",
+            )
+        )
+
+        module_path = ""
+        for candidate_path in candidate_paths:
+            if candidate_path and os.path.exists(candidate_path):
+                module_path = candidate_path
+                break
+
+        if not module_path:
+            self._xunlai_manager_bridge_error = "Xunlaimanager.py not found"
+            ConsoleLog("Inventory Plus", self._xunlai_manager_bridge_error, Console.MessageType.Warning)
+            return None
+
+        try:
+            module_mtime = os.path.getmtime(module_path)
+        except OSError:
+            module_mtime = None
+
+        if (
+            self._xunlai_manager_bridge is not None
+            and self._xunlai_manager_bridge_path == module_path
+            and self._xunlai_manager_bridge_mtime == module_mtime
+        ):
+            return self._xunlai_manager_bridge
+
+        sys.modules.pop(module_name, None)
+
+        spec = importlib.util.spec_from_file_location(module_name, module_path)
+        if spec is None or spec.loader is None:
+            self._xunlai_manager_bridge_error = f"Failed to load import spec for {module_path}"
+            ConsoleLog("Inventory Plus", self._xunlai_manager_bridge_error, Console.MessageType.Warning)
+            return None
+
+        try:
+            module = importlib.util.module_from_spec(spec)
+            sys.modules[module_name] = module
+            spec.loader.exec_module(module)
+            self._xunlai_manager_bridge = module
+            self._xunlai_manager_bridge_path = module_path
+            self._xunlai_manager_bridge_mtime = module_mtime
+            self._xunlai_manager_bridge_error = None
+        except Exception as exc:
+            sys.modules.pop(module_name, None)
+            self._xunlai_manager_bridge = None
+            self._xunlai_manager_bridge_path = None
+            self._xunlai_manager_bridge_mtime = None
+            self._xunlai_manager_bridge_error = f"Failed to load Xunlai Manager bridge: {exc}"
+            ConsoleLog("Inventory Plus", self._xunlai_manager_bridge_error, Console.MessageType.Error)
+        return self._xunlai_manager_bridge
+
+    def _refresh_runtime_if_source_changed(self) -> None:
+        current_file = globals().get("__file__", "")
+        if not current_file or not os.path.exists(current_file):
+            return
+
+        try:
+            current_mtime = os.path.getmtime(current_file)
+        except OSError:
+            return
+
+        if self._source_mtime is None:
+            self._source_mtime = current_mtime
+            return
+
+        if current_mtime == self._source_mtime:
+            return
+
+        self._source_mtime = current_mtime
+        self._xunlai_manager_bridge = None
+        self._xunlai_manager_bridge_error = None
+        self._xunlai_manager_bridge_path = None
+        self._xunlai_manager_bridge_mtime = None
+
+    def _draw_xunlai_sort_button(self, context: InventoryInteractionContext) -> None:
+        from Py4GWCoreLib.UIManager import UIManager
+
+        if not context.storage_visible:
+            self._xunlai_storage_visible_last_frame = False
+            self._xunlai_sort_anchor_side = None
+            return
+
+        left, top, right, bottom = UIManager.GetFrameCoords(self.XUNLAI_WINDOW_FRAME_HASH)
+        if right <= left or bottom <= top:
+            return
+        if (right - left) < 100 or (bottom - top) < 100:
+            return
+
+        bridge = self._get_xunlai_manager_bridge()
+        if bridge is None:
+            return
+
+        ensure_loaded = getattr(bridge, "_ensure_account_settings_loaded", None)
+        if callable(ensure_loaded):
+            ensure_loaded()
+
+        get_bags = getattr(bridge, "_get_available_storage_bags", None)
+        start_sort = getattr(bridge, "_start_sort_task", None)
+        process_sort = getattr(bridge, "_process_sort_task", None)
+        if not callable(get_bags) or not callable(start_sort) or not callable(process_sort):
+            return
+
+        if getattr(bridge, "_sort_task_state", None) is not None:
+            process_sort()
+
+        anniversary_unlocked = bool(getattr(bridge, "ANNIVERSARY_SLOT_UNLOCKED", False))
+        available_storage_bags = get_bags(anniversary_unlocked)
+        sort_running = getattr(bridge, "_sort_task_state", None) is not None
+        progress_text = str(getattr(bridge, "_sort_progress_text", "") or "")
+        progress_ratio = float(getattr(bridge, "_sort_progress_ratio", 0.0) or 0.0)
+        icon_label = "XunlaiChestSort"
+        icon_button_size = 22
+        progress_width = 84
+        icon_window_width = 30
+        progress_window_width = 96
+        outer_gap = 18
+        io = PyImGui.get_io()
+        display_width = float(getattr(io, "display_size_x", 0.0) or 0.0)
+        if not self._xunlai_storage_visible_last_frame or self._xunlai_sort_anchor_side is None:
+            required_width = progress_window_width if sort_running else icon_window_width
+            right_space = max(0.0, display_width - right) if display_width > 0 else right
+            left_space = max(0.0, left)
+            if right_space >= required_width + outer_gap:
+                self._xunlai_sort_anchor_side = "right"
+            elif left_space >= required_width + outer_gap:
+                self._xunlai_sort_anchor_side = "left"
+            else:
+                self._xunlai_sort_anchor_side = "right" if right_space >= left_space else "left"
+            self._xunlai_storage_visible_last_frame = True
+
+        icon_x = right + outer_gap
+        if self._xunlai_sort_anchor_side == "left":
+            icon_x = left - icon_window_width - outer_gap
+
+        icon_x = max(0.0, icon_x)
+        icon_y = max(0.0, top)
+        window_flags = (
+            PyImGui.WindowFlags.AlwaysAutoResize |
+            PyImGui.WindowFlags.NoTitleBar |
+            PyImGui.WindowFlags.NoResize |
+            PyImGui.WindowFlags.NoScrollbar |
+            PyImGui.WindowFlags.NoScrollWithMouse
+        )
+
+        PyImGui.set_next_window_pos(icon_x, icon_y)
+        PyImGui.set_next_window_size(icon_window_width, 0)
+        if PyImGui.begin("##InventoryPlusXunlaiSortButton", True, window_flags):
+            PyImGui.push_style_var2(PyImGui.ImGuiStyleVar.FramePadding, 1, 1)
+            use_texture_button = os.path.exists(self._xunlai_sort_icon_path)
+            if sort_running:
+                PyImGui.begin_disabled(True)
+                if use_texture_button:
+                    PyImGui.invisible_button(f"##{icon_label}_disabled", icon_button_size, icon_button_size)
+                    item_rect_min = PyImGui.get_item_rect_min()
+                    ImGui.DrawTextureInDrawList(
+                        item_rect_min,
+                        (icon_button_size, icon_button_size),
+                        self._xunlai_sort_icon_path,
+                        tint=(220, 220, 220, 255),
+                    )
+                else:
+                    PyImGui.button("S##SortChest", icon_button_size, icon_button_size)
+                PyImGui.end_disabled()
+                if PyImGui.is_item_hovered():
+                    tooltip_text = progress_text if progress_text else "Sorting Chest"
+                    PyImGui.set_tooltip(tooltip_text)
+            else:
+                clicked = False
+                if use_texture_button:
+                    clicked = PyImGui.invisible_button(f"##{icon_label}", icon_button_size, icon_button_size)
+                    item_rect_min = PyImGui.get_item_rect_min()
+                    tint = (255, 255, 255, 255) if PyImGui.is_item_hovered() else (235, 235, 235, 255)
+                    ImGui.DrawTextureInDrawList(
+                        item_rect_min,
+                        (icon_button_size, icon_button_size),
+                        self._xunlai_sort_icon_path,
+                        tint=tint,
+                    )
+                else:
+                    clicked = PyImGui.button("S##SortChest", icon_button_size, icon_button_size)
+                if clicked and len(available_storage_bags) > 0:
+                    start_sort(available_storage_bags)
+                if PyImGui.is_item_hovered():
+                    PyImGui.set_tooltip("Sort Chest")
+            PyImGui.pop_style_var(1)
+        PyImGui.end()
+
+        if not sort_running:
+            return
+
+        progress_x = right + outer_gap
+        if self._xunlai_sort_anchor_side == "left":
+            progress_x = left - progress_window_width - outer_gap
+
+        progress_x = max(0.0, progress_x)
+        progress_y = icon_y + icon_window_width + 6
+        PyImGui.set_next_window_pos(progress_x, progress_y)
+        PyImGui.set_next_window_size(progress_window_width, 0)
+
+        if PyImGui.begin("##InventoryPlusXunlaiSortProgress", True, window_flags):
+            if progress_text:
+                PyImGui.text_wrapped(progress_text)
+            PyImGui.progress_bar(progress_ratio, progress_width, 0, "")
+        PyImGui.end()
+
+    def _close_config_window(self) -> None:
+        """Close the config window and clear WidgetManager configure mode."""
+        self.show_config_window = False
+        self._configure_session_active = False
+        try:
+            from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
+            get_widget_handler().set_widget_configuring("InventoryPlus", False)
+        except Exception:
+            pass
 
     def _init_popups(self):
         self.PopUps["Identification ModelID Lookup"] = ModelPopUp(
@@ -1269,6 +1548,50 @@ class InventoryPlusWidget:
     def _draw_generic_item_menu_item(self, selected_item: ItemSlotData | None = None):
         from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
         from Py4GWCoreLib.Routines import Routines
+        from Py4GWCoreLib.enums_src.Item_enums import Bags
+
+        is_storage_item = (
+            selected_item is not None
+            and Bags.Storage1 <= selected_item.BagID <= Bags.Storage14
+        )
+
+        if is_storage_item:
+            withdraw_label = "Withdraw Item"
+            if selected_item.Quantity > 1:
+                withdraw_label = f"Withdraw Stack ({selected_item.Quantity})"
+
+            if PyImGui.menu_item(withdraw_label):
+                GLOBAL_CACHE.Inventory.WithdrawItemFromStorage(selected_item.ItemID)
+                PyImGui.close_current_popup()
+
+            if PyImGui.menu_item("Withdraw All Same ModelID"):
+                routine = cast(
+                    Generator[Any, None, None],
+                    _withdraw_all_matching_model_from_storage(selected_item.ModelID),
+                )
+                GLOBAL_CACHE.Coroutines.append(routine)
+                PyImGui.close_current_popup()
+
+            PyImGui.separator()
+        
+        if is_storage_item:
+            label = "Disable Colorize" if self.colorize_settings.enable_colorize else "Enable Colorize"
+            if PyImGui.menu_item(label):
+                self._toggle_colorize_enabled()
+                PyImGui.close_current_popup()
+            label = "Disable 'I' Window" if self.inventory_window_settings.enable_i_window else "Enable 'I' Window"
+            if PyImGui.menu_item(label):
+                self._toggle_i_window_enabled()
+                PyImGui.close_current_popup()
+            PyImGui.separator()
+            label = "Disable Auto Inventory" if self.auto_inventory_handler.module_active else "Enable Auto Inventory"
+            if PyImGui.menu_item(label):
+                self._toggle_auto_inventory_enabled()
+                PyImGui.close_current_popup()
+            if PyImGui.menu_item("Config Window"):
+                self.show_config_window = True
+                PyImGui.close_current_popup()
+            return
         
         if selected_item and not selected_item.IsIdentified:
             if PyImGui.menu_item("Identify"):
@@ -1297,8 +1620,16 @@ class InventoryPlusWidget:
                     _queue_salvage_routine([selected_item.ItemID], label="Salvage Single")
                     PyImGui.close_current_popup()
             # ---------------------------------------------------------------
-        
+
         if selected_item:
+            destroy_label = "Destroy Item"
+            if selected_item.Quantity > 1:
+                destroy_label = f"Destroy Stack ({selected_item.Quantity})"
+
+            if PyImGui.menu_item(destroy_label):
+                GLOBAL_CACHE.Inventory.DestroyItem(selected_item.ItemID)
+                PyImGui.close_current_popup()
+
             if PyImGui.menu_item("Deposit"):
                 GLOBAL_CACHE.Inventory.DepositItemToStorage(selected_item.ItemID)
                 PyImGui.close_current_popup()
@@ -1439,8 +1770,9 @@ class InventoryPlusWidget:
         context = InventoryInteractionContext(
             f9_visible=UIManager.IsWindowVisible(WindowID.WindowID_InventoryBags),
             i_visible=self.inventory_window_settings.enable_i_window and UIManager.IsWindowVisible(WindowID.WindowID_Inventory),
+            storage_visible=UIManager.FrameExists(self.XUNLAI_WINDOW_FRAME_HASH),
         )
-        if not context.f9_visible and not context.i_visible:
+        if not context.f9_visible and not context.i_visible and not context.storage_visible:
             return context
 
         self.InventorySlots.clear()
@@ -1485,8 +1817,56 @@ class InventoryPlusWidget:
                     )
                 )
 
+        if context.storage_visible:
+            for bag_id in range(Bags.Storage1, Bags.Storage14 + 1):
+                try:
+                    bag_instance = PyInventory.Bag(bag_id, str(bag_id))
+                    bag_instance.GetContext()
+                    context.bag_sizes[bag_id] = bag_instance.GetSize()
+                except Exception:
+                    context.bag_sizes[bag_id] = 0
+
+                bag_to_check = ItemArray.CreateBagList(bag_id)
+                item_array = ItemArray.GetItemArray(bag_to_check)
+
+                for item_id in item_array:
+                    item_instance = Item.item_instance(item_id)
+                    item = ItemSlotData(
+                        BagID=bag_id,
+                        Slot=item_instance.slot,
+                        ItemID=item_id,
+                        Rarity=item_instance.rarity.name,
+                        IsIdentified=item_instance.is_identified,
+                        IsIDKit=item_instance.is_id_kit,
+                        IsSalvageKit=item_instance.is_salvage_kit,
+                        ModelID=item_instance.model_id,
+                        Quantity=item_instance.quantity,
+                        Value=item_instance.value,
+                    )
+                    context.item_data_by_bag_slot[(bag_id, item.Slot)] = item
+
+                    slot_frame_id = self._resolve_storage_slot_frame_id(bag_id, item.Slot)
+                    if slot_frame_id != 0:
+                        context.storage_slot_frame_ids[(bag_id, item.Slot)] = slot_frame_id
+
         self._populate_i_inventory_context(context)
         return context
+
+    def _resolve_storage_slot_frame_id(self, bag_id: int, slot: int) -> int:
+        from Py4GWCoreLib.enums_src.Item_enums import Bags
+        from Py4GWCoreLib.UIManager import UIManager
+
+        if bag_id < Bags.Storage1 or bag_id > Bags.Storage14:
+            return 0
+
+        tab_index = bag_id - Bags.Storage1
+        slot_frame_id = UIManager.GetChildFrameID(
+            self.XUNLAI_WINDOW_FRAME_HASH,
+            [0, tab_index, slot + 2],
+        )
+        if slot_frame_id == 0 or not UIManager.FrameExists(slot_frame_id):
+            return 0
+        return slot_frame_id
 
     def _populate_i_inventory_context(self, context: InventoryInteractionContext) -> None:
         from Py4GWCoreLib.UIManager import FrameInfo
@@ -1740,7 +2120,40 @@ class InventoryPlusWidget:
         item, hit, source = self._resolve_f9_inventory_hit(context)
         if hit:
             return item, hit, source
-        return self._resolve_i_inventory_hit(context, mouse_x, mouse_y)
+        item, hit, source = self._resolve_i_inventory_hit(context, mouse_x, mouse_y)
+        if hit:
+            return item, hit, source
+        return self._resolve_storage_hit(context, mouse_x, mouse_y)
+
+    def _resolve_storage_hit(
+        self,
+        context: InventoryInteractionContext,
+        mouse_x: float,
+        mouse_y: float,
+    ) -> tuple[ItemSlotData | None, bool, str]:
+        from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
+        from Py4GWCoreLib.UIManager import UIManager
+
+        if not context.storage_visible:
+            return None, False, ""
+
+        if not UIManager.IsMouseOver(self.XUNLAI_WINDOW_FRAME_HASH):
+            return None, False, ""
+
+        hovered_item_id = GLOBAL_CACHE.Inventory.GetHoveredItemID()
+        if hovered_item_id and GLOBAL_CACHE.Item.Type.IsStorageItem(hovered_item_id):
+            for item_data in context.item_data_by_bag_slot.values():
+                if item_data.ItemID == hovered_item_id:
+                    return item_data, True, "storage"
+
+        for bag_slot, slot_frame_id in context.storage_slot_frame_ids.items():
+            left, top, right, bottom = UIManager.GetFrameCoords(slot_frame_id)
+            if mouse_x < left or mouse_x > right or mouse_y < top or mouse_y > bottom:
+                continue
+
+            return context.item_data_by_bag_slot.get(bag_slot), True, "storage"
+
+        return None, False, ""
 
     def DetectInventoryAction(self):
         from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
@@ -1751,11 +2164,12 @@ class InventoryPlusWidget:
 
         # Build shared inventory state first so slot colors and click targeting stay in sync.
         context = self._build_inventory_interaction_context()
-        if not context.f9_visible and not context.i_visible:
+        if not context.f9_visible and not context.i_visible and not context.storage_visible:
             self.selected_item = None
             return
 
         self._draw_colorized_inventory_slots(context)
+        self._draw_xunlai_sort_button(context)
 
         io = PyImGui.get_io()
         mouse_x = io.mouse_pos_x
@@ -2589,7 +3003,7 @@ class InventoryPlusWidget:
                 PyImGui.end_tab_bar()
             PyImGui.separator()
             if PyImGui.button("Close"):
-                self.show_config_window = False
+                self._close_config_window()
             """PyImGui.same_line(0,-1)
             if PyImGui.button("Save & Close"):
                 self.save_to_ini()
@@ -2604,12 +3018,22 @@ InventoryPlusWidgetInstance = InventoryPlusWidget()
 def configure():
     if not InventoryPlusWidgetInstance.initialized:
         return
-    if InventoryPlusWidgetInstance.show_config_window:
+
+    # WidgetManager calls configure() every frame while "configuring" is active.
+    # Open only once per configure-session so the in-window Close button can persist.
+    if not InventoryPlusWidgetInstance._configure_session_active:
+        InventoryPlusWidgetInstance._configure_session_active = True
+        InventoryPlusWidgetInstance.show_config_window = True
         return
-    InventoryPlusWidgetInstance.show_config_window = True
+
+    # When user closes the config window, stop WidgetManager configure mode.
+    if not InventoryPlusWidgetInstance.show_config_window:
+        InventoryPlusWidgetInstance._close_config_window()
 
 
 def main():
+    InventoryPlusWidgetInstance._refresh_runtime_if_source_changed()
+
     if not InventoryPlusWidgetInstance.initialized:
         if not InventoryPlusWidgetInstance._ensure_ini_key():
             return

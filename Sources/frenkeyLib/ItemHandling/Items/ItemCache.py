@@ -4,10 +4,10 @@ import Py4GW
 import PyInventory
 from PyItem import PyItem
 
+from Py4GWCoreLib.Inventory import Inventory
 from Py4GWCoreLib.Item import Bag
+from Py4GWCoreLib.ItemArray import ItemArray
 from Sources.frenkeyLib.ItemHandling.Items.item_snapshot import ItemSnapshot
-
-PERSISTENT = True
 
 class ItemCache:
     def __init__(self):
@@ -18,16 +18,20 @@ class ItemCache:
         self.items = {}
         self.inventory = {}
     
-    def get_item_snapshot(self, item_id: int, item_instance: Optional[PyItem] = None) -> Optional[ItemSnapshot]:
+    def get_item_snapshot(self, item_id: int, item_instance: Optional[PyItem] = None, bag: Optional[Bag] = None) -> Optional[ItemSnapshot]:
         if item_id <= 0:
             return None
         
         if item_id not in self.items:
-            snapshot = ItemSnapshot(item_id, item_instance)
-            if not snapshot.is_valid:
+            snapshot = ItemSnapshot.create(item_id, item_instance, bag)
+            
+            if not snapshot or not snapshot.is_valid:
                 return None
             
             self.items[item_id] = snapshot
+            
+        elif bag is not None:
+            self.items[item_id].__bag = bag
         # else:
         #     self.items[item_id].update()
             
@@ -47,7 +51,8 @@ class ItemCache:
                 slot = item.slot  # real slot of the item
                 bag_snapshot[slot] = self.get_item_snapshot(
                     item.item_id,
-                    item
+                    item,
+                    bag
                 )
 
             self.inventory[bag] = bag_snapshot

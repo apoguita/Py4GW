@@ -178,8 +178,30 @@ class _MULTIBOX:
     def KickAccount(self, account_email: str):
         self._helpers.Multibox.kick_account_by_email(account_email)
 
+    def LeavePartyOnAllAccounts(self):
+        self._helpers.Multibox.leave_party_on_all_accounts()
+
     def AbandonQuest(self, quest_id: int):
         """Abandon a quest for the leader and broadcast to all other accounts via multibox messaging."""
         self._helpers.Multibox.abandon_quest(quest_id)
+
+    def EquipItemOnAccount(self, char_name: str, model_id: int):
+        """Send an equip command for model_id to the account with the given character name."""
+        self._helpers.Multibox.equip_item_on_account(char_name, model_id)
+
+    def EquipItemOnAllAccounts(self, char_name_to_model_id: dict):
+        """Equip armor/items on accounts using a per-character model_id mapping.
+
+        Since each account may have a different model_id for the same armor piece,
+        pass a dict of {character_name: model_id} pairs.
+
+        Example:
+            bot.Multibox.EquipItemOnAllAccounts({
+                "Warrior Dude":  12345,
+                "Necro Gal":     67890,
+                "Ranger Guy":    11111,
+            })
+        """
+        self._helpers.Multibox.equip_item_on_all_accounts(char_name_to_model_id)
 
 #endregion

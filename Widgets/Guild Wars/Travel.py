@@ -126,6 +126,10 @@ priority_outposts = {
     821 : "Eye of the North",
 }
 
+outpost_aliases = {
+    474: ["doa", "domain of anguish"],
+}
+
 window_open = window_module.open = False
 
 widget_handler : WidgetHandler = get_widget_handler()
@@ -491,7 +495,7 @@ def DrawWindow():
                 search_outpost = search                
                 search = search_outpost.lower()
                 
-                filtered_outposts = [(id, outpost) for id, outpost in outposts.items() if not search or search in outpost.lower() or search in generate_initials(outpost).lower()]
+                filtered_outposts = [(id, outpost) for id, outpost in outposts.items() if not search or search in outpost.lower() or search in generate_initials(outpost).lower() or any(search in alias for alias in outpost_aliases.get(id, []))]
                 ## filter priority outposts to the top then alphabetically                
                 # filtered_outposts = sorted(filtered_outposts, key=lambda item: item[1].lower())                
                 filtered_outposts.sort(key=lambda item: (0 if item[0] in priority_outposts else 1, priority_outposts.get(item[0], ""), item[1].lower()))

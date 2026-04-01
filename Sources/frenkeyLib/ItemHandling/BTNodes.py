@@ -1,3 +1,49 @@
+"""
+BT nodes support file notes
+===========================
+
+This file is both:
+- a behavior-tree helper surface for frenkeyLib item handling flows
+- a support layer that builds ready-to-run `BehaviorTree` nodes for inventory,
+  merchant, trader, storage, and crafting actions
+
+Authoring and discovery conventions
+-----------------------------------
+- Keep existing class names as the system-level grouping surface.
+- Use `PascalCase` for public/front-facing routine methods.
+- Use `snake_case` for helper/internal methods.
+- Use `_snake_case` for explicitly private helpers.
+- Treat the structured `Meta:` block as the discovery gate.
+
+Routine docstring template
+--------------------------
+Each routine docstring should use:
+- a free human-readable description first
+- a structured `Meta:` block after it
+
+Template:
+
+    \"\"\"
+    One or more human-readable paragraphs explaining what the routine builds.
+
+    Meta:
+      Expose: true
+      Audience: intermediate
+      Display: Sell Items
+      Purpose: Sell a list of inventory items through the open merchant window.
+      UserDescription: Use this when you want a BT step that sells known item ids.
+      Notes: Keep metadata single-line. Structural truth should stay in code.
+    \"\"\"
+
+Docstring parsing rules
+-----------------------
+- Only the `Meta:` section is intended for machine parsing.
+- Keep metadata lines single-line and in `Key: Value` form.
+- Unknown keys should be safe for tooling to ignore.
+- Prefer adding presentation/help metadata in docstrings instead of duplicating
+  structural metadata that already exists in code.
+"""
+
 from __future__ import annotations
 
 import time
@@ -19,29 +65,72 @@ from Py4GWCoreLib.enums_src.Region_enums import ServerLanguage
 from Py4GWCoreLib.py4gwcorelib_src.BehaviorTree import BehaviorTree
 from Sources.frenkeyLib.ItemHandling.Items.ItemCache import ITEM_CACHE
 from Sources.frenkeyLib.ItemHandling.Items.item_snapshot import ItemSnapshot
+from Sources.frenkeyLib.ItemHandling.Items.types import INVENTORY_BAGS, STORAGE_BAGS
 from Sources.frenkeyLib.ItemHandling.Rules.types import MATERIAL_SLOTS, SalvageMode
 from Sources.frenkeyLib.ItemHandling.UIManagerExtensions import UIManagerExtensions
 from Sources.frenkeyLib.ItemHandling.utility import GetDestinationSlots, GetItemsLocations, HasSpaceForItem
 
-INVENTORY_BAGS = [Bag.Backpack, Bag.Belt_Pouch, Bag.Bag_1, Bag.Bag_2]
-STORAGE_BAGS = [Bag.Storage_1, Bag.Storage_2, Bag.Storage_3, Bag.Storage_4, Bag.Storage_5, Bag.Storage_6, Bag.Storage_7, Bag.Storage_8, Bag.Storage_9, Bag.Storage_10, Bag.Storage_11, Bag.Storage_12, Bag.Storage_13, Bag.Storage_14]
 SALVAGE_WINDOW_HASH = 684387150
 LESSER_CONFIRM_HASH = 140452905
 
 class BTNodes:
+    """
+    Root BT helper catalog for frenkeyLib item-handling routines.
+
+    Meta:
+      Expose: true
+      Audience: advanced
+      Display: BT Nodes
+      Purpose: Group BT helper routines for item handling, trading, storage movement, and crafting flows.
+      UserDescription: Root catalog for frenkeyLib behavior-tree helper routines.
+      Notes: Discovery should start from this class and then inspect grouped helper surfaces marked for exposure.
+    """
     NodeState = BehaviorTree.NodeState
 
     @staticmethod
     def _success_if(condition: bool) -> BehaviorTree.NodeState:
+        """
+        Convert a boolean condition into a success-or-failure node state.
+
+        Meta:
+          Expose: false
+          Audience: advanced
+          Display: Internal Success If Helper
+          Purpose: Normalize simple boolean results into `BehaviorTree.NodeState` values for helper routines.
+          UserDescription: Internal support routine.
+          Notes: Returns success for truthy input and failure for falsy input.
+        """
         return BehaviorTree.NodeState.SUCCESS if condition else BehaviorTree.NodeState.FAILURE
 
     class Merchant:
+        """
+        BT helper group for merchant-window item transactions.
+
+        Meta:
+          Expose: true
+          Audience: advanced
+          Display: Merchant
+          Purpose: Group BT helper routines that buy, sell, and restock items through merchant interactions.
+          UserDescription: Built-in BT helper group for merchant-window actions.
+          Notes: These routines expect the merchant window to already be open when they run.
+        """
         @staticmethod 
         def Restock(
             model_id: int,
             item_type: ItemType,
             quantity: int,
         ):
+            """
+            Build an action node that restocks a merchant item until the requested inventory quantity is met.
+
+            Meta:
+              Expose: true
+              Audience: intermediate
+              Display: Restock
+              Purpose: Buy enough copies of a merchant item to reach a target quantity in inventory.
+              UserDescription: Use this when you want a BT step that tops inventory back up from an open merchant window.
+              Notes: Fails when the merchant window is closed, the item is not offered, there is no space, or the player cannot afford enough stock.
+            """
             def _restock(node: BehaviorTree.Node):
                 if not UIManagerExtensions.IsMerchantWindowOpen():
                     return BehaviorTree.NodeState.FAILURE
@@ -81,6 +170,17 @@ class BTNodes:
             item_ids: list[int],
             aftercast_ms: int = 150,
         ):
+            """
+            Build an action node that sells a list of inventory items through the open merchant window.
+
+            Meta:
+              Expose: true
+              Audience: intermediate
+              Display: Sell Items
+              Purpose: Sell one or more inventory items to the currently open merchant.
+              UserDescription: Use this when you want a BT step that sells known item ids at a merchant.
+              Notes: Ignores invalid or non-inventory items and succeeds only if at least one item is sold.
+            """
             def _sell(node: BehaviorTree.Node):
                 if not UIManagerExtensions.IsMerchantWindowOpen():
                     return BehaviorTree.NodeState.FAILURE
@@ -103,6 +203,17 @@ class BTNodes:
             item_ids_quantities: list[tuple[int, int]],
             aftercast_ms: int = 150,
         ):
+            """
+            Build an action node that buys several offered merchant items with quantity limits.
+
+            Meta:
+              Expose: true
+              Audience: intermediate
+              Display: Buy Items
+              Purpose: Buy one or more offered merchant items while respecting gold and bag-space limits.
+              UserDescription: Use this when you want a BT step that purchases several merchant items in one pass.
+              Notes: Skips items that are unavailable, unaffordable, or cannot fit in inventory, and succeeds only if at least one purchase is made.
+            """
             def _buy(node: BehaviorTree.Node):
                 if not UIManagerExtensions.IsMerchantWindowOpen():  
                     return BehaviorTree.NodeState.FAILURE
@@ -134,8 +245,41 @@ class BTNodes:
             return BehaviorTree.ActionNode(name="Merchant.BuyItems", action_fn=_buy, aftercast_ms=aftercast_ms)
 
     class Trader:
+        """
+        BT helper group for quoted trader buy and sell flows.
+
+        Meta:
+          Expose: true
+          Audience: advanced
+          Display: Trader
+          Purpose: Group BT helper routines that interact with trader quotes and transactional progress state.
+          UserDescription: Built-in BT helper group for trader-window purchase and sale flows.
+          Notes: These routines manage quote polling and transaction confirmation through blackboard state.
+        """
         class TraderProgress:
+            """
+            Internal runtime progress container for multi-step trader transactions.
+
+            Meta:
+              Expose: false
+              Audience: advanced
+              Display: Internal Trader Progress
+              Purpose: Store quote and transaction progress state for trader buy and sell helper routines.
+              UserDescription: Internal support helper class.
+              Notes: This class is blackboard-backed runtime state and not intended for direct discovery.
+            """
             def __init__(self):                
+                """
+                Initialize default trader progress bookkeeping fields.
+
+                Meta:
+                  Expose: false
+                  Audience: advanced
+                  Display: Internal Trader Progress Initializer
+                  Purpose: Set up initial quote, trade, and quantity-tracking fields for trader flows.
+                  UserDescription: Internal support routine.
+                  Notes: Used by trader buy and sell helpers to persist progress across ticks.
+                """
                 self.initial_qty = 0
                 self.current_qty = 0
                 self.desired_qty = 0
@@ -148,6 +292,17 @@ class BTNodes:
                 self.trade_confirmed = False
             
             def reset(self):        
+                """
+                Reset transient quote and trade confirmation fields.
+
+                Meta:
+                  Expose: false
+                  Audience: advanced
+                  Display: Internal Trader Progress Reset Helper
+                  Purpose: Clear quote timing and trade confirmation state while preserving quantity targets.
+                  UserDescription: Internal support routine.
+                  Notes: Used when a trader flow needs to restart a quote-confirmation cycle.
+                """
                 self.quote_requested_at = 0.0
                 self.traded_at = 0.0
                 
@@ -162,6 +317,17 @@ class BTNodes:
             quote_timeout_ms: int = 500,
             aftercast_ms: int = 0,
         ):
+            """
+            Build an action node that buys a trader item by repeatedly requesting quotes until the desired quantity is reached.
+
+            Meta:
+              Expose: true
+              Audience: advanced
+              Display: Buy Item
+              Purpose: Purchase a trader item through the quote-confirmation flow until a target quantity is reached.
+              UserDescription: Use this when you want a BT step that handles trader quote timing automatically for one item.
+              Notes: Stores progress in the blackboard under `trader_buy_progress` and returns running while the quote cycle is active.
+            """
             def _buy(node: BehaviorTree.Node):
                 now = time.monotonic()
                 
@@ -245,6 +411,17 @@ class BTNodes:
             quote_timeout_ms: int = 500,
             aftercast_ms: int = 0,
         ):
+            """
+            Build an action node that sells a trader item through repeated quote-confirmation cycles.
+
+            Meta:
+              Expose: true
+              Audience: advanced
+              Display: Sell Item
+              Purpose: Sell a trader item until the desired quantity has been removed from inventory.
+              UserDescription: Use this when you want a BT step that handles trader sell quotes automatically for one item.
+              Notes: Stores progress in the blackboard under `trader_sell_progress` and returns running while the quote cycle is active.
+            """
             def _sell(node: BehaviorTree.Node):
                 now = time.monotonic()
                 
@@ -318,6 +495,17 @@ class BTNodes:
             return BehaviorTree.ActionNode(name="Trader.SellItems", action_fn=_sell, aftercast_ms=aftercast_ms)
 
     class Items:
+        """
+        BT helper group for inventory item usage, destruction, movement, salvage, and transfer flows.
+
+        Meta:
+          Expose: true
+          Audience: advanced
+          Display: Items
+          Purpose: Group BT helper routines that act on inventory and storage items.
+          UserDescription: Built-in BT helper group for inventory, salvage, storage, and transfer actions.
+          Notes: Includes both direct inventory actions and storage-transfer planning helpers.
+        """
         @staticmethod
         def UseItems(
             item_ids: list[int],
@@ -325,6 +513,17 @@ class BTNodes:
             aftercast_ms: int = 150,
             succeed_if_any_used: bool = True,
         ):
+            """
+            Build an action node that uses one or more inventory items.
+
+            Meta:
+              Expose: true
+              Audience: intermediate
+              Display: Use Items
+              Purpose: Use one or more inventory items, optionally with per-item quantity counts.
+              UserDescription: Use this when you want a BT step that consumes or activates known inventory items.
+              Notes: Invalid items are skipped and success depends on whether any item was actually used.
+            """
             def _use(node: BehaviorTree.Node):
                 if not item_ids:
                     return BehaviorTree.NodeState.FAILURE
@@ -351,6 +550,17 @@ class BTNodes:
             aftercast_ms: int = 150,
             succeed_if_any_dropped: bool = True,
         ):
+            """
+            Build an action node that drops one or more inventory items.
+
+            Meta:
+              Expose: true
+              Audience: intermediate
+              Display: Drop Items
+              Purpose: Drop one or more inventory items onto the ground.
+              UserDescription: Use this when you want a BT step that removes known items from bags by dropping them.
+              Notes: Invalid items are skipped and success depends on whether any item was dropped.
+            """
             def _drop(node: BehaviorTree.Node):
                 if not item_ids:
                     return BehaviorTree.NodeState.FAILURE
@@ -376,6 +586,17 @@ class BTNodes:
             succeed_if_already_identified: bool = True,
             aftercast_ms: int = 150,
         ):
+            """
+            Build an action node that identifies one or more inventory items.
+
+            Meta:
+              Expose: true
+              Audience: intermediate
+              Display: Identify Items
+              Purpose: Identify inventory items using the first available identification kit.
+              UserDescription: Use this when you want a BT step that identifies a known set of items.
+              Notes: Supports configurable behavior when no kit is found or items were already identified.
+            """
             def _identify(node: BehaviorTree.Node):
                 if not item_ids:
                     return BehaviorTree.NodeState.FAILURE
@@ -405,6 +626,17 @@ class BTNodes:
             aftercast_ms: int = 100,
             succeed_always: bool = True,
         ):
+            """
+            Build an action node that destroys one or more inventory items.
+
+            Meta:
+              Expose: true
+              Audience: intermediate
+              Display: Destroy Items
+              Purpose: Destroy one or more inventory items by item id.
+              UserDescription: Use this when you want a BT step that deletes known items from inventory.
+              Notes: Can be configured to succeed even when no item was actually destroyed.
+            """
             def _destroy(node: BehaviorTree.Node):
                 if not item_ids:
                     return BehaviorTree.NodeState.FAILURE
@@ -415,6 +647,7 @@ class BTNodes:
                     if item is None or not item.is_valid or not item.is_inventory_item:
                         continue
                     
+                    Py4GW.Console.Log(node.name, f"Destroying '{item.names.full}' (ID: {item.id}) from bag {item.bag.name} slot {item.slot} quantity {item.quantity}")
                     Inventory.DestroyItem(item.id)
                     destroyed_any = True
 
@@ -423,7 +656,29 @@ class BTNodes:
             return BehaviorTree.ActionNode(name="Items.DestroyItems", action_fn=_destroy, aftercast_ms=aftercast_ms)
 
         class SavalvageProgress():
+            """
+            Internal runtime progress container for salvage operations.
+
+            Meta:
+              Expose: false
+              Audience: advanced
+              Display: Internal Salvage Progress
+              Purpose: Store salvage timing, desired quantity, and confirmation state across ticks.
+              UserDescription: Internal support helper class.
+              Notes: This class is runtime-only salvage bookkeeping and not intended for discovery.
+            """
             def __init__(self, item_id: int, salvage_started_at: float, initial_qty: int, salvage_amount: int):
+                """
+                Initialize salvage progress tracking for one target item.
+
+                Meta:
+                  Expose: false
+                  Audience: advanced
+                  Display: Internal Salvage Progress Initializer
+                  Purpose: Set up the initial salvage state for a single item and target salvage amount.
+                  UserDescription: Internal support routine.
+                  Notes: Tracks desired quantity reduction and the timing of salvage UI confirmations.
+                """
                 self.item_id = item_id
                 self.salvage_started_at = salvage_started_at
                 self.initial_qty = initial_qty
@@ -442,6 +697,17 @@ class BTNodes:
             timeout_ms_per_item: int = 1500,
             aftercast_ms: int = 0,
         ):
+            """
+            Build an action node that salvages an item using the requested salvage mode and UI flow.
+
+            Meta:
+              Expose: true
+              Audience: advanced
+              Display: Salvage Item
+              Purpose: Drive the salvage window workflow for a target item until the requested salvage completes or fails.
+              UserDescription: Use this when you want a BT step that manages salvage UI and progress automatically for one item.
+              Notes: Stores runtime state in the blackboard, supports expert or lesser kits, and returns running while the salvage flow is in progress.
+            """
             def _reset_state(node: BehaviorTree.Node):
                 node.blackboard.pop(state_key, None)
             
@@ -581,7 +847,29 @@ class BTNodes:
             return BehaviorTree.ActionNode(name="Items.SalvageItems", action_fn=_salvage, aftercast_ms=aftercast_ms)
 
         class ItemTransferInstructions:
+            """
+            Internal transfer-plan entry describing how much item quantity should move into one destination slot.
+
+            Meta:
+              Expose: false
+              Audience: advanced
+              Display: Internal Item Transfer Instructions
+              Purpose: Represent one target bag-slot destination and the item quantities that should be moved there.
+              UserDescription: Internal support helper class.
+              Notes: Used by storage and inventory transfer planning helpers before actual move actions are issued.
+            """
             def __init__(self, bag: Bag, slot: int, stack_item: Optional[ItemSnapshot], available_space: int = MAX_STACK_SIZE):                
+                """
+                Initialize a transfer instruction for one destination slot.
+
+                Meta:
+                  Expose: false
+                  Audience: advanced
+                  Display: Internal Item Transfer Instructions Initializer
+                  Purpose: Set up destination bag, slot, stack context, and available space for item transfer planning.
+                  UserDescription: Internal support routine.
+                  Notes: Available space is reduced automatically when the destination already contains a partial stack.
+                """
                 self.bag = bag
                 self.slot = slot
                 self.stack_item = stack_item                
@@ -596,6 +884,17 @@ class BTNodes:
             quantities: Optional[list[int]] = None,
             fill_materials_first: bool = False,
         ) -> dict[Bag, dict[int, BTNodes.Items.ItemTransferInstructions]]:
+            """
+            Build a destination-slot transfer plan for moving items into target bags.
+
+            Meta:
+              Expose: true
+              Audience: advanced
+              Display: Get Transfer Instructions
+              Purpose: Compute a bag-slot transfer plan that minimizes fragmentation and respects stack rules.
+              UserDescription: Use this when you need a planning step that figures out where item quantities should move before issuing inventory actions.
+              Notes: Supports inventory-to-storage and storage-to-inventory planning, including optional material-storage prefill behavior.
+            """
             
             locations = GetItemsLocations(item_ids)
             source = list(set(bag for bag, _ in locations))
@@ -644,7 +943,7 @@ class BTNodes:
                                     stack_item.quantity += qty_to_move  # simulate the move in the cache to get correct available space for subsequent stacks of the same item
                                     
                                     if qty <= 0:
-                                        Py4GW.Console.Log("GetTransferInstructions", f"Planned to move {qty_to_move} of '{item.data.names.get(ServerLanguage.English, 'Unknown') if item.data else 'Unknown Item'}' (ID: {item.id}) to Material Storage bag {Bag.Material_Storage.name} slot {slot}")
+                                        Py4GW.Console.Log("GetTransferInstructions", f"Planned to move {qty_to_move} of '{item.names.plain}' (ID: {item.id}) to Material Storage bag {Bag.Material_Storage.name} slot {slot}")
                                         break
                         
                         if qty <= 0:
@@ -707,6 +1006,17 @@ class BTNodes:
             fail_if_no_space: bool = True,
             aftercast_ms: int = 25,
         ):
+            """
+            Build an action node that deposits items into storage bags using transfer planning.
+
+            Meta:
+              Expose: true
+              Audience: intermediate
+              Display: Deposit Items
+              Purpose: Move inventory items into storage according to computed transfer instructions.
+              UserDescription: Use this when you want a BT step that deposits known items into storage automatically.
+              Notes: Can optionally fail when no valid storage destination exists and supports anniversary-panel bag filtering.
+            """
             if not anniversary_panel and Bag.Storage_14 in target:
                 target = [b for b in target if b != Bag.Storage_14]
             
@@ -721,7 +1031,7 @@ class BTNodes:
                     for dest in bag.values():
                         for item, qty in dest.items:
                             Inventory.MoveItem(item.id, dest.bag.value, dest.slot, qty)
-                            Py4GW.Console.Log(node.name, f"Moving {qty} of '{item.data.names.get(ServerLanguage.English, 'Unknown') if item.data else 'Unknown Item'}' (ID: {item.id}) to bag {dest.bag.name} slot {dest.slot}")
+                            Py4GW.Console.Log(node.name, f"Moving {qty} of '{item.names.plain}' (ID: {item.id}) to bag {dest.bag.name} slot {dest.slot}")
                             moved_any = True
                 
                 return BehaviorTree.NodeState.SUCCESS if moved_any else BehaviorTree.NodeState.FAILURE
@@ -736,6 +1046,17 @@ class BTNodes:
             fail_if_no_space: bool = True,
             aftercast_ms: int = 25,
         ):                   
+            """
+            Build an action node that withdraws items from storage into inventory using transfer planning.
+
+            Meta:
+              Expose: true
+              Audience: intermediate
+              Display: Withdraw Items
+              Purpose: Move storage items into inventory according to computed transfer instructions.
+              UserDescription: Use this when you want a BT step that pulls known items from storage automatically.
+              Notes: Can optionally fail when no valid inventory destination exists.
+            """
             def _withdraw(node: BehaviorTree.Node):
                 instructions = BTNodes.Items.GetTransferInstructions(item_ids, target, fill_materials_first=fill_materials_first)
                 moved_any = False
@@ -747,7 +1068,7 @@ class BTNodes:
                     for dest in bag.values():
                         for item, qty in dest.items:
                             Inventory.MoveItem(item.id, dest.bag.value, dest.slot, qty)
-                            Py4GW.Console.Log(node.name, f"Moving {qty} of '{item.data.names.get(ServerLanguage.English, 'Unknown') if item.data else 'Unknown Item'}' (ID: {item.id}) to bag {dest.bag.name} slot {dest.slot}")
+                            Py4GW.Console.Log(node.name, f"Moving {qty} of '{item.names.plain}' (ID: {item.id}) to bag {dest.bag.name} slot {dest.slot}")
                             moved_any = True
                 
                 return BehaviorTree.NodeState.SUCCESS if moved_any else BehaviorTree.NodeState.FAILURE
@@ -755,12 +1076,34 @@ class BTNodes:
             return BehaviorTree.ActionNode(name="Items.WithdrawItems", action_fn=_withdraw, aftercast_ms=aftercast_ms)
 
     class Bags:
+        """
+        BT helper group for bag-level restocking, material fill, compaction, and sorting flows.
+
+        Meta:
+          Expose: true
+          Audience: advanced
+          Display: Bags
+          Purpose: Group BT helper routines that reorganize or refill inventory and storage bags.
+          UserDescription: Built-in BT helper group for bag maintenance and organization routines.
+          Notes: These routines typically operate on bag snapshots and issue multiple move actions per execution.
+        """
         @staticmethod
         def Restock(
             model_id: int,
             item_type: ItemType,
             quantity: int,
         ):
+            """
+            Build an action node that restocks inventory from storage bags.
+
+            Meta:
+              Expose: true
+              Audience: intermediate
+              Display: Restock Bags
+              Purpose: Move enough storage items into inventory to reach a target quantity.
+              UserDescription: Use this when you want a BT step that refills inventory stock from storage rather than from a merchant.
+              Notes: Fails when matching storage items cannot be found or no valid transfer destinations exist.
+            """
             def _restock(node: BehaviorTree.Node):        
                 inventory_snapshot = ITEM_CACHE.get_inventory_snapshot(Bag.Backpack, Bag.Bag_2)
                 current_qty = sum(i.quantity for bag in inventory_snapshot.values() for i in bag.values() if i is not None and i.is_valid and i.model_id == model_id and i.item_type == item_type) if inventory_snapshot else 0
@@ -805,7 +1148,7 @@ class BTNodes:
                     for dest in bag.values():
                         for item, qty in dest.items:
                             Inventory.MoveItem(item.id, dest.bag.value, dest.slot, qty)
-                            Py4GW.Console.Log(node.name, f"Moving {qty} of '{item.data.names.get(ServerLanguage.English, 'Unknown') if item.data else 'Unknown Item'}' (ID: {item.id}) to bag {dest.bag.name} slot {dest.slot}")
+                            Py4GW.Console.Log(node.name, f"Moving {qty} of '{item.names.plain}' (ID: {item.id}) to bag {dest.bag.name} slot {dest.slot}")
 
                 return BehaviorTree.NodeState.SUCCESS
 
@@ -817,6 +1160,17 @@ class BTNodes:
             aftercast_ms: int = 150,
             succeed_if_already_filled: bool = True,
         ):
+            """
+            Build an action node that fills material storage from the provided source bags.
+
+            Meta:
+              Expose: true
+              Audience: intermediate
+              Display: Fill Material Storage
+              Purpose: Move stackable material items into their material-storage slots.
+              UserDescription: Use this when you want a BT step that consolidates materials into material storage automatically.
+              Notes: Succeeds when any move is made or, optionally, when the storage is already effectively full.
+            """
             def _fill_material_storage(node: BehaviorTree.Node):
                 source_bags = [bag for bag in source if bag != Bag.Material_Storage]
                 if not source_bags:
@@ -866,7 +1220,7 @@ class BTNodes:
                 for dest in transfer_instructions.values():
                     for item, qty in dest.items:
                         Inventory.MoveItem(item.id, dest.bag.value, dest.slot, qty)
-                        Py4GW.Console.Log(node.name, f"Moving {qty} of '{item.data.names.get(ServerLanguage.English, 'Unknown') if item.data else 'Unknown Item'}' (ID: {item.id}) to Material Storage slot {dest.slot}")
+                        Py4GW.Console.Log(node.name, f"Moving {qty} of '{item.names.plain}' (ID: {item.id}) to Material Storage slot {dest.slot}")
                         moved_any = True
 
                 return BTNodes._success_if(moved_any or succeed_if_already_filled)
@@ -878,6 +1232,17 @@ class BTNodes:
             bags : list[Bag] = INVENTORY_BAGS,         
             aftercast_ms: int = 150,
         ):
+            """
+            Build an action node that merges partial stacks across bags.
+
+            Meta:
+              Expose: true
+              Audience: intermediate
+              Display: Compact Bags
+              Purpose: Reduce stack fragmentation by combining partial stacks of matching items.
+              UserDescription: Use this when you want a BT step that tidies bag stacks and frees space.
+              Notes: Operates only on stackable items and succeeds only if at least one move is performed.
+            """
             def _compact(node: BehaviorTree.Node):
                 snapshot = ITEM_CACHE.get_bags_snapshot(bags)
                 grouped_items : dict[tuple[ItemType, int, int], list[tuple[Bag, int, ItemSnapshot]]] = {}
@@ -905,7 +1270,7 @@ class BTNodes:
                             continue
                         
                         Inventory.MoveItem(source_item.id, target_bag.value, target_slot, qty_to_move)
-                        Py4GW.Console.Log(node.name, f"Moved {qty_to_move} of '{source_item.data.names.get(ServerLanguage.English, 'Unknown') if source_item.data else 'Unknown Item'}' (ID: {source_item.id}) from bag {source_bag.name} slot {source_slot} to bag {target_bag.name} slot {target_slot}")
+                        Py4GW.Console.Log(node.name, f"Moved {qty_to_move} of '{source_item.names.plain}' (ID: {source_item.id}) from bag {source_bag.name} slot {source_slot} to bag {target_bag.name} slot {target_slot}")
                         moved_any = True
                         target_item.quantity += qty_to_move
                         source_item.quantity -= qty_to_move
@@ -919,6 +1284,17 @@ class BTNodes:
             bags : list[Bag] = INVENTORY_BAGS,         
             aftercast_ms: int = 150,
         ):
+            """
+            Build an action node that sorts items across bags using the current default sort order.
+
+            Meta:
+              Expose: true
+              Audience: intermediate
+              Display: Sort Bags
+              Purpose: Reorder bag contents according to the current item-type and value-based sorting rules.
+              UserDescription: Use this when you want a BT step that applies the current default bag sort order.
+              Notes: The sort configuration is still marked as provisional in the implementation comments.
+            """
             def _sort(node: BehaviorTree.Node):
                 snapshot = ITEM_CACHE.get_bags_snapshot(bags)
 
@@ -972,6 +1348,17 @@ class BTNodes:
             return BehaviorTree.ActionNode(name="Inventory.SortBags", action_fn=_sort, aftercast_ms=aftercast_ms)
 
     class Crafting:
+        """
+        BT helper group for crafter recipe execution flows.
+
+        Meta:
+          Expose: true
+          Audience: advanced
+          Display: Crafting
+          Purpose: Group BT helper routines that issue crafter recipe actions.
+          UserDescription: Built-in BT helper group for crafting actions.
+          Notes: These routines expect the relevant crafting context to already be open and valid.
+        """
         @staticmethod
         def CraftItem(
             output_item_id: int,
@@ -980,6 +1367,17 @@ class BTNodes:
             material_quantities: list[int],
             aftercast_ms: int = 250,
         ):
+            """
+            Build an action node that crafts one item recipe.
+
+            Meta:
+              Expose: true
+              Audience: intermediate
+              Display: Craft Item
+              Purpose: Issue one crafter recipe request with the provided material ids and quantities.
+              UserDescription: Use this when you want a BT step that crafts one configured recipe.
+              Notes: Fails when the output item id is invalid or the recipe input arrays are empty.
+            """
             def _craft():
                 k = min(len(material_item_ids), len(material_quantities))
                 if output_item_id <= 0 or k == 0:
@@ -994,6 +1392,17 @@ class BTNodes:
             recipes: dict[int, tuple[list[int], list[int]]],
             aftercast_ms: int = 250,
         ):
+            """
+            Build an action node that crafts several recipes in one pass.
+
+            Meta:
+              Expose: true
+              Audience: intermediate
+              Display: Craft Items
+              Purpose: Iterate over several recipe definitions and issue crafting requests for each valid one.
+              UserDescription: Use this when you want a BT step that crafts multiple configured recipes.
+              Notes: Succeeds only if at least one recipe is valid and gets crafted.
+            """
             def _craft(node: BehaviorTree.Node):
                 crafted_any = False
                 for output_item_id, (material_item_ids, material_quantities) in recipes.items():

@@ -1,0 +1,56 @@
+{
+    "version": 1,
+    "materials": {
+        "common": [
+            {"model_id": 921, "name": "Bone", "item_type": "material", "material_type": "common"},
+            {"model_id": 925, "name": "Bolt of Cloth", "item_type": "material", "material_type": "common"},
+            {"model_id": 929, "name": "Pile of Glittering Dust", "item_type": "material", "material_type": "common"},
+            {"model_id": 933, "name": "Feather", "item_type": "material", "material_type": "common"},
+            {"model_id": 934, "name": "Plant Fiber", "item_type": "material", "material_type": "common"},
+            {"model_id": 940, "name": "Tanned Hide Square", "item_type": "material", "material_type": "common"},
+            {"model_id": 946, "name": "Wood Plank", "item_type": "material", "material_type": "common"},
+            {"model_id": 948, "name": "Iron Ingot", "item_type": "material", "material_type": "common"},
+            {"model_id": 953, "name": "Scale", "item_type": "material", "material_type": "common"},
+            {"model_id": 954, "name": "Chitin Fragment", "item_type": "material", "material_type": "common"},
+            {"model_id": 955, "name": "Granite Slab", "item_type": "material", "material_type": "common"}
+        ],
+        "rare": [
+            {"model_id": 922, "name": "Lump of Charcoal", "item_type": "material", "material_type": "rare"},
+            {"model_id": 923, "name": "Monstrous Claw", "item_type": "material", "material_type": "rare"},
+            {"model_id": 926, "name": "Bolt of Linen", "item_type": "material", "material_type": "rare"},
+            {"model_id": 927, "name": "Bolt of Damask", "item_type": "material", "material_type": "rare"},
+            {"model_id": 928, "name": "Bolt of Silk", "item_type": "material", "material_type": "rare"},
+            {"model_id": 930, "name": "Glob of Ectoplasm", "item_type": "material", "material_type": "rare"},
+            {"model_id": 931, "name": "Monstrous Eye", "item_type": "material", "material_type": "rare"},
+            {"model_id": 932, "name": "Monstrous Fang", "item_type": "material", "material_type": "rare"},
+            {"model_id": 935, "name": "Diamond", "item_type": "material", "material_type": "rare"},
+            {"model_id": 936, "name": "Onyx Gemstone", "item_type": "material", "material_type": "rare"},
+            {"model_id": 937, "name": "Ruby", "item_type": "material", "material_type": "rare"},
+            {"model_id": 938, "name": "Sapphire", "item_type": "material", "material_type": "rare"},
+            {"model_id": 939, "name": "Tempered Glass Vial", "item_type": "material", "material_type": "rare"},
+            {"model_id": 941, "name": "Fur Square", "item_type": "material", "material_type": "rare"},
+            {"model_id": 942, "name": "Leather Square", "item_type": "material", "material_type": "rare"},
+            {"model_id": 943, "name": "Elonian Leather Square", "item_type": "material", "material_type": "rare"},
+            {"model_id": 944, "name": "Vial of Ink", "item_type": "material", "material_type": "rare"},
+            {"model_id": 945, "name": "Obsidian Shard", "item_type": "material", "material_type": "rare"},
+            {"model_id": 949, "name": "Steel Ingot", "item_type": "material", "material_type": "rare"},
+            {"model_id": 950, "name": "Deldrimor Steel Ingot", "item_type": "material", "material_type": "rare"},
+            {"model_id": 951, "name": "Roll of Parchment", "item_type": "material", "material_type": "rare"},
+            {"model_id": 952, "name": "Roll of Vellum", "item_type": "material", "material_type": "rare"},
+            {"model_id": 956, "name": "Spiritwood Plank", "item_type": "material", "material_type": "rare"},
+            {"model_id": 6532, "name": "Amber Chunk", "item_type": "material", "material_type": "rare"},
+            {"model_id": 6533, "name": "Jadeite Shard", "item_type": "material", "material_type": "rare"}
+        ]
+    },
+    "merchant_items": {
+        "essentials": [
+            {"model_id": 2989, "name": "Identification Kit", "item_type": "kit", "default_target": 1},
+            {"model_id": 5899, "name": "Superior Identification Kit", "item_type": "kit", "default_target": 1},
+            {"model_id": 2992, "name": "Salvage Kit", "item_type": "kit", "default_target": 2},
+            {"model_id": 2991, "name": "Expert Salvage Kit", "item_type": "kit", "default_target": 1},
+            {"model_id": 5900, "name": "Superior Salvage Kit", "item_type": "kit", "default_target": 0},
+            {"model_id": 22281, "name": "Perfect Salvage Kit", "item_type": "kit", "default_target": 0},
+            {"model_id": 22751, "name": "Lockpick", "item_type": "key", "default_target": 10}
+        ]
+    }
+}

@@ -1,3 +1,6 @@
+import hashlib
+import os
+
 # ---- REQUIRED BY WIDGET HANDLER (define immediately) ----
 def configure():
     pass
@@ -13,9 +16,52 @@ _INIT_ERROR = None
 MODULE_NAME = "Pycons"
 MODULE_ICON = "Textures\\Module_Icons\\Pycons.png"
 
+_PYCONS_CONFIG_DIR = os.path.normpath(os.path.join("Widgets", "Config", "Pycons"))
+_LEGACY_CONFIG_DIR = os.path.normpath(os.path.join("Widgets", "Config"))
+
+
+def _hash_account_email(account_email: str) -> str:
+    email = str(account_email or "").strip()
+    if not email:
+        return ""
+    return hashlib.md5(email.encode()).hexdigest()[:8]
+
+
+def get_pycons_generic_ini_candidates() -> tuple[str, str]:
+    canonical = os.path.normpath(os.path.join(_PYCONS_CONFIG_DIR, "Pycons.ini"))
+    legacy = os.path.normpath(os.path.join(_LEGACY_CONFIG_DIR, "Pycons.ini"))
+    return canonical, legacy
+
+
+def get_pycons_account_ini_candidates(account_email: str) -> tuple[str, str]:
+    email_hash = _hash_account_email(account_email)
+    if not email_hash:
+        return get_pycons_generic_ini_candidates()
+
+    canonical = os.path.normpath(os.path.join(_PYCONS_CONFIG_DIR, f"Pycons_{email_hash}.ini"))
+    legacy = os.path.normpath(os.path.join(_LEGACY_CONFIG_DIR, f"Pycons_{email_hash}.ini"))
+    return canonical, legacy
+
+
+def resolve_pycons_generic_ini_path() -> str:
+    canonical, legacy = get_pycons_generic_ini_candidates()
+    if os.path.exists(canonical):
+        return canonical
+    if os.path.exists(legacy):
+        return legacy
+    return canonical
+
+
+def resolve_pycons_account_ini_path(account_email: str) -> str:
+    canonical, legacy = get_pycons_account_ini_candidates(account_email)
+    if os.path.exists(canonical):
+        return canonical
+    if os.path.exists(legacy):
+        return legacy
+    return canonical
+
 try:
     from typing import Any, cast
-    import os
     import shutil
     import re
     import unicodedata
@@ -33,7 +79,7 @@ try:
         ImGui,          # NEW: needed for persisted windows
         SharedCommandType,
     )
-    from Py4GWCoreLib import ItemArray, Bag, Item, Effects, Player, Party, Bags
+    from Py4GWCoreLib import ItemArray, Bag, Item, Effects, Player, Party, Bags, Agent, Quest
     from Py4GWCoreLib.IniManager import IniManager  # NEW: persisted windows
     import threading
 
@@ -72,6 +118,44 @@ try:
     FALLBACK_SHORT_MS = 10 * 60 * 1000
     FALLBACK_MEDIUM_MS = 20 * 60 * 1000
     FALLBACK_LONG_MS = 30 * 60 * 1000
+    SUMMONING_STONE_DURATION_MS = 30 * 60 * 1000
+    IGNEOUS_SUMMON_DURATION_MS = 60 * 60 * 1000
+    SUMMONING_SICKNESS_EFFECT_ID = 2886
+    SUMMONING_RESTRICTED_QUEST_IDS = frozenset({
+        490,  # The Council is Called
+        503,  # All's Well That Ends Well
+        504,  # Warning Kehanni
+        505,  # Calling the Order
+        507,  # Pledge of the Merchant Princes
+        581,  # Heart or Mind: Garden in Danger
+        586,  # Heart or Mind: Ronjok in Danger
+        683,  # Securing Champions Dawn
+        730,  # Gain Goren
+        737,  # Battle Preparations
+    })
+    SUMMONING_RESTRICTED_MAP_IDS = frozenset({
+        119,  # Augury Rock mission
+        351,  # Divine Path
+        423,  # The Tribunal
+        436,  # Command Post
+        503,  # Throne of Secrets
+        700,  # The Norn Fighting Tournament
+        710,  # Epilogue
+        840,  # Lion's Arch Keep
+    })
+    SUMMONING_UNIQUE_PARTY_MODEL_IDS = frozenset({
+        513,         # Fire Imp (existing summon detection path)
+        1726,        # Fire Imp (model data variant)
+        8028,        # Legionnaire
+        9055, 9076,  # Tengu Support Flare - Warrior
+        9056, 9077,  # Tengu Support Flare - Ranger
+        9058, 9079,  # Tengu Support Flare - Monk
+        9060, 9081,  # Tengu Support Flare - Mesmer
+        9062, 9083,  # Tengu Support Flare - Ritualist
+        9065, 9086,  # Tengu Support Flare - Assassin
+        9067, 9088,  # Tengu Support Flare - Elementalist
+        9069, 9090,  # Tengu Support Flare - Necromancer
+    })
 
     # Scan only these bags, and only on-demand
     SCAN_BAGS = [Bag.Backpack, Bag.Belt_Pouch, Bag.Bag_1, Bag.Bag_2]
@@ -89,8 +173,14 @@ try:
         "witchs_brew": ("witchs brew", "witch brew", "witch's brew"),
         "hunters_ale": ("hunters ale", "hunter ale"),
         "elixir_of_valor": ("elixir of valor",),
+        "igneous_summoning_stone": ("igneous summoning stone",),
+        "imperial_guard_reinforcement_order": ("imperial guard reinforcement order", "imperial guard summon"),
+        "legionnaire_summoning_crystal": ("legionnaire summoning crystal",),
+        "mercantile_summoning_stone": ("mercantile summoning stone", "merchant summon", "merchant summoning stone"),
         "powerstone_of_courage": ("powerstone of courage",),
         "seal_of_the_dragon_empire": ("seal of the dragon empire",),
+        "shining_blade_war_horn": ("shining blade war horn", "shining blade summon"),
+        "tengu_support_flare": ("tengu support flare", "tengu summon"),
     }
     # Explicit filename overrides for known consumables when deterministic mapping is preferred.
     CONSUMABLE_ICON_FILE_OVERRIDES = {
@@ -235,6 +325,13 @@ try:
             "header_active": (0.35, 0.27, 0.12, 0.96),
             "text": (0.96, 0.88, 0.72, 1.00),
             "meta": (0.88, 0.76, 0.54, 1.00),
+        },
+        "summoning": {
+            "header": (0.19, 0.13, 0.08, 0.82),
+            "header_hovered": (0.25, 0.18, 0.10, 0.90),
+            "header_active": (0.31, 0.22, 0.12, 0.96),
+            "text": (0.96, 0.88, 0.76, 1.00),
+            "meta": (0.88, 0.77, 0.60, 1.00),
         },
         "alcohol": {
             "header": (0.22, 0.13, 0.08, 0.82),
@@ -444,7 +541,7 @@ try:
     TOOLTIP_LENGTH_OPTIONS = ["Short", "Long"]
     ALCOHOL_PREFERENCE_OPTIONS = ["Smooth", "Strong-first", "Weak-first"]
     RESTOCK_MODE_OPTIONS = ["Balanced", "Withdraw only", "Deposit only"]
-    SETTINGS_CONSUMABLE_CATEGORY_ORDER = ["explorable", "mbdp", "outpost", "alcohol"]
+    SETTINGS_CONSUMABLE_CATEGORY_ORDER = ["explorable", "summoning", "mbdp", "outpost", "alcohol"]
 
     _TOOLTIP_TEXTS = {
         "tooltip_visibility": {
@@ -489,12 +586,12 @@ try:
         },
         "auto_vault_restock": {
             "short": "Auto-restock missing selected consumables from Xunlai Vault.",
-            "long": "When enabled, Pycons automatically opens the Xunlai Vault (in outposts) and withdraws missing selected consumables from storage so active upkeep items stay available.",
+            "long": "When enabled, Pycons automatically opens the Xunlai Vault (in outposts) and balances selected consumables that are restock-enabled in Restock Settings.",
             "why": "Keeps automation running when inventory stacks run out, without manual chest management.",
         },
         "restock_interval_ms": {
             "short": "How often vault balancing checks run.",
-            "long": "Controls how frequently Pycons runs the outpost vault-balancing pass for selected restock targets. Use a slower interval than consume checks to reduce chest churn and blocked actions.",
+            "long": "Controls how frequently Pycons runs the outpost vault-balancing pass for selected items with restock enabled. Use a slower interval than consume checks to reduce chest churn and blocked actions.",
             "why": "Decoupling restock cadence from consume cadence keeps upkeep responsive without over-polling Xunlai actions.",
         },
         "restock_mode": {
@@ -516,6 +613,16 @@ try:
             "short": "Set one target value for all selected items at once.",
             "long": "Applies the bulk target value to every currently selected item shown in Restock Settings.",
             "why": "Fastest way to align many items to the same inventory target.",
+        },
+        "restock_enable_all_selected": {
+            "short": "Enable restock for all selected items.",
+            "long": "Turns ON the restock toggle for every currently selected item shown in Restock Settings.",
+            "why": "Useful when building or restoring a full restock loadout quickly.",
+        },
+        "restock_disable_all_selected": {
+            "short": "Disable restock for all selected items.",
+            "long": "Turns OFF the restock toggle for every currently selected item shown in Restock Settings.",
+            "why": "Useful when you want to pause vault balancing in bulk without changing main-window usage toggles.",
         },
         "alcohol_enabled": {
             "short": "Master toggle for alcohol automation.",
@@ -654,7 +761,7 @@ try:
         },
         "filter_search": {
             "short": "Filter consumables by name.",
-            "long": "Search text filter for consumables lists in the settings window. Works across explorable, outpost, MB/DP, and alcohol groups.",
+            "long": "Search text filter for consumables lists in the settings window. Works across explorable, summoning, outpost, MB/DP, and alcohol groups.",
             "why": "Speeds up setup when many items exist.",
         },
         "select_all_visible": {
@@ -963,6 +1070,7 @@ try:
                 continue
             ini_handler.write_key(INI_SECTION, f"{prefix}selected_{k}", str(bool(cfg.selected.get(k, False))))
             ini_handler.write_key(INI_SECTION, f"{prefix}enabled_{k}", str(bool(cfg.enabled.get(k, False))))
+            ini_handler.write_key(INI_SECTION, f"{prefix}restock_enabled_{k}", str(bool(cfg.restock_enabled_items.get(k, False))))
             ini_handler.write_key(INI_SECTION, f"{prefix}restock_target_{k}", str(int(max(0, min(2500, int(cfg.restock_targets.get(k, VAULT_RESTOCK_TARGET_QTY) or 0))))))
         for item in ALCOHOL_ITEMS:
             k = str(item.get("key", "") or "")
@@ -970,6 +1078,7 @@ try:
                 continue
             ini_handler.write_key(INI_SECTION, f"{prefix}alcohol_selected_{k}", str(bool(cfg.alcohol_selected.get(k, False))))
             ini_handler.write_key(INI_SECTION, f"{prefix}alcohol_enabled_{k}", str(bool(cfg.alcohol_enabled_items.get(k, False))))
+            ini_handler.write_key(INI_SECTION, f"{prefix}restock_enabled_{k}", str(bool(cfg.restock_enabled_items.get(k, False))))
             ini_handler.write_key(INI_SECTION, f"{prefix}restock_target_{k}", str(int(max(0, min(2500, int(cfg.restock_targets.get(k, VAULT_RESTOCK_TARGET_QTY) or 0))))))
         _log(f"Saved custom preset slot {slot}.", Console.MessageType.Info)
 
@@ -1003,6 +1112,7 @@ try:
                 continue
             cfg.selected[k] = bool(ini_handler.read_bool(INI_SECTION, f"{prefix}selected_{k}", bool(cfg.selected.get(k, False))))
             cfg.enabled[k] = bool(ini_handler.read_bool(INI_SECTION, f"{prefix}enabled_{k}", bool(cfg.enabled.get(k, False))))
+            cfg.restock_enabled_items[k] = bool(ini_handler.read_bool(INI_SECTION, f"{prefix}restock_enabled_{k}", bool(cfg.restock_enabled_items.get(k, False))))
             cfg.restock_targets[k] = max(0, min(2500, int(ini_handler.read_int(INI_SECTION, f"{prefix}restock_target_{k}", int(cfg.restock_targets.get(k, VAULT_RESTOCK_TARGET_QTY) or 0)))))
         for item in ALCOHOL_ITEMS:
             k = str(item.get("key", "") or "")
@@ -1010,6 +1120,7 @@ try:
                 continue
             cfg.alcohol_selected[k] = bool(ini_handler.read_bool(INI_SECTION, f"{prefix}alcohol_selected_{k}", bool(cfg.alcohol_selected.get(k, False))))
             cfg.alcohol_enabled_items[k] = bool(ini_handler.read_bool(INI_SECTION, f"{prefix}alcohol_enabled_{k}", bool(cfg.alcohol_enabled_items.get(k, False))))
+            cfg.restock_enabled_items[k] = bool(ini_handler.read_bool(INI_SECTION, f"{prefix}restock_enabled_{k}", bool(cfg.restock_enabled_items.get(k, False))))
             cfg.restock_targets[k] = max(0, min(2500, int(ini_handler.read_int(INI_SECTION, f"{prefix}restock_target_{k}", int(cfg.restock_targets.get(k, VAULT_RESTOCK_TARGET_QTY) or 0)))))
 
         _runtime_sync_from_cfg_full()
@@ -1064,8 +1175,7 @@ try:
             if not email or email == self_email or email in seen:
                 continue
             seen.add(email)
-            email_hash = hashlib.md5(email.encode()).hexdigest()[:8]
-            ini = IniHandler(_resolve_account_ini_path(email_hash, migrate_legacy=True, log_migration=False))
+            ini = IniHandler(_resolve_account_ini_path(email, migrate_legacy=True, log_migration=False))
             ini.write_key(INI_SECTION, "team_consume_opt_in", value)
             updated += 1
             nm = _acc_name(acc)
@@ -1189,6 +1299,29 @@ try:
         {"key": "slice_of_pumpkin_pie", "label": "Slice of Pumpkin Pie", "model_id": int(ModelID.Slice_Of_Pumpkin_Pie.value), "skills": ["Pie_Induced_Ecstasy"], "use_where": "explorable"},
         {"key": "war_supplies", "label": "War Supplies", "model_id": int(ModelID.War_Supplies.value), "skills": ["Well_Supplied"], "use_where": "explorable"},
 
+        # Summoning (runtime priority order matches existing botting summon upkeep)
+        {"key": "legionnaire_summoning_crystal", "label": "Legionnaire Summoning Crystal", "model_id": int(_model_id_value("Legionnaire_Summoning_Crystal", 0)), "use_where": "summoning", "summon_duration_ms": SUMMONING_STONE_DURATION_MS},
+        {"key": "igneous_summoning_stone", "label": "Igneous Summoning Stone", "model_id": int(_model_id_value("Igneous_Summoning_Stone", 0)), "use_where": "summoning", "summon_duration_ms": IGNEOUS_SUMMON_DURATION_MS},
+        {"key": "amber_summoning_stone", "label": "Amber Summoning Stone", "model_id": int(_model_id_value("Amber_Summon", 0)), "use_where": "summoning", "summon_duration_ms": SUMMONING_STONE_DURATION_MS},
+        {"key": "arctic_summoning_stone", "label": "Arctic Summoning Stone", "model_id": int(_model_id_value("Arctic_Summon", 0)), "use_where": "summoning", "summon_duration_ms": SUMMONING_STONE_DURATION_MS},
+        {"key": "automaton_summoning_stone", "label": "Automaton Summoning Stone", "model_id": int(_model_id_value("Automaton_Summon", 0)), "use_where": "summoning", "summon_duration_ms": SUMMONING_STONE_DURATION_MS},
+        {"key": "celestial_summoning_stone", "label": "Celestial Summoning Stone", "model_id": int(_model_id_value("Celestial_Summon", 0)), "use_where": "summoning", "summon_duration_ms": SUMMONING_STONE_DURATION_MS},
+        {"key": "chitinous_summoning_stone", "label": "Chitinous Summoning Stone", "model_id": int(_model_id_value("Chitinous_Summon", 0)), "use_where": "summoning", "summon_duration_ms": SUMMONING_STONE_DURATION_MS},
+        {"key": "demonic_summoning_stone", "label": "Demonic Summoning Stone", "model_id": int(_model_id_value("Demonic_Summon", 0)), "use_where": "summoning", "summon_duration_ms": SUMMONING_STONE_DURATION_MS},
+        {"key": "fossilized_summoning_stone", "label": "Fossilized Summoning Stone", "model_id": int(_model_id_value("Fossilized_Summon", 0)), "use_where": "summoning", "summon_duration_ms": SUMMONING_STONE_DURATION_MS},
+        {"key": "frosty_summoning_stone", "label": "Frosty Summoning Stone", "model_id": int(_model_id_value("Frosty_Summon", 0)), "use_where": "summoning", "summon_duration_ms": SUMMONING_STONE_DURATION_MS},
+        {"key": "gelatinous_summoning_stone", "label": "Gelatinous Summoning Stone", "model_id": int(_model_id_value("Gelatinous_Summon", 0)), "use_where": "summoning", "summon_duration_ms": SUMMONING_STONE_DURATION_MS},
+        {"key": "ghastly_summoning_stone", "label": "Ghastly Summoning Stone", "model_id": int(_model_id_value("Ghastly_Summon", 0)), "use_where": "summoning", "summon_duration_ms": SUMMONING_STONE_DURATION_MS},
+        {"key": "imperial_guard_reinforcement_order", "label": "Imperial Guard Reinforcement Order", "model_id": int(_model_id_value("Imperial_Guard_Summon", 0)), "use_where": "summoning", "summon_duration_ms": SUMMONING_STONE_DURATION_MS},
+        {"key": "jadeite_summoning_stone", "label": "Jadeite Summoning Stone", "model_id": int(_model_id_value("Jadeite_Summon", 0)), "use_where": "summoning", "summon_duration_ms": SUMMONING_STONE_DURATION_MS},
+        {"key": "mercantile_summoning_stone", "label": "Mercantile Summoning Stone", "model_id": int(_model_id_value("Merchant_Summon", 0)), "use_where": "summoning", "summon_duration_ms": SUMMONING_STONE_DURATION_MS},
+        {"key": "mischievous_summoning_stone", "label": "Mischievous Summoning Stone", "model_id": int(_model_id_value("Mischievous_Summon", 0)), "use_where": "summoning", "summon_duration_ms": SUMMONING_STONE_DURATION_MS},
+        {"key": "mysterious_summoning_stone", "label": "Mysterious Summoning Stone", "model_id": int(_model_id_value("Mysterious_Summon", 0)), "use_where": "summoning", "summon_duration_ms": SUMMONING_STONE_DURATION_MS},
+        {"key": "mystical_summoning_stone", "label": "Mystical Summoning Stone", "model_id": int(_model_id_value("Mystical_Summon", 0)), "use_where": "summoning", "summon_duration_ms": SUMMONING_STONE_DURATION_MS},
+        {"key": "shining_blade_war_horn", "label": "Shining Blade War Horn", "model_id": int(_model_id_value("Shining_Blade_Summon", 0)), "use_where": "summoning", "summon_duration_ms": SUMMONING_STONE_DURATION_MS},
+        {"key": "tengu_support_flare", "label": "Tengu Support Flare", "model_id": int(_model_id_value("Tengu_Summon", 0)), "use_where": "summoning", "summon_duration_ms": SUMMONING_STONE_DURATION_MS},
+        {"key": "zaishen_summoning_stone", "label": "Zaishen Summoning Stone", "model_id": int(_model_id_value("Zaishen_Summon", 0)), "use_where": "summoning", "summon_duration_ms": SUMMONING_STONE_DURATION_MS},
+
         # Outpost-only (alphabetical by label)
         {"key": "chocolate_bunny", "label": "Chocolate Bunny", "model_id": int(_model_id_value("Chocolate_Bunny", 0)), "skills": ["Sugar_Jolt_(long)"], "use_where": "outpost", "require_effect_id": True, "fallback_duration_ms": FALLBACK_LONG_MS},
         {"key": "creme_brulee", "label": "Crème Brûlée", "model_id": int(_model_id_value("Creme_Brulee", 0)), "skills": ["Sugar_Jolt_(long)"], "use_where": "outpost", "require_effect_id": True, "fallback_duration_ms": FALLBACK_LONG_MS},
@@ -1197,6 +1330,8 @@ try:
         {"key": "red_bean_cake", "label": "Red Bean Cake", "model_id": int(_model_id_value("Red_Bean_Cake", 0)), "skills": ["Sugar_Rush_(medium)"], "use_where": "outpost", "require_effect_id": True, "fallback_duration_ms": FALLBACK_MEDIUM_MS},
         {"key": "sugary_blue_drink", "label": "Sugary Blue Drink", "model_id": int(_model_id_value("Sugary_Blue_Drink", 0)), "skills": ["Sugar_Jolt_(short)"], "use_where": "outpost", "require_effect_id": False, "fallback_duration_ms": FALLBACK_SHORT_MS},
     ]
+
+    SUMMONING_ITEMS = [c for c in CONSUMABLES if str(c.get("use_where", "")).lower() == "summoning"]
 
     MB_DP_ITEMS = [
         # Self-only morale
@@ -1221,6 +1356,7 @@ try:
 
     ALL_CONSUMABLES = CONSUMABLES + MB_DP_ITEMS
     ALL_BY_KEY = {c["key"]: c for c in ALL_CONSUMABLES}
+    SUMMONING_BY_KEY = {c["key"]: c for c in SUMMONING_ITEMS}
     MB_DP_BY_KEY = {c["key"]: c for c in MB_DP_ITEMS}
     CONSET_KEYS = {"armor_of_salvation", "essence_of_celerity", "grail_of_might"}
     MBDP_PARTY_KEYS = frozenset({
@@ -1325,6 +1461,15 @@ try:
         tooltip = str(CONSUMABLE_TOOLTIPS.get(str(key or ""), "") or "").strip()
         if tooltip:
             return tooltip
+        summon_spec = SUMMONING_BY_KEY.get(str(key or ""))
+        if summon_spec:
+            duration_ms = int(summon_spec.get("summon_duration_ms", SUMMONING_STONE_DURATION_MS) or SUMMONING_STONE_DURATION_MS)
+            duration_minutes = max(1, int(round(float(duration_ms) / 60000.0)))
+            return (
+                f"Summons an allied creature to assist you for up to {duration_minutes} minutes. "
+                "Using a summoning item applies Summoning Sickness for 10 minutes. "
+                "Do not use while Summoning Sickness is active or while another summoned ally is already present."
+            )
         return "No description available."
 
     def _consumable_tooltip_with_label(key: str, label: str) -> str:
@@ -1666,15 +1811,13 @@ try:
     # Config (dirty-save throttled)
     # -------------------------
     # Lazy INI handler creation to ensure account email is available
-    import hashlib
     _ini_handler_cache = None
     _ini_path_cache: str | None = None
     _ini_generic_fallback_logged = False
     _ini_generic_cached_with_email_logged = False
-    _PYCONS_CONFIG_DIR = os.path.normpath(os.path.join("Widgets", "Config", "Pycons"))
-    _LEGACY_CONFIG_DIR = os.path.normpath(os.path.join("Widgets", "Config"))
-    _GENERIC_INI_PATH = os.path.normpath(os.path.join(_PYCONS_CONFIG_DIR, "Pycons.ini"))
-    _LEGACY_GENERIC_INI_PATH = os.path.normpath(os.path.join(_LEGACY_CONFIG_DIR, "Pycons.ini"))
+    _GENERIC_INI_PATH, _LEGACY_GENERIC_INI_PATH = get_pycons_generic_ini_candidates()
+    _PYCONS_CONFIG_DIR = os.path.dirname(_GENERIC_INI_PATH)
+    _LEGACY_CONFIG_DIR = os.path.dirname(_LEGACY_GENERIC_INI_PATH)
 
     def _norm_path_lower(path: str | None) -> str:
         try:
@@ -1696,13 +1839,12 @@ try:
         except Exception:
             return False
 
-    def _resolve_account_ini_path(email_hash: str, migrate_legacy: bool = True, log_migration: bool = False) -> str:
-        h = str(email_hash or "").strip()
-        if not h:
-            return _GENERIC_INI_PATH
+    def _resolve_account_ini_path(account_email: str, migrate_legacy: bool = True, log_migration: bool = False) -> str:
+        email = str(account_email or "").strip()
+        if not email:
+            return _resolve_generic_ini_path(migrate_legacy=migrate_legacy, log_migration=log_migration)
 
-        canonical = os.path.normpath(os.path.join(_PYCONS_CONFIG_DIR, f"Pycons_{h}.ini"))
-        legacy = os.path.normpath(os.path.join(_LEGACY_CONFIG_DIR, f"Pycons_{h}.ini"))
+        canonical, legacy = get_pycons_account_ini_candidates(email)
 
         if os.path.exists(canonical):
             return canonical
@@ -1724,8 +1866,7 @@ try:
         return canonical
 
     def _resolve_generic_ini_path(migrate_legacy: bool = True, log_migration: bool = False) -> str:
-        canonical = str(_GENERIC_INI_PATH)
-        legacy = str(_LEGACY_GENERIC_INI_PATH)
+        canonical, legacy = get_pycons_generic_ini_candidates()
 
         if os.path.exists(canonical):
             return canonical
@@ -1778,8 +1919,7 @@ try:
                     )
                     _ini_generic_fallback_logged = True
             else:
-                email_hash = hashlib.md5(account_email.encode()).hexdigest()[:8]
-                _ini_path_cache = _resolve_account_ini_path(email_hash, migrate_legacy=True, log_migration=True)
+                _ini_path_cache = _resolve_account_ini_path(account_email, migrate_legacy=True, log_migration=True)
             try:
                 parent_dir = os.path.dirname(str(_ini_path_cache or ""))
                 if parent_dir:
@@ -1813,8 +1953,7 @@ try:
             return False
 
         old_path = str(_ini_path_cache or "")
-        email_hash = hashlib.md5(account_email.encode()).hexdigest()[:8]
-        new_path = _resolve_account_ini_path(email_hash, migrate_legacy=True, log_migration=True)
+        new_path = _resolve_account_ini_path(account_email, migrate_legacy=True, log_migration=True)
         if _norm_path_lower(new_path) == _norm_path_lower(old_path):
             return False
 
@@ -1917,19 +2056,22 @@ try:
 
             self.selected = {}
             self.enabled = {}
+            self.restock_enabled_items = {}
             for c in ALL_CONSUMABLES:
                 k = c["key"]
                 self.selected[k] = ini_handler.read_bool(INI_SECTION, f"selected_{k}", False)
                 self.enabled[k] = ini_handler.read_bool(INI_SECTION, f"enabled_{k}", False)
+                self.restock_enabled_items[k] = ini_handler.read_bool(INI_SECTION, f"restock_enabled_{k}", False)
             self.restock_targets = {}
             for c in ALL_CONSUMABLES:
                 k = c["key"]
-                default_target = int(VAULT_RESTOCK_TARGET_QTY) if bool(self.selected.get(k, False)) and bool(self.enabled.get(k, False)) else 0
+                default_target = int(VAULT_RESTOCK_TARGET_QTY) if bool(self.selected.get(k, False)) and bool(self.restock_enabled_items.get(k, False)) else 0
                 raw_target = int(ini_handler.read_int(INI_SECTION, f"restock_target_{k}", default_target))
                 self.restock_targets[k] = max(0, min(2500, raw_target))
 
             # Settings-window consumables group open/closed state
             self.settings_explorable_open = ini_handler.read_bool(INI_SECTION, "settings_explorable_open", False)
+            self.settings_summoning_open = ini_handler.read_bool(INI_SECTION, "settings_summoning_open", False)
             self.settings_outpost_open = ini_handler.read_bool(INI_SECTION, "settings_outpost_open", False)
             self.settings_mbdp_open = ini_handler.read_bool(INI_SECTION, "settings_mbdp_open", False)
             self.settings_alcohol_open = ini_handler.read_bool(INI_SECTION, "settings_alcohol_open", False)
@@ -1993,7 +2135,8 @@ try:
                 k = a["key"]
                 self.alcohol_selected[k] = ini_handler.read_bool(INI_SECTION, f"alcohol_selected_{k}", False)
                 self.alcohol_enabled_items[k] = ini_handler.read_bool(INI_SECTION, f"alcohol_enabled_{k}", False)
-                default_target = int(VAULT_RESTOCK_TARGET_QTY) if bool(self.alcohol_selected.get(k, False)) and bool(self.alcohol_enabled_items.get(k, False)) else 0
+                self.restock_enabled_items[k] = ini_handler.read_bool(INI_SECTION, f"restock_enabled_{k}", False)
+                default_target = int(VAULT_RESTOCK_TARGET_QTY) if bool(self.alcohol_selected.get(k, False)) and bool(self.restock_enabled_items.get(k, False)) else 0
                 raw_target = int(ini_handler.read_int(INI_SECTION, f"restock_target_{k}", default_target))
                 self.restock_targets[k] = max(0, min(2500, raw_target))
 
@@ -2037,100 +2180,106 @@ try:
             self._save_timer.Start()
 
             ini_handler = _get_ini_handler()
-            ini_handler.write_key(INI_SECTION, "debug_logging", str(bool(self.debug_logging)))
-            ini_handler.write_key(INI_SECTION, "interval_ms", str(int(self.interval_ms)))
-            ini_handler.write_key(INI_SECTION, "restock_interval_ms", str(int(max(MIN_RESTOCK_INTERVAL_MS, int(self.restock_interval_ms)))))
-            ini_handler.write_key(
-                INI_SECTION,
-                "restock_mode",
-                str(int(max(RESTOCK_MODE_BALANCED, min(RESTOCK_MODE_DEPOSIT_ONLY, int(self.restock_mode))))),
-            )
-            ini_handler.write_key(
-                INI_SECTION,
+            config = ini_handler.reload()
+            if not config.has_section(INI_SECTION):
+                config.add_section(INI_SECTION)
+
+            def set_key(key: str, value):
+                config.set(INI_SECTION, str(key), str(value))
+
+            set_key("debug_logging", bool(self.debug_logging))
+            set_key("interval_ms", int(self.interval_ms))
+            set_key("restock_interval_ms", int(max(MIN_RESTOCK_INTERVAL_MS, int(self.restock_interval_ms))))
+            set_key("restock_mode", int(max(RESTOCK_MODE_BALANCED, min(RESTOCK_MODE_DEPOSIT_ONLY, int(self.restock_mode)))))
+            set_key(
                 "restock_move_cap_per_cycle",
-                str(int(max(MIN_RESTOCK_MOVE_CAP_PER_CYCLE, min(MAX_RESTOCK_MOVE_CAP_PER_CYCLE, int(self.restock_move_cap_per_cycle))))),
+                int(max(MIN_RESTOCK_MOVE_CAP_PER_CYCLE, min(MAX_RESTOCK_MOVE_CAP_PER_CYCLE, int(self.restock_move_cap_per_cycle)))),
             )
-            ini_handler.write_key(INI_SECTION, "show_selected_list", str(bool(self.show_selected_list)))
-            ini_handler.write_key(INI_SECTION, "only_show_available_inventory", str(bool(self.only_show_available_inventory)))
-            ini_handler.write_key(INI_SECTION, "only_show_selected_items", str(bool(self.only_show_selected_items)))
-            ini_handler.write_key(INI_SECTION, "auto_vault_restock", str(bool(self.auto_vault_restock)))
-            ini_handler.write_key(INI_SECTION, "restock_keep_target_on_deselect", str(bool(self.restock_keep_target_on_deselect)))
-            ini_handler.write_key(INI_SECTION, "tooltip_visibility", str(int(self.tooltip_visibility)))
-            ini_handler.write_key(INI_SECTION, "tooltip_length", str(int(self.tooltip_length)))
-            ini_handler.write_key(INI_SECTION, "tooltip_show_why", str(bool(self.tooltip_show_why)))
-            ini_handler.write_key(INI_SECTION, "last_applied_preset", str(self.last_applied_preset))
-            ini_handler.write_key(INI_SECTION, "last_party_opt_toggle_summary", str(self.last_party_opt_toggle_summary))
+            set_key("show_selected_list", bool(self.show_selected_list))
+            set_key("only_show_available_inventory", bool(self.only_show_available_inventory))
+            set_key("only_show_selected_items", bool(self.only_show_selected_items))
+            set_key("auto_vault_restock", bool(self.auto_vault_restock))
+            set_key("restock_keep_target_on_deselect", bool(self.restock_keep_target_on_deselect))
+            set_key("tooltip_visibility", int(self.tooltip_visibility))
+            set_key("tooltip_length", int(self.tooltip_length))
+            set_key("tooltip_show_why", bool(self.tooltip_show_why))
+            set_key("last_applied_preset", self.last_applied_preset)
+            set_key("last_party_opt_toggle_summary", self.last_party_opt_toggle_summary)
             for i in range(1, PRESET_SLOT_COUNT + 1):
-                ini_handler.write_key(INI_SECTION, f"preset_slot_{i}_name", str(self.preset_slot_names.get(i, _preset_slot_default_name(i))))
+                set_key(f"preset_slot_{i}_name", self.preset_slot_names.get(i, _preset_slot_default_name(i)))
 
-            ini_handler.write_key(INI_SECTION, "show_advanced_intervals", str(bool(self.show_advanced_intervals)))
-            ini_handler.write_key(INI_SECTION, "persist_main_runtime_toggles", str(bool(self.persist_main_runtime_toggles)))
+            set_key("show_advanced_intervals", bool(self.show_advanced_intervals))
+            set_key("persist_main_runtime_toggles", bool(self.persist_main_runtime_toggles))
             for k, v in self.min_interval_ms.items():
-                ini_handler.write_key(INI_SECTION, f"min_interval_{k}", str(int(max(0, int(v)))))
+                set_key(f"min_interval_{k}", int(max(0, int(v))))
 
-            ini_handler.write_key(INI_SECTION, "alcohol_enabled", str(bool(self.alcohol_enabled)))
-            ini_handler.write_key(INI_SECTION, "alcohol_disable_effect", str(bool(self.alcohol_disable_effect)))
-            ini_handler.write_key(INI_SECTION, "alcohol_target_level", str(int(self.alcohol_target_level)))
-            ini_handler.write_key(INI_SECTION, "alcohol_use_explorable", str(bool(self.alcohol_use_explorable)))
-            ini_handler.write_key(INI_SECTION, "alcohol_use_outpost", str(bool(self.alcohol_use_outpost)))
-            ini_handler.write_key(INI_SECTION, "alcohol_preference", str(int(self.alcohol_preference)))
-            ini_handler.write_key(INI_SECTION, "mbdp_enabled", str(bool(self.mbdp_enabled)))
-            ini_handler.write_key(INI_SECTION, "mbdp_allow_partywide_in_human_parties", str(bool(self.mbdp_allow_partywide_in_human_parties)))
-            ini_handler.write_key(INI_SECTION, "mbdp_receiver_require_enabled", str(bool(self.mbdp_receiver_require_enabled)))
-            ini_handler.write_key(INI_SECTION, "mbdp_self_dp_minor_threshold", str(int(self.mbdp_self_dp_minor_threshold)))
-            ini_handler.write_key(INI_SECTION, "mbdp_self_dp_major_threshold", str(int(self.mbdp_self_dp_major_threshold)))
-            ini_handler.write_key(INI_SECTION, "mbdp_self_morale_target_effective", str(int(self.mbdp_self_morale_target_effective)))
-            ini_handler.write_key(INI_SECTION, "mbdp_self_min_morale_gain", str(int(self.mbdp_self_min_morale_gain)))
-            ini_handler.write_key(INI_SECTION, "mbdp_party_target_effective", str(int(self.mbdp_party_target_effective)))
-            ini_handler.write_key(INI_SECTION, "mbdp_strict_party_plus10", str(bool(self.mbdp_strict_party_plus10)))
-            ini_handler.write_key(INI_SECTION, "mbdp_party_min_members", str(int(self.mbdp_party_min_members)))
-            ini_handler.write_key(INI_SECTION, "mbdp_party_min_interval_ms", str(int(self.mbdp_party_min_interval_ms)))
-            ini_handler.write_key(INI_SECTION, "mbdp_party_min_total_gain_5", str(int(self.mbdp_party_min_total_gain_5)))
-            ini_handler.write_key(INI_SECTION, "mbdp_party_min_total_gain_10", str(int(self.mbdp_party_min_total_gain_10)))
-            ini_handler.write_key(INI_SECTION, "mbdp_party_light_dp_threshold", str(int(self.mbdp_party_light_dp_threshold)))
-            ini_handler.write_key(INI_SECTION, "mbdp_party_heavy_dp_threshold", str(int(self.mbdp_party_heavy_dp_threshold)))
-            ini_handler.write_key(INI_SECTION, "mbdp_powerstone_dp_threshold", str(int(self.mbdp_powerstone_dp_threshold)))
-            ini_handler.write_key(INI_SECTION, "mbdp_prefer_seal_for_recharge", str(bool(self.mbdp_prefer_seal_for_recharge)))
-            ini_handler.write_key(INI_SECTION, "force_team_morale_value", str(int(self.force_team_morale_value)))
-            ini_handler.write_key(INI_SECTION, "settings_explorable_open", str(bool(self.settings_explorable_open)))
-            ini_handler.write_key(INI_SECTION, "settings_outpost_open", str(bool(self.settings_outpost_open)))
-            ini_handler.write_key(INI_SECTION, "settings_mbdp_open", str(bool(self.settings_mbdp_open)))
-            ini_handler.write_key(INI_SECTION, "settings_alcohol_open", str(bool(self.settings_alcohol_open)))
-            ini_handler.write_key(INI_SECTION, "settings_ui_tooltip_open", str(bool(self.settings_ui_tooltip_open)))
-            ini_handler.write_key(INI_SECTION, "settings_ui_alcohol_open", str(bool(self.settings_ui_alcohol_open)))
-            ini_handler.write_key(INI_SECTION, "settings_ui_mbdp_open", str(bool(self.settings_ui_mbdp_open)))
-            ini_handler.write_key(INI_SECTION, "settings_ui_presets_open", str(bool(self.settings_ui_presets_open)))
-            ini_handler.write_key(INI_SECTION, "settings_ui_restock_open", str(bool(self.settings_ui_restock_open)))
-            ini_handler.write_key(INI_SECTION, "experimental_team_flag_sync", str(bool(self.experimental_team_flag_sync)))
-            ini_handler.write_key(INI_SECTION, "experimental_mainloop_refresh_queue", str(bool(self.experimental_mainloop_refresh_queue)))
+            set_key("alcohol_enabled", bool(self.alcohol_enabled))
+            set_key("alcohol_disable_effect", bool(self.alcohol_disable_effect))
+            set_key("alcohol_target_level", int(self.alcohol_target_level))
+            set_key("alcohol_use_explorable", bool(self.alcohol_use_explorable))
+            set_key("alcohol_use_outpost", bool(self.alcohol_use_outpost))
+            set_key("alcohol_preference", int(self.alcohol_preference))
+            set_key("mbdp_enabled", bool(self.mbdp_enabled))
+            set_key("mbdp_allow_partywide_in_human_parties", bool(self.mbdp_allow_partywide_in_human_parties))
+            set_key("mbdp_receiver_require_enabled", bool(self.mbdp_receiver_require_enabled))
+            set_key("mbdp_self_dp_minor_threshold", int(self.mbdp_self_dp_minor_threshold))
+            set_key("mbdp_self_dp_major_threshold", int(self.mbdp_self_dp_major_threshold))
+            set_key("mbdp_self_morale_target_effective", int(self.mbdp_self_morale_target_effective))
+            set_key("mbdp_self_min_morale_gain", int(self.mbdp_self_min_morale_gain))
+            set_key("mbdp_party_target_effective", int(self.mbdp_party_target_effective))
+            set_key("mbdp_strict_party_plus10", bool(self.mbdp_strict_party_plus10))
+            set_key("mbdp_party_min_members", int(self.mbdp_party_min_members))
+            set_key("mbdp_party_min_interval_ms", int(self.mbdp_party_min_interval_ms))
+            set_key("mbdp_party_min_total_gain_5", int(self.mbdp_party_min_total_gain_5))
+            set_key("mbdp_party_min_total_gain_10", int(self.mbdp_party_min_total_gain_10))
+            set_key("mbdp_party_light_dp_threshold", int(self.mbdp_party_light_dp_threshold))
+            set_key("mbdp_party_heavy_dp_threshold", int(self.mbdp_party_heavy_dp_threshold))
+            set_key("mbdp_powerstone_dp_threshold", int(self.mbdp_powerstone_dp_threshold))
+            set_key("mbdp_prefer_seal_for_recharge", bool(self.mbdp_prefer_seal_for_recharge))
+            set_key("force_team_morale_value", int(self.force_team_morale_value))
+            set_key("settings_explorable_open", bool(self.settings_explorable_open))
+            set_key("settings_summoning_open", bool(self.settings_summoning_open))
+            set_key("settings_outpost_open", bool(self.settings_outpost_open))
+            set_key("settings_mbdp_open", bool(self.settings_mbdp_open))
+            set_key("settings_alcohol_open", bool(self.settings_alcohol_open))
+            set_key("settings_ui_tooltip_open", bool(self.settings_ui_tooltip_open))
+            set_key("settings_ui_alcohol_open", bool(self.settings_ui_alcohol_open))
+            set_key("settings_ui_mbdp_open", bool(self.settings_ui_mbdp_open))
+            set_key("settings_ui_presets_open", bool(self.settings_ui_presets_open))
+            set_key("settings_ui_restock_open", bool(self.settings_ui_restock_open))
+            set_key("experimental_team_flag_sync", bool(self.experimental_team_flag_sync))
+            set_key("experimental_mainloop_refresh_queue", bool(self.experimental_mainloop_refresh_queue))
 
             for k, v in self.alcohol_selected.items():
-                ini_handler.write_key(INI_SECTION, f"alcohol_selected_{k}", str(bool(v)))
+                set_key(f"alcohol_selected_{k}", bool(v))
             for k, v in self.alcohol_enabled_items.items():
-                ini_handler.write_key(INI_SECTION, f"alcohol_enabled_{k}", str(bool(v)))
+                set_key(f"alcohol_enabled_{k}", bool(v))
+            for k, v in self.restock_enabled_items.items():
+                set_key(f"restock_enabled_{k}", bool(v))
             for c in ALL_CONSUMABLES:
                 k = str(c.get("key", "") or "")
                 if k:
-                    ini_handler.write_key(INI_SECTION, f"restock_target_{k}", str(int(max(0, min(2500, int(self.restock_targets.get(k, VAULT_RESTOCK_TARGET_QTY) or 0))))))
+                    set_key(f"restock_target_{k}", int(max(0, min(2500, int(self.restock_targets.get(k, VAULT_RESTOCK_TARGET_QTY) or 0)))))
             for a in ALCOHOL_ITEMS:
                 k = str(a.get("key", "") or "")
                 if k:
-                    ini_handler.write_key(INI_SECTION, f"restock_target_{k}", str(int(max(0, min(2500, int(self.restock_targets.get(k, VAULT_RESTOCK_TARGET_QTY) or 0))))))
+                    set_key(f"restock_target_{k}", int(max(0, min(2500, int(self.restock_targets.get(k, VAULT_RESTOCK_TARGET_QTY) or 0)))))
 
             # Team / multibox settings
             # team_broadcast: When enabled, broadcasts item usage to other accounts
             # team_consume_opt_in: When enabled (on followers), consumes items when broadcasts are received
             # Legacy behavior keeps team_consume_opt_in saved by immediate settings writes.
             # Experimental team-flag sync writes both flags here to reduce refresh races.
-            ini_handler.write_key(INI_SECTION, "team_broadcast", str(bool(self.team_broadcast)))
+            set_key("team_broadcast", bool(self.team_broadcast))
             if bool(getattr(self, "experimental_team_flag_sync", EXPERIMENTAL_TEAM_FLAG_SYNC_DEFAULT)):
-                ini_handler.write_key(INI_SECTION, "team_consume_opt_in", str(bool(self.team_consume_opt_in)))
+                set_key("team_consume_opt_in", bool(self.team_consume_opt_in))
 
             for k, v in self.selected.items():
-                ini_handler.write_key(INI_SECTION, f"selected_{k}", str(bool(v)))
+                set_key(f"selected_{k}", bool(v))
             for k, v in self.enabled.items():
-                ini_handler.write_key(INI_SECTION, f"enabled_{k}", str(bool(v)))
+                set_key(f"enabled_{k}", bool(v))
 
+            ini_handler.save(config)
             self._dirty = False
 
     # Config will be lazy-loaded on first main() call to ensure account email is available
@@ -2225,7 +2374,6 @@ try:
     _vault_last_confirmed_storage_bag_id = 0
     _vault_pending_state = {}
     _vault_action_cooldown_until = {}
-
     def _now_ms() -> int:
         import time
         return int(time.time() * 1000)
@@ -2663,6 +2811,127 @@ try:
             return bool(cfg.alcohol_use_explorable)
         return bool(cfg.alcohol_use_outpost)
 
+    def _is_summoning_spec(spec: dict) -> bool:
+        return str(spec.get("use_where", "") or "").strip().lower() == "summoning"
+
+    def _party_player_agent_ids() -> set[int]:
+        out = set()
+        try:
+            me = int(Player.GetAgentID() or 0)
+            if me > 0:
+                out.add(me)
+        except Exception:
+            pass
+        try:
+            for player in Party.GetPlayers() or []:
+                try:
+                    login_number = int(getattr(player, "login_number", 0) or 0)
+                    if login_number <= 0:
+                        continue
+                    agent_id = int(Party.Players.GetAgentIDByLoginNumber(login_number) or 0)
+                    if agent_id > 0:
+                        out.add(agent_id)
+                except Exception:
+                    continue
+        except Exception:
+            pass
+        return out
+
+    def _has_active_party_summon() -> bool:
+        owner_ids = _party_player_agent_ids()
+        try:
+            others = Party.GetOthers() or []
+        except Exception:
+            others = []
+
+        for other in others:
+            try:
+                agent_id = int(other or 0)
+            except Exception:
+                agent_id = 0
+            if agent_id <= 0:
+                continue
+            try:
+                if not Agent.IsAlive(agent_id):
+                    continue
+            except Exception:
+                continue
+            try:
+                if Agent.IsSpirit(agent_id) or Agent.IsMinion(agent_id):
+                    continue
+            except Exception:
+                pass
+
+            try:
+                model_id = int(Agent.GetModelID(agent_id) or 0)
+            except Exception:
+                model_id = 0
+            if model_id in SUMMONING_UNIQUE_PARTY_MODEL_IDS:
+                return True
+
+            try:
+                owner_id = int(Agent.GetOwnerID(agent_id) or 0)
+            except Exception:
+                owner_id = 0
+            if owner_id > 0 and owner_id in owner_ids:
+                try:
+                    if Agent.IsNPC(agent_id):
+                        return True
+                except Exception:
+                    return True
+
+        return False
+
+    def _summoning_block_reason(key: str, in_explorable: bool) -> str:
+        if not bool(in_explorable):
+            return "summoning items require an explorable area"
+
+        if str(key or "") == "igneous_summoning_stone":
+            try:
+                if int(Player.GetLevel() or 0) >= 20:
+                    return "Igneous Summoning Stone is only usable below level 20"
+            except Exception:
+                pass
+
+        try:
+            current_sp, _ = Player.GetSkillPointData()
+            if int(current_sp or 0) <= 0:
+                return "no skill points available for summoning"
+        except Exception:
+            pass
+
+        try:
+            if int(Map.GetMapID() or 0) in SUMMONING_RESTRICTED_MAP_IDS:
+                return "summoning items are blocked in this area"
+        except Exception:
+            pass
+
+        try:
+            active_quests = set(int(qid) for qid in (Quest.GetQuestLogIds() or []))
+            if active_quests.intersection(SUMMONING_RESTRICTED_QUEST_IDS):
+                return "summoning items are blocked in this quest context"
+        except Exception:
+            pass
+
+        if _has_effect(int(SUMMONING_SICKNESS_EFFECT_ID)):
+            return "Summoning Sickness is active"
+
+        if _has_active_party_summon():
+            return "a summoned ally is already active"
+
+        return ""
+
+    def _record_summoning_block(key: str, label: str, reason: str):
+        if not reason:
+            return
+        slug = re.sub(r"[^a-z0-9]+", "_", f"{key}_{reason}".lower()).strip("_")[:56]
+        code = f"summon_block_{slug}"
+        _record_blocked_action(code, f"{label}: {reason}")
+        wt = _warn_timer_for(code)
+        if wt.IsStopped() or wt.HasElapsed(8000):
+            wt.Start()
+            _debug(f"Skipping {label}: {reason}.", Console.MessageType.Info)
+
     # -------------------------
     # Inventory caching + stock counts
     # -------------------------
@@ -2994,11 +3263,27 @@ try:
         except Exception:
             return True
 
+    def _restock_item_enabled(key: str) -> bool:
+        return bool(getattr(cfg, "restock_enabled_items", {}).get(str(key or ""), False))
+
+    def _set_restock_item_enabled(key: str, enabled: bool):
+        key = str(key or "")
+        if not key:
+            return
+        value = bool(enabled)
+        changed = bool(getattr(cfg, "restock_enabled_items", {}).get(key, False)) != value
+        cfg.restock_enabled_items[key] = value
+        if value and _restock_target_for_key(key) <= 0:
+            cfg.restock_targets[key] = int(VAULT_RESTOCK_TARGET_QTY)
+            changed = True
+        if changed:
+            cfg.mark_dirty()
+
     def _apply_restock_target_on_select(key: str):
         key = str(key or "")
         if not key:
             return
-        if _restock_target_for_key(key) <= 0:
+        if _restock_item_enabled(key) and _restock_target_for_key(key) <= 0:
             cfg.restock_targets[key] = int(VAULT_RESTOCK_TARGET_QTY)
 
     def _apply_restock_target_on_deselect(key: str):
@@ -3042,10 +3327,10 @@ try:
         return out
 
     def _restock_regular_enabled(key: str) -> bool:
-        return bool(cfg.selected.get(key, False)) and bool(_runtime_regular_enabled(key))
+        return bool(cfg.selected.get(key, False)) and bool(_restock_item_enabled(key))
 
     def _restock_alcohol_enabled(key: str) -> bool:
-        return bool(cfg.alcohol_selected.get(key, False)) and bool(_runtime_alcohol_enabled(key))
+        return bool(cfg.alcohol_selected.get(key, False)) and bool(_restock_item_enabled(key))
 
     def _build_vault_restock_candidates():
         out = []
@@ -3106,6 +3391,73 @@ try:
             seen_models.add(model_id)
 
         return out
+
+    def _ordered_vault_restock_candidates(candidates):
+        shortage_first = [c for c in candidates if int(c[5]) > 0]
+        excess_second = [c for c in candidates if int(c[5]) < 0]
+        restock_mode = int(_restock_mode_value())
+        if restock_mode == int(RESTOCK_MODE_WITHDRAW_ONLY):
+            return shortage_first
+        if restock_mode == int(RESTOCK_MODE_DEPOSIT_ONLY):
+            return excess_second
+        return shortage_first + excess_second
+
+    def _has_actionable_vault_restock_need(inv, candidates) -> bool:
+        if inv is None or not candidates:
+            return False
+        if not _refresh_inventory_cache(force=True):
+            return False
+
+        move_cap_per_cycle = int(_restock_move_cap_per_cycle_value())
+        now_ms = _now_ms()
+        for key, spec, model_id, _cur_count, _target_count, _delta in _ordered_vault_restock_candidates(candidates):
+            if key in cfg.alcohol_selected:
+                if not _restock_alcohol_enabled(key):
+                    continue
+            else:
+                if not _restock_regular_enabled(key):
+                    continue
+
+            live_known, live_count = _stock_status_for_model_id(int(model_id))
+            if not live_known:
+                continue
+            live_target = int(_restock_target_for_key(key))
+            live_delta = int(live_target) - int(live_count)
+            if live_delta == 0:
+                continue
+
+            if int(live_delta) > 0:
+                if _is_vault_action_on_cooldown("withdraw", int(model_id), int(now_ms)):
+                    continue
+                try:
+                    in_storage = int(inv.GetModelCountInStorage(int(model_id)))
+                except Exception:
+                    in_storage = 0
+                to_withdraw = int(min(int(live_delta), int(in_storage), int(move_cap_per_cycle)))
+                if to_withdraw > 0:
+                    return True
+                continue
+
+            if _is_vault_action_on_cooldown("deposit", int(model_id), int(now_ms)):
+                continue
+
+            excess = int(min(max(0, -int(live_delta)), int(move_cap_per_cycle)))
+            if excess <= 0:
+                continue
+
+            source_item_id = _find_item_id_by_model_id(int(model_id))
+            source_is_stackable = True
+            if source_item_id > 0:
+                try:
+                    source_is_stackable = bool(Item.Customization.IsStackable(int(source_item_id)))
+                except Exception:
+                    source_is_stackable = True
+
+            probe_destinations = _storage_deposit_destinations(int(model_id), 1, bool(source_is_stackable))
+            if probe_destinations:
+                return True
+
+        return False
 
     def _get_storage_bag_handles():
         candidates = [
@@ -3623,6 +3975,8 @@ try:
             storage_open = False
 
         if not storage_open:
+            if not _has_actionable_vault_restock_need(inv, candidates):
+                return False
             try:
                 inv.OpenXunlaiWindow()
                 _debug("Vault restock: opening Xunlai Vault.")
@@ -3631,15 +3985,7 @@ try:
             restock_timer.Start()
             return True
 
-        shortage_first = [c for c in candidates if int(c[5]) > 0]
-        excess_second = [c for c in candidates if int(c[5]) < 0]
-        restock_mode = int(_restock_mode_value())
-        if restock_mode == int(RESTOCK_MODE_WITHDRAW_ONLY):
-            ordered_candidates = shortage_first
-        elif restock_mode == int(RESTOCK_MODE_DEPOSIT_ONLY):
-            ordered_candidates = excess_second
-        else:
-            ordered_candidates = shortage_first + excess_second
+        ordered_candidates = _ordered_vault_restock_candidates(candidates)
         move_cap_per_cycle = int(_restock_move_cap_per_cycle_value())
 
         for key, spec, model_id, _cur_count, _target_count, _delta in ordered_candidates:
@@ -4051,9 +4397,7 @@ try:
         if cached and (now - int(cached[0])) < int(TEAM_SETTINGS_CACHE_MS):
             return bool(cached[1]), bool(cached[2])
         try:
-            import hashlib
-            email_hash = hashlib.md5(account_email.encode()).hexdigest()[:8]
-            ini = IniHandler(_resolve_account_ini_path(email_hash, migrate_legacy=True, log_migration=False))
+            ini = IniHandler(_resolve_account_ini_path(account_email, migrate_legacy=True, log_migration=False))
             is_broadcaster = bool(ini.read_bool(INI_SECTION, "team_broadcast", False))
             is_optin = bool(ini.read_bool(INI_SECTION, "team_consume_opt_in", False))
         except Exception:
@@ -4600,6 +4944,12 @@ try:
             if not _allowed_here(spec, in_explorable):
                 continue
 
+            if _is_summoning_spec(spec):
+                summon_block_reason = _summoning_block_reason(key, in_explorable)
+                if summon_block_reason:
+                    _record_summoning_block(key, str(spec.get("label", key) or key), summon_block_reason)
+                    continue
+
             effect_id = _resolve_effect_id_for(key, spec)
 
             if effect_id and _has_effect(effect_id):
@@ -4644,10 +4994,11 @@ try:
                 t.Start()
                 aftercast_timer.Start()
                 _last_used_ms[key] = _now_ms()
-                try:
-                    _broadcast_use(model_id, 1, effect_id)
-                except Exception:
-                    pass
+                if not _is_summoning_spec(spec):
+                    try:
+                        _broadcast_use(model_id, 1, effect_id)
+                    except Exception:
+                        pass
                 # Force refresh inventory cache to show accurate count after consumption
                 _refresh_inventory_cache(force=True)
                 return True
@@ -4843,6 +5194,7 @@ try:
     def _selected_list_child_height(
         selected_explorable_conset: list,
         selected_explorable_other: list,
+        selected_summoning: list,
         selected_outpost: list,
         selected_mbdp: list,
         selected_alcohol: list,
@@ -4859,6 +5211,8 @@ try:
                 rows += 1.0 + float(len(selected_explorable_conset)) + 0.5
             if selected_explorable_other:
                 rows += float(len(selected_explorable_other)) + 0.6
+        if selected_summoning:
+            rows += 1.0 + float(len(selected_summoning)) + 0.6
         if selected_outpost:
             rows += 1.0 + float(len(selected_outpost)) + 0.6
         if selected_mbdp:
@@ -4868,6 +5222,41 @@ try:
 
         estimated = (line_h * max(3.0, rows)) + 16.0
         return float(max(MAIN_SELECTED_CHILD_MIN_HEIGHT, min(MAIN_SELECTED_CHILD_MAX_HEIGHT, estimated)))
+
+    def _begin_persistent_window_with_close_state(
+        ini_key: str,
+        name: str,
+        flags: int = PyImGui.WindowFlags.NoFlag,
+    ) -> tuple[bool, bool]:
+        ini = IniManager()
+        ini.begin_window_config(ini_key)
+
+        begin_result = ImGui.begin_with_close(name, True, flags)
+        if isinstance(begin_result, tuple) and len(begin_result) == 2:
+            expanded, window_open = bool(begin_result[0]), bool(begin_result[1])
+        else:
+            expanded = bool(begin_result)
+            window_open = bool(begin_result)
+
+        if ImGui._is_textured_theme():
+            window = ImGui.WindowModule._windows.get(name)
+            if window is not None:
+                window_open = bool(window.open)
+                expanded = bool(window.open and not window.collapse)
+
+        if window_open:
+            ini.track_window_collapsed(ini_key, expanded)
+            if expanded:
+                ini.mark_begin_success(ini_key)
+
+        return expanded, window_open
+
+    def _disable_pycons_widget():
+        try:
+            from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
+            get_widget_handler().disable_widget(MODULE_NAME)
+        except Exception as e:
+            _debug(f"Failed to disable Pycons widget: {e}", Console.MessageType.Warning)
 
     # -------------------------
     # Main Window
@@ -4879,7 +5268,14 @@ try:
             PyImGui.set_next_window_size(MAIN_WINDOW_DEFAULT_SIZE, PyImGui.ImGuiCond.FirstUseEver)
         except Exception:
             pass
-        if not ImGui.Begin(INI_KEY_MAIN, BOT_NAME):
+
+        window_expanded, window_open = _begin_persistent_window_with_close_state(INI_KEY_MAIN, BOT_NAME)
+        if not window_open:
+            ImGui.End(INI_KEY_MAIN)
+            show_settings[0] = False
+            _disable_pycons_widget()
+            return
+        if not window_expanded:
             ImGui.End(INI_KEY_MAIN)
             return
 
@@ -5012,19 +5408,24 @@ try:
 
             selected_explorable_conset = [c for c in CONSUMABLES if c.get("use_where") == "explorable" and c.get("key") in CONSET_KEYS and bool(cfg.selected.get(c["key"], False))]
             selected_explorable_other = [c for c in CONSUMABLES if c.get("use_where") == "explorable" and c.get("key") not in CONSET_KEYS and bool(cfg.selected.get(c["key"], False))]
+            selected_summoning = sorted(
+                [c for c in CONSUMABLES if c.get("use_where") == "summoning" and bool(cfg.selected.get(c["key"], False))],
+                key=lambda x: str(x.get("label", "")).lower(),
+            )
             selected_outpost = [c for c in CONSUMABLES if c.get("use_where") == "outpost" and bool(cfg.selected.get(c["key"], False))]
             selected_mbdp = [c for c in MB_DP_ITEMS if bool(cfg.selected.get(c["key"], False))]
             selected_alcohol = [a for a in ALCOHOL_ITEMS if bool(cfg.alcohol_selected.get(a["key"], False))]
             # Keep the main selected-items panel stable even when inventory hits 0.
             # Availability filtering remains in the Settings browser.
 
-            any_selected = bool(selected_explorable_conset or selected_explorable_other or selected_outpost or selected_mbdp or selected_alcohol)
+            any_selected = bool(selected_explorable_conset or selected_explorable_other or selected_summoning or selected_outpost or selected_mbdp or selected_alcohol)
             if not any_selected:
                 PyImGui.text_disabled("None selected. Open Settings and pick consumables.")
             else:
                 child_height = _selected_list_child_height(
                     selected_explorable_conset,
                     selected_explorable_other,
+                    selected_summoning,
                     selected_outpost,
                     selected_mbdp,
                     selected_alcohol,
@@ -5058,6 +5459,17 @@ try:
                             k = c["key"]
                             new_enabled, chg = _draw_main_row_checkbox_and_badge(
                                 k, c["label"], _runtime_regular_enabled(k), "pycons", int(c.get("model_id", 0))
+                            )
+                            if chg:
+                                _set_main_runtime_regular_enabled(k, bool(new_enabled))
+                        PyImGui.separator()
+
+                    if selected_summoning:
+                        _section_text("Summoning Stones/Items:", "summoning")
+                        for c in selected_summoning:
+                            k = c["key"]
+                            new_enabled, chg = _draw_main_row_checkbox_and_badge(
+                                k, c["label"], _runtime_regular_enabled(k), "pycons_summon", int(c.get("model_id", 0))
                             )
                             if chg:
                                 _set_main_runtime_regular_enabled(k, bool(new_enabled))
@@ -5245,20 +5657,23 @@ try:
     def _draw_restock_target_item_row(key: str, spec: dict):
         model_id = int(spec.get("model_id", 0) or 0)
         known, cnt = _stock_status_for_model_id(model_id)
-        label = str(spec.get("label", key) or key)
+        label = _alcohol_display_label(spec) if str(key or "") in ALCOHOL_BY_KEY else str(spec.get("label", key) or key)
         current_target = _restock_target_for_key(key)
+        restock_enabled_now = _restock_item_enabled(key)
 
         PyImGui.table_next_row()
         PyImGui.table_next_column()
-        drew_icon = _draw_static_consumable_icon(
+        restock_enabled, _changed, _used_icon = _draw_icon_toggle_or_checkbox(
+            restock_enabled_now,
             key,
             label,
             "pycons_restock_target",
             icon_size=18.0,
-            highlight_box=True,
+            highlight_selected_box=True,
         )
-        if drew_icon:
-            _same_line(10)
+        if bool(restock_enabled) != bool(restock_enabled_now):
+            _set_restock_item_enabled(key, bool(restock_enabled))
+        _same_line(10)
         PyImGui.text(label)
         _tooltip_if_hovered(_consumable_tooltip_with_label(key, label))
 
@@ -5420,6 +5835,37 @@ try:
             if only_available_settings and len(visible_regular_keys) == before_outpost:
                 PyImGui.text_disabled("No available items.")
 
+    def _draw_settings_summoning_category(
+        summoning_force,
+        flt: str,
+        summoning_items: list,
+        visible_regular_keys: list,
+        only_available_settings: bool,
+        only_selected_settings: bool,
+    ):
+        summoning_open = _styled_collapsing_header_force(
+            "Summoning Stones/Items##pycons_hdr_summoning",
+            summoning_force,
+            bool(cfg.settings_summoning_open),
+            "summoning",
+        )
+        if bool(cfg.settings_summoning_open) != bool(summoning_open):
+            cfg.settings_summoning_open = bool(summoning_open)
+            cfg.mark_dirty()
+        if summoning_open:
+            before_summoning = len(visible_regular_keys)
+            for spec in sorted(summoning_items, key=lambda x: str(x.get("label", "")).lower()):
+                _draw_settings_row(
+                    spec,
+                    flt,
+                    visible_regular_keys,
+                    only_available=only_available_settings,
+                    only_selected=only_selected_settings,
+                )
+            if only_available_settings and len(visible_regular_keys) == before_summoning:
+                PyImGui.text_disabled("No available items.")
+            PyImGui.separator()
+
     def _draw_settings_alcohol_category(
         alcohol_force,
         flt: str,
@@ -5459,7 +5905,15 @@ try:
         # Allow manual resizing of the Settings window by removing the
         # AlwaysAutoResize flag. Users can now expand/collapse and resize
         # the settings window to their preference.
-        if not ImGui.Begin(INI_KEY_SETTINGS, "Pycons - Settings##PyconsSettings"):
+        window_expanded, window_open = _begin_persistent_window_with_close_state(
+            INI_KEY_SETTINGS,
+            "Pycons - Settings##PyconsSettings",
+        )
+        if not window_open:
+            show_settings[0] = False
+            ImGui.End(INI_KEY_SETTINGS)
+            return
+        if not window_expanded:
             ImGui.End(INI_KEY_SETTINGS)
             return
 
@@ -5884,9 +6338,32 @@ try:
                 cfg.mark_dirty()
             _show_setting_tooltip("restock_move_cap_per_cycle")
 
-            PyImGui.text_wrapped("Choose target inventory amounts for selected items. Pycons will withdraw shortages and deposit excess while Xunlai Vault restock is enabled.")
-            PyImGui.text_wrapped("Restock balancing follows the active item toggles in the main window.")
+            PyImGui.text_wrapped("Choose target inventory amounts for selected items. Click an item icon to toggle whether that item participates in vault restock.")
+            PyImGui.text_wrapped("Main-window ON/OFF controls usage only. Restock uses the icon toggle below.")
             selected_specs = _selected_restock_specs()
+
+            disabled_selected = (int(len(selected_specs)) == 0)
+            mode = _begin_disabled(disabled_selected)
+            if PyImGui.button("Enable all selected restock##pycons_restock_enable_all"):
+                changed_any = False
+                for key, _spec in selected_specs:
+                    if not _restock_item_enabled(key):
+                        _set_restock_item_enabled(key, True)
+                        changed_any = True
+                if changed_any:
+                    cfg.mark_dirty()
+            _show_setting_tooltip("restock_enable_all_selected")
+            _same_line(10)
+            if PyImGui.button("Disable all selected restock##pycons_restock_disable_all"):
+                changed_any = False
+                for key, _spec in selected_specs:
+                    if _restock_item_enabled(key):
+                        _set_restock_item_enabled(key, False)
+                        changed_any = True
+                if changed_any:
+                    cfg.mark_dirty()
+            _show_setting_tooltip("restock_disable_all_selected")
+            _end_disabled(mode)
 
             PyImGui.text("Set all selected targets to:")
             _same_line(10)
@@ -5969,6 +6446,7 @@ try:
 
             explorable_consets = [c for c in CONSUMABLES if c.get("use_where") == "explorable" and c.get("key") in CONSET_KEYS]
             explorable_other = [c for c in CONSUMABLES if c.get("use_where") == "explorable" and c.get("key") not in CONSET_KEYS]
+            summoning_items = [c for c in CONSUMABLES if c.get("use_where") == "summoning"]
             outpost_items = [c for c in CONSUMABLES if c.get("use_where") == "outpost"]
             mbdp_items = MB_DP_ITEMS
             alcohol_items = ALCOHOL_ITEMS
@@ -5976,6 +6454,7 @@ try:
             conset_has_match = search_active and _list_has_match(explorable_consets, flt)
             explorable_other_has_match = search_active and _list_has_match(explorable_other, flt)
             explorable_has_match = search_active and (conset_has_match or explorable_other_has_match)
+            summoning_has_match = search_active and _list_has_match(summoning_items, flt)
             outpost_has_match = search_active and _list_has_match(outpost_items, flt)
             mbdp_has_match = search_active and _list_has_match(mbdp_items, flt)
             alcohol_has_match = search_active and _list_has_match(alcohol_items, flt)
@@ -5991,6 +6470,7 @@ try:
                 _refresh_inventory_cache(False)
 
             current_explorable_force = False if collapse_now else (True if explorable_has_match else (False if search_active else None))
+            current_summoning_force = False if collapse_now else (True if summoning_has_match else (False if search_active else None))
             current_outpost_force = False if collapse_now else (True if outpost_has_match else (False if search_active else None))
             current_mbdp_force = False if collapse_now else (True if mbdp_has_match else (False if search_active else None))
             current_alcohol_force = False if collapse_now else (True if alcohol_has_match else (False if search_active else None))
@@ -6006,6 +6486,14 @@ try:
                 )
                 current_visible_count += _count_visible_settings_specs(
                     explorable_other,
+                    flt,
+                    only_available=only_available_settings,
+                    only_selected=only_selected_settings,
+                    alcohol=False,
+                )
+            if _effective_section_open(current_summoning_force, bool(cfg.settings_summoning_open)):
+                current_visible_count += _count_visible_settings_specs(
+                    summoning_items,
                     flt,
                     only_available=only_available_settings,
                     only_selected=only_selected_settings,
@@ -6081,16 +6569,19 @@ try:
 
             if pending_expand_all:
                 explorable_force = True
+                summoning_force = True
                 outpost_force = True
                 mbdp_force = True
                 alcohol_force = True
             elif pending_collapse_all:
                 explorable_force = False
+                summoning_force = False
                 outpost_force = False
                 mbdp_force = False
                 alcohol_force = False
             else:
                 explorable_force = False if collapse_now else (True if explorable_has_match else (False if search_active else None))
+                summoning_force = False if collapse_now else (True if summoning_has_match else (False if search_active else None))
                 outpost_force = False if collapse_now else (True if outpost_has_match else (False if search_active else None))
                 mbdp_force = False if collapse_now else (True if mbdp_has_match else (False if search_active else None))
                 alcohol_force = False if collapse_now else (True if alcohol_has_match else (False if search_active else None))
@@ -6098,7 +6589,7 @@ try:
             visible_regular_keys = []
             visible_alcohol_keys = []
 
-            category_keys = _ordered_consumable_category_keys(["explorable", "mbdp", "outpost", "alcohol"])
+            category_keys = _ordered_consumable_category_keys(["explorable", "summoning", "mbdp", "outpost", "alcohol"])
             for category_key in category_keys:
                 if category_key == "explorable":
                     _draw_settings_explorable_category(
@@ -6109,6 +6600,15 @@ try:
                         explorable_other_has_match,
                         explorable_consets,
                         explorable_other,
+                        visible_regular_keys,
+                        only_available_settings,
+                        only_selected_settings,
+                    )
+                elif category_key == "summoning":
+                    _draw_settings_summoning_category(
+                        summoning_force,
+                        flt,
+                        summoning_items,
                         visible_regular_keys,
                         only_available_settings,
                         only_selected_settings,
@@ -6219,6 +6719,7 @@ try:
 
         _draw_main_window()
         _draw_settings_window()
+
         _tick_disable_alcohol_effect()
 
         cfg.save_if_dirty_throttled(750)
