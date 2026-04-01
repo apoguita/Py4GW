@@ -210,16 +210,24 @@ Difference:
 
 Main system:
 - `Py4GWCoreLib.Botting.BottingClass`
+- adjacent BT orchestration family: `Py4GWCoreLib.BottingTree.BottingTree`
 
 Role:
 - High-level automation composition layer.
-- Builds full bot lifecycles over FSM scheduling, coroutine steps, and background upkeep loops.
+- Builds full bot lifecycles over either:
+  - FSM scheduling, coroutine steps, and background upkeep loops in `BottingClass`
+  - planner/service `BehaviorTree` orchestration in `BottingTree`
 
 Layered structure:
 - `BottingClass`
 - `BotConfig`
 - `BottingHelpers`
 - grouped `subclases_src` scripting wrappers
+- parallel BT stack:
+  - `BehaviorTree`
+  - `RoutinesBT`
+  - `BottingTree`
+  - optional script-local facades such as `Sources/ApoSource/ApoBottingLib/wrappers.py`
 
 Scheduling model:
 - normal FSM states (`AddState`)
@@ -231,6 +239,7 @@ Key behavior:
 - `Update()` ticks the bot runtime.
 - Upkeep coroutines run in parallel for combat, HeroAI, inventory, loot, consumables, morale, and more.
 - Grouped namespaces (`States`, `Move`, `Wait`, `Events`, `Items`, `Party`, `Target`, `Multibox`, etc.) act as a scripting DSL over the scheduler.
+- In the BT stack, shared helpers come from `RoutinesBT`, optional script-local facades such as `ApoSource` wrappers adapt those helpers for authored sequences, and `BottingTree` supervises planner plus upkeep execution.
 
 9. Bridge Exposure Layer
 ------------------------

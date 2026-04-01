@@ -29,10 +29,28 @@ The runtime is split into three layers:
 
 3. `BottingTree`
    - A wrapper/controller that runs:
-     - headless HeroAI
-     - the user planner tree
-     - optional upkeep/service trees
+      - headless HeroAI
+      - the user planner tree
+      - optional upkeep/service trees
    - It exposes a script-friendly API for start/stop/pause, planner sequencing, restart-from-step, and movement overlay drawing.
+
+There is also a common project-local authoring facade above that runtime in some scripts:
+
+4. `ApoSource` BT wrappers
+   - Example: `Sources/ApoSource/ApoBottingLib/wrappers.py`
+   - This is not a new execution engine and not a replacement for `RoutinesBT`.
+   - It is a script-facing convenience facade that:
+     - re-exports a curated subset of `RoutinesBT`
+     - renames helpers into a smaller script DSL
+     - adapts script-local argument shapes such as `Vec2f`
+     - keeps authored sequence files shorter and more readable
+
+So the full authoring path in those scripts is usually:
+
+- `BehaviorTree` supplies node semantics and execution rules
+- `RoutinesBT` builds reusable domain subtrees
+- `ApoSource` wrappers provide a local ergonomic facade over those subtree builders
+- `BottingTree` owns planner/service orchestration and runtime control
 
 ## The Actual BehaviorTree Layer
 
@@ -57,7 +75,14 @@ So the relationship is:
 
 - `BehaviorTree` defines how trees run
 - `RoutinesBT` defines reusable trees
+- `ApoSource` wrappers optionally rename/adapt those reusable trees for one script family
 - `BottingTree` decides which trees run together, when they start, and how scripts interact with them
+
+This matters because `ApoSource` wrappers and `BottingTree` solve different problems:
+
+- wrappers make authored planner code cleaner
+- `BottingTree` controls runtime ownership, lifecycle, and parallel execution
+- `RoutinesBT` remains the reusable behavior catalog underneath both
 
 ## Discovery Contract
 
@@ -1025,7 +1050,39 @@ Keep this separation:
 
 - `BottingTree` manages execution and orchestration
 - `RoutinesBT` provides reusable tree logic
+- `ApoSource` wrappers provide optional script-local naming and argument adaptation
 - the script provides named steps and user-facing flow
+
+## Where New Helpers Belong
+
+When adding new helper behavior, place it in the highest-value layer that still keeps responsibilities clean.
+
+- Add it to `BehaviorTree` only if you are creating a new generic tree primitive or execution semantic.
+- Add it to `RoutinesBT` if the behavior is a reusable gameplay subtree that other scripts could reasonably share.
+- Add it to `ApoSource` wrappers if the behavior is mostly a naming, parameter-shaping, or script-local facade over one or more existing `RoutinesBT` helpers.
+- Add it to a script module if it is specific to one authored quest flow, planner sequence, or UI interaction and would be misleading as a shared helper.
+- Change `BottingTree` only when the runtime itself needs new orchestration behavior such as planner ownership, restart behavior, shared blackboard policy, service-tree handling, or HeroAI/runtime coordination.
+
+A useful rule of thumb:
+
+- if it returns a reusable subtree for many scripts, prefer `RoutinesBT`
+- if it makes one script family nicer to author, prefer `ApoSource` wrappers
+- if it changes how trees are scheduled or supervised, prefer `BottingTree`
+
+## Relation To The Older Botting Wrappers
+
+The project also contains the older `Py4GWCoreLib.Botting.BottingClass` stack with `subclases_src` wrapper namespaces such as `Move`, `Wait`, `States`, and `Events`.
+
+Those wrappers are conceptually similar to `ApoSource/ApoBottingLib/wrappers.py` in one important way:
+
+- both are user-facing facades that make authored automation code easier to read and write
+
+But they target different runtimes:
+
+- `BottingClass` wrappers schedule FSM and coroutine work into the classic bot runtime
+- `ApoSource` BT wrappers return `BehaviorTree` subtrees meant to be composed into `BottingTree` planner/service flows
+
+So `ApoSource` wrappers should be understood as the BT-stack analog of a scripting facade, not as another orchestration runtime.
 
 ## Summary
 
