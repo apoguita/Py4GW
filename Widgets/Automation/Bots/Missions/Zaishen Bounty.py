@@ -57,6 +57,46 @@ _start_combat_header_names: list[str] = []
 # endregion
 
 # =============================================================================
+# region HELPERS
+# =============================================================================
+def _register_path(bot, path):
+    """Register FSM states for a path (simple or complex with bless/gadget/etc.)."""
+    if path and isinstance(path[0], dict):
+        for entry in path:
+            for key, value in entry.items():
+                if key == "bless":
+                    bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Interacting with Blessing.")
+                    bot.Move.XY(*value)
+                    bot.Wait.ForTime(1500)
+                    bot.Move.XYAndInteractNPC(*value)
+                    bot.Multibox.SendDialogToTarget(0x84) # EOTN Blessing
+                    bot.Multibox.SendDialogToTarget(0x85) # NF Blessing
+                elif key == "gadget":
+                    bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Interacting with Gadget.")
+                    bot.Move.XY(*value)
+                    bot.Wait.ForTime(1500)
+                    bot.Move.XYAndInteractGadget(*value)
+                elif key == "npc":
+                    bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Interacting with NPC.")
+                    bot.Move.XY(*value)
+                    bot.Wait.ForTime(1500)
+                    bot.Move.XYAndInteractNPC(*value)
+                elif key == "dialog":
+                    bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Sending dialog target.")
+                    bot.Wait.ForTime(500)
+                    bot.Multibox.SendDialogToTarget(value)
+                elif key == "wait":
+                    bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Waiting...")
+                    bot.Wait.ForTime(value)
+                elif key== "map":
+                    bot.Wait.ForMapToChange(value)
+                elif key == "path":
+                    bot.Move.FollowAutoPath(value)
+    else:
+        bot.Move.FollowAutoPath(path)
+# endregion
+
+# =============================================================================
 # region BOT ROUTINE
 # =============================================================================
 def bot_routine(bot: Botting) -> None:
@@ -67,8 +107,8 @@ def bot_routine(bot: Botting) -> None:
         return
 
     # Events
-    #condition = lambda: OnPartyWipe(bot)
-    #bot.Events.OnPartyWipeCallback(condition)
+    condition = lambda: OnPartyWipe(bot)
+    bot.Events.OnPartyWipeCallback(condition)
 
     # Main header
     bot.States.AddHeader(BotSettings.BOT_NAME)  # header counter = 1
@@ -112,38 +152,42 @@ def bot_routine(bot: Botting) -> None:
         bot.Items.Restock.Honeycomb()
 
         # -- Travel to explorable --
+        has_outpost_path = bool(bounty.outpost_path)
+        has_explorable = bool(bounty.explorable_id)
         transit_count = len(bounty.transit_explorables)
-        if transit_count > 0:
-            bot.Move.FollowPathAndExitMap(bounty.outpost_path, target_map_id=bounty.transit_explorables[0])
+
+        if has_outpost_path and has_explorable:
+            # Standard bounty: outpost_path leads to explorable via optional transits
+            if transit_count > 0:
+                bot.Move.FollowPathAndExitMap(bounty.outpost_path, target_map_id=bounty.transit_explorables[0])
+                for i in range(transit_count):
+                    _register_path(bot, bounty.transit_paths[i])
+                    next_map = bounty.transit_explorables[i + 1] if i + 1 < transit_count else bounty.explorable_id
+                    bot.Wait.ForMapToChange(next_map)
+            else:
+                bot.Move.FollowPathAndExitMap(bounty.outpost_path, target_map_id=bounty.explorable_id)
+        elif not has_outpost_path and not has_explorable:
+            # No outpost_path and no explorable_id: the bounty starts directly
+            # via NPC interaction in transit_paths (e.g. TempleOfTheDamned).
+            # Transit paths handle their own map changes via "map" keyword.
+            bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"No outpost exit path. Executing transit paths from outpost.")
             for i in range(transit_count):
-                bot.Move.FollowAutoPath(bounty.transit_paths[i])
-                next_map = bounty.transit_explorables[i + 1] if i + 1 < transit_count else bounty.explorable_id
-                bot.Wait.ForMapToChange(next_map)
-        else:
-            bot.Move.FollowPathAndExitMap(bounty.outpost_path, target_map_id=bounty.explorable_id)
+                _register_path(bot, bounty.transit_paths[i])
+        elif has_outpost_path and not has_explorable:
+            # Has outpost path but no explorable: follow outpost path then transits
+            bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Following outpost path, then transit paths.")
+            if transit_count > 0:
+                # Execute outpost path as regular movement (no exit map target)
+                _register_path(bot, bounty.outpost_path)
+                for i in range(transit_count):
+                    _register_path(bot, bounty.transit_paths[i])
+            else:
+                _register_path(bot, bounty.outpost_path)
 
         # -- Bounty Path --
         bot.States.AddHeader("Start Combat")
         bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Starting Bounty: {bounty.display}")
-        if bounty.bounty_path and isinstance(bounty.bounty_path[0], dict):
-            for i, entry in enumerate(bounty.bounty_path):
-                for key, value in entry.items():
-                    if key == "bless":
-                        bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Taking Blessing.")
-                        bot.Move.XY(*value)
-                        bot.Wait.ForTime(1500)
-                        bot.Move.XYAndInteractNPC(*value)
-                        bot.Multibox.SendDialogToTarget(0x84)
-                        bot.Multibox.SendDialogToTarget(0x85)
-                    elif key == "gadget":
-                        bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Interacting with gadget.")
-                        bot.Move.XY(*value)
-                        bot.Wait.ForTime(1500)
-                        bot.Move.XYAndInteractGadget(*value)
-                    elif key == "path":
-                        bot.Move.FollowAutoPath(value)
-        else:
-            bot.Move.FollowAutoPath(bounty.bounty_path)
+        _register_path(bot, bounty.bounty_path)
         bot.Wait.UntilOutOfCombat()
 
         # -- Bounty Completed --
@@ -171,15 +215,46 @@ def _stop_bot():
 # region EVENTS
 # =============================================================================
 def _on_party_wipe(bot: "Botting"):
+    from Py4GWCoreLib.Pathing import AutoPathing
+
     while Agent.IsDead(Player.GetAgentID()):
         yield from bot.Wait._coro_for_time(1000)
         if not Routines.Checks.Map.MapValid():
             bot.config.FSM.resume()
             return
 
-    # Jump to the Start Combat header of the CURRENT bounty
+    # Wait for shrine teleport to complete
+    yield from Routines.Yield.wait(2000)
+
+    # Get first waypoint of current bounty path
+    bounty = _queued_bounties[_current_bounty_index]
+    if bounty.bounty_path:
+        first_point = bounty.bounty_path[0]
+        if isinstance(first_point, dict):
+            # Complex path: first value of first dict entry
+            goal_xy = list(first_point.values())[0]
+            if isinstance(goal_xy, list):
+                goal_xy = goal_xy[0]
+            goal_x, goal_y = goal_xy[0], goal_xy[1]
+        else:
+            goal_x, goal_y = first_point[0], first_point[1]
+
+        shrine_x, shrine_y = Player.GetXY()
+        ConsoleLog("on_party_wipe", f"Revived at ({shrine_x:.0f}, {shrine_y:.0f}). Pathing to start ({goal_x:.0f}, {goal_y:.0f})")
+
+        start = (shrine_x, shrine_y, 0)
+        goal = (goal_x, goal_y, 0)
+        path_back = yield from AutoPathing().get_path(start, goal)
+        if path_back:
+            yield from Routines.Yield.Movement.FollowPath(
+                path_points=[(p[0], p[1]) for p in path_back],
+                tolerance=200,
+                custom_pause_fn=bot.config.pause_on_danger_fn,
+            )
+
+    # Jump to Start Combat to re-execute the full path
     target = _start_combat_header_names[_current_bounty_index]
-    ConsoleLog("on_party_wipe", f"Revived. Jumping to: {target}")
+    ConsoleLog("on_party_wipe", f"Jumping to: {target}")
     bot.config.FSM.jump_to_state_by_name(target)
     bot.config.FSM.resume()
 
@@ -194,7 +269,13 @@ def OnPartyWipe(bot: "Botting"):
 # region DATA LOADING
 # =============================================================================
 def _load_transit_data(mod, map_selected):
-    """Dynamically loads N transit_id / transit_path pairs from the map module."""
+    """Dynamically loads N transit_id / transit_path pairs from the map module.
+    
+    Supports two modes:
+      1. Standard: transit_id keys in _ids dict paired with transit_path attributes.
+      2. Path-only: no transit_id keys, but transit_path attributes exist.
+         In this case, transit paths handle their own map changes via 'map' keyword.
+    """
     ids = getattr(mod, f"{map_selected}_ids", {})
     transit_explorables = []
     transit_paths = []
@@ -205,12 +286,25 @@ def _load_transit_data(mod, map_selected):
         path_attr = f"{map_selected}_transit_path" if i == 1 else f"{map_selected}_transit_path{i}"
 
         transit_id = ids.get(key, 0)
-        if not transit_id:
+        path_data = getattr(mod, path_attr, None)
+
+        if not transit_id and path_data is None:
+            # Neither transit_id nor transit_path exists -> stop
             break
 
-        transit_explorables.append(transit_id)
-        path_data = getattr(mod, path_attr, [(0, 0)])
-        transit_paths.append(path_data)
+        if transit_id:
+            # Standard mode: transit_id exists
+            transit_explorables.append(transit_id)
+        else:
+            # Path-only mode: no transit_id but path exists
+            # Use 0 as placeholder (map change handled by 'map' keyword in path)
+            transit_explorables.append(0)
+
+        if path_data is not None:
+            transit_paths.append(path_data)
+        else:
+            transit_paths.append([(0, 0)])
+
         i += 1
 
     return transit_explorables, transit_paths

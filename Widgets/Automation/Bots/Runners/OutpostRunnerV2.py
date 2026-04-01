@@ -135,12 +135,12 @@ def bot_routine(bot: Botting) -> None:
         bot.Items.Restock.EssenceOfCelerity()
         bot.Items.Restock.GrailOfMight()
 
+        # Widgets
+        bot.Multibox.ApplyWidgetPolicy(enable_widgets=BotSettings.WIDGETS_TO_ENABLE, disable_widgets=BotSettings.WIDGETS_TO_DISABLE)
+
         # -- Exit outpost --
         first_map_id = run.segments[0]["map_id"] if run.segments else 0
         bot.Move.FollowPathAndExitMap(run.outpost_path, target_map_id=first_map_id)
-
-        # Widgets
-        bot.Multibox.ApplyWidgetPolicy(enable_widgets=BotSettings.WIDGETS_TO_ENABLE, disable_widgets=BotSettings.WIDGETS_TO_DISABLE)
 
         # -- Follow explorable segments --
         for seg_i, entry in enumerate(run.segments):

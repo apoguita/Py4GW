@@ -62,6 +62,28 @@ _start_combat_header_names: list[str] = []
 # =============================================================================
 # region BOT ROUTINE
 # =============================================================================
+def _register_path(bot, path):
+    """Register FSM states for a path (simple or complex with bless/gadget)."""
+    if path and isinstance(path[0], dict):
+        for entry in path:
+            for key, value in entry.items():
+                if key == "bless":
+                    bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Taking Blessing.")
+                    bot.Move.XY(*value)
+                    bot.Wait.ForTime(1500)
+                    bot.Move.XYAndInteractNPC(*value)
+                    bot.Multibox.SendDialogToTarget(0x84)
+                    bot.Multibox.SendDialogToTarget(0x85)
+                elif key == "gadget":
+                    bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Interacting with gadget.")
+                    bot.Move.XY(*value)
+                    bot.Wait.ForTime(1500)
+                    bot.Move.XYAndInteractGadget(*value)
+                elif key == "path":
+                    bot.Move.FollowAutoPath(value)
+    else:
+        bot.Move.FollowAutoPath(path)
+
 def bot_routine(bot: Botting) -> None:
     global _current_vq_index, _start_combat_header_names
 
@@ -70,8 +92,8 @@ def bot_routine(bot: Botting) -> None:
         return
 
     # Events
-    #condition = lambda: OnPartyWipe(bot)
-    #bot.Events.OnPartyWipeCallback(condition)
+    condition = lambda: OnPartyWipe(bot)
+    bot.Events.OnPartyWipeCallback(condition)
 
     # Main header
     bot.States.AddHeader(BotSettings.BOT_NAME)  # header counter = 1
@@ -124,7 +146,7 @@ def bot_routine(bot: Botting) -> None:
         if transit_count > 0:
             bot.Move.FollowPathAndExitMap(vq.outpost_path, target_map_id=vq.transit_explorables[0])
             for i in range(transit_count):
-                bot.Move.FollowAutoPath(vq.transit_paths[i])
+                _register_path(bot, vq.transit_paths[i])
                 next_map = vq.transit_explorables[i + 1] if i + 1 < transit_count else vq.explorable_id
                 bot.Wait.ForMapToChange(next_map)
         else:
@@ -136,30 +158,12 @@ def bot_routine(bot: Botting) -> None:
         target_header = completed_header_names[vq_idx]
         bot.States.AddManagedCoroutine("VanquishWatchdog",
             lambda h=target_header: VanquishWatchdog(bot, h))
-        if vq.vanquish_path and isinstance(vq.vanquish_path[0], dict):
-            for i, entry in enumerate(vq.vanquish_path):
-                for key, value in entry.items():
-                    if key == "bless":
-                        bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Taking Blessing.")
-                        bot.Move.XY(*value)
-                        bot.Wait.ForTime(1500)
-                        bot.Move.XYAndInteractNPC(*value)
-                        bot.Multibox.SendDialogToTarget(0x84)
-                        bot.Multibox.SendDialogToTarget(0x85)
-                    elif key == "gadget":
-                        bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Interacting with gadget.")
-                        bot.Move.XY(*value)
-                        bot.Wait.ForTime(1500)
-                        bot.Move.XYAndInteractGadget(*value)
-                    elif key == "path":
-                        bot.Move.FollowAutoPath(value)
-        else:
-            bot.Move.FollowAutoPath(vq.vanquish_path)
+        _register_path(bot, vq.vanquish_path)
         bot.Wait.UntilOutOfCombat()
 
-        # -- Reverse Path with Radar --
-        bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Starting Reverse Path with Radar.")
-        bot.States.AddManagedCoroutine("Radar", lambda: Radar(bot))
+        # -- Reverse Path with Radar (range=4000) --
+        bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Starting Reverse Path with Radar (range=4000).")
+        bot.States.AddManagedCoroutine("Radar", lambda: Radar(bot, radar_range=4000))
         if vq.vanquish_path and isinstance(vq.vanquish_path[0], dict):
             reversed_list = []
             for entry in reversed(vq.vanquish_path):
@@ -172,23 +176,31 @@ def bot_routine(bot: Botting) -> None:
                     else:
                         reversed_entry[key] = value
                 reversed_list.append(reversed_entry)
+            _register_path(bot, reversed_list)
+        else:
+            reversed_path = list(reversed(vq.vanquish_path))
+            bot.Move.FollowAutoPath(reversed_path)
+        bot.Wait.UntilOutOfCombat()
 
-            for i, entry in enumerate(reversed_list):
-                for key, value in entry.items():
-                    if key == "bless":
-                        bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Taking Blessing.")
-                        bot.Move.XY(*value)
-                        bot.Wait.ForTime(1500)
-                        bot.Move.XYAndInteractNPC(*value)
-                        bot.Multibox.SendDialogToTarget(0x84)
-                        bot.Multibox.SendDialogToTarget(0x85)
-                    elif key == "gadget":
-                        bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Interacting with gadget.")
-                        bot.Move.XY(*value)
-                        bot.Wait.ForTime(1500)
-                        bot.Move.XYAndInteractGadget(*value)
-                    elif key == "path":
-                        bot.Move.FollowAutoPath(value)
+        # -- Remove first Radar coroutine before starting the extended one --
+        bot.States.RemoveManagedCoroutine("Radar")
+
+        # -- Reverse Path with Radar (range=5000) --
+        bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Starting Second Reverse Path with Extended Radar (range=5000).")
+        bot.States.AddManagedCoroutine("Radar", lambda: Radar(bot, radar_range=5000))
+        if vq.vanquish_path and isinstance(vq.vanquish_path[0], dict):
+            reversed_list = []
+            for entry in reversed(vq.vanquish_path):
+                reversed_keys = list(entry.keys())[::-1]
+                reversed_entry = {}
+                for key in reversed_keys:
+                    value = entry[key]
+                    if isinstance(value, list):
+                        reversed_entry[key] = value[::-1]
+                    else:
+                        reversed_entry[key] = value
+                reversed_list.append(reversed_entry)
+            _register_path(bot, reversed_list)
         else:
             reversed_path = list(reversed(vq.vanquish_path))
             bot.Move.FollowAutoPath(reversed_path)
@@ -229,12 +241,12 @@ def _stop_bot():
 # =============================================================================
 # region COROUTINES
 # =============================================================================
-def Radar(bot: "Botting"):
-    ConsoleLog("Radar", f"Radar coroutine started.", Py4GW.Console.MessageType.Debug, True)
+def Radar(bot: "Botting", radar_range: int = 4000):
+    ConsoleLog("Radar", f"Radar coroutine started (range={radar_range}).", Py4GW.Console.MessageType.Debug, True)
     while True:
         player_x, player_y = Player.GetXY()
         enemy_array = AgentArray.GetEnemyArray()
-        enemy_array = AgentArray.Filter.ByDistance(enemy_array, Player.GetXY(), 4000)
+        enemy_array = AgentArray.Filter.ByDistance(enemy_array, Player.GetXY(), radar_range)
         enemy_array = AgentArray.Sort.ByDistance(enemy_array, (player_x, player_y))
         enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda a: Agent.IsAlive(a))
         closest_enemy = next(iter(enemy_array), 0)
@@ -265,15 +277,46 @@ def VanquishWatchdog(bot: "Botting", completed_header_name: str):
 # region EVENTS
 # =============================================================================
 def _on_party_wipe(bot: "Botting"):
+    from Py4GWCoreLib.Pathing import AutoPathing
+
     while Agent.IsDead(Player.GetAgentID()):
         yield from bot.Wait._coro_for_time(1000)
         if not Routines.Checks.Map.MapValid():
             bot.config.FSM.resume()
             return
 
-    # Jump to the Start Combat header of the CURRENT vanquish
+    # Wait for shrine teleport to complete
+    yield from Routines.Yield.wait(2000)
+
+    # Get first waypoint of current bounty path
+    vq = _queued_vanquishes[_current_vq_index]
+    if vq.vanquish_path:
+        first_point = vq.vanquish_path[0]
+        if isinstance(first_point, dict):
+            # Complex path: first value of first dict entry
+            goal_xy = list(first_point.values())[0]
+            if isinstance(goal_xy, list):
+                goal_xy = goal_xy[0]
+            goal_x, goal_y = goal_xy[0], goal_xy[1]
+        else:
+            goal_x, goal_y = first_point[0], first_point[1]
+
+        shrine_x, shrine_y = Player.GetXY()
+        ConsoleLog("on_party_wipe", f"Revived at ({shrine_x:.0f}, {shrine_y:.0f}). Pathing to start ({goal_x:.0f}, {goal_y:.0f})")
+
+        start = (shrine_x, shrine_y, 0)
+        goal = (goal_x, goal_y, 0)
+        path_back = yield from AutoPathing().get_path(start, goal)
+        if path_back:
+            yield from Routines.Yield.Movement.FollowPath(
+                path_points=[(p[0], p[1]) for p in path_back],
+                tolerance=200,
+                custom_pause_fn=bot.config.pause_on_danger_fn,
+            )
+
+    # Jump to Start Combat to re-execute the full path
     target = _start_combat_header_names[_current_vq_index]
-    ConsoleLog("on_party_wipe", f"Revived. Jumping to: {target}")
+    ConsoleLog("on_party_wipe", f"Jumping to: {target}")
     bot.config.FSM.jump_to_state_by_name(target)
     bot.config.FSM.resume()
 
