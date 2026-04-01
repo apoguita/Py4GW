@@ -28,7 +28,7 @@ class _MOVE:
         self._config.path_to_draw.extend(path.copy())
         yield
         
-    def _coro_follow_path_to(self, forced_timeout = -1) -> Generator[Any, Any, bool]:
+    def _coro_follow_path_to(self, forced_timeout = -1, autopath: bool = True) -> Generator[Any, Any, bool]:
         from ...Routines import Routines
         from ...Map import Map
         from ...py4gwcorelib_src.Lootconfig_src import LootConfig
@@ -118,6 +118,7 @@ class _MOVE:
             timeout=f_timeout,
             tolerance=self._config.config_properties.movement_tolerance.get("value"),
             map_transition_exit_success=True,
+            autopath=autopath,
         )
 
         self._config.config_properties.follow_path_succeeded.set_now("value", success_movement)
@@ -200,7 +201,7 @@ class _MOVE:
 
     def _coro_follow_path(self, path: List[Tuple[float, float]]) -> Generator[Any, Any, bool]:
         yield from self._coro_set_path_to(path)
-        result = yield from self._coro_follow_path_to()
+        result = yield from self._coro_follow_path_to(autopath=False)
         return result
 
     def _coro_follow_auto_path(self, points: List[Tuple[float, float]], step_name: str = "") -> Generator[Any, Any, None]:

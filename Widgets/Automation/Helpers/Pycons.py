@@ -586,12 +586,12 @@ try:
         },
         "auto_vault_restock": {
             "short": "Auto-restock missing selected consumables from Xunlai Vault.",
-            "long": "When enabled, Pycons automatically opens the Xunlai Vault (in outposts) and withdraws missing selected consumables from storage so active upkeep items stay available.",
+            "long": "When enabled, Pycons automatically opens the Xunlai Vault (in outposts) and balances selected consumables that are restock-enabled in Restock Settings.",
             "why": "Keeps automation running when inventory stacks run out, without manual chest management.",
         },
         "restock_interval_ms": {
             "short": "How often vault balancing checks run.",
-            "long": "Controls how frequently Pycons runs the outpost vault-balancing pass for selected restock targets. Use a slower interval than consume checks to reduce chest churn and blocked actions.",
+            "long": "Controls how frequently Pycons runs the outpost vault-balancing pass for selected items with restock enabled. Use a slower interval than consume checks to reduce chest churn and blocked actions.",
             "why": "Decoupling restock cadence from consume cadence keeps upkeep responsive without over-polling Xunlai actions.",
         },
         "restock_mode": {
@@ -613,6 +613,16 @@ try:
             "short": "Set one target value for all selected items at once.",
             "long": "Applies the bulk target value to every currently selected item shown in Restock Settings.",
             "why": "Fastest way to align many items to the same inventory target.",
+        },
+        "restock_enable_all_selected": {
+            "short": "Enable restock for all selected items.",
+            "long": "Turns ON the restock toggle for every currently selected item shown in Restock Settings.",
+            "why": "Useful when building or restoring a full restock loadout quickly.",
+        },
+        "restock_disable_all_selected": {
+            "short": "Disable restock for all selected items.",
+            "long": "Turns OFF the restock toggle for every currently selected item shown in Restock Settings.",
+            "why": "Useful when you want to pause vault balancing in bulk without changing main-window usage toggles.",
         },
         "alcohol_enabled": {
             "short": "Master toggle for alcohol automation.",
@@ -1060,6 +1070,7 @@ try:
                 continue
             ini_handler.write_key(INI_SECTION, f"{prefix}selected_{k}", str(bool(cfg.selected.get(k, False))))
             ini_handler.write_key(INI_SECTION, f"{prefix}enabled_{k}", str(bool(cfg.enabled.get(k, False))))
+            ini_handler.write_key(INI_SECTION, f"{prefix}restock_enabled_{k}", str(bool(cfg.restock_enabled_items.get(k, False))))
             ini_handler.write_key(INI_SECTION, f"{prefix}restock_target_{k}", str(int(max(0, min(2500, int(cfg.restock_targets.get(k, VAULT_RESTOCK_TARGET_QTY) or 0))))))
         for item in ALCOHOL_ITEMS:
             k = str(item.get("key", "") or "")
@@ -1067,6 +1078,7 @@ try:
                 continue
             ini_handler.write_key(INI_SECTION, f"{prefix}alcohol_selected_{k}", str(bool(cfg.alcohol_selected.get(k, False))))
             ini_handler.write_key(INI_SECTION, f"{prefix}alcohol_enabled_{k}", str(bool(cfg.alcohol_enabled_items.get(k, False))))
+            ini_handler.write_key(INI_SECTION, f"{prefix}restock_enabled_{k}", str(bool(cfg.restock_enabled_items.get(k, False))))
             ini_handler.write_key(INI_SECTION, f"{prefix}restock_target_{k}", str(int(max(0, min(2500, int(cfg.restock_targets.get(k, VAULT_RESTOCK_TARGET_QTY) or 0))))))
         _log(f"Saved custom preset slot {slot}.", Console.MessageType.Info)
 
@@ -1100,6 +1112,7 @@ try:
                 continue
             cfg.selected[k] = bool(ini_handler.read_bool(INI_SECTION, f"{prefix}selected_{k}", bool(cfg.selected.get(k, False))))
             cfg.enabled[k] = bool(ini_handler.read_bool(INI_SECTION, f"{prefix}enabled_{k}", bool(cfg.enabled.get(k, False))))
+            cfg.restock_enabled_items[k] = bool(ini_handler.read_bool(INI_SECTION, f"{prefix}restock_enabled_{k}", bool(cfg.restock_enabled_items.get(k, False))))
             cfg.restock_targets[k] = max(0, min(2500, int(ini_handler.read_int(INI_SECTION, f"{prefix}restock_target_{k}", int(cfg.restock_targets.get(k, VAULT_RESTOCK_TARGET_QTY) or 0)))))
         for item in ALCOHOL_ITEMS:
             k = str(item.get("key", "") or "")
@@ -1107,6 +1120,7 @@ try:
                 continue
             cfg.alcohol_selected[k] = bool(ini_handler.read_bool(INI_SECTION, f"{prefix}alcohol_selected_{k}", bool(cfg.alcohol_selected.get(k, False))))
             cfg.alcohol_enabled_items[k] = bool(ini_handler.read_bool(INI_SECTION, f"{prefix}alcohol_enabled_{k}", bool(cfg.alcohol_enabled_items.get(k, False))))
+            cfg.restock_enabled_items[k] = bool(ini_handler.read_bool(INI_SECTION, f"{prefix}restock_enabled_{k}", bool(cfg.restock_enabled_items.get(k, False))))
             cfg.restock_targets[k] = max(0, min(2500, int(ini_handler.read_int(INI_SECTION, f"{prefix}restock_target_{k}", int(cfg.restock_targets.get(k, VAULT_RESTOCK_TARGET_QTY) or 0)))))
 
         _runtime_sync_from_cfg_full()
@@ -2042,14 +2056,16 @@ try:
 
             self.selected = {}
             self.enabled = {}
+            self.restock_enabled_items = {}
             for c in ALL_CONSUMABLES:
                 k = c["key"]
                 self.selected[k] = ini_handler.read_bool(INI_SECTION, f"selected_{k}", False)
                 self.enabled[k] = ini_handler.read_bool(INI_SECTION, f"enabled_{k}", False)
+                self.restock_enabled_items[k] = ini_handler.read_bool(INI_SECTION, f"restock_enabled_{k}", False)
             self.restock_targets = {}
             for c in ALL_CONSUMABLES:
                 k = c["key"]
-                default_target = int(VAULT_RESTOCK_TARGET_QTY) if bool(self.selected.get(k, False)) and bool(self.enabled.get(k, False)) else 0
+                default_target = int(VAULT_RESTOCK_TARGET_QTY) if bool(self.selected.get(k, False)) and bool(self.restock_enabled_items.get(k, False)) else 0
                 raw_target = int(ini_handler.read_int(INI_SECTION, f"restock_target_{k}", default_target))
                 self.restock_targets[k] = max(0, min(2500, raw_target))
 
@@ -2119,7 +2135,8 @@ try:
                 k = a["key"]
                 self.alcohol_selected[k] = ini_handler.read_bool(INI_SECTION, f"alcohol_selected_{k}", False)
                 self.alcohol_enabled_items[k] = ini_handler.read_bool(INI_SECTION, f"alcohol_enabled_{k}", False)
-                default_target = int(VAULT_RESTOCK_TARGET_QTY) if bool(self.alcohol_selected.get(k, False)) and bool(self.alcohol_enabled_items.get(k, False)) else 0
+                self.restock_enabled_items[k] = ini_handler.read_bool(INI_SECTION, f"restock_enabled_{k}", False)
+                default_target = int(VAULT_RESTOCK_TARGET_QTY) if bool(self.alcohol_selected.get(k, False)) and bool(self.restock_enabled_items.get(k, False)) else 0
                 raw_target = int(ini_handler.read_int(INI_SECTION, f"restock_target_{k}", default_target))
                 self.restock_targets[k] = max(0, min(2500, raw_target))
 
@@ -2163,101 +2180,106 @@ try:
             self._save_timer.Start()
 
             ini_handler = _get_ini_handler()
-            ini_handler.write_key(INI_SECTION, "debug_logging", str(bool(self.debug_logging)))
-            ini_handler.write_key(INI_SECTION, "interval_ms", str(int(self.interval_ms)))
-            ini_handler.write_key(INI_SECTION, "restock_interval_ms", str(int(max(MIN_RESTOCK_INTERVAL_MS, int(self.restock_interval_ms)))))
-            ini_handler.write_key(
-                INI_SECTION,
-                "restock_mode",
-                str(int(max(RESTOCK_MODE_BALANCED, min(RESTOCK_MODE_DEPOSIT_ONLY, int(self.restock_mode))))),
-            )
-            ini_handler.write_key(
-                INI_SECTION,
+            config = ini_handler.reload()
+            if not config.has_section(INI_SECTION):
+                config.add_section(INI_SECTION)
+
+            def set_key(key: str, value):
+                config.set(INI_SECTION, str(key), str(value))
+
+            set_key("debug_logging", bool(self.debug_logging))
+            set_key("interval_ms", int(self.interval_ms))
+            set_key("restock_interval_ms", int(max(MIN_RESTOCK_INTERVAL_MS, int(self.restock_interval_ms))))
+            set_key("restock_mode", int(max(RESTOCK_MODE_BALANCED, min(RESTOCK_MODE_DEPOSIT_ONLY, int(self.restock_mode)))))
+            set_key(
                 "restock_move_cap_per_cycle",
-                str(int(max(MIN_RESTOCK_MOVE_CAP_PER_CYCLE, min(MAX_RESTOCK_MOVE_CAP_PER_CYCLE, int(self.restock_move_cap_per_cycle))))),
+                int(max(MIN_RESTOCK_MOVE_CAP_PER_CYCLE, min(MAX_RESTOCK_MOVE_CAP_PER_CYCLE, int(self.restock_move_cap_per_cycle)))),
             )
-            ini_handler.write_key(INI_SECTION, "show_selected_list", str(bool(self.show_selected_list)))
-            ini_handler.write_key(INI_SECTION, "only_show_available_inventory", str(bool(self.only_show_available_inventory)))
-            ini_handler.write_key(INI_SECTION, "only_show_selected_items", str(bool(self.only_show_selected_items)))
-            ini_handler.write_key(INI_SECTION, "auto_vault_restock", str(bool(self.auto_vault_restock)))
-            ini_handler.write_key(INI_SECTION, "restock_keep_target_on_deselect", str(bool(self.restock_keep_target_on_deselect)))
-            ini_handler.write_key(INI_SECTION, "tooltip_visibility", str(int(self.tooltip_visibility)))
-            ini_handler.write_key(INI_SECTION, "tooltip_length", str(int(self.tooltip_length)))
-            ini_handler.write_key(INI_SECTION, "tooltip_show_why", str(bool(self.tooltip_show_why)))
-            ini_handler.write_key(INI_SECTION, "last_applied_preset", str(self.last_applied_preset))
-            ini_handler.write_key(INI_SECTION, "last_party_opt_toggle_summary", str(self.last_party_opt_toggle_summary))
+            set_key("show_selected_list", bool(self.show_selected_list))
+            set_key("only_show_available_inventory", bool(self.only_show_available_inventory))
+            set_key("only_show_selected_items", bool(self.only_show_selected_items))
+            set_key("auto_vault_restock", bool(self.auto_vault_restock))
+            set_key("restock_keep_target_on_deselect", bool(self.restock_keep_target_on_deselect))
+            set_key("tooltip_visibility", int(self.tooltip_visibility))
+            set_key("tooltip_length", int(self.tooltip_length))
+            set_key("tooltip_show_why", bool(self.tooltip_show_why))
+            set_key("last_applied_preset", self.last_applied_preset)
+            set_key("last_party_opt_toggle_summary", self.last_party_opt_toggle_summary)
             for i in range(1, PRESET_SLOT_COUNT + 1):
-                ini_handler.write_key(INI_SECTION, f"preset_slot_{i}_name", str(self.preset_slot_names.get(i, _preset_slot_default_name(i))))
+                set_key(f"preset_slot_{i}_name", self.preset_slot_names.get(i, _preset_slot_default_name(i)))
 
-            ini_handler.write_key(INI_SECTION, "show_advanced_intervals", str(bool(self.show_advanced_intervals)))
-            ini_handler.write_key(INI_SECTION, "persist_main_runtime_toggles", str(bool(self.persist_main_runtime_toggles)))
+            set_key("show_advanced_intervals", bool(self.show_advanced_intervals))
+            set_key("persist_main_runtime_toggles", bool(self.persist_main_runtime_toggles))
             for k, v in self.min_interval_ms.items():
-                ini_handler.write_key(INI_SECTION, f"min_interval_{k}", str(int(max(0, int(v)))))
+                set_key(f"min_interval_{k}", int(max(0, int(v))))
 
-            ini_handler.write_key(INI_SECTION, "alcohol_enabled", str(bool(self.alcohol_enabled)))
-            ini_handler.write_key(INI_SECTION, "alcohol_disable_effect", str(bool(self.alcohol_disable_effect)))
-            ini_handler.write_key(INI_SECTION, "alcohol_target_level", str(int(self.alcohol_target_level)))
-            ini_handler.write_key(INI_SECTION, "alcohol_use_explorable", str(bool(self.alcohol_use_explorable)))
-            ini_handler.write_key(INI_SECTION, "alcohol_use_outpost", str(bool(self.alcohol_use_outpost)))
-            ini_handler.write_key(INI_SECTION, "alcohol_preference", str(int(self.alcohol_preference)))
-            ini_handler.write_key(INI_SECTION, "mbdp_enabled", str(bool(self.mbdp_enabled)))
-            ini_handler.write_key(INI_SECTION, "mbdp_allow_partywide_in_human_parties", str(bool(self.mbdp_allow_partywide_in_human_parties)))
-            ini_handler.write_key(INI_SECTION, "mbdp_receiver_require_enabled", str(bool(self.mbdp_receiver_require_enabled)))
-            ini_handler.write_key(INI_SECTION, "mbdp_self_dp_minor_threshold", str(int(self.mbdp_self_dp_minor_threshold)))
-            ini_handler.write_key(INI_SECTION, "mbdp_self_dp_major_threshold", str(int(self.mbdp_self_dp_major_threshold)))
-            ini_handler.write_key(INI_SECTION, "mbdp_self_morale_target_effective", str(int(self.mbdp_self_morale_target_effective)))
-            ini_handler.write_key(INI_SECTION, "mbdp_self_min_morale_gain", str(int(self.mbdp_self_min_morale_gain)))
-            ini_handler.write_key(INI_SECTION, "mbdp_party_target_effective", str(int(self.mbdp_party_target_effective)))
-            ini_handler.write_key(INI_SECTION, "mbdp_strict_party_plus10", str(bool(self.mbdp_strict_party_plus10)))
-            ini_handler.write_key(INI_SECTION, "mbdp_party_min_members", str(int(self.mbdp_party_min_members)))
-            ini_handler.write_key(INI_SECTION, "mbdp_party_min_interval_ms", str(int(self.mbdp_party_min_interval_ms)))
-            ini_handler.write_key(INI_SECTION, "mbdp_party_min_total_gain_5", str(int(self.mbdp_party_min_total_gain_5)))
-            ini_handler.write_key(INI_SECTION, "mbdp_party_min_total_gain_10", str(int(self.mbdp_party_min_total_gain_10)))
-            ini_handler.write_key(INI_SECTION, "mbdp_party_light_dp_threshold", str(int(self.mbdp_party_light_dp_threshold)))
-            ini_handler.write_key(INI_SECTION, "mbdp_party_heavy_dp_threshold", str(int(self.mbdp_party_heavy_dp_threshold)))
-            ini_handler.write_key(INI_SECTION, "mbdp_powerstone_dp_threshold", str(int(self.mbdp_powerstone_dp_threshold)))
-            ini_handler.write_key(INI_SECTION, "mbdp_prefer_seal_for_recharge", str(bool(self.mbdp_prefer_seal_for_recharge)))
-            ini_handler.write_key(INI_SECTION, "force_team_morale_value", str(int(self.force_team_morale_value)))
-            ini_handler.write_key(INI_SECTION, "settings_explorable_open", str(bool(self.settings_explorable_open)))
-            ini_handler.write_key(INI_SECTION, "settings_summoning_open", str(bool(self.settings_summoning_open)))
-            ini_handler.write_key(INI_SECTION, "settings_outpost_open", str(bool(self.settings_outpost_open)))
-            ini_handler.write_key(INI_SECTION, "settings_mbdp_open", str(bool(self.settings_mbdp_open)))
-            ini_handler.write_key(INI_SECTION, "settings_alcohol_open", str(bool(self.settings_alcohol_open)))
-            ini_handler.write_key(INI_SECTION, "settings_ui_tooltip_open", str(bool(self.settings_ui_tooltip_open)))
-            ini_handler.write_key(INI_SECTION, "settings_ui_alcohol_open", str(bool(self.settings_ui_alcohol_open)))
-            ini_handler.write_key(INI_SECTION, "settings_ui_mbdp_open", str(bool(self.settings_ui_mbdp_open)))
-            ini_handler.write_key(INI_SECTION, "settings_ui_presets_open", str(bool(self.settings_ui_presets_open)))
-            ini_handler.write_key(INI_SECTION, "settings_ui_restock_open", str(bool(self.settings_ui_restock_open)))
-            ini_handler.write_key(INI_SECTION, "experimental_team_flag_sync", str(bool(self.experimental_team_flag_sync)))
-            ini_handler.write_key(INI_SECTION, "experimental_mainloop_refresh_queue", str(bool(self.experimental_mainloop_refresh_queue)))
+            set_key("alcohol_enabled", bool(self.alcohol_enabled))
+            set_key("alcohol_disable_effect", bool(self.alcohol_disable_effect))
+            set_key("alcohol_target_level", int(self.alcohol_target_level))
+            set_key("alcohol_use_explorable", bool(self.alcohol_use_explorable))
+            set_key("alcohol_use_outpost", bool(self.alcohol_use_outpost))
+            set_key("alcohol_preference", int(self.alcohol_preference))
+            set_key("mbdp_enabled", bool(self.mbdp_enabled))
+            set_key("mbdp_allow_partywide_in_human_parties", bool(self.mbdp_allow_partywide_in_human_parties))
+            set_key("mbdp_receiver_require_enabled", bool(self.mbdp_receiver_require_enabled))
+            set_key("mbdp_self_dp_minor_threshold", int(self.mbdp_self_dp_minor_threshold))
+            set_key("mbdp_self_dp_major_threshold", int(self.mbdp_self_dp_major_threshold))
+            set_key("mbdp_self_morale_target_effective", int(self.mbdp_self_morale_target_effective))
+            set_key("mbdp_self_min_morale_gain", int(self.mbdp_self_min_morale_gain))
+            set_key("mbdp_party_target_effective", int(self.mbdp_party_target_effective))
+            set_key("mbdp_strict_party_plus10", bool(self.mbdp_strict_party_plus10))
+            set_key("mbdp_party_min_members", int(self.mbdp_party_min_members))
+            set_key("mbdp_party_min_interval_ms", int(self.mbdp_party_min_interval_ms))
+            set_key("mbdp_party_min_total_gain_5", int(self.mbdp_party_min_total_gain_5))
+            set_key("mbdp_party_min_total_gain_10", int(self.mbdp_party_min_total_gain_10))
+            set_key("mbdp_party_light_dp_threshold", int(self.mbdp_party_light_dp_threshold))
+            set_key("mbdp_party_heavy_dp_threshold", int(self.mbdp_party_heavy_dp_threshold))
+            set_key("mbdp_powerstone_dp_threshold", int(self.mbdp_powerstone_dp_threshold))
+            set_key("mbdp_prefer_seal_for_recharge", bool(self.mbdp_prefer_seal_for_recharge))
+            set_key("force_team_morale_value", int(self.force_team_morale_value))
+            set_key("settings_explorable_open", bool(self.settings_explorable_open))
+            set_key("settings_summoning_open", bool(self.settings_summoning_open))
+            set_key("settings_outpost_open", bool(self.settings_outpost_open))
+            set_key("settings_mbdp_open", bool(self.settings_mbdp_open))
+            set_key("settings_alcohol_open", bool(self.settings_alcohol_open))
+            set_key("settings_ui_tooltip_open", bool(self.settings_ui_tooltip_open))
+            set_key("settings_ui_alcohol_open", bool(self.settings_ui_alcohol_open))
+            set_key("settings_ui_mbdp_open", bool(self.settings_ui_mbdp_open))
+            set_key("settings_ui_presets_open", bool(self.settings_ui_presets_open))
+            set_key("settings_ui_restock_open", bool(self.settings_ui_restock_open))
+            set_key("experimental_team_flag_sync", bool(self.experimental_team_flag_sync))
+            set_key("experimental_mainloop_refresh_queue", bool(self.experimental_mainloop_refresh_queue))
 
             for k, v in self.alcohol_selected.items():
-                ini_handler.write_key(INI_SECTION, f"alcohol_selected_{k}", str(bool(v)))
+                set_key(f"alcohol_selected_{k}", bool(v))
             for k, v in self.alcohol_enabled_items.items():
-                ini_handler.write_key(INI_SECTION, f"alcohol_enabled_{k}", str(bool(v)))
+                set_key(f"alcohol_enabled_{k}", bool(v))
+            for k, v in self.restock_enabled_items.items():
+                set_key(f"restock_enabled_{k}", bool(v))
             for c in ALL_CONSUMABLES:
                 k = str(c.get("key", "") or "")
                 if k:
-                    ini_handler.write_key(INI_SECTION, f"restock_target_{k}", str(int(max(0, min(2500, int(self.restock_targets.get(k, VAULT_RESTOCK_TARGET_QTY) or 0))))))
+                    set_key(f"restock_target_{k}", int(max(0, min(2500, int(self.restock_targets.get(k, VAULT_RESTOCK_TARGET_QTY) or 0)))))
             for a in ALCOHOL_ITEMS:
                 k = str(a.get("key", "") or "")
                 if k:
-                    ini_handler.write_key(INI_SECTION, f"restock_target_{k}", str(int(max(0, min(2500, int(self.restock_targets.get(k, VAULT_RESTOCK_TARGET_QTY) or 0))))))
+                    set_key(f"restock_target_{k}", int(max(0, min(2500, int(self.restock_targets.get(k, VAULT_RESTOCK_TARGET_QTY) or 0)))))
 
             # Team / multibox settings
             # team_broadcast: When enabled, broadcasts item usage to other accounts
             # team_consume_opt_in: When enabled (on followers), consumes items when broadcasts are received
             # Legacy behavior keeps team_consume_opt_in saved by immediate settings writes.
             # Experimental team-flag sync writes both flags here to reduce refresh races.
-            ini_handler.write_key(INI_SECTION, "team_broadcast", str(bool(self.team_broadcast)))
+            set_key("team_broadcast", bool(self.team_broadcast))
             if bool(getattr(self, "experimental_team_flag_sync", EXPERIMENTAL_TEAM_FLAG_SYNC_DEFAULT)):
-                ini_handler.write_key(INI_SECTION, "team_consume_opt_in", str(bool(self.team_consume_opt_in)))
+                set_key("team_consume_opt_in", bool(self.team_consume_opt_in))
 
             for k, v in self.selected.items():
-                ini_handler.write_key(INI_SECTION, f"selected_{k}", str(bool(v)))
+                set_key(f"selected_{k}", bool(v))
             for k, v in self.enabled.items():
-                ini_handler.write_key(INI_SECTION, f"enabled_{k}", str(bool(v)))
+                set_key(f"enabled_{k}", bool(v))
 
+            ini_handler.save(config)
             self._dirty = False
 
     # Config will be lazy-loaded on first main() call to ensure account email is available
@@ -2352,7 +2374,6 @@ try:
     _vault_last_confirmed_storage_bag_id = 0
     _vault_pending_state = {}
     _vault_action_cooldown_until = {}
-
     def _now_ms() -> int:
         import time
         return int(time.time() * 1000)
@@ -3242,11 +3263,27 @@ try:
         except Exception:
             return True
 
+    def _restock_item_enabled(key: str) -> bool:
+        return bool(getattr(cfg, "restock_enabled_items", {}).get(str(key or ""), False))
+
+    def _set_restock_item_enabled(key: str, enabled: bool):
+        key = str(key or "")
+        if not key:
+            return
+        value = bool(enabled)
+        changed = bool(getattr(cfg, "restock_enabled_items", {}).get(key, False)) != value
+        cfg.restock_enabled_items[key] = value
+        if value and _restock_target_for_key(key) <= 0:
+            cfg.restock_targets[key] = int(VAULT_RESTOCK_TARGET_QTY)
+            changed = True
+        if changed:
+            cfg.mark_dirty()
+
     def _apply_restock_target_on_select(key: str):
         key = str(key or "")
         if not key:
             return
-        if _restock_target_for_key(key) <= 0:
+        if _restock_item_enabled(key) and _restock_target_for_key(key) <= 0:
             cfg.restock_targets[key] = int(VAULT_RESTOCK_TARGET_QTY)
 
     def _apply_restock_target_on_deselect(key: str):
@@ -3290,10 +3327,10 @@ try:
         return out
 
     def _restock_regular_enabled(key: str) -> bool:
-        return bool(cfg.selected.get(key, False)) and bool(_runtime_regular_enabled(key))
+        return bool(cfg.selected.get(key, False)) and bool(_restock_item_enabled(key))
 
     def _restock_alcohol_enabled(key: str) -> bool:
-        return bool(cfg.alcohol_selected.get(key, False)) and bool(_runtime_alcohol_enabled(key))
+        return bool(cfg.alcohol_selected.get(key, False)) and bool(_restock_item_enabled(key))
 
     def _build_vault_restock_candidates():
         out = []
@@ -3354,6 +3391,73 @@ try:
             seen_models.add(model_id)
 
         return out
+
+    def _ordered_vault_restock_candidates(candidates):
+        shortage_first = [c for c in candidates if int(c[5]) > 0]
+        excess_second = [c for c in candidates if int(c[5]) < 0]
+        restock_mode = int(_restock_mode_value())
+        if restock_mode == int(RESTOCK_MODE_WITHDRAW_ONLY):
+            return shortage_first
+        if restock_mode == int(RESTOCK_MODE_DEPOSIT_ONLY):
+            return excess_second
+        return shortage_first + excess_second
+
+    def _has_actionable_vault_restock_need(inv, candidates) -> bool:
+        if inv is None or not candidates:
+            return False
+        if not _refresh_inventory_cache(force=True):
+            return False
+
+        move_cap_per_cycle = int(_restock_move_cap_per_cycle_value())
+        now_ms = _now_ms()
+        for key, spec, model_id, _cur_count, _target_count, _delta in _ordered_vault_restock_candidates(candidates):
+            if key in cfg.alcohol_selected:
+                if not _restock_alcohol_enabled(key):
+                    continue
+            else:
+                if not _restock_regular_enabled(key):
+                    continue
+
+            live_known, live_count = _stock_status_for_model_id(int(model_id))
+            if not live_known:
+                continue
+            live_target = int(_restock_target_for_key(key))
+            live_delta = int(live_target) - int(live_count)
+            if live_delta == 0:
+                continue
+
+            if int(live_delta) > 0:
+                if _is_vault_action_on_cooldown("withdraw", int(model_id), int(now_ms)):
+                    continue
+                try:
+                    in_storage = int(inv.GetModelCountInStorage(int(model_id)))
+                except Exception:
+                    in_storage = 0
+                to_withdraw = int(min(int(live_delta), int(in_storage), int(move_cap_per_cycle)))
+                if to_withdraw > 0:
+                    return True
+                continue
+
+            if _is_vault_action_on_cooldown("deposit", int(model_id), int(now_ms)):
+                continue
+
+            excess = int(min(max(0, -int(live_delta)), int(move_cap_per_cycle)))
+            if excess <= 0:
+                continue
+
+            source_item_id = _find_item_id_by_model_id(int(model_id))
+            source_is_stackable = True
+            if source_item_id > 0:
+                try:
+                    source_is_stackable = bool(Item.Customization.IsStackable(int(source_item_id)))
+                except Exception:
+                    source_is_stackable = True
+
+            probe_destinations = _storage_deposit_destinations(int(model_id), 1, bool(source_is_stackable))
+            if probe_destinations:
+                return True
+
+        return False
 
     def _get_storage_bag_handles():
         candidates = [
@@ -3871,6 +3975,8 @@ try:
             storage_open = False
 
         if not storage_open:
+            if not _has_actionable_vault_restock_need(inv, candidates):
+                return False
             try:
                 inv.OpenXunlaiWindow()
                 _debug("Vault restock: opening Xunlai Vault.")
@@ -3879,15 +3985,7 @@ try:
             restock_timer.Start()
             return True
 
-        shortage_first = [c for c in candidates if int(c[5]) > 0]
-        excess_second = [c for c in candidates if int(c[5]) < 0]
-        restock_mode = int(_restock_mode_value())
-        if restock_mode == int(RESTOCK_MODE_WITHDRAW_ONLY):
-            ordered_candidates = shortage_first
-        elif restock_mode == int(RESTOCK_MODE_DEPOSIT_ONLY):
-            ordered_candidates = excess_second
-        else:
-            ordered_candidates = shortage_first + excess_second
+        ordered_candidates = _ordered_vault_restock_candidates(candidates)
         move_cap_per_cycle = int(_restock_move_cap_per_cycle_value())
 
         for key, spec, model_id, _cur_count, _target_count, _delta in ordered_candidates:
@@ -5559,20 +5657,23 @@ try:
     def _draw_restock_target_item_row(key: str, spec: dict):
         model_id = int(spec.get("model_id", 0) or 0)
         known, cnt = _stock_status_for_model_id(model_id)
-        label = str(spec.get("label", key) or key)
+        label = _alcohol_display_label(spec) if str(key or "") in ALCOHOL_BY_KEY else str(spec.get("label", key) or key)
         current_target = _restock_target_for_key(key)
+        restock_enabled_now = _restock_item_enabled(key)
 
         PyImGui.table_next_row()
         PyImGui.table_next_column()
-        drew_icon = _draw_static_consumable_icon(
+        restock_enabled, _changed, _used_icon = _draw_icon_toggle_or_checkbox(
+            restock_enabled_now,
             key,
             label,
             "pycons_restock_target",
             icon_size=18.0,
-            highlight_box=True,
+            highlight_selected_box=True,
         )
-        if drew_icon:
-            _same_line(10)
+        if bool(restock_enabled) != bool(restock_enabled_now):
+            _set_restock_item_enabled(key, bool(restock_enabled))
+        _same_line(10)
         PyImGui.text(label)
         _tooltip_if_hovered(_consumable_tooltip_with_label(key, label))
 
@@ -6237,9 +6338,32 @@ try:
                 cfg.mark_dirty()
             _show_setting_tooltip("restock_move_cap_per_cycle")
 
-            PyImGui.text_wrapped("Choose target inventory amounts for selected items. Pycons will withdraw shortages and deposit excess while Xunlai Vault restock is enabled.")
-            PyImGui.text_wrapped("Restock balancing follows the active item toggles in the main window.")
+            PyImGui.text_wrapped("Choose target inventory amounts for selected items. Click an item icon to toggle whether that item participates in vault restock.")
+            PyImGui.text_wrapped("Main-window ON/OFF controls usage only. Restock uses the icon toggle below.")
             selected_specs = _selected_restock_specs()
+
+            disabled_selected = (int(len(selected_specs)) == 0)
+            mode = _begin_disabled(disabled_selected)
+            if PyImGui.button("Enable all selected restock##pycons_restock_enable_all"):
+                changed_any = False
+                for key, _spec in selected_specs:
+                    if not _restock_item_enabled(key):
+                        _set_restock_item_enabled(key, True)
+                        changed_any = True
+                if changed_any:
+                    cfg.mark_dirty()
+            _show_setting_tooltip("restock_enable_all_selected")
+            _same_line(10)
+            if PyImGui.button("Disable all selected restock##pycons_restock_disable_all"):
+                changed_any = False
+                for key, _spec in selected_specs:
+                    if _restock_item_enabled(key):
+                        _set_restock_item_enabled(key, False)
+                        changed_any = True
+                if changed_any:
+                    cfg.mark_dirty()
+            _show_setting_tooltip("restock_disable_all_selected")
+            _end_disabled(mode)
 
             PyImGui.text("Set all selected targets to:")
             _same_line(10)
@@ -6595,6 +6719,7 @@ try:
 
         _draw_main_window()
         _draw_settings_window()
+
         _tick_disable_alcohol_effect()
 
         cfg.save_if_dirty_throttled(750)

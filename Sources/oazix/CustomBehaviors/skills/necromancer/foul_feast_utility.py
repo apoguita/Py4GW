@@ -9,7 +9,6 @@ from Sources.oazix.CustomBehaviors.primitives.helpers.lock_key_helper import Loc
 from Sources.oazix.CustomBehaviors.primitives.helpers.targeting_order import TargetingOrder
 from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
 from Sources.oazix.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
-from Sources.oazix.CustomBehaviors.primitives.skills.bonds.custom_buff_multiple_target import CustomBuffMultipleTarget
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
 
@@ -76,12 +75,4 @@ class FoulFeastUtility(CustomSkillUtilityBase):
         finally:
             CustomBehaviorParty().get_shared_lock_manager().release_lock(lock_key)
         return result
-
-    @override
-    def customized_debug_ui(self, current_state: BehaviorState) -> None:
-        pass
-
-    @override
-    def get_buff_configuration(self) -> CustomBuffMultipleTarget | None:
-        return None
 

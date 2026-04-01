@@ -129,7 +129,7 @@ class BTUpkeepers:
           Notes: Runs once per ready outpost map and idles until the next relevant map change.
         """
         state = {
-            "last_ready_map_id": 0,
+            "outpost_visit_signature": None,
             "map_processed": False,
             "spawn_tree": None,
             "last_stage_log": "",
@@ -150,10 +150,10 @@ class BTUpkeepers:
               Audience: advanced
               Display: Internal Reset Imp Service Cache Helper
               Purpose: Clear cached map-processing state and reset any active spawn tree.
-              UserDescription: Internal support routine.
-              Notes: Resets the cached spawn subtree when map readiness changes.
+            UserDescription: Internal support routine.
+            Notes: Resets the cached spawn subtree when map readiness changes.
             """
-            state["last_ready_map_id"] = 0
+            state["outpost_visit_signature"] = None
             state["map_processed"] = False
             state["last_stage_log"] = ""
             if state["spawn_tree"] is not None:
@@ -170,26 +170,38 @@ class BTUpkeepers:
               Audience: advanced
               Display: Internal Outpost Imp Service Tick Helper
               Purpose: Manage per-map imp preparation in outposts and reuse the spawn subtree when needed.
-              UserDescription: Internal support routine.
-              Notes: Resets state on loading changes and keeps running until the next eligible map change.
+            UserDescription: Internal support routine.
+            Notes: Resets state on loading changes and keeps running until the next eligible map change.
             """
-            if Map.IsMapLoading() or not Checks.Map.MapValid() or not Map.IsMapReady():
+            if (
+                Map.IsMapLoading()
+                or not Checks.Map.MapValid()
+                or not Map.IsMapReady()
+                or Map.IsExplorable()
+            ):
+                _reset_cache_data()
+                return BehaviorTree.NodeState.RUNNING
+
+            if not Map.IsOutpost():
                 _reset_cache_data()
                 return BehaviorTree.NodeState.RUNNING
 
             current_map_id = Map.GetMapID()
             if current_map_id == 0:
+                _reset_cache_data()
                 return BehaviorTree.NodeState.RUNNING
 
-            if state["last_ready_map_id"] != current_map_id:
-                state["last_ready_map_id"] = current_map_id
+            current_instance_uptime = Map.GetInstanceUptime()
+            current_visit_signature = state["outpost_visit_signature"]
+            if (
+                current_visit_signature is None
+                or current_visit_signature[0] != current_map_id
+            ):
+                state["outpost_visit_signature"] = (current_map_id, current_instance_uptime)
                 state["map_processed"] = False
                 if state["spawn_tree"] is not None:
                     state["spawn_tree"].reset()
                     state["spawn_tree"] = None
-
-            if not Map.IsOutpost():
-                return BehaviorTree.NodeState.RUNNING
 
             if state["map_processed"]:
                 return BehaviorTree.NodeState.RUNNING
