@@ -10,10 +10,10 @@ from Sources.oazix.CustomBehaviors.primitives.helpers import custom_behavior_hel
 from Sources.oazix.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Sources.oazix.CustomBehaviors.primitives.helpers.targeting_order import TargetingOrder
 from Sources.oazix.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
-from Sources.oazix.CustomBehaviors.primitives.skills.bonds.custom_buff_multiple_target import CustomBuffMultipleTarget
 from Sources.oazix.CustomBehaviors.primitives.skills.bonds.custom_buff_target_per_profession import BuffConfigurationPerProfession
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
+from Sources.oazix.CustomBehaviors.skills.plugins.targeting_modifiers.buff_configurator import BuffConfigurator
 
 class GreatDwarfWeaponUtility(CustomSkillUtilityBase):
 
@@ -35,12 +35,7 @@ class GreatDwarfWeaponUtility(CustomSkillUtilityBase):
                 
         self.score_definition: ScoreStaticDefinition = score_definition
 
-        data: str | None = PersistenceLocator().skills.read(self.custom_skill.skill_name, "buff_configuration")
-        if data is not None:
-            self.buff_configuration: CustomBuffMultipleTarget = CustomBuffMultipleTarget.instanciate_from_string(self.event_bus, self.custom_skill, data)
-        else:
-            self.buff_configuration: CustomBuffMultipleTarget = CustomBuffMultipleTarget(event_bus, self.custom_skill, buff_configuration_per_profession= BuffConfigurationPerProfession.BUFF_CONFIGURATION_MARTIAL)
-
+        self.add_plugin_targetting_modifier(lambda x: BuffConfigurator(event_bus, self.custom_skill, buff_configuration_per_profession= BuffConfigurationPerProfession.BUFF_CONFIGURATION_MARTIAL))
         self.should_target_ebon_vanguard_assassin = bool(PersistenceLocator().skills.read_or_default(self.custom_skill.skill_name, "should_target_ebon_vanguard_assassin", "0") == "1")
         self.ebon_vanguard_assassin_model_id = 5903
 
@@ -57,7 +52,7 @@ class GreatDwarfWeaponUtility(CustomSkillUtilityBase):
                 condition=lambda agent_id: 
                     agent_id != Player.GetAgentID() and 
                     not Agent.IsWeaponSpelled(agent_id) and
-                    self.buff_configuration.get_agent_id_predicate()(agent_id),
+                    self.get_plugin_targeting_modifiers_filtering_predicate()(agent_id),
                 sort_key=(TargetingOrder.DISTANCE_DESC, TargetingOrder.CASTER_THEN_MELEE),
                 range_to_count_enemies=None,
                 range_to_count_allies=None)
@@ -76,33 +71,3 @@ class GreatDwarfWeaponUtility(CustomSkillUtilityBase):
         if target is None: return BehaviorResult.ACTION_SKIPPED
         result = yield from custom_behavior_helpers.Actions.cast_skill_to_target(self.custom_skill, target_agent_id=target)
         return result 
-
-    @override
-    def get_buff_configuration(self) -> CustomBuffMultipleTarget | None:
-        return self.buff_configuration
-    
-    @override
-    def customized_debug_ui(self, current_state: BehaviorState) -> None:
-        self.should_target_ebon_vanguard_assassin = PyImGui.checkbox("should_target_ebon_vanguard_assassin##should_target_ebon_vanguard_assassin", self.should_target_ebon_vanguard_assassin)
-
-    @override
-    def has_persistence(self) -> bool:
-        return True
-
-    @override
-    def persist_configuration_for_account(self):
-        PersistenceLocator().skills.write_for_account(str(self.custom_skill.skill_name), "buff_configuration", self.buff_configuration.serialize_to_string())
-        PersistenceLocator().skills.write_for_account(str(self.custom_skill.skill_name), "should_target_ebon_vanguard_assassin", "1" if self.should_target_ebon_vanguard_assassin else "0")
-        print("configuration saved for account")
-
-    @override
-    def persist_configuration_as_global(self):
-        PersistenceLocator().skills.write_global(str(self.custom_skill.skill_name), "buff_configuration", self.buff_configuration.serialize_to_string())
-        PersistenceLocator().skills.write_global(str(self.custom_skill.skill_name), "should_target_ebon_vanguard_assassin", "1" if self.should_target_ebon_vanguard_assassin else "0")
-        print("configuration saved as global")
-
-    @override
-    def delete_persisted_configuration(self):
-        PersistenceLocator().skills.delete(str(self.custom_skill.skill_name), "buff_configuration")
-        PersistenceLocator().skills.delete(str(self.custom_skill.skill_name), "should_target_ebon_vanguard_assassin")
-        print("configuration deleted")

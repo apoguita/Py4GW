@@ -52,7 +52,9 @@ class PanicUtility(CustomSkillUtilityBase):
 
     @override
     def _execute(self, state: BehaviorState) -> Generator[Any, None, BehaviorResult]:
-        player_id = Player.GetAgentID()
-        result = yield from custom_behavior_helpers.Actions.cast_skill_to_target(self.custom_skill, target_agent_id=player_id)
+        targets = self._get_targets()
+        if len(targets) == 0: return BehaviorResult.ACTION_SKIPPED
+        target_id = targets[0].agent_id
+        result = yield from custom_behavior_helpers.Actions.cast_skill_to_target(self.custom_skill, target_agent_id=target_id)
         return result
 

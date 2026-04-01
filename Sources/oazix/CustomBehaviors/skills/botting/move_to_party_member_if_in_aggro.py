@@ -44,7 +44,7 @@ class MoveToPartyMemberIfInAggroUtility(CustomSkillUtilityBase):
             if custom_behavior_helpers.Targets.is_party_member_in_aggro(agent_id):
                 agent_id_position: tuple[float, float] = Agent.GetXY(agent_id)
                 player_agent_id_position: tuple[float, float] = Agent.GetXY(Player.GetAgentID())
-                if Utils.Distance(player_agent_id_position , agent_id_position) < 2500: #todo constant
+                if Utils.Distance(player_agent_id_position , agent_id_position) < 3000: #todo constant
                     return agent_id
         return None
         

@@ -30,6 +30,7 @@ def resolve_agent_xy_from_step(
     step_idx: int,
     agent_kind: str,
     default_max_dist: float | None = None,
+    log_failures: bool = True,
 ) -> tuple[float, float] | None:
     from Py4GWCoreLib import Agent, AgentArray, ConsoleLog, Player
 
@@ -71,10 +72,11 @@ def resolve_agent_xy_from_step(
     if nearest and not target_name and model_id is None and not encoded_names:
         if agent_array:
             return Agent.GetXY(int(agent_array[0]))
-        ConsoleLog(
-            f"Recipe:{recipe_name}",
-            f"No nearest {agent_kind} found within {max_dist:.0f} at index {step_idx}",
-        )
+        if log_failures:
+            ConsoleLog(
+                f"Recipe:{recipe_name}",
+                f"No nearest {agent_kind} found within {max_dist:.0f} at index {step_idx}",
+            )
         return None
 
     target_name_l = target_name.lower()
@@ -115,10 +117,11 @@ def resolve_agent_xy_from_step(
     if nearest:
         descriptor_parts.append("nearest=true")
     descriptor = ", ".join(descriptor_parts) or "no selector"
-    ConsoleLog(
-        f"Recipe:{recipe_name}",
-        f"Could not resolve {agent_kind} using {descriptor} within {max_dist:.0f} at index {step_idx}",
-    )
+    if log_failures:
+        ConsoleLog(
+            f"Recipe:{recipe_name}",
+            f"Could not resolve {agent_kind} using {descriptor} within {max_dist:.0f} at index {step_idx}",
+        )
     return None
 
 

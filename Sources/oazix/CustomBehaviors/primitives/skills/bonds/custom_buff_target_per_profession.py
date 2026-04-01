@@ -19,6 +19,7 @@ class BuffConfigurationPerProfession(CustomBuffTarget):
     BUFF_CONFIGURATION_MARTIAL: list[ProfessionConfiguration] = [ProfessionConfiguration(Profession.Warrior, True), ProfessionConfiguration(Profession.Assassin, True), ProfessionConfiguration(Profession.Dervish, True), ProfessionConfiguration(Profession.Paragon, True), ProfessionConfiguration(Profession.Ranger, True)]
     BUFF_CONFIGURATION_ALL: list[ProfessionConfiguration] = [ProfessionConfiguration(Profession.Monk, True), ProfessionConfiguration(Profession.Ritualist, True), ProfessionConfiguration(Profession.Elementalist, True), ProfessionConfiguration(Profession.Mesmer, True), ProfessionConfiguration(Profession.Necromancer, True), ProfessionConfiguration(Profession.Warrior, True), ProfessionConfiguration(Profession.Assassin, True), ProfessionConfiguration(Profession.Dervish, True), ProfessionConfiguration(Profession.Paragon, True), ProfessionConfiguration(Profession.Ranger, True)]
     ALL_PROFESSIONS = [Profession.Assassin, Profession.Warrior, Profession.Ranger, Profession.Monk, Profession.Necromancer, Profession.Mesmer, Profession.Elementalist, Profession.Ritualist, Profession.Paragon, Profession.Dervish]
+    NONE: list[ProfessionConfiguration] = []
 
     def __init__(self, custom_skill: CustomSkill, custom_configuration: list[ProfessionConfiguration] | None = None):
 

@@ -18,7 +18,8 @@ class RawSimpleAttackUtility(CustomSkillUtilityBase):
     current_build: list[CustomSkill],
     score_definition: ScoreStaticDefinition = ScoreStaticDefinition(65),
     mana_required_to_cast: int = 12,
-    allowed_states: list[BehaviorState] = [BehaviorState.IN_AGGRO]
+    allowed_states: list[BehaviorState] = [BehaviorState.IN_AGGRO],
+    custom_agent_targeting_predicate: Callable[[int], bool] | None = None
     ) -> None:
 
         super().__init__(
@@ -30,10 +31,12 @@ class RawSimpleAttackUtility(CustomSkillUtilityBase):
             allowed_states=allowed_states)
         
         self.score_definition: ScoreStaticDefinition = score_definition
+        self.custom_agent_targeting_predicate: Callable[[int], bool] | None = custom_agent_targeting_predicate
 
     def _get_target(self) -> int | None:
         return custom_behavior_helpers.Targets.get_first_or_default_from_enemy_ordered_by_priority(
             within_range=Range.Spellcast,
+            condition= lambda agent_id: self.custom_agent_targeting_predicate is None or self.custom_agent_targeting_predicate(agent_id),
             sort_key=(TargetingOrder.DISTANCE_ASC, ))
 
     @override

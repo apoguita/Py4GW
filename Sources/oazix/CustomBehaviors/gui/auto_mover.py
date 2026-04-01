@@ -1,10 +1,6 @@
-from collections import deque
-from typing import Any, Callable, Dict, Generator
+from typing import Dict
 from Py4GWCoreLib import IconsFontAwesome5, Map, PyImGui, Player
-from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
-from Py4GWCoreLib.Pathing import AutoPathing
 from Py4GWCoreLib.py4gwcorelib_src.Utils import Utils
-from Sources.oazix.CustomBehaviors.primitives import constants
 from Sources.oazix.CustomBehaviors.primitives.auto_mover.auto_follow_agent import AutoFollowAgent
 from Sources.oazix.CustomBehaviors.primitives.auto_mover.auto_follow_path import AutoFollowPath
 from Sources.oazix.CustomBehaviors.primitives.auto_mover.waypoint_builder import WaypointBuilder
