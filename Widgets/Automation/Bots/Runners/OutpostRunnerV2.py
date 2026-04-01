@@ -44,6 +44,12 @@ bot = Botting(BotSettings.BOT_NAME,
             upkeep_war_supplies_restock=5,
             upkeep_war_supplies_active=True,
             upkeep_alcohol_active=True,
+            upkeep_armor_of_salvation_restock=5,
+            upkeep_essence_of_celerity_restock=5,
+            upkeep_grail_of_might_restock=5,
+            upkeep_armor_of_salvation_active=False,
+            upkeep_essence_of_celerity_active=False,
+            upkeep_grail_of_might_active=False,
             upkeep_honeycomb_restock=10,
             upkeep_honeycomb_active=False,
             upkeep_auto_combat_active=True,
@@ -120,6 +126,9 @@ def bot_routine(bot: Botting) -> None:
         bot.Items.Restock.WarSupplies()
         bot.Items.Restock.BirthdayCupcake()
         bot.Items.Restock.Honeycomb()
+        bot.Items.Restock.ArmorOfSalvation()
+        bot.Items.Restock.EssenceOfCelerity()
+        bot.Items.Restock.GrailOfMight()
 
         # -- Exit outpost --
         first_map_id = run.segments[0]["map_id"] if run.segments else 0
@@ -255,7 +264,8 @@ def _draw_settings():
     PyImGui.text(f"Queued runs: {len(_queued_runs)}")
     to_remove = None
     for i, qr in enumerate(_queued_runs):
-        PyImGui.text(f"  {i + 1}. {qr.display}")
+        marker = " <-- CURRENT" if i == _current_run_index and bot.config.initialized else ""
+        PyImGui.text(f"  {i + 1}. {qr.display}{marker}")
         PyImGui.same_line(0, 10)
         if PyImGui.button(f"X##{i}", 20, 20):
             to_remove = i
@@ -292,6 +302,12 @@ def _draw_settings_consumables():
     use_alcohol = PyImGui.checkbox("Use alcohol in inventory", use_alcohol)
     bot.Properties.ApplyNow("alcohol", "active", use_alcohol)
 
+    use_conset = bot.Properties.Get("armor_of_salvation", "active")
+    use_conset = PyImGui.checkbox("Restock & use Conset", use_conset)
+    bot.Properties.ApplyNow("armor_of_salvation", "active", use_conset)
+    bot.Properties.ApplyNow("essence_of_celerity", "active", use_conset)
+    bot.Properties.ApplyNow("grail_of_might", "active", use_conset)
+
     use_honeycomb = bot.Properties.Get("honeycomb", "active")
     use_honeycomb = PyImGui.checkbox("Restock & use Honeycomb", use_honeycomb)
     bot.Properties.ApplyNow("honeycomb", "active", use_honeycomb)
@@ -320,7 +336,7 @@ def _draw_help():
     PyImGui.spacing()
     PyImGui.text("Developed by: Aura")
     PyImGui.text("Credits to: aC original script")
-    
+   
 # endregion
 
 # =============================================================================

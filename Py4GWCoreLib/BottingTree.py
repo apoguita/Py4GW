@@ -59,6 +59,39 @@ class BottingTree:
     @property
     def blackboard(self) -> dict:
         return self.tree.blackboard
+
+    def GetBlackboardValue(self, key: str, default=None):
+        return self.blackboard.get(key, default)
+
+    def SetBlackboardValue(self, key: str, value) -> None:
+        self.blackboard[key] = value
+
+    def ClearBlackboardValue(self, key: str) -> None:
+        self.blackboard.pop(key, None)
+
+    def HasBlackboardValue(self, key: str) -> bool:
+        return key in self.blackboard
+
+    def GetLastBlackboardLogMessage(self) -> str:
+        value = self.blackboard.get("last_log_message", "")
+        return value if isinstance(value, str) else ""
+
+    def GetLastBlackboardLogData(self) -> dict:
+        value = self.blackboard.get("last_log_message_data", {})
+        return value if isinstance(value, dict) else {}
+
+    def GetBlackboardLogHistory(self) -> list[str]:
+        value = self.blackboard.get("blackboard_log_history", [])
+        if not isinstance(value, list):
+            return []
+        return [entry for entry in value if isinstance(entry, str)]
+
+    def ClearBlackboardLog(self) -> None:
+        self.blackboard.pop("last_log_message", None)
+        self.blackboard.pop("last_log_message_data", None)
+
+    def ClearBlackboardLogHistory(self) -> None:
+        self.blackboard.pop("blackboard_log_history", None)
     
     def Start(self):
         if not self.started:
@@ -238,8 +271,82 @@ class BottingTree:
             name=name,
         )
 
-    def SetHeadlessHeroAIEnabled(self, enabled: bool):
+    def SetHeadlessHeroAIEnabled(self, enabled: bool, reset_runtime: bool = True):
         self.headless_heroai_enabled = enabled
+        self._last_heroai_state = None
+        if reset_runtime:
+            self.headless_heroai.reset()
+            bb = self.blackboard
+            bb["COMBAT_ACTIVE"] = False
+            bb["LOOTING_ACTIVE"] = False
+            bb["PAUSE_MOVEMENT"] = False
+            bb["USER_INTERRUPT_ACTIVE"] = False
+            bb["HEROAI_SUCCESS"] = False
+            bb["HEROAI_STATUS"] = HeroAIStatus.DISABLED.value if not enabled else ""
+
+    def EnableHeadlessHeroAI(self, reset_runtime: bool = True) -> None:
+        self.SetHeadlessHeroAIEnabled(True, reset_runtime=reset_runtime)
+
+    def DisableHeadlessHeroAI(self, reset_runtime: bool = True) -> None:
+        self.SetHeadlessHeroAIEnabled(False, reset_runtime=reset_runtime)
+
+    def ToggleHeadlessHeroAI(self, reset_runtime: bool = True) -> bool:
+        new_state = not self.headless_heroai_enabled
+        self.SetHeadlessHeroAIEnabled(new_state, reset_runtime=reset_runtime)
+        return new_state
+
+    @staticmethod
+    def GetHeroAiSetEnabledTree(
+        enabled: bool,
+        reset_runtime: bool = True,
+        name: str | None = None,
+    ) -> BehaviorTree:
+        node_name = name or ("EnableHeadlessHeroAI" if enabled else "DisableHeadlessHeroAI")
+
+        def _request_toggle(node: BehaviorTree.Node) -> BehaviorTree.NodeState:
+            node.blackboard["headless_heroai_enabled_request"] = enabled
+            node.blackboard["headless_heroai_reset_runtime_request"] = reset_runtime
+            return BehaviorTree.NodeState.SUCCESS
+
+        return BehaviorTree(
+            BehaviorTree.ActionNode(
+                name=node_name,
+                action_fn=_request_toggle,
+                aftercast_ms=0,
+            )
+        )
+
+    @staticmethod
+    def EnableHeroAITree(reset_runtime: bool = True) -> BehaviorTree:
+        return BottingTree.GetHeroAiSetEnabledTree(
+            True,
+            reset_runtime=reset_runtime,
+            name="EnableHeadlessHeroAI",
+        )
+
+    @staticmethod
+    def DisableHeroAITree(reset_runtime: bool = True) -> BehaviorTree:
+        return BottingTree.GetHeroAiSetEnabledTree(
+            False,
+            reset_runtime=reset_runtime,
+            name="DisableHeadlessHeroAI",
+        )
+
+    @staticmethod
+    def ToggleHeroAITree(reset_runtime: bool = True) -> BehaviorTree:
+        def _request_toggle(node: BehaviorTree.Node) -> BehaviorTree.NodeState:
+            current_enabled = bool(node.blackboard.get("headless_heroai_enabled", True))
+            node.blackboard["headless_heroai_enabled_request"] = not current_enabled
+            node.blackboard["headless_heroai_reset_runtime_request"] = reset_runtime
+            return BehaviorTree.NodeState.SUCCESS
+
+        return BehaviorTree(
+            BehaviorTree.ActionNode(
+                name="ToggleHeadlessHeroAI",
+                action_fn=_request_toggle,
+                aftercast_ms=0,
+            )
+        )
         
     def IsHeadlessHeroAIEnabled(self) -> bool:
         return self.headless_heroai_enabled
@@ -369,6 +476,12 @@ class BottingTree:
 
     def _tick_heroai(self, node: BehaviorTree.Node) -> BehaviorTree.NodeState:
         bb = node.blackboard
+        requested_enabled = bb.pop("headless_heroai_enabled_request", None)
+        requested_reset_runtime = bool(bb.pop("headless_heroai_reset_runtime_request", True))
+        if isinstance(requested_enabled, bool):
+            self.SetHeadlessHeroAIEnabled(requested_enabled, reset_runtime=requested_reset_runtime)
+        bb["headless_heroai_enabled"] = self.IsHeadlessHeroAIEnabled()
+
         if not self.IsHeadlessHeroAIEnabled():
             if self._last_heroai_state != "disabled":
                 Py4GW.Console.Log("BottingTree", "Headless HeroAI is disabled.", Py4GW.Console.MessageType.Info)
@@ -416,8 +529,9 @@ class BottingTree:
             return BehaviorTree.NodeState.RUNNING
 
         self.headless_heroai.tick()
-        bb["LOOTING_ACTIVE"] = bool(getattr(self.headless_heroai.cached_data.data, "in_looting_routine", False))
-        bb["PAUSE_MOVEMENT"] = bb["LOOTING_ACTIVE"]
+        bb["USER_INTERRUPT_ACTIVE"] = self.headless_heroai.IsUserInterrupting()
+        bb["LOOTING_ACTIVE"] = self.headless_heroai.IsLootingActive()
+        bb["PAUSE_MOVEMENT"] = bool(bb["LOOTING_ACTIVE"] or bb["USER_INTERRUPT_ACTIVE"])
 
         if self.headless_heroai.cached_data.data.in_aggro:
             if self._last_heroai_state != "combat":

@@ -1,16 +1,13 @@
 from abc import abstractmethod
 from collections import deque
 import inspect
-import traceback
-from typing import List, Generator, Any, override
+from typing import Generator, Any
 import time
 
 from Py4GWCoreLib import GLOBAL_CACHE, Routines, Map, Agent, Player
-from Py4GWCoreLib.Pathing import AutoPathing
 from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer, Timer
 from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Sources.oazix.CustomBehaviors.primitives.bus.event_bus import EventBus
-from Sources.oazix.CustomBehaviors.primitives.bus.event_type import EventType
 from Sources.oazix.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
 from Sources.oazix.CustomBehaviors.primitives.parties.memory_cache_manager import MemoryCacheManager
@@ -21,7 +18,6 @@ from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill import CustomS
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
 from Sources.oazix.CustomBehaviors.primitives.skills.utility_skill_execution_strategy import UtilitySkillExecutionStrategy
 from Sources.oazix.CustomBehaviors.primitives.skills.utility_skill_execution_history import UtilitySkillExecutionHistory
-from Sources.oazix.CustomBehaviors.primitives.skills.utility_skill_typology import UtilitySkillTypology
 from Sources.oazix.CustomBehaviors.skills.blessing.take_near_blessing import TakeNearBlessingUtility
 from Sources.oazix.CustomBehaviors.skills.blessing.take_near_blessing import TakeNearBlessingUtility
 from Sources.oazix.CustomBehaviors.skills.botting.move_if_stuck import MoveIfStuckUtility
@@ -30,15 +26,13 @@ from Sources.oazix.CustomBehaviors.skills.deamon.death_detection import DeathDet
 from Sources.oazix.CustomBehaviors.skills.deamon.map_changed import MapChangedUtility
 from Sources.oazix.CustomBehaviors.skills.deamon.stuck_detection import StuckDetectionUtility
 from Sources.oazix.CustomBehaviors.skills.following.follow_flag_utility import FollowFlagUtility
-from Sources.oazix.CustomBehaviors.skills.following.follow_party_leader_only_utility import FollowPartyLeaderOnlyUtility
-from Sources.oazix.CustomBehaviors.skills.following.follow_party_leader_new_utility import FollowPartyLeaderNewUtility
 from Sources.oazix.CustomBehaviors.skills.following.follow_party_leader_utility import FollowPartyLeaderUtility
 from Sources.oazix.CustomBehaviors.skills.following.spread_during_combat_utility import SpreadDuringCombatUtility
 from Sources.oazix.CustomBehaviors.skills.generic.auto_combat_utility import AutoCombatUtility
 from Sources.oazix.CustomBehaviors.primitives.scores.comon_score import CommonScore
-from Sources.oazix.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
 from Sources.oazix.CustomBehaviors.primitives import constants
 from Sources.oazix.CustomBehaviors.primitives.helpers.eval_profiler import EvalProfiler
+from Sources.oazix.CustomBehaviors.primitives.helpers.utility_skill_metrics import UtilitySkillMetrics
 from Sources.oazix.CustomBehaviors.skills.inventory.merchant_refill_if_needed_utility import MerchantRefillIfNeededUtility
 from Sources.oazix.CustomBehaviors.skills.looting.loot_utility import LootUtility
 from Sources.oazix.CustomBehaviors.skills.looting.open_near_chest_utility import OpenNearChestUtility
@@ -64,6 +58,7 @@ class CustomBehaviorBaseUtility():
 
         self.__memoized_ordered_scores : list[tuple[CustomSkillUtilityBase, float | None]] = []
         self.__memoized_state : BehaviorState = BehaviorState.IDLE
+        self.__previous_state : BehaviorState = BehaviorState.IDLE
         
         self.__injected_additional_utility_skills : list[CustomSkillUtilityBase] = list[CustomSkillUtilityBase]()
 
@@ -258,7 +253,7 @@ class CustomBehaviorBaseUtility():
         return self.__final_skills_list
 
     def is_custom_behavior_match_in_game_build(self) -> bool:
-        if not Map.IsOutpost(): return True
+        if not Map.IsOutpost(): return True # THIS DEGRADE PERFORMANCE A LOT, DO NOT ENABLE UNLESS DEBUGGING // USEFULL WHEN CHANGING BUILD IN EXPLORABLE AREA
 
         utility_build_full:list[CustomSkillUtilityBase] = self.get_skills_final_list()
         is_completed:bool = self.complete_build_with_generic_skills
@@ -359,7 +354,7 @@ class CustomBehaviorBaseUtility():
 
 
     # STATES
-    
+
     def __fetch_and_memoized_state(self):
 
         def compute_state() -> BehaviorState:
@@ -393,6 +388,19 @@ class CustomBehaviorBaseUtility():
             return BehaviorState.FAR_FROM_AGGRO
 
         result:BehaviorState = compute_state()
+
+        # Track state transitions and reset metrics when entering combat if enabled
+        if self.__previous_state != result:
+            metrics = UtilitySkillMetrics()
+            if metrics.should_reset_when_entering_combat:
+                # Check if transitioning from FAR_FROM_AGGRO to IN_AGGRO or CLOSE_TO_AGGRO
+                if (self.__previous_state == BehaviorState.FAR_FROM_AGGRO and
+                    (result == BehaviorState.IN_AGGRO or result == BehaviorState.CLOSE_TO_AGGRO)):
+                    metrics.clear()
+                    if constants.DEBUG:
+                        print(f"UtilitySkillMetrics: Cleared metrics on combat entry (FAR_FROM_AGGRO -> {result.name})")
+            self.__previous_state = result
+
         self.__memoized_state = result
 
     # SCORES 
@@ -454,6 +462,7 @@ class CustomBehaviorBaseUtility():
         # so lets declare it.
         while True:
             try:
+                yield from self._execute_watchdogs()
                 highest_score: tuple[CustomSkillUtilityBase, float | None] | None = None
                 try:
                     highest_score = self.get_highest_score()
@@ -494,6 +503,13 @@ class CustomBehaviorBaseUtility():
                 history_entry.result = result
                 history_entry.ended_at = ended_at
                 self.__previously_attempted_skills.append(highest_score[0].custom_skill)
+
+                # Track execution results
+                _metrics = UtilitySkillMetrics()
+                if result == BehaviorResult.ACTION_PERFORMED:
+                    _metrics.record_action_performed(highest_score[0].custom_skill.skill_id)
+                elif result == BehaviorResult.ACTION_SKIPPED:
+                    _metrics.record_action_skipped(highest_score[0].custom_skill.skill_id)
 
                 yield  # ← yield control back to the main execution flow
             except Exception as e:
@@ -559,3 +575,9 @@ class CustomBehaviorBaseUtility():
                 self.utility_generator.close()
             except Exception:
                 pass
+        
+    def _execute_watchdogs(self) -> Generator[Any | None, Any | None, None]:
+        skills = self.get_skills_final_list()
+        for skill in skills:
+            for watchdog in skill.get_plugin_watchdogs():
+                yield from watchdog.act()

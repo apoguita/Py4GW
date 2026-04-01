@@ -1638,6 +1638,7 @@ class ModelID(IntEnum):
     Shard_Wolf_Mini = 34389
     Shield_Handle = 15554
     Shimmering_Essence = 24633
+    Shimmering_Scale = 2566
     Shing_Jea_Key = 6537
     Shining_Blade_Ration = 35127
     Shining_Blade_Summon = 35126

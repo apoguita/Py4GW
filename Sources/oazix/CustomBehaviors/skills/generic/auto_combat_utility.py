@@ -80,8 +80,13 @@ class AutoCombatUtility(CustomSkillUtilityBase):
         order = self.find_order()
         if order == -1:
             return None
-        is_ready, target_agent_id = autocombat.IsReadyToCast(order)
-        return target_agent_id if is_ready else None
+        # Use GetAppropiateTarget with the order (priority index), not skill_slot
+        target_agent_id = autocombat.GetAppropiateTarget(order)
+        if target_agent_id and target_agent_id != 0:
+            # Verify cast conditions are met
+            if autocombat.AreCastConditionsMet(order, target_agent_id):
+                return target_agent_id
+        return None
 
     @override
     def _execute(self, state: BehaviorState) -> Generator[Any, None, BehaviorResult]:
@@ -132,10 +137,11 @@ class AutoCombatUtility(CustomSkillUtilityBase):
             is_out_of_combat_skill = autocombat.IsOOCSkill(order)
             PyImGui.bullet_text(f"IsOOCSkill: {is_out_of_combat_skill}")
 
-            appropriate_target_id = autocombat.GetAppropiateTarget(self.custom_skill.skill_slot - 1)
+            # Use order (priority index) for GetAppropiateTarget, not skill_slot
+            appropriate_target_id = autocombat.GetAppropiateTarget(order)
             PyImGui.bullet_text(f"GetAppropiateTarget AgentId: {appropriate_target_id}")
 
-            are_cast_conditions_met = autocombat.AreCastConditionsMet(self.custom_skill.skill_slot - 1, appropriate_target_id)
+            are_cast_conditions_met = autocombat.AreCastConditionsMet(order, appropriate_target_id)
             PyImGui.bullet_text(f"AreCastConditionsMet: {are_cast_conditions_met}")
 
             is_ready_to_cast, target_agent_id = autocombat.IsReadyToCast(order)

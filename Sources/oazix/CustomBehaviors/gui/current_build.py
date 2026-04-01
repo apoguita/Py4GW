@@ -1,13 +1,11 @@
 import os
 
-import Py4GW
 from Py4GWCoreLib import IconsFontAwesome5, ImGui, PyImGui
 from Py4GWCoreLib.Py4GWcorelib import Color, Utils
 from Sources.oazix.CustomBehaviors.PathLocator import PathLocator
 from Sources.oazix.CustomBehaviors.primitives.skillbars.custom_behavior_base_utility import CustomBehaviorBaseUtility
 from Sources.oazix.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
 from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
-from Sources.oazix.CustomBehaviors.primitives.skills.bonds.custom_buff_multiple_target import CustomBuffMultipleTarget
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
 from Sources.oazix.CustomBehaviors.primitives import constants
 from Sources.oazix.CustomBehaviors.primitives.skills.utility_skill_typology_color import UtilitySkillTypologyColor
@@ -59,7 +57,8 @@ def render():
 
     PyImGui.same_line(0, 5)
     PyImGui.same_line(0, -1)
-    WITH_DETAIL = PyImGui.checkbox("with detailled informations", WITH_DETAIL)
+    if PyImGui.button(f"{IconsFontAwesome5.ICON_SYNC} Force refresh build"):
+            CustomBehaviorLoader().refresh_custom_behavior_candidate()
 
     # if current_build is not None and type(current_build).mro()[1].__name__ != CustomBehaviorBaseUtility.__name__:
     #     PyImGui.separator()
@@ -182,17 +181,41 @@ def render():
                                 allowed_names = [x.name for x in (skill.allowed_states or [])]
                                 PyImGui.bullet_text(f"allowed in : {allowed_names}")
                                 PyImGui.bullet_text(f"are_common_pre_checks_valid : {skill.are_common_pre_checks_valid(instance.get_final_state())}")
-                                PyImGui.bullet_text(f"are_capabilities_satisfied : {skill.are_capabilities_satisfied()}")
+                                PyImGui.bullet_text(f"are_plugin_preconditions_satisfied : {skill.are_preconditions_satisfied()}")
                                 PyImGui.bullet_text(f"slot:{skill.custom_skill.skill_slot}")
                                 PyImGui.bullet_text(f"score_definition:{skill.score_definition.score_definition_debug_ui()}")
-                                buff_configuration: CustomBuffMultipleTarget | None = skill.get_buff_configuration()
-                                if buff_configuration is not None:
-                                    buff_configuration.render_buff_configuration()
-                                
+
                                 # capabilities debug ui
-                                for capability in skill.get_capabilities():
-                                    PyImGui.bullet_text(f"capability: {capability.capability_name}")
-                                    capability.render_debug_ui()
+                                for plugin in skill.get_plugins():
+                                    plugin_type = plugin.__class__.__bases__[0].__name__
+                                    color_watchdog = Color(0, 100, 0)
+                                    color_precondition = Color(0, 139, 139)
+                                    color_targeting = Color(0, 0, 139)
+                                    color = color_watchdog if plugin_type == "UtilitySkillWatchdog" else color_precondition if plugin_type == "UtilitySkillPrecondition" else color_targeting
+
+                                    hovered_color = Color(
+                                        max(0, color.r - 30),
+                                        max(0, color.g - 30),
+                                        max(0, color.b - 30),
+                                        color.a
+                                    )
+                                    active_color = Color(
+                                        max(0, color.r - 50),
+                                        max(0, color.g - 50),
+                                        max(0, color.b - 50),
+                                        color.a
+                                    )
+
+                                    # Style the collapsing header with background colors
+                                    PyImGui.push_style_color(PyImGui.ImGuiCol.Header, color.to_tuple_normalized())
+                                    PyImGui.push_style_color(PyImGui.ImGuiCol.HeaderHovered, hovered_color.to_tuple_normalized())
+                                    PyImGui.push_style_color(PyImGui.ImGuiCol.HeaderActive, active_color.to_tuple_normalized())
+
+                                    # Collapsing header for plugin (TreeNodeFlags.DefaultOpen makes it open by default)
+                                    if PyImGui.collapsing_header(f"plugin {plugin_type} : {plugin.plugin_name}##{id(plugin)}", PyImGui.TreeNodeFlags.DefaultOpen):
+                                        plugin.render_debug_ui()
+                                    
+                                    PyImGui.pop_style_color(3)
 
                                 # customized_debug_ui
                                 skill.customized_debug_ui(instance.get_final_state())
