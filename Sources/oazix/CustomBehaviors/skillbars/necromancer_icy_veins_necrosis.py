@@ -77,10 +77,6 @@ class NecromancerIcyVeinsNecrosis_UtilitySkillBar(CustomBehaviorBaseUtility):
             mana_required_to_cast=5,
         )
 
-
-        self.air_of_superiority_utility: CustomSkillUtilityBase = KeepSelfEffectUpUtility(event_bus=self.event_bus, skill=CustomSkill("Air_of_Superiority"), mana_required_to_cast=5, current_build=in_game_build, score_definition=ScoreStaticDefinition(50), allowed_states=[BehaviorState.IN_AGGRO])
-
-
     @property
     @override
     def custom_skills_in_behavior(self) -> list[CustomSkillUtilityBase]:
@@ -98,8 +94,6 @@ class NecromancerIcyVeinsNecrosis_UtilitySkillBar(CustomBehaviorBaseUtility):
             self.chaos_storm_utility,
             self.arcane_echo_utility,
             self.auspicious_incantation_utility,
-
-            self.air_of_superiority_utility,
 
             self.putrid_explosion_utility,
             self.masochism_utility,

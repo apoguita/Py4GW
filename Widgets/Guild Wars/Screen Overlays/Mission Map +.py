@@ -34,6 +34,7 @@ CHEST_GADGET_IDS = [9,69,4579,8141, 9523, 4582]
 # NavMesh right-click snap constants
 _SNAP_ARRIVAL_RADIUS   = 200.0
 _SNAP_WAYPOINT_RADIUS  = 140.0
+_SNAP_RESUME_REISSUE_MS = 1000
 
 #end region
 
@@ -857,6 +858,8 @@ class MissionMap:
         self.snap_path_index: int = 0
         self.snap_path_following: bool = False
         self.snap_enabled: bool = False
+        self.snap_move_retry_timer = Timer()
+        self.snap_move_retry_timer.Start()
 
         self.ally_marker = GLOBAL_CONFIGS.get("Ally")
         self.player_marker = GLOBAL_CONFIGS.get("Player")
@@ -887,7 +890,28 @@ class MissionMap:
         self.snap_current_path   = []
         self.snap_path_index = 0
         self.snap_path_following = False
+        self.snap_move_retry_timer.Reset()
         Player.Move(self.player_x, self.player_y)
+
+    def _snap_can_resume_move(self) -> bool:
+        if not Player.IsPlayerLoaded():
+            return False
+        if self.player_agent_id == 0:
+            return False
+        if Agent.IsDead(self.player_agent_id):
+            return False
+        if Agent.IsKnockedDown(self.player_agent_id):
+            return False
+        if Agent.IsCasting(self.player_agent_id):
+            return False
+        if Agent.IsAttacking(self.player_agent_id):
+            return False
+        return True
+
+    def _snap_issue_move(self, x: float, y: float) -> None:
+        Player.Move(x, y)
+        self.snap_move_retry_timer.Reset()
+        self.snap_path_following = True
         
 
     def update(self):
@@ -915,6 +939,7 @@ class MissionMap:
             self.snap_path_computing = False
             self.snap_path_index = 0
             self.snap_path_following = False
+            self.snap_move_retry_timer.Reset()
             # Seed right-click state so first frame doesn't fire spuriously
             _rc = Map.MissionMap.GetLastRightClickCoords()
             self.snap_gw_last_right_click = (float(_rc[0]), float(_rc[1]))
@@ -1037,6 +1062,7 @@ class MissionMap:
                     self.snap_current_path = []
                     self.snap_path_index = 0
                     self.snap_path_following = False
+                    self.snap_move_retry_timer.Reset()
                     GLOBAL_CACHE.Coroutines.append(
                         _snap_launch_path_coroutine(snapped[0], snapped[1], self)
                     )
@@ -1046,6 +1072,7 @@ class MissionMap:
                 self.snap_current_path = []
                 self.snap_path_index = 0
                 self.snap_path_following = False
+                self.snap_move_retry_timer.Reset()
 
         # Follow computed AutoPathing path waypoint-by-waypoint
         if self.snap_snapped_target is not None and not self.snap_path_computing:
@@ -1061,8 +1088,7 @@ class MissionMap:
                             continue
                         break
                     _nx, _ny = self.snap_current_path[self.snap_path_index]
-                    Player.Move(_nx, _ny)
-                    self.snap_path_following = True
+                    self._snap_issue_move(_nx, _ny)
                 else:
                     if self.snap_path_index < len(self.snap_current_path):
                         _cx, _cy = self.snap_current_path[self.snap_path_index]
@@ -1072,9 +1098,16 @@ class MissionMap:
                             self.snap_path_index += 1
                             if self.snap_path_index < len(self.snap_current_path):
                                 _nx, _ny = self.snap_current_path[self.snap_path_index]
-                                Player.Move(_nx, _ny)
+                                self._snap_issue_move(_nx, _ny)
                             else:
                                 self.snap_path_following = False
+                                self.snap_move_retry_timer.Reset()
+                        elif (
+                            self._snap_can_resume_move()
+                            and not Agent.IsMoving(self.player_agent_id)
+                            and self.snap_move_retry_timer.HasElapsed(_SNAP_RESUME_REISSUE_MS)
+                        ):
+                            self._snap_issue_move(_cx, _cy)
 
         # Arrival check: clear snap markers once the player reaches the snapped point
         if self.snap_snapped_target is not None and not self.snap_path_computing:

@@ -309,7 +309,7 @@ class FollowFormationPublisher:
         self.state.combat_cached_follow_pos.clear()
         for index in range(self.shared_memory_manager.max_num_players):
             account = all_accounts.AccountData[index]
-            if not (account.IsSlotActive and account.IsAccount) or account.IsIsolated:
+            if not (account.IsSlotActive and account.IsAccount) or all_accounts._is_slot_isolated_from_viewer(index, leader_index):
                 continue
             if not self._same_party_and_map(leader_account, account):
                 continue
@@ -506,7 +506,7 @@ class FollowFormationPublisher:
 
         leader_account: AccountStruct = all_accounts.AccountData[leader_index]
         leader_options: HeroAIOptionStruct = all_accounts.HeroAIOptions[leader_index]
-        if not leader_account.IsSlotActive or not leader_account.IsAccount or leader_account.IsIsolated:
+        if not leader_account.IsSlotActive or not leader_account.IsAccount:
             return
 
         if (not Map.IsMapReady()) or Map.IsMapLoading() or (not Map.IsExplorable()):
@@ -570,7 +570,7 @@ class FollowFormationPublisher:
 
         for index in range(self.shared_memory_manager.max_num_players):
             account: AccountStruct = all_accounts.AccountData[index]
-            if not (account.IsSlotActive and account.IsAccount) or account.IsIsolated:
+            if not (account.IsSlotActive and account.IsAccount) or all_accounts._is_slot_isolated_from_viewer(index, leader_index):
                 continue
             if not self._same_party_and_map(leader_account, account):
                 continue

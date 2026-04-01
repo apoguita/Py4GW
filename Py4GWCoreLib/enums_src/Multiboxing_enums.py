@@ -53,6 +53,7 @@ class SharedCommandType(IntEnum):
     DisableWidget = 46
     InventoryQuery = 47
     EquipItem = 48
+    MerchantRules = 49
 
     MultiBoxing = 990 # privately Handled Command, by frenkey
     CustomBehaviors = 997 # privately Handled Command, used in CustomBehaviors widget

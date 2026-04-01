@@ -8,6 +8,7 @@ from threading import Lock
 from typing import Generator
 
 
+from Py4GWCoreLib.enums_src.GameData_enums import Range
 from Sources.oazix.CustomBehaviors.primitives.following_behavior_priority import FollowingBehaviorPriority
 from Sources.oazix.CustomBehaviors.primitives.parties.shared_lock_manager import (
     SharedLockEntry,
@@ -193,17 +194,17 @@ class CustomBehaviorWidgetMemoryManager:
         mem.FollowingConfig.EnableDebugOverlay = False
 
         # Initialize spread_during_combat_utility config with defaults
-        mem.FollowingConfig.EnemyRepulsionThreshold = 250.0
+        mem.FollowingConfig.EnemyRepulsionThreshold = Range.Adjacent.value
         mem.FollowingConfig.EnemyRepulsionWeight = 100.0
-        mem.FollowingConfig.LeaderAttractionThreshold = 550.0
+        mem.FollowingConfig.LeaderAttractionThreshold = Range.Earshot.value
         mem.FollowingConfig.LeaderAttractionWeight = 150.0
-        mem.FollowingConfig.AlliesRepulsionThreshold = 130.0
+        mem.FollowingConfig.AlliesRepulsionThreshold = Range.Adjacent.value
         mem.FollowingConfig.AlliesRepulsionWeight = 180.0
         mem.FollowingConfig.MinMoveThreshold = 0.5
         mem.FollowingConfig.MaxMoveDistance = 300.0
 
         # Initialize following behavior mode
-        mem.FollowingConfig.PartyFollowingBehavior = FollowingBehaviorPriority.NONE.value
+        mem.FollowingConfig.PartyFollowingBehavior = FollowingBehaviorPriority.LOW_PRIORITY.value
 
         # Initialize per-account force activation flags
         for i in range(MAX_FLAG_POSITIONS):

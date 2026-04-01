@@ -52,6 +52,7 @@ class Movement:
         custom_pause_fn: Optional[Callable[[], bool]] = None,
         stop_on_party_wipe: bool = True,
         map_transition_exit_success: bool = False,
+        autopath: bool = True,
     ):
         import random
         from ..Checks import Checks
@@ -219,18 +220,19 @@ class Movement:
                             )
                             idx = resume_idx
 
-                        rebuilt_idx, rebuilt = yield from _rebuild_remaining_path(idx)
-                        if rebuilt:
-                            idx = rebuilt_idx
-                            total_points = len(path_points)
-                            ConsoleLog(
-                                "FollowPath",
-                                f"Pause ended far from route, rebuilt remaining path with {total_points} points.",
-                                Console.MessageType.Info,
-                                log=log,
-                            )
-                        elif rebuilt_idx != idx:
-                            idx = rebuilt_idx
+                        if autopath:
+                            rebuilt_idx, rebuilt = yield from _rebuild_remaining_path(idx)
+                            if rebuilt:
+                                idx = rebuilt_idx
+                                total_points = len(path_points)
+                                ConsoleLog(
+                                    "FollowPath",
+                                    f"Pause ended far from route, rebuilt remaining path with {total_points} points.",
+                                    Console.MessageType.Info,
+                                    log=log,
+                                )
+                            elif rebuilt_idx != idx:
+                                idx = rebuilt_idx
 
                         if idx >= len(path_points):
                             return True
