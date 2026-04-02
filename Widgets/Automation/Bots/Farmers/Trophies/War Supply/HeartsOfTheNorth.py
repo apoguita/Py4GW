@@ -12,14 +12,16 @@ from Py4GWCoreLib import *
 
 MODULE_NAME = "Hearts of the North - Keiran Missons (War Supplies)"
 MODULE_ICON = "Textures\\Module_Icons\\Keiran Farm.png"
-MODULE_TAGS = ["Automation", "Bots", "Farmers", "Trophies", "War Supply", "Keiran", "Missions", "EOTN", "HotN"]
+MODULE_TAGS = ["War","Supply", "Keiran", "AB", "Rise", "EOTN", "HotN"]
+
+_HOTN_DIALOG_BASE_OFFSET = 0xE  # first HotN mission (AB) is always base_id + 0xE; each subsequent mission adds 1
 
 @dataclass
 class MissionConfig:
     name: str
     map_id: int
-    dialog_id: int
-    run_movement_fn: Callable  # fn(bot: Botting) -> adds mission-specific movement states
+    mission_slot: int           # 0=AB, 1=AVoB, 2=SitJ, 3=Rise — added to base_id + 0xE at runtime
+    run_movement_fn: Callable   # fn(bot: Botting) -> adds mission-specific movement states
 
 
 @dataclass
@@ -199,25 +201,25 @@ MISSIONS: dict[str, MissionConfig] = {
     "Auspicious Beginnings": MissionConfig(
         name="Auspicious Beginnings",
         map_id=849,
-        dialog_id=0x63F,
+        mission_slot=0,
         run_movement_fn=_run_ab_movement,
     ),
     "A Vengance of Blades - WIP": MissionConfig(
         name="A Vengance of Blades - WIP",
         map_id=848,
-        dialog_id=0x640,
+        mission_slot=1,
         run_movement_fn=_run_avob_movement,
     ),
     "Shadows in the Jungle - WIP": MissionConfig(
         name="Shadows in the Jungle - WIP",
         map_id=847,
-        dialog_id=0x641,
+        mission_slot=2,
         run_movement_fn=_run_sitj_movement,
     ),
     "Rise - WIP": MissionConfig(
         name="Rise - WIP",
         map_id=846,
-        dialog_id=0x642,
+        mission_slot=3,
         run_movement_fn=_run_rise_movement,
     ),
 }
@@ -545,8 +547,31 @@ def EnterQuest(bot: Botting) -> None:
     bot.States.AddHeader("Enter Quest")
 
     def _enter_quest(bot: Botting):
+        import PyDialog
         mission = _get_active_mission()
-        yield from bot.Move._coro_xy_and_dialog(-6662.00, 6584.00, dialog_id=mission.dialog_id)
+
+        # Move to Keiran and open the dialog without sending a specific ID
+        yield from bot.Move._coro_xy_and_interact_npc(-6662.00, 6584.00)
+
+        # Wait for the dialog to become active (up to 5 seconds)
+        deadline = time.time() + 5.0
+        while not PyDialog.PyDialog.is_dialog_active():
+            if time.time() > deadline:
+                ConsoleLog(MODULE_NAME, "[EnterQuest] Timed out waiting for Keiran's dialog", Py4GW.Console.MessageType.Warning)
+                return
+            yield from Routines.Yield.wait(150)
+
+        # Read the first button's dialog_id as the dynamic base
+        buttons = [b for b in PyDialog.PyDialog.get_active_dialog_buttons() if getattr(b, "dialog_id", 0) != 0]
+        if not buttons:
+            ConsoleLog(MODULE_NAME, "[EnterQuest] No dialog buttons found", Py4GW.Console.MessageType.Warning)
+            return
+
+        base_id = buttons[0].dialog_id
+        target_id = base_id + _HOTN_DIALOG_BASE_OFFSET + mission.mission_slot
+        ConsoleLog(MODULE_NAME, f"[EnterQuest] base={hex(base_id)} offset={hex(_HOTN_DIALOG_BASE_OFFSET + mission.mission_slot)} -> sending {hex(target_id)}")
+        Player.SendDialog(target_id)
+        yield from Routines.Yield.wait(500)
 
     bot.States.AddCustomState(lambda: _enter_quest(bot), "EnterQuest")
 
