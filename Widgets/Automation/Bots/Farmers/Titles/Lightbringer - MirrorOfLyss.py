@@ -44,14 +44,10 @@ bot = Botting(BotSettings.BOT_NAME,
               upkeep_grail_of_might_restock=2,
               upkeep_war_supplies_restock=2,
               upkeep_birthday_cupcake_restock=2,
-              upkeep_honeycomb_restock=20)
-
-bot.config.config_properties.use_custom_behaviors = Property(bot.config, "use_custom_behaviors", active=True)
-bot.config.config_properties.single_account_mode = Property(bot.config, "single_account_mode", active=False)
-
-_SETTINGS_SECTION = "TitleBotSettings"
-_BEHAVIOR_MODE_KEY = "use_custom_behaviors"
-_SINGLE_ACCOUNT_KEY = "single_account_mode"
+              upkeep_honeycomb_restock=20,
+              upkeep_auto_combat_active=True,
+              upkeep_auto_inventory_management_active=True,
+              upkeep_auto_loot_active=True)
 
 _BOT_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__)) if "__file__" in globals() else os.getcwd()
 _HERO_CONFIG_PATH = os.path.join(_BOT_SCRIPT_DIR, f"{BotSettings.BOT_NAME} Heroes.json")
@@ -121,6 +117,11 @@ _hero_config_dirty: bool = False
 _hero_config_status: str = ""
 _hero_import_source_index: int = 0
 
+
+def ConfigureAggressiveEnv(bot: Botting) -> None:
+    bot.Templates.Aggressive()
+    bot.Properties.Enable("auto_inventory_management")
+
 def bot_routine(bot: Botting) -> None:
     #events
     condition = lambda: OnPartyWipe(bot)
@@ -129,15 +130,8 @@ def bot_routine(bot: Botting) -> None:
 
     # Combat preparations
     bot.States.AddHeader(BotSettings.BOT_NAME)
-    _load_behavior_setting(bot)
-    _load_single_account_setting(bot)
-    bot.Templates.Multibox_Aggressive()
-    _apply_behavior_mode(bot)
-    if _as_bool(bot.Properties.Get("single_account_mode", "active")):
-        bot.Map.Travel(target_map_id=BotSettings.OUTPOST_TO_TRAVEL)
-    else:
-        bot.Templates.Routines.PrepareForFarm(map_id_to_travel=BotSettings.OUTPOST_TO_TRAVEL)
-    bot.States.AddCustomState(lambda: _setup_heroes_if_single_account(bot), "Setup Heroes If Single Account")
+    bot.Map.Travel(target_map_id=BotSettings.OUTPOST_TO_TRAVEL)
+    bot.States.AddCustomState(lambda: _setup_heroes(bot), "Setup Heroes")
     bot.Party.SetHardMode(True)
     
     # Resign setup
@@ -148,18 +142,19 @@ def bot_routine(bot: Botting) -> None:
     bot.States.AddHeader(f"{BotSettings.BOT_NAME}_loop") # 3
     PrepareForBattle(bot)
     bot.Move.XYAndExitMap(*BotSettings.COORD_TO_EXIT_MAP, target_map_id=BotSettings.EXPLORABLE_TO_TRAVEL)
+    ConfigureAggressiveEnv(bot)
 
     # Bounty interaction
     bot.Move.XY(*BotSettings.BOUNTY_COORDS)
     bot.Wait.ForTime(1500)
-    _queue_dialog_by_mode(bot, *BotSettings.BOUNTY_COORDS, BotSettings.BOUNTY_DIALOG)
+    bot.Move.XYAndDialog(*BotSettings.BOUNTY_COORDS, BotSettings.BOUNTY_DIALOG)
     bot.Wait.ForTime(1500)
 
     # Killing path
     bot.Move.FollowAutoPath(BotSettings.KILLING_PATH)
     bot.Wait.UntilOutOfCombat()
     bot.States.AddHeader("Resign") # 4
-    bot.States.AddCustomState(lambda: _resign_by_mode(bot), "Resign Party")
+    bot.States.AddCustomState(lambda: _resign(bot), "Resign Party")
     bot.Wait.ForTime(1000)
     bot.Wait.UntilOnOutpost()
     bot.States.JumpToStepName(LOOP_STEP_NAME)
@@ -215,31 +210,6 @@ def _as_bool(value) -> bool:
     return bool(value)
 
 
-def _single_account_mode_enabled(bot: Botting) -> bool:
-    return _as_bool(bot.Properties.Get("single_account_mode", "active"))
-
-
-def _send_local_dialog(bot: Botting, dialog_id: int):
-    Player.SendDialog(dialog_id)
-    yield from bot.Wait._coro_for_time(500)
-
-
-def _queue_dialog_by_mode(bot: Botting, x: float, y: float, *dialog_ids: int) -> None:
-    if not dialog_ids:
-        return
-    if _single_account_mode_enabled(bot):
-        bot.Move.XYAndDialog(x, y, dialog_ids[0])
-        for dialog_id in dialog_ids[1:]:
-            bot.States.AddCustomState(
-                lambda dialog_id=dialog_id: _send_local_dialog(bot, dialog_id),
-                f"Local Dialog {hex(dialog_id)}",
-            )
-        return
-    bot.Move.XYAndInteractNPC(x, y)
-    for dialog_id in dialog_ids:
-        bot.Multibox.SendDialogToTarget(dialog_id)
-
-
 def _ensure_bot_ini(bot: Botting) -> str:
     if not bot.config.ini_key_initialized:
         bot.config.ini_key = IniManager().ensure_key(
@@ -248,63 +218,6 @@ def _ensure_bot_ini(bot: Botting) -> str:
         )
         bot.config.ini_key_initialized = True
     return bot.config.ini_key
-
-
-def _rebuild_bot_fsm(bot: Botting) -> None:
-    bot.Stop()
-    bot.config.FSM = bot.config.FSM.__class__(bot.config.bot_name)
-    bot.config.counters.clear_all()
-    bot.config.initialized = False
-
-
-def _load_behavior_setting(bot: Botting) -> None:
-    ini_key = _ensure_bot_ini(bot)
-    if not ini_key:
-        return
-    saved_value = IniManager().read_bool(
-        ini_key,
-        _SETTINGS_SECTION,
-        _BEHAVIOR_MODE_KEY,
-        _as_bool(bot.Properties.Get("use_custom_behaviors", "active")),
-    )
-    bot.Properties.ApplyNow("use_custom_behaviors", "active", _as_bool(saved_value))
-
-
-def _save_behavior_setting(bot: Botting) -> None:
-    ini_key = _ensure_bot_ini(bot)
-    if not ini_key:
-        return
-    IniManager().write_key(
-        ini_key,
-        _SETTINGS_SECTION,
-        _BEHAVIOR_MODE_KEY,
-        _as_bool(bot.Properties.Get("use_custom_behaviors", "active")),
-    )
-
-
-def _load_single_account_setting(bot: Botting) -> None:
-    ini_key = _ensure_bot_ini(bot)
-    if not ini_key:
-        return
-    saved_value = IniManager().read_bool(
-        ini_key,
-        _SETTINGS_SECTION,
-        _SINGLE_ACCOUNT_KEY,
-        _as_bool(bot.Properties.Get("single_account_mode", "active")),
-    )
-    bot.Properties.ApplyNow("single_account_mode", "active", _as_bool(saved_value))
-
-
-def _save_single_account_setting(bot: Botting) -> None:
-    ini_key = _ensure_bot_ini(bot)
-    if not ini_key:
-        return
-    IniManager().write_key(
-        ini_key,
-        _SETTINGS_SECTION,
-        _SINGLE_ACCOUNT_KEY,
-        _as_bool(bot.Properties.Get("single_account_mode", "active")),
-    )
 
 
 def _load_hero_config():
@@ -512,11 +425,13 @@ def _draw_hero_settings_tab():
     PyImGui.end_child()
 
 
-def _setup_heroes_if_single_account(bot: Botting):
+def _setup_heroes(bot: Botting):
     global _hero_slots
-    if not _as_bool(bot.Properties.Get("single_account_mode", "active")):
-        yield
-        return
+    GLOBAL_CACHE.Party.LeaveParty()
+    for _ in range(8):
+        yield from bot.Wait._coro_for_time(250)
+        if GLOBAL_CACHE.Party.GetPlayerCount() <= 1:
+            break
     GLOBAL_CACHE.Party.Heroes.KickAllHeroes()
     yield from bot.Wait._coro_for_time(500)
     seen: set = set()
@@ -539,45 +454,11 @@ def _setup_heroes_if_single_account(bot: Botting):
             yield from bot.Wait._coro_for_time(500)
 
 
-def _resign_by_mode(bot: Botting):
+def _resign(bot: Botting):
     global _intentional_resign_in_progress
     _intentional_resign_in_progress = True
-    if _single_account_mode_enabled(bot):
-        yield from Routines.Yield.Player.SendChatCommand("resign")
-        yield from bot.Wait._coro_for_time(500)
-    else:
-        yield from bot.helpers.Multibox.resign_party()
-
-
-def _apply_behavior_mode(bot: Botting) -> None:
-    use_custom_behaviors = _as_bool(bot.Properties.Get("use_custom_behaviors", "active"))
-    from Py4GW_widget_manager import get_widget_handler
-
-    widget_handler = get_widget_handler()
-    custom_behavior_party = None
-    try:
-        from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
-        custom_behavior_party = CustomBehaviorParty()
-    except Exception:
-        custom_behavior_party = None
-    if use_custom_behaviors:
-        bot.Properties.Disable("hero_ai")
-        if custom_behavior_party is not None:
-            custom_behavior_party.set_party_is_enabled(True)
-        if not widget_handler.is_widget_enabled("CustomBehaviors"):
-            widget_handler.enable_widget("CustomBehaviors")
-        if widget_handler.is_widget_enabled("HeroAI"):
-            widget_handler.disable_widget("HeroAI")
-        bot.Multibox.ApplyWidgetPolicy(enable_widgets=("CustomBehaviors",), disable_widgets=("HeroAI",), apply_local=False)
-    else:
-        bot.Properties.Enable("hero_ai")
-        if custom_behavior_party is not None:
-            custom_behavior_party.set_party_is_enabled(False)
-        if widget_handler.is_widget_enabled("CustomBehaviors"):
-            widget_handler.disable_widget("CustomBehaviors")
-        if not widget_handler.is_widget_enabled("HeroAI"):
-            widget_handler.enable_widget("HeroAI")
-        bot.Multibox.ApplyWidgetPolicy(enable_widgets=("HeroAI",), disable_widgets=("CustomBehaviors",), apply_local=False)
+    yield from Routines.Yield.Player.SendChatCommand("resign")
+    yield from bot.Wait._coro_for_time(500)
 
 bot.UI.override_draw_config(lambda: _draw_settings(bot))
 bot.UI.override_draw_help(lambda: _draw_help(bot))
@@ -585,30 +466,9 @@ bot.UI.override_draw_help(lambda: _draw_help(bot))
 def _draw_settings(bot:Botting):
     PyImGui.text("Bot Settings")
 
-    _load_behavior_setting(bot)
-    _load_single_account_setting(bot)
-
-    use_custom_behaviors = _as_bool(bot.Properties.Get("use_custom_behaviors", "active"))
-    use_hero_ai = not use_custom_behaviors
-    new_use_hero_ai = PyImGui.checkbox("Use Hero AI", use_hero_ai)
-    new_use_custom_behaviors = PyImGui.checkbox("Use Custom Behaviors", use_custom_behaviors)
-    if new_use_hero_ai != use_hero_ai:
-        desired = not new_use_hero_ai
-    elif new_use_custom_behaviors != use_custom_behaviors:
-        desired = new_use_custom_behaviors
-    else:
-        desired = use_custom_behaviors
-    if desired != use_custom_behaviors:
-        bot.Properties.ApplyNow("use_custom_behaviors", "active", desired)
-        _save_behavior_setting(bot)
-        _apply_behavior_mode(bot)
-
-    single_account_mode = _as_bool(bot.Properties.Get("single_account_mode", "active"))
-    new_single_account_mode = PyImGui.checkbox("Single Account (use Heroes)", single_account_mode)
-    if new_single_account_mode != single_account_mode:
-        bot.Properties.ApplyNow("single_account_mode", "active", new_single_account_mode)
-        _save_single_account_setting(bot)
-        _rebuild_bot_fsm(bot)
+    PyImGui.text("Combat Backend")
+    PyImGui.text("Current: Auto Combat")
+    PyImGui.text("Mode: Single Account with Heroes")
 
     # Conset controls
     use_conset = bot.Properties.Get("armor_of_salvation", "active")
@@ -685,8 +545,6 @@ _session_start_times: dict[str, float] = {}
 
 def _get_title_track_accounts():
     accounts = list(GLOBAL_CACHE.ShMem.GetAllAccountData())
-    if not _single_account_mode_enabled(bot):
-        return accounts
     own_email = Player.GetAccountEmail()
     filtered = [account for account in accounts if getattr(account, "AccountEmail", "") == own_email]
     if filtered:

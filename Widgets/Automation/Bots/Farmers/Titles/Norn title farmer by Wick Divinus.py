@@ -87,16 +87,15 @@ Norn_Path: list[tuple[float, float]] = [
 ]
 
 bot = Botting(BOT_NAME,
-              upkeep_honeycomb_active=True)
+              upkeep_honeycomb_active=True,
+              upkeep_auto_combat_active=True,
+              upkeep_auto_inventory_management_active=True,
+              upkeep_auto_loot_active=True)
 
 bot.config.config_properties.use_conset = Property(bot.config, "use_conset", active=False)
 bot.config.config_properties.use_pcons = Property(bot.config, "use_pcons", active=False)
-bot.config.config_properties.use_custom_behaviors = Property(bot.config, "use_custom_behaviors", active=True)
-bot.config.config_properties.single_account_mode = Property(bot.config, "single_account_mode", active=False)
 
 _SETTINGS_SECTION = "TitleBotSettings"
-_BEHAVIOR_MODE_KEY = "use_custom_behaviors"
-_SINGLE_ACCOUNT_KEY = "single_account_mode"
 _USE_CONSET_KEY = "use_conset"
 _USE_PCONS_KEY = "use_pcons"
 
@@ -191,6 +190,11 @@ PCON_RESTOCK_MODELS   = [m for m, _ in PCON_ITEMS] + [
     ModelID.Honeycomb.value,
     ModelID.Scroll_Of_Resurrection.value,
 ]
+
+
+def ConfigureAggressiveEnv(bot: Botting) -> None:
+    bot.Templates.Aggressive()
+    bot.Properties.Enable("auto_inventory_management")
 # endregion
 
 
@@ -203,18 +207,10 @@ def bot_routine(bot: Botting) -> None:
     #end events
 
     bot.States.AddHeader("Prepare For Farm")
-    _load_behavior_setting(bot)
-    _load_single_account_setting(bot)
     _load_consumable_settings(bot)
-    bot.Templates.Multibox_Aggressive()
-    _apply_behavior_mode(bot)
     _sync_consumable_toggles(bot)
-    if _as_bool(bot.Properties.Get("single_account_mode", "active")):
-        bot.Map.Travel(target_map_id=OLAFSTEAD)
-    else:
-        bot.Multibox.LeavePartyOnAllAccounts()
-        bot.Templates.Routines.PrepareForFarm(map_id_to_travel=OLAFSTEAD)
-    bot.States.AddCustomState(lambda: _setup_heroes_if_single_account(bot), "Setup Heroes If Single Account")
+    bot.Map.Travel(target_map_id=OLAFSTEAD)
+    bot.States.AddCustomState(lambda: _setup_heroes(bot), "Setup Heroes")
     bot.States.AddCustomState(lambda: _restock_consumables_if_enabled(bot), "Restock Consumables If Enabled")
 
     bot.States.AddHeader("Zoning into explorable area")
@@ -222,9 +218,10 @@ def bot_routine(bot: Botting) -> None:
     auto_path_list = [(-328.0, 1240.0), (-1500.0, 1250.0)]
     bot.Move.FollowPath(auto_path_list)
     bot.Wait.ForMapLoad(target_map_id=553)
+    ConfigureAggressiveEnv(bot)
     bot.States.AddHeader("Start Combat")
     bot.States.AddCustomState(lambda: _use_consumables_if_enabled(bot), "Use Consumables If Enabled")
-    bot.States.AddManagedCoroutine("Upkeep Multibox Consumables", lambda: _upkeep_multibox_consumables(bot))
+    bot.States.AddManagedCoroutine("Upkeep Consumables", lambda: _upkeep_consumables(bot))
     bot.States.AddManagedCoroutine("Anti-Stuck Watchdog", lambda: _anti_stuck_watchdog(bot))
 
     # Initial path to first blessing
@@ -233,7 +230,7 @@ def bot_routine(bot: Botting) -> None:
     bot.Move.XY(-3301.01, -2008.23, "Move to shrine")
     bot.Move.XY(-2034, -4512, "Move to blessing 1")
     bot.Wait.ForTime(5000)
-    _queue_dialog_by_mode(bot, -1892.00, -4505.00, 0x84) #Get Blessing 1
+    bot.Move.XYAndDialog(-1892.00, -4505.00, 0x84)
     bot.Wait.ForTime(5000)
 
     # Path to blessing 2
@@ -245,7 +242,7 @@ def bot_routine(bot: Botting) -> None:
     bot.Move.XY(-21964, -12877, "Aggro: Jotun")
     bot.Move.XY(-25341.00, -11957.00)
     bot.Wait.ForTime(5000)
-    _queue_dialog_by_mode(bot, -25341.00, -11957.00, 0x84) # Edda Blessing 2
+    bot.Move.XYAndDialog(-25341.00, -11957.00, 0x84)
     bot.Wait.ForTime(10000)
 
     # Path to blessing 3
@@ -257,7 +254,7 @@ def bot_routine(bot: Botting) -> None:
     bot.Move.XY(-10606.23, -1625.26)
     bot.Move.XY(-12158.00, -4277.00)
     bot.Wait.ForTime(5000)
-    _queue_dialog_by_mode(bot, -12158.00, -4277.00, 0x84) #Blessing 3
+    bot.Move.XYAndDialog(-12158.00, -4277.00, 0x84)
     bot.Wait.ForTime(10000)
 
     # Path to blessing 4
@@ -269,7 +266,7 @@ def bot_routine(bot: Botting) -> None:
     bot.Move.XY(-14916, 2475)
     bot.Move.XY(-11204.00, 5479.00)
     bot.Wait.ForTime(5000)
-    _queue_dialog_by_mode(bot, -11204.00, 5479.00, 0x84) #Blessing 4
+    bot.Move.XYAndDialog(-11204.00, 5479.00, 0x84)
     bot.Wait.ForTime(10000)
 
     # Path to blessing 5
@@ -279,7 +276,7 @@ def bot_routine(bot: Botting) -> None:
     bot.Move.XY(-19378, 14555)
     bot.Move.XY(-22889.00, 14165.00)
     bot.Wait.ForTime(5000)
-    _queue_dialog_by_mode(bot, -22889.00, 14165.00, 0x84) #Blessing 5
+    bot.Move.XYAndDialog(-22889.00, 14165.00, 0x84)
     bot.Wait.ForTime(10000)
 
     # Path to blessing 6
@@ -288,7 +285,7 @@ def bot_routine(bot: Botting) -> None:
     bot.Move.XY(-13777, 8097, "Aggro: Lake")
     bot.Move.XY(-2217.00, 14914.00)
     bot.Wait.ForTime(5000)
-    _queue_dialog_by_mode(bot, -2217.00, 14914.00, 0x84) #Blessing 6
+    bot.Move.XYAndDialog(-2217.00, 14914.00, 0x84)
     bot.Wait.ForTime(10000)
 
     # The Path to Revelations (The quest is required beforehand, otherwise the enemies will not spawn)
@@ -404,7 +401,7 @@ def bot_routine(bot: Botting) -> None:
 
     bot.States.AddCustomState(lambda: _resign_by_mode(bot), "Resign Party")
     bot.Wait.UntilOnOutpost()
-
+    bot.States.AddCustomState(lambda: _reset_intentional_resign(), "Reset Resign Flag")
     bot.Wait.ForTime(5000)
     bot.States.JumpToStepName(ZONING_STEP_NAME)
 
@@ -418,33 +415,18 @@ bot.SetMainRoutine(bot_routine)
 # region Consumables
 def _restock_consumables_if_enabled(bot: Botting):
     _sync_consumable_toggles(bot)
-    single_account_mode = _single_account_mode_enabled(bot)
     if _as_bool(bot.Properties.Get("use_conset", "active")):
         yield from _restock_models_locally(CONSET_RESTOCK_MODELS, 250)
-        if not single_account_mode:
-            yield from bot.helpers.Multibox._restock_conset_message(250)
     if _as_bool(bot.Properties.Get("use_pcons", "active")):
         yield from _restock_models_locally(PCON_RESTOCK_MODELS, 250)
-        if not single_account_mode:
-            yield from bot.helpers.Multibox._restock_all_pcons_message(250)
 
 
 def _use_consumables_if_enabled(bot: Botting):
     _sync_consumable_toggles(bot)
-    if _single_account_mode_enabled(bot):
-        if _as_bool(bot.Properties.Get("use_conset", "active")):
-            yield from bot.Items.UseConset()
-        if _as_bool(bot.Properties.Get("use_pcons", "active")):
-            yield from bot.Items.UsePcons()
-        return
     if _as_bool(bot.Properties.Get("use_conset", "active")):
-        for model_id, skill_name in CONSET_ITEMS:
-            yield from bot.helpers.Multibox._use_consumable_message(
-                (model_id, GLOBAL_CACHE.Skill.GetID(skill_name), 0, 0))
+        yield from bot.Items.UseConset()
     if _as_bool(bot.Properties.Get("use_pcons", "active")):
-        for model_id, skill_name in PCON_ITEMS:
-            yield from bot.helpers.Multibox._use_consumable_message(
-                (model_id, GLOBAL_CACHE.Skill.GetID(skill_name), 0, 0))
+        yield from bot.Items.UsePcons()
 
 
 def _restock_models_locally(model_ids: list[int], quantity: int):
@@ -454,25 +436,15 @@ def _restock_models_locally(model_ids: list[int], quantity: int):
 
 
 # region Upkeep & Anti-Stuck
-def _upkeep_multibox_consumables(bot: "Botting"):
+def _upkeep_consumables(bot: "Botting"):
     while True:
         yield from bot.Wait._coro_for_time(15000)
         if not Routines.Checks.Map.MapValid() or Routines.Checks.Map.IsOutpost():
             continue
-        if _single_account_mode_enabled(bot):
-            if _as_bool(bot.Properties.Get("use_conset", "active")):
-                yield from bot.Items.UseConset()
-            if _as_bool(bot.Properties.Get("use_pcons", "active")):
-                yield from bot.Items.UsePcons()
-            continue
-        if bot.Properties.Get("use_conset", "active"):
-            for model_id, skill_name in CONSET_ITEMS:
-                yield from bot.helpers.Multibox._use_consumable_message(
-                    (model_id, GLOBAL_CACHE.Skill.GetID(skill_name), 0, 0))
-        if bot.Properties.Get("use_pcons", "active"):
-            for model_id, skill_name in PCON_ITEMS:
-                yield from bot.helpers.Multibox._use_consumable_message(
-                    (model_id, GLOBAL_CACHE.Skill.GetID(skill_name), 0, 0))
+        if _as_bool(bot.Properties.Get("use_conset", "active")):
+            yield from bot.Items.UseConset()
+        if _as_bool(bot.Properties.Get("use_pcons", "active")):
+            yield from bot.Items.UsePcons()
             for _ in range(4):
                 GLOBAL_CACHE.Inventory.UseItem(ModelID.Honeycomb.value)
                 yield from bot.Wait._coro_for_time(250)
@@ -529,22 +501,12 @@ def _nearest_path_index(path: list, x: float, y: float) -> int:
     return best
 
 
-def _all_accounts_alive() -> bool:
-    current_map = Map.GetMapID()
-    for account in GLOBAL_CACHE.ShMem.GetAllAccountData():
-        if account.AgentData.Map.MapID != current_map:
-            continue  # skip accounts not in the same explorable (other maps, outpost, etc.)
-        if account.AgentData.Health.Current <= 0:
-            return False
-    return True
-
-
 def _on_party_wipe(bot: "Botting"):
     global _intentional_resign_in_progress
     if _intentional_resign_in_progress or not Routines.Checks.Map.MapValid() or not Routines.Checks.Map.IsExplorable():
         bot.config.FSM.resume()
         return
-    while Agent.IsDead(Player.GetAgentID()) or not _all_accounts_alive():
+    while Agent.IsDead(Player.GetAgentID()):
         yield from bot.Wait._coro_for_time(1000)
         if _intentional_resign_in_progress or not Routines.Checks.Map.MapValid() or not Routines.Checks.Map.IsExplorable():
             bot.config.FSM.resume()
@@ -594,31 +556,6 @@ def _as_bool(value) -> bool:
     return bool(value)
 
 
-def _single_account_mode_enabled(bot: Botting) -> bool:
-    return _as_bool(bot.Properties.Get("single_account_mode", "active"))
-
-
-def _send_local_dialog(bot: Botting, dialog_id: int):
-    Player.SendDialog(dialog_id)
-    yield from bot.Wait._coro_for_time(500)
-
-
-def _queue_dialog_by_mode(bot: Botting, x: float, y: float, *dialog_ids: int) -> None:
-    if not dialog_ids:
-        return
-    if _single_account_mode_enabled(bot):
-        bot.Move.XYAndDialog(x, y, dialog_ids[0])
-        for dialog_id in dialog_ids[1:]:
-            bot.States.AddCustomState(
-                lambda dialog_id=dialog_id: _send_local_dialog(bot, dialog_id),
-                f"Local Dialog {hex(dialog_id)}",
-            )
-        return
-    bot.Move.XYAndInteractNPC(x, y)
-    for dialog_id in dialog_ids:
-        bot.Multibox.SendDialogToTarget(dialog_id)
-
-
 def _ensure_bot_ini(bot: Botting) -> str:
     if not bot.config.ini_key_initialized:
         bot.config.ini_key = IniManager().ensure_key(
@@ -627,63 +564,6 @@ def _ensure_bot_ini(bot: Botting) -> str:
         )
         bot.config.ini_key_initialized = True
     return bot.config.ini_key
-
-
-def _rebuild_bot_fsm(bot: Botting) -> None:
-    bot.Stop()
-    bot.config.FSM = bot.config.FSM.__class__(bot.config.bot_name)
-    bot.config.counters.clear_all()
-    bot.config.initialized = False
-
-
-def _load_behavior_setting(bot: Botting) -> None:
-    ini_key = _ensure_bot_ini(bot)
-    if not ini_key:
-        return
-    saved_value = IniManager().read_bool(
-        ini_key,
-        _SETTINGS_SECTION,
-        _BEHAVIOR_MODE_KEY,
-        _as_bool(bot.Properties.Get("use_custom_behaviors", "active")),
-    )
-    bot.Properties.ApplyNow("use_custom_behaviors", "active", _as_bool(saved_value))
-
-
-def _save_behavior_setting(bot: Botting) -> None:
-    ini_key = _ensure_bot_ini(bot)
-    if not ini_key:
-        return
-    IniManager().write_key(
-        ini_key,
-        _SETTINGS_SECTION,
-        _BEHAVIOR_MODE_KEY,
-        _as_bool(bot.Properties.Get("use_custom_behaviors", "active")),
-    )
-
-
-def _load_single_account_setting(bot: Botting) -> None:
-    ini_key = _ensure_bot_ini(bot)
-    if not ini_key:
-        return
-    saved_value = IniManager().read_bool(
-        ini_key,
-        _SETTINGS_SECTION,
-        _SINGLE_ACCOUNT_KEY,
-        _as_bool(bot.Properties.Get("single_account_mode", "active")),
-    )
-    bot.Properties.ApplyNow("single_account_mode", "active", _as_bool(saved_value))
-
-
-def _save_single_account_setting(bot: Botting) -> None:
-    ini_key = _ensure_bot_ini(bot)
-    if not ini_key:
-        return
-    IniManager().write_key(
-        ini_key,
-        _SETTINGS_SECTION,
-        _SINGLE_ACCOUNT_KEY,
-        _as_bool(bot.Properties.Get("single_account_mode", "active")),
-    )
 
 
 def _load_consumable_settings(bot: Botting) -> None:
@@ -940,11 +820,13 @@ def _draw_hero_settings_tab():
     PyImGui.end_child()
 
 
-def _setup_heroes_if_single_account(bot: Botting):
+def _setup_heroes(bot: Botting):
     global _hero_slots
-    if not _as_bool(bot.Properties.Get("single_account_mode", "active")):
-        yield
-        return
+    GLOBAL_CACHE.Party.LeaveParty()
+    for _ in range(8):
+        yield from bot.Wait._coro_for_time(250)
+        if GLOBAL_CACHE.Party.GetPlayerCount() <= 1:
+            break
     GLOBAL_CACHE.Party.Heroes.KickAllHeroes()
     yield from bot.Wait._coro_for_time(500)
     seen: set = set()
@@ -969,14 +851,17 @@ def _setup_heroes_if_single_account(bot: Botting):
             yield from bot.Wait._coro_for_time(500)
 
 
+def _reset_intentional_resign():
+    global _intentional_resign_in_progress
+    _intentional_resign_in_progress = False
+    yield
+
+
 def _resign_by_mode(bot: Botting):
     global _intentional_resign_in_progress
     _intentional_resign_in_progress = True
-    if _single_account_mode_enabled(bot):
-        yield from Routines.Yield.Player.SendChatCommand("resign")
-        yield from bot.Wait._coro_for_time(500)
-    else:
-        yield from bot.helpers.Multibox.resign_party()
+    yield from Routines.Yield.Player.SendChatCommand("resign")
+    yield from bot.Wait._coro_for_time(500)
 
 
 def _sync_consumable_toggles(bot: Botting) -> None:
@@ -1001,34 +886,6 @@ def _sync_consumable_toggles(bot: Botting) -> None:
         bot.Properties.ApplyNow(key, "active", use_pcons)
 
 
-def _apply_behavior_mode(bot: Botting) -> None:
-    use_custom_behaviors = _as_bool(bot.Properties.Get("use_custom_behaviors", "active"))
-    from Py4GW_widget_manager import get_widget_handler
-    widget_handler = get_widget_handler()
-    custom_behavior_party = None
-    try:
-        from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
-        custom_behavior_party = CustomBehaviorParty()
-    except Exception:
-        custom_behavior_party = None
-    if use_custom_behaviors:
-        bot.Properties.Disable("hero_ai")
-        if custom_behavior_party is not None:
-            custom_behavior_party.set_party_is_enabled(True)
-        if not widget_handler.is_widget_enabled("CustomBehaviors"):
-            widget_handler.enable_widget("CustomBehaviors")
-        if widget_handler.is_widget_enabled("HeroAI"):
-            widget_handler.disable_widget("HeroAI")
-        bot.Multibox.ApplyWidgetPolicy(enable_widgets=('CustomBehaviors',), disable_widgets=('HeroAI',), apply_local=False)
-    else:
-        bot.Properties.Enable("hero_ai")
-        if custom_behavior_party is not None:
-            custom_behavior_party.set_party_is_enabled(False)
-        if widget_handler.is_widget_enabled("CustomBehaviors"):
-            widget_handler.disable_widget("CustomBehaviors")
-        if not widget_handler.is_widget_enabled("HeroAI"):
-            widget_handler.enable_widget("HeroAI")
-        bot.Multibox.ApplyWidgetPolicy(enable_widgets=('HeroAI',), disable_widgets=('CustomBehaviors',), apply_local=False)
 # endregion
 
 
@@ -1038,29 +895,10 @@ def _draw_settings(bot: Botting):
 
     PyImGui.text("Bot Settings")
 
-    _load_behavior_setting(bot)
     _ensure_consumable_settings_ui_loaded(bot)
-    use_custom_behaviors = _as_bool(bot.Properties.Get("use_custom_behaviors", "active"))
-    use_hero_ai = not use_custom_behaviors
-    new_use_hero_ai          = PyImGui.checkbox("Use Hero AI",          use_hero_ai)
-    new_use_custom_behaviors = PyImGui.checkbox("Use Custom Behaviors", use_custom_behaviors)
-    if new_use_hero_ai != use_hero_ai:
-        desired = not new_use_hero_ai
-    elif new_use_custom_behaviors != use_custom_behaviors:
-        desired = new_use_custom_behaviors
-    else:
-        desired = use_custom_behaviors
-    if desired != use_custom_behaviors:
-        bot.Properties.ApplyNow("use_custom_behaviors", "active", desired)
-        _save_behavior_setting(bot)
-        _apply_behavior_mode(bot)
-
-    single_account_mode = _as_bool(bot.Properties.Get("single_account_mode", "active"))
-    new_single_account_mode = PyImGui.checkbox("Single Account (use Heroes)", single_account_mode)
-    if new_single_account_mode != single_account_mode:
-        bot.Properties.ApplyNow("single_account_mode", "active", new_single_account_mode)
-        _save_single_account_setting(bot)
-        _rebuild_bot_fsm(bot)
+    PyImGui.text("Combat Backend")
+    PyImGui.text("Current: Auto Combat")
+    PyImGui.text("Mode: Single Account with Heroes")
 
     use_conset = _as_bool(bot.Properties.Get("use_conset", "active"))
     new_use_conset = PyImGui.checkbox("Restock & use Conset", use_conset)
@@ -1103,8 +941,6 @@ _session_start_times: dict[str, float] = {}
 
 def _get_title_track_accounts():
     accounts = list(GLOBAL_CACHE.ShMem.GetAllAccountData())
-    if not _single_account_mode_enabled(bot):
-        return accounts
     own_email = Player.GetAccountEmail()
     filtered = [account for account in accounts if getattr(account, "AccountEmail", "") == own_email]
     if filtered:
