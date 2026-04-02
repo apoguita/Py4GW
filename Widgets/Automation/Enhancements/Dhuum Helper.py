@@ -1,3 +1,6 @@
+import json
+import os
+
 from Py4GWCoreLib import (
 	Agent,
 	AgentArray,
@@ -14,6 +17,7 @@ from Py4GWCoreLib import (
 )
 from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
 import PyImGui
+import PyInventory
 
 MODULE_NAME = "Dhuum Helper"
 MODULE_ICON = "Textures/Module_Icons/Underworld.png"
@@ -24,6 +28,51 @@ _CHECK_TIMER.Reset()
 
 _DIALOG_COOLDOWN_TIMER = ThrottledTimer(2500)
 _DIALOG_COOLDOWN_TIMER.Reset()
+
+_armor_written_this_map: bool = False
+
+_EQUIPPED_ARMOR_FILE = os.path.join(
+	Py4GW.Console.get_projects_path(), "Widgets", "Config", "EquippedArmor.json"
+)
+
+
+def _write_equipped_armor_json() -> None:
+	try:
+		email = Player.GetAccountEmail()
+		if not email:
+			return
+
+		_ARMOR_SLOTS = {2, 3, 4, 5, 6}  # Head, Chest, Hands, Legs, Feet
+		bag = PyInventory.Bag(22, "Equipped_Items")
+		slots: dict[str, int] = {}
+		for item in bag.GetItems():
+			item_id  = int(getattr(item, "item_id",  0) or 0)
+			model_id = int(getattr(item, "model_id", 0) or 0)
+			slot     = int(getattr(item, "slot",     0) or 0)
+			if item_id == 0 or slot not in _ARMOR_SLOTS:
+				continue
+			slots[str(slot)] = model_id
+
+		# Read existing file, merge this account's entry, write back atomically.
+		all_armor: dict = {}
+		if os.path.exists(_EQUIPPED_ARMOR_FILE):
+			with open(_EQUIPPED_ARMOR_FILE, "r") as f:
+				all_armor = json.load(f)
+
+		# Migrate old flat format {"2": 123} -> {"normal": {"2": 123}, "sacrifice": {}}
+		existing = all_armor.get(email, {})
+		if not isinstance(existing, dict) or "normal" not in existing:
+			old_slots = {k: v for k, v in existing.items() if isinstance(k, str) and k.isdigit()}
+			existing = {"normal": old_slots, "sacrifice": {}}
+		existing["normal"] = slots
+		all_armor[email] = existing
+
+		tmp_path = _EQUIPPED_ARMOR_FILE + ".tmp"
+		with open(tmp_path, "w") as f:
+			json.dump(all_armor, f, indent=2)
+		os.replace(tmp_path, _EQUIPPED_ARMOR_FILE)
+	except Exception as e:
+		Py4GW.Console.Log(MODULE_NAME, f"Armor write error: {e}", Py4GW.Console.MessageType.Warning)
 
 _TARGET_NPC_NAME = "Mayor Alegheri"
 _TARGET_BUFF_NAME = "Curse of Dhuum"
@@ -417,24 +466,29 @@ def _coro_interact_and_dialog(target_npc: int):
 		yield from Routines.Yield.wait(2000)
 		Player.Move(-13770, 17276)
 
-		if widgets_temporarily_disabled:
+		if widgets_temporarily_disabled and combat_widget_state is not None:
 			_restore_combat_widgets_after_dialog(combat_widget_state)
 			widgets_temporarily_disabled = False
 
 		_refresh_active_combat_widget_after_skillbar_change()
 		_DIALOG_COOLDOWN_TIMER.Reset()
 	finally:
-		if widgets_temporarily_disabled:
+		if widgets_temporarily_disabled and combat_widget_state is not None:
 			_restore_combat_widgets_after_dialog(combat_widget_state)
 		_interaction_running = False
 
 
 def main():
-	global _buff_skill_id, _handled_current_buff, _interaction_running
+	global _buff_skill_id, _handled_current_buff, _interaction_running, _armor_written_this_map
 
 	if not Routines.Checks.Map.MapValid() or Map.IsMapLoading():
 		_handled_current_buff = False
+		_armor_written_this_map = False
 		return
+
+	if not _armor_written_this_map:
+		_write_equipped_armor_json()
+		_armor_written_this_map = True
 
 	if not _CHECK_TIMER.IsExpired():
 		return

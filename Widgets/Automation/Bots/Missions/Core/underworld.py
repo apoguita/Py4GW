@@ -21,6 +21,7 @@ from Py4GWCoreLib import Botting, Routines, Agent, AgentArray, Player, Utils, Au
 from Py4GWCoreLib.enums_src.Model_enums import ModelID
 from Py4GWCoreLib.enums_src.Map_enums import name_to_map_id
 import os
+import json
 import time
 from collections import deque
 from typing import Any, Generator
@@ -209,9 +210,13 @@ class DhuumSettings:
     _raw: str = _ini.read_key(BOT_NAME, "dhuum_sacrifice_emails", "")
     SacrificeEmails: set[str] = set(e.strip() for e in _raw.split(";") if e.strip())
 
+    _raw_armor: str = _ini.read_key(BOT_NAME, "dhuum_armor_switch_emails", "")
+    ArmorSwitchEmails: set[str] = set(e.strip() for e in _raw_armor.split(";") if e.strip())
+
     @classmethod
     def save(cls) -> None:
         _ini.write_key(BOT_NAME, "dhuum_sacrifice_emails", ";".join(sorted(cls.SacrificeEmails)))
+        _ini.write_key(BOT_NAME, "dhuum_armor_switch_emails", ";".join(sorted(cls.ArmorSwitchEmails)))
 
     @classmethod
     def is_sacrifice(cls, email: str) -> bool:
@@ -223,6 +228,18 @@ class DhuumSettings:
             cls.SacrificeEmails.add(email)
         else:
             cls.SacrificeEmails.discard(email)
+        cls.save()
+
+    @classmethod
+    def is_armor_switch(cls, email: str) -> bool:
+        return email in cls.ArmorSwitchEmails
+
+    @classmethod
+    def set_armor_switch(cls, email: str, value: bool) -> None:
+        if value:
+            cls.ArmorSwitchEmails.add(email)
+        else:
+            cls.ArmorSwitchEmails.discard(email)
         cls.save()
 
 
@@ -1002,7 +1019,7 @@ def Enter_UW(bot_instance: Botting):
     _expected_map = entrypoint_map_id
     bot_instance.Wait.UntilCondition(
         lambda: all(int(acc.AgentData.Map.MapID) == _expected_map for acc in GLOBAL_CACHE.ShMem.GetAllAccountData()),
-        duration=90000,
+        duration=5000,
     )
 
     handle_invite_all_accounts(_make_ctx({"type": "invite_all_accounts", "name": "Invite Alts"}))
@@ -1635,7 +1652,10 @@ def Dhuum(bot_instance: Botting):
         lambda: _get_adapter().toggle_dead_ally_rescue(False),
         "Disable Dead Ally Rescue",
     )
+
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_forced_state(None),"Release Close_to_Aggro",)
+
+    
 
     def _flag_sacrifice_accounts() -> None:
         flag_x, flag_y = -15022, 17277
@@ -1747,6 +1767,24 @@ def Dhuum(bot_instance: Botting):
         name="Follow King to Destination",
         coroutine_fn=_coro_follow_king_to_destination,
     )
+
+
+    # Switch to sacrifice armor for all accounts with Switch Armor enabled.
+    # For each armor slot, build a {char_name: model_id} dict and send via multibox.
+    _armor_data = _read_armor_json()
+    for _slot_key in ("2", "3", "4", "5", "6"):  # Chest, Legs, Head, Feet, Hands
+        _slot_map: dict[str, int] = {}
+        for _acct in GLOBAL_CACHE.ShMem.GetAllAccountData():
+            _email = str(_acct.AccountEmail)
+            if not DhuumSettings.is_armor_switch(_email):
+                continue
+            _model_id = (_armor_data.get(_email, {}).get("sacrifice") or {}).get(_slot_key, 0)
+            if _model_id != 0:
+                _slot_map[str(_acct.AgentData.CharacterName)] = _model_id
+        if _slot_map:
+            bot_instance.Multibox.EquipItemOnAllAccounts(_slot_map)
+
+
     bot_instance.Move.XY(-11278, 17297, "Wait For the King")
     bot_instance.Wait.UntilCondition(
         lambda: any(
@@ -1789,6 +1827,20 @@ def Dhuum(bot_instance: Botting):
     # Deactivate the Spirit Form watchdog — Dhuum is dead.
     bot_instance.States.AddCustomState(lambda: _set_dhuum_fight_active(False), "Disable Dhuum Spirit Form Watchdog")
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_combat_enabled(False), "Disable Combat")
+
+    # Switch back to normal armor for all accounts with Switch Armor enabled.
+    _armor_data_normal = _read_armor_json()
+    for _slot_key in ("2", "3", "4", "5", "6"):  # Chest, Legs, Head, Feet, Hands
+        _slot_map_normal: dict[str, int] = {}
+        for _acct in GLOBAL_CACHE.ShMem.GetAllAccountData():
+            _email = str(_acct.AccountEmail)
+            if not DhuumSettings.is_armor_switch(_email):
+                continue
+            _model_id = (_armor_data_normal.get(_email, {}).get("normal") or {}).get(_slot_key, 0)
+            if _model_id != 0:
+                _slot_map_normal[str(_acct.AgentData.CharacterName)] = _model_id
+        if _slot_map_normal:
+            bot_instance.Multibox.EquipItemOnAllAccounts(_slot_map_normal)
 
     def _loot_underworld_chest():
         chest_id = next(
@@ -2152,6 +2204,100 @@ def _draw_imprisoned_spirits_settings() -> None:
         PyImGui.end_table()
 
 
+_ARMOR_JSON_FILE = os.path.join(Py4GW.Console.get_projects_path(), "Widgets", "Config", "EquippedArmor.json")
+_ARMOR_SLOT_NAMES = {2: "Chest", 3: "Legs", 4: "Head", 5: "Feet", 6: "Hands"}
+
+_armor_edit_email: str | None = None
+_armor_edit_char: str = ""
+_armor_edit_normal: dict[str, int] = {}
+_armor_edit_sac: dict[str, int] = {}
+
+
+def _read_armor_json() -> dict:
+    try:
+        if os.path.exists(_ARMOR_JSON_FILE):
+            with open(_ARMOR_JSON_FILE, "r") as f:
+                return json.load(f)
+    except Exception:
+        pass
+    return {}
+
+
+def _save_armor_json(email: str, normal: dict[str, int], sacrifice: dict[str, int]) -> None:
+    try:
+        all_armor = _read_armor_json()
+        existing = all_armor.get(email, {})
+        if not isinstance(existing, dict) or "normal" not in existing:
+            existing = {}
+        existing["normal"] = normal
+        existing["sacrifice"] = sacrifice
+        all_armor[email] = existing
+        tmp = _ARMOR_JSON_FILE + ".tmp"
+        with open(tmp, "w") as f:
+            json.dump(all_armor, f, indent=2)
+        os.replace(tmp, _ARMOR_JSON_FILE)
+    except Exception as e:
+        ConsoleLog(BOT_NAME, f"Armor JSON save error: {e}", Py4GW.Console.MessageType.Warning)
+
+
+def _input_int_val(result: object, current: int) -> int:
+    if isinstance(result, tuple) and len(result) > 0:
+        return int(result[1]) if len(result) >= 2 else int(result[0])  # type: ignore[return-value]
+    if result is None:
+        return int(current)
+    try:
+        return int(result)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return int(current)
+
+
+def _draw_armor_edit_window() -> None:
+    global _armor_edit_email, _armor_edit_char, _armor_edit_normal, _armor_edit_sac
+    if _armor_edit_email is None:
+        return
+
+    win_flags = PyImGui.WindowFlags.AlwaysAutoResize
+    if PyImGui.begin(f"Armor Setup: {_armor_edit_char}##armor_edit", win_flags):
+        PyImGui.text_wrapped(f"Account: {_armor_edit_email}")
+        PyImGui.text_wrapped("Enter model IDs for normal and sacrifice armor.")
+        PyImGui.separator()
+
+        tbl_flags = PyImGui.TableFlags.RowBg | PyImGui.TableFlags.BordersInnerV | PyImGui.TableFlags.BordersOuterH
+        if PyImGui.begin_table("##armor_edit_tbl", 3, tbl_flags, 0.0, 0.0):
+            PyImGui.table_setup_column("Slot",      PyImGui.TableColumnFlags.WidthFixed,  80.0)
+            PyImGui.table_setup_column("Normal",    PyImGui.TableColumnFlags.WidthFixed, 150.0)
+            PyImGui.table_setup_column("Sacrifice", PyImGui.TableColumnFlags.WidthFixed, 150.0)
+            PyImGui.table_headers_row()
+
+            for slot in sorted(_ARMOR_SLOT_NAMES):
+                slot_str = str(slot)
+                PyImGui.table_next_row()
+                PyImGui.table_next_column()
+                PyImGui.text(_ARMOR_SLOT_NAMES[slot])
+                PyImGui.table_next_column()
+                cur_n = _armor_edit_normal.get(slot_str, 0)
+                _armor_edit_normal[slot_str] = _input_int_val(
+                    PyImGui.input_int(f"##n{slot}", cur_n, 0, 0, 0), cur_n
+                )
+                PyImGui.table_next_column()
+                cur_s = _armor_edit_sac.get(slot_str, 0)
+                _armor_edit_sac[slot_str] = _input_int_val(
+                    PyImGui.input_int(f"##s{slot}", cur_s, 0, 0, 0), cur_s
+                )
+
+            PyImGui.end_table()
+
+        PyImGui.separator()
+        if PyImGui.button("Save##armor_edit"):
+            _save_armor_json(_armor_edit_email, dict(_armor_edit_normal), dict(_armor_edit_sac))
+            _armor_edit_email = None
+        PyImGui.same_line(0.0, 10.0)
+        if PyImGui.button("Close##armor_edit"):
+            _armor_edit_email = None
+
+    PyImGui.end()
+
+
 def _draw_dhuum_settings() -> None:
     PyImGui.text_wrapped("Select the multibox accounts to be sacrificed in the Dhuum fight.")
     PyImGui.separator()
@@ -2163,18 +2309,46 @@ def _draw_dhuum_settings() -> None:
         PyImGui.text("No multibox account data available.")
         return
 
-    for account in all_accounts:
-        email = str(account.AccountEmail)
-        char_name = str(account.AgentData.CharacterName) or email
-        if email == my_email:
-            PyImGui.begin_disabled(True)
-            PyImGui.checkbox(f"{char_name}  (this account)", False)
-            PyImGui.end_disabled()
-        else:
-            current = DhuumSettings.is_sacrifice(email)
-            new_val = PyImGui.checkbox(char_name, current)
-            if new_val != current:
-                DhuumSettings.set_sacrifice(email, new_val)
+    table_flags = PyImGui.TableFlags.RowBg | PyImGui.TableFlags.BordersInnerV | PyImGui.TableFlags.BordersOuterH
+    if PyImGui.begin_table("##dhuum_settings", 3, table_flags, 0.0, 0.0):
+        PyImGui.table_setup_column("Sacrifice",    PyImGui.TableColumnFlags.WidthFixed,   90.0)
+        PyImGui.table_setup_column("Switch Armor", PyImGui.TableColumnFlags.WidthFixed,  170.0)
+        PyImGui.table_setup_column("Account",      PyImGui.TableColumnFlags.WidthStretch, 0.0)
+        PyImGui.table_headers_row()
+
+        for account in all_accounts:
+            email     = str(account.AccountEmail)
+            char_name = str(account.AgentData.CharacterName) or email
+            is_self   = email == my_email
+
+            PyImGui.table_next_row()
+
+            PyImGui.table_next_column()
+            cur_sac = DhuumSettings.is_sacrifice(email)
+            new_sac = PyImGui.checkbox(f"##sac_{email}", cur_sac)
+
+            PyImGui.table_next_column()
+            cur_arm = DhuumSettings.is_armor_switch(email)
+            new_arm = PyImGui.checkbox(f"##arm_{email}", cur_arm)
+            PyImGui.same_line(0.0, 6.0)
+            if PyImGui.button(f"Edit##armedit_{email}"):
+                global _armor_edit_email, _armor_edit_char, _armor_edit_normal, _armor_edit_sac
+                data = _read_armor_json()
+                entry = data.get(email, {})
+                _armor_edit_email  = email
+                _armor_edit_char   = char_name
+                _armor_edit_normal = dict(entry.get("normal", {}))
+                _armor_edit_sac    = dict(entry.get("sacrifice", {}))
+
+            PyImGui.table_next_column()
+            PyImGui.text(f"{char_name}  (this account)" if is_self else char_name)
+
+            if new_sac != cur_sac:
+                DhuumSettings.set_sacrifice(email, new_sac)
+            if new_arm != cur_arm:
+                DhuumSettings.set_armor_switch(email, new_arm)
+
+        PyImGui.end_table()
 
 
 def _draw_enter_settings() -> None:
@@ -2465,6 +2639,7 @@ def main():
     try:
         _draw_blocked_areas_overlay()
         _draw_active_path_overlay()
+        _draw_armor_edit_window()
         if bot.config.fsm_running:
             _get_adapter().sync_runtime()
             # Watchdog: callback sometimes misses wipes — detect return to outpost by map ID
