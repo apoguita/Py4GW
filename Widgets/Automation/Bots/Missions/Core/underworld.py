@@ -22,6 +22,7 @@ from Py4GWCoreLib.enums_src.Model_enums import ModelID
 from Py4GWCoreLib.enums_src.Map_enums import name_to_map_id
 import os
 import time
+from collections import deque
 from typing import Any, Generator
 from Py4GWCoreLib.enums_src.Multiboxing_enums import SharedCommandType
 from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorState
@@ -74,6 +75,12 @@ _blacklist_draw_points: list[tuple[float, float]] = []  # legacy, kept for compa
 _active_move_path_3d: list[tuple[float, float, float]] = []  # current move path drawn every frame
 _pending_wipe_recovery: bool = False   # set by coroutine; consumed by main() before bot.Update()
 _pending_wipe_reason:   str  = ""      # human-readable label logged when the restart fires
+_DEBUG_LOG_MAX = 120
+_debug_watchdog_log: deque[str] = deque(maxlen=_DEBUG_LOG_MAX)
+
+
+def _append_debug_watchdog_log(message: str) -> None:
+    _debug_watchdog_log.append(f"[{time.strftime('%H:%M:%S')}] {message}")
 
 # ── Quest section completion tracking ────────────────────────────────────────
 _QUEST_ORDER: list[str] = [
@@ -105,7 +112,7 @@ class UWQuestID(enum.IntEnum):
     UnwantedGuests           = 103
     RestoringGrenthsMonuments= 109  
     ImprisonedSpirits        = 105  
-    TheFourHorsemen          = 0  # TODO: fill in actual quest ID
+    TheFourHorsemen          = 106
     WrathfulSpirits          = 110
     ServantsOfGrenth         = 102
     TerrorwebQueen           = 107  
@@ -447,6 +454,66 @@ def WaitTillQuestDone(bot_instance: Botting) -> None:
     )
 
 
+def EnqueueDialogUntilQuestActive(
+    bot_instance: Botting,
+    x: float,
+    y: float,
+    dialog_id: int,
+    quest_id: int,
+    step_name: str = "take quest",
+    max_retries: int = 4,
+    retry_pause_ms: int = 500,
+) -> None:
+    """Send dialog at (x, y) and retry until the active quest matches *quest_id*."""
+    from Py4GWCoreLib.Quest import Quest
+    target_quest_id = int(quest_id)
+
+    bot_instance.Dialogs.AtXY(x, y, dialog_id, step_name)
+
+    def _coro_ensure_quest_active() -> Generator[Any, Any, None]:
+        if target_quest_id <= 0:
+            return
+
+        if int(Quest.GetActiveQuest()) == target_quest_id:
+            _append_debug_watchdog_log(f"Quest {target_quest_id} accepted on first try.")
+            return
+
+        for attempt in range(1, max_retries + 1):
+            yield from Routines.Yield.wait(retry_pause_ms)
+
+            if int(Quest.GetActiveQuest()) == target_quest_id:
+                _append_debug_watchdog_log(
+                    f"Quest {target_quest_id} confirmed before retry {attempt}."
+                )
+                return
+
+            _append_debug_watchdog_log(
+                f"Quest {target_quest_id} not active, retrying dialog ({attempt}/{max_retries})."
+            )
+            yield from bot_instance.Dialogs._coro_at_xy(x, y, dialog_id)
+
+            if int(Quest.GetActiveQuest()) == target_quest_id:
+                _append_debug_watchdog_log(
+                    f"Quest {target_quest_id} accepted after retry {attempt}."
+                )
+                return
+
+        ConsoleLog(
+            BOT_NAME,
+            f"[QuestDialog] Quest {target_quest_id} was not set after retries.",
+            Py4GW.Console.MessageType.Warning,
+        )
+        _append_debug_watchdog_log(
+            f"Quest {target_quest_id} still not active after retries."
+        )
+
+    step_idx = bot_instance.config.get_counter("QUEST_DIALOG_RETRY")
+    bot_instance.config.FSM.AddYieldRoutineStep(
+        name=f"Ensure Quest Active {target_quest_id}_{step_idx}",
+        coroutine_fn=_coro_ensure_quest_active,
+    )
+
+
 def _coro_hold_horsemen_position() -> Generator[Any, Any, None]:
     """Move the player back to the Four Horsemen wait position every 5 s.
     Runs once as a YieldRoutineStep; exits as soon as the quest is completed.
@@ -758,7 +825,8 @@ def _coro_dhuum_spirit_form_watchdog(bot: Botting):
     _SPIRIT_FORM_SKILL_ID = 3134
     _SPIRIT_FLAG_X = -13922.0
     _SPIRIT_FLAG_Y = 17153.0
-    _already_flagged: set[str] = set()
+    _pixelstack_sent_for_spirit: set[str] = set()
+    _last_sync_log_at: dict[str, float] = {}
 
     while True:
         yield from Routines.Yield.wait(500)
@@ -767,7 +835,8 @@ def _coro_dhuum_spirit_form_watchdog(bot: Botting):
             continue
         if not _dhuum_fight_active:
             # Reset tracker when outside the fight so the next run starts clean.
-            _already_flagged.clear()
+            _pixelstack_sent_for_spirit.clear()
+            _last_sync_log_at.clear()
             continue
 
         current_map_id = Map.GetMapID()
@@ -780,7 +849,7 @@ def _coro_dhuum_spirit_form_watchdog(bot: Botting):
             if not getattr(account, "IsSlotActive", True):
                 continue
             email = str(getattr(account, "AccountEmail", "") or "").strip()
-            if not email or email in _already_flagged:
+            if not email:
                 continue
             # Only process accounts in the same map instance.
             if getattr(account.AgentData.Map, "MapID", 0) != current_map_id:
@@ -793,26 +862,40 @@ def _coro_dhuum_spirit_form_watchdog(bot: Botting):
                 if b.SkillId != 0
             )
             if not has_spirit_form:
+                _pixelstack_sent_for_spirit.discard(email)
+                _last_sync_log_at.pop(email, None)
                 continue
 
-            _already_flagged.add(email)
-            ConsoleLog(
-                BOT_NAME,
-                f"[Dhuum] {email} gained Spirit Form — repositioning flag and sending to ghost position.",
-                Py4GW.Console.MessageType.Info,
-            )
             try:
-                # Update the flag so CB/HeroAI keeps the ghost at the target position.
+                # Keep the flag continuously synced while Spirit Form is active.
+                # This recovers from intermittent overwrites/races in shared flag memory.
                 _get_adapter().update_flag_position_for_email(email, _SPIRIT_FLAG_X, _SPIRIT_FLAG_Y)
-                # Send a direct PixelStack command so the ghost walks there immediately,
-                # bypassing any flag-polling delay on the receiving account.
-                GLOBAL_CACHE.ShMem.SendMessage(
-                    sender_email=my_email,
-                    receiver_email=email,
-                    command=SharedCommandType.PixelStack,
-                    params=(_SPIRIT_FLAG_X, _SPIRIT_FLAG_Y, 0.0, 0.0),
-                )
+
+                now = time.monotonic()
+                if now - _last_sync_log_at.get(email, 0.0) >= 2.0:
+                    _append_debug_watchdog_log(
+                        f"SpiritForm sync -> {email} flag=({_SPIRIT_FLAG_X:.0f}, {_SPIRIT_FLAG_Y:.0f})"
+                    )
+                    _last_sync_log_at[email] = now
+
+                # Send PixelStack once per Spirit Form activation window so the ghost
+                # immediately snaps to position without spamming movement commands.
+                if email not in _pixelstack_sent_for_spirit:
+                    ConsoleLog(
+                        BOT_NAME,
+                        f"[Dhuum] {email} gained Spirit Form — repositioning flag and sending to ghost position.",
+                        Py4GW.Console.MessageType.Info,
+                    )
+                    GLOBAL_CACHE.ShMem.SendMessage(
+                        sender_email=my_email,
+                        receiver_email=email,
+                        command=SharedCommandType.PixelStack,
+                        params=(_SPIRIT_FLAG_X, _SPIRIT_FLAG_Y, 0.0, 0.0),
+                    )
+                    _pixelstack_sent_for_spirit.add(email)
+                    _append_debug_watchdog_log(f"PixelStack sent -> {email}")
             except Exception as _e:
+                _append_debug_watchdog_log(f"Watchdog error for {email}: {_e}")
                 ConsoleLog(
                     BOT_NAME,
                     f"[Dhuum] Spirit Form watchdog error for {email}: {_e}",
@@ -894,7 +977,6 @@ def Enter_UW(bot_instance: Botting):
     # ── Inventory refill at GH / configured outpost ───────────────────
     bot_instance.Multibox.KickAllAccounts()
     _do_inventory_refill(bot_instance)
-    _ensure_minimum_gold(bot_instance)
 
     if BotSettings.UseCons:
         # Withdraw consets (Essence, Grail, Armor) per account from Xunlai chest
@@ -914,13 +996,13 @@ def Enter_UW(bot_instance: Botting):
     }))
 
     # ── Form party ───────────────────────────────────────────────────
-    handle_summon_all_accounts(_make_ctx({"type": "summon_all_accounts", "name": "Summon Alts", "ms": 5000}))
+    handle_summon_all_accounts(_make_ctx({"type": "summon_all_accounts", "name": "Summon Alts", "ms": 10000}))
 
     # Wait until every account has loaded into the entrypoint map (up to 90 s).
     _expected_map = entrypoint_map_id
     bot_instance.Wait.UntilCondition(
         lambda: all(int(acc.AgentData.Map.MapID) == _expected_map for acc in GLOBAL_CACHE.ShMem.GetAllAccountData()),
-        duration=20000,
+        duration=90000,
     )
 
     handle_invite_all_accounts(_make_ctx({"type": "invite_all_accounts", "name": "Invite Alts"}))
@@ -1062,7 +1144,17 @@ def Deamon_Assassin(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
     bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(True), "Enable MoveToPartyMemberIfDead")
     bot_instance.Move.XYAndInteractNPC(-8250, -5171, "go to NPC")
-    bot_instance.Dialogs.AtXY(-8250, -5171, 0x806801, "take quest")
+    EnqueueDialogUntilQuestActive(
+        bot_instance=bot_instance,
+        x=-8250,
+        y=-5171,
+        dialog_id=0x806801,
+        quest_id=int(UWQuestID.DemonAssassin),
+        step_name="take Deamon Assassin quest",
+        max_retries=4,
+        retry_pause_ms=3000,
+    )
+
     #bot_instance.Dialogs.WithEncName("Reaper of the Twin Serpent Mountains",0x806801, "Take Deamon Assassin")
     bot_instance.Move.XY(-3645, -5820, "Deamon Assassin 1")
     WaitTillQuestDone(bot_instance)
@@ -2158,6 +2250,16 @@ def _draw_debug_settings():
             PyImGui.text_colored("  (none)", _color_no_buff)
     except Exception as _e:
         PyImGui.text_colored(f"  Error reading ShMem: {_e}", Utils.RGBToNormal(255, 80, 80, 255))
+
+    PyImGui.separator()
+    PyImGui.text(f"Watchdog Log (last {_DEBUG_LOG_MAX})")
+    if PyImGui.button("Clear##uw_watchdog_log"):
+        _debug_watchdog_log.clear()
+    if not _debug_watchdog_log:
+        PyImGui.text_colored("  (no watchdog entries yet)", _color_no_buff)
+    else:
+        for entry in list(_debug_watchdog_log)[-20:][::-1]:
+            PyImGui.text_wrapped(entry)
 
 
 def _draw_settings():
