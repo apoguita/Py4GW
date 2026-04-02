@@ -2786,7 +2786,7 @@ class WidgetCatalogWindow:
 
         min_window_width = DEFAULT_WINDOW_WIDTH
         min_window_height = DEFAULT_WINDOW_HEIGHT
-        flags = PyImGui.WindowFlags.NoCollapse | PyImGui.WindowFlags.MenuBar
+        flags = PyImGui.WindowFlags.MenuBar
 
         expanded, open_ = ImGui.BeginWithClose(
             ini_key=self.ini_key,

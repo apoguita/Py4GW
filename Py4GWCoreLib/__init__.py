@@ -94,6 +94,8 @@ from .GWUI import GWUI
 from .py4gwcorelib_src.Profiling import ProfilingRegistry, SimpleProfiler
 from .py4gwcorelib_src.WidgetManager import WidgetHandler, Widget
 
+from .native_src.internals.types import Vec2f, Vec3f, GamePos
+
 traceback = traceback
 math = math
 Enum = Enum
@@ -102,6 +104,10 @@ sleep = sleep
 inspect = inspect
 dataclass = dataclass
 field = field
+
+Vec2f = Vec2f
+Vec3f = Vec3f
+GamePos = GamePos
 
 Py4Gw = Py4GW
 Py4GW = Py4GW
