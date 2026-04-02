@@ -162,7 +162,14 @@ class SpiritualHealingUtility(CustomSkillUtilityBase):
 
 
 class ReversalOfDeathUtility(CustomSkillUtilityBase):
-    """Reversal of Death: cast on ally with the highest death penalty from shared memory."""
+    """Reversal of Death: cast on ally with the highest death penalty from shared memory.
+
+    Only activates once at least 3 party members have the Spirit Form disguise
+    buff (skill ID 3134) — indicating the Dhuum soul-splitting phase is active.
+    """
+
+    _SPIRIT_FORM_SKILL_ID = 3134
+    _SPIRIT_FORM_MIN_COUNT = 3
 
     def __init__(self, event_bus: EventBus, current_build: list[CustomSkill]):
         reversal_skill = AnyDhuum_UtilitySkillBar._resolve_custom_skill("Reversal_of_Death", "Reversal of Death")
@@ -179,7 +186,32 @@ class ReversalOfDeathUtility(CustomSkillUtilityBase):
     def are_common_pre_checks_valid(self, current_state: BehaviorState) -> bool:
         if _is_uw_chest_present():
             return False
+        if self._count_spirit_form_accounts() < self._SPIRIT_FORM_MIN_COUNT:
+            return False
         return super().are_common_pre_checks_valid(current_state)
+
+    def _count_spirit_form_accounts(self) -> int:
+        """Count how many active same-party accounts currently have Spirit Form (buff 3134)."""
+        self_email = Player.GetAccountEmail()
+        self_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(self_email)
+        if self_account is None:
+            return 0
+        count = 0
+        for account in (GLOBAL_CACHE.ShMem.GetAllAccountData() or []):
+            if not account.IsSlotActive or account.IsIsolated:
+                continue
+            if not self._same_party_and_map(self_account, account):
+                continue
+            try:
+                if any(
+                    b.SkillId == self._SPIRIT_FORM_SKILL_ID
+                    for b in account.AgentData.Buffs.Buffs
+                    if b.SkillId != 0
+                ):
+                    count += 1
+            except Exception:
+                pass
+        return count
 
     @staticmethod
     def _same_party_and_map(self_account, other_account) -> bool:

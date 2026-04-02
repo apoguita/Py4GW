@@ -265,8 +265,7 @@ class UWCBAdapter(UWCombatAdapter):
     ) -> None:
         """Assign flag slot *flag_index* to *email* and position it at (x, y)."""
         mgr = CustomBehaviorParty().party_flagging_manager
-        mgr.set_flag_account_email(flag_index, email)
-        mgr.set_flag_position(flag_index, x, y)
+        mgr.set_flag_data(flag_index, email, x, y)
 
     def clear_flags(self) -> None:
         CustomBehaviorParty().party_flagging_manager.clear_all_flags()
@@ -285,11 +284,10 @@ class UWCBAdapter(UWCombatAdapter):
         # Try to find the slot that already belongs to this email.
         for i in range(12):
             if mgr.get_flag_account_email(i).lower() == email.lower():
-                mgr.set_flag_position(i, x, y)
+                mgr.set_flag_data(i, email, x, y)
                 return
         # Fallback: assign the first free slot.
         for i in range(12):
             if not mgr.get_flag_account_email(i):
-                mgr.set_flag_account_email(i, email)
-                mgr.set_flag_position(i, x, y)
+                mgr.set_flag_data(i, email, x, y)
                 return

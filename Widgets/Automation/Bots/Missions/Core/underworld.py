@@ -37,7 +37,7 @@ import Py4GW
 # ║  [X] Kill the Chained Souls when we wait till the quest is done                                                        
 # ║  [X] Blacklist Dreamrider to improve Plains speed                                                         
 # ║  [X] add Inventory Management                                                          
-# ║  [X] unequip armor at dhuum to sacrifice selected heroes  
+# ║  [ ] unequip armor at dhuum to sacrifice selected heroes  
 # ║  [ ] add Heroai 
 # ║  [ ] Take the Dhuum quest earlier   
 # ║  [ ] Make pits quest saver and fix 3d navigation                                       
@@ -95,6 +95,36 @@ _QUEST_ORDER: list[str] = [
     "Dhuum",
 ]
 _quest_completion_times: dict[str, int] = {}   # quest_name → GetInstanceUptime() ms at completion
+
+
+import enum
+
+class UWQuestID(enum.IntEnum):
+    ClearTheChamber          = 0  # TODO: fill in actual quest ID
+    EscortOfSouls            = 108  
+    UnwantedGuests           = 103
+    RestoringGrenthsMonuments= 109  
+    ImprisonedSpirits        = 105  
+    TheFourHorsemen          = 0  # TODO: fill in actual quest ID
+    WrathfulSpirits          = 110
+    ServantsOfGrenth         = 102
+    TerrorwebQueen           = 107  
+    DemonAssassin            = 104 
+    TheNightmareCometh       = 1129 
+
+
+class UWNpcModelID(enum.IntEnum):
+    """Model IDs for Underworld quest-giver NPCs."""
+    LostSoul                       = 0  # TODO: fill in actual model I
+    ReaperOfTheLabyrinth           = 0  # TODO: fill in actual model ID
+    ReaperOfTheBonePits            = 2399
+    ReaperOfTheChaosPlanes         = 0  # TODO: fill in actual model ID
+    ReaperOfTheForgottenVale       = 0  # TODO: fill in actual model ID
+    ReaperOfTheIceWastes           = 0  # TODO: fill in actual model ID
+    ReaperOfTheSpawningPools       = 0  # TODO: fill in actual model ID
+    ReaperOfTheTwinSerpentMountains= 0  # TODO: fill in actual model ID
+    KingFrozenwind                 = 2403
+
 
 UW_MAP_ID = 72
 UW_SCROLL_MODEL_ID = int(ModelID.Passage_Scroll_Uw.value)  # 3746
