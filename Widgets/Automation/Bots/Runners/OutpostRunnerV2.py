@@ -36,6 +36,9 @@ class BotSettings:
         "Titles",
         "Return to outpost on defeat",
     )
+    WIDGETS_TO_DISABLE: tuple[str, ...] = (
+        "HeroAI",
+    )
 
 bot = Botting(BotSettings.BOT_NAME,
             custom_build=SF_Derv_Runner(),
@@ -73,21 +76,22 @@ class QueuedRun:
 _queued_runs: list[QueuedRun] = []
 _queue_version: int = 0
 _current_run_index: int = 0
+_run_tries: list[int] = []
 # endregion
 
 # =============================================================================
 # region BOT ROUTINE
 # =============================================================================
 def bot_routine(bot: Botting) -> None:
-    global _current_run_index
+    global _current_run_index, _run_tries
 
     if not _queued_runs:
         ConsoleLog(BotSettings.BOT_NAME, "No runs queued!", Py4GW.Console.MessageType.Error)
         bot.States.AddCustomState(lambda: _stop_bot(), "StopBot")
         return
 
-    # Widgets
-    bot.Multibox.ApplyWidgetPolicy(enable_widgets=BotSettings.WIDGETS_TO_ENABLE)
+    # Initialize tries counter
+    _run_tries = [0] * len(_queued_runs)
 
     # Events
     bot.Events.OnDeathCallback(lambda: OnDeath(bot))
@@ -108,10 +112,11 @@ def bot_routine(bot: Botting) -> None:
         run_header = f"Run_{run_idx + 1}_{run.run_name}"
         bot.States.AddHeader(run_header)
 
-        # -- Update current run index --
+        # -- Update current run index and increment tries --
         def _set_current_index(idx=run_idx):
             global _current_run_index
             _current_run_index = idx
+            _run_tries[idx] += 1
             yield
         bot.States.AddCustomState(lambda idx=run_idx: _set_current_index(idx),
                                   f"SetRunIndex_{run_idx}")
@@ -130,6 +135,9 @@ def bot_routine(bot: Botting) -> None:
         bot.Items.Restock.EssenceOfCelerity()
         bot.Items.Restock.GrailOfMight()
 
+        # Widgets
+        bot.Multibox.ApplyWidgetPolicy(enable_widgets=BotSettings.WIDGETS_TO_ENABLE, disable_widgets=BotSettings.WIDGETS_TO_DISABLE)
+
         # -- Exit outpost --
         first_map_id = run.segments[0]["map_id"] if run.segments else 0
         bot.Move.FollowPathAndExitMap(run.outpost_path, target_map_id=first_map_id)
@@ -145,6 +153,9 @@ def bot_routine(bot: Botting) -> None:
                 )
                 bot.Move.FollowAutoPath(seg_path)
                 bot.Wait.ForMapToChange(next_map_id)
+        
+        # Enable disabled Widgets
+        bot.Multibox.ApplyWidgetPolicy(enable_widgets=BotSettings.WIDGETS_TO_DISABLE)
 
     # All runs finished
     bot.States.AddHeader("All Runs Finished")
@@ -265,7 +276,8 @@ def _draw_settings():
     to_remove = None
     for i, qr in enumerate(_queued_runs):
         marker = " <-- CURRENT" if i == _current_run_index and bot.config.initialized else ""
-        PyImGui.text(f"  {i + 1}. {qr.display}{marker}")
+        tries = f" (tries: {_run_tries[i]})" if i < len(_run_tries) and _run_tries[i] > 0 else ""
+        PyImGui.text(f"  {i + 1}. {qr.display}{marker}{tries}")
         PyImGui.same_line(0, 10)
         if PyImGui.button(f"X##{i}", 20, 20):
             to_remove = i
@@ -319,9 +331,11 @@ def _draw_settings_debug():
     PyImGui.text(f"_queue_version: {_queue_version}")
     PyImGui.text(f"_current_run_index: {_current_run_index}")
     PyImGui.text(f"_queued_runs: {len(_queued_runs)}")
+    PyImGui.text(f"_run_tries: {_run_tries}")
     for i, qr in enumerate(_queued_runs):
         marker = " <-- CURRENT" if i == _current_run_index else ""
-        PyImGui.text(f"  {i+1}. {qr.display} (outpost={qr.outpost_id}){marker}")
+        tries = _run_tries[i] if i < len(_run_tries) else 0
+        PyImGui.text(f"  {i+1}. {qr.display} (outpost={qr.outpost_id}) tries={tries}{marker}")
 
 def _draw_help():
     PyImGui.text("Equipment")
