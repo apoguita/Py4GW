@@ -37,7 +37,6 @@ _HERO_ICONS_BASE = os.path.normpath(os.path.join(
     "PVE Skills Unlocker", "Textures", "Skill_Icons"
 ))
 _HERO_SLOTS_COUNT = 7
-_intentional_resign_in_progress = False
 
 @dataclass
 class _PartyHeroSlot:
@@ -244,13 +243,12 @@ def _upkeep_consumables(bot: "Botting"):
 
 # region Events
 def _on_party_wipe(bot: "Botting"):
-    global _intentional_resign_in_progress
-    if _intentional_resign_in_progress or not Routines.Checks.Map.MapValid() or not Routines.Checks.Map.IsExplorable():
+    if not Routines.Checks.Map.MapValid() or not Routines.Checks.Map.IsExplorable():
         bot.config.FSM.resume()
         return
     while Agent.IsDead(Player.GetAgentID()):
         yield from bot.Wait._coro_for_time(1000)
-        if _intentional_resign_in_progress or not Routines.Checks.Map.MapValid() or not Routines.Checks.Map.IsExplorable():
+        if not Routines.Checks.Map.MapValid() or not Routines.Checks.Map.IsExplorable():
             bot.config.FSM.resume()
             return
         if not Routines.Checks.Map.MapValid():
@@ -259,7 +257,7 @@ def _on_party_wipe(bot: "Botting"):
             return
 
     # Player revived on same map → jump to recovery step
-    if _intentional_resign_in_progress or not Routines.Checks.Map.MapValid() or not Routines.Checks.Map.IsExplorable():
+    if not Routines.Checks.Map.MapValid() or not Routines.Checks.Map.IsExplorable():
         bot.config.FSM.resume()
         return
 
@@ -268,9 +266,6 @@ def _on_party_wipe(bot: "Botting"):
 
 
 def OnPartyWipe(bot: "Botting"):
-    if _intentional_resign_in_progress:
-        ConsoleLog("on_party_wipe", "ignored during intentional resign")
-        return
     ConsoleLog("on_party_wipe", "event triggered")
     fsm = bot.config.FSM
     fsm.pause()
@@ -585,9 +580,7 @@ def _setup_heroes(bot: Botting):
 
 
 def _resign(bot: Botting):
-    global _intentional_resign_in_progress
-    _intentional_resign_in_progress = True
-    yield from Routines.Yield.Player.SendChatCommand("resign")
+    bot.UI.SendChatCommand("resign")
     yield from bot.Wait._coro_for_time(500)
 
 
@@ -754,15 +747,6 @@ def _draw_heroes_tab() -> None:
     PyImGui.end_child()
 
 
-def _clear_intentional_resign_guard() -> None:
-    global _intentional_resign_in_progress
-    if not _intentional_resign_in_progress:
-        return
-    if bot.config.FSM.paused:
-        return
-    if Routines.Checks.Map.MapValid() and Routines.Checks.Map.IsOutpost():
-        _intentional_resign_in_progress = False
-
 def main():
     global _hero_config_loaded
     if not _hero_config_loaded:
@@ -771,7 +755,6 @@ def main():
     if Map.IsMapLoading():
         return
     bot.Update()
-    _clear_intentional_resign_guard()
     bot.UI.draw_window(icon_path=REFORGED_TEXTURE, extra_tabs=[
         ("Statistics", _draw_statistics_tab),
         ("Heroes", _draw_heroes_tab),

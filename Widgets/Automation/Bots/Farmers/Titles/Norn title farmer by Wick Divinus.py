@@ -1,4 +1,4 @@
-# region Imports & Config
+﻿# region Imports & Config
 from Py4GWCoreLib import Botting, Routines, GLOBAL_CACHE, ModelID, Agent, Player, ConsoleLog, IniManager, HeroType
 from Py4GWCoreLib.Map import Map
 from Py4GWCoreLib.enums_src.Title_enums import TitleID, TITLE_TIERS
@@ -107,7 +107,6 @@ _HERO_ICONS_BASE = os.path.normpath(os.path.join(
     "PVE Skills Unlocker", "Textures", "Skill_Icons"
 ))
 _HERO_SLOTS_COUNT = 7
-_intentional_resign_in_progress = False
 
 @dataclass
 class _PartyHeroSlot:
@@ -166,7 +165,7 @@ _hero_config_dirty: bool = False
 _hero_config_status: str = ""
 _hero_import_source_index: int = 0
 
-# (model_id, effect_skill_name) — single source of truth for consumable use & restock
+# (model_id, effect_skill_name) â€” single source of truth for consumable use & restock
 CONSET_ITEMS: list[tuple[int, str]] = [
     (ModelID.Essence_Of_Celerity.value, "Essence_of_Celerity_item_effect"),
     (ModelID.Grail_Of_Might.value,      "Grail_of_Might_item_effect"),
@@ -222,7 +221,6 @@ def bot_routine(bot: Botting) -> None:
     bot.States.AddHeader("Start Combat")
     bot.States.AddCustomState(lambda: _use_consumables_if_enabled(bot), "Use Consumables If Enabled")
     bot.States.AddManagedCoroutine("Upkeep Consumables", lambda: _upkeep_consumables(bot))
-    bot.States.AddManagedCoroutine("Anti-Stuck Watchdog", lambda: _anti_stuck_watchdog(bot))
 
     # Initial path to first blessing
     bot.Move.XY(-2484.73, 118.55, "Start")
@@ -399,9 +397,9 @@ def bot_routine(bot: Botting) -> None:
     # bot.Move.XY(7857, 10409, "Aggro: Modniir and Elemental 2")
     # bot.Wait.UntilOutOfCombat()
 
-    bot.States.AddCustomState(lambda: _resign_by_mode(bot), "Resign Party")
+    #bot.States.AddCustomState(lambda: _resign(bot), "Resign Party")
+    bot.UI.SendChatCommand("resign")
     bot.Wait.UntilOnOutpost()
-    bot.States.AddCustomState(lambda: _reset_intentional_resign(), "Reset Resign Flag")
     bot.Wait.ForTime(5000)
     bot.States.JumpToStepName(ZONING_STEP_NAME)
 
@@ -435,7 +433,7 @@ def _restock_models_locally(model_ids: list[int], quantity: int):
 # endregion
 
 
-# region Upkeep & Anti-Stuck
+# region Upkeep
 def _upkeep_consumables(bot: "Botting"):
     while True:
         yield from bot.Wait._coro_for_time(15000)
@@ -449,45 +447,6 @@ def _upkeep_consumables(bot: "Botting"):
                 GLOBAL_CACHE.Inventory.UseItem(ModelID.Honeycomb.value)
                 yield from bot.Wait._coro_for_time(250)
 
-
-EXPLORABLE_TIMEOUT_SECONDS = 3 * 3600  # 3 hours
-
-
-def _anti_stuck_resign(bot: "Botting"):
-    """Called when the timeout fires: resign, wait for outpost, then restart."""
-    yield from _resign_by_mode(bot)
-    while True:
-        yield from bot.Wait._coro_for_time(1000)
-        if not Routines.Checks.Map.MapValid():
-            continue
-        if Routines.Checks.Map.IsOutpost():
-            break
-    bot.States.JumpToStepName(ZONING_STEP_NAME)
-    bot.config.FSM.resume()
-    yield
-
-
-def _anti_stuck_watchdog(bot: "Botting"):
-    """Resign the party if stuck in explorable for more than 3 hours."""
-    explorable_entry_time = None
-    while True:
-        yield from bot.Wait._coro_for_time(60000)  # check every minute
-        if not Routines.Checks.Map.MapValid():
-            explorable_entry_time = None
-            continue
-        if Routines.Checks.Map.IsOutpost():
-            explorable_entry_time = None
-            continue
-        # We are in explorable
-        if explorable_entry_time is None:
-            explorable_entry_time = time.time()
-            continue
-        elapsed = time.time() - explorable_entry_time
-        if elapsed >= EXPLORABLE_TIMEOUT_SECONDS:
-            ConsoleLog(BOT_NAME, f"Anti-stuck: {elapsed/3600:.1f}h in explorable — resigning party.", Py4GW.Console.MessageType.Warning)
-            explorable_entry_time = None
-            bot.config.FSM.pause()
-            bot.config.FSM.AddManagedCoroutine("AntiStuck_Resign", lambda: _anti_stuck_resign(bot))
 # endregion
 
 
@@ -502,21 +461,20 @@ def _nearest_path_index(path: list, x: float, y: float) -> int:
 
 
 def _on_party_wipe(bot: "Botting"):
-    global _intentional_resign_in_progress
-    if _intentional_resign_in_progress or not Routines.Checks.Map.MapValid() or not Routines.Checks.Map.IsExplorable():
+    if not Routines.Checks.Map.MapValid() or not Routines.Checks.Map.IsExplorable():
         bot.config.FSM.resume()
         return
     while Agent.IsDead(Player.GetAgentID()):
         yield from bot.Wait._coro_for_time(1000)
-        if _intentional_resign_in_progress or not Routines.Checks.Map.MapValid() or not Routines.Checks.Map.IsExplorable():
+        if not Routines.Checks.Map.MapValid() or not Routines.Checks.Map.IsExplorable():
             bot.config.FSM.resume()
             return
 
-    if _intentional_resign_in_progress or not Routines.Checks.Map.MapValid() or not Routines.Checks.Map.IsExplorable():
+    if not Routines.Checks.Map.MapValid() or not Routines.Checks.Map.IsExplorable():
         bot.config.FSM.resume()
         return
 
-    # All accounts revived — resume route from nearest path point
+    # All accounts revived â€” resume route from nearest path point
     pos = Player.GetXY()
     if pos:
         nearest_idx = _nearest_path_index(Norn_Path, pos[0], pos[1])
@@ -535,9 +493,6 @@ def _on_party_wipe(bot: "Botting"):
 
 
 def OnPartyWipe(bot: "Botting"):
-    if _intentional_resign_in_progress:
-        ConsoleLog("on_party_wipe", "ignored during intentional resign")
-        return
     ConsoleLog("on_party_wipe", "event triggered")
     fsm = bot.config.FSM
     fsm.pause()
@@ -851,16 +806,8 @@ def _setup_heroes(bot: Botting):
             yield from bot.Wait._coro_for_time(500)
 
 
-def _reset_intentional_resign():
-    global _intentional_resign_in_progress
-    _intentional_resign_in_progress = False
-    yield
-
-
-def _resign_by_mode(bot: Botting):
-    global _intentional_resign_in_progress
-    _intentional_resign_in_progress = True
-    yield from Routines.Yield.Player.SendChatCommand("resign")
+def _resign(bot: Botting):
+    bot.UI.SendChatCommand("resign")
     yield from bot.Wait._coro_for_time(500)
 
 
@@ -1027,15 +974,6 @@ def _draw_heroes_tab() -> None:
     PyImGui.end_child()
 
 
-def _clear_intentional_resign_guard() -> None:
-    global _intentional_resign_in_progress
-    if not _intentional_resign_in_progress:
-        return
-    if bot.config.FSM.paused:
-        return
-    if Routines.Checks.Map.MapValid() and Routines.Checks.Map.IsOutpost():
-        _intentional_resign_in_progress = False
-
 def main():
     global _hero_config_loaded
     if not _hero_config_loaded:
@@ -1044,7 +982,6 @@ def main():
     if Map.IsMapLoading():
         return
     bot.Update()
-    _clear_intentional_resign_guard()
     bot.UI.draw_window(icon_path=REFORGED_TEXTURE, extra_tabs=[
         ("Statistics", _draw_statistics_tab),
         ("Heroes", _draw_heroes_tab),
@@ -1054,3 +991,4 @@ def main():
 if __name__ == "__main__":
     main()
 # endregion
+
