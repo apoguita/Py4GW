@@ -50,7 +50,7 @@ import random
 from typing import Callable
 
 from ...GlobalCache import GLOBAL_CACHE
-from ...Py4GWcorelib import ConsoleLog, Console
+from ...Py4GWcorelib import ConsoleLog, Console, Vec2f
 from ...Map import Map
 from ...Agent import Agent
 from ...Player import Player
@@ -813,8 +813,9 @@ class BTPlayer:
             return BehaviorTree(tree)
 
         @staticmethod
-        def StorePrimaryProfessionName(
-            blackboard_key: str = "player_primary_profession_name",
+        def StoreProfessionNames(
+            blackboard_primary_key: str = "player_primary_profession_name",
+            blackboard_secondary_key: str = "player_secondary_profession_name",
             log: bool = False,
         ) -> BehaviorTree:
             """
@@ -828,24 +829,25 @@ class BTPlayer:
               UserDescription: Use this when later routing logic needs the player's primary profession name.
               Notes: Writes the resolved profession name to the configured blackboard key.
             """
-            def _store_primary_profession_name(node: BehaviorTree.Node):
+            def _store_profession_names(node: BehaviorTree.Node):
                 """
                 Resolve the player's primary profession name and store it on the blackboard.
 
                 Meta:
                   Expose: false
                   Audience: advanced
-                  Display: Internal Store Primary Profession Name Helper
+                  Display: Internal Store Profession Names Helper
                   Purpose: Capture the player's primary profession name for later BT steps.
                   UserDescription: Internal support routine.
                   Notes: Writes the resolved profession name to the configured blackboard key and fails when resolution returns empty.
                 """
-                primary_name, _ = Agent.GetProfessionNames(Player.GetAgentID())
-                node.blackboard[blackboard_key] = primary_name
+                primary_name, secondary_name = Agent.GetProfessionNames(Player.GetAgentID())
+                node.blackboard[blackboard_primary_key] = primary_name
+                node.blackboard[blackboard_secondary_key] = secondary_name
 
                 if not primary_name:
                     ConsoleLog(
-                        "StorePrimaryProfessionName",
+                        "StoreProfessionNames",
                         "Failed to resolve player primary profession name.",
                         Console.MessageType.Warning,
                         log=True if log else False,
@@ -853,8 +855,8 @@ class BTPlayer:
                     return BehaviorTree.NodeState.FAILURE
 
                 ConsoleLog(
-                    "StorePrimaryProfessionName",
-                    f"Stored primary profession '{primary_name}' in blackboard key '{blackboard_key}'.",
+                    "StoreProfessionNames",
+                    f"Stored primary profession '{primary_name}' in blackboard key '{blackboard_primary_key}'.",
                     Console.MessageType.Info,
                     log=log,
                 )
@@ -862,8 +864,8 @@ class BTPlayer:
 
             return BehaviorTree(
                 BehaviorTree.ActionNode(
-                    name="StorePrimaryProfessionName",
-                    action_fn=_store_primary_profession_name,
+                    name="StoreProfessionNames",
+                    action_fn=_store_profession_names,
                     aftercast_ms=0,
                 )
             )
@@ -1562,7 +1564,7 @@ class BTPlayer:
 
         @staticmethod
         def MoveDirect(
-            path_points: list[tuple[float, float]],
+            path_points: list[Vec2f],
             tolerance: float = 50.0,
             timeout_ms: int = 15000,
             stall_threshold_ms: int = 500,
@@ -1588,7 +1590,7 @@ class BTPlayer:
                     )
                 )
 
-            final_x, final_y = path_points[-1]
+            final_x, final_y = path_points[-1].x, path_points[-1].y
             return BT.Player.Move(
                 x=float(final_x),
                 y=float(final_y),
@@ -1599,8 +1601,8 @@ class BTPlayer:
                 pause_flag_key=pause_flag_key,
                 log=log,
                 path_points_override=[
-                    (float(path_x), float(path_y))
-                    for path_x, path_y in path_points
+                    (float(path_point.x), float(path_point.y))
+                    for path_point in path_points
                 ],
             )
         
