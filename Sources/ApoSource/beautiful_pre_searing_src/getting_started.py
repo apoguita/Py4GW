@@ -13,14 +13,6 @@ from Sources.ApoSource.ApoBottingLib import wrappers as BT
 from .globals import *
 
 
-def LogMessage(message: str) -> BehaviorTree:
-    return BT.LogMessage(
-        message=message,
-        module_name=MODULE_NAME,
-        print_to_console=PRINT_TO_CONSOLE,
-        print_to_blackboard=PRINT_TO_BLACKBOARD,
-    )
-    
 def Sequence_001_Common() -> BehaviorTree:
     TOWN_CRYER_COORDS: Vec2f = Vec2f(9954.21, -472.19)
     SIR_TYDIUS_COORDS: Vec2f = Vec2f(11694.64, 3440.12)
@@ -122,10 +114,7 @@ def Necromancer_001_Sequence() -> BehaviorTree:
             BT.ClearEnemiesInArea(pos=SKALE_KILLSPOT_COORDS, radius=CLEAR_ENEMIES_AREA_RADIUS),
             LogMessage("Waiting for Verata to finish Casting"),
             BT.Wait(4000),
-            BT.MoveAndAutoDialogByModelID(
-                model_id=Agent.GetModelIDByEncString(
-                    VERATA_THE_NECROMANCER_ENC_STRING
-                ),
+            BT.MoveAndAutoDialogByModelID(modelID_or_encStr=VERATA_THE_NECROMANCER_ENC_STRING,
                 button_number=0,
             ),
         ],

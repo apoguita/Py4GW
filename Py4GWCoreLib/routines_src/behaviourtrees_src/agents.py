@@ -72,6 +72,12 @@ class BTAgents:
     agent_ids = None
 
     @staticmethod
+    def _resolve_model_id_value(modelID_or_encStr: int | str) -> int:
+            if isinstance(modelID_or_encStr, str):
+                return Agent.GetModelIDByEncString(modelID_or_encStr)
+            return int(modelID_or_encStr)
+
+    @staticmethod
     def GetAgentIDByName(agent_name: str) -> BehaviorTree:
             """
             Build a tree that resolves an agent id by agent name.
@@ -110,7 +116,7 @@ class BTAgents:
             return BehaviorTree(tree)
         
     @staticmethod
-    def GetAgentIDByModelID(model_id:int, log:bool=False) -> BehaviorTree:
+    def GetAgentIDByModelID(modelID_or_encStr: int | str, log: bool = False) -> BehaviorTree:
             """
             Build a tree that resolves an agent id by model id.
 
@@ -137,18 +143,30 @@ class BTAgents:
                 from ...AgentArray import AgentArray
                 ids = AgentArray.GetAgentArray()
                 found = 0
+                resolved_model_id = BTAgents._resolve_model_id_value(modelID_or_encStr)
+
+                node.blackboard["resolved_model_id"] = resolved_model_id
+                if resolved_model_id == 0:
+                    ConsoleLog(
+                        "GetAgentIDByModelID",
+                        f"Failed to resolve model ID from '{modelID_or_encStr}'.",
+                        Console.MessageType.Warning,
+                        log=log,
+                    )
+                    node.blackboard["result"] = 0
+                    return BehaviorTree.NodeState.FAILURE
 
                 for aid in ids:
-                    if Agent.GetModelID(aid) == model_id:
+                    if Agent.GetModelID(aid) == resolved_model_id:
                         found = aid
                         break
 
                 node.blackboard["result"] = found
                 if found != 0:
-                    ConsoleLog("GetAgentIDByModelID", f"Found agent ID {found} for model ID {model_id}.", Console.MessageType.Info, log=log)
+                    ConsoleLog("GetAgentIDByModelID", f"Found agent ID {found} for model ID {resolved_model_id}.", Console.MessageType.Info, log=log)
                     BehaviorTree.NodeState.SUCCESS
                 else:
-                    ConsoleLog("GetAgentIDByModelID", f"No agent found for model ID {model_id}.", Console.MessageType.Warning, log=log) 
+                    ConsoleLog("GetAgentIDByModelID", f"No agent found for model ID {resolved_model_id}.", Console.MessageType.Warning, log=log) 
                     BehaviorTree.NodeState.FAILURE
                 
                 return (BehaviorTree.NodeState.SUCCESS
@@ -183,7 +201,7 @@ class BTAgents:
             return BehaviorTree(tree)
 
     @staticmethod
-    def TargetAgentByModelID(model_id: int, log: bool = False):
+    def TargetAgentByModelID(modelID_or_encStr: int | str, log: bool = False):
             """
             Build a tree that resolves and targets an agent by model id.
 
@@ -198,7 +216,7 @@ class BTAgents:
             tree = BehaviorTree.SequenceNode(name="TargetAgentByModelID",
                 children=[
                     BehaviorTree.SubtreeNode(name="GetAgentIDByModelIDSubtree",
-                                             subtree_fn=lambda node: BTAgents.GetAgentIDByModelID(model_id, log=log)),
+                                             subtree_fn=lambda node: BTAgents.GetAgentIDByModelID(modelID_or_encStr, log=log)),
                     BehaviorTree.SubtreeNode(name="ChangeTargetSubtree",
                                              subtree_fn=lambda node: BTPlayer.ChangeTarget(node.blackboard.get("result", 0), log=log))
                 ]
@@ -395,7 +413,7 @@ class BTAgents:
 
     @staticmethod
     def MoveAndTargetByModelID(
-        model_id: int,
+        modelID_or_encStr: int | str,
         log: bool = False,
     ) -> BehaviorTree:
         """
@@ -409,10 +427,10 @@ class BTAgents:
           UserDescription: Use this when you know the model id of the agent you want to approach and target.
           Notes: Delegates to the movement group implementation.
         """
-        return BTMovement.MoveAndTargetByModelID(model_id=model_id, log=log)
+        return BTMovement.MoveAndTargetByModelID(modelID_or_encStr=modelID_or_encStr, log=log)
 
     @staticmethod
-    def TargetAndInteractByModelID(model_id: int, log: bool = False) -> BehaviorTree:
+    def TargetAndInteractByModelID(modelID_or_encStr: int | str, log: bool = False) -> BehaviorTree:
             """
             Build a tree that targets an agent by model id and interacts with it.
 
@@ -425,13 +443,13 @@ class BTAgents:
               Notes: Resolves the target from model id before interaction.
             """
             return BTCompositeHelpers.target_and_interact(
-                target_tree=BTAgents.TargetAgentByModelID(model_id=model_id, log=log),
+                target_tree=BTAgents.TargetAgentByModelID(modelID_or_encStr=modelID_or_encStr, log=log),
                 log=log,
             )
 
     @staticmethod
     def MoveTargetAndInteractByModelID(
-        model_id: int,
+        modelID_or_encStr: int | str,
         log: bool = False,
     ) -> BehaviorTree:
         """
@@ -445,11 +463,11 @@ class BTAgents:
           UserDescription: Use this when you want an approach-and-interact flow for a known model id.
           Notes: Delegates to the movement group implementation.
         """
-        return BTMovement.MoveTargetAndInteractByModelID(model_id=model_id, log=log)
+        return BTMovement.MoveTargetAndInteractByModelID(modelID_or_encStr=modelID_or_encStr, log=log)
 
     @staticmethod
     def TargetInteractAndDialogByModelID(
-            model_id: int,
+            modelID_or_encStr: int | str,
             dialog_id: str | int = 0,
             log: bool = False,
         ) -> BehaviorTree:
@@ -465,14 +483,14 @@ class BTAgents:
               Notes: Resolves the target from model id before interaction and dialog dispatch.
             """
             return BTCompositeHelpers.target_interact_and_dialog(
-                target_tree=BTAgents.TargetAgentByModelID(model_id=model_id, log=log),
+                target_tree=BTAgents.TargetAgentByModelID(modelID_or_encStr=modelID_or_encStr, log=log),
                 dialog_id=dialog_id,
                 log=log,
             )
 
     @staticmethod
     def TargetInteractAndAutomaticDialogByModelID(
-            model_id: int,
+            modelID_or_encStr: int | str,
             button_number: int = 0,
             log: bool = False,
         ) -> BehaviorTree:
@@ -488,14 +506,14 @@ class BTAgents:
               Notes: Resolves the target from model id before interaction and automatic dialog selection.
             """
             return BTCompositeHelpers.target_interact_and_automatic_dialog(
-                target_tree=BTAgents.TargetAgentByModelID(model_id=model_id, log=log),
+                target_tree=BTAgents.TargetAgentByModelID(modelID_or_encStr=modelID_or_encStr, log=log),
                 button_number=button_number,
                 log=log,
             )
         
     @staticmethod
     def MoveTargetInteractAndDialogByModelID(
-        model_id: int,
+        modelID_or_encStr: int | str,
         dialog_id: str | int = 0,
         log: bool = False,
     ) -> BehaviorTree:
@@ -511,14 +529,14 @@ class BTAgents:
           Notes: Delegates to the movement group implementation.
         """
         return BTMovement.MoveTargetInteractAndDialogByModelID(
-            model_id=model_id,
+            modelID_or_encStr=modelID_or_encStr,
             dialog_id=dialog_id,
             log=log,
         )
 
     @staticmethod
     def MoveTargetInteractAndAutomaticDialogByModelID(
-        model_id: int,
+        modelID_or_encStr: int | str,
         button_number: int = 0,
         log: bool = False,
     ) -> BehaviorTree:
@@ -534,7 +552,7 @@ class BTAgents:
           Notes: Delegates to the movement group implementation.
         """
         return BTMovement.MoveTargetInteractAndAutomaticDialogByModelID(
-            model_id=model_id,
+            modelID_or_encStr=modelID_or_encStr,
             button_number=button_number,
             log=log,
         )

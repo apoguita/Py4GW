@@ -1,5 +1,5 @@
 from Py4GWCoreLib.py4gwcorelib_src.BehaviorTree import BehaviorTree
-from Py4GWCoreLib.routines_src.BehaviourTrees import BT as RoutinesBT
+from Py4GWCoreLib.routines_src.BehaviourTrees import BT as RoutinesBT, Routines
 from Py4GWCoreLib.native_src.internals.types import Vec2f
 from Py4GWCoreLib.enums import Range
 
@@ -28,6 +28,38 @@ def Wait(duration_ms: int, log: bool = False) -> BehaviorTree:
 def StoreProfessionNames() -> BehaviorTree:
     return RoutinesBT.Player.StoreProfessionNames()
 
+def SaveBlackboardValue(key: str, value, log: bool = False) -> BehaviorTree:
+    return RoutinesBT.Player.SaveBlackboardValue(
+        key=key,
+        value=value,
+        log=log,
+    )
+
+def LoadBlackboardValue(
+    source_key: str,
+    target_key: str = "result",
+    fail_if_missing: bool = True,
+    log: bool = False,
+) -> BehaviorTree:
+    return RoutinesBT.Player.LoadBlackboardValue(
+        source_key=source_key,
+        target_key=target_key,
+        fail_if_missing=fail_if_missing,
+        log=log,
+    )
+
+def HasBlackboardValue(key: str, log: bool = False) -> BehaviorTree:
+    return RoutinesBT.Player.HasBlackboardValue(
+        key=key,
+        log=log,
+    )
+
+def ClearBlackboardValue(key: str, log: bool = False) -> BehaviorTree:
+    return RoutinesBT.Player.ClearBlackboardValue(
+        key=key,
+        log=log,
+    )
+
 #region Map
 def WaitForMapLoad(map_id: int) -> BehaviorTree:
     return RoutinesBT.Map.WaitforMapLoad(map_id=map_id)
@@ -38,7 +70,7 @@ def TravelToOutpost(outpost_id: int) -> BehaviorTree:
 
 #region Movement
 def Move(pos: Vec2f) -> BehaviorTree:
-    return RoutinesBT.Player.Move(x=pos.x, y=pos.y)
+    return RoutinesBT.Player.Move(x=pos.x, y=pos.y, log=False)
 
 def MoveDirect(list_of_positions: list[Vec2f]) -> BehaviorTree:
     return RoutinesBT.Player.MoveDirect(list_of_positions)
@@ -58,16 +90,22 @@ def MoveAndAutoDialog(pos: Vec2f, button_number: int = 0, target_distance: float
         target_distance=target_distance,
     )
     
-def MoveAndAutoDialogByModelID(model_id: int, button_number: int = 0) -> BehaviorTree:
+def MoveAndAutoDialogByModelID(modelID_or_encStr: int | str, button_number: int = 0) -> BehaviorTree:
     return RoutinesBT.Agents.MoveTargetInteractAndAutomaticDialogByModelID(
-        model_id=model_id,
+        modelID_or_encStr=modelID_or_encStr,
         button_number=button_number,
+        log=True,
     )
 
-def MoveAndTargetByModelID(model_id: int, log: bool = False) -> BehaviorTree:
+def MoveAndTargetByModelID(modelID_or_encStr: int | str, log: bool = False) -> BehaviorTree:
     return RoutinesBT.Agents.MoveAndTargetByModelID(
-        model_id=model_id,
+        modelID_or_encStr=modelID_or_encStr,
         log=log
+    )
+    
+def MoveAndInteractByModelID(modelID_or_encStr: int | str, target_distance: float = Range.Nearby.value) -> BehaviorTree:
+    return RoutinesBT.Agents.MoveTargetAndInteractByModelID(
+        modelID_or_encStr=modelID_or_encStr,
     )
     
 #region Agents
@@ -79,12 +117,36 @@ def ClearEnemiesInArea(pos: Vec2f, radius: float = Range.Spirit.value) -> Behavi
     )
     
 #region Items
+
+def IsItemInInventoryBags(modelID_or_encStr: int | str) -> BehaviorTree:
+    return RoutinesBT.Items.IsItemInInventoryBags(modelID_or_encStr=modelID_or_encStr)
+
+def IsItemEquipped(modelID_or_encStr: int | str) -> BehaviorTree:
+    return RoutinesBT.Items.IsItemEquipped(modelID_or_encStr=modelID_or_encStr)
+
+def EquipItemByModelID(modelID_or_encStr: int | str, aftercast_ms: int = 250) -> BehaviorTree:
+    return RoutinesBT.Items.EquipItemByModelID(
+        modelID_or_encStr=modelID_or_encStr,
+        aftercast_ms=aftercast_ms,
+    )
+
 def DestroyItems(model_ids: list[int], log: bool = False, aftercast_ms: int = 50) -> BehaviorTree:
     return RoutinesBT.Items.DestroyItems(
         model_ids=model_ids,
         log=log,
         aftercast_ms=aftercast_ms,
     )
+    
+def DestroyBonusItems(exclude_list: list[int] = [], log: bool = False, aftercast_ms: int = 50) -> BehaviorTree:
+    return RoutinesBT.Items.DestroyBonusItems(
+        exclude_list=exclude_list,
+        log=log,
+        aftercast_ms=aftercast_ms,
+    )
+    
+def SpawnBonusItems(log: bool = False, spawn_settle_ms: int = 50) -> BehaviorTree:
+    return RoutinesBT.Items.SpawnBonusItems(log=log, aftercast_ms=spawn_settle_ms)
+
     
 #region skills
 def CastSkillID(skill_id: int,

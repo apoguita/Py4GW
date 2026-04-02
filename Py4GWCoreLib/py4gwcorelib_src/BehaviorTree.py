@@ -1036,7 +1036,9 @@ class BehaviorTree:
                     self._start_time_ms = None  # reset fully for next run
                     return BehaviorTree.NodeState.SUCCESS
 
-                # On FAILURE → repeat (loop again)
+                # On FAILURE -> reset child runtime and retry on the next tick.
+                self.child.reset()
+                return BehaviorTree.NodeState.RUNNING
       
     # --------------------------------------------------------
     #region RepeaterUntilFailureNode

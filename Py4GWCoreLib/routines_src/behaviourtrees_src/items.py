@@ -45,6 +45,7 @@ Docstring parsing rules
 
 from __future__ import annotations
 
+from ...Agent import Agent
 from ...GlobalCache import GLOBAL_CACHE
 from ...Player import Player
 from ...Py4GWcorelib import ConsoleLog, Console
@@ -76,6 +77,69 @@ class BTItems:
         ModelID.Bonus_Wolfs_Favor.value,
         ModelID.Igneous_Summoning_Stone.value,
     ]
+
+    @staticmethod
+    def _resolve_model_id_value(modelID_or_encStr: int | str) -> int:
+        if isinstance(modelID_or_encStr, str):
+            return Agent.GetModelIDByEncString(modelID_or_encStr)
+        return int(modelID_or_encStr)
+    
+    @staticmethod
+    def EquipItemByModelID(modelID_or_encStr: int | str, aftercast_ms: int = 750) -> BehaviorTree:
+        """
+        Build a tree that equips an item by its model ID.
+
+        Meta:
+          Expose: true
+          Audience: beginner
+          Display: Equip Item
+          Purpose: Equip an item by its model ID.
+          UserDescription: Use this when you want to equip a specific item from your inventory.
+          Notes: Completes after a configurable aftercast delay to allow the inventory to update.
+        """
+        def _equip_item() -> BehaviorTree.NodeState:
+            resolved_model_id = BTItems._resolve_model_id_value(modelID_or_encStr)
+            item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(resolved_model_id)
+            if item_id == 0:
+                return BehaviorTree.NodeState.FAILURE
+
+            GLOBAL_CACHE.Inventory.EquipItem(item_id, Player.GetAgentID())
+            return BehaviorTree.NodeState.SUCCESS
+
+        return BehaviorTree(
+            BehaviorTree.ActionNode(
+                name=f"EquipItemByModelID({modelID_or_encStr})",
+                action_fn=_equip_item,
+                aftercast_ms=aftercast_ms,
+            )
+        )
+        
+    @staticmethod
+    def IsItemInInventoryBags(modelID_or_encStr: int | str) -> BehaviorTree:
+        def _is_item_in_inventory_bags() -> bool:
+            resolved_model_id = BTItems._resolve_model_id_value(modelID_or_encStr)
+            return GLOBAL_CACHE.Inventory.GetModelCount(resolved_model_id) > 0
+
+        return BehaviorTree(
+            BehaviorTree.ConditionNode(
+                name=f"IsItemInInventoryBags({modelID_or_encStr})",
+                condition_fn=_is_item_in_inventory_bags,
+            )
+        )
+
+    @staticmethod
+    def IsItemEquipped(modelID_or_encStr: int | str) -> BehaviorTree:
+        def _is_item_equipped() -> bool:
+            resolved_model_id = BTItems._resolve_model_id_value(modelID_or_encStr)
+            return GLOBAL_CACHE.Inventory.GetModelCountInEquipped(resolved_model_id) > 0
+
+        return BehaviorTree(
+            BehaviorTree.ConditionNode(
+                name=f"IsItemEquipped({modelID_or_encStr})",
+                condition_fn=_is_item_equipped,
+            )
+        )
+
 
     @staticmethod
     def SpawnBonusItems(log: bool = False, aftercast_ms: int = 500) -> BehaviorTree:
@@ -115,7 +179,7 @@ class BTItems:
 
     @staticmethod
     def DestroyItem(
-        model_id: int,
+        modelID_or_encStr: int | str,
         log: bool = False,
         required: bool = False,
         aftercast_ms: int = 600,
@@ -143,18 +207,19 @@ class BTItems:
               UserDescription: Internal support routine.
               Notes: Required mode fails when the item is missing; optional mode succeeds quietly.
             """
-            item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(model_id)
+            resolved_model_id = BTItems._resolve_model_id_value(modelID_or_encStr)
+            item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(resolved_model_id)
             if item_id == 0:
                 ConsoleLog(
                     "DestroyItem",
-                    f"Item model {model_id} was not found in inventory for destruction.",
+                    f"Item model {resolved_model_id} was not found in inventory for destruction.",
                     Console.MessageType.Warning if required else Console.MessageType.Info,
                     log=True,
                 )
                 if required:
                     ConsoleLog(
                         "DestroyItem",
-                        f"Item model {model_id} was not found for destruction.",
+                        f"Item model {resolved_model_id} was not found for destruction.",
                         Console.MessageType.Warning,
                         log=True if required else log,
                     )
@@ -164,7 +229,7 @@ class BTItems:
             GLOBAL_CACHE.Inventory.DestroyItem(item_id)
             ConsoleLog(
                 "DestroyItem",
-                f"Queued destroy for item model {model_id} (item_id={item_id}).",
+                f"Queued destroy for item model {resolved_model_id} (item_id={item_id}).",
                 Console.MessageType.Info,
                 log=log,
             )
@@ -209,7 +274,7 @@ class BTItems:
                 message=f"Destroy pass starting for models: {bonus_models_to_destroy}",
             ),
             *[
-                BTItems.DestroyItem(model_id=model_id, log=log, required=False, aftercast_ms=aftercast_ms)
+                BTItems.DestroyItem(modelID_or_encStr=model_id, log=log, required=False, aftercast_ms=aftercast_ms)
                 for model_id in bonus_models_to_destroy
             ],
             name="DestroyBonusItems",
@@ -335,7 +400,7 @@ class BTItems:
 
     @staticmethod
     def MoveModelToBagSlot(
-        model_id: int,
+        modelID_or_encStr: int | str,
         target_bag: int = 1,
         slot: int = 0,
         log: bool = False,
@@ -365,12 +430,13 @@ class BTItems:
               UserDescription: Internal support routine.
               Notes: Required mode fails on move failure; optional mode succeeds quietly.
             """
-            moved = GLOBAL_CACHE.Inventory.MoveModelToBagSlot(model_id, target_bag, slot)
+            resolved_model_id = BTItems._resolve_model_id_value(modelID_or_encStr)
+            moved = GLOBAL_CACHE.Inventory.MoveModelToBagSlot(resolved_model_id, target_bag, slot)
             if not moved:
                 if required:
                     ConsoleLog(
                         "MoveModelToBagSlot",
-                        f"Failed to move model {model_id} to bag {target_bag} slot {slot}.",
+                        f"Failed to move model {resolved_model_id} to bag {target_bag} slot {slot}.",
                         Console.MessageType.Warning,
                         log=True if required else log,
                     )
@@ -379,7 +445,7 @@ class BTItems:
 
             ConsoleLog(
                 "MoveModelToBagSlot",
-                f"Moved model {model_id} to bag {target_bag} slot {slot}.",
+                f"Moved model {resolved_model_id} to bag {target_bag} slot {slot}.",
                 Console.MessageType.Info,
                 log=log,
             )

@@ -211,7 +211,7 @@ class Agent:
         return 0
 
     @staticmethod
-    def GetModelIDByEncString(enc_string: str) -> int:
+    def GetModelIDByEncString(enc_string: str, log: bool = False) -> int:
         """
         Purpose: Retrieve an agent model ID by matching its readable encoded-name string.
         Args:
@@ -221,9 +221,14 @@ class Agent:
             int: The model ID of the matching agent, or 0 if no match is found.
         """
         agent_id = Agent.GetAgentIDByEncString(enc_string)
+        if log:
+            print(f"Debug: GetModelIDByEncString('{enc_string}') found agent_id={agent_id}")
         if agent_id == 0:
             return 0
-        return Agent.GetModelID(agent_id)
+        model_id = Agent.GetModelID(agent_id)
+        if log:
+            print(f"Debug: GetModelIDByEncString('{enc_string}') found model_id={model_id}")
+        return model_id
     
     @staticmethod
     def GetAttributes(agent_id: int) -> list[AttributeStruct]:
