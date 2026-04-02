@@ -3600,8 +3600,7 @@ class ImGui:
             for token in tokens:
                 t = token["type"]
                 v = token.get("value")
-                v = v.strip() if isinstance(v, str) else v
-                if not v:
+                if v is None:
                     v = ""
                 if t == "text":
                     if inside_bullet:

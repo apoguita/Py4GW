@@ -1,8 +1,7 @@
 from typing import Any, Callable, Generator, override
-from Py4GWCoreLib import Routines, Agent, Player
-from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
+from Py4GWCoreLib import Routines, Player
 from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer
-from Py4GWCoreLib.enums import Profession, Range
+from Py4GWCoreLib.enums import Range
 from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Sources.oazix.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Sources.oazix.CustomBehaviors.primitives.bus.event_message import EventMessage
@@ -10,10 +9,10 @@ from Sources.oazix.CustomBehaviors.primitives.bus.event_type import EventType
 from Sources.oazix.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 from Sources.oazix.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Sources.oazix.CustomBehaviors.primitives.scores.score_per_agent_quantity_definition import ScorePerAgentQuantityDefinition
-from Sources.oazix.CustomBehaviors.primitives.skills.bonds.custom_buff_multiple_target import CustomBuffMultipleTarget
 from Sources.oazix.CustomBehaviors.primitives.skills.bonds.custom_buff_target_per_profession import BuffConfigurationPerProfession
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
+from Sources.oazix.CustomBehaviors.skills.plugins.targeting_modifiers.buff_configurator import BuffConfigurator
 
 class EbonBattleStandardOfHonorUtility(CustomSkillUtilityBase):
 
@@ -34,7 +33,7 @@ class EbonBattleStandardOfHonorUtility(CustomSkillUtilityBase):
             allowed_states=allowed_states)
 
         self.score_definition: ScorePerAgentQuantityDefinition = score_definition
-        self.buff_configuration: CustomBuffMultipleTarget = CustomBuffMultipleTarget(event_bus, self.custom_skill, buff_configuration_per_profession= BuffConfigurationPerProfession.BUFF_CONFIGURATION_MARTIAL)
+        self.add_plugin_targetting_modifier(lambda x: BuffConfigurator(event_bus, self.custom_skill, buff_configuration_per_profession= BuffConfigurationPerProfession.BUFF_CONFIGURATION_MARTIAL))
 
         # Combat start timer - 5 second delay when combat begins
         self.combat_start_timer = ThrottledTimer(5000)  # 5 seconds
@@ -50,7 +49,7 @@ class EbonBattleStandardOfHonorUtility(CustomSkillUtilityBase):
         yield
 
     def _get_agent_array(self) -> list[int]:
-        buff_predicate = self.buff_configuration.get_agent_id_predicate()
+        buff_predicate = self.get_plugin_targeting_modifiers_filtering_predicate()
         allies = custom_behavior_helpers.Targets.get_all_possible_allies_ordered_by_priority_raw(
             within_range=Range.Spellcast.value,
             condition=lambda agent_id: agent_id != Player.GetAgentID() and buff_predicate(agent_id)
@@ -102,7 +101,3 @@ class EbonBattleStandardOfHonorUtility(CustomSkillUtilityBase):
             
         result = yield from custom_behavior_helpers.Actions.cast_skill(self.custom_skill)
         return result 
-    
-    @override
-    def get_buff_configuration(self) -> CustomBuffMultipleTarget | None:
-        return self.buff_configuration

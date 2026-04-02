@@ -45,6 +45,7 @@ width, height = 0, 0
 # ProcessMessages() dispatches a new coroutine every frame, so without this
 # lock, rapid ShMem dispatches create multiple simultaneous coroutines.
 _merchant_busy: bool = False
+MERCHANT_RULES_WIDGET_NAME = "Merchant Rules"
 
 
 def _extra_data(message: SharedMessageStruct) -> tuple[str, str, str, str]:
@@ -79,6 +80,18 @@ hero_ai_has_paragon_skills = False
 def _c_wchar_array_to_str(arr: ctypes.Array) -> str:
         """Convert c_wchar array back to Python str, stopping at null terminator."""
         return "".join(ch for ch in arr if ch != '\0').rstrip()
+
+
+def _get_merchant_rules_widget():
+    widget_handler = get_widget_handler()
+    for widget_name in ("MerchantRules", MERCHANT_RULES_WIDGET_NAME):
+        widget_info = widget_handler.get_widget_info(widget_name)
+        if not widget_info or not getattr(widget_info, "module", None):
+            continue
+        widget_instance = getattr(widget_info.module, "WIDGET_INSTANCE", None)
+        if widget_instance is not None:
+            return widget_instance
+    return None
 
 # region ImGui
 def configure():
@@ -934,6 +947,37 @@ def MerchantMaterials(index: int, message: SharedMessageStruct):
         if _inv_widget:
             _inv_widget.resume()
         RestoreHeroAISnapshot(message.ReceiverEmail)
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+# endregion
+
+# region MerchantRules
+def MerchantRules(index: int, message: SharedMessageStruct):
+    global _merchant_busy
+    widget = _get_merchant_rules_widget()
+    GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
+    if widget is None:
+        ConsoleLog(MODULE_NAME, "Merchant Rules widget is not available for shared message handling.", Console.MessageType.Warning, False)
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+
+    needs_merchant_lock = bool(widget._multibox_message_requires_merchant_lock(message))
+    try:
+        if not needs_merchant_lock:
+            yield from widget.handle_shared_multibox_message(message)
+            return
+
+        ready_to_execute = yield from widget._wait_for_remote_execute_start(
+            message,
+            is_merchant_busy=lambda: _merchant_busy,
+        )
+        if not ready_to_execute:
+            return
+        _merchant_busy = True
+        try:
+            yield from widget.handle_shared_multibox_message(message)
+        finally:
+            _merchant_busy = False
+    finally:
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
 # endregion
 
@@ -2153,6 +2197,8 @@ def ProcessMessages():
             GLOBAL_CACHE.Coroutines.append(MerchantItems(index, message))
         case SharedCommandType.MerchantMaterials:
             GLOBAL_CACHE.Coroutines.append(MerchantMaterials(index, message))
+        case SharedCommandType.MerchantRules:
+            GLOBAL_CACHE.Coroutines.append(MerchantRules(index, message))
         case SharedCommandType.DisableHeroAI:
             GLOBAL_CACHE.Coroutines.append(MessageDisableHeroAI(index, message))
         case SharedCommandType.EnableHeroAI:

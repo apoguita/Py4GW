@@ -2,28 +2,26 @@ from abc import abstractmethod
 import traceback
 from collections.abc import Callable, Generator
 from typing import Any
-import time
 
-from Py4GWCoreLib import IniManager, Routines
+from Py4GWCoreLib import Routines
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 
 from Sources.oazix.CustomBehaviors.primitives.bus.event_bus import EventBus
-from Sources.oazix.CustomBehaviors.primitives.bus.event_message import EventMessage
-from Sources.oazix.CustomBehaviors.primitives.bus.event_type import EventType
 from Sources.oazix.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Sources.oazix.CustomBehaviors.primitives.helpers import custom_behavior_helpers
 
 from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
 from Sources.oazix.CustomBehaviors.primitives.skills.bonds.custom_buff_multiple_target import CustomBuffMultipleTarget
-from Sources.oazix.CustomBehaviors.primitives.skills.bonds.custom_buff_target import CustomBuffTarget
-from Sources.oazix.CustomBehaviors.primitives.skills.bonds.custom_buff_target_per_profession import BuffConfigurationPerProfession
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_nature import CustomSkillNature
 from Sources.oazix.CustomBehaviors.primitives.scores.score_definition import ScoreDefinition
 from Sources.oazix.CustomBehaviors.primitives import constants
-from Sources.oazix.CustomBehaviors.primitives.skills.utility_skill_capability import UtilitySkillCapability
+from Sources.oazix.CustomBehaviors.primitives.skills.plugins.utility_skill_watchdog import UtilitySkillWatchdog
+from Sources.oazix.CustomBehaviors.primitives.skills.plugins.utility_skill_plugin import UtilitySkillPlugin
+from Sources.oazix.CustomBehaviors.primitives.skills.plugins.utility_skill_precondition import UtilitySkillPrecondition
+from Sources.oazix.CustomBehaviors.primitives.skills.plugins.utility_skill_targeting_modifier import UtilitySkillTargetingModifier
 from Sources.oazix.CustomBehaviors.primitives.skills.utility_skill_execution_strategy import UtilitySkillExecutionStrategy
 from Sources.oazix.CustomBehaviors.primitives.skills.utility_skill_typology import UtilitySkillTypology
 
@@ -49,23 +47,59 @@ class CustomSkillUtilityBase:
         self.execution_strategy: UtilitySkillExecutionStrategy = execution_strategy
         self.score_definition: ScoreDefinition = score_definition
 
-        self._utility_skill_capabilites: list[UtilitySkillCapability] = []
+        self._utility_skill_plugins: list[UtilitySkillPlugin] = []
 
-    def add_capability(self, capability: Callable[['CustomSkillUtilityBase'], UtilitySkillCapability] ) -> 'CustomSkillUtilityBase':
-        capability_instance: UtilitySkillCapability = capability(self)
-        if capability_instance.capability_name in [capability.capability_name for capability in self._utility_skill_capabilites]: 
-            raise Exception(f"Capability {capability_instance.capability_name} already added to {self.custom_skill.skill_name}")
-        self._utility_skill_capabilites.append(capability_instance)
+    # Plugin management ------------------
+
+    def add_plugin_precondition(self, precondition: Callable[['CustomSkillUtilityBase'], UtilitySkillPrecondition] ) -> 'CustomSkillUtilityBase':
+        plugin_instance: UtilitySkillPlugin = precondition(self)
+        if plugin_instance.plugin_name in [capability.plugin_name for capability in self._utility_skill_plugins]: 
+            raise Exception(f"Precondition {plugin_instance.plugin_name} already added to {self.custom_skill.skill_name}")
+        self._utility_skill_plugins.append(plugin_instance)
+        return self
+    
+    def add_plugin_watchdog(self, extension: Callable[['CustomSkillUtilityBase'], UtilitySkillWatchdog] ) -> 'CustomSkillUtilityBase':
+        plugin_instance: UtilitySkillPlugin = extension(self)
+        if plugin_instance.plugin_name in [capability.plugin_name for capability in self._utility_skill_plugins]: 
+            raise Exception(f"Extension {plugin_instance.plugin_name} already added to {self.custom_skill.skill_name}")
+        self._utility_skill_plugins.append(plugin_instance)
         return self
 
-    def get_capabilities(self) -> list[UtilitySkillCapability]:
-        return self._utility_skill_capabilites
+    def add_plugin_targetting_modifier(self, targeting_modifier: Callable[['CustomSkillUtilityBase'], UtilitySkillTargetingModifier] ) -> 'CustomSkillUtilityBase':
+        plugin_instance: UtilitySkillPlugin = targeting_modifier(self)
+        if plugin_instance.plugin_name in [capability.plugin_name for capability in self._utility_skill_plugins]: 
+            raise Exception(f"Targeting modifier {plugin_instance.plugin_name} already added to {self.custom_skill.skill_name}")
+        self._utility_skill_plugins.append(plugin_instance)
+        return self
+
+    def get_plugins(self) -> list[UtilitySkillPlugin]:
+        return self._utility_skill_plugins
     
-    def are_capabilities_satisfied(self) -> bool:
-        for capability in self._utility_skill_capabilites:
-            if not capability.is_satisfied():
+    def are_preconditions_satisfied(self) -> bool:
+        for plugin in self._utility_skill_plugins:
+            if not isinstance(plugin, UtilitySkillPrecondition):
+                continue
+            if not plugin.is_satisfied():
                 return False
         return True
+    
+    def get_plugin_watchdogs(self) -> list[UtilitySkillWatchdog]:
+        return [plugin for plugin in self._utility_skill_plugins if isinstance(plugin, UtilitySkillWatchdog)]
+    
+    def _get_plugin_targeting_modifiers(self) -> list[UtilitySkillTargetingModifier]:
+        return [plugin for plugin in self._utility_skill_plugins if isinstance(plugin, UtilitySkillTargetingModifier)]
+    
+    def get_plugin_targeting_modifiers_filtering_predicate(self) -> Callable[[int], bool]:
+        modifiers = self._get_plugin_targeting_modifiers()
+        if len(modifiers) == 0: return lambda agent_id: True
+        return lambda agent_id: all(modifier.get_agent_id_filtering_predicate()(agent_id) for modifier in modifiers)
+
+    def get_plugin_targeting_modifiers_ordering_predicate(self) -> Callable[[int], int]:
+        modifiers = self._get_plugin_targeting_modifiers()
+        if len(modifiers) == 0: return lambda agent_id: 0
+        return lambda agent_id: sum(modifier.get_agent_id_ordering_predicate()(agent_id) for modifier in modifiers)
+
+    # End of plugin management ------------------
 
     @abstractmethod
     def are_common_pre_checks_valid(self, current_state: BehaviorState) -> bool:
@@ -85,10 +119,7 @@ class CustomSkillUtilityBase:
         if not custom_behavior_helpers.Resources.has_enough_resources(self.custom_skill):
             if constants.DEBUG: print(f'PreCheck Reject - Resources Requirement for Ability {self.custom_skill.skill_name}')
             return False
-        
-        if not self.are_capabilities_satisfied():
-            if constants.DEBUG: print(f'PreCheck Reject - Capabilities not satisfied for {self.custom_skill.skill_name}')
-            return False
+
         return True
     
     @abstractmethod
@@ -100,19 +131,24 @@ class CustomSkillUtilityBase:
         pass
 
     def evaluate(self, current_state: BehaviorState, previously_attempted_skills:list[CustomSkill]) -> float | None:
+        
         if not self.is_enabled:
             if constants.DEBUG: print(f'I Am Not Enabled {self.custom_skill.skill_name}')
             return None
         if self.custom_skill.skill_slot == 0 and self.custom_skill.skill_id != 0:
             print(f'PreCheck Reject {self.custom_skill.skill_name} was missing its skill slot, reloading.')
             self.custom_skill.skill_slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(self.custom_skill.skill_id) if self.custom_skill.skill_id != 0 else 0
-
+        
         if not self.are_common_pre_checks_valid(current_state):
             if constants.DEBUG:
                 if self.utility_skill_typology == UtilitySkillTypology.COMBAT and current_state == BehaviorState.IN_AGGRO and current_state in self.allowed_states:
                     print(f'PreCheck Reject {self.custom_skill.skill_name}')
             return None
 
+        if not self.are_preconditions_satisfied():
+            if constants.DEBUG: print(f'Reject - Capabilities not satisfied for {self.custom_skill.skill_name}')
+            return None
+        
         if self.utility_skill_typology == UtilitySkillTypology.COMBAT and not CustomBehaviorParty().get_party_is_combat_enabled():
             if constants.DEBUG: print(f'Reject Combat Not Enabled {self.custom_skill.skill_name}')
             return None
@@ -138,7 +174,8 @@ class CustomSkillUtilityBase:
                 raise Exception("only botting & daemon utility_skill_typology can perform stuff in IDLE")
 
         try:
-            score:float | None = self._evaluate(current_state, previously_attempted_skills)
+            score:float | None = None
+            score = self._evaluate(current_state, previously_attempted_skills)
 
             if score is None:
                 if constants.DEBUG:
@@ -162,6 +199,7 @@ class CustomSkillUtilityBase:
         try:
             gen:Generator[Any | None, Any | None, BehaviorResult] = self._execute(state)
             result:BehaviorResult = yield from gen
+
         except Exception as e:
             print(f'execute Exception {self.custom_skill.skill_name}: {e}')
             print(traceback.format_exc())
@@ -201,19 +239,19 @@ class CustomSkillUtilityBase:
 
     @abstractmethod
     def has_persistence(self) -> bool:
-        return False or any(capability.has_persistence() for capability in self._utility_skill_capabilites)
+        return False or any(plugin.has_persistence() for plugin in self._utility_skill_plugins)
     
     @abstractmethod
     def delete_persisted_configuration(self):
-        for capability in self._utility_skill_capabilites:
-            capability.delete_persisted_configuration()
+        for plugin in self._utility_skill_plugins:
+            plugin.delete_persisted_configuration()
 
     @abstractmethod
     def persist_configuration_as_global(self):
-        for capability in self._utility_skill_capabilites:
-            capability.persist_configuration_as_global()
+        for plugin in self._utility_skill_plugins:
+            plugin.persist_configuration_as_global()
 
     @abstractmethod
     def persist_configuration_for_account(self):
-        for capability in self._utility_skill_capabilites:
-            capability.persist_configuration_for_account()
+        for plugin in self._utility_skill_plugins:
+            plugin.persist_configuration_for_account()
