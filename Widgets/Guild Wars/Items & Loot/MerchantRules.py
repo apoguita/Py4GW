@@ -564,6 +564,7 @@ class ExecutionPlanEntry:
     quantity: int
     state: str
     reason: str = ""
+    model_id: int = 0
 
 
 @dataclass
@@ -682,6 +683,7 @@ class PlannedStorageTransfer:
     label: str
     item_id: int
     quantity: int
+    model_id: int = 0
 
 
 @dataclass(frozen=True)
@@ -3785,6 +3787,61 @@ class MerchantRulesWidget:
             return f"{name} ({safe_model_id})"
         return f"Model {safe_model_id}"
 
+    def _get_model_descriptor(self, model_id: int) -> str:
+        entry = self._get_model_entry(model_id)
+        if entry is None:
+            return ""
+        material_type = str(entry.get("material_type", "")).strip()
+        if material_type:
+            return material_type
+        return str(entry.get("item_type", "")).strip()
+
+    def _extract_preview_label_model_id(self, label: str) -> int:
+        safe_label = str(label or "").strip()
+        if not safe_label:
+            return 0
+
+        model_match = re.fullmatch(r"Model\s+(\d+)", safe_label)
+        if model_match is not None:
+            return max(0, _safe_int(model_match.group(1), 0))
+
+        named_match = re.fullmatch(r".+\s\((\d+)\)", safe_label)
+        if named_match is None:
+            return 0
+
+        model_id = max(0, _safe_int(named_match.group(1), 0))
+        if model_id <= 0 or self._get_model_entry(model_id) is None:
+            return 0
+        return model_id
+
+    def _format_preview_item_label(self, entry: ExecutionPlanEntry) -> str:
+        stored_label = str(getattr(entry, "label", "") or "").strip()
+        explicit_model_id = max(0, _safe_int(getattr(entry, "model_id", 0), 0))
+        model_id = explicit_model_id if explicit_model_id > 0 else self._extract_preview_label_model_id(stored_label)
+        if model_id <= 0:
+            return stored_label
+
+        catalog_name = str(self._get_model_name(model_id) or "").strip()
+        label_without_model = stored_label
+        named_match = re.fullmatch(r"(.+?)\s\((\d+)\)", stored_label)
+        if named_match is not None and max(0, _safe_int(named_match.group(2), 0)) == model_id:
+            label_without_model = str(named_match.group(1) or "").strip()
+
+        if not catalog_name:
+            generic_label = f"Model {model_id}".casefold()
+            if label_without_model and label_without_model.casefold() != generic_label:
+                catalog_name = label_without_model
+            elif stored_label and stored_label.casefold() != generic_label:
+                catalog_name = stored_label
+
+        if not catalog_name:
+            return f"Model {model_id}"
+
+        descriptor = self._get_model_descriptor(model_id)
+        if descriptor:
+            return f"{catalog_name} ({model_id}) [{descriptor}]"
+        return f"{catalog_name} ({model_id})"
+
     def _get_weapon_mod_label(self, identifier: str) -> str:
         safe_identifier = str(identifier or "").strip()
         if not safe_identifier:
@@ -4596,7 +4653,7 @@ class MerchantRulesWidget:
         removed_model_id = 0
         child_height = min(150, 28 + (22 * len(model_ids)))
         if PyImGui.begin_child(f"{section_name}_selected_{index}", (0, child_height), True, PyImGui.WindowFlags.NoFlag):
-            for model_id in model_ids:
+            for model_id in self._sort_model_ids_for_display(model_ids):
                 if PyImGui.small_button(f"X##{section_name}_remove_{index}_{model_id}"):
                     removed_model_id = model_id
                     break
@@ -4632,6 +4689,7 @@ class MerchantRulesWidget:
             )
             for target in normalized_targets
         ]
+        display_targets = self._sort_targets_by_model_label_for_display(updated_targets)
         removed_model_id = 0
         column_count = 2
         if show_merchant_column:
@@ -4667,7 +4725,7 @@ class MerchantRulesWidget:
                 PyImGui.table_set_column_index(remove_column_index)
                 PyImGui.text("Remove")
 
-                for target_row in updated_targets:
+                for target_row in display_targets:
                     PyImGui.table_next_row()
                     PyImGui.table_set_column_index(0)
                     PyImGui.text(self._format_model_label(target_row.model_id))
@@ -4720,7 +4778,7 @@ class MerchantRulesWidget:
         removed_identifier = ""
         child_height = min(150, 28 + (22 * len(identifiers)))
         if PyImGui.begin_child(f"{section_name}_selected_{index}", (0, child_height), True, PyImGui.WindowFlags.NoFlag):
-            for identifier in identifiers:
+            for identifier in self._sort_identifiers_for_display(identifiers, formatter):
                 if PyImGui.small_button(f"X##{section_name}_remove_{index}_{identifier}"):
                     removed_identifier = identifier
                     break
@@ -5247,6 +5305,7 @@ class MerchantRulesWidget:
                     label=label,
                     item_id=int(item.item_id),
                     quantity=move_quantity,
+                    model_id=int(item.model_id),
                 )
             )
             remaining -= move_quantity
@@ -5435,11 +5494,13 @@ class MerchantRulesWidget:
         quantity: int,
         label: str,
         reason: str,
+        model_id: int = 0,
         key: str = "",
         storage_open: bool = False,
     ) -> None:
         safe_item_id = int(item_id)
         safe_quantity = max(0, int(quantity))
+        safe_model_id = max(0, int(model_id))
         if safe_item_id <= 0 or safe_quantity <= 0:
             return
         safe_direction = str(direction)
@@ -5452,6 +5513,7 @@ class MerchantRulesWidget:
                 label=str(label or f"Item {safe_item_id}"),
                 item_id=safe_item_id,
                 quantity=safe_quantity,
+                model_id=safe_model_id,
             )
         )
         plan.entries.append(
@@ -5462,6 +5524,7 @@ class MerchantRulesWidget:
                 quantity=safe_quantity,
                 state=PLAN_STATE_WILL_EXECUTE if bool(storage_open) else PLAN_STATE_CONDITIONAL,
                 reason=str(reason or ""),
+                model_id=safe_model_id,
             )
         )
 
@@ -5473,11 +5536,13 @@ class MerchantRulesWidget:
         quantity: int,
         label: str,
         reason: str,
+        model_id: int = 0,
         key: str = "",
         storage_open: bool = False,
     ) -> None:
         safe_item_id = int(item_id)
         safe_quantity = max(0, int(quantity))
+        safe_model_id = max(0, int(model_id))
         if safe_item_id <= 0 or safe_quantity <= 0:
             return
         default_key = f"item:{safe_item_id}"
@@ -5487,6 +5552,7 @@ class MerchantRulesWidget:
             label=str(label or f"Item {safe_item_id}"),
             item_id=safe_item_id,
             quantity=safe_quantity,
+            model_id=safe_model_id,
         )
         plan.cleanup_transfers.append(transfer)
         plan.storage_transfers.append(transfer)
@@ -5498,6 +5564,7 @@ class MerchantRulesWidget:
                 quantity=safe_quantity,
                 state=PLAN_STATE_WILL_EXECUTE if bool(storage_open) else PLAN_STATE_CONDITIONAL,
                 reason=str(reason or ""),
+                model_id=safe_model_id,
             )
         )
 
@@ -5549,6 +5616,7 @@ class MerchantRulesWidget:
                             f"Blocked by {self._format_sell_rule_reference(rule_index, rule)}: "
                             f"{MERCHANT_TYPE_LABELS[destination]} selector was not resolved in the current map."
                         ),
+                        model_id=item.model_id,
                     )
                 )
                 continue
@@ -5567,7 +5635,15 @@ class MerchantRulesWidget:
 
             reason = "Standalone mod item." if destination == MERCHANT_TYPE_RUNE_TRADER else ""
             plan.entries.append(
-                ExecutionPlanEntry("sell", destination, item.name, item.quantity, "will execute", reason)
+                ExecutionPlanEntry(
+                    "sell",
+                    destination,
+                    item.name,
+                    item.quantity,
+                    "will execute",
+                    reason,
+                    model_id=item.model_id,
+                )
             )
             planned_sale_count += 1
             if destination == MERCHANT_TYPE_RUNE_TRADER:
@@ -5736,6 +5812,7 @@ class MerchantRulesWidget:
                     label=item.name,
                     item_id=item.item_id,
                     quantity=transfer_quantity,
+                    model_id=item.model_id,
                 )
             )
         return transfers
@@ -5856,6 +5933,7 @@ class MerchantRulesWidget:
                     item_id=transfer.item_id,
                     quantity=transfer.quantity,
                     label=transfer.label,
+                    model_id=transfer.model_id,
                     key=transfer.key,
                     reason=f"Cleanup target keeps {keep_on_character} on character.",
                     storage_open=storage_open,
@@ -5928,6 +6006,7 @@ class MerchantRulesWidget:
                         label=item.name,
                         item_id=item.item_id,
                         quantity=item.quantity,
+                        model_id=item.model_id,
                     )
                 )
                 self._append_cleanup_transfer_entry(
@@ -5935,6 +6014,7 @@ class MerchantRulesWidget:
                     item_id=item.item_id,
                     quantity=item.quantity,
                     label=item.name,
+                    model_id=item.model_id,
                     key=_make_model_stock_key(item.model_id),
                     reason=f"Protected by {rule_reference}: {detail}",
                     storage_open=storage_open,
@@ -6474,6 +6554,7 @@ class MerchantRulesWidget:
                             item.quantity,
                             PLAN_STATE_SKIPPED,
                             f"Blocked by {rule_reference}: {protection_reason}",
+                            model_id=item.model_id,
                         )
                     )
 
@@ -6508,6 +6589,7 @@ class MerchantRulesWidget:
                                 max(0, int(action.quantity_to_destroy)),
                                 PLAN_STATE_WILL_EXECUTE,
                                 " ".join(reason_parts),
+                                model_id=item.model_id,
                             )
                         )
                         planned_destroys += 1
@@ -6530,6 +6612,7 @@ class MerchantRulesWidget:
                                 keep_quantity,
                                 PLAN_STATE_SKIPPED,
                                 keep_reason,
+                                model_id=item.model_id,
                             )
                         )
 
@@ -6633,6 +6716,7 @@ class MerchantRulesWidget:
                     item.quantity,
                     PLAN_STATE_SKIPPED,
                     f"Blocked by {rule_reference}: {protection_reason}",
+                    model_id=item.model_id,
                 )
             )
 
@@ -6653,6 +6737,7 @@ class MerchantRulesWidget:
                     max(0, int(action.quantity_to_destroy)),
                     PLAN_STATE_WILL_EXECUTE,
                     " ".join(reason_parts),
+                    model_id=item.model_id,
                 )
             )
             planned_destroys += 1
@@ -7215,6 +7300,7 @@ class MerchantRulesWidget:
                         item.quantity,
                         PLAN_STATE_SKIPPED,
                         f"Hard-protected by {rule_reference}: {detail}",
+                        model_id=item.model_id,
                     )
                 )
 
@@ -7301,6 +7387,7 @@ class MerchantRulesWidget:
                                         f"Blocked by {rule_reference}: "
                                         f"{MERCHANT_TYPE_LABELS[sale.merchant_type]} selector was not resolved in the current map."
                                     ),
+                                    model_id=sale.model_id,
                                 )
                             )
                         else:
@@ -7313,6 +7400,7 @@ class MerchantRulesWidget:
                                     sale.quantity_to_sell,
                                     PLAN_STATE_WILL_EXECUTE,
                                     sale_reason,
+                                    model_id=sale.model_id,
                                 )
                             )
                     fallback_merchant_coords = coords.get(MERCHANT_TYPE_MERCHANT)
@@ -7345,6 +7433,7 @@ class MerchantRulesWidget:
                                             f"Blocked by {rule_reference}: "
                                             f"{MERCHANT_TYPE_LABELS[MERCHANT_TYPE_MERCHANT]} selector was not resolved in the current map."
                                         ),
+                                        model_id=item.model_id,
                                     )
                                 )
                             else:
@@ -7357,6 +7446,7 @@ class MerchantRulesWidget:
                                         remaining_quantity,
                                         PLAN_STATE_WILL_EXECUTE,
                                         merchant_reason,
+                                        model_id=item.model_id,
                                     )
                                 )
                             continue
@@ -7381,6 +7471,7 @@ class MerchantRulesWidget:
                                 remaining_quantity,
                                 PLAN_STATE_SKIPPED,
                                 keep_reason,
+                                model_id=item.model_id,
                             )
                         )
                 continue
@@ -7422,6 +7513,7 @@ class MerchantRulesWidget:
                                 item.quantity,
                                 PLAN_STATE_SKIPPED,
                                 f"Kept by {rule_reference}: reserved to satisfy keep count {target_keep_count}.",
+                                model_id=item.model_id,
                             )
                         )
 
@@ -7450,6 +7542,7 @@ class MerchantRulesWidget:
                                                 f"Blocked by {rule_reference}: "
                                                 f"{MERCHANT_TYPE_LABELS[MERCHANT_TYPE_MERCHANT]} selector was not resolved in the current map."
                                             ),
+                                            model_id=item.model_id,
                                         )
                                     )
                                 continue
@@ -7457,7 +7550,15 @@ class MerchantRulesWidget:
                             for item in destination_items:
                                 plan.merchant_sell_item_ids.append(item.item_id)
                                 plan.entries.append(
-                                    ExecutionPlanEntry("sell", MERCHANT_TYPE_MERCHANT, item.name, item.quantity, PLAN_STATE_WILL_EXECUTE, "")
+                                    ExecutionPlanEntry(
+                                        "sell",
+                                        MERCHANT_TYPE_MERCHANT,
+                                        item.name,
+                                        item.quantity,
+                                        PLAN_STATE_WILL_EXECUTE,
+                                        "",
+                                        model_id=item.model_id,
+                                    )
                                 )
                             continue
 
@@ -7476,6 +7577,7 @@ class MerchantRulesWidget:
                                                 f"Blocked by {rule_reference}: "
                                                 f"{MERCHANT_TYPE_LABELS[MERCHANT_TYPE_RUNE_TRADER]} selector was not resolved in the current map."
                                             ),
+                                            model_id=item.model_id,
                                         )
                                     )
                                 continue
@@ -7496,6 +7598,7 @@ class MerchantRulesWidget:
                                         item.quantity,
                                         PLAN_STATE_WILL_EXECUTE,
                                         "Standalone rune / insignia item.",
+                                        model_id=item.model_id,
                                     )
                                 )
                             continue
@@ -7528,6 +7631,7 @@ class MerchantRulesWidget:
                                     sale.quantity_to_sell,
                                     PLAN_STATE_WILL_EXECUTE,
                                     sale_reason,
+                                    model_id=sale.model_id,
                                 )
                             )
 
@@ -7557,6 +7661,7 @@ class MerchantRulesWidget:
                                                 f"Blocked by {rule_reference}: "
                                                 f"{MERCHANT_TYPE_LABELS[MERCHANT_TYPE_MERCHANT]} selector was not resolved in the current map."
                                             ),
+                                            model_id=item.model_id,
                                         )
                                     )
                                 else:
@@ -7569,6 +7674,7 @@ class MerchantRulesWidget:
                                             remaining_quantity,
                                             PLAN_STATE_WILL_EXECUTE,
                                             merchant_reason,
+                                            model_id=item.model_id,
                                         )
                                     )
                                 continue
@@ -7585,6 +7691,7 @@ class MerchantRulesWidget:
                                             f"Blocked by {rule_reference}: "
                                             f"{MERCHANT_TYPE_LABELS[destination]} selector was not resolved in the current map."
                                         ),
+                                        model_id=item.model_id,
                                     )
                                 )
                                 continue
@@ -7602,6 +7709,7 @@ class MerchantRulesWidget:
                                     remaining_quantity,
                                     PLAN_STATE_SKIPPED,
                                     keep_reason,
+                                    model_id=item.model_id,
                                 )
                             )
                 continue
@@ -9109,6 +9217,38 @@ class MerchantRulesWidget:
             return ", ".join(cleaned)
         return f"{', '.join(cleaned[:limit])} +{len(cleaned) - limit} more"
 
+    def _get_display_sort_text(self, value: object) -> str:
+        return str(value or "").strip().casefold()
+
+    def _get_model_display_sort_key(self, model_id: object) -> tuple[str, int]:
+        safe_model_id = max(0, _safe_int(model_id, 0))
+        return (self._get_display_sort_text(self._format_model_label(safe_model_id)), safe_model_id)
+
+    def _get_identifier_display_sort_key(self, identifier: object, formatter) -> tuple[str, str]:
+        safe_identifier = str(identifier or "").strip()
+        return (self._get_display_sort_text(formatter(safe_identifier)), safe_identifier.casefold())
+
+    def _sort_model_ids_for_display(self, model_ids: list[int]) -> list[int]:
+        return sorted(list(model_ids), key=self._get_model_display_sort_key)
+
+    def _sort_targets_by_model_label_for_display(self, targets: list[object]) -> list[object]:
+        return sorted(
+            list(targets),
+            key=lambda target: self._get_model_display_sort_key(getattr(target, "model_id", 0)),
+        )
+
+    def _sort_identifiers_for_display(self, identifiers: list[str], formatter) -> list[str]:
+        return sorted(
+            list(identifiers),
+            key=lambda identifier: self._get_identifier_display_sort_key(identifier, formatter),
+        )
+
+    def _sort_targets_by_identifier_label_for_display(self, targets: list[object], formatter) -> list[object]:
+        return sorted(
+            list(targets),
+            key=lambda target: self._get_identifier_display_sort_key(getattr(target, "identifier", ""), formatter),
+        )
+
     def _format_rule_index_list(self, indices: list[int], limit: int = 3, rules: list[object] | None = None) -> str:
         labels: list[str] = []
         for index in indices:
@@ -9246,7 +9386,10 @@ class MerchantRulesWidget:
                     parts.append(f"Max/run {int(rune_target.max_per_run)}")
                 return " | ".join(parts), True
 
-            target_labels = [self._get_rune_label(target.identifier) for target in rune_targets]
+            target_labels = [
+                self._get_rune_label(target.identifier)
+                for target in self._sort_targets_by_identifier_label_for_display(rune_targets, self._get_rune_label)
+            ]
             summary = self._format_compact_list(target_labels, limit=2) or f"{len(rune_targets)} rune target(s)"
             return f"{len(rune_targets)} target(s) | {summary}", True
         if normalized_rule.kind == BUY_KIND_MERCHANT_STOCK:
@@ -9264,14 +9407,20 @@ class MerchantRulesWidget:
                     parts.append(f"Max/run {int(merchant_stock_target.max_per_run)}")
                 return " | ".join(parts), True
 
-            target_labels = [self._get_model_name(target.model_id) or str(target.model_id) for target in merchant_stock_targets]
+            target_labels = [
+                self._get_model_name(target.model_id) or str(target.model_id)
+                for target in self._sort_targets_by_model_label_for_display(merchant_stock_targets)
+            ]
             summary = self._format_compact_list(target_labels, limit=2) or f"{len(merchant_stock_targets)} stock target(s)"
             return f"{len(merchant_stock_targets)} stock target(s) | {summary}", True
 
         material_targets = _normalize_material_targets(normalized_rule.material_targets)
         if not material_targets:
             return "Add one or more materials to maintain.", False
-        material_labels = [self._get_model_name(target.model_id) or str(target.model_id) for target in material_targets]
+        material_labels = [
+            self._get_model_name(target.model_id) or str(target.model_id)
+            for target in self._sort_targets_by_model_label_for_display(material_targets)
+        ]
         summary = self._format_compact_list(material_labels, limit=2) or f"{len(material_targets)} material target(s)"
         return f"{len(material_targets)} material target(s) | {summary}", True
 
@@ -9285,7 +9434,7 @@ class MerchantRulesWidget:
                 return "Pick the materials to sell.", False
             target_labels = [
                 f"{self._get_model_name(target.model_id) or str(target.model_id)} keep {int(target.keep_count)}"
-                for target in whitelist_targets
+                for target in self._sort_targets_by_model_label_for_display(whitelist_targets)
             ]
             summary = self._format_compact_list(target_labels, limit=2) or f"{len(whitelist_targets)} material target(s)"
             return f"{len(whitelist_targets)} material target(s) | {summary}", True
@@ -9295,7 +9444,7 @@ class MerchantRulesWidget:
                 return "Pick the items to sell.", False
             target_labels = [
                 f"{self._get_model_name(target.model_id) or str(target.model_id)} keep {int(target.keep_count)}"
-                for target in whitelist_targets
+                for target in self._sort_targets_by_model_label_for_display(whitelist_targets)
             ]
             summary = self._format_compact_list(target_labels, limit=2) or f"{len(whitelist_targets)} selected target(s)"
             return f"{len(whitelist_targets)} selected target(s) | {summary}", True
@@ -9334,7 +9483,7 @@ class MerchantRulesWidget:
                 return "Pick the materials to destroy.", False
             target_labels = [
                 f"{self._get_model_name(target.model_id) or str(target.model_id)} keep {int(target.keep_count)}"
-                for target in whitelist_targets
+                for target in self._sort_targets_by_model_label_for_display(whitelist_targets)
             ]
             summary = self._format_compact_list(target_labels, limit=2) or f"{len(whitelist_targets)} material target(s)"
             return f"{len(whitelist_targets)} material target(s) | {summary}", True
@@ -9344,7 +9493,7 @@ class MerchantRulesWidget:
                 return "Pick the items to destroy.", False
             target_labels = [
                 f"{self._get_model_name(target.model_id) or str(target.model_id)} keep {int(target.keep_count)}"
-                for target in whitelist_targets
+                for target in self._sort_targets_by_model_label_for_display(whitelist_targets)
             ]
             summary = self._format_compact_list(target_labels, limit=2) or f"{len(whitelist_targets)} selected target(s)"
             return f"{len(whitelist_targets)} selected target(s) | {summary}", True
@@ -11559,6 +11708,7 @@ class MerchantRulesWidget:
             )
             for merchant_stock_target in merchant_stock_targets
         ]
+        display_targets = self._sort_targets_by_model_label_for_display(updated_targets)
         removed_model_id = 0
         child_height = min(220, 58 + (32 * len(updated_targets)))
         if PyImGui.begin_child(f"buy_merchant_stock_selected_{index}", (0, child_height), True, PyImGui.WindowFlags.NoFlag):
@@ -11578,7 +11728,7 @@ class MerchantRulesWidget:
                 PyImGui.table_set_column_index(3)
                 PyImGui.text("Remove")
 
-                for target_row in updated_targets:
+                for target_row in display_targets:
                     PyImGui.table_next_row()
                     PyImGui.table_set_column_index(0)
                     PyImGui.text(self._format_model_label(target_row.model_id))
@@ -11644,6 +11794,7 @@ class MerchantRulesWidget:
             )
             for material_target in material_targets
         ]
+        display_targets = self._sort_targets_by_model_label_for_display(updated_targets)
         removed_model_id = 0
         child_height = min(220, 58 + (32 * len(updated_targets)))
         if PyImGui.begin_child(f"buy_material_targets_selected_{index}", (0, child_height), True, PyImGui.WindowFlags.NoFlag):
@@ -11666,7 +11817,7 @@ class MerchantRulesWidget:
                 PyImGui.table_set_column_index(4)
                 PyImGui.text("Remove")
 
-                for target_row in updated_targets:
+                for target_row in display_targets:
                     PyImGui.table_next_row()
                     PyImGui.table_set_column_index(0)
                     PyImGui.text(self._format_model_label(target_row.model_id))
@@ -11730,6 +11881,7 @@ class MerchantRulesWidget:
                 )
                 for target in rune_targets
             ]
+            display_targets = self._sort_targets_by_identifier_label_for_display(updated_targets, self._get_rune_label)
             removed_identifier = ""
             child_height = min(240, 58 + (32 * len(updated_targets)))
             if PyImGui.begin_child(f"buy_rune_targets_selected_{index}", (0, child_height), True, PyImGui.WindowFlags.NoFlag):
@@ -11752,7 +11904,7 @@ class MerchantRulesWidget:
                     PyImGui.table_set_column_index(4)
                     PyImGui.text("Remove")
 
-                    for target_row in updated_targets:
+                    for target_row in display_targets:
                         entry = self._get_rune_buy_entry(target_row.identifier) or {}
                         kind_label = str(entry.get("kind_label", "") or "Rune / Insignia")
 
@@ -12309,6 +12461,7 @@ class MerchantRulesWidget:
                 )
                 for requirement_rule in requirement_rules
             ]
+            display_rules = self._sort_targets_by_model_label_for_display(updated_rules)
             removed_model_id = 0
             child_height = min(220, 58 + (32 * len(updated_rules)))
             if PyImGui.begin_child(f"sell_weapon_requirement_selected_{index}", (0, child_height), True, PyImGui.WindowFlags.NoFlag):
@@ -12325,7 +12478,7 @@ class MerchantRulesWidget:
                     PyImGui.table_set_column_index(2)
                     PyImGui.text("Remove")
 
-                    for requirement_rule in updated_rules:
+                    for requirement_rule in display_rules:
                         PyImGui.table_next_row()
                         PyImGui.table_set_column_index(0)
                         PyImGui.text(self._format_model_label(requirement_rule.model_id))
@@ -13016,6 +13169,7 @@ class MerchantRulesWidget:
             )
             for target in cleanup_targets
         ]
+        display_targets = self._sort_targets_by_model_label_for_display(updated_targets)
         removed_cleanup_model_id = 0
         if updated_targets:
             child_height = min(220, 58 + (32 * len(updated_targets)))
@@ -13033,7 +13187,7 @@ class MerchantRulesWidget:
                     PyImGui.table_set_column_index(2)
                     PyImGui.text("Remove")
 
-                    for target in updated_targets:
+                    for target in display_targets:
                         PyImGui.table_next_row()
                         PyImGui.table_set_column_index(0)
                         PyImGui.text(self._format_model_label(target.model_id))
@@ -13413,10 +13567,11 @@ class MerchantRulesWidget:
                 PyImGui.text_colored(MERCHANT_TYPE_LABELS.get(entry.merchant_type, str(entry.merchant_type)), text_color)
 
                 PyImGui.table_set_column_index(2)
+                item_label = self._format_preview_item_label(entry)
                 if muted:
-                    PyImGui.text_colored(entry.label, UI_COLOR_MUTED)
+                    PyImGui.text_colored(item_label, UI_COLOR_MUTED)
                 else:
-                    PyImGui.text(entry.label)
+                    PyImGui.text(item_label)
                 if (show_reasons or is_conditional) and entry.reason:
                     self._draw_secondary_text(entry.reason)
 
