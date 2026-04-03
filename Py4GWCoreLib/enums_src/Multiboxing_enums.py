@@ -1,68 +1,70 @@
-from enum import Enum
+from enum import auto
 from enum import IntEnum
 
 class SharedCommandType(IntEnum):
-    NoCommand = 0
-    TravelToMap = 1
-    InviteToParty = 2
-    InteractWithTarget = 3
-    TakeDialogWithTarget = 4
-    GetBlessing = 5
-    OpenChest = 6
-    PickUpLoot = 7
-    UseSkill = 8
-    Resign = 9
-    PixelStack = 10
-    PCon = 11
-    IdentifyItems = 12
-    SalvageItems = 13
-    MerchantItems = 14
-    MerchantMaterials = 15
-    DisableHeroAI = 16
-    EnableHeroAI = 17
-    LeaveParty = 18
-    PressKey = 19
-    DonateToGuild = 20
-    SendDialogToTarget = 21
-    BruteForceUnstuck = 22
-    SetWindowGeometry = 23
-    SetWindowActive = 24
-    SetWindowTitle = 25
-    SetBorderless = 26
-    SetAlwaysOnTop = 27
-    FlashWindow = 28
-    RequestAttention = 29
-    SetTransparentClickThrough = 30
-    SetOpacity = 31
-    UseItem = 32
-    PauseWidgets = 33
-    ResumeWidgets = 34
-    SwitchCharacter = 35
-    LoadSkillTemplate = 36
-    SkipCutscene = 37
-    SendDialog = 38
-    TravelToGuildHall = 39
+    NoCommand = auto()
+    TravelToMap = auto()
+    InviteToParty = auto()
+    InteractWithTarget = auto()
+    TakeDialogWithTarget = auto()
+    GetBlessing = auto()
+    OpenChest = auto()
+    PickUpLoot = auto()
+    UseSkill = auto()
+    Resign = auto()
+    PixelStack = auto()
+    PCon = auto()
+    IdentifyItems = auto()
+    SalvageItems = auto()
+    MerchantItems = auto()
+    MerchantMaterials = auto()
+    DisableHeroAI = auto()
+    EnableHeroAI = auto()
+    LeaveParty = auto()
+    PressKey = auto()
+    DonateToGuild = auto()
+    SendDialogToTarget = auto()
+    BruteForceUnstuck = auto()
+    SetWindowGeometry = auto()
+    SetWindowActive = auto()
+    SetWindowTitle = auto()
+    SetBorderless = auto()
+    SetAlwaysOnTop = auto()
+    FlashWindow = auto()
+    RequestAttention = auto()
+    SetTransparentClickThrough = auto()
+    SetOpacity = auto()
+    UseItem = auto()
+    PauseWidgets = auto()
+    ResumeWidgets = auto()
+    SwitchCharacter = auto()
+    LoadSkillTemplate = auto()
+    SkipCutscene = auto()
+    SendDialog = auto()
+    TravelToGuildHall = auto()
     
-    SetActiveQuest = 40
-    AbandonQuest = 41
+    SetActiveQuest = auto()
+    AbandonQuest = auto()
 
-    RestockAllPcons = 42
-    RestockConset = 43
-    RestockResurrectionScroll = 44
-    EnableWidget = 45
-    DisableWidget = 46
-    InventoryQuery = 47
-    EquipItem = 48
-    MerchantRules = 49
+    RestockAllPcons = auto()
+    RestockConset = auto()
+    RestockResurrectionScroll = auto()
+    EnableWidget = auto()
+    DisableWidget = auto()
+    InventoryQuery = auto()
+    EquipItem = auto()
+    MerchantRules = auto()
+    RefreshHeroAIBuilds = auto()
 
-    MultiBoxing = 990 # privately Handled Command, by frenkey
-    CustomBehaviors = 997 # privately Handled Command, used in CustomBehaviors widget
-    UseSkillCombatPrep = 998 #handled in CombatPrep only by Mark
-    LootEx = 999 # privately Handled Command, by frenkey
-
+    #region privately Handled Commands
+    MultiBoxing = auto() # privately Handled Command, by frenkey
+    CustomBehaviors = auto() # privately Handled Command, used in CustomBehaviors widget
+    UseSkillCombatPrep = auto() #handled in CombatPrep only by Mark
+    LootEx = auto() # privately Handled Command, by frenkey
+    #endregion
     
 
 
 class CombatPrepSkillsType(IntEnum):
-    SpiritsPrep = 1
-    ShoutsPrep = 2
+    SpiritsPrep = auto()
+    ShoutsPrep = auto()
