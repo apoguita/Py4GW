@@ -296,6 +296,7 @@ MERCHANT_RULES_OPCODE_ERROR_RESULT = 199
 PLAN_STATE_WILL_EXECUTE = "will execute"
 PLAN_STATE_CONDITIONAL = "conditional"
 PLAN_STATE_SKIPPED = "skipped"
+PROJECTED_PREVIEW_CONTEXT_COORDS = (0.0, 0.0)
 UI_COLOR_INFO = (0.30, 0.72, 1.00, 1.0)
 UI_COLOR_SUCCESS = (0.18, 0.86, 0.40, 1.0)
 UI_COLOR_WARNING = (1.00, 0.76, 0.20, 1.0)
@@ -1779,6 +1780,9 @@ class MerchantRulesWidget:
         self.favorite_outpost_ids: list[int] = []
         self.preview_plan = PlanResult()
         self.preview_ready = False
+        self.preview_requires_execute_travel = False
+        self.preview_execute_travel_target_outpost_id = 0
+        self.preview_execute_travel_target_outpost_name = ""
         self.execution_running = False
         self.travel_preview_running = False
         self.instant_destroy_running = False
@@ -2916,6 +2920,33 @@ class MerchantRulesWidget:
         self.last_preview_compare_duration_ms = 0.0
         self.execute_drift_requires_confirmation = False
 
+    def _clear_preview_projection_state(self):
+        self.preview_requires_execute_travel = False
+        self.preview_execute_travel_target_outpost_id = 0
+        self.preview_execute_travel_target_outpost_name = ""
+
+    def _set_preview_projection_state(
+        self,
+        *,
+        requires_travel: bool = False,
+        target_outpost_id: int = 0,
+        target_outpost_name: str = "",
+    ):
+        if not requires_travel:
+            self._clear_preview_projection_state()
+            return
+        self.preview_requires_execute_travel = True
+        self.preview_execute_travel_target_outpost_id = max(0, int(target_outpost_id))
+        self.preview_execute_travel_target_outpost_name = str(target_outpost_name or "").strip()
+
+    def _preview_has_execute_travel_pending(self) -> bool:
+        return bool(
+            self.preview_ready
+            and self.preview_requires_execute_travel
+            and self.preview_execute_travel_target_outpost_id > 0
+            and self.preview_execute_travel_target_outpost_name
+        )
+
     def _clear_runtime_diagnostics(self):
         self.inventory_modifier_cache_hits = 0
         self.inventory_modifier_cache_misses = 0
@@ -2970,6 +3001,7 @@ class MerchantRulesWidget:
     def _reset_runtime_after_profile_load(self, *, status_message: str = ""):
         self.preview_plan = PlanResult()
         self.preview_ready = False
+        self._clear_preview_projection_state()
         self.last_error = ""
         self.last_execution_summary = ""
         self.last_cleanup_summary = ""
@@ -3053,6 +3085,7 @@ class MerchantRulesWidget:
             self.map_snapshot = current_map_id
             self.preview_ready = False
             self.preview_plan = PlanResult()
+            self._clear_preview_projection_state()
             self._clear_preview_inventory_diff()
 
         if map_changed or map_ready_changed or instance_changed:
@@ -3246,9 +3279,6 @@ class MerchantRulesWidget:
         self._clear_preview_inventory_diff()
         if not self.preview_ready:
             self.preview_inventory_diff_summary = "Run Preview before comparing inventory drift."
-            return False
-        if self.preview_plan.travel_to_outpost_id > 0:
-            self.preview_inventory_diff_summary = "Travel previews do not capture an inventory snapshot until the target outpost is reached."
             return False
         if not self.preview_plan.inventory_snapshot_captured:
             self.preview_inventory_diff_summary = "This preview did not capture an inventory snapshot to compare."
@@ -3644,6 +3674,17 @@ class MerchantRulesWidget:
         if current_map_id is None:
             current_map_id = int(Map.GetMapID() or 0)
         return Map.IsMapIDMatch(int(current_map_id or 0), safe_outpost_id)
+
+    def _get_preview_projection_target(self) -> tuple[int, str]:
+        target_outpost_id = max(0, int(self.target_outpost_id)) if self.auto_travel_enabled else 0
+        if target_outpost_id <= 0:
+            return 0, ""
+        target_outpost_name = self._get_outpost_name(target_outpost_id)
+        if not target_outpost_name:
+            return 0, ""
+        if self._is_travel_target_reached(target_outpost_id):
+            return 0, ""
+        return target_outpost_id, target_outpost_name
 
     def _travel_to_target_outpost(self, target_outpost_id: int):
         safe_outpost_id = max(0, _safe_int(target_outpost_id, 0))
@@ -4898,6 +4939,7 @@ class MerchantRulesWidget:
 
     def _mark_preview_dirty(self, message: str = ""):
         self.preview_ready = False
+        self._clear_preview_projection_state()
         self._clear_preview_inventory_diff()
         if message:
             self.status_message = message
@@ -5024,6 +5066,74 @@ class MerchantRulesWidget:
         if not supported_map or resolved_count < len(coords):
             self._debug_log(f"Context detail: {reason}")
         return self.cached_supported_context
+
+    def _get_projected_supported_context(self, target_outpost_id: int) -> tuple[bool, str, dict[str, tuple[float, float] | None]]:
+        safe_outpost_id = max(0, _safe_int(target_outpost_id, 0))
+        outpost_name = self._get_outpost_name(safe_outpost_id)
+        coords: dict[str, tuple[float, float] | None] = {
+            MERCHANT_TYPE_MERCHANT: PROJECTED_PREVIEW_CONTEXT_COORDS,
+            MERCHANT_TYPE_MATERIALS: PROJECTED_PREVIEW_CONTEXT_COORDS,
+            MERCHANT_TYPE_RUNE_TRADER: PROJECTED_PREVIEW_CONTEXT_COORDS,
+            MERCHANT_TYPE_RARE_MATERIALS: PROJECTED_PREVIEW_CONTEXT_COORDS,
+        }
+        if safe_outpost_id <= 0 or not outpost_name:
+            return False, "Projected preview target is not configured.", {
+                MERCHANT_TYPE_MERCHANT: None,
+                MERCHANT_TYPE_MATERIALS: None,
+                MERCHANT_TYPE_RUNE_TRADER: None,
+                MERCHANT_TYPE_RARE_MATERIALS: None,
+            }
+
+        selector_mode = "specific merchant selectors" if safe_outpost_id in SUPPORTED_MAP_NPC_SELECTORS else "generic merchant selectors"
+        arrival_label = "Guild Hall arrival" if self._is_guild_hall_target(safe_outpost_id) else "arrival"
+        reason = (
+            f"Projected preview for {outpost_name} ({safe_outpost_id}). "
+            f"Execute will auto-travel, then rebuild live merchant handling after {arrival_label} using {selector_mode}. "
+            "Destination NPC and storage access will be confirmed on arrival."
+        )
+        return True, reason, coords
+
+    def _is_projected_destination_entry(self, entry: ExecutionPlanEntry) -> bool:
+        action_type = str(entry.action_type)
+        merchant_type = str(entry.merchant_type)
+        if merchant_type in (
+            MERCHANT_TYPE_MERCHANT,
+            MERCHANT_TYPE_MATERIALS,
+            MERCHANT_TYPE_RUNE_TRADER,
+            MERCHANT_TYPE_RARE_MATERIALS,
+        ):
+            return action_type in {"buy", "sell"}
+        if merchant_type == MERCHANT_TYPE_STORAGE:
+            return action_type in {"deposit", "withdraw"}
+        return False
+
+    def _get_projected_preview_reason_suffix(self, merchant_type: str, target_outpost_name: str) -> str:
+        target_label = str(target_outpost_name or "").strip() or "the selected outpost"
+        if str(merchant_type) == MERCHANT_TYPE_STORAGE:
+            return f"Projected after travel to {target_label}. Execute will reopen Xunlai after arrival."
+        merchant_label = MERCHANT_TYPE_LABELS.get(str(merchant_type), "merchant handling")
+        return (
+            f"Projected after travel to {target_label}. "
+            f"Execute will confirm live {merchant_label} access on arrival."
+        )
+
+    def _append_projected_preview_reason(self, reason: str, merchant_type: str, target_outpost_name: str) -> str:
+        suffix = self._get_projected_preview_reason_suffix(merchant_type, target_outpost_name)
+        normalized_reason = str(reason or "").strip()
+        if suffix and suffix in normalized_reason:
+            return normalized_reason
+        if not normalized_reason:
+            return suffix
+        return f"{normalized_reason} {suffix}".strip()
+
+    def _apply_projected_preview_post_processing(self, plan: PlanResult, target_outpost_name: str):
+        for entry in plan.entries:
+            if not self._is_projected_destination_entry(entry):
+                continue
+            if str(entry.state) == PLAN_STATE_WILL_EXECUTE:
+                entry.state = PLAN_STATE_CONDITIONAL
+            if str(entry.state) == PLAN_STATE_CONDITIONAL:
+                entry.reason = self._append_projected_preview_reason(entry.reason, entry.merchant_type, target_outpost_name)
 
     def _build_travel_preview(self, target_outpost_id: int) -> PlanResult:
         safe_outpost_id = max(0, _safe_int(target_outpost_id, 0))
@@ -5871,8 +5981,11 @@ class MerchantRulesWidget:
         enabled_sell_rules: list[tuple[int, SellRule]],
         *,
         storage_open: bool = False,
+        storage_context_available: bool | None = None,
     ) -> None:
-        if not self._can_use_local_storage_actions():
+        if storage_context_available is None:
+            storage_context_available = self._can_use_local_storage_actions()
+        if not storage_context_available:
             return
 
         cleanup_items = list(items)
@@ -7231,18 +7344,31 @@ class MerchantRulesWidget:
                         )
                     )
 
-    def _build_plan(self, *, cleanup_only: bool = False) -> PlanResult:
+    def _build_plan(self, *, cleanup_only: bool = False, projected_preview: bool = False) -> PlanResult:
         started_at = time.perf_counter()
+        projected_target_outpost_id = 0
+        projected_target_outpost_name = ""
+        projected_destination_context = False
         if not cleanup_only:
             target_outpost_id = max(0, int(self.target_outpost_id)) if self.auto_travel_enabled else 0
             current_map_id = int(Map.GetMapID() or 0)
-            if target_outpost_id > 0 and not self._is_travel_target_reached(target_outpost_id, current_map_id):
+            if projected_preview:
+                projected_target_outpost_id, projected_target_outpost_name = self._get_preview_projection_target()
+                projected_destination_context = projected_target_outpost_id > 0 and bool(projected_target_outpost_name)
+            if (
+                not projected_destination_context
+                and target_outpost_id > 0
+                and not self._is_travel_target_reached(target_outpost_id, current_map_id)
+            ):
                 travel_plan = self._build_travel_preview(target_outpost_id)
                 self._log_plan_summary("Plan built", travel_plan)
                 self.last_plan_build_duration_ms = max(0.0, (time.perf_counter() - started_at) * 1000.0)
                 return travel_plan
 
-        supported_map, supported_reason, coords = self._get_supported_context()
+        if projected_destination_context:
+            supported_map, supported_reason, coords = self._get_projected_supported_context(projected_target_outpost_id)
+        else:
+            supported_map, supported_reason, coords = self._get_supported_context()
         plan = PlanResult(
             supported_map=supported_map,
             supported_reason=supported_reason,
@@ -7259,7 +7385,7 @@ class MerchantRulesWidget:
         plan.inventory_snapshot_captured = True
         plan.inventory_model_counts = dict(model_counts)
         plan.inventory_item_count = len(items)
-        storage_context_ready = self._can_use_local_storage_actions()
+        storage_context_ready = projected_destination_context or self._can_use_local_storage_actions()
         storage_api = getattr(GLOBAL_CACHE, "Inventory", None)
         storage_open = bool(storage_api is not None and bool(getattr(storage_api, "IsStorageOpen", lambda: False)()))
         storage_items: list[InventoryItemInfo] = []
@@ -7727,7 +7853,10 @@ class MerchantRulesWidget:
             sim_inventory_items,
             enabled_sell_rules,
             storage_open=storage_open,
+            storage_context_available=storage_context_ready,
         )
+        if projected_destination_context:
+            self._apply_projected_preview_post_processing(plan, projected_target_outpost_name)
         plan.has_actions = bool(
             plan.destroy_actions
             or plan.destroy_item_ids
@@ -8449,10 +8578,27 @@ class MerchantRulesWidget:
 
     def _scan_preview(self):
         self._invalidate_supported_context_cache()
-        self.preview_plan = self._build_plan()
+        projected_target_outpost_id, projected_target_outpost_name = self._get_preview_projection_target()
+        self.preview_plan = self._build_plan(projected_preview=True)
         self.preview_ready = True
+        self._set_preview_projection_state(
+            requires_travel=projected_target_outpost_id > 0,
+            target_outpost_id=projected_target_outpost_id,
+            target_outpost_name=projected_target_outpost_name,
+        )
         self._clear_preview_inventory_diff()
-        if self.preview_plan.has_actions:
+        if self._preview_has_execute_travel_pending():
+            if self.preview_plan.has_actions:
+                self.status_message = (
+                    f"Projected preview complete. Execute will travel to {projected_target_outpost_name}, "
+                    "rebuild live, and then run the merchant plan."
+                )
+            else:
+                self.status_message = (
+                    f"Projected preview complete. Execute will still travel to {projected_target_outpost_name}, "
+                    "but no merchant work is currently projected."
+                )
+        elif self.preview_plan.has_actions:
             self.status_message = "Preview complete. Review the plan, then execute when ready."
         else:
             self.status_message = "Preview complete. No actionable merchant work was found."
@@ -8482,6 +8628,7 @@ class MerchantRulesWidget:
             self._invalidate_supported_context_cache()
             self.preview_plan = self._build_plan()
             self.preview_ready = True
+            self._clear_preview_projection_state()
             self._clear_preview_inventory_diff()
             if self.preview_plan.travel_to_outpost_id > 0:
                 self.status_message = "Travel preview completed, but the target outpost still needs to be reached."
@@ -8558,6 +8705,7 @@ class MerchantRulesWidget:
         phase_summaries: list[str] = []
         try:
             self._invalidate_supported_context_cache()
+            self._clear_preview_projection_state()
             plan = self._build_plan()
             self.preview_plan = plan
             self._log_plan_summary("Execution start", plan)
@@ -8577,6 +8725,7 @@ class MerchantRulesWidget:
                 yield from Routines.Yield.wait(300)
                 plan = self._build_plan()
                 self.preview_plan = plan
+                self._clear_preview_projection_state()
                 self._log_plan_summary("Execution post-travel plan", plan)
             if not plan.supported_map:
                 if not self._plan_has_local_destroy_actions(plan) and not self._plan_has_local_storage_actions(plan):
@@ -8604,6 +8753,7 @@ class MerchantRulesWidget:
                     self._invalidate_supported_context_cache()
                     plan = self._build_plan()
                     self.preview_plan = plan
+                    self._clear_preview_projection_state()
                     self._log_plan_summary("Execution storage-refreshed plan", plan)
                 else:
                     storage_scan_failed = True
@@ -8719,6 +8869,7 @@ class MerchantRulesWidget:
                     self._invalidate_supported_context_cache()
                     plan = self._build_plan()
                     self.preview_plan = plan
+                    self._clear_preview_projection_state()
                     self._log_plan_summary("Execution post-storage plan", plan)
                     rune_trader_coords = plan.coords.get(MERCHANT_TYPE_RUNE_TRADER)
                 else:
@@ -9209,6 +9360,13 @@ class MerchantRulesWidget:
             for entry in plan.entries
         )
 
+    def _can_run_preview_exact_storage_scan(self) -> bool:
+        return bool(
+            self.preview_ready
+            and self._can_use_local_storage_actions()
+            and self._plan_needs_exact_storage_scan(self.preview_plan)
+        )
+
     def _format_compact_list(self, labels: list[str], limit: int = 2) -> str:
         cleaned = [str(label).strip() for label in labels if str(label).strip()]
         if not cleaned:
@@ -9273,6 +9431,17 @@ class MerchantRulesWidget:
         if self.execution_running or self.travel_preview_running or self.instant_destroy_running or self.storage_scan_running or self.auto_cleanup_running:
             return "Busy", UI_COLOR_WARNING, "Preview, cleanup, storage scan, or execution is currently running."
         if self.preview_ready:
+            if self._preview_has_execute_travel_pending():
+                target_label = self.preview_execute_travel_target_outpost_name or "the selected outpost"
+                detail = (
+                    f"Preview is projected assuming Auto Travel reaches {target_label}. "
+                    "Execute will travel, rebuild live merchant handling, and then run the plan."
+                )
+                if actionable:
+                    return "Projected", UI_COLOR_INFO, detail
+                if skipped:
+                    return "Projected", UI_COLOR_MUTED, detail
+                return "Projected", UI_COLOR_MUTED, detail
             if actionable:
                 return "Ready", UI_COLOR_SUCCESS, f"{len(actionable)} action(s) queued from the current preview."
             if skipped:
@@ -10564,11 +10733,11 @@ class MerchantRulesWidget:
         local_destroy_ready = self._plan_has_local_destroy_actions(self.preview_plan)
         local_storage_ready = self._plan_has_local_storage_actions(self.preview_plan)
         conditional_cleanup_ready = self._plan_has_conditional_cleanup_actions(self.preview_plan)
-        if self.preview_plan.travel_to_outpost_id > 0:
-            status_label = "Travel"
-            summary = f"Travel first: {self.preview_plan.travel_to_outpost_name}"
-        elif actionable_count > 0:
-            if not self.preview_plan.supported_map and local_destroy_ready and not local_storage_ready:
+        projected_preview = self._preview_has_execute_travel_pending()
+        if actionable_count > 0:
+            if projected_preview:
+                status_label = "Projected"
+            elif not self.preview_plan.supported_map and local_destroy_ready and not local_storage_ready:
                 status_label = "Destroy Ready"
             else:
                 status_label = "Conditional" if direct_count <= 0 and conditional_count > 0 else "Ready"
@@ -10576,14 +10745,28 @@ class MerchantRulesWidget:
             if conditional_count > 0:
                 summary_parts.append(f"{conditional_count} conditional")
             summary = ", ".join(summary_parts) + "."
+        elif projected_preview:
+            status_label = "No Actions"
+            summary = "No actionable merchant work found."
         elif not self.preview_plan.supported_map:
             status_label = "Unsupported"
             summary = self.preview_plan.supported_reason or "Current map is not supported."
         else:
             status_label = "No Actions"
             summary = "No actionable merchant work found."
-        if self.preview_plan.travel_to_outpost_id > 0:
-            detail = self.preview_plan.supported_reason or self.status_message
+
+        if projected_preview:
+            target_label = self.preview_execute_travel_target_outpost_name or "the selected outpost"
+            detail_parts = [
+                f"Projected after travel to {target_label}. Execute will auto-travel and rebuild live merchant handling on arrival.",
+            ]
+            if self._plan_needs_exact_storage_scan(self.preview_plan):
+                detail_parts.append("Storage-aware rune planning is still partial until Xunlai is opened for an exact storage scan.")
+            elif conditional_cleanup_ready:
+                detail_parts.append("Planned Xunlai cleanup work will execute if storage can be opened after arrival.")
+            elif conditional_count > 0:
+                detail_parts.append("Conditional entries remain estimated until the destination context is confirmed.")
+            detail = " ".join(detail_parts).strip()
         elif actionable_count > 0 and not self.preview_plan.supported_map and local_destroy_ready and local_storage_ready:
             detail = (
                 "Merchant NPCs are unavailable here, but local destroy actions and Xunlai cleanup work are still ready."
@@ -10606,8 +10789,10 @@ class MerchantRulesWidget:
             detail = "Planned Xunlai cleanup work will execute if storage can be opened at runtime."
         elif conditional_count > 0:
             detail = "Conditional actions need live merchant or trader confirmation at runtime."
-        else:
+        elif actionable_count > 0:
             detail = self.status_message or self.preview_plan.supported_reason
+        else:
+            detail = self.status_message or self.preview_plan.supported_reason or summary
         return {
             "opcode": MERCHANT_RULES_OPCODE_PREVIEW_RESULT,
             "primary_count": actionable_count,
@@ -10914,11 +11099,13 @@ class MerchantRulesWidget:
                 wrapped=False,
             )
         self._draw_secondary_text(preview_detail)
-        if self.preview_ready and supported_map and self._plan_needs_exact_storage_scan(self.preview_plan):
-            PyImGui.text_colored(
-                "Storage-aware planning is still partial. Use Open Xunlai for exact storage scan to confirm exact withdraws and make Xunlai steps direct before Execute.",
-                UI_COLOR_WARNING,
+        if self.preview_ready and self._plan_needs_exact_storage_scan(self.preview_plan):
+            exact_scan_message = (
+                "Storage-aware planning is still partial. Use Open Xunlai for exact storage scan to confirm exact withdraws and make Xunlai steps direct before Execute."
+                if self._can_use_local_storage_actions()
+                else "Storage-aware planning is still partial. Exact Xunlai counts will stay estimated until Execute reaches an outpost or Guild Hall and can open storage."
             )
+            PyImGui.text_colored(exact_scan_message, UI_COLOR_WARNING)
         elif self.preview_ready and str(self.preview_plan.storage_plan_state) == STORAGE_PLAN_STATE_EXACT_READY:
             self._draw_secondary_text("Xunlai is open, so storage-aware planning is using exact inventory + storage counts where needed.")
         elif self.preview_ready and self._plan_has_conditional_cleanup_actions(self.preview_plan):
@@ -11025,7 +11212,7 @@ class MerchantRulesWidget:
             if self.target_outpost_id > 0:
                 self._draw_secondary_text(self._get_outpost_selector_guidance(self.target_outpost_id))
             else:
-                self._draw_secondary_text("Travel + Preview will stay disabled until you choose an outpost.")
+                self._draw_secondary_text("Auto-travel stays idle until you choose an outpost. Preview uses the current live context until then.")
 
         if PyImGui.collapsing_header("Travel Settings##merchant_rules_travel_settings"):
             self._draw_travel_section()
@@ -11081,7 +11268,7 @@ class MerchantRulesWidget:
                 if Map.IsMapIDMatch(current_map_id, self.target_outpost_id):
                     PyImGui.text_wrapped("You are already in the selected outpost, so preview will show the full merchant plan.")
                 else:
-                    PyImGui.text_wrapped("Preview will show a travel step first until you arrive in the selected outpost.")
+                    PyImGui.text_wrapped("Preview projects the post-travel plan. Execute will travel there, rebuild live merchant handling, and then run it.")
             else:
                 PyImGui.text_wrapped("No specific target selected. Auto-travel stays idle until you choose an outpost.")
 
@@ -13572,8 +13759,9 @@ class MerchantRulesWidget:
                     PyImGui.text_colored(item_label, UI_COLOR_MUTED)
                 else:
                     PyImGui.text(item_label)
-                if (show_reasons or is_conditional) and entry.reason:
-                    self._draw_secondary_text(entry.reason)
+                displayed_reason = self._get_preview_reason_for_display(entry)
+                if (show_reasons or is_conditional) and displayed_reason:
+                    self._draw_secondary_text(displayed_reason)
 
                 PyImGui.table_set_column_index(3)
                 if muted:
@@ -13582,6 +13770,24 @@ class MerchantRulesWidget:
                     PyImGui.text(quantity_text)
 
             PyImGui.end_table()
+
+    def _get_preview_reason_for_display(self, entry: ExecutionPlanEntry) -> str:
+        reason = str(entry.reason or "").strip()
+        if not reason or not self._preview_has_execute_travel_pending():
+            return reason
+
+        target_outpost_name = self.preview_execute_travel_target_outpost_name or "the selected outpost"
+        suffix = self._get_projected_preview_reason_suffix(entry.merchant_type, target_outpost_name)
+        if not suffix:
+            return reason
+        if reason == suffix:
+            return ""
+        spaced_suffix = f" {suffix}"
+        if reason.endswith(spaced_suffix):
+            return reason[: -len(spaced_suffix)].rstrip()
+        if reason.endswith(suffix):
+            return reason[: -len(suffix)].rstrip()
+        return reason
 
     def _draw_preview_section(self):
         actionable_entries, skipped_entries = self._split_preview_entries(self.preview_plan.entries)
@@ -13606,9 +13812,14 @@ class MerchantRulesWidget:
                     if self.preview_inventory_diff_rows:
                         for diff_row in self.preview_inventory_diff_rows:
                             self._draw_secondary_text(diff_row)
-                if self.preview_plan.supported_map and self._plan_needs_exact_storage_scan(self.preview_plan):
+                if self._plan_needs_exact_storage_scan(self.preview_plan):
+                    exact_scan_message = (
+                        "Storage-aware planning is still partial. Use Open Xunlai for exact storage scan to turn storage-backed shortages into exact withdraw steps and direct Xunlai actions."
+                        if self._can_use_local_storage_actions()
+                        else "Storage-aware planning is still partial. Xunlai counts will stay estimated until Execute reaches an outpost or Guild Hall and can open storage."
+                    )
                     PyImGui.text_colored(
-                        "Storage-aware planning is still partial. Use Open Xunlai for exact storage scan to turn storage-backed shortages into exact withdraw steps and direct Xunlai actions.",
+                        exact_scan_message,
                         UI_COLOR_WARNING,
                     )
                     PyImGui.spacing()
@@ -13623,6 +13834,13 @@ class MerchantRulesWidget:
                         "* Conditional entries wait for live merchant or trader context. Merchant stock must be offered live, and Rune Trader buys depend on exact current trader offers.",
                         UI_COLOR_WARNING,
                     )
+                if self._preview_has_execute_travel_pending():
+                    target_label = self.preview_execute_travel_target_outpost_name or "the selected outpost"
+                    PyImGui.text_colored(
+                        f"* Projected preview assumes Auto Travel reaches {target_label}. Execute will travel there and rebuild live before running merchant handling.",
+                        UI_COLOR_INFO,
+                    )
+                if conditional_count > 0 or self._preview_has_execute_travel_pending():
                     PyImGui.spacing()
                 if actionable_entries:
                     self._draw_preview_entries_table("merchant_preview_actions", actionable_entries)
@@ -13644,17 +13862,11 @@ class MerchantRulesWidget:
     def _draw_overview_actions(self):
         self._draw_section_heading("Actions")
         preview_reason = self._get_action_block_reason("preview")
-        travel_preview_reason = self._get_action_block_reason("travel_preview")
         execute_reason = self._get_action_block_reason("execute")
         cleanup_reason = self._get_action_block_reason("cleanup")
 
         PyImGui.begin_disabled(bool(preview_reason))
         preview_clicked = PyImGui.button("Preview Plan")
-        PyImGui.end_disabled()
-
-        PyImGui.same_line(0, 8)
-        PyImGui.begin_disabled(bool(travel_preview_reason))
-        travel_preview_clicked = PyImGui.button("Travel + Preview")
         PyImGui.end_disabled()
 
         PyImGui.same_line(0, 8)
@@ -13664,20 +13876,18 @@ class MerchantRulesWidget:
 
         PyImGui.same_line(0, 8)
         PyImGui.begin_disabled(bool(cleanup_reason))
-        cleanup_clicked = PyImGui.button("Run Cleanup Now")
+        run_cleanup_clicked = PyImGui.button("Run Cleanup Now##merchant_rules_overview_run_cleanup")
         PyImGui.end_disabled()
 
         action_hint = (
             self.preview_inventory_diff_summary
             if self.execute_drift_requires_confirmation and self.preview_inventory_diff_summary
-            else execute_reason or travel_preview_reason or preview_reason
+            else execute_reason or preview_reason or cleanup_reason
         )
         if action_hint:
             self._draw_secondary_text(action_hint)
-        if cleanup_reason and cleanup_reason != action_hint:
-            self._draw_secondary_text(f"Run Cleanup Now: {cleanup_reason}")
 
-        if self.preview_ready and self.preview_plan.supported_map and self._plan_needs_exact_storage_scan(self.preview_plan):
+        if self._can_run_preview_exact_storage_scan():
             PyImGui.begin_disabled(bool(preview_reason))
             storage_scan_clicked = PyImGui.button("Open Xunlai for exact storage scan")
             PyImGui.end_disabled()
@@ -13701,11 +13911,9 @@ class MerchantRulesWidget:
 
         if preview_clicked:
             self._scan_preview()
-        if travel_preview_clicked:
-            GLOBAL_CACHE.Coroutines.append(self._travel_and_preview_only())
         if execute_clicked:
             self._request_execute_now()
-        if cleanup_clicked:
+        if run_cleanup_clicked:
             self._queue_cleanup_now()
         if re_preview_clicked:
             self._scan_preview()
@@ -14072,7 +14280,7 @@ def tooltip():
     PyImGui.bullet_text("Single-account merchant planner with optional auto-travel.")
     PyImGui.bullet_text("Weapon and armor sell rules can filter by rarity and protect items with selected mods, runes, or insignias.")
     PyImGui.bullet_text("Pinned travel targets and searchable outpost selection.")
-    PyImGui.bullet_text("Travel + Preview lets you stage the outpost without executing merchant actions.")
+    PyImGui.bullet_text("Preview projects the full post-travel merchant plan without moving the character.")
     PyImGui.bullet_text("Optional auto-travel to a selected outpost before merchant handling.")
     PyImGui.bullet_text("Top-level Overview, Rules, and Profiles workspaces, with live-config recovery under Profiles.")
     PyImGui.bullet_text("Cleanup / Xunlai is a separate workspace with explicit stash targets, linked protection sources, and optional outpost-entry auto cleanup.")
