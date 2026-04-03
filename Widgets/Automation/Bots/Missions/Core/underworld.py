@@ -35,7 +35,7 @@ import Py4GW
 # ║                     POSSIBLE IMPROVEMENTS                        
 # ╠══════════════════════════════════════════════════════════════════
 # ║                                                                  
-# ║  [ ] Better antistuck at Unwanted Guests                                                         
+# ║                                                        
 # ║  [X] Kill the Chained Souls when we wait till the quest is done                                                        
 # ║  [X] Blacklist Dreamrider to improve Plains speed                                                         
 # ║  [X] add Inventory Management                                                          
@@ -43,6 +43,11 @@ import Py4GW
 # ║  [ ] add Heroai 
 # ║  [ ] Take the Dhuum quest earlier   
 # ║  [ ] Make pits quest saver and fix 3d navigation                                       
+# ║  [X] Reset combat state at the start of each run to prevent stuck                      
+# ║      "combat disabled" state after a wipe (e.g. Servants of Grenth)                   
+# ║  [ ] Improve pathing around body-blocking Vengeful Aatxe spawn points                 
+# ║  [X] Pcons not applied mid-run — only triggered on map load;                           
+# ║      ensure UseConset/UsePcons is called after entering the dungeon                    
 # ║                                                                  
 # ╚══════════════════════════════════════════════════════════════════
 
@@ -56,7 +61,110 @@ MODULE_ICON = "Textures/Module_Icons/Underworld.png"
 BOT_NAME = "Underworld"
 _ini_file = os.path.join(Py4GW.Console.get_projects_path(), "Widgets", "Config", "UnderworldBot.ini")
 _ini = IniHandler(_ini_file)
-bot = Botting(BOT_NAME, config_draw_path=True, upkeep_auto_inventory_management_active=True)
+
+# ── Consumable definitions ────────────────────────────────────────────────────
+# Each entry: (property_name, display_name, category, default_restock_quantity)
+# property_name must match a name in UpkeepData (used for Properties.ApplyNow).
+_CONS_DEFS: list[tuple[str, str, str, int]] = [
+    # Conset
+    ("armor_of_salvation",    "Armor of Salvation",    "Conset",     4),
+    ("essence_of_celerity",   "Essence of Celerity",   "Conset",     4),
+    ("grail_of_might",        "Grail of Might",        "Conset",     4),
+    # War
+    ("war_supplies",          "War Supplies",           "War",        4),
+    # Food / Buff
+    ("drake_kabob",           "Drake Kabob",            "Food",       4),
+    ("bowl_of_skalefin_soup", "Bowl of Skalefin Soup", "Food",       4),
+    ("pahnai_salad",          "Pahnai Salad",           "Food",       4),
+    # Sweet
+    ("candy_corn",            "Candy Corn",             "Sweet",      4),
+    ("candy_apple",           "Candy Apple",            "Sweet",      4),
+    ("birthday_cupcake",      "Birthday Cupcake",       "Sweet",      4),
+    ("golden_egg",            "Golden Egg",             "Sweet",      4),
+    ("slice_of_pumpkin_pie",  "Pumpkin Pie",            "Sweet",      4),
+    ("honeycomb",             "Honeycomb",              "Sweet",      4),
+]
+
+
+class ConsSettings:
+    """Active flag and Xunlai-restock quantity for every upkeep-able consumable.
+
+    Values are persisted in UnderworldBot.ini under the keys
+    ``cons_<property_name>_active`` and ``cons_<property_name>_restock``.
+    Changes applied via set_active() / set_restock() also call
+    bot.Properties.ApplyNow() so the running upkeep coroutine reacts immediately.
+    """
+
+    # Dicts are populated at class-definition time from the INI file.
+    _active:  dict[str, bool] = {
+        p: bool(_ini.read_bool(BOT_NAME, f"cons_{p}_active", True))
+        for p, _, _, _ in _CONS_DEFS
+    }
+    _restock: dict[str, int] = {
+        p: int(_ini.read_int(BOT_NAME, f"cons_{p}_restock", dr))
+        for p, _, _, dr in _CONS_DEFS
+    }
+
+    @classmethod
+    def is_active(cls, prop: str) -> bool:
+        return cls._active.get(prop, True)
+
+    @classmethod
+    def get_restock(cls, prop: str) -> int:
+        return cls._restock.get(prop, 0)
+
+    @classmethod
+    def set_active(cls, prop: str, value: bool) -> None:
+        cls._active[prop] = value
+        cls._save()
+
+    @classmethod
+    def set_restock(cls, prop: str, value: int) -> None:
+        cls._restock[prop] = max(0, value)
+        cls._save()
+
+    @classmethod
+    def _save(cls) -> None:
+        for prop, _, _, _ in _CONS_DEFS:
+            _ini.write_key(BOT_NAME, f"cons_{prop}_active",  str(cls._active.get(prop, True)))
+            _ini.write_key(BOT_NAME, f"cons_{prop}_restock", str(cls._restock.get(prop, 0)))
+
+
+bot = Botting(
+    BOT_NAME,
+    config_draw_path=True,
+    upkeep_auto_inventory_management_active=True,
+    # ── Conset ──────────────────────────────────────────────────────────────
+    upkeep_armor_of_salvation_active   = ConsSettings._active["armor_of_salvation"],
+    upkeep_armor_of_salvation_restock  = ConsSettings._restock["armor_of_salvation"],
+    upkeep_essence_of_celerity_active  = ConsSettings._active["essence_of_celerity"],
+    upkeep_essence_of_celerity_restock = ConsSettings._restock["essence_of_celerity"],
+    upkeep_grail_of_might_active       = ConsSettings._active["grail_of_might"],
+    upkeep_grail_of_might_restock      = ConsSettings._restock["grail_of_might"],
+    # ── War ─────────────────────────────────────────────────────────────────
+    upkeep_war_supplies_active         = ConsSettings._active["war_supplies"],
+    upkeep_war_supplies_restock        = ConsSettings._restock["war_supplies"],
+    # ── Food / Buff ──────────────────────────────────────────────────────────
+    upkeep_drake_kabob_active            = ConsSettings._active["drake_kabob"],
+    upkeep_drake_kabob_restock           = ConsSettings._restock["drake_kabob"],
+    upkeep_bowl_of_skalefin_soup_active  = ConsSettings._active["bowl_of_skalefin_soup"],
+    upkeep_bowl_of_skalefin_soup_restock = ConsSettings._restock["bowl_of_skalefin_soup"],
+    upkeep_pahnai_salad_active           = ConsSettings._active["pahnai_salad"],
+    upkeep_pahnai_salad_restock          = ConsSettings._restock["pahnai_salad"],
+    # ── Sweet ────────────────────────────────────────────────────────────────
+    upkeep_candy_corn_active            = ConsSettings._active["candy_corn"],
+    upkeep_candy_corn_restock           = ConsSettings._restock["candy_corn"],
+    upkeep_candy_apple_active           = ConsSettings._active["candy_apple"],
+    upkeep_candy_apple_restock          = ConsSettings._restock["candy_apple"],
+    upkeep_birthday_cupcake_active      = ConsSettings._active["birthday_cupcake"],
+    upkeep_birthday_cupcake_restock     = ConsSettings._restock["birthday_cupcake"],
+    upkeep_golden_egg_active            = ConsSettings._active["golden_egg"],
+    upkeep_golden_egg_restock           = ConsSettings._restock["golden_egg"],
+    upkeep_slice_of_pumpkin_pie_active  = ConsSettings._active["slice_of_pumpkin_pie"],
+    upkeep_slice_of_pumpkin_pie_restock = ConsSettings._restock["slice_of_pumpkin_pie"],
+    upkeep_honeycomb_active             = ConsSettings._active["honeycomb"],
+    upkeep_honeycomb_restock            = ConsSettings._restock["honeycomb"],
+)
 bot.Templates.Aggressive()
 # Override the help window
 bot.UI.override_draw_help(lambda: _draw_help())
@@ -108,7 +216,7 @@ _quest_completion_times: dict[str, int] = {}   # quest_name → GetInstanceUptim
 import enum
 
 class UWQuestID(enum.IntEnum):
-    ClearTheChamber          = 0  # TODO: fill in actual quest ID
+    ClearTheChamber          = 101
     EscortOfSouls            = 108  
     UnwantedGuests           = 103
     RestoringGrenthsMonuments= 109  
@@ -123,14 +231,14 @@ class UWQuestID(enum.IntEnum):
 
 class UWNpcModelID(enum.IntEnum):
     """Model IDs for Underworld quest-giver NPCs."""
-    LostSoul                       = 2399  # TODO: fill in actual model I
-    ReaperOfTheLabyrinth           = 2399  # TODO: fill in actual model ID
+    LostSoul                       = 0  # TODO: fill in actual model I
+    ReaperOfTheLabyrinth           = 2399
     ReaperOfTheBonePits            = 2399
-    ReaperOfTheChaosPlanes         = 2399  # TODO: fill in actual model ID
-    ReaperOfTheForgottenVale       = 2399  # TODO: fill in actual model ID
-    ReaperOfTheIceWastes           = 2399  # TODO: fill in actual model ID
-    ReaperOfTheSpawningPools       = 2399  # TODO: fill in actual model ID
-    ReaperOfTheTwinSerpentMountains= 2399  # TODO: fill in actual model ID
+    ReaperOfTheChaosPlanes         = 2399
+    ReaperOfTheForgottenVale       = 2399
+    ReaperOfTheIceWastes           = 2399
+    ReaperOfTheSpawningPools       = 2399
+    ReaperOfTheTwinSerpentMountains= 2399
     KingFrozenwind                 = 2403
 
 
@@ -995,10 +1103,6 @@ def Enter_UW(bot_instance: Botting):
     bot_instance.Multibox.KickAllAccounts()
     _do_inventory_refill(bot_instance)
 
-    if BotSettings.UseCons:
-        # Withdraw consets (Essence, Grail, Armor) per account from Xunlai chest
-        bot_instance.Multibox.RestockConset(10)
-
     # ── Leave any existing party (multibox-aware) ─────────────────────
     handle_leave_party(_make_ctx({"type": "leave_party", "name": "Leave Party", "multibox": True}))
 
@@ -1095,12 +1199,9 @@ def Clear_the_Chamber(bot_instance: Botting):
     #bot_instance.Items.UseSummoningStone()
 
     if BotSettings.UseCons:
-        # Enable auto-renewal: Properties system re-pops each conset when it expires
-        bot_instance.Properties.ApplyNow("armor_of_salvation", "active", True)
-        bot_instance.Properties.ApplyNow("essence_of_celerity", "active", True)
-        bot_instance.Properties.ApplyNow("grail_of_might", "active", True)
-        # Immediately use conset on dungeon entry
-        #bot_instance.Items.UseConset()
+        # Conset upkeep is handled by the Botting constructor (upkeep_*_active=True).
+        # Use conset immediately on dungeon entry so the buffs are active from the start.
+        bot_instance.Multibox.UseConset()
 
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_forced_state(None),"Release Close_to_Aggro",)
 
@@ -1116,9 +1217,9 @@ def Clear_the_Chamber(bot_instance: Botting):
     bot_instance.Wait.ForTime(3000)
     
     bot_instance.Move.XYAndInteractNPC(-5806, 12831, "go to NPC")
-    #bot_instance.Dialogs.AtXY(-5806, 12831, 0x806507, "take quest")
+    bot_instance.Dialogs.WithModel(UWNpcModelID.ReaperOfTheLabyrinth,0x806507, "Take Clear the Chamber reward")
     bot_instance.Multibox.SendDialogToTarget(0x806507)
-    bot_instance.Dialogs.AtXY(-5806, 12831, 0x806D01, "take quest")
+    bot_instance.Dialogs.WithModel(UWNpcModelID.ReaperOfTheLabyrinth,0x806D01, "Quest Restore Monuments")
     bot_instance.Multibox.SendDialogToTarget(0x806D01)
     bot_instance.Wait.ForTime(3000)
     bot_instance.States.AddCustomState(lambda: _record_quest_done("Clear the Chamber"), "Record Clear the Chamber done")
@@ -2436,6 +2537,74 @@ def _draw_debug_settings():
             PyImGui.text_wrapped(entry)
 
 
+def _draw_cons_settings() -> None:
+    """Settings tab: per-consumable upkeep toggle and Xunlai restock quantity."""
+    PyImGui.text_wrapped(
+        "Configure which consumables to upkeep automatically and how many to restock "
+        "from the Xunlai chest when the bot visits the guild hall between runs."
+    )
+    PyImGui.spacing()
+
+    # Group _CONS_DEFS by category, preserving declaration order.
+    _seen_cats: list[str] = []
+    _by_cat: dict[str, list] = {}
+    for _entry in _CONS_DEFS:
+        _cat = _entry[2]
+        if _cat not in _by_cat:
+            _seen_cats.append(_cat)
+            _by_cat[_cat] = []
+        _by_cat[_cat].append(_entry)
+
+    _tbl_flags = (
+        PyImGui.TableFlags.RowBg
+        | PyImGui.TableFlags.BordersInnerV
+        | PyImGui.TableFlags.BordersOuterH
+        | PyImGui.TableFlags.SizingFixedFit
+    )
+
+    for _cat in _seen_cats:
+        PyImGui.text(_cat)
+        PyImGui.separator()
+        if PyImGui.begin_table(f"##cons_{_cat}", 3, _tbl_flags, 0.0, 0.0):
+            PyImGui.table_setup_column("Active",    PyImGui.TableColumnFlags.WidthFixed,    50.0)
+            PyImGui.table_setup_column("Min Stock", PyImGui.TableColumnFlags.WidthFixed,   110.0)
+            PyImGui.table_setup_column("Name",      PyImGui.TableColumnFlags.WidthStretch,   0.0)
+            PyImGui.table_headers_row()
+
+            for _prop, _dname, _cat2, _def_restock in _by_cat[_cat]:
+                _cur_active  = ConsSettings.is_active(_prop)
+                _cur_restock = ConsSettings.get_restock(_prop)
+
+                PyImGui.table_next_row()
+
+                # Col 1: active toggle
+                PyImGui.table_next_column()
+                _new_active = PyImGui.checkbox(f"##ca_{_prop}", _cur_active)
+                if _new_active != _cur_active:
+                    ConsSettings.set_active(_prop, _new_active)
+                    bot.Properties.ApplyNow(_prop, "active", _new_active)
+
+                # Col 2: restock quantity (greyed out when inactive)
+                PyImGui.table_next_column()
+                PyImGui.begin_disabled(not _cur_active)
+                PyImGui.push_item_width(90.0)
+                _res         = PyImGui.input_int(f"##cr_{_prop}", _cur_restock, 0, 0, 0)
+                _new_restock = _input_int_val(_res, _cur_restock)
+                _new_restock = max(0, _new_restock)
+                PyImGui.pop_item_width()
+                if _new_restock != _cur_restock:
+                    ConsSettings.set_restock(_prop, _new_restock)
+                    bot.Properties.ApplyNow(_prop, "restock_quantity", _new_restock)
+                PyImGui.end_disabled()
+
+                # Col 3: display name
+                PyImGui.table_next_column()
+                PyImGui.text(_dname)
+
+            PyImGui.end_table()
+        PyImGui.spacing()
+
+
 def _draw_settings():
     if PyImGui.begin_tab_bar("##uw_settings_tabs"):
         if PyImGui.begin_tab_item("General"):
@@ -2445,6 +2614,9 @@ def _draw_settings():
             PyImGui.end_tab_item()
         if PyImGui.begin_tab_item("Inventory"):
             _draw_inventory_settings()
+            PyImGui.end_tab_item()
+        if PyImGui.begin_tab_item("Cons"):
+            _draw_cons_settings()
             PyImGui.end_tab_item()
         if PyImGui.begin_tab_item("Imprisoned Spirits"):
             _draw_imprisoned_spirits_settings()
