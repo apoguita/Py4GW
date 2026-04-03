@@ -316,7 +316,6 @@ def _restock_consumables_if_enabled(bot: Botting):
         yield from _restock_models_locally(CONSET_RESTOCK_MODELS, 250)
     if _as_bool(bot.Properties.Get("use_pcons", "active")):
         yield from _restock_models_locally(PCON_RESTOCK_MODELS, 250)
-        
 
 
 def _use_consumables_if_enabled(bot: Botting):

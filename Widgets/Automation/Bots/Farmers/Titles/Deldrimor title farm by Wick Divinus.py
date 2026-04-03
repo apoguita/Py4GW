@@ -120,7 +120,6 @@ PCON_RESTOCK_MODELS   = [m for m, _ in PCON_ITEMS] + [
     ModelID.Scroll_Of_Resurrection.value,
 ]
 
-
 def ConfigureAggressiveEnv(bot: Botting) -> None:
     bot.Templates.Aggressive()
     bot.Properties.Enable("auto_inventory_management")
@@ -244,10 +243,7 @@ def _upkeep_consumables(bot: "Botting"):
         yield from bot.Wait._coro_for_time(15000)
         if not Routines.Checks.Map.MapValid() or Routines.Checks.Map.IsOutpost():
             continue
-        if _as_bool(bot.Properties.Get("use_conset", "active")):
-            yield from _use_consumable_list(CONSET_ITEMS)
         if _as_bool(bot.Properties.Get("use_pcons", "active")):
-            yield from _use_consumable_list(PCON_ITEMS)
             for _ in range(4):
                 honeycomb_item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(ModelID.Honeycomb.value)
                 if not honeycomb_item_id:

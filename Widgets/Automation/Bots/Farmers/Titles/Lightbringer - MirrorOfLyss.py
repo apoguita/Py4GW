@@ -49,6 +49,13 @@ bot = Botting(BotSettings.BOT_NAME,
               upkeep_auto_inventory_management_active=True,
               upkeep_auto_loot_active=True)
 
+bot.config.config_properties.use_conset = Property(bot.config, "use_conset", active=False)
+bot.config.config_properties.use_pcons = Property(bot.config, "use_pcons", active=False)
+
+_SETTINGS_SECTION = "TitleBotSettings"
+_USE_CONSET_KEY = "use_conset"
+_USE_PCONS_KEY = "use_pcons"
+
 _BOT_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__)) if "__file__" in globals() else os.getcwd()
 _HERO_CONFIG_PATH = os.path.join(_BOT_SCRIPT_DIR, f"{BotSettings.BOT_NAME} Heroes.json")
 _HERO_ICONS_BASE = os.path.normpath(os.path.join(
@@ -116,6 +123,23 @@ _hero_config_dirty: bool = False
 _hero_config_status: str = ""
 _hero_import_source_index: int = 0
 
+_CONSET_PROPERTY_KEYS = ("armor_of_salvation", "essence_of_celerity", "grail_of_might")
+_PCON_PROPERTY_KEYS = ("birthday_cupcake", "war_supplies", "honeycomb")
+
+CONSET_ITEMS: list[tuple[int, str]] = [
+    (ModelID.Essence_Of_Celerity.value, "Essence_of_Celerity_item_effect"),
+    (ModelID.Grail_Of_Might.value, "Grail_of_Might_item_effect"),
+    (ModelID.Armor_Of_Salvation.value, "Armor_of_Salvation_item_effect"),
+]
+
+PCON_ITEMS: list[tuple[int, str]] = [
+    (ModelID.Birthday_Cupcake.value, "Birthday_Cupcake_skill"),
+    (ModelID.War_Supplies.value, "Well_Supplied"),
+]
+
+CONSET_RESTOCK_MODELS = [m for m, _ in CONSET_ITEMS]
+PCON_RESTOCK_MODELS = [m for m, _ in PCON_ITEMS] + [ModelID.Honeycomb.value]
+
 
 def ConfigureAggressiveEnv(bot: Botting) -> None:
     bot.Templates.Aggressive()
@@ -129,6 +153,8 @@ def bot_routine(bot: Botting) -> None:
 
     # Combat preparations
     bot.States.AddHeader(BotSettings.BOT_NAME)
+    _load_consumable_settings(bot)
+    _sync_consumable_toggles(bot)
     bot.Map.Travel(target_map_id=BotSettings.OUTPOST_TO_TRAVEL)
     bot.States.AddCustomState(lambda: _setup_heroes(bot), "Setup Heroes")
     bot.Party.SetHardMode(True)
@@ -139,7 +165,8 @@ def bot_routine(bot: Botting) -> None:
     
     # Combat loop
     bot.States.AddHeader(f"{BotSettings.BOT_NAME}_loop") # 3
-    PrepareForBattle(bot)
+    bot.States.AddCustomState(lambda: _restock_consumables_if_enabled(bot), "Restock Consumables If Enabled")
+    bot.States.AddCustomState(lambda: PrepareForBattle(bot), "Use Consumables If Enabled")
     bot.Move.XYAndExitMap(*BotSettings.COORD_TO_EXIT_MAP, target_map_id=BotSettings.EXPLORABLE_TO_TRAVEL)
     ConfigureAggressiveEnv(bot)
 
@@ -158,13 +185,9 @@ def bot_routine(bot: Botting) -> None:
     bot.Wait.UntilOnOutpost()
     bot.States.JumpToStepName(LOOP_STEP_NAME)
 
-def PrepareForBattle(bot: Botting):                  
-    bot.Items.Restock.ArmorOfSalvation()
-    bot.Items.Restock.EssenceOfCelerity()
-    bot.Items.Restock.GrailOfMight()
-    bot.Items.Restock.WarSupplies()
-    bot.Items.Restock.BirthdayCupcake()
-    bot.Items.Restock.Honeycomb()
+def PrepareForBattle(bot: Botting):
+    _sync_consumable_toggles(bot)
+    yield from _use_consumables_if_enabled(bot)
 
 def _on_party_wipe(bot: "Botting"):
     if not Routines.Checks.Map.MapValid() or not Routines.Checks.Map.IsExplorable():
@@ -213,6 +236,99 @@ def _ensure_bot_ini(bot: Botting) -> str:
         )
         bot.config.ini_key_initialized = True
     return bot.config.ini_key
+
+
+def _load_consumable_settings(bot: Botting) -> None:
+    ini_key = _ensure_bot_ini(bot)
+    if not ini_key:
+        return
+    default_use_conset = any(_as_bool(bot.Properties.Get(key, "active")) for key in _CONSET_PROPERTY_KEYS)
+    default_use_pcons = any(_as_bool(bot.Properties.Get(key, "active")) for key in _PCON_PROPERTY_KEYS)
+    saved_use_conset = IniManager().read_bool(
+        ini_key,
+        _SETTINGS_SECTION,
+        _USE_CONSET_KEY,
+        default_use_conset,
+    )
+    saved_use_pcons = IniManager().read_bool(
+        ini_key,
+        _SETTINGS_SECTION,
+        _USE_PCONS_KEY,
+        default_use_pcons,
+    )
+    bot.Properties.ApplyNow("use_conset", "active", _as_bool(saved_use_conset))
+    bot.Properties.ApplyNow("use_pcons", "active", _as_bool(saved_use_pcons))
+
+
+def _save_consumable_settings(bot: Botting) -> None:
+    ini_key = _ensure_bot_ini(bot)
+    if not ini_key:
+        return
+    IniManager().write_key(
+        ini_key,
+        _SETTINGS_SECTION,
+        _USE_CONSET_KEY,
+        _as_bool(bot.Properties.Get("use_conset", "active")),
+    )
+    IniManager().write_key(
+        ini_key,
+        _SETTINGS_SECTION,
+        _USE_PCONS_KEY,
+        _as_bool(bot.Properties.Get("use_pcons", "active")),
+    )
+
+
+def _ensure_consumable_settings_ui_loaded(bot: Botting) -> None:
+    if getattr(bot.config, "_consumable_settings_ui_loaded", False):
+        return
+    _load_consumable_settings(bot)
+    bot.config._consumable_settings_ui_loaded = True
+
+
+def _restock_consumables_if_enabled(bot: Botting):
+    _sync_consumable_toggles(bot)
+    if _as_bool(bot.Properties.Get("use_conset", "active")):
+        yield from _restock_models_locally(CONSET_RESTOCK_MODELS, 250)
+    if _as_bool(bot.Properties.Get("use_pcons", "active")):
+        yield from _restock_models_locally(PCON_RESTOCK_MODELS, 250)
+
+
+def _use_consumables_if_enabled(bot: Botting):
+    _sync_consumable_toggles(bot)
+    if _as_bool(bot.Properties.Get("use_conset", "active")):
+        yield from _use_consumable_list(CONSET_ITEMS)
+    if _as_bool(bot.Properties.Get("use_pcons", "active")):
+        yield from _use_consumable_list(PCON_ITEMS)
+
+
+def _restock_models_locally(model_ids: list[int], quantity: int):
+    for model_id in model_ids:
+        yield from Routines.Yield.Items.RestockItems(model_id, quantity)
+
+
+def _use_consumable_list(consumables: list[tuple[int, str]]):
+    yield from Routines.Yield.wait(500)
+    for model_id, effect_skill_name in consumables:
+        effect_skill_id = GLOBAL_CACHE.Skill.GetID(effect_skill_name)
+        if effect_skill_id:
+            if hasattr(GLOBAL_CACHE, "Effects") and callable(getattr(GLOBAL_CACHE.Effects, "HasEffect", None)):
+                if GLOBAL_CACHE.Effects.HasEffect(Player.GetAgentID(), effect_skill_id):
+                    continue
+            elif hasattr(GLOBAL_CACHE.Inventory, "HasEffect") and callable(getattr(GLOBAL_CACHE.Inventory, "HasEffect", None)):
+                if GLOBAL_CACHE.Inventory.HasEffect(Player.GetAgentID(), effect_skill_id):
+                    continue
+        yield from Routines.Yield.Items.UseItem(model_id)
+
+
+def _sync_consumable_toggles(bot: Botting) -> None:
+    use_conset = _as_bool(bot.Properties.Get("use_conset", "active"))
+    use_pcons = _as_bool(bot.Properties.Get("use_pcons", "active"))
+
+    for key in _CONSET_PROPERTY_KEYS:
+        bot.Properties.ApplyNow(key, "active", use_conset)
+
+    for key in _PCON_PROPERTY_KEYS:
+        bot.Properties.ApplyNow(key, "active", use_pcons)
 
 
 def _load_hero_config():
@@ -459,31 +575,24 @@ bot.UI.override_draw_help(lambda: _draw_help(bot))
 def _draw_settings(bot:Botting):
     PyImGui.text("Bot Settings")
 
+    _ensure_consumable_settings_ui_loaded(bot)
     PyImGui.text("Combat Backend")
     PyImGui.text("Current: Auto Combat")
     PyImGui.text("Mode: Single Account with Heroes")
 
-    # Conset controls
-    use_conset = bot.Properties.Get("armor_of_salvation", "active")
-    use_conset = PyImGui.checkbox("Restock & use Conset", use_conset)
-    bot.Properties.ApplyNow("armor_of_salvation", "active", use_conset)
-    bot.Properties.ApplyNow("essence_of_celerity", "active", use_conset)
-    bot.Properties.ApplyNow("grail_of_might", "active", use_conset)
+    use_conset = _as_bool(bot.Properties.Get("use_conset", "active"))
+    new_use_conset = PyImGui.checkbox("Restock & use Conset", use_conset)
+    if new_use_conset != use_conset:
+        bot.Properties.ApplyNow("use_conset", "active", new_use_conset)
+        _save_consumable_settings(bot)
 
-    # War Supplies controls
-    use_war_supplies = bot.Properties.Get("war_supplies", "active")
-    use_war_supplies = PyImGui.checkbox("Restock & use War Supplies", use_war_supplies)
-    bot.Properties.ApplyNow("war_supplies", "active", use_war_supplies)
+    use_pcons = _as_bool(bot.Properties.Get("use_pcons", "active"))
+    new_use_pcons = PyImGui.checkbox("Restock & use Pcons", use_pcons)
+    if new_use_pcons != use_pcons:
+        bot.Properties.ApplyNow("use_pcons", "active", new_use_pcons)
+        _save_consumable_settings(bot)
+    _sync_consumable_toggles(bot)
 
-    # Birthday Cupcake controls
-    use_birthday_cupcake = bot.Properties.Get("birthday_cupcake", "active")
-    use_birthday_cupcake = PyImGui.checkbox("Restock & use Birthday Cupcakes", use_birthday_cupcake)
-    bot.Properties.ApplyNow("birthday_cupcake", "active", use_birthday_cupcake)
-                            
-    # Honeycomb controls
-    use_honeycomb = bot.Properties.Get("honeycomb", "active")
-    use_honeycomb = PyImGui.checkbox("Restock & use Honeycomb", use_honeycomb)
-    bot.Properties.ApplyNow("honeycomb", "active", use_honeycomb)
     hc_restock_qty = bot.Properties.Get("honeycomb", "restock_quantity")
     hc_restock_qty = PyImGui.input_int("Honeycomb Restock Quantity", hc_restock_qty)
     bot.Properties.ApplyNow("honeycomb", "restock_quantity", hc_restock_qty)
