@@ -73,7 +73,67 @@ class AllAccounts(Structure):
             return False
         return not self._is_slot_isolated(index)
 
+    def _get_slot_group(self, index: int) -> int:
+        """Return IsolationGroupID for slot; hero/pet inherits owner's group."""
+        account = self.AccountData[index]
+        if account.IsAccount:
+            return int(account.IsolationGroupID)
+        owner_email = account.AccountEmail
+        if not owner_email:
+            return 0
+        owner_index = self._find_account_slot_by_email(owner_email)
+        if owner_index == -1:
+            return 0
+        return int(self.AccountData[owner_index].IsolationGroupID)
+
+    def _get_local_group_id(self) -> int:
+        """Return the local player's IsolationGroupID."""
+        try:
+            from ...Player import Player
+            email = Player.GetAccountEmail()
+            if not email:
+                return 0
+            index = self._find_account_slot_by_email(email)
+            if index == -1:
+                return 0
+            return int(self.AccountData[index].IsolationGroupID)
+        except Exception:
+            return 0
+
+    def _get_local_account_email(self) -> str:
+        try:
+            from ...Player import Player
+            return str(Player.GetAccountEmail() or "").strip()
+        except Exception:
+            return ""
+
+    def _get_slot_owner_email(self, index: int) -> str:
+        account = self.AccountData[index]
+        if account.IsAccount:
+            return str(account.AccountEmail or "").strip()
+        return str(account.AccountEmail or "").strip()
+
+    def _is_slot_owned_by_email(self, index: int, account_email: str) -> bool:
+        if not account_email:
+            return False
+        return self._get_slot_owner_email(index) == account_email
+
+    def _is_local_owned_slot(self, index: int) -> bool:
+        local_email = self._get_local_account_email()
+        if not local_email:
+            return False
+        return self._is_slot_owned_by_email(index, local_email)
+
     def _is_slot_isolated(self, index: int) -> bool:
+        if self._is_local_owned_slot(index):
+            return False
+
+        local_g = self._get_local_group_id()
+        target_g = self._get_slot_group(index)
+        if local_g > 0:
+            return target_g != local_g
+        elif target_g > 0:
+            return True
         account = self.AccountData[index]
         if account.IsAccount:
             return bool(account.IsIsolated)
@@ -83,8 +143,33 @@ class AllAccounts(Structure):
         owner_index = self._find_account_slot_by_email(owner_email)
         if owner_index == -1:
             return False
-        owner_account = self.AccountData[owner_index]
-        return bool(owner_account.IsAccount and owner_account.IsIsolated)
+        return bool(self.AccountData[owner_index].IsAccount and self.AccountData[owner_index].IsIsolated)
+
+    def _is_slot_isolated_from_viewer(self, index: int, viewer_index: int) -> bool:
+        """Like _is_slot_isolated but with explicit viewer slot instead of local player."""
+        if index == viewer_index:
+            return False
+
+        viewer_email = self._get_slot_owner_email(viewer_index)
+        if viewer_email and self._is_slot_owned_by_email(index, viewer_email):
+            return False
+
+        viewer_g = self._get_slot_group(viewer_index)
+        target_g = self._get_slot_group(index)
+        if viewer_g > 0:
+            return target_g != viewer_g
+        elif target_g > 0:
+            return True
+        account = self.AccountData[index]
+        if account.IsAccount:
+            return bool(account.IsIsolated)
+        owner_email = account.AccountEmail
+        if not owner_email:
+            return False
+        owner_index = self._find_account_slot_by_email(owner_email)
+        if owner_index == -1:
+            return False
+        return bool(self.AccountData[owner_index].IsAccount and self.AccountData[owner_index].IsIsolated)
 
     def _find_account_slot_by_email(self, account_email: str) -> int:
         if not account_email:
@@ -120,7 +205,41 @@ class AllAccounts(Structure):
     def RemoveAccountIsolationByEmail(self, account_email: str) -> bool:
         return self.SetAccountIsolationByEmail(account_email, False)
 
-    
+    def SetAccountGroupByEmail(self, account_email: str, group_id: int) -> bool:
+        if not account_email:
+            return False
+        index = self._find_account_slot_by_email(account_email)
+        if index == -1:
+            return False
+        account = self.AccountData[index]
+        if not account.IsAccount:
+            return False
+        account.IsolationGroupID = group_id
+        return True
+
+    def GetAccountGroupByEmail(self, account_email: str) -> int:
+        index = self._find_account_slot_by_email(account_email)
+        if index == -1:
+            return 0
+        return int(self.AccountData[index].IsolationGroupID)
+
+    def _can_communicate(self, sender_email: str, receiver_email: str) -> bool:
+        """Group-aware communication check between two accounts."""
+        s_idx = self._find_account_slot_by_email(sender_email)
+        r_idx = self._find_account_slot_by_email(receiver_email)
+        if s_idx == -1 or r_idx == -1:
+            return False
+        if sender_email == receiver_email:
+            return True
+        s_g = int(self.AccountData[s_idx].IsolationGroupID)
+        r_g = int(self.AccountData[r_idx].IsolationGroupID)
+        if s_g > 0 and r_g > 0:
+            return s_g == r_g
+        if s_g > 0 or r_g > 0:
+            return False  # one grouped, one not
+        # both ungrouped: legacy
+        return not self.AccountData[s_idx].IsIsolated and not self.AccountData[r_idx].IsIsolated
+
     def GetEmptySlot(self) -> int:
         """Find the first empty slot in shared memory."""    
         for i, account in enumerate(self.AccountData):
@@ -304,14 +423,14 @@ class AllAccounts(Structure):
         index = self._find_account_slot_by_email(account_email)
         if index == -1:
             return -1
-        if self.AccountData[index].IsIsolated:
+        if not self._is_visible_account(index):
             return -1
         return index
-    
+
     def GetAccountDataFromEmail(self, account_email: str) -> AccountStruct | None:
         """Get the account data for the given email, or None if not found."""
         index = self._find_account_slot_by_email(account_email)
-        if index != -1 and not self.AccountData[index].IsIsolated:
+        if index != -1 and self._is_visible_account(index):
             return self.AccountData[index]
         return None
     
@@ -500,12 +619,12 @@ class AllAccounts(Structure):
         if not account_email:
             return None
         index = self._find_account_slot_by_email(account_email)
-        if index != -1 and not self.AccountData[index].IsIsolated:
+        if index != -1 and self._is_visible_account(index):
             return self.HeroAIOptions[index]
         else:
             ConsoleLog(SHMEM_MODULE_NAME, f"Account {account_email} not found.", Py4GW.Console.MessageType.Error, log = False)
             return None
-        
+
     def GetHeroAIOptionsByPartyNumber(self, party_number: int) -> HeroAIOptionStruct | None:
         """Get HeroAI options for the account with the given party number."""
         for i in range(SHMEM_MAX_PLAYERS):
@@ -519,19 +638,19 @@ class AllAccounts(Structure):
         if not account_email:
             return
         index = self._find_account_slot_by_email(account_email)
-        if index != -1 and not self.AccountData[index].IsIsolated:
+        if index != -1 and self._is_visible_account(index):
             self.HeroAIOptions[index] = options
         else:
             ConsoleLog(SHMEM_MODULE_NAME, f"Account {account_email} not found.", Py4GW.Console.MessageType.Error, log = False)
-    
+
     def SetHeroAIPropertyByEmail(self, account_email: str, property_name: str, value):
         """Set a specific HeroAI property for the account with the given email."""
         if not account_email:
             return
         index = self._find_account_slot_by_email(account_email)
-        if index != -1 and not self.AccountData[index].IsIsolated:
+        if index != -1 and self._is_visible_account(index):
             options = self.HeroAIOptions[index]
-            
+
             if property_name.startswith("Skill_"):
                 skill_index = int(property_name.split("_")[1])
                 if 0 <= skill_index < SHMEM_MAX_NUMBER_OF_SKILLS:
@@ -615,7 +734,7 @@ class AllAccounts(Structure):
         messages = []
         for index in range(SHMEM_MAX_PLAYERS):
             message = self.Inbox[index]
-            if message.Active and not self.IsAccountIsolated(message.ReceiverEmail) and not self.IsAccountIsolated(message.SenderEmail):
+            if message.Active and self._can_communicate(message.SenderEmail, message.ReceiverEmail):
                 messages.append((index, message))  # Add index and message
         return messages
     
@@ -638,16 +757,12 @@ class AllAccounts(Structure):
             ConsoleLog(SHMEM_MODULE_NAME, "Receiver email is empty.", Py4GW.Console.MessageType.Error)
             return -1
 
-        if self.IsAccountIsolated(receiver_email):
-            ConsoleLog(SHMEM_MODULE_NAME, f"Receiver account {receiver_email} is isolated.", Py4GW.Console.MessageType.Warning)
-            return -1
-        
         if not sender_email:
             ConsoleLog(SHMEM_MODULE_NAME, "Sender email is empty.", Py4GW.Console.MessageType.Error)
             return -1
 
-        if self.IsAccountIsolated(sender_email):
-            ConsoleLog(SHMEM_MODULE_NAME, f"Sender account {sender_email} is isolated.", Py4GW.Console.MessageType.Warning)
+        if not self._can_communicate(sender_email, receiver_email):
+            ConsoleLog(SHMEM_MODULE_NAME, f"Cannot communicate between {sender_email} and {receiver_email} (isolated or different groups).", Py4GW.Console.MessageType.Warning)
             return -1
         
         for i in range(SHMEM_MAX_PLAYERS):
@@ -677,27 +792,23 @@ class AllAccounts(Structure):
         """Read the next message for the given account.
         Returns the raw SharedMessage. Use self._c_wchar_array_to_str() to read ExtraData safely.
         """
-        if self.IsAccountIsolated(account_email):
-            return -1, None
         for index in range(SHMEM_MAX_PLAYERS):
             message = self.Inbox[index]
             if (message.ReceiverEmail == account_email and message.Active and not message.Running
-                and not self.IsAccountIsolated(message.SenderEmail)):
+                and self._can_communicate(message.SenderEmail, account_email)):
                 return index, message
         return -1, None
-    
+
     def PreviewNextMessage(self, account_email: str, include_running: bool = True) -> tuple[int, SharedMessageStruct | None]:
         """Preview the next message for the given account.
         If include_running is True, will also return a running message.
         Ensures ExtraData is returned as tuple[str] using existing helpers.
         """
-        if self.IsAccountIsolated(account_email):
-            return -1, None
         for index in range(SHMEM_MAX_PLAYERS):
             message = self.Inbox[index]
             if message.ReceiverEmail != account_email or not message.Active:
                 continue
-            if self.IsAccountIsolated(message.SenderEmail):
+            if not self._can_communicate(message.SenderEmail, account_email):
                 continue
             if not message.Running or include_running:
                 return index, message

@@ -1398,6 +1398,17 @@ Above the combat automation layer, the project has a higher bot orchestration la
 
 This should be treated as the main bot-construction and bot-scheduling surface, not as a raw routine helper.
 
+This same architectural tier also contains a newer BehaviorTree-oriented orchestration path centered on:
+
+- `Py4GWCoreLib.BottingTree.BottingTree`
+
+The two systems are related, but they are not the same runtime:
+
+- `BottingClass` is the FSM/coroutine bot orchestration stack
+- `BottingTree` is the BehaviorTree/planner/service orchestration stack
+
+Both belong to the broader bot orchestration layer because both sit above task helpers and combat automation and are responsible for composing larger automation flows.
+
 #### Core Purpose
 
 `BottingClass` is a bot runtime wrapper that:
@@ -1436,6 +1447,74 @@ Its core job is to sequence bot actions as a staged state machine while also run
   - these wrap helper/config behavior into user-facing “bot scripting” surfaces
 
 So `BottingClass` should be understood as a façade over config, helpers, and grouped scripting namespaces.
+
+#### Adjacent `BottingTree` Orchestration Stack
+
+The project also includes a second high-level bot orchestration surface in `Py4GWCoreLib.BottingTree`.
+
+This stack should be modeled as a parallel orchestration family, not as a subcomponent of `BottingClass`.
+
+Its core structure is:
+
+- `BehaviorTree`
+  - the generic node runtime and execution semantics
+- `RoutinesBT` from `routines_src/BehaviourTrees.py`
+  - reusable task-specific subtree builders
+- `BottingTree`
+  - the runtime wrapper that owns:
+    - one planner tree
+    - one root parallel tree
+    - optional upkeep/service trees
+    - optional headless HeroAI participation
+
+So while `BottingClass` sequences work through `FSM` plus coroutine scheduling, `BottingTree` sequences work through planner and service `BehaviorTree` instances.
+
+That means these two orchestration families should be distinguished as:
+
+- `BottingClass`
+  - FSM-first orchestration
+  - wrapper namespaces schedule steps into the classic bot runtime
+- `BottingTree`
+  - BehaviorTree-first orchestration
+  - planner and upkeep helpers are composed as explicit trees
+
+Neither replaces the other conceptually. They are two different high-level automation composition models in the same project.
+
+#### Script-Local BT Wrapper Facades
+
+Above `RoutinesBT`, some script families introduce an additional local authoring facade, for example:
+
+- `Sources/ApoSource/ApoBottingLib/wrappers.py`
+
+This layer should not be treated as a new orchestration runtime.
+
+Instead, it is a script-facing convenience facade that sits between authored sequence modules and the shared BT helper catalog.
+
+Its purpose is to:
+
+- present shorter or more domain-friendly helper names
+- adapt local parameter conventions such as `Vec2f`-based movement inputs
+- curate a smaller helper surface for one script family
+- hide repetitive `RoutinesBT` call shapes from high-level authored sequence code
+
+Conceptually, the layering is:
+
+- `BehaviorTree`
+  - execution kernel
+- `RoutinesBT`
+  - reusable shared BT helper library
+- `ApoSource` wrappers
+  - script-local facade over shared BT helpers
+- authored sequence modules such as `beautiful_pre_searing_src/getting_started.py`
+  - compose the actual quest or planner flow
+- `BottingTree`
+  - owns runtime orchestration of those trees
+
+This is analogous in spirit to the older `subclases_src` bot wrappers in the `BottingClass` stack:
+
+- both provide an ergonomic scripting surface
+- but `subclases_src` targets the FSM/coroutine bot runtime
+- while `ApoSource` wrappers target the BehaviorTree/`BottingTree` stack
 
 #### FSM-Centered Scheduling Model
 

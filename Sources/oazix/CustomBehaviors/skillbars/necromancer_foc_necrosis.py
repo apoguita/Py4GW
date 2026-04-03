@@ -56,9 +56,6 @@ class NecromancerNecrosisFoC_UtilitySkillBar(CustomBehaviorBaseUtility):
             auspicious_score_definition=ScoreStaticDefinition(83) #prefer to cast auspicious if able when we have echo
         )
 
-        # utilities not defined in common helpers
-        self.air_of_superiority_utility: CustomSkillUtilityBase = KeepSelfEffectUpUtility(event_bus=self.event_bus, skill=CustomSkill("Air_of_Superiority"), mana_required_to_cast=5, current_build=in_game_build, score_definition=ScoreStaticDefinition(50), allowed_states=[BehaviorState.IN_AGGRO])
-
 
     @property
     @override
@@ -78,8 +75,6 @@ class NecromancerNecrosisFoC_UtilitySkillBar(CustomBehaviorBaseUtility):
 
             self.arcane_echo_utility,
             self.auspicious_incantation_utility,
-
-            self.air_of_superiority_utility,
         ]
 
     @property

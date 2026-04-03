@@ -141,12 +141,19 @@ class FollowFormationPublisher:
             )
         self.state.ini_vars_registered = True
 
-    def _load_ini_vars_once(self, key: str, force_var_refresh: bool = False) -> None:
+    def _load_ini_vars_once(
+        self,
+        key: str,
+        force_var_refresh: bool = False,
+        reload_from_disk: bool = False,
+    ) -> None:
         if not key:
             return
         im = IniManager()
         try:
             node = im._get_node(key)
+            if reload_from_disk:
+                im.reload(key)
             if node and force_var_refresh:
                 node.vars_loaded = False
             im.load_once(key)
@@ -222,9 +229,21 @@ class FollowFormationPublisher:
             return
 
         im = IniManager()
-        self._load_ini_vars_once(self.state.settings_ini_key)
-        self._load_ini_vars_once(self.state.formations_ini_key)
-        self._load_ini_vars_once(self.state.runtime_ini_key)
+        self._load_ini_vars_once(
+            self.state.settings_ini_key,
+            force_var_refresh=True,
+            reload_from_disk=True,
+        )
+        self._load_ini_vars_once(
+            self.state.formations_ini_key,
+            force_var_refresh=True,
+            reload_from_disk=True,
+        )
+        self._load_ini_vars_once(
+            self.state.runtime_ini_key,
+            force_var_refresh=True,
+            reload_from_disk=True,
+        )
         self._reload_thresholds(im)
 
         selected_id = self._resolve_selected_formation_id(im)
@@ -290,7 +309,7 @@ class FollowFormationPublisher:
         self.state.combat_cached_follow_pos.clear()
         for index in range(self.shared_memory_manager.max_num_players):
             account = all_accounts.AccountData[index]
-            if not (account.IsSlotActive and account.IsAccount) or account.IsIsolated:
+            if not (account.IsSlotActive and account.IsAccount) or all_accounts._is_slot_isolated_from_viewer(index, leader_index):
                 continue
             if not self._same_party_and_map(leader_account, account):
                 continue
@@ -487,7 +506,7 @@ class FollowFormationPublisher:
 
         leader_account: AccountStruct = all_accounts.AccountData[leader_index]
         leader_options: HeroAIOptionStruct = all_accounts.HeroAIOptions[leader_index]
-        if not leader_account.IsSlotActive or not leader_account.IsAccount or leader_account.IsIsolated:
+        if not leader_account.IsSlotActive or not leader_account.IsAccount:
             return
 
         if (not Map.IsMapReady()) or Map.IsMapLoading() or (not Map.IsExplorable()):
@@ -551,7 +570,7 @@ class FollowFormationPublisher:
 
         for index in range(self.shared_memory_manager.max_num_players):
             account: AccountStruct = all_accounts.AccountData[index]
-            if not (account.IsSlotActive and account.IsAccount) or account.IsIsolated:
+            if not (account.IsSlotActive and account.IsAccount) or all_accounts._is_slot_isolated_from_viewer(index, leader_index):
                 continue
             if not self._same_party_and_map(leader_account, account):
                 continue

@@ -12,19 +12,21 @@ from .py4gwcorelib_src.FSM import FSM
 from .py4gwcorelib_src.MultiThreading import MultiThreading
 from .py4gwcorelib_src.Lootconfig_src import LootConfig
 from .py4gwcorelib_src.AutoInventoryHandler import AutoInventoryHandler
+from .native_src.internals.types import Vec2f, Vec3f, GamePos
 
 __all__ = ["IniHandler", #IniHandler
            "ConsoleLog", "Console", #Console
-              "Color", "ColorPalette", #Color
-              "Utils", #Utils
+               "Color", "ColorPalette", #Color
+               "Utils", #Utils
               "VectorFields", #VectorFields
               "Timer", "ThrottledTimer", "FormatTime", #Timer
               "Keystroke", #Keystroke
               "ActionQueue", "ActionQueueNode", "ActionQueueManager", "QueueTypes", #ActionQueue
               "BehaviorTree", #BehaviorTree
-              "FSM", #FSM
-              "MultiThreading", #MultiThreading
-              "LootConfig", #LootConfig
-              "AutoInventoryHandler", #AutoInventoryHandler
-             ]
+               "FSM", #FSM
+               "MultiThreading", #MultiThreading
+               "LootConfig", #LootConfig
+               "AutoInventoryHandler", #AutoInventoryHandler
+               "Vec2f", "Vec3f", "GamePos"
+              ]
 
