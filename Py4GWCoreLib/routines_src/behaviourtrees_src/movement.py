@@ -64,7 +64,7 @@ class BTMovement:
       Notes: Public `PascalCase` methods in this class are discovery candidates when marked exposed.
     """
     @staticmethod
-    def _move_to_model_id(model_id: int, log: bool = False) -> BehaviorTree:
+    def _move_to_model_id(modelID_or_encStr: int | str, log: bool = False) -> BehaviorTree:
         """
         Build an internal support tree that resolves an agent by model id and moves to its coordinates.
 
@@ -106,7 +106,7 @@ class BTMovement:
                 children=[
                     BehaviorTree.SubtreeNode(
                         name="GetAgentIDByModelIDSubtree",
-                        subtree_fn=lambda node: BTAgents.GetAgentIDByModelID(model_id, log=log),
+                        subtree_fn=lambda node: BTAgents.GetAgentIDByModelID(modelID_or_encStr, log=log),
                     ),
                     BehaviorTree.SubtreeNode(
                         name="MoveToResolvedAgentXYSubtree",
@@ -220,7 +220,7 @@ class BTMovement:
         from .agents import BTAgents
         from .player import BTPlayer
 
-        return BTCompositeHelpers.move_target_interact_and_automatic_dialog(
+        return BTCompositeHelpers._interact_and_automatic_dialog(
             move_tree=BTPlayer.Move(x=x, y=y, log=log),
             target_tree=BTAgents.TargetNearestNPC(distance=target_distance, log=log),
             button_number=button_number,
@@ -229,7 +229,7 @@ class BTMovement:
 
     @staticmethod
     def MoveAndTargetByModelID(
-        model_id: int,
+        modelID_or_encStr: int | str,
         log: bool = False,
     ) -> BehaviorTree:
         """
@@ -246,13 +246,13 @@ class BTMovement:
         from .agents import BTAgents
 
         return BTCompositeHelpers.move_and_target(
-            move_tree=BTMovement._move_to_model_id(model_id=model_id, log=log),
-            target_tree=BTAgents.TargetAgentByModelID(model_id=model_id, log=log),
+            move_tree=BTMovement._move_to_model_id(modelID_or_encStr=modelID_or_encStr, log=log),
+            target_tree=BTAgents.TargetAgentByModelID(modelID_or_encStr=modelID_or_encStr, log=log),
         )
 
     @staticmethod
     def MoveTargetAndInteractByModelID(
-        model_id: int,
+        modelID_or_encStr: int | str,
         log: bool = False,
     ) -> BehaviorTree:
         """
@@ -269,14 +269,14 @@ class BTMovement:
         from .agents import BTAgents
 
         return BTCompositeHelpers.move_target_and_interact(
-            move_tree=BTMovement._move_to_model_id(model_id=model_id, log=log),
-            target_tree=BTAgents.TargetAgentByModelID(model_id=model_id, log=log),
+            move_tree=BTMovement._move_to_model_id(modelID_or_encStr=modelID_or_encStr, log=log),
+            target_tree=BTAgents.TargetAgentByModelID(modelID_or_encStr=modelID_or_encStr, log=log),
             log=log,
         )
 
     @staticmethod
     def MoveTargetInteractAndDialogByModelID(
-        model_id: int,
+        modelID_or_encStr: int | str,
         dialog_id: str | int = 0,
         log: bool = False,
     ) -> BehaviorTree:
@@ -294,15 +294,15 @@ class BTMovement:
         from .agents import BTAgents
 
         return BTCompositeHelpers.move_target_interact_and_dialog(
-            move_tree=BTMovement._move_to_model_id(model_id=model_id, log=log),
-            target_tree=BTAgents.TargetAgentByModelID(model_id=model_id, log=log),
+            move_tree=BTMovement._move_to_model_id(modelID_or_encStr=modelID_or_encStr, log=log),
+            target_tree=BTAgents.TargetAgentByModelID(modelID_or_encStr=modelID_or_encStr, log=log),
             dialog_id=dialog_id,
             log=log,
         )
 
     @staticmethod
     def MoveTargetInteractAndAutomaticDialogByModelID(
-        model_id: int,
+        modelID_or_encStr: int | str,
         button_number: int = 0,
         log: bool = False,
     ) -> BehaviorTree:
@@ -319,9 +319,9 @@ class BTMovement:
         """
         from .agents import BTAgents
 
-        return BTCompositeHelpers.move_target_interact_and_automatic_dialog(
-            move_tree=BTMovement._move_to_model_id(model_id=model_id, log=log),
-            target_tree=BTAgents.TargetAgentByModelID(model_id=model_id, log=log),
+        return BTCompositeHelpers._interact_and_automatic_dialog(
+            move_tree=BTMovement._move_to_model_id(modelID_or_encStr=modelID_or_encStr, log=log),
+            target_tree=BTAgents.TargetAgentByModelID(modelID_or_encStr=modelID_or_encStr, log=log),
             button_number=button_number,
             log=log,
         )

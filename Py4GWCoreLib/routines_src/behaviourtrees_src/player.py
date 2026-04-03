@@ -869,7 +869,181 @@ class BTPlayer:
                     aftercast_ms=0,
                 )
             )
-        
+
+        @staticmethod
+        def SaveBlackboardValue(
+            key: str,
+            value,
+            log: bool = False,
+        ) -> BehaviorTree:
+            """
+            Build a tree that stores a value in the blackboard under a key.
+
+            Meta:
+              Expose: true
+              Audience: intermediate
+              Display: Save Blackboard Value
+              Purpose: Store a value in the blackboard for later BT steps.
+              UserDescription: Use this when later nodes need to read a value you want to save under a known key.
+              Notes: Accepts either a literal value or a callable that is evaluated at runtime.
+            """
+            def _save_blackboard_value(node: BehaviorTree.Node):
+                """
+                Save a literal or runtime-computed value into the blackboard.
+
+                Meta:
+                  Expose: false
+                  Audience: advanced
+                  Display: Internal Save Blackboard Value Helper
+                  Purpose: Write a value to a configured blackboard key.
+                  UserDescription: Internal support routine.
+                  Notes: Callable inputs are evaluated at execution time.
+                """
+                resolved_value = value() if callable(value) else value
+                node.blackboard[key] = resolved_value
+                ConsoleLog(
+                    "SaveBlackboardValue",
+                    f"Stored blackboard key '{key}'.",
+                    Console.MessageType.Info,
+                    log=log,
+                )
+                return BehaviorTree.NodeState.SUCCESS
+
+            return BehaviorTree(
+                BehaviorTree.ActionNode(
+                    name="SaveBlackboardValue",
+                    action_fn=_save_blackboard_value,
+                    aftercast_ms=0,
+                )
+            )
+
+        @staticmethod
+        def LoadBlackboardValue(
+            source_key: str,
+            target_key: str = "result",
+            fail_if_missing: bool = True,
+            log: bool = False,
+        ) -> BehaviorTree:
+            """
+            Build a tree that copies a blackboard value from one key to another.
+
+            Meta:
+              Expose: true
+              Audience: intermediate
+              Display: Load Blackboard Value
+              Purpose: Read a saved blackboard value and copy it to another key.
+              UserDescription: Use this when a later subtree expects a value under a specific blackboard key such as `result`.
+              Notes: Fails when the source key is missing unless `fail_if_missing` is false.
+            """
+            def _load_blackboard_value(node: BehaviorTree.Node):
+                """
+                Copy a blackboard value from the source key to the target key.
+
+                Meta:
+                  Expose: false
+                  Audience: advanced
+                  Display: Internal Load Blackboard Value Helper
+                  Purpose: Move or mirror a saved blackboard value for later BT steps.
+                  UserDescription: Internal support routine.
+                  Notes: Reads from the current shared blackboard at runtime.
+                """
+                if source_key not in node.blackboard:
+                    ConsoleLog(
+                        "LoadBlackboardValue",
+                        f"Blackboard key '{source_key}' is missing.",
+                        Console.MessageType.Warning,
+                        log=log or fail_if_missing,
+                    )
+                    return (
+                        BehaviorTree.NodeState.FAILURE
+                        if fail_if_missing
+                        else BehaviorTree.NodeState.SUCCESS
+                    )
+
+                node.blackboard[target_key] = node.blackboard[source_key]
+                ConsoleLog(
+                    "LoadBlackboardValue",
+                    f"Copied blackboard key '{source_key}' to '{target_key}'.",
+                    Console.MessageType.Info,
+                    log=log,
+                )
+                return BehaviorTree.NodeState.SUCCESS
+
+            return BehaviorTree(
+                BehaviorTree.ActionNode(
+                    name="LoadBlackboardValue",
+                    action_fn=_load_blackboard_value,
+                    aftercast_ms=0,
+                )
+            )
+
+        @staticmethod
+        def HasBlackboardValue(
+            key: str,
+            log: bool = False,
+        ) -> BehaviorTree:
+            """
+            Build a tree that succeeds only when a blackboard key exists.
+
+            Meta:
+              Expose: true
+              Audience: intermediate
+              Display: Has Blackboard Value
+              Purpose: Check whether a blackboard key exists.
+              UserDescription: Use this when a branch should only continue if a prior step saved a value.
+              Notes: Checks key existence, not truthiness of the stored value.
+            """
+            def _check_blackboard_value(node: BehaviorTree.Node):
+                exists = key in node.blackboard
+                ConsoleLog(
+                    "HasBlackboardValue",
+                    f"Blackboard key '{key}' exists={exists}.",
+                    Console.MessageType.Info,
+                    log=log,
+                )
+                return exists
+
+            return BehaviorTree(
+                BehaviorTree.ConditionNode(
+                    name="HasBlackboardValue",
+                    condition_fn=_check_blackboard_value,
+                )
+            )
+
+        @staticmethod
+        def ClearBlackboardValue(
+            key: str,
+            log: bool = False,
+        ) -> BehaviorTree:
+            """
+            Build a tree that removes a key from the blackboard.
+
+            Meta:
+              Expose: true
+              Audience: intermediate
+              Display: Clear Blackboard Value
+              Purpose: Remove a saved value from the blackboard.
+              UserDescription: Use this when a temporary blackboard value should be discarded before later steps run.
+              Notes: Succeeds even if the key did not exist.
+            """
+            def _clear_blackboard_value(node: BehaviorTree.Node):
+                node.blackboard.pop(key, None)
+                ConsoleLog(
+                    "ClearBlackboardValue",
+                    f"Cleared blackboard key '{key}'.",
+                    Console.MessageType.Info,
+                    log=log,
+                )
+                return BehaviorTree.NodeState.SUCCESS
+
+            return BehaviorTree(
+                BehaviorTree.ActionNode(
+                    name="ClearBlackboardValue",
+                    action_fn=_clear_blackboard_value,
+                    aftercast_ms=0,
+                )
+            )
+         
         @staticmethod
         def Wait(duration_ms: int, log: bool = False):
             """
@@ -1118,7 +1292,12 @@ class BTPlayer:
                 """
                 account_email = Player.GetAccountEmail()
                 index, message = GLOBAL_CACHE.ShMem.PreviewNextMessage(account_email)
-                if index != -1 and message and message.Command == SharedCommandType.PickUpLoot:
+                if (
+                    index != -1
+                    and message
+                    and message.Command == SharedCommandType.PickUpLoot
+                    and bool(getattr(message, "Running", False))
+                ):
                     return "loot_message_active"
                 if Checks.Player.IsDead():
                     return "player_dead"
@@ -1556,7 +1735,14 @@ class BTPlayer:
                 name="MoveMapTransition",
                 condition_fn=lambda node: _map_transition(node),
             )
-            tree = BehaviorTree.ParallelNode(
+            class _MoveParallelNode(BehaviorTree.ParallelNode):
+                def reset(self) -> None:
+                    super().reset()
+                    _reset_runtime()
+                    _reset_result()
+                    _reset_timeout()
+
+            tree = _MoveParallelNode(
                 name="Move",
                 children=[move_node, timeout_node, map_transition_node],
             )

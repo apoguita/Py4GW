@@ -269,6 +269,27 @@ def _make_widget(module):
     return widget
 
 
+def _seed_display_sort_fixture(widget) -> None:
+    widget.catalog_by_model_id.update(
+        {
+            100: {"model_id": 100, "name": "alpha"},
+            200: {"model_id": 200, "name": "Bravo"},
+            300: {"model_id": 300, "name": "zulu"},
+            400: {"model_id": 400, "name": "alpha"},
+        }
+    )
+    widget.weapon_mod_names = {
+        "mod_z": "Zeal",
+        "mod_b": "Shared",
+        "mod_a": "shared",
+    }
+    widget.rune_names = {
+        "rune_z": "Zeal Rune",
+        "rune_b": "Shared Rune",
+        "rune_a": "shared rune",
+    }
+
+
 def _prime_initialized_widget(module, widget):
     widget.catalog_loaded = True
     widget.initialized = True
@@ -2009,6 +2030,371 @@ def _test_rule_custom_names_persist_and_fallback_cleanly(module, temp_root: Path
     )
 
 
+def _test_display_sorting_helpers_and_summaries_are_case_insensitive(module) -> None:
+    widget = _make_widget(module)
+    _seed_display_sort_fixture(widget)
+
+    _expect(
+        widget._sort_model_ids_for_display([300, 100, 200, 400]) == [100, 400, 200, 300],
+        "Display sorting for selected model-id lists should be alphabetical by displayed label with a stable fallback.",
+    )
+    _expect(
+        [
+            entry.model_id
+            for entry in widget._sort_targets_by_model_label_for_display(
+                [
+                    module.WeaponRequirementRule(model_id=300, max_requirement=8),
+                    module.WeaponRequirementRule(model_id=100, max_requirement=8),
+                    module.WeaponRequirementRule(model_id=200, max_requirement=8),
+                ]
+            )
+        ]
+        == [100, 200, 300],
+        "Display sorting for protected requirement rows should be alphabetical by model label without changing the stored rule order.",
+    )
+    _expect(
+        widget._sort_identifiers_for_display(["mod_z", "mod_b", "mod_a"], widget._get_weapon_mod_label) == ["mod_a", "mod_b", "mod_z"],
+        "Display sorting for protected identifiers should be case-insensitive and use the identifier as a stable fallback when names tie.",
+    )
+    _expect(
+        [
+            target.identifier
+            for target in widget._sort_targets_by_identifier_label_for_display(
+                [
+                    module.RuneTraderTarget(identifier="rune_z", target_count=0, max_per_run=0),
+                    module.RuneTraderTarget(identifier="rune_b", target_count=0, max_per_run=0),
+                    module.RuneTraderTarget(identifier="rune_a", target_count=0, max_per_run=0),
+                ],
+                widget._get_rune_label,
+            )
+        ]
+        == ["rune_a", "rune_b", "rune_z"],
+        "Display sorting for rune-target tables should be case-insensitive and stable when labels tie.",
+    )
+
+    buy_stock_rule = module._normalize_buy_rule(
+        module.BuyRule(
+            enabled=True,
+            kind=module.BUY_KIND_MERCHANT_STOCK,
+            merchant_stock_targets=[
+                module.MerchantStockTarget(model_id=300, target_count=0, max_per_run=0),
+                module.MerchantStockTarget(model_id=100, target_count=0, max_per_run=0),
+                module.MerchantStockTarget(model_id=200, target_count=0, max_per_run=0),
+            ],
+        )
+    )
+    buy_material_rule = module._normalize_buy_rule(
+        module.BuyRule(
+            enabled=True,
+            kind=module.BUY_KIND_MATERIAL_TARGET,
+            material_targets=[
+                module.MaterialTarget(model_id=300, target_count=0, max_per_run=0),
+                module.MaterialTarget(model_id=100, target_count=0, max_per_run=0),
+                module.MaterialTarget(model_id=200, target_count=0, max_per_run=0),
+            ],
+        )
+    )
+    buy_rune_rule = module._normalize_buy_rule(
+        module.BuyRule(
+            enabled=True,
+            kind=module.BUY_KIND_RUNE_TRADER_TARGET,
+            rune_targets=[
+                module.RuneTraderTarget(identifier="rune_z", target_count=0, max_per_run=0),
+                module.RuneTraderTarget(identifier="rune_b", target_count=0, max_per_run=0),
+                module.RuneTraderTarget(identifier="rune_a", target_count=0, max_per_run=0),
+            ],
+        )
+    )
+    sell_material_rule = module._normalize_sell_rule(
+        module.SellRule(
+            enabled=True,
+            kind=module.SELL_KIND_COMMON_MATERIALS,
+            whitelist_targets=[
+                module.WhitelistTarget(model_id=300, keep_count=3),
+                module.WhitelistTarget(model_id=100, keep_count=1),
+                module.WhitelistTarget(model_id=200, keep_count=2),
+            ],
+        )
+    )
+    sell_item_rule = module._normalize_sell_rule(
+        module.SellRule(
+            enabled=True,
+            kind=module.SELL_KIND_EXPLICIT_MODELS,
+            whitelist_targets=[
+                module.WhitelistTarget(model_id=300, keep_count=3),
+                module.WhitelistTarget(model_id=100, keep_count=1),
+                module.WhitelistTarget(model_id=200, keep_count=2),
+            ],
+        )
+    )
+    destroy_material_rule = module._normalize_destroy_rule(
+        module.DestroyRule(
+            enabled=True,
+            kind=module.DESTROY_KIND_MATERIALS,
+            whitelist_targets=[
+                module.WhitelistTarget(model_id=300, keep_count=3),
+                module.WhitelistTarget(model_id=100, keep_count=1),
+                module.WhitelistTarget(model_id=200, keep_count=2),
+            ],
+        )
+    )
+    destroy_item_rule = module._normalize_destroy_rule(
+        module.DestroyRule(
+            enabled=True,
+            kind=module.DESTROY_KIND_EXPLICIT_MODELS,
+            whitelist_targets=[
+                module.WhitelistTarget(model_id=300, keep_count=3),
+                module.WhitelistTarget(model_id=100, keep_count=1),
+                module.WhitelistTarget(model_id=200, keep_count=2),
+            ],
+        )
+    )
+
+    buy_stock_summary, buy_stock_ready = widget._get_buy_rule_summary(buy_stock_rule)
+    buy_material_summary, buy_material_ready = widget._get_buy_rule_summary(buy_material_rule)
+    buy_rune_summary, buy_rune_ready = widget._get_buy_rule_summary(buy_rune_rule)
+    sell_material_summary, sell_material_ready = widget._get_sell_rule_summary(sell_material_rule)
+    sell_item_summary, sell_item_ready = widget._get_sell_rule_summary(sell_item_rule)
+    destroy_material_summary, destroy_material_ready = widget._get_destroy_rule_summary(destroy_material_rule)
+    destroy_item_summary, destroy_item_ready = widget._get_destroy_rule_summary(destroy_item_rule)
+
+    _expect(
+        buy_stock_ready and buy_stock_summary == "3 stock target(s) | alpha, Bravo +1 more",
+        "Collapsed buy stock summaries should use the same alphabetical display order as the expanded target table.",
+    )
+    _expect(
+        buy_material_ready and buy_material_summary == "3 material target(s) | alpha, Bravo +1 more",
+        "Collapsed buy material summaries should use the same alphabetical display order as the expanded target table.",
+    )
+    _expect(
+        buy_rune_ready and buy_rune_summary == "3 target(s) | shared rune, Shared Rune +1 more",
+        "Collapsed buy rune summaries should use the same alphabetical display order as the expanded target table.",
+    )
+    _expect(
+        sell_material_ready and sell_material_summary == "3 material target(s) | alpha keep 1, Bravo keep 2 +1 more",
+        "Collapsed sell material summaries should match the alphabetical order used by the expanded selected-materials table.",
+    )
+    _expect(
+        sell_item_ready and sell_item_summary == "3 selected target(s) | alpha keep 1, Bravo keep 2 +1 more",
+        "Collapsed sell explicit-item summaries should match the alphabetical order used by the expanded selected-items table.",
+    )
+    _expect(
+        destroy_material_ready and destroy_material_summary == "3 material target(s) | alpha keep 1, Bravo keep 2 +1 more",
+        "Collapsed destroy material summaries should match the alphabetical order used by the expanded selected-materials table.",
+    )
+    _expect(
+        destroy_item_ready and destroy_item_summary == "3 selected target(s) | alpha keep 1, Bravo keep 2 +1 more",
+        "Collapsed destroy explicit-item summaries should match the alphabetical order used by the expanded selected-items table.",
+    )
+    _expect(
+        [target.model_id for target in buy_stock_rule.merchant_stock_targets] == [300, 100, 200],
+        "Display-only summary sorting should not mutate the stored merchant-stock target order.",
+    )
+    _expect(
+        [target.identifier for target in buy_rune_rule.rune_targets] == ["rune_z", "rune_b", "rune_a"],
+        "Display-only summary sorting should not mutate the stored rune-target order.",
+    )
+
+
+def _test_display_sort_reads_preserve_saved_child_entry_order(module, temp_root: Path) -> None:
+    widget = _make_widget(module)
+    _seed_display_sort_fixture(widget)
+    config_path = temp_root / "display_sort_preserves_saved_order.json"
+    widget.config_path = str(config_path)
+
+    widget.buy_rules = [
+        module._normalize_buy_rule(
+            module.BuyRule(
+                enabled=True,
+                kind=module.BUY_KIND_MERCHANT_STOCK,
+                merchant_stock_targets=[
+                    module.MerchantStockTarget(model_id=300, target_count=0, max_per_run=0),
+                    module.MerchantStockTarget(model_id=100, target_count=0, max_per_run=0),
+                    module.MerchantStockTarget(model_id=200, target_count=0, max_per_run=0),
+                ],
+            )
+        ),
+        module._normalize_buy_rule(
+            module.BuyRule(
+                enabled=True,
+                kind=module.BUY_KIND_MATERIAL_TARGET,
+                material_targets=[
+                    module.MaterialTarget(model_id=300, target_count=0, max_per_run=0),
+                    module.MaterialTarget(model_id=100, target_count=0, max_per_run=0),
+                    module.MaterialTarget(model_id=200, target_count=0, max_per_run=0),
+                ],
+            )
+        ),
+        module._normalize_buy_rule(
+            module.BuyRule(
+                enabled=True,
+                kind=module.BUY_KIND_RUNE_TRADER_TARGET,
+                rune_targets=[
+                    module.RuneTraderTarget(identifier="rune_z", target_count=0, max_per_run=0),
+                    module.RuneTraderTarget(identifier="rune_b", target_count=0, max_per_run=0),
+                    module.RuneTraderTarget(identifier="rune_a", target_count=0, max_per_run=0),
+                ],
+            )
+        ),
+    ]
+    widget.sell_rules = [
+        module._normalize_sell_rule(
+            module.SellRule(
+                enabled=True,
+                kind=module.SELL_KIND_WEAPONS,
+                blacklist_model_ids=[300, 100, 200],
+                protected_weapon_requirement_rules=[
+                    module.WeaponRequirementRule(model_id=300, max_requirement=8),
+                    module.WeaponRequirementRule(model_id=100, max_requirement=9),
+                    module.WeaponRequirementRule(model_id=200, max_requirement=10),
+                ],
+                protected_weapon_mod_identifiers=["mod_z", "mod_b", "mod_a"],
+                rule_id="weapon_rule",
+            )
+        ),
+        module._normalize_sell_rule(
+            module.SellRule(
+                enabled=True,
+                kind=module.SELL_KIND_ARMOR,
+                protected_rune_identifiers=["rune_z", "rune_b", "rune_a"],
+                rule_id="armor_rule",
+            )
+        ),
+        module._normalize_sell_rule(
+            module.SellRule(
+                enabled=True,
+                kind=module.SELL_KIND_EXPLICIT_MODELS,
+                whitelist_targets=[
+                    module.WhitelistTarget(model_id=300, keep_count=3),
+                    module.WhitelistTarget(model_id=100, keep_count=1),
+                    module.WhitelistTarget(model_id=200, keep_count=2),
+                ],
+            )
+        ),
+    ]
+    widget.destroy_rules = [
+        module._normalize_destroy_rule(
+            module.DestroyRule(
+                enabled=True,
+                kind=module.DESTROY_KIND_EXPLICIT_MODELS,
+                whitelist_targets=[
+                    module.WhitelistTarget(model_id=300, keep_count=3),
+                    module.WhitelistTarget(model_id=100, keep_count=1),
+                    module.WhitelistTarget(model_id=200, keep_count=2),
+                ],
+            )
+        )
+    ]
+    widget.cleanup_targets = [
+        module.CleanupTarget(model_id=300, keep_on_character=3),
+        module.CleanupTarget(model_id=100, keep_on_character=1),
+        module.CleanupTarget(model_id=200, keep_on_character=2),
+    ]
+
+    for buy_rule in widget.buy_rules:
+        widget._get_buy_rule_summary(buy_rule)
+    for sell_rule in widget.sell_rules:
+        widget._get_sell_rule_summary(sell_rule)
+    for destroy_rule in widget.destroy_rules:
+        widget._get_destroy_rule_summary(destroy_rule)
+    widget._sort_model_ids_for_display(widget.sell_rules[0].blacklist_model_ids)
+    widget._sort_identifiers_for_display(widget.sell_rules[0].protected_weapon_mod_identifiers, widget._get_weapon_mod_label)
+
+    _expect(widget._save_profile(), "Saving a profile after display-only sorting reads should still succeed.")
+    saved_payload = json.loads(config_path.read_text(encoding="utf-8"))
+
+    _expect(
+        [entry["model_id"] for entry in saved_payload["buy_rules"][0]["merchant_stock_targets"]] == [300, 100, 200],
+        "Display-only sorting must not change persisted merchant-stock target order.",
+    )
+    _expect(
+        [entry["model_id"] for entry in saved_payload["buy_rules"][1]["material_targets"]] == [300, 100, 200],
+        "Display-only sorting must not change persisted material-target order.",
+    )
+    _expect(
+        [entry["identifier"] for entry in saved_payload["buy_rules"][2]["rune_targets"]] == ["rune_z", "rune_b", "rune_a"],
+        "Display-only sorting must not change persisted rune-target order.",
+    )
+    _expect(
+        saved_payload["sell_rules"][0]["blacklist_model_ids"] == [300, 100, 200],
+        "Display-only sorting must not change persisted protected-model order.",
+    )
+    _expect(
+        [entry["model_id"] for entry in saved_payload["sell_rules"][0]["protected_weapon_requirement_rules"]] == [300, 100, 200],
+        "Display-only sorting must not change persisted protected-requirement order.",
+    )
+    _expect(
+        saved_payload["sell_rules"][0]["protected_weapon_mod_identifiers"] == ["mod_z", "mod_b", "mod_a"],
+        "Display-only sorting must not change persisted protected-weapon-mod order.",
+    )
+    _expect(
+        saved_payload["sell_rules"][1]["protected_rune_identifiers"] == ["rune_z", "rune_b", "rune_a"],
+        "Display-only sorting must not change persisted protected-rune order.",
+    )
+    _expect(
+        [entry["model_id"] for entry in saved_payload["sell_rules"][2]["whitelist_targets"]] == [300, 100, 200],
+        "Display-only sorting must not change persisted sell whitelist order.",
+    )
+    _expect(
+        [entry["model_id"] for entry in saved_payload["destroy_rules"][0]["whitelist_targets"]] == [300, 100, 200],
+        "Display-only sorting must not change persisted destroy whitelist order.",
+    )
+    _expect(
+        [entry["model_id"] for entry in saved_payload["cleanup_targets"]] == [300, 100, 200],
+        "Display-only sorting must not change persisted cleanup-target order.",
+    )
+
+
+def _test_default_protection_jump_targets_still_use_first_stored_entry(module) -> None:
+    widget = _make_widget(module)
+    _seed_display_sort_fixture(widget)
+
+    blacklist_rule = module._normalize_sell_rule(
+        module.SellRule(
+            kind=module.SELL_KIND_WEAPONS,
+            blacklist_model_ids=[300, 100, 200],
+        )
+    )
+    requirement_rule = module._normalize_sell_rule(
+        module.SellRule(
+            kind=module.SELL_KIND_WEAPONS,
+            protected_weapon_requirement_rules=[
+                module.WeaponRequirementRule(model_id=300, max_requirement=8),
+                module.WeaponRequirementRule(model_id=100, max_requirement=8),
+            ],
+        )
+    )
+    weapon_mod_rule = module._normalize_sell_rule(
+        module.SellRule(
+            kind=module.SELL_KIND_WEAPONS,
+            protected_weapon_mod_identifiers=["mod_z", "mod_a"],
+        )
+    )
+    armor_rune_rule = module._normalize_sell_rule(
+        module.SellRule(
+            kind=module.SELL_KIND_ARMOR,
+            protected_rune_identifiers=["rune_z", "rune_a"],
+        )
+    )
+
+    _expect(
+        widget._get_default_sell_rule_protection_jump_target(blacklist_rule) == (module.SELL_PROTECTION_ANCHOR_MODELS, "model:300"),
+        "Default protection jumps should still follow the first stored protected-model entry, not the alphabetical display order.",
+    )
+    _expect(
+        widget._get_default_sell_rule_protection_jump_target(requirement_rule) == (module.SELL_PROTECTION_ANCHOR_REQUIREMENTS, "requirement_model:300"),
+        "Default protection jumps should still follow the first stored requirement rule, not the alphabetical display order.",
+    )
+    _expect(
+        widget._get_default_sell_rule_protection_jump_target(weapon_mod_rule) == (module.SELL_PROTECTION_ANCHOR_WEAPON_MODS, "identifier:mod_z"),
+        "Default protection jumps should still follow the first stored weapon-mod entry, not the alphabetical display order.",
+    )
+    _expect(
+        widget._get_default_sell_rule_protection_jump_target(armor_rune_rule) == (module.SELL_PROTECTION_ANCHOR_RUNES, "identifier:rune_z"),
+        "Default protection jumps should still follow the first stored rune entry, not the alphabetical display order.",
+    )
+
+
 def _test_request_execute_now_queues_only_when_preview_matches(module) -> None:
     widget = _make_widget(module)
     widget.preview_ready = True
@@ -2991,6 +3377,9 @@ def main() -> int:
             ("execute_storage_transfers_tracks_partial_moves", lambda: _test_execute_storage_transfers_tracks_partial_moves(module)),
             ("execute_now_runs_storage_deposits_as_final_phase", lambda: _test_execute_now_runs_storage_deposits_as_final_phase(module)),
             ("rule_custom_names_persist_and_fallback_cleanly", lambda: _test_rule_custom_names_persist_and_fallback_cleanly(module, temp_root)),
+            ("display_sorting_helpers_and_summaries_are_case_insensitive", lambda: _test_display_sorting_helpers_and_summaries_are_case_insensitive(module)),
+            ("display_sort_reads_preserve_saved_child_entry_order", lambda: _test_display_sort_reads_preserve_saved_child_entry_order(module, temp_root)),
+            ("default_protection_jump_targets_still_use_first_stored_entry", lambda: _test_default_protection_jump_targets_still_use_first_stored_entry(module)),
             ("request_execute_now_queues_only_when_preview_matches", lambda: _test_request_execute_now_queues_only_when_preview_matches(module)),
             ("compare_inventory_detects_preview_drift", lambda: _test_compare_inventory_detects_preview_drift(module)),
             ("merchant_sell_verification_confirms_changes_and_reports_timeouts", lambda: _test_merchant_sell_verification_confirms_changes_and_reports_timeouts(module)),

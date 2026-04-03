@@ -24,6 +24,11 @@ MODULE_NAME = "Modular FoW"
 MODULE_ICON = "Textures/Module_Icons/Fissure of Woe.png"
 BOT_NAME = "ModularFow"
 SYNC_INTERVAL_MS = 1000
+DEFAULT_FOW_ENTRY_METHOD_KEY = "scroll"
+FOW_ENTRY_METHODS = {
+    "scroll": "Use FoW Scroll",
+    "kneel": "Temple of the Ages (/kneel)",
+}
 
 root_directory = Py4GW.Console.get_projects_path()
 ini_file_location = os.path.join(root_directory, "Widgets", "Config", "ModularFow.ini")
@@ -48,6 +53,9 @@ class Config:
         self.debug_logging = ini_handler.read_bool(BOT_NAME, "debug_logging", False)
         self.entrypoint = str(
             ini_handler.read_key(BOT_NAME, "entrypoint", DEFAULT_FOW_ENTRYPOINT_KEY) or DEFAULT_FOW_ENTRYPOINT_KEY
+        )
+        self.entry_method = str(
+            ini_handler.read_key(BOT_NAME, "entry_method", DEFAULT_FOW_ENTRY_METHOD_KEY) or DEFAULT_FOW_ENTRY_METHOD_KEY
         )
         self.inventory_management_location = str(
             ini_handler.read_key(
@@ -79,6 +87,7 @@ class Config:
             buy_ectoplasm=bool(self.buy_ectoplasm),
             debug_logging=bool(self.debug_logging),
             entrypoint=self.entrypoint,
+            entry_method=self.entry_method,
             inventory_management_location=self.inventory_management_location,
             post_gh_combat_widget=self.post_gh_combat_widget,
         )
@@ -103,6 +112,7 @@ class Config:
         ini_handler.write_key(BOT_NAME, "buy_ectoplasm", str(bool(self.buy_ectoplasm)))
         ini_handler.write_key(BOT_NAME, "debug_logging", str(bool(self.debug_logging)))
         ini_handler.write_key(BOT_NAME, "entrypoint", str(self.entrypoint))
+        ini_handler.write_key(BOT_NAME, "entry_method", str(self.entry_method))
         ini_handler.write_key(BOT_NAME, "inventory_management_location", str(self.inventory_management_location))
         ini_handler.write_key(BOT_NAME, "post_gh_combat_widget", str(self.post_gh_combat_widget))
 
@@ -112,6 +122,8 @@ bot = None
 _BOT_REBUILD_PENDING = False
 ENTRYPOINT_KEYS = list(FOW_ENTRYPOINTS.keys())
 ENTRYPOINT_LABELS = [label for label, _map_id in FOW_ENTRYPOINTS.values()]
+ENTRY_METHOD_KEYS = list(FOW_ENTRY_METHODS.keys())
+ENTRY_METHOD_LABELS = [FOW_ENTRY_METHODS[key] for key in ENTRY_METHOD_KEYS]
 INVENTORY_LOCATION_KEYS = list(INVENTORY_MANAGEMENT_LOCATIONS.keys())
 INVENTORY_LOCATION_LABELS = [INVENTORY_MANAGEMENT_LOCATIONS[key] for key in INVENTORY_LOCATION_KEYS]
 COMBAT_WIDGET_KEYS = list(FOW_COMBAT_WIDGETS.keys())
@@ -123,6 +135,34 @@ def _entrypoint_index() -> int:
         return ENTRYPOINT_KEYS.index(config.entrypoint)
     except ValueError:
         return 0
+
+
+def _entry_method_index() -> int:
+    try:
+        return ENTRY_METHOD_KEYS.index(config.entry_method)
+    except ValueError:
+        return 0
+
+
+def _uses_temple_kneel_entry() -> bool:
+    return str(config.entry_method).strip().lower() == "kneel"
+
+
+def _draw_entry_method_combo(disabled: bool = False) -> None:
+    if disabled:
+        PyImGui.begin_disabled(True)
+    PyImGui.text("FoW Entry Method")
+    PyImGui.push_item_width(PyImGui.get_content_region_avail()[0])
+    selected_index = PyImGui.combo("##FoWEntryMethod", _entry_method_index(), ENTRY_METHOD_LABELS)
+    PyImGui.pop_item_width()
+    if 0 <= selected_index < len(ENTRY_METHOD_KEYS):
+        new_entry_method = ENTRY_METHOD_KEYS[selected_index]
+        if new_entry_method != config.entry_method:
+            config.entry_method = new_entry_method
+            if bot is not None:
+                _queue_rebuild()
+    if disabled:
+        PyImGui.end_disabled()
 
 
 def _draw_entrypoint_combo(disabled: bool = False) -> None:
@@ -370,7 +410,10 @@ def _draw_prestart_window() -> None:
     _draw_inventory_location_combo(disabled=config.skip_merchant_actions)
     _draw_combat_widget_combo(disabled=config.skip_merchant_actions)
     PyImGui.end_disabled()
-    _draw_entrypoint_combo()
+    _draw_entry_method_combo()
+    _draw_entrypoint_combo(disabled=_uses_temple_kneel_entry())
+    if _uses_temple_kneel_entry():
+        PyImGui.text_wrapped("Temple of the Ages is used automatically when /kneel entry is selected.")
     config.debug_logging = PyImGui.checkbox("Debug Logging", config.debug_logging)
 
     PyImGui.separator()
@@ -461,7 +504,10 @@ def _draw_main() -> None:
     _draw_inventory_location_combo(disabled=is_running or config.skip_merchant_actions)
     _draw_combat_widget_combo(disabled=is_running or config.skip_merchant_actions)
     PyImGui.end_disabled()
-    _draw_entrypoint_combo(disabled=is_running)
+    _draw_entry_method_combo(disabled=is_running)
+    _draw_entrypoint_combo(disabled=is_running or _uses_temple_kneel_entry())
+    if _uses_temple_kneel_entry():
+        PyImGui.text_wrapped("Temple of the Ages is used automatically when /kneel entry is selected.")
     PyImGui.end_disabled()
 
     config.save_throttled()
@@ -482,7 +528,10 @@ def _draw_settings() -> None:
         config.skip_merchant_actions = new_skip_merchant_actions
         _queue_rebuild()
     _draw_inventory_location_combo(disabled=bool(bot is not None and bot.bot.config.fsm_running) or config.skip_merchant_actions)
-    _draw_entrypoint_combo(disabled=bool(bot is not None and bot.bot.config.fsm_running))
+    _draw_entry_method_combo(disabled=is_running)
+    _draw_entrypoint_combo(disabled=is_running or _uses_temple_kneel_entry())
+    if _uses_temple_kneel_entry():
+        PyImGui.text_wrapped("Temple of the Ages is used automatically when /kneel entry is selected.")
     PyImGui.begin_disabled(config.skip_merchant_actions)
     _draw_combat_widget_combo(disabled=is_running or config.skip_merchant_actions)
     new_sell_non_cons_materials = PyImGui.checkbox("Sell Non-Cons Materials", config.sell_non_cons_materials)
@@ -513,6 +562,7 @@ def _draw_help() -> None:
     PyImGui.bullet_text("Optional skip for all merchant/inventory management setup actions")
     PyImGui.bullet_text("Optional material selling before entry at the selected inventory location")
     PyImGui.bullet_text("Optional ectoplasm buying from current character gold only")
+    PyImGui.bullet_text("Supports FoW entry with either a scroll or Temple of the Ages /kneel")
     PyImGui.bullet_text("Groups on the selected FoW entrypoint map before scrolling in")
     PyImGui.bullet_text("Supports FoW entry from Zin Ku Corridor, Chantry of Secrets, Temple of the Ages, or Embark Beach")
     PyImGui.bullet_text("Keeps widget options for hard mode, consumables, autoloot, and debug logging")

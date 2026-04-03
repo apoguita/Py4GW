@@ -100,7 +100,7 @@ class BTUpkeepers:
             BTItems.SpawnBonusItems(log=log, aftercast_ms=spawn_settle_ms),
             BTItems.DestroyBonusItems(exclude_list=effective_exclude_list, log=log, aftercast_ms=35),
             BTItems.MoveModelToBagSlot(
-                model_id=imp_model_id,
+                modelID_or_encStr=imp_model_id,
                 target_bag=target_bag,
                 slot=slot,
                 log=log,

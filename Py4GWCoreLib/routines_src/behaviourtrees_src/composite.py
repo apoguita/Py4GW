@@ -254,7 +254,7 @@ class BTCompositeHelpers:
         )
 
     @staticmethod
-    def move_target_interact_and_automatic_dialog(
+    def _interact_and_automatic_dialog(
         move_tree: BehaviorTree,
         target_tree: BehaviorTree,
         button_number: int,

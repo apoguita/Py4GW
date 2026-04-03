@@ -100,7 +100,34 @@ class AllAccounts(Structure):
         except Exception:
             return 0
 
+    def _get_local_account_email(self) -> str:
+        try:
+            from ...Player import Player
+            return str(Player.GetAccountEmail() or "").strip()
+        except Exception:
+            return ""
+
+    def _get_slot_owner_email(self, index: int) -> str:
+        account = self.AccountData[index]
+        if account.IsAccount:
+            return str(account.AccountEmail or "").strip()
+        return str(account.AccountEmail or "").strip()
+
+    def _is_slot_owned_by_email(self, index: int, account_email: str) -> bool:
+        if not account_email:
+            return False
+        return self._get_slot_owner_email(index) == account_email
+
+    def _is_local_owned_slot(self, index: int) -> bool:
+        local_email = self._get_local_account_email()
+        if not local_email:
+            return False
+        return self._is_slot_owned_by_email(index, local_email)
+
     def _is_slot_isolated(self, index: int) -> bool:
+        if self._is_local_owned_slot(index):
+            return False
+
         local_g = self._get_local_group_id()
         target_g = self._get_slot_group(index)
         if local_g > 0:
@@ -120,6 +147,13 @@ class AllAccounts(Structure):
 
     def _is_slot_isolated_from_viewer(self, index: int, viewer_index: int) -> bool:
         """Like _is_slot_isolated but with explicit viewer slot instead of local player."""
+        if index == viewer_index:
+            return False
+
+        viewer_email = self._get_slot_owner_email(viewer_index)
+        if viewer_email and self._is_slot_owned_by_email(index, viewer_email):
+            return False
+
         viewer_g = self._get_slot_group(viewer_index)
         target_g = self._get_slot_group(index)
         if viewer_g > 0:
@@ -195,6 +229,8 @@ class AllAccounts(Structure):
         r_idx = self._find_account_slot_by_email(receiver_email)
         if s_idx == -1 or r_idx == -1:
             return False
+        if sender_email == receiver_email:
+            return True
         s_g = int(self.AccountData[s_idx].IsolationGroupID)
         r_g = int(self.AccountData[r_idx].IsolationGroupID)
         if s_g > 0 and r_g > 0:

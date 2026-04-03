@@ -9,7 +9,7 @@ from Py4GWCoreLib.CombatEvents import CombatEvents   # import the class directly
 from .AutoCombat import AutoCombat
 
 # ── Combat AI constants ───────────────────────────────────────────────────────
-_MIKU_MODEL_ID          = 8456
+_MIKU_MODEL_ID = 8513
 
 _SHADOWSONG_ID          = 4264
 _SOS_SPIRIT_IDS         = frozenset({4280, 4281, 4282})  # Anger, Hate, Suffering
@@ -34,17 +34,17 @@ _MIKU_PATH = [
 
 # White Mantle Ritualist priority targets (kill priority order, highest first).
 _PRIORITY_TARGET_MODELS = [
-    8312,   # PRIMARY  -- Rit/Monk: Preservation, strong heal, hex-remove, spirits
-    8316,   # PRIORITY -- Weapon of Remedy rit (hard-rez)
-    8286,
-    8287,   #            Abbot Mantra of Recall
-    8288,   #            Abbot Restore Condition
-    5818,   #            Mesmer Word of Healing
-    8311,   #            Rit/Paragon spear caster
-    8315,   # 2nd prio -- Minion-summoning rit
-    8267,   #            Ritualist (additional)
-    8302,   #            Seeker 1
-    8304,   #            Seeker 2 Conjure Flames
+    8369,   #           Ritualist: Preservation, strong heal, hex-remove, spirits
+    8373,   #           Ritualist: Weapon of Remedy rit (hard-rez)
+    8343,   #           Abbot: Prot Boon Signet, Spiritbond
+    8344,   #           Abbot: Mantra of Recall
+    8345,   #           Abbot: Restore Condition
+    8322,   #           Sycophant: Word of Healing
+    8368,   #           Ritualist: spear caster
+    8372,   #           Ritualist: Minion-summoning rit
+    8324,   #           Ritualist (additional)
+    8359,   #           Seeker 1
+    8361,   #           Seeker 2 Conjure Flames
 
 ]
 _TARGET_SWITCH_INTERVAL = 1.0   # seconds between priority-target scans
@@ -278,6 +278,8 @@ class KeiranThackerayEOTN(BuildMgr):
 
         # If Miku fell through the world, activate reset and issue the backtrack once after 5 s.
         if miku_reset:
+            Py4GW.Console.Log("Miku Model ID", f"{_MIKU_MODEL_ID}", Py4GW.Console.MessageType.Warning)
+            Py4GW.Console.Log("Miku ID", f"{miku_id}", Py4GW.Console.MessageType.Warning)
             self.miku_reset_active = True
             if self.miku_reset_at == 0.0:
                 self.miku_reset_at = now                        # start the 5-second window
