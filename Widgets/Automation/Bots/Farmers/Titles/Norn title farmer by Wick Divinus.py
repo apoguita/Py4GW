@@ -396,11 +396,7 @@ def bot_routine(bot: Botting) -> None:
     # bot.Wait.UntilOutOfCombat()
     # bot.Move.XY(7857, 10409, "Aggro: Modniir and Elemental 2")
     # bot.Wait.UntilOutOfCombat()
-
-    #bot.States.AddCustomState(lambda: _resign(bot), "Resign Party")
-    bot.UI.SendChatCommand("resign")
-    bot.Wait.UntilOnOutpost()
-    bot.Wait.ForTime(5000)
+    bot.Map.Travel(target_map_id=OLAFSTEAD)
     bot.States.JumpToStepName(ZONING_STEP_NAME)
 
 
@@ -422,9 +418,9 @@ def _restock_consumables_if_enabled(bot: Botting):
 def _use_consumables_if_enabled(bot: Botting):
     _sync_consumable_toggles(bot)
     if _as_bool(bot.Properties.Get("use_conset", "active")):
-        yield from bot.Items.UseConset()
+        yield from bot.helpers.Items.use_conset()
     if _as_bool(bot.Properties.Get("use_pcons", "active")):
-        yield from bot.Items.UsePcons()
+        yield from bot.helpers.Items.use_pcons()
 
 
 def _restock_models_locally(model_ids: list[int], quantity: int):
@@ -440,11 +436,14 @@ def _upkeep_consumables(bot: "Botting"):
         if not Routines.Checks.Map.MapValid() or Routines.Checks.Map.IsOutpost():
             continue
         if _as_bool(bot.Properties.Get("use_conset", "active")):
-            yield from bot.Items.UseConset()
+            yield from bot.helpers.Items.use_conset()
         if _as_bool(bot.Properties.Get("use_pcons", "active")):
-            yield from bot.Items.UsePcons()
+            yield from bot.helpers.Items.use_pcons()
             for _ in range(4):
-                GLOBAL_CACHE.Inventory.UseItem(ModelID.Honeycomb.value)
+                honeycomb_item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(ModelID.Honeycomb.value)
+                if not honeycomb_item_id:
+                    break
+                GLOBAL_CACHE.Inventory.UseItem(honeycomb_item_id)
                 yield from bot.Wait._coro_for_time(250)
 
 # endregion
@@ -991,4 +990,3 @@ def main():
 if __name__ == "__main__":
     main()
 # endregion
-

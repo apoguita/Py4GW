@@ -268,9 +268,9 @@ def _restock_consumables_if_enabled(bot: Botting):
 def _use_consumables_if_enabled(bot: Botting):
     _sync_consumable_toggles(bot)
     if _as_bool(bot.Properties.Get("use_conset", "active")):
-        yield from bot.Items.UseConset()
+        yield from bot.helpers.Items.use_conset()
     if _as_bool(bot.Properties.Get("use_pcons", "active")):
-        yield from bot.Items.UsePcons()
+        yield from bot.helpers.Items.use_pcons()
 
 
 def _restock_models_locally(model_ids: list[int], quantity: int):

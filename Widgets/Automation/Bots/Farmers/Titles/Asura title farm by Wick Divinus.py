@@ -294,10 +294,7 @@ def Fight(bot: Botting) -> None:
     bot.Move.XY(-1018, -1235, "Moving Back")
     bot.Move.XY(-6322, -2565, "Krait Group")
     bot.Move.XY(-8760, -9933, "Krait Boss Warrior")
-
-    bot.States.AddCustomState(lambda: _resign(bot), "Resign Party")
-    bot.Wait.UntilOnOutpost()
-    bot.Wait.ForTime(5000)
+    bot.Map.Travel(target_map_id=RATASUM)
     bot.States.JumpToStepName(ZONING_STEP_NAME)
 
 
@@ -325,9 +322,9 @@ def _restock_consumables_if_enabled(bot: Botting):
 def _use_consumables_if_enabled(bot: Botting):
     _sync_consumable_toggles(bot)
     if _as_bool(bot.Properties.Get("use_conset", "active")):
-        yield from bot.Items.UseConset()
+        yield from bot.helpers.Items.use_conset()
     if _as_bool(bot.Properties.Get("use_pcons", "active")):
-        yield from bot.Items.UsePcons()
+        yield from bot.helpers.Items.use_pcons()
 
 
 def _restock_models_locally(model_ids: list[int], quantity: int):
@@ -863,4 +860,3 @@ def main():
 if __name__ == "__main__":
     main()
 # endregion
-
