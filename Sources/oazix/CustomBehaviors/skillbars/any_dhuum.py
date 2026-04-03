@@ -202,14 +202,30 @@ class SpiritualHealingUtility(CustomSkillUtilityBase):
         pass
 
 
-class ReversalOfDeathUtility(CustomSkillUtilityBase):
-    """Reversal of Death: cast on ally with the highest death penalty from shared memory.
+# ─── Reversal of Death utility ───────────────────────────────────────────────
 
-    Only activates once at least 3 party members have the Spirit Form disguise
-    buff (skill ID 3134) — indicating the Dhuum soul-splitting phase is active.
+class ReversalOfDeathUtility(CustomSkillUtilityBase):
+    """Reversal of Death: cast on the ally with the highest death penalty.
+
+    Death penalty is derived from shared-memory morale data
+    (morale < 100 ⇒ death_penalty = 100 − morale).
+
+    Activation is gated on the Spirit Form phase:
+      - Requires at least _SPIRIT_FORM_MIN_COUNT accounts to have Spirit Form
+        (buff skill ID 3134) before any cast attempt is made.
+      - When ≤2 accounts have Spirit Form, only those soul-split allies are
+        targeted — they are the ones accumulating death penalty during failed rez.
+      - Once more than 2 accounts carry Spirit Form, any ally with a death penalty
+        becomes a valid target, as the split phase is fully active.
+
+    Score: 94. Suppressed when the Underworld Chest is present (fight over).
     """
 
+    # Skill ID for the Spirit Form disguise buff applied during the Dhuum rez phase.
     _SPIRIT_FORM_SKILL_ID = 3134
+    # Minimum number of same-party accounts with Spirit Form required before this
+    # skill fires at all. Set to 1 so the utility activates as soon as the first
+    # account enters the soul-split phase.
     _SPIRIT_FORM_MIN_COUNT = 1
 
     def __init__(self, event_bus: EventBus, current_build: list[CustomSkill]):
@@ -256,6 +272,12 @@ class ReversalOfDeathUtility(CustomSkillUtilityBase):
 
     @staticmethod
     def _same_party_and_map(self_account, other_account) -> bool:
+        """Return True when other_account shares the same party, map, region, district and language.
+
+        All five fields must match to ensure we only consider accounts that are
+        truly in the same in-game instance. Accounts on a different map, region,
+        or district are silently excluded from all shared-memory scans.
+        """
         return (
             int(self_account.AgentPartyData.PartyID) == int(other_account.AgentPartyData.PartyID)
             and int(self_account.AgentData.Map.MapID) == int(other_account.AgentData.Map.MapID)
@@ -290,6 +312,12 @@ class ReversalOfDeathUtility(CustomSkillUtilityBase):
         return result
 
     def _get_morale_by_agent_id(self) -> dict[int, int]:
+        """Return a mapping of {agent_id: morale_value} for all same-party accounts.
+
+        Morale is stored as an integer (0–100). A value below 100 indicates a death
+        penalty: death_penalty = 100 − morale. Accounts that are isolated, inactive,
+        or on a different map instance are excluded.
+        """
         morale_by_agent: dict[int, int] = {}
         self_email = Player.GetAccountEmail()
         self_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(self_email)
@@ -309,17 +337,32 @@ class ReversalOfDeathUtility(CustomSkillUtilityBase):
         return morale_by_agent
 
     def _get_target_with_highest_death_penalty(self) -> custom_behavior_helpers.SortableAgentData | None:
-        spirit_form_count = self._count_spirit_form_accounts()
+        """Return the in-range ally with the largest death penalty, or None if none qualify.
+
+        Targeting mode depends on how many accounts currently carry Spirit Form:
+          - ≤2 Spirit Form accounts: only soul-split allies (those with Spirit Form)
+            are considered. This avoids healing accounts that have not yet entered
+            the split and are not accumulating the rez-death penalty.
+          - >2 Spirit Form accounts: all living allies with any death penalty are
+            valid, because the split is in full swing and anyone may need the skill.
+
+        Among all eligible allies the one with the highest death penalty is chosen.
+        Allies at full morale (no death penalty) are skipped entirely.
+        """
+        spirit_form_count     = self._count_spirit_form_accounts()
         spirit_form_agent_ids = self._get_spirit_form_agent_ids()
-        # If >2 accounts have Spirit Form: any ally with death penalty is valid.
-        # Otherwise: only target allies that themselves carry Spirit Form.
+
+        # Restrict to Spirit Form allies while the split is still small.
+        # Once >2 accounts are split, open up targeting to everyone with a penalty.
         restrict_to_spirit_form = spirit_form_count <= 2
 
         my_id = int(Player.GetAgentID())
 
         def _condition(agent_id: int) -> bool:
+            # Never target ourselves.
             if int(agent_id) == my_id:
                 return False
+            # In restricted mode, skip any ally that is not in Spirit Form.
             if restrict_to_spirit_form and int(agent_id) not in spirit_form_agent_ids:
                 return False
             return True
@@ -333,6 +376,7 @@ class ReversalOfDeathUtility(CustomSkillUtilityBase):
         if len(allies) == 0:
             return None
 
+        # Fetch morale from shared memory (populated by each account's own process).
         morale_by_agent = self._get_morale_by_agent_id()
         if len(morale_by_agent) == 0:
             return None
@@ -341,12 +385,14 @@ class ReversalOfDeathUtility(CustomSkillUtilityBase):
         best_death_penalty = 0
 
         for ally in allies:
+            # Default to morale 100 (no penalty) when the account is absent from shared mem.
             morale = int(morale_by_agent.get(int(ally.agent_id), 100))
             death_penalty = max(0, 100 - morale)
             if death_penalty <= 0:
+                # No death penalty — this ally does not need the skill.
                 continue
             if best_target is None or death_penalty > best_death_penalty:
-                best_target = ally
+                best_target      = ally
                 best_death_penalty = death_penalty
 
         return best_target
@@ -397,13 +443,31 @@ class ReversalOfDeathUtility(CustomSkillUtilityBase):
         pass
 
 
-class DhuumsRestUtility(CustomSkillUtilityBase):
-    """Mirror Reaper casts: when Reapers cast Dhuum's Rest, we cast Dhuum's Rest."""
+# ─── Dhuum's Rest / Ghostly Fury utility ─────────────────────────────────────────
 
-    _MODE_DREST = "DREST"
-    _MODE_FURY = "FURY"
+class DhuumsRestUtility(CustomSkillUtilityBase):
+    """Mirror Reaper skill casts for the Dhuum phase.
+
+    When a Reaper casts Dhuum's Rest the active mode switches to DREST and this
+    utility casts Dhuum's Rest on our side. When a Reaper casts Ghostly Fury the
+    mode switches to FURY and GhostlyFuryUtility fires instead.
+
+    The active *mode* is class-level (shared across all instances) so every account
+    reacts to the same reaper event without each doing a separate event scan.
+    Mode switches are debounced to suppress noise from closely-spaced events.
+
+    Score: 97 (highest active utility). Suppressed when the Underworld Chest is present.
+    """
+
+    # ── Mode constants ─────────────────────────────────────────────────────────────
+    _MODE_DREST = "DREST"   # Reaper cast Dhuum's Rest  → we cast Dhuum's Rest
+    _MODE_FURY  = "FURY"    # Reaper cast Ghostly Fury  → we cast Ghostly Fury
+    # Minimum milliseconds before a mode flip to the opposite value is allowed.
+    # Prevents rapid DREST↔FURY oscillation when both skills appear in the event log.
     _MODE_SWITCH_DEBOUNCE_MS = 6000.0
 
+    # ── Reaper identification ──────────────────────────────────────────────────
+    # All seven Underworld Reapers, lowercase for case-insensitive name matching.
     _REAPER_NAME_MATCHERS = (
         "reaper of the bone pits",
         "reaper of the chaos planes",
@@ -414,12 +478,15 @@ class DhuumsRestUtility(CustomSkillUtilityBase):
         "reaper of the twin serpent mountains",
     )
 
+    # Event types that indicate a skill was *activated* (cast started), not just queued.
     _ACTIVATION_EVENT_TYPES = (
         EventType.SKILL_ACTIVATED,
         EventType.ATTACK_SKILL_ACTIVATED,
         EventType.INSTANT_SKILL_ACTIVATED,
     )
 
+    # ── Skill name candidates ──────────────────────────────────────────────────
+    # Multiple spellings and localisations so the look-up is locale-tolerant.
     _DHUUMS_REST_CANDIDATES = (
         "Dhuum_s_Rest",
         "Dhuum's Rest",
@@ -429,20 +496,22 @@ class DhuumsRestUtility(CustomSkillUtilityBase):
     _GHOSTLY_FURY_CANDIDATES = (
         "Ghostly_Fury",
         "Ghostly Fury",
-        "Ghostly Fury_reaper_skill",  # Reaper's Dhuum's Rest skill can be used as a proxy for Ghostly Fury casts since they are always cast together.
+        # Reapers always cast Ghostly Fury and Dhuum's Rest together; the reaper-skill
+        # variant of Ghostly Fury can therefore serve as a reliable fallback proxy.
+        "Ghostly Fury_reaper_skill",
     )
 
-    _shared_mode: str | None = None
-    _shared_mode_locked_until_ms: float = 0.0
-
-    _reaper_id_refresh_timer: ThrottledTimer | None = None
-    _event_refresh_timer: ThrottledTimer | None = None
-
-    _cached_reaper_ids: set[int] = set()
-    _learned_reaper_ids: set[int] = set()
-    _dhuums_rest_skill_ids: set[int] = set()
-    _ghostly_fury_skill_ids: set[int] = set()
-    _last_logged_candidate_signature: tuple[int, int, int] | None = None
+    # ── Shared (class-level) runtime state ────────────────────────────────────────
+    # All instances share these fields so exactly one "current mode" exists globally.
+    _shared_mode: str | None = None               # active mode, or None before first detection
+    _shared_mode_locked_until_ms: float = 0.0     # wall-clock ms until a mode flip is allowed
+    _reaper_id_refresh_timer: ThrottledTimer | None = None  # throttles the full-scan (1200 ms)
+    _event_refresh_timer:     ThrottledTimer | None = None  # throttles CombatEvents polling (250 ms)
+    _cached_reaper_ids:      set[int] = set()  # IDs found via name-matching scan
+    _learned_reaper_ids:     set[int] = set()  # IDs discovered via fallback event learning
+    _dhuums_rest_skill_ids:  set[int] = set()  # resolved runtime skill IDs for Dhuum's Rest
+    _ghostly_fury_skill_ids: set[int] = set()  # resolved runtime skill IDs for Ghostly Fury
+    _last_logged_candidate_signature: tuple[int, int, int] | None = None  # dedup guard for console log
 
     def __init__(self, event_bus: EventBus, current_build: list[CustomSkill]):
         dhuums_rest_skill = AnyDhuum_UtilitySkillBar._resolve_custom_skill("Dhuum_s_Rest", "Dhuum's Rest", "Dhuums_Rest")
@@ -463,6 +532,11 @@ class DhuumsRestUtility(CustomSkillUtilityBase):
 
     @classmethod
     def _ensure_tracking_initialized(cls) -> None:
+        """Lazily initialise all class-level timers and skill-ID sets on first call.
+
+        Safe to call multiple times — each guard checks whether the work is already done.
+        Must be called before any method that reads the timer or skill-ID fields.
+        """
         if cls._reaper_id_refresh_timer is None:
             cls._reaper_id_refresh_timer = ThrottledTimer(1200)
             cls._reaper_id_refresh_timer.Reset()
@@ -486,6 +560,11 @@ class DhuumsRestUtility(CustomSkillUtilityBase):
 
     @classmethod
     def _refresh_reaper_ids(cls) -> None:
+        """Scan all visible agents and rebuild the cached set of Reaper agent IDs.
+
+        The scan is throttled by _reaper_id_refresh_timer (1200 ms interval) and is
+        skipped when entries already exist in the cache and the timer has not expired.
+        """
         cls._ensure_tracking_initialized()
         if cls._reaper_id_refresh_timer is None:
             return
@@ -509,10 +588,16 @@ class DhuumsRestUtility(CustomSkillUtilityBase):
 
     @classmethod
     def _get_effective_reaper_ids(cls) -> set[int]:
+        """Return the union of name-matched reaper IDs and event-learned reaper IDs."""
         return set(cls._cached_reaper_ids).union(cls._learned_reaper_ids)
 
     @classmethod
     def _get_reaper_candidate_agent_ids(cls) -> set[int]:
+        """Return all agent IDs that could possibly be a Reaper.
+
+        Reapers appear in ally, neutral, NPC/minipet, and spirit/pet arrays depending
+        on their current faction relationship, so all four arrays are merged.
+        """
         candidate_agent_ids = set(AgentArray.GetAllyArray())
         candidate_agent_ids.update(AgentArray.GetNeutralArray())
         candidate_agent_ids.update(AgentArray.GetNPCMinipetArray())
@@ -545,9 +630,17 @@ class DhuumsRestUtility(CustomSkillUtilityBase):
 
     @classmethod
     def _skill_id_matches_candidates(cls, skill_id: int, candidate_skill_ids: set[int], candidate_names: tuple[str, ...]) -> bool:
+        """Return True if skill_id belongs to the candidate set or matches by normalised name.
+
+        Two-stage check:
+          1. Fast numeric lookup against the pre-resolved runtime ID set.
+          2. Fallback name comparison (lowercased, underscores → spaces) to handle
+             locales where GLOBAL_CACHE returns a different numeric ID than expected.
+        """
         if int(skill_id) in candidate_skill_ids:
             return True
 
+        # Normalise both sides by lowercasing and replacing underscores with spaces.
         skill_name = str(GLOBAL_CACHE.Skill.GetName(int(skill_id)) or "").strip().lower().replace("_", " ")
         if len(skill_name) == 0:
             return False
@@ -557,12 +650,20 @@ class DhuumsRestUtility(CustomSkillUtilityBase):
 
     @classmethod
     def _set_mode(cls, mode: str, now_ms: float) -> None:
+        """Update the shared mode and extend the debounce lock window.
+
+        If the requested mode matches the current mode (or no mode is set yet), the
+        transition is always accepted and the debounce window is refreshed.
+        Switching to a *different* mode is only allowed once the debounce window has
+        expired, preventing rapid DREST↔FURY oscillation from noisy event bursts.
+        """
         if cls._shared_mode is None or cls._shared_mode == mode:
+            # Same mode or first-time set: always accept and refresh the lock window.
             cls._shared_mode = mode
             cls._shared_mode_locked_until_ms = now_ms + cls._MODE_SWITCH_DEBOUNCE_MS
             return
 
-        # Debounce mode flips to avoid flapping on sparse/noisy event bursts.
+        # Different mode requested: only allow after the debounce window has expired.
         if now_ms >= cls._shared_mode_locked_until_ms:
             cls._shared_mode = mode
             cls._shared_mode_locked_until_ms = now_ms + cls._MODE_SWITCH_DEBOUNCE_MS
@@ -575,7 +676,7 @@ class DhuumsRestUtility(CustomSkillUtilityBase):
         cls._last_logged_candidate_signature = signature
 
         try:
-            import Py4GW
+            import Py4GW  # local import to avoid a circular dependency at module level
 
             caster_name = str(Agent.GetNameByID(int(caster_id)) or "<unknown>").strip()
             skill_name = str(GLOBAL_CACHE.Skill.GetName(int(skill_id)) or "<unknown>").strip()
@@ -589,31 +690,44 @@ class DhuumsRestUtility(CustomSkillUtilityBase):
 
     @classmethod
     def refresh_mode_from_reaper_events(cls) -> None:
+        """Poll the CombatEvents stream and update the shared mode from reaper casts.
+
+        This method is throttled to run at most every 250 ms. On each poll:
+          1. The recent skill event list is walked in reverse order (newest first).
+          2. Events are filtered to skill-activation types (ACTIVATED / INSTANT).
+          3. Each event is checked against both the Dhuum's Rest and Ghostly Fury
+             candidate sets using _skill_id_matches_candidates.
+          4. When the caster is a confirmed Reaper, the shared mode is set and the
+             loop exits immediately (the newest matching event always wins).
+          5. Fallback learning: if a non-player, non-party ally casts a candidate
+             skill, the caster is promoted to the learned-reaper set for future polls.
+        """
         cls._ensure_tracking_initialized()
         cls._refresh_reaper_ids()
 
         if cls._event_refresh_timer is None:
             return
         if not cls._event_refresh_timer.IsExpired():
-            return
+            return  # Not yet due for the next poll — skip entirely.
 
         cls._event_refresh_timer.Reset()
 
         effective_reaper_ids = cls._get_effective_reaper_ids()
 
-        now_ms = time.monotonic() * 1000.0
+        now_ms        = time.monotonic() * 1000.0
         CombatEvents.update()
-        recent_skills = CombatEvents.get_recent_skills(80)
-        player_id = int(Player.GetAgentID())
+        recent_skills = CombatEvents.get_recent_skills(80)  # fetch last 80 combat events
+        player_id                 = int(Player.GetAgentID())
         reaper_candidate_agent_ids = cls._get_reaper_candidate_agent_ids()
-        party_member_agent_ids = cls._get_party_member_agent_ids()
+        party_member_agent_ids    = cls._get_party_member_agent_ids()
 
+        # Walk events newest-first so the most recent reaper cast determines the mode.
         for ts, caster_id, skill_id, target_id, event_type in reversed(recent_skills):
             if int(event_type) not in cls._ACTIVATION_EVENT_TYPES:
-                continue
+                continue  # Ignore non-activation events (e.g. skill-end, attack-end).
 
             caster_id_int = int(caster_id)
-            skill_id_int = int(skill_id)
+            skill_id_int  = int(skill_id)
 
             is_drest_candidate = cls._skill_id_matches_candidates(
                 skill_id_int,
@@ -626,10 +740,11 @@ class DhuumsRestUtility(CustomSkillUtilityBase):
                 cls._GHOSTLY_FURY_CANDIDATES,
             )
             if not is_drest_candidate and not is_fury_candidate:
-                continue
+                continue  # Not a skill we care about — skip.
 
-            # Fallback learning: if a non-player ally casts a known candidate,
-            # treat that caster as a reaper even when name matching fails.
+            # Fallback learning: if a non-player, non-party ally casts a candidate
+            # skill that is not yet in the reaper set, promote it as a learned reaper.
+            # This handles cases where name-based matching fails (e.g. locale differences).
             if (
                 caster_id_int in reaper_candidate_agent_ids
                 and caster_id_int != player_id
@@ -640,8 +755,9 @@ class DhuumsRestUtility(CustomSkillUtilityBase):
                 effective_reaper_ids.add(caster_id_int)
 
             if caster_id_int not in effective_reaper_ids:
-                continue
+                continue  # Caster is not a Reaper — discard this event.
 
+            # Confirmed reaper cast: update the shared mode and stop processing.
             if is_drest_candidate:
                 cls._log_candidate_detection(int(ts), caster_id_int, skill_id_int, "_DHUUMS_REST_CANDIDATES")
                 cls._set_mode(cls._MODE_DREST, now_ms)
@@ -653,11 +769,13 @@ class DhuumsRestUtility(CustomSkillUtilityBase):
 
     @classmethod
     def is_dhuums_rest_mode(cls) -> bool:
+        """Return True when the most recent confirmed Reaper cast was Dhuum's Rest."""
         cls.refresh_mode_from_reaper_events()
         return cls._shared_mode == cls._MODE_DREST
 
     @classmethod
     def is_ghostly_fury_mode(cls) -> bool:
+        """Return True when the most recent confirmed Reaper cast was Ghostly Fury."""
         cls.refresh_mode_from_reaper_events()
         return cls._shared_mode == cls._MODE_FURY
 
