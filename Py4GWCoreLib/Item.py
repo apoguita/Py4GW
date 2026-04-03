@@ -1,7 +1,18 @@
+from typing import Optional, Type, TypeVar
+
 import PyItem
 import PyInventory
 
 from enum import Enum
+
+from Py4GWCoreLib.enums_src.GameData_enums import Attribute, DyeColor
+from Py4GWCoreLib.enums_src.Item_enums import DAMAGE_RANGES, ItemType, Rarity
+from Py4GWCoreLib.item_mods_src.item_mod import ItemMod
+from Py4GWCoreLib.item_mods_src.item_modifier_parser import ItemModifierParser
+from Py4GWCoreLib.item_mods_src.properties import ArmorProperty, AttributeRequirement, DamageProperty, EnergyProperty
+from Py4GWCoreLib.item_mods_src.upgrades import Upgrade
+
+UpgradeType = TypeVar("UpgradeType", bound="Upgrade")
 
 class Bag(Enum):
     NoBag = 0
@@ -29,7 +40,7 @@ class Bag(Enum):
     Equipped_Items = 22
     Max = 23
 
-class Item:
+class Item:    
         @staticmethod
         def item_instance(item_id):
             """
@@ -105,6 +116,18 @@ class Item:
         def GetItemType(item_id):
             """Purpose: Retrieve the item type of an item by its ID."""
             return Item.item_instance(item_id).item_type.ToInt(), Item.item_instance(item_id).item_type.GetName()
+
+        @staticmethod
+        def IsArmorType(item_id):
+            """Purpose: Check if an item is an armor type by its ID."""
+            item_type_value, _ = Item.GetItemType(item_id)
+            return Item.Utility.IsArmorType(ItemType(item_type_value))
+        
+        @staticmethod
+        def IsWeapon(item_id):
+            """Purpose: Check if an item is a weapon type by its ID."""
+            item_type_value, _ = Item.GetItemType(item_id)
+            return Item.Utility.IsWeaponType(ItemType(item_type_value))
 
         @staticmethod
         def GetModelID(item_id):
@@ -213,6 +236,58 @@ class Item:
                 """Purpose: Retrieve the interaction of an item by its ID."""
                 return Item.item_instance(item_id).interaction
 
+            @staticmethod
+            def GetRequirement(item_id) -> tuple[Attribute, int]:
+                """Purpose: Retrieve the requirement of a weapon item by its ID."""
+                
+                item_type = ItemType(Item.GetItemType(item_id)[0])
+                if not Item.Utility.IsWeaponType(item_type):
+                    return Attribute.None_, 0
+                                
+                rarity, _ = Item.Rarity.GetRarity(item_id)
+                parser = ItemModifierParser(Item.Customization.Modifiers.GetModifiers(item_id), rarity)
+                properties = parser.get_properties()
+                requirement = next((p for p in properties if isinstance(p, AttributeRequirement)), None)
+                return (requirement.attribute, requirement.attribute_level) if requirement else (Attribute.None_, 0)
+            
+            @staticmethod
+            def GetDamage(item_id) -> tuple[int, int]:
+                """Purpose: Retrieve the damage of a weapon item by its ID."""
+                
+                item_type = ItemType(Item.GetItemType(item_id)[0])
+                if not Item.Utility.IsWeaponType(item_type) and not item_type in [ItemType.Offhand, ItemType.Shield]:
+                    return 0, 0
+                                
+                rarity, _ = Item.Rarity.GetRarity(item_id)
+                parser = ItemModifierParser(Item.Customization.Modifiers.GetModifiers(item_id), rarity)
+                properties = parser.get_properties()
+                weapon_damage = next((p for p in properties if isinstance(p, DamageProperty)), None)
+                return weapon_damage.min_damage if weapon_damage else 0, weapon_damage.max_damage if weapon_damage else 0
+            
+            @staticmethod
+            def GetArmor(item_id) -> int:                
+                item_type = ItemType(Item.GetItemType(item_id)[0])
+                if not Item.Utility.IsArmorType(item_type) and not item_type == ItemType.Shield:
+                    return 0
+                                
+                rarity, _ = Item.Rarity.GetRarity(item_id)
+                parser = ItemModifierParser(Item.Customization.Modifiers.GetModifiers(item_id), rarity)
+                properties = parser.get_properties()
+                armor_property = next((p for p in properties if isinstance(p, ArmorProperty)), None)
+                return armor_property.armor if armor_property else 0
+            
+            @staticmethod
+            def GetEnergy(item_id) -> int:                
+                item_type = ItemType(Item.GetItemType(item_id)[0])
+                if not Item.Utility.IsArmorType(item_type) and not item_type in [ItemType.Offhand, ItemType.Staff]:
+                    return 0
+                                
+                rarity, _ = Item.Rarity.GetRarity(item_id)
+                parser = ItemModifierParser(Item.Customization.Modifiers.GetModifiers(item_id), rarity)
+                properties = parser.get_properties()
+                energy_property = next((p for p in properties if isinstance(p, EnergyProperty)), None)
+                return energy_property.energy if energy_property else 0
+
         class Type:
             @staticmethod
             def IsWeapon(item_id):
@@ -306,10 +381,12 @@ class Item:
                 return Item.item_instance(item_id).is_identified
 
         class Customization:
+    
             @staticmethod
-            def IsInscription(item_id):
+            def IsInscription(item_id): 
                 """Purpose: Check if an item is an inscription by its ID."""
                 return Item.item_instance(item_id).is_inscription
+            
             @staticmethod
             def IsInscribable(item_id):
                 """Purpose: Check if an item is inscribable by its ID."""
@@ -379,6 +456,43 @@ class Item:
                 """Purpose: Check if an item is sparkly by its ID."""
                 return Item.item_instance(item_id).is_sparkly
 
+            @staticmethod
+            def GetUpgrade(item_id, upgrade_type : Type[UpgradeType]) -> Optional[UpgradeType] | None:
+                """Gets a specific upgrade of an item by its ID and upgrade type.
+                Args:
+                    item_id (int): The ID of the item to check for the upgrade.
+                    upgrade_type (type): The type of the upgrade to retrieve (e.g., PrefixUpgrade, SuffixUpgrade, InscriptionUpgrade).  
+                Returns:
+                    Upgrade | None: The upgrade of the specified type if found, otherwise None.
+                """
+                upgrade = ItemMod.get_upgrade(item_id, upgrade_type)
+                return upgrade
+            
+            @staticmethod
+            def GetUpgrades(item_id) -> tuple[Upgrade | None, Upgrade | None, Upgrade | None]:
+                """Gets the upgrades of an item by its ID.
+                Returns a tuple of (prefix, suffix, inscription) where each element is either an Upgrade object or None if not present. This is a helper method that combines the logic of getting the item modifiers and parsing them into properties to extract the relevant upgrade properties.
+                """
+                return ItemMod.get_item_upgrades(item_id)
+            
+            @staticmethod
+            def GetPrefixUpgrade(item_id) -> Upgrade | None:
+                """Gets the prefix upgrade of an item by its ID."""
+                prefix, _, _ = ItemMod.get_item_upgrades(item_id)
+                return prefix
+            
+            @staticmethod            
+            def GetSuffixUpgrade(item_id) -> Upgrade | None:
+                """Gets the suffix upgrade of an item by its ID."""   
+                _, suffix, _ = ItemMod.get_item_upgrades(item_id)
+                return suffix
+            
+            @staticmethod
+            def GetInscriptionUpgrade(item_id) -> Upgrade | None:
+                """Gets the inscription upgrade of an item by its ID."""   
+                _, _, inscription = ItemMod.get_item_upgrades(item_id)
+                return inscription
+
         class Trade:
             @staticmethod
             def IsOfferedInTrade(item_id):
@@ -390,10 +504,66 @@ class Item:
                 """Purpose: Check if an item is tradable by its ID."""
                 return Item.item_instance(item_id).is_tradable
 
-        
-       
+        class Filter:
+            class Dye:
+                @staticmethod     
+                def IsDyeColor(item_id: int, color: DyeColor) -> bool:
+                    item_color = Item.GetDyeColor(item_id)
+                    item_type, _ = Item.GetItemType(item_id)
+                    
+                    return item_type == ItemType.Dye and item_color == color
 
-        
+            class Upgrade:
+                @staticmethod
+                def HasUpgrade(item_id: int, upgrade_type : Type[UpgradeType], max : bool = False) -> bool:                                
+                    if (upgrade := Item.Customization.GetUpgrade(item_id, upgrade_type)) is not None:
+                        return not max or upgrade.is_maxed
+                    
+                    return False
+            
+            class Weapon:
+                @staticmethod
+                def IsMaxDamage(item_id: int) -> bool:
+                    item_type = ItemType(Item.GetItemType(item_id)[0])
+                    _, requirement = Item.Properties.GetRequirement(item_id)
+                    damage_for_requirement = DAMAGE_RANGES.get(item_type, {}).get(requirement, (0, 0))
+                    weapon_damage = Item.Properties.GetDamage(item_id)
+                    
+                    return weapon_damage == damage_for_requirement[1]
+                    
+       
+        class Utility:
+            @staticmethod
+            def IsWeaponType(item_type : ItemType | int) -> bool:
+                if isinstance(item_type, int):
+                    item_type = ItemType(item_type)
+                    
+                return item_type in (
+                        ItemType.Axe,
+                        ItemType.Bow,
+                        ItemType.Daggers,
+                        ItemType.Hammer,
+                        ItemType.Offhand,
+                        ItemType.Scythe,
+                        ItemType.Shield,
+                        ItemType.Spear,
+                        ItemType.Staff,
+                        ItemType.Sword,
+                        ItemType.Wand
+                    )
+                
+            @staticmethod
+            def IsArmorType(item_type : ItemType | int) -> bool:
+                if isinstance(item_type, int):
+                    item_type = ItemType(item_type)
+                    
+                return item_type in (
+                        ItemType.Headpiece,
+                        ItemType.Chestpiece,
+                        ItemType.Gloves,
+                        ItemType.Leggings,
+                        ItemType.Boots
+                    )
 
         
 

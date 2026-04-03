@@ -10,7 +10,7 @@ def filter_dyes_test():
     item_ids = ItemArray.GetItemArray([Bag.Backpack, Bag.Belt_Pouch, Bag.Bag_1, Bag.Bag_2])
     
     for item_id in item_ids:
-        if DyeFilter.is_dye(item_id, DyeColor.Red):
+        if Item.Filter.Dye.IsDyeColor(item_id, DyeColor.Red):
             print(f"Item '{string_table.decode(bytes(PyItem.GetCompleteNameEnc(item_id)))}' ({item_id}) is a red dye.")
             
 
@@ -18,10 +18,10 @@ def filter_weapon_mods_test():
     item_ids = ItemArray.GetItemArray([Bag.Backpack, Bag.Belt_Pouch, Bag.Bag_1, Bag.Bag_2])
     
     for item_id in item_ids:          
-        if (sundering_upgrade := ItemMod.get_upgrade(item_id, SunderingUpgrade)) is not None:
-            print(f"Item '{string_table.decode(bytes(PyItem.GetCompleteNameEnc(item_id)))}' ({item_id}) has a sundering upgrade ({sundering_upgrade.chance}%).")
-            
-            
+        if Item.Filter.Upgrade.HasUpgrade(item_id, SunderingUpgrade):
+            if (sundering_upgrade := Item.Customization.GetUpgrade(item_id, SunderingUpgrade)) is not None:
+                print(f"Item '{string_table.decode(bytes(PyItem.GetCompleteNameEnc(item_id)))}' ({item_id}) has a sundering upgrade ({sundering_upgrade.chance}%).")
+         
         if (sundering_upgrade := ItemMod.get_upgrade(item_id, SunderingUpgrade)) is not None:
             chance = sundering_upgrade.chance
             is_maxed = sundering_upgrade.is_maxed

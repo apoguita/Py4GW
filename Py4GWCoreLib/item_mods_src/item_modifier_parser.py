@@ -7,10 +7,10 @@ from typing import TypeVar
 T = TypeVar("T", bound=ItemProperty)
 
 class ItemModifierParser:
-    def __init__(self, runtime_modifiers: list[ItemModifier], rarity: Rarity = Rarity.Blue):
+    def __init__(self, runtime_modifiers: list[ItemModifier], rarity: Rarity | int = Rarity.Blue):
         self.modifiers: list[DecodedModifier] = []
         self.properties: list[ItemProperty] = []
-        self.rarity: Rarity = rarity
+        self.rarity: Rarity = Rarity(rarity) if isinstance(rarity, int) else rarity
 
         self._decode(runtime_modifiers)
         self._build_properties()

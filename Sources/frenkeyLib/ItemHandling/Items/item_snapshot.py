@@ -11,7 +11,7 @@ from Py4GWCoreLib.enums_src.Item_enums import ItemType, Rarity
 from Py4GWCoreLib.native_src.internals import string_table
 from Sources.frenkeyLib.ItemHandling.Items.ItemData import ITEM_DATA, ItemData
 from Sources.frenkeyLib.ItemHandling.Items.types import INVENTORY_BAGS, STORAGE_BAGS
-from Py4GWCoreLib.item_mods_src.ItemMod import ItemMod
+from Py4GWCoreLib.item_mods_src.item_mod import ItemMod
 from Py4GWCoreLib.item_mods_src.item_modifier_parser import ItemModifierParser
 from Py4GWCoreLib.item_mods_src.properties import AttributeRequirement, DamageProperty, TargetItemTypeProperty
 from Py4GWCoreLib.item_mods_src.upgrades import Upgrade

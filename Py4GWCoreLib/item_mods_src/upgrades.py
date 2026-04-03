@@ -250,6 +250,10 @@ class Upgrade:
         
         return temp_instance.name_plain           
     
+    @property
+    def is_maxed(self) -> bool:
+        return True
+    
 class UnknownUpgrade(Upgrade):
     mod_type = ItemUpgradeType.Unknown
     id = ItemUpgrade.Unknown
