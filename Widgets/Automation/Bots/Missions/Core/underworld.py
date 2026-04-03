@@ -123,14 +123,14 @@ class UWQuestID(enum.IntEnum):
 
 class UWNpcModelID(enum.IntEnum):
     """Model IDs for Underworld quest-giver NPCs."""
-    LostSoul                       = 0  # TODO: fill in actual model I
-    ReaperOfTheLabyrinth           = 0  # TODO: fill in actual model ID
+    LostSoul                       = 2399  # TODO: fill in actual model I
+    ReaperOfTheLabyrinth           = 2399  # TODO: fill in actual model ID
     ReaperOfTheBonePits            = 2399
-    ReaperOfTheChaosPlanes         = 0  # TODO: fill in actual model ID
-    ReaperOfTheForgottenVale       = 0  # TODO: fill in actual model ID
-    ReaperOfTheIceWastes           = 0  # TODO: fill in actual model ID
-    ReaperOfTheSpawningPools       = 0  # TODO: fill in actual model ID
-    ReaperOfTheTwinSerpentMountains= 0  # TODO: fill in actual model ID
+    ReaperOfTheChaosPlanes         = 2399  # TODO: fill in actual model ID
+    ReaperOfTheForgottenVale       = 2399  # TODO: fill in actual model ID
+    ReaperOfTheIceWastes           = 2399  # TODO: fill in actual model ID
+    ReaperOfTheSpawningPools       = 2399  # TODO: fill in actual model ID
+    ReaperOfTheTwinSerpentMountains= 2399  # TODO: fill in actual model ID
     KingFrozenwind                 = 2403
 
 
@@ -840,8 +840,8 @@ def _coro_dhuum_spirit_form_watchdog(bot: Botting):
     its flag is repositioned to the ghost position AND a PixelStack command is sent
     so the ghost account immediately walks there."""
     _SPIRIT_FORM_SKILL_ID = 3134
-    _SPIRIT_FLAG_X = -13922.0
-    _SPIRIT_FLAG_Y = 17153.0
+    _SPIRIT_FLAG_X = -14006
+    _SPIRIT_FLAG_Y = 17275
     _pixelstack_sent_for_spirit: set[str] = set()
     _last_sync_log_at: dict[str, float] = {}
 

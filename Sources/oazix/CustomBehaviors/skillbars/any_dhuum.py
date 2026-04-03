@@ -1,3 +1,23 @@
+"""AnyDhuum_UtilitySkillBar — Dhuum phase skill behavior for the Underworld bot.
+
+This module implements the skill utilities activated during the Dhuum soul-splitting
+(rez) phase. Four utilities are active at any given time:
+
+  - SpiritualHealingUtility:  Heal the weakest nearby ally that is below 70% HP.
+  - ReversalOfDeathUtility:   Cast Reversal of Death on the ally with the highest
+                               death penalty. Activates only once the Spirit Form
+                               phase begins (≥1 account with Spirit Form buff 3134).
+                               When ≤2 accounts carry Spirit Form, only those
+                               soul-split allies are targeted; once >2 have it, any
+                               ally with a death penalty becomes a valid target.
+  - DhuumsRestUtility:        Mirrors Reaper casts of Dhuum's Rest by watching the
+                               CombatEvents stream for reaper skill activations.
+  - GhostlyFuryUtility:       Mirrors Reaper casts of Ghostly Fury the same way.
+
+Two additional utilities are instantiated but excluded from the active skill list:
+  - UnyieldingAuraUtility:    Available for party resurrection between fights.
+  - PendingConditionUtility:  Placeholder for Encase Skeletal (conditions TBD).
+"""
 from typing import Any, Generator, override
 import time
 
@@ -18,27 +38,41 @@ from Sources.oazix.CustomBehaviors.skills.monk.unyielding_aura_utility import Un
 
 #OQBDAqwDSPwQwRwSwTwAAAAAAA
 
-_UW_CHEST_POS = (-13987, 17291)
-_UW_CHEST_RADIUS = 3000.0
-_UW_CHEST_NAME_FRAGMENT = "underworld chest"
+# ─── Module-level constants ──────────────────────────────────────────────────
+# Underworld Chest spawn data used to suppress all skill casts after Dhuum dies.
+# When the chest is present the fight is definitively over and no skills should fire.
+_UW_CHEST_POS = (-13987, 17291)              # approximate world-space position near the Dhuum altar
+_UW_CHEST_RADIUS = 3000.0                    # detection radius in game units
+_UW_CHEST_NAME_FRAGMENT = "underworld chest" # substring matched against gadget names (lowercase)
 
 def _is_uw_chest_present() -> bool:
-    """Return True if the Underworld Chest (gadget) has spawned near the Dhuum arena."""
+    """Return True if the Underworld Chest (gadget) has spawned near the Dhuum arena.
+
+    The chest only appears after Dhuum is defeated. All skill utilities check this
+    function and suppress casts immediately once it returns True, preventing any
+    wasteful skill activation after the encounter is finished.
+    """
     for agent_id in AgentArray.GetAgentArray():
+        # Only gadget-type agents can be the chest; skip all other agent types early.
         if not Agent.IsGadget(agent_id):
             continue
         name = (Agent.GetNameByID(agent_id) or "").strip().lower()
         if _UW_CHEST_NAME_FRAGMENT not in name:
             continue
+        # Confirm the gadget is within the expected radius of the Dhuum altar position.
         if Utils.Distance(_UW_CHEST_POS, Agent.GetXY(agent_id)) <= _UW_CHEST_RADIUS:
             return True
     return False
 
 
+# ─── Placeholder utility ─────────────────────────────────────────────────────
+
 class PendingConditionUtility(CustomSkillUtilityBase):
-    """
-    Placeholder utility for skills that are registered in the build but do not
-    have their final cast conditions yet.
+    """Placeholder for skills that are registered in the build but have no cast logic yet.
+
+    Currently wraps Encase Skeletal, which appears on the Dhuum skillbar but whose
+    exact usage conditions have not been implemented. The utility will never fire
+    and serves only as a registered stub so the skill is tracked by the framework.
     """
 
     def __init__(self, event_bus: EventBus, skill: CustomSkill, current_build: list[CustomSkill]):
@@ -53,7 +87,7 @@ class PendingConditionUtility(CustomSkillUtilityBase):
 
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
-        # Prepared only: final cast conditions will be added later.
+        # No conditions implemented yet — never evaluate to a score.
         return None
 
     @override
@@ -87,8 +121,14 @@ class PendingConditionUtility(CustomSkillUtilityBase):
         pass
 
 
+# ─── Spiritual Healing utility ───────────────────────────────────────────────
+
 class SpiritualHealingUtility(CustomSkillUtilityBase):
-    """Spiritual Healing: heal the lowest-HP ally under 50% health."""
+    """Spiritual Healing: cast on the lowest-HP ally currently below 70% health.
+
+    Score: 90. Suppressed when the Underworld Chest is present (fight over).
+    Targets are sorted by ascending HP first, then by ascending distance.
+    """
 
     def __init__(self, event_bus: EventBus, current_build: list[CustomSkill]):
         spiritual_healing_skill = AnyDhuum_UtilitySkillBar._resolve_custom_skill("Spiritual_Healing", "Spiritual Healing")
@@ -108,9 +148,10 @@ class SpiritualHealingUtility(CustomSkillUtilityBase):
         return super().are_common_pre_checks_valid(current_state)
 
     def _get_targets(self) -> list[custom_behavior_helpers.SortableAgentData]:
+        """Return allies within cast range whose HP fraction is below 70%, sorted by lowest HP."""
         return custom_behavior_helpers.Targets.get_all_possible_allies_ordered_by_priority_raw(
-            within_range=Range.Spellcast.value * 1.2,
-            condition=lambda agent_id: Agent.GetHealth(agent_id) < 0.70,
+            within_range=Range.Spellcast.value * 1.2,  # slightly extended range for safety
+            condition=lambda agent_id: Agent.GetHealth(agent_id) < 0.70,  # 70% HP threshold
             sort_key=(TargetingOrder.HP_ASC, TargetingOrder.DISTANCE_ASC),
         )
 
@@ -169,7 +210,7 @@ class ReversalOfDeathUtility(CustomSkillUtilityBase):
     """
 
     _SPIRIT_FORM_SKILL_ID = 3134
-    _SPIRIT_FORM_MIN_COUNT = 3
+    _SPIRIT_FORM_MIN_COUNT = 1
 
     def __init__(self, event_bus: EventBus, current_build: list[CustomSkill]):
         reversal_skill = AnyDhuum_UtilitySkillBar._resolve_custom_skill("Reversal_of_Death", "Reversal of Death")
@@ -223,6 +264,31 @@ class ReversalOfDeathUtility(CustomSkillUtilityBase):
             and int(self_account.AgentData.Map.Language) == int(other_account.AgentData.Map.Language)
         )
 
+    def _get_spirit_form_agent_ids(self) -> set[int]:
+        """Return agent IDs of same-party accounts that currently have Spirit Form (buff 3134)."""
+        result: set[int] = set()
+        self_email = Player.GetAccountEmail()
+        self_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(self_email)
+        if self_account is None:
+            return result
+        for account in (GLOBAL_CACHE.ShMem.GetAllAccountData() or []):
+            if not account.IsSlotActive or account.IsIsolated:
+                continue
+            if not self._same_party_and_map(self_account, account):
+                continue
+            try:
+                if any(
+                    b.SkillId == self._SPIRIT_FORM_SKILL_ID
+                    for b in account.AgentData.Buffs.Buffs
+                    if b.SkillId != 0
+                ):
+                    agent_id = int(account.AgentData.AgentID or 0)
+                    if agent_id > 0:
+                        result.add(agent_id)
+            except Exception:
+                pass
+        return result
+
     def _get_morale_by_agent_id(self) -> dict[int, int]:
         morale_by_agent: dict[int, int] = {}
         self_email = Player.GetAccountEmail()
@@ -243,9 +309,24 @@ class ReversalOfDeathUtility(CustomSkillUtilityBase):
         return morale_by_agent
 
     def _get_target_with_highest_death_penalty(self) -> custom_behavior_helpers.SortableAgentData | None:
+        spirit_form_count = self._count_spirit_form_accounts()
+        spirit_form_agent_ids = self._get_spirit_form_agent_ids()
+        # If >2 accounts have Spirit Form: any ally with death penalty is valid.
+        # Otherwise: only target allies that themselves carry Spirit Form.
+        restrict_to_spirit_form = spirit_form_count <= 2
+
+        my_id = int(Player.GetAgentID())
+
+        def _condition(agent_id: int) -> bool:
+            if int(agent_id) == my_id:
+                return False
+            if restrict_to_spirit_form and int(agent_id) not in spirit_form_agent_ids:
+                return False
+            return True
+
         allies = custom_behavior_helpers.Targets.get_all_possible_allies_ordered_by_priority_raw(
             within_range=Range.Spellcast.value * 1.2,
-            condition=lambda agent_id: int(agent_id) != int(Player.GetAgentID()),
+            condition=_condition,
             sort_key=(TargetingOrder.HP_ASC, TargetingOrder.DISTANCE_ASC),
             is_alive=True,
         )
@@ -264,7 +345,6 @@ class ReversalOfDeathUtility(CustomSkillUtilityBase):
             death_penalty = max(0, 100 - morale)
             if death_penalty <= 0:
                 continue
-
             if best_target is None or death_penalty > best_death_penalty:
                 best_target = ally
                 best_death_penalty = death_penalty
@@ -788,16 +868,14 @@ class AnyDhuum_UtilitySkillBar(CustomBehaviorBaseUtility):
     @override
     def custom_skills_in_behavior(self) -> list[CustomSkillUtilityBase]:
         return [
-            self.unyielding_aura_utility,
             self.spiritual_healing_utility,
             self.dhuums_rest_utility,
             self.reversal_of_death_utility,
             self.ghostly_fury_utility,
-            self.encase_skeletal_utility,
         ]
 
     @property
     @override
     def skills_required_in_behavior(self) -> list[CustomSkill]:
-        # Keep a single required slot so loader ranking stays stable.
-        return [CustomSkill("Unyielding_Aura")]
+        # Curse of Dhuum is the reliable in-bar marker for this behavior profile.
+        return [CustomSkill("Curse_of_Dhuum")]

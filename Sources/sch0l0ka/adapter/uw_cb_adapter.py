@@ -55,24 +55,55 @@ class UWCBAdapter(UWCombatAdapter):
         return False
 
     def _ensure_custom_botting_skills_enabled(self) -> None:
-        manager = BottingManager()
-        required_skill_keys = {
-            "wait_if_in_aggro",
-            "move_to_party_member_if_in_aggro",
-            "move_to_party_member_if_dead",
+        # Aggressive skills: only these three enabled, everything else disabled.
+        _AGGRESSIVE_CONFIG = {
+            "move_to_party_member_if_in_aggro":         True,
+            "move_to_enemy_if_close_enough":            False,
+            "move_to_party_member_if_dead":             True,
+            "wait_if_party_member_mana_too_low":        False,
+            "wait_if_party_member_too_far":             False,
+            "wait_if_party_member_needs_to_loot":       False,
+            "wait_if_in_aggro":                         True,
+            "wait_if_lock_taken":                       False,
+            "move_to_distant_chest_if_path_exists":     False,
         }
+        # Automover skills: all disabled.
+        _AUTOMOVER_CONFIG = {
+            "move_to_party_member_if_in_aggro":         False,
+            "move_to_enemy_if_close_enough":            False,
+            "move_to_party_member_if_dead":             False,
+            "wait_if_party_member_mana_too_low":        False,
+            "wait_if_party_member_too_far":             False,
+            "wait_if_party_member_needs_to_loot":       False,
+            "wait_if_in_aggro":                         False,
+            "wait_if_lock_taken":                       False,
+        }
+        manager = BottingManager()
         changed = False
         for entry in manager.aggressive_skills:
-            if entry.name in required_skill_keys and not entry.enabled:
-                entry.enabled = True
+            desired = _AGGRESSIVE_CONFIG.get(entry.name)
+            if desired is not None and entry.enabled != desired:
+                entry.enabled = desired
+                changed = True
+        for entry in manager.automover_skills:
+            desired = _AUTOMOVER_CONFIG.get(entry.name)
+            if desired is not None and entry.enabled != desired:
+                entry.enabled = desired
                 changed = True
         if changed:
             manager.save()
             ConsoleLog(
                 self._bot_name,
-                "[CB] Required botting skills were enabled for this bot.",
+                "[CB] Botting skill configuration applied for Underworld bot.",
                 Py4GW.Console.MessageType.Info,
             )
+
+    def _ensure_party_defaults(self) -> None:
+        """Ensure combat, following, and looting are enabled at each bot step start."""
+        party = CustomBehaviorParty()
+        party.set_party_is_combat_enabled(True)
+        party.set_party_is_following_enabled(True)
+        party.set_party_is_looting_enabled(True)
 
     def _active_multibox_emails(self) -> list[str]:
         emails: list[str] = []
@@ -121,6 +152,7 @@ class UWCBAdapter(UWCombatAdapter):
             )
             return
         self._ensure_custom_botting_skills_enabled()
+        self._ensure_party_defaults()
         BottingFsmHelpers.SetBottingBehaviorAsAggressive(bot_instance)
         BottingFsmHelpers.UseCustomBehavior(
             bot_instance,
@@ -191,6 +223,7 @@ class UWCBAdapter(UWCombatAdapter):
             )
             return
         self._ensure_custom_botting_skills_enabled()
+        self._ensure_party_defaults()
         cb_config = BottingManager()
         behavior.clear_additionnal_utility_skills()
         cb_config.inject_enabled_skills(cb_config.get_enabled_aggressive_skills(), behavior)
@@ -284,10 +317,10 @@ class UWCBAdapter(UWCombatAdapter):
         # Try to find the slot that already belongs to this email.
         for i in range(12):
             if mgr.get_flag_account_email(i).lower() == email.lower():
-                mgr.set_flag_data(i, email, x, y)
+                self.set_flag_for_email(email, i, x, y)
                 return
         # Fallback: assign the first free slot.
         for i in range(12):
             if not mgr.get_flag_account_email(i):
-                mgr.set_flag_data(i, email, x, y)
+                self.set_flag_for_email(email, i, x, y)
                 return
