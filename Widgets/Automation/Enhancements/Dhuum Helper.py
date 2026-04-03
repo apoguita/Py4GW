@@ -64,6 +64,16 @@ def _write_equipped_armor_json() -> None:
 		if not isinstance(existing, dict) or "normal" not in existing:
 			old_slots = {k: v for k, v in existing.items() if isinstance(k, str) and k.isdigit()}
 			existing = {"normal": old_slots, "sacrifice": {}}
+
+		# Skip writing if sacrifice armor is currently equipped to avoid overwriting
+		# the normal armor configuration with sacrifice model IDs.
+		saved_sacrifice = existing.get("sacrifice") or {}
+		sacrifice_model_ids = {v for v in saved_sacrifice.values() if v != 0}
+		current_model_ids = set(slots.values())
+		if sacrifice_model_ids and sacrifice_model_ids.issubset(current_model_ids):
+			Py4GW.Console.Log(MODULE_NAME, "Armor write skipped - sacrifice armor is equipped.", Py4GW.Console.MessageType.Info)
+			return
+
 		existing["normal"] = slots
 		all_armor[email] = existing
 
