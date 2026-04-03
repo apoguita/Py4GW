@@ -213,14 +213,28 @@ def _restock_consumables_if_enabled(bot: Botting):
 def _use_consumables_if_enabled(bot: Botting):
     _sync_consumable_toggles(bot)
     if _as_bool(bot.Properties.Get("use_conset", "active")):
-        yield from bot.helpers.Items.use_conset()
+        yield from _use_consumable_list(CONSET_ITEMS)
     if _as_bool(bot.Properties.Get("use_pcons", "active")):
-        yield from bot.helpers.Items.use_pcons()
+        yield from _use_consumable_list(PCON_ITEMS)
 
 
 def _restock_models_locally(model_ids: list[int], quantity: int):
     for model_id in model_ids:
         yield from Routines.Yield.Items.RestockItems(model_id, quantity)
+
+
+def _use_consumable_list(consumables: list[tuple[int, str]]):
+    yield from Routines.Yield.wait(500)
+    for model_id, effect_skill_name in consumables:
+        effect_skill_id = GLOBAL_CACHE.Skill.GetID(effect_skill_name)
+        if effect_skill_id:
+            if hasattr(GLOBAL_CACHE, "Effects") and callable(getattr(GLOBAL_CACHE.Effects, "HasEffect", None)):
+                if GLOBAL_CACHE.Effects.HasEffect(Player.GetAgentID(), effect_skill_id):
+                    continue
+            elif hasattr(GLOBAL_CACHE.Inventory, "HasEffect") and callable(getattr(GLOBAL_CACHE.Inventory, "HasEffect", None)):
+                if GLOBAL_CACHE.Inventory.HasEffect(Player.GetAgentID(), effect_skill_id):
+                    continue
+        yield from Routines.Yield.Items.UseItem(model_id)
 # endregion
 
 
@@ -231,9 +245,9 @@ def _upkeep_consumables(bot: "Botting"):
         if not Routines.Checks.Map.MapValid() or Routines.Checks.Map.IsOutpost():
             continue
         if _as_bool(bot.Properties.Get("use_conset", "active")):
-            yield from bot.helpers.Items.use_conset()
+            yield from _use_consumable_list(CONSET_ITEMS)
         if _as_bool(bot.Properties.Get("use_pcons", "active")):
-            yield from bot.helpers.Items.use_pcons()
+            yield from _use_consumable_list(PCON_ITEMS)
             for _ in range(4):
                 honeycomb_item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(ModelID.Honeycomb.value)
                 if not honeycomb_item_id:
