@@ -817,8 +817,15 @@ class DhuumsRestUtility(CustomSkillUtilityBase):
         pass
 
 
+# ─── Ghostly Fury utility ──────────────────────────────────────────────────
+
 class GhostlyFuryUtility(CustomSkillUtilityBase):
-    """Mirror Reaper casts: when Reapers cast Ghostly Fury, we cast Ghostly Fury."""
+    """Mirror Reaper casts: when a Reaper casts Ghostly Fury, this utility fires.
+
+    Mode detection is shared with DhuumsRestUtility (see is_ghostly_fury_mode).
+    Score: 97. Suppressed when the Underworld Chest is present (fight over).
+    Target: the nearest living enemy, with the party's current target prioritised.
+    """
 
     def __init__(self, event_bus: EventBus, current_build: list[CustomSkill]):
         ghostly_fury_skill = AnyDhuum_UtilitySkillBar._resolve_custom_skill("Ghostly_Fury", "Ghostly Fury")
@@ -892,12 +899,18 @@ class GhostlyFuryUtility(CustomSkillUtilityBase):
         pass
 
 
-class AnyDhuum_UtilitySkillBar(CustomBehaviorBaseUtility):
-    """
-    Dedicated build profile for the Dhuum rez phase.
+# ─── Main skillbar behavior ──────────────────────────────────────────────────
 
-    Detection is tolerant: if either the Dhuum marker skill or Unyielding Aura
-    is present in the in-game skillbar, this behavior can be selected.
+class AnyDhuum_UtilitySkillBar(CustomBehaviorBaseUtility):
+    """Skillbar behavior profile for the Dhuum rez phase.
+
+    Wires up all individual UtilityBase instances and exposes the active skill list
+    to the framework via custom_skills_in_behavior and skills_required_in_behavior.
+
+    Profile detection is tolerant: any single known Dhuum-phase skill found in the
+    in-game skillbar is sufficient to select this profile
+    (see count_matches_between_custom_behavior_and_in_game_build).
+    The primary detection marker is Curse of Dhuum (skills_required_in_behavior).
     """
 
     _DHUUM_MARKER_CANDIDATES = (
@@ -916,12 +929,16 @@ class AnyDhuum_UtilitySkillBar(CustomBehaviorBaseUtility):
         super().__init__()
         in_game_build = list(self.skillbar_management.get_in_game_build().values())
 
-        # Explicit utilities, following the common skillbar schema.
-        self.dhuums_rest_utility: CustomSkillUtilityBase = DhuumsRestUtility(
+        # ── Active utilities (included in custom_skills_in_behavior) ────────────
+        self.spiritual_healing_utility: CustomSkillUtilityBase = SpiritualHealingUtility(
             event_bus=self.event_bus,
             current_build=in_game_build,
         )
-        self.spiritual_healing_utility: CustomSkillUtilityBase = SpiritualHealingUtility(
+        self.reversal_of_death_utility = ReversalOfDeathUtility(
+            event_bus=self.event_bus,
+            current_build=in_game_build,
+        )
+        self.dhuums_rest_utility: CustomSkillUtilityBase = DhuumsRestUtility(
             event_bus=self.event_bus,
             current_build=in_game_build,
         )
@@ -929,17 +946,16 @@ class AnyDhuum_UtilitySkillBar(CustomBehaviorBaseUtility):
             event_bus=self.event_bus,
             current_build=in_game_build,
         )
+
+        # ── Instantiated but not currently active ────────────────────────────
+        # UnyieldingAura is available for party rez between fights but is excluded
+        # from custom_skills_in_behavior during the Dhuum soul-split phase.
         self.unyielding_aura_utility: CustomSkillUtilityBase = UnyieldingAuraUtility(
             event_bus=self.event_bus,
             current_build=in_game_build,
             score_definition=ScoreStaticDefinition(98),
         )
-
-        self.reversal_of_death_utility = ReversalOfDeathUtility(
-            event_bus=self.event_bus,
-            current_build=in_game_build,
-        )
-
+        # Encase Skeletal placeholder — cast conditions not yet implemented.
         self.encase_skeletal_utility: CustomSkillUtilityBase = PendingConditionUtility(
             event_bus=self.event_bus,
             skill=self._resolve_custom_skill("Encase_Skeletal", "Encase Skeletal"),
@@ -948,6 +964,11 @@ class AnyDhuum_UtilitySkillBar(CustomBehaviorBaseUtility):
 
     @staticmethod
     def _resolve_skill_id(*names: str) -> int:
+        """Return the first resolvable numeric skill ID from a list of candidate names.
+
+        Names are tried in order. Returns 0 when none resolve (e.g. the skill is absent
+        from the current locale's game data or the GLOBAL_CACHE is not yet populated).
+        """
         for name in names:
             try:
                 skill_id = int(GLOBAL_CACHE.Skill.GetID(name))
@@ -959,6 +980,12 @@ class AnyDhuum_UtilitySkillBar(CustomBehaviorBaseUtility):
 
     @staticmethod
     def _resolve_custom_skill(*names: str) -> CustomSkill:
+        """Return a CustomSkill wrapping the first resolvable name, falling back to names[0].
+
+        Ensures the returned CustomSkill references an actually-existing skill where
+        possible, while still returning a non-empty object when resolution fails so
+        that callers do not need to handle a None return value.
+        """
         for name in names:
             if AnyDhuum_UtilitySkillBar._resolve_skill_id(name) > 0:
                 return CustomSkill(name)
@@ -966,9 +993,15 @@ class AnyDhuum_UtilitySkillBar(CustomBehaviorBaseUtility):
 
     @override
     def count_matches_between_custom_behavior_and_in_game_build(self) -> int:
+        """Return 1 if at least one Dhuum-phase skill is present in the in-game skillbar.
+
+        A single match is sufficient because this is a highly specialised profile:
+        if any Dhuum skill is on the bar, the full behavior suite should be loaded.
+        Returns 0 when no known skill is detected (profile should not be selected).
+        """
         in_game_ids = set(self.skillbar_management.get_in_game_build().keys())
 
-        # Accept this profile as soon as one known Dhuum-bar skill is present.
+        # Check each candidate group in declaration order; the first hit returns a match.
         detection_candidates: list[tuple[str, ...]] = [
             self._DHUUM_MARKER_CANDIDATES,
             ("Unyielding_Aura", "Unyielding Aura"),
@@ -985,6 +1018,14 @@ class AnyDhuum_UtilitySkillBar(CustomBehaviorBaseUtility):
     @property
     @override
     def custom_skills_in_behavior(self) -> list[CustomSkillUtilityBase]:
+        """Return the ordered list of active skill utilities for the Dhuum phase.
+
+        Evaluation order and scores:
+          spiritual_healing  (score 90) — heal weak allies below 70% HP
+          dhuums_rest        (score 97) — mirror reaper Dhuum's Rest cast
+          reversal_of_death  (score 94) — rez soul-split ally with highest death penalty
+          ghostly_fury       (score 97) — mirror reaper Ghostly Fury cast
+        """
         return [
             self.spiritual_healing_utility,
             self.dhuums_rest_utility,
@@ -995,5 +1036,9 @@ class AnyDhuum_UtilitySkillBar(CustomBehaviorBaseUtility):
     @property
     @override
     def skills_required_in_behavior(self) -> list[CustomSkill]:
-        # Curse of Dhuum is the reliable in-bar marker for this behavior profile.
+        """Return the skill(s) whose presence in-bar confirms this behavior profile.
+
+        Curse of Dhuum is the most reliable Dhuum-phase marker: it is only placed on
+        the skillbar of accounts assigned to the rez role in the party composition.
+        """
         return [CustomSkill("Curse_of_Dhuum")]
