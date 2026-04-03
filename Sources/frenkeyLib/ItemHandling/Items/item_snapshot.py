@@ -11,11 +11,11 @@ from Py4GWCoreLib.enums_src.Item_enums import ItemType, Rarity
 from Py4GWCoreLib.native_src.internals import string_table
 from Sources.frenkeyLib.ItemHandling.Items.ItemData import ITEM_DATA, ItemData
 from Sources.frenkeyLib.ItemHandling.Items.types import INVENTORY_BAGS, STORAGE_BAGS
-from Sources.frenkeyLib.ItemHandling.Mods.ItemMod import ItemMod
-from Sources.frenkeyLib.ItemHandling.Mods.item_modifier_parser import ItemModifierParser
-from Sources.frenkeyLib.ItemHandling.Mods.properties import AttributeRequirement, DamageProperty, TargetItemTypeProperty
-from Sources.frenkeyLib.ItemHandling.Mods.upgrades import Upgrade
-from Sources.frenkeyLib.ItemHandling.encoded_strings import GWStringEncoded
+from Py4GWCoreLib.item_mods_src.ItemMod import ItemMod
+from Py4GWCoreLib.item_mods_src.item_modifier_parser import ItemModifierParser
+from Py4GWCoreLib.item_mods_src.properties import AttributeRequirement, DamageProperty, TargetItemTypeProperty
+from Py4GWCoreLib.item_mods_src.upgrades import Upgrade
+from Py4GWCoreLib.native_src.internals.encoded_strings import GWStringEncoded
 
 
 def get_item_bag(item_id: int, item_instance: Optional[PyItem] = None) -> Bag:

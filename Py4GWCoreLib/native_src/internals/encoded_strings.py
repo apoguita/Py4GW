@@ -4,7 +4,7 @@ from typing import Optional
 from Py4GWCoreLib.enums_src.GameData_enums import Ailment, Attribute, DamageType, Profession, Reduced_Ailment
 from Py4GWCoreLib.enums_src.Item_enums import ItemType, Rarity
 from Py4GWCoreLib.native_src.internals import string_table
-from Sources.frenkeyLib.ItemHandling.Mods.types import ItemBaneSpecies
+from Py4GWCoreLib.item_mods_src.types import ItemBaneSpecies
 
 class GWStringEncoded:
     COLOR_TAG_RE = re.compile(r"<c=@[^>]+>(.*?)</c>")

@@ -4,10 +4,10 @@ import Py4GW
 
 from Py4GWCoreLib.enums_src.GameData_enums import _ATTRIBUTE_TO_PROFESSION, Ailment, Attribute, DamageType, Profession, Reduced_Ailment
 from Py4GWCoreLib.enums_src.Item_enums import ItemType
-from Sources.frenkeyLib.ItemHandling.Mods.decoded_modifier import DecodedModifier
-from Sources.frenkeyLib.ItemHandling.Mods.properties import *
-from Sources.frenkeyLib.ItemHandling.Mods.types import ItemBaneSpecies, ItemUpgradeType, ModifierIdentifier
-from Sources.frenkeyLib.ItemHandling.Mods.upgrades import Upgrade, UnknownUpgrade, _UPGRADES
+from Py4GWCoreLib.item_mods_src.decoded_modifier import DecodedModifier
+from Py4GWCoreLib.item_mods_src.properties import *
+from Py4GWCoreLib.item_mods_src.types import ItemBaneSpecies, ItemUpgradeType, ModifierIdentifier
+from Py4GWCoreLib.item_mods_src.upgrades import Upgrade, UnknownUpgrade, _UPGRADES
 
 def get_profession_from_attribute(attribute: Attribute) -> Optional[Profession]:
     return _ATTRIBUTE_TO_PROFESSION.get(attribute, Profession._None)

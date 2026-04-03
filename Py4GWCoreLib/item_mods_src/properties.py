@@ -2,14 +2,14 @@ from typing import TYPE_CHECKING
 from dataclasses import dataclass, field
 from Py4GWCoreLib.enums_src.GameData_enums import Ailment, Attribute, AttributeNames, DamageType, Profession, Reduced_Ailment
 from Py4GWCoreLib.enums_src.Item_enums import ItemType, Rarity
-from Sources.frenkeyLib.ItemHandling.Mods.decoded_modifier import DecodedModifier
-from Sources.frenkeyLib.ItemHandling.Mods.types import ItemBaneSpecies, ItemUpgradeId
-from Sources.frenkeyLib.ItemHandling.encoded_strings import GWStringEncoded, GWEncoded
+from Py4GWCoreLib.item_mods_src.decoded_modifier import DecodedModifier
+from Py4GWCoreLib.item_mods_src.types import ItemBaneSpecies, ItemUpgradeId
+from Py4GWCoreLib.native_src.internals.encoded_strings import GWStringEncoded, GWEncoded
 
 PERSISTENT = True
 
 if TYPE_CHECKING:
-    from Sources.frenkeyLib.ItemHandling.Mods.upgrades import Upgrade
+    from Py4GWCoreLib.item_mods_src.upgrades import Upgrade
 
 @dataclass
 class ItemProperty:

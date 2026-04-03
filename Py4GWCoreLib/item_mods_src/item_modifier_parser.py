@@ -1,7 +1,7 @@
 from PyItem import ItemModifier
 from Py4GWCoreLib.enums_src.Item_enums import Rarity
-from Sources.frenkeyLib.ItemHandling.Mods.decoded_modifier import DecodedModifier
-from Sources.frenkeyLib.ItemHandling.Mods.properties import ItemProperty
+from Py4GWCoreLib.item_mods_src.decoded_modifier import DecodedModifier
+from Py4GWCoreLib.item_mods_src.properties import ItemProperty
 from typing import TypeVar
 
 T = TypeVar("T", bound=ItemProperty)
@@ -22,7 +22,7 @@ class ItemModifierParser:
                 self.modifiers.append(decoded)
 
     def _build_properties(self):
-        from Sources.frenkeyLib.ItemHandling.Mods.upgrade_parser import get_property_factory
+        from Py4GWCoreLib.item_mods_src.upgrade_parser import get_property_factory
 
         for mod in self.modifiers:
             factory = get_property_factory().get(mod.identifier)

@@ -5,17 +5,17 @@ from typing import Optional, cast
 import Py4GW
 from PyItem import ItemModifier
 
-from Py4GWCoreLib.enums_src.GameData_enums import PROFESSION_ATTRIBUTES, Attribute, AttributeNames, Profession
+from Py4GWCoreLib.enums_src.GameData_enums import Attribute, AttributeNames, Profession
 from Py4GWCoreLib.enums_src.Item_enums import ItemType, Rarity
 from Py4GWCoreLib.enums_src.Region_enums import ServerLanguage
 from Py4GWCoreLib.native_src.internals import string_table
-from Sources.frenkeyLib.ItemHandling.Mods.decoded_modifier import DecodedModifier
-from Sources.frenkeyLib.ItemHandling.Mods.properties import AttributePlusOne, DamagePlusVsSpecies, ItemProperty, OfTheProfession
-from Sources.frenkeyLib.ItemHandling.Mods.types import ItemBaneSpecies, ItemModifierParam, ItemUpgrade, ItemUpgradeId, ItemUpgradeType, ModifierIdentifier
-from Sources.frenkeyLib.ItemHandling.encoded_strings import GWStringEncoded, GWEncoded
+from Py4GWCoreLib.item_mods_src.decoded_modifier import DecodedModifier
+from Py4GWCoreLib.item_mods_src.properties import ItemProperty
+from Py4GWCoreLib.item_mods_src.types import ItemBaneSpecies, ItemModifierParam, ItemUpgrade, ItemUpgradeId, ItemUpgradeType, ModifierIdentifier
+from Py4GWCoreLib.native_src.internals.encoded_strings import GWStringEncoded, GWEncoded
 
 def _get_property_factory():
-    from Sources.frenkeyLib.ItemHandling.Mods.upgrade_parser import get_property_factory
+    from Py4GWCoreLib.item_mods_src.upgrade_parser import get_property_factory
     return get_property_factory()
 
 

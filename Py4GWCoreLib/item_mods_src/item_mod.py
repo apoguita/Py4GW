@@ -1,30 +1,28 @@
 from typing import Optional, Type, TypeVar
 
-import Py4GW
 from PyItem import ItemModifier
 
-from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.enums_src.Item_enums import Rarity
-from Sources.frenkeyLib.ItemHandling.Mods.item_modifier_parser import ItemModifierParser
-from Sources.frenkeyLib.ItemHandling.Mods.properties import InscriptionProperty, ItemProperty, PrefixProperty, SuffixProperty
-from Sources.frenkeyLib.ItemHandling.Mods.types import ItemUpgradeType
-from Sources.frenkeyLib.ItemHandling.Mods.upgrades import FuriousUpgrade, Upgrade
+from Py4GWCoreLib.item_mods_src.item_modifier_parser import ItemModifierParser
+from Py4GWCoreLib.item_mods_src.properties import InscriptionProperty, ItemProperty, PrefixProperty, SuffixProperty
+from Py4GWCoreLib.item_mods_src.types import ItemUpgradeType
+from Py4GWCoreLib.item_mods_src.upgrades import Upgrade
 
 class ItemMod:
     T = TypeVar("T", bound="Upgrade")
 
     @staticmethod
-    def get_upgrade(upgrade_type: Type[T]) -> Optional[T]:
+    def get_upgrade(item_id : int, upgrade_type: Type[T]) -> Optional[T]:
         '''
         Gets the upgrade of the specified type from the item properties. This is a helper method that combines the logic of getting the item modifiers, parsing them into properties, and extracting the relevant upgrade property. It also includes validation for inherent upgrades on green items.
         Recommended usage is with an assignment expression to avoid unnecessary processing if the upgrade is not present or of the wrong type.
         Example usage:
         
-        if (upgrade := ItemMod.get_upgrade(FuriousUpgrade)) is not None and upgrade.chance == 20:
+        if (upgrade := ItemMod.get_upgrade(item_id, FuriousUpgrade)) is not None and upgrade.chance == 20:
             ...do something with the furious upgrade  
         '''
         
-        prefix, suffix, inscription = ItemMod.get_item_upgrades_from_properties([])
+        prefix, suffix, inscription = ItemMod.get_item_upgrades(item_id)
 
         if prefix and isinstance(prefix, upgrade_type):
             return prefix
@@ -84,39 +82,3 @@ class ItemMod:
         inscription : Upgrade | None = inscription_prop.upgrade if inscription_prop else None
         
         return ItemMod.validated_upgrades(rarity, prefix, suffix, inscription)
-        
-    @staticmethod
-    def get_item_name_without_upgrades(item_id : int) -> str:
-        item_name = GLOBAL_CACHE.Item.GetName(item_id)
-        prefix, suffix, _ = ItemMod.get_item_upgrades(item_id)
-        item_name = ItemMod.remove_upgrades_from_item_name(item_name, prefix, suffix)
-        
-        return item_name
-    
-    @staticmethod
-    def get_item_name_with_upgrades(item_id : int) -> str:
-        item_name = GLOBAL_CACHE.Item.GetName(item_id)
-        prefix, suffix, _ = ItemMod.get_item_upgrades(item_id)
-        item_name = ItemMod.apply_upgrades_to_item_name(item_name, prefix, suffix)
-        
-        return item_name
-    
-    @staticmethod
-    def apply_upgrades_to_item_name(item_name : str, prefix : Upgrade | None, suffix : Upgrade | None) -> str:
-        if prefix and hasattr(prefix, "apply_to_item_name"):
-            item_name = prefix.apply_to_item_name(item_name) # type: ignore
-            
-        if suffix and hasattr(suffix, "apply_to_item_name"):
-            item_name = suffix.apply_to_item_name(item_name) # type: ignore
-            
-        return item_name
-    
-    @staticmethod
-    def remove_upgrades_from_item_name(item_name : str, prefix : Upgrade | None, suffix : Upgrade | None) -> str:
-        if prefix and hasattr(prefix, "remove_from_item_name"):
-            item_name = prefix.remove_from_item_name(item_name) # type: ignore
-            
-        if suffix and hasattr(suffix, "remove_from_item_name"):
-            item_name = suffix.remove_from_item_name(item_name) # type: ignore
-            
-        return item_name
