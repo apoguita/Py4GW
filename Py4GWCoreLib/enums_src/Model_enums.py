@@ -678,6 +678,7 @@ class PetModelID(IntEnum):
 
 # region ItemModels
 class ModelID(IntEnum):
+    CrystallineSword = 399
     LesserStoneBlade = 1955
     GreaterStoneBlade = 1956
     ScorpionsBow = 2008
