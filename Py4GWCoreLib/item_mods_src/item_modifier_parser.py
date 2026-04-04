@@ -26,18 +26,6 @@ class ItemModifierParser:
         from Py4GWCoreLib.item_mods_src.upgrades import Inherent, _INHERENT_UPGRADES
         from Py4GWCoreLib.item_mods_src.upgrade_parser import get_property_factory
         handled_modifiers : list[DecodedModifier] = []    
-            
-        def _match_inherent_modifiers(inherent_type: type[Inherent], unhandled_modifiers: list[DecodedModifier]) -> list[DecodedModifier] | None:
-            matched_modifiers: list[DecodedModifier] = []
-
-            for prop_id in inherent_type.property_identifiers:
-                match = next((mod for mod in unhandled_modifiers if mod.identifier == prop_id), None)
-                if match is None:
-                    return None
-
-                matched_modifiers.append(match)
-
-            return matched_modifiers
         
         for mod in self.modifiers:
             factory = get_property_factory().get(mod.identifier)
@@ -74,15 +62,16 @@ class ItemModifierParser:
         inherent_types = sorted(_INHERENT_UPGRADES, key=lambda u: len(u.property_identifiers), reverse=True)
     
         for inherent_type in inherent_types:
-            matched_modifiers = _match_inherent_modifiers(inherent_type, unhandled_modifiers)
-            
+            matched_modifiers = inherent_type._match_property_modifiers(unhandled_modifiers)
+
             if matched_modifiers is None:
                 continue
-            
-            upgrade = inherent_type.compose_from_modifiers(matched_modifiers[0], matched_modifiers, self.modifiers, self.rarity)
+
+            matched_property_modifiers = [prop_mod for _, prop_mod in matched_modifiers]
+            upgrade = inherent_type.compose_from_modifiers(matched_property_modifiers[0], matched_property_modifiers, self.modifiers, self.rarity)
             if upgrade is not None:
-                self.properties.append(InherentProperty(modifier=matched_modifiers[0], rarity=self.rarity, upgrade=upgrade))
-                unhandled_modifiers = [mod for mod in unhandled_modifiers if mod not in matched_modifiers]
+                self.properties.append(InherentProperty(modifier=matched_property_modifiers[0], rarity=self.rarity, upgrade=upgrade))
+                unhandled_modifiers = [mod for mod in unhandled_modifiers if mod not in matched_property_modifiers]
             
     def get_properties(self) -> list[ItemProperty]:
         return self.properties

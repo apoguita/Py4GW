@@ -1,6 +1,6 @@
 from enum import IntEnum
 import re
-from typing import Optional, cast
+from typing import Optional, TypeAlias, cast
 
 import Py4GW
 from PyItem import ItemModifier
@@ -14,6 +14,13 @@ from Py4GWCoreLib.item_mods_src.properties import ItemProperty
 from Py4GWCoreLib.item_mods_src.types import ItemBaneSpecies, ItemModifierParam, ItemUpgrade, ItemUpgradeId, ItemUpgradeType, ModifierIdentifier
 from Py4GWCoreLib.native_src.internals.encoded_strings import GWStringEncoded, GWEncoded
 from Py4GWCoreLib.py4gwcorelib_src.Utils import Utils
+
+ModifierIdentifierSpec: TypeAlias = ModifierIdentifier | tuple[ModifierIdentifier, ...]
+
+def any_of(*identifiers: ModifierIdentifier) -> ModifierIdentifierSpec:
+    if not identifiers:
+        raise ValueError("any_of requires at least one ModifierIdentifier")
+    return identifiers
 
 def _get_property_factory():
     from Py4GWCoreLib.item_mods_src.upgrade_parser import get_property_factory
@@ -46,7 +53,7 @@ class Upgrade:
     rarity : Rarity = Rarity.Blue
     id: ItemUpgrade = ItemUpgrade.Unknown
     upgrade_id: ItemUpgradeId = ItemUpgradeId.Unknown
-    property_identifiers: list[ModifierIdentifier] = []
+    property_identifiers: list[ModifierIdentifierSpec] = []
     properties: dict[ModifierIdentifier, ItemProperty] = {}
     max_modifier_values: dict[ModifierIdentifier, tuple[int, int]] = {}    
     
@@ -69,6 +76,44 @@ class Upgrade:
     @classmethod
     def _post_compose(cls, upgrade: "Upgrade", mod: DecodedModifier, all_modifiers: list[DecodedModifier], remaining_modifiers: list[DecodedModifier]) -> None:
         return None
+
+    @staticmethod
+    def _normalize_property_identifier_spec(identifier_spec: ModifierIdentifierSpec) -> tuple[ModifierIdentifier, ...]:
+        if isinstance(identifier_spec, tuple):
+            return identifier_spec
+        return (identifier_spec,)
+
+    @classmethod
+    def _get_property_identifier_key(cls, identifier_spec: ModifierIdentifierSpec) -> ModifierIdentifier:
+        return cls._normalize_property_identifier_spec(identifier_spec)[0]
+
+    @classmethod
+    def _format_property_identifier_spec(cls, identifier_spec: ModifierIdentifierSpec) -> str:
+        identifiers = cls._normalize_property_identifier_spec(identifier_spec)
+        return " OR ".join(identifier.name for identifier in identifiers)
+
+    @classmethod
+    def _match_property_modifiers(cls, modifiers: list[DecodedModifier]) -> Optional[list[tuple[ModifierIdentifier, DecodedModifier]]]:
+        matched_modifiers: list[tuple[ModifierIdentifier, DecodedModifier]] = []
+        used_modifiers: list[DecodedModifier] = []
+
+        for identifier_spec in cls.property_identifiers:
+            identifier_options = cls._normalize_property_identifier_spec(identifier_spec)
+            prop_mod = next((m for m in modifiers if m not in used_modifiers and m.identifier in identifier_options), None)
+            if prop_mod is None:
+                return None
+
+            matched_modifiers.append((cls._get_property_identifier_key(identifier_spec), prop_mod))
+            used_modifiers.append(prop_mod)
+
+        return matched_modifiers
+
+    def _get_property_by_spec(self, identifier_spec: ModifierIdentifierSpec) -> Optional[ItemProperty]:
+        for identifier in self._normalize_property_identifier_spec(identifier_spec):
+            prop = self.properties.get(identifier)
+            if prop is not None:
+                return prop
+        return None
     
     @classmethod
     def compose_from_modifiers(cls, mod : DecodedModifier, remaining_modifiers: list[DecodedModifier], all_modifiers: list[DecodedModifier], rarity: Rarity = Rarity.Blue) -> Optional["Upgrade"]:        
@@ -81,15 +126,18 @@ class Upgrade:
         cls._pre_compose(upgrade, mod, all_modifiers, remaining_modifiers)
 
         property_factory = _get_property_factory()
-        for prop_id in upgrade.property_identifiers:
-            prop_mod = next((m for m in remaining_modifiers if m.identifier == prop_id), None)
-            
-            if prop_mod:
-                prop = property_factory.get(prop_id, lambda m, _, rarity: ItemProperty(modifier=m, rarity=rarity))(prop_mod, remaining_modifiers, rarity)
-                upgrade.properties[prop_id] = prop
-            else:
-                Py4GW.Console.Log("ItemHandling", f"Missing modifier for property {prop_id.name} in upgrade {upgrade.__class__.__name__}. Upgrade composition failed.")
-                return None
+        matched_modifiers = cls._match_property_modifiers(remaining_modifiers)
+        if matched_modifiers is None:
+            for identifier_spec in upgrade.property_identifiers:
+                identifier_options = cls._normalize_property_identifier_spec(identifier_spec)
+                if not any(m.identifier in identifier_options for m in remaining_modifiers):
+                    Py4GW.Console.Log("ItemHandling", f"Missing modifier for property {cls._format_property_identifier_spec(identifier_spec)} in upgrade {upgrade.__class__.__name__}. Upgrade composition failed.")
+                    return None
+            return None
+
+        for prop_key, prop_mod in matched_modifiers:
+            prop = property_factory.get(prop_mod.identifier, lambda m, _, rarity: ItemProperty(modifier=m, rarity=rarity))(prop_mod, remaining_modifiers, rarity)
+            upgrade.properties[prop_key] = prop
 
         cls._post_compose(upgrade, mod, all_modifiers, remaining_modifiers)
         upgrade.__encoded_name = upgrade.create_encoded_name()
@@ -143,29 +191,51 @@ class Upgrade:
     def _create_max_properties(cls, rarity: Rarity = Rarity.Blue) -> Optional[dict[ModifierIdentifier, ItemProperty]]:
         if not cls.property_identifiers:
             return {}
-
-        modifier_ids = list(dict.fromkeys([*cls.property_identifiers, *cls.max_modifier_values.keys()]))
         modifiers: list[DecodedModifier] = []
+        created_modifier_ids: set[ModifierIdentifier] = set()
+        property_identifier_options = {
+            identifier
+            for identifier_spec in cls.property_identifiers
+            for identifier in cls._normalize_property_identifier_spec(identifier_spec)
+        }
 
-        for identifier in modifier_ids:
-            args = cls._get_max_modifier_args(identifier)
-            if args is None:
-                if identifier in cls.property_identifiers:
-                    return None
+        for identifier_spec in cls.property_identifiers:
+            resolved_identifier: Optional[ModifierIdentifier] = None
+            resolved_args: Optional[tuple[int, int]] = None
+
+            for identifier in cls._normalize_property_identifier_spec(identifier_spec):
+                args = cls._get_max_modifier_args(identifier)
+                if args is not None:
+                    resolved_identifier = identifier
+                    resolved_args = args
+                    break
+
+            if resolved_identifier is None or resolved_args is None:
+                return None
+
+            if resolved_identifier not in created_modifier_ids:
+                modifiers.append(cls._create_synthetic_modifier(resolved_identifier, resolved_args[0], resolved_args[1]))
+                created_modifier_ids.add(resolved_identifier)
+
+        for identifier, args in cls.max_modifier_values.items():
+            if identifier in created_modifier_ids or identifier in property_identifier_options:
                 continue
 
             modifiers.append(cls._create_synthetic_modifier(identifier, args[0], args[1]))
+            created_modifier_ids.add(identifier)
 
         property_factory = _get_property_factory()
         properties: dict[ModifierIdentifier, ItemProperty] = {}
 
-        for prop_id in cls.property_identifiers:
-            prop_mod = next((m for m in modifiers if m.identifier == prop_id), None)
+        for identifier_spec in cls.property_identifiers:
+            prop_key = cls._get_property_identifier_key(identifier_spec)
+            identifier_options = cls._normalize_property_identifier_spec(identifier_spec)
+            prop_mod = next((m for m in modifiers if m.identifier in identifier_options), None)
             if prop_mod is None:
                 return None
 
-            prop = property_factory.get(prop_id, lambda m, _, rarity: ItemProperty(modifier=m, rarity=rarity))(prop_mod, modifiers, rarity)
-            properties[prop_id] = prop
+            prop = property_factory.get(prop_mod.identifier, lambda m, _, rarity: ItemProperty(modifier=m, rarity=rarity))(prop_mod, modifiers, rarity)
+            properties[prop_key] = prop
 
         return properties
 
@@ -278,10 +348,10 @@ class WeaponUpgrade(Upgrade):
         parts = [prop.encoded_description for prop in self.properties.values() if prop.encoded_description]
         return GWEncoded.combine_encoded_strings(parts, "no encoded description")
 
-    def _get_upgrade_property(self, identifier: ModifierIdentifier) -> Optional[ItemProperty]:
-        return self.properties.get(identifier)
+    def _get_upgrade_property(self, identifier: ModifierIdentifierSpec) -> Optional[ItemProperty]:
+        return self._get_property_by_spec(identifier)
 
-    def _get_property_value(self, identifier: ModifierIdentifier, attr_name: str, default):
+    def _get_property_value(self, identifier: ModifierIdentifierSpec, attr_name: str, default):
         prop = self._get_upgrade_property(identifier)
         return getattr(prop, attr_name, default) if prop else default
     
@@ -290,7 +360,7 @@ class WeaponUpgrade(Upgrade):
         if not self.properties or not self.modifier_range:
             return True
         
-        prop = self.properties.get(self.modifier_range.modifierIdentifier, None)
+        prop = self._get_upgrade_property(self.modifier_range.modifierIdentifier)
     
         if not prop:
             return False
@@ -900,14 +970,14 @@ class Inscription(Upgrade):
         parts = [prop.encoded_description for prop in self.properties.values() if prop.encoded_description]
         return GWEncoded.combine_encoded_strings(parts, "no encoded description")
 
-    def _get_upgrade_property(self, identifier: ModifierIdentifier) -> Optional[ItemProperty]:
-        return self.properties.get(identifier)
+    def _get_upgrade_property(self, identifier: ModifierIdentifierSpec) -> Optional[ItemProperty]:
+        return self._get_property_by_spec(identifier)
 
-    def _get_property_value(self, identifier: ModifierIdentifier, attr_name: str, default):
+    def _get_property_value(self, identifier: ModifierIdentifierSpec, attr_name: str, default):
         prop = self._get_upgrade_property(identifier)
         return getattr(prop, attr_name, default) if prop else default
 
-    def _get_modifier_arg(self, identifier: ModifierIdentifier, arg_index: int, default: int = 0) -> int:
+    def _get_modifier_arg(self, identifier: ModifierIdentifierSpec, arg_index: int, default: int = 0) -> int:
         prop = self._get_upgrade_property(identifier)
         if not prop:
             return default
@@ -918,7 +988,7 @@ class Inscription(Upgrade):
         if not self.properties or not self.modifier_range:
             return True
 
-        prop = next((p for p in self.properties.values() if p.modifier.identifier == self.modifier_range.modifierIdentifier), None)
+        prop = self._get_upgrade_property(self.modifier_range.modifierIdentifier)
         if not prop:
             return False
 
@@ -1866,14 +1936,14 @@ class Inherent(Upgrade):
         parts = [prop.encoded_description for prop in self.properties.values() if prop.encoded_description]
         return GWEncoded.combine_encoded_strings(parts, "no encoded description")
 
-    def _get_upgrade_property(self, identifier: ModifierIdentifier) -> Optional[ItemProperty]:
-        return self.properties.get(identifier)
+    def _get_upgrade_property(self, identifier: ModifierIdentifierSpec) -> Optional[ItemProperty]:
+        return self._get_property_by_spec(identifier)
 
-    def _get_property_value(self, identifier: ModifierIdentifier, attr_name: str, default):
+    def _get_property_value(self, identifier: ModifierIdentifierSpec, attr_name: str, default):
         prop = self._get_upgrade_property(identifier)
         return getattr(prop, attr_name, default) if prop else default
 
-    def _get_modifier_arg(self, identifier: ModifierIdentifier, arg_index: int, default: int = 0) -> int:
+    def _get_modifier_arg(self, identifier: ModifierIdentifierSpec, arg_index: int, default: int = 0) -> int:
         prop = self._get_upgrade_property(identifier)
         if not prop:
             return default
@@ -1888,7 +1958,7 @@ class Inherent(Upgrade):
         if not self.properties or not self.modifier_range:
             return True
 
-        prop = next((p for p in self.properties.values() if p.modifier.identifier == self.modifier_range.modifierIdentifier), None)
+        prop = self._get_upgrade_property(self.modifier_range.modifierIdentifier)
         if not prop:
             return False
 
@@ -2132,7 +2202,7 @@ class ArmorVsSpeciesUpgrade(Inherent):
 class HealthPlusUpgrade(Inherent):
     target_item_type = ItemType.EquippableItem
     property_identifiers = [
-        ModifierIdentifier.HealthPlus2,
+        any_of(ModifierIdentifier.HealthPlus2, ModifierIdentifier.HealthPlus),
     ]
     modifier_range = ModifierRange(ModifierIdentifier.HealthPlus2, ModifierType.Arg1, 10, 30)
 
