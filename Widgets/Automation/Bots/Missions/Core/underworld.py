@@ -17,25 +17,25 @@ for _mod_key in [k for k in _sys.modules if "sch0l0ka.adapter" in k]:
     del _sys.modules[_mod_key]
 del _sys
 
-from Py4GWCoreLib import Botting, Routines, Agent, AgentArray, Player, Utils, AutoPathing, GLOBAL_CACHE, ConsoleLog, Map, Pathing, FlagPreference, Party, IniHandler, Overlay, Item, ItemArray
-from Py4GWCoreLib.enums_src.Model_enums import ModelID
-from Py4GWCoreLib.enums_src.Map_enums import name_to_map_id
+import enum
 import os
 import json
 import time
 from collections import deque
-from typing import Any, Generator
-from Py4GWCoreLib.enums_src.Multiboxing_enums import SharedCommandType
-from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorState
 from pathlib import Path
+from typing import Any, Generator
+
 import PyImGui
 import Py4GW
+from Py4GWCoreLib import Botting, Routines, Agent, AgentArray, Player, Utils, AutoPathing, GLOBAL_CACHE, ConsoleLog, Map, Pathing, FlagPreference, Party, IniHandler, Overlay, Item, ItemArray
+from Py4GWCoreLib.enums_src.Model_enums import ModelID
+from Py4GWCoreLib.enums_src.Map_enums import name_to_map_id
+from Py4GWCoreLib.enums_src.Multiboxing_enums import SharedCommandType
+from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorState
 
 # ╔══════════════════════════════════════════════════════════════════
 # ║                     POSSIBLE IMPROVEMENTS                        
 # ╠══════════════════════════════════════════════════════════════════
-# ║                                                                  
-# ║                                                        
 # ║  [X] Kill the Chained Souls when we wait till the quest is done                                                        
 # ║  [X] Blacklist Dreamrider to improve Plains speed                                                         
 # ║  [X] add Inventory Management                                                          
@@ -52,17 +52,17 @@ import Py4GW
 # ╚══════════════════════════════════════════════════════════════════
 
 
-
+# ── Module identity ──────────────────────────────────────────────────────────
 # Model ID 3078 = Dhuum ghost buff NPC (informational reference)
 MODULE_NAME = "Underworld"
 MODULE_ICON = "Textures/Module_Icons/Underworld.png"
+BOT_NAME    = "Underworld"
 
-# Override the help window
-BOT_NAME = "Underworld"
+# ── Persistent configuration (INI file) ──────────────────────────────────────
 _ini_file = os.path.join(Py4GW.Console.get_projects_path(), "Widgets", "Config", "UnderworldBot.ini")
 _ini = IniHandler(_ini_file)
 
-# ── Consumable definitions ────────────────────────────────────────────────────
+# ── Consumable definitions ──────────────────────────────────────────────────
 # Each entry: (property_name, display_name, category, default_restock_quantity)
 # property_name must match a name in UpkeepData (used for Properties.ApplyNow).
 _CONS_DEFS: list[tuple[str, str, str, int]] = [
@@ -130,6 +130,8 @@ class ConsSettings:
             _ini.write_key(BOT_NAME, f"cons_{prop}_restock", str(cls._restock.get(prop, 0)))
 
 
+# ── Bot instance ─────────────────────────────────────────────────────────────
+# Constructed once at module load; all quest sections share this singleton.
 bot = Botting(
     BOT_NAME,
     config_draw_path=True,
@@ -166,9 +168,10 @@ bot = Botting(
     upkeep_honeycomb_restock            = ConsSettings._restock["honeycomb"],
 )
 bot.Templates.Aggressive()
-# Override the help window
 bot.UI.override_draw_help(lambda: _draw_help())
-bot.UI.override_draw_config(lambda: _draw_settings())  # Disable default config window
+bot.UI.override_draw_config(lambda: _draw_settings())
+
+# ── Runtime state ─────────────────────────────────────────────────────────────
 MAIN_LOOP_HEADER_NAME = ""
 _entered_dungeon: bool = False      # set True once map 72 is loaded; watchdog uses this
 _dhuum_fight_active: bool = False   # set True from start of Dhuum fight to chest spawn
@@ -213,25 +216,26 @@ _QUEST_ORDER: list[str] = [
 _quest_completion_times: dict[str, int] = {}   # quest_name → GetInstanceUptime() ms at completion
 
 
-import enum
+# ── Quest and NPC enums ───────────────────────────────────────────────────────
 
 class UWQuestID(enum.IntEnum):
-    ClearTheChamber          = 101
-    EscortOfSouls            = 108  
-    UnwantedGuests           = 103
-    RestoringGrenthsMonuments= 109  
-    ImprisonedSpirits        = 105  
-    TheFourHorsemen          = 106
-    WrathfulSpirits          = 110
-    ServantsOfGrenth         = 102
-    TerrorwebQueen           = 107  
-    DemonAssassin            = 104 
-    TheNightmareCometh       = 1129 
+    """GW quest IDs for the Underworld quest chain."""
+    ClearTheChamber           = 101
+    EscortOfSouls             = 108
+    UnwantedGuests            = 103
+    RestoringGrenthsMonuments = 109
+    ImprisonedSpirits         = 105
+    TheFourHorsemen           = 106
+    WrathfulSpirits           = 110
+    ServantsOfGrenth          = 102
+    TerrorwebQueen            = 107
+    DemonAssassin             = 104
+    TheNightmareCometh        = 1129
 
 
 class UWNpcModelID(enum.IntEnum):
     """Model IDs for Underworld quest-giver NPCs."""
-    LostSoul                       = 0  # TODO: fill in actual model I
+    LostSoul                       = 2425
     ReaperOfTheLabyrinth           = 2399
     ReaperOfTheBonePits            = 2399
     ReaperOfTheChaosPlanes         = 2399
@@ -251,6 +255,7 @@ UW_ENTRYPOINTS: dict[str, tuple[str, int]] = {
     "zin_ku_corridor":    ("Zin Ku Corridor",     int(name_to_map_id["Zin Ku Corridor"])),
 }
 DEFAULT_UW_ENTRYPOINT_KEY = "embark_beach"
+
 
 # ── Combat adapter (Strategy Pattern) ────────────────────────────────────────
 # _get_adapter() returns the right singleton based on BotSettings.BotMode.
@@ -392,6 +397,7 @@ class ImprisonedSpiritsSettings:
 
 
 class BotSettings:
+    """General run settings (repeat, cons, hard mode, combat system choice)."""
     Repeat:    bool = bool(_ini.read_bool(BOT_NAME, "quest_repeat",    False))
     UseCons:   bool = bool(_ini.read_bool(BOT_NAME, "quest_use_cons",  True))
     HardMode:  bool = bool(_ini.read_bool(BOT_NAME, "quest_hardmode",  False))
@@ -414,8 +420,10 @@ class EnterSettings:
         _ini.write_key(BOT_NAME, "enter_entrypoint", str(cls.EntryPoint))
 
 
-# ── Thin-wrapper toggle functions ────────────────────────────────────────────
-# Each delegates to the active adapter so quest-section code needs no changes.
+
+# ── FSM / adapter helpers ─────────────────────────────────────────────────────
+# Thin wrappers that delegate to the active adapter so quest-section code
+# never needs to know whether CB or HeroAI is in use.
 
 def _toggle_wait_if_aggro(enabled: bool) -> None:
     _get_adapter().toggle_wait_if_aggro(enabled)
@@ -482,32 +490,22 @@ def _request_wipe_restart(reason: str) -> None:
     _pending_wipe_reason   = reason
 
 
-def _ensure_minimum_gold(bot_instance: Botting, minimum_gold: int = 1000, withdraw_amount: int = 10000) -> None:
-    def _check_and_restock():
-        gold_on_char = GLOBAL_CACHE.Inventory.GetGoldOnCharacter()
-        if gold_on_char >= minimum_gold:
-            return
-
-        gold_in_storage = GLOBAL_CACHE.Inventory.GetGoldInStorage()
-        amount_to_withdraw = min(withdraw_amount, gold_in_storage)
-
-        if amount_to_withdraw <= 0:
-            ConsoleLog(BOT_NAME, "[GOLD] Storage empty – cannot restock gold.", Py4GW.Console.MessageType.Warning)
-            return
-
-        ConsoleLog(
-            BOT_NAME,
-            f"[GOLD] Inventory only has {gold_on_char}g. Withdrawing {amount_to_withdraw}g from storage.",
-            Py4GW.Console.MessageType.Info,
-        )
-        GLOBAL_CACHE.Inventory.WithdrawGold(amount_to_withdraw)
-
-    bot_instance.States.AddCustomState(_check_and_restock, "Ensure Minimum Gold")
-    bot_instance.Wait.ForTime(1000)
+def _blacklist(bot_instance: Botting, name: str) -> None:
+    """Enqueue a state that adds *name* to the EnemyBlacklist."""
+    from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist
+    bot_instance.States.AddCustomState(
+        lambda n=name: EnemyBlacklist().add_name(n),
+        f"Blacklist {name.title()}",
+    )
 
 
-def _flag_both(party_pos: int, flag_index: int, x, y) -> None:
-    _get_adapter().set_flag(flag_index, x, y)
+def _unblacklist(bot_instance: Botting, name: str) -> None:
+    """Enqueue a state that removes *name* from the EnemyBlacklist."""
+    from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist
+    bot_instance.States.AddCustomState(
+        lambda n=name: EnemyBlacklist().remove_name(n),
+        f"Unblacklist {name.title()}",
+    )
 
 
 def _enqueue_spread_flags(bot_instance: Botting, flag_points: list[tuple[int, int]]) -> None:
@@ -581,19 +579,21 @@ def WaitTillQuestDone(bot_instance: Botting) -> None:
 
 def EnqueueDialogUntilQuestActive(
     bot_instance: Botting,
-    x: float,
-    y: float,
     dialog_id: int,
     quest_id: int,
+    model_id: int = 0,
     step_name: str = "take quest",
     max_retries: int = 4,
-    retry_pause_ms: int = 500,
+    retry_pause_ms: int = 3000,
 ) -> None:
-    """Send dialog at (x, y) and retry until the active quest matches *quest_id*."""
+    """Send a dialog and retry until the active quest matches *quest_id*.
+
+    Use *model_id* to target an NPC by model ID.
+    """
     from Py4GWCoreLib.Quest import Quest
     target_quest_id = int(quest_id)
 
-    bot_instance.Dialogs.AtXY(x, y, dialog_id, step_name)
+    bot_instance.Dialogs.WithModel(model_id, dialog_id, step_name)
 
     def _coro_ensure_quest_active() -> Generator[Any, Any, None]:
         if target_quest_id <= 0:
@@ -615,7 +615,7 @@ def EnqueueDialogUntilQuestActive(
             _append_debug_watchdog_log(
                 f"Quest {target_quest_id} not active, retrying dialog ({attempt}/{max_retries})."
             )
-            yield from bot_instance.Dialogs._coro_at_xy(x, y, dialog_id)
+            yield from bot_instance.Dialogs._coro_with_model(model_id, dialog_id)
 
             if int(Quest.GetActiveQuest()) == target_quest_id:
                 _append_debug_watchdog_log(
@@ -658,11 +658,9 @@ def _move_with_unstuck(
     target_x: float,
     target_y: float,
     step_name: str = "",
-    stuck_check_ms: int = 1000,
     stuck_threshold: float = 50.0,
     backup_ms: int = 800,
     max_retries: int = 5,
-    timeout: int = 60_000,
     recalc_interval_ms: int = 500,
 ) -> None:
     """Move to (target_x, target_y) with continuous path recalculation every recalc_interval_ms.
@@ -1162,41 +1160,22 @@ def Clear_the_Chamber(bot_instance: Botting):
     )
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_party_leader(Player.GetAccountEmail()), "Set Party Leader")    
     # Configure the enemy blacklist for this quest section.
-    bot_instance.States.AddCustomState(
-        lambda: __import__("Py4GWCoreLib.EnemyBlacklist", fromlist=["EnemyBlacklist"]).EnemyBlacklist().add_name("obsidian guardian"),
-        "Blacklist Obsidian Guardian",
-    )
-    bot_instance.States.AddCustomState(
-        lambda: __import__("Py4GWCoreLib.EnemyBlacklist", fromlist=["EnemyBlacklist"]).EnemyBlacklist().add_name("vengeful aatxe"),
-        "Blacklist Vengeful Aatxe",
-    )
-    bot_instance.States.AddCustomState(
-        lambda: __import__("Py4GWCoreLib.EnemyBlacklist", fromlist=["EnemyBlacklist"]).EnemyBlacklist().add_name("chained soul"),
-        "Blacklist Chained Soul",
-    )
-    bot_instance.States.AddCustomState(
-        lambda: __import__("Py4GWCoreLib.EnemyBlacklist", fromlist=["EnemyBlacklist"]).EnemyBlacklist().remove_name("wastfull spirit"),
-        "Unblacklist Wastfull Spirit",
-    )
-    bot_instance.States.AddCustomState(
-        lambda: __import__("Py4GWCoreLib.EnemyBlacklist", fromlist=["EnemyBlacklist"]).EnemyBlacklist().remove_name("obsidian behemoth"),
-        "Unblacklist Obsidian Behemoth",
-    )
-    bot_instance.States.AddCustomState(
-        lambda: __import__("Py4GWCoreLib.EnemyBlacklist", fromlist=["EnemyBlacklist"]).EnemyBlacklist().remove_name("banished dream rider"),
-        "Unblacklist Banished Dream Rider",
-    )
+    _blacklist(bot_instance, "obsidian guardian")
+    _blacklist(bot_instance, "vengeful aatxe")
+    _blacklist(bot_instance, "chained soul")
+    _unblacklist(bot_instance, "wastfull spirit")
+    _unblacklist(bot_instance, "obsidian behemoth")
+    _unblacklist(bot_instance, "banished dream rider")
     enable_default_party_behavior(bot_instance)
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_combat_enabled(False), "Disable Combat")
     bot_instance.Move.XYAndInteractNPC(295, 7221, "go to NPC")
-    bot_instance.Dialogs.AtXY(295, 7221, 0x806501, "take quest")
+    EnqueueDialogUntilQuestActive(bot_instance, dialog_id=0x806501, quest_id=UWQuestID.ClearTheChamber, model_id=UWNpcModelID.LostSoul, step_name="Take Clear the Chamber quest")
     bot_instance.Multibox.SendDialogToTarget(0x806501)
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_combat_enabled(True), "Enable Combat")
     bot_instance.Move.XY(769, 6564, "Prepare to clear the chamber")
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_forced_state(BehaviorState.CLOSE_TO_AGGRO),"Force Close_to_Aggro",)
     bot_instance.Wait.ForTime(5000)
     bot_instance.Multibox.UsePcons()
-    #bot_instance.Items.UseSummoningStone()
 
     if BotSettings.UseCons:
         # Conset upkeep is handled by the Botting constructor (upkeep_*_active=True).
@@ -1220,7 +1199,7 @@ def Clear_the_Chamber(bot_instance: Botting):
     bot_instance.Dialogs.WithModel(UWNpcModelID.ReaperOfTheLabyrinth,0x806507, "Take Clear the Chamber reward")
     bot_instance.Multibox.SendDialogToTarget(0x806507)
     bot_instance.Dialogs.WithModel(UWNpcModelID.ReaperOfTheLabyrinth,0x806D01, "Quest Restore Monuments")
-    bot_instance.Multibox.SendDialogToTarget(0x806D01)
+    EnqueueDialogUntilQuestActive(bot_instance, dialog_id=0x806D01, quest_id=UWQuestID.RestoringGrenthsMonuments, model_id=UWNpcModelID.ReaperOfTheLabyrinth, step_name="Take Restore Monuments quest")
     bot_instance.Wait.ForTime(3000)
     bot_instance.States.AddCustomState(lambda: _record_quest_done("Clear the Chamber"), "Record Clear the Chamber done")
 
@@ -1262,16 +1241,7 @@ def Deamon_Assassin(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
     bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(True), "Enable MoveToPartyMemberIfDead")
     bot_instance.Move.XYAndInteractNPC(-8250, -5171, "go to NPC")
-    EnqueueDialogUntilQuestActive(
-        bot_instance=bot_instance,
-        x=-8250,
-        y=-5171,
-        dialog_id=0x806801,
-        quest_id=int(UWQuestID.DemonAssassin),
-        step_name="take Deamon Assassin quest",
-        max_retries=4,
-        retry_pause_ms=3000,
-    )
+    EnqueueDialogUntilQuestActive(bot_instance, 0x806801, int(UWQuestID.DemonAssassin), int(UWNpcModelID.ReaperOfTheTwinSerpentMountains), "take Deamon Assassin quest")
 
     #bot_instance.Dialogs.WithEncName("Reaper of the Twin Serpent Mountains",0x806801, "Take Deamon Assassin")
     bot_instance.Move.XY(-3645, -5820, "Deamon Assassin 1")
@@ -1282,17 +1252,6 @@ def Restore_Planes(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
     bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(True), "Enable MoveToPartyMemberIfDead")
-    '''
-    Wait_for_Spawns(bot_instance,10371, -10510)
-    Wait_for_Spawns(bot_instance,12795, -8811)
-    Wait_for_Spawns(bot_instance,11180, -13780)
-    Wait_for_Spawns(bot_instance,13740, -15087)
-    bot_instance.Move.XY(11546, -13787, "Restore Planes 1")
-    bot_instance.Move.XY(8530, -11585, "Restore Planes 2")
-    Wait_for_Spawns(bot_instance,8533, -13394)
-    Wait_for_Spawns(bot_instance,8579, -20627)
-    Wait_for_Spawns(bot_instance,11218, -17404)
-    '''
     bot_instance.States.AddCustomState(
         lambda: __import__("Py4GWCoreLib.EnemyBlacklist", fromlist=["EnemyBlacklist"]).EnemyBlacklist().add_name("banished dream rider"),
         "Blacklist Banished Dream Rider",
@@ -1330,25 +1289,16 @@ def The_Four_Horsemen(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(False), "Disable WaitIfPartyMemberTooFar")
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_forced_state(BehaviorState.CLOSE_TO_AGGRO),"Force Close_to_Aggro",)
     bot_instance.Move.XYAndInteractNPC(11371, -17990, "go to NPC")
-    bot_instance.Dialogs.AtXY(-8250, -5171, 0x806A01, "take quest")  
+    EnqueueDialogUntilQuestActive(bot_instance, 0x806A01, int(UWQuestID.TheFourHorsemen), int(UWNpcModelID.ReaperOfTheChaosPlanes), "take Foure Horsemen quest")
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_forced_state(None),"Release Close_to_Aggro",)
 
     bot_instance.Wait.ForTime(32000)
 
     bot_instance.Move.XYAndInteractNPC(11371, -17990, "TP to Chamber")
-    #bot_instance.Dialogs.AtXY(11371, -17990, 0x7F, "take quest")
-    #bot_instance.Dialogs.AtXY(11371, -17990, 0x86, "take quest") 
     bot_instance.Dialogs.AtXY(11371, -17990, 0x8D, "take quest") 
-    bot_instance.States.AddCustomState(
-        lambda: _get_adapter().clear_flags(),
-        "Clear Flags",
-    )
-
-    #bot_instance.Wait.ForTime(1000)
+    bot_instance.States.AddCustomState(lambda: _get_adapter().clear_flags(),"Clear Flags")
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_following_enabled(True), "Enable Following")
     bot_instance.Move.XYAndInteractNPC(-5782, 12819, "TP back to Chaos")
-    #bot_instance.Dialogs.AtXY(11371, -17990, 0x7F, "take quest")
-    #bot_instance.Dialogs.AtXY(11371, -17990, 0x84, "take quest") 
     bot_instance.Dialogs.AtXY(11371, -17990, 0x8B, "take quest") 
     bot_instance.Wait.ForTime(1000)
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_following_enabled(True), "Enable Following")
@@ -1392,14 +1342,7 @@ def Restore_Pools(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
     bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(True), "Enable MoveToPartyMemberIfDead")
-    '''
-    Wait_for_Spawns(bot_instance,4647, -16833)
-    Wait_for_Spawns(bot_instance,2098, -15543)
-    '''
-    bot_instance.States.AddCustomState(
-        lambda: __import__("Py4GWCoreLib.EnemyBlacklist", fromlist=["EnemyBlacklist"]).EnemyBlacklist().add_name("banished dream rider"),
-        "Blacklist Banished Dream Rider",
-    )
+    _blacklist(bot_instance, "banished dream rider")
     bot_instance.Move.XY(6869, -17771, "Restore Pools 1")
     bot_instance.Move.XY(2867, -19746, "Restore Pools 1")
     bot_instance.Move.XY(1753, -14703, "Restore Pools 1")
@@ -1415,7 +1358,8 @@ def Terrorweb_Queen(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
     bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(True), "Enable MoveToPartyMemberIfDead")
     bot_instance.Move.XYAndInteractNPC(-6890, -19454, "go to NPC")
-    bot_instance.Dialogs.AtXY(-6890, -19454, 0x806B01, "take quest")   
+    
+    EnqueueDialogUntilQuestActive(bot_instance, 0x806B01, int(UWQuestID.TerrorwebQueen), int(UWNpcModelID.ReaperOfTheChaosPlanes), "take Terrorweb Queen quest")
     bot_instance.Move.XY(-12432, -15874, "Terrorweb Queen 1")
     bot_instance.Move.XYAndInteractNPC(-6957, -19478, "go to NPC")
     bot_instance.Dialogs.AtXY(-6957, -19478, 0x806B07, "Back to Chamber")
@@ -1427,10 +1371,7 @@ def Restore_Pit(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
     bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(True), "Enable MoveToPartyMemberIfDead")
     bot_instance.Move.XY(14178, -57, "Restore Pit 1")
-    bot_instance.States.AddCustomState(
-        lambda: __import__("Py4GWCoreLib.EnemyBlacklist", fromlist=["EnemyBlacklist"]).EnemyBlacklist().remove_name("banished dream rider"),
-        "Unblacklist Banished Dream Rider",
-    )
+    _unblacklist(bot_instance, "banished dream rider")
     bot_instance.Move.XY(15323, 2970, "Restore Pit 2")
     bot_instance.Move.XY(15393, 406, "Restore Pit 3")
     bot_instance.Move.FollowPath([
@@ -1457,7 +1398,8 @@ def Imprisoned_Spirits(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(False), "Disable WaitIfPartyMemberTooFar")
     bot_instance.Move.XY(8692, 6292, "go to NPC")
     bot_instance.Move.XYAndInteractNPC(8666, 6308, "go to NPC")
-    bot_instance.Dialogs.AtXY(8666, 6308, 0x806901, "take quest")
+    EnqueueDialogUntilQuestActive(bot_instance, 0x806901, int(UWQuestID.ImprisonedSpirits), int(UWNpcModelID.ReaperOfTheBonePits), "take Imprisoned Spirits quest")
+
     _is_timer: list[float] = [0.0]  # [monotonic start time], captured by closures below
     bot_instance.States.AddCustomState(
         lambda: _is_timer.__setitem__(0, time.monotonic()),
@@ -1476,17 +1418,11 @@ def Imprisoned_Spirits(bot_instance: Botting):
     bot_instance.Wait.UntilCondition(
         lambda: time.monotonic() - _is_timer[0] >= 80.0
     )
-    bot_instance.States.AddCustomState(
-        lambda: __import__("Py4GWCoreLib.EnemyBlacklist", fromlist=["EnemyBlacklist"]).EnemyBlacklist().remove_name("chained soul"),
-        "Unblacklist Chained Soul",
-    )
+    _unblacklist(bot_instance, "chained soul")
     bot_instance.Move.XY(10437, 5005)
     WaitTillQuestDone(bot_instance)
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_looting_enabled(True), "Enable Looting")
-    bot_instance.States.AddCustomState(
-        lambda: __import__("Py4GWCoreLib.EnemyBlacklist", fromlist=["EnemyBlacklist"]).EnemyBlacklist().add_name("chained soul"),
-        "Blacklist Chained Soul",
-    )
+    _blacklist(bot_instance, "chained soul")
 
     bot_instance.Move.XY(8692, 6292, "go to NPC")
     bot_instance.Dialogs.AtXY(8692, 6292, 0x8D, "Back to Chamber")
@@ -1500,7 +1436,7 @@ def Restore_Vale(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(True), "Enable MoveToPartyMemberIfDead")
 
     bot_instance.Dialogs.AtXY(-5806, 12831, 0x806C03, "take quest")
-    bot_instance.Dialogs.AtXY(-5806, 12831, 0x806C01, "take quest")
+    EnqueueDialogUntilQuestActive(bot_instance, 0x806C01, int(UWQuestID.EscortOfSouls), int(UWNpcModelID.ReaperOfTheLabyrinth), "take Escort of Souls quest")
     bot_instance.Items.UseSummoningStone()
     bot_instance.Move.XY(-8660, 5655, "To the Vale 1")
     bot_instance.Move.XY(-9431, 1659, "To the Vale 2")
@@ -1519,21 +1455,15 @@ def Wrathfull_Spirits(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(True), "Enable MoveToPartyMemberIfDead")
     bot_instance.Move.XYAndInteractNPC(-13275, 5261, "go to NPC")
     bot_instance.Dialogs.AtXY(5755, 12769, 0x806E03, "Back to Chamber")
-    bot_instance.Dialogs.AtXY(5755, 12769, 0x806E01, "Back to Chamber")
+    EnqueueDialogUntilQuestActive(bot_instance, 0x806E01, int(UWQuestID.WrathfulSpirits), int(UWNpcModelID.ReaperOfTheLabyrinth), "take Wrathfull Spirits quest")
     bot_instance.Templates.Pacifist()
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(False), "Disable WaitIfPartyMemberTooFar")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(False), "Disable WaitIfInAggro")
     #bot_instance.States.AddCustomState(lambda: _get_adapter().set_combat_enabled(False), "Disable Combat")
-    bot_instance.States.AddCustomState(
-        lambda: __import__("Py4GWCoreLib.EnemyBlacklist", fromlist=["EnemyBlacklist"]).EnemyBlacklist().add_name("tortured spirit"),
-        "Blacklist Tortured Spirit",
-    )
+    _blacklist(bot_instance, "tortured spirit")
     bot_instance.Move.XY(-13422, 973, "Wrathfull Spirits 1")
     bot_instance.Templates.Aggressive()
-    bot_instance.States.AddCustomState(
-        lambda: __import__("Py4GWCoreLib.EnemyBlacklist", fromlist=["EnemyBlacklist"]).EnemyBlacklist().remove_name("tortured spirit"),
-        "Unblacklist Tortured Spirit",
-    )
+    _unblacklist(bot_instance, "tortured spirit")
     #bot_instance.States.AddCustomState(lambda: _get_adapter().set_combat_enabled(True), "Enable Combat")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar") 
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
@@ -1548,34 +1478,13 @@ def Wrathfull_Spirits(bot_instance: Botting):
     bot_instance.Wait.ForTime(3000)
     bot_instance.States.AddCustomState(lambda: _record_quest_done("Wrathfull Spirits"), "Record Wrathfull Spirits done")
 
-def Escort_of_Souls(bot_instance: Botting):
-    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
-    bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
-    bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(True), "Enable MoveToPartyMemberIfDead")
-    bot_instance.Wait.ForTime(5000)
-    bot_instance.Move.XY(-4764, 11845, "Escort of Souls 1")
-    bot_instance.Move.XYAndInteractNPC(-5806, 12831, "go to NPC")
-    bot_instance.Wait.ForTime(3000)
-    bot_instance.Dialogs.AtXY(-5806, 12831, 0x806C03, "take quest")
-    bot_instance.Dialogs.AtXY(-5806, 12831, 0x806C01, "take quest")
-    bot_instance.Move.XY(-6833, 7077, "Escort of Souls 2")
-    bot_instance.Move.XY(-9606, 2110, "Escort of Souls 3")
-    bot_instance.Move.XYAndInteractNPC(-13275, 5261, "go to NPC")
-    #bot_instance.Dialogs.AtXY(5755, 12769, 0x7F, "Back to Chamber")
-    #bot_instance.Dialogs.AtXY(5755, 12769, 0x86, "Back to Chamber")
-    bot_instance.Dialogs.AtXY(5755, 12769, 0x8D, "Back to Chamber")
-    bot_instance.Wait.ForTime(3000)
-
 def Unwanted_Guests(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
     bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(True), "Enable MoveToPartyMemberIfDead")
     #The Quest
     #1st Keeper
-    bot_instance.States.AddCustomState(
-        lambda: __import__("Py4GWCoreLib.EnemyBlacklist", fromlist=["EnemyBlacklist"]).EnemyBlacklist().add_name("obsidian behemoth"),
-        "Blacklist Obsidian Behemoth",
-    )
+    _blacklist(bot_instance, "obsidian behemoth")
     _move_with_unstuck(bot_instance, -2965, 10260, "1st Keeper approach")
     bot_instance.Wait.ForTime(5000)
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_following_enabled(False), "Disable Following")
@@ -1583,7 +1492,7 @@ def Unwanted_Guests(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(False), "Disable wait_for_party")
 
     bot_instance.Move.XYAndInteractNPC(-5806, 12831, "go to NPC")
-    bot_instance.Dialogs.AtXY(-5806, 12831, 0x806701, "take quest")
+    EnqueueDialogUntilQuestActive(bot_instance, 0x806701, int(UWQuestID.UnwantedGuests), int(UWNpcModelID.ReaperOfTheLabyrinth), "take Unwanted Guests quest")
 
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_forced_state(None),"Release Close_to_Aggro")
     # Acquire the Keeper target several times to give CB enough frames to lock
@@ -1637,10 +1546,7 @@ def Unwanted_Guests(bot_instance: Botting):
     FocusKeeperOfSouls(bot_instance)
     _move_with_unstuck(bot_instance, 1256, 4623, "6th Keeper killed")
 
-    bot_instance.States.AddCustomState(
-        lambda: __import__("Py4GWCoreLib.EnemyBlacklist", fromlist=["EnemyBlacklist"]).EnemyBlacklist().remove_name("obsidian behemoth"),
-        "Unblacklist Obsidian Behemoth",
-    )
+    _unblacklist(bot_instance, "obsidian behemoth")
     bot_instance.States.AddCustomState(lambda: _record_quest_done("Unwanted Guests"), "Record Unwanted Guests done")
 
 def Restore_Wastes(bot_instance: Botting):
@@ -1677,8 +1583,7 @@ def Servants_of_Grenth(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_forced_state(BehaviorState.CLOSE_TO_AGGRO),"Force Close_to_Aggro",)
     bot_instance.Move.XYAndInteractNPC(554, 18384, "go to NPC")
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_following_enabled(False), "Disable Following")
-    #bot_instance.Dialogs.AtXY(5755, 12769, 0x806603, "Back to Chamber")
-    bot_instance.Dialogs.AtXY(5755, 12769, 0x806601, "Back to Chamber")
+    EnqueueDialogUntilQuestActive(bot_instance, 0x806601, int(UWQuestID.ServantsOfGrenth), int(UWNpcModelID.ReaperOfTheBonePits), "take Servants of Grenth quest")
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_forced_state(None),"Release Close_to_Aggro",)
     
     bot_instance.Move.XY(2700, 19952, "Servants of Grenth 2")
@@ -1899,6 +1804,7 @@ def Dhuum(bot_instance: Botting):
     bot_instance.Wait.ForTime(10000)
     bot_instance.Dialogs.WithModel(2403, 0x846901, "Talk to The King and start Dhuum fight")
     bot_instance.Dialogs.WithModel(2403, 0x846901, "Talk to The King and start Dhuum fight")
+    EnqueueDialogUntilQuestActive(bot_instance, 0x846901, int(UWQuestID.TheNightmareCometh), int(UWNpcModelID.KingFrozenwind), "Take The Nightmare Cometh quest")
     bot_instance.States.AddCustomState(_flag_sacrifice_accounts, "Flag Sacrifice Accounts")
     bot_instance.States.AddCustomState(_flag_survivor_accounts, "Flag Survivor Accounts")
     bot_instance.States.AddCustomState(
@@ -2069,7 +1975,13 @@ def _do_inventory_refill(bot_instance: Botting) -> None:
 
     # ── Restock Cons from Xunlai Chest ────────────────────────────────
     if InventorySettings.RestockCons and BotSettings.UseCons:
+        # Restock for the leader account from its own Xunlai chest.
         handle_restock_cons(_make_ctx({"type": "restock_cons", "name": "Restock Consumables"}))
+        # Broadcast restock commands to all other accounts so they each
+        # withdraw from their own Xunlai chest as well.
+        bot_instance.Multibox.RestockConset(max(ConsSettings._restock.get(p, 0) for p in ("armor_of_salvation", "essence_of_celerity", "grail_of_might")))
+        bot_instance.Multibox.RestockAllPcons(max(ConsSettings._restock.get(p, 0) for p in ("birthday_cupcake", "candy_apple", "candy_corn", "golden_egg", "slice_of_pumpkin_pie", "honeycomb", "drake_kabob", "bowl_of_skalefin_soup", "pahnai_salad", "war_supplies")))
+        bot_instance.Wait.ForTime(3000)
 
     # ── Sell Materials ────────────────────────────────────────────────
     if InventorySettings.SellAllCommonMaterials:
