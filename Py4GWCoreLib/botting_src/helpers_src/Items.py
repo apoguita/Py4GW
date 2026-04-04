@@ -668,10 +668,6 @@ class _Items:
             if hasattr(GLOBAL_CACHE, "Effects") and callable(getattr(GLOBAL_CACHE.Effects, "HasEffect", None)):
                 if GLOBAL_CACHE.Effects.HasEffect(Player.GetAgentID(), effect_skill_id):
                     continue
-            # Fallback: try Inventory.HasEffect if Effects is not available
-            elif hasattr(GLOBAL_CACHE.Inventory, "HasEffect") and callable(getattr(GLOBAL_CACHE.Inventory, "HasEffect", None)):
-                if GLOBAL_CACHE.Inventory.HasEffect(Player.GetAgentID(), effect_skill_id):
-                    continue
             # Otherwise, just proceed (may overuse if no effect check is available)
             item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(consumable_model_id)
             if item_id:
@@ -698,9 +694,6 @@ class _Items:
         for consumable_model_id, effect_skill_id in conset_effects:
             if hasattr(GLOBAL_CACHE, "Effects") and callable(getattr(GLOBAL_CACHE.Effects, "HasEffect", None)):
                 if GLOBAL_CACHE.Effects.HasEffect(Player.GetAgentID(), effect_skill_id):
-                    continue
-            elif hasattr(GLOBAL_CACHE.Inventory, "HasEffect") and callable(getattr(GLOBAL_CACHE.Inventory, "HasEffect", None)):
-                if GLOBAL_CACHE.Inventory.HasEffect(Player.GetAgentID(), effect_skill_id):
                     continue
             item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(consumable_model_id)
             if item_id:
@@ -734,9 +727,6 @@ class _Items:
         for consumable_model_id, effect_skill_id in pcon_effects:
             if hasattr(GLOBAL_CACHE, "Effects") and callable(getattr(GLOBAL_CACHE.Effects, "HasEffect", None)):
                 if GLOBAL_CACHE.Effects.HasEffect(Player.GetAgentID(), effect_skill_id):
-                    continue
-            elif hasattr(GLOBAL_CACHE.Inventory, "HasEffect") and callable(getattr(GLOBAL_CACHE.Inventory, "HasEffect", None)):
-                if GLOBAL_CACHE.Inventory.HasEffect(Player.GetAgentID(), effect_skill_id):
                     continue
             item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(consumable_model_id)
             if item_id:

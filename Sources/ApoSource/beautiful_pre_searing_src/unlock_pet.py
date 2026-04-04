@@ -11,6 +11,7 @@ from Py4GWCoreLib.enums_src.Model_enums import ModelID
 
 from Sources.ApoSource.ApoBottingLib import wrappers as BT
 from .globals import *
+from .helpers import *
 
 
 #unlock ranger profession
@@ -18,21 +19,7 @@ def UnlockPet() -> BehaviorTree:
     def _is_ranger_primary()-> bool:
         primary, _ = Agent.GetProfessionNames(Player.GetAgentID())
         return primary == "Ranger"
-    
-    LAKESIDE_COUNTY_EXIT_COORDS_001: Vec2f = Vec2f(-11556.36, -6257.30)
-    LAKESIDE_COUNTY_EXIT_COORDS_002: Vec2f = Vec2f(-10905, -6287)
-    
-    REGENT_VALLEY_MID_001_EXIT_COORDS: Vec2f = Vec2f(-6316.87, -6808.10)
-    REGENT_VALLEY_MID_002_EXIT_COORDS: Vec2f = Vec2f(-4833.97, -12199.93)
-    REGENT_VALLEY_OVER_BRIDGE_EXIT_COORDS: list[Vec2f] = [Vec2f (-3464.73, -13135.62)]
-    REGENT_VALLEY_EXIT_COORDS: Vec2f = Vec2f(6516, -19822)
-    
-    NEAR_MASTER_NENTE_COORDS:  Vec2f = Vec2f(-17117.03, 10879.81)
-    MASTER_NENTE_ENC_STR: str = "\\x344C\\xAFF2\\xB725\\x65D8"
 
-    
-    
-    MELANDRU_STATUE_COORDS: Vec2f = Vec2f(-14990.32, -1139.84)
     PET_MODEL_ID: int = 1345
     CHARM_PET_SKILL_ID: int = 411
 
@@ -43,20 +30,20 @@ def UnlockPet() -> BehaviorTree:
 
             BT.TravelToOutpost(ASHFORD_ABBEY_MAP_ID),
             LogMessage("Exiting to Lakeside County"),
-            
-            BT.Move(LAKESIDE_COUNTY_EXIT_COORDS_001),
-            BT.Move(LAKESIDE_COUNTY_EXIT_COORDS_002),
+             
+            BT.Move(EXIT_TO_LAKESIDE_COUNTY_COORDS[0]),
+            BT.Move(EXIT_TO_LAKESIDE_COUNTY_COORDS[1]),
             BT.WaitForMapLoad(LAKESIDE_COUNTY_MAP_ID),
             
             LogMessage("Destroying summoning stones in bags"),
             BT.DestroyItems(model_ids=list([ModelID.Igneous_Summoning_Stone.value,]),),
             
             LogMessage("Exiting to Regent Valley"),
-            
-            BT.Move(REGENT_VALLEY_MID_001_EXIT_COORDS),
-            BT.Move(REGENT_VALLEY_MID_002_EXIT_COORDS),
-            BT.MoveDirect(REGENT_VALLEY_OVER_BRIDGE_EXIT_COORDS),
-            BT.Move(REGENT_VALLEY_EXIT_COORDS),
+             
+            BT.Move(FROM_ASHFORD_ABBEY_TO_REGENT_VALLEY_COORDS[0]),
+            BT.Move(FROM_ASHFORD_ABBEY_TO_REGENT_VALLEY_COORDS[1]),
+            BT.MoveDirect([FROM_ASHFORD_ABBEY_TO_REGENT_VALLEY_COORDS[2]]),
+            BT.Move(FROM_ASHFORD_ABBEY_TO_REGENT_VALLEY_COORDS[3]),
             BT.WaitForMapLoad(REGENT_VALLEY_MAP_ID),
             
             BottingTree.DisableHeroAITree(),
@@ -64,7 +51,6 @@ def UnlockPet() -> BehaviorTree:
             LogMessage("Going to Master Ranger Nente"),
             BT.Move(NEAR_MASTER_NENTE_COORDS),
             LogMessage("Interacting with Master Ranger Nente"),
-            LogMessage(f"Debug: {Agent.GetModelIDByEncString(MASTER_NENTE_ENC_STR)} ENC_STR: {MASTER_NENTE_ENC_STR}"),
             
             BT.MoveAndAutoDialogByModelID(
                 modelID_or_encStr= MASTER_NENTE_ENC_STR,
@@ -105,6 +91,7 @@ def UnlockPet() -> BehaviorTree:
             LogMessage("Pet Charmed and Ranger secondary profession unlocked, activating HeroAI and traveling back to Ashford Abbey"),
             BottingTree.EnableHeroAITree(),
             BT.TravelToOutpost(ASHFORD_ABBEY_MAP_ID),
+            LogMessage("Finished."),
             
         ],
     )
