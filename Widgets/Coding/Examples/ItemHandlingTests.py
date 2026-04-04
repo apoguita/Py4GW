@@ -1,4 +1,6 @@
+import json
 import os
+import struct
 from typing import NamedTuple
 
 import Py4GW
@@ -91,6 +93,75 @@ def bytes_to_hex_string(byte: bytes) -> str:
         Py4GW.Console.Log(MODULE_NAME, f"Error converting int list to hex string: {e}")
         return ""
 
+
+def _sanitize_json_text(value: str) -> str:
+    try:
+        return value.encode("utf-8", errors="backslashreplace").decode("utf-8")
+    except Exception:
+        return value.encode("ascii", errors="backslashreplace").decode("ascii")
+
+
+def _encode_string_table_value(value: int) -> list[int]:
+    if value <= 0:
+        return []
+
+    digits: list[int] = []
+    current = value
+    base = 0x7F00
+
+    while current > 0:
+        current, remainder = divmod(current, base)
+        digits.append(remainder + 0x0100)
+
+    digits.reverse()
+    for i in range(len(digits) - 1):
+        digits[i] |= 0x8000
+
+    return digits
+
+
+def _build_string_reference_bytes(index: int, key: int = 0) -> bytes:
+    codepoints = _encode_string_table_value(index)
+    if key:
+        codepoints.extend(_encode_string_table_value(key))
+    codepoints.append(0)
+
+    if not codepoints:
+        return b""
+
+    return struct.pack(f"<{len(codepoints)}H", *codepoints)
+
+
+def dump_string_table_to_json(language: ServerLanguage | int | None = None, output_path: str | None = None) -> str | None:
+    try:
+        language_id = int(language.value if isinstance(language, ServerLanguage) else language) if language is not None else int_lang
+        table = string_table._load_table_for_language(language_id)
+        if not table:
+            Py4GW.Console.Log(MODULE_NAME, f"String table for language {language_id} is not loaded yet.", Py4GW.Console.MessageType.Warning)
+            return None
+
+        target_path = output_path or os.path.join(INI_PATH, f"string_table_dump_{language_id}.json")
+        dump: list[dict[str, object]] = []
+
+        for string_index, entry_data in sorted(table.items()):
+            encoded_bytes = _build_string_reference_bytes(string_index)
+            decoded_text = string_table.decode(encoded_bytes, language=language_id) if encoded_bytes else ""
+            sanitized_decoded_text = _sanitize_json_text(decoded_text)
+
+            dump.append({
+                "encoded_bytes_hex": bytes_to_hex_string(encoded_bytes),
+                "decoded": sanitized_decoded_text,
+            })
+
+        with open(target_path, "w", encoding="utf-8") as file:
+            json.dump(dump, file, ensure_ascii=False, indent=2)
+
+        Py4GW.Console.Log(MODULE_NAME, f"Dumped {len(dump)} string-table entries to {target_path}", Py4GW.Console.MessageType.Success)
+        return target_path
+    except Exception as e:
+        Py4GW.Console.Log(MODULE_NAME, f"Failed to dump string table: {e}", Py4GW.Console.MessageType.Error)
+        return None
+    
 def main():
     global INI_KEY, hovered_item_id, auto_tick, tree, language, enc_input, decoded_ouput, decoded_name, int_lang, language_index, decoded, encoded, fully_decoded, collect, show_loot_config_view
     ITEM_CACHE.reset()
@@ -190,7 +261,7 @@ def main():
                     PyImGui.table_headers_row()
                     
                     if item and item.is_valid:
-                        prefix, suffix, inscription = ItemMod.get_item_upgrades(item.id)
+                        prefix, suffix, inscription, inherent = ItemMod.get_item_upgrades(item.id)
                         
                         PyImGui.table_next_row()
                         PyImGui.table_set_column_index(0)
@@ -200,6 +271,7 @@ def main():
                         if prefix and prefix.is_inherent:
                             PyImGui.same_line(0, 5)
                             PyImGui.text_colored(" (Inherent)", RED.color_tuple)
+                        
                         
                         PyImGui.table_next_row()
                         PyImGui.table_set_column_index(0)
@@ -219,6 +291,17 @@ def main():
                             PyImGui.same_line(0, 5)
                             PyImGui.text_colored(" (Inherent)", RED.color_tuple)
             
+                        for inherent_upgrade in inherent or []:
+                            PyImGui.table_next_row()
+                            PyImGui.table_set_column_index(0)
+                            PyImGui.text("Inherent")
+                            PyImGui.table_set_column_index(1)
+                            PyImGui.text(str(inherent_upgrade.display_summary) if inherent_upgrade else "None")
+                            
+                            if inherent_upgrade and inherent_upgrade.is_inherent:                                
+                                PyImGui.same_line(0, 5)
+                                PyImGui.text_colored(" (Inherent)", RED.color_tuple)
+                
                     PyImGui.end_table()
                                     
                                     
@@ -525,6 +608,9 @@ def main():
                     except Exception as e:
                         Py4GW.Console.Log(MODULE_NAME, f"Failed to decode clipboard data: {e}", Py4GW.Console.MessageType.Error
                                         )
+
+                if ImGui.button("Dump String Table to JSON", -1):
+                    dump_string_table_to_json(language)
                 ImGui.end_tab_item()
             
             if ImGui.begin_tab_item("Rule Testing"):

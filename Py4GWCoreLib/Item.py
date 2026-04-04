@@ -469,29 +469,35 @@ class Item:
                 return upgrade
             
             @staticmethod
-            def GetUpgrades(item_id) -> tuple[Upgrade | None, Upgrade | None, Upgrade | None]:
+            def GetUpgrades(item_id) -> tuple[Upgrade | None, Upgrade | None, Upgrade | None, list[Upgrade] | None]:
                 """Gets the upgrades of an item by its ID.
-                Returns a tuple of (prefix, suffix, inscription) where each element is either an Upgrade object or None if not present. This is a helper method that combines the logic of getting the item modifiers and parsing them into properties to extract the relevant upgrade properties.
+                Returns a tuple of (prefix, suffix, inscription, inherent) where each element is either an Upgrade object or None if not present. This is a helper method that combines the logic of getting the item modifiers and parsing them into properties to extract the relevant upgrade properties.
                 """
                 return ItemMod.get_item_upgrades(item_id)
             
             @staticmethod
             def GetPrefixUpgrade(item_id) -> Upgrade | None:
                 """Gets the prefix upgrade of an item by its ID."""
-                prefix, _, _ = ItemMod.get_item_upgrades(item_id)
+                prefix, _, _, _ = ItemMod.get_item_upgrades(item_id)
                 return prefix
             
             @staticmethod            
             def GetSuffixUpgrade(item_id) -> Upgrade | None:
                 """Gets the suffix upgrade of an item by its ID."""   
-                _, suffix, _ = ItemMod.get_item_upgrades(item_id)
+                _, suffix, _, _ = ItemMod.get_item_upgrades(item_id)
                 return suffix
             
             @staticmethod
             def GetInscriptionUpgrade(item_id) -> Upgrade | None:
                 """Gets the inscription upgrade of an item by its ID."""   
-                _, _, inscription = ItemMod.get_item_upgrades(item_id)
+                _, _, inscription, _ = ItemMod.get_item_upgrades(item_id)
                 return inscription
+            
+            @staticmethod
+            def GetInherentUpgrades(item_id) -> list[Upgrade] | None:
+                """Gets the inherent upgrades of an item by its ID."""   
+                _, _, _, inherent = ItemMod.get_item_upgrades(item_id)
+                return inherent
 
         class Trade:
             @staticmethod

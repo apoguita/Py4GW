@@ -1,4 +1,4 @@
-from enum import Enum, IntEnum
+from enum import Enum, IntEnum, auto
 
 from Py4GWCoreLib.enums_src.Item_enums import ItemType
 
@@ -21,12 +21,13 @@ class ItemModifierParam(IntEnum):
     Description = 0x8
     
 class ItemUpgradeType(IntEnum):    
-    Unknown = 0
-    Prefix = 1
-    Suffix = 2
-    Inscription = 3
-    UpgradeRune = 4
-    AppliesToRune = 5
+    Unknown = auto()
+    Prefix = auto()
+    Suffix = auto()
+    Inscription = auto()
+    Inherent = auto()
+    UpgradeRune = auto()
+    AppliesToRune = auto()
     
 class ModifierIdentifier(IntEnum):
     None_ = 0x0
@@ -46,7 +47,7 @@ class ModifierIdentifier(IntEnum):
     ArmorPlusVsPhysical = 0x215
     ArmorPlusVsPhysical2 = 0x216
     ArmorPlusVsSpecies = 0x214
-    ArmorPlusWhileDown = 0x21b
+    ArmorPlusWhileBelow = 0x21b
     AttributePlusOne = 0x241
     AttributePlusOneItem = 0x283
     AttributeRequirement = 0x279
@@ -60,8 +61,8 @@ class ModifierIdentifier(IntEnum):
     DamagePlusStance = 0x22a
     DamagePlusVsHexed = 0x225
     DamagePlusVsSpecies = 0x224
-    DamagePlusWhileDown = 0x228
-    DamagePlusWhileUp = 0x227
+    DamagePlusWhileBelow = 0x228
+    DamagePlusWhileAbove = 0x227
     DamageTypeProperty = 0x24b
     Energy = 0x27c
     Energy2 = 0x22c
@@ -88,7 +89,7 @@ class ModifierIdentifier(IntEnum):
     HealthPlusEnchanted = 0x236
     HealthPlusHexed = 0x237
     HealthPlusStance = 0x238
-    EnergyPlusWhileDown = 0x230
+    EnergyPlusWhileAbove = 0x230
     HealthStealOnHit = 0x252
     HighlySalvageable = 0x260
     IncreaseConditionDuration = 0x246
@@ -110,6 +111,8 @@ class ModifierIdentifier(IntEnum):
 
 class ItemUpgradeId(IntEnum):
     Unknown = -1
+    Inherent = 0x0000 # Not actually an upgrade, but used to identify inherent modifiers
+    
     Icy_Axe = 0x0081
     Ebon_Axe = 0x0082
     Shocking_Axe = 0x0083
@@ -584,6 +587,7 @@ class ItemUpgradeId(IntEnum):
 
 class ItemUpgrade(Enum):
     Unknown = ItemUpgradeId.Unknown
+    Inherent = ItemUpgradeId.Unknown
     
     Adept = {
         ItemType.Staff: ItemUpgradeId.Adept_Staff,

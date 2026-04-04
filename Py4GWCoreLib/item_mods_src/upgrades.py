@@ -13,6 +13,7 @@ from Py4GWCoreLib.item_mods_src.decoded_modifier import DecodedModifier
 from Py4GWCoreLib.item_mods_src.properties import ItemProperty
 from Py4GWCoreLib.item_mods_src.types import ItemBaneSpecies, ItemModifierParam, ItemUpgrade, ItemUpgradeId, ItemUpgradeType, ModifierIdentifier
 from Py4GWCoreLib.native_src.internals.encoded_strings import GWStringEncoded, GWEncoded
+from Py4GWCoreLib.py4gwcorelib_src.Utils import Utils
 
 def _get_property_factory():
     from Py4GWCoreLib.item_mods_src.upgrade_parser import get_property_factory
@@ -47,12 +48,13 @@ class Upgrade:
     upgrade_id: ItemUpgradeId = ItemUpgradeId.Unknown
     property_identifiers: list[ModifierIdentifier] = []
     properties: dict[ModifierIdentifier, ItemProperty] = {}
-    max_modifier_values: dict[ModifierIdentifier, tuple[int, int]] = {}
+    max_modifier_values: dict[ModifierIdentifier, tuple[int, int]] = {}    
     
     encoded_name : bytes = bytes()
     encoded_description : bytes = bytes()    
     descriptions: dict[ServerLanguage, str] = {}
     
+    modifier : Optional[DecodedModifier] = None
     __encoded_name: GWStringEncoded
     __encoded_description: GWStringEncoded
     
@@ -61,34 +63,35 @@ class Upgrade:
         self.language = ServerLanguage(string_table._loaded_language) if string_table._loaded_language in ServerLanguage._value2member_map_ else ServerLanguage.English
         
     @classmethod
-    def _pre_compose(cls, upgrade: "Upgrade", mod: DecodedModifier, modifiers: list[DecodedModifier],) -> None:
+    def _pre_compose(cls, upgrade: "Upgrade", mod: DecodedModifier, all_modifiers: list[DecodedModifier], remaining_modifiers: list[DecodedModifier]) -> None:
         return None
 
     @classmethod
-    def _post_compose(cls, upgrade: "Upgrade", mod: DecodedModifier, modifiers: list[DecodedModifier],) -> None:
+    def _post_compose(cls, upgrade: "Upgrade", mod: DecodedModifier, all_modifiers: list[DecodedModifier], remaining_modifiers: list[DecodedModifier]) -> None:
         return None
     
     @classmethod
-    def compose_from_modifiers(cls, mod : DecodedModifier, modifiers: list[DecodedModifier], rarity: Rarity = Rarity.Blue) -> Optional["Upgrade"]:        
+    def compose_from_modifiers(cls, mod : DecodedModifier, remaining_modifiers: list[DecodedModifier], all_modifiers: list[DecodedModifier], rarity: Rarity = Rarity.Blue) -> Optional["Upgrade"]:        
         upgrade = cls()
         upgrade.properties = {}
         upgrade.upgrade_id = mod.upgrade_id
         upgrade.rarity = rarity
+        upgrade.modifier = mod
 
-        cls._pre_compose(upgrade, mod, modifiers)
+        cls._pre_compose(upgrade, mod, all_modifiers, remaining_modifiers)
 
         property_factory = _get_property_factory()
         for prop_id in upgrade.property_identifiers:
-            prop_mod = next((m for m in modifiers if m.identifier == prop_id), None)
+            prop_mod = next((m for m in remaining_modifiers if m.identifier == prop_id), None)
             
             if prop_mod:
-                prop = property_factory.get(prop_id, lambda m, _, rarity: ItemProperty(modifier=m, rarity=rarity))(prop_mod, modifiers, rarity)
+                prop = property_factory.get(prop_id, lambda m, _, rarity: ItemProperty(modifier=m, rarity=rarity))(prop_mod, remaining_modifiers, rarity)
                 upgrade.properties[prop_id] = prop
             else:
                 Py4GW.Console.Log("ItemHandling", f"Missing modifier for property {prop_id.name} in upgrade {upgrade.__class__.__name__}. Upgrade composition failed.")
                 return None
 
-        cls._post_compose(upgrade, mod, modifiers)
+        cls._post_compose(upgrade, mod, all_modifiers, remaining_modifiers)
         upgrade.__encoded_name = upgrade.create_encoded_name()
         upgrade.__encoded_description = upgrade.create_encoded_description()
         return upgrade
@@ -265,7 +268,7 @@ class WeaponUpgrade(Upgrade):
     modifier_range: Optional[ModifierRange] = None
 
     @classmethod
-    def _pre_compose(cls, upgrade: "Upgrade", mod: DecodedModifier, modifiers: list[DecodedModifier],) -> None:
+    def _pre_compose(cls, upgrade: "Upgrade", mod: DecodedModifier, all_modifiers: list[DecodedModifier], remaining_modifiers: list[DecodedModifier]) -> None:
         weapon_upgrade = cast("WeaponUpgrade", upgrade)
         weapon_upgrade.target_item_type = cls.id.get_item_type(weapon_upgrade.upgrade_id)
 
@@ -548,8 +551,8 @@ class VampiricUpgrade(WeaponPrefix):
     # modifier_range = ModifierRange(ModifierIdentifier.HealthStealOnHit, ModifierType.Arg1, 1, 5)
 
     @property
-    def health_regen(self) -> int:
-        return self._get_property_value(ModifierIdentifier.HealthDegen, "health_regen", 0)
+    def health_degen(self) -> int:
+        return self._get_property_value(ModifierIdentifier.HealthDegen, "health_degen", 0)
 
     @property
     def health_steal(self) -> int:
@@ -566,8 +569,8 @@ class ZealousUpgrade(WeaponPrefix):
     ]
 
     @property
-    def energy_regen(self) -> int:
-        return self._get_property_value(ModifierIdentifier.EnergyDegen, "energy_regen", 0)
+    def energy_degen(self) -> int:
+        return self._get_property_value(ModifierIdentifier.EnergyDegen, "energy_degen", 0)
 
     @property
     def energy_gain(self) -> int:
@@ -578,8 +581,6 @@ class ZealousUpgrade(WeaponPrefix):
 
 #endregion Prefixes
   
-
-
 #region Suffixes
 class WeaponSuffix(WeaponUpgrade):
     mod_type = ItemUpgradeType.Suffix
@@ -944,20 +945,20 @@ class DownButNotOut(Inscription):
     id = ItemUpgrade.DownButNotOut
     target_item_type = ItemType.Offhand
     property_identifiers = [
-        ModifierIdentifier.ArmorPlusWhileDown
+        ModifierIdentifier.ArmorPlusWhileBelow
     ]
-    modifier_range = ModifierRange(ModifierIdentifier.ArmorPlusWhileDown, ModifierType.Arg2, 5, 10)
+    modifier_range = ModifierRange(ModifierIdentifier.ArmorPlusWhileBelow, ModifierType.Arg2, 5, 10)
     max_modifier_values = {
-        ModifierIdentifier.ArmorPlusWhileDown: (50, 10),
+        ModifierIdentifier.ArmorPlusWhileBelow: (50, 10),
     }
 
     @property
     def armor(self) -> int:
-        return self._get_property_value(ModifierIdentifier.ArmorPlusWhileDown, "armor", 0)
+        return self._get_property_value(ModifierIdentifier.ArmorPlusWhileBelow, "armor", 0)
 
     @property
     def health_threshold(self) -> int:
-        return self._get_property_value(ModifierIdentifier.ArmorPlusWhileDown, "health_threshold", 0)
+        return self._get_property_value(ModifierIdentifier.ArmorPlusWhileBelow, "health_threshold", 0)
     
     def create_encoded_name(self) -> GWStringEncoded:
         return GWStringEncoded(GWEncoded.ITEM_BASIC + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x86, 0x5D, 0x1, 0x0]), f"Down But Not Out")    
@@ -1237,20 +1238,20 @@ class StrengthAndHonor(Inscription):
     id = ItemUpgrade.StrengthAndHonor
     target_item_type = ItemType.Weapon
     property_identifiers = [
-        ModifierIdentifier.DamagePlusWhileUp,
+        ModifierIdentifier.DamagePlusWhileAbove,
     ]
-    modifier_range = ModifierRange(ModifierIdentifier.DamagePlusWhileUp, ModifierType.Arg2, 10, 15)
+    modifier_range = ModifierRange(ModifierIdentifier.DamagePlusWhileAbove, ModifierType.Arg2, 10, 15)
     max_modifier_values = {
-        ModifierIdentifier.DamagePlusWhileUp: (50, 15),
+        ModifierIdentifier.DamagePlusWhileAbove: (50, 15),
     }
 
     @property
     def damage_increase(self) -> int:
-        return self._get_property_value(ModifierIdentifier.DamagePlusWhileUp, "damage_increase", 0)
+        return self._get_property_value(ModifierIdentifier.DamagePlusWhileAbove, "damage_increase", 0)
 
     @property
     def health_threshold(self) -> int:
-        return self._get_property_value(ModifierIdentifier.DamagePlusWhileUp, "health_threshold", 0)
+        return self._get_property_value(ModifierIdentifier.DamagePlusWhileAbove, "health_threshold", 0)
     
     def create_encoded_name(self) -> GWStringEncoded:
         return GWStringEncoded(GWEncoded.ITEM_BASIC + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0xAA, 0x5D, 0x1, 0x0]), f"Strength And Honor")
@@ -1294,20 +1295,20 @@ class VengeanceIsMine(Inscription):
     id = ItemUpgrade.VengeanceIsMine
     target_item_type = ItemType.Weapon
     property_identifiers = [
-        ModifierIdentifier.DamagePlusWhileDown,
+        ModifierIdentifier.DamagePlusWhileBelow,
     ]
-    modifier_range = ModifierRange(ModifierIdentifier.DamagePlusWhileDown, ModifierType.Arg2, 10, 20)
+    modifier_range = ModifierRange(ModifierIdentifier.DamagePlusWhileBelow, ModifierType.Arg2, 10, 20)
     max_modifier_values = {
-        ModifierIdentifier.DamagePlusWhileDown: (50, 20),
+        ModifierIdentifier.DamagePlusWhileBelow: (50, 20),
     }
 
     @property
     def damage_increase(self) -> int:
-        return self._get_property_value(ModifierIdentifier.DamagePlusWhileDown, "damage_increase", 0)
+        return self._get_property_value(ModifierIdentifier.DamagePlusWhileBelow, "damage_increase", 0)
 
     @property
     def health_threshold(self) -> int:
-        return self._get_property_value(ModifierIdentifier.DamagePlusWhileDown, "health_threshold", 0)
+        return self._get_property_value(ModifierIdentifier.DamagePlusWhileBelow, "health_threshold", 0)
     
     def create_encoded_name(self) -> GWStringEncoded:
         return GWStringEncoded(GWEncoded.ITEM_BASIC + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0xAB, 0x5D, 0x1, 0x0]), f"Vengeance Is Mine")
@@ -1775,20 +1776,20 @@ class HaleAndHearty(Inscription):
     id = ItemUpgrade.HaleAndHearty
     target_item_type = ItemType.SpellcastingWeapon
     property_identifiers = [
-        ModifierIdentifier.EnergyPlusWhileDown,
+        ModifierIdentifier.EnergyPlusWhileAbove,
     ]
-    modifier_range = ModifierRange(ModifierIdentifier.EnergyPlusWhileDown, ModifierType.Arg2, 4, 5)
+    modifier_range = ModifierRange(ModifierIdentifier.EnergyPlusWhileAbove, ModifierType.Arg2, 4, 5)
     max_modifier_values = {
-        ModifierIdentifier.EnergyPlusWhileDown: (50, 5),
+        ModifierIdentifier.EnergyPlusWhileAbove: (50, 5),
     }
 
     @property
     def energy(self) -> int:
-        return self._get_property_value(ModifierIdentifier.EnergyPlusWhileDown, "energy", 0)
+        return self._get_property_value(ModifierIdentifier.EnergyPlusWhileAbove, "energy", 0)
 
     @property
     def health_threshold(self) -> int:
-        return self._get_property_value(ModifierIdentifier.EnergyPlusWhileDown, "health_threshold", 0)
+        return self._get_property_value(ModifierIdentifier.EnergyPlusWhileAbove, "health_threshold", 0)
     
     def create_encoded_name(self) -> GWStringEncoded:
         return GWStringEncoded(GWEncoded.ITEM_BASIC + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0xB5, 0x5D, 0x1, 0x0]), f"Hale And Hearty")
@@ -1846,6 +1847,378 @@ class SeizeTheDay(Inscription):
 #endregion SpellcastingWeapon
 #endregion Inscriptions
 
+#region Inherent (Old School)
+class Inherent(Upgrade):
+    mod_type = ItemUpgradeType.Inherent
+    id : ItemUpgrade = ItemUpgrade.Inherent
+    
+    target_item_type : ItemType
+    modifier_range: Optional[ModifierRange] = None
+    
+    def __init__(self):
+        super().__init__()
+        self.is_inherent = True
+    
+    def create_encoded_description(self) -> GWStringEncoded:
+        if not self.properties:
+            return GWStringEncoded(self.encoded_description, f"NO PROPERTIES! Thus no encoded description ({self.__class__.__name__})")
+        
+        parts = [prop.encoded_description for prop in self.properties.values() if prop.encoded_description]
+        return GWEncoded.combine_encoded_strings(parts, "no encoded description")
+
+    def _get_upgrade_property(self, identifier: ModifierIdentifier) -> Optional[ItemProperty]:
+        return self.properties.get(identifier)
+
+    def _get_property_value(self, identifier: ModifierIdentifier, attr_name: str, default):
+        prop = self._get_upgrade_property(identifier)
+        return getattr(prop, attr_name, default) if prop else default
+
+    def _get_modifier_arg(self, identifier: ModifierIdentifier, arg_index: int, default: int = 0) -> int:
+        prop = self._get_upgrade_property(identifier)
+        if not prop:
+            return default
+        return prop.modifier.arg1 if arg_index == 1 else prop.modifier.arg2
+    
+    @classmethod
+    def has_id(cls, upgrade_id: ItemUpgradeId) -> bool:
+        return False
+
+    @property
+    def is_maxed(self) -> bool:
+        if not self.properties or not self.modifier_range:
+            return True
+
+        prop = next((p for p in self.properties.values() if p.modifier.identifier == self.modifier_range.modifierIdentifier), None)
+        if not prop:
+            return False
+
+        value = prop.modifier.arg1 if self.modifier_range.modifier_type == ModifierType.Arg1 else prop.modifier.arg2
+        return self.modifier_range.min_value <= value <= self.modifier_range.max_value
+    
+    def create_encoded_name(self) -> GWStringEncoded:
+        return GWStringEncoded(bytes(), f"Inherent: {Utils.humanize_string(self.__class__.__name__)}")
+    
+#region Weapon
+class DamagePlusWhileAboveUpgrade(Inherent, StrengthAndHonor):
+    pass
+
+
+class DamagePlusPercentEnergyMinusUpgrade(Inherent, BrawnOverBrains):
+    pass
+
+
+class DamagePlusStanceUpgrade(Inherent, DanceWithDeath):
+    pass
+
+
+class DamagePlusHexedUpgrade(Inherent, DontFearTheReaper):
+    pass
+
+
+class HalvesCastingTimeGeneralUpgrade(Inherent, DontThinkTwice):
+    pass
+
+
+class DamagePlusEnchantedUpgrade(Inherent, GuidedByFate):
+    pass
+
+
+class DamagePlusPercentArmorMinusAttackingUpgrade(Inherent, ToThePain):
+    pass
+
+
+class DamagePlusVsHexedUpgrade(Inherent, TooMuchInformation):
+    pass
+
+
+class DamagePlusWhileBelowUpgrade(Inherent, VengeanceIsMine):
+    pass
+
+class VampiricStrengthUpgrade(Inherent):
+    target_item_type = ItemType.Weapon
+    property_identifiers = [
+        ModifierIdentifier.DamagePlusPercent,
+        ModifierIdentifier.HealthDegen,
+    ]
+    modifier_range = ModifierRange(ModifierIdentifier.DamagePlusPercent, ModifierType.Arg2, 10, 15)
+    
+    @property
+    def damage_increase(self) -> int:
+        return self._get_property_value(ModifierIdentifier.DamagePlusPercent, "damage_increase", 0)
+    
+    @property
+    def health_degen(self) -> int:
+        return self._get_property_value(ModifierIdentifier.HealthDegen, "health_degen", 0)
+
+class ZealousStrengthUpgrade(Inherent):
+    target_item_type = ItemType.Weapon
+    property_identifiers = [
+        ModifierIdentifier.DamagePlusPercent,
+        ModifierIdentifier.EnergyDegen,
+    ]
+    modifier_range = ModifierRange(ModifierIdentifier.DamagePlusPercent, ModifierType.Arg2, 10, 15)
+    
+    @property
+    def damage_increase(self) -> int:
+        return self._get_property_value(ModifierIdentifier.DamagePlusPercent, "damage_increase", 0)
+    
+    @property
+    def energy_degen(self) -> int:
+        return self._get_property_value(ModifierIdentifier.EnergyDegen, "energy_degen", 0)
+    
+#endregion Weapon
+
+#region Offhand
+class ArmorPlusHexedUpgrade(Inherent, BeJustAndFearNot):
+    pass
+
+
+class ArmorPlusWhileBelowUpgrade(Inherent, DownButNotOut):
+    pass
+
+
+class ArmorPlusEnchantedUpgrade(Inherent, FaithIsMyShield):
+    pass
+
+
+class HalvesSkillRechargeItemAttributeUpgrade(Inherent, ForgetMeNot):
+    pass
+
+
+class ArmorPlusAboveUpgrade(Inherent, HailToTheKing):
+    pass
+
+
+class ArmorPlusEnergyMinusUpgrade(Inherent, IgnoranceIsBliss):
+    pass
+
+
+class ArmorPlusCastingUpgrade(Inherent, KnowingIsHalfTheBattle):
+    pass
+
+
+class ArmorPlusHealthMinusUpgrade(Inherent, LifeIsPain):
+    pass
+
+
+class ArmorPlusVsElementalUpgrade(Inherent, ManForAllSeasons):
+    pass
+
+
+class ArmorPlusAttackingUpgrade(Inherent, MightMakesRight):
+    pass
+
+
+class HalvesSkillRechargeGeneralOffhandUpgrade(Inherent, SerenityNow):
+    pass
+
+
+class ArmorPlusVsPhysicalUpgrade(Inherent, SurvivalOfTheFittest):
+    pass
+#endregion Offhand
+
+#region MartialWeapon
+class EnergyPlusUpgrade(Inherent, IHaveThePower):
+    pass
+
+
+class HalvesSkillRechargeGeneralMartialWeaponUpgrade(Inherent, LetTheMemoryLiveAgain):
+    pass
+#endregion MartialWeapon
+
+#region OffhandOrShield    
+
+class HealthPlusStanceUpgrade(Inherent, OfEnduranceUpgrade):
+    target_item_type = ItemType.OffhandOrShield
+    pass
+
+class HealthPlusHexedUpgrade(Inherent, OfValorUpgrade):
+    target_item_type = ItemType.OffhandOrShield
+    pass
+
+class HealthPlusEnchantedUpgrade(Inherent, OfDevotionUpgrade):
+    target_item_type = ItemType.OffhandOrShield
+    pass
+
+class AttributePlusOneUpgrade(Inherent):
+    target_item_type = ItemType.OffhandOrShield
+    property_identifiers = [
+        ModifierIdentifier.AttributePlusOne,
+    ]
+    modifier_range = ModifierRange(ModifierIdentifier.AttributePlusOne, ModifierType.Arg1, 11, 20)
+
+    @property
+    def chance(self) -> int:
+        return self._get_property_value(ModifierIdentifier.AttributePlusOne, "chance", 0)
+    
+    @property
+    def attribute(self) -> Attribute:
+        return self._get_property_value(ModifierIdentifier.AttributePlusOne, "attribute", Attribute.None_)
+
+    @property
+    def attribute_level(self) -> int:
+        return self._get_property_value(ModifierIdentifier.AttributePlusOne, "attribute_level", 0)
+        
+
+class ReduceConditionDurationUpgrade(Inherent, CastOutTheUnclean):
+    pass
+
+
+class BluntArmorPlusVsDamageUpgrade(Inherent, NotTheFace):
+    pass
+
+
+class ColdArmorPlusVsDamageUpgrade(Inherent, LeafOnTheWind):
+    pass
+
+
+class EarthArmorPlusVsDamageUpgrade(Inherent, LikeARollingStone):
+    pass
+
+
+class ReceiveLessDamageUpgrade(Inherent, LuckOfTheDraw):
+    pass
+
+
+class AttributePlusOneItemUpgrade(Inherent, MasterOfMyDomain):
+    pass
+
+
+class ReceiveLessPhysDamageHexedUpgrade(Inherent, NothingToFear):
+    pass
+
+
+class LightningArmorPlusVsDamageUpgrade(Inherent, RidersOnTheStorm):
+    pass
+
+
+class ReceiveLessPhysDamageStanceUpgrade(Inherent, RunForYourLife):
+    pass
+
+
+class ReceiveLessPhysDamageEnchantedUpgrade(Inherent, ShelteredByFaith):
+    pass
+
+
+class FireArmorPlusVsDamageUpgrade(Inherent, SleepNowInTheFire):
+    pass
+
+
+class SlashingArmorPlusVsDamageUpgrade(Inherent, TheRiddleOfSteel):
+    pass
+
+
+class PiercingArmorPlusVsDamageUpgrade(Inherent, ThroughThickAndThin):
+    pass
+
+class ArmorVsSpeciesUpgrade(Inherent):
+    target_item_type = ItemType.Weapon
+    property_identifiers = [
+        ModifierIdentifier.ArmorPlusVsSpecies,
+    ]
+    modifier_range = ModifierRange(ModifierIdentifier.ArmorPlusVsSpecies, ModifierType.Arg2, 5, 10)
+    
+    @property
+    def armor(self) -> int:
+        return self._get_property_value(ModifierIdentifier.ArmorPlusVsSpecies, "armor", 0)
+    
+    @property
+    def species(self):
+        return self._get_property_value(ModifierIdentifier.ArmorPlusVsSpecies, "species", None)
+
+#endregion OffhandOrShield
+
+#region EquippableItem
+class HealthPlusUpgrade(Inherent):
+    target_item_type = ItemType.EquippableItem
+    property_identifiers = [
+        ModifierIdentifier.HealthPlus2,
+    ]
+    modifier_range = ModifierRange(ModifierIdentifier.HealthPlus2, ModifierType.Arg1, 10, 30)
+
+    @property
+    def health(self) -> int:
+        return self._get_property_value(ModifierIdentifier.HealthPlus2, "health", 0)
+    
+class HighlySalvageableUpgrade(Inherent, MeasureForMeasure):
+    pass
+
+
+class IncreasedSaleValueUpgrade(Inherent, ShowMeTheMoney):
+    pass
+#endregion EquippableItem
+
+#region SpellcastingWeapon
+class HalvesCastingTimeAttributeUpgrade(Inherent):
+    target_item_type = ItemType.SpellcastingWeapon
+    property_identifiers = [
+        ModifierIdentifier.HalvesCastingTimeAttribute,
+    ]
+    modifier_range = ModifierRange(ModifierIdentifier.HalvesCastingTimeAttribute, ModifierType.Arg1, 10, 20)
+
+    @property
+    def chance(self) -> int:
+        return self._get_property_value(ModifierIdentifier.HalvesCastingTimeAttribute, "chance", 0)
+    
+    @property
+    def attribute(self):
+        return self._get_property_value(ModifierIdentifier.HalvesCastingTimeAttribute, "attribute", None)
+    
+class HalvesRechargeTimeAttributeUpgrade(Inherent):
+    target_item_type = ItemType.SpellcastingWeapon
+    property_identifiers = [
+        ModifierIdentifier.HalvesSkillRechargeAttribute,
+    ]
+    modifier_range = ModifierRange(ModifierIdentifier.HalvesSkillRechargeAttribute, ModifierType.Arg1, 10, 20)
+
+    @property
+    def chance(self) -> int:
+        return self._get_property_value(ModifierIdentifier.HalvesSkillRechargeAttribute, "chance", 0)
+    
+    @property
+    def attribute(self):
+        return self._get_property_value(ModifierIdentifier.HalvesSkillRechargeAttribute, "attribute", None)
+    
+    
+class HalvesCastingTimeItemAttributeUpgrade(Inherent, AptitudeNotAttitude):
+    pass
+
+
+class EnergyPlusWhileBelowUpgrade(Inherent, DontCallItAComeback):
+    pass
+
+
+class EnergyPlusWhileAboveUpgrade(Inherent, HaleAndHearty):
+    pass
+
+
+class EnergyPlusEnchantedUpgrade(Inherent, HaveFaith):
+    pass
+
+
+class EnergyPlusHexedUpgrade(Inherent, IAmSorrow):
+    pass
+
+
+class EnergyPlusEnergyDegenUpgrade(Inherent):
+    property_identifiers = [
+        ModifierIdentifier.EnergyPlus,
+        ModifierIdentifier.EnergyDegen,
+    ]
+    modifier_range = ModifierRange(ModifierIdentifier.EnergyPlus, ModifierType.Arg2, 10, 15)
+
+    @property
+    def energy(self) -> int:
+        return self._get_property_value(ModifierIdentifier.EnergyPlus, "energy", 0)
+
+    @property
+    def energy_regen(self) -> int:
+        return self._get_property_value(ModifierIdentifier.EnergyDegen, "energy_regen", 0)
+    
+#endregion SpellcastingWeapon
+
+#endregion Inherent
+
 #endregion Weapon Upgrades
 
 #region Armor Upgrades
@@ -1889,7 +2262,7 @@ class AttributeRune(Rune):
     attribute_level : int
 
     @classmethod
-    def _pre_compose(cls, upgrade: "Upgrade", mod: DecodedModifier, modifiers: list[DecodedModifier],) -> None:
+    def _pre_compose(cls, upgrade: "Upgrade", mod: DecodedModifier, all_modifiers: list[DecodedModifier], remaining_modifiers: list[DecodedModifier]) -> None:
         attribute_rune = cast("AttributeRune", upgrade)
         attribute_rune.attribute = Attribute(mod.arg1)
         attribute_rune.attribute_level = mod.arg2
@@ -4942,3 +5315,11 @@ _UPGRADES: list[type[Upgrade]] = [
     AppliesToSuperiorRuneParagon, 
 ]
 
+_INHERENT_UPGRADES: list[type[Inherent]] = [
+    cls
+    for cls in globals().values()
+    if isinstance(cls, type)
+    and issubclass(cls, Inherent)
+    and cls is not Inherent
+    and cls.__module__ == __name__
+]

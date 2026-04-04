@@ -292,6 +292,16 @@ class GWEncoded():
     WHILE_CASTING_BYTES = bytes([0xB5, 0xA, 0x1, 0x0])
     WHILE_ENCHANTED_BYTES = bytes([0xB7, 0xA, 0x1, 0x0])
     WHILE_HEXED_BYTES = bytes([0xB8, 0xA, 0x1, 0x0])
+    
+    WHILE_BELOW_BYTES = bytes([0xBB, 0xA]) #while %str1% is below %num1%
+    WHILE_ABOVE_BYTES = bytes([0xBC, 0xA]) #while %str1% is above %num1%
+    
+    SEPARATING_BYTES = bytes([0xA, 0x1])
+    HEALTH_STR_BYTES = bytes([0x52, 0xA]) #Health
+    
+    WHILE_HEALTH_ABOVE_BYTES = WHILE_ABOVE_BYTES + SEPARATING_BYTES + HEALTH_BYTES + bytes([0x1, 0x0, 0x1, 0x32, 0x1]) # next byte is the health threshold
+    WHILE_HEALTH_BELOW_BYTES = WHILE_BELOW_BYTES + SEPARATING_BYTES + HEALTH_BYTES + bytes([0x1, 0x0, 0x1, 0x32, 0x1]) # next byte is the health threshold
+    
     WHILE_IN_A_STANCE_BYTES = bytes([0xBA, 0xA, 0x1, 0x0])
     WHILE_USING_PREPARATION_BYTES = bytes([0xBF, 0xA, 0x1, 0x0])
     WHILE_ACTIVATING_SKILLS_BYTES = bytes([0xC0, 0xA, 0x1, 0x0])

@@ -19,8 +19,11 @@ def get_species(modifiers: list[DecodedModifier]) -> ItemBaneSpecies:
     
     return ItemBaneSpecies.Unknown
 
-def get_upgrade_property(modifier: DecodedModifier, modifiers: list[DecodedModifier], upgrade_type: ItemUpgradeType | None = None, rarity: Rarity = Rarity.Blue) -> Optional[ItemProperty]:
-    upgrade, upgrade_type = get_upgrade(modifier, modifiers, upgrade_type, rarity)
+def get_upgrade_property(modifier: DecodedModifier, all_modifiers: list[DecodedModifier], upgrade_type: ItemUpgradeType | None = None, rarity: Rarity = Rarity.Blue) -> Optional[ItemProperty]:
+    
+    # all modifiers coming AFTER the current modifier
+    remaining_modifiers = all_modifiers[all_modifiers.index(modifier) + 1:]
+    upgrade, upgrade_type = get_upgrade(modifier, remaining_modifiers, all_modifiers, upgrade_type, rarity)
         
     if upgrade and upgrade.mod_type != ItemUpgradeType.Unknown:
         match upgrade_type:
@@ -41,11 +44,11 @@ def get_upgrade_property(modifier: DecodedModifier, modifiers: list[DecodedModif
     
     return None
 
-def get_upgrade(modifier : DecodedModifier, modifiers: list[DecodedModifier], upgrade_type: ItemUpgradeType | None = None, rarity: Rarity = Rarity.Blue) -> tuple["Upgrade", ItemUpgradeType]:
+def get_upgrade(modifier : DecodedModifier, remaining_modifiers: list[DecodedModifier], all_modifiers: list[DecodedModifier], upgrade_type: ItemUpgradeType | None = None, rarity: Rarity = Rarity.Blue) -> tuple["Upgrade", ItemUpgradeType]:
     creator_type = next((t for t in _UPGRADES if t.has_id(modifier.upgrade_id) and (upgrade_type is None or t.mod_type == upgrade_type)), None)     
 
     if creator_type is not None:        
-        upgrade = creator_type.compose_from_modifiers(modifier, modifiers, rarity)
+        upgrade = creator_type.compose_from_modifiers(modifier, remaining_modifiers, all_modifiers, rarity)
         if upgrade is not None:
             return upgrade, creator_type.mod_type
         
@@ -86,7 +89,7 @@ def get_property_factory() -> dict[ModifierIdentifier, Callable[[DecodedModifier
         ModifierIdentifier.ArmorPlusVsPhysical: lambda m, _, rarity: ArmorPlusVsPhysical(modifier=m, armor=m.arg2, rarity=rarity),
         ModifierIdentifier.ArmorPlusVsPhysical2: lambda m, _, rarity: ArmorPlusVsPhysical(modifier=m, armor=m.arg2, rarity=rarity),
         ModifierIdentifier.ArmorPlusVsSpecies: lambda m, _, rarity: ArmorPlusVsSpecies(modifier=m, armor=m.arg2, species=ItemBaneSpecies(m.arg1), rarity=rarity),
-        ModifierIdentifier.ArmorPlusWhileDown: lambda m, _, rarity: ArmorPlusWhileDown(modifier=m, armor=m.arg2, health_threshold=m.arg1, rarity=rarity),
+        ModifierIdentifier.ArmorPlusWhileBelow: lambda m, _, rarity: ArmorPlusWhileBelow(modifier=m, armor=m.arg2, health_threshold=m.arg1, rarity=rarity),
         ModifierIdentifier.AttributePlusOne: lambda m, _, rarity: AttributePlusOne(modifier=m, attribute=Attribute(m.arg1), chance=m.arg2, rarity=rarity),
         ModifierIdentifier.AttributePlusOneItem: lambda m, _, rarity: AttributePlusOneItem(modifier=m, chance=m.arg1, rarity=rarity),
         ModifierIdentifier.AttributeRequirement: lambda m, _, rarity: AttributeRequirement(modifier=m, attribute=Attribute(m.arg1), attribute_level=m.arg2, rarity=rarity),
@@ -100,19 +103,19 @@ def get_property_factory() -> dict[ModifierIdentifier, Callable[[DecodedModifier
         ModifierIdentifier.DamagePlusStance: lambda m, _, rarity: DamagePlusStance(modifier=m, damage_increase=m.arg2, rarity=rarity),
         ModifierIdentifier.DamagePlusVsHexed: lambda m, _, rarity: DamagePlusVsHexed(modifier=m, damage_increase=m.arg2, rarity=rarity),
         ModifierIdentifier.DamagePlusVsSpecies: lambda m, mods, rarity: DamagePlusVsSpecies(modifier=m, damage_increase=m.arg1, species=get_species(mods), rarity=rarity),
-        ModifierIdentifier.DamagePlusWhileDown: lambda m, _, rarity: DamagePlusWhileDown(modifier=m, damage_increase=m.arg2, health_threshold=m.arg1, rarity=rarity),
-        ModifierIdentifier.DamagePlusWhileUp: lambda m, _, rarity: DamagePlusWhileUp(modifier=m, damage_increase=m.arg2, health_threshold=m.arg1, rarity=rarity),
+        ModifierIdentifier.DamagePlusWhileBelow: lambda m, _, rarity: DamagePlusWhileBelow(modifier=m, damage_increase=m.arg2, health_threshold=m.arg1, rarity=rarity),
+        ModifierIdentifier.DamagePlusWhileAbove: lambda m, _, rarity: DamagePlusWhileAbove(modifier=m, damage_increase=m.arg2, health_threshold=m.arg1, rarity=rarity),
         ModifierIdentifier.DamageTypeProperty: lambda m, _, rarity: DamageTypeProperty(modifier=m, damage_type=DamageType(m.arg1), rarity=rarity),
         ModifierIdentifier.Energy: lambda m, _, rarity: EnergyProperty(modifier=m, energy=m.arg1, rarity=rarity),
         ModifierIdentifier.Energy2: lambda m, _, rarity: EnergyProperty(modifier=m, energy=m.arg1, rarity=rarity),
-        ModifierIdentifier.EnergyDegen: lambda m, _, rarity: EnergyDegen(modifier=m, energy_regen=m.arg2, rarity=rarity),
+        ModifierIdentifier.EnergyDegen: lambda m, _, rarity: EnergyDegen(modifier=m, energy_degen=m.arg2, rarity=rarity),
         ModifierIdentifier.EnergyGainOnHit: lambda m, _, rarity: EnergyGainOnHit(modifier=m, energy_gain=m.arg2, rarity=rarity),
         ModifierIdentifier.EnergyMinus: lambda m, _, rarity: EnergyMinus(modifier=m, energy=m.arg2, rarity=rarity),
         ModifierIdentifier.EnergyPlus : lambda m, _, rarity: EnergyPlus(modifier=m, energy=m.arg2, rarity=rarity),
         ModifierIdentifier.EnergyPlusEnchanted: lambda m, _, rarity: EnergyPlusEnchanted(modifier=m, energy=m.arg2, rarity=rarity),
         ModifierIdentifier.EnergyPlusHexed: lambda m, _, rarity: EnergyPlusHexed(modifier=m, energy=m.arg2, rarity=rarity),
         ModifierIdentifier.EnergyPlusWhileBelow: lambda m, _, rarity: EnergyPlusWhileBelow(modifier=m, energy=m.arg2, health_threshold=m.arg1, rarity=rarity),
-        ModifierIdentifier.EnergyPlusWhileDown: lambda m, _, rarity: EnergyPlusWhileDown(modifier=m, energy=m.arg2, health_threshold=m.arg1, rarity=rarity),
+        ModifierIdentifier.EnergyPlusWhileAbove: lambda m, _, rarity: EnergyPlusWhileAbove(modifier=m, energy=m.arg2, health_threshold=m.arg1, rarity=rarity),
         ModifierIdentifier.Furious: lambda m, _, rarity: Furious(modifier=m, chance=m.arg2, rarity=rarity),
         ModifierIdentifier.HalvesCastingTimeAttribute: lambda m, _, rarity: HalvesCastingTimeAttribute(modifier=m, chance=m.arg1, attribute=Attribute(m.arg2), rarity=rarity),
         ModifierIdentifier.HalvesCastingTimeGeneral: lambda m, _, rarity: HalvesCastingTimeGeneral(modifier=m, chance=m.arg1, rarity=rarity),
@@ -122,7 +125,7 @@ def get_property_factory() -> dict[ModifierIdentifier, Callable[[DecodedModifier
         ModifierIdentifier.HalvesSkillRechargeItemAttribute: lambda m, mods, rarity: HalvesSkillRechargeItemAttribute(modifier=m, chance=m.arg1, attribute=get_item_requirement(mods), rarity=rarity),
         ModifierIdentifier.HeadpieceAttribute: lambda m, _, rarity: HeadpieceAttribute(modifier=m, attribute=Attribute(m.arg1), attribute_level=m.arg2, rarity=rarity),
         ModifierIdentifier.HeadpieceGenericAttribute: lambda m, _, rarity: HeadpieceGenericAttribute(modifier=m, rarity=rarity),
-        ModifierIdentifier.HealthDegen: lambda m, _, rarity: HealthDegen(modifier=m, health_regen=m.arg2, rarity=rarity),
+        ModifierIdentifier.HealthDegen: lambda m, _, rarity: HealthDegen(modifier=m, health_degen=m.arg2, rarity=rarity),
         ModifierIdentifier.HealthMinus: lambda m, _, rarity: HealthMinus(modifier=m, health=m.arg2, rarity=rarity),
         ModifierIdentifier.HealthPlus: lambda m, _, rarity: HealthPlus(modifier=m, health=m.arg1, rarity=rarity),
         ModifierIdentifier.HealthPlus2 : lambda m, _, rarity: HealthPlus(modifier=m, health=m.arg2, rarity=rarity),
