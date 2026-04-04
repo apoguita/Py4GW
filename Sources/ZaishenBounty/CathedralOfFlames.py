@@ -118,10 +118,6 @@ CathedralOfFlames_transit_path3 = [
             (17028,8583),
         ],
     },
-    {
-        "gadget": (233, 1336),
-        "wait": 5,
-    },
 ]
 
 CathedralOfFlames_ids = {
