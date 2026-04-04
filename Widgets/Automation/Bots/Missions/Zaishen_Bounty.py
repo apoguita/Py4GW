@@ -22,13 +22,11 @@ bot = Botting(BotSettings.BOT_NAME,
               upkeep_armor_of_salvation_restock=5,
               upkeep_essence_of_celerity_restock=5,
               upkeep_grail_of_might_restock=5,
-              upkeep_war_supplies_restock=5,
               upkeep_honeycomb_restock=25,
               upkeep_auto_loot_active=True,
               upkeep_armor_of_salvation_active=True,
               upkeep_essence_of_celerity_active=True,
               upkeep_grail_of_might_active=True,
-              upkeep_war_supplies_active=True,
               upkeep_honeycomb_active=True,
               config_draw_path=True)
 
@@ -55,6 +53,8 @@ _queue_version: int = 0
 _current_bounty_index: int = 0
 _bounty_header_names: list[str] = []
 _current_section_header: tuple = ("", 0.0, 0.0)  # (header_name, first_x, first_y)
+_restock_pcons: bool = True
+_restock_res_scroll: bool = True
 _loop_queue: bool = False
 _loop_count: int = 0
 # endregion
@@ -156,6 +156,8 @@ def _set_section_header(header_name, first_x, first_y):
     global _current_section_header
     _current_section_header = (header_name, first_x, first_y)
     yield
+
+
 # endregion
 
 # =============================================================================
@@ -229,8 +231,11 @@ def bot_routine(bot: Botting) -> None:
         bot.Items.Restock.ArmorOfSalvation()
         bot.Items.Restock.EssenceOfCelerity()
         bot.Items.Restock.GrailOfMight()
-        bot.Items.Restock.WarSupplies()
         bot.Items.Restock.Honeycomb()
+        if _restock_pcons:
+            bot.Multibox.RestockAllPcons(10)
+        if _restock_res_scroll:
+            bot.Multibox.RestockResurrectionScroll(25)
 
         # -- Travel to explorable --
         has_outpost_path = bool(bounty.outpost_path)
@@ -245,6 +250,8 @@ def bot_routine(bot: Botting) -> None:
                     t_coord = _get_first_path_coord(bounty.transit_paths[i])
                     bot.States.AddCustomState(lambda bi=b_idx, ti=i, tc=t_coord: _set_section_header(_section_headers[bi][ti], tc[0], tc[1]),
                                               f"SetSection_Transit_{b_idx}_{i}")
+                    if _restock_pcons:
+                        bot.Multibox.UsePcons()
                     _register_path(bot, bounty.transit_paths[i], header_name=f"Transit_{b_idx}_{i}")
                     bot.Wait.ForMapToChange(next_map)
             else:
@@ -269,6 +276,8 @@ def bot_routine(bot: Botting) -> None:
         bp_coord = _get_first_path_coord(bounty.bounty_path)
         bot.States.AddCustomState(lambda bi=b_idx, bc=bp_coord: _set_section_header(_section_headers[bi][-1], bc[0], bc[1]),
                                   f"SetSection_BountyPath_{b_idx}")
+        if _restock_pcons:
+            bot.Multibox.UsePcons()
         _register_path(bot, bounty.bounty_path, header_name=f"BountyPath_{b_idx}")
         bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Starting Bounty: {bounty.display}")
         bot.Wait.UntilOutOfCombat()
@@ -522,13 +531,15 @@ def _draw_settings_consumables():
     bot.Properties.ApplyNow("essence_of_celerity", "active", use_conset)
     bot.Properties.ApplyNow("grail_of_might", "active", use_conset)
 
-    use_war_supplies = bot.Properties.Get("war_supplies", "active")
-    use_war_supplies = PyImGui.checkbox("Restock & use War Supplies", use_war_supplies)
-    bot.Properties.ApplyNow("war_supplies", "active", use_war_supplies)
+    global _restock_pcons
+    _restock_pcons = PyImGui.checkbox("Restock & use Pcons (Multibox)", _restock_pcons)
 
     use_honeycomb = bot.Properties.Get("honeycomb", "active")
     use_honeycomb = PyImGui.checkbox("Restock & use Honeycomb", use_honeycomb)
     bot.Properties.ApplyNow("honeycomb", "active", use_honeycomb)
+
+    global _restock_res_scroll
+    _restock_res_scroll = PyImGui.checkbox("Restock Resurrection Scroll (Multibox)", _restock_res_scroll)
 
     PyImGui.separator()
     _loop_queue = PyImGui.checkbox("Loop Queue", _loop_queue)
