@@ -122,11 +122,11 @@ def bot_routine(bot: Botting) -> None:
                                   f"SetRunIndex_{run_idx}")
 
         # -- Travel to outpost --
-        #bot.Multibox.KickAllAccounts()
+        bot.Multibox.KickAllAccounts()
         bot.Map.Travel(target_map_id=run.outpost_id)
-        #bot.Multibox.SummonAllAccounts()
-        #bot.Wait.ForTime(4000)
-        #bot.Multibox.InviteAllAccounts()
+        bot.Multibox.SummonAllAccounts()
+        bot.Wait.ForTime(4000)
+        bot.Multibox.InviteAllAccounts()
         bot.Party.SetHardMode(False)
         bot.Items.Restock.WarSupplies()
         bot.Items.Restock.BirthdayCupcake()
@@ -136,7 +136,7 @@ def bot_routine(bot: Botting) -> None:
         bot.Items.Restock.GrailOfMight()
 
         # Widgets
-        bot.Multibox.ApplyWidgetPolicy(enable_widgets=BotSettings.WIDGETS_TO_ENABLE, disable_widgets=BotSettings.WIDGETS_TO_DISABLE)
+        bot.Multibox.ApplyWidgetPolicy(enable_widgets=BotSettings.WIDGETS_TO_ENABLE)
 
         # -- Exit outpost --
         first_map_id = run.segments[0]["map_id"] if run.segments else 0
@@ -153,9 +153,6 @@ def bot_routine(bot: Botting) -> None:
                 )
                 bot.Move.FollowAutoPath(seg_path)
                 bot.Wait.ForMapToChange(next_map_id)
-        
-        # Enable disabled Widgets
-        bot.Multibox.ApplyWidgetPolicy(enable_widgets=BotSettings.WIDGETS_TO_DISABLE)
 
     # All runs finished
     bot.States.AddHeader("All Runs Finished")
@@ -293,7 +290,6 @@ def _draw_settings():
         bot.config.initialized = False
         _prev_queue_version = _queue_version
 
-    PyImGui.separator()
     _draw_settings_consumables()
     #_draw_settings_debug()
 
