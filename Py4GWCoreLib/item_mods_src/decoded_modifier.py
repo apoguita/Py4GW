@@ -4,7 +4,7 @@ from typing import Optional
 
 from PyItem import ItemModifier
 
-from Sources.frenkeyLib.ItemHandling.Mods.types import ItemModifierParam, ItemUpgradeId, ModifierIdentifier
+from Py4GWCoreLib.item_mods_src.types import ItemModifierParam, ItemUpgradeId, ModifierIdentifier
 
 @dataclass(frozen=True)
 class DecodedModifier:

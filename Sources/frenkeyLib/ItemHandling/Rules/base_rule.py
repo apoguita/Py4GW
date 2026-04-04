@@ -11,28 +11,14 @@ from Py4GWCoreLib.enums_src.Model_enums import ModelID
 from Sources.frenkeyLib.ItemHandling.Items.ItemCache import ITEM_CACHE
 from Sources.frenkeyLib.ItemHandling.Items.ItemData import DAMAGE_RANGES
 from Sources.frenkeyLib.ItemHandling.Items.item_snapshot import ItemSnapshot
-from Sources.frenkeyLib.ItemHandling.Mods.properties import ItemProperty
-from Sources.frenkeyLib.ItemHandling.Mods.upgrades import HeavyUpgrade, Upgrade
+from Py4GWCoreLib.item_mods_src.properties import ItemProperty
+from Py4GWCoreLib.item_mods_src.upgrades import HeavyUpgrade, Upgrade
 from Sources.frenkeyLib.ItemHandling.Rules.types import ItemAction
 
 PropertyFilter = ItemProperty | dict[str, int | str]
 
-class RulePriority(IntEnum):    
-    WeaponSkinRule = 1000
-    ItemSkinRule = 900
-    ModelIdRule = 800
-    UpgradeRule = 700
-    WeaponTypeRule = 600
-    DyesRule = 400
-    SalvagesToMaterialRule = 350
-    ItemTypeAndRarityRule = 300
-    ItemTypesRule = 200
-    RaritiesRule = 100
-    Base = 0
-
 class BaseRule:
     _registry: ClassVar[dict[str, type["BaseRule"]]] = {}
-    priority: RulePriority = RulePriority.Base
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -50,9 +36,6 @@ class BaseRule:
 
     def get_item(self, item_id: int) -> Optional[ItemSnapshot]:
         return ITEM_CACHE.get_item_snapshot(item_id)
-
-    def get_priority_score(self) -> int:
-        return self.priority.value
 
     def _serialize_data(self) -> dict[str, Any]:
         return {}
@@ -86,8 +69,6 @@ class BaseRule:
         return rule
 
 class ModelIdRule(BaseRule):
-    priority = RulePriority.ModelIdRule
-    
     """
     ***CAUTION***: This rule is ***not recommended*** for general use, as model IDs can be shared between different items and item types!
     """
@@ -118,8 +99,6 @@ class ModelIdRule(BaseRule):
                 self.model_id = None
 
 class ItemTypesRule(BaseRule):
-    priority = RulePriority.ItemTypesRule
-    
     """
     A rule that checks if an item :class:`ItemType` is a specified item type.
     """
@@ -149,8 +128,6 @@ class ItemTypesRule(BaseRule):
         ]
 
 class RaritiesRule(BaseRule):
-    priority = RulePriority.RaritiesRule
-    
     """
     A rule that checks if an item :class:`Rarity` is a specified rarity.
     """
@@ -180,8 +157,6 @@ class RaritiesRule(BaseRule):
         ]
 
 class DyesRule(BaseRule):
-    priority = RulePriority.DyesRule
-    
     """
     A rule if an item is a **Vial of Dye** of a specific :class:`DyeColor`. This is determined by the item's dye color.
     """
@@ -211,8 +186,6 @@ class DyesRule(BaseRule):
         ]
 
 class ItemSkinRule(BaseRule):
-    priority = RulePriority.ItemSkinRule
-    
     """
     A rule that checks if an item has a specific skin.
 
@@ -243,8 +216,6 @@ class ItemSkinRule(BaseRule):
         self.item_skins = [str(name) for name in data.get("item_skins", []) if isinstance(name, str)]
 
 class ItemTypeAndRarityRule(BaseRule):
-    priority = RulePriority.ItemTypeAndRarityRule
-    
     """
     A rule that checks if an item is a specific item type and rarity.
     """
@@ -283,8 +254,6 @@ class ItemTypeAndRarityRule(BaseRule):
         ]
 
 class WeaponSkinRule(BaseRule):
-    priority = RulePriority.WeaponSkinRule
-    
     """
     A rule that checks if a weapon has a specific skin. This is determined by the item's skin property, which is derived from the item data in :file:`items.json`.
 
@@ -380,8 +349,6 @@ class WeaponSkinRule(BaseRule):
         ]
 
 class WeaponTypeRule(BaseRule):
-    priority = RulePriority.WeaponTypeRule
-    
     """
     A rule that checks if an item is a specific weapon type, requirement, damage range and specific properties.
     """
@@ -479,8 +446,6 @@ class WeaponTypeRule(BaseRule):
         ]
 
 class UpgradeRule(BaseRule):
-    priority = RulePriority.UpgradeRule
-    
     """
     A rule that checks if an item has a specific upgrade. This is determined by the item's properties, which are derived from the item's modifiers.
     """
@@ -507,7 +472,7 @@ class UpgradeRule(BaseRule):
         if not isinstance(upgrade_class_name, str):
             return
         
-        from Sources.frenkeyLib.ItemHandling.Mods import upgrades as upgrades_module        
+        from Py4GWCoreLib.item_mods_src import upgrades as upgrades_module        
 
         upgrade_cls = getattr(upgrades_module, upgrade_class_name, None)
 
@@ -536,8 +501,6 @@ class UpgradeRule(BaseRule):
         self.upgrade = instance
 
 class SalvagesToMaterialRule(BaseRule):
-    priority = RulePriority.SalvagesToMaterialRule
-    
     """
     A rule that checks if an item can be salvaged into a specific materials. This is determined by the item's salvage data, which is derived from the item data in :file:`items.json`.
     """
