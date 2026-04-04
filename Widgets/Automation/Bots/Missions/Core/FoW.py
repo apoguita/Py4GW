@@ -3,7 +3,7 @@ import os
 import Py4GW
 import PyImGui
 
-from Py4GWCoreLib import Console, ConsoleLog, IniHandler, Party, Timer
+from Py4GWCoreLib import Console, ConsoleLog, IniHandler, Party, Player, Timer
 from Py4GWCoreLib.ImGui_src.ImGuisrc import ImGui
 from Py4GWCoreLib.ImGui_src.types import Alignment
 from Py4GWCoreLib.py4gwcorelib_src.Color import Color
@@ -288,13 +288,29 @@ def _debug(message: str) -> None:
         ConsoleLog(BOT_NAME, message, Console.MessageType.Info)
 
 
-def _should_show_widget() -> bool:
+def _is_current_party_leader() -> bool:
     try:
         if not Party.IsPartyLoaded():
             return True
         if Party.GetPlayerCount() <= 1:
             return True
-        return bool(Party.IsPartyLeader())
+        return int(Party.GetPartyLeaderID()) == int(Player.GetAgentID())
+    except Exception:
+        try:
+            return bool(Party.IsPartyLeader())
+        except Exception:
+            return True
+
+
+def _should_show_widget() -> bool:
+    try:
+        if bot is not None:
+            return True
+        if not Party.IsPartyLoaded():
+            return True
+        if Party.GetPlayerCount() <= 1:
+            return True
+        return _is_current_party_leader()
     except Exception:
         return True
 
@@ -572,10 +588,9 @@ def _draw_help() -> None:
 def main():
     global bot, _BOT_REBUILD_PENDING
 
-    if not _should_show_widget():
-        return
-
     if bot is None:
+        if not _should_show_widget():
+            return
         _draw_prestart_window()
         return
 
