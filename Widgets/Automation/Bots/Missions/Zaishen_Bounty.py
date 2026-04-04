@@ -3,7 +3,6 @@ from Py4GWCoreLib import *
 import Py4GW
 import os
 import PyImGui
-import time
 import importlib.util
 projects_base_path = Py4GW.Console.get_projects_path()
 BOUNTIES_DIR = os.path.join(projects_base_path,"Sources","ZaishenBounty")
@@ -20,8 +19,14 @@ class BotSettings:
     )
 
 bot = Botting(BotSettings.BOT_NAME,
+              upkeep_armor_of_salvation_restock=5,
+              upkeep_essence_of_celerity_restock=5,
+              upkeep_grail_of_might_restock=5,
               upkeep_honeycomb_restock=25,
               upkeep_auto_loot_active=True,
+              upkeep_armor_of_salvation_active=True,
+              upkeep_essence_of_celerity_active=True,
+              upkeep_grail_of_might_active=True,
               upkeep_honeycomb_active=True,
               config_draw_path=True)
 
@@ -48,9 +53,6 @@ _queue_version: int = 0
 _current_bounty_index: int = 0
 _bounty_header_names: list[str] = []
 _current_section_header: tuple = ("", 0.0, 0.0)  # (header_name, first_x, first_y)
-_restock_conset: bool = True
-CONSUMABLE_INTERVAL = 29.5 * 60  # 30 minutes
-_last_consumable_use: float = 0.0
 _restock_pcons: bool = True
 _restock_res_scroll: bool = True
 _loop_queue: bool = False
@@ -156,26 +158,6 @@ def _set_section_header(header_name, first_x, first_y):
     yield
 
 
-def _apply_consumables(bot):
-    """Apply active consumables and reset the upkeep timer."""
-    global _last_consumable_use
-    if _restock_conset:
-        bot.Items.UseConset()
-    if _restock_pcons:
-        bot.Multibox.UsePcons()
-    _last_consumable_use = time.time()
-    yield
-
-
-def _consumable_upkeep(bot):
-    """Background coroutine: re-applies consumables every 30 minutes in explorables."""
-    while True:
-        yield from Routines.Yield.wait(30 * 1000)  # check every 30 seconds
-        if Map.IsOutpost():
-            continue
-        elapsed = time.time() - _last_consumable_use
-        if elapsed >= CONSUMABLE_INTERVAL:
-            yield from _apply_consumables(bot)
 # endregion
 
 # =============================================================================
@@ -191,10 +173,6 @@ def bot_routine(bot: Botting) -> None:
     # Events
     condition = lambda: OnPartyWipe(bot)
     bot.Events.OnPartyWipeCallback(condition)
-
-    # Background consumable upkeep (re-applies every 30 min)
-    bot.States.AddManagedCoroutine("ConsumableUpkeep",
-        lambda: _consumable_upkeep(bot))
 
     # Main header
     bot.States.AddHeader(BotSettings.BOT_NAME)  # header counter = 1
@@ -250,9 +228,10 @@ def bot_routine(bot: Botting) -> None:
         # -- Prepare for farm --
         bot.Templates.Routines.PrepareForFarm(map_id_to_travel=bounty.outpost_id)
         bot.Party.SetHardMode(True)
+        bot.Items.Restock.ArmorOfSalvation()
+        bot.Items.Restock.EssenceOfCelerity()
+        bot.Items.Restock.GrailOfMight()
         bot.Items.Restock.Honeycomb()
-        if _restock_conset:
-            bot.Items.Restock.Conset(10)
         if _restock_pcons:
             bot.Multibox.RestockAllPcons(10)
         if _restock_res_scroll:
@@ -271,9 +250,8 @@ def bot_routine(bot: Botting) -> None:
                     t_coord = _get_first_path_coord(bounty.transit_paths[i])
                     bot.States.AddCustomState(lambda bi=b_idx, ti=i, tc=t_coord: _set_section_header(_section_headers[bi][ti], tc[0], tc[1]),
                                               f"SetSection_Transit_{b_idx}_{i}")
-                    if i == 0:
-                        bot.States.AddCustomState(lambda: _apply_consumables(bot),
-                                                  f"ApplyConsumables_Transit_{b_idx}")
+                    if _restock_pcons:
+                        bot.Multibox.UsePcons()
                     _register_path(bot, bounty.transit_paths[i], header_name=f"Transit_{b_idx}_{i}")
                     bot.Wait.ForMapToChange(next_map)
             else:
@@ -298,8 +276,8 @@ def bot_routine(bot: Botting) -> None:
         bp_coord = _get_first_path_coord(bounty.bounty_path)
         bot.States.AddCustomState(lambda bi=b_idx, bc=bp_coord: _set_section_header(_section_headers[bi][-1], bc[0], bc[1]),
                                   f"SetSection_BountyPath_{b_idx}")
-        bot.States.AddCustomState(lambda bi=b_idx: _apply_consumables(bot),
-                                  f"ApplyConsumables_BountyPath_{b_idx}")
+        if _restock_pcons:
+            bot.Multibox.UsePcons()
         _register_path(bot, bounty.bounty_path, header_name=f"BountyPath_{b_idx}")
         bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Starting Bounty: {bounty.display}")
         bot.Wait.UntilOutOfCombat()
@@ -547,8 +525,11 @@ def _draw_settings_consumables():
     PyImGui.text("Consumables Selection")
     PyImGui.separator()
 
-    global _restock_conset
-    _restock_conset = PyImGui.checkbox("Restock & use Conset", _restock_conset)
+    use_conset = bot.Properties.Get("armor_of_salvation", "active")
+    use_conset = PyImGui.checkbox("Restock & use Conset", use_conset)
+    bot.Properties.ApplyNow("armor_of_salvation", "active", use_conset)
+    bot.Properties.ApplyNow("essence_of_celerity", "active", use_conset)
+    bot.Properties.ApplyNow("grail_of_might", "active", use_conset)
 
     global _restock_pcons
     _restock_pcons = PyImGui.checkbox("Restock & use Pcons (Multibox)", _restock_pcons)
