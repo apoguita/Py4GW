@@ -1796,6 +1796,387 @@ def _test_build_plan_deposits_explicit_keep_targets_on_storage_only_preview(modu
         module.GLOBAL_CACHE.Inventory = original_inventory
 
 
+def _test_projected_preview_builds_post_travel_plan_without_travel_entry(module) -> None:
+    widget = _prime_initialized_widget(module, _make_widget(module))
+    widget.auto_travel_enabled = True
+    widget.target_outpost_id = 2
+    widget.sell_rules = [
+        module._normalize_sell_rule(
+            module.SellRule(
+                enabled=True,
+                kind=module.SELL_KIND_EXPLICIT_MODELS,
+                model_ids=[111],
+                keep_count=0,
+            )
+        )
+    ]
+    widget._collect_inventory_items = lambda: [
+        _make_item(module, item_id=410, model_id=111, name="Iron Sword", quantity=1),
+    ]
+
+    plan = widget._build_plan(projected_preview=True)
+
+    _expect(plan.travel_to_outpost_id == 0, "Projected previews should no longer use runtime travel state in the plan result.")
+    _expect(not any(entry.action_type == "travel" for entry in plan.entries), "Projected previews should not collapse into a synthetic travel row.")
+    _expect(
+        any(
+            entry.action_type == "sell"
+            and entry.label == "Iron Sword"
+            and entry.state == module.PLAN_STATE_CONDITIONAL
+            for entry in plan.entries
+        ),
+        "Projected previews should still show the post-travel merchant action, marked conditional until arrival context is confirmed.",
+    )
+    _expect(plan.has_actions, "Projected previews should remain actionable when post-travel merchant work is expected.")
+
+
+def _test_projected_preview_keeps_cleanup_visible_from_unsupported_current_map(module) -> None:
+    widget = _prime_initialized_widget(module, _make_widget(module))
+    widget.auto_travel_enabled = True
+    widget.target_outpost_id = 2
+    widget.cleanup_targets = [module.CleanupTarget(model_id=111, keep_on_character=0)]
+    widget._collect_inventory_items = lambda: [
+        _make_item(module, item_id=420, model_id=111, name="Iron Sword", quantity=1),
+    ]
+
+    original_is_outpost = module.Map.IsOutpost
+    original_is_guild_hall = module.Map.IsGuildHall
+    try:
+        module.Map.IsOutpost = lambda: False
+        module.Map.IsGuildHall = lambda: False
+
+        plan = widget._build_plan(projected_preview=True)
+
+        _expect(
+            any(
+                entry.action_type == "deposit"
+                and entry.label == "Iron Sword"
+                and entry.state == module.PLAN_STATE_CONDITIONAL
+                for entry in plan.entries
+            ),
+            "Projected previews should still surface planned cleanup / Xunlai deposits even when the current map is unsupported.",
+        )
+        _expect(plan.has_actions, "Projected cleanup should keep the preview actionable from unsupported current maps.")
+    finally:
+        module.Map.IsOutpost = original_is_outpost
+        module.Map.IsGuildHall = original_is_guild_hall
+
+
+def _test_preview_reason_display_hides_projected_suffix_without_mutating_plan(module) -> None:
+    widget = _prime_initialized_widget(module, _make_widget(module))
+    widget.preview_ready = True
+    widget.preview_requires_execute_travel = True
+    widget.preview_execute_travel_target_outpost_id = 2
+    widget.preview_execute_travel_target_outpost_name = "Regression Harbor"
+    projected_reason = (
+        "1 individual trade(s). "
+        "Projected after travel to Regression Harbor. "
+        "Execute will confirm live Merchant access on arrival."
+    )
+    entry = module.ExecutionPlanEntry(
+        action_type="sell",
+        merchant_type=module.MERCHANT_TYPE_MERCHANT,
+        label="Iron Sword",
+        quantity=1,
+        state=module.PLAN_STATE_CONDITIONAL,
+        reason=projected_reason,
+    )
+
+    displayed_reason = widget._get_preview_reason_for_display(entry)
+
+    _expect(
+        displayed_reason == "1 individual trade(s).",
+        "Preview row rendering should hide the projected-travel suffix while preserving the row-specific reason.",
+    )
+    _expect(
+        entry.reason == projected_reason,
+        "Preview row rendering should stay UI-only and must not mutate the stored plan reason.",
+    )
+
+
+def _test_projected_preview_here_availability_tracks_local_services_and_storage(module) -> None:
+    widget = _prime_initialized_widget(module, _make_widget(module))
+    widget.preview_ready = True
+    widget.preview_requires_execute_travel = True
+    widget.preview_execute_travel_target_outpost_id = 2
+    widget.preview_execute_travel_target_outpost_name = "Regression Harbor"
+    widget.preview_plan = module.PlanResult(
+        supported_map=True,
+        supported_reason="Projected preview",
+        entries=[
+            module.ExecutionPlanEntry(
+                action_type="sell",
+                merchant_type=module.MERCHANT_TYPE_MERCHANT,
+                label="Iron Sword",
+                quantity=1,
+                state=module.PLAN_STATE_CONDITIONAL,
+                reason="Projected merchant work.",
+            ),
+            module.ExecutionPlanEntry(
+                action_type="buy",
+                merchant_type=module.MERCHANT_TYPE_MATERIALS,
+                label="Iron Ingot",
+                quantity=10,
+                state=module.PLAN_STATE_CONDITIONAL,
+                reason="Projected material work.",
+            ),
+            module.ExecutionPlanEntry(
+                action_type="buy",
+                merchant_type=module.MERCHANT_TYPE_RUNE_TRADER,
+                label="Superior Vigor Rune",
+                quantity=1,
+                state=module.PLAN_STATE_CONDITIONAL,
+                reason="Projected rune trader work.",
+            ),
+            module.ExecutionPlanEntry(
+                action_type="deposit",
+                merchant_type=module.MERCHANT_TYPE_STORAGE,
+                label="Bone",
+                quantity=1,
+                state=module.PLAN_STATE_CONDITIONAL,
+                reason="Projected storage work.",
+            ),
+        ],
+        storage_plan_state=module.STORAGE_PLAN_STATE_NEEDS_EXACT_SCAN,
+    )
+    widget._get_supported_context = lambda: (
+        True,
+        "Ready",
+        {
+            module.MERCHANT_TYPE_MERCHANT: (1.0, 1.0),
+            module.MERCHANT_TYPE_MATERIALS: None,
+            module.MERCHANT_TYPE_RUNE_TRADER: (3.0, 3.0),
+            module.MERCHANT_TYPE_RARE_MATERIALS: None,
+        },
+    )
+    widget._has_local_storage_access = lambda: False
+
+    availability_here = widget._get_preview_here_availability()
+    merchant_entry, material_entry, rune_entry, storage_entry = widget.preview_plan.entries
+
+    _expect(
+        widget._is_preview_entry_available_here(
+            merchant_entry,
+            availability_here=availability_here,
+            plan=widget.preview_plan,
+        ),
+        "Projected merchant rows should show as locally available when the current map resolves a merchant.",
+    )
+    _expect(
+        not widget._is_preview_entry_available_here(
+            material_entry,
+            availability_here=availability_here,
+            plan=widget.preview_plan,
+        ),
+        "Projected material rows should stay unavailable-here when the current map does not resolve that trader.",
+    )
+    _expect(
+        not widget._is_preview_entry_available_here(
+            storage_entry,
+            availability_here=availability_here,
+            plan=widget.preview_plan,
+        ),
+        "Projected storage rows should stay unavailable-here when local Xunlai access cannot be resolved passively.",
+    )
+    _expect(
+        not widget._is_preview_entry_available_here(
+            rune_entry,
+            availability_here=availability_here,
+            plan=widget.preview_plan,
+        ),
+        "Rune trader buys that still need an exact storage scan should stay unavailable-here until passive local Xunlai access is found.",
+    )
+    _expect(
+        widget._get_preview_unavailable_here_reason(
+            material_entry,
+            availability_here=availability_here,
+            plan=widget.preview_plan,
+        ) == "Material Trader not available here.",
+        "Unavailable projected trader rows should explain which local service is missing.",
+    )
+    _expect(
+        widget._get_preview_unavailable_here_reason(
+            rune_entry,
+            availability_here=availability_here,
+            plan=widget.preview_plan,
+        ) == "Xunlai Storage not available here.",
+        "Projected rune rows that only lack passive local storage access should explain that Xunlai is the missing local dependency.",
+    )
+
+    widget._has_local_storage_access = lambda: True
+    availability_here = widget._get_preview_here_availability()
+
+    _expect(
+        widget._is_preview_entry_available_here(
+            storage_entry,
+            availability_here=availability_here,
+            plan=widget.preview_plan,
+        ),
+        "Projected storage rows should turn available-here once passive local Xunlai access is resolved.",
+    )
+    _expect(
+        widget._is_preview_entry_available_here(
+            rune_entry,
+            availability_here=availability_here,
+            plan=widget.preview_plan,
+        ),
+        "Rune trader buys should turn available-here once both the trader and passive local Xunlai access are available.",
+    )
+    _expect(
+        widget._get_preview_unavailable_here_reason(
+            merchant_entry,
+            availability_here=availability_here,
+            plan=widget.preview_plan,
+        ) == "",
+        "Rows that are available here should not show an extra unavailable-here explanation.",
+    )
+
+
+def _test_supported_context_generic_services_fall_back_to_name_queries(module) -> None:
+    original_get_map_id = module.Map.GetMapID
+    original_is_map_ready = module.Map.IsMapReady
+    original_is_outpost = module.Map.IsOutpost
+    original_is_guild_hall = module.Map.IsGuildHall
+    original_get_map_name = module.Map.GetMapName
+    original_default_selectors = dict(module.DEFAULT_NPC_SELECTORS)
+    original_resolve_agent_xy = module.resolve_agent_xy_from_step
+
+    try:
+        module.Map.GetMapID = lambda: 55
+        module.Map.IsMapReady = lambda: True
+        module.Map.IsOutpost = lambda: True
+        module.Map.IsGuildHall = lambda: False
+        module.Map.GetMapName = lambda map_id=0: f"Map {int(map_id)}"
+        module.DEFAULT_NPC_SELECTORS.clear()
+        module.DEFAULT_NPC_SELECTORS.update({
+            "merchant": "merchant_selector",
+            "materials": "materials_selector",
+            "rare_materials": "rare_selector",
+        })
+
+        widget = _make_widget(module)
+        widget._resolve_rune_trader_coords = lambda _map_id, **_kwargs: None
+        resolve_calls: list[tuple[object, object, object]] = []
+
+        def _fake_resolve(step, **kwargs):
+            resolve_calls.append((step.get("npc"), step.get("target"), kwargs.get("default_max_dist")))
+            if step.get("npc") in {"merchant_selector", "materials_selector", "rare_selector"}:
+                return None
+            return {
+                module.MERCHANT_NAME_QUERY: (10.0, 10.0),
+                module.MATERIAL_TRADER_NAME_QUERY: (20.0, 20.0),
+                module.RARE_MATERIAL_TRADER_NAME_QUERY: (30.0, 30.0),
+            }.get(step.get("target"))
+
+        module.resolve_agent_xy_from_step = _fake_resolve
+        supported, reason, coords = widget._get_supported_context()
+
+        _expect(supported, "Name-query fallback should keep the map supported when current services are available.")
+        _expect(coords[module.MERCHANT_TYPE_MERCHANT] == (10.0, 10.0), "Merchant fallback should resolve the local merchant tag.")
+        _expect(coords[module.MERCHANT_TYPE_MATERIALS] == (20.0, 20.0), "Material-trader fallback should resolve the local trader tag.")
+        _expect(coords[module.MERCHANT_TYPE_RARE_MATERIALS] == (30.0, 30.0), "Rare-trader fallback should resolve the local trader tag.")
+        _expect(
+            all(call[2] == module.OUTPOST_SERVICE_SEARCH_MAX_DIST for call in resolve_calls),
+            "Current-map service resolution should search the full outpost range when checking local availability.",
+        )
+        _expect(
+            any(call[1] == module.MERCHANT_NAME_QUERY for call in resolve_calls),
+            "Merchant fallback should try the local merchant tag when the generic selector misses.",
+        )
+        _expect(
+            any(call[1] == module.MATERIAL_TRADER_NAME_QUERY for call in resolve_calls),
+            "Material-trader fallback should try the local material-trader tag when the generic selector misses.",
+        )
+        _expect(
+            any(call[1] == module.RARE_MATERIAL_TRADER_NAME_QUERY for call in resolve_calls),
+            "Rare-trader fallback should try the local rare-trader tag when the generic selector misses.",
+        )
+        _expect(
+            "Partial merchant/trader resolution succeeded." in reason,
+            "Fallback-supported maps should still explain when some services, like Rune Trader, remain unresolved.",
+        )
+    finally:
+        module.Map.GetMapID = original_get_map_id
+        module.Map.IsMapReady = original_is_map_ready
+        module.Map.IsOutpost = original_is_outpost
+        module.Map.IsGuildHall = original_is_guild_hall
+        module.Map.GetMapName = original_get_map_name
+        module.DEFAULT_NPC_SELECTORS.clear()
+        module.DEFAULT_NPC_SELECTORS.update(original_default_selectors)
+        module.resolve_agent_xy_from_step = original_resolve_agent_xy
+
+
+def _test_execute_here_ignores_travel_and_reports_local_summary(module) -> None:
+    widget = _make_widget(module)
+    widget.auto_travel_enabled = True
+    widget.target_outpost_id = 2
+    widget.sell_rules = [
+        module._normalize_sell_rule(
+            module.SellRule(
+                enabled=True,
+                kind=module.SELL_KIND_EXPLICIT_MODELS,
+                whitelist_targets=[module.WhitelistTarget(model_id=111, keep_count=0)],
+            )
+        )
+    ]
+    widget.cleanup_targets = [module.CleanupTarget(model_id=222, keep_on_character=0)]
+    widget._get_supported_context = lambda: (
+        True,
+        "Ready",
+        {
+            module.MERCHANT_TYPE_MERCHANT: (1.0, 1.0),
+            module.MERCHANT_TYPE_MATERIALS: None,
+            module.MERCHANT_TYPE_RUNE_TRADER: None,
+            module.MERCHANT_TYPE_RARE_MATERIALS: None,
+        },
+    )
+    widget._collect_inventory_items = lambda: [
+        _make_item(module, item_id=410, model_id=111, name="Iron Sword", quantity=1),
+        _make_item(module, item_id=420, model_id=222, name="Bone", quantity=1),
+    ]
+
+    travel_calls: list[int] = []
+    merchant_sell_ids: list[int] = []
+    storage_phase_calls: list[str] = []
+    widget._has_local_storage_access = lambda: False
+
+    def _capture_travel(outpost_id: int):
+        travel_calls.append(int(outpost_id))
+        if False:
+            yield None
+        return True
+
+    def _capture_merchant_sell(_coords, item_ids):
+        merchant_sell_ids.extend(int(item_id) for item_id in item_ids)
+        if False:
+            yield None
+        return module.ExecutionPhaseOutcome(label="Merchant sells", measure_label="items", attempted=len(item_ids), completed=len(item_ids))
+
+    def _capture_storage_transfers(_transfers, *, phase_label="Storage transfers"):
+        storage_phase_calls.append(phase_label)
+        if False:
+            yield None
+        return module.ExecutionPhaseOutcome(label=phase_label, measure_label="items", attempted=0, completed=0)
+
+    widget._travel_to_target_outpost = _capture_travel
+    widget._execute_merchant_sell_phase = _capture_merchant_sell
+    widget._execute_storage_transfers = _capture_storage_transfers
+
+    _drain_generator_return(widget._execute_now(local_only=True))
+
+    _expect(not travel_calls, "Execute Here should rebuild a fresh local plan without traveling to the configured target outpost.")
+    _expect(merchant_sell_ids == [410], "Execute Here should still run the locally available merchant work.")
+    _expect(not storage_phase_calls, "Execute Here should skip local Xunlai work when no local storage source is available.")
+    _expect(
+        "Execute Here: 1 local action(s) | 1 skipped / unavailable." in widget.last_execution_summary,
+        "Execute Here should report how many local actions ran versus how many projected or unavailable steps were skipped.",
+    )
+    _expect(
+        widget.status_message == "Execute Here finished. Preview again to refresh the post-run state.",
+        "Execute Here should finish with the dedicated local-execution status message.",
+    )
+
+
 def _test_build_plan_deposits_material_keep_remainder_to_storage(module) -> None:
     widget = _make_widget(module)
     widget.catalog_by_model_id[921] = {"model_id": 921, "name": "Wood Plank", "material_type": "common"}
@@ -2440,6 +2821,31 @@ def _test_compare_inventory_detects_preview_drift(module) -> None:
     _expect(any("Bone" in row for row in widget.preview_inventory_diff_rows), "Drift rows should mention newly introduced models.")
 
 
+def _test_compare_inventory_detects_preview_drift_for_projected_preview(module) -> None:
+    widget = _make_widget(module)
+    widget.preview_ready = True
+    widget.preview_requires_execute_travel = True
+    widget.preview_execute_travel_target_outpost_id = 2
+    widget.preview_execute_travel_target_outpost_name = "Regression Harbor"
+    widget.preview_plan = module.PlanResult(
+        inventory_snapshot_captured=True,
+        inventory_model_counts={111: 1},
+        inventory_item_count=1,
+    )
+    widget._collect_inventory_items = lambda: [
+        _make_item(module, item_id=1, model_id=111, name="Iron Sword", quantity=2),
+        _make_item(module, item_id=2, model_id=222, name="Bone", quantity=1),
+    ]
+
+    compared = widget._compare_current_inventory_against_preview()
+
+    _expect(compared, "Projected previews should still support inventory drift comparison.")
+    _expect(widget.execute_drift_requires_confirmation, "Projected preview drift should still force an explicit execute confirmation.")
+    _expect("2 model(s)" in widget.preview_inventory_diff_summary, "Projected preview drift should report changed model counts.")
+    _expect(any("Iron Sword" in row for row in widget.preview_inventory_diff_rows), "Projected preview drift rows should mention changed existing models.")
+    _expect(any("Bone" in row for row in widget.preview_inventory_diff_rows), "Projected preview drift rows should mention newly introduced models.")
+
+
 def _test_merchant_sell_verification_confirms_changes_and_reports_timeouts(module) -> None:
     widget = _make_widget(module)
     remaining_quantity_snapshots = iter([
@@ -2490,19 +2896,34 @@ def _test_merchant_sell_verification_confirms_changes_and_reports_timeouts(modul
 
 
 def _test_build_remote_preview_result_formats_multibox_states(module) -> None:
-    travel_widget = _prime_initialized_widget(module, _make_widget(module))
-    travel_widget.preview_plan = module.PlanResult(
-        supported_map=False,
-        supported_reason="Travel to the selected outpost before merchant handling.",
-        travel_to_outpost_id=2,
-        travel_to_outpost_name="Regression Harbor",
+    projected_widget = _prime_initialized_widget(module, _make_widget(module))
+    projected_widget.preview_ready = True
+    projected_widget.preview_requires_execute_travel = True
+    projected_widget.preview_execute_travel_target_outpost_id = 2
+    projected_widget.preview_execute_travel_target_outpost_name = "Regression Harbor"
+    projected_widget.preview_plan = module.PlanResult(
+        supported_map=True,
+        entries=[
+            module.ExecutionPlanEntry(
+                action_type="sell",
+                merchant_type=module.MERCHANT_TYPE_MERCHANT,
+                label="Iron Sword",
+                quantity=1,
+                state=module.PLAN_STATE_CONDITIONAL,
+            ),
+        ],
+        has_actions=True,
     )
-    travel_result = travel_widget.build_remote_preview_result()
-    _expect(travel_result["status_label"] == "Travel", "Travel previews should report the dedicated Travel status.")
-    _expect(travel_result["summary"] == "Travel first: Regression Harbor", "Travel previews should name the required outpost in the summary.")
+    projected_result = projected_widget.build_remote_preview_result()
+    _expect(projected_result["status_label"] == "Projected", "Projected previews should report the dedicated Projected status.")
+    _expect(projected_result["summary"] == "1 actionable, 0 blocked, 1 conditional.", "Projected previews should still report actionable and conditional counts.")
     _expect(
-        travel_result["detail"] == "Travel to the selected outpost before merchant handling.",
-        "Travel previews should preserve the travel detail text for followers.",
+        "Regression Harbor" in projected_result["detail"],
+        "Projected previews should name the auto-travel target in the remote detail text.",
+    )
+    _expect(
+        "auto-travel" in projected_result["detail"].lower(),
+        "Projected previews should explain that Execute still owns the real travel and rebuild flow.",
     )
 
     unsupported_widget = _prime_initialized_widget(module, _make_widget(module))
@@ -3043,6 +3464,7 @@ def _test_supported_context_cache_partial_and_negative_entries_refresh_correctly
     original_get_map_id = module.Map.GetMapID
     original_is_map_ready = module.Map.IsMapReady
     original_is_outpost = module.Map.IsOutpost
+    original_is_guild_hall = module.Map.IsGuildHall
     original_get_map_name = module.Map.GetMapName
     original_default_selectors = dict(module.DEFAULT_NPC_SELECTORS)
     original_resolve_agent_xy = module.resolve_agent_xy_from_step
@@ -3051,6 +3473,7 @@ def _test_supported_context_cache_partial_and_negative_entries_refresh_correctly
         module.Map.GetMapID = lambda: 100
         module.Map.IsMapReady = lambda: True
         module.Map.IsOutpost = lambda: True
+        module.Map.IsGuildHall = lambda: False
         module.Map.GetMapName = lambda map_id=0: f"Map {int(map_id)}"
         module.DEFAULT_NPC_SELECTORS.clear()
         module.DEFAULT_NPC_SELECTORS.update({
@@ -3065,17 +3488,19 @@ def _test_supported_context_cache_partial_and_negative_entries_refresh_correctly
         resolve_calls: list[tuple[int, str]] = []
 
         def _fake_resolve(step, **_kwargs):
-            selector = step["npc"]
+            selector = step.get("npc") or step.get("target")
             resolve_calls.append((resolution_phase["value"], selector))
             if resolution_phase["value"] == 0:
                 return {
                     "merchant_selector": (1.0, 1.0),
                     "materials_selector": None,
+                    module.MATERIAL_TRADER_NAME_QUERY: None,
                     "rare_selector": (3.0, 3.0),
                 }[selector]
             return {
                 "merchant_selector": (11.0, 11.0),
                 "materials_selector": (22.0, 22.0),
+                module.MATERIAL_TRADER_NAME_QUERY: (22.5, 22.5),
                 "rare_selector": (33.0, 33.0),
             }[selector]
 
@@ -3091,7 +3516,7 @@ def _test_supported_context_cache_partial_and_negative_entries_refresh_correctly
         _expect(first_supported, "Partial selector resolution should still mark the map supported when at least one merchant resolves.")
         _expect(first_coords[module.MERCHANT_TYPE_MATERIALS] is None, "The initial partial cache should preserve unresolved merchant types.")
         _expect(
-            len(resolve_calls) == 3,
+            len(resolve_calls) == 4,
             "Supported-context lookups should reuse cached partial selector results for the same map until the cache is invalidated.",
         )
         _expect(cached_supported == first_supported and cached_reason == first_reason and cached_coords == first_coords, "Partial supported-context results should be reused inside the retry window.")
@@ -3129,6 +3554,7 @@ def _test_supported_context_cache_partial_and_negative_entries_refresh_correctly
         module.Map.GetMapID = original_get_map_id
         module.Map.IsMapReady = original_is_map_ready
         module.Map.IsOutpost = original_is_outpost
+        module.Map.IsGuildHall = original_is_guild_hall
         module.Map.GetMapName = original_get_map_name
         module.DEFAULT_NPC_SELECTORS.clear()
         module.DEFAULT_NPC_SELECTORS.update(original_default_selectors)
@@ -3373,15 +3799,31 @@ def main() -> int:
             ("build_plan_deposits_protected_weapon_matches_conditionally", lambda: _test_build_plan_deposits_protected_weapon_matches_conditionally(module)),
             ("build_plan_does_not_deposit_customized_or_unidentified_only_skips", lambda: _test_build_plan_does_not_deposit_customized_or_unidentified_only_skips(module)),
             ("build_plan_deposits_explicit_keep_targets_on_storage_only_preview", lambda: _test_build_plan_deposits_explicit_keep_targets_on_storage_only_preview(module)),
+            ("projected_preview_builds_post_travel_plan_without_travel_entry", lambda: _test_projected_preview_builds_post_travel_plan_without_travel_entry(module)),
+            ("projected_preview_keeps_cleanup_visible_from_unsupported_current_map", lambda: _test_projected_preview_keeps_cleanup_visible_from_unsupported_current_map(module)),
+            ("preview_reason_display_hides_projected_suffix_without_mutating_plan", lambda: _test_preview_reason_display_hides_projected_suffix_without_mutating_plan(module)),
+            (
+                "projected_preview_here_availability_tracks_local_services_and_storage",
+                lambda: _test_projected_preview_here_availability_tracks_local_services_and_storage(module),
+            ),
+            (
+                "supported_context_generic_services_fall_back_to_name_queries",
+                lambda: _test_supported_context_generic_services_fall_back_to_name_queries(module),
+            ),
             ("build_plan_deposits_material_keep_remainder_to_storage", lambda: _test_build_plan_deposits_material_keep_remainder_to_storage(module)),
             ("execute_storage_transfers_tracks_partial_moves", lambda: _test_execute_storage_transfers_tracks_partial_moves(module)),
             ("execute_now_runs_storage_deposits_as_final_phase", lambda: _test_execute_now_runs_storage_deposits_as_final_phase(module)),
+            (
+                "execute_here_ignores_travel_and_reports_local_summary",
+                lambda: _test_execute_here_ignores_travel_and_reports_local_summary(module),
+            ),
             ("rule_custom_names_persist_and_fallback_cleanly", lambda: _test_rule_custom_names_persist_and_fallback_cleanly(module, temp_root)),
             ("display_sorting_helpers_and_summaries_are_case_insensitive", lambda: _test_display_sorting_helpers_and_summaries_are_case_insensitive(module)),
             ("display_sort_reads_preserve_saved_child_entry_order", lambda: _test_display_sort_reads_preserve_saved_child_entry_order(module, temp_root)),
             ("default_protection_jump_targets_still_use_first_stored_entry", lambda: _test_default_protection_jump_targets_still_use_first_stored_entry(module)),
             ("request_execute_now_queues_only_when_preview_matches", lambda: _test_request_execute_now_queues_only_when_preview_matches(module)),
             ("compare_inventory_detects_preview_drift", lambda: _test_compare_inventory_detects_preview_drift(module)),
+            ("compare_inventory_detects_preview_drift_for_projected_preview", lambda: _test_compare_inventory_detects_preview_drift_for_projected_preview(module)),
             ("merchant_sell_verification_confirms_changes_and_reports_timeouts", lambda: _test_merchant_sell_verification_confirms_changes_and_reports_timeouts(module)),
             ("build_remote_preview_result_formats_multibox_states", lambda: _test_build_remote_preview_result_formats_multibox_states(module)),
             ("build_remote_execute_result_formats_multibox_states", lambda: _test_build_remote_execute_result_formats_multibox_states(module)),

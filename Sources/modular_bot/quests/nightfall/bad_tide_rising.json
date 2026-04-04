@@ -1,0 +1,18 @@
+{
+  "name": "Bad Tide Rising",
+  "steps": [
+    {"type": "travel", "name": "Travel to Kamadan Jewel of Istan", "target_map_id": 449},
+    {"type": "auto_path", "name": "To First Spear Dehvad", "points": [[-7971, 9807]]},
+    {"type": "dialog", "id": "0x827C01", "npc": "FIRST_SPEAR_DEHVAD", "name": "Dialog - First Spear Dehvad"},
+    {"type": "auto_path", "name": "To Exit", "points": [[-6691, 14919]]},
+    {"type": "load_party", "name": "Load Party", "max_heroes": 4, "use_priority": true},
+    {"type": "exit_map", "name": "Leave Kamadan Jewel of Istan", "x": -5878, "y": 14918, "target_map_id": 543},
+    {"type": "auto_path", "name": "To General Yurukaro", "points": [[-3530, 14673]]},
+    {"type": "dialogs", "id": ["0x827C04", "0x86", "0x84"], "npc": "GENERAL_YURUKARO", "name": "Dialog - General Yurukaro"},
+    {"type": "wait_for_map_load", "map_id": 422},
+    {"type": "auto_path", "name": "To Travel", "points": [[-9895, 15317], [-11780, 11934], [-10534, 9391], [-8005, 9094]]},
+    {"type": "travel", "name": "Travel to Kamadan Jewel of Istan", "target_map_id": 449},
+    {"type": "auto_path", "name": "To First Spear Dehvad", "points": [[-8011, 9783]]},
+    {"type": "dialog", "id": "0x827C07", "npc": "FIRST_SPEAR_DEHVAD", "name": "Dialog - First Spear Dehvad"}
+  ]
+}

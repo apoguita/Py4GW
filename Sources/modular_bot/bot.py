@@ -33,6 +33,7 @@ from __future__ import annotations
 
 from typing import Callable, Dict, List, Optional, Union, Any, Tuple
 import re
+import time
 
 from Py4GWCoreLib import Botting, Routines, ConsoleLog, Agent, Player
 
@@ -265,6 +266,11 @@ class ModularBot:
         self._phase_headers: Dict[str, str] = {}
         self._header_to_phase: Dict[str, str] = {}
         self._runtime_anchor_header: Optional[str] = None
+        self._party_member_hooks_enabled: bool = True
+        self._suppress_recovery_until: float = 0.0
+        self._suppress_recovery_events_remaining: int = 0
+        self._suppress_recovery_until_outpost: bool = False
+        self._recovery_active: bool = False
 
         # â”€â”€ Create Botting instance â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         self._bot = Botting(_sanitize_bot_name(name), **botting_kwargs)
@@ -336,6 +342,34 @@ class ModularBot:
         self._set_runtime_anchor(header, phase_name)
         return True
 
+    def set_party_member_hooks_enabled(self, enabled: bool) -> None:
+        """
+        Enable/disable party-member safety callbacks at runtime.
+        These callbacks handle ally-behind / ally-in-danger / ally-dead-behind.
+        """
+        self._party_member_hooks_enabled = bool(enabled)
+        self._apply_party_member_hooks(self._bot)
+        ConsoleLog(
+            "ModularBot",
+            f"Party member safety hooks {'enabled' if self._party_member_hooks_enabled else 'disabled'}.",
+        )
+
+    def suppress_recovery_for(self, ms: int = 45000, max_events: int = 20, until_outpost: bool = False) -> None:
+        """
+        Temporarily suppress wipe/death recovery callbacks (used for intentional resign flows).
+        """
+        try:
+            duration_ms = max(0, int(ms))
+        except Exception:
+            duration_ms = 0
+        try:
+            event_budget = max(0, int(max_events))
+        except Exception:
+            event_budget = 0
+        self._suppress_recovery_until = time.monotonic() + (duration_ms / 1000.0)
+        self._suppress_recovery_events_remaining = event_budget
+        self._suppress_recovery_until_outpost = bool(until_outpost)
+
     # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     # Routine builder (called once by Botting.Update on first frame)
     # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -347,6 +381,15 @@ class ModularBot:
         """
         if self._use_cb:
             _ensure_cb_loot_wait_enabled()
+
+        # Pin the combat engine selected at startup so modular steps keep a
+        # consistent backend for the full run.
+        try:
+            from .recipes.combat_engine import resolve_active_engine
+
+            setattr(bot.config, "_modular_start_engine", str(resolve_active_engine() or "none"))
+        except Exception:
+            setattr(bot.config, "_modular_start_engine", "none")
 
         # â”€â”€ 1. Template â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         _apply_template(bot, self._template)
@@ -365,16 +408,7 @@ class ModularBot:
 
         # Keep party cohesion in external engine modes (CB + HeroAI):
         # wait/recover if members are behind, in danger, or dead-behind.
-        if self._use_cb or _is_hero_ai_runtime_active(bot):
-            bot.Events.OnPartyMemberBehindCallback(
-                lambda: bot.Templates.Routines.OnPartyMemberBehind()
-            )
-            bot.Events.OnPartyMemberInDangerCallback(
-                lambda: bot.Templates.Routines.OnPartyMemberInDanger()
-            )
-            bot.Events.OnPartyMemberDeadBehindCallback(
-                lambda: bot.Templates.Routines.OnPartyMemberDeathBehind()
-            )
+        self._apply_party_member_hooks(bot)
 
         # â”€â”€ 3. Event callbacks â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         if self._on_party_wipe is not None:
@@ -482,6 +516,31 @@ class ModularBot:
         self._runtime_anchor_header = header_name
         ConsoleLog("ModularBot", f"Anchor set: {phase_name} ({header_name})")
 
+    def _apply_party_member_hooks(self, bot: Botting) -> None:
+        """
+        Apply party-member callbacks according to runtime toggle and engine state.
+        """
+        start_engine = str(getattr(bot.config, "_modular_start_engine", "") or "").strip().lower()
+        should_wire = start_engine in ("custom_behaviors", "hero_ai")
+        if not start_engine:
+            should_wire = self._use_cb or _is_hero_ai_runtime_active(bot)
+
+        if self._party_member_hooks_enabled and should_wire:
+            bot.Events.OnPartyMemberBehindCallback(
+                lambda: bot.Templates.Routines.OnPartyMemberBehind()
+            )
+            bot.Events.OnPartyMemberInDangerCallback(
+                lambda: bot.Templates.Routines.OnPartyMemberInDanger()
+            )
+            bot.Events.OnPartyMemberDeadBehindCallback(
+                lambda: bot.Templates.Routines.OnPartyMemberDeathBehind()
+            )
+            return
+
+        bot.Events.OnPartyMemberBehindCallback(lambda: None)
+        bot.Events.OnPartyMemberInDangerCallback(lambda: None)
+        bot.Events.OnPartyMemberDeadBehindCallback(lambda: None)
+
     # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     # Recovery handling
     # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -502,9 +561,43 @@ class ModularBot:
         If *target* is a callable, it is invoked directly (it should
         handle FSM pause/resume itself).
         """
+        now = time.monotonic()
+        if now >= float(self._suppress_recovery_until):
+            self._suppress_recovery_events_remaining = 0
+            self._suppress_recovery_until_outpost = False
+
+        if self._suppress_recovery_until_outpost:
+            try:
+                from Py4GWCoreLib import Agent, Player
+
+                map_valid = bool(Routines.Checks.Map.MapValid())
+                is_explorable = bool(Routines.Checks.Map.IsExplorable()) if map_valid else False
+                player_id = int(Player.GetAgentID() or 0)
+                alive = (not Agent.IsDead(player_id)) if player_id else True
+
+                # Suppress recovery during resign transition; clear once safely in outpost.
+                if map_valid and (not is_explorable) and alive:
+                    self._suppress_recovery_until_outpost = False
+                else:
+                    ConsoleLog("ModularBot", f"[{reason}] Recovery suppressed (resign transition).")
+                    return
+            except Exception:
+                ConsoleLog("ModularBot", f"[{reason}] Recovery suppressed (resign transition, fallback).")
+                return
+
+        if now < float(self._suppress_recovery_until) or self._suppress_recovery_events_remaining > 0:
+            if self._suppress_recovery_events_remaining > 0:
+                self._suppress_recovery_events_remaining = max(0, self._suppress_recovery_events_remaining - 1)
+            ConsoleLog("ModularBot", f"[{reason}] Recovery suppressed (intentional resign window).")
+            return
+
         if callable(target) and not isinstance(target, str):
             # Custom handler â€” user manages FSM lifecycle
             target()
+            return
+
+        if self._recovery_active:
+            ConsoleLog("ModularBot", f"[{reason}] Recovery already active; ignoring duplicate trigger.")
             return
 
         # String target â†’ auto-recovery to named phase
@@ -519,40 +612,81 @@ class ModularBot:
 
         fsm = bot.config.FSM
         fsm.pause()
+        self._recovery_active = True
 
         def _recovery_coroutine():
-            ConsoleLog("ModularBot", f"[{reason}] Recovery started â€” target: {target_label}")
-
-            # Wait for player to be alive (or map to change to outpost)
-            while True:
+            try:
+                ConsoleLog("ModularBot", f"[{reason}] Recovery started â€” target: {target_label}")
+                recovery_start = time.monotonic()
+                start_map_id = 0
+                start_explorable = False
                 try:
-                    player_id = Player.GetAgentID()
-                    if not Agent.IsDead(player_id):
-                        break
+                    from Py4GWCoreLib import Map
+
+                    start_map_id = int(Map.GetMapID() or 0)
+                    start_explorable = bool(Map.IsExplorable())
                 except Exception:
                     pass
 
-                # If we got kicked back to outpost, just restart
-                if not Routines.Checks.Map.MapValid():
-                    ConsoleLog("ModularBot", f"[{reason}] Returned to outpost â€” restarting")
-                    yield from Routines.Yield.wait(3000)
-                    break
+                # Wait for player to be alive (or map to change to outpost)
+                while True:
+                    try:
+                        player_id = Player.GetAgentID()
+                        if not Agent.IsDead(player_id):
+                            break
+                    except Exception:
+                        pass
 
+                    # If we got kicked back to outpost, just restart
+                    if not Routines.Checks.Map.MapValid():
+                        ConsoleLog("ModularBot", f"[{reason}] Returned to outpost â€” restarting")
+                        yield from Routines.Yield.wait(3000)
+                        break
+
+                    # Safety timeout so recovery cannot hang forever.
+                    if (time.monotonic() - recovery_start) > 180.0:
+                        ConsoleLog("ModularBot", f"[{reason}] Recovery timeout waiting for revive; forcing resume.")
+                        break
+
+                    yield from Routines.Yield.wait(1000)
+
+                # If we revived on the same explorable map, continue current quest flow in-place.
+                try:
+                    from Py4GWCoreLib import Map
+
+                    now_map_id = int(Map.GetMapID() or 0)
+                    now_explorable = bool(Map.IsExplorable())
+                    player_id = int(Player.GetAgentID() or 0)
+                    alive = (not Agent.IsDead(player_id)) if player_id else True
+                    same_explorable_map = bool(
+                        alive
+                        and start_explorable
+                        and now_explorable
+                        and start_map_id > 0
+                        and now_map_id == start_map_id
+                    )
+                    if same_explorable_map:
+                        ConsoleLog("ModularBot", f"[{reason}] Recovered on same map ({now_map_id}) â€” resuming current state.")
+                        fsm.resume()
+                        return
+                except Exception:
+                    pass
+
+                ConsoleLog("ModularBot", f"[{reason}] Recovered â€” jumping to {target_label}")
                 yield from Routines.Yield.wait(1000)
 
-            ConsoleLog("ModularBot", f"[{reason}] Recovered â€” jumping to {target_label}")
-            yield from Routines.Yield.wait(1000)
-
-            try:
-                fsm.jump_to_state_by_name(header)
-            except (ValueError, KeyError):
-                ConsoleLog(
-                    "ModularBot",
-                    f"[{reason}] Header {header!r} not found, restarting from step 0",
-                )
-                fsm.jump_to_state_by_step_number(0)
+                try:
+                    fsm.jump_to_state_by_name(header)
+                except (ValueError, KeyError):
+                    ConsoleLog(
+                        "ModularBot",
+                        f"[{reason}] Header {header!r} not found, restarting from step 0",
+                    )
+                    fsm.jump_to_state_by_step_number(0)
+                finally:
+                    fsm.resume()
             finally:
-                fsm.resume()
+                self._recovery_active = False
 
         coroutine_name = f"ModularBot_Recovery_{reason.replace(' ', '_')}"
         fsm.AddManagedCoroutine(coroutine_name, _recovery_coroutine)

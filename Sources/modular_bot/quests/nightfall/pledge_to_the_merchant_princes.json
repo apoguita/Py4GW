@@ -1,0 +1,33 @@
+{
+  "name": "Pledge of the Merchant Princes",
+  "steps": [
+    {"type": "travel", "name": "Travel to The Kodash Bazaar", "target_map_id": 414},
+    {"type": "auto_path", "name": "To Zerai The Learner", "points": [[-2563, -2221]]},
+    {"type": "dialogs", "id": ["0x81FB03", "0x81FB01"], "npc": "ZERAI_THE_LEARNER", "name": "Dialog - Zerai the Learner"},
+    {"type": "travel", "name": "Travel to Grand Court of Sebelkeh outpost", "target_map_id": 435},
+    {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true},
+    {"type": "auto_path", "name": "To Exit", "points": [[504, 8071]]},
+    {"type": "exit_map", "name": "Leave Grand Court of Sebelkeh outpost", "x": 113, "y": 8086, "target_map_id": 419},
+    {"type": "auto_path", "name": "To Exit", "points": [[-5801, 2279], [-8469, 1653], [-13301, 2248], [-16880, 8166], [-17979, 9985], [-21171, 10988], [-21933, 15372]]},
+    {"type": "exit_map", "name": "Leave The Mirror of Lyss", "x": -22673, "y": 16523, "target_map_id": 396},
+    {"type": "auto_path", "name": "To Exit", "points": [[-159, 3697]]},
+    {"type": "exit_map", "name": "Leave Mihanu Township", "x": -374, "y": 4553, "target_map_id": 395},
+    {"type": "auto_path", "name": "Path", "points": [[9638, 5630]]},
+    {"type": "wait", "ms": 40000},
+    {"type": "auto_path", "name": "To Messenger Of Lyssa", "points": [[12737, -177], [8719, 4537]]},
+    {"type": "interact_npc", "name": "Interact Messenger of Lyssa", "npc": "MESSENGER_OF_LYSSA"},
+    {"type": "dialog", "id": "0x81FB04", "npc": "MESSENGER_OF_LYSSA", "name": "Dialog - Messenger of Lyssa"},
+    {"type": "travel", "name": "Travel to Grand Court of Sebelkeh outpost", "target_map_id": 435},
+    {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true},
+    {"type": "exit_map", "name": "Leave Grand Court of Sebelkeh outpost", "x": 2682, "y": 8095, "target_map_id": 419},
+    {"type": "auto_path", "name": "Path", "points": [[6326, 3262], [7956, 2979]]},
+    {"type": "wait", "ms": 2600},
+    {"type": "dialogs", "id": ["0x81FB04", "0x84", "0x85"], "npc": "MORGAHN", "name": "Dialog - Morgahn"},
+    {"type": "skip_cutscene"},
+    {"type": "skip_cutscene"},
+    {"type": "skip_cutscene"},
+    {"type": "wait_for_map_load", "map_id": 435},
+    {"type": "auto_path", "name": "To Head Priest Vahmani", "points": [[1489, 6756]]},
+    {"type": "dialog", "id": "0x81FB07", "npc": "HEAD_PRIEST_VAHMANI", "name": "Dialog - Head Priest Vahmani"}
+  ]
+}

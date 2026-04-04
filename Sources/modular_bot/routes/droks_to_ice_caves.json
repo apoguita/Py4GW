@@ -1,9 +1,8 @@
 {
   "name": "Droknar's Forge to Ice Caves",
-  "outpost_id": 20,
-  "max_heroes": 8,
-  "hero_team": "party_8",
   "steps": [
+    {"type": "travel", "name": "Travel to Route Outpost", "target_map_id": 20},
+    {"type": "load_party", "name": "Load Party", "max_heroes": 8, "team": "party_8"},
     {"type": "auto_path", "name": "Exit Droknar's", "points": [[844, 9625], [-324, 10936]]},
     {"type": "wait_map_load", "map_id": 26},
     {"type": "auto_path", "name": "Witman's Folly to Ice Caves", "points": [[6543, -13584], [10734, -9478], [18536, -8461], [19649, -12416], [22608, -11858], [23217, -11592]]},

@@ -1,0 +1,24 @@
+{
+  "name": "Heart or Mind: Ronjok in Danger",
+  "required_hero": ["Melonni"],
+  "steps": [
+    {"type": "travel", "name": "Travel to Outpost", "target_map_id": 414},
+    {"type": "auto_path", "name": "Path", "points": [[-2666, -2234]]},
+    {"type": "dialogs", "id": ["0x824A03", "0x824A01"], "npc": "ZERAI_THE_LEARNER", "name": "Dialog - Zerai The Learner"},
+    {"type": "travel", "name": "Travel to Outpost", "target_map_id": 387},
+    {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true, "required_hero": ["Melonni"]},
+    {"type": "auto_path", "name": "Path", "points": [[1075, -6629]]},
+    {"type": "exit_map", "name": "Exit Map", "x": 361, "y": -7053, "target_map_id": 371},
+    {"type": "auto_path", "name": "Path", "points": [[8281, 12742]]},
+    {"type": "dialog", "id": "0x824A04", "npc": "ELDER_JONAH", "name": "Dialog - Elder Jonah"},
+    {"type": "auto_path", "name": "Path", "points": [[7582, 3151], [2453, 8712], [-112, 14255], [-1526, 12747], [-225, 13442], [-216, 14584]]},
+    {"type": "wait", "ms": 10000},
+    {"type": "dialogs", "id": ["0x824A04", "0x84", "0x85"], "npc": "DREAMER_HAHLA", "name": "Dialog - Dreamer Hahla"},
+    {"type": "skip_cutscene"},
+    {"type": "skip_cutscene"},
+    {"type": "skip_cutscene"},
+    {"type": "wait_for_map_load", "map_id": 477},
+    {"type": "auto_path", "name": "Path", "points": [[-15821, -7587]]},
+    {"type": "dialog", "id": "0x824A07", "npc": "DREAMER_RAJA", "name": "Dialog - Dreamer Raja"}
+  ]
+}

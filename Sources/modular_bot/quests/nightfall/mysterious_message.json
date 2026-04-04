@@ -1,0 +1,18 @@
+{
+  "name": "Mysterious Message",
+  "steps": [
+    {"type": "travel", "name": "Travel to Sunspear Sanctuary", "target_map_id": 387},
+    {"type": "auto_path", "name": "To Lonai", "points": [[-797, 1635]]},
+    {"type": "dialogs", "id": ["0x822903", "0x822901"], "npc": "LONAI", "name": "Dialog - Lonai"},
+    {"type": "auto_path", "name": "To Exit", "points": [[-817, 3105]]},
+    {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true},
+    {"type": "exit_map", "name": "Leave Sunspear Sanctuary", "x": -421, "y": 3890, "target_map_id": 436},
+    {"type": "auto_path", "name": "To Exit", "points": [[4443, 7496]]},
+    {"type": "exit_map", "name": "Leave Command Post", "x": 5239, "y": 7534, "target_map_id": 369},
+    {"type": "auto_path", "name": "Path", "points": [[-4325, 14179]]},
+    {"type": "skip_cutscene"},
+    {"type": "auto_path", "name": "Path", "points": [[-4325, 14179]]},
+    {"type": "wait", "ms": 60000},
+    {"type": "dialog", "id": "0x822907", "npc": "WHISPERS_ADEPT", "name": "Dialog - Whispers Adept"}
+  ]
+}

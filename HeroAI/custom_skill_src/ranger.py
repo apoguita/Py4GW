@@ -972,7 +972,7 @@ class RangerSkills:
         skill.SkillType = SkillType.Skill.value
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Healing.value
-        skill.Conditions.LessLife = 0.60
+        skill.Conditions.LessLife = 0.65
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()

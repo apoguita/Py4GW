@@ -1,0 +1,33 @@
+{
+  "name": "Venta Cemetery",
+  "required_hero": ["Koss"],
+  "steps": [
+    {"type": "travel", "name": "Travel to Outpost", "target_map_id": 421},
+    {"type": "auto_path", "name": "Path", "points": [[25351, 14922]]},
+    {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true, "required_hero": ["Koss"]},
+    {"type": "dialogs", "id": ["0x81", "0x84"], "npc": "ROJIS", "name": "Dialog - Rojis"},
+    {"type": "wait", "ms": 6400},
+    {"type": "wait_for_map_load", "map_id": 421},
+    {"type": "auto_path", "name": "Path", "points": [[21776, 13123]]},
+    {"type": "dialog", "id": "0x84", "npc": "ROJIS", "name": "Dialog - Rojis"},
+    {"type": "auto_path", "name": "Path", "points": [[21167, 12587], [19473, 5603]]},
+    {"type": "auto_path", "name": "Path", "points": [[17641, -633], [17402, -2474]]},
+    {"type": "auto_path", "name": "Path", "points": [[17523, 514], [13107, 4879], [7600, 4950]]},
+    {"type": "auto_path", "name": "Path", "points": [[6248, 8055], [6845, 10454], [7053, 11647], [5526, 11607]]},
+    {"type": "auto_path", "name": "Path", "points": [[3087, 14262], [70, 13740], [-1435, 12151]]},
+    {"type": "auto_path", "name": "Path", "points": [[-4956, 12396], [-10078, 9400], [-8936, 8168], [-14375, 8009]]},
+    {"type": "auto_path", "name": "Path", "points": [[-8985, 7473], [-5935, 7968], [-4058, 6947]]},
+    {"type": "auto_path", "name": "Path", "points": [[-6641, 8067], [-7720, 5809], [-7353, 3132]]},
+    {"type": "auto_path", "name": "Path", "points": [[-9455, 6759], [-12164, 6240], [-12069, 2023], [-12292, -404]]},
+    {"type": "auto_path", "name": "Path", "points": [[-11070, -4148], [-10580, -6933], [-8705, -5624], [-7616, -5386]]},
+    {"type": "auto_path", "name": "Path", "points": [[-6123, -7131], [-3420, -9428], [-2292, -9912]]},
+    {"type": "auto_path", "name": "Path", "points": [[1343, -11903], [3617, -10774]]},
+    {"type": "auto_path", "name": "Path", "points": [[-1021, -10991], [-4580, -8381], [-10190, -7394]]},
+    {"type": "wait", "ms": 10000},
+    {"type": "auto_path", "name": "Path", "points": [[-15439, -7585], [-17060, -8484], [-21180, -8247], [-22540, -8289]]},
+    {"type": "wait", "ms": 11200},
+    {"type": "interact_npc", "name": "Interact Margrid The Sly", "npc": "MARGRID_THE_SLY"},
+    {"type": "skip_cutscene"},
+    {"type": "wait_for_map_load", "map_id": 449}
+  ]
+}

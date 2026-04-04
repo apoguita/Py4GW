@@ -40,14 +40,14 @@ class BottingTree:
     - lets the user plug in their own planner tree via SetPlannerTree(...)
     """
 
-    def __init__(self, ini_key: str, pause_on_combat: bool = True, isolation_enabled: bool = True):
-        self.ini_key = ini_key
+    def __init__(self, pause_on_combat: bool = True, isolation_enabled: bool = True):
         self.pause_on_combat = pause_on_combat
         self.isolation_enabled = isolation_enabled
         self._restore_isolation_on_stop = True
         self._previous_isolation_state: bool | None = None
         self.headless_heroai = HeroAIHeadlessTree()
         self.headless_heroai_enabled = True
+        self.looting_enabled = True
         self._planner_steps: list[tuple[str, Callable[[], object] | object]] = []
         self._planner_sequence_name = "PlannerSequence"
         self._service_steps: list[tuple[str, Callable[[], object] | object]] = []
@@ -58,6 +58,10 @@ class BottingTree:
         self._last_heroai_state = None
         self.started = False
         self.paused = False
+
+    _LOG_LAST_MESSAGE_KEY = "last_log_message"
+    _LOG_LAST_MESSAGE_DATA_KEY = "last_log_message_data"
+    _LOG_HISTORY_KEY = "blackboard_log_history"
 
     @property
     def blackboard(self) -> dict:
@@ -76,25 +80,63 @@ class BottingTree:
         return key in self.blackboard
 
     def GetLastBlackboardLogMessage(self) -> str:
-        value = self.blackboard.get("last_log_message", "")
+        value = self.blackboard.get(self._LOG_LAST_MESSAGE_KEY, "")
         return value if isinstance(value, str) else ""
 
     def GetLastBlackboardLogData(self) -> dict:
-        value = self.blackboard.get("last_log_message_data", {})
+        value = self.blackboard.get(self._LOG_LAST_MESSAGE_DATA_KEY, {})
         return value if isinstance(value, dict) else {}
 
     def GetBlackboardLogHistory(self) -> list[str]:
-        value = self.blackboard.get("blackboard_log_history", [])
+        value = self.blackboard.get(self._LOG_HISTORY_KEY, [])
         if not isinstance(value, list):
             return []
         return [entry for entry in value if isinstance(entry, str)]
 
     def ClearBlackboardLog(self) -> None:
-        self.blackboard.pop("last_log_message", None)
-        self.blackboard.pop("last_log_message_data", None)
+        self.blackboard.pop(self._LOG_LAST_MESSAGE_KEY, None)
+        self.blackboard.pop(self._LOG_LAST_MESSAGE_DATA_KEY, None)
 
     def ClearBlackboardLogHistory(self) -> None:
-        self.blackboard.pop("blackboard_log_history", None)
+        self.blackboard.pop(self._LOG_HISTORY_KEY, None)
+
+    def GetDebugConsoleLastMessage(self) -> str:
+        return self.GetLastBlackboardLogMessage()
+
+    def GetDebugConsoleLastMessageData(self) -> dict:
+        return self.GetLastBlackboardLogData()
+
+    def GetDebugConsoleHistory(self) -> list[str]:
+        return self.GetBlackboardLogHistory()
+
+    def ClearDebugConsole(self) -> None:
+        self.ClearBlackboardLog()
+        self.ClearBlackboardLogHistory()
+
+    def CopyDebugConsoleToClipboard(self) -> None:
+        PyImGui.set_clipboard_text("\n".join(self.GetDebugConsoleHistory()))
+
+    def DrawDebugConsole(
+        self,
+        child_id: str | None = None,
+        height: float = 200.0,
+        reverse_order: bool = True,
+        show_controls: bool = True,
+    ) -> None:
+        if show_controls:
+            if PyImGui.button("Clear UI Log"):
+                self.ClearDebugConsole()
+            PyImGui.same_line(0, -1)
+            if PyImGui.button("Copy UI Log"):
+                self.CopyDebugConsoleToClipboard()
+
+        log_history = self.GetDebugConsoleHistory()
+        child_name = child_id or f"BottingTreeDebugConsole##{id(self)}"
+        if PyImGui.begin_child(child_name, (0, height), True, PyImGui.WindowFlags.HorizontalScrollbar):
+            entries = log_history[::-1] if reverse_order else log_history
+            for entry in entries:
+                PyImGui.text_wrapped(entry)
+        PyImGui.end_child()
     
     def Start(self):
         self.Reset()
@@ -137,8 +179,25 @@ class BottingTree:
         return self.started    
             
 
-    def SetPlannerTree(self, planner_tree: BehaviorTree | None):
+    def _set_planner_tree(self, planner_tree: BehaviorTree | None):
         self.planner_tree = planner_tree or self._build_default_planner_tree()
+
+    def SetPlannerTree(self, planner_tree: BehaviorTree | None):
+        self._planner_steps = []
+        self._planner_sequence_name = "PlannerSequence"
+        self._set_planner_tree(planner_tree)
+
+    def SetCurrentTree(
+        self,
+        planner_tree: BehaviorTree | None,
+        auto_start: bool = False,
+        reset: bool = True,
+    ):
+        self.SetPlannerTree(planner_tree)
+        if auto_start:
+            self.Start()
+        elif reset:
+            self.Reset()
 
     def _rebuild_root_tree(self):
         blackboard = dict(self.tree.blackboard) if hasattr(self, "tree") and self.tree is not None else {}
@@ -188,7 +247,25 @@ class BottingTree:
     ):
         self._planner_steps = list(steps)
         self._planner_sequence_name = name
-        self.SetPlannerTree(self._build_named_planner_tree(self._planner_steps, start_from=start_from, name=name))
+        self._set_planner_tree(self._build_named_planner_tree(self._planner_steps, start_from=start_from, name=name))
+
+    def SetCurrentNamedPlannerSteps(
+        self,
+        steps: Sequence[tuple[str, Callable[[], object] | object]],
+        start_from: str | None = None,
+        name: str = "PlannerSequence",
+        auto_start: bool = False,
+        reset: bool = True,
+    ):
+        self.SetNamedPlannerSteps(
+            steps,
+            start_from=start_from,
+            name=name,
+        )
+        if auto_start:
+            self.Start()
+        elif reset:
+            self.Reset()
 
     def _coerce_runtime_tree(self, subtree_or_builder: Callable[[], object] | object) -> BehaviorTree:
         subtree = subtree_or_builder() if callable(subtree_or_builder) else subtree_or_builder
@@ -292,6 +369,38 @@ class BottingTree:
             bb["USER_INTERRUPT_ACTIVE"] = False
             bb["HEROAI_SUCCESS"] = False
             bb["HEROAI_STATUS"] = HeroAIStatus.DISABLED.value if not enabled else ""
+
+    def SetLootingEnabled(self, enabled: bool) -> bool:
+        self.looting_enabled = enabled
+        self.blackboard["looting_enabled"] = enabled
+
+        self.headless_heroai.cached_data.account_options.Looting = enabled
+        self.headless_heroai.cached_data.global_options.Looting = enabled
+
+        account_email = Player.GetAccountEmail()
+        if not account_email:
+            return False
+
+        account_options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsFromEmail(account_email)
+        if account_options is None:
+            return False
+
+        account_options.Looting = enabled
+        GLOBAL_CACHE.ShMem.SetHeroAIOptionsByEmail(account_email, account_options)
+        return True
+
+    def EnableLooting(self) -> bool:
+        return self.SetLootingEnabled(True)
+
+    def DisableLooting(self) -> bool:
+        return self.SetLootingEnabled(False)
+
+    def ToggleLooting(self) -> bool:
+        self.SetLootingEnabled(not self.looting_enabled)
+        return self.looting_enabled
+
+    def IsLootingEnabled(self) -> bool:
+        return self.looting_enabled
 
     def EnableHeadlessHeroAI(self, reset_runtime: bool = True) -> None:
         self.SetHeadlessHeroAIEnabled(True, reset_runtime=reset_runtime)
@@ -467,6 +576,54 @@ class BottingTree:
                 aftercast_ms=0,
             )
         )
+
+    @staticmethod
+    def GetLootingSetEnabledTree(
+        enabled: bool,
+        name: str | None = None,
+    ) -> BehaviorTree:
+        node_name = name or ("EnableLooting" if enabled else "DisableLooting")
+
+        def _request_toggle(node: BehaviorTree.Node) -> BehaviorTree.NodeState:
+            node.blackboard["looting_enabled_request"] = enabled
+            return BehaviorTree.NodeState.SUCCESS
+
+        return BehaviorTree(
+            BehaviorTree.ActionNode(
+                name=node_name,
+                action_fn=_request_toggle,
+                aftercast_ms=0,
+            )
+        )
+
+    @staticmethod
+    def EnableLootingTree() -> BehaviorTree:
+        return BottingTree.GetLootingSetEnabledTree(
+            True,
+            name="EnableLooting",
+        )
+
+    @staticmethod
+    def DisableLootingTree() -> BehaviorTree:
+        return BottingTree.GetLootingSetEnabledTree(
+            False,
+            name="DisableLooting",
+        )
+
+    @staticmethod
+    def ToggleLootingTree() -> BehaviorTree:
+        def _request_toggle(node: BehaviorTree.Node) -> BehaviorTree.NodeState:
+            current_enabled = bool(node.blackboard.get("looting_enabled", True))
+            node.blackboard["looting_enabled_request"] = not current_enabled
+            return BehaviorTree.NodeState.SUCCESS
+
+        return BehaviorTree(
+            BehaviorTree.ActionNode(
+                name="ToggleLooting",
+                action_fn=_request_toggle,
+                aftercast_ms=0,
+            )
+        )
         
     def IsHeadlessHeroAIEnabled(self) -> bool:
         return self.headless_heroai_enabled
@@ -606,6 +763,11 @@ class BottingTree:
         if isinstance(requested_enabled, bool):
             self.SetHeadlessHeroAIEnabled(requested_enabled, reset_runtime=requested_reset_runtime)
         bb["headless_heroai_enabled"] = self.IsHeadlessHeroAIEnabled()
+
+        requested_looting_enabled = bb.pop("looting_enabled_request", None)
+        if isinstance(requested_looting_enabled, bool):
+            self.SetLootingEnabled(requested_looting_enabled)
+        bb["looting_enabled"] = self.IsLootingEnabled()
 
         if not self.IsHeadlessHeroAIEnabled():
             if self._last_heroai_state != "disabled":

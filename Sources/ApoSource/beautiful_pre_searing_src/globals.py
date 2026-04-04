@@ -1,34 +1,62 @@
-from dataclasses import dataclass, field
-
 from Py4GWCoreLib.enums import Range
 from Py4GWCoreLib.native_src.internals.types import Vec2f
 from Py4GWCoreLib.enums_src.Model_enums import ModelID
 from Py4GWCoreLib.py4gwcorelib_src.BehaviorTree import BehaviorTree
 from Sources.ApoSource.ApoBottingLib import wrappers as BT
 
-def LogMessage(message: str) -> BehaviorTree:
-    return BT.LogMessage(
-        message=message,
-        module_name=MODULE_NAME,
-        print_to_console=PRINT_TO_CONSOLE,
-        print_to_blackboard=PRINT_TO_BLACKBOARD,
-    )
-    
-    
+
 PRINT_TO_CONSOLE = True
 PRINT_TO_BLACKBOARD = True
 MODULE_NAME = "PrepareQuests"
+
+#available trees
+GETTING_STARTED_TREE_NAME = "Getting Started"
+HEROAI_ONLY_TREE_NAME = "HeroAI Only"
+UNLOCK_PET_TREE_NAME = "Unlock Pet"
+UNLOCK_WIZARDS_FOLLY_TREE_NAME = "Unlock Wizard's Folly"
+ACQUIRE_WEAPON_TREE_NAME = "Acquire Weapon"
+SKALE_FIN_FARM_TREE_NAME = "Skale Fin Farm"
+ACQUIRE_BELT_POUCH_TREE_NAME = "Acquire Belt Pouch"
+
 
 #Map IDs
 LAKESIDE_COUNTY_MAP_ID: int = 146
 ASCALON_CITY_MAP_ID: int = 148
 REGENT_VALLEY_MAP_ID: int = 162
 ASHFORD_ABBEY_MAP_ID: int = 164
+WIZARDS_FOLLY_MAP_ID: int = 161
+FOIBLES_FAIR_MAP_ID: int = 165
+GREEN_HILLS_COUNTY_MAP_ID: int = 160
+BARRADIN_STATE_MAP_ID: int = 163
+FORT_RANIK_MAP_ID: int = 166
 
 
 #Common coords
 EXIT_ASCALON_CITY_COORDS: Vec2f = Vec2f(6817.0, 4892.0)
 
+GO_TO_ASHFORD_ABBEY_COORDS: Vec2f = Vec2f(-11890.0, -6071.0)
+
+
+EXIT_TO_LAKESIDE_COUNTY_COORDS: list[Vec2f] = [
+    Vec2f(-11556.36, -6257.30), 
+    Vec2f(-10905, -6287)
+]
+
+FROM_ASHFORD_ABBEY_TO_REGENT_VALLEY_COORDS: list[Vec2f] = [
+    Vec2f(-6316.87, -6808.10),
+    Vec2f(-4833.97, -12199.93),
+    Vec2f (-3464.73, -13135.62),
+    Vec2f(6516, -19822)
+]
+    
+GO_TO_WIZARDS_FOLLY_EXIT_COORDS: list[Vec2f] = [Vec2f(-11870.13, -11464.72), Vec2f(-13234.47, -16808.44), Vec2f(-14986, -20040)]
+GO_TO_FOIBLES_FAIR_COORDS: list[Vec2f] = [Vec2f(4861.39, 13442.02), Vec2f(3071.41, 10688.91), Vec2f(192, 8227)]
+WIZARDS_FOLLY_EXIT_COORDS: Vec2f = Vec2f(756, 6909)
+
+GO_TO_GREEN_HILLS_COUNTY_COORDS: list[Vec2f] = [Vec2f(-15402, 9812)]
+GO_TO_BARRADIN_STATE_COORDS: list[Vec2f] = [Vec2f(17042.32, 4263.44), Vec2f(16668.75, 1444.81), Vec2f(15283.84, -5423.99), Vec2f(10693.98, -6562.81), Vec2f(-6720, 1572)]
+    
+GO_TO_FORT_RANIK_COORDS: list[Vec2f] = [Vec2f(22489, 9535)]
 
 #common configs
 CLEAR_ENEMIES_AREA_RADIUS: float = Range.Spirit.value
@@ -39,18 +67,59 @@ NEVERMORE_FLATBOW_MODEL_ID = ModelID.Bonus_Nevermore_Flatbow.value
 DULL_CARAPACES_MODEL_ID = ModelID.Dull_Carapace.value
 SKALE_FIN_MODEL_ID = ModelID.Skale_Fin_PreSearing.value
 RED_IRIS_FLOWER_MODEL_ID = ModelID.Red_Iris_Flower.value
+ENCHANTED_LODESTONE_MODEL_ID = ModelID.Enchanted_Lodestone.value
+GRAWL_NECKLACE_MODEL_ID = ModelID.Grawl_Necklace.value
+UNNATURAL_SEED_MODEL_ID = ModelID.Unnatural_Seed.value
+WORN_BELT_MODEL_ID = ModelID.Worn_Belt.value
 
 
 STARTER_BOW_MODEL_ID = 477
 ASCALON_HORNBOW_MODEL_ID = 427
+BELT_POUCH_MODEL_ID = 33
 
 ITEMS_BLACKLIST: list[int] = [
     STARTER_BOW_MODEL_ID,
     ASCALON_HORNBOW_MODEL_ID,
     IGNEOUS_SUMMONING_STONE_MODEL_ID,
     NEVERMORE_FLATBOW_MODEL_ID,
-    
+    ENCHANTED_LODESTONE_MODEL_ID,
+    GRAWL_NECKLACE_MODEL_ID,
     DULL_CARAPACES_MODEL_ID,
     SKALE_FIN_MODEL_ID,
     RED_IRIS_FLOWER_MODEL_ID,
+    UNNATURAL_SEED_MODEL_ID,
+    WORN_BELT_MODEL_ID,
 ]
+
+
+#NPCs
+TOWN_CRYER_COORDS: Vec2f = Vec2f(9954.21, -472.19)
+SIR_TYDIUS_COORDS: Vec2f = Vec2f(11694.64, 3440.12)
+
+AMIN_SABERLIN_COORDS: list[Vec2f] = [
+    Vec2f(8284.25, 5596.36),
+    Vec2f(11952.64, 3115.04),
+]
+
+
+VAN_THE_WARRIOR_COORDS: Vec2f = Vec2f(6123.73, 3952.56)
+ARTEMIS_THE_RANGER_COORDS: Vec2f = Vec2f(6143.31, 4202.66)
+CIGIO_THE_MONK_COORDS: Vec2f = Vec2f(5983.98, 4181.18)
+LOST_GWEN_COORDS: Vec2f = Vec2f(3876.63, -4540.65)
+VERATA_THE_NECROMANCER_COORDS: Vec2f = Vec2f(6158.20, 4195.64)
+VERATA_THE_NECROMANCER_ENC_STRING: str = "\\x171C\\x8FE8\\xAFAD\\x61EC"
+SEBEDOH_THE_MESMER_COORDS: Vec2f = Vec2f(6251.90, 3891.17)
+HOWLAND_THE_ELEMENTALIST_COORDS: Vec2f = Vec2f(6123.73, 3952.56)
+
+WAIT_FOR_HAVERSDAN_COORDS: Vec2f = Vec2f(5534.92, 3831.50)
+HAVERSDAN_COORDS: Vec2f = Vec2f(5984.58, 3823.78)
+
+PITNEY_COORDS: Vec2f = Vec2f(-8083.34, -15416.37)
+DEVONA_COORDS: Vec2f = Vec2f(-7868.41, -15038.71)
+MEERAK_COORDS: Vec2f = Vec2f(-12289.86, -6518.84)
+BRONLOW_COORDS: Vec2f = Vec2f(7343.65, 3559.44)
+
+NEAR_MASTER_NENTE_COORDS:  Vec2f = Vec2f(-17117.03, 10879.81)
+MASTER_NENTE_ENC_STR: str = "\\x344C\\xAFF2\\xB725\\x65D8"
+
+MELANDRU_STATUE_COORDS: Vec2f = Vec2f(-14990.32, -1139.84)

@@ -49,7 +49,10 @@ from ...Agent import Agent
 from ...GlobalCache import GLOBAL_CACHE
 from ...Player import Player
 from ...Py4GWcorelib import ConsoleLog, Console
+from ...UIManager import UIManager
+from ...enums_src.Item_enums import Bags
 from ...enums_src.Model_enums import ModelID
+from ...enums_src.UI_enums import ControlAction
 from ...py4gwcorelib_src.BehaviorTree import BehaviorTree
 from .composite import BTComposite
 from .player import BTPlayer
@@ -111,6 +114,216 @@ class BTItems:
                 name=f"EquipItemByModelID({modelID_or_encStr})",
                 action_fn=_equip_item,
                 aftercast_ms=aftercast_ms,
+            )
+        )
+
+    @staticmethod
+    def EquipInventoryBag(
+        modelID_or_encStr: int | str,
+        target_bag: int,
+        timeout_ms: int = 2500,
+        poll_interval_ms: int = 125,
+        log: bool = False,
+    ) -> BehaviorTree:
+        """
+        Build a tree that equips an inventory bag item into the requested bag slot.
+
+        Meta:
+          Expose: true
+          Audience: intermediate
+          Display: Equip Inventory Bag
+          Purpose: Equip an inventory bag item into a specific bag slot.
+          UserDescription: Use this when you want to equip a belt pouch or bag from inventory into its container slot.
+          Notes: Mirrors the bag-equip helper flow, including the backpack-slot fallback when native item use does not populate the target bag.
+        """
+        from ...Py4GWcorelib import Utils
+
+        inventory_frame_hash = 291586130
+        state = {
+            "stage": "init",
+            "resolved_model_id": 0,
+            "item_id": 0,
+            "native_deadline_ms": 0,
+            "final_deadline_ms": 0,
+            "next_check_ms": 0,
+            "key_up_ms": 0,
+        }
+
+        def _reset_state() -> None:
+            state["stage"] = "init"
+            state["resolved_model_id"] = 0
+            state["item_id"] = 0
+            state["native_deadline_ms"] = 0
+            state["final_deadline_ms"] = 0
+            state["next_check_ms"] = 0
+            state["key_up_ms"] = 0
+
+        def _bag_is_populated() -> bool:
+            target_container_item = GLOBAL_CACHE.Inventory.GetBagContainerItem(target_bag)
+            target_bag_size = GLOBAL_CACHE.Inventory.GetBagSize(target_bag)
+            return target_container_item != 0 or target_bag_size > 0
+
+        def _get_backpack_slot_frame_id() -> int:
+            return UIManager.GetChildFrameID(
+                inventory_frame_hash,
+                [0, 0, 0, Bags.Backpack - 1, 2],
+            )
+
+        def _equip_inventory_bag(node: BehaviorTree.Node) -> BehaviorTree.NodeState:
+            now = int(Utils.GetBaseTimestamp())
+
+            if _bag_is_populated():
+                _reset_state()
+                return BehaviorTree.NodeState.SUCCESS
+
+            if state["stage"] == "init":
+                resolved_model_id = BTItems._resolve_model_id_value(modelID_or_encStr)
+                item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(resolved_model_id)
+                if item_id == 0:
+                    ConsoleLog(
+                        "EquipInventoryBag",
+                        f"Item model {resolved_model_id} not found in inventory.",
+                        Console.MessageType.Error,
+                        log=True,
+                    )
+                    _reset_state()
+                    return BehaviorTree.NodeState.FAILURE
+
+                GLOBAL_CACHE.Inventory.UseItem(item_id)
+                state["stage"] = "wait_native"
+                state["resolved_model_id"] = resolved_model_id
+                state["item_id"] = item_id
+                state["native_deadline_ms"] = now + min(timeout_ms, 250)
+                state["final_deadline_ms"] = now + timeout_ms
+                state["next_check_ms"] = now + poll_interval_ms
+                node.blackboard["equip_inventory_bag_last_model_id"] = resolved_model_id
+                node.blackboard["equip_inventory_bag_last_item_id"] = item_id
+                return BehaviorTree.NodeState.RUNNING
+
+            if state["stage"] == "wait_native":
+                if now < int(state["next_check_ms"]):
+                    return BehaviorTree.NodeState.RUNNING
+
+                if now <= int(state["native_deadline_ms"]):
+                    state["next_check_ms"] = now + poll_interval_ms
+                    return BehaviorTree.NodeState.RUNNING
+
+                if GLOBAL_CACHE.Inventory.MoveModelToBagSlot(int(state["resolved_model_id"]), Bags.Backpack, 0):
+                    ConsoleLog(
+                        "EquipInventoryBag",
+                        f"Native UseItem did not populate bag {target_bag}; trying backpack slot double-click fallback for model {int(state['resolved_model_id'])}.",
+                        Console.MessageType.Warning,
+                        log=log,
+                    )
+                    state["stage"] = "fallback_wait_before_open"
+                    state["next_check_ms"] = now + 250
+                else:
+                    ConsoleLog(
+                        "EquipInventoryBag",
+                        f"Fallback move to backpack slot 0 failed for model {int(state['resolved_model_id'])}.",
+                        Console.MessageType.Warning,
+                        log=log,
+                    )
+                    state["stage"] = "final_wait"
+                    state["next_check_ms"] = now + poll_interval_ms
+
+                return BehaviorTree.NodeState.RUNNING
+
+            if state["stage"] == "fallback_wait_before_open":
+                if now < int(state["next_check_ms"]):
+                    return BehaviorTree.NodeState.RUNNING
+
+                if not GLOBAL_CACHE.Inventory.IsInventoryBagsOpen():
+                    UIManager.Keydown(ControlAction.ControlAction_ToggleAllBags.value, 0)
+                    state["stage"] = "fallback_toggle_bags_release"
+                    state["key_up_ms"] = now + 75
+                    return BehaviorTree.NodeState.RUNNING
+
+                state["stage"] = "fallback_wait_before_double_click"
+                state["next_check_ms"] = now + 125
+                return BehaviorTree.NodeState.RUNNING
+
+            if state["stage"] == "fallback_toggle_bags_release":
+                if now < int(state["key_up_ms"]):
+                    return BehaviorTree.NodeState.RUNNING
+
+                UIManager.Keyup(ControlAction.ControlAction_ToggleAllBags.value, 0)
+                state["stage"] = "fallback_wait_before_double_click"
+                state["next_check_ms"] = now + 175
+                return BehaviorTree.NodeState.RUNNING
+
+            if state["stage"] == "fallback_wait_before_double_click":
+                if now < int(state["next_check_ms"]):
+                    return BehaviorTree.NodeState.RUNNING
+
+                frame_id = _get_backpack_slot_frame_id()
+                if not UIManager.FrameExists(frame_id):
+                    ConsoleLog(
+                        "EquipInventoryBag",
+                        "Frame does not exist for backpack slot 0.",
+                        Console.MessageType.Error,
+                        log=True,
+                    )
+                    _reset_state()
+                    return BehaviorTree.NodeState.FAILURE
+
+                UIManager.TestMouseAction(frame_id=frame_id, current_state=9, wparam_value=0, lparam_value=0)
+                state["stage"] = "fallback_double_click_confirm"
+                state["next_check_ms"] = now + 60
+                return BehaviorTree.NodeState.RUNNING
+
+            if state["stage"] == "fallback_double_click_confirm":
+                if now < int(state["next_check_ms"]):
+                    return BehaviorTree.NodeState.RUNNING
+
+                frame_id = _get_backpack_slot_frame_id()
+                if not UIManager.FrameExists(frame_id):
+                    ConsoleLog(
+                        "EquipInventoryBag",
+                        "Frame does not exist for backpack slot 0.",
+                        Console.MessageType.Error,
+                        log=True,
+                    )
+                    _reset_state()
+                    return BehaviorTree.NodeState.FAILURE
+
+                UIManager.TestMouseClickAction(frame_id=frame_id, current_state=9, wparam_value=0, lparam_value=0)
+                state["stage"] = "final_wait"
+                state["next_check_ms"] = now + 125
+                return BehaviorTree.NodeState.RUNNING
+
+            if state["stage"] == "final_wait":
+                if now < int(state["next_check_ms"]):
+                    return BehaviorTree.NodeState.RUNNING
+
+                if _bag_is_populated():
+                    _reset_state()
+                    return BehaviorTree.NodeState.SUCCESS
+
+                if now <= int(state["final_deadline_ms"]):
+                    state["next_check_ms"] = now + poll_interval_ms
+                    return BehaviorTree.NodeState.RUNNING
+
+                ConsoleLog(
+                    "EquipInventoryBag",
+                    (
+                        f"Failed to equip model {int(state['resolved_model_id'])} item {int(state['item_id'])} into bag {target_bag} within {timeout_ms}ms. "
+                        f"container_item={GLOBAL_CACHE.Inventory.GetBagContainerItem(target_bag)} "
+                        f"size={GLOBAL_CACHE.Inventory.GetBagSize(target_bag)}."
+                    ),
+                    Console.MessageType.Error,
+                    log=True,
+                )
+                _reset_state()
+                return BehaviorTree.NodeState.FAILURE
+
+            _reset_state()
+            return BehaviorTree.NodeState.FAILURE
+
+        return BehaviorTree(
+            BehaviorTree.ConditionNode(
+                name=f"EquipInventoryBag({modelID_or_encStr}, {target_bag})",
+                condition_fn=_equip_inventory_bag,
             )
         )
         
@@ -546,3 +759,331 @@ class BTItems:
             ]
         )
         return BehaviorTree(tree)
+
+    @staticmethod
+    def HasItemQuantity(model_id: int, quantity: int) -> BehaviorTree:
+        """
+        Build a tree that checks for at least a certain quantity of an item model in inventory.
+
+        Meta:
+          Expose: true
+          Audience: intermediate
+          Display: Wait For Item Quantity
+          Purpose: Check for at least a certain quantity of an item model in inventory.
+          UserDescription: Use this when you want to check for a specific quantity of an item model before proceeding.
+          Notes: Returns success if the requested quantity is met or exceeded, and failure otherwise.
+        """
+        return BehaviorTree(
+            BehaviorTree.ConditionNode(
+                name=f"HasItemQuantity({model_id}, {quantity})",
+                condition_fn=lambda: GLOBAL_CACHE.Inventory.GetModelCount(model_id) >= quantity,
+            )
+        )
+
+    @staticmethod
+    def ExchangeCollectorItem(
+        output_model_id: int,
+        trade_model_ids: list[int],
+        quantity_list: list[int],
+        cost: int = 0,
+        aftercast_ms: int = 500,
+    ) -> BehaviorTree:
+        """
+        Build a tree that exchanges collector items based on the specified output model, trade models, and quantities.
+
+        Meta:
+          Expose: true
+          Audience: intermediate
+          Display: Exchange Collector Item
+          Purpose: Exchange collector items based on the specified output model, trade models, and quantities.
+          UserDescription: Use this when you want to exchange collector items with specific models and quantities.
+          Notes: Returns success if the exchange is successful, and failure otherwise.
+        """
+        def _exchange_item() -> BehaviorTree.NodeState:
+            k = min(len(trade_model_ids), len(quantity_list))
+            if k == 0:
+                return BehaviorTree.NodeState.FAILURE
+
+            requested_models = trade_model_ids[:k]
+            requested_quantities = quantity_list[:k]
+
+            offered_item_id = 0
+            for candidate in GLOBAL_CACHE.Trading.Collector.GetOfferedItems():
+                if GLOBAL_CACHE.Item.GetModelID(candidate) == output_model_id:
+                    offered_item_id = candidate
+                    break
+
+            if offered_item_id == 0:
+                return BehaviorTree.NodeState.FAILURE
+
+            trade_item_ids: list[int] = []
+            trade_item_quantities: list[int] = []
+
+            for model_id, required_quantity in zip(requested_models, requested_quantities):
+                remaining_quantity = int(required_quantity)
+
+                for item_id in GLOBAL_CACHE.Inventory.GetAllInventoryItemIds():
+                    if item_id == 0:
+                        continue
+                    if GLOBAL_CACHE.Item.GetModelID(item_id) != model_id:
+                        continue
+
+                    item_quantity = int(GLOBAL_CACHE.Item.Properties.GetQuantity(item_id) or 1)
+                    if item_quantity <= 0:
+                        continue
+
+                    used_quantity = min(item_quantity, remaining_quantity)
+                    trade_item_ids.append(item_id)
+                    trade_item_quantities.append(used_quantity)
+                    remaining_quantity -= used_quantity
+
+                    if remaining_quantity <= 0:
+                        break
+
+                if remaining_quantity > 0:
+                    return BehaviorTree.NodeState.FAILURE
+
+            GLOBAL_CACHE.Trading.Collector.ExghangeItem(
+                offered_item_id,
+                cost,
+                trade_item_ids,
+                trade_item_quantities,
+            )
+            return BehaviorTree.NodeState.SUCCESS
+
+        return BehaviorTree(
+            BehaviorTree.ActionNode(
+                name=f"ExchangeCollectorItem({output_model_id})",
+                action_fn=_exchange_item,
+                aftercast_ms=aftercast_ms,
+            )
+        )
+
+    @staticmethod
+    def _collect_sellable_inventory_item_ids(exclude_models: list[int] | None = None) -> list[int]:
+        excluded_models = set(exclude_models or [])
+        sellable_item_ids: list[int] = []
+
+        for item_id in GLOBAL_CACHE.Inventory.GetAllInventoryItemIds():
+            if item_id == 0:
+                continue
+
+            model_id = GLOBAL_CACHE.Item.GetModelID(item_id)
+            if model_id in excluded_models:
+                continue
+
+            item_value = GLOBAL_CACHE.Item.Properties.GetValue(item_id)
+            if item_value <= 0:
+                continue
+
+            sellable_item_ids.append(item_id)
+
+        return sellable_item_ids
+    
+    @staticmethod
+    def _collect_zero_value_inventory_item_ids(exclude_models: list[int] | None = None) -> list[int]:
+        excluded_models = set(exclude_models or [])
+        zero_value_item_ids: list[int] = []
+
+        for item_id in GLOBAL_CACHE.Inventory.GetAllInventoryItemIds():
+            if item_id == 0:
+                continue
+
+            model_id = GLOBAL_CACHE.Item.GetModelID(item_id)
+            if model_id in excluded_models:
+                continue
+
+            item_value = GLOBAL_CACHE.Item.Properties.GetValue(item_id)
+            if item_value > 0:
+                continue
+
+            zero_value_item_ids.append(item_id)
+
+        return zero_value_item_ids
+
+    @staticmethod
+    def NeedsInventoryCleanup(exclude_models: list[int] | None = None) -> BehaviorTree:
+        def _needs_inventory_cleanup() -> bool:
+            return bool(BTItems._collect_sellable_inventory_item_ids(exclude_models=exclude_models)) or bool(
+                BTItems._collect_zero_value_inventory_item_ids(exclude_models=exclude_models)
+            )
+
+        return BehaviorTree(
+            BehaviorTree.ConditionNode(
+                name="NeedsInventoryCleanupExcluding",
+                condition_fn=_needs_inventory_cleanup,
+            )
+        )
+
+    @staticmethod
+    def SellInventoryItems(
+        exclude_models: list[int] | None = None,
+        log: bool = False,
+    ) -> BehaviorTree:
+        """
+        Build a tree that sells all inventory items with value greater than zero while excluding specified models.
+
+        Meta:
+          Expose: true
+          Audience: intermediate
+          Display: Sell Inventory Items
+          Purpose: Sell all inventory items with value greater than zero while excluding specified models.
+          UserDescription: Use this when you want to clear out inventory space by selling items but want to keep certain models.
+          Notes: Processes all eligible items in a single tick by queuing them up in the merchant action queue; logs the count of sold items if logging is enabled.
+        """
+        def _collect_items(node: BehaviorTree.Node) -> BehaviorTree.NodeState:
+            sellable_item_ids = BTItems._collect_sellable_inventory_item_ids(exclude_models=exclude_models)
+            node.blackboard["merchant_sell_item_ids"] = sellable_item_ids
+            node.blackboard["merchant_sell_queued_count"] = 0
+
+            if not sellable_item_ids:
+                if log:
+                    ConsoleLog(
+                        "SellInventoryItems",
+                        "No eligible inventory items found to sell.",
+                        Console.MessageType.Info,
+                        log=True,
+                    )
+                return BehaviorTree.NodeState.SUCCESS
+
+            if log:
+                excluded_models_text = ", ".join(str(model_id) for model_id in sorted(set(exclude_models or []))) or "none"
+                ConsoleLog(
+                    "SellInventoryItems",
+                    f"Selling {len(sellable_item_ids)} inventory items. Excluded models: {excluded_models_text}.",
+                    Console.MessageType.Info,
+                    log=True,
+                )
+
+            return BehaviorTree.NodeState.SUCCESS
+
+        def _queue_sell_items(node: BehaviorTree.Node) -> BehaviorTree.NodeState:
+            from Py4GWCoreLib.Py4GWcorelib import ActionQueueManager
+            item_ids = list(node.blackboard.get("merchant_sell_item_ids", []))
+            if not item_ids:
+                node.blackboard["merchant_sell_queued_count"] = 0
+                return BehaviorTree.NodeState.SUCCESS
+
+            merchant_queue = ActionQueueManager()
+            merchant_queue.ResetQueue("MERCHANT")
+
+            queued_count = 0
+            for item_id in item_ids:
+                quantity = GLOBAL_CACHE.Item.Properties.GetQuantity(item_id)
+                value = GLOBAL_CACHE.Item.Properties.GetValue(item_id)
+                cost = quantity * value
+
+                if quantity <= 0 or value <= 0:
+                    continue
+
+                merchant_queue.AddAction(
+                    "MERCHANT",
+                    GLOBAL_CACHE.Trading._merchant_instance.merchant_sell_item,
+                    item_id,
+                    cost,
+                )
+                queued_count += 1
+
+            node.blackboard["merchant_sell_queued_count"] = queued_count
+            return BehaviorTree.NodeState.SUCCESS
+
+        def _wait_for_sell_queue_to_finish(node: BehaviorTree.Node) -> BehaviorTree.NodeState:
+            from Py4GWCoreLib.Py4GWcorelib import ActionQueueManager
+            queued_count = int(node.blackboard.get("merchant_sell_queued_count", 0) or 0)
+            if queued_count <= 0:
+                return BehaviorTree.NodeState.SUCCESS
+
+            if not ActionQueueManager().IsEmpty("MERCHANT"):
+                return BehaviorTree.NodeState.RUNNING
+
+            if log:
+                ConsoleLog(
+                    "SellInventoryItems",
+                    f"Sold {queued_count} inventory items through merchant queue.",
+                    Console.MessageType.Info,
+                    log=True,
+                )
+            return BehaviorTree.NodeState.SUCCESS
+
+        tree = BehaviorTree.SequenceNode(
+            name="SellInventoryItemsExcluding",
+            children=[
+                BehaviorTree.ActionNode(
+                    name="CollectSellableInventoryItems",
+                    action_fn=_collect_items,
+                    aftercast_ms=0,
+                ),
+                BehaviorTree.ActionNode(
+                    name="QueueMerchantSellItems",
+                    action_fn=_queue_sell_items,
+                    aftercast_ms=0,
+                ),
+                BehaviorTree.ActionNode(
+                    name="WaitForMerchantSellQueue",
+                    action_fn=_wait_for_sell_queue_to_finish,
+                    aftercast_ms=0,
+                ),
+            ],
+        )
+        return BehaviorTree(tree)
+
+    @staticmethod
+    def DestroyZeroValueItems(
+        exclude_models: list[int] | None = None,
+        log: bool = False,
+        aftercast_ms: int = 100,
+    ) -> BehaviorTree:
+        state = {
+            "next_attempt_ms": 0,
+        }
+
+        def _collect_items(node: BehaviorTree.Node) -> BehaviorTree.NodeState:
+            zero_value_item_ids = BTItems._collect_zero_value_inventory_item_ids(exclude_models=exclude_models)
+            node.blackboard["zero_value_destroy_item_ids"] = zero_value_item_ids
+            node.blackboard["zero_value_destroy_index"] = 0
+            return BehaviorTree.NodeState.SUCCESS
+
+        def _destroy_items(node: BehaviorTree.Node) -> BehaviorTree.NodeState:
+            from Py4GWCoreLib.Py4GWcorelib import Utils
+            now = Utils.GetBaseTimestamp()
+            if now < int(state["next_attempt_ms"]):
+                return BehaviorTree.NodeState.RUNNING
+
+            item_ids = list(node.blackboard.get("zero_value_destroy_item_ids", []))
+            item_index = int(node.blackboard.get("zero_value_destroy_index", 0) or 0)
+            if item_index >= len(item_ids):
+                return BehaviorTree.NodeState.SUCCESS
+
+            item_id = item_ids[item_index]
+            model_id = GLOBAL_CACHE.Item.GetModelID(item_id)
+            GLOBAL_CACHE.Inventory.DestroyItem(item_id)
+            node.blackboard["zero_value_destroy_index"] = item_index + 1
+            state["next_attempt_ms"] = int(now + aftercast_ms)
+
+            if log:
+                ConsoleLog(
+                    "DestroyZeroValueItems",
+                    f"Queued destroy for zero-value item model {model_id} (item_id={item_id}).",
+                    Console.MessageType.Info,
+                    log=True,
+                )
+
+            return BehaviorTree.NodeState.RUNNING
+
+        return BehaviorTree(
+            BehaviorTree.SequenceNode(
+                name="DestroyZeroValueItemsExcluding",
+                children=[
+                    BehaviorTree.ActionNode(
+                        name="CollectZeroValueItems",
+                        action_fn=_collect_items,
+                        aftercast_ms=0,
+                    ),
+                    BehaviorTree.ConditionNode(
+                        name="DestroyZeroValueItems",
+                        condition_fn=_destroy_items,
+                    ),
+                ],
+            )
+        )
+

@@ -1,9 +1,8 @@
 {
   "name": "Bergen Hot Springs to Temple of the Ages",
-  "outpost_id": 57,
-  "max_heroes": 8,
-  "hero_team": "party_8",
   "steps": [
+    {"type": "travel", "name": "Travel to Route Outpost", "target_map_id": 57},
+    {"type": "load_party", "name": "Load Party", "max_heroes": 6, "team": "party_6"},
     {"type": "auto_path", "name": "Leave Bergen", "points": [[15521, -15378], [15450, -15050]]},
     {"type": "wait_map_load", "map_id": 59},
     {"type": "auto_path", "name": "Nebo to Cursed Lands", "points": [[13276, -14317], [8660, -12109], [1522, -7990], [-3489, -11607], [-4290, -11599]]},

@@ -1,0 +1,32 @@
+{
+  "name": "The Iron Truth",
+  "steps": [
+    {"type": "dialogs", "id": ["0x81", "0x84"], "nearest": true},
+    {"type": "travel", "name": "Travel to Sunspear Great Hall", "target_map_id": 431},
+    {"type": "auto_path", "name": "To Castellan Puuba", "points": [[-4114, 5239]]},
+    {"type": "dialogs", "id": ["0x828003", "0x828001"], "npc": "CASTELLAN_PUUBA", "name": "Dialog - Castellan Puuba"},
+    {"type": "exit_map", "name": "Leave Sunspear Great Hall", "x": -3070, "y": 3914, "target_map_id": 430},
+    {"type": "auto_path", "name": "To Jerek", "points": [[-4000, 2388]]},
+    {"type": "dialog", "id": "0x828004", "npc": "JEREK", "name": "Dialog - Jerek"},
+    {"type": "travel", "name": "Travel to Outpost", "target_map_id": 431},
+    {"type": "travel", "name": "Travel to Blacktide Den outpost", "target_map_id": 492},
+    {"type": "auto_path", "name": "To Savage Nunbe", "points": [[2107, 844]]},
+    {"type": "dialog", "id": "0x828004", "npc": "SAVAGE_NUNBE", "name": "Dialog - Savage Nunbe"},
+    {"type": "travel", "name": "Travel to Kodlonu Hamlet", "target_map_id": 489},
+    {"type": "auto_path", "name": "To Exit", "points": [[3637, -3918]]},
+    {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true},
+    {"type": "exit_map", "name": "Leave Kodlonu Hamlet", "x": 4338, "y": -3671, "target_map_id": 488},
+    {"type": "auto_path", "name": "To Target Ironfist", "points": [[-6401, -5666], [436, -11007], [3842, -13987], [9085, -13336]]},
+    {"type": "wait", "ms": 3000},
+    {"type": "auto_path", "name": "safety clearing", "points": [[8164, -10115], [8459, -12639], [8906, -13387]]},
+    {"type": "wait", "ms": 3000},
+    {"type": "dialog", "id": "0x828004", "npc": "IRONFIST", "name": "Dialog - Ironfist"},
+    {"type": "dialog", "id": "0x828004", "npc": "IRONFIST", "name": "Dialog - Ironfist"},
+    {"type": "travel", "name": "Travel to Kodlonu Hamlet", "target_map_id": 489},
+    {"type": "travel", "name": "Travel to Sunspear Great Hall", "target_map_id": 431},
+    {"type": "auto_path", "name": "To Exit", "points": [[-4041, 5189]]},
+    {"type": "exit_map", "name": "Leave Sunspear Great Hall", "x": -3119, "y": 3920, "target_map_id": 430},
+    {"type": "auto_path", "name": "To Jerek", "points": [[-4074, 2424]]},
+    {"type": "dialog", "id": "0x828007", "npc": "JEREK", "name": "Dialog - Jerek"}
+  ]
+}

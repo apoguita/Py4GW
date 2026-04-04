@@ -1,0 +1,24 @@
+{
+  "name": "To Vabbi!",
+  "steps": [
+    {"type": "travel", "name": "Travel to Kamadan Jewel of Istan", "target_map_id": 449},
+    {"type": "auto_path", "name": "To Exit", "points": [[-7024, 16600]]},
+    {"type": "exit_map", "name": "Leave Kamadan Jewel of Istan", "x": -5977, "y": 16718, "target_map_id": 429},
+    {"type": "auto_path", "name": "To Elder Suhl", "points": [[-4938, 17129]]},
+    {"type": "dialog", "id": "0x822701", "npc": "ELDER_SUHL", "name": "Dialog - Elder Suhl"},
+    {"type": "travel", "name": "Travel to Sunspear Sanctuary", "target_map_id": 387},
+    {"type": "auto_path", "name": "To Load Party", "points": [[-972, 2838]]},
+    {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true},
+    {"type": "exit_map", "name": "Leave Sunspear Sanctuary", "x": -489, "y": 3940, "target_map_id": 436},
+    {"type": "auto_path", "name": "To Dunkoro", "points": [[770, 6616]]},
+    {"type": "dialog", "id": "0x822704", "npc": "DUNKORO", "name": "Dialog - Dunkoro"},
+    {"type": "auto_path", "name": "To Exit", "points": [[4277, 7539]]},
+    {"type": "exit_map", "name": "Leave Command Post", "x": 5248, "y": 7608, "target_map_id": 369},
+    {"type": "auto_path", "name": "To Nerashi", "points": [[-7600, 8970]]},
+    {"type": "dialogs", "id": ["0x822704", "0x85"], "npc": "NERASHI", "name": "Dialog - Nerashi"},
+    {"type": "auto_path", "name": "To Travel", "points": [[199, 6757], [6760, 7209], [11726, 7343], [17021, 1657], [20628, 2554], [17419, 1817], [15957, -332]]},
+    {"type": "travel", "name": "Travel to Sunspear Sanctuary", "target_map_id": 387},
+    {"type": "auto_path", "name": "To Lonai", "points": [[-701, 1551]]},
+    {"type": "dialog", "id": "0x822707", "npc": "LONAI", "name": "Dialog - Lonai"}
+  ]
+}
