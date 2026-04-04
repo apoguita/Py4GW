@@ -292,11 +292,11 @@ class Energy2(ItemProperty):
         return GWEncoded._bonus_plus_num(GWEncoded.ITEM_BASIC, GWEncoded.ENERGY_BYTES, self.energy, "Energy")
 
 @dataclass
-class EnergyDegen(ItemProperty):
-    energy_degen: int
+class EnergyRegeneration(ItemProperty):
+    energy_regeneration: int
 
     def create_encoded_description(self) -> GWStringEncoded:
-        return GWEncoded._bonus_minus_num(self.get_text_color(), GWEncoded.ENERGY_REGEN_BYTES, self.energy_degen, "Energy regeneration")
+        return GWEncoded._bonus_minus_num(self.get_text_color(), GWEncoded.ENERGY_REGEN_BYTES, abs(self.energy_regeneration), "Energy regeneration")
 
 @dataclass
 class EnergyGainOnHit(ItemProperty):
@@ -422,11 +422,11 @@ class HeadpieceGenericAttribute(ItemProperty):
         return GWEncoded._encoded(bytes([*self.get_text_color(), *GWEncoded.ITEM_ATTRIBUTE_PLUS_ONE_BYTES, self.attribute_level]), "Item's attribute +1")
 
 @dataclass
-class HealthDegen(ItemProperty):
-    health_degen: int
+class HealthRegeneneration(ItemProperty):
+    health_regeneration: int
 
     def create_encoded_description(self) -> GWStringEncoded:
-        return GWEncoded._bonus_minus_num(self.get_text_color(), GWEncoded.HEALTH_REGEN_BYTES, self.health_degen, "Health regeneration")
+        return GWEncoded._bonus_minus_num(self.get_text_color(), GWEncoded.HEALTH_REGEN_BYTES, abs(self.health_regeneration), "Health regeneration")
 
 @dataclass
 class HealthMinus(ItemProperty):

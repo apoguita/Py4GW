@@ -615,14 +615,14 @@ class SwiftUpgrade(WeaponPrefix):
 class VampiricUpgrade(WeaponPrefix):
     id = ItemUpgrade.Vampiric
     property_identifiers = [
-        ModifierIdentifier.HealthDegen,
+        ModifierIdentifier.HealthRegeneneration,
         ModifierIdentifier.HealthStealOnHit,
     ]
     # modifier_range = ModifierRange(ModifierIdentifier.HealthStealOnHit, ModifierType.Arg1, 1, 5)
 
     @property
-    def health_degen(self) -> int:
-        return self._get_property_value(ModifierIdentifier.HealthDegen, "health_degen", 0)
+    def health_regeneration(self) -> int:
+        return self._get_property_value(ModifierIdentifier.HealthRegeneneration, "health_regeneration", 0)
 
     @property
     def health_steal(self) -> int:
@@ -634,13 +634,13 @@ class VampiricUpgrade(WeaponPrefix):
 class ZealousUpgrade(WeaponPrefix):
     id = ItemUpgrade.Zealous
     property_identifiers = [
-        ModifierIdentifier.EnergyDegen,
+        ModifierIdentifier.EnergyRegeneration,
         ModifierIdentifier.EnergyGainOnHit,
     ]
 
     @property
-    def energy_degen(self) -> int:
-        return self._get_property_value(ModifierIdentifier.EnergyDegen, "energy_degen", 0)
+    def energy_regeneration(self) -> int:
+        return self._get_property_value(ModifierIdentifier.EnergyRegeneration, "energy_regeneration", 0)
 
     @property
     def energy_gain(self) -> int:
@@ -1145,7 +1145,7 @@ class LiveForToday(Inscription):
     target_item_type = ItemType.Offhand
     property_identifiers = [
         ModifierIdentifier.EnergyPlus,
-        ModifierIdentifier.EnergyDegen,
+        ModifierIdentifier.EnergyRegeneration,
     ]
     modifier_range = ModifierRange(ModifierIdentifier.EnergyPlus, ModifierType.Arg2, 10, 15)
 
@@ -1155,7 +1155,7 @@ class LiveForToday(Inscription):
 
     @property
     def energy_regen(self) -> int:
-        return self._get_property_value(ModifierIdentifier.EnergyDegen, "energy_regen", 0)
+        return self._get_property_value(ModifierIdentifier.EnergyRegeneration, "energy_regen", 0)
     
     def create_encoded_name(self) -> GWStringEncoded:
         return GWStringEncoded(GWEncoded.ITEM_BASIC + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x91, 0x5D, 0x1, 0x0]), f"Live For Today")
@@ -1899,7 +1899,7 @@ class SeizeTheDay(Inscription):
     target_item_type = ItemType.SpellcastingWeapon
     property_identifiers = [
         ModifierIdentifier.EnergyPlus,
-        ModifierIdentifier.EnergyDegen,
+        ModifierIdentifier.EnergyRegeneration,
     ]
     modifier_range = ModifierRange(ModifierIdentifier.EnergyPlus, ModifierType.Arg2, 10, 15)
 
@@ -1909,7 +1909,7 @@ class SeizeTheDay(Inscription):
 
     @property
     def energy_regen(self) -> int:
-        return self._get_property_value(ModifierIdentifier.EnergyDegen, "energy_regen", 0)
+        return self._get_property_value(ModifierIdentifier.EnergyRegeneration, "energy_regen", 0)
     
     def create_encoded_name(self) -> GWStringEncoded:
         return GWStringEncoded(GWEncoded.ITEM_BASIC + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0xB3, 0x5D, 0x1, 0x0]), f"Seize The Day")
@@ -2008,7 +2008,7 @@ class VampiricStrengthUpgrade(Inherent):
     target_item_type = ItemType.Weapon
     property_identifiers = [
         ModifierIdentifier.DamagePlusPercent,
-        ModifierIdentifier.HealthDegen,
+        ModifierIdentifier.HealthRegeneneration,
     ]
     modifier_range = ModifierRange(ModifierIdentifier.DamagePlusPercent, ModifierType.Arg2, 10, 15)
     
@@ -2017,14 +2017,14 @@ class VampiricStrengthUpgrade(Inherent):
         return self._get_property_value(ModifierIdentifier.DamagePlusPercent, "damage_increase", 0)
     
     @property
-    def health_degen(self) -> int:
-        return self._get_property_value(ModifierIdentifier.HealthDegen, "health_degen", 0)
+    def health_regeneration(self) -> int:
+        return self._get_property_value(ModifierIdentifier.HealthRegeneneration, "health_regeneration", 0)
 
 class ZealousStrengthUpgrade(Inherent):
     target_item_type = ItemType.Weapon
     property_identifiers = [
         ModifierIdentifier.DamagePlusPercent,
-        ModifierIdentifier.EnergyDegen,
+        ModifierIdentifier.EnergyRegeneration,
     ]
     modifier_range = ModifierRange(ModifierIdentifier.DamagePlusPercent, ModifierType.Arg2, 10, 15)
     
@@ -2033,8 +2033,8 @@ class ZealousStrengthUpgrade(Inherent):
         return self._get_property_value(ModifierIdentifier.DamagePlusPercent, "damage_increase", 0)
     
     @property
-    def energy_degen(self) -> int:
-        return self._get_property_value(ModifierIdentifier.EnergyDegen, "energy_degen", 0)
+    def energy_regeneration(self) -> int:
+        return self._get_property_value(ModifierIdentifier.EnergyRegeneration, "energy_regeneration", 0)
     
 #endregion Weapon
 
@@ -2270,10 +2270,10 @@ class EnergyPlusHexedUpgrade(Inherent, IAmSorrow):
     pass
 
 
-class EnergyPlusEnergyDegenUpgrade(Inherent):
+class EnergyPlusEnergyRegenerationMinusUpgrade(Inherent):
     property_identifiers = [
         ModifierIdentifier.EnergyPlus,
-        ModifierIdentifier.EnergyDegen,
+        ModifierIdentifier.EnergyRegeneration,
     ]
     modifier_range = ModifierRange(ModifierIdentifier.EnergyPlus, ModifierType.Arg2, 10, 15)
 
@@ -2283,7 +2283,7 @@ class EnergyPlusEnergyDegenUpgrade(Inherent):
 
     @property
     def energy_regen(self) -> int:
-        return self._get_property_value(ModifierIdentifier.EnergyDegen, "energy_regen", 0)
+        return self._get_property_value(ModifierIdentifier.EnergyRegeneration, "energy_regen", 0)
     
 #endregion SpellcastingWeapon
 

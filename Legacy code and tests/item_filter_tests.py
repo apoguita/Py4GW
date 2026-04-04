@@ -31,6 +31,13 @@ def filter_weapon_mods_test():
             health = fortitude_upgrade.health
             is_maxed = fortitude_upgrade.is_maxed
             
+        if (vampiric_strength_upgrade := ItemMod.get_upgrade(item_id, VampiricStrengthUpgrade)) is not None:
+            damage = vampiric_strength_upgrade.damage_increase
+            degen = vampiric_strength_upgrade.health_regeneration
+            is_maxed = vampiric_strength_upgrade.is_maxed
+            
+            print(f"Item '{string_table.decode(bytes(PyItem.GetCompleteNameEnc(item_id)))}' ({item_id}) has a vampiric strength upgrade (Damage: {damage}%, Health Degeneration: -{degen}).")
+            
             
 def main():
     filter_dyes_test()

@@ -66,7 +66,7 @@ class ModifierIdentifier(IntEnum):
     DamageTypeProperty = 0x24b
     Energy = 0x27c
     Energy2 = 0x22c
-    EnergyDegen = 0x20c
+    EnergyRegeneration = 0x20c
     EnergyGainOnHit = 0x251
     EnergyMinus = 0x20b
     EnergyPlus = 0x22d
@@ -82,7 +82,7 @@ class ModifierIdentifier(IntEnum):
     HalvesSkillRechargeItemAttribute = 0x282
     HeadpieceAttribute = 0x21f
     HeadpieceGenericAttribute = 0x284
-    HealthDegen = 0x20e
+    HealthRegeneneration = 0x20e
     HealthMinus = 0x20d
     HealthPlus = 0x234
     HealthPlus2 = 0x289
