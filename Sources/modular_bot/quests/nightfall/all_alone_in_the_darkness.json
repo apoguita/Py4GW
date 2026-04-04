@@ -1,0 +1,18 @@
+{
+  "name": "All Alone in the Darkness",
+  "steps": [
+    {"type": "travel", "name": "Travel to Gate of Secrets", "target_map_id": 473},
+    {"type": "dialog", "id": "0x82BF01", "npc": "KEEPER_HALYSSI", "name": "Dialog - Keeper Halyssi"},
+    {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true},
+    {"type": "auto_path", "name": "To Exit", "points": [[12226, -2074]]},
+    {"type": "exit_map", "name": "Leave Gate of Secrets", "x": 11900, "y": -1728, "target_map_id": 472},
+    {"type": "auto_path", "name": "To Kormir", "points": [[13655, 18542]]},
+    {"type": "dialog", "id": "0x82BF04", "npc": "KORMIR", "name": "Dialog - Kormir"},
+    {"type": "auto_path", "name": "To Scout Ahtok", "points": [[-13159, -11636], [-11746, -11708]]},
+    {"type": "dialogs", "id": ["0x82BF04", "0x84", "0x85"], "npc": "SCOUT_AHTOK", "name": "Dialog - Scout Ahtok"},
+    {"type": "skip_cutscene"},
+    {"type": "wait_for_map_load", "map_id": 495},
+    {"type": "auto_path", "name": "To Runic Oracle", "points": [[-11265, -9877]]},
+    {"type": "dialog", "id": "0x82BF07", "npc": "RUNIC_ORACLE", "name": "Dialog - Runic Oracle"}
+  ]
+}

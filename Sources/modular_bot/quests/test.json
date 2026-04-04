@@ -1,0 +1,13 @@
+{
+  "name": "Dzagonur Bastion",
+  "required_hero": ["Master of Whispers"],
+  "steps": [
+    {"type": "travel", "name": "Travel to Outpost", "target_map_id": 433},
+    {"type": "auto_path", "name": "Path", "points": [[1642, 2505]]},
+    {"type": "load_party", "name": "Load Party", "max_heroes": 8, "team": "party_8", "required_hero": ["Master of Whispers"]},
+    {"type": "dialogs", "id": ["0x81", "0x84"], "npc": "LIEUTENANT_MURUNDA", "name": "Dialog - Lieutenant Murunda"},
+    {"type": "wait", "ms": 8000},
+    {"type": "wait_for_map_load", "map_id": 433},
+    {"type": "auto_path", "name": "Path", "points": [[-12307, 8623]]}
+  ]
+}

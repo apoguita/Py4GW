@@ -1,0 +1,22 @@
+{
+  "name": "War Preparations (Ghost Reconnaissance)",
+  "steps": [
+    {"type": "travel", "name": "Travel to Sunspear Great Hall", "target_map_id": 431},
+    {"type": "auto_path", "name": "To Castellan Puuba", "points": [[-4086, 5343]]},
+    {"type": "dialogs", "id": ["0x828403", "0x828401"], "npc": "CASTELLAN_PUUBA", "name": "Dialog - Castellan Puuba"},
+    {"type": "travel", "name": "Travel to Blacktide Den outpost", "target_map_id": 492},
+    {"type": "auto_path", "name": "To Load Party", "points": [[249, -3037]]},
+    {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true},
+    {"type": "exit_map", "name": "Leave Blacktide Den outpost", "x": 347, "y": -4492, "target_map_id": 484},
+    {"type": "auto_path", "name": "Path", "points": [[11315, 2931], [11429, 4772]]},
+    {"type": "wait", "ms": 1400},
+    {"type": "emote", "command": "kneel"},
+    {"type": "wait", "ms": 28000},
+    {"type": "auto_path", "name": "To Sogolon The Protector", "points": [[11552, 4953], [11199, 4782], [11433, 4435], [11347, 4715]]},
+    {"type": "dialog", "id": "0x828404", "npc": "SOGOLON_THE_PROTECTOR", "name": "Dialog - Sogolon the Protector"},
+    {"type": "travel", "name": "Travel to Outpost", "target_map_id": 492},
+    {"type": "travel", "name": "Travel to Sunspear Great Hall", "target_map_id": 431},
+    {"type": "auto_path", "name": "To Castellan Puuba", "points": [[-4006, 5326]]},
+    {"type": "dialog", "id": "0x828407", "npc": "CASTELLAN_PUUBA", "name": "Dialog - Castellan Puuba"}
+  ]
+}

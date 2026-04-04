@@ -1,0 +1,24 @@
+{
+  "name": "War Preparations (Recruit Training)",
+  "steps": [
+    {"type": "travel", "name": "Travel to Sunspear Great Hall", "target_map_id": 431},
+    {"type": "auto_path", "name": "To Castellan Puuba", "points": [[-3915, 5352]]},
+    {"type": "dialogs", "id": ["0x828203", "0x828201"], "npc": "CASTELLAN_PUUBA", "name": "Dialog - Castellan Puuba"},
+    {"type": "travel", "name": "Travel to Kamadan Jewel of Istan", "target_map_id": 449},
+    {"type": "auto_path", "name": "To Load Party", "points": [[-9223, 16397]]},
+    {"type": "load_party", "name": "Load Party", "max_heroes": 4, "use_priority": true},
+    {"type": "exit_map", "name": "Leave Kamadan Jewel of Istan", "x": -9270, "y": 16806, "target_map_id": 430},
+    {"type": "auto_path", "name": "To Kormir", "points": [[16504, 2244]]},
+    {"type": "dialog", "id": "0x828204", "npc": "KORMIR", "name": "Dialog - Kormir"},
+    {"type": "auto_path", "name": "To Nerashi", "points": [[17238, 1677]]},
+    {"type": "dialog", "id": "0x828204", "npc": "NERASHI", "name": "Dialog - Nerashi"},
+    {"type": "auto_path", "name": "Clear mobss", "points": [[6297, -11273], [5615, -11959]]},
+    {"type": "auto_path", "name": "To Ahtok", "points": [[6682, -9365], [16503, 926], [17845, 1421]]},
+    {"type": "dialog", "id": "0x828204", "npc": "AHTOK", "name": "Dialog - Ahtok"},
+    {"type": "auto_path", "name": "To Rojis", "points": [[18211, 1439]]},
+    {"type": "dialog", "id": "0x828204", "npc": "ROJIS", "name": "Dialog - Rojis"},
+    {"type": "travel", "name": "Travel to Sunspear Great Hall", "target_map_id": 431},
+    {"type": "auto_path", "name": "To Castellan Puuba", "points": [[-4126, 5338]]},
+    {"type": "dialog", "id": "0x828207", "npc": "CASTELLAN_PUUBA", "name": "Dialog - Castellan Puuba"}
+  ]
+}

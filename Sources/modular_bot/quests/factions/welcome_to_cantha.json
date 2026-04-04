@@ -1,21 +1,17 @@
 {
   "name": "Welcome to Cantha",
-  "max_heroes": 8,
-  "hero_team": "party_8",
-  "take_quest": {
-    "outpost_id": 194
-  },
   "steps": [
+    {"type": "travel", "name": "Travel to Quest Outpost", "target_map_id": 194},
     {"type": "set_anchor", "phase": "Welcome to Cantha"},
+    {"type": "load_party", "name": "Load Party", "max_heroes": 8, "team": "party_8"},
     {"type": "exit_map", "name": "Leave Kaineng", "x": 4102, "y": -5899, "target_map_id": 240},
     {"type": "dialog", "name": "Chat with Mhenlo", "npc": "BROTHER_MHENLO", "id": "0x817904"},
     {"type": "auto_path", "name": "To Cyn", "points": [[5042, 6789]]},
-    {"type": "wait", "phase": "Mhenlo chats to Cyn", "ms":30000},
+    {"type": "wait", "phase": "Mhenlo chats to Cyn", "ms": 30000},
     {"type": "auto_path", "name": "To Guardsman Chow", "points": [[12150, 4916]], "anchor": true},
-    {"type": "dialogs", "name": "Chat with Chow", "npc": "GUARDSMAN_CHOW", "id": ["0x817904","0x800008","0x800009", "0x80000B"]},
+    {"type": "dialogs", "name": "Chat with Chow", "npc": "GUARDSMAN_CHOW", "id": ["0x817904", "0x800008", "0x800009", "0x80000B"]},
     {"type": "wait_map_change", "target_map_id": 292},
     {"type": "auto_path", "name": "To Guardsman Chow", "points": [[12150, 4916]], "anchor": true},
-    {"type": "dialog", "name": "get reward", "npc": "GUARDSMAN_CHOW_OUTPOST", "id":"0x817907"}
-
+    {"type": "dialog", "name": "get reward", "npc": "GUARDSMAN_CHOW_OUTPOST", "id": "0x817907"}
   ]
 }

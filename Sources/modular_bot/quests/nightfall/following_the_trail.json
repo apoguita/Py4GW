@@ -1,0 +1,20 @@
+{
+  "name": "Following the Trail",
+  "required_hero": ["Tahlkora"],
+  "steps": [
+    {"type": "travel", "name": "Travel to Sunspear Great Hall", "target_map_id": 431},
+    {"type": "auto_path", "name": "To Exit", "points": [[-3159, 4594]]},
+    {"type": "load_party", "name": "Load Party", "max_heroes": 4, "use_priority": true, "required_hero": ["Tahlkora"]},
+    {"type": "exit_map", "name": "Leave Sunspear Great Hall", "x": -3087, "y": 3925, "target_map_id": 430},
+    {"type": "auto_path", "name": "To Jerek", "points": [[-4013, 2411]]},
+    {"type": "dialog", "id": "0x827F01", "npc": "JEREK", "name": "Dialog - Jerek"},
+    {"type": "travel", "name": "Travel to Jokanur Diggings outpost", "target_map_id": 491},
+    {"type": "auto_path", "name": "To Exit", "points": [[3826, -4344]]},
+    {"type": "exit_map", "name": "Leave Jokanur Diggings outpost", "x": 4735, "y": -4401, "target_map_id": 432},
+    {"type": "auto_path", "name": "To Captain Mindhebeh", "points": [[-21348, 2581], [-19095, -3427], [-15804, -6771]]},
+    {"type": "dialogs", "id": ["0x827F04", "0x84", "0x85"], "npc": "CAPTAIN_MINDHEBEH", "name": "Dialog - Captain Mindhebeh"},
+    {"type": "wait_for_map_load", "map_id": 492},
+    {"type": "auto_path", "name": "To Savage Nunbe", "points": [[1931, 754]]},
+    {"type": "dialog", "id": "0x827F07", "npc": "SAVAGE_NUNBE", "name": "Dialog - Savage Nunbe"}
+  ]
+}
