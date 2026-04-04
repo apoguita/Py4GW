@@ -53,7 +53,9 @@ SALVAGE_CONFIG.AddItemType(ItemType.Axe)
 SALVAGE_CONFIG.AddItemType(ItemType.Sword)
 SALVAGE_CONFIG.AddItemType(ItemType.Sword)
 SALVAGE_CONFIG.AddItemType(ItemType.Staff)
+
 SALVAGE_CONFIG.AddItemType(ItemType.Scythe)
+SALVAGE_CONFIG.RemoveItemType(ItemType.Scythe)
 
 
 def main():

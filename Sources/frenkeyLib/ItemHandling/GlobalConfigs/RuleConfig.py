@@ -89,6 +89,15 @@ class RuleConfig(list[Rule]):
         '''
         if not self.HasMatchingRule(rule):
             self.append(rule)
+        
+    def RemoveRule(self, rule: Rule):
+        '''
+        Removes a rule from the config if an equivalent rule is contained in the config.
+        '''
+        for existing_rule in self:
+            if existing_rule.equals(rule):
+                self.remove(existing_rule)
+                break
 
     def HasMatchingRule(self, rule: Rule) -> bool:
         '''
@@ -116,7 +125,7 @@ class RuleConfig(list[Rule]):
         config.AddDyeColor(DyeColor.Black)
         config.AddDyeColors([DyeColor.White, DyeColor.Black])
     """
-    
+    #region Adding helper methods for creating and adding rules in one step
     def AddModelId(self, model_id: int):
         '''
         Helper method to add a ModelIdRule to the config.
@@ -172,4 +181,65 @@ class RuleConfig(list[Rule]):
         '''
         rule = DyesRule(dye_colors)
         self.AddRule(rule)
-    #endregion
+
+    #endregion Adding helper methods for creating and adding rules in one step
+    
+    #region Deleting helper methods for creating and adding rules in one step
+    def RemoveModelId(self, model_id: int):
+        '''
+        Helper method to remove a ModelIdRule from the config.
+        '''
+        rule = ModelIdRule(model_id)
+        self.RemoveRule(rule)
+        
+    def RemoveModelIds(self, model_ids: list[int|ModelID]):
+        '''
+        Helper method to remove a ModelIdsRule from the config.
+        '''
+        rule = ModelIdsRule(model_ids)
+        self.RemoveRule(rule)
+        
+    def RemoveRarity(self, rarity: Rarity):
+        '''
+        Helper method to remove a RarityRule from the config.
+        '''
+        rule = RarityRule(rarity)
+        self.RemoveRule(rule)
+        
+    def RemoveRarities(self, rarities: list[Rarity]):
+        '''
+        Helper method to remove a RaritiesRule from the config.
+        '''
+        rule = RaritiesRule(rarities)
+        self.RemoveRule(rule)
+        
+    def RemoveItemType(self, item_type: ItemType):
+        '''
+        Helper method to remove an ItemTypeRule from the config.
+        '''
+        rule = ItemTypeRule(item_type)
+        self.RemoveRule(rule)
+        
+    def RemoveItemTypes(self, item_types: list[ItemType]):
+        '''
+        Helper method to remove an ItemTypesRule from the config.
+        '''
+        rule = ItemTypesRule(item_types)
+        self.RemoveRule(rule)
+        
+    def RemoveDyeColor(self, dye_color: DyeColor):
+        '''
+        Helper method to remove a DyeRule from the config.
+        '''
+        rule = DyeRule(dye_color)
+        self.RemoveRule(rule)
+        
+    def RemoveDyeColors(self, dye_colors: list[DyeColor]):
+        '''
+        Helper method to remove a DyeColorsRule from the config.
+        '''
+        rule = DyesRule(dye_colors)
+        self.RemoveRule(rule)
+    #endregion Deleting helper methods for creating and adding rules in one step
+    
+    #endregion Helpers to add and create rules easily
