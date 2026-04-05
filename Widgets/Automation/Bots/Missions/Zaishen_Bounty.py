@@ -277,13 +277,13 @@ def bot_routine(bot: Botting) -> None:
                 _register_path(bot, bounty.outpost_path)
 
         # -- Bounty Path --
+        bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Starting Bounty: {bounty.display}")
         bp_coord = _get_first_path_coord(bounty.bounty_path)
         bot.States.AddCustomState(lambda bi=b_idx, bc=bp_coord: _set_section_header(_section_headers[bi][-1], bc[0], bc[1]),
                                   f"SetSection_BountyPath_{b_idx}")
         if _restock_pcons:
             bot.Multibox.UsePcons()
         _register_path(bot, bounty.bounty_path, header_name=f"BountyPath_{b_idx}")
-        bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Starting Bounty: {bounty.display}")
         bot.Wait.UntilOutOfCombat()
 
         # -- Bounty Completed --

@@ -347,13 +347,13 @@ def bot_routine(bot: Botting) -> None:
             bot.Move.FollowPathAndExitMap(vq.outpost_path, target_map_id=vq.explorable_id)
 
         # -- Vanquish Path --
+        bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Starting Vanquish: {vq.display}")
         vp_coord = _get_first_path_coord(vq.vanquish_path)
         bot.States.AddCustomState(lambda vi=vq_idx, si=section_idx, vc=vp_coord: _set_section_header(_section_headers[vi][si], vc[0], vc[1]),
                                   f"SetSection_VanquishPath_{vq_idx}")
         if _restock_pcons:
             bot.Multibox.UsePcons()
         _register_path(bot, vq.vanquish_path, header_name=f"VanquishPath_{vq_idx}")
-        bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Starting Vanquish: {vq.display}")
         target_header = _completed_header_names[vq_idx]
         bot.States.AddManagedCoroutine("VanquishWatchdog",
             lambda h=target_header: VanquishWatchdog(bot, h))
@@ -361,12 +361,12 @@ def bot_routine(bot: Botting) -> None:
         section_idx += 1
 
         # -- Reverse Path with Radar (range=3500) --
+        bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Starting Reverse Path with Radar (range=3500).")
         reversed_path = _build_reversed_path(vq.vanquish_path)
         rp_coord = _get_first_path_coord(reversed_path)
         bot.States.AddCustomState(lambda vi=vq_idx, si=section_idx, rc=rp_coord: _set_section_header(_section_headers[vi][si], rc[0], rc[1]),
                                   f"SetSection_ReversePath3500_{vq_idx}")
         bot.States.AddHeader(f"ReversePath3500_{vq_idx}")
-        bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Starting Reverse Path with Radar (range=3500).")
         bot.States.AddManagedCoroutine("Radar", lambda: Radar(bot, radar_range=3500))
         _register_path(bot, reversed_path)
         bot.Wait.UntilOutOfCombat()
@@ -374,11 +374,11 @@ def bot_routine(bot: Botting) -> None:
         section_idx += 1
 
         # -- Reverse Path with Radar (range=5000) --
+        bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Starting Reverse Path with Extended Radar (range=5000).")
         rp5_coord = _get_first_path_coord(reversed_path)  # same reversed path
         bot.States.AddCustomState(lambda vi=vq_idx, si=section_idx, rc=rp5_coord: _set_section_header(_section_headers[vi][si], rc[0], rc[1]),
                                   f"SetSection_ReversePath5000_{vq_idx}")
         bot.States.AddHeader(f"ReversePath5000_{vq_idx}")
-        bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Starting Reverse Path with Extended Radar (range=5000).")
         bot.States.AddManagedCoroutine("Radar", lambda: Radar(bot, radar_range=5000))
         _register_path(bot, reversed_path)
         bot.Wait.UntilOutOfCombat()
