@@ -1,9 +1,12 @@
+import os
+
+import Py4GW
 from PyItem import PyItem
 
 from Py4GWCoreLib.Item import Bag, Item
 from Py4GWCoreLib.ItemArray import ItemArray
 from Py4GWCoreLib.enums_src.GameData_enums import DyeColor
-from Py4GWCoreLib.enums_src.Item_enums import ItemType
+from Py4GWCoreLib.enums_src.Item_enums import ItemType, Rarity
 from Py4GWCoreLib.item_mods_src.upgrades import VampiricStrengthUpgrade
 from Py4GWCoreLib.native_src.internals import string_table
 from Py4GWCoreLib.ItemMods import *
@@ -43,20 +46,28 @@ def filter_weapon_mods_test():
             
             print(f"Item '{string_table.decode(bytes(PyItem.GetCompleteNameEnc(item_id)))}' ({item_id}) has a vampiric strength upgrade (Damage: {damage}%, Health Degeneration: -{degen}).")
 
+folder_path = os.path.join(Py4GW.Console.get_projects_path(), "Settings", "item_filters")
+
 LOOT_CONFIG = LootConfig()
 SALVAGE_CONFIG = SalvageConfig()
 
-LOOT_CONFIG.AddDyeColor(DyeColor.Black)
-LOOT_CONFIG.AddDyeColor(DyeColor.White)
-            
-SALVAGE_CONFIG.AddItemType(ItemType.Axe)
-SALVAGE_CONFIG.AddItemType(ItemType.Sword)
-SALVAGE_CONFIG.AddItemType(ItemType.Sword)
-SALVAGE_CONFIG.AddItemType(ItemType.Staff)
+LOOT_CONFIG.Load(os.path.join(folder_path, "loot_config.json"))
+SALVAGE_CONFIG.Load(os.path.join(folder_path, "salvage_config.json"))
 
-SALVAGE_CONFIG.AddItemType(ItemType.Scythe)
-SALVAGE_CONFIG.RemoveItemType(ItemType.Scythe)
+if len(LOOT_CONFIG) == 0:
+    LOOT_CONFIG.AddRarities([Rarity.Gold])
+    LOOT_CONFIG.AddItemTypes([item_type for item_type in ItemType if item_type not in [ItemType.Unknown, ItemType.Bundle]])
+    LOOT_CONFIG.AddDyeColor(DyeColor.Black)
+    LOOT_CONFIG.AddDyeColor(DyeColor.White)
 
+if len(SALVAGE_CONFIG) == 0:
+    SALVAGE_CONFIG.AddRarities([Rarity.White, Rarity.Blue, Rarity.Purple])
+    SALVAGE_CONFIG.AddItemType(ItemType.Sword)
+    SALVAGE_CONFIG.AddItemType(ItemType.Spear)
+    SALVAGE_CONFIG.AddItemTypes([ItemType.Staff, ItemType.Wand, ItemType.Offhand])
+
+LOOT_CONFIG.Save(os.path.join(folder_path, "loot_config.json"))
+SALVAGE_CONFIG.Save(os.path.join(folder_path, "salvage_config.json"))
 
 def main():
     # filter_dyes_test()

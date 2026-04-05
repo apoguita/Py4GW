@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import os
 from typing import ClassVar
 
 from Py4GWCoreLib.enums_src.GameData_enums import DyeColor
@@ -105,7 +107,7 @@ class RuleConfig(list[Rule]):
         '''
         return any(existing_rule.equals(rule) for existing_rule in self)
             
-    #region Helpers to add and create rules easily
+    #region Helpers 
     """
     Helper methods to add and create rules easily without the need to create the rule objects manually.
     These methods create the rule objects and add them to the config in one step.
@@ -242,4 +244,65 @@ class RuleConfig(list[Rule]):
         self.RemoveRule(rule)
     #endregion Deleting helper methods for creating and adding rules in one step
     
-    #endregion Helpers to add and create rules easily
+    #endregion Helpers
+
+    #region Json Serialization
+    def to_json_format(self) -> list[dict]:
+        '''
+        Serializes the rules to a JSON-compatible structure.
+        '''
+        
+        return [rule.to_dict() for rule in self]
+    
+    @classmethod
+    def from_json(cls, json_data: list[dict]) -> "RuleConfig":
+        '''
+        Deserializes the rules from a JSON-compatible structure into this config class' singleton instance.
+        '''
+        if not isinstance(json_data, list):
+            raise ValueError("RuleConfig JSON payload must be a list of rule objects.")
+
+        parsed_rules: list[Rule] = []
+
+        for rule_data in json_data:
+            if not isinstance(rule_data, dict):
+                continue
+
+            rule = Rule.from_dict(rule_data)
+            if rule is None:
+                continue
+
+            if any(existing_rule.equals(rule) for existing_rule in parsed_rules):
+                continue
+
+            parsed_rules.append(rule)
+
+        instance = cls()
+        instance.clear()
+        instance.extend(parsed_rules)
+        
+        return instance
+    #endregion Json Serialization
+    
+    #region Loading and Saving
+    def Save(self, file_path: str):
+        '''
+        Saves the config to a JSON file at the specified file path.
+        '''
+        directory = os.path.dirname(file_path)
+        if directory:
+            os.makedirs(directory, exist_ok=True)
+        
+        with open(file_path, 'w', encoding='utf-8') as f:
+            json.dump(self.to_json_format(), f, indent=4, ensure_ascii=False)
+            
+    @classmethod
+    def Load(cls, file_path: str) -> "RuleConfig":
+        '''
+        Loads the config from a JSON file at the specified file path and returns a new instance of the config with the loaded rules.
+        '''
+        with open(file_path, 'r', encoding='utf-8') as f:
+            json_data = json.load(f)
+        
+        return cls.from_json(json_data)
+    #endregion Loading and Saving
