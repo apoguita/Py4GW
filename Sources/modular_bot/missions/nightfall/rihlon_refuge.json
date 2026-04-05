@@ -1,0 +1,23 @@
+{
+  "name": "Rilohn Refuge",
+  "required_hero": ["Master of Whispers"],
+  "steps": [
+    {"type": "travel", "name": "Travel to Outpost", "target_map_id": 425},
+    {"type": "auto_path", "name": "Path", "points": [[-15846, 11178]]},
+    {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true, "required_hero": ["Master of Whispers"]},
+    {"type": "dialogs", "id": ["0x81", "0x84"], "npc": "DEHJAH", "name": "Dialog - Dehjah"},
+    {"type": "wait", "ms": 13200},
+    {"type": "wait_for_map_load", "map_id": 425},
+    {"type": "auto_path", "name": "Path", "points": [[-14090, 4570], [-15456, 496], [-13489, -3934], [-11266, -6473], [-8278, -4390], [-7576, 777]]},
+    {"type": "wait", "ms": 25800},
+    {"type": "auto_path", "name": "Path", "points": [[-5150, 330], [-1800, -585], [-531, 1193]]},
+    {"type": "wait", "ms": 24300},
+    {"type": "auto_path", "name": "Path", "points": [[2464, 366], [2652, 4477], [5670, 3369], [6799, 4647]]},
+    {"type": "wait", "ms": 32600},
+    {"type": "auto_path", "name": "Path", "points": [[8341, 6225]]},
+    {"type": "path_to_target", "name": "Target The Drought", "enemy": "THE_DROUGHT"},
+    {"type": "path_to_target", "name": "Target The Drought", "enemy": "THE_DROUGHT"},
+    {"type": "path_to_target", "name": "Target The Drought", "enemy": "THE_DROUGHT"},
+    {"type": "wait_for_map_load", "map_id": 427}
+  ]
+}

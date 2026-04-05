@@ -11,8 +11,7 @@ from Py4GWCoreLib.enums_src.Model_enums import ModelID
 from Sources.modular_bot import ModularBot
 from Sources.modular_bot.phase import Phase
 from Sources.modular_bot.recipes.actions_inventory import SUPPORTED_MAP_NPC_SELECTORS
-from Sources.modular_bot.recipes import Quest
-from Sources.modular_bot.recipes.quest import quest_run
+from Sources.modular_bot.recipes import Quest, quest_run
 from Sources.modular_bot.recipes.modular_actions import register_step as _register_shared_step
 from Sources.modular_bot.recipes.runner_common import count_expanded_steps, register_recipe_context, register_repeated_steps
 

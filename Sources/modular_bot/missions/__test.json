@@ -1,17 +1,6 @@
 {
-  "name": "LOOT pls.",
+  "name": "A Deal's a Deal",
   "steps": [
-    {"type": "loot_chest", "gadget": "CHEST_OF_WOE", "multibox": true},
-    {"type": "set_auto_looting", "enabled": false},
-    {"type": "auto_path", "name": "reposition for Chest", "points": [[1865, 216]]},
-    {"type": "set_auto_looting", "enabled": true},
-    {"type": "loot_chest", "gadget": "CHEST_OF_WOE", "multibox": true},
-    {"type": "set_auto_looting", "enabled": false},
-    {"type": "auto_path", "name": "reposition for Chest", "points": [[1865, 216]]},
-    {"type": "set_auto_looting", "enabled": true, "ms":5000},
-    {"type": "set_auto_looting", "enabled": false},
-    {"type": "auto_path", "name": "reposition for Chest", "points": [[1865, 216]]},
-    {"type": "set_auto_looting", "enabled": true, "ms":5000},
-    {"type": "resign", "ms":15000}
+    {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true, "required_hero": ["Koss", "Tahlkora"]}
   ]
 }

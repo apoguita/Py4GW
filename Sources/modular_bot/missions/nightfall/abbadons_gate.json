@@ -1,0 +1,29 @@
+{
+  "name": "Abaddon's Gate",
+  "steps": [
+    {"type": "travel", "name": "Travel to Outpost", "target_map_id": 496},
+    {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true},
+    {"type": "auto_path", "name": "Path", "points": [[15403, -3885]]},
+    {"type": "dialogs", "id": ["0x81", "0x84"], "npc": "KEEPER_SHARISSH", "name": "Dialog - Keeper Sharissh"},
+    {"type": "wait", "ms": 7600},
+    {"type": "wait_for_map_load", "map_id": 496},
+    {"type": "auto_path", "name": "Touring", "points": [[-138, 4798], [-388, 3011], [-1493, 3553]]},
+    {"type": "auto_path", "name": "Touring", "points": [[-138, 4798], [-388, 3011], [-1493, 3553]]},
+    {"type": "auto_path", "name": "Touring", "points": [[-138, 4798], [-388, 3011], [-1493, 3553]]},
+    {"type": "auto_path", "name": "Touring", "points": [[-138, 4798], [-388, 3011], [-1493, 3553]]},
+    {"type": "auto_path", "name": "Touring", "points": [[-138, 4798], [-388, 3011], [-1493, 3553]]},
+    {"type": "auto_path", "name": "Touring", "points": [[-138, 4798], [-388, 3011], [-1493, 3553]]},
+    {"type": "wait_for_map_load", "map_id": 503},
+    {"type": "auto_path", "name": "Path", "points": [[-8239, 5458], [-7954, 7502], [-8409, 9688], [-9796, 12722]]},
+    {"type": "dialog", "id": "0x82DE01", "npc": "ACOLYTE_SOUSUKE", "name": "Dialog - Acolyte Sousuke"},
+    {"type": "dialog", "id": "0x82DB01", "npc": "MARGRID_THE_SLY", "name": "Dialog - Margrid The Sly"},
+    {"type": "dialog", "id": "0x82DD01", "npc": "ACOLYTE_JIN", "name": "Dialog - Acolyte Jin"},
+    {"type": "auto_path", "name": "Path", "points": [[-12713, 12334]]},
+    {"type": "dialog", "id": "0x82D901", "npc": "NORGU", "name": "Dialog - Norgu"},
+    {"type": "dialog", "id": "0x82DA01", "npc": "GOREN", "name": "Dialog - Goren"},
+    {"type": "auto_path", "name": "Path", "points": [[-15665, 10064], [-17207, 5884]]},
+    {"type": "interact_npc", "name": "Interact Keeper Of Secrets", "npc": "KEEPER_OF_SECRETS"},
+    {"type": "dialogs", "id": ["0x84", "0x85"], "npc": "VOLATISS", "name": "Dialog - Volatiss"},
+    {"type": "exit_map", "name": "Exit Map", "x": -18593, "y": 6156, "target_map_id": 370}
+  ]
+}

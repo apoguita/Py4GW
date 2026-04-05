@@ -1,0 +1,26 @@
+{
+  "name": "dialog_recorded",
+  "required_hero": ["Koss"],
+  "steps": [
+    {"type": "travel", "name": "Travel to The Astralarium", "target_map_id": 502},
+    {"type": "auto_path", "name": "To Emissary Dajmir", "points": [[-1690, 3754]]},
+    {"type": "dialog", "id": "0x827A01", "npc": "EMISSARY_DAJMIR", "name": "Dialog - Emissary Dajmir"},
+    {"type": "load_party", "name": "Load Party", "max_heroes": 4, "use_priority": true, "required_hero": ["Koss"]},
+    {"type": "auto_path", "name": "To Exit", "points": [[-4128, 859]]},
+    {"type": "exit_map", "name": "Leave The Astralarium", "x": -4661, "y": 178, "target_map_id": 483},
+    {"type": "auto_path", "name": "To Sunspear Scout", "points": [[19726, -4147]]},
+    {"type": "dialog", "id": "0x84", "npc": "SUNSPEAR_SCOUT", "name": "Dialog - Sunspear Scout"},
+    {"type": "auto_path", "name": "To Emissary Dajmir", "points": [[16647, -3808]]},
+    {"type": "dialog", "id": "0x827A04", "npc": "EMISSARY_DAJMIR", "name": "Dialog - Emissary Dajmir"},
+    {"type": "auto_path", "name": "To Melonni", "points": [[-2004, -13641]]},
+    {"type": "dialogs", "id": ["0x827A04", "0x84"], "npc": "MELONNI", "name": "Dialog - Melonni"},
+    {"type": "skip_cutscene"},
+    {"type": "auto_path", "name": "To Inscribed Wall", "points": [[-17887, -17582]]},
+    {"type": "dialogs", "id": ["0x827A04", "0x84", "0x85"], "npc": "INSCRIBED_WALL", "name": "Dialog - Inscribed Wall"},
+    {"type": "skip_cutscene"},
+    {"type": "skip_cutscene"},
+    {"type": "wait_for_map_load", "map_id": 491},
+    {"type": "auto_path", "name": "To Digmaster Gatah", "points": [[2943, 2079]]},
+    {"type": "dialog", "id": "0x827A07", "npc": "DIGMASTER_GATAH", "name": "Dialog - Digmaster Gatah"}
+  ]
+}

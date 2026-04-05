@@ -11,12 +11,10 @@ from Py4GWCoreLib.enums_src.Model_enums import ModelID
 
 from Sources.ApoSource.ApoBottingLib import wrappers as BT
 from .globals import *
+from .helpers import *
 
 
 def Sequence_001_Common() -> BehaviorTree:
-    TOWN_CRYER_COORDS: Vec2f = Vec2f(9954.21, -472.19)
-    SIR_TYDIUS_COORDS: Vec2f = Vec2f(11694.64, 3440.12)
-
     tree = BehaviorTree.SequenceNode(
         name="Starting common sequence",
         children=[
@@ -34,9 +32,7 @@ def Sequence_001_Common() -> BehaviorTree:
     return BehaviorTree(tree)
 
 def Warrior_001_Sequence() -> BehaviorTree:
-    VAN_THE_WARRIOR_COORDS: Vec2f = Vec2f(6123.73, 3952.56)
     SKALE_KILLSPOT_COORDS: Vec2f = Vec2f(4915.27, -2893.53)
-
     tree = BehaviorTree.SequenceNode(
         name="Warrior 001 sequence",
         children=[
@@ -55,7 +51,6 @@ def Warrior_001_Sequence() -> BehaviorTree:
 
 
 def Ranger_001_Sequence() -> BehaviorTree:
-    ARTEMIS_THE_RANGER_COORDS: Vec2f = Vec2f(6143.31, 4202.66)
     SKALE_KILLSPOT_COORDS: Vec2f = Vec2f(5702.27, -4308.52)
 
     tree = BehaviorTree.SequenceNode(
@@ -75,9 +70,7 @@ def Ranger_001_Sequence() -> BehaviorTree:
     return BehaviorTree(tree)
 
 def Monk_001_Sequence() -> BehaviorTree:
-    CIGIO_THE_MONK_COORDS: Vec2f = Vec2f(5983.98, 4181.18)
     SKALE_KILLSPOT_COORDS: Vec2f = Vec2f(4915.27, -2893.53)
-    GWEN_COORDS: Vec2f = Vec2f(3876.63, -4540.65)
     
     tree = BehaviorTree.SequenceNode(
         name="Monk 001 sequence",
@@ -90,7 +83,7 @@ def Monk_001_Sequence() -> BehaviorTree:
             LogMessage("Arrived to Skale killing spot."),
             BT.ClearEnemiesInArea(pos=SKALE_KILLSPOT_COORDS,radius=CLEAR_ENEMIES_AREA_RADIUS,),
             LogMessage("area is clear, moving to Gwen"),
-            BT.MoveAndInteract(GWEN_COORDS,target_distance=Range.Area.value),
+            BT.MoveAndInteract(LOST_GWEN_COORDS,target_distance=Range.Area.value),
             LogMessage("moving back to Cigio the Monk"),
             BT.MoveAndAutoDialog(CIGIO_THE_MONK_COORDS),
         ],
@@ -98,10 +91,8 @@ def Monk_001_Sequence() -> BehaviorTree:
     return BehaviorTree(tree)
 
 def Necromancer_001_Sequence() -> BehaviorTree:
-    VERATA_THE_NECROMANCER_COORDS: Vec2f = Vec2f(6158.20, 4195.64)
     SKALE_KILLSPOT_COORDS: Vec2f = Vec2f(4583.08, 726.40)
-    VERATA_THE_NECROMANCER_ENC_STRING: str = "\\x171C\\x8FE8\\xAFAD\\x61EC"
-
+    
     tree = BehaviorTree.SequenceNode(
         name="Necromancer 001 sequence",
         children=[
@@ -123,7 +114,6 @@ def Necromancer_001_Sequence() -> BehaviorTree:
 
 
 def Mesmer_001_Sequence() -> BehaviorTree:
-    SEBEDOH_THE_MESMER_COORDS: Vec2f = Vec2f(6251.90, 3891.17)
     SKALE_KILLSPOT_COORDS: Vec2f = Vec2f(4583.08, 726.40)
 
     tree = BehaviorTree.SequenceNode(
@@ -144,7 +134,6 @@ def Mesmer_001_Sequence() -> BehaviorTree:
 
 
 def Elementalist_001_Sequence() -> BehaviorTree:
-    HOWLAND_THE_ELEMENTALIST_COORDS: Vec2f = Vec2f(6123.73, 3952.56)
     SKALE_KILLSPOT_COORDS: Vec2f = Vec2f(4915.27, -2893.53)
     CLEANUP_MODEL_IDS: tuple[int, ...] = (ModelID.Shimmering_Scale.value,)
 
@@ -189,18 +178,8 @@ def Profession_Specific_Quest_001_Sequence() -> BehaviorTree:
     return BehaviorTree(tree)
 
 
-def Sequence_002_Common() -> BehaviorTree:
-    WAIT_FOR_HAVERSDAN_COORDS: Vec2f = Vec2f(5534.92, 3831.50)
+def Sequence_002_Common() -> BehaviorTree: 
     HAVERSDAN_WAIT_MS: int = 18000
-    HAVERSDAN_COORDS: Vec2f = Vec2f(5984.58, 3823.78)
-    PITNEY_COORDS: Vec2f = Vec2f(-8083.34, -15416.37)
-    DEVONA_COORDS: Vec2f = Vec2f(-7868.41, -15038.71)
-    MEERAK_COORDS: Vec2f = Vec2f(-12289.86, -6518.84)
-    
-    ASHFORD_ABBEY_MOVE_COORDS: Vec2f = Vec2f(-11890.0, -6071.0)
-    
-    AMIN_SABERLIN_COORDS_01: Vec2f = Vec2f(8284.25, 5596.36)
-    AMIN_SABERLIN_COORDS_02: Vec2f = Vec2f(11952.64, 3115.04)
 
     tree = BehaviorTree.SequenceNode(
         name="Starting common sequence",
@@ -216,15 +195,15 @@ def Sequence_002_Common() -> BehaviorTree:
             BT.MoveAndAutoDialog(pos=DEVONA_COORDS),
             BT.AutoDialog(),
             LogMessage("Moving to Ashford Abbey"),
-            BT.Move(ASHFORD_ABBEY_MOVE_COORDS),
+            BT.Move(GO_TO_ASHFORD_ABBEY_COORDS),
             BT.WaitForMapLoad(ASHFORD_ABBEY_MAP_ID),
             LogMessage("Moving to Meerak"),
             BT.MoveAndAutoDialog(MEERAK_COORDS),
             LogMessage("Traveling to Ascalon City to turn in quests"),
             BT.TravelToOutpost(ASCALON_CITY_MAP_ID),
             LogMessage("Turning in quests to Amin Saberlin"),
-            BT.Move(AMIN_SABERLIN_COORDS_01),
-            BT.MoveAndAutoDialog(AMIN_SABERLIN_COORDS_02),
+            BT.Move(AMIN_SABERLIN_COORDS[0]),
+            BT.MoveAndAutoDialog(AMIN_SABERLIN_COORDS[1]),
             BT.AutoDialog(),
             LogMessage("Routines complete"),
         ],
@@ -233,9 +212,9 @@ def Sequence_002_Common() -> BehaviorTree:
 
 
 
-def get_sequence_builders(module_name: str, print_to_console: bool = True) -> list[tuple[str, Callable[[], BehaviorTree]]]:
+def GetGettingStartedSequence(print_to_console: bool = True) -> list[tuple[str, Callable[[], BehaviorTree]]]:
     global MODULE_NAME, PRINT_TO_CONSOLE
-    MODULE_NAME = module_name
+    MODULE_NAME = "GettingStartedSequence"
     PRINT_TO_CONSOLE = print_to_console
     return [
         ("Sequence_001_Common", lambda: Sequence_001_Common()),

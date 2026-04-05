@@ -1,0 +1,28 @@
+{
+  "name": "Special Delivery",
+  "steps": [
+    {"type": "travel", "name": "Travel to Kamadan Jewel of Istan", "target_map_id": 449},
+    {"type": "auto_path", "name": "To First Spear Dehvad", "points": [[-7989, 9766]]},
+    {"type": "dialog", "id": "0x827D01", "npc": "FIRST_SPEAR_DEHVAD", "name": "Dialog - First Spear Dehvad"},
+    {"type": "auto_path", "name": "To Exit", "points": [[-7805, 14892], [-6932, 14939]]},
+    {"type": "exit_map", "name": "Leave Kamadan Jewel of Istan", "x": -5928, "y": 14961, "target_map_id": 543},
+    {"type": "auto_path", "name": "To Field General Hayao", "points": [[-3754, 14612]]},
+    {"type": "dialog", "id": "0x827D04", "npc": "FIELD_GENERAL_HAYAO", "name": "Dialog - Field General Hayao"},
+    {"type": "travel", "name": "Travel to Sunspear Great Hall", "target_map_id": 431},
+    {"type": "auto_path", "name": "To Castellan Puuba", "points": [[-4442, 5268], [-4090, 5389]]},
+    {"type": "dialog", "id": "0x827D04", "npc": "CASTELLAN_PUUBA", "name": "Dialog - Castellan Puuba"},
+    {"type": "travel", "name": "Travel to Kodlonu Hamlet", "target_map_id": 489},
+    {"type": "auto_path", "name": "To Exit", "points": [[-3426, -1765], [-4123, -2281]]},
+    {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true},
+    {"type": "exit_map", "name": "Leave Kodlonu Hamlet", "x": -4689, "y": -2313, "target_map_id": 486},
+    {"type": "auto_path", "name": "To Target Jerek", "points": [[26388, 6196], [22440, 2495], [15986, 1620], [14049, 1067]]},
+    {"type": "path_to_target", "name": "Target Jerek", "enemy": "JEREK"},
+    {"type": "wait", "ms": 3000},
+    {"type": "auto_path", "name": "To Jerek", "points": [[13938, 934]]},
+    {"type": "dialog", "id": "0x827D04", "npc": "JEREK", "name": "Dialog - Jerek"},
+    {"type": "travel", "name": "Travel to Outpost", "target_map_id": 489},
+    {"type": "travel", "name": "Travel to Sunspear Great Hall", "target_map_id": 431},
+    {"type": "auto_path", "name": "To Castellan Puuba", "points": [[-4071, 5342]]},
+    {"type": "dialog", "id": "0x827D07", "npc": "CASTELLAN_PUUBA", "name": "Dialog - Castellan Puuba"}
+  ]
+}

@@ -49,6 +49,7 @@ from ...Agent import Agent
 from ...Player import Player
 from ...Py4GWcorelib import ConsoleLog, Console
 from ...enums_src.GameData_enums import Range
+from ...native_src.internals.types import Vec2f
 from ...py4gwcorelib_src.BehaviorTree import BehaviorTree
 from ..Agents import Agents as RoutinesAgents
 from ..Checks import Checks
@@ -796,6 +797,7 @@ class BTAgents:
             state = {
                 "last_interact_ms": 0,
                 "last_target_id": 0,
+                "paused_for_looting": False,
             }
 
             def _get_enemies_in_area() -> list[int]:
@@ -827,11 +829,49 @@ class BTAgents:
                   UserDescription: Internal support routine.
                   Notes: Stores area and target data on the blackboard and throttles repeated interact attempts.
                 """
+                from typing import Any
+                from ...GlobalCache import GLOBAL_CACHE
+                from ... import SharedCommandType
+
+                def _get_pause_reason(node: BehaviorTree.Node) -> str:
+                    account_email: str = Player.GetAccountEmail()
+                    index: int
+                    message: Any
+                    index, message = GLOBAL_CACHE.ShMem.PreviewNextMessage(account_email)
+                    if (
+                        index != -1
+                        and message
+                        and message.Command == SharedCommandType.PickUpLoot
+                        and bool(getattr(message, "Running", False))
+                    ):
+                        return "loot_message_active"
+                    if Checks.Player.IsDead():
+                        return "player_dead"
+                    if bool(node.blackboard.get("PAUSE_MOVEMENT", False)):
+                        return "external_pause"
+                    if Checks.Player.IsCasting():
+                        return "casting"
+                    return ""
+                 
                 now = Utils.GetBaseTimestamp()
                 enemies = _get_enemies_in_area()
                 node.blackboard["clear_area_enemy_count"] = len(enemies)
                 node.blackboard["clear_area_center"] = (x, y)
                 node.blackboard["clear_area_radius"] = radius
+
+                pause_reason = _get_pause_reason(node)
+                if pause_reason:
+                    if log and not state["paused_for_looting"]:
+                        ConsoleLog(
+                            "ClearEnemiesInArea",
+                            f"Pausing clear-area routine near ({x}, {y}) due to {pause_reason}.",
+                            Console.MessageType.Info,
+                            log=log,
+                        )
+                    state["paused_for_looting"] = True
+                    return BehaviorTree.NodeState.RUNNING
+
+                state["paused_for_looting"] = False
 
                 if not enemies:
                     if log:

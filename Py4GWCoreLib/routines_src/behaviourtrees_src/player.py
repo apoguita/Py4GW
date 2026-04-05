@@ -47,10 +47,11 @@ from __future__ import annotations
 
 import importlib
 import random
-from typing import Callable
+from typing import Any, TYPE_CHECKING, Callable, TypedDict, cast
 
 from ...GlobalCache import GLOBAL_CACHE
 from ...Py4GWcorelib import ConsoleLog, Console, Vec2f
+from ...enums_src.GameData_enums import Range
 from ...Map import Map
 from ...Agent import Agent
 from ...Player import Player
@@ -60,35 +61,72 @@ from ...py4gwcorelib_src.BehaviorTree import BehaviorTree
 from ..Checks import Checks
 
 
-class _BTProxy:
-    """
-    Internal proxy that resolves the `BT` catalog lazily for player helper composition.
+Point2D = tuple[float, float]
 
-    Meta:
-      Expose: false
-      Audience: advanced
-      Display: Internal BT Proxy
-      Purpose: Provide lazy access to the shared BT helper catalog from the BT player module.
-      UserDescription: Internal support helper class.
-      Notes: This proxy exists for module wiring and is not part of the public BT routine catalog.
-    """
-    def __getattr__(self, name: str):
+
+class _MoveState(TypedDict):
+    path_gen: Any | None
+    path_points: list[Point2D] | None
+    path_index: int
+    last_distance: float | None
+    last_progress_ms: int | None
+    move_issued: bool
+    completed: bool
+    result_state: str
+    result_reason: str
+    initial_map_id: int | None
+    last_move_point: Point2D | None
+    pause_logged: bool
+    was_paused: bool
+    resume_recovery_active: bool
+    resume_recovery_reason: str
+    resume_recovery_restart_pending: bool
+    current_pause_reason: str
+    last_logged_waypoint_index: int
+    failure_details: dict[str, Any]
+
+
+class _TimeoutState(TypedDict):
+    started_ms: int | None
+    waypoint_index: int | None
+    paused_since_ms: int | None
+    paused_total_ms: int
+
+
+if TYPE_CHECKING:
+    from ..BehaviourTrees import BT as _BTCatalog
+
+    BT: type[_BTCatalog]
+else:
+    class _BTProxy:
         """
-        Resolve a BT helper group or attribute from the shared catalog on demand.
+        Internal proxy that resolves the `BT` catalog lazily for player helper composition.
 
         Meta:
           Expose: false
           Audience: advanced
-          Display: Internal BT Proxy Get Attribute
-          Purpose: Lazily fetch a named BT catalog attribute.
-          UserDescription: Internal support routine.
-          Notes: Used only for internal helper composition and should not be surfaced by discovery tooling.
+          Display: Internal BT Proxy
+          Purpose: Provide lazy access to the shared BT helper catalog from the BT player module.
+          UserDescription: Internal support helper class.
+          Notes: This proxy exists for module wiring and is not part of the public BT routine catalog.
         """
-        module = importlib.import_module('Py4GWCoreLib.routines_src.BehaviourTrees')
-        return getattr(module.BT, name)
+        def __getattr__(self, name: str) -> Any:
+            """
+            Resolve a BT helper group or attribute from the shared catalog on demand.
+
+            Meta:
+              Expose: false
+              Audience: advanced
+              Display: Internal BT Proxy Get Attribute
+              Purpose: Lazily fetch a named BT catalog attribute.
+              UserDescription: Internal support routine.
+              Notes: Used only for internal helper composition and should not be surfaced by discovery tooling.
+            """
+            module = importlib.import_module('Py4GWCoreLib.routines_src.BehaviourTrees')
+            return getattr(module.BT, name)
 
 
-BT = _BTProxy()
+    BT = _BTProxy()
 
 
 class BTPlayer:
@@ -104,7 +142,7 @@ class BTPlayer:
           Notes: Public `PascalCase` methods in this class are discovery candidates when marked exposed.
         """
         @staticmethod
-        def InteractAgent(agent_id:int, log:bool=False):
+        def InteractAgent(agent_id: int, log: bool = False) -> BehaviorTree:
             """
             Build a tree that interacts with a specific agent id.
 
@@ -116,7 +154,9 @@ class BTPlayer:
               UserDescription: Use this when you already know the agent id you want to interact with.
               Notes: Wraps a single player interact action with a short aftercast delay.
             """
-            def _interact_agent(agent_id:int):
+            aftercast_ms: int = 350
+             
+            def _interact_agent(agent_id: int) -> BehaviorTree.NodeState:
                 """
                 Interact with the provided agent id.
 
@@ -132,11 +172,11 @@ class BTPlayer:
                 ConsoleLog("InteractAgent", f"Interacted with agent {agent_id}.", Console.MessageType.Info, log=log)
                 return BehaviorTree.NodeState.SUCCESS
             
-            tree = BehaviorTree.ActionNode(name="InteractAgent", action_fn=lambda: _interact_agent(agent_id), aftercast_ms=250)
+            tree: BehaviorTree.ActionNode = BehaviorTree.ActionNode(name="InteractAgent", action_fn=lambda: _interact_agent(agent_id), aftercast_ms=aftercast_ms)
             return BehaviorTree(tree)
             
         @staticmethod
-        def InteractTarget(log:bool=False):
+        def InteractTarget(log: bool = False) -> BehaviorTree:
             """
             Build a tree that interacts with the currently selected target.
 
@@ -148,7 +188,7 @@ class BTPlayer:
               UserDescription: Use this when you want to interact with whatever is already targeted.
               Notes: Reads the target id first and then delegates to `InteractAgent`.
             """
-            def _get_target_id(node: BehaviorTree.Node):
+            def _get_target_id(node: BehaviorTree.Node) -> BehaviorTree.NodeState:
                 """
                 Read the current player target id and store it on the blackboard.
 
@@ -170,19 +210,17 @@ class BTPlayer:
                         Console.MessageType.Info, log=log)
                 return BehaviorTree.NodeState.SUCCESS
             
-            tree = BehaviorTree.SequenceNode(children=[
+            tree: BehaviorTree.SequenceNode = BehaviorTree.SequenceNode(children=[
                 BehaviorTree.ActionNode(
                     name="GetTargetID",
                     action_fn=lambda node:_get_target_id(node),
-                    aftercast_ms=0
+                    aftercast_ms=25
                 ),
-
-                #SubtreeNode factory receives *its own node* (with blackboard)
                 BehaviorTree.SubtreeNode(
-                    name="InteractAgent",
-                    subtree_fn=lambda node: BT.Player.InteractAgent(
-                        node.blackboard["target_id"],
-                        log=log
+                    name="InteractAgentSubtree",
+                    subtree_fn=lambda node: BTPlayer.InteractAgent(
+                        cast(int, node.blackboard["target_id"]),
+                        log=log,
                     ),
                 ),
             ])
@@ -190,7 +228,7 @@ class BTPlayer:
             return BehaviorTree(tree)
 
         @staticmethod
-        def ChangeTarget(agent_id, log:bool=False):
+        def ChangeTarget(agent_id: int, log: bool = False) -> BehaviorTree:
             """
             Build a tree that changes the player's target to a specific agent id.
 
@@ -202,7 +240,7 @@ class BTPlayer:
               UserDescription: Use this when you want to force targeting to a known agent id.
               Notes: Fails if the provided agent id is zero.
             """
-            def _change_target():
+            def _change_target() -> BehaviorTree.NodeState:
                 """
                 Change the player's target to the requested agent id.
 
@@ -222,11 +260,11 @@ class BTPlayer:
                 ConsoleLog("ChangeTarget", "Invalid agent ID provided for targeting.", Console.MessageType.Error, log=log)
                 return BehaviorTree.NodeState.FAILURE
             
-            tree = BehaviorTree.ActionNode(name="ChangeTarget", action_fn=lambda: _change_target(), aftercast_ms=250)
+            tree: BehaviorTree.ActionNode = BehaviorTree.ActionNode(name="ChangeTarget", action_fn=lambda: _change_target(), aftercast_ms=250)
             return BehaviorTree(tree)
         
         @staticmethod
-        def SendDialog(dialog_id:str | int, log:bool=False):
+        def SendDialog(dialog_id: str | int, log: bool = False) -> BehaviorTree:
             """
             Build a tree that sends a manual dialog id.
 
@@ -238,7 +276,7 @@ class BTPlayer:
               UserDescription: Use this when you know the dialog id that should be sent next.
               Notes: Wraps a single send-dialog action with a short aftercast delay.
             """
-            def _send_dialog(dialog_id):
+            def _send_dialog(dialog_id: str | int) -> BehaviorTree.NodeState:
                 """
                 Send the requested dialog id.
 
@@ -254,11 +292,11 @@ class BTPlayer:
                 ConsoleLog("SendDialog", f"Sent dialog {dialog_id}.", Console.MessageType.Info, log=log)
                 return BehaviorTree.NodeState.SUCCESS
             
-            tree = BehaviorTree.ActionNode(name="SendDialog", action_fn=lambda: _send_dialog(dialog_id), aftercast_ms=300)
+            tree: BehaviorTree.ActionNode = BehaviorTree.ActionNode(name="SendDialog", action_fn=lambda: _send_dialog(dialog_id), aftercast_ms=300)
             return BehaviorTree(tree)
 
         @staticmethod
-        def SendAutomaticDialog(button_number: int, log: bool = False):
+        def SendAutomaticDialog(button_number: int, log: bool = False) -> BehaviorTree:
             """
             Build a tree that waits for an automatic dialog and presses a visible button index.
 
@@ -277,7 +315,7 @@ class BTPlayer:
                 "started_ms": None,
             }
 
-            def _dialog_ready():
+            def _dialog_ready() -> BehaviorTree.NodeState:
                 """
                 Wait until the requested automatic dialog button is available.
 
@@ -306,7 +344,7 @@ class BTPlayer:
                             return BehaviorTree.NodeState.FAILURE
                         return BehaviorTree.NodeState.RUNNING
 
-                    buttons = list(PyDialog.PyDialog.get_active_dialog_buttons())
+                    buttons: list[Any] = list(PyDialog.PyDialog.get_active_dialog_buttons())
                 except Exception:
                     if now - int(state["started_ms"]) >= 3000:
                         ConsoleLog(
@@ -319,7 +357,7 @@ class BTPlayer:
                         return BehaviorTree.NodeState.FAILURE
                     return BehaviorTree.NodeState.RUNNING
 
-                available_buttons = [button for button in buttons if getattr(button, "dialog_id", 0) != 0]
+                available_buttons: list[Any] = [button for button in buttons if getattr(button, "dialog_id", 0) != 0]
                 if button_number >= len(available_buttons):
                     if now - int(state["started_ms"]) >= 3000:
                         ConsoleLog(
@@ -335,7 +373,7 @@ class BTPlayer:
                 state["started_ms"] = None
                 return BehaviorTree.NodeState.SUCCESS
 
-            def _send_automatic_dialog(button_number: int):
+            def _send_automatic_dialog(button_number: int) -> BehaviorTree.NodeState:
                 """
                 Press the requested automatic dialog button.
 
@@ -356,7 +394,7 @@ class BTPlayer:
                 )
                 return BehaviorTree.NodeState.SUCCESS
 
-            tree = BehaviorTree.SequenceNode(
+            tree: BehaviorTree.SequenceNode = BehaviorTree.SequenceNode(
                 name="SendAutomaticDialog",
                 children=[
                     BehaviorTree.ConditionNode(
@@ -366,7 +404,7 @@ class BTPlayer:
                     BehaviorTree.ActionNode(
                         name="SendAutomaticDialogAction",
                         action_fn=lambda: _send_automatic_dialog(button_number),
-                        aftercast_ms=300,
+                        aftercast_ms=350,
                     ),
                 ],
             )
@@ -411,7 +449,7 @@ class BTPlayer:
             )
         
         @staticmethod   
-        def SetTitle(title_id:int, log:bool=False):
+        def SetTitle(title_id: int, log: bool = False) -> BehaviorTree:
             """
             Build a tree that sets the active player title.
 
@@ -423,7 +461,7 @@ class BTPlayer:
               UserDescription: Use this when you want the player to switch to a specific title track.
               Notes: Logs the resolved title name when available.
             """
-            def _set_title(title_id:int):
+            def _set_title(title_id: int) -> BehaviorTree.NodeState:
                 """
                 Set the player's active title.
 
@@ -439,11 +477,11 @@ class BTPlayer:
                 ConsoleLog("SetTitle", f"Set title to {TITLE_NAME.get(title_id, 'Invalid')}.", Console.MessageType.Info, log=log)
                 return BehaviorTree.NodeState.SUCCESS
             
-            tree = BehaviorTree.ActionNode(name="SetTitle", action_fn=lambda: _set_title(title_id), aftercast_ms=300)
+            tree: BehaviorTree.ActionNode = BehaviorTree.ActionNode(name="SetTitle", action_fn=lambda: _set_title(title_id), aftercast_ms=300)
             return BehaviorTree(tree)
 
         @staticmethod
-        def SendChatCommand(command:str, log=False):
+        def SendChatCommand(command: str, log: bool = False) -> BehaviorTree:
             """
             Build a tree that sends a chat command.
 
@@ -455,7 +493,7 @@ class BTPlayer:
               UserDescription: Use this when you want a tree step to issue a chat command.
               Notes: Wraps a single chat command send with a short aftercast delay.
             """
-            def _send_chat_command(command:str):
+            def _send_chat_command(command: str) -> BehaviorTree.NodeState:
                 """
                 Send the requested chat command.
 
@@ -471,11 +509,11 @@ class BTPlayer:
                 ConsoleLog("SendChatCommand", f"Sent chat command: {command}.", Console.MessageType.Info, log=log)
                 return BehaviorTree.NodeState.SUCCESS
             
-            tree = BehaviorTree.ActionNode(name="SendChatCommand", action_fn=lambda: _send_chat_command(command), aftercast_ms=300)
+            tree: BehaviorTree.ActionNode = BehaviorTree.ActionNode(name="SendChatCommand", action_fn=lambda: _send_chat_command(command), aftercast_ms=300)
             return BehaviorTree(tree)
 
         @staticmethod
-        def BuySkill(skill_id: int, log: bool = False):
+        def BuySkill(skill_id: int, log: bool = False) -> BehaviorTree:
             """
             Build a tree that buys or learns a skill from a skill trainer.
 
@@ -487,7 +525,7 @@ class BTPlayer:
               UserDescription: Use this when the player is already at a trainer and you want to purchase a skill.
               Notes: Wraps a single buy-skill action with a short aftercast delay.
             """
-            def _buy_skill(skill_id: int):
+            def _buy_skill(skill_id: int) -> BehaviorTree.NodeState:
                 """
                 Send the requested buy-skill action.
 
@@ -503,11 +541,11 @@ class BTPlayer:
                 ConsoleLog("BuySkill", f"Buying skill {skill_id}.", Console.MessageType.Info, log=log)
                 return BehaviorTree.NodeState.SUCCESS
 
-            tree = BehaviorTree.ActionNode(name="BuySkill", action_fn=lambda: _buy_skill(skill_id), aftercast_ms=300)
+            tree: BehaviorTree.ActionNode = BehaviorTree.ActionNode(name="BuySkill", action_fn=lambda: _buy_skill(skill_id), aftercast_ms=300)
             return BehaviorTree(tree)
 
         @staticmethod
-        def UnlockBalthazarSkill(skill_id: int, use_pvp_remap: bool = True, log: bool = False):
+        def UnlockBalthazarSkill(skill_id: int, use_pvp_remap: bool = True, log: bool = False) -> BehaviorTree:
             """
             Build a tree that unlocks a skill from the Priest of Balthazar flow.
 
@@ -519,7 +557,7 @@ class BTPlayer:
               UserDescription: Use this when the player is already at the vendor and you want to unlock a skill.
               Notes: Can optionally remap the requested skill through the PvP skill id flow.
             """
-            def _unlock_balthazar_skill(skill_id: int, use_pvp_remap: bool):
+            def _unlock_balthazar_skill(skill_id: int, use_pvp_remap: bool) -> BehaviorTree.NodeState:
                 """
                 Send the requested Balthazar unlock action.
 
@@ -540,7 +578,7 @@ class BTPlayer:
                 )
                 return BehaviorTree.NodeState.SUCCESS
 
-            tree = BehaviorTree.ActionNode(
+            tree: BehaviorTree.ActionNode = BehaviorTree.ActionNode(
                 name="UnlockBalthazarSkill",
                 action_fn=lambda: _unlock_balthazar_skill(skill_id, use_pvp_remap),
                 aftercast_ms=300,
@@ -548,7 +586,7 @@ class BTPlayer:
             return BehaviorTree(tree)
 
         @staticmethod
-        def Resign(log:bool=False):
+        def Resign(log: bool = False) -> BehaviorTree:
             """
             Build a tree that resigns the player from the current party or map.
 
@@ -560,7 +598,7 @@ class BTPlayer:
               UserDescription: Use this when you want the player to resign from the current run.
               Notes: Implements resign by sending the `resign` chat command.
             """
-            def _resign():
+            def _resign() -> BehaviorTree.NodeState:
                 """
                 Send the resign command.
 
@@ -576,11 +614,11 @@ class BTPlayer:
                 ConsoleLog("Resign", "Resigned from party.", Console.MessageType.Info, log=log)
                 return BehaviorTree.NodeState.SUCCESS
 
-            tree = BehaviorTree.ActionNode(name="Resign", action_fn=lambda: _resign(), aftercast_ms=250)
+            tree: BehaviorTree.ActionNode = BehaviorTree.ActionNode(name="Resign", action_fn=lambda: _resign(), aftercast_ms=250)
             return BehaviorTree(tree)
 
         @staticmethod
-        def SendChatMessage(channel:str, message:str, log=False):
+        def SendChatMessage(channel: str, message: str, log: bool = False) -> BehaviorTree:
             """
             Build a tree that sends a chat message to a specific channel.
 
@@ -592,7 +630,7 @@ class BTPlayer:
               UserDescription: Use this when you want the player to post a message to chat from a tree step.
               Notes: Wraps a single chat send action with a short aftercast delay.
             """
-            def _send_chat_message(channel:str, message:str):
+            def _send_chat_message(channel: str, message: str) -> BehaviorTree.NodeState:
                 """
                 Send the requested chat message.
 
@@ -608,11 +646,11 @@ class BTPlayer:
                 ConsoleLog("SendChatMessage", f"Sent chat message to {channel}: {message}.", Console.MessageType.Info, log=log)
                 return BehaviorTree.NodeState.SUCCESS
             
-            tree = BehaviorTree.ActionNode(name="SendChatMessage", action_fn=lambda: _send_chat_message(channel, message), aftercast_ms=300)
+            tree: BehaviorTree.ActionNode = BehaviorTree.ActionNode(name="SendChatMessage", action_fn=lambda: _send_chat_message(channel, message), aftercast_ms=300)
             return BehaviorTree(tree)
 
         @staticmethod
-        def PrintMessageToConsole(source:str, message: str, message_type: int = Console.MessageType.Info):
+        def PrintMessageToConsole(source: str, message: str, message_type: int = Console.MessageType.Info) -> BehaviorTree:
             """
             Build a tree that prints a message to the console log.
 
@@ -624,7 +662,7 @@ class BTPlayer:
               UserDescription: Use this when you want a lightweight debug or progress step in a tree.
               Notes: Always logs to console and does not depend on the `log` flag pattern used elsewhere.
             """
-            def _print_message_to_console(source:str, message: str, message_type: int):
+            def _print_message_to_console(source: str, message: str, message_type: int) -> BehaviorTree.NodeState:
                 """
                 Print the requested message to the console log.
 
@@ -639,7 +677,7 @@ class BTPlayer:
                 ConsoleLog(source, message, message_type, log=True)
                 return BehaviorTree.NodeState.SUCCESS
              
-            tree = BehaviorTree.ActionNode(name="PrintMessageToConsole", action_fn=lambda: _print_message_to_console(source, message, message_type), aftercast_ms=100)
+            tree: BehaviorTree.ActionNode = BehaviorTree.ActionNode(name="PrintMessageToConsole", action_fn=lambda: _print_message_to_console(source, message, message_type), aftercast_ms=100)
             return BehaviorTree(tree)
 
         @staticmethod
@@ -660,7 +698,7 @@ class BTPlayer:
               UserDescription: Use this when you want later tree steps or UI code to read a structured message from the blackboard.
               Notes: Updates `last_log_message`, metadata, and bounded history keys on the blackboard.
             """
-            def _log_message_to_blackboard(node: BehaviorTree.Node):
+            def _log_message_to_blackboard(node: BehaviorTree.Node) -> BehaviorTree.NodeState:
                 """
                 Write a formatted message and metadata payload to the blackboard.
 
@@ -694,10 +732,10 @@ class BTPlayer:
                     milliseconds = timestamp_ms % 1_000
                     return f"{hours:02d}:{minutes:02d}:{seconds:02d}.{milliseconds:03d}"
 
-                timestamp = int(Utils.GetBaseTimestamp())
-                formatted_timestamp = _format_timestamp(timestamp)
-                body = f"[{source}] {message}" if include_source_in_message and source else message
-                full_message = f"[{formatted_timestamp}] {body}"
+                timestamp: int = int(Utils.GetBaseTimestamp())
+                formatted_timestamp: str = _format_timestamp(timestamp)
+                body: str = f"[{source}] {message}" if include_source_in_message and source else message
+                full_message: str = f"[{formatted_timestamp}] {body}"
                 node.blackboard[blackboard_key] = full_message
                 node.blackboard[f"{blackboard_key}_data"] = {
                     "timestamp": timestamp,
@@ -707,7 +745,7 @@ class BTPlayer:
                     "body": body,
                     "full_message": full_message,
                 }
-                history = node.blackboard.get(history_key, [])
+                history: list[str] | Any = node.blackboard.get(history_key, [])
                 if not isinstance(history, list):
                     history = []
                 history.append(full_message)
@@ -716,7 +754,7 @@ class BTPlayer:
                 node.blackboard[history_key] = history
                 return BehaviorTree.NodeState.SUCCESS
 
-            tree = BehaviorTree.ActionNode(
+            tree: BehaviorTree.ActionNode = BehaviorTree.ActionNode(
                 name="LogMessageToBlackboard",
                 action_fn=_log_message_to_blackboard,
                 aftercast_ms=0,
@@ -744,7 +782,7 @@ class BTPlayer:
               UserDescription: Use this when you want one routine to publish progress or status information to multiple outputs.
               Notes: Supports callable `to_console` evaluation and blackboard history storage.
             """
-            def _log_message(node: BehaviorTree.Node):
+            def _log_message(node: BehaviorTree.Node) -> BehaviorTree.NodeState:
                 """
                 Broadcast a formatted message to console, blackboard, or both.
 
@@ -778,14 +816,14 @@ class BTPlayer:
                     milliseconds = timestamp_ms % 1_000
                     return f"{hours:02d}:{minutes:02d}:{seconds:02d}.{milliseconds:03d}"
 
-                timestamp = int(Utils.GetBaseTimestamp())
-                formatted_timestamp = _format_timestamp(timestamp)
-                should_print_to_console = to_console() if callable(to_console) else to_console
+                timestamp: int = int(Utils.GetBaseTimestamp())
+                formatted_timestamp: str = _format_timestamp(timestamp)
+                should_print_to_console: bool = to_console() if callable(to_console) else to_console
                 if should_print_to_console:
                     ConsoleLog(source, message, message_type, log=True)
                 if to_blackboard:
-                    body = f"[{source}] {message}" if include_source_in_blackboard_message and source else message
-                    full_message = f"[{formatted_timestamp}] {body}"
+                    body: str = f"[{source}] {message}" if include_source_in_blackboard_message and source else message
+                    full_message: str = f"[{formatted_timestamp}] {body}"
                     node.blackboard[blackboard_key] = full_message
                     node.blackboard[f"{blackboard_key}_data"] = {
                         "timestamp": timestamp,
@@ -796,7 +834,7 @@ class BTPlayer:
                         "full_message": full_message,
                         "message_type": message_type,
                     }
-                    history = node.blackboard.get(history_key, [])
+                    history: list[str] | Any = node.blackboard.get(history_key, [])
                     if not isinstance(history, list):
                         history = []
                     history.append(full_message)
@@ -805,10 +843,10 @@ class BTPlayer:
                     node.blackboard[history_key] = history
                 return BehaviorTree.NodeState.SUCCESS
 
-            tree = BehaviorTree.ActionNode(
+            tree: BehaviorTree.ActionNode = BehaviorTree.ActionNode(
                 name="LogMessage",
                 action_fn=_log_message,
-                aftercast_ms=0,
+                aftercast_ms=100,
             )
             return BehaviorTree(tree)
 
@@ -829,7 +867,7 @@ class BTPlayer:
               UserDescription: Use this when later routing logic needs the player's primary profession name.
               Notes: Writes the resolved profession name to the configured blackboard key.
             """
-            def _store_profession_names(node: BehaviorTree.Node):
+            def _store_profession_names(node: BehaviorTree.Node) -> BehaviorTree.NodeState:
                 """
                 Resolve the player's primary profession name and store it on the blackboard.
 
@@ -841,6 +879,8 @@ class BTPlayer:
                   UserDescription: Internal support routine.
                   Notes: Writes the resolved profession name to the configured blackboard key and fails when resolution returns empty.
                 """
+                primary_name: str
+                secondary_name: str
                 primary_name, secondary_name = Agent.GetProfessionNames(Player.GetAgentID())
                 node.blackboard[blackboard_primary_key] = primary_name
                 node.blackboard[blackboard_secondary_key] = secondary_name
@@ -873,7 +913,7 @@ class BTPlayer:
         @staticmethod
         def SaveBlackboardValue(
             key: str,
-            value,
+            value: Any | Callable[[], Any],
             log: bool = False,
         ) -> BehaviorTree:
             """
@@ -887,7 +927,7 @@ class BTPlayer:
               UserDescription: Use this when later nodes need to read a value you want to save under a known key.
               Notes: Accepts either a literal value or a callable that is evaluated at runtime.
             """
-            def _save_blackboard_value(node: BehaviorTree.Node):
+            def _save_blackboard_value(node: BehaviorTree.Node) -> BehaviorTree.NodeState:
                 """
                 Save a literal or runtime-computed value into the blackboard.
 
@@ -899,7 +939,7 @@ class BTPlayer:
                   UserDescription: Internal support routine.
                   Notes: Callable inputs are evaluated at execution time.
                 """
-                resolved_value = value() if callable(value) else value
+                resolved_value: Any = value() if callable(value) else value
                 node.blackboard[key] = resolved_value
                 ConsoleLog(
                     "SaveBlackboardValue",
@@ -935,7 +975,7 @@ class BTPlayer:
               UserDescription: Use this when a later subtree expects a value under a specific blackboard key such as `result`.
               Notes: Fails when the source key is missing unless `fail_if_missing` is false.
             """
-            def _load_blackboard_value(node: BehaviorTree.Node):
+            def _load_blackboard_value(node: BehaviorTree.Node) -> BehaviorTree.NodeState:
                 """
                 Copy a blackboard value from the source key to the target key.
 
@@ -993,8 +1033,8 @@ class BTPlayer:
               UserDescription: Use this when a branch should only continue if a prior step saved a value.
               Notes: Checks key existence, not truthiness of the stored value.
             """
-            def _check_blackboard_value(node: BehaviorTree.Node):
-                exists = key in node.blackboard
+            def _check_blackboard_value(node: BehaviorTree.Node) -> bool:
+                exists: bool = key in node.blackboard
                 ConsoleLog(
                     "HasBlackboardValue",
                     f"Blackboard key '{key}' exists={exists}.",
@@ -1026,7 +1066,7 @@ class BTPlayer:
               UserDescription: Use this when a temporary blackboard value should be discarded before later steps run.
               Notes: Succeeds even if the key did not exist.
             """
-            def _clear_blackboard_value(node: BehaviorTree.Node):
+            def _clear_blackboard_value(node: BehaviorTree.Node) -> BehaviorTree.NodeState:
                 node.blackboard.pop(key, None)
                 ConsoleLog(
                     "ClearBlackboardValue",
@@ -1045,7 +1085,7 @@ class BTPlayer:
             )
          
         @staticmethod
-        def Wait(duration_ms: int, log: bool = False):
+        def Wait(duration_ms: int, log: bool = False) -> BehaviorTree:
             """
             Build a tree that waits for a fixed amount of time.
 
@@ -1057,7 +1097,7 @@ class BTPlayer:
               UserDescription: Use this when you want to insert a timed delay between BT steps.
               Notes: Logs the wait start when enabled and then uses `WaitForTimeNode` for the duration.
             """
-            def _wait_started():
+            def _wait_started() -> BehaviorTree.NodeState:
                 """
                 Log the beginning of the fixed wait step.
 
@@ -1072,7 +1112,7 @@ class BTPlayer:
                 ConsoleLog("Wait", f"Waiting for {duration_ms}ms.", Console.MessageType.Info, log=log)
                 return BehaviorTree.NodeState.SUCCESS
 
-            tree = BehaviorTree(
+            tree: BehaviorTree = BehaviorTree(
                 BehaviorTree.SequenceNode(
                     name="Wait",
                     children=[
@@ -1095,7 +1135,7 @@ class BTPlayer:
             pause_flag_key: str = "PAUSE_MOVEMENT",
             log: bool = False,
             path_points_override: list[tuple[float, float]] | None = None,
-        ):
+        ) -> BehaviorTree:
             """
             Build a tree that moves the player to target coordinates using autopathing and runtime recovery logic.
 
@@ -1107,7 +1147,7 @@ class BTPlayer:
               UserDescription: Use this when you want a robust movement routine that can pause, recover, and report progress through the blackboard.
               Notes: Writes movement state to the blackboard and uses a parallel runtime with move, timeout, and map-transition watchers.
             """
-            state = {
+            state: _MoveState = {
                 "path_gen": None,
                 "path_points": None,
                 "path_index": 0,
@@ -1129,7 +1169,7 @@ class BTPlayer:
                 "failure_details": {},
             }
 
-            def _reset_runtime():
+            def _reset_runtime() -> None:
                 """
                 Reset transient runtime movement state.
 
@@ -1158,7 +1198,7 @@ class BTPlayer:
                 state["last_logged_waypoint_index"] = -1
                 state["failure_details"] = {}
 
-            def _reset_result():
+            def _reset_result() -> None:
                 """
                 Reset completion and failure-result tracking for movement.
 
@@ -1175,7 +1215,7 @@ class BTPlayer:
                 state["result_reason"] = ""
                 state["failure_details"] = {}
 
-            def _set_blackboard(node: BehaviorTree.Node, move_state: str, reason: str = ""):
+            def _set_blackboard(node: BehaviorTree.Node, move_state: str, reason: str = "") -> None:
                 """
                 Publish movement state and path details to the blackboard.
 
@@ -1187,12 +1227,12 @@ class BTPlayer:
                   UserDescription: Internal support routine.
                   Notes: Updates move-state keys consumed by diagnostics, UI, and downstream BT logic.
                 """
-                path_points = [
+                path_points: list[Point2D] = [
                     (float(path_x), float(path_y))
                     for path_x, path_y in (state["path_points"] or [])
                 ]
-                current_waypoint = None
-                current_waypoint_index = -1
+                current_waypoint: Point2D | None = None
+                current_waypoint_index: int = -1
                 if state["path_points"] is not None and 0 <= state["path_index"] < len(state["path_points"]):
                     waypoint_x, waypoint_y = state["path_points"][state["path_index"]]
                     current_waypoint = (float(waypoint_x), float(waypoint_y))
@@ -1201,7 +1241,7 @@ class BTPlayer:
                 node.blackboard["move_state"] = move_state
                 node.blackboard["move_reason"] = reason
                 node.blackboard["move_target"] = (x, y)
-                total_points = len(path_points)
+                total_points: int = len(path_points)
                 node.blackboard["move_path_index"] = int(state["path_index"])
                 node.blackboard["move_path_count"] = int(total_points)
                 node.blackboard["move_path_points"] = path_points
@@ -1221,13 +1261,13 @@ class BTPlayer:
                   Expose: false
                   Audience: advanced
                   Display: Internal Debug Enabled Helper
-                  Purpose: Combine the routine log flag with blackboard debug overrides for movement logging.
+                  Purpose: Use the routine log flag to control movement debug logging.
                   UserDescription: Internal support routine.
-                  Notes: Reads `MOVE_DEBUG` from the blackboard when available.
+                  Notes: BT.Move should only emit verbose movement logs when the caller explicitly enables logging.
                 """
-                return log or (bool(node.blackboard.get("MOVE_DEBUG", False)) if node is not None else False)
+                return log
 
-            def _finalize_move(node: BehaviorTree.Node, move_state: str, reason: str = ""):
+            def _finalize_move(node: BehaviorTree.Node, move_state: str, reason: str = "") -> None:
                 """
                 Finalize movement with a terminal status and publish the result.
 
@@ -1243,16 +1283,16 @@ class BTPlayer:
                 state["result_state"] = move_state
                 state["result_reason"] = reason
                 if move_state == "failed":
-                    current_pos = Player.GetXY()
-                    waypoint = None
-                    distance_to_waypoint = None
-                    remaining_waypoints = 0
+                    current_pos: Point2D = Player.GetXY()
+                    waypoint: Point2D | None = None
+                    distance_to_waypoint: float | None = None
+                    remaining_waypoints: int = 0
                     if state["path_points"] is not None and 0 <= state["path_index"] < len(state["path_points"]):
                         waypoint = state["path_points"][state["path_index"]]
                         from ...Py4GWcorelib import Utils
                         distance_to_waypoint = Utils.Distance(current_pos, waypoint)
                         remaining_waypoints = len(state["path_points"]) - state["path_index"]
-                    failure_details = state.get("failure_details", {})
+                    failure_details: dict[str, Any] = state.get("failure_details", {})
                     ConsoleLog(
                         "Move",
                         (
@@ -1290,7 +1330,9 @@ class BTPlayer:
                   UserDescription: Internal support routine.
                   Notes: Returns an empty string when movement should continue normally.
                 """
-                account_email = Player.GetAccountEmail()
+                account_email: str = Player.GetAccountEmail()
+                index: int
+                message: Any
                 index, message = GLOBAL_CACHE.ShMem.PreviewNextMessage(account_email)
                 if (
                     index != -1
@@ -1309,7 +1351,7 @@ class BTPlayer:
                     return "casting"
                 return ""
 
-            def _issue_move(target_x: float, target_y: float):
+            def _issue_move(target_x: float, target_y: float) -> None:
                 """
                 Send a move command toward the current waypoint.
 
@@ -1321,14 +1363,14 @@ class BTPlayer:
                   UserDescription: Internal support routine.
                   Notes: Records the last issued move point so repeated nudges can avoid exact duplicates.
                 """
-                move_x = target_x
-                move_y = target_y
-                last_move_point = state["last_move_point"]
+                move_x: float = target_x
+                move_y: float = target_y
+                last_move_point: Point2D | None = state["last_move_point"]
                 if last_move_point is not None:
                     last_x, last_y = last_move_point
                     if abs(move_x - last_x) <= 10 and abs(move_y - last_y) <= 10:
-                        move_x += random.uniform(-5.0, 5.0)
-                        move_y += random.uniform(-5.0, 5.0)
+                        move_x += random.uniform(-7.5, 7.5)
+                        move_y += random.uniform(-7.5, 7.5)
                 Player.Move(move_x, move_y)
                 state["last_move_point"] = (move_x, move_y)
                 if log:
@@ -1342,7 +1384,7 @@ class BTPlayer:
                     else:
                         ConsoleLog("Move", f"Moving to waypoint ({target_x}, {target_y}).", Console.MessageType.Info, log=log)
 
-            def _move(node: BehaviorTree.Node):
+            def _move(node: BehaviorTree.Node) -> BehaviorTree.NodeState:
                 """
                 Drive the main movement execution loop.
 
@@ -1357,7 +1399,7 @@ class BTPlayer:
                 from ...Pathing import AutoPathing
                 from ...Py4GWcorelib import Utils
 
-                now = Utils.GetBaseTimestamp()
+                now: int = Utils.GetBaseTimestamp()
                 if state["completed"] and state["result_state"] == "finished":
                     if log:
                         ConsoleLog("Move", f"Movement already finished ({state['result_reason']}).", Console.MessageType.Info, log=log)
@@ -1420,7 +1462,7 @@ class BTPlayer:
                                 log=True,
                             )
 
-                        current_pos = Player.GetXY()
+                        current_pos: Point2D = Player.GetXY()
                         if Utils.Distance(current_pos, (x, y)) <= tolerance:
                             if _debug_enabled(node):
                                 ConsoleLog("Move", "Already within tolerance of destination.", Console.MessageType.Success, log=True)
@@ -1447,7 +1489,7 @@ class BTPlayer:
                     _set_blackboard(node, "paused", "player_dead")
                     return BehaviorTree.NodeState.RUNNING
 
-                pause_reason = _get_pause_reason(node)
+                pause_reason: str = _get_pause_reason(node)
                 if pause_reason:
                     if not state["pause_logged"] and log:
                             ConsoleLog("Move", f"Movement paused due to {pause_reason}.", Console.MessageType.Info, log=log)
@@ -1492,8 +1534,8 @@ class BTPlayer:
                         log=log,
                     )
                     state["last_logged_waypoint_index"] = state["path_index"]
-                current_pos = Player.GetXY()
-                current_distance = Utils.Distance(current_pos, (target_x, target_y))
+                current_pos: Point2D = Player.GetXY()
+                current_distance: float = Utils.Distance(current_pos, (target_x, target_y))
 
                 if current_distance <= tolerance:
                     state["path_index"] += 1
@@ -1546,14 +1588,14 @@ class BTPlayer:
                 _set_blackboard(node, "running")
                 return BehaviorTree.NodeState.RUNNING
 
-            timeout_state = {
+            timeout_state: _TimeoutState = {
                 "started_ms": None,
                 "waypoint_index": None,
                 "paused_since_ms": None,
                 "paused_total_ms": 0,
             }
 
-            def _reset_timeout():
+            def _reset_timeout() -> None:
                 """
                 Reset timeout watcher state for the current waypoint.
 
@@ -1570,7 +1612,7 @@ class BTPlayer:
                 timeout_state["paused_since_ms"] = None
                 timeout_state["paused_total_ms"] = 0
 
-            def _timeout(node: BehaviorTree.Node):
+            def _timeout(node: BehaviorTree.Node) -> BehaviorTree.NodeState:
                 """
                 Watch the active waypoint for movement timeout conditions.
 
@@ -1584,8 +1626,8 @@ class BTPlayer:
                 """
                 from ...Py4GWcorelib import Utils
 
-                pause_reason = _get_pause_reason(node)
-                is_paused = bool(pause_reason)
+                pause_reason: str = _get_pause_reason(node)
+                is_paused: bool = bool(pause_reason)
                 if state["completed"] and state["result_state"] == "finished":
                     if log:
                         ConsoleLog("Move", f"Timeout watcher finished because movement succeeded ({state['result_reason']}).", Console.MessageType.Info, log=log)
@@ -1598,7 +1640,7 @@ class BTPlayer:
                     _reset_timeout()
                     return BehaviorTree.NodeState.SUCCESS
 
-                now = Utils.GetBaseTimestamp()
+                now: int = Utils.GetBaseTimestamp()
 
                 if is_paused:
                     _reset_timeout()
@@ -1627,13 +1669,13 @@ class BTPlayer:
                     state["resume_recovery_restart_pending"] = False
                     return BehaviorTree.NodeState.RUNNING
 
-                RECOVERY_FACTOR=3
-                elapsed_ms = now - timeout_state["started_ms"] - timeout_state["paused_total_ms"]
-                effective_timeout_ms = timeout_ms * RECOVERY_FACTOR if state["resume_recovery_active"] else timeout_ms
+                RECOVERY_FACTOR: int = 3
+                elapsed_ms: int = now - cast(int, timeout_state["started_ms"]) - timeout_state["paused_total_ms"]
+                effective_timeout_ms: int = timeout_ms * RECOVERY_FACTOR if state["resume_recovery_active"] else timeout_ms
                 if effective_timeout_ms > 0 and elapsed_ms >= effective_timeout_ms:
-                    current_pos = Player.GetXY()
-                    waypoint = None
-                    distance_to_waypoint = None
+                    current_pos: Point2D = Player.GetXY()
+                    waypoint: Point2D | None = None
+                    distance_to_waypoint: float | None = None
                     if state["path_points"] is not None and 0 <= state["path_index"] < len(state["path_points"]):
                         waypoint = state["path_points"][state["path_index"]]
                         distance_to_waypoint = Utils.Distance(current_pos, waypoint)
@@ -1672,7 +1714,7 @@ class BTPlayer:
 
                 return BehaviorTree.NodeState.RUNNING
 
-            def _map_transition(node: BehaviorTree.Node):
+            def _map_transition(node: BehaviorTree.Node) -> BehaviorTree.NodeState:
                 """
                 Detect successful completion through map loading or map change.
 
@@ -1690,10 +1732,10 @@ class BTPlayer:
                 if state["completed"] and state["result_state"] == "failed":
                     return BehaviorTree.NodeState.SUCCESS
 
-                current_map_id = Map.GetMapID()
-                initial_map_id = int(state["initial_map_id"] or 0)
-                map_loading = Map.IsMapLoading()
-                map_changed = (
+                current_map_id: int = Map.GetMapID()
+                initial_map_id: int = int(state["initial_map_id"] or 0)
+                map_loading: bool = Map.IsMapLoading()
+                map_changed: bool = (
                     initial_map_id != 0
                     and current_map_id != 0
                     and current_map_id != initial_map_id
@@ -1742,7 +1784,7 @@ class BTPlayer:
                     _reset_result()
                     _reset_timeout()
 
-            tree = _MoveParallelNode(
+            tree: _MoveParallelNode = _MoveParallelNode(
                 name="Move",
                 children=[move_node, timeout_node, map_transition_node],
             )
@@ -1757,7 +1799,7 @@ class BTPlayer:
             pause_on_combat: bool = True,
             pause_flag_key: str = "PAUSE_MOVEMENT",
             log: bool = False,
-        ):
+        ) -> BehaviorTree:
             """
             Build a tree that follows caller-supplied waypoints using the same movement runtime as `Move`.
 
@@ -1792,4 +1834,15 @@ class BTPlayer:
                 ],
             )
         
+
+        @staticmethod
+        def MoveAndKill(coords: Vec2f, clear_area_radius: float = Range.Spirit.value) -> BehaviorTree:
+            tree = BehaviorTree.SequenceNode(
+                name="Move and Kill",
+                children=[
+                    BTPlayer.Move(x=coords.x, y=coords.y),
+                    BT.Agents.ClearEnemiesInArea(x=coords.x, y=coords.y, radius=clear_area_radius),
+                ],
+            )
+            return BehaviorTree(tree)
 

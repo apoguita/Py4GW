@@ -23,6 +23,23 @@ def resolve_active_engine() -> str:
     return ENGINE_NONE
 
 
+def resolve_engine_for_bot(bot=None, preferred_engine: str | None = None) -> str:
+    """
+    Resolve combat engine using explicit preference first, then bot-pinned startup
+    engine, then live widget detection.
+    """
+    explicit = str(preferred_engine or "").strip().lower()
+    if explicit in (ENGINE_CUSTOM_BEHAVIORS, ENGINE_HERO_AI, ENGINE_NONE):
+        return explicit
+
+    cfg = getattr(bot, "config", None) if bot is not None else None
+    pinned = str(getattr(cfg, "_modular_start_engine", "") or "").strip().lower()
+    if pinned in (ENGINE_CUSTOM_BEHAVIORS, ENGINE_HERO_AI, ENGINE_NONE):
+        return pinned
+
+    return resolve_active_engine()
+
+
 def _iter_same_party_accounts(include_self: bool = False) -> list:
     my_email = Player.GetAccountEmail()
     me = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(my_email)
@@ -46,11 +63,11 @@ def _iter_same_party_accounts(include_self: bool = False) -> list:
     return accounts
 
 
-def is_party_looting_enabled() -> bool:
+def is_party_looting_enabled(bot=None, preferred_engine: str | None = None) -> bool:
     """
     Return whether looting is currently enabled for the active combat backend.
     """
-    engine = resolve_active_engine()
+    engine = resolve_engine_for_bot(bot, preferred_engine)
     if engine == ENGINE_CUSTOM_BEHAVIORS:
         try:
             from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import (
@@ -72,12 +89,17 @@ def is_party_looting_enabled() -> bool:
     return False
 
 
-def party_loot_wait_required(search_range: float | None = None) -> bool:
+def party_loot_wait_required(
+    search_range: float | None = None,
+    *,
+    bot=None,
+    preferred_engine: str | None = None,
+) -> bool:
     """
     Check whether party-shared loot is still pending near the player.
     Mirrors CB utility logic used by WaitIfPartyMemberNeedsToLootUtility.
     """
-    if not is_party_looting_enabled():
+    if not is_party_looting_enabled(bot=bot, preferred_engine=preferred_engine):
         return False
 
     try:
@@ -106,8 +128,8 @@ def _set_hero_ai_option_for_same_party(option_name: str, value) -> int:
     return changed
 
 
-def set_auto_combat(enabled: bool) -> None:
-    engine = resolve_active_engine()
+def set_auto_combat(enabled: bool, preferred_engine: str | None = None, bot=None) -> None:
+    engine = resolve_engine_for_bot(bot, preferred_engine)
     if engine == ENGINE_CUSTOM_BEHAVIORS:
         from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import (
             CustomBehaviorParty,
@@ -120,8 +142,8 @@ def set_auto_combat(enabled: bool) -> None:
         _set_hero_ai_option_for_same_party("Combat", bool(enabled))
 
 
-def set_auto_looting(enabled: bool) -> None:
-    engine = resolve_active_engine()
+def set_auto_looting(enabled: bool, preferred_engine: str | None = None, bot=None) -> None:
+    engine = resolve_engine_for_bot(bot, preferred_engine)
     if engine == ENGINE_CUSTOM_BEHAVIORS:
         from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import (
             CustomBehaviorParty,
@@ -134,8 +156,8 @@ def set_auto_looting(enabled: bool) -> None:
         _set_hero_ai_option_for_same_party("Looting", bool(enabled))
 
 
-def set_party_target(target_agent_id: int) -> None:
-    engine = resolve_active_engine()
+def set_party_target(target_agent_id: int, preferred_engine: str | None = None, bot=None) -> None:
+    engine = resolve_engine_for_bot(bot, preferred_engine)
     if engine == ENGINE_CUSTOM_BEHAVIORS:
         from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import (
             CustomBehaviorParty,
@@ -149,8 +171,8 @@ def set_party_target(target_agent_id: int) -> None:
         ActionQueueManager().AddAction("ACTION", Keystroke.PressAndReleaseCombo, [Key.Ctrl.value, Key.Space.value])
 
 
-def flag_all_accounts(x: float, y: float) -> int:
-    engine = resolve_active_engine()
+def flag_all_accounts(x: float, y: float, preferred_engine: str | None = None, bot=None) -> int:
+    engine = resolve_engine_for_bot(bot, preferred_engine)
     if engine == ENGINE_CUSTOM_BEHAVIORS:
         from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import (
             CustomBehaviorParty,
@@ -191,8 +213,8 @@ def flag_all_accounts(x: float, y: float) -> int:
     return 0
 
 
-def unflag_all_accounts() -> int:
-    engine = resolve_active_engine()
+def unflag_all_accounts(preferred_engine: str | None = None, bot=None) -> int:
+    engine = resolve_engine_for_bot(bot, preferred_engine)
     if engine == ENGINE_CUSTOM_BEHAVIORS:
         from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import (
             CustomBehaviorParty,
