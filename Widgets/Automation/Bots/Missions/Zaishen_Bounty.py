@@ -211,6 +211,10 @@ def bot_routine(bot: Botting) -> None:
     # Pre-calculate the first bounty header name for looping.
     first_bounty_header = _bounty_header_names[0]
 
+    # -------------------------------------------------------------------------
+    # Build FSM states for each bounty
+    # -------------------------------------------------------------------------
+
     for b_idx, bounty in enumerate(_queued_bounties):
         is_last = (b_idx == len(_queued_bounties) - 1)
 

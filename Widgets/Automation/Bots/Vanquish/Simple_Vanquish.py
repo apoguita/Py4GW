@@ -151,34 +151,11 @@ def _get_first_path_coord(path):
         return (first[0], first[1])
 
 
-def _get_last_path_coord(path):
-    """Extract the last (x,y) coordinate from any path format."""
-    if not path:
-        return (0.0, 0.0)
-    last = path[-1]
-    if isinstance(last, dict):
-        for entry in reversed(path):
-            for key in reversed(list(entry.keys())):
-                value = entry[key]
-                if key == "path" and value:
-                    return (value[-1][0], value[-1][1])
-        return (0.0, 0.0)
-    elif isinstance(last, list):
-        for segment in reversed(path):
-            for key, value in reversed(segment):
-                if key == "path" and value:
-                    return (value[-1][0], value[-1][1])
-        return (0.0, 0.0)
-    else:
-        return (last[0], last[1])
-
-
 def _set_section_header(header_name, first_x, first_y):
     """Update the current section header and first waypoint for OnWipe recovery."""
     global _current_section_header
     _current_section_header = (header_name, first_x, first_y)
     yield
-
 
 
 def _build_reversed_path(vanquish_path):
@@ -217,7 +194,7 @@ def _build_reversed_path(vanquish_path):
 # =============================================================================
 # region BOT ROUTINE
 # =============================================================================
-def Radar(bot: "Botting", radar_range: int = 4000):
+def Radar(bot: "Botting", radar_range: int = 3500):
     ConsoleLog("Radar", f"Radar coroutine started (range={radar_range}).", Py4GW.Console.MessageType.Debug, True)
     while True:
         player_x, player_y = Player.GetXY()
