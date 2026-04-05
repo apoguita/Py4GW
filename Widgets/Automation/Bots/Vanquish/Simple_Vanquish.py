@@ -361,8 +361,7 @@ def bot_routine(bot: Botting) -> None:
                 t_coord = _get_first_path_coord(vq.transit_paths[i])
                 bot.States.AddCustomState(lambda vi=vq_idx, si=section_idx, tc=t_coord: _set_section_header(_section_headers[vi][si], tc[0], tc[1]),
                                           f"SetSection_Transit_{vq_idx}_{i}")
-                if i == 0:
-                    if _restock_pcons:
+                if _restock_pcons:
                         bot.Multibox.UsePcons()
                 _register_path(bot, vq.transit_paths[i], header_name=f"Transit_{vq_idx}_{i}")
                 bot.Wait.ForMapToChange(next_map)
@@ -721,6 +720,9 @@ bot.UI.override_draw_config(lambda: _draw_settings())
 bot.UI.override_draw_help(lambda: _draw_help())
 
 def main():
+    if not Routines.Checks.Map.MapValid():
+        return
+    
     bot.UI.draw_window(icon_path=TEXTURE)
 
     if _queued_vanquishes:
