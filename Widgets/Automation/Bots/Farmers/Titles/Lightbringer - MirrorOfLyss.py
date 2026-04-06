@@ -139,6 +139,9 @@ def bot_routine(bot: Botting) -> None:
     #events
     condition = lambda: OnPartyWipe(bot)
     bot.Events.OnPartyWipeCallback(condition)
+    bot.Events.OnPartyMemberBehindCallback(lambda: bot.Templates.Routines.OnPartyMemberBehind())
+    bot.Events.OnPartyMemberInDangerCallback(lambda: bot.Templates.Routines.OnPartyMemberInDanger())
+    bot.Events.OnPartyMemberDeadBehindCallback(lambda: bot.Templates.Routines.OnPartyMemberDeathBehind())
     #end events
 
     # Combat preparations
@@ -459,6 +462,7 @@ def _setup_heroes(bot: Botting):
             if template:
                 GLOBAL_CACHE.SkillBar.LoadHeroSkillTemplate(position, template)
             yield from bot.Wait._coro_for_time(500)
+
 
 
 def _do_bounty_interaction(bot: Botting):
