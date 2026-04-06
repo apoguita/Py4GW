@@ -49,7 +49,8 @@ from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorStat
 # ║  [X] Pcons not applied mid-run — only triggered on map load;                           
 # ║      ensure UseConset/UsePcons is called after entering the dungeon   
 # ║  [ ] Add Questreward for all accounts   
-# ║  [ ] Fix runaway at 4H quest        
+# ║  [ ] Fix runaway at 4H quest   
+# ║  [ ] Add Target Priority Management       
 # ║                                                                  
 # ╚══════════════════════════════════════════════════════════════════
 
@@ -189,6 +190,7 @@ _blacklist_draw_points: list[tuple[float, float]] = []  # legacy, kept for compa
 _active_move_path_3d: list[tuple[float, float, float]] = []  # current move path drawn every frame
 _pending_wipe_recovery: bool = False   # set by coroutine; consumed by main() before bot.Update()
 _pending_wipe_reason:   str  = ""      # human-readable label logged when the restart fires
+_planned_resign:        bool = False   # set before an intentional resign so OnPartyWipe is suppressed
 _DEBUG_LOG_MAX = 120
 _debug_watchdog_log: deque[str] = deque(maxlen=_DEBUG_LOG_MAX)
 
@@ -1480,6 +1482,7 @@ def Wrathfull_Spirits(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _record_quest_done("Wrathfull Spirits"), "Record Wrathfull Spirits done")
 
 def Unwanted_Guests(bot_instance: Botting):
+    bot_instance.Properties.ApplyNow("draw_path", "active", False)
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
     bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(True), "Enable MoveToPartyMemberIfDead")
@@ -1548,6 +1551,7 @@ def Unwanted_Guests(bot_instance: Botting):
     _move_with_unstuck(bot_instance, 1256, 4623, "6th Keeper killed")
 
     _unblacklist(bot_instance, "obsidian behemoth")
+    bot_instance.Properties.ApplyNow("draw_path", "active", True)
     bot_instance.States.AddCustomState(lambda: _record_quest_done("Unwanted Guests"), "Record Unwanted Guests done")
 
 def Restore_Wastes(bot_instance: Botting):
@@ -1975,12 +1979,37 @@ def _do_inventory_refill(bot_instance: Botting) -> None:
 
     # ── Restock Cons from Xunlai Chest ────────────────────────────────
     if InventorySettings.RestockCons and BotSettings.UseCons:
+        # Snapshot inactive pcons and their original restock quantities at schedule time.
+        # Used to prevent handle_restock_cons from enabling inactive pcons via its internal
+        # _enable_restock_properties step (which enables any property that has qty > 0).
+        _inactive_pcon_qtys: dict[str, int] = {
+            p: ConsSettings.get_restock(p)
+            for p, _, _, _ in _CONS_DEFS
+            if not ConsSettings.is_active(p)
+        }
+
+        def _zero_inactive_restock_qty() -> None:
+            # Zero out restock_quantity for inactive pcons so that
+            # _enable_restock_properties (inside handle_restock_cons) cannot enable them.
+            for prop in _inactive_pcon_qtys:
+                if bot_instance.Properties.exists(prop):
+                    bot_instance.Properties.ApplyNow(prop, "restock_quantity", 0)
+
+        def _restore_inactive_restock_qty() -> None:
+            # Restore original restock quantities after all restock states have run.
+            for prop, qty in _inactive_pcon_qtys.items():
+                if bot_instance.Properties.exists(prop):
+                    bot_instance.Properties.ApplyNow(prop, "restock_quantity", qty)
+
+        bot_instance.States.AddCustomState(_zero_inactive_restock_qty, "Zero Inactive Pcon Restock Qty")
         # Restock for the leader account from its own Xunlai chest.
         handle_restock_cons(_make_ctx({"type": "restock_cons", "name": "Restock Consumables"}))
+        bot_instance.States.AddCustomState(_restore_inactive_restock_qty, "Restore Inactive Pcon Restock Qty")
         # Broadcast restock commands to all other accounts so they each
         # withdraw from their own Xunlai chest as well.
-        bot_instance.Multibox.RestockConset(max(ConsSettings._restock.get(p, 0) for p in ("armor_of_salvation", "essence_of_celerity", "grail_of_might")))
-        bot_instance.Multibox.RestockAllPcons(max(ConsSettings._restock.get(p, 0) for p in ("birthday_cupcake", "candy_apple", "candy_corn", "golden_egg", "slice_of_pumpkin_pie", "honeycomb", "drake_kabob", "bowl_of_skalefin_soup", "pahnai_salad", "war_supplies")))
+        # Only use quantity from active pcons; inactive ones get 0.
+        bot_instance.Multibox.RestockConset(max((ConsSettings._restock.get(p, 0) if ConsSettings.is_active(p) else 0) for p in ("armor_of_salvation", "essence_of_celerity", "grail_of_might")))
+        bot_instance.Multibox.RestockAllPcons(max((ConsSettings._restock.get(p, 0) if ConsSettings.is_active(p) else 0) for p in ("birthday_cupcake", "candy_apple", "candy_corn", "golden_egg", "slice_of_pumpkin_pie", "honeycomb", "drake_kabob", "bowl_of_skalefin_soup", "pahnai_salad", "war_supplies")))
         bot_instance.Wait.ForTime(3000)
 
     # ── Sell Materials ────────────────────────────────────────────────
@@ -2006,10 +2035,20 @@ def _do_inventory_refill(bot_instance: Botting) -> None:
         handle_buy_ectoplasm(_make_ctx({"type": "buy_ectoplasm", "name": "Buy Ectoplasm", "use_storage_gold": False, "multibox": True, "ms": 5000}))
 
 
+def _set_planned_resign() -> None:
+    global _planned_resign
+    _planned_resign = True
+
+
 def ResignAndRepeat(bot_instance: Botting):
     bot_instance.States.AddCustomState(_log_successful_run, "Log Successful Run")
     if BotSettings.Repeat:
+        bot_instance.States.AddCustomState(_set_planned_resign, "Flag Planned Resign")
         bot_instance.Multibox.ResignParty()
+        bot_instance.States.AddCustomState(
+            lambda: _restart_main_loop(bot_instance, "Successful run"),
+            "Restart Main Loop",
+        )
 
 
 def _log_successful_run() -> None:
@@ -2389,7 +2428,7 @@ def _draw_quest_settings():
     mode_idx = 0 if BotSettings.BotMode == "custom_behavior" else 1
     new_mode_idx = PyImGui.radio_button("Custom Behavior##botmode", mode_idx, 0)
     PyImGui.same_line(0, -1)
-    new_mode_idx = PyImGui.radio_button("HeroAI##botmode", new_mode_idx, 1)
+    new_mode_idx = PyImGui.radio_button("HeroAI (not working)##botmode", new_mode_idx, 1)
     BotSettings.BotMode = "custom_behavior" if new_mode_idx == 0 else "heroai"
     _current = (BotSettings.Repeat, BotSettings.UseCons, BotSettings.HardMode, BotSettings.BotMode)
     if _current != _snapshot:
@@ -2597,6 +2636,11 @@ def _log_wipe_step(fsm) -> None:
 
 
 def OnPartyWipe(bot: "Botting"):
+    global _planned_resign
+    if _planned_resign:
+        _planned_resign = False
+        ConsoleLog(BOT_NAME, "[WIPE] Party wipe after planned resign – ignored.", Py4GW.Console.MessageType.Info)
+        return
     fsm = bot.config.FSM
     _log_wipe_step(fsm)
     fsm.pause()
