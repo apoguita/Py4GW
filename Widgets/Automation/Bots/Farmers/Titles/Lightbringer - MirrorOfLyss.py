@@ -610,6 +610,8 @@ _session_start_times: dict[str, float] = {}
 
 def _get_title_track_accounts():
     accounts = list(GLOBAL_CACHE.ShMem.GetAllAccountData())
+    if _party_mode == 1:
+        return accounts if accounts else []
     own_email = Player.GetAccountEmail()
     filtered = [account for account in accounts if getattr(account, "AccountEmail", "") == own_email]
     if filtered:
