@@ -17,6 +17,7 @@ from Sources.oazix.CustomBehaviors.skills.ritualist.mend_body_and_soul_utility i
 from Sources.oazix.CustomBehaviors.skills.ritualist.mending_grip_utility import MendingGripUtility
 from Sources.oazix.CustomBehaviors.skills.ritualist.protective_was_kaolai_utility import ProtectiveWasKaolaiUtility
 from Sources.oazix.CustomBehaviors.skills.ritualist.spirit_light_utility import SpiritLightUtility
+from Sources.oazix.CustomBehaviors.skills.ritualist.soothing_utility import SoothingUtility
 from Sources.oazix.CustomBehaviors.skills.ritualist.spirit_transfer_utility import SpiritTransferUtility
 from Sources.oazix.CustomBehaviors.skills.ritualist.xinraes_weapon_utility import XinraesWeaponUtility
 from Sources.oazix.CustomBehaviors.skills.common.you_are_all_weaklings_utility import YouAreAllWeaklingsUtility
@@ -42,6 +43,7 @@ class NecromancerXinraeRestoration_UtilitySkillBar(CustomBehaviorBaseUtility):
         self.breath_of_the_great_dwarf_utility: CustomSkillUtilityBase = BreathOfTheGreatDwarfUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScorePerHealthGravityDefinition(9))
         self.mending_grip_utility: CustomSkillUtilityBase = MendingGripUtility(event_bus=self.event_bus, current_build=in_game_build)
         self.weaken_armor_utility: CustomSkillUtilityBase = WeakenArmorUtility(event_bus=self.event_bus, current_build=in_game_build)
+        self.soothing_utility: CustomSkillUtilityBase = SoothingUtility(event_bus=self.event_bus, current_build=in_game_build)
 
         # common
         self.ebon_vanguard_assassin_support: CustomSkillUtilityBase = EbonVanguardAssassinSupportUtility(event_bus=self.event_bus, score_definition=ScoreStaticDefinition(71), current_build=in_game_build, mana_required_to_cast=15)
@@ -63,6 +65,7 @@ class NecromancerXinraeRestoration_UtilitySkillBar(CustomBehaviorBaseUtility):
             self.breath_of_the_great_dwarf_utility,
             self.mending_grip_utility,
             self.weaken_armor_utility,
+            self.soothing_utility,
             self.ebon_vanguard_assassin_support,
             self.ebon_battle_standard_of_wisdom,
             self.you_are_all_weaklings_utility,
