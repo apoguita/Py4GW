@@ -478,7 +478,10 @@ def _do_bounty_interaction(bot: Botting):
 
 def _maybe_setup_heroes(bot: Botting):
     if _party_mode == 1:
-        return  # Custom Behaviors with Alts: skip hero setup
+        yield from bot.helpers.Multibox._summon_all_accounts()
+        yield from bot.Wait._coro_for_time(4000)
+        yield from bot.helpers.Multibox._invite_all_accounts()
+        return
     yield from _setup_heroes(bot)
 
 
