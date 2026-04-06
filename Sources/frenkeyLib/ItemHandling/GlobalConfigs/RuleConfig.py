@@ -7,7 +7,8 @@ from typing import ClassVar
 from Py4GWCoreLib.enums_src.GameData_enums import DyeColor
 from Py4GWCoreLib.enums_src.Item_enums import ItemType, Rarity
 from Py4GWCoreLib.enums_src.Model_enums import ModelID
-from Sources.frenkeyLib.ItemHandling.GlobalConfigs.Rule import DyeRule, DyesRule, ItemTypesRule, ItemTypeRule, ModelIdRule, ModelIdsRule, RaritiesRule, RarityRule, Rule
+from Py4GWCoreLib.item_mods_src.upgrades import Upgrade
+from Sources.frenkeyLib.ItemHandling.GlobalConfigs.Rule import DyesRule, ItemTypesRule, ModelIdsRule, RaritiesRule, Rule, UpgradeRule
 
 
 class RuleConfig(list[Rule]):
@@ -132,7 +133,7 @@ class RuleConfig(list[Rule]):
         '''
         Helper method to add a ModelIdRule to the config.
         '''
-        rule = ModelIdRule(model_id)
+        rule = ModelIdsRule([model_id])
         self.AddRule(rule)
     
     def AddModelIds(self, model_ids: list[int|ModelID]):
@@ -146,7 +147,7 @@ class RuleConfig(list[Rule]):
         '''
         Helper method to add a RarityRule to the config.
         '''
-        rule = RarityRule(rarity)
+        rule = RaritiesRule([rarity])
         self.AddRule(rule)
     
     def AddRarities(self, rarities: list[Rarity]):
@@ -158,9 +159,9 @@ class RuleConfig(list[Rule]):
     
     def AddItemType(self, item_type: ItemType):
         '''
-        Helper method to add an ItemTypeRule to the config.
+        Helper method to add an ItemTypesRule to the config.
         '''
-        rule = ItemTypeRule(item_type)
+        rule = ItemTypesRule([item_type])
         self.AddRule(rule)      
         
     def AddItemTypes(self, item_types: list[ItemType]):
@@ -174,7 +175,7 @@ class RuleConfig(list[Rule]):
         '''
         Helper method to add a DyeRule to the config.
         '''
-        rule = DyeRule(dye_color)
+        rule = DyesRule([dye_color])
         self.AddRule(rule)
     
     def AddDyeColors(self, dye_colors: list[DyeColor]):
@@ -184,6 +185,20 @@ class RuleConfig(list[Rule]):
         rule = DyesRule(dye_colors)
         self.AddRule(rule)
 
+    def AddUpgrade(self, upgrade: Upgrade):
+        '''
+        Helper method to add an UpgradeRule to the config.
+        '''
+        rule = UpgradeRule([upgrade])
+        self.AddRule(rule)
+
+    def AddUpgrades(self, upgrades: list[Upgrade]):
+        '''
+        Helper method to add an UpgradeRule to the config.
+        '''
+        rule = UpgradeRule(upgrades)
+        self.AddRule(rule)
+
     #endregion Adding helper methods for creating and adding rules in one step
     
     #region Deleting helper methods for creating and adding rules in one step
@@ -191,7 +206,7 @@ class RuleConfig(list[Rule]):
         '''
         Helper method to remove a ModelIdRule from the config.
         '''
-        rule = ModelIdRule(model_id)
+        rule = ModelIdsRule([model_id])
         self.RemoveRule(rule)
         
     def RemoveModelIds(self, model_ids: list[int|ModelID]):
@@ -205,7 +220,7 @@ class RuleConfig(list[Rule]):
         '''
         Helper method to remove a RarityRule from the config.
         '''
-        rule = RarityRule(rarity)
+        rule = RaritiesRule([rarity])
         self.RemoveRule(rule)
         
     def RemoveRarities(self, rarities: list[Rarity]):
@@ -217,9 +232,9 @@ class RuleConfig(list[Rule]):
         
     def RemoveItemType(self, item_type: ItemType):
         '''
-        Helper method to remove an ItemTypeRule from the config.
+        Helper method to remove an ItemTypesRule from the config.
         '''
-        rule = ItemTypeRule(item_type)
+        rule = ItemTypesRule([item_type])
         self.RemoveRule(rule)
         
     def RemoveItemTypes(self, item_types: list[ItemType]):
@@ -231,16 +246,30 @@ class RuleConfig(list[Rule]):
         
     def RemoveDyeColor(self, dye_color: DyeColor):
         '''
-        Helper method to remove a DyeRule from the config.
+        Helper method to remove a DyesRule from the config.
         '''
-        rule = DyeRule(dye_color)
+        rule = DyesRule([dye_color])
         self.RemoveRule(rule)
         
     def RemoveDyeColors(self, dye_colors: list[DyeColor]):
         '''
-        Helper method to remove a DyeColorsRule from the config.
+        Helper method to remove a DyesRule from the config.
         '''
         rule = DyesRule(dye_colors)
+        self.RemoveRule(rule)
+
+    def RemoveUpgrade(self, upgrade: Upgrade):
+        '''
+        Helper method to remove an UpgradeRule from the config.
+        '''
+        rule = UpgradeRule([upgrade])
+        self.RemoveRule(rule)
+
+    def RemoveUpgrades(self, upgrades: list[Upgrade]):
+        '''
+        Helper method to remove an UpgradeRule from the config.
+        '''
+        rule = UpgradeRule(upgrades)
         self.RemoveRule(rule)
     #endregion Deleting helper methods for creating and adding rules in one step
     

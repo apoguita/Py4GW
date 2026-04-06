@@ -129,6 +129,7 @@ class ArmorPlusHexed(ItemProperty):
 @dataclass
 class ArmorPlusAbove(ItemProperty):
     armor: int
+    health_threshold: int = 50
 
     def create_encoded_description(self) -> GWStringEncoded:
         return GWEncoded._append_line_with_fallback(GWEncoded._bonus_plus_num(self.get_text_color(), GWEncoded.ARMOR_BYTES, self.armor, "Armor"), GWEncoded._dull_parenthesized(GWEncoded.WHILE_HEALTH_ABOVE_BYTES, "(while health above 50 %)"), "(while health above 50 %)")

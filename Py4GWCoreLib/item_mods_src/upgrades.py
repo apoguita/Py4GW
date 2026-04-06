@@ -1,11 +1,12 @@
-from enum import IntEnum
+from dataclasses import MISSING, fields, is_dataclass
+from enum import Enum, IntEnum
 import re
-from typing import Optional, TypeAlias, cast
+from typing import Any, ClassVar, Optional, TypeAlias, cast
 
 import Py4GW
 from PyItem import ItemModifier
 
-from Py4GWCoreLib.enums_src.GameData_enums import Attribute, AttributeNames, Profession
+from Py4GWCoreLib.enums_src.GameData_enums import Ailment, Attribute, AttributeNames, DamageType, Profession, Reduced_Ailment
 from Py4GWCoreLib.enums_src.Item_enums import ItemType, Rarity
 from Py4GWCoreLib.enums_src.Region_enums import ServerLanguage
 from Py4GWCoreLib.native_src.internals import string_table
@@ -49,6 +50,16 @@ class Upgrade:
     """
     Abstract base class for item upgrades. Each specific upgrade type (e.g., Prefix, Suffix, Inscription) should inherit from this class and implement the necessary properties and methods.
     """
+    _registry: ClassVar[dict[str, type["Upgrade"]]] = {}
+    _non_serialized_properties: ClassVar[set[str]] = {
+        "name",
+        "name_plain",
+        "description",
+        "description_plain",
+        "display_summary",
+        "item_type",
+        "is_maxed",
+    }
     mod_type : ItemUpgradeType
     rarity : Rarity = Rarity.Blue
     id: ItemUpgrade = ItemUpgrade.Unknown
@@ -64,10 +75,18 @@ class Upgrade:
     modifier : Optional[DecodedModifier] = None
     __encoded_name: GWStringEncoded
     __encoded_description: GWStringEncoded
-    
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        Upgrade._registry[cls.__name__] = cls
+
     def __init__(self):
         self.is_inherent = False
         self.language = ServerLanguage(string_table._loaded_language) if string_table._loaded_language in ServerLanguage._value2member_map_ else ServerLanguage.English
+        self.properties = {}
+        self._property_values: dict[str, Any] = {}
+        self.__encoded_name = self.create_encoded_name()
+        self.__encoded_description = self.create_encoded_description()
         
     @classmethod
     def _pre_compose(cls, upgrade: "Upgrade", mod: DecodedModifier, all_modifiers: list[DecodedModifier], remaining_modifiers: list[DecodedModifier]) -> None:
@@ -114,11 +133,167 @@ class Upgrade:
             if prop is not None:
                 return prop
         return None
+
+    def _get_upgrade_property(self, identifier_spec: ModifierIdentifierSpec) -> Optional[ItemProperty]:
+        return self._get_property_by_spec(identifier_spec)
+
+    def _get_property_value(self, identifier_spec: ModifierIdentifierSpec, attr_name: str, default):
+        if attr_name in self._property_values:
+            return self._property_values[attr_name]
+
+        prop = self._get_property_by_spec(identifier_spec)
+        if prop is None:
+            return default
+
+        value = getattr(prop, attr_name, default)
+        self._property_values[attr_name] = value
+        return value
+
+    @classmethod
+    def _get_serializable_property_names(cls) -> list[str]:
+        property_names: list[str] = []
+        seen: set[str] = set()
+
+        for base_cls in reversed(cls.__mro__):
+            if not issubclass(base_cls, Upgrade):
+                continue
+
+            for name, value in base_cls.__dict__.items():
+                if name in seen or name in cls._non_serialized_properties or not isinstance(value, property):
+                    continue
+
+                seen.add(name)
+                property_names.append(name)
+
+        return property_names
+
+    @staticmethod
+    def _serialize_value(value: Any) -> Any:
+        if isinstance(value, Enum):
+            return {
+                "enum_type": type(value).__name__,
+                "value": value.name,
+            }
+
+        if isinstance(value, list):
+            return [Upgrade._serialize_value(entry) for entry in value]
+
+        if isinstance(value, tuple):
+            return [Upgrade._serialize_value(entry) for entry in value]
+
+        if isinstance(value, dict):
+            return {str(key): Upgrade._serialize_value(entry) for key, entry in value.items()}
+
+        return value
+
+    @staticmethod
+    def _deserialize_value(value: Any) -> Any:
+        if isinstance(value, list):
+            return [Upgrade._deserialize_value(entry) for entry in value]
+
+        if isinstance(value, dict):
+            enum_type = value.get("enum_type")
+            enum_value = value.get("value")
+            if isinstance(enum_type, str) and isinstance(enum_value, str):
+                enum_cls = globals().get(enum_type)
+                if isinstance(enum_cls, type) and issubclass(enum_cls, Enum) and enum_value in enum_cls.__members__:
+                    return enum_cls[enum_value]
+
+            return {str(key): Upgrade._deserialize_value(entry) for key, entry in value.items()}
+
+        return value
+
+    @staticmethod
+    def _normalize_comparison_value(value: Any) -> Any:
+        if isinstance(value, Enum):
+            return (type(value).__name__, value.name)
+
+        if isinstance(value, list):
+            return tuple(Upgrade._normalize_comparison_value(entry) for entry in value)
+
+        if isinstance(value, tuple):
+            return tuple(Upgrade._normalize_comparison_value(entry) for entry in value)
+
+        if isinstance(value, dict):
+            return tuple(sorted((str(key), Upgrade._normalize_comparison_value(entry)) for key, entry in value.items()))
+
+        return value
+
+    def _update_property_values_from_property(self, prop: ItemProperty) -> None:
+        if not is_dataclass(prop):
+            return
+
+        for field_info in fields(prop):
+            if field_info.name in {"modifier", "rarity", "upgrade", "upgrade_id"}:
+                continue
+
+            self._property_values[field_info.name] = getattr(prop, field_info.name)
+
+    def _sync_property_values_from_properties(self) -> None:
+        for prop in self.properties.values():
+            self._update_property_values_from_property(prop)
+
+    def _refresh_encoded_strings(self) -> None:
+        self.__encoded_name = self.create_encoded_name()
+        self.__encoded_description = self.create_encoded_description()
+
+    @classmethod
+    def _infer_property_class(cls, identifier_spec: ModifierIdentifierSpec, rarity: Rarity) -> Optional[type[ItemProperty]]:
+        property_factory = _get_property_factory()
+
+        for identifier in cls._normalize_property_identifier_spec(identifier_spec):
+            synthetic_modifier = cls._create_synthetic_modifier(identifier, 0, 0)
+            property_builder = property_factory.get(identifier, lambda m, _, current_rarity: ItemProperty(modifier=m, rarity=current_rarity))
+            try:
+                return type(property_builder(synthetic_modifier, [synthetic_modifier], rarity))
+            except Exception:
+                continue
+
+        return None
+
+    def _rebuild_properties_from_values(self) -> None:
+        rebuilt_properties: dict[ModifierIdentifier, ItemProperty] = {}
+
+        for identifier_spec in self.property_identifiers:
+            prop_cls = self._infer_property_class(identifier_spec, self.rarity)
+            if prop_cls is None or not is_dataclass(prop_cls):
+                continue
+
+            kwargs: dict[str, Any] = {
+                "modifier": self._create_synthetic_modifier(self._get_property_identifier_key(identifier_spec), 0, 0),
+                "rarity": self.rarity,
+            }
+
+            can_create = True
+            for field_info in fields(prop_cls):
+                if field_info.name in kwargs or field_info.name in {"upgrade", "upgrade_id"}:
+                    continue
+
+                if field_info.name in self._property_values:
+                    kwargs[field_info.name] = self._property_values[field_info.name]
+                    continue
+
+                if field_info.default is not MISSING or field_info.default_factory is not MISSING:
+                    continue
+
+                can_create = False
+                break
+
+            if not can_create:
+                continue
+
+            try:
+                rebuilt_properties[self._get_property_identifier_key(identifier_spec)] = prop_cls(**kwargs)
+            except Exception:
+                continue
+
+        self.properties = rebuilt_properties
     
     @classmethod
     def compose_from_modifiers(cls, mod : DecodedModifier, remaining_modifiers: list[DecodedModifier], all_modifiers: list[DecodedModifier], rarity: Rarity = Rarity.Blue) -> Optional["Upgrade"]:        
         upgrade = cls()
         upgrade.properties = {}
+        upgrade._property_values = {}
         upgrade.upgrade_id = mod.upgrade_id
         upgrade.rarity = rarity
         upgrade.modifier = mod
@@ -140,8 +315,8 @@ class Upgrade:
             upgrade.properties[prop_key] = prop
 
         cls._post_compose(upgrade, mod, all_modifiers, remaining_modifiers)
-        upgrade.__encoded_name = upgrade.create_encoded_name()
-        upgrade.__encoded_description = upgrade.create_encoded_description()
+        upgrade._sync_property_values_from_properties()
+        upgrade._refresh_encoded_strings()
         return upgrade
 
     @classmethod
@@ -281,6 +456,73 @@ class Upgrade:
     
     def create_encoded_description(self) -> GWStringEncoded:
         return GWStringEncoded(self.encoded_description, f"no encoded description ({self.__class__.__name__})")
+
+    def _comparison_data(self) -> tuple[str, tuple[tuple[str, Any], ...]]:
+        comparison_values = {
+            property_name: self._normalize_comparison_value(getattr(self, property_name))
+            for property_name in self._get_serializable_property_names()
+        }
+        return type(self).__name__, tuple(sorted(comparison_values.items()))
+
+    def equals(self, other: object) -> bool:
+        return isinstance(other, Upgrade) and self._comparison_data() == other._comparison_data()
+
+    def matches(self, other: object) -> bool:
+        return self.equals(other)
+
+    def __eq__(self, other: object) -> bool:
+        return self.equals(other)
+
+    def to_dict(self) -> dict[str, Any]:
+        values = {
+            property_name: self._serialize_value(getattr(self, property_name))
+            for property_name in self._get_serializable_property_names()
+        }
+
+        payload: dict[str, Any] = {
+            "upgrade_type": type(self).__name__,
+            "values": values,
+        }
+
+        if isinstance(self.rarity, Rarity):
+            payload["rarity"] = self.rarity.name
+
+        if self.is_inherent:
+            payload["is_inherent"] = True
+
+        target_item_type = getattr(self, "target_item_type", None)
+        if isinstance(target_item_type, ItemType):
+            payload["target_item_type"] = target_item_type.name
+
+        return payload
+
+    @classmethod
+    def from_dict(cls, payload: dict[str, Any]) -> Optional["Upgrade"]:
+        upgrade_type_name = str(payload.get("upgrade_type", ""))
+        upgrade_cls = cls._registry.get(upgrade_type_name)
+        if upgrade_cls is None:
+            return None
+
+        upgrade = upgrade_cls()
+        rarity_name = payload.get("rarity")
+        if isinstance(rarity_name, str) and rarity_name in Rarity.__members__:
+            upgrade.rarity = Rarity[rarity_name]
+
+        target_item_type_name = payload.get("target_item_type")
+        if isinstance(target_item_type_name, str) and target_item_type_name in ItemType.__members__:
+            setattr(upgrade, "target_item_type", ItemType[target_item_type_name])
+
+        upgrade.is_inherent = bool(payload.get("is_inherent", False))
+        raw_values = payload.get("values", {})
+        if isinstance(raw_values, dict):
+            upgrade._property_values = {
+                str(key): cls._deserialize_value(value)
+                for key, value in raw_values.items()
+            }
+
+        upgrade._rebuild_properties_from_values()
+        upgrade._refresh_encoded_strings()
+        return upgrade
     
     @property
     def name(self) -> str:
@@ -348,13 +590,6 @@ class WeaponUpgrade(Upgrade):
         parts = [prop.encoded_description for prop in self.properties.values() if prop.encoded_description]
         return GWEncoded.combine_encoded_strings(parts, "no encoded description")
 
-    def _get_upgrade_property(self, identifier: ModifierIdentifierSpec) -> Optional[ItemProperty]:
-        return self._get_property_by_spec(identifier)
-
-    def _get_property_value(self, identifier: ModifierIdentifierSpec, attr_name: str, default):
-        prop = self._get_upgrade_property(identifier)
-        return getattr(prop, attr_name, default) if prop else default
-    
     @property
     def is_maxed(self) -> bool:
         if not self.properties or not self.modifier_range:
@@ -478,8 +713,7 @@ class FuriousUpgrade(WeaponPrefix):
     
     @property
     def chance(self) -> int:
-        prop = self.properties.get(ModifierIdentifier.Furious)
-        return prop.modifier.arg2 if prop else 0
+        return self._get_property_value(ModifierIdentifier.Furious, "chance", 0)
     
     def create_encoded_name(self) -> GWStringEncoded:
         return GWStringEncoded(self.get_text_color(True) + bytes([0x6F, 0xA, 0x1, 0x0]), f"Furious")
@@ -970,19 +1204,6 @@ class Inscription(Upgrade):
         parts = [prop.encoded_description for prop in self.properties.values() if prop.encoded_description]
         return GWEncoded.combine_encoded_strings(parts, "no encoded description")
 
-    def _get_upgrade_property(self, identifier: ModifierIdentifierSpec) -> Optional[ItemProperty]:
-        return self._get_property_by_spec(identifier)
-
-    def _get_property_value(self, identifier: ModifierIdentifierSpec, attr_name: str, default):
-        prop = self._get_upgrade_property(identifier)
-        return getattr(prop, attr_name, default) if prop else default
-
-    def _get_modifier_arg(self, identifier: ModifierIdentifierSpec, arg_index: int, default: int = 0) -> int:
-        prop = self._get_upgrade_property(identifier)
-        if not prop:
-            return default
-        return prop.modifier.arg1 if arg_index == 1 else prop.modifier.arg2
-
     @property
     def is_maxed(self) -> bool:
         if not self.properties or not self.modifier_range:
@@ -1080,7 +1301,7 @@ class HailToTheKing(Inscription):
 
     @property
     def health_threshold(self) -> int:
-        return self._get_modifier_arg(ModifierIdentifier.ArmorPlusAbove, 1, 0)
+        return self._get_property_value(ModifierIdentifier.ArmorPlusAbove, "health_threshold", 0)
     
     def create_encoded_name(self) -> GWStringEncoded:
         return GWStringEncoded(GWEncoded.ITEM_BASIC + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x8E, 0x5D, 0x1, 0x0]), f"Hail To The King")
@@ -1936,19 +2157,6 @@ class Inherent(Upgrade):
         parts = [prop.encoded_description for prop in self.properties.values() if prop.encoded_description]
         return GWEncoded.combine_encoded_strings(parts, "no encoded description")
 
-    def _get_upgrade_property(self, identifier: ModifierIdentifierSpec) -> Optional[ItemProperty]:
-        return self._get_property_by_spec(identifier)
-
-    def _get_property_value(self, identifier: ModifierIdentifierSpec, attr_name: str, default):
-        prop = self._get_upgrade_property(identifier)
-        return getattr(prop, attr_name, default) if prop else default
-
-    def _get_modifier_arg(self, identifier: ModifierIdentifierSpec, arg_index: int, default: int = 0) -> int:
-        prop = self._get_upgrade_property(identifier)
-        if not prop:
-            return default
-        return prop.modifier.arg1 if arg_index == 1 else prop.modifier.arg2
-    
     @classmethod
     def has_id(cls, upgrade_id: ItemUpgradeId) -> bool:
         return False
