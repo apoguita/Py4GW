@@ -47,7 +47,9 @@ from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorStat
 # ║      "combat disabled" state after a wipe (e.g. Servants of Grenth)                   
 # ║  [ ] Improve pathing around body-blocking Vengeful Aatxe spawn points                 
 # ║  [X] Pcons not applied mid-run — only triggered on map load;                           
-# ║      ensure UseConset/UsePcons is called after entering the dungeon                    
+# ║      ensure UseConset/UsePcons is called after entering the dungeon   
+# ║  [ ] Add Questreward for all accounts   
+# ║  [ ] Fix runaway at 4H quest        
 # ║                                                                  
 # ╚══════════════════════════════════════════════════════════════════
 
@@ -640,17 +642,20 @@ def EnqueueDialogUntilQuestActive(
 
 
 def _coro_hold_horsemen_position() -> Generator[Any, Any, None]:
-    """Move the player back to the Four Horsemen wait position every 5 s.
-    Runs once as a YieldRoutineStep; exits as soon as the quest is completed.
+    """Keep the player at the Four Horsemen wait position every frame.
+    Calls Player.Move unconditionally on every frame so that CB movement
+    commands (which also fire every frame) cannot override the hold position.
+    Exits as soon as the quest is completed.
     """
     from Py4GWCoreLib.Quest import Quest
     _HOLD_X, _HOLD_Y = 11510.0, -18234.0
-    _INTERVAL_MS = 5000
+    _MAX_DISTANCE = 1000.0
     while True:
         if (Quest.GetActiveQuest() > 0) and Quest.IsQuestCompleted(Quest.GetActiveQuest()):
             return
-        Player.Move(_HOLD_X, _HOLD_Y)
-        yield from Routines.Yield.wait(_INTERVAL_MS)
+        if Utils.Distance(Player.GetXY(), (_HOLD_X, _HOLD_Y)) > _MAX_DISTANCE:
+            Player.Move(_HOLD_X, _HOLD_Y)
+        yield
 
 
 def _move_with_unstuck(
@@ -1168,14 +1173,12 @@ def Clear_the_Chamber(bot_instance: Botting):
     _unblacklist(bot_instance, "banished dream rider")
     enable_default_party_behavior(bot_instance)
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_combat_enabled(False), "Disable Combat")
-    bot_instance.Move.XYAndInteractNPC(295, 7221, "go to NPC")
     EnqueueDialogUntilQuestActive(bot_instance, dialog_id=0x806501, quest_id=UWQuestID.ClearTheChamber, model_id=UWNpcModelID.LostSoul, step_name="Take Clear the Chamber quest")
     bot_instance.Multibox.SendDialogToTarget(0x806501)
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_combat_enabled(True), "Enable Combat")
     bot_instance.Move.XY(769, 6564, "Prepare to clear the chamber")
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_forced_state(BehaviorState.CLOSE_TO_AGGRO),"Force Close_to_Aggro",)
     bot_instance.Wait.ForTime(5000)
-    bot_instance.Multibox.UsePcons()
 
     if BotSettings.UseCons:
         # Conset upkeep is handled by the Botting constructor (upkeep_*_active=True).
@@ -1193,9 +1196,10 @@ def Clear_the_Chamber(bot_instance: Botting):
     bot_instance.Move.XY(1259, 10214, "Right")
     bot_instance.Move.XY(-3729, 13414, "Right")
     bot_instance.Move.XY(-5855, 11202, "Clear the Room")
+    bot_instance.Move.XY(-5806, 12831, "Go to NPC")
     bot_instance.Wait.ForTime(3000)
     
-    bot_instance.Move.XYAndInteractNPC(-5806, 12831, "go to NPC")
+    #bot_instance.Move.XYAndInteractModel(-5806, 12831, int(UWNpcModelID.ReaperOfTheLabyrinth), "go to NPC")
     bot_instance.Dialogs.WithModel(UWNpcModelID.ReaperOfTheLabyrinth,0x806507, "Take Clear the Chamber reward")
     bot_instance.Multibox.SendDialogToTarget(0x806507)
     bot_instance.Dialogs.WithModel(UWNpcModelID.ReaperOfTheLabyrinth,0x806D01, "Quest Restore Monuments")
@@ -1240,10 +1244,8 @@ def Deamon_Assassin(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
     bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(True), "Enable MoveToPartyMemberIfDead")
-    bot_instance.Move.XYAndInteractNPC(-8250, -5171, "go to NPC")
+    bot_instance.Move.XY(-8250, -5171, "Go to Deamon Assassin NPC")
     EnqueueDialogUntilQuestActive(bot_instance, 0x806801, int(UWQuestID.DemonAssassin), int(UWNpcModelID.ReaperOfTheTwinSerpentMountains), "take Deamon Assassin quest")
-
-    #bot_instance.Dialogs.WithEncName("Reaper of the Twin Serpent Mountains",0x806801, "Take Deamon Assassin")
     bot_instance.Move.XY(-3645, -5820, "Deamon Assassin 1")
     WaitTillQuestDone(bot_instance)
     bot_instance.States.AddCustomState(lambda: _record_quest_done("Deamon Assassin"), "Record Deamon Assassin done")
@@ -1288,18 +1290,18 @@ def The_Four_Horsemen(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_looting_enabled(False), "Disable Looting")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(False), "Disable WaitIfPartyMemberTooFar")
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_forced_state(BehaviorState.CLOSE_TO_AGGRO),"Force Close_to_Aggro",)
-    bot_instance.Move.XYAndInteractNPC(11371, -17990, "go to NPC")
+    bot_instance.Move.XY(11371, -17990, "Go to Chaos Planes NPC")
     EnqueueDialogUntilQuestActive(bot_instance, 0x806A01, int(UWQuestID.TheFourHorsemen), int(UWNpcModelID.ReaperOfTheChaosPlanes), "take Foure Horsemen quest")
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_forced_state(None),"Release Close_to_Aggro",)
 
     bot_instance.Wait.ForTime(32000)
 
-    bot_instance.Move.XYAndInteractNPC(11371, -17990, "TP to Chamber")
-    bot_instance.Dialogs.AtXY(11371, -17990, 0x8D, "take quest") 
+    bot_instance.Move.XY(11371, -17990, "Go to Chaos Planes NPC")
+    bot_instance.Dialogs.WithModel(UWNpcModelID.ReaperOfTheChaosPlanes,0x8D, "Tp Lab") 
     bot_instance.States.AddCustomState(lambda: _get_adapter().clear_flags(),"Clear Flags")
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_following_enabled(True), "Enable Following")
-    bot_instance.Move.XYAndInteractNPC(-5782, 12819, "TP back to Chaos")
-    bot_instance.Dialogs.AtXY(11371, -17990, 0x8B, "take quest") 
+    bot_instance.Move.XY(-5782, 12819, "TP back to Chaos")
+    bot_instance.Dialogs.WithModel(UWNpcModelID.ReaperOfTheLabyrinth,0x8B, "Tp back to Chaos") 
     bot_instance.Wait.ForTime(1000)
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_following_enabled(True), "Enable Following")
     THE_FOUR_HORSEMEN_FLAG_POINTS_2 = [
@@ -1312,16 +1314,19 @@ def The_Four_Horsemen(bot_instance: Botting):
         (11510, -18234),
     ]
     _enqueue_spread_flags(bot_instance, THE_FOUR_HORSEMEN_FLAG_POINTS_2)
-    bot_instance.Party.UnflagAllHeroes()
     bot_instance.States.AddCustomState(
         lambda: bot_instance.Properties.ApplyNow("pause_on_danger", "active", False),
         "Disable PauseOnDanger for Horsemen wait",
     )
+    # Disable WaitIfInAggro so CB does not issue competing movement commands
+    # (e.g. moving away from or toward enemies) while we must hold position.
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(False), "Disable WaitIfInAggro for Horsemen hold")
     bot_instance.config.FSM.AddYieldRoutineStep(
         name="Hold position at Horsemen",
         coroutine_fn=_coro_hold_horsemen_position,
     )
     WaitTillQuestDone(bot_instance)
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Re-enable WaitIfInAggro after Horsemen")
     bot_instance.States.AddCustomState(
         lambda: bot_instance.Properties.ApplyNow("pause_on_danger", "active", True),
         "Re-enable PauseOnDanger after Horsemen",
@@ -1331,8 +1336,8 @@ def The_Four_Horsemen(bot_instance: Botting):
         "Clear Flags",
     )
     bot_instance.Wait.ForTime(10000)
-    bot_instance.Move.XYAndInteractNPC(11371, -17990, "go to NPC")
-    bot_instance.Dialogs.AtXY(-8250, -5171, 0x806A07, "take quest")  
+    bot_instance.Move.XY(11371, -17990, "Go to Chaos Planes NPC")
+    bot_instance.Dialogs.WithModel(UWNpcModelID.ReaperOfTheChaosPlanes,0x806A07, "take questreward")
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_following_enabled(True), "Enable Follow")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_looting_enabled(True), "Enable Looting")
@@ -1357,13 +1362,11 @@ def Terrorweb_Queen(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
     bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(True), "Enable MoveToPartyMemberIfDead")
-    bot_instance.Move.XYAndInteractNPC(-6890, -19454, "go to NPC")
-    
     EnqueueDialogUntilQuestActive(bot_instance, 0x806B01, int(UWQuestID.TerrorwebQueen), int(UWNpcModelID.ReaperOfTheChaosPlanes), "take Terrorweb Queen quest")
     bot_instance.Move.XY(-12432, -15874, "Terrorweb Queen 1")
-    bot_instance.Move.XYAndInteractNPC(-6957, -19478, "go to NPC")
-    bot_instance.Dialogs.AtXY(-6957, -19478, 0x806B07, "Back to Chamber")
-    bot_instance.Dialogs.AtXY(-6957, -19478, 0x8B, "Back to Chamber")
+    bot_instance.Move.XY(-6957, -19478, "Back to Chamber")
+    bot_instance.Dialogs.WithModel(UWNpcModelID.ReaperOfTheSpawningPools,0x806B07, "Back to Chamber")
+    bot_instance.Dialogs.WithModel(UWNpcModelID.ReaperOfTheSpawningPools,0x8B, "Back to Chamber")
     bot_instance.States.AddCustomState(lambda: _record_quest_done("Terrorweb Queen"), "Record Terrorweb Queen done")
     
 def Restore_Pit(bot_instance: Botting):
@@ -1397,7 +1400,7 @@ def Imprisoned_Spirits(bot_instance: Botting):
     _enqueue_imprisoned_spirits_flags(bot_instance)
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(False), "Disable WaitIfPartyMemberTooFar")
     bot_instance.Move.XY(8692, 6292, "go to NPC")
-    bot_instance.Move.XYAndInteractNPC(8666, 6308, "go to NPC")
+    bot_instance.Move.XY(8666, 6308, "go to NPC")
     EnqueueDialogUntilQuestActive(bot_instance, 0x806901, int(UWQuestID.ImprisonedSpirits), int(UWNpcModelID.ReaperOfTheBonePits), "take Imprisoned Spirits quest")
 
     _is_timer: list[float] = [0.0]  # [monotonic start time], captured by closures below
@@ -1445,7 +1448,6 @@ def Restore_Vale(bot_instance: Botting):
     bot_instance.Move.XY(-10691, 98 , "To the Vale 5")
     bot_instance.Move.XY(-15424, 1319 , "To the Vale 6")
     bot_instance.Move.XY(-13246, 5110 , "To the Vale 7")
-    bot_instance.Move.XYAndInteractNPC(-13275, 5261, "go to NPC")
     bot_instance.Wait.ForTime(3000)
     bot_instance.States.AddCustomState(lambda: _record_quest_done("Restore Vale"), "Record Restore Vale done")
 
@@ -1453,28 +1455,27 @@ def Wrathfull_Spirits(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
     bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(True), "Enable MoveToPartyMemberIfDead")
-    bot_instance.Move.XYAndInteractNPC(-13275, 5261, "go to NPC")
-    bot_instance.Dialogs.AtXY(5755, 12769, 0x806E03, "Back to Chamber")
+    bot_instance.Move.XY(5755, 12769, "go to NPC")
+    bot_instance.Dialogs.WithModel(UWNpcModelID.ReaperOfTheForgottenVale,0x806E03, "take quest")
     EnqueueDialogUntilQuestActive(bot_instance, 0x806E01, int(UWQuestID.WrathfulSpirits), int(UWNpcModelID.ReaperOfTheLabyrinth), "take Wrathfull Spirits quest")
     bot_instance.Templates.Pacifist()
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(False), "Disable WaitIfPartyMemberTooFar")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(False), "Disable WaitIfInAggro")
-    #bot_instance.States.AddCustomState(lambda: _get_adapter().set_combat_enabled(False), "Disable Combat")
     _blacklist(bot_instance, "tortured spirit")
     bot_instance.Move.XY(-13422, 973, "Wrathfull Spirits 1")
     bot_instance.Templates.Aggressive()
     _unblacklist(bot_instance, "tortured spirit")
-    #bot_instance.States.AddCustomState(lambda: _get_adapter().set_combat_enabled(True), "Enable Combat")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar") 
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
     bot_instance.Move.XY(-10207, 1746, "Wrathfull Spirits 2")
     bot_instance.Move.XY(-13566, -229, "Wrathfull Spirits 3")
     bot_instance.Move.XY(-13287, 1996, "Wrathfull Spirits 3")
     bot_instance.Move.XY(-14486, 7113, "Wrathfull Spirits 4")
-    bot_instance.Move.XY(-15226, 4129 , "Wrathfull Spirits 5")
-    bot_instance.Move.XYAndInteractNPC(-13275, 5261, "go to NPC")
-    bot_instance.Dialogs.AtXY(5755, 12769, 0x806E07, "Take Reward")
-    bot_instance.Dialogs.AtXY(5755, 12769, 0x8D, "Back to Chamber")
+    bot_instance.Move.XY(-15226, 4129, "Wrathfull Spirits 5")
+    bot_instance.Move.XY(-13275, 5261, "go to NPC")
+    bot_instance.Move.XY(5755, 12769, "go to NPC")
+    bot_instance.Dialogs.WithModel(UWNpcModelID.ReaperOfTheLabyrinth,0x806E07, "Take Reward")
+    bot_instance.Dialogs.WithModel(UWNpcModelID.ReaperOfTheLabyrinth,0x8D, "Back to Chamber")
     bot_instance.Wait.ForTime(3000)
     bot_instance.States.AddCustomState(lambda: _record_quest_done("Wrathfull Spirits"), "Record Wrathfull Spirits done")
 
@@ -1491,7 +1492,7 @@ def Unwanted_Guests(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_forced_state(BehaviorState.CLOSE_TO_AGGRO),"Force Close_to_Aggro")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(False), "Disable wait_for_party")
 
-    bot_instance.Move.XYAndInteractNPC(-5806, 12831, "go to NPC")
+    bot_instance.Move.XY(-5806, 12831, "Go to NPC")
     EnqueueDialogUntilQuestActive(bot_instance, 0x806701, int(UWQuestID.UnwantedGuests), int(UWNpcModelID.ReaperOfTheLabyrinth), "take Unwanted Guests quest")
 
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_forced_state(None),"Release Close_to_Aggro")
@@ -1508,8 +1509,8 @@ def Unwanted_Guests(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
 
     #2nd Keeper
-    bot_instance.Move.XYAndInteractNPC(-5806, 12831, "go to NPC")
-    bot_instance.Dialogs.AtXY(-5806, 12831, 0x91, "take quest")
+    bot_instance.Move.XY(-5806, 12831, "Go to NPC")
+    bot_instance.Dialogs.WithModel(UWNpcModelID.ReaperOfTheLabyrinth,0x91, "TP Vale")
     _move_with_unstuck(bot_instance, -12953, 750, "2nd Keeper 1")
     _move_with_unstuck(bot_instance, -8371, 4865, "2nd Keeper 2")
     FocusKeeperOfSouls(bot_instance)
@@ -1581,7 +1582,7 @@ def Servants_of_Grenth(bot_instance: Botting):
     _enqueue_spread_flags(bot_instance, SERVANTS_OF_GRENTH_FLAG_POINTS)
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(False), "Disable WaitIfPartyMemberTooFar")
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_forced_state(BehaviorState.CLOSE_TO_AGGRO),"Force Close_to_Aggro",)
-    bot_instance.Move.XYAndInteractNPC(554, 18384, "go to NPC")
+    bot_instance.Move.XY(554, 18384, "go to NPC")
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_following_enabled(False), "Disable Following")
     EnqueueDialogUntilQuestActive(bot_instance, 0x806601, int(UWQuestID.ServantsOfGrenth), int(UWNpcModelID.ReaperOfTheBonePits), "take Servants of Grenth quest")
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_forced_state(None),"Release Close_to_Aggro",)
@@ -1817,7 +1818,6 @@ def Dhuum(bot_instance: Botting):
     # Activate the Spirit Form watchdog for the duration of the fight.
     bot_instance.States.AddCustomState(lambda: _set_dhuum_fight_active(True), "Enable Dhuum Spirit Form Watchdog")
     bot_instance.Move.XY(-13987, 17291, "Move to Dhuum fight")
-    #bot_instance.States.AddCustomState(lambda: _get_adapter().set_following_enabled(False), "Disable Following")
     bot_instance.Wait.ForTime(4000)  # Wait till some Allies die
     #Wait till Dhuum is dead
     bot_instance.Wait.UntilCondition(

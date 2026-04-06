@@ -4,6 +4,26 @@ from Py4GWCoreLib import Agent, AgentArray, BuildMgr, CombatEvents, GLOBAL_CACHE
 from Py4GWCoreLib.CombatEvents import EventType
 from Py4GWCoreLib.Builds.Any.HeroAI import HeroAI_Build
 
+# ─── UW Chest detection ──────────────────────────────────────────────────────
+_UW_CHEST_POS = (-13987, 17291)
+_UW_CHEST_RADIUS = 3000.0
+_UW_CHEST_NAME_FRAGMENT = "underworld chest"
+
+
+def _is_uw_chest_present() -> bool:
+    """Return True if the Underworld Chest has spawned near the Dhuum arena."""
+    for agent_id in AgentArray.GetAgentArray():
+        if not Agent.IsGadget(agent_id):
+            continue
+        name = (Agent.GetNameByID(agent_id) or "").strip().lower()
+        if _UW_CHEST_NAME_FRAGMENT not in name:
+            continue
+        ax, ay = Agent.GetXY(agent_id)
+        cx, cy = _UW_CHEST_POS
+        if ((ax - cx) ** 2 + (ay - cy) ** 2) ** 0.5 <= _UW_CHEST_RADIUS:
+            return True
+    return False
+
 
 class _DhuumModeTracker:
     """Tracks Reaper casts and exposes a lightweight shared mode for Dhuum skills."""
@@ -29,8 +49,17 @@ class _DhuumModeTracker:
         EventType.INSTANT_SKILL_ACTIVATED,
     )
 
-    DHUUMS_REST_IDS = {3079, 3087}
-    GHOSTLY_FURY_IDS = {3091}
+    _DHUUMS_REST_CANDIDATES = (
+        "Dhuum_s_Rest",
+        "Dhuum's Rest",
+        "Dhuums_Rest",
+        "Dhuums_Rest_reaper_skill",
+    )
+    _GHOSTLY_FURY_CANDIDATES = (
+        "Ghostly_Fury",
+        "Ghostly Fury",
+        "Ghostly Fury_reaper_skill",
+    )
 
     _shared_mode: str | None = None
     _shared_mode_locked_until_ms: float = 0.0
@@ -41,6 +70,11 @@ class _DhuumModeTracker:
     _cached_reaper_ids: set[int] = set()
     _learned_reaper_ids: set[int] = set()
 
+    _dhuums_rest_skill_ids: set[int] = set()
+    _ghostly_fury_skill_ids: set[int] = set()
+
+    _last_logged_candidate_signature: tuple[int, int, int] | None = None
+
     @classmethod
     def _ensure_timers(cls) -> None:
         if cls._reaper_refresh_timer is None:
@@ -50,6 +84,26 @@ class _DhuumModeTracker:
         if cls._event_refresh_timer is None:
             cls._event_refresh_timer = ThrottledTimer(250)
             cls._event_refresh_timer.Reset()
+
+        if len(cls._dhuums_rest_skill_ids) == 0:
+            for name in cls._DHUUMS_REST_CANDIDATES:
+                try:
+                    skill_id = int(Skill.GetID(name))
+                except Exception:
+                    skill_id = 0
+                if skill_id > 0:
+                    cls._dhuums_rest_skill_ids.add(skill_id)
+            cls._dhuums_rest_skill_ids.update({3079, 3087})
+
+        if len(cls._ghostly_fury_skill_ids) == 0:
+            for name in cls._GHOSTLY_FURY_CANDIDATES:
+                try:
+                    skill_id = int(Skill.GetID(name))
+                except Exception:
+                    skill_id = 0
+                if skill_id > 0:
+                    cls._ghostly_fury_skill_ids.add(skill_id)
+            cls._ghostly_fury_skill_ids.add(3091)
 
     @classmethod
     def _refresh_reaper_ids(cls) -> None:
@@ -73,6 +127,62 @@ class _DhuumModeTracker:
 
         cls._cached_reaper_ids = reaper_ids
         cls._reaper_refresh_timer.Reset()
+
+    @classmethod
+    def _get_reaper_candidate_agent_ids(cls) -> set[int]:
+        candidate_agent_ids = set(AgentArray.GetAllyArray())
+        candidate_agent_ids.update(AgentArray.GetNeutralArray())
+        candidate_agent_ids.update(AgentArray.GetNPCMinipetArray())
+        candidate_agent_ids.update(AgentArray.GetSpiritPetArray())
+        return {int(x) for x in candidate_agent_ids}
+
+    @classmethod
+    def _get_party_member_agent_ids(cls) -> set[int]:
+        party_member_ids: set[int] = set()
+        for player in Party.GetPlayers():
+            login_number = int(getattr(player, "login_number", 0) or 0)
+            if login_number <= 0:
+                continue
+            agent_id = int(Party.Players.GetAgentIDByLoginNumber(login_number) or 0)
+            if agent_id > 0:
+                party_member_ids.add(agent_id)
+        for hero in Party.GetHeroes():
+            agent_id = int(getattr(hero, "agent_id", 0) or 0)
+            if agent_id > 0:
+                party_member_ids.add(agent_id)
+        for henchman in Party.GetHenchmen():
+            agent_id = int(getattr(henchman, "agent_id", 0) or 0)
+            if agent_id > 0:
+                party_member_ids.add(agent_id)
+        return party_member_ids
+
+    @classmethod
+    def _skill_id_matches_candidates(cls, skill_id: int, candidate_skill_ids: set[int], candidate_names: tuple[str, ...]) -> bool:
+        if int(skill_id) in candidate_skill_ids:
+            return True
+        skill_name = str(GLOBAL_CACHE.Skill.GetName(int(skill_id)) or "").strip().lower().replace("_", " ")
+        if not skill_name:
+            return False
+        normalized_candidates = [name.lower().replace("_", " ") for name in candidate_names]
+        return any(candidate in skill_name for candidate in normalized_candidates)
+
+    @classmethod
+    def _log_candidate_detection(cls, ts: int, caster_id: int, skill_id: int, candidate_type: str) -> None:
+        signature = (int(ts), int(caster_id), int(skill_id))
+        if cls._last_logged_candidate_signature == signature:
+            return
+        cls._last_logged_candidate_signature = signature
+        try:
+            import Py4GW
+            caster_name = str(Agent.GetNameByID(int(caster_id)) or "<unknown>").strip()
+            skill_name = str(GLOBAL_CACHE.Skill.GetName(int(skill_id)) or "<unknown>").strip()
+            Py4GW.Console.Log(
+                "AnyDhuum",
+                f"Detected {candidate_type} candidate: ts={int(ts)} caster={int(caster_id)} ('{caster_name}') skill={int(skill_id)} ('{skill_name}')",
+                Py4GW.Console.MessageType.Info,
+            )
+        except Exception:
+            pass
 
     @classmethod
     def _set_mode(cls, mode: str, now_ms: float) -> None:
@@ -104,19 +214,30 @@ class _DhuumModeTracker:
         CombatEvents.update()
         recent_skills = CombatEvents.get_recent_skills(80)
 
-        for _, caster_id, skill_id, _, event_type in reversed(recent_skills):
+        reaper_candidate_agent_ids = cls._get_reaper_candidate_agent_ids()
+        party_member_agent_ids = cls._get_party_member_agent_ids()
+
+        for ts, caster_id, skill_id, _, event_type in reversed(recent_skills):
             if int(event_type) not in cls.ACTIVATION_EVENT_TYPES:
                 continue
 
             caster_id_int = int(caster_id)
             skill_id_int = int(skill_id)
 
-            # Fallback learning when name matching fails (locale/encoding edge cases).
+            is_drest_candidate = cls._skill_id_matches_candidates(
+                skill_id_int, cls._dhuums_rest_skill_ids, cls._DHUUMS_REST_CANDIDATES
+            )
+            is_fury_candidate = cls._skill_id_matches_candidates(
+                skill_id_int, cls._ghostly_fury_skill_ids, cls._GHOSTLY_FURY_CANDIDATES
+            )
+            if not is_drest_candidate and not is_fury_candidate:
+                continue
+
             if (
-                caster_id_int not in effective_reaper_ids
+                caster_id_int in reaper_candidate_agent_ids
                 and caster_id_int != player_id
-                and caster_id_int in set(AgentArray.GetAllyArray()).union(AgentArray.GetNeutralArray())
-                and skill_id_int in cls.DHUUMS_REST_IDS.union(cls.GHOSTLY_FURY_IDS)
+                and caster_id_int not in party_member_agent_ids
+                and caster_id_int not in effective_reaper_ids
             ):
                 cls._learned_reaper_ids.add(caster_id_int)
                 effective_reaper_ids.add(caster_id_int)
@@ -124,10 +245,12 @@ class _DhuumModeTracker:
             if caster_id_int not in effective_reaper_ids:
                 continue
 
-            if skill_id_int in cls.DHUUMS_REST_IDS:
+            if is_drest_candidate:
+                cls._log_candidate_detection(int(ts), caster_id_int, skill_id_int, "_DHUUMS_REST_CANDIDATES")
                 cls._set_mode(cls.MODE_DREST, now_ms)
                 return
-            if skill_id_int in cls.GHOSTLY_FURY_IDS:
+            if is_fury_candidate:
+                cls._log_candidate_detection(int(ts), caster_id_int, skill_id_int, "_GHOSTLY_FURY_CANDIDATES")
                 cls._set_mode(cls.MODE_FURY, now_ms)
                 return
 
@@ -146,6 +269,9 @@ class Any_Dhuum(BuildMgr):
     """HeroAI BuildMgr adaptation of the CustomBehavior Dhuum utility build."""
 
     TEMPLATE_CODE = "OQBDAqwDSPwQwRwSwTwAAAAAAA"
+
+    _SPIRIT_FORM_SKILL_ID = 3134
+    _SPIRIT_FORM_MIN_COUNT = 1
 
     def __init__(self, match_only: bool = False):
         self.unyielding_aura_id = self._resolve_skill_id(("Unyielding_Aura", "Unyielding Aura"))
@@ -181,6 +307,13 @@ class Any_Dhuum(BuildMgr):
 
         if match_only:
             return
+
+        # Register resolved skill IDs into the shared tracker sets.
+        if self.dhuums_rest_id > 0:
+            _DhuumModeTracker._dhuums_rest_skill_ids.add(self.dhuums_rest_id)
+        if self.ghostly_fury_id > 0:
+            _DhuumModeTracker._ghostly_fury_skill_ids.add(self.ghostly_fury_id)
+        _DhuumModeTracker._ensure_timers()
 
         self.SetFallback("HeroAI", HeroAI_Build(standalone_fallback=True))
         self.SetSkillCastingFn(self._run_local_skill_logic)
@@ -223,7 +356,63 @@ class Any_Dhuum(BuildMgr):
             and int(self_account.AgentData.Map.Language) == int(other_account.AgentData.Map.Language)
         )
 
+    def _count_spirit_form_accounts(self) -> int:
+        """Count how many active same-party accounts currently have Spirit Form (buff 3134)."""
+        self_email = Player.GetAccountEmail()
+        self_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(self_email)
+        if self_account is None:
+            return 0
+        count = 0
+        for account in (GLOBAL_CACHE.ShMem.GetAllAccountData() or []):
+            if not account.IsSlotActive or account.IsIsolated:
+                continue
+            if not self._same_party_and_map(self_account, account):
+                continue
+            try:
+                if any(
+                    b.SkillId == self._SPIRIT_FORM_SKILL_ID
+                    for b in account.AgentData.Buffs.Buffs
+                    if b.SkillId != 0
+                ):
+                    count += 1
+            except Exception:
+                pass
+        return count
+
+    def _get_spirit_form_agent_ids(self) -> set[int]:
+        """Return agent IDs of same-party accounts that currently have Spirit Form (buff 3134)."""
+        result: set[int] = set()
+        self_email = Player.GetAccountEmail()
+        self_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(self_email)
+        if self_account is None:
+            return result
+        for account in (GLOBAL_CACHE.ShMem.GetAllAccountData() or []):
+            if not account.IsSlotActive or account.IsIsolated:
+                continue
+            if not self._same_party_and_map(self_account, account):
+                continue
+            try:
+                if any(
+                    b.SkillId == self._SPIRIT_FORM_SKILL_ID
+                    for b in account.AgentData.Buffs.Buffs
+                    if b.SkillId != 0
+                ):
+                    agent_id = int(account.AgentData.AgentID or 0)
+                    if agent_id > 0:
+                        result.add(agent_id)
+            except Exception:
+                pass
+        return result
+
     def _get_target_with_highest_death_penalty(self) -> int:
+        # Spirit Form gate: do not cast until at least one account is soul-splitting.
+        spirit_form_count = self._count_spirit_form_accounts()
+        if spirit_form_count < self._SPIRIT_FORM_MIN_COUNT:
+            return 0
+
+        spirit_form_agent_ids = self._get_spirit_form_agent_ids()
+        restrict_to_spirit_form = spirit_form_count <= 2
+
         self_email = Player.GetAccountEmail()
         self_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(self_email)
         if self_account is None:
@@ -244,15 +433,18 @@ class Any_Dhuum(BuildMgr):
             return 0
 
         me_x, me_y = Player.GetXY()
+        my_id = int(Player.GetAgentID())
         best_target = 0
         best_death_penalty = 0
         best_distance = float("inf")
 
         for ally_id in AgentArray.GetAllyArray():
             ally_id = int(ally_id)
-            if ally_id == int(Player.GetAgentID()):
+            if ally_id == my_id:
                 continue
             if not Agent.IsAlive(ally_id):
+                continue
+            if restrict_to_spirit_form and ally_id not in spirit_form_agent_ids:
                 continue
 
             morale = int(morale_by_agent.get(ally_id, 100))
@@ -292,6 +484,9 @@ class Any_Dhuum(BuildMgr):
 
     def _run_local_skill_logic(self):
         if not Routines.Checks.Skills.CanCast():
+            return False
+
+        if _is_uw_chest_present():
             return False
 
         # Highest priority: keep UA utility available.

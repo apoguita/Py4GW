@@ -252,15 +252,17 @@ class UWCombatAdapter(ABC):
     def _coro_wait_for_party_behind(self, bot_instance):
         """Block FSM progression until no party member is beyond _WAIT_FOR_PARTY_MAX_DISTANCE.
 
-        Calls fsm.pause() on every frame.  Because this coroutine is registered
-        after the CB botting daemon, it runs later in the managed_coroutines list
-        during each FSM update() call.  The daemon may call fsm.resume() first, but
-        our subsequent pause() overwrites that — keeping the FSM paused for the whole
-        frame.  The FSM state machine only advances after all managed coroutines have
-        run for that frame, so our last-in-order pause() wins reliably.
+        Calls fsm.pause() AND Player.Move(hold_pos) on every frame.
+        fsm.pause() prevents the FSM from advancing new states.
+        Player.Move(hold_pos) cancels any ongoing GW movement command so the
+        character does not physically walk even if the _on_party_member_behind
+        event coroutine briefly calls fsm.resume() in its finally block before
+        being removed from managed_coroutines.
         """
         fsm = bot_instance.config.FSM
         last_pixel_stack = time.monotonic()
+        # Capture hold position immediately so the character stops here.
+        hold_x, hold_y = Player.GetXY()
 
         try:
             # Emit initial pixel stack to call followers back
@@ -268,7 +270,10 @@ class UWCombatAdapter(ABC):
             yield from bot_instance.helpers.Multibox._pixel_stack()
 
             while True:
-                # Re-pause every frame to outlast the CB daemon's periodic resume()
+                # Re-issue move-to-hold-position every frame so any stray GW movement
+                # command (e.g. from a brief FSM-resume race with _on_party_member_behind)
+                # is immediately cancelled.  Also pause the FSM to prevent new states.
+                Player.Move(hold_x, hold_y)
                 fsm.pause()
 
                 # If WaitIfPartyMemberTooFar was disabled while this coroutine

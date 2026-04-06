@@ -26,6 +26,13 @@ class UWHeroAIAdapter(UWCombatAdapter):
 
     def __init__(self, bot_name: str) -> None:
         self._bot_name = bot_name
+        self._bot_instance = None
+        # Tracks whether combat should be forced active every frame.
+        # Set to False only when set_combat_enabled(False) is called explicitly.
+        self._combat_enforced: bool = True
+        # Tracks whether movement should be paused while enemies are in aggro range.
+        self._wait_if_aggro_enabled: bool = True
+        self._last_aggro_check: float = 0.0
 
     # ── Helpers ──────────────────────────────────────────────────────────
 
@@ -141,12 +148,61 @@ class UWHeroAIAdapter(UWCombatAdapter):
 
     def sync_runtime(self) -> None:
         self._sync_party_watchdog(self._bot_instance)
+        # Re-enforce combat every frame so HeroAI accounts that (re-)initialize
+        # with Combat=False (e.g. after a map load or mid-run bot restart) are
+        # immediately corrected without needing to wait for the next section setup.
+        if self._combat_enforced:
+            self._set_all_heroai_options(combat=True)
+        if self._wait_if_aggro_enabled and self._bot_instance is not None:
+            self._sync_aggro_watchdog(self._bot_instance)
+
+    def _any_enemy_in_aggro_range(self) -> bool:
+        """Return True if at least one alive enemy is within Spellcast range."""
+        from Py4GWCoreLib.enums import Range
+        from Py4GWCoreLib import AgentArray
+        player_pos = Player.GetXY()
+        aggro_range = Range.Spellcast.value
+        for agent_id in (AgentArray.GetEnemyArray() or []):
+            if Agent.IsAlive(agent_id) and Utils.Distance(player_pos, Agent.GetXY(agent_id)) <= aggro_range:
+                return True
+        return False
+
+    def _sync_aggro_watchdog(self, bot_instance) -> None:
+        """Add the aggro-pause coroutine when enemies enter Spellcast range."""
+        import time
+        if not bot_instance.config.fsm_running:
+            return
+        if not Routines.Checks.Map.IsExplorable():
+            return
+        now = time.monotonic()
+        if now - self._last_aggro_check < 0.5:
+            return
+        self._last_aggro_check = now
+        if self._any_enemy_in_aggro_range():
+            bot_instance.config.FSM.AddManagedCoroutine(
+                "UW_WaitIfAggro",
+                lambda: self._coro_wait_if_no_aggro(bot_instance),
+            )
+
+    def _coro_wait_if_no_aggro(self, bot_instance):
+        """Pause the FSM every frame until no alive enemy is within Spellcast range."""
+        fsm = bot_instance.config.FSM
+        try:
+            while True:
+                fsm.pause()
+                if not self._wait_if_aggro_enabled:
+                    return
+                if not self._any_enemy_in_aggro_range():
+                    return
+                yield
+        finally:
+            fsm.resume()
 
     # ── Utility skill toggles (no-ops for HeroAI) ────────────────────────
     # toggle_wait_for_party is inherited from UWCombatAdapter (watchdog-based).
 
     def toggle_wait_if_aggro(self, enabled: bool) -> None:
-        pass
+        self._wait_if_aggro_enabled = enabled
 
     def toggle_move_if_aggro(self, enabled: bool) -> None:
         pass
@@ -173,12 +229,28 @@ class UWHeroAIAdapter(UWCombatAdapter):
 
     def set_following_enabled(self, enabled: bool) -> None:
         if enabled:
-            self._set_all_heroai_options(following=True)
+            # Clear flags so DistanceSafe uses the leader position again and
+            # following resumes normally.
+            self.clear_flags()
+            self._set_all_heroai_options(following=True, combat=True)
         else:
-            # Disable following but keep combat active so heroes still fight in place.
+            # Flag every account at its current position so the headless-tree
+            # DistanceSafe guard (which checks distance-to-destination) always
+            # sees distance = 0 and never blocks combat while standing still.
+            for account, options in GLOBAL_CACHE.ShMem.GetAllActiveAccountHeroAIPairs(sort_results=False):
+                try:
+                    x = float(account.AgentData.Pos.x)
+                    y = float(account.AgentData.Pos.y)
+                except Exception:
+                    x, y = 0.0, 0.0
+                options.IsFlagged = True
+                options.FlagPos.x = x
+                options.FlagPos.y = y
+                options.FlagFacingAngle = 0.0
             self._set_all_heroai_options(following=False, combat=True)
 
     def set_combat_enabled(self, enabled: bool) -> None:
+        self._combat_enforced = enabled
         self._set_all_heroai_options(combat=enabled)
 
     def set_looting_enabled(self, enabled: bool) -> None:
