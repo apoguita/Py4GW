@@ -40,10 +40,26 @@ class Soul_Twisting(BuildMgr):
             return
 
         self.SetFallback("HeroAI", HeroAI_Build(standalone_fallback=True))
-        self.SetSkillCastingFn(self._run_local_skill_logic)
+        self.SetOOCFn(self._run_ooc)
+        self.SetCombatFn(self._run_combat)
         self.skills: SkillsTemplate = SkillsTemplate(self)
 
-    def _run_local_skill_logic(self):
+    def _run_ooc(self):
+        """Out of combat: maintain self-buffs only."""
+        if not Routines.Checks.Skills.CanCast():
+            return False
+
+        if self.IsSkillEquipped(Soul_Twisting_ID) and (yield from self.skills.Ritualist.SpawningPower.Soul_Twisting()):
+            return True
+        if self.IsSkillEquipped(Boon_of_Creation_ID) and (yield from self.skills.Ritualist.SpawningPower.Boon_of_Creation()):
+            return True
+        if self.IsSkillEquipped(Spirits_Gift_ID) and (yield from self.skills.Ritualist.SpawningPower.Spirits_Gift()):
+            return True
+
+        return False
+
+    def _run_combat(self):
+        """In combat: full rotation — buffs, spirits, PvE skills."""
         if not Routines.Checks.Skills.CanCast():
             return False
 
@@ -61,7 +77,7 @@ class Soul_Twisting(BuildMgr):
         if self.IsSkillEquipped(Summon_Spirits_Luxon_ID) and (yield from self.skills.Ritualist.ChannelingMagic.Summon_Spirits()):
             return True
 
-        # Protective spirits (Soul Twisting must be active — gated inside Communing._is_soul_twisting_ready)
+        # Protective spirits (Soul Twisting must be active — gated inside Communing)
         if (yield from self.skills.Ritualist.Communing.Shelter()):
             return True
         if (yield from self.skills.Ritualist.Communing.Union()):
@@ -72,9 +88,6 @@ class Soul_Twisting(BuildMgr):
         # Armor spirits
         if (yield from self.skills.Ritualist.Communing.Armor_of_Unfeeling()):
             return True
-
-        if not Routines.Checks.Agents.InAggro():
-            return False
 
         # Common PvE
         if (yield from self.skills.Any.PvE.Ebon_Vanguard_Assassin_Support()):
