@@ -192,7 +192,7 @@ class RuleConfig(list[Rule]):
         rule = UpgradeRule([upgrade])
         self.AddRule(rule)
 
-    def AddUpgrades(self, upgrades: list[Upgrade]):
+    def AddUpgrades(self, upgrades: list[(tuple[Upgrade, list[ItemType]] | Upgrade)]):
         '''
         Helper method to add an UpgradeRule to the config.
         '''
@@ -265,7 +265,7 @@ class RuleConfig(list[Rule]):
         rule = UpgradeRule([upgrade])
         self.RemoveRule(rule)
 
-    def RemoveUpgrades(self, upgrades: list[Upgrade]):
+    def RemoveUpgrades(self, upgrades: list[(tuple[Upgrade, list[ItemType]] | Upgrade)]):
         '''
         Helper method to remove an UpgradeRule from the config.
         '''

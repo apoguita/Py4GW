@@ -186,7 +186,7 @@ class AttributePlusOne(ItemProperty):
     def create_encoded_description(self) -> GWStringEncoded:
         attribute_bytes = GWEncoded._attribute_bytes(self.attribute)
         if attribute_bytes:
-            base = GWStringEncoded(bytes([*self.get_text_color(), 0x84, 0xA, 0xA, 0x1, 0x64, 0x9, 0x1, 0x0, 0x1, 0x1, 0x1, self.attribute_level]), f"{GWEncoded._attribute_name(self.attribute)} +{self.attribute_level}")
+            base = GWStringEncoded(bytes([*self.get_text_color(), 0x84, 0xA, 0xA, 0x1, *attribute_bytes, 0x1, 0x0, 0x1, 0x1, 0x1, self.attribute_level]), f"{GWEncoded._attribute_name(self.attribute)} +{self.attribute_level}")
             clause_raw = bytes([0xC1, 0xA, 0x1, 0x1, self.chance, 0x1, 0x1, 0x0])
             
             return GWEncoded._append_line_with_fallback(base, GWEncoded._dull_parenthesized(clause_raw, f"({self.chance}% chance while using skills)"), f"({self.chance}% chance while using skills)")
