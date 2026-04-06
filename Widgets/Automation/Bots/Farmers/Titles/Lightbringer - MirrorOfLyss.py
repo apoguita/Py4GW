@@ -35,8 +35,8 @@ class BotSettings:
     BOUNTY_DIALOG = 0x85
     TEXTURE = os.path.join(Py4GW.Console.get_projects_path(), "Textures", "Skill_Icons", "[1813] - Lightbringer.jpg")
 
-LOOP_STEP_NAME = f"[H]{BotSettings.BOT_NAME}_loop_3"
-RESIGN_STEP_NAME = "[H]Resign_4"
+LOOP_STEP_NAME = ""
+RESIGN_STEP_NAME = ""
 
 bot = Botting(BotSettings.BOT_NAME,
               upkeep_armor_of_salvation_restock=2,
@@ -121,7 +121,16 @@ def ConfigureAggressiveEnv(bot: Botting) -> None:
     bot.Templates.Aggressive()
     bot.Properties.Enable("auto_inventory_management")
 
+
+def _next_header_step_name(bot: Botting, step_name: str) -> str:
+    # Header suffixes are assigned by a shared counter, so resolve the next
+    # header name from the live counter instead of hardcoding "_2/_3/etc".
+    next_header_index = bot.config.counters.get_index("HEADER_COUNTER") + 1
+    return f"[H]{step_name}_{next_header_index}"
+
 def bot_routine(bot: Botting) -> None:
+    global LOOP_STEP_NAME, RESIGN_STEP_NAME
+
     #events
     condition = lambda: OnPartyWipe(bot)
     bot.Events.OnPartyWipeCallback(condition)
@@ -138,7 +147,8 @@ def bot_routine(bot: Botting) -> None:
     bot.Move.XYAndExitMap(*BotSettings.COORD_TO_ENTER_MAP, target_map_id=BotSettings.OUTPOST_TO_TRAVEL)
     
     # Combat loop
-    bot.States.AddHeader(f"{BotSettings.BOT_NAME}_loop") # 3
+    LOOP_STEP_NAME = _next_header_step_name(bot, f"{BotSettings.BOT_NAME}_loop")
+    bot.States.AddHeader(f"{BotSettings.BOT_NAME}_loop")
     PrepareForBattle(bot)
     bot.Move.XYAndExitMap(*BotSettings.COORD_TO_EXIT_MAP, target_map_id=BotSettings.EXPLORABLE_TO_TRAVEL)
     ConfigureAggressiveEnv(bot)
@@ -152,9 +162,9 @@ def bot_routine(bot: Botting) -> None:
     # Killing path
     bot.Move.FollowAutoPath(BotSettings.KILLING_PATH)
     bot.Wait.UntilOutOfCombat()
-    bot.States.AddHeader("Resign") # 4
-    bot.States.AddCustomState(lambda: _resign(bot), "Resign Party")
-    bot.Wait.ForTime(1000)
+    RESIGN_STEP_NAME = _next_header_step_name(bot, "Resign")
+    bot.States.AddHeader("Resign")
+    bot.UI.SendChatCommand("resign")
     bot.Wait.UntilOnOutpost()
     bot.States.JumpToStepName(LOOP_STEP_NAME)
 
