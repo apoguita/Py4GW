@@ -162,13 +162,13 @@ class UWCBAdapter(UWCombatAdapter):
         )
         self._bot_instance = bot_instance
         bot_instance.Events.OnPartyMemberBehindCallback(
-            lambda: self._on_party_behind_callback(bot_instance)
+            lambda: bot_instance.Templates.Routines.OnPartyMemberBehind() if self._wait_for_party_enabled else None
         )
         bot_instance.Events.OnPartyMemberInDangerCallback(
-            lambda: bot_instance.Templates.Routines.OnPartyMemberInDanger()
+            lambda: bot_instance.Templates.Routines.OnPartyMemberInDanger() if self._in_danger_enabled else None
         )
         bot_instance.Events.OnPartyMemberDeadBehindCallback(
-            lambda: self._on_dead_behind_callback(bot_instance)
+            lambda: bot_instance.Templates.Routines.OnPartyMemberDeathBehind() if self._dead_ally_rescue_enabled else None
         )
 
     def configure_startup_states(self, bot_instance) -> None:
@@ -235,7 +235,6 @@ class UWCBAdapter(UWCombatAdapter):
         )
 
     def sync_runtime(self) -> None:
-        self._sync_party_watchdog(self._bot_instance)
         loader = CustomBehaviorLoader()
         loader.ensure_botting_daemon_running()
         if loader.custom_combat_behavior is None:
@@ -310,16 +309,18 @@ class UWCBAdapter(UWCombatAdapter):
     def update_flag_position_for_email(self, email: str, x: float, y: float) -> None:
         """Find the existing CB flag slot for *email* and update its position only.
 
-        If the email is not yet assigned to any slot, the first free slot is used
-        as a fallback so the account still gets flagged.
+        Uses set_flag_position (same code path as the CB panel) when the slot
+        already has the email assigned, so only the coordinates are written without
+        touching the email array.  If the email is not yet assigned to any slot the
+        first free slot is used as a fallback via set_flag_data (email + position).
         """
         mgr = CustomBehaviorParty().party_flagging_manager
         # Try to find the slot that already belongs to this email.
         for i in range(12):
             if mgr.get_flag_account_email(i).lower() == email.lower():
-                self.set_flag_for_email(email, i, x, y)
+                mgr.set_flag_position(i, x, y)
                 return
-        # Fallback: assign the first free slot.
+        # Fallback: assign the first free slot (email assignment required here).
         for i in range(12):
             if not mgr.get_flag_account_email(i):
                 self.set_flag_for_email(email, i, x, y)

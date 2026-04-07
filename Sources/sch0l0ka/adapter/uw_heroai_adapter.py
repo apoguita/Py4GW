@@ -97,13 +97,13 @@ class UWHeroAIAdapter(UWCombatAdapter):
         )
         self._bot_instance = bot_instance
         bot_instance.Events.OnPartyMemberBehindCallback(
-            lambda: self._on_party_behind_callback(bot_instance)
+            lambda: bot_instance.Templates.Routines.OnPartyMemberBehind() if self._wait_for_party_enabled else None
         )
         bot_instance.Events.OnPartyMemberInDangerCallback(
             lambda: bot_instance.Templates.Routines.OnPartyMemberInDanger()
         )
         bot_instance.Events.OnPartyMemberDeadBehindCallback(
-            lambda: self._on_dead_behind_callback(bot_instance)
+            lambda: bot_instance.Templates.Routines.OnPartyMemberDeathBehind() if self._dead_ally_rescue_enabled else None
         )
 
     def configure_startup_states(self, bot_instance) -> None:
@@ -147,7 +147,6 @@ class UWHeroAIAdapter(UWCombatAdapter):
         )
 
     def sync_runtime(self) -> None:
-        self._sync_party_watchdog(self._bot_instance)
         # Re-enforce combat every frame so HeroAI accounts that (re-)initialize
         # with Combat=False (e.g. after a map load or mid-run bot restart) are
         # immediately corrected without needing to wait for the next section setup.

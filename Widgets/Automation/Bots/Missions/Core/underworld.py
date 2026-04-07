@@ -179,14 +179,13 @@ MAIN_LOOP_HEADER_NAME = ""
 _entered_dungeon: bool = False      # set True once map 72 is loaded; watchdog uses this
 _dhuum_fight_active: bool = False   # set True from start of Dhuum fight to chest spawn
 _run_start_uptime_ms: int = 0       # Map.GetInstanceUptime() value (ms) when the dungeon was entered
-_king_frozenwind_model_id: int = 2403
 _SKELETON_OF_DHUUM_MODEL_ID: int = 2392
-_DRAW_BLOCKED_AREAS_3D = True
+_DRAW_BLOCKED_AREAS_3D = False
+_DRAW_PATH_UNWANTED_GUESTS = False
 _BLOCKED_AREA_SEGMENTS = 48
 _BLOCKED_AREA_THICKNESS = 2.5
 _BLOCKED_AREA_COLOR = Utils.RGBToColor(255, 40, 40, 170)
 _BLOCKED_AREA_RADIUS = 200.0
-_blacklist_draw_points: list[tuple[float, float]] = []  # legacy, kept for compatibility
 _active_move_path_3d: list[tuple[float, float, float]] = []  # current move path drawn every frame
 _pending_wipe_recovery: bool = False   # set by coroutine; consumed by main() before bot.Update()
 _pending_wipe_reason:   str  = ""      # human-readable label logged when the restart fires
@@ -437,6 +436,9 @@ def _toggle_wait_for_party(enabled: bool) -> None:
 
 def _toggle_move_to_party_member_if_dead(enabled: bool) -> None:
     _get_adapter().toggle_move_to_party_member_if_dead(enabled)
+
+def _toggle_in_danger_callback(enabled: bool) -> None:
+    _get_adapter().toggle_in_danger_callback(enabled)
 
 def _enqueue_section(bot_instance: Botting, attr_name: str, label: str, section_fn):
     bot_instance.States.AddHeader(label)
@@ -855,17 +857,15 @@ def FocusKeeperOfSouls(bot_instance: Botting):
     bot_instance.States.AddCustomState(_focus_logic, "Focus Keeper of Souls")
 
 
-def _coro_draw_blocked_areas_3d(bot_instance: Botting):
-    """No-op placeholder — drawing is handled entirely by _draw_blocked_areas_overlay() in main()."""
-    while True:
-        yield from Routines.Yield.wait(500)
-
-
 def _draw_blocked_areas_overlay() -> None:
     """Query blacklisted enemy positions and draw circles every frame. Called from main()."""
     if not _DRAW_BLOCKED_AREAS_3D:
         return
     if Map.GetMapID() != UW_MAP_ID:
+        return
+    # Skip during the Dhuum fight — the per-frame INI reads and GetNameByID calls
+    # for every enemy in the arena add unnecessary load on the leader client.
+    if _dhuum_fight_active:
         return
     try:
         from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist
@@ -928,6 +928,9 @@ def _coro_skeleton_dhuum_watchdog(bot: Botting):
             continue
         if Map.GetMapID() != UW_MAP_ID:
             continue
+        # During the Dhuum fight CB handles all targeting — skip to reduce client load.
+        if _dhuum_fight_active:
+            continue
         if not bot.config.pause_on_danger_fn():
             continue
 
@@ -986,11 +989,14 @@ def _coro_dhuum_spirit_form_watchdog(bot: Botting):
                 continue
 
             # Check the buff array for Spirit Form (buff ID 3134).
-            has_spirit_form = any(
-                b.SkillId == _SPIRIT_FORM_SKILL_ID
-                for b in account.AgentData.Buffs.Buffs
-                if b.SkillId != 0
-            )
+            try:
+                has_spirit_form = any(
+                    b.SkillId == _SPIRIT_FORM_SKILL_ID
+                    for b in account.AgentData.Buffs.Buffs
+                    if b.SkillId != 0
+                )
+            except Exception:
+                has_spirit_form = False
             if not has_spirit_form:
                 _pixelstack_sent_for_spirit.discard(email)
                 _last_sync_log_at.pop(email, None)
@@ -1033,6 +1039,87 @@ def _coro_dhuum_spirit_form_watchdog(bot: Botting):
                 )
 
 
+def _send_pcon_broadcast(model_id: int, skill_id: int) -> None:
+    """Send a single PCon ShMem message to every known account.
+
+    Bypasses the @_yield_step FSM queue so the messages are delivered
+    immediately when called from a managed coroutine.  The UsePcon handler
+    on each receiver already guards with AccountHasEffect(), so items are
+    only consumed when the buff has actually expired.
+    """
+    sender = Player.GetAccountEmail()
+    accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+    for account in accounts:
+        GLOBAL_CACHE.ShMem.SendMessage(
+            sender,
+            account.AccountEmail,
+            SharedCommandType.PCon,
+            (float(model_id), float(skill_id), 0.0, 0.0),
+        )
+
+
+def _broadcast_all_pcons() -> None:
+    """Broadcast all conset + food pcons to every multibox account."""
+    _conset_pcons = [
+        (ModelID.Essence_Of_Celerity.value,   GLOBAL_CACHE.Skill.GetID("Essence_of_Celerity_item_effect")),
+        (ModelID.Grail_Of_Might.value,         GLOBAL_CACHE.Skill.GetID("Grail_of_Might_item_effect")),
+        (ModelID.Armor_Of_Salvation.value,     GLOBAL_CACHE.Skill.GetID("Armor_of_Salvation_item_effect")),
+        (ModelID.Birthday_Cupcake.value,       GLOBAL_CACHE.Skill.GetID("Birthday_Cupcake_skill")),
+        (ModelID.Golden_Egg.value,             GLOBAL_CACHE.Skill.GetID("Golden_Egg_skill")),
+        (ModelID.Candy_Corn.value,             GLOBAL_CACHE.Skill.GetID("Candy_Corn_skill")),
+        (ModelID.Candy_Apple.value,            GLOBAL_CACHE.Skill.GetID("Candy_Apple_skill")),
+        (ModelID.Slice_Of_Pumpkin_Pie.value,   GLOBAL_CACHE.Skill.GetID("Pie_Induced_Ecstasy")),
+        (ModelID.Drake_Kabob.value,            GLOBAL_CACHE.Skill.GetID("Drake_Skin")),
+        (ModelID.Bowl_Of_Skalefin_Soup.value,  GLOBAL_CACHE.Skill.GetID("Skale_Vigor")),
+        (ModelID.Pahnai_Salad.value,           GLOBAL_CACHE.Skill.GetID("Pahnai_Salad_item_effect")),
+        (ModelID.War_Supplies.value,           GLOBAL_CACHE.Skill.GetID("Well_Supplied")),
+    ]
+    for model_id, skill_id in _conset_pcons:
+        _send_pcon_broadcast(model_id, skill_id)
+
+
+def _coro_pcon_upkeep_multibox(bot: Botting):
+    """Periodically re-broadcast all consumables to multibox accounts while inside
+    the Underworld.  Broadcasts every 3 minutes; the UsePcon handler on each follower
+    already guards with AccountHasEffect() so items are only used when the buff has
+    actually expired — over-broadcasting is harmless.
+
+    NOTE: Uses direct ShMem sends instead of bot.Multibox.UseConset/UsePcons to
+    avoid the @_yield_step FSM queue, which only executes steps appended at build
+    time — not from inside a running managed coroutine."""
+    _INTERVAL_MS = 3 * 60 * 1000   # 3 minutes — shorter than the shortest pcon duration
+    _TICK_MS     = 1000
+    _last_fire_at: float = 0.0
+
+    while True:
+        yield from Routines.Yield.wait(_TICK_MS)
+
+        if not bot.config.fsm_running:
+            continue
+        if not BotSettings.UseCons:
+            continue
+        if not _entered_dungeon:
+            # Reset the timer when outside the dungeon so a fresh window starts
+            # at the next dungeon entry.
+            _last_fire_at = 0.0
+            continue
+        if Map.GetMapID() != UW_MAP_ID:
+            continue
+
+        now_ms = time.monotonic() * 1000
+        if _last_fire_at == 0.0:
+            # Arm the timer on the first tick inside the dungeon.  Skip the
+            # first interval — the initial broadcast is handled by Clear_the_Chamber.
+            _last_fire_at = now_ms
+            continue
+        if (now_ms - _last_fire_at) < _INTERVAL_MS:
+            continue
+
+        _last_fire_at = now_ms
+        _broadcast_all_pcons()
+        _append_debug_watchdog_log("Pcon upkeep: broadcast sent to all multibox accounts.")
+
+
 def bot_routine(bot: Botting):
     global MAIN_LOOP_HEADER_NAME, _run_start_uptime_ms
 
@@ -1048,9 +1135,9 @@ def bot_routine(bot: Botting):
 
     # Managed coroutines run on every FSM frame.  They must be registered before
     # the quest states so they are active from the very first step onwards.
-    bot.config.FSM.AddManagedCoroutine("UW_DrawBlockedAreas3D", lambda: _coro_draw_blocked_areas_3d(bot))
     bot.config.FSM.AddManagedCoroutine("UW_SkeletonDhuumWatchdog", lambda: _coro_skeleton_dhuum_watchdog(bot))
     bot.config.FSM.AddManagedCoroutine("UW_DhuumSpiritFormWatchdog", lambda: _coro_dhuum_spirit_form_watchdog(bot))
+    bot.config.FSM.AddManagedCoroutine("UW_PconUpkeepMultibox", lambda: _coro_pcon_upkeep_multibox(bot))
 
     # Broadcast widget-policy states: disable/enable CB or HeroAI on all accounts.
     _get_adapter().configure_startup_states(bot)
@@ -1074,7 +1161,6 @@ def bot_routine(bot: Botting):
     _enqueue_section(bot, "ImprisonedSpirits", "Imprisoned Spirits", Imprisoned_Spirits)
     _enqueue_section(bot, "RestoreVale", "Restore Vale", Restore_Vale)
     _enqueue_section(bot, "WrathfullSpirits", "Wrathfull Spirits", Wrathfull_Spirits)
-    #_enqueue_section(bot, "EscortOfSouls", "Escort of Souls", Escort_of_Souls)
     _enqueue_section(bot, "UnwantedGuests", "Unwanted Guests", Unwanted_Guests)
     _enqueue_section(bot, "RestoreWastes", "Restore Wastes", Restore_Wastes)
     _enqueue_section(bot, "ServantsOfGrenth", "Servants of Grenth", Servants_of_Grenth)
@@ -1103,6 +1189,12 @@ def Enter_UW(bot_instance: Botting):
         )
 
     bot_instance.States.AddHeader("Enter Underworld")
+
+    # After a wipe or resign the leader (and alts) may still be transitioning
+    # to the outpost.  Wait until the leader is fully on an outpost before
+    # issuing KickAllAccounts so the command reaches accounts that are ready.
+    bot_instance.Wait.UntilOnOutpost()
+    bot_instance.Wait.ForTime(5000)
 
     # ── Inventory refill at GH / configured outpost ───────────────────
     bot_instance.Multibox.KickAllAccounts()
@@ -1153,6 +1245,7 @@ def enable_default_party_behavior(bot_instance: Botting):
     Enable the baseline party behavior toggles used across Underworld missions.
     """
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
+    bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(True), "Enable MoveToPartyMemberIfDead")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_following_enabled(True), "Enable Follow")
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_combat_enabled(True), "Enable Combat")
@@ -1184,8 +1277,10 @@ def Clear_the_Chamber(bot_instance: Botting):
 
     if BotSettings.UseCons:
         # Conset upkeep is handled by the Botting constructor (upkeep_*_active=True).
-        # Use conset immediately on dungeon entry so the buffs are active from the start.
+        # Broadcast conset + food pcons immediately on dungeon entry so all multibox
+        # accounts have their buffs active from the start.
         bot_instance.Multibox.UseConset()
+        bot_instance.Multibox.UsePcons()
 
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_forced_state(None),"Release Close_to_Aggro",)
 
@@ -1201,7 +1296,6 @@ def Clear_the_Chamber(bot_instance: Botting):
     bot_instance.Move.XY(-5806, 12831, "Go to NPC")
     bot_instance.Wait.ForTime(3000)
     
-    #bot_instance.Move.XYAndInteractModel(-5806, 12831, int(UWNpcModelID.ReaperOfTheLabyrinth), "go to NPC")
     bot_instance.Dialogs.WithModel(UWNpcModelID.ReaperOfTheLabyrinth,0x806507, "Take Clear the Chamber reward")
     bot_instance.Multibox.SendDialogToTarget(0x806507)
     bot_instance.Dialogs.WithModel(UWNpcModelID.ReaperOfTheLabyrinth,0x806D01, "Quest Restore Monuments")
@@ -1287,10 +1381,10 @@ def The_Four_Horsemen(bot_instance: Botting):
         (13745, -12151),
         (13520, -12436),
     ]
-    #_enqueue_spread_flags(bot_instance, THE_FOUR_HORSEMEN_FLAG_POINTS)
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_following_enabled(False), "Disable Following")
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_looting_enabled(False), "Disable Looting")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(False), "Disable WaitIfPartyMemberTooFar")
+    bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(False), "Disable MoveToPartyMemberIfDead")
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_forced_state(BehaviorState.CLOSE_TO_AGGRO),"Force Close_to_Aggro",)
     bot_instance.Move.XY(11371, -17990, "Go to Chaos Planes NPC")
     EnqueueDialogUntilQuestActive(bot_instance, 0x806A01, int(UWQuestID.TheFourHorsemen), int(UWNpcModelID.ReaperOfTheChaosPlanes), "take Foure Horsemen quest")
@@ -1342,6 +1436,7 @@ def The_Four_Horsemen(bot_instance: Botting):
     bot_instance.Dialogs.WithModel(UWNpcModelID.ReaperOfTheChaosPlanes,0x806A07, "take questreward")
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_following_enabled(True), "Enable Follow")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
+    bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(True), "Enable MoveToPartyMemberIfDead")
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_looting_enabled(True), "Enable Looting")
     bot_instance.States.AddCustomState(lambda: _record_quest_done("The Four Horsemen"), "Record The Four Horsemen done")
 
@@ -1364,6 +1459,7 @@ def Terrorweb_Queen(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
     bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(True), "Enable MoveToPartyMemberIfDead")
+    bot_instance.Move.XY(-6957, -19478, "To the NPC")
     EnqueueDialogUntilQuestActive(bot_instance, 0x806B01, int(UWQuestID.TerrorwebQueen), int(UWNpcModelID.ReaperOfTheChaosPlanes), "take Terrorweb Queen quest")
     bot_instance.Move.XY(-12432, -15874, "Terrorweb Queen 1")
     bot_instance.Move.XY(-6957, -19478, "Back to Chamber")
@@ -1395,12 +1491,11 @@ def Restore_Pit(bot_instance: Botting):
 
 def Imprisoned_Spirits(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
-    bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(False), "Enable WaitIfPartyMemberTooFar")
-    bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(False), "Enable MoveToPartyMemberIfDead")
+    bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(False), "Disable WaitIfPartyMemberTooFar")
+    bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(False), "Disable MoveToPartyMemberIfDead")
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_looting_enabled(False), "Disable Looting")
     bot_instance.Move.XY(13212, 4978)
     _enqueue_imprisoned_spirits_flags(bot_instance)
-    bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(False), "Disable WaitIfPartyMemberTooFar")
     bot_instance.Move.XY(8692, 6292, "go to NPC")
     bot_instance.Move.XY(8666, 6308, "go to NPC")
     EnqueueDialogUntilQuestActive(bot_instance, 0x806901, int(UWQuestID.ImprisonedSpirits), int(UWNpcModelID.ReaperOfTheBonePits), "take Imprisoned Spirits quest")
@@ -1462,12 +1557,14 @@ def Wrathfull_Spirits(bot_instance: Botting):
     EnqueueDialogUntilQuestActive(bot_instance, 0x806E01, int(UWQuestID.WrathfulSpirits), int(UWNpcModelID.ReaperOfTheLabyrinth), "take Wrathfull Spirits quest")
     bot_instance.Templates.Pacifist()
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(False), "Disable WaitIfPartyMemberTooFar")
+    bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(False), "Disable MoveToPartyMemberIfDead")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(False), "Disable WaitIfInAggro")
     _blacklist(bot_instance, "tortured spirit")
     bot_instance.Move.XY(-13422, 973, "Wrathfull Spirits 1")
     bot_instance.Templates.Aggressive()
     _unblacklist(bot_instance, "tortured spirit")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar") 
+    bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(True), "Enable MoveToPartyMemberIfDead")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
     bot_instance.Move.XY(-10207, 1746, "Wrathfull Spirits 2")
     bot_instance.Move.XY(-13566, -229, "Wrathfull Spirits 3")
@@ -1482,7 +1579,7 @@ def Wrathfull_Spirits(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _record_quest_done("Wrathfull Spirits"), "Record Wrathfull Spirits done")
 
 def Unwanted_Guests(bot_instance: Botting):
-    bot_instance.Properties.ApplyNow("draw_path", "active", False)
+    bot_instance.Properties.ApplyNow("draw_path", "active", _DRAW_PATH_UNWANTED_GUESTS)
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
     bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(True), "Enable MoveToPartyMemberIfDead")
@@ -1494,6 +1591,7 @@ def Unwanted_Guests(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_following_enabled(False), "Disable Following")
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_forced_state(BehaviorState.CLOSE_TO_AGGRO),"Force Close_to_Aggro")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(False), "Disable wait_for_party")
+    bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(False), "Disable MoveToPartyMemberIfDead")
 
     bot_instance.Move.XY(-5806, 12831, "Go to NPC")
     EnqueueDialogUntilQuestActive(bot_instance, 0x806701, int(UWQuestID.UnwantedGuests), int(UWNpcModelID.ReaperOfTheLabyrinth), "take Unwanted Guests quest")
@@ -1510,6 +1608,7 @@ def Unwanted_Guests(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_following_enabled(True), "Enable Following")
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_forced_state(None),"Release Close_to_Aggro",)
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
+    bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(True), "Enable MoveToPartyMemberIfDead")
 
     #2nd Keeper
     bot_instance.Move.XY(-5806, 12831, "Go to NPC")
@@ -1551,7 +1650,7 @@ def Unwanted_Guests(bot_instance: Botting):
     _move_with_unstuck(bot_instance, 1256, 4623, "6th Keeper killed")
 
     _unblacklist(bot_instance, "obsidian behemoth")
-    bot_instance.Properties.ApplyNow("draw_path", "active", True)
+    bot_instance.Properties.ApplyNow("draw_path", "active", _DRAW_PATH_UNWANTED_GUESTS)
     bot_instance.States.AddCustomState(lambda: _record_quest_done("Unwanted Guests"), "Record Unwanted Guests done")
 
 def Restore_Wastes(bot_instance: Botting):
@@ -1585,6 +1684,7 @@ def Servants_of_Grenth(bot_instance: Botting):
         ]
     _enqueue_spread_flags(bot_instance, SERVANTS_OF_GRENTH_FLAG_POINTS)
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(False), "Disable WaitIfPartyMemberTooFar")
+    bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(False), "Disable MoveToPartyMemberIfDead")
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_forced_state(BehaviorState.CLOSE_TO_AGGRO),"Force Close_to_Aggro",)
     bot_instance.Move.XY(554, 18384, "go to NPC")
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_following_enabled(False), "Disable Following")
@@ -1593,6 +1693,7 @@ def Servants_of_Grenth(bot_instance: Botting):
     
     bot_instance.Move.XY(2700, 19952, "Servants of Grenth 2")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
+    bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(True), "Enable MoveToPartyMemberIfDead")
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_following_enabled(True), "Enable Following")
     bot_instance.Party.UnflagAllHeroes()
     bot_instance.Party.FlagAllHeroes(3032, 20148)
@@ -1605,55 +1706,6 @@ def Servants_of_Grenth(bot_instance: Botting):
     )
     bot_instance.Wait.ForTime(30000)
     bot_instance.States.AddCustomState(lambda: _record_quest_done("Servants of Grenth"), "Record Servants of Grenth done")
-    
-
-def _coro_reequip_sacrifice_armor() -> Generator[Any, Any, None]:
-    """Re-equip any armor from the backpack if this is a sacrifice account.
-    Called at the start of the Dhuum section to restore gear stripped in the previous run.
-    """
-    if not DhuumSettings.is_sacrifice(Player.GetAccountEmail()):
-        return
-    import PyInventory
-    backpack = PyInventory.Bag(1, "Backpack")
-    armor_ids = [
-        item.item_id
-        for item in backpack.GetItems()
-        if Item.Type.IsArmor(item.item_id)
-    ]
-    if not armor_ids:
-        return
-    ConsoleLog(BOT_NAME, f"[Dhuum] Re-equipping {len(armor_ids)} armor piece(s) from backpack.", Py4GW.Console.MessageType.Info)
-    for item_id in armor_ids:
-        GLOBAL_CACHE.Inventory.EquipItem(item_id, Player.GetAgentID())
-        yield from Routines.Yield.wait(750)
-
-
-def _coro_strip_sacrifice_armor() -> Generator[Any, Any, None]:
-    """Move all equipped armor pieces to the backpack if this is a sacrifice account.
-    Stripped armor is re-equipped at the start of the next Dhuum section.
-    """
-    if not DhuumSettings.is_sacrifice(Player.GetAccountEmail()):
-        return
-    import PyInventory
-    equipped_bag = PyInventory.Bag(22, "Equipped_Items")
-    armor_ids = [
-        item.item_id
-        for item in equipped_bag.GetItems()
-        if Item.Type.IsArmor(item.item_id)
-    ]
-    if not armor_ids:
-        ConsoleLog(BOT_NAME, "[Dhuum] No equipped armor found to strip.", Py4GW.Console.MessageType.Info)
-        return
-    backpack = PyInventory.Bag(1, "Backpack")
-    occupied_slots = {item.slot for item in backpack.GetItems()}
-    backpack_size = backpack.GetSize()
-    free_slots = [s for s in range(backpack_size) if s not in occupied_slots]
-    if len(free_slots) < len(armor_ids):
-        ConsoleLog(BOT_NAME, f"[Dhuum] Not enough free backpack slots to strip armor ({len(free_slots)} free, {len(armor_ids)} needed).", Py4GW.Console.MessageType.Warning)
-    ConsoleLog(BOT_NAME, f"[Dhuum] Stripping {min(len(armor_ids), len(free_slots))} armor piece(s).", Py4GW.Console.MessageType.Info)
-    for item_id, slot in zip(armor_ids, free_slots):
-        GLOBAL_CACHE.Inventory.MoveItem(item_id, 1, slot)
-        yield from Routines.Yield.wait(500)
 
 
 def Dhuum(bot_instance: Botting):
@@ -1774,6 +1826,7 @@ def Dhuum(bot_instance: Botting):
         ConsoleLog(BOT_NAME, "[Dhuum] Timed out waiting for the King - continuing anyway.", Py4GW.Console.MessageType.Warning)
 
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(False), "Disable WaitIfPartyMemberTooFar")
+    bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(False), "Disable MoveToPartyMemberIfDead")
     bot_instance.config.FSM.AddYieldRoutineStep(
         name="Follow King to Destination",
         coroutine_fn=_coro_follow_king_to_destination,
@@ -1819,6 +1872,9 @@ def Dhuum(bot_instance: Botting):
 
     bot_instance.Wait.ForTime(5000)  # Wait for the fight to properly start
 
+    # Disable the InDanger event callback for the fight — the CB daemon would
+    # immediately stomp any fsm.pause() it sets, causing erratic movement.
+    bot_instance.States.AddCustomState(lambda: _toggle_in_danger_callback(False), "Disable InDanger callback for Dhuum")
     # Activate the Spirit Form watchdog for the duration of the fight.
     bot_instance.States.AddCustomState(lambda: _set_dhuum_fight_active(True), "Enable Dhuum Spirit Form Watchdog")
     bot_instance.Move.XY(-13987, 17291, "Move to Dhuum fight")
@@ -1837,6 +1893,7 @@ def Dhuum(bot_instance: Botting):
 
     # Deactivate the Spirit Form watchdog — Dhuum is dead.
     bot_instance.States.AddCustomState(lambda: _set_dhuum_fight_active(False), "Disable Dhuum Spirit Form Watchdog")
+    bot_instance.States.AddCustomState(lambda: _toggle_in_danger_callback(True), "Re-enable InDanger callback")
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_combat_enabled(False), "Disable Combat")
 
     # Switch back to normal armor for all accounts with Switch Armor enabled.
@@ -1892,7 +1949,6 @@ def Dhuum(bot_instance: Botting):
                 ConsoleLog(BOT_NAME, f"[Dhuum] Sent InteractWithTarget (chest) to {email}", Py4GW.Console.MessageType.Info)
             yield from Routines.Yield.wait(5000)
 
-    #bot_instance.States.AddCustomState(lambda: _get_adapter().set_following_enabled(True), "Enable Following")
     bot_instance.States.AddCustomState(
         lambda: _get_adapter().clear_flags(),
         "Clear Flags",
@@ -2045,6 +2101,7 @@ def ResignAndRepeat(bot_instance: Botting):
     if BotSettings.Repeat:
         bot_instance.States.AddCustomState(_set_planned_resign, "Flag Planned Resign")
         bot_instance.Multibox.ResignParty()
+        bot_instance.Wait.ForTime(10000)
         bot_instance.States.AddCustomState(
             lambda: _restart_main_loop(bot_instance, "Successful run"),
             "Restart Main Loop",
@@ -2440,10 +2497,11 @@ def _draw_quest_settings():
 bot.SetMainRoutine(bot_routine)
 
 def _draw_debug_settings():
-    global _DRAW_BLOCKED_AREAS_3D, _BLOCKED_AREA_RADIUS
+    global _DRAW_BLOCKED_AREAS_3D, _BLOCKED_AREA_RADIUS, _DRAW_PATH_UNWANTED_GUESTS
     _DRAW_BLOCKED_AREAS_3D = PyImGui.checkbox("Draw Blocked Areas (3D)", _DRAW_BLOCKED_AREAS_3D)
     if _DRAW_BLOCKED_AREAS_3D:
         _BLOCKED_AREA_RADIUS = PyImGui.slider_float("Blocked Area Radius", _BLOCKED_AREA_RADIUS, 50.0, 600.0)
+    _DRAW_PATH_UNWANTED_GUESTS = PyImGui.checkbox("Draw Path (Unwanted Guests)", _DRAW_PATH_UNWANTED_GUESTS)
 
     PyImGui.separator()
     PyImGui.text("Spirit Form (3134) — Active accounts:")
@@ -2476,6 +2534,32 @@ def _draw_debug_settings():
             PyImGui.text_colored("  (none)", _color_no_buff)
     except Exception as _e:
         PyImGui.text_colored(f"  Error reading ShMem: {_e}", Utils.RGBToNormal(255, 80, 80, 255))
+
+    PyImGui.separator()
+    PyImGui.text("Death Penalty — Party accounts:")
+    _color_dp_none   = Utils.RGBToNormal(140, 140, 140, 255)
+    _color_dp_low    = Utils.RGBToNormal(255, 220,  60, 255)   # < 15 %
+    _color_dp_high   = Utils.RGBToNormal(255,  80,  80, 255)   # >= 15 %
+    try:
+        _dp_accounts = GLOBAL_CACHE.ShMem.GetAllAccountData() or []
+        _dp_found_any = False
+        for _dp_acc in _dp_accounts:
+            if not getattr(_dp_acc, "IsSlotActive", True):
+                continue
+            _dp_email = str(getattr(_dp_acc, "AccountEmail", "") or "").strip()
+            if not _dp_email:
+                continue
+            _morale = int(getattr(_dp_acc.AgentData, "Morale", 100) or 100)
+            _dp = 100 - _morale
+            if _dp <= 0:
+                continue
+            _dp_found_any = True
+            _col = _color_dp_high if _dp >= 15 else _color_dp_low
+            PyImGui.text_colored(f"  {_dp_email}  -{_dp}%", _col)
+        if not _dp_found_any:
+            PyImGui.text_colored("  (no death penalty)", _color_dp_none)
+    except Exception as _dp_e:
+        PyImGui.text_colored(f"  Error reading ShMem: {_dp_e}", Utils.RGBToNormal(255, 80, 80, 255))
 
     PyImGui.separator()
     PyImGui.text(f"Watchdog Log (last {_DEBUG_LOG_MAX})")
@@ -2782,6 +2866,7 @@ def main():
 
         bot.Update()
         bot.UI.draw_window(
+            icon_path=os.path.join(Py4GW.Console.get_projects_path(), MODULE_ICON),
             main_child_dimensions=(350, 570),
             additional_ui=_draw_main_additional_ui,
             extra_tabs=[("Run Log", _draw_run_log)],

@@ -947,20 +947,8 @@ class AnyDhuum_UtilitySkillBar(CustomBehaviorBaseUtility):
             current_build=in_game_build,
         )
 
-        # ── Instantiated but not currently active ────────────────────────────
-        # UnyieldingAura is available for party rez between fights but is excluded
-        # from custom_skills_in_behavior during the Dhuum soul-split phase.
-        self.unyielding_aura_utility: CustomSkillUtilityBase = UnyieldingAuraUtility(
-            event_bus=self.event_bus,
-            current_build=in_game_build,
-            score_definition=ScoreStaticDefinition(98),
-        )
-        # Encase Skeletal placeholder — cast conditions not yet implemented.
-        self.encase_skeletal_utility: CustomSkillUtilityBase = PendingConditionUtility(
-            event_bus=self.event_bus,
-            skill=self._resolve_custom_skill("Encase_Skeletal", "Encase Skeletal"),
-            current_build=in_game_build,
-        )
+        # Encase Skeletal: cast conditions not yet implemented — not instantiated.
+        # self.encase_skeletal_utility = PendingConditionUtility(...)
 
     @staticmethod
     def _resolve_skill_id(*names: str) -> int:
