@@ -97,6 +97,7 @@ class CombatClass:
         
         self.energy_drain = GLOBAL_CACHE.Skill.GetID("Energy_Drain") 
         self.energy_tap = GLOBAL_CACHE.Skill.GetID("Energy_Tap")
+        self.ether_feast = GLOBAL_CACHE.Skill.GetID("Ether_Feast")
         self.ether_lord = GLOBAL_CACHE.Skill.GetID("Ether_Lord")
         self.essence_strike = GLOBAL_CACHE.Skill.GetID("Essence_Strike")
         self.glowing_signet = GLOBAL_CACHE.Skill.GetID("Glowing_Signet")
@@ -146,6 +147,27 @@ class CombatClass:
         self.natures_blessing = GLOBAL_CACHE.Skill.GetID("Natures_Blessing")
         self.relentless_assault = GLOBAL_CACHE.Skill.GetID("Relentless_Assault")
         self.great_dwarf_weapon = GLOBAL_CACHE.Skill.GetID("Great_Dwarf_Weapon")
+        self.preparation_skill_ids = tuple(
+            skill_id
+            for skill_id in (
+                GLOBAL_CACHE.Skill.GetID("Apply_Poison"),
+                GLOBAL_CACHE.Skill.GetID("Barbed_Arrows"),
+                GLOBAL_CACHE.Skill.GetID("Choking_Gas"),
+                GLOBAL_CACHE.Skill.GetID("Corrupted_Breath"),
+                GLOBAL_CACHE.Skill.GetID("Disrupting_Accuracy"),
+                GLOBAL_CACHE.Skill.GetID("Expert_Focus"),
+                GLOBAL_CACHE.Skill.GetID("Glass_Arrows"),
+                GLOBAL_CACHE.Skill.GetID("Ignite_Arrows"),
+                GLOBAL_CACHE.Skill.GetID("Kindle_Arrows"),
+                GLOBAL_CACHE.Skill.GetID("Marksmans_Wager"),
+                GLOBAL_CACHE.Skill.GetID("Melandrus_Arrows"),
+                GLOBAL_CACHE.Skill.GetID("Rapid_Fire"),
+                GLOBAL_CACHE.Skill.GetID("Read_the_Wind"),
+                GLOBAL_CACHE.Skill.GetID("Seeking_Arrows"),
+                GLOBAL_CACHE.Skill.GetID("Trappers_Focus"),
+            )
+            if skill_id
+        )
         #junundu
         self.junundu_wail = GLOBAL_CACHE.Skill.GetID("Junundu_Wail")
         self.unknown_junundu_ability = GLOBAL_CACHE.Skill.GetID("Unknown_Junundu_Ability")
@@ -563,28 +585,40 @@ class CombatClass:
     def IsPartyMember(self, agent_id: int) -> bool:
         from .utils import IsPartyMember
         return IsPartyMember(agent_id)
-        
-    def HasEffect(self, agent_id: int, skill_id: int, exact_weapon_spell: bool = False) -> bool:
 
-        result: bool = False
-        custom_skill_data = custom_skill_data_handler.get_skill(skill_id)
-        shared_effects = getattr(custom_skill_data.Conditions, "SharedEffects", []) if custom_skill_data else []
-
+    def _get_active_effect_ids(self, agent_id: int) -> list[int] | None:
+        from .utils import GetEffectAndBuffIds
 
         if self.IsPartyMember(agent_id):
-            from .utils import CheckForEffect
-            return CheckForEffect(agent_id, skill_id)
-                    
-        else:
-            result = (
-                GLOBAL_CACHE.Effects.BuffExists(agent_id, skill_id) 
-                or GLOBAL_CACHE.Effects.EffectExists(agent_id, skill_id)
-                or any(GLOBAL_CACHE.Effects.BuffExists(agent_id, shared_buff) or GLOBAL_CACHE.Effects.EffectExists(agent_id, shared_buff) for shared_buff in shared_effects))
+            return GetEffectAndBuffIds(agent_id)
 
-        if not result and not exact_weapon_spell:
-           skilltype, _ = GLOBAL_CACHE.Skill.GetType(skill_id)
-           if skilltype == SkillType.WeaponSpell.value:
-               result = Routines.Checks.Agents.IsWeaponSpelled(agent_id)
+        allegiance, allegiance_name = Agent.GetAllegiance(agent_id)
+        if allegiance == Allegiance.SpiritPet.value:
+            return None
+
+        if allegiance_name in ("Ally", "NPC/Minipet"):
+            return None
+
+        return [
+            effect.skill_id
+            for effect in GLOBAL_CACHE.Effects.GetBuffs(agent_id) + GLOBAL_CACHE.Effects.GetEffects(agent_id)
+        ]
+        
+    def HasEffect(self, agent_id: int, skill_id: int, exact_weapon_spell: bool = False) -> bool:
+        custom_skill_data = custom_skill_data_handler.get_skill(skill_id)
+        shared_effects = getattr(custom_skill_data.Conditions, "SharedEffects", []) if custom_skill_data else []
+        active_effect_ids = self._get_active_effect_ids(agent_id)
+        if active_effect_ids is None:
+            return True
+
+        result = skill_id in active_effect_ids or any(shared_buff in active_effect_ids for shared_buff in shared_effects)
+
+        if not result:
+            skilltype, _ = GLOBAL_CACHE.Skill.GetType(skill_id)
+            if not exact_weapon_spell and skilltype == SkillType.WeaponSpell.value:
+                result = Routines.Checks.Agents.IsWeaponSpelled(agent_id)
+            elif skilltype == SkillType.Preparation.value:
+                result = any(preparation_id in active_effect_ids for preparation_id in self.preparation_skill_ids)
 
         return result
 
@@ -610,6 +644,9 @@ class CombatClass:
                 self.skills[slot].skill_id == self.ether_lord 
                 ):
                 return self.GetEnergyValues(Player.GetAgentID()) < Conditions.LessEnergy
+
+            if (self.skills[slot].skill_id == self.ether_feast):
+                return Agent.GetHealth(Player.GetAgentID()) < Conditions.LessLife
         
             if (self.skills[slot].skill_id == self.essence_strike):
                 energy = self.GetEnergyValues(Player.GetAgentID()) < Conditions.LessEnergy
@@ -1168,9 +1205,7 @@ class CombatClass:
         skill_type = self.skills[slot].custom_skill_data.SkillType
         skill_nature = self.skills[slot].custom_skill_data.Nature
 
-        if(skill_type == SkillType.Form.value or
-           skill_type == SkillType.Preparation.value or
-           skill_nature == SkillNature.Healing.value or
+        if(skill_nature == SkillNature.Healing.value or
            skill_nature == SkillNature.Hex_Removal.value or
            skill_nature == SkillNature.Condi_Cleanse.value or
            skill_nature == SkillNature.EnergyBuff.value or

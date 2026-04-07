@@ -778,6 +778,7 @@ class BTAgents:
             x: float,
             y: float,
             radius: float = float(Range.Earshot.value),
+            allowed_alive_enemies: int = 0,
             interact_interval_ms: int = 750,
             log: bool = False,
         ) -> BehaviorTree:
@@ -788,9 +789,9 @@ class BTAgents:
               Expose: true
               Audience: advanced
               Display: Clear Enemies In Area
-              Purpose: Keep interacting with enemies in an area until no alive enemies remain there.
+              Purpose: Keep interacting with enemies in an area until the alive-enemy count is at or below an allowed threshold.
               UserDescription: Use this when you want a service-like combat loop for a specific area center and radius.
-              Notes: Returns RUNNING while enemies remain and SUCCESS once the area is clear.
+              Notes: Returns RUNNING while the alive-enemy count exceeds the threshold and SUCCESS once it is at or below it.
             """
             from ...Py4GWcorelib import Utils
 
@@ -858,6 +859,7 @@ class BTAgents:
                 node.blackboard["clear_area_enemy_count"] = len(enemies)
                 node.blackboard["clear_area_center"] = (x, y)
                 node.blackboard["clear_area_radius"] = radius
+                node.blackboard["clear_area_allowed_alive_enemies"] = allowed_alive_enemies
 
                 pause_reason = _get_pause_reason(node)
                 if pause_reason:
@@ -873,11 +875,11 @@ class BTAgents:
 
                 state["paused_for_looting"] = False
 
-                if not enemies:
+                if len(enemies) <= allowed_alive_enemies:
                     if log:
                         ConsoleLog(
                             "ClearEnemiesInArea",
-                            f"Area at ({x}, {y}) is clear.",
+                            f"Area at ({x}, {y}) is clear enough: alive_enemies={len(enemies)}, allowed={allowed_alive_enemies}.",
                             Console.MessageType.Success,
                             log=log,
                         )
@@ -907,6 +909,107 @@ class BTAgents:
                 BehaviorTree.ConditionNode(
                     name="ClearEnemiesInArea",
                     condition_fn=_clear_enemies,
+                )
+            )
+
+    @staticmethod
+    def WaitForClearEnemiesInArea(
+            x: float,
+            y: float,
+            radius: float = float(Range.Earshot.value),
+            allowed_alive_enemies: int = 0,
+            log: bool = False,
+        ) -> BehaviorTree:
+            """
+            Build a tree that waits until the alive-enemy count in an area is at or below an allowed threshold.
+
+            Meta:
+              Expose: true
+              Audience: advanced
+              Display: Wait For Clear Enemies In Area
+              Purpose: Wait until the alive-enemy count in an area is at or below an allowed threshold without issuing target or interact commands.
+              UserDescription: Use this when some other system is handling combat and you only want to block until the area is clear enough.
+              Notes: Returns RUNNING while the alive-enemy count exceeds the threshold and SUCCESS once it is at or below it.
+            """
+            from typing import Any
+            from ...Py4GWcorelib import Utils
+            from ...GlobalCache import GLOBAL_CACHE
+            from ... import SharedCommandType
+
+            state = {
+                "paused_for_looting": False,
+            }
+
+            def _get_enemies_in_area() -> list[int]:
+                enemy_array = list(RoutinesAgents.GetFilteredEnemyArray(x, y, radius) or [])
+                enemy_array = [agent_id for agent_id in enemy_array if Agent.IsAlive(agent_id)]
+                enemy_array.sort(key=lambda agent_id: Utils.Distance(Player.GetXY(), Agent.GetXY(agent_id)))
+                return enemy_array
+
+            def _get_pause_reason(node: BehaviorTree.Node) -> str:
+                account_email: str = Player.GetAccountEmail()
+                index: int
+                message: Any
+                index, message = GLOBAL_CACHE.ShMem.PreviewNextMessage(account_email)
+                if (
+                    index != -1
+                    and message
+                    and message.Command == SharedCommandType.PickUpLoot
+                    and bool(getattr(message, "Running", False))
+                ):
+                    return "loot_message_active"
+                if Checks.Player.IsDead():
+                    return "player_dead"
+                if bool(node.blackboard.get("PAUSE_MOVEMENT", False)):
+                    return "external_pause"
+                if Checks.Player.IsCasting():
+                    return "casting"
+                return ""
+
+            def _wait_for_clear_enemies(node: BehaviorTree.Node) -> BehaviorTree.NodeState:
+                enemies = _get_enemies_in_area()
+                node.blackboard["wait_clear_area_enemy_count"] = len(enemies)
+                node.blackboard["wait_clear_area_center"] = (x, y)
+                node.blackboard["wait_clear_area_radius"] = radius
+                node.blackboard["wait_clear_area_allowed_alive_enemies"] = allowed_alive_enemies
+
+                pause_reason = _get_pause_reason(node)
+                if pause_reason:
+                    if log and not state["paused_for_looting"]:
+                        ConsoleLog(
+                            "WaitForClearEnemiesInArea",
+                            f"Pausing wait-for-clear routine near ({x}, {y}) due to {pause_reason}.",
+                            Console.MessageType.Info,
+                            log=log,
+                        )
+                    state["paused_for_looting"] = True
+                    return BehaviorTree.NodeState.RUNNING
+
+                state["paused_for_looting"] = False
+
+                if len(enemies) <= allowed_alive_enemies:
+                    if log:
+                        ConsoleLog(
+                            "WaitForClearEnemiesInArea",
+                            f"Area at ({x}, {y}) is clear enough: alive_enemies={len(enemies)}, allowed={allowed_alive_enemies}.",
+                            Console.MessageType.Success,
+                            log=log,
+                        )
+                    return BehaviorTree.NodeState.SUCCESS
+
+                if log:
+                    ConsoleLog(
+                        "WaitForClearEnemiesInArea",
+                        f"Waiting for area near ({x}, {y}) to clear: alive_enemies={len(enemies)}, allowed={allowed_alive_enemies}.",
+                        Console.MessageType.Info,
+                        log=log,
+                    )
+                return BehaviorTree.NodeState.RUNNING
+
+            return BehaviorTree(
+                BehaviorTree.ConditionNode(
+                    name="WaitForClearEnemiesInArea",
+                    condition_fn=_wait_for_clear_enemies,
                 )
             )
         

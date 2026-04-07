@@ -6,6 +6,7 @@ import PyImGui
 from HeroAI.headless_tree import HeroAIHeadlessTree
 
 from .GlobalCache import GLOBAL_CACHE
+from .GlobalCache.shared_memory_src.HeroAIOptionStruct import HeroAIOptionStruct
 from .IniManager import IniManager
 from .Overlay import Overlay
 from .Player import Player
@@ -140,6 +141,9 @@ class BottingTree:
     
     def Start(self):
         self.Reset()
+        self.EnableHeadlessHeroAI()
+        self.RestoreHeroAIOptions()
+        self.ClearPendingMessages()
         self._capture_isolation_state_for_restore()
         self.ApplyAccountIsolation()
         self.started = True
@@ -150,19 +154,108 @@ class BottingTree:
         if self.started:
             self.started = False
             self.paused = False
+            self.ClearPendingMessages()
             self.RestoreAccountIsolation()
             self.Reset()
+            self.RestoreHeroAIOptions()
             Py4GW.Console.Log("BottingTree", "Botting tree stopped and reset.", Py4GW.Console.MessageType.Info)
 
     def Reset(self):
         self.tree.reset()
         self.planner_tree.reset()
         self.headless_heroai.reset()
-        for _, service_tree in self._service_trees:
-            service_tree.reset()
+        if self._service_steps:
+            self._service_trees = [
+                (step_name, self._coerce_runtime_tree(subtree_or_builder))
+                for step_name, subtree_or_builder in self._service_steps
+            ]
+            self._rebuild_root_tree()
+        else:
+            for _, service_tree in self._service_trees:
+                service_tree.reset()
         self.tree.blackboard.clear()
         self._last_planner_gate_state = None
         self._last_heroai_state = None
+        self.RestoreHeroAIOptions()
+        self.ClearPendingMessages()
+
+    def ClearPendingMessages(self) -> int:
+        account_email = Player.GetAccountEmail()
+        if not account_email:
+            return 0
+
+        cleared_count = 0
+        for message_index, message in GLOBAL_CACHE.ShMem.GetAllMessages():
+            if message is None:
+                continue
+            if not getattr(message, "Active", False):
+                continue
+            if getattr(message, "ReceiverEmail", "") != account_email:
+                continue
+            GLOBAL_CACHE.ShMem.MarkMessageAsFinished(account_email, message_index)
+            cleared_count += 1
+        return cleared_count
+
+    def RestoreHeroAIOptions(self) -> bool:
+        cached_data = self.headless_heroai.cached_data
+
+        def _apply_core_options(options: HeroAIOptionStruct) -> HeroAIOptionStruct:
+            options.Following = True
+            options.Avoidance = True
+            options.Targeting = True
+            options.Combat = True
+            options.Looting = self.looting_enabled
+            return options
+
+        cached_data.account_options = _apply_core_options(cached_data.account_options or HeroAIOptionStruct())
+        cached_data.global_options = _apply_core_options(cached_data.global_options or HeroAIOptionStruct())
+
+        account_email = Player.GetAccountEmail()
+        if not account_email:
+            return False
+
+        shared_options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsFromEmail(account_email) or HeroAIOptionStruct()
+        shared_options = _apply_core_options(shared_options)
+        GLOBAL_CACHE.ShMem.SetHeroAIOptionsByEmail(account_email, shared_options)
+        cached_data.account_options = shared_options
+        return True
+
+    def _heroai_options_match_runtime_policy(self) -> bool:
+        expected_looting = bool(self.looting_enabled)
+        cached_options = self.headless_heroai.cached_data.account_options
+        if cached_options is not None:
+            if not all([
+                bool(cached_options.Following),
+                bool(cached_options.Avoidance),
+                bool(cached_options.Targeting),
+                bool(cached_options.Combat),
+            ]):
+                return False
+            if bool(cached_options.Looting) != expected_looting:
+                return False
+
+        account_email = Player.GetAccountEmail()
+        if not account_email:
+            return True
+
+        shared_options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsFromEmail(account_email)
+        if shared_options is None:
+            return False
+
+        if not all([
+            bool(shared_options.Following),
+            bool(shared_options.Avoidance),
+            bool(shared_options.Targeting),
+            bool(shared_options.Combat),
+        ]):
+            return False
+
+        return bool(shared_options.Looting) == expected_looting
+
+    def EnsureHeroAIOptionsEnabled(self) -> bool:
+        if self._heroai_options_match_runtime_policy():
+            return True
+        return self.RestoreHeroAIOptions()
             
     def Pause(self, pause: bool = True):
         if pause and not self.paused:
@@ -769,6 +862,13 @@ class BottingTree:
             self.SetLootingEnabled(requested_looting_enabled)
         bb["looting_enabled"] = self.IsLootingEnabled()
 
+        if not self.started or self.paused:
+            bb["COMBAT_ACTIVE"] = False
+            bb["LOOTING_ACTIVE"] = False
+            bb["PAUSE_MOVEMENT"] = False
+            bb["HEROAI_SUCCESS"] = False
+            return BehaviorTree.NodeState.RUNNING
+
         if not self.IsHeadlessHeroAIEnabled():
             if self._last_heroai_state != "disabled":
                 Py4GW.Console.Log("BottingTree", "Headless HeroAI is disabled.", Py4GW.Console.MessageType.Info)
@@ -780,6 +880,8 @@ class BottingTree:
             bb["HEROAI_SUCCESS"] = False
             self.headless_heroai.reset()
             return BehaviorTree.NodeState.RUNNING
+
+        self.EnsureHeroAIOptionsEnabled()
 
         if Routines.Checks.Map.IsLoading() or not Routines.Checks.Map.IsExplorable():
             if self._last_heroai_state != "waiting_map":
@@ -837,6 +939,11 @@ class BottingTree:
     def _tick_planner(self, node: BehaviorTree.Node) -> BehaviorTree.NodeState:
         bb = node.blackboard
 
+        if not self.started or self.paused:
+            bb["PLANNER_STATUS"] = PlannerStatus.IDLE.value
+            bb["PLANNER_OWNER"] = PlannerStatus.OWNER_PLANNER.value
+            return BehaviorTree.NodeState.RUNNING
+
         if bb.get("COMBAT_ACTIVE", False) and self.pause_on_combat:
             if self._last_planner_gate_state != "paused_on_combat":
                 self._last_planner_gate_state = "paused_on_combat"
@@ -880,6 +987,9 @@ class BottingTree:
         return BehaviorTree.NodeState.RUNNING
 
     def _tick_service_tree(self, node: BehaviorTree.Node, service_tree: BehaviorTree, service_name: str) -> BehaviorTree.NodeState:
+        if not self.started or self.paused:
+            return BehaviorTree.NodeState.RUNNING
+
         service_tree.blackboard = node.blackboard
         service_result = BehaviorTree.Node._normalize_state(service_tree.tick())
         if service_result is None:
@@ -942,6 +1052,4 @@ class BottingTree:
         )
 
     def tick(self):
-        if not self.started or self.paused:
-            return
         return self.tree.tick()

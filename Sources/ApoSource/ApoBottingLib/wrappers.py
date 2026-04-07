@@ -98,15 +98,15 @@ def TravelToOutpost(outpost_id: int) -> BehaviorTree:
     return RoutinesBT.Map.TravelToOutpost(outpost_id=outpost_id)
 
 #region Movement
-def Move(pos: PointOrPath) -> BehaviorTree:
+def Move(pos: PointOrPath, pause_on_combat: bool = True) -> BehaviorTree:
     return _sequence_from_points(
         "MovePath",
         _as_path(pos),
-        lambda point: RoutinesBT.Player.Move(x=point.x, y=point.y, log=False),
+        lambda point: RoutinesBT.Player.Move(x=point.x, y=point.y, pause_on_combat=pause_on_combat, log=False),
     )
 
-def MoveDirect(list_of_positions: list[Vec2f]) -> BehaviorTree:
-    return RoutinesBT.Player.MoveDirect(list_of_positions)
+def MoveDirect(list_of_positions: list[Vec2f], pause_on_combat: bool = True) -> BehaviorTree:
+    return RoutinesBT.Player.MoveDirect(list_of_positions, pause_on_combat=pause_on_combat, log=False)
 
 def MoveAndKill(pos: PointOrPath, clear_area_radius: float = Range.Spirit.value) -> BehaviorTree:
     return _sequence_from_points(
@@ -219,13 +219,22 @@ def MoveAndInteractByModelID(modelID_or_encStr: int | str, target_distance: floa
     )
 
 #region Agents
-def ClearEnemiesInArea(pos: Vec2f, radius: float = Range.Spirit.value) -> BehaviorTree:
+def ClearEnemiesInArea(pos: Vec2f, radius: float = Range.Spirit.value, allowed_alive_enemies: int = 0) -> BehaviorTree:
     return RoutinesBT.Agents.ClearEnemiesInArea(
         x=pos.x,
         y=pos.y,
         radius=radius,
+        allowed_alive_enemies=allowed_alive_enemies,
     )
-    
+
+def WaitForClearEnemiesInArea(pos: Vec2f, radius: float = Range.Spirit.value, allowed_alive_enemies: int = 0) -> BehaviorTree:
+    return RoutinesBT.Agents.WaitForClearEnemiesInArea(
+        x=pos.x,
+        y=pos.y,
+        radius=radius,
+        allowed_alive_enemies=allowed_alive_enemies,
+    )
+     
 #region Items
 
 def IsItemInInventoryBags(modelID_or_encStr: int | str) -> BehaviorTree:
@@ -313,7 +322,22 @@ def DestroyZeroValueItems(
         aftercast_ms=aftercast_ms,
     )
 
+def CustomizeWeapon(
+        frame_label: str = "Merchant.CustomizeWeaponButton",
+        aftercast_ms: int = 500,
+    ) -> BehaviorTree:
+    return RoutinesBT.Items.CustomizeWeapon(
+        frame_label=frame_label,
+        aftercast_ms=aftercast_ms,
+    )
+
 #region skills
+def LoadSkillbar(template: str, log: bool = False) -> BehaviorTree:
+    return RoutinesBT.Skills.LoadSkillbar(
+        template=template,
+        log=log,
+    )
+
 def CastSkillID(skill_id: int,
                 target_agent_id: int = 0,
                 extra_condition: bool = True,

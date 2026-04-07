@@ -57,6 +57,8 @@ from ...Agent import Agent
 from ...Player import Player
 from ...enums_src.Title_enums import TITLE_NAME
 from ...enums import SharedCommandType
+from ...enums_src.UI_enums import ControlAction
+from ...UIManager import UIManager
 from ...py4gwcorelib_src.BehaviorTree import BehaviorTree
 from ..Checks import Checks
 
@@ -84,6 +86,13 @@ class _MoveState(TypedDict):
     current_pause_reason: str
     last_logged_waypoint_index: int
     failure_details: dict[str, Any]
+    stall_retry_count: int
+    strafe_side: str
+    strafe_phase: int
+    strafe_active: bool
+    strafe_started_ms: int | None
+    strafe_duration_ms: int
+    last_move_command_ms: int | None
 
 
 class _TimeoutState(TypedDict):
@@ -1167,6 +1176,13 @@ class BTPlayer:
                 "current_pause_reason": "",
                 "last_logged_waypoint_index": -1,
                 "failure_details": {},
+                "stall_retry_count": 0,
+                "strafe_side": "",
+                "strafe_phase": 0,
+                "strafe_active": False,
+                "strafe_started_ms": None,
+                "strafe_duration_ms": 500,
+                "last_move_command_ms": None,
             }
 
             def _reset_runtime() -> None:
@@ -1197,6 +1213,13 @@ class BTPlayer:
                 state["current_pause_reason"] = ""
                 state["last_logged_waypoint_index"] = -1
                 state["failure_details"] = {}
+                state["stall_retry_count"] = 0
+                state["strafe_side"] = ""
+                state["strafe_phase"] = 0
+                state["strafe_active"] = False
+                state["strafe_started_ms"] = None
+                state["strafe_duration_ms"] = 500
+                state["last_move_command_ms"] = None
 
             def _reset_result() -> None:
                 """
@@ -1252,6 +1275,10 @@ class BTPlayer:
                 node.blackboard["move_resume_recovery_reason"] = state["resume_recovery_reason"]
                 node.blackboard["move_resume_recovery_restart_pending"] = bool(state["resume_recovery_restart_pending"])
                 node.blackboard["move_current_pause_reason"] = state["current_pause_reason"]
+                node.blackboard["move_stall_retry_count"] = int(state["stall_retry_count"])
+                node.blackboard["move_strafe_side"] = state["strafe_side"]
+                node.blackboard["move_strafe_phase"] = int(state["strafe_phase"])
+                node.blackboard["move_strafe_active"] = bool(state["strafe_active"])
 
             def _debug_enabled(node: BehaviorTree.Node) -> bool:
                 """
@@ -1282,6 +1309,7 @@ class BTPlayer:
                 state["completed"] = True
                 state["result_state"] = move_state
                 state["result_reason"] = reason
+                _stop_strafe()
                 if move_state == "failed":
                     current_pos: Point2D = Player.GetXY()
                     waypoint: Point2D | None = None
@@ -1369,10 +1397,12 @@ class BTPlayer:
                 if last_move_point is not None:
                     last_x, last_y = last_move_point
                     if abs(move_x - last_x) <= 10 and abs(move_y - last_y) <= 10:
-                        move_x += random.uniform(-7.5, 7.5)
-                        move_y += random.uniform(-7.5, 7.5)
+                        move_x += random.uniform(-10.0, 10.0)
+                        move_y += random.uniform(-10.0, 10.0)
                 Player.Move(move_x, move_y)
                 state["last_move_point"] = (move_x, move_y)
+                from ...Py4GWcorelib import Utils
+                state["last_move_command_ms"] = Utils.GetBaseTimestamp()
                 if log:
                     if move_x != target_x or move_y != target_y:
                         ConsoleLog(
@@ -1383,6 +1413,73 @@ class BTPlayer:
                         )
                     else:
                         ConsoleLog("Move", f"Moving to waypoint ({target_x}, {target_y}).", Console.MessageType.Info, log=log)
+
+            def _get_combat_move_issue_cooldown_ms() -> int:
+                player_living = Agent.GetLivingAgentByID(Player.GetAgentID())
+                if player_living is None:
+                    return 1750
+
+                attack_speed = float(getattr(player_living, "weapon_attack_speed", 0.0) or 0.0)
+                attack_speed_modifier = float(getattr(player_living, "attack_speed_modifier", 1.0) or 1.0)
+                if attack_speed <= 0.0:
+                    attack_speed = 1.75
+                if attack_speed_modifier <= 0.0:
+                    attack_speed_modifier = 1.0
+                return max(250, int((attack_speed / attack_speed_modifier) * 1000))
+
+            def _try_issue_move(node: BehaviorTree.Node, target_x: float, target_y: float, now: int) -> bool:
+                if bool(node.blackboard.get("COMBAT_ACTIVE", False)) and not pause_on_combat:
+                    last_move_command_ms = state["last_move_command_ms"]
+                    if last_move_command_ms is not None:
+                        cooldown_ms = _get_combat_move_issue_cooldown_ms()
+                        elapsed_ms = now - last_move_command_ms
+                        if elapsed_ms < cooldown_ms:
+                            _set_blackboard(node, "running", "waiting_attack_window")
+                            return False
+
+                _issue_move(target_x, target_y)
+                return True
+
+            def _stop_strafe() -> None:
+                if not state["strafe_active"]:
+                    return
+
+                if state["strafe_side"] == "left":
+                    UIManager.Keyup(ControlAction.ControlAction_StrafeLeft.value, 0)
+                elif state["strafe_side"] == "right":
+                    UIManager.Keyup(ControlAction.ControlAction_StrafeRight.value, 0)
+
+                state["strafe_active"] = False
+                state["strafe_started_ms"] = None
+                state["strafe_duration_ms"] = 500
+
+            def _start_strafe(side: str, now: int) -> None:
+                _stop_strafe()
+
+                if side == "left":
+                    UIManager.Keydown(ControlAction.ControlAction_StrafeLeft.value, 0)
+                else:
+                    UIManager.Keydown(ControlAction.ControlAction_StrafeRight.value, 0)
+
+                state["strafe_side"] = side
+                state["strafe_active"] = True
+                state["strafe_started_ms"] = now
+                state["strafe_duration_ms"] = random.randint(500, 1000)
+
+            def _tick_strafe(now: int) -> bool:
+                if not state["strafe_active"]:
+                    return False
+
+                started_ms = state["strafe_started_ms"]
+                if started_ms is None:
+                    _stop_strafe()
+                    return False
+
+                if now - started_ms < state["strafe_duration_ms"]:
+                    return True
+
+                _stop_strafe()
+                return False
 
             def _move(node: BehaviorTree.Node) -> BehaviorTree.NodeState:
                 """
@@ -1400,6 +1497,7 @@ class BTPlayer:
                 from ...Py4GWcorelib import Utils
 
                 now: int = Utils.GetBaseTimestamp()
+                effective_tolerance: float = max(float(tolerance), 125.0) if not pause_on_combat else float(tolerance)
                 if state["completed"] and state["result_state"] == "finished":
                     if log:
                         ConsoleLog("Move", f"Movement already finished ({state['result_reason']}).", Console.MessageType.Info, log=log)
@@ -1463,7 +1561,7 @@ class BTPlayer:
                             )
 
                         current_pos: Point2D = Player.GetXY()
-                        if Utils.Distance(current_pos, (x, y)) <= tolerance:
+                        if Utils.Distance(current_pos, (x, y)) <= effective_tolerance:
                             if _debug_enabled(node):
                                 ConsoleLog("Move", "Already within tolerance of destination.", Console.MessageType.Success, log=True)
                             _finalize_move(node, "finished")
@@ -1476,6 +1574,7 @@ class BTPlayer:
                             return BehaviorTree.NodeState.FAILURE
 
                 if Checks.Player.IsDead():
+                    _stop_strafe()
                     if log:
                         ConsoleLog("Move", "Player is dead; movement remains active and waiting.", Console.MessageType.Warning, log=log)
                     state["was_paused"] = True
@@ -1486,11 +1585,15 @@ class BTPlayer:
                     state["last_move_point"] = None
                     state["resume_recovery_active"] = False
                     state["resume_recovery_reason"] = ""
+                    state["stall_retry_count"] = 0
+                    state["strafe_side"] = ""
+                    state["strafe_phase"] = 0
                     _set_blackboard(node, "paused", "player_dead")
                     return BehaviorTree.NodeState.RUNNING
 
                 pause_reason: str = _get_pause_reason(node)
                 if pause_reason:
+                    _stop_strafe()
                     if not state["pause_logged"] and log:
                             ConsoleLog("Move", f"Movement paused due to {pause_reason}.", Console.MessageType.Info, log=log)
                     state["pause_logged"] = True
@@ -1502,6 +1605,9 @@ class BTPlayer:
                     state["last_move_point"] = None
                     state["resume_recovery_active"] = False
                     state["resume_recovery_reason"] = ""
+                    state["stall_retry_count"] = 0
+                    state["strafe_side"] = ""
+                    state["strafe_phase"] = 0
                     _set_blackboard(node, "paused", pause_reason)
                     return BehaviorTree.NodeState.RUNNING
                 elif state["pause_logged"]:
@@ -1537,7 +1643,12 @@ class BTPlayer:
                 current_pos: Point2D = Player.GetXY()
                 current_distance: float = Utils.Distance(current_pos, (target_x, target_y))
 
-                if current_distance <= tolerance:
+                if pause_on_combat and _tick_strafe(now):
+                    _set_blackboard(node, "running", f"strafing_{state['strafe_side']}")
+                    return BehaviorTree.NodeState.RUNNING
+
+                if current_distance <= effective_tolerance:
+                    _stop_strafe()
                     state["path_index"] += 1
                     state["move_issued"] = False
                     state["last_distance"] = None
@@ -1545,6 +1656,9 @@ class BTPlayer:
                     state["resume_recovery_active"] = False
                     state["resume_recovery_reason"] = ""
                     state["resume_recovery_restart_pending"] = True
+                    state["stall_retry_count"] = 0
+                    state["strafe_side"] = ""
+                    state["strafe_phase"] = 0
                     if log:
                         ConsoleLog("Move", f"Reached waypoint, advancing to index {state['path_index']}.", Console.MessageType.Info, log=log)
 
@@ -1555,7 +1669,8 @@ class BTPlayer:
                         return BehaviorTree.NodeState.SUCCESS
 
                     target_x, target_y = state["path_points"][state["path_index"]]
-                    _issue_move(target_x, target_y)
+                    if not _try_issue_move(node, target_x, target_y, now):
+                        return BehaviorTree.NodeState.RUNNING
                     state["move_issued"] = True
                     state["last_distance"] = Utils.Distance(Player.GetXY(), (target_x, target_y))
                     state["last_progress_ms"] = now
@@ -1563,7 +1678,9 @@ class BTPlayer:
                     return BehaviorTree.NodeState.RUNNING
 
                 if not state["move_issued"]:
-                    _issue_move(target_x, target_y)
+                    _stop_strafe()
+                    if not _try_issue_move(node, target_x, target_y, now):
+                        return BehaviorTree.NodeState.RUNNING
                     state["move_issued"] = True
                     state["last_distance"] = current_distance
                     state["last_progress_ms"] = now
@@ -1571,17 +1688,52 @@ class BTPlayer:
                     return BehaviorTree.NodeState.RUNNING
 
                 if state["last_distance"] is None or current_distance < state["last_distance"] - 1.0:
+                    _stop_strafe()
                     state["last_distance"] = current_distance
                     state["last_progress_ms"] = now
+                    state["stall_retry_count"] = 0
                 elif state["last_progress_ms"] is not None and now - state["last_progress_ms"] >= stall_threshold_ms:
+                    state["stall_retry_count"] += 1
                     if log:
                         ConsoleLog(
                             "Move",
-                            f"No progress for {stall_threshold_ms}ms, nudging waypoint ({target_x}, {target_y}).",
+                            f"No progress for {stall_threshold_ms}ms, nudging waypoint ({target_x}, {target_y}); retry {state['stall_retry_count']}.",
                             Console.MessageType.Warning,
                             log=log,
                         )
-                    _issue_move(target_x, target_y)
+                    if pause_on_combat and state["stall_retry_count"] >= 4:
+                        if state["strafe_phase"] == 0:
+                            chosen_side = random.choice(("left", "right"))
+                            state["strafe_phase"] = 1
+                            _start_strafe(chosen_side, now)
+                            if log:
+                                ConsoleLog(
+                                    "Move",
+                                    f"Retry threshold reached; strafing {chosen_side} for {state['strafe_duration_ms']}ms before reattempting movement.",
+                                    Console.MessageType.Warning,
+                                    log=log,
+                                )
+                            state["stall_retry_count"] = 0
+                            state["last_progress_ms"] = now
+                            _set_blackboard(node, "running", f"strafing_{chosen_side}")
+                            return BehaviorTree.NodeState.RUNNING
+                        if state["strafe_phase"] == 1:
+                            opposite_side = "right" if state["strafe_side"] == "left" else "left"
+                            state["strafe_phase"] = 2
+                            _start_strafe(opposite_side, now)
+                            if log:
+                                ConsoleLog(
+                                    "Move",
+                                    f"Still stalled after post-strafe retries; strafing {opposite_side} for {state['strafe_duration_ms']}ms.",
+                                    Console.MessageType.Warning,
+                                    log=log,
+                                )
+                            state["stall_retry_count"] = 0
+                            state["last_progress_ms"] = now
+                            _set_blackboard(node, "running", f"strafing_{opposite_side}")
+                            return BehaviorTree.NodeState.RUNNING
+                    if not _try_issue_move(node, target_x, target_y, now):
+                        return BehaviorTree.NodeState.RUNNING
                     state["last_progress_ms"] = now
                     state["last_distance"] = current_distance
 
@@ -1626,8 +1778,6 @@ class BTPlayer:
                 """
                 from ...Py4GWcorelib import Utils
 
-                pause_reason: str = _get_pause_reason(node)
-                is_paused: bool = bool(pause_reason)
                 if state["completed"] and state["result_state"] == "finished":
                     if log:
                         ConsoleLog("Move", f"Timeout watcher finished because movement succeeded ({state['result_reason']}).", Console.MessageType.Info, log=log)
@@ -1639,6 +1789,13 @@ class BTPlayer:
                         ConsoleLog("Move", f"Timeout watcher finished because movement failed: {state['result_reason']}.", Console.MessageType.Info, log=log)
                     _reset_timeout()
                     return BehaviorTree.NodeState.SUCCESS
+
+                if not pause_on_combat:
+                    _reset_timeout()
+                    return BehaviorTree.NodeState.RUNNING
+
+                pause_reason: str = _get_pause_reason(node)
+                is_paused: bool = bool(pause_reason)
 
                 now: int = Utils.GetBaseTimestamp()
 
