@@ -30,8 +30,13 @@ class BotSettings:
     BOUNTY_DIALOG = 0x85
     TEXTURE = os.path.join(Py4GW.Console.get_projects_path(), "Textures", "Skill_Icons", "[1816] - Sunspear Rebirth Signet.jpg")
 
-COMBAT_LOOP_STEP_NAME = "[H]Combat loop_4"
-RESIGN_STEP_NAME = "[H]Resign_7"
+LOOP_STEP_NAME = ""
+RESIGN_STEP_NAME = ""
+
+_SETTINGS_SECTION = "Settings"
+_MULTIBOX_ALTS_KEY = "use_multibox_alts"
+_party_mode: int = 0  # 0 = Single Account with Heroes, 1 = Multiboxing
+_mode_loaded: bool = False
 
 bot = Botting(BotSettings.BOT_NAME,
               upkeep_armor_of_salvation_restock=2,
@@ -115,54 +120,61 @@ def ConfigureAggressiveEnv(bot: Botting) -> None:
     bot.Templates.Aggressive()
     bot.Properties.Enable("auto_inventory_management")
 
+
+def _next_header_step_name(bot: Botting, step_name: str) -> str:
+    next_header_index = bot.config.counters.get_index("HEADER_COUNTER") + 1
+    return f"[H]{step_name}_{next_header_index}"
+
+
 def bot_routine(bot: Botting) -> None:
-    # Events
+    global LOOP_STEP_NAME, RESIGN_STEP_NAME
+
+    #events
     condition = lambda: OnPartyWipe(bot)
     bot.Events.OnPartyWipeCallback(condition)
+    bot.Events.OnPartyMemberBehindCallback(lambda: bot.Templates.Routines.OnPartyMemberBehind())
+    bot.Events.OnPartyMemberInDangerCallback(lambda: bot.Templates.Routines.OnPartyMemberInDanger())
+    bot.Events.OnPartyMemberDeadBehindCallback(lambda: bot.Templates.Routines.OnPartyMemberDeathBehind())
+    #end events
 
     # Combat preparations
-    bot.States.AddHeader("Combat preparations") # 1
+    bot.States.AddHeader(BotSettings.BOT_NAME)
     bot.Map.Travel(target_map_id=BotSettings.OUTPOST_TO_TRAVEL)
-    bot.States.AddCustomState(lambda: _setup_heroes(bot), "Setup Heroes")
+    bot.States.AddCustomState(lambda: _maybe_setup_heroes(bot), "Setup Heroes")
     bot.Party.SetHardMode(True)
-    
+
     # Resign setup
-    bot.States.AddHeader("Resign setup") # 3
     bot.Move.XYAndExitMap(*BotSettings.COORD_TO_EXIT_MAP, target_map_id=BotSettings.EXPLORABLE_TO_TRAVEL)
     bot.Move.XYAndExitMap(*BotSettings.COORD_TO_ENTER_MAP, target_map_id=BotSettings.OUTPOST_TO_TRAVEL)
 
     # Combat loop
-    bot.States.AddHeader("Combat loop") # 4
+    LOOP_STEP_NAME = _next_header_step_name(bot, f"{BotSettings.BOT_NAME}_loop")
+    bot.States.AddHeader(f"{BotSettings.BOT_NAME}_loop")
     PrepareForBattle(bot)
     bot.Move.XYAndExitMap(*BotSettings.COORD_TO_EXIT_MAP, target_map_id=BotSettings.EXPLORABLE_TO_TRAVEL)
     ConfigureAggressiveEnv(bot)
 
     # Bounty interaction
-    bot.States.AddHeader("Bounty interaction") # 5
-    bot.Move.XY(*BotSettings.BOUNTY_COORDS)
-    bot.Wait.ForTime(1500)
-    bot.Move.XYAndDialog(*BotSettings.BOUNTY_COORDS, BotSettings.BOUNTY_DIALOG)
-    bot.Wait.ForTime(1500)
+    bot.States.AddCustomState(lambda: _do_bounty_interaction(bot), "Bounty Interaction")
 
     # Killing path
-    bot.States.AddHeader("Killing path") # 6
     bot.Move.FollowAutoPath(BotSettings.KILLING_PATH)
     bot.Wait.UntilOutOfCombat()
-
-    # Resign & restart
-    bot.States.AddHeader("Resign") # 7
-    bot.States.AddCustomState(lambda: _resign(bot), "Resign Party")
-    bot.Wait.ForTime(1000)
+    RESIGN_STEP_NAME = _next_header_step_name(bot, "Resign")
+    bot.States.AddHeader("Resign")
+    bot.Multibox.ResignParty()
     bot.Wait.UntilOnOutpost()
-    bot.States.JumpToStepName(COMBAT_LOOP_STEP_NAME)
+    bot.States.JumpToStepName(LOOP_STEP_NAME)
 
-def PrepareForBattle(bot: Botting):                  
+
+def PrepareForBattle(bot: Botting):
     bot.Items.Restock.ArmorOfSalvation()
     bot.Items.Restock.EssenceOfCelerity()
     bot.Items.Restock.GrailOfMight()
     bot.Items.Restock.WarSupplies()
     bot.Items.Restock.Honeycomb()
-    
+
+
 def _on_party_wipe(bot: "Botting"):
     if not Routines.Checks.Map.MapValid() or not Routines.Checks.Map.IsExplorable():
         bot.config.FSM.resume()
@@ -173,11 +185,9 @@ def _on_party_wipe(bot: "Botting"):
             bot.config.FSM.resume()
             return
         if not Routines.Checks.Map.MapValid():
-            # Map invalid → release FSM and exit
             bot.config.FSM.resume()
             return
 
-    # Player revived on same map → jump to recovery step
     if not Routines.Checks.Map.MapValid() or not Routines.Checks.Map.IsExplorable():
         bot.config.FSM.resume()
         return
@@ -185,10 +195,12 @@ def _on_party_wipe(bot: "Botting"):
     bot.States.JumpToStepName(RESIGN_STEP_NAME)
     bot.config.FSM.resume()
 
+
 def OnPartyWipe(bot: "Botting"):
     ConsoleLog("on_party_wipe", "event triggered")
-    bot.config.FSM.pause()
-    bot.config.FSM.AddManagedCoroutine("OnWipe_OPD", lambda: _on_party_wipe(bot))
+    fsm = bot.config.FSM
+    fsm.pause()
+    fsm.AddManagedCoroutine("OnWipe_OPD", lambda: _on_party_wipe(bot))
 
 
 def _as_bool(value) -> bool:
@@ -445,19 +457,72 @@ def _setup_heroes(bot: Botting):
             yield from bot.Wait._coro_for_time(500)
 
 
-def _resign(bot: Botting):
-    bot.UI.SendChatCommand("resign")
-    yield from bot.Wait._coro_for_time(500)
+def _maybe_setup_heroes(bot: Botting):
+    if _party_mode == 1:
+        yield from bot.helpers.Multibox._summon_all_accounts()
+        yield from bot.Wait._coro_for_time(4000)
+        yield from bot.helpers.Multibox._invite_all_accounts()
+        return
+    yield from _setup_heroes(bot)
+
+
+def _do_bounty_interaction(bot: Botting):
+    if _party_mode == 1:
+        yield from bot.Move._coro_xy_and_interact_npc(*BotSettings.BOUNTY_COORDS)
+        yield from bot.Wait._coro_for_time(1500)
+        yield from bot.helpers.Multibox._send_dialog_with_target(BotSettings.BOUNTY_DIALOG)
+        yield from bot.Wait._coro_for_time(1500)
+    else:
+        yield from bot.Move._coro_xy(*BotSettings.BOUNTY_COORDS)
+        yield from bot.Wait._coro_for_time(1500)
+        yield from bot.Move._coro_xy_and_dialog(*BotSettings.BOUNTY_COORDS, BotSettings.BOUNTY_DIALOG)
+        yield from bot.Wait._coro_for_time(1500)
+
+
+def _load_mode_setting(bot: Botting) -> None:
+    global _party_mode
+    ini_key = _ensure_bot_ini(bot)
+    if not ini_key:
+        return
+    raw = IniManager().read_bool(ini_key, _SETTINGS_SECTION, _MULTIBOX_ALTS_KEY, False)
+    _party_mode = 1 if raw else 0
+
+
+def _save_mode_setting(bot: Botting) -> None:
+    ini_key = _ensure_bot_ini(bot)
+    if not ini_key:
+        return
+    IniManager().write_key(ini_key, _SETTINGS_SECTION, _MULTIBOX_ALTS_KEY, _party_mode == 1)
+
 
 bot.UI.override_draw_config(lambda: _draw_settings(bot))
 bot.UI.override_draw_help(lambda: _draw_help(bot))
 
+
 def _draw_settings(bot: Botting):
+    global _party_mode, _mode_loaded
+    if not _mode_loaded:
+        _load_mode_setting(bot)
+        _mode_loaded = True
+
     PyImGui.text("Bot Settings")
+
+    PyImGui.separator()
+    PyImGui.text("Party Mode:")
+    new_mode = PyImGui.radio_button("Single Account with Heroes", _party_mode, 0)
+    PyImGui.same_line(0, 16)
+    new_mode = PyImGui.radio_button("Multiboxing", new_mode, 1)
+    if new_mode != _party_mode:
+        _party_mode = new_mode
+        _save_mode_setting(bot)
+    if _party_mode == 1:
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (0.6, 0.9, 1.0, 1.0))
+        PyImGui.text("Resign uses Multibox Party Resign. Hero setup is skipped.")
+        PyImGui.pop_style_color(1)
+    PyImGui.separator()
 
     PyImGui.text("Combat Backend")
     PyImGui.text("Current: Auto Combat")
-    PyImGui.text("Mode: Single Account with Heroes")
 
     # Conset controls
     use_conset = bot.Properties.Get("armor_of_salvation", "active")
@@ -470,7 +535,7 @@ def _draw_settings(bot: Botting):
     use_war_supplies = bot.Properties.Get("war_supplies", "active")
     use_war_supplies = PyImGui.checkbox("Restock & use War Supplies", use_war_supplies)
     bot.Properties.ApplyNow("war_supplies", "active", use_war_supplies)
-                          
+
     # Honeycomb controls
     use_honeycomb = bot.Properties.Get("honeycomb", "active")
     use_honeycomb = PyImGui.checkbox("Restock & use Honeycomb", use_honeycomb)
@@ -480,45 +545,42 @@ def _draw_settings(bot: Botting):
     hc_restock_qty = PyImGui.input_int("Honeycomb Restock Quantity", hc_restock_qty)
     bot.Properties.ApplyNow("honeycomb", "restock_quantity", hc_restock_qty)
 
+
 def _draw_help(bot: Botting):
-    # Title
     title_color = Color(255, 200, 100, 255)
     ImGui.push_font("Regular", 20)
     PyImGui.text_colored(BotSettings.BOT_NAME + " bot", title_color.to_tuple_normalized())
     ImGui.pop_font()
     PyImGui.spacing()
     PyImGui.separator()
-    # Description
     PyImGui.text("Multi-account bot to " + BotSettings.BOT_NAME)
     PyImGui.spacing()
     PyImGui.text_colored("Requirements:", title_color.to_tuple_normalized())
-    PyImGui.bullet_text("Yohlon Haven outpost")     
-    # Credits
+    PyImGui.bullet_text("Yohlon Haven outpost")
     PyImGui.text_colored("Credits:", title_color.to_tuple_normalized())
     PyImGui.bullet_text("Developed by Aura")
     PyImGui.bullet_text("Contributors:")
     PyImGui.bullet_text("- Wick-Divinus for script template")
 
+
 def tooltip():
     PyImGui.begin_tooltip()
-    # Title
     title_color = Color(255, 200, 100, 255)
     ImGui.push_font("Regular", 20)
     PyImGui.text_colored(BotSettings.BOT_NAME + " bot", title_color.to_tuple_normalized())
     ImGui.pop_font()
     PyImGui.spacing()
     PyImGui.separator()
-    # Description
     PyImGui.text("Multi-account bot to " + BotSettings.BOT_NAME)
     PyImGui.spacing()
     PyImGui.text_colored("Requirements:", title_color.to_tuple_normalized())
-    PyImGui.bullet_text("Yohlon Haven outpost")  
-    # Credits
+    PyImGui.bullet_text("Yohlon Haven outpost")
     PyImGui.text_colored("Credits:", title_color.to_tuple_normalized())
     PyImGui.bullet_text("Developed by Aura")
     PyImGui.bullet_text("Contributors:")
     PyImGui.bullet_text("- Wick-Divinus for script template")
     PyImGui.end_tooltip()
+
 
 _session_baselines: dict[str, int] = {}
 _session_start_times: dict[str, float] = {}
@@ -526,6 +588,8 @@ _session_start_times: dict[str, float] = {}
 
 def _get_title_track_accounts():
     accounts = list(GLOBAL_CACHE.ShMem.GetAllAccountData())
+    if _party_mode == 1:
+        return accounts if accounts else []
     own_email = Player.GetAccountEmail()
     filtered = [account for account in accounts if getattr(account, "AccountEmail", "") == own_email]
     if filtered:
@@ -594,6 +658,7 @@ def _draw_title_track():
             frac = min(next_rank_progress_current / next_rank_progress_total, 1.0)
             PyImGui.progress_bar(frac, -1, 0, f"{next_rank_progress_current:,} / {next_rank_progress_total:,}")
         PyImGui.text(f"+{gained:,} points ({pts_hr:,}/hr) - Running for: {formatted_time}")
+
 
 bot.SetMainRoutine(bot_routine)
 
