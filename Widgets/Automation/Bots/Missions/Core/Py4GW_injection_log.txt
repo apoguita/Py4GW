@@ -1,0 +1,8 @@
+2026-04-07 14:31:08 [INFO] [Dialog] Invalidated active dialog state on map transition/readiness change (72:ready -> 72:not_ready, pending_async=0).
+2026-04-07 15:42:54 [INFO] Terminating DLL...
+2026-04-07 16:03:12 [INFO] [Dialog] Invalidated active dialog state on map transition/readiness change (72:ready -> 72:not_ready, pending_async=0).
+2026-04-07 17:53:58 [INFO] [Dialog] Invalidated active dialog state on map transition/readiness change (72:ready -> 72:not_ready, pending_async=0).
+2026-04-07 18:45:22 [INFO] [Dialog] Invalidated active dialog state on map transition/readiness change (72:ready -> 72:not_ready, pending_async=0).
+2026-04-07 19:10:26 [INFO] Terminating DLL...
+2026-04-07 19:33:54 [INFO] [Dialog] Invalidated active dialog state on map transition/readiness change (646:ready -> 646:not_ready, pending_async=0).
+2026-04-07 21:20:25 [INFO] [Dialog] Invalidated active dialog state on map transition/readiness change (72:ready -> 72:not_ready, pending_async=0).
