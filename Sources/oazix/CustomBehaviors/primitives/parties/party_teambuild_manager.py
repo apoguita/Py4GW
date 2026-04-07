@@ -32,6 +32,7 @@ class SkillbarData:
     account_email: str
     skillbar_template: str
     skillbar_parsed: SkillbarParsed
+    custom_behavior_skillbar_used: str
 
 class PartyTeamBuildManager:
     """
@@ -116,23 +117,40 @@ class PartyTeamBuildManager:
         self._set_c_wchar_array(config.SkillbarTemplates[slot_index], template)
         self._memory_manager.SetTeamBuildConfig(config)
 
-    def get_template_data(self, slot_index: int) -> tuple[str, str]:
-        """Get complete template data: (account_email, skillbar_template)"""
+    def get_custom_behavior_skillbar_used(self, slot_index: int) -> str:
+        """Get the custom behavior skillbar class name for a slot"""
+        if slot_index < 0 or slot_index >= 12:
+            raise ValueError(f"Slot index must be 0-11, got {slot_index}")
+        config = self._memory_manager.GetTeamBuildConfig()
+        return self._get_c_wchar_array_as_str(config.CustomBehaviorSkillbarUsed[slot_index])
+
+    def set_custom_behavior_skillbar_used(self, slot_index: int, skillbar_class_name: str):
+        """Set the custom behavior skillbar class name for a slot"""
+        if slot_index < 0 or slot_index >= 12:
+            raise ValueError(f"Slot index must be 0-11, got {slot_index}")
+        config = self._memory_manager.GetTeamBuildConfig()
+        self._set_c_wchar_array(config.CustomBehaviorSkillbarUsed[slot_index], skillbar_class_name)
+        self._memory_manager.SetTeamBuildConfig(config)
+
+    def get_template_data(self, slot_index: int) -> tuple[str, str, str]:
+        """Get complete template data: (account_email, skillbar_template, custom_behavior_skillbar_used)"""
         if slot_index < 0 or slot_index >= 12:
             raise ValueError(f"Slot index must be 0-11, got {slot_index}")
         config = self._memory_manager.GetTeamBuildConfig()
         return (
             self._get_c_wchar_array_as_str(config.TemplateAccountEmails[slot_index]),
-            self._get_c_wchar_array_as_str(config.SkillbarTemplates[slot_index])
+            self._get_c_wchar_array_as_str(config.SkillbarTemplates[slot_index]),
+            self._get_c_wchar_array_as_str(config.CustomBehaviorSkillbarUsed[slot_index])
         )
 
-    def set_template_data(self, slot_index: int, account_email: str, skillbar_template: str):
-        """Set complete template data: account_email, skillbar_template"""
+    def set_template_data(self, slot_index: int, account_email: str, skillbar_template: str, custom_behavior_skillbar_used: str = ""):
+        """Set complete template data: account_email, skillbar_template, custom_behavior_skillbar_used"""
         if slot_index < 0 or slot_index >= 12:
             raise ValueError(f"Slot index must be 0-11, got {slot_index}")
         config = self._memory_manager.GetTeamBuildConfig()
         self._set_c_wchar_array(config.TemplateAccountEmails[slot_index], account_email)
         self._set_c_wchar_array(config.SkillbarTemplates[slot_index], skillbar_template)
+        self._set_c_wchar_array(config.CustomBehaviorSkillbarUsed[slot_index], custom_behavior_skillbar_used)
         self._memory_manager.SetTeamBuildConfig(config)
 
     # --- Utility Methods ---
@@ -155,19 +173,40 @@ class PartyTeamBuildManager:
                 return template if template else None
         return None
 
-    def set_template_for_account(self, account_email: str, skillbar_template: str):
+    def get_custom_behavior_skillbar_used_for_account(self, account_email: str) -> str | None:
+        """Get the custom behavior skillbar class name for a specific account email (returns None if not found)"""
+        config = self._memory_manager.GetTeamBuildConfig()
+        for i in range(12):
+            email = self._get_c_wchar_array_as_str(config.TemplateAccountEmails[i])
+            if email == account_email:
+                skillbar_used = self._get_c_wchar_array_as_str(config.CustomBehaviorSkillbarUsed[i])
+                return skillbar_used if skillbar_used else None
+        return None
+
+    def set_custom_behavior_skillbar_used_for_account(self, account_email: str, skillbar_class_name: str):
+        """Set the custom behavior skillbar class name for a specific account email."""
+        config = self._memory_manager.GetTeamBuildConfig()
+        for i in range(12):
+            email = self._get_c_wchar_array_as_str(config.TemplateAccountEmails[i])
+            if email == account_email:
+                self._set_c_wchar_array(config.CustomBehaviorSkillbarUsed[i], skillbar_class_name)
+                self._memory_manager.SetTeamBuildConfig(config)
+                return
+
+    def set_template_for_account(self, account_email: str, skillbar_template: str, custom_behavior_skillbar_used: str = ""):
         """
         Set the skillbar template for a specific account email.
         If the account already has a slot, update it. Otherwise, find an empty slot.
         """
         config = self._memory_manager.GetTeamBuildConfig()
-        
+
         # First, check if account already has a slot
         for i in range(12):
             email = self._get_c_wchar_array_as_str(config.TemplateAccountEmails[i])
             if email == account_email:
                 # Update existing slot
                 self._set_c_wchar_array(config.SkillbarTemplates[i], skillbar_template)
+                self._set_c_wchar_array(config.CustomBehaviorSkillbarUsed[i], custom_behavior_skillbar_used)
                 self._memory_manager.SetTeamBuildConfig(config)
                 return
 
@@ -177,6 +216,7 @@ class PartyTeamBuildManager:
             if not email:  # Empty slot
                 self._set_c_wchar_array(config.TemplateAccountEmails[i], account_email)
                 self._set_c_wchar_array(config.SkillbarTemplates[i], skillbar_template)
+                self._set_c_wchar_array(config.CustomBehaviorSkillbarUsed[i], custom_behavior_skillbar_used)
                 self._memory_manager.SetTeamBuildConfig(config)
                 return
 
@@ -190,14 +230,16 @@ class PartyTeamBuildManager:
         config = self._memory_manager.GetTeamBuildConfig()
         self._set_c_wchar_array(config.TemplateAccountEmails[slot_index], "")
         self._set_c_wchar_array(config.SkillbarTemplates[slot_index], "")
+        self._set_c_wchar_array(config.CustomBehaviorSkillbarUsed[slot_index], "")
         self._memory_manager.SetTeamBuildConfig(config)
 
     def clear_all_slots(self):
-        """Clear all template slots (both emails and templates)"""
+        """Clear all template slots (emails, templates, and custom behavior skillbar used)"""
         config = self._memory_manager.GetTeamBuildConfig()
         for i in range(12):
             self._set_c_wchar_array(config.TemplateAccountEmails[i], "")
             self._set_c_wchar_array(config.SkillbarTemplates[i], "")
+            self._set_c_wchar_array(config.CustomBehaviorSkillbarUsed[i], "")
         self._memory_manager.SetTeamBuildConfig(config)
 
     def update_my_template(self) -> bool:
@@ -224,9 +266,9 @@ class PartyTeamBuildManager:
             print(f"Failed to update template: {e}")
             return False
 
-    def __get_all_templates(self) -> dict[str, str]:
+    def __get_all_templates(self) -> dict[str, tuple[str, str]]:
         """
-        Get all templates as a dictionary mapping account_email -> skillbar_template.
+        Get all templates as a dictionary mapping account_email -> (skillbar_template, custom_behavior_skillbar_used).
         Only returns entries that have both email and template set.
         """
         result = {}
@@ -234,8 +276,9 @@ class PartyTeamBuildManager:
         for i in range(12):
             email = self._get_c_wchar_array_as_str(config.TemplateAccountEmails[i])
             template = self._get_c_wchar_array_as_str(config.SkillbarTemplates[i])
+            skillbar_used = self._get_c_wchar_array_as_str(config.CustomBehaviorSkillbarUsed[i])
             if email and template:
-                result[email] = template
+                result[email] = (template, skillbar_used)
         return result
 
     def encode_to_pawned2_teambuild_pwnd_file(self) -> str:
@@ -245,28 +288,34 @@ class PartyTeamBuildManager:
         builds : list of 8 strings (each starting with 'O...')
         returns : single composite string ready to use (starting with '>a...')
         """
-        builds:list[str] = [value for key, value in self.__get_all_templates().items()]
+        builds:list[str] = [template for template, _ in self.__get_all_templates().values()]
         result = Pawned2TeamBuild().encode(builds)
         return result
 
     def act(self):
-        
+
         if not self.throttler.IsExpired(): return
         self.throttler.Reset()
 
-        # Update In-memory
+        # Update In-memory - get current custom behavior skillbar class name
         account_email = Player.GetAccountEmail()
         template = Utils.GenerateSkillbarTemplate()
-        self.set_template_for_account(account_email, template)
 
-        
+        # Get the current custom behavior class name if available
+        from Sources.oazix.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
+        custom_behavior = CustomBehaviorLoader().custom_combat_behavior
+        skillbar_class_name = custom_behavior.__class__.__name__ if custom_behavior is not None else ""
+
+        self.set_template_for_account(account_email, template, skillbar_class_name)
+
+
         if custom_behavior_helpers.CustomBehaviorHelperParty.is_party_leader():
             # deal with cleanup
             all_accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
             all_templates = self.__get_all_templates()
 
             slot = 0
-            for email, template in all_templates.items():
+            for email, (template, skillbar_used) in all_templates.items():
                 if email not in [account.AccountEmail for account in all_accounts]:
                     self.clear_slot(slot)
                 slot += 1
@@ -275,17 +324,20 @@ class PartyTeamBuildManager:
         all_templates = self.__get_all_templates()
         skillbar_datas = self.skillbar_datas
 
-        for email, template in all_templates.items():
+        for email, (template, skillbar_used) in all_templates.items():
             # get the skillbar_data from cache, or create if not exists
-            if template not in skillbar_datas:
+            if email not in skillbar_datas:
                 skillbar_parsed = SkillbarParsed(*Utils.ParseSkillbarTemplate(template))
-                skillbar_datas[email] = SkillbarData(email, template, skillbar_parsed)
+                skillbar_datas[email] = SkillbarData(email, template, skillbar_parsed, skillbar_used)
             else:
                 skillbar_data: SkillbarData = skillbar_datas[email]
                 if skillbar_data.skillbar_template != template:
                     skillbar_data.skillbar_template = template
                     skillbar_parsed = SkillbarParsed(*Utils.ParseSkillbarTemplate(template))
                     skillbar_data.skillbar_parsed = skillbar_parsed
+                # Update skillbar_used if changed
+                if skillbar_data.custom_behavior_skillbar_used != skillbar_used:
+                    skillbar_data.custom_behavior_skillbar_used = skillbar_used
 
     def apply_skillbar_template(self, template_code: str, account_email: str):
         # let's ask a specific account to apply a skillbar template.

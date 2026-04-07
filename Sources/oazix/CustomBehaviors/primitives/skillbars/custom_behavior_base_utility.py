@@ -4,6 +4,8 @@ import inspect
 from typing import Generator, Any
 import time
 
+from numpy import generic
+
 from Py4GWCoreLib import GLOBAL_CACHE, Routines, Map, Agent, Player
 from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer, Timer
 from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorState
@@ -14,6 +16,8 @@ from Sources.oazix.CustomBehaviors.primitives.parties.memory_cache_manager impor
 from Sources.oazix.CustomBehaviors.primitives.skillbars import utility_skill_finder
 from Sources.oazix.CustomBehaviors.primitives.skillbars.custom_behavior_skillbar_management import CustomBehaviorSkillbarManagement
 from Sources.oazix.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
+from Sources.oazix.CustomBehaviors.primitives.skillbars.disabilities.condition_priority import ConditionPriority
+from Sources.oazix.CustomBehaviors.primitives.skillbars.disabilities.hex_prioritiy import HexPriority
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
 from Sources.oazix.CustomBehaviors.primitives.skills.utility_skill_execution_strategy import UtilitySkillExecutionStrategy
@@ -44,8 +48,7 @@ class CustomBehaviorBaseUtility():
     are compatible with specific game builds. Subclasses implementing this class
     should define the template and the combat behavior logic.
     """
-
-    def __init__(self):
+    def __init__(self, event_bus: EventBus): # we should really implement more & more dependency injection. stop relying on singletons everywhere...
         super().__init__()
         self._generator_handle = self._handle()
         self.__is_enabled:bool = False
@@ -62,7 +65,7 @@ class CustomBehaviorBaseUtility():
         
         self.__injected_additional_utility_skills : list[CustomSkillUtilityBase] = list[CustomSkillUtilityBase]()
 
-        self.event_bus:EventBus = EventBus()
+        self.event_bus:EventBus = event_bus
 
         self.__additional_autonomous_skills: list[CustomSkillUtilityBase] = [
             # COMBAT
@@ -74,7 +77,6 @@ class CustomBehaviorBaseUtility():
             SpreadDuringCombatUtility(event_bus=self.event_bus, current_build=self.in_game_build),
 
             # BLESSING
-            # TakeNearBlessingUtility(event_bus=self.event_bus, current_build=self.in_game_build),
             TakeNearBlessingUtility(event_bus=self.event_bus, current_build=self.in_game_build),
             
             # LOOT
@@ -143,13 +145,13 @@ class CustomBehaviorBaseUtility():
 
         highest_score: tuple[CustomSkillUtilityBase, float | None] | None = self.get_highest_score()
 
-        if highest_score is  None: 
+        if highest_score is  None:
             return False
 
-        if highest_score[1] is not None: 
+        if highest_score[1] is not None:
             # any skill with positive evaluation are a condition to stop an external script
             return True
-        
+
         if self.utility_generator is not None and inspect.getgeneratorstate(self.utility_generator) != inspect.GEN_CLOSED:
             # check that we are in the middle of an execution (utility_generator is still running)
             return True
@@ -174,7 +176,16 @@ class CustomBehaviorBaseUtility():
     @property
     @abstractmethod
     def additional_autonomous_skills(self) -> list[CustomSkillUtilityBase]:
+        '''
+        can be overriden to remove additional autonomous skills.
+        for very custom builds only...
+        '''
         return self.__additional_autonomous_skills
+
+    def add_additional_autonomous_skills(self, skill:CustomSkillUtilityBase):
+        if skill in self.__additional_autonomous_skills:
+            return
+        self.__additional_autonomous_skills.append(skill)
 
     @property
     @abstractmethod
@@ -194,6 +205,16 @@ class CustomBehaviorBaseUtility():
         just used to detect if a build match current in-game build.
         '''
         pass
+
+    # disabilities
+
+    @abstractmethod
+    def hexes_to_dispell_extra_priority(self) -> list[HexPriority]:
+        return []
+
+    @abstractmethod
+    def conditions_to_dispell_extra_priority(self) -> list[ConditionPriority]:
+        return []
 
     #build management
 
@@ -239,7 +260,8 @@ class CustomBehaviorBaseUtility():
                 final_list.append(custom_skills_in_behavior_by_skill_id[skill.skill_id])
             elif self.complete_build_with_generic_skills:
                 if skill.skill_id in generic_utility_skills_by_skill_id.keys():
-                    final_list.append(generic_utility_skills_by_skill_id[skill.skill_id])
+                    discovered_utility : CustomSkillUtilityBase = generic_utility_skills_by_skill_id[skill.skill_id]
+                    final_list.append(discovered_utility)
                 else:
                     final_list.append(AutoCombatUtility(event_bus=self.event_bus, skill=skill, current_build=list(in_game_build_by_skill_id.values())))
 

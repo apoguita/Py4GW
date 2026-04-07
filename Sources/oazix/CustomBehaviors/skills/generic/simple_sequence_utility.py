@@ -39,7 +39,7 @@ class SimpleSequenceUtility(CustomSkillUtilityBase):
             in_game_build=current_build,
             score_definition=score_definition,
             mana_required_to_cast=mana_required_to_cast,
-            allowed_states=allowed_states,
+            allowed_states=allowed_states
         )
         self.utility_1 = utility_1
         self.utility_2 = utility_2
@@ -74,10 +74,10 @@ class SimpleSequenceUtility(CustomSkillUtilityBase):
 
     @override
     def _execute(self, state: BehaviorState) -> Generator[Any, None, BehaviorResult]:
+
         # Execute utility_1 first
         result_1 = yield from self.utility_1._execute(state)
-        if result_1 is None or result_1 == BehaviorResult.ACTION_SKIPPED:
-            return result_1 if result_1 is not None else BehaviorResult.ACTION_SKIPPED
+        if result_1 is None or result_1 == BehaviorResult.ACTION_SKIPPED: return result_1
 
         # Execute utility_2 immediately after
         result_2 = yield from self.utility_2._execute(state)

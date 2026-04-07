@@ -38,9 +38,11 @@ class ShatterHexUtility(CustomSkillUtilityBase):
             custom_behavior_helpers.SortableAgentData] = custom_behavior_helpers.Targets.get_all_possible_allies_ordered_by_priority_raw(
             within_range=Range.Spellcast.value * 1.2,
             condition=lambda agent_id: Agent.IsHexed(agent_id),
-            sort_key=(TargetingOrder.ENEMIES_QUANTITY_WITHIN_RANGE_DESC, TargetingOrder.HP_ASC),
+            sort_key=(TargetingOrder.HEX_PRIORITY_LEVEL_DESC, TargetingOrder.ENEMIES_QUANTITY_WITHIN_RANGE_DESC, TargetingOrder.HP_ASC),
             range_to_count_allies=None,
             range_to_count_enemies=GLOBAL_CACHE.Skill.Data.GetAoERange(self.custom_skill.skill_id))
+
+        allies.sort(key=lambda target: target.hex_priority_level)
 
         return allies
 

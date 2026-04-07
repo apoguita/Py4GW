@@ -1,6 +1,7 @@
 from typing import override
 
 from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorState
+from Sources.oazix.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Sources.oazix.CustomBehaviors.primitives.scores.score_per_agent_quantity_definition import \
     ScorePerAgentQuantityDefinition
 from Sources.oazix.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
@@ -18,8 +19,8 @@ from Sources.oazix.CustomBehaviors.skills.necromancer.blood_of_the_master import
 
 class NecromancerNecrosisFoC_UtilitySkillBar(CustomBehaviorBaseUtility):
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, event_bus: EventBus):
+        super().__init__(event_bus)
         in_game_build = list(self.skillbar_management.get_in_game_build().values())
 
         # MM skills not in default overrides
@@ -53,7 +54,7 @@ class NecromancerNecrosisFoC_UtilitySkillBar(CustomBehaviorBaseUtility):
             event_bus=self.event_bus,
             current_build=in_game_build,
             original_skill_to_cast=self.arcane_echo_utility,
-            auspicious_score_definition=ScoreStaticDefinition(83) #prefer to cast auspicious if able when we have echo
+            score_definition=ScoreStaticDefinition(83) #prefer to cast auspicious if able when we have echo
         )
 
 
