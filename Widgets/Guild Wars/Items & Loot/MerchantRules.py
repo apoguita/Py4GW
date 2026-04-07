@@ -409,6 +409,51 @@ WEAPON_CATALOG_ITEM_TYPE_TOKENS: frozenset[str] = frozenset({
     "sword",
     "wand",
 })
+MODEL_ID_ATTRIBUTE_FALLBACK_LABELS: dict[str, str] = {
+    "Air": "Air Magic",
+    "AirMagic": "Air Magic",
+    "Blood": "Blood Magic",
+    "BloodMagic": "Blood Magic",
+    "Channeling": "Channeling Magic",
+    "ChannelingMagic": "Channeling Magic",
+    "Communing": "Communing",
+    "Curses": "Curses",
+    "Death": "Death Magic",
+    "DeathMagic": "Death Magic",
+    "Divine": "Divine Favor",
+    "DivineFavor": "Divine Favor",
+    "Domination": "Domination Magic",
+    "DominationMagic": "Domination Magic",
+    "Earth": "Earth Magic",
+    "EarthMagic": "Earth Magic",
+    "Energy_Storage": "Energy Storage",
+    "EnergyStorage": "Energy Storage",
+    "Fast_Casting": "Fast Casting",
+    "FastCasting": "Fast Casting",
+    "Fire": "Fire Magic",
+    "FireMagic": "Fire Magic",
+    "Healing": "Healing Prayers",
+    "HealingPrayers": "Healing Prayers",
+    "Illusion": "Illusion Magic",
+    "IllusionMagic": "Illusion Magic",
+    "Inspiration": "Inspiration Magic",
+    "InspirationMagic": "Inspiration Magic",
+    "Protection": "Protection Prayers",
+    "ProtectionPrayers": "Protection Prayers",
+    "Restoration": "Restoration Magic",
+    "RestorationMagic": "Restoration Magic",
+    "Smiting": "Smiting Prayers",
+    "SmitingPrayers": "Smiting Prayers",
+    "Soul_Reaping": "Soul Reaping",
+    "SoulReaping": "Soul Reaping",
+    "Spawning": "Spawning Power",
+    "SpawningPower": "Spawning Power",
+    "Water": "Water Magic",
+    "WaterMagic": "Water Magic",
+}
+MODEL_ID_ATTRIBUTE_FALLBACK_SUFFIX_KEYS: tuple[str, ...] = tuple(
+    sorted(MODEL_ID_ATTRIBUTE_FALLBACK_LABELS.keys(), key=len, reverse=True)
+)
 ARMOR_CATALOG_ITEM_TYPES: frozenset[str] = frozenset({
     "headpiece",
     "chestpiece",
@@ -3955,6 +4000,108 @@ class MerchantRulesWidget:
             return material_type
         return str(entry.get("item_type", "")).strip()
 
+    def _get_model_item_type(self, model_id: int) -> str:
+        entry = self._get_model_entry(model_id)
+        if entry is None:
+            return ""
+        return str(entry.get("item_type", "")).strip()
+
+    def _humanize_model_attribute_label(self, raw_value: object) -> str:
+        label = str(raw_value or "").strip()
+        if not label:
+            return ""
+        label = label.replace("_", " ")
+        label = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", " ", label)
+        label = re.sub(r"\s+", " ", label).strip()
+        if not label or label.casefold() == "none":
+            return ""
+        return label
+
+    def _get_meaningful_model_attribute_labels(self, model_id: int) -> list[str]:
+        safe_model_id = max(0, _safe_int(model_id, 0))
+        if safe_model_id <= 0:
+            return []
+        item_type = self._get_model_item_type(safe_model_id)
+        if not _is_weapon_catalog_item_type(item_type):
+            return []
+
+        entry = self._get_model_entry(safe_model_id)
+        if entry is None:
+            return []
+
+        raw_attributes = entry.get("attributes", [])
+        if not isinstance(raw_attributes, list):
+            return []
+
+        labels: list[str] = []
+        seen_labels: set[str] = set()
+        for raw_attribute in raw_attributes:
+            humanized_label = self._humanize_model_attribute_label(raw_attribute)
+            if not humanized_label:
+                continue
+            normalized_label = humanized_label.casefold()
+            if normalized_label in seen_labels:
+                continue
+            seen_labels.add(normalized_label)
+            labels.append(humanized_label)
+        return labels
+
+    def _get_model_attribute_suffix_from_model_id(self, model_id: int) -> str:
+        safe_model_id = max(0, _safe_int(model_id, 0))
+        if safe_model_id <= 0:
+            return ""
+        item_type = self._get_model_item_type(safe_model_id)
+        if not _is_weapon_catalog_item_type(item_type):
+            return ""
+
+        for member_name, member in getattr(ModelID, "__members__", {}).items():
+            try:
+                member_value = int(member.value)
+            except Exception:
+                member_value = _safe_int(member, 0)
+            if member_value != safe_model_id:
+                continue
+
+            normalized_member_name = str(member_name or "").strip()
+            if not normalized_member_name:
+                continue
+
+            for suffix_key in MODEL_ID_ATTRIBUTE_FALLBACK_SUFFIX_KEYS:
+                if (
+                    normalized_member_name.endswith(f"_{suffix_key}")
+                    or normalized_member_name.endswith(suffix_key)
+                ):
+                    return MODEL_ID_ATTRIBUTE_FALLBACK_LABELS.get(suffix_key, "")
+
+        return ""
+
+    def _get_single_model_attribute_suffix(self, model_id: int) -> str:
+        attribute_labels = self._get_meaningful_model_attribute_labels(model_id)
+        if len(attribute_labels) == 1:
+            return attribute_labels[0]
+        if len(attribute_labels) > 1:
+            return ""
+        return self._get_model_attribute_suffix_from_model_id(model_id)
+
+    def _append_model_attribute_suffix(self, label: str, model_id: int) -> str:
+        safe_label = str(label or "").strip()
+        if not safe_label:
+            return safe_label
+        suffix = self._get_single_model_attribute_suffix(model_id)
+        if not suffix:
+            return safe_label
+        return f"{safe_label} - {suffix}"
+
+    def _format_model_label_long(self, model_id: int) -> str:
+        label = self._format_model_label(model_id)
+        item_type = self._get_model_item_type(model_id)
+        if item_type:
+            label = f"{label} [{item_type}]"
+        return self._append_model_attribute_suffix(label, model_id)
+
+    def _format_model_label_short(self, model_id: int) -> str:
+        return self._append_model_attribute_suffix(self._format_model_label(model_id), model_id)
+
     def _extract_preview_label_model_id(self, label: str) -> int:
         safe_label = str(label or "").strip()
         if not safe_label:
@@ -3998,8 +4145,8 @@ class MerchantRulesWidget:
 
         descriptor = self._get_model_descriptor(model_id)
         if descriptor:
-            return f"{catalog_name} ({model_id}) [{descriptor}]"
-        return f"{catalog_name} ({model_id})"
+            return self._append_model_attribute_suffix(f"{catalog_name} ({model_id}) [{descriptor}]", model_id)
+        return self._append_model_attribute_suffix(f"{catalog_name} ({model_id})", model_id)
 
     def _get_weapon_mod_label(self, identifier: str) -> str:
         safe_identifier = str(identifier or "").strip()
@@ -4621,10 +4768,7 @@ class MerchantRulesWidget:
             else:
                 for entry in results:
                     model_id = int(entry.get("model_id", 0))
-                    item_type = str(entry.get("item_type", "")).strip()
-                    label = self._format_model_label(model_id)
-                    if item_type:
-                        label = f"{label} [{item_type}]"
+                    label = self._format_model_label_long(model_id)
                     if PyImGui.selectable(f"{label}##{child_id}_{model_id}", False, PyImGui.SelectableFlags.NoFlag, (0, 0)):
                         picked_model_id = model_id
                         break
@@ -4696,10 +4840,7 @@ class MerchantRulesWidget:
             else:
                 for entry in results:
                     model_id = int(entry.get("model_id", 0))
-                    item_type = str(entry.get("item_type", "")).strip()
-                    label = self._format_model_label(model_id)
-                    if item_type:
-                        label = f"{label} [{item_type}]"
+                    label = self._format_model_label_long(model_id)
                     if PyImGui.selectable(f"{label}##{child_id}_{model_id}", False, PyImGui.SelectableFlags.NoFlag, (0, 0)):
                         picked_model_id = model_id
                         break
@@ -4760,10 +4901,7 @@ class MerchantRulesWidget:
                 if picked_group_info is None:
                     for entry in item_results:
                         model_id = int(entry.get("model_id", 0))
-                        item_type = str(entry.get("item_type", "")).strip()
-                        label = self._format_model_label(model_id)
-                        if item_type:
-                            label = f"{label} [{item_type}]"
+                        label = self._format_model_label_long(model_id)
                         if PyImGui.selectable(f"{label}##{child_id}_{model_id}", False, PyImGui.SelectableFlags.NoFlag, (0, 0)):
                             picked_model_id = model_id
                             break
@@ -4817,7 +4955,7 @@ class MerchantRulesWidget:
                     removed_model_id = model_id
                     break
                 PyImGui.same_line(0, 6)
-                PyImGui.text(self._format_model_label(model_id))
+                PyImGui.text(self._format_model_label_long(model_id))
                 if jump_anchor:
                     self._maybe_scroll_sell_jump_target_row(index, jump_anchor, f"model:{int(model_id)}")
         PyImGui.end_child()
@@ -4887,7 +5025,7 @@ class MerchantRulesWidget:
                 for target_row in display_targets:
                     PyImGui.table_next_row()
                     PyImGui.table_set_column_index(0)
-                    PyImGui.text(self._format_model_label(target_row.model_id))
+                    PyImGui.text(self._format_model_label_short(target_row.model_id))
 
                     if show_merchant_column:
                         PyImGui.table_set_column_index(1)
@@ -12353,7 +12491,7 @@ class MerchantRulesWidget:
                 for target_row in display_targets:
                     PyImGui.table_next_row()
                     PyImGui.table_set_column_index(0)
-                    PyImGui.text(self._format_model_label(target_row.model_id))
+                    PyImGui.text(self._format_model_label_short(target_row.model_id))
 
                     PyImGui.table_set_column_index(1)
                     PyImGui.push_item_width(120)
@@ -12442,7 +12580,7 @@ class MerchantRulesWidget:
                 for target_row in display_targets:
                     PyImGui.table_next_row()
                     PyImGui.table_set_column_index(0)
-                    PyImGui.text(self._format_model_label(target_row.model_id))
+                    PyImGui.text(self._format_model_label_short(target_row.model_id))
 
                     PyImGui.table_set_column_index(1)
                     PyImGui.text(MERCHANT_TYPE_LABELS[self._get_material_merchant_type_by_model(target_row.model_id)])
@@ -13103,7 +13241,7 @@ class MerchantRulesWidget:
                     for requirement_rule in display_rules:
                         PyImGui.table_next_row()
                         PyImGui.table_set_column_index(0)
-                        PyImGui.text(self._format_model_label(requirement_rule.model_id))
+                        PyImGui.text(self._format_model_label_short(requirement_rule.model_id))
                         self._maybe_scroll_sell_jump_target_row(
                             index,
                             SELL_PROTECTION_ANCHOR_REQUIREMENTS,
@@ -13812,7 +13950,7 @@ class MerchantRulesWidget:
                     for target in display_targets:
                         PyImGui.table_next_row()
                         PyImGui.table_set_column_index(0)
-                        PyImGui.text(self._format_model_label(target.model_id))
+                        PyImGui.text(self._format_model_label_short(target.model_id))
 
                         PyImGui.table_set_column_index(1)
                         PyImGui.push_item_width(140)
