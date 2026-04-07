@@ -34,7 +34,11 @@ from Sources.modular_bot.recipes.step_selectors import resolve_agent_xy_from_ste
 
 
 MODULE_NAME = "Merchant Rules"
-MODULE_ICON = "Textures\\Module_Icons\\inventory_plus.png"
+MODULE_ICON = "Textures\\Module_Icons\\MerchantRules.png"
+FLOATING_UI_INI_PATH = "Widgets/Guild Wars/Items & Loot/MerchantRules"
+FLOATING_UI_INI_FILENAME = "MerchantRulesFloating.ini"
+FLOATING_ICON_WINDOW_ID = "##merchant_rules_floating_icon_button"
+FLOATING_ICON_WINDOW_NAME = "Merchant Rules Toggle"
 
 PROFILE_VERSION = 15
 CONFIG_DIR = os.path.join(Py4GW.Console.get_projects_path(), "Widgets", "Config", "MerchantRules")
@@ -1883,6 +1887,11 @@ class MerchantRulesWidget:
         self.multibox_pending_accounts: list[str] = []
         self.multibox_running_email = ""
         self.multibox_running_started_at_ms = 0
+        self.show_main_window = False
+        self.expand_main_window_on_next_show = True
+        self.floating_ui_ini_key = ""
+        self.floating_ui_ini_loaded = False
+        self.floating_button = None
         self.multibox_running_accounts: dict[str, int] = {}
         self.multibox_request_counter = 0
 
@@ -1900,6 +1909,94 @@ class MerchantRulesWidget:
 
     def _get_config_path_for_account(self, account_key: str) -> str:
         return _get_config_path_for_account_key(account_key)
+
+    def _get_floating_icon_path(self) -> str:
+        return os.path.join(Py4GW.Console.get_projects_path(), MODULE_ICON)
+
+    def _ensure_floating_ui_key(self) -> str:
+        if self.floating_ui_ini_key:
+            return self.floating_ui_ini_key
+        try:
+            from Py4GWCoreLib.IniManager import IniManager
+        except Exception:
+            return ""
+        self.floating_ui_ini_key = IniManager().ensure_key(
+            FLOATING_UI_INI_PATH,
+            FLOATING_UI_INI_FILENAME,
+        )
+        return self.floating_ui_ini_key
+
+    def _ensure_floating_ui(self):
+        if self.floating_button is None:
+            from Py4GWCoreLib.ImGui import ImGui
+
+            self.floating_button = ImGui.FloatingIcon(
+                icon_path=self._get_floating_icon_path(),
+                window_id=FLOATING_ICON_WINDOW_ID,
+                window_name=FLOATING_ICON_WINDOW_NAME,
+                tooltip_visible="Hide Merchant Rules window",
+                tooltip_hidden="Show Merchant Rules window",
+                visible=bool(self.show_main_window),
+                on_toggle=self._on_floating_icon_visibility_toggled,
+            )
+
+        self.floating_button.set_visible(
+            bool(self.show_main_window),
+            persist=False,
+            invoke_callback=False,
+        )
+
+        floating_ui_ini_key = self._ensure_floating_ui_key()
+        if floating_ui_ini_key and not self.floating_ui_ini_loaded:
+            from Py4GWCoreLib.IniManager import IniManager
+
+            IniManager().load_once(floating_ui_ini_key)
+            self.floating_ui_ini_loaded = True
+
+        return self.floating_button
+
+    def _set_main_window_visible(self, visible: bool, *, expand_on_show: bool = True):
+        self.show_main_window = bool(visible)
+        if self.show_main_window and expand_on_show:
+            self.expand_main_window_on_next_show = True
+        if self.floating_button is not None:
+            self.floating_button.set_visible(
+                self.show_main_window,
+                persist=False,
+                invoke_callback=False,
+            )
+
+    def _on_floating_icon_visibility_toggled(self, visible: bool):
+        self.show_main_window = bool(visible)
+        if self.show_main_window:
+            self.expand_main_window_on_next_show = True
+
+    def on_enable(self):
+        self._set_main_window_visible(False, expand_on_show=True)
+
+    def _tick_runtime(self):
+        self._ensure_initialized()
+        self._advance_multibox_batch()
+        self._update_auto_cleanup_runtime()
+        self._update_instant_destroy_runtime()
+
+    def _draw_main_window(self):
+        self._apply_window_geometry()
+        if self.expand_main_window_on_next_show:
+            PyImGui.set_next_window_collapsed(False, PyImGui.ImGuiCond.Always)
+            self.expand_main_window_on_next_show = False
+
+        window_expanded, window_open = PyImGui.begin_with_close(
+            MODULE_NAME,
+            self.show_main_window,
+            PyImGui.WindowFlags.NoFlag,
+        )
+        self._track_window_geometry(window_expanded)
+        self._set_main_window_visible(window_open, expand_on_show=False)
+        if not window_expanded or not window_open:
+            PyImGui.end()
+            return False
+        return True
 
     def _get_default_window_geometry_payload(self) -> dict[str, object]:
         return {
@@ -14621,15 +14718,14 @@ class MerchantRulesWidget:
             self._draw_destroy_rules_section()
 
     def draw(self):
-        self._ensure_initialized()
-        self._advance_multibox_batch()
-        self._update_auto_cleanup_runtime()
-        self._update_instant_destroy_runtime()
-        self._apply_window_geometry()
-        window_expanded = PyImGui.begin(MODULE_NAME, PyImGui.WindowFlags.NoFlag)
-        self._track_window_geometry(window_expanded)
-        if not window_expanded:
-            PyImGui.end()
+        self._tick_runtime()
+        floating_button = self._ensure_floating_ui()
+        floating_button.draw(self.floating_ui_ini_key)
+        self.show_main_window = bool(floating_button.visible)
+        if not self.show_main_window:
+            return
+
+        if not self._draw_main_window():
             return
 
         if self._draw_workspace_button("Overview", active=self.active_workspace == WORKSPACE_OVERVIEW, color=UI_COLOR_TAB_ACTIVE):
@@ -14656,6 +14752,10 @@ WIDGET_INSTANCE = MerchantRulesWidget()
 
 def main():
     WIDGET_INSTANCE.draw()
+
+
+def on_enable():
+    WIDGET_INSTANCE.on_enable()
 
 
 def tooltip():
