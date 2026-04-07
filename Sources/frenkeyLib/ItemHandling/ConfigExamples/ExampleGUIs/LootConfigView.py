@@ -20,12 +20,12 @@ from Sources.frenkeyLib.ItemHandling.ItemTexture import ItemTexture
 from Sources.frenkeyLib.ItemHandling.Items.ItemCache import ITEM_CACHE
 from Sources.frenkeyLib.ItemHandling.Items.ItemData import ITEM_DATA
 from Sources.frenkeyLib.ItemHandling.Items.item_snapshot import ItemSnapshot
-from Sources.frenkeyLib.ItemHandling.Mods import properties as properties_module
-from Sources.frenkeyLib.ItemHandling.Mods import upgrades as upgrades_module
-from Sources.frenkeyLib.ItemHandling.Mods.decoded_modifier import DecodedModifier
-from Sources.frenkeyLib.ItemHandling.Mods.properties import AppliesToRuneProperty, ItemProperty, TooltipProperty, UnknownUpgradeProperty, UpgradeRuneProperty
-from Sources.frenkeyLib.ItemHandling.Mods.types import ItemModifierParam
-from Sources.frenkeyLib.ItemHandling.Mods.upgrades import AppliesToRune, AttributeRune, Inscription, Insignia, Rune, Upgrade, UpgradeRune, WeaponPrefix, WeaponSuffix
+from Py4GWCoreLib.item_mods_src import properties as properties_module
+from Py4GWCoreLib.item_mods_src import upgrades as upgrades_module
+from Py4GWCoreLib.item_mods_src.decoded_modifier import DecodedModifier
+from Py4GWCoreLib.item_mods_src.properties import AppliesToRuneProperty, ItemProperty, TooltipProperty, UnknownUpgradeProperty, UpgradeRuneProperty
+from Py4GWCoreLib.item_mods_src.types import ItemModifierParam
+from Py4GWCoreLib.item_mods_src.upgrades import AppliesToRune, AttributeRune, Inscription, Insignia, Rune, Upgrade, UpgradeRune, WeaponPrefix, WeaponSuffix
 from Sources.frenkeyLib.ItemHandling.Rules.base_rule import (
     BaseRule,
     DyesRule,
@@ -42,7 +42,7 @@ from Sources.frenkeyLib.ItemHandling.Rules.base_rule import (
 )
 from Sources.frenkeyLib.ItemHandling.Rules.rule_descriptions import RULE_DESCRIPTIONS
 from Sources.frenkeyLib.ItemHandling.Rules.types import ItemAction
-from Sources.frenkeyLib.ItemHandling.encoded_strings import GWStringEncoded
+from Py4GWCoreLib.native_src.internals.encoded_strings import GWStringEncoded
 from Sources.frenkeyLib.ItemHandling.utility import IsWeaponType
 from Sources.marks_sources.mods_parser import ModifierIdentifier
 

@@ -71,7 +71,7 @@ class HeroAIoptions:
         self.Skills: list[bool] = [False] * 8
 
 
-hero_ai_snapshots: list[HeroAIoptions] = []
+hero_ai_snapshots: dict[str, list[HeroAIoptions]] = {}
 
 combat_prep_first_skills_check = True
 hero_ai_has_ritualist_skills = False
@@ -212,6 +212,8 @@ def DrawWindow():
 # region HeroAI Snapshot
 def SnapshotHeroAIOptions(account_email: str):
     global hero_ai_snapshots
+    if not account_email:
+        return
     hero_ai_options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsFromEmail(account_email)
     if hero_ai_options is None:
         return
@@ -223,14 +225,17 @@ def SnapshotHeroAIOptions(account_email: str):
     data.Targeting = hero_ai_options.Targeting
     data.Combat = hero_ai_options.Combat
 
-    hero_ai_snapshots.append(data)
+    hero_ai_snapshots.setdefault(account_email, []).append(data)
 
 
 
 def RestoreHeroAISnapshot(account_email: str):
     global hero_ai_snapshots
+    if not account_email:
+        return
+    account_snapshots = hero_ai_snapshots.get(account_email, [])
     
-    if not hero_ai_snapshots:
+    if not account_snapshots:
         EnableHeroAIOptions(account_email)  # If no snapshot, just enable everything to be safe
         ConsoleLog(MODULE_NAME, "No Hero AI snapshot found, enabling all options as fallback.", Console.MessageType.Warning, True)
         return
@@ -239,13 +244,87 @@ def RestoreHeroAISnapshot(account_email: str):
     if hero_ai_options is None:
         return
     
-    last_state = hero_ai_snapshots.pop()
+    last_state = account_snapshots.pop()
+    if not account_snapshots:
+        hero_ai_snapshots.pop(account_email, None)
 
     hero_ai_options.Following = last_state.Following
     hero_ai_options.Avoidance = last_state.Avoidance
     hero_ai_options.Looting = last_state.Looting
     hero_ai_options.Targeting = last_state.Targeting
     hero_ai_options.Combat = last_state.Combat
+
+
+_HERO_AI_SUSPENDING_COMMANDS = {
+    SharedCommandType.PixelStack,
+    SharedCommandType.BruteForceUnstuck,
+    SharedCommandType.InteractWithTarget,
+    SharedCommandType.TakeDialogWithTarget,
+    SharedCommandType.SendDialogToTarget,
+    SharedCommandType.GetBlessing,
+    SharedCommandType.MerchantItems,
+    SharedCommandType.MerchantMaterials,
+    SharedCommandType.OpenChest,
+    SharedCommandType.PickUpLoot,
+    SharedCommandType.UseSkill,
+    SharedCommandType.DisableHeroAI,
+    SharedCommandType.UseSkillCombatPrep,
+}
+
+
+def _hero_ai_options_all_disabled(account_email: str) -> bool:
+    hero_ai_options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsFromEmail(account_email)
+    if hero_ai_options is None:
+        return False
+    return not any([
+        bool(hero_ai_options.Following),
+        bool(hero_ai_options.Avoidance),
+        bool(hero_ai_options.Looting),
+        bool(hero_ai_options.Targeting),
+        bool(hero_ai_options.Combat),
+    ])
+
+
+def _has_active_hero_ai_suspending_message(account_email: str) -> bool:
+    for _, message in GLOBAL_CACHE.ShMem.GetAllMessages():
+        if message is None:
+            continue
+        if not getattr(message, "Active", False):
+            continue
+        if getattr(message, "ReceiverEmail", "") != account_email:
+            continue
+        if getattr(message, "Command", None) in _HERO_AI_SUSPENDING_COMMANDS:
+            return True
+    return False
+
+
+def HealStaleHeroAISnapshot(account_email: str) -> None:
+    global hero_ai_snapshots
+    if not account_email:
+        return
+
+    account_snapshots = hero_ai_snapshots.get(account_email, [])
+    if not account_snapshots:
+        return
+
+    if _has_active_hero_ai_suspending_message(account_email):
+        return
+
+    restored = False
+    while hero_ai_snapshots.get(account_email) and _hero_ai_options_all_disabled(account_email):
+        RestoreHeroAISnapshot(account_email)
+        restored = True
+
+    if restored:
+        ConsoleLog(
+            MODULE_NAME,
+            "Restored Hero AI options after detecting stale suspended-message state.",
+            Console.MessageType.Warning,
+            True,
+        )
+
+    if hero_ai_snapshots.get(account_email):
+        hero_ai_snapshots.pop(account_email, None)
 
 
 
@@ -1229,12 +1308,12 @@ def OpenChest(index: int, message: SharedMessageStruct):
 
 # region PickUpLoot
 def PickUpLoot(index:int , message: SharedMessageStruct):
-    def _exit_if_not_map_valid():
+    def _get_loot_exit_reason() -> str:
         if not Routines.Checks.Map.MapValid():
             RestoreHeroAISnapshot(message.ReceiverEmail)
             GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
             ActionQueueManager().ResetAllQueues()
-            return True  # Signal that we must exit
+            return "map_invalid"
 
         if GLOBAL_CACHE.Inventory.GetFreeSlotCount() < 1:
             ConsoleLog(
@@ -1245,9 +1324,9 @@ def PickUpLoot(index:int , message: SharedMessageStruct):
             RestoreHeroAISnapshot(message.ReceiverEmail)
             GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
             ActionQueueManager().ResetAllQueues()
-            return True
+            return "inventory_full"
 
-        return False
+        return ""
 
     def _GetBaseTimestamp():
         SHMEM_ZERO_EPOCH = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
@@ -1275,9 +1354,13 @@ def PickUpLoot(index:int , message: SharedMessageStruct):
             if item_id is None or item_id == 0:
                 continue
 
-            if ( _exit_if_not_map_valid()):
+            exit_reason = _get_loot_exit_reason()
+            if exit_reason:
                 LootConfig().AddItemIDToBlacklist(item_id)
-                ConsoleLog("PickUp Loot", "Map is not valid, halting.", Console.MessageType.Warning)
+                if exit_reason == "map_invalid":
+                    ConsoleLog("PickUp Loot", "Map is not valid, halting.", Console.MessageType.Warning)
+                elif exit_reason == "inventory_full":
+                    ConsoleLog("PickUp Loot", "No free slots in inventory, halting.", Console.MessageType.Warning)
                 ActionQueueManager().ResetAllQueues()
                 return
 
@@ -1298,7 +1381,8 @@ def PickUpLoot(index:int , message: SharedMessageStruct):
                 return
 
             yield from Routines.Yield.wait(100)
-            if (_exit_if_not_map_valid()):
+            exit_reason = _get_loot_exit_reason()
+            if exit_reason:
                 RestoreHeroAISnapshot(message.ReceiverEmail)
                 return
             yield from Routines.Yield.Player.InteractAgent(item_id)
@@ -1319,13 +1403,21 @@ def PickUpLoot(index:int , message: SharedMessageStruct):
                     ActionQueueManager().ResetAllQueues()
                     return
 
-                if (_exit_if_not_map_valid()):
+                exit_reason = _get_loot_exit_reason()
+                if exit_reason:
                     LootConfig().AddItemIDToBlacklist(item_id)
-                    ConsoleLog(
-                        "PickUp Loot",
-                        "Map is not valid, halting.",
-                        Console.MessageType.Warning,
-                    )
+                    if exit_reason == "map_invalid":
+                        ConsoleLog(
+                            "PickUp Loot",
+                            "Map is not valid, halting.",
+                            Console.MessageType.Warning,
+                        )
+                    elif exit_reason == "inventory_full":
+                        ConsoleLog(
+                            "PickUp Loot",
+                            "No free slots in inventory, halting.",
+                            Console.MessageType.Warning,
+                        )
                     ActionQueueManager().ResetAllQueues()
                     return
 
@@ -2274,6 +2366,7 @@ def ProcessMessages():
 
 
 def main():
+    HealStaleHeroAISnapshot(Player.GetAccountEmail())
     ProcessMessages()
 
 

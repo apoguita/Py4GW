@@ -1,5 +1,6 @@
 CatacombsOfKathandrax = [
-     "map": 676,
+    {
+        "map": 676,
         "bless": (-17643.00, 9567.00),
         "path": [
             (-16516,9739),
@@ -8,7 +9,7 @@ CatacombsOfKathandrax = [
             (-12814,14520),
             (-11008,12973),
             (-11090,12388),
-        ],
+        ]
     },
     {
         "gadget": (-11323.00, 11996.00),
@@ -38,20 +39,17 @@ CatacombsOfKathandrax = [
             (-642,2062),
             (345,247),
             (-35,-563),
-        ],
+        ]
     },
-    {
-            "gadget": (-277.00, -529.00),
-    }, 
 ]
 
-BorrguusBlisterbarkv2_outpost_path = [
+CatacombsOfKathandrax_outpost_path = [
     (-15746,14047), (-15389,13543),
 ]
 
 CatacombsOfKathandrax_transit_path = [
     {
-        "map": 647
+        "map": 647,
         "bless": (-14925.05, 10990.41),
         "path": [
             (-16441.63, 6963.09),
@@ -72,7 +70,7 @@ CatacombsOfKathandrax_transit_path = [
 
 CatacombsOfKathandrax_transit_path2 = [
     {
-        "map" : 651
+        "map" : 651,
         "bless": (10503.00, 19666.00),
         "path": [
             (9735.01, 15041.05),
@@ -90,11 +88,16 @@ CatacombsOfKathandrax_transit_path2 = [
             (16279,-8732),
             (16803,-11677),
             (16081,-14671),
-            (15784,-16544),
-            (17869,-17914),
-        ],  
+            (15564,-15130),
+            (15698,-16081),
+            (15950,-16720),
+            (16574,-17106),
+            (17273,-17819),
+            (18016,-17953),
+        ]  
     },
     {
+        "wait" : 20000,
         "npc":  (18392.00, -18153.00),
         "dialog": 0x832501,
         "path": [

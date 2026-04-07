@@ -22,6 +22,10 @@ DALADA_UPLANDS_MAP_ID = 647
 ENABLE_COMBAT_MODE_STEP_NAME = "[H]Enable Combat Mode_1"
 START_COMBAT_STEP_NAME = "[H]Start Combat_2"
 
+_MULTIBOX_ALTS_KEY = "use_multibox_alts"
+_party_mode: int = 0  # 0 = Single Account with Heroes, 1 = Multiboxing
+_mode_loaded: bool = False
+
 DALADA_UPLANDS_OUTPOST_PATH = [
     (-16016.0, 17340.0),
     (-15400.0, 13500.0),
@@ -201,7 +205,7 @@ def PrepareForCombat(bot: Botting) -> None:
     _load_consumable_settings(bot)
     _sync_consumable_toggles(bot)
     bot.Map.Travel(target_map_id=DALADA_UPLANDS_OUTPOST_ID)
-    bot.States.AddCustomState(lambda: _setup_heroes(bot), "Setup Heroes")
+    bot.States.AddCustomState(lambda: _maybe_setup_heroes(bot), "Setup Heroes")
     bot.States.AddCustomState(lambda: _restock_consumables_if_enabled(bot), "Restock Consumables If Enabled")
     bot.Party.SetHardMode(True)
 
@@ -209,7 +213,8 @@ def PrepareForCombat(bot: Botting) -> None:
 def _do_bless_and_path(bot: Botting, bless_xy: tuple[float, float], path: list[tuple[float, float]], label: str) -> None:
     bot.Move.XY(bless_xy[0], bless_xy[1], label)
     bot.Wait.ForTime(1500)
-    bot.Move.XYAndDialog(bless_xy[0], bless_xy[1], 0x84)
+    bot.Move.XYAndInteractNPC(bless_xy[0], bless_xy[1])
+    bot.States.AddCustomState(lambda: _send_local_dialog(bot, 0x84), "Local Dialog 0x84")
     bot.States.AddCustomState(lambda: _send_local_dialog(bot, 0x85), "Local Dialog 0x85")
     bot.Move.FollowAutoPath(path)
 
@@ -218,6 +223,9 @@ def Fight(bot: Botting) -> None:
     # events
     condition = lambda: OnPartyWipe(bot)
     bot.Events.OnPartyWipeCallback(condition)
+    bot.Events.OnPartyMemberBehindCallback(lambda: bot.Templates.Routines.OnPartyMemberBehind())
+    bot.Events.OnPartyMemberInDangerCallback(lambda: bot.Templates.Routines.OnPartyMemberInDanger())
+    bot.Events.OnPartyMemberDeadBehindCallback(lambda: bot.Templates.Routines.OnPartyMemberDeathBehind())
     # end events
 
     bot.States.AddHeader("Start Combat")
@@ -239,7 +247,7 @@ def Fight(bot: Botting) -> None:
     # Path segment 4
     _do_bless_and_path(bot, DALADA_SEGMENT_4_BLESS, DALADA_SEGMENT_4_PATH, "Taking Blessing")
 
-    bot.States.AddCustomState(lambda: _resign(bot), "Resign Party")
+    bot.Multibox.ResignParty()
     bot.Wait.UntilOnOutpost()
     bot.Wait.ForTime(5000)
     bot.States.JumpToStepName(ENABLE_COMBAT_MODE_STEP_NAME)
@@ -320,8 +328,11 @@ def _as_bool(value) -> bool:
 
 
 def _send_local_dialog(bot: Botting, dialog_id: int):
-    Player.SendDialog(dialog_id)
-    yield from bot.Wait._coro_for_time(500)
+    if _party_mode == 1:
+        yield from bot.helpers.Multibox._send_dialog_with_target(dialog_id)
+    else:
+        Player.SendDialog(dialog_id)
+        yield from bot.Wait._coro_for_time(500)
 
 
 def _ensure_bot_ini(bot: Botting) -> str:
@@ -575,6 +586,15 @@ def _setup_heroes(bot: Botting):
             yield from bot.Wait._coro_for_time(500)
 
 
+def _maybe_setup_heroes(bot: Botting):
+    if _party_mode == 1:
+        yield from bot.helpers.Multibox._summon_all_accounts()
+        yield from bot.Wait._coro_for_time(4000)
+        yield from bot.helpers.Multibox._invite_all_accounts()
+        return
+    yield from _setup_heroes(bot)
+
+
 def _resign(bot: Botting):
     bot.UI.SendChatCommand("resign")
     yield from bot.Wait._coro_for_time(500)
@@ -651,15 +671,49 @@ def _sync_consumable_toggles(bot: Botting) -> None:
 
 
 # region GUI
+def _load_mode_setting(bot: Botting) -> None:
+    global _party_mode
+    ini_key = _ensure_bot_ini(bot)
+    if not ini_key:
+        return
+    raw = IniManager().read_bool(ini_key, _SETTINGS_SECTION, _MULTIBOX_ALTS_KEY, False)
+    _party_mode = 1 if raw else 0
+
+
+def _save_mode_setting(bot: Botting) -> None:
+    ini_key = _ensure_bot_ini(bot)
+    if not ini_key:
+        return
+    IniManager().write_key(ini_key, _SETTINGS_SECTION, _MULTIBOX_ALTS_KEY, _party_mode == 1)
+
+
 def _draw_settings(bot: Botting):
     import PyImGui
 
     PyImGui.text("Bot Settings")
 
     _ensure_consumable_settings_ui_loaded(bot)
+
+    global _party_mode, _mode_loaded
+    if not _mode_loaded:
+        _load_mode_setting(bot)
+        _mode_loaded = True
+    PyImGui.separator()
+    PyImGui.text("Party Mode:")
+    new_mode = PyImGui.radio_button("Single Account with Heroes", _party_mode, 0)
+    PyImGui.same_line(0, 16)
+    new_mode = PyImGui.radio_button("Multiboxing", new_mode, 1)
+    if new_mode != _party_mode:
+        _party_mode = new_mode
+        _save_mode_setting(bot)
+    if _party_mode == 1:
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (0.6, 0.9, 1.0, 1.0))
+        PyImGui.text("Resign uses Multibox Party Resign. Hero setup is skipped.")
+        PyImGui.pop_style_color(1)
+    PyImGui.separator()
+
     PyImGui.text("Combat Backend")
     PyImGui.text("Current: Auto Combat")
-    PyImGui.text("Mode: Single Account with Heroes")
 
     # Conset controls
     use_conset = _as_bool(bot.Properties.Get("use_conset", "active"))
@@ -708,6 +762,8 @@ _session_start_times: dict[str, float] = {}
 
 def _get_title_track_accounts():
     accounts = list(GLOBAL_CACHE.ShMem.GetAllAccountData())
+    if _party_mode == 1:
+        return accounts if accounts else []
     own_email = Player.GetAccountEmail()
     filtered = [account for account in accounts if getattr(account, "AccountEmail", "") == own_email]
     if filtered:

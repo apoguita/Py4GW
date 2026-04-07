@@ -359,6 +359,9 @@ bot.UI.override_draw_config(lambda: _draw_settings())
 bot.UI.override_draw_help(lambda: _draw_help())
 
 def main():
+    if not Routines.Checks.Map.MapValid() or not Player.IsPlayerLoaded():
+        return
+    
     bot.UI.draw_window(icon_path=TEXTURE)
 
     if _queued_runs:

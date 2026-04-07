@@ -158,7 +158,8 @@ class ColorizeSettings:
         
 #region PopUpClasses
 class ModelPopUp:
-    def __init__(self, title: str, model_dictionary: dict[int, str], current_blacklist: list[int]):
+    def __init__(self, title: str, model_dictionary: dict[int, str], current_blacklist: list[int],
+                 export_filename: str = "", ini_section: str = "", ini_var_name: str = "", ini_relative_path: str = ""):
         self.is_open = False
         self.initialized = False
         self.Title = title
@@ -170,7 +171,14 @@ class ModelPopUp:
         self.model_id_search: str = ""
         self.model_id_search_mode: int = 0  # 0 = contains, 1 = starts with
 
-        
+        self._export_filename = export_filename
+        self._ini_section = ini_section
+        self._ini_var_name = ini_var_name
+        self._ini_relative_path = ini_relative_path
+        self._feedback_msg: str = ""
+        self._feedback_frames: int = 0
+
+
     def Show(self):
         if not self.initialized:
             self.initialized = True
@@ -241,11 +249,89 @@ class ModelPopUp:
 
             PyImGui.end_table()
 
+        exports_dir = os.path.join(Py4GW.Console.get_projects_path(), "Settings", "Exports")
+        export_path = os.path.join(exports_dir, f"{self._export_filename}.txt") if self._export_filename else ""
+        if export_path:
+            if PyImGui.button("Export"):
+                try:
+                    os.makedirs(exports_dir, exist_ok=True)
+                    with open(export_path, "w") as f:
+                        f.write(",".join(str(mid) for mid in self.blacklist))
+                    self._feedback_msg = f"Saved {len(self.blacklist)} item(s) to {self._export_filename}.txt"
+                except Exception as e:
+                    self._feedback_msg = f"Export failed: {e}"
+                self._feedback_frames = 180
+            if PyImGui.is_item_hovered():
+                PyImGui.begin_tooltip()
+                PyImGui.text(f"Save blacklist to:\n{export_path}")
+                PyImGui.end_tooltip()
+            PyImGui.same_line(0, -1)
+            if PyImGui.button("Import"):
+                try:
+                    with open(export_path, "r") as f:
+                        content = f.read()
+                    imported = 0
+                    for token in content.split(","):
+                        token = token.strip()
+                        if token.isdigit():
+                            mid = int(token)
+                            if mid not in self.blacklist:
+                                self.blacklist.append(mid)
+                                imported += 1
+                    self._feedback_msg = f"Imported {imported} new item(s) from {self._export_filename}.txt"
+                except FileNotFoundError:
+                    self._feedback_msg = f"File not found: {self._export_filename}.txt"
+                except Exception as e:
+                    self._feedback_msg = f"Import failed: {e}"
+                self._feedback_frames = 180
+            if PyImGui.is_item_hovered():
+                PyImGui.begin_tooltip()
+                PyImGui.text(f"Load blacklist from:\n{export_path}")
+                PyImGui.end_tooltip()
+            PyImGui.same_line(0, -1)
         if PyImGui.button("Close"):
             self.is_open = False
             self.initialized = False
             self.result_blacklist = list(self.blacklist)
+            self._feedback_frames = 0
             PyImGui.close_current_popup()
+
+        if self._feedback_frames > 0:
+            self._feedback_frames -= 1
+            PyImGui.same_line(0, -1)
+            PyImGui.text(self._feedback_msg)
+
+        if self._ini_section and self._ini_var_name and self._ini_relative_path:
+            from Py4GWCoreLib.py4gwcorelib_src.IniHandler import IniHandler
+            base_path = Py4GW.Console.get_projects_path() + "/Settings/"
+            current_email = IniManager().get_account_email()
+            excluded = {"Defaults", "Global", "Exports"}
+            other_accounts = [
+                e for e in os.listdir(base_path)
+                if e != current_email and e not in excluded and os.path.isdir(os.path.join(base_path, e))
+            ]
+            if other_accounts:
+                PyImGui.separator()
+                if PyImGui.button(f"Copy to All Accounts ({len(other_accounts)})"):
+                    blacklist_str = ",".join(str(mid) for mid in self.blacklist)
+                    copied = 0
+                    for account in other_accounts:
+                        target_ini = os.path.join(base_path, account, self._ini_relative_path)
+                        if os.path.exists(target_ini):
+                            IniHandler(target_ini).write_key(self._ini_section, self._ini_var_name, blacklist_str)
+                            copied += 1
+                    self._feedback_msg = f"Copied to {copied}/{len(other_accounts)} account(s)."
+                    self._feedback_frames = 180
+                if PyImGui.is_item_hovered():
+                    PyImGui.begin_tooltip()
+                    PyImGui.text("Push this blacklist to all other accounts that already have this INI file.")
+                    PyImGui.text("Accounts without the file are skipped.")
+                    PyImGui.separator()
+                    for account in other_accounts:
+                        target_ini = os.path.join(base_path, account, self._ini_relative_path)
+                        status = "ready" if os.path.exists(target_ini) else "no INI file"
+                        PyImGui.text(f"  {account}  [{status}]")
+                    PyImGui.end_tooltip()
 
         PyImGui.end_popup_modal()
         
@@ -1187,54 +1273,72 @@ class InventoryPlusWidget:
             pass
 
     def _init_popups(self):
+        _ini_rel = f"{INI_PATH}/{INI_FILENAME}"
+
         self.PopUps["Identification ModelID Lookup"] = ModelPopUp(
             "Identification ModelID Lookup",
             self.model_id_to_name,
-            self.auto_inventory_handler.id_model_blacklist
+            self.auto_inventory_handler.id_model_blacklist,
+            export_filename="InventoryPlus_ID_ModelBlacklist",
+            ini_section="AutoIdentify", ini_var_name="id_model_blacklist", ini_relative_path=_ini_rel
         )
 
-        
+
         self.PopUps["Salvage Item Type Lookup"] = ModelPopUp(
             "Salvage Item Type Lookup",
             self.item_type_to_name,
-            self.auto_inventory_handler.item_type_blacklist
+            self.auto_inventory_handler.item_type_blacklist,
+            export_filename="InventoryPlus_Salvage_TypeBlacklist",
+            ini_section="AutoSalvage", ini_var_name="item_type_blacklist", ini_relative_path=_ini_rel
         )
 
         self.PopUps["Salvage ModelID Lookup"] = ModelPopUp(
             "Salvage ModelID Lookup",
             self.model_id_to_name,
-            self.auto_inventory_handler.salvage_blacklist
+            self.auto_inventory_handler.salvage_blacklist,
+            export_filename="InventoryPlus_Salvage_ModelBlacklist",
+            ini_section="AutoSalvage", ini_var_name="salvage_blacklist", ini_relative_path=_ini_rel
         )
 
         self.PopUps["Deposit Trophy ModelID Lookup"] = ModelPopUp(
             "Deposit Trophy ModelID Lookup",
             self.model_id_to_name,
-            self.auto_inventory_handler.deposit_trophies_blacklist
+            self.auto_inventory_handler.deposit_trophies_blacklist,
+            export_filename="InventoryPlus_Deposit_TrophyBlacklist",
+            ini_section="AutoDeposit", ini_var_name="deposit_trophies_blacklist", ini_relative_path=_ini_rel
         )
 
         self.PopUps["Deposit Material ModelID Lookup"] = ModelPopUp(
             "Deposit Material ModelID Lookup",
             self.model_id_to_name,
-            self.auto_inventory_handler.deposit_materials_blacklist
+            self.auto_inventory_handler.deposit_materials_blacklist,
+            export_filename="InventoryPlus_Deposit_MaterialBlacklist",
+            ini_section="AutoDeposit", ini_var_name="deposit_materials_blacklist", ini_relative_path=_ini_rel
         )
 
         self.PopUps["Deposit Event Item ModelID Lookup"] = ModelPopUp(
             "Deposit Event Item ModelID Lookup",
             self.model_id_to_name,
-            self.auto_inventory_handler.deposit_event_items_blacklist
+            self.auto_inventory_handler.deposit_event_items_blacklist,
+            export_filename="InventoryPlus_Deposit_EventItemBlacklist",
+            ini_section="AutoDeposit", ini_var_name="deposit_event_items_blacklist", ini_relative_path=_ini_rel
         )
 
 
         self.PopUps["Deposit Dye ModelID Lookup"] = ModelPopUp(
             "Deposit Dye ModelID Lookup",
             self.model_id_to_name,
-            self.auto_inventory_handler.deposit_dyes_blacklist
+            self.auto_inventory_handler.deposit_dyes_blacklist,
+            export_filename="InventoryPlus_Deposit_DyeBlacklist",
+            ini_section="AutoDeposit", ini_var_name="deposit_dyes_blacklist", ini_relative_path=_ini_rel
         )
 
         self.PopUps["Deposit ModelID Lookup"] = ModelPopUp(
             "Deposit ModelID Lookup",
             self.model_id_to_name,
-            self.auto_inventory_handler.deposit_model_blacklist
+            self.auto_inventory_handler.deposit_model_blacklist,
+            export_filename="InventoryPlus_Deposit_ModelBlacklist",
+            ini_section="AutoDeposit", ini_var_name="deposit_model_blacklist", ini_relative_path=_ini_rel
         )
         
     def _sync_popups_with_handler(self):
@@ -1622,16 +1726,17 @@ class InventoryPlusWidget:
             # ---------------------------------------------------------------
 
         if selected_item:
+            if PyImGui.menu_item("Deposit"):
+                GLOBAL_CACHE.Inventory.DepositItemToStorage(selected_item.ItemID)
+                PyImGui.close_current_popup()
+            PyImGui.separator()
+
             destroy_label = "Destroy Item"
             if selected_item.Quantity > 1:
                 destroy_label = f"Destroy Stack ({selected_item.Quantity})"
 
             if PyImGui.menu_item(destroy_label):
                 GLOBAL_CACHE.Inventory.DestroyItem(selected_item.ItemID)
-                PyImGui.close_current_popup()
-
-            if PyImGui.menu_item("Deposit"):
-                GLOBAL_CACHE.Inventory.DepositItemToStorage(selected_item.ItemID)
                 PyImGui.close_current_popup()
             PyImGui.separator()
         if not GLOBAL_CACHE.Inventory.IsStorageOpen():
@@ -2791,7 +2896,7 @@ class InventoryPlusWidget:
                         PyImGui.same_line(0,-1)
                         PyImGui.text(f"{len(self.auto_inventory_handler.item_type_blacklist)} Types Ignored")
                         if PyImGui.button("Ignore Model"):
-                            self.PopUps["Salvage ModelID Lookup"].is_open = True   
+                            self.PopUps["Salvage ModelID Lookup"].is_open = True
                         if PyImGui.is_item_hovered():
                             PyImGui.begin_tooltip()
                             PyImGui.text(f"{len(self.auto_inventory_handler.salvage_blacklist)} Models Ignored")

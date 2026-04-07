@@ -275,8 +275,10 @@ class BTCompositeHelpers:
 
         return BT.Composite.Sequence(
             move_tree,
+            BT.Player.Wait(duration_ms=150, log=False),
             target_tree,
             BT.Player.InteractTarget(log=log),
+            BT.Player.Wait(duration_ms=150, log=False),
             BT.Player.SendAutomaticDialog(button_number=button_number, log=log),
             name="MoveTargetInteractAndAutomaticDialog",
         )
