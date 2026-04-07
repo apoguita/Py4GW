@@ -1,23 +1,25 @@
+from math import e
 from typing import override
 
+from Sources.oazix.CustomBehaviors.primitives.bus.event_bus import EventBus
+from Sources.oazix.CustomBehaviors.primitives.skillbars import utility_skill_finder
 from Sources.oazix.CustomBehaviors.primitives.skillbars.custom_behavior_base_utility import CustomBehaviorBaseUtility
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
-from Sources.oazix.CustomBehaviors.primitives.skillbars.utility_skill_finder import discover_all_utility_skills
 
-class HeroAiFallback_UtilitySkillBar(CustomBehaviorBaseUtility):
+class AutoCombatFallback_UtilitySkillBar(CustomBehaviorBaseUtility):
     """
-    Generic fallback skillbar that automatically discovers and uses all custom utility skills.
+        Generic fallback skillbar that automatically discovers and uses all custom utility skills.
 
-    This skillbar dynamically scans the skills directory and instantiates all CustomSkillUtilityBase
-    subclasses with default parameters, allowing any skill in your build to be used automatically.
+        This skillbar dynamically scans the skills directory and instantiates all CustomSkillUtilityBase
+        subclasses with default parameters, allowing any skill in your build to be used automatically.
 
-    You can override specific skills by defining them in _get_custom_skill_overrides() to provide
-    custom score definitions, mana requirements, or other parameters.
+        You can override specific skills by defining them in _get_custom_skill_overrides() to provide
+        custom score definitions, mana requirements, or other parameters.
     """
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, event_bus: EventBus):
+        super().__init__(event_bus)
         in_game_build = list(self.skillbar_management.get_in_game_build().values())
 
         # Get custom overrides first (if any)
@@ -64,7 +66,7 @@ class HeroAiFallback_UtilitySkillBar(CustomBehaviorBaseUtility):
         Returns:
             Dictionary mapping skill_id to instantiated utility skill objects
         """
-        return discover_all_utility_skills(
+        return utility_skill_finder.discover_all_utility_skills(
             event_bus=self.event_bus,
             in_game_build=in_game_build,
             custom_overrides=self._custom_overrides

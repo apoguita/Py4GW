@@ -1,5 +1,6 @@
 from typing import override
 
+from Sources.oazix.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Sources.oazix.CustomBehaviors.primitives.scores.score_per_agent_quantity_definition import ScorePerAgentQuantityDefinition
 from Sources.oazix.CustomBehaviors.primitives.scores.score_per_health_gravity_definition import ScorePerHealthGravityDefinition
 from Sources.oazix.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
@@ -7,16 +8,12 @@ from Sources.oazix.CustomBehaviors.primitives.skillbars.custom_behavior_base_uti
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
 from Sources.oazix.CustomBehaviors.skills.common.breath_of_the_great_dwarf_utility import BreathOfTheGreatDwarfUtility
-from Sources.oazix.CustomBehaviors.skills.common.by_urals_hammer_utility import ByUralsHammerUtility
 from Sources.oazix.CustomBehaviors.skills.common.ebon_battle_standard_of_wisdom_utility import EbonBattleStandardOfWisdom
 from Sources.oazix.CustomBehaviors.skills.common.ebon_vanguard_assassin_support_utility import EbonVanguardAssassinSupportUtility
 from Sources.oazix.CustomBehaviors.skills.common.great_dwarf_weapon_utility import GreatDwarfWeaponUtility
-from Sources.oazix.CustomBehaviors.skills.common.i_am_unstoppable_utility import IAmUnstoppableUtility
 from Sources.oazix.CustomBehaviors.skills.common.you_are_all_weaklings_utility import YouAreAllWeaklingsUtility
-from Sources.oazix.CustomBehaviors.skills.generic.generic_resurrection_utility import GenericResurrectionUtility
 from Sources.oazix.CustomBehaviors.skills.necromancer.blood_bond_utility import BloodBondUtility
 from Sources.oazix.CustomBehaviors.skills.necromancer.blood_is_power_utility import BloodIsPowerUtility
-from Sources.oazix.CustomBehaviors.skills.paragon.fall_back_utility import FallBackUtility
 from Sources.oazix.CustomBehaviors.skills.ritualist.mend_body_and_soul_utility import MendBodyAndSoulUtility
 from Sources.oazix.CustomBehaviors.skills.ritualist.life_utility import LifeUtility
 from Sources.oazix.CustomBehaviors.skills.ritualist.protective_was_kaolai_utility import ProtectiveWasKaolaiUtility
@@ -30,8 +27,8 @@ from Sources.oazix.CustomBehaviors.skills.ritualist.wielders_boon_utility import
 
 class NecromancerBipRestoration_UtilitySkillBar(CustomBehaviorBaseUtility):
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, event_bus: EventBus):
+        super().__init__(event_bus)
         in_game_build = list(self.skillbar_management.get_in_game_build().values())
 
         # core skills

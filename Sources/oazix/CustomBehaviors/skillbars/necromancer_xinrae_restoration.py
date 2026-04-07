@@ -1,5 +1,6 @@
 from typing import override
 
+from Sources.oazix.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Sources.oazix.CustomBehaviors.primitives.scores.score_per_agent_quantity_definition import ScorePerAgentQuantityDefinition
 from Sources.oazix.CustomBehaviors.primitives.scores.score_per_health_gravity_definition import ScorePerHealthGravityDefinition
 from Sources.oazix.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
@@ -24,12 +25,12 @@ from Sources.oazix.CustomBehaviors.skills.common.you_are_all_weaklings_utility i
 
 class NecromancerXinraeRestoration_UtilitySkillBar(CustomBehaviorBaseUtility):
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, event_bus: EventBus):
+        super().__init__(event_bus)
         in_game_build = list(self.skillbar_management.get_in_game_build().values())
 
         # core skills
-        self.xinraes_weapon_utility: CustomSkillUtilityBase = XinraesWeaponUtility(event_bus=self.event_bus, current_build=in_game_build)
+        self.xinraes_weapon_utility: CustomSkillUtilityBase = XinraesWeaponUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScorePerHealthGravityDefinition(8))
         self.mend_body_and_soul_utility: CustomSkillUtilityBase = MendBodyAndSoulUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScorePerHealthGravityDefinition(7))
         self.spirit_light_utility: CustomSkillUtilityBase = SpiritLightUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScorePerHealthGravityDefinition(8))
         self.protective_was_kaolai_utility: CustomSkillUtilityBase = ProtectiveWasKaolaiUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScorePerHealthGravityDefinition(7))

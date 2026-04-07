@@ -1,27 +1,27 @@
-from typing import List, Any, Generator, Callable, override
-import time
+from typing import override
 from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorState
+from Sources.oazix.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Sources.oazix.CustomBehaviors.primitives.scores.score_combot_definition import ScoreCombotDefinition
 from Sources.oazix.CustomBehaviors.primitives.scores.score_per_agent_quantity_definition import ScorePerAgentQuantityDefinition
 from Sources.oazix.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
 from Sources.oazix.CustomBehaviors.primitives.skillbars.custom_behavior_base_utility import CustomBehaviorBaseUtility
+from Sources.oazix.CustomBehaviors.primitives.skillbars.disabilities.condition_priority import ConditionPriority
+from Sources.oazix.CustomBehaviors.primitives.skillbars.disabilities.disability_priority import DisabilityPriority
+from Sources.oazix.CustomBehaviors.primitives.skillbars.disabilities.hex_prioritiy import HexPriority
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
 from Sources.oazix.CustomBehaviors.skills.assassin.disrupting_dagger_utility import DisruptingDaggerUtility
 from Sources.oazix.CustomBehaviors.skills.assassin.shroud_of_distress_utility import ShroudOfDistressUtility
-from Sources.oazix.CustomBehaviors.skills.common.by_urals_hammer_utility import ByUralsHammerUtility
 from Sources.oazix.CustomBehaviors.skills.common.ebon_battle_standard_of_honor_utility import EbonBattleStandardOfHonorUtility
 from Sources.oazix.CustomBehaviors.skills.common.ebon_battle_standard_of_wisdom_utility import EbonBattleStandardOfWisdom
 from Sources.oazix.CustomBehaviors.skills.common.ebon_vanguard_assassin_support_utility import EbonVanguardAssassinSupportUtility
-from Sources.oazix.CustomBehaviors.skills.common.i_am_unstoppable_utility import IAmUnstoppableUtility
-from Sources.oazix.CustomBehaviors.skills.generic.auto_combat_utility import AutoCombatUtility
 from Sources.oazix.CustomBehaviors.skills.generic.keep_self_effect_up_utility import KeepSelfEffectUpUtility
 from Sources.oazix.CustomBehaviors.skills.generic.raw_combot_attack_utility import RawCombotAttackUtility
 
 class AssassinCriticalHit_UtilitySkillBar(CustomBehaviorBaseUtility):
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, event_bus: EventBus):
+        super().__init__(event_bus)
         in_game_build = list(self.skillbar_management.get_in_game_build().values())
 
         self.shroud_of_distress_utility: CustomSkillUtilityBase = ShroudOfDistressUtility(event_bus=self.event_bus, score_definition=ScoreStaticDefinition(81), current_build=in_game_build, allowed_states=[BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO, BehaviorState.FAR_FROM_AGGRO])
@@ -65,4 +65,18 @@ class AssassinCriticalHit_UtilitySkillBar(CustomBehaviorBaseUtility):
     def skills_required_in_behavior(self) -> list[CustomSkill]:
         return [
             self.critical_eye_utility.custom_skill,
+        ]
+    
+    @override
+    def hexes_to_dispell_extra_priority(self) -> list[HexPriority]:
+        return [
+            HexPriority(CustomSkill("Deep_Freeze"), DisabilityPriority.HIGH),
+            HexPriority(CustomSkill("Mind_Freeze"), DisabilityPriority.HIGH),
+        ]
+    
+    @override
+    def conditions_to_dispell_extra_priority(self) -> list[ConditionPriority]:
+        return [
+            ConditionPriority(CustomSkill("Blind"), DisabilityPriority.HIGH),
+            ConditionPriority(CustomSkill("Crippled"), DisabilityPriority.HIGH),
         ]

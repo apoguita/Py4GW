@@ -24,7 +24,7 @@ class AuspiciousIncantationUtility(CustomSkillUtilityBase):
                  event_bus: EventBus,
                  current_build: list[CustomSkill],
                  original_skill_to_cast: CustomSkillUtilityBase,
-                 auspicious_score_definition: ScoreStaticDefinition = ScoreStaticDefinition(82),
+                 score_definition: ScoreStaticDefinition = ScoreStaticDefinition(82),
                  allowed_states: list[BehaviorState] = [BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO]
                  ) -> None:
 
@@ -32,11 +32,11 @@ class AuspiciousIncantationUtility(CustomSkillUtilityBase):
             event_bus=event_bus,
             skill=CustomSkill("Auspicious_Incantation"),
             in_game_build=current_build,
-            score_definition=auspicious_score_definition,
+            score_definition=score_definition,
             allowed_states=allowed_states
         )
 
-        self.auspicious_score_definition: ScoreStaticDefinition = auspicious_score_definition
+        self.auspicious_score_definition: ScoreStaticDefinition = score_definition
         self.original_skill_to_cast: CustomSkillUtilityBase = original_skill_to_cast
 
     def are_common_pre_checks_valid(self, current_state: BehaviorState) -> bool:

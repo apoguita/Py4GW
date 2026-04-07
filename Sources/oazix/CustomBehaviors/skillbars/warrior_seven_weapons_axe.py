@@ -1,6 +1,7 @@
 from typing import override
 
 from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorState
+from Sources.oazix.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Sources.oazix.CustomBehaviors.primitives.scores.score_per_agent_quantity_definition import ScorePerAgentQuantityDefinition
 from Sources.oazix.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
 from Sources.oazix.CustomBehaviors.primitives.skillbars.custom_behavior_base_utility import CustomBehaviorBaseUtility
@@ -17,8 +18,8 @@ from Sources.oazix.CustomBehaviors.skills.ranger.comfort_animal_utility import C
 
 
 class WarriorSevenWeaponsAxe_UtilitySkillBar(CustomBehaviorBaseUtility):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, event_bus: EventBus):
+        super().__init__(event_bus)
         in_game_build = list(self.skillbar_management.get_in_game_build().values())
 
         # Core stance upkeep

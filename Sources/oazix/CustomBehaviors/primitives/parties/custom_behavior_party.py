@@ -25,6 +25,7 @@ from Sources.oazix.CustomBehaviors.primitives.parties.party_flagging_manager imp
 from Sources.oazix.CustomBehaviors.primitives.parties.party_following_manager import PartyFollowingManager
 from Sources.oazix.CustomBehaviors.primitives.parties.shared_lock_manager import SharedLockManager
 from Sources.oazix.CustomBehaviors.primitives.parties.party_teambuild_manager import PartyTeamBuildManager
+from Sources.oazix.CustomBehaviors.primitives.parties.party_disability_manager import PartyDisabilityManager
 from Sources.oazix.CustomBehaviors.primitives.skills.utility_skill_typology import UtilitySkillTypology
 from Sources.oazix.CustomBehaviors.primitives.parties.party_command_contants import PartyCommandConstants
 from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import CustomBehaviorWidgetData, CustomBehaviorWidgetMemoryManager
@@ -53,6 +54,7 @@ class CustomBehaviorParty:
             self.party_following_manager = PartyFollowingManager()
             self.party_shared_lock_manager = CustomBehaviorWidgetMemoryManager().GetSharedLockManager()
             self.party_flagging_manager = PartyFlaggingManager()
+            self.party_disability_priorities_manager = PartyDisabilityManager()
 
             # Rename GW windows to match custom behavior party names on load
             print("CustomBehaviorParty: Renaming GW windows")
@@ -64,8 +66,10 @@ class CustomBehaviorParty:
         while True:
             self.party_command_handler_manager.execute_next_step()
             self.__messaging_process()
+
             self.party_teambuild_manager.act()
-            
+            self.party_disability_priorities_manager.act()
+
             # # ------------------------------ Custom party target ------------------------------
             if custom_behavior_helpers.CustomBehaviorHelperParty.is_party_leader():
                 if Map.IsExplorable():
@@ -87,9 +91,6 @@ class CustomBehaviorParty:
 
 
             # # ------------------------------ Party leader email ------------------------------
-
-
-
                 
             yield
     
