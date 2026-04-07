@@ -82,7 +82,7 @@ class JununduFeastUtility(CustomSkillUtilityBase):
         target_agent_id = targets[0]
 
         lock_key = self._get_lock_key(target_agent_id)
-        if CustomBehaviorParty().get_shared_lock_manager().try_aquire_lock(lock_key, timeout_seconds=200) == False:
+        if CustomBehaviorParty().get_shared_lock_manager().try_aquire_lock(lock_key, timeout_seconds=120) == False:
             return BehaviorResult.ACTION_SKIPPED
 
         # Execute the skill - do NOT release lock on success

@@ -1,9 +1,8 @@
-from typing import Any, Generator, override
+from typing import Any, Generator, cast, override
 
-from Py4GWCoreLib.native_src.context.WorldContext import AttributeStruct
-from Py4GWCoreLib.Agent import Agent
 from Py4GWCoreLib.enums import Range
-from Py4GWCoreLib import Player
+from Py4GWCoreLib import Agent, Player
+from Py4GWCoreLib.native_src.context.WorldContext import AttributeStruct
 from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Sources.oazix.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Sources.oazix.CustomBehaviors.primitives.helpers import custom_behavior_helpers
@@ -13,6 +12,7 @@ from Sources.oazix.CustomBehaviors.primitives.scores.score_static_definition imp
 from Sources.oazix.CustomBehaviors.primitives.skills.bonds.custom_buff_target_per_profession import BuffConfigurationPerProfession
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
+from Sources.oazix.CustomBehaviors.skills.plugins.options.raw_boolean_option import RawBooleanOption
 from Sources.oazix.CustomBehaviors.skills.plugins.targeting_modifiers.buff_configurator import BuffConfigurator
 from Sources.oazix.CustomBehaviors.skills.plugins.watchdogs.should_lock_until_buff_completion import ShouldLockUntilBuffCompletion
 
@@ -33,31 +33,30 @@ class HeroicRefrainUtility(CustomSkillUtilityBase):
             allowed_states=[BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO, BehaviorState.FAR_FROM_AGGRO])
 
         self.score_definition: ScoreStaticDefinition = score_definition
-
-        # Load buff configuration from persistence or use default (ALL)
-        self.should_reach_leadership_attribute_score_of_20 = True # it will cause issue if you don't have 16 leadership base. can be dactivated through UI(customized_debug_ui & detailled mode)
+        
+        self.add_plugin_option(lambda x: RawBooleanOption(x.custom_skill, "should_cast_on_self_until_leadership_is_20", True))
         self.add_plugin_targetting_modifier(lambda x: BuffConfigurator(event_bus, self.custom_skill, buff_configuration_per_profession= BuffConfigurationPerProfession.BUFF_CONFIGURATION_ALL))
         self.add_plugin_watchdog(lambda x: ShouldLockUntilBuffCompletion(x.custom_skill, is_buff_config_fulfilled= lambda: self._get_target_agent_id() is None, default_value= False))
 
+    def get_leadership_attribute_level_on_self(self) -> int:
+        attributes: list[AttributeStruct] = Agent.GetAttributes(Player.GetAgentID())
+        leadership_attribute:AttributeStruct|None = next((attribute for attribute in attributes if attribute.GetName() == 'Leadership'), None)
+        return leadership_attribute.level if leadership_attribute is not None else 0
+
+
     def _get_target_agent_id(self) -> int | None:
 
-        # PHASE 1 - DOUBLE CAST ON PARAGON
-        # it will cause issue if you don't have 16 leadership base. can be dactivated through UI(customized_debug_ui & detailled mode)
+        # PHASE 1 - CAST ON SELF
+        should_cast_on_self_option: RawBooleanOption | None = cast(RawBooleanOption | None, self.get_plugin_option("should_cast_on_self_until_leadership_is_20"))
 
-        if self.should_reach_leadership_attribute_score_of_20:
-            attributes: list[AttributeStruct] = Agent.GetAttributes(Player.GetAgentID())
-            leadership_attribute:AttributeStruct|None = next((attribute for attribute in attributes if attribute.GetName() == 'Leadership'), None)
-            if leadership_attribute is not None and leadership_attribute.level < 20:
-                return Player.GetAgentID()
-
+        if should_cast_on_self_option is not None and should_cast_on_self_option.option_value and self.get_leadership_attribute_level_on_self() < 20:
+            return Player.GetAgentID()
+        
         # PHASE 2 - CAST ON PARTY
 
         targets: list[custom_behavior_helpers.SortableAgentData] = custom_behavior_helpers.Targets.get_all_possible_allies_ordered_by_priority_raw(
                 within_range=Range.Spellcast.value * 1.2,
-                condition=lambda agent_id:
-                    self.get_plugin_targeting_modifiers_filtering_predicate()(agent_id) 
-                    # and not custom_behavior_helpers.Resources.is_ally_under_specific_effect(agent_id, self.custom_skill.skill_id)
-                    ,
+                condition=lambda agent_id: self.get_plugin_targeting_modifiers_filtering_predicate()(agent_id) ,
                 sort_key=(TargetingOrder.DISTANCE_ASC, TargetingOrder.CASTER_THEN_MELEE),
                 range_to_count_enemies=None,
                 range_to_count_allies=None)
@@ -67,13 +66,6 @@ class HeroicRefrainUtility(CustomSkillUtilityBase):
 
         if targets is None: return None
         if len(targets) <= 0: return None
-
-        # take player first.
-        for target in targets:
-            if target.agent_id == Player.GetAgentID():
-                return target.agent_id
-
-        # then take party, no priority atm
         return targets[0].agent_id
 
     @override

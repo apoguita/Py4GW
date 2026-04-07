@@ -1,8 +1,5 @@
-from typing import List, Any, Generator, Callable, override
-import time
-from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorState
-
-from Sources.oazix.CustomBehaviors.primitives.bus.event_type import EventType
+from typing import override
+from Sources.oazix.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Sources.oazix.CustomBehaviors.primitives.scores.score_per_agent_quantity_definition import ScorePerAgentQuantityDefinition
 from Sources.oazix.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
 from Sources.oazix.CustomBehaviors.primitives.skillbars.custom_behavior_base_utility import CustomBehaviorBaseUtility
@@ -14,14 +11,13 @@ from Sources.oazix.CustomBehaviors.skills.assassin.shadow_form_utility import Sh
 from Sources.oazix.CustomBehaviors.skills.assassin.shroud_of_distress_utility import ShroudOfDistressUtility
 from Sources.oazix.CustomBehaviors.skills.common.auto_attack_utility import AutoAttackUtility
 from Sources.oazix.CustomBehaviors.skills.generic.keep_self_effect_up_utility import KeepSelfEffectUpUtility
-from Sources.oazix.CustomBehaviors.skills.mesmer.arcane_echo_utility import ArcaneEchoUtility
 from Sources.oazix.CustomBehaviors.skills.mesmer.wastrels_demise_utility import WastrelsDemiseUtility
 from Sources.oazix.CustomBehaviors.specifics.assassin_vaettir_farm.arcane_echo_vaettir_farm_utility import ArcaneEchoVaettirFarmUtility
 
 class AssassinVaettirFarm_Killing_UtilitySkillBar(CustomBehaviorBaseUtility):
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, event_bus: EventBus):
+        super().__init__(event_bus)
         in_game_build = list(self.skillbar_management.get_in_game_build().values())
         self.auto_attack: CustomSkillUtilityBase = AutoAttackUtility(event_bus=self.event_bus, current_build=in_game_build)
 

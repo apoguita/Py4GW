@@ -1,10 +1,11 @@
-from typing import Any, Generator, override
+from typing import Any, Generator, cast, override
 
 import PyImGui
 
 from Py4GWCoreLib import GLOBAL_CACHE, Agent, Player
 from Py4GWCoreLib.Py4GWcorelib import ActionQueueManager, ThrottledTimer, Utils
 from Py4GWCoreLib.Overlay import Overlay
+from Sources.oazix.CustomBehaviors.primitives import constants
 from Sources.oazix.CustomBehaviors.primitives.bus.event_message import EventMessage
 from Sources.oazix.CustomBehaviors.primitives.bus.event_type import EventType
 from Sources.oazix.CustomBehaviors.primitives.helpers import custom_behavior_helpers
@@ -19,6 +20,8 @@ from Sources.oazix.CustomBehaviors.primitives.scores.score_static_definition imp
 from Sources.oazix.CustomBehaviors.primitives.skills.utility_skill_typology import UtilitySkillTypology
 from Sources.oazix.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Sources.oazix.CustomBehaviors.PersistenceLocator import PersistenceLocator
+from Sources.oazix.CustomBehaviors.skills.plugins.options.raw_boolean_option import RawBooleanOption
+from Sources.oazix.CustomBehaviors.skills.plugins.options.raw_number_option import RawNumberOption
 
 class FollowFlagUtility(CustomSkillUtilityBase):
     Name = "follow_flag"
@@ -51,18 +54,12 @@ class FollowFlagUtility(CustomSkillUtilityBase):
         self.throttle_timer = ThrottledTimer(1000)
 
         # Use singleton manager for all configuration
-        self.manager =  CustomBehaviorParty().party_flagging_manager
+        self.manager: PartyFlaggingManager =  CustomBehaviorParty().party_flagging_manager
 
-        # Load movement threshold from persistence or use default
-        persistence = PersistenceLocator().flagging
-        saved_movement_threshold = persistence.read_follow_flag_threshold() or 50.0
-
-        # Apply loaded value to shared memory
-        self.manager.movement_threshold = saved_movement_threshold
-
-        self.event_bus.subscribe(EventType.MAP_CHANGED, self.area_changed, subscriber_name=self.custom_skill.skill_name)
+        self.add_plugin_option(lambda x: RawBooleanOption(self.custom_skill, "should_leader_follow_flag", False))
+        self.event_bus.subscribe(EventType.MAP_CHANGED, self._on_area_changed, subscriber_name=self.custom_skill.skill_name)
         
-    def area_changed(self, message: EventMessage) -> Generator[Any, Any, Any]:
+    def _on_area_changed(self, message: EventMessage) -> Generator[Any, Any, Any]:
         self.throttle_timer.Reset()
         self.manager.clear_all_flag_positions()
         yield
@@ -71,7 +68,13 @@ class FollowFlagUtility(CustomSkillUtilityBase):
     def are_common_pre_checks_valid(self, current_state: BehaviorState) -> bool:
         if current_state is BehaviorState.IDLE: return False
         if self.allowed_states is not None and current_state not in self.allowed_states: return False
-        if custom_behavior_helpers.CustomBehaviorHelperParty.is_party_leader(): return False
+
+        should_leader_follow_flag_option : RawBooleanOption | None = cast(RawBooleanOption | None, self.get_plugin_option("should_leader_follow_flag"))
+        should_leader_follow_flag = False
+        if should_leader_follow_flag_option is not None:
+            should_leader_follow_flag = should_leader_follow_flag_option.option_value
+
+        if custom_behavior_helpers.CustomBehaviorHelperParty.is_party_leader() and not should_leader_follow_flag: return False
         return True
 
     def _get_my_assigned_flag_position(self) -> tuple[float, float] | None:
@@ -144,7 +147,7 @@ class FollowFlagUtility(CustomSkillUtilityBase):
             return BehaviorResult.ACTION_SKIPPED
 
         # Move to assigned flag position
-        print(f"Moving to flag position: {flag_pos}")
+        if constants.DEBUG: print(f"Moving to flag position: {flag_pos}")
 
         # Cancel any current action (like auto-attacking) before moving
         # from Py4GWCoreLib.Routines import Routines

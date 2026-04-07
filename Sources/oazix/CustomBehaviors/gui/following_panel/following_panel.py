@@ -3,6 +3,7 @@ import PyImGui
 from Py4GWCoreLib import Agent
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.ImGui_src.IconsFontAwesome5 import IconsFontAwesome5
+from Sources.oazix.CustomBehaviors.primitives import constants
 from Sources.oazix.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
 from Sources.oazix.CustomBehaviors.primitives.parties.party_following_manager import PartyFollowingManager
 from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_shared_memory import MAX_FLAG_POSITIONS
@@ -333,4 +334,4 @@ class FollowingPanel:
             loaded_count += 1
 
         if loaded_count > 0:
-            print(f"Loaded forces configuration for {loaded_count} account(s) from persistence")
+            if constants.DEBUG: print(f"Loaded forces configuration for {loaded_count} account(s) from persistence")

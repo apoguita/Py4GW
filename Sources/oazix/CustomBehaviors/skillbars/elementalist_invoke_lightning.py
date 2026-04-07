@@ -3,6 +3,7 @@
 from typing import List, override
 
 from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorState
+from Sources.oazix.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Sources.oazix.CustomBehaviors.primitives.scores.score_per_agent_quantity_definition import \
     ScorePerAgentQuantityDefinition
 from Sources.oazix.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
@@ -29,8 +30,8 @@ from Sources.oazix.CustomBehaviors.skills.generic.keep_self_effect_up_utility im
 
 class ElementalistInvokeLightning_UtilitySkillBar(CustomBehaviorBaseUtility):
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, event_bus: EventBus):
+        super().__init__(event_bus)
         in_game_build = list(self.skillbar_management.get_in_game_build().values())
 
         self.stub_invoke_lightning_utility: CustomSkillUtilityBase = StubUtility(event_bus=self.event_bus, skill=CustomSkill("Invoke_Lightning"), current_build=in_game_build)
@@ -50,13 +51,10 @@ class ElementalistInvokeLightning_UtilitySkillBar(CustomBehaviorBaseUtility):
         self.air_attunement_utility: CustomSkillUtilityBase = KeepSelfEffectUpUtility(event_bus=self.event_bus,skill=CustomSkill("Air_Attunement"),current_build=in_game_build,score_definition=ScoreStaticDefinition(70),mana_required_to_cast=10,renew_before_expiration_in_milliseconds=1000,allowed_states=[BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO])
         self.ebon_vanguard_assassin_support: CustomSkillUtilityBase = EbonVanguardAssassinSupportUtility(event_bus=self.event_bus, score_definition=ScoreStaticDefinition(71), current_build=in_game_build, mana_required_to_cast=15)
 
-    @property
-    @override
-    def additional_autonomous_skills(self) -> list[CustomSkillUtilityBase]:
-        base = super().additional_autonomous_skills
-        base.append(self.sequence_utility)
-        return base
+        # -- AUTONOMOUS SKILLS (OUT OF THE GW SKILLBAR) --
 
+        self.add_additional_autonomous_skills(self.sequence_utility)
+        
     @property
     @override
     def custom_skills_in_behavior(self) -> list[CustomSkillUtilityBase]:
