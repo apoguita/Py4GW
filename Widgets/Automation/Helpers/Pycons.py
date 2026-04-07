@@ -66,6 +66,7 @@ try:
     import re
     import unicodedata
     import PyImGui
+    import Py4GW
     import PyInventory
     from Py4GWCoreLib import (
         ConsoleLog,
@@ -195,13 +196,17 @@ try:
     _ini_ready = False
     INI_KEY_MAIN = ""
     INI_KEY_SETTINGS = ""
+    INI_KEY_FLOATING_UI = ""
     _INI_PATH = "Widgets/Pycons"
     _INI_MAIN_FILE = "Pycons.MainWindow.ini"
     _INI_SETTINGS_FILE = "Pycons.SettingsWindow.ini"
+    _INI_FLOATING_FILE = "Pycons.FloatingIcon.ini"
+    FLOATING_ICON_WINDOW_ID = "##pycons_floating_icon_button"
+    FLOATING_ICON_WINDOW_NAME = "Pycons Toggle"
 
     def _init_window_persistence_once() -> bool:
-        """Create/load separate ImGui ini files for main + settings windows (runs once)."""
-        global _ini_ready, INI_KEY_MAIN, INI_KEY_SETTINGS
+        """Create/load separate ImGui ini files for main, settings, and floating icon UI."""
+        global _ini_ready, INI_KEY_MAIN, INI_KEY_SETTINGS, INI_KEY_FLOATING_UI
         if _ini_ready:
             return True
         if not Routines.Checks.Map.MapValid():
@@ -219,8 +224,46 @@ try:
             return False
         ini.load_once(INI_KEY_SETTINGS)
 
+        INI_KEY_FLOATING_UI = ini.ensure_key(_INI_PATH, _INI_FLOATING_FILE)
+        if not INI_KEY_FLOATING_UI:
+            return False
+
         _ini_ready = True
         return True
+
+    def _get_floating_icon_path() -> str:
+        return os.path.join(Py4GW.Console.get_projects_path(), MODULE_ICON)
+
+    def _set_main_window_visible(visible: bool, *, persist: bool = False, expand_on_show: bool = True):
+        value = bool(visible)
+        _rt.show_main_window = value
+        if value and expand_on_show:
+            _rt.expand_main_window_on_next_show = True
+        if not value:
+            show_settings[0] = False
+        if _rt.floating_button is not None:
+            _rt.floating_button.set_visible(value, persist=persist, invoke_callback=False)
+
+    def _on_floating_icon_visibility_toggled(visible: bool):
+        _set_main_window_visible(bool(visible), persist=False, expand_on_show=bool(visible))
+
+    def _ensure_floating_ui():
+        if _rt.floating_button is None:
+            _rt.floating_button = ImGui.FloatingIcon(
+                icon_path=_get_floating_icon_path(),
+                window_id=FLOATING_ICON_WINDOW_ID,
+                window_name=FLOATING_ICON_WINDOW_NAME,
+                tooltip_visible="Hide Pycons window",
+                tooltip_hidden="Show Pycons window",
+                visible=bool(_rt.show_main_window),
+                toggle_ini_key=INI_KEY_FLOATING_UI,
+                toggle_var_name="show_main_window",
+                toggle_default=True,
+                on_toggle=_on_floating_icon_visibility_toggled,
+            )
+            _rt.floating_button.load_visibility()
+            _rt.show_main_window = bool(_rt.floating_button.visible)
+        return _rt.floating_button
 
     # -------------------------
     # UI helpers (tuple/non-tuple returns)
@@ -2314,6 +2357,9 @@ try:
     class _RuntimeState:
         """Runtime-only mutable state grouped for clearer ownership."""
         def __init__(self):
+            self.show_main_window = True
+            self.expand_main_window_on_next_show = False
+            self.floating_button = None
             self.show_settings = [False]
             self.filter_text = [""]
             self.last_search_active = [False]
@@ -5251,29 +5297,24 @@ try:
 
         return expanded, window_open
 
-    def _disable_pycons_widget():
-        try:
-            from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
-            get_widget_handler().disable_widget(MODULE_NAME)
-        except Exception as e:
-            _debug(f"Failed to disable Pycons widget: {e}", Console.MessageType.Warning)
-
-    # -------------------------
-    # Main Window
-    # -------------------------
     def _draw_main_window():
-        if cfg is None:
+        if cfg is None or not bool(_rt.show_main_window):
             return  # Config not yet loaded
+        if bool(_rt.expand_main_window_on_next_show):
+            try:
+                PyImGui.set_next_window_collapsed(False, PyImGui.ImGuiCond.Always)
+            except Exception:
+                pass
+            _rt.expand_main_window_on_next_show = False
         try:
             PyImGui.set_next_window_size(MAIN_WINDOW_DEFAULT_SIZE, PyImGui.ImGuiCond.FirstUseEver)
         except Exception:
             pass
 
         window_expanded, window_open = _begin_persistent_window_with_close_state(INI_KEY_MAIN, BOT_NAME)
+        _set_main_window_visible(bool(window_open), persist=True, expand_on_show=False)
         if not window_open:
             ImGui.End(INI_KEY_MAIN)
-            show_settings[0] = False
-            _disable_pycons_widget()
             return
         if not window_expanded:
             ImGui.End(INI_KEY_MAIN)
@@ -5899,6 +5940,9 @@ try:
     def _draw_settings_window():
         if cfg is None:
             return  # Config not yet loaded
+        if not bool(_rt.show_main_window):
+            show_settings[0] = False
+            return
         if not show_settings[0]:
             return
 
@@ -6716,6 +6760,10 @@ try:
             _refresh_local_team_flags_from_ini()
 
         _drain_scheduled_refresh_queue()
+
+        floating_button = _ensure_floating_ui()
+        floating_button.draw(INI_KEY_FLOATING_UI)
+        _rt.show_main_window = bool(floating_button.visible)
 
         _draw_main_window()
         _draw_settings_window()
