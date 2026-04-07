@@ -29,6 +29,10 @@ _USE_PCONS_KEY = "use_pcons"
 ZONING_STEP_NAME = "[H]Zoning into explorable area_2"
 START_COMBAT_STEP_NAME = "[H]Start Combat_3"
 
+_MULTIBOX_ALTS_KEY = "use_multibox_alts"
+_party_mode: int = 0  # 0 = Single Account with Heroes, 1 = Multiboxing
+_mode_loaded: bool = False
+
 # Hero config
 _BOT_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__)) if "__file__" in globals() else os.getcwd()
 _HERO_CONFIG_PATH = os.path.join(_BOT_SCRIPT_DIR, "Deldrimor title farm by Wick Divinus Heroes.json")
@@ -137,7 +141,7 @@ def PrepareForCombat(bot: Botting) -> None:
     _load_consumable_settings(bot)
     _sync_consumable_toggles(bot)
     bot.Map.Travel(target_map_id=639)
-    bot.States.AddCustomState(lambda: _setup_heroes(bot), "Setup Heroes")
+    bot.States.AddCustomState(lambda: _maybe_setup_heroes(bot), "Setup Heroes")
     bot.States.AddCustomState(lambda: _restock_consumables_if_enabled(bot), "Restock Consumables If Enabled")
     bot.Party.SetHardMode(True)
 
@@ -146,15 +150,18 @@ def Snowman(bot: Botting):
     #events
     condition = lambda: OnPartyWipe(bot)
     bot.Events.OnPartyWipeCallback(condition)
+    bot.Events.OnPartyMemberBehindCallback(lambda: bot.Templates.Routines.OnPartyMemberBehind())
+    bot.Events.OnPartyMemberInDangerCallback(lambda: bot.Templates.Routines.OnPartyMemberInDanger())
+    bot.Events.OnPartyMemberDeadBehindCallback(lambda: bot.Templates.Routines.OnPartyMemberDeathBehind())
     #end events
     bot.States.AddHeader("Zoning into explorable area")
-    bot.Move.XYAndDialog(-23884, 13954, 0x84)
+    bot.States.AddCustomState(lambda x=-23884.0, y=13954.0, d=0x84: _do_dialog_at(bot, x, y, d), "Blessing Dialog")
     bot.Wait.ForMapToChange(target_map_id=701)
     ConfigureAggressiveEnv(bot)
     bot.States.AddHeader("Start Combat")
     bot.States.AddCustomState(lambda: _use_consumables_if_enabled(bot), "Use Consumables If Enabled")
     bot.States.AddManagedCoroutine("Upkeep Consumables", lambda: _upkeep_consumables(bot))
-    bot.Move.XYAndDialog(-14078.00, 15449.00, 0x84)
+    bot.States.AddCustomState(lambda x=-14078.00, y=15449.00, d=0x84: _do_dialog_at(bot, x, y, d), "Blessing Dialog")
     bot.Move.XY(-14804, 10703)
     bot.Move.XY(-15628, 9589)
     bot.Move.XY(-17602, 6858)
@@ -163,7 +170,7 @@ def Snowman(bot: Botting):
     bot.Move.XY(-16697.96, 1302.89)
     # bot.Move.XY(-14673.79, 2621.35) # Default
     bot.Move.XY(-15090.34, 2057.10) # Updated to avoid agroing both corridor and bridge groups
-    bot.Move.XYAndDialog(-12482.00, 3924.00, 0x84)
+    bot.States.AddCustomState(lambda x=-12482.00, y=3924.00, d=0x84: _do_dialog_at(bot, x, y, d), "Blessing Dialog")
     bot.Move.XY(-13824.00, 924.00)
     bot.Move.XY(-13752.06, -504.66)
     bot.Move.XY(-12084.77, -1592.58)
@@ -174,7 +181,7 @@ def Snowman(bot: Botting):
     bot.Move.FollowPath([(-9703.92, -10948.97)])
     bot.Wait.UntilOutOfCombat()
     bot.Items.LootItems()
-    bot.Move.XYAndDialog(-16093.00, -10723.00, 0x84)
+    bot.States.AddCustomState(lambda x=-16093.00, y=-10723.00, d=0x84: _do_dialog_at(bot, x, y, d), "Blessing Dialog")
     bot.Move.XY(-15756.00, -12335.00)
     bot.Interact.WithGadgetAtXY(-15435.00, -12277.00) #lock
     bot.Wait.ForTime(3000)
@@ -580,6 +587,15 @@ def _setup_heroes(bot: Botting):
             yield from bot.Wait._coro_for_time(500)
 
 
+def _maybe_setup_heroes(bot: Botting):
+    if _party_mode == 1:
+        yield from bot.helpers.Multibox._summon_all_accounts()
+        yield from bot.Wait._coro_for_time(4000)
+        yield from bot.helpers.Multibox._invite_all_accounts()
+        return
+    yield from _setup_heroes(bot)
+
+
 def _resign(bot: Botting):
     bot.UI.SendChatCommand("resign")
     yield from bot.Wait._coro_for_time(500)
@@ -611,15 +627,60 @@ def _sync_consumable_toggles(bot: Botting) -> None:
 
 
 # region GUI
+def _load_mode_setting(bot: Botting) -> None:
+    global _party_mode
+    ini_key = _ensure_bot_ini(bot)
+    if not ini_key:
+        return
+    raw = IniManager().read_bool(ini_key, _SETTINGS_SECTION, _MULTIBOX_ALTS_KEY, False)
+    _party_mode = 1 if raw else 0
+
+
+def _save_mode_setting(bot: Botting) -> None:
+    ini_key = _ensure_bot_ini(bot)
+    if not ini_key:
+        return
+    IniManager().write_key(ini_key, _SETTINGS_SECTION, _MULTIBOX_ALTS_KEY, _party_mode == 1)
+
+
+def _do_dialog_at(bot: Botting, x: float, y: float, dialog_id: int):
+    if _party_mode == 1:
+        yield from bot.Move._coro_xy_and_interact_npc(x, y)
+        yield from bot.Wait._coro_for_time(1500)
+        yield from bot.helpers.Multibox._send_dialog_with_target(dialog_id)
+        yield from bot.Wait._coro_for_time(1500)
+    else:
+        yield from bot.Move._coro_xy_and_dialog(x, y, dialog_id)
+        yield from bot.Wait._coro_for_time(500)
+
+
 def _draw_settings(bot: Botting):
     import PyImGui
 
     PyImGui.text("Bot Settings")
 
     _ensure_consumable_settings_ui_loaded(bot)
+
+    global _party_mode, _mode_loaded
+    if not _mode_loaded:
+        _load_mode_setting(bot)
+        _mode_loaded = True
+    PyImGui.separator()
+    PyImGui.text("Party Mode:")
+    new_mode = PyImGui.radio_button("Single Account with Heroes", _party_mode, 0)
+    PyImGui.same_line(0, 16)
+    new_mode = PyImGui.radio_button("Multiboxing", new_mode, 1)
+    if new_mode != _party_mode:
+        _party_mode = new_mode
+        _save_mode_setting(bot)
+    if _party_mode == 1:
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (0.6, 0.9, 1.0, 1.0))
+        PyImGui.text("Resign uses Multibox Party Resign. Hero setup is skipped.")
+        PyImGui.pop_style_color(1)
+    PyImGui.separator()
+
     PyImGui.text("Combat Backend")
     PyImGui.text("Current: Auto Combat")
-    PyImGui.text("Mode: Single Account with Heroes")
 
     use_conset = _as_bool(bot.Properties.Get("use_conset", "active"))
     new_use_conset = PyImGui.checkbox("Restock & use Conset", use_conset)
@@ -662,6 +723,8 @@ _session_start_times: dict[str, float] = {}
 
 def _get_title_track_accounts():
     accounts = list(GLOBAL_CACHE.ShMem.GetAllAccountData())
+    if _party_mode == 1:
+        return accounts if accounts else []
     own_email = Player.GetAccountEmail()
     filtered = [account for account in accounts if getattr(account, "AccountEmail", "") == own_email]
     if filtered:

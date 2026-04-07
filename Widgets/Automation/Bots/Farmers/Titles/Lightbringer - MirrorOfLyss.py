@@ -163,6 +163,7 @@ def bot_routine(bot: Botting) -> None:
 
     # Bounty interaction
     bot.States.AddCustomState(lambda: _do_bounty_interaction(bot), "Bounty Interaction")
+    bot.Move.XY(19520.70, 10865.90)
 
     # Killing path
     bot.Move.FollowAutoPath(BotSettings.KILLING_PATH)
@@ -475,9 +476,9 @@ def _do_bounty_interaction(bot: Botting):
     else:
         # Single account: move to NPC and send dialog to self only
         yield from bot.Move._coro_xy(*BotSettings.BOUNTY_COORDS)
-        yield from bot.Wait._coro_for_time(1500)
+        yield from bot.Wait._coro_for_time(2000)
         yield from bot.Move._coro_xy_and_dialog(*BotSettings.BOUNTY_COORDS, BotSettings.BOUNTY_DIALOG)
-        yield from bot.Wait._coro_for_time(1500)
+        yield from bot.Wait._coro_for_time(2000)
 
 
 def _maybe_setup_heroes(bot: Botting):
