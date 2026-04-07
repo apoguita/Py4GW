@@ -5,13 +5,15 @@ import os
 import PyImGui
 import importlib.util
 projects_base_path = Py4GW.Console.get_projects_path()
-BOUNTIES_DIR = os.path.join(projects_base_path,"Sources","ZaishenBounty")
+ac_folder_path = os.path.join(projects_base_path, "Sources", "aC_Scripts")
+from Sources.aC_Scripts.aC_api import *
+MAPS_DIR = os.path.join(ac_folder_path,"PyQuishAI_maps")
 
-MODULE_NAME = "Zaishen Bounty"
-MODULE_ICON = "Textures\\Module_Icons\\ZaishenBounty.png"
+MODULE_NAME = "Simple Vanquish"
+MODULE_ICON = "Textures\\Module_Icons\\PyQuishAI.png"
 
 class BotSettings:
-    BOT_NAME = "Zaishen Bounty"
+    BOT_NAME = "Simple Vanquish"
     WIDGETS_TO_ENABLE: tuple[str, ...] = (
         "Titles",
         "Return to outpost on defeat",
@@ -31,28 +33,30 @@ bot = Botting(BotSettings.BOT_NAME,
               config_draw_path=True)
 
 # =============================================================================
-# region BOUNTY QUEUE DATA
+# region VANQUISH QUEUE DATA
 # =============================================================================
-class QueuedBounty:
-    """Stores all data needed to execute a single bounty."""
-    def __init__(self, bounty_name, display,
+class QueuedVanquish:
+    """Stores all data needed to execute a single vanquish."""
+    def __init__(self, region, map_name, display,
                  outpost_id, explorable_id,
-                 outpost_path, bounty_path,
+                 outpost_path, vanquish_path,
                  transit_explorables, transit_paths):
-        self.bounty_name = bounty_name
+        self.region = region
+        self.map_name = map_name
         self.display = display
         self.outpost_id = outpost_id
         self.explorable_id = explorable_id
         self.outpost_path = outpost_path
-        self.bounty_path = bounty_path
+        self.vanquish_path = vanquish_path
         self.transit_explorables = transit_explorables
         self.transit_paths = transit_paths
 
-_queued_bounties: list[QueuedBounty] = []
+_queued_vanquishes: list[QueuedVanquish] = []
 _queue_version: int = 0
-_current_bounty_index: int = 0
-_bounty_header_names: list[str] = []
-_current_section_header: tuple = ("", 0.0, 0.0)  # (header_name, first_x, first_y)
+_current_vq_index: int = 0
+_vq_header_names: list[str] = []
+_section_headers: dict = {}
+_current_section_header: tuple = ("", 0.0, 0.0)
 _restock_pcons: bool = True
 _restock_res_scroll: bool = True
 _loop_queue: bool = False
@@ -78,23 +82,19 @@ def _register_path(bot, path, header_name=None):
     if not path:
         return
 
-    # Determine format by inspecting first element
     first = path[0]
 
     if isinstance(first, dict):
-        # Format 2: list of dicts
         for entry in path:
             for key, value in entry.items():
                 _handle_keyword(bot, key, value)
 
     elif isinstance(first, list):
-        # Format 3: list of lists-of-tuples (allows duplicate keys)
         for segment in path:
             for key, value in segment:
                 _handle_keyword(bot, key, value)
 
     else:
-        # Format 1: simple path [(x,y), ...]
         bot.Move.FollowAutoPath(path)
 
 
@@ -105,8 +105,8 @@ def _handle_keyword(bot, key, value):
         bot.Move.XY(*value)
         bot.Wait.ForTime(1500)
         bot.Move.XYAndInteractNPC(*value)
-        bot.Multibox.SendDialogToTarget(0x84) # EOTN Blessing
-        bot.Multibox.SendDialogToTarget(0x85) # NF Blessing
+        bot.Multibox.SendDialogToTarget(0x84)
+        bot.Multibox.SendDialogToTarget(0x85)
     elif key == "gadget":
         bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Interacting with Gadget.")
         bot.Move.XY(*value)
@@ -158,16 +158,80 @@ def _set_section_header(header_name, first_x, first_y):
     yield
 
 
+def _build_reversed_path(vanquish_path):
+    """Build a reversed version of vanquish_path, handling both simple and dict formats."""
+    if not vanquish_path:
+        return []
+    first = vanquish_path[0]
+    if isinstance(first, dict):
+        reversed_list = []
+        for entry in reversed(vanquish_path):
+            reversed_keys = list(entry.keys())[::-1]
+            reversed_entry = {}
+            for key in reversed_keys:
+                value = entry[key]
+                if isinstance(value, list):
+                    reversed_entry[key] = value[::-1]
+                else:
+                    reversed_entry[key] = value
+            reversed_list.append(reversed_entry)
+        return reversed_list
+    elif isinstance(first, list):
+        reversed_list = []
+        for segment in reversed(vanquish_path):
+            reversed_segment = []
+            for key, value in reversed(segment):
+                if isinstance(value, list):
+                    reversed_segment.append((key, value[::-1]))
+                else:
+                    reversed_segment.append((key, value))
+            reversed_list.append(reversed_segment)
+        return reversed_list
+    else:
+        return list(reversed(vanquish_path))
 # endregion
 
 # =============================================================================
 # region BOT ROUTINE
 # =============================================================================
-def bot_routine(bot: Botting) -> None:
-    global _current_bounty_index, _bounty_header_names
+def Radar(bot: "Botting", radar_range: int = 3500):
+    ConsoleLog("Radar", f"Radar coroutine started (range={radar_range}).", Py4GW.Console.MessageType.Debug, True)
+    while True:
+        player_x, player_y = Player.GetXY()
+        enemy_array = AgentArray.GetEnemyArray()
+        enemy_array = AgentArray.Filter.ByDistance(enemy_array, Player.GetXY(), radar_range)
+        enemy_array = AgentArray.Sort.ByDistance(enemy_array, (player_x, player_y))
+        enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda a: Agent.IsAlive(a))
+        closest_enemy = next(iter(enemy_array), 0)
 
-    if not _queued_bounties:
-        ConsoleLog(BotSettings.BOT_NAME, "No bounties queued!", Py4GW.Console.MessageType.Error)
+        if closest_enemy != 0:
+            closest_enemy_coord = Agent.GetXY(closest_enemy)
+            ConsoleLog("Radar", f"Enemy detected at {closest_enemy_coord}.", Py4GW.Console.MessageType.Debug, True)
+            bot.config.FSM.pause()
+            Player.Move(closest_enemy_coord[0], closest_enemy_coord[1])
+            yield from Routines.Yield.wait(500)
+        else:
+            bot.config.FSM.resume()
+            yield from Routines.Yield.wait(500)
+        yield from Routines.Yield.wait(500)
+
+
+def VanquishWatchdog(bot: "Botting", completed_header_name: str):
+    while True:
+        if Map.IsVanquishCompleted():
+            ConsoleLog("VanquishWatchdog", f"Vanquish trigger activated. Jumping to: {completed_header_name}", Py4GW.Console.MessageType.Debug, True)
+            bot.config.FSM.pause()
+            bot.config.FSM.jump_to_state_by_name(completed_header_name)
+            bot.config.FSM.resume()
+            return
+        yield from Routines.Yield.wait(500)
+
+
+def bot_routine(bot: Botting) -> None:
+    global _current_vq_index, _vq_header_names
+
+    if not _queued_vanquishes:
+        ConsoleLog(BotSettings.BOT_NAME, "No vanquishes queued!", Py4GW.Console.MessageType.Error)
         return
 
     # Events
@@ -176,61 +240,83 @@ def bot_routine(bot: Botting) -> None:
 
     # Main header
     bot.States.AddHeader(BotSettings.BOT_NAME)  # header counter = 1
-    bot.Multibox.ApplyWidgetPolicy(enable_widgets=BotSettings.WIDGETS_TO_ENABLE)
     bot.Templates.Multibox_Aggressive()
+    bot.Multibox.ApplyWidgetPolicy(enable_widgets=BotSettings.WIDGETS_TO_ENABLE)
 
-    # Pre-calculate bounty header names for OnWipe outpost fallback.
-    # Headers per bounty:
-    #   1. Bounty_{idx}_{name}
+    # -------------------------------------------------------------------------
+    # Pre-calculate header names for OnWipe jumps.
+    # Headers per VQ (variable):
+    #   1. VQ_{idx}_{name}
     #   2. Prepare For Farm (inside PrepareForFarm)
-    #   3. Transit_{idx}_0 (if transit exists)
-    #   ... Transit_{idx}_N
-    #   4. BountyPath_{idx}
-    #   5. Bounty Completed_{idx}
-    # Number of headers varies per bounty depending on transit count.
-    _bounty_header_names = []
-    _section_headers = {}  # b_idx → list of full header names for each section
-    header_counter = 1  # starts at 1 (main header)
-    for b_idx, bounty in enumerate(_queued_bounties):
-        header_counter += 1  # Bounty_{idx}_{name}
-        _bounty_header_names.append(f"[H]Bounty_{b_idx}_{bounty.bounty_name}_{header_counter}")
+    #   N. Transit_{idx}_0 ... Transit_{idx}_N (if transits)
+    #   M. VanquishPath_{idx}
+    #   M+1. ReversePath3500_{idx}
+    #   M+2. ReversePath5000_{idx}
+    #   M+3. Vanquish Failed_{idx}
+    #   M+4. Vanquish Completed_{idx}
+    # -------------------------------------------------------------------------
+    _vq_header_names = []
+    _completed_header_names = []
+    _section_headers.clear()
+    header_counter = 1  # main header
+
+    for vq_idx, vq in enumerate(_queued_vanquishes):
+        header_counter += 1  # VQ_{idx}_{name}
+        _vq_header_names.append(f"[H]VQ_{vq_idx}_{vq.map_name}_{header_counter}")
         header_counter += 1  # Prepare For Farm
-        transit_count = len(bounty.transit_explorables)
-        has_outpost_path = bool(bounty.outpost_path)
-        has_explorable = bool(bounty.explorable_id)
+
+        transit_count = len(vq.transit_explorables)
         sections = []
-        if transit_count > 0 and (has_outpost_path or not has_explorable):
+
+        # Transit headers
+        if transit_count > 0:
             for t_i in range(transit_count):
                 header_counter += 1
-                sections.append(f"[H]Transit_{b_idx}_{t_i}_{header_counter}")
-        header_counter += 1  # BountyPath_{idx}
-        sections.append(f"[H]BountyPath_{b_idx}_{header_counter}")
-        _section_headers[b_idx] = sections
-        header_counter += 1  # Bounty Completed_{idx}
+                sections.append(f"[H]Transit_{vq_idx}_{t_i}_{header_counter}")
 
-    # Pre-calculate the first bounty header name for looping.
-    first_bounty_header = _bounty_header_names[0]
+        # VanquishPath header
+        header_counter += 1
+        sections.append(f"[H]VanquishPath_{vq_idx}_{header_counter}")
+
+        # ReversePath3500 header
+        header_counter += 1
+        sections.append(f"[H]ReversePath3500_{vq_idx}_{header_counter}")
+
+        # ReversePath5000 header
+        header_counter += 1
+        sections.append(f"[H]ReversePath5000_{vq_idx}_{header_counter}")
+
+        _section_headers[vq_idx] = sections
+
+        # Vanquish Failed
+        header_counter += 1
+
+        # Vanquish Completed
+        header_counter += 1
+        _completed_header_names.append(f"[H]Vanquish Completed_{vq_idx}_{header_counter}")
+
+    # Pre-calculate first VQ header for looping
+    first_vq_header = _vq_header_names[0]
 
     # -------------------------------------------------------------------------
-    # Build FSM states for each bounty
+    # Build FSM states for each vanquish
     # -------------------------------------------------------------------------
+    for vq_idx, vq in enumerate(_queued_vanquishes):
+        is_last = (vq_idx == len(_queued_vanquishes) - 1)
 
-    for b_idx, bounty in enumerate(_queued_bounties):
-        is_last = (b_idx == len(_queued_bounties) - 1)
+        # -- Header for this vanquish --
+        bot.States.AddHeader(f"VQ_{vq_idx}_{vq.map_name}")
 
-        # -- Header for this bounty --
-        bot.States.AddHeader(f"Bounty_{b_idx}_{bounty.bounty_name}")
-
-        # -- Update current bounty index --
-        def _set_current_index(idx=b_idx):
-            global _current_bounty_index
-            _current_bounty_index = idx
+        # -- Update current vanquish index --
+        def _set_current_index(idx=vq_idx):
+            global _current_vq_index
+            _current_vq_index = idx
             yield
-        bot.States.AddCustomState(lambda idx=b_idx: _set_current_index(idx),
-                                  f"SetBountyIndex_{b_idx}")
+        bot.States.AddCustomState(lambda idx=vq_idx: _set_current_index(idx),
+                                  f"SetVQIndex_{vq_idx}")
 
         # -- Prepare for farm --
-        bot.Templates.Routines.PrepareForFarm(map_id_to_travel=bounty.outpost_id)
+        bot.Templates.Routines.PrepareForFarm(map_id_to_travel=vq.outpost_id)
         bot.Party.SetHardMode(True)
         bot.Items.Restock.ArmorOfSalvation()
         bot.Items.Restock.EssenceOfCelerity()
@@ -242,69 +328,90 @@ def bot_routine(bot: Botting) -> None:
             bot.Multibox.RestockResurrectionScroll(25)
 
         # -- Travel to explorable --
-        has_outpost_path = bool(bounty.outpost_path)
-        has_explorable = bool(bounty.explorable_id)
-        transit_count = len(bounty.transit_explorables)
+        transit_count = len(vq.transit_explorables)
+        section_idx = 0  # track position within _section_headers[vq_idx]
 
-        if has_outpost_path and has_explorable:
-            if transit_count > 0:
-                bot.Move.FollowPathAndExitMap(bounty.outpost_path, target_map_id=bounty.transit_explorables[0])
-                for i in range(transit_count):
-                    next_map = bounty.transit_explorables[i + 1] if i + 1 < transit_count else bounty.explorable_id
-                    t_coord = _get_first_path_coord(bounty.transit_paths[i])
-                    bot.States.AddCustomState(lambda bi=b_idx, ti=i, tc=t_coord: _set_section_header(_section_headers[bi][ti], tc[0], tc[1]),
-                                              f"SetSection_Transit_{b_idx}_{i}")
-                    if _restock_pcons:
-                        bot.Multibox.UsePcons()
-                    _register_path(bot, bounty.transit_paths[i], header_name=f"Transit_{b_idx}_{i}")
-                    bot.Wait.ForMapToChange(next_map)
-            else:
-                bot.Move.FollowPathAndExitMap(bounty.outpost_path, target_map_id=bounty.explorable_id)
-        elif not has_outpost_path and not has_explorable:
-            bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"No outpost exit path. Executing transit paths from outpost.")
+        if transit_count > 0:
+            bot.Move.FollowPathAndExitMap(vq.outpost_path, target_map_id=vq.transit_explorables[0])
             for i in range(transit_count):
-                t_coord = _get_first_path_coord(bounty.transit_paths[i])
-                bot.States.AddCustomState(lambda bi=b_idx, ti=i, tc=t_coord: _set_section_header(_section_headers[bi][ti], tc[0], tc[1]),
-                                          f"SetSection_Transit_{b_idx}_{i}")
-                _register_path(bot, bounty.transit_paths[i], header_name=f"Transit_{b_idx}_{i}")
-        elif has_outpost_path and not has_explorable:
-            bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Following outpost path, then transit paths.")
-            if transit_count > 0:
-                _register_path(bot, bounty.outpost_path)
-                for i in range(transit_count):
-                    _register_path(bot, bounty.transit_paths[i], header_name=f"Transit_{b_idx}_{i}")
-            else:
-                _register_path(bot, bounty.outpost_path)
+                next_map = vq.transit_explorables[i + 1] if i + 1 < transit_count else vq.explorable_id
+                t_coord = _get_first_path_coord(vq.transit_paths[i])
+                bot.States.AddCustomState(lambda vi=vq_idx, si=section_idx, tc=t_coord: _set_section_header(_section_headers[vi][si], tc[0], tc[1]),
+                                          f"SetSection_Transit_{vq_idx}_{i}")
+                if _restock_pcons:
+                        bot.Multibox.UsePcons()
+                _register_path(bot, vq.transit_paths[i], header_name=f"Transit_{vq_idx}_{i}")
+                bot.Wait.ForMapToChange(next_map)
+                section_idx += 1
+        else:
+            bot.Move.FollowPathAndExitMap(vq.outpost_path, target_map_id=vq.explorable_id)
 
-        # -- Bounty Path --
-        bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Starting Bounty: {bounty.display}")
-        bp_coord = _get_first_path_coord(bounty.bounty_path)
-        bot.States.AddCustomState(lambda bi=b_idx, bc=bp_coord: _set_section_header(_section_headers[bi][-1], bc[0], bc[1]),
-                                  f"SetSection_BountyPath_{b_idx}")
+        # -- Vanquish Path --
+        bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Starting Vanquish: {vq.display}")
+        vp_coord = _get_first_path_coord(vq.vanquish_path)
+        bot.States.AddCustomState(lambda vi=vq_idx, si=section_idx, vc=vp_coord: _set_section_header(_section_headers[vi][si], vc[0], vc[1]),
+                                  f"SetSection_VanquishPath_{vq_idx}")
         if _restock_pcons:
             bot.Multibox.UsePcons()
-        _register_path(bot, bounty.bounty_path, header_name=f"BountyPath_{b_idx}")
+        _register_path(bot, vq.vanquish_path, header_name=f"VanquishPath_{vq_idx}")
+        target_header = _completed_header_names[vq_idx]
+        bot.States.AddManagedCoroutine("VanquishWatchdog",
+            lambda h=target_header: VanquishWatchdog(bot, h))
         bot.Wait.UntilOutOfCombat()
+        section_idx += 1
 
-        # -- Bounty Completed --
-        bot.States.AddHeader(f"Bounty Completed_{b_idx}")
+        # -- Reverse Path with Radar (range=3500) --
+        bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Starting Reverse Path with Radar (range=3500).")
+        reversed_path = _build_reversed_path(vq.vanquish_path)
+        rp_coord = _get_first_path_coord(reversed_path)
+        bot.States.AddCustomState(lambda vi=vq_idx, si=section_idx, rc=rp_coord: _set_section_header(_section_headers[vi][si], rc[0], rc[1]),
+                                  f"SetSection_ReversePath3500_{vq_idx}")
+        bot.States.AddHeader(f"ReversePath3500_{vq_idx}")
+        bot.States.AddManagedCoroutine("Radar", lambda: Radar(bot, radar_range=3500))
+        _register_path(bot, reversed_path)
+        bot.Wait.UntilOutOfCombat()
+        bot.States.RemoveManagedCoroutine("Radar")
+        section_idx += 1
+
+        # -- Reverse Path with Radar (range=5000) --
+        bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Starting Reverse Path with Extended Radar (range=5000).")
+        rp5_coord = _get_first_path_coord(reversed_path)  # same reversed path
+        bot.States.AddCustomState(lambda vi=vq_idx, si=section_idx, rc=rp5_coord: _set_section_header(_section_headers[vi][si], rc[0], rc[1]),
+                                  f"SetSection_ReversePath5000_{vq_idx}")
+        bot.States.AddHeader(f"ReversePath5000_{vq_idx}")
+        bot.States.AddManagedCoroutine("Radar", lambda: Radar(bot, radar_range=5000))
+        _register_path(bot, reversed_path)
+        bot.Wait.UntilOutOfCombat()
+        section_idx += 1
+
+        # -- Vanquish FAILED --
+        bot.States.AddHeader(f"Vanquish Failed_{vq_idx}")
+        bot.States.RemoveManagedCoroutine("Radar")
+        bot.States.RemoveManagedCoroutine("VanquishWatchdog")
+        bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Vanquish FAILED. Stopping bot. Report on Discord.")
+        bot.States.AddCustomState(lambda: _stop_bot(), f"StopBot_{vq_idx}")
+
+        # -- Vanquish Completed --
+        bot.States.AddHeader(f"Vanquish Completed_{vq_idx}")
+        bot.States.RemoveManagedCoroutine("Radar")
+        bot.States.RemoveManagedCoroutine("VanquishWatchdog")
         if is_last:
-            bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Bounty SUCCESS: {bounty.display}.")
+            bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Vanquish queue SUCCESS: {vq.display}.")
             bot.States.AddCustomState(lambda: _check_loop_or_stop(bot),
                                       f"CheckLoopOrStop")
             bot.Multibox.ResignParty()
             bot.Wait.ForTime(1000)
             bot.Wait.UntilOnOutpost()
-            bot.States.AddCustomState(lambda h=first_bounty_header: _do_loop_jump(bot, h),
+            bot.States.AddCustomState(lambda h=first_vq_header: _do_loop_jump(bot, h),
                                       f"DoLoopJump")
         else:
-            bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Bounty SUCCESS: {bounty.display}. Moving to next Bounty.")
+            bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Vanquish SUCCESS: {vq.display}. Moving to next Vanquish.")
             bot.Multibox.ResignParty()
             bot.Wait.ForTime(1000)
             bot.Wait.UntilOnOutpost()
 
-    # All bounties finished
-    bot.States.AddHeader("All Bounties Finished")
+    # All vanquishes finished
+    bot.States.AddHeader("All Vanquishes Finished")
     bot.States.AddCustomState(lambda: _stop_bot(), "StopBotFinal")
 
 def _stop_bot():
@@ -325,14 +432,14 @@ def _check_loop_or_stop(bot: "Botting"):
     yield
 
 
-def _do_loop_jump(bot: "Botting", first_bounty_header: str):
-    """CustomState coroutine: increment loop count and jump back to first bounty."""
+def _do_loop_jump(bot: "Botting", first_vq_header: str):
+    """CustomState coroutine: increment loop count and jump back to first vanquish."""
     global _loop_count
     _loop_count += 1
     ConsoleLog(BotSettings.BOT_NAME,
-               f"Back at outpost. Starting loop #{_loop_count}. Jumping to: {first_bounty_header}",
+               f"Back at outpost. Starting loop #{_loop_count}. Jumping to: {first_vq_header}",
                Py4GW.Console.MessageType.Info, True)
-    bot.config.FSM.jump_to_state_by_name(first_bounty_header)
+    bot.config.FSM.jump_to_state_by_name(first_vq_header)
     yield
 # endregion
 
@@ -353,9 +460,9 @@ def _on_party_wipe(bot: "Botting"):
 
     # Check if we ended up in outpost (defeat at -60% DP, or widget)
     if Map.IsOutpost():
-        target = _bounty_header_names[_current_bounty_index]
+        target = _vq_header_names[_current_vq_index]
         ConsoleLog("on_party_wipe",
-                   f"Resurrected in outpost. Re-executing bounty. Jumping to: {target}")
+                   f"Resurrected in outpost. Re-executing vanquish. Jumping to: {target}")
         bot.config.FSM.jump_to_state_by_name(target)
         bot.config.FSM.resume()
         return
@@ -399,7 +506,6 @@ def _load_transit_data(mod, map_selected):
     Supports two modes:
       1. Standard: transit_id keys in _ids dict paired with transit_path attributes.
       2. Path-only: no transit_id keys, but transit_path attributes exist.
-         In this case, transit paths handle their own map changes via 'map' keyword.
     """
     ids = getattr(mod, f"{map_selected}_ids", {})
     transit_explorables = []
@@ -430,29 +536,31 @@ def _load_transit_data(mod, map_selected):
 
     return transit_explorables, transit_paths
 
-def _load_bounty_data(bounty_name):
-    """Load a bounty module and return a QueuedBounty with all its data."""
-    bounty_file = os.path.join(BOUNTIES_DIR, bounty_name) + ".py"
-    spec = importlib.util.spec_from_file_location(bounty_name, bounty_file)
+def _load_vanquish_data(region_dir, map_name):
+    """Load a map module and return a QueuedVanquish with all its data."""
+    map_file = os.path.join(region_dir, map_name) + ".py"
+    spec = importlib.util.spec_from_file_location(map_name, map_file)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
 
-    ids = getattr(mod, f"{bounty_name}_ids", {})
+    ids = getattr(mod, f"{map_name}_ids", {})
     outpost_id = ids.get("outpost_id", 0)
     explorable_id = ids.get("map_id", 0)
-    outpost_path = getattr(mod, f"{bounty_name}_outpost_path", [])
-    bounty_path = getattr(mod, bounty_name, [])
-    transit_explorables, transit_paths = _load_transit_data(mod, bounty_name)
+    outpost_path = getattr(mod, f"{map_name}_outpost_path", [])
+    vanquish_path = getattr(mod, map_name, [])
+    transit_explorables, transit_paths = _load_transit_data(mod, map_name)
 
-    display = bounty_name
+    region_name = os.path.basename(region_dir)
+    display = f"[{region_name}] {map_name}"
 
-    return QueuedBounty(
-        bounty_name=bounty_name,
+    return QueuedVanquish(
+        region=region_name,
+        map_name=map_name,
         display=display,
         outpost_id=outpost_id,
         explorable_id=explorable_id,
         outpost_path=outpost_path,
-        bounty_path=bounty_path,
+        vanquish_path=vanquish_path,
         transit_explorables=transit_explorables,
         transit_paths=transit_paths,
     )
@@ -461,46 +569,59 @@ def _load_bounty_data(bounty_name):
 # =============================================================================
 # region UI
 # =============================================================================
-bounty_index = 0
+region_index = 0
+map_index = 0
 _prev_queue_version: int = -1
 
 def _draw_settings():
-    global bounty_index, _queue_version, _prev_queue_version
+    global region_index, map_index, _queue_version, _prev_queue_version
 
-    # --- Bounty combo ---
-    PyImGui.text("Bounty Selection")
+    # --- Region combo ---
+    PyImGui.text("Region & Map Selection")
     PyImGui.separator()
-    bounties = sorted([
-        f[:-3] for f in os.listdir(BOUNTIES_DIR)
+    regions = sorted([d for d in os.listdir(MAPS_DIR) if os.path.isdir(os.path.join(MAPS_DIR, d))])
+    region_index = PyImGui.combo("##Region", region_index, regions)
+    REGION_DIR = os.path.join(MAPS_DIR, regions[region_index])
+
+    # --- Map combo ---
+    maps = sorted([
+        f[:-3] for f in os.listdir(REGION_DIR)
         if f.endswith(".py")
     ])
-    bounty_index = PyImGui.combo("##Bounty", bounty_index, bounties)
-    if bounty_index >= len(bounties):
-        bounty_index = 0
+    map_index = PyImGui.combo("##Map", map_index, maps)
+    if map_index >= len(maps):
+        map_index = 0
 
-    # --- Add Bounty / Clear buttons ---
-    if PyImGui.button("Add Bounty", 120, 25):
-        qb = _load_bounty_data(bounties[bounty_index])
-        _queued_bounties.append(qb)
+    # --- Add Region / Add Map / Clear buttons ---
+    if PyImGui.button("Add Region", 120, 25):
+        for mn in maps:
+            qv = _load_vanquish_data(REGION_DIR, mn)
+            _queued_vanquishes.append(qv)
         _queue_version += 1
 
     PyImGui.same_line(0, 10)
-    if PyImGui.button("Clear Bounties", 120, 25):
-        _queued_bounties.clear()
+    if PyImGui.button("Add Map", 120, 25):
+        qv = _load_vanquish_data(REGION_DIR, maps[map_index])
+        _queued_vanquishes.append(qv)
+        _queue_version += 1
+
+    PyImGui.same_line(0, 10)
+    if PyImGui.button("Clear Maps", 120, 25):
+        _queued_vanquishes.clear()
         _queue_version += 1
 
     # --- Queue display ---
     PyImGui.separator()
-    PyImGui.text(f"Queued bounties: {len(_queued_bounties)}")
+    PyImGui.text(f"Queued vanquishes: {len(_queued_vanquishes)}")
     to_remove = None
-    for i, qb in enumerate(_queued_bounties):
-        marker = " <-- CURRENT" if i == _current_bounty_index and bot.config.initialized else ""
-        PyImGui.text(f"  {i + 1}. {qb.display}{marker}")
+    for i, qv in enumerate(_queued_vanquishes):
+        marker = " <-- CURRENT" if i == _current_vq_index and bot.config.initialized else ""
+        PyImGui.text(f"  {i + 1}. {qv.display}{marker}")
         PyImGui.same_line(0, 10)
         if PyImGui.button(f"X##{i}", 20, 20):
             to_remove = i
     if to_remove is not None:
-        _queued_bounties.pop(to_remove)
+        _queued_vanquishes.pop(to_remove)
         _queue_version += 1
 
     # --- Rebuild FSM when queue changes ---
@@ -516,14 +637,14 @@ def _draw_settings():
         if PyImGui.button("Travel to Embark Beach", 250, 30):
             Map.Travel(857)
     else:
-        if PyImGui.button("Move to Bounty signpost", 250, 30):
-            Player.Move(-557.00, -3333.00)
+        if PyImGui.button("Move to Vanquish signpost", 250, 30):
+            Player.Move(-428.00, -3439.00)
 
     _draw_settings_consumables()
     #_draw_settings_debug()
 
 def _draw_settings_consumables():
-    global _loop_queue
+    global _loop_queue, _restock_pcons, _restock_res_scroll
 
     PyImGui.separator()
     PyImGui.text("Consumables Selection")
@@ -534,15 +655,12 @@ def _draw_settings_consumables():
     bot.Properties.ApplyNow("armor_of_salvation", "active", use_conset)
     bot.Properties.ApplyNow("essence_of_celerity", "active", use_conset)
     bot.Properties.ApplyNow("grail_of_might", "active", use_conset)
-
-    global _restock_pcons
     _restock_pcons = PyImGui.checkbox("Restock & use Pcons (Multibox)", _restock_pcons)
 
     use_honeycomb = bot.Properties.Get("honeycomb", "active")
     use_honeycomb = PyImGui.checkbox("Restock & use Honeycomb", use_honeycomb)
     bot.Properties.ApplyNow("honeycomb", "active", use_honeycomb)
 
-    global _restock_res_scroll
     _restock_res_scroll = PyImGui.checkbox("Restock Resurrection Scroll (Multibox)", _restock_res_scroll)
 
     PyImGui.separator()
@@ -556,18 +674,17 @@ def _draw_settings_debug():
     PyImGui.text("DEBUG DATA")
     PyImGui.separator()
     PyImGui.text(f"_queue_version: {_queue_version}")
-    PyImGui.text(f"_current_bounty_index: {_current_bounty_index}")
-    PyImGui.text(f"_queued_bounties: {len(_queued_bounties)}")
-    PyImGui.text(f"_bounty_header_names: {_bounty_header_names}")
+    PyImGui.text(f"_current_vq_index: {_current_vq_index}")
+    PyImGui.text(f"_queued_vanquishes: {len(_queued_vanquishes)}")
+    PyImGui.text(f"_vq_header_names: {_vq_header_names}")
+    PyImGui.text(f"_section_headers: {_section_headers}")
+    PyImGui.text(f"_current_section_header: {_current_section_header}")
     PyImGui.text(f"_loop_queue: {_loop_queue}")
     PyImGui.text(f"_loop_count: {_loop_count}")
-    for i, qb in enumerate(_queued_bounties):
-        marker = " <-- CURRENT" if i == _current_bounty_index else ""
-        PyImGui.text(f"  {i+1}. {qb.display} (outpost={qb.outpost_id}, expl={qb.explorable_id}){marker}")
 
 def _draw_help():
     PyImGui.text("Developed by: Aura")
-    PyImGui.text("Bounties credits to: Simfoniya")
+    PyImGui.text("Vanquish paths credits to: aC, Aura, AH & Simfoniya")
 # endregion
 
 # =============================================================================
@@ -575,7 +692,7 @@ def _draw_help():
 # =============================================================================
 bot.SetMainRoutine(bot_routine)
 
-TEXTURE = os.path.join(Py4GW.Console.get_projects_path(), "Textures", "Module_Icons", "ZaishenBounty.png")
+TEXTURE = os.path.join(Py4GW.Console.get_projects_path(), "Sources", "ApoSource", "textures", "VQ_Helmet.png")
 bot.UI.override_draw_config(lambda: _draw_settings())
 bot.UI.override_draw_help(lambda: _draw_help())
 
@@ -585,7 +702,7 @@ def main():
     
     bot.UI.draw_window(icon_path=TEXTURE)
 
-    if _queued_bounties:
+    if _queued_vanquishes:
         bot.Update()
 
 if __name__ == "__main__":
