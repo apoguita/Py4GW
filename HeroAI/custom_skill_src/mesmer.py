@@ -714,6 +714,8 @@ class MesmerSkills:
         skill.SkillType = SkillType.Spell.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Healing.value
+        skill.Conditions.LessLife = 0.7
+        skill.Conditions.UniqueProperty = True
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()

@@ -653,6 +653,41 @@ class _Multibox:
     def equip_item_on_all_accounts(self, char_name_to_model_id: dict):
         yield from self._equip_item_on_all_accounts_message(char_name_to_model_id)
 
+    def _load_skill_template_message(self, email: str, template: str):
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Routines import Routines
+        sender_email = Player.GetAccountEmail()
+        extra_data = (template, "", "", "")
+        ConsoleLog("Messaging", f"Sending LoadSkillTemplate to {email}", log=False)
+        GLOBAL_CACHE.ShMem.SendMessage(sender_email, email, SharedCommandType.LoadSkillTemplate, (0.0, 0.0, 0.0, 0.0), extra_data)
+        yield from Routines.Yield.wait(500)
+
+    def _load_skill_template_on_all_accounts_message(self, char_name_to_template: dict):
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Routines import Routines
+        sender_email = Player.GetAccountEmail()
+        for char_name, template in char_name_to_template.items():
+            email = self._get_email_from_char_name(char_name)
+            if not email:
+                ConsoleLog("Messaging", f"LoadSkillTemplateOnAllAccounts: no account found for char '{char_name}', skipping", log=True)
+                continue
+            extra_data = (template, "", "", "")
+            ConsoleLog("Messaging", f"Sending LoadSkillTemplate ({template}) to {char_name} ({email})", log=False)
+            GLOBAL_CACHE.ShMem.SendMessage(sender_email, email, SharedCommandType.LoadSkillTemplate, (0.0, 0.0, 0.0, 0.0), extra_data)
+            yield from Routines.Yield.wait(500)
+
+    @_yield_step(label="LoadSkillTemplateOnAccount", counter_key="LOAD_SKILL_TEMPLATE_ON_ACCOUNT")
+    def load_skill_template_on_account(self, char_name: str, template: str):
+        email = self._get_email_from_char_name(char_name)
+        if not email:
+            ConsoleLog("Messaging", f"LoadSkillTemplateOnAccount: no account found for char '{char_name}'", log=True)
+            return
+        yield from self._load_skill_template_message(email, template)
+
+    @_yield_step(label="LoadSkillTemplateOnAllAccounts", counter_key="LOAD_SKILL_TEMPLATE_ON_ALL_ACCOUNTS")
+    def load_skill_template_on_all_accounts(self, char_name_to_template: dict):
+        yield from self._load_skill_template_on_all_accounts_message(char_name_to_template)
+
     def get_all_account_data(self) -> List[_AccountData]:
         return self._get_all_account_data()
 

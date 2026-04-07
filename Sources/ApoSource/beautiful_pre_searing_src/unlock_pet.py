@@ -16,7 +16,7 @@ from .helpers import *
 
 #unlock ranger profession
 def UnlockPet() -> BehaviorTree:
-    def _is_ranger_primary()-> bool:
+    def is_ranger_primary()-> bool:
         primary, _ = Agent.GetProfessionNames(Player.GetAgentID())
         return primary == "Ranger"
 
@@ -35,8 +35,8 @@ def UnlockPet() -> BehaviorTree:
             BT.Move(EXIT_TO_LAKESIDE_COUNTY_COORDS[1]),
             BT.WaitForMapLoad(LAKESIDE_COUNTY_MAP_ID),
             
-            LogMessage("Destroying summoning stones in bags"),
-            BT.DestroyItems(model_ids=list([ModelID.Igneous_Summoning_Stone.value,]),),
+            #LogMessage("Destroying summoning stones in bags"),
+            #BT.DestroyItems(model_ids=list([ModelID.Igneous_Summoning_Stone.value,]),),
             
             LogMessage("Exiting to Regent Valley"),
              
@@ -46,10 +46,10 @@ def UnlockPet() -> BehaviorTree:
             BT.Move(FROM_ASHFORD_ABBEY_TO_REGENT_VALLEY_COORDS[3]),
             BT.WaitForMapLoad(REGENT_VALLEY_MAP_ID),
             
-            BottingTree.DisableHeroAITree(),
-            
             LogMessage("Going to Master Ranger Nente"),
             BT.Move(NEAR_MASTER_NENTE_COORDS),
+            BT.MoveAndKill(Vec2f(-17157.31, 10246.58)),
+            
             LogMessage("Interacting with Master Ranger Nente"),
             
             BT.MoveAndAutoDialogByModelID(
@@ -59,10 +59,20 @@ def UnlockPet() -> BehaviorTree:
             
             BT.AutoDialog(),
             
-            LogMessage("Interacting with Melandru Statue to charm pet"),
-            BT.Move(MELANDRU_STATUE_COORDS),
+            BehaviorTree.SelectorNode(
+                name="Unlock Ranger Profession",
+                children=[
+                    BehaviorTree.ConditionNode(
+                        name="Is Ranger Primary Profession",
+                        condition_fn=is_ranger_primary,
+                    ),
+                    BT.EquipItemByModelID(STARTER_BOW_MODEL_ID),
+                ],
+            ),
             
-            LogMessage("Disabling HeroAI to charm pet"),
+            LogMessage("Interacting with Melandru Statue to charm pet"),
+            BT.Move(MELANDRU_STATUE_COORDS, pause_on_combat=False),
+            
             
             BT.MoveAndTargetByModelID(PET_MODEL_ID),
 
@@ -70,6 +80,10 @@ def UnlockPet() -> BehaviorTree:
             BT.Wait(15000),
             
             LogMessage("Pet should be charmed, moving back to Master Ranger Nente"),
+
+            
+            BT.Move(MELANDRU_STATUE_COORDS[1]),
+            BT.Move(MELANDRU_STATUE_COORDS[0]),
             BT.Move(NEAR_MASTER_NENTE_COORDS),
             LogMessage("Interacting with Master Ranger Nente to unlock Ranger secondary profession"),
             BT.MoveAndAutoDialogByModelID(
@@ -82,14 +96,13 @@ def UnlockPet() -> BehaviorTree:
                 children=[
                     BehaviorTree.ConditionNode(
                         name="Is Ranger Primary Profession",
-                        condition_fn=_is_ranger_primary,
+                        condition_fn=is_ranger_primary,
                     ),
                     BT.AutoDialog(button_number=0),
                 ],
             ),
             
             LogMessage("Pet Charmed and Ranger secondary profession unlocked, activating HeroAI and traveling back to Ashford Abbey"),
-            BottingTree.EnableHeroAITree(),
             BT.TravelToOutpost(ASHFORD_ABBEY_MAP_ID),
             LogMessage("Finished."),
             
