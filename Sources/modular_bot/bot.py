@@ -724,11 +724,6 @@ class ModularBot:
                         yield from Routines.Yield.wait(3000)
                         break
 
-                    # Safety timeout so recovery cannot hang forever.
-                    if (time.monotonic() - recovery_start) > 180.0:
-                        ConsoleLog("ModularBot", f"[{reason}] Recovery timeout waiting for revive; forcing resume.")
-                        break
-
                     yield from Routines.Yield.wait(1000)
 
                 ConsoleLog("ModularBot", f"[{reason}] Recovered â€” jumping to {target_label}")
