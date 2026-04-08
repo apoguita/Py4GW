@@ -61,6 +61,7 @@ class SharedCommandType(IntEnum):
     CustomBehaviors = auto() # privately Handled Command, used in CustomBehaviors widget
     UseSkillCombatPrep = auto() #handled in CombatPrep only by Mark
     LootEx = auto() # privately Handled Command, by frenkey
+    Pycons = auto()
     #endregion
     
 

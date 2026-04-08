@@ -15,6 +15,8 @@ _INIT_ERROR = None
 
 MODULE_NAME = "Pycons"
 MODULE_ICON = "Textures\\Module_Icons\\Pycons.png"
+PYCONS_SYNC_OPCODE_RELOAD_CONFIG = 1
+PYCONS_SYNC_OPCODE_RELOAD_RESULT = 2
 
 _PYCONS_CONFIG_DIR = os.path.normpath(os.path.join("Widgets", "Config", "Pycons"))
 _LEGACY_CONFIG_DIR = os.path.normpath(os.path.join("Widgets", "Config"))
@@ -1009,6 +1011,9 @@ try:
         "mbdp_prefer_seal_for_recharge",
     ]
 
+    def _default_pycons_sync_category_selection() -> dict[str, bool]:
+        return {str(key): False for key, _label in PYCONS_SYNC_CATEGORY_DEFS}
+
     def _preset_slot_default_name(slot_idx: int) -> str:
         return f"Preset {int(slot_idx)}"
 
@@ -1465,6 +1470,51 @@ try:
         {"key": "zehtukas_jug", "label": "Zehtukas Jug", "model_id": int(_model_id_value("Zehtukas_Jug", 0)), "drunk_add": 5, "use_where": "both"},
     ]
     ALCOHOL_BY_KEY = {a["key"]: a for a in ALCOHOL_ITEMS}
+    PYCONS_SYNC_CATEGORY_ALCOHOL = "alcohol_settings"
+    PYCONS_SYNC_CATEGORY_MBDP = "mbdp_settings"
+    PYCONS_SYNC_CATEGORY_RESTOCK = "restock_settings"
+    PYCONS_SYNC_CATEGORY_SELECTION = "main_window_selection"
+    PYCONS_SYNC_CATEGORY_DEFS = [
+        (PYCONS_SYNC_CATEGORY_ALCOHOL, "Alcohol settings"),
+        (PYCONS_SYNC_CATEGORY_MBDP, "Morale Boost & Death Penalty settings"),
+        (PYCONS_SYNC_CATEGORY_RESTOCK, "Restock settings"),
+        (PYCONS_SYNC_CATEGORY_SELECTION, "Select consumables to show in main window"),
+    ]
+    PYCONS_SYNC_ALCOHOL_SCALAR_KEYS = [
+        "alcohol_enabled",
+        "alcohol_disable_effect",
+        "alcohol_use_explorable",
+        "alcohol_use_outpost",
+        "alcohol_target_level",
+        "alcohol_preference",
+    ]
+    PYCONS_SYNC_MBDP_SCALAR_KEYS = [
+        "mbdp_enabled",
+        "mbdp_allow_partywide_in_human_parties",
+        "mbdp_receiver_require_enabled",
+        "mbdp_prefer_seal_for_recharge",
+        "mbdp_self_dp_minor_threshold",
+        "mbdp_self_dp_major_threshold",
+        "mbdp_self_morale_target_effective",
+        "mbdp_self_min_morale_gain",
+        "mbdp_party_min_members",
+        "mbdp_party_min_interval_ms",
+        "mbdp_party_target_effective",
+        "mbdp_strict_party_plus10",
+        "mbdp_party_min_total_gain_5",
+        "mbdp_party_min_total_gain_10",
+        "mbdp_party_light_dp_threshold",
+        "mbdp_party_heavy_dp_threshold",
+        "mbdp_powerstone_dp_threshold",
+        "force_team_morale_value",
+    ]
+    PYCONS_SYNC_RESTOCK_SCALAR_KEYS = [
+        "auto_vault_restock",
+        "restock_keep_target_on_deselect",
+        "restock_interval_ms",
+        "restock_mode",
+        "restock_move_cap_per_cycle",
+    ]
     CONSUMABLE_TOOLTIPS = {
         "armor_of_salvation": "Grant your party members immunity to 50% of critical hits, +10 armor, +1 Health regeneration, and damage reduction of 5 for the next 30 minutes.",
         "birthday_cupcake": "For 30 minutes, your maximum Health is increased by 100, your maximum energy is increased by 10, and your movement speed is increased by 25%.",
@@ -2120,6 +2170,7 @@ try:
             self.settings_alcohol_open = ini_handler.read_bool(INI_SECTION, "settings_alcohol_open", False)
             # Settings-window top-level section open/closed state
             self.settings_ui_tooltip_open = ini_handler.read_bool(INI_SECTION, "settings_ui_tooltip_open", False)
+            self.settings_ui_sync_open = ini_handler.read_bool(INI_SECTION, "settings_ui_sync_open", False)
             self.settings_ui_alcohol_open = ini_handler.read_bool(INI_SECTION, "settings_ui_alcohol_open", False)
             self.settings_ui_mbdp_open = ini_handler.read_bool(INI_SECTION, "settings_ui_mbdp_open", False)
             self.settings_ui_presets_open = ini_handler.read_bool(INI_SECTION, "settings_ui_presets_open", False)
@@ -2286,6 +2337,7 @@ try:
             set_key("settings_mbdp_open", bool(self.settings_mbdp_open))
             set_key("settings_alcohol_open", bool(self.settings_alcohol_open))
             set_key("settings_ui_tooltip_open", bool(self.settings_ui_tooltip_open))
+            set_key("settings_ui_sync_open", bool(self.settings_ui_sync_open))
             set_key("settings_ui_alcohol_open", bool(self.settings_ui_alcohol_open))
             set_key("settings_ui_mbdp_open", bool(self.settings_ui_mbdp_open))
             set_key("settings_ui_presets_open", bool(self.settings_ui_presets_open))
@@ -2370,6 +2422,12 @@ try:
             self.runtime_enabled = {}
             self.runtime_alcohol_selected = {}
             self.runtime_alcohol_enabled = {}
+            self.sync_selected_accounts = {}
+            self.sync_selected_categories = _default_pycons_sync_category_selection()
+            self.sync_statuses = {}
+            self.sync_summary_text = "No sync run yet."
+            self.sync_active_request_id = ""
+            self.sync_request_counter = 0
 
     _rt = _RuntimeState()
     # Aliases preserved so UI code and existing access patterns remain identical.
@@ -2560,6 +2618,49 @@ try:
             k = a["key"]
             _rt.runtime_alcohol_selected[k] = bool(cfg.alcohol_selected.get(k, False))
             _rt.runtime_alcohol_enabled[k] = bool(cfg.alcohol_enabled_items.get(k, False))
+
+    def _force_bind_ini_handler_to_account() -> bool:
+        global _ini_handler_cache, _ini_path_cache, _ini_generic_cached_with_email_logged
+        try:
+            account_email = str(Player.GetAccountEmail() or "").strip()
+        except Exception:
+            account_email = ""
+        if not account_email:
+            return False
+
+        new_path = _resolve_account_ini_path(account_email, migrate_legacy=True, log_migration=False)
+        if _norm_path_lower(new_path) == _norm_path_lower(_ini_path_cache):
+            return False
+
+        try:
+            parent_dir = os.path.dirname(str(new_path or ""))
+            if parent_dir:
+                os.makedirs(parent_dir, exist_ok=True)
+        except Exception:
+            pass
+
+        _ini_path_cache = new_path
+        _ini_handler_cache = IniHandler(_ini_path_cache)
+        _ini_generic_cached_with_email_logged = False
+        return True
+
+    def pycons_reload_config_from_disk(reason: str = "") -> tuple[bool, str]:
+        global cfg
+        try:
+            _force_bind_ini_handler_to_account()
+            cfg = Config()
+            _runtime_sync_from_cfg_full()
+            _team_flags_cache.clear()
+            try:
+                _local_team_flags_refresh_timer.Stop()
+            except Exception:
+                pass
+            detail = "Pycons config reloaded from disk."
+            if reason:
+                detail = f"{detail} Reason: {str(reason)}."
+            return True, detail
+        except Exception as exc:
+            return False, str(exc)
 
     def _runtime_regular_enabled(key: str) -> bool:
         return bool(_rt.runtime_enabled.get(key, bool(cfg.enabled.get(key, False))))
@@ -4435,6 +4536,422 @@ try:
         except Exception:
             return 0
 
+    def _normalize_sync_account_email(raw_value: str) -> str:
+        return str(raw_value or "").strip().lower()
+
+    def _pycons_sync_account_display_name(acc) -> str:
+        name = str(_acc_name(acc) or "").strip()
+        if name:
+            return name
+        email = str(_acc_email(acc) or "").strip()
+        return email or "Unknown Account"
+
+    def _pycons_sync_account_map_tuple(acc) -> tuple[int, int, int, int]:
+        agent_map = getattr(getattr(acc, "AgentData", None), "Map", None)
+        map_id = int(getattr(agent_map, "MapID", getattr(acc, "MapID", 0)) or 0)
+        region = int(getattr(agent_map, "Region", getattr(acc, "MapRegion", 0)) or 0)
+        district = int(getattr(agent_map, "District", getattr(acc, "MapDistrict", 0)) or 0)
+        language = int(getattr(agent_map, "Language", getattr(acc, "MapLanguage", 0)) or 0)
+        return map_id, region, district, language
+
+    def _pycons_sync_is_same_map(acc) -> bool:
+        try:
+            own_region = Map.GetRegion() or (0, 0)
+            own_language = Map.GetLanguage() or (0, 0)
+            own_tuple = (
+                int(Map.GetMapID() or 0),
+                int(own_region[0] or 0),
+                int(Map.GetDistrict() or 0),
+                int(own_language[0] or 0),
+            )
+        except Exception:
+            own_tuple = (0, 0, 0, 0)
+        return own_tuple == _pycons_sync_account_map_tuple(acc)
+
+    def _pycons_sync_is_same_party(acc) -> bool:
+        try:
+            own_party_id = int(GLOBAL_CACHE.Party.GetPartyID() or 0)
+        except Exception:
+            own_party_id = 0
+        return bool(own_party_id > 0 and own_party_id == _acc_party_id(acc))
+
+    def _get_pycons_sync_accounts() -> list[object]:
+        own_email = str(Player.GetAccountEmail() or "").strip()
+        own_email_norm = _normalize_sync_account_email(own_email)
+        accounts = []
+        for acc in GLOBAL_CACHE.ShMem.GetAllAccountData() or []:
+            if not acc:
+                continue
+            raw_email = str(_acc_email(acc) or "").strip()
+            if not raw_email:
+                continue
+            if _normalize_sync_account_email(raw_email) == own_email_norm:
+                continue
+            if not bool(getattr(acc, "IsSlotActive", False)):
+                continue
+            if not bool(getattr(acc, "IsAccount", False)):
+                continue
+            if bool(getattr(acc, "IsHero", False)):
+                continue
+            accounts.append(acc)
+        accounts.sort(key=lambda acc: (_acc_party_position(acc), _pycons_sync_account_display_name(acc).lower(), _normalize_sync_account_email(_acc_email(acc))))
+        return accounts
+
+    def _get_selected_pycons_sync_categories() -> list[str]:
+        return [str(key) for key, _label in PYCONS_SYNC_CATEGORY_DEFS if bool(_rt.sync_selected_categories.get(str(key), False))]
+
+    def _get_selected_pycons_sync_account_emails() -> list[str]:
+        active_email_map: dict[str, str] = {}
+        for acc in _get_pycons_sync_accounts():
+            raw_email = str(_acc_email(acc) or "").strip()
+            normalized_email = _normalize_sync_account_email(raw_email)
+            if raw_email and normalized_email and normalized_email not in active_email_map:
+                active_email_map[normalized_email] = raw_email
+        return [
+            raw_email
+            for normalized_email, raw_email in active_email_map.items()
+            if bool(_rt.sync_selected_accounts.get(normalized_email, False))
+        ]
+
+    def _pycons_sync_display_name_from_email(account_email: str) -> str:
+        normalized_email = _normalize_sync_account_email(account_email)
+        for acc in _get_pycons_sync_accounts():
+            if _normalize_sync_account_email(_acc_email(acc)) == normalized_email:
+                return _pycons_sync_account_display_name(acc)
+        raw_email = str(account_email or "").strip()
+        return raw_email or normalized_email or "Unknown Account"
+
+    def _pycons_sync_refresh_summary():
+        statuses = list((_rt.sync_statuses or {}).values())
+        if not statuses:
+            _rt.sync_summary_text = "No sync run yet."
+            return
+
+        written_count = sum(1 for status in statuses if str(status.get("state", "")) != "write_failed")
+        requested_count = sum(1 for status in statuses if str(status.get("state", "")) == "reload_requested")
+        reloaded_count = sum(1 for status in statuses if str(status.get("state", "")) == "reloaded")
+        unavailable_count = sum(1 for status in statuses if str(status.get("state", "")) == "reload_unavailable")
+        issue_count = sum(
+            1
+            for status in statuses
+            if str(status.get("state", "")) in ("write_failed", "reload_failed", "reload_not_queued", "reload_unavailable")
+        )
+        _rt.sync_summary_text = (
+            f"Last sync: {written_count} written | {requested_count} reload requested | "
+            f"{reloaded_count} reloaded | {unavailable_count} reload unavailable | {issue_count} issue(s)."
+        )
+
+    def _pycons_sync_set_status(
+        account_email: str,
+        *,
+        state: str,
+        status_label: str,
+        summary: str,
+        detail: str = "",
+        success: bool = False,
+    ):
+        normalized_email = _normalize_sync_account_email(account_email)
+        if not normalized_email:
+            return
+        _rt.sync_statuses[normalized_email] = {
+            "email": str(account_email or "").strip(),
+            "display_name": _pycons_sync_display_name_from_email(account_email),
+            "state": str(state or "").strip(),
+            "status_label": str(status_label or "").strip(),
+            "summary": str(summary or "").strip(),
+            "detail": str(detail or "").strip(),
+            "success": bool(success),
+        }
+        _pycons_sync_refresh_summary()
+
+    def _pycons_sync_next_request_id() -> str:
+        _rt.sync_request_counter = int(getattr(_rt, "sync_request_counter", 0) or 0) + 1
+        return f"pycons_sync_{int(_now_ms())}_{int(_rt.sync_request_counter)}"
+
+    def _pycons_sync_write_categories_to_account(account_email: str, categories: list[str]) -> str:
+        target_path = _resolve_account_ini_path(account_email, migrate_legacy=True, log_migration=False)
+        ini_handler = IniHandler(target_path)
+        config = ini_handler.reload()
+        if not config.has_section(INI_SECTION):
+            config.add_section(INI_SECTION)
+
+        def set_key(key: str, value):
+            config.set(INI_SECTION, str(key), str(value))
+
+        category_set = {str(category) for category in categories}
+
+        if PYCONS_SYNC_CATEGORY_ALCOHOL in category_set:
+            for key in PYCONS_SYNC_ALCOHOL_SCALAR_KEYS:
+                set_key(key, getattr(cfg, key))
+
+        if PYCONS_SYNC_CATEGORY_MBDP in category_set:
+            for key in PYCONS_SYNC_MBDP_SCALAR_KEYS:
+                set_key(key, getattr(cfg, key))
+
+        if PYCONS_SYNC_CATEGORY_RESTOCK in category_set:
+            for key in PYCONS_SYNC_RESTOCK_SCALAR_KEYS:
+                set_key(key, getattr(cfg, key))
+            for spec in ALL_CONSUMABLES:
+                item_key = str(spec.get("key", "") or "")
+                if not item_key:
+                    continue
+                set_key(f"restock_enabled_{item_key}", bool(cfg.restock_enabled_items.get(item_key, False)))
+                set_key(f"restock_target_{item_key}", int(max(0, min(2500, int(cfg.restock_targets.get(item_key, VAULT_RESTOCK_TARGET_QTY) or 0)))))
+            for spec in ALCOHOL_ITEMS:
+                item_key = str(spec.get("key", "") or "")
+                if not item_key:
+                    continue
+                set_key(f"restock_enabled_{item_key}", bool(cfg.restock_enabled_items.get(item_key, False)))
+                set_key(f"restock_target_{item_key}", int(max(0, min(2500, int(cfg.restock_targets.get(item_key, VAULT_RESTOCK_TARGET_QTY) or 0)))))
+
+        if PYCONS_SYNC_CATEGORY_SELECTION in category_set:
+            for spec in ALL_CONSUMABLES:
+                item_key = str(spec.get("key", "") or "")
+                if not item_key:
+                    continue
+                selected_value = bool(cfg.selected.get(item_key, False))
+                set_key(f"selected_{item_key}", selected_value)
+                if not selected_value:
+                    set_key(f"enabled_{item_key}", False)
+            for spec in ALCOHOL_ITEMS:
+                item_key = str(spec.get("key", "") or "")
+                if not item_key:
+                    continue
+                selected_value = bool(cfg.alcohol_selected.get(item_key, False))
+                set_key(f"alcohol_selected_{item_key}", selected_value)
+                if not selected_value:
+                    set_key(f"alcohol_enabled_{item_key}", False)
+
+        ini_handler.save(config)
+        return target_path
+
+    def _pycons_sync_send_reload_request(account_email: str, request_id: str) -> bool:
+        sender_email = str(Player.GetAccountEmail() or "").strip()
+        receiver_email = str(account_email or "").strip()
+        if not sender_email or not receiver_email:
+            return False
+        message_index = GLOBAL_CACHE.ShMem.SendMessage(
+            sender_email,
+            receiver_email,
+            SharedCommandType.Pycons,
+            (float(PYCONS_SYNC_OPCODE_RELOAD_CONFIG), 0.0, 0.0, 0.0),
+            (str(request_id or ""), "Sync", "", ""),
+        )
+        return bool(message_index != -1)
+
+    def _pycons_message_extra_data(message) -> tuple[str, str, str, str]:
+        values: list[str] = []
+        for raw in getattr(message, "ExtraData", ()) or ():
+            try:
+                values.append("".join(ch for ch in raw if ch != "\0").rstrip())
+            except Exception:
+                values.append("")
+        while len(values) < 4:
+            values.append("")
+        return values[0], values[1], values[2], values[3]
+
+    def _pycons_message_opcode(message) -> int:
+        try:
+            return int(getattr(message, "Params", [0])[0])
+        except Exception:
+            return 0
+
+    def _pycons_message_success_flag(message) -> bool:
+        try:
+            return bool(int(getattr(message, "Params", [0, 0, 0, 0])[3]))
+        except Exception:
+            return False
+
+    def pycons_send_sync_result_message(
+        sender_email: str,
+        receiver_email: str,
+        *,
+        request_id: str,
+        status_label: str,
+        summary: str,
+        detail: str = "",
+        success_flag: bool = False,
+    ) -> bool:
+        sender = str(sender_email or "").strip()
+        receiver = str(receiver_email or "").strip()
+        if not sender or not receiver:
+            return False
+        message_index = GLOBAL_CACHE.ShMem.SendMessage(
+            sender,
+            receiver,
+            SharedCommandType.Pycons,
+            (float(PYCONS_SYNC_OPCODE_RELOAD_RESULT), 0.0, 0.0, 1.0 if bool(success_flag) else 0.0),
+            (str(request_id or ""), str(status_label or ""), str(summary or ""), str(detail or "")),
+        )
+        return bool(message_index != -1)
+
+    def pycons_reply_reload_unavailable_for_message(message) -> bool:
+        if _pycons_message_opcode(message) != PYCONS_SYNC_OPCODE_RELOAD_CONFIG:
+            return False
+        request_id, _status_label, _summary, _detail = _pycons_message_extra_data(message)
+        sender_email = str(getattr(message, "SenderEmail", "") or "").strip()
+        receiver_email = str(getattr(message, "ReceiverEmail", "") or Player.GetAccountEmail() or "").strip()
+        return pycons_send_sync_result_message(
+            receiver_email,
+            sender_email,
+            request_id=request_id,
+            status_label="Reload Unavailable",
+            summary="Config was written, but follower Pycons is not currently loaded.",
+            detail="Enable Pycons on the follower to apply the sync immediately.",
+            success_flag=False,
+        )
+
+    def pycons_handle_shared_message(message) -> bool:
+        request_id, status_label, summary, detail = _pycons_message_extra_data(message)
+        sender_email = str(getattr(message, "SenderEmail", "") or "").strip()
+        receiver_email = str(getattr(message, "ReceiverEmail", "") or Player.GetAccountEmail() or "").strip()
+        try:
+            opcode = _pycons_message_opcode(message)
+            success_flag = _pycons_message_success_flag(message)
+
+            if opcode == PYCONS_SYNC_OPCODE_RELOAD_RESULT:
+                return bool(
+                    pycons_handle_sync_result(
+                        sender_email=sender_email,
+                        request_id=request_id,
+                        status_label=status_label,
+                        summary=summary,
+                        detail=detail,
+                        success_flag=success_flag,
+                    )
+                )
+
+            if opcode != PYCONS_SYNC_OPCODE_RELOAD_CONFIG:
+                ConsoleLog(
+                    BOT_NAME,
+                    f"Pycons message ignored unknown opcode={opcode}.",
+                    Console.MessageType.Warning,
+                )
+                return False
+
+            reload_result = pycons_reload_config_from_disk(reason="shared sync")
+            if isinstance(reload_result, tuple):
+                reload_ok = bool(reload_result[0])
+                reload_detail = str(reload_result[1] or "")
+            else:
+                reload_ok = bool(reload_result)
+                reload_detail = ""
+
+            if reload_ok:
+                pycons_send_sync_result_message(
+                    receiver_email,
+                    sender_email,
+                    request_id=request_id,
+                    status_label="Reloaded",
+                    summary="Config was written and follower Pycons reloaded from disk.",
+                    detail=reload_detail,
+                    success_flag=True,
+                )
+                return True
+
+            pycons_send_sync_result_message(
+                receiver_email,
+                sender_email,
+                request_id=request_id,
+                status_label="Reload Failed",
+                summary="Config was written, but follower Pycons could not reload its config.",
+                detail=reload_detail,
+                success_flag=False,
+            )
+            return False
+        except Exception as exc:
+            ConsoleLog(BOT_NAME, f"Pycons shared-message error: {exc}", Console.MessageType.Error)
+            pycons_send_sync_result_message(
+                receiver_email,
+                sender_email,
+                request_id=request_id,
+                status_label="Reload Failed",
+                summary="Config was written, but follower Pycons hit an error during reload.",
+                detail=str(exc),
+                success_flag=False,
+            )
+            return False
+
+    def _pycons_start_settings_sync():
+        selected_categories = _get_selected_pycons_sync_categories()
+        selected_accounts = _get_selected_pycons_sync_account_emails()
+        if not selected_categories:
+            _rt.sync_summary_text = "Select at least one sync category."
+            return
+        if not selected_accounts:
+            _rt.sync_summary_text = "Select at least one active target account."
+            return
+
+        _rt.sync_statuses = {}
+        _rt.sync_active_request_id = _pycons_sync_next_request_id()
+        request_id = str(_rt.sync_active_request_id or "")
+
+        for account_email in selected_accounts:
+            try:
+                _pycons_sync_write_categories_to_account(account_email, selected_categories)
+            except Exception as exc:
+                _pycons_sync_set_status(
+                    account_email,
+                    state="write_failed",
+                    status_label="Write Failed",
+                    summary="Follower Pycons config could not be written.",
+                    detail=str(exc),
+                    success=False,
+                )
+                continue
+
+            if _pycons_sync_send_reload_request(account_email, request_id):
+                _pycons_sync_set_status(
+                    account_email,
+                    state="reload_requested",
+                    status_label="Reload Requested",
+                    summary="Config written; waiting for follower reload result.",
+                    success=False,
+                )
+            else:
+                _pycons_sync_set_status(
+                    account_email,
+                    state="reload_not_queued",
+                    status_label="Reload Not Queued",
+                    summary="Config written, but the reload request could not be queued.",
+                    detail="The follower may apply the synced config the next time Pycons loads.",
+                    success=False,
+                )
+
+    def pycons_handle_sync_result(
+        *,
+        sender_email: str,
+        request_id: str,
+        status_label: str,
+        summary: str,
+        detail: str = "",
+        success_flag: bool = False,
+    ) -> bool:
+        current_request_id = str(getattr(_rt, "sync_active_request_id", "") or "")
+        incoming_request_id = str(request_id or "").strip()
+        if incoming_request_id and current_request_id and incoming_request_id != current_request_id:
+            return False
+
+        status_label_clean = str(status_label or "").strip()
+        if status_label_clean == "Reloaded" and bool(success_flag):
+            state = "reloaded"
+        elif status_label_clean == "Reload Unavailable":
+            state = "reload_unavailable"
+        elif status_label_clean == "Reload Failed":
+            state = "reload_failed"
+        else:
+            state = "reloaded" if bool(success_flag) else "reload_failed"
+
+        _pycons_sync_set_status(
+            sender_email,
+            state=state,
+            status_label=status_label_clean or ("Reloaded" if bool(success_flag) else "Reload Failed"),
+            summary=str(summary or "").strip() or "Follower Pycons sync result received.",
+            detail=str(detail or "").strip(),
+            success=bool(success_flag),
+        )
+        return True
+
     def _load_team_flags_for_email(account_email: str) -> tuple[bool, bool]:
         if not account_email:
             return False, False
@@ -5125,6 +5642,115 @@ try:
         palette = _section_palette(section_key)
         color_key = "meta" if bool(secondary) else "text"
         _text_with_color(str(text), palette[color_key])
+
+    def _draw_pycons_sync_section():
+        active_accounts = _get_pycons_sync_accounts()
+        selected_categories = _get_selected_pycons_sync_categories()
+        selected_accounts = _get_selected_pycons_sync_account_emails()
+
+        _text_secondary("Write selected settings categories to active follower Pycons INIs.")
+        _text_secondary("Window layout, presets, filters, and runtime-only toggles stay local.")
+        PyImGui.dummy(0, 4)
+
+        if PyImGui.small_button("Select All Categories##pycons_sync_categories_all"):
+            for category_key, _label in PYCONS_SYNC_CATEGORY_DEFS:
+                _rt.sync_selected_categories[str(category_key)] = True
+        _same_line(10)
+        if PyImGui.small_button("Clear Categories##pycons_sync_categories_clear"):
+            for category_key, _label in PYCONS_SYNC_CATEGORY_DEFS:
+                _rt.sync_selected_categories[str(category_key)] = False
+
+        for category_key, label in PYCONS_SYNC_CATEGORY_DEFS:
+            changed, value = ui_checkbox(
+                f"{label}##pycons_sync_category_{category_key}",
+                bool(_rt.sync_selected_categories.get(str(category_key), False)),
+            )
+            if changed:
+                _rt.sync_selected_categories[str(category_key)] = bool(value)
+
+        PyImGui.separator()
+        _text_secondary(f"{len(active_accounts)} active account(s) | {len(selected_accounts)} selected")
+
+        if active_accounts:
+            if PyImGui.small_button("Select All##pycons_sync_accounts_all"):
+                for acc in active_accounts:
+                    raw_email = str(_acc_email(acc) or "").strip()
+                    normalized_email = _normalize_sync_account_email(raw_email)
+                    if normalized_email:
+                        _rt.sync_selected_accounts[normalized_email] = True
+            _same_line(10)
+            if PyImGui.small_button("Clear##pycons_sync_accounts_clear"):
+                for acc in active_accounts:
+                    raw_email = str(_acc_email(acc) or "").strip()
+                    normalized_email = _normalize_sync_account_email(raw_email)
+                    if normalized_email:
+                        _rt.sync_selected_accounts[normalized_email] = False
+        else:
+            PyImGui.text_disabled("No other active multibox accounts were detected.")
+
+        child_height = min(180, 40 + (26 * max(1, len(active_accounts))))
+        if active_accounts:
+            if PyImGui.begin_child("pycons_sync_accounts_child", (0, child_height), True, PyImGui.WindowFlags.NoFlag):
+                if PyImGui.begin_table(
+                    "pycons_sync_accounts_table",
+                    4,
+                    PyImGui.TableFlags.RowBg | PyImGui.TableFlags.BordersInnerV,
+                ):
+                    PyImGui.table_setup_column("Use", PyImGui.TableColumnFlags.WidthFixed, 48.0)
+                    PyImGui.table_setup_column("Account", PyImGui.TableColumnFlags.WidthStretch)
+                    PyImGui.table_setup_column("Context", PyImGui.TableColumnFlags.WidthFixed, 180.0)
+                    PyImGui.table_setup_column("Status", PyImGui.TableColumnFlags.WidthStretch)
+                    for acc in active_accounts:
+                        raw_email = str(_acc_email(acc) or "").strip()
+                        normalized_email = _normalize_sync_account_email(raw_email)
+                        if not raw_email or not normalized_email:
+                            continue
+                        display_name = _pycons_sync_account_display_name(acc)
+                        status = _rt.sync_statuses.get(normalized_email)
+
+                        PyImGui.table_next_row()
+                        PyImGui.table_set_column_index(0)
+                        is_selected = bool(_rt.sync_selected_accounts.get(normalized_email, False))
+                        new_selected = PyImGui.checkbox(f"##pycons_sync_select_{raw_email}", is_selected)
+                        if new_selected != is_selected:
+                            _rt.sync_selected_accounts[normalized_email] = bool(new_selected)
+
+                        PyImGui.table_set_column_index(1)
+                        PyImGui.text(display_name)
+                        if raw_email and raw_email != display_name:
+                            _text_meta(raw_email)
+
+                        PyImGui.table_set_column_index(2)
+                        context_parts = [
+                            "Same Map" if _pycons_sync_is_same_map(acc) else "Other Map",
+                            "Party" if _pycons_sync_is_same_party(acc) else "No Party",
+                        ]
+                        _text_meta(" | ".join(context_parts))
+
+                        PyImGui.table_set_column_index(3)
+                        if status is None:
+                            _text_meta("Idle")
+                        else:
+                            PyImGui.text(str(status.get("status_label", "Idle") or "Idle"))
+                            summary = str(status.get("summary", "") or "").strip()
+                            if summary:
+                                _text_meta(summary)
+                            detail = str(status.get("detail", "") or "").strip()
+                            if detail:
+                                if hasattr(PyImGui, "text_wrapped"):
+                                    PyImGui.text_wrapped(detail)
+                                else:
+                                    PyImGui.text(detail)
+                    PyImGui.end_table()
+            PyImGui.end_child()
+
+        sync_disabled = (len(selected_categories) == 0 or len(selected_accounts) == 0)
+        mode = _begin_disabled(sync_disabled)
+        if PyImGui.button("Sync Selected Settings##pycons_sync_settings_button"):
+            _pycons_start_settings_sync()
+        _end_disabled(mode)
+
+        _text_secondary(str(getattr(_rt, "sync_summary_text", "") or "No sync run yet."))
 
     def _draw_inline_stock_text(model_id: int, spacing: float = 10.0):
         stock_text = _stock_text_for_model_id(int(model_id or 0))
@@ -6047,6 +6673,18 @@ try:
                 cfg.tooltip_show_why = bool(v)
                 cfg.mark_dirty()
             _show_setting_tooltip("tooltip_show_why")
+            PyImGui.separator()
+
+        sync_section_open = _styled_collapsing_header(
+            "Sync settings to other accounts##pycons_settings_sync_dropdown",
+            bool(getattr(cfg, "settings_ui_sync_open", False)),
+            "general",
+        )
+        if bool(getattr(cfg, "settings_ui_sync_open", False)) != bool(sync_section_open):
+            cfg.settings_ui_sync_open = bool(sync_section_open)
+            cfg.mark_dirty()
+        if sync_section_open:
+            _draw_pycons_sync_section()
             PyImGui.separator()
 
         # --- Alcohol settings (collapsed dropdown for compactness) ---
