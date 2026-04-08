@@ -652,8 +652,8 @@ def _coro_hold_horsemen_position() -> Generator[Any, Any, None]:
     Exits as soon as the quest is completed.
     """
     from Py4GWCoreLib.Quest import Quest
-    _HOLD_X, _HOLD_Y = 11510.0, -18234.0
-    _MAX_DISTANCE = 1000.0
+    _HOLD_X, _HOLD_Y = 11510, -18234
+    _MAX_DISTANCE = 500.0
     while True:
         if (Quest.GetActiveQuest() > 0) and Quest.IsQuestCompleted(Quest.GetActiveQuest()):
             return
@@ -1417,6 +1417,7 @@ def The_Four_Horsemen(bot_instance: Botting):
     # Disable WaitIfInAggro so CB does not issue competing movement commands
     # (e.g. moving away from or toward enemies) while we must hold position.
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(False), "Disable WaitIfInAggro for Horsemen hold")
+    bot_instance.Move.XY(11510, -18234, "Hold position at Horsemen")
     bot_instance.config.FSM.AddYieldRoutineStep(
         name="Hold position at Horsemen",
         coroutine_fn=_coro_hold_horsemen_position,
@@ -2734,9 +2735,13 @@ def OnPartyWipe(bot: "Botting"):
 def _on_party_wipe(bot: "Botting"):
     ConsoleLog(BOT_NAME, "[WIPE] Party wipe detected!", Py4GW.Console.MessageType.Warning)
 
-    while Agent.IsDead(Player.GetAgentID()):
+    while True:
         yield from Routines.Yield.wait(1000)
 
+        # Check map validity FIRST: during the wipe transport Player.GetAgentID()
+        # returns 0, causing Agent.IsDead(0) to return False (invalid agent → not dead).
+        # Without this guard the while loop would exit prematurely and resume the FSM
+        # mid-transition, leading to a crash.
         if not Routines.Checks.Map.MapValid():
             ConsoleLog(BOT_NAME, "[WIPE] Returned to outpost after wipe, restarting run...", Py4GW.Console.MessageType.Warning)
             yield from Routines.Yield.wait(3000)
@@ -2747,8 +2752,15 @@ def _on_party_wipe(bot: "Botting"):
             _request_wipe_restart("Returned to outpost after wipe")
             return
 
-    ConsoleLog(BOT_NAME, "[WIPE] Player resurrected in instance, resuming...", Py4GW.Console.MessageType.Info)
-    _request_wipe_restart("Player resurrected in instance")
+        player_id = Player.GetAgentID()
+        if not Agent.IsValid(player_id):
+            # Agent not yet available during map transition — keep waiting.
+            continue
+
+        if not Agent.IsDead(player_id):
+            ConsoleLog(BOT_NAME, "[WIPE] Player resurrected in instance, resuming...", Py4GW.Console.MessageType.Info)
+            _request_wipe_restart("Player resurrected in instance")
+            return
 
 
 def _draw_run_log() -> None:
