@@ -40,7 +40,7 @@ class GhostlyFuryUtility(CustomSkillUtilityBase):
         return custom_behavior_helpers.Targets.get_nearest_or_default_from_enemy_ordered_by_priority(
             within_range=Range.Spellcast.value,
             should_prioritize_party_target=True,
-            condition=lambda agent_id: Agent.IsAgentValid(agent_id) and Agent.IsAlive(agent_id),
+            condition=lambda agent_id: Agent.IsValid(agent_id) and Agent.IsAlive(agent_id),
         )
 
     @override

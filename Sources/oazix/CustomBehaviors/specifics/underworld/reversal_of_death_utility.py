@@ -66,7 +66,7 @@ class ReversalOfDeathUtility(CustomSkillUtilityBase):
         my_id = int(Player.GetAgentID())
 
         def _condition(agent_id: int) -> bool:
-            if not Agent.IsAgentValid(agent_id):
+            if not Agent.IsValid(agent_id):
                 return False
             if int(agent_id) == my_id:
                 return False

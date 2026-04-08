@@ -1,4 +1,4 @@
-"""Reaper-event mode tracker for the Dhuum encounter.
+﻿"""Reaper-event mode tracker for the Dhuum encounter.
 
 Scans the CombatEvents stream to detect when an Underworld Reaper activates
 Dhuum's Rest or Ghostly Fury, and exposes a debounced shared mode so skill
@@ -139,7 +139,7 @@ class ReaperModeTracker:
         candidates.update(AgentArray.GetNPCMinipetArray())
         candidates.update(AgentArray.GetSpiritPetArray())
         for agent_id in candidates:
-            if not Agent.IsAgentValid(agent_id):
+            if not Agent.IsValid(agent_id):
                 continue
             name = str(Agent.GetNameByID(agent_id) or "").strip().lower()
             if any(m in name for m in cls._REAPER_NAME_MATCHERS):
@@ -213,7 +213,7 @@ class ReaperModeTracker:
         cls._last_logged_candidate_signature = signature
         try:
             import Py4GW
-            caster_name = str(Agent.GetNameByID(int(caster_id)) or "<unknown>").strip() if Agent.IsAgentValid(int(caster_id)) else "<invalid>"
+            caster_name = str(Agent.GetNameByID(int(caster_id)) or "<unknown>").strip() if Agent.IsValid(int(caster_id)) else "<invalid>"
             skill_name  = str(GLOBAL_CACHE.Skill.GetName(int(skill_id)) or "<unknown>").strip()
             Py4GW.Console.Log(
                 "AnyDhuum",

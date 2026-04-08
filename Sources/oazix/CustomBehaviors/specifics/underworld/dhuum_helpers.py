@@ -1,4 +1,4 @@
-"""Underworld Dhuum-phase domain helpers.
+﻿"""Underworld Dhuum-phase domain helpers.
 
 Everything that is shared across multiple skill utilities but is *not*
 skill-cast logic:
@@ -34,7 +34,7 @@ def is_uw_chest_present() -> bool:
     this to suppress casts once the encounter is finished.
     """
     for agent_id in AgentArray.GetAgentArray():
-        if not Agent.IsAgentValid(agent_id):
+        if not Agent.IsValid(agent_id):
             continue
         if not Agent.IsGadget(agent_id):
             continue

@@ -141,8 +141,13 @@ class AnyDhuum_UtilitySkillBar(CustomBehaviorBaseUtility):
             event_bus=self.event_bus,
             current_build=in_game_build,
         )
-        # Encase Skeletal: cast conditions not yet implemented — not instantiated.
-        # self.encase_skeletal_utility = PendingConditionUtility(...)
+        # Encase Skeletal: cast conditions not yet implemented.
+        # Registered here so the CB framework owns the skill and AutoCombat cannot fire it.
+        self.encase_skeletal_utility: CustomSkillUtilityBase = PendingConditionUtility(
+            event_bus=self.event_bus,
+            skill=CustomSkill("Encase_Skeletal"),
+            current_build=in_game_build,
+        )
 
     @override
     def count_matches_between_custom_behavior_and_in_game_build(self) -> int:
@@ -182,6 +187,7 @@ class AnyDhuum_UtilitySkillBar(CustomBehaviorBaseUtility):
             self.dhuums_rest_utility,
             self.reversal_of_death_utility,
             self.ghostly_fury_utility,
+            self.encase_skeletal_utility,
         ]
 
     @property
