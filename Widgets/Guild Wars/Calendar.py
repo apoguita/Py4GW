@@ -19,6 +19,11 @@ from Py4GWCoreLib.enums import MONTHS
 from Py4GWCoreLib.enums import NICHOLAS_CYCLE
 from Py4GWCoreLib.enums import PVE_WEEKLY_BONUSES
 from Py4GWCoreLib.enums import PVP_WEEKLY_BONUSES
+from Py4GWCoreLib.enums import ZAISHEN_REFERENCE_DATE
+from Py4GWCoreLib.enums import ZAISHEN_MISSION
+from Py4GWCoreLib.enums import ZAISHEN_BOUNTY
+from Py4GWCoreLib.enums import ZAISHEN_COMBAT
+from Py4GWCoreLib.enums import ZAISHEN_VANQUISH
 from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
 
 
@@ -110,6 +115,15 @@ def get_nicholas_for_day(day: date) -> dict | None:
     return None
 
 
+def get_zaishen_quests_for_day(day: date) -> dict:
+    """Return all four Zaishen daily quests active on the given date."""
+    delta = (day - ZAISHEN_REFERENCE_DATE).days
+    return {
+        "mission":  ZAISHEN_MISSION [delta % len(ZAISHEN_MISSION)],
+        "bounty":   ZAISHEN_BOUNTY  [delta % len(ZAISHEN_BOUNTY)],
+        "combat":   ZAISHEN_COMBAT  [delta % len(ZAISHEN_COMBAT)],
+        "vanquish": ZAISHEN_VANQUISH[delta % len(ZAISHEN_VANQUISH)],
+    }
 
 
 
@@ -506,7 +520,14 @@ def draw_month(cal: Calendar, width: int = 300, height: int = 265):
                                     PyImGui.text(f"PvE Weekly Bonus: {pve_bonus['name']}")
                                 if pvp_bonus:
                                     PyImGui.text(f"PvP Weekly Bonus: {pvp_bonus['name']}")
-                                if nicholas:  # << NEW tooltip info
+                                zq = get_zaishen_quests_for_day(day)
+                                PyImGui.separator()
+                                PyImGui.text_colored("Zaishen Quests", (200/255, 155/255, 0, 1))
+                                PyImGui.text(f"Mission:  {zq['mission']['name']} [{zq['mission']['campaign']}]")
+                                PyImGui.text(f"Bounty:   {zq['bounty']}")
+                                PyImGui.text(f"Combat:   {zq['combat']}")
+                                PyImGui.text(f"Vanquish: {zq['vanquish']}")
+                                if nicholas:
                                     PyImGui.separator()
                                     PyImGui.text_colored("Nicholas the Traveler", (200/255, 155/255, 0, 1))
                                     PyImGui.text(f"Item: {nicholas['item']}")
@@ -808,6 +829,7 @@ def DrawDayCard():
     current_event = get_event_for_day(selected_day)
     pve_bonus, pvp_bonus = get_weekly_bonuses(selected_day)
     nicholas = get_nicholas_for_day(selected_day)
+    zaishen = get_zaishen_quests_for_day(selected_day)
 
     # Show the selected date (defaults to today)
     PyImGui.text_colored(f"{calendar.get_day_of_week()}, {selected_day.strftime('%B %d, %Y')}", ColorPalette.GetColor("yellow").to_tuple_normalized())
@@ -817,6 +839,23 @@ def DrawDayCard():
     PyImGui.text_colored("PvP Bonus:", ColorPalette.GetColor("gw_gold").to_tuple_normalized())
     PyImGui.same_line(0, -1)
     PyImGui.text(f"{pvp_bonus['name']}")
+
+    # Zaishen daily quests
+    PyImGui.separator()
+    PyImGui.text_colored("Zaishen Quests", ColorPalette.GetColor("gw_gold").to_tuple_normalized())
+    PyImGui.text_colored("Mission:",  ColorPalette.GetColor("gw_gold").to_tuple_normalized())
+    PyImGui.same_line(0, -1)
+    PyImGui.text(f"{zaishen['mission']['name']}  [{zaishen['mission']['campaign']}]")
+    PyImGui.text_colored("Bounty:",   ColorPalette.GetColor("gw_gold").to_tuple_normalized())
+    PyImGui.same_line(0, -1)
+    PyImGui.text(f"{zaishen['bounty']}")
+    PyImGui.text_colored("Combat:",   ColorPalette.GetColor("gw_gold").to_tuple_normalized())
+    PyImGui.same_line(0, -1)
+    PyImGui.text(f"{zaishen['combat']}")
+    PyImGui.text_colored("Vanquish:", ColorPalette.GetColor("gw_gold").to_tuple_normalized())
+    PyImGui.same_line(0, -1)
+    PyImGui.text(f"{zaishen['vanquish']}")
+    PyImGui.separator()
     
     if nicholas:
         table_flags = PyImGui.TableFlags.RowBg | PyImGui.TableFlags.BordersOuterH
