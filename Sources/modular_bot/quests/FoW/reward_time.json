@@ -1,19 +1,22 @@
-{
+﻿{
   "name": "LOOT pls.",
   "steps": [
     {"type": "auto_path", "name": "Run to Chest", "points": [[-12332, -3539], [-9712, -4812], [-6595, -3453], [-4494, 3700], [1752, 5342], [266, 1273], [1857, 215]]},
     {"type": "wait", "ms": 5000},
     {"type": "loot_chest", "gadget": "CHEST_OF_WOE", "multibox": true},
     {"type": "set_auto_looting", "enabled": false},
-    {"type": "auto_path", "name": "reposition for Chest", "points": [[1865, 216]]},
+    {"type": "auto_path", "name": "reposition for Chest", "points": [[1869, 260]]},
     {"type": "set_auto_looting", "enabled": true},
     {"type": "loot_chest", "gadget": "CHEST_OF_WOE", "multibox": true},
+    {"type": "dialogs", "id": ["0x80CF06", "0x80CF07", "0x80E007"], "npc": "ETERNAL_FORGEMASTER", "name": "Dialog - Eternal Forgemaster"},
+    {"type": "auto_path", "name": "reposition for Chest", "points": [[1869, 260]]},
+    {"type": "dialogs", "id": ["0x80CF06", "0x80CF07", "0x80E007"], "npc": "ETERNAL_FORGEMASTER", "name": "Dialog - Eternal Forgemaster"},
+    {"type": "wait", "ms": 5000},
     {"type": "set_auto_looting", "enabled": false},
-    {"type": "auto_path", "name": "reposition for Chest", "points": [[1865, 216]]},
-    {"type": "set_auto_looting", "enabled": true, "ms": 5000},
-    {"type": "set_auto_looting", "enabled": false},
+    {"type": "interact_gadget", "name": "Interact Chest", "gadget": "CHEST", "point": [1624, -540]},
     {"type": "auto_path", "name": "reposition for Chest", "points": [[1865, 216]]},
     {"type": "set_auto_looting", "enabled": true, "ms": 5000},
     {"type": "resign", "ms": 15000}
   ]
 }
+

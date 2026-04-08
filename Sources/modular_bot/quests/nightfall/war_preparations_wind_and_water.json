@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "War Preparations (Wind and Water)",
   "steps": [
     {"type": "travel", "name": "Travel to Sunspear Great Hall", "target_map_id": 431},
@@ -9,7 +9,7 @@
     {"type": "dialog", "id": "0x828304", "npc": "CAPTAIN_BOLDUHR", "name": "Dialog - Captain Bolduhr"},
     {"type": "auto_path", "name": "To Load Party", "points": [[3731, -3955]]},
     {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true},
-    {"type": "exit_map", "name": "Leave Kodlonu Hamlet", "x": 4343, "y": -3686, "target_map_id": 488},
+    {"type": "exit_map", "name": "Leave Kodlonu Hamlet", "point": [4343, -3686], "target_map_id": 488},
     {"type": "auto_path", "name": "Path", "points": [[-15203, 8261]]},
     {"type": "wait", "ms": 20000},
     {"type": "auto_path", "name": "To Kinya Kela", "points": [[-15405, 8144], [-14826, 8499], [-15535, 7993], [-14913, 8371], [-15419, 8030]]},
@@ -20,3 +20,4 @@
     {"type": "dialog", "id": "0x828307", "npc": "CASTELLAN_PUUBA", "name": "Dialog - Castellan Puuba"}
   ]
 }
+

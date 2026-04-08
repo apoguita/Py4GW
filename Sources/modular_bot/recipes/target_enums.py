@@ -9,7 +9,6 @@ class TargetRegistryKind(str, Enum):
     NPC = "npc"
     ENEMY = "enemy"
     GADGET = "gadget"
-    ITEM = "item"
 
 
 @dataclass(frozen=True)
@@ -19,14 +18,7 @@ class AgentTargetDefinition:
     model_id: int | None = None
 
 
-@dataclass(frozen=True)
-class ItemTargetDefinition:
-    display_name: str = ""
-    model_id: int | None = None
-
-
 AgentTargetValue = AgentTargetDefinition | tuple[tuple[int, ...], str] | tuple[tuple[tuple[int, ...], ...], str]
-ItemTargetValue = ItemTargetDefinition | tuple[int, str]
 
 
 NPC_TARGETS: dict[str, AgentTargetValue] = {
@@ -83,6 +75,7 @@ NPC_TARGETS: dict[str, AgentTargetValue] = {
     "IRONFIST": (((1, 129, 220, 64, 162, 197, 32, 146, 126, 76, 0, 0),), "Ironfist"),
     "LIONGUARD_FIGO": (((1, 129, 252, 78, 235, 179, 236, 223, 85, 52, 0, 0),), "Lionguard Figo"),
     "LIONGUARD_NEIRO": (((1, 129, 238, 1, 30, 225, 94, 182, 64, 96, 0, 0),), "Lionguard Neiro"),
+    "LATHAM": (((1, 129, 157, 122, 30, 229, 130, 189, 135, 44, 0, 0),), "Latham"),
     "OLIAS": (((1, 129, 251, 56, 0, 0),), "Olias"),
     "ELDER_SUHL": (((1, 129, 205, 19, 150, 248, 63, 173, 90, 92, 0, 0),), "Elder Suhl"),
     "GENERAL_MORGAHN": (((1, 129, 46, 56, 190, 161, 71, 197, 251, 127, 0, 0),), "General Morgahn"),
@@ -226,6 +219,7 @@ NPC_TARGETS: dict[str, AgentTargetValue] = {
     "MICHIKO_SKILLS": (((2, 110, 190, 167, 165, 179, 120, 49, 0, 0),), "Michiko [Skills]"),
     "NPC": (((2, 129, 155, 34, 73, 236, 154, 195, 76, 124, 0, 0),), ""),
     "OGDEN_STONEHEALER": (((2, 129, 86, 6, 0, 0),), "Ogden Stonehealer"),
+    "DEVONA": (((2, 129, 211, 58, 125, 199, 132, 219, 242, 1, 0, 0),), "Devona"),
     "PIKIN_HERO_SKILLS": (((1, 129, 250, 82, 43, 183, 147, 243, 123, 11, 0, 0),), "Pikin [Hero Skills]"),
     "SCRYING_POOL": (((2, 129, 155, 34, 73, 236, 154, 195, 76, 124, 0, 0),), "Scrying Pool"),
     "TOHN_SKILLS": (((1, 129, 186, 31, 67, 130, 51, 248, 20, 68, 0, 0),), "Tohn [Skills]"),
@@ -262,15 +256,14 @@ ENEMY_TARGETS: dict[str, AgentTargetValue] = {
 GADGET_TARGETS: dict[str, AgentTargetValue] = {
     "CHEST": (((123, 32, 56, 239, 111, 184, 88, 49, 0, 0),), "Chest"),
     "CHEST_OF_WOE": (((2, 129, 148, 49, 154, 172, 124, 229, 33, 98, 0, 0),), "Chest of Woe"),
+    "CHEST_OF_BURROWS": (((2, 129, 87, 40, 105, 234, 7, 193, 85, 122, 0, 0),), "Chest of Burrows"),
+    "MAZ_S_CHEST": (((2, 129, 115, 60, 0, 0),), "Maz's Chest"),
     "CELL_LOCK": (((1, 129, 84, 25, 121, 157, 164, 216, 47, 4, 0, 0),), "Cell Lock"),
     "MONUMENT_TO_THE_DEFEAT_OF_PALAWA_JOKO": (((1, 129, 215, 34, 159, 146, 43, 245, 183, 58, 0, 0),), "Monument to the Defeat of Palawa Joko"),
     "WURM_SPOOR": (((1, 129, 13, 38, 234, 223, 171, 254, 11, 49, 0, 0),), "Wurm Spoor"),
+    "BOSS_LOCK": (((2, 129, 129, 25, 72, 206, 22, 143, 238, 93, 0, 0),), "Boss Lock"),
+    "DUNGEON_LOCK": (((2, 129, 128, 25, 89, 218, 32, 206, 95, 122, 0, 0),), "Dungeon Lock"),
 }
-
-ITEM_TARGETS: dict[str, ItemTargetValue] = {
-    "UNHOLY_TEXT": (2619, "Unholy Text"),
-}
-
 
 def _normalize_agent_target(value: AgentTargetValue | None) -> AgentTargetDefinition | None:
     if value is None:
@@ -288,21 +281,6 @@ def _normalize_agent_target(value: AgentTargetValue | None) -> AgentTargetDefini
         display_name=str(display_name or ""),
         encoded_names=encoded_names,
     )
-
-
-def _normalize_item_target(value: ItemTargetValue | None) -> ItemTargetDefinition | None:
-    if value is None:
-        return None
-    if isinstance(value, ItemTargetDefinition):
-        return value
-
-    model_id, display_name = value
-    return ItemTargetDefinition(
-        display_name=str(display_name or ""),
-        model_id=int(model_id),
-    )
-
-
 def get_named_agent_target(kind: str, key: Any) -> AgentTargetDefinition | None:
     key_str = str(key or "").strip()
     if not key_str:
@@ -314,10 +292,3 @@ def get_named_agent_target(kind: str, key: Any) -> AgentTargetDefinition | None:
         TargetRegistryKind.GADGET.value: GADGET_TARGETS,
     }
     return _normalize_agent_target(registries.get(kind, {}).get(key_str))
-
-
-def get_named_item_target(key: Any) -> ItemTargetDefinition | None:
-    key_str = str(key or "").strip()
-    if not key_str:
-        return None
-    return _normalize_item_target(ITEM_TARGETS.get(key_str))

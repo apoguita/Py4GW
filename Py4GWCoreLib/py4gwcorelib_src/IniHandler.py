@@ -1,5 +1,6 @@
 import os
 import configparser
+from datetime import datetime
 
 #region IniHandler
 class IniHandler:
@@ -32,14 +33,32 @@ class IniHandler:
         current_mtime = os.path.getmtime(self.filename)
         if current_mtime != self.last_modified:
             self.last_modified = current_mtime
-            self.config.read(self.filename)
+            try:
+                self.config.read(self.filename, encoding="utf-8")
+            except (configparser.Error, UnicodeDecodeError, OSError) as exc:
+                # Recover from corrupted INI content (for example null-byte files)
+                # by backing up the bad file and recreating a clean empty one.
+                try:
+                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    backup_name = f"{self.filename}.corrupt_{timestamp}"
+                    os.replace(self.filename, backup_name)
+                except OSError:
+                    # Best effort: if backup fails, continue and rewrite in place.
+                    pass
+
+                with open(self.filename, "w", encoding="utf-8") as f:
+                    f.write("")
+
+                self.config = configparser.ConfigParser()
+                self.last_modified = os.path.getmtime(self.filename)
+                print(f"[IniHandler] Recovered corrupted INI file: {self.filename} ({exc})")
         return self.config
 
     def save(self, config: configparser.ConfigParser) -> None:
         """
         Save changes to the INI file.
         """
-        with open(self.filename, 'w') as configfile:
+        with open(self.filename, 'w', encoding="utf-8") as configfile:
             config.write(configfile)
 
     # ----------------------------

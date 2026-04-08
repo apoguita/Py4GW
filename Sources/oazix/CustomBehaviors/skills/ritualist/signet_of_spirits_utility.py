@@ -47,7 +47,7 @@ class SignetOfSpiritsUtility(CustomSkillUtilityBase):
             condition=lambda agent_id: True
         )
 
-        if len(spirits) >= 3: return None
+        # if len(spirits) >= 3: return None
         return self.score_definition.get_score()
 
     @override

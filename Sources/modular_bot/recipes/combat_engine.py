@@ -156,6 +156,20 @@ def set_auto_looting(enabled: bool, preferred_engine: str | None = None, bot=Non
         _set_hero_ai_option_for_same_party("Looting", bool(enabled))
 
 
+def set_auto_following(enabled: bool, preferred_engine: str | None = None, bot=None) -> None:
+    engine = resolve_engine_for_bot(bot, preferred_engine)
+    if engine == ENGINE_CUSTOM_BEHAVIORS:
+        from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import (
+            CustomBehaviorParty,
+        )
+
+        CustomBehaviorParty().set_party_is_following_enabled(bool(enabled))
+        return
+
+    if engine == ENGINE_HERO_AI:
+        _set_hero_ai_option_for_same_party("Following", bool(enabled))
+
+
 def set_party_target(target_agent_id: int, preferred_engine: str | None = None, bot=None) -> None:
     engine = resolve_engine_for_bot(bot, preferred_engine)
     if engine == ENGINE_CUSTOM_BEHAVIORS:

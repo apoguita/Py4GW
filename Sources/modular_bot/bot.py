@@ -174,6 +174,36 @@ def _is_hero_ai_runtime_active(bot: Botting) -> bool:
         return False
 
 
+def _player_death_pause_guard(fsm):
+    """
+    When no on_death recovery target is configured, pause FSM while the player
+    is dead and resume once revived. This prevents step advancement while dead
+    without rewinding to anchor.
+    """
+    paused_by_guard = False
+    while True:
+        dead = False
+        try:
+            if Routines.Checks.Map.MapValid():
+                player_id = int(Player.GetAgentID() or 0)
+                dead = bool(player_id and Agent.IsDead(player_id))
+        except Exception:
+            dead = False
+
+        if dead:
+            if not paused_by_guard:
+                fsm.pause()
+                paused_by_guard = True
+                ConsoleLog("ModularBot", "[Player death] Pausing FSM until revive (death recovery disabled).")
+        else:
+            if paused_by_guard:
+                fsm.resume()
+                paused_by_guard = False
+                ConsoleLog("ModularBot", "[Player death] Revived — resuming current state.")
+
+        yield from Routines.Yield.wait(500)
+
+
 class ModularBot:
     """
     A bot composed of :class:`Phase` objects, built on top of
@@ -335,6 +365,34 @@ class ModularBot:
                         phase_name = known_phase
                         break
 
+            # Fallback: allow anchoring directly to an FSM state name
+            # (useful for recipe step names like "shrine").
+            if header is None:
+                fsm = getattr(self._bot.config, "FSM", None)
+                state_names = list(getattr(fsm, "get_state_names", lambda: [])() or [])
+                if state_names:
+                    value_l = value.lower()
+                    matches: list[tuple[int, int, str]] = []
+                    for idx, state_name in enumerate(state_names):
+                        state_name_l = str(state_name).lower()
+                        if value_l == state_name_l:
+                            matches.append((0, idx, state_name))  # exact
+                        elif value_l in state_name_l or state_name_l in value_l:
+                            matches.append((1, idx, state_name))  # fuzzy contains
+
+                    if matches:
+                        best_score = min(score for score, _idx, _name in matches)
+                        best_matches = [entry for entry in matches if entry[0] == best_score]
+                        current_idx = int(getattr(fsm, "get_current_state_index", lambda: -1)() or -1)
+                        if current_idx < 0:
+                            current_idx = len(state_names) - 1
+                        prior_matches = [entry for entry in best_matches if entry[1] <= current_idx]
+                        chosen = max(prior_matches, key=lambda entry: entry[1]) if prior_matches else min(
+                            best_matches, key=lambda entry: entry[1]
+                        )
+                        header = str(chosen[2])
+                        phase_name = self._header_to_phase.get(header, header)
+
         if not header:
             ConsoleLog("ModularBot", f"Set anchor failed: {value!r} not found.")
             return False
@@ -415,9 +473,31 @@ class ModularBot:
             bot.Events.OnPartyWipeCallback(
                 lambda: self._handle_recovery(bot, self._on_party_wipe, "Party wipe")
             )
+            def _on_party_defeated_recovery() -> None:
+                # When on_death recovery is disabled, local death should use the
+                # death-pause guard instead of rewinding to party-wipe anchor.
+                if self._on_death is None:
+                    try:
+                        player_id = int(Player.GetAgentID() or 0)
+                        if player_id and Agent.IsDead(player_id):
+                            ConsoleLog(
+                                "ModularBot",
+                                "[Party defeated] Ignored while player is dead (on_death disabled).",
+                            )
+                            return
+                    except Exception:
+                        pass
+                self._handle_recovery(bot, self._on_party_wipe, "Party defeated")
+
+            bot.Events.OnPartyDefeatedCallback(_on_party_defeated_recovery)
         if self._on_death is not None:
             bot.Events.OnDeathCallback(
                 lambda: self._handle_recovery(bot, self._on_death, "Player death")
+            )
+        else:
+            bot.States.AddManagedCoroutine(
+                "ModularBot_PlayerDeathPauseGuard",
+                lambda fsm=bot.config.FSM: _player_death_pause_guard(fsm),
             )
 
         # â”€â”€ 4. Register phases â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -526,14 +606,24 @@ class ModularBot:
             should_wire = self._use_cb or _is_hero_ai_runtime_active(bot)
 
         if self._party_member_hooks_enabled and should_wire:
+            def _guarded_party_hook(fn: Callable[[], None]) -> Callable[[], None]:
+                def _wrapped() -> None:
+                    # During recovery we intentionally pause/rewind FSM; suppress
+                    # party-cohesion routines so they don't issue competing moves.
+                    if self._recovery_active:
+                        return
+                    fn()
+
+                return _wrapped
+
             bot.Events.OnPartyMemberBehindCallback(
-                lambda: bot.Templates.Routines.OnPartyMemberBehind()
+                _guarded_party_hook(lambda: bot.Templates.Routines.OnPartyMemberBehind())
             )
             bot.Events.OnPartyMemberInDangerCallback(
-                lambda: bot.Templates.Routines.OnPartyMemberInDanger()
+                _guarded_party_hook(lambda: bot.Templates.Routines.OnPartyMemberInDanger())
             )
             bot.Events.OnPartyMemberDeadBehindCallback(
-                lambda: bot.Templates.Routines.OnPartyMemberDeathBehind()
+                _guarded_party_hook(lambda: bot.Templates.Routines.OnPartyMemberDeathBehind())
             )
             return
 
@@ -618,15 +708,6 @@ class ModularBot:
             try:
                 ConsoleLog("ModularBot", f"[{reason}] Recovery started â€” target: {target_label}")
                 recovery_start = time.monotonic()
-                start_map_id = 0
-                start_explorable = False
-                try:
-                    from Py4GWCoreLib import Map
-
-                    start_map_id = int(Map.GetMapID() or 0)
-                    start_explorable = bool(Map.IsExplorable())
-                except Exception:
-                    pass
 
                 # Wait for player to be alive (or map to change to outpost)
                 while True:
@@ -649,28 +730,6 @@ class ModularBot:
                         break
 
                     yield from Routines.Yield.wait(1000)
-
-                # If we revived on the same explorable map, continue current quest flow in-place.
-                try:
-                    from Py4GWCoreLib import Map
-
-                    now_map_id = int(Map.GetMapID() or 0)
-                    now_explorable = bool(Map.IsExplorable())
-                    player_id = int(Player.GetAgentID() or 0)
-                    alive = (not Agent.IsDead(player_id)) if player_id else True
-                    same_explorable_map = bool(
-                        alive
-                        and start_explorable
-                        and now_explorable
-                        and start_map_id > 0
-                        and now_map_id == start_map_id
-                    )
-                    if same_explorable_map:
-                        ConsoleLog("ModularBot", f"[{reason}] Recovered on same map ({now_map_id}) â€” resuming current state.")
-                        fsm.resume()
-                        return
-                except Exception:
-                    pass
 
                 ConsoleLog("ModularBot", f"[{reason}] Recovered â€” jumping to {target_label}")
                 yield from Routines.Yield.wait(1000)

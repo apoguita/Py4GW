@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "And a Hero Shall Lead Them",
   "required_hero": ["Koss"],
   "steps": [
@@ -7,9 +7,9 @@
     {"type": "dialogs", "id": ["0x822603", "0x822601"], "npc": "LONAI", "name": "Dialog - Lonai"},
     {"type": "auto_path", "name": "To Load Party", "points": [[-937, 2921]]},
     {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true, "required_hero": ["Koss"]},
-    {"type": "exit_map", "name": "Leave Sunspear Sanctuary", "x": -480, "y": 3916, "target_map_id": 436},
+    {"type": "exit_map", "name": "Leave Sunspear Sanctuary", "point": [-480, 3916], "target_map_id": 436},
     {"type": "auto_path", "name": "To Exit", "points": [[-2716, 8121]]},
-    {"type": "exit_map", "name": "Leave Command Post", "x": -3393, "y": 9260, "target_map_id": 373},
+    {"type": "exit_map", "name": "Leave Command Post", "point": [-3393, 9260], "target_map_id": 373},
     {"type": "auto_path", "name": "To Commander Suha", "points": [[21494, 13243]]},
     {"type": "dialogs", "id": ["0x84", "0x85"], "npc": "COMMANDER_SUHA", "name": "Dialog - Commander Suha"},
     {"type": "skip_cutscene"},
@@ -22,3 +22,4 @@
     {"type": "dialog", "id": "0x822607", "npc": "ROJIS", "name": "Dialog - Rojis"}
   ]
 }
+

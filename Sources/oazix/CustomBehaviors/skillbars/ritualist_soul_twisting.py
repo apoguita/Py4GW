@@ -18,6 +18,7 @@ from Sources.oazix.CustomBehaviors.skills.common.i_am_unstoppable_utility import
 from Sources.oazix.CustomBehaviors.skills.generic.generic_resurrection_utility import GenericResurrectionUtility
 from Sources.oazix.CustomBehaviors.skills.generic.keep_self_effect_up_utility import KeepSelfEffectUpUtility
 from Sources.oazix.CustomBehaviors.skills.generic.protective_spirit_utility import ProtectiveSpiritUtility
+from Sources.oazix.CustomBehaviors.skills.generic.raw_spirit_utility import RawSpiritUtility
 from Sources.oazix.CustomBehaviors.skills.monk.strength_of_honor_utility import StrengthOfHonorUtility
 from Sources.oazix.CustomBehaviors.skills.paragon.fall_back_utility import FallBackUtility
 from Sources.oazix.CustomBehaviors.skills.ritualist.armor_of_unfeeling_utility import ArmorOfUnfeelingUtility
@@ -41,6 +42,7 @@ class RitualistSoulTwisting_UtilitySkillBar(CustomBehaviorBaseUtility):
 
         # optional
         self.breath_of_the_great_dwarf_utility: CustomSkillUtilityBase = BreathOfTheGreatDwarfUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScorePerHealthGravityDefinition(0))
+        self.earthbind_utility: CustomSkillUtilityBase = RawSpiritUtility(event_bus=self.event_bus, skill=CustomSkill("Earthbind"), current_build=in_game_build, owned_spirit_model_id=SpiritModelID.EARTHBIND, score_definition=ScoreStaticDefinition(55))
 
         # common
         self.ebon_vanguard_assassin_support: CustomSkillUtilityBase = EbonVanguardAssassinSupportUtility(event_bus=self.event_bus, score_definition=ScoreStaticDefinition(71), current_build=in_game_build, mana_required_to_cast=15)
@@ -61,6 +63,7 @@ class RitualistSoulTwisting_UtilitySkillBar(CustomBehaviorBaseUtility):
             self.summon_spirit_luxon,
             self.armor_of_unfeeling_utility,
             self.breath_of_the_great_dwarf_utility,
+            self.earthbind_utility,
             self.ebon_vanguard_assassin_support,
             self.ebon_battle_standard_of_wisdom,
             self.i_am_unstopabble,

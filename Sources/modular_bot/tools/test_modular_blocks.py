@@ -2,7 +2,7 @@
 Unified modular block tester with folder-aware selection.
 
 UI flow:
-1) Pick kind (Mission / Quest / Route / Farm)
+1) Pick kind (Mission / Quest / Route / Farm / Dungeon / Vanquish / Bounty)
 2) Pick folder (e.g. prophecies / factions / nightfall / root)
 3) Pick block file (without .json)
 4) Press Start in ModularBot to run selected block
@@ -30,8 +30,11 @@ _KIND_LABEL_TO_KEY: dict[str, str] = {
     "Quest": "quests",
     "Route": "routes",
     "Farm": "farms",
+    "Dungeon": "dungeons",
+    "Vanquish": "vanquishes",
+    "Bounty": "bounties",
 }
-_KIND_ORDER = ["Mission", "Quest", "Route", "Farm"]
+_KIND_ORDER = ["Mission", "Quest", "Route", "Farm", "Dungeon", "Vanquish", "Bounty"]
 
 _selected_kind_label = "Mission"
 _selected_folder = ""
@@ -39,6 +42,8 @@ _selected_block = ""
 _status = ""
 _selection_dirty = False
 _loop_selected_block = False
+_auto_resize_panel = True
+_SAFE_MAIN_DIMS: tuple[int, int] = (860, 560)
 
 # Cache: kind_key -> ["folder/name", ...] or ["name", ...]
 _blocks_by_kind: dict[str, list[str]] = {}
@@ -94,7 +99,7 @@ def _refresh_cache() -> None:
             label = entry.split("/")[-1]
             path = os.path.join(base_dir, f"{entry}.json")
             try:
-                with open(path, "r", encoding="utf-8") as f:
+                with open(path, "r", encoding="utf-8-sig") as f:
                     data = json.load(f)
                 json_name = str(data.get("name", "") or "").strip()
                 if json_name:
@@ -145,10 +150,23 @@ def _block_display_name(kind_key: str, block_key: str) -> str:
 
 
 def _run_selected_block(bot) -> None:
+    from Py4GWCoreLib import ConsoleLog
+
+    global _status
+    _ensure_valid_selection()
     key = _selected_block_key()
     if not key:
+        _status = "No block selected. Pick kind/folder/block, then press Start."
+        ConsoleLog("Modular Block Tester", "Run requested with empty selection; nothing to register.")
         return
-    modular_block_run(bot, key, kind=_get_kind_key(), recipe_name="ModularBlockTest")
+    ConsoleLog("Modular Block Tester", f"Registering selection: kind={_get_kind_key()}, block={key}")
+    try:
+        modular_block_run(bot, key, kind=_get_kind_key(), recipe_name="ModularBlockTest")
+        state_count = int(getattr(bot.config.FSM, "get_state_count", lambda: 0)() or 0)
+        ConsoleLog("Modular Block Tester", f"FSM states after registration: {state_count}")
+    except Exception as exc:
+        _status = f"Failed to register block '{key}': {exc}"
+        ConsoleLog("Modular Block Tester", _status)
 
 
 def _mark_selection_dirty(reason: str) -> None:
@@ -157,41 +175,77 @@ def _mark_selection_dirty(reason: str) -> None:
     _status = reason
 
 
-def _prepare_bot_for_new_selection() -> None:
-    """
-    Force next Start to rebuild FSM from current selected block,
-    instead of reusing previously registered states.
-    """
-    cfg = bot.bot.config
-    fsm = cfg.FSM
-
-    # Stop execution and clear coroutine attachments.
-    bot.bot.Stop()
-    fsm.RemoveAllManagedCoroutines()
-    fsm.stop()
-
-    # Clear registered states so routine rebuild starts from empty graph.
-    fsm.states.clear()
-    fsm.state_counter = 0
-    fsm.current_state = None
-    fsm.finished = False
-    fsm.paused = False
-
-    # Ensure Botting.Update() calls Routine() again on next frame/start.
-    cfg.initialized = False
-    cfg.fsm_running = False
-    cfg.state_description = "Idle"
-
-
-def _draw_main() -> None:
-    global _selected_kind_label, _selected_folder, _selected_block, _status, _loop_selected_block
+def _ensure_valid_selection() -> None:
+    global _selected_folder, _selected_block
 
     if not _blocks_by_kind:
         _refresh_cache()
 
+    kind_key = _get_kind_key()
+    folders = _folders_for_kind(kind_key)
+    if _selected_folder not in folders:
+        _selected_folder = folders[0] if folders else ""
+    blocks = _blocks_for_folder(kind_key, _selected_folder)
+    if _selected_block not in blocks:
+        _selected_block = blocks[0] if blocks else ""
+
+
+def _apply_pending_selection_rebuild_if_safe() -> None:
+    global _selection_dirty, _status
+    if not _selection_dirty:
+        return
+
+    try:
+        cfg = bot.bot.config
+        if bool(getattr(cfg, "fsm_running", False)):
+            return
+        fsm = cfg.FSM
+
+        # Hard-reset FSM graph while stopped so we do not keep stale states
+        # from previous selections.
+        try:
+            fsm.RemoveAllManagedCoroutines()
+        except Exception:
+            pass
+        try:
+            fsm.stop()
+        except Exception:
+            pass
+
+        fsm.states.clear()
+        fsm.state_counter = 0
+        fsm.current_state = None
+        fsm.finished = False
+        fsm.paused = False
+
+        # Clear ModularBot phase/header caches; routine build will repopulate.
+        try:
+            bot._phase_headers.clear()
+            bot._header_to_phase.clear()
+            bot._runtime_anchor_header = None
+        except Exception:
+            pass
+
+        cfg.initialized = False
+        cfg.fsm_running = False
+        cfg.state_description = "Idle"
+        _selection_dirty = False
+        _status = "Selection applied. Press Start to run the selected block."
+    except Exception as exc:
+        _status = f"Selection refresh failed: {exc}"
+
+
+def _draw_main() -> None:
+    global _selected_kind_label, _selected_folder, _selected_block, _status, _loop_selected_block, _auto_resize_panel
+
+    if not _blocks_by_kind:
+        _refresh_cache()
+    _ensure_valid_selection()
+
     if PyImGui.button("Refresh Blocks"):
         _refresh_cache()
-        _status = "Refreshed block list."
+        _ensure_valid_selection()
+        _mark_selection_dirty("Refreshed block list. Press Start to apply.")
     PyImGui.same_line(0, 8)
     draw_configure_teams_section(ui_id="modular_block_tester", button_label="Configure Teams")
     loop_now = PyImGui.checkbox("Loop Selected Block", _loop_selected_block)
@@ -199,6 +253,12 @@ def _draw_main() -> None:
         _loop_selected_block = bool(loop_now)
         bot._loop = bool(_loop_selected_block)
         _mark_selection_dirty(f"Loop mode set to: {'ON' if _loop_selected_block else 'OFF'}. Press Start to apply.")
+    PyImGui.same_line(0, 12)
+    auto_resize_now = PyImGui.checkbox("Auto Resize Panel", _auto_resize_panel)
+    if bool(auto_resize_now) != bool(_auto_resize_panel):
+        _auto_resize_panel = bool(auto_resize_now)
+        mode = "enabled" if _auto_resize_panel else "disabled"
+        _status = f"Auto Resize Panel {mode}."
 
     PyImGui.separator()
     PyImGui.text("Kind")
@@ -218,9 +278,6 @@ def _draw_main() -> None:
 
     kind_key = _get_kind_key()
     folders = _folders_for_kind(kind_key)
-    if _selected_folder not in folders:
-        _selected_folder = folders[0] if folders else ""
-        _selected_block = ""
 
     PyImGui.separator()
     PyImGui.text("Folder")
@@ -244,8 +301,6 @@ def _draw_main() -> None:
                 PyImGui.same_line(0, 6)
 
     blocks = _blocks_for_folder(kind_key, _selected_folder)
-    if _selected_block not in blocks:
-        _selected_block = blocks[0] if blocks else ""
 
     PyImGui.separator()
     PyImGui.text("Blocks")
@@ -286,26 +341,87 @@ def _draw_main() -> None:
 
 
 def _main_dimensions() -> tuple[int, int]:
+    if not _blocks_by_kind:
+        _refresh_cache()
+
     kind_key = _get_kind_key()
-    rows = (len(_blocks_for_folder(kind_key, _selected_folder)) + 1) // 2
-    height = max(360, 250 + (rows * 26))
-    return (760, min(int(height * 1.15), 980))
+    folders = _folders_for_kind(kind_key)
+    active_folder = _selected_folder if _selected_folder in folders else (folders[0] if folders else "")
+    blocks = _blocks_for_folder(kind_key, active_folder)
+
+    # Blocks render in a 2-column table.
+    block_rows = (len(blocks) + 1) // 2
+
+    # Folder buttons are rendered inline; estimate wrapping rows from folder label width.
+    folder_label_lengths = [len("[root]" if folder == "" else folder) for folder in folders]
+    max_folder_label_len = max(folder_label_lengths, default=6)
+    if max_folder_label_len <= 10:
+        folder_cols = 6
+    elif max_folder_label_len <= 16:
+        folder_cols = 5
+    elif max_folder_label_len <= 24:
+        folder_cols = 4
+    else:
+        folder_cols = 3
+    folder_rows = max(1, (len(folders) + folder_cols - 1) // folder_cols) if folders else 1
+
+    # Base UI rows cover buttons, labels, separators, and selection/status lines.
+    base_rows = 16
+    total_rows = base_rows + folder_rows + block_rows
+    height = max(420, 170 + (total_rows * 26))
+
+    # Expand width a bit when labels are long to reduce wrapping/truncation pressure.
+    display_name_map = _block_display_names.get(kind_key, {})
+    longest_label = 0
+    for block in blocks:
+        block_key = f"{active_folder}/{block}" if active_folder else block
+        longest_label = max(longest_label, len(display_name_map.get(block_key, block)))
+    width = 760 + max(0, min(280, (longest_label - 38) * 5))
+    width = max(760, width)
+    # Hard cap fallback even when display size isn't available.
+    width = min(width, 1200)
+    height = min(height, 900)
+
+    # Keep window within the visible display while staying as large as possible.
+    try:
+        io = PyImGui.get_io()
+        display_w = int(getattr(io, "display_size_x", 0) or 0)
+        display_h = int(getattr(io, "display_size_y", 0) or 0)
+        if display_w > 0:
+            width = min(width, max(760, display_w - 120))
+        if display_h > 0:
+            height = min(height, max(420, display_h - 170))
+    except Exception:
+        pass
+
+    return (int(width), int(height))
 
 
 bot = ModularBot(
     name="Modular Block Tester",
-    phases=[Phase("Run Selected Modular Block", _run_selected_block)],
+    phases=[Phase("Run Selected Modular Block", _run_selected_block, anchor=True)],
     loop=_loop_selected_block,
     template=_START_TEMPLATE,
     use_custom_behaviors=_START_USE_CB,
+    upkeep_auto_inventory_management_active=True,
+    on_party_wipe="Run Selected Modular Block",
+    on_death=None,
     main_ui=_draw_main,
-    main_child_dimensions=_main_dimensions(),
+    main_child_dimensions=_SAFE_MAIN_DIMS,
 )
 
 
 def main():
-    global _selection_dirty
-    if _selection_dirty:
-        _prepare_bot_for_new_selection()
-        _selection_dirty = False
-    bot.update()
+    global _status
+    try:
+        _apply_pending_selection_rebuild_if_safe()
+        if _auto_resize_panel:
+            try:
+                bot._main_child_dimensions = _main_dimensions()
+            except Exception:
+                bot._main_child_dimensions = _SAFE_MAIN_DIMS
+        else:
+            bot._main_child_dimensions = _SAFE_MAIN_DIMS
+        bot.update()
+    except Exception as exc:
+        _status = f"Tester runtime error: {exc}"
