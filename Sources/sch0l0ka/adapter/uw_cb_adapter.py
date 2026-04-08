@@ -195,17 +195,12 @@ class UWCBAdapter(UWCombatAdapter):
             ),
             "[Startup] Log Enable CB Widgets",
         )
-        for widget_name in (
-            "CustomBehaviors",
-            "Custom Behavior",
-            "Custom Behaviors: Utility AI",
-        ):
-            bot_instance.States.AddCustomState(
-                lambda wn=widget_name: self._broadcast_widget_command(
-                    wn, SharedCommandType.EnableWidget, "Broadcasted enable"
-                ),
-                f"Enable {widget_name} on active accounts",
-            )
+        bot_instance.States.AddCustomState(
+            lambda: self._broadcast_widget_command(
+                "CustomBehaviors", SharedCommandType.EnableWidget, "Broadcasted enable"
+            ),
+            "Enable CustomBehaviors on active accounts",
+        )
         bot_instance.States.AddCustomState(
             lambda: self._broadcast_widget_command(
                 "Dhuum Helper", SharedCommandType.EnableWidget, "Broadcasted enable"

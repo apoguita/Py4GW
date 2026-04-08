@@ -1,4 +1,4 @@
-from typing import Any, Generator, override
+﻿from typing import Any, Generator, override
 
 from Py4GWCoreLib import Agent, Range
 from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorState
@@ -9,8 +9,8 @@ from Sources.oazix.CustomBehaviors.primitives.scores.score_static_definition imp
 from Sources.oazix.CustomBehaviors.primitives.skills.bonds.custom_buff_multiple_target import CustomBuffMultipleTarget
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
-from Sources.oazix.CustomBehaviors.skills.uw.dhuum_helpers import is_uw_chest_present, resolve_first_known_skill
-from Sources.oazix.CustomBehaviors.skills.uw.reaper_mode_tracker import ReaperModeTracker
+from Sources.oazix.CustomBehaviors.specifics.underworld.dhuum_helpers import is_uw_chest_present, resolve_first_known_skill
+from Sources.oazix.CustomBehaviors.specifics.underworld.reaper_mode_tracker import ReaperModeTracker
 
 
 class GhostlyFuryUtility(CustomSkillUtilityBase):
@@ -40,7 +40,7 @@ class GhostlyFuryUtility(CustomSkillUtilityBase):
         return custom_behavior_helpers.Targets.get_nearest_or_default_from_enemy_ordered_by_priority(
             within_range=Range.Spellcast.value,
             should_prioritize_party_target=True,
-            condition=lambda agent_id: Agent.IsAlive(agent_id),
+            condition=lambda agent_id: Agent.IsAgentValid(agent_id) and Agent.IsAlive(agent_id),
         )
 
     @override

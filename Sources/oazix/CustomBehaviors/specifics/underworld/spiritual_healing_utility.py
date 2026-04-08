@@ -1,4 +1,4 @@
-from typing import Any, Generator, override
+﻿from typing import Any, Generator, override
 
 from Py4GWCoreLib import Agent, Range
 from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorState
@@ -10,7 +10,7 @@ from Sources.oazix.CustomBehaviors.primitives.scores.score_static_definition imp
 from Sources.oazix.CustomBehaviors.primitives.skills.bonds.custom_buff_multiple_target import CustomBuffMultipleTarget
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
-from Sources.oazix.CustomBehaviors.skills.uw.dhuum_helpers import is_uw_chest_present, resolve_first_known_skill
+from Sources.oazix.CustomBehaviors.specifics.underworld.dhuum_helpers import is_uw_chest_present, resolve_first_known_skill
 
 
 class SpiritualHealingUtility(CustomSkillUtilityBase):
@@ -39,7 +39,7 @@ class SpiritualHealingUtility(CustomSkillUtilityBase):
     def _get_targets(self) -> list[custom_behavior_helpers.SortableAgentData]:
         return custom_behavior_helpers.Targets.get_all_possible_allies_ordered_by_priority_raw(
             within_range=Range.Spellcast.value * 1.2,
-            condition=lambda agent_id: Agent.GetHealth(agent_id) < 0.70,
+            condition=lambda agent_id: Agent.IsAgentValid(agent_id) and Agent.GetHealth(agent_id) < 0.70,
             sort_key=(TargetingOrder.HP_ASC, TargetingOrder.DISTANCE_ASC),
         )
 

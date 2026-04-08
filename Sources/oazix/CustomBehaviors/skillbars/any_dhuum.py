@@ -1,10 +1,10 @@
-"""AnyDhuum_UtilitySkillBar — Dhuum phase skill behavior for the Underworld bot.
+﻿"""AnyDhuum_UtilitySkillBar — Dhuum phase skill behavior for the Underworld bot.
 
 This module is the *skillbar orchestrator only*. It wires up individual
 per-skill utility classes and declares detection / requirement rules for
 the framework. All cast logic and domain helpers live in:
 
-  Sources/oazix/CustomBehaviors/skills/uw/
+  Sources/oazix/CustomBehaviors/specifics/underworld/
     dhuum_helpers.py           — chest detection, Spirit Form queries, morale lookup
     reaper_mode_tracker.py     — reaper event scanning, Dhuum's Rest / Ghostly Fury mode
     spiritual_healing_utility.py
@@ -31,11 +31,11 @@ from Sources.oazix.CustomBehaviors.primitives.skillbars.custom_behavior_base_uti
 from Sources.oazix.CustomBehaviors.primitives.skills.bonds.custom_buff_multiple_target import CustomBuffMultipleTarget
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
-from Sources.oazix.CustomBehaviors.skills.uw.dhuum_helpers import resolve_skill_id
-from Sources.oazix.CustomBehaviors.skills.uw.dhuums_rest_utility import DhuumsRestUtility
-from Sources.oazix.CustomBehaviors.skills.uw.ghostly_fury_utility import GhostlyFuryUtility
-from Sources.oazix.CustomBehaviors.skills.uw.reversal_of_death_utility import ReversalOfDeathUtility
-from Sources.oazix.CustomBehaviors.skills.uw.spiritual_healing_utility import SpiritualHealingUtility
+from Sources.oazix.CustomBehaviors.specifics.underworld.dhuum_helpers import resolve_skill_id
+from Sources.oazix.CustomBehaviors.specifics.underworld.dhuums_rest_utility import DhuumsRestUtility
+from Sources.oazix.CustomBehaviors.specifics.underworld.ghostly_fury_utility import GhostlyFuryUtility
+from Sources.oazix.CustomBehaviors.specifics.underworld.reversal_of_death_utility import ReversalOfDeathUtility
+from Sources.oazix.CustomBehaviors.specifics.underworld.spiritual_healing_utility import SpiritualHealingUtility
 
 #OQBDAqwDSPwQwRwSwTwAAAAAAA
 
@@ -156,7 +156,6 @@ class AnyDhuum_UtilitySkillBar(CustomBehaviorBaseUtility):
 
         detection_candidates: list[tuple[str, ...]] = [
             self._DHUUM_MARKER_CANDIDATES,
-            ("Unyielding_Aura", "Unyielding Aura"),
             *self._PREPARED_SKILL_CANDIDATES.values(),
         ]
 

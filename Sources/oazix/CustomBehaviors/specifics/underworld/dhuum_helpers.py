@@ -34,6 +34,8 @@ def is_uw_chest_present() -> bool:
     this to suppress casts once the encounter is finished.
     """
     for agent_id in AgentArray.GetAgentArray():
+        if not Agent.IsAgentValid(agent_id):
+            continue
         if not Agent.IsGadget(agent_id):
             continue
         name = (Agent.GetNameByID(agent_id) or "").strip().lower()

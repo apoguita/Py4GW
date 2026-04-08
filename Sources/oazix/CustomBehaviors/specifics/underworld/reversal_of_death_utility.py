@@ -1,6 +1,6 @@
-from typing import Any, Generator, override
+﻿from typing import Any, Generator, override
 
-from Py4GWCoreLib import Player, Range
+from Py4GWCoreLib import Agent, Player, Range
 from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Sources.oazix.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Sources.oazix.CustomBehaviors.primitives.helpers import custom_behavior_helpers
@@ -10,7 +10,7 @@ from Sources.oazix.CustomBehaviors.primitives.scores.score_static_definition imp
 from Sources.oazix.CustomBehaviors.primitives.skills.bonds.custom_buff_multiple_target import CustomBuffMultipleTarget
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
-from Sources.oazix.CustomBehaviors.skills.uw.dhuum_helpers import (
+from Sources.oazix.CustomBehaviors.specifics.underworld.dhuum_helpers import (
     count_spirit_form_accounts,
     get_morale_by_agent_id,
     get_spirit_form_agent_ids,
@@ -66,6 +66,8 @@ class ReversalOfDeathUtility(CustomSkillUtilityBase):
         my_id = int(Player.GetAgentID())
 
         def _condition(agent_id: int) -> bool:
+            if not Agent.IsAgentValid(agent_id):
+                return False
             if int(agent_id) == my_id:
                 return False
             if restrict_to_spirit_form and int(agent_id) not in spirit_form_ids:
