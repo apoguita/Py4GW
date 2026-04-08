@@ -52,15 +52,10 @@ class ReaperModeTracker:
 
     # Locale-tolerant name candidates for the two tracked reaper skills.
     _DHUUMS_REST_CANDIDATES = (
-        "Dhuum_s_Rest",
-        "Dhuum's Rest",
-        "Dhuums_Rest",
-        "Dhuums_Rest_reaper_skill",
+        "Dhuums_Rest_Reaper_skill",
     )
     _GHOSTLY_FURY_CANDIDATES = (
-        "Ghostly_Fury",
-        "Ghostly Fury",
-        "Ghostly Fury_reaper_skill",
+        "Ghostly_Fury_Reaper_skill",
     )
 
     # ── Shared (class-level) runtime state ────────────────────────────────────
@@ -92,22 +87,20 @@ class ReaperModeTracker:
             cls._event_refresh_timer = ThrottledTimer(250)
             cls._event_refresh_timer.Reset()
         if not cls.dhuums_rest_skill_ids:
-            for name in cls._DHUUMS_REST_CANDIDATES:
-                try:
-                    sid = int(Skill.GetID(name))
-                except Exception:
-                    sid = 0
-                if sid > 0:
-                    cls.dhuums_rest_skill_ids.add(sid)
+            try:
+                sid = int(Skill.GetID("Dhuums_Rest_Reaper_skill"))
+            except Exception:
+                sid = 0
+            if sid > 0:
+                cls.dhuums_rest_skill_ids.add(sid)
             cls.dhuums_rest_skill_ids.add(3079)   # known fallback numeric ID
         if not cls.ghostly_fury_skill_ids:
-            for name in cls._GHOSTLY_FURY_CANDIDATES:
-                try:
-                    sid = int(Skill.GetID(name))
-                except Exception:
-                    sid = 0
-                if sid > 0:
-                    cls.ghostly_fury_skill_ids.add(sid)
+            try:
+                sid = int(Skill.GetID("Ghostly_Fury_Reaper_skill"))
+            except Exception:
+                sid = 0
+            if sid > 0:
+                cls.ghostly_fury_skill_ids.add(sid)
             cls.ghostly_fury_skill_ids.add(3091)   # known fallback numeric ID
 
     # ── External registration (called by skill utilities at construction) ─────

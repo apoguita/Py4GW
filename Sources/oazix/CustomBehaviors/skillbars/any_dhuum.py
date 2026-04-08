@@ -28,7 +28,6 @@ from Sources.oazix.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Sources.oazix.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Sources.oazix.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
 from Sources.oazix.CustomBehaviors.primitives.skillbars.custom_behavior_base_utility import CustomBehaviorBaseUtility
-from Sources.oazix.CustomBehaviors.primitives.skills.bonds.custom_buff_multiple_target import CustomBuffMultipleTarget
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
 from Sources.oazix.CustomBehaviors.specifics.underworld.dhuum_helpers import resolve_skill_id
@@ -70,30 +69,6 @@ class PendingConditionUtility(CustomSkillUtilityBase):
             yield None
         return BehaviorResult.ACTION_SKIPPED
 
-    @override
-    def customized_debug_ui(self, current_state: BehaviorState) -> None:
-        pass
-
-    @override
-    def get_buff_configuration(self) -> CustomBuffMultipleTarget | None:
-        return None
-
-    @override
-    def has_persistence(self) -> bool:
-        return False
-
-    @override
-    def delete_persisted_configuration(self):
-        pass
-
-    @override
-    def persist_configuration_as_global(self):
-        pass
-
-    @override
-    def persist_configuration_for_account(self):
-        pass
-
 
 # ─── Main skillbar behavior ──────────────────────────────────────────────────
 
@@ -111,14 +86,13 @@ class AnyDhuum_UtilitySkillBar(CustomBehaviorBaseUtility):
 
     _DHUUM_MARKER_CANDIDATES = (
         "Curse_of_Dhuum",
-        "Curse of Dhuum",
     )
 
     _PREPARED_SKILL_CANDIDATES: dict[str, tuple[str, ...]] = {
-        "DhuumsRest": ("Dhuum's Rest", "Dhuum_s_Rest", "Dhuums_Rest"),
-        "SpiritualHealing": ("Spiritual Healing", "Spiritual_Healing"),
-        "ReversalOfDeath": ("Reversal of Death", "Reversal_of_Death"),
-        "GhostlyFury": ("Ghostly Fury", "Ghostly_Fury"),
+        "DhuumsRest": ("Dhuum's_Rest",),
+        "SpiritualHealing": ("Spiritual_Healing",),
+        "ReversalOfDeath": ("Reversal_of_Death",),
+        "GhostlyFury": ("Ghostly_Fury",),
     }
 
     def __init__(self):

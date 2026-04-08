@@ -590,7 +590,7 @@ def EnqueueDialogUntilQuestActive(
     model_id: int = 0,
     step_name: str = "take quest",
     max_retries: int = 4,
-    retry_pause_ms: int = 3000,
+    retry_pause_ms: int = 10000,
 ) -> None:
     """Send a dialog and retry until the active quest matches *quest_id*.
 
@@ -621,6 +621,8 @@ def EnqueueDialogUntilQuestActive(
             _append_debug_watchdog_log(
                 f"Quest {target_quest_id} not active, retrying dialog ({attempt}/{max_retries})."
             )
+            while Agent.IsInCombatStance(Player.GetAgentID()):
+                yield from Routines.Yield.wait(5000)
             yield from bot_instance.Dialogs._coro_with_model(model_id, dialog_id)
 
             if int(Quest.GetActiveQuest()) == target_quest_id:

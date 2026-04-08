@@ -7,10 +7,9 @@ from Sources.oazix.CustomBehaviors.primitives.helpers import custom_behavior_hel
 from Sources.oazix.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Sources.oazix.CustomBehaviors.primitives.helpers.targeting_order import TargetingOrder
 from Sources.oazix.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
-from Sources.oazix.CustomBehaviors.primitives.skills.bonds.custom_buff_multiple_target import CustomBuffMultipleTarget
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
-from Sources.oazix.CustomBehaviors.specifics.underworld.dhuum_helpers import is_uw_chest_present, resolve_first_known_skill
+from Sources.oazix.CustomBehaviors.specifics.underworld.dhuum_helpers import is_uw_chest_present
 
 
 class SpiritualHealingUtility(CustomSkillUtilityBase):
@@ -23,7 +22,7 @@ class SpiritualHealingUtility(CustomSkillUtilityBase):
     def __init__(self, event_bus: EventBus, current_build: list[CustomSkill]):
         super().__init__(
             event_bus=event_bus,
-            skill=resolve_first_known_skill("Spiritual_Healing", "Spiritual Healing"),
+            skill=CustomSkill("Spiritual_Healing"),
             in_game_build=current_build,
             score_definition=ScoreStaticDefinition(90),
             mana_required_to_cast=0,
@@ -59,26 +58,4 @@ class SpiritualHealingUtility(CustomSkillUtilityBase):
             target_agent_id=targets[0].agent_id,
         ))
 
-    @override
-    def customized_debug_ui(self, current_state: BehaviorState) -> None:
-        pass
 
-    @override
-    def get_buff_configuration(self) -> CustomBuffMultipleTarget | None:
-        return None
-
-    @override
-    def has_persistence(self) -> bool:
-        return False
-
-    @override
-    def delete_persisted_configuration(self):
-        pass
-
-    @override
-    def persist_configuration_as_global(self):
-        pass
-
-    @override
-    def persist_configuration_for_account(self):
-        pass
