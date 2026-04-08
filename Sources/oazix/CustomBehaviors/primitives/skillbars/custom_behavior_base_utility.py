@@ -1,11 +1,13 @@
 from abc import abstractmethod
 from collections import deque
 import inspect
+from re import S
 from typing import Generator, Any
 import time
 
 from numpy import generic
 
+from HeroAI import custom_skill
 from Py4GWCoreLib import GLOBAL_CACHE, Routines, Map, Agent, Player
 from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer, Timer
 from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorState
@@ -206,7 +208,9 @@ class CustomBehaviorBaseUtility():
         '''
         pass
 
+    #------------------------------------------
     # disabilities
+    #------------------------------------------
 
     @abstractmethod
     def hexes_to_dispell_extra_priority(self) -> list[HexPriority]:
@@ -216,7 +220,9 @@ class CustomBehaviorBaseUtility():
     def conditions_to_dispell_extra_priority(self) -> list[ConditionPriority]:
         return []
 
+    #------------------------------------------
     #build management
+    #------------------------------------------
 
     def count_matches_between_custom_behavior_and_in_game_build(self) -> int:
             '''
@@ -275,47 +281,77 @@ class CustomBehaviorBaseUtility():
         return self.__final_skills_list
 
     def is_custom_behavior_match_in_game_build(self) -> bool:
-        if not Map.IsOutpost(): return True # THIS DEGRADE PERFORMANCE A LOT, DO NOT ENABLE UNLESS DEBUGGING // USEFULL WHEN CHANGING BUILD IN EXPLORABLE AREA
-
+        in_game_build:list[tuple[int, int]] = self.skillbar_management.get_skill_ids_in_game_build()
+        in_game_build_by_skill_id: dict[int, int] = {x[0]: x[1] for x in in_game_build}
         utility_build_full:list[CustomSkillUtilityBase] = self.get_skills_final_list()
+        utility_build_full_by_skill_ids:list[int] = [x.custom_skill.skill_id for x in utility_build_full]
         is_completed:bool = self.complete_build_with_generic_skills
-        in_game_build:dict[int, CustomSkill] = self.skillbar_management.get_in_game_build()
 
-        # check if ingame slots match our definitions
-        for skill in utility_build_full:
-            if skill.custom_skill.skill_id != 0: #meaning it's an autonomous skill
-                skill_id = GLOBAL_CACHE.SkillBar.GetSkillIDBySlot(skill.custom_skill.skill_slot)
-                if skill_id != skill.custom_skill.skill_id:
-                    if constants.DEBUG: print(f"Slot {skill.custom_skill.skill_slot} doesn't match skill {skill.custom_skill.skill_id}, the behavior must be refreshed.")
-                    return False
+        def verify_build_in_explorable_area() -> bool:
+            for skill in in_game_build:
+                skill_id = skill[0]
+                skill_slot = skill[1]
+                if skill_id in utility_build_full_by_skill_ids: continue
+                
+                skill_in_slot:CustomSkillUtilityBase = [x for x in utility_build_full if x.custom_skill.skill_slot == skill_slot][0]
+                # this is a correct tradeoff, we absolutely don't want to refresh the behavior if those skills are changing.
+                # the tradeoff is : changes on those skills only will not be detected.
+                if skill_in_slot.custom_skill.skill_name == "Arcane_Echo": continue # arcane_echo slot is allowed to be replaced
+                if skill_in_slot.custom_skill.skill_name == "Arcane_Mimicry": continue # mimicry slot is allowed to be replaced
+                # and so on
+                if constants.DEBUG: print(f"Slot {skill_slot} has changed, the behavior must be refreshed.")
+                return False
+                
+            return True
 
-        # two case
+        def verify_build_in_town() -> bool:
 
-        if is_completed:
-            # check if all ingame skills are in the behavior.
-            for skill_id in in_game_build.keys():
-                if skill_id not in [item.custom_skill.skill_id for item in utility_build_full]:
-                    if constants.DEBUG: print(f"{skill_id} from in-game build doesn't exist in the behavior, the behavior must be refreshed.")
-                    return False
-
-        if not is_completed:
-            #  1/ check if all skills in the behavior are part of the in-game build.
+            # check if ingame slots match our definitions
             for skill in utility_build_full:
-                if skill.custom_skill.skill_id == 0: continue
-                if skill.custom_skill.skill_id not in in_game_build.keys():
-                    if constants.DEBUG: print(f"{skill.custom_skill.skill_id} that is present in the behavior is not part of the in-game build, the behavior must be refreshed.")
-                    return False
-
-            #  2/ check if we added a new ingame skill that should be part of the behavior.
-            for skill_id in in_game_build.keys():
-                if skill_id not in [item.custom_skill.skill_id for item in utility_build_full]:
-                    if skill_id in [item.custom_skill.skill_id for item in self.custom_skills_in_behavior]:
-                        if constants.DEBUG: print(f"{skill_id} should be present in the behavior, the behavior must be refreshed.")
+                if skill.custom_skill.skill_id != 0: #meaning it's an autonomous skill
+                    skill_id = GLOBAL_CACHE.SkillBar.GetSkillIDBySlot(skill.custom_skill.skill_slot)
+                    if skill_id != skill.custom_skill.skill_id:
+                        if constants.DEBUG: print(f"Slot {skill.custom_skill.skill_slot} doesn't match skill {skill.custom_skill.skill_id}, the behavior must be refreshed.")
                         return False
 
-        return True
+            # two case
 
+            if is_completed:
+                # check if all ingame skills are in the behavior.
+                for skill_id in in_game_build_by_skill_id.keys():
+                    if skill_id not in utility_build_full_by_skill_ids:
+                        if constants.DEBUG: print(f"{skill_id} from in-game build doesn't exist in the behavior, the behavior must be refreshed.")
+                        return False
+                    
+            if not is_completed:
+                #  1/ check if all skills in the behavior are part of the in-game build.
+                for skill in utility_build_full:
+                    if skill.custom_skill.skill_id == 0: continue
+                    if skill.custom_skill.skill_id not in in_game_build_by_skill_id:
+                        if constants.DEBUG: print(f"{skill.custom_skill.skill_id} that is present in the behavior is not part of the in-game build, the behavior must be refreshed.")
+                        return False
+
+                #  2/ check if we added a new ingame skill that should be part of the behavior.
+                for skill_id in in_game_build_by_skill_id.keys():
+                    if skill_id not in utility_build_full_by_skill_ids:
+                        if skill_id in [item.custom_skill.skill_id for item in self.custom_skills_in_behavior]:
+                            if constants.DEBUG: print(f"{skill_id} should be present in the behavior, the behavior must be refreshed.")
+                            return False
+                        
+            return True
+
+        # it's a matter of performance & robustness, 
+        # - in explorable area skillbar can change but we dont want always want the build to be refreshed (echo/mimicry...), so we limit the checks we do
+        # - in town, we want precise refresh
+
+        if Map.IsExplorable():
+            return verify_build_in_explorable_area()
+        else:
+            return verify_build_in_town()
+    
+    #------------------------------------------
     # orchestration
+    #------------------------------------------
 
     timer = Timer()
     throttler = ThrottledTimer(50)

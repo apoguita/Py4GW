@@ -1,5 +1,6 @@
 from typing import Any, Generator, override
 
+from Py4GWCoreLib import Agent, Player
 from Py4GWCoreLib.enums_src.GameData_enums import Range
 from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Sources.oazix.CustomBehaviors.primitives.bus.event_bus import EventBus
@@ -29,6 +30,7 @@ class LightbringerSignetUtility(CustomSkillUtilityBase):
         )
 
         self.score_definition: ScoreStaticDefinition = score_definition
+        self.mana_gained : int = 24
 
     def _get_targets(self) -> list[custom_behavior_helpers.SortableAgentData]:
         targets = custom_behavior_helpers.Targets.get_all_possible_enemies_ordered_by_priority_raw(
@@ -41,6 +43,12 @@ class LightbringerSignetUtility(CustomSkillUtilityBase):
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
         # we could imagine moving to a better place such as we do in TaO, i dont think it worth it.
+
+        # only cast if we can earn 24 mana.
+        current_mana = custom_behavior_helpers.Resources.get_player_absolute_energy()
+        max_mana = Agent.GetMaxEnergy(Player.GetAgentID())
+        if current_mana + self.mana_gained > max_mana: return None
+
         targets = self._get_targets()
         if len(targets) == 0: return None
         return self.score_definition.get_score()
