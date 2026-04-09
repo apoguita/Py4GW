@@ -82,7 +82,13 @@ from .enums_src.UI_enums import (
     
 )
 
-from .enums_src.Calendar_enums import YEARS, MONTHS, EVENTS,PVE_WEEKLY_BONUSES,PVP_WEEKLY_BONUSES,NICHOLAS_CYCLE
+from .enums_src.Calendar_enums import (
+    YEARS, MONTHS, EVENTS,
+    PVE_WEEKLY_BONUSES, PVP_WEEKLY_BONUSES,
+    NICHOLAS_CYCLE,
+    ZAISHEN_REFERENCE_DATE,
+    ZAISHEN_MISSION, ZAISHEN_BOUNTY, ZAISHEN_COMBAT, ZAISHEN_VANQUISH,
+)
 
 __all__ = [
     # GameData_enums
@@ -209,6 +215,11 @@ __all__ = [
     "PVE_WEEKLY_BONUSES",
     "PVP_WEEKLY_BONUSES",
     "NICHOLAS_CYCLE",
+    "ZAISHEN_REFERENCE_DATE",
+    "ZAISHEN_MISSION",
+    "ZAISHEN_BOUNTY",
+    "ZAISHEN_COMBAT",
+    "ZAISHEN_VANQUISH",
 ]
 
 
