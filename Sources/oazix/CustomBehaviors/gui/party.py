@@ -356,17 +356,7 @@ def render():
                 if PyImGui.button(f"waiting..."):
                     pass
             ImGui.show_tooltip("Rename all GW windows to their character name.")
-
-            PyImGui.same_line(0, 5)
-
-            if CustomBehaviorParty().is_ready_for_action():
-                if PyImGui.button(f"{IconsFontAwesome5.ICON_COOKIE_BITE} Cons"):
-                    CustomBehaviorParty().schedule_action(PartyCommandConstants.use_all_consumables)
-            else:
-                if PyImGui.button(f"waiting..."):
-                    pass
-            ImGui.show_tooltip("Use all consumables on all accounts.")
-
+            
     PyImGui.separator()
 
     if True:

@@ -2,7 +2,6 @@ import random
 from typing import Generator, Any
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.Player import Player
-from Py4GWCoreLib.enums import ModelID
 from Py4GWCoreLib.enums_src.Multiboxing_enums import SharedCommandType
 from Py4GWCoreLib.routines_src.Yield import Yield
 from Sources.oazix.CustomBehaviors.primitives import constants
@@ -120,29 +119,4 @@ class PartyCommandConstants:
         GLOBAL_CACHE.Party.Players.InvitePlayer(character_name)
         GLOBAL_CACHE.ShMem.SendMessage(account_email, target_account_email, SharedCommandType.InviteToParty, (0, 0, 0, 0))
         yield from custom_behavior_helpers.Helpers.wait_for(300)
-        yield
-
-    @staticmethod
-    def use_all_consumables() -> Generator[Any, None, None]:
-        account_email = Player.GetAccountEmail()
-        accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
-        consumables = [
-            (ModelID.Essence_Of_Celerity.value, GLOBAL_CACHE.Skill.GetID("Essence_of_Celerity_item_effect")),
-            (ModelID.Grail_Of_Might.value, GLOBAL_CACHE.Skill.GetID("Grail_of_Might_item_effect")),
-            (ModelID.Armor_Of_Salvation.value, GLOBAL_CACHE.Skill.GetID("Armor_of_Salvation_item_effect")),
-            (ModelID.Birthday_Cupcake.value, GLOBAL_CACHE.Skill.GetID("Birthday_Cupcake_skill")),
-            (ModelID.Golden_Egg.value, GLOBAL_CACHE.Skill.GetID("Golden_Egg_skill")),
-            (ModelID.Candy_Corn.value, GLOBAL_CACHE.Skill.GetID("Candy_Corn_skill")),
-            (ModelID.Candy_Apple.value, GLOBAL_CACHE.Skill.GetID("Candy_Apple_skill")),
-            (ModelID.Slice_Of_Pumpkin_Pie.value, GLOBAL_CACHE.Skill.GetID("Pie_Induced_Ecstasy")),
-            (ModelID.Drake_Kabob.value, GLOBAL_CACHE.Skill.GetID("Drake_Skin")),
-            (ModelID.Bowl_Of_Skalefin_Soup.value, GLOBAL_CACHE.Skill.GetID("Skale_Vigor")),
-            (ModelID.Pahnai_Salad.value, GLOBAL_CACHE.Skill.GetID("Pahnai_Salad_item_effect")),
-            (ModelID.War_Supplies.value, GLOBAL_CACHE.Skill.GetID("Well_Supplied")),
-        ]
-        for item_id, skill_id in consumables:
-            for account in accounts:
-                if constants.DEBUG: print(f"SendMessage {account_email} to {account.AccountEmail} - PCon {item_id}")
-                GLOBAL_CACHE.ShMem.SendMessage(account_email, account.AccountEmail, SharedCommandType.PCon, (item_id, skill_id, 0, 0))
-            yield from custom_behavior_helpers.Helpers.wait_for(100)
         yield
