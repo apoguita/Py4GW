@@ -579,7 +579,9 @@ def _enqueue_imprisoned_spirits_flags(bot_instance: Botting) -> None:
 def WaitTillQuestDone(bot_instance: Botting) -> None:
     from Py4GWCoreLib.Quest import Quest
     bot_instance.Wait.UntilCondition(
-        lambda: (Quest.GetActiveQuest() > 0) and Quest.IsQuestCompleted(Quest.GetActiveQuest())
+        lambda: not Routines.Checks.Map.MapValid()
+        or Map.GetMapID() != UW_MAP_ID
+        or ((Quest.GetActiveQuest() > 0) and Quest.IsQuestCompleted(Quest.GetActiveQuest()))
     )
 
 
@@ -651,13 +653,27 @@ def _coro_hold_horsemen_position() -> Generator[Any, Any, None]:
     """Keep the player at the Four Horsemen wait position every frame.
     Calls Player.Move unconditionally on every frame so that CB movement
     commands (which also fire every frame) cannot override the hold position.
-    Exits as soon as the quest is completed.
+    Exits as soon as the quest is completed, the map is no longer valid,
+    the player leaves the UW, or the player is dead (e.g. party wipe).
+    This prevents a stale generator from issuing spurious Move commands
+    during subsequent quest steps after a wipe recovery.
     """
     from Py4GWCoreLib.Quest import Quest
     _HOLD_X, _HOLD_Y = 11510, -18234
     _MAX_DISTANCE = 500.0
     while True:
+        if not Routines.Checks.Map.MapValid():
+            return
+        if Map.GetMapID() != UW_MAP_ID:
+            return
+        player_id = Player.GetAgentID()
+        if player_id and Agent.IsValid(player_id) and Agent.IsDead(player_id):
+            return
         if (Quest.GetActiveQuest() > 0) and Quest.IsQuestCompleted(Quest.GetActiveQuest()):
+            # Clear the player's target immediately so the GW client does not
+            # try to render a despawning Horsemen agent in AvSelect, which
+            # would crash with: !(manualAgentId && !ManagerFindAgent(manualAgentId))
+            yield from Routines.Yield.Keybinds.ClearTarget()
             return
         if Utils.Distance(Player.GetXY(), (_HOLD_X, _HOLD_Y)) > _MAX_DISTANCE:
             Player.Move(_HOLD_X, _HOLD_Y)
@@ -1425,6 +1441,12 @@ def The_Four_Horsemen(bot_instance: Botting):
         coroutine_fn=_coro_hold_horsemen_position,
     )
     WaitTillQuestDone(bot_instance)
+    # Clear the player's target before re-enabling aggro scanning so that
+    # a stale target (despawning Horsemen agent) cannot crash AvSelect.cpp.
+    bot_instance.States.AddCustomState(
+        lambda: Player.ChangeTarget(Player.GetAgentID()),
+        "Clear stale target after Horsemen",
+    )
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Re-enable WaitIfInAggro after Horsemen")
     bot_instance.States.AddCustomState(
         lambda: bot_instance.Properties.ApplyNow("pause_on_danger", "active", True),
@@ -1854,13 +1876,15 @@ def Dhuum(bot_instance: Botting):
 
     bot_instance.Move.XY(-11278, 17297, "Wait For the King")
     bot_instance.Wait.UntilCondition(
-        lambda: any(
+        lambda: not Routines.Checks.Map.MapValid()
+        or Map.GetMapID() != UW_MAP_ID
+        or any(
             Agent.IsValid(agent_id)
             and int(Agent.GetModelID(agent_id)) == 2403
             and Utils.Distance(Player.GetXY(), Agent.GetXY(agent_id)) <= 1100
             for agent_id in AgentArray.GetAgentArray()
         )
-    )  # Wait until King is within interaction range
+    )  # Wait until King is within interaction range (exits on wipe/map change)
 
     bot_instance.Wait.ForTime(10000)
     bot_instance.Dialogs.WithModel(2403, 0x846901, "Talk to The King and start Dhuum fight")
@@ -1884,14 +1908,16 @@ def Dhuum(bot_instance: Botting):
     bot_instance.Wait.ForTime(4000)  # Wait till some Allies die
     #Wait till Dhuum is dead
     bot_instance.Wait.UntilCondition(
-        lambda: any(
+        lambda: not Routines.Checks.Map.MapValid()
+        or Map.GetMapID() != UW_MAP_ID
+        or any(
             Agent.IsValid(agent_id)
             and Agent.IsGadget(agent_id)
             and "underworld chest" in (Agent.GetNameByID(agent_id) or "").strip().lower()
             and Utils.Distance((-14381.0, 17283.0), Agent.GetXY(agent_id)) <= 300
             for agent_id in AgentArray.GetAgentArray()
         )
-    )  # Wait until the Underworld Chest (Gadget) appears near (-14381, 17283)
+    )  # Wait until UW Chest appears (exits on wipe/map change)
 
 
     # Deactivate the Spirit Form watchdog — Dhuum is dead.
