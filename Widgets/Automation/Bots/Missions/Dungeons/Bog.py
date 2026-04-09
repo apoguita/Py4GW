@@ -149,8 +149,8 @@ EyeOfTheNorth = 642
 BOSS_KEY_MODEL_IDS = [25416]  
 
 # Quest IDs
-LOST_SOULS_QUEST_ID = 0x324  # Lost Souls - abandon when in Vloxs Fall
-TEKKS_QUEST_ID = LOST_SOULS_QUEST_ID
+TEKKS_WAR_QUEST_ID = 0x339  # Tekks' War - abandon when in Gadd'Encampment
+TEKKS_QUEST_ID = TEKKS_WAR_QUEST_ID
 
 # Dialog IDs
 DWARVEN_BLESSING_DIALOG = 0x84
@@ -189,7 +189,7 @@ def farm_froggy_routine(bot: Botting) -> None:
     bot.States.AddCustomState(apply_widget_policy_step, "Apply widget policy")
     bot.States.AddCustomState(lambda: _gh_merchant_setup(leave_party=True), "GH Merchant Setup")
     bot.Templates.Aggressive()
-    bot.Multibox.AbandonQuest(LOST_SOULS_QUEST_ID)
+    bot.Multibox.AbandonQuest(TEKKS_WAR_QUEST_ID)
     bot.States.AddHeader("Startup - Party Setup")
     bot.Events.OnPartyMemberBehindCallback(lambda: bot.Templates.Routines.OnPartyMemberBehind())
     bot.Events.OnPartyMemberInDangerCallback(lambda: bot.Templates.Routines.OnPartyMemberInDanger())
@@ -850,8 +850,8 @@ def _handle_tekks(bot: Botting) -> Generator:
         yield
         return
 
-    # state == "none"
-    ConsoleLog(BOT_NAME, "[tekks] Accepting quest", log=True)
+    if state == "none" :
+        ConsoleLog(BOT_NAME, "[tekks] Accepting quest", log=True)
     ok = yield from _interact_with_tekks(bot, TEKKS_QUEST_TAKE_DIALOG)
     if not ok:
         ConsoleLog(BOT_NAME, "[tekks] Accept quest failed", log=True)
@@ -954,7 +954,7 @@ def find_nearest_npc_by_name(name_fragment: str, max_dist: float = 2000.0) -> in
     return 0
 
 def _interact_with_tekks(bot: Botting, dialog_id: int, tolerance: float = 220.0):
-    npc_name = "Crewmember tekks"
+    npc_name = "Tekks"
 
     # Retry a few times in case the agent list hasn't fully loaded yet (common on first map entry)
     agent_id = 0
