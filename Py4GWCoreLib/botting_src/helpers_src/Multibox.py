@@ -416,11 +416,71 @@ class _Multibox:
             ConsoleLog("Messaging", f"Ordering {account.AccountEmail} to interact with target: {target}", log=False)
             GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.TakeDialogWithTarget, (target,1,0,0))
         yield
+
+    @staticmethod
+    def _is_partywide_conset(params: tuple) -> bool:
+        from ...GlobalCache import GLOBAL_CACHE
+
+        if len(params) < 4:
+            return False
+
+        conset_effect_ids = {
+            int(GLOBAL_CACHE.Skill.GetID("Essence_of_Celerity_item_effect")),
+            int(GLOBAL_CACHE.Skill.GetID("Grail_of_Might_item_effect")),
+            int(GLOBAL_CACHE.Skill.GetID("Armor_of_Salvation_item_effect")),
+        }
+        effect_ids = {int(params[1]), int(params[3])}
+        effect_ids.discard(0)
+        return any(effect_id in conset_effect_ids for effect_id in effect_ids)
+
+    def _use_partywide_consumable_message(self, params):
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Routines import Routines
+
+        sender_email = Player.GetAccountEmail()
+        accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+        primary_model_id = int(params[0]) if len(params) > 0 else 0
+        primary_skill_id = int(params[1]) if len(params) > 1 else 0
+        secondary_model_id = int(params[2]) if len(params) > 2 else 0
+        secondary_skill_id = int(params[3]) if len(params) > 3 else 0
+        effect_ids = [skill_id for skill_id in (primary_skill_id, secondary_skill_id) if skill_id != 0]
+        sender_agent_id = Player.GetAgentID()
+
+        if effect_ids and any(GLOBAL_CACHE.Effects.HasEffect(sender_agent_id, effect_id) for effect_id in effect_ids):
+            return
+
+        # For party-wide consumables such as consets, consume on exactly one account.
+        # Prefer the local account when possible, then probe remote accounts one at a time
+        # and stop as soon as the party-wide effect shows up locally.
+        for model_id in (primary_model_id, secondary_model_id):
+            if model_id == 0:
+                continue
+            item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(model_id)
+            if item_id:
+                ConsoleLog("Messaging", f"Using party-wide consumable locally from model {model_id}", log=False)
+                GLOBAL_CACHE.Inventory.UseItem(item_id)
+                yield from Routines.Yield.wait(1000)
+                return
+
+        for account in accounts:
+            if account.AccountEmail == sender_email:
+                continue
+
+            ConsoleLog("Messaging", f"Sending party-wide consumable message to {account.AccountEmail}", log=False)
+            GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.PCon, params)
+            yield from Routines.Yield.wait(1200)
+
+            if effect_ids and any(GLOBAL_CACHE.Effects.HasEffect(sender_agent_id, effect_id) for effect_id in effect_ids):
+                return
         
     def _use_consumable_message(self, params):
         from ...GlobalCache import GLOBAL_CACHE
         from ...Routines import Routines
         account_email = sender_email = Player.GetAccountEmail()
+
+        if self._is_partywide_conset(params):
+            yield from self._use_partywide_consumable_message(params)
+            return
 
         accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
         sender_email = account_email
