@@ -20,12 +20,13 @@ class FlagBackwardGridPlacement:
 
         Formation pattern (relative to leader facing direction):
             Perfect 3x4 grid behind leader:
-            1  2  3   (closest row)
+            1  2* 3   (closest row) - *Leader is at FLAG 2 (behind-center)
             4  5  6
             7  8  9
             10 11 12  (furthest row)
 
-        Clears all flags and assigns all party members, then updates positions.
+        Clears all flags and assigns all party members (including leader at FLAG 2),
+        then updates positions.
         """
         flag_manager = PartyFlaggingManager()
 
@@ -49,7 +50,7 @@ class FlagBackwardGridPlacement:
     @staticmethod
     def _assign_all_party_members(flag_manager: PartyFlaggingManager) -> int:
         """
-        Assign all party members (excluding leader) to flags.
+        Assign all party members to flags, with leader at FLAG 2 (index 1).
 
         Args:
             flag_manager: The flag manager instance
@@ -62,11 +63,14 @@ class FlagBackwardGridPlacement:
         if my_account is None:
             return 0
 
+        # Assign leader to FLAG 2 (index 1) - behind-center position
+        flag_manager.set_flag_account_email(1, my_email)
+
         all_accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
-        assigned = 0
+        flag_index = 0  # Start from FLAG 1 (index 0)
         for account in all_accounts:
             if account.AccountEmail == my_email:
-                continue  # skip leader
+                continue  # skip leader (already assigned to FLAG 2)
             is_in_map = (
                 my_account.AgentData.Map.MapID == account.AgentData.Map.MapID and
                 my_account.AgentData.Map.Region == account.AgentData.Map.Region and
@@ -74,13 +78,19 @@ class FlagBackwardGridPlacement:
             )
             if not is_in_map:
                 continue
-            if assigned < 12:
-                flag_manager.set_flag_account_email(assigned, account.AccountEmail)
-                assigned += 1
+
+            # Skip index 1 (FLAG 2) which has the leader
+            if flag_index == 1:
+                flag_index += 1
+
+            if flag_index < 12:
+                flag_manager.set_flag_account_email(flag_index, account.AccountEmail)
+                flag_index += 1
             else:
                 break
 
-        return assigned
+        # Return total number assigned (including leader)
+        return flag_index if flag_index > 1 else 1
 
     @staticmethod
     def _update_backward_grid_positions(

@@ -16,7 +16,7 @@ class IAmUnstoppableUtility(CustomSkillUtilityBase):
     def __init__(self,
         event_bus: EventBus,
         current_build: list[CustomSkill],
-        score_definition: ScoreStaticDefinition = ScoreStaticDefinition(90),
+        score_definition: ScoreStaticDefinition = ScoreStaticDefinition(98),
         mana_required_to_cast: int = 0,
         allowed_states: list[BehaviorState] = [BehaviorState.IN_AGGRO]
         ) -> None:

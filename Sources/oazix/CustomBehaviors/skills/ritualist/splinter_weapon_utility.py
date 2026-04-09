@@ -12,6 +12,7 @@ from Sources.oazix.CustomBehaviors.primitives.skills.bonds.custom_buff_target_pe
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
 from Sources.oazix.CustomBehaviors.skills.plugins.targeting_modifiers.buff_configurator import BuffConfigurator
+from Sources.oazix.CustomBehaviors.skills.plugins.targeting_modifiers.should_target_pets_with_weapon_spell import ShouldTargetPetsWithWeaponSpell
 
 class SplinterWeaponUtility(CustomSkillUtilityBase):
 
@@ -34,6 +35,7 @@ class SplinterWeaponUtility(CustomSkillUtilityBase):
         self.score_definition: ScoreStaticDefinition = score_definition
 
         self.add_plugin_targetting_modifier(lambda x: BuffConfigurator(event_bus, self.custom_skill, buff_configuration_per_profession= BuffConfigurationPerProfession.BUFF_CONFIGURATION_MARTIAL))
+        self.add_plugin_targetting_modifier(lambda x: ShouldTargetPetsWithWeaponSpell(self.custom_skill, False))
 
     def _get_target(self) -> int | None:
         
@@ -42,7 +44,7 @@ class SplinterWeaponUtility(CustomSkillUtilityBase):
                 within_range=Range.Spellcast.value * 1.2,
                 condition=lambda agent_id: 
                     agent_id != Player.GetAgentID() and 
-                    self.buff_configuration.get_agent_id_predicate()(agent_id) and not Agent.IsWeaponSpelled(agent_id),
+                    self.get_plugin_targeting_modifiers_filtering_predicate()(agent_id) and not Agent.IsWeaponSpelled(agent_id),
                 sort_key=(TargetingOrder.DISTANCE_DESC, TargetingOrder.CASTER_THEN_MELEE),
                 range_to_count_enemies=None,
                 range_to_count_allies=None)

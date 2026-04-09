@@ -54,9 +54,7 @@ class GenericUtilitySkillsList:
 
         skills.append(KeepSelfEffectUpUtility(event_bus=event_bus, skill=CustomSkill("Air_of_Superiority"), current_build=in_game_build, score_definition=ScoreStaticDefinition(30), allowed_states=[BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO]))
 
-
-
-
+        skills.append(KeepSelfEffectUpUtility(event_bus=event_bus, skill=CustomSkill("I_Am_the_Strongest"), current_build=in_game_build, score_definition=ScoreStaticDefinition(90), allowed_states=[BehaviorState.IN_AGGRO]))
 
         # naive JUNUNDU version
         skills.append(RawSimpleAttackUtility(event_bus=event_bus, skill=CustomSkill("Junundu_Strike"), current_build=in_game_build, score_definition=ScoreStaticDefinition(65)))
@@ -69,7 +67,5 @@ class GenericUtilitySkillsList:
         skills.append(StubUtility(event_bus=event_bus, skill=CustomSkill("Leave_Junundu"), current_build=in_game_build))
         skills.append(StubUtility(event_bus=event_bus, skill=CustomSkill("Unknown_Junundu_Ability"), current_build=in_game_build))
         skills.append(RawAoeAttackUtility(event_bus=event_bus, skill=CustomSkill("Junundu_Siege"), current_build=in_game_build, score_definition=ScorePerAgentQuantityDefinition(lambda enemy_qte: 80 if enemy_qte >= 2 else 79), custom_agent_targeting_predicate=lambda agent_id: Utils.Distance(Player.GetXY(), Agent.GetXY(agent_id)) > Range.Nearby.value))
-
-
 
         return skills

@@ -132,15 +132,6 @@ class BottingFsmHelpers:
         event_bus.subscribe(EventType.PLAYER_CRITICAL_STUCK, BottingFsmHelpers.__wrapper_event_bus(on_player_critical_stuck) , subscriber_name=subscriber_name)
         event_bus.subscribe(EventType.PLAYER_CRITICAL_DEATH, BottingFsmHelpers.__wrapper_event_bus(on_player_critical_death), subscriber_name=subscriber_name)
         event_bus.subscribe(EventType.PARTY_DEATH, BottingFsmHelpers.__wrapper_event_bus(on_party_death), subscriber_name=subscriber_name)
-    
-    @staticmethod
-    def PauseCustomBehavior(bot: Botting):
-        instance = CustomBehaviorLoader().custom_combat_behavior
-        if instance is None: raise Exception("CustomBehavior widget is required.")
-        instance.clear_additionnal_utility_skills()
-        CustomBehaviorParty().set_party_is_combat_enabled(True)
-        CustomBehaviorParty().set_party_is_looting_enabled(True)
-        BottingFsmHelpers.__reset_botting_behavior(bot)
 
     @staticmethod
     def SetBottingBehaviorAsAggressive(bot: Botting):
