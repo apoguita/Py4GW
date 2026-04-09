@@ -17,7 +17,7 @@ bot = Botting("Nightfall Leveler",
               upkeep_war_supplies_restock=2,
               upkeep_auto_inventory_management_active=False,
               upkeep_auto_combat_active=False,
-              upkeep_auto_loot_active=True)
+              upkeep_auto_loot_active=False)
 
 
 def _on_party_defeated(bot: Botting, step_name: str):
