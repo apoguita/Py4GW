@@ -1,6 +1,7 @@
 {
   "name": "Scourge Beneath (WiP)",
   "steps": [
+    {"type": "set_combat_engine", "engine": "hero_ai", "name": "Force HeroAI Engine"},
     {"type": "abandon_quest", "id": 1456},
     {"type": "dialog", "id": "0x85B001", "npc": "DEVONA", "name": "Dialog - Devona"},
     {"type": "auto_path", "name": "To Exit", "points": [[-10701, 4091]]},
@@ -38,9 +39,9 @@
     {"type": "set_auto_combat", "enabled": true},
     {"type": "auto_path", "name": "To Exit", "points": [[-1139, 1718], [-1548, 840], [-2220, 51], [-4514, -82], [-7552, 682], [-8368, 2205], [-8664, 4038]]},
     {"type": "set_auto_combat", "enabled": false},
-    {"type": "set_auto_combat", "enabled": false},
     {"type": "exit_map", "name": "Leave level 2", "point": [-8632, 4669], "target_map_id": 878},
-    {"type": "set_auto_combat", "enabled": true},
+
+    {"type": "set_auto_combat", "enabled": true, "anchor": true},
     {"type": "auto_path", "name": "Shrine", "points": [[-5853, 8598]], "anchor": true},
     {"type": "broadcast_summoning_stone"},
     {"type": "auto_path", "name": "Path", "points": [[-1236, 18154], [-7182, 20739], [-14565, 21057], [-17070, 17478], [-17698, 19675]]},
