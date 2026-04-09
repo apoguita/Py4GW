@@ -677,7 +677,7 @@ def _coro_hold_horsemen_position() -> Generator[Any, Any, None]:
             return
         if Utils.Distance(Player.GetXY(), (_HOLD_X, _HOLD_Y)) > _MAX_DISTANCE:
             Player.Move(_HOLD_X, _HOLD_Y)
-        yield
+        yield from Routines.Yield.wait(1000)
 
 
 def _move_with_unstuck(
@@ -1057,54 +1057,60 @@ def _coro_dhuum_spirit_form_watchdog(bot: Botting):
                 )
 
 
-def _send_pcon_broadcast(model_id: int, skill_id: int) -> None:
-    """Send a single PCon ShMem message to every known account.
-
-    Bypasses the @_yield_step FSM queue so the messages are delivered
-    immediately when called from a managed coroutine.  The UsePcon handler
-    on each receiver already guards with AccountHasEffect(), so items are
-    only consumed when the buff has actually expired.
-    """
-    sender = Player.GetAccountEmail()
-    accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
-    for account in accounts:
-        GLOBAL_CACHE.ShMem.SendMessage(
-            sender,
-            account.AccountEmail,
-            SharedCommandType.PCon,
-            (float(model_id), float(skill_id), 0.0, 0.0),
-        )
+# ── Pcon multibox broadcast ─────────────────────────────────────────────────
+# Mapping: (ConsSettings key, ModelID value, skill effect name)
+# Only entries whose settings_key is active in ConsSettings will be broadcast.
+# Honeycomb is excluded — it gives a one-shot morale boost, not an expiring buff.
+_PCON_BROADCAST_TABLE: list[tuple[str, int, str]] = [
+    ("armor_of_salvation",    ModelID.Armor_Of_Salvation.value,     "Armor_of_Salvation_item_effect"),
+    ("essence_of_celerity",   ModelID.Essence_Of_Celerity.value,   "Essence_of_Celerity_item_effect"),
+    ("grail_of_might",        ModelID.Grail_Of_Might.value,        "Grail_of_Might_item_effect"),
+    ("war_supplies",          ModelID.War_Supplies.value,           "Well_Supplied"),
+    ("drake_kabob",           ModelID.Drake_Kabob.value,            "Drake_Skin"),
+    ("bowl_of_skalefin_soup", ModelID.Bowl_Of_Skalefin_Soup.value, "Skale_Vigor"),
+    ("pahnai_salad",          ModelID.Pahnai_Salad.value,           "Pahnai_Salad_item_effect"),
+    ("candy_corn",            ModelID.Candy_Corn.value,             "Candy_Corn_skill"),
+    ("candy_apple",           ModelID.Candy_Apple.value,            "Candy_Apple_skill"),
+    ("birthday_cupcake",      ModelID.Birthday_Cupcake.value,       "Birthday_Cupcake_skill"),
+    ("golden_egg",            ModelID.Golden_Egg.value,             "Golden_Egg_skill"),
+    ("slice_of_pumpkin_pie",  ModelID.Slice_Of_Pumpkin_Pie.value,   "Pie_Induced_Ecstasy"),
+]
 
 
 def _broadcast_all_pcons() -> None:
-    """Broadcast all conset + food pcons to every multibox account."""
-    _conset_pcons = [
-        (ModelID.Essence_Of_Celerity.value,   GLOBAL_CACHE.Skill.GetID("Essence_of_Celerity_item_effect")),
-        (ModelID.Grail_Of_Might.value,         GLOBAL_CACHE.Skill.GetID("Grail_of_Might_item_effect")),
-        (ModelID.Armor_Of_Salvation.value,     GLOBAL_CACHE.Skill.GetID("Armor_of_Salvation_item_effect")),
-        (ModelID.Birthday_Cupcake.value,       GLOBAL_CACHE.Skill.GetID("Birthday_Cupcake_skill")),
-        (ModelID.Golden_Egg.value,             GLOBAL_CACHE.Skill.GetID("Golden_Egg_skill")),
-        (ModelID.Candy_Corn.value,             GLOBAL_CACHE.Skill.GetID("Candy_Corn_skill")),
-        (ModelID.Candy_Apple.value,            GLOBAL_CACHE.Skill.GetID("Candy_Apple_skill")),
-        (ModelID.Slice_Of_Pumpkin_Pie.value,   GLOBAL_CACHE.Skill.GetID("Pie_Induced_Ecstasy")),
-        (ModelID.Drake_Kabob.value,            GLOBAL_CACHE.Skill.GetID("Drake_Skin")),
-        (ModelID.Bowl_Of_Skalefin_Soup.value,  GLOBAL_CACHE.Skill.GetID("Skale_Vigor")),
-        (ModelID.Pahnai_Salad.value,           GLOBAL_CACHE.Skill.GetID("Pahnai_Salad_item_effect")),
-        (ModelID.War_Supplies.value,           GLOBAL_CACHE.Skill.GetID("Well_Supplied")),
-    ]
-    for model_id, skill_id in _conset_pcons:
-        _send_pcon_broadcast(model_id, skill_id)
+    """Broadcast enabled pcon items to every multibox account (skips sender).
+
+    Only pcons whose ConsSettings key is active are sent.  The UsePcon handler
+    on each receiver already guards with AccountHasEffect(), so items are only
+    consumed when the buff has actually expired — over-broadcasting is harmless.
+    """
+    sender = Player.GetAccountEmail()
+    accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+    followers = [a for a in accounts if a.AccountEmail != sender]
+    if not followers:
+        return
+
+    for settings_key, model_id, effect_name in _PCON_BROADCAST_TABLE:
+        if not ConsSettings.is_active(settings_key):
+            continue
+        skill_id = GLOBAL_CACHE.Skill.GetID(effect_name)
+        for account in followers:
+            GLOBAL_CACHE.ShMem.SendMessage(
+                sender,
+                account.AccountEmail,
+                SharedCommandType.PCon,
+                (float(model_id), float(skill_id), 0.0, 0.0),
+            )
 
 
 def _coro_pcon_upkeep_multibox(bot: Botting):
-    """Periodically re-broadcast all consumables to multibox accounts while inside
-    the Underworld.  Broadcasts every 3 minutes; the UsePcon handler on each follower
-    already guards with AccountHasEffect() so items are only used when the buff has
-    actually expired — over-broadcasting is harmless.
+    """Periodically re-broadcast enabled consumables to multibox followers while
+    inside the Underworld.  Broadcasts every 3 minutes; the UsePcon handler on
+    each follower guards with AccountHasEffect() so items are only consumed when
+    the buff has actually expired.
 
-    NOTE: Uses direct ShMem sends instead of bot.Multibox.UseConset/UsePcons to
-    avoid the @_yield_step FSM queue, which only executes steps appended at build
-    time — not from inside a running managed coroutine."""
+    Registered via _ensure_managed_coroutines() every frame so it survives
+    FSM.restart() which clears the managed_coroutines list."""
     _INTERVAL_MS = 3 * 60 * 1000   # 3 minutes — shorter than the shortest pcon duration
     _TICK_MS     = 1000
     _last_fire_at: float = 0.0
@@ -1138,6 +1144,20 @@ def _coro_pcon_upkeep_multibox(bot: Botting):
         _append_debug_watchdog_log("Pcon upkeep: broadcast sent to all multibox accounts.")
 
 
+# ── Managed-coroutine registration ──────────────────────────────────────────
+# FSM.restart() (triggered by the Start button) calls _cleanup_coroutines()
+# which clears ALL managed coroutines.  Botting._start_coroutines() re-adds
+# the *built-in* upkeep coroutines every frame, but UW-specific ones are not
+# part of that list.  _ensure_managed_coroutines() mirrors that pattern so
+# they survive FSM restarts.  AddManagedCoroutine de-duplicates by name, so
+# calling this every frame is a cheap no-op once the coroutines are attached.
+def _ensure_managed_coroutines(bot_ref: Botting) -> None:
+    fsm = bot_ref.config.FSM
+    fsm.AddManagedCoroutine("UW_SkeletonDhuumWatchdog",    lambda: _coro_skeleton_dhuum_watchdog(bot_ref))
+    fsm.AddManagedCoroutine("UW_DhuumSpiritFormWatchdog",  lambda: _coro_dhuum_spirit_form_watchdog(bot_ref))
+    fsm.AddManagedCoroutine("UW_PconUpkeepMultibox",       lambda: _coro_pcon_upkeep_multibox(bot_ref))
+
+
 def bot_routine(bot: Botting):
     global MAIN_LOOP_HEADER_NAME, _run_start_uptime_ms
 
@@ -1151,11 +1171,11 @@ def bot_routine(bot: Botting):
     _get_adapter().set_blessing_enabled(True)
     _get_adapter().setup(bot)
 
-    # Managed coroutines run on every FSM frame.  They must be registered before
-    # the quest states so they are active from the very first step onwards.
-    bot.config.FSM.AddManagedCoroutine("UW_SkeletonDhuumWatchdog", lambda: _coro_skeleton_dhuum_watchdog(bot))
-    bot.config.FSM.AddManagedCoroutine("UW_DhuumSpiritFormWatchdog", lambda: _coro_dhuum_spirit_form_watchdog(bot))
-    bot.config.FSM.AddManagedCoroutine("UW_PconUpkeepMultibox", lambda: _coro_pcon_upkeep_multibox(bot))
+    # NOTE: UW-specific managed coroutines (watchdogs, pcon upkeep) are
+    # registered every frame via _ensure_managed_coroutines() in main().
+    # Botting._start_coroutines() only re-registers built-in upkeep coroutines
+    # after FSM.restart() clears managed_coroutines, so UW-specific ones must
+    # be handled separately with the same every-frame de-dupe pattern.
 
     # Broadcast widget-policy states: disable/enable CB or HeroAI on all accounts.
     _get_adapter().configure_startup_states(bot)
@@ -1458,7 +1478,7 @@ def The_Four_Horsemen(bot_instance: Botting):
     )
     bot_instance.Wait.ForTime(10000)
     bot_instance.Move.XY(11371, -17990, "Go to Chaos Planes NPC")
-    bot_instance.Dialogs.WithModel(UWNpcModelID.ReaperOfTheChaosPlanes,0x806A07, "take questreward")
+    #bot_instance.Dialogs.WithModel(UWNpcModelID.ReaperOfTheChaosPlanes,0x806A07, "take questreward")
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_following_enabled(True), "Enable Follow")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
     bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(True), "Enable MoveToPartyMemberIfDead")
@@ -1532,7 +1552,7 @@ def Imprisoned_Spirits(bot_instance: Botting):
     )
     bot_instance.Move.XY(13652, 6117)  # Run down towards the left team
     bot_instance.Wait.UntilCondition(
-        lambda: time.monotonic() - _is_timer[0] >= 20.0
+        lambda: time.monotonic() - _is_timer[0] >= 25.0
     )
     bot_instance.States.AddCustomState(
         lambda: _get_adapter().clear_flags(),
@@ -2903,6 +2923,11 @@ def main():
         if _pending_wipe_recovery:
             _pending_wipe_recovery = False
             _restart_main_loop(bot, _pending_wipe_reason)
+
+        # Re-register UW-specific managed coroutines every frame so they
+        # survive FSM.restart() which clears the managed_coroutines list.
+        if bot.config.fsm_running:
+            _ensure_managed_coroutines(bot)
 
         bot.Update()
         bot.UI.draw_window(
