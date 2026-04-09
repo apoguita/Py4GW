@@ -4,7 +4,7 @@ import inspect
 from typing import Generator, Any
 import time
 
-from Py4GWCoreLib import GLOBAL_CACHE, Routines, Map, Agent, Player
+from Py4GWCoreLib import GLOBAL_CACHE, Routines, Map, Agent, Player, CombatEvents
 from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer, Timer
 from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Sources.oazix.CustomBehaviors.primitives.bus.event_bus import EventBus
@@ -305,6 +305,7 @@ class CustomBehaviorBaseUtility():
         self.throttler.Reset()
 
         if not Routines.Checks.Map.MapValid(): return
+        CombatEvents.update()
         if not self.get_final_is_enabled(): return
         self.timer.Reset()
 
