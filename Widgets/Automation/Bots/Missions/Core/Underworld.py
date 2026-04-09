@@ -329,10 +329,13 @@ class DhuumSettings:
     _raw_armor: str = _ini.read_key(BOT_NAME, "dhuum_armor_switch_emails", "")
     ArmorSwitchEmails: set[str] = set(e.strip() for e in _raw_armor.split(";") if e.strip())
 
+    MinSpiritformAccounts: int = int(_ini.read_int(BOT_NAME, "dhuum_min_spiritform", 2))
+
     @classmethod
     def save(cls) -> None:
         _ini.write_key(BOT_NAME, "dhuum_sacrifice_emails", ";".join(sorted(cls.SacrificeEmails)))
         _ini.write_key(BOT_NAME, "dhuum_armor_switch_emails", ";".join(sorted(cls.ArmorSwitchEmails)))
+        _ini.write_key(BOT_NAME, "dhuum_min_spiritform", str(cls.MinSpiritformAccounts))
 
     @classmethod
     def is_sacrifice(cls, email: str) -> bool:
@@ -1611,11 +1614,26 @@ def Wrathfull_Spirits(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar") 
     bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(True), "Enable MoveToPartyMemberIfDead")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
+    _WS_LOOP_STEP = "Wrathfull Spirits loop start"
+    bot_instance.States.AddHeader(_WS_LOOP_STEP)
     bot_instance.Move.XY(-10207, 1746, "Wrathfull Spirits 2")
     bot_instance.Move.XY(-13566, -229, "Wrathfull Spirits 3")
-    bot_instance.Move.XY(-13287, 1996, "Wrathfull Spirits 3")
+    bot_instance.Move.XY(-13287, 1996, "Wrathfull Spirits 3b")
     bot_instance.Move.XY(-14486, 7113, "Wrathfull Spirits 4")
     bot_instance.Move.XY(-15226, 4129, "Wrathfull Spirits 5")
+
+    def _ws_retry_if_not_done():
+        from Py4GWCoreLib.Quest import Quest
+        if not Routines.Checks.Map.MapValid() or Map.GetMapID() != UW_MAP_ID:
+            return
+        active = Quest.GetActiveQuest()
+        if active > 0 and Quest.IsQuestCompleted(active):
+            ConsoleLog(BOT_NAME, "[Wrathful Spirits] Quest complete — proceeding.", Py4GW.Console.MessageType.Info)
+            return
+        ConsoleLog(BOT_NAME, "[Wrathful Spirits] Quest NOT complete — repeating patrol.", Py4GW.Console.MessageType.Warning)
+        bot_instance.config.FSM.jump_to_state_by_name(_WS_LOOP_STEP)
+
+    bot_instance.States.AddCustomState(_ws_retry_if_not_done, "Check Wrathfull Spirits quest done")
     bot_instance.Move.XY(-13275, 5261, "go to NPC")
     bot_instance.Move.XY(5755, 12769, "go to NPC")
     bot_instance.Dialogs.WithModel(UWNpcModelID.ReaperOfTheLabyrinth,0x806E07, "Take Reward")
@@ -1917,7 +1935,36 @@ def Dhuum(bot_instance: Botting):
         "Enable Dhuum Helper on all accounts",
     )
 
-    bot_instance.Wait.ForTime(5000)  # Wait for the fight to properly start
+    # Hold combat until enough accounts have Spirit Form active so the team
+    # does not engage Dhuum before ghosts are in position.
+    _SPIRIT_FORM_SKILL_ID_CHECK = 3134
+    bot_instance.States.AddCustomState(
+        lambda: _get_adapter().set_combat_enabled(False),
+        "Disable Combat until Spirit Form ready",
+    )
+    def _enough_spiritforms() -> bool:
+        if not Routines.Checks.Map.MapValid() or Map.GetMapID() != UW_MAP_ID:
+            return True  # bail out on wipe / map change
+        threshold = DhuumSettings.MinSpiritformAccounts
+        count = 0
+        for acct in GLOBAL_CACHE.ShMem.GetAllAccountData() or []:
+            if getattr(acct.AgentData.Map, "MapID", 0) != UW_MAP_ID:
+                continue
+            try:
+                if any(b.SkillId == _SPIRIT_FORM_SKILL_ID_CHECK
+                       for b in acct.AgentData.Buffs.Buffs if b.SkillId != 0):
+                    count += 1
+            except Exception:
+                pass
+            if count >= threshold:
+                return True
+        return False
+
+    
+    bot_instance.States.AddCustomState(
+        lambda: _get_adapter().set_combat_enabled(True),
+        "Re-enable Combat after Spirit Form threshold",
+    )
 
     # Disable the InDanger event callback for the fight — the CB daemon would
     # immediately stomp any fsm.pause() it sets, causing erratic movement.
@@ -1925,8 +1972,7 @@ def Dhuum(bot_instance: Botting):
     # Activate the Spirit Form watchdog for the duration of the fight.
     bot_instance.States.AddCustomState(lambda: _set_dhuum_fight_active(True), "Enable Dhuum Spirit Form Watchdog")
     bot_instance.Move.XY(-13987, 17291, "Move to Dhuum fight")
-    bot_instance.Wait.ForTime(4000)  # Wait till some Allies die
-    #Wait till Dhuum is dead
+    bot_instance.Wait.UntilCondition(_enough_spiritforms)
     bot_instance.Wait.UntilCondition(
         lambda: not Routines.Checks.Map.MapValid()
         or Map.GetMapID() != UW_MAP_ID
@@ -2460,6 +2506,14 @@ def _draw_dhuum_settings() -> None:
     PyImGui.text_wrapped("Select the multibox accounts to be sacrificed in the Dhuum fight.")
     PyImGui.separator()
 
+    PyImGui.set_next_item_width(100.0)
+    new_min = PyImGui.input_int("Min Spiritform accounts", DhuumSettings.MinSpiritformAccounts)
+    new_min = max(0, new_min)
+    if new_min != DhuumSettings.MinSpiritformAccounts:
+        DhuumSettings.MinSpiritformAccounts = new_min
+        DhuumSettings.save()
+    PyImGui.separator()
+
     my_email = Player.GetAccountEmail()
     all_accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
 
@@ -2481,6 +2535,10 @@ def _draw_dhuum_settings() -> None:
 
             PyImGui.table_next_row()
 
+            # The executing account cannot sacrifice itself — gray out its row.
+            if is_self:
+                PyImGui.begin_disabled(True)
+
             PyImGui.table_next_column()
             cur_sac = DhuumSettings.is_sacrifice(email)
             new_sac = PyImGui.checkbox(f"##sac_{email}", cur_sac)
@@ -2500,6 +2558,9 @@ def _draw_dhuum_settings() -> None:
 
             PyImGui.table_next_column()
             PyImGui.text(f"{char_name}  (this account)" if is_self else char_name)
+
+            if is_self:
+                PyImGui.end_disabled()
 
             if new_sac != cur_sac:
                 DhuumSettings.set_sacrifice(email, new_sac)
