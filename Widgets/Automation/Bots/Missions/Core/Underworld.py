@@ -1972,7 +1972,7 @@ def Dhuum(bot_instance: Botting):
     # Activate the Spirit Form watchdog for the duration of the fight.
     bot_instance.States.AddCustomState(lambda: _set_dhuum_fight_active(True), "Enable Dhuum Spirit Form Watchdog")
     bot_instance.Move.XY(-13987, 17291, "Move to Dhuum fight")
-    bot_instance.Wait.UntilCondition(_enough_spiritforms)
+    bot_instance.Wait.UntilCondition( _enough_spiritforms)
     bot_instance.Wait.UntilCondition(
         lambda: not Routines.Checks.Map.MapValid()
         or Map.GetMapID() != UW_MAP_ID
@@ -2990,7 +2990,12 @@ def main():
         if bot.config.fsm_running:
             _ensure_managed_coroutines(bot)
 
-        bot.Update()
+        # Guard: skip game-state logic when the map is not loaded
+        # (e.g., character select screen) to prevent reading invalid GW memory.
+        # bot_routine() is called by bot.Update() on the first frame and accesses
+        # the player's skillbar, which crashes the game if no character is in-game.
+        if Routines.Checks.Map.MapValid():
+            bot.Update()
         bot.UI.draw_window(
             icon_path=os.path.join(Py4GW.Console.get_projects_path(), MODULE_ICON),
             main_child_dimensions=(350, 570),
