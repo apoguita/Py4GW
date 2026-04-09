@@ -1072,10 +1072,14 @@ def UsePcon(index: int, message: SharedMessageStruct):
     pcon_model_id2 = int(message.Params[2])
     pcon_skill_id2 = int(message.Params[3])
 
-    # Halt if any of the effects is already active
-    if GLOBAL_CACHE.ShMem.AccountHasEffect(message.ReceiverEmail, pcon_skill_id) or GLOBAL_CACHE.ShMem.AccountHasEffect(
-        message.ReceiverEmail, pcon_skill_id2
-    ):
+    # Halt if any of the effects is already active.
+    # Use live game-state check (Effects.HasEffect) rather than shared-memory
+    # (AccountHasEffect) because ShMem data can be stale (e.g. during map
+    # transitions), which previously caused consets to be consumed again even
+    # when the effect was still active on the character.
+    agent_id = Player.GetAgentID()
+    if (pcon_skill_id != 0 and GLOBAL_CACHE.Effects.HasEffect(agent_id, pcon_skill_id)) or \
+       (pcon_skill_id2 != 0 and GLOBAL_CACHE.Effects.HasEffect(agent_id, pcon_skill_id2)):
         # ConsoleLog(MODULE_NAME, "Player already has the effect of one of the PCon skills.", Console.MessageType.Warning)
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
