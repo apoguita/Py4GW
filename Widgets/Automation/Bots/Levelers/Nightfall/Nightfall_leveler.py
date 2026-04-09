@@ -888,6 +888,7 @@ def A_Personal_Vault(bot: Botting):
     bot.Move.XYAndDialog(-9251, 11826, 0x82A101)
     bot.Move.XYAndDialog(-7761, 14393, 0x84)
     bot.Move.XYAndDialog(-9251, 11826, 0x82A107)
+    bot.Items.WithdrawGold(5000)
 
 def Armored_Transport(bot: Botting):
     bot.States.AddHeader("Quest: Armored Transport")
@@ -1229,6 +1230,7 @@ def Leaving_A_Legacy(bot: Botting):
 def Craft_Player_Armor(bot: Botting):
     bot.States.AddHeader("Craft Player Armor")
     bot.Map.Travel(target_map_id=491)
+    bot.Items.WithdrawGold(5000)
     bot.Move.XYAndInteractNPC(3857.42, 1700.62)  # Material merchant
     bot.States.AddCustomState(BuyMaterials, "Buy Materials")
     bot.Move.XYAndInteractNPC(3944, 2378)  # Armor crafter

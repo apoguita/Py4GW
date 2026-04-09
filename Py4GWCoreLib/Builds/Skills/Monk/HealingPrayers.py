@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from copy import deepcopy
 from typing import TYPE_CHECKING
 
 from Py4GWCoreLib.BuildMgr import BuildCoroutine
@@ -34,31 +33,16 @@ class HealingPrayers:
             return Agent.IsAlive(agent_id) and Agent.GetHealth(agent_id) <= health_threshold
 
         def _resolve_dwaynas_kiss_target() -> int:
-            enchanted_target_skill: CustomSkill = deepcopy(dwaynas_kiss)
-            enchanted_target_skill.Conditions.HasEnchantment = True
-            enchanted_target: int = self.build.ResolveAllyTarget(
-                dwaynas_kiss_id,
-                enchanted_target_skill,
-            )
-            if enchanted_target and _is_valid_dwaynas_kiss_target(enchanted_target):
-                return enchanted_target
-
-            hexed_target_skill: CustomSkill = deepcopy(dwaynas_kiss)
-            hexed_target_skill.Conditions.HasHex = True
-            hexed_target: int = self.build.ResolveAllyTarget(
-                dwaynas_kiss_id,
-                hexed_target_skill,
-            )
-            if hexed_target and _is_valid_dwaynas_kiss_target(hexed_target):
-                return hexed_target
-
-            fallback_target = self.build.ResolveAllyTarget(
+            return self.build.ResolvePreferredAllyTarget(
                 dwaynas_kiss_id,
                 dwaynas_kiss,
+                variants=[
+                    lambda custom_skill: setattr(custom_skill.Conditions, "HasEnchantment", True),
+                    lambda custom_skill: setattr(custom_skill.Conditions, "HasHex", True),
+                    None,
+                ],
+                validator=_is_valid_dwaynas_kiss_target,
             )
-            if fallback_target and _is_valid_dwaynas_kiss_target(fallback_target):
-                return fallback_target
-            return 0
 
         if not self.build.IsSkillEquipped(dwaynas_kiss_id):
             return False

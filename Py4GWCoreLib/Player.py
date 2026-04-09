@@ -8,6 +8,7 @@ from functools import wraps
 from .native_src.context.AgentContext import AgentStruct
 from .native_src.context.WorldContext import TitleStruct
 from .py4gwcorelib_src.ActionQueue import ActionQueueManager
+from .py4gwcorelib_src.FrameCache import frame_cache
 
 # Player
 class Player:
@@ -68,6 +69,7 @@ class Player:
         return PyPlayer.PyPlayer()
         
     @staticmethod
+    @frame_cache(category="Player", source_lib="GetPlayerNumber")
     def GetPlayerNumber() -> int | None:
         """
         Purpose: Retrieve the player's number.
@@ -79,6 +81,7 @@ class Player:
         return char_ctx.player_number
     
     @staticmethod
+    @frame_cache(category="Player", source_lib="GetLoginNumber")
     def GetLoginNumber() -> int:
         from .Party import Party
         players = Party.GetPlayers()
@@ -91,6 +94,7 @@ class Player:
         return 0   
     
     @staticmethod
+    @frame_cache(category="Player", source_lib="GetPartyNumber")
     def GetPartyNumber() -> int:
         from .Party import Party
         login_number = Player.GetLoginNumber()
@@ -103,6 +107,7 @@ class Player:
         return -1
     
     @staticmethod
+    @frame_cache(category="Player", source_lib="IsPlayerLoaded")
     def IsPlayerLoaded() -> bool:
         """
         Purpose: Check if the player is loaded.
@@ -156,6 +161,7 @@ class Player:
 
     #region Data
     @staticmethod
+    @frame_cache(category="Player", source_lib="GetAgentID")
     def GetAgentID() -> int:
         """
         Purpose: Retrieve the agent ID of the player.
@@ -172,6 +178,7 @@ class Player:
         
 
     @staticmethod
+    @frame_cache(category="Player", source_lib="GetName")
     def GetName() -> str:
         """
         Purpose: Retrieve the player's name.
@@ -182,6 +189,7 @@ class Player:
         return Agent.GetNameByID(Player.GetAgentID())
 
     @staticmethod
+    @frame_cache(category="Player", source_lib="GetXY")
     def GetXY() -> tuple[float, float]:
         """
         Purpose: Retrieve the player's current X and Y coordinates.
@@ -193,6 +201,7 @@ class Player:
 
     
     @staticmethod
+    @frame_cache(category="Player", source_lib="GetTargetID")
     def GetTargetID() -> int:
         """
         Purpose: Retrieve the ID of the player's target.
@@ -216,6 +225,7 @@ class Player:
         return Agent.GetAgentByID(Player.GetAgentID())
 
     @staticmethod
+    @frame_cache(category="Player", source_lib="GetObservingID")
     def GetObservingID() -> int:
         """
         Purpose: Retrieve the ID of the agent the player is observing.
@@ -225,6 +235,7 @@ class Player:
         return Player.player_instance().observing_id
     
     @staticmethod
+    @frame_cache(category="Player", source_lib="GetAccountName")
     def GetAccountName() -> str:
         """
         Purpose: Retrieve the player's account name.
@@ -240,6 +251,7 @@ class Player:
         return account_name
     
     @staticmethod
+    @frame_cache(category="Player", source_lib="GetAccountEmail")
     def GetAccountEmail() -> str:
         """
         Purpose: Retrieve the player's account email.
@@ -326,6 +338,7 @@ class Player:
         return account_info.tournament_reward_points
     
     @staticmethod
+    @frame_cache(category="Player", source_lib="GetMorale")
     def GetMorale() -> int:
         """
         Purpose: Retrieve the player's current morale.
@@ -348,6 +361,7 @@ class Player:
         return max(world_ctx.experience, world_ctx.experience_dupe)
     
     @staticmethod
+    @frame_cache(category="Player", source_lib="GetLevel")
     def GetLevel() -> int:
         """
         Purpose: Retrieve the player's current level.

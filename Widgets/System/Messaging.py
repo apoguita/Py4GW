@@ -23,6 +23,7 @@ from Py4GWCoreLib import IniHandler
 from Py4GWCoreLib.Py4GWcorelib import Keystroke
 from Py4GWCoreLib.Quest import Quest
 from Py4GWCoreLib.enums_src.Model_enums import ModelID
+from Widgets.Automation.Helpers import Pycons as PyconsHelper
 from Widgets.Automation.Helpers.Pycons import resolve_pycons_account_ini_path
 from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
 from Py4GWCoreLib.GlobalCache.shared_memory_src.SharedMessageStruct import SharedMessageStruct
@@ -46,6 +47,7 @@ width, height = 0, 0
 # lock, rapid ShMem dispatches create multiple simultaneous coroutines.
 _merchant_busy: bool = False
 MERCHANT_RULES_WIDGET_NAME = "Merchant Rules"
+PYCONS_WIDGET_NAME = "Pycons"
 
 
 def _extra_data(message: SharedMessageStruct) -> tuple[str, str, str, str]:
@@ -92,6 +94,16 @@ def _get_merchant_rules_widget():
         if widget_instance is not None:
             return widget_instance
     return None
+
+
+def _get_pycons_widget_module():
+    widget_handler = get_widget_handler()
+    widget_info = widget_handler.get_widget_info(PYCONS_WIDGET_NAME)
+    if not widget_info:
+        return None
+    if not bool(getattr(widget_info, "enabled", False)):
+        return None
+    return getattr(widget_info, "module", None)
 
 # region ImGui
 def configure():
@@ -1072,10 +1084,14 @@ def UsePcon(index: int, message: SharedMessageStruct):
     pcon_model_id2 = int(message.Params[2])
     pcon_skill_id2 = int(message.Params[3])
 
-    # Halt if any of the effects is already active
-    if GLOBAL_CACHE.ShMem.AccountHasEffect(message.ReceiverEmail, pcon_skill_id) or GLOBAL_CACHE.ShMem.AccountHasEffect(
-        message.ReceiverEmail, pcon_skill_id2
-    ):
+    # Halt if any of the effects is already active.
+    # Use live game-state check (Effects.HasEffect) rather than shared-memory
+    # (AccountHasEffect) because ShMem data can be stale (e.g. during map
+    # transitions), which previously caused consets to be consumed again even
+    # when the effect was still active on the character.
+    agent_id = Player.GetAgentID()
+    if (pcon_skill_id != 0 and GLOBAL_CACHE.Effects.HasEffect(agent_id, pcon_skill_id)) or \
+       (pcon_skill_id2 != 0 and GLOBAL_CACHE.Effects.HasEffect(agent_id, pcon_skill_id2)):
         # ConsoleLog(MODULE_NAME, "Player already has the effect of one of the PCon skills.", Console.MessageType.Warning)
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
@@ -1935,6 +1951,26 @@ def UseSkillCombatPrep(index: int, message: SharedMessageStruct):
 #endregion
 
 # region Widget handling
+def Pycons(index: int, message: SharedMessageStruct):
+    GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
+    try:
+        module = _get_pycons_widget_module()
+        handler = getattr(module, "pycons_handle_shared_message", None) if module is not None else None
+        if callable(handler):
+            handler(message)
+            return
+
+        fallback = getattr(PyconsHelper, "pycons_reply_reload_unavailable_for_message", None)
+        if callable(fallback):
+            fallback(message)
+    except Exception as exc:
+        ConsoleLog(MODULE_NAME, f"Pycons shared-message error: {exc}", Console.MessageType.Error, False)
+    finally:
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+    if False:
+        yield None
+
+
 def PauseWidgets(index: int, message: SharedMessageStruct):
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
@@ -2291,6 +2327,8 @@ def ProcessMessages():
             GLOBAL_CACHE.Coroutines.append(MerchantMaterials(index, message))
         case SharedCommandType.MerchantRules:
             GLOBAL_CACHE.Coroutines.append(MerchantRules(index, message))
+        case SharedCommandType.Pycons:
+            GLOBAL_CACHE.Coroutines.append(Pycons(index, message))
         case SharedCommandType.DisableHeroAI:
             GLOBAL_CACHE.Coroutines.append(MessageDisableHeroAI(index, message))
         case SharedCommandType.EnableHeroAI:
