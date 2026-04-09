@@ -569,7 +569,10 @@ class Targets:
 
         with EvalProfiler().measure("ally_targeting"):
             player_pos: tuple[float, float] = Player.GetXY()
-            all_agent_ids: list[int] = AgentArray.GetAllyArray()
+            all_agent_ids: list[int] = AgentArray.GetAllyArray() # only 8 team members  (no pets, no npc-allies)
+            all_agent_pets = [agent_id for agent_id in AgentArray.GetSpiritPetArray() if Agent.IsPet(agent_id)] # add pets
+            all_agent_ids = all_agent_ids + all_agent_pets
+
             all_enemies_ids: list[int] = AgentArray.GetEnemyArray()
 
             agent_ids = AgentArray.Filter.ByDistance(all_agent_ids, player_pos, within_range)
