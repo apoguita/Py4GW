@@ -52,6 +52,66 @@ _total_ms: float = 0.0
 _stats_timer: ThrottledTimer = ThrottledTimer(1000)
 
 
+def _print_widget_rows_to_console() -> None:
+    frame_ms = 1000.0 / _fps if _fps > 0 else 0.0
+    print("=== Widget Profiler: Widget Timing Snapshot ===")
+    print(f"FPS={_fps:.2f} FrameBudget={frame_ms:.3f}ms TotalWidgets={_total_ms:.3f}ms Samples={window}")
+    if not _rows:
+        print("No widget timing rows available.")
+        return
+
+    for wid, display_name, phase_stats, total_mean, total_p50, total_p95, total_pct in _rows:
+        print(
+            f"[{display_name}] id={wid} total_mean={total_mean:.3f}ms "
+            f"p50={total_p50:.3f}ms p95={total_p95:.3f}ms frame_share={total_pct:.1f}%"
+        )
+        for phase, mean, p50, p95, pct in phase_stats:
+            print(
+                f"  - {phase}: mean={mean:.3f}ms p50={p50:.3f}ms "
+                f"p95={p95:.3f}ms frame_share={pct:.1f}%"
+            )
+
+
+def _print_profile_summary_to_console(wid: str) -> None:
+    raw = profile_stats.get(wid, {})
+    names = profile_names.get(wid, {})
+    roots = profile_roots.get(wid, [])
+    zoom_key = icicle_zoom.get(wid)
+    frames = PROFILE_DURATION
+    wh = WidgetHandler()
+    widget = wh.widgets.get(wid)
+    display_name = widget.plain_name if widget else wid
+
+    print(f"=== Widget Profiler: Icicle Summary for {display_name} ({wid}) ===")
+    print(f"FramesCaptured={frames} RootCount={len(roots)} Zoomed={'yes' if zoom_key is not None else 'no'}")
+    if zoom_key is not None:
+        zoom_name = names.get(zoom_key, str(zoom_key))
+        print(f"ZoomTarget={zoom_name} key={zoom_key}")
+
+    if not raw:
+        print("No profile data captured for this widget.")
+        return
+
+    if roots:
+        print("Top roots by cumulative/frame:")
+        for root_key, ct in roots[:10]:
+            root_name = names.get(root_key, str(root_key))
+            root_ms = ct / frames / 1_000_000
+            print(f"  - {root_name}: cum={root_ms:.3f}ms/frame key={root_key}")
+
+    sorted_funcs = sorted(raw.items(), key=lambda item: item[1][3], reverse=True)
+    print("Top functions by cumulative/frame:")
+    for func_key, (cc, nc, tt, ct, _callers) in sorted_funcs[:25]:
+        func_name = names.get(func_key, str(func_key))
+        self_ms = tt / frames / 1_000_000
+        cum_ms = ct / frames / 1_000_000
+        calls_per_frame = nc / frames
+        print(
+            f"  - {func_name}: self={self_ms:.3f}ms/frame cum={cum_ms:.3f}ms/frame "
+            f"calls/frame={calls_per_frame:.2f} key={func_key}"
+        )
+
+
 def on_enable():
     ProfilingRegistry().enabled = True
 
@@ -329,6 +389,9 @@ def draw():
     PyImGui.pop_style_color(1)
     PyImGui.same_line(0, 4)
     PyImGui.text("FPS")
+    PyImGui.same_line(0, 20)
+    if PyImGui.button("Print Widget Timings"):
+        _print_widget_rows_to_console()
 
     PyImGui.spacing()
 
@@ -443,6 +506,9 @@ def draw():
             icicle_open.discard(wid)
             PyImGui.end()
             continue
+        PyImGui.same_line(0, 10)
+        if PyImGui.small_button(f"Print Summary##print_{wid}"):
+            _print_profile_summary_to_console(wid)
         if icicle_zoom.get(wid) is not None:
             PyImGui.same_line(0, 10)
             if PyImGui.small_button(f"Zoom Out##zout_{wid}"):

@@ -567,6 +567,74 @@ _ui_entry_color_map: dict[str, str] = {}
 _ui_palette_order: list[str] = []
 
 
+def _print_usage_rows_to_console(rows: list[dict], selected_display: str = "", max_rows: int | None = None) -> None:
+    selected_phases = []
+    if _ui_include_draw:
+        selected_phases.append("Draw")
+    if _ui_include_main:
+        selected_phases.append("Main")
+    if _ui_include_update:
+        selected_phases.append("Update")
+
+    limit = max_rows if max_rows is not None else _ui_max_rows
+    visible_rows = rows[:limit] if limit > 0 else []
+    total_visible = sum(row["selected_stats"]["avg"] for row in rows)
+
+    print("=== System Monitor: Usage Snapshot ===")
+    print(
+        f"Filter='{_ui_filter_text}' IncludedPhases={','.join(selected_phases) or 'None'} "
+        f"Rows={len(rows)} Printed={len(visible_rows)} IncludedAvgTotal={total_visible:.3f}ms"
+    )
+
+    if visible_rows:
+        for row in visible_rows:
+            print(
+                f"[{row['display']}] total_avg={row['selected_stats']['avg']:.3f}ms "
+                f"draw={row['phase_stats']['Draw']['avg']:.3f}ms "
+                f"main={row['phase_stats']['Main']['avg']:.3f}ms "
+                f"update={row['phase_stats']['Update']['avg']:.3f}ms "
+                f"members={len(row['members'])}"
+            )
+            if row["subjects"]:
+                print(f"  subjects={', '.join(row['subjects'][:8])}")
+            if row["script_paths"]:
+                print(f"  scripts={', '.join(row['script_paths'][:4])}")
+    elif not selected_display:
+        print("No usage rows available.")
+        return
+
+    if not selected_display:
+        return
+
+    selected = next((row for row in rows if row["display"] == selected_display), None)
+    if selected is None:
+        print(f"Selected entry '{selected_display}' is not present in the current rows.")
+        return
+
+    print(f"=== System Monitor: Selected Entry Detail [{selected_display}] ===")
+    print(f"IncludedAvgTotal={selected['selected_stats']['avg']:.3f}ms Members={len(selected['members'])}")
+    for phase_name in ("Draw", "Main", "Update"):
+        phase_stats = selected["phase_stats"][phase_name]
+        print(
+            f"  - {phase_name}: min={phase_stats['min']:.3f} avg={phase_stats['avg']:.3f} "
+            f"p50={phase_stats['p50']:.3f} p95={phase_stats['p95']:.3f} "
+            f"p99={phase_stats['p99']:.3f} max={phase_stats['max']:.3f}"
+        )
+
+    print("Top member metrics:")
+    for item in selected["members"][:max(15, _ui_max_rows)]:
+        stats = _catalog.get_stats(item.raw_name)
+        if not stats:
+            continue
+        hist = _catalog.get_history(item.raw_name)
+        latest = hist[-1] if hist else 0.0
+        print(
+            f"  - {item.phase} {item.raw_name}: min={stats['min']:.3f} avg={stats['avg']:.3f} "
+            f"p50={stats['p50']:.3f} p95={stats['p95']:.3f} p99={stats['p99']:.3f} "
+            f"max={stats['max']:.3f} samples={len(hist)} latest={latest:.3f}"
+        )
+
+
 def _ensure_loaded() -> None:
     """Initialize the viewer cache once from live metrics."""
     global _initialized
@@ -1213,6 +1281,12 @@ def draw() -> None:
     _refresh_entry_color_assignments(usage_rows)
     if PyImGui.button("Log Colors"):
         _log_color_pool_and_assignments(usage_rows)
+    PyImGui.same_line(0, -1)
+    if PyImGui.button("Print Usage Snapshot"):
+        _print_usage_rows_to_console(usage_rows, _ui_selected_entry)
+    PyImGui.same_line(0, -1)
+    if PyImGui.button("Print Selected Entry"):
+        _print_usage_rows_to_console(usage_rows, _ui_selected_entry, max_rows=0)
     PyImGui.text(
         "Grouped by normalized entry (display_token), sorted by included usage total. "
         "Only source avg totals are shown here; percentiles remain in tooltip/details."

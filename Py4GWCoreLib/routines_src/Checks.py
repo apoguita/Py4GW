@@ -1005,8 +1005,16 @@ class Checks:
             :param expertise_level: The level of Expertise (0-20).
             :return: The reduced cost, rounded down to an integer.
             """
-            #return base_cost  # Default to no reduction
             from ..GlobalCache import GLOBAL_CACHE
+            from ..Agent import Agent
+            from ..enums_src.GameData_enums import Profession_Names
+
+            player_id = Player.GetAgentID()
+            primary_profession, _ = Agent.GetProfessionNames(player_id)
+
+            if (primary_profession != "Ranger"):
+                return base_cost
+
             skill_type, _ = GLOBAL_CACHE.Skill.GetType(skill_id)
             _, skill_profession = GLOBAL_CACHE.Skill.GetProfession(skill_id)
             if (skill_type == 14 or #attack skills

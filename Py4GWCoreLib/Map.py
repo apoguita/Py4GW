@@ -22,6 +22,8 @@ from .UIManager import UIManager,WindowFrames, FrameInfo
 from .Overlay import *
 import math
 
+from .py4gwcorelib_src.FrameCache import frame_cache
+
 """Map-related functionalities and utilities.
 
 classes:
@@ -35,6 +37,7 @@ classes:
 class Map:
     #region Instance_Type
     @staticmethod
+    @frame_cache(category="Map", source_lib="IsMapDataLoaded")
     def IsMapDataLoaded() -> bool:
         """Check if the map data is loaded."""
         return (
@@ -45,6 +48,7 @@ class Map:
         )
 
     @staticmethod
+    @frame_cache(category="Map", source_lib="GetInstanceType")
     def GetInstanceType() -> int:
         """Retrieve the instance type of the current map."""
         if (instance_info := GWContext.InstanceInfo.GetContext()) is None:
@@ -56,12 +60,14 @@ class Map:
         )
     
     @staticmethod
+    @frame_cache(category="Map", source_lib="GetInstanceTypeName")
     def GetInstanceTypeName() -> str:
         """Retrieve the instance type name of the current map."""
         type = Map.GetInstanceType()
         return InstanceTypeName.get(type, "Loading")
 
     @staticmethod
+    @frame_cache(category="Map", source_lib="IsOutpost")
     def IsOutpost() -> bool:
         """Check if the map instance is an outpost."""
         if not Map.IsMapDataLoaded():
@@ -69,6 +75,7 @@ class Map:
         return Map.GetInstanceType() == InstanceType.Outpost.value
 
     @staticmethod
+    @frame_cache(category="Map", source_lib="IsExplorable")
     def IsExplorable() -> bool:
         """Check if the map instance is explorable."""
         if not Map.IsMapDataLoaded():
@@ -76,6 +83,7 @@ class Map:
         return Map.GetInstanceType() == InstanceType.Explorable.value
     
     @staticmethod
+    @frame_cache(category="Map", source_lib="IsMapLoading")
     def IsMapLoading() -> bool:
         if not Map.IsMapDataLoaded():
             return True
@@ -86,6 +94,7 @@ class Map:
         )
 
     @staticmethod
+    @frame_cache(category="Map", source_lib="IsObservingMatch")
     def IsObservingMatch() -> bool:
         """Check if the character is observing a match."""
         if not Map.IsMapDataLoaded():
@@ -95,6 +104,7 @@ class Map:
         return char_context.current_map_id != char_context.observe_map_id
     
     @staticmethod
+    @frame_cache(category="Map", source_lib="IsMapReady")
     def IsMapReady() -> bool:
         """Check if the map is ready to be handled."""
         return (
@@ -105,6 +115,7 @@ class Map:
 
     #region Data
     @staticmethod
+    @frame_cache(category="Map", source_lib="GetMapID")
     def GetMapID() -> int:
         """Retrieve the ID of the current map."""
         if not Map.IsMapReady():
@@ -126,6 +137,7 @@ class Map:
     
     
     @staticmethod
+    @frame_cache(category="Map", source_lib="GetMapName")
     def GetMapName(mapid=None) -> str:
         """
         Retrieve the name of a map by its ID.
@@ -148,6 +160,7 @@ class Map:
         return "Unknown Map ID"
     
     @staticmethod
+    @frame_cache(category="Map", source_lib="GetMapIDByName")
     def GetMapIDByName(name: str) -> int:
         """
         Retrieve the ID of a map (outpost or explorable) by its name.
@@ -170,6 +183,7 @@ class Map:
         return int(catalog.get(key, 0))
     
     @staticmethod
+    @frame_cache(category="Map", source_lib="GetBaseMapID")
     def GetBaseMapID(map_id: int = 0) -> int:
         """
         Get the base map ID for a given map, handling seasonal variants.
@@ -192,6 +206,7 @@ class Map:
         return map_variants_to_base.get(map_id, map_id)
     
     @staticmethod
+    @frame_cache(category="Map", source_lib="GetAllMapVariants")
     def GetAllMapVariants(map_id: int) -> list[int]:
         """
         Get all variants (including base) for a given map ID.
@@ -211,6 +226,7 @@ class Map:
         return base_to_all_variants.get(base_id, [base_id])
     
     @staticmethod
+    @frame_cache(category="Map", source_lib="IsMapIDMatch")
     def IsMapIDMatch(current_map: int = 0, target_map: int = 0) -> bool:
         """
         Check if two map IDs match, accounting for seasonal variants.
@@ -240,6 +256,7 @@ class Map:
         return agent_context.instance_timer
     
     @staticmethod
+    @frame_cache(category="Map", source_lib="GetRegion")
     def GetRegion() -> tuple[int, str]:
         """Retrieve the region ID and name of the current server region.
         Returns:
@@ -252,6 +269,7 @@ class Map:
 
     
     @staticmethod
+    @frame_cache(category="Map", source_lib="GetRegionType")
     def GetRegionType() -> tuple[int, str]:
         """
         Retrieve the region type of the current map.
@@ -266,12 +284,14 @@ class Map:
         return current_map_info.type, RegionTypeName[current_map_info.type]
     
     @staticmethod
+    @frame_cache(category="Map", source_lib="GetDistrict")
     def GetDistrict() -> int:
         """Retrieve the district of the current map."""
         if not (char_context :=  GWContext.Char.GetContext()): return -1
         return char_context.district_number
     
     @staticmethod
+    @frame_cache(category="Map", source_lib="GetLanguage")
     def GetLanguage() -> tuple[int, str]:
         """
         Retrieve the language of the current map.
@@ -295,6 +315,7 @@ class Map:
     
 
     @staticmethod
+    @frame_cache(category="Map", source_lib="GetAmountOfPlayersInInstance")
     def GetAmountOfPlayersInInstance() -> int:
         """Retrieve the amount of players in the current instance."""
         if not (world_ctx := GWContext.World.GetContext()):
@@ -305,6 +326,7 @@ class Map:
         return len(players) -1
     
     @staticmethod
+    @frame_cache(category="Map", source_lib="GetAmountOfAvailableCharacters")
     def GetMaxPartySize() -> int:
         """ Retrieve the maximum party size of the current map."""
         current_map_info = GWContext.InstanceInfo().GetMapInfo()
@@ -314,6 +336,7 @@ class Map:
         return current_map_info.max_party_size
     
     @staticmethod
+    @frame_cache(category="Map", source_lib="GetMinPartySize")
     def GetMinPartySize() -> int:
         """ Retrieve the minimum party size of the current map."""
         current_map_info = GWContext.InstanceInfo().GetMapInfo()
@@ -323,6 +346,7 @@ class Map:
         return current_map_info.min_party_size
     
     @staticmethod
+    @frame_cache(category="Map", source_lib="GetMinPlayerSize")
     def GetMinPlayerSize() -> int:
         """Retrieve the minimum player size of the current map."""
         current_map_info = GWContext.InstanceInfo().GetMapInfo()
@@ -331,6 +355,7 @@ class Map:
         return current_map_info.min_player_size
     
     @staticmethod
+    @frame_cache(category="Map", source_lib="GetMaxPlayerSize")
     def GetMaxPlayerSize() -> int:
         """Retrieve the maximum player size of the current map."""
         current_map_info = GWContext.InstanceInfo().GetMapInfo()
@@ -339,6 +364,7 @@ class Map:
         return current_map_info.max_player_size
     
     @staticmethod
+    @frame_cache(category="Map", source_lib="GetFoesKilled")
     def GetFoesKilled() -> int:
         """
         Retrieve the number of foes killed in the current map.
@@ -350,6 +376,7 @@ class Map:
         return world_ctx.foes_killed
 
     @staticmethod
+    @frame_cache(category="Map", source_lib="GetFoesToKill")
     def GetFoesToKill() -> int:
         """
         Retrieve the number of foes to kill in the current map.
@@ -361,6 +388,7 @@ class Map:
         return world_ctx.foes_to_kill
     
     @staticmethod
+    @frame_cache(category="Map", source_lib="IsVanquishCompleted")
     def IsVanquishCompleted() -> bool:
         """Check if the vanquish is completed."""
         if Map.IsVanquishable():
@@ -368,6 +396,7 @@ class Map:
         return False
     
     @staticmethod
+    @frame_cache(category="Map", source_lib="IsInCinematic")
     def IsInCinematic() -> bool:
         """Check if the map is in a cinematic."""
         if not Map.IsMapReady():
@@ -377,6 +406,7 @@ class Map:
         return cinematic_ctx.h0004 != 0
     
     @staticmethod
+    @frame_cache(category="Map", source_lib="GetCampaign")
     def GetCampaign() -> tuple[int, str]:
         """
         Retrieve the campaign of the current map.
@@ -391,6 +421,7 @@ class Map:
         return current_map_info.campaign, CampaignName[current_map_info.campaign]
 
     @staticmethod
+    @frame_cache(category="Map", source_lib="GetContinent")
     def GetContinent() -> tuple[int, str]:
         """
         Retrieve the continent of the current map.
@@ -404,6 +435,7 @@ class Map:
         return current_map_info.continent, ContinentName[current_map_info.continent]
 
     @staticmethod
+    @frame_cache(category="Map", source_lib="HasEnterChallengeButton")
     def HasEnterChallengeButton() -> bool:
         """Check if the map has an enter challenge button."""
         current_map_info = GWContext.InstanceInfo().GetMapInfo()
@@ -412,6 +444,7 @@ class Map:
         return current_map_info.has_enter_button
 
     @staticmethod
+    @frame_cache(category="Map", source_lib="IsOnWorldMap")
     def IsOnWorldMap() -> bool:
         """Check if the map is on the world map."""
         current_map_info = GWContext.InstanceInfo().GetMapInfo()
@@ -420,6 +453,7 @@ class Map:
         return current_map_info.is_on_world_map
     
     @staticmethod
+    @frame_cache(category="Map", source_lib="IsPVP")
     def IsPVP() -> bool:
         """Check if the map is a PvP map."""
         current_map_info = GWContext.InstanceInfo().GetMapInfo()
@@ -428,6 +462,7 @@ class Map:
         return current_map_info.is_pvp
     
     @staticmethod
+    @frame_cache(category="Map", source_lib="IsGuildHall")
     def IsGuildHall() -> bool:
         """Check if the map is a Guild Hall."""
         current_map_info = GWContext.InstanceInfo().GetMapInfo()
@@ -436,6 +471,7 @@ class Map:
         return current_map_info.is_guild_hall
     
     @staticmethod
+    @frame_cache(category="Map", source_lib="IsVanquishable")
     def IsVanquishable() -> bool:
         """Check if the map is vanquishable."""
         current_map_info = GWContext.InstanceInfo().GetMapInfo()
@@ -444,6 +480,7 @@ class Map:
         return current_map_info.is_vanquishable_area
     
     @staticmethod
+    @frame_cache(category="Map", source_lib="IsVanquishComplete")
     def IsVanquishComplete() -> bool:
         """Check if the vanquish is complete."""
         if Map.IsVanquishable():
@@ -451,6 +488,7 @@ class Map:
         return False
     
     @staticmethod
+    @frame_cache(category="Map", source_lib="IsMapUnlocked")
     def IsMapUnlocked(mapid: int | None = None) -> bool:
         """Check if the map is unlocked."""
         # Step 1: determine map_id
@@ -1672,8 +1710,12 @@ class Map:
                 if rotation == None:
                     rotation = Map.MiniMap.GetRotation()
 
-                x = center_x - (player_x - game_x)*scale/5000
-                y = center_y + (player_y - game_y)*scale/5000
+                if player_x is not None and player_y is not None:
+                    x = center_x - (player_x - game_x)*scale/5000
+                    y = center_y + (player_y - game_y)*scale/5000
+                else:
+                    x = center_x - (game_x)*scale/5000
+                    y = center_y + (game_y)*scale/5000
 
                 screen_x = center_x + math.cos(rotation)*(x - center_x) - math.sin(rotation)*(y - center_y)
                 screen_y = center_y + math.sin(rotation)*(x - center_x) + math.cos(rotation)*(y - center_y)
@@ -1701,8 +1743,12 @@ class Map:
                 x = center_x + math.cos(-rotation)*(screen_x - center_x) - math.sin(-rotation)*(screen_y - center_y)
                 y = center_y + math.sin(-rotation)*(screen_x - center_x) + math.cos(-rotation)*(screen_y - center_y)
 
-                game_x = player_x + (x - center_x)*5000/scale
-                game_y = player_y - (y - center_y)*5000/scale
+                if player_x is not None and player_y is not None:
+                    game_x = player_x + (x - center_x)*5000/scale
+                    game_y = player_y - (y - center_y)*5000/scale
+                else:
+                    game_x = (x - center_x)*5000/scale
+                    game_y = -(y - center_y)*5000/scale
 
                 return game_x, game_y
             
@@ -1763,6 +1809,8 @@ class Map:
                 zoom = scale/5000
 
                 # Step 5: Get Player position geometry offset
+                if player_x is None or player_y is None:
+                    player_x, player_y = 0.0, 0.0
                 x_pos_offset = map_mid_x - player_x
                 y_pos_offset = map_mid_y - player_y
 
