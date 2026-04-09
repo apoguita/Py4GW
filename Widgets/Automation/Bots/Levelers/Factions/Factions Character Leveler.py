@@ -20,7 +20,7 @@ bot = Botting("Factions Leveler",
               upkeep_war_supplies_restock=10,
               upkeep_auto_inventory_management_active=False,
               upkeep_auto_combat_active=False,
-              upkeep_auto_loot_active=True)
+              upkeep_auto_loot_active=False)
 
 class BotSettings:
     CUSTOM_BOW_ID = 0 #Change this if you have already have a bow crafted for War supply farm runs.

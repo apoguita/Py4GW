@@ -4,6 +4,7 @@ import Py4GW
 import os
 import PyImGui
 import importlib.util
+import time
 projects_base_path = Py4GW.Console.get_projects_path()
 ac_folder_path = os.path.join(projects_base_path, "Sources", "aC_Scripts")
 from Sources.aC_Scripts.aC_api import *
@@ -61,6 +62,7 @@ _restock_pcons: bool = True
 _restock_res_scroll: bool = True
 _loop_queue: bool = False
 _loop_count: int = 0
+_prev_build_settings: tuple = (True, True, True, True, False)  # (conset, pcons, honeycomb, res_scroll, loop)
 # endregion
 
 # =============================================================================
@@ -126,6 +128,24 @@ def _handle_keyword(bot, key, value):
         bot.Wait.ForTime(value)
     elif key == "map":
         bot.Wait.ForMapToChange(value)
+    elif key == "dropbundle":
+        bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Dropping bundle.")
+        bot.UI.Keybinds.DropBundle()
+    elif key == "interacttarget":
+        bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Interacting with target {value}.")
+        Player.ChangeTarget(value)
+        bot.Wait.ForTime(500)
+        bot.Multibox.InteractWithTarget()
+        bot.Wait.ForTime(5000)
+    elif key == "followmodel":
+        model_id, follow_range, time_ms = value
+        _start = [None]
+        def _timeout(t=time_ms):
+            if _start[0] is None:
+                _start[0] = time.time()
+            return (time.time() - _start[0]) * 1000 >= t
+        bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Following model {model_id} for {time_ms}ms.")
+        bot.Move.FollowModel(model_id, follow_range, _timeout)
     elif key == "path":
         bot.Move.FollowAutoPath(value)
 
@@ -328,23 +348,43 @@ def bot_routine(bot: Botting) -> None:
             bot.Multibox.RestockResurrectionScroll(25)
 
         # -- Travel to explorable --
+        has_outpost_path = bool(vq.outpost_path)
+        has_explorable = bool(vq.explorable_id)
         transit_count = len(vq.transit_explorables)
         section_idx = 0  # track position within _section_headers[vq_idx]
 
-        if transit_count > 0:
-            bot.Move.FollowPathAndExitMap(vq.outpost_path, target_map_id=vq.transit_explorables[0])
+        if has_outpost_path and has_explorable:
+            if transit_count > 0:
+                bot.Move.FollowPathAndExitMap(vq.outpost_path, target_map_id=vq.transit_explorables[0])
+                for i in range(transit_count):
+                    next_map = vq.transit_explorables[i + 1] if i + 1 < transit_count else vq.explorable_id
+                    t_coord = _get_first_path_coord(vq.transit_paths[i])
+                    bot.States.AddCustomState(lambda vi=vq_idx, si=section_idx, tc=t_coord: _set_section_header(_section_headers[vi][si], tc[0], tc[1]),
+                                              f"SetSection_Transit_{vq_idx}_{i}")
+                    if _restock_pcons:
+                        bot.Multibox.UsePcons()
+                    _register_path(bot, vq.transit_paths[i], header_name=f"Transit_{vq_idx}_{i}")
+                    bot.Wait.ForMapToChange(next_map)
+                    section_idx += 1
+            else:
+                bot.Move.FollowPathAndExitMap(vq.outpost_path, target_map_id=vq.explorable_id)
+        elif not has_outpost_path and not has_explorable:
+            bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"No outpost exit path. Executing transit paths from outpost.")
             for i in range(transit_count):
-                next_map = vq.transit_explorables[i + 1] if i + 1 < transit_count else vq.explorable_id
                 t_coord = _get_first_path_coord(vq.transit_paths[i])
                 bot.States.AddCustomState(lambda vi=vq_idx, si=section_idx, tc=t_coord: _set_section_header(_section_headers[vi][si], tc[0], tc[1]),
                                           f"SetSection_Transit_{vq_idx}_{i}")
-                if _restock_pcons:
-                        bot.Multibox.UsePcons()
                 _register_path(bot, vq.transit_paths[i], header_name=f"Transit_{vq_idx}_{i}")
-                bot.Wait.ForMapToChange(next_map)
                 section_idx += 1
-        else:
-            bot.Move.FollowPathAndExitMap(vq.outpost_path, target_map_id=vq.explorable_id)
+        elif has_outpost_path and not has_explorable:
+            bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Following outpost path, then transit paths.")
+            if transit_count > 0:
+                _register_path(bot, vq.outpost_path)
+                for i in range(transit_count):
+                    _register_path(bot, vq.transit_paths[i], header_name=f"Transit_{vq_idx}_{i}")
+                    section_idx += 1
+            else:
+                _register_path(bot, vq.outpost_path)
 
         # -- Vanquish Path --
         bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Starting Vanquish: {vq.display}")
@@ -645,6 +685,7 @@ def _draw_settings():
 
 def _draw_settings_consumables():
     global _loop_queue, _restock_pcons, _restock_res_scroll
+    global _queue_version, _prev_build_settings
 
     PyImGui.separator()
     PyImGui.text("Consumables Selection")
@@ -668,6 +709,12 @@ def _draw_settings_consumables():
     if _loop_queue and _loop_count > 0:
         PyImGui.same_line(0, 10)
         PyImGui.text(f"(loop #{_loop_count})")
+
+    # Rebuild FSM if any build-time setting changed
+    current_build_settings = (use_conset, _restock_pcons, use_honeycomb, _restock_res_scroll, _loop_queue)
+    if current_build_settings != _prev_build_settings:
+        _prev_build_settings = current_build_settings
+        _queue_version += 1
 
 def _draw_settings_debug():
     PyImGui.separator()
@@ -697,7 +744,7 @@ bot.UI.override_draw_config(lambda: _draw_settings())
 bot.UI.override_draw_help(lambda: _draw_help())
 
 def main():
-    if not Routines.Checks.Map.MapValid() or not Player.IsPlayerLoaded():
+    if Map.IsMapLoading():
         return
     
     bot.UI.draw_window(icon_path=TEXTURE)
