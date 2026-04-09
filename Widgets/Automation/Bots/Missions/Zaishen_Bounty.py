@@ -4,6 +4,7 @@ import Py4GW
 import os
 import PyImGui
 import importlib.util
+import time
 projects_base_path = Py4GW.Console.get_projects_path()
 BOUNTIES_DIR = os.path.join(projects_base_path,"Sources","ZaishenBounty")
 
@@ -57,6 +58,7 @@ _restock_pcons: bool = True
 _restock_res_scroll: bool = True
 _loop_queue: bool = False
 _loop_count: int = 0
+_prev_build_settings: tuple = (True, True, True, True, False)  # (conset, pcons, honeycomb, res_scroll, loop)
 # endregion
 
 # =============================================================================
@@ -126,6 +128,24 @@ def _handle_keyword(bot, key, value):
         bot.Wait.ForTime(value)
     elif key == "map":
         bot.Wait.ForMapToChange(value)
+    elif key == "dropbundle":
+        bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Dropping bundle.")
+        bot.UI.Keybinds.DropBundle()
+    elif key == "interacttarget":
+        bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Interacting with target {value}.")
+        Player.ChangeTarget(value)
+        bot.Wait.ForTime(500)
+        bot.Multibox.InteractWithTarget()
+        bot.Wait.ForTime(5000)
+    elif key == "followmodel":
+        model_id, follow_range, time_ms = value
+        _start = [None]
+        def _timeout(t=time_ms):
+            if _start[0] is None:
+                _start[0] = time.time()
+            return (time.time() - _start[0]) * 1000 >= t
+        bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Following model {model_id} for {time_ms}ms.")
+        bot.Move.FollowModel(model_id, follow_range, _timeout)
     elif key == "path":
         bot.Move.FollowAutoPath(value)
 
@@ -523,7 +543,8 @@ def _draw_settings():
     #_draw_settings_debug()
 
 def _draw_settings_consumables():
-    global _loop_queue
+    global _loop_queue, _restock_pcons, _restock_res_scroll
+    global _queue_version, _prev_build_settings
 
     PyImGui.separator()
     PyImGui.text("Consumables Selection")
@@ -535,14 +556,12 @@ def _draw_settings_consumables():
     bot.Properties.ApplyNow("essence_of_celerity", "active", use_conset)
     bot.Properties.ApplyNow("grail_of_might", "active", use_conset)
 
-    global _restock_pcons
     _restock_pcons = PyImGui.checkbox("Restock & use Pcons (Multibox)", _restock_pcons)
 
     use_honeycomb = bot.Properties.Get("honeycomb", "active")
     use_honeycomb = PyImGui.checkbox("Restock & use Honeycomb", use_honeycomb)
     bot.Properties.ApplyNow("honeycomb", "active", use_honeycomb)
 
-    global _restock_res_scroll
     _restock_res_scroll = PyImGui.checkbox("Restock Resurrection Scroll (Multibox)", _restock_res_scroll)
 
     PyImGui.separator()
@@ -550,6 +569,12 @@ def _draw_settings_consumables():
     if _loop_queue and _loop_count > 0:
         PyImGui.same_line(0, 10)
         PyImGui.text(f"(loop #{_loop_count})")
+
+    # Rebuild FSM if any build-time setting changed
+    current_build_settings = (use_conset, _restock_pcons, use_honeycomb, _restock_res_scroll, _loop_queue)
+    if current_build_settings != _prev_build_settings:
+        _prev_build_settings = current_build_settings
+        _queue_version += 1
 
 def _draw_settings_debug():
     PyImGui.separator()
@@ -580,7 +605,7 @@ bot.UI.override_draw_config(lambda: _draw_settings())
 bot.UI.override_draw_help(lambda: _draw_help())
 
 def main():
-    if not Routines.Checks.Map.MapValid() or not Player.IsPlayerLoaded():
+    if Map.IsMapLoading():
         return
     
     bot.UI.draw_window(icon_path=TEXTURE)
