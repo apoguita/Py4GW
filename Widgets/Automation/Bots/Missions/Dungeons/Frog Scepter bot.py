@@ -361,15 +361,13 @@ def farm_froggy_routine(bot: Botting) -> None:
     bot.Wait.ForTime(2000)
     bot.States.AddHeader("Level 2 - Secure Return Checkpoint")
     bot.States.AddCustomState(_step_anchor, "Secure return - L2")  # anchor for secure return on wipe
-    bot.States.AddCustomState(_reset_l3_boss_route_flag, "Reset L3 boss route flag")
+    bot.States.AddCustomState(_reset_l2_boss_route_flag, "Reset L2 boss route flag")
     # Use consumables
     bot.States.AddCustomState(UseSummons, "Use Summons")
     bot.Multibox.UseAllConsumables()
     bot.Templates.Aggressive()
     # --- Path to torch area (atomisÃ©) ---
     path_4 = [
-    (-11522.0, -3486.0),
-    (-10639.0, -4076.0),
     (-11321.0, -5033.0),
     (-11268.0, -3922.0),
     (-11187.0, -2190.0),
@@ -470,7 +468,7 @@ def farm_froggy_routine(bot: Botting) -> None:
 
     bot.States.AddHeader("Level 2 - Boss Checkpoint")
     bot.States.AddCustomState(_step_anchor, "Secure return - Boss")
-    bot.States.AddCustomState(_set_l3_boss_route_flag, "Set L3 boss route flag")
+    bot.States.AddCustomState(_set_l2_boss_route_flag, "Set L2 boss route flag")
 
     bot.States.AddHeader("Level 2 - Path to Boss")
 
@@ -480,7 +478,8 @@ def farm_froggy_routine(bot: Botting) -> None:
     (14794.47, -14929.0),
     (13609.12, -17286.0),
     (14079.80, -17776.0),
-    (15116.40, -18733.0),]
+    (15116.40, -18733.0),
+    (16017.74, -19040.79),]
 
     bot.Templates.Aggressive()
     bot.Move.FollowAutoPath(path_froggy)
@@ -492,7 +491,7 @@ def farm_froggy_routine(bot: Botting) -> None:
     bot.Move.XY(14982.66, -19122.0)
     bot.States.AddCustomState(open_BOGROOT_chest, "Open Chest (All Accounts)")
     bot.States.AddCustomState(_record_drops_after_loot, "Record Drop Stats After Loot")
-    bot.Wait.ForTime(8000)
+    bot.Move.XY(14079.80, -17776.0)
     bot.States.AddCustomState(lambda: _collect_tekks_reward_in_dungeon(bot), "Collect Quest Reward (in dungeon)")
     # ===== NEXT RUN =====
     bot.Wait.ForMapToChange(target_map_name="Sparkfly Swamp")
@@ -952,13 +951,13 @@ def find_nearest_npc_by_name(name_fragment: str, max_dist: float = 2000.0) -> in
 
     return 0
 
-def _interact_with_tekks(bot: Botting, dialog_id: int, tolerance: float = 220.0):
+def _interact_with_tekks(bot: Botting, dialog_id: int, tolerance: float = 220.0, max_move_retries: int = 10):
     npc_name = "Tekks"
 
-    # Retry a few times in case the agent list hasn't fully loaded yet (common on first map entry)
+    # Retry a few times in case the agent list hasn't fully loaded yet
     agent_id = 0
     for _retry in range(5):
-        agent_id = find_nearest_npc_by_name(npc_name, 2000.0)
+        agent_id = find_nearest_npc_by_name(npc_name, 5000.0)
         if agent_id:
             break
         yield from Routines.Yield.wait(500)
@@ -967,14 +966,49 @@ def _interact_with_tekks(bot: Botting, dialog_id: int, tolerance: float = 220.0)
         ConsoleLog(BOT_NAME, f"[tekks] {npc_name} not found nearby", log=True)
         return False
 
+    # Log initial position
     x, y = Agent.GetXY(agent_id)
-    ConsoleLog(BOT_NAME, f"[tekks] Found {npc_name} at ({x}, {y}) agent_id={agent_id}", log=True)
+    px, py = Player.GetXY()
+    dx = x - px
+    dy = y - py
+    distance = (dx * dx + dy * dy) ** 0.5
 
-    ok = yield from _move_to(x, y, tolerance=tolerance)
-    if not ok:
-        ConsoleLog(BOT_NAME, "[tekks] Impossible to approach tekks", log=True)
+    ConsoleLog(
+        BOT_NAME,
+        f"[tekks] Found {npc_name} at ({x:.0f},{y:.0f}) dist={distance:.0f} agent_id={agent_id}",
+        log=True
+    )
+
+    # Retry movement several times
+    reached = False
+    for attempt in range(1, max_move_retries + 1):
+        if not Agent.IsLiving(agent_id):
+            ConsoleLog(BOT_NAME, "[tekks] Tekks is no longer valid/alive", log=True)
+            return False
+
+        # Refresh NPC position in case it shifted slightly
+        x, y = Agent.GetXY(agent_id)
+
+        ConsoleLog(
+            BOT_NAME,
+            f"[tekks] Move attempt {attempt}/{max_move_retries} toward ({x:.0f},{y:.0f})",
+            log=True
+        )
+
+        ok = yield from _move_to(x, y, tolerance=tolerance)
+        if ok:
+            reached = True
+            break
+
+        # Fallback: direct move once before retrying
+        ConsoleLog(BOT_NAME, f"[tekks] _move_to failed, fallback Player.Move to ({x:.0f},{y:.0f})", log=True)
+        Player.Move(x, y)
+        yield from Routines.Yield.wait(1000)
+
+    if not reached:
+        ConsoleLog(BOT_NAME, "[tekks] Impossible to approach tekks after retries", log=True)
         return False
-    
+
     Player.ChangeTarget(agent_id)
     yield from Routines.Yield.wait(800)
     Player.Interact(agent_id)
@@ -987,26 +1021,28 @@ def _interact_with_tekks(bot: Botting, dialog_id: int, tolerance: float = 220.0)
     for account in GLOBAL_CACHE.ShMem.GetAllAccountData():
         if account.AccountEmail != sender_email:
             GLOBAL_CACHE.ShMem.SendMessage(
-                sender_email, account.AccountEmail,
-                SharedCommandType.SendDialogToTarget, (agent_id, dialog_id, 0, 0)
+                sender_email,
+                account.AccountEmail,
+                SharedCommandType.SendDialogToTarget,
+                (agent_id, dialog_id, 0, 0)
             )
 
     yield from Routines.Yield.wait(1500)
     return True
 
-L3_BOSS_ROUTE_UNLOCKED = False
+L2_BOSS_ROUTE_UNLOCKED = False
 
-def _reset_l3_boss_route_flag() -> Generator:
-    global L3_BOSS_ROUTE_UNLOCKED
-    L3_BOSS_ROUTE_UNLOCKED = False
-    ConsoleLog(BOT_NAME, "[L3] Boss route unlocked = False")
+def _reset_l2_boss_route_flag() -> Generator:
+    global L2_BOSS_ROUTE_UNLOCKED
+    L2_BOSS_ROUTE_UNLOCKED = False
+    ConsoleLog(BOT_NAME, "[L2] Boss route unlocked = False")
     yield
 
 
-def _set_l3_boss_route_flag() -> Generator:
-    global L3_BOSS_ROUTE_UNLOCKED
-    L3_BOSS_ROUTE_UNLOCKED = True
-    ConsoleLog(BOT_NAME, "[L3] Boss route unlocked = True")
+def _set_l2_boss_route_flag() -> Generator:
+    global L2_BOSS_ROUTE_UNLOCKED
+    L2_BOSS_ROUTE_UNLOCKED = True
+    ConsoleLog(BOT_NAME, "[L2] Boss route unlocked = True")
     yield
 
 
@@ -1557,7 +1593,6 @@ def _ensure_ini_initialized() -> bool:
     global _total_runs, _total_run_time, _fastest_run, _slowest_run
     global _l1_total_time, _l1_fastest, _l1_slowest
     global _l2_total_time, _l2_fastest, _l2_slowest
-    global _l3_total_time, _l3_fastest, _l3_slowest
     global _froggy_drops, _gb_drops
 
     if _settings_loaded:
@@ -1593,10 +1628,6 @@ def _ensure_ini_initialized() -> bool:
     _f2 = _settings_ini.read_float(_SS, "l2_fastest", 0.0)
     _l2_fastest      = float('inf') if _f2 == 0.0 else _f2
     _l2_slowest      = _settings_ini.read_float(_SS, "l2_slowest",     0.0)
-    _l3_total_time   = _settings_ini.read_float(_SS, "l3_total_time",  0.0)
-    _f3 = _settings_ini.read_float(_SS, "l3_fastest", 0.0)
-    _l3_fastest      = float('inf') if _f3 == 0.0 else _f3
-    _l3_slowest      = _settings_ini.read_float(_SS, "l3_slowest",     0.0)
 
     # Load all-time FROGGY drop totals so the UI shows correct values from the start
     # and _accumulate_froggy adds on top of the correct base rather than starting from 0.
@@ -1665,10 +1696,7 @@ def _write_settings() -> None:
     _settings_ini.write_key(_SS, "l2_total_time",  str(_l2_total_time))
     _settings_ini.write_key(_SS, "l2_fastest",     str(_f2))
     _settings_ini.write_key(_SS, "l2_slowest",     str(_l2_slowest))
-    _f3 = 0.0 if _l3_fastest == float('inf') else _l3_fastest
-    _settings_ini.write_key(_SS, "l3_total_time",  str(_l3_total_time))
-    _settings_ini.write_key(_SS, "l3_fastest",     str(_f3))
-    _settings_ini.write_key(_SS, "l3_slowest",     str(_l3_slowest))
+
 
     _D = _FROGGY_DROPS_SECTION
     for key, total in _froggy_drops.items():
@@ -2296,46 +2324,6 @@ def TrackCurrentStep(bot: "Botting") -> None:
         _LAST_STEP_IDX = _STEP_BY_NAME.get(cur, _LAST_STEP_IDX)
         ConsoleLog("STEP", f"ðŸ‘€ {cur} (idx={_LAST_STEP_IDX})")
 
-def _dist(ax: float, ay: float, bx: float, by: float) -> float:
-    return math.hypot(ax - bx, ay - by)
-
-
-FROGGY_L2_PART1 = [
-    (-11303, -14596),  # allumage torche (premier brasier)
-    (-11019, -11550),
-    (-9028,  -9021),
-    (-6805,  -11511),
-    (-8984,  -13842),
-]
-
-
-FROGGY_L2_PART2 = [
-    (-3717, -4254),
-    (-8251, -3240),
-    (-8278, -1670),
-]
-FROGGY_L2_CLEANING = [
-    (-7506.89, -12236.26),
-    (-7435.12, -10649.25),
-    (-9013.61, -9772.06),
-    (-10324.58, -10434.43),
-    (-10371.20, -12510.16),
-    (-8836.63, -11471.01),
-]
-FROGGY_L3 = [
-    (15692, 17111),
-    (12969, 19842),
-    (8236,  16950),
-    (5549,  9920),
-    (-536,  6109),
-    (-3814, 5599),
-    (-4959, 7558),
-    (-7532, 4536),
-    (-10984, 486),
-    (-12621, 2948),
-]
-
-# --- Torch, Brazier, and Boss Helpers ---
 
 def command_type_routine_in_message_is_active(account_email, shared_command_type):
     """Checks if a multibox command is active for an account"""
@@ -2589,7 +2577,7 @@ def wait_for_map_change(target_map_id, timeout_seconds=60):
 
 
 def _on_party_wipe(bot: "Botting"):
-    global L3_BOSS_ROUTE_UNLOCKED
+    global L2_BOSS_ROUTE_UNLOCKED
     # Wait until we are alive again
     while Agent.IsDead(Player.GetAgentID()):
         yield from bot.Wait._coro_for_time(1000)
@@ -2653,7 +2641,7 @@ def _on_party_wipe(bot: "Botting"):
     chosen = pick_nearest_anchor(map_id, float(player_x), float(player_y))
 
     if map_id == BOGROOT_L2:
-        if L3_BOSS_ROUTE_UNLOCKED:
+        if L2_BOSS_ROUTE_UNLOCKED:
             chosen = "Secure return - Boss"
         else:
             chosen = pick_nearest_anchor(map_id, float(player_x), float(player_y))                          
