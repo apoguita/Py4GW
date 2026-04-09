@@ -106,7 +106,6 @@ class BuffConfigurationPerProfession(CustomBuffTarget):
             return not has_buff
         else:
             # else check if the party target has the effect
-            # todo pets
             has_effect: bool = custom_behavior_helpers.Resources.is_ally_under_specific_effect(agent_id, self.custom_skill.skill_id)
             return not has_effect
         
