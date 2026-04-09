@@ -2931,12 +2931,12 @@ def tooltip():
     # Title
     title_color = Color(255, 200, 100, 255)
     ImGui.push_font("Regular", 20)
-    PyImGui.text_colored("Bone Dragon Staff Farmer bot", title_color.to_tuple_normalized())
+    PyImGui.text_colored("Frog Scepter Farmer bot", title_color.to_tuple_normalized())
     ImGui.pop_font()
     PyImGui.spacing()
     PyImGui.separator()
     # Description
-    PyImGui.text("multi-account bot to farm Bone Dragon Staff")
+    PyImGui.text("multi-account bot to farm Frog Scepter")
     PyImGui.spacing()
     PyImGui.bullet_text("Requirements:")
     PyImGui.bullet_text("- Any number of accounts, but for best performance, 8 well-geared accounts is recommended")
