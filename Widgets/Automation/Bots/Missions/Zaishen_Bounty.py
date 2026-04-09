@@ -126,9 +126,6 @@ def _handle_keyword(bot, key, value):
     elif key == "dropbundle":
         bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Dropping bundle.")
         bot.UI.Keybinds.DropBundle()
-        bot.Wait.ForTime(250)
-        bot.UI.Keybinds.DropBundle()
-        bot.Wait.ForTime(250)
     elif key == "interacttarget":
         bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Interacting with target {value}.")
         Player.ChangeTarget(value)
@@ -183,6 +180,8 @@ def _set_section_header(header_name, first_x, first_y):
 # =============================================================================
 def bot_routine(bot: Botting) -> None:
     global _current_bounty_index, _bounty_header_names
+
+    bot.config.counters.clear_all()
 
     if not _queued_bounties:
         ConsoleLog(BotSettings.BOT_NAME, "No bounties queued!", Py4GW.Console.MessageType.Error)
@@ -586,6 +585,8 @@ def _draw_settings():
         bot.config.FSM = FSM(BotSettings.BOT_NAME)
         bot.config.counters.clear_all()
         bot.config.initialized = False
+        bot.UI._FSM_FILTER_START = 0
+        bot.UI._FSM_FILTER_END = 0
         _prev_queue_version = _queue_version
 
     PyImGui.separator()

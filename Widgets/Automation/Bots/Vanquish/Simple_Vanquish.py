@@ -303,8 +303,6 @@ def VanquishWatchdog(bot: "Botting", completed_header_name: str):
             bot.config.FSM.RemoveManagedCoroutine("Radar")
             bot.config.FSM.RemoveManagedCoroutine("ConsetUpkeep")
             bot.config.FSM.RemoveManagedCoroutine("PconsUpkeep")
-            global _radar_active
-            _radar_active = False
             bot.config.FSM.jump_to_state_by_name(completed_header_name)
             bot.config.FSM.resume()
             return
@@ -313,6 +311,8 @@ def VanquishWatchdog(bot: "Botting", completed_header_name: str):
 
 def bot_routine(bot: Botting) -> None:
     global _current_vq_index, _vq_header_names
+
+    bot.config.counters.clear_all()
 
     if not _queued_vanquishes:
         ConsoleLog(BotSettings.BOT_NAME, "No vanquishes queued!", Py4GW.Console.MessageType.Error)
@@ -669,8 +669,6 @@ def OnPartyWipe(bot: "Botting"):
     fsm.RemoveManagedCoroutine("Radar")
     fsm.RemoveManagedCoroutine("ConsetUpkeep")
     fsm.RemoveManagedCoroutine("PconsUpkeep")
-    global _radar_active
-    _radar_active = False
     fsm.AddManagedCoroutine("OnWipe_OPD", lambda: _on_party_wipe(bot))
 # endregion
 
@@ -807,6 +805,8 @@ def _draw_settings():
         bot.config.FSM = FSM(BotSettings.BOT_NAME)
         bot.config.counters.clear_all()
         bot.config.initialized = False
+        bot.UI._FSM_FILTER_START = 0
+        bot.UI._FSM_FILTER_END = 0
         _prev_queue_version = _queue_version
 
     PyImGui.separator()
