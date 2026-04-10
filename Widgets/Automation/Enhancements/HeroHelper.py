@@ -523,61 +523,79 @@ class Helper:
 
     @staticmethod
     def get_best_bip_target():
+        def _get_shared_party_account(agent_id):
+            own_party_id = Party.GetPartyID()
+            own_map_id = Map.GetMapID()
+            own_region = Map.GetRegion()[0]
+            own_district = Map.GetDistrict()
+            own_language = Map.GetLanguage()[0]
+
+            for account in GLOBAL_CACHE.ShMem.GetAllAccountData(sort_results=False, include_isolated=True) or []:
+                if not getattr(account, "IsSlotActive", False):
+                    continue
+                if int(account.AgentData.AgentID) != int(agent_id):
+                    continue
+                if int(account.AgentPartyData.PartyID) != int(own_party_id):
+                    continue
+                same_map = (
+                    int(account.AgentData.Map.MapID) == int(own_map_id) and
+                    int(account.AgentData.Map.Region) == int(own_region) and
+                    int(account.AgentData.Map.District) == int(own_district) and
+                    int(account.AgentData.Map.Language) == int(own_language)
+                )
+                if same_map:
+                    return account
+            return None
+
+        def _has_bip_style_effect(agent_id, effect_ids):
+            if agent_id == Player.GetAgentID():
+                return Helper.check_for_effects(agent_id, effect_ids)
+
+            account = _get_shared_party_account(agent_id)
+            if account is None:
+                return False
+
+            active_buffs = {int(buff.SkillId) for buff in account.AgentData.Buffs.Buffs if int(buff.SkillId) != 0}
+            return any(int(effect_id) in active_buffs for effect_id in effect_ids)
+
+        def _get_party_energy_percentage(agent_id):
+            if agent_id == Player.GetAgentID():
+                return Helper.get_energy_data(agent_id).percentage
+
+            account = _get_shared_party_account(agent_id)
+            if account is None:
+                return 1.0
+
+            return float(account.AgentData.Energy.Current)
+
         player_id = Player.GetAgentID()
         if not player_id:
             return None
 
         bip_id = Skill.GetID("Blood_is_Power")
         blood_ritual_id = Skill.GetID("Blood_Ritual")
-        thresholds = {
-            "Warrior": (25, 0.70), "Ranger": (25, 0.60), "Monk": (30, 0.50),
-            "Necromancer": (30, 0.50), "Mesmer": (30, 0.50), "Elementalist": (40, 0.40),
-            "Assassin": (25, 0.60), "Ritualist": (30, 0.50), "Paragon": (25, 0.70),
-            "Dervish": (25, 0.50),
-        }
-
+        less_energy_threshold = 0.40
+        spell_range = Helper.get_spell_cast_range()
         player_pos = Player.GetXY()
-        ally_ids = set(AgentArray.GetAllyArray() or [])
-        ally_ids.add(player_id)
 
-        candidates = []
-        for ally_id in ally_ids:
+        ordered_party_player_ids = []
+        for party_player in Party.GetPlayers() or []:
+            agent_id = int(Party.Players.GetAgentIDByLoginNumber(party_player.login_number) or 0)
+            if agent_id:
+                ordered_party_player_ids.append(agent_id)
+
+        for ally_id in ordered_party_player_ids:
             if not Helper.is_agent_alive(ally_id):
                 continue
-            if Helper.check_for_effects(ally_id, [bip_id, blood_ritual_id]):
+            if Utils.Distance(player_pos, Agent.GetXY(ally_id)) > spell_range:
                 continue
-
-            distance_from_player = Utils.Distance(player_pos, Agent.GetXY(ally_id))
-            if distance_from_player > Helper.get_spell_cast_range() * 1.2:
+            if _has_bip_style_effect(ally_id, [bip_id, blood_ritual_id]):
                 continue
-
-            energy = Helper.get_energy_data(ally_id)
-            if energy.regen > 0.03:
+            if _get_party_energy_percentage(ally_id) > less_energy_threshold:
                 continue
+            return ally_id
 
-            prof, _ = Agent.GetProfessionNames(ally_id)
-            if prof not in thresholds:
-                continue
-
-            min_energy, min_percent = thresholds[prof]
-            needs_bip = energy.current < min_energy or energy.percentage <= min_percent
-            if not needs_bip:
-                continue
-
-            # Prefer casters first, then the lowest-energy ally, then proximity.
-            candidates.append((
-                0 if Agent.IsCaster(ally_id) else 1,
-                energy.percentage,
-                energy.current,
-                distance_from_player,
-                ally_id
-            ))
-
-        if not candidates:
-            return None
-
-        candidates.sort()
-        return candidates[0][4]
+        return None
 
     @staticmethod
     def is_fighting(agent_id=None):
