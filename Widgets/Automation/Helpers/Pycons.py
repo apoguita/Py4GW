@@ -1,5 +1,6 @@
 import hashlib
 import os
+from datetime import datetime, timezone
 
 # ---- REQUIRED BY WIDGET HANDLER (define immediately) ----
 def configure():
@@ -19,6 +20,7 @@ PYCONS_SYNC_OPCODE_RELOAD_CONFIG = 1
 PYCONS_SYNC_OPCODE_RELOAD_RESULT = 2
 
 _PYCONS_CONFIG_DIR = os.path.normpath(os.path.join("Widgets", "Config", "Pycons"))
+_PYCONS_PROFILES_DIR = os.path.normpath(os.path.join(_PYCONS_CONFIG_DIR, "Profiles"))
 _LEGACY_CONFIG_DIR = os.path.normpath(os.path.join("Widgets", "Config"))
 
 
@@ -101,11 +103,16 @@ try:
     RESTOCK_MODE_WITHDRAW_ONLY = 1
     RESTOCK_MODE_DEPOSIT_ONLY = 2
     DEFAULT_RESTOCK_MODE = RESTOCK_MODE_BALANCED
+    RESTOCK_SCOPE_ACCOUNT_WIDE = 0
+    RESTOCK_SCOPE_ALLOW_LIST = 1
+    RESTOCK_SCOPE_BLOCK_LIST = 2
+    DEFAULT_RESTOCK_SCOPE_MODE = RESTOCK_SCOPE_ACCOUNT_WIDE
     MIN_RESTOCK_MOVE_CAP_PER_CYCLE = 1
     MAX_RESTOCK_MOVE_CAP_PER_CYCLE = 2500
     DEFAULT_RESTOCK_MOVE_CAP_PER_CYCLE = MAX_RESTOCK_MOVE_CAP_PER_CYCLE
     BLOCKED_ACTION_RETENTION_MS = 45000
     BLOCKED_ACTION_MAX_UI_ROWS = 4
+    MAX_RESTOCK_CHARACTER_LIST_TEXT_LEN = 512
     MAIN_WINDOW_DEFAULT_SIZE = (560.0, 560.0)
     MAIN_SELECTED_CHILD_MIN_HEIGHT = 120.0
     MAIN_SELECTED_CHILD_MAX_HEIGHT = 420.0
@@ -586,6 +593,7 @@ try:
     TOOLTIP_LENGTH_OPTIONS = ["Short", "Long"]
     ALCOHOL_PREFERENCE_OPTIONS = ["Smooth", "Strong-first", "Weak-first"]
     RESTOCK_MODE_OPTIONS = ["Balanced", "Withdraw only", "Deposit only"]
+    RESTOCK_SCOPE_OPTIONS = ["Account-wide", "Allow list", "Block list"]
     SETTINGS_CONSUMABLE_CATEGORY_ORDER = ["explorable", "summoning", "mbdp", "outpost", "alcohol"]
 
     _TOOLTIP_TEXTS = {
@@ -612,7 +620,7 @@ try:
         "team_broadcast": {
             "short": "Send this account's item usage events to team accounts.",
             "long": "This account broadcasts consumable usage events to same-party accounts on the same map. Broadcasters coordinate party MB/DP behavior; receiving accounts still apply their own local safety checks before consuming.",
-            "why": "Party-wide MB/DP coordination depends on broadcasters; without it, team sync behavior will not run.",
+            "why": "Party-wide MB/DP coordination depends on broadcasters; without it, team coordination behavior will not run.",
         },
         "team_consume_opt_in": {
             "short": "Allow this account to consume when teammates broadcast.",
@@ -840,9 +848,9 @@ try:
             "why": "Useful for quickly auditing and editing your active loadout.",
         },
         "presets_section": {
-            "short": "Apply built-in presets or save/load your own settings profiles.",
-            "long": "Preset controls let you apply predefined behavior quickly, or store your own configuration in custom slots and reload it later.",
-            "why": "Useful when switching between solo, leader, and team-sync playstyles without manually changing many fields.",
+            "short": "Manage shared saved profiles for Pycons.",
+            "long": "Saved profiles live in the shared Pycons profile library, while built-in quick presets stay available in Morale Boost & Death Penalty settings.",
+            "why": "Useful when switching between solo, leader, and team playstyles without manually changing many fields.",
         },
         "preset_leader_force_plus10_team": {
             "short": "Leader mode that enforces a team morale target.",
@@ -854,15 +862,35 @@ try:
             "long": "Applies a conservative solo profile: no team broadcast/opt-in, MB/DP enabled with safe defaults, and receiver-local safety protections kept on.",
             "why": "Good baseline when you are not coordinating consumables across accounts.",
         },
-        "preset_save_slot": {
-            "short": "Save current settings into this slot.",
-            "long": "Stores the current profile values and selected/enabled item toggles into this preset slot. You can rename each slot first.",
-            "why": "Lets you keep multiple ready-to-use setups and switch quickly.",
+        "profile_save_new": {
+            "short": "Save the current live settings as a new named profile.",
+            "long": "Creates a new shared Pycons profile using the current live configuration, including the current main-window enabled ON/OFF state.",
+            "why": "Useful when you want to snapshot your current setup without overwriting an existing profile.",
         },
-        "preset_load_slot": {
-            "short": "Load settings from this slot.",
-            "long": "Loads all saved values from this preset slot and applies them to the current account.",
-            "why": "Fast profile switching for different team roles or farming modes.",
+        "profile_load_selected": {
+            "short": "Load the selected saved profile into the live Pycons config.",
+            "long": "Writes the selected shared profile back into the live [Pycons] section for the current account, reloads Pycons immediately, and refreshes local runtime state.",
+            "why": "Fast profile switching for different team roles or farming modes without pushing changes to other accounts.",
+        },
+        "profile_save_over_selected": {
+            "short": "Overwrite the selected saved profile with the current live settings.",
+            "long": "Updates the selected shared profile using the current live configuration while preserving that profile's internal id and created timestamp.",
+            "why": "Useful when you want to revise an existing saved setup after tuning it in the main window.",
+        },
+        "profile_rename": {
+            "short": "Rename the selected saved profile.",
+            "long": "Updates only the selected shared profile's display name and updated timestamp. Internal profile ids stay stable.",
+            "why": "Lets you clean up or clarify saved setups without changing how they are stored.",
+        },
+        "profile_duplicate": {
+            "short": "Duplicate the selected saved profile.",
+            "long": "Creates a new shared profile by copying the selected saved profile's payload. It does not use the current live settings.",
+            "why": "Useful when you want a starting point for a variant setup without overwriting the original saved profile.",
+        },
+        "profile_delete": {
+            "short": "Delete the selected saved profile.",
+            "long": "Removes the selected profile file from the shared Pycons profile library. The live [Pycons] config on the current account is not changed.",
+            "why": "Keeps the saved-profile list tidy when a setup is no longer needed.",
         },
         "preset_set_others_optin": {
             "short": "Set all other same-party accounts to opt in.",
@@ -1010,12 +1038,1177 @@ try:
         "mbdp_powerstone_dp_threshold",
         "mbdp_prefer_seal_for_recharge",
     ]
+    PYCONS_PROFILE_SECTION_PREFIX = "PyconsProfile:"
+    PYCONS_SHARED_PROFILE_SECTION = "PyconsProfile"
+    PYCONS_PROFILE_MIGRATION_FLAG_KEY = "profiles_legacy_slots_migrated_v1"
+    PYCONS_SHARED_PROFILE_MIGRATION_FLAG_KEY = "profiles_shared_library_migrated_v1"
+    PROFILE_NAME_MAX_LEN = 64
+    PROFILE_BOOL_KEYS = {
+        "auto_vault_restock",
+        "restock_keep_target_on_deselect",
+        "alcohol_enabled",
+        "alcohol_disable_effect",
+        "alcohol_use_explorable",
+        "alcohol_use_outpost",
+        "team_broadcast",
+        "team_consume_opt_in",
+        "mbdp_enabled",
+        "mbdp_allow_partywide_in_human_parties",
+        "mbdp_receiver_require_enabled",
+        "mbdp_strict_party_plus10",
+        "mbdp_prefer_seal_for_recharge",
+    }
+    PROFILE_SCALAR_KEYS = [
+        "interval_ms",
+        "auto_vault_restock",
+        "restock_interval_ms",
+        "restock_mode",
+        "restock_move_cap_per_cycle",
+        "restock_keep_target_on_deselect",
+        "alcohol_enabled",
+        "alcohol_disable_effect",
+        "alcohol_target_level",
+        "alcohol_use_explorable",
+        "alcohol_use_outpost",
+        "alcohol_preference",
+        "team_broadcast",
+        "team_consume_opt_in",
+        "force_team_morale_value",
+        "mbdp_enabled",
+        "mbdp_allow_partywide_in_human_parties",
+        "mbdp_receiver_require_enabled",
+        "mbdp_strict_party_plus10",
+        "mbdp_self_dp_minor_threshold",
+        "mbdp_self_dp_major_threshold",
+        "mbdp_self_morale_target_effective",
+        "mbdp_self_min_morale_gain",
+        "mbdp_party_min_members",
+        "mbdp_party_min_interval_ms",
+        "mbdp_party_target_effective",
+        "mbdp_party_min_total_gain_5",
+        "mbdp_party_min_total_gain_10",
+        "mbdp_party_light_dp_threshold",
+        "mbdp_party_heavy_dp_threshold",
+        "mbdp_powerstone_dp_threshold",
+        "mbdp_prefer_seal_for_recharge",
+    ]
 
     def _default_pycons_sync_category_selection() -> dict[str, bool]:
         return {str(key): False for key, _label in PYCONS_SYNC_CATEGORY_DEFS}
 
     def _preset_slot_default_name(slot_idx: int) -> str:
         return f"Preset {int(slot_idx)}"
+
+    def _save_ini_config(ini_handler, config):
+        ini_handler.save(config)
+
+    def _ensure_pycons_profiles_dir() -> bool:
+        try:
+            os.makedirs(_PYCONS_PROFILES_DIR, exist_ok=True)
+            return True
+        except Exception:
+            return False
+
+    def _pycons_profiles_lock_path() -> str:
+        return os.path.normpath(os.path.join(_PYCONS_PROFILES_DIR, ".pycons_profiles.lock"))
+
+    def _acquire_pycons_profiles_library_lock(timeout_ms: int = 5000, *, poll_ms: int = 50, stale_after_ms: int = 120000) -> str:
+        import time as _time
+
+        if not _ensure_pycons_profiles_dir():
+            raise OSError("Could not create the shared Pycons profiles folder.")
+
+        lock_path = _pycons_profiles_lock_path()
+        deadline = _time.monotonic() + max(0.25, float(timeout_ms) / 1000.0)
+        sleep_seconds = max(0.01, float(poll_ms) / 1000.0)
+        stale_after_ms = max(1000, int(stale_after_ms))
+
+        while True:
+            try:
+                fd = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+                try:
+                    lock_body = (
+                        f"pid={os.getpid()}\n"
+                        f"created_at={_profile_timestamp_now()}\n"
+                    )
+                    os.write(fd, lock_body.encode("utf-8"))
+                finally:
+                    os.close(fd)
+                return lock_path
+            except FileExistsError:
+                try:
+                    lock_age_ms = int(max(0.0, (_time.time() - os.path.getmtime(lock_path)) * 1000.0))
+                except OSError:
+                    lock_age_ms = 0
+
+                if lock_age_ms >= stale_after_ms:
+                    try:
+                        os.remove(lock_path)
+                        continue
+                    except OSError:
+                        pass
+
+                if _time.monotonic() >= deadline:
+                    raise TimeoutError("Pycons shared profile library is busy. Try again in a moment.")
+                _time.sleep(sleep_seconds)
+
+    def _release_pycons_profiles_library_lock(lock_path: str):
+        safe_lock_path = str(lock_path or "").strip()
+        if not safe_lock_path:
+            return
+        try:
+            if os.path.exists(safe_lock_path):
+                os.remove(safe_lock_path)
+        except OSError:
+            pass
+
+    def _with_pycons_profiles_library_lock(action, *, timeout_ms: int = 5000):
+        lock_path = _acquire_pycons_profiles_library_lock(timeout_ms=timeout_ms)
+        try:
+            return action()
+        finally:
+            _release_pycons_profiles_library_lock(lock_path)
+
+    def _profile_section_name(profile_id: str) -> str:
+        return f"{PYCONS_PROFILE_SECTION_PREFIX}{str(profile_id or '').strip()}"
+
+    def _profile_id_from_section(section_name: str) -> str:
+        prefix = str(PYCONS_PROFILE_SECTION_PREFIX)
+        name = str(section_name or "")
+        if name.lower().startswith(prefix.lower()):
+            return name[len(prefix):]
+        return ""
+
+    def _profile_file_path(profile_id: str) -> str:
+        safe_profile_id = re.sub(r"[^A-Za-z0-9_-]", "", str(profile_id or "").strip())
+        if not safe_profile_id:
+            return ""
+        return os.path.normpath(os.path.join(_PYCONS_PROFILES_DIR, f"{safe_profile_id}.ini"))
+
+    def _profile_id_from_path(profile_path: str) -> str:
+        safe_path = str(profile_path or "").strip()
+        if not safe_path:
+            return ""
+        filename = os.path.basename(safe_path)
+        stem, ext = os.path.splitext(filename)
+        if str(ext or "").lower() != ".ini":
+            return ""
+        return re.sub(r"[^A-Za-z0-9_-]", "", str(stem or "").strip())
+
+    def _profile_timestamp_now() -> str:
+        return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+    def _profile_name_norm(name: str) -> str:
+        return _normalize_name(str(name or ""))
+
+    def _profile_display_name(raw_name: str, profile_id: str = "") -> str:
+        clean = _compact_character_name(str(raw_name or ""))[:PROFILE_NAME_MAX_LEN]
+        if clean:
+            return clean
+        suffix = str(profile_id or "").strip()[:8]
+        return f"Profile {suffix or 'Unnamed'}"
+
+    def _profile_reserved_name_norms() -> set[str]:
+        return {_profile_name_norm(name) for name in BUILTIN_PRESET_NAMES}
+
+    def _profile_default_scalar_value(key: str):
+        defaults = {
+            "interval_ms": 1500,
+            "auto_vault_restock": False,
+            "restock_interval_ms": DEFAULT_RESTOCK_INTERVAL_MS,
+            "restock_mode": DEFAULT_RESTOCK_MODE,
+            "restock_move_cap_per_cycle": DEFAULT_RESTOCK_MOVE_CAP_PER_CYCLE,
+            "restock_keep_target_on_deselect": True,
+            "alcohol_enabled": False,
+            "alcohol_disable_effect": False,
+            "alcohol_target_level": 3,
+            "alcohol_use_explorable": True,
+            "alcohol_use_outpost": True,
+            "alcohol_preference": 0,
+            "team_broadcast": False,
+            "team_consume_opt_in": False,
+            "force_team_morale_value": int(MBDP_DEFAULTS["force_team_morale_value"]),
+            "mbdp_enabled": bool(MBDP_DEFAULTS["mbdp_enabled"]),
+            "mbdp_allow_partywide_in_human_parties": bool(MBDP_DEFAULTS["mbdp_allow_partywide_in_human_parties"]),
+            "mbdp_receiver_require_enabled": bool(MBDP_DEFAULTS["mbdp_receiver_require_enabled"]),
+            "mbdp_strict_party_plus10": bool(MBDP_DEFAULTS["mbdp_strict_party_plus10"]),
+            "mbdp_self_dp_minor_threshold": int(MBDP_DEFAULTS["mbdp_self_dp_minor_threshold"]),
+            "mbdp_self_dp_major_threshold": int(MBDP_DEFAULTS["mbdp_self_dp_major_threshold"]),
+            "mbdp_self_morale_target_effective": int(MBDP_DEFAULTS["mbdp_self_morale_target_effective"]),
+            "mbdp_self_min_morale_gain": int(MBDP_DEFAULTS["mbdp_self_min_morale_gain"]),
+            "mbdp_party_min_members": int(MBDP_DEFAULTS["mbdp_party_min_members"]),
+            "mbdp_party_min_interval_ms": int(MBDP_DEFAULTS["mbdp_party_min_interval_ms"]),
+            "mbdp_party_target_effective": int(MBDP_DEFAULTS["mbdp_party_target_effective"]),
+            "mbdp_party_min_total_gain_5": int(MBDP_DEFAULTS["mbdp_party_min_total_gain_5"]),
+            "mbdp_party_min_total_gain_10": int(MBDP_DEFAULTS["mbdp_party_min_total_gain_10"]),
+            "mbdp_party_light_dp_threshold": int(MBDP_DEFAULTS["mbdp_party_light_dp_threshold"]),
+            "mbdp_party_heavy_dp_threshold": int(MBDP_DEFAULTS["mbdp_party_heavy_dp_threshold"]),
+            "mbdp_powerstone_dp_threshold": int(MBDP_DEFAULTS["mbdp_powerstone_dp_threshold"]),
+            "mbdp_prefer_seal_for_recharge": bool(MBDP_DEFAULTS["mbdp_prefer_seal_for_recharge"]),
+        }
+        default_value = defaults.get(key, False if key in PROFILE_BOOL_KEYS else 0)
+        return bool(default_value) if key in PROFILE_BOOL_KEYS else int(default_value)
+
+    def _profile_default_payload() -> dict[str, Any]:
+        payload: dict[str, Any] = {}
+        for key in PROFILE_SCALAR_KEYS:
+            payload[key] = _profile_default_scalar_value(key)
+        for spec in CONSUMABLES:
+            item_key = str(spec.get("key", "") or "")
+            if item_key:
+                payload[f"min_interval_{item_key}"] = 0
+        for spec in ALL_CONSUMABLES:
+            item_key = str(spec.get("key", "") or "")
+            if not item_key:
+                continue
+            payload[f"selected_{item_key}"] = False
+            payload[f"enabled_{item_key}"] = False
+            payload[f"restock_enabled_{item_key}"] = False
+            payload[f"restock_target_{item_key}"] = 0
+        for spec in ALCOHOL_ITEMS:
+            item_key = str(spec.get("key", "") or "")
+            if not item_key:
+                continue
+            payload[f"alcohol_selected_{item_key}"] = False
+            payload[f"alcohol_enabled_{item_key}"] = False
+            payload[f"restock_enabled_{item_key}"] = False
+            payload[f"restock_target_{item_key}"] = 0
+        return payload
+
+    def _profile_dp_threshold_to_effective(raw_value: int) -> int:
+        value = int(raw_value or 0)
+        if value > 0:
+            value = -value
+        return max(-60, min(0, int(value)))
+
+    def _profile_target_to_effective(raw_value: int) -> int:
+        value = int(raw_value or 0)
+        if value > 10:
+            value = value - 100
+        return max(-60, min(10, int(value)))
+
+    def _read_profile_payload_from_ini(ini_handler, section: str, *, prefix: str = "", fallback_payload: dict[str, Any] | None = None) -> dict[str, Any]:
+        payload = dict(fallback_payload or _profile_default_payload())
+
+        for key in PROFILE_SCALAR_KEYS:
+            default_value = payload.get(key, _profile_default_scalar_value(key))
+            full_key = f"{prefix}{key}"
+            if key in PROFILE_BOOL_KEYS:
+                payload[key] = bool(ini_handler.read_bool(section, full_key, bool(default_value)))
+            else:
+                payload[key] = int(ini_handler.read_int(section, full_key, int(default_value)))
+
+        payload["restock_interval_ms"] = max(MIN_RESTOCK_INTERVAL_MS, int(payload.get("restock_interval_ms", DEFAULT_RESTOCK_INTERVAL_MS)))
+        payload["restock_mode"] = max(
+            RESTOCK_MODE_BALANCED,
+            min(RESTOCK_MODE_DEPOSIT_ONLY, int(payload.get("restock_mode", DEFAULT_RESTOCK_MODE))),
+        )
+        payload["restock_move_cap_per_cycle"] = max(
+            MIN_RESTOCK_MOVE_CAP_PER_CYCLE,
+            min(MAX_RESTOCK_MOVE_CAP_PER_CYCLE, int(payload.get("restock_move_cap_per_cycle", DEFAULT_RESTOCK_MOVE_CAP_PER_CYCLE))),
+        )
+        payload["alcohol_target_level"] = max(0, min(5, int(payload.get("alcohol_target_level", 3))))
+        alcohol_preference = int(payload.get("alcohol_preference", 0))
+        payload["alcohol_preference"] = alcohol_preference if alcohol_preference in (0, 1, 2) else 0
+        payload["force_team_morale_value"] = max(-60, min(10, int(payload.get("force_team_morale_value", MBDP_DEFAULTS["force_team_morale_value"]))))
+        payload["mbdp_self_dp_minor_threshold"] = _profile_dp_threshold_to_effective(payload.get("mbdp_self_dp_minor_threshold", MBDP_DEFAULTS["mbdp_self_dp_minor_threshold"]))
+        payload["mbdp_self_dp_major_threshold"] = _profile_dp_threshold_to_effective(payload.get("mbdp_self_dp_major_threshold", MBDP_DEFAULTS["mbdp_self_dp_major_threshold"]))
+        payload["mbdp_self_morale_target_effective"] = _profile_target_to_effective(payload.get("mbdp_self_morale_target_effective", MBDP_DEFAULTS["mbdp_self_morale_target_effective"]))
+        payload["mbdp_self_min_morale_gain"] = max(0, min(10, int(payload.get("mbdp_self_min_morale_gain", MBDP_DEFAULTS["mbdp_self_min_morale_gain"]))))
+        payload["mbdp_party_target_effective"] = _profile_target_to_effective(payload.get("mbdp_party_target_effective", MBDP_DEFAULTS["mbdp_party_target_effective"]))
+        payload["mbdp_party_min_members"] = max(2, min(8, int(payload.get("mbdp_party_min_members", MBDP_DEFAULTS["mbdp_party_min_members"]))))
+        payload["mbdp_party_min_interval_ms"] = max(1000, int(payload.get("mbdp_party_min_interval_ms", MBDP_DEFAULTS["mbdp_party_min_interval_ms"])))
+        payload["mbdp_party_min_total_gain_5"] = max(0, min(60, int(payload.get("mbdp_party_min_total_gain_5", MBDP_DEFAULTS["mbdp_party_min_total_gain_5"]))))
+        payload["mbdp_party_min_total_gain_10"] = max(0, min(120, int(payload.get("mbdp_party_min_total_gain_10", MBDP_DEFAULTS["mbdp_party_min_total_gain_10"]))))
+        payload["mbdp_party_light_dp_threshold"] = _profile_dp_threshold_to_effective(payload.get("mbdp_party_light_dp_threshold", MBDP_DEFAULTS["mbdp_party_light_dp_threshold"]))
+        payload["mbdp_party_heavy_dp_threshold"] = _profile_dp_threshold_to_effective(payload.get("mbdp_party_heavy_dp_threshold", MBDP_DEFAULTS["mbdp_party_heavy_dp_threshold"]))
+        payload["mbdp_powerstone_dp_threshold"] = _profile_dp_threshold_to_effective(payload.get("mbdp_powerstone_dp_threshold", MBDP_DEFAULTS["mbdp_powerstone_dp_threshold"]))
+
+        for spec in CONSUMABLES:
+            item_key = str(spec.get("key", "") or "")
+            if not item_key:
+                continue
+            min_key = f"min_interval_{item_key}"
+            payload[min_key] = max(0, int(ini_handler.read_int(section, f"{prefix}{min_key}", int(payload.get(min_key, 0) or 0))))
+
+        for spec in ALL_CONSUMABLES:
+            item_key = str(spec.get("key", "") or "")
+            if not item_key:
+                continue
+            selected_key = f"selected_{item_key}"
+            enabled_key = f"enabled_{item_key}"
+            restock_enabled_key = f"restock_enabled_{item_key}"
+            restock_target_key = f"restock_target_{item_key}"
+            selected_value = bool(ini_handler.read_bool(section, f"{prefix}{selected_key}", bool(payload.get(selected_key, False))))
+            enabled_value = bool(ini_handler.read_bool(section, f"{prefix}{enabled_key}", bool(payload.get(enabled_key, False))))
+            restock_enabled_value = bool(ini_handler.read_bool(section, f"{prefix}{restock_enabled_key}", bool(payload.get(restock_enabled_key, False))))
+            default_target = int(payload.get(restock_target_key, 0) or 0)
+            if (not bool(ini_handler.has_key(section, f"{prefix}{restock_target_key}"))) and selected_value and restock_enabled_value and default_target <= 0:
+                default_target = int(VAULT_RESTOCK_TARGET_QTY)
+            payload[selected_key] = bool(selected_value)
+            payload[enabled_key] = bool(enabled_value) if bool(selected_value) else False
+            payload[restock_enabled_key] = bool(restock_enabled_value)
+            payload[restock_target_key] = max(0, min(2500, int(ini_handler.read_int(section, f"{prefix}{restock_target_key}", default_target))))
+
+        for spec in ALCOHOL_ITEMS:
+            item_key = str(spec.get("key", "") or "")
+            if not item_key:
+                continue
+            selected_key = f"alcohol_selected_{item_key}"
+            enabled_key = f"alcohol_enabled_{item_key}"
+            restock_enabled_key = f"restock_enabled_{item_key}"
+            restock_target_key = f"restock_target_{item_key}"
+            selected_value = bool(ini_handler.read_bool(section, f"{prefix}{selected_key}", bool(payload.get(selected_key, False))))
+            enabled_value = bool(ini_handler.read_bool(section, f"{prefix}{enabled_key}", bool(payload.get(enabled_key, False))))
+            restock_enabled_value = bool(ini_handler.read_bool(section, f"{prefix}{restock_enabled_key}", bool(payload.get(restock_enabled_key, False))))
+            default_target = int(payload.get(restock_target_key, 0) or 0)
+            if (not bool(ini_handler.has_key(section, f"{prefix}{restock_target_key}"))) and selected_value and restock_enabled_value and default_target <= 0:
+                default_target = int(VAULT_RESTOCK_TARGET_QTY)
+            payload[selected_key] = bool(selected_value)
+            payload[enabled_key] = bool(enabled_value) if bool(selected_value) else False
+            payload[restock_enabled_key] = bool(restock_enabled_value)
+            payload[restock_target_key] = max(0, min(2500, int(ini_handler.read_int(section, f"{prefix}{restock_target_key}", default_target))))
+
+        return payload
+
+    def _build_current_profile_payload() -> dict[str, Any]:
+        payload = _profile_default_payload()
+        if cfg is None:
+            return payload
+
+        for key in PROFILE_SCALAR_KEYS:
+            value = getattr(cfg, key, _profile_default_scalar_value(key))
+            payload[key] = bool(value) if key in PROFILE_BOOL_KEYS else int(value)
+
+        for spec in CONSUMABLES:
+            item_key = str(spec.get("key", "") or "")
+            if item_key:
+                payload[f"min_interval_{item_key}"] = max(0, int(cfg.min_interval_ms.get(item_key, 0) or 0))
+
+        for spec in ALL_CONSUMABLES:
+            item_key = str(spec.get("key", "") or "")
+            if not item_key:
+                continue
+            payload[f"selected_{item_key}"] = bool(cfg.selected.get(item_key, False))
+            payload[f"enabled_{item_key}"] = bool(_runtime_regular_enabled(item_key))
+            payload[f"restock_enabled_{item_key}"] = bool(cfg.restock_enabled_items.get(item_key, False))
+            payload[f"restock_target_{item_key}"] = max(0, min(2500, int(cfg.restock_targets.get(item_key, 0) or 0)))
+
+        for spec in ALCOHOL_ITEMS:
+            item_key = str(spec.get("key", "") or "")
+            if not item_key:
+                continue
+            payload[f"alcohol_selected_{item_key}"] = bool(cfg.alcohol_selected.get(item_key, False))
+            payload[f"alcohol_enabled_{item_key}"] = bool(_runtime_alcohol_enabled(item_key))
+            payload[f"restock_enabled_{item_key}"] = bool(cfg.restock_enabled_items.get(item_key, False))
+            payload[f"restock_target_{item_key}"] = max(0, min(2500, int(cfg.restock_targets.get(item_key, 0) or 0)))
+
+        return payload
+
+    def _profile_payload_key_order() -> list[str]:
+        ordered_keys: list[str] = []
+        seen_keys: set[str] = set()
+
+        def add_key(key: str):
+            safe_key = str(key or "").strip()
+            if not safe_key or safe_key in seen_keys:
+                return
+            seen_keys.add(safe_key)
+            ordered_keys.append(safe_key)
+
+        for key in PROFILE_SCALAR_KEYS:
+            add_key(key)
+        for spec in CONSUMABLES:
+            item_key = str(spec.get("key", "") or "")
+            if item_key:
+                add_key(f"min_interval_{item_key}")
+        for spec in ALL_CONSUMABLES:
+            item_key = str(spec.get("key", "") or "")
+            if not item_key:
+                continue
+            add_key(f"selected_{item_key}")
+            add_key(f"enabled_{item_key}")
+            add_key(f"restock_enabled_{item_key}")
+            add_key(f"restock_target_{item_key}")
+        for spec in ALCOHOL_ITEMS:
+            item_key = str(spec.get("key", "") or "")
+            if not item_key:
+                continue
+            add_key(f"alcohol_selected_{item_key}")
+            add_key(f"alcohol_enabled_{item_key}")
+            add_key(f"restock_enabled_{item_key}")
+            add_key(f"restock_target_{item_key}")
+
+        return ordered_keys
+
+    def _profile_payload_signature(payload: dict[str, Any]) -> str:
+        defaults = _profile_default_payload()
+        serialized_parts = []
+        for key in _profile_payload_key_order():
+            default_value = defaults.get(key, False)
+            value = payload.get(key, default_value)
+            if isinstance(default_value, bool):
+                serialized_parts.append(f"{key}={1 if bool(value) else 0}")
+            else:
+                serialized_parts.append(f"{key}={int(value or 0)}")
+        return hashlib.md5("\n".join(serialized_parts).encode()).hexdigest()
+
+    def _write_profile_payload_to_section(
+        config,
+        section: str,
+        *,
+        profile_id: str,
+        display_name: str,
+        payload: dict[str, Any],
+        created_at: str,
+        updated_at: str,
+    ):
+        if config.has_section(section):
+            config.remove_section(section)
+        config.add_section(section)
+
+        def set_profile_key(key: str, value):
+            config.set(section, str(key), str(value))
+
+        effective_created_at = str(created_at or _profile_timestamp_now())
+        effective_updated_at = str(updated_at or effective_created_at or _profile_timestamp_now())
+        set_profile_key("name", _profile_display_name(display_name, profile_id))
+        set_profile_key("created_at", effective_created_at)
+        set_profile_key("updated_at", effective_updated_at)
+        for key in PROFILE_SCALAR_KEYS:
+            set_profile_key(key, payload.get(key, _profile_default_scalar_value(key)))
+        for spec in CONSUMABLES:
+            item_key = str(spec.get("key", "") or "")
+            if item_key:
+                set_profile_key(f"min_interval_{item_key}", int(max(0, int(payload.get(f'min_interval_{item_key}', 0) or 0))))
+        for spec in ALL_CONSUMABLES:
+            item_key = str(spec.get("key", "") or "")
+            if not item_key:
+                continue
+            set_profile_key(f"selected_{item_key}", bool(payload.get(f"selected_{item_key}", False)))
+            set_profile_key(f"enabled_{item_key}", bool(payload.get(f"enabled_{item_key}", False)))
+            set_profile_key(f"restock_enabled_{item_key}", bool(payload.get(f"restock_enabled_{item_key}", False)))
+            set_profile_key(f"restock_target_{item_key}", int(max(0, min(2500, int(payload.get(f"restock_target_{item_key}", 0) or 0)))))
+        for spec in ALCOHOL_ITEMS:
+            item_key = str(spec.get("key", "") or "")
+            if not item_key:
+                continue
+            set_profile_key(f"alcohol_selected_{item_key}", bool(payload.get(f"alcohol_selected_{item_key}", False)))
+            set_profile_key(f"alcohol_enabled_{item_key}", bool(payload.get(f"alcohol_enabled_{item_key}", False)))
+            set_profile_key(f"restock_enabled_{item_key}", bool(payload.get(f"restock_enabled_{item_key}", False)))
+            set_profile_key(f"restock_target_{item_key}", int(max(0, min(2500, int(payload.get(f"restock_target_{item_key}", 0) or 0)))))
+
+    def _write_profile_section_to_config(
+        config,
+        *,
+        profile_id: str,
+        display_name: str,
+        payload: dict[str, Any],
+        created_at: str,
+        updated_at: str,
+    ):
+        _write_profile_payload_to_section(
+            config,
+            _profile_section_name(profile_id),
+            profile_id=profile_id,
+            display_name=display_name,
+            payload=payload,
+            created_at=created_at,
+            updated_at=updated_at,
+        )
+
+    def _write_shared_profile_file(
+        *,
+        profile_id: str,
+        display_name: str,
+        payload: dict[str, Any],
+        created_at: str,
+        updated_at: str,
+    ):
+        profile_path = _profile_file_path(profile_id)
+        if not profile_path:
+            raise ValueError("Profile id is required.")
+        if not _ensure_pycons_profiles_dir():
+            raise OSError("Could not create the shared Pycons profiles folder.")
+
+        handler = IniHandler(profile_path)
+        config = handler.reload()
+        for section_name in list(config.sections()):
+            config.remove_section(section_name)
+        _write_profile_payload_to_section(
+            config,
+            PYCONS_SHARED_PROFILE_SECTION,
+            profile_id=profile_id,
+            display_name=display_name,
+            payload=payload,
+            created_at=created_at,
+            updated_at=updated_at,
+        )
+        _save_ini_config(handler, config)
+
+    def _apply_profile_payload_to_live_config(config, payload: dict[str, Any], *, profile_name: str):
+        if not config.has_section(INI_SECTION):
+            config.add_section(INI_SECTION)
+
+        def set_live_key(key: str, value):
+            config.set(INI_SECTION, str(key), str(value))
+
+        for key in PROFILE_SCALAR_KEYS:
+            set_live_key(key, payload.get(key, _profile_default_scalar_value(key)))
+        for spec in CONSUMABLES:
+            item_key = str(spec.get("key", "") or "")
+            if item_key:
+                set_live_key(f"min_interval_{item_key}", int(max(0, int(payload.get(f'min_interval_{item_key}', 0) or 0))))
+        for spec in ALL_CONSUMABLES:
+            item_key = str(spec.get("key", "") or "")
+            if not item_key:
+                continue
+            selected_key = f"selected_{item_key}"
+            enabled_key = f"enabled_{item_key}"
+            restock_enabled_key = f"restock_enabled_{item_key}"
+            restock_target_key = f"restock_target_{item_key}"
+            selected_value = bool(payload.get(selected_key, False))
+            set_live_key(selected_key, selected_value)
+            set_live_key(enabled_key, bool(payload.get(enabled_key, False)) if selected_value else False)
+            set_live_key(restock_enabled_key, bool(payload.get(restock_enabled_key, False)))
+            set_live_key(restock_target_key, int(max(0, min(2500, int(payload.get(restock_target_key, 0) or 0)))))
+        for spec in ALCOHOL_ITEMS:
+            item_key = str(spec.get("key", "") or "")
+            if not item_key:
+                continue
+            selected_key = f"alcohol_selected_{item_key}"
+            enabled_key = f"alcohol_enabled_{item_key}"
+            restock_enabled_key = f"restock_enabled_{item_key}"
+            restock_target_key = f"restock_target_{item_key}"
+            selected_value = bool(payload.get(selected_key, False))
+            set_live_key(selected_key, selected_value)
+            set_live_key(enabled_key, bool(payload.get(enabled_key, False)) if selected_value else False)
+            set_live_key(restock_enabled_key, bool(payload.get(restock_enabled_key, False)))
+            set_live_key(restock_target_key, int(max(0, min(2500, int(payload.get(restock_target_key, 0) or 0)))))
+        set_live_key("last_applied_preset", _profile_display_name(profile_name))
+
+    def _read_profile_record_from_path(
+        profile_path: str,
+        *,
+        include_payload: bool = False,
+        fallback_payload: dict[str, Any] | None = None,
+    ) -> dict[str, Any] | None:
+        safe_profile_path = str(profile_path or "").strip()
+        if not safe_profile_path or not os.path.isfile(safe_profile_path):
+            return None
+
+        profile_id = _profile_id_from_path(safe_profile_path)
+        if not profile_id:
+            return None
+
+        handler = IniHandler(safe_profile_path)
+        config = handler.reload()
+        if not config.has_section(PYCONS_SHARED_PROFILE_SECTION):
+            return None
+
+        entry: dict[str, Any] = {
+            "id": str(profile_id),
+            "path": safe_profile_path,
+            "section": PYCONS_SHARED_PROFILE_SECTION,
+            "name": _profile_display_name(handler.read_key(PYCONS_SHARED_PROFILE_SECTION, "name", ""), profile_id),
+            "created_at": str(handler.read_key(PYCONS_SHARED_PROFILE_SECTION, "created_at", "") or ""),
+            "updated_at": str(handler.read_key(PYCONS_SHARED_PROFILE_SECTION, "updated_at", "") or ""),
+        }
+        if include_payload:
+            payload = _read_profile_payload_from_ini(
+                handler,
+                PYCONS_SHARED_PROFILE_SECTION,
+                fallback_payload=fallback_payload,
+            )
+            entry["payload"] = payload
+            entry["payload_signature"] = _profile_payload_signature(payload)
+        return entry
+
+    def _read_profile_record(profile_id: str, *, include_payload: bool = False, fallback_payload: dict[str, Any] | None = None) -> dict[str, Any] | None:
+        return _read_profile_record_from_path(
+            _profile_file_path(profile_id),
+            include_payload=include_payload,
+            fallback_payload=fallback_payload,
+        )
+
+    def _list_pycons_profiles(ini_handler = None, *, include_payload: bool = False, fallback_payload: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+        del ini_handler
+        if not _ensure_pycons_profiles_dir():
+            return []
+
+        profiles = []
+        try:
+            filenames = os.listdir(_PYCONS_PROFILES_DIR)
+        except Exception:
+            return []
+
+        for filename in filenames:
+            if not str(filename or "").lower().endswith(".ini"):
+                continue
+            profile_path = os.path.join(_PYCONS_PROFILES_DIR, filename)
+            if not os.path.isfile(profile_path):
+                continue
+            try:
+                entry = _read_profile_record_from_path(
+                    profile_path,
+                    include_payload=include_payload,
+                    fallback_payload=fallback_payload,
+                )
+            except Exception:
+                entry = None
+            if entry is not None:
+                profiles.append(entry)
+
+        profiles.sort(key=lambda entry: (_profile_name_norm(entry.get("name", "")), str(entry.get("id", ""))))
+        return profiles
+
+    def _profile_selected_item_count(payload: dict[str, Any] | None) -> int:
+        if payload is None:
+            return 0
+
+        total = 0
+        for spec in ALL_CONSUMABLES:
+            item_key = str(spec.get("key", "") or "")
+            if item_key and bool(payload.get(f"selected_{item_key}", False)):
+                total += 1
+        for spec in ALCOHOL_ITEMS:
+            item_key = str(spec.get("key", "") or "")
+            if item_key and bool(payload.get(f"alcohol_selected_{item_key}", False)):
+                total += 1
+        return int(total)
+
+    def _profile_summary_text(payload: dict[str, Any] | None) -> str:
+        if payload is None:
+            return ""
+
+        selected_count = _profile_selected_item_count(payload)
+        parts = [
+            f"Broadcast {'ON' if bool(payload.get('team_broadcast', False)) else 'OFF'}",
+            f"Opt In {'ON' if bool(payload.get('team_consume_opt_in', False)) else 'OFF'}",
+            f"MB/DP {'ON' if bool(payload.get('mbdp_enabled', False)) else 'OFF'}",
+            f"Alcohol {'ON' if bool(payload.get('alcohol_enabled', False)) else 'OFF'}",
+            f"Auto-restock {'ON' if bool(payload.get('auto_vault_restock', False)) else 'OFF'}",
+            f"{selected_count} item{'s' if selected_count != 1 else ''} selected",
+        ]
+        return " | ".join(parts)
+
+    def _selected_profile_ui_context(profile_entry: dict[str, Any] | None) -> dict[str, Any] | None:
+        if not profile_entry:
+            return None
+
+        profile_id = str(profile_entry.get("id", "") or "").strip()
+        if not profile_id:
+            return None
+
+        detail = _read_profile_record(profile_id, include_payload=True)
+        if detail is None:
+            return None
+
+        payload = dict(detail.get("payload") or _profile_default_payload())
+        detail["payload"] = payload
+        detail["summary_text"] = _profile_summary_text(payload)
+        detail["matches_live"] = bool(
+            _profile_payload_signature(payload) == _profile_payload_signature(_build_current_profile_payload())
+        )
+        return detail
+
+    def _profile_existing_name_norms(ini_handler = None, *, exclude_profile_id: str = "") -> set[str]:
+        existing = set()
+        for profile in _list_pycons_profiles(ini_handler):
+            profile_id = str(profile.get("id", "") or "")
+            if exclude_profile_id and profile_id == str(exclude_profile_id):
+                continue
+            existing.add(_profile_name_norm(profile.get("name", "")))
+        return existing
+
+    def _profile_name_is_available(candidate: str, existing_name_norms: set[str], reserved_name_norms: set[str]) -> bool:
+        candidate_norm = _profile_name_norm(candidate)
+        return bool(candidate_norm) and candidate_norm not in existing_name_norms and candidate_norm not in reserved_name_norms
+
+    def _profile_append_suffix(stem: str, suffix: str) -> str:
+        safe_stem = _profile_display_name(stem)
+        safe_suffix = str(suffix or "")
+        if not safe_suffix:
+            return safe_stem[:PROFILE_NAME_MAX_LEN]
+        trimmed_stem = safe_stem[:max(1, PROFILE_NAME_MAX_LEN - len(safe_suffix))]
+        return f"{trimmed_stem}{safe_suffix}"
+
+    def _make_unique_profile_display_name(base_name: str, existing_name_norms: set[str], *, preferred_suffix: str = "") -> str:
+        reserved = _profile_reserved_name_norms()
+        stem = _profile_display_name(base_name)
+        if not preferred_suffix and _profile_name_is_available(stem, existing_name_norms, reserved):
+            return stem
+
+        counter = 2
+        suffix_base = str(preferred_suffix or "").strip()
+        while True:
+            if suffix_base:
+                suffix = f" ({suffix_base})" if counter <= 2 else f" ({suffix_base} {counter - 1})"
+            else:
+                suffix = f" ({counter})"
+            candidate = _profile_append_suffix(stem, suffix)
+            if _profile_name_is_available(candidate, existing_name_norms, reserved):
+                return candidate
+            counter += 1
+
+    def _make_duplicate_profile_display_name(source_name: str, existing_name_norms: set[str]) -> str:
+        reserved = _profile_reserved_name_norms()
+        stem = _profile_display_name(source_name)
+        counter = 1
+        while True:
+            suffix = " Copy" if counter <= 1 else f" Copy {counter}"
+            candidate = _profile_append_suffix(stem, suffix)
+            if _profile_name_is_available(candidate, existing_name_norms, reserved):
+                return candidate
+            counter += 1
+
+    def _validate_profile_display_name(profile_name: str, *, exclude_profile_id: str = "") -> tuple[bool, str, str]:
+        clean_name = _compact_character_name(str(profile_name or ""))[:PROFILE_NAME_MAX_LEN]
+        clean_norm = _profile_name_norm(clean_name)
+        if not clean_norm:
+            return False, "Profile name is required.", ""
+        if clean_norm in _profile_reserved_name_norms():
+            return False, "That name is reserved for a built-in quick preset.", ""
+        if clean_norm in _profile_existing_name_norms(exclude_profile_id=exclude_profile_id):
+            return False, "A saved profile with that name already exists.", ""
+        return True, "", clean_name
+
+    def _profiles_available_for_current_ini() -> bool:
+        return not _is_generic_ini_path(_get_ini_path())
+
+    def _generate_profile_id(display_name: str = "") -> str:
+        seed = f"{display_name}|{_profile_timestamp_now()}|{os.urandom(8).hex()}"
+        candidate = hashlib.md5(seed.encode()).hexdigest()[:12]
+        while True:
+            profile_path = _profile_file_path(candidate)
+            if profile_path and not os.path.exists(profile_path):
+                return candidate
+            seed = f"{seed}|{os.urandom(4).hex()}"
+            candidate = hashlib.md5(seed.encode()).hexdigest()[:12]
+
+    def _profile_migration_source_suffix(ini_handler = None) -> str:
+        del ini_handler
+        try:
+            account_email = str(Player.GetAccountEmail() or "").strip()
+        except Exception:
+            account_email = ""
+        account_hash = _hash_account_email(account_email)
+        if account_hash:
+            return f"acct-{account_hash}"
+
+        match = re.search(r"pycons_([0-9a-f]{8})\.ini$", os.path.basename(str(_get_ini_path() or "")), re.IGNORECASE)
+        if match:
+            return f"acct-{str(match.group(1) or '').lower()}"
+        return "account"
+
+    def _list_account_local_dynamic_profiles(ini_handler, *, fallback_payload: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+        config = ini_handler.reload()
+        profiles: list[dict[str, Any]] = []
+        for section in config.sections():
+            profile_id = _profile_id_from_section(section)
+            if not profile_id:
+                continue
+            payload = _read_profile_payload_from_ini(
+                ini_handler,
+                section,
+                fallback_payload=fallback_payload,
+            )
+            profiles.append(
+                {
+                    "id": str(profile_id),
+                    "section": str(section),
+                    "name": _profile_display_name(ini_handler.read_key(section, "name", ""), profile_id),
+                    "created_at": str(ini_handler.read_key(section, "created_at", "") or ""),
+                    "updated_at": str(ini_handler.read_key(section, "updated_at", "") or ""),
+                    "payload": payload,
+                    "payload_signature": _profile_payload_signature(payload),
+                }
+            )
+        profiles.sort(key=lambda entry: (_profile_name_norm(entry.get("name", "")), str(entry.get("id", ""))))
+        return profiles
+
+    def _list_legacy_slot_profile_records(ini_handler, *, fallback_payload: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+        profiles: list[dict[str, Any]] = []
+        for slot in range(1, PRESET_SLOT_COUNT + 1):
+            prefix = f"preset_slot_{slot}_"
+            if not bool(ini_handler.read_bool(INI_SECTION, f"{prefix}saved", False)):
+                continue
+            payload = _read_profile_payload_from_ini(
+                ini_handler,
+                INI_SECTION,
+                prefix=prefix,
+                fallback_payload=fallback_payload,
+            )
+            profiles.append(
+                {
+                    "id": "",
+                    "name": _profile_display_name(
+                        ini_handler.read_key(INI_SECTION, f"{prefix}name", _preset_slot_default_name(slot)),
+                        f"slot{slot}",
+                    ),
+                    "created_at": "",
+                    "updated_at": "",
+                    "payload": payload,
+                    "payload_signature": _profile_payload_signature(payload),
+                    "slot": int(slot),
+                }
+            )
+        return profiles
+
+    def _import_profile_record_into_shared_library(
+        record: dict[str, Any],
+        *,
+        existing_profiles: list[dict[str, Any]],
+        source_suffix: str,
+        source_label: str,
+    ) -> tuple[bool, bool, bool]:
+        payload = dict(record.get("payload") or _profile_default_payload())
+        payload_signature = str(record.get("payload_signature", "") or _profile_payload_signature(payload))
+        display_name = _profile_display_name(
+            record.get("name", ""),
+            str(record.get("id", "") or ""),
+        )
+        name_norm = _profile_name_norm(display_name)
+
+        for existing in existing_profiles:
+            if _profile_name_norm(existing.get("name", "")) != name_norm:
+                continue
+            if str(existing.get("payload_signature", "") or "") == payload_signature:
+                return False, False, True
+
+        existing_name_norms = {_profile_name_norm(existing.get("name", "")) for existing in existing_profiles}
+        final_name = display_name
+        renamed = False
+        if name_norm and name_norm in existing_name_norms:
+            final_name = _make_unique_profile_display_name(
+                display_name,
+                existing_name_norms,
+                preferred_suffix=source_suffix,
+            )
+            renamed = final_name != display_name
+            if renamed:
+                ConsoleLog(
+                    BOT_NAME,
+                    f"Renamed migrated Pycons profile '{display_name}' to '{final_name}' to avoid a shared-library name conflict ({source_label}).",
+                    Console.MessageType.Info,
+                )
+
+        final_profile_id = str(record.get("id", "") or "").strip() or _generate_profile_id(final_name)
+        existing_id_entry = next(
+            (
+                existing
+                for existing in existing_profiles
+                if str(existing.get("id", "") or "") == final_profile_id
+            ),
+            None,
+        )
+        if existing_id_entry is not None:
+            old_profile_id = final_profile_id
+            final_profile_id = _generate_profile_id(final_name)
+            ConsoleLog(
+                BOT_NAME,
+                f"Assigned new profile id '{final_profile_id}' for migrated Pycons profile '{final_name}' because shared id '{old_profile_id}' already exists ({source_label}).",
+                Console.MessageType.Info,
+            )
+
+        created_at = str(record.get("created_at", "") or "") or _profile_timestamp_now()
+        updated_at = str(record.get("updated_at", "") or "") or created_at
+        _write_shared_profile_file(
+            profile_id=final_profile_id,
+            display_name=final_name,
+            payload=payload,
+            created_at=created_at,
+            updated_at=updated_at,
+        )
+        existing_profiles.append(
+            {
+                "id": final_profile_id,
+                "name": final_name,
+                "created_at": created_at,
+                "updated_at": updated_at,
+                "payload_signature": payload_signature,
+            }
+        )
+        return True, renamed, False
+
+    def _migrate_account_local_profiles_to_shared_library_if_needed(ini_handler = None) -> int:
+        handler = ini_handler or _get_ini_handler()
+        if _is_generic_ini_path(_get_ini_path()):
+            return 0
+
+        config = handler.reload()
+        if not config.has_section(INI_SECTION):
+            return 0
+        if bool(handler.read_bool(INI_SECTION, PYCONS_SHARED_PROFILE_MIGRATION_FLAG_KEY, False)):
+            return 0
+
+        live_payload = _read_profile_payload_from_ini(handler, INI_SECTION)
+        local_profiles = _list_account_local_dynamic_profiles(handler, fallback_payload=live_payload)
+        migration_source = "local"
+        source_records = local_profiles
+        if not source_records and not bool(handler.read_bool(INI_SECTION, PYCONS_PROFILE_MIGRATION_FLAG_KEY, False)):
+            migration_source = "legacy"
+            source_records = _list_legacy_slot_profile_records(handler, fallback_payload=live_payload)
+
+        def _run_migration_locked():
+            existing_shared_profiles = _list_pycons_profiles(include_payload=True)
+            source_suffix = _profile_migration_source_suffix(handler)
+            imported_count = 0
+            renamed_count = 0
+            skipped_duplicate_count = 0
+
+            for record in source_records:
+                slot = int(record.get("slot", 0) or 0)
+                source_label = (
+                    f"legacy slot {slot} from {source_suffix}"
+                    if slot > 0
+                    else f"account {source_suffix}"
+                )
+                imported, renamed, skipped_duplicate = _import_profile_record_into_shared_library(
+                    record,
+                    existing_profiles=existing_shared_profiles,
+                    source_suffix=source_suffix,
+                    source_label=source_label,
+                )
+                if skipped_duplicate:
+                    skipped_duplicate_count += 1
+                if imported:
+                    imported_count += 1
+                if renamed:
+                    renamed_count += 1
+
+            return imported_count, renamed_count, skipped_duplicate_count
+
+        imported_count, renamed_count, skipped_duplicate_count = _with_pycons_profiles_library_lock(
+            _run_migration_locked,
+            timeout_ms=10000,
+        )
+
+        if not config.has_section(INI_SECTION):
+            config.add_section(INI_SECTION)
+        config.set(INI_SECTION, PYCONS_SHARED_PROFILE_MIGRATION_FLAG_KEY, "True")
+        _save_ini_config(handler, config)
+
+        if imported_count > 0 or skipped_duplicate_count > 0:
+            source_text = "account-local Pycons saved profile(s)" if migration_source == "local" else "legacy Pycons preset slot(s)"
+            detail_parts = [f"imported {imported_count}"]
+            if renamed_count > 0:
+                detail_parts.append(f"renamed {renamed_count}")
+            if skipped_duplicate_count > 0:
+                detail_parts.append(f"skipped {skipped_duplicate_count} duplicate(s)")
+            ConsoleLog(
+                BOT_NAME,
+                f"Shared Pycons profile migration checked {source_text}: {', '.join(detail_parts)}.",
+                Console.MessageType.Info,
+            )
+        return int(imported_count)
+
+    def _save_current_as_new_profile(profile_name: str) -> tuple[bool, str, str]:
+        if not _profiles_available_for_current_ini():
+            return False, "Saved profiles are unavailable until Pycons is bound to the account-specific live INI.", ""
+
+        valid, error_message, clean_name = _validate_profile_display_name(profile_name)
+        if not valid:
+            return False, error_message, ""
+
+        try:
+            payload = _build_current_profile_payload()
+            timestamp = _profile_timestamp_now()
+            def _save_new_locked():
+                valid_locked, error_message_locked, clean_name_locked = _validate_profile_display_name(profile_name)
+                if not valid_locked:
+                    return False, error_message_locked, ""
+
+                profile_id = _generate_profile_id(clean_name_locked)
+                _write_shared_profile_file(
+                    profile_id=profile_id,
+                    display_name=clean_name_locked,
+                    payload=payload,
+                    created_at=timestamp,
+                    updated_at=timestamp,
+                )
+                return True, f"Saved profile '{clean_name_locked}'.", profile_id
+
+            return _with_pycons_profiles_library_lock(
+                _save_new_locked,
+                timeout_ms=5000,
+            )
+        except Exception as exc:
+            return False, f"Failed to save profile '{clean_name}': {exc}", ""
+
+    def _save_over_profile(profile_id: str) -> tuple[bool, str]:
+        if not _profiles_available_for_current_ini():
+            return False, "Saved profiles are unavailable until Pycons is bound to the account-specific live INI."
+
+        try:
+            payload = _build_current_profile_payload()
+            def _save_over_locked():
+                profile_entry = _read_profile_record(profile_id, include_payload=False)
+                if profile_entry is None:
+                    return False, "The selected profile no longer exists."
+
+                display_name = _profile_display_name(profile_entry.get("name", ""), profile_id)
+                created_at = str(profile_entry.get("created_at", "") or _profile_timestamp_now())
+                _write_shared_profile_file(
+                    profile_id=str(profile_id or ""),
+                    display_name=display_name,
+                    payload=payload,
+                    created_at=created_at,
+                    updated_at=_profile_timestamp_now(),
+                )
+                return True, f"Updated profile '{display_name}'."
+
+            return _with_pycons_profiles_library_lock(
+                _save_over_locked,
+                timeout_ms=5000,
+            )
+        except Exception as exc:
+            return False, f"Failed to overwrite the selected profile: {exc}"
+
+    def _rename_profile(profile_id: str, profile_name: str) -> tuple[bool, str, str]:
+        if not _profiles_available_for_current_ini():
+            return False, "Saved profiles are unavailable until Pycons is bound to the account-specific live INI.", ""
+
+        valid, error_message, clean_name = _validate_profile_display_name(profile_name, exclude_profile_id=profile_id)
+        if not valid:
+            return False, error_message, ""
+
+        try:
+            def _rename_locked():
+                profile_id_str = str(profile_id or "").strip()
+                profile_entry = _read_profile_record(profile_id, include_payload=True)
+                if profile_entry is None:
+                    return False, "Select a saved profile first.", ""
+
+                valid_locked, error_message_locked, clean_name_locked = _validate_profile_display_name(
+                    profile_name,
+                    exclude_profile_id=profile_id,
+                )
+                if not valid_locked:
+                    return False, error_message_locked, ""
+
+                was_active_profile = bool(
+                    profile_id_str
+                    and _get_active_applied_profile_id(_list_pycons_profiles()) == profile_id_str
+                )
+                _write_shared_profile_file(
+                    profile_id=profile_id_str,
+                    display_name=clean_name_locked,
+                    payload=dict(profile_entry.get("payload") or _profile_default_payload()),
+                    created_at=str(profile_entry.get("created_at", "") or _profile_timestamp_now()),
+                    updated_at=_profile_timestamp_now(),
+                )
+                if was_active_profile:
+                    live_applied_name = _profile_display_name(clean_name_locked, profile_id_str)
+                    if cfg is not None:
+                        cfg.last_applied_preset = live_applied_name
+                    ini_handler = _get_ini_handler()
+                    config = ini_handler.reload()
+                    if not config.has_section(INI_SECTION):
+                        config.add_section(INI_SECTION)
+                    config.set(INI_SECTION, "last_applied_preset", live_applied_name)
+                    _save_ini_config(ini_handler, config)
+                return True, f"Renamed profile to '{clean_name_locked}'.", clean_name_locked
+
+            return _with_pycons_profiles_library_lock(
+                _rename_locked,
+                timeout_ms=5000,
+            )
+        except Exception as exc:
+            return False, f"Failed to rename the selected profile: {exc}", ""
+
+    def _duplicate_profile(profile_id: str) -> tuple[bool, str, str, str]:
+        if not _profiles_available_for_current_ini():
+            return False, "Saved profiles are unavailable until Pycons is bound to the account-specific live INI.", "", ""
+
+        try:
+            def _duplicate_locked():
+                profile_entry = _read_profile_record(profile_id, include_payload=True)
+                if profile_entry is None:
+                    return False, "Select a saved profile first.", "", ""
+
+                source_name = _profile_display_name(profile_entry.get("name", ""), profile_id)
+                existing_profiles = _list_pycons_profiles()
+                existing_name_norms = {
+                    _profile_name_norm(existing_profile.get("name", ""))
+                    for existing_profile in existing_profiles
+                }
+                duplicate_name = _make_duplicate_profile_display_name(source_name, existing_name_norms)
+                timestamp = _profile_timestamp_now()
+                duplicate_profile_id = _generate_profile_id(duplicate_name)
+                _write_shared_profile_file(
+                    profile_id=duplicate_profile_id,
+                    display_name=duplicate_name,
+                    payload=dict(profile_entry.get("payload") or _profile_default_payload()),
+                    created_at=timestamp,
+                    updated_at=timestamp,
+                )
+                return True, f"Duplicated profile '{source_name}' as '{duplicate_name}'.", duplicate_profile_id, duplicate_name
+
+            return _with_pycons_profiles_library_lock(
+                _duplicate_locked,
+                timeout_ms=5000,
+            )
+        except Exception as exc:
+            return False, f"Failed to duplicate the selected profile: {exc}", "", ""
+
+    def _delete_profile(profile_id: str) -> tuple[bool, str]:
+        if not _profiles_available_for_current_ini():
+            return False, "Saved profiles are unavailable until Pycons is bound to the account-specific live INI."
+
+        try:
+            def _delete_locked():
+                profile_entry = _read_profile_record(profile_id, include_payload=False)
+                if profile_entry is None:
+                    return False, "The selected profile no longer exists."
+
+                display_name = _profile_display_name(profile_entry.get("name", ""), profile_id)
+                profile_path = str(profile_entry.get("path", "") or "")
+                if not profile_path or not os.path.isfile(profile_path):
+                    return False, "The selected profile no longer exists."
+                os.remove(profile_path)
+                if str(getattr(_rt, "profile_active_applied_id", "") or "") == str(profile_id or ""):
+                    _set_active_applied_profile_id("")
+                return True, f"Deleted profile '{display_name}'."
+
+            return _with_pycons_profiles_library_lock(
+                _delete_locked,
+                timeout_ms=5000,
+            )
+        except Exception as exc:
+            return False, f"Failed to delete the selected profile: {exc}"
+
+    def _load_profile(profile_id: str) -> tuple[bool, str]:
+        global _last_mbdp_party_ms
+        if not _profiles_available_for_current_ini():
+            return False, "Saved profiles are unavailable until Pycons is bound to the account-specific live INI."
+
+        try:
+            ini_handler = _get_ini_handler()
+            config = ini_handler.reload()
+            live_payload = _read_profile_payload_from_ini(ini_handler, INI_SECTION)
+            profile_entry = _read_profile_record(
+                profile_id,
+                include_payload=True,
+                fallback_payload=live_payload,
+            )
+            if profile_entry is None:
+                return False, "Select a saved profile first."
+
+            display_name = _profile_display_name(profile_entry.get("name", ""), profile_id)
+            payload = dict(profile_entry.get("payload") or live_payload)
+            _apply_profile_payload_to_live_config(config, payload, profile_name=display_name)
+            _save_ini_config(ini_handler, config)
+
+            _last_mbdp_party_ms = 0
+            reload_ok, reload_detail = pycons_reload_config_from_disk(reason=f"profile load: {display_name}")
+            if reload_ok:
+                _set_active_applied_profile_id(profile_id)
+                return True, f"Loaded profile '{display_name}'."
+            detail = f" {reload_detail}" if reload_detail else ""
+            return False, f"Profile '{display_name}' was written to live config, but reload failed.{detail}"
+        except Exception as exc:
+            return False, f"Failed to load the selected profile: {exc}"
 
     def _set_item_toggle(key: str, selected: bool, enabled: bool):
         cfg.selected[key] = bool(selected)
@@ -1058,6 +2251,7 @@ try:
 
     def _apply_builtin_preset(key: str, announce: bool = True):
         global _last_mbdp_party_ms
+        _set_active_applied_profile_id("")
         if key == "solo_safe":
             cfg.team_broadcast = False
             cfg.team_consume_opt_in = False
@@ -1174,6 +2368,7 @@ try:
         _runtime_sync_from_cfg_full()
 
         _last_mbdp_party_ms = 0
+        _set_active_applied_profile_id("")
         cfg.last_applied_preset = str(cfg.preset_slot_names.get(slot, _preset_slot_default_name(slot)))
         cfg.mark_dirty()
         _log(f"Loaded custom preset slot {slot}.", Console.MessageType.Info)
@@ -2106,6 +3301,12 @@ try:
                 RESTOCK_MODE_BALANCED,
                 min(RESTOCK_MODE_DEPOSIT_ONLY, int(ini_handler.read_int(INI_SECTION, "restock_mode", DEFAULT_RESTOCK_MODE))),
             )
+            self.restock_scope_mode = max(
+                RESTOCK_SCOPE_ACCOUNT_WIDE,
+                min(RESTOCK_SCOPE_BLOCK_LIST, int(ini_handler.read_int(INI_SECTION, "restock_scope_mode", DEFAULT_RESTOCK_SCOPE_MODE))),
+            )
+            self.restock_allowed_characters = str(ini_handler.read_key(INI_SECTION, "restock_allowed_characters", "") or "").strip()
+            self.restock_blocked_characters = str(ini_handler.read_key(INI_SECTION, "restock_blocked_characters", "") or "").strip()
             self.restock_move_cap_per_cycle = max(
                 MIN_RESTOCK_MOVE_CAP_PER_CYCLE,
                 min(MAX_RESTOCK_MOVE_CAP_PER_CYCLE, int(ini_handler.read_int(INI_SECTION, "restock_move_cap_per_cycle", DEFAULT_RESTOCK_MOVE_CAP_PER_CYCLE))),
@@ -2263,6 +3464,11 @@ try:
             self._save_timer.Start()
             self._save_timer.Stop()
 
+            try:
+                _migrate_account_local_profiles_to_shared_library_if_needed(ini_handler)
+            except Exception as e:
+                ConsoleLog(BOT_NAME, f"Shared Pycons profile migration failed: {e}", Console.MessageType.Warning)
+
         def mark_dirty(self):
             self._dirty = True
 
@@ -2285,6 +3491,9 @@ try:
             set_key("interval_ms", int(self.interval_ms))
             set_key("restock_interval_ms", int(max(MIN_RESTOCK_INTERVAL_MS, int(self.restock_interval_ms))))
             set_key("restock_mode", int(max(RESTOCK_MODE_BALANCED, min(RESTOCK_MODE_DEPOSIT_ONLY, int(self.restock_mode)))))
+            set_key("restock_scope_mode", int(max(RESTOCK_SCOPE_ACCOUNT_WIDE, min(RESTOCK_SCOPE_BLOCK_LIST, int(self.restock_scope_mode)))))
+            set_key("restock_allowed_characters", str(getattr(self, "restock_allowed_characters", "") or "").strip())
+            set_key("restock_blocked_characters", str(getattr(self, "restock_blocked_characters", "") or "").strip())
             set_key(
                 "restock_move_cap_per_cycle",
                 int(max(MIN_RESTOCK_MOVE_CAP_PER_CYCLE, min(MAX_RESTOCK_MOVE_CAP_PER_CYCLE, int(self.restock_move_cap_per_cycle)))),
@@ -2425,9 +3634,20 @@ try:
             self.sync_selected_accounts = {}
             self.sync_selected_categories = _default_pycons_sync_category_selection()
             self.sync_statuses = {}
-            self.sync_summary_text = "No sync run yet."
+            self.sync_summary_text = "No other-accounts action run yet."
             self.sync_active_request_id = ""
             self.sync_request_counter = 0
+            self.sync_pending_profile_apply_id = ""
+            self.sync_pending_profile_apply_targets_key = ""
+            self.profile_selected_id = ""
+            self.profile_active_applied_id = ""
+            self.profile_new_name_input = ""
+            self.profile_rename_input = ""
+            self.profile_rename_input_source_id = ""
+            self.profile_status_text = ""
+            self.profile_status_error = False
+            self.profile_pending_save_over_id = ""
+            self.profile_pending_delete_id = ""
 
     _rt = _RuntimeState()
     # Aliases preserved so UI code and existing access patterns remain identical.
@@ -4093,6 +5313,8 @@ try:
     def _tick_vault_restock() -> bool:
         if cfg is None or not bool(getattr(cfg, "auto_vault_restock", False)):
             return False
+        if not _restock_current_character_allowed():
+            return False
         if not Routines.Checks.Map.MapValid():
             return False
         if _player_is_dead() or _map_is_loading():
@@ -4503,8 +5725,11 @@ try:
             return int(DEFAULT_INTERNAL_COOLDOWN_MS)
         return int(max(250, v))
 
+    def _compact_character_name(name: str) -> str:
+        return " ".join((name or "").strip().split())
+
     def _normalize_name(name: str) -> str:
-        return " ".join((name or "").strip().lower().split())
+        return _compact_character_name(name).lower()
 
     def _acc_email(acc) -> str:
         return str(getattr(acc, "AccountEmail", "") or "")
@@ -4514,6 +5739,98 @@ try:
             return str(getattr(getattr(acc, "AgentData", None), "CharacterName", "") or "")
         except Exception:
             return ""
+
+    def _restock_scope_mode_value(raw_value = None) -> int:
+        try:
+            if raw_value is None:
+                raw_val = int(getattr(cfg, "restock_scope_mode", DEFAULT_RESTOCK_SCOPE_MODE))
+            else:
+                raw_val = int(raw_value)
+        except Exception:
+            raw_val = int(DEFAULT_RESTOCK_SCOPE_MODE)
+        return max(RESTOCK_SCOPE_ACCOUNT_WIDE, min(RESTOCK_SCOPE_BLOCK_LIST, int(raw_val)))
+
+    def _restock_parse_character_list(raw_value: str) -> list[str]:
+        out = []
+        seen = set()
+        for raw_name in re.split(r"[,;\n|]+", str(raw_value or "")):
+            name = _compact_character_name(raw_name)
+            if not name:
+                continue
+            normalized = _normalize_name(name)
+            if not normalized or normalized in seen:
+                continue
+            seen.add(normalized)
+            out.append(name)
+        return out
+
+    def _restock_serialize_character_list(names: list[str]) -> str:
+        cleaned = []
+        seen = set()
+        for raw_name in list(names or []):
+            name = _compact_character_name(raw_name)
+            if not name:
+                continue
+            normalized = _normalize_name(name)
+            if not normalized or normalized in seen:
+                continue
+            seen.add(normalized)
+            cleaned.append(name)
+        return ", ".join(cleaned)
+
+    def _restock_character_membership_set(raw_value: str) -> set[str]:
+        return {_normalize_name(name) for name in _restock_parse_character_list(raw_value)}
+
+    def _current_character_name() -> str:
+        try:
+            current = _compact_character_name(str(Player.GetName() or ""))
+        except Exception:
+            current = ""
+        if current:
+            return current
+        try:
+            account_email = str(Player.GetAccountEmail() or "").strip()
+        except Exception:
+            account_email = ""
+        if not account_email:
+            return ""
+        try:
+            acc = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(account_email)
+        except Exception:
+            acc = None
+        return _compact_character_name(_acc_name(acc)) if acc else ""
+
+    def _restock_current_character_participation() -> tuple[bool, str, str]:
+        current_name = _current_character_name()
+        display_name = current_name or "Unavailable"
+        normalized_name = _normalize_name(current_name)
+        mode = _restock_scope_mode_value()
+
+        if mode == RESTOCK_SCOPE_ACCOUNT_WIDE:
+            return True, display_name, "Allowed: account-wide mode."
+
+        if not normalized_name:
+            return False, display_name, "Blocked: current character name is unavailable in list mode."
+
+        if mode == RESTOCK_SCOPE_ALLOW_LIST:
+            allowed_names = _restock_character_membership_set(str(getattr(cfg, "restock_allowed_characters", "") or ""))
+            if normalized_name in allowed_names:
+                return True, display_name, "Allowed: current character is in the allow list."
+            return False, display_name, "Blocked: current character is not in the allow list."
+
+        blocked_names = _restock_character_membership_set(str(getattr(cfg, "restock_blocked_characters", "") or ""))
+        if normalized_name in blocked_names:
+            return False, display_name, "Blocked: current character is in the block list."
+        return True, display_name, "Allowed: current character is not in the block list."
+
+    def _restock_current_character_allowed() -> bool:
+        allowed, _display_name, _summary = _restock_current_character_participation()
+        return bool(allowed)
+
+    def _restock_add_character_to_raw_list(raw_value: str, character_name: str) -> str:
+        names = _restock_parse_character_list(raw_value)
+        names.append(character_name)
+        return _restock_serialize_character_list(names)
 
     def _acc_party_id(acc) -> int:
         try:
@@ -4575,6 +5892,17 @@ try:
             own_party_id = 0
         return bool(own_party_id > 0 and own_party_id == _acc_party_id(acc))
 
+    def _pycons_sync_is_follower(acc) -> bool:
+        if not _pycons_sync_is_same_party(acc):
+            return False
+        try:
+            party_data = getattr(acc, "AgentPartyData", None)
+            if party_data is not None and hasattr(party_data, "IsPartyLeader"):
+                return not bool(getattr(party_data, "IsPartyLeader", False))
+        except Exception:
+            pass
+        return bool(_acc_party_id(acc) > 0 and _acc_party_position(acc) > 0)
+
     def _get_pycons_sync_accounts() -> list[object]:
         own_email = str(Player.GetAccountEmail() or "").strip()
         own_email_norm = _normalize_sync_account_email(own_email)
@@ -4624,7 +5952,7 @@ try:
     def _pycons_sync_refresh_summary():
         statuses = list((_rt.sync_statuses or {}).values())
         if not statuses:
-            _rt.sync_summary_text = "No sync run yet."
+            _rt.sync_summary_text = "No other-accounts action run yet."
             return
 
         written_count = sum(1 for status in statuses if str(status.get("state", "")) != "write_failed")
@@ -4637,7 +5965,7 @@ try:
             if str(status.get("state", "")) in ("write_failed", "reload_failed", "reload_not_queued", "reload_unavailable")
         )
         _rt.sync_summary_text = (
-            f"Last sync: {written_count} written | {requested_count} reload requested | "
+            f"Last other-accounts action: {written_count} written | {requested_count} reload requested | "
             f"{reloaded_count} reloaded | {unavailable_count} reload unavailable | {issue_count} issue(s)."
         )
 
@@ -4725,6 +6053,14 @@ try:
         ini_handler.save(config)
         return target_path
 
+    def _pycons_write_profile_to_account(account_email: str, profile_payload: dict[str, Any], profile_name: str) -> str:
+        target_path = _resolve_account_ini_path(account_email, migrate_legacy=True, log_migration=False)
+        ini_handler = IniHandler(target_path)
+        config = ini_handler.reload()
+        _apply_profile_payload_to_live_config(config, profile_payload, profile_name=profile_name)
+        ini_handler.save(config)
+        return target_path
+
     def _pycons_sync_send_reload_request(account_email: str, request_id: str) -> bool:
         sender_email = str(Player.GetAccountEmail() or "").strip()
         receiver_email = str(account_email or "").strip()
@@ -4796,8 +6132,8 @@ try:
             sender_email,
             request_id=request_id,
             status_label="Reload Unavailable",
-            summary="Config was written, but follower Pycons is not currently loaded.",
-            detail="Enable Pycons on the follower to apply the sync immediately.",
+            summary="Config was written, but Pycons is not currently loaded on the target account.",
+            detail="Enable Pycons on the target account to apply this change immediately.",
             success_flag=False,
         )
 
@@ -4829,7 +6165,7 @@ try:
                 )
                 return False
 
-            reload_result = pycons_reload_config_from_disk(reason="shared sync")
+            reload_result = pycons_reload_config_from_disk(reason="other accounts action")
             if isinstance(reload_result, tuple):
                 reload_ok = bool(reload_result[0])
                 reload_detail = str(reload_result[1] or "")
@@ -4843,7 +6179,7 @@ try:
                     sender_email,
                     request_id=request_id,
                     status_label="Reloaded",
-                    summary="Config was written and follower Pycons reloaded from disk.",
+                    summary="Config was written and Pycons reloaded from disk on the target account.",
                     detail=reload_detail,
                     success_flag=True,
                 )
@@ -4854,7 +6190,7 @@ try:
                 sender_email,
                 request_id=request_id,
                 status_label="Reload Failed",
-                summary="Config was written, but follower Pycons could not reload its config.",
+                summary="Config was written, but Pycons could not reload its config on the target account.",
                 detail=reload_detail,
                 success_flag=False,
             )
@@ -4866,7 +6202,7 @@ try:
                 sender_email,
                 request_id=request_id,
                 status_label="Reload Failed",
-                summary="Config was written, but follower Pycons hit an error during reload.",
+                summary="Config was written, but Pycons hit an error during reload on the target account.",
                 detail=str(exc),
                 success_flag=False,
             )
@@ -4876,7 +6212,7 @@ try:
         selected_categories = _get_selected_pycons_sync_categories()
         selected_accounts = _get_selected_pycons_sync_account_emails()
         if not selected_categories:
-            _rt.sync_summary_text = "Select at least one sync category."
+            _rt.sync_summary_text = "Select at least one settings category to copy."
             return
         if not selected_accounts:
             _rt.sync_summary_text = "Select at least one active target account."
@@ -4894,7 +6230,7 @@ try:
                     account_email,
                     state="write_failed",
                     status_label="Write Failed",
-                    summary="Follower Pycons config could not be written.",
+                    summary="Selected settings categories could not be written to the target account's live Pycons config.",
                     detail=str(exc),
                     success=False,
                 )
@@ -4905,7 +6241,7 @@ try:
                     account_email,
                     state="reload_requested",
                     status_label="Reload Requested",
-                    summary="Config written; waiting for follower reload result.",
+                    summary="Selected settings categories written; waiting for Pycons reload result.",
                     success=False,
                 )
             else:
@@ -4913,8 +6249,63 @@ try:
                     account_email,
                     state="reload_not_queued",
                     status_label="Reload Not Queued",
-                    summary="Config written, but the reload request could not be queued.",
-                    detail="The follower may apply the synced config the next time Pycons loads.",
+                    summary="Selected settings categories written, but the reload request could not be queued.",
+                    detail="The target account may apply the copied settings the next time Pycons loads.",
+                    success=False,
+                )
+
+    def _pycons_start_profile_apply_to_accounts(profile_id: str):
+        selected_profile_id = str(profile_id or "").strip()
+        if not selected_profile_id:
+            _rt.sync_summary_text = "Select a saved profile first."
+            return
+
+        selected_accounts = _get_selected_pycons_sync_account_emails()
+        if not selected_accounts:
+            _rt.sync_summary_text = "Select at least one active target account."
+            return
+
+        profile_entry = _read_profile_record(selected_profile_id, include_payload=True)
+        if profile_entry is None:
+            _rt.sync_summary_text = "The selected saved profile is no longer available."
+            return
+
+        display_name = _profile_display_name(profile_entry.get("name", ""), selected_profile_id)
+        payload = dict(profile_entry.get("payload") or _profile_default_payload())
+
+        _rt.sync_statuses = {}
+        _rt.sync_active_request_id = _pycons_sync_next_request_id()
+        request_id = str(_rt.sync_active_request_id or "")
+
+        for account_email in selected_accounts:
+            try:
+                _pycons_write_profile_to_account(account_email, payload, display_name)
+            except Exception as exc:
+                _pycons_sync_set_status(
+                    account_email,
+                    state="write_failed",
+                    status_label="Write Failed",
+                    summary=f"Profile '{display_name}' could not be written to the target account's live Pycons config.",
+                    detail=str(exc),
+                    success=False,
+                )
+                continue
+
+            if _pycons_sync_send_reload_request(account_email, request_id):
+                _pycons_sync_set_status(
+                    account_email,
+                    state="reload_requested",
+                    status_label="Reload Requested",
+                    summary=f"Profile '{display_name}' written; waiting for Pycons reload result.",
+                    success=False,
+                )
+            else:
+                _pycons_sync_set_status(
+                    account_email,
+                    state="reload_not_queued",
+                    status_label="Reload Not Queued",
+                    summary=f"Profile '{display_name}' written, but the reload request could not be queued.",
+                    detail="The target account may apply the profile the next time Pycons loads.",
                     success=False,
                 )
 
@@ -4946,7 +6337,7 @@ try:
             sender_email,
             state=state,
             status_label=status_label_clean or ("Reloaded" if bool(success_flag) else "Reload Failed"),
-            summary=str(summary or "").strip() or "Follower Pycons sync result received.",
+            summary=str(summary or "").strip() or "Pycons reload result received.",
             detail=str(detail or "").strip(),
             success=bool(success_flag),
         )
@@ -5638,6 +7029,126 @@ try:
     def _text_meta(text: str):
         _text_with_color(str(text), (0.72, 0.75, 0.80, 1.00))
 
+    def _profile_set_ui_status(text: str, *, error: bool = False):
+        _rt.profile_status_text = str(text or "")
+        _rt.profile_status_error = bool(error)
+
+    def _set_active_applied_profile_id(profile_id: str):
+        _rt.profile_active_applied_id = str(profile_id or "").strip()
+
+    def _get_active_applied_profile_id(profiles: list[dict[str, Any]] | None = None) -> str:
+        profile_list = list(profiles or [])
+        valid_profile_ids = {str(profile.get("id", "") or "") for profile in profile_list}
+
+        active_profile_id = str(getattr(_rt, "profile_active_applied_id", "") or "").strip()
+        if active_profile_id:
+            if not valid_profile_ids or active_profile_id in valid_profile_ids:
+                return active_profile_id
+            _set_active_applied_profile_id("")
+
+        if cfg is None or not profile_list:
+            return ""
+
+        last_applied_name_norm = _profile_name_norm(str(getattr(cfg, "last_applied_preset", "") or ""))
+        if not last_applied_name_norm:
+            return ""
+
+        for profile in profile_list:
+            profile_id = str(profile.get("id", "") or "").strip()
+            if profile_id and _profile_name_norm(profile.get("name", "")) == last_applied_name_norm:
+                _set_active_applied_profile_id(profile_id)
+                return profile_id
+        return ""
+
+    def _clear_remote_profile_apply_confirmation():
+        _rt.sync_pending_profile_apply_id = ""
+        _rt.sync_pending_profile_apply_targets_key = ""
+
+    def _clear_profile_confirmation_state():
+        _rt.profile_pending_save_over_id = ""
+        _rt.profile_pending_delete_id = ""
+        _clear_remote_profile_apply_confirmation()
+
+    def _set_selected_profile_id(profile_id: str, *, clear_status: bool = True):
+        new_profile_id = str(profile_id or "")
+        current_profile_id = str(getattr(_rt, "profile_selected_id", "") or "")
+        if new_profile_id == current_profile_id:
+            return
+        _rt.profile_selected_id = new_profile_id
+        _clear_profile_confirmation_state()
+        if not new_profile_id:
+            _rt.profile_rename_input = ""
+            _rt.profile_rename_input_source_id = ""
+        if clear_status:
+            _profile_set_ui_status("")
+
+    def _get_selected_profile_entry(profiles: list[dict[str, str]]):
+        valid_profile_ids = {str(profile.get("id", "") or "") for profile in profiles}
+        selected_id = str(getattr(_rt, "profile_selected_id", "") or "")
+        if selected_id and selected_id not in valid_profile_ids:
+            _set_selected_profile_id("", clear_status=True)
+            selected_id = ""
+
+        pending_overwrite_id = str(getattr(_rt, "profile_pending_save_over_id", "") or "")
+        pending_delete_id = str(getattr(_rt, "profile_pending_delete_id", "") or "")
+        if (
+            (pending_overwrite_id and pending_overwrite_id not in valid_profile_ids)
+            or (pending_delete_id and pending_delete_id not in valid_profile_ids)
+        ):
+            _clear_profile_confirmation_state()
+            _profile_set_ui_status("")
+
+        selected_profile = None
+        for profile in profiles:
+            if str(profile.get("id", "") or "") == selected_id:
+                selected_profile = profile
+                break
+
+        selected_profile_id = str(selected_profile.get("id", "") or "") if selected_profile else ""
+        if selected_profile_id:
+            if str(getattr(_rt, "profile_rename_input_source_id", "") or "") != selected_profile_id:
+                _rt.profile_rename_input = str(selected_profile.get("name", "") or "")
+                _rt.profile_rename_input_source_id = selected_profile_id
+        elif not profiles:
+            _set_selected_profile_id("", clear_status=False)
+            _rt.profile_rename_input_source_id = ""
+
+        return selected_profile
+
+    def _selected_pycons_sync_accounts_key(account_emails: list[str] | None = None) -> str:
+        emails = account_emails if account_emails is not None else _get_selected_pycons_sync_account_emails()
+        normalized = sorted(
+            {
+                _normalize_sync_account_email(email)
+                for email in (emails or [])
+                if _normalize_sync_account_email(email)
+            }
+        )
+        return "|".join(normalized)
+
+    def _set_pycons_sync_account_selected(normalized_email: str, selected: bool):
+        key = _normalize_sync_account_email(normalized_email)
+        if not key:
+            return
+        next_value = bool(selected)
+        current_value = bool(_rt.sync_selected_accounts.get(key, False))
+        if current_value == next_value:
+            return
+        _rt.sync_selected_accounts[key] = next_value
+        _clear_remote_profile_apply_confirmation()
+
+    def _replace_pycons_sync_account_selection(active_accounts: list[object], selector) -> None:
+        for acc in list(active_accounts or []):
+            raw_email = str(_acc_email(acc) or "").strip()
+            normalized_email = _normalize_sync_account_email(raw_email)
+            if not normalized_email:
+                continue
+            try:
+                should_select = bool(selector(acc))
+            except Exception:
+                should_select = False
+            _set_pycons_sync_account_selected(normalized_email, should_select)
+
     def _section_text(text: str, section_key: str, secondary: bool = False):
         palette = _section_palette(section_key)
         color_key = "meta" if bool(secondary) else "text"
@@ -5647,44 +7158,47 @@ try:
         active_accounts = _get_pycons_sync_accounts()
         selected_categories = _get_selected_pycons_sync_categories()
         selected_accounts = _get_selected_pycons_sync_account_emails()
+        profiles = _list_pycons_profiles()
+        selected_profile = _get_selected_profile_entry(profiles)
+        selected_profile_context = _selected_profile_ui_context(selected_profile)
+        if selected_profile_context is not None:
+            selected_profile = selected_profile_context
+        selected_profile_id = str(selected_profile.get("id", "") or "") if selected_profile else ""
+        selected_profile_name = str(selected_profile.get("name", "") or "") if selected_profile else ""
+        selected_profile_summary = str(selected_profile.get("summary_text", "") or "") if selected_profile else ""
+        selected_profile_matches_live = bool(selected_profile.get("matches_live", True)) if selected_profile else True
+        selected_accounts_key = _selected_pycons_sync_accounts_key(selected_accounts)
 
-        _text_secondary("Write selected settings categories to active follower Pycons INIs.")
+        pending_profile_apply_id = str(getattr(_rt, "sync_pending_profile_apply_id", "") or "")
+        pending_profile_apply_targets_key = str(getattr(_rt, "sync_pending_profile_apply_targets_key", "") or "")
+        if pending_profile_apply_id and (
+            pending_profile_apply_id != selected_profile_id
+            or pending_profile_apply_targets_key != selected_accounts_key
+            or not selected_profile_id
+            or not selected_accounts_key
+        ):
+            _clear_remote_profile_apply_confirmation()
+
+        _text_secondary("Select active multibox target accounts below. Both actions use the same target list.")
         _text_secondary("Window layout, presets, filters, and runtime-only toggles stay local.")
         PyImGui.dummy(0, 4)
 
-        if PyImGui.small_button("Select All Categories##pycons_sync_categories_all"):
-            for category_key, _label in PYCONS_SYNC_CATEGORY_DEFS:
-                _rt.sync_selected_categories[str(category_key)] = True
-        _same_line(10)
-        if PyImGui.small_button("Clear Categories##pycons_sync_categories_clear"):
-            for category_key, _label in PYCONS_SYNC_CATEGORY_DEFS:
-                _rt.sync_selected_categories[str(category_key)] = False
-
-        for category_key, label in PYCONS_SYNC_CATEGORY_DEFS:
-            changed, value = ui_checkbox(
-                f"{label}##pycons_sync_category_{category_key}",
-                bool(_rt.sync_selected_categories.get(str(category_key), False)),
-            )
-            if changed:
-                _rt.sync_selected_categories[str(category_key)] = bool(value)
-
-        PyImGui.separator()
         _text_secondary(f"{len(active_accounts)} active account(s) | {len(selected_accounts)} selected")
+        if active_accounts:
+            _text_meta("Quick target selectors below replace the current target selection set.")
 
         if active_accounts:
             if PyImGui.small_button("Select All##pycons_sync_accounts_all"):
-                for acc in active_accounts:
-                    raw_email = str(_acc_email(acc) or "").strip()
-                    normalized_email = _normalize_sync_account_email(raw_email)
-                    if normalized_email:
-                        _rt.sync_selected_accounts[normalized_email] = True
+                _replace_pycons_sync_account_selection(active_accounts, lambda _acc: True)
+            _same_line(10)
+            if PyImGui.small_button("Same Map##pycons_sync_accounts_same_map"):
+                _replace_pycons_sync_account_selection(active_accounts, _pycons_sync_is_same_map)
+            _same_line(10)
+            if PyImGui.small_button("Followers##pycons_sync_accounts_followers"):
+                _replace_pycons_sync_account_selection(active_accounts, _pycons_sync_is_follower)
             _same_line(10)
             if PyImGui.small_button("Clear##pycons_sync_accounts_clear"):
-                for acc in active_accounts:
-                    raw_email = str(_acc_email(acc) or "").strip()
-                    normalized_email = _normalize_sync_account_email(raw_email)
-                    if normalized_email:
-                        _rt.sync_selected_accounts[normalized_email] = False
+                _replace_pycons_sync_account_selection(active_accounts, lambda _acc: False)
         else:
             PyImGui.text_disabled("No other active multibox accounts were detected.")
 
@@ -5713,7 +7227,7 @@ try:
                         is_selected = bool(_rt.sync_selected_accounts.get(normalized_email, False))
                         new_selected = PyImGui.checkbox(f"##pycons_sync_select_{raw_email}", is_selected)
                         if new_selected != is_selected:
-                            _rt.sync_selected_accounts[normalized_email] = bool(new_selected)
+                            _set_pycons_sync_account_selected(normalized_email, bool(new_selected))
 
                         PyImGui.table_set_column_index(1)
                         PyImGui.text(display_name)
@@ -5744,13 +7258,74 @@ try:
                     PyImGui.end_table()
             PyImGui.end_child()
 
-        sync_disabled = (len(selected_categories) == 0 or len(selected_accounts) == 0)
-        mode = _begin_disabled(sync_disabled)
-        if PyImGui.button("Sync Selected Settings##pycons_sync_settings_button"):
+        selected_accounts = _get_selected_pycons_sync_account_emails()
+        selected_accounts_key = _selected_pycons_sync_accounts_key(selected_accounts)
+
+        PyImGui.separator()
+        PyImGui.text("Copy selected settings categories to other accounts")
+        _text_secondary("Write only the checked settings categories into selected accounts' live Pycons config.")
+        _text_secondary("This is a partial copy tool, not a full saved-profile apply.")
+        PyImGui.dummy(0, 4)
+
+        if PyImGui.small_button("Select All Categories##pycons_sync_categories_all"):
+            for category_key, _label in PYCONS_SYNC_CATEGORY_DEFS:
+                _rt.sync_selected_categories[str(category_key)] = True
+        _same_line(10)
+        if PyImGui.small_button("Clear Categories##pycons_sync_categories_clear"):
+            for category_key, _label in PYCONS_SYNC_CATEGORY_DEFS:
+                _rt.sync_selected_categories[str(category_key)] = False
+
+        for category_key, label in PYCONS_SYNC_CATEGORY_DEFS:
+            changed, value = ui_checkbox(
+                f"{label}##pycons_sync_category_{category_key}",
+                bool(_rt.sync_selected_categories.get(str(category_key), False)),
+            )
+            if changed:
+                _rt.sync_selected_categories[str(category_key)] = bool(value)
+
+        selected_categories = _get_selected_pycons_sync_categories()
+        copy_disabled = (len(selected_categories) == 0 or len(selected_accounts) == 0)
+        mode = _begin_disabled(copy_disabled)
+        if PyImGui.button("Copy Selected Settings Categories##pycons_sync_settings_button"):
             _pycons_start_settings_sync()
         _end_disabled(mode)
 
-        _text_secondary(str(getattr(_rt, "sync_summary_text", "") or "No sync run yet."))
+        PyImGui.separator()
+        PyImGui.text("Load selected profile on selected accounts")
+        if selected_profile_id:
+            PyImGui.text(f"Source profile: {selected_profile_name}")
+            if selected_profile_summary:
+                _text_secondary(selected_profile_summary)
+            if not selected_profile_matches_live:
+                _text_meta("Remote apply uses the selected saved profile, not the current live settings.")
+        else:
+            PyImGui.text_disabled("No saved profile selected. Select one in Profiles.")
+        _text_secondary("Applies the full selected saved profile to selected accounts' live Pycons config, then requests reload.")
+        _text_secondary("Includes profile fields like Broadcast and Opt In.")
+
+        remote_apply_disabled = (not bool(selected_profile_id) or len(selected_accounts) == 0)
+        remote_apply_confirm_required = bool(
+            selected_profile_id
+            and selected_accounts_key
+            and selected_profile_id == str(getattr(_rt, "sync_pending_profile_apply_id", "") or "")
+            and selected_accounts_key == str(getattr(_rt, "sync_pending_profile_apply_targets_key", "") or "")
+        )
+        remote_apply_label = (
+            "Click Again to Load Selected Profile on Selected Accounts##pycons_sync_apply_profile_button"
+            if remote_apply_confirm_required
+            else "Load Selected Profile on Selected Accounts##pycons_sync_apply_profile_button"
+        )
+        mode = _begin_disabled(remote_apply_disabled)
+        if PyImGui.button(remote_apply_label):
+            if remote_apply_confirm_required:
+                _pycons_start_profile_apply_to_accounts(selected_profile_id)
+                _clear_remote_profile_apply_confirmation()
+            else:
+                _rt.sync_pending_profile_apply_id = str(selected_profile_id or "")
+                _rt.sync_pending_profile_apply_targets_key = str(selected_accounts_key or "")
+        _end_disabled(mode)
+
+        _text_secondary(str(getattr(_rt, "sync_summary_text", "") or "No other-accounts action run yet."))
 
     def _draw_inline_stock_text(model_id: int, spacing: float = 10.0):
         stock_text = _stock_text_for_model_id(int(model_id or 0))
@@ -6647,36 +8222,244 @@ try:
         PyImGui.text(f"Last party opt toggle: {str(cfg.last_party_opt_toggle_summary or 'None')}")
 
         PyImGui.separator()
-        tooltip_section_open = _styled_collapsing_header(
-            "Tooltip settings##pycons_settings_tooltip_dropdown",
-            bool(cfg.settings_ui_tooltip_open),
-            "general",
+        presets_section_open = _styled_collapsing_header(
+            "Profiles##pycons_settings_presets_dropdown",
+            bool(cfg.settings_ui_presets_open),
+            "mbdp",
         )
-        if bool(cfg.settings_ui_tooltip_open) != bool(tooltip_section_open):
-            cfg.settings_ui_tooltip_open = bool(tooltip_section_open)
+        if bool(cfg.settings_ui_presets_open) != bool(presets_section_open):
+            cfg.settings_ui_presets_open = bool(presets_section_open)
             cfg.mark_dirty()
-        if tooltip_section_open:
-            changed, idx = ui_combo("Help visibility##pycons_tip_visibility", int(cfg.tooltip_visibility), TOOLTIP_VISIBILITY_OPTIONS)
-            if changed:
-                cfg.tooltip_visibility = int(idx)
-                cfg.mark_dirty()
-            _show_setting_tooltip("tooltip_visibility")
-
-            changed, idx = ui_combo("Help length##pycons_tip_length", int(cfg.tooltip_length), TOOLTIP_LENGTH_OPTIONS)
-            if changed:
-                cfg.tooltip_length = int(idx)
-                cfg.mark_dirty()
-            _show_setting_tooltip("tooltip_length")
-
-            changed, v = ui_checkbox("Show 'Why this matters' line##pycons_tip_why", bool(cfg.tooltip_show_why))
-            if changed:
-                cfg.tooltip_show_why = bool(v)
-                cfg.mark_dirty()
-            _show_setting_tooltip("tooltip_show_why")
+        if presets_section_open:
+            _show_setting_tooltip("presets_section")
+            PyImGui.text(f"Last applied preset/profile: {str(cfg.last_applied_preset or 'None')}")
             PyImGui.separator()
+            PyImGui.text("Saved profiles (shared across accounts):")
+            if not _profiles_available_for_current_ini():
+                _text_secondary("Saved profiles are unavailable until Pycons is bound to the account-specific live INI.")
+            else:
+                profiles = _list_pycons_profiles()
+                selected_profile = _get_selected_profile_entry(profiles)
+                selected_profile_id = str(selected_profile.get("id", "") or "") if selected_profile else ""
+                selected_profile_name = str(selected_profile.get("name", "") or "") if selected_profile else ""
+                active_profile_id = _get_active_applied_profile_id(profiles)
+                selected_profile_summary = ""
+                selected_profile_matches_live = True
+                selected_profile_is_active = False
 
+                changed_new_profile_name, new_profile_name = ui_input_text(
+                    "New profile name##pycons_profile_new_name",
+                    str(getattr(_rt, "profile_new_name_input", "") or ""),
+                    PROFILE_NAME_MAX_LEN,
+                )
+                if changed_new_profile_name:
+                    _rt.profile_new_name_input = str(new_profile_name or "")
+
+                if PyImGui.button("Save Current As New##pycons_profile_save_new"):
+                    _clear_profile_confirmation_state()
+                    ok, message, _new_profile_id_unused = _save_current_as_new_profile(
+                        str(getattr(_rt, "profile_new_name_input", "") or "")
+                    )
+                    _profile_set_ui_status(message, error=not ok)
+                    if ok:
+                        _rt.profile_new_name_input = ""
+                        _log(message, Console.MessageType.Info)
+                    else:
+                        _log(message, Console.MessageType.Warning)
+                _show_setting_tooltip("profile_save_new")
+
+                PyImGui.separator()
+
+                if profiles:
+                    profile_combo_items = ["<Select saved profile...>"] + [str(profile.get("name", "") or "") for profile in profiles]
+                    current_profile_index = 0
+                    for idx, profile in enumerate(profiles, start=1):
+                        if str(profile.get("id", "") or "") == selected_profile_id:
+                            current_profile_index = int(idx)
+                            break
+                    changed_profile_idx, profile_idx = ui_combo(
+                        "Saved profiles##pycons_profile_select",
+                        int(current_profile_index),
+                        profile_combo_items,
+                    )
+                    if changed_profile_idx:
+                        if int(profile_idx) <= 0:
+                            _set_selected_profile_id("")
+                        elif int(profile_idx) <= len(profiles):
+                            selected_profile = profiles[int(profile_idx) - 1]
+                            selected_profile_id = str(selected_profile.get("id", "") or "")
+                            selected_profile_name = str(selected_profile.get("name", "") or "")
+                            _set_selected_profile_id(selected_profile_id)
+                            _rt.profile_rename_input = selected_profile_name
+                            _rt.profile_rename_input_source_id = selected_profile_id
+
+                    selected_profile = _get_selected_profile_entry(profiles)
+                    selected_profile_context = _selected_profile_ui_context(selected_profile)
+                    if selected_profile_context is not None:
+                        selected_profile = selected_profile_context
+                    selected_profile_id = str(selected_profile.get("id", "") or "") if selected_profile else ""
+                    selected_profile_name = str(selected_profile.get("name", "") or "") if selected_profile else ""
+                    active_profile_id = _get_active_applied_profile_id(profiles)
+                    selected_profile_summary = str(selected_profile.get("summary_text", "") or "") if selected_profile else ""
+                    selected_profile_matches_live = bool(selected_profile.get("matches_live", True)) if selected_profile else True
+                    selected_profile_is_active = bool(
+                        selected_profile_id
+                        and active_profile_id
+                        and selected_profile_id == active_profile_id
+                    )
+                    if selected_profile:
+                        PyImGui.text(f"Selected profile: {selected_profile_name}")
+                        created_at = str(selected_profile.get("created_at", "") or "")
+                        updated_at = str(selected_profile.get("updated_at", "") or "")
+                        if created_at or updated_at:
+                            _text_meta(f"Created: {created_at or '-'} | Updated: {updated_at or '-'}")
+                        if selected_profile_summary:
+                            _text_secondary(selected_profile_summary)
+                        if selected_profile_matches_live:
+                            if selected_profile_is_active:
+                                _text_meta("Selected profile is currently applied and already matches live settings.")
+                            else:
+                                _text_meta("Matches selected profile.")
+                                _text_meta("Selected profile is not the currently active profile on this account.")
+                        else:
+                            _text_secondary("Live settings differ from selected profile.")
+                            if selected_profile_is_active:
+                                _text_meta("Use Revert Live Settings to Selected Profile or Save Over Selected below.")
+                            else:
+                                _text_meta("Selected profile is not the currently active profile on this account.")
+                    else:
+                        _text_secondary("Select a saved profile to load, rename, overwrite, or delete.")
+                else:
+                    _text_secondary("No saved profiles yet.")
+                    _set_active_applied_profile_id("")
+                    _set_selected_profile_id("", clear_status=False)
+                    _clear_profile_confirmation_state()
+
+                if str(getattr(_rt, "profile_status_text", "") or ""):
+                    if bool(getattr(_rt, "profile_status_error", False)):
+                        _text_with_color(str(_rt.profile_status_text), (0.92, 0.54, 0.54, 1.00))
+                    else:
+                        _text_secondary(str(_rt.profile_status_text))
+
+                disabled_mode = _begin_disabled(not bool(selected_profile_id))
+                try:
+                    changed_rename_name, rename_value = ui_input_text(
+                        "Rename to##pycons_profile_rename_name",
+                        str(getattr(_rt, "profile_rename_input", "") or ""),
+                        PROFILE_NAME_MAX_LEN,
+                    )
+                    if changed_rename_name:
+                        _rt.profile_rename_input = str(rename_value or "")
+
+                    if PyImGui.button("Rename Selected##pycons_profile_rename"):
+                        _clear_profile_confirmation_state()
+                        ok, message, clean_name = _rename_profile(
+                            selected_profile_id,
+                            str(getattr(_rt, "profile_rename_input", "") or ""),
+                        )
+                        _profile_set_ui_status(message, error=not ok)
+                        if ok:
+                            _rt.profile_rename_input = str(clean_name or "")
+                            _rt.profile_rename_input_source_id = str(selected_profile_id or "")
+                            _log(message, Console.MessageType.Info)
+                        else:
+                            _log(message, Console.MessageType.Warning)
+                    _show_setting_tooltip("profile_rename")
+
+                    _same_line(8)
+                    if PyImGui.button("Duplicate Selected##pycons_profile_duplicate"):
+                        _clear_profile_confirmation_state()
+                        ok, message, duplicate_profile_id, duplicate_name = _duplicate_profile(selected_profile_id)
+                        _profile_set_ui_status(message, error=not ok)
+                        if ok:
+                            _set_selected_profile_id(duplicate_profile_id, clear_status=False)
+                            _rt.profile_rename_input = str(duplicate_name or "")
+                            _rt.profile_rename_input_source_id = str(duplicate_profile_id or "")
+                            _log(message, Console.MessageType.Info)
+                        else:
+                            _log(message, Console.MessageType.Warning)
+                    _show_setting_tooltip("profile_duplicate")
+
+                    _same_line(8)
+                    load_selected_label = "Load Selected##pycons_profile_load_selected"
+                    load_selected_disabled = False
+                    if selected_profile_is_active:
+                        if selected_profile_matches_live:
+                            load_selected_label = "Already Matches##pycons_profile_load_selected"
+                            load_selected_disabled = True
+                        else:
+                            load_selected_label = "Revert Live Settings to Selected Profile##pycons_profile_load_selected"
+                    load_selected_mode = _begin_disabled(load_selected_disabled)
+                    if PyImGui.button(load_selected_label):
+                        _clear_profile_confirmation_state()
+                        ok, message = _load_profile(selected_profile_id)
+                        _profile_set_ui_status(message, error=not ok)
+                        if ok:
+                            _log(message, Console.MessageType.Info)
+                        else:
+                            _log(message, Console.MessageType.Warning)
+                    _end_disabled(load_selected_mode)
+                    _show_setting_tooltip("profile_load_selected")
+
+                    _same_line(8)
+                    overwrite_confirm_required = bool(
+                        selected_profile_id
+                        and selected_profile_id == str(getattr(_rt, "profile_pending_save_over_id", "") or "")
+                    )
+                    overwrite_label = (
+                        "Click Again to Save Over Selected##pycons_profile_save_over_selected"
+                        if overwrite_confirm_required
+                        else "Save Over Selected##pycons_profile_save_over_selected"
+                    )
+                    if PyImGui.button(overwrite_label):
+                        if overwrite_confirm_required:
+                            ok, message = _save_over_profile(selected_profile_id)
+                            _clear_profile_confirmation_state()
+                            _profile_set_ui_status(message, error=not ok)
+                            if ok:
+                                _log(message, Console.MessageType.Info)
+                            else:
+                                _log(message, Console.MessageType.Warning)
+                        else:
+                            _rt.profile_pending_save_over_id = str(selected_profile_id or "")
+                            _rt.profile_pending_delete_id = ""
+                            _profile_set_ui_status(
+                                f"Click Save Over Selected again to replace '{selected_profile_name}'."
+                            )
+                    _show_setting_tooltip("profile_save_over_selected")
+
+                    _same_line(8)
+                    delete_confirm_required = bool(
+                        selected_profile_id
+                        and selected_profile_id == str(getattr(_rt, "profile_pending_delete_id", "") or "")
+                    )
+                    delete_label = (
+                        "Click Again to Delete Selected##pycons_profile_delete"
+                        if delete_confirm_required
+                        else "Delete Selected##pycons_profile_delete"
+                    )
+                    if PyImGui.button(delete_label):
+                        if delete_confirm_required:
+                            ok, message = _delete_profile(selected_profile_id)
+                            _clear_profile_confirmation_state()
+                            _profile_set_ui_status(message, error=not ok)
+                            if ok:
+                                _set_selected_profile_id("", clear_status=False)
+                                _log(message, Console.MessageType.Info)
+                            else:
+                                _log(message, Console.MessageType.Warning)
+                        else:
+                            _rt.profile_pending_delete_id = str(selected_profile_id or "")
+                            _rt.profile_pending_save_over_id = ""
+                            _profile_set_ui_status(
+                                f"Click Delete again to remove '{selected_profile_name}'."
+                            )
+                    _show_setting_tooltip("profile_delete")
+                finally:
+                    _end_disabled(disabled_mode)
+            PyImGui.separator()
         sync_section_open = _styled_collapsing_header(
-            "Sync settings to other accounts##pycons_settings_sync_dropdown",
+            "Other Accounts##pycons_settings_sync_dropdown",
             bool(getattr(cfg, "settings_ui_sync_open", False)),
             "general",
         )
@@ -6686,424 +8469,6 @@ try:
         if sync_section_open:
             _draw_pycons_sync_section()
             PyImGui.separator()
-
-        # --- Alcohol settings (collapsed dropdown for compactness) ---
-        alcohol_section_open = _styled_collapsing_header(
-            "Alcohol settings##pycons_settings_alcohol_dropdown",
-            bool(cfg.settings_ui_alcohol_open),
-            "alcohol",
-        )
-        if bool(cfg.settings_ui_alcohol_open) != bool(alcohol_section_open):
-            cfg.settings_ui_alcohol_open = bool(alcohol_section_open)
-            cfg.mark_dirty()
-        if alcohol_section_open:
-            PyImGui.text("Alcohol upkeep:")
-            _same_line(10)
-            if _badge_button("ON" if cfg.alcohol_enabled else "OFF", enabled=bool(cfg.alcohol_enabled), id_suffix="pycons_settings_alcohol_toggle"):
-                cfg.alcohol_enabled = not bool(cfg.alcohol_enabled)
-                cfg.mark_dirty()
-            _show_setting_tooltip("alcohol_enabled")
-
-            changed, v = ui_checkbox("Disable drunk blur##pycons_settings_alc_disable_effect", bool(cfg.alcohol_disable_effect))
-            if changed:
-                cfg.alcohol_disable_effect = bool(v)
-                cfg.mark_dirty()
-                _debug(f"Disable drunk blur setting changed to: {cfg.alcohol_disable_effect}", Console.MessageType.Debug)
-            _show_setting_tooltip("alcohol_disable_effect")
-
-            changed, v = ui_checkbox("Use in Explorable##pycons_settings_alc_expl", bool(cfg.alcohol_use_explorable))
-            if changed:
-                cfg.alcohol_use_explorable = bool(v)
-                cfg.mark_dirty()
-            _show_setting_tooltip("alcohol_use_explorable")
-
-            changed, v = ui_checkbox("Use in Outpost##pycons_settings_alc_outpost", bool(cfg.alcohol_use_outpost))
-            if changed:
-                cfg.alcohol_use_outpost = bool(v)
-                cfg.mark_dirty()
-            _show_setting_tooltip("alcohol_use_outpost")
-
-            PyImGui.text("Target drunk level:")
-            _same_line(10)
-            changed, vv = ui_input_int("##pycons_alcohol_target", int(cfg.alcohol_target_level))
-            if changed:
-                cfg.alcohol_target_level = int(max(0, min(5, vv)))
-                cfg.mark_dirty()
-            _show_setting_tooltip("alcohol_target_level")
-
-            PyImGui.text("Preference:")
-            _same_line(10)
-            changed, pref_idx = ui_combo(
-                "##pycons_alc_pref_settings",
-                int(cfg.alcohol_preference),
-                ALCOHOL_PREFERENCE_OPTIONS,
-            )
-            if changed:
-                cfg.alcohol_preference = int(pref_idx)
-                cfg.mark_dirty()
-            _show_setting_tooltip("alcohol_preference_mode")
-
-            PyImGui.separator()
-
-        mbdp_section_open = _styled_collapsing_header(
-            "Morale Boost & Death Penalty settings##pycons_settings_mbdp_dropdown",
-            bool(cfg.settings_ui_mbdp_open),
-            "mbdp",
-        )
-        if bool(cfg.settings_ui_mbdp_open) != bool(mbdp_section_open):
-            cfg.settings_ui_mbdp_open = bool(mbdp_section_open)
-            cfg.mark_dirty()
-        if mbdp_section_open:
-            PyImGui.text("MB/DP upkeep:")
-            _same_line(10)
-            if _badge_button("ON" if cfg.mbdp_enabled else "OFF", enabled=bool(cfg.mbdp_enabled), id_suffix="pycons_settings_mbdp_toggle"):
-                cfg.mbdp_enabled = not bool(cfg.mbdp_enabled)
-                cfg.mark_dirty()
-                _mark_mbdp_preset_custom()
-            _show_setting_tooltip("mbdp_enabled")
-
-            changed, v = ui_checkbox("Allow party-wide in human parties##pycons_mbdp_human", bool(cfg.mbdp_allow_partywide_in_human_parties))
-            if changed:
-                cfg.mbdp_allow_partywide_in_human_parties = bool(v)
-                cfg.mark_dirty()
-                _mark_mbdp_preset_custom()
-            _show_setting_tooltip("mbdp_allow_partywide_in_human_parties")
-
-            changed, v = ui_checkbox("Receiver requires item enabled locally##pycons_mbdp_receiver_require_enabled", bool(cfg.mbdp_receiver_require_enabled))
-            if changed:
-                cfg.mbdp_receiver_require_enabled = bool(v)
-                cfg.mark_dirty()
-                _mark_mbdp_preset_custom()
-            _show_setting_tooltip("mbdp_receiver_require_enabled")
-
-            changed, v = ui_checkbox("Prefer Seal over Pumpkin for self +10 morale##pycons_mbdp_prefer_seal", bool(cfg.mbdp_prefer_seal_for_recharge))
-            if changed:
-                cfg.mbdp_prefer_seal_for_recharge = bool(v)
-                cfg.mark_dirty()
-                _mark_mbdp_preset_custom()
-            _show_setting_tooltip("mbdp_prefer_seal_for_recharge")
-
-            if PyImGui.button("Restore default MB/DP settings##pycons_mbdp_restore_defaults"):
-                _apply_mbdp_defaults()
-                _mark_mbdp_preset_custom()
-                _debug("MB/DP settings restored to defaults.", Console.MessageType.Info)
-                cfg.save_if_dirty_throttled(0)
-            _show_setting_tooltip("mbdp_restore_defaults")
-
-            PyImGui.text(f"Self minor DP trigger ({_fmt_effective(cfg.mbdp_self_dp_minor_threshold)}):")
-            _same_line(10)
-            changed, val = ui_input_int_fixed("##pycons_mbdp_self_minor", int(cfg.mbdp_self_dp_minor_threshold))
-            if changed:
-                cfg.mbdp_self_dp_minor_threshold = max(-60, min(0, int(val)))
-                cfg.mark_dirty()
-                _mark_mbdp_preset_custom()
-            _show_setting_tooltip("mbdp_self_dp_minor_threshold")
-
-            PyImGui.text(f"Self major DP trigger ({_fmt_effective(cfg.mbdp_self_dp_major_threshold)}):")
-            _same_line(10)
-            changed, val = ui_input_int_fixed("##pycons_mbdp_self_major", int(cfg.mbdp_self_dp_major_threshold))
-            if changed:
-                cfg.mbdp_self_dp_major_threshold = max(-60, min(0, int(val)))
-                cfg.mark_dirty()
-                _mark_mbdp_preset_custom()
-            _show_setting_tooltip("mbdp_self_dp_major_threshold")
-
-            PyImGui.text(f"Self target effective ({_fmt_effective(cfg.mbdp_self_morale_target_effective)}):")
-            _same_line(10)
-            changed, val = ui_input_int_fixed("##pycons_mbdp_self_target", int(cfg.mbdp_self_morale_target_effective))
-            if changed:
-                cfg.mbdp_self_morale_target_effective = max(-60, min(10, int(val)))
-                cfg.mark_dirty()
-                _mark_mbdp_preset_custom()
-            _show_setting_tooltip("mbdp_self_morale_target_effective")
-
-            PyImGui.text("Self minimum useful morale benefit:")
-            _same_line(10)
-            changed, val = ui_input_int_fixed("##pycons_mbdp_self_gain", int(cfg.mbdp_self_min_morale_gain))
-            if changed:
-                cfg.mbdp_self_min_morale_gain = max(0, min(10, int(val)))
-                cfg.mark_dirty()
-                _mark_mbdp_preset_custom()
-            _show_setting_tooltip("mbdp_self_min_morale_gain")
-
-            PyImGui.text("Party minimum eligible members:")
-            _same_line(10)
-            changed, val = ui_input_int_fixed("##pycons_mbdp_party_members", int(cfg.mbdp_party_min_members))
-            if changed:
-                cfg.mbdp_party_min_members = max(2, min(8, int(val)))
-                cfg.mark_dirty()
-                _mark_mbdp_preset_custom()
-            _show_setting_tooltip("mbdp_party_min_members")
-
-            PyImGui.text("Party trigger interval (ms):")
-            _same_line(10)
-            changed, val = ui_input_int_fixed("##pycons_mbdp_party_interval", int(cfg.mbdp_party_min_interval_ms), width=150.0)
-            if changed:
-                cfg.mbdp_party_min_interval_ms = max(1000, int(val))
-                cfg.mark_dirty()
-                _mark_mbdp_preset_custom()
-            _show_setting_tooltip("mbdp_party_min_interval_ms")
-
-            PyImGui.text(f"Party target effective ({_fmt_effective(cfg.mbdp_party_target_effective)}):")
-            _same_line(10)
-            changed, val = ui_input_int_fixed("##pycons_mbdp_party_target", int(cfg.mbdp_party_target_effective))
-            if changed:
-                cfg.mbdp_party_target_effective = max(-60, min(10, int(val)))
-                cfg.mark_dirty()
-                _mark_mbdp_preset_custom()
-            _show_setting_tooltip("mbdp_party_target_effective")
-
-            PyImGui.text("Party +5 minimum total benefit:")
-            _same_line(10)
-            changed, val = ui_input_int_fixed("##pycons_mbdp_party_gain5", int(cfg.mbdp_party_min_total_gain_5))
-            if changed:
-                cfg.mbdp_party_min_total_gain_5 = max(0, min(60, int(val)))
-                cfg.mark_dirty()
-                _mark_mbdp_preset_custom()
-            _show_setting_tooltip("mbdp_party_min_total_gain_5")
-
-            PyImGui.text("Party +10 minimum total benefit:")
-            _same_line(10)
-            changed, val = ui_input_int_fixed("##pycons_mbdp_party_gain10", int(cfg.mbdp_party_min_total_gain_10))
-            if changed:
-                cfg.mbdp_party_min_total_gain_10 = max(0, min(120, int(val)))
-                cfg.mark_dirty()
-                _mark_mbdp_preset_custom()
-            _show_setting_tooltip("mbdp_party_min_total_gain_10")
-
-            PyImGui.text(f"Party light DP trigger ({_fmt_effective(cfg.mbdp_party_light_dp_threshold)}):")
-            _same_line(10)
-            changed, val = ui_input_int_fixed("##pycons_mbdp_party_light", int(cfg.mbdp_party_light_dp_threshold))
-            if changed:
-                cfg.mbdp_party_light_dp_threshold = max(-60, min(0, int(val)))
-                cfg.mark_dirty()
-                _mark_mbdp_preset_custom()
-            _show_setting_tooltip("mbdp_party_light_dp_threshold")
-
-            PyImGui.text(f"Party heavy DP trigger ({_fmt_effective(cfg.mbdp_party_heavy_dp_threshold)}):")
-            _same_line(10)
-            changed, val = ui_input_int_fixed("##pycons_mbdp_party_heavy", int(cfg.mbdp_party_heavy_dp_threshold))
-            if changed:
-                cfg.mbdp_party_heavy_dp_threshold = max(-60, min(0, int(val)))
-                cfg.mark_dirty()
-                _mark_mbdp_preset_custom()
-            _show_setting_tooltip("mbdp_party_heavy_dp_threshold")
-
-            PyImGui.text(f"Powerstone emergency trigger ({_fmt_effective(cfg.mbdp_powerstone_dp_threshold)}):")
-            _same_line(10)
-            changed, val = ui_input_int_fixed("##pycons_mbdp_party_powerstone", int(cfg.mbdp_powerstone_dp_threshold))
-            if changed:
-                cfg.mbdp_powerstone_dp_threshold = max(-60, min(0, int(val)))
-                cfg.mark_dirty()
-                _mark_mbdp_preset_custom()
-            _show_setting_tooltip("mbdp_powerstone_dp_threshold")
-
-            PyImGui.separator()
-
-        presets_section_open = _styled_collapsing_header(
-            "MB/DP Presets##pycons_settings_presets_dropdown",
-            bool(cfg.settings_ui_presets_open),
-            "mbdp",
-        )
-        if bool(cfg.settings_ui_presets_open) != bool(presets_section_open):
-            cfg.settings_ui_presets_open = bool(presets_section_open)
-            cfg.mark_dirty()
-        if presets_section_open:
-            _show_setting_tooltip("presets_section")
-            PyImGui.text(f"Active preset: {str(cfg.last_applied_preset or 'None')}")
-            PyImGui.separator()
-
-            if PyImGui.button("Apply: Solo Safe##pycons_preset_apply_solo_safe"):
-                _apply_builtin_preset("solo_safe")
-            _show_setting_tooltip("preset_solo_safe")
-
-            if PyImGui.button("Apply: Leader - Force Team Morale##pycons_preset_apply_leader_force"):
-                _apply_builtin_preset(LEADER_FORCE_PRESET_KEY)
-            _show_setting_tooltip("preset_leader_force_plus10_team")
-            _same_line(10)
-            PyImGui.text("Value:")
-            _same_line(6)
-            changed_force_val, force_val = ui_input_int_fixed(
-                "##pycons_preset_force_team_morale_value",
-                int(getattr(cfg, "force_team_morale_value", 0)),
-                width=110.0,
-            )
-            if changed_force_val:
-                new_force = max(-60, min(10, int(force_val)))
-                if int(getattr(cfg, "force_team_morale_value", 0)) != int(new_force):
-                    cfg.force_team_morale_value = int(new_force)
-                    cfg.mark_dirty()
-                    # Keep live-apply behavior only when strict mode is currently active.
-                    if bool(cfg.mbdp_strict_party_plus10):
-                        _apply_builtin_preset(LEADER_FORCE_PRESET_KEY, announce=False)
-                    else:
-                        _mark_mbdp_preset_custom()
-            _show_setting_tooltip("preset_leader_force_plus10_team")
-            _same_line(8)
-            leader_force_active = _is_leader_force_team_morale_active()
-            if _badge_button(
-                "ON" if leader_force_active else "OFF",
-                enabled=leader_force_active,
-                id_suffix="pycons_preset_leader_force_strict_toggle",
-            ):
-                if leader_force_active:
-                    cfg.mbdp_strict_party_plus10 = False
-                    _mark_mbdp_preset_custom()
-                    cfg.mark_dirty()
-                else:
-                    _apply_builtin_preset(LEADER_FORCE_PRESET_KEY, announce=False)
-            _show_setting_tooltip("preset_leader_force_plus10_team")
-
-            PyImGui.separator()
-            PyImGui.text("Custom preset slots:")
-            for i in range(1, PRESET_SLOT_COUNT + 1):
-                PyImGui.text(f"Slot {i}:")
-                _same_line(8)
-                current_name = str(cfg.preset_slot_names.get(i, _preset_slot_default_name(i)))
-                changed_name, new_name = ui_input_text(f"##pycons_preset_name_{i}", current_name, 64)
-                if changed_name:
-                    n = str(new_name or "").strip()
-                    cfg.preset_slot_names[i] = n if n else _preset_slot_default_name(i)
-                    cfg.mark_dirty()
-                _same_line(8)
-                if PyImGui.button(f"Save##pycons_preset_save_{i}"):
-                    _save_custom_preset_slot(i)
-                _show_setting_tooltip("preset_save_slot")
-                _same_line(8)
-                if PyImGui.button(f"Load##pycons_preset_load_{i}"):
-                    _load_custom_preset_slot(i)
-                _show_setting_tooltip("preset_load_slot")
-            PyImGui.separator()
-
-        restock_section_open = _styled_collapsing_header(
-            "Restock Settings##pycons_settings_restock_dropdown",
-            bool(cfg.settings_ui_restock_open),
-            "restock",
-        )
-        if bool(cfg.settings_ui_restock_open) != bool(restock_section_open):
-            cfg.settings_ui_restock_open = bool(restock_section_open)
-            cfg.mark_dirty()
-        if restock_section_open:
-            changed, v = ui_checkbox("Auto-restock from Xunlai Vault##pycons_auto_vault_restock", bool(cfg.auto_vault_restock))
-            if changed:
-                cfg.auto_vault_restock = bool(v)
-                cfg.mark_dirty()
-            _show_setting_tooltip("auto_vault_restock")
-
-            changed, v = ui_checkbox("Keep target when deselected##pycons_restock_keep_target", bool(cfg.restock_keep_target_on_deselect))
-            if changed:
-                cfg.restock_keep_target_on_deselect = bool(v)
-                cfg.mark_dirty()
-            _show_setting_tooltip("restock_keep_target_on_deselect")
-
-            PyImGui.text("Restock interval (ms):")
-            _same_line(10)
-            changed, v = ui_input_int_fixed("##pycons_restock_interval_ms", int(cfg.restock_interval_ms), width=120.0)
-            if changed:
-                cfg.restock_interval_ms = int(max(MIN_RESTOCK_INTERVAL_MS, int(v)))
-                cfg.mark_dirty()
-            _show_setting_tooltip("restock_interval_ms")
-
-            changed, mode_idx = ui_combo("Restock mode##pycons_restock_mode", int(cfg.restock_mode), RESTOCK_MODE_OPTIONS)
-            if changed:
-                cfg.restock_mode = int(max(RESTOCK_MODE_BALANCED, min(RESTOCK_MODE_DEPOSIT_ONLY, int(mode_idx))))
-                cfg.mark_dirty()
-            _show_setting_tooltip("restock_mode")
-
-            PyImGui.text("Per-cycle move cap:")
-            _same_line(10)
-            changed, cap_val = ui_input_int_fixed("##pycons_restock_move_cap", int(cfg.restock_move_cap_per_cycle), width=120.0)
-            if changed:
-                cfg.restock_move_cap_per_cycle = int(
-                    max(MIN_RESTOCK_MOVE_CAP_PER_CYCLE, min(MAX_RESTOCK_MOVE_CAP_PER_CYCLE, int(cap_val)))
-                )
-                cfg.mark_dirty()
-            _show_setting_tooltip("restock_move_cap_per_cycle")
-
-            PyImGui.text_wrapped("Choose target inventory amounts for selected items. Click an item icon to toggle whether that item participates in vault restock.")
-            PyImGui.text_wrapped("Main-window ON/OFF controls usage only. Restock uses the icon toggle below.")
-            selected_specs = _selected_restock_specs()
-
-            disabled_selected = (int(len(selected_specs)) == 0)
-            mode = _begin_disabled(disabled_selected)
-            if PyImGui.button("Enable all selected restock##pycons_restock_enable_all"):
-                changed_any = False
-                for key, _spec in selected_specs:
-                    if not _restock_item_enabled(key):
-                        _set_restock_item_enabled(key, True)
-                        changed_any = True
-                if changed_any:
-                    cfg.mark_dirty()
-            _show_setting_tooltip("restock_enable_all_selected")
-            _same_line(10)
-            if PyImGui.button("Disable all selected restock##pycons_restock_disable_all"):
-                changed_any = False
-                for key, _spec in selected_specs:
-                    if _restock_item_enabled(key):
-                        _set_restock_item_enabled(key, False)
-                        changed_any = True
-                if changed_any:
-                    cfg.mark_dirty()
-            _show_setting_tooltip("restock_disable_all_selected")
-            _end_disabled(mode)
-
-            PyImGui.text("Set all selected targets to:")
-            _same_line(10)
-            changed_bulk, bulk_val = ui_input_int_fixed("##pycons_restock_bulk_target", int(restock_bulk_target[0]), width=90.0)
-            if changed_bulk:
-                restock_bulk_target[0] = max(0, min(2500, int(bulk_val)))
-            _same_line(10)
-            if PyImGui.button("Apply to all selected##pycons_restock_apply_all"):
-                target = int(max(0, min(2500, int(restock_bulk_target[0]))))
-                changed_any = False
-                for key, _spec in selected_specs:
-                    prev = _restock_target_for_key(key)
-                    if int(prev) != int(target):
-                        cfg.restock_targets[key] = int(target)
-                        changed_any = True
-                if changed_any:
-                    cfg.mark_dirty()
-            _show_setting_tooltip("restock_set_all_selected_target")
-
-            if not selected_specs:
-                PyImGui.text_disabled("No selected items. Select consumables first.")
-            else:
-                selected_specs = sorted(selected_specs, key=lambda pair: str(pair[1].get("label", "")).lower())
-                selected_conset_specs = [pair for pair in selected_specs if str(pair[0]) in CONSET_KEYS]
-                selected_non_conset_specs = [pair for pair in selected_specs if str(pair[0]) not in CONSET_KEYS]
-                _refresh_inventory_cache(False)
-
-                if PyImGui.begin_table("pycons_restock_targets_table", 3):
-                    PyImGui.table_setup_column("Item", PyImGui.TableColumnFlags.WidthStretch)
-                    PyImGui.table_setup_column("In Inventory", PyImGui.TableColumnFlags.WidthFixed, 110.0)
-                    PyImGui.table_setup_column("Target", PyImGui.TableColumnFlags.WidthFixed, 110.0)
-
-                    if selected_conset_specs:
-                        PyImGui.table_next_row()
-                        PyImGui.table_next_column()
-                        PyImGui.text("Conset:")
-                        PyImGui.table_next_column()
-                        PyImGui.text("")
-                        PyImGui.table_next_column()
-                        PyImGui.text("")
-
-                        for key, spec in selected_conset_specs:
-                            _draw_restock_target_item_row(key, spec)
-
-                        if selected_non_conset_specs:
-                            PyImGui.table_next_row()
-                            PyImGui.table_next_column()
-                            PyImGui.separator()
-                            PyImGui.table_next_column()
-                            PyImGui.separator()
-                            PyImGui.table_next_column()
-                            PyImGui.separator()
-
-                    for key, spec in selected_non_conset_specs:
-                        _draw_restock_target_item_row(key, spec)
-
-                    PyImGui.end_table()
-
         if _styled_collapsing_header("Select consumables to show in the main window##pycons_settings_consumables_dropdown", False, "general"):
             _text_secondary("Selected here -> shown in the main window.")
             if bool(cfg.persist_main_runtime_toggles):
@@ -7368,6 +8733,505 @@ try:
 
                     cfg.mark_dirty()
 
+        mbdp_section_open = _styled_collapsing_header(
+            "Morale Boost & Death Penalty settings##pycons_settings_mbdp_dropdown",
+            bool(cfg.settings_ui_mbdp_open),
+            "mbdp",
+        )
+        if bool(cfg.settings_ui_mbdp_open) != bool(mbdp_section_open):
+            cfg.settings_ui_mbdp_open = bool(mbdp_section_open)
+            cfg.mark_dirty()
+        if mbdp_section_open:
+            PyImGui.text("MB/DP upkeep:")
+            _same_line(10)
+            if _badge_button("ON" if cfg.mbdp_enabled else "OFF", enabled=bool(cfg.mbdp_enabled), id_suffix="pycons_settings_mbdp_toggle"):
+                cfg.mbdp_enabled = not bool(cfg.mbdp_enabled)
+                cfg.mark_dirty()
+                _mark_mbdp_preset_custom()
+            _show_setting_tooltip("mbdp_enabled")
+
+            changed, v = ui_checkbox("Allow party-wide in human parties##pycons_mbdp_human", bool(cfg.mbdp_allow_partywide_in_human_parties))
+            if changed:
+                cfg.mbdp_allow_partywide_in_human_parties = bool(v)
+                cfg.mark_dirty()
+                _mark_mbdp_preset_custom()
+            _show_setting_tooltip("mbdp_allow_partywide_in_human_parties")
+
+            changed, v = ui_checkbox("Receiver requires item enabled locally##pycons_mbdp_receiver_require_enabled", bool(cfg.mbdp_receiver_require_enabled))
+            if changed:
+                cfg.mbdp_receiver_require_enabled = bool(v)
+                cfg.mark_dirty()
+                _mark_mbdp_preset_custom()
+            _show_setting_tooltip("mbdp_receiver_require_enabled")
+
+            changed, v = ui_checkbox("Prefer Seal over Pumpkin for self +10 morale##pycons_mbdp_prefer_seal", bool(cfg.mbdp_prefer_seal_for_recharge))
+            if changed:
+                cfg.mbdp_prefer_seal_for_recharge = bool(v)
+                cfg.mark_dirty()
+                _mark_mbdp_preset_custom()
+            _show_setting_tooltip("mbdp_prefer_seal_for_recharge")
+
+            if PyImGui.button("Restore default MB/DP settings##pycons_mbdp_restore_defaults"):
+                _apply_mbdp_defaults()
+                _mark_mbdp_preset_custom()
+                _debug("MB/DP settings restored to defaults.", Console.MessageType.Info)
+                cfg.save_if_dirty_throttled(0)
+            _show_setting_tooltip("mbdp_restore_defaults")
+
+            PyImGui.separator()
+            PyImGui.text("Quick role presets:")
+
+            if PyImGui.button("Apply: Solo Safe##pycons_preset_apply_solo_safe"):
+                _apply_builtin_preset("solo_safe")
+            _show_setting_tooltip("preset_solo_safe")
+
+            if PyImGui.button("Apply: Leader - Force Team Morale##pycons_preset_apply_leader_force"):
+                _apply_builtin_preset(LEADER_FORCE_PRESET_KEY)
+            _show_setting_tooltip("preset_leader_force_plus10_team")
+            _same_line(10)
+            PyImGui.text("Value:")
+            _same_line(6)
+            changed_force_val, force_val = ui_input_int_fixed(
+                "##pycons_preset_force_team_morale_value",
+                int(getattr(cfg, "force_team_morale_value", 0)),
+                width=110.0,
+            )
+            if changed_force_val:
+                new_force = max(-60, min(10, int(force_val)))
+                if int(getattr(cfg, "force_team_morale_value", 0)) != int(new_force):
+                    cfg.force_team_morale_value = int(new_force)
+                    cfg.mark_dirty()
+                    # Keep live-apply behavior only when strict mode is currently active.
+                    if bool(cfg.mbdp_strict_party_plus10):
+                        _apply_builtin_preset(LEADER_FORCE_PRESET_KEY, announce=False)
+                    else:
+                        _mark_mbdp_preset_custom()
+            _show_setting_tooltip("preset_leader_force_plus10_team")
+            _same_line(8)
+            leader_force_active = _is_leader_force_team_morale_active()
+            if _badge_button(
+                "ON" if leader_force_active else "OFF",
+                enabled=leader_force_active,
+                id_suffix="pycons_preset_leader_force_strict_toggle",
+            ):
+                if leader_force_active:
+                    cfg.mbdp_strict_party_plus10 = False
+                    _mark_mbdp_preset_custom()
+                    cfg.mark_dirty()
+                else:
+                    _apply_builtin_preset(LEADER_FORCE_PRESET_KEY, announce=False)
+            _show_setting_tooltip("preset_leader_force_plus10_team")
+
+            PyImGui.separator()
+
+            PyImGui.text(f"Self minor DP trigger ({_fmt_effective(cfg.mbdp_self_dp_minor_threshold)}):")
+            _same_line(10)
+            changed, val = ui_input_int_fixed("##pycons_mbdp_self_minor", int(cfg.mbdp_self_dp_minor_threshold))
+            if changed:
+                cfg.mbdp_self_dp_minor_threshold = max(-60, min(0, int(val)))
+                cfg.mark_dirty()
+                _mark_mbdp_preset_custom()
+            _show_setting_tooltip("mbdp_self_dp_minor_threshold")
+
+            PyImGui.text(f"Self major DP trigger ({_fmt_effective(cfg.mbdp_self_dp_major_threshold)}):")
+            _same_line(10)
+            changed, val = ui_input_int_fixed("##pycons_mbdp_self_major", int(cfg.mbdp_self_dp_major_threshold))
+            if changed:
+                cfg.mbdp_self_dp_major_threshold = max(-60, min(0, int(val)))
+                cfg.mark_dirty()
+                _mark_mbdp_preset_custom()
+            _show_setting_tooltip("mbdp_self_dp_major_threshold")
+
+            PyImGui.text(f"Self target effective ({_fmt_effective(cfg.mbdp_self_morale_target_effective)}):")
+            _same_line(10)
+            changed, val = ui_input_int_fixed("##pycons_mbdp_self_target", int(cfg.mbdp_self_morale_target_effective))
+            if changed:
+                cfg.mbdp_self_morale_target_effective = max(-60, min(10, int(val)))
+                cfg.mark_dirty()
+                _mark_mbdp_preset_custom()
+            _show_setting_tooltip("mbdp_self_morale_target_effective")
+
+            PyImGui.text("Self minimum useful morale benefit:")
+            _same_line(10)
+            changed, val = ui_input_int_fixed("##pycons_mbdp_self_gain", int(cfg.mbdp_self_min_morale_gain))
+            if changed:
+                cfg.mbdp_self_min_morale_gain = max(0, min(10, int(val)))
+                cfg.mark_dirty()
+                _mark_mbdp_preset_custom()
+            _show_setting_tooltip("mbdp_self_min_morale_gain")
+
+            PyImGui.text("Party minimum eligible members:")
+            _same_line(10)
+            changed, val = ui_input_int_fixed("##pycons_mbdp_party_members", int(cfg.mbdp_party_min_members))
+            if changed:
+                cfg.mbdp_party_min_members = max(2, min(8, int(val)))
+                cfg.mark_dirty()
+                _mark_mbdp_preset_custom()
+            _show_setting_tooltip("mbdp_party_min_members")
+
+            PyImGui.text("Party trigger interval (ms):")
+            _same_line(10)
+            changed, val = ui_input_int_fixed("##pycons_mbdp_party_interval", int(cfg.mbdp_party_min_interval_ms), width=150.0)
+            if changed:
+                cfg.mbdp_party_min_interval_ms = max(1000, int(val))
+                cfg.mark_dirty()
+                _mark_mbdp_preset_custom()
+            _show_setting_tooltip("mbdp_party_min_interval_ms")
+
+            PyImGui.text(f"Party target effective ({_fmt_effective(cfg.mbdp_party_target_effective)}):")
+            _same_line(10)
+            changed, val = ui_input_int_fixed("##pycons_mbdp_party_target", int(cfg.mbdp_party_target_effective))
+            if changed:
+                cfg.mbdp_party_target_effective = max(-60, min(10, int(val)))
+                cfg.mark_dirty()
+                _mark_mbdp_preset_custom()
+            _show_setting_tooltip("mbdp_party_target_effective")
+
+            PyImGui.text("Party +5 minimum total benefit:")
+            _same_line(10)
+            changed, val = ui_input_int_fixed("##pycons_mbdp_party_gain5", int(cfg.mbdp_party_min_total_gain_5))
+            if changed:
+                cfg.mbdp_party_min_total_gain_5 = max(0, min(60, int(val)))
+                cfg.mark_dirty()
+                _mark_mbdp_preset_custom()
+            _show_setting_tooltip("mbdp_party_min_total_gain_5")
+
+            PyImGui.text("Party +10 minimum total benefit:")
+            _same_line(10)
+            changed, val = ui_input_int_fixed("##pycons_mbdp_party_gain10", int(cfg.mbdp_party_min_total_gain_10))
+            if changed:
+                cfg.mbdp_party_min_total_gain_10 = max(0, min(120, int(val)))
+                cfg.mark_dirty()
+                _mark_mbdp_preset_custom()
+            _show_setting_tooltip("mbdp_party_min_total_gain_10")
+
+            PyImGui.text(f"Party light DP trigger ({_fmt_effective(cfg.mbdp_party_light_dp_threshold)}):")
+            _same_line(10)
+            changed, val = ui_input_int_fixed("##pycons_mbdp_party_light", int(cfg.mbdp_party_light_dp_threshold))
+            if changed:
+                cfg.mbdp_party_light_dp_threshold = max(-60, min(0, int(val)))
+                cfg.mark_dirty()
+                _mark_mbdp_preset_custom()
+            _show_setting_tooltip("mbdp_party_light_dp_threshold")
+
+            PyImGui.text(f"Party heavy DP trigger ({_fmt_effective(cfg.mbdp_party_heavy_dp_threshold)}):")
+            _same_line(10)
+            changed, val = ui_input_int_fixed("##pycons_mbdp_party_heavy", int(cfg.mbdp_party_heavy_dp_threshold))
+            if changed:
+                cfg.mbdp_party_heavy_dp_threshold = max(-60, min(0, int(val)))
+                cfg.mark_dirty()
+                _mark_mbdp_preset_custom()
+            _show_setting_tooltip("mbdp_party_heavy_dp_threshold")
+
+            PyImGui.text(f"Powerstone emergency trigger ({_fmt_effective(cfg.mbdp_powerstone_dp_threshold)}):")
+            _same_line(10)
+            changed, val = ui_input_int_fixed("##pycons_mbdp_party_powerstone", int(cfg.mbdp_powerstone_dp_threshold))
+            if changed:
+                cfg.mbdp_powerstone_dp_threshold = max(-60, min(0, int(val)))
+                cfg.mark_dirty()
+                _mark_mbdp_preset_custom()
+            _show_setting_tooltip("mbdp_powerstone_dp_threshold")
+
+            PyImGui.separator()
+
+        # --- Alcohol settings (collapsed dropdown for compactness) ---
+        alcohol_section_open = _styled_collapsing_header(
+            "Alcohol settings##pycons_settings_alcohol_dropdown",
+            bool(cfg.settings_ui_alcohol_open),
+            "alcohol",
+        )
+        if bool(cfg.settings_ui_alcohol_open) != bool(alcohol_section_open):
+            cfg.settings_ui_alcohol_open = bool(alcohol_section_open)
+            cfg.mark_dirty()
+        if alcohol_section_open:
+            PyImGui.text("Alcohol upkeep:")
+            _same_line(10)
+            if _badge_button("ON" if cfg.alcohol_enabled else "OFF", enabled=bool(cfg.alcohol_enabled), id_suffix="pycons_settings_alcohol_toggle"):
+                cfg.alcohol_enabled = not bool(cfg.alcohol_enabled)
+                cfg.mark_dirty()
+            _show_setting_tooltip("alcohol_enabled")
+
+            changed, v = ui_checkbox("Disable drunk blur##pycons_settings_alc_disable_effect", bool(cfg.alcohol_disable_effect))
+            if changed:
+                cfg.alcohol_disable_effect = bool(v)
+                cfg.mark_dirty()
+                _debug(f"Disable drunk blur setting changed to: {cfg.alcohol_disable_effect}", Console.MessageType.Debug)
+            _show_setting_tooltip("alcohol_disable_effect")
+
+            changed, v = ui_checkbox("Use in Explorable##pycons_settings_alc_expl", bool(cfg.alcohol_use_explorable))
+            if changed:
+                cfg.alcohol_use_explorable = bool(v)
+                cfg.mark_dirty()
+            _show_setting_tooltip("alcohol_use_explorable")
+
+            changed, v = ui_checkbox("Use in Outpost##pycons_settings_alc_outpost", bool(cfg.alcohol_use_outpost))
+            if changed:
+                cfg.alcohol_use_outpost = bool(v)
+                cfg.mark_dirty()
+            _show_setting_tooltip("alcohol_use_outpost")
+
+            PyImGui.text("Target drunk level:")
+            _same_line(10)
+            changed, vv = ui_input_int("##pycons_alcohol_target", int(cfg.alcohol_target_level))
+            if changed:
+                cfg.alcohol_target_level = int(max(0, min(5, vv)))
+                cfg.mark_dirty()
+            _show_setting_tooltip("alcohol_target_level")
+
+            PyImGui.text("Preference:")
+            _same_line(10)
+            changed, pref_idx = ui_combo(
+                "##pycons_alc_pref_settings",
+                int(cfg.alcohol_preference),
+                ALCOHOL_PREFERENCE_OPTIONS,
+            )
+            if changed:
+                cfg.alcohol_preference = int(pref_idx)
+                cfg.mark_dirty()
+            _show_setting_tooltip("alcohol_preference_mode")
+
+            PyImGui.separator()
+        restock_section_open = _styled_collapsing_header(
+            "Restock Settings##pycons_settings_restock_dropdown",
+            bool(cfg.settings_ui_restock_open),
+            "restock",
+        )
+        if bool(cfg.settings_ui_restock_open) != bool(restock_section_open):
+            cfg.settings_ui_restock_open = bool(restock_section_open)
+            cfg.mark_dirty()
+        if restock_section_open:
+            changed, v = ui_checkbox("Auto-restock from Xunlai Vault##pycons_auto_vault_restock", bool(cfg.auto_vault_restock))
+            if changed:
+                cfg.auto_vault_restock = bool(v)
+                cfg.mark_dirty()
+            _show_setting_tooltip("auto_vault_restock")
+
+            changed, v = ui_checkbox("Keep target when deselected##pycons_restock_keep_target", bool(cfg.restock_keep_target_on_deselect))
+            if changed:
+                cfg.restock_keep_target_on_deselect = bool(v)
+                cfg.mark_dirty()
+            _show_setting_tooltip("restock_keep_target_on_deselect")
+
+            PyImGui.text("Restock interval (ms):")
+            _same_line(10)
+            changed, v = ui_input_int_fixed("##pycons_restock_interval_ms", int(cfg.restock_interval_ms), width=120.0)
+            if changed:
+                cfg.restock_interval_ms = int(max(MIN_RESTOCK_INTERVAL_MS, int(v)))
+                cfg.mark_dirty()
+            _show_setting_tooltip("restock_interval_ms")
+
+            changed, mode_idx = ui_combo("Restock mode##pycons_restock_mode", int(cfg.restock_mode), RESTOCK_MODE_OPTIONS)
+            if changed:
+                cfg.restock_mode = int(max(RESTOCK_MODE_BALANCED, min(RESTOCK_MODE_DEPOSIT_ONLY, int(mode_idx))))
+                cfg.mark_dirty()
+            _show_setting_tooltip("restock_mode")
+
+            PyImGui.text("Per-cycle move cap:")
+            _same_line(10)
+            changed, cap_val = ui_input_int_fixed("##pycons_restock_move_cap", int(cfg.restock_move_cap_per_cycle), width=120.0)
+            if changed:
+                cfg.restock_move_cap_per_cycle = int(
+                    max(MIN_RESTOCK_MOVE_CAP_PER_CYCLE, min(MAX_RESTOCK_MOVE_CAP_PER_CYCLE, int(cap_val)))
+                )
+                cfg.mark_dirty()
+            _show_setting_tooltip("restock_move_cap_per_cycle")
+
+            PyImGui.separator()
+            PyImGui.text_wrapped(
+                "Character participation only controls which characters on this account may perform vault restock. "
+                "Restock item targets and per-item restock toggles remain shared account-wide."
+            )
+
+            changed, scope_mode_idx = ui_combo(
+                "Participation mode##pycons_restock_scope_mode",
+                int(getattr(cfg, "restock_scope_mode", DEFAULT_RESTOCK_SCOPE_MODE)),
+                RESTOCK_SCOPE_OPTIONS,
+            )
+            if changed:
+                cfg.restock_scope_mode = int(_restock_scope_mode_value(scope_mode_idx))
+                cfg.mark_dirty()
+            _show_setting_tooltip(
+                "restock_scope_mode",
+                "Controls which characters on this account may perform auto-vault-restock. "
+                "It does not change the shared restock item settings.",
+            )
+
+            changed, new_allow_list = ui_input_text(
+                "Allow list (comma-separated)##pycons_restock_allow_list",
+                str(getattr(cfg, "restock_allowed_characters", "") or ""),
+                MAX_RESTOCK_CHARACTER_LIST_TEXT_LEN,
+            )
+            if changed:
+                cfg.restock_allowed_characters = str(new_allow_list or "")
+                cfg.mark_dirty()
+            _show_setting_tooltip(
+                "restock_allowed_characters",
+                "Only used in Allow list mode. Only the listed characters may perform auto-vault-restock.",
+            )
+
+            changed, new_block_list = ui_input_text(
+                "Block list (comma-separated)##pycons_restock_block_list",
+                str(getattr(cfg, "restock_blocked_characters", "") or ""),
+                MAX_RESTOCK_CHARACTER_LIST_TEXT_LEN,
+            )
+            if changed:
+                cfg.restock_blocked_characters = str(new_block_list or "")
+                cfg.mark_dirty()
+            _show_setting_tooltip(
+                "restock_blocked_characters",
+                "Only used in Block list mode. Listed characters are prevented from performing auto-vault-restock.",
+            )
+
+            current_character_name = _current_character_name()
+            restock_scope_mode = _restock_scope_mode_value()
+            add_current_disabled = (restock_scope_mode == RESTOCK_SCOPE_ACCOUNT_WIDE or not current_character_name)
+            mode_disabled = _begin_disabled(add_current_disabled)
+            if PyImGui.button("Add current character##pycons_restock_add_current_character"):
+                if restock_scope_mode == RESTOCK_SCOPE_ALLOW_LIST:
+                    updated_value = _restock_add_character_to_raw_list(
+                        str(getattr(cfg, "restock_allowed_characters", "") or ""),
+                        current_character_name,
+                    )
+                    if updated_value != str(getattr(cfg, "restock_allowed_characters", "") or ""):
+                        cfg.restock_allowed_characters = updated_value
+                        cfg.mark_dirty()
+                elif restock_scope_mode == RESTOCK_SCOPE_BLOCK_LIST:
+                    updated_value = _restock_add_character_to_raw_list(
+                        str(getattr(cfg, "restock_blocked_characters", "") or ""),
+                        current_character_name,
+                    )
+                    if updated_value != str(getattr(cfg, "restock_blocked_characters", "") or ""):
+                        cfg.restock_blocked_characters = updated_value
+                        cfg.mark_dirty()
+            _end_disabled(mode_disabled)
+            _same_line(10)
+            if restock_scope_mode == RESTOCK_SCOPE_ACCOUNT_WIDE:
+                PyImGui.text_disabled("Switch to Allow list or Block list mode to store character entries.")
+            elif not current_character_name:
+                PyImGui.text_disabled("Current character name unavailable.")
+            elif restock_scope_mode == RESTOCK_SCOPE_ALLOW_LIST:
+                PyImGui.text_disabled(f"Adds '{current_character_name}' to the allow list.")
+            else:
+                PyImGui.text_disabled(f"Adds '{current_character_name}' to the block list.")
+
+            allowed_now, current_character_display, participation_summary = _restock_current_character_participation()
+            _text_secondary(
+                f"Current character: {current_character_display} | "
+                f"Auto-restock participation: {'Allowed' if allowed_now else 'Blocked'}"
+            )
+            _text_meta(participation_summary)
+
+            PyImGui.text_wrapped("Choose target inventory amounts for selected items. Click an item icon to toggle whether that item participates in vault restock.")
+            PyImGui.text_wrapped("Main-window ON/OFF controls usage only. Restock uses the icon toggle below.")
+            selected_specs = _selected_restock_specs()
+
+            disabled_selected = (int(len(selected_specs)) == 0)
+            mode = _begin_disabled(disabled_selected)
+            if PyImGui.button("Enable all selected restock##pycons_restock_enable_all"):
+                changed_any = False
+                for key, _spec in selected_specs:
+                    if not _restock_item_enabled(key):
+                        _set_restock_item_enabled(key, True)
+                        changed_any = True
+                if changed_any:
+                    cfg.mark_dirty()
+            _show_setting_tooltip("restock_enable_all_selected")
+            _same_line(10)
+            if PyImGui.button("Disable all selected restock##pycons_restock_disable_all"):
+                changed_any = False
+                for key, _spec in selected_specs:
+                    if _restock_item_enabled(key):
+                        _set_restock_item_enabled(key, False)
+                        changed_any = True
+                if changed_any:
+                    cfg.mark_dirty()
+            _show_setting_tooltip("restock_disable_all_selected")
+            _end_disabled(mode)
+
+            PyImGui.text("Set all selected targets to:")
+            _same_line(10)
+            changed_bulk, bulk_val = ui_input_int_fixed("##pycons_restock_bulk_target", int(restock_bulk_target[0]), width=90.0)
+            if changed_bulk:
+                restock_bulk_target[0] = max(0, min(2500, int(bulk_val)))
+            _same_line(10)
+            if PyImGui.button("Apply to all selected##pycons_restock_apply_all"):
+                target = int(max(0, min(2500, int(restock_bulk_target[0]))))
+                changed_any = False
+                for key, _spec in selected_specs:
+                    prev = _restock_target_for_key(key)
+                    if int(prev) != int(target):
+                        cfg.restock_targets[key] = int(target)
+                        changed_any = True
+                if changed_any:
+                    cfg.mark_dirty()
+            _show_setting_tooltip("restock_set_all_selected_target")
+
+            if not selected_specs:
+                PyImGui.text_disabled("No selected items. Select consumables first.")
+            else:
+                selected_specs = sorted(selected_specs, key=lambda pair: str(pair[1].get("label", "")).lower())
+                selected_conset_specs = [pair for pair in selected_specs if str(pair[0]) in CONSET_KEYS]
+                selected_non_conset_specs = [pair for pair in selected_specs if str(pair[0]) not in CONSET_KEYS]
+                _refresh_inventory_cache(False)
+
+                if PyImGui.begin_table("pycons_restock_targets_table", 3):
+                    PyImGui.table_setup_column("Item", PyImGui.TableColumnFlags.WidthStretch)
+                    PyImGui.table_setup_column("In Inventory", PyImGui.TableColumnFlags.WidthFixed, 110.0)
+                    PyImGui.table_setup_column("Target", PyImGui.TableColumnFlags.WidthFixed, 110.0)
+
+                    if selected_conset_specs:
+                        PyImGui.table_next_row()
+                        PyImGui.table_next_column()
+                        PyImGui.text("Conset:")
+                        PyImGui.table_next_column()
+                        PyImGui.text("")
+                        PyImGui.table_next_column()
+                        PyImGui.text("")
+
+                        for key, spec in selected_conset_specs:
+                            _draw_restock_target_item_row(key, spec)
+
+                        if selected_non_conset_specs:
+                            PyImGui.table_next_row()
+                            PyImGui.table_next_column()
+                            PyImGui.separator()
+                            PyImGui.table_next_column()
+                            PyImGui.separator()
+                            PyImGui.table_next_column()
+                            PyImGui.separator()
+
+                    for key, spec in selected_non_conset_specs:
+                        _draw_restock_target_item_row(key, spec)
+
+                    PyImGui.end_table()
+        tooltip_section_open = _styled_collapsing_header(
+            "Tooltip settings##pycons_settings_tooltip_dropdown",
+            bool(cfg.settings_ui_tooltip_open),
+            "general",
+        )
+        if bool(cfg.settings_ui_tooltip_open) != bool(tooltip_section_open):
+            cfg.settings_ui_tooltip_open = bool(tooltip_section_open)
+            cfg.mark_dirty()
+        if tooltip_section_open:
+            changed, idx = ui_combo("Help visibility##pycons_tip_visibility", int(cfg.tooltip_visibility), TOOLTIP_VISIBILITY_OPTIONS)
+            if changed:
+                cfg.tooltip_visibility = int(idx)
+                cfg.mark_dirty()
+            _show_setting_tooltip("tooltip_visibility")
+
+            changed, idx = ui_combo("Help length##pycons_tip_length", int(cfg.tooltip_length), TOOLTIP_LENGTH_OPTIONS)
+            if changed:
+                cfg.tooltip_length = int(idx)
+                cfg.mark_dirty()
+            _show_setting_tooltip("tooltip_length")
+
+            changed, v = ui_checkbox("Show 'Why this matters' line##pycons_tip_why", bool(cfg.tooltip_show_why))
+            if changed:
+                cfg.tooltip_show_why = bool(v)
+                cfg.mark_dirty()
+            _show_setting_tooltip("tooltip_show_why")
+            PyImGui.separator()
+
         ImGui.End(INI_KEY_SETTINGS)
 
     def configure():
@@ -7410,7 +9274,11 @@ try:
 
         cfg.save_if_dirty_throttled(750)
 
-        if bool(getattr(cfg, "auto_vault_restock", False)) and restock_tick_timer.HasElapsed(int(max(MIN_RESTOCK_INTERVAL_MS, int(getattr(cfg, "restock_interval_ms", DEFAULT_RESTOCK_INTERVAL_MS))))):
+        if (
+            bool(getattr(cfg, "auto_vault_restock", False))
+            and _restock_current_character_allowed()
+            and restock_tick_timer.HasElapsed(int(max(MIN_RESTOCK_INTERVAL_MS, int(getattr(cfg, "restock_interval_ms", DEFAULT_RESTOCK_INTERVAL_MS)))))
+        ):
             restock_tick_timer.Start()
             _tick_vault_restock()
 
@@ -7436,3 +9304,5 @@ except Exception as e:
             fn_console_log("Pycons", f"Init failed: {e}", msg_type)
     except Exception:
         pass
+
+
