@@ -522,6 +522,64 @@ class Helper:
         return candidates[0][3]
 
     @staticmethod
+    def get_best_bip_target():
+        player_id = Player.GetAgentID()
+        if not player_id:
+            return None
+
+        bip_id = Skill.GetID("Blood_is_Power")
+        blood_ritual_id = Skill.GetID("Blood_Ritual")
+        thresholds = {
+            "Warrior": (25, 0.70), "Ranger": (25, 0.60), "Monk": (30, 0.50),
+            "Necromancer": (30, 0.50), "Mesmer": (30, 0.50), "Elementalist": (40, 0.40),
+            "Assassin": (25, 0.60), "Ritualist": (30, 0.50), "Paragon": (25, 0.70),
+            "Dervish": (25, 0.50),
+        }
+
+        player_pos = Player.GetXY()
+        ally_ids = set(AgentArray.GetAllyArray() or [])
+        ally_ids.add(player_id)
+
+        candidates = []
+        for ally_id in ally_ids:
+            if not Helper.is_agent_alive(ally_id):
+                continue
+            if Helper.check_for_effects(ally_id, [bip_id, blood_ritual_id]):
+                continue
+
+            distance_from_player = Utils.Distance(player_pos, Agent.GetXY(ally_id))
+            if distance_from_player > Helper.get_spell_cast_range() * 1.2:
+                continue
+
+            energy = Helper.get_energy_data(ally_id)
+            if energy.regen > 0.03:
+                continue
+
+            prof, _ = Agent.GetProfessionNames(ally_id)
+            if prof not in thresholds:
+                continue
+
+            min_energy, min_percent = thresholds[prof]
+            needs_bip = energy.current < min_energy or energy.percentage <= min_percent
+            if not needs_bip:
+                continue
+
+            # Prefer casters first, then the lowest-energy ally, then proximity.
+            candidates.append((
+                0 if Agent.IsCaster(ally_id) else 1,
+                energy.percentage,
+                energy.current,
+                distance_from_player,
+                ally_id
+            ))
+
+        if not candidates:
+            return None
+
+        candidates.sort()
+        return candidates[0][4]
+
+    @staticmethod
     def is_fighting(agent_id=None):
         agent_id = agent_id or Player.GetAgentID()
         return Agent.IsAttacking(agent_id) or Agent.IsCasting(agent_id)
@@ -1101,26 +1159,8 @@ def smart_bip():
         return
 
     bip_id = Skill.GetID("Blood_is_Power")
-    if Helper.check_for_effects(player_id, [bip_id]):
-        return
-
-    energy = Helper.get_energy_data()
-    if energy.regen > 0.03:
-        return
-
-    prof, _ = Agent.GetProfessionNames(player_id)
-    thresholds = {
-        "Warrior": (25, 0.70), "Ranger": (25, 0.60), "Monk": (30, 0.50),
-        "Necromancer": (30, 0.50), "Mesmer": (30, 0.50), "Elementalist": (40, 0.40),
-        "Assassin": (25, 0.60), "Ritualist": (30, 0.50), "Paragon": (25, 0.70),
-        "Dervish": (25, 0.50),
-    }
-
-    if prof not in thresholds:
-        return
-
-    min_energy, min_percent = thresholds[prof]
-    if energy.current >= min_energy and energy.percentage > min_percent:
+    target_id = Helper.get_best_bip_target()
+    if not target_id:
         return
 
     result = Helper.smartcast_hero_skill(
@@ -1128,8 +1168,9 @@ def smart_bip():
         min_enemies=0,
         enemy_range_check=Helper.get_spell_cast_range(),
         effect_check=True,
-        cast_target_id=player_id,
+        cast_target_id=target_id,
         distance_check_range=Helper.get_spell_cast_range() + 200,
+        target_distance_check_range=Helper.get_spell_cast_range(),
         allow_out_of_combat=True,
         min_health_perc=0.5
     )
