@@ -4,7 +4,21 @@ from Py4GWCoreLib.GlobalCache.SharedMemory import AccountStruct
 from .constants import MAX_NUM_PLAYERS
 from .targeting import *
 from .cache_data import CacheData
+from Py4GWCoreLib.py4gwcorelib_src.FrameCache import frame_cache
 
+def _account_key(account: AccountStruct):
+    return (account.AccountEmail, int(account.AgentData.AgentID))
+
+
+def _agent_key(agent_id, *_, **__):
+    return int(agent_id)
+
+
+def _agent_skill_key(agent_id, skill_id, *_, **__):
+    return (int(agent_id), int(skill_id))
+
+
+@frame_cache(category="utils", source_lib="SameMapAsAccount", key=_account_key)
 def SameMapAsAccount(account : AccountStruct):
     if not Map.IsMapReady():
         return False
@@ -15,6 +29,7 @@ def SameMapAsAccount(account : AccountStruct):
     own_language = Map.GetLanguage()[0]
     return own_map_id == account.AgentData.Map.MapID and own_region == account.AgentData.Map.Region and own_district == account.AgentData.Map.District and own_language == account.AgentData.Map.Language
 
+@frame_cache(category="utils", source_lib="SameMapOrPartyAsAccount", key=_account_key)
 def SameMapOrPartyAsAccount(account : AccountStruct):
     if not Map.IsMapReady():
         return False
@@ -32,18 +47,20 @@ def SameMapOrPartyAsAccount(account : AccountStruct):
     
     return same_map and own_region == account.AgentData.Map.Region
 
+@frame_cache(category="utils", source_lib="DistanceFromLeader")
 def DistanceFromLeader():
     return Utils.Distance(Agent.GetXY(GLOBAL_CACHE.Party.GetPartyLeaderID()),Agent.GetXY(Player.GetAgentID()))
 
+@frame_cache(category="utils", source_lib="DistanceFromWaypoint")
 def DistanceFromWaypoint(posX, posY):
     distance = Utils.Distance((posX, posY), Player.GetXY())
     return distance if distance > 200 else 0
 
 
 """ main configuration helpers """
-
-def IsPartyMember(agent_id, cached_data : Optional[CacheData] = None) -> bool:
-    cached_data = cached_data if cached_data is not None else CacheData()
+@frame_cache(category="utils", source_lib="IsPartyMember", key=_agent_key)
+def IsPartyMember(agent_id, live_cached_data : Optional[CacheData] = None) -> bool:
+    cached_data: CacheData = live_cached_data if live_cached_data is not None else CacheData()
                 
     for acc in cached_data.party:
         if acc.IsSlotActive and acc.AgentData.AgentID == agent_id and SameMapOrPartyAsAccount(acc) and acc.AgentPartyData.PartyID == cached_data.party.party_id:
@@ -56,15 +73,25 @@ def IsPartyMember(agent_id, cached_data : Optional[CacheData] = None) -> bool:
     
     return False
 
-def GetEnergyValues(agent_id, cached_data : Optional[CacheData] = None):
-    cached_data = cached_data if cached_data is not None else CacheData()
-                
-    for acc in cached_data.party:
-        if acc.IsSlotActive and acc.AgentData.AgentID == agent_id and SameMapOrPartyAsAccount(acc) and acc.AgentPartyData.PartyID == cached_data.party.party_id:
-            return acc.AgentData.Energy.Current
+@frame_cache(category="utils", source_lib="GetEnergyValues", key=_agent_key)
+def GetEnergyValues(agent_id, live_cached_data : Optional[CacheData] = None):
+    if live_cached_data is not None:
+        cached_data = live_cached_data
+    else:
+        cached_data: CacheData = CacheData()
         
-    return 1.0 #default return full energy to prevent issues
+    if cached_data is not None:
+        acc = cached_data.party.get_by_player_id(agent_id)
+        if (
+            acc is not None
+            and acc.IsSlotActive
+            and acc.AgentPartyData.PartyID == cached_data.party.party_id
+        ):
+            return acc.AgentData.Energy.Current
 
+    return 1.0
+
+@frame_cache(category="utils", source_lib="CheckForEffect", key=_agent_skill_key)
 def CheckForEffect(agent_id, skill_id, cached_data : Optional[CacheData] = None) -> bool:
     """
     check if the given agent has the effect or buff with the given skill id
@@ -93,6 +120,7 @@ def CheckForEffect(agent_id, skill_id, cached_data : Optional[CacheData] = None)
 
     return GLOBAL_CACHE.Effects.HasEffect(agent_id, skill_id)
 
+@frame_cache(category="utils", source_lib="HasIllusionaryWeaponry", key=_agent_key)
 def HasIllusionaryWeaponry(agent_id, cached_data : Optional[CacheData] = None) -> bool:
     cached_data = cached_data if cached_data is not None else CacheData()
     iw_skill_ids = (
@@ -120,6 +148,7 @@ def HasIllusionaryWeaponry(agent_id, cached_data : Optional[CacheData] = None) -
         for skill_id in iw_skill_ids
     )
 
+@frame_cache(category="utils", source_lib="GetEffectAndBuffIds", key=_agent_key)
 def GetEffectAndBuffIds(agent_id, cached_data : Optional[CacheData] = None) -> list[int]:
     """
     get all effect and buff skill ids for the given agent
@@ -132,7 +161,7 @@ def GetEffectAndBuffIds(agent_id, cached_data : Optional[CacheData] = None) -> l
     
     return [effect.skill_id for effect in GLOBAL_CACHE.Effects.GetBuffs(agent_id) + GLOBAL_CACHE.Effects.GetEffects(agent_id)]
 
-
+@frame_cache(category="utils", source_lib="IsHeroFlagged")
 def IsHeroFlagged(index):    
     if  index != 0 and index <= GLOBAL_CACHE.Party.GetHeroCount():
         return GLOBAL_CACHE.Party.Heroes.IsHeroFlagged(index)

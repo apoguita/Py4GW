@@ -30,6 +30,9 @@ if (yield from self.skills.Monk.HealingPrayers.Healing_Burst()):
 - fallback selection and fallback handlers
 - custom skill retrieval through `GetCustomSkill`
 - target resolution helpers such as `ResolveAllyTarget`
+- preferred ally-target variant helpers such as `ResolvePreferredAllyTarget`
+- spike-aware ally-target helpers such as `ResolvePreferredPartySpikeAllyTarget`
+- ranked ally-target helpers such as `ResolveRankedPartyAllyTarget`
 - cast validation such as `CanCastSkillID`
 - shared cast execution such as `CastSkillID`
 - shared targeted cast flow through `CastSkillIDAndRestoreTarget`
@@ -46,6 +49,7 @@ This applies to:
 - ally health/state checks
 - party-wide threshold evaluation
 - party spike / health-delta monitoring
+- ally candidate ranking for shared support/protection helpers
 
 ### SkillsTemplate owns
 
@@ -58,9 +62,18 @@ This applies to:
 ### Attribute skill classes own
 
 - the actual skill method
-- any skill-local target resolver
 - any skill-local thresholds or preference rules
 - exact casting behavior for that skill
+
+Attribute skill classes may still supply:
+- a validator for whether a shared candidate is acceptable
+- a variant order for trying shared target modes
+- a ranking function for a shared `BuildMgr` helper
+
+They should not own:
+- raw ally-array acquisition for normal ally-targeted skills
+- local reimplementation of `ResolveAllyTarget` semantics
+- one-off local ally scans when the behavior can be represented as shared candidate filtering plus ranking
 
 Example:
 
@@ -138,11 +151,20 @@ Preferred helpers:
 
 - `self.build.GetCustomSkill(...)`
 - `self.build.ResolveAllyTarget(...)`
+- `self.build.ResolvePreferredAllyTarget(...)`
+- `self.build.ResolvePreferredPartySpikeAllyTarget(...)`
+- `self.build.ResolveRankedPartyAllyTarget(...)`
 - `self.build.IsSkillEquipped(...)`
 - `self.build.CanCastSkillID(...)`
 - `self.build.CastSkillIDAndRestoreTarget(...)`
 
 When a skill is ally-targeted, prefer `BuildMgr` helpers over ad hoc direct selector calls so the shared-capable ally checks are preserved end to end.
+
+Use these boundaries:
+- `ResolveAllyTarget(...)` when the custom-skill metadata already fully describes the target
+- `ResolvePreferredAllyTarget(...)` when the skill wants an ordered preference chain over shared target variants
+- `ResolvePreferredPartySpikeAllyTarget(...)` when the same preference chain is gated by spike monitoring
+- `ResolveRankedPartyAllyTarget(...)` when the candidate set is shared but the final ordering is skill-specific, such as protection prediction
 
 ### 4. Keep skill methods self-contained
 
@@ -201,6 +223,11 @@ These constraints are now part of the `BuildMgr` contract:
 
 If a skill or selector bypasses `BuildMgr` and talks directly to local-only `Agent` role/state checks for allies, that is a contract violation unless the target is explicitly local-only.
 
+That contract also applies to targeting shape:
+- special support/protection logic may provide validators, preferred variants, or rank functions
+- but the final ally candidate acquisition should still come from `BuildMgr` and shared targeting helpers
+- do not reintroduce local `GetAllAlliesArray()` scan/sort code in skill methods unless the selector is genuinely outside the shared model
+
 ## Fallback Contract
 
 Fallback is a second-stage execution path, not a co-owner of the same tick.
@@ -241,6 +268,13 @@ If the behavior is the normal intended behavior of the skill, it belongs in the 
 The registry should only identify and return the correct build.
 
 Once a build is active, `BuildMgr` plus `SkillsTemplate` handle execution.
+
+Recent support/protection examples that follow this contract:
+
+- `Dwayna's Kiss` uses `ResolvePreferredAllyTarget(...)` for enchantment-first then hex-first then fallback targeting
+- `Seed of Life` uses `ResolvePreferredPartySpikeAllyTarget(...)` for spike-gated martial preference
+- `Protective Spirit` and `Reversal of Fortune` use `ResolveRankedPartyAllyTarget(...)` so protection prediction stays special while ally candidate acquisition remains shared
+- several Ritualist restoration skills now use shared preferred-target helpers instead of local ally-array sorting
 
 ## Practical Example
 

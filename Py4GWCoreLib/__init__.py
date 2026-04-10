@@ -92,6 +92,7 @@ from .IniManager import IniManager
 from .GWUI import GWUI
 
 from .py4gwcorelib_src.Profiling import ProfilingRegistry, SimpleProfiler
+from .py4gwcorelib_src.FrameCache import FRAME_CACHE, frame_cache
 from .py4gwcorelib_src.WidgetManager import WidgetHandler, Widget
 
 from .native_src.internals.types import Vec2f, Vec3f, GamePos
@@ -136,6 +137,8 @@ IconsFontAwesome5 = IconsFontAwesome5
 IniManager = IniManager
 ProfilingRegistry = ProfilingRegistry
 SimpleProfiler = SimpleProfiler
+FRAME_CACHE = FRAME_CACHE
+frame_cache = frame_cache
 WidgetHandler = WidgetHandler
 Widget = Widget
 GWUI = GWUI

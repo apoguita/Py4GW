@@ -3,11 +3,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from Py4GWCoreLib.BuildMgr import BuildCoroutine
-from Py4GWCoreLib import AgentArray, Range, Routines
+from Py4GWCoreLib import Routines
 from Py4GWCoreLib.Agent import Agent
-from Py4GWCoreLib.Player import Player
 from Py4GWCoreLib.Skill import Skill
-from HeroAI.targeting import GetAllAlliesArray
 
 if TYPE_CHECKING:
     from HeroAI.custom_skill_src.skill_types import CustomSkill
@@ -47,40 +45,23 @@ class ProtectionPrayers:
         protective_spirit: CustomSkill = self.build.GetCustomSkill(protective_spirit_id)
         sample_interval_ms = 500
         focused_drop_threshold = 0.10
+        health_threshold: float = max(0.0, min(1.0, float(protective_spirit.Conditions.LessLife or 0.80)))
 
         def _resolve_protective_spirit_target() -> int:
-            ally_array: list[int] = list(GetAllAlliesArray(Range.Spellcast.value) or [])
-            ally_array = AgentArray.Filter.ByCondition(
-                ally_array,
-                lambda agent_id: Agent.IsAlive(agent_id),
+            return self.build.ResolveRankedPartyAllyTarget(
+                protective_spirit_id,
+                protective_spirit,
+                validator=lambda agent_id: (
+                    Agent.GetHealth(agent_id) < health_threshold
+                    and not Routines.Checks.Effects.HasBuff(agent_id, protective_spirit_id)
+                    and self.build.GetPartyHealthDelta(agent_id) >= focused_drop_threshold
+                ),
+                rank_key=lambda agent_id: (
+                    -self.build.GetPartyHealthDelta(agent_id),
+                    Agent.GetHealth(agent_id),
+                ),
+                sample_interval_ms=sample_interval_ms,
             )
-            ally_array = AgentArray.Filter.ByCondition(
-                ally_array,
-                lambda agent_id: Agent.GetHealth(agent_id) < protective_spirit.Conditions.LessLife,
-            )
-            ally_array = AgentArray.Filter.ByCondition(
-                ally_array,
-                lambda agent_id: not Routines.Checks.Effects.HasBuff(agent_id, protective_spirit_id),
-            )
-
-            best_target = 0
-            best_drop = focused_drop_threshold
-            best_health = 1.0
-            for agent_id in ally_array:
-                if not self.build.IsPartySpikeTarget(
-                    agent_id,
-                    drop_threshold=focused_drop_threshold,
-                    sample_interval_ms=sample_interval_ms,
-                ):
-                    continue
-                sampled_drop = self.build.GetPartyHealthDelta(agent_id)
-                current_health = float(Agent.GetHealth(agent_id))
-                if sampled_drop > best_drop or (sampled_drop == best_drop and current_health < best_health):
-                    best_target = agent_id
-                    best_drop = sampled_drop
-                    best_health = current_health
-
-            return best_target
 
         if not self.build.IsSkillEquipped(protective_spirit_id):
             return False
@@ -102,28 +83,10 @@ class ProtectionPrayers:
         reversal_of_fortune: CustomSkill = self.build.GetCustomSkill(reversal_of_fortune_id)
         sample_interval_ms = 500
         focused_drop_threshold = 0.05
+        health_threshold: float = max(0.0, min(1.0, float(reversal_of_fortune.Conditions.LessLife or 0.85)))
 
         def _resolve_reversal_of_fortune_target() -> int:
-            ally_array: list[int] = list(GetAllAlliesArray(Range.Spellcast.value) or [])
-            ally_array = AgentArray.Filter.ByCondition(
-                ally_array,
-                lambda agent_id: Agent.IsAlive(agent_id),
-            )
-            ally_array = AgentArray.Filter.ByCondition(
-                ally_array,
-                lambda agent_id: Agent.GetHealth(agent_id) < reversal_of_fortune.Conditions.LessLife,
-            )
-            ally_array = AgentArray.Filter.ByCondition(
-                ally_array,
-                lambda agent_id: not Routines.Checks.Effects.HasBuff(agent_id, reversal_of_fortune_id),
-            )
-
             def _priority(agent_id: int) -> tuple[int, int, float, float]:
-                is_spiking = self.build.IsPartySpikeTarget(
-                    agent_id,
-                    drop_threshold=focused_drop_threshold,
-                    sample_interval_ms=sample_interval_ms,
-                )
                 role_rank = 2
                 if Agent.IsMelee(agent_id):
                     role_rank = 0
@@ -131,14 +94,22 @@ class ProtectionPrayers:
                     role_rank = 1
 
                 return (
-                    0 if is_spiking else 1,
+                    0 if self.build.GetPartyHealthDelta(agent_id) >= focused_drop_threshold else 1,
                     role_rank,
                     Agent.GetHealth(agent_id),
                     -self.build.GetPartyHealthDelta(agent_id),
                 )
 
-            ally_array.sort(key=_priority)
-            return ally_array[0] if ally_array else 0
+            return self.build.ResolveRankedPartyAllyTarget(
+                reversal_of_fortune_id,
+                reversal_of_fortune,
+                validator=lambda agent_id: (
+                    Agent.GetHealth(agent_id) < health_threshold
+                    and not Routines.Checks.Effects.HasBuff(agent_id, reversal_of_fortune_id)
+                ),
+                rank_key=_priority,
+                sample_interval_ms=sample_interval_ms,
+            )
 
         if not self.build.IsSkillEquipped(reversal_of_fortune_id):
             return False
