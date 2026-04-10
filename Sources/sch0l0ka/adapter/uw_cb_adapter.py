@@ -253,6 +253,16 @@ class UWCBAdapter(UWCombatAdapter):
         )
         self.toggle_dead_ally_rescue(enabled)
 
+    def toggle_local_following(self, enabled: bool) -> None:
+        """Enable/disable the follow_party_leader and follow_flag utility skills on
+        the local CB instance only.  Unlike set_following_enabled() this does NOT
+        write to the party-wide shared memory, so other accounts are unaffected."""
+        self._set_custom_utility_enabled(
+            enabled,
+            skill_names=("follow_party_leader", "follow_flag"),
+            class_names=("FollowPartyLeaderUtility", "FollowFlagUtility"),
+        )
+
     # ── Party control ────────────────────────────────────────────────────
 
     def set_party_leader(self, email: str) -> None:

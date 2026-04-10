@@ -604,6 +604,15 @@ def EnqueueDialogUntilQuestActive(
     from Py4GWCoreLib.Quest import Quest
     target_quest_id = int(quest_id)
 
+    # Disable the follow_party_leader and follow_flag utility skills on the
+    # local CB instance only so the leader account stays at the NPC during
+    # dialog.  Unlike set_following_enabled() this does NOT write to the
+    # party-wide shared memory, so other accounts keep following normally.
+    bot_instance.States.AddCustomState(
+        lambda: _get_adapter().toggle_local_following(False),
+        f"[QuestDialog] Disable local CB following for quest {target_quest_id}",
+    )
+
     bot_instance.Dialogs.WithModel(model_id, dialog_id, step_name)
 
     def _coro_ensure_quest_active() -> Generator[Any, Any, None]:
@@ -649,6 +658,12 @@ def EnqueueDialogUntilQuestActive(
     bot_instance.config.FSM.AddYieldRoutineStep(
         name=f"Ensure Quest Active {target_quest_id}_{step_idx}",
         coroutine_fn=_coro_ensure_quest_active,
+    )
+
+    # Re-enable the follow utility skills on the local CB instance.
+    bot_instance.States.AddCustomState(
+        lambda: _get_adapter().toggle_local_following(True),
+        f"[QuestDialog] Re-enable local CB following after quest {target_quest_id}",
     )
 
 
@@ -1343,7 +1358,6 @@ def Clear_the_Chamber(bot_instance: Botting):
     
     bot_instance.Dialogs.WithModel(UWNpcModelID.ReaperOfTheLabyrinth,0x806507, "Take Clear the Chamber reward")
     bot_instance.Multibox.SendDialogToTarget(0x806507)
-    bot_instance.Dialogs.WithModel(UWNpcModelID.ReaperOfTheLabyrinth,0x806D01, "Quest Restore Monuments")
     EnqueueDialogUntilQuestActive(bot_instance, dialog_id=0x806D01, quest_id=UWQuestID.RestoringGrenthsMonuments, model_id=UWNpcModelID.ReaperOfTheLabyrinth, step_name="Take Restore Monuments quest")
     bot_instance.Wait.ForTime(3000)
     bot_instance.States.AddCustomState(lambda: _record_quest_done("Clear the Chamber"), "Record Clear the Chamber done")
@@ -1971,10 +1985,19 @@ def Dhuum(bot_instance: Botting):
     # Activate the Spirit Form watchdog for the duration of the fight.
     bot_instance.States.AddCustomState(lambda: _set_dhuum_fight_active(True), "Enable Dhuum Spirit Form Watchdog")
     bot_instance.Move.XY(-13987, 17291, "Move to Dhuum fight")
-    bot_instance.Wait.UntilCondition(_enough_spiritforms)
-    bot_instance.States.AddCustomState(
-        lambda: _get_adapter().set_combat_enabled(True),
-        "Re-enable Combat after Spirit Form threshold",
+
+    def _wait_and_enable_combat():
+        # Poll every 250 ms so combat is enabled in the same coroutine frame
+        # the condition is first met — no extra state-transition delay.
+        while True:
+            yield from Routines.Yield.wait(250)
+            if _enough_spiritforms():
+                _get_adapter().set_combat_enabled(True)
+                return
+
+    bot_instance.config.FSM.AddYieldRoutineStep(
+        name="Wait for Spirit Forms and enable combat",
+        coroutine_fn=_wait_and_enable_combat,
     )
     bot_instance.Wait.UntilCondition(
         lambda: not Routines.Checks.Map.MapValid()
