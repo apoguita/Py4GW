@@ -1161,5 +1161,6 @@
     "3332025202,1,8,0,0,0,0": "PartyMembersParent",
     "3332025202,1,8,0,0,0,0,7": "PartyMember7",
     "3332025202,1,8,0,0,0,0,1,1": "PartyReadyToggle",
-    "3332025202,0,0,0,0": "PartyMembersParentExplorable"
+    "3332025202,0,0,0,0": "PartyMembersParentExplorable",
+    "731118013": "Merchant.CustomizeWeaponButton"
 }

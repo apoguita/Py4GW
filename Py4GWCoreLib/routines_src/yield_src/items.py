@@ -6,6 +6,7 @@ from ...Agent import Agent
 from ...Player import Player
 from ...GlobalCache import GLOBAL_CACHE
 from ...Py4GWcorelib import ConsoleLog, Console, ActionQueueManager
+from ...enums import SharedCommandType
 from ..BehaviourTrees import BT
 from .helpers import _run_bt_tree, wait
 from .movement import Movement
@@ -13,6 +14,19 @@ from .player import Player as YieldPlayer
 
 
 class Items:
+    @staticmethod
+    def _finish_active_pick_up_loot_message() -> bool:
+        account_email = Player.GetAccountEmail()
+        if not account_email:
+            return False
+
+        index, message = GLOBAL_CACHE.ShMem.PreviewNextMessage(account_email)
+        if index == -1 or message is None or message.Command != SharedCommandType.PickUpLoot:
+            return False
+
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(account_email, index)
+        return True
+
     @staticmethod
     def GetItemNameByItemID(item_id):
         tree = BT.Items.GetItemNameByItemID(item_id)
@@ -229,12 +243,14 @@ class Items:
         from ..Checks import Checks
 
         if len(item_array) == 0:
+            Items._finish_active_pick_up_loot_message()
             return True
 
         yield from wait(1000)
         if not Checks.Map.MapValid():
             item_array.clear()
             ActionQueueManager().ResetAllQueues()
+            Items._finish_active_pick_up_loot_message()
             return False
 
         total_items = len(item_array)
@@ -247,11 +263,13 @@ class Items:
             if free_slots_in_inventory <= 0:
                 item_array.clear()
                 ActionQueueManager().ResetAllQueues()
+                Items._finish_active_pick_up_loot_message()
                 return False
 
             if not Checks.Map.MapValid():
                 item_array.clear()
                 ActionQueueManager().ResetAllQueues()
+                Items._finish_active_pick_up_loot_message()
                 return False
 
             if not Agent.IsValid(item_id):
@@ -262,11 +280,13 @@ class Items:
             if not item_reached:
                 item_array.clear()
                 ActionQueueManager().ResetAllQueues()
+                Items._finish_active_pick_up_loot_message()
                 return False
 
             if not Checks.Map.MapValid():
                 item_array.clear()
                 ActionQueueManager().ResetAllQueues()
+                Items._finish_active_pick_up_loot_message()
                 return False
             if Agent.IsValid(item_id):
                 yield from YieldPlayer.InteractAgent(item_id)
@@ -279,6 +299,7 @@ class Items:
             if progress_callback and total_items > 0:
                 progress_callback(1 - len(item_array) / total_items)
 
+        Items._finish_active_pick_up_loot_message()
         return True
 
     @staticmethod
@@ -294,6 +315,7 @@ class Items:
         from ..Checks import Checks
 
         if len(item_array) == 0:
+            Items._finish_active_pick_up_loot_message()
             return []
 
         failed_items: list[int] = []
@@ -308,10 +330,12 @@ class Items:
             if free_slots_in_inventory <= 0:
                 ConsoleLog("LootItems", "No free slots in inventory, stopping loot.", Console.MessageType.Warning)
                 ActionQueueManager().ResetAllQueues()
+                Items._finish_active_pick_up_loot_message()
                 return failed_items + item_array
 
             if not Checks.Map.MapValid():
                 ActionQueueManager().ResetAllQueues()
+                Items._finish_active_pick_up_loot_message()
                 return failed_items + item_array
 
             if not Agent.IsValid(item_id):
@@ -356,6 +380,7 @@ class Items:
                 Console.MessageType.Info,
             )
 
+        Items._finish_active_pick_up_loot_message()
         return failed_items
 
     @staticmethod

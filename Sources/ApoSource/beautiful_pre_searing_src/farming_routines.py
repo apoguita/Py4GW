@@ -88,9 +88,27 @@ def FarmSkale() -> BehaviorTree:
                 BT.MoveAndKill(Vec2f(141.71, -6063.07)),
                 BT.MoveAndKill(Vec2f(-1927.23, -13360.05)),
                 BT.MoveAndKill(Vec2f(-3635.13, -16086.29)),
-                BT.MoveAndKill(Vec2f(-2567.40, -18843.90)),
-                BT.MoveAndKill(Vec2f(149.26, -19238.35)),
             ],
         )
     )
 
+
+
+def SkaleFarmLoopTree() -> BehaviorTree:
+    return FarmUntilItemQuantityReached(
+        start_map_id=ASCALON_CITY_MAP_ID,
+        perform_farming_tree=FarmSkale,
+        model_id=SKALE_FIN_MODEL_ID,
+        target_quantity=5,
+        exclude_models=ITEMS_BLACKLIST,
+    )
+    
+def RunAllFarmsTree() -> BehaviorTree:
+    return BehaviorTree(
+        BehaviorTree.SequenceNode(
+            name="RunAllFarms",
+            children=[
+                subtree_step("Skale Fin Farm", lambda: SkaleFarmLoopTree()),
+            ],
+        )
+    )

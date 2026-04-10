@@ -1019,6 +1019,11 @@ class InventoryPlusWidget:
         self._source_mtime: float | None = None
         self._xunlai_sort_anchor_side: str | None = None
         self._xunlai_storage_visible_last_frame: bool = False
+        # Context cache: rebuilt only when dirty or the fallback timer expires.
+        self._context_cache: InventoryInteractionContext | None = None
+        self._context_dirty: bool = True
+        self._context_last_rebuild_time: float = 0.0
+        self._CONTEXT_FALLBACK_INTERVAL: float = 0.5  # seconds
         self._xunlai_sort_icon_path = os.path.join(
             Py4GW.Console.get_projects_path(),
             "Sources",
@@ -1666,6 +1671,7 @@ class InventoryPlusWidget:
 
             if PyImGui.menu_item(withdraw_label):
                 GLOBAL_CACHE.Inventory.WithdrawItemFromStorage(selected_item.ItemID)
+                self._invalidate_context_cache()
                 PyImGui.close_current_popup()
 
             if PyImGui.menu_item("Withdraw All Same ModelID"):
@@ -1674,6 +1680,7 @@ class InventoryPlusWidget:
                     _withdraw_all_matching_model_from_storage(selected_item.ModelID),
                 )
                 GLOBAL_CACHE.Coroutines.append(routine)
+                self._invalidate_context_cache()
                 PyImGui.close_current_popup()
 
             PyImGui.separator()
@@ -1701,6 +1708,7 @@ class InventoryPlusWidget:
             if PyImGui.menu_item("Identify"):
                 routine = Routines.Yield.Items.IdentifyItems([selected_item.ItemID], log=True)
                 GLOBAL_CACHE.Coroutines.append(routine)
+                self._invalidate_context_cache()
                 PyImGui.close_current_popup()
 
         if (selected_item and
@@ -1713,21 +1721,25 @@ class InventoryPlusWidget:
                 # Single salvage (consume one item from the stack)
                 if PyImGui.menu_item("Salvage (\u00d71)"):
                     _queue_salvage_routine([selected_item.ItemID], label="Salvage Single")
+                    self._invalidate_context_cache()
                     PyImGui.close_current_popup()
                 # Full-stack salvage (loop until slot is empty)
                 if PyImGui.menu_item(f"Salvage All (stack off {selected_item.Quantity})"):
                     _queue_salvage_stack(selected_item)
+                    self._invalidate_context_cache()
                     PyImGui.close_current_popup()
             else:
                 # Original behaviour for non-stacked items
                 if PyImGui.menu_item("Salvage"):
                     _queue_salvage_routine([selected_item.ItemID], label="Salvage Single")
+                    self._invalidate_context_cache()
                     PyImGui.close_current_popup()
             # ---------------------------------------------------------------
 
         if selected_item:
             if PyImGui.menu_item("Deposit"):
                 GLOBAL_CACHE.Inventory.DepositItemToStorage(selected_item.ItemID)
+                self._invalidate_context_cache()
                 PyImGui.close_current_popup()
             PyImGui.separator()
 
@@ -1737,6 +1749,7 @@ class InventoryPlusWidget:
 
             if PyImGui.menu_item(destroy_label):
                 GLOBAL_CACHE.Inventory.DestroyItem(selected_item.ItemID)
+                self._invalidate_context_cache()
                 PyImGui.close_current_popup()
             PyImGui.separator()
         if not GLOBAL_CACHE.Inventory.IsStorageOpen():
@@ -1864,6 +1877,9 @@ class InventoryPlusWidget:
         
     I_INVENTORY_FRAME_HASH = 2874675009
     I_BAGS_BAR_OFFSETS = (6,)
+
+    def _invalidate_context_cache(self) -> None:
+        self._context_dirty = True
 
     def _build_inventory_interaction_context(self) -> InventoryInteractionContext:
         from Py4GWCoreLib.UIManager import UIManager, WindowID, FrameInfo, WindowFrames
@@ -2268,7 +2284,19 @@ class InventoryPlusWidget:
         self._enforce_i_window_setting()
 
         # Build shared inventory state first so slot colors and click targeting stay in sync.
-        context = self._build_inventory_interaction_context()
+        # Rebuild only when dirty (inventory action occurred) or the fallback timer expires.
+        import time as _time
+        now = _time.monotonic()
+        if (
+            self._context_dirty
+            or self._context_cache is None
+            or (now - self._context_last_rebuild_time) >= self._CONTEXT_FALLBACK_INTERVAL
+        ):
+            self._context_cache = self._build_inventory_interaction_context()
+            self._context_dirty = False
+            self._context_last_rebuild_time = now
+        context = self._context_cache
+
         if not context.f9_visible and not context.i_visible and not context.storage_visible:
             self.selected_item = None
             return
@@ -2297,6 +2325,7 @@ class InventoryPlusWidget:
                 self.selected_item = clicked_item
                 if self.deposit_settings.use_ctrl_click:
                     GLOBAL_CACHE.Inventory.DepositItemToStorage(self.selected_item.ItemID)
+                    self._invalidate_context_cache()
                 return
 
         # Render popup
