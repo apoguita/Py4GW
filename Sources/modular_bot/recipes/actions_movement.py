@@ -757,8 +757,12 @@ def handle_exit_map(ctx: StepContext) -> None:
         wait_after_step(ctx.bot, ctx.step)
         return
     x, y = coords
-    target_map_id = ctx.step.get("target_map_id", 0)
+    target_map_id = parse_step_int(ctx.step.get("target_map_id", 0), 0)
+    target_map_name = str(ctx.step.get("target_map_name", "") or "").strip()
     step_name = str(ctx.step.get("name", "Exit Map") or "Exit Map")
+    anchor_state_name = f"{step_name}: Post-Map Anchor"
+    suppress_recovery_ms = max(0, parse_step_int(ctx.step.get("suppress_recovery_ms", 10_000), 10_000))
+    suppress_recovery_events = max(0, parse_step_int(ctx.step.get("suppress_recovery_events", 6), 6))
 
     def _exit_map_core():
         yield from ctx.bot.Move._coro_xy_and_exit_map(
@@ -768,7 +772,33 @@ def handle_exit_map(ctx: StepContext) -> None:
             step_name=step_name,
         )
 
+    if (target_map_id > 0 or target_map_name) and suppress_recovery_ms > 0:
+        def _suppress_transition_recovery(
+            _ms: int = suppress_recovery_ms,
+            _events: int = suppress_recovery_events,
+        ) -> None:
+            owner = getattr(ctx.bot, "_modular_owner", None)
+            if owner is None or not hasattr(owner, "suppress_recovery_for"):
+                return
+            owner.suppress_recovery_for(ms=_ms, max_events=_events)
+
+        ctx.bot.States.AddCustomState(_suppress_transition_recovery, f"{step_name}: Suppress Recovery")
+
     ctx.bot.States.AddCustomState(_wrap_with_auto_state_guard(ctx, _exit_map_core), step_name)
+
+    if target_map_id > 0 or target_map_name:
+        # Ensure we are fully in the target map before continuing any post-transition logic.
+        ctx.bot.Wait.ForMapLoad(target_map_id=target_map_id, target_map_name=target_map_name)
+
+    def _set_post_exit_anchor(_anchor_state: str = anchor_state_name) -> None:
+        owner = getattr(ctx.bot, "_modular_owner", None)
+        if owner is None or not hasattr(owner, "set_anchor"):
+            return
+        owner.set_anchor(_anchor_state)
+
+    # Refresh runtime recovery anchor after each map transition so recovery
+    # cannot fall back to a stale pre-transition anchor.
+    ctx.bot.States.AddCustomState(_set_post_exit_anchor, anchor_state_name)
     wait_after_step(ctx.bot, ctx.step)
 
 

@@ -1,7 +1,7 @@
 from Py4GWCoreLib import Profession
 from Py4GWCoreLib import BuildMgr
 from Py4GWCoreLib import Routines
-from Py4GWCoreLib import Player, Range
+from Py4GWCoreLib import Agent, AgentArray, Player, Range
 from Py4GWCoreLib.Skill import Skill
 from Py4GWCoreLib.Builds.Any.HeroAI import HeroAI_Build
 
@@ -36,6 +36,28 @@ class Pre_Searing_Necro(BuildMgr):
 
         self.SetFallback("HeroAI", HeroAI_Build(standalone_fallback=True))
         self.SetSkillCastingFn(self._run_local_skill_logic)
+
+    @staticmethod
+    def _get_nearest_exploitable_corpse(max_distance=Range.Spellcast.value):
+        def _allowed_allegiance(agent_id: int) -> bool:
+            _, allegiance = Agent.GetAllegiance(agent_id)
+            return allegiance in ("Ally", "Neutral", "Enemy", "NPC/Minipet")
+
+        corpse_array = AgentArray.GetAgentArray()
+        corpse_array = AgentArray.Filter.ByDistance(corpse_array, Player.GetXY(), max_distance)
+        corpse_array = AgentArray.Filter.ByCondition(
+            corpse_array,
+            lambda agent_id: (
+                Agent.IsDead(agent_id)
+                and not Agent.HasBossGlow(agent_id)
+                and not Agent.IsSpirit(agent_id)
+                and not Agent.IsSpawned(agent_id)
+                and not Agent.IsMinion(agent_id)
+            ),
+        )
+        corpse_array = AgentArray.Filter.ByCondition(corpse_array, _allowed_allegiance)
+        corpse_array = AgentArray.Sort.ByDistance(corpse_array, Player.GetXY())
+        return corpse_array[0] if corpse_array else 0
 
     def _run_local_skill_logic(self):
         player_agent_id = Player.GetAgentID()
@@ -74,10 +96,9 @@ class Pre_Searing_Necro(BuildMgr):
         enemy_count = len(nearby_enemies)
 
         if self.IsSkillEquipped(Animate_Bone_Horror_ID):
-            nearest_corpse = Routines.Agents.GetNearestCorpse(max_distance=Range.Spellcast.value)
-            if nearest_corpse and (yield from self.CastSkillID(
+            nearest_exploitable_corpse = self._get_nearest_exploitable_corpse(max_distance=Range.Spellcast.value)
+            if nearest_exploitable_corpse and (yield from self.CastSkillID(
                 skill_id=Animate_Bone_Horror_ID,
-                target_agent_id=nearest_corpse,
                 log=False,
                 aftercast_delay=250,
             )):

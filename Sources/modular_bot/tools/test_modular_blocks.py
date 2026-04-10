@@ -162,6 +162,23 @@ def _run_selected_block(bot) -> None:
     ConsoleLog("Modular Block Tester", f"Registering selection: kind={_get_kind_key()}, block={key}")
     try:
         modular_block_run(bot, key, kind=_get_kind_key(), recipe_name="ModularBlockTest")
+
+        if _loop_selected_block:
+            phase_header = ""
+            owner = getattr(bot, "_modular_owner", None)
+            if owner is not None and hasattr(owner, "get_phase_header"):
+                try:
+                    phase_header = str(owner.get_phase_header("Run Selected Modular Block") or "")
+                except Exception:
+                    phase_header = ""
+
+            if phase_header:
+                # Deterministic tester loop: jump back to selected-block phase header.
+                bot.States.JumpToStepName(phase_header)
+                ConsoleLog("Modular Block Tester", f"Loop enabled: appended jump to {phase_header}.")
+            else:
+                ConsoleLog("Modular Block Tester", "Loop enabled but phase header was not resolved; loop jump not appended.")
+
         state_count = int(getattr(bot.config.FSM, "get_state_count", lambda: 0)() or 0)
         ConsoleLog("Modular Block Tester", f"FSM states after registration: {state_count}")
     except Exception as exc:
@@ -251,7 +268,6 @@ def _draw_main() -> None:
     loop_now = PyImGui.checkbox("Loop Selected Block", _loop_selected_block)
     if bool(loop_now) != bool(_loop_selected_block):
         _loop_selected_block = bool(loop_now)
-        bot._loop = bool(_loop_selected_block)
         _mark_selection_dirty(f"Loop mode set to: {'ON' if _loop_selected_block else 'OFF'}. Press Start to apply.")
     PyImGui.same_line(0, 12)
     auto_resize_now = PyImGui.checkbox("Auto Resize Panel", _auto_resize_panel)
@@ -400,7 +416,9 @@ def _main_dimensions() -> tuple[int, int]:
 bot = ModularBot(
     name="Modular Block Tester",
     phases=[Phase("Run Selected Modular Block", _run_selected_block, anchor=True)],
-    loop=_loop_selected_block,
+    # Tester loop is handled explicitly inside _run_selected_block to keep
+    # behavior stable across dynamic rebuilds.
+    loop=False,
     template=_START_TEMPLATE,
     use_custom_behaviors=_START_USE_CB,
     upkeep_auto_inventory_management_active=True,

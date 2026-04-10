@@ -61,7 +61,15 @@ class Pre_Searing_ele(BuildMgr):
                 return True
 
         if self.IsSkillEquipped(Ether_Feast_ID):
-            should_cast_ether_feast = Agent.GetHealth(player_agent_id) < 0.65
+            target_id = Player.GetTargetID()
+            _, target_allegiance = Agent.GetAllegiance(target_id)
+            target_is_enemy = (
+                target_id != 0
+                and Agent.IsValid(target_id)
+                and not Agent.IsDead(target_id)
+                and target_allegiance == "Enemy"
+            )
+            should_cast_ether_feast = Agent.GetHealth(player_agent_id) < 0.65 and target_is_enemy
             if should_cast_ether_feast and (yield from self.CastSkillID(
                 skill_id=Ether_Feast_ID,
                 log=False,
