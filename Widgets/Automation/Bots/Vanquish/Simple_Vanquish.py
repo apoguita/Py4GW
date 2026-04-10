@@ -227,7 +227,6 @@ def _set_radar_range(value: int):
     global _current_radar_range
     _current_radar_range = value
 
-
 def Radar(bot: "Botting", radar_range: int = 3500):
     from Py4GWCoreLib.Pathing import AutoPathing
     ConsoleLog("Radar", f"Radar coroutine started (range={radar_range}).", Py4GW.Console.MessageType.Debug, True)
@@ -297,12 +296,9 @@ def Radar(bot: "Botting", radar_range: int = 3500):
 
 def VanquishWatchdog(bot: "Botting", completed_header_name: str):
     while True:
-        if Map.IsVanquishCompleted():
+        if Map.IsVanquishCompleted() and not _radar_active:
             ConsoleLog("VanquishWatchdog", f"Vanquish trigger activated. Jumping to: {completed_header_name}", Py4GW.Console.MessageType.Debug, True)
             bot.config.FSM.pause()
-            bot.config.FSM.RemoveManagedCoroutine("Radar")
-            bot.config.FSM.RemoveManagedCoroutine("ConsetUpkeep")
-            bot.config.FSM.RemoveManagedCoroutine("PconsUpkeep")
             bot.config.FSM.jump_to_state_by_name(completed_header_name)
             bot.config.FSM.resume()
             return
