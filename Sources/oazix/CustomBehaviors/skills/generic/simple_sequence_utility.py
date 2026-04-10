@@ -3,6 +3,7 @@ from abc import abstractmethod
 import random
 from typing import Any, Generator, override
 
+from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Sources.oazix.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Sources.oazix.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
@@ -53,6 +54,11 @@ class SimpleSequenceUtility(CustomSkillUtilityBase):
 
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
+
+        # let's verify that the skill is in the skillbar first.
+        if GLOBAL_CACHE.SkillBar.GetSlotBySkillID(self.utility_1.custom_skill.skill_id) == 0: return None
+        if GLOBAL_CACHE.SkillBar.GetSlotBySkillID(self.utility_2.custom_skill.skill_id) == 0: return None
+
         # Both utilities must evaluate to a valid score
         try:
             score_1 = self.utility_1.evaluate(current_state, previously_attempted_skills)
