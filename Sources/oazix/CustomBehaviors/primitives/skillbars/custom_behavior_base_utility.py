@@ -300,6 +300,16 @@ class CustomBehaviorBaseUtility():
     compute_throttler = ThrottledTimer(300)
     execute_throttler = ThrottledTimer(80)
 
+    # When set, the next act() tick will recompute scores regardless of the
+    # compute_throttler. Used by event-driven skills (e.g. interrupts) to react
+    # faster than the 300ms score cycle without bypassing the execute pipeline.
+    _force_recompute_next_tick: bool = False
+
+    @classmethod
+    def request_score_recompute(cls):
+        """Request the next act() tick to recompute scores immediately."""
+        cls._force_recompute_next_tick = True
+
     def act(self):
         if not self.throttler.IsExpired(): return
         self.throttler.Reset()
@@ -333,7 +343,8 @@ class CustomBehaviorBaseUtility():
         # - if we are executing with EXECUTE_THROUGH_THE_END, most of the time it take more than 300/400 ms with the aftercast.
         # - if we are executing with STOP_EXECUTION_ONCE_SCORE_NOT_HIGHEST, we don't need huge responsiveness
 
-        if self.compute_throttler.IsExpired():
+        if CustomBehaviorBaseUtility._force_recompute_next_tick or self.compute_throttler.IsExpired():
+            CustomBehaviorBaseUtility._force_recompute_next_tick = False
             self.compute_throttler.Reset()
             self.timer.Reset()
             self.__fetch_and_memoized_state()
