@@ -5892,6 +5892,32 @@ try:
             own_party_id = 0
         return bool(own_party_id > 0 and own_party_id == _acc_party_id(acc))
 
+    def _pycons_sync_current_account_is_party_leader() -> bool:
+        try:
+            account_email = str(Player.GetAccountEmail() or "").strip()
+        except Exception:
+            account_email = ""
+        if account_email:
+            try:
+                own_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(account_email)
+            except Exception:
+                own_account = None
+            if own_account is not None:
+                try:
+                    party_data = getattr(own_account, "AgentPartyData", None)
+                    if party_data is not None and hasattr(party_data, "IsPartyLeader"):
+                        return bool(getattr(party_data, "IsPartyLeader", False))
+                except Exception:
+                    pass
+
+        try:
+            own_party_id = int(GLOBAL_CACHE.Party.GetPartyID() or 0)
+            own_agent_id = int(Player.GetAgentID() or 0)
+            leader_agent_id = int(GLOBAL_CACHE.Party.GetPartyLeaderID() or 0)
+        except Exception:
+            return False
+        return bool(own_party_id > 0 and own_agent_id > 0 and own_agent_id == leader_agent_id)
+
     def _pycons_sync_is_follower(acc) -> bool:
         if not _pycons_sync_is_same_party(acc):
             return False
@@ -7158,6 +7184,7 @@ try:
         active_accounts = _get_pycons_sync_accounts()
         selected_categories = _get_selected_pycons_sync_categories()
         selected_accounts = _get_selected_pycons_sync_account_emails()
+        current_account_is_party_leader = _pycons_sync_current_account_is_party_leader()
         profiles = _list_pycons_profiles()
         selected_profile = _get_selected_profile_entry(profiles)
         selected_profile_context = _selected_profile_ui_context(selected_profile)
@@ -7193,9 +7220,10 @@ try:
             _same_line(10)
             if PyImGui.small_button("Same Map##pycons_sync_accounts_same_map"):
                 _replace_pycons_sync_account_selection(active_accounts, _pycons_sync_is_same_map)
-            _same_line(10)
-            if PyImGui.small_button("Followers##pycons_sync_accounts_followers"):
-                _replace_pycons_sync_account_selection(active_accounts, _pycons_sync_is_follower)
+            if current_account_is_party_leader:
+                _same_line(10)
+                if PyImGui.small_button("Followers##pycons_sync_accounts_followers"):
+                    _replace_pycons_sync_account_selection(active_accounts, _pycons_sync_is_follower)
             _same_line(10)
             if PyImGui.small_button("Clear##pycons_sync_accounts_clear"):
                 _replace_pycons_sync_account_selection(active_accounts, lambda _acc: False)
