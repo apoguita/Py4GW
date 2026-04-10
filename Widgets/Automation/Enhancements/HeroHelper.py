@@ -76,6 +76,7 @@ class Config:
             "smart_honor_enabled",
             "smart_life_bond_enabled",
             "smart_splinter_enabled",
+            "smart_xinrae_enabled",
             "smart_vigorous_enabled",
             "smart_dark_aura_enabled",
             "hero_behaviour",
@@ -100,6 +101,7 @@ class Config:
         self.smart_honor_enabled = ini_handler.read_bool(MODULE_NAME, "smart_honor_enabled", False)
         self.smart_life_bond_enabled = ini_handler.read_bool(MODULE_NAME, "smart_life_bond_enabled", False)
         self.smart_splinter_enabled = ini_handler.read_bool(MODULE_NAME, "smart_splinter_enabled", False)
+        self.smart_xinrae_enabled = ini_handler.read_bool(MODULE_NAME, "smart_xinrae_enabled", False)
         self.smart_vigorous_enabled = ini_handler.read_bool(MODULE_NAME, "smart_vigorous_enabled", False)
         self.smart_dark_aura_enabled = ini_handler.read_bool(MODULE_NAME, "smart_dark_aura_enabled", False)
         self.hero_behaviour = ini_handler.read_int(MODULE_NAME, "hero_behaviour", 0)
@@ -481,6 +483,45 @@ class Helper:
         )
 
     @staticmethod
+    def get_best_xinrae_target():
+        player_id = Player.GetAgentID()
+        if not player_id:
+            return None
+
+        player_pos = Player.GetXY()
+        ally_ids = set(AgentArray.GetAllyArray() or [])
+        ally_ids.add(player_id)
+
+        candidates = []
+        for ally_id in ally_ids:
+            if not Helper.is_agent_alive(ally_id):
+                continue
+            if Agent.IsWeaponSpelled(ally_id):
+                continue
+
+            ally_pos = Agent.GetXY(ally_id)
+            distance_from_player = Utils.Distance(player_pos, ally_pos)
+            if distance_from_player > Helper.get_spell_cast_range() * 1.2:
+                continue
+
+            enemies_near = Helper.count_enemies_in_range(enums.Range.Earshot.value, ally_pos)
+            if enemies_near <= 0:
+                continue
+
+            candidates.append((
+                -enemies_near,
+                Agent.GetHealth(ally_id),
+                distance_from_player,
+                ally_id
+            ))
+
+        if not candidates:
+            return None
+
+        candidates.sort()
+        return candidates[0][3]
+
+    @staticmethod
     def is_fighting(agent_id=None):
         agent_id = agent_id or Player.GetAgentID()
         return Agent.IsAttacking(agent_id) or Agent.IsCasting(agent_id)
@@ -534,7 +575,8 @@ class Helper:
     def smartcast_hero_skill(skill_id, min_enemies=0, enemy_range_check=None,
                               effect_check=False, cast_target_id=None, hero_target=False,
                               distance_check_range=None, allow_out_of_combat=False,
-                              min_health_perc=None, min_energy_perc=None):
+                              min_health_perc=None, min_energy_perc=None,
+                              target_distance_check_range=None):
 
         heroes_ready = Helper.get_heroes_with_skill(skill_id)
         if not heroes_ready:
@@ -570,6 +612,11 @@ class Helper:
 
             if hero_target:
                 cast_target_id = hero_id
+
+            if cast_target_id and target_distance_check_range is not None:
+                target_distance = Utils.Distance(Agent.GetXY(hero_id), Agent.GetXY(cast_target_id))
+                if target_distance > target_distance_check_range:
+                    continue
 
             energy = Helper.get_energy_data(hero_id)
             health = Helper.get_hp_data(hero_id)
@@ -844,6 +891,32 @@ def smart_splinter():
         enemy_range_check=Helper.get_spirit_range(),
         effect_check=True,
         distance_check_range=Helper.get_spell_cast_range(),
+        allow_out_of_combat=False,
+        min_energy_perc=0.25
+    )
+
+    if result:
+        execute_hero_skill(*result)
+
+def smart_xinrae():
+    if Party.GetHeroCount() == 0:
+        return
+    if not Helper.can_execute_with_delay("smart_xinrae", 1000):
+        return
+
+    player_id = Player.GetAgentID()
+    if not Helper.is_agent_alive(player_id):
+        return
+
+    target_id = Helper.get_best_xinrae_target()
+    if not target_id:
+        return
+
+    result = Helper.smartcast_hero_skill(
+        skill_id=Skill.GetID("Xinraes_Weapon"),
+        cast_target_id=target_id,
+        distance_check_range=Helper.get_spell_cast_range() * 1.2,
+        target_distance_check_range=Helper.get_spell_cast_range() * 1.2,
         allow_out_of_combat=False,
         min_energy_perc=0.25
     )
@@ -1266,6 +1339,7 @@ def draw_tab_smart_skills(config):
             ("Signet of Spirits", "smart_sos_enabled", "Automatically casts Signet of Spirits when necessary.", "Signet_of_Spirits"),
             ("Soul Twisting", "smart_st_enabled", "Automatically casts Shelter and Union based on combat conditions.", "Soul_Twisting"),
             ("Splinter Weapon", "smart_splinter_enabled", "Casts Splinter on melee player in combat.", "Splinter_Weapon"),
+            ("Xinrae's Weapon", "smart_xinrae_enabled", "Casts Xinrae's Weapon on the best nearby ally without an existing weapon spell, prioritizing pressure and low health.", "Xinraes_Weapon"),
         ]),
     ]
 
@@ -1678,6 +1752,8 @@ def main():
                 smart_vigorous()
             if widget_config.smart_splinter_enabled:
                 smart_splinter()
+            if widget_config.smart_xinrae_enabled:
+                smart_xinrae()
             if widget_config.smart_honor_enabled:
                 smart_honor()
             if widget_config.smart_life_bond_enabled:
