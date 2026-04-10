@@ -1173,6 +1173,10 @@ def bot_routine(bot: Botting):
     bot.Events.OnPartyWipeCallback(lambda: OnPartyWipe(bot))
     _get_adapter().set_blessing_enabled(True)
     _get_adapter().setup(bot)
+    # __reset_botting_behavior (called inside setup via UseCustomBehavior) queues
+    # Disable("auto_inventory_management"). Re-enable it immediately after so
+    # the upkeep coroutine stays active for the entire run.
+    bot.Properties.Enable("auto_inventory_management")
 
     # NOTE: UW-specific managed coroutines (watchdogs, pcon upkeep) are
     # registered every frame via _ensure_managed_coroutines() in main().
@@ -1961,18 +1965,17 @@ def Dhuum(bot_instance: Botting):
         return False
 
     
-    bot_instance.States.AddCustomState(
-        lambda: _get_adapter().set_combat_enabled(True),
-        "Re-enable Combat after Spirit Form threshold",
-    )
-
     # Disable the InDanger event callback for the fight — the CB daemon would
     # immediately stomp any fsm.pause() it sets, causing erratic movement.
     bot_instance.States.AddCustomState(lambda: _toggle_in_danger_callback(False), "Disable InDanger callback for Dhuum")
     # Activate the Spirit Form watchdog for the duration of the fight.
     bot_instance.States.AddCustomState(lambda: _set_dhuum_fight_active(True), "Enable Dhuum Spirit Form Watchdog")
     bot_instance.Move.XY(-13987, 17291, "Move to Dhuum fight")
-    bot_instance.Wait.UntilCondition( _enough_spiritforms)
+    bot_instance.Wait.UntilCondition(_enough_spiritforms)
+    bot_instance.States.AddCustomState(
+        lambda: _get_adapter().set_combat_enabled(True),
+        "Re-enable Combat after Spirit Form threshold",
+    )
     bot_instance.Wait.UntilCondition(
         lambda: not Routines.Checks.Map.MapValid()
         or Map.GetMapID() != UW_MAP_ID
