@@ -104,6 +104,7 @@ def _handle_keyword(bot, key, value):
         bot.Move.XYAndInteractNPC(*value)
         bot.Multibox.SendDialogToTarget(0x84) # EOTN Blessing
         bot.Multibox.SendDialogToTarget(0x85) # NF Blessing
+        bot.Multibox.SendDialogToTarget(0x86) # Factions Blessing
     elif key == "gadget":
         bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Interacting with Gadget.")
         bot.Move.XY(*value)

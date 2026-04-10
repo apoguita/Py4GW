@@ -55,6 +55,7 @@ _current_section_header: tuple = ("", 0.0, 0.0)
 _restock_conset: bool = True
 _current_radar_range: int = 0
 _radar_active: bool = False
+_is_completing: bool = False
 _restock_pcons: bool = True
 _restock_res_scroll: bool = True
 _loop_queue: bool = False
@@ -104,8 +105,9 @@ def _handle_keyword(bot, key, value):
         bot.Move.XY(*value)
         bot.Wait.ForTime(1500)
         bot.Move.XYAndInteractNPC(*value)
-        bot.Multibox.SendDialogToTarget(0x84)
-        bot.Multibox.SendDialogToTarget(0x85)
+        bot.Multibox.SendDialogToTarget(0x84) # EOTN Blessing
+        bot.Multibox.SendDialogToTarget(0x85) # NF Blessing
+        bot.Multibox.SendDialogToTarget(0x86) # Factions Blessing
     elif key == "gadget":
         bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Interacting with Gadget.")
         bot.Move.XY(*value)
@@ -227,6 +229,7 @@ def _set_radar_range(value: int):
     global _current_radar_range
     _current_radar_range = value
 
+
 def Radar(bot: "Botting", radar_range: int = 3500):
     from Py4GWCoreLib.Pathing import AutoPathing
     ConsoleLog("Radar", f"Radar coroutine started (range={radar_range}).", Py4GW.Console.MessageType.Debug, True)
@@ -298,7 +301,12 @@ def VanquishWatchdog(bot: "Botting", completed_header_name: str):
     while True:
         if Map.IsVanquishCompleted() and not _radar_active:
             ConsoleLog("VanquishWatchdog", f"Vanquish trigger activated. Jumping to: {completed_header_name}", Py4GW.Console.MessageType.Debug, True)
+            global _is_completing
+            _is_completing = True
             bot.config.FSM.pause()
+            bot.config.FSM.RemoveManagedCoroutine("Radar")
+            bot.config.FSM.RemoveManagedCoroutine("ConsetUpkeep")
+            bot.config.FSM.RemoveManagedCoroutine("PconsUpkeep")
             bot.config.FSM.jump_to_state_by_name(completed_header_name)
             bot.config.FSM.resume()
             return
@@ -389,8 +397,9 @@ def bot_routine(bot: Botting) -> None:
 
         # -- Update current vanquish index --
         def _set_current_index(idx=vq_idx):
-            global _current_vq_index
+            global _current_vq_index, _is_completing
             _current_vq_index = idx
+            _is_completing = False
             yield
         bot.States.AddCustomState(lambda idx=vq_idx: _set_current_index(idx),
                                   f"SetVQIndex_{vq_idx}")
@@ -485,7 +494,8 @@ def bot_routine(bot: Botting) -> None:
 
         # -- Reverse Path with Radar (range=5000) --
         bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Starting Reverse Path with Extended Radar (range=5000).")
-        rp5_coord = _get_first_path_coord(reversed_path)  # same reversed path
+        reversed_path = _build_reversed_path(vq.vanquish_path)
+        rp5_coord = _get_first_path_coord(reversed_path)
         bot.States.AddCustomState(lambda vi=vq_idx, si=section_idx, rc=rp5_coord: _set_section_header(_section_headers[vi][si], rc[0], rc[1]),
                                   f"SetSection_ReversePath5000_{vq_idx}")
         bot.States.AddHeader(f"ReversePath5000_{vq_idx}")
@@ -658,6 +668,8 @@ def _on_party_wipe(bot: "Botting"):
     bot.config.FSM.resume()
 
 def OnPartyWipe(bot: "Botting"):
+    if _is_completing:
+        return
     ConsoleLog("on_party_wipe", "event triggered")
     fsm = bot.config.FSM
     if not fsm.is_paused():
