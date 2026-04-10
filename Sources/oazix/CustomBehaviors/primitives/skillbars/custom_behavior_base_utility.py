@@ -355,7 +355,7 @@ class CustomBehaviorBaseUtility():
 
     timer = Timer()
     throttler = ThrottledTimer(50)
-    compute_throttler = ThrottledTimer(300)
+    compute_throttler = ThrottledTimer(80)
     execute_throttler = ThrottledTimer(80)
 
     def act(self):
