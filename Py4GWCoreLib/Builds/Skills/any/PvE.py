@@ -82,7 +82,6 @@ class PvE:
 
     def Cry_of_Pain(self, allow_hex_fallback: bool = True) -> BuildCoroutine:
         from Py4GWCoreLib import Agent, GLOBAL_CACHE
-        from HeroAI.utils import GetEffectAndBuffIds
 
         cry_of_pain_id: int = Skill.GetID("Cry_of_Pain")
         aoe_range = GLOBAL_CACHE.Skill.Data.GetAoERange(cry_of_pain_id) or Range.Nearby.value
@@ -90,7 +89,7 @@ class PvE:
         def _has_mesmer_hex(agent_id: int) -> bool:
             if not agent_id or not Agent.IsHexed(agent_id):
                 return False
-            for effect_skill_id in GetEffectAndBuffIds(agent_id):
+            for effect_skill_id in self.build.GetEffectAndBuffIds(agent_id):
                 if not GLOBAL_CACHE.Skill.Flags.IsHex(effect_skill_id):
                     continue
                 profession_id, _ = GLOBAL_CACHE.Skill.GetProfession(effect_skill_id)

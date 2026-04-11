@@ -143,6 +143,17 @@ class _Multibox:
         player_email = Player.GetAccountEmail()
         return self._get_account_data_from_email(player_email)
 
+    def _set_account_isolation(self, isolated: bool, account_email: str = ""):
+        from ...GlobalCache import GLOBAL_CACHE
+
+        target_email = str(account_email or Player.GetAccountEmail() or "").strip()
+        if not target_email:
+            ConsoleLog("Messaging", "SetAccountIsolation failed: no account email available.", Console.MessageType.Warning, log=True)
+            return
+
+        GLOBAL_CACHE.ShMem.SetAccountIsolationByEmail(target_email, bool(isolated))
+        yield
+
     def _summon_all_accounts(self):
         from ...GlobalCache import GLOBAL_CACHE
         from ...Routines import Routines
@@ -416,11 +427,71 @@ class _Multibox:
             ConsoleLog("Messaging", f"Ordering {account.AccountEmail} to interact with target: {target}", log=False)
             GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.TakeDialogWithTarget, (target,1,0,0))
         yield
+
+    @staticmethod
+    def _is_partywide_conset(params: tuple) -> bool:
+        from ...GlobalCache import GLOBAL_CACHE
+
+        if len(params) < 4:
+            return False
+
+        conset_effect_ids = {
+            int(GLOBAL_CACHE.Skill.GetID("Essence_of_Celerity_item_effect")),
+            int(GLOBAL_CACHE.Skill.GetID("Grail_of_Might_item_effect")),
+            int(GLOBAL_CACHE.Skill.GetID("Armor_of_Salvation_item_effect")),
+        }
+        effect_ids = {int(params[1]), int(params[3])}
+        effect_ids.discard(0)
+        return any(effect_id in conset_effect_ids for effect_id in effect_ids)
+
+    def _use_partywide_consumable_message(self, params):
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Routines import Routines
+
+        sender_email = Player.GetAccountEmail()
+        accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+        primary_model_id = int(params[0]) if len(params) > 0 else 0
+        primary_skill_id = int(params[1]) if len(params) > 1 else 0
+        secondary_model_id = int(params[2]) if len(params) > 2 else 0
+        secondary_skill_id = int(params[3]) if len(params) > 3 else 0
+        effect_ids = [skill_id for skill_id in (primary_skill_id, secondary_skill_id) if skill_id != 0]
+        sender_agent_id = Player.GetAgentID()
+
+        if effect_ids and any(GLOBAL_CACHE.Effects.HasEffect(sender_agent_id, effect_id) for effect_id in effect_ids):
+            return
+
+        # For party-wide consumables such as consets, consume on exactly one account.
+        # Prefer the local account when possible, then probe remote accounts one at a time
+        # and stop as soon as the party-wide effect shows up locally.
+        for model_id in (primary_model_id, secondary_model_id):
+            if model_id == 0:
+                continue
+            item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(model_id)
+            if item_id:
+                ConsoleLog("Messaging", f"Using party-wide consumable locally from model {model_id}", log=False)
+                GLOBAL_CACHE.Inventory.UseItem(item_id)
+                yield from Routines.Yield.wait(1000)
+                return
+
+        for account in accounts:
+            if account.AccountEmail == sender_email:
+                continue
+
+            ConsoleLog("Messaging", f"Sending party-wide consumable message to {account.AccountEmail}", log=False)
+            GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.PCon, params)
+            yield from Routines.Yield.wait(1200)
+
+            if effect_ids and any(GLOBAL_CACHE.Effects.HasEffect(sender_agent_id, effect_id) for effect_id in effect_ids):
+                return
         
     def _use_consumable_message(self, params):
         from ...GlobalCache import GLOBAL_CACHE
         from ...Routines import Routines
         account_email = sender_email = Player.GetAccountEmail()
+
+        if self._is_partywide_conset(params):
+            yield from self._use_partywide_consumable_message(params)
+            return
 
         accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
         sender_email = account_email
@@ -509,6 +580,10 @@ class _Multibox:
     @_yield_step(label="KickAccountByEmail", counter_key="KICK_ACCOUNT_BY_EMAIL")
     def kick_account_by_email(self, email: str):
         yield from self._kick_account_by_email(email)
+
+    @_yield_step(label="SetAccountIsolation", counter_key="SET_ACCOUNT_ISOLATION")
+    def set_account_isolation(self, isolated: bool, account_email: str = ""):
+        yield from self._set_account_isolation(isolated, account_email)
 
     def _restock_all_pcons_message(self, quantity: int):
         from ...GlobalCache import GLOBAL_CACHE
@@ -652,6 +727,41 @@ class _Multibox:
     @_yield_step(label="EquipItemOnAllAccounts", counter_key="EQUIP_ITEM_ON_ALL_ACCOUNTS")
     def equip_item_on_all_accounts(self, char_name_to_model_id: dict):
         yield from self._equip_item_on_all_accounts_message(char_name_to_model_id)
+
+    def _load_skill_template_message(self, email: str, template: str):
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Routines import Routines
+        sender_email = Player.GetAccountEmail()
+        extra_data = (template, "", "", "")
+        ConsoleLog("Messaging", f"Sending LoadSkillTemplate to {email}", log=False)
+        GLOBAL_CACHE.ShMem.SendMessage(sender_email, email, SharedCommandType.LoadSkillTemplate, (0.0, 0.0, 0.0, 0.0), extra_data)
+        yield from Routines.Yield.wait(500)
+
+    def _load_skill_template_on_all_accounts_message(self, char_name_to_template: dict):
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Routines import Routines
+        sender_email = Player.GetAccountEmail()
+        for char_name, template in char_name_to_template.items():
+            email = self._get_email_from_char_name(char_name)
+            if not email:
+                ConsoleLog("Messaging", f"LoadSkillTemplateOnAllAccounts: no account found for char '{char_name}', skipping", log=True)
+                continue
+            extra_data = (template, "", "", "")
+            ConsoleLog("Messaging", f"Sending LoadSkillTemplate ({template}) to {char_name} ({email})", log=False)
+            GLOBAL_CACHE.ShMem.SendMessage(sender_email, email, SharedCommandType.LoadSkillTemplate, (0.0, 0.0, 0.0, 0.0), extra_data)
+            yield from Routines.Yield.wait(500)
+
+    @_yield_step(label="LoadSkillTemplateOnAccount", counter_key="LOAD_SKILL_TEMPLATE_ON_ACCOUNT")
+    def load_skill_template_on_account(self, char_name: str, template: str):
+        email = self._get_email_from_char_name(char_name)
+        if not email:
+            ConsoleLog("Messaging", f"LoadSkillTemplateOnAccount: no account found for char '{char_name}'", log=True)
+            return
+        yield from self._load_skill_template_message(email, template)
+
+    @_yield_step(label="LoadSkillTemplateOnAllAccounts", counter_key="LOAD_SKILL_TEMPLATE_ON_ALL_ACCOUNTS")
+    def load_skill_template_on_all_accounts(self, char_name_to_template: dict):
+        yield from self._load_skill_template_on_all_accounts_message(char_name_to_template)
 
     def get_all_account_data(self) -> List[_AccountData]:
         return self._get_all_account_data()

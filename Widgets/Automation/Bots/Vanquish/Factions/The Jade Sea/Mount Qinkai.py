@@ -1,4 +1,4 @@
-from Py4GWCoreLib import Botting, Routines, GLOBAL_CACHE, ModelID, Map, Agent, ConsoleLog, Player
+from Py4GWCoreLib import Botting, Routines, GLOBAL_CACHE, ModelID, Map, Agent, ConsoleLog, Player, Timer
 import Py4GW
 import os
 BOT_NAME = "VQ Mount Qinkai"
@@ -7,6 +7,7 @@ MODULE_ICON = "Textures\\Module_Icons\\Vanquish - Mount Qinkai.png"
 TEXTURE = os.path.join(Py4GW.Console.get_projects_path(), "Sources", "ApoSource", "textures", "VQ_Helmet.png")
 OUTPOST_TO_TRAVEL = 389 # Mount Qinkai outpost
 CAVALON= 193 # Cavalon for faction donation
+LOAD_RESUME_STABLE_MS = 1500
 
 Vanquish_Path:list[tuple[float, float]] = [
       (-13384.42, -9866.60), #snake yetis  
@@ -59,6 +60,9 @@ Vanquish_Path:list[tuple[float, float]] = [
 
 bot = Botting(BOT_NAME,
               upkeep_honeycomb_active=True)
+
+_load_resume_timer = Timer()
+_loading_pause_active = False
                 
 def bot_routine(bot: Botting) -> None:
     global Vanquish_Path
@@ -165,11 +169,35 @@ def OnPartyWipe(bot: "Botting"):
     fsm.AddManagedCoroutine("OnWipe_OPD", lambda: _on_party_wipe(bot))
 
 
+def _runtime_map_ready() -> bool:
+    return bool(Routines.Checks.Map.MapValid() and Player.IsPlayerLoaded())
+
+
+def _should_suspend_for_loading() -> bool:
+    global _loading_pause_active
+
+    if not _runtime_map_ready():
+        _loading_pause_active = True
+        _load_resume_timer.Stop()
+        return True
+
+    if _loading_pause_active:
+        if _load_resume_timer.IsStopped():
+            _load_resume_timer.Start()
+        if not _load_resume_timer.HasElapsed(LOAD_RESUME_STABLE_MS):
+            return True
+        _loading_pause_active = False
+        _load_resume_timer.Stop()
+
+    return False
+
+
 
 bot.SetMainRoutine(bot_routine)
 
 def main():
-    bot.Update()
+    if not _should_suspend_for_loading():
+        bot.Update()
     bot.UI.draw_window(icon_path=TEXTURE)
 
 if __name__ == "__main__":

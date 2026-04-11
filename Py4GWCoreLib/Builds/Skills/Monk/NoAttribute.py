@@ -1,6 +1,5 @@
 ﻿from __future__ import annotations
 
-from copy import deepcopy
 from typing import TYPE_CHECKING
 
 from Py4GWCoreLib.BuildMgr import BuildCoroutine
@@ -36,42 +35,19 @@ class NoAttribute:
             )
 
         def _resolve_seed_of_life_target() -> int:
-            def _spike_target_matches(agent_id: int) -> bool:
-                return (
-                    self.build.IsPartySpikeTarget(
-                        agent_id,
-                        drop_threshold=0.08,
-                        sample_interval_ms=150,
-                        window_ms=1000,
-                    )
-                    and _is_valid_seed_target(agent_id)
-                )
-
-            melee_target_skill: CustomSkill = deepcopy(seed_of_life)
-            melee_target_skill.TargetAllegiance = Skilltarget.AllyMartialMelee.value
-            melee_target: int = self.build.ResolveAllyTarget(
-                seed_of_life_id,
-                melee_target_skill,
-            )
-            if melee_target and _spike_target_matches(melee_target):
-                return melee_target
-
-            martial_target_skill: CustomSkill = deepcopy(seed_of_life)
-            martial_target_skill.TargetAllegiance = Skilltarget.AllyMartial.value
-            martial_target: int = self.build.ResolveAllyTarget(
-                seed_of_life_id,
-                martial_target_skill,
-            )
-            if martial_target and _spike_target_matches(martial_target):
-                return martial_target
-
-            fallback_target = self.build.ResolveAllyTarget(
+            return self.build.ResolvePreferredPartySpikeAllyTarget(
                 seed_of_life_id,
                 seed_of_life,
+                variants=[
+                    lambda custom_skill: setattr(custom_skill, "TargetAllegiance", Skilltarget.AllyMartialMelee.value),
+                    lambda custom_skill: setattr(custom_skill, "TargetAllegiance", Skilltarget.AllyMartial.value),
+                    None,
+                ],
+                validator=_is_valid_seed_target,
+                drop_threshold=0.08,
+                sample_interval_ms=150,
+                window_ms=1000,
             )
-            if fallback_target and _spike_target_matches(fallback_target):
-                return fallback_target
-            return 0
 
         if not self.build.IsSkillEquipped(seed_of_life_id):
             return False

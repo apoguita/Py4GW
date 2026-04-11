@@ -4,6 +4,7 @@ import Py4GW
 import os
 import PyImGui
 import importlib.util
+import time
 projects_base_path = Py4GW.Console.get_projects_path()
 BOUNTIES_DIR = os.path.join(projects_base_path,"Sources","ZaishenBounty")
 
@@ -19,16 +20,8 @@ class BotSettings:
     )
 
 bot = Botting(BotSettings.BOT_NAME,
-              upkeep_armor_of_salvation_restock=5,
-              upkeep_essence_of_celerity_restock=5,
-              upkeep_grail_of_might_restock=5,
-              upkeep_war_supplies_restock=5,
               upkeep_honeycomb_restock=25,
               upkeep_auto_loot_active=True,
-              upkeep_armor_of_salvation_active=True,
-              upkeep_essence_of_celerity_active=True,
-              upkeep_grail_of_might_active=True,
-              upkeep_war_supplies_active=True,
               upkeep_honeycomb_active=True,
               config_draw_path=True)
 
@@ -55,8 +48,12 @@ _queue_version: int = 0
 _current_bounty_index: int = 0
 _bounty_header_names: list[str] = []
 _current_section_header: tuple = ("", 0.0, 0.0)  # (header_name, first_x, first_y)
+_restock_conset: bool = True
+_restock_pcons: bool = True
+_restock_res_scroll: bool = True
 _loop_queue: bool = False
 _loop_count: int = 0
+_prev_build_settings: tuple = (True, True, True, True, False)  # (conset, pcons, honeycomb, res_scroll, loop)
 # endregion
 
 # =============================================================================
@@ -107,6 +104,7 @@ def _handle_keyword(bot, key, value):
         bot.Move.XYAndInteractNPC(*value)
         bot.Multibox.SendDialogToTarget(0x84) # EOTN Blessing
         bot.Multibox.SendDialogToTarget(0x85) # NF Blessing
+        bot.Multibox.SendDialogToTarget(0x86) # Factions Blessing
     elif key == "gadget":
         bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Interacting with Gadget.")
         bot.Move.XY(*value)
@@ -126,6 +124,24 @@ def _handle_keyword(bot, key, value):
         bot.Wait.ForTime(value)
     elif key == "map":
         bot.Wait.ForMapToChange(value)
+    elif key == "dropbundle":
+        bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Dropping bundle.")
+        bot.UI.Keybinds.DropBundle()
+    elif key == "interacttarget":
+        bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Interacting with target {value}.")
+        Player.ChangeTarget(value)
+        bot.Wait.ForTime(500)
+        bot.Multibox.InteractWithTarget()
+        bot.Wait.ForTime(5000)
+    elif key == "followmodel":
+        model_id, follow_range, time_ms = value
+        _start = [None]
+        def _timeout(t=time_ms):
+            if _start[0] is None:
+                _start[0] = time.time()
+            return (time.time() - _start[0]) * 1000 >= t
+        bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Following model {model_id} for {time_ms}ms.")
+        bot.Move.FollowModel(model_id, follow_range, _timeout)
     elif key == "path":
         bot.Move.FollowAutoPath(value)
 
@@ -156,6 +172,8 @@ def _set_section_header(header_name, first_x, first_y):
     global _current_section_header
     _current_section_header = (header_name, first_x, first_y)
     yield
+
+
 # endregion
 
 # =============================================================================
@@ -163,6 +181,8 @@ def _set_section_header(header_name, first_x, first_y):
 # =============================================================================
 def bot_routine(bot: Botting) -> None:
     global _current_bounty_index, _bounty_header_names
+
+    bot.config.counters.clear_all()
 
     if not _queued_bounties:
         ConsoleLog(BotSettings.BOT_NAME, "No bounties queued!", Py4GW.Console.MessageType.Error)
@@ -209,6 +229,10 @@ def bot_routine(bot: Botting) -> None:
     # Pre-calculate the first bounty header name for looping.
     first_bounty_header = _bounty_header_names[0]
 
+    # -------------------------------------------------------------------------
+    # Build FSM states for each bounty
+    # -------------------------------------------------------------------------
+
     for b_idx, bounty in enumerate(_queued_bounties):
         is_last = (b_idx == len(_queued_bounties) - 1)
 
@@ -226,11 +250,13 @@ def bot_routine(bot: Botting) -> None:
         # -- Prepare for farm --
         bot.Templates.Routines.PrepareForFarm(map_id_to_travel=bounty.outpost_id)
         bot.Party.SetHardMode(True)
-        bot.Items.Restock.ArmorOfSalvation()
-        bot.Items.Restock.EssenceOfCelerity()
-        bot.Items.Restock.GrailOfMight()
-        bot.Items.Restock.WarSupplies()
         bot.Items.Restock.Honeycomb()
+        if _restock_conset:
+            bot.Multibox.RestockConset(10)
+        if _restock_pcons:
+            bot.Multibox.RestockAllPcons(10)
+        if _restock_res_scroll:
+            bot.Multibox.RestockResurrectionScroll(25)
 
         # -- Travel to explorable --
         has_outpost_path = bool(bounty.outpost_path)
@@ -245,6 +271,12 @@ def bot_routine(bot: Botting) -> None:
                     t_coord = _get_first_path_coord(bounty.transit_paths[i])
                     bot.States.AddCustomState(lambda bi=b_idx, ti=i, tc=t_coord: _set_section_header(_section_headers[bi][ti], tc[0], tc[1]),
                                               f"SetSection_Transit_{b_idx}_{i}")
+                    if _restock_conset:
+                        bot.States.AddManagedCoroutine("ConsetUpkeep",
+                            lambda: _conset_upkeep(bot))
+                    if _restock_pcons:
+                        bot.States.AddManagedCoroutine("PconsUpkeep",
+                            lambda: _pcons_upkeep(bot))
                     _register_path(bot, bounty.transit_paths[i], header_name=f"Transit_{b_idx}_{i}")
                     bot.Wait.ForMapToChange(next_map)
             else:
@@ -266,15 +298,23 @@ def bot_routine(bot: Botting) -> None:
                 _register_path(bot, bounty.outpost_path)
 
         # -- Bounty Path --
+        bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Starting Bounty: {bounty.display}")
         bp_coord = _get_first_path_coord(bounty.bounty_path)
         bot.States.AddCustomState(lambda bi=b_idx, bc=bp_coord: _set_section_header(_section_headers[bi][-1], bc[0], bc[1]),
                                   f"SetSection_BountyPath_{b_idx}")
+        if _restock_conset:
+            bot.States.AddManagedCoroutine("ConsetUpkeep",
+                lambda: _conset_upkeep(bot))
+        if _restock_pcons:
+            bot.States.AddManagedCoroutine("PconsUpkeep",
+                lambda: _pcons_upkeep(bot))
         _register_path(bot, bounty.bounty_path, header_name=f"BountyPath_{b_idx}")
-        bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Starting Bounty: {bounty.display}")
         bot.Wait.UntilOutOfCombat()
 
         # -- Bounty Completed --
         bot.States.AddHeader(f"Bounty Completed_{b_idx}")
+        bot.States.RemoveManagedCoroutine("ConsetUpkeep")
+        bot.States.RemoveManagedCoroutine("PconsUpkeep")
         if is_last:
             bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Bounty SUCCESS: {bounty.display}.")
             bot.States.AddCustomState(lambda: _check_loop_or_stop(bot),
@@ -326,6 +366,45 @@ def _do_loop_jump(bot: "Botting", first_bounty_header: str):
 # =============================================================================
 # region EVENTS
 # =============================================================================
+def _conset_upkeep(bot):
+    """Background coroutine: applies conset immediately, then re-checks every 30s."""
+    while True:
+        if not _restock_conset or Map.IsOutpost():
+            yield from Routines.Yield.wait(30000)
+            continue
+        essence_params = (ModelID.Essence_Of_Celerity.value,
+                          GLOBAL_CACHE.Skill.GetID("Essence_of_Celerity_item_effect"), 0, 0)
+        grail_params = (ModelID.Grail_Of_Might.value,
+                        GLOBAL_CACHE.Skill.GetID("Grail_of_Might_item_effect"), 0, 0)
+        armor_params = (ModelID.Armor_Of_Salvation.value,
+                        GLOBAL_CACHE.Skill.GetID("Armor_of_Salvation_item_effect"), 0, 0)
+        for params in (essence_params, grail_params, armor_params):
+            yield from bot.helpers.Multibox._use_consumable_message(params)
+        yield from Routines.Yield.wait(30000)
+
+
+def _pcons_upkeep(bot):
+    """Background coroutine: applies pcons immediately, then re-checks every 30s."""
+    while True:
+        if not _restock_pcons or Map.IsOutpost():
+            yield from Routines.Yield.wait(30000)
+            continue
+        pcon_params = [
+            (ModelID.Birthday_Cupcake.value, GLOBAL_CACHE.Skill.GetID("Birthday_Cupcake_skill"), 0, 0),
+            (ModelID.Golden_Egg.value, GLOBAL_CACHE.Skill.GetID("Golden_Egg_skill"), 0, 0),
+            (ModelID.Candy_Corn.value, GLOBAL_CACHE.Skill.GetID("Candy_Corn_skill"), 0, 0),
+            (ModelID.Candy_Apple.value, GLOBAL_CACHE.Skill.GetID("Candy_Apple_skill"), 0, 0),
+            (ModelID.Slice_Of_Pumpkin_Pie.value, GLOBAL_CACHE.Skill.GetID("Pie_Induced_Ecstasy"), 0, 0),
+            (ModelID.Drake_Kabob.value, GLOBAL_CACHE.Skill.GetID("Drake_Skin"), 0, 0),
+            (ModelID.Bowl_Of_Skalefin_Soup.value, GLOBAL_CACHE.Skill.GetID("Skale_Vigor"), 0, 0),
+            (ModelID.Pahnai_Salad.value, GLOBAL_CACHE.Skill.GetID("Pahnai_Salad_item_effect"), 0, 0),
+            (ModelID.War_Supplies.value, GLOBAL_CACHE.Skill.GetID("Well_Supplied"), 0, 0),
+        ]
+        for params in pcon_params:
+            yield from bot.helpers.Multibox._use_consumable_message(params)
+        yield from Routines.Yield.wait(30000)
+
+
 def _on_party_wipe(bot: "Botting"):
     from Py4GWCoreLib.Pathing import AutoPathing
 
@@ -364,6 +443,14 @@ def _on_party_wipe(bot: "Botting"):
             custom_pause_fn=bot.config.pause_on_danger_fn,
         )
 
+    # Re-register managed coroutines if needed
+    if _restock_conset:
+        bot.config.FSM.AddManagedCoroutine("ConsetUpkeep",
+            lambda: _conset_upkeep(bot))
+    if _restock_pcons:
+        bot.config.FSM.AddManagedCoroutine("PconsUpkeep",
+            lambda: _pcons_upkeep(bot))
+
     # Jump to the current section header to re-execute the section path
     ConsoleLog("on_party_wipe",
                f"Jumping to section: {section_header}")
@@ -373,7 +460,10 @@ def _on_party_wipe(bot: "Botting"):
 def OnPartyWipe(bot: "Botting"):
     ConsoleLog("on_party_wipe", "event triggered")
     fsm = bot.config.FSM
-    fsm.pause()
+    if not fsm.is_paused():
+        fsm.pause()
+    fsm.RemoveManagedCoroutine("ConsetUpkeep")
+    fsm.RemoveManagedCoroutine("PconsUpkeep")
     fsm.AddManagedCoroutine("OnWipe_OPD", lambda: _on_party_wipe(bot))
 # endregion
 
@@ -496,6 +586,8 @@ def _draw_settings():
         bot.config.FSM = FSM(BotSettings.BOT_NAME)
         bot.config.counters.clear_all()
         bot.config.initialized = False
+        bot.UI._FSM_FILTER_START = 0
+        bot.UI._FSM_FILTER_END = 0
         _prev_queue_version = _queue_version
 
     PyImGui.separator()
@@ -510,31 +602,35 @@ def _draw_settings():
     #_draw_settings_debug()
 
 def _draw_settings_consumables():
-    global _loop_queue
+    global _loop_queue, _restock_pcons, _restock_res_scroll
+    global _queue_version, _prev_build_settings
 
     PyImGui.separator()
     PyImGui.text("Consumables Selection")
     PyImGui.separator()
 
-    use_conset = bot.Properties.Get("armor_of_salvation", "active")
-    use_conset = PyImGui.checkbox("Restock & use Conset", use_conset)
-    bot.Properties.ApplyNow("armor_of_salvation", "active", use_conset)
-    bot.Properties.ApplyNow("essence_of_celerity", "active", use_conset)
-    bot.Properties.ApplyNow("grail_of_might", "active", use_conset)
+    global _restock_conset
+    _restock_conset = PyImGui.checkbox("Restock & use Conset (Multibox)", _restock_conset)
 
-    use_war_supplies = bot.Properties.Get("war_supplies", "active")
-    use_war_supplies = PyImGui.checkbox("Restock & use War Supplies", use_war_supplies)
-    bot.Properties.ApplyNow("war_supplies", "active", use_war_supplies)
+    _restock_pcons = PyImGui.checkbox("Restock & use Pcons (Multibox)", _restock_pcons)
 
     use_honeycomb = bot.Properties.Get("honeycomb", "active")
     use_honeycomb = PyImGui.checkbox("Restock & use Honeycomb", use_honeycomb)
     bot.Properties.ApplyNow("honeycomb", "active", use_honeycomb)
+
+    _restock_res_scroll = PyImGui.checkbox("Restock Resurrection Scroll (Multibox)", _restock_res_scroll)
 
     PyImGui.separator()
     _loop_queue = PyImGui.checkbox("Loop Queue", _loop_queue)
     if _loop_queue and _loop_count > 0:
         PyImGui.same_line(0, 10)
         PyImGui.text(f"(loop #{_loop_count})")
+
+    # Rebuild FSM if any build-time setting changed
+    current_build_settings = (_restock_conset, _restock_pcons, use_honeycomb, _restock_res_scroll, _loop_queue)
+    if current_build_settings != _prev_build_settings:
+        _prev_build_settings = current_build_settings
+        _queue_version += 1
 
 def _draw_settings_debug():
     PyImGui.separator()
@@ -565,6 +661,9 @@ bot.UI.override_draw_config(lambda: _draw_settings())
 bot.UI.override_draw_help(lambda: _draw_help())
 
 def main():
+    if Map.IsMapLoading():
+        return
+    
     bot.UI.draw_window(icon_path=TEXTURE)
 
     if _queued_bounties:

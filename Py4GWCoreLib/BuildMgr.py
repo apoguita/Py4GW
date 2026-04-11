@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Generator
+from copy import deepcopy
 import importlib
 import inspect
 import math
@@ -16,6 +17,7 @@ if TYPE_CHECKING:
 BuildCoroutine = Generator[None, None, Any]
 BuildHandler = Callable[[], Any]
 TargetPredicate = Callable[[int], bool]
+CustomSkillMutator = Callable[["CustomSkill"], None]
 
 #region BuildMgr
 class BuildMgr:
@@ -60,6 +62,7 @@ class BuildMgr:
         self._local_ooc_handler: BuildHandler | None = None
         self._local_combat_handler: BuildHandler | None = None
         self._custom_skill_data_handler: CustomSkillClass | None = None
+        self._cached_data: Any = None
 
         self.minimum_required_match = len(self.required_skills)
         self.tick_state = None
@@ -79,10 +82,15 @@ class BuildMgr:
         """
         Optional hook for builds that need external cached runtime state.
 
-        The base implementation is intentionally a no-op so registry callers can
-        safely update compatible builds without special-casing every subclass.
+        The base implementation stores the shared runtime cache so concrete
+        builds can access HeroAI-backed helpers without reimplementing the hook.
         """
-        return
+        self._cached_data = cached_data
+
+    def GetEffectAndBuffIds(self, agent_id: int) -> list[int]:
+        from HeroAI.utils import GetEffectAndBuffIds
+
+        return GetEffectAndBuffIds(agent_id, cached_data=self._cached_data)
         
     def ValidatePrimary(self, profession: Profession) -> bool:
         return self.required_primary == profession
@@ -317,6 +325,122 @@ class BuildMgr:
 
         return 0
 
+    def ResolvePreferredAllyTarget(
+        self,
+        skill_id: int,
+        custom_skill: CustomSkill | None = None,
+        *,
+        variants: list[CustomSkillMutator | None] | None = None,
+        validator: TargetPredicate | None = None,
+    ) -> int:
+        if custom_skill is None:
+            custom_skill = self.GetCustomSkill(skill_id)
+        if custom_skill is None:
+            return 0
+
+        candidate_variants = list(variants or [])
+        if not candidate_variants:
+            candidate_variants = [None]
+
+        for variant in candidate_variants:
+            variant_skill = custom_skill if variant is None else deepcopy(custom_skill)
+            if variant is not None:
+                variant(variant_skill)
+
+            target_agent_id = self.ResolveAllyTarget(skill_id, variant_skill)
+            if not target_agent_id:
+                continue
+            if validator is not None and not validator(target_agent_id):
+                continue
+            return target_agent_id
+
+        return 0
+
+    def ResolvePreferredPartySpikeAllyTarget(
+        self,
+        skill_id: int,
+        custom_skill: CustomSkill | None = None,
+        *,
+        variants: list[CustomSkillMutator | None] | None = None,
+        validator: TargetPredicate | None = None,
+        drop_threshold: float = 0.10,
+        sample_interval_ms: int = 150,
+        window_ms: int | None = None,
+        force_sample: bool = False,
+    ) -> int:
+        from Py4GWCoreLib import Routines
+
+        self.UpdatePartyHealthMonitor(
+            sample_interval_ms=sample_interval_ms,
+            window_ms=window_ms,
+            force=force_sample,
+        )
+
+        def spike_validator(agent_id: int) -> bool:
+            if not agent_id or not Routines.Checks.Agents.IsAlive(agent_id):
+                return False
+            if self.GetPartyHealthDelta(agent_id) < drop_threshold:
+                return False
+            if validator is not None and not validator(agent_id):
+                return False
+            return True
+
+        return self.ResolvePreferredAllyTarget(
+            skill_id,
+            custom_skill,
+            variants=variants,
+            validator=spike_validator,
+        )
+
+    def ResolveRankedPartyAllyTarget(
+        self,
+        skill_id: int,
+        custom_skill: CustomSkill | None = None,
+        *,
+        validator: TargetPredicate | None = None,
+        rank_key: Callable[[int], Any] | None = None,
+        sample_interval_ms: int = 150,
+        window_ms: int | None = None,
+        force_sample: bool = False,
+    ) -> int:
+        from Py4GWCoreLib import Range, Routines
+
+        if custom_skill is None:
+            custom_skill = self.GetCustomSkill(skill_id)
+        if custom_skill is None:
+            return 0
+
+        self.UpdatePartyHealthMonitor(
+            sample_interval_ms=sample_interval_ms,
+            window_ms=window_ms,
+            force=force_sample,
+        )
+
+        predicate = self._build_custom_skill_target_predicate(custom_skill=custom_skill)
+        ally_array = list(Routines.Targeting.GetAllAlliesArray(Range.Spellcast.value) or [])
+        candidates: list[int] = []
+
+        for agent_id in ally_array:
+            if not Routines.Checks.Agents.IsAlive(agent_id):
+                continue
+            if predicate is not None and not predicate(agent_id):
+                continue
+            if validator is not None and not validator(agent_id):
+                continue
+            candidates.append(agent_id)
+
+        if not candidates:
+            return 0
+
+        if rank_key is None:
+            rank_key = lambda agent_id: (
+                Routines.Checks.Agents.GetHealth(agent_id),
+                -self.GetPartyHealthDelta(agent_id),
+            )
+
+        candidates.sort(key=rank_key)
+        return candidates[0]
+
     def _build_custom_skill_target_predicate(
         self,
         base_predicate: TargetPredicate | None = None,
@@ -337,6 +461,8 @@ class BuildMgr:
             checks.append(lambda agent_id: Routines.Checks.Agents.IsHexed(agent_id))
         if conditions.HasEnchantment:
             checks.append(lambda agent_id: Routines.Checks.Agents.IsEnchanted(agent_id))
+        if conditions.HasWeaponSpell:
+            checks.append(lambda agent_id: Routines.Checks.Agents.IsWeaponSpelled(agent_id))
         if conditions.HasCondition:
             checks.append(lambda agent_id: Routines.Checks.Agents.IsConditioned(agent_id))
         if conditions.IsAttacking:

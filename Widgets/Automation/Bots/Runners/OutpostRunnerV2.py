@@ -288,6 +288,8 @@ def _draw_settings():
         bot.config.FSM = FSM(BotSettings.BOT_NAME)
         bot.config.counters.clear_all()
         bot.config.initialized = False
+        bot.UI._FSM_FILTER_START = 0
+        bot.UI._FSM_FILTER_END = 0
         _prev_queue_version = _queue_version
 
     _draw_settings_consumables()
@@ -359,6 +361,9 @@ bot.UI.override_draw_config(lambda: _draw_settings())
 bot.UI.override_draw_help(lambda: _draw_help())
 
 def main():
+    if not Routines.Checks.Map.MapValid() or not Player.IsPlayerLoaded():
+        return
+    
     bot.UI.draw_window(icon_path=TEXTURE)
 
     if _queued_runs:

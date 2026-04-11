@@ -76,6 +76,7 @@ class BTUpkeepers:
         exclude_list: list[int] | None = None,
         log: bool = False,
         spawn_settle_ms: int = 250,
+        move_to_slot: bool = True,
     ) -> BehaviorTree:
         """
         Build a tree that spawns bonus items, prunes extras, and stores the imp stone in a target bag slot.
@@ -96,19 +97,24 @@ class BTUpkeepers:
         if imp_model_id not in effective_exclude_list:
             effective_exclude_list.append(imp_model_id)
 
-        return BTComposite.Sequence(
+        children: list[BehaviorTree | BehaviorTree.Node] = [
             BTItems.SpawnBonusItems(log=log, aftercast_ms=spawn_settle_ms),
             BTItems.DestroyBonusItems(exclude_list=effective_exclude_list, log=log, aftercast_ms=35),
-            BTItems.MoveModelToBagSlot(
-                modelID_or_encStr=imp_model_id,
-                target_bag=target_bag,
-                slot=slot,
-                log=log,
-                required=True,
-                aftercast_ms=spawn_settle_ms,
-            ),
-            name="SpawnImp",
-        )
+        ]
+
+        if move_to_slot:
+            children.append(
+                BTItems.MoveModelToBagSlot(
+                    modelID_or_encStr=imp_model_id,
+                    target_bag=target_bag,
+                    slot=slot,
+                    log=log,
+                    required=True,
+                    aftercast_ms=spawn_settle_ms,
+                )
+            )
+
+        return BTComposite.Sequence(*children, name="SpawnImp")
 
     @staticmethod
     def OutpostImpService(
@@ -139,6 +145,9 @@ class BTUpkeepers:
         effective_exclude_list = list(exclude_list or [
             imp_model_id,
         ])
+
+        def _get_imp_item_id() -> int:
+            return int(GLOBAL_CACHE.Inventory.GetFirstModelID(imp_model_id) or 0)
         
 
         def _reset_cache_data():
@@ -207,7 +216,7 @@ class BTUpkeepers:
                 return BehaviorTree.NodeState.RUNNING
 
             if state["spawn_tree"] is None:
-                if GLOBAL_CACHE.Inventory.GetFirstModelID(imp_model_id) != 0:
+                if _get_imp_item_id() != 0:
                     state["map_processed"] = True
                     if log:
                         ConsoleLog(
@@ -223,6 +232,7 @@ class BTUpkeepers:
                     slot=slot,
                     exclude_list=effective_exclude_list,
                     log=log,
+                    move_to_slot=False,
                 )
 
             state["spawn_tree"].blackboard = node.blackboard
@@ -288,6 +298,9 @@ class BTUpkeepers:
             1726,  # Fire Imp variant
         }
 
+        def _get_imp_item_id() -> int:
+            return int(GLOBAL_CACHE.Inventory.GetFirstModelID(imp_model_id) or 0)
+
         def _has_alive_imp() -> bool:
             """
             Check whether a summoned imp is already alive in the party.
@@ -329,7 +342,8 @@ class BTUpkeepers:
             if Player.GetLevel() >= 20:
                 return BehaviorTree.NodeState.RUNNING
 
-            if GLOBAL_CACHE.Inventory.GetFirstModelID(imp_model_id) == 0:
+            item_id = _get_imp_item_id()
+            if item_id == 0:
                 return BehaviorTree.NodeState.RUNNING
 
             if GLOBAL_CACHE.Effects.HasEffect(Player.GetAgentID(), summoning_sickness_effect_id):
@@ -342,10 +356,6 @@ class BTUpkeepers:
             now = Utils.GetBaseTimestamp()
 
             if now - int(state["last_attempt_ms"]) < check_interval_ms:
-                return BehaviorTree.NodeState.RUNNING
-
-            item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(imp_model_id)
-            if item_id == 0:
                 return BehaviorTree.NodeState.RUNNING
 
             GLOBAL_CACHE.Inventory.UseItem(item_id)

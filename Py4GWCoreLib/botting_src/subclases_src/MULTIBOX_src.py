@@ -178,6 +178,9 @@ class _MULTIBOX:
     def KickAccount(self, account_email: str):
         self._helpers.Multibox.kick_account_by_email(account_email)
 
+    def SetAccountIsolation(self, isolated: bool, account_email: str = ""):
+        self._helpers.Multibox.set_account_isolation(isolated, account_email)
+
     def LeavePartyOnAllAccounts(self):
         self._helpers.Multibox.leave_party_on_all_accounts()
 
@@ -203,5 +206,27 @@ class _MULTIBOX:
             })
         """
         self._helpers.Multibox.equip_item_on_all_accounts(char_name_to_model_id)
+
+    def LoadSkillTemplateOnAccount(self, char_name: str, template: str):
+        """Send a skill template to the account with the given character name.
+
+        Example:
+            bot.Multibox.LoadSkillTemplateOnAccount("Warrior Dude", "OgcAQ3lTQ0kAAAAAAAAAAA")
+        """
+        self._helpers.Multibox.load_skill_template_on_account(char_name, template)
+
+    def LoadSkillTemplateOnAllAccounts(self, char_name_to_template: dict):
+        """Load skill templates on each account using a per-character template mapping.
+
+        Pass a dict of {character_name: template_code} pairs.
+
+        Example:
+            bot.Multibox.LoadSkillTemplateOnAllAccounts({
+                "Warrior Dude": "OgcAQ3lTQ0kAAAAAAAAAAA",
+                "Necro Gal":    "OQdAQ3lTQ0kAAAAAAAAAAA",
+                "Ranger Guy":   "OwcAQ3lTQ0kAAAAAAAAAAA",
+            })
+        """
+        self._helpers.Multibox.load_skill_template_on_all_accounts(char_name_to_template)
 
 #endregion

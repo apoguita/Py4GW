@@ -494,6 +494,38 @@ class BTItems:
         )
 
     @staticmethod
+    def CustomizeWeapon(
+        frame_label: str = "Merchant.CustomizeWeaponButton",
+        aftercast_ms: int = 500,
+    ) -> BehaviorTree:
+        """
+        Build a tree that clicks the merchant customize-weapon button by UI alias.
+
+        Meta:
+          Expose: true
+          Audience: intermediate
+          Display: Customize Weapon
+          Purpose: Click the customize-weapon button when the merchant window is open.
+          UserDescription: Use this when you want to trigger weapon customization from an open merchant or crafter window.
+          Notes: Resolves the target frame through `frame_aliases.json` using the provided label.
+        """
+        def _click_customize_weapon() -> BehaviorTree.NodeState:
+            frame_id = UIManager.GetFrameIDByCustomLabel(frame_label=frame_label)
+            if frame_id == 0 or not UIManager.FrameExists(frame_id):
+                return BehaviorTree.NodeState.FAILURE
+
+            UIManager.FrameClick(frame_id)
+            return BehaviorTree.NodeState.SUCCESS
+
+        return BehaviorTree(
+            BehaviorTree.ActionNode(
+                name=f"CustomizeWeapon({frame_label})",
+                action_fn=_click_customize_weapon,
+                aftercast_ms=aftercast_ms,
+            )
+        )
+
+    @staticmethod
     def DestroyItems(
         model_ids: list[int],
         log: bool = False,
@@ -965,7 +997,7 @@ class BTItems:
                 return BehaviorTree.NodeState.SUCCESS
 
             merchant_queue = ActionQueueManager()
-            merchant_queue.ResetQueue("MERCHANT")
+            merchant_queue.ResetQueue("ACTION")
 
             queued_count = 0
             for item_id in item_ids:
@@ -977,7 +1009,7 @@ class BTItems:
                     continue
 
                 merchant_queue.AddAction(
-                    "MERCHANT",
+                    "ACTION",
                     GLOBAL_CACHE.Trading._merchant_instance.merchant_sell_item,
                     item_id,
                     cost,
@@ -993,7 +1025,7 @@ class BTItems:
             if queued_count <= 0:
                 return BehaviorTree.NodeState.SUCCESS
 
-            if not ActionQueueManager().IsEmpty("MERCHANT"):
+            if not ActionQueueManager().IsEmpty("ACTION"):
                 return BehaviorTree.NodeState.RUNNING
 
             if log:
@@ -1086,4 +1118,3 @@ class BTItems:
                 ],
             )
         )
-
