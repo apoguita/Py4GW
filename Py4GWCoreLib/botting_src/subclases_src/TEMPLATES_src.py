@@ -22,7 +22,8 @@ class _TEMPLATES:
         properties.Enable("halt_on_death") 
         properties.Set("movement_timeout",value=15000)
         properties.Disable("auto_combat") #avoid combat
-        properties.Disable("hero_ai") #no hero combat     
+        properties.Disable("hero_ai") #no hero combat
+        self.parent.Multibox.SetAccountIsolation(True) #single-account passive mode
         properties.Disable("auto_loot") #no waiting for loot
         properties.Disable("imp")
         
@@ -47,11 +48,12 @@ class _TEMPLATES:
             properties.Disable("halt_on_death")
 
         properties.Set("movement_timeout", value=movement_timeout)
+        properties.Disable("auto_combat") #deprecated here; HeroAI handles combat now
+        properties.Enable("hero_ai") #combat is always driven by HeroAI
         if auto_combat:
-            properties.Enable("auto_combat") #engage in combat
-            properties.Disable("hero_ai") #hero combat 
+            self.parent.Multibox.SetAccountIsolation(True) #single-account HeroAI
         else:
-            properties.Disable("auto_combat") #avoid combat
+            self.parent.Multibox.SetAccountIsolation(False) #multi-account HeroAI
          
         if auto_loot:   
             properties.Enable("auto_loot") #wait for loot
@@ -72,7 +74,8 @@ class _TEMPLATES:
         properties.Disable("halt_on_death") 
         properties.Set("movement_timeout",value=-1)
         properties.Disable("auto_combat") #engage in combat
-        properties.Enable("hero_ai") #hero combat     
+        properties.Enable("hero_ai") #hero combat
+        self.parent.Multibox.SetAccountIsolation(False) #multibox mode must stay shared
         properties.Enable("auto_loot") #wait for loot
         properties.Enable("auto_inventory_management") #manage inventory
         

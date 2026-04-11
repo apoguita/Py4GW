@@ -143,6 +143,17 @@ class _Multibox:
         player_email = Player.GetAccountEmail()
         return self._get_account_data_from_email(player_email)
 
+    def _set_account_isolation(self, isolated: bool, account_email: str = ""):
+        from ...GlobalCache import GLOBAL_CACHE
+
+        target_email = str(account_email or Player.GetAccountEmail() or "").strip()
+        if not target_email:
+            ConsoleLog("Messaging", "SetAccountIsolation failed: no account email available.", Console.MessageType.Warning, log=True)
+            return
+
+        GLOBAL_CACHE.ShMem.SetAccountIsolationByEmail(target_email, bool(isolated))
+        yield
+
     def _summon_all_accounts(self):
         from ...GlobalCache import GLOBAL_CACHE
         from ...Routines import Routines
@@ -569,6 +580,10 @@ class _Multibox:
     @_yield_step(label="KickAccountByEmail", counter_key="KICK_ACCOUNT_BY_EMAIL")
     def kick_account_by_email(self, email: str):
         yield from self._kick_account_by_email(email)
+
+    @_yield_step(label="SetAccountIsolation", counter_key="SET_ACCOUNT_ISOLATION")
+    def set_account_isolation(self, isolated: bool, account_email: str = ""):
+        yield from self._set_account_isolation(isolated, account_email)
 
     def _restock_all_pcons_message(self, quantity: int):
         from ...GlobalCache import GLOBAL_CACHE

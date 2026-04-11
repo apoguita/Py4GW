@@ -41,6 +41,11 @@ class IniHandler:
         """
         with open(self.filename, 'w') as configfile:
             config.write(configfile)
+        self.config = config
+        try:
+            self.last_modified = os.path.getmtime(self.filename)
+        except OSError:
+            pass
 
     # ----------------------------
     # Read Methods

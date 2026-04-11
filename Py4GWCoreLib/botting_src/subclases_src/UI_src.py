@@ -491,6 +491,7 @@ class _UI:
 
             debug_text("log_actions", "active")
             debug_text("halt_on_death", "active")
+            debug_text("stop_on_party_wipe", "active")
             debug_text("pause_on_danger", "active")
             PyImGui.text("InDanger(PauseOnDangerFn eval):")
             PyImGui.same_line(0,-1)

@@ -7,6 +7,7 @@ from .native_src.internals.string_table import decode as decode_raw
 
 class Agent:
     ILLUSIONARY_WEAPONRY_ID = 0
+    DEAD_HEALTH_EPSILON = 0.001
 
     @staticmethod
     def _enc_name_bytes_to_wstr(enc_bytes: list[int]) -> str:
@@ -1017,7 +1018,7 @@ class Agent:
         is_dead = living.is_dead
         dead_by_type_map = living.is_dead_by_type_map
         health = living.hp
-        return is_dead or dead_by_type_map or health < 0.01
+        return is_dead or dead_by_type_map or health <= Agent.DEAD_HEALTH_EPSILON
 
     @staticmethod
     def IsAlive(agent_id: int) -> bool:
@@ -1025,7 +1026,7 @@ class Agent:
         if living is None:
             return False
         health = living.hp
-        return not Agent.IsDead(agent_id) and health >= 0.01
+        return not Agent.IsDead(agent_id) and health > Agent.DEAD_HEALTH_EPSILON
 
     @staticmethod
     def IsWeaponSpelled(agent_id: int) -> bool:

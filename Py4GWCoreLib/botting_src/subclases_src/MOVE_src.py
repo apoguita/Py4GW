@@ -115,6 +115,7 @@ class _MOVE:
             custom_exit_condition=exit_condition,
             log=log_actions,
             custom_pause_fn=pause_condition,
+            stop_on_party_wipe=self._config.config_properties.stop_on_party_wipe.is_active(),
             timeout=f_timeout,
             tolerance=self._config.config_properties.movement_tolerance.get("value"),
             map_transition_exit_success=True,

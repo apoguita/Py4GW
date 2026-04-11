@@ -227,7 +227,6 @@ def bot_routine(bot: Botting) -> None:
     ConfigureAggressiveEnv(bot)
     bot.States.AddHeader("Start Combat")
     bot.States.AddCustomState(lambda: _use_consumables_if_enabled(bot), "Use Consumables If Enabled")
-    bot.States.AddManagedCoroutine("Upkeep Consumables", lambda: _upkeep_consumables(bot))
 
     # Initial path to first blessing
     bot.Move.XY(-2484.73, 118.55, "Start")
@@ -403,7 +402,11 @@ def bot_routine(bot: Botting) -> None:
     # bot.Wait.UntilOutOfCombat()
     # bot.Move.XY(7857, 10409, "Aggro: Modniir and Elemental 2")
     # bot.Wait.UntilOutOfCombat()
-    bot.Map.Travel(target_map_id=OLAFSTEAD)
+    if _party_mode == 1:
+        bot.Multibox.ResignParty()
+        bot.Wait.UntilOnOutpost()
+    else:
+        bot.Map.Travel(target_map_id=OLAFSTEAD)
     bot.States.JumpToStepName(ZONING_STEP_NAME)
 
 
@@ -416,6 +419,12 @@ bot.SetMainRoutine(bot_routine)
 # region Consumables
 def _restock_consumables_if_enabled(bot: Botting):
     _sync_consumable_toggles(bot)
+    if _party_mode == 1:
+        if _as_bool(bot.Properties.Get("use_conset", "active")):
+            yield from bot.helpers.Multibox._restock_conset_message(250)
+        if _as_bool(bot.Properties.Get("use_pcons", "active")):
+            yield from bot.helpers.Multibox._restock_all_pcons_message(250)
+        return
     if _as_bool(bot.Properties.Get("use_conset", "active")):
         yield from _restock_models_locally(CONSET_RESTOCK_MODELS, 250)
     if _as_bool(bot.Properties.Get("use_pcons", "active")):
@@ -424,6 +433,9 @@ def _restock_consumables_if_enabled(bot: Botting):
 
 def _use_consumables_if_enabled(bot: Botting):
     _sync_consumable_toggles(bot)
+    if _party_mode == 1:
+        yield from _use_multibox_consumables(bot)
+        return
     if _as_bool(bot.Properties.Get("use_conset", "active")):
         yield from bot.helpers.Items.use_conset()
     if _as_bool(bot.Properties.Get("use_pcons", "active")):
@@ -433,26 +445,31 @@ def _use_consumables_if_enabled(bot: Botting):
 def _restock_models_locally(model_ids: list[int], quantity: int):
     for model_id in model_ids:
         yield from Routines.Yield.Items.RestockItems(model_id, quantity)
-# endregion
 
 
-# region Upkeep
-def _upkeep_consumables(bot: "Botting"):
-    while True:
-        yield from bot.Wait._coro_for_time(15000)
-        if not Routines.Checks.Map.MapValid() or Routines.Checks.Map.IsOutpost():
-            continue
-        if _as_bool(bot.Properties.Get("use_conset", "active")):
-            yield from bot.helpers.Items.use_conset()
-        if _as_bool(bot.Properties.Get("use_pcons", "active")):
-            yield from bot.helpers.Items.use_pcons()
-            for _ in range(4):
-                honeycomb_item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(ModelID.Honeycomb.value)
-                if not honeycomb_item_id:
-                    break
-                GLOBAL_CACHE.Inventory.UseItem(honeycomb_item_id)
-                yield from bot.Wait._coro_for_time(250)
-
+def _use_multibox_consumables(bot: Botting):
+    if _as_bool(bot.Properties.Get("use_conset", "active")):
+        for model_id, effect_name in CONSET_ITEMS:
+            yield from bot.helpers.Multibox._use_consumable_message((
+                model_id,
+                GLOBAL_CACHE.Skill.GetID(effect_name),
+                0,
+                0,
+            ))
+    if _as_bool(bot.Properties.Get("use_pcons", "active")):
+        for model_id, effect_name in PCON_ITEMS:
+            yield from bot.helpers.Multibox._use_consumable_message((
+                model_id,
+                GLOBAL_CACHE.Skill.GetID(effect_name),
+                0,
+                0,
+            ))
+        yield from bot.helpers.Multibox._use_consumable_message((
+            ModelID.Honeycomb.value,
+            0,
+            0,
+            0,
+        ))
 # endregion
 
 

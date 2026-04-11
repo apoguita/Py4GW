@@ -230,28 +230,34 @@ class Checks:
             if not Checks.Party.IsPartyLoaded():
                 return False
 
-            all_dead = True
             players = GLOBAL_CACHE.Party.GetPlayers()
             henchmen = GLOBAL_CACHE.Party.GetHenchmen()
             heroes = GLOBAL_CACHE.Party.GetHeroes()
+            found_valid_member = False
 
             for player in players:
                 agent_id = GLOBAL_CACHE.Party.Players.GetAgentIDByLoginNumber(player.login_number)
-                if Agent.IsValid(agent_id) and not Agent.IsDead(agent_id):
-                    all_dead = False
-                    break
+                if not Agent.IsValid(agent_id):
+                    continue
+                found_valid_member = True
+                if not Agent.IsDead(agent_id):
+                    return False
 
             for henchman in henchmen:
-                if Agent.IsValid(henchman.agent_id) and not Agent.IsDead(henchman.agent_id):
-                    all_dead = False
-                    break
+                if not Agent.IsValid(henchman.agent_id):
+                    continue
+                found_valid_member = True
+                if not Agent.IsDead(henchman.agent_id):
+                    return False
 
             for hero in heroes:
-                if Agent.IsValid(hero.agent_id) and not Agent.IsDead(hero.agent_id):
-                    all_dead = False
-                    break
+                if not Agent.IsValid(hero.agent_id):
+                    continue
+                found_valid_member = True
+                if not Agent.IsDead(hero.agent_id):
+                    return False
 
-            return all_dead
+            return found_valid_member
         
         @staticmethod
         def IsPartyLoaded():
@@ -503,9 +509,9 @@ class Checks:
                 return bool(
                     shared_agent_data.Is_Dead
                     or shared_agent_data.Is_DeadByTypeMap
-                    or float(shared_agent_data.Health.Current) < 0.01
+                    or float(shared_agent_data.Health.Current) <= Agent.DEAD_HEALTH_EPSILON
                 )
-            return bool(Agent.IsDead(agent_id) or Agent.GetHealth(agent_id) < 0.01)
+            return bool(Agent.IsDead(agent_id) or Agent.GetHealth(agent_id) <= Agent.DEAD_HEALTH_EPSILON)
 
         @staticmethod
         @frame_cache(category="Checks.Agents", source_lib="IsAlive")
@@ -517,9 +523,9 @@ class Checks:
                 return (
                     (not shared_agent_data.Is_Dead)
                     and (not shared_agent_data.Is_DeadByTypeMap)
-                    and float(shared_agent_data.Health.Current) >= 0.01
+                    and float(shared_agent_data.Health.Current) > Agent.DEAD_HEALTH_EPSILON
                 )
-            return (not Agent.IsDead(agent_id)) and Agent.GetHealth(agent_id) >= 0.01
+            return (not Agent.IsDead(agent_id)) and Agent.GetHealth(agent_id) > Agent.DEAD_HEALTH_EPSILON
 
         @staticmethod
         @frame_cache(category="Checks.Agents", source_lib="GetHealth")
