@@ -678,6 +678,7 @@ class PetModelID(IntEnum):
 
 # region ItemModels
 class ModelID(IntEnum):
+    CrystallineSword = 399
     LesserStoneBlade = 1955
     GreaterStoneBlade = 1956
     ScorpionsBow = 2008
@@ -1603,6 +1604,7 @@ class ModelID(IntEnum):
     Rune_Of_Superior_Vigor = 5551
     Sack_Of_Random_Junk = 34213
     Salvage_Kit = 2992
+    Salvage_Kit_preSearing = 2993
     Sandblasted_Lodestone = 1584
     Sapphire = 938
     Sapphire_Djinn_Essence = 19188
@@ -1638,6 +1640,7 @@ class ModelID(IntEnum):
     Shard_Wolf_Mini = 34389
     Shield_Handle = 15554
     Shimmering_Essence = 24633
+    Shimmering_Scale = 2566
     Shing_Jea_Key = 6537
     Shining_Blade_Ration = 35127
     Shining_Blade_Summon = 35126
@@ -1677,6 +1680,7 @@ class ModelID(IntEnum):
     Spearhead = 15544
     Spectral_Crystal = 24635
     Spider_Leg = 422
+    Spider_Web = 224
     Spiked_Crest = 434
     Spiked_Eggnog = 6366
     Spiritwood_Plank = 956
@@ -1781,7 +1785,7 @@ class ModelID(IntEnum):
     Worn_Belt = 427
     Yakkington_Mini = 32515
     Yuletide_Tonic = 21490
-    Zaishen_Key = 28571
+    Zaishen_Key = 28517
     Zaishen_Summon = 31156
     Zaishen_Tonic = 31144
     Zehtukas_Great_Horn = 15845

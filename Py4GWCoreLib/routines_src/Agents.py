@@ -1,5 +1,7 @@
 import importlib
 
+from Py4GWCoreLib.enums_src.GameData_enums import Range
+
 class _RProxy:
     def __getattr__(self, name: str):
         root_pkg = importlib.import_module("Py4GWCoreLib")
@@ -285,12 +287,14 @@ class Agents:
         from ..GlobalCache import GLOBAL_CACHE
         from ..Agent import Agent
 
-        distance = max_distance
-        ally_array = AgentArray.GetAllyArray()
-        ally_array = AgentArray.Filter.ByDistance(ally_array, Player.GetXY(), distance)
-        ally_array = AgentArray.Filter.ByCondition(ally_array, lambda agent_id: Agent.IsDead(agent_id))
-        ally_array = AgentArray.Sort.ByDistance(ally_array, Player.GetXY())
-        return Utils.GetFirstFromArray(ally_array)
+        dead_ally_array = AgentArray.GetDeadAllyArray()
+        dead_ally_array = AgentArray.Filter.ByDistance(dead_ally_array, Player.GetXY(), max_distance)
+        spirit_pet_array = AgentArray.GetSpiritPetArray()
+        spirit_pet_array = AgentArray.Filter.ByDistance(spirit_pet_array, Player.GetXY(), max_distance)
+        dead_ally_array = AgentArray.Manipulation.Subtract(dead_ally_array, spirit_pet_array)
+        dead_ally_array = AgentArray.Sort.ByDistance(dead_ally_array, Player.GetXY())
+    
+        return Utils.GetFirstFromArray(dead_ally_array)
 
     @staticmethod
     def GetCorpses(max_distance=4500.0):

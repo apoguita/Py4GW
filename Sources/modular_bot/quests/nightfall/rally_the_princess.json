@@ -1,0 +1,30 @@
+{
+  "name": "Rally The Princes",
+  "steps": [
+    {"type": "travel", "name": "Travel to Outpost", "target_map_id": 378},
+    {"type": "auto_path", "name": "Path", "points": [[397, 685]]},
+    {"type": "dialogs", "id": ["0x81F603", "0x81F601"], "npc": "KUWAME", "name": "Dialog - Kuwame"},
+    {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true},
+    {"type": "auto_path", "name": "Path", "points": [[-3919, -1325]]},
+    {"type": "exit_map", "name": "Exit Map", "x": -4786, "y": -1335, "target_map_id": 392},
+    {"type": "auto_path", "name": "Path", "points": [[16486, -18280]]},
+    {"type": "dialog", "id": "0x81F604", "npc": "KEHANNI", "name": "Dialog - Kehanni"},
+    {"type": "auto_path", "name": "Path", "points": [[-5231, -1587]]},
+    {"type": "exit_map", "name": "Exit Map", "x": -6495, "y": -1571, "target_map_id": 393},
+    {"type": "auto_path", "name": "Path", "points": [[-11913, 2316]]},
+    {"type": "dialog", "id": "0x8B", "npc": "SEEKER_OF_WHISPERS_LIGHTBRINGER_RANKS", "name": "Dialog - Seeker Of Whispers Lightbringer Ranks"},
+    {"type": "auto_path", "name": "Path", "points": [[-7458, -1612]]},
+    {"type": "exit_map", "name": "Exit Map", "x": -6359, "y": -1580, "target_map_id": 392},
+    {"type": "auto_path", "name": "Path", "points": [[10178, 9791], [14880, 19882], [19912, 19665]]},
+    {"type": "exit_map", "name": "Exit Map", "x": 20202, "y": 20186, "target_map_id": 406},
+    {"type": "auto_path", "name": "Path", "points": [[-11506, -5139], [-13358, -5413]]},
+    {"type": "exit_map", "name": "Exit Map", "x": -14085, "y": -6052, "target_map_id": 399},
+    {"type": "auto_path", "name": "Path", "points": [[19661, -8567], [17652, -1076], [11606, 951], [11993, 11414]]},
+    {"type": "dialog", "id": "0x85", "npc": "PRIESTESS_HAILA", "name": "Dialog - Priestess Haila"},
+    {"type": "wait", "ms": 9400},
+    {"type": "skip_cutscene"},
+    {"type": "wait_for_map_load", "map_id": 428},
+    {"type": "auto_path", "name": "Path", "points": [[-1362, 13992]]},
+    {"type": "dialog", "id": "0x81F607", "npc": "EVENT_PLANNER_KAZSHA", "name": "Dialog - Event Planner Kazsha"}
+  ]
+}

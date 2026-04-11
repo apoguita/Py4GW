@@ -2,9 +2,7 @@
 
 This file centralizes the JSON action documentation used by:
 
-- `Sources/modular_bot/recipes/mission.py`
-- `Sources/modular_bot/recipes/quest.py`
-- `Sources/modular_bot/recipes/route.py`
+- `Sources/modular_bot/recipes/modular_block.py`
 
 Step dispatch starts in:
 
@@ -45,6 +43,8 @@ Special case:
 {"type": "path", "name": "Path 1", "points": [[0, 0], [100, 100]]}
 {"type": "auto_path", "name": "AutoPath 1", "points": [[0, 0], [100, 100]]}
 {"type": "auto_path_delayed", "name": "Delay Path", "points": [[0, 0], [100, 100]], "delay_ms": 35000}
+{"type": "auto_path_until_enemy", "name": "Patrol", "points": [[0, 0], [100, 100]], "max_dist": 5000}
+{"type": "auto_path_till_timeout", "name": "Patrol Time", "points": [[0, 0], [100, 100]], "timeout_ms": 30000}
 {"type": "wait", "ms": 1000}
 {"type": "wait_out_of_combat"}
 {"type": "wait_map_load", "map_id": 72}
@@ -126,6 +126,10 @@ Special case:
 {"type": "set_auto_looting", "enabled": false}
 {"type": "set_hard_mode", "enabled": true}
 {"type": "set_hard_mode", "enabled": false}
+{"type": "load_party"}
+{"type": "load_party", "minionless": true}
+{"type": "load_party", "team": "party_8"}
+{"type": "enter_challenge", "delay_ms": 3000, "target_map_id": 0}
 {"type": "restock_kits", "x": 0, "y": 0}
 {"type": "restock_kits", "npc": "MERCHANT"}
 {"type": "restock_kits", "x": 0, "y": 0, "id_kits": 2, "salvage_kits": 8}
@@ -142,8 +146,13 @@ Special case:
 
 ## Notes
 
-- `kind`-specific recipe wrappers still exist (`Mission(...)`, `Quest(...)`) but action handling is shared.
+- `modular_block.py` is the unified loader; `Mission(...)`, `Quest(...)`, and `Route(...)` remain as compatibility aliases.
 - `path` and `auto_path` both autopath each listed waypoint independently via `get_path_to(...)`.
+- `auto_path_until_enemy` (alias: `patrol_until_enemy`) loops through `points` until an enemy is detected.
+- `auto_path_till_timeout` (alias: `auto_path_until_timeout`) loops through `points` until `timeout_ms` and can interrupt mid-segment when time runs out.
+  Optional: `max_dist` (default `Range.Compass` = `5000`), `include_dead` (default `false`),
+  `set_target` (default `false`), `point_wait_ms`, `lap_wait_ms`, `max_laps` (0 = infinite), `timeout_ms` (0 = infinite).
+  It also supports enemy selectors (`enemy`, `target`, `model_id`, `agent_id`, etc.) to patrol for a specific enemy.
 - `repeat <= 0` skips that source step.
 - `key_press` supported keys: `F1`, `F2`, `SPACE`, `ENTER`, `ESCAPE`/`ESC`.
 - `force_hero_state` values: `fight`, `guard`, `avoid`.
@@ -154,6 +163,14 @@ Special case:
 - `set_auto_combat enabled` toggles combat for the active combat engine.
 - `set_auto_looting enabled` toggles Botting `auto_loot` and looting for the active combat engine.
 - `set_hard_mode enabled` toggles party Hard Mode on/off.
+- `load_party` loads heroes from saved team config.
+  Optional: `minionless` (default `false`), `team` (e.g. `party_6` / `party_6_no_spirits_minions` / `party_8`),
+  `max_heroes` (4/6/8), `clear_existing` (default `true`), `use_priority` (default `true`),
+  `team_mode` (`priority`/`exact`/`henchman`), `fill_with_henchmen` (default `false`),
+  `henchman_ids` (optional explicit henchman add order), `apply_templates` (default `true`).
+  Priority mode fills hero slots from global hero-priority order and prepends `required_hero` entries.
+  When `fill_with_henchmen` is enabled (or `team_mode=henchman`), remaining NPC slots are filled with henchmen.
+  On successful hero add, if a saved hero template exists for that hero ID, it is auto-loaded.
 - `interact_item` supports optional `model_id` (int or `"0x..."`) and `max_dist`.
   It also supports `item` for a named item target from `target_enums.py`.
   If `model_id` is set, only matching ground items owned by self/unowned are interacted.
@@ -220,30 +237,3 @@ Special case:
   Optional: `multibox` (default `false`) dispatches `InteractWithTarget` to alts and waits per account, BDS-style.
   Optional: `max_dist` (default `5000`) for chest search radius.
 - `wait_model_has_quest` blocks until the NPC model has a quest marker.
-
-## Mission Entry Block (mission.json only)
-
-```json
-{"type": "enter_challenge", "delay": 3000, "target_map_id": 0}
-{"type": "dialog", "x": 0, "y": 0, "id": 0}
-```
-
-## Quest `take_quest` Block (quest.json only)
-
-```json
-"take_quest": {
-  "outpost_id": 30,
-  "quest_npc_location": [0, 0],
-  "dialog_id": "0x00000000",
-  "wait_ms": 2000,
-  "name": "Take Quest"
-}
-```
-
-Options:
-
-- `outpost_id`: optional
-- `quest_npc_location`: required `[x, y]`
-- `dialog_id`: required; int, `"0x..."`, or list of them
-- `wait_ms`: optional
-- `name`: optional

@@ -44,6 +44,8 @@ from .shared_memory_src.AgentDataStruct import AgentDataStruct
 from .shared_memory_src.AccountStruct import AccountStruct
 from .shared_memory_src.AllAccounts import AllAccounts
 from HeroAI.following import FollowFormationPublisher
+from ..py4gwcorelib_src.FrameCache import frame_cache
+
 
 #region SharedMemoryManager    
 class Py4GWSharedMemoryManager:
@@ -87,6 +89,7 @@ class Py4GWSharedMemoryManager:
     def GetBaseTimestamp(self):
         return Py4GW.Game.get_tick_count64()
     
+    @frame_cache(category="SharedMemory", source_lib="GetAllAccounts")
     def GetAllAccounts(self) -> AllAccounts:
         if self.shm.buf is None:
             raise RuntimeError("Shared memory is not initialized.")
@@ -94,22 +97,27 @@ class Py4GWSharedMemoryManager:
         return AllAccounts.from_buffer(self.shm.buf)
 
     
+    @frame_cache(category="SharedMemory", source_lib="GetAccountData")
     def GetAccountData(self, index: int) -> AccountStruct:
         return self.GetAllAccounts().GetAccountData(index)
             
     #region Messaging
+    @frame_cache(category="SharedMemory", source_lib="GetAllMessages")
     def GetAllMessages(self) -> list[tuple[int, SharedMessageStruct]]:
         """Get all messages in shared memory with their index."""
         return self.GetAllAccounts().GetAllMessages()
     
+    @frame_cache(category="SharedMemory", source_lib="GetInbox")
     def GetInbox(self, index: int) -> SharedMessageStruct:
         return self.GetAllAccounts().GetInbox(index)
 
 
     #region Find and Get Slot Methods
+    @frame_cache(category="SharedMemory", source_lib="GetSlotByEmail")
     def GetSlotByEmail(self, account_email: str) -> int:
         return self.GetAllAccounts().GetVisibleSlotByEmail(account_email)
 
+    @frame_cache(category="SharedMemory", source_lib="IsAccountIsolated")
     def IsAccountIsolated(self, account_email: str) -> bool:
         return self.GetAllAccounts().IsAccountIsolated(account_email)
 
@@ -121,7 +129,14 @@ class Py4GWSharedMemoryManager:
 
     def RemoveAccountIsolationByEmail(self, account_email: str) -> bool:
         return self.GetAllAccounts().RemoveAccountIsolationByEmail(account_email)
-    
+
+    def SetAccountGroupByEmail(self, account_email: str, group_id: int) -> bool:
+        return self.GetAllAccounts().SetAccountGroupByEmail(account_email, group_id)
+
+    @frame_cache(category="SharedMemory", source_lib="GetAccountGroupByEmail")
+    def GetAccountGroupByEmail(self, account_email: str) -> int:
+        return self.GetAllAccounts().GetAccountGroupByEmail(account_email)
+
     def GetHeroSlotByHeroData(self, hero_data:HeroPartyMember) -> int:
         """Find the index of the hero with the given ID."""
         return self.GetAllAccounts().GetHeroSlotByHeroData(hero_data)
@@ -176,22 +191,27 @@ class Py4GWSharedMemoryManager:
 
      
     #region GetAllActivePlayers   
+    @frame_cache(category="SharedMemory", source_lib="GetNumActiveSlots")
     def GetNumActiveSlots(self) -> int:
         """Get the number of active slots in shared memory."""
         return self.GetAllAccounts().GetNumActiveSlots()
         
+    @frame_cache(category="SharedMemory", source_lib="GetAllActiveSlotsData")
     def GetAllActiveSlotsData(self) -> list[AccountStruct]:
         """Get all active slot data, ordered by PartyID, PartyPosition, PlayerLoginNumber, CharacterName."""
         return self.GetAllAccounts().GetAllActiveSlotsData()
     
+    @frame_cache(category="SharedMemory", source_lib="GetAllActivePlayers")
     def GetAllAccountData(self, sort_results: bool = True, include_isolated: bool = False) -> list[AccountStruct]:
         """Get active account-player data. Sorted by default for backward compatibility."""
         return self.GetAllAccounts().GetAllActivePlayers(sort_results=sort_results, include_isolated=include_isolated)
     
+    @frame_cache(category="SharedMemory", source_lib="GetNumActivePlayers")
     def GetNumActivePlayers(self) -> int:
         """Get the number of active players in shared memory."""
         return self.GetAllAccounts().GetNumActivePlayers()
     
+    @frame_cache(category="SharedMemory", source_lib="GetAccountDataFromEmail")
     def GetAccountDataFromEmail(self, account_email: str, log : bool = False) -> AccountStruct | None:
         """Get player data for the account with the given email."""
         if not account_email: return None
@@ -200,6 +220,7 @@ class Py4GWSharedMemoryManager:
         ConsoleLog(SHMEM_MODULE_NAME, f"Account {account_email} not found.", Py4GW.Console.MessageType.Error, log = False)
         return None
      
+    @frame_cache(category="SharedMemory", source_lib="GetAccountDataFromPartyNumber")
     def GetAccountDataFromPartyNumber(self, party_number: int, log : bool = False) -> AccountStruct | None:
         """Get player data for the account with the given party number."""
         acc = self.GetAllAccounts().GetAccountDataFromPartyNumber(party_number)
@@ -207,23 +228,28 @@ class Py4GWSharedMemoryManager:
         ConsoleLog(SHMEM_MODULE_NAME, f"Party number {party_number} not found.", Py4GW.Console.MessageType.Error, log = False)
         return None
     
+    @frame_cache(category="SharedMemory", source_lib="AccountHasEffect")
     def AccountHasEffect(self, account_email: str, effect_id: int) -> bool:
         """Check if the account with the given email has the specified effect."""
         return self.GetAllAccounts().AccountHasEffect(account_email, effect_id)
     
     #region HeroAI
+    @frame_cache(category="SharedMemory", source_lib="GetAllAccountHeroAIOptions")
     def GetAllAccountHeroAIOptions(self) -> list[HeroAIOptionStruct]:
         """Get HeroAI options for all accounts."""
         return self.GetAllAccounts().GetAllAccountHeroAIOptions()
 
+    @frame_cache(category="SharedMemory", source_lib="GetAllActiveAccountHeroAIPairs")
     def GetAllActiveAccountHeroAIPairs(self, sort_results: bool = True) -> list[tuple[AccountStruct, HeroAIOptionStruct]]:
         """Get active account-player data and HeroAI options in one pass."""
         return self.GetAllAccounts().GetAllActiveAccountHeroAIPairs(sort_results=sort_results)
     
+    @frame_cache(category="SharedMemory", source_lib="GetHeroAIOptionsFromEmail")
     def GetHeroAIOptionsFromEmail(self, account_email: str) -> HeroAIOptionStruct | None:
         """Get HeroAI options for the account with the given email."""
         return self.GetAllAccounts().GetHeroAIOptionsFromEmail(account_email)
-        
+       
+    @frame_cache(category="SharedMemory", source_lib="GetHeroAIOptionsByPartyNumber") 
     def GetHeroAIOptionsByPartyNumber(self, party_number: int) -> HeroAIOptionStruct | None:
         """Get HeroAI options for the account with the given party number."""
         return self.GetAllAccounts().GetHeroAIOptionsByPartyNumber(party_number)
@@ -232,36 +258,44 @@ class Py4GWSharedMemoryManager:
         """Set HeroAI options for the account with the given email."""
         return self.GetAllAccounts().SetHeroAIOptionsByEmail(account_email, options)
     
+
     def SetHeroAIPropertyByEmail(self, account_email: str, property_name: str, value):
         """Set a specific HeroAI property for the account with the given email."""
         return self.GetAllAccounts().SetHeroAIPropertyByEmail(account_email, property_name, value)
     
+    @frame_cache(category="SharedMemory", source_lib="GetMapsFromPlayers")
     def GetMapsFromPlayers(self):
         """Get a list of unique maps from all active players."""
         return self.GetAllAccounts().GetMapsFromPlayers()
     
+    @frame_cache(category="SharedMemory", source_lib="GetPartiesFromMaps")
     def GetPartiesFromMaps(self, map_id: int, map_region: int, map_district: int, map_language: int):
         """
         Get a list of unique PartyIDs for players in the specified map/region/district.
         """
         return self.GetAllAccounts().GetPartiesFromMaps(map_id, map_region, map_district, map_language)
 
+    @frame_cache(category="SharedMemory", source_lib="GetPlayersFromParty")
     def GetPlayersFromParty(self, party_id: int, map_id: int, map_region: int, map_district: int, map_language: int):
         """Get a list of players in a specific party on a specific map."""
         return self.GetAllAccounts().GetPlayersFromParty(party_id, map_id, map_region, map_district, map_language)
     
+    @frame_cache(category="SharedMemory", source_lib="GetHeroesFromPlayers")
     def GetHeroesFromPlayers(self, owner_player_id: int) -> list[AccountStruct]:
         """Get a list of heroes owned by the specified player."""
         return self.GetAllAccounts().GetHeroesFromPlayers(owner_player_id)
     
+    @frame_cache(category="SharedMemory", source_lib="GetNumHeroesFromPlayers")
     def GetNumHeroesFromPlayers(self, owner_player_id: int) -> int:
         """Get the number of heroes owned by the specified player."""
         return self.GetAllAccounts().GetNumHeroesFromPlayers(owner_player_id)
     
+    @frame_cache(category="SharedMemory", source_lib="GetPetsFromPlayers")
     def GetPetsFromPlayers(self, owner_agent_id: int) -> list[AccountStruct]:
         """Get a list of pets owned by the specified player."""
         return self.GetAllAccounts().GetPetsFromPlayers(owner_agent_id)
     
+    @frame_cache(category="SharedMemory", source_lib="GetNumPetsFromPlayers")
     def GetNumPetsFromPlayers(self, owner_agent_id: int) -> int:
         """Get the number of pets owned by the specified player."""
         return self.GetAllAccounts().GetNumPetsFromPlayers(owner_agent_id)
@@ -271,12 +305,14 @@ class Py4GWSharedMemoryManager:
         """Send a message to another player. Returns the message index or -1 on failure."""
         return self.GetAllAccounts().SendMessage(sender_email, receiver_email, command, params, ExtraData)
 
+    @frame_cache(category="SharedMemory", source_lib="GetNextMessage")
     def GetNextMessage(self, account_email: str) -> tuple[int, SharedMessageStruct | None]:
         """Read the next message for the given account.
         Returns the raw SharedMessage.
         """
         return self.GetAllAccounts().GetNextMessage(account_email)
 
+    @frame_cache(category="SharedMemory", source_lib="PreviewNextMessage")
     def PreviewNextMessage(self, account_email: str, include_running: bool = True) -> tuple[int, SharedMessageStruct | None]:
         """Preview the next message for the given account.
         If include_running is True, will also return a running message.

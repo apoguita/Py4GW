@@ -1,0 +1,26 @@
+{
+  "name": "The Role of a Lifetime",
+  "steps": [
+    {"type": "travel", "name": "Travel to Honur Hill", "target_map_id": 403},
+    {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true},
+    {"type": "auto_path", "name": "To Exit", "points": [[-18795, 14123]]},
+    {"type": "exit_map", "name": "Leave Honur Hill", "x": -18768, "y": 13571, "target_map_id": 402},
+    {"type": "auto_path", "name": "To Norgu", "points": [[-12646, 5445]]},
+    {"type": "dialog", "id": "0x82D101", "npc": "NORGU", "name": "Dialog - Norgu"},
+    {"type": "travel", "name": "Travel to The Kodash Bazaar", "target_map_id": 414},
+    {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true},
+    {"type": "auto_path", "name": "To Exit", "points": [[3931, -4517]]},
+    {"type": "exit_map", "name": "Leave The Kodash Bazaar", "x": 4351, "y": -4857, "target_map_id": 406},
+    {"type": "auto_path", "name": "To Norgu", "points": [[-7774, 10533], [-5998, 8262], [-6639, 5484], [-10793, -4443]]},
+    {"type": "dialogs", "id": ["0x84", "0x85", "0x88", "0x8B"], "npc": "NORGU", "name": "Dialog - Norgu"},
+    {"type": "auto_path", "name": "Path", "points": [[-10886, -4831]]},
+    {"type": "wait", "ms": 85000},
+    {"type": "auto_path", "name": "Path", "points": [[-6021, 8257]]},
+    {"type": "wait", "ms": 8000},
+    {"type": "auto_path", "name": "To Exit", "points": [[-3366, 14400]]},
+    {"type": "wait", "ms": 8000},
+    {"type": "travel", "name": "Travel to The Kodash Bazaar", "target_map_id": 414},
+    {"type": "auto_path", "name": "To Palin", "points": [[-2723, -563]]},
+    {"type": "dialog", "id": "0x82D107", "npc": "RECORDS_KEEPER_PALIN", "name": "Dialog - Records Keeper Palin"}
+  ]
+}

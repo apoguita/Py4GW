@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 from Py4GWCoreLib import Profession, Range, Routines, BuildMgr
 from Py4GWCoreLib.Skill import Skill
 from Py4GWCoreLib.Builds.Any.HeroAI import HeroAI as HeroAIBuild
@@ -16,6 +18,15 @@ Power_Drain_ID = Skill.GetID("Power_Drain")
 Shatter_Hex_ID = Skill.GetID("Shatter_Hex")
 Flesh_of_My_Flesh_ID = Skill.GetID("Flesh_of_My_Flesh")
 Breath_of_the_Great_Dwarf_ID = Skill.GetID("Breath_of_the_Great_Dwarf")
+
+
+@dataclass(slots=True)
+class _EnergySurgeBarSnapshot:
+    in_aggro: bool = False
+    enemy_in_spellcast: bool = False
+    enemy_casting: bool = False
+    enemy_casting_spell: bool = False
+    dead_ally_in_spellcast: int = 0
 
 
 class Energy_Surge(BuildMgr):
@@ -60,19 +71,36 @@ class Energy_Surge(BuildMgr):
         self.SetSkillCastingFn(self._run_local_skill_logic)
         self.skills: SkillsTemplate = SkillsTemplate(self)
 
+    def _get_bar_snapshot(self) -> _EnergySurgeBarSnapshot:
+        snapshot = _EnergySurgeBarSnapshot()
+        snapshot.in_aggro = bool(Routines.Checks.Agents.InAggro())
+        snapshot.dead_ally_in_spellcast = int(Routines.Agents.GetDeadAlly(Range.Spellcast.value) or 0)
+
+        if not snapshot.in_aggro:
+            return snapshot
+
+        snapshot.enemy_in_spellcast = bool(Routines.Agents.GetNearestEnemy(Range.Spellcast.value))
+        if snapshot.enemy_in_spellcast:
+            snapshot.enemy_casting = bool(Routines.Targeting.GetEnemyCasting(Range.Spellcast.value))
+            snapshot.enemy_casting_spell = bool(Routines.Targeting.GetEnemyCastingSpell(Range.Spellcast.value))
+
+        return snapshot
+
     def _run_local_skill_logic(self):
         if not Routines.Checks.Skills.CanCast():
             yield from Routines.Yield.wait(100)
             return False
 
-        if Routines.Checks.Agents.InAggro() and (yield from self.skills.Any.PvE.Air_of_Superiority()):
+        snapshot = self._get_bar_snapshot()
+
+        if snapshot.in_aggro and (yield from self.skills.Any.PvE.Air_of_Superiority()):
             return True
 
         if (yield from self.skills.Any.NoAttribute.Breath_of_the_Great_Dwarf()):
             return True
 
         if self.IsSkillEquipped(Flesh_of_My_Flesh_ID):
-            dead_ally_id: int = Routines.Agents.GetDeadAlly(Range.Spellcast.value)
+            dead_ally_id = snapshot.dead_ally_in_spellcast
             if dead_ally_id and (yield from self.CastSkillIDAndRestoreTarget(
                 skill_id=Flesh_of_My_Flesh_ID,
                 target_agent_id=dead_ally_id,
@@ -81,37 +109,37 @@ class Energy_Surge(BuildMgr):
             )):
                 return True
 
-        if not Routines.Checks.Agents.InAggro():
+        if not snapshot.in_aggro:
             return False
 
-        if (yield from self.skills.Mesmer.DominationMagic.Mistrust()):
+        if snapshot.enemy_casting_spell and (yield from self.skills.Mesmer.DominationMagic.Mistrust()):
             return True
 
         if (yield from self.skills.Mesmer.DominationMagic.Shatter_Hex()):
             return True
 
-        if (yield from self.skills.Mesmer.DominationMagic.Power_Drain()):
+        if snapshot.enemy_casting_spell and (yield from self.skills.Mesmer.DominationMagic.Power_Drain()):
             return True
 
-        if (yield from self.skills.Any.PvE.Cry_of_Pain(allow_hex_fallback=False)):
+        if snapshot.enemy_casting and (yield from self.skills.Any.PvE.Cry_of_Pain(allow_hex_fallback=False)):
             return True
 
-        if (yield from self.skills.Mesmer.DominationMagic.Cry_of_Frustration()):
+        if snapshot.enemy_casting and (yield from self.skills.Mesmer.DominationMagic.Cry_of_Frustration()):
             return True
 
-        if (yield from self.skills.Mesmer.DominationMagic.Overload()):
+        if snapshot.enemy_casting and (yield from self.skills.Mesmer.DominationMagic.Overload()):
             return True
 
-        if (yield from self.skills.Any.PvE.Ebon_Vanguard_Assassin_Support()):
+        if snapshot.enemy_in_spellcast and (yield from self.skills.Any.PvE.Ebon_Vanguard_Assassin_Support()):
             return True
 
-        if (yield from self.skills.Any.PvE.Cry_of_Pain()):
+        if snapshot.enemy_in_spellcast and (yield from self.skills.Any.PvE.Cry_of_Pain()):
             return True
 
-        if (yield from self.skills.Mesmer.DominationMagic.Energy_Surge()):
+        if snapshot.enemy_in_spellcast and (yield from self.skills.Mesmer.DominationMagic.Energy_Surge()):
             return True
 
-        if (yield from self.skills.Mesmer.DominationMagic.Unnatural_Signet()):
+        if snapshot.enemy_in_spellcast and (yield from self.skills.Mesmer.DominationMagic.Unnatural_Signet()):
             return True
 
         yield

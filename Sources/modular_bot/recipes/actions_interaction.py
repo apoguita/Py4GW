@@ -409,6 +409,23 @@ def handle_key_press(ctx: StepContext) -> None:
     wait_after_step(ctx.bot, ctx.step)
 
 
+def handle_emote(ctx: StepContext) -> None:
+    from Py4GWCoreLib import Player
+
+    raw_command = str(
+        ctx.step.get("command", ctx.step.get("emote", ctx.step.get("value", "kneel"))) or "kneel"
+    ).strip()
+    command = raw_command[1:] if raw_command.startswith("/") else raw_command
+    if not command:
+        command = "kneel"
+
+    ctx.bot.States.AddCustomState(
+        lambda _cmd=command: Player.SendChatCommand(_cmd),
+        ctx.step.get("name", f"Emote /{command}"),
+    )
+    wait_after_step(ctx.bot, ctx.step)
+
+
 HANDLERS: dict[str, Callable[[StepContext], None]] = {
     "interact_npc": handle_interact_npc,
     "dialog": handle_dialog,
@@ -423,5 +440,7 @@ HANDLERS: dict[str, Callable[[StepContext], None]] = {
     "interact_quest_npc": handle_interact_quest_npc,
     "interact_nearest_npc": handle_interact_nearest_npc,
     "skip_cinematic": handle_skip_cinematic,
+    "skip_cutscene": handle_skip_cinematic,
     "key_press": handle_key_press,
+    "emote": handle_emote,
 }

@@ -276,7 +276,7 @@ def initialize(cached_data: CacheData) -> bool:
         return False
     
     HeroAI_Windows.DrawFlags(cached_data)
-    HeroAI_FloatingWindows.draw_Targeting_floating_buttons(cached_data)     
+    # HeroAI_FloatingWindows.draw_Targeting_floating_buttons(cached_data)     
     build_runtime.sync_build_contract(cached_data)
     cached_data.UpdateCombat()
     return True
@@ -488,10 +488,10 @@ def tooltip():
 
     PyImGui.end_tooltip()
 
-
+modulo = 0
 
 def main():
-    global cached_data, map_quads
+    global cached_data, map_quads, modulo
     
     try:        
         cached_data.Update()  
@@ -502,8 +502,10 @@ def main():
         handle_UI(cached_data)  
         
         if initialize(cached_data):
-            HeroAI_BT.tick()
-            pass
+            modulo += 1
+            if modulo >= 2:
+                modulo = 0
+                HeroAI_BT.tick()
         else:
             map_quads.clear()
             HeroAI_BT.reset()

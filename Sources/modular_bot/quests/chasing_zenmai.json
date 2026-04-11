@@ -1,0 +1,32 @@
+{
+  "name": "Chasing Zenmai",
+  "steps": [
+    {"type": "travel", "name": "Travel to Consulate Docks outpost", "target_map_id": 493},
+    {"type": "auto_path", "name": "To Dinja", "points": [[-2489, 16783]]},
+    {"type": "dialog", "id": "0x830F01", "npc": "DINJA", "name": "Dialog - Dinja"},
+    {"type": "dialog", "id": "0x88", "npc": "MHENLO", "name": "Dialog - Mhenlo"},
+    {"type": "skip_cutscene"},
+    {"type": "travel", "name": "Travel to Kaineng Center", "target_map_id": 194},
+    {"type": "auto_path", "name": "To Imperial Guardsman Linro", "points": [[-1227, 864]]},
+    {"type": "dialog", "id": "0x830F04", "npc": "IMPERIAL_GUARDSMAN_LINRO", "name": "Dialog - Imperial Guardsman Linro"},
+    {"type": "auto_path", "name": "To Exit", "points": [[2711, -4331]]},
+    {"type": "load_party", "name": "Load Party", "max_heroes": 8, "team": "party_8"},
+    {"type": "exit_map", "name": "Leave Kaineng Center", "x": 3152, "y": -4845, "target_map_id": 240},
+    {"type": "auto_path", "name": "To Zenmai", "points": [[-5218, 2349]]},
+    {"type": "dialog", "id": "0x830F04", "npc": "ZENMAI", "name": "Dialog - Zenmai"},
+    {"type": "auto_path", "name": "To Exit", "points": [[-696, -11341], [4382, -16185]]},
+    {"type": "exit_map", "name": "Leave Bukdek Byway", "x": 4306, "y": -16801, "target_map_id": 241},
+    {"type": "wait_for_map_load", "map_id": 241},
+    {"type": "auto_path", "name": "Path", "points": [[8731, 10033], [8695, 6382], [9863, 4885], [10832, 1253], [10431, -1125], [10922, -3419], [10067, -6720], [6850, -7716]]},
+    {"type": "wait", "ms": 81700},
+    {"type": "auto_path", "name": "Path", "points": [[6782, -7622]]},
+    {"type": "wait", "ms": 68900},
+    {"type": "auto_path", "name": "To Zenmai", "points": [[6418, -7542], [7725, -7014], [7440, -8373], [6449, -7685], [7435, -7287]]},
+    {"type": "dialog", "id": "0x830F04", "npc": "ZENMAI", "name": "Dialog - Zenmai"},
+    {"type": "resign"},
+    {"type": "wait_for_map_load", "map_id": 194},
+    {"type": "travel", "name": "Travel to Kamadan Jewel of Istan", "target_map_id": 449},
+    {"type": "auto_path", "name": "To Clerk Arlon", "points": [[-8005, 15044], [-7231, 16051], [-6504, 16239]]},
+    {"type": "dialog", "id": "0x830F07", "npc": "CLERK_ARLON", "name": "Dialog - Clerk Arlon"}
+  ]
+}

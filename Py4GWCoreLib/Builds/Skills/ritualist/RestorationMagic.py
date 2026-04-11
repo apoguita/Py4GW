@@ -1,15 +1,16 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from typing import TYPE_CHECKING
 
 import Py4GW
 
 from Py4GWCoreLib.BuildMgr import BuildCoroutine
-from Py4GWCoreLib import AgentArray, Range, Routines
+from Py4GWCoreLib import Range, Routines
 from Py4GWCoreLib.Agent import Agent
 from Py4GWCoreLib.Player import Player
 from Py4GWCoreLib.Skill import Skill
-from HeroAI.targeting import GetAllAlliesArray
+from HeroAI.types import Skilltarget
 
 if TYPE_CHECKING:
     from HeroAI.custom_skill_src.skill_types import CustomSkill
@@ -50,33 +51,22 @@ class RestorationMagic:
     def Mend_Body_and_Soul(self) -> BuildCoroutine:
         mend_body_and_soul_id: int = Skill.GetID("Mend_Body_and_Soul")
         mend_body_and_soul: CustomSkill = self.build.GetCustomSkill(mend_body_and_soul_id)
+        health_threshold: float = max(0.0, min(1.0, float(mend_body_and_soul.Conditions.LessLife or 0.70)))
 
         def _resolve_mend_body_and_soul_target() -> int:
-            ally_array = GetAllAlliesArray(Range.Spellcast.value)
-            ally_array = AgentArray.Filter.ByCondition(
-                ally_array,
-                lambda agent_id: Agent.IsAlive(agent_id),
-            )
-            
-            conditioned_allies = AgentArray.Filter.ByCondition(
-                ally_array,
-                lambda agent_id: Agent.IsConditioned(agent_id),
-            ) if self._has_spirit_in_earshot() else []
-            
-            low_allies = AgentArray.Filter.ByCondition(
-                ally_array,
-                lambda agent_id: Agent.GetHealth(agent_id) < mend_body_and_soul.Conditions.LessLife,
-            )
+            variants = [None]
+            if self._has_spirit_in_earshot():
+                variants = [
+                    lambda custom_skill: setattr(custom_skill.Conditions, "HasCondition", True),
+                    None,
+                ]
 
-            if conditioned_allies:
-                conditioned_allies = AgentArray.Sort.ByHealth(conditioned_allies)
-                lowest_conditioned_ally_id = conditioned_allies[0] if conditioned_allies else 0
-                                
-                if not low_allies or (Agent.GetHealth(lowest_conditioned_ally_id) * 0.8) <= Agent.GetHealth(low_allies[0]):
-                    return lowest_conditioned_ally_id
-
-            ally_array = AgentArray.Sort.ByHealth(ally_array)
-            return ally_array[0] if ally_array else 0
+            return self.build.ResolvePreferredAllyTarget(
+                mend_body_and_soul_id,
+                mend_body_and_soul,
+                variants=variants,
+                validator=lambda agent_id: Agent.IsAlive(agent_id) and Agent.GetHealth(agent_id) < health_threshold,
+            )
 
         if not self.build.IsSkillEquipped(mend_body_and_soul_id):
             return False
@@ -93,28 +83,22 @@ class RestorationMagic:
     def Mending_Grip(self) -> BuildCoroutine:
         mending_grip_id: int = Skill.GetID("Mending_Grip")
         mending_grip: CustomSkill = self.build.GetCustomSkill(mending_grip_id)
+        health_threshold: float = max(0.0, min(1.0, float(mending_grip.Conditions.LessLife or 0.80)))
 
         def _resolve_mending_grip_target() -> int:
-            ally_array = GetAllAlliesArray(Range.Spellcast.value)
-            ally_array = AgentArray.Filter.ByCondition(
-                ally_array,
-                lambda agent_id: Agent.IsAlive(agent_id),
-            )
-            ally_array = AgentArray.Filter.ByCondition(
-                ally_array,
-                lambda agent_id: Agent.GetHealth(agent_id) < mending_grip.Conditions.LessLife,
-            )
+            def _clear_priority_conditions(custom_skill: CustomSkill) -> None:
+                custom_skill.Conditions.HasWeaponSpell = False
+                custom_skill.Conditions.HasCondition = False
 
-            conditioned_weapon_spelled_allies = AgentArray.Filter.ByCondition(
-                ally_array,
-                lambda agent_id: Agent.IsConditioned(agent_id) and Agent.IsWeaponSpelled(agent_id),
+            return self.build.ResolvePreferredAllyTarget(
+                mending_grip_id,
+                mending_grip,
+                variants=[
+                    None,
+                    _clear_priority_conditions,
+                ],
+                validator=lambda agent_id: Agent.IsAlive(agent_id) and Agent.GetHealth(agent_id) < health_threshold,
             )
-            if conditioned_weapon_spelled_allies:
-                conditioned_weapon_spelled_allies = AgentArray.Sort.ByHealth(conditioned_weapon_spelled_allies)
-                return conditioned_weapon_spelled_allies[0]
-
-            ally_array = AgentArray.Sort.ByHealth(ally_array)
-            return ally_array[0] if ally_array else 0
 
         if not self.build.IsSkillEquipped(mending_grip_id):
             return False
@@ -183,6 +167,7 @@ class RestorationMagic:
     def Spirit_Light(self) -> BuildCoroutine:
         spirit_light_id: int = Skill.GetID("Spirit_Light")
         spirit_light: CustomSkill = self.build.GetCustomSkill(spirit_light_id)
+        health_threshold: float = max(0.0, min(1.0, float(spirit_light.Conditions.LessLife or 0.60)))
 
         def _can_safely_cast_spirit_light() -> bool:
             return (
@@ -191,24 +176,24 @@ class RestorationMagic:
             )
 
         def _resolve_spirit_light_target() -> int:
-            ally_array = GetAllAlliesArray(Range.Spellcast.value)
-            ally_array = AgentArray.Filter.ByCondition(
-                ally_array,
-                lambda agent_id: Agent.IsAlive(agent_id),
-            )
-            ally_array = AgentArray.Filter.ByCondition(
-                ally_array,
-                lambda agent_id: Agent.GetHealth(agent_id) < spirit_light.Conditions.LessLife,
-            )
-
-            if not self._has_spirit_in_earshot():
-                ally_array = AgentArray.Filter.ByCondition(
-                    ally_array,
-                    lambda agent_id: agent_id != Player.GetAgentID(),
+            if self._has_spirit_in_earshot():
+                return self.build.ResolvePreferredAllyTarget(
+                    spirit_light_id,
+                    spirit_light,
+                    validator=lambda agent_id: Agent.IsAlive(agent_id) and Agent.GetHealth(agent_id) < health_threshold,
                 )
 
-            ally_array = AgentArray.Sort.ByHealth(ally_array)
-            return ally_array[0] if ally_array else 0
+            other_ally_skill = deepcopy(spirit_light)
+            other_ally_skill.TargetAllegiance = Skilltarget.OtherAlly.value
+            return self.build.ResolvePreferredAllyTarget(
+                spirit_light_id,
+                other_ally_skill,
+                validator=lambda agent_id: (
+                    Agent.IsAlive(agent_id)
+                    and agent_id != Player.GetAgentID()
+                    and Agent.GetHealth(agent_id) < health_threshold
+                ),
+            )
 
         if not self.build.IsSkillEquipped(spirit_light_id):
             return False
@@ -228,22 +213,17 @@ class RestorationMagic:
     def Spirit_Transfer(self) -> BuildCoroutine:
         spirit_transfer_id: int = Skill.GetID("Spirit_Transfer")
         spirit_transfer: CustomSkill = self.build.GetCustomSkill(spirit_transfer_id)
+        health_threshold: float = max(0.0, min(1.0, float(spirit_transfer.Conditions.LessLife or 0.50)))
 
         def _resolve_spirit_transfer_target() -> int:
             if not Routines.Agents.GetNearestSpirit(Range.Spellcast.value):
                 return 0
 
-            ally_array = GetAllAlliesArray(Range.Spellcast.value)
-            ally_array = AgentArray.Filter.ByCondition(
-                ally_array,
-                lambda agent_id: Agent.IsAlive(agent_id),
+            return self.build.ResolvePreferredAllyTarget(
+                spirit_transfer_id,
+                spirit_transfer,
+                validator=lambda agent_id: Agent.IsAlive(agent_id) and Agent.GetHealth(agent_id) < health_threshold,
             )
-            ally_array = AgentArray.Filter.ByCondition(
-                ally_array,
-                lambda agent_id: Agent.GetHealth(agent_id) < spirit_transfer.Conditions.LessLife,
-            )
-            ally_array = AgentArray.Sort.ByHealth(ally_array)
-            return ally_array[0] if ally_array else 0
 
         if not self.build.IsSkillEquipped(spirit_transfer_id):
             return False
@@ -262,28 +242,18 @@ class RestorationMagic:
     def Wielders_Boon(self) -> BuildCoroutine:
         wielders_boon_id: int = Skill.GetID("Wielders_Boon")
         wielders_boon: CustomSkill = self.build.GetCustomSkill(wielders_boon_id)
+        health_threshold: float = max(0.0, min(1.0, float(wielders_boon.Conditions.LessLife or 0.70)))
 
         def _resolve_wielders_boon_target() -> int:
-            ally_array = GetAllAlliesArray(Range.Spellcast.value)
-            ally_array = AgentArray.Filter.ByCondition(
-                ally_array,
-                lambda agent_id: Agent.IsAlive(agent_id),
+            return self.build.ResolvePreferredAllyTarget(
+                wielders_boon_id,
+                wielders_boon,
+                variants=[
+                    None,
+                    lambda custom_skill: setattr(custom_skill.Conditions, "HasWeaponSpell", False),
+                ],
+                validator=lambda agent_id: Agent.IsAlive(agent_id) and Agent.GetHealth(agent_id) < health_threshold,
             )
-            ally_array = AgentArray.Filter.ByCondition(
-                ally_array,
-                lambda agent_id: Agent.GetHealth(agent_id) < wielders_boon.Conditions.LessLife,
-            )
-
-            weapon_spelled_allies = AgentArray.Filter.ByCondition(
-                ally_array,
-                lambda agent_id: Agent.IsWeaponSpelled(agent_id),
-            )
-            if weapon_spelled_allies:
-                weapon_spelled_allies = AgentArray.Sort.ByHealth(weapon_spelled_allies)
-                return weapon_spelled_allies[0]
-
-            ally_array = AgentArray.Sort.ByHealth(ally_array)
-            return ally_array[0] if ally_array else 0
 
         if not self.build.IsSkillEquipped(wielders_boon_id):
             return False

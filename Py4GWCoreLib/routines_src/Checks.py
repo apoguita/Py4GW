@@ -10,6 +10,7 @@ class _RProxy:
 
 Routines = _RProxy()
 from ..Player import Player
+from ..py4gwcorelib_src.FrameCache import frame_cache
 
 class Checks:
 #region Player
@@ -229,28 +230,34 @@ class Checks:
             if not Checks.Party.IsPartyLoaded():
                 return False
 
-            all_dead = True
             players = GLOBAL_CACHE.Party.GetPlayers()
             henchmen = GLOBAL_CACHE.Party.GetHenchmen()
             heroes = GLOBAL_CACHE.Party.GetHeroes()
+            found_valid_member = False
 
             for player in players:
                 agent_id = GLOBAL_CACHE.Party.Players.GetAgentIDByLoginNumber(player.login_number)
-                if Agent.IsValid(agent_id) and not Agent.IsDead(agent_id):
-                    all_dead = False
-                    break
+                if not Agent.IsValid(agent_id):
+                    continue
+                found_valid_member = True
+                if not Agent.IsDead(agent_id):
+                    return False
 
             for henchman in henchmen:
-                if Agent.IsValid(henchman.agent_id) and not Agent.IsDead(henchman.agent_id):
-                    all_dead = False
-                    break
+                if not Agent.IsValid(henchman.agent_id):
+                    continue
+                found_valid_member = True
+                if not Agent.IsDead(henchman.agent_id):
+                    return False
 
             for hero in heroes:
-                if Agent.IsValid(hero.agent_id) and not Agent.IsDead(hero.agent_id):
-                    all_dead = False
-                    break
+                if not Agent.IsValid(hero.agent_id):
+                    continue
+                found_valid_member = True
+                if not Agent.IsDead(hero.agent_id):
+                    return False
 
-            return all_dead
+            return found_valid_member
         
         @staticmethod
         def IsPartyLoaded():
@@ -424,6 +431,7 @@ class Checks:
         from ..enums_src.GameData_enums import Range
 
         @staticmethod
+        @frame_cache(category="Checks.Agents", source_lib="_get_same_party_shared_agent_data")
         def _get_same_party_shared_agent_data(agent_id: int):
             from ..GlobalCache import GLOBAL_CACHE
             from ..Map import Map
@@ -459,6 +467,7 @@ class Checks:
             return None
 
         @staticmethod
+        @frame_cache(category="Checks.Agents", source_lib="_shared_agent_has_skill_equipped")
         def _shared_agent_has_skill_equipped(agent_id: int, skill_id: int) -> bool:
             if not agent_id or not skill_id:
                 return False
@@ -470,6 +479,7 @@ class Checks:
             return any(int(skill.Id) == skill_id for skill in shared_agent_data.Skillbar.Skills)
 
         @staticmethod
+        @frame_cache(category="Checks.Agents", source_lib="_get_shared_weapon_name")
         def _get_shared_weapon_name(agent_id: int) -> tuple[int, str]:
             from ..Agent import Agent
             from ..enums_src.GameData_enums import Weapon, Weapon_Names
@@ -490,6 +500,7 @@ class Checks:
             return weapon_type, Weapon_Names.get(weapon_type_enum, "Unknown")
 
         @staticmethod
+        @frame_cache(category="Checks.Agents", source_lib="IsDead")
         def IsDead(agent_id: int) -> bool:
             from ..Agent import Agent
 
@@ -498,11 +509,12 @@ class Checks:
                 return bool(
                     shared_agent_data.Is_Dead
                     or shared_agent_data.Is_DeadByTypeMap
-                    or float(shared_agent_data.Health.Current) < 0.01
+                    or float(shared_agent_data.Health.Current) <= Agent.DEAD_HEALTH_EPSILON
                 )
-            return bool(Agent.IsDead(agent_id) or Agent.GetHealth(agent_id) < 0.01)
+            return bool(Agent.IsDead(agent_id) or Agent.GetHealth(agent_id) <= Agent.DEAD_HEALTH_EPSILON)
 
         @staticmethod
+        @frame_cache(category="Checks.Agents", source_lib="IsAlive")
         def IsAlive(agent_id: int) -> bool:
             from ..Agent import Agent
 
@@ -511,11 +523,12 @@ class Checks:
                 return (
                     (not shared_agent_data.Is_Dead)
                     and (not shared_agent_data.Is_DeadByTypeMap)
-                    and float(shared_agent_data.Health.Current) >= 0.01
+                    and float(shared_agent_data.Health.Current) > Agent.DEAD_HEALTH_EPSILON
                 )
-            return (not Agent.IsDead(agent_id)) and Agent.GetHealth(agent_id) >= 0.01
+            return (not Agent.IsDead(agent_id)) and Agent.GetHealth(agent_id) > Agent.DEAD_HEALTH_EPSILON
 
         @staticmethod
+        @frame_cache(category="Checks.Agents", source_lib="GetHealth")
         def GetHealth(agent_id: int) -> float:
             from ..Agent import Agent
 
@@ -525,6 +538,7 @@ class Checks:
             return float(Agent.GetHealth(agent_id))
 
         @staticmethod
+        @frame_cache(category="Checks.Agents", source_lib="IsHexed")
         def IsHexed(agent_id: int) -> bool:
             from ..Agent import Agent
 
@@ -534,6 +548,7 @@ class Checks:
             return Agent.IsHexed(agent_id)
 
         @staticmethod
+        @frame_cache(category="Checks.Agents", source_lib="IsEnchanted")
         def IsEnchanted(agent_id: int) -> bool:
             from ..Agent import Agent
 
@@ -543,6 +558,7 @@ class Checks:
             return Agent.IsEnchanted(agent_id)
 
         @staticmethod
+        @frame_cache(category="Checks.Agents", source_lib="IsConditioned")
         def IsConditioned(agent_id: int) -> bool:
             from ..Agent import Agent
 
@@ -552,6 +568,7 @@ class Checks:
             return Agent.IsConditioned(agent_id)
 
         @staticmethod
+        @frame_cache(category="Checks.Agents", source_lib="IsAttacking")
         def IsAttacking(agent_id: int) -> bool:
             from ..Agent import Agent
 
@@ -561,6 +578,7 @@ class Checks:
             return Agent.IsAttacking(agent_id)
 
         @staticmethod
+        @frame_cache(category="Checks.Agents", source_lib="IsKnockedDown")
         def IsKnockedDown(agent_id: int) -> bool:
             from ..Agent import Agent
 
@@ -570,6 +588,7 @@ class Checks:
             return Agent.IsKnockedDown(agent_id)
 
         @staticmethod
+        @frame_cache(category="Checks.Agents", source_lib="IsWeaponSpelled")
         def IsWeaponSpelled(agent_id: int) -> bool:
             from ..Agent import Agent
 
@@ -579,6 +598,7 @@ class Checks:
             return Agent.IsWeaponSpelled(agent_id)
 
         @staticmethod
+        @frame_cache(category="Checks.Agents", source_lib="HasIllusionaryWeaponry")
         def HasIllusionaryWeaponry(agent_id: int) -> bool:
             from ..Skill import Skill
 
@@ -597,6 +617,7 @@ class Checks:
             return False
 
         @staticmethod
+        @frame_cache(category="Checks.Agents", source_lib="IsMartial")
         def IsMartial(agent_id: int) -> bool:
             from ..Agent import Agent
 
@@ -613,6 +634,7 @@ class Checks:
             return weapon_name in {"Bow", "Axe", "Hammer", "Daggers", "Scythe", "Spear", "Sword"}
 
         @staticmethod
+        @frame_cache(category="Checks.Agents", source_lib="IsCaster")
         def IsCaster(agent_id: int) -> bool:
             from ..Agent import Agent
 
@@ -627,6 +649,7 @@ class Checks:
             return weapon_name in caster_weapon_types
 
         @staticmethod
+        @frame_cache(category="Checks.Agents", source_lib="IsMelee")
         def IsMelee(agent_id: int) -> bool:
             from ..Agent import Agent
 
@@ -643,6 +666,7 @@ class Checks:
             return weapon_name in {"Axe", "Hammer", "Daggers", "Scythe", "Sword"}
 
         @staticmethod
+        @frame_cache(category="Checks.Agents", source_lib="IsRanged")
         def IsRanged(agent_id: int) -> bool:
             from ..Agent import Agent
 
@@ -656,6 +680,7 @@ class Checks:
             return weapon_name in {"Bow", "Spear"}
 
         @staticmethod
+        @frame_cache(category="Checks.Agents", source_lib="InDanger")
         def InDanger(aggro_area=Range.Earshot, aggressive_only = False):
             from ..AgentArray import AgentArray
             from ..Agent import Agent
@@ -706,6 +731,7 @@ class Checks:
             return False
 
         @staticmethod
+        @frame_cache(category="Checks.Agents", source_lib="InAggro")
         def InAggro(aggro_area=Range.Earshot.value, aggressive_only = False):
             from ..AgentArray import AgentArray
             from ..Agent import Agent
@@ -749,6 +775,7 @@ class Checks:
         
 
         @staticmethod
+        @frame_cache(category="Checks.Agents", source_lib="IsEnemyBehind")
         def IsEnemyBehind (agent_id):
             from ..GlobalCache import GLOBAL_CACHE
             from ..Agent import Agent
@@ -779,6 +806,7 @@ class Checks:
             return False
         
         @staticmethod
+        @frame_cache(category="Checks.Agents", source_lib="IsValidItem")
         def IsValidItem(item_id):
             from ..GlobalCache import GLOBAL_CACHE
             from ..Agent import Agent
@@ -786,6 +814,7 @@ class Checks:
             return (owner == Player.GetAgentID()) or (owner == 0)
         
         @staticmethod
+        @frame_cache(category="Checks.Agents", source_lib="HasEffect")
         def HasEffect(agent_id, skill_id, exact_weapon_spell=False):
             from ..GlobalCache import GLOBAL_CACHE
             from ..Skill import Skill
@@ -1005,8 +1034,16 @@ class Checks:
             :param expertise_level: The level of Expertise (0-20).
             :return: The reduced cost, rounded down to an integer.
             """
-            #return base_cost  # Default to no reduction
             from ..GlobalCache import GLOBAL_CACHE
+            from ..Agent import Agent
+            from ..enums_src.GameData_enums import Profession_Names
+
+            player_id = Player.GetAgentID()
+            primary_profession, _ = Agent.GetProfessionNames(player_id)
+
+            if (primary_profession != "Ranger"):
+                return base_cost
+
             skill_type, _ = GLOBAL_CACHE.Skill.GetType(skill_id)
             _, skill_profession = GLOBAL_CACHE.Skill.GetProfession(skill_id)
             if (skill_type == 14 or #attack skills

@@ -6,6 +6,7 @@ import PyImGui
 from HeroAI.headless_tree import HeroAIHeadlessTree
 
 from .GlobalCache import GLOBAL_CACHE
+from .GlobalCache.shared_memory_src.HeroAIOptionStruct import HeroAIOptionStruct
 from .IniManager import IniManager
 from .Overlay import Overlay
 from .Player import Player
@@ -40,11 +41,14 @@ class BottingTree:
     - lets the user plug in their own planner tree via SetPlannerTree(...)
     """
 
-    def __init__(self, ini_key: str, pause_on_combat: bool = True):
-        self.ini_key = ini_key
+    def __init__(self, pause_on_combat: bool = True, isolation_enabled: bool = True):
         self.pause_on_combat = pause_on_combat
+        self.isolation_enabled = isolation_enabled
+        self._restore_isolation_on_stop = True
+        self._previous_isolation_state: bool | None = None
         self.headless_heroai = HeroAIHeadlessTree()
         self.headless_heroai_enabled = True
+        self.looting_enabled = True
         self._planner_steps: list[tuple[str, Callable[[], object] | object]] = []
         self._planner_sequence_name = "PlannerSequence"
         self._service_steps: list[tuple[str, Callable[[], object] | object]] = []
@@ -56,30 +60,202 @@ class BottingTree:
         self.started = False
         self.paused = False
 
+    _LOG_LAST_MESSAGE_KEY = "last_log_message"
+    _LOG_LAST_MESSAGE_DATA_KEY = "last_log_message_data"
+    _LOG_HISTORY_KEY = "blackboard_log_history"
+
     @property
     def blackboard(self) -> dict:
         return self.tree.blackboard
+
+    def GetBlackboardValue(self, key: str, default=None):
+        return self.blackboard.get(key, default)
+
+    def SetBlackboardValue(self, key: str, value) -> None:
+        self.blackboard[key] = value
+
+    def ClearBlackboardValue(self, key: str) -> None:
+        self.blackboard.pop(key, None)
+
+    def HasBlackboardValue(self, key: str) -> bool:
+        return key in self.blackboard
+
+    def GetLastBlackboardLogMessage(self) -> str:
+        value = self.blackboard.get(self._LOG_LAST_MESSAGE_KEY, "")
+        return value if isinstance(value, str) else ""
+
+    def GetLastBlackboardLogData(self) -> dict:
+        value = self.blackboard.get(self._LOG_LAST_MESSAGE_DATA_KEY, {})
+        return value if isinstance(value, dict) else {}
+
+    def GetBlackboardLogHistory(self) -> list[str]:
+        value = self.blackboard.get(self._LOG_HISTORY_KEY, [])
+        if not isinstance(value, list):
+            return []
+        return [entry for entry in value if isinstance(entry, str)]
+
+    def ClearBlackboardLog(self) -> None:
+        self.blackboard.pop(self._LOG_LAST_MESSAGE_KEY, None)
+        self.blackboard.pop(self._LOG_LAST_MESSAGE_DATA_KEY, None)
+
+    def ClearBlackboardLogHistory(self) -> None:
+        self.blackboard.pop(self._LOG_HISTORY_KEY, None)
+
+    def GetDebugConsoleLastMessage(self) -> str:
+        return self.GetLastBlackboardLogMessage()
+
+    def GetDebugConsoleLastMessageData(self) -> dict:
+        return self.GetLastBlackboardLogData()
+
+    def GetDebugConsoleHistory(self) -> list[str]:
+        return self.GetBlackboardLogHistory()
+
+    def ClearDebugConsole(self) -> None:
+        self.ClearBlackboardLog()
+        self.ClearBlackboardLogHistory()
+
+    def CopyDebugConsoleToClipboard(self) -> None:
+        PyImGui.set_clipboard_text("\n".join(self.GetDebugConsoleHistory()))
+
+    def DrawDebugConsole(
+        self,
+        child_id: str | None = None,
+        height: float = 200.0,
+        reverse_order: bool = True,
+        show_controls: bool = True,
+    ) -> None:
+        if show_controls:
+            if PyImGui.button("Clear UI Log"):
+                self.ClearDebugConsole()
+            PyImGui.same_line(0, -1)
+            if PyImGui.button("Copy UI Log"):
+                self.CopyDebugConsoleToClipboard()
+
+        log_history = self.GetDebugConsoleHistory()
+        child_name = child_id or f"BottingTreeDebugConsole##{id(self)}"
+        if PyImGui.begin_child(child_name, (0, height), True, PyImGui.WindowFlags.HorizontalScrollbar):
+            entries = log_history[::-1] if reverse_order else log_history
+            for entry in entries:
+                PyImGui.text_wrapped(entry)
+        PyImGui.end_child()
     
     def Start(self):
-        if not self.started:
-            self.started = True
-            self.paused = False
-            Py4GW.Console.Log("BottingTree", "Botting tree started.", Py4GW.Console.MessageType.Info)
+        self.Reset()
+        self.EnableHeadlessHeroAI()
+        self.RestoreHeroAIOptions()
+        self.ClearPendingMessages()
+        self._capture_isolation_state_for_restore()
+        self.ApplyAccountIsolation()
+        self.started = True
+        self.paused = False
+        Py4GW.Console.Log("BottingTree", "Botting tree started.", Py4GW.Console.MessageType.Info)
             
     def Stop(self):
         if self.started:
             self.started = False
             self.paused = False
+            self.ClearPendingMessages()
+            self.RestoreAccountIsolation()
             self.Reset()
+            self.RestoreHeroAIOptions()
             Py4GW.Console.Log("BottingTree", "Botting tree stopped and reset.", Py4GW.Console.MessageType.Info)
 
     def Reset(self):
         self.tree.reset()
         self.planner_tree.reset()
         self.headless_heroai.reset()
-        for _, service_tree in self._service_trees:
-            service_tree.reset()
+        if self._service_steps:
+            self._service_trees = [
+                (step_name, self._coerce_runtime_tree(subtree_or_builder))
+                for step_name, subtree_or_builder in self._service_steps
+            ]
+            self._rebuild_root_tree()
+        else:
+            for _, service_tree in self._service_trees:
+                service_tree.reset()
         self.tree.blackboard.clear()
+        self._last_planner_gate_state = None
+        self._last_heroai_state = None
+        self.RestoreHeroAIOptions()
+        self.ClearPendingMessages()
+
+    def ClearPendingMessages(self) -> int:
+        account_email = Player.GetAccountEmail()
+        if not account_email:
+            return 0
+
+        cleared_count = 0
+        for message_index, message in GLOBAL_CACHE.ShMem.GetAllMessages():
+            if message is None:
+                continue
+            if not getattr(message, "Active", False):
+                continue
+            if getattr(message, "ReceiverEmail", "") != account_email:
+                continue
+            GLOBAL_CACHE.ShMem.MarkMessageAsFinished(account_email, message_index)
+            cleared_count += 1
+        return cleared_count
+
+    def RestoreHeroAIOptions(self) -> bool:
+        cached_data = self.headless_heroai.cached_data
+
+        def _apply_core_options(options: HeroAIOptionStruct) -> HeroAIOptionStruct:
+            options.Following = True
+            options.Avoidance = True
+            options.Targeting = True
+            options.Combat = True
+            options.Looting = self.looting_enabled
+            return options
+
+        cached_data.account_options = _apply_core_options(cached_data.account_options or HeroAIOptionStruct())
+        cached_data.global_options = _apply_core_options(cached_data.global_options or HeroAIOptionStruct())
+
+        account_email = Player.GetAccountEmail()
+        if not account_email:
+            return False
+
+        shared_options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsFromEmail(account_email) or HeroAIOptionStruct()
+        shared_options = _apply_core_options(shared_options)
+        GLOBAL_CACHE.ShMem.SetHeroAIOptionsByEmail(account_email, shared_options)
+        cached_data.account_options = shared_options
+        return True
+
+    def _heroai_options_match_runtime_policy(self) -> bool:
+        expected_looting = bool(self.looting_enabled)
+        cached_options = self.headless_heroai.cached_data.account_options
+        if cached_options is not None:
+            if not all([
+                bool(cached_options.Following),
+                bool(cached_options.Avoidance),
+                bool(cached_options.Targeting),
+                bool(cached_options.Combat),
+            ]):
+                return False
+            if bool(cached_options.Looting) != expected_looting:
+                return False
+
+        account_email = Player.GetAccountEmail()
+        if not account_email:
+            return True
+
+        shared_options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsFromEmail(account_email)
+        if shared_options is None:
+            return False
+
+        if not all([
+            bool(shared_options.Following),
+            bool(shared_options.Avoidance),
+            bool(shared_options.Targeting),
+            bool(shared_options.Combat),
+        ]):
+            return False
+
+        return bool(shared_options.Looting) == expected_looting
+
+    def EnsureHeroAIOptionsEnabled(self) -> bool:
+        if self._heroai_options_match_runtime_policy():
+            return True
+        return self.RestoreHeroAIOptions()
             
     def Pause(self, pause: bool = True):
         if pause and not self.paused:
@@ -96,8 +272,25 @@ class BottingTree:
         return self.started    
             
 
-    def SetPlannerTree(self, planner_tree: BehaviorTree | None):
+    def _set_planner_tree(self, planner_tree: BehaviorTree | None):
         self.planner_tree = planner_tree or self._build_default_planner_tree()
+
+    def SetPlannerTree(self, planner_tree: BehaviorTree | None):
+        self._planner_steps = []
+        self._planner_sequence_name = "PlannerSequence"
+        self._set_planner_tree(planner_tree)
+
+    def SetCurrentTree(
+        self,
+        planner_tree: BehaviorTree | None,
+        auto_start: bool = False,
+        reset: bool = True,
+    ):
+        self.SetPlannerTree(planner_tree)
+        if auto_start:
+            self.Start()
+        elif reset:
+            self.Reset()
 
     def _rebuild_root_tree(self):
         blackboard = dict(self.tree.blackboard) if hasattr(self, "tree") and self.tree is not None else {}
@@ -147,7 +340,25 @@ class BottingTree:
     ):
         self._planner_steps = list(steps)
         self._planner_sequence_name = name
-        self.SetPlannerTree(self._build_named_planner_tree(self._planner_steps, start_from=start_from, name=name))
+        self._set_planner_tree(self._build_named_planner_tree(self._planner_steps, start_from=start_from, name=name))
+
+    def SetCurrentNamedPlannerSteps(
+        self,
+        steps: Sequence[tuple[str, Callable[[], object] | object]],
+        start_from: str | None = None,
+        name: str = "PlannerSequence",
+        auto_start: bool = False,
+        reset: bool = True,
+    ):
+        self.SetNamedPlannerSteps(
+            steps,
+            start_from=start_from,
+            name=name,
+        )
+        if auto_start:
+            self.Start()
+        elif reset:
+            self.Reset()
 
     def _coerce_runtime_tree(self, subtree_or_builder: Callable[[], object] | object) -> BehaviorTree:
         subtree = subtree_or_builder() if callable(subtree_or_builder) else subtree_or_builder
@@ -238,8 +449,274 @@ class BottingTree:
             name=name,
         )
 
-    def SetHeadlessHeroAIEnabled(self, enabled: bool):
+    def SetHeadlessHeroAIEnabled(self, enabled: bool, reset_runtime: bool = True):
         self.headless_heroai_enabled = enabled
+        self._last_heroai_state = None
+        self.ApplyAccountIsolation()
+        if reset_runtime:
+            self.headless_heroai.reset()
+            bb = self.blackboard
+            bb["COMBAT_ACTIVE"] = False
+            bb["LOOTING_ACTIVE"] = False
+            bb["PAUSE_MOVEMENT"] = False
+            bb["USER_INTERRUPT_ACTIVE"] = False
+            bb["HEROAI_SUCCESS"] = False
+            bb["HEROAI_STATUS"] = HeroAIStatus.DISABLED.value if not enabled else ""
+
+    def SetLootingEnabled(self, enabled: bool) -> bool:
+        self.looting_enabled = enabled
+        self.blackboard["looting_enabled"] = enabled
+
+        self.headless_heroai.cached_data.account_options.Looting = enabled
+        self.headless_heroai.cached_data.global_options.Looting = enabled
+
+        account_email = Player.GetAccountEmail()
+        if not account_email:
+            return False
+
+        account_options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsFromEmail(account_email)
+        if account_options is None:
+            return False
+
+        account_options.Looting = enabled
+        GLOBAL_CACHE.ShMem.SetHeroAIOptionsByEmail(account_email, account_options)
+        return True
+
+    def EnableLooting(self) -> bool:
+        return self.SetLootingEnabled(True)
+
+    def DisableLooting(self) -> bool:
+        return self.SetLootingEnabled(False)
+
+    def ToggleLooting(self) -> bool:
+        self.SetLootingEnabled(not self.looting_enabled)
+        return self.looting_enabled
+
+    def IsLootingEnabled(self) -> bool:
+        return self.looting_enabled
+
+    def EnableHeadlessHeroAI(self, reset_runtime: bool = True) -> None:
+        self.SetHeadlessHeroAIEnabled(True, reset_runtime=reset_runtime)
+
+    def DisableHeadlessHeroAI(self, reset_runtime: bool = True) -> None:
+        self.SetHeadlessHeroAIEnabled(False, reset_runtime=reset_runtime)
+
+    def ToggleHeadlessHeroAI(self, reset_runtime: bool = True) -> bool:
+        new_state = not self.headless_heroai_enabled
+        self.SetHeadlessHeroAIEnabled(new_state, reset_runtime=reset_runtime)
+        return new_state
+
+    def ApplyAccountIsolation(self) -> bool:
+        account_email = Player.GetAccountEmail()
+        if not account_email:
+            return False
+
+        changed = GLOBAL_CACHE.ShMem.SetAccountIsolationByEmail(account_email, self.isolation_enabled)
+        if changed:
+            Py4GW.Console.Log(
+                "BottingTree",
+                f"Account isolation {'enabled' if self.isolation_enabled else 'disabled'} for {account_email}.",
+                Py4GW.Console.MessageType.Info,
+            )
+        return bool(changed)
+
+    def _capture_isolation_state_for_restore(self) -> None:
+        account_email = Player.GetAccountEmail()
+        if not account_email:
+            self._previous_isolation_state = None
+            return
+        self._previous_isolation_state = bool(GLOBAL_CACHE.ShMem.IsAccountIsolated(account_email))
+
+    def RestoreAccountIsolation(self) -> bool:
+        if not self._restore_isolation_on_stop:
+            return False
+
+        account_email = Player.GetAccountEmail()
+        if not account_email or self._previous_isolation_state is None:
+            return False
+
+        changed = GLOBAL_CACHE.ShMem.SetAccountIsolationByEmail(
+            account_email,
+            self._previous_isolation_state,
+        )
+        if changed:
+            Py4GW.Console.Log(
+                "BottingTree",
+                f"Account isolation restored to {'enabled' if self._previous_isolation_state else 'disabled'} for {account_email}.",
+                Py4GW.Console.MessageType.Info,
+            )
+        self._previous_isolation_state = None
+        return bool(changed)
+
+    def SetIsolationEnabled(self, enabled: bool) -> bool:
+        self.isolation_enabled = enabled
+        return self.ApplyAccountIsolation()
+
+    def EnableIsolation(self) -> bool:
+        return self.SetIsolationEnabled(True)
+
+    def DisableIsolation(self) -> bool:
+        return self.SetIsolationEnabled(False)
+
+    def ToggleIsolation(self) -> bool:
+        self.isolation_enabled = not self.isolation_enabled
+        self.ApplyAccountIsolation()
+        return self.isolation_enabled
+
+    def IsIsolationEnabled(self) -> bool:
+        return self.isolation_enabled
+
+    def SetRestoreIsolationOnStop(self, enabled: bool) -> None:
+        self._restore_isolation_on_stop = enabled
+
+    @staticmethod
+    def GetIsolationSetEnabledTree(
+        enabled: bool,
+        name: str | None = None,
+    ) -> BehaviorTree:
+        node_name = name or ("EnableIsolation" if enabled else "DisableIsolation")
+
+        def _request_toggle(node: BehaviorTree.Node) -> BehaviorTree.NodeState:
+            node.blackboard["account_isolation_enabled_request"] = enabled
+            return BehaviorTree.NodeState.SUCCESS
+
+        return BehaviorTree(
+            BehaviorTree.ActionNode(
+                name=node_name,
+                action_fn=_request_toggle,
+                aftercast_ms=0,
+            )
+        )
+
+    @staticmethod
+    def EnableIsolationTree() -> BehaviorTree:
+        return BottingTree.GetIsolationSetEnabledTree(
+            True,
+            name="EnableIsolation",
+        )
+
+    @staticmethod
+    def DisableIsolationTree() -> BehaviorTree:
+        return BottingTree.GetIsolationSetEnabledTree(
+            False,
+            name="DisableIsolation",
+        )
+
+    @staticmethod
+    def ToggleIsolationTree() -> BehaviorTree:
+        def _request_toggle(node: BehaviorTree.Node) -> BehaviorTree.NodeState:
+            current_enabled = bool(node.blackboard.get("account_isolation_enabled", True))
+            node.blackboard["account_isolation_enabled_request"] = not current_enabled
+            return BehaviorTree.NodeState.SUCCESS
+
+        return BehaviorTree(
+            BehaviorTree.ActionNode(
+                name="ToggleIsolation",
+                action_fn=_request_toggle,
+                aftercast_ms=0,
+            )
+        )
+
+    @staticmethod
+    def GetHeroAiSetEnabledTree(
+        enabled: bool,
+        reset_runtime: bool = True,
+        name: str | None = None,
+    ) -> BehaviorTree:
+        node_name = name or ("EnableHeadlessHeroAI" if enabled else "DisableHeadlessHeroAI")
+
+        def _request_toggle(node: BehaviorTree.Node) -> BehaviorTree.NodeState:
+            node.blackboard["headless_heroai_enabled_request"] = enabled
+            node.blackboard["headless_heroai_reset_runtime_request"] = reset_runtime
+            return BehaviorTree.NodeState.SUCCESS
+
+        return BehaviorTree(
+            BehaviorTree.ActionNode(
+                name=node_name,
+                action_fn=_request_toggle,
+                aftercast_ms=0,
+            )
+        )
+
+    @staticmethod
+    def EnableHeroAITree(reset_runtime: bool = True) -> BehaviorTree:
+        return BottingTree.GetHeroAiSetEnabledTree(
+            True,
+            reset_runtime=reset_runtime,
+            name="EnableHeadlessHeroAI",
+        )
+
+    @staticmethod
+    def DisableHeroAITree(reset_runtime: bool = True) -> BehaviorTree:
+        return BottingTree.GetHeroAiSetEnabledTree(
+            False,
+            reset_runtime=reset_runtime,
+            name="DisableHeadlessHeroAI",
+        )
+
+    @staticmethod
+    def ToggleHeroAITree(reset_runtime: bool = True) -> BehaviorTree:
+        def _request_toggle(node: BehaviorTree.Node) -> BehaviorTree.NodeState:
+            current_enabled = bool(node.blackboard.get("headless_heroai_enabled", True))
+            node.blackboard["headless_heroai_enabled_request"] = not current_enabled
+            node.blackboard["headless_heroai_reset_runtime_request"] = reset_runtime
+            return BehaviorTree.NodeState.SUCCESS
+
+        return BehaviorTree(
+            BehaviorTree.ActionNode(
+                name="ToggleHeadlessHeroAI",
+                action_fn=_request_toggle,
+                aftercast_ms=0,
+            )
+        )
+
+    @staticmethod
+    def GetLootingSetEnabledTree(
+        enabled: bool,
+        name: str | None = None,
+    ) -> BehaviorTree:
+        node_name = name or ("EnableLooting" if enabled else "DisableLooting")
+
+        def _request_toggle(node: BehaviorTree.Node) -> BehaviorTree.NodeState:
+            node.blackboard["looting_enabled_request"] = enabled
+            return BehaviorTree.NodeState.SUCCESS
+
+        return BehaviorTree(
+            BehaviorTree.ActionNode(
+                name=node_name,
+                action_fn=_request_toggle,
+                aftercast_ms=0,
+            )
+        )
+
+    @staticmethod
+    def EnableLootingTree() -> BehaviorTree:
+        return BottingTree.GetLootingSetEnabledTree(
+            True,
+            name="EnableLooting",
+        )
+
+    @staticmethod
+    def DisableLootingTree() -> BehaviorTree:
+        return BottingTree.GetLootingSetEnabledTree(
+            False,
+            name="DisableLooting",
+        )
+
+    @staticmethod
+    def ToggleLootingTree() -> BehaviorTree:
+        def _request_toggle(node: BehaviorTree.Node) -> BehaviorTree.NodeState:
+            current_enabled = bool(node.blackboard.get("looting_enabled", True))
+            node.blackboard["looting_enabled_request"] = not current_enabled
+            return BehaviorTree.NodeState.SUCCESS
+
+        return BehaviorTree(
+            BehaviorTree.ActionNode(
+                name="ToggleLooting",
+                action_fn=_request_toggle,
+                aftercast_ms=0,
+            )
+        )
         
     def IsHeadlessHeroAIEnabled(self) -> bool:
         return self.headless_heroai_enabled
@@ -369,6 +846,29 @@ class BottingTree:
 
     def _tick_heroai(self, node: BehaviorTree.Node) -> BehaviorTree.NodeState:
         bb = node.blackboard
+        requested_isolation = bb.pop("account_isolation_enabled_request", None)
+        if isinstance(requested_isolation, bool):
+            self.SetIsolationEnabled(requested_isolation)
+        bb["account_isolation_enabled"] = self.IsIsolationEnabled()
+
+        requested_enabled = bb.pop("headless_heroai_enabled_request", None)
+        requested_reset_runtime = bool(bb.pop("headless_heroai_reset_runtime_request", True))
+        if isinstance(requested_enabled, bool):
+            self.SetHeadlessHeroAIEnabled(requested_enabled, reset_runtime=requested_reset_runtime)
+        bb["headless_heroai_enabled"] = self.IsHeadlessHeroAIEnabled()
+
+        requested_looting_enabled = bb.pop("looting_enabled_request", None)
+        if isinstance(requested_looting_enabled, bool):
+            self.SetLootingEnabled(requested_looting_enabled)
+        bb["looting_enabled"] = self.IsLootingEnabled()
+
+        if not self.started or self.paused:
+            bb["COMBAT_ACTIVE"] = False
+            bb["LOOTING_ACTIVE"] = False
+            bb["PAUSE_MOVEMENT"] = False
+            bb["HEROAI_SUCCESS"] = False
+            return BehaviorTree.NodeState.RUNNING
+
         if not self.IsHeadlessHeroAIEnabled():
             if self._last_heroai_state != "disabled":
                 Py4GW.Console.Log("BottingTree", "Headless HeroAI is disabled.", Py4GW.Console.MessageType.Info)
@@ -380,6 +880,8 @@ class BottingTree:
             bb["HEROAI_SUCCESS"] = False
             self.headless_heroai.reset()
             return BehaviorTree.NodeState.RUNNING
+
+        self.EnsureHeroAIOptionsEnabled()
 
         if Routines.Checks.Map.IsLoading() or not Routines.Checks.Map.IsExplorable():
             if self._last_heroai_state != "waiting_map":
@@ -416,8 +918,9 @@ class BottingTree:
             return BehaviorTree.NodeState.RUNNING
 
         self.headless_heroai.tick()
-        bb["LOOTING_ACTIVE"] = bool(getattr(self.headless_heroai.cached_data.data, "in_looting_routine", False))
-        bb["PAUSE_MOVEMENT"] = bb["LOOTING_ACTIVE"]
+        bb["USER_INTERRUPT_ACTIVE"] = self.headless_heroai.IsUserInterrupting()
+        bb["LOOTING_ACTIVE"] = self.headless_heroai.IsLootingActive()
+        bb["PAUSE_MOVEMENT"] = bool(bb["LOOTING_ACTIVE"] or bb["USER_INTERRUPT_ACTIVE"])
 
         if self.headless_heroai.cached_data.data.in_aggro:
             if self._last_heroai_state != "combat":
@@ -435,6 +938,11 @@ class BottingTree:
 
     def _tick_planner(self, node: BehaviorTree.Node) -> BehaviorTree.NodeState:
         bb = node.blackboard
+
+        if not self.started or self.paused:
+            bb["PLANNER_STATUS"] = PlannerStatus.IDLE.value
+            bb["PLANNER_OWNER"] = PlannerStatus.OWNER_PLANNER.value
+            return BehaviorTree.NodeState.RUNNING
 
         if bb.get("COMBAT_ACTIVE", False) and self.pause_on_combat:
             if self._last_planner_gate_state != "paused_on_combat":
@@ -468,15 +976,20 @@ class BottingTree:
             bb["PLANNER_OWNER"] = PlannerStatus.OWNER_PLANNER.value
             self.started = False
             self.paused = False
+            self.RestoreAccountIsolation()
         elif planner_result == BehaviorTree.NodeState.FAILURE:
             Py4GW.Console.Log("BottingTree", "Planner tree failed.", Py4GW.Console.MessageType.Warning)
             bb["PLANNER_STATUS"] = "PLANNER: Failed"
             bb["PLANNER_OWNER"] = PlannerStatus.OWNER_PLANNER.value
             self.started = False
             self.paused = False
+            self.RestoreAccountIsolation()
         return BehaviorTree.NodeState.RUNNING
 
     def _tick_service_tree(self, node: BehaviorTree.Node, service_tree: BehaviorTree, service_name: str) -> BehaviorTree.NodeState:
+        if not self.started or self.paused:
+            return BehaviorTree.NodeState.RUNNING
+
         service_tree.blackboard = node.blackboard
         service_result = BehaviorTree.Node._normalize_state(service_tree.tick())
         if service_result is None:
@@ -539,6 +1052,4 @@ class BottingTree:
         )
 
     def tick(self):
-        if not self.started or self.paused:
-            return
         return self.tree.tick()

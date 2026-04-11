@@ -3240,13 +3240,15 @@ class ImGui:
         PyImGui.push_style_color(PyImGui.ImGuiCol.Text, color.to_tuple_normalized())
         result = False
         
+        font_scaled = False
         if font_size > 0:
-            ImGui.push_font("Regular", font_size)
+            PyImGui.push_font_scaled(ImguiFonts.Regular_14.value, font_size / 14.0)
+            font_scaled = True
         if PyImGui.begin(f"{caption}##invisible_buttonwindow{name}", flags):
             result = PyImGui.button(f"{caption}##floating_button{name}", width=width, height=height)
 
-        if font_size > 0:
-            ImGui.pop_font()
+        if font_scaled:
+            PyImGui.pop_font_scaled()
         PyImGui.end()
         PyImGui.pop_style_color(5)  # Button, Hovered, Active, Text, WindowBg
         PyImGui.pop_style_var(2)
@@ -3600,8 +3602,7 @@ class ImGui:
             for token in tokens:
                 t = token["type"]
                 v = token.get("value")
-                v = v.strip() if isinstance(v, str) else v
-                if not v:
+                if v is None:
                     v = ""
                 if t == "text":
                     if inside_bullet:

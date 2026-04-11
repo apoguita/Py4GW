@@ -13,7 +13,6 @@ from Sources.oazix.CustomBehaviors.skills.common.ebon_vanguard_assassin_support_
 from Sources.oazix.CustomBehaviors.skills.common.great_dwarf_weapon_utility import GreatDwarfWeaponUtility
 from Sources.oazix.CustomBehaviors.skills.common.i_am_unstoppable_utility import IAmUnstoppableUtility
 from Sources.oazix.CustomBehaviors.skills.elementalist.emo_spam_on_party_if_mana_low_utility import EmoSpamOnPartyIfManaLowUtility
-from Sources.oazix.CustomBehaviors.skills.elementalist.emo_readiness_utility import EmoReadinessUtility
 from Sources.oazix.CustomBehaviors.skills.generic.dismiss_buff_if_no_mana_utility import DismissBuffIfNoManaUtility
 from Sources.oazix.CustomBehaviors.skills.generic.keep_self_effect_up_utility import KeepSelfEffectUpUtility
 from Sources.oazix.CustomBehaviors.skills.generic.maintain_effect_up_on_player_utility import MaintainEffectUpOnPlayerUtility
@@ -70,13 +69,6 @@ class ElementalistEmo_UtilitySkillBar(CustomBehaviorBaseUtility):
         self.elemental_lord_luxon_utility: CustomSkillUtilityBase = KeepSelfEffectUpUtility(event_bus=self.event_bus, skill=CustomSkill("Elemental_Lord_luxon"), current_build=in_game_build, score_definition=ScoreStaticDefinition(70), mana_required_to_cast=10,allowed_states=[BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO, BehaviorState.FAR_FROM_AGGRO])
         self.burning_speed_utility: CustomSkillUtilityBase = KeepSelfEffectUpUtility(event_bus=self.event_bus, skill=CustomSkill("Burning_Speed"), current_build=in_game_build, score_definition=ScoreStaticDefinition(50), mana_required_to_cast=10,allowed_states=[BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO, BehaviorState.FAR_FROM_AGGRO])
 
-        self.emo_readines_utility: CustomSkillUtilityBase = EmoReadinessUtility(event_bus=self.event_bus, current_build=in_game_build, 
-                                                                                protective_bond_utility=self.protective_bond_utility, 
-                                                                                life_attunement_utility=self.life_attunement_utility)
-
-# [ (16324, -14878), (9068, -9433), (11734, -8201), (15064, -6578), (13817, -4072), (10429, -4978), (1565, -6016), (2348, -9144), (2451, -10304), (-64, -9064), (-1269, -3918), (-4722, 3031), (-3480, 8359), (-6677, 10236), (-8816, 8854), (-9831, 5499) ]
-
-
     @property
     @override
     def additional_autonomous_skills(self) -> list[CustomSkillUtilityBase]:
@@ -85,7 +77,6 @@ class ElementalistEmo_UtilitySkillBar(CustomBehaviorBaseUtility):
         if self.maintain_effect_up_on_player_1 not in base: base.append(self.maintain_effect_up_on_player_1)
         if self.maintain_effect_up_on_player_2 not in base: base.append(self.maintain_effect_up_on_player_2)
         if self.dismiss_buff_if_no_mana_utility not in base: base.append(self.dismiss_buff_if_no_mana_utility)
-        if self.emo_readines_utility not in base: base.append(self.emo_readines_utility)
         return base
 
     @property

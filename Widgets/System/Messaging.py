@@ -24,6 +24,7 @@ from Py4GWCoreLib.GlobalCache.shared_memory_src.AccountStruct import AccountStru
 from Py4GWCoreLib.Py4GWcorelib import Keystroke
 from Py4GWCoreLib.Quest import Quest
 from Py4GWCoreLib.enums_src.Model_enums import ModelID
+from Widgets.Automation.Helpers import Pycons as PyconsHelper
 from Widgets.Automation.Helpers.Pycons import resolve_pycons_account_ini_path
 from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
 from Py4GWCoreLib.GlobalCache.shared_memory_src.SharedMessageStruct import SharedMessageStruct
@@ -46,6 +47,8 @@ width, height = 0, 0
 # ProcessMessages() dispatches a new coroutine every frame, so without this
 # lock, rapid ShMem dispatches create multiple simultaneous coroutines.
 _merchant_busy: bool = False
+MERCHANT_RULES_WIDGET_NAME = "Merchant Rules"
+PYCONS_WIDGET_NAME = "Pycons"
 
 
 def _extra_data(message: SharedMessageStruct) -> tuple[str, str, str, str]:
@@ -71,7 +74,7 @@ class HeroAIoptions:
         self.Skills: list[bool] = [False] * 8
 
 
-hero_ai_snapshots: list[HeroAIoptions] = []
+hero_ai_snapshots: dict[str, list[HeroAIoptions]] = {}
 
 combat_prep_first_skills_check = True
 hero_ai_has_ritualist_skills = False
@@ -80,6 +83,28 @@ hero_ai_has_paragon_skills = False
 def _c_wchar_array_to_str(arr: ctypes.Array) -> str:
         """Convert c_wchar array back to Python str, stopping at null terminator."""
         return "".join(ch for ch in arr if ch != '\0').rstrip()
+
+
+def _get_merchant_rules_widget():
+    widget_handler = get_widget_handler()
+    for widget_name in ("MerchantRules", MERCHANT_RULES_WIDGET_NAME):
+        widget_info = widget_handler.get_widget_info(widget_name)
+        if not widget_info or not getattr(widget_info, "module", None):
+            continue
+        widget_instance = getattr(widget_info.module, "WIDGET_INSTANCE", None)
+        if widget_instance is not None:
+            return widget_instance
+    return None
+
+
+def _get_pycons_widget_module():
+    widget_handler = get_widget_handler()
+    widget_info = widget_handler.get_widget_info(PYCONS_WIDGET_NAME)
+    if not widget_info:
+        return None
+    if not bool(getattr(widget_info, "enabled", False)):
+        return None
+    return getattr(widget_info, "module", None)
 
 # region ImGui
 def configure():
@@ -200,6 +225,8 @@ def DrawWindow():
 # region HeroAI Snapshot
 def SnapshotHeroAIOptions(account_email: str):
     global hero_ai_snapshots
+    if not account_email:
+        return
     hero_ai_options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsFromEmail(account_email)
     if hero_ai_options is None:
         return
@@ -211,14 +238,17 @@ def SnapshotHeroAIOptions(account_email: str):
     data.Targeting = hero_ai_options.Targeting
     data.Combat = hero_ai_options.Combat
 
-    hero_ai_snapshots.append(data)
+    hero_ai_snapshots.setdefault(account_email, []).append(data)
 
 
 
 def RestoreHeroAISnapshot(account_email: str):
     global hero_ai_snapshots
+    if not account_email:
+        return
+    account_snapshots = hero_ai_snapshots.get(account_email, [])
     
-    if not hero_ai_snapshots:
+    if not account_snapshots:
         EnableHeroAIOptions(account_email)  # If no snapshot, just enable everything to be safe
         ConsoleLog(MODULE_NAME, "No Hero AI snapshot found, enabling all options as fallback.", Console.MessageType.Warning, True)
         return
@@ -227,13 +257,87 @@ def RestoreHeroAISnapshot(account_email: str):
     if hero_ai_options is None:
         return
     
-    last_state = hero_ai_snapshots.pop()
+    last_state = account_snapshots.pop()
+    if not account_snapshots:
+        hero_ai_snapshots.pop(account_email, None)
 
     hero_ai_options.Following = last_state.Following
     hero_ai_options.Avoidance = last_state.Avoidance
     hero_ai_options.Looting = last_state.Looting
     hero_ai_options.Targeting = last_state.Targeting
     hero_ai_options.Combat = last_state.Combat
+
+
+_HERO_AI_SUSPENDING_COMMANDS = {
+    SharedCommandType.PixelStack,
+    SharedCommandType.BruteForceUnstuck,
+    SharedCommandType.InteractWithTarget,
+    SharedCommandType.TakeDialogWithTarget,
+    SharedCommandType.SendDialogToTarget,
+    SharedCommandType.GetBlessing,
+    SharedCommandType.MerchantItems,
+    SharedCommandType.MerchantMaterials,
+    SharedCommandType.OpenChest,
+    SharedCommandType.PickUpLoot,
+    SharedCommandType.UseSkill,
+    SharedCommandType.DisableHeroAI,
+    SharedCommandType.UseSkillCombatPrep,
+}
+
+
+def _hero_ai_options_all_disabled(account_email: str) -> bool:
+    hero_ai_options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsFromEmail(account_email)
+    if hero_ai_options is None:
+        return False
+    return not any([
+        bool(hero_ai_options.Following),
+        bool(hero_ai_options.Avoidance),
+        bool(hero_ai_options.Looting),
+        bool(hero_ai_options.Targeting),
+        bool(hero_ai_options.Combat),
+    ])
+
+
+def _has_active_hero_ai_suspending_message(account_email: str) -> bool:
+    for _, message in GLOBAL_CACHE.ShMem.GetAllMessages():
+        if message is None:
+            continue
+        if not getattr(message, "Active", False):
+            continue
+        if getattr(message, "ReceiverEmail", "") != account_email:
+            continue
+        if getattr(message, "Command", None) in _HERO_AI_SUSPENDING_COMMANDS:
+            return True
+    return False
+
+
+def HealStaleHeroAISnapshot(account_email: str) -> None:
+    global hero_ai_snapshots
+    if not account_email:
+        return
+
+    account_snapshots = hero_ai_snapshots.get(account_email, [])
+    if not account_snapshots:
+        return
+
+    if _has_active_hero_ai_suspending_message(account_email):
+        return
+
+    restored = False
+    while hero_ai_snapshots.get(account_email) and _hero_ai_options_all_disabled(account_email):
+        RestoreHeroAISnapshot(account_email)
+        restored = True
+
+    if restored:
+        ConsoleLog(
+            MODULE_NAME,
+            "Restored Hero AI options after detecting stale suspended-message state.",
+            Console.MessageType.Warning,
+            True,
+        )
+
+    if hero_ai_snapshots.get(account_email):
+        hero_ai_snapshots.pop(account_email, None)
 
 
 
@@ -635,6 +739,9 @@ def MerchantItems(index: int, message: SharedMessageStruct):
             ini_section = str(extra2 or "").strip()
             ini_key = str(extra3 or "").strip()
             if ini_path and ini_section and ini_key:
+                import os as _os
+                if not _os.path.isabs(ini_path):
+                    ini_path = _os.path.join(Py4GW.Console.get_projects_path(), ini_path)
                 IniHandler(ini_path).write_key(ini_section, ini_key, str(salvage_kits_in_inv))
         finally:
             _merchant_busy = False
@@ -935,6 +1042,37 @@ def MerchantMaterials(index: int, message: SharedMessageStruct):
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
 # endregion
 
+# region MerchantRules
+def MerchantRules(index: int, message: SharedMessageStruct):
+    global _merchant_busy
+    widget = _get_merchant_rules_widget()
+    GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
+    if widget is None:
+        ConsoleLog(MODULE_NAME, "Merchant Rules widget is not available for shared message handling.", Console.MessageType.Warning, False)
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+
+    needs_merchant_lock = bool(widget._multibox_message_requires_merchant_lock(message))
+    try:
+        if not needs_merchant_lock:
+            yield from widget.handle_shared_multibox_message(message)
+            return
+
+        ready_to_execute = yield from widget._wait_for_remote_execute_start(
+            message,
+            is_merchant_busy=lambda: _merchant_busy,
+        )
+        if not ready_to_execute:
+            return
+        _merchant_busy = True
+        try:
+            yield from widget.handle_shared_multibox_message(message)
+        finally:
+            _merchant_busy = False
+    finally:
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+# endregion
+
 # region UsePcon
 
 
@@ -947,10 +1085,14 @@ def UsePcon(index: int, message: SharedMessageStruct):
     pcon_model_id2 = int(message.Params[2])
     pcon_skill_id2 = int(message.Params[3])
 
-    # Halt if any of the effects is already active
-    if GLOBAL_CACHE.ShMem.AccountHasEffect(message.ReceiverEmail, pcon_skill_id) or GLOBAL_CACHE.ShMem.AccountHasEffect(
-        message.ReceiverEmail, pcon_skill_id2
-    ):
+    # Halt if any of the effects is already active.
+    # Use live game-state check (Effects.HasEffect) rather than shared-memory
+    # (AccountHasEffect) because ShMem data can be stale (e.g. during map
+    # transitions), which previously caused consets to be consumed again even
+    # when the effect was still active on the character.
+    agent_id = Player.GetAgentID()
+    if (pcon_skill_id != 0 and GLOBAL_CACHE.Effects.HasEffect(agent_id, pcon_skill_id)) or \
+       (pcon_skill_id2 != 0 and GLOBAL_CACHE.Effects.HasEffect(agent_id, pcon_skill_id2)):
         # ConsoleLog(MODULE_NAME, "Player already has the effect of one of the PCon skills.", Console.MessageType.Warning)
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
@@ -1183,12 +1325,12 @@ def OpenChest(index: int, message: SharedMessageStruct):
 
 # region PickUpLoot
 def PickUpLoot(index:int , message: SharedMessageStruct):
-    def _exit_if_not_map_valid():
+    def _get_loot_exit_reason() -> str:
         if not Routines.Checks.Map.MapValid():
             RestoreHeroAISnapshot(message.ReceiverEmail)
             GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
             ActionQueueManager().ResetAllQueues()
-            return True  # Signal that we must exit
+            return "map_invalid"
 
         if GLOBAL_CACHE.Inventory.GetFreeSlotCount() < 1:
             ConsoleLog(
@@ -1199,9 +1341,9 @@ def PickUpLoot(index:int , message: SharedMessageStruct):
             RestoreHeroAISnapshot(message.ReceiverEmail)
             GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
             ActionQueueManager().ResetAllQueues()
-            return True
+            return "inventory_full"
 
-        return False
+        return ""
 
     def _GetBaseTimestamp():
         SHMEM_ZERO_EPOCH = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
@@ -1229,9 +1371,13 @@ def PickUpLoot(index:int , message: SharedMessageStruct):
             if item_id is None or item_id == 0:
                 continue
 
-            if ( _exit_if_not_map_valid()):
+            exit_reason = _get_loot_exit_reason()
+            if exit_reason:
                 LootConfig().AddItemIDToBlacklist(item_id)
-                ConsoleLog("PickUp Loot", "Map is not valid, halting.", Console.MessageType.Warning)
+                if exit_reason == "map_invalid":
+                    ConsoleLog("PickUp Loot", "Map is not valid, halting.", Console.MessageType.Warning)
+                elif exit_reason == "inventory_full":
+                    ConsoleLog("PickUp Loot", "No free slots in inventory, halting.", Console.MessageType.Warning)
                 ActionQueueManager().ResetAllQueues()
                 return
 
@@ -1252,7 +1398,8 @@ def PickUpLoot(index:int , message: SharedMessageStruct):
                 return
 
             yield from Routines.Yield.wait(100)
-            if (_exit_if_not_map_valid()):
+            exit_reason = _get_loot_exit_reason()
+            if exit_reason:
                 RestoreHeroAISnapshot(message.ReceiverEmail)
                 return
             yield from Routines.Yield.Player.InteractAgent(item_id)
@@ -1273,13 +1420,21 @@ def PickUpLoot(index:int , message: SharedMessageStruct):
                     ActionQueueManager().ResetAllQueues()
                     return
 
-                if (_exit_if_not_map_valid()):
+                exit_reason = _get_loot_exit_reason()
+                if exit_reason:
                     LootConfig().AddItemIDToBlacklist(item_id)
-                    ConsoleLog(
-                        "PickUp Loot",
-                        "Map is not valid, halting.",
-                        Console.MessageType.Warning,
-                    )
+                    if exit_reason == "map_invalid":
+                        ConsoleLog(
+                            "PickUp Loot",
+                            "Map is not valid, halting.",
+                            Console.MessageType.Warning,
+                        )
+                    elif exit_reason == "inventory_full":
+                        ConsoleLog(
+                            "PickUp Loot",
+                            "No free slots in inventory, halting.",
+                            Console.MessageType.Warning,
+                        )
                     ActionQueueManager().ResetAllQueues()
                     return
 
@@ -1797,6 +1952,26 @@ def UseSkillCombatPrep(index: int, message: SharedMessageStruct):
 #endregion
 
 # region Widget handling
+def Pycons(index: int, message: SharedMessageStruct):
+    GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
+    try:
+        module = _get_pycons_widget_module()
+        handler = getattr(module, "pycons_handle_shared_message", None) if module is not None else None
+        if callable(handler):
+            handler(message)
+            return
+
+        fallback = getattr(PyconsHelper, "pycons_reply_reload_unavailable_for_message", None)
+        if callable(fallback):
+            fallback(message)
+    except Exception as exc:
+        ConsoleLog(MODULE_NAME, f"Pycons shared-message error: {exc}", Console.MessageType.Error, False)
+    finally:
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+    if False:
+        yield None
+
+
 def PauseWidgets(index: int, message: SharedMessageStruct):
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
@@ -2062,6 +2237,9 @@ def InventoryQuery(index: int, message: SharedMessageStruct):
             ini_section = str(extra2 or "").strip()
             ini_key     = str(extra3 or "").strip()
             if ini_path and ini_section and ini_key and range_start > 0 and range_end >= range_start:
+                import os as _os
+                if not _os.path.isabs(ini_path):
+                    ini_path = _os.path.join(Py4GW.Console.get_projects_path(), ini_path)
                 count = sum(int(GLOBAL_CACHE.Inventory.GetModelCount(mid))
                             for mid in range(range_start, range_end + 1))
                 IniHandler(ini_path).write_key(ini_section, ini_key, str(count))
@@ -2082,6 +2260,35 @@ def RefreshHeroAIBuilds(index: int, message: SharedMessageStruct):
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
     ConsoleLog(MODULE_NAME, "ReloadBuilds message processed and finished.", Console.MessageType.Info, False)
 
+# endregion
+
+# region EquipItem
+def EquipItem(index: int, message: SharedMessageStruct):
+    GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
+
+    if len(message.Params) < 1:
+        ConsoleLog(MODULE_NAME, "EquipItem: missing model_id param.", Console.MessageType.Warning)
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+
+    try:
+        model_id = int(message.Params[0])
+    except Exception:
+        ConsoleLog(MODULE_NAME, "EquipItem: invalid model_id.", Console.MessageType.Warning)
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+
+    item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(model_id)
+    if not item_id:
+        ConsoleLog(MODULE_NAME, f"EquipItem: model_id {model_id} not found in inventory.", Console.MessageType.Warning)
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+
+    GLOBAL_CACHE.Inventory.EquipItem(item_id, Player.GetAgentID())
+    yield from Routines.Yield.wait(750)
+
+    ConsoleLog(MODULE_NAME, f"EquipItem: equipped item_id {item_id} (model {model_id}).", Console.MessageType.Info, False)
+    GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
 # endregion
 
 # region ProcessMessages
@@ -2132,6 +2339,10 @@ def ProcessMessages():
             GLOBAL_CACHE.Coroutines.append(MerchantItems(index, message))
         case SharedCommandType.MerchantMaterials:
             GLOBAL_CACHE.Coroutines.append(MerchantMaterials(index, message))
+        case SharedCommandType.MerchantRules:
+            GLOBAL_CACHE.Coroutines.append(MerchantRules(index, message))
+        case SharedCommandType.Pycons:
+            GLOBAL_CACHE.Coroutines.append(Pycons(index, message))
         case SharedCommandType.DisableHeroAI:
             GLOBAL_CACHE.Coroutines.append(MessageDisableHeroAI(index, message))
         case SharedCommandType.EnableHeroAI:
@@ -2190,6 +2401,8 @@ def ProcessMessages():
             GLOBAL_CACHE.Coroutines.append(RestockResurrectionScroll(index, message))
         case SharedCommandType.InventoryQuery:
             GLOBAL_CACHE.Coroutines.append(InventoryQuery(index, message))
+        case SharedCommandType.EquipItem:
+            GLOBAL_CACHE.Coroutines.append(EquipItem(index, message))
         case SharedCommandType.RefreshHeroAIBuilds:
             GLOBAL_CACHE.Coroutines.append(RefreshHeroAIBuilds(index, message))
         case SharedCommandType.LootEx:
@@ -2207,6 +2420,7 @@ def ProcessMessages():
 
 
 def main():
+    HealStaleHeroAISnapshot(Player.GetAccountEmail())
     ProcessMessages()
 
 

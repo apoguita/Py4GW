@@ -83,6 +83,7 @@ class AccountStruct(Structure):
         ("IsPet", c_bool),
         ("IsNPC", c_bool),
         ("IsIsolated", c_bool),
+        ("IsolationGroupID", c_uint),
         ("InAggro", c_bool),
         ("InAggroTick64", c_uint64),
 
@@ -114,6 +115,7 @@ class AccountStruct(Structure):
     IsPet: bool
     IsNPC: bool
     IsIsolated: bool
+    IsolationGroupID: int
     InAggro: bool
     InAggroTick64: int
 
@@ -145,6 +147,7 @@ class AccountStruct(Structure):
         self.IsPet = False
         self.IsNPC = False
         self.IsIsolated = False
+        self.IsolationGroupID = 0
         self.InAggro = False
         self.InAggroTick64 = 0
 
@@ -272,16 +275,23 @@ class AccountStruct(Structure):
         self.IsNPC = False
         self.InAggro = False
         self.InAggroTick64 = 0
-        
+
+        # Set HeroID and LastUpdated before early returns so:
+        # - GetHeroSlotByHeroData can find this slot by HeroID
+        # - _is_slot_active doesn't treat this slot as expired (LastUpdated=0),
+        #   preventing GetEmptySlot from recycling it before the map finishes loading.
+        self.AgentData.HeroID = hero_data.hero_id.GetID()
+        self.LastUpdated = Py4GW.Game.get_tick_count64()
+
         if Map.IsMapLoading(): return
         if not Player.IsPlayerLoaded(): return
         if not Map.IsMapReady(): return
         if not Party.IsPartyLoaded(): return
         if Map.IsInCinematic(): return
-        
+
         if self.AccountName == "":
             self.AccountName = Player.GetAccountName() if Player.IsPlayerLoaded() else ""
-        
+
         agent_id = hero_data.agent_id
         self.AgentData.from_context(agent_id, throttle_key=slot_index)
         self.AgentData.Morale = 100

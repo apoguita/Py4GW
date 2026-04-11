@@ -197,7 +197,7 @@ class ActionQueueManager:
         self.queues = {
             "ACTION": ActionQueueNode(50),
             "LOOT": ActionQueueNode(1250),
-            "MERCHANT": ActionQueueNode(750),
+            "MERCHANT": ActionQueueNode(150),
             "SALVAGE": ActionQueueNode(125),
             "IDENTIFY": ActionQueueNode(150),
             "FAST": ActionQueueNode(20),

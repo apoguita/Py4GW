@@ -11,8 +11,7 @@ from Py4GWCoreLib.enums_src.Model_enums import ModelID
 from Sources.modular_bot import ModularBot
 from Sources.modular_bot.phase import Phase
 from Sources.modular_bot.recipes.actions_inventory import SUPPORTED_MAP_NPC_SELECTORS
-from Sources.modular_bot.recipes import Quest
-from Sources.modular_bot.recipes.quest import quest_run
+from Sources.modular_bot.recipes import Quest, quest_run
 from Sources.modular_bot.recipes.modular_actions import register_step as _register_shared_step
 from Sources.modular_bot.recipes.runner_common import count_expanded_steps, register_recipe_context, register_repeated_steps
 
@@ -57,6 +56,12 @@ FOW_ENTRYPOINTS: dict[str, tuple[str, int]] = {
     "embark_beach": ("Embark Beach", EMBARK_BEACH_MAP_ID),
 }
 DEFAULT_FOW_ENTRYPOINT_KEY = "zin_ku_corridor"
+FOW_ENTRY_METHOD_SCROLL = "scroll"
+FOW_ENTRY_METHOD_KNEEL = "kneel"
+DEFAULT_FOW_ENTRY_METHOD_KEY = FOW_ENTRY_METHOD_SCROLL
+FOW_TEMPLE_KNEEL_X = -2435.05
+FOW_TEMPLE_KNEEL_Y = 18678.10
+FOW_TEMPLE_ENTRY_DIALOG_ID = 0x86
 FOW_COMBAT_WIDGETS: dict[str, str] = {
     "hero_ai": "HeroAI",
     "custom_behaviors": "CustomBehaviors",
@@ -107,6 +112,7 @@ class ModularFowOptions:
     skip_merchant_actions: bool = False
     debug_logging: bool = False
     entrypoint: str = DEFAULT_FOW_ENTRYPOINT_KEY
+    entry_method: str = DEFAULT_FOW_ENTRY_METHOD_KEY
     sell_non_cons_materials: bool = False
     sell_all_common_materials: bool = False
     buy_ectoplasm: bool = False
@@ -122,6 +128,13 @@ def _debug(debug_hook: Optional[Callable[[str], None]], message: str) -> None:
 def _resolve_entrypoint(entrypoint: str) -> tuple[str, int]:
     key = str(entrypoint or DEFAULT_FOW_ENTRYPOINT_KEY).strip().lower()
     return FOW_ENTRYPOINTS.get(key, FOW_ENTRYPOINTS[DEFAULT_FOW_ENTRYPOINT_KEY])
+
+
+def _resolve_entry_method(entry_method: str) -> str:
+    key = str(entry_method or DEFAULT_FOW_ENTRY_METHOD_KEY).strip().lower()
+    if key == FOW_ENTRY_METHOD_KNEEL:
+        return FOW_ENTRY_METHOD_KNEEL
+    return DEFAULT_FOW_ENTRY_METHOD_KEY
 
 
 def _resolve_inventory_management_location(location: str) -> tuple[str, str]:
@@ -201,9 +214,52 @@ def build_fow_phases(
     options: ModularFowOptions,
     debug_hook: Optional[Callable[[str], None]] = None,
 ) -> list[Phase]:
-    entrypoint_name, entrypoint_map_id = _resolve_entrypoint(options.entrypoint)
+    selected_entrypoint_name, selected_entrypoint_map_id = _resolve_entrypoint(options.entrypoint)
+    entry_method = _resolve_entry_method(options.entry_method)
+    entrypoint_name = selected_entrypoint_name
+    entrypoint_map_id = selected_entrypoint_map_id
+    if entry_method == FOW_ENTRY_METHOD_KNEEL:
+        entrypoint_name = "Temple of the Ages"
+        entrypoint_map_id = TEMPLE_OF_THE_AGES_MAP_ID
 
     def _fow_setup(bot) -> None:
+        def _enter_fow_via_temple_kneel() -> None:
+            from Py4GWCoreLib import Agent, Player, Routines, Timer, UIManager
+
+            def _coro_enter() -> None:
+                if not Routines.Checks.Map.MapValid() or Agent.IsDead(Player.GetAgentID()):
+                    return
+
+                yield from bot.Move._coro_xy(FOW_TEMPLE_KNEEL_X, FOW_TEMPLE_KNEEL_Y, "Move to Temple Statue")
+                yield from Routines.Yield.wait(750, break_on_map_transition=True)
+                Player.SendChatCommand("kneel")
+                yield from Routines.Yield.wait(4500, break_on_map_transition=True)
+
+                if not UIManager.IsNPCDialogVisible():
+                    yield from bot.Interact._coro_with_npc_at_xy(
+                        FOW_TEMPLE_KNEEL_X,
+                        FOW_TEMPLE_KNEEL_Y,
+                        step_name="Enter FoW via /kneel",
+                    )
+
+                    open_timer = Timer()
+                    open_timer.Start()
+                    while not UIManager.IsNPCDialogVisible():
+                        if not Routines.Checks.Map.MapValid() or Agent.IsDead(Player.GetAgentID()):
+                            return
+                        if open_timer.HasElapsed(2500):
+                            break
+                        yield from Routines.Yield.wait(150, break_on_map_transition=True)
+
+                if UIManager.IsNPCDialogVisible():
+                    Player.SendDialog(FOW_TEMPLE_ENTRY_DIALOG_ID)
+                    yield from Routines.Yield.wait(1500, break_on_map_transition=True)
+                    return
+
+                _debug(debug_hook, "FoW Temple /kneel entry dialog did not open.")
+
+            bot.States.AddCustomState(_coro_enter, "Enter FoW via Temple /kneel")
+
         def _configure_cb_following_spread() -> None:
             try:
                 from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
@@ -266,7 +322,9 @@ def build_fow_phases(
             f"restock_consumables={options.restock_consumables}, auto_loot={options.auto_loot}, "
             f"upkeep_auto_inventory_management_active={options.upkeep_auto_inventory_management_active}, "
             f"skip_merchant_actions={options.skip_merchant_actions}, "
-            f"entrypoint={entrypoint_name}, sell_non_cons_materials={options.sell_non_cons_materials}, "
+            f"entry_method={entry_method}, entrypoint={entrypoint_name}, "
+            f"selected_entrypoint={selected_entrypoint_name}, "
+            f"sell_non_cons_materials={options.sell_non_cons_materials}, "
             f"sell_all_common_materials={options.sell_all_common_materials}, buy_ectoplasm={options.buy_ectoplasm}, "
             f"inventory_management_location={inventory_location_name}, "
             f"post_gh_combat_widget={combat_widget_key})",
@@ -354,10 +412,16 @@ def build_fow_phases(
                 {"type": "invite_all_accounts", "name": "Invite Alts"},
                 {"type": "invite_all_accounts", "name": "Invite Alts"},
                 {"type": "set_hard_mode", "enabled": bool(options.hard_mode)},
-                {"type": "use_item", "name": "Use FoW Scroll", "model_id": FOW_SCROLL_MODEL_ID},
-                {"type": "wait_map_change", "name": "Wait For FoW", "target_map_id": FOW_MAP_ID},
             ]
         )
+
+        if entry_method != FOW_ENTRY_METHOD_KNEEL:
+            setup_steps.extend(
+                [
+                    {"type": "use_item", "name": "Use FoW Scroll", "model_id": FOW_SCROLL_MODEL_ID},
+                    {"type": "wait_map_change", "name": "Wait For FoW", "target_map_id": FOW_MAP_ID},
+                ]
+            )
 
         register_recipe_context(bot, "FoW Setup", total_steps=count_expanded_steps(setup_steps))
         total_registered_steps = register_repeated_steps(
@@ -366,6 +430,9 @@ def build_fow_phases(
             steps=setup_steps,
             register_step=lambda _bot, step, idx: _register_shared_step(_bot, step, idx, recipe_name="FoWSetup"),
         )
+        if entry_method == FOW_ENTRY_METHOD_KNEEL:
+            _enter_fow_via_temple_kneel()
+            bot.Wait.ForMapLoad(target_map_id=FOW_MAP_ID)
         _debug(debug_hook, f"Registered FoW setup with {total_registered_steps} steps.")
 
     def _reward_time_with_map_wait(bot) -> None:

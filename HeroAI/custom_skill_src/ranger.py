@@ -199,6 +199,8 @@ class RangerSkills:
         skill.SkillType = SkillType.Skill.value
         skill.TargetAllegiance = Skilltarget.Pet.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.IsOutOfCombat = True
+        skill.Conditions.LessLife = 0.01 #skill effectively disabled
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -805,6 +807,7 @@ class RangerSkills:
         skill.SkillType = SkillType.Preparation.value
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Buff.value
+        skill.Conditions.IsOutOfCombat = False
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()

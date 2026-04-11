@@ -20,7 +20,7 @@ bot = Botting("Factions Leveler",
               upkeep_war_supplies_restock=10,
               upkeep_auto_inventory_management_active=False,
               upkeep_auto_combat_active=False,
-              upkeep_auto_loot_active=True)
+              upkeep_auto_loot_active=False)
 
 class BotSettings:
     CUSTOM_BOW_ID = 0 #Change this if you have already have a bow crafted for War supply farm runs.
@@ -1529,7 +1529,7 @@ def _handle_bonus_bow(bot: Botting):
 
     if BotSettings.CUSTOM_BOW_ID != 0:
         bonus_bow_id = BotSettings.CUSTOM_BOW_ID
-    has_bonus_bow = Routines.Checks.Inventory.IsModelInInventory(bonus_bow_id)
+    has_bonus_bow = Routines.Checks.Inventory.IsModelInInventoryOrEquipped(bonus_bow_id)
 
     if has_bonus_bow:
         yield from bot.helpers.Items._equip(bonus_bow_id)
@@ -1584,7 +1584,28 @@ def Farm_Until_Level_20(bot: Botting):
             yield from bot.helpers.Items._equip(ModelID.Keirans_Bow.value)
 
     bot.States.AddCustomState(_equip_keirans_bow, "Equip Keiran's Bow (Farm)")
-    bot.Move.XYAndDialog(-6662.00, 6584.00, 0x63F)   # enter quest via HOM pool
+
+    def _enter_ab_quest(bot: Botting):
+        import PyDialog
+        _AB_DIALOG_OFFSET = 0xE  # same as HeartsOfTheNorth: base_id + 0xE for first mission (AB, slot 0)
+        yield from bot.Move._coro_xy_and_interact_npc(-6662.00, 6584.00)
+        deadline = time.time() + 5.0
+        while not PyDialog.PyDialog.is_dialog_active():
+            if time.time() > deadline:
+                ConsoleLog(MODULE_NAME, "[FarmAB] Timed out waiting for Keiran's dialog", Py4GW.Console.MessageType.Warning)
+                return
+            yield from Routines.Yield.wait(150)
+        buttons = [b for b in PyDialog.PyDialog.get_active_dialog_buttons() if getattr(b, "dialog_id", 0) != 0]
+        if not buttons:
+            ConsoleLog(MODULE_NAME, "[FarmAB] No dialog buttons found", Py4GW.Console.MessageType.Warning)
+            return
+        base_id = buttons[0].dialog_id
+        target_id = base_id + _AB_DIALOG_OFFSET
+        ConsoleLog(MODULE_NAME, f"[FarmAB] base={hex(base_id)} offset={hex(_AB_DIALOG_OFFSET)} -> sending {hex(target_id)}")
+        Player.SendDialog(target_id)
+        yield from Routines.Yield.wait(500)
+
+    bot.States.AddCustomState(lambda: _enter_ab_quest(bot), "Enter AB Quest")
     bot.Wait.ForMapLoad(target_map_id=AB_MAP_ID)
 
     # ── Header _34: run the quest ─────────────────────────────────────────
@@ -1604,23 +1625,23 @@ def Farm_Until_Level_20(bot: Botting):
     bot.States.AddCustomState(exec_fn, "Navmesh Init")
     bot.States.AddCustomState(_setup_keiran_combat, "Setup Keiran Combat (Farm)")
 
-    # Quest path (from AuspiciousBeginnings.py)
-    bot.Move.XY(11864.74, -4899.19)
+    # Quest path (updated from HeartsOfTheNorth)
+    bot.Move.XY(11714,-4590)
     bot.States.AddCustomState(lambda: _handle_bonus_bow(bot), "HandleBonusBow")
-    bot.Wait.UntilOnCombat(Range.Spirit)
-
-    bot.Move.XY(10165.07, -6181.43, step_name="First Spawn")
-
-    bot.Move.XY(8270,-9010)
-    bot.Move.XY(4245,-7412)
-    bot.Move.XY(2025,-10726)
-    bot.Move.XY(-1822,-11230)
-    bot.Move.XY(-3006,-8921)
-    bot.Move.XY(-4190,-10460)
-    bot.Move.XY(-5640,-10371)
-    bot.Move.XY(-8748,-8329)
-    bot.Move.XY(-12122,-7530)
-    bot.Move.XY(-15170,-8951)
+    bot.Wait.UntilOnCombat()
+    bot.Move.XY(9973,-6394)
+    bot.Move.XY(8448,-8676)
+    bot.Move.XY(4284,-7384)
+    bot.Move.XY(2442,-9532)
+    bot.Move.XY(948,-11427)
+    bot.Move.XY(-1605,-11181)
+    bot.Move.XY(-2279,-9099)
+    bot.Move.XY(-5688,-10252)
+    bot.Move.XY(-9311,-8500)
+    bot.Move.XY(-12904,-7805)
+    bot.Move.XY(-15338,-8893)
+    bot.Wait.ForTime(10000)
+    bot.Move.XY(-17952,-8940)
     bot.Wait.ForMapLoad(target_map_id=HOM_MAP_ID)
 
     def _disable_farm_combat():

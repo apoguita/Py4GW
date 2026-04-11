@@ -1,0 +1,17 @@
+{
+  "name": "Warning Kehanni",
+  "steps": [
+    {"type": "travel", "name": "Travel to Honur Hill", "target_map_id": 403},
+    {"type": "auto_path", "name": "To Royal Finance Minister Oluda", "points": [[-19023, 15665]]},
+    {"type": "dialog", "id": "0x81F801", "npc": "ROYAL_FINANCE_MINISTER_OLUDA", "name": "Dialog - Royal Finance Minister Oluda"},
+    {"type": "travel", "name": "Travel to Grand Court of Sebelkeh outpost", "target_map_id": 435},
+    {"type": "auto_path", "name": "To Load Party", "points": [[903, 8061]]},
+    {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true},
+    {"type": "exit_map", "name": "Leave Grand Court of Sebelkeh outpost", "x": 129, "y": 8100, "target_map_id": 419},
+    {"type": "auto_path", "name": "To Kehanni", "points": [[-5419, 4825], [-6451, 4649], [-5493, 3724], [-2814, 5953]]},
+    {"type": "dialog", "id": "0x81F804", "npc": "KEHANNI", "name": "Dialog - Kehanni"},
+    {"type": "travel", "name": "Travel to Grand Court of Sebelkeh outpost", "target_map_id": 435},
+    {"type": "auto_path", "name": "To Head Priest Vahmani", "points": [[1495, 6835]]},
+    {"type": "dialog", "id": "0x81F807", "npc": "HEAD_PRIEST_VAHMANI", "name": "Dialog - Head Priest Vahmani"}
+  ]
+}

@@ -1,11 +1,24 @@
 import PyAgent
 from .native_src.context.AgentContext import AgentStruct, AgentLivingStruct, AgentItemStruct, AgentGadgetStruct
 from .native_src.context.WorldContext import AttributeStruct
+from .native_src.internals.helpers import encoded_wstr_to_str
 from .native_src.internals.string_table import decode as decode_raw
 
 
 class Agent:
     ILLUSIONARY_WEAPONRY_ID = 0
+    DEAD_HEALTH_EPSILON = 0.001
+
+    @staticmethod
+    def _enc_name_bytes_to_wstr(enc_bytes: list[int]) -> str:
+        """Convert raw GetAgentEncName() byte values into a UTF-16LE Python string."""
+        if not enc_bytes:
+            return ""
+
+        raw = bytes(enc_bytes)
+        text = raw[: len(raw) & ~1].decode("utf-16-le", "ignore")
+        null_index = text.find("\x00")
+        return text[:null_index] if null_index >= 0 else text
 
     @staticmethod
     def IsValid(agent_id: int) -> bool:
@@ -138,24 +151,24 @@ class Agent:
         return enc_bytes
     
     @staticmethod
-    def GetEncNameStrByID(agent_id: int) -> str:
-        """Get the encoded name of an agent by its ID as a readable debug string."""
+    def GetEncNameStrByID(agent_id: int, literal: bool = False) -> str:
+        """Get the encoded name of an agent by its ID as a readable debug string.
+
+        Args:
+            agent_id (int): Agent ID to inspect.
+            literal (bool): When True, return the exact runtime encoded string
+                (for example ``\x171C\x8FE8``). When False, return a Python-
+                literal-safe form with escaped backslashes
+                (for example ``\\x171C\\x8FE8``).
+        """
         enc_bytes = PyAgent.PyAgent.GetAgentEncName(agent_id)
         if not enc_bytes:
             return ""
-
-        trimmed_bytes: list[int] = []
-        for byte in enc_bytes:
-            if byte == 0:
-                break
-            trimmed_bytes.append(byte)
-
-        if not trimmed_bytes:
-            return ""
-
-        hex_part = " ".join(f"0x{byte:02X}" for byte in trimmed_bytes)
-        text_part = bytes(trimmed_bytes).decode("utf-8", errors="replace")
-        return f"{hex_part} {text_part}".strip()
+        enc_wstr = Agent._enc_name_bytes_to_wstr(enc_bytes)
+        encoded = encoded_wstr_to_str(enc_wstr) or ""
+        if literal:
+            return encoded
+        return encoded.replace("\\", "\\\\")
     
     @staticmethod
     def GetAgentIDByName(name:str) -> int:
@@ -175,6 +188,48 @@ class Agent:
                 if Agent.IsValid(agent_id):
                     return agent_id
         return 0
+
+    @staticmethod
+    def GetAgentIDByEncString(enc_string: str) -> int:
+        from .AgentArray import AgentArray
+        """
+        Purpose: Retrieve the first agent whose readable encoded-name string matches.
+        Args:
+            enc_string (str): The encoded-name string in the exact runtime format,
+                matching GetEncNameStrByID(..., literal=True).
+        Returns:
+            int: The AgentID of the matching agent, or 0 if no match is found.
+        """
+        if not enc_string:
+            return 0
+
+        agent_array = AgentArray.GetAgentArray()
+        for agent_id in agent_array:
+            if not Agent.IsValid(agent_id):
+                continue
+            if Agent.GetEncNameStrByID(agent_id, literal=True) == enc_string:
+                return agent_id
+        return 0
+
+    @staticmethod
+    def GetModelIDByEncString(enc_string: str, log: bool = False) -> int:
+        """
+        Purpose: Retrieve an agent model ID by matching its readable encoded-name string.
+        Args:
+            enc_string (str): The encoded-name string in the exact runtime format,
+                matching GetEncNameStrByID(..., literal=True).
+        Returns:
+            int: The model ID of the matching agent, or 0 if no match is found.
+        """
+        agent_id = Agent.GetAgentIDByEncString(enc_string)
+        if log:
+            print(f"Debug: GetModelIDByEncString('{enc_string}') found agent_id={agent_id}")
+        if agent_id == 0:
+            return 0
+        model_id = Agent.GetModelID(agent_id)
+        if log:
+            print(f"Debug: GetModelIDByEncString('{enc_string}') found model_id={model_id}")
+        return model_id
     
     @staticmethod
     def GetAttributes(agent_id: int) -> list[AttributeStruct]:
@@ -963,7 +1018,7 @@ class Agent:
         is_dead = living.is_dead
         dead_by_type_map = living.is_dead_by_type_map
         health = living.hp
-        return is_dead or dead_by_type_map or health < 0.01
+        return is_dead or dead_by_type_map or health <= Agent.DEAD_HEALTH_EPSILON
 
     @staticmethod
     def IsAlive(agent_id: int) -> bool:
@@ -971,7 +1026,7 @@ class Agent:
         if living is None:
             return False
         health = living.hp
-        return not Agent.IsDead(agent_id) and health >= 0.01
+        return not Agent.IsDead(agent_id) and health > Agent.DEAD_HEALTH_EPSILON
 
     @staticmethod
     def IsWeaponSpelled(agent_id: int) -> bool:

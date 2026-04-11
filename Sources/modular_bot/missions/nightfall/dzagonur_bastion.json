@@ -1,0 +1,29 @@
+{
+  "name": "Dzagonur Bastion",
+  "required_hero": ["Master of Whispers"],
+  "steps": [
+    {"type": "travel", "name": "Travel to Outpost", "target_map_id": 433},
+    {"type": "auto_path", "name": "Path", "points": [[1642, 2505]]},
+    {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true, "required_hero": ["Master of Whispers"]},
+    {"type": "dialogs", "id": ["0x81", "0x84"], "npc": "LIEUTENANT_MURUNDA", "name": "Dialog - Lieutenant Murunda"},
+    {"type": "wait", "ms": 8000},
+    {"type": "wait_for_map_load", "map_id": 433},
+    {"type": "auto_path", "name": "Path", "points": [[-13020, 8639]]},
+    {"type": "interact_npc", "name": "Interact Prince Ahmtur the Mighty", "npc": "PRINCE_AHMTUR_THE_MIGHTY"},
+    {"type": "nudge_move", "name": "Nudge into teleporter", "x": -12691, "y": 8656, "pulses": 2, "pulse_ms": 180},
+    {"type": "dialog", "id": "0x84", "npc": "DISCIPLE_OF_SECRETS", "name": "Dialog - Disciple Of Secrets"},
+    {"type": "auto_path", "name": "Path", "points": [[-11505, 1702]]},
+    {"type": "dialog", "id": "0x84", "npc": "DISCIPLE_OF_SECRETS", "name": "Dialog - Disciple Of Secrets"},
+    {"type": "auto_path", "name": "Path", "points": [[-11703, 897]]},
+    {"type": "dialog", "id": "0x85", "npc": "DISCIPLE_OF_SECRETS", "name": "Dialog - Disciple Of Secrets"},
+    {"type": "auto_path", "name": "Path", "points": [[-11876, 1013], [-9433, 54]]},
+    {"type": "wait", "ms": 11200},
+    {"type": "auto_path", "name": "Path", "points": [[-11173, -836], [-12360, -548]]},
+    {"type": "wait", "ms": 700},
+    {"type": "wait", "ms": 23500},
+    {"type": "auto_path", "name": "Path", "points": [[-12344, -2810], [-12025, 145]]},
+    {"type": "wait", "ms": 7500},
+    {"type": "auto_path", "name": "bosses", "points": [[-10668, -943], [-11982, -703], [-12768, -3473], [-11024, -2307], [-12354, 13], [-9161, 2182], [-5932, 3116], [-13086, -622], [-9720, 116], [-9496, -2766], [-6629, -107]]},
+    {"type": "wait_for_map_load", "map_id": 414}
+  ]
+}

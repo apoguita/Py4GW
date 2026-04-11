@@ -52,6 +52,7 @@ SYNC_INTERVAL_MS = 1000
 
 # Compact width (your tuned value)
 DEFAULT_MAIN_WINDOW_WIDTH = 280.0
+LOAD_RESUME_STABLE_MS = 1500
 
 
 # -------------------------
@@ -162,6 +163,41 @@ def DebugLog(msg, message_type=Console.MessageType.Info):
 def InfoLog(msg):
     # Always-visible log (helps when debug logging is off)
     ConsoleLog(BOT_NAME, msg, Console.MessageType.Info)
+
+
+_load_resume_timer = Timer()
+_loading_pause_active = False
+
+
+def _runtime_map_ready() -> bool:
+    try:
+        return bool(Routines.Checks.Map.MapValid())
+    except Exception:
+        return False
+
+
+def _should_suspend_for_loading() -> bool:
+    global _loading_pause_active
+
+    if not _runtime_map_ready():
+        _load_resume_timer.Stop()
+        if not _loading_pause_active:
+            _loading_pause_active = True
+            DebugLog("Loading screen detected; suspending bot update.", Console.MessageType.Warning)
+        return True
+
+    if _load_resume_timer.IsStopped():
+        _load_resume_timer.Start()
+        return True
+
+    if not _load_resume_timer.HasElapsed(LOAD_RESUME_STABLE_MS):
+        return True
+
+    if _loading_pause_active:
+        _loading_pause_active = False
+        DebugLog("Map ready and stable; resuming bot update.", Console.MessageType.Info)
+
+    return False
 
 
 # -------------------------
@@ -406,6 +442,9 @@ def bot_routine(_bot: Botting):
         def should_pause():
             now = time.time()
             try:
+                if not _runtime_map_ready():
+                    return True
+
                 if _bot.config.FSM.is_paused():
                     return True
 
@@ -457,6 +496,10 @@ def bot_routine(_bot: Botting):
             return None
 
         while True:
+            if not _runtime_map_ready():
+                yield from Routines.Yield.wait(500, break_on_map_transition=True)
+                continue
+
             if Map.GetMapID() != start_map_id:
                 refreshed = refresh_marker_from_quest()
                 if refreshed is None:
@@ -474,7 +517,7 @@ def bot_routine(_bot: Botting):
 
             if not path:
                 DebugLog("No path returned; retrying...", Console.MessageType.Warning)
-                yield from Routines.Yield.wait(1000)
+                yield from Routines.Yield.wait(1000, break_on_map_transition=True)
                 continue
 
             DebugLog(f"Following path with {len(path)} waypoints", Console.MessageType.Info)
@@ -488,7 +531,7 @@ def bot_routine(_bot: Botting):
 
             if not success:
                 DebugLog("FollowPath returned false; retrying...", Console.MessageType.Warning)
-                yield from Routines.Yield.wait(1000)
+                yield from Routines.Yield.wait(1000, break_on_map_transition=True)
                 continue
 
             # Reached marker; wait for next marker if it updates
@@ -528,14 +571,18 @@ def _draw_main_window():
 
     quest_name = "No quest loaded"
     quest_map = "Unknown"
-    try:
-        active_id = Quest.GetActiveQuest()
-        if active_id != 0:
-            qd = Quest.GetQuestData(active_id)
-            quest_name = qd.name if qd.name else f"Quest #{active_id}"
-            quest_map = Map.GetMapName(qd.map_to)
-    except Exception:
-        pass
+    if _runtime_map_ready():
+        try:
+            active_id = Quest.GetActiveQuest()
+            if active_id != 0:
+                qd = Quest.GetQuestData(active_id)
+                quest_name = qd.name if qd.name else f"Quest #{active_id}"
+                quest_map = Map.GetMapName(qd.map_to)
+        except Exception:
+            pass
+    elif _loading_pause_active:
+        quest_name = "Loading..."
+        quest_map = "Waiting for map"
 
     PyImGui.text(BOT_NAME)
     PyImGui.text(quest_name)
@@ -756,7 +803,8 @@ def tooltip():
 
 
 def main():
-    bot.Update()
+    if not _should_suspend_for_loading():
+        bot.Update()
     draw_ui()
 
 

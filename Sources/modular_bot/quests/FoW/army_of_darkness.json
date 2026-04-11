@@ -12,5 +12,5 @@
     {"type": "path_to_target", "enemy": "SHARD_WOLF"},
     {"type": "auto_path", "name": "Bring the book", "points": [[-7154, 11644]]},
     {"type": "dialog", "name": "Reward menzies", "x": -7382, "y": 11942, "id": "0x80CB07"}
-    ]
+  ]
 }

@@ -1,0 +1,18 @@
+{
+  "name": "Nundu Bay",
+  "required_hero": ["Melonni"],
+  "steps": [
+    {"type": "travel", "name": "Travel to Outpost", "target_map_id": 477},
+    {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true, "required_hero": ["Melonni"]},
+    {"type": "auto_path", "name": "Path", "points": [[-15809, -7668]]},
+    {"type": "dialogs", "id": ["0x81", "0x84"], "npc": "DREAMER_RAJA", "name": "Dialog - Dreamer Raja"},
+    {"type": "wait", "ms": 7000},
+    {"type": "wait_for_map_load", "map_id": 477},
+    {"type": "auto_path", "name": "To Jonah", "points": [[8356, 12851]]},
+    {"type": "wait", "ms": 60000},
+    {"type": "dialog", "id": "0x1", "npc": "ELDER_JONAH", "name": "Dialog - Elder Jonah"},
+    {"type": "auto_path_till_timeout", "name": "Patrol for Harbinger", "points": [[8350, 12566], [9094, 10539], [7096, 11228], [6400, 13211], [8453, 12501]], "timeout_ms": 600000},
+    {"type": "auto_path", "name": "Path", "points": [[4623, 12080], [2368, 10290], [3400, 8547], [1477, 6492], [-443, 5369], [-943, 1143], [-2299, -527], [-2199, 1292], [-2785, 5242]]},
+    {"type": "wait_for_map_load", "map_id": 387}
+  ]
+}

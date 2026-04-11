@@ -7,6 +7,7 @@ from Sources.oazix.CustomBehaviors.primitives.helpers import custom_behavior_hel
 from Sources.oazix.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
 from Sources.oazix.CustomBehaviors.primitives.helpers.sortable_agent_data import SortableAgentData
 from Sources.oazix.CustomBehaviors.primitives.helpers.targeting_order import TargetingOrder
+from Sources.oazix.CustomBehaviors.primitives.scores.score_per_agent_quantity_definition import ScorePerAgentQuantityDefinition
 from Sources.oazix.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
@@ -16,7 +17,7 @@ class PsychicInstabilityUtility(CustomSkillUtilityBase):
     def __init__(self,
                 event_bus: EventBus,
                 current_build: list[CustomSkill],
-                score_definition: ScoreStaticDefinition = ScoreStaticDefinition(95),
+                score_definition: ScorePerAgentQuantityDefinition = ScorePerAgentQuantityDefinition(lambda enemy_qte: 95 if enemy_qte >= 2 else 20),
         ) -> None:
 
         super().__init__(
@@ -25,7 +26,7 @@ class PsychicInstabilityUtility(CustomSkillUtilityBase):
             in_game_build=current_build,
             score_definition=score_definition)
         
-        self.score_definition: ScoreStaticDefinition = score_definition
+        self.score_definition: ScorePerAgentQuantityDefinition = score_definition
 
     def detect_casting_enemies(self) -> list[SortableAgentData]:
         targets = custom_behavior_helpers.Targets.get_all_possible_enemies_ordered_by_priority_raw(
@@ -40,7 +41,7 @@ class PsychicInstabilityUtility(CustomSkillUtilityBase):
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
         targets = self.detect_casting_enemies()
         if len(targets) == 0: return None
-        return self.score_definition.get_score()
+        return self.score_definition.get_score(targets[0].agent_quantity_within_range)
     
     @override
     def _execute(self, state: BehaviorState) -> Generator[Any | None, Any | None, BehaviorResult]:
@@ -53,7 +54,7 @@ class PsychicInstabilityUtility(CustomSkillUtilityBase):
         # The reasoning behind this change is to make these skills more strategic in nature and, not coincidentally, more difficult for bots to execute. 
 
         Player.ChangeTarget(target_id)
-        yield from custom_behavior_helpers.Helpers.wait_for(251)
+        yield from custom_behavior_helpers.Helpers.wait_for(180)
         
         if not Agent.IsCasting(target_id): return BehaviorResult.ACTION_SKIPPED
         Player.ChangeTarget(target_id)

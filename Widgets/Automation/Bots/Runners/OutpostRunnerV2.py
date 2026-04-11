@@ -36,6 +36,9 @@ class BotSettings:
         "Titles",
         "Return to outpost on defeat",
     )
+    WIDGETS_TO_DISABLE: tuple[str, ...] = (
+        "HeroAI",
+    )
 
 bot = Botting(BotSettings.BOT_NAME,
             custom_build=SF_Derv_Runner(),
@@ -44,6 +47,12 @@ bot = Botting(BotSettings.BOT_NAME,
             upkeep_war_supplies_restock=5,
             upkeep_war_supplies_active=True,
             upkeep_alcohol_active=True,
+            upkeep_armor_of_salvation_restock=5,
+            upkeep_essence_of_celerity_restock=5,
+            upkeep_grail_of_might_restock=5,
+            upkeep_armor_of_salvation_active=False,
+            upkeep_essence_of_celerity_active=False,
+            upkeep_grail_of_might_active=False,
             upkeep_honeycomb_restock=10,
             upkeep_honeycomb_active=False,
             upkeep_auto_combat_active=True,
@@ -67,21 +76,22 @@ class QueuedRun:
 _queued_runs: list[QueuedRun] = []
 _queue_version: int = 0
 _current_run_index: int = 0
+_run_tries: list[int] = []
 # endregion
 
 # =============================================================================
 # region BOT ROUTINE
 # =============================================================================
 def bot_routine(bot: Botting) -> None:
-    global _current_run_index
+    global _current_run_index, _run_tries
 
     if not _queued_runs:
         ConsoleLog(BotSettings.BOT_NAME, "No runs queued!", Py4GW.Console.MessageType.Error)
         bot.States.AddCustomState(lambda: _stop_bot(), "StopBot")
         return
 
-    # Widgets
-    bot.Multibox.ApplyWidgetPolicy(enable_widgets=BotSettings.WIDGETS_TO_ENABLE)
+    # Initialize tries counter
+    _run_tries = [0] * len(_queued_runs)
 
     # Events
     bot.Events.OnDeathCallback(lambda: OnDeath(bot))
@@ -102,24 +112,31 @@ def bot_routine(bot: Botting) -> None:
         run_header = f"Run_{run_idx + 1}_{run.run_name}"
         bot.States.AddHeader(run_header)
 
-        # -- Update current run index --
+        # -- Update current run index and increment tries --
         def _set_current_index(idx=run_idx):
             global _current_run_index
             _current_run_index = idx
+            _run_tries[idx] += 1
             yield
         bot.States.AddCustomState(lambda idx=run_idx: _set_current_index(idx),
                                   f"SetRunIndex_{run_idx}")
 
         # -- Travel to outpost --
-        #bot.Multibox.KickAllAccounts()
+        bot.Multibox.KickAllAccounts()
         bot.Map.Travel(target_map_id=run.outpost_id)
-        #bot.Multibox.SummonAllAccounts()
-        #bot.Wait.ForTime(4000)
-        #bot.Multibox.InviteAllAccounts()
+        bot.Multibox.SummonAllAccounts()
+        bot.Wait.ForTime(4000)
+        bot.Multibox.InviteAllAccounts()
         bot.Party.SetHardMode(False)
         bot.Items.Restock.WarSupplies()
         bot.Items.Restock.BirthdayCupcake()
         bot.Items.Restock.Honeycomb()
+        bot.Items.Restock.ArmorOfSalvation()
+        bot.Items.Restock.EssenceOfCelerity()
+        bot.Items.Restock.GrailOfMight()
+
+        # Widgets
+        bot.Multibox.ApplyWidgetPolicy(enable_widgets=BotSettings.WIDGETS_TO_ENABLE)
 
         # -- Exit outpost --
         first_map_id = run.segments[0]["map_id"] if run.segments else 0
@@ -255,7 +272,9 @@ def _draw_settings():
     PyImGui.text(f"Queued runs: {len(_queued_runs)}")
     to_remove = None
     for i, qr in enumerate(_queued_runs):
-        PyImGui.text(f"  {i + 1}. {qr.display}")
+        marker = " <-- CURRENT" if i == _current_run_index and bot.config.initialized else ""
+        tries = f" (tries: {_run_tries[i]})" if i < len(_run_tries) and _run_tries[i] > 0 else ""
+        PyImGui.text(f"  {i + 1}. {qr.display}{marker}{tries}")
         PyImGui.same_line(0, 10)
         if PyImGui.button(f"X##{i}", 20, 20):
             to_remove = i
@@ -269,9 +288,10 @@ def _draw_settings():
         bot.config.FSM = FSM(BotSettings.BOT_NAME)
         bot.config.counters.clear_all()
         bot.config.initialized = False
+        bot.UI._FSM_FILTER_START = 0
+        bot.UI._FSM_FILTER_END = 0
         _prev_queue_version = _queue_version
 
-    PyImGui.separator()
     _draw_settings_consumables()
     #_draw_settings_debug()
 
@@ -292,6 +312,12 @@ def _draw_settings_consumables():
     use_alcohol = PyImGui.checkbox("Use alcohol in inventory", use_alcohol)
     bot.Properties.ApplyNow("alcohol", "active", use_alcohol)
 
+    use_conset = bot.Properties.Get("armor_of_salvation", "active")
+    use_conset = PyImGui.checkbox("Restock & use Conset", use_conset)
+    bot.Properties.ApplyNow("armor_of_salvation", "active", use_conset)
+    bot.Properties.ApplyNow("essence_of_celerity", "active", use_conset)
+    bot.Properties.ApplyNow("grail_of_might", "active", use_conset)
+
     use_honeycomb = bot.Properties.Get("honeycomb", "active")
     use_honeycomb = PyImGui.checkbox("Restock & use Honeycomb", use_honeycomb)
     bot.Properties.ApplyNow("honeycomb", "active", use_honeycomb)
@@ -303,9 +329,11 @@ def _draw_settings_debug():
     PyImGui.text(f"_queue_version: {_queue_version}")
     PyImGui.text(f"_current_run_index: {_current_run_index}")
     PyImGui.text(f"_queued_runs: {len(_queued_runs)}")
+    PyImGui.text(f"_run_tries: {_run_tries}")
     for i, qr in enumerate(_queued_runs):
         marker = " <-- CURRENT" if i == _current_run_index else ""
-        PyImGui.text(f"  {i+1}. {qr.display} (outpost={qr.outpost_id}){marker}")
+        tries = _run_tries[i] if i < len(_run_tries) else 0
+        PyImGui.text(f"  {i+1}. {qr.display} (outpost={qr.outpost_id}) tries={tries}{marker}")
 
 def _draw_help():
     PyImGui.text("Equipment")
@@ -320,7 +348,7 @@ def _draw_help():
     PyImGui.spacing()
     PyImGui.text("Developed by: Aura")
     PyImGui.text("Credits to: aC original script")
-    
+   
 # endregion
 
 # =============================================================================
@@ -333,6 +361,9 @@ bot.UI.override_draw_config(lambda: _draw_settings())
 bot.UI.override_draw_help(lambda: _draw_help())
 
 def main():
+    if not Routines.Checks.Map.MapValid() or not Player.IsPlayerLoaded():
+        return
+    
     bot.UI.draw_window(icon_path=TEXTURE)
 
     if _queued_runs:
