@@ -2377,6 +2377,14 @@ class HealthPlusUpgrade(Inherent):
     ]
     modifier_range = ModifierRange(ModifierIdentifier.HealthPlus2, ModifierType.Arg1, 10, 30)
 
+@dataclass(eq=False)
+class EnergyUpgrade(Inherent):
+    energy: int = 0
+
+    target_item_type = ItemType.EquippableItem
+    property_identifiers = [
+        any_of(ModifierIdentifier.Energy, ModifierIdentifier.Energy2),
+    ]
     
 @dataclass(eq=False)
 class HighlySalvageableUpgrade(Inherent, MeasureForMeasure):
