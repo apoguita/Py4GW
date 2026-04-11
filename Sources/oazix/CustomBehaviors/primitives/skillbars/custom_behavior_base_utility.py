@@ -4,7 +4,7 @@ import inspect
 from typing import Generator, Any
 import time
 
-from Py4GWCoreLib import GLOBAL_CACHE, Routines, Map, Agent, Player, CombatEvents
+from Py4GWCoreLib import GLOBAL_CACHE, Routines, Map, Agent, Player
 from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer, Timer
 from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Sources.oazix.CustomBehaviors.primitives.bus.event_bus import EventBus
@@ -300,22 +300,11 @@ class CustomBehaviorBaseUtility():
     compute_throttler = ThrottledTimer(300)
     execute_throttler = ThrottledTimer(80)
 
-    # When set, the next act() tick will recompute scores regardless of the
-    # compute_throttler. Used by event-driven skills (e.g. interrupts) to react
-    # faster than the 300ms score cycle without bypassing the execute pipeline.
-    _force_recompute_next_tick: bool = False
-
-    @classmethod
-    def request_score_recompute(cls):
-        """Request the next act() tick to recompute scores immediately."""
-        cls._force_recompute_next_tick = True
-
     def act(self):
         if not self.throttler.IsExpired(): return
         self.throttler.Reset()
 
         if not Routines.Checks.Map.MapValid(): return
-        CombatEvents.update()
         if not self.get_final_is_enabled(): return
         self.timer.Reset()
 
@@ -343,8 +332,7 @@ class CustomBehaviorBaseUtility():
         # - if we are executing with EXECUTE_THROUGH_THE_END, most of the time it take more than 300/400 ms with the aftercast.
         # - if we are executing with STOP_EXECUTION_ONCE_SCORE_NOT_HIGHEST, we don't need huge responsiveness
 
-        if CustomBehaviorBaseUtility._force_recompute_next_tick or self.compute_throttler.IsExpired():
-            CustomBehaviorBaseUtility._force_recompute_next_tick = False
+        if self.compute_throttler.IsExpired():
             self.compute_throttler.Reset()
             self.timer.Reset()
             self.__fetch_and_memoized_state()
