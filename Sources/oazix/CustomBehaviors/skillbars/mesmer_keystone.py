@@ -76,10 +76,6 @@ class MesmerKeystone_UtilitySkillBar(CustomBehaviorBaseUtility):
                 or
                 (Agent.IsCasting(agent_id) and Agent.IsHexed(agent_id) and GLOBAL_CACHE.Skill.Data.GetActivation(Agent.GetCastingSkillID(agent_id)) >= 0.200))
             )
-        self.signet_of_weariness_utility: CustomSkillUtilityBase = SignetUnderKeystoneUtility(
-            event_bus=self.event_bus, skill=CustomSkill("Signet_of_Weariness"), current_build=in_game_build, score_definition=ScorePerAgentQuantityDefinition(lambda enemy_qte: 76 if enemy_qte >= 2 else 41 if enemy_qte <= 2 else 0),
-            condition=lambda agent_id: True)
-
         self.bane_signet_utility: CustomSkillUtilityBase = SignetUnderKeystoneUtility(
             event_bus=self.event_bus,
             skill=CustomSkill("Bane_Signet"),
@@ -147,7 +143,6 @@ class MesmerKeystone_UtilitySkillBar(CustomBehaviorBaseUtility):
             self.signet_of_clumsiness_utility,
             self.unnatural_signet_utility,
             self.signet_of_disruption_utility,
-            self.signet_of_weariness_utility,
             self.bane_signet_utility,
             self.blessed_signet_utility,
             self.castigation_signet_utility,
