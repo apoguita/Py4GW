@@ -185,6 +185,7 @@ class ConfigProperties:
     def __init__(self, parent: "BotConfig",
                  log_actions: bool = False,
                  halt_on_death: bool = True,
+                 stop_on_party_wipe: bool = True,
                  pause_on_danger: bool = False,
                  movement_timeout: int = 15000,
                  movement_tolerance: int = 150,
@@ -203,6 +204,7 @@ class ConfigProperties:
         # simple properties with only one field
         self.log_actions = Property(parent, "log_actions", active=log_actions)
         self.halt_on_death = Property(parent, "halt_on_death", active=halt_on_death)
+        self.stop_on_party_wipe = Property(parent, "stop_on_party_wipe", active=stop_on_party_wipe)
         self.pause_on_danger = Property(parent, "pause_on_danger", active=pause_on_danger)
         self.movement_timeout = Property(parent, "movement_timeout", extra_fields={"value": movement_timeout})
         self.movement_tolerance = Property(parent, "movement_tolerance", extra_fields={"value": movement_tolerance})

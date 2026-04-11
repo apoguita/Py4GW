@@ -178,6 +178,9 @@ class _MULTIBOX:
     def KickAccount(self, account_email: str):
         self._helpers.Multibox.kick_account_by_email(account_email)
 
+    def SetAccountIsolation(self, isolated: bool, account_email: str = ""):
+        self._helpers.Multibox.set_account_isolation(isolated, account_email)
+
     def LeavePartyOnAllAccounts(self):
         self._helpers.Multibox.leave_party_on_all_accounts()
 

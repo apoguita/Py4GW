@@ -267,6 +267,12 @@ bot.SetMainRoutine(Routine)
 # region Consumables
 def _restock_consumables_if_enabled(bot: Botting):
     _sync_consumable_toggles(bot)
+    if _party_mode == 1:
+        if _as_bool(bot.Properties.Get("use_conset", "active")):
+            yield from bot.helpers.Multibox._restock_conset_message(250)
+        if _as_bool(bot.Properties.Get("use_pcons", "active")):
+            yield from bot.helpers.Multibox._restock_all_pcons_message(250)
+        return
     if _as_bool(bot.Properties.Get("use_conset", "active")):
         yield from _restock_models_locally(CONSET_RESTOCK_MODELS, 250)
     if _as_bool(bot.Properties.Get("use_pcons", "active")):
@@ -275,6 +281,9 @@ def _restock_consumables_if_enabled(bot: Botting):
 
 def _use_consumables_if_enabled(bot: Botting):
     _sync_consumable_toggles(bot)
+    if _party_mode == 1:
+        yield from _use_multibox_consumables(bot)
+        return
     if _as_bool(bot.Properties.Get("use_conset", "active")):
         yield from bot.helpers.Items.use_conset()
     if _as_bool(bot.Properties.Get("use_pcons", "active")):
@@ -284,6 +293,31 @@ def _use_consumables_if_enabled(bot: Botting):
 def _restock_models_locally(model_ids: list[int], quantity: int):
     for model_id in model_ids:
         yield from Routines.Yield.Items.RestockItems(model_id, quantity)
+
+
+def _use_multibox_consumables(bot: Botting):
+    if _as_bool(bot.Properties.Get("use_conset", "active")):
+        for model_id, effect_name in CONSET_ITEMS:
+            yield from bot.helpers.Multibox._use_consumable_message((
+                model_id,
+                GLOBAL_CACHE.Skill.GetID(effect_name),
+                0,
+                0,
+            ))
+    if _as_bool(bot.Properties.Get("use_pcons", "active")):
+        for model_id, effect_name in PCON_ITEMS:
+            yield from bot.helpers.Multibox._use_consumable_message((
+                model_id,
+                GLOBAL_CACHE.Skill.GetID(effect_name),
+                0,
+                0,
+            ))
+        yield from bot.helpers.Multibox._use_consumable_message((
+            ModelID.Honeycomb.value,
+            0,
+            0,
+            0,
+        ))
 # endregion
 
 

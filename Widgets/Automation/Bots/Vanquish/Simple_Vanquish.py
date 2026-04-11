@@ -22,14 +22,8 @@ class BotSettings:
     )
 
 bot = Botting(BotSettings.BOT_NAME,
-              upkeep_armor_of_salvation_restock=5,
-              upkeep_essence_of_celerity_restock=5,
-              upkeep_grail_of_might_restock=5,
               upkeep_honeycomb_restock=25,
               upkeep_auto_loot_active=True,
-              upkeep_armor_of_salvation_active=True,
-              upkeep_essence_of_celerity_active=True,
-              upkeep_grail_of_might_active=True,
               upkeep_honeycomb_active=True,
               config_draw_path=True)
 
@@ -58,6 +52,10 @@ _current_vq_index: int = 0
 _vq_header_names: list[str] = []
 _section_headers: dict = {}
 _current_section_header: tuple = ("", 0.0, 0.0)
+_restock_conset: bool = True
+_current_radar_range: int = 0
+_radar_active: bool = False
+_is_completing: bool = False
 _restock_pcons: bool = True
 _restock_res_scroll: bool = True
 _loop_queue: bool = False
@@ -107,8 +105,9 @@ def _handle_keyword(bot, key, value):
         bot.Move.XY(*value)
         bot.Wait.ForTime(1500)
         bot.Move.XYAndInteractNPC(*value)
-        bot.Multibox.SendDialogToTarget(0x84)
-        bot.Multibox.SendDialogToTarget(0x85)
+        bot.Multibox.SendDialogToTarget(0x84) # EOTN Blessing
+        bot.Multibox.SendDialogToTarget(0x85) # NF Blessing
+        bot.Multibox.SendDialogToTarget(0x86) # Factions Blessing
     elif key == "gadget":
         bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Interacting with Gadget.")
         bot.Move.XY(*value)
@@ -214,33 +213,100 @@ def _build_reversed_path(vanquish_path):
 # =============================================================================
 # region BOT ROUTINE
 # =============================================================================
+def _on_party_member_behind_safe(bot):
+    if _radar_active:
+        return
+    bot.Templates.Routines.OnPartyMemberBehind()
+
+
+def _on_party_member_dead_behind_safe(bot):
+    if _radar_active:
+        return
+    bot.Templates.Routines.OnPartyMemberDeathBehind()
+
+
+def _set_radar_range(value: int):
+    global _current_radar_range
+    _current_radar_range = value
+
+
 def Radar(bot: "Botting", radar_range: int = 3500):
+    from Py4GWCoreLib.Pathing import AutoPathing
     ConsoleLog("Radar", f"Radar coroutine started (range={radar_range}).", Py4GW.Console.MessageType.Debug, True)
     while True:
+        if Agent.IsDead(Player.GetAgentID()):
+            yield from Routines.Yield.wait(1000)
+            continue
         player_x, player_y = Player.GetXY()
         enemy_array = AgentArray.GetEnemyArray()
-        enemy_array = AgentArray.Filter.ByDistance(enemy_array, Player.GetXY(), radar_range)
-        enemy_array = AgentArray.Sort.ByDistance(enemy_array, (player_x, player_y))
+        enemy_array = AgentArray.Filter.ByDistance(enemy_array, (player_x, player_y), radar_range)
         enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda a: Agent.IsAlive(a))
+        enemy_array = AgentArray.Sort.ByDistance(enemy_array, (player_x, player_y))
         closest_enemy = next(iter(enemy_array), 0)
 
         if closest_enemy != 0:
-            closest_enemy_coord = Agent.GetXY(closest_enemy)
-            ConsoleLog("Radar", f"Enemy detected at {closest_enemy_coord}.", Py4GW.Console.MessageType.Debug, True)
+            # Save position and pause FSM
+            global _radar_active
+            _radar_active = True
+            saved_x, saved_y = player_x, player_y
+            ConsoleLog("Radar", f"Enemy detected. Pausing FSM, saving position ({saved_x:.0f}, {saved_y:.0f}).", Py4GW.Console.MessageType.Debug, True)
             bot.config.FSM.pause()
-            Player.Move(closest_enemy_coord[0], closest_enemy_coord[1])
-            yield from Routines.Yield.wait(500)
-        else:
-            bot.config.FSM.resume()
-            yield from Routines.Yield.wait(500)
-        yield from Routines.Yield.wait(500)
 
+            # Chase enemies while they exist in range
+            while closest_enemy != 0:
+                enemy_x, enemy_y = Agent.GetXY(closest_enemy)
+                ConsoleLog("Radar", f"Navigating to enemy at ({enemy_x:.0f}, {enemy_y:.0f}).", Py4GW.Console.MessageType.Debug, True)
+
+                cur_x, cur_y = Player.GetXY()
+                path = yield from AutoPathing().get_path(
+                    (cur_x, cur_y, 0), (enemy_x, enemy_y, 0))
+                if path:
+                    yield from Routines.Yield.Movement.FollowPath(
+                        path_points=[(p[0], p[1]) for p in path],
+                        tolerance=300,
+                        custom_pause_fn=bot.config.pause_on_danger_fn,
+                    )
+
+                # Wait for combat to finish
+                yield from Routines.Yield.wait(1000)
+
+                # Re-scan for remaining enemies
+                cur_x, cur_y = Player.GetXY()
+                enemy_array = AgentArray.GetEnemyArray()
+                enemy_array = AgentArray.Filter.ByDistance(enemy_array, (cur_x, cur_y), radar_range)
+                enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda a: Agent.IsAlive(a))
+                enemy_array = AgentArray.Sort.ByDistance(enemy_array, (cur_x, cur_y))
+                closest_enemy = next(iter(enemy_array), 0)
+
+            # No more enemies — return to saved position
+            ConsoleLog("Radar", f"No more enemies. Returning to ({saved_x:.0f}, {saved_y:.0f}).", Py4GW.Console.MessageType.Debug, True)
+            cur_x, cur_y = Player.GetXY()
+            path_back = yield from AutoPathing().get_path(
+                (cur_x, cur_y, 0), (saved_x, saved_y, 0))
+            if path_back:
+                yield from Routines.Yield.Movement.FollowPath(
+                    path_points=[(p[0], p[1]) for p in path_back],
+                    tolerance=200,
+                    custom_pause_fn=bot.config.pause_on_danger_fn,
+                )
+
+            # Resume FSM
+            _radar_active = False
+            ConsoleLog("Radar", "Returned to saved position. Resuming FSM.", Py4GW.Console.MessageType.Debug, True)
+            bot.config.FSM.resume()
+
+        yield from Routines.Yield.wait(500)
 
 def VanquishWatchdog(bot: "Botting", completed_header_name: str):
     while True:
-        if Map.IsVanquishCompleted():
+        if Map.IsVanquishCompleted() and not _radar_active:
             ConsoleLog("VanquishWatchdog", f"Vanquish trigger activated. Jumping to: {completed_header_name}", Py4GW.Console.MessageType.Debug, True)
+            global _is_completing
+            _is_completing = True
             bot.config.FSM.pause()
+            bot.config.FSM.RemoveManagedCoroutine("Radar")
+            bot.config.FSM.RemoveManagedCoroutine("ConsetUpkeep")
+            bot.config.FSM.RemoveManagedCoroutine("PconsUpkeep")
             bot.config.FSM.jump_to_state_by_name(completed_header_name)
             bot.config.FSM.resume()
             return
@@ -249,6 +315,8 @@ def VanquishWatchdog(bot: "Botting", completed_header_name: str):
 
 def bot_routine(bot: Botting) -> None:
     global _current_vq_index, _vq_header_names
+
+    bot.config.counters.clear_all()
 
     if not _queued_vanquishes:
         ConsoleLog(BotSettings.BOT_NAME, "No vanquishes queued!", Py4GW.Console.MessageType.Error)
@@ -329,19 +397,21 @@ def bot_routine(bot: Botting) -> None:
 
         # -- Update current vanquish index --
         def _set_current_index(idx=vq_idx):
-            global _current_vq_index
+            global _current_vq_index, _is_completing
             _current_vq_index = idx
+            _is_completing = False
             yield
         bot.States.AddCustomState(lambda idx=vq_idx: _set_current_index(idx),
                                   f"SetVQIndex_{vq_idx}")
 
         # -- Prepare for farm --
         bot.Templates.Routines.PrepareForFarm(map_id_to_travel=vq.outpost_id)
+        bot.Events.OnPartyMemberBehindCallback(lambda: _on_party_member_behind_safe(bot))
+        bot.Events.OnPartyMemberDeadBehindCallback(lambda: _on_party_member_dead_behind_safe(bot))
         bot.Party.SetHardMode(True)
-        bot.Items.Restock.ArmorOfSalvation()
-        bot.Items.Restock.EssenceOfCelerity()
-        bot.Items.Restock.GrailOfMight()
         bot.Items.Restock.Honeycomb()
+        if _restock_conset:
+            bot.Multibox.RestockConset(10)
         if _restock_pcons:
             bot.Multibox.RestockAllPcons(10)
         if _restock_res_scroll:
@@ -361,8 +431,12 @@ def bot_routine(bot: Botting) -> None:
                     t_coord = _get_first_path_coord(vq.transit_paths[i])
                     bot.States.AddCustomState(lambda vi=vq_idx, si=section_idx, tc=t_coord: _set_section_header(_section_headers[vi][si], tc[0], tc[1]),
                                               f"SetSection_Transit_{vq_idx}_{i}")
+                    if _restock_conset:
+                        bot.States.AddManagedCoroutine("ConsetUpkeep",
+                            lambda: _conset_upkeep(bot))
                     if _restock_pcons:
-                        bot.Multibox.UsePcons()
+                        bot.States.AddManagedCoroutine("PconsUpkeep",
+                            lambda: _pcons_upkeep(bot))
                     _register_path(bot, vq.transit_paths[i], header_name=f"Transit_{vq_idx}_{i}")
                     bot.Wait.ForMapToChange(next_map)
                     section_idx += 1
@@ -391,8 +465,12 @@ def bot_routine(bot: Botting) -> None:
         vp_coord = _get_first_path_coord(vq.vanquish_path)
         bot.States.AddCustomState(lambda vi=vq_idx, si=section_idx, vc=vp_coord: _set_section_header(_section_headers[vi][si], vc[0], vc[1]),
                                   f"SetSection_VanquishPath_{vq_idx}")
+        if _restock_conset:
+            bot.States.AddManagedCoroutine("ConsetUpkeep",
+                lambda: _conset_upkeep(bot))
         if _restock_pcons:
-            bot.Multibox.UsePcons()
+            bot.States.AddManagedCoroutine("PconsUpkeep",
+                lambda: _pcons_upkeep(bot))
         _register_path(bot, vq.vanquish_path, header_name=f"VanquishPath_{vq_idx}")
         target_header = _completed_header_names[vq_idx]
         bot.States.AddManagedCoroutine("VanquishWatchdog",
@@ -407,6 +485,7 @@ def bot_routine(bot: Botting) -> None:
         bot.States.AddCustomState(lambda vi=vq_idx, si=section_idx, rc=rp_coord: _set_section_header(_section_headers[vi][si], rc[0], rc[1]),
                                   f"SetSection_ReversePath3500_{vq_idx}")
         bot.States.AddHeader(f"ReversePath3500_{vq_idx}")
+        bot.States.AddCustomState(lambda: _set_radar_range(3500), f"SetRadarRange3500_{vq_idx}")
         bot.States.AddManagedCoroutine("Radar", lambda: Radar(bot, radar_range=3500))
         _register_path(bot, reversed_path)
         bot.Wait.UntilOutOfCombat()
@@ -415,10 +494,12 @@ def bot_routine(bot: Botting) -> None:
 
         # -- Reverse Path with Radar (range=5000) --
         bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Starting Reverse Path with Extended Radar (range=5000).")
-        rp5_coord = _get_first_path_coord(reversed_path)  # same reversed path
+        reversed_path = _build_reversed_path(vq.vanquish_path)
+        rp5_coord = _get_first_path_coord(reversed_path)
         bot.States.AddCustomState(lambda vi=vq_idx, si=section_idx, rc=rp5_coord: _set_section_header(_section_headers[vi][si], rc[0], rc[1]),
                                   f"SetSection_ReversePath5000_{vq_idx}")
         bot.States.AddHeader(f"ReversePath5000_{vq_idx}")
+        bot.States.AddCustomState(lambda: _set_radar_range(5000), f"SetRadarRange5000_{vq_idx}")
         bot.States.AddManagedCoroutine("Radar", lambda: Radar(bot, radar_range=5000))
         _register_path(bot, reversed_path)
         bot.Wait.UntilOutOfCombat()
@@ -427,14 +508,20 @@ def bot_routine(bot: Botting) -> None:
         # -- Vanquish FAILED --
         bot.States.AddHeader(f"Vanquish Failed_{vq_idx}")
         bot.States.RemoveManagedCoroutine("Radar")
+        bot.States.AddCustomState(lambda: _set_radar_range(0), f"ResetRadarRange_Failed_{vq_idx}")
         bot.States.RemoveManagedCoroutine("VanquishWatchdog")
+        bot.States.RemoveManagedCoroutine("ConsetUpkeep")
+        bot.States.RemoveManagedCoroutine("PconsUpkeep")
         bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Vanquish FAILED. Stopping bot. Report on Discord.")
         bot.States.AddCustomState(lambda: _stop_bot(), f"StopBot_{vq_idx}")
 
         # -- Vanquish Completed --
         bot.States.AddHeader(f"Vanquish Completed_{vq_idx}")
         bot.States.RemoveManagedCoroutine("Radar")
+        bot.States.AddCustomState(lambda: _set_radar_range(0), f"ResetRadarRange_Completed_{vq_idx}")
         bot.States.RemoveManagedCoroutine("VanquishWatchdog")
+        bot.States.RemoveManagedCoroutine("ConsetUpkeep")
+        bot.States.RemoveManagedCoroutine("PconsUpkeep")
         if is_last:
             bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Vanquish queue SUCCESS: {vq.display}.")
             bot.States.AddCustomState(lambda: _check_loop_or_stop(bot),
@@ -486,6 +573,45 @@ def _do_loop_jump(bot: "Botting", first_vq_header: str):
 # =============================================================================
 # region EVENTS
 # =============================================================================
+def _conset_upkeep(bot):
+    """Background coroutine: applies conset immediately, then re-checks every 30s."""
+    while True:
+        if not _restock_conset or Map.IsOutpost():
+            yield from Routines.Yield.wait(30000)
+            continue
+        essence_params = (ModelID.Essence_Of_Celerity.value,
+                          GLOBAL_CACHE.Skill.GetID("Essence_of_Celerity_item_effect"), 0, 0)
+        grail_params = (ModelID.Grail_Of_Might.value,
+                        GLOBAL_CACHE.Skill.GetID("Grail_of_Might_item_effect"), 0, 0)
+        armor_params = (ModelID.Armor_Of_Salvation.value,
+                        GLOBAL_CACHE.Skill.GetID("Armor_of_Salvation_item_effect"), 0, 0)
+        for params in (essence_params, grail_params, armor_params):
+            yield from bot.helpers.Multibox._use_consumable_message(params)
+        yield from Routines.Yield.wait(30000)
+
+
+def _pcons_upkeep(bot):
+    """Background coroutine: applies pcons immediately, then re-checks every 30s."""
+    while True:
+        if not _restock_pcons or Map.IsOutpost():
+            yield from Routines.Yield.wait(30000)
+            continue
+        pcon_params = [
+            (ModelID.Birthday_Cupcake.value, GLOBAL_CACHE.Skill.GetID("Birthday_Cupcake_skill"), 0, 0),
+            (ModelID.Golden_Egg.value, GLOBAL_CACHE.Skill.GetID("Golden_Egg_skill"), 0, 0),
+            (ModelID.Candy_Corn.value, GLOBAL_CACHE.Skill.GetID("Candy_Corn_skill"), 0, 0),
+            (ModelID.Candy_Apple.value, GLOBAL_CACHE.Skill.GetID("Candy_Apple_skill"), 0, 0),
+            (ModelID.Slice_Of_Pumpkin_Pie.value, GLOBAL_CACHE.Skill.GetID("Pie_Induced_Ecstasy"), 0, 0),
+            (ModelID.Drake_Kabob.value, GLOBAL_CACHE.Skill.GetID("Drake_Skin"), 0, 0),
+            (ModelID.Bowl_Of_Skalefin_Soup.value, GLOBAL_CACHE.Skill.GetID("Skale_Vigor"), 0, 0),
+            (ModelID.Pahnai_Salad.value, GLOBAL_CACHE.Skill.GetID("Pahnai_Salad_item_effect"), 0, 0),
+            (ModelID.War_Supplies.value, GLOBAL_CACHE.Skill.GetID("Well_Supplied"), 0, 0),
+        ]
+        for params in pcon_params:
+            yield from bot.helpers.Multibox._use_consumable_message(params)
+        yield from Routines.Yield.wait(30000)
+
+
 def _on_party_wipe(bot: "Botting"):
     from Py4GWCoreLib.Pathing import AutoPathing
 
@@ -524,6 +650,17 @@ def _on_party_wipe(bot: "Botting"):
             custom_pause_fn=bot.config.pause_on_danger_fn,
         )
 
+    # Re-register managed coroutines if needed
+    if _current_radar_range > 0:
+        bot.config.FSM.AddManagedCoroutine("Radar",
+            lambda: Radar(bot, _current_radar_range))
+    if _restock_conset:
+        bot.config.FSM.AddManagedCoroutine("ConsetUpkeep",
+            lambda: _conset_upkeep(bot))
+    if _restock_pcons:
+        bot.config.FSM.AddManagedCoroutine("PconsUpkeep",
+            lambda: _pcons_upkeep(bot))
+
     # Jump to the current section header to re-execute the section path
     ConsoleLog("on_party_wipe",
                f"Jumping to section: {section_header}")
@@ -531,9 +668,15 @@ def _on_party_wipe(bot: "Botting"):
     bot.config.FSM.resume()
 
 def OnPartyWipe(bot: "Botting"):
+    if _is_completing:
+        return
     ConsoleLog("on_party_wipe", "event triggered")
     fsm = bot.config.FSM
-    fsm.pause()
+    if not fsm.is_paused():
+        fsm.pause()
+    fsm.RemoveManagedCoroutine("Radar")
+    fsm.RemoveManagedCoroutine("ConsetUpkeep")
+    fsm.RemoveManagedCoroutine("PconsUpkeep")
     fsm.AddManagedCoroutine("OnWipe_OPD", lambda: _on_party_wipe(bot))
 # endregion
 
@@ -670,6 +813,8 @@ def _draw_settings():
         bot.config.FSM = FSM(BotSettings.BOT_NAME)
         bot.config.counters.clear_all()
         bot.config.initialized = False
+        bot.UI._FSM_FILTER_START = 0
+        bot.UI._FSM_FILTER_END = 0
         _prev_queue_version = _queue_version
 
     PyImGui.separator()
@@ -691,11 +836,8 @@ def _draw_settings_consumables():
     PyImGui.text("Consumables Selection")
     PyImGui.separator()
 
-    use_conset = bot.Properties.Get("armor_of_salvation", "active")
-    use_conset = PyImGui.checkbox("Restock & use Conset", use_conset)
-    bot.Properties.ApplyNow("armor_of_salvation", "active", use_conset)
-    bot.Properties.ApplyNow("essence_of_celerity", "active", use_conset)
-    bot.Properties.ApplyNow("grail_of_might", "active", use_conset)
+    global _restock_conset
+    _restock_conset = PyImGui.checkbox("Restock & use Conset (Multibox)", _restock_conset)
     _restock_pcons = PyImGui.checkbox("Restock & use Pcons (Multibox)", _restock_pcons)
 
     use_honeycomb = bot.Properties.Get("honeycomb", "active")
@@ -711,7 +853,7 @@ def _draw_settings_consumables():
         PyImGui.text(f"(loop #{_loop_count})")
 
     # Rebuild FSM if any build-time setting changed
-    current_build_settings = (use_conset, _restock_pcons, use_honeycomb, _restock_res_scroll, _loop_queue)
+    current_build_settings = (_restock_conset, _restock_pcons, use_honeycomb, _restock_res_scroll, _loop_queue)
     if current_build_settings != _prev_build_settings:
         _prev_build_settings = current_build_settings
         _queue_version += 1

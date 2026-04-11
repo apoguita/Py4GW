@@ -101,7 +101,7 @@ lightbringer_map_names = {
     "Depths of Madness", "Domain of Anguish", "Domain of Fear", "Domain of Pain",
     "Domain of Secrets", "The Ebony Citadel of Mallyx", "Dzagonur Bastion",
     "Forum Highlands", "Gate of Desolation", "Gate of Fear", "Gate of Madness",
-    "Gate of Pain", "Gate of Secrets", "Gate of Torment", "Gate of the Nightfallen Lands",
+    "Gate of Anguish", "Gate of Pain", "Gate of Secrets", "Gate of Torment", "Gate of the Nightfallen Lands",
     "Grand Court of Sebelkeh", "Heart of Abaddon", "Jennur's Horde", "Joko's Domain",
     "Lair of the Forgotten", "Nightfallen Coast", "Nightfallen Garden",
     "Nightfallen Jahai", "Nundu Bay", "Poisoned Outcrops", "Remains of Sahlahja",

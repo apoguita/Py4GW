@@ -1786,7 +1786,7 @@ class ModelID(IntEnum):
     Worn_Belt = 427
     Yakkington_Mini = 32515
     Yuletide_Tonic = 21490
-    Zaishen_Key = 28571
+    Zaishen_Key = 28517
     Zaishen_Summon = 31156
     Zaishen_Tonic = 31144
     Zehtukas_Great_Horn = 15845

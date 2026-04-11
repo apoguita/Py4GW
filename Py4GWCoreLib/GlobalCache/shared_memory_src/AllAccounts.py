@@ -329,7 +329,7 @@ class AllAccounts(Structure):
         self.Keys[slot_index] = new_account.Key = Key
         self.AccountData[slot_index] = new_account
 
-        ConsoleLog(SHMEM_MODULE_NAME, f"Submitted hero data for HeroID {hero_data.hero_id.GetID()} at slot {slot_index}.", Py4GW.Console.MessageType.Info)
+        ConsoleLog(SHMEM_MODULE_NAME, f"Submitted hero data for HeroID {hero_data.hero_id.GetID()} at slot {slot_index}.", Py4GW.Console.MessageType.Debug)
         return slot_index
     
     def SubmitPetData(self, pet_data: PetInfo) -> int:
@@ -448,15 +448,21 @@ class AllAccounts(Structure):
         """Find the index of the hero with the given ID."""
         from ...Party import Party
         all_accounts = self.AccountData
+        hero_id = hero_data.hero_id.GetID()
+        owner_agent_id = Party.Players.GetAgentIDByLoginNumber(hero_data.owner_player_id)
         for i in range(SHMEM_MAX_PLAYERS):
             player = all_accounts[i]
-   
-            if (player.IsHero and 
-                player.AgentData.HeroID == hero_data.hero_id.GetID() and 
-                player.AgentData.OwnerAgentID == Party.Players.GetAgentIDByLoginNumber(hero_data.owner_player_id)
-            ):
-                return i
-            
+            if not player.IsHero:
+                continue
+            if player.AgentData.HeroID != hero_id:
+                continue
+            # Only enforce owner match when both sides have a known (non-zero) value.
+            # If either is 0 (not yet resolved), trust HeroID alone.
+            if (owner_agent_id != 0 and player.AgentData.OwnerAgentID != 0 and
+                    player.AgentData.OwnerAgentID != owner_agent_id):
+                continue
+            return i
+
         #submit if not found
         return self.SubmitHeroData(hero_data)
 

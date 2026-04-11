@@ -62,7 +62,9 @@ class SharedCommandType(IntEnum):
     UseSkillCombatPrep = auto() #handled in CombatPrep only by Mark
     LootEx = auto() # privately Handled Command, by frenkey
     Pycons = auto()
+    BroadcastChatCommand = auto() 
     #endregion
+
     
 
 

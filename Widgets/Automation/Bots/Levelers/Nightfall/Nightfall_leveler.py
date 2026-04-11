@@ -17,7 +17,7 @@ bot = Botting("Nightfall Leveler",
               upkeep_war_supplies_restock=2,
               upkeep_auto_inventory_management_active=False,
               upkeep_auto_combat_active=False,
-              upkeep_auto_loot_active=True)
+              upkeep_auto_loot_active=False)
 
 
 def _on_party_defeated(bot: Botting, step_name: str):
@@ -964,7 +964,7 @@ def Quality_Steel(bot: Botting):
     bot.Move.XYAndDialog(-11208, 8815, 0x826001)
     bot.Map.Travel(target_map_id=431) #Sunspear Great Hall
     bot.Move.XYAndDialog(-4076, 5362, 0x826004)
-    bot.Move.XYAndDialog(-2888, 7024, 0x84)
+    bot.Move.XYAndDialog(-2866, 7093, 0x84)
     PrepareForBattle(bot, Hero_List=[], Henchman_List=[1,3,4])
     bot.Move.XYAndExitMap(-3172, 3271, target_map_id=430) #Plains of Jarin
     ConfigureAggressiveEnv(bot)
@@ -979,7 +979,7 @@ def Quality_Steel(bot: Botting):
 def Attribute_Points_Quest_1(bot: Botting):
     bot.States.AddHeader("Attribute points quest n. 1")
     bot.Map.Travel(target_map_id=431) #Sunspear Great Hall
-    bot.Move.XYAndDialog(-2888, 7024, 0x82CB01)
+    bot.Move.XYAndDialog(-2866, 7093, 0x82CB01)
 
 def Craft_First_Weapon(bot: Botting):
     bot.States.AddHeader("Craft first weapon")
@@ -1494,9 +1494,9 @@ def Unlock_Xunlai_Material_Storage(bot: Botting) -> None:
 def Attribute_Points_Quest_2(bot: Botting):
     bot.States.AddHeader("Attribute points quest n. 2")
     bot.Map.Travel(target_map_id=431) # Sunspear Great Hall
-    bot.Move.XYAndDialog(-2864, 7031, 0x82CC01)
+    bot.Move.XYAndDialog(-2866, 7093, 0x82CC01)
     bot.Wait.ForTime(3000)
-    bot.Move.XYAndDialog(-2864, 7031, 0x82CC07)
+    bot.Move.XYAndDialog(-2866, 7093, 0x82CC07)
 
 def Unlock_Sunspear_Skills(bot: Botting):
     bot.States.AddHeader("Unlock Sunspear Skills")
