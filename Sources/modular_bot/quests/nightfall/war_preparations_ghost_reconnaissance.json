@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "War Preparations (Ghost Reconnaissance)",
   "steps": [
     {"type": "travel", "name": "Travel to Sunspear Great Hall", "target_map_id": 431},
@@ -7,7 +7,7 @@
     {"type": "travel", "name": "Travel to Blacktide Den outpost", "target_map_id": 492},
     {"type": "auto_path", "name": "To Load Party", "points": [[249, -3037]]},
     {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true},
-    {"type": "exit_map", "name": "Leave Blacktide Den outpost", "x": 347, "y": -4492, "target_map_id": 484},
+    {"type": "exit_map", "name": "Leave Blacktide Den outpost", "point": [347, -4492], "target_map_id": 484},
     {"type": "auto_path", "name": "Path", "points": [[11315, 2931], [11429, 4772]]},
     {"type": "wait", "ms": 1400},
     {"type": "emote", "command": "kneel"},
@@ -20,3 +20,4 @@
     {"type": "dialog", "id": "0x828407", "npc": "CASTELLAN_PUUBA", "name": "Dialog - Castellan Puuba"}
   ]
 }
+

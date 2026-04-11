@@ -12,6 +12,7 @@ from .inventory_recipe import (
 )
 
 _SELECTOR_OVERRIDE_KEYS = (
+    "point",
     "x",
     "y",
     "npc",
@@ -280,10 +281,25 @@ def _count_model_in_inventory(model_id: int) -> int:
     return int(count)
 
 
+def _count_model_stacks_in_inventory(model_id: int) -> int:
+    """Count physical item stacks/instances (not quantity/charges)."""
+    from Py4GWCoreLib import GLOBAL_CACHE
+
+    bag_list = GLOBAL_CACHE.ItemArray.CreateBagList(1, 2, 3, 4)
+    item_array = GLOBAL_CACHE.ItemArray.GetItemArray(bag_list)
+    return int(
+        sum(
+            1
+            for item_id in item_array
+            if int(GLOBAL_CACHE.Item.GetModelID(item_id)) == int(model_id)
+        )
+    )
+
+
 def _get_id_kit_count() -> int:
     from Py4GWCoreLib import ModelID
 
-    return _count_model_in_inventory(ModelID.Identification_Kit.value) + _count_model_in_inventory(
+    return _count_model_stacks_in_inventory(ModelID.Identification_Kit.value) + _count_model_stacks_in_inventory(
         ModelID.Superior_Identification_Kit.value
     )
 
@@ -291,7 +307,7 @@ def _get_id_kit_count() -> int:
 def _get_salvage_kit_count() -> int:
     from Py4GWCoreLib import ModelID
 
-    return _count_model_in_inventory(ModelID.Salvage_Kit.value)
+    return _count_model_stacks_in_inventory(ModelID.Salvage_Kit.value)
 
 
 def _get_leftover_material_item_ids(batch_size: int = 10) -> list[int]:
@@ -587,13 +603,27 @@ def _yield_inventory_setup(ctx: StepContext, step: dict) -> Callable[[], object]
         yield from ctx.bot.Move._coro_xy_and_interact_npc(mx, my, step.get("name", "Inventory Setup"))
         yield from ctx.bot.Wait._coro_for_time(1200)
 
+        initial_id_kits = _get_id_kit_count()
+        initial_salvage_kits = _get_salvage_kit_count()
+        id_buy_budget = max(0, id_kits_target - initial_id_kits)
+        salvage_buy_budget = max(0, salvage_kits_target - initial_salvage_kits)
+        id_bought = 0
+        salvage_bought = 0
+
         for _ in range(2):
-            id_kits_to_buy = max(0, id_kits_target - _get_id_kit_count())
-            salvage_kits_to_buy = max(0, salvage_kits_target - _get_salvage_kit_count())
+            id_remaining_by_observed = max(0, id_kits_target - _get_id_kit_count())
+            salvage_remaining_by_observed = max(0, salvage_kits_target - _get_salvage_kit_count())
+            id_remaining_by_budget = max(0, id_buy_budget - id_bought)
+            salvage_remaining_by_budget = max(0, salvage_buy_budget - salvage_bought)
+
+            id_kits_to_buy = min(id_remaining_by_observed, id_remaining_by_budget)
+            salvage_kits_to_buy = min(salvage_remaining_by_observed, salvage_remaining_by_budget)
             if id_kits_to_buy <= 0 and salvage_kits_to_buy <= 0:
                 break
             yield from Routines.Yield.Merchant.BuyIDKits(id_kits_to_buy)
             yield from Routines.Yield.Merchant.BuySalvageKits(salvage_kits_to_buy)
+            id_bought += id_kits_to_buy
+            salvage_bought += salvage_kits_to_buy
             yield from Routines.Yield.wait(150)
 
         if multibox:
@@ -727,7 +757,7 @@ def _yield_inventory_setup(ctx: StepContext, step: dict) -> Callable[[], object]
 
 
 def handle_restock_kits(ctx: StepContext) -> None:
-    from Py4GWCoreLib import GLOBAL_CACHE, ModelID, Player, Routines, SharedCommandType
+    from Py4GWCoreLib import GLOBAL_CACHE, Player, Routines, SharedCommandType
 
     selector_step = dict(ctx.step)
 
@@ -758,15 +788,6 @@ def handle_restock_kits(ctx: StepContext) -> None:
         salvage_kits_target = 0
 
     def _restock_local():
-        def _count_model_in_inventory(model_id: int) -> int:
-            bag_list = GLOBAL_CACHE.ItemArray.CreateBagList(1, 2, 3, 4)
-            item_array = GLOBAL_CACHE.ItemArray.GetItemArray(bag_list)
-            count = 0
-            for item_id in item_array:
-                if int(GLOBAL_CACHE.Item.GetModelID(item_id)) == int(model_id):
-                    count += max(1, int(GLOBAL_CACHE.Item.Properties.GetQuantity(item_id)))
-            return int(count)
-
         step_selector = dict(selector_step)
         _apply_default_npc_selector(step_selector, "merchant")
         coords = resolve_agent_xy_from_step(
@@ -782,20 +803,31 @@ def handle_restock_kits(ctx: StepContext) -> None:
         yield from ctx.bot.Move._coro_xy_and_interact_npc(x, y, name)
         yield from ctx.bot.Wait._coro_for_time(1200)
 
-        # Recompute kit counts each purchase pass to avoid stale cache snapshots.
-        for _ in range(2):
-            id_kits_in_inv = _count_model_in_inventory(ModelID.Identification_Kit.value)
-            sup_id_kits_in_inv = _count_model_in_inventory(ModelID.Superior_Identification_Kit.value)
-            salvage_kits_in_inv = _count_model_in_inventory(ModelID.Salvage_Kit.value)
+        # Recompute kit counts each purchase pass, but cap by initial deficit
+        # so stale cache reads cannot cause overbuy.
+        initial_id_kits_in_inv = _get_id_kit_count()
+        initial_salvage_kits_in_inv = _get_salvage_kit_count()
+        id_buy_budget = max(0, id_kits_target - initial_id_kits_in_inv)
+        salvage_buy_budget = max(0, salvage_kits_target - initial_salvage_kits_in_inv)
+        id_bought = 0
+        salvage_bought = 0
 
-            id_kits_to_buy = max(0, id_kits_target - (id_kits_in_inv + sup_id_kits_in_inv))
-            salvage_kits_to_buy = max(0, salvage_kits_target - salvage_kits_in_inv)
+        for _ in range(2):
+            id_remaining_by_observed = max(0, id_kits_target - _get_id_kit_count())
+            salvage_remaining_by_observed = max(0, salvage_kits_target - _get_salvage_kit_count())
+            id_remaining_by_budget = max(0, id_buy_budget - id_bought)
+            salvage_remaining_by_budget = max(0, salvage_buy_budget - salvage_bought)
+
+            id_kits_to_buy = min(id_remaining_by_observed, id_remaining_by_budget)
+            salvage_kits_to_buy = min(salvage_remaining_by_observed, salvage_remaining_by_budget)
 
             if id_kits_to_buy <= 0 and salvage_kits_to_buy <= 0:
                 break
 
             yield from Routines.Yield.Merchant.BuyIDKits(id_kits_to_buy)
             yield from Routines.Yield.Merchant.BuySalvageKits(salvage_kits_to_buy)
+            id_bought += id_kits_to_buy
+            salvage_bought += salvage_kits_to_buy
             yield from Routines.Yield.wait(150)
 
         if multibox:
@@ -1352,6 +1384,130 @@ def handle_buy_ectoplasm(ctx: StepContext) -> None:
     wait_after_step(ctx.bot, ctx.step)
 
 
+def handle_merchant_rules_execute(ctx: StepContext) -> None:
+    from Py4GWCoreLib import GLOBAL_CACHE, Player, Routines, SharedCommandType
+    from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
+
+    name = str(ctx.step.get("name", "Merchant Rules Execute") or "Merchant Rules Execute")
+    multibox = parse_step_bool(ctx.step.get("multibox", True), True)
+    local = parse_step_bool(ctx.step.get("local", True), True)
+    auto_enable_widget = parse_step_bool(ctx.step.get("auto_enable_widget", True), True)
+    enable_wait_ms = max(0, parse_step_int(ctx.step.get("enable_wait_ms", 350), 350))
+    include_protected = parse_step_bool(ctx.step.get("include_protected", False), False)
+    instant_destroy = parse_step_bool(ctx.step.get("instant_destroy", False), False)
+    wait_step_ms = max(10, parse_step_int(ctx.step.get("multibox_wait_step_ms", 50), 50))
+    wait_timeout_ms = max(1_000, parse_step_int(ctx.step.get("multibox_wait_timeout_ms", 90_000), 90_000))
+    wait_ms = max(0, parse_step_int(ctx.step.get("ms", 0), 0))
+    widget_names = _parse_widget_names(ctx.step.get("widget_names", ["MerchantRules", "Merchant Rules"]))
+    if not widget_names:
+        widget_names = ["MerchantRules", "Merchant Rules"]
+
+    def _execute():
+        widget_handler = get_widget_handler()
+        def _local_merchant_rules_enabled() -> bool:
+            for widget_name in widget_names:
+                widget_info = widget_handler.get_widget_info(widget_name)
+                if widget_info is not None and bool(getattr(widget_info, "enabled", False)):
+                    return True
+            return False
+
+        sender_email = str(Player.GetAccountEmail() or "").strip()
+        if not sender_email:
+            log_recipe(ctx, "merchant_rules_execute: sender account email is unavailable.")
+            yield
+            return
+
+        target_emails: list[str] = []
+        if local:
+            target_emails.append(sender_email)
+        if multibox:
+            target_emails.extend(_iter_other_account_emails())
+        target_emails = list(dict.fromkeys(email for email in target_emails if email))
+
+        if auto_enable_widget:
+            for widget_name in widget_names:
+                widget_handler.enable_widget(widget_name)
+
+            sent_enable_messages: list[tuple[str, int]] = []
+            for account_email in target_emails:
+                if account_email == sender_email:
+                    continue
+                for widget_name in widget_names:
+                    message_index = GLOBAL_CACHE.ShMem.SendMessage(
+                        sender_email,
+                        account_email,
+                        SharedCommandType.EnableWidget,
+                        (0.0, 0.0, 0.0, 0.0),
+                        (widget_name, "", "", ""),
+                    )
+                    sent_enable_messages.append((account_email, int(message_index)))
+
+            yield from _wait_for_outbound_messages(
+                ctx,
+                "merchant_rules_enable_widget",
+                sent_enable_messages,
+                SharedCommandType.EnableWidget,
+                wait_step_ms=wait_step_ms,
+                timeout_ms=min(wait_timeout_ms, 30_000),
+            )
+            if enable_wait_ms > 0:
+                yield from Routines.Yield.wait(enable_wait_ms)
+
+        local_enabled = _local_merchant_rules_enabled()
+        if local and not local_enabled:
+            target_emails = [email for email in target_emails if email != sender_email]
+            log_recipe(
+                ctx,
+                "merchant_rules_execute: Merchant Rules widget is not enabled locally; executing multibox targets only.",
+            )
+
+        if not target_emails:
+            log_recipe(ctx, "merchant_rules_execute: no target accounts selected.")
+            yield
+            return
+
+        request_id = str(ctx.step.get("request_id", "") or "").strip()
+        if not request_id:
+            request_id = f"modular_{ctx.recipe_name}_{ctx.step_idx}_{int(monotonic() * 1000)}"
+        request_id = request_id[:60]
+
+        include_protected_flag = "1" if include_protected else "0"
+        instant_destroy_flag = "1" if instant_destroy else "0"
+
+        message_refs: list[tuple[str, int]] = []
+        for account_email in target_emails:
+            message_index = GLOBAL_CACHE.ShMem.SendMessage(
+                sender_email,
+                account_email,
+                SharedCommandType.MerchantRules,
+                (3.0, 0.0, 0.0, 0.0),  # MERCHANT_RULES_OPCODE_EXECUTE
+                (request_id, "Execute", include_protected_flag, instant_destroy_flag),
+            )
+            message_refs.append((account_email, int(message_index)))
+
+        yield from _wait_for_outbound_messages(
+            ctx,
+            "merchant_rules_execute",
+            message_refs,
+            SharedCommandType.MerchantRules,
+            wait_step_ms=wait_step_ms,
+            timeout_ms=wait_timeout_ms,
+        )
+
+        if wait_ms > 0:
+            yield from Routines.Yield.wait(wait_ms)
+
+        log_recipe(
+            ctx,
+            f"merchant_rules_execute: dispatched execute to {len(target_emails)} account(s) "
+            f"(multibox={multibox}, local={local}).",
+        )
+        yield
+
+    ctx.bot.States.AddCustomState(_execute, name)
+    wait_after_step(ctx.bot, ctx.step)
+
+
 def handle_inventory_setup(ctx: StepContext) -> None:
     ctx.bot.States.AddCustomState(_yield_inventory_setup(ctx, ctx.step), ctx.step.get("name", "Inventory Setup"))
     wait_after_step(ctx.bot, ctx.step)
@@ -1407,18 +1563,24 @@ def handle_inventory_cleanup(ctx: StepContext) -> None:
 
     cleanup_steps: list[dict] = [
         {"type": "__capture_origin_map", "name": "Capture Origin Map"},
-        {"type": "resign", "name": "Resign All", "ms": 1000},
         {"type": "leave_party", "name": "Leave Party", "multibox": multibox},
         {"type": "travel_gh", "name": "Travel GH", "multibox": multibox, "ms": 7000},
         {
             "type": "deposit_materials",
             "name": "Store Craft Mats",
-            "materials": ["Pile_Of_Glittering_Dust", "Bone", "Iron_Ingot", "Feather", "Plant_Fiber"],
+            "materials": list(CONS_COMMON_MATERIAL_MODEL_IDS),
             "exact_quantity": 0,
+            "open_wait_ms": 3000,
+            "max_passes": 3,
             "multibox": multibox,
             "ms": 500,
         },
-        {"type": "sell_materials", "name": "Sell Trader Mats", "multibox": multibox},
+        {
+            "type": "sell_materials",
+            "name": "Sell Non-Cons Trader Mats",
+            "materials": list(NON_CONS_COMMON_MATERIAL_MODEL_IDS),
+            "multibox": multibox,
+        },
         {"type": "sell_nonsalvageable_golds", "name": "Sell Non-Salv Golds", "npc": "MERCHANT", "multibox": multibox},
         {
             "type": "sell_leftover_materials",
@@ -1514,6 +1676,7 @@ HANDLERS: dict[str, Callable[[StepContext], None]] = {
     "sell_leftover_materials": handle_sell_leftover_materials,
     "sell_scrolls": handle_sell_scrolls,
     "buy_ectoplasm": handle_buy_ectoplasm,
+    "merchant_rules_execute": handle_merchant_rules_execute,
     "inventory_setup": handle_inventory_setup,
     "inventory_guard": handle_inventory_guard,
     "inventory_cleanup": handle_inventory_cleanup,

@@ -40,6 +40,23 @@ def parse_step_bool(value: Any, default: bool = False) -> bool:
     return bool(value)
 
 
+def parse_step_point(step: Dict[str, Any]) -> tuple[float, float] | None:
+    point = step.get("point", None)
+    if isinstance(point, (list, tuple)) and len(point) >= 2:
+        try:
+            return float(point[0]), float(point[1])
+        except (TypeError, ValueError):
+            return None
+
+    if "x" in step and "y" in step:
+        try:
+            return float(step["x"]), float(step["y"])
+        except (TypeError, ValueError):
+            return None
+
+    return None
+
+
 def step_delay_ms(step: Dict[str, Any], default: int = DEFAULT_STEP_DELAY_MS) -> int:
     value = step.get("ms", default)
     try:

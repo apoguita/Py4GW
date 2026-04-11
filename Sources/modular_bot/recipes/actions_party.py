@@ -8,11 +8,12 @@ from .combat_engine import (
     flag_all_accounts as engine_flag_all_accounts,
     resolve_engine_for_bot,
     set_auto_combat as engine_set_auto_combat,
+    set_auto_following as engine_set_auto_following,
     set_auto_looting as engine_set_auto_looting,
     unflag_all_accounts as engine_unflag_all_accounts,
 )
 from .step_context import StepContext
-from .step_utils import debug_log_recipe, parse_step_bool, parse_step_int, wait_after_step
+from .step_utils import debug_log_recipe, parse_step_bool, parse_step_int, parse_step_point, wait_after_step
 
 
 def handle_set_title(ctx: StepContext) -> None:
@@ -20,8 +21,187 @@ def handle_set_title(ctx: StepContext) -> None:
     wait_after_step(ctx.bot, ctx.step)
 
 
+def _skip_local_consumable_for_non_leader(ctx: StepContext, multibox: bool) -> bool:
+    if multibox:
+        return False
+
+    leader_only = parse_step_bool(ctx.step.get("leader_only", True), True)
+    if not leader_only:
+        return False
+
+    try:
+        from Py4GWCoreLib import Party
+
+        if not Party.IsPartyLoaded():
+            return False
+
+        player_count = int(Party.GetPlayerCount() or 0)
+        if player_count <= 1:
+            return False
+
+        if not Party.IsPartyLeader():
+            debug_log_recipe(
+                ctx,
+                "use_consumables local execution skipped on non-leader account (leader_only=true).",
+            )
+            return True
+    except Exception as exc:
+        debug_log_recipe(ctx, f"use_consumables leader_only guard failed: {exc}")
+
+    return False
+
+
+def _use_single_consumable(ctx: StepContext, model_id: int, effect_name: str, multibox: bool) -> None:
+    from Py4GWCoreLib import GLOBAL_CACHE
+
+    effect_id = int(GLOBAL_CACHE.Skill.GetID(effect_name) or 0)
+    if multibox:
+        ctx.bot.Multibox.UseConsumable(model_id, effect_id)
+        return
+
+    def _use_local_consumable_runtime() -> None:
+        from Py4GWCoreLib import GLOBAL_CACHE, Player
+
+        if _skip_local_consumable_for_non_leader(ctx, multibox=False):
+            return
+
+        player_id = int(Player.GetAgentID() or 0)
+        if (
+            effect_id > 0
+            and hasattr(GLOBAL_CACHE, "Effects")
+            and callable(getattr(GLOBAL_CACHE.Effects, "HasEffect", None))
+            and GLOBAL_CACHE.Effects.HasEffect(player_id, effect_id)
+        ):
+            debug_log_recipe(ctx, f"use_consumables skipped for model_id={model_id}: effect already active.")
+            return
+
+        item_id = int(GLOBAL_CACHE.Inventory.GetFirstModelID(model_id) or 0)
+        if item_id <= 0:
+            debug_log_recipe(ctx, f"use_consumables skipped for model_id={model_id}: item not found.")
+            return
+
+        GLOBAL_CACHE.Inventory.UseItem(item_id)
+        debug_log_recipe(ctx, f"use_consumables used model_id={model_id} item_id={item_id}.")
+
+    step_name = str(ctx.step.get("name", f"Use {effect_name}") or f"Use {effect_name}")
+    ctx.bot.States.AddCustomState(_use_local_consumable_runtime, step_name)
+
+
 def handle_use_all_consumables(ctx: StepContext) -> None:
-    ctx.bot.Items.UseAllConsumables()
+    multibox = parse_step_bool(ctx.step.get("multibox", False), False)
+    if _skip_local_consumable_for_non_leader(ctx, multibox):
+        wait_after_step(ctx.bot, ctx.step)
+        return
+    if multibox:
+        ctx.bot.Multibox.UseAllConsumables()
+    else:
+        ctx.bot.Items.UseAllConsumables()
+    wait_after_step(ctx.bot, ctx.step)
+
+
+def handle_use_conset(ctx: StepContext) -> None:
+    multibox = parse_step_bool(ctx.step.get("multibox", False), False)
+    if _skip_local_consumable_for_non_leader(ctx, multibox):
+        wait_after_step(ctx.bot, ctx.step)
+        return
+    if multibox:
+        ctx.bot.Multibox.UseConset()
+    else:
+        ctx.bot.Items.UseConset()
+    wait_after_step(ctx.bot, ctx.step)
+
+
+def handle_use_pcons(ctx: StepContext) -> None:
+    multibox = parse_step_bool(ctx.step.get("multibox", False), False)
+    if _skip_local_consumable_for_non_leader(ctx, multibox):
+        wait_after_step(ctx.bot, ctx.step)
+        return
+    if multibox:
+        ctx.bot.Multibox.UsePcons()
+    else:
+        ctx.bot.Items.UsePcons()
+    wait_after_step(ctx.bot, ctx.step)
+
+
+def handle_use_essence_of_celerity(ctx: StepContext) -> None:
+    from Py4GWCoreLib.enums import ModelID
+
+    multibox = parse_step_bool(ctx.step.get("multibox", False), False)
+    _use_single_consumable(
+        ctx,
+        int(ModelID.Essence_Of_Celerity.value),
+        "Essence_of_Celerity_item_effect",
+        multibox,
+    )
+    wait_after_step(ctx.bot, ctx.step)
+
+
+def handle_use_grail_of_might(ctx: StepContext) -> None:
+    from Py4GWCoreLib.enums import ModelID
+
+    multibox = parse_step_bool(ctx.step.get("multibox", False), False)
+    _use_single_consumable(
+        ctx,
+        int(ModelID.Grail_Of_Might.value),
+        "Grail_of_Might_item_effect",
+        multibox,
+    )
+    wait_after_step(ctx.bot, ctx.step)
+
+
+def handle_use_armor_of_salvation(ctx: StepContext) -> None:
+    from Py4GWCoreLib.enums import ModelID
+
+    multibox = parse_step_bool(ctx.step.get("multibox", False), False)
+    _use_single_consumable(
+        ctx,
+        int(ModelID.Armor_Of_Salvation.value),
+        "Armor_of_Salvation_item_effect",
+        multibox,
+    )
+    wait_after_step(ctx.bot, ctx.step)
+
+
+def handle_use_consumables(ctx: StepContext) -> None:
+    selector = str(ctx.step.get("mode", ctx.step.get("selector", "all")) or "all").strip().lower()
+    aliases = {
+        "all": "all",
+        "all_consumables": "all",
+        "use_all": "all",
+        "conset": "conset",
+        "pcons": "pcons",
+        "essence": "essence",
+        "essence_of_celerity": "essence",
+        "grail": "grail",
+        "grail_of_might": "grail",
+        "armor": "armor",
+        "armor_of_salvation": "armor",
+    }
+    normalized = aliases.get(selector)
+
+    if normalized == "all":
+        handle_use_all_consumables(ctx)
+        return
+    if normalized == "conset":
+        handle_use_conset(ctx)
+        return
+    if normalized == "pcons":
+        handle_use_pcons(ctx)
+        return
+    if normalized == "essence":
+        handle_use_essence_of_celerity(ctx)
+        return
+    if normalized == "grail":
+        handle_use_grail_of_might(ctx)
+        return
+    if normalized == "armor":
+        handle_use_armor_of_salvation(ctx)
+        return
+
+    debug_log_recipe(
+        ctx,
+        f"use_consumables unsupported mode={selector!r}. Expected one of: all, conset, pcons, essence, grail, armor.",
+    )
     wait_after_step(ctx.bot, ctx.step)
 
 
@@ -85,12 +265,11 @@ def handle_flag_heroes(ctx: StepContext) -> None:
             debug_log_recipe(ctx, "flag_heroes skipped: no heroes in party.")
             return
 
-        try:
-            x = float(ctx.step["x"])
-            y = float(ctx.step["y"])
-        except (TypeError, ValueError, KeyError):
-            debug_log_recipe(ctx, f"flag_heroes invalid coordinates at index {ctx.step_idx}: {ctx.step!r}")
+        coords = parse_step_point(ctx.step)
+        if coords is None:
+            debug_log_recipe(ctx, f"flag_heroes invalid coordinates at index {ctx.step_idx}: expected point [x, y].")
             return
+        x, y = coords
 
         Party.Heroes.FlagAllHeroes(x, y)
 
@@ -100,8 +279,14 @@ def handle_flag_heroes(ctx: StepContext) -> None:
 
 def handle_flag_all_accounts(ctx: StepContext) -> None:
     def _flag_all_accounts() -> None:
-        x = float(ctx.step["x"])
-        y = float(ctx.step["y"])
+        coords = parse_step_point(ctx.step)
+        if coords is None:
+            debug_log_recipe(
+                ctx,
+                f"flag_all_accounts invalid coordinates at index {ctx.step_idx}: expected point [x, y].",
+            )
+            return
+        x, y = coords
         engine = resolve_engine_for_bot(ctx.bot)
         try:
             changed = int(engine_flag_all_accounts(x, y, preferred_engine=engine, bot=ctx.bot))
@@ -159,6 +344,153 @@ def handle_invite_all_accounts(ctx: StepContext) -> None:
     wait_after_step(ctx.bot, ctx.step)
 
 
+def handle_abandon_quest(ctx: StepContext) -> None:
+    quest_id = parse_step_int(ctx.step.get("quest_id", ctx.step.get("id", 0)), 0)
+    multibox = parse_step_bool(ctx.step.get("multibox", False), False)
+    skip_leader = parse_step_bool(ctx.step.get("skip_leader", False), False)
+
+    if quest_id <= 0:
+        debug_log_recipe(ctx, f"abandon_quest requires valid quest_id at index {ctx.step_idx}.")
+        return
+
+    def _abandon_quest():
+        if multibox:
+            yield from ctx.bot.helpers.Multibox._abandon_quest_message(quest_id, skip_leader=skip_leader)
+            return
+        ctx.bot.Quest.AbandonQuest(quest_id)
+        yield
+
+    ctx.bot.States.AddCustomState(_abandon_quest, ctx.step.get("name", f"Abandon Quest {quest_id}"))
+    wait_after_step(ctx.bot, ctx.step)
+
+
+def handle_broadcast_summoning_stone(ctx: StepContext) -> None:
+    from Py4GWCoreLib import GLOBAL_CACHE, Map, ModelID, Player, SharedCommandType
+
+    default_models = [
+        int(ModelID.Legionnaire_Summoning_Crystal.value),
+        int(ModelID.Igneous_Summoning_Stone.value),
+        int(ModelID.Tengu_Summon.value),
+    ]
+    raw_models = ctx.step.get("models", ctx.step.get("summon_models", default_models))
+    effect_id = max(0, parse_step_int(ctx.step.get("effect_id", 2886), 2886))
+    repeat = max(1, parse_step_int(ctx.step.get("repeat", 1), 1))
+    per_message_wait_ms = max(0, parse_step_int(ctx.step.get("per_message_wait_ms", 250), 250))
+
+    def _resolve_models(raw_value) -> list[int]:
+        if raw_value is None:
+            return list(default_models)
+        if not isinstance(raw_value, list):
+            raw_items = [raw_value]
+        else:
+            raw_items = list(raw_value)
+
+        resolved: list[int] = []
+        for entry in raw_items:
+            mid = parse_step_int(entry, 0)
+            if mid > 0:
+                if mid not in resolved:
+                    resolved.append(mid)
+                continue
+
+            if isinstance(entry, str):
+                token = entry.strip()
+                if token.lower().startswith("modelid."):
+                    token = token.split(".", 1)[1]
+                model_obj = getattr(ModelID, token, None)
+                if model_obj is not None:
+                    mid = int(getattr(model_obj, "value", model_obj))
+                    if mid > 0 and mid not in resolved:
+                        resolved.append(mid)
+
+        return resolved
+
+    model_ids = _resolve_models(raw_models)
+    if not model_ids:
+        debug_log_recipe(ctx, "broadcast_summoning_stone skipped: no valid model IDs resolved.")
+        return
+
+    def _broadcast_summoning_stone():
+        sender_email = str(Player.GetAccountEmail() or "")
+        sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(sender_email)
+        sender_party_id = int(getattr(getattr(sender_data, "AgentPartyData", None), "PartyID", 0) or 0)
+        map_id = int(Map.GetMapID() or 0)
+        map_region = int(Map.GetRegion()[0] or 0)
+        map_district = int(Map.GetDistrict() or 0)
+        map_language = int(Map.GetLanguage()[0] or 0)
+
+        def _account_map_tuple(account) -> tuple[int, int, int, int]:
+            map_obj = getattr(getattr(account, "AgentData", None), "Map", None)
+            acc_map_id = int(
+                getattr(account, "MapID", 0)
+                or getattr(map_obj, "MapID", 0)
+                or 0
+            )
+            acc_region = int(
+                getattr(account, "MapRegion", 0)
+                or getattr(map_obj, "Region", 0)
+                or 0
+            )
+            acc_district = int(
+                getattr(account, "MapDistrict", 0)
+                or getattr(map_obj, "District", 0)
+                or 0
+            )
+            acc_language = int(
+                getattr(account, "MapLanguage", 0)
+                or getattr(map_obj, "Language", 0)
+                or 0
+            )
+            return acc_map_id, acc_region, acc_district, acc_language
+
+        recipients = []
+        for account in GLOBAL_CACHE.ShMem.GetAllAccountData():
+            account_email = str(getattr(account, "AccountEmail", "") or "")
+            if not account_email or account_email == sender_email:
+                continue
+            acc_map_id, acc_region, acc_district, acc_language = _account_map_tuple(account)
+            if acc_map_id != map_id:
+                continue
+            if acc_region != map_region:
+                continue
+            if acc_district != map_district:
+                continue
+            if acc_language != map_language:
+                continue
+            account_party_id = int(getattr(getattr(account, "AgentPartyData", None), "PartyID", 0) or 0)
+            if sender_party_id and account_party_id and account_party_id != sender_party_id:
+                continue
+            recipients.append(account_email)
+
+        if not recipients:
+            debug_log_recipe(ctx, "broadcast_summoning_stone: no eligible recipients.")
+            return
+
+        for account_email in recipients:
+            for model_id in model_ids:
+                GLOBAL_CACHE.ShMem.SendMessage(
+                    sender_email,
+                    account_email,
+                    SharedCommandType.UseItem,
+                    (int(model_id), int(repeat), int(effect_id), 0),
+                    ("modular_summoning_broadcast", "", "", ""),
+                )
+                if per_message_wait_ms > 0:
+                    yield from ctx.bot.Wait._coro_for_time(per_message_wait_ms)
+
+        debug_log_recipe(
+            ctx,
+            (
+                "broadcast_summoning_stone sent "
+                f"{len(model_ids)} model request(s) to {len(recipients)} account(s); "
+                f"effect_id={effect_id}, repeat={repeat}."
+            ),
+        )
+
+    ctx.bot.States.AddCustomState(_broadcast_summoning_stone, ctx.step.get("name", "Broadcast Summoning Stone"))
+    wait_after_step(ctx.bot, ctx.step)
+
+
 def handle_set_anchor(ctx: StepContext) -> None:
     target = str(ctx.step.get("phase", ctx.step.get("target", ctx.step.get("name", ""))) or "").strip()
     owner = getattr(ctx.bot, "_modular_owner", None)
@@ -174,35 +506,65 @@ def handle_set_anchor(ctx: StepContext) -> None:
     wait_after_step(ctx.bot, ctx.step)
 
 
+def apply_auto_combat_state(bot, enabled: bool) -> None:
+    e = bool(enabled)
+    # Keep movement behavior aligned with requested combat state.
+    # If combat is disabled, avoid pause-on-danger halts when enemies aggro.
+    if bot.Properties.exists("pause_on_danger"):
+        bot.Properties.ApplyNow("pause_on_danger", "active", e)
+
+    engine = resolve_engine_for_bot(bot)
+    engine_set_auto_combat(e, preferred_engine=engine, bot=bot)
+    # Keep template-driven toggles from clobbering external combat engines.
+    if engine == ENGINE_HERO_AI:
+        # Keep HeroAI runtime enabled even when combat is temporarily disabled.
+        # "enabled" here should only control HeroAI Combat option, not disable
+        # the HeroAI owner/runtime itself.
+        if bot.Properties.exists("hero_ai"):
+            bot.Properties.ApplyNow("hero_ai", "active", True)
+        if bot.Properties.exists("auto_combat"):
+            bot.Properties.ApplyNow("auto_combat", "active", False)
+        return
+    if engine == ENGINE_CUSTOM_BEHAVIORS:
+        if bot.Properties.exists("hero_ai"):
+            bot.Properties.ApplyNow("hero_ai", "active", False)
+        if bot.Properties.exists("auto_combat"):
+            bot.Properties.ApplyNow("auto_combat", "active", False)
+        return
+
+    if e:
+        bot.Templates.Aggressive()
+    else:
+        bot.Templates.Pacifist()
+
+
+def apply_auto_looting_state(bot, enabled: bool) -> None:
+    e = bool(enabled)
+    engine = resolve_engine_for_bot(bot)
+    engine_set_auto_looting(e, preferred_engine=engine, bot=bot)
+    # External engines: keep Botting auto-loot in sync with requested
+    # looting state.
+    if engine == ENGINE_CUSTOM_BEHAVIORS:
+        if bot.Properties.exists("auto_loot"):
+            bot.Properties.ApplyNow("auto_loot", "active", e)
+        return
+    # HeroAI mode: keep Botting auto-loot in sync with requested looting state.
+    if engine == ENGINE_HERO_AI:
+        if bot.Properties.exists("auto_loot"):
+            bot.Properties.ApplyNow("auto_loot", "active", e)
+        return
+
+    if e:
+        bot.Properties.Enable("auto_loot")
+    else:
+        bot.Properties.Disable("auto_loot")
+
+
 def handle_set_auto_combat(ctx: StepContext) -> None:
     enabled = parse_step_bool(ctx.step.get("enabled", True), True)
 
     def _set_auto_combat_runtime(e: bool = enabled) -> None:
-        # Keep movement behavior aligned with requested combat state.
-        # If combat is disabled, avoid pause-on-danger halts when enemies aggro.
-        if ctx.bot.Properties.exists("pause_on_danger"):
-            ctx.bot.Properties.ApplyNow("pause_on_danger", "active", bool(e))
-
-        engine = resolve_engine_for_bot(ctx.bot)
-        engine_set_auto_combat(e, preferred_engine=engine, bot=ctx.bot)
-        # Keep template-driven toggles from clobbering external combat engines.
-        if engine == ENGINE_HERO_AI:
-            if ctx.bot.Properties.exists("hero_ai"):
-                ctx.bot.Properties.ApplyNow("hero_ai", "active", True)
-            if ctx.bot.Properties.exists("auto_combat"):
-                ctx.bot.Properties.ApplyNow("auto_combat", "active", False)
-            return
-        if engine == ENGINE_CUSTOM_BEHAVIORS:
-            if ctx.bot.Properties.exists("hero_ai"):
-                ctx.bot.Properties.ApplyNow("hero_ai", "active", False)
-            if ctx.bot.Properties.exists("auto_combat"):
-                ctx.bot.Properties.ApplyNow("auto_combat", "active", False)
-            return
-
-        if e:
-            ctx.bot.Templates.Aggressive()
-        else:
-            ctx.bot.Templates.Pacifist()
+        apply_auto_combat_state(ctx.bot, e)
 
     ctx.bot.States.AddCustomState(
         _set_auto_combat_runtime,
@@ -215,24 +577,7 @@ def handle_set_auto_looting(ctx: StepContext) -> None:
     enabled = parse_step_bool(ctx.step.get("enabled", True), True)
 
     def _set_auto_looting_runtime(e: bool = enabled) -> None:
-        engine = resolve_engine_for_bot(ctx.bot)
-        engine_set_auto_looting(e, preferred_engine=engine, bot=ctx.bot)
-        # External engines: keep Botting auto-loot in sync with requested
-        # looting state.
-        if engine == ENGINE_CUSTOM_BEHAVIORS:
-            if ctx.bot.Properties.exists("auto_loot"):
-                ctx.bot.Properties.ApplyNow("auto_loot", "active", bool(e))
-            return
-        # HeroAI mode: keep Botting auto-loot in sync with requested looting state.
-        if engine == ENGINE_HERO_AI:
-            if ctx.bot.Properties.exists("auto_loot"):
-                ctx.bot.Properties.ApplyNow("auto_loot", "active", bool(e))
-            return
-
-        if e:
-            ctx.bot.Properties.Enable("auto_loot")
-        else:
-            ctx.bot.Properties.Disable("auto_loot")
+        apply_auto_looting_state(ctx.bot, e)
 
     ctx.bot.States.AddCustomState(
         _set_auto_looting_runtime,
@@ -241,9 +586,56 @@ def handle_set_auto_looting(ctx: StepContext) -> None:
     wait_after_step(ctx.bot, ctx.step)
 
 
+def handle_set_auto_following(ctx: StepContext) -> None:
+    enabled = parse_step_bool(ctx.step.get("enabled", True), True)
+
+    def _set_auto_following_runtime(e: bool = enabled) -> None:
+        engine = resolve_engine_for_bot(ctx.bot)
+        engine_set_auto_following(e, preferred_engine=engine, bot=ctx.bot)
+
+    ctx.bot.States.AddCustomState(
+        _set_auto_following_runtime,
+        f"Set Following {'On' if enabled else 'Off'}",
+    )
+    wait_after_step(ctx.bot, ctx.step)
+
+
 def handle_set_hard_mode(ctx: StepContext) -> None:
     enabled = parse_step_bool(ctx.step.get("enabled", True), True)
     ctx.bot.Party.SetHardMode(enabled)
+    wait_after_step(ctx.bot, ctx.step)
+
+
+def handle_set_combat_engine(ctx: StepContext) -> None:
+    from .combat_engine import ENGINE_CUSTOM_BEHAVIORS, ENGINE_HERO_AI, ENGINE_NONE
+
+    raw_engine = str(ctx.step.get("engine", ctx.step.get("value", "")) or "").strip().lower()
+    aliases = {
+        "heroai": ENGINE_HERO_AI,
+        "hero_ai": ENGINE_HERO_AI,
+        "custombehaviors": ENGINE_CUSTOM_BEHAVIORS,
+        "custom_behaviors": ENGINE_CUSTOM_BEHAVIORS,
+        "cb": ENGINE_CUSTOM_BEHAVIORS,
+        "none": ENGINE_NONE,
+    }
+    engine = aliases.get(raw_engine, raw_engine)
+    if engine not in (ENGINE_HERO_AI, ENGINE_CUSTOM_BEHAVIORS, ENGINE_NONE):
+        debug_log_recipe(
+            ctx,
+            f"set_combat_engine invalid engine at index {ctx.step_idx}: {raw_engine!r}",
+        )
+        return
+
+    def _set_engine() -> None:
+        setattr(ctx.bot.config, "_modular_start_engine", engine)
+        # Optional runtime property sync for local bot flags.
+        if ctx.bot.Properties.exists("hero_ai"):
+            ctx.bot.Properties.ApplyNow("hero_ai", "active", engine == ENGINE_HERO_AI)
+        if ctx.bot.Properties.exists("auto_combat") and engine in (ENGINE_HERO_AI, ENGINE_CUSTOM_BEHAVIORS):
+            ctx.bot.Properties.ApplyNow("auto_combat", "active", False)
+        debug_log_recipe(ctx, f"set_combat_engine pinned engine={engine!r}.")
+
+    ctx.bot.States.AddCustomState(_set_engine, ctx.step.get("name", f"Set Combat Engine ({engine})"))
     wait_after_step(ctx.bot, ctx.step)
 
 
@@ -658,6 +1050,12 @@ def handle_load_party(ctx: StepContext) -> None:
 HANDLERS: dict[str, Callable[[StepContext], None]] = {
     "set_title": handle_set_title,
     "use_all_consumables": handle_use_all_consumables,
+    "use_conset": handle_use_conset,
+    "use_pcons": handle_use_pcons,
+    "use_essence_of_celerity": handle_use_essence_of_celerity,
+    "use_grail_of_might": handle_use_grail_of_might,
+    "use_armor_of_salvation": handle_use_armor_of_salvation,
+    "use_consumables": handle_use_consumables,
     "drop_bundle": handle_drop_bundle,
     "force_hero_state": handle_force_hero_state,
     "flag_heroes": handle_flag_heroes,
@@ -667,9 +1065,13 @@ HANDLERS: dict[str, Callable[[StepContext], None]] = {
     "resign": handle_resign,
     "summon_all_accounts": handle_summon_all_accounts,
     "invite_all_accounts": handle_invite_all_accounts,
+    "abandon_quest": handle_abandon_quest,
+    "broadcast_summoning_stone": handle_broadcast_summoning_stone,
     "set_anchor": handle_set_anchor,
     "set_auto_combat": handle_set_auto_combat,
     "set_auto_looting": handle_set_auto_looting,
+    "set_auto_following": handle_set_auto_following,
+    "set_combat_engine": handle_set_combat_engine,
     "set_hard_mode": handle_set_hard_mode,
     "heroes_use_skill": handle_heroes_use_skill,
     "set_party_member_hooks": handle_set_party_member_hooks,

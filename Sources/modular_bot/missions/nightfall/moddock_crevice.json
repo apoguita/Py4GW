@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "Moddok Crevice",
   "required_hero": ["Dunkoro"],
   "steps": [
@@ -23,7 +23,7 @@
     {"type": "auto_path", "name": "safety step", "points": [[-11007, 12443]]},
     {"type": "skip_cutscene"},
     {"type": "set_auto_combat", "enabled": false},
-    {"type": "flag_heroes", "x": -12653, "y": 15023},
+    {"type": "flag_heroes", "point": [-12653, 15023]},
     {"type": "auto_path", "name": "Path", "points": [[-12653, 15023]]},
     {"type": "set_auto_combat", "enabled": true},
     {"type": "unflag_heroes"},
@@ -32,3 +32,5 @@
     {"type": "wait_for_map_load", "map_id": 378}
   ]
 }
+
+

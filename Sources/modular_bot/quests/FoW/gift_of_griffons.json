@@ -2,11 +2,16 @@
   "name": "Toy Horseys",
   "steps": [
     {"type": "auto_path", "name": "clearance", "points": [[-21448, 15704], [-21291, 14579], [-22434, 14498]]},
-    {"type": "dialog", "name": "Gift of Griffins", "npc": "WAILING_LORD", "id": "0x80CD01"},
-    {"type": "dialog", "name": "Gift of Griffins", "npc": "WAILING_LORD", "id": "0x80CD01"},
+    {"type": "dialog_multibox", "name": "Gift of Griffins", "npc": "WAILING_LORD", "id": "0x80CD01"},
+    {"type": "auto_path", "name": "clearance", "points": [ [-22434, 14498]]},
+    {"type": "dialog_multibox", "name": "Gift of Griffins", "npc": "WAILING_LORD", "id": "0x80CD01"},
+    {"type": "interact_gadget", "target": "CHEST"},
     {"type": "auto_path", "name": "get them griffons", "points": [[-22414, 10332]]},
     {"type": "auto_path", "name": "return them griffons", "points": [[-21581, 9833], [-16464, 9013], [-12956, 6918], [-7304, 5782], [-6884, 3818], [-5846, 1027], [-6697, -2132], [-6493, -3923], [-9330, -5987], [-8542, -4384], [-15905, -1381]]},
     {"type": "wait", "ms": 5000},
+    {"type": "dialog_multibox", "id": ["0x80CC06", "0x80CC07", "0x80CD07"], "npc": "RASTIGAN_THE_ETERNAL", "name": "Dialog - Rastigan the Eternal"},
+    {"type": "interact_gadget", "target": "CHEST"},
+    {"type": "dialog_multibox", "id": ["0x80CC06", "0x80CC07", "0x80CD07"], "npc": "RASTIGAN_THE_ETERNAL", "name": "Dialog - Rastigan the Eternal"},
     {"type": "auto_path", "name": "last wolfo", "points": [[-16695, -3375]]},
     {"type": "path_to_target", "enemy": "SHARD_WOLF"},
     {"type": "path_to_target", "enemy": "SHARD_WOLF"},
@@ -14,3 +19,4 @@
     {"type": "auto_path", "name": "Back to ToC", "points": [[-17183, -2958], [-14207, -2778]]}
   ]
 }
+

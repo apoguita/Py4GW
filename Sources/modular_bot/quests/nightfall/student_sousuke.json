@@ -1,20 +1,21 @@
-{
+﻿{
   "name": "dialog_recorded",
   "steps": [
     {"type": "travel", "name": "Travel to Kamadan Jewel of Istan", "target_map_id": 449},
     {"type": "auto_path", "name": "To Exit", "points": [[-7755, 14876]]},
-    {"type": "exit_map", "name": "Leave Kamadan Jewel of Istan", "x": -5924, "y": 14948, "target_map_id": 543},
+    {"type": "exit_map", "name": "Leave Kamadan Jewel of Istan", "point": [-5924, 14948], "target_map_id": 543},
     {"type": "auto_path", "name": "To Field General Hayao", "points": [[-3634, 14638]]},
     {"type": "dialogs", "id": ["0x826803", "0x826801"], "npc": "FIELD_GENERAL_HAYAO", "name": "Dialog - Field General Hayao"},
     {"type": "travel", "name": "Travel to The Astralarium", "target_map_id": 502},
     {"type": "load_party", "name": "Load Party", "max_heroes": 4, "use_priority": true},
     {"type": "auto_path", "name": "To Exit", "points": [[-4319, 670]]},
-    {"type": "exit_map", "name": "Leave The Astralarium", "x": -4705, "y": 157, "target_map_id": 483},
+    {"type": "exit_map", "name": "Leave The Astralarium", "point": [-4705, 157], "target_map_id": 483},
     {"type": "auto_path", "name": "Kill eternals", "points": [[16934, -9707], [17517, -10644]]},
     {"type": "travel", "name": "Travel to Kamadan Jewel of Istan", "target_map_id": 449},
     {"type": "auto_path", "name": "To Exit", "points": [[-7751, 14907]]},
-    {"type": "exit_map", "name": "Leave Kamadan Jewel of Istan", "x": -5918, "y": 14907, "target_map_id": 543},
+    {"type": "exit_map", "name": "Leave Kamadan Jewel of Istan", "point": [-5918, 14907], "target_map_id": 543},
     {"type": "auto_path", "name": "To Field General Hayao", "points": [[-3601, 14650]]},
     {"type": "dialog", "id": "0x826807", "npc": "FIELD_GENERAL_HAYAO", "name": "Dialog - Field General Hayao"}
   ]
 }
+

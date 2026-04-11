@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "Traitor Khobay",
   "steps": [
     {"type": "remove_enemy_blacklist", "enemy_name": "Infernal Wurm"},
@@ -6,7 +6,7 @@
     {"type": "auto_path", "name": "Clear Khobay", "points": [[19668, -15397]]},
     {"type": "set_auto_looting", "enabled": false},
     {"type": "add_enemy_blacklist", "enemy_name": "Infernal Wurm"},
-    {"type": "flag_all_accounts", "x": 19909, "y": -12109, "ms": 3000},
+    {"type": "flag_all_accounts", "point": [19909, -12109], "ms": 3000},
     {"type": "auto_path", "name": "anti stuck tech", "points": [[19909, -12109]]},
     {"type": "unflag_all_accounts"},
     {"type": "auto_path", "name": "out through the back", "points": [[11665, -8820]]},
@@ -14,3 +14,4 @@
     {"type": "remove_enemy_blacklist", "enemy_name": "Infernal Wurm"}
   ]
 }
+

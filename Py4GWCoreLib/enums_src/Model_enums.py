@@ -1206,6 +1206,7 @@ class ModelID(IntEnum):
     Elonian_Leather_Square = 943
     Emerald_Blade = 1976
     Enchanted_Lodestone = 431
+    Elemental_Crystal_Shard = 38302
     Enchanted_Vine = 834
     Encrusted_Lodestone = 451
     Encrypted_Charr_Battle_Plans = 27976

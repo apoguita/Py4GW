@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "Dzagonur Bastion",
   "required_hero": ["Master of Whispers"],
   "steps": [
@@ -10,7 +10,7 @@
     {"type": "wait_for_map_load", "map_id": 433},
     {"type": "auto_path", "name": "Path", "points": [[-13020, 8639]]},
     {"type": "interact_npc", "name": "Interact Prince Ahmtur the Mighty", "npc": "PRINCE_AHMTUR_THE_MIGHTY"},
-    {"type": "nudge_move", "name": "Nudge into teleporter", "x": -12691, "y": 8656, "pulses": 2, "pulse_ms": 180},
+    {"type": "nudge_move", "name": "Nudge into teleporter", "point": [-12691, 8656], "pulses": 2, "pulse_ms": 180},
     {"type": "dialog", "id": "0x84", "npc": "DISCIPLE_OF_SECRETS", "name": "Dialog - Disciple Of Secrets"},
     {"type": "auto_path", "name": "Path", "points": [[-11505, 1702]]},
     {"type": "dialog", "id": "0x84", "npc": "DISCIPLE_OF_SECRETS", "name": "Dialog - Disciple Of Secrets"},
@@ -27,3 +27,4 @@
     {"type": "wait_for_map_load", "map_id": 414}
   ]
 }
+

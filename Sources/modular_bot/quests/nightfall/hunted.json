@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "Hunted!",
   "steps": [
     {"type": "travel", "name": "Travel to Yohlon Haven", "target_map_id": 381},
@@ -8,17 +8,18 @@
     {"type": "dialog", "id": "0x822404", "npc": "ZUDASH_DEJARIN", "name": "Dialog - Zudash Dejarin"},
     {"type": "auto_path", "name": "To Exit", "points": [[-3765, 4583]]},
     {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true},
-    {"type": "exit_map", "name": "Leave Yohlon Haven", "x": -5001, "y": 4859, "target_map_id": 371},
+    {"type": "exit_map", "name": "Leave Yohlon Haven", "point": [-5001, 4859], "target_map_id": 371},
     {"type": "auto_path", "name": "To Elder Jonah", "points": [[8252, 12668]]},
     {"type": "dialog", "id": "0x822404", "npc": "ELDER_JONAH", "name": "Dialog - Elder Jonah"},
     {"type": "auto_path", "name": "To Elder Jonah", "points": [[8252, 12668]]},
     {"type": "dialog", "id": "0x822404", "npc": "ELDER_JONAH", "name": "Dialog - Elder Jonah"},
     {"type": "auto_path", "name": "To Guardsman Bahsi", "points": [[11927, 14638]]},
     {"type": "interact_npc", "name": "Interact Guardsman Bahsi", "npc": "GUARDSMAN_BAHSI"},
-    {"type": "exit_map", "name": "Leave Marga Coast", "x": 12858, "y": 14874, "target_map_id": 420},
+    {"type": "exit_map", "name": "Leave Marga Coast", "point": [12858, 14874], "target_map_id": 420},
     {"type": "auto_path", "name": "Clear the sanctuary", "points": [[1402, -1952], [2870, 1221], [-567, 810], [-3804, 1821], [-3432, -2436]]},
     {"type": "wait_for_map_load", "map_id": 387, "ms": 2000},
     {"type": "auto_path", "name": "To Lonai", "points": [[-840, 1572]]},
     {"type": "dialog", "id": "0x822407", "npc": "LONAI", "name": "Dialog - Lonai"}
   ]
 }
+

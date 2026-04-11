@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "Uncharted Territory",
   "required_hero": ["Dunkoro"],
   "steps": [
@@ -7,7 +7,7 @@
     {"type": "auto_path", "name": "To Pehai", "points": [[-972, 8443]]},
     {"type": "dialog", "id": "0x82BD01", "npc": "PEHAI", "name": "Dialog - Pehai"},
     {"type": "auto_path", "name": "To Exit", "points": [[-8124, 12271]]},
-    {"type": "exit_map", "name": "Leave Gate of Torment", "x": -7849, "y": 13854, "target_map_id": 465},
+    {"type": "exit_map", "name": "Leave Gate of Torment", "point": [-7849, 13854], "target_map_id": 465},
     {"type": "auto_path", "name": "To Kormir", "points": [[-2475, -14276]]},
     {"type": "dialog", "id": "0x82BD04", "npc": "KORMIR", "name": "Dialog - Kormir"},
     {"type": "auto_path", "name": "to rez shrine", "points": [[3241, -1519]]},
@@ -21,3 +21,4 @@
     {"type": "dialog", "id": "0x82BD07", "npc": "JARINDOK", "name": "Dialog - Jarindok"}
   ]
 }
+

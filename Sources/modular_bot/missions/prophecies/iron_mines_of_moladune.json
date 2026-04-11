@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "Iron Mines of Moladune",
   "steps": [
     {"type": "travel", "name": "Travel to Mission Outpost", "target_map_id": 24},
@@ -9,8 +9,9 @@
     {"type": "auto_path", "name": "Main route to cutscene", "points": [[4582, -27888], [-4109, -21772], [-8715, -18607], [-9044, -6374], [-1560, 5933], [-4658, 11518], [-9052, 24796]]},
     {"type": "auto_path", "name": "Eidolon and Seer path", "points": [[-6484, 26674], [-1437, 26395], [168, 20440], [-1194, 19916], [-4743, 25671], [-9232, 26062]]},
     {"type": "interact_item", "name": "Loot Spectral Essence", "model_id": 2569, "max_dist": 5000, "ms": 1000},
-    {"type": "dialog", "name": "Talk to Seer", "x": -9232, "y": 26062, "id": "0x84", "ms": 1000},
+    {"type": "dialog", "name": "Talk to Seer", "point": [-9232, 26062], "id": "0x84", "ms": 1000},
     {"type": "auto_path", "name": "To Markis", "points": [[-6826, 26617], [-3135, 31560], [297, 33766], [2346, 30930], [6493, 31897]]},
     {"type": "wait_map_change", "target_map_id": 23}
   ]
 }
+

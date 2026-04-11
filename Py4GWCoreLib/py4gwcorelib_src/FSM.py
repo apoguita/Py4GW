@@ -339,6 +339,20 @@ class FSM:
             if hasattr(FSM, "SelfManagedYieldState") and isinstance(s, FSM.SelfManagedYieldState):
                 s.coroutine_instance = None
 
+    def _detach_state_coroutines(self):
+        """
+        Detach only state-owned self-managed coroutines.
+        Keep named/background managed coroutines intact.
+        """
+        for s in self.states:
+            if hasattr(FSM, "SelfManagedYieldState") and isinstance(s, FSM.SelfManagedYieldState):
+                if s.coroutine_instance and s.coroutine_instance in self.managed_coroutines:
+                    try:
+                        self.managed_coroutines.remove(s.coroutine_instance)
+                    except ValueError:
+                        pass
+                s.coroutine_instance = None
+
 
     def start(self):
         """Start the FSM by setting the initial state."""
@@ -381,10 +395,8 @@ class FSM:
         if not self.states:
             raise ValueError(f"{self.name}: No states have been added to the FSM.")
 
-        # --- Step 1: Clean up all coroutine and state references ---
-        #self._cleanup_coroutines()
-        #for state in self.states:
-        #    state.reset()
+        # --- Step 1: Detach in-flight state coroutines ---
+        self._detach_state_coroutines()
 
         # --- Step 2: Reset finished/paused flags ---
         self.finished = False
@@ -580,6 +592,10 @@ class FSM:
                     self.managed_coroutines.remove(routine)
                 except ValueError:
                     pass
+
+        # A managed coroutine may stop/reset FSM mid-tick.
+        if not self.current_state:
+            return
                 
         if self.paused:
             if self.log_actions:
@@ -590,6 +606,10 @@ class FSM:
         if self.log_actions:
             ConsoleLog("FSM", f"{self.name}: Executing state: {self.current_state.name}", Py4GW.Console.MessageType.Info)
         self.current_state.execute()
+
+        # State execution can indirectly clear/replace current_state.
+        if not self.current_state:
+            return
 
         if not self.current_state.can_exit():
             return
@@ -638,6 +658,9 @@ class FSM:
         """Jump to a specific state by its name."""
         for state in self.states:
             if state.name == state_name:
+                # Drop any in-flight state coroutine so jumps do not leave
+                # orphaned movement routines competing with the new target step.
+                self._detach_state_coroutines()
                 self.current_state = state
                 self.current_state.reset() # Reset the state upon jumping to it
                 self.current_state.enter()
@@ -649,6 +672,9 @@ class FSM:
     def jump_to_state_by_step_number(self, index):
         """Jump to a specific state by its index (0-based)."""
         if 0 <= index < len(self.states):
+            # Drop any in-flight state coroutine so jumps do not leave
+            # orphaned movement routines competing with the new target step.
+            self._detach_state_coroutines()
             self.current_state = self.states[index]
             self.current_state.reset() # Reset the state upon jumping to it
             self.current_state.enter()

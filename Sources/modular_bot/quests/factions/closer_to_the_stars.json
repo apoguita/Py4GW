@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "Finding The Oracle",
   "steps": [
     {"type": "set_anchor", "phase": "Closer to the stars"},
@@ -6,8 +6,8 @@
     {"type": "dialogs", "name": "Reward Time", "npc": "NIKA", "id": ["0x816501"]},
     {"type": "auto_path", "name": "To Marketplace", "points": [[-13871, -11052]]},
     {"type": "load_party", "name": "Load Party", "max_heroes": 8, "team": "party_8"},
-    {"type": "exit_map", "name": "Enter Marketplace", "x": -14110, "y": -13509, "target_map_id": 303},
-    {"type": "exit_map", "name": "Enter Wajjun", "x": 10496, "y": 14777, "target_map_id": 239},
+    {"type": "exit_map", "name": "Enter Marketplace", "point": [-14110, -13509], "target_map_id": 303},
+    {"type": "exit_map", "name": "Enter Wajjun", "point": [10496, 14777], "target_map_id": 239},
     {"type": "auto_path", "name": "To Fishmonger", "points": [[-225, 10850]]},
     {"type": "dialogs", "name": "blackmail time", "npc": "FISHMONGER_BIHZUN", "id": ["0x816504"]},
     {"type": "auto_path", "name": "Defend Fishmonger", "points": [[-238, 10847]], "ms": 10000, "repeat": 15},
@@ -19,3 +19,4 @@
     {"type": "dialog", "name": "get reward", "npc": "ADEPT_NAI", "id": "0x816507"}
   ]
 }
+

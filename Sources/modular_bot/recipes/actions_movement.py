@@ -3,10 +3,27 @@ from __future__ import annotations
 import random
 from typing import Callable
 
-from .combat_engine import outbound_messages_done, party_loot_wait_required, send_multibox_command
+from .actions_party import apply_auto_combat_state, apply_auto_looting_state
+from .combat_engine import (
+    ENGINE_CUSTOM_BEHAVIORS,
+    ENGINE_HERO_AI,
+    is_party_looting_enabled,
+    outbound_messages_done,
+    party_loot_wait_required,
+    resolve_engine_for_bot,
+    send_multibox_command,
+)
 from .step_context import StepContext
 from .step_selectors import resolve_enemy_agent_id_from_step
-from .step_utils import debug_log_recipe, parse_step_bool, parse_step_float, parse_step_int, wait_after_step, log_recipe
+from .step_utils import (
+    debug_log_recipe,
+    log_recipe,
+    parse_step_bool,
+    parse_step_float,
+    parse_step_int,
+    parse_step_point,
+    wait_after_step,
+)
 
 _PARTY_BACKEND_CB = "custom_behaviors"
 _PARTY_BACKEND_HERO_AI = "hero_ai"
@@ -27,6 +44,79 @@ def _resolve_party_backend() -> str:
         return _PARTY_BACKEND_HERO_AI
     # Ambiguous (both on) or neither on: use shared command transport.
     return _PARTY_BACKEND_SHARED
+
+
+def _current_auto_combat_enabled(ctx: StepContext) -> bool:
+    engine = resolve_engine_for_bot(ctx.bot)
+    if engine == ENGINE_CUSTOM_BEHAVIORS:
+        try:
+            from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import (
+                CustomBehaviorParty,
+            )
+
+            return bool(CustomBehaviorParty().get_party_is_combat_enabled())
+        except Exception:
+            return False
+
+    if engine == ENGINE_HERO_AI:
+        try:
+            from Py4GWCoreLib import GLOBAL_CACHE, Player
+
+            options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsFromEmail(Player.GetAccountEmail())
+            if options is not None:
+                return bool(getattr(options, "Combat", False))
+        except Exception:
+            pass
+
+        if ctx.bot.Properties.exists("hero_ai"):
+            return bool(ctx.bot.Properties.IsActive("hero_ai"))
+        return False
+
+    if ctx.bot.Properties.exists("auto_combat"):
+        return bool(ctx.bot.Properties.IsActive("auto_combat"))
+    if ctx.bot.Properties.exists("hero_ai"):
+        return bool(ctx.bot.Properties.IsActive("hero_ai"))
+    return False
+
+
+def _current_auto_looting_enabled(ctx: StepContext) -> bool:
+    engine = resolve_engine_for_bot(ctx.bot)
+    if engine in (ENGINE_CUSTOM_BEHAVIORS, ENGINE_HERO_AI):
+        try:
+            return bool(is_party_looting_enabled(bot=ctx.bot, preferred_engine=engine))
+        except Exception:
+            return False
+
+    if ctx.bot.Properties.exists("auto_loot"):
+        return bool(ctx.bot.Properties.IsActive("auto_loot"))
+    return False
+
+
+def _wrap_with_auto_state_guard(ctx: StepContext, action_factory: Callable):
+    def _guarded_action():
+        looting_was_enabled = _current_auto_looting_enabled(ctx)
+        combat_was_enabled = _current_auto_combat_enabled(ctx)
+        pause_on_danger_exists = bool(ctx.bot.Properties.exists("pause_on_danger"))
+        pause_on_danger_was_active = (
+            bool(ctx.bot.Properties.IsActive("pause_on_danger")) if pause_on_danger_exists else False
+        )
+
+        if looting_was_enabled:
+            apply_auto_looting_state(ctx.bot, False)
+        if combat_was_enabled:
+            apply_auto_combat_state(ctx.bot, False)
+
+        try:
+            yield from action_factory()
+        finally:
+            if looting_was_enabled:
+                apply_auto_looting_state(ctx.bot, True)
+            if combat_was_enabled:
+                apply_auto_combat_state(ctx.bot, True)
+            if pause_on_danger_exists:
+                ctx.bot.Properties.ApplyNow("pause_on_danger", "active", pause_on_danger_was_active)
+
+    return _guarded_action
 
 
 def _add_pre_movement_loot_wait(ctx: StepContext, step_name: str) -> None:
@@ -67,11 +157,109 @@ def handle_path(ctx: StepContext) -> None:
 
 
 def handle_auto_path(ctx: StepContext) -> None:
+    from Py4GWCoreLib import Agent, GLOBAL_CACHE, Player, Routines, Utils
+
     points = [tuple(p) for p in ctx.step["points"]]
     name = ctx.step.get("name", f"AutoPath {ctx.step_idx + 1}")
     _add_pre_movement_loot_wait(ctx, str(name))
     pause_on_combat = parse_step_bool(ctx.step.get("pause_on_combat", False), False)
     pause_on_danger_was_active = bool(ctx.bot.Properties.IsActive("pause_on_danger"))
+    default_tolerance = float(ctx.bot.config.config_properties.movement_tolerance.get("value") or 150.0)
+    arrival_tolerance = max(25.0, parse_step_float(ctx.step.get("arrival_tolerance", ctx.step.get("tolerance", default_tolerance)), default_tolerance))
+    retry_delay_ms = max(50, parse_step_int(ctx.step.get("retry_delay_ms", 350), 350))
+    # max_retries counts retries after the first attempt per waypoint.
+    # auto_path is always strict: when retry budget is hit we reset and keep
+    # trying. Recovery events (leader death / party wipe / party defeated)
+    # reset the retry counter for a fresh attempt cycle.
+    default_max_retries = 6
+    max_retries = max(
+        1,
+        parse_step_int(
+            ctx.step.get("max_retries", default_max_retries),
+            default_max_retries,
+        ),
+    )
+
+    def _is_player_dead() -> bool:
+        try:
+            player_id = int(Player.GetAgentID() or 0)
+            return bool(player_id and Agent.IsDead(player_id))
+        except Exception:
+            return False
+
+    def _recovery_blocking() -> bool:
+        try:
+            if _is_player_dead():
+                return True
+            if Routines.Checks.Party.IsPartyWiped():
+                return True
+            if GLOBAL_CACHE.Party.IsPartyDefeated():
+                return True
+            return False
+        except Exception:
+            return _is_player_dead()
+
+    def _distance_to_target(target_x: float, target_y: float) -> float:
+        try:
+            px, py = Player.GetXY()
+            return float(Utils.Distance((float(px), float(py)), (float(target_x), float(target_y))))
+        except Exception:
+            return float("inf")
+
+    def _run_auto_path():
+        for point_i, (x, y) in enumerate(points):
+            target_x = float(x)
+            target_y = float(y)
+            attempts = 0
+
+            while True:
+                recovery_waited = False
+                while _recovery_blocking():
+                    recovery_waited = True
+                    yield from ctx.bot.Wait._coro_for_time(retry_delay_ms)
+                if recovery_waited and attempts > 0:
+                    debug_log_recipe(
+                        ctx,
+                        (
+                            f"{name}: recovery detected, resetting retries for "
+                            f"waypoint {point_i + 1}/{len(points)}."
+                        ),
+                    )
+                    attempts = 0
+
+                attempts += 1
+                point_step_name = f"{name} [{point_i + 1}/{len(points)}]"
+                yield from ctx.bot.Move._coro_xy(target_x, target_y, step_name=point_step_name)
+
+                if not Routines.Checks.Map.MapValid():
+                    return
+
+                distance = _distance_to_target(target_x, target_y)
+                if distance <= arrival_tolerance:
+                    break
+
+                retry_budget_exhausted = max_retries > 0 and attempts > max_retries
+                if retry_budget_exhausted:
+                    log_recipe(
+                        ctx,
+                        (
+                            f"{name}: waypoint {point_i + 1}/{len(points)} not reached "
+                            f"after {attempts} attempts (dist={distance:.0f}, tol={arrival_tolerance:.0f}); "
+                            f"resetting retry cycle."
+                        ),
+                    )
+                    attempts = 0
+                    yield from ctx.bot.Wait._coro_for_time(retry_delay_ms)
+                    continue
+
+                debug_log_recipe(
+                    ctx,
+                    (
+                        f"{name}: retrying waypoint {point_i + 1}/{len(points)} "
+                        f"(attempt={attempts}, dist={distance:.0f}, tol={arrival_tolerance:.0f})"
+                    ),
+                )
+                yield from ctx.bot.Wait._coro_for_time(retry_delay_ms)
 
     if pause_on_combat:
         # Enable before movement executes (FSM runtime), not during step registration.
@@ -80,7 +268,7 @@ def handle_auto_path(ctx: StepContext) -> None:
             f"{name}: Enable Pause On Combat",
         )
 
-    ctx.bot.Move.FollowAutoPath(points, step_name=name)
+    ctx.bot.States.AddCustomState(_run_auto_path, str(name))
 
     if pause_on_combat:
         # Restore previous setting after movement completes.
@@ -270,7 +458,12 @@ def handle_wait_map_load(ctx: StepContext) -> None:
 
 
 def handle_move(ctx: StepContext) -> None:
-    x, y = ctx.step["x"], ctx.step["y"]
+    coords = parse_step_point(ctx.step)
+    if coords is None:
+        log_recipe(ctx, f"move invalid coordinates at index {ctx.step_idx}: expected point [x, y].")
+        wait_after_step(ctx.bot, ctx.step)
+        return
+    x, y = coords
     name = ctx.step.get("name", "")
     _add_pre_movement_loot_wait(ctx, str(name or f"Move {ctx.step_idx + 1}"))
     ctx.bot.Move.XY(x, y, step_name=name)
@@ -280,8 +473,12 @@ def handle_move(ctx: StepContext) -> None:
 def handle_nudge_move(ctx: StepContext) -> None:
     from Py4GWCoreLib import Player
 
-    x = float(ctx.step["x"])
-    y = float(ctx.step["y"])
+    coords = parse_step_point(ctx.step)
+    if coords is None:
+        log_recipe(ctx, f"nudge_move invalid coordinates at index {ctx.step_idx}: expected point [x, y].")
+        wait_after_step(ctx.bot, ctx.step)
+        return
+    x, y = coords
     name = str(ctx.step.get("name", f"Nudge {ctx.step_idx + 1}") or f"Nudge {ctx.step_idx + 1}")
     pulses = max(1, parse_step_int(ctx.step.get("pulses", 1), 1))
     pulse_ms = max(0, parse_step_int(ctx.step.get("pulse_ms", ctx.step.get("move_ms", 250)), 250))
@@ -554,9 +751,54 @@ def handle_leave_party(ctx: StepContext) -> None:
 
 
 def handle_exit_map(ctx: StepContext) -> None:
-    x, y = ctx.step["x"], ctx.step["y"]
-    target_map_id = ctx.step.get("target_map_id", 0)
-    ctx.bot.Move.XYAndExitMap(x, y, target_map_id=target_map_id, step_name=ctx.step.get("name", "Exit Map"))
+    coords = parse_step_point(ctx.step)
+    if coords is None:
+        log_recipe(ctx, f"exit_map invalid coordinates at index {ctx.step_idx}: expected point [x, y].")
+        wait_after_step(ctx.bot, ctx.step)
+        return
+    x, y = coords
+    target_map_id = parse_step_int(ctx.step.get("target_map_id", 0), 0)
+    target_map_name = str(ctx.step.get("target_map_name", "") or "").strip()
+    step_name = str(ctx.step.get("name", "Exit Map") or "Exit Map")
+    anchor_state_name = f"{step_name}: Post-Map Anchor"
+    suppress_recovery_ms = max(0, parse_step_int(ctx.step.get("suppress_recovery_ms", 10_000), 10_000))
+    suppress_recovery_events = max(0, parse_step_int(ctx.step.get("suppress_recovery_events", 6), 6))
+
+    def _exit_map_core():
+        yield from ctx.bot.Move._coro_xy_and_exit_map(
+            x,
+            y,
+            target_map_id=target_map_id,
+            step_name=step_name,
+        )
+
+    if (target_map_id > 0 or target_map_name) and suppress_recovery_ms > 0:
+        def _suppress_transition_recovery(
+            _ms: int = suppress_recovery_ms,
+            _events: int = suppress_recovery_events,
+        ) -> None:
+            owner = getattr(ctx.bot, "_modular_owner", None)
+            if owner is None or not hasattr(owner, "suppress_recovery_for"):
+                return
+            owner.suppress_recovery_for(ms=_ms, max_events=_events)
+
+        ctx.bot.States.AddCustomState(_suppress_transition_recovery, f"{step_name}: Suppress Recovery")
+
+    ctx.bot.States.AddCustomState(_wrap_with_auto_state_guard(ctx, _exit_map_core), step_name)
+
+    if target_map_id > 0 or target_map_name:
+        # Ensure we are fully in the target map before continuing any post-transition logic.
+        ctx.bot.Wait.ForMapLoad(target_map_id=target_map_id, target_map_name=target_map_name)
+
+    def _set_post_exit_anchor(_anchor_state: str = anchor_state_name) -> None:
+        owner = getattr(ctx.bot, "_modular_owner", None)
+        if owner is None or not hasattr(owner, "set_anchor"):
+            return
+        owner.set_anchor(_anchor_state)
+
+    # Refresh runtime recovery anchor after each map transition so recovery
+    # cannot fall back to a stale pre-transition anchor.
+    ctx.bot.States.AddCustomState(_set_post_exit_anchor, anchor_state_name)
     wait_after_step(ctx.bot, ctx.step)
 
 

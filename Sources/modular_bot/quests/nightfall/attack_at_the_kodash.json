@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "Attack at the Kodash",
   "steps": [
     {"type": "travel", "name": "Travel to Outpost", "target_map_id": 414},
@@ -6,7 +6,7 @@
     {"type": "dialogs", "id": ["0x82A803", "0x82A801"], "npc": "ZERAI_THE_LEARNER", "name": "Dialog - Zerai The Learner"},
     {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true, "required_hero": ["Koss", "Melonni"]},
     {"type": "auto_path", "name": "Path", "points": [[-4549, -4487]]},
-    {"type": "exit_map", "name": "Exit Map", "x": -4973, "y": -4964, "target_map_id": 399},
+    {"type": "exit_map", "name": "Exit Map", "point": [-4973, -4964], "target_map_id": 399},
     {"type": "auto_path", "name": "Path", "points": [[11373, 10492]]},
     {"type": "dialog", "id": "0x82A804", "npc": "BUTOH_THE_BOLD", "name": "Dialog - Butoh The Bold"},
     {"type": "auto_path", "name": "Path", "points": [[11752, 10883]]},
@@ -21,3 +21,4 @@
   ],
   "required_hero": ["Koss", "Melonni"]
 }
+

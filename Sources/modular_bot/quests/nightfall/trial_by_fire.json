@@ -1,8 +1,8 @@
-{
+﻿{
   "name": "Trial by Fire",
   "steps": [
     {"type": "travel", "name": "Travel to Sunspear Great Hall", "target_map_id": 431},
-    {"type": "exit_map", "name": "Leave Sunspear Great Hall", "x": -3070, "y": 3910, "target_map_id": 430},
+    {"type": "exit_map", "name": "Leave Sunspear Great Hall", "point": [-3070, 3910], "target_map_id": 430},
     {"type": "auto_path", "name": "To Jerek", "points": [[-4066, 2448]]},
     {"type": "dialogs", "id": ["0x828101", "0x84"], "npc": "JEREK", "name": "Dialog - Jerek"},
     {"type": "wait_for_map_load", "map_id": 423},
@@ -33,3 +33,4 @@
     {"type": "dialog", "id": "0x828107", "npc": "CASTELLAN_PUUBA", "name": "Dialog - Castellan Puuba"}
   ]
 }
+

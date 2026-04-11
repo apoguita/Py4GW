@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "The Time is Nigh",
   "steps": [
     {"type": "travel", "name": "Travel to Sunspear Great Hall", "target_map_id": 431},
@@ -13,7 +13,7 @@
     {"type": "dialog", "id": "0x828504", "npc": "KORMIR", "name": "Dialog - Kormir"},
     {"type": "travel", "name": "Travel to Kamadan Jewel of Istan", "target_map_id": 449},
     {"type": "auto_path", "name": "To Exit", "points": [[-7464, 16387]]},
-    {"type": "exit_map", "name": "Leave Kamadan Jewel of Istan", "x": -5954, "y": 16721, "target_map_id": 429},
+    {"type": "exit_map", "name": "Leave Kamadan Jewel of Istan", "point": [-5954, 16721], "target_map_id": 429},
     {"type": "auto_path", "name": "To Assistant Hahnna", "points": [[-4746, 16739]]},
     {"type": "dialogs", "id": ["0x828504", "0x84", "0x85"], "npc": "ASSISTANT_HAHNNA", "name": "Dialog - Assistant Hahnna"},
     {"type": "skip_cutscene"},
@@ -22,3 +22,4 @@
     {"type": "dialog", "id": "0x828507", "npc": "RAIDMARSHAL_MEHDARA", "name": "Dialog - Raidmarshal Mehdara"}
   ]
 }
+

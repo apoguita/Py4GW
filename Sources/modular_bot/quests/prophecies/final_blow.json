@@ -1,15 +1,17 @@
-{
+﻿{
   "name": "Final Blow",
   "steps": [
     {"type": "travel", "name": "Travel to Quest Outpost", "target_map_id": 35},
-    {"type": "interact_npc", "name": "Take Final Blow - Reach NPC", "x": 3415, "y": -10984, "ms": 1200},
-    {"type": "dialog", "name": "Take Final Blow", "id": "0x80D501", "ms": 1200, "x": 3415, "y": -10984},
+    {"type": "interact_npc", "name": "Take Final Blow - Reach NPC", "point": [3415, -10984], "ms": 1200},
+    {"type": "dialog", "name": "Take Final Blow", "id": "0x80D501", "ms": 1200, "point": [3415, -10984]},
     {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true},
-    {"type": "exit_map", "name": "Leave Emberlight", "x": 3802, "y": -8636, "target_map_id": 121},
+    {"type": "exit_map", "name": "Leave Emberlight", "point": [3802, -8636], "target_map_id": 121},
     {"type": "set_anchor", "phase": "Final Blow"},
     {"type": "auto_path", "name": "Perdition Rock path", "points": [[4602, -6403], [3762, -904], [405, 1578], [-3137, 4954], [-6485, 4724], [-8433, 3640], [-8487, 4509]]},
-    {"type": "dialog", "name": "Transition to Ring of Fire", "x": -8487, "y": 4509, "id": "0x2"},
+    {"type": "dialog", "name": "Transition to Ring of Fire", "point": [-8487, 4509], "id": "0x2"},
     {"type": "wait_map_change", "target_map_id": 122},
-    {"type": "dialog", "name": "Finalize quest", "x": 6365, "y": -7458, "id": "0x80D507"}
+    {"type": "dialog", "name": "Finalize quest", "point": [6365, -7458], "id": "0x80D507"}
   ]
 }
+
+

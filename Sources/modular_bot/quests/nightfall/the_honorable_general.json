@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "The Honorable General",
   "steps": [
     {"type": "travel", "name": "Travel to Jokanur Diggings outpost", "target_map_id": 491},
@@ -8,7 +8,7 @@
     {"type": "travel", "name": "Travel to The Astralarium", "target_map_id": 502},
     {"type": "load_party", "name": "Load Party", "max_heroes": 4, "use_priority": true},
     {"type": "auto_path", "name": "To Exit", "points": [[-4255, 729]]},
-    {"type": "exit_map", "name": "Leave The Astralarium", "x": -4647, "y": 156, "target_map_id": 483},
+    {"type": "exit_map", "name": "Leave The Astralarium", "point": [-4647, 156], "target_map_id": 483},
     {"type": "auto_path", "name": "Path", "points": [[16916, -4019], [17288, -5024]]},
     {"type": "wait", "ms": 15000},
     {"type": "dialogs", "id": ["0x827904", "0x84"], "npc": "GENERAL_MORGAHN", "name": "Dialog - General Morgahn"},
@@ -19,3 +19,4 @@
     {"type": "dialog", "id": "0x827907", "npc": "EMISSARY_DAJMIR", "name": "Dialog - Emissary Dajmir"}
   ]
 }
+

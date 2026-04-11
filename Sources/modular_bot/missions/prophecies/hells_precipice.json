@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "Hell's Precipice",
   "steps": [
     {"type": "travel", "name": "Travel to Mission Outpost", "target_map_id": 124},
@@ -9,6 +9,7 @@
     {"type": "wait_map_change", "target_map_id": 124},
     {"type": "auto_path", "name": "Post teleport", "points": [[-2519, 2104], [-4608, 5911], [966, 9247], [4567, 9409]]},
     {"type": "wait_map_change", "target_map_id": 783},
-    {"type": "dialog", "name": "Claim Deldrimor Talisman", "x": -8679, "y": 5086, "id": "0x85"}
+    {"type": "dialog", "name": "Claim Deldrimor Talisman", "point": [-8679, 5086], "id": "0x85"}
   ]
 }
+

@@ -1,4 +1,5 @@
 import os
+import traceback
 
 import Py4GW
 import PyImGui
@@ -22,6 +23,7 @@ from Sources.modular_bot.prebuilts.fow import (
 
 MODULE_NAME = "Modular FoW"
 MODULE_ICON = "Textures/Module_Icons/Fissure of Woe.png"
+MODULE_TAGS = ["Automation", "modular_bot"]
 BOT_NAME = "ModularFow"
 SYNC_INTERVAL_MS = 1000
 DEFAULT_FOW_ENTRY_METHOD_KEY = "scroll"
@@ -47,6 +49,7 @@ class Config:
             BOT_NAME, "upkeep_auto_inventory_management_active", True
         )
         self.skip_merchant_actions = ini_handler.read_bool(BOT_NAME, "skip_merchant_actions", False)
+        self.use_merchant_rules_inventory = ini_handler.read_bool(BOT_NAME, "use_merchant_rules_inventory", False)
         self.sell_non_cons_materials = ini_handler.read_bool(BOT_NAME, "sell_non_cons_materials", False)
         self.sell_all_common_materials = ini_handler.read_bool(BOT_NAME, "sell_all_common_materials", False)
         self.buy_ectoplasm = ini_handler.read_bool(BOT_NAME, "buy_ectoplasm", False)
@@ -82,6 +85,7 @@ class Config:
             auto_loot=bool(self.auto_loot),
             upkeep_auto_inventory_management_active=bool(self.upkeep_auto_inventory_management_active),
             skip_merchant_actions=bool(self.skip_merchant_actions),
+            use_merchant_rules_inventory=bool(self.use_merchant_rules_inventory),
             sell_non_cons_materials=bool(self.sell_non_cons_materials),
             sell_all_common_materials=bool(self.sell_all_common_materials),
             buy_ectoplasm=bool(self.buy_ectoplasm),
@@ -107,6 +111,7 @@ class Config:
             str(bool(self.upkeep_auto_inventory_management_active)),
         )
         ini_handler.write_key(BOT_NAME, "skip_merchant_actions", str(bool(self.skip_merchant_actions)))
+        ini_handler.write_key(BOT_NAME, "use_merchant_rules_inventory", str(bool(self.use_merchant_rules_inventory)))
         ini_handler.write_key(BOT_NAME, "sell_non_cons_materials", str(bool(self.sell_non_cons_materials)))
         ini_handler.write_key(BOT_NAME, "sell_all_common_materials", str(bool(self.sell_all_common_materials)))
         ini_handler.write_key(BOT_NAME, "buy_ectoplasm", str(bool(self.buy_ectoplasm)))
@@ -362,35 +367,40 @@ def _ensure_party_safety_callbacks_runtime() -> None:
 def _start_bot() -> None:
     global bot, _BOT_REBUILD_PENDING
 
-    _debug("Start button clicked.")
-    bot = _build_bot()
-    if not bot.bot.config.initialized:
-        _debug("Building ModularBot routine manually.")
-        bot._build_routine(bot.bot)
-        bot.bot.config.initialized = True
-        bot.bot.SetMainRoutine(lambda *_args, **_kwargs: None)
-        _debug(
-            "Routine build complete. "
-            f"fsm_states={len(bot.bot.config.FSM.states)} "
-            f"headers={len(getattr(bot, '_phase_headers', {}))}"
-        )
+    try:
+        _debug("Start button clicked.")
+        bot = _build_bot()
+        if not bot.bot.config.initialized:
+            _debug("Building ModularBot routine manually.")
+            bot._build_routine(bot.bot)
+            bot.bot.config.initialized = True
+            bot.bot.SetMainRoutine(lambda *_args, **_kwargs: None)
+            _debug(
+                "Routine build complete. "
+                f"fsm_states={len(bot.bot.config.FSM.states)} "
+                f"headers={len(getattr(bot, '_phase_headers', {}))}"
+            )
 
-    apply_fow_runtime_properties(bot.bot, config.to_options(), debug_hook=_debug)
-    _ensure_party_safety_callbacks_runtime()
-    _debug(
-        "Calling bot.Start(). "
-        f"initialized={bot.bot.config.initialized} "
-        f"fsm_running_before={bot.bot.config.fsm_running} "
-        f"fsm_states={len(bot.bot.config.FSM.states)}"
-    )
-    bot.bot.Start()
-    _debug(
-        "bot.Start() returned. "
-        f"fsm_running_after={bot.bot.config.fsm_running} "
-        f"current_state={getattr(bot.bot.config.FSM.current_state, 'name', None)}"
-    )
-    _BOT_REBUILD_PENDING = False
-    _debug("Initialized and started FoW widget bot.")
+        apply_fow_runtime_properties(bot.bot, config.to_options(), debug_hook=_debug)
+        _ensure_party_safety_callbacks_runtime()
+        _debug(
+            "Calling bot.Start(). "
+            f"initialized={bot.bot.config.initialized} "
+            f"fsm_running_before={bot.bot.config.fsm_running} "
+            f"fsm_states={len(bot.bot.config.FSM.states)}"
+        )
+        bot.bot.Start()
+        _debug(
+            "bot.Start() returned. "
+            f"fsm_running_after={bot.bot.config.fsm_running} "
+            f"current_state={getattr(bot.bot.config.FSM.current_state, 'name', None)}"
+        )
+        _BOT_REBUILD_PENDING = False
+        _debug("Initialized and started FoW widget bot.")
+    except Exception as exc:
+        _BOT_REBUILD_PENDING = False
+        ConsoleLog(BOT_NAME, f"Failed to start FoW bot: {exc}", Console.MessageType.Error)
+        _debug(traceback.format_exc())
 
 
 def _draw_prestart_window() -> None:
@@ -418,13 +428,21 @@ def _draw_prestart_window() -> None:
         config.upkeep_auto_inventory_management_active,
     )
     config.skip_merchant_actions = PyImGui.checkbox("Skip Merchant Actions", config.skip_merchant_actions)
+    config.use_merchant_rules_inventory = PyImGui.checkbox(
+        "Use MerchantRules For Merchanting",
+        config.use_merchant_rules_inventory,
+    )
+    if config.use_merchant_rules_inventory:
+        PyImGui.text_wrapped("FoW merchant stage will call MerchantRules Execute (leader + alts). Sell/buy options below are ignored in this mode.")
     PyImGui.text("Material Handling")
     PyImGui.begin_disabled(config.skip_merchant_actions)
+    PyImGui.begin_disabled(config.use_merchant_rules_inventory)
     config.sell_non_cons_materials = PyImGui.checkbox("Sell Non-Cons Materials", config.sell_non_cons_materials)
     config.sell_all_common_materials = PyImGui.checkbox("Sell All Common Materials", config.sell_all_common_materials)
     config.buy_ectoplasm = PyImGui.checkbox("Buy Ectoplasm", config.buy_ectoplasm)
-    _draw_inventory_location_combo(disabled=config.skip_merchant_actions)
-    _draw_combat_widget_combo(disabled=config.skip_merchant_actions)
+    PyImGui.end_disabled()
+    _draw_inventory_location_combo(disabled=False)
+    _draw_combat_widget_combo(disabled=False)
     PyImGui.end_disabled()
     _draw_entry_method_combo()
     _draw_entrypoint_combo(disabled=_uses_temple_kneel_entry())
@@ -504,7 +522,17 @@ def _draw_main() -> None:
     if new_skip_merchant_actions != config.skip_merchant_actions:
         config.skip_merchant_actions = new_skip_merchant_actions
         _queue_rebuild()
+    new_use_merchant_rules_inventory = PyImGui.checkbox(
+        "Use MerchantRules For Merchanting",
+        config.use_merchant_rules_inventory,
+    )
+    if new_use_merchant_rules_inventory != config.use_merchant_rules_inventory:
+        config.use_merchant_rules_inventory = new_use_merchant_rules_inventory
+        _queue_rebuild()
+    if config.use_merchant_rules_inventory:
+        PyImGui.text_wrapped("FoW merchant stage will call MerchantRules Execute (leader + alts). Sell/buy options below are ignored in this mode.")
     PyImGui.begin_disabled(config.skip_merchant_actions)
+    PyImGui.begin_disabled(config.use_merchant_rules_inventory)
     new_sell_non_cons_materials = PyImGui.checkbox("Sell Non-Cons Materials", config.sell_non_cons_materials)
     if new_sell_non_cons_materials != config.sell_non_cons_materials:
         config.sell_non_cons_materials = new_sell_non_cons_materials
@@ -517,8 +545,9 @@ def _draw_main() -> None:
     if new_buy_ectoplasm != config.buy_ectoplasm:
         config.buy_ectoplasm = new_buy_ectoplasm
         _queue_rebuild()
-    _draw_inventory_location_combo(disabled=is_running or config.skip_merchant_actions)
-    _draw_combat_widget_combo(disabled=is_running or config.skip_merchant_actions)
+    PyImGui.end_disabled()
+    _draw_inventory_location_combo(disabled=is_running)
+    _draw_combat_widget_combo(disabled=is_running)
     PyImGui.end_disabled()
     _draw_entry_method_combo(disabled=is_running)
     _draw_entrypoint_combo(disabled=is_running or _uses_temple_kneel_entry())
@@ -543,13 +572,23 @@ def _draw_settings() -> None:
     if new_skip_merchant_actions != config.skip_merchant_actions:
         config.skip_merchant_actions = new_skip_merchant_actions
         _queue_rebuild()
+    new_use_merchant_rules_inventory = PyImGui.checkbox(
+        "Use MerchantRules For Merchanting",
+        config.use_merchant_rules_inventory,
+    )
+    if new_use_merchant_rules_inventory != config.use_merchant_rules_inventory:
+        config.use_merchant_rules_inventory = new_use_merchant_rules_inventory
+        _queue_rebuild()
+    if config.use_merchant_rules_inventory:
+        PyImGui.text_wrapped("FoW merchant stage will call MerchantRules Execute (leader + alts). Sell/buy options below are ignored in this mode.")
     _draw_inventory_location_combo(disabled=bool(bot is not None and bot.bot.config.fsm_running) or config.skip_merchant_actions)
     _draw_entry_method_combo(disabled=is_running)
     _draw_entrypoint_combo(disabled=is_running or _uses_temple_kneel_entry())
     if _uses_temple_kneel_entry():
         PyImGui.text_wrapped("Temple of the Ages is used automatically when /kneel entry is selected.")
     PyImGui.begin_disabled(config.skip_merchant_actions)
-    _draw_combat_widget_combo(disabled=is_running or config.skip_merchant_actions)
+    _draw_combat_widget_combo(disabled=is_running)
+    PyImGui.begin_disabled(config.use_merchant_rules_inventory)
     new_sell_non_cons_materials = PyImGui.checkbox("Sell Non-Cons Materials", config.sell_non_cons_materials)
     if new_sell_non_cons_materials != config.sell_non_cons_materials:
         config.sell_non_cons_materials = new_sell_non_cons_materials
@@ -564,6 +603,7 @@ def _draw_settings() -> None:
         _queue_rebuild()
     PyImGui.end_disabled()
     PyImGui.end_disabled()
+    PyImGui.end_disabled()
     config.debug_logging = PyImGui.checkbox("Debug Logging", config.debug_logging)
     config.save_throttled()
 
@@ -576,6 +616,7 @@ def _draw_help() -> None:
     PyImGui.bullet_text("Loads quest steps from Sources/modular_bot/quests/FoW/*.json")
     PyImGui.bullet_text("Supports inventory management in Guild Hall or Eye of the North")
     PyImGui.bullet_text("Optional skip for all merchant/inventory management setup actions")
+    PyImGui.bullet_text("Optional MerchantRules-backed merchant stage (leader + multibox followers)")
     PyImGui.bullet_text("Optional material selling before entry at the selected inventory location")
     PyImGui.bullet_text("Optional ectoplasm buying from current character gold only")
     PyImGui.bullet_text("Supports FoW entry with either a scroll or Temple of the Ages /kneel")

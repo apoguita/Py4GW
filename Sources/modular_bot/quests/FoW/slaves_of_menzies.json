@@ -2,9 +2,9 @@
   "name": "Slaves of Menzies",
   "steps": [
     {"type": "auto_path", "name": "path to Miko", "points": [[12009, 6356]]},
-    {"type": "dialog", "name": "Start Hunt", "npc": "MIKO_THE_UNCHAINED", "id": "0x80CE01"},
+    {"type": "dialog_multibox", "name": "Start Menzies", "npc": "MIKO_THE_UNCHAINED", "id": "0x80CE01"},
     {"type": "auto_path", "name": "path to Miko", "points": [[12009, 6356]]},
-    {"type": "dialog", "name": "Start Hunt", "npc": "MIKO_THE_UNCHAINED", "id": "0x80CE01"},
+    {"type": "dialog_multibox", "name": "Start Menzies", "npc": "MIKO_THE_UNCHAINED", "id": "0x80CE01"},
     {"type": "auto_path", "name": "getting into position", "points": [[19000, 8400], [21462, 11027]]},
     {"type": "auto_path", "name": "moving closer", "points": [[22946, 12727]]},
     {"type": "auto_path", "name": "clear Overlords", "points": [[20900, 15900], [22511, 16038]]},
@@ -13,7 +13,10 @@
     {"type": "path_to_target", "enemy": "SHARD_WOLF"},
     {"type": "path_to_target", "enemy": "SHARD_WOLF"},
     {"type": "auto_path", "name": "to Miko", "points": [[13611, 9281], [12122, 8326], [12157, 6555]]},
-    {"type": "dialog", "name": "reward menzies", "npc": "MIKO_THE_UNCHAINED", "id": "0x80CE07"},
+    {"type": "dialog_multibox", "name": "reward menzies", "npc": "MIKO_THE_UNCHAINED", "id": "0x80CE07"},
+    {"type": "auto_path", "name": "to Miko", "points": [[12157, 6555]]},
+    {"type": "dialog_multibox", "name": "reward menzies", "npc": "MIKO_THE_UNCHAINED", "id": "0x80CE07"},
     {"type": "auto_path", "name": "to Forge", "points": [[10830, 10524], [8682, 12324]]}
   ]
 }
+

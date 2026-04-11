@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "Crossing the Desolation",
   "required_hero": ["Zhed Shadowhoof"],
   "steps": [
@@ -7,35 +7,35 @@
     {"type": "dialogs", "id": ["0x82AC03", "0x82AC01"], "npc": "LONAI", "name": "Dialog - Lonai"},
     {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true, "required_hero": ["Zhed Shadowhoof"]},
     {"type": "auto_path", "name": "To Portal", "points": [[-896, 2724]]},
-    {"type": "exit_map", "name": "Leave Sunspear Sanctuary", "x": -431, "y": 3902, "target_map_id": 436},
+    {"type": "exit_map", "name": "Leave Sunspear Sanctuary", "point": [-431, 3902], "target_map_id": 436},
     {"type": "auto_path", "name": "To Kormir", "points": [[1001, 5580]]},
     {"type": "dialog", "id": "0x82AC04", "npc": "KORMIR", "name": "Dialog - Kormir"},
     {"type": "auto_path", "name": "To Exit", "points": [[1091, 8372]]},
-    {"type": "exit_map", "name": "Leave Command Post", "x": 1719, "y": 8816, "target_map_id": 386},
+    {"type": "exit_map", "name": "Leave Command Post", "point": [1719, 8816], "target_map_id": 386},
     {"type": "auto_path", "name": "To Mirza Veldrunner", "points": [[-2988, -5430]]},
     {"type": "dialog", "id": "0x82AC04", "npc": "MIRZA_VELDRUNNER", "name": "Dialog - Mirza Veldrunner"},
     {"type": "auto_path", "name": "To Exit", "points": [[-13138, 25524]]},
-    {"type": "exit_map", "name": "Leave Turai's Procession", "x": -14079, "y": 25885, "target_map_id": 478},
+    {"type": "exit_map", "name": "Leave Turai's Procession", "point": [-14079, 25885], "target_map_id": 478},
     {"type": "auto_path", "name": "To Exit", "points": [[-4710, 4229]]},
-    {"type": "exit_map", "name": "Leave Gate of Desolation outpost", "x": -4885, "y": 4724, "target_map_id": 444},
+    {"type": "exit_map", "name": "Leave Gate of Desolation outpost", "point": [-4885, 4724], "target_map_id": 444},
     {"type": "auto_path", "name": "To Mirza Veldrunner", "points": [[17321, -8640]]},
     {"type": "dialog", "id": "0x82AC04", "npc": "MIRZA_VELDRUNNER", "name": "Dialog - Mirza Veldrunner"},
     {"type": "travel", "name": "Travel to Sunspear Sanctuary", "target_map_id": 387},
     {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true, "required_hero": ["Zhed Shadowhoof"]},
     {"type": "auto_path", "name": "To Exit", "points": [[-806, 3061]]},
-    {"type": "exit_map", "name": "Leave Sunspear Sanctuary", "x": -429, "y": 3942, "target_map_id": 436},
+    {"type": "exit_map", "name": "Leave Sunspear Sanctuary", "point": [-429, 3942], "target_map_id": 436},
     {"type": "auto_path", "name": "To Kormir", "points": [[863, 5631]]},
     {"type": "dialog", "id": "0x82AC04", "npc": "KORMIR", "name": "Dialog - Kormir"},
     {"type": "auto_path", "name": "To Exit", "points": [[4584, 7591]]},
-    {"type": "exit_map", "name": "Leave Command Post", "x": 5212, "y": 7645, "target_map_id": 369},
+    {"type": "exit_map", "name": "Leave Command Post", "point": [5212, 7645], "target_map_id": 369},
     {"type": "auto_path", "name": "Path", "points": [[-4097, 12170]]},
     {"type": "wait", "ms": 44800},
     {"type": "auto_path", "name": "To Monument To The Defeat Of Palawa Joko", "points": [[-4241, 14193]]},
-    {"type": "interact_gadget", "name": "Interact Monument to the Defeat of Palawa Joko", "gadget": "MONUMENT_TO_THE_DEFEAT_OF_PALAWA_JOKO", "x": -4189, "y": 14508},
+    {"type": "interact_gadget", "name": "Interact Monument to the Defeat of Palawa Joko", "gadget": "MONUMENT_TO_THE_DEFEAT_OF_PALAWA_JOKO", "point": [-4189, 14508]},
     {"type": "travel", "name": "Travel to Gate of Desolation outpost", "target_map_id": 478},
     {"type": "auto_path", "name": "To Load Party", "points": [[3759, -4452]]},
     {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true, "required_hero": ["Zhed Shadowhoof"]},
-    {"type": "exit_map", "name": "Leave Gate of Desolation outpost", "x": 4652, "y": -4950, "target_map_id": 386},
+    {"type": "exit_map", "name": "Leave Gate of Desolation outpost", "point": [4652, -4950], "target_map_id": 386},
     {"type": "auto_path", "name": "To Dirah Traptail", "points": [[-11311, 14974]]},
     {"type": "dialogs", "id": ["0x82AC04", "0x84", "0x85"], "npc": "DIRAH_TRAPTAIL", "name": "Dialog - Dirah Traptail"},
     {"type": "travel", "name": "Travel to Outpost", "target_map_id": 478},
@@ -44,3 +44,5 @@
     {"type": "dialog", "id": "0x82AC07", "npc": "LAPH_LONGMANE", "name": "Dialog - Laph Longmane"}
   ]
 }
+
+

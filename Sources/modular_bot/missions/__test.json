@@ -1,6 +1,7 @@
+
 {
-  "name": "A Deal's a Deal",
+  "name": "restocker",
   "steps": [
-    {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true, "required_hero": ["Koss", "Tahlkora"]}
+    {"type": "use_consumables", "mode": "all", "multibox": true}
   ]
 }

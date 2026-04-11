@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "Calling the Order",
   "required_hero": ["Master of Whispers"],
   "steps": [
@@ -10,7 +10,7 @@
     {"type": "dialog", "id": "0x81F904", "npc": "WHISPERS_ACOLYTE", "name": "Dialog - Whispers Acolyte"},
     {"type": "auto_path", "name": "To Exit", "points": [[-9923, 4658], [-10500, 366], [-7742, -1495]]},
     {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true, "required_hero": ["Master of Whispers"]},
-    {"type": "exit_map", "name": "Leave Chantry of Secrets", "x": -6329, "y": -1564, "target_map_id": 392},
+    {"type": "exit_map", "name": "Leave Chantry of Secrets", "point": [-6329, -1564], "target_map_id": 392},
     {"type": "auto_path", "name": "To Disciple Of Secrets", "points": [[9055, 12474], [7341, 12834]]},
     {"type": "dialog", "id": "0x85", "npc": "DISCIPLE_OF_SECRETS", "name": "Dialog - Disciple of Secrets"},
     {"type": "wait", "ms": 10000},
@@ -20,7 +20,7 @@
     {"type": "travel", "name": "Travel to Outpost", "target_map_id": 393},
     {"type": "travel", "name": "Travel to Grand Court of Sebelkeh outpost", "target_map_id": 435},
     {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true, "required_hero": ["Master of Whispers"]},
-    {"type": "exit_map", "name": "Leave Grand Court of Sebelkeh outpost", "x": 2667, "y": 8076, "target_map_id": 419},
+    {"type": "exit_map", "name": "Leave Grand Court of Sebelkeh outpost", "point": [2667, 8076], "target_map_id": 419},
     {"type": "auto_path", "name": "To Prince Ahmtur The Mighty", "points": [[20457, 10274]]},
     {"type": "dialogs", "id": ["0x81F904", "0x84", "0x85"], "npc": "PRINCE_AHMTUR_THE_MIGHTY", "name": "Dialog - Prince Ahmtur the Mighty"},
     {"type": "skip_cutscene"},
@@ -29,3 +29,4 @@
     {"type": "dialog", "id": "0x81F907", "npc": "LIEUTENANT_MURUNDA", "name": "Dialog - Lieutenant  Murunda"}
   ]
 }
+

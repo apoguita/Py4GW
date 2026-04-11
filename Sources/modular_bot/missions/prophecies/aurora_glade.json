@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "Aurora Glade",
   "steps": [
     {"type": "travel", "name": "Travel to Mission Outpost", "target_map_id": 12},
@@ -11,8 +11,8 @@
     {"type": "auto_path", "name": "Deposit Crystal", "points": [[-13630, -11553]]},
     {"type": "interact_gadget", "ms": 1000},
     {"type": "auto_path", "name": "Save Less", "points": [[-12154, -8750], [-11660, -7340], [-7625, -3883], [-3344, -1332], [-2307, 3598], [-6742, 8404]]},
-    {"type": "flag_heroes", "ms": 25000, "x": -10684, "y": 8936},
-    {"type": "flag_heroes", "ms": 25000, "x": -9482, "y": 11250},
+    {"type": "flag_heroes", "ms": 25000, "point": [-10684, 8936]},
+    {"type": "flag_heroes", "ms": 25000, "point": [-9482, 11250]},
     {"type": "auto_path", "name": "To Less", "points": [[-10684, 8936], [-9482, 11250], [-9584, 12454]]},
     {"type": "interact_quest_npc", "ms": 15000},
     {"type": "unflag_heroes", "ms": 100},
@@ -35,7 +35,7 @@
     {"type": "interact_gadget", "ms": 100},
     {"type": "auto_path", "name": "To left crystal", "points": [[2701, 9923], [5444, 8808]]},
     {"type": "interact_gadget", "ms": 100},
-    {"type": "flag_heroes", "ms": 100, "x": 5318, "y": 8550},
+    {"type": "flag_heroes", "ms": 100, "point": [5318, 8550]},
     {"type": "set_auto_combat", "enabled": false},
     {"type": "auto_path", "name": "To Crystal source", "points": [[1256, 10331]]},
     {"type": "interact_gadget", "ms": 10000},
@@ -83,3 +83,5 @@
     {"type": "wait_map_change", "target_map_id": 49}
   ]
 }
+
+

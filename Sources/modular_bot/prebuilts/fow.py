@@ -110,6 +110,7 @@ class ModularFowOptions:
     auto_loot: bool = True
     upkeep_auto_inventory_management_active: bool = False
     skip_merchant_actions: bool = False
+    use_merchant_rules_inventory: bool = False
     debug_logging: bool = False
     entrypoint: str = DEFAULT_FOW_ENTRYPOINT_KEY
     entry_method: str = DEFAULT_FOW_ENTRY_METHOD_KEY
@@ -322,6 +323,7 @@ def build_fow_phases(
             f"restock_consumables={options.restock_consumables}, auto_loot={options.auto_loot}, "
             f"upkeep_auto_inventory_management_active={options.upkeep_auto_inventory_management_active}, "
             f"skip_merchant_actions={options.skip_merchant_actions}, "
+            f"use_merchant_rules_inventory={options.use_merchant_rules_inventory}, "
             f"entry_method={entry_method}, entrypoint={entrypoint_name}, "
             f"selected_entrypoint={selected_entrypoint_name}, "
             f"sell_non_cons_materials={options.sell_non_cons_materials}, "
@@ -351,37 +353,47 @@ def build_fow_phases(
         setup_steps.append({"type": "set_auto_looting", "enabled": bool(options.auto_loot)})
 
         if not options.skip_merchant_actions:
-
-            setup_steps.append({"type": "restock_kits", "name": "Restock Kits", "id_kits": 2, "salvage_kits": 5, "multibox": True})
-
-            if options.use_consumables and options.restock_consumables:
-                setup_steps.append({"type": "restock_cons"})
-
-            if options.sell_all_common_materials or materials_to_sell:
-                sell_step = {"type": "sell_materials", "name": "Sell Materials", "multibox": True, "ms": 5000}
-                if materials_to_sell is not None:
-                    sell_step["materials"] = materials_to_sell
-                setup_steps.append(sell_step)
-
-            if not options.sell_all_common_materials:
-                deposit_step = {
-                    "type": "deposit_materials",
-                    "name": "Deposit Full Material Stacks",
-                    "multibox": True,
-                    "ms": 5000,
-                }
-                if materials_to_deposit:
-                    deposit_step["name"] = "Deposit Cons Materials"
-                    deposit_step["materials"] = materials_to_deposit
-                    deposit_step["exact_quantity"] = 0
-                    deposit_step["max_passes"] = 1
-                    deposit_step["deposit_wait_ms"] = 120
-                setup_steps.append(deposit_step)
-
-            if options.buy_ectoplasm:
+            if options.use_merchant_rules_inventory:
                 setup_steps.append(
-                    {"type": "buy_ectoplasm", "name": "Buy Ectoplasm", "use_storage_gold": False, "multibox": True, "ms": 5000}
+                    {
+                        "type": "merchant_rules_execute",
+                        "name": "Merchant Rules Execute",
+                        "multibox": True,
+                        "local": True,
+                        "ms": 5000,
+                    }
                 )
+            else:
+                setup_steps.append({"type": "restock_kits", "name": "Restock Kits", "id_kits": 2, "salvage_kits": 5, "multibox": True})
+
+                if options.use_consumables and options.restock_consumables:
+                    setup_steps.append({"type": "restock_cons"})
+
+                if options.sell_all_common_materials or materials_to_sell:
+                    sell_step = {"type": "sell_materials", "name": "Sell Materials", "multibox": True, "ms": 5000}
+                    if materials_to_sell is not None:
+                        sell_step["materials"] = materials_to_sell
+                    setup_steps.append(sell_step)
+
+                if not options.sell_all_common_materials:
+                    deposit_step = {
+                        "type": "deposit_materials",
+                        "name": "Deposit Full Material Stacks",
+                        "multibox": True,
+                        "ms": 5000,
+                    }
+                    if materials_to_deposit:
+                        deposit_step["name"] = "Deposit Cons Materials"
+                        deposit_step["materials"] = materials_to_deposit
+                        deposit_step["exact_quantity"] = 0
+                        deposit_step["max_passes"] = 1
+                        deposit_step["deposit_wait_ms"] = 120
+                    setup_steps.append(deposit_step)
+
+                if options.buy_ectoplasm:
+                    setup_steps.append(
+                        {"type": "buy_ectoplasm", "name": "Buy Ectoplasm", "use_storage_gold": False, "multibox": True, "ms": 5000}
+                    )
         # Normalize engine widget state after merchant flow in case any runtime
         # logic re-enabled an engine widget during setup.
         setup_steps.append(

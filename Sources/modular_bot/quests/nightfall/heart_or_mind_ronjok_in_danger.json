@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "Heart or Mind: Ronjok in Danger",
   "required_hero": ["Melonni"],
   "steps": [
@@ -8,7 +8,7 @@
     {"type": "travel", "name": "Travel to Outpost", "target_map_id": 387},
     {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true, "required_hero": ["Melonni"]},
     {"type": "auto_path", "name": "Path", "points": [[1075, -6629]]},
-    {"type": "exit_map", "name": "Exit Map", "x": 361, "y": -7053, "target_map_id": 371},
+    {"type": "exit_map", "name": "Exit Map", "point": [361, -7053], "target_map_id": 371},
     {"type": "auto_path", "name": "Path", "points": [[8281, 12742]]},
     {"type": "dialog", "id": "0x824A04", "npc": "ELDER_JONAH", "name": "Dialog - Elder Jonah"},
     {"type": "auto_path", "name": "Path", "points": [[7582, 3151], [2453, 8712], [-112, 14255], [-1526, 12747], [-225, 13442], [-216, 14584]]},
@@ -22,3 +22,4 @@
     {"type": "dialog", "id": "0x824A07", "npc": "DREAMER_RAJA", "name": "Dialog - Dreamer Raja"}
   ]
 }
+

@@ -776,15 +776,12 @@ def MerchantItems(index: int, message: SharedMessageStruct):
             return
         yield from Routines.Yield.wait(1200)
 
-        id_kits_in_inv = int(GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Identification_Kit.value))
-        sup_id_kits_in_inv = int(GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Superior_Identification_Kit.value))
-        salvage_kits_in_inv = int(GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Salvage_Kit.value))
-
-        id_kits_to_buy = max(0, id_kits_target - (id_kits_in_inv + sup_id_kits_in_inv))
-        salvage_kits_to_buy = max(0, salvage_kits_target - salvage_kits_in_inv)
-
-        yield from Routines.Yield.Merchant.BuyIDKits(id_kits_to_buy)
-        yield from Routines.Yield.Merchant.BuySalvageKits(salvage_kits_to_buy)
+        yield from Routines.Yield.Merchant.RestockKitsToTarget(
+            id_kits_target,
+            salvage_kits_target,
+            max_passes=2,
+            pass_wait_ms=150,
+        )
     finally:
         _merchant_busy = False
         if _inv_widget_mi:

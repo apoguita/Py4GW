@@ -1,10 +1,11 @@
-{
+﻿{
   "name": "Yohlon Insects",
   "steps": [
-    {"type": "exit_map", "name": "Leave Yohlon Haven", "x": 4425, "y": 857, "target_map_id": 380},
+    {"type": "exit_map", "name": "Leave Yohlon Haven", "point": [4425, 857], "target_map_id": 380},
     {"type": "auto_path", "name": "To Wandering Priest", "points": [[-17221, -12662]]},
     {"type": "dialog", "id": "0x85", "npc": "WANDERING_PRIEST", "name": "Dialog - Wandering Priest"},
     {"type": "auto_path", "name": "To Exit", "points": [[-18394, -9036], [-17207, -17056], [-19523, -14412]]},
-    {"type": "exit_map", "name": "Leave Arkjok Ward", "x": -20133, "y": -14568, "target_map_id": 381}
+    {"type": "exit_map", "name": "Leave Arkjok Ward", "point": [-20133, -14568], "target_map_id": 381}
   ]
 }
+

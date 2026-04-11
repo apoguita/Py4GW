@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "All's Well That Ends Well",
   "steps": [
     {"type": "travel", "name": "Travel to The Kodash Bazaar", "target_map_id": 414},
@@ -6,20 +6,20 @@
     {"type": "dialog", "id": "0x81F701", "npc": "ROYAL_FOOD_TASTER_RENDU", "name": "Dialog - Royal Food Taster Rendu"},
     {"type": "auto_path", "name": "To Load Party", "points": [[-3441, -1640], [-1137, 3736]]},
     {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true},
-    {"type": "exit_map", "name": "Leave The Kodash Bazaar", "x": -881, "y": 4595, "target_map_id": 419},
+    {"type": "exit_map", "name": "Leave The Kodash Bazaar", "point": [-881, 4595], "target_map_id": 419},
     {"type": "auto_path", "name": "To Kehanni", "points": [[-17243, -11616], [-12108, -11122], [-10164, -7599], [-6296, -5908], [-3864, 4879]]},
     {"type": "dialog", "id": "0x81F704", "npc": "KEHANNI", "name": "Dialog - Kehanni"},
     {"type": "auto_path", "name": "To Exit", "points": [[-365, 7523]]},
-    {"type": "exit_map", "name": "Leave The Mirror of Lyss", "x": 192, "y": 8054, "target_map_id": 435},
-    {"type": "exit_map", "name": "Leave Grand Court of Sebelkeh outpost", "x": 2670, "y": 8092, "target_map_id": 419},
+    {"type": "exit_map", "name": "Leave The Mirror of Lyss", "point": [192, 8054], "target_map_id": 435},
+    {"type": "exit_map", "name": "Leave Grand Court of Sebelkeh outpost", "point": [2670, 8092], "target_map_id": 419},
     {"type": "auto_path", "name": "To Exit", "points": [[13328, -2135], [22396, -16076]]},
-    {"type": "exit_map", "name": "Leave The Mirror of Lyss", "x": 23096, "y": -16802, "target_map_id": 403},
+    {"type": "exit_map", "name": "Leave The Mirror of Lyss", "point": [23096, -16802], "target_map_id": 403},
     {"type": "auto_path", "name": "To Exit", "points": [[-18693, 14801]]},
-    {"type": "exit_map", "name": "Leave Honur Hill", "x": -18740, "y": 13550, "target_map_id": 402},
+    {"type": "exit_map", "name": "Leave Honur Hill", "point": [-18740, 13550], "target_map_id": 402},
     {"type": "auto_path", "name": "To Prince Bokka The Magnificent", "points": [[-14847, 4893], [-11178, 4885], [-8954, 3272], [-7595, -471]]},
     {"type": "dialog", "id": "0x81F704", "npc": "PRINCE_BOKKA_THE_MAGNIFICENT", "name": "Dialog - Prince Bokka the Magnificent"},
     {"type": "auto_path", "name": "To Exit", "points": [[-2901, -1270]]},
-    {"type": "exit_map", "name": "Leave Resplendent Makuun", "x": -2399, "y": -1605, "target_map_id": 500},
+    {"type": "exit_map", "name": "Leave Resplendent Makuun", "point": [-2399, -1605], "target_map_id": 500},
     {"type": "auto_path", "name": "To Vaughn The Venerable", "points": [[746, -4419]]},
     {"type": "interact_npc", "name": "Interact Vaughn the Venerable", "npc": "VAUGHN_THE_VENERABLE"},
     {"type": "dialog", "id": "0x81F704", "npc": "VAUGHN_THE_VENERABLE", "name": "Dialog - Vaughn the Venerable"},
@@ -30,3 +30,4 @@
     {"type": "dialog", "id": "0x81F707", "npc": "ROYAL_FINANCE_MINISTER_OLUDA", "name": "Dialog - Royal Finance Minister Oluda"}
   ]
 }
+

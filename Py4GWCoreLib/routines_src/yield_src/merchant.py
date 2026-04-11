@@ -9,6 +9,61 @@ from .helpers import wait
 
 class Merchant:
     @staticmethod
+    def _count_model_in_inventory(model_id: int) -> int:
+        bag_list = GLOBAL_CACHE.ItemArray.CreateBagList(1, 2, 3, 4)
+        item_array = GLOBAL_CACHE.ItemArray.GetItemArray(bag_list)
+        count = 0
+        for item_id in item_array:
+            if int(GLOBAL_CACHE.Item.GetModelID(item_id)) == int(model_id):
+                # For kits we restock by item count, not quantity/charges.
+                count += 1
+        return int(count)
+
+    @staticmethod
+    def RestockKitsToTarget(
+        id_kits_target: int,
+        salvage_kits_target: int,
+        *,
+        max_passes: int = 2,
+        pass_wait_ms: int = 150,
+    ):
+        id_target = max(0, int(id_kits_target))
+        salvage_target = max(0, int(salvage_kits_target))
+        passes = max(1, int(max_passes))
+        initial_id_kits = Merchant._count_model_in_inventory(ModelID.Identification_Kit.value) + Merchant._count_model_in_inventory(
+            ModelID.Superior_Identification_Kit.value
+        )
+        initial_salvage_kits = Merchant._count_model_in_inventory(ModelID.Salvage_Kit.value)
+        id_buy_budget = max(0, id_target - initial_id_kits)
+        salvage_buy_budget = max(0, salvage_target - initial_salvage_kits)
+        id_bought = 0
+        salvage_bought = 0
+
+        for _ in range(passes):
+            id_kits_in_inv = Merchant._count_model_in_inventory(ModelID.Identification_Kit.value)
+            sup_id_kits_in_inv = Merchant._count_model_in_inventory(ModelID.Superior_Identification_Kit.value)
+            salvage_kits_in_inv = Merchant._count_model_in_inventory(ModelID.Salvage_Kit.value)
+
+            id_remaining_by_observed = max(0, id_target - (id_kits_in_inv + sup_id_kits_in_inv))
+            salvage_remaining_by_observed = max(0, salvage_target - salvage_kits_in_inv)
+            id_remaining_by_budget = max(0, id_buy_budget - id_bought)
+            salvage_remaining_by_budget = max(0, salvage_buy_budget - salvage_bought)
+
+            id_kits_to_buy = min(id_remaining_by_observed, id_remaining_by_budget)
+            salvage_kits_to_buy = min(salvage_remaining_by_observed, salvage_remaining_by_budget)
+
+            if id_kits_to_buy <= 0 and salvage_kits_to_buy <= 0:
+                break
+
+            yield from Merchant.BuyIDKits(id_kits_to_buy)
+            yield from Merchant.BuySalvageKits(salvage_kits_to_buy)
+            id_bought += id_kits_to_buy
+            salvage_bought += salvage_kits_to_buy
+
+            if pass_wait_ms > 0:
+                yield from wait(pass_wait_ms)
+
+    @staticmethod
     def _get_trader_batch_size(trader_items: list[int] | None = None) -> int:
         offered_items = trader_items if trader_items is not None else list(GLOBAL_CACHE.Trading.Trader.GetOfferedItems())
         offered_models = {int(GLOBAL_CACHE.Item.GetModelID(item_id)) for item_id in offered_items}
@@ -223,6 +278,7 @@ class Merchant:
         from ...Inventory import Inventory
         metrics = {
             "opened_storage": 0,
+            "open_failed": 0,
             "passes_run": 0,
             "candidates_seen": 0,
             "deposited_items": 0,
@@ -230,8 +286,17 @@ class Merchant:
 
         if not Inventory.IsStorageOpen():
             Inventory.OpenXunlaiWindow()
-            yield from wait(open_wait_ms)
-            metrics["opened_storage"] = 1
+            waited_ms = 0
+            step_ms = 50
+            timeout_ms = max(250, int(open_wait_ms))
+            while (not Inventory.IsStorageOpen()) and waited_ms < timeout_ms:
+                yield from wait(step_ms)
+                waited_ms += step_ms
+            if Inventory.IsStorageOpen():
+                metrics["opened_storage"] = 1
+            else:
+                metrics["open_failed"] = 1
+                return metrics
 
         pass_count = max(1, int(max_passes))
         max_items = None if max_deposit_items is None else max(0, int(max_deposit_items))

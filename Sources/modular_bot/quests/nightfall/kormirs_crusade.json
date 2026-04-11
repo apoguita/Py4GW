@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "Kormir's Crusade",
   "steps": [
     {"type": "travel", "name": "Travel to Gate of Fear", "target_map_id": 469},
@@ -6,14 +6,15 @@
     {"type": "dialog", "id": "0x82BE01", "npc": "RAHMOR", "name": "Dialog - Rahmor"},
     {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true},
     {"type": "auto_path", "name": "To Exit", "points": [[8597, 19399]]},
-    {"type": "exit_map", "name": "Leave Gate of Fear", "x": 8322, "y": 19037, "target_map_id": 468},
+    {"type": "exit_map", "name": "Leave Gate of Fear", "point": [8322, 19037], "target_map_id": 468},
     {"type": "auto_path", "name": "Path", "points": [[9801, 5698]]},
     {"type": "wait", "ms": 43700},
     {"type": "dialog", "id": "0x82BE04", "npc": "KORMIR", "name": "Dialog - Kormir"},
     {"type": "auto_path", "name": "To Pehai", "points": [[5363, 6263], [4528, 9747], [3918, 10515], [2690, 11697], [-9627, -2096]]},
     {"type": "wait", "ms": 10000},
-    {"type": "exit_map", "name": "Leave Domain of Fear", "x": -10441, "y": -2732, "target_map_id": 473},
+    {"type": "exit_map", "name": "Leave Domain of Fear", "point": [-10441, -2732], "target_map_id": 473},
     {"type": "auto_path", "name": "To Keeper Halyssi", "points": [[14165, -2801]]},
     {"type": "dialog", "id": "0x82BE07", "npc": "KEEPER_HALYSSI", "name": "Dialog - Keeper Halyssi"}
   ]
 }
+

@@ -2,9 +2,84 @@ from __future__ import annotations
 
 from typing import Callable
 
+from .actions_party import apply_auto_combat_state, apply_auto_looting_state
+from .combat_engine import ENGINE_CUSTOM_BEHAVIORS, ENGINE_HERO_AI, is_party_looting_enabled, resolve_engine_for_bot
 from .step_context import StepContext
 from .step_selectors import resolve_agent_xy_from_step, resolve_item_model_id_from_step
 from .step_utils import wait_after_step
+
+
+def _current_auto_combat_enabled(ctx: StepContext) -> bool:
+    engine = resolve_engine_for_bot(ctx.bot)
+    if engine == ENGINE_CUSTOM_BEHAVIORS:
+        try:
+            from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import (
+                CustomBehaviorParty,
+            )
+
+            return bool(CustomBehaviorParty().get_party_is_combat_enabled())
+        except Exception:
+            return False
+
+    if engine == ENGINE_HERO_AI:
+        try:
+            from Py4GWCoreLib import GLOBAL_CACHE, Player
+
+            options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsFromEmail(Player.GetAccountEmail())
+            if options is not None:
+                return bool(getattr(options, "Combat", False))
+        except Exception:
+            pass
+
+        if ctx.bot.Properties.exists("hero_ai"):
+            return bool(ctx.bot.Properties.IsActive("hero_ai"))
+        return False
+
+    if ctx.bot.Properties.exists("auto_combat"):
+        return bool(ctx.bot.Properties.IsActive("auto_combat"))
+    if ctx.bot.Properties.exists("hero_ai"):
+        return bool(ctx.bot.Properties.IsActive("hero_ai"))
+    return False
+
+
+def _current_auto_looting_enabled(ctx: StepContext) -> bool:
+    engine = resolve_engine_for_bot(ctx.bot)
+    if engine in (ENGINE_CUSTOM_BEHAVIORS, ENGINE_HERO_AI):
+        try:
+            return bool(is_party_looting_enabled(bot=ctx.bot, preferred_engine=engine))
+        except Exception:
+            return False
+
+    if ctx.bot.Properties.exists("auto_loot"):
+        return bool(ctx.bot.Properties.IsActive("auto_loot"))
+    return False
+
+
+def _wrap_dialog_with_auto_state_guard(ctx: StepContext, action_factory: Callable):
+    def _guarded_dialog():
+        looting_was_enabled = _current_auto_looting_enabled(ctx)
+        combat_was_enabled = _current_auto_combat_enabled(ctx)
+        pause_on_danger_exists = bool(ctx.bot.Properties.exists("pause_on_danger"))
+        pause_on_danger_was_active = (
+            bool(ctx.bot.Properties.IsActive("pause_on_danger")) if pause_on_danger_exists else False
+        )
+
+        if looting_was_enabled:
+            apply_auto_looting_state(ctx.bot, False)
+        if combat_was_enabled:
+            apply_auto_combat_state(ctx.bot, False)
+
+        try:
+            yield from action_factory()
+        finally:
+            if looting_was_enabled:
+                apply_auto_looting_state(ctx.bot, True)
+            if combat_was_enabled:
+                apply_auto_combat_state(ctx.bot, True)
+            if pause_on_danger_exists:
+                ctx.bot.Properties.ApplyNow("pause_on_danger", "active", pause_on_danger_was_active)
+
+    return _guarded_dialog
 
 
 def handle_interact_npc(ctx: StepContext) -> None:
@@ -30,7 +105,7 @@ def handle_dialog(ctx: StepContext) -> None:
     dialog_id = ctx.step["id"]
     name = ctx.step.get("name", "")
 
-    def _dialog():
+    def _dialog_core():
         coords = resolve_agent_xy_from_step(
             ctx.step,
             recipe_name=ctx.recipe_name,
@@ -42,7 +117,7 @@ def handle_dialog(ctx: StepContext) -> None:
         x, y = coords
         yield from ctx.bot.Dialogs._coro_at_xy(x, y, dialog_id)
 
-    ctx.bot.States.AddCustomState(_dialog, name or "Dialog")
+    ctx.bot.States.AddCustomState(_wrap_dialog_with_auto_state_guard(ctx, _dialog_core), name or "Dialog")
     wait_after_step(ctx.bot, ctx.step)
 
 
@@ -70,7 +145,7 @@ def handle_dialogs(ctx: StepContext) -> None:
             ConsoleLog(f"Recipe:{ctx.recipe_name}", f"Invalid dialogs.id value at index {ctx.step_idx}: {value!r}")
             return
 
-    def _dialogs():
+    def _dialogs_core():
         coords = resolve_agent_xy_from_step(
             ctx.step,
             recipe_name=ctx.recipe_name,
@@ -86,12 +161,98 @@ def handle_dialogs(ctx: StepContext) -> None:
             if idx < len(dialog_ids) - 1 and interval_ms > 0:
                 yield from ctx.bot.Wait._coro_for_time(interval_ms)
 
-    ctx.bot.States.AddCustomState(_dialogs, name)
+    ctx.bot.States.AddCustomState(_wrap_dialog_with_auto_state_guard(ctx, _dialogs_core), name)
     wait_after_step(ctx.bot, ctx.step)
 
 
 def handle_dialog_multibox(ctx: StepContext) -> None:
-    ctx.bot.Multibox.SendDialogToTarget(ctx.step["id"])
+    from Py4GWCoreLib import ConsoleLog, GLOBAL_CACHE, Player, Routines, SharedCommandType
+
+    name = ctx.step.get("name", f"Dialog Multibox {ctx.step_idx + 1}")
+    interval_ms = int(ctx.step.get("interval_ms", 200))
+    send_wait_step_ms = max(10, int(ctx.step.get("multibox_wait_step_ms", 50)))
+    send_timeout_ms = max(250, int(ctx.step.get("multibox_timeout_ms", 5000)))
+    raw_ids = ctx.step.get("id", [])
+    dialog_ids_raw = raw_ids if isinstance(raw_ids, (list, tuple)) else [raw_ids]
+
+    dialog_ids: list[int] = []
+    for value in dialog_ids_raw:
+        try:
+            dialog_ids.append(int(str(value), 0))
+        except (TypeError, ValueError):
+            ConsoleLog(f"Recipe:{ctx.recipe_name}", f"Invalid dialog_multibox.id value at index {ctx.step_idx}: {value!r}")
+            return
+
+    def _wait_for_send_dialog_to_target(sender_email: str, refs: list[tuple[str, int]]):
+        if not refs:
+            return
+
+        from time import monotonic
+
+        deadline = monotonic() + (send_timeout_ms / 1000.0)
+        pending = {(email, idx) for email, idx in refs if idx >= 0}
+
+        while pending and monotonic() < deadline:
+            completed: list[tuple[str, int]] = []
+            for account_email, message_index in pending:
+                message = GLOBAL_CACHE.ShMem.GetInbox(message_index)
+                is_same_message = (
+                    bool(getattr(message, "Active", False))
+                    and str(getattr(message, "ReceiverEmail", "") or "") == account_email
+                    and str(getattr(message, "SenderEmail", "") or "") == sender_email
+                    and int(getattr(message, "Command", -1)) == int(SharedCommandType.SendDialogToTarget)
+                )
+                if not is_same_message:
+                    completed.append((account_email, message_index))
+
+            for key in completed:
+                pending.discard(key)
+
+            if pending:
+                yield from Routines.Yield.wait(send_wait_step_ms)
+
+    def _dialogs_multibox_core():
+        coords = resolve_agent_xy_from_step(
+            ctx.step,
+            recipe_name=ctx.recipe_name,
+            step_idx=ctx.step_idx,
+            agent_kind="npc",
+        )
+        if coords is not None:
+            x, y = coords
+            yield from ctx.bot.Move._coro_xy_and_interact_npc(x, y, name)
+
+        sender_email = str(Player.GetAccountEmail() or "")
+        target_id = int(Player.GetTargetID() or 0)
+        if target_id <= 0:
+            ConsoleLog(f"Recipe:{ctx.recipe_name}", f"dialog_multibox has no target at step index {ctx.step_idx}")
+            return
+
+        account_emails: list[str] = []
+        for account in GLOBAL_CACHE.ShMem.GetAllAccountData():
+            account_email = str(getattr(account, "AccountEmail", "") or "")
+            if not account_email or account_email == sender_email:
+                continue
+            account_emails.append(account_email)
+
+        for idx, dialog_id in enumerate(dialog_ids):
+            Player.SendDialog(dialog_id)
+
+            sent_messages: list[tuple[str, int]] = []
+            for account_email in account_emails:
+                message_index = GLOBAL_CACHE.ShMem.SendMessage(
+                    sender_email,
+                    account_email,
+                    SharedCommandType.SendDialogToTarget,
+                    (float(target_id), float(dialog_id), 0.0, 0.0),
+                )
+                sent_messages.append((account_email, int(message_index)))
+
+            yield from _wait_for_send_dialog_to_target(sender_email, sent_messages)
+            if idx < len(dialog_ids) - 1 and interval_ms > 0:
+                yield from ctx.bot.Wait._coro_for_time(interval_ms)
+
+    ctx.bot.States.AddCustomState(_wrap_dialog_with_auto_state_guard(ctx, _dialogs_multibox_core), name)
     wait_after_step(ctx.bot, ctx.step)
 
 
@@ -100,7 +261,8 @@ def handle_interact_gadget(ctx: StepContext) -> None:
 
     gadget_step = dict(ctx.step)
     if (
-        "x" not in gadget_step
+        "point" not in gadget_step
+        and "x" not in gadget_step
         and "y" not in gadget_step
         and "gadget" not in gadget_step
         and "target" not in gadget_step
@@ -157,7 +319,8 @@ def handle_loot_chest(ctx: StepContext) -> None:
 
     chest_step = dict(ctx.step)
     if (
-        "x" not in chest_step
+        "point" not in chest_step
+        and "x" not in chest_step
         and "y" not in chest_step
         and "gadget" not in chest_step
         and "target" not in chest_step

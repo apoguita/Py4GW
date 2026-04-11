@@ -1,7 +1,7 @@
-{
+﻿{
   "name": "Farmer Hamnet",
   "steps": [
-    {"type": "exit_map", "name": "Leave Pre-Searing: Foibles Fair", "x": 392, "y": 7782, "target_map_id": 161},
+    {"type": "exit_map", "name": "Leave Pre-Searing: Foibles Fair", "point": [392, 7782], "target_map_id": 161},
     {"type": "auto_path", "name": "To Travel", "points": [[2353, 6219], [2683, 4302]]},
     {"type": "travel", "name": "Travel to Pre-Searing: Foibles Fair", "target_map_id": 165}
   ]
