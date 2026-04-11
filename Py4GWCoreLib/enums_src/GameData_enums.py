@@ -322,6 +322,9 @@ class Attribute(IntEnum):
     EarthPrayers = 43
     Mysticism = 44
     None_ = 45  # Avoiding reserved keyword "None"
+    
+    def get_profession(self) -> Profession:
+        return _ATTRIBUTE_TO_PROFESSION.get(self, Profession._None)
 
 AttributeNames = {
     Attribute.FastCasting: "Fast Casting",

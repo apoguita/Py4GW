@@ -103,7 +103,96 @@ class ItemType(IntEnum):
     Costume = 44
     Costume_Headpiece = 45
     Unknown = 255
+    
+    
+    @staticmethod
+    def is_matching_item_type(item_type: "ItemType", target: "ItemType") -> bool:
+        if item_type == target:
+            return True
+        return item_type in ITEM_TYPE_META_TYPES.get(target, [])
+    
+    def matches(self, target: "ItemType") -> bool:
+        if self == target:
+            return True
+        
+        return self in ITEM_TYPE_META_TYPES.get(target, [])
+    
+    def is_weapon_type(self) -> bool:
+        return self in WEAPON_TYPES
+    
+    def is_armor_type(self) -> bool:
+        return self in ARMOR_TYPES
 
+WEAPON_TYPES = frozenset(
+    {
+        ItemType.Axe,
+        ItemType.Bow,
+        ItemType.Daggers,
+        ItemType.Hammer,
+        ItemType.Offhand,
+        ItemType.Scythe,
+        ItemType.Shield,
+        ItemType.Spear,
+        ItemType.Staff,
+        ItemType.Sword,
+        ItemType.Wand,
+    }
+)
+
+ARMOR_TYPES = frozenset(
+    {
+        ItemType.Headpiece,
+        ItemType.Chestpiece,
+        ItemType.Gloves,
+        ItemType.Leggings,
+        ItemType.Boots,
+        ItemType.Salvage,
+    }
+)
+
+ITEM_TYPE_META_TYPES: dict[ItemType, list[ItemType]] = {
+    ItemType.Weapon: [
+        ItemType.Axe,
+        ItemType.Bow,
+        ItemType.Daggers,
+        ItemType.Hammer,
+        ItemType.Scythe,
+        ItemType.Spear,
+        ItemType.Staff,
+        ItemType.Sword,
+        ItemType.Wand,
+    ],
+    ItemType.MartialWeapon: [
+        ItemType.Axe,
+        ItemType.Bow,
+        ItemType.Daggers,
+        ItemType.Hammer,
+        ItemType.Scythe,
+        ItemType.Spear,
+        ItemType.Sword,
+    ],
+    ItemType.OffhandOrShield: [
+        ItemType.Offhand,
+        ItemType.Shield,
+    ],
+    ItemType.EquippableItem: [
+        ItemType.Axe,
+        ItemType.Bow,
+        ItemType.Daggers,
+        ItemType.Hammer,
+        ItemType.Offhand,
+        ItemType.Scythe,
+        ItemType.Shield,
+        ItemType.Spear,
+        ItemType.Staff,
+        ItemType.Sword,
+        ItemType.Wand,
+    ],
+    ItemType.SpellcastingWeapon: [
+        ItemType.Staff,
+        ItemType.Wand,
+    ],
+}
 
 # endregion
 

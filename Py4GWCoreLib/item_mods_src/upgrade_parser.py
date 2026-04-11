@@ -83,7 +83,7 @@ def get_property_factory() -> dict[ModifierIdentifier, Callable[[DecodedModifier
         ModifierIdentifier.ArmorPlusCasting: lambda m, _, rarity: ArmorPlusCasting(modifier=m, armor=m.arg2, rarity=rarity),
         ModifierIdentifier.ArmorPlusEnchanted: lambda m, _, rarity: ArmorPlusEnchanted(modifier=m, armor=m.arg2, rarity=rarity),
         ModifierIdentifier.ArmorPlusHexed: lambda m, _, rarity: ArmorPlusHexed(modifier=m, armor=m.arg2, rarity=rarity),
-        ModifierIdentifier.ArmorPlusAbove: lambda m, _, rarity: ArmorPlusAbove(modifier=m, armor=m.arg2, rarity=rarity),
+        ModifierIdentifier.ArmorPlusAbove: lambda m, _, rarity: ArmorPlusAbove(modifier=m, armor=m.arg2, health_threshold=m.arg1, rarity=rarity),
         ModifierIdentifier.ArmorPlusVsDamage: lambda m, _, rarity: ArmorPlusVsDamage(modifier=m, armor=m.arg2, damage_type=DamageType(m.arg1), rarity=rarity),
         ModifierIdentifier.ArmorPlusVsElemental: lambda m, _, rarity: ArmorPlusVsElemental(modifier=m, armor=m.arg2, rarity=rarity),
         ModifierIdentifier.ArmorPlusVsPhysical: lambda m, _, rarity: ArmorPlusVsPhysical(modifier=m, armor=m.arg2, rarity=rarity),

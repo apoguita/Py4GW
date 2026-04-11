@@ -88,7 +88,7 @@ def int_list_to_hex_string(int_list: list[int]) -> str:
     
 def bytes_to_hex_string(byte: bytes) -> str:
     try:
-        return " ".join(f"0x{v:X}" for v in byte)
+        return ", ".join(f"0x{byte:X}" for byte in byte)
     except Exception as e:
         Py4GW.Console.Log(MODULE_NAME, f"Error converting int list to hex string: {e}")
         return ""
@@ -143,12 +143,15 @@ def dump_string_table_to_json(language: ServerLanguage | int | None = None, outp
         target_path = output_path or os.path.join(INI_PATH, f"string_table_dump_{language_id}.json")
         dump: list[dict[str, object]] = []
 
-        for string_index, entry_data in sorted(table.items()):
+        for string_index in sorted(table):
             encoded_bytes = _build_string_reference_bytes(string_index)
-            decoded_text = string_table.decode(encoded_bytes, language=language_id) if encoded_bytes else ""
+            # Use the synchronous decoder directly so the dump doesn't lose
+            # first-seen strings to the public async cache path.
+            decoded_text = string_table._decode_sync(encoded_bytes, table) if encoded_bytes else ""
             sanitized_decoded_text = _sanitize_json_text(decoded_text)
 
             dump.append({
+                "string_index": string_index,
                 "encoded_bytes_hex": bytes_to_hex_string(encoded_bytes),
                 "decoded": sanitized_decoded_text,
             })

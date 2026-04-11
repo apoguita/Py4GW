@@ -148,6 +148,25 @@ class ItemData:
             
         return self.english_name
 
+    @staticmethod
+    def _parse_name_encoded(value: Optional[str]) -> bytes:
+        if not value:
+            return bytes()
+
+        value = value.strip()
+        if not value:
+            return bytes()
+
+        parts = [part.strip() for part in value.split(",") if part.strip()]
+        return bytes(int(part, 16) for part in parts)
+
+    @staticmethod
+    def _format_name_encoded(value: bytes) -> str:
+        if not value:
+            return ""
+
+        return ", ".join(f"0x{byte:X}" for byte in value)
+
     @staticmethod    
     def from_json(data: dict) -> 'ItemData':
         profession_name = data.get("profession")
@@ -155,7 +174,7 @@ class ItemData:
         
         item_data = ItemData(
             english_name=english_name,
-            name_encoded=bytes.fromhex(data["name_encoded"]) if "name_encoded" in data and data["name_encoded"] else bytes(),
+            name_encoded=ItemData._parse_name_encoded(data.get("name_encoded")),
             model_id=data.get("model_id", -1),
             item_type=ItemType[data.get("item_type", "Unknown")],
             model_file_id=data.get("model_file_id", -1),
@@ -203,7 +222,7 @@ class ItemData:
             "item_type": self.item_type.name,
             "model_file_id": self.model_file_id,
             "name": self.english_name,
-            "name_encoded" : self.name_encoded.hex() if self.name_encoded else "",
+            "name_encoded" : self._format_name_encoded(self.name_encoded),
             "attributes": [attr.name for attr in self.attributes],
             "common_salvage": self.common_salvage.to_dict() if self.common_salvage else None,
             "rare_salvage": self.rare_salvage.to_dict() if self.rare_salvage else None,
