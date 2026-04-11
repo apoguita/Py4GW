@@ -992,14 +992,35 @@ def _coro_skeleton_dhuum_watchdog(bot: Botting):
 
 def _coro_dhuum_spirit_form_watchdog(bot: Botting):
     """Monitor all ShMem party members during the Dhuum fight for the Spirit Form buff
-    (skill ID 3134 — Spirit_Form_disguise).  As soon as an account gains the buff,
-    its flag is repositioned to the ghost position AND a PixelStack command is sent
-    so the ghost account immediately walks there."""
+    (skill ID 3134 — Spirit_Form_disguise).  While an account has Spirit Form the CB
+    flag is moved to the ghost position so follow_flag guides the ghost there.
+    When Spirit Form ends (account resurrected via Dhuum Helper dialog) the flag is
+    restored to the pre-death position so the account returns to the fight.
+
+    NOTE: No PixelStack is sent — the Dhuum Helper widget handles NPC interaction
+    on each follower locally.  A concurrent PixelStack coroutine would conflict with
+    the Dhuum Helper's movement commands and cause unreliable dialog delivery."""
     _SPIRIT_FORM_SKILL_ID = 3134
     _SPIRIT_FLAG_X = -14006
     _SPIRIT_FLAG_Y = 17275
-    _pixelstack_sent_for_spirit: set[str] = set()
+    # email -> original flag (x, y) saved when Spirit Form was first detected
+    _saved_flag_positions: dict[str, tuple[float, float]] = {}
     _last_sync_log_at: dict[str, float] = {}
+
+    def _read_current_flag_pos(email: str) -> tuple[float, float] | None:
+        """Read the current CB flag position for *email* from shared memory."""
+        try:
+            from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
+            mgr = CustomBehaviorParty().party_flagging_manager
+            for i in range(12):
+                if mgr.get_flag_account_email(i).lower() == email.lower():
+                    pos = mgr.get_flag_position(i)
+                    if pos != (0.0, 0.0):
+                        return pos
+                    return None
+        except Exception:
+            pass
+        return None
 
     while True:
         yield from Routines.Yield.wait(500)
@@ -1008,15 +1029,13 @@ def _coro_dhuum_spirit_form_watchdog(bot: Botting):
             continue
         if not _dhuum_fight_active:
             # Reset tracker when outside the fight so the next run starts clean.
-            _pixelstack_sent_for_spirit.clear()
+            _saved_flag_positions.clear()
             _last_sync_log_at.clear()
             continue
 
         current_map_id = Map.GetMapID()
         if current_map_id != UW_MAP_ID:
             continue
-
-        my_email = Player.GetAccountEmail()
 
         for account in GLOBAL_CACHE.ShMem.GetAllAccountData() or []:
             if not getattr(account, "IsSlotActive", True):
@@ -1037,12 +1056,41 @@ def _coro_dhuum_spirit_form_watchdog(bot: Botting):
                 )
             except Exception:
                 has_spirit_form = False
+
             if not has_spirit_form:
-                _pixelstack_sent_for_spirit.discard(email)
+                # Spirit Form ended — restore the flag to the saved pre-death position
+                # so follow_flag guides the account back to the fight, not the ghost area.
+                if email in _saved_flag_positions:
+                    ox, oy = _saved_flag_positions.pop(email)
+                    try:
+                        _get_adapter().update_flag_position_for_email(email, ox, oy)
+                        ConsoleLog(
+                            BOT_NAME,
+                            f"[Dhuum] {email} lost Spirit Form — flag restored to ({ox:.0f}, {oy:.0f}).",
+                            Py4GW.Console.MessageType.Info,
+                        )
+                        _append_debug_watchdog_log(f"Flag restored -> {email} ({ox:.0f}, {oy:.0f})")
+                    except Exception:
+                        pass
                 _last_sync_log_at.pop(email, None)
                 continue
 
             try:
+                # First detection: save the current flag position before overriding.
+                if email not in _saved_flag_positions:
+                    cur = _read_current_flag_pos(email)
+                    if cur is not None:
+                        _saved_flag_positions[email] = cur
+                    ConsoleLog(
+                        BOT_NAME,
+                        f"[Dhuum] {email} gained Spirit Form — repositioning flag to ghost area.",
+                        Py4GW.Console.MessageType.Info,
+                    )
+                    _append_debug_watchdog_log(
+                        f"Spirit Form detected -> {email} saved=({cur[0]:.0f}, {cur[1]:.0f})" if cur else
+                        f"Spirit Form detected -> {email} (no saved flag)"
+                    )
+
                 # Keep the flag continuously synced while Spirit Form is active.
                 # This recovers from intermittent overwrites/races in shared flag memory.
                 _get_adapter().update_flag_position_for_email(email, _SPIRIT_FLAG_X, _SPIRIT_FLAG_Y)
@@ -1053,23 +1101,6 @@ def _coro_dhuum_spirit_form_watchdog(bot: Botting):
                         f"SpiritForm sync -> {email} flag=({_SPIRIT_FLAG_X:.0f}, {_SPIRIT_FLAG_Y:.0f})"
                     )
                     _last_sync_log_at[email] = now
-
-                # Send PixelStack once per Spirit Form activation window so the ghost
-                # immediately snaps to position without spamming movement commands.
-                if email not in _pixelstack_sent_for_spirit:
-                    ConsoleLog(
-                        BOT_NAME,
-                        f"[Dhuum] {email} gained Spirit Form — repositioning flag and sending to ghost position.",
-                        Py4GW.Console.MessageType.Info,
-                    )
-                    GLOBAL_CACHE.ShMem.SendMessage(
-                        sender_email=my_email,
-                        receiver_email=email,
-                        command=SharedCommandType.PixelStack,
-                        params=(_SPIRIT_FLAG_X, _SPIRIT_FLAG_Y, 0.0, 0.0),
-                    )
-                    _pixelstack_sent_for_spirit.add(email)
-                    _append_debug_watchdog_log(f"PixelStack sent -> {email}")
             except Exception as _e:
                 _append_debug_watchdog_log(f"Watchdog error for {email}: {_e}")
                 ConsoleLog(
@@ -1533,6 +1564,7 @@ def Terrorweb_Queen(bot_instance: Botting):
     EnqueueDialogUntilQuestActive(bot_instance, 0x806B01, int(UWQuestID.TerrorwebQueen), int(UWNpcModelID.ReaperOfTheChaosPlanes), "take Terrorweb Queen quest")
     bot_instance.Move.XY(-12432, -15874, "Terrorweb Queen 1")
     bot_instance.Move.XY(-6957, -19478, "Back to Chamber")
+    bot_instance.Wait.ForTime(10000)
     bot_instance.Dialogs.WithModel(UWNpcModelID.ReaperOfTheSpawningPools,0x806B07, "Back to Chamber")
     bot_instance.Dialogs.WithModel(UWNpcModelID.ReaperOfTheSpawningPools,0x8B, "Back to Chamber")
     bot_instance.States.AddCustomState(lambda: _record_quest_done("Terrorweb Queen"), "Record Terrorweb Queen done")
@@ -1638,11 +1670,55 @@ def Wrathfull_Spirits(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
     _WS_LOOP_STEP = "Wrathfull Spirits loop start"
     bot_instance.States.AddHeader(_WS_LOOP_STEP)
-    bot_instance.Move.XY(-10207, 1746, "Wrathfull Spirits 2")
-    bot_instance.Move.XY(-13566, -229, "Wrathfull Spirits 3")
-    bot_instance.Move.XY(-13287, 1996, "Wrathfull Spirits 3b")
-    bot_instance.Move.XY(-14486, 7113, "Wrathfull Spirits 4")
-    bot_instance.Move.XY(-15226, 4129, "Wrathfull Spirits 5")
+
+    _WS_WAYPOINTS = [
+        (-10207, 1746,  "Wrathfull Spirits 2"),
+        (-13566, -229,  "Wrathfull Spirits 3"),
+        (-13287, 1996,  "Wrathfull Spirits 3b"),
+        (-14486, 7113,  "Wrathfull Spirits 4"),
+        (-15226, 4129,  "Wrathfull Spirits 5"),
+    ]
+    _WS_HUNT_RANGE    = 2000.0
+    _WS_ATTACK_RANGE  = 1100.0
+    _WS_TARGET_NAME   = "tortured spirit"
+
+    def _coro_ws_patrol():
+        """Walk through waypoints; after each one, chase any nearby Tortured Spirits
+        into attack range so the party engages them before moving on."""
+        for wx, wy, label in _WS_WAYPOINTS:
+            if not Routines.Checks.Map.MapValid() or Map.GetMapID() != UW_MAP_ID:
+                return
+            yield from Routines.Yield.Movement.FollowPath([(wx, wy)], tolerance=100, timeout=15000)
+            yield from Routines.Yield.wait(300)
+
+            # Hunt Tortured Spirits within range
+            while True:
+                if not Routines.Checks.Map.MapValid() or Map.GetMapID() != UW_MAP_ID:
+                    return
+                px, py = Player.GetXY()
+                spirits = [
+                    (eid, Utils.Distance((px, py), Agent.GetXY(eid)))
+                    for eid in AgentArray.GetEnemyArray()
+                    if Agent.IsAlive(eid)
+                    and _WS_TARGET_NAME in (Agent.GetNameByID(eid) or "").strip().lower()
+                    and Utils.Distance((px, py), Agent.GetXY(eid)) <= _WS_HUNT_RANGE
+                ]
+                if not spirits:
+                    break
+                # Pick closest spirit
+                spirits.sort(key=lambda t: t[1])
+                target_id, dist = spirits[0]
+                if dist > _WS_ATTACK_RANGE:
+                    tx, ty = Agent.GetXY(target_id)
+                    ConsoleLog(BOT_NAME, f"[Wrathful Spirits] Chasing Tortured Spirit ({dist:.0f} away).", Py4GW.Console.MessageType.Info)
+                    yield from Routines.Yield.Movement.FollowPath([(tx, ty)], tolerance=_WS_ATTACK_RANGE, timeout=8000)
+                # Wait for combat to finish this spirit
+                yield from Routines.Yield.wait(2000)
+
+    bot_instance.config.FSM.AddYieldRoutineStep(
+        name="Wrathfull Spirits patrol & hunt",
+        coroutine_fn=_coro_ws_patrol,
+    )
 
     def _ws_retry_if_not_done():
         from Py4GWCoreLib.Quest import Quest
@@ -1728,6 +1804,7 @@ def Unwanted_Guests(bot_instance: Botting):
 
     #6th Keeper
     _move_with_unstuck(bot_instance, -3125, 916, "6th Keeper 1")
+    _move_with_unstuck(bot_instance, -597, -537, "6th Keeper 1")
     _move_with_unstuck(bot_instance, -344, 2155, "6th Keeper 2")
     FocusKeeperOfSouls(bot_instance)
     bot_instance.Wait.ForTime(500)
@@ -2452,7 +2529,7 @@ def _draw_help():
     PyImGui.text_wrapped("In the Dhuum battle, 1-2 heroes will die and become ghosts. You can choose which ones.")
 
     PyImGui.separator()
-    PyImGui.text_wrapped("The Inventory and Enter functions were borrowed from the fow bot—thanks for that")
+    PyImGui.text_wrapped("Inventory refill powered by MerchantRules — thanks to Icefox!")
 
 
 def _draw_inventory_settings() -> None:
@@ -2463,8 +2540,8 @@ def _draw_inventory_settings() -> None:
         changed = True
     PyImGui.separator()
     PyImGui.text_wrapped(
-        "Travels all accounts to the Guild Hall, then runs MerchantRules "
-        "'Execute Here' on every account. Configure buy/sell/deposit rules "
+        "Travels all accounts to the Guild Hall"
+        "Configure buy/sell/deposit rules "
         "in the MerchantRules widget."
     )
     PyImGui.separator()
@@ -2475,7 +2552,7 @@ def _draw_inventory_settings() -> None:
         changed = True
     PyImGui.text_wrapped(
         "After MerchantRules finishes: restock consumables from each account's "
-        "Xunlai chest based on the Cons tab settings. Requires 'Use Cons' to be on."
+        "Xunlai chest based on the Cons tab settings."
     )
     PyImGui.end_disabled()
     if changed:
