@@ -13504,7 +13504,6 @@ class MerchantRulesWidget:
             )
 
         if rule.kind not in (SELL_KIND_WEAPONS, SELL_KIND_ARMOR):
-            whitelist_targets = _normalize_whitelist_targets(getattr(rule, "whitelist_targets", []))
             if rule.kind == SELL_KIND_COMMON_MATERIALS:
                 if PyImGui.button(f"Add All Common Materials##sell_common_preset_{index}"):
                     if self._set_sell_rule_model_ids(index, rule, rule.model_ids + self._get_common_material_preset()):
@@ -13525,6 +13524,7 @@ class MerchantRulesWidget:
                 if self._set_sell_rule_model_ids(index, rule, []):
                     changed = True
 
+            whitelist_targets = _normalize_whitelist_targets(getattr(rule, "whitelist_targets", []))
             selected_label = "Selected Materials" if rule.kind == SELL_KIND_COMMON_MATERIALS else "Selected Items"
             item_column_label = "Material" if rule.kind == SELL_KIND_COMMON_MATERIALS else "Item"
             empty_text = "No crafting materials selected yet." if rule.kind == SELL_KIND_COMMON_MATERIALS else "No items selected yet."

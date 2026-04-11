@@ -298,6 +298,53 @@ def _prime_initialized_widget(module, widget):
     return widget
 
 
+def _install_sell_rule_editor_click_stubs(module, clicked_button_label: str) -> None:
+    imgui = module.PyImGui
+    clicked_label = str(clicked_button_label or "")
+    imgui.button = lambda label: str(label or "") == clicked_label
+    imgui.small_button = lambda *_args, **_kwargs: False
+    imgui.same_line = lambda *_args, **_kwargs: None
+    imgui.spacing = lambda *_args, **_kwargs: None
+    imgui.text = lambda *_args, **_kwargs: None
+    imgui.text_wrapped = lambda *_args, **_kwargs: None
+    imgui.text_colored = lambda *_args, **_kwargs: None
+    imgui.input_text = lambda _label, value: value
+    imgui.collapsing_header = lambda *_args, **_kwargs: False
+    imgui.begin_disabled = lambda *_args, **_kwargs: None
+    imgui.end_disabled = lambda *_args, **_kwargs: None
+    imgui.tree_pop = lambda *_args, **_kwargs: None
+
+
+def _prepare_sell_rule_editor_widget(module, clicked_button_label: str):
+    _install_sell_rule_editor_click_stubs(module, clicked_button_label)
+    widget = _make_widget(module)
+    widget.catalog_common_material_ids = [921, 925, 946]
+    widget.catalog_rare_materials = [
+        {"model_id": int(module.ECTOPLASM_MODEL_ID), "name": "Glob of Ectoplasm", "material_type": "rare"},
+    ]
+    widget.catalog_by_model_id.update(
+        {
+            921: {"model_id": 921, "name": "Bone", "material_type": "common"},
+            925: {"model_id": 925, "name": "Bolt of Cloth", "material_type": "common"},
+            946: {"model_id": 946, "name": "Wood Plank", "material_type": "common"},
+            int(module.ECTOPLASM_MODEL_ID): {
+                "model_id": int(module.ECTOPLASM_MODEL_ID),
+                "name": "Glob of Ectoplasm",
+                "material_type": "rare",
+            },
+        }
+    )
+    widget._draw_rule_header_row = lambda *args, **_kwargs: (True, bool(args[8]), False)
+    widget._draw_section_heading = lambda *_args, **_kwargs: None
+    widget._draw_secondary_text = lambda *_args, **_kwargs: None
+    widget._draw_rule_name_input = lambda _label, value: value
+    widget._draw_whitelist_targets = lambda **kwargs: (kwargs["targets"], 0)
+    widget._draw_material_search_results = lambda *_args, **_kwargs: (0, [])
+    widget._draw_search_results = lambda *_args, **_kwargs: (0, [])
+    widget._draw_add_all_matches_button = lambda *_args, **_kwargs: False
+    return widget
+
+
 def _make_item(
     module,
     *,
@@ -494,6 +541,53 @@ def _test_legacy_whitelist_keep_count_migrates_to_per_target_rows(module, temp_r
         not saved_payload["sell_rules"][0].get("deposit_protected_matches", False),
         "Legacy sell rules should default the new deposit-protected flag off when normalized.",
     )
+
+
+def _test_sell_material_presets_survive_same_frame_table_writeback(module) -> None:
+    widget = _prepare_sell_rule_editor_widget(module, "Add All Common Materials##sell_common_preset_0")
+    widget.sell_rules = [
+        module._normalize_sell_rule(
+            module.SellRule(
+                enabled=False,
+                kind=module.SELL_KIND_COMMON_MATERIALS,
+                whitelist_targets=[module.WhitelistTarget(model_id=946, keep_count=0)],
+            )
+        )
+    ]
+
+    changed = widget._draw_sell_rule_editor(0, widget.sell_rules[0])
+
+    _expect(changed, "Sell material preset button should report a changed rule.")
+    _expect(
+        widget.sell_rules[0].model_ids == [946, 921, 925],
+        "Sell material preset clicks should not be undone by the selected-materials table in the same draw pass.",
+    )
+    _expect(
+        [target.model_id for target in widget.sell_rules[0].whitelist_targets] == [946, 921, 925],
+        "Sell material preset clicks should persist the expanded whitelist target rows.",
+    )
+
+
+def _test_sell_clear_list_survives_same_frame_table_writeback(module) -> None:
+    widget = _prepare_sell_rule_editor_widget(module, "Clear List##sell_clear_0")
+    widget.sell_rules = [
+        module._normalize_sell_rule(
+            module.SellRule(
+                enabled=False,
+                kind=module.SELL_KIND_EXPLICIT_MODELS,
+                whitelist_targets=[
+                    module.WhitelistTarget(model_id=111, keep_count=1),
+                    module.WhitelistTarget(model_id=555, keep_count=0),
+                ],
+            )
+        )
+    ]
+
+    changed = widget._draw_sell_rule_editor(0, widget.sell_rules[0])
+
+    _expect(changed, "Sell Clear List should report a changed rule.")
+    _expect(widget.sell_rules[0].model_ids == [], "Sell Clear List should clear model IDs.")
+    _expect(widget.sell_rules[0].whitelist_targets == [], "Sell Clear List should clear whitelist target rows.")
 
 
 def _test_legacy_nonsalvageable_gold_sell_rule_is_removed_safely(module, temp_root: Path) -> None:
@@ -3775,6 +3869,8 @@ def main() -> int:
             ("malformed_profile_is_preserved", lambda: _test_malformed_profile_is_preserved(module, temp_root)),
             ("legacy_profile_normalizes_and_saves", lambda: _test_legacy_profile_normalizes_and_saves(module, temp_root)),
             ("legacy_whitelist_keep_count_migrates_to_per_target_rows", lambda: _test_legacy_whitelist_keep_count_migrates_to_per_target_rows(module, temp_root)),
+            ("sell_material_presets_survive_same_frame_table_writeback", lambda: _test_sell_material_presets_survive_same_frame_table_writeback(module)),
+            ("sell_clear_list_survives_same_frame_table_writeback", lambda: _test_sell_clear_list_survives_same_frame_table_writeback(module)),
             (
                 "legacy_nonsalvageable_gold_sell_rule_is_removed_safely",
                 lambda: _test_legacy_nonsalvageable_gold_sell_rule_is_removed_safely(module, temp_root),
