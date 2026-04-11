@@ -136,7 +136,10 @@ PCON_RESTOCK_MODELS   = [m for m, _ in PCON_ITEMS] + [
 
 
 def ConfigureAggressiveEnv(bot: Botting) -> None:
-    bot.Templates.Aggressive()
+    if _party_mode == 1:
+        bot.Templates.Multibox_Aggressive()
+    else:
+        bot.Templates.Aggressive()
     bot.Properties.Enable("auto_inventory_management")
 # endregion
 
