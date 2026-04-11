@@ -281,6 +281,23 @@ def _get_adapter():
     return _cb_adapter_instance
 
 
+def _uw_aggressive(b: Botting, **kwargs) -> None:
+    """Wrapper around Templates.Aggressive() that undoes the HeroAI/Isolation
+    side effects when running in CB mode."""
+    b.Templates.Aggressive(**kwargs)
+    if BotSettings.BotMode != "heroai":
+        b.Properties.Disable("hero_ai")
+        b.Multibox.SetAccountIsolation(False)
+
+
+def _uw_pacifist(b: Botting) -> None:
+    """Wrapper around Templates.Pacifist() that undoes the Isolation
+    side effect when running in CB mode."""
+    b.Templates.Pacifist()
+    if BotSettings.BotMode != "heroai":
+        b.Multibox.SetAccountIsolation(False)
+
+
 def _mark_entered_dungeon() -> None:
     global _entered_dungeon, _run_start_uptime_ms
     _entered_dungeon = True
@@ -300,25 +317,13 @@ def _record_quest_done(name: str) -> None:
 
 class InventorySettings:
     """Settings for between-run inventory management."""
-    RefillEnabled:          bool = bool(_ini.read_bool(BOT_NAME, "inv_refill_enabled",      True))
-    RestockKits:            bool = bool(_ini.read_bool(BOT_NAME, "inv_restock_kits",         True))
-    RestockCons:            bool = bool(_ini.read_bool(BOT_NAME, "inv_restock_cons",         True))
-    DepositMaterials:       bool = bool(_ini.read_bool(BOT_NAME, "inv_deposit_mats",         True))
-    SellNonConsMaterials:   bool = bool(_ini.read_bool(BOT_NAME, "inv_sell_non_cons_mats",   False))
-    SellAllCommonMaterials: bool = bool(_ini.read_bool(BOT_NAME, "inv_sell_all_common_mats", False))
-    BuyEctoplasm:           bool = bool(_ini.read_bool(BOT_NAME, "inv_buy_ecto",             False))
-    InventoryLocation:      str  = str(_ini.read_key(BOT_NAME,  "inv_location",             "guild_hall") or "guild_hall")
+    RefillEnabled: bool = bool(_ini.read_bool(BOT_NAME, "inv_refill_enabled", True))
+    RestockCons:   bool = bool(_ini.read_bool(BOT_NAME, "inv_restock_cons",   True))
 
     @classmethod
     def save(cls) -> None:
-        _ini.write_key(BOT_NAME, "inv_refill_enabled",      str(cls.RefillEnabled))
-        _ini.write_key(BOT_NAME, "inv_restock_kits",        str(cls.RestockKits))
-        _ini.write_key(BOT_NAME, "inv_restock_cons",        str(cls.RestockCons))
-        _ini.write_key(BOT_NAME, "inv_deposit_mats",        str(cls.DepositMaterials))
-        _ini.write_key(BOT_NAME, "inv_sell_non_cons_mats",  str(cls.SellNonConsMaterials))
-        _ini.write_key(BOT_NAME, "inv_sell_all_common_mats",str(cls.SellAllCommonMaterials))
-        _ini.write_key(BOT_NAME, "inv_buy_ecto",            str(cls.BuyEctoplasm))
-        _ini.write_key(BOT_NAME, "inv_location",            str(cls.InventoryLocation))
+        _ini.write_key(BOT_NAME, "inv_refill_enabled", str(cls.RefillEnabled))
+        _ini.write_key(BOT_NAME, "inv_restock_cons",   str(cls.RestockCons))
 
 
 class DhuumSettings:
@@ -604,13 +609,12 @@ def EnqueueDialogUntilQuestActive(
     from Py4GWCoreLib.Quest import Quest
     target_quest_id = int(quest_id)
 
-    # Disable the follow_party_leader and follow_flag utility skills on the
-    # local CB instance only so the leader account stays at the NPC during
-    # dialog.  Unlike set_following_enabled() this does NOT write to the
-    # party-wide shared memory, so other accounts keep following normally.
+    # Disable ALL movement-issuing CB utility skills on the local instance
+    # (following, automover, wait_if_in_aggro, etc.) so this account stays at
+    # the NPC during the dialog sequence.  Does NOT touch shared memory.
     bot_instance.States.AddCustomState(
-        lambda: _get_adapter().toggle_local_following(False),
-        f"[QuestDialog] Disable local CB following for quest {target_quest_id}",
+        lambda: _get_adapter().toggle_local_movement(False),
+        f"[QuestDialog] Disable local CB movement for quest {target_quest_id}",
     )
 
     bot_instance.Dialogs.WithModel(model_id, dialog_id, step_name)
@@ -660,10 +664,10 @@ def EnqueueDialogUntilQuestActive(
         coroutine_fn=_coro_ensure_quest_active,
     )
 
-    # Re-enable the follow utility skills on the local CB instance.
+    # Re-enable all movement utility skills on the local CB instance.
     bot_instance.States.AddCustomState(
-        lambda: _get_adapter().toggle_local_following(True),
-        f"[QuestDialog] Re-enable local CB following after quest {target_quest_id}",
+        lambda: _get_adapter().toggle_local_movement(True),
+        f"[QuestDialog] Re-enable local CB movement after quest {target_quest_id}",
     )
 
 
@@ -1201,7 +1205,7 @@ def bot_routine(bot: Botting):
 
     # Broadcast widget-policy states: disable/enable CB or HeroAI on all accounts.
     _get_adapter().configure_startup_states(bot)
-    bot.Templates.Aggressive()
+    _uw_aggressive(bot)
 
     # ── Quest-section state chain ─────────────────────────────────────────────
     # MAIN_LOOP_HEADER_NAME is the FSM jump target used by the wipe handler so
@@ -1258,7 +1262,7 @@ def Enter_UW(bot_instance: Botting):
 
     # ── Inventory refill at GH / configured outpost ───────────────────
     bot_instance.Multibox.KickAllAccounts()
-    _do_inventory_refill(bot_instance)
+    _do_merchant_rules_refill(bot_instance)
 
     # ── Leave any existing party (multibox-aware) ─────────────────────
     handle_leave_party(_make_ctx({"type": "leave_party", "name": "Leave Party", "multibox": True}))
@@ -1621,13 +1625,13 @@ def Wrathfull_Spirits(bot_instance: Botting):
     bot_instance.Move.XY(5755, 12769, "go to NPC")
     bot_instance.Dialogs.WithModel(UWNpcModelID.ReaperOfTheForgottenVale,0x806E03, "take quest")
     EnqueueDialogUntilQuestActive(bot_instance, 0x806E01, int(UWQuestID.WrathfulSpirits), int(UWNpcModelID.ReaperOfTheLabyrinth), "take Wrathfull Spirits quest")
-    bot_instance.Templates.Pacifist()
+    _uw_pacifist(bot_instance)
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(False), "Disable WaitIfPartyMemberTooFar")
     bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(False), "Disable MoveToPartyMemberIfDead")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(False), "Disable WaitIfInAggro")
     _blacklist(bot_instance, "tortured spirit")
     bot_instance.Move.XY(-13422, 973, "Wrathfull Spirits 1")
-    bot_instance.Templates.Aggressive()
+    _uw_aggressive(bot_instance)
     _unblacklist(bot_instance, "tortured spirit")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar") 
     bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(True), "Enable MoveToPartyMemberIfDead")
@@ -1738,7 +1742,7 @@ def Restore_Wastes(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
     bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(True), "Enable MoveToPartyMemberIfDead")
-    bot_instance.Templates.Aggressive()
+    _uw_aggressive(bot_instance)
     bot_instance.Properties.ApplyNow("pause_on_danger", "active", True)
     bot_instance.Move.XY(3891, 7572, "Restore Wastes 1")
     bot_instance.Move.XY(4106, 16031, "Restore Wastes 2")
@@ -1752,7 +1756,7 @@ def Servants_of_Grenth(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
     bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(True), "Enable MoveToPartyMemberIfDead")
-    bot_instance.Templates.Aggressive()
+    _uw_aggressive(bot_instance)
     bot_instance.Move.XY(2700, 19952, "Servants of Grenth 1")
     SERVANTS_OF_GRENTH_FLAG_POINTS = [
         (2559, 20301),
@@ -2099,117 +2103,249 @@ def Dhuum(bot_instance: Botting):
 
 
 
-def _do_inventory_refill(bot_instance: Botting) -> None:
-    """Travel to the configured location and restock kits/cons/materials via the modular_bot handlers."""
+def _get_merchant_rules_widget():
+    """Get the MerchantRules WIDGET_INSTANCE via the widget handler (same approach as Messaging.py)."""
+    try:
+        from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
+        widget_handler = get_widget_handler()
+        for widget_name in ("MerchantRules", "Merchant Rules"):
+            widget_info = widget_handler.get_widget_info(widget_name)
+            if not widget_info or not getattr(widget_info, "module", None):
+                continue
+            instance = getattr(widget_info.module, "WIDGET_INSTANCE", None)
+            if instance is not None:
+                return instance
+    except Exception:
+        pass
+    return None
+
+
+def _do_merchant_rules_refill(bot_instance: Botting) -> None:
+    """Travel everyone to the Guild Hall, then trigger MerchantRules 'Execute Here'
+    on the leader and send MerchantRules EXECUTE to all followers.
+    Requires the MerchantRules widget to be enabled and configured on all accounts."""
     if not InventorySettings.RefillEnabled:
         return
+    _GH_TRAVEL_TIMEOUT_MS = 60_000
+    _EXECUTE_TIMEOUT_MS   = 180_000
+    _FOLLOWER_TIMEOUT_MS  = 180_000
+    _POLL_MS              = 500
 
-    # Ensure the map is fully loaded before any NPC interaction states run.
-    # This guards against starting on a loading screen or right after a resign.
+    def _coro_merchant_rules_refill():
+        # ── 0. Enable MerchantRules widget on leader + all followers ──
+        from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
+        _MR_WIDGET_NAME = "MerchantRules"
+        widget_handler = get_widget_handler()
+        if not widget_handler.is_widget_enabled(_MR_WIDGET_NAME):
+            widget_handler.enable_widget(_MR_WIDGET_NAME)
+            Py4GW.Console.Log(BOT_NAME, "Enabled MerchantRules widget on leader.", Py4GW.Console.MessageType.Info)
+
+        sender_email = Player.GetAccountEmail()
+        all_accounts = GLOBAL_CACHE.ShMem.GetAllAccountData() or []
+        followers = [a for a in all_accounts if a.AccountEmail != sender_email]
+
+        for account in followers:
+            GLOBAL_CACHE.ShMem.SendMessage(
+                sender_email,
+                str(account.AccountEmail),
+                SharedCommandType.EnableWidget,
+                (0, 0, 0, 0),
+                (_MR_WIDGET_NAME, "", "", ""),
+            )
+        if followers:
+            Py4GW.Console.Log(BOT_NAME, f"Sent EnableWidget '{_MR_WIDGET_NAME}' to {len(followers)} follower(s).", Py4GW.Console.MessageType.Info)
+            yield from Routines.Yield.wait(1000)
+
+        widget = _get_merchant_rules_widget()
+        if widget is None:
+            Py4GW.Console.Log(
+                BOT_NAME,
+                "MerchantRules widget not found after enabling. Skipping inventory refill.",
+                Py4GW.Console.MessageType.Warning,
+            )
+            return
+
+        # ── 1. Travel the leader to the Guild Hall first ──────────────
+        if not Map.IsGuildHall():
+            Py4GW.Console.Log(BOT_NAME, "Traveling to Guild Hall for MerchantRules.", Py4GW.Console.MessageType.Info)
+            Map.TravelGH()
+            yield from Routines.Yield.wait(3000)
+            elapsed = 0
+            while not Map.IsMapReady() and elapsed < _GH_TRAVEL_TIMEOUT_MS:
+                yield from Routines.Yield.wait(_POLL_MS)
+                elapsed += _POLL_MS
+
+        # ── 2. Tell each follower to travel to their own Guild Hall ──
+        if followers:
+            Py4GW.Console.Log(BOT_NAME, f"Sending TravelToGuildHall to {len(followers)} follower(s).", Py4GW.Console.MessageType.Info)
+            for account in followers:
+                target_email = str(account.AccountEmail)
+                GLOBAL_CACHE.ShMem.SendMessage(
+                    sender_email,
+                    target_email,
+                    SharedCommandType.TravelToGuildHall,
+                    (0, 0, 0, 0),
+                )
+                yield from Routines.Yield.wait(1500)
+
+        # ── 3. Wait until ALL accounts are on the same map as the leader ─
+        leader_map_id = int(Map.GetMapID())
+        Py4GW.Console.Log(BOT_NAME, f"Waiting for all accounts to arrive in Guild Hall (map {leader_map_id}).", Py4GW.Console.MessageType.Info)
+        elapsed = 0
+        all_arrived = False
+        while elapsed < _GH_TRAVEL_TIMEOUT_MS:
+            all_accounts_fresh = GLOBAL_CACHE.ShMem.GetAllAccountData() or []
+            all_arrived = all(
+                int(acc.AgentData.Map.MapID) == leader_map_id
+                for acc in all_accounts_fresh
+            )
+            if all_arrived:
+                break
+            yield from Routines.Yield.wait(_POLL_MS)
+            elapsed += _POLL_MS
+
+        if not all_arrived:
+            Py4GW.Console.Log(BOT_NAME, "Not all accounts reached the Guild Hall. Continuing anyway.", Py4GW.Console.MessageType.Warning)
+
+        yield from Routines.Yield.wait(2000)
+
+        # ── 4. Execute MerchantRules on the leader (Execute Here) ─────
+        Py4GW.Console.Log(BOT_NAME, "Starting MerchantRules Execute Here (leader).", Py4GW.Console.MessageType.Info)
+        widget._queue_execute_here()
+        yield from Routines.Yield.wait(_POLL_MS)
+
+        elapsed = 0
+        while widget.execution_running and elapsed < _EXECUTE_TIMEOUT_MS:
+            yield from Routines.Yield.wait(_POLL_MS)
+            elapsed += _POLL_MS
+
+        if widget.execution_running:
+            Py4GW.Console.Log(BOT_NAME, "MerchantRules leader execution timed out.", Py4GW.Console.MessageType.Warning)
+        elif widget.last_error:
+            Py4GW.Console.Log(BOT_NAME, f"MerchantRules leader error: {widget.last_error}", Py4GW.Console.MessageType.Warning)
+        else:
+            Py4GW.Console.Log(BOT_NAME, "MerchantRules leader execution completed.", Py4GW.Console.MessageType.Info)
+
+        # ── 5. Send MerchantRules EXECUTE to all followers ────────────
+        if not followers:
+            return
+
+        OPCODE_EXECUTE = 3  # MERCHANT_RULES_OPCODE_EXECUTE
+        request_id = f"uw_refill_{int(time.monotonic() * 1000)}"
+        sent_refs: list[tuple[str, int]] = []
+
+        for account in followers:
+            target_email = str(account.AccountEmail)
+            msg_idx = GLOBAL_CACHE.ShMem.SendMessage(
+                sender_email,
+                target_email,
+                SharedCommandType.MerchantRules,
+                (float(OPCODE_EXECUTE), 0.0, 0.0, 0.0),
+                (request_id, "Execute", "", ""),
+            )
+            if msg_idx != -1:
+                sent_refs.append((target_email, int(msg_idx)))
+                Py4GW.Console.Log(
+                    BOT_NAME,
+                    f"Sent MerchantRules execute to {target_email}.",
+                    Py4GW.Console.MessageType.Info,
+                )
+
+        if not sent_refs:
+            return
+
+        # ── 6. Wait for all follower messages to be consumed ──────────
+        from Sources.modular_bot.recipes.combat_engine import outbound_messages_done
+        elapsed = 0
+        all_done = False
+        while elapsed < _FOLLOWER_TIMEOUT_MS:
+            all_done = outbound_messages_done(sent_refs, SharedCommandType.MerchantRules)
+            if all_done:
+                break
+            yield from Routines.Yield.wait(_POLL_MS)
+            elapsed += _POLL_MS
+
+        if not all_done:
+            Py4GW.Console.Log(BOT_NAME, "MerchantRules follower execution timed out on some accounts.", Py4GW.Console.MessageType.Warning)
+        else:
+            Py4GW.Console.Log(BOT_NAME, "MerchantRules follower execution completed on all accounts.", Py4GW.Console.MessageType.Info)
+
     bot_instance.Wait.UntilOnOutpost()
-
-    from Sources.modular_bot.prebuilts.fow import (
-        INVENTORY_MANAGEMENT_LOCATIONS,
-        DEFAULT_INVENTORY_MANAGEMENT_LOCATION_KEY,
-    )
-    from Sources.modular_bot.recipes.step_context import StepContext
-    from Sources.modular_bot.recipes.actions_movement import handle_travel_gh
-    from Sources.modular_bot.recipes.actions_inventory import (
-        handle_restock_kits,
-        handle_restock_cons,
-        handle_sell_materials,
-        handle_deposit_materials,
+    bot_instance.config.FSM.AddYieldRoutineStep(
+        name="MerchantRules Inventory Refill",
+        coroutine_fn=_coro_merchant_rules_refill,
     )
 
-    location = str(InventorySettings.InventoryLocation or DEFAULT_INVENTORY_MANAGEMENT_LOCATION_KEY)
-
-    def _make_ctx(step: dict) -> StepContext:
-        return StepContext(
-            bot=bot_instance,
-            step=step,
-            step_idx=0,
-            recipe_name="UW_Inventory",
-            step_type=step.get("type", ""),
-            step_display=step.get("name", ""),
-        )
-
-    # ── Travel to inventory location ──────────────────────────────────
-    if location == "guild_hall":
-        handle_travel_gh(_make_ctx({"type": "travel_gh", "name": "Travel to Guild Hall", "multibox": True, "ms": 7000}))
-    else:
-        try:
-            target_map_id = int(str(location).split("_", 1)[1])
-        except (IndexError, ValueError):
-            target_map_id = 0
-        if target_map_id > 0:
-            bot_instance.Map.Travel(target_map_id=target_map_id)
-            bot_instance.Wait.ForTime(15000)
-
-    # Wait for the map to be fully loaded before interacting with any NPCs.
-    bot_instance.Wait.UntilOnOutpost()
-
-    # ── Restock ID & Salvage Kits (3 rounds) ──────────────────────────
-    if InventorySettings.RestockKits:
-        kit_step = {"type": "restock_kits", "name": "Restock Kits", "id_kits": 2, "salvage_kits": 5, "multibox": True}
-        for _ in range(3):
-            handle_restock_kits(_make_ctx(kit_step))
-
-    # ── Restock Cons from Xunlai Chest ────────────────────────────────
+    # ── Cons restock from Xunlai (after MerchantRules) ──────────────
     if InventorySettings.RestockCons and BotSettings.UseCons:
-        # Snapshot inactive pcons and their original restock quantities at schedule time.
-        # Used to prevent handle_restock_cons from enabling inactive pcons via its internal
-        # _enable_restock_properties step (which enables any property that has qty > 0).
-        _inactive_pcon_qtys: dict[str, int] = {
-            p: ConsSettings.get_restock(p)
-            for p, _, _, _ in _CONS_DEFS
-            if not ConsSettings.is_active(p)
-        }
+        _enqueue_cons_restock(bot_instance)
 
-        def _zero_inactive_restock_qty() -> None:
-            # Zero out restock_quantity for inactive pcons so that
-            # _enable_restock_properties (inside handle_restock_cons) cannot enable them.
-            for prop in _inactive_pcon_qtys:
-                if bot_instance.Properties.exists(prop):
-                    bot_instance.Properties.ApplyNow(prop, "restock_quantity", 0)
 
-        def _restore_inactive_restock_qty() -> None:
-            # Restore original restock quantities after all restock states have run.
-            for prop, qty in _inactive_pcon_qtys.items():
-                if bot_instance.Properties.exists(prop):
-                    bot_instance.Properties.ApplyNow(prop, "restock_quantity", qty)
+def _enqueue_cons_restock(bot_instance: Botting) -> None:
+    """Restock consumables from Xunlai on the leader and broadcast to all followers.
+    Called after MerchantRules so everyone is already in the Guild Hall."""
+    from Py4GWCoreLib import Inventory
 
-        bot_instance.States.AddCustomState(_zero_inactive_restock_qty, "Zero Inactive Pcon Restock Qty")
-        # Restock for the leader account from its own Xunlai chest.
-        handle_restock_cons(_make_ctx({"type": "restock_cons", "name": "Restock Consumables"}))
-        bot_instance.States.AddCustomState(_restore_inactive_restock_qty, "Restore Inactive Pcon Restock Qty")
-        # Broadcast restock commands to all other accounts so they each
-        # withdraw from their own Xunlai chest as well.
-        # Only use quantity from active pcons; inactive ones get 0.
-        bot_instance.Multibox.RestockConset(max((ConsSettings._restock.get(p, 0) if ConsSettings.is_active(p) else 0) for p in ("armor_of_salvation", "essence_of_celerity", "grail_of_might")))
-        bot_instance.Multibox.RestockAllPcons(max((ConsSettings._restock.get(p, 0) if ConsSettings.is_active(p) else 0) for p in ("birthday_cupcake", "candy_apple", "candy_corn", "golden_egg", "slice_of_pumpkin_pie", "honeycomb", "drake_kabob", "bowl_of_skalefin_soup", "pahnai_salad", "war_supplies")))
-        bot_instance.Wait.ForTime(3000)
+    # Snapshot inactive pcons and their restock quantities at schedule time
+    # so we can temporarily zero them out to prevent the built-in restock
+    # methods from enabling pcons the user has deactivated.
+    _inactive_pcon_qtys: dict[str, int] = {
+        p: ConsSettings.get_restock(p)
+        for p, _, _, _ in _CONS_DEFS
+        if not ConsSettings.is_active(p)
+    }
 
-    # ── Sell Materials ────────────────────────────────────────────────
-    if InventorySettings.SellAllCommonMaterials:
-        handle_sell_materials(_make_ctx({"type": "sell_materials", "name": "Sell All Common Materials", "multibox": True, "ms": 5000}))
-    elif InventorySettings.SellNonConsMaterials:
-        from Sources.modular_bot.prebuilts.fow import FOW_NON_CONS_COMMON_MATERIAL_MODELS
-        from Py4GWCoreLib.enums_src.Item_enums import MaterialMap
-        sell_names = [
-            material_name
-            for model_id, material_name in MaterialMap.items()
-            if model_id in FOW_NON_CONS_COMMON_MATERIAL_MODELS
-        ]
-        handle_sell_materials(_make_ctx({"type": "sell_materials", "name": "Sell Non-Cons Materials", "multibox": True, "ms": 5000, "materials": sell_names}))
+    def _zero_inactive_restock_qty() -> None:
+        for prop in _inactive_pcon_qtys:
+            if bot_instance.Properties.exists(prop):
+                bot_instance.Properties.ApplyNow(prop, "restock_quantity", 0)
 
-    # ── Deposit Full Material Stacks ──────────────────────────────────
-    if InventorySettings.DepositMaterials:
-        handle_deposit_materials(_make_ctx({"type": "deposit_materials", "name": "Deposit Full Material Stacks", "multibox": True, "ms": 5000}))
+    def _restore_inactive_restock_qty() -> None:
+        for prop, qty in _inactive_pcon_qtys.items():
+            if bot_instance.Properties.exists(prop):
+                bot_instance.Properties.ApplyNow(prop, "restock_quantity", qty)
 
-    # ── Buy Ectoplasm ─────────────────────────────────────────────────
-    if InventorySettings.BuyEctoplasm:
-        from Sources.modular_bot.recipes.actions_inventory import handle_buy_ectoplasm
-        handle_buy_ectoplasm(_make_ctx({"type": "buy_ectoplasm", "name": "Buy Ectoplasm", "use_storage_gold": False, "multibox": True, "ms": 5000}))
+    # Open Xunlai on the leader
+    bot_instance.States.AddCustomState(
+        lambda: Inventory.OpenXunlaiWindow() if not Inventory.IsStorageOpen() else None,
+        "Open Xunlai for Cons Restock",
+    )
+    bot_instance.Wait.ForTime(1000)
+
+    bot_instance.States.AddCustomState(_zero_inactive_restock_qty, "Zero Inactive Pcon Restock Qty")
+
+    # Restock each consumable on the leader from Xunlai (respects active/qty settings)
+    _RESTOCK_METHODS = [
+        "BirthdayCupcake", "CandyApple", "Honeycomb", "WarSupplies",
+        "EssenceOfCelerity", "GrailOfMight", "ArmorOfSalvation",
+        "GoldenEgg", "CandyCorn", "SliceOfPumpkinPie",
+        "DrakeKabob", "BowlOfSkalefinSoup", "PahnaiSalad",
+    ]
+    for method_name in _RESTOCK_METHODS:
+        method = getattr(bot_instance.Items.Restock, method_name, None)
+        if callable(method):
+            method()
+
+    bot_instance.States.AddCustomState(_restore_inactive_restock_qty, "Restore Inactive Pcon Restock Qty")
+
+    # Broadcast restock to all followers (only active pcon quantities)
+    conset_qty = max(
+        (ConsSettings.get_restock(p) if ConsSettings.is_active(p) else 0)
+        for p in ("armor_of_salvation", "essence_of_celerity", "grail_of_might")
+    )
+    pcon_qty = max(
+        (ConsSettings.get_restock(p) if ConsSettings.is_active(p) else 0)
+        for p in (
+            "birthday_cupcake", "candy_apple", "candy_corn", "golden_egg",
+            "slice_of_pumpkin_pie", "honeycomb", "drake_kabob",
+            "bowl_of_skalefin_soup", "pahnai_salad", "war_supplies",
+        )
+    )
+    if conset_qty > 0:
+        bot_instance.Multibox.RestockConset(conset_qty)
+    if pcon_qty > 0:
+        bot_instance.Multibox.RestockAllPcons(pcon_qty)
+    bot_instance.Wait.ForTime(3000)
 
 
 def _set_planned_resign() -> None:
@@ -2320,64 +2456,27 @@ def _draw_help():
 
 
 def _draw_inventory_settings() -> None:
-    from Sources.modular_bot.prebuilts.fow import INVENTORY_MANAGEMENT_LOCATIONS, DEFAULT_INVENTORY_MANAGEMENT_LOCATION_KEY
-
     changed = False
     new_val = PyImGui.checkbox("Enable Inventory Refill", InventorySettings.RefillEnabled)
     if new_val != InventorySettings.RefillEnabled:
         InventorySettings.RefillEnabled = new_val
         changed = True
     PyImGui.separator()
+    PyImGui.text_wrapped(
+        "Travels all accounts to the Guild Hall, then runs MerchantRules "
+        "'Execute Here' on every account. Configure buy/sell/deposit rules "
+        "in the MerchantRules widget."
+    )
+    PyImGui.separator()
     PyImGui.begin_disabled(not InventorySettings.RefillEnabled)
-    PyImGui.text_wrapped("After each run: travel to the selected location, restock, then return.")
-    PyImGui.separator()
-
-    # ── Location dropdown ─────────────────────────────────────────
-    location_keys   = list(INVENTORY_MANAGEMENT_LOCATIONS.keys())
-    location_labels = list(INVENTORY_MANAGEMENT_LOCATIONS.values())
-    current_key = str(InventorySettings.InventoryLocation or DEFAULT_INVENTORY_MANAGEMENT_LOCATION_KEY)
-    current_idx = location_keys.index(current_key) if current_key in location_keys else 0
-    PyImGui.text("Inventory Location:")
-    new_idx = PyImGui.combo("##inv_location", current_idx, location_labels)
-    if new_idx != current_idx:
-        InventorySettings.InventoryLocation = location_keys[new_idx]
-        changed = True
-
-    PyImGui.separator()
-
-    # ── Restock ───────────────────────────────────────────────────
-    new_val = PyImGui.checkbox("Restock ID & Salvage Kits (3 rounds)", InventorySettings.RestockKits)
-    if new_val != InventorySettings.RestockKits:
-        InventorySettings.RestockKits = new_val
-        changed = True
-    new_val = PyImGui.checkbox("Restock Consets from Xunlai Chest", InventorySettings.RestockCons)
+    new_val = PyImGui.checkbox("Restock Cons from Xunlai", InventorySettings.RestockCons)
     if new_val != InventorySettings.RestockCons:
         InventorySettings.RestockCons = new_val
         changed = True
-    PyImGui.begin_disabled(not BotSettings.UseCons)
-    PyImGui.text("  (requires 'Use Cons' to be enabled)")
-    PyImGui.end_disabled()
-
-    PyImGui.separator()
-
-    # ── Materials ────────────────────────────────────────────────
-    new_val = PyImGui.checkbox("Deposit Full Material Stacks to Chest", InventorySettings.DepositMaterials)
-    if new_val != InventorySettings.DepositMaterials:
-        InventorySettings.DepositMaterials = new_val
-        changed = True
-    new_val = PyImGui.checkbox("Sell Non-Cons Materials at Merchant", InventorySettings.SellNonConsMaterials)
-    if new_val != InventorySettings.SellNonConsMaterials:
-        InventorySettings.SellNonConsMaterials = new_val
-        changed = True
-    new_val = PyImGui.checkbox("Sell All Common Materials at Merchant", InventorySettings.SellAllCommonMaterials)
-    if new_val != InventorySettings.SellAllCommonMaterials:
-        InventorySettings.SellAllCommonMaterials = new_val
-        changed = True
-    new_val = PyImGui.checkbox("Buy Ectoplasm from Materials Trader", InventorySettings.BuyEctoplasm)
-    if new_val != InventorySettings.BuyEctoplasm:
-        InventorySettings.BuyEctoplasm = new_val
-        changed = True
-
+    PyImGui.text_wrapped(
+        "After MerchantRules finishes: restock consumables from each account's "
+        "Xunlai chest based on the Cons tab settings. Requires 'Use Cons' to be on."
+    )
     PyImGui.end_disabled()
     if changed:
         InventorySettings.save()

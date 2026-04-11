@@ -54,6 +54,26 @@ class UWCBAdapter(UWCombatAdapter):
                 return True
         return False
 
+    def _set_custom_utilities_enabled(
+        self,
+        enabled: bool,
+        *,
+        skill_names: tuple[str, ...] = (),
+        class_names: tuple[str, ...] = (),
+    ) -> int:
+        """Like _set_custom_utility_enabled but toggles ALL matching skills, not just the first."""
+        behavior = self._get_custom_behavior(initialize_if_needed=True)
+        if behavior is None:
+            return 0
+        count = 0
+        for utility in behavior.get_skills_final_list():
+            skill_name = getattr(getattr(utility, "custom_skill", None), "skill_name", None)
+            class_name = utility.__class__.__name__
+            if skill_name in skill_names or class_name in class_names:
+                utility.is_enabled = enabled
+                count += 1
+        return count
+
     def _ensure_custom_botting_skills_enabled(self) -> None:
         # Aggressive skills: only these three enabled, everything else disabled.
         _AGGRESSIVE_CONFIG = {
@@ -257,10 +277,37 @@ class UWCBAdapter(UWCombatAdapter):
         """Enable/disable the follow_party_leader and follow_flag utility skills on
         the local CB instance only.  Unlike set_following_enabled() this does NOT
         write to the party-wide shared memory, so other accounts are unaffected."""
-        self._set_custom_utility_enabled(
+        self._set_custom_utilities_enabled(
             enabled,
             skill_names=("follow_party_leader", "follow_flag"),
             class_names=("FollowPartyLeaderUtility", "FollowFlagUtility"),
+        )
+
+    def toggle_local_movement(self, enabled: bool) -> None:
+        """Enable/disable ALL movement-issuing utility skills on the local CB
+        instance: following skills AND automover/botting skills that reposition
+        the player (move_to_party_member_if_in_aggro, wait_if_in_aggro, etc.).
+        Does NOT touch shared memory — only this account is affected."""
+        self._set_custom_utilities_enabled(
+            enabled,
+            skill_names=(
+                "follow_party_leader",
+                "follow_flag",
+                "move_to_party_member_if_in_aggro",
+                "move_to_enemy_if_close_enough",
+                "move_to_party_member_if_dead",
+                "wait_if_in_aggro",
+                "move_to_distant_chest_if_path_exists",
+            ),
+            class_names=(
+                "FollowPartyLeaderUtility",
+                "FollowFlagUtility",
+                "MoveToPartyMemberIfInAggroUtility",
+                "MoveToEnemyIfCloseEnoughUtility",
+                "MoveToPartyMemberIfDeadUtility",
+                "WaitIfInAggroUtility",
+                "MoveToDistantChestIfPathExistsUtility",
+            ),
         )
 
     # ── Party control ────────────────────────────────────────────────────

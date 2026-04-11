@@ -115,7 +115,7 @@ def _is_any_widget_enabled(*widget_names: str) -> bool:
 
 def _disable_combat_widgets_for_dialog() -> dict:
 	"""Disable HeroAI widget for dialog (HeroAI-only accounts).
-	CB following is handled separately via _toggle_local_cb_following()."""
+	CB movement is handled separately via _toggle_local_cb_movement()."""
 	state = {
 		"heroai_was_enabled": False,
 		"custom_enabled_names": [],
@@ -165,30 +165,46 @@ def _restore_combat_widgets_after_dialog(state: dict) -> None:
 		)
 
 
-def _toggle_local_cb_following(enabled: bool) -> None:
-	"""Enable/disable follow_party_leader and follow_flag utility skills on the
-	local CB instance only.  Does NOT touch shared memory so other accounts
-	are completely unaffected."""
+def _toggle_local_cb_movement(enabled: bool) -> None:
+	"""Enable/disable ALL movement-issuing CB utility skills on the local
+	instance: following skills AND automover/botting skills that reposition
+	the player.  Does NOT touch shared memory — only this account is affected."""
 	try:
 		from Sources.oazix.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
 		behavior = CustomBehaviorLoader().custom_combat_behavior
 		if behavior is None:
 			return
-		_FOLLOW_SKILL_NAMES = ("follow_party_leader", "follow_flag")
-		_FOLLOW_CLASS_NAMES = ("FollowPartyLeaderUtility", "FollowFlagUtility")
+		_MOVEMENT_SKILL_NAMES = (
+			"follow_party_leader",
+			"follow_flag",
+			"move_to_party_member_if_in_aggro",
+			"move_to_enemy_if_close_enough",
+			"move_to_party_member_if_dead",
+			"wait_if_in_aggro",
+			"move_to_distant_chest_if_path_exists",
+		)
+		_MOVEMENT_CLASS_NAMES = (
+			"FollowPartyLeaderUtility",
+			"FollowFlagUtility",
+			"MoveToPartyMemberIfInAggroUtility",
+			"MoveToEnemyIfCloseEnoughUtility",
+			"MoveToPartyMemberIfDeadUtility",
+			"WaitIfInAggroUtility",
+			"MoveToDistantChestIfPathExistsUtility",
+		)
 		for utility in behavior.get_skills_final_list():
 			skill_name = getattr(getattr(utility, "custom_skill", None), "skill_name", None)
-			if skill_name in _FOLLOW_SKILL_NAMES or utility.__class__.__name__ in _FOLLOW_CLASS_NAMES:
+			if skill_name in _MOVEMENT_SKILL_NAMES or utility.__class__.__name__ in _MOVEMENT_CLASS_NAMES:
 				utility.is_enabled = enabled
 		Py4GW.Console.Log(
 			MODULE_NAME,
-			f"Local CB following {'enabled' if enabled else 'disabled'}.",
+			f"Local CB movement {'enabled' if enabled else 'disabled'}.",
 			Py4GW.Console.MessageType.Info,
 		)
 	except Exception as ex:
 		Py4GW.Console.Log(
 			MODULE_NAME,
-			f"Failed to toggle local CB following: {ex}",
+			f"Failed to toggle local CB movement: {ex}",
 			Py4GW.Console.MessageType.Warning,
 		)
 
@@ -386,11 +402,11 @@ def _coro_interact_and_dialog(target_npc: int):
 			)
 			return
 
-		# Disable HeroAI widget and local CB follow utilities while approaching
+		# Disable HeroAI widget and ALL local CB movement utilities while approaching
 		# and interacting with the NPC so movement commands don't pull us away.
 		combat_widget_state = _disable_combat_widgets_for_dialog()
 		widgets_temporarily_disabled = True
-		_toggle_local_cb_following(False)
+		_toggle_local_cb_movement(False)
 
 		# ── Step 2: Move to NPC ─────────────────────────────────────────
 		target_npc = _resolve_valid_target_npc(target_npc)
@@ -497,7 +513,7 @@ def _coro_interact_and_dialog(target_npc: int):
 
 		if widgets_temporarily_disabled and combat_widget_state is not None:
 			_restore_combat_widgets_after_dialog(combat_widget_state)
-			_toggle_local_cb_following(True)
+			_toggle_local_cb_movement(True)
 			widgets_temporarily_disabled = False
 
 		_refresh_active_combat_widget_after_skillbar_change()
@@ -505,7 +521,7 @@ def _coro_interact_and_dialog(target_npc: int):
 	finally:
 		if widgets_temporarily_disabled and combat_widget_state is not None:
 			_restore_combat_widgets_after_dialog(combat_widget_state)
-			_toggle_local_cb_following(True)
+			_toggle_local_cb_movement(True)
 		_interaction_running = False
 
 
