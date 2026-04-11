@@ -248,6 +248,9 @@ class UWCBAdapter(UWCombatAdapter):
             on_party_death=BottingHelpers.botting_unrecoverable_issue,
             on_player_critical_stuck=BottingHelpers.botting_unrecoverable_issue,
         )
+        # UseCustomBehavior → __reset_botting_behavior disables auto_inventory_management.
+        # Re-enable it so the upkeep coroutine stays active for the entire run.
+        bot_instance.Properties.Enable("auto_inventory_management")
 
     def sync_runtime(self) -> None:
         loader = CustomBehaviorLoader()

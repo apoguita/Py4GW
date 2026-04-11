@@ -3076,8 +3076,12 @@ def _on_party_wipe(bot: "Botting"):
 
 def _draw_run_log() -> None:
     """Display the last 10 entries from the wipe/run log file."""
-    if PyImGui.button("Refresh##run_log"):
-        pass  # The read below happens every frame; button is a visual affordance only.
+    if PyImGui.button("Clear Log##run_log"):
+        try:
+            with open(_WIPE_LOG_FILE, "w", encoding="utf-8") as f:
+                f.truncate(0)
+        except OSError:
+            pass
     PyImGui.same_line(0, -1)
     PyImGui.text(_WIPE_LOG_FILE)
     PyImGui.separator()
