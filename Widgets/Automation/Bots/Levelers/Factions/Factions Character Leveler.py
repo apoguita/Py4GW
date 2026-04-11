@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import List, Tuple, Generator, Any
 import os
+import time
 import PyImGui
 from Py4GW import Game
 from Py4GWCoreLib import (GLOBAL_CACHE, Routines, Range, Py4GW, ConsoleLog, ModelID, Bags, Botting,
@@ -1501,7 +1502,7 @@ def Unlock_Eye_Of_The_North_Pool(bot: Botting):
     bot.States.AddCustomState(exec_fn, "Step 2 - Against the Destroyers")
     bot.Wait.ForTime(1000)
     #bot.Dialogs.WithModel(5959, 0x633) # Eotn_pool_cinematic. Model id updated 20.12.2025 GW Reforged
-    exec_fn = lambda: QuestLoop(913, 0, 0, 0x633, mode="step", quest_npc=5959)
+    exec_fn = lambda: QuestLoop(913, 0, 0, 0x638, mode="step", quest_npc=5959)
     bot.States.AddCustomState(exec_fn, "Step 3 - Against the Destroyers")
     bot.Wait.ForTime(1000)
     bot.Wait.ForMapToChange(target_map_id=646)

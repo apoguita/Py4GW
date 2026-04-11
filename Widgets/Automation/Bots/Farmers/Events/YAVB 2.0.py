@@ -127,6 +127,7 @@ def JagaMoraineFarmRoutine(bot: Botting) -> None:
     bot.Items.LootItems()
     bot.Items.AutoIDAndSalvageItems()
     bot.States.AddCustomState(lambda: NeedsInventoryManagement(bot), "Needs Inventory Management")
+    bot.Properties.Disable("birthday_cupcake")
     bot.Move.XYAndExitMap(15850,-20550, target_map_id=482) # target_map_name="Bjora Marches")
     
     

@@ -1568,7 +1568,7 @@ def Unlock_Eye_Of_The_North_Pool(bot: Botting):
     bot.Wait.ForTime(1000)
     #bot.Dialogs.WithModel(5959, 0x630) # Eotn_pool_cinematic. Model id updated 20.12.2025 GW Reforged
     #bot.Wait.ForTime(1000)
-    bot.Dialogs.WithModel(5959, 0x633) # Eotn_pool_cinematic. Model id updated 20.12.2025 GW Reforged
+    bot.Dialogs.WithModel(5959, 0x638) # Eotn_pool_cinematic. Model id updated 20.12.2025 GW Reforged
     bot.Wait.ForTime(1000)
     bot.Wait.ForMapToChange(target_map_id=646)
     bot.Dialogs.WithModel(6021, 0x89) # Gwen dialog. Model id updated 20.12.2025 GW Reforged
