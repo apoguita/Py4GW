@@ -7,11 +7,13 @@ from Py4GWCoreLib.item_mods_src.item_modifier_parser import ItemModifierParser
 from Py4GWCoreLib.item_mods_src.properties import InherentProperty, InscriptionProperty, ItemProperty, PrefixProperty, SuffixProperty, TargetItemTypeProperty
 from Py4GWCoreLib.item_mods_src.types import ItemUpgradeType
 from Py4GWCoreLib.item_mods_src.upgrades import Upgrade
+from Py4GWCoreLib.py4gwcorelib_src.FrameCache import frame_cache
 
 class ItemMod:
     T = TypeVar("T", bound="Upgrade")
 
     @staticmethod
+    @frame_cache(category="ItemMod", source_lib="get_upgrade")
     def get_upgrade(item_id : int, upgrade_type: Type[T]) -> Optional[T]:
         '''
         Gets the upgrade of the specified type from the item properties. This is a helper method that combines the logic of getting the item modifiers, parsing them into properties, and extracting the relevant upgrade property. It also includes validation for inherent upgrades on green items.
@@ -56,6 +58,7 @@ class ItemMod:
         return prefix, suffix, inscription, inherent
     
     @staticmethod
+    @frame_cache(category="ItemMod", source_lib="get_item_upgrades")
     def get_item_upgrades(item_id : int) -> tuple[Upgrade | None, Upgrade | None, Upgrade | None, list[Upgrade] | None]:
         '''
         Gets the item upgrades from the item properties. This method combines the logic of getting the item modifiers, parsing them into properties,
@@ -93,6 +96,7 @@ class ItemMod:
         return ItemMod.validated_upgrades(rarity, prefix, suffix, inscription, inherent)
     
     @staticmethod
+    @frame_cache(category="ItemMod", source_lib="get_target_item_type")
     def get_target_item_type(item_id: int) -> Optional[ItemType]:
         '''
         Gets the target item type for an upgrade on the item, which is used for validating item type requirements on upgrades. This method checks all upgrades on the item for a specified target item type, and returns the first one it finds. If no target item type is found on any upgrade, it returns None.
