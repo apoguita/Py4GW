@@ -32,6 +32,19 @@ class DyeColor(IntEnum):
     Gray = 11
     White = 12
     Pink = 13
+    
+    @staticmethod
+    def from_dye_info(dye_info) -> 'DyeColor':
+        from PyItem import DyeInfo
+        
+        if dye_info is not None and isinstance(dye_info, DyeInfo):
+            color_id = dye_info.dye1.ToInt() if dye_info.dye1 else -1
+            try:
+                return DyeColor(color_id)
+            except ValueError:
+                pass
+
+        return DyeColor.NoColor
 
 
 # endregion
