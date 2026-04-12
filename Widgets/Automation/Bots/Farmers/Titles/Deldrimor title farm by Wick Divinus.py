@@ -34,6 +34,10 @@ RESIGN_STEP_NAME = ""
 _MULTIBOX_ALTS_KEY = "use_multibox_alts"
 _party_mode: int = 0  # 0 = Single Account with Heroes, 1 = Multiboxing
 _mode_loaded: bool = False
+_STUCK_SPOT_XY = (-14450.00, 3411.00)
+_STUCK_SPOT_RADIUS = 600.0
+_STUCK_SPOT_WATCH_MS = 5000
+_STUCK_SPOT_POLL_MS = 250
 
 # Hero config
 _BOT_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__)) if "__file__" in globals() else os.getcwd()
@@ -137,6 +141,20 @@ def ConfigureAggressiveEnv(bot: Botting) -> None:
 def _next_header_step_name(bot: Botting, step_name: str) -> str:
     next_header_index = bot.config.counters.get_index("HEADER_COUNTER") + 1
     return f"[H]{step_name}_{next_header_index}"
+
+
+def _watch_and_send_stuck_if_near_problem_spot() -> None:
+    sx, sy = _STUCK_SPOT_XY
+    elapsed = 0
+    while elapsed <= _STUCK_SPOT_WATCH_MS:
+        px, py = Player.GetXY()
+        if ((px - sx) ** 2 + (py - sy) ** 2) <= (_STUCK_SPOT_RADIUS ** 2):
+            ConsoleLog(MODULE_NAME, f"[Recovery] Near stuck spot at ({sx:.0f}, {sy:.0f}), sending 'stuck' command.")
+            Player.SendChatCommand("stuck")
+            yield from Routines.Yield.wait(1500)
+            return
+        yield from Routines.Yield.wait(_STUCK_SPOT_POLL_MS)
+        elapsed += _STUCK_SPOT_POLL_MS
 # endregion
 
 
@@ -187,6 +205,7 @@ def Snowman(bot: Botting):
     bot.States.AddCustomState(lambda x=-12482.00, y=3924.00, d=0x84: _do_dialog_at(bot, x, y, d), "Blessing Dialog")
     bot.Move.XY(-13824.00, 924.00)
     bot.Move.XY(-13752.06, -504.66)
+    bot.States.AddCustomState(_watch_and_send_stuck_if_near_problem_spot, "Recover if near stuck spot")
     bot.Move.XY(-12084.77, -1592.58)
     bot.Move.XY(-12745.70, -3899.97)
     bot.Move.XY(-13262.00, -7346.00)
