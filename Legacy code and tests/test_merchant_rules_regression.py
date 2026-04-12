@@ -402,6 +402,30 @@ def _rarity_flags(*enabled: str) -> dict[str, bool]:
     }
 
 
+def _make_weapon_item(
+    module,
+    *,
+    item_id: int,
+    model_id: int,
+    name: str,
+    requirement: int,
+    item_type=None,
+):
+    selected_item_type = item_type if item_type is not None else module.ItemType.Axe
+    return _make_item(
+        module,
+        item_id=item_id,
+        model_id=model_id,
+        name=name,
+        rarity="Gold",
+        identified=True,
+        is_weapon_like=True,
+        requirement=requirement,
+        item_type_id=int(selected_item_type),
+        item_type_name=str(getattr(selected_item_type, "name", "Axe")),
+    )
+
+
 def _drain_generator_return(generator):
     try:
         while True:
@@ -475,6 +499,7 @@ def _test_legacy_profile_normalizes_and_saves(module, temp_root: Path) -> None:
     _expect(sell_rule.blacklist_model_ids == [], "Bad nested blacklist data should normalize to an empty list.")
     _expect(sell_rule.protected_weapon_mod_identifiers == [], "Bad protected-mod data should normalize to an empty list.")
     _expect(sell_rule.protected_weapon_requirement_rules == [], "Bad requirement-rule data should normalize to an empty list.")
+    _expect(sell_rule.all_weapons_min_requirement == 1, "Legacy max-only requirement thresholds should migrate to a low endpoint of 1.")
     _expect(sell_rule.all_weapons_max_requirement == 9, "Valid requirement threshold should survive legacy normalization.")
 
     saved_payload = json.loads(config_path.read_text(encoding="utf-8"))
@@ -707,7 +732,7 @@ def _test_lower_weapon_protection_hard_overrides_higher_explicit_sell(module) ->
                 enabled=True,
                 kind=module.SELL_KIND_WEAPONS,
                 protected_weapon_requirement_rules=[
-                    module.WeaponRequirementRule(model_id=111, max_requirement=8),
+                    module.WeaponRequirementRule(model_id=111, min_requirement=1, max_requirement=8),
                 ],
             )
         ),
@@ -786,7 +811,7 @@ def _test_protection_only_rules_hard_claim_before_later_sell_rules(module) -> No
                 kind=module.SELL_KIND_WEAPONS,
                 rarities=_rarity_flags(),
                 protected_weapon_requirement_rules=[
-                    module.WeaponRequirementRule(model_id=111, max_requirement=9),
+                    module.WeaponRequirementRule(model_id=111, min_requirement=1, max_requirement=9),
                 ],
             ),
             module.SellRule(
@@ -805,7 +830,7 @@ def _test_protection_only_rules_hard_claim_before_later_sell_rules(module) -> No
                 item_type_id=int(module.ItemType.Axe),
                 item_type_name="Axe",
             ),
-            "Protected by requirement rule:",
+            "Protected by requirement range:",
         ),
         (
             "weapon type protection",
@@ -913,6 +938,300 @@ def _test_protection_only_rules_hard_claim_before_later_sell_rules(module) -> No
             ),
             f"{label} should surface the hard-protection reason in preview output.",
         )
+
+
+def _test_global_weapon_requirement_range_is_inclusive_and_excludes_unknown(module) -> None:
+    widget = _make_widget(module)
+    rule = module._normalize_sell_rule(
+        module.SellRule(
+            enabled=True,
+            kind=module.SELL_KIND_WEAPONS,
+            all_weapons_min_requirement=7,
+            all_weapons_max_requirement=9,
+        )
+    )
+
+    for req in (7, 8, 9):
+        reason = widget._get_weapon_requirement_hit_reason(
+            _make_weapon_item(module, item_id=100 + req, model_id=111, name="Chaos Axe", requirement=req),
+            rule,
+        )
+        _expect(
+            "Protected by all-weapons requirement range:" in reason,
+            f"Global requirement range 7-9 should protect req {req}.",
+        )
+
+    for req in (6, 10, 0):
+        reason = widget._get_weapon_requirement_hit_reason(
+            _make_weapon_item(module, item_id=200 + req, model_id=111, name="Chaos Axe", requirement=req),
+            rule,
+        )
+        _expect(reason == "", f"Global requirement range 7-9 should not protect req {req}.")
+
+
+def _test_model_specific_weapon_requirement_range_is_inclusive(module) -> None:
+    widget = _make_widget(module)
+    rule = module._normalize_sell_rule(
+        module.SellRule(
+            enabled=True,
+            kind=module.SELL_KIND_WEAPONS,
+            protected_weapon_requirement_rules=[
+                module.WeaponRequirementRule(model_id=111, min_requirement=8, max_requirement=10),
+            ],
+        )
+    )
+
+    for req in (8, 9, 10):
+        reason = widget._get_weapon_requirement_hit_reason(
+            _make_weapon_item(module, item_id=300 + req, model_id=111, name="Chaos Axe", requirement=req),
+            rule,
+        )
+        _expect(
+            "Protected by requirement range:" in reason,
+            f"Chaos Axe model-specific range 8-10 should protect req {req}.",
+        )
+
+    for req in (7, 11):
+        reason = widget._get_weapon_requirement_hit_reason(
+            _make_weapon_item(module, item_id=400 + req, model_id=111, name="Chaos Axe", requirement=req),
+            rule,
+        )
+        _expect(reason == "", f"Chaos Axe model-specific range 8-10 should not protect req {req}.")
+
+
+def _test_model_specific_requirement_range_overrides_global_range(module) -> None:
+    widget = _make_widget(module)
+    rule = module._normalize_sell_rule(
+        module.SellRule(
+            enabled=True,
+            kind=module.SELL_KIND_WEAPONS,
+            all_weapons_min_requirement=7,
+            all_weapons_max_requirement=9,
+            protected_weapon_requirement_rules=[
+                module.WeaponRequirementRule(model_id=111, min_requirement=8, max_requirement=10),
+            ],
+        )
+    )
+
+    chaos_req_7 = widget._get_weapon_requirement_hit_reason(
+        _make_weapon_item(module, item_id=501, model_id=111, name="Chaos Axe", requirement=7),
+        rule,
+    )
+    _expect(
+        chaos_req_7 == "",
+        "A valid Chaos Axe model-specific range should prevent the global range from protecting Chaos Axe req 7.",
+    )
+
+    chaos_req_9 = widget._get_weapon_requirement_hit_reason(
+        _make_weapon_item(module, item_id=502, model_id=111, name="Chaos Axe", requirement=9),
+        rule,
+    )
+    _expect(
+        "Protected by requirement range:" in chaos_req_9,
+        "Chaos Axe req 9 should be protected by its model-specific range.",
+    )
+
+    fellblade_req_8 = widget._get_weapon_requirement_hit_reason(
+        _make_weapon_item(module, item_id=503, model_id=222, name="Fellblade", requirement=8, item_type=module.ItemType.Sword),
+        rule,
+    )
+    _expect(
+        "Protected by all-weapons requirement range:" in fellblade_req_8,
+        "A different model req 8 should still be protected by the global range.",
+    )
+
+
+def _test_unconditional_protected_model_still_protects_all_requirements(module) -> None:
+    widget = _make_widget(module)
+    rule = module._normalize_sell_rule(
+        module.SellRule(
+            enabled=True,
+            kind=module.SELL_KIND_WEAPONS,
+            blacklist_model_ids=[111],
+            all_weapons_min_requirement=7,
+            all_weapons_max_requirement=9,
+            protected_weapon_requirement_rules=[
+                module.WeaponRequirementRule(model_id=111, min_requirement=8, max_requirement=10),
+            ],
+        )
+    )
+
+    for req in (0, 7, 13):
+        protection = widget._get_equippable_hard_protection_reason(
+            _make_weapon_item(module, item_id=600 + req, model_id=111, name="Chaos Axe", requirement=req),
+            rule,
+        )
+        _expect(
+            protection is not None and protection[1] == "Blacklisted model.",
+            f"Unconditional protected models should still protect req {req}.",
+        )
+
+
+def _test_weapon_requirement_ranges_normalize_swapped_and_zero_endpoints(module, temp_root: Path) -> None:
+    widget = _make_widget(module)
+    config_path = temp_root / "requirement_range_normalization_profile.json"
+    widget.config_path = str(config_path)
+    widget.sell_rules = [
+        module._normalize_sell_rule(
+            module.SellRule(
+                enabled=True,
+                kind=module.SELL_KIND_WEAPONS,
+                all_weapons_min_requirement=10,
+                all_weapons_max_requirement=8,
+                protected_weapon_requirement_rules=[
+                    module.WeaponRequirementRule(model_id=111, min_requirement=10, max_requirement=8),
+                    module.WeaponRequirementRule(model_id=222, min_requirement=8, max_requirement=0),
+                ],
+            )
+        )
+    ]
+
+    rule = widget.sell_rules[0]
+    _expect(
+        (rule.all_weapons_min_requirement, rule.all_weapons_max_requirement) == (8, 10),
+        "Global requirement ranges should auto-swap low/high endpoints.",
+    )
+    _expect(
+        (rule.protected_weapon_requirement_rules[0].min_requirement, rule.protected_weapon_requirement_rules[0].max_requirement) == (8, 10),
+        "Model-specific requirement ranges should auto-swap low/high endpoints.",
+    )
+    _expect(
+        (rule.protected_weapon_requirement_rules[1].min_requirement, rule.protected_weapon_requirement_rules[1].max_requirement) == (8, 0),
+        "A zero endpoint should remain disabled without being swapped into a nonzero range.",
+    )
+
+    global_seven_five = module._normalize_sell_rule(
+        module.SellRule(
+            enabled=True,
+            kind=module.SELL_KIND_WEAPONS,
+            all_weapons_min_requirement=7,
+            all_weapons_max_requirement=5,
+        )
+    )
+    _expect(
+        (global_seven_five.all_weapons_min_requirement, global_seven_five.all_weapons_max_requirement) == (5, 7),
+        "Global range low=7 high=5 should normalize to low=5 high=7.",
+    )
+    _expect(
+        (global_seven_five.all_weapons_min_requirement, global_seven_five.all_weapons_max_requirement) != (5, 5),
+        "Global swapped ranges must not collapse both endpoints to the edited high value.",
+    )
+    _expect(
+        (rule.protected_weapon_requirement_rules[0].min_requirement, rule.protected_weapon_requirement_rules[0].max_requirement) != (10, 10),
+        "Model-specific swapped ranges must not collapse both endpoints to the edited low value.",
+    )
+    _expect(
+        module._normalize_weapon_requirement_range(8, 0) == (8, 0),
+        "Endpoint 0 should disable the range without swapping endpoint order.",
+    )
+    _expect(
+        module._should_defer_weapon_requirement_range_commit(7, 5, input_active=True),
+        "Reversed nonzero ranges should defer UI commits while an endpoint input is active.",
+    )
+    _expect(
+        not module._should_defer_weapon_requirement_range_commit(7, 5, input_active=False),
+        "Reversed nonzero ranges should commit once endpoint editing is no longer active.",
+    )
+    _expect(
+        not module._should_defer_weapon_requirement_range_commit(8, 0, input_active=True),
+        "Endpoint 0 should not be treated as an active reversed range in the UI commit path.",
+    )
+
+    disabled_model_reason = widget._get_weapon_requirement_hit_reason(
+        _make_weapon_item(module, item_id=701, model_id=222, name="Fellblade", requirement=8, item_type=module.ItemType.Sword),
+        rule,
+    )
+    _expect(
+        "Protected by all-weapons requirement range:" in disabled_model_reason,
+        "Inactive model-specific ranges should not block the global range for that model.",
+    )
+
+    endpoint_zero_rule = module._normalize_sell_rule(
+        module.SellRule(
+            enabled=True,
+            kind=module.SELL_KIND_WEAPONS,
+            all_weapons_min_requirement=0,
+            all_weapons_max_requirement=9,
+            protected_weapon_requirement_rules=[
+                module.WeaponRequirementRule(model_id=111, min_requirement=0, max_requirement=10),
+            ],
+        )
+    )
+    _expect(
+        widget._get_weapon_requirement_hit_reason(
+            _make_weapon_item(module, item_id=702, model_id=111, name="Chaos Axe", requirement=8),
+            endpoint_zero_rule,
+        )
+        == "",
+        "Endpoint 0 should disable global and model-specific requirement ranges.",
+    )
+
+    _expect(widget._save_profile(), "Saving swapped requirement ranges should succeed.")
+    saved_payload = json.loads(config_path.read_text(encoding="utf-8"))
+    saved_rule = saved_payload["sell_rules"][0]
+    _expect(
+        (saved_rule["all_weapons_min_requirement"], saved_rule["all_weapons_max_requirement"]) == (8, 10),
+        "Saved global requirement ranges should persist corrected endpoint order.",
+    )
+    _expect(
+        (
+            saved_rule["protected_weapon_requirement_rules"][0]["min_requirement"],
+            saved_rule["protected_weapon_requirement_rules"][0]["max_requirement"],
+        )
+        == (8, 10),
+        "Saved model-specific requirement ranges should persist corrected endpoint order.",
+    )
+
+
+def _test_legacy_requirement_thresholds_migrate_to_ranges(module, temp_root: Path) -> None:
+    widget = _make_widget(module)
+    config_path = temp_root / "legacy_requirement_threshold_profile.json"
+    payload = {
+        "version": module.PROFILE_VERSION - 1,
+        "sell_rules": [
+            {
+                "enabled": True,
+                "kind": module.SELL_KIND_WEAPONS,
+                "all_weapons_max_requirement": 8,
+                "protected_weapon_requirement_rules": [
+                    {"model_id": 111, "max_requirement": 10},
+                ],
+            }
+        ],
+    }
+    config_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    widget.config_path = str(config_path)
+
+    widget._load_profile()
+
+    rule = widget.sell_rules[0]
+    _expect(
+        (rule.all_weapons_min_requirement, rule.all_weapons_max_requirement) == (1, 8),
+        "Old global max-only configs should load as range 1-old max.",
+    )
+    _expect(
+        (
+            rule.protected_weapon_requirement_rules[0].min_requirement,
+            rule.protected_weapon_requirement_rules[0].max_requirement,
+        )
+        == (1, 10),
+        "Old model-specific max-only configs should load as range 1-old max.",
+    )
+
+    saved_payload = json.loads(config_path.read_text(encoding="utf-8"))
+    saved_rule = saved_payload["sell_rules"][0]
+    _expect(
+        (saved_rule["all_weapons_min_requirement"], saved_rule["all_weapons_max_requirement"]) == (1, 8),
+        "Migrated global requirement ranges should save the new low endpoint.",
+    )
+    _expect(
+        (
+            saved_rule["protected_weapon_requirement_rules"][0]["min_requirement"],
+            saved_rule["protected_weapon_requirement_rules"][0]["max_requirement"],
+        )
+        == (1, 10),
+        "Migrated model-specific requirement ranges should save the new low endpoint.",
+    )
 
 
 def _test_keep_count_claims_items_before_later_sell_rules(module) -> None:
@@ -1580,7 +1899,7 @@ def _test_execute_now_matches_preview_for_protection_only_rules(module) -> None:
                 kind=module.SELL_KIND_WEAPONS,
                 rarities=_rarity_flags(),
                 protected_weapon_requirement_rules=[
-                    module.WeaponRequirementRule(model_id=111, max_requirement=9),
+                    module.WeaponRequirementRule(model_id=111, min_requirement=1, max_requirement=9),
                 ],
             )
         ),
@@ -1727,7 +2046,7 @@ def _test_build_plan_deposits_protected_weapon_matches_conditionally(module) -> 
                 kind=module.SELL_KIND_WEAPONS,
                 deposit_protected_matches=True,
                 protected_weapon_requirement_rules=[
-                    module.WeaponRequirementRule(model_id=111, max_requirement=8),
+                    module.WeaponRequirementRule(model_id=111, min_requirement=1, max_requirement=8),
                 ],
             )
         )
@@ -2518,9 +2837,9 @@ def _test_display_sorting_helpers_and_summaries_are_case_insensitive(module) -> 
             entry.model_id
             for entry in widget._sort_targets_by_model_label_for_display(
                 [
-                    module.WeaponRequirementRule(model_id=300, max_requirement=8),
-                    module.WeaponRequirementRule(model_id=100, max_requirement=8),
-                    module.WeaponRequirementRule(model_id=200, max_requirement=8),
+                    module.WeaponRequirementRule(model_id=300, min_requirement=1, max_requirement=8),
+                    module.WeaponRequirementRule(model_id=100, min_requirement=1, max_requirement=8),
+                    module.WeaponRequirementRule(model_id=200, min_requirement=1, max_requirement=8),
                 ]
             )
         ]
@@ -2719,9 +3038,9 @@ def _test_display_sort_reads_preserve_saved_child_entry_order(module, temp_root:
                 kind=module.SELL_KIND_WEAPONS,
                 blacklist_model_ids=[300, 100, 200],
                 protected_weapon_requirement_rules=[
-                    module.WeaponRequirementRule(model_id=300, max_requirement=8),
-                    module.WeaponRequirementRule(model_id=100, max_requirement=9),
-                    module.WeaponRequirementRule(model_id=200, max_requirement=10),
+                    module.WeaponRequirementRule(model_id=300, min_requirement=1, max_requirement=8),
+                    module.WeaponRequirementRule(model_id=100, min_requirement=1, max_requirement=9),
+                    module.WeaponRequirementRule(model_id=200, min_requirement=1, max_requirement=10),
                 ],
                 protected_weapon_mod_identifiers=["mod_z", "mod_b", "mod_a"],
                 rule_id="weapon_rule",
@@ -2834,8 +3153,8 @@ def _test_default_protection_jump_targets_still_use_first_stored_entry(module) -
         module.SellRule(
             kind=module.SELL_KIND_WEAPONS,
             protected_weapon_requirement_rules=[
-                module.WeaponRequirementRule(model_id=300, max_requirement=8),
-                module.WeaponRequirementRule(model_id=100, max_requirement=8),
+                module.WeaponRequirementRule(model_id=300, min_requirement=1, max_requirement=8),
+                module.WeaponRequirementRule(model_id=100, min_requirement=1, max_requirement=8),
             ],
         )
     )
@@ -3878,6 +4197,12 @@ def main() -> int:
             ("build_plan_captures_inventory_and_marks_conditional_stock_buy", lambda: _test_build_plan_captures_inventory_and_marks_conditional_stock_buy(module)),
             ("lower_weapon_protection_hard_overrides_higher_explicit_sell", lambda: _test_lower_weapon_protection_hard_overrides_higher_explicit_sell(module)),
             ("protection_only_rules_hard_claim_before_later_sell_rules", lambda: _test_protection_only_rules_hard_claim_before_later_sell_rules(module)),
+            ("global_weapon_requirement_range_is_inclusive_and_excludes_unknown", lambda: _test_global_weapon_requirement_range_is_inclusive_and_excludes_unknown(module)),
+            ("model_specific_weapon_requirement_range_is_inclusive", lambda: _test_model_specific_weapon_requirement_range_is_inclusive(module)),
+            ("model_specific_requirement_range_overrides_global_range", lambda: _test_model_specific_requirement_range_overrides_global_range(module)),
+            ("unconditional_protected_model_still_protects_all_requirements", lambda: _test_unconditional_protected_model_still_protects_all_requirements(module)),
+            ("weapon_requirement_ranges_normalize_swapped_and_zero_endpoints", lambda: _test_weapon_requirement_ranges_normalize_swapped_and_zero_endpoints(module, temp_root)),
+            ("legacy_requirement_thresholds_migrate_to_ranges", lambda: _test_legacy_requirement_thresholds_migrate_to_ranges(module, temp_root)),
             ("keep_count_claims_items_before_later_sell_rules", lambda: _test_keep_count_claims_items_before_later_sell_rules(module)),
             ("common_material_rule_claims_stack_before_later_explicit_sell", lambda: _test_common_material_rule_claims_stack_before_later_explicit_sell(module)),
             ("sell_material_targets_keep_counts_apply_per_model", lambda: _test_sell_material_targets_keep_counts_apply_per_model(module)),
