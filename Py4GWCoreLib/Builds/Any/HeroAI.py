@@ -65,6 +65,9 @@ class HeroAI_Build(BuildMgr):
     def ClearBuildContract(self) -> None:
         self._reset_contract()
 
+    def GetBuildRegistry(self) -> BuildRegistry | None:
+        return self._build_registry
+
     def EnsureBuildContract(self, cached_data=None):
         if cached_data is not None:
             self.set_cached_data(cached_data)
