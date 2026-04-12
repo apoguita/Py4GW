@@ -682,7 +682,7 @@ def _coro_hold_horsemen_position() -> Generator[Any, Any, None]:
     """
     from Py4GWCoreLib.Quest import Quest
     _HOLD_X, _HOLD_Y = 11510, -18234
-    _MAX_DISTANCE = 500.0
+    _MAX_DISTANCE = 80.0
     while True:
         if not Routines.Checks.Map.MapValid():
             return
@@ -699,7 +699,7 @@ def _coro_hold_horsemen_position() -> Generator[Any, Any, None]:
             return
         if Utils.Distance(Player.GetXY(), (_HOLD_X, _HOLD_Y)) > _MAX_DISTANCE:
             Player.Move(_HOLD_X, _HOLD_Y)
-        yield from Routines.Yield.wait(1000)
+        yield from Routines.Yield.wait(250)
 
 
 def _move_with_unstuck(
@@ -1511,6 +1511,12 @@ def The_Four_Horsemen(bot_instance: Botting):
     # Disable WaitIfInAggro so CB does not issue competing movement commands
     # (e.g. moving away from or toward enemies) while we must hold position.
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(False), "Disable WaitIfInAggro for Horsemen hold")
+    # Disable ALL local CB movement utilities (following, automover, etc.)
+    # so nothing overrides the hold position while waiting for the quest.
+    bot_instance.States.AddCustomState(
+        lambda: _get_adapter().toggle_local_movement(False),
+        "Disable local CB movement for Horsemen hold",
+    )
     bot_instance.Move.XY(11510, -18234, "Hold position at Horsemen")
     bot_instance.config.FSM.AddYieldRoutineStep(
         name="Hold position at Horsemen",
@@ -1522,6 +1528,11 @@ def The_Four_Horsemen(bot_instance: Botting):
     bot_instance.States.AddCustomState(
         lambda: Player.ChangeTarget(Player.GetAgentID()),
         "Clear stale target after Horsemen",
+    )
+    # Re-enable local CB movement utilities after the hold.
+    bot_instance.States.AddCustomState(
+        lambda: _get_adapter().toggle_local_movement(True),
+        "Re-enable local CB movement after Horsemen hold",
     )
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Re-enable WaitIfInAggro after Horsemen")
     bot_instance.States.AddCustomState(
@@ -1671,67 +1682,11 @@ def Wrathfull_Spirits(bot_instance: Botting):
     _WS_LOOP_STEP = "Wrathfull Spirits loop start"
     bot_instance.States.AddHeader(_WS_LOOP_STEP)
 
-    _WS_WAYPOINTS = [
-        (-10207, 1746,  "Wrathfull Spirits 2"),
-        (-13566, -229,  "Wrathfull Spirits 3"),
-        (-13287, 1996,  "Wrathfull Spirits 3b"),
-        (-14486, 7113,  "Wrathfull Spirits 4"),
-        (-15226, 4129,  "Wrathfull Spirits 5"),
-    ]
-    _WS_HUNT_RANGE    = 2000.0
-    _WS_ATTACK_RANGE  = 1100.0
-    _WS_TARGET_NAME   = "tortured spirit"
-
-    def _coro_ws_patrol():
-        """Walk through waypoints; after each one, chase any nearby Tortured Spirits
-        into attack range so the party engages them before moving on."""
-        for wx, wy, label in _WS_WAYPOINTS:
-            if not Routines.Checks.Map.MapValid() or Map.GetMapID() != UW_MAP_ID:
-                return
-            yield from Routines.Yield.Movement.FollowPath([(wx, wy)], tolerance=100, timeout=15000)
-            yield from Routines.Yield.wait(300)
-
-            # Hunt Tortured Spirits within range
-            while True:
-                if not Routines.Checks.Map.MapValid() or Map.GetMapID() != UW_MAP_ID:
-                    return
-                px, py = Player.GetXY()
-                spirits = [
-                    (eid, Utils.Distance((px, py), Agent.GetXY(eid)))
-                    for eid in AgentArray.GetEnemyArray()
-                    if Agent.IsAlive(eid)
-                    and _WS_TARGET_NAME in (Agent.GetNameByID(eid) or "").strip().lower()
-                    and Utils.Distance((px, py), Agent.GetXY(eid)) <= _WS_HUNT_RANGE
-                ]
-                if not spirits:
-                    break
-                # Pick closest spirit
-                spirits.sort(key=lambda t: t[1])
-                target_id, dist = spirits[0]
-                if dist > _WS_ATTACK_RANGE:
-                    tx, ty = Agent.GetXY(target_id)
-                    ConsoleLog(BOT_NAME, f"[Wrathful Spirits] Chasing Tortured Spirit ({dist:.0f} away).", Py4GW.Console.MessageType.Info)
-                    yield from Routines.Yield.Movement.FollowPath([(tx, ty)], tolerance=_WS_ATTACK_RANGE, timeout=8000)
-                # Wait for combat to finish this spirit
-                yield from Routines.Yield.wait(2000)
-
-    bot_instance.config.FSM.AddYieldRoutineStep(
-        name="Wrathfull Spirits patrol & hunt",
-        coroutine_fn=_coro_ws_patrol,
-    )
-
-    def _ws_retry_if_not_done():
-        from Py4GWCoreLib.Quest import Quest
-        if not Routines.Checks.Map.MapValid() or Map.GetMapID() != UW_MAP_ID:
-            return
-        active = Quest.GetActiveQuest()
-        if active > 0 and Quest.IsQuestCompleted(active):
-            ConsoleLog(BOT_NAME, "[Wrathful Spirits] Quest complete — proceeding.", Py4GW.Console.MessageType.Info)
-            return
-        ConsoleLog(BOT_NAME, "[Wrathful Spirits] Quest NOT complete — repeating patrol.", Py4GW.Console.MessageType.Warning)
-        bot_instance.config.FSM.jump_to_state_by_name(_WS_LOOP_STEP)
-
-    bot_instance.States.AddCustomState(_ws_retry_if_not_done, "Check Wrathfull Spirits quest done")
+    bot_instance.Move.XY(-10207, 1746, "Wrathfull Spirits 2")
+    bot_instance.Move.XY(-13566, -229, "Wrathfull Spirits 3")
+    bot_instance.Move.XY(-13287, 1996, "Wrathfull Spirits 3b")
+    bot_instance.Move.XY(-14486, 7113, "Wrathfull Spirits 4")
+    bot_instance.Move.XY(-15226, 4129, "Wrathfull Spirits 5")
     bot_instance.Move.XY(-13275, 5261, "go to NPC")
     bot_instance.Move.XY(5755, 12769, "go to NPC")
     bot_instance.Dialogs.WithModel(UWNpcModelID.ReaperOfTheLabyrinth,0x806E07, "Take Reward")
