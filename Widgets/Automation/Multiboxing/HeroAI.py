@@ -2,12 +2,9 @@
 import math
 import os
 import random
-import sys
 import traceback
 import Py4GW
 import PyImGui
-
-from Py4GWCoreLib.Builds.Any.HeroAI import HeroAI_Build
 
 MODULE_NAME = "HeroAI"
 MODULE_ICON = "Textures/Module_Icons/HeroAI.png"
@@ -16,6 +13,7 @@ from Py4GWCoreLib.Map import Map
 from Py4GWCoreLib.Player import Player
 from Py4GWCoreLib.routines_src.BehaviourTrees import BehaviorTree
 
+from HeroAI import build_runtime
 from HeroAI.cache_data import CacheData
 
 from HeroAI.windows import (HeroAI_FloatingWindows ,HeroAI_Windows,)
@@ -29,9 +27,7 @@ from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
 LOOT_THROTTLE_CHECK = ThrottledTimer(250)
 
 cached_data = CacheData()
-heroai_build = HeroAI_Build(cached_data)
 map_quads : list[Map.Pathing.Quad] = []
-build_contract_map_signature: tuple[int, int, int, int] | None = None
 #region Looting
 def LootingNode(cached_data: CacheData)-> BehaviorTree.NodeState:
     options = cached_data.account_options
@@ -89,7 +85,7 @@ def HandleOutOfCombat(cached_data: CacheData):
     if cached_data.data.in_aggro:
         return False
 
-    heroai_build.set_cached_data(cached_data)
+    heroai_build = build_runtime.get_runtime_build(cached_data)
     next(heroai_build.ProcessOOC(), None)
     return heroai_build.DidTickSucceed()
 
@@ -102,7 +98,7 @@ def HandleCombat(cached_data: CacheData):
     if not cached_data.data.in_aggro:
         return False
 
-    heroai_build.set_cached_data(cached_data)
+    heroai_build = build_runtime.get_runtime_build(cached_data)
     next(heroai_build.ProcessCombat(), None)
     return heroai_build.DidTickSucceed()
 
@@ -265,36 +261,23 @@ def handle_UI (cached_data: CacheData):
     HeroAI_FloatingWindows.show_ui(cached_data)
    
 def initialize(cached_data: CacheData) -> bool:  
-    global build_contract_map_signature
-
     if not Routines.Checks.Map.MapValid():
-        heroai_build.ClearBuildContract()
-        build_contract_map_signature = None
+        build_runtime.clear_build_contract(cached_data)
         return False
     
     if not GLOBAL_CACHE.Party.IsPartyLoaded():
         return False
         
     if not Map.IsExplorable():  # halt operation if not in explorable area
-        heroai_build.ClearBuildContract()
-        build_contract_map_signature = None
+        build_runtime.clear_build_contract(cached_data)
         return False
 
     if Map.IsInCinematic():  # halt operation during cinematic
         return False
     
     HeroAI_Windows.DrawFlags(cached_data)
-    #HeroAI_FloatingWindows.draw_Targeting_floating_buttons(cached_data)     
-    heroai_build.set_cached_data(cached_data)
-    map_signature = (
-        int(Map.GetMapID()),
-        int(Map.GetRegion()[0]),
-        int(Map.GetDistrict()),
-        int(Map.GetLanguage()[0]),
-    )
-    if build_contract_map_signature != map_signature:
-        heroai_build.EnsureBuildContract(cached_data)
-        build_contract_map_signature = map_signature
+    # HeroAI_FloatingWindows.draw_Targeting_floating_buttons(cached_data)     
+    build_runtime.sync_build_contract(cached_data)
     cached_data.UpdateCombat()
     return True
 

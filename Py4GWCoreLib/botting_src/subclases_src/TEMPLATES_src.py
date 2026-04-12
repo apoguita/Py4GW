@@ -16,6 +16,19 @@ class _TEMPLATES:
         
     #region Property configuration
 
+    def PacifistForceAutocombat(self):
+        properties = self.parent.Properties
+        properties.Disable("pause_on_danger") #avoid combat
+        properties.Enable("halt_on_death") 
+        properties.Set("movement_timeout",value=15000)
+        properties.Disable("auto_combat") #avoid combat
+        properties.Disable("hero_ai") #no hero combat
+        self.parent.Multibox.SetAccountIsolation(False) #single-account passive mode
+        properties.Disable("auto_loot") #no waiting for loot
+        properties.Disable("imp")
+        
+        #from Widgets.Config.CustomBehaviors.primitives.botting.botting_fsm_helper import BottingFsmHelpers
+        #BottingFsmHelpers.SetBottingBehaviorAsPacifist(self.parent)
     def Pacifist(self):
         properties = self.parent.Properties
         properties.Disable("pause_on_danger") #avoid combat
@@ -27,9 +40,44 @@ class _TEMPLATES:
         properties.Disable("auto_loot") #no waiting for loot
         properties.Disable("imp")
         
-        #from Widgets.Config.CustomBehaviors.primitives.botting.botting_fsm_helper import BottingFsmHelpers
-        #BottingFsmHelpers.SetBottingBehaviorAsPacifist(self.parent)
 
+
+    def AggressiveForceAutocombat(self, pause_on_danger: bool = True,
+                   halt_on_death: bool = False,
+                   movement_timeout: int = -1,
+                   auto_combat: bool = True, 
+                   auto_loot: bool = True,
+                   enable_imp: bool = True):
+        properties = self.parent.Properties
+        if pause_on_danger:
+            properties.Enable("pause_on_danger") #engage in combat
+        else:
+            properties.Disable("pause_on_danger") #avoid combat
+
+        if halt_on_death:
+            properties.Enable("halt_on_death")
+        else:
+            properties.Disable("halt_on_death")
+
+        properties.Set("movement_timeout", value=movement_timeout)
+        #properties.Disable("auto_combat") #deprecated here; HeroAI handles combat now
+        properties.Enable("auto_combat")
+        #properties.Enable("hero_ai") #combat is always driven by HeroAI
+        #if auto_combat:
+        #    self.parent.Multibox.SetAccountIsolation(True) #single-account HeroAI
+        #else:
+        #   self.parent.Multibox.SetAccountIsolation(False) #multi-account HeroAI
+         
+        if auto_loot:   
+            properties.Enable("auto_loot") #wait for loot
+        else:
+            properties.Disable("auto_loot") #no waiting for loot
+            
+        if enable_imp:
+            properties.Enable("imp")
+        else:
+            properties.Disable("imp")
+        
     def Aggressive(self, pause_on_danger: bool = True,
                    halt_on_death: bool = False,
                    movement_timeout: int = -1,
@@ -64,9 +112,7 @@ class _TEMPLATES:
             properties.Enable("imp")
         else:
             properties.Disable("imp")
-        
-        #from Widgets.Config.CustomBehaviors.primitives.botting.botting_fsm_helper import BottingFsmHelpers
-        #BottingFsmHelpers.SetBottingBehaviorAsAggressive(self.parent)
+
         
     def Multibox_Aggressive(self):
         properties = self.parent.Properties
