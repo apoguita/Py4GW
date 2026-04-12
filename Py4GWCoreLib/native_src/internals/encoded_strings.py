@@ -72,6 +72,7 @@ class GWStringEncoded:
 
 
 class GWEncoded():
+    UNKNOWNN = bytes([0x86, 0x21, 0x0, 0x0]) # "Unknown"
     ATTRIBUTE_NAMES = {
         Attribute.FastCasting: bytes([0x1E, 0x9]),
         Attribute.IllusionMagic: bytes([0x20, 0x9]),
