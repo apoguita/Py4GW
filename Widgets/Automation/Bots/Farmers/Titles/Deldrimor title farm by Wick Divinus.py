@@ -203,9 +203,10 @@ def Snowman(bot: Botting):
     # bot.Move.XY(-14673.79, 2621.35) # Default
     bot.Move.XY(-15090.34, 2057.10) # Updated to avoid agroing both corridor and bridge groups
     bot.States.AddCustomState(lambda x=-12482.00, y=3924.00, d=0x84: _do_dialog_at(bot, x, y, d), "Blessing Dialog")
+    bot.Move.XY(-14450.00, 3411.00)
+    bot.States.AddCustomState(_watch_and_send_stuck_if_near_problem_spot, "Recover if near stuck spot")
     bot.Move.XY(-13824.00, 924.00)
     bot.Move.XY(-13752.06, -504.66)
-    bot.States.AddCustomState(_watch_and_send_stuck_if_near_problem_spot, "Recover if near stuck spot")
     bot.Move.XY(-12084.77, -1592.58)
     bot.Move.XY(-12745.70, -3899.97)
     bot.Move.XY(-13262.00, -7346.00)
