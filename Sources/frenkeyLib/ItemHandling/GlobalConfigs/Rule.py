@@ -8,6 +8,7 @@ from Py4GWCoreLib.enums_src.Item_enums import ItemType, Rarity
 from Py4GWCoreLib.enums_src.Model_enums import ModelID
 from Py4GWCoreLib.item_mods_src.item_mod import ItemMod
 from Py4GWCoreLib.item_mods_src.upgrades import Upgrade
+from Sources.frenkeyLib.ItemHandling.Items.item_snapshot import ItemSnapshot
 
 class Rule:
     _registry: ClassVar[dict[str, type["Rule"]]] = {}
@@ -18,6 +19,13 @@ class Rule:
 
     def __init__(self):
         pass
+
+    def get_item(self, item_id: int) -> Optional[ItemSnapshot]:
+        try:
+            return ItemSnapshot.from_item_id(item_id)
+        
+        except Exception:
+            return None
 
     def is_valid(self) -> bool:
         return True
@@ -83,7 +91,11 @@ class ModelIdsRule(Rule):
         if not self.is_valid():
             return False
 
-        model_id = Item.GetModelID(item_id)
+        item_snapshot = self.get_item(item_id)
+        if item_snapshot is None:
+            return False
+
+        model_id = item_snapshot.model_id
         if model_id is None:
             return False
         
@@ -131,7 +143,11 @@ class ItemTypesRule(Rule):
         if not self.is_valid():
             return False
 
-        item_type, _ = Item.GetItemType(item_id)
+        item_snapshot = self.get_item(item_id)
+        if item_snapshot is None:
+            return False
+
+        item_type = item_snapshot.item_type
         return item_type in self.item_types if item_type else False
 
     def _serialize_data(self) -> dict[str, Any]:
@@ -163,7 +179,11 @@ class RaritiesRule(Rule):
         if not self.is_valid():
             return False
 
-        rarity = Item.Rarity.GetRarity(item_id)
+        item_snapshot = self.get_item(item_id)
+        if item_snapshot is None:
+            return False
+
+        rarity = item_snapshot.rarity
         return rarity in self.rarities if rarity else False
 
     def _serialize_data(self) -> dict[str, Any]:
@@ -195,11 +215,15 @@ class DyesRule(Rule):
         if not self.is_valid():
             return False
 
-        item_type, _ = Item.GetItemType(item_id)
+        item_snapshot = self.get_item(item_id)
+        if item_snapshot is None:
+            return False
+
+        item_type = item_snapshot.item_type
         if not item_type or item_type != ItemType.Dye:
             return False
         
-        item_color = Item.GetDyeColor(item_id)        
+        item_color = item_snapshot.color
         return item_color in self.dye_colors if item_color else False
 
     def _serialize_data(self) -> dict[str, Any]:
@@ -240,11 +264,11 @@ class UpgradeRule(Rule):
         if not self.is_valid():
             return False
         
-        item_type, _ = Item.GetItemType(item_id)
-        if not item_type:
+        item_snapshot = self.get_item(item_id)
+        if item_snapshot is None:
             return False
         
-        item_type = ItemType(item_type)
+        item_type = item_snapshot.item_type
         if item_type == ItemType.Rune_Mod:
             item_type = ItemMod.get_target_item_type(item_id) or item_type
         
