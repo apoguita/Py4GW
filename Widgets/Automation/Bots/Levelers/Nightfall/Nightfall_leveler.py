@@ -80,7 +80,7 @@ def create_bot_routine(bot: Botting) -> None:
     Chahbek_Village_Mission(bot)
     Primary_Training(bot)
     A_Personal_Vault(bot)
-    Armored_Transport(bot)
+    #Armored_Transport(bot)  #Screw this guy
     Material_Girl(bot)
     Hog_Hunt(bot)
     To_Champions_Dawn(bot)
