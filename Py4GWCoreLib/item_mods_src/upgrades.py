@@ -57,7 +57,6 @@ class Upgrade:
     property_identifiers: ClassVar[list[ModifierIdentifierSpec]] = []
     max_modifier_values: ClassVar[dict[ModifierIdentifier, tuple[int, int]]] = {}
     encoded_name: ClassVar[bytes] = bytes()
-    encoded_description: ClassVar[bytes] = bytes()
     descriptions: ClassVar[dict[ServerLanguage, str]] = {}
 
     rarity: Rarity = field(init=False, default=Rarity.Blue, repr=False, compare=False)
@@ -451,7 +450,7 @@ class Upgrade:
         return GWStringEncoded(self.encoded_name, f"no encoded name ({self.__class__.__name__})")
     
     def create_encoded_description(self) -> GWStringEncoded:
-        return GWStringEncoded(self.encoded_description, f"no encoded description ({self.__class__.__name__})")
+        return GWStringEncoded(bytes(), f"no encoded description ({self.__class__.__name__})")
 
     def _comparison_data(self) -> tuple[str, tuple[tuple[str, Any], ...]]:
         comparison_values = {
@@ -1203,7 +1202,7 @@ class BeJustAndFearNot(Inscription):
     
     
     def create_encoded_name(self) -> GWStringEncoded:
-        return GWStringEncoded(GWEncoded.ITEM_BASIC + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x90, 0x5D, 0x1, 0x0]), f"Be Just And Fear Not")
+        return GWStringEncoded(self.get_text_color() + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x90, 0x5D, 0x1, 0x0]), f"Be Just And Fear Not")
         
 @dataclass(eq=False)
 class DownButNotOut(Inscription):
@@ -1223,7 +1222,7 @@ class DownButNotOut(Inscription):
 
     
     def create_encoded_name(self) -> GWStringEncoded:
-        return GWStringEncoded(GWEncoded.ITEM_BASIC + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x8E, 0x5D, 0x1, 0x0]), f"Down But Not Out")    
+        return GWStringEncoded(self.get_text_color() + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x8E, 0x5D, 0x1, 0x0]), f"Down But Not Out")    
     
 @dataclass(eq=False)
 class FaithIsMyShield(Inscription):
@@ -1238,7 +1237,7 @@ class FaithIsMyShield(Inscription):
     
     
     def create_encoded_name(self) -> GWStringEncoded:
-        return GWStringEncoded(GWEncoded.ITEM_BASIC + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x8D, 0x5D, 0x1, 0x0]), f"Faith Is My Shield")
+        return GWStringEncoded(self.get_text_color() + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x8D, 0x5D, 0x1, 0x0]), f"Faith Is My Shield")
     
 @dataclass(eq=False)
 class ForgetMeNot(Inscription):
@@ -1253,7 +1252,7 @@ class ForgetMeNot(Inscription):
 
     
     def create_encoded_name(self) -> GWStringEncoded:
-        return GWStringEncoded(GWEncoded.ITEM_BASIC + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x93, 0x5D, 0x1, 0x0]), f"Forget Me Not")
+        return GWStringEncoded(self.get_text_color() + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x93, 0x5D, 0x1, 0x0]), f"Forget Me Not")
     
 @dataclass(eq=False)
 class HailToTheKing(Inscription):
@@ -1273,7 +1272,7 @@ class HailToTheKing(Inscription):
 
     
     def create_encoded_name(self) -> GWStringEncoded:
-        return GWStringEncoded(GWEncoded.ITEM_BASIC + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x8F, 0x5D, 0x1, 0x0]), f"Hail To The King")
+        return GWStringEncoded(self.get_text_color() + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x8F, 0x5D, 0x1, 0x0]), f"Hail To The King")
     
 @dataclass(eq=False)
 class IgnoranceIsBliss(Inscription):
@@ -1291,7 +1290,7 @@ class IgnoranceIsBliss(Inscription):
 
     
     def create_encoded_name(self) -> GWStringEncoded:
-        return GWStringEncoded(GWEncoded.ITEM_BASIC + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x87, 0x5D, 0x1, 0x0]), f"Ignorance Is Bliss")
+        return GWStringEncoded(self.get_text_color() + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x87, 0x5D, 0x1, 0x0]), f"Ignorance Is Bliss")
     
 @dataclass(eq=False)
 class KnowingIsHalfTheBattle(Inscription):
@@ -1306,7 +1305,7 @@ class KnowingIsHalfTheBattle(Inscription):
     
     
     def create_encoded_name(self) -> GWStringEncoded:
-        return GWStringEncoded(GWEncoded.ITEM_BASIC + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x8C, 0x5D, 0x1, 0x0]), f"Knowing Is Half The Battle")
+        return GWStringEncoded(self.get_text_color() + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x8C, 0x5D, 0x1, 0x0]), f"Knowing Is Half The Battle")
     
 @dataclass(eq=False)
 class LifeIsPain(Inscription):
@@ -1324,7 +1323,7 @@ class LifeIsPain(Inscription):
 
     
     def create_encoded_name(self) -> GWStringEncoded:
-        return GWStringEncoded(GWEncoded.ITEM_BASIC + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x88, 0x5D, 0x1, 0x0]), f"Life Is Pain")
+        return GWStringEncoded(self.get_text_color() + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x88, 0x5D, 0x1, 0x0]), f"Life Is Pain")
     
 @dataclass(eq=False)
 class LiveForToday(Inscription):
@@ -1342,7 +1341,7 @@ class LiveForToday(Inscription):
 
     
     def create_encoded_name(self) -> GWStringEncoded:
-        return GWStringEncoded(GWEncoded.ITEM_BASIC + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x91, 0x5D, 0x1, 0x0]), f"Live For Today")
+        return GWStringEncoded(self.get_text_color() + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x91, 0x5D, 0x1, 0x0]), f"Live For Today")
     
 @dataclass(eq=False)
 class ManForAllSeasons(Inscription):
@@ -1357,7 +1356,7 @@ class ManForAllSeasons(Inscription):
 
     
     def create_encoded_name(self) -> GWStringEncoded:
-        return GWStringEncoded(GWEncoded.ITEM_BASIC + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x89, 0x5D, 0x1, 0x0]), f"Man For All Seasons")
+        return GWStringEncoded(self.get_text_color() + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x89, 0x5D, 0x1, 0x0]), f"Man For All Seasons")
     
 @dataclass(eq=False)
 class MightMakesRight(Inscription):
@@ -1372,7 +1371,7 @@ class MightMakesRight(Inscription):
 
     
     def create_encoded_name(self) -> GWStringEncoded:
-        return GWStringEncoded(GWEncoded.ITEM_BASIC + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x8B, 0x5D, 0x1, 0x0]), f"Might Makes Right")
+        return GWStringEncoded(self.get_text_color() + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x8B, 0x5D, 0x1, 0x0]), f"Might Makes Right")
     
 @dataclass(eq=False)
 class SerenityNow(Inscription):
@@ -1387,7 +1386,7 @@ class SerenityNow(Inscription):
 
     
     def create_encoded_name(self) -> GWStringEncoded:
-        return GWStringEncoded(GWEncoded.ITEM_BASIC + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x92, 0x5D, 0x1, 0x0]), f"Serenity Now")
+        return GWStringEncoded(self.get_text_color() + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x92, 0x5D, 0x1, 0x0]), f"Serenity Now")
     
 @dataclass(eq=False)
 class SurvivalOfTheFittest(Inscription):
@@ -1402,7 +1401,7 @@ class SurvivalOfTheFittest(Inscription):
 
     
     def create_encoded_name(self) -> GWStringEncoded:
-        return GWStringEncoded(GWEncoded.ITEM_BASIC + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x8A, 0x5D, 0x1, 0x0]), f"Survival Of The Fittest")
+        return GWStringEncoded(self.get_text_color() + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x8A, 0x5D, 0x1, 0x0]), f"Survival Of The Fittest")
 
 #endregion Offhand
 
@@ -1424,7 +1423,7 @@ class BrawnOverBrains(Inscription):
 
     
     def create_encoded_name(self) -> GWStringEncoded:
-        return GWStringEncoded(GWEncoded.ITEM_BASIC + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0xAE, 0x5D, 0x1, 0x0]), f"Brawn Over Brains")
+        return GWStringEncoded(self.get_text_color() + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0xAE, 0x5D, 0x1, 0x0]), f"Brawn Over Brains")
         
 @dataclass(eq=False)
 class DanceWithDeath(Inscription):
@@ -1439,7 +1438,7 @@ class DanceWithDeath(Inscription):
 
     
     def create_encoded_name(self) -> GWStringEncoded:
-        return GWStringEncoded(GWEncoded.ITEM_BASIC + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0xAD, 0x5D, 0x1, 0x0]), f"Dance With Death")
+        return GWStringEncoded(self.get_text_color() + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0xAD, 0x5D, 0x1, 0x0]), f"Dance With Death")
          
 @dataclass(eq=False)
 class DontFearTheReaper(Inscription):
@@ -1454,7 +1453,7 @@ class DontFearTheReaper(Inscription):
 
     
     def create_encoded_name(self) -> GWStringEncoded:
-        return GWStringEncoded(GWEncoded.ITEM_BASIC + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0xAC, 0x5D, 0x1, 0x0]), f"Dont Fear The Reaper")
+        return GWStringEncoded(self.get_text_color() + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0xAC, 0x5D, 0x1, 0x0]), f"Dont Fear The Reaper")
     
 @dataclass(eq=False)
 class DontThinkTwice(Inscription):
@@ -1469,7 +1468,7 @@ class DontThinkTwice(Inscription):
 
     
     def create_encoded_name(self) -> GWStringEncoded:
-        return GWStringEncoded(GWEncoded.ITEM_BASIC + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0xB0, 0x5D, 0x1, 0x0]), f"Dont Think Twice")
+        return GWStringEncoded(self.get_text_color() + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0xB0, 0x5D, 0x1, 0x0]), f"Dont Think Twice")
     
 @dataclass(eq=False)
 class GuidedByFate(Inscription):
@@ -1484,7 +1483,7 @@ class GuidedByFate(Inscription):
 
     
     def create_encoded_name(self) -> GWStringEncoded:
-        return GWStringEncoded(GWEncoded.ITEM_BASIC + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0xA9, 0x5D, 0x1, 0x0]), f"Guided By Fate")
+        return GWStringEncoded(self.get_text_color() + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0xA9, 0x5D, 0x1, 0x0]), f"Guided By Fate")
     
 @dataclass(eq=False)
 class StrengthAndHonor(Inscription):
@@ -1504,7 +1503,7 @@ class StrengthAndHonor(Inscription):
 
     
     def create_encoded_name(self) -> GWStringEncoded:
-        return GWStringEncoded(GWEncoded.ITEM_BASIC + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0xAA, 0x5D, 0x1, 0x0]), f"Strength And Honor")
+        return GWStringEncoded(self.get_text_color() + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0xAA, 0x5D, 0x1, 0x0]), f"Strength And Honor")
     
 @dataclass(eq=False)
 class ToThePain(Inscription):
@@ -1522,7 +1521,7 @@ class ToThePain(Inscription):
 
     
     def create_encoded_name(self) -> GWStringEncoded:
-        return GWStringEncoded(GWEncoded.ITEM_BASIC + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0xAF, 0x5D, 0x1, 0x0]), f"To The Pain")
+        return GWStringEncoded(self.get_text_color() + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0xAF, 0x5D, 0x1, 0x0]), f"To The Pain")
     
 @dataclass(eq=False)
 class TooMuchInformation(Inscription):
@@ -1537,7 +1536,7 @@ class TooMuchInformation(Inscription):
 
     
     def create_encoded_name(self) -> GWStringEncoded:
-        return GWStringEncoded(GWEncoded.ITEM_BASIC + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0xA8, 0x5D, 0x1, 0x0]), f"Too Much Information")
+        return GWStringEncoded(self.get_text_color() + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0xA8, 0x5D, 0x1, 0x0]), f"Too Much Information")
     
 @dataclass(eq=False)
 class VengeanceIsMine(Inscription):
@@ -1557,7 +1556,7 @@ class VengeanceIsMine(Inscription):
 
     
     def create_encoded_name(self) -> GWStringEncoded:
-        return GWStringEncoded(GWEncoded.ITEM_BASIC + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0xAB, 0x5D, 0x1, 0x0]), f"Vengeance Is Mine")
+        return GWStringEncoded(self.get_text_color() + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0xAB, 0x5D, 0x1, 0x0]), f"Vengeance Is Mine")
 
 #endregion Weapon
 
@@ -1575,7 +1574,7 @@ class IHaveThePower(Inscription):
 
     
     def create_encoded_name(self) -> GWStringEncoded:
-        return GWStringEncoded(GWEncoded.ITEM_BASIC + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x72, 0x5D, 0x1, 0x0]), f"I Have The Power")
+        return GWStringEncoded(self.get_text_color() + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x72, 0x5D, 0x1, 0x0]), f"I Have The Power")
     
 @dataclass(eq=False)
 class LetTheMemoryLiveAgain(Inscription):
@@ -1590,7 +1589,7 @@ class LetTheMemoryLiveAgain(Inscription):
 
     
     def create_encoded_name(self) -> GWStringEncoded:
-        return GWStringEncoded(GWEncoded.ITEM_BASIC + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x73, 0x5D, 0x1, 0x0]), f"Let The Memory Live Again")
+        return GWStringEncoded(self.get_text_color() + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x73, 0x5D, 0x1, 0x0]), f"Let The Memory Live Again")
     
 #endregion MartialWeapon
 
@@ -1607,7 +1606,7 @@ class CastOutTheUnclean(Inscription):
 
     
     def create_encoded_name(self) -> GWStringEncoded:
-        return GWStringEncoded(GWEncoded.ITEM_BASIC + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x83, 0x5D, 0x1, 0x0]), f"Cast Out The Unclean")
+        return GWStringEncoded(self.get_text_color() + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x83, 0x5D, 0x1, 0x0]), f"Cast Out The Unclean")
     
 @dataclass(eq=False)
 class FearCutsDeeper(Inscription):
@@ -1621,7 +1620,7 @@ class FearCutsDeeper(Inscription):
 
     
     def create_encoded_name(self) -> GWStringEncoded:
-        return GWStringEncoded(GWEncoded.ITEM_BASIC + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x7F, 0x5D, 0x1, 0x0]), f"Fear Cuts Deeper")
+        return GWStringEncoded(self.get_text_color() + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x7F, 0x5D, 0x1, 0x0]), f"Fear Cuts Deeper")
     
 @dataclass(eq=False)
 class ICanSeeClearlyNow(Inscription):
@@ -1635,7 +1634,7 @@ class ICanSeeClearlyNow(Inscription):
 
     
     def create_encoded_name(self) -> GWStringEncoded:
-        return GWStringEncoded(GWEncoded.ITEM_BASIC + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x80, 0x5D, 0x1, 0x0]), f"I Can See Clearly Now")
+        return GWStringEncoded(self.get_text_color() + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x80, 0x5D, 0x1, 0x0]), f"I Can See Clearly Now")
     
 @dataclass(eq=False)
 class LeafOnTheWind(Inscription):
@@ -1655,7 +1654,7 @@ class LeafOnTheWind(Inscription):
 
     
     def create_encoded_name(self) -> GWStringEncoded:
-        return GWStringEncoded(GWEncoded.ITEM_BASIC + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x75, 0x5D, 0x1, 0x0]), f"Leaf On The Wind")
+        return GWStringEncoded(self.get_text_color() + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x75, 0x5D, 0x1, 0x0]), f"Leaf On The Wind")
     
 @dataclass(eq=False)
 class LikeARollingStone(Inscription):
@@ -1675,7 +1674,7 @@ class LikeARollingStone(Inscription):
 
     
     def create_encoded_name(self) -> GWStringEncoded:
-        return GWStringEncoded(GWEncoded.ITEM_BASIC + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x76, 0x5D, 0x1, 0x0]), f"Like A Rolling Stone")
+        return GWStringEncoded(self.get_text_color() + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x76, 0x5D, 0x1, 0x0]), f"Like A Rolling Stone")
     
 @dataclass(eq=False)
 class LuckOfTheDraw(Inscription):
@@ -1695,7 +1694,7 @@ class LuckOfTheDraw(Inscription):
 
     
     def create_encoded_name(self) -> GWStringEncoded:
-        return GWStringEncoded(GWEncoded.ITEM_BASIC + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x7B, 0x5D, 0x1, 0x0]), f"Luck Of The Draw")
+        return GWStringEncoded(self.get_text_color() + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x7B, 0x5D, 0x1, 0x0]), f"Luck Of The Draw")
     
 @dataclass(eq=False)
 class MasterOfMyDomain(Inscription):
@@ -1712,7 +1711,7 @@ class MasterOfMyDomain(Inscription):
 
     
     def create_encoded_name(self) -> GWStringEncoded:
-        return GWStringEncoded(GWEncoded.ITEM_BASIC + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0xA7, 0x5D, 0x1, 0x0]), f"Master Of My Domain")
+        return GWStringEncoded(self.get_text_color() + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0xA7, 0x5D, 0x1, 0x0]), f"Master Of My Domain")
     
 @dataclass(eq=False)
 class NotTheFace(Inscription):
@@ -1732,7 +1731,7 @@ class NotTheFace(Inscription):
 
     
     def create_encoded_name(self) -> GWStringEncoded:
-        return GWStringEncoded(GWEncoded.ITEM_BASIC + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x74, 0x5D, 0x1, 0x0]), f"Not The Face")
+        return GWStringEncoded(self.get_text_color() + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x74, 0x5D, 0x1, 0x0]), f"Not The Face")
     
 @dataclass(eq=False)
 class NothingToFear(Inscription):
@@ -1747,7 +1746,7 @@ class NothingToFear(Inscription):
 
     
     def create_encoded_name(self) -> GWStringEncoded:
-        return GWStringEncoded(GWEncoded.ITEM_BASIC + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x7D, 0x5D, 0x1, 0x0]), f"Nothing To Fear")
+        return GWStringEncoded(self.get_text_color() + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x7D, 0x5D, 0x1, 0x0]), f"Nothing To Fear")
     
 @dataclass(eq=False)
 class OnlyTheStrongSurvive(Inscription):
@@ -1761,7 +1760,7 @@ class OnlyTheStrongSurvive(Inscription):
 
     
     def create_encoded_name(self) -> GWStringEncoded:
-        return GWStringEncoded(GWEncoded.ITEM_BASIC + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x86, 0x5D, 0x1, 0x0]), f"Only The Strong Survive")
+        return GWStringEncoded(self.get_text_color() + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x86, 0x5D, 0x1, 0x0]), f"Only The Strong Survive")
     
 @dataclass(eq=False)
 class PureOfHeart(Inscription):
@@ -1775,7 +1774,7 @@ class PureOfHeart(Inscription):
 
     
     def create_encoded_name(self) -> GWStringEncoded:
-        return GWStringEncoded(GWEncoded.ITEM_BASIC + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x84, 0x5D, 0x1, 0x0]), f"Pure Of Heart")
+        return GWStringEncoded(self.get_text_color() + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x84, 0x5D, 0x1, 0x0]), f"Pure Of Heart")
     
 @dataclass(eq=False)
 class RidersOnTheStorm(Inscription):
@@ -1795,7 +1794,7 @@ class RidersOnTheStorm(Inscription):
 
     
     def create_encoded_name(self) -> GWStringEncoded:
-        return GWStringEncoded(GWEncoded.ITEM_BASIC + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x77, 0x5D, 0x1, 0x0]), f"Riders On The Storm")
+        return GWStringEncoded(self.get_text_color() + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x77, 0x5D, 0x1, 0x0]), f"Riders On The Storm")
     
 @dataclass(eq=False)
 class RunForYourLife(Inscription):
@@ -1810,7 +1809,7 @@ class RunForYourLife(Inscription):
 
     
     def create_encoded_name(self) -> GWStringEncoded:
-        return GWStringEncoded(GWEncoded.ITEM_BASIC + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x7E, 0x5D, 0x1, 0x0]), f"Run For Your Life")  
+        return GWStringEncoded(self.get_text_color() + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x7E, 0x5D, 0x1, 0x0]), f"Run For Your Life")  
     
 @dataclass(eq=False)
 class ShelteredByFaith(Inscription):
@@ -1825,7 +1824,7 @@ class ShelteredByFaith(Inscription):
 
     
     def create_encoded_name(self) -> GWStringEncoded:
-        return GWStringEncoded(GWEncoded.ITEM_BASIC + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x7C, 0x5D, 0x1, 0x0]), f"Sheltered By Faith")
+        return GWStringEncoded(self.get_text_color() + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x7C, 0x5D, 0x1, 0x0]), f"Sheltered By Faith")
     
 @dataclass(eq=False)
 class SleepNowInTheFire(Inscription):
@@ -1845,7 +1844,7 @@ class SleepNowInTheFire(Inscription):
 
     
     def create_encoded_name(self) -> GWStringEncoded:
-        return GWStringEncoded(GWEncoded.ITEM_BASIC + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x78, 0x5D, 0x1, 0x0]), f"Sleep Now In The Fire")
+        return GWStringEncoded(self.get_text_color() + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x78, 0x5D, 0x1, 0x0]), f"Sleep Now In The Fire")
     
 @dataclass(eq=False)
 class SoundnessOfMind(Inscription):
@@ -1859,7 +1858,7 @@ class SoundnessOfMind(Inscription):
 
     
     def create_encoded_name(self) -> GWStringEncoded:
-        return GWStringEncoded(GWEncoded.ITEM_BASIC + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x85, 0x5D, 0x1, 0x0]), f"Soundness Of Mind")
+        return GWStringEncoded(self.get_text_color() + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x85, 0x5D, 0x1, 0x0]), f"Soundness Of Mind")
     
 @dataclass(eq=False)
 class StrengthOfBody(Inscription):
@@ -1873,7 +1872,7 @@ class StrengthOfBody(Inscription):
 
     
     def create_encoded_name(self) -> GWStringEncoded:
-        return GWStringEncoded(GWEncoded.ITEM_BASIC + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x82, 0x5D, 0x1, 0x0]), f"Strength Of Body")
+        return GWStringEncoded(self.get_text_color() + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x82, 0x5D, 0x1, 0x0]), f"Strength Of Body")
     
 @dataclass(eq=False)
 class SwiftAsTheWind(Inscription):
@@ -1887,7 +1886,7 @@ class SwiftAsTheWind(Inscription):
 
     
     def create_encoded_name(self) -> GWStringEncoded:
-        return GWStringEncoded(GWEncoded.ITEM_BASIC + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x81, 0x5D, 0x1, 0x0]), f"Swift As The Wind")
+        return GWStringEncoded(self.get_text_color() + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x81, 0x5D, 0x1, 0x0]), f"Swift As The Wind")
 
 @dataclass(eq=False)
 class TheRiddleOfSteel(Inscription):
@@ -1907,7 +1906,7 @@ class TheRiddleOfSteel(Inscription):
 
     
     def create_encoded_name(self) -> GWStringEncoded:
-        return GWStringEncoded(GWEncoded.ITEM_BASIC + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x7A, 0x5D, 0x1, 0x0]), f"The Riddle Of Steel")
+        return GWStringEncoded(self.get_text_color() + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x7A, 0x5D, 0x1, 0x0]), f"The Riddle Of Steel")
     
 @dataclass(eq=False)
 class ThroughThickAndThin(Inscription):
@@ -1927,7 +1926,7 @@ class ThroughThickAndThin(Inscription):
 
     
     def create_encoded_name(self) -> GWStringEncoded:
-        return GWStringEncoded(GWEncoded.ITEM_BASIC + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x79, 0x5D, 0x1, 0x0]), f"Through Thick And Thin")
+        return GWStringEncoded(self.get_text_color() + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0x79, 0x5D, 0x1, 0x0]), f"Through Thick And Thin")
 
 #endregion OffhandOrShield
 
@@ -1944,7 +1943,7 @@ class MeasureForMeasure(Inscription):
 
     
     def create_encoded_name(self) -> GWStringEncoded:
-        return GWStringEncoded(GWEncoded.ITEM_BASIC + GWEncoded.INSCRIPTION_STR1 + bytes([0x81, 0x7C, 0x1, 0x0]), f"Measure For Measure")
+        return GWStringEncoded(self.get_text_color() + GWEncoded.INSCRIPTION_STR1 + bytes([0x81, 0x7C, 0x1, 0x0]), f"Measure For Measure")
         
 @dataclass(eq=False)
 class ShowMeTheMoney(Inscription):
@@ -1958,7 +1957,7 @@ class ShowMeTheMoney(Inscription):
 
     
     def create_encoded_name(self) -> GWStringEncoded:
-        return GWStringEncoded(GWEncoded.ITEM_BASIC + GWEncoded.INSCRIPTION_STR1 + bytes([0x80, 0x7C, 0x1, 0x0]), f"Show Me The Money")
+        return GWStringEncoded(self.get_text_color() + GWEncoded.INSCRIPTION_STR1 + bytes([0x80, 0x7C, 0x1, 0x0]), f"Show Me The Money")
 
 #endregion EquippableItem
 
@@ -1976,7 +1975,7 @@ class AptitudeNotAttitude(Inscription):
 
     
     def create_encoded_name(self) -> GWStringEncoded:
-        return GWStringEncoded(GWEncoded.ITEM_BASIC + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0xB2, 0x5D, 0x1, 0x0]), f"Aptitude Not Attitude")
+        return GWStringEncoded(self.get_text_color() + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0xB2, 0x5D, 0x1, 0x0]), f"Aptitude Not Attitude")
     
 @dataclass(eq=False)
 class DontCallItAComeback(Inscription):
@@ -1996,7 +1995,7 @@ class DontCallItAComeback(Inscription):
 
     
     def create_encoded_name(self) -> GWStringEncoded:
-        return GWStringEncoded(GWEncoded.ITEM_BASIC + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0xB6, 0x5D, 0x1, 0x0]), f"Don't Call It A Comeback")
+        return GWStringEncoded(self.get_text_color() + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0xB6, 0x5D, 0x1, 0x0]), f"Don't Call It A Comeback")
     
 @dataclass(eq=False)
 class HaleAndHearty(Inscription):
@@ -2016,7 +2015,7 @@ class HaleAndHearty(Inscription):
 
     
     def create_encoded_name(self) -> GWStringEncoded:
-        return GWStringEncoded(GWEncoded.ITEM_BASIC + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0xB5, 0x5D, 0x1, 0x0]), f"Hale And Hearty")
+        return GWStringEncoded(self.get_text_color() + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0xB5, 0x5D, 0x1, 0x0]), f"Hale And Hearty")
     
 @dataclass(eq=False)
 class HaveFaith(Inscription):
@@ -2031,7 +2030,7 @@ class HaveFaith(Inscription):
 
     
     def create_encoded_name(self) -> GWStringEncoded:
-        return GWStringEncoded(GWEncoded.ITEM_BASIC + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0xB4, 0x5D, 0x1, 0x0]), f"Have Faith")
+        return GWStringEncoded(self.get_text_color() + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0xB4, 0x5D, 0x1, 0x0]), f"Have Faith")
     
 @dataclass(eq=False)
 class IAmSorrow(Inscription):
@@ -2046,7 +2045,7 @@ class IAmSorrow(Inscription):
 
     
     def create_encoded_name(self) -> GWStringEncoded:
-        return GWStringEncoded(GWEncoded.ITEM_BASIC + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0xB7, 0x5D, 0x1, 0x0]), f"I Am Sorrow")
+        return GWStringEncoded(self.get_text_color() + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0xB7, 0x5D, 0x1, 0x0]), f"I Am Sorrow")
     
 @dataclass(eq=False)
 class SeizeTheDay(Inscription):
@@ -2064,7 +2063,7 @@ class SeizeTheDay(Inscription):
 
     
     def create_encoded_name(self) -> GWStringEncoded:
-        return GWStringEncoded(GWEncoded.ITEM_BASIC + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0xB3, 0x5D, 0x1, 0x0]), f"Seize The Day")
+        return GWStringEncoded(self.get_text_color() + GWEncoded.INSCRIPTION_STR1 + bytes([0x1, 0x81, 0xB3, 0x5D, 0x1, 0x0]), f"Seize The Day")
 
 #endregion SpellcastingWeapon
 #endregion Inscriptions
@@ -2083,7 +2082,7 @@ class Inherent(Upgrade):
     
     def create_encoded_description(self) -> GWStringEncoded:
         if not self.properties:
-            return GWStringEncoded(self.encoded_description, f"NO PROPERTIES! Thus no encoded description ({self.__class__.__name__})")
+            return GWStringEncoded(bytes(), f"[Inherent] No properties present. Thus no encoded description ({self.__class__.__name__})")
         
         parts = [prop.encoded_description for prop in self.properties.values() if prop.encoded_description]
         return GWEncoded.combine_encoded_strings(parts, "no encoded description")
