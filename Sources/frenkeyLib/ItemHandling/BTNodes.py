@@ -63,7 +63,6 @@ from Py4GWCoreLib.enums_src.Item_enums import MAX_STACK_SIZE
 from Py4GWCoreLib.enums_src.Model_enums import ModelID
 from Py4GWCoreLib.enums_src.Region_enums import ServerLanguage
 from Py4GWCoreLib.py4gwcorelib_src.BehaviorTree import BehaviorTree
-from Sources.frenkeyLib.ItemHandling.Items.ItemCache import ITEM_CACHE
 from Sources.frenkeyLib.ItemHandling.Items.item_snapshot import ItemSnapshot
 from Sources.frenkeyLib.ItemHandling.Items.types import INVENTORY_BAGS, STORAGE_BAGS
 from Sources.frenkeyLib.ItemHandling.Rules.types import MATERIAL_SLOTS, SalvageMode
@@ -135,7 +134,7 @@ class BTNodes:
                 if not UIManagerExtensions.IsMerchantWindowOpen():
                     return BehaviorTree.NodeState.FAILURE
                 
-                inventory_snapshot = ITEM_CACHE.get_inventory_snapshot(Bag.Backpack, Bag.Bag_2)
+                inventory_snapshot = ItemSnapshot.get_inventory_snapshot(Bag.Backpack, Bag.Bag_2)
                 current_qty = sum(i.quantity for bag in inventory_snapshot.values() for i in bag.values() if i is not None and i.is_valid and i.model_id == model_id and i.item_type == item_type) if inventory_snapshot else 0
                 
                 if current_qty >= quantity:
@@ -185,7 +184,7 @@ class BTNodes:
                 if not UIManagerExtensions.IsMerchantWindowOpen():
                     return BehaviorTree.NodeState.FAILURE
                 
-                items = [ITEM_CACHE.get_item_snapshot(iid) for iid in item_ids]
+                items = [ItemSnapshot.from_item_id(iid) for iid in item_ids]
                 sold_any = False
                 for item in items:
                     if item is None or not item.is_valid or not item.is_inventory_item:
@@ -339,7 +338,7 @@ class BTNodes:
                 if item_id not in offered_items:
                     return BehaviorTree.NodeState.FAILURE
                 
-                item = ITEM_CACHE.get_item_snapshot(item_id)
+                item = ItemSnapshot.from_item_id(item_id)
                 if not item or not item.is_valid:
                     return BehaviorTree.NodeState.FAILURE
                                  
@@ -348,7 +347,7 @@ class BTNodes:
                 
                 if state is None:
                     state = BTNodes.Trader.TraderProgress()
-                    inventory_snapshot = ITEM_CACHE.get_inventory_snapshot(Bag.Backpack, Bag.Bag_2)
+                    inventory_snapshot = ItemSnapshot.get_inventory_snapshot(Bag.Backpack, Bag.Bag_2)
                     state.initial_qty = sum(i.quantity for bag in inventory_snapshot.values() for i in bag.values() if i is not None and i.is_valid and i.same_kind_as(item)) if inventory_snapshot else 0
                     state.desired_qty = state.initial_qty + quantity
                     node.blackboard["trader_buy_progress"] = state
@@ -372,7 +371,7 @@ class BTNodes:
                             return BehaviorTree.NodeState.RUNNING
                     
                     if not state.trade_confirmed:
-                        inventory_snapshot = ITEM_CACHE.get_inventory_snapshot(Bag.Backpack, Bag.Bag_2)
+                        inventory_snapshot = ItemSnapshot.get_inventory_snapshot(Bag.Backpack, Bag.Bag_2)
                         state.current_qty = sum(i.quantity for bag in inventory_snapshot.values() for i in bag.values() if i is not None and i.is_valid and i.same_kind_as(item)) if inventory_snapshot else 0
                         state.trade_confirmed = state.current_qty > state.initial_qty
                         
@@ -428,7 +427,7 @@ class BTNodes:
                 if not UIManagerExtensions.IsMerchantWindowOpen():
                     return BehaviorTree.NodeState.FAILURE
                                 
-                item = ITEM_CACHE.get_item_snapshot(item_id)
+                item = ItemSnapshot.from_item_id(item_id)
                 
                 if not item or not item.is_valid or not item.is_inventory_item:
                     return BehaviorTree.NodeState.SUCCESS
@@ -438,7 +437,7 @@ class BTNodes:
                 
                 if state is None:
                     state = BTNodes.Trader.TraderProgress()
-                    inventory_snapshot = ITEM_CACHE.get_inventory_snapshot(Bag.Backpack, Bag.Bag_2)
+                    inventory_snapshot = ItemSnapshot.get_inventory_snapshot(Bag.Backpack, Bag.Bag_2)
                     state.initial_qty = sum(i.quantity for bag in inventory_snapshot.values() for i in bag.values() if i is not None and i.is_valid and i.same_kind_as(item)) if inventory_snapshot else 0
                     state.current_qty = state.initial_qty
                     state.desired_qty = state.initial_qty - (quantity if not item.is_material or item.is_rare_material else quantity // 10 * 10)
@@ -463,7 +462,7 @@ class BTNodes:
                             return BehaviorTree.NodeState.RUNNING
                     
                     if not state.trade_confirmed:
-                        inventory_snapshot = ITEM_CACHE.get_inventory_snapshot(Bag.Backpack, Bag.Bag_2)
+                        inventory_snapshot = ItemSnapshot.get_inventory_snapshot(Bag.Backpack, Bag.Bag_2)
                         state.current_qty = sum(i.quantity for bag in inventory_snapshot.values() for i in bag.values() if i is not None and i.is_valid and i.same_kind_as(item)) if inventory_snapshot else 0
                         state.trade_confirmed = state.current_qty < state.initial_qty
                         
@@ -529,7 +528,7 @@ class BTNodes:
                     return BehaviorTree.NodeState.FAILURE
 
                 used_any = False
-                items = [ITEM_CACHE.get_item_snapshot(iid) for iid in item_ids]
+                items = [ItemSnapshot.from_item_id(iid) for iid in item_ids]
                 
                 for item in items:
                     if item is None or not item.is_valid or not item.is_inventory_item:
@@ -566,7 +565,7 @@ class BTNodes:
                     return BehaviorTree.NodeState.FAILURE
 
                 dropped_any = False
-                items = [ITEM_CACHE.get_item_snapshot(iid) for iid in item_ids]
+                items = [ItemSnapshot.from_item_id(iid) for iid in item_ids]
                 
                 for item in items:
                     if item is None or not item.is_valid or not item.is_inventory_item:
@@ -602,7 +601,7 @@ class BTNodes:
                     return BehaviorTree.NodeState.FAILURE
 
                 identified_any = False
-                items = [ITEM_CACHE.get_item_snapshot(iid) for iid in item_ids]
+                items = [ItemSnapshot.from_item_id(iid) for iid in item_ids]
                 
                 for item in items:
                     if item is None or not item.is_valid or not item.is_inventory_item:
@@ -642,7 +641,7 @@ class BTNodes:
                     return BehaviorTree.NodeState.FAILURE
 
                 destroyed_any = False
-                items = [ITEM_CACHE.get_item_snapshot(iid) for iid in item_ids]                
+                items = [ItemSnapshot.from_item_id(iid) for iid in item_ids]                
                 for item in items:
                     if item is None or not item.is_valid or not item.is_inventory_item:
                         continue
@@ -712,7 +711,7 @@ class BTNodes:
                 node.blackboard.pop(state_key, None)
             
             def _get_expert_salvage_kit() -> int:
-                inventory_snapshot = ITEM_CACHE.get_inventory_snapshot(Bag.Backpack, Bag.Bag_2)
+                inventory_snapshot = ItemSnapshot.get_inventory_snapshot(Bag.Backpack, Bag.Bag_2)
                 expert_kits = [i for bag in inventory_snapshot.values() for i in bag.values() if i is not None and i.is_valid and i.is_salvage_kit and i.model_id in (ModelID.Expert_Salvage_Kit, ModelID.Superior_Salvage_Kit)]
                 
                 if not expert_kits:
@@ -721,7 +720,7 @@ class BTNodes:
                 return min(expert_kits, key=lambda k: k.uses).id
             
             def _get_lesser_salvage_kit() -> int:
-                inventory_snapshot = ITEM_CACHE.get_inventory_snapshot(Bag.Backpack, Bag.Bag_2)
+                inventory_snapshot = ItemSnapshot.get_inventory_snapshot(Bag.Backpack, Bag.Bag_2)
                 lesser_kits = [i for bag in inventory_snapshot.values() for i in bag.values() if i is not None and i.is_valid and i.is_salvage_kit and i.model_id == ModelID.Salvage_Kit]
                 
                 if not lesser_kits:
@@ -756,7 +755,7 @@ class BTNodes:
                                 
                 state = node.blackboard.get(state_key)
                 state = cast(BTNodes.Items.SavalvageProgress, state) if state else None
-                item = ITEM_CACHE.get_item_snapshot(item_id)
+                item = ItemSnapshot.from_item_id(item_id)
                 
                 if (state and item_id != state.item_id) or item is None or not item.is_valid or not item.is_salvageable or not item.is_inventory_item or _is_mod_salvaged(item, mode):
                     return BehaviorTree.NodeState.SUCCESS
@@ -780,7 +779,7 @@ class BTNodes:
                         if allow_expert_for_common_materials and kit_id == 0:
                             kit_id = _get_expert_salvage_kit()
 
-                    kit = ITEM_CACHE.get_item_snapshot(kit_id)
+                    kit = ItemSnapshot.from_item_id(kit_id)
                     if kit_id <= 0 or (kit is None or kit.model_id == ModelID.Salvage_Kit and (item.rarity > Rarity.White and not item.is_identified)):
                         return BehaviorTree.NodeState.FAILURE
 
@@ -905,8 +904,8 @@ class BTNodes:
             from_inventory = any(bag in INVENTORY_BAGS for bag in source)
             from_storage = any(bag in STORAGE_BAGS or bag == Bag.Material_Storage for bag in source)
            
-            material_storage_snapshot = ITEM_CACHE.get_bag_snapshot(Bag.Material_Storage) if (from_storage or to_storage) else {}
-            target_snapshot = ITEM_CACHE.get_bags_snapshot(target)
+            material_storage_snapshot = ItemSnapshot.get_bag_snapshot(Bag.Material_Storage) if (from_storage or to_storage) else {}
+            target_snapshot = ItemSnapshot.get_bags_snapshot(target)
             moving_instructions : dict[Bag, dict[int, BTNodes.Items.ItemTransferInstructions]] = {}
             
             #get max quantity from material_storage_snapshot.get(Bag.Material_Storage, {}).values() and ceil to the next MAX_STACK_SIZE to determine the max capacity
@@ -921,7 +920,7 @@ class BTNodes:
                 material_storage_capacity = MAX_STACK_SIZE
                                             
             for index, item_id in enumerate(item_ids):
-                item = ITEM_CACHE.get_item_snapshot(item_id)
+                item = ItemSnapshot.from_item_id(item_id)
                 qty = quantities[index] if quantities and index < len(quantities) else item.quantity if item else 0            
                 
                 if not item or not item.is_valid or (item.is_inventory_item and to_inventory) or (item.is_storage_item and to_storage) or (not item.is_inventory_item and from_inventory) or (not item.is_storage_item and from_storage):
@@ -1105,14 +1104,14 @@ class BTNodes:
               Notes: Fails when matching storage items cannot be found or no valid transfer destinations exist.
             """
             def _restock(node: BehaviorTree.Node):        
-                inventory_snapshot = ITEM_CACHE.get_inventory_snapshot(Bag.Backpack, Bag.Bag_2)
+                inventory_snapshot = ItemSnapshot.get_inventory_snapshot(Bag.Backpack, Bag.Bag_2)
                 current_qty = sum(i.quantity for bag in inventory_snapshot.values() for i in bag.values() if i is not None and i.is_valid and i.model_id == model_id and i.item_type == item_type) if inventory_snapshot else 0
                 left_to_restock = max(0, quantity - current_qty)
                 
                 if left_to_restock <= 0:
                     return BehaviorTree.NodeState.SUCCESS
                 
-                storage_snapshot = ITEM_CACHE.get_bags_snapshot(STORAGE_BAGS)
+                storage_snapshot = ItemSnapshot.get_bags_snapshot(STORAGE_BAGS)
                 desired_items = [i for bag in storage_snapshot.values() for i in bag.values() if i is not None and i.is_valid and i.model_id == model_id and i.item_type == item_type] if storage_snapshot else []
                 
                 if not desired_items:
@@ -1176,8 +1175,8 @@ class BTNodes:
                 if not source_bags:
                     return BehaviorTree.NodeState.FAILURE
 
-                source_snapshot = ITEM_CACHE.get_bags_snapshot(source_bags)
-                material_snapshot = ITEM_CACHE.get_bag_snapshot(Bag.Material_Storage)
+                source_snapshot = ItemSnapshot.get_bags_snapshot(source_bags)
+                material_snapshot = ItemSnapshot.get_bag_snapshot(Bag.Material_Storage)
 
                 material_storage_capacity = (
                     max((item.quantity for item in material_snapshot.values() if item), default=0) + MAX_STACK_SIZE - 1
@@ -1244,7 +1243,7 @@ class BTNodes:
               Notes: Operates only on stackable items and succeeds only if at least one move is performed.
             """
             def _compact(node: BehaviorTree.Node):
-                snapshot = ITEM_CACHE.get_bags_snapshot(bags)
+                snapshot = ItemSnapshot.get_bags_snapshot(bags)
                 grouped_items : dict[tuple[ItemType, int, int], list[tuple[Bag, int, ItemSnapshot]]] = {}
                 moved_any = False
                 
@@ -1296,7 +1295,7 @@ class BTNodes:
               Notes: The sort configuration is still marked as provisional in the implementation comments.
             """
             def _sort(node: BehaviorTree.Node):
-                snapshot = ITEM_CACHE.get_bags_snapshot(bags)
+                snapshot = ItemSnapshot.get_bags_snapshot(bags)
 
                 # TODO: Here we want to implement our sorting configuration, for now this is just the default behavior
                 item_typeOrder = [

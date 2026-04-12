@@ -5,7 +5,7 @@ from Py4GWCoreLib.Player import Player
 from Py4GWCoreLib.Routines import Routines
 from Py4GWCoreLib.enums_src.GameData_enums import Range
 from Py4GWCoreLib.enums_src.Item_enums import ItemType
-from Sources.frenkeyLib.ItemHandling.Items.ItemCache import ITEM_CACHE
+from Sources.frenkeyLib.ItemHandling.Items.item_snapshot import ItemSnapshot
 from Sources.frenkeyLib.ItemHandling.Rules.profile import RuleProfile
 from Sources.frenkeyLib.ItemHandling.Rules.types import ItemAction
 
@@ -100,7 +100,7 @@ class LootHandler:
                 continue
             
             action = self.rules.get_action_for_item(item_id)
-            item = ITEM_CACHE.get_item_snapshot(item_id)  # Ensure the item snapshot is cached for future reference
+            item = ItemSnapshot.from_item_id(item_id) if item_id else None  # Ensure the item snapshot is cached for future reference
             if action != ItemAction.PickUp:
                 continue
             

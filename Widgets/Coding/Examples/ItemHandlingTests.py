@@ -20,11 +20,11 @@ from Py4GWCoreLib.py4gwcorelib_src.Color import Color
 from Py4GWCoreLib.py4gwcorelib_src.Utils import Utils
 from Py4GWCoreLib.native_src.internals import string_table
 from Sources.frenkeyLib.ItemHandling.ConfigExamples.ExampleGUIs.LootConfigView import draw_loot_config_view
+from Sources.frenkeyLib.ItemHandling.Items.item_snapshot import ItemSnapshot
 
 Utils.ClearSubModules("ItemHandling")
 Utils.ClearSubModules("frenkeyLib.Core")
 from Sources.frenkeyLib.Core.encoded_names import ItemName
-from Sources.frenkeyLib.ItemHandling.Items.ItemCache import ITEM_CACHE
 from Py4GWCoreLib.ItemMods import ItemMod 
 from Sources.frenkeyLib.ItemHandling.BTNodes import STORAGE_BAGS, BTNodes
 from Sources.frenkeyLib.ItemHandling.Rules.types import SalvageMode
@@ -167,7 +167,6 @@ def dump_string_table_to_json(language: ServerLanguage | int | None = None, outp
     
 def main():
     global INI_KEY, hovered_item_id, auto_tick, tree, language, enc_input, decoded_ouput, decoded_name, int_lang, language_index, decoded, encoded, fully_decoded, collect, show_loot_config_view
-    ITEM_CACHE.reset()
     
     if not Routines.Checks.Map.IsMapReady():
         encoded = None
@@ -220,7 +219,7 @@ def main():
         PyImGui.separator()
         
         hovered_item_id = Inventory.GetHoveredItemID() or hovered_item_id
-        item = ITEM_CACHE.get_item_snapshot(hovered_item_id) if hovered_item_id else None
+        item = ItemSnapshot.from_item_id(hovered_item_id) if hovered_item_id else None
         
         if not item or not item.is_valid:
             hovered_item_id = 0
@@ -243,6 +242,7 @@ def main():
                 PyImGui.table_set_column_index(1)
                 PyImGui.text(value)
             
+            add_row("Item Name", item.name if item else "N/A")
             add_row("Item Data", item.data.english_name if item and item.data else "N/A")
             add_row("Model ID", str(item.model_id) if item else "N/A")
             add_row("Item Type", str(item.item_type.name) if item else "N/A")

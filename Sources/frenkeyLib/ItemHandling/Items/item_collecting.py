@@ -10,7 +10,6 @@ from Py4GWCoreLib.enums_src.Region_enums import ServerLanguage
 from Py4GWCoreLib.native_src.internals import string_table
 from Py4GWCoreLib.py4gwcorelib_src.Timer import ThrottledTimer
 from Sources.frenkeyLib.Core.encoded_names import ItemName
-from Sources.frenkeyLib.ItemHandling.Items.ItemCache import ITEM_CACHE
 from Sources.frenkeyLib.ItemHandling.Items.ItemData import ITEM_DATA, ItemData
 from Sources.frenkeyLib.ItemHandling.Items.item_snapshot import ItemSnapshot
 from Sources.frenkeyLib.ItemHandling.Items.types import INVENTORY_BAGS, STORAGE_BAGS
@@ -74,7 +73,6 @@ class ItemCollector:
         self.force_inventory_scan = True
         self.checked_item_ids.clear()
         self.checked_model_keys.clear()
-        ITEM_CACHE.reset()
 
     def _get_context_key(self) -> str:
         account_email = str(Player.GetAccountEmail() or "").strip()
@@ -83,8 +81,24 @@ class ItemCollector:
         return f"{account_email}|{player_name}|{map_id}"
 
     def _scan_bags(self, bags: list[Bag]):
-        ITEM_CACHE.reset()
-        snapshot = ITEM_CACHE.get_bags_snapshot(bags)
+        import PyInventory
+        snapshot : dict[Bag, dict[int, Optional[ItemSnapshot]]] = {}
+        
+        for bag in bags:            
+            inventory_bag = PyInventory.Bag(bag.value, bag.name)
+            bag_snapshot: dict[int, Optional[ItemSnapshot]] = {}
+
+            bag_size = inventory_bag.GetSize()
+
+            for slot in range(bag_size):
+                bag_snapshot[slot] = None
+
+            for item in inventory_bag.GetItems():
+                slot = item.slot  # real slot of the item
+                bag_snapshot[slot] = ItemSnapshot.from_item_id(item.item_id, item) if item else None
+
+            snapshot[bag] = bag_snapshot
+            
         items = [item for bag in snapshot.values() for item in bag.values() if item is not None]
 
         for item in items:
@@ -98,7 +112,7 @@ class ItemCollector:
         offered_items = offered_items + Merchant.Trading.Collector.GetOfferedItems()
         
         for item_id in offered_items:
-            item = ITEM_CACHE.get_item_snapshot(item_id) if item_id else None
+            item = ItemSnapshot.from_item_id(item_id) if item_id else None
             if item is None:
                 continue
             self._collect_item(item)

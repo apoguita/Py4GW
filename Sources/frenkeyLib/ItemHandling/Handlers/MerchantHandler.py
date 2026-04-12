@@ -4,7 +4,7 @@ from typing import Generator, Optional
 from Py4GWCoreLib import Merchant
 from Py4GWCoreLib.Inventory import Inventory
 from Py4GWCoreLib.Item import Bag
-from Sources.frenkeyLib.ItemHandling.Items.ItemCache import ITEM_CACHE
+from Sources.frenkeyLib.ItemHandling.Items.item_snapshot import ItemSnapshot
 from Sources.frenkeyLib.ItemHandling.Rules.profile import RuleProfile
 from Sources.frenkeyLib.ItemHandling.Rules.types import ACTION_LIMITS_PER_FRAME, ItemAction
 from Sources.frenkeyLib.ItemHandling.utility import GetZeroFilledBags
@@ -38,7 +38,7 @@ class MerchantConfig:
                     continue
                 
                 action = self.rules.get_action_for_item(item_id)
-                item = ITEM_CACHE.get_item_snapshot(item_id) 
+                item = ItemSnapshot.from_item_id(item_id) if item_id else None
                 
                 if item is None:
                     continue
@@ -59,7 +59,7 @@ class MerchantConfig:
             
             for item_id in Merchant.Trading.Merchant.GetOfferedItems():
                 action = self.rules.get_action_for_item(item_id)
-                item = ITEM_CACHE.get_item_snapshot(item_id) 
+                item = ItemSnapshot.from_item_id(item_id) if item_id else None
                 
                 if action != ItemAction.NONE:
                     if action is ItemAction.Buy_From_Merchant:
