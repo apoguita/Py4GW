@@ -200,8 +200,7 @@ def Fight(bot: Botting) -> None:
     ConfigureAggressiveEnv(bot)
     bot.States.AddHeader("Start Combat")
     bot.States.AddCustomState(lambda: PrepareForBattle(bot), "Use Consumables If Enabled")
-    bot.States.AddCustomState(lambda x=14778.00, y=13178.00, d=0x84: _do_dialog_at(bot, x, y, d), "Dialog 0x84")
-    bot.States.AddCustomState(lambda x=14778.00, y=13178.00, d=0x85: _do_dialog_at(bot, x, y, d), "Dialog 0x85")
+    bot.States.AddCustomState(lambda x=14778.00, y=13178.00: _take_asura_blessing_at(bot, x, y), "Take Blessing")
 
     # Path segment 1
     bot.Move.XY(18825, 6180, "First Spider Group")
@@ -248,8 +247,7 @@ def Fight(bot: Botting) -> None:
     bot.Move.XY(-12368, -7330, "Froggy Group")
 
     # Path segment 2 blessing
-    bot.States.AddCustomState(lambda x=-9317, y=-2618, d=0x84: _do_dialog_at(bot, x, y, d), "Dialog 0x84")
-    bot.States.AddCustomState(lambda x=-9317, y=-2618, d=0x85: _do_dialog_at(bot, x, y, d), "Dialog 0x85")
+    bot.States.AddCustomState(lambda x=-9317, y=-2618: _take_asura_blessing_at(bot, x, y), "Take Blessing")
 
     # Path segment 2
     bot.Move.XY(-12368, -7330, "Froggy Group")
@@ -283,8 +281,7 @@ def Fight(bot: Botting) -> None:
     bot.Move.XY(-1346, 12360, "Moving")
 
     # Path segment 3 blessing
-    bot.States.AddCustomState(lambda x=4835, y=440, d=0x84: _do_dialog_at(bot, x, y, d), "Dialog 0x84")
-    bot.States.AddCustomState(lambda x=4835, y=440, d=0x85: _do_dialog_at(bot, x, y, d), "Dialog 0x85")
+    bot.States.AddCustomState(lambda x=4835, y=440: _take_asura_blessing_at(bot, x, y), "Take Blessing")
 
     # Path segment 3
     bot.Move.XY(-1346, 12360, "Moving")
@@ -1177,6 +1174,11 @@ def _do_dialog_at(bot: Botting, x: float, y: float, dialog_id: int, broadcast_to
     else:
         yield from bot.Move._coro_xy_and_dialog(x, y, dialog_id)
         yield from bot.Wait._coro_for_time(500)
+
+
+def _take_asura_blessing_at(bot: Botting, x: float, y: float):
+    yield from _do_dialog_at(bot, x, y, 0x84)
+    yield from bot.Wait._coro_for_time(6000)
 
 
 def _draw_settings(bot: Botting):
