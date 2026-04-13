@@ -179,6 +179,7 @@ def PrepareForCombat(bot: Botting) -> None:
     _load_consumable_settings(bot)
     _load_kit_restock_settings(bot)
     _sync_consumable_toggles(bot)
+    bot.States.AddCustomState(lambda: _kick_accounts_if_multibox(bot), "Kick Accounts If Multibox")
     bot.States.AddCustomState(lambda: _gh_merchant_setup_if_enabled(bot, RATASUM), "GH Merchant Setup If Enabled")
     bot.States.AddCustomState(lambda: _coro_travel_random_district(bot, RATASUM), "Travel to Rata Sum")
     bot.States.AddCustomState(lambda: _maybe_setup_heroes(bot), "Setup Heroes")
@@ -541,16 +542,19 @@ def _kick_current_party_accounts():
             GLOBAL_CACHE.Party.Players.KickPlayer(str(player_name))
 
 
+def _kick_accounts_if_multibox(bot: Botting):
+    if _party_mode != 1:
+        return
+    _kick_current_party_accounts()
+    for _ in range(20):
+        yield from bot.Wait._coro_for_time(250)
+        if GLOBAL_CACHE.Party.GetPlayerCount() <= 1:
+            break
+
+
 def _gh_merchant_setup_if_enabled(bot: Botting, outpost_id: int):
     if not _restock_kits_enabled:
         return
-
-    if _party_mode == 1:
-        _kick_current_party_accounts()
-        for _ in range(20):
-            yield from bot.Wait._coro_for_time(250)
-            if GLOBAL_CACHE.Party.GetPlayerCount() <= 1:
-                break
 
     yield from _disable_inventoryplus_pretravel()
 
