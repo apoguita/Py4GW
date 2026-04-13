@@ -54,6 +54,18 @@ def _expect(condition: bool, message: str) -> None:
         raise AssertionError(message)
 
 
+def _catalog_model_ids(entries: list[dict[str, object]]) -> set[int]:
+    model_ids: set[int] = set()
+    for entry in entries:
+        try:
+            model_id = int(entry.get("model_id") or 0)
+        except Exception:
+            model_id = 0
+        if model_id > 0:
+            model_ids.add(model_id)
+    return model_ids
+
+
 def _ensure_package(name: str) -> types.ModuleType:
     module = sys.modules.get(name)
     if module is None:
@@ -102,6 +114,13 @@ def _install_stub_modules(project_root: Path) -> None:
     class DummyModelID:
         Glob_Of_Ectoplasm = DummyModelValue(930)
         Salvage_Kit = DummyModelValue(2992)
+        CrystallineSword = DummyModelValue(399)
+
+    DummyModelID.__members__ = {
+        "Glob_Of_Ectoplasm": DummyModelID.Glob_Of_Ectoplasm,
+        "Salvage_Kit": DummyModelID.Salvage_Kit,
+        "CrystallineSword": DummyModelID.CrystallineSword,
+    }
 
     class ItemType(enum.IntEnum):
         Unknown = 0
@@ -2824,6 +2843,173 @@ def _test_rule_custom_names_persist_and_fallback_cleanly(module, temp_root: Path
     )
 
 
+def _test_item_handling_catalog_migration_loads_primary_catalog_and_modelid_fallback(module) -> None:
+    original_paths = {
+        "CATALOG_PATH": module.CATALOG_PATH,
+        "ITEMS_CATALOG_PATH": module.ITEMS_CATALOG_PATH,
+        "DROP_DATA_PATH": module.DROP_DATA_PATH,
+        "ITEM_HANDLING_ITEMS_CATALOG_PATH": module.ITEM_HANDLING_ITEMS_CATALOG_PATH,
+        "RUNES_CATALOG_PATH": module.RUNES_CATALOG_PATH,
+    }
+    try:
+        module.CATALOG_PATH = str(REPO_ROOT / "Widgets" / "Data" / "merchant_rules_catalog.json")
+        module.ITEMS_CATALOG_PATH = str(REPO_ROOT / "Widgets" / "Data" / "merchant_rules_items_catalog.json")
+        module.DROP_DATA_PATH = str(REPO_ROOT / "Widgets" / "Data" / "modelid_drop_data.json")
+        module.ITEM_HANDLING_ITEMS_CATALOG_PATH = str(REPO_ROOT / "Sources" / "frenkeyLib" / "ItemHandling" / "Items" / "items.json")
+        module.RUNES_CATALOG_PATH = str(REPO_ROOT / "Sources" / "marks_sources" / "mods_data" / "runes.json")
+
+        item_handling_catalog = json.loads(Path(module.ITEM_HANDLING_ITEMS_CATALOG_PATH).read_text(encoding="utf-8"))
+        item_handling_entries = module._iter_item_handling_catalog_entries(item_handling_catalog)
+        item_handling_model_ids = _catalog_model_ids(item_handling_entries)
+
+        _expect(
+            len(item_handling_model_ids) > 3600,
+            "ItemHandling items.json should provide the broad searchable item catalog without requiring the old Merchant Rules mirror.",
+        )
+        _expect(
+            {400, 2989, int(module.ECTOPLASM_MODEL_ID)}.issubset(item_handling_model_ids),
+            "ItemHandling items.json should cover known searchable catalog items and curated override ids.",
+        )
+        _expect(
+            399 not in item_handling_model_ids,
+            "Crystalline Sword should remain a ModelID-fallback case until richer catalog metadata is added.",
+        )
+
+        legacy_catalog_path = Path(module.ITEMS_CATALOG_PATH)
+        if legacy_catalog_path.exists():
+            legacy_catalog = json.loads(legacy_catalog_path.read_text(encoding="utf-8"))
+            legacy_model_ids = _catalog_model_ids(list(legacy_catalog.get("items", [])))
+            _expect(
+                len(item_handling_model_ids) > len(legacy_model_ids),
+                "ItemHandling items.json should contribute more unique model ids than the deprecated Merchant Rules item mirror.",
+            )
+            _expect(
+                legacy_model_ids.issubset(item_handling_model_ids),
+                "The deprecated Merchant Rules item mirror should remain covered by ItemHandling items.json while it exists.",
+            )
+
+        widget = _make_widget(module)
+        widget._load_catalog()
+
+        _expect(widget.catalog_stats.get("item_handling_present") is True, "Merchant Rules should detect the ItemHandling catalog file.")
+        _expect(
+            int(widget.catalog_stats.get("item_handling_items", 0)) > 3600,
+            "Merchant Rules should load the broader ItemHandling catalog as the primary searchable catalog.",
+        )
+        _expect(
+            int(widget.catalog_stats.get("mirrored_items", 0)) == 0,
+            "Merchant Rules should not load the deprecated mirror during normal catalog loading.",
+        )
+        _expect(
+            widget.catalog_stats.get("mirrored_deprecated_fallback_used") is False,
+            "The deprecated mirror fallback should remain idle when items.json loads successfully.",
+        )
+
+        fellblade_entry = widget.catalog_by_model_id.get(400, {})
+        _expect(fellblade_entry.get("source") == "item_handling_items_catalog", "ItemHandling entries should win over the legacy mirror for shared model ids.")
+        _expect(fellblade_entry.get("name") == "Fellblade", "ItemHandling entries should preserve display names.")
+        _expect(fellblade_entry.get("item_type") == "Sword", "ItemHandling entries should preserve item types.")
+        _expect(fellblade_entry.get("skin") == "Fellblade.png", "ItemHandling entries should preserve skin names for search aliases.")
+        _expect(fellblade_entry.get("wiki_url") == "https://wiki.guildwars.com/wiki/Fellblade", "ItemHandling entries should preserve wiki urls.")
+        _expect(fellblade_entry.get("attributes") == ["Swordsmanship"], "ItemHandling entries should preserve attributes without using name_encoded.")
+        _expect("name_encoded" not in fellblade_entry, "Merchant Rules should ignore name_encoded in ItemHandling entries.")
+
+        trophy_entry = widget.catalog_by_model_id.get(852, {})
+        _expect(trophy_entry.get("category") == "Trophy", "ItemHandling category metadata should be preserved when present.")
+
+        _expect(
+            widget.catalog_by_model_id.get(int(module.ECTOPLASM_MODEL_ID), {}).get("source") == "merchant_rules_catalog.rare",
+            "Curated Merchant Rules material entries should still override broad catalog entries.",
+        )
+        _expect(
+            widget.catalog_by_model_id.get(2989, {}).get("source") == "merchant_rules_catalog.essentials",
+            "Curated Merchant Rules merchant entries should still override broad catalog entries.",
+        )
+
+        crystalline_entry = widget.catalog_by_model_id.get(399, {})
+        _expect(crystalline_entry.get("source") == "modelid_enum_fallback", "Missing rich catalog items should be added from ModelID fallback.")
+        _expect(crystalline_entry.get("name") == "Crystalline Sword", "CamelCase ModelID fallback names should be humanized for display/search.")
+        _expect(crystalline_entry.get("item_type") == "Sword", "ModelID fallback should infer obvious weapon item types from enum names.")
+
+        for query in ("Crystalline Sword", "CrystallineSword", "Crystalline_Sword", "399"):
+            matches = widget._search_catalog(query, limit=max(1, len(widget.catalog_by_model_id)))
+            _expect(
+                399 in {int(entry.get("model_id", 0)) for entry in matches},
+                f"Catalog search should find Crystalline Sword fallback entries by {query!r}.",
+            )
+
+        for query in ("Fellblade", "Fellblade.png", "400", "Sword"):
+            matches = widget._search_catalog(query, limit=max(1, len(widget.catalog_by_model_id)))
+            _expect(
+                400 in {int(entry.get("model_id", 0)) for entry in matches},
+                f"Catalog search should find ItemHandling entries by {query!r}.",
+            )
+    finally:
+        for name, value in original_paths.items():
+            setattr(module, name, value)
+
+
+def _test_catalog_loads_without_deprecated_mirrored_item_catalog(module, temp_root: Path) -> None:
+    original_paths = {
+        "CATALOG_PATH": module.CATALOG_PATH,
+        "ITEMS_CATALOG_PATH": module.ITEMS_CATALOG_PATH,
+        "DROP_DATA_PATH": module.DROP_DATA_PATH,
+        "ITEM_HANDLING_ITEMS_CATALOG_PATH": module.ITEM_HANDLING_ITEMS_CATALOG_PATH,
+        "RUNES_CATALOG_PATH": module.RUNES_CATALOG_PATH,
+    }
+    try:
+        module.CATALOG_PATH = str(REPO_ROOT / "Widgets" / "Data" / "merchant_rules_catalog.json")
+        module.ITEMS_CATALOG_PATH = str(temp_root / "missing" / "merchant_rules_items_catalog.json")
+        module.DROP_DATA_PATH = str(REPO_ROOT / "Widgets" / "Data" / "modelid_drop_data.json")
+        module.ITEM_HANDLING_ITEMS_CATALOG_PATH = str(REPO_ROOT / "Sources" / "frenkeyLib" / "ItemHandling" / "Items" / "items.json")
+        module.RUNES_CATALOG_PATH = str(REPO_ROOT / "Sources" / "marks_sources" / "mods_data" / "runes.json")
+
+        _expect(not Path(module.ITEMS_CATALOG_PATH).exists(), "The deprecated mirror path should be missing for this regression check.")
+
+        widget = _make_widget(module)
+        widget._load_catalog()
+
+        _expect(widget.catalog_stats.get("item_handling_present") is True, "items.json should still be present for the missing-mirror test.")
+        _expect(widget.catalog_stats.get("mirrored_present") is False, "The deprecated mirror should be reported missing when the file is absent.")
+        _expect(int(widget.catalog_stats.get("mirrored_items", 0)) == 0, "A missing deprecated mirror should not add catalog entries.")
+        _expect(
+            widget.catalog_stats.get("mirrored_deprecated_fallback_used") is False,
+            "A missing deprecated mirror should not be treated as a used fallback when items.json loads.",
+        )
+        _expect(
+            all(entry.get("source") != "merchant_rules_items_catalog" for entry in widget.catalog_by_model_id.values()),
+            "Catalog contents should not depend on the deprecated Merchant Rules mirror.",
+        )
+
+        for query, expected_model_id in (
+            ("Fellblade", 400),
+            ("Fellblade.png", 400),
+            ("Sword", 400),
+            ("Identification Kit", 2989),
+            ("Glob of Ectoplasm", int(module.ECTOPLASM_MODEL_ID)),
+            ("Crystalline Sword", 399),
+            ("CrystallineSword", 399),
+            ("399", 399),
+        ):
+            matches = widget._search_catalog(query, limit=max(1, len(widget.catalog_by_model_id)))
+            _expect(
+                expected_model_id in {int(entry.get("model_id", 0)) for entry in matches},
+                f"Catalog search should find model {expected_model_id} by {query!r} without the deprecated mirror.",
+            )
+
+        _expect(
+            widget.catalog_by_model_id.get(399, {}).get("source") == "modelid_enum_fallback",
+            "ModelID fallback should provide Crystalline Sword when richer catalogs do not.",
+        )
+        _expect(
+            widget.catalog_by_model_id.get(400, {}).get("source") == "item_handling_items_catalog",
+            "items.json should provide Fellblade without the deprecated mirror.",
+        )
+    finally:
+        for name, value in original_paths.items():
+            setattr(module, name, value)
+
+
 def _test_display_sorting_helpers_and_summaries_are_case_insensitive(module) -> None:
     widget = _make_widget(module)
     _seed_display_sort_fixture(widget)
@@ -4239,6 +4425,14 @@ def main() -> int:
                 lambda: _test_execute_here_ignores_travel_and_reports_local_summary(module),
             ),
             ("rule_custom_names_persist_and_fallback_cleanly", lambda: _test_rule_custom_names_persist_and_fallback_cleanly(module, temp_root)),
+            (
+                "item_handling_catalog_migration_loads_primary_catalog_and_modelid_fallback",
+                lambda: _test_item_handling_catalog_migration_loads_primary_catalog_and_modelid_fallback(module),
+            ),
+            (
+                "catalog_loads_without_deprecated_mirrored_item_catalog",
+                lambda: _test_catalog_loads_without_deprecated_mirrored_item_catalog(module, temp_root),
+            ),
             ("display_sorting_helpers_and_summaries_are_case_insensitive", lambda: _test_display_sorting_helpers_and_summaries_are_case_insensitive(module)),
             ("display_sort_reads_preserve_saved_child_entry_order", lambda: _test_display_sort_reads_preserve_saved_child_entry_order(module, temp_root)),
             ("default_protection_jump_targets_still_use_first_stored_entry", lambda: _test_default_protection_jump_targets_still_use_first_stored_entry(module)),

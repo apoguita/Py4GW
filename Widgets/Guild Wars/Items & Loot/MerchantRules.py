@@ -48,6 +48,14 @@ DATA_DIR = os.path.join(Py4GW.Console.get_projects_path(), "Widgets", "Data")
 CATALOG_PATH = os.path.join(DATA_DIR, "merchant_rules_catalog.json")
 ITEMS_CATALOG_PATH = os.path.join(DATA_DIR, "merchant_rules_items_catalog.json")
 DROP_DATA_PATH = os.path.join(DATA_DIR, "modelid_drop_data.json")
+ITEM_HANDLING_ITEMS_CATALOG_PATH = os.path.join(
+    Py4GW.Console.get_projects_path(),
+    "Sources",
+    "frenkeyLib",
+    "ItemHandling",
+    "Items",
+    "items.json",
+)
 MODS_DATA_DIR = os.path.join(Py4GW.Console.get_projects_path(), "Sources", "marks_sources", "mods_data")
 RUNES_CATALOG_PATH = os.path.join(MODS_DATA_DIR, "runes.json")
 SEARCH_RESULT_LIMIT = 12
@@ -1101,6 +1109,17 @@ def _build_catalog_alias_labels(name: object, skin: object = "", wiki_url: objec
     return alias_labels
 
 
+def _humanize_model_id_enum_name(raw_name: object) -> str:
+    text = str(raw_name or "").strip()
+    if not text:
+        return ""
+    text = text.replace("_", " ")
+    text = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", " ", text)
+    text = re.sub(r"(?<=[A-Z])(?=[A-Z][a-z])", " ", text)
+    text = re.sub(r"\s+", " ", text)
+    return text.strip()
+
+
 def _get_mirrored_item_priority(item_type: object) -> int:
     normalized_type = str(item_type or "").strip().lower()
     if normalized_type in {
@@ -1125,6 +1144,86 @@ def _get_mirrored_item_priority(item_type: object) -> int:
     if normalized_type in {"rune_mod", "salvage"}:
         return 20
     return 30
+
+
+MODEL_ID_FALLBACK_ITEM_TYPE_SUFFIXES: tuple[tuple[str, str], ...] = (
+    ("Daggers", "Daggers"),
+    ("Scythe", "Scythe"),
+    ("Shield", "Shield"),
+    ("Spear", "Spear"),
+    ("Staff", "Staff"),
+    ("Sword", "Sword"),
+    ("Hammer", "Hammer"),
+    ("Focus", "Offhand"),
+    ("Offhand", "Offhand"),
+    ("Icon", "Offhand"),
+    ("Prism", "Offhand"),
+    ("Wand", "Wand"),
+    ("Bow", "Bow"),
+    ("Axe", "Axe"),
+    ("Headpiece", "Headpiece"),
+    ("Chestpiece", "Chestpiece"),
+    ("Gloves", "Gloves"),
+    ("Leggings", "Leggings"),
+    ("Boots", "Boots"),
+    ("SalvageKit", "Salvage"),
+)
+
+
+def _infer_model_id_fallback_item_type(enum_names: list[str], display_name: str) -> str:
+    candidates = [display_name, *enum_names]
+    for candidate in candidates:
+        compact = re.sub(r"[^A-Za-z0-9]+", "", str(candidate or ""))
+        normalized = _normalize_catalog_search_text(_humanize_model_id_enum_name(candidate))
+        tokens = set(normalized.split())
+        for suffix, item_type in MODEL_ID_FALLBACK_ITEM_TYPE_SUFFIXES:
+            suffix_lower = suffix.lower()
+            if compact.lower().endswith(suffix_lower) or suffix_lower in tokens:
+                return item_type
+    return ""
+
+
+def _iter_model_id_enum_members() -> list[tuple[str, int]]:
+    members = getattr(ModelID, "__members__", None)
+    if isinstance(members, dict):
+        raw_members = list(members.items())
+    else:
+        raw_members = [
+            (name, getattr(ModelID, name))
+            for name in dir(ModelID)
+            if not name.startswith("_")
+        ]
+
+    resolved_members: list[tuple[str, int]] = []
+    for raw_name, raw_value in raw_members:
+        name = str(raw_name or "").strip()
+        if not name:
+            continue
+        try:
+            model_id = int(raw_value.value)
+        except Exception:
+            model_id = _safe_int(raw_value, 0)
+        if model_id > 0:
+            resolved_members.append((name, model_id))
+    return resolved_members
+
+
+def _iter_item_handling_catalog_entries(raw_catalog: object) -> list[dict[str, object]]:
+    entries: list[dict[str, object]] = []
+
+    def _walk(raw_value: object):
+        if isinstance(raw_value, dict):
+            if ("model_id" in raw_value or "ModelID" in raw_value) and ("name" in raw_value or "Name" in raw_value):
+                entries.append(raw_value)
+                return
+            for child_value in raw_value.values():
+                _walk(child_value)
+        elif isinstance(raw_value, list):
+            for child_value in raw_value:
+                _walk(child_value)
+
+    _walk(raw_catalog)
+    return entries
 
 
 def _is_common_crafting_material_model(model_id: object) -> bool:
@@ -3458,14 +3557,20 @@ class MerchantRulesWidget:
         curated_common = int(self.catalog_stats.get("curated_common", 0) or 0)
         curated_rare = int(self.catalog_stats.get("curated_rare", 0) or 0)
         curated_essentials = int(self.catalog_stats.get("curated_essentials", 0) or 0)
+        item_handling_present = bool(self.catalog_stats.get("item_handling_present", False))
+        item_handling_items = int(self.catalog_stats.get("item_handling_items", 0) or 0)
         mirrored_present = bool(self.catalog_stats.get("mirrored_present", False))
         mirrored_items = int(self.catalog_stats.get("mirrored_items", 0) or 0)
+        mirrored_fallback_used = bool(self.catalog_stats.get("mirrored_deprecated_fallback_used", False))
         drop_data = int(self.catalog_stats.get("drop_data", 0) or 0)
+        modelid_fallback_items = int(self.catalog_stats.get("modelid_fallback_items", 0) or 0)
         final_models = int(self.catalog_stats.get("final_models", len(self.catalog_by_model_id)) or 0)
         alias_groups = int(self.catalog_stats.get("alias_groups", self._get_catalog_alias_group_count()) or 0)
         self._debug_log(
             f"{prefix}: curated={curated_total} (common={curated_common}, rare={curated_rare}, essentials={curated_essentials}) | "
-            f"mirrored_present={mirrored_present} mirrored_items={mirrored_items} | drop_data={drop_data} | "
+            f"item_handling_present={item_handling_present} item_handling_items={item_handling_items} | "
+            f"mirrored_present={mirrored_present} mirrored_items={mirrored_items} fallback_used={mirrored_fallback_used} | drop_data={drop_data} | "
+            f"modelid_fallback_items={modelid_fallback_items} | "
             f"final_models={final_models} | alias_groups={alias_groups}"
         )
         if self.catalog_load_error:
@@ -3680,6 +3785,57 @@ class MerchantRulesWidget:
             loaded_count += 1
         return loaded_count
 
+    def _load_item_handling_catalog(self) -> int:
+        if not os.path.exists(ITEM_HANDLING_ITEMS_CATALOG_PATH):
+            return 0
+
+        with open(ITEM_HANDLING_ITEMS_CATALOG_PATH, "r", encoding="utf-8") as file:
+            raw_catalog = json.load(file)
+
+        loaded_count = 0
+        for entry in _iter_item_handling_catalog_entries(raw_catalog):
+            model_id = _resolve_model_id_value(entry.get("model_id", entry.get("ModelID", 0)))
+            name = str(entry.get("name") or entry.get("Name") or "").strip()
+            if model_id <= 0 or not name:
+                continue
+
+            item_type = str(entry.get("item_type") or entry.get("ItemType") or "").strip()
+            skin = str(entry.get("skin") or entry.get("Skin") or "").strip()
+            wiki_url = str(entry.get("wiki_url") or entry.get("WikiURL") or "").strip()
+            category = str(entry.get("category") or "").strip()
+            sub_category = str(entry.get("sub_category") or "").strip()
+            raw_attributes = entry.get("attributes", [])
+            attributes = (
+                [str(attribute).strip() for attribute in raw_attributes if str(attribute or "").strip()]
+                if isinstance(raw_attributes, list)
+                else []
+            )
+            alias_labels = _build_catalog_alias_labels(name, skin, wiki_url)
+
+            extra: dict[str, object] = {
+                "alias_labels": alias_labels,
+                "attributes": attributes,
+            }
+            if skin:
+                extra["skin"] = skin
+            if wiki_url:
+                extra["wiki_url"] = wiki_url
+            if category:
+                extra["category"] = category
+            if sub_category:
+                extra["sub_category"] = sub_category
+
+            self._register_catalog_entry(
+                model_id=model_id,
+                name=name,
+                item_type=item_type,
+                source="item_handling_items_catalog",
+                priority=_get_mirrored_item_priority(item_type),
+                extra=extra,
+            )
+            loaded_count += 1
+        return loaded_count
+
     def _load_mirrored_item_catalog(self) -> int:
         if not os.path.exists(ITEMS_CATALOG_PATH):
             return 0
@@ -3717,6 +3873,47 @@ class MerchantRulesWidget:
                 source="merchant_rules_items_catalog",
                 priority=_get_mirrored_item_priority(item_type),
                 extra=extra,
+            )
+            loaded_count += 1
+        return loaded_count
+
+    def _load_model_id_fallback_catalog(self) -> int:
+        enum_names_by_model_id: dict[int, list[str]] = {}
+        for enum_name, model_id in _iter_model_id_enum_members():
+            if model_id <= 0:
+                continue
+            names = enum_names_by_model_id.setdefault(model_id, [])
+            if enum_name not in names:
+                names.append(enum_name)
+
+        loaded_count = 0
+        for model_id, enum_names in enum_names_by_model_id.items():
+            if model_id in self.catalog_by_model_id:
+                continue
+            if not enum_names:
+                continue
+
+            display_name = _humanize_model_id_enum_name(enum_names[0]) or f"Model {model_id}"
+            alias_labels = _build_catalog_alias_labels(display_name)
+            for enum_name in enum_names:
+                raw_name = str(enum_name or "").strip()
+                if not raw_name:
+                    continue
+                alias_labels.setdefault(_normalize_catalog_search_text(raw_name), raw_name)
+                humanized_name = _humanize_model_id_enum_name(raw_name)
+                if humanized_name:
+                    alias_labels.setdefault(_normalize_catalog_search_text(humanized_name), humanized_name)
+
+            self._register_catalog_entry(
+                model_id=model_id,
+                name=display_name,
+                item_type=_infer_model_id_fallback_item_type(enum_names, display_name),
+                source="modelid_enum_fallback",
+                priority=90,
+                extra={
+                    "alias_labels": alias_labels,
+                    "enum_names": list(enum_names),
+                },
             )
             loaded_count += 1
         return loaded_count
@@ -3759,8 +3956,11 @@ class MerchantRulesWidget:
         common_entries: list[dict[str, object]] = []
         rare_entries: list[dict[str, object]] = []
         merchant_entries: list[dict[str, object]] = []
+        item_handling_items_count = 0
         mirrored_items_count = 0
         drop_data_count = 0
+        model_id_fallback_count = 0
+        item_handling_present = os.path.exists(ITEM_HANDLING_ITEMS_CATALOG_PATH)
         mirrored_present = os.path.exists(ITEMS_CATALOG_PATH)
 
         try:
@@ -3797,9 +3997,18 @@ class MerchantRulesWidget:
             load_errors.append(f"Catalog load failed: {exc}")
 
         try:
-            mirrored_items_count = self._load_mirrored_item_catalog()
+            item_handling_items_count = self._load_item_handling_catalog()
         except Exception as exc:
-            load_errors.append(f"Mirrored item catalog load failed: {exc}")
+            load_errors.append(f"ItemHandling item catalog load failed: {exc}")
+
+        # Deprecated compatibility fallback. The ItemHandling catalog is the
+        # primary broad item catalog; only read the old MR mirror if it failed
+        # to contribute any searchable entries.
+        if item_handling_items_count <= 0:
+            try:
+                mirrored_items_count = self._load_mirrored_item_catalog()
+            except Exception as exc:
+                load_errors.append(f"Deprecated mirrored item catalog load failed: {exc}")
 
         try:
             drop_data_count = self._load_drop_data_catalog()
@@ -3819,15 +4028,24 @@ class MerchantRulesWidget:
         if MOD_DB_LOAD_ERROR:
             load_errors.append(MOD_DB_LOAD_ERROR)
 
+        try:
+            model_id_fallback_count = self._load_model_id_fallback_catalog()
+        except Exception as exc:
+            load_errors.append(f"ModelID fallback catalog load failed: {exc}")
+
         self._rebuild_catalog_alias_index()
         self.catalog_stats = {
             "curated_common": len(common_entries),
             "curated_rare": len(rare_entries),
             "curated_essentials": len(merchant_entries),
             "curated_total": len(common_entries) + len(rare_entries) + len(merchant_entries),
+            "item_handling_present": item_handling_present,
+            "item_handling_items": item_handling_items_count,
             "mirrored_present": mirrored_present,
             "mirrored_items": mirrored_items_count,
+            "mirrored_deprecated_fallback_used": item_handling_items_count <= 0 and mirrored_items_count > 0,
             "drop_data": drop_data_count,
+            "modelid_fallback_items": model_id_fallback_count,
             "final_models": len(self.catalog_by_model_id),
             "alias_groups": self._get_catalog_alias_group_count(),
         }
@@ -4328,8 +4546,8 @@ class MerchantRulesWidget:
             if model_id <= 0 or not name:
                 continue
 
-            item_type = str(entry.get("item_type", "")).strip().lower()
-            material_type = str(entry.get("material_type", "")).strip().lower()
+            item_type = _normalize_catalog_search_text(entry.get("item_type", ""))
+            material_type = _normalize_catalog_search_text(entry.get("material_type", ""))
             model_id_text = str(model_id)
             name_lower = _normalize_catalog_search_text(name)
             alias_labels = entry.get("alias_labels", {})
