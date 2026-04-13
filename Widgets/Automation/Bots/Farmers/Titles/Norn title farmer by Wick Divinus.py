@@ -615,26 +615,24 @@ def _wait_for_alt_dispatch_completion(stage_name: str, message_refs: list[tuple[
         ConsoleLog(BOT_NAME, f"[Merchant] {stage_name}: timeout waiting for alt completion. Pending: {pending_accounts}", Py4GW.Console.MessageType.Warning)
 
 
-def _wait_for_alts_on_current_map(stage_name: str, timeout_ms: int = 30000):
+def _wait_for_alts_on_current_map(stage_name: str, expected_alts: int, target_map_id: int, timeout_ms: int = 30000):
     if _party_mode != 1:
         return
-    my_email = Player.GetAccountEmail()
-    expected_alts = len([acc for acc in GLOBAL_CACHE.ShMem.GetAllAccountData() if acc.AccountEmail != my_email])
     if expected_alts <= 0:
         return
-    current_map_id = int(Map.GetMapID())
+    my_email = Player.GetAccountEmail()
     deadline = time.time() + (max(0, int(timeout_ms)) / 1000.0)
     while time.time() < deadline:
         accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
         arrived = sum(
             1 for acc in accounts
-            if acc.AccountEmail != my_email and int(getattr(acc.AgentData.Map, "MapID", 0) or 0) == current_map_id
+            if acc.AccountEmail != my_email and int(getattr(acc.AgentData.Map, "MapID", 0) or 0) == target_map_id
         )
         if arrived >= expected_alts:
             yield from Routines.Yield.wait(1000)
             return
         yield from Routines.Yield.wait(500)
-    ConsoleLog(BOT_NAME, f"[Merchant] {stage_name}: alt arrival timeout on map {current_map_id}", Py4GW.Console.MessageType.Warning)
+    ConsoleLog(BOT_NAME, f"[Merchant] {stage_name}: alt arrival timeout on map {target_map_id}", Py4GW.Console.MessageType.Warning)
 
 
 def _kick_current_party_accounts():
@@ -661,8 +659,11 @@ def _gh_merchant_setup_if_enabled(bot: Botting, outpost_id: int):
 
     yield from _disable_inventoryplus_pretravel()
 
+    expected_gh_alts = 0
     travel_refs: list[tuple[str, int]] = []
     if _party_mode == 1:
+        my_email = Player.GetAccountEmail()
+        expected_gh_alts = len([acc for acc in GLOBAL_CACHE.ShMem.GetAllAccountData() if acc.AccountEmail != my_email])
         travel_refs = _dispatch_to_alts(SharedCommandType.TravelToGuildHall, (0, 0, 0, 0))
 
     if not Map.IsGuildHall():
@@ -670,7 +671,16 @@ def _gh_merchant_setup_if_enabled(bot: Botting, outpost_id: int):
     yield from bot.Wait._coro_until_on_outpost()
     if _party_mode == 1:
         yield from _wait_for_alt_dispatch_completion("travel_gh", travel_refs, SharedCommandType.TravelToGuildHall, timeout_ms=10000)
-        yield from _wait_for_alts_on_current_map("travel_gh_arrival", timeout_ms=60000)
+
+    gh_deadline = time.time() + 30.0
+    while not Map.IsGuildHall() and time.time() < gh_deadline:
+        yield from Routines.Yield.wait(500)
+    if not Map.IsGuildHall():
+        ConsoleLog(BOT_NAME, "[Merchant] Failed to reach Guild Hall, skipping merchant setup", Py4GW.Console.MessageType.Warning)
+        return
+
+    if _party_mode == 1:
+        yield from _wait_for_alts_on_current_map("travel_gh_arrival", expected_gh_alts, int(Map.GetMapID()), timeout_ms=60000)
 
     npc_deadline = time.time() + 20.0
     while _find_npc_xy_by_name("Merchant", max_dist=30000.0) is None and time.time() < npc_deadline:
