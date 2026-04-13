@@ -184,6 +184,7 @@ def PrepareForCombat(bot: Botting) -> None:
     bot.States.AddCustomState(lambda: _coro_travel_random_district(bot, RATASUM), "Travel to Rata Sum")
     bot.States.AddCustomState(lambda: _maybe_setup_heroes(bot), "Setup Heroes")
     bot.States.AddCustomState(lambda: _restock_consumables_if_enabled(bot), "Restock Consumables If Enabled")
+    bot.States.AddCustomState(lambda: _enable_hero_ai_if_available(bot), "Enable HeroAI If Available")
     bot.Party.SetHardMode(True)
 
 
@@ -1100,6 +1101,35 @@ def _setup_heroes(bot: Botting):
             if template:
                 GLOBAL_CACHE.SkillBar.LoadHeroSkillTemplate(position, template)
             yield from bot.Wait._coro_for_time(500)
+
+
+def _enable_hero_ai_if_available(bot: Botting):
+    try:
+        bot.Properties.ApplyNow("hero_ai", "active", True)
+    except Exception:
+        try:
+            bot.Properties.ApplyNow("hero_ai", True)
+        except Exception:
+            pass
+
+    try:
+        bot.Properties.Enable("hero_ai")
+    except Exception:
+        pass
+
+    try:
+        from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler as _get_wh
+        _get_wh().enable_widget("HeroAI")
+    except Exception:
+        pass
+
+    if _party_mode == 1:
+        try:
+            yield from bot.helpers.Multibox.enable_widget("HeroAI")
+        except Exception:
+            pass
+
+    yield from bot.Wait._coro_for_time(500)
 
 
 def _maybe_setup_heroes(bot: Botting):
