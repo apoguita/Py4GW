@@ -247,9 +247,9 @@ def bot_routine(bot: Botting) -> None:
     _load_consumable_settings(bot)
     _load_kit_restock_settings(bot)
     _sync_consumable_toggles(bot)
-    bot.States.AddCustomState(lambda: _coro_travel_random_district(bot, OLAFSTEAD), "Travel to Olafstead")
     bot.States.AddCustomState(lambda: _gh_merchant_setup_if_enabled(bot, OLAFSTEAD), "GH Merchant Setup If Enabled")
     bot.States.AddCustomState(lambda: _refresh_path_to_revelations_if_completed(bot), "Refresh Path to Revelations If Completed")
+    #bot.States.AddCustomState(lambda: _coro_travel_random_district(bot, OLAFSTEAD), "Travel to Olafstead")
     bot.States.AddCustomState(lambda: _maybe_setup_heroes(bot), "Setup Heroes")
     bot.States.AddCustomState(lambda: _restock_consumables_if_enabled(bot), "Restock Consumables If Enabled")
 
