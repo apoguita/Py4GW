@@ -55,7 +55,7 @@ _current_section_header: tuple = ("", 0.0, 0.0)
 _restock_conset: bool = True
 _current_radar_range: int = 0
 _radar_active: bool = False
-_is_completing: bool = False
+_radar_detections: dict = {}  # {map_name: [(enemy_x, enemy_y), ...]}
 _restock_pcons: bool = True
 _restock_res_scroll: bool = True
 _loop_queue: bool = False
@@ -225,6 +225,10 @@ def _on_party_member_dead_behind_safe(bot):
     bot.Templates.Routines.OnPartyMemberDeathBehind()
 
 
+def _disable_wipe_callback():
+    bot.Events.OnPartyWipeCallback(None)
+    yield
+
 def _set_radar_range(value: int):
     global _current_radar_range
     _current_radar_range = value
@@ -248,7 +252,17 @@ def Radar(bot: "Botting", radar_range: int = 3500):
             # Save position and pause FSM
             global _radar_active
             _radar_active = True
+            bot.Properties.Disable("auto_loot")
             saved_x, saved_y = player_x, player_y
+
+            # Log enemy coordinates for source file analysis
+            enemy_x, enemy_y = Agent.GetXY(closest_enemy)
+            vq = _queued_vanquishes[_current_vq_index]
+            map_name = vq.map_name
+            if map_name not in _radar_detections:
+                _radar_detections[map_name] = []
+            _radar_detections[map_name].append((round(enemy_x), round(enemy_y)))
+
             ConsoleLog("Radar", f"Enemy detected. Pausing FSM, saving position ({saved_x:.0f}, {saved_y:.0f}).", Py4GW.Console.MessageType.Debug, True)
             bot.config.FSM.pause()
 
@@ -278,6 +292,11 @@ def Radar(bot: "Botting", radar_range: int = 3500):
                 enemy_array = AgentArray.Sort.ByDistance(enemy_array, (cur_x, cur_y))
                 closest_enemy = next(iter(enemy_array), 0)
 
+                # Log re-scan detection
+                if closest_enemy != 0:
+                    re_x, re_y = Agent.GetXY(closest_enemy)
+                    _radar_detections[map_name].append((round(re_x), round(re_y)))
+
             # No more enemies — return to saved position
             ConsoleLog("Radar", f"No more enemies. Returning to ({saved_x:.0f}, {saved_y:.0f}).", Py4GW.Console.MessageType.Debug, True)
             cur_x, cur_y = Player.GetXY()
@@ -291,6 +310,7 @@ def Radar(bot: "Botting", radar_range: int = 3500):
                 )
 
             # Resume FSM
+            bot.Properties.Enable("auto_loot")
             _radar_active = False
             ConsoleLog("Radar", "Returned to saved position. Resuming FSM.", Py4GW.Console.MessageType.Debug, True)
             bot.config.FSM.resume()
@@ -301,9 +321,11 @@ def VanquishWatchdog(bot: "Botting", completed_header_name: str):
     while True:
         if Map.IsVanquishCompleted() and not _radar_active:
             ConsoleLog("VanquishWatchdog", f"Vanquish trigger activated. Jumping to: {completed_header_name}", Py4GW.Console.MessageType.Debug, True)
-            global _is_completing
-            _is_completing = True
+            bot.Events.OnPartyWipeCallback(None)
             bot.config.FSM.pause()
+            # Reset current state to detach any SelfManagedYieldState coroutine (e.g. FollowAutoPath)
+            if bot.config.FSM.current_state:
+                bot.config.FSM.current_state.reset()
             bot.config.FSM.RemoveManagedCoroutine("Radar")
             bot.config.FSM.RemoveManagedCoroutine("ConsetUpkeep")
             bot.config.FSM.RemoveManagedCoroutine("PconsUpkeep")
@@ -317,6 +339,9 @@ def bot_routine(bot: Botting) -> None:
     global _current_vq_index, _vq_header_names
 
     bot.config.counters.clear_all()
+    global _radar_active, _radar_detections
+    _radar_active = False
+    _radar_detections = {}
 
     if not _queued_vanquishes:
         ConsoleLog(BotSettings.BOT_NAME, "No vanquishes queued!", Py4GW.Console.MessageType.Error)
@@ -397,9 +422,9 @@ def bot_routine(bot: Botting) -> None:
 
         # -- Update current vanquish index --
         def _set_current_index(idx=vq_idx):
-            global _current_vq_index, _is_completing
+            global _current_vq_index
             _current_vq_index = idx
-            _is_completing = False
+            bot.Events.OnPartyWipeCallback(lambda: OnPartyWipe(bot))
             yield
         bot.States.AddCustomState(lambda idx=vq_idx: _set_current_index(idx),
                                   f"SetVQIndex_{vq_idx}")
@@ -517,6 +542,7 @@ def bot_routine(bot: Botting) -> None:
 
         # -- Vanquish Completed --
         bot.States.AddHeader(f"Vanquish Completed_{vq_idx}")
+        bot.States.AddCustomState(lambda: _disable_wipe_callback(), f"DisableWipeCallback_{vq_idx}")
         bot.States.RemoveManagedCoroutine("Radar")
         bot.States.AddCustomState(lambda: _set_radar_range(0), f"ResetRadarRange_Completed_{vq_idx}")
         bot.States.RemoveManagedCoroutine("VanquishWatchdog")
@@ -524,13 +550,12 @@ def bot_routine(bot: Botting) -> None:
         bot.States.RemoveManagedCoroutine("PconsUpkeep")
         if is_last:
             bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Vanquish queue SUCCESS: {vq.display}.")
-            bot.States.AddCustomState(lambda: _check_loop_or_stop(bot),
-                                      f"CheckLoopOrStop")
-            bot.Multibox.ResignParty()
-            bot.Wait.ForTime(1000)
-            bot.Wait.UntilOnOutpost()
-            bot.States.AddCustomState(lambda h=first_vq_header: _do_loop_jump(bot, h),
-                                      f"DoLoopJump")
+            if _loop_queue:
+                bot.Multibox.ResignParty()
+                bot.Wait.ForTime(1000)
+                bot.Wait.UntilOnOutpost()
+                bot.States.AddCustomState(lambda h=first_vq_header: _do_loop_jump(bot, h),
+                                          f"DoLoopJump")
         else:
             bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Vanquish SUCCESS: {vq.display}. Moving to next Vanquish.")
             bot.Multibox.ResignParty()
@@ -542,22 +567,17 @@ def bot_routine(bot: Botting) -> None:
     bot.States.AddCustomState(lambda: _stop_bot(), "StopBotFinal")
 
 def _stop_bot():
+    if _radar_detections:
+        ConsoleLog(BotSettings.BOT_NAME, "- - - RADAR DETECTIONS SUMMARY - - -", Py4GW.Console.MessageType.Info, True)
+        for map_name, coords in _radar_detections.items():
+            ConsoleLog(BotSettings.BOT_NAME, f"  Map: {map_name} ({len(coords)} detections)", Py4GW.Console.MessageType.Info, True)
+            for i, (ex, ey) in enumerate(coords):
+                ConsoleLog(BotSettings.BOT_NAME, f"    {i+1}. ({ex}, {ey})", Py4GW.Console.MessageType.Info, True)
+        ConsoleLog(BotSettings.BOT_NAME, "- - - END RADAR DETECTIONS - - -", Py4GW.Console.MessageType.Info, True)
+    else:
+        ConsoleLog(BotSettings.BOT_NAME, "No radar detections recorded.", Py4GW.Console.MessageType.Info, True)
     bot.Stop()
     yield
-
-def _check_loop_or_stop(bot: "Botting"):
-    """CustomState coroutine: if loop OFF → stop bot. If loop ON → continue to resign states."""
-    if _loop_queue:
-        ConsoleLog(BotSettings.BOT_NAME,
-                   f"Loop Queue enabled. Resigning party for next loop.",
-                   Py4GW.Console.MessageType.Info, True)
-    else:
-        ConsoleLog(BotSettings.BOT_NAME,
-                   "Loop Queue disabled. Staying in map. Stopping bot.",
-                   Py4GW.Console.MessageType.Info, True)
-        bot.Stop()
-    yield
-
 
 def _do_loop_jump(bot: "Botting", first_vq_header: str):
     """CustomState coroutine: increment loop count and jump back to first vanquish."""
@@ -566,6 +586,8 @@ def _do_loop_jump(bot: "Botting", first_vq_header: str):
     ConsoleLog(BotSettings.BOT_NAME,
                f"Back at outpost. Starting loop #{_loop_count}. Jumping to: {first_vq_header}",
                Py4GW.Console.MessageType.Info, True)
+    if bot.config.FSM.current_state:
+        bot.config.FSM.current_state.reset()
     bot.config.FSM.jump_to_state_by_name(first_vq_header)
     yield
 # endregion
@@ -629,6 +651,8 @@ def _on_party_wipe(bot: "Botting"):
         target = _vq_header_names[_current_vq_index]
         ConsoleLog("on_party_wipe",
                    f"Resurrected in outpost. Re-executing vanquish. Jumping to: {target}")
+        if bot.config.FSM.current_state:
+            bot.config.FSM.current_state.reset()
         bot.config.FSM.jump_to_state_by_name(target)
         bot.config.FSM.resume()
         return
@@ -664,19 +688,24 @@ def _on_party_wipe(bot: "Botting"):
     # Jump to the current section header to re-execute the section path
     ConsoleLog("on_party_wipe",
                f"Jumping to section: {section_header}")
+    if bot.config.FSM.current_state:
+        bot.config.FSM.current_state.reset()
     bot.config.FSM.jump_to_state_by_name(section_header)
     bot.config.FSM.resume()
 
 def OnPartyWipe(bot: "Botting"):
-    if _is_completing:
-        return
     ConsoleLog("on_party_wipe", "event triggered")
     fsm = bot.config.FSM
+    # Reset current state to detach any SelfManagedYieldState coroutine (e.g. FollowAutoPath)
+    if fsm.current_state:
+        fsm.current_state.reset()
     if not fsm.is_paused():
         fsm.pause()
     fsm.RemoveManagedCoroutine("Radar")
     fsm.RemoveManagedCoroutine("ConsetUpkeep")
     fsm.RemoveManagedCoroutine("PconsUpkeep")
+    global _radar_active
+    _radar_active = False
     fsm.AddManagedCoroutine("OnWipe_OPD", lambda: _on_party_wipe(bot))
 # endregion
 

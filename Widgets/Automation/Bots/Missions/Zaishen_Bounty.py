@@ -243,6 +243,7 @@ def bot_routine(bot: Botting) -> None:
         def _set_current_index(idx=b_idx):
             global _current_bounty_index
             _current_bounty_index = idx
+            bot.Events.OnPartyWipeCallback(lambda: OnPartyWipe(bot))
             yield
         bot.States.AddCustomState(lambda idx=b_idx: _set_current_index(idx),
                                   f"SetBountyIndex_{b_idx}")
@@ -313,17 +314,17 @@ def bot_routine(bot: Botting) -> None:
 
         # -- Bounty Completed --
         bot.States.AddHeader(f"Bounty Completed_{b_idx}")
+        bot.States.AddCustomState(lambda: _disable_wipe_callback(), f"DisableWipeCallback_{b_idx}")
         bot.States.RemoveManagedCoroutine("ConsetUpkeep")
         bot.States.RemoveManagedCoroutine("PconsUpkeep")
         if is_last:
             bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Bounty SUCCESS: {bounty.display}.")
-            bot.States.AddCustomState(lambda: _check_loop_or_stop(bot),
-                                      f"CheckLoopOrStop")
-            bot.Multibox.ResignParty()
-            bot.Wait.ForTime(1000)
-            bot.Wait.UntilOnOutpost()
-            bot.States.AddCustomState(lambda h=first_bounty_header: _do_loop_jump(bot, h),
-                                      f"DoLoopJump")
+            if _loop_queue:
+                bot.Multibox.ResignParty()
+                bot.Wait.ForTime(1000)
+                bot.Wait.UntilOnOutpost()
+                bot.States.AddCustomState(lambda h=first_bounty_header: _do_loop_jump(bot, h),
+                                          f"DoLoopJump")
         else:
             bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Bounty SUCCESS: {bounty.display}. Moving to next Bounty.")
             bot.Multibox.ResignParty()
@@ -338,20 +339,6 @@ def _stop_bot():
     bot.Stop()
     yield
 
-def _check_loop_or_stop(bot: "Botting"):
-    """CustomState coroutine: if loop OFF → stop bot. If loop ON → continue to resign states."""
-    if _loop_queue:
-        ConsoleLog(BotSettings.BOT_NAME,
-                   f"Loop Queue enabled. Resigning party for next loop.",
-                   Py4GW.Console.MessageType.Info, True)
-    else:
-        ConsoleLog(BotSettings.BOT_NAME,
-                   "Loop Queue disabled. Staying in map. Stopping bot.",
-                   Py4GW.Console.MessageType.Info, True)
-        bot.Stop()
-    yield
-
-
 def _do_loop_jump(bot: "Botting", first_bounty_header: str):
     """CustomState coroutine: increment loop count and jump back to first bounty."""
     global _loop_count
@@ -359,6 +346,8 @@ def _do_loop_jump(bot: "Botting", first_bounty_header: str):
     ConsoleLog(BotSettings.BOT_NAME,
                f"Back at outpost. Starting loop #{_loop_count}. Jumping to: {first_bounty_header}",
                Py4GW.Console.MessageType.Info, True)
+    if bot.config.FSM.current_state:
+        bot.config.FSM.current_state.reset()
     bot.config.FSM.jump_to_state_by_name(first_bounty_header)
     yield
 # endregion
@@ -366,6 +355,11 @@ def _do_loop_jump(bot: "Botting", first_bounty_header: str):
 # =============================================================================
 # region EVENTS
 # =============================================================================
+def _disable_wipe_callback():
+    bot.Events.OnPartyWipeCallback(None)
+    yield
+
+
 def _conset_upkeep(bot):
     """Background coroutine: applies conset immediately, then re-checks every 30s."""
     while True:
@@ -422,6 +416,8 @@ def _on_party_wipe(bot: "Botting"):
         target = _bounty_header_names[_current_bounty_index]
         ConsoleLog("on_party_wipe",
                    f"Resurrected in outpost. Re-executing bounty. Jumping to: {target}")
+        if bot.config.FSM.current_state:
+            bot.config.FSM.current_state.reset()
         bot.config.FSM.jump_to_state_by_name(target)
         bot.config.FSM.resume()
         return
@@ -454,12 +450,17 @@ def _on_party_wipe(bot: "Botting"):
     # Jump to the current section header to re-execute the section path
     ConsoleLog("on_party_wipe",
                f"Jumping to section: {section_header}")
+    if bot.config.FSM.current_state:
+        bot.config.FSM.current_state.reset()
     bot.config.FSM.jump_to_state_by_name(section_header)
     bot.config.FSM.resume()
 
 def OnPartyWipe(bot: "Botting"):
     ConsoleLog("on_party_wipe", "event triggered")
     fsm = bot.config.FSM
+    # Reset current state to detach any SelfManagedYieldState coroutine (e.g. FollowAutoPath)
+    if fsm.current_state:
+        fsm.current_state.reset()
     if not fsm.is_paused():
         fsm.pause()
     fsm.RemoveManagedCoroutine("ConsetUpkeep")
