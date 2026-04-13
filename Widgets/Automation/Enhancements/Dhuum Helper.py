@@ -509,7 +509,7 @@ def _coro_interact_and_dialog(target_npc: int):
 
 		# Move to safe position after resurrection
 		yield from Routines.Yield.wait(2000)
-		Player.Move(-16460, 17287)
+		Player.Move(-14374, 17261)
 
 		if widgets_temporarily_disabled and combat_widget_state is not None:
 			_restore_combat_widgets_after_dialog(combat_widget_state)

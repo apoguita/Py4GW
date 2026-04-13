@@ -81,7 +81,7 @@ class UWCBAdapter(UWCombatAdapter):
             "move_to_enemy_if_close_enough":            False,
             "move_to_party_member_if_dead":             True,
             "wait_if_party_member_mana_too_low":        False,
-            "wait_if_party_member_too_far":             False,
+            "wait_if_party_member_too_far":             True,
             "wait_if_party_member_needs_to_loot":       False,
             "wait_if_in_aggro":                         True,
             "wait_if_lock_taken":                       False,
@@ -182,7 +182,7 @@ class UWCBAdapter(UWCombatAdapter):
         )
         self._bot_instance = bot_instance
         bot_instance.Events.OnPartyMemberBehindCallback(
-            lambda: self.on_party_member_behind(bot_instance)
+            lambda: bot_instance.Templates.Routines.OnPartyMemberBehind() if self._wait_for_party_enabled else None
         )
         bot_instance.Events.OnPartyMemberInDangerCallback(
             lambda: bot_instance.Templates.Routines.OnPartyMemberInDanger() if self._in_danger_enabled else None
@@ -259,7 +259,14 @@ class UWCBAdapter(UWCombatAdapter):
             loader.initialize_custom_behavior_candidate()
 
     # ── Utility skill toggles ────────────────────────────────────────────
-    # toggle_wait_for_party is inherited from UWCombatAdapter (watchdog-based).
+
+    def toggle_wait_for_party(self, enabled: bool) -> None:
+        super().toggle_wait_for_party(enabled)
+        self._set_custom_utility_enabled(
+            enabled,
+            skill_names=("wait_if_party_member_too_far",),
+            class_names=("WaitIfPartyMemberTooFarUtility",),
+        )
 
     def toggle_wait_if_aggro(self, enabled: bool) -> None:
         self._set_custom_utility_enabled(

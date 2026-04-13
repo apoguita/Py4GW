@@ -181,12 +181,12 @@ _dhuum_fight_active: bool = False   # set True from start of Dhuum fight to ches
 _run_start_uptime_ms: int = 0       # Map.GetInstanceUptime() value (ms) when the dungeon was entered
 _SKELETON_OF_DHUUM_MODEL_ID: int = 2392
 _DRAW_BLOCKED_AREAS_3D = False
-_DRAW_PATH_UNWANTED_GUESTS = False
+
 _BLOCKED_AREA_SEGMENTS = 48
 _BLOCKED_AREA_THICKNESS = 2.5
 _BLOCKED_AREA_COLOR = Utils.RGBToColor(255, 40, 40, 170)
 _BLOCKED_AREA_RADIUS = 200.0
-_active_move_path_3d: list[tuple[float, float, float]] = []  # current move path drawn every frame
+
 _pending_wipe_recovery: bool = False   # set by coroutine; consumed by main() before bot.Update()
 _pending_wipe_reason:   str  = ""      # human-readable label logged when the restart fires
 _planned_resign:        bool = False   # set before an intentional resign so OnPartyWipe is suppressed
@@ -748,21 +748,24 @@ def _move_with_unstuck(
     backup_ms: int = 800,
     max_retries: int = 5,
     recalc_interval_ms: int = 500,
+    overall_timeout_s: float = 60.0,
 ) -> None:
     """Move to (target_x, target_y) with continuous path recalculation every recalc_interval_ms.
 
     Every interval the path is rebuilt from the current player position, hard-avoiding
     all navmesh nodes within 150 units of any blacklisted alive enemy.
     If no avoiding path exists (narrow corridor), falls back to a direct navmesh path.
-    The active path is stored in _active_move_path_3d and drawn as cyan 3D lines every frame.
     Stuck detection: if progress toward the target is less than stuck_threshold per interval
-    for max_retries consecutive intervals → /stuck + walk backwards.
+    for max_retries consecutive intervals → /stuck + walk backwards, then try an offset
+    intermediate waypoint perpendicular to the target direction.
+    overall_timeout_s prevents infinite loops (0 = disabled).
     """
     import math
+    import time as _time
     _AVOID_RADIUS = 150.0
+    _OFFSET_DISTANCE = 300.0  # perpendicular offset distance after stuck recovery
 
     def _coro():
-        global _active_move_path_3d
         import heapq as _heapq
         from Py4GWCoreLib.Pathing import AutoPathing, AStar, AStarNode, densify_path2d
         from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist
@@ -770,6 +773,8 @@ def _move_with_unstuck(
         tolerance = 150.0
         tx, ty = target_x, target_y
         stuck_counter = 0
+        _start_time = _time.monotonic()
+        _offset_side = 1  # alternates +1 / -1 for perpendicular offset direction
 
         class _AStarAvoid(AStar):
             """A* that hard-blocks any node within _AVOID_RADIUS of a blacklisted enemy."""
@@ -809,20 +814,22 @@ def _move_with_unstuck(
                             came[nb] = cur.id
                 return False
 
-        def _escape_point(px, py, avoid_pts) -> tuple[float, float] | None:
-            """Return the closest point that lies outside all avoid zones, or None if already clear."""
+        def _escape_point(px, py, avoid_pts, navmesh) -> tuple[float, float] | None:
+            """Return the closest navmesh-valid point outside all avoid zones, or None."""
             best_dist = float("inf")
             best_pt: tuple[float, float] | None = None
             for ax, ay in avoid_pts:
                 d = math.hypot(px - ax, py - ay)
                 if d < _AVOID_RADIUS:
-                    # Step directly away from this enemy just past the radius
                     if d < 1.0:
                         dx, dy = 1.0, 0.0
                     else:
                         dx, dy = (px - ax) / d, (py - ay) / d
                     ex = ax + dx * (_AVOID_RADIUS + 20.0)
                     ey = ay + dy * (_AVOID_RADIUS + 20.0)
+                    # Validate escape point lies on navmesh
+                    if navmesh is not None and navmesh.find_trapezoid_id_by_coord((ex, ey)) is None:
+                        continue
                     escape_d = math.hypot(ex - px, ey - py)
                     if escape_d < best_dist:
                         best_dist = escape_d
@@ -830,16 +837,14 @@ def _move_with_unstuck(
             return best_pt
 
         def _build_path(px, py, avoid_pts):
-            """Return (move_path, vis_path). move_path is densified for FollowPath,
-            vis_path is smoothed only (fewer points) for 3D drawing.
+            """Return a densified move_path for FollowPath.
             If the player is currently inside an avoid zone, a short escape segment
             is prepended so the route leaves the zone first."""
             navmesh = AutoPathing().get_navmesh()
             if navmesh is None:
-                return [(tx, ty)], [(tx, ty)]
+                return [(tx, ty)]
 
-            # If already inside a blocked zone, prepend an escape step.
-            escape = _escape_point(px, py, avoid_pts) if avoid_pts else None
+            escape = _escape_point(px, py, avoid_pts, navmesh) if avoid_pts else None
             start = escape if escape else (px, py)
 
             for pts in (avoid_pts, []):
@@ -852,16 +857,44 @@ def _move_with_unstuck(
                         smoothed = raw
                     if escape:
                         smoothed = [escape] + smoothed
-                    return densify_path2d(smoothed), smoothed
+                    return densify_path2d(smoothed)
                 if not avoid_pts:
-                    break  # already tried bare pass
+                    break
 
-            return [(tx, ty)], [(tx, ty)]
+            return [(tx, ty)]
+
+        def _perpendicular_offset(px, py) -> tuple[float, float] | None:
+            """Compute a point offset perpendicular to the player→target direction.
+            Returns None if the point is not on the navmesh."""
+            nonlocal _offset_side
+            dx, dy = tx - px, ty - py
+            dist = math.hypot(dx, dy)
+            if dist < 1.0:
+                return None
+            # Perpendicular unit vector (rotated 90°)
+            perp_x = -dy / dist * _offset_side
+            perp_y = dx / dist * _offset_side
+            # Midpoint between player and target, offset to the side
+            mid_x = px + dx * 0.3 + perp_x * _OFFSET_DISTANCE
+            mid_y = py + dy * 0.3 + perp_y * _OFFSET_DISTANCE
+            _offset_side *= -1  # alternate side next time
+            navmesh = AutoPathing().get_navmesh()
+            if navmesh is not None and navmesh.find_trapezoid_id_by_coord((mid_x, mid_y)) is None:
+                return None
+            return (mid_x, mid_y)
 
         while True:
+            # Overall timeout guard
+            if overall_timeout_s > 0 and (_time.monotonic() - _start_time) >= overall_timeout_s:
+                ConsoleLog(
+                    BOT_NAME,
+                    f"[Move] Overall timeout ({overall_timeout_s:.0f}s) reached for ({tx:.0f},{ty:.0f}). Aborting.",
+                    Py4GW.Console.MessageType.Warning,
+                )
+                return
+
             px, py = Player.GetXY()
             if math.hypot(tx - px, ty - py) <= tolerance:
-                _active_move_path_3d = []
                 return
 
             bl = EnemyBlacklist()
@@ -871,20 +904,13 @@ def _move_with_unstuck(
                 if bl.is_blacklisted(eid) and Agent.IsAlive(eid)
             ]
 
-            # Only recalculate frequently when a blacklisted enemy is within 500 units.
             enemy_nearby = any(
                 math.hypot(px - ax, py - ay) <= 500.0
                 for ax, ay in avoid_pts
             )
-            follow_timeout = recalc_interval_ms if enemy_nearby else 0  # 0 = no timeout, run to end
+            follow_timeout = recalc_interval_ms if enemy_nearby else 0
 
-            move_path, vis_path = _build_path(px, py, avoid_pts if enemy_nearby else [])
-
-            try:
-                _ov = Overlay()
-                _active_move_path_3d = [(x, y, _ov.FindZ(x, y, 0)) for x, y in vis_path]
-            except Exception:
-                _active_move_path_3d = []
+            move_path = _build_path(px, py, avoid_pts if enemy_nearby else [])
 
             reached = yield from Routines.Yield.Movement.FollowPath(
                 path_points=move_path,
@@ -892,7 +918,6 @@ def _move_with_unstuck(
                 timeout=follow_timeout,
             )
             if reached:
-                _active_move_path_3d = []
                 return
 
             npx, npy = Player.GetXY()
@@ -911,6 +936,20 @@ def _move_with_unstuck(
                     yield from Routines.Yield.Movement.WalkBackwards(backup_ms)
                     yield from Routines.Yield.wait(300)
                     stuck_counter = 0
+
+                    # Try an offset intermediate waypoint to break out of the stuck zone
+                    offset_pt = _perpendicular_offset(npx, npy)
+                    if offset_pt:
+                        ConsoleLog(
+                            BOT_NAME,
+                            f"[Move] Trying offset waypoint ({offset_pt[0]:.0f},{offset_pt[1]:.0f})",
+                            Py4GW.Console.MessageType.Info,
+                        )
+                        yield from Routines.Yield.Movement.FollowPath(
+                            path_points=[offset_pt],
+                            tolerance=tolerance,
+                            timeout=3000,
+                        )
             else:
                 stuck_counter = 0
 
@@ -972,24 +1011,7 @@ def _draw_blocked_areas_overlay() -> None:
         pass
 
 
-def _draw_active_path_overlay() -> None:
-    """Draw the current move path as cyan 3D lines every frame. Called from main()."""
-    path = _active_move_path_3d
-    if not path or len(path) < 2:
-        return
-    if Map.GetMapID() != UW_MAP_ID:
-        return
-    try:
-        _color = Utils.RGBToColor(0, 220, 255, 220)
-        _overlay = Overlay()
-        _overlay.BeginDraw()
-        for i in range(1, len(path)):
-            x1, y1, z1 = path[i - 1]
-            x2, y2, z2 = path[i]
-            _overlay.DrawLine3D(x1, y1, z1, x2, y2, z2, _color, 3.0)
-        _overlay.EndDraw()
-    except Exception:
-        pass
+
 
 
 def _coro_skeleton_dhuum_watchdog(bot: Botting):
@@ -1582,7 +1604,11 @@ def The_Four_Horsemen(bot_instance: Botting):
     )
     bot_instance.Wait.ForTime(10000)
     bot_instance.Move.XY(11371, -17990, "Go to Chaos Planes NPC")
-    #bot_instance.Dialogs.WithModel(UWNpcModelID.ReaperOfTheChaosPlanes,0x806A07, "take questreward")
+    bot_instance.Dialogs.WithModel(UWNpcModelID.ReaperOfTheChaosPlanes,0x806A07, "take questreward")
+    bot_instance.Multibox.SendDialogToTarget(0x806A01)
+    bot_instance.Wait.ForTime(3000)
+    bot_instance.Multibox.SendDialogToTarget(0x806A01)
+    
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_following_enabled(True), "Enable Follow")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
     bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(True), "Enable MoveToPartyMemberIfDead")
@@ -1610,10 +1636,13 @@ def Terrorweb_Queen(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(True), "Enable MoveToPartyMemberIfDead")
     bot_instance.Move.XY(-6957, -19478, "To the NPC")
     EnqueueDialogUntilQuestActive(bot_instance, 0x806B01, int(UWQuestID.TerrorwebQueen), int(UWNpcModelID.ReaperOfTheChaosPlanes), "take Terrorweb Queen quest")
+    bot_instance.Multibox.SendDialogToTarget(0x806B01)
     bot_instance.Move.XY(-12432, -15874, "Terrorweb Queen 1")
     bot_instance.Move.XY(-6957, -19478, "Back to Chamber")
-    bot_instance.Wait.ForTime(10000)
+    bot_instance.Wait.ForTime(3000)
     bot_instance.Dialogs.WithModel(UWNpcModelID.ReaperOfTheSpawningPools,0x806B07, "Back to Chamber")
+    bot_instance.Multibox.SendDialogToTarget(0x806B07)
+    bot_instance.Wait.ForTime(3000)
     bot_instance.Dialogs.WithModel(UWNpcModelID.ReaperOfTheSpawningPools,0x8B, "Back to Chamber")
     bot_instance.States.AddCustomState(lambda: _record_quest_done("Terrorweb Queen"), "Record Terrorweb Queen done")
     
@@ -1719,43 +1748,19 @@ def Wrathfull_Spirits(bot_instance: Botting):
     _WS_LOOP_STEP = "Wrathfull Spirits loop start"
     bot_instance.States.AddHeader(_WS_LOOP_STEP)
 
-    bot_instance.Move.XY(-10207, 1746, "Wrathfull Spirits 2")
-
-    def _coro_move_to_tortured_spirits_in_range() -> Generator[Any, Any, None]:
-        """At runtime: find alive 'tortured spirit' enemies within range 4000 and move to each one."""
-        player_pos = Player.GetXY()
-        spirits = [
-            e for e in AgentArray.GetEnemyArray()
-            if Agent.IsAlive(e)
-            and Utils.Distance(player_pos, Agent.GetXY(e)) <= 4000
-            and "tortured spirit" in (Agent.GetNameByID(e) or "").strip().lower()
-        ]
-        if not spirits:
-            return
-        spirits.sort(key=lambda e: Utils.Distance(player_pos, Agent.GetXY(e)))
-        for enemy_id in spirits:
-            if not Agent.IsAlive(enemy_id):
-                continue
-            ex, ey = Agent.GetXY(enemy_id)
-            Player.Move(ex, ey)
-            while True:
-                yield
-                if not Routines.Checks.Map.MapValid():
-                    return
-                if not Agent.IsAlive(enemy_id):
-                    break
-                if Utils.Distance(Player.GetXY(), (ex, ey)) <= 200:
-                    break
-                Player.Move(ex, ey)
-
-    bot_instance.Move.XY(-13566, -229, "Wrathfull Spirits 3")
-    bot_instance.Move.XY(-13287, 1996, "Wrathfull Spirits 3b")
-    #bot_instance.config.FSM.AddYieldRoutineStep(name="Move to Tortured Spirits in Range", coroutine_fn=_coro_move_to_tortured_spirits_in_range)
-    bot_instance.Move.XY(-14486, 7113, "Wrathfull Spirits 4")
-    #bot_instance.config.FSM.AddYieldRoutineStep(name="Move to Tortured Spirits in Range", coroutine_fn=_coro_move_to_tortured_spirits_in_range)
-    bot_instance.Move.XY(-15226, 4129, "Wrathfull Spirits 5")
-    #bot_instance.config.FSM.AddYieldRoutineStep(name="Move to Tortured Spirits in Range", coroutine_fn=_coro_move_to_tortured_spirits_in_range)
-    bot_instance.Move.XY(-13275, 5261, "go to NPC")
+    bot_instance.Move.XY(-13791, 1642, "Wrathfull Spirits 2")
+    bot_instance.Move.XY(-12889, 963, "Wrathfull Spirits 3")
+    bot_instance.Move.XY(-11445, 1154, "Wrathfull Spirits 4")
+    bot_instance.Move.XY(-10554, 1695, "Wrathfull Spirits 5")
+    bot_instance.Move.XY(-9481, 963, "Wrathfull Spirits 6")
+    bot_instance.Move.XY(-9949, 177, "Wrathfull Spirits 7")
+    bot_instance.Move.XY(-11498, -173, "Wrathfull Spirits 8")
+    bot_instance.Move.XY(-12677, -205, "Wrathfull Spirits 9")
+    bot_instance.Move.XY(-13622, 336, "Wrathfull Spirits 10")
+    bot_instance.Move.XY(-12974, 4116, "Wrathfull Spirits 11")
+    bot_instance.Move.XY(-14184, 7279, "Wrathfull Spirits 12")
+    bot_instance.Move.XY(-15055, 3755, "Wrathfull Spirits 13")
+    bot_instance.Move.XY(-13409, 4933, "Wrathfull Spirits 14")
     bot_instance.Move.XY(5755, 12769, "go to NPC")
     bot_instance.Dialogs.WithModel(UWNpcModelID.ReaperOfTheLabyrinth,0x806E07, "Take Reward")
     bot_instance.Dialogs.WithModel(UWNpcModelID.ReaperOfTheLabyrinth,0x8D, "Back to Chamber")
@@ -1763,7 +1768,6 @@ def Wrathfull_Spirits(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _record_quest_done("Wrathfull Spirits"), "Record Wrathfull Spirits done")
 
 def Unwanted_Guests(bot_instance: Botting):
-    bot_instance.Properties.ApplyNow("draw_path", "active", _DRAW_PATH_UNWANTED_GUESTS)
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
     bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(True), "Enable MoveToPartyMemberIfDead")
@@ -1835,7 +1839,6 @@ def Unwanted_Guests(bot_instance: Botting):
     _move_with_unstuck(bot_instance, 1256, 4623, "6th Keeper killed")
 
     _unblacklist(bot_instance, "obsidian behemoth")
-    bot_instance.Properties.ApplyNow("draw_path", "active", _DRAW_PATH_UNWANTED_GUESTS)
     bot_instance.States.AddCustomState(lambda: _record_quest_done("Unwanted Guests"), "Record Unwanted Guests done")
 
 def Restore_Wastes(bot_instance: Botting):
@@ -2047,8 +2050,6 @@ def Dhuum(bot_instance: Botting):
     )  # Wait until King is within interaction range (exits on wipe/map change)
 
     bot_instance.Wait.ForTime(10000)
-    bot_instance.Dialogs.WithModel(2403, 0x846901, "Talk to The King and start Dhuum fight")
-    bot_instance.Dialogs.WithModel(2403, 0x846901, "Talk to The King and start Dhuum fight")
     EnqueueDialogUntilQuestActive(bot_instance, 0x846901, int(UWQuestID.TheNightmareCometh), int(UWNpcModelID.KingFrozenwind), "Take The Nightmare Cometh quest")
     bot_instance.States.AddCustomState(_flag_sacrifice_accounts, "Flag Sacrifice Accounts")
     bot_instance.States.AddCustomState(_flag_survivor_accounts, "Flag Survivor Accounts")
@@ -2202,6 +2203,11 @@ def Dhuum(bot_instance: Botting):
         "Enable Dead Ally Rescue",
     )
     bot_instance.States.AddCustomState(lambda: _record_quest_done("Dhuum"), "Record Dhuum done")
+    bot_instance.Move.XYAndDialog(-15774, 17302,0x846907, "Talk to Dhuum and complete quest")
+    bot_instance.Multibox.SendDialogToTarget(0x846901)
+    bot_instance.Wait.ForTime(2000)
+    bot_instance.Multibox.SendDialogToTarget(0x846907)
+    bot_instance.Wait.ForTime(2000)
 
 
 
@@ -2834,11 +2840,10 @@ def _draw_quest_settings():
 bot.SetMainRoutine(bot_routine)
 
 def _draw_debug_settings():
-    global _DRAW_BLOCKED_AREAS_3D, _BLOCKED_AREA_RADIUS, _DRAW_PATH_UNWANTED_GUESTS
+    global _DRAW_BLOCKED_AREAS_3D, _BLOCKED_AREA_RADIUS
     _DRAW_BLOCKED_AREAS_3D = PyImGui.checkbox("Draw Blocked Areas (3D)", _DRAW_BLOCKED_AREAS_3D)
     if _DRAW_BLOCKED_AREAS_3D:
         _BLOCKED_AREA_RADIUS = PyImGui.slider_float("Blocked Area Radius", _BLOCKED_AREA_RADIUS, 50.0, 600.0)
-    _DRAW_PATH_UNWANTED_GUESTS = PyImGui.checkbox("Draw Path (Unwanted Guests)", _DRAW_PATH_UNWANTED_GUESTS)
 
     PyImGui.separator()
     PyImGui.text("Spirit Form (3134) — Active accounts:")
@@ -3202,7 +3207,7 @@ def main():
     import traceback as _tb
     try:
         _draw_blocked_areas_overlay()
-        _draw_active_path_overlay()
+
         _draw_armor_edit_window()
         if bot.config.fsm_running:
             _get_adapter().sync_runtime()
