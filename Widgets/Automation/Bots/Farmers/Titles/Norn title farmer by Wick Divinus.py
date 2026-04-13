@@ -19,7 +19,11 @@ MODULE_NAME = "Norn Title Farm"
 MODULE_ICON = "Textures/Skill_Icons/[2373] - Heart of the Norn.jpg"
 
 OLAFSTEAD = 645
+TARNISHED_HAVEN = 641
 VARAJAR_FELLS = 553
+PATH_TO_REVELATIONS_QUEST_ID = 893
+KERRSH_XY = (25203.0, -10694.0)
+PATH_TO_REVELATIONS_DIALOG = 0x837D01
 ZONING_STEP_NAME = "[H]Zoning into explorable area_2"
 START_COMBAT_STEP_NAME = "[H]Start Combat_3"
 
@@ -245,6 +249,7 @@ def bot_routine(bot: Botting) -> None:
     _sync_consumable_toggles(bot)
     bot.States.AddCustomState(lambda: _coro_travel_random_district(bot, OLAFSTEAD), "Travel to Olafstead")
     bot.States.AddCustomState(lambda: _gh_merchant_setup_if_enabled(bot, OLAFSTEAD), "GH Merchant Setup If Enabled")
+    bot.States.AddCustomState(lambda: _refresh_path_to_revelations_if_completed(bot), "Refresh Path to Revelations If Completed")
     bot.States.AddCustomState(lambda: _maybe_setup_heroes(bot), "Setup Heroes")
     bot.States.AddCustomState(lambda: _restock_consumables_if_enabled(bot), "Restock Consumables If Enabled")
 
@@ -484,6 +489,30 @@ def _coro_travel_random_district(bot: Botting, target_map_id: int):
         yield from bot.Wait._coro_for_map_load(target_map_id=target_map_id)
         return
     yield from bot.Map._coro_travel(target_map_id, "")
+
+
+def _refresh_path_to_revelations_if_completed(bot: Botting):
+    if not bot.Quest.IsQuestCompleted(PATH_TO_REVELATIONS_QUEST_ID):
+        return
+
+    if _party_mode == 1:
+        _kick_current_party_accounts()
+        for _ in range(20):
+            yield from bot.Wait._coro_for_time(250)
+            if GLOBAL_CACHE.Party.GetPlayerCount() <= 1:
+                break
+
+    yield from _coro_travel_random_district(bot, TARNISHED_HAVEN)
+    bot.Quest.AbandonQuest(PATH_TO_REVELATIONS_QUEST_ID)
+    yield from bot.Wait._coro_for_time(500)
+    yield from bot.Move._coro_xy_and_dialog(
+        KERRSH_XY[0],
+        KERRSH_XY[1],
+        PATH_TO_REVELATIONS_DIALOG,
+        "Take Path to Revelations",
+    )
+    yield from bot.Wait._coro_for_time(500)
+    yield from _coro_travel_random_district(bot, OLAFSTEAD)
 
 
 def _get_leftover_material_item_ids(batch_size: int = 10) -> list[int]:
