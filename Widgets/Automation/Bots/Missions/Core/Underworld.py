@@ -1683,10 +1683,41 @@ def Wrathfull_Spirits(bot_instance: Botting):
     bot_instance.States.AddHeader(_WS_LOOP_STEP)
 
     bot_instance.Move.XY(-10207, 1746, "Wrathfull Spirits 2")
+
+    def _coro_move_to_tortured_spirits_in_range() -> Generator[Any, Any, None]:
+        """At runtime: find alive 'tortured spirit' enemies within range 4000 and move to each one."""
+        player_pos = Player.GetXY()
+        spirits = [
+            e for e in AgentArray.GetEnemyArray()
+            if Agent.IsAlive(e)
+            and Utils.Distance(player_pos, Agent.GetXY(e)) <= 4000
+            and "tortured spirit" in (Agent.GetNameByID(e) or "").strip().lower()
+        ]
+        if not spirits:
+            return
+        spirits.sort(key=lambda e: Utils.Distance(player_pos, Agent.GetXY(e)))
+        for enemy_id in spirits:
+            if not Agent.IsAlive(enemy_id):
+                continue
+            ex, ey = Agent.GetXY(enemy_id)
+            Player.Move(ex, ey)
+            while True:
+                yield
+                if not Routines.Checks.Map.MapValid():
+                    return
+                if not Agent.IsAlive(enemy_id):
+                    break
+                if Utils.Distance(Player.GetXY(), (ex, ey)) <= 200:
+                    break
+                Player.Move(ex, ey)
+
     bot_instance.Move.XY(-13566, -229, "Wrathfull Spirits 3")
     bot_instance.Move.XY(-13287, 1996, "Wrathfull Spirits 3b")
+    bot_instance.config.FSM.AddYieldRoutineStep(name="Move to Tortured Spirits in Range", coroutine_fn=_coro_move_to_tortured_spirits_in_range)
     bot_instance.Move.XY(-14486, 7113, "Wrathfull Spirits 4")
+    bot_instance.config.FSM.AddYieldRoutineStep(name="Move to Tortured Spirits in Range", coroutine_fn=_coro_move_to_tortured_spirits_in_range)
     bot_instance.Move.XY(-15226, 4129, "Wrathfull Spirits 5")
+    bot_instance.config.FSM.AddYieldRoutineStep(name="Move to Tortured Spirits in Range", coroutine_fn=_coro_move_to_tortured_spirits_in_range)
     bot_instance.Move.XY(-13275, 5261, "go to NPC")
     bot_instance.Move.XY(5755, 12769, "go to NPC")
     bot_instance.Dialogs.WithModel(UWNpcModelID.ReaperOfTheLabyrinth,0x806E07, "Take Reward")

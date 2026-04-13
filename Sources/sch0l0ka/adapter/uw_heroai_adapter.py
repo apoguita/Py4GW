@@ -9,7 +9,7 @@
 # ╚══════════════════════════════════════════════════════════════════════════════
 
 import Py4GW
-from Py4GWCoreLib import Agent, Player, Utils, GLOBAL_CACHE, ConsoleLog
+from Py4GWCoreLib import Agent, Player, Utils, GLOBAL_CACHE, ConsoleLog, Routines
 from Py4GWCoreLib.enums_src.Multiboxing_enums import SharedCommandType
 
 from Sources.sch0l0ka.adapter.uw_combat_adapter import UWCombatAdapter
@@ -106,23 +106,94 @@ class UWHeroAIAdapter(UWCombatAdapter):
             lambda: bot_instance.Templates.Routines.OnPartyMemberDeathBehind() if self._dead_ally_rescue_enabled else None
         )
 
+    def _disable_widget_locally(self, widget_name: str) -> None:
+        """Disable a widget on the local (executing) account via the widget handler."""
+        try:
+            from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
+            handler = get_widget_handler()
+            if handler.is_widget_enabled(widget_name):
+                handler.disable_widget(widget_name)
+                ConsoleLog(
+                    self._bot_name,
+                    f"[HeroAI] Disabled local widget '{widget_name}'.",
+                    Py4GW.Console.MessageType.Info,
+                )
+        except Exception as e:
+            ConsoleLog(
+                self._bot_name,
+                f"[HeroAI] Could not disable local widget '{widget_name}': {e}",
+                Py4GW.Console.MessageType.Warning,
+            )
+
+    def _enable_widget_locally(self, widget_name: str) -> None:
+        """Enable a widget on the local (executing) account via the widget handler."""
+        try:
+            from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
+            handler = get_widget_handler()
+            if not handler.is_widget_enabled(widget_name):
+                handler.enable_widget(widget_name)
+                ConsoleLog(
+                    self._bot_name,
+                    f"[HeroAI] Enabled local widget '{widget_name}'.",
+                    Py4GW.Console.MessageType.Info,
+                )
+        except Exception as e:
+            ConsoleLog(
+                self._bot_name,
+                f"[HeroAI] Could not enable local widget '{widget_name}': {e}",
+                Py4GW.Console.MessageType.Warning,
+            )
+
     def configure_startup_states(self, bot_instance) -> None:
+        bot_instance.States.AddCustomState(
+            lambda: ConsoleLog(
+                self._bot_name,
+                "[Startup] Disabling CustomBehaviors widget on all accounts.",
+                Py4GW.Console.MessageType.Info,
+            ),
+            "[Startup] Log Disable CB Widgets",
+        )
         for widget_name in (
             "CustomBehaviors",
             "Custom Behavior",
             "Custom Behaviors: Utility AI",
         ):
             bot_instance.States.AddCustomState(
+                lambda wn=widget_name: self._disable_widget_locally(wn),
+                f"Disable local {widget_name}",
+            )
+            bot_instance.States.AddCustomState(
                 lambda wn=widget_name: self._broadcast_widget_command(
                     wn, SharedCommandType.DisableWidget, "Broadcasted disable"
                 ),
                 f"Disable {widget_name} on active accounts",
             )
+        bot_instance.Wait.ForTime(2000)
+        bot_instance.States.AddCustomState(
+            lambda: ConsoleLog(
+                self._bot_name,
+                "[Startup] Enabling HeroAI widget on all accounts.",
+                Py4GW.Console.MessageType.Info,
+            ),
+            "[Startup] Log Enable HeroAI",
+        )
+        bot_instance.States.AddCustomState(
+            lambda: self._enable_widget_locally("HeroAI"),
+            "Enable local HeroAI",
+        )
         bot_instance.States.AddCustomState(
             lambda: self._broadcast_widget_command(
                 "HeroAI", SharedCommandType.EnableWidget, "Broadcasted enable"
             ),
             "Enable HeroAI on active accounts",
+        )
+        bot_instance.States.AddCustomState(
+            lambda: self._set_all_heroai_options(following=True, combat=True, looting=True),
+            "Set HeroAI options on all accounts",
+        )
+        bot_instance.States.AddCustomState(
+            lambda: self._enable_widget_locally("Dhuum Helper"),
+            "Enable local Dhuum Helper",
         )
         bot_instance.States.AddCustomState(
             lambda: self._broadcast_widget_command(

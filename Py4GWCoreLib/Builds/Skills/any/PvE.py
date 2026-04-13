@@ -178,3 +178,250 @@ class PvE:
             log=False,
             aftercast_delay=250,
         ))
+
+    # ─── Dhuum Encounter Skills ───────────────────────────────────────────────
+
+    _UW_CHEST_POS = (-13987, 17291)
+    _UW_CHEST_RADIUS = 3000.0
+    _UW_CHEST_NAME_FRAGMENT = "underworld chest"
+    _SPIRIT_FORM_SKILL_ID = 3134
+    _SPIRIT_FORM_MIN_COUNT = 1
+
+    @staticmethod
+    def _resolve_dhuum_skill(*names: str, fallback: int = 0) -> int:
+        for name in names:
+            try:
+                skill_id = int(Skill.GetID(name))
+            except Exception:
+                skill_id = 0
+            if skill_id > 0:
+                return skill_id
+        return int(fallback)
+
+    @staticmethod
+    def _is_uw_chest_present() -> bool:
+        from Py4GWCoreLib import Agent, AgentArray
+        for agent_id in AgentArray.GetAgentArray():
+            if not Agent.IsGadget(agent_id):
+                continue
+            name = (Agent.GetNameByID(agent_id) or "").strip().lower()
+            if PvE._UW_CHEST_NAME_FRAGMENT not in name:
+                continue
+            ax, ay = Agent.GetXY(agent_id)
+            cx, cy = PvE._UW_CHEST_POS
+            if ((ax - cx) ** 2 + (ay - cy) ** 2) ** 0.5 <= PvE._UW_CHEST_RADIUS:
+                return True
+        return False
+
+    @staticmethod
+    def _same_party_and_map(self_account, other_account) -> bool:
+        return (
+            int(self_account.AgentPartyData.PartyID) == int(other_account.AgentPartyData.PartyID)
+            and int(self_account.AgentData.Map.MapID) == int(other_account.AgentData.Map.MapID)
+            and int(self_account.AgentData.Map.Region) == int(other_account.AgentData.Map.Region)
+            and int(self_account.AgentData.Map.District) == int(other_account.AgentData.Map.District)
+            and int(self_account.AgentData.Map.Language) == int(other_account.AgentData.Map.Language)
+        )
+
+    def _count_spirit_form_accounts(self) -> int:
+        from Py4GWCoreLib import GLOBAL_CACHE, Player
+        self_email = Player.GetAccountEmail()
+        self_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(self_email)
+        if self_account is None:
+            return 0
+        count = 0
+        for account in (GLOBAL_CACHE.ShMem.GetAllAccountData() or []):
+            if not account.IsSlotActive or account.IsIsolated:
+                continue
+            if not self._same_party_and_map(self_account, account):
+                continue
+            try:
+                if any(
+                    b.SkillId == self._SPIRIT_FORM_SKILL_ID
+                    for b in account.AgentData.Buffs.Buffs
+                    if b.SkillId != 0
+                ):
+                    count += 1
+            except Exception:
+                pass
+        return count
+
+    def _get_spirit_form_agent_ids(self) -> set[int]:
+        from Py4GWCoreLib import GLOBAL_CACHE, Player
+        result: set[int] = set()
+        self_email = Player.GetAccountEmail()
+        self_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(self_email)
+        if self_account is None:
+            return result
+        for account in (GLOBAL_CACHE.ShMem.GetAllAccountData() or []):
+            if not account.IsSlotActive or account.IsIsolated:
+                continue
+            if not self._same_party_and_map(self_account, account):
+                continue
+            try:
+                if any(
+                    b.SkillId == self._SPIRIT_FORM_SKILL_ID
+                    for b in account.AgentData.Buffs.Buffs
+                    if b.SkillId != 0
+                ):
+                    agent_id = int(account.AgentData.AgentID or 0)
+                    if agent_id > 0:
+                        result.add(agent_id)
+            except Exception:
+                pass
+        return result
+
+    def _get_morale_by_agent_id(self) -> dict[int, int]:
+        from Py4GWCoreLib import GLOBAL_CACHE, Player
+        morale_by_agent: dict[int, int] = {}
+        self_email = Player.GetAccountEmail()
+        self_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(self_email)
+        if self_account is None:
+            return morale_by_agent
+        for account in GLOBAL_CACHE.ShMem.GetAllAccountData():
+            if not account.IsSlotActive or account.IsIsolated:
+                continue
+            if not self._same_party_and_map(self_account, account):
+                continue
+            agent_id = int(account.AgentData.AgentID or 0)
+            if agent_id <= 0:
+                continue
+            morale_by_agent[agent_id] = int(account.AgentData.Morale)
+        return morale_by_agent
+
+    def _get_best_rod_target(self) -> int:
+        from Py4GWCoreLib import Agent, AgentArray, Player
+
+        spirit_form_count = self._count_spirit_form_accounts()
+        if spirit_form_count < self._SPIRIT_FORM_MIN_COUNT:
+            return 0
+
+        spirit_form_ids = self._get_spirit_form_agent_ids()
+        restrict_to_spirit_form = spirit_form_count <= 2
+        morale_map = self._get_morale_by_agent_id()
+        if not morale_map:
+            return 0
+
+        my_id = int(Player.GetAgentID())
+        me_x, me_y = Player.GetXY()
+
+        allies = AgentArray.Filter.ByCondition(
+            AgentArray.GetAllyArray(),
+            lambda aid: Agent.IsAlive(aid)
+            and int(aid) != my_id
+            and (not restrict_to_spirit_form or int(aid) in spirit_form_ids)
+            and ((Agent.GetXY(aid)[0] - me_x) ** 2 + (Agent.GetXY(aid)[1] - me_y) ** 2) ** 0.5 <= Range.Spellcast.value * 1.4,
+        )
+        if not allies:
+            return 0
+
+        # Sort by HP ascending, then distance ascending (matching CB ordering)
+        allies.sort(key=lambda aid: (
+            Agent.GetHealth(aid),
+            ((Agent.GetXY(aid)[0] - me_x) ** 2 + (Agent.GetXY(aid)[1] - me_y) ** 2) ** 0.5,
+        ))
+
+        best_target = 0
+        best_penalty = 0
+        for ally_id in allies:
+            ally_id = int(ally_id)
+            morale = int(morale_map.get(ally_id, 100))
+            penalty = max(0, 100 - morale)
+            if penalty <= 0:
+                continue
+            if penalty > best_penalty:
+                best_target = ally_id
+                best_penalty = penalty
+
+        return best_target
+
+    def Unyielding_Aura(self) -> BuildCoroutine:
+        ua_id: int = self._resolve_dhuum_skill("Unyielding_Aura", "Unyielding Aura")
+        if not self.build.IsSkillEquipped(ua_id):
+            return False
+        if self._is_uw_chest_present():
+            return False
+        target = self.build.ResolveAllyTarget(ua_id)
+        if not target:
+            return False
+        return (yield from self.build.CastSkillIDAndRestoreTarget(ua_id, target))
+
+    def Dhuums_Rest(self, is_active: bool = True) -> BuildCoroutine:
+        dhuums_rest_id: int = self._resolve_dhuum_skill("Dhuum_s_Rest", "Dhuum's Rest", "Dhuums_Rest", fallback=3087)
+        if not self.build.IsSkillEquipped(dhuums_rest_id):
+            return False
+        if not is_active:
+            return False
+        if self._is_uw_chest_present():
+            return False
+        return (yield from self.build.CastSkillID(dhuums_rest_id))
+
+    def Ghostly_Fury(self, is_active: bool = True) -> BuildCoroutine:
+        from Py4GWCoreLib import Agent, AgentArray, Player
+
+        ghostly_fury_id: int = self._resolve_dhuum_skill("Ghostly_Fury", "Ghostly Fury", fallback=3091)
+        if not self.build.IsSkillEquipped(ghostly_fury_id):
+            return False
+        if not is_active:
+            return False
+        if self._is_uw_chest_present():
+            return False
+
+        target = 0
+        if hasattr(self.build, "priority_target") and self.build.priority_target:
+            pt = int(self.build.priority_target)
+            if Agent.IsValid(pt) and Agent.IsAlive(pt):
+                me_x, me_y = Player.GetXY()
+                tx, ty = Agent.GetXY(pt)
+                if ((tx - me_x) ** 2 + (ty - me_y) ** 2) ** 0.5 <= Range.Spellcast.value:
+                    target = pt
+
+        if not target:
+            me_x, me_y = Player.GetXY()
+            enemies = AgentArray.Filter.ByCondition(
+                AgentArray.GetEnemyArray(),
+                lambda aid: Agent.IsAlive(aid)
+                and ((Agent.GetXY(aid)[0] - me_x) ** 2 + (Agent.GetXY(aid)[1] - me_y) ** 2) ** 0.5 <= Range.Spellcast.value,
+            )
+            if enemies:
+                enemies.sort(key=lambda aid: ((Agent.GetXY(aid)[0] - me_x) ** 2 + (Agent.GetXY(aid)[1] - me_y) ** 2) ** 0.5)
+                target = int(enemies[0])
+
+        if not target:
+            return False
+        return (yield from self.build.CastSkillIDAndRestoreTarget(ghostly_fury_id, target))
+
+    def Reversal_of_Death(self) -> BuildCoroutine:
+        rod_id: int = self._resolve_dhuum_skill("Reversal_of_Death", "Reversal of Death", fallback=3090)
+        if not self.build.IsSkillEquipped(rod_id):
+            return False
+        if self._is_uw_chest_present():
+            return False
+        target = self._get_best_rod_target()
+        if not target:
+            return False
+        return (yield from self.build.CastSkillIDAndRestoreTarget(rod_id, target))
+
+    def Spiritual_Healing(self) -> BuildCoroutine:
+        from Py4GWCoreLib import Agent, AgentArray, Player
+
+        sh_id: int = self._resolve_dhuum_skill("Spiritual_Healing", "Spiritual Healing", fallback=3088)
+        if not self.build.IsSkillEquipped(sh_id):
+            return False
+        if self._is_uw_chest_present():
+            return False
+
+        me_x, me_y = Player.GetXY()
+        candidates = AgentArray.Filter.ByCondition(
+            AgentArray.GetAllyArray(),
+            lambda aid: Agent.IsAlive(aid)
+            and Agent.GetHealth(aid) < 0.70
+            and ((Agent.GetXY(aid)[0] - me_x) ** 2 + (Agent.GetXY(aid)[1] - me_y) ** 2) ** 0.5 <= Range.Spellcast.value * 1.2,
+        )
+        if not candidates:
+            return False
+        candidates.sort(key=lambda aid: (
+            Agent.GetHealth(aid),
+            ((Agent.GetXY(aid)[0] - me_x) ** 2 + (Agent.GetXY(aid)[1] - me_y) ** 2) ** 0.5,
+        ))
+        return (yield from self.build.CastSkillIDAndRestoreTarget(sh_id, int(candidates[0])))
