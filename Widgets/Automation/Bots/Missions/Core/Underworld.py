@@ -2105,7 +2105,6 @@ def Dhuum(bot_instance: Botting):
         name="Wait for Spirit Forms and enable combat",
         coroutine_fn=_wait_and_enable_combat,
     )
-    bot_instance.Move.XY(-16447, 17267, "Move to Dhuum fight")
     bot_instance.Wait.UntilCondition(
         lambda: not Routines.Checks.Map.MapValid()
         or Map.GetMapID() != UW_MAP_ID
