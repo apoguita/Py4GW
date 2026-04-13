@@ -1906,7 +1906,7 @@ def Dhuum(bot_instance: Botting):
     
 
     def _flag_sacrifice_accounts() -> None:
-        flag_x, flag_y = -15914, 17273
+        flag_x, flag_y = -15386, 17295
         _get_adapter().clear_flags()
 
         sacrifice_emails = DhuumSettings.SacrificeEmails
@@ -1938,7 +1938,7 @@ def Dhuum(bot_instance: Botting):
         )
 
     def _flag_survivor_accounts() -> None:
-        flag_x, flag_y = -16307, 17283
+        flag_x, flag_y = -14374, 17261
 
         my_email = Player.GetAccountEmail()
         sacrifice_emails = DhuumSettings.SacrificeEmails
@@ -2033,7 +2033,7 @@ def Dhuum(bot_instance: Botting):
         if _slot_map:
             bot_instance.Multibox.EquipItemOnAllAccounts(_slot_map)
 
-
+    bot_instance.Wait.ForTime(1000)  # wait for armor switch to complete before moving
     bot_instance.Move.XY(-11278, 17297, "Wait For the King")
     bot_instance.Wait.UntilCondition(
         lambda: not Routines.Checks.Map.MapValid()
@@ -2088,7 +2088,9 @@ def Dhuum(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _toggle_in_danger_callback(False), "Disable InDanger callback for Dhuum")
     # Activate the Spirit Form watchdog for the duration of the fight.
     bot_instance.States.AddCustomState(lambda: _set_dhuum_fight_active(True), "Enable Dhuum Spirit Form Watchdog")
-    bot_instance.Move.XY(-16447, 17267, "Move to Dhuum fight")
+    bot_instance.Wait.ForTime(10000)
+    bot_instance.Move.XY(-14007, 17287, "Move to Dhuum fight")
+    
 
     def _wait_and_enable_combat():
         # Poll every 250 ms so combat is enabled in the same coroutine frame
@@ -2103,6 +2105,7 @@ def Dhuum(bot_instance: Botting):
         name="Wait for Spirit Forms and enable combat",
         coroutine_fn=_wait_and_enable_combat,
     )
+    bot_instance.Move.XY(-16447, 17267, "Move to Dhuum fight")
     bot_instance.Wait.UntilCondition(
         lambda: not Routines.Checks.Map.MapValid()
         or Map.GetMapID() != UW_MAP_ID
