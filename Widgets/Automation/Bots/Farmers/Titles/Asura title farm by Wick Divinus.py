@@ -179,8 +179,8 @@ def PrepareForCombat(bot: Botting) -> None:
     _load_consumable_settings(bot)
     _load_kit_restock_settings(bot)
     _sync_consumable_toggles(bot)
-    bot.States.AddCustomState(lambda: _coro_travel_random_district(bot, RATASUM), "Travel to Rata Sum")
     bot.States.AddCustomState(lambda: _gh_merchant_setup_if_enabled(bot, RATASUM), "GH Merchant Setup If Enabled")
+    bot.States.AddCustomState(lambda: _coro_travel_random_district(bot, RATASUM), "Travel to Rata Sum")
     bot.States.AddCustomState(lambda: _maybe_setup_heroes(bot), "Setup Heroes")
     bot.States.AddCustomState(lambda: _restock_consumables_if_enabled(bot), "Restock Consumables If Enabled")
     bot.Party.SetHardMode(True)
@@ -629,7 +629,7 @@ def _gh_merchant_setup_if_enabled(bot: Botting, outpost_id: int):
     if _merchant_alt_wait_ms > 0:
         yield from Routines.Yield.wait(_merchant_alt_wait_ms)
 
-    yield from _coro_travel_random_district(bot, outpost_id)
+    #yield from _coro_travel_random_district(bot, outpost_id)
     if _party_mode == 1:
         yield from Routines.Yield.wait(1500)
     yield from _reenable_merchant_widgets()
