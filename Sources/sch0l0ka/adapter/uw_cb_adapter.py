@@ -182,7 +182,7 @@ class UWCBAdapter(UWCombatAdapter):
         )
         self._bot_instance = bot_instance
         bot_instance.Events.OnPartyMemberBehindCallback(
-            lambda: bot_instance.Templates.Routines.OnPartyMemberBehind() if self._wait_for_party_enabled else None
+            lambda: self.on_party_member_behind(bot_instance)
         )
         bot_instance.Events.OnPartyMemberInDangerCallback(
             lambda: bot_instance.Templates.Routines.OnPartyMemberInDanger() if self._in_danger_enabled else None

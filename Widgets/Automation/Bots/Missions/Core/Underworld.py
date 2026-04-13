@@ -1001,7 +1001,7 @@ def _coro_dhuum_spirit_form_watchdog(bot: Botting):
     on each follower locally.  A concurrent PixelStack coroutine would conflict with
     the Dhuum Helper's movement commands and cause unreliable dialog delivery."""
     _SPIRIT_FORM_SKILL_ID = 3134
-    _SPIRIT_FLAG_X = -14006
+    _SPIRIT_FLAG_X = -16476
     _SPIRIT_FLAG_Y = 17275
     # email -> original flag (x, y) saved when Spirit Form was first detected
     _saved_flag_positions: dict[str, tuple[float, float]] = {}
@@ -1869,7 +1869,7 @@ def Dhuum(bot_instance: Botting):
     
 
     def _flag_sacrifice_accounts() -> None:
-        flag_x, flag_y = -15022, 17277
+        flag_x, flag_y = -15914, 17273
         _get_adapter().clear_flags()
 
         sacrifice_emails = DhuumSettings.SacrificeEmails
@@ -1901,7 +1901,7 @@ def Dhuum(bot_instance: Botting):
         )
 
     def _flag_survivor_accounts() -> None:
-        flag_x, flag_y = -14144, 17286
+        flag_x, flag_y = -16307, 17283
 
         my_email = Player.GetAccountEmail()
         sacrifice_emails = DhuumSettings.SacrificeEmails
@@ -2051,7 +2051,7 @@ def Dhuum(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _toggle_in_danger_callback(False), "Disable InDanger callback for Dhuum")
     # Activate the Spirit Form watchdog for the duration of the fight.
     bot_instance.States.AddCustomState(lambda: _set_dhuum_fight_active(True), "Enable Dhuum Spirit Form Watchdog")
-    bot_instance.Move.XY(-13987, 17291, "Move to Dhuum fight")
+    bot_instance.Move.XY(-16447, 17267, "Move to Dhuum fight")
 
     def _wait_and_enable_combat():
         # Poll every 250 ms so combat is enabled in the same coroutine frame
