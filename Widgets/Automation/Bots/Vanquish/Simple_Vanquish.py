@@ -252,7 +252,7 @@ def Radar(bot: "Botting", radar_range: int = 3500):
             # Save position and pause FSM
             global _radar_active
             _radar_active = True
-            bot.Properties.Disable("auto_loot")
+            bot.config.FSM.RemoveManagedCoroutine("keep_auto_loot")
             saved_x, saved_y = player_x, player_y
 
             # Log enemy coordinates for source file analysis
@@ -310,7 +310,7 @@ def Radar(bot: "Botting", radar_range: int = 3500):
                 )
 
             # Resume FSM
-            bot.Properties.Enable("auto_loot")
+            bot.config.FSM.AddManagedCoroutine("keep_auto_loot", bot.helpers.Upkeepers.upkeep_auto_loot())
             _radar_active = False
             ConsoleLog("Radar", "Returned to saved position. Resuming FSM.", Py4GW.Console.MessageType.Debug, True)
             bot.config.FSM.resume()
@@ -568,12 +568,12 @@ def bot_routine(bot: Botting) -> None:
 
 def _stop_bot():
     if _radar_detections:
-        ConsoleLog(BotSettings.BOT_NAME, "- - - RADAR DETECTIONS SUMMARY - - -", Py4GW.Console.MessageType.Info, True)
+        ConsoleLog(BotSettings.BOT_NAME, "═══ RADAR DETECTIONS SUMMARY ═══", Py4GW.Console.MessageType.Info, True)
         for map_name, coords in _radar_detections.items():
             ConsoleLog(BotSettings.BOT_NAME, f"  Map: {map_name} ({len(coords)} detections)", Py4GW.Console.MessageType.Info, True)
             for i, (ex, ey) in enumerate(coords):
                 ConsoleLog(BotSettings.BOT_NAME, f"    {i+1}. ({ex}, {ey})", Py4GW.Console.MessageType.Info, True)
-        ConsoleLog(BotSettings.BOT_NAME, "- - - END RADAR DETECTIONS - - -", Py4GW.Console.MessageType.Info, True)
+        ConsoleLog(BotSettings.BOT_NAME, "═══ END RADAR DETECTIONS ═══", Py4GW.Console.MessageType.Info, True)
     else:
         ConsoleLog(BotSettings.BOT_NAME, "No radar detections recorded.", Py4GW.Console.MessageType.Info, True)
     bot.Stop()
@@ -704,6 +704,10 @@ def OnPartyWipe(bot: "Botting"):
     fsm.RemoveManagedCoroutine("Radar")
     fsm.RemoveManagedCoroutine("ConsetUpkeep")
     fsm.RemoveManagedCoroutine("PconsUpkeep")
+    # Restore keep_auto_loot in case Radar had removed it
+    fsm.RemoveManagedCoroutine("keep_auto_loot")
+    fsm.AddManagedCoroutine("keep_auto_loot", bot.helpers.Upkeepers.upkeep_auto_loot())
+    bot.Properties.Enable("auto_loot")
     global _radar_active
     _radar_active = False
     fsm.AddManagedCoroutine("OnWipe_OPD", lambda: _on_party_wipe(bot))
