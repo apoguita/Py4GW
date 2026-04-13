@@ -404,6 +404,13 @@ class UWHeroAIAdapter(UWCombatAdapter):
             options.AllFlag.x = 0.0
             options.AllFlag.y = 0.0
 
+    def batch_set_flags(
+        self, assignments: list[tuple[str, int, float, float]]
+    ) -> None:
+        self.clear_flags()
+        for email, flag_index, x, y in assignments:
+            self.set_flag_for_email(email, flag_index, x, y)
+
     def auto_assign_flag_emails(self) -> None:
         pass  # Not applicable for HeroAI (no email-based flag assignment).
 

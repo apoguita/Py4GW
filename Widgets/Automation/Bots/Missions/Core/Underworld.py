@@ -548,38 +548,75 @@ def _enqueue_imprisoned_spirits_flags(bot_instance: Botting) -> None:
     RIGHT_POINTS = [(12871, 2512), (12640, 2485), (12402, 2472), (12137, 2444), (12150, 2139)]
 
     def _set_team_flags() -> None:
-        _get_adapter().clear_flags()
         my_email     = Player.GetAccountEmail()
-        left_emails  = ImprisonedSpiritsSettings.LeftTeamEmails
-        right_emails = ImprisonedSpiritsSettings.RightTeamEmails
+        left_emails  = list(ImprisonedSpiritsSettings.LeftTeamEmails)
+        right_emails = list(ImprisonedSpiritsSettings.RightTeamEmails)
 
+        # Ensure every connected account is in one of the two lists
+        all_accounts = GLOBAL_CACHE.ShMem.GetAllAccountData() or []
+        known = set(e.lower() for e in left_emails + right_emails)
+        for acct in all_accounts:
+            email = str(acct.AccountEmail).strip()
+            if email and email.lower() not in known:
+                right_emails.append(email)
+                ImprisonedSpiritsSettings.set_team(email, "right")
+                ConsoleLog(BOT_NAME, f"[Imprisoned] Auto-assigned '{email}' to right team.", Py4GW.Console.MessageType.Info)
+
+        assignments: list[tuple[str, int, float, float]] = []
         cb_idx = 0
 
+        # Collect left-team accounts, track overflow
+        left_overflow: list[str] = []
         left_pt = 0
         for email in left_emails:
             if email == my_email:
                 continue
             if left_pt >= len(LEFT_POINTS):
-                break
+                left_overflow.append(email)
+                continue
             x, y = LEFT_POINTS[left_pt]
-            _get_adapter().set_flag_for_email(email, cb_idx, x, y)
+            assignments.append((email, cb_idx, float(x), float(y)))
             ConsoleLog(BOT_NAME, f"[Imprisoned] Left  [{cb_idx}] {email} \u2192 ({x},{y})", Py4GW.Console.MessageType.Info)
             cb_idx  += 1
             left_pt += 1
 
+        # Collect right-team accounts, track overflow
+        right_overflow: list[str] = []
         right_pt = 0
         for email in right_emails:
             if email == my_email:
                 continue
             if right_pt >= len(RIGHT_POINTS):
-                break
+                right_overflow.append(email)
+                continue
             x, y = RIGHT_POINTS[right_pt]
-            _get_adapter().set_flag_for_email(email, cb_idx, x, y)
+            assignments.append((email, cb_idx, float(x), float(y)))
             ConsoleLog(BOT_NAME, f"[Imprisoned] Right [{cb_idx}] {email} \u2192 ({x},{y})", Py4GW.Console.MessageType.Info)
             cb_idx   += 1
             right_pt += 1
 
-        ConsoleLog(BOT_NAME, f"[Imprisoned] Flagged {cb_idx} account(s) total.", Py4GW.Console.MessageType.Info)
+        # Assign overflow from right → remaining left slots
+        for email in right_overflow:
+            if left_pt >= len(LEFT_POINTS):
+                break
+            x, y = LEFT_POINTS[left_pt]
+            assignments.append((email, cb_idx, float(x), float(y)))
+            ConsoleLog(BOT_NAME, f"[Imprisoned] Overflow→Left  [{cb_idx}] {email} \u2192 ({x},{y})", Py4GW.Console.MessageType.Info)
+            cb_idx  += 1
+            left_pt += 1
+
+        # Assign overflow from left → remaining right slots
+        for email in left_overflow:
+            if right_pt >= len(RIGHT_POINTS):
+                break
+            x, y = RIGHT_POINTS[right_pt]
+            assignments.append((email, cb_idx, float(x), float(y)))
+            ConsoleLog(BOT_NAME, f"[Imprisoned] Overflow→Right [{cb_idx}] {email} \u2192 ({x},{y})", Py4GW.Console.MessageType.Info)
+            cb_idx   += 1
+            right_pt += 1
+
+        _get_adapter().batch_set_flags(assignments)
+        ConsoleLog(BOT_NAME, f"[Imprisoned] Flagged {len(assignments)} account(s) total.", Py4GW.Console.MessageType.Info)
 
     bot_instance.States.AddCustomState(_set_team_flags, "Set Imprisoned Spirits Team Flags")
 
@@ -1620,7 +1657,7 @@ def Imprisoned_Spirits(bot_instance: Botting):
     )
     bot_instance.Move.XY(13652, 6117)  # Run down towards the left team
     bot_instance.Wait.UntilCondition(
-        lambda: time.monotonic() - _is_timer[0] >= 25.0
+        lambda: time.monotonic() - _is_timer[0] >= 28.0
     )
     bot_instance.States.AddCustomState(
         lambda: _get_adapter().clear_flags(),
@@ -1629,7 +1666,7 @@ def Imprisoned_Spirits(bot_instance: Botting):
     bot_instance.Move.XY(12593, 1814)
     bot_instance.Wait.ForTime(40000)
     bot_instance.Wait.UntilCondition(
-        lambda: time.monotonic() - _is_timer[0] >= 80.0
+        lambda: time.monotonic() - _is_timer[0] >= 90.0
     )
     _unblacklist(bot_instance, "chained soul")
     bot_instance.Move.XY(10437, 5005)
@@ -1713,11 +1750,11 @@ def Wrathfull_Spirits(bot_instance: Botting):
 
     bot_instance.Move.XY(-13566, -229, "Wrathfull Spirits 3")
     bot_instance.Move.XY(-13287, 1996, "Wrathfull Spirits 3b")
-    bot_instance.config.FSM.AddYieldRoutineStep(name="Move to Tortured Spirits in Range", coroutine_fn=_coro_move_to_tortured_spirits_in_range)
+    #bot_instance.config.FSM.AddYieldRoutineStep(name="Move to Tortured Spirits in Range", coroutine_fn=_coro_move_to_tortured_spirits_in_range)
     bot_instance.Move.XY(-14486, 7113, "Wrathfull Spirits 4")
-    bot_instance.config.FSM.AddYieldRoutineStep(name="Move to Tortured Spirits in Range", coroutine_fn=_coro_move_to_tortured_spirits_in_range)
+    #bot_instance.config.FSM.AddYieldRoutineStep(name="Move to Tortured Spirits in Range", coroutine_fn=_coro_move_to_tortured_spirits_in_range)
     bot_instance.Move.XY(-15226, 4129, "Wrathfull Spirits 5")
-    bot_instance.config.FSM.AddYieldRoutineStep(name="Move to Tortured Spirits in Range", coroutine_fn=_coro_move_to_tortured_spirits_in_range)
+    #bot_instance.config.FSM.AddYieldRoutineStep(name="Move to Tortured Spirits in Range", coroutine_fn=_coro_move_to_tortured_spirits_in_range)
     bot_instance.Move.XY(-13275, 5261, "go to NPC")
     bot_instance.Move.XY(5755, 12769, "go to NPC")
     bot_instance.Dialogs.WithModel(UWNpcModelID.ReaperOfTheLabyrinth,0x806E07, "Take Reward")

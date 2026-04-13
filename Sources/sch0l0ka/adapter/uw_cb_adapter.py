@@ -358,6 +358,26 @@ class UWCBAdapter(UWCombatAdapter):
         CustomBehaviorParty().party_flagging_manager.clear_all_flags()
         GLOBAL_CACHE.Party.Heroes.UnflagAllHeroes()
 
+    def batch_set_flags(
+        self, assignments: list[tuple[str, int, float, float]]
+    ) -> None:
+        mgr = CustomBehaviorParty().party_flagging_manager
+        config = mgr._memory_manager.GetFlaggingConfig()
+        # Clear all 12 slots
+        for i in range(12):
+            mgr._set_c_wchar_array(config.FlagAccountEmails[i], "")
+            config.FlagPositionsX[i] = 0.0
+            config.FlagPositionsY[i] = 0.0
+        # Set all assignments in one pass
+        for email, idx, x, y in assignments:
+            if 0 <= idx < 12:
+                mgr._set_c_wchar_array(config.FlagAccountEmails[idx], email)
+                config.FlagPositionsX[idx] = x
+                config.FlagPositionsY[idx] = y
+        # Single write to shared memory
+        mgr._memory_manager.SetFlaggingConfig(config)
+        GLOBAL_CACHE.Party.Heroes.UnflagAllHeroes()
+
     def auto_assign_flag_emails(self) -> None:
         CustomBehaviorParty().party_flagging_manager.auto_assign_emails_if_none_assigned()
 

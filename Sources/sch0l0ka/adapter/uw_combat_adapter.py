@@ -243,6 +243,17 @@ class UWCombatAdapter(ABC):
     def clear_flags(self) -> None: ...
 
     @abstractmethod
+    def batch_set_flags(
+        self, assignments: list[tuple[str, int, float, float]]
+    ) -> None:
+        """Clear all flags then set multiple flags in one atomic operation.
+
+        Each element is (email, flag_index, x, y).  This avoids race conditions
+        caused by interleaved shared-memory read-write cycles.
+        """
+        ...
+
+    @abstractmethod
     def auto_assign_flag_emails(self) -> None: ...
 
 
