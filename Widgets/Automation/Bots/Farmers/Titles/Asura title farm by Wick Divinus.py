@@ -25,6 +25,8 @@ START_COMBAT_STEP_NAME = "[H]Start Combat_3"
 _MULTIBOX_ALTS_KEY = "use_multibox_alts"
 _party_mode: int = 0  # 0 = Single Account with Heroes, 1 = Multiboxing
 _mode_loaded: bool = False
+_COMBAT_BACKEND_KEY = "combat_backend"
+_combat_backend: int = 0  # 0 = HeroAI, 1 = CustomBehaviors
 
 bot = Botting(BOT_NAME,
               upkeep_armor_of_salvation_restock=2,
@@ -163,6 +165,7 @@ def ConfigureAggressiveEnv(bot: Botting) -> None:
         bot.Templates.Multibox_Aggressive()
     else:
         bot.Templates.Aggressive()
+    _apply_combat_backend_local_now(bot)
     bot.Properties.Enable("auto_inventory_management")
 # endregion
 
@@ -184,7 +187,7 @@ def PrepareForCombat(bot: Botting) -> None:
     bot.States.AddCustomState(lambda: _coro_travel_random_district(bot, RATASUM), "Travel to Rata Sum")
     bot.States.AddCustomState(lambda: _maybe_setup_heroes(bot), "Setup Heroes")
     bot.States.AddCustomState(lambda: _restock_consumables_if_enabled(bot), "Restock Consumables If Enabled")
-    bot.States.AddCustomState(lambda: _enable_hero_ai_if_available(bot), "Enable HeroAI If Available")
+    bot.States.AddCustomState(lambda: _apply_combat_backend_if_available(bot), "Apply Combat Backend If Available")
     bot.Party.SetHardMode(True)
 
 
@@ -1103,31 +1106,72 @@ def _setup_heroes(bot: Botting):
             yield from bot.Wait._coro_for_time(500)
 
 
-def _enable_hero_ai_if_available(bot: Botting):
-    try:
-        bot.Properties.ApplyNow("hero_ai", "active", True)
-    except Exception:
+def _apply_combat_backend_local_now(bot: Botting) -> None:
+    from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler as _get_wh
+
+    def _set_hero_ai_active(active: bool):
         try:
-            bot.Properties.ApplyNow("hero_ai", True)
+            bot.Properties.ApplyNow("hero_ai", "active", active)
+        except Exception:
+            try:
+                bot.Properties.ApplyNow("hero_ai", active)
+            except Exception:
+                pass
+        try:
+            if active:
+                bot.Properties.Enable("hero_ai")
+            else:
+                bot.Properties.Disable("hero_ai")
         except Exception:
             pass
 
-    try:
-        bot.Properties.Enable("hero_ai")
-    except Exception:
-        pass
+    wh = _get_wh()
 
-    try:
-        from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler as _get_wh
-        _get_wh().enable_widget("HeroAI")
-    except Exception:
-        pass
-
-    if _party_mode == 1:
+    if _combat_backend == 1:
+        _set_hero_ai_active(False)
         try:
-            yield from bot.helpers.Multibox.enable_widget("HeroAI")
+            wh.disable_widget("HeroAI")
         except Exception:
             pass
+        try:
+            wh.enable_widget("CustomBehaviors")
+        except Exception:
+            pass
+    else:
+        _set_hero_ai_active(True)
+        try:
+            wh.disable_widget("CustomBehaviors")
+        except Exception:
+            pass
+        try:
+            wh.enable_widget("HeroAI")
+        except Exception:
+            pass
+
+
+def _apply_combat_backend_if_available(bot: Botting):
+    _apply_combat_backend_local_now(bot)
+
+    if _combat_backend == 1:
+        if _party_mode == 1:
+            try:
+                yield from bot.helpers.Multibox._disable_widget_message("HeroAI")
+            except Exception:
+                pass
+            try:
+                yield from bot.helpers.Multibox._enable_widget_message("CustomBehaviors")
+            except Exception:
+                pass
+    else:
+        if _party_mode == 1:
+            try:
+                yield from bot.helpers.Multibox._disable_widget_message("CustomBehaviors")
+            except Exception:
+                pass
+            try:
+                yield from bot.helpers.Multibox._enable_widget_message("HeroAI")
+            except Exception:
+                pass
 
     yield from bot.Wait._coro_for_time(500)
 
@@ -1173,13 +1217,19 @@ def _sync_consumable_toggles(bot: Botting) -> None:
 
 # region GUI
 def _load_mode_setting(bot: Botting) -> None:
-    global _party_mode, _randomize_district
+    global _party_mode, _randomize_district, _combat_backend
     ini_key = _ensure_bot_ini(bot)
     if not ini_key:
         return
     raw = IniManager().read_bool(ini_key, _SETTINGS_SECTION, _MULTIBOX_ALTS_KEY, False)
     _party_mode = 1 if raw else 0
     _randomize_district = IniManager().read_bool(ini_key, _SETTINGS_SECTION, _RANDOMIZE_DISTRICT_KEY, _randomize_district)
+    try:
+        _combat_backend = int(IniManager().read_int(ini_key, _SETTINGS_SECTION, _COMBAT_BACKEND_KEY, _combat_backend))
+    except Exception:
+        _combat_backend = 0
+    if _combat_backend not in (0, 1):
+        _combat_backend = 0
 
 
 def _ensure_mode_loaded(bot: Botting) -> None:
@@ -1196,6 +1246,7 @@ def _save_mode_setting(bot: Botting) -> None:
         return
     IniManager().write_key(ini_key, _SETTINGS_SECTION, _MULTIBOX_ALTS_KEY, _party_mode == 1)
     IniManager().write_key(ini_key, _SETTINGS_SECTION, _RANDOMIZE_DISTRICT_KEY, bool(_randomize_district))
+    IniManager().write_key(ini_key, _SETTINGS_SECTION, _COMBAT_BACKEND_KEY, int(_combat_backend))
 
 
 def _do_dialog_at(bot: Botting, x: float, y: float, dialog_id: int, broadcast_to_alts: bool = True):
@@ -1221,7 +1272,7 @@ def _draw_settings(bot: Botting):
 
     _ensure_consumable_settings_ui_loaded(bot)
 
-    global _party_mode, _randomize_district
+    global _party_mode, _randomize_district, _combat_backend
     _ensure_mode_loaded(bot)
     PyImGui.separator()
     PyImGui.text("Party Mode:")
@@ -1242,7 +1293,12 @@ def _draw_settings(bot: Botting):
     PyImGui.separator()
 
     PyImGui.text("Combat Backend")
-    PyImGui.text("Current: Auto Combat")
+    new_backend = PyImGui.radio_button("HeroAI", _combat_backend, 0)
+    PyImGui.same_line(0, 16)
+    new_backend = PyImGui.radio_button("CustomBehaviors", new_backend, 1)
+    if new_backend != _combat_backend:
+        _combat_backend = new_backend
+        _save_mode_setting(bot)
 
     # Conset controls
     use_conset = _as_bool(bot.Properties.Get("use_conset", "active"))
