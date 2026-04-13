@@ -615,6 +615,28 @@ def _wait_for_alt_dispatch_completion(stage_name: str, message_refs: list[tuple[
         ConsoleLog(BOT_NAME, f"[Merchant] {stage_name}: timeout waiting for alt completion. Pending: {pending_accounts}", Py4GW.Console.MessageType.Warning)
 
 
+def _wait_for_alts_on_current_map(stage_name: str, timeout_ms: int = 30000):
+    if _party_mode != 1:
+        return
+    my_email = Player.GetAccountEmail()
+    expected_alts = len([acc for acc in GLOBAL_CACHE.ShMem.GetAllAccountData() if acc.AccountEmail != my_email])
+    if expected_alts <= 0:
+        return
+    current_map_id = int(Map.GetMapID())
+    deadline = time.time() + (max(0, int(timeout_ms)) / 1000.0)
+    while time.time() < deadline:
+        accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+        arrived = sum(
+            1 for acc in accounts
+            if acc.AccountEmail != my_email and int(getattr(acc.AgentData.Map, "MapID", 0) or 0) == current_map_id
+        )
+        if arrived >= expected_alts:
+            yield from Routines.Yield.wait(1000)
+            return
+        yield from Routines.Yield.wait(500)
+    ConsoleLog(BOT_NAME, f"[Merchant] {stage_name}: alt arrival timeout on map {current_map_id}", Py4GW.Console.MessageType.Warning)
+
+
 def _kick_current_party_accounts():
     own_login = int(Player.GetLoginNumber() or 0)
     for member in list(GLOBAL_CACHE.Party.GetPlayers()):
@@ -648,6 +670,7 @@ def _gh_merchant_setup_if_enabled(bot: Botting, outpost_id: int):
     yield from bot.Wait._coro_until_on_outpost()
     if _party_mode == 1:
         yield from _wait_for_alt_dispatch_completion("travel_gh", travel_refs, SharedCommandType.TravelToGuildHall, timeout_ms=10000)
+        yield from _wait_for_alts_on_current_map("travel_gh_arrival", timeout_ms=60000)
 
     npc_deadline = time.time() + 20.0
     while _find_npc_xy_by_name("Merchant", max_dist=30000.0) is None and time.time() < npc_deadline:
@@ -698,6 +721,8 @@ def _gh_merchant_setup_if_enabled(bot: Botting, outpost_id: int):
         yield from Routines.Yield.wait(_merchant_alt_wait_ms)
 
     yield from _coro_travel_random_district(bot, outpost_id)
+    if _party_mode == 1:
+        yield from Routines.Yield.wait(1500)
     yield from _reenable_merchant_widgets()
 # endregion
 
