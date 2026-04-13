@@ -326,8 +326,7 @@ def Fight(bot: Botting) -> None:
         bot.Wait.UntilOnOutpost()
     else:
         bot.Map.Travel(target_map_id=RATASUM)
-    bot.States.JumpToStepName(ZONING_STEP_NAME)
-
+    bot.States.JumpToStepName("[H]Prepare For Farm_1")
 
 def PrepareForBattle(bot: Botting):
     _sync_consumable_toggles(bot)
