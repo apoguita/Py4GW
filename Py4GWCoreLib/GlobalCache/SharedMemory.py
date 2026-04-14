@@ -47,7 +47,10 @@ from HeroAI.following import FollowFormationPublisher
 from ..py4gwcorelib_src.FrameCache import frame_cache
 
 
-def _account_key(account: AccountStruct):
+def _account_key(*args):
+    # When used as key for a standalone function: args = (account,)
+    # When used as key for an instance method:    args = (self, account)
+    account = args[-1]
     return (account.AccountEmail, int(account.AgentData.AgentID))
 
 
