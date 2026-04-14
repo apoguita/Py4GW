@@ -10,8 +10,8 @@ observation and state management.
 
 import time
 
-from Py4GWCoreLib import Agent, AgentArray, CombatEvents, GLOBAL_CACHE, Party, Player, Skill, ThrottledTimer
-from Py4GWCoreLib.CombatEvents import EventType
+from Py4GWCoreLib import Agent, AgentArray, GLOBAL_CACHE, Party, Player, Skill, ThrottledTimer
+from Py4GWCoreLib.CombatEvents import CombatEvents as CombatEvents, EventType
 
 
 class ReaperModeTracker:
@@ -242,8 +242,7 @@ class ReaperModeTracker:
         effective_ids = cls._effective_reaper_ids()
         now_ms        = time.monotonic() * 1000.0
         player_id     = int(Player.GetAgentID())
-        CombatEvents.update()
-        recent_skills        = CombatEvents.get_recent_skills(80)
+        recent_skills        = CombatEvents.GetRecentSkills(80)
         candidate_agent_ids  = cls._reaper_candidate_agent_ids()
         party_member_ids     = cls._party_member_agent_ids()
 

@@ -25,7 +25,9 @@ class Checks:
                 return False
             if Checks.Player.IsCasting():
                 return False
-            return True
+            
+            #from ..Agent import Agent
+            #return Agent.CanAct(Player.GetAgentID())
         
         @staticmethod
         def IsDead():
