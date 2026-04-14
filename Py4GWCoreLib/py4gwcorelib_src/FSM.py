@@ -580,6 +580,10 @@ class FSM:
                     self.managed_coroutines.remove(routine)
                 except ValueError:
                     pass
+
+        # A managed coroutine may stop/reset FSM mid-tick.
+        if not self.current_state:
+            return
                 
         if self.paused:
             if self.log_actions:
@@ -590,6 +594,10 @@ class FSM:
         if self.log_actions:
             ConsoleLog("FSM", f"{self.name}: Executing state: {self.current_state.name}", Py4GW.Console.MessageType.Info)
         self.current_state.execute()
+
+        # State execution can indirectly clear/replace current_state.
+        if not self.current_state:
+            return
 
         if not self.current_state.can_exit():
             return
