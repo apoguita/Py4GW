@@ -181,12 +181,12 @@ _dhuum_fight_active: bool = False   # set True from start of Dhuum fight to ches
 _run_start_uptime_ms: int = 0       # Map.GetInstanceUptime() value (ms) when the dungeon was entered
 _SKELETON_OF_DHUUM_MODEL_ID: int = 2392
 _DRAW_BLOCKED_AREAS_3D = False
-_DRAW_PATH_UNWANTED_GUESTS = False
+
 _BLOCKED_AREA_SEGMENTS = 48
 _BLOCKED_AREA_THICKNESS = 2.5
 _BLOCKED_AREA_COLOR = Utils.RGBToColor(255, 40, 40, 170)
 _BLOCKED_AREA_RADIUS = 200.0
-_active_move_path_3d: list[tuple[float, float, float]] = []  # current move path drawn every frame
+
 _pending_wipe_recovery: bool = False   # set by coroutine; consumed by main() before bot.Update()
 _pending_wipe_reason:   str  = ""      # human-readable label logged when the restart fires
 _planned_resign:        bool = False   # set before an intentional resign so OnPartyWipe is suppressed
@@ -281,6 +281,23 @@ def _get_adapter():
     return _cb_adapter_instance
 
 
+def _uw_aggressive(b: Botting, **kwargs) -> None:
+    """Wrapper around Templates.Aggressive() that undoes the HeroAI/Isolation
+    side effects when running in CB mode."""
+    b.Templates.Aggressive(**kwargs)
+    if BotSettings.BotMode != "heroai":
+        b.Properties.Disable("hero_ai")
+        b.Multibox.SetAccountIsolation(False)
+
+
+def _uw_pacifist(b: Botting) -> None:
+    """Wrapper around Templates.Pacifist() that undoes the Isolation
+    side effect when running in CB mode."""
+    b.Templates.Pacifist()
+    if BotSettings.BotMode != "heroai":
+        b.Multibox.SetAccountIsolation(False)
+
+
 def _mark_entered_dungeon() -> None:
     global _entered_dungeon, _run_start_uptime_ms
     _entered_dungeon = True
@@ -300,25 +317,13 @@ def _record_quest_done(name: str) -> None:
 
 class InventorySettings:
     """Settings for between-run inventory management."""
-    RefillEnabled:          bool = bool(_ini.read_bool(BOT_NAME, "inv_refill_enabled",      True))
-    RestockKits:            bool = bool(_ini.read_bool(BOT_NAME, "inv_restock_kits",         True))
-    RestockCons:            bool = bool(_ini.read_bool(BOT_NAME, "inv_restock_cons",         True))
-    DepositMaterials:       bool = bool(_ini.read_bool(BOT_NAME, "inv_deposit_mats",         True))
-    SellNonConsMaterials:   bool = bool(_ini.read_bool(BOT_NAME, "inv_sell_non_cons_mats",   False))
-    SellAllCommonMaterials: bool = bool(_ini.read_bool(BOT_NAME, "inv_sell_all_common_mats", False))
-    BuyEctoplasm:           bool = bool(_ini.read_bool(BOT_NAME, "inv_buy_ecto",             False))
-    InventoryLocation:      str  = str(_ini.read_key(BOT_NAME,  "inv_location",             "guild_hall") or "guild_hall")
+    RefillEnabled: bool = bool(_ini.read_bool(BOT_NAME, "inv_refill_enabled", True))
+    RestockCons:   bool = bool(_ini.read_bool(BOT_NAME, "inv_restock_cons",   True))
 
     @classmethod
     def save(cls) -> None:
-        _ini.write_key(BOT_NAME, "inv_refill_enabled",      str(cls.RefillEnabled))
-        _ini.write_key(BOT_NAME, "inv_restock_kits",        str(cls.RestockKits))
-        _ini.write_key(BOT_NAME, "inv_restock_cons",        str(cls.RestockCons))
-        _ini.write_key(BOT_NAME, "inv_deposit_mats",        str(cls.DepositMaterials))
-        _ini.write_key(BOT_NAME, "inv_sell_non_cons_mats",  str(cls.SellNonConsMaterials))
-        _ini.write_key(BOT_NAME, "inv_sell_all_common_mats",str(cls.SellAllCommonMaterials))
-        _ini.write_key(BOT_NAME, "inv_buy_ecto",            str(cls.BuyEctoplasm))
-        _ini.write_key(BOT_NAME, "inv_location",            str(cls.InventoryLocation))
+        _ini.write_key(BOT_NAME, "inv_refill_enabled", str(cls.RefillEnabled))
+        _ini.write_key(BOT_NAME, "inv_restock_cons",   str(cls.RestockCons))
 
 
 class DhuumSettings:
@@ -329,10 +334,13 @@ class DhuumSettings:
     _raw_armor: str = _ini.read_key(BOT_NAME, "dhuum_armor_switch_emails", "")
     ArmorSwitchEmails: set[str] = set(e.strip() for e in _raw_armor.split(";") if e.strip())
 
+    MinSpiritformAccounts: int = int(_ini.read_int(BOT_NAME, "dhuum_min_spiritform", 2))
+
     @classmethod
     def save(cls) -> None:
         _ini.write_key(BOT_NAME, "dhuum_sacrifice_emails", ";".join(sorted(cls.SacrificeEmails)))
         _ini.write_key(BOT_NAME, "dhuum_armor_switch_emails", ";".join(sorted(cls.ArmorSwitchEmails)))
+        _ini.write_key(BOT_NAME, "dhuum_min_spiritform", str(cls.MinSpiritformAccounts))
 
     @classmethod
     def is_sacrifice(cls, email: str) -> bool:
@@ -540,38 +548,75 @@ def _enqueue_imprisoned_spirits_flags(bot_instance: Botting) -> None:
     RIGHT_POINTS = [(12871, 2512), (12640, 2485), (12402, 2472), (12137, 2444), (12150, 2139)]
 
     def _set_team_flags() -> None:
-        _get_adapter().clear_flags()
         my_email     = Player.GetAccountEmail()
-        left_emails  = ImprisonedSpiritsSettings.LeftTeamEmails
-        right_emails = ImprisonedSpiritsSettings.RightTeamEmails
+        left_emails  = list(ImprisonedSpiritsSettings.LeftTeamEmails)
+        right_emails = list(ImprisonedSpiritsSettings.RightTeamEmails)
 
+        # Ensure every connected account is in one of the two lists
+        all_accounts = GLOBAL_CACHE.ShMem.GetAllAccountData() or []
+        known = set(e.lower() for e in left_emails + right_emails)
+        for acct in all_accounts:
+            email = str(acct.AccountEmail).strip()
+            if email and email.lower() not in known:
+                right_emails.append(email)
+                ImprisonedSpiritsSettings.set_team(email, "right")
+                ConsoleLog(BOT_NAME, f"[Imprisoned] Auto-assigned '{email}' to right team.", Py4GW.Console.MessageType.Info)
+
+        assignments: list[tuple[str, int, float, float]] = []
         cb_idx = 0
 
+        # Collect left-team accounts, track overflow
+        left_overflow: list[str] = []
         left_pt = 0
         for email in left_emails:
             if email == my_email:
                 continue
             if left_pt >= len(LEFT_POINTS):
-                break
+                left_overflow.append(email)
+                continue
             x, y = LEFT_POINTS[left_pt]
-            _get_adapter().set_flag_for_email(email, cb_idx, x, y)
+            assignments.append((email, cb_idx, float(x), float(y)))
             ConsoleLog(BOT_NAME, f"[Imprisoned] Left  [{cb_idx}] {email} \u2192 ({x},{y})", Py4GW.Console.MessageType.Info)
             cb_idx  += 1
             left_pt += 1
 
+        # Collect right-team accounts, track overflow
+        right_overflow: list[str] = []
         right_pt = 0
         for email in right_emails:
             if email == my_email:
                 continue
             if right_pt >= len(RIGHT_POINTS):
-                break
+                right_overflow.append(email)
+                continue
             x, y = RIGHT_POINTS[right_pt]
-            _get_adapter().set_flag_for_email(email, cb_idx, x, y)
+            assignments.append((email, cb_idx, float(x), float(y)))
             ConsoleLog(BOT_NAME, f"[Imprisoned] Right [{cb_idx}] {email} \u2192 ({x},{y})", Py4GW.Console.MessageType.Info)
             cb_idx   += 1
             right_pt += 1
 
-        ConsoleLog(BOT_NAME, f"[Imprisoned] Flagged {cb_idx} account(s) total.", Py4GW.Console.MessageType.Info)
+        # Assign overflow from right → remaining left slots
+        for email in right_overflow:
+            if left_pt >= len(LEFT_POINTS):
+                break
+            x, y = LEFT_POINTS[left_pt]
+            assignments.append((email, cb_idx, float(x), float(y)))
+            ConsoleLog(BOT_NAME, f"[Imprisoned] Overflow→Left  [{cb_idx}] {email} \u2192 ({x},{y})", Py4GW.Console.MessageType.Info)
+            cb_idx  += 1
+            left_pt += 1
+
+        # Assign overflow from left → remaining right slots
+        for email in left_overflow:
+            if right_pt >= len(RIGHT_POINTS):
+                break
+            x, y = RIGHT_POINTS[right_pt]
+            assignments.append((email, cb_idx, float(x), float(y)))
+            ConsoleLog(BOT_NAME, f"[Imprisoned] Overflow→Right [{cb_idx}] {email} \u2192 ({x},{y})", Py4GW.Console.MessageType.Info)
+            cb_idx   += 1
+            right_pt += 1
+
+        _get_adapter().batch_set_flags(assignments)
+        ConsoleLog(BOT_NAME, f"[Imprisoned] Flagged {len(assignments)} account(s) total.", Py4GW.Console.MessageType.Info)
 
     bot_instance.States.AddCustomState(_set_team_flags, "Set Imprisoned Spirits Team Flags")
 
@@ -600,6 +645,14 @@ def EnqueueDialogUntilQuestActive(
     """
     from Py4GWCoreLib.Quest import Quest
     target_quest_id = int(quest_id)
+
+    # Disable ALL movement-issuing CB utility skills on the local instance
+    # (following, automover, wait_if_in_aggro, etc.) so this account stays at
+    # the NPC during the dialog sequence.  Does NOT touch shared memory.
+    bot_instance.States.AddCustomState(
+        lambda: _get_adapter().toggle_local_movement(False),
+        f"[QuestDialog] Disable local CB movement for quest {target_quest_id}",
+    )
 
     bot_instance.Dialogs.WithModel(model_id, dialog_id, step_name)
 
@@ -648,6 +701,12 @@ def EnqueueDialogUntilQuestActive(
         coroutine_fn=_coro_ensure_quest_active,
     )
 
+    # Re-enable all movement utility skills on the local CB instance.
+    bot_instance.States.AddCustomState(
+        lambda: _get_adapter().toggle_local_movement(True),
+        f"[QuestDialog] Re-enable local CB movement after quest {target_quest_id}",
+    )
+
 
 def _coro_hold_horsemen_position() -> Generator[Any, Any, None]:
     """Keep the player at the Four Horsemen wait position every frame.
@@ -660,7 +719,7 @@ def _coro_hold_horsemen_position() -> Generator[Any, Any, None]:
     """
     from Py4GWCoreLib.Quest import Quest
     _HOLD_X, _HOLD_Y = 11510, -18234
-    _MAX_DISTANCE = 500.0
+    _MAX_DISTANCE = 80.0
     while True:
         if not Routines.Checks.Map.MapValid():
             return
@@ -677,7 +736,7 @@ def _coro_hold_horsemen_position() -> Generator[Any, Any, None]:
             return
         if Utils.Distance(Player.GetXY(), (_HOLD_X, _HOLD_Y)) > _MAX_DISTANCE:
             Player.Move(_HOLD_X, _HOLD_Y)
-        yield from Routines.Yield.wait(1000)
+        yield from Routines.Yield.wait(250)
 
 
 def _move_with_unstuck(
@@ -689,21 +748,24 @@ def _move_with_unstuck(
     backup_ms: int = 800,
     max_retries: int = 5,
     recalc_interval_ms: int = 500,
+    overall_timeout_s: float = 60.0,
 ) -> None:
     """Move to (target_x, target_y) with continuous path recalculation every recalc_interval_ms.
 
     Every interval the path is rebuilt from the current player position, hard-avoiding
     all navmesh nodes within 150 units of any blacklisted alive enemy.
     If no avoiding path exists (narrow corridor), falls back to a direct navmesh path.
-    The active path is stored in _active_move_path_3d and drawn as cyan 3D lines every frame.
     Stuck detection: if progress toward the target is less than stuck_threshold per interval
-    for max_retries consecutive intervals → /stuck + walk backwards.
+    for max_retries consecutive intervals → /stuck + walk backwards, then try an offset
+    intermediate waypoint perpendicular to the target direction.
+    overall_timeout_s prevents infinite loops (0 = disabled).
     """
     import math
+    import time as _time
     _AVOID_RADIUS = 150.0
+    _OFFSET_DISTANCE = 300.0  # perpendicular offset distance after stuck recovery
 
     def _coro():
-        global _active_move_path_3d
         import heapq as _heapq
         from Py4GWCoreLib.Pathing import AutoPathing, AStar, AStarNode, densify_path2d
         from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist
@@ -711,6 +773,8 @@ def _move_with_unstuck(
         tolerance = 150.0
         tx, ty = target_x, target_y
         stuck_counter = 0
+        _start_time = _time.monotonic()
+        _offset_side = 1  # alternates +1 / -1 for perpendicular offset direction
 
         class _AStarAvoid(AStar):
             """A* that hard-blocks any node within _AVOID_RADIUS of a blacklisted enemy."""
@@ -750,20 +814,22 @@ def _move_with_unstuck(
                             came[nb] = cur.id
                 return False
 
-        def _escape_point(px, py, avoid_pts) -> tuple[float, float] | None:
-            """Return the closest point that lies outside all avoid zones, or None if already clear."""
+        def _escape_point(px, py, avoid_pts, navmesh) -> tuple[float, float] | None:
+            """Return the closest navmesh-valid point outside all avoid zones, or None."""
             best_dist = float("inf")
             best_pt: tuple[float, float] | None = None
             for ax, ay in avoid_pts:
                 d = math.hypot(px - ax, py - ay)
                 if d < _AVOID_RADIUS:
-                    # Step directly away from this enemy just past the radius
                     if d < 1.0:
                         dx, dy = 1.0, 0.0
                     else:
                         dx, dy = (px - ax) / d, (py - ay) / d
                     ex = ax + dx * (_AVOID_RADIUS + 20.0)
                     ey = ay + dy * (_AVOID_RADIUS + 20.0)
+                    # Validate escape point lies on navmesh
+                    if navmesh is not None and navmesh.find_trapezoid_id_by_coord((ex, ey)) is None:
+                        continue
                     escape_d = math.hypot(ex - px, ey - py)
                     if escape_d < best_dist:
                         best_dist = escape_d
@@ -771,16 +837,14 @@ def _move_with_unstuck(
             return best_pt
 
         def _build_path(px, py, avoid_pts):
-            """Return (move_path, vis_path). move_path is densified for FollowPath,
-            vis_path is smoothed only (fewer points) for 3D drawing.
+            """Return a densified move_path for FollowPath.
             If the player is currently inside an avoid zone, a short escape segment
             is prepended so the route leaves the zone first."""
             navmesh = AutoPathing().get_navmesh()
             if navmesh is None:
-                return [(tx, ty)], [(tx, ty)]
+                return [(tx, ty)]
 
-            # If already inside a blocked zone, prepend an escape step.
-            escape = _escape_point(px, py, avoid_pts) if avoid_pts else None
+            escape = _escape_point(px, py, avoid_pts, navmesh) if avoid_pts else None
             start = escape if escape else (px, py)
 
             for pts in (avoid_pts, []):
@@ -793,16 +857,44 @@ def _move_with_unstuck(
                         smoothed = raw
                     if escape:
                         smoothed = [escape] + smoothed
-                    return densify_path2d(smoothed), smoothed
+                    return densify_path2d(smoothed)
                 if not avoid_pts:
-                    break  # already tried bare pass
+                    break
 
-            return [(tx, ty)], [(tx, ty)]
+            return [(tx, ty)]
+
+        def _perpendicular_offset(px, py) -> tuple[float, float] | None:
+            """Compute a point offset perpendicular to the player→target direction.
+            Returns None if the point is not on the navmesh."""
+            nonlocal _offset_side
+            dx, dy = tx - px, ty - py
+            dist = math.hypot(dx, dy)
+            if dist < 1.0:
+                return None
+            # Perpendicular unit vector (rotated 90°)
+            perp_x = -dy / dist * _offset_side
+            perp_y = dx / dist * _offset_side
+            # Midpoint between player and target, offset to the side
+            mid_x = px + dx * 0.3 + perp_x * _OFFSET_DISTANCE
+            mid_y = py + dy * 0.3 + perp_y * _OFFSET_DISTANCE
+            _offset_side *= -1  # alternate side next time
+            navmesh = AutoPathing().get_navmesh()
+            if navmesh is not None and navmesh.find_trapezoid_id_by_coord((mid_x, mid_y)) is None:
+                return None
+            return (mid_x, mid_y)
 
         while True:
+            # Overall timeout guard
+            if overall_timeout_s > 0 and (_time.monotonic() - _start_time) >= overall_timeout_s:
+                ConsoleLog(
+                    BOT_NAME,
+                    f"[Move] Overall timeout ({overall_timeout_s:.0f}s) reached for ({tx:.0f},{ty:.0f}). Aborting.",
+                    Py4GW.Console.MessageType.Warning,
+                )
+                return
+
             px, py = Player.GetXY()
             if math.hypot(tx - px, ty - py) <= tolerance:
-                _active_move_path_3d = []
                 return
 
             bl = EnemyBlacklist()
@@ -812,20 +904,13 @@ def _move_with_unstuck(
                 if bl.is_blacklisted(eid) and Agent.IsAlive(eid)
             ]
 
-            # Only recalculate frequently when a blacklisted enemy is within 500 units.
             enemy_nearby = any(
                 math.hypot(px - ax, py - ay) <= 500.0
                 for ax, ay in avoid_pts
             )
-            follow_timeout = recalc_interval_ms if enemy_nearby else 0  # 0 = no timeout, run to end
+            follow_timeout = recalc_interval_ms if enemy_nearby else 0
 
-            move_path, vis_path = _build_path(px, py, avoid_pts if enemy_nearby else [])
-
-            try:
-                _ov = Overlay()
-                _active_move_path_3d = [(x, y, _ov.FindZ(x, y, 0)) for x, y in vis_path]
-            except Exception:
-                _active_move_path_3d = []
+            move_path = _build_path(px, py, avoid_pts if enemy_nearby else [])
 
             reached = yield from Routines.Yield.Movement.FollowPath(
                 path_points=move_path,
@@ -833,7 +918,6 @@ def _move_with_unstuck(
                 timeout=follow_timeout,
             )
             if reached:
-                _active_move_path_3d = []
                 return
 
             npx, npy = Player.GetXY()
@@ -852,6 +936,20 @@ def _move_with_unstuck(
                     yield from Routines.Yield.Movement.WalkBackwards(backup_ms)
                     yield from Routines.Yield.wait(300)
                     stuck_counter = 0
+
+                    # Try an offset intermediate waypoint to break out of the stuck zone
+                    offset_pt = _perpendicular_offset(npx, npy)
+                    if offset_pt:
+                        ConsoleLog(
+                            BOT_NAME,
+                            f"[Move] Trying offset waypoint ({offset_pt[0]:.0f},{offset_pt[1]:.0f})",
+                            Py4GW.Console.MessageType.Info,
+                        )
+                        yield from Routines.Yield.Movement.FollowPath(
+                            path_points=[offset_pt],
+                            tolerance=tolerance,
+                            timeout=3000,
+                        )
             else:
                 stuck_counter = 0
 
@@ -913,24 +1011,7 @@ def _draw_blocked_areas_overlay() -> None:
         pass
 
 
-def _draw_active_path_overlay() -> None:
-    """Draw the current move path as cyan 3D lines every frame. Called from main()."""
-    path = _active_move_path_3d
-    if not path or len(path) < 2:
-        return
-    if Map.GetMapID() != UW_MAP_ID:
-        return
-    try:
-        _color = Utils.RGBToColor(0, 220, 255, 220)
-        _overlay = Overlay()
-        _overlay.BeginDraw()
-        for i in range(1, len(path)):
-            x1, y1, z1 = path[i - 1]
-            x2, y2, z2 = path[i]
-            _overlay.DrawLine3D(x1, y1, z1, x2, y2, z2, _color, 3.0)
-        _overlay.EndDraw()
-    except Exception:
-        pass
+
 
 
 def _coro_skeleton_dhuum_watchdog(bot: Botting):
@@ -970,14 +1051,35 @@ def _coro_skeleton_dhuum_watchdog(bot: Botting):
 
 def _coro_dhuum_spirit_form_watchdog(bot: Botting):
     """Monitor all ShMem party members during the Dhuum fight for the Spirit Form buff
-    (skill ID 3134 — Spirit_Form_disguise).  As soon as an account gains the buff,
-    its flag is repositioned to the ghost position AND a PixelStack command is sent
-    so the ghost account immediately walks there."""
+    (skill ID 3134 — Spirit_Form_disguise).  While an account has Spirit Form the CB
+    flag is moved to the ghost position so follow_flag guides the ghost there.
+    When Spirit Form ends (account resurrected via Dhuum Helper dialog) the flag is
+    restored to the pre-death position so the account returns to the fight.
+
+    NOTE: No PixelStack is sent — the Dhuum Helper widget handles NPC interaction
+    on each follower locally.  A concurrent PixelStack coroutine would conflict with
+    the Dhuum Helper's movement commands and cause unreliable dialog delivery."""
     _SPIRIT_FORM_SKILL_ID = 3134
-    _SPIRIT_FLAG_X = -14006
+    _SPIRIT_FLAG_X = -16476
     _SPIRIT_FLAG_Y = 17275
-    _pixelstack_sent_for_spirit: set[str] = set()
+    # email -> original flag (x, y) saved when Spirit Form was first detected
+    _saved_flag_positions: dict[str, tuple[float, float]] = {}
     _last_sync_log_at: dict[str, float] = {}
+
+    def _read_current_flag_pos(email: str) -> tuple[float, float] | None:
+        """Read the current CB flag position for *email* from shared memory."""
+        try:
+            from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
+            mgr = CustomBehaviorParty().party_flagging_manager
+            for i in range(12):
+                if mgr.get_flag_account_email(i).lower() == email.lower():
+                    pos = mgr.get_flag_position(i)
+                    if pos != (0.0, 0.0):
+                        return pos
+                    return None
+        except Exception:
+            pass
+        return None
 
     while True:
         yield from Routines.Yield.wait(500)
@@ -986,15 +1088,13 @@ def _coro_dhuum_spirit_form_watchdog(bot: Botting):
             continue
         if not _dhuum_fight_active:
             # Reset tracker when outside the fight so the next run starts clean.
-            _pixelstack_sent_for_spirit.clear()
+            _saved_flag_positions.clear()
             _last_sync_log_at.clear()
             continue
 
         current_map_id = Map.GetMapID()
         if current_map_id != UW_MAP_ID:
             continue
-
-        my_email = Player.GetAccountEmail()
 
         for account in GLOBAL_CACHE.ShMem.GetAllAccountData() or []:
             if not getattr(account, "IsSlotActive", True):
@@ -1015,12 +1115,41 @@ def _coro_dhuum_spirit_form_watchdog(bot: Botting):
                 )
             except Exception:
                 has_spirit_form = False
+
             if not has_spirit_form:
-                _pixelstack_sent_for_spirit.discard(email)
+                # Spirit Form ended — restore the flag to the saved pre-death position
+                # so follow_flag guides the account back to the fight, not the ghost area.
+                if email in _saved_flag_positions:
+                    ox, oy = _saved_flag_positions.pop(email)
+                    try:
+                        _get_adapter().update_flag_position_for_email(email, ox, oy)
+                        ConsoleLog(
+                            BOT_NAME,
+                            f"[Dhuum] {email} lost Spirit Form — flag restored to ({ox:.0f}, {oy:.0f}).",
+                            Py4GW.Console.MessageType.Info,
+                        )
+                        _append_debug_watchdog_log(f"Flag restored -> {email} ({ox:.0f}, {oy:.0f})")
+                    except Exception:
+                        pass
                 _last_sync_log_at.pop(email, None)
                 continue
 
             try:
+                # First detection: save the current flag position before overriding.
+                if email not in _saved_flag_positions:
+                    cur = _read_current_flag_pos(email)
+                    if cur is not None:
+                        _saved_flag_positions[email] = cur
+                    ConsoleLog(
+                        BOT_NAME,
+                        f"[Dhuum] {email} gained Spirit Form — repositioning flag to ghost area.",
+                        Py4GW.Console.MessageType.Info,
+                    )
+                    _append_debug_watchdog_log(
+                        f"Spirit Form detected -> {email} saved=({cur[0]:.0f}, {cur[1]:.0f})" if cur else
+                        f"Spirit Form detected -> {email} (no saved flag)"
+                    )
+
                 # Keep the flag continuously synced while Spirit Form is active.
                 # This recovers from intermittent overwrites/races in shared flag memory.
                 _get_adapter().update_flag_position_for_email(email, _SPIRIT_FLAG_X, _SPIRIT_FLAG_Y)
@@ -1031,23 +1160,6 @@ def _coro_dhuum_spirit_form_watchdog(bot: Botting):
                         f"SpiritForm sync -> {email} flag=({_SPIRIT_FLAG_X:.0f}, {_SPIRIT_FLAG_Y:.0f})"
                     )
                     _last_sync_log_at[email] = now
-
-                # Send PixelStack once per Spirit Form activation window so the ghost
-                # immediately snaps to position without spamming movement commands.
-                if email not in _pixelstack_sent_for_spirit:
-                    ConsoleLog(
-                        BOT_NAME,
-                        f"[Dhuum] {email} gained Spirit Form — repositioning flag and sending to ghost position.",
-                        Py4GW.Console.MessageType.Info,
-                    )
-                    GLOBAL_CACHE.ShMem.SendMessage(
-                        sender_email=my_email,
-                        receiver_email=email,
-                        command=SharedCommandType.PixelStack,
-                        params=(_SPIRIT_FLAG_X, _SPIRIT_FLAG_Y, 0.0, 0.0),
-                    )
-                    _pixelstack_sent_for_spirit.add(email)
-                    _append_debug_watchdog_log(f"PixelStack sent -> {email}")
             except Exception as _e:
                 _append_debug_watchdog_log(f"Watchdog error for {email}: {_e}")
                 ConsoleLog(
@@ -1170,6 +1282,10 @@ def bot_routine(bot: Botting):
     bot.Events.OnPartyWipeCallback(lambda: OnPartyWipe(bot))
     _get_adapter().set_blessing_enabled(True)
     _get_adapter().setup(bot)
+    # __reset_botting_behavior (called inside setup via UseCustomBehavior) queues
+    # Disable("auto_inventory_management"). Re-enable it immediately after so
+    # the upkeep coroutine stays active for the entire run.
+    bot.Properties.Enable("auto_inventory_management")
 
     # NOTE: UW-specific managed coroutines (watchdogs, pcon upkeep) are
     # registered every frame via _ensure_managed_coroutines() in main().
@@ -1179,7 +1295,7 @@ def bot_routine(bot: Botting):
 
     # Broadcast widget-policy states: disable/enable CB or HeroAI on all accounts.
     _get_adapter().configure_startup_states(bot)
-    bot.Templates.Aggressive()
+    _uw_aggressive(bot)
 
     # ── Quest-section state chain ─────────────────────────────────────────────
     # MAIN_LOOP_HEADER_NAME is the FSM jump target used by the wipe handler so
@@ -1236,7 +1352,7 @@ def Enter_UW(bot_instance: Botting):
 
     # ── Inventory refill at GH / configured outpost ───────────────────
     bot_instance.Multibox.KickAllAccounts()
-    _do_inventory_refill(bot_instance)
+    _do_merchant_rules_refill(bot_instance)
 
     # ── Leave any existing party (multibox-aware) ─────────────────────
     handle_leave_party(_make_ctx({"type": "leave_party", "name": "Leave Party", "multibox": True}))
@@ -1336,7 +1452,6 @@ def Clear_the_Chamber(bot_instance: Botting):
     
     bot_instance.Dialogs.WithModel(UWNpcModelID.ReaperOfTheLabyrinth,0x806507, "Take Clear the Chamber reward")
     bot_instance.Multibox.SendDialogToTarget(0x806507)
-    bot_instance.Dialogs.WithModel(UWNpcModelID.ReaperOfTheLabyrinth,0x806D01, "Quest Restore Monuments")
     EnqueueDialogUntilQuestActive(bot_instance, dialog_id=0x806D01, quest_id=UWQuestID.RestoringGrenthsMonuments, model_id=UWNpcModelID.ReaperOfTheLabyrinth, step_name="Take Restore Monuments quest")
     bot_instance.Wait.ForTime(3000)
     bot_instance.States.AddCustomState(lambda: _record_quest_done("Clear the Chamber"), "Record Clear the Chamber done")
@@ -1455,6 +1570,12 @@ def The_Four_Horsemen(bot_instance: Botting):
     # Disable WaitIfInAggro so CB does not issue competing movement commands
     # (e.g. moving away from or toward enemies) while we must hold position.
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(False), "Disable WaitIfInAggro for Horsemen hold")
+    # Disable ALL local CB movement utilities (following, automover, etc.)
+    # so nothing overrides the hold position while waiting for the quest.
+    bot_instance.States.AddCustomState(
+        lambda: _get_adapter().toggle_local_movement(False),
+        "Disable local CB movement for Horsemen hold",
+    )
     bot_instance.Move.XY(11510, -18234, "Hold position at Horsemen")
     bot_instance.config.FSM.AddYieldRoutineStep(
         name="Hold position at Horsemen",
@@ -1467,6 +1588,11 @@ def The_Four_Horsemen(bot_instance: Botting):
         lambda: Player.ChangeTarget(Player.GetAgentID()),
         "Clear stale target after Horsemen",
     )
+    # Re-enable local CB movement utilities after the hold.
+    bot_instance.States.AddCustomState(
+        lambda: _get_adapter().toggle_local_movement(True),
+        "Re-enable local CB movement after Horsemen hold",
+    )
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Re-enable WaitIfInAggro after Horsemen")
     bot_instance.States.AddCustomState(
         lambda: bot_instance.Properties.ApplyNow("pause_on_danger", "active", True),
@@ -1478,7 +1604,11 @@ def The_Four_Horsemen(bot_instance: Botting):
     )
     bot_instance.Wait.ForTime(10000)
     bot_instance.Move.XY(11371, -17990, "Go to Chaos Planes NPC")
-    #bot_instance.Dialogs.WithModel(UWNpcModelID.ReaperOfTheChaosPlanes,0x806A07, "take questreward")
+    bot_instance.Dialogs.WithModel(UWNpcModelID.ReaperOfTheChaosPlanes,0x806A07, "take questreward")
+    bot_instance.Multibox.SendDialogToTarget(0x806A01)
+    bot_instance.Wait.ForTime(3000)
+    bot_instance.Multibox.SendDialogToTarget(0x806A01)
+    
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_following_enabled(True), "Enable Follow")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
     bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(True), "Enable MoveToPartyMemberIfDead")
@@ -1506,9 +1636,13 @@ def Terrorweb_Queen(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(True), "Enable MoveToPartyMemberIfDead")
     bot_instance.Move.XY(-6957, -19478, "To the NPC")
     EnqueueDialogUntilQuestActive(bot_instance, 0x806B01, int(UWQuestID.TerrorwebQueen), int(UWNpcModelID.ReaperOfTheChaosPlanes), "take Terrorweb Queen quest")
+    bot_instance.Multibox.SendDialogToTarget(0x806B01)
     bot_instance.Move.XY(-12432, -15874, "Terrorweb Queen 1")
     bot_instance.Move.XY(-6957, -19478, "Back to Chamber")
+    bot_instance.Wait.ForTime(3000)
     bot_instance.Dialogs.WithModel(UWNpcModelID.ReaperOfTheSpawningPools,0x806B07, "Back to Chamber")
+    bot_instance.Multibox.SendDialogToTarget(0x806B07)
+    bot_instance.Wait.ForTime(3000)
     bot_instance.Dialogs.WithModel(UWNpcModelID.ReaperOfTheSpawningPools,0x8B, "Back to Chamber")
     bot_instance.States.AddCustomState(lambda: _record_quest_done("Terrorweb Queen"), "Record Terrorweb Queen done")
     
@@ -1552,7 +1686,7 @@ def Imprisoned_Spirits(bot_instance: Botting):
     )
     bot_instance.Move.XY(13652, 6117)  # Run down towards the left team
     bot_instance.Wait.UntilCondition(
-        lambda: time.monotonic() - _is_timer[0] >= 25.0
+        lambda: time.monotonic() - _is_timer[0] >= 28.0
     )
     bot_instance.States.AddCustomState(
         lambda: _get_adapter().clear_flags(),
@@ -1561,7 +1695,7 @@ def Imprisoned_Spirits(bot_instance: Botting):
     bot_instance.Move.XY(12593, 1814)
     bot_instance.Wait.ForTime(40000)
     bot_instance.Wait.UntilCondition(
-        lambda: time.monotonic() - _is_timer[0] >= 80.0
+        lambda: time.monotonic() - _is_timer[0] >= 90.0
     )
     _unblacklist(bot_instance, "chained soul")
     bot_instance.Move.XY(10437, 5005)
@@ -1600,23 +1734,33 @@ def Wrathfull_Spirits(bot_instance: Botting):
     bot_instance.Move.XY(5755, 12769, "go to NPC")
     bot_instance.Dialogs.WithModel(UWNpcModelID.ReaperOfTheForgottenVale,0x806E03, "take quest")
     EnqueueDialogUntilQuestActive(bot_instance, 0x806E01, int(UWQuestID.WrathfulSpirits), int(UWNpcModelID.ReaperOfTheLabyrinth), "take Wrathfull Spirits quest")
-    bot_instance.Templates.Pacifist()
+    _uw_pacifist(bot_instance)
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(False), "Disable WaitIfPartyMemberTooFar")
     bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(False), "Disable MoveToPartyMemberIfDead")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(False), "Disable WaitIfInAggro")
     _blacklist(bot_instance, "tortured spirit")
     bot_instance.Move.XY(-13422, 973, "Wrathfull Spirits 1")
-    bot_instance.Templates.Aggressive()
+    _uw_aggressive(bot_instance)
     _unblacklist(bot_instance, "tortured spirit")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar") 
     bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(True), "Enable MoveToPartyMemberIfDead")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
-    bot_instance.Move.XY(-10207, 1746, "Wrathfull Spirits 2")
-    bot_instance.Move.XY(-13566, -229, "Wrathfull Spirits 3")
-    bot_instance.Move.XY(-13287, 1996, "Wrathfull Spirits 3")
-    bot_instance.Move.XY(-14486, 7113, "Wrathfull Spirits 4")
-    bot_instance.Move.XY(-15226, 4129, "Wrathfull Spirits 5")
-    bot_instance.Move.XY(-13275, 5261, "go to NPC")
+    _WS_LOOP_STEP = "Wrathfull Spirits loop start"
+    bot_instance.States.AddHeader(_WS_LOOP_STEP)
+
+    bot_instance.Move.XY(-13791, 1642, "Wrathfull Spirits 2")
+    bot_instance.Move.XY(-12889, 963, "Wrathfull Spirits 3")
+    bot_instance.Move.XY(-11445, 1154, "Wrathfull Spirits 4")
+    bot_instance.Move.XY(-10554, 1695, "Wrathfull Spirits 5")
+    bot_instance.Move.XY(-9481, 963, "Wrathfull Spirits 6")
+    bot_instance.Move.XY(-9949, 177, "Wrathfull Spirits 7")
+    bot_instance.Move.XY(-11498, -173, "Wrathfull Spirits 8")
+    bot_instance.Move.XY(-12677, -205, "Wrathfull Spirits 9")
+    bot_instance.Move.XY(-13622, 336, "Wrathfull Spirits 10")
+    bot_instance.Move.XY(-12974, 4116, "Wrathfull Spirits 11")
+    bot_instance.Move.XY(-14184, 7279, "Wrathfull Spirits 12")
+    bot_instance.Move.XY(-15055, 3755, "Wrathfull Spirits 13")
+    bot_instance.Move.XY(-13409, 4933, "Wrathfull Spirits 14")
     bot_instance.Move.XY(5755, 12769, "go to NPC")
     bot_instance.Dialogs.WithModel(UWNpcModelID.ReaperOfTheLabyrinth,0x806E07, "Take Reward")
     bot_instance.Dialogs.WithModel(UWNpcModelID.ReaperOfTheLabyrinth,0x8D, "Back to Chamber")
@@ -1624,7 +1768,6 @@ def Wrathfull_Spirits(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _record_quest_done("Wrathfull Spirits"), "Record Wrathfull Spirits done")
 
 def Unwanted_Guests(bot_instance: Botting):
-    bot_instance.Properties.ApplyNow("draw_path", "active", _DRAW_PATH_UNWANTED_GUESTS)
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
     bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(True), "Enable MoveToPartyMemberIfDead")
@@ -1688,6 +1831,7 @@ def Unwanted_Guests(bot_instance: Botting):
 
     #6th Keeper
     _move_with_unstuck(bot_instance, -3125, 916, "6th Keeper 1")
+    _move_with_unstuck(bot_instance, -597, -537, "6th Keeper 1")
     _move_with_unstuck(bot_instance, -344, 2155, "6th Keeper 2")
     FocusKeeperOfSouls(bot_instance)
     bot_instance.Wait.ForTime(500)
@@ -1695,14 +1839,13 @@ def Unwanted_Guests(bot_instance: Botting):
     _move_with_unstuck(bot_instance, 1256, 4623, "6th Keeper killed")
 
     _unblacklist(bot_instance, "obsidian behemoth")
-    bot_instance.Properties.ApplyNow("draw_path", "active", _DRAW_PATH_UNWANTED_GUESTS)
     bot_instance.States.AddCustomState(lambda: _record_quest_done("Unwanted Guests"), "Record Unwanted Guests done")
 
 def Restore_Wastes(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
     bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(True), "Enable MoveToPartyMemberIfDead")
-    bot_instance.Templates.Aggressive()
+    _uw_aggressive(bot_instance)
     bot_instance.Properties.ApplyNow("pause_on_danger", "active", True)
     bot_instance.Move.XY(3891, 7572, "Restore Wastes 1")
     bot_instance.Move.XY(4106, 16031, "Restore Wastes 2")
@@ -1716,7 +1859,7 @@ def Servants_of_Grenth(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
     bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(True), "Enable MoveToPartyMemberIfDead")
-    bot_instance.Templates.Aggressive()
+    _uw_aggressive(bot_instance)
     bot_instance.Move.XY(2700, 19952, "Servants of Grenth 1")
     SERVANTS_OF_GRENTH_FLAG_POINTS = [
         (2559, 20301),
@@ -1766,7 +1909,7 @@ def Dhuum(bot_instance: Botting):
     
 
     def _flag_sacrifice_accounts() -> None:
-        flag_x, flag_y = -15022, 17277
+        flag_x, flag_y = -15386, 17295
         _get_adapter().clear_flags()
 
         sacrifice_emails = DhuumSettings.SacrificeEmails
@@ -1798,7 +1941,7 @@ def Dhuum(bot_instance: Botting):
         )
 
     def _flag_survivor_accounts() -> None:
-        flag_x, flag_y = -14144, 17286
+        flag_x, flag_y = -14374, 17261
 
         my_email = Player.GetAccountEmail()
         sacrifice_emails = DhuumSettings.SacrificeEmails
@@ -1893,7 +2036,7 @@ def Dhuum(bot_instance: Botting):
         if _slot_map:
             bot_instance.Multibox.EquipItemOnAllAccounts(_slot_map)
 
-
+    bot_instance.Wait.ForTime(1000)  # wait for armor switch to complete before moving
     bot_instance.Move.XY(-11278, 17297, "Wait For the King")
     bot_instance.Wait.UntilCondition(
         lambda: not Routines.Checks.Map.MapValid()
@@ -1907,8 +2050,6 @@ def Dhuum(bot_instance: Botting):
     )  # Wait until King is within interaction range (exits on wipe/map change)
 
     bot_instance.Wait.ForTime(10000)
-    bot_instance.Dialogs.WithModel(2403, 0x846901, "Talk to The King and start Dhuum fight")
-    bot_instance.Dialogs.WithModel(2403, 0x846901, "Talk to The King and start Dhuum fight")
     EnqueueDialogUntilQuestActive(bot_instance, 0x846901, int(UWQuestID.TheNightmareCometh), int(UWNpcModelID.KingFrozenwind), "Take The Nightmare Cometh quest")
     bot_instance.States.AddCustomState(_flag_sacrifice_accounts, "Flag Sacrifice Accounts")
     bot_instance.States.AddCustomState(_flag_survivor_accounts, "Flag Survivor Accounts")
@@ -1917,16 +2058,54 @@ def Dhuum(bot_instance: Botting):
         "Enable Dhuum Helper on all accounts",
     )
 
-    bot_instance.Wait.ForTime(5000)  # Wait for the fight to properly start
+    # Hold combat until enough accounts have Spirit Form active so the team
+    # does not engage Dhuum before ghosts are in position.
+    _SPIRIT_FORM_SKILL_ID_CHECK = 3134
+    bot_instance.States.AddCustomState(
+        lambda: _get_adapter().set_combat_enabled(False),
+        "Disable Combat until Spirit Form ready",
+    )
+    def _enough_spiritforms() -> bool:
+        if not Routines.Checks.Map.MapValid() or Map.GetMapID() != UW_MAP_ID:
+            return True  # bail out on wipe / map change
+        threshold = DhuumSettings.MinSpiritformAccounts
+        count = 0
+        for acct in GLOBAL_CACHE.ShMem.GetAllAccountData() or []:
+            if getattr(acct.AgentData.Map, "MapID", 0) != UW_MAP_ID:
+                continue
+            try:
+                if any(b.SkillId == _SPIRIT_FORM_SKILL_ID_CHECK
+                       for b in acct.AgentData.Buffs.Buffs if b.SkillId != 0):
+                    count += 1
+            except Exception:
+                pass
+            if count >= threshold:
+                return True
+        return False
 
+    
     # Disable the InDanger event callback for the fight — the CB daemon would
     # immediately stomp any fsm.pause() it sets, causing erratic movement.
     bot_instance.States.AddCustomState(lambda: _toggle_in_danger_callback(False), "Disable InDanger callback for Dhuum")
     # Activate the Spirit Form watchdog for the duration of the fight.
     bot_instance.States.AddCustomState(lambda: _set_dhuum_fight_active(True), "Enable Dhuum Spirit Form Watchdog")
-    bot_instance.Move.XY(-13987, 17291, "Move to Dhuum fight")
-    bot_instance.Wait.ForTime(4000)  # Wait till some Allies die
-    #Wait till Dhuum is dead
+    bot_instance.Wait.ForTime(10000)
+    bot_instance.Move.XY(-14007, 17287, "Move to Dhuum fight")
+    
+
+    def _wait_and_enable_combat():
+        # Poll every 250 ms so combat is enabled in the same coroutine frame
+        # the condition is first met — no extra state-transition delay.
+        while True:
+            yield from Routines.Yield.wait(250)
+            if _enough_spiritforms():
+                _get_adapter().set_combat_enabled(True)
+                return
+
+    bot_instance.config.FSM.AddYieldRoutineStep(
+        name="Wait for Spirit Forms and enable combat",
+        coroutine_fn=_wait_and_enable_combat,
+    )
     bot_instance.Wait.UntilCondition(
         lambda: not Routines.Checks.Map.MapValid()
         or Map.GetMapID() != UW_MAP_ID
@@ -2024,120 +2203,257 @@ def Dhuum(bot_instance: Botting):
         "Enable Dead Ally Rescue",
     )
     bot_instance.States.AddCustomState(lambda: _record_quest_done("Dhuum"), "Record Dhuum done")
+    bot_instance.Move.XYAndDialog(-15774, 17302,0x846907, "Talk to Dhuum and complete quest")
+    bot_instance.Multibox.SendDialogToTarget(0x846901)
+    bot_instance.Wait.ForTime(2000)
+    bot_instance.Multibox.SendDialogToTarget(0x846907)
+    bot_instance.Wait.ForTime(2000)
 
 
 
-def _do_inventory_refill(bot_instance: Botting) -> None:
-    """Travel to the configured location and restock kits/cons/materials via the modular_bot handlers."""
+def _get_merchant_rules_widget():
+    """Get the MerchantRules WIDGET_INSTANCE via the widget handler (same approach as Messaging.py)."""
+    try:
+        from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
+        widget_handler = get_widget_handler()
+        for widget_name in ("MerchantRules", "Merchant Rules"):
+            widget_info = widget_handler.get_widget_info(widget_name)
+            if not widget_info or not getattr(widget_info, "module", None):
+                continue
+            instance = getattr(widget_info.module, "WIDGET_INSTANCE", None)
+            if instance is not None:
+                return instance
+    except Exception:
+        pass
+    return None
+
+
+def _do_merchant_rules_refill(bot_instance: Botting) -> None:
+    """Travel everyone to the Guild Hall, then trigger MerchantRules 'Execute Here'
+    on the leader and send MerchantRules EXECUTE to all followers.
+    Requires the MerchantRules widget to be enabled and configured on all accounts."""
     if not InventorySettings.RefillEnabled:
         return
+    _GH_TRAVEL_TIMEOUT_MS = 60_000
+    _EXECUTE_TIMEOUT_MS   = 180_000
+    _FOLLOWER_TIMEOUT_MS  = 180_000
+    _POLL_MS              = 500
 
-    # Ensure the map is fully loaded before any NPC interaction states run.
-    # This guards against starting on a loading screen or right after a resign.
+    def _coro_merchant_rules_refill():
+        # ── 0. Enable MerchantRules widget on leader + all followers ──
+        from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
+        _MR_WIDGET_NAME = "MerchantRules"
+        widget_handler = get_widget_handler()
+        if not widget_handler.is_widget_enabled(_MR_WIDGET_NAME):
+            widget_handler.enable_widget(_MR_WIDGET_NAME)
+            Py4GW.Console.Log(BOT_NAME, "Enabled MerchantRules widget on leader.", Py4GW.Console.MessageType.Info)
+
+        sender_email = Player.GetAccountEmail()
+        all_accounts = GLOBAL_CACHE.ShMem.GetAllAccountData() or []
+        followers = [a for a in all_accounts if a.AccountEmail != sender_email]
+
+        for account in followers:
+            GLOBAL_CACHE.ShMem.SendMessage(
+                sender_email,
+                str(account.AccountEmail),
+                SharedCommandType.EnableWidget,
+                (0, 0, 0, 0),
+                (_MR_WIDGET_NAME, "", "", ""),
+            )
+        if followers:
+            Py4GW.Console.Log(BOT_NAME, f"Sent EnableWidget '{_MR_WIDGET_NAME}' to {len(followers)} follower(s).", Py4GW.Console.MessageType.Info)
+            yield from Routines.Yield.wait(1000)
+
+        widget = _get_merchant_rules_widget()
+        if widget is None:
+            Py4GW.Console.Log(
+                BOT_NAME,
+                "MerchantRules widget not found after enabling. Skipping inventory refill.",
+                Py4GW.Console.MessageType.Warning,
+            )
+            return
+
+        # ── 1. Travel the leader to the Guild Hall first ──────────────
+        if not Map.IsGuildHall():
+            Py4GW.Console.Log(BOT_NAME, "Traveling to Guild Hall for MerchantRules.", Py4GW.Console.MessageType.Info)
+            Map.TravelGH()
+            yield from Routines.Yield.wait(3000)
+            elapsed = 0
+            while not Map.IsMapReady() and elapsed < _GH_TRAVEL_TIMEOUT_MS:
+                yield from Routines.Yield.wait(_POLL_MS)
+                elapsed += _POLL_MS
+
+        # ── 2. Tell each follower to travel to their own Guild Hall ──
+        if followers:
+            Py4GW.Console.Log(BOT_NAME, f"Sending TravelToGuildHall to {len(followers)} follower(s).", Py4GW.Console.MessageType.Info)
+            for account in followers:
+                target_email = str(account.AccountEmail)
+                GLOBAL_CACHE.ShMem.SendMessage(
+                    sender_email,
+                    target_email,
+                    SharedCommandType.TravelToGuildHall,
+                    (0, 0, 0, 0),
+                )
+                yield from Routines.Yield.wait(1500)
+
+        # ── 3. Wait until ALL accounts are on the same map as the leader ─
+        leader_map_id = int(Map.GetMapID())
+        Py4GW.Console.Log(BOT_NAME, f"Waiting for all accounts to arrive in Guild Hall (map {leader_map_id}).", Py4GW.Console.MessageType.Info)
+        elapsed = 0
+        all_arrived = False
+        while elapsed < _GH_TRAVEL_TIMEOUT_MS:
+            all_accounts_fresh = GLOBAL_CACHE.ShMem.GetAllAccountData() or []
+            all_arrived = all(
+                int(acc.AgentData.Map.MapID) == leader_map_id
+                for acc in all_accounts_fresh
+            )
+            if all_arrived:
+                break
+            yield from Routines.Yield.wait(_POLL_MS)
+            elapsed += _POLL_MS
+
+        if not all_arrived:
+            Py4GW.Console.Log(BOT_NAME, "Not all accounts reached the Guild Hall. Continuing anyway.", Py4GW.Console.MessageType.Warning)
+
+        yield from Routines.Yield.wait(2000)
+
+        # ── 4. Execute MerchantRules on the leader (Execute Here) ─────
+        Py4GW.Console.Log(BOT_NAME, "Starting MerchantRules Execute Here (leader).", Py4GW.Console.MessageType.Info)
+        widget._queue_execute_here()
+        yield from Routines.Yield.wait(_POLL_MS)
+
+        elapsed = 0
+        while widget.execution_running and elapsed < _EXECUTE_TIMEOUT_MS:
+            yield from Routines.Yield.wait(_POLL_MS)
+            elapsed += _POLL_MS
+
+        if widget.execution_running:
+            Py4GW.Console.Log(BOT_NAME, "MerchantRules leader execution timed out.", Py4GW.Console.MessageType.Warning)
+        elif widget.last_error:
+            Py4GW.Console.Log(BOT_NAME, f"MerchantRules leader error: {widget.last_error}", Py4GW.Console.MessageType.Warning)
+        else:
+            Py4GW.Console.Log(BOT_NAME, "MerchantRules leader execution completed.", Py4GW.Console.MessageType.Info)
+
+        # ── 5. Send MerchantRules EXECUTE to all followers ────────────
+        if not followers:
+            return
+
+        OPCODE_EXECUTE = 3  # MERCHANT_RULES_OPCODE_EXECUTE
+        request_id = f"uw_refill_{int(time.monotonic() * 1000)}"
+        sent_refs: list[tuple[str, int]] = []
+
+        for account in followers:
+            target_email = str(account.AccountEmail)
+            msg_idx = GLOBAL_CACHE.ShMem.SendMessage(
+                sender_email,
+                target_email,
+                SharedCommandType.MerchantRules,
+                (float(OPCODE_EXECUTE), 0.0, 0.0, 0.0),
+                (request_id, "Execute", "", ""),
+            )
+            if msg_idx != -1:
+                sent_refs.append((target_email, int(msg_idx)))
+                Py4GW.Console.Log(
+                    BOT_NAME,
+                    f"Sent MerchantRules execute to {target_email}.",
+                    Py4GW.Console.MessageType.Info,
+                )
+
+        if not sent_refs:
+            return
+
+        # ── 6. Wait for all follower messages to be consumed ──────────
+        from Sources.modular_bot.recipes.combat_engine import outbound_messages_done
+        elapsed = 0
+        all_done = False
+        while elapsed < _FOLLOWER_TIMEOUT_MS:
+            all_done = outbound_messages_done(sent_refs, SharedCommandType.MerchantRules)
+            if all_done:
+                break
+            yield from Routines.Yield.wait(_POLL_MS)
+            elapsed += _POLL_MS
+
+        if not all_done:
+            Py4GW.Console.Log(BOT_NAME, "MerchantRules follower execution timed out on some accounts.", Py4GW.Console.MessageType.Warning)
+        else:
+            Py4GW.Console.Log(BOT_NAME, "MerchantRules follower execution completed on all accounts.", Py4GW.Console.MessageType.Info)
+
     bot_instance.Wait.UntilOnOutpost()
-
-    from Sources.modular_bot.prebuilts.fow import (
-        INVENTORY_MANAGEMENT_LOCATIONS,
-        DEFAULT_INVENTORY_MANAGEMENT_LOCATION_KEY,
-    )
-    from Sources.modular_bot.recipes.step_context import StepContext
-    from Sources.modular_bot.recipes.actions_movement import handle_travel_gh
-    from Sources.modular_bot.recipes.actions_inventory import (
-        handle_restock_kits,
-        handle_restock_cons,
-        handle_sell_materials,
-        handle_deposit_materials,
+    bot_instance.config.FSM.AddYieldRoutineStep(
+        name="MerchantRules Inventory Refill",
+        coroutine_fn=_coro_merchant_rules_refill,
     )
 
-    location = str(InventorySettings.InventoryLocation or DEFAULT_INVENTORY_MANAGEMENT_LOCATION_KEY)
-
-    def _make_ctx(step: dict) -> StepContext:
-        return StepContext(
-            bot=bot_instance,
-            step=step,
-            step_idx=0,
-            recipe_name="UW_Inventory",
-            step_type=step.get("type", ""),
-            step_display=step.get("name", ""),
-        )
-
-    # ── Travel to inventory location ──────────────────────────────────
-    if location == "guild_hall":
-        handle_travel_gh(_make_ctx({"type": "travel_gh", "name": "Travel to Guild Hall", "multibox": True, "ms": 7000}))
-    else:
-        try:
-            target_map_id = int(str(location).split("_", 1)[1])
-        except (IndexError, ValueError):
-            target_map_id = 0
-        if target_map_id > 0:
-            bot_instance.Map.Travel(target_map_id=target_map_id)
-            bot_instance.Wait.ForTime(15000)
-
-    # Wait for the map to be fully loaded before interacting with any NPCs.
-    bot_instance.Wait.UntilOnOutpost()
-
-    # ── Restock ID & Salvage Kits (3 rounds) ──────────────────────────
-    if InventorySettings.RestockKits:
-        kit_step = {"type": "restock_kits", "name": "Restock Kits", "id_kits": 2, "salvage_kits": 5, "multibox": True}
-        for _ in range(3):
-            handle_restock_kits(_make_ctx(kit_step))
-
-    # ── Restock Cons from Xunlai Chest ────────────────────────────────
+    # ── Cons restock from Xunlai (after MerchantRules) ──────────────
     if InventorySettings.RestockCons and BotSettings.UseCons:
-        # Snapshot inactive pcons and their original restock quantities at schedule time.
-        # Used to prevent handle_restock_cons from enabling inactive pcons via its internal
-        # _enable_restock_properties step (which enables any property that has qty > 0).
-        _inactive_pcon_qtys: dict[str, int] = {
-            p: ConsSettings.get_restock(p)
-            for p, _, _, _ in _CONS_DEFS
-            if not ConsSettings.is_active(p)
-        }
+        _enqueue_cons_restock(bot_instance)
 
-        def _zero_inactive_restock_qty() -> None:
-            # Zero out restock_quantity for inactive pcons so that
-            # _enable_restock_properties (inside handle_restock_cons) cannot enable them.
-            for prop in _inactive_pcon_qtys:
-                if bot_instance.Properties.exists(prop):
-                    bot_instance.Properties.ApplyNow(prop, "restock_quantity", 0)
 
-        def _restore_inactive_restock_qty() -> None:
-            # Restore original restock quantities after all restock states have run.
-            for prop, qty in _inactive_pcon_qtys.items():
-                if bot_instance.Properties.exists(prop):
-                    bot_instance.Properties.ApplyNow(prop, "restock_quantity", qty)
+def _enqueue_cons_restock(bot_instance: Botting) -> None:
+    """Restock consumables from Xunlai on the leader and broadcast to all followers.
+    Called after MerchantRules so everyone is already in the Guild Hall."""
+    from Py4GWCoreLib import Inventory
 
-        bot_instance.States.AddCustomState(_zero_inactive_restock_qty, "Zero Inactive Pcon Restock Qty")
-        # Restock for the leader account from its own Xunlai chest.
-        handle_restock_cons(_make_ctx({"type": "restock_cons", "name": "Restock Consumables"}))
-        bot_instance.States.AddCustomState(_restore_inactive_restock_qty, "Restore Inactive Pcon Restock Qty")
-        # Broadcast restock commands to all other accounts so they each
-        # withdraw from their own Xunlai chest as well.
-        # Only use quantity from active pcons; inactive ones get 0.
-        bot_instance.Multibox.RestockConset(max((ConsSettings._restock.get(p, 0) if ConsSettings.is_active(p) else 0) for p in ("armor_of_salvation", "essence_of_celerity", "grail_of_might")))
-        bot_instance.Multibox.RestockAllPcons(max((ConsSettings._restock.get(p, 0) if ConsSettings.is_active(p) else 0) for p in ("birthday_cupcake", "candy_apple", "candy_corn", "golden_egg", "slice_of_pumpkin_pie", "honeycomb", "drake_kabob", "bowl_of_skalefin_soup", "pahnai_salad", "war_supplies")))
-        bot_instance.Wait.ForTime(3000)
+    # Snapshot inactive pcons and their restock quantities at schedule time
+    # so we can temporarily zero them out to prevent the built-in restock
+    # methods from enabling pcons the user has deactivated.
+    _inactive_pcon_qtys: dict[str, int] = {
+        p: ConsSettings.get_restock(p)
+        for p, _, _, _ in _CONS_DEFS
+        if not ConsSettings.is_active(p)
+    }
 
-    # ── Sell Materials ────────────────────────────────────────────────
-    if InventorySettings.SellAllCommonMaterials:
-        handle_sell_materials(_make_ctx({"type": "sell_materials", "name": "Sell All Common Materials", "multibox": True, "ms": 5000}))
-    elif InventorySettings.SellNonConsMaterials:
-        from Sources.modular_bot.prebuilts.fow import FOW_NON_CONS_COMMON_MATERIAL_MODELS
-        from Py4GWCoreLib.enums_src.Item_enums import MaterialMap
-        sell_names = [
-            material_name
-            for model_id, material_name in MaterialMap.items()
-            if model_id in FOW_NON_CONS_COMMON_MATERIAL_MODELS
-        ]
-        handle_sell_materials(_make_ctx({"type": "sell_materials", "name": "Sell Non-Cons Materials", "multibox": True, "ms": 5000, "materials": sell_names}))
+    def _zero_inactive_restock_qty() -> None:
+        for prop in _inactive_pcon_qtys:
+            if bot_instance.Properties.exists(prop):
+                bot_instance.Properties.ApplyNow(prop, "restock_quantity", 0)
 
-    # ── Deposit Full Material Stacks ──────────────────────────────────
-    if InventorySettings.DepositMaterials:
-        handle_deposit_materials(_make_ctx({"type": "deposit_materials", "name": "Deposit Full Material Stacks", "multibox": True, "ms": 5000}))
+    def _restore_inactive_restock_qty() -> None:
+        for prop, qty in _inactive_pcon_qtys.items():
+            if bot_instance.Properties.exists(prop):
+                bot_instance.Properties.ApplyNow(prop, "restock_quantity", qty)
 
-    # ── Buy Ectoplasm ─────────────────────────────────────────────────
-    if InventorySettings.BuyEctoplasm:
-        from Sources.modular_bot.recipes.actions_inventory import handle_buy_ectoplasm
-        handle_buy_ectoplasm(_make_ctx({"type": "buy_ectoplasm", "name": "Buy Ectoplasm", "use_storage_gold": False, "multibox": True, "ms": 5000}))
+    # Open Xunlai on the leader
+    bot_instance.States.AddCustomState(
+        lambda: Inventory.OpenXunlaiWindow() if not Inventory.IsStorageOpen() else None,
+        "Open Xunlai for Cons Restock",
+    )
+    bot_instance.Wait.ForTime(1000)
+
+    bot_instance.States.AddCustomState(_zero_inactive_restock_qty, "Zero Inactive Pcon Restock Qty")
+
+    # Restock each consumable on the leader from Xunlai (respects active/qty settings)
+    _RESTOCK_METHODS = [
+        "BirthdayCupcake", "CandyApple", "Honeycomb", "WarSupplies",
+        "EssenceOfCelerity", "GrailOfMight", "ArmorOfSalvation",
+        "GoldenEgg", "CandyCorn", "SliceOfPumpkinPie",
+        "DrakeKabob", "BowlOfSkalefinSoup", "PahnaiSalad",
+    ]
+    for method_name in _RESTOCK_METHODS:
+        method = getattr(bot_instance.Items.Restock, method_name, None)
+        if callable(method):
+            method()
+
+    bot_instance.States.AddCustomState(_restore_inactive_restock_qty, "Restore Inactive Pcon Restock Qty")
+
+    # Broadcast restock to all followers (only active pcon quantities)
+    conset_qty = max(
+        (ConsSettings.get_restock(p) if ConsSettings.is_active(p) else 0)
+        for p in ("armor_of_salvation", "essence_of_celerity", "grail_of_might")
+    )
+    pcon_qty = max(
+        (ConsSettings.get_restock(p) if ConsSettings.is_active(p) else 0)
+        for p in (
+            "birthday_cupcake", "candy_apple", "candy_corn", "golden_egg",
+            "slice_of_pumpkin_pie", "honeycomb", "drake_kabob",
+            "bowl_of_skalefin_soup", "pahnai_salad", "war_supplies",
+        )
+    )
+    if conset_qty > 0:
+        bot_instance.Multibox.RestockConset(conset_qty)
+    if pcon_qty > 0:
+        bot_instance.Multibox.RestockAllPcons(pcon_qty)
+    bot_instance.Wait.ForTime(3000)
 
 
 def _set_planned_resign() -> None:
@@ -2244,68 +2560,31 @@ def _draw_help():
     PyImGui.text_wrapped("In the Dhuum battle, 1-2 heroes will die and become ghosts. You can choose which ones.")
 
     PyImGui.separator()
-    PyImGui.text_wrapped("The Inventory and Enter functions were borrowed from the fow bot—thanks for that")
+    PyImGui.text_wrapped("Inventory refill powered by MerchantRules — thanks to Icefox!")
 
 
 def _draw_inventory_settings() -> None:
-    from Sources.modular_bot.prebuilts.fow import INVENTORY_MANAGEMENT_LOCATIONS, DEFAULT_INVENTORY_MANAGEMENT_LOCATION_KEY
-
     changed = False
     new_val = PyImGui.checkbox("Enable Inventory Refill", InventorySettings.RefillEnabled)
     if new_val != InventorySettings.RefillEnabled:
         InventorySettings.RefillEnabled = new_val
         changed = True
     PyImGui.separator()
+    PyImGui.text_wrapped(
+        "Travels all accounts to the Guild Hall"
+        "Configure buy/sell/deposit rules "
+        "in the MerchantRules widget."
+    )
+    PyImGui.separator()
     PyImGui.begin_disabled(not InventorySettings.RefillEnabled)
-    PyImGui.text_wrapped("After each run: travel to the selected location, restock, then return.")
-    PyImGui.separator()
-
-    # ── Location dropdown ─────────────────────────────────────────
-    location_keys   = list(INVENTORY_MANAGEMENT_LOCATIONS.keys())
-    location_labels = list(INVENTORY_MANAGEMENT_LOCATIONS.values())
-    current_key = str(InventorySettings.InventoryLocation or DEFAULT_INVENTORY_MANAGEMENT_LOCATION_KEY)
-    current_idx = location_keys.index(current_key) if current_key in location_keys else 0
-    PyImGui.text("Inventory Location:")
-    new_idx = PyImGui.combo("##inv_location", current_idx, location_labels)
-    if new_idx != current_idx:
-        InventorySettings.InventoryLocation = location_keys[new_idx]
-        changed = True
-
-    PyImGui.separator()
-
-    # ── Restock ───────────────────────────────────────────────────
-    new_val = PyImGui.checkbox("Restock ID & Salvage Kits (3 rounds)", InventorySettings.RestockKits)
-    if new_val != InventorySettings.RestockKits:
-        InventorySettings.RestockKits = new_val
-        changed = True
-    new_val = PyImGui.checkbox("Restock Consets from Xunlai Chest", InventorySettings.RestockCons)
+    new_val = PyImGui.checkbox("Restock Cons from Xunlai", InventorySettings.RestockCons)
     if new_val != InventorySettings.RestockCons:
         InventorySettings.RestockCons = new_val
         changed = True
-    PyImGui.begin_disabled(not BotSettings.UseCons)
-    PyImGui.text("  (requires 'Use Cons' to be enabled)")
-    PyImGui.end_disabled()
-
-    PyImGui.separator()
-
-    # ── Materials ────────────────────────────────────────────────
-    new_val = PyImGui.checkbox("Deposit Full Material Stacks to Chest", InventorySettings.DepositMaterials)
-    if new_val != InventorySettings.DepositMaterials:
-        InventorySettings.DepositMaterials = new_val
-        changed = True
-    new_val = PyImGui.checkbox("Sell Non-Cons Materials at Merchant", InventorySettings.SellNonConsMaterials)
-    if new_val != InventorySettings.SellNonConsMaterials:
-        InventorySettings.SellNonConsMaterials = new_val
-        changed = True
-    new_val = PyImGui.checkbox("Sell All Common Materials at Merchant", InventorySettings.SellAllCommonMaterials)
-    if new_val != InventorySettings.SellAllCommonMaterials:
-        InventorySettings.SellAllCommonMaterials = new_val
-        changed = True
-    new_val = PyImGui.checkbox("Buy Ectoplasm from Materials Trader", InventorySettings.BuyEctoplasm)
-    if new_val != InventorySettings.BuyEctoplasm:
-        InventorySettings.BuyEctoplasm = new_val
-        changed = True
-
+    PyImGui.text_wrapped(
+        "After MerchantRules finishes: restock consumables from each account's "
+        "Xunlai chest based on the Cons tab settings."
+    )
     PyImGui.end_disabled()
     if changed:
         InventorySettings.save()
@@ -2460,6 +2739,14 @@ def _draw_dhuum_settings() -> None:
     PyImGui.text_wrapped("Select the multibox accounts to be sacrificed in the Dhuum fight.")
     PyImGui.separator()
 
+    PyImGui.set_next_item_width(100.0)
+    new_min = PyImGui.input_int("Min Spiritform accounts", DhuumSettings.MinSpiritformAccounts)
+    new_min = max(0, new_min)
+    if new_min != DhuumSettings.MinSpiritformAccounts:
+        DhuumSettings.MinSpiritformAccounts = new_min
+        DhuumSettings.save()
+    PyImGui.separator()
+
     my_email = Player.GetAccountEmail()
     all_accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
 
@@ -2481,6 +2768,10 @@ def _draw_dhuum_settings() -> None:
 
             PyImGui.table_next_row()
 
+            # The executing account cannot sacrifice itself — gray out its row.
+            if is_self:
+                PyImGui.begin_disabled(True)
+
             PyImGui.table_next_column()
             cur_sac = DhuumSettings.is_sacrifice(email)
             new_sac = PyImGui.checkbox(f"##sac_{email}", cur_sac)
@@ -2500,6 +2791,9 @@ def _draw_dhuum_settings() -> None:
 
             PyImGui.table_next_column()
             PyImGui.text(f"{char_name}  (this account)" if is_self else char_name)
+
+            if is_self:
+                PyImGui.end_disabled()
 
             if new_sac != cur_sac:
                 DhuumSettings.set_sacrifice(email, new_sac)
@@ -2546,11 +2840,10 @@ def _draw_quest_settings():
 bot.SetMainRoutine(bot_routine)
 
 def _draw_debug_settings():
-    global _DRAW_BLOCKED_AREAS_3D, _BLOCKED_AREA_RADIUS, _DRAW_PATH_UNWANTED_GUESTS
+    global _DRAW_BLOCKED_AREAS_3D, _BLOCKED_AREA_RADIUS
     _DRAW_BLOCKED_AREAS_3D = PyImGui.checkbox("Draw Blocked Areas (3D)", _DRAW_BLOCKED_AREAS_3D)
     if _DRAW_BLOCKED_AREAS_3D:
         _BLOCKED_AREA_RADIUS = PyImGui.slider_float("Blocked Area Radius", _BLOCKED_AREA_RADIUS, 50.0, 600.0)
-    _DRAW_PATH_UNWANTED_GUESTS = PyImGui.checkbox("Draw Path (Unwanted Guests)", _DRAW_PATH_UNWANTED_GUESTS)
 
     PyImGui.separator()
     PyImGui.text("Spirit Form (3134) — Active accounts:")
@@ -2813,8 +3106,12 @@ def _on_party_wipe(bot: "Botting"):
 
 def _draw_run_log() -> None:
     """Display the last 10 entries from the wipe/run log file."""
-    if PyImGui.button("Refresh##run_log"):
-        pass  # The read below happens every frame; button is a visual affordance only.
+    if PyImGui.button("Clear Log##run_log"):
+        try:
+            with open(_WIPE_LOG_FILE, "w", encoding="utf-8") as f:
+                f.truncate(0)
+        except OSError:
+            pass
     PyImGui.same_line(0, -1)
     PyImGui.text(_WIPE_LOG_FILE)
     PyImGui.separator()
@@ -2910,7 +3207,7 @@ def main():
     import traceback as _tb
     try:
         _draw_blocked_areas_overlay()
-        _draw_active_path_overlay()
+
         _draw_armor_edit_window()
         if bot.config.fsm_running:
             _get_adapter().sync_runtime()
@@ -2929,7 +3226,12 @@ def main():
         if bot.config.fsm_running:
             _ensure_managed_coroutines(bot)
 
-        bot.Update()
+        # Guard: skip game-state logic when the map is not loaded
+        # (e.g., character select screen) to prevent reading invalid GW memory.
+        # bot_routine() is called by bot.Update() on the first frame and accesses
+        # the player's skillbar, which crashes the game if no character is in-game.
+        if Routines.Checks.Map.MapValid():
+            bot.Update()
         bot.UI.draw_window(
             icon_path=os.path.join(Py4GW.Console.get_projects_path(), MODULE_ICON),
             main_child_dimensions=(350, 570),

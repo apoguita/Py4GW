@@ -63,6 +63,11 @@ class ReversalOfDeathUtility(CustomSkillUtilityBase):
         restrict_to_spirit_form = spirit_form_count <= 2
         my_id = int(Player.GetAgentID())
 
+        # --- DEBUG: remove after investigation ---
+        print(f"[RoD DEBUG] spirit_form_count={spirit_form_count}, "
+              f"spirit_form_ids={spirit_form_ids}, "
+              f"restrict_to_spirit_form={restrict_to_spirit_form}, my_id={my_id}")
+
         def _condition(agent_id: int) -> bool:
             if not Agent.IsValid(agent_id):
                 return False
@@ -73,15 +78,24 @@ class ReversalOfDeathUtility(CustomSkillUtilityBase):
             return True
 
         allies = custom_behavior_helpers.Targets.get_all_possible_allies_ordered_by_priority_raw(
-            within_range=Range.Spellcast.value * 1.2,
+            within_range=Range.Spellcast.value * 1.4,
             condition=_condition,
             sort_key=(TargetingOrder.HP_ASC, TargetingOrder.DISTANCE_ASC),
             is_alive=True,
         )
+
+        # --- DEBUG: remove after investigation ---
+        print(f"[RoD DEBUG] allies count={len(allies)}, "
+              f"ally_ids={[int(a.agent_id) for a in allies]}")
+
         if not allies:
             return None
 
         morale_map = get_morale_by_agent_id()
+
+        # --- DEBUG: remove after investigation ---
+        print(f"[RoD DEBUG] morale_map={morale_map}")
+
         if not morale_map:
             return None
 
@@ -90,11 +104,20 @@ class ReversalOfDeathUtility(CustomSkillUtilityBase):
         for ally in allies:
             morale  = int(morale_map.get(int(ally.agent_id), 100))
             penalty = max(0, 100 - morale)
+            # --- DEBUG: remove after investigation ---
+            print(f"[RoD DEBUG]   ally={int(ally.agent_id)}, "
+                  f"morale={morale}, penalty={penalty}, "
+                  f"in_morale_map={int(ally.agent_id) in morale_map}")
             if penalty <= 0:
                 continue
             if best_target is None or penalty > best_penalty:
                 best_target  = ally
                 best_penalty = penalty
+
+        # --- DEBUG: remove after investigation ---
+        print(f"[RoD DEBUG] best_target={'None' if best_target is None else int(best_target.agent_id)}, "
+              f"best_penalty={best_penalty}")
+
         return best_target
 
     @override

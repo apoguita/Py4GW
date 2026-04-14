@@ -54,6 +54,26 @@ class UWCBAdapter(UWCombatAdapter):
                 return True
         return False
 
+    def _set_custom_utilities_enabled(
+        self,
+        enabled: bool,
+        *,
+        skill_names: tuple[str, ...] = (),
+        class_names: tuple[str, ...] = (),
+    ) -> int:
+        """Like _set_custom_utility_enabled but toggles ALL matching skills, not just the first."""
+        behavior = self._get_custom_behavior(initialize_if_needed=True)
+        if behavior is None:
+            return 0
+        count = 0
+        for utility in behavior.get_skills_final_list():
+            skill_name = getattr(getattr(utility, "custom_skill", None), "skill_name", None)
+            class_name = utility.__class__.__name__
+            if skill_name in skill_names or class_name in class_names:
+                utility.is_enabled = enabled
+                count += 1
+        return count
+
     def _ensure_custom_botting_skills_enabled(self) -> None:
         # Aggressive skills: only these three enabled, everything else disabled.
         _AGGRESSIVE_CONFIG = {
@@ -61,7 +81,7 @@ class UWCBAdapter(UWCombatAdapter):
             "move_to_enemy_if_close_enough":            False,
             "move_to_party_member_if_dead":             True,
             "wait_if_party_member_mana_too_low":        False,
-            "wait_if_party_member_too_far":             False,
+            "wait_if_party_member_too_far":             True,
             "wait_if_party_member_needs_to_loot":       False,
             "wait_if_in_aggro":                         True,
             "wait_if_lock_taken":                       False,
@@ -228,6 +248,9 @@ class UWCBAdapter(UWCombatAdapter):
             on_party_death=BottingHelpers.botting_unrecoverable_issue,
             on_player_critical_stuck=BottingHelpers.botting_unrecoverable_issue,
         )
+        # UseCustomBehavior → __reset_botting_behavior disables auto_inventory_management.
+        # Re-enable it so the upkeep coroutine stays active for the entire run.
+        bot_instance.Properties.Enable("auto_inventory_management")
 
     def sync_runtime(self) -> None:
         loader = CustomBehaviorLoader()
@@ -236,7 +259,14 @@ class UWCBAdapter(UWCombatAdapter):
             loader.initialize_custom_behavior_candidate()
 
     # ── Utility skill toggles ────────────────────────────────────────────
-    # toggle_wait_for_party is inherited from UWCombatAdapter (watchdog-based).
+
+    def toggle_wait_for_party(self, enabled: bool) -> None:
+        super().toggle_wait_for_party(enabled)
+        self._set_custom_utility_enabled(
+            enabled,
+            skill_names=("wait_if_party_member_too_far",),
+            class_names=("WaitIfPartyMemberTooFarUtility",),
+        )
 
     def toggle_wait_if_aggro(self, enabled: bool) -> None:
         self._set_custom_utility_enabled(
@@ -252,6 +282,43 @@ class UWCBAdapter(UWCombatAdapter):
             class_names=("MoveToPartyMemberIfDeadUtility",),
         )
         self.toggle_dead_ally_rescue(enabled)
+
+    def toggle_local_following(self, enabled: bool) -> None:
+        """Enable/disable the follow_party_leader and follow_flag utility skills on
+        the local CB instance only.  Unlike set_following_enabled() this does NOT
+        write to the party-wide shared memory, so other accounts are unaffected."""
+        self._set_custom_utilities_enabled(
+            enabled,
+            skill_names=("follow_party_leader", "follow_flag"),
+            class_names=("FollowPartyLeaderUtility", "FollowFlagUtility"),
+        )
+
+    def toggle_local_movement(self, enabled: bool) -> None:
+        """Enable/disable ALL movement-issuing utility skills on the local CB
+        instance: following skills AND automover/botting skills that reposition
+        the player (move_to_party_member_if_in_aggro, wait_if_in_aggro, etc.).
+        Does NOT touch shared memory — only this account is affected."""
+        self._set_custom_utilities_enabled(
+            enabled,
+            skill_names=(
+                "follow_party_leader",
+                "follow_flag",
+                "move_to_party_member_if_in_aggro",
+                "move_to_enemy_if_close_enough",
+                "move_to_party_member_if_dead",
+                "wait_if_in_aggro",
+                "move_to_distant_chest_if_path_exists",
+            ),
+            class_names=(
+                "FollowPartyLeaderUtility",
+                "FollowFlagUtility",
+                "MoveToPartyMemberIfInAggroUtility",
+                "MoveToEnemyIfCloseEnoughUtility",
+                "MoveToPartyMemberIfDeadUtility",
+                "WaitIfInAggroUtility",
+                "MoveToDistantChestIfPathExistsUtility",
+            ),
+        )
 
     # ── Party control ────────────────────────────────────────────────────
 
@@ -296,6 +363,26 @@ class UWCBAdapter(UWCombatAdapter):
 
     def clear_flags(self) -> None:
         CustomBehaviorParty().party_flagging_manager.clear_all_flags()
+        GLOBAL_CACHE.Party.Heroes.UnflagAllHeroes()
+
+    def batch_set_flags(
+        self, assignments: list[tuple[str, int, float, float]]
+    ) -> None:
+        mgr = CustomBehaviorParty().party_flagging_manager
+        config = mgr._memory_manager.GetFlaggingConfig()
+        # Clear all 12 slots
+        for i in range(12):
+            mgr._set_c_wchar_array(config.FlagAccountEmails[i], "")
+            config.FlagPositionsX[i] = 0.0
+            config.FlagPositionsY[i] = 0.0
+        # Set all assignments in one pass
+        for email, idx, x, y in assignments:
+            if 0 <= idx < 12:
+                mgr._set_c_wchar_array(config.FlagAccountEmails[idx], email)
+                config.FlagPositionsX[idx] = x
+                config.FlagPositionsY[idx] = y
+        # Single write to shared memory
+        mgr._memory_manager.SetFlaggingConfig(config)
         GLOBAL_CACHE.Party.Heroes.UnflagAllHeroes()
 
     def auto_assign_flag_emails(self) -> None:

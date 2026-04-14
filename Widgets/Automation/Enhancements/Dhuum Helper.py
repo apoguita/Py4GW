@@ -114,6 +114,8 @@ def _is_any_widget_enabled(*widget_names: str) -> bool:
 
 
 def _disable_combat_widgets_for_dialog() -> dict:
+	"""Disable HeroAI widget for dialog (HeroAI-only accounts).
+	CB movement is handled separately via _toggle_local_cb_movement()."""
 	state = {
 		"heroai_was_enabled": False,
 		"custom_enabled_names": [],
@@ -126,22 +128,15 @@ def _disable_combat_widgets_for_dialog() -> dict:
 		if heroai_enabled:
 			widget_handler.disable_widget(_HEROAI_WIDGET_NAME)
 			state["heroai_was_enabled"] = True
-
-		for name in _CUSTOM_BEHAVIOR_WIDGET_NAMES:
-			if bool(widget_handler.is_widget_enabled(name)):
-				widget_handler.disable_widget(name)
-				state["custom_enabled_names"].append(name)
-
-		if state["heroai_was_enabled"] or state["custom_enabled_names"]:
 			Py4GW.Console.Log(
 				MODULE_NAME,
-				"Temporarily disabled combat widgets for Dhuum dialog.",
+				"Temporarily disabled HeroAI widget for Dhuum dialog.",
 				Py4GW.Console.MessageType.Info,
 			)
 	except Exception as ex:
 		Py4GW.Console.Log(
 			MODULE_NAME,
-			f"Failed to disable combat widgets before dialog: {ex}",
+			f"Failed to disable HeroAI widget before dialog: {ex}",
 			Py4GW.Console.MessageType.Warning,
 		)
 
@@ -157,21 +152,59 @@ def _restore_combat_widgets_after_dialog(state: dict) -> None:
 
 		if bool(state.get("heroai_was_enabled", False)) and not bool(widget_handler.is_widget_enabled(_HEROAI_WIDGET_NAME)):
 			widget_handler.enable_widget(_HEROAI_WIDGET_NAME)
-
-		for name in state.get("custom_enabled_names", []):
-			if not bool(widget_handler.is_widget_enabled(name)):
-				widget_handler.enable_widget(name)
-
-		if bool(state.get("heroai_was_enabled", False)) or bool(state.get("custom_enabled_names", [])):
 			Py4GW.Console.Log(
 				MODULE_NAME,
-				"Restored combat widget state after Dhuum dialog.",
+				"Restored HeroAI widget state after Dhuum dialog.",
 				Py4GW.Console.MessageType.Info,
 			)
 	except Exception as ex:
 		Py4GW.Console.Log(
 			MODULE_NAME,
-			f"Failed to restore combat widgets after dialog: {ex}",
+			f"Failed to restore HeroAI widget after dialog: {ex}",
+			Py4GW.Console.MessageType.Warning,
+		)
+
+
+def _toggle_local_cb_movement(enabled: bool) -> None:
+	"""Enable/disable ALL movement-issuing CB utility skills on the local
+	instance: following skills AND automover/botting skills that reposition
+	the player.  Does NOT touch shared memory — only this account is affected."""
+	try:
+		from Sources.oazix.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
+		behavior = CustomBehaviorLoader().custom_combat_behavior
+		if behavior is None:
+			return
+		_MOVEMENT_SKILL_NAMES = (
+			"follow_party_leader",
+			"follow_flag",
+			"move_to_party_member_if_in_aggro",
+			"move_to_enemy_if_close_enough",
+			"move_to_party_member_if_dead",
+			"wait_if_in_aggro",
+			"move_to_distant_chest_if_path_exists",
+		)
+		_MOVEMENT_CLASS_NAMES = (
+			"FollowPartyLeaderUtility",
+			"FollowFlagUtility",
+			"MoveToPartyMemberIfInAggroUtility",
+			"MoveToEnemyIfCloseEnoughUtility",
+			"MoveToPartyMemberIfDeadUtility",
+			"WaitIfInAggroUtility",
+			"MoveToDistantChestIfPathExistsUtility",
+		)
+		for utility in behavior.get_skills_final_list():
+			skill_name = getattr(getattr(utility, "custom_skill", None), "skill_name", None)
+			if skill_name in _MOVEMENT_SKILL_NAMES or utility.__class__.__name__ in _MOVEMENT_CLASS_NAMES:
+				utility.is_enabled = enabled
+		Py4GW.Console.Log(
+			MODULE_NAME,
+			f"Local CB movement {'enabled' if enabled else 'disabled'}.",
+			Py4GW.Console.MessageType.Info,
+		)
+	except Exception as ex:
+		Py4GW.Console.Log(
+			MODULE_NAME,
+			f"Failed to toggle local CB movement: {ex}",
 			Py4GW.Console.MessageType.Warning,
 		)
 
@@ -369,9 +402,11 @@ def _coro_interact_and_dialog(target_npc: int):
 			)
 			return
 
-		# Disable active combat widgets while approaching/using NPC dialog.
+		# Disable HeroAI widget and ALL local CB movement utilities while approaching
+		# and interacting with the NPC so movement commands don't pull us away.
 		combat_widget_state = _disable_combat_widgets_for_dialog()
 		widgets_temporarily_disabled = True
+		_toggle_local_cb_movement(False)
 
 		# ── Step 2: Move to NPC ─────────────────────────────────────────
 		target_npc = _resolve_valid_target_npc(target_npc)
@@ -474,10 +509,11 @@ def _coro_interact_and_dialog(target_npc: int):
 
 		# Move to safe position after resurrection
 		yield from Routines.Yield.wait(2000)
-		Player.Move(-13770, 17276)
+		Player.Move(-14374, 17261)
 
 		if widgets_temporarily_disabled and combat_widget_state is not None:
 			_restore_combat_widgets_after_dialog(combat_widget_state)
+			_toggle_local_cb_movement(True)
 			widgets_temporarily_disabled = False
 
 		_refresh_active_combat_widget_after_skillbar_change()
@@ -485,6 +521,7 @@ def _coro_interact_and_dialog(target_npc: int):
 	finally:
 		if widgets_temporarily_disabled and combat_widget_state is not None:
 			_restore_combat_widgets_after_dialog(combat_widget_state)
+			_toggle_local_cb_movement(True)
 		_interaction_running = False
 
 
