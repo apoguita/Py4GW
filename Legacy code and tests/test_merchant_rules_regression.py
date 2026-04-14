@@ -142,6 +142,14 @@ def _install_stub_modules(project_root: Path) -> None:
         Boots = 16
         Salvage = 17
         Rune_Mod = 18
+        Weapon = 100
+        MartialWeapon = 101
+        OffhandOrShield = 102
+        EquippableItem = 103
+        SpellcastingWeapon = 104
+
+    class Attribute(enum.IntEnum):
+        None_ = 0
 
     def _empty_generator(*_args, **_kwargs):
         if False:
@@ -210,6 +218,10 @@ def _install_stub_modules(project_root: Path) -> None:
     item_enums = types.ModuleType("Py4GWCoreLib.enums_src.Item_enums")
     item_enums.ItemType = ItemType
     sys.modules["Py4GWCoreLib.enums_src.Item_enums"] = item_enums
+
+    enums_module = types.ModuleType("Py4GWCoreLib.enums")
+    enums_module.Attribute = Attribute
+    sys.modules["Py4GWCoreLib.enums"] = enums_module
 
     _ensure_package("Py4GWCoreLib.py4gwcorelib_src")
     widget_manager = types.ModuleType("Py4GWCoreLib.py4gwcorelib_src.WidgetManager")
@@ -385,6 +397,7 @@ def _make_item(
     requirement: int = 0,
     rune_identifiers: list[str] | None = None,
     weapon_mod_identifiers: list[str] | None = None,
+    weapon_mod_matches: list[object] | None = None,
 ):
     return module.InventoryItemInfo(
         item_id=item_id,
@@ -407,7 +420,87 @@ def _make_item(
         standalone_kind=standalone_kind,
         rune_identifiers=list(rune_identifiers or []),
         weapon_mod_identifiers=list(weapon_mod_identifiers or []),
+        weapon_mod_matches=list(weapon_mod_matches or []),
     )
+
+
+def _make_weapon_mod_match(
+    module,
+    identifier: str,
+    value: int | None,
+    *,
+    target_item_type: str = "",
+    component_kind: str = "",
+    mod_type: str = "",
+) -> object:
+    return module.ParsedUpgradeMatch(
+        identifier=identifier,
+        target_item_type=target_item_type,
+        component_kind=component_kind,
+        mod_type=mod_type,
+        value=value,
+        min_value=0,
+        max_value=0,
+        is_maxed=False,
+    )
+
+
+def _fake_weapon_mod(identifier: str, mod_type: str, item_mods: dict[object, str], *, value_min: int = 0, value_max: int = 0) -> object:
+    modifiers = []
+    if value_max > value_min:
+        modifiers.append(
+            types.SimpleNamespace(
+                modifier_value_arg=types.SimpleNamespace(name="Arg2"),
+                min=value_min,
+                max=value_max,
+            )
+        )
+    return types.SimpleNamespace(
+        identifier=identifier,
+        name=identifier,
+        mod_type=types.SimpleNamespace(name=mod_type),
+        item_mods=dict(item_mods),
+        modifiers=modifiers,
+    )
+
+
+def _install_weapon_mod_catalog_fixture(module):
+    original_db = module.MOD_DB
+    module.MOD_DB = types.SimpleNamespace(
+        weapon_mods={
+            "Cruel": _fake_weapon_mod(
+                "Cruel",
+                "Prefix",
+                {
+                    module.ItemType.Axe: "AxeHaft",
+                    module.ItemType.Hammer: "HammerHaft",
+                    module.ItemType.Sword: "SwordHilt",
+                    module.ItemType.Daggers: "DaggerTang",
+                },
+            ),
+            "Barbed": _fake_weapon_mod(
+                "Barbed",
+                "Prefix",
+                {
+                    module.ItemType.Axe: "AxeHaft",
+                    module.ItemType.Daggers: "DaggerTang",
+                },
+            ),
+            "of Defense": _fake_weapon_mod(
+                "of Defense",
+                "Suffix",
+                {
+                    module.ItemType.Axe: "AxeGrip",
+                    module.ItemType.Daggers: "DaggerHandle",
+                    module.ItemType.Staff: "StaffWrapping",
+                },
+                value_min=1,
+                value_max=5,
+            ),
+        },
+        runes={},
+    )
+    return original_db
 
 
 def _rarity_flags(*enabled: str) -> dict[str, bool]:
@@ -517,6 +610,7 @@ def _test_legacy_profile_normalizes_and_saves(module, temp_root: Path) -> None:
     _expect(sell_rule.kind == module.SELL_KIND_WEAPONS, "Legacy weapon sell rule should migrate to the modern weapon rule kind.")
     _expect(sell_rule.blacklist_model_ids == [], "Bad nested blacklist data should normalize to an empty list.")
     _expect(sell_rule.protected_weapon_mod_identifiers == [], "Bad protected-mod data should normalize to an empty list.")
+    _expect(sell_rule.protected_weapon_mod_thresholds == [], "Missing protected-mod threshold data should normalize to an empty list.")
     _expect(sell_rule.protected_weapon_requirement_rules == [], "Bad requirement-rule data should normalize to an empty list.")
     _expect(sell_rule.all_weapons_min_requirement == 1, "Legacy max-only requirement thresholds should migrate to a low endpoint of 1.")
     _expect(sell_rule.all_weapons_max_requirement == 9, "Valid requirement threshold should survive legacy normalization.")
@@ -957,6 +1051,640 @@ def _test_protection_only_rules_hard_claim_before_later_sell_rules(module) -> No
             ),
             f"{label} should surface the hard-protection reason in preview output.",
         )
+
+
+def _test_weapon_mod_identifier_protection_still_matches_all_rolls(module) -> None:
+    widget = _make_widget(module)
+    identifier = "Forget Me Not"
+    rule = module._normalize_sell_rule(
+        module.SellRule(
+            enabled=True,
+            kind=module.SELL_KIND_WEAPONS,
+            protected_weapon_mod_identifiers=[identifier],
+        )
+    )
+
+    for value in (18, 19, 20):
+        item = _make_item(
+            module,
+            item_id=value,
+            model_id=111,
+            name=f"Insightful Staff +{value}",
+            is_weapon_like=True,
+            item_type_id=int(module.ItemType.Staff),
+            item_type_name="Staff",
+            weapon_mod_identifiers=[identifier],
+            weapon_mod_matches=[_make_weapon_mod_match(module, identifier, value)],
+        )
+        protection = widget._get_equippable_hard_protection_reason(item, rule)
+        _expect(
+            protection is not None and "Contains protected weapon mod:" in protection[1],
+            f"Legacy identifier-only protection should protect {identifier} +{value}.",
+        )
+
+
+def _test_weapon_mod_threshold_protection_uses_inclusive_minimum_rolls(module) -> None:
+    widget = _make_widget(module)
+    identifier = "Forget Me Not"
+
+    def _protects(min_value: int, roll_value: int) -> bool:
+        rule = module._normalize_sell_rule(
+            module.SellRule(
+                enabled=True,
+                kind=module.SELL_KIND_WEAPONS,
+                protected_weapon_mod_thresholds=[
+                    module.WeaponModThresholdRule(identifier=identifier, min_value=min_value),
+                ],
+            )
+        )
+        item = _make_item(
+            module,
+            item_id=roll_value,
+            model_id=111,
+            name=f"Insightful Staff +{roll_value}",
+            is_weapon_like=True,
+            item_type_id=int(module.ItemType.Staff),
+            item_type_name="Staff",
+            weapon_mod_identifiers=[identifier],
+            weapon_mod_matches=[_make_weapon_mod_match(module, identifier, roll_value)],
+        )
+        return widget._get_equippable_hard_protection_reason(item, rule) is not None
+
+    _expect(_protects(20, 20), "A Forget Me Not +20 threshold should protect +20.")
+    _expect(not _protects(20, 19), "A Forget Me Not +20 threshold should not protect +19.")
+    _expect(_protects(19, 19), "A Forget Me Not +19 threshold should protect +19.")
+    _expect(_protects(19, 20), "A Forget Me Not +19 threshold should protect +20.")
+    _expect(not _protects(19, 18), "A Forget Me Not +19 threshold should not protect +18.")
+
+
+def _test_weapon_mod_threshold_protection_handles_small_ranges(module) -> None:
+    widget = _make_widget(module)
+    identifier = "of the Necromancer"
+    rule = module._normalize_sell_rule(
+        module.SellRule(
+            enabled=True,
+            kind=module.SELL_KIND_WEAPONS,
+            protected_weapon_mod_thresholds=[
+                module.WeaponModThresholdRule(identifier=identifier, min_value=5),
+            ],
+        )
+    )
+
+    def _protection_for(roll_value: int):
+        item = _make_item(
+            module,
+            item_id=roll_value,
+            model_id=222,
+            name=f"Focus {roll_value}",
+            is_weapon_like=True,
+            item_type_id=int(module.ItemType.Offhand),
+            item_type_name="Offhand",
+            weapon_mod_identifiers=[identifier],
+            weapon_mod_matches=[_make_weapon_mod_match(module, identifier, roll_value)],
+        )
+        return widget._get_equippable_hard_protection_reason(item, rule)
+
+    _expect(_protection_for(5) is not None, "An of the Necromancer +5 threshold should protect +5.")
+    _expect(_protection_for(4) is None, "An of the Necromancer +5 threshold should not protect +4.")
+
+
+def _test_weapon_mod_threshold_requires_parsed_roll_value(module) -> None:
+    widget = _make_widget(module)
+    identifier = "Forget Me Not"
+    rule = module._normalize_sell_rule(
+        module.SellRule(
+            enabled=True,
+            kind=module.SELL_KIND_WEAPONS,
+            protected_weapon_mod_thresholds=[
+                module.WeaponModThresholdRule(identifier=identifier, min_value=19),
+            ],
+        )
+    )
+    item = _make_item(
+        module,
+        item_id=1,
+        model_id=111,
+        name="Unparsed Staff",
+        is_weapon_like=True,
+        item_type_id=int(module.ItemType.Staff),
+        item_type_name="Staff",
+        weapon_mod_identifiers=[identifier],
+        weapon_mod_matches=[_make_weapon_mod_match(module, identifier, None)],
+    )
+
+    _expect(
+        widget._get_equippable_hard_protection_reason(item, rule) is None,
+        "Threshold protection should not match when the parsed upgrade value is missing.",
+    )
+
+
+def _test_weapon_mod_legacy_identifier_wins_over_threshold(module) -> None:
+    widget = _make_widget(module)
+    identifier = "Forget Me Not"
+    rule = module._normalize_sell_rule(
+        module.SellRule(
+            enabled=True,
+            kind=module.SELL_KIND_WEAPONS,
+            protected_weapon_mod_identifiers=[identifier],
+            protected_weapon_mod_thresholds=[
+                module.WeaponModThresholdRule(identifier=identifier, min_value=20),
+            ],
+        )
+    )
+    item = _make_item(
+        module,
+        item_id=1,
+        model_id=111,
+        name="Insightful Staff +18",
+        is_weapon_like=True,
+        item_type_id=int(module.ItemType.Staff),
+        item_type_name="Staff",
+        weapon_mod_identifiers=[identifier],
+        weapon_mod_matches=[_make_weapon_mod_match(module, identifier, 18)],
+    )
+
+    protection = widget._get_equippable_hard_protection_reason(item, rule)
+    _expect(
+        protection is not None and "Contains protected weapon mod:" in protection[1],
+        "Legacy identifier-only protection should win over a threshold rule for the same upgrade.",
+    )
+    _expect(
+        protection is not None and "threshold" not in protection[1].lower(),
+        "Mixed legacy and threshold protection should report the legacy all-roll reason.",
+    )
+
+
+def _test_old_weapon_mod_identifier_profile_loads_without_thresholds(module, temp_root: Path) -> None:
+    widget = _make_widget(module)
+    config_path = temp_root / "old_weapon_mod_identifier_profile.json"
+    payload = {
+        "version": module.PROFILE_VERSION - 1,
+        "sell_rules": [
+            {
+                "enabled": True,
+                "kind": module.SELL_KIND_WEAPONS,
+                "protected_weapon_mod_identifiers": ["Forget Me Not"],
+            }
+        ],
+    }
+    config_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    widget.config_path = str(config_path)
+
+    widget._load_profile()
+
+    _expect(
+        widget.sell_rules[0].protected_weapon_mod_identifiers == ["Forget Me Not"],
+        "Old profiles with only protected_weapon_mod_identifiers should preserve the legacy all-roll entries.",
+    )
+    _expect(
+        widget.sell_rules[0].protected_weapon_mod_thresholds == [],
+        "Old profiles without threshold rows should load with no threshold protections.",
+    )
+
+
+def _test_weapon_mod_threshold_profile_round_trips(module, temp_root: Path) -> None:
+    widget = _make_widget(module)
+    config_path = temp_root / "weapon_mod_threshold_profile.json"
+    payload = {
+        "version": module.PROFILE_VERSION,
+        "sell_rules": [
+            {
+                "enabled": True,
+                "kind": module.SELL_KIND_WEAPONS,
+                "protected_weapon_mod_thresholds": [
+                    {"identifier": "Forget Me Not", "min_value": 19},
+                    {"identifier": "of the Necromancer", "min_value": 5},
+                ],
+            }
+        ],
+    }
+    config_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    widget.config_path = str(config_path)
+
+    widget._load_profile()
+
+    _expect(
+        widget.sell_rules[0].protected_weapon_mod_thresholds == [
+            module.WeaponModThresholdRule(identifier="Forget Me Not", min_value=19),
+            module.WeaponModThresholdRule(identifier="of the Necromancer", min_value=5),
+        ],
+        "Threshold weapon-mod protections should load as structured threshold rules.",
+    )
+
+    saved_payload = json.loads(config_path.read_text(encoding="utf-8"))
+    _expect(
+        saved_payload["sell_rules"][0]["protected_weapon_mod_thresholds"] == [
+            {"identifier": "Forget Me Not", "min_value": 19},
+            {"identifier": "of the Necromancer", "min_value": 5},
+        ],
+        "Threshold weapon-mod protections should save without renaming existing protected-mod keys.",
+    )
+
+
+def _test_weapon_mod_variant_catalog_expands_prefix_suffix_components(module) -> None:
+    original_db = _install_weapon_mod_catalog_fixture(module)
+    try:
+        widget = _make_widget(module)
+        widget._load_modifier_catalogs()
+    finally:
+        module.MOD_DB = original_db
+
+    labels = {str(entry.get("name", "")) for entry in widget.weapon_mod_entries}
+    _expect("Cruel (all supported weapons)" in labels, "Weapon-mod catalog should keep broad generic choices.")
+    _expect("Cruel Hammer Haft" in labels, "Weapon-mod catalog should include exact prefix component variants.")
+    _expect("Barbed Axe Haft" in labels, "Weapon-mod catalog should include valid Barbed axe prefix variant.")
+    _expect("Barbed Dagger Tang" in labels, "Weapon-mod catalog should include valid Barbed dagger prefix variant.")
+    _expect("Dagger Handle of Defense" in labels, "Weapon-mod catalog should include exact suffix component variants.")
+    _expect("Staff Wrapping of Defense" in labels, "Weapon-mod catalog should include staff suffix variants.")
+    _expect("Barbed Hammer Haft" not in labels, "Weapon-mod catalog must not invent unsupported component variants.")
+
+    barbed_results = widget._search_identifier_catalog("barbed", widget.weapon_mod_entries)
+    barbed_labels = [str(entry.get("name", "")) for entry in barbed_results]
+    _expect("Barbed (all supported weapons)" in barbed_labels, "Searching a base modifier should show the broad entry.")
+    _expect("Barbed Axe Haft" in barbed_labels, "Searching a base modifier should show valid exact variants.")
+
+    barbed_axe_results = widget._search_identifier_catalog("barbed axe", widget.weapon_mod_entries)
+    _expect(
+        barbed_axe_results and str(barbed_axe_results[0].get("name", "")) == "Barbed Axe Haft",
+        "Specific component searches should rank the exact variant first.",
+    )
+    _expect(
+        all(str(entry.get("name", "")) != "Barbed Hammer Haft" for entry in barbed_axe_results),
+        "Specific searches must still exclude invalid generated variants.",
+    )
+
+
+def _test_old_weapon_mod_identifier_protects_all_exact_variants(module) -> None:
+    widget = _make_widget(module)
+    rule = module._normalize_sell_rule(
+        module.SellRule(
+            enabled=True,
+            kind=module.SELL_KIND_WEAPONS,
+            protected_weapon_mod_identifiers=["Cruel"],
+        )
+    )
+
+    for item_type, component_kind in ((module.ItemType.Hammer, "HammerHaft"), (module.ItemType.Axe, "AxeHaft")):
+        item = _make_item(
+            module,
+            item_id=int(item_type),
+            model_id=111,
+            name=f"Cruel {item_type.name}",
+            is_weapon_like=True,
+            item_type_id=int(item_type),
+            item_type_name=item_type.name,
+            weapon_mod_identifiers=["Cruel"],
+            weapon_mod_matches=[
+                _make_weapon_mod_match(
+                    module,
+                    "Cruel",
+                    None,
+                    target_item_type=item_type.name,
+                    component_kind=component_kind,
+                    mod_type="Prefix",
+                )
+            ],
+        )
+        protection = widget._get_equippable_hard_protection_reason(item, rule)
+        _expect(
+            protection is not None and "Contains protected weapon mod:" in protection[1],
+            f"Legacy Cruel protection should still protect {item_type.name} variants.",
+        )
+
+
+def _test_exact_weapon_mod_variant_protects_only_matching_component(module) -> None:
+    widget = _make_widget(module)
+    widget.weapon_mod_names["Cruel"] = "Cruel"
+    rule = module._normalize_sell_rule(
+        module.SellRule(
+            enabled=True,
+            kind=module.SELL_KIND_WEAPONS,
+            protected_weapon_mod_variants=[
+                module.WeaponModVariantRule(
+                    identifier="Cruel",
+                    target_item_type="Hammer",
+                    component_kind="HammerHaft",
+                )
+            ],
+        )
+    )
+
+    hammer = _make_item(
+        module,
+        item_id=1,
+        model_id=111,
+        name="Cruel Hammer",
+        is_weapon_like=True,
+        item_type_id=int(module.ItemType.Hammer),
+        item_type_name="Hammer",
+        weapon_mod_identifiers=["Cruel"],
+        weapon_mod_matches=[
+            _make_weapon_mod_match(
+                module,
+                "Cruel",
+                None,
+                target_item_type="Hammer",
+                component_kind="HammerHaft",
+                mod_type="Prefix",
+            )
+        ],
+    )
+    axe = _make_item(
+        module,
+        item_id=2,
+        model_id=111,
+        name="Cruel Axe",
+        is_weapon_like=True,
+        item_type_id=int(module.ItemType.Axe),
+        item_type_name="Axe",
+        weapon_mod_identifiers=["Cruel"],
+        weapon_mod_matches=[
+            _make_weapon_mod_match(
+                module,
+                "Cruel",
+                None,
+                target_item_type="Axe",
+                component_kind="AxeHaft",
+                mod_type="Prefix",
+            )
+        ],
+    )
+    standalone_hammer_haft = _make_item(
+        module,
+        item_id=3,
+        model_id=111,
+        name="Cruel Hammer Haft",
+        is_weapon_like=False,
+        item_type_id=int(module.ItemType.Rune_Mod),
+        item_type_name="Rune_Mod",
+        standalone_kind=module.WEAPON_MOD_STANDALONE_KIND,
+        weapon_mod_identifiers=["Cruel"],
+        weapon_mod_matches=[
+            _make_weapon_mod_match(
+                module,
+                "Cruel",
+                None,
+                target_item_type="Hammer",
+                component_kind="HammerHaft",
+                mod_type="Prefix",
+            )
+        ],
+    )
+
+    _expect(widget._get_equippable_hard_protection_reason(hammer, rule) is not None, "Exact Cruel Hammer Haft should protect hammers.")
+    _expect(
+        widget._get_equippable_hard_protection_reason(standalone_hammer_haft, rule) is not None,
+        "Exact Cruel Hammer Haft should protect standalone upgrade components with the matching TargetItemType.",
+    )
+    _expect(widget._get_equippable_hard_protection_reason(axe, rule) is None, "Exact Cruel Hammer Haft should not protect axes.")
+
+
+def _test_weapon_mod_variant_threshold_requires_exact_variant_and_roll(module) -> None:
+    widget = _make_widget(module)
+    widget.weapon_mod_names["of Defense"] = "of Defense"
+    rule = module._normalize_sell_rule(
+        module.SellRule(
+            enabled=True,
+            kind=module.SELL_KIND_WEAPONS,
+            protected_weapon_mod_variant_thresholds=[
+                module.WeaponModVariantThresholdRule(
+                    identifier="of Defense",
+                    target_item_type="Daggers",
+                    component_kind="DaggerHandle",
+                    min_value=5,
+                )
+            ],
+        )
+    )
+
+    dagger_max = _make_item(
+        module,
+        item_id=1,
+        model_id=111,
+        name="Dagger Handle of Defense",
+        is_weapon_like=True,
+        item_type_id=int(module.ItemType.Daggers),
+        item_type_name="Daggers",
+        weapon_mod_identifiers=["of Defense"],
+        weapon_mod_matches=[
+            _make_weapon_mod_match(
+                module,
+                "of Defense",
+                5,
+                target_item_type="Daggers",
+                component_kind="DaggerHandle",
+                mod_type="Suffix",
+            )
+        ],
+    )
+    dagger_low = _make_item(
+        module,
+        item_id=2,
+        model_id=111,
+        name="Low Dagger Handle of Defense",
+        is_weapon_like=True,
+        item_type_id=int(module.ItemType.Daggers),
+        item_type_name="Daggers",
+        weapon_mod_identifiers=["of Defense"],
+        weapon_mod_matches=[
+            _make_weapon_mod_match(
+                module,
+                "of Defense",
+                4,
+                target_item_type="Daggers",
+                component_kind="DaggerHandle",
+                mod_type="Suffix",
+            )
+        ],
+    )
+    staff_max = _make_item(
+        module,
+        item_id=3,
+        model_id=111,
+        name="Staff Wrapping of Defense",
+        is_weapon_like=True,
+        item_type_id=int(module.ItemType.Staff),
+        item_type_name="Staff",
+        weapon_mod_identifiers=["of Defense"],
+        weapon_mod_matches=[
+            _make_weapon_mod_match(
+                module,
+                "of Defense",
+                5,
+                target_item_type="Staff",
+                component_kind="StaffWrapping",
+                mod_type="Suffix",
+            )
+        ],
+    )
+
+    _expect(widget._get_equippable_hard_protection_reason(dagger_max, rule) is not None, "Variant threshold should protect matching max dagger suffix.")
+    _expect(widget._get_equippable_hard_protection_reason(dagger_low, rule) is None, "Variant threshold should require the configured roll.")
+    _expect(widget._get_equippable_hard_protection_reason(staff_max, rule) is None, "Variant threshold should require the exact component variant.")
+
+
+def _test_weapon_mod_variant_profile_round_trips(module, temp_root: Path) -> None:
+    widget = _make_widget(module)
+    config_path = temp_root / "weapon_mod_variant_profile.json"
+    payload = {
+        "version": module.PROFILE_VERSION,
+        "sell_rules": [
+            {
+                "enabled": True,
+                "kind": module.SELL_KIND_WEAPONS,
+                "protected_weapon_mod_variants": [
+                    {"identifier": "Cruel", "target_item_type": "Hammer", "component_kind": "HammerHaft"},
+                ],
+                "protected_weapon_mod_variant_thresholds": [
+                    {
+                        "identifier": "of Defense",
+                        "target_item_type": "Daggers",
+                        "component_kind": "DaggerHandle",
+                        "min_value": 5,
+                    },
+                ],
+            }
+        ],
+    }
+    config_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    widget.config_path = str(config_path)
+
+    widget._load_profile()
+
+    _expect(
+        widget.sell_rules[0].protected_weapon_mod_variants == [
+            module.WeaponModVariantRule(identifier="Cruel", target_item_type="Hammer", component_kind="HammerHaft")
+        ],
+        "Exact weapon-mod variants should load as structured variant rules.",
+    )
+    _expect(
+        widget.sell_rules[0].protected_weapon_mod_variant_thresholds == [
+            module.WeaponModVariantThresholdRule(
+                identifier="of Defense",
+                target_item_type="Daggers",
+                component_kind="DaggerHandle",
+                min_value=5,
+            )
+        ],
+        "Exact weapon-mod variant thresholds should load as structured threshold rules.",
+    )
+
+    saved_payload = json.loads(config_path.read_text(encoding="utf-8"))
+    _expect(
+        saved_payload["sell_rules"][0]["protected_weapon_mod_variants"] == [
+            {"identifier": "Cruel", "target_item_type": "Hammer", "component_kind": "HammerHaft"}
+        ],
+        "Exact weapon-mod variants should save using readable profile fields.",
+    )
+    _expect(
+        saved_payload["sell_rules"][0]["protected_weapon_mod_variant_thresholds"] == [
+            {
+                "identifier": "of Defense",
+                "target_item_type": "Daggers",
+                "component_kind": "DaggerHandle",
+                "min_value": 5,
+            }
+        ],
+        "Exact weapon-mod variant thresholds should save using readable profile fields.",
+    )
+
+
+def _test_merchant_rules_reconstructs_standalone_weapon_mod_variant_context(module) -> None:
+    widget = _make_widget(module)
+    weapon_mod = _fake_weapon_mod(
+        "Cruel",
+        "Prefix",
+        {
+            module.ItemType.Axe: "AxeHaft",
+            module.ItemType.Hammer: "HammerHaft",
+        },
+    )
+    original_parse_modifiers = module.parse_modifiers
+
+    def _fake_parse_modifiers(_raw_modifiers, _parse_item_type, _model_id, _db):
+        return types.SimpleNamespace(
+            runes=[],
+            weapon_mods=[
+                types.SimpleNamespace(
+                    weapon_mod=weapon_mod,
+                    value=0,
+                    is_maxed=True,
+                )
+            ],
+            is_rune=False,
+            requirements=0,
+        )
+
+    widget._get_item_modifier_values = lambda _item_id: (
+        (module.WEAPON_MOD_TARGET_ITEM_TYPE_MODIFIER_ID, int(module.ItemType.Hammer), 0),
+        (9320, 1, 226),
+    )
+    module.parse_modifiers = _fake_parse_modifiers
+    try:
+        parsed = widget._get_cached_inventory_modifiers(
+            1001,
+            111,
+            module.ItemType.Rune_Mod,
+            module.ItemType.Rune_Mod,
+            is_weapon_like=False,
+            is_armor_piece=False,
+        )
+    finally:
+        module.parse_modifiers = original_parse_modifiers
+
+    _expect(parsed.standalone_kind == module.WEAPON_MOD_STANDALONE_KIND, "Standalone weapon upgrade components should keep their routing kind.")
+    _expect(len(parsed.weapon_mod_matches) == 1, "Standalone weapon upgrade component should keep a parsed weapon-mod match.")
+    match = parsed.weapon_mod_matches[0]
+    _expect(match.target_item_type == "Hammer", "Merchant Rules should reconstruct standalone TargetItemType from raw modifiers.")
+    _expect(match.component_kind == "HammerHaft", "Merchant Rules should reconstruct standalone component kind from item_mods.")
+    _expect(match.mod_type == "Prefix", "Merchant Rules should carry the matched weapon-mod type from the parsed match.")
+
+
+def _test_merchant_rules_reconstructs_equipped_weapon_mod_variant_context(module) -> None:
+    widget = _make_widget(module)
+    weapon_mod = _fake_weapon_mod(
+        "Cruel",
+        "Prefix",
+        {
+            module.ItemType.Axe: "AxeHaft",
+            module.ItemType.Hammer: "HammerHaft",
+        },
+    )
+    original_parse_modifiers = module.parse_modifiers
+
+    def _fake_parse_modifiers(_raw_modifiers, _parse_item_type, _model_id, _db):
+        return types.SimpleNamespace(
+            runes=[],
+            weapon_mods=[
+                types.SimpleNamespace(
+                    weapon_mod=weapon_mod,
+                    value=0,
+                    is_maxed=True,
+                )
+            ],
+            is_rune=False,
+            requirements=0,
+        )
+
+    widget._get_item_modifier_values = lambda _item_id: ((9320, 1, 226),)
+    module.parse_modifiers = _fake_parse_modifiers
+    try:
+        parsed = widget._get_cached_inventory_modifiers(
+            1001,
+            111,
+            module.ItemType.Hammer,
+            module.ItemType.Hammer,
+            is_weapon_like=True,
+            is_armor_piece=False,
+        )
+    finally:
+        module.parse_modifiers = original_parse_modifiers
+
+    _expect(len(parsed.weapon_mod_matches) == 1, "Equipped weapon should keep a parsed weapon-mod match.")
+    match = parsed.weapon_mod_matches[0]
+    _expect(match.target_item_type == "Hammer", "Merchant Rules should reconstruct equipped weapon item type from parse_item_type.")
+    _expect(match.component_kind == "HammerHaft", "Merchant Rules should reconstruct equipped component kind from item_mods.")
+    _expect(match.mod_type == "Prefix", "Merchant Rules should carry the matched weapon-mod type from the parsed match.")
 
 
 def _test_global_weapon_requirement_range_is_inclusive_and_excludes_unknown(module) -> None:
@@ -4018,9 +4746,19 @@ def _test_modifier_parse_cache_reuses_hits_and_prunes_stale_entries(module) -> N
 
     def _fake_parse_modifiers(raw_modifiers, parse_item_type, model_id, _db):
         parse_calls.append((tuple(raw_modifiers), int(getattr(parse_item_type, "value", 0)), int(model_id)))
+        weapon_mod = types.SimpleNamespace(
+            identifier="mod.beta",
+            modifiers=[
+                types.SimpleNamespace(
+                    modifier_value_arg=types.SimpleNamespace(name="Arg1"),
+                    min=10,
+                    max=20,
+                )
+            ],
+        )
         return types.SimpleNamespace(
             runes=[types.SimpleNamespace(rune=types.SimpleNamespace(identifier="rune.alpha"))],
-            weapon_mods=[types.SimpleNamespace(weapon_mod=types.SimpleNamespace(identifier="mod.beta"))],
+            weapon_mods=[types.SimpleNamespace(weapon_mod=weapon_mod, value=19, is_maxed=False)],
             is_rune=False,
             requirements=9,
         )
@@ -4051,6 +4789,12 @@ def _test_modifier_parse_cache_reuses_hits_and_prunes_stale_entries(module) -> N
     _expect(widget.inventory_modifier_cache_misses == 1, "The first modifier lookup should count as a cache miss.")
     _expect(widget.inventory_modifier_cache_hits == 1, "A repeated modifier lookup with the same signature should count as a cache hit.")
     _expect(first == second, "Cache hits should return the same parsed modifier payload for the unchanged item signature.")
+    _expect(
+        first.weapon_mod_matches == (
+            module.ParsedUpgradeMatch(identifier="mod.beta", value=19, min_value=10, max_value=20, is_maxed=False),
+        ),
+        "Modifier cache entries should retain parsed weapon-mod roll value and range metadata for threshold protection.",
+    )
 
     widget.inventory_modifier_cache[2002] = module.InventoryModifierCacheEntry(signature=(222,), parsed=module.ParsedInventoryModifiers())
     widget._prune_inventory_modifier_cache({1001})
@@ -4383,6 +5127,20 @@ def main() -> int:
             ("build_plan_captures_inventory_and_marks_conditional_stock_buy", lambda: _test_build_plan_captures_inventory_and_marks_conditional_stock_buy(module)),
             ("lower_weapon_protection_hard_overrides_higher_explicit_sell", lambda: _test_lower_weapon_protection_hard_overrides_higher_explicit_sell(module)),
             ("protection_only_rules_hard_claim_before_later_sell_rules", lambda: _test_protection_only_rules_hard_claim_before_later_sell_rules(module)),
+            ("weapon_mod_identifier_protection_still_matches_all_rolls", lambda: _test_weapon_mod_identifier_protection_still_matches_all_rolls(module)),
+            ("weapon_mod_threshold_protection_uses_inclusive_minimum_rolls", lambda: _test_weapon_mod_threshold_protection_uses_inclusive_minimum_rolls(module)),
+            ("weapon_mod_threshold_protection_handles_small_ranges", lambda: _test_weapon_mod_threshold_protection_handles_small_ranges(module)),
+            ("weapon_mod_threshold_requires_parsed_roll_value", lambda: _test_weapon_mod_threshold_requires_parsed_roll_value(module)),
+            ("weapon_mod_legacy_identifier_wins_over_threshold", lambda: _test_weapon_mod_legacy_identifier_wins_over_threshold(module)),
+            ("old_weapon_mod_identifier_profile_loads_without_thresholds", lambda: _test_old_weapon_mod_identifier_profile_loads_without_thresholds(module, temp_root)),
+            ("weapon_mod_threshold_profile_round_trips", lambda: _test_weapon_mod_threshold_profile_round_trips(module, temp_root)),
+            ("weapon_mod_variant_catalog_expands_prefix_suffix_components", lambda: _test_weapon_mod_variant_catalog_expands_prefix_suffix_components(module)),
+            ("old_weapon_mod_identifier_protects_all_exact_variants", lambda: _test_old_weapon_mod_identifier_protects_all_exact_variants(module)),
+            ("exact_weapon_mod_variant_protects_only_matching_component", lambda: _test_exact_weapon_mod_variant_protects_only_matching_component(module)),
+            ("weapon_mod_variant_threshold_requires_exact_variant_and_roll", lambda: _test_weapon_mod_variant_threshold_requires_exact_variant_and_roll(module)),
+            ("weapon_mod_variant_profile_round_trips", lambda: _test_weapon_mod_variant_profile_round_trips(module, temp_root)),
+            ("merchant_rules_reconstructs_standalone_weapon_mod_variant_context", lambda: _test_merchant_rules_reconstructs_standalone_weapon_mod_variant_context(module)),
+            ("merchant_rules_reconstructs_equipped_weapon_mod_variant_context", lambda: _test_merchant_rules_reconstructs_equipped_weapon_mod_variant_context(module)),
             ("global_weapon_requirement_range_is_inclusive_and_excludes_unknown", lambda: _test_global_weapon_requirement_range_is_inclusive_and_excludes_unknown(module)),
             ("model_specific_weapon_requirement_range_is_inclusive", lambda: _test_model_specific_weapon_requirement_range_is_inclusive(module)),
             ("model_specific_requirement_range_overrides_global_range", lambda: _test_model_specific_requirement_range_overrides_global_range(module)),

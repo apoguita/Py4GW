@@ -40,7 +40,7 @@ FLOATING_UI_INI_FILENAME = "MerchantRulesFloating.ini"
 FLOATING_ICON_WINDOW_ID = "##merchant_rules_floating_icon_button"
 FLOATING_ICON_WINDOW_NAME = "Merchant Rules Toggle"
 
-PROFILE_VERSION = 16
+PROFILE_VERSION = 18
 CONFIG_DIR = os.path.join(Py4GW.Console.get_projects_path(), "Widgets", "Config", "MerchantRules")
 SHARED_PROFILES_DIR = os.path.join(CONFIG_DIR, "Profiles")
 RECOVERY_DIR = os.path.join(CONFIG_DIR, "Recovery")
@@ -283,6 +283,12 @@ XUNLAI_AGENT_MODEL_IDS: tuple[int, ...] = (220, 221, 3287)
 XUNLAI_CHEST_MODEL_ID = 5001
 RUNE_STANDALONE_KIND = "rune"
 WEAPON_MOD_STANDALONE_KIND = "weapon_mod"
+WEAPON_MOD_CHOICE_KIND_GENERIC = "generic"
+WEAPON_MOD_CHOICE_KIND_VARIANT = "variant"
+WEAPON_MOD_GENERIC_KEY_PREFIX = "identifier:"
+WEAPON_MOD_VARIANT_KEY_PREFIX = "variant:"
+WEAPON_MOD_CHOICE_SEPARATOR = "|"
+WEAPON_MOD_TARGET_ITEM_TYPE_MODIFIER_ID = 9656
 RARITY_OPTION_ORDER: tuple[tuple[str, str], ...] = (
     ("white", "White"),
     ("blue", "Blue"),
@@ -579,6 +585,27 @@ class WeaponRequirementRule:
 
 
 @dataclass
+class WeaponModThresholdRule:
+    identifier: str = ""
+    min_value: int = 0
+
+
+@dataclass(frozen=True)
+class WeaponModVariantRule:
+    identifier: str = ""
+    target_item_type: str = ""
+    component_kind: str = ""
+
+
+@dataclass(frozen=True)
+class WeaponModVariantThresholdRule:
+    identifier: str = ""
+    target_item_type: str = ""
+    component_kind: str = ""
+    min_value: int = 0
+
+
+@dataclass
 class SellRule:
     enabled: bool = False
     kind: str = SELL_KIND_EXPLICIT_MODELS
@@ -594,6 +621,9 @@ class SellRule:
     all_weapons_max_requirement: int = 0
     protected_weapon_requirement_rules: list[WeaponRequirementRule] = field(default_factory=list)
     protected_weapon_mod_identifiers: list[str] = field(default_factory=list)
+    protected_weapon_mod_thresholds: list[WeaponModThresholdRule] = field(default_factory=list)
+    protected_weapon_mod_variants: list[WeaponModVariantRule] = field(default_factory=list)
+    protected_weapon_mod_variant_thresholds: list[WeaponModVariantThresholdRule] = field(default_factory=list)
     protected_rune_identifiers: list[str] = field(default_factory=list)
     skip_customized: bool = True
     skip_unidentified: bool = True
@@ -691,6 +721,7 @@ class InventoryItemInfo:
     standalone_kind: str = ""
     rune_identifiers: list[str] = field(default_factory=list)
     weapon_mod_identifiers: list[str] = field(default_factory=list)
+    weapon_mod_matches: list["ParsedUpgradeMatch"] = field(default_factory=list)
 
 
 @dataclass
@@ -823,11 +854,24 @@ class SharedProfileSummary:
 
 
 @dataclass(frozen=True)
+class ParsedUpgradeMatch:
+    identifier: str = ""
+    target_item_type: str = ""
+    component_kind: str = ""
+    mod_type: str = ""
+    value: int | None = None
+    min_value: int = 0
+    max_value: int = 0
+    is_maxed: bool = False
+
+
+@dataclass(frozen=True)
 class ParsedInventoryModifiers:
     requirement: int = 0
     standalone_kind: str = ""
     rune_identifiers: tuple[str, ...] = field(default_factory=tuple)
     weapon_mod_identifiers: tuple[str, ...] = field(default_factory=tuple)
+    weapon_mod_matches: tuple[ParsedUpgradeMatch, ...] = field(default_factory=tuple)
 
 
 @dataclass
@@ -915,6 +959,364 @@ def _coerce_list(value: object) -> list[object]:
     if isinstance(value, tuple):
         return list(value)
     return []
+
+
+def _normalize_weapon_mod_target_item_type(raw_value: object) -> str:
+    if raw_value is None:
+        return ""
+    enum_name = str(getattr(raw_value, "name", "") or "").strip()
+    if enum_name:
+        return enum_name
+    if isinstance(raw_value, str):
+        candidate = raw_value.strip()
+        if not candidate:
+            return ""
+        if candidate in getattr(ItemType, "__members__", {}):
+            return candidate
+        try:
+            return ItemType(int(candidate, 0)).name
+        except Exception:
+            return candidate
+    try:
+        return ItemType(int(raw_value)).name
+    except Exception:
+        return str(raw_value or "").strip()
+
+
+def _normalize_weapon_mod_component_kind(raw_value: object) -> str:
+    return str(raw_value or "").strip()
+
+
+def _normalize_weapon_mod_variant_parts(
+    identifier: object,
+    target_item_type: object,
+    component_kind: object,
+) -> tuple[str, str, str]:
+    return (
+        str(identifier or "").strip(),
+        _normalize_weapon_mod_target_item_type(target_item_type),
+        _normalize_weapon_mod_component_kind(component_kind),
+    )
+
+
+def _make_weapon_mod_identifier_choice_key(identifier: object) -> str:
+    safe_identifier = str(identifier or "").strip()
+    return f"{WEAPON_MOD_GENERIC_KEY_PREFIX}{safe_identifier}" if safe_identifier else ""
+
+
+def _make_weapon_mod_variant_choice_key(
+    identifier: object,
+    target_item_type: object,
+    component_kind: object,
+) -> str:
+    safe_identifier, safe_target_item_type, safe_component_kind = _normalize_weapon_mod_variant_parts(
+        identifier,
+        target_item_type,
+        component_kind,
+    )
+    if not safe_identifier or not safe_target_item_type or not safe_component_kind:
+        return ""
+    return (
+        f"{WEAPON_MOD_VARIANT_KEY_PREFIX}{safe_identifier}"
+        f"{WEAPON_MOD_CHOICE_SEPARATOR}{safe_target_item_type}"
+        f"{WEAPON_MOD_CHOICE_SEPARATOR}{safe_component_kind}"
+    )
+
+
+def _parse_weapon_mod_choice_key(raw_key: object) -> tuple[str, str, str, str]:
+    key = str(raw_key or "").strip()
+    if not key:
+        return "", "", "", ""
+    if key.startswith(WEAPON_MOD_VARIANT_KEY_PREFIX):
+        payload = key[len(WEAPON_MOD_VARIANT_KEY_PREFIX):]
+        parts = payload.split(WEAPON_MOD_CHOICE_SEPARATOR, 2)
+        if len(parts) != 3:
+            return "", "", "", ""
+        identifier, target_item_type, component_kind = _normalize_weapon_mod_variant_parts(parts[0], parts[1], parts[2])
+        if not identifier or not target_item_type or not component_kind:
+            return "", "", "", ""
+        return WEAPON_MOD_CHOICE_KIND_VARIANT, identifier, target_item_type, component_kind
+    if key.startswith(WEAPON_MOD_GENERIC_KEY_PREFIX):
+        identifier = key[len(WEAPON_MOD_GENERIC_KEY_PREFIX):].strip()
+    else:
+        identifier = key
+    if not identifier:
+        return "", "", "", ""
+    return WEAPON_MOD_CHOICE_KIND_GENERIC, identifier, "", ""
+
+
+def _weapon_mod_variant_rule_key(rule: object) -> tuple[str, str, str]:
+    return _normalize_weapon_mod_variant_parts(
+        getattr(rule, "identifier", ""),
+        getattr(rule, "target_item_type", ""),
+        getattr(rule, "component_kind", ""),
+    )
+
+
+def _weapon_mod_variant_rule_choice_key(rule: object) -> str:
+    identifier, target_item_type, component_kind = _weapon_mod_variant_rule_key(rule)
+    return _make_weapon_mod_variant_choice_key(identifier, target_item_type, component_kind)
+
+
+def _humanize_weapon_mod_component_kind(component_kind: object) -> str:
+    safe_component_kind = _normalize_weapon_mod_component_kind(component_kind)
+    if not safe_component_kind:
+        return ""
+    return re.sub(r"(?<!^)(?=[A-Z])", " ", safe_component_kind).strip()
+
+
+def _get_weapon_mod_type_name(weapon_mod: object) -> str:
+    mod_type = getattr(weapon_mod, "mod_type", None)
+    return str(getattr(mod_type, "name", mod_type) or "").strip()
+
+
+def _is_expandable_weapon_mod_type(weapon_mod: object) -> bool:
+    return _get_weapon_mod_type_name(weapon_mod) in ("Prefix", "Suffix")
+
+
+def _format_weapon_mod_variant_label(weapon_mod: object, component_kind: object) -> str:
+    base_name = str(getattr(weapon_mod, "name", "") or getattr(weapon_mod, "identifier", "") or "").strip()
+    component_label = _humanize_weapon_mod_component_kind(component_kind)
+    if not base_name:
+        base_name = "Unknown Weapon Mod"
+    if not component_label:
+        return base_name
+    mod_type_name = _get_weapon_mod_type_name(weapon_mod)
+    if mod_type_name == "Prefix":
+        return f"{base_name} {component_label}"
+    if mod_type_name == "Suffix":
+        return f"{component_label} {base_name}"
+    return base_name
+
+
+def _normalize_weapon_mod_variant_rules(values: list[object]) -> list[WeaponModVariantRule]:
+    rules: list[WeaponModVariantRule] = []
+    seen: set[tuple[str, str, str]] = set()
+    for value in values:
+        if isinstance(value, WeaponModVariantRule):
+            identifier, target_item_type, component_kind = _weapon_mod_variant_rule_key(value)
+        elif isinstance(value, dict):
+            identifier, target_item_type, component_kind = _normalize_weapon_mod_variant_parts(
+                value.get("identifier", ""),
+                value.get("target_item_type", ""),
+                value.get("component_kind", ""),
+            )
+        else:
+            continue
+        if not identifier or not target_item_type or not component_kind:
+            continue
+        key = (identifier, target_item_type, component_kind)
+        if key in seen:
+            continue
+        seen.add(key)
+        rules.append(
+            WeaponModVariantRule(
+                identifier=identifier,
+                target_item_type=target_item_type,
+                component_kind=component_kind,
+            )
+        )
+    return rules
+
+
+def _normalize_weapon_mod_variant_threshold_rules(values: list[object]) -> list[WeaponModVariantThresholdRule]:
+    rules: list[WeaponModVariantThresholdRule] = []
+    seen: set[tuple[str, str, str, int]] = set()
+    for value in values:
+        if isinstance(value, WeaponModVariantThresholdRule):
+            identifier, target_item_type, component_kind = _weapon_mod_variant_rule_key(value)
+            raw_min_value = getattr(value, "min_value", None)
+        elif isinstance(value, dict):
+            identifier, target_item_type, component_kind = _normalize_weapon_mod_variant_parts(
+                value.get("identifier", ""),
+                value.get("target_item_type", ""),
+                value.get("component_kind", ""),
+            )
+            raw_min_value = value.get("min_value", None)
+        else:
+            continue
+        if not identifier or not target_item_type or not component_kind or raw_min_value is None:
+            continue
+        min_value = _safe_int(raw_min_value, 0)
+        key = (identifier, target_item_type, component_kind, min_value)
+        if key in seen:
+            continue
+        seen.add(key)
+        rules.append(
+            WeaponModVariantThresholdRule(
+                identifier=identifier,
+                target_item_type=target_item_type,
+                component_kind=component_kind,
+                min_value=min_value,
+            )
+        )
+    return rules
+
+
+def _serialize_weapon_mod_variant_rules(values: list[object]) -> list[dict[str, object]]:
+    return [
+        {
+            "identifier": rule.identifier,
+            "target_item_type": rule.target_item_type,
+            "component_kind": rule.component_kind,
+        }
+        for rule in _normalize_weapon_mod_variant_rules(values)
+    ]
+
+
+def _serialize_weapon_mod_variant_threshold_rules(values: list[object]) -> list[dict[str, object]]:
+    return [
+        {
+            "identifier": rule.identifier,
+            "target_item_type": rule.target_item_type,
+            "component_kind": rule.component_kind,
+            "min_value": int(rule.min_value),
+        }
+        for rule in _normalize_weapon_mod_variant_threshold_rules(values)
+    ]
+
+
+def _weapon_mod_variant_matches_parsed_match(rule: object, match: object) -> bool:
+    identifier, target_item_type, component_kind = _weapon_mod_variant_rule_key(rule)
+    match_identifier, match_target_item_type, match_component_kind = _normalize_weapon_mod_variant_parts(
+        getattr(match, "identifier", ""),
+        getattr(match, "target_item_type", ""),
+        getattr(match, "component_kind", ""),
+    )
+    return (
+        bool(identifier)
+        and identifier == match_identifier
+        and target_item_type == match_target_item_type
+        and component_kind == match_component_kind
+    )
+
+
+def _normalize_weapon_mod_threshold_rules(values: list[object]) -> list[WeaponModThresholdRule]:
+    rules: list[WeaponModThresholdRule] = []
+    seen: set[tuple[str, int]] = set()
+    for value in values:
+        if isinstance(value, WeaponModThresholdRule):
+            identifier = str(getattr(value, "identifier", "") or "").strip()
+            raw_min_value = getattr(value, "min_value", None)
+        elif isinstance(value, dict):
+            identifier = str(value.get("identifier", "") or "").strip()
+            raw_min_value = value.get("min_value", None)
+        else:
+            continue
+        if not identifier or raw_min_value is None:
+            continue
+        min_value = _safe_int(raw_min_value, 0)
+        key = (identifier, min_value)
+        if key in seen:
+            continue
+        seen.add(key)
+        rules.append(WeaponModThresholdRule(identifier=identifier, min_value=min_value))
+    return rules
+
+
+def _serialize_weapon_mod_threshold_rules(values: list[object]) -> list[dict[str, object]]:
+    return [
+        {
+            "identifier": rule.identifier,
+            "min_value": int(rule.min_value),
+        }
+        for rule in _normalize_weapon_mod_threshold_rules(values)
+    ]
+
+
+def _get_weapon_mod_variable_range(weapon_mod: object) -> tuple[int, int] | None:
+    for modifier in getattr(weapon_mod, "modifiers", []) or []:
+        value_arg = getattr(modifier, "modifier_value_arg", None)
+        value_arg_name = str(getattr(value_arg, "name", value_arg) or "")
+        if value_arg_name not in ("Arg1", "Arg2"):
+            continue
+        min_value = _safe_int(getattr(modifier, "min", 0), 0)
+        max_value = _safe_int(getattr(modifier, "max", 0), 0)
+        if min_value == max_value:
+            continue
+        if min_value > max_value:
+            min_value, max_value = max_value, min_value
+        return min_value, max_value
+    return None
+
+
+def _get_weapon_mod_component_kind_for_target(weapon_mod: object, target_item_type: object) -> str:
+    safe_target_item_type = _normalize_weapon_mod_target_item_type(target_item_type)
+    if not safe_target_item_type:
+        return ""
+    item_mods = getattr(weapon_mod, "item_mods", {}) or {}
+    if not isinstance(item_mods, dict):
+        return ""
+    for raw_target_item_type, raw_component_kind in item_mods.items():
+        if _normalize_weapon_mod_target_item_type(raw_target_item_type) == safe_target_item_type:
+            return _normalize_weapon_mod_component_kind(raw_component_kind)
+    return ""
+
+
+def _get_weapon_mod_target_item_type_from_raw_modifiers(raw_modifiers: object) -> str:
+    for raw_modifier in raw_modifiers or ():
+        try:
+            identifier, arg1, _arg2 = raw_modifier
+        except Exception:
+            continue
+        if _safe_int(identifier, 0) != WEAPON_MOD_TARGET_ITEM_TYPE_MODIFIER_ID:
+            continue
+        return _normalize_weapon_mod_target_item_type(arg1)
+    return ""
+
+
+def _resolve_parsed_weapon_mod_variant_context(
+    match: object,
+    raw_modifiers: object,
+    item_type_enum: ItemType,
+    parse_item_type: ItemType,
+) -> tuple[str, str, str]:
+    weapon_mod = getattr(match, "weapon_mod", None)
+    mod_type_name = _get_weapon_mod_type_name(match) or _get_weapon_mod_type_name(weapon_mod)
+    if weapon_mod is None:
+        return "", "", mod_type_name
+
+    if item_type_enum == ItemType.Rune_Mod:
+        target_item_type = _get_weapon_mod_target_item_type_from_raw_modifiers(raw_modifiers)
+    else:
+        target_item_type = _normalize_weapon_mod_target_item_type(parse_item_type)
+
+    component_kind = _get_weapon_mod_component_kind_for_target(weapon_mod, target_item_type)
+    if not component_kind:
+        return "", "", mod_type_name
+    return target_item_type, component_kind, mod_type_name
+
+
+def _build_parsed_weapon_mod_match(
+    match: object,
+    *,
+    raw_modifiers: object = (),
+    item_type_enum: ItemType = ItemType.Unknown,
+    parse_item_type: ItemType = ItemType.Unknown,
+) -> ParsedUpgradeMatch | None:
+    weapon_mod = getattr(match, "weapon_mod", None)
+    identifier = str(getattr(weapon_mod, "identifier", "") or "").strip()
+    if not identifier:
+        return None
+    range_values = _get_weapon_mod_variable_range(weapon_mod)
+    raw_value = getattr(match, "value", None) if hasattr(match, "value") else None
+    parsed_value = None if raw_value is None else _safe_int(raw_value, 0)
+    target_item_type, component_kind, mod_type = _resolve_parsed_weapon_mod_variant_context(
+        match,
+        raw_modifiers,
+        item_type_enum,
+        parse_item_type,
+    )
+    return ParsedUpgradeMatch(
+        identifier=identifier,
+        target_item_type=target_item_type,
+        component_kind=component_kind,
+        mod_type=mod_type,
+        value=parsed_value,
+        min_value=int(range_values[0]) if range_values is not None else 0,
+        max_value=int(range_values[1]) if range_values is not None else 0,
+        is_maxed=bool(getattr(match, "is_maxed", False)),
+    )
 
 
 def _sanitize_filename(value: str) -> str:
@@ -1862,6 +2264,15 @@ def _normalize_sell_rule(rule: SellRule) -> SellRule | None:
     )
     rule.protected_weapon_requirement_rules = _normalize_weapon_requirement_rules(getattr(rule, "protected_weapon_requirement_rules", []))
     rule.protected_weapon_mod_identifiers = _dedupe_identifiers(rule.protected_weapon_mod_identifiers)
+    rule.protected_weapon_mod_thresholds = _normalize_weapon_mod_threshold_rules(
+        _coerce_list(getattr(rule, "protected_weapon_mod_thresholds", []))
+    )
+    rule.protected_weapon_mod_variants = _normalize_weapon_mod_variant_rules(
+        _coerce_list(getattr(rule, "protected_weapon_mod_variants", []))
+    )
+    rule.protected_weapon_mod_variant_thresholds = _normalize_weapon_mod_variant_threshold_rules(
+        _coerce_list(getattr(rule, "protected_weapon_mod_variant_thresholds", []))
+    )
     rule.protected_rune_identifiers = _dedupe_identifiers(rule.protected_rune_identifiers)
     rule.skip_customized = bool(rule.skip_customized)
     rule.skip_unidentified = bool(rule.skip_unidentified)
@@ -1935,6 +2346,15 @@ def _serialize_sell_rule(rule: SellRule) -> dict[str, object]:
     payload = asdict(normalized_rule)
     payload["rule_id"] = str(normalized_rule.rule_id or "").strip()
     payload["whitelist_targets"] = _serialize_whitelist_targets(normalized_rule.whitelist_targets)
+    payload["protected_weapon_mod_thresholds"] = _serialize_weapon_mod_threshold_rules(
+        normalized_rule.protected_weapon_mod_thresholds
+    )
+    payload["protected_weapon_mod_variants"] = _serialize_weapon_mod_variant_rules(
+        normalized_rule.protected_weapon_mod_variants
+    )
+    payload["protected_weapon_mod_variant_thresholds"] = _serialize_weapon_mod_variant_threshold_rules(
+        normalized_rule.protected_weapon_mod_variant_thresholds
+    )
     return payload
 
 
@@ -1965,6 +2385,9 @@ def _has_explicit_equippable_hard_protection(rule: SellRule) -> bool:
                 for requirement_rule in rule.protected_weapon_requirement_rules
             )
             or rule.protected_weapon_mod_identifiers
+            or rule.protected_weapon_mod_thresholds
+            or rule.protected_weapon_mod_variants
+            or rule.protected_weapon_mod_variant_thresholds
         )
     return bool(rule.protected_rune_identifiers)
 
@@ -2058,6 +2481,8 @@ class MerchantRulesWidget:
         self.weapon_mod_entries: list[dict[str, str]] = []
         self.rune_entries: list[dict[str, str]] = []
         self.weapon_mod_names: dict[str, str] = {}
+        self.weapon_mod_generic_names: dict[str, str] = {}
+        self.weapon_mod_variant_names: dict[str, str] = {}
         self.rune_names: dict[str, str] = {}
         self.rune_buy_entries: list[dict[str, object]] = []
         self.rune_buy_entries_by_identifier: dict[str, dict[str, object]] = {}
@@ -2354,6 +2779,9 @@ class MerchantRulesWidget:
                     all_weapons_max_requirement=_normalize_all_weapons_requirement_range_from_payload(entry)[1],
                     protected_weapon_requirement_rules=_normalize_weapon_requirement_rules(_coerce_list(entry.get("protected_weapon_requirement_rules", []))),
                     protected_weapon_mod_identifiers=_dedupe_identifiers(_coerce_list(entry.get("protected_weapon_mod_identifiers", []))),
+                    protected_weapon_mod_thresholds=_normalize_weapon_mod_threshold_rules(_coerce_list(entry.get("protected_weapon_mod_thresholds", []))),
+                    protected_weapon_mod_variants=_normalize_weapon_mod_variant_rules(_coerce_list(entry.get("protected_weapon_mod_variants", []))),
+                    protected_weapon_mod_variant_thresholds=_normalize_weapon_mod_variant_threshold_rules(_coerce_list(entry.get("protected_weapon_mod_variant_thresholds", []))),
                     protected_rune_identifiers=_dedupe_identifiers(_coerce_list(entry.get("protected_rune_identifiers", []))),
                     skip_customized=bool(entry.get("skip_customized", True)),
                     skip_unidentified=bool(entry.get("skip_unidentified", True)),
@@ -2473,6 +2901,9 @@ class MerchantRulesWidget:
                 all_weapons_max_requirement=_normalize_all_weapons_requirement_range_from_payload(entry)[1],
                 protected_weapon_requirement_rules=_normalize_weapon_requirement_rules(_coerce_list(entry.get("protected_weapon_requirement_rules", []))),
                 protected_weapon_mod_identifiers=_dedupe_identifiers(_coerce_list(entry.get("protected_weapon_mod_identifiers", []))),
+                protected_weapon_mod_thresholds=_normalize_weapon_mod_threshold_rules(_coerce_list(entry.get("protected_weapon_mod_thresholds", []))),
+                protected_weapon_mod_variants=_normalize_weapon_mod_variant_rules(_coerce_list(entry.get("protected_weapon_mod_variants", []))),
+                protected_weapon_mod_variant_thresholds=_normalize_weapon_mod_variant_threshold_rules(_coerce_list(entry.get("protected_weapon_mod_variant_thresholds", []))),
                 protected_rune_identifiers=_dedupe_identifiers(_coerce_list(entry.get("protected_rune_identifiers", []))),
                 skip_customized=bool(entry.get("skip_customized", True)),
                 skip_unidentified=bool(entry.get("skip_unidentified", True)),
@@ -3442,13 +3873,51 @@ class MerchantRulesWidget:
         self.weapon_mod_entries = []
         self.rune_entries = []
         self.weapon_mod_names = {}
+        self.weapon_mod_generic_names = {}
+        self.weapon_mod_variant_names = {}
         self.rune_names = {}
 
         for identifier, weapon_mod in sorted(MOD_DB.weapon_mods.items(), key=lambda row: row[1].name.lower() or row[0].lower()):
             display_name = str(weapon_mod.name or identifier).strip()
-            entry = {"identifier": str(identifier), "name": display_name}
+            safe_identifier = str(identifier)
+            generic_label = (
+                f"{display_name} (all supported weapons)"
+                if _is_expandable_weapon_mod_type(weapon_mod)
+                else display_name
+            )
+            entry = {
+                "identifier": _make_weapon_mod_identifier_choice_key(safe_identifier),
+                "name": generic_label,
+                "base_identifier": safe_identifier,
+                "entry_kind": WEAPON_MOD_CHOICE_KIND_GENERIC,
+            }
             self.weapon_mod_entries.append(entry)
-            self.weapon_mod_names[str(identifier)] = display_name
+            self.weapon_mod_names[safe_identifier] = display_name
+            self.weapon_mod_generic_names[safe_identifier] = generic_label
+
+            if _is_expandable_weapon_mod_type(weapon_mod):
+                for target_item_type, component_kind in getattr(weapon_mod, "item_mods", {}).items():
+                    target_item_type_name = _normalize_weapon_mod_target_item_type(target_item_type)
+                    safe_component_kind = _normalize_weapon_mod_component_kind(component_kind)
+                    variant_key = _make_weapon_mod_variant_choice_key(
+                        safe_identifier,
+                        target_item_type_name,
+                        safe_component_kind,
+                    )
+                    if not variant_key:
+                        continue
+                    variant_label = _format_weapon_mod_variant_label(weapon_mod, safe_component_kind)
+                    self.weapon_mod_entries.append(
+                        {
+                            "identifier": variant_key,
+                            "name": variant_label,
+                            "base_identifier": safe_identifier,
+                            "entry_kind": WEAPON_MOD_CHOICE_KIND_VARIANT,
+                            "target_item_type": target_item_type_name,
+                            "component_kind": safe_component_kind,
+                        }
+                    )
+                    self.weapon_mod_variant_names[variant_key] = variant_label
 
         for identifier, rune in sorted(MOD_DB.runes.items(), key=lambda row: row[1].name.lower() or row[0].lower()):
             display_name = str(rune.name or identifier).strip()
@@ -4436,6 +4905,74 @@ class MerchantRulesWidget:
             return "Unknown Weapon Mod"
         return self.weapon_mod_names.get(safe_identifier, safe_identifier)
 
+    def _get_weapon_mod_generic_label(self, identifier: str) -> str:
+        safe_identifier = str(identifier or "").strip()
+        if not safe_identifier:
+            return "Unknown Weapon Mod"
+        if safe_identifier in self.weapon_mod_generic_names:
+            return self.weapon_mod_generic_names[safe_identifier]
+        base_label = self._get_weapon_mod_label(safe_identifier)
+        weapon_mod = MOD_DB.weapon_mods.get(safe_identifier)
+        if weapon_mod is not None and _is_expandable_weapon_mod_type(weapon_mod):
+            return f"{base_label} (all supported weapons)"
+        return base_label
+
+    def _get_weapon_mod_variant_label(
+        self,
+        identifier: str,
+        target_item_type: str,
+        component_kind: str,
+    ) -> str:
+        variant_key = _make_weapon_mod_variant_choice_key(identifier, target_item_type, component_kind)
+        if variant_key and variant_key in self.weapon_mod_variant_names:
+            return self.weapon_mod_variant_names[variant_key]
+        weapon_mod = MOD_DB.weapon_mods.get(str(identifier or "").strip())
+        if weapon_mod is not None:
+            return _format_weapon_mod_variant_label(weapon_mod, component_kind)
+        component_label = _humanize_weapon_mod_component_kind(component_kind)
+        base_label = self._get_weapon_mod_label(identifier)
+        return f"{component_label} {base_label}".strip() if component_label else base_label
+
+    def _get_weapon_mod_choice_label(self, choice_key: str) -> str:
+        kind, identifier, target_item_type, component_kind = _parse_weapon_mod_choice_key(choice_key)
+        if kind == WEAPON_MOD_CHOICE_KIND_VARIANT:
+            return self._get_weapon_mod_variant_label(identifier, target_item_type, component_kind)
+        if kind == WEAPON_MOD_CHOICE_KIND_GENERIC:
+            return self._get_weapon_mod_generic_label(identifier)
+        return self._get_weapon_mod_label(choice_key)
+
+    def _format_weapon_mod_variant_rule(self, variant_rule: object) -> str:
+        identifier, target_item_type, component_kind = _weapon_mod_variant_rule_key(variant_rule)
+        return self._get_weapon_mod_variant_label(identifier, target_item_type, component_kind)
+
+    def _get_weapon_mod_value_range(self, identifier: str) -> tuple[int, int] | None:
+        safe_identifier = str(identifier or "").strip()
+        if not safe_identifier:
+            return None
+        return _get_weapon_mod_variable_range(MOD_DB.weapon_mods.get(safe_identifier))
+
+    def _format_weapon_mod_threshold_value(self, identifier: str, min_value: object) -> str:
+        safe_min_value = _safe_int(min_value, 0)
+        value_range = self._get_weapon_mod_value_range(identifier)
+        if value_range is None:
+            return f"+{safe_min_value}+"
+        _range_min_value, max_value = value_range
+        suffix = "+" if safe_min_value < int(max_value) else ""
+        return f"+{safe_min_value}{suffix}"
+
+    def _format_weapon_mod_threshold_rule(self, threshold_rule: WeaponModThresholdRule) -> str:
+        identifier = str(getattr(threshold_rule, "identifier", "") or "").strip()
+        min_value = _safe_int(getattr(threshold_rule, "min_value", 0), 0)
+        return f"{self._get_weapon_mod_generic_label(identifier)} {self._format_weapon_mod_threshold_value(identifier, min_value)}"
+
+    def _format_weapon_mod_variant_threshold_rule(self, threshold_rule: WeaponModVariantThresholdRule) -> str:
+        identifier, target_item_type, component_kind = _weapon_mod_variant_rule_key(threshold_rule)
+        min_value = _safe_int(getattr(threshold_rule, "min_value", 0), 0)
+        return (
+            f"{self._get_weapon_mod_variant_label(identifier, target_item_type, component_kind)} "
+            f"{self._format_weapon_mod_threshold_value(identifier, min_value)}"
+        )
+
     def _get_rune_label(self, identifier: str) -> str:
         safe_identifier = str(identifier or "").strip()
         if not safe_identifier:
@@ -4989,6 +5526,27 @@ class MerchantRulesWidget:
         rule.protected_weapon_mod_identifiers = normalized_ids
         return True
 
+    def _set_sell_rule_weapon_mod_thresholds(self, rule: SellRule, threshold_rules: list[object]) -> bool:
+        normalized_rules = _normalize_weapon_mod_threshold_rules(threshold_rules)
+        if normalized_rules == rule.protected_weapon_mod_thresholds:
+            return False
+        rule.protected_weapon_mod_thresholds = normalized_rules
+        return True
+
+    def _set_sell_rule_weapon_mod_variants(self, rule: SellRule, variant_rules: list[object]) -> bool:
+        normalized_rules = _normalize_weapon_mod_variant_rules(variant_rules)
+        if normalized_rules == rule.protected_weapon_mod_variants:
+            return False
+        rule.protected_weapon_mod_variants = normalized_rules
+        return True
+
+    def _set_sell_rule_weapon_mod_variant_thresholds(self, rule: SellRule, threshold_rules: list[object]) -> bool:
+        normalized_rules = _normalize_weapon_mod_variant_threshold_rules(threshold_rules)
+        if normalized_rules == rule.protected_weapon_mod_variant_thresholds:
+            return False
+        rule.protected_weapon_mod_variant_thresholds = normalized_rules
+        return True
+
     def _set_sell_rule_rune_identifiers(self, rule: SellRule, identifiers: list[str]) -> bool:
         normalized_ids = _dedupe_identifiers(identifiers)
         if normalized_ids == rule.protected_rune_identifiers:
@@ -5034,6 +5592,9 @@ class MerchantRulesWidget:
         if index in same_kind_indices:
             return same_kind_indices.index(index) + 1
         return int(index) + 1
+
+    def _get_dense_list_table_flags(self):
+        return PyImGui.TableFlags.RowBg | PyImGui.TableFlags.BordersInnerV
 
     def _draw_add_all_matches_button(self, button_id: str, visible_count: int, addable_count: int) -> bool:
         if visible_count <= 0:
@@ -5226,6 +5787,249 @@ class MerchantRulesWidget:
         PyImGui.end_child()
         return picked_identifier, visible_identifiers
 
+    def _get_weapon_mod_roll_choice_options(
+        self,
+        identifier: str,
+        current_threshold_value: int | None,
+    ) -> tuple[list[str], list[int | None]]:
+        value_range = self._get_weapon_mod_value_range(identifier)
+        option_values: list[int | None] = [None]
+        if value_range is not None:
+            min_value, max_value = value_range
+            if min_value > max_value:
+                min_value, max_value = max_value, min_value
+            option_values.extend(range(min_value, max_value + 1))
+        if current_threshold_value is not None and current_threshold_value not in option_values:
+            numeric_values = sorted(
+                {
+                    int(value)
+                    for value in option_values
+                    if value is not None
+                }
+                | {int(current_threshold_value)}
+            )
+            option_values = [None] + numeric_values
+        labels = [
+            "Any" if value is None else self._format_weapon_mod_threshold_value(identifier, int(value))
+            for value in option_values
+        ]
+        return labels, option_values
+
+    def _draw_selected_weapon_mod_protections(
+        self,
+        section_name: str,
+        index: int,
+        rule: SellRule,
+        *,
+        selected_identifiers: list[str],
+        threshold_rules: list[WeaponModThresholdRule],
+        identifier_setter,
+        threshold_setter,
+        selected_variants: list[WeaponModVariantRule] | None = None,
+        variant_threshold_rules: list[WeaponModVariantThresholdRule] | None = None,
+        variant_setter=None,
+        variant_threshold_setter=None,
+        jump_anchor: str = "",
+    ) -> bool:
+        normalized_identifiers = _dedupe_identifiers(selected_identifiers)
+        normalized_threshold_rules = _normalize_weapon_mod_threshold_rules(threshold_rules)
+        normalized_variants = _normalize_weapon_mod_variant_rules(selected_variants or [])
+        normalized_variant_threshold_rules = _normalize_weapon_mod_variant_threshold_rules(variant_threshold_rules or [])
+
+        protected_choice_keys = _dedupe_identifiers(
+            [_make_weapon_mod_identifier_choice_key(identifier) for identifier in normalized_identifiers]
+            + [
+                _make_weapon_mod_identifier_choice_key(str(threshold_rule.identifier or "").strip())
+                for threshold_rule in normalized_threshold_rules
+            ]
+            + [_weapon_mod_variant_rule_choice_key(variant_rule) for variant_rule in normalized_variants]
+            + [
+                _weapon_mod_variant_rule_choice_key(threshold_rule)
+                for threshold_rule in normalized_variant_threshold_rules
+            ]
+        )
+        protected_choice_keys = [choice_key for choice_key in protected_choice_keys if choice_key]
+        if not protected_choice_keys:
+            self._draw_secondary_text("No protected entries selected yet.", wrapped=False)
+            return False
+
+        changed = False
+        selected_choice_key_set = {
+            _make_weapon_mod_identifier_choice_key(identifier)
+            for identifier in normalized_identifiers
+        } | {
+            _weapon_mod_variant_rule_choice_key(variant_rule)
+            for variant_rule in normalized_variants
+        }
+        threshold_values_by_choice_key: dict[str, list[int]] = {}
+        for threshold_rule in normalized_threshold_rules:
+            identifier = str(threshold_rule.identifier or "").strip()
+            if not identifier:
+                continue
+            choice_key = _make_weapon_mod_identifier_choice_key(identifier)
+            threshold_values_by_choice_key.setdefault(choice_key, []).append(int(threshold_rule.min_value))
+        for threshold_rule in normalized_variant_threshold_rules:
+            choice_key = _weapon_mod_variant_rule_choice_key(threshold_rule)
+            if not choice_key:
+                continue
+            threshold_values_by_choice_key.setdefault(choice_key, []).append(int(threshold_rule.min_value))
+
+        child_height = min(220, 54 + (28 * len(protected_choice_keys)))
+        if PyImGui.begin_child(f"{section_name}_selected_{index}", (0, child_height), True, PyImGui.WindowFlags.NoFlag):
+            table_flags = self._get_dense_list_table_flags()
+            if PyImGui.begin_table(f"{section_name}_weapon_mod_table_{index}", 3, table_flags):
+                PyImGui.table_setup_column("Upgrade", PyImGui.TableColumnFlags.WidthStretch)
+                PyImGui.table_setup_column("Keep If", PyImGui.TableColumnFlags.WidthFixed, 150.0)
+                PyImGui.table_setup_column("Remove", PyImGui.TableColumnFlags.WidthFixed, 60.0)
+
+                PyImGui.table_next_row()
+                for column_index, column_label in enumerate(("Upgrade", "Keep If", "Remove")):
+                    PyImGui.table_set_column_index(column_index)
+                    self._draw_secondary_text(column_label, wrapped=False)
+
+                for choice_key in self._sort_identifiers_for_display(protected_choice_keys, self._get_weapon_mod_choice_label):
+                    choice_key = str(choice_key or "").strip()
+                    kind, identifier, target_item_type, component_kind = _parse_weapon_mod_choice_key(choice_key)
+                    if not identifier:
+                        continue
+                    threshold_values = threshold_values_by_choice_key.get(choice_key, [])
+                    current_threshold_value = min(threshold_values) if threshold_values else None
+                    any_selected = choice_key in selected_choice_key_set
+                    current_choice_value = None if any_selected else current_threshold_value
+                    labels, option_values = self._get_weapon_mod_roll_choice_options(identifier, current_choice_value)
+                    show_roll_selector = len(option_values) > 1
+                    current_choice_index = option_values.index(current_choice_value) if current_choice_value in option_values else 0
+                    choice_hash = md5(choice_key.encode("utf-8")).hexdigest()
+
+                    PyImGui.table_next_row()
+                    PyImGui.table_set_column_index(0)
+                    PyImGui.text(self._get_weapon_mod_choice_label(choice_key))
+
+                    PyImGui.table_set_column_index(1)
+                    if show_roll_selector:
+                        PyImGui.push_item_width(138)
+                        next_choice_index = PyImGui.combo(
+                            f"##{section_name}_roll_{index}_{choice_hash}",
+                            current_choice_index,
+                            labels,
+                        )
+                        PyImGui.pop_item_width()
+                        next_choice_index = max(0, min(int(next_choice_index), len(option_values) - 1))
+                        if next_choice_index != current_choice_index:
+                            next_choice_value = option_values[next_choice_index]
+                            if kind == WEAPON_MOD_CHOICE_KIND_VARIANT:
+                                next_variants = [
+                                    variant_rule
+                                    for variant_rule in normalized_variants
+                                    if _weapon_mod_variant_rule_choice_key(variant_rule) != choice_key
+                                ]
+                                next_variant_threshold_rules = [
+                                    threshold_rule
+                                    for threshold_rule in normalized_variant_threshold_rules
+                                    if _weapon_mod_variant_rule_choice_key(threshold_rule) != choice_key
+                                ]
+                                if next_choice_value is None:
+                                    next_variants.append(
+                                        WeaponModVariantRule(
+                                            identifier=identifier,
+                                            target_item_type=target_item_type,
+                                            component_kind=component_kind,
+                                        )
+                                    )
+                                else:
+                                    next_variant_threshold_rules.append(
+                                        WeaponModVariantThresholdRule(
+                                            identifier=identifier,
+                                            target_item_type=target_item_type,
+                                            component_kind=component_kind,
+                                            min_value=int(next_choice_value),
+                                        )
+                                    )
+                                if variant_setter is not None and variant_setter(rule, next_variants):
+                                    changed = True
+                                if variant_threshold_setter is not None and variant_threshold_setter(rule, next_variant_threshold_rules):
+                                    changed = True
+                            else:
+                                next_identifiers = [
+                                    existing_identifier
+                                    for existing_identifier in normalized_identifiers
+                                    if existing_identifier != identifier
+                                ]
+                                next_threshold_rules = [
+                                    threshold_rule
+                                    for threshold_rule in normalized_threshold_rules
+                                    if str(threshold_rule.identifier or "").strip() != identifier
+                                ]
+                                if next_choice_value is None:
+                                    next_identifiers = _dedupe_identifiers(next_identifiers + [identifier])
+                                else:
+                                    next_threshold_rules.append(
+                                        WeaponModThresholdRule(identifier=identifier, min_value=int(next_choice_value))
+                                    )
+                                if identifier_setter(rule, next_identifiers):
+                                    changed = True
+                                if threshold_setter(rule, next_threshold_rules):
+                                    changed = True
+                    else:
+                        self._draw_secondary_text("Any", wrapped=False)
+
+                    PyImGui.table_set_column_index(2)
+                    if PyImGui.small_button(f"X##{section_name}_remove_{index}_{choice_hash}"):
+                        if kind == WEAPON_MOD_CHOICE_KIND_VARIANT:
+                            next_variants = [
+                                variant_rule
+                                for variant_rule in normalized_variants
+                                if _weapon_mod_variant_rule_choice_key(variant_rule) != choice_key
+                            ]
+                            next_variant_threshold_rules = [
+                                threshold_rule
+                                for threshold_rule in normalized_variant_threshold_rules
+                                if _weapon_mod_variant_rule_choice_key(threshold_rule) != choice_key
+                            ]
+                            if variant_setter is not None and variant_setter(rule, next_variants):
+                                changed = True
+                            if variant_threshold_setter is not None and variant_threshold_setter(rule, next_variant_threshold_rules):
+                                changed = True
+                        else:
+                            next_identifiers = [
+                                existing_identifier
+                                for existing_identifier in normalized_identifiers
+                                if existing_identifier != identifier
+                            ]
+                            next_threshold_rules = [
+                                threshold_rule
+                                for threshold_rule in normalized_threshold_rules
+                                if str(threshold_rule.identifier or "").strip() != identifier
+                            ]
+                            if identifier_setter(rule, next_identifiers):
+                                changed = True
+                            if threshold_setter(rule, next_threshold_rules):
+                                changed = True
+                        break
+
+                    if jump_anchor:
+                        if kind == WEAPON_MOD_CHOICE_KIND_VARIANT:
+                            self._maybe_scroll_sell_jump_target_row(index, jump_anchor, f"variant:{choice_key}")
+                        else:
+                            self._maybe_scroll_sell_jump_target_row(index, jump_anchor, f"identifier:{identifier}")
+                        if current_threshold_value is not None:
+                            if kind == WEAPON_MOD_CHOICE_KIND_VARIANT:
+                                self._maybe_scroll_sell_jump_target_row(
+                                    index,
+                                    jump_anchor,
+                                    f"variant_threshold:{choice_key}:{int(current_threshold_value)}",
+                                )
+                            else:
+                                self._maybe_scroll_sell_jump_target_row(
+                                    index,
+                                    jump_anchor,
+                                    f"threshold:{identifier}:{int(current_threshold_value)}",
+                                )
+
+                PyImGui.end_table()
+        PyImGui.end_child()
+        return changed
+
     def _draw_selected_model_ids(
         self,
         section_name: str,
@@ -5241,14 +6045,20 @@ class MerchantRulesWidget:
         removed_model_id = 0
         child_height = min(150, 28 + (22 * len(model_ids)))
         if PyImGui.begin_child(f"{section_name}_selected_{index}", (0, child_height), True, PyImGui.WindowFlags.NoFlag):
-            for model_id in self._sort_model_ids_for_display(model_ids):
-                if PyImGui.small_button(f"X##{section_name}_remove_{index}_{model_id}"):
-                    removed_model_id = model_id
-                    break
-                PyImGui.same_line(0, 6)
-                PyImGui.text(self._format_model_label_long(model_id))
-                if jump_anchor:
-                    self._maybe_scroll_sell_jump_target_row(index, jump_anchor, f"model:{int(model_id)}")
+            if PyImGui.begin_table(f"{section_name}_selected_table_{index}", 2, self._get_dense_list_table_flags()):
+                PyImGui.table_setup_column("Remove", PyImGui.TableColumnFlags.WidthFixed, 34.0)
+                PyImGui.table_setup_column("Item", PyImGui.TableColumnFlags.WidthStretch)
+                for model_id in self._sort_model_ids_for_display(model_ids):
+                    PyImGui.table_next_row()
+                    PyImGui.table_set_column_index(0)
+                    if PyImGui.small_button(f"X##{section_name}_remove_{index}_{model_id}"):
+                        removed_model_id = model_id
+                        break
+                    PyImGui.table_set_column_index(1)
+                    PyImGui.text(self._format_model_label_long(model_id))
+                    if jump_anchor:
+                        self._maybe_scroll_sell_jump_target_row(index, jump_anchor, f"model:{int(model_id)}")
+                PyImGui.end_table()
         PyImGui.end_child()
         return removed_model_id
 
@@ -5287,7 +6097,7 @@ class MerchantRulesWidget:
         column_count += 1
         child_height = min(220, 58 + (32 * len(updated_targets)))
         if PyImGui.begin_child(f"{section_name}_selected_{index}", (0, child_height), True, PyImGui.WindowFlags.NoFlag):
-            if PyImGui.begin_table(f"{section_name}_table_{index}", column_count, PyImGui.TableFlags.NoFlag):
+            if PyImGui.begin_table(f"{section_name}_table_{index}", column_count, self._get_dense_list_table_flags()):
                 PyImGui.table_setup_column(item_column_label, PyImGui.TableColumnFlags.WidthStretch)
                 if show_merchant_column:
                     PyImGui.table_setup_column("Merchant", PyImGui.TableColumnFlags.WidthFixed, 120.0)
@@ -5366,14 +6176,20 @@ class MerchantRulesWidget:
         removed_identifier = ""
         child_height = min(150, 28 + (22 * len(identifiers)))
         if PyImGui.begin_child(f"{section_name}_selected_{index}", (0, child_height), True, PyImGui.WindowFlags.NoFlag):
-            for identifier in self._sort_identifiers_for_display(identifiers, formatter):
-                if PyImGui.small_button(f"X##{section_name}_remove_{index}_{identifier}"):
-                    removed_identifier = identifier
-                    break
-                PyImGui.same_line(0, 6)
-                PyImGui.text(str(formatter(identifier)))
-                if jump_anchor:
-                    self._maybe_scroll_sell_jump_target_row(index, jump_anchor, f"identifier:{str(identifier)}")
+            if PyImGui.begin_table(f"{section_name}_selected_table_{index}", 2, self._get_dense_list_table_flags()):
+                PyImGui.table_setup_column("Remove", PyImGui.TableColumnFlags.WidthFixed, 34.0)
+                PyImGui.table_setup_column("Entry", PyImGui.TableColumnFlags.WidthStretch)
+                for identifier in self._sort_identifiers_for_display(identifiers, formatter):
+                    PyImGui.table_next_row()
+                    PyImGui.table_set_column_index(0)
+                    if PyImGui.small_button(f"X##{section_name}_remove_{index}_{identifier}"):
+                        removed_identifier = identifier
+                        break
+                    PyImGui.table_set_column_index(1)
+                    PyImGui.text(str(formatter(identifier)))
+                    if jump_anchor:
+                        self._maybe_scroll_sell_jump_target_row(index, jump_anchor, f"identifier:{str(identifier)}")
+                PyImGui.end_table()
         PyImGui.end_child()
         return removed_identifier
 
@@ -5861,6 +6677,19 @@ class MerchantRulesWidget:
             parsed_modifiers = parse_modifiers(list(raw_modifiers), parse_item_type, model_id, MOD_DB)
             rune_identifiers = tuple(_dedupe_identifiers([match.rune.identifier for match in parsed_modifiers.runes]))
             weapon_mod_identifiers = tuple(_dedupe_identifiers([match.weapon_mod.identifier for match in parsed_modifiers.weapon_mods]))
+            weapon_mod_matches = tuple(
+                parsed_match
+                for parsed_match in (
+                    _build_parsed_weapon_mod_match(
+                        match,
+                        raw_modifiers=raw_modifiers,
+                        item_type_enum=item_type_enum,
+                        parse_item_type=parse_item_type,
+                    )
+                    for match in parsed_modifiers.weapon_mods
+                )
+                if parsed_match is not None
+            )
             standalone_kind = ""
             if item_type_enum == ItemType.Rune_Mod:
                 if parsed_modifiers.is_rune or rune_identifiers:
@@ -5872,6 +6701,7 @@ class MerchantRulesWidget:
                 standalone_kind=standalone_kind,
                 rune_identifiers=rune_identifiers,
                 weapon_mod_identifiers=weapon_mod_identifiers,
+                weapon_mod_matches=weapon_mod_matches,
             )
 
         self.inventory_modifier_cache[item_id] = InventoryModifierCacheEntry(
@@ -5922,6 +6752,7 @@ class MerchantRulesWidget:
                 standalone_kind=str(parsed_modifiers.standalone_kind or ""),
                 rune_identifiers=list(parsed_modifiers.rune_identifiers),
                 weapon_mod_identifiers=list(parsed_modifiers.weapon_mod_identifiers),
+                weapon_mod_matches=list(parsed_modifiers.weapon_mod_matches),
             )
         except Exception:
             return None
@@ -6097,8 +6928,54 @@ class MerchantRulesWidget:
                 if identifier in rule.protected_weapon_mod_identifiers
             ]
             if matched_identifiers:
-                labels = [self._get_weapon_mod_label(identifier) for identifier in matched_identifiers]
+                labels = [self._get_weapon_mod_generic_label(identifier) for identifier in matched_identifiers]
                 return f"Contains protected weapon mod: {', '.join(labels)}."
+
+            matched_thresholds: list[WeaponModThresholdRule] = []
+            for threshold_rule in _normalize_weapon_mod_threshold_rules(getattr(rule, "protected_weapon_mod_thresholds", [])):
+                threshold_identifier = str(threshold_rule.identifier or "").strip()
+                if not threshold_identifier:
+                    continue
+                for match in getattr(item, "weapon_mod_matches", []) or []:
+                    if str(getattr(match, "identifier", "") or "").strip() != threshold_identifier:
+                        continue
+                    matched_value = getattr(match, "value", None)
+                    if matched_value is None:
+                        continue
+                    if _safe_int(matched_value, 0) >= int(threshold_rule.min_value):
+                        matched_thresholds.append(threshold_rule)
+                        break
+            if matched_thresholds:
+                labels = [self._format_weapon_mod_threshold_rule(threshold_rule) for threshold_rule in matched_thresholds]
+                return f"Contains protected weapon mod threshold: {', '.join(labels)}."
+
+            matched_variants: list[WeaponModVariantRule] = []
+            for variant_rule in _normalize_weapon_mod_variant_rules(getattr(rule, "protected_weapon_mod_variants", [])):
+                for match in getattr(item, "weapon_mod_matches", []) or []:
+                    if _weapon_mod_variant_matches_parsed_match(variant_rule, match):
+                        matched_variants.append(variant_rule)
+                        break
+            if matched_variants:
+                labels = [self._format_weapon_mod_variant_rule(variant_rule) for variant_rule in matched_variants]
+                return f"Contains protected weapon mod variant: {', '.join(labels)}."
+
+            matched_variant_thresholds: list[WeaponModVariantThresholdRule] = []
+            for threshold_rule in _normalize_weapon_mod_variant_threshold_rules(getattr(rule, "protected_weapon_mod_variant_thresholds", [])):
+                for match in getattr(item, "weapon_mod_matches", []) or []:
+                    if not _weapon_mod_variant_matches_parsed_match(threshold_rule, match):
+                        continue
+                    matched_value = getattr(match, "value", None)
+                    if matched_value is None:
+                        continue
+                    if _safe_int(matched_value, 0) >= int(threshold_rule.min_value):
+                        matched_variant_thresholds.append(threshold_rule)
+                        break
+            if matched_variant_thresholds:
+                labels = [
+                    self._format_weapon_mod_variant_threshold_rule(threshold_rule)
+                    for threshold_rule in matched_variant_thresholds
+                ]
+                return f"Contains protected weapon mod variant threshold: {', '.join(labels)}."
 
         if rule.kind == SELL_KIND_ARMOR:
             matched_identifiers = [
@@ -10198,6 +11075,15 @@ class MerchantRulesWidget:
             key=lambda identifier: self._get_identifier_display_sort_key(identifier, formatter),
         )
 
+    def _sort_weapon_mod_thresholds_for_display(self, threshold_rules: list[WeaponModThresholdRule]) -> list[WeaponModThresholdRule]:
+        return sorted(
+            list(threshold_rules),
+            key=lambda threshold_rule: (
+                self._get_identifier_display_sort_key(threshold_rule.identifier, self._get_weapon_mod_label),
+                int(threshold_rule.min_value),
+            ),
+        )
+
     def _sort_targets_by_identifier_label_for_display(self, targets: list[object], formatter) -> list[object]:
         return sorted(
             list(targets),
@@ -10447,8 +11333,15 @@ class MerchantRulesWidget:
             )
             if active_requirement_rule_count > 0:
                 parts.append(f"Req ranges {active_requirement_rule_count}")
-        if normalized_rule.kind == SELL_KIND_WEAPONS and normalized_rule.protected_weapon_mod_identifiers:
-            parts.append(f"Protected mods {len(normalized_rule.protected_weapon_mod_identifiers)}")
+        if normalized_rule.kind == SELL_KIND_WEAPONS:
+            protected_mod_count = (
+                len(normalized_rule.protected_weapon_mod_identifiers)
+                + len(normalized_rule.protected_weapon_mod_thresholds)
+                + len(normalized_rule.protected_weapon_mod_variants)
+                + len(normalized_rule.protected_weapon_mod_variant_thresholds)
+            )
+            if protected_mod_count > 0:
+                parts.append(f"Protected mods {protected_mod_count}")
         if normalized_rule.kind == SELL_KIND_ARMOR and normalized_rule.protected_rune_identifiers:
             parts.append(f"Protected runes {len(normalized_rule.protected_rune_identifiers)}")
         if normalized_rule.kind == SELL_KIND_ARMOR and normalized_rule.include_standalone_runes:
@@ -12487,6 +13380,21 @@ class MerchantRulesWidget:
             if normalized_rule.protected_weapon_mod_identifiers:
                 first_identifier = str(normalized_rule.protected_weapon_mod_identifiers[0])
                 return SELL_PROTECTION_ANCHOR_WEAPON_MODS, f"identifier:{first_identifier}"
+            if normalized_rule.protected_weapon_mod_thresholds:
+                first_threshold_rule = normalized_rule.protected_weapon_mod_thresholds[0]
+                return (
+                    SELL_PROTECTION_ANCHOR_WEAPON_MODS,
+                    f"threshold:{str(first_threshold_rule.identifier)}:{int(first_threshold_rule.min_value)}",
+                )
+            if normalized_rule.protected_weapon_mod_variants:
+                first_variant_rule = normalized_rule.protected_weapon_mod_variants[0]
+                return SELL_PROTECTION_ANCHOR_WEAPON_MODS, f"variant:{_weapon_mod_variant_rule_choice_key(first_variant_rule)}"
+            if normalized_rule.protected_weapon_mod_variant_thresholds:
+                first_threshold_rule = normalized_rule.protected_weapon_mod_variant_thresholds[0]
+                return (
+                    SELL_PROTECTION_ANCHOR_WEAPON_MODS,
+                    f"variant_threshold:{_weapon_mod_variant_rule_choice_key(first_threshold_rule)}:{int(first_threshold_rule.min_value)}",
+                )
             return "", ""
 
         if normalized_rule.protected_rune_identifiers:
@@ -12609,10 +13517,45 @@ class MerchantRulesWidget:
                     append_entry(
                         PROTECTION_FILTER_WEAPON_MODS,
                         "Protected Weapon Mod",
-                        self._get_weapon_mod_label(identifier),
+                        self._get_weapon_mod_generic_label(identifier),
                         str(identifier),
                         subsection_anchor=SELL_PROTECTION_ANCHOR_WEAPON_MODS,
                         target_key=f"identifier:{str(identifier)}",
+                    )
+
+                for threshold_rule in normalized_rule.protected_weapon_mod_thresholds:
+                    identifier = str(threshold_rule.identifier or "").strip()
+                    min_value = int(threshold_rule.min_value)
+                    append_entry(
+                        PROTECTION_FILTER_WEAPON_MODS,
+                        "Protected Weapon Mod Roll",
+                        self._format_weapon_mod_threshold_rule(threshold_rule),
+                        f"{identifier}:{min_value:04d}",
+                        subsection_anchor=SELL_PROTECTION_ANCHOR_WEAPON_MODS,
+                        target_key=f"threshold:{identifier}:{min_value}",
+                    )
+
+                for variant_rule in normalized_rule.protected_weapon_mod_variants:
+                    variant_key = _weapon_mod_variant_rule_choice_key(variant_rule)
+                    append_entry(
+                        PROTECTION_FILTER_WEAPON_MODS,
+                        "Protected Weapon Mod Variant",
+                        self._format_weapon_mod_variant_rule(variant_rule),
+                        variant_key,
+                        subsection_anchor=SELL_PROTECTION_ANCHOR_WEAPON_MODS,
+                        target_key=f"variant:{variant_key}",
+                    )
+
+                for threshold_rule in normalized_rule.protected_weapon_mod_variant_thresholds:
+                    variant_key = _weapon_mod_variant_rule_choice_key(threshold_rule)
+                    min_value = int(threshold_rule.min_value)
+                    append_entry(
+                        PROTECTION_FILTER_WEAPON_MODS,
+                        "Protected Weapon Mod Variant Roll",
+                        self._format_weapon_mod_variant_threshold_rule(threshold_rule),
+                        f"{variant_key}:{min_value:04d}",
+                        subsection_anchor=SELL_PROTECTION_ANCHOR_WEAPON_MODS,
+                        target_key=f"variant_threshold:{variant_key}:{min_value}",
                     )
             else:
                 for identifier in normalized_rule.protected_rune_identifiers:
@@ -12810,7 +13753,7 @@ class MerchantRulesWidget:
         removed_model_id = 0
         child_height = min(220, 58 + (32 * len(updated_targets)))
         if PyImGui.begin_child(f"buy_merchant_stock_selected_{index}", (0, child_height), True, PyImGui.WindowFlags.NoFlag):
-            if PyImGui.begin_table(f"buy_merchant_stock_selected_table_{index}", 4, PyImGui.TableFlags.NoFlag):
+            if PyImGui.begin_table(f"buy_merchant_stock_selected_table_{index}", 4, self._get_dense_list_table_flags()):
                 PyImGui.table_setup_column("Item", PyImGui.TableColumnFlags.WidthStretch)
                 PyImGui.table_setup_column("Target", PyImGui.TableColumnFlags.WidthFixed, 130.0)
                 PyImGui.table_setup_column("Max/Run", PyImGui.TableColumnFlags.WidthFixed, 130.0)
@@ -12896,7 +13839,7 @@ class MerchantRulesWidget:
         removed_model_id = 0
         child_height = min(220, 58 + (32 * len(updated_targets)))
         if PyImGui.begin_child(f"buy_material_targets_selected_{index}", (0, child_height), True, PyImGui.WindowFlags.NoFlag):
-            if PyImGui.begin_table(f"buy_material_targets_table_{index}", 5, PyImGui.TableFlags.NoFlag):
+            if PyImGui.begin_table(f"buy_material_targets_table_{index}", 5, self._get_dense_list_table_flags()):
                 PyImGui.table_setup_column("Material", PyImGui.TableColumnFlags.WidthStretch)
                 PyImGui.table_setup_column("Trader", PyImGui.TableColumnFlags.WidthFixed, 115.0)
                 PyImGui.table_setup_column("Target", PyImGui.TableColumnFlags.WidthFixed, 130.0)
@@ -12983,7 +13926,7 @@ class MerchantRulesWidget:
             removed_identifier = ""
             child_height = min(240, 58 + (32 * len(updated_targets)))
             if PyImGui.begin_child(f"buy_rune_targets_selected_{index}", (0, child_height), True, PyImGui.WindowFlags.NoFlag):
-                if PyImGui.begin_table(f"buy_rune_targets_table_{index}", 5, PyImGui.TableFlags.NoFlag):
+                if PyImGui.begin_table(f"buy_rune_targets_table_{index}", 5, self._get_dense_list_table_flags()):
                     PyImGui.table_setup_column("Rune / Insignia", PyImGui.TableColumnFlags.WidthStretch)
                     PyImGui.table_setup_column("Type", PyImGui.TableColumnFlags.WidthFixed, 110.0)
                     PyImGui.table_setup_column("Target", PyImGui.TableColumnFlags.WidthFixed, 120.0)
@@ -13605,7 +14548,7 @@ class MerchantRulesWidget:
             removed_model_id = 0
             child_height = min(220, 58 + (32 * len(updated_rules)))
             if PyImGui.begin_child(f"sell_weapon_requirement_selected_{index}", (0, child_height), True, PyImGui.WindowFlags.NoFlag):
-                if PyImGui.begin_table(f"sell_weapon_requirement_table_{index}", 4, PyImGui.TableFlags.NoFlag):
+                if PyImGui.begin_table(f"sell_weapon_requirement_table_{index}", 4, self._get_dense_list_table_flags()):
                     PyImGui.table_setup_column("Model", PyImGui.TableColumnFlags.WidthStretch)
                     PyImGui.table_setup_column("Low Req", PyImGui.TableColumnFlags.WidthFixed, 100.0)
                     PyImGui.table_setup_column("High Req", PyImGui.TableColumnFlags.WidthFixed, 100.0)
@@ -13720,25 +14663,80 @@ class MerchantRulesWidget:
         setter,
         search_cache: dict[int, str],
         cache_suffix: str,
+        threshold_rules: list[WeaponModThresholdRule] | None = None,
+        threshold_setter=None,
+        selected_variants: list[WeaponModVariantRule] | None = None,
+        variant_setter=None,
+        variant_threshold_rules: list[WeaponModVariantThresholdRule] | None = None,
+        variant_threshold_setter=None,
     ) -> bool:
         changed = False
         anchor = SELL_PROTECTION_ANCHOR_WEAPON_MODS if cache_suffix == "weapon_mods" else SELL_PROTECTION_ANCHOR_RUNES
+        selected_threshold_rules = _normalize_weapon_mod_threshold_rules(threshold_rules or [])
+        selected_variant_rules = _normalize_weapon_mod_variant_rules(selected_variants or [])
+        selected_variant_threshold_rules = _normalize_weapon_mod_variant_threshold_rules(variant_threshold_rules or [])
         self._begin_sell_jump_target_group(index, anchor, title)
         if PyImGui.button(f"Clear {title}##sell_protected_clear_{cache_suffix}_{index}"):
             if setter(rule, []):
                 changed = True
-
-        PyImGui.text(f"Protected Entries: {len(selected_identifiers)}")
-        removed_identifier = self._draw_selected_identifiers(
-            f"sell_protected_{cache_suffix}",
-            index,
-            selected_identifiers,
-            formatter,
-            jump_anchor=anchor,
-        )
-        if removed_identifier:
-            if setter(rule, [identifier for identifier in selected_identifiers if identifier != removed_identifier]):
+                selected_identifiers = []
+            if threshold_setter is not None and threshold_setter(rule, []):
                 changed = True
+                selected_threshold_rules = []
+            if variant_setter is not None and variant_setter(rule, []):
+                changed = True
+                selected_variant_rules = []
+            if variant_threshold_setter is not None and variant_threshold_setter(rule, []):
+                changed = True
+                selected_variant_threshold_rules = []
+
+        if threshold_setter is not None:
+            protected_choice_keys = _dedupe_identifiers(
+                [_make_weapon_mod_identifier_choice_key(identifier) for identifier in selected_identifiers]
+                + [
+                    _make_weapon_mod_identifier_choice_key(str(threshold_rule.identifier or "").strip())
+                    for threshold_rule in selected_threshold_rules
+                ]
+                + [_weapon_mod_variant_rule_choice_key(variant_rule) for variant_rule in selected_variant_rules]
+                + [
+                    _weapon_mod_variant_rule_choice_key(threshold_rule)
+                    for threshold_rule in selected_variant_threshold_rules
+                ]
+            )
+            protected_choice_keys = [choice_key for choice_key in protected_choice_keys if choice_key]
+            PyImGui.text(f"Protected Entries: {len(protected_choice_keys)}")
+            if self._draw_selected_weapon_mod_protections(
+                f"sell_protected_{cache_suffix}",
+                index,
+                rule,
+                selected_identifiers=selected_identifiers,
+                threshold_rules=selected_threshold_rules,
+                identifier_setter=setter,
+                threshold_setter=threshold_setter,
+                selected_variants=selected_variant_rules,
+                variant_threshold_rules=selected_variant_threshold_rules,
+                variant_setter=variant_setter,
+                variant_threshold_setter=variant_threshold_setter,
+                jump_anchor=anchor,
+            ):
+                changed = True
+                selected_identifiers = list(rule.protected_weapon_mod_identifiers)
+                selected_threshold_rules = list(rule.protected_weapon_mod_thresholds)
+                selected_variant_rules = list(rule.protected_weapon_mod_variants)
+                selected_variant_threshold_rules = list(rule.protected_weapon_mod_variant_thresholds)
+        else:
+            PyImGui.text(f"Protected Entries: {len(selected_identifiers)}")
+            removed_identifier = self._draw_selected_identifiers(
+                f"sell_protected_{cache_suffix}",
+                index,
+                selected_identifiers,
+                formatter,
+                jump_anchor=anchor,
+            )
+            if removed_identifier:
+                if setter(rule, [identifier for identifier in selected_identifiers if identifier != removed_identifier]):
+                    changed = True
+                    selected_identifiers = list(rule.protected_rune_identifiers)
 
         search_text = search_cache.get(index, "")
         updated_search_text = PyImGui.input_text(f"Protect By Name##sell_protected_search_{cache_suffix}_{index}", search_text)
@@ -13750,18 +14748,81 @@ class MerchantRulesWidget:
             search_cache.get(index, ""),
             entries,
         )
-        addable_identifiers = [identifier for identifier in visible_identifiers if identifier not in selected_identifiers]
+        if threshold_setter is not None:
+            protected_identifiers_for_add = _dedupe_identifiers(
+                [_make_weapon_mod_identifier_choice_key(identifier) for identifier in selected_identifiers]
+                + [
+                    _make_weapon_mod_identifier_choice_key(str(threshold_rule.identifier or "").strip())
+                    for threshold_rule in selected_threshold_rules
+                ]
+                + [_weapon_mod_variant_rule_choice_key(variant_rule) for variant_rule in selected_variant_rules]
+                + [
+                    _weapon_mod_variant_rule_choice_key(threshold_rule)
+                    for threshold_rule in selected_variant_threshold_rules
+                ]
+            )
+        else:
+            protected_identifiers_for_add = _dedupe_identifiers(
+                selected_identifiers
+                + [str(threshold_rule.identifier or "").strip() for threshold_rule in selected_threshold_rules]
+            )
+        addable_identifiers = [identifier for identifier in visible_identifiers if identifier not in protected_identifiers_for_add]
         if self._draw_add_all_matches_button(
             f"sell_protected_results_add_all_{cache_suffix}_{index}",
             len(visible_identifiers),
             len(addable_identifiers),
         ):
-            if setter(rule, selected_identifiers + addable_identifiers):
-                changed = True
+            if threshold_setter is not None:
+                next_identifiers = list(selected_identifiers)
+                next_variants = list(selected_variant_rules)
+                for choice_key in addable_identifiers:
+                    kind, identifier, target_item_type, component_kind = _parse_weapon_mod_choice_key(choice_key)
+                    if kind == WEAPON_MOD_CHOICE_KIND_VARIANT:
+                        next_variants.append(
+                            WeaponModVariantRule(
+                                identifier=identifier,
+                                target_item_type=target_item_type,
+                                component_kind=component_kind,
+                            )
+                        )
+                    elif kind == WEAPON_MOD_CHOICE_KIND_GENERIC:
+                        next_identifiers.append(identifier)
+                if setter(rule, next_identifiers):
+                    changed = True
+                    selected_identifiers = list(rule.protected_weapon_mod_identifiers)
+                if variant_setter is not None and variant_setter(rule, next_variants):
+                    changed = True
+                    selected_variant_rules = list(rule.protected_weapon_mod_variants)
+            else:
+                if setter(rule, selected_identifiers + addable_identifiers):
+                    changed = True
+                    selected_identifiers = list(rule.protected_rune_identifiers)
         if picked_identifier:
-            if setter(rule, selected_identifiers + [picked_identifier]):
-                changed = True
-            search_cache[index] = str(formatter(picked_identifier))
+            if threshold_setter is not None:
+                if picked_identifier not in protected_identifiers_for_add:
+                    kind, identifier, target_item_type, component_kind = _parse_weapon_mod_choice_key(picked_identifier)
+                    if kind == WEAPON_MOD_CHOICE_KIND_VARIANT:
+                        next_variants = list(selected_variant_rules)
+                        next_variants.append(
+                            WeaponModVariantRule(
+                                identifier=identifier,
+                                target_item_type=target_item_type,
+                                component_kind=component_kind,
+                            )
+                        )
+                        if variant_setter is not None and variant_setter(rule, next_variants):
+                            changed = True
+                            selected_variant_rules = list(rule.protected_weapon_mod_variants)
+                    elif kind == WEAPON_MOD_CHOICE_KIND_GENERIC:
+                        if setter(rule, selected_identifiers + [identifier]):
+                            changed = True
+                            selected_identifiers = list(rule.protected_weapon_mod_identifiers)
+                search_cache[index] = self._get_weapon_mod_choice_label(picked_identifier)
+            else:
+                if picked_identifier not in protected_identifiers_for_add and setter(rule, selected_identifiers + [picked_identifier]):
+                    changed = True
+                    selected_identifiers = list(rule.protected_rune_identifiers)
+                search_cache[index] = str(formatter(picked_identifier))
         self._end_sell_jump_target_group(index, anchor)
         return changed
 
@@ -13889,6 +14950,12 @@ class MerchantRulesWidget:
                         setter=self._set_sell_rule_weapon_mod_identifiers,
                         search_cache=self.sell_weapon_mod_search_cache,
                         cache_suffix="weapon_mods",
+                        threshold_rules=rule.protected_weapon_mod_thresholds,
+                        threshold_setter=self._set_sell_rule_weapon_mod_thresholds,
+                        selected_variants=rule.protected_weapon_mod_variants,
+                        variant_setter=self._set_sell_rule_weapon_mod_variants,
+                        variant_threshold_rules=rule.protected_weapon_mod_variant_thresholds,
+                        variant_threshold_setter=self._set_sell_rule_weapon_mod_variant_thresholds,
                     ) or changed
                 else:
                     changed = self._draw_protected_identifier_editor(
@@ -14348,7 +15415,7 @@ class MerchantRulesWidget:
         if updated_targets:
             child_height = min(220, 58 + (32 * len(updated_targets)))
             if PyImGui.begin_child("merchant_rules_cleanup_targets", (0, child_height), True, PyImGui.WindowFlags.NoFlag):
-                if PyImGui.begin_table("merchant_rules_cleanup_targets_table", 3, PyImGui.TableFlags.NoFlag):
+                if PyImGui.begin_table("merchant_rules_cleanup_targets_table", 3, self._get_dense_list_table_flags()):
                     PyImGui.table_setup_column("Item", PyImGui.TableColumnFlags.WidthStretch)
                     PyImGui.table_setup_column("Keep On Character", PyImGui.TableColumnFlags.WidthFixed, 150.0)
                     PyImGui.table_setup_column("Remove", PyImGui.TableColumnFlags.WidthFixed, 60.0)
@@ -14436,7 +15503,7 @@ class MerchantRulesWidget:
         if cleanup_sources:
             child_height = min(220, 58 + (32 * len(cleanup_sources)))
             if PyImGui.begin_child("merchant_rules_cleanup_sources", (0, child_height), True, PyImGui.WindowFlags.NoFlag):
-                if PyImGui.begin_table("merchant_rules_cleanup_sources_table", 4, PyImGui.TableFlags.NoFlag):
+                if PyImGui.begin_table("merchant_rules_cleanup_sources_table", 4, self._get_dense_list_table_flags()):
                     PyImGui.table_setup_column("Sell Rule", PyImGui.TableColumnFlags.WidthStretch)
                     PyImGui.table_setup_column("Status", PyImGui.TableColumnFlags.WidthFixed, 90.0)
                     PyImGui.table_setup_column("Jump", PyImGui.TableColumnFlags.WidthFixed, 92.0)
