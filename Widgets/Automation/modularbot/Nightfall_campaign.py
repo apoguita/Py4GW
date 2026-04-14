@@ -12,15 +12,16 @@ from Sources.modular_bot.hero_setup import (
     draw_team_configuration_window,
     toggle_team_configuration_window,
 )
-from Sources.modular_bot.prebuilts.nightfall_campaign import (
+from Sources.modular_bot.prebuilts.modular_nightfall import (
     NIGHTFALL_PHASE_SPECS,
     NIGHTFALL_REGION_SPANS,
     NightfallCampaignOptions,
     create_nightfall_campaign_bot,
 )
 
-MODULE_NAME = "Nightfall Campaign"
+MODULE_NAME = "Modular Nightfall"
 MODULE_ICON = "Textures/Module_Icons/Nightfall.png"
+MODULE_TAGS = ["Automation", "modular_bot"]
 BOT_NAME = "NightfallCampaign"
 SYNC_INTERVAL_MS = 1000
 
@@ -81,7 +82,7 @@ def _should_show_widget() -> bool:
 def _queue_rebuild() -> None:
     global _BOT_REBUILD_PENDING
     _BOT_REBUILD_PENDING = True
-    _debug("Queued Nightfall Campaign bot rebuild due to setting change.")
+    _debug("Queued Modular Nightfall bot rebuild due to setting change.")
 
 
 def _build_bot():
@@ -90,7 +91,7 @@ def _build_bot():
         main_ui=_draw_main,
         settings_ui=_draw_settings,
         help_ui=_draw_help,
-        name="Nightfall Campaign",
+        name="Modular Nightfall",
     )
 
 
@@ -169,7 +170,7 @@ def _start_bot() -> None:
         bot.bot.SetMainRoutine(lambda *_args, **_kwargs: None)
     bot.bot.Start()
     _BOT_REBUILD_PENDING = False
-    _debug("Initialized and started Nightfall Campaign widget bot.")
+    _debug("Initialized and started Modular Nightfall widget bot.")
 
 
 def _draw_prestart_window() -> None:
@@ -181,7 +182,7 @@ def _draw_prestart_window() -> None:
         return
 
     total_phases, remaining, skipped_pct = _phase_summary()
-    PyImGui.text("Nightfall Campaign")
+    PyImGui.text("Modular Nightfall")
     PyImGui.text(f"Phases: {total_phases} | Remaining from start: {remaining}")
     PyImGui.text(f"Skipped: {config.start_phase_index} ({skipped_pct:.1f}%)")
     PyImGui.separator()
@@ -243,12 +244,12 @@ def _draw_prestart_window() -> None:
 
     config.save_throttled()
     PyImGui.end()
-    draw_team_configuration_window(ui_id="nightfall_campaign", title="Nightfall Campaign Team Setup")
+    draw_team_configuration_window(ui_id="nightfall_campaign", title="Modular Nightfall Team Setup")
 
 
 def _draw_main() -> None:
     is_running = bool(bot is not None and bot.bot.config.fsm_running)
-    PyImGui.text("Nightfall Campaign")
+    PyImGui.text("Modular Nightfall")
     PyImGui.separator()
     PyImGui.text(f"Status: {'Running' if is_running else 'Idle'}")
     _draw_current_activity()
@@ -259,7 +260,7 @@ def _draw_main() -> None:
     PyImGui.text(f"Loop: {'On' if config.loop else 'Off'}")
     PyImGui.text("Team selection: priority")
     config.save_throttled()
-    draw_team_configuration_window(ui_id="nightfall_campaign", title="Nightfall Campaign Team Setup")
+    draw_team_configuration_window(ui_id="nightfall_campaign", title="Modular Nightfall Team Setup")
 
 
 def _draw_settings() -> None:
@@ -267,12 +268,12 @@ def _draw_settings() -> None:
 
 
 def _draw_help() -> None:
-    PyImGui.text("Nightfall Campaign")
+    PyImGui.text("Modular Nightfall")
     PyImGui.separator()
-    PyImGui.text_wrapped("Widget wrapper for the Nightfall campaign prebuilt (missions + primary quests).")
+    PyImGui.text_wrapped("Widget wrapper for the modular Nightfall prebuilt (missions + primary quests).")
     PyImGui.bullet_text("Select a campaign start point by region or step")
-    PyImGui.bullet_text("Uses Sources/modular_bot/prebuilts/nightfall_campaign.py")
-    PyImGui.bullet_text("Nightfall campaign always uses priority team settings")
+    PyImGui.bullet_text("Uses Sources/modular_bot/prebuilts/modular_nightfall.py")
+    PyImGui.bullet_text("Modular Nightfall always uses priority team settings")
     PyImGui.bullet_text("Hero team setup is available in Settings")
     PyImGui.bullet_text("Widget settings are persisted in Widgets/Config/NightfallCampaign.ini")
 
@@ -309,7 +310,7 @@ def tooltip():
     PyImGui.spacing()
     PyImGui.separator()
     PyImGui.text_wrapped(
-        "Nightfall Campaign runs the modular Nightfall mission + primary-quest sequence with region-based start selection."
+        "Modular Nightfall runs the modular Nightfall mission + primary-quest sequence with region-based start selection."
     )
     PyImGui.end_tooltip()
 

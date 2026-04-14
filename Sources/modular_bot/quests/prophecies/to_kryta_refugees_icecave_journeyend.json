@@ -1,31 +1,33 @@
-{
+﻿{
   "name": "To kryta: Refugees",
   "steps": [
     {"type": "travel", "name": "Travel to Quest Outpost", "target_map_id": 133},
-    {"type": "interact_npc", "name": "Take Quest - Reach NPC", "x": -10183, "y": 35115, "ms": 2000},
-    {"type": "dialogs", "name": "Take Quest", "id": ["0x80C703", "0x80C701"], "interval_ms": 2000, "ms": 2000, "x": -10183, "y": 35115},
+    {"type": "interact_npc", "name": "Take Quest - Reach NPC", "point": [-10183, 35115], "ms": 2000},
+    {"type": "dialogs", "name": "Take Quest", "id": ["0x80C703", "0x80C701"], "interval_ms": 2000, "ms": 2000, "point": [-10183, 35115]},
     {"type": "load_party", "name": "Load Party", "max_heroes": 6, "use_priority": true},
-    {"type": "exit_map", "x": -10800, "y": 35400, "target_map_id": 100},
+    {"type": "exit_map", "point": [-10800, 35400], "target_map_id": 100},
     {"type": "auto_path", "name": "Quest Path", "points": [[16456, -14885], [13831, -13262], [7011, -16575], [3708, -20223], [-562, -19354], [-3197, -17726], [-6971, -17766]]},
-    {"type": "dialog", "x": -7070, "y": -18028, "id": "0x80C707"},
+    {"type": "dialog", "point": [-7070, -18028], "id": "0x80C707"},
     {"type": "auto_path", "name": "Quest Path", "points": [[-7086, -20774], [-10818, -21968]]},
-    {"type": "exit_map", "x": -13820, "y": -23050, "target_map_id": 27},
+    {"type": "exit_map", "point": [-13820, -23050], "target_map_id": 27},
     {"type": "wait_map_change", "target_map_id": 27},
-    {"type": "interact_npc", "name": "Take Quest - Reach NPC", "x": 7376, "y": 5948, "ms": 2000},
-    {"type": "dialog", "name": "Take Quest", "id": "0x80B301", "ms": 2000, "x": 7376, "y": 5948},
+    {"type": "interact_npc", "name": "Take Quest - Reach NPC", "point": [7376, 5948], "ms": 2000},
+    {"type": "dialog", "name": "Take Quest", "id": "0x80B301", "ms": 2000, "point": [7376, 5948]},
     {"type": "auto_path", "name": "Quest Path", "points": [[3191, 8329], [-126, 7270], [-2977, 7689], [-5901, 3994], [-6562, -154], [-3521, -1323], [-1601, -3120], [-2302, -7371]]},
-    {"type": "dialog", "x": -2206, "y": -7537, "id": "0x80B307"},
+    {"type": "dialog", "point": [-2206, -7537], "id": "0x80B307"},
     {"type": "auto_path", "name": "Reward Path", "points": [[172, -6473], [-2270, -7409]]},
-    {"type": "interact_npc", "name": "Take Quest - Reach NPC", "x": -2206, "y": -7537, "ms": 2000},
-    {"type": "dialog", "name": "Take Quest", "id": "0x800401", "ms": 2000, "x": -2206, "y": -7537},
+    {"type": "interact_npc", "name": "Take Quest - Reach NPC", "point": [-2206, -7537], "ms": 2000},
+    {"type": "dialog", "name": "Take Quest", "id": "0x800401", "ms": 2000, "point": [-2206, -7537]},
     {"type": "auto_path", "name": "To Scoundrels ", "points": [[-4224, -6972], [-6140, -6063], [-7719, -7262]]},
-    {"type": "exit_map", "x": -7750, "y": -7500, "target_map_id": 54},
+    {"type": "exit_map", "point": [-7750, -7500], "target_map_id": 54},
     {"type": "wait_map_change", "target_map_id": 54},
-    {"type": "dialog", "x": 7630, "y": 7520, "id": "0x800404"},
+    {"type": "dialog", "point": [7630, 7520], "id": "0x800404"},
     {"type": "auto_path", "name": "To Kryta ", "points": [[7435, 6732], [6179, 3505], [4165, -1131], [1043, -2484], [-2181, -5573]]},
-    {"type": "exit_map", "x": -1200, "y": -7100, "target_map_id": 14},
+    {"type": "exit_map", "point": [-1200, -7100], "target_map_id": 14},
     {"type": "wait_map_change", "target_map_id": 14},
     {"type": "auto_path", "name": "To Kryta ", "points": [[-2248, 25151], [-701, 24655]]},
-    {"type": "dialog", "x": 425, "y": 23794, "id": "0x800407"}
+    {"type": "dialog", "point": [425, 23794], "id": "0x800407"}
   ]
 }
+
+

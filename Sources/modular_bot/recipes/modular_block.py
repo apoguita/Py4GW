@@ -7,9 +7,6 @@ Canonical JSON format is steps-only:
   "name": "Any Block",
   "steps": [{...}]
 }
-
-Legacy mission/quest/route top-level keys are still accepted and translated
-into equivalent pre-steps so existing files keep working during migration.
 """
 
 from __future__ import annotations
@@ -32,6 +29,9 @@ _BLOCK_DIRS: dict[str, str] = {
     "quests": "quests",
     "routes": "routes",
     "farms": "farms",
+    "dungeons": "dungeons",
+    "vanquishes": "vanquishes",
+    "bounties": "bounties",
 }
 
 
@@ -94,7 +94,8 @@ def _resolve_block_path(block_name: str, kind: Optional[str] = None) -> str:
 
 def _load_block_data(block_name: str, kind: Optional[str] = None) -> Dict[str, Any]:
     filepath = _resolve_block_path(block_name, kind=kind)
-    with open(filepath, "r", encoding="utf-8") as f:
+    # Use utf-8-sig so recipe files with BOM load reliably.
+    with open(filepath, "r", encoding="utf-8-sig") as f:
         return json.load(f)
 
 
@@ -125,13 +126,6 @@ def list_available_blocks(kind: Optional[str] = None) -> List[str]:
         for rel in _list_json_files(os.path.join(root, dirname)):
             merged.append(f"{block_kind}/{rel}")
     return sorted(merged)
-
-
-def _safe_int(value: Any, default: int = 0) -> int:
-    try:
-        return int(str(value), 0)
-    except (TypeError, ValueError):
-        return int(default)
 
 
 def _coerce_required_heroes(raw: Any) -> list[str]:
@@ -197,91 +191,6 @@ def _inject_load_party_overrides_into_steps(steps: list[dict], overrides: dict[s
     return injected
 
 
-def _legacy_pre_steps(data: Dict[str, Any]) -> list[dict]:
-    steps: list[dict] = []
-
-    outpost_id = _safe_int(data.get("outpost_id"), 0)
-    take_quest = data.get("take_quest") if isinstance(data.get("take_quest"), dict) else None
-    take_quest_outpost_id = _safe_int((take_quest or {}).get("outpost_id"), 0)
-    travel_outpost_id = take_quest_outpost_id or outpost_id
-
-    max_heroes = _safe_int(data.get("max_heroes"), 0)
-    hero_team = str(data.get("hero_team", "") or "").strip()
-    entry = data.get("entry") if isinstance(data.get("entry"), dict) else None
-
-    if travel_outpost_id > 0:
-        steps.append({"type": "leave_party", "name": "Leave Party (Legacy)"})
-        steps.append({"type": "travel", "name": "Travel to Outpost (Legacy)", "target_map_id": travel_outpost_id})
-
-    if max_heroes > 0 or hero_team:
-        load_party_step: dict[str, Any] = {"type": "load_party", "name": "Load Party (Legacy)"}
-        if max_heroes > 0:
-            load_party_step["max_heroes"] = int(max_heroes)
-        if hero_team:
-            load_party_step["team"] = hero_team
-            if hero_team == "party_6_no_spirits_minions":
-                load_party_step["minionless"] = True
-        steps.append(load_party_step)
-
-    if entry:
-        entry_type = str(entry.get("type", "") or "").strip().lower()
-        if entry_type == "enter_challenge":
-            enter_step: dict[str, Any] = {"type": "enter_challenge", "name": "Enter Mission (Legacy)"}
-            target_map_id = _safe_int(entry.get("target_map_id"), 0)
-            if target_map_id > 0:
-                enter_step["target_map_id"] = target_map_id
-            delay_value = _safe_int(entry.get("delay", entry.get("delay_ms", 2000)), 2000)
-            if delay_value > 0:
-                enter_step["delay_ms"] = delay_value
-            steps.append(enter_step)
-        elif entry_type == "dialog":
-            dialog_step: dict[str, Any] = {"type": "dialog", "name": "Enter Mission (Legacy)"}
-            if "x" in entry and "y" in entry:
-                dialog_step["x"] = entry["x"]
-                dialog_step["y"] = entry["y"]
-            if "id" in entry:
-                dialog_step["id"] = entry["id"]
-            steps.append(dialog_step)
-
-    if take_quest:
-        npc_location = take_quest.get("quest_npc_location")
-        dialog_id_raw = take_quest.get("dialog_id")
-        wait_ms = max(0, _safe_int(take_quest.get("wait_ms", 1000), 1000))
-        step_name = str(take_quest.get("name", "Take Quest") or "Take Quest").strip()
-
-        if isinstance(npc_location, list) and len(npc_location) == 2:
-            steps.append(
-                {
-                    "type": "interact_npc",
-                    "name": f"{step_name} - Reach NPC (Legacy)",
-                    "x": npc_location[0],
-                    "y": npc_location[1],
-                    "ms": wait_ms,
-                }
-            )
-
-        if dialog_id_raw is not None:
-            dialog_ids = dialog_id_raw if isinstance(dialog_id_raw, (list, tuple)) else [dialog_id_raw]
-            if len(dialog_ids) == 1:
-                step = {"type": "dialog", "name": step_name, "id": dialog_ids[0]}
-                if isinstance(npc_location, list) and len(npc_location) == 2:
-                    step["x"] = npc_location[0]
-                    step["y"] = npc_location[1]
-                if wait_ms > 0:
-                    step["ms"] = wait_ms
-                steps.append(step)
-            else:
-                step = {"type": "dialogs", "name": step_name, "id": list(dialog_ids)}
-                if isinstance(npc_location, list) and len(npc_location) == 2:
-                    step["x"] = npc_location[0]
-                    step["y"] = npc_location[1]
-                if wait_ms > 0:
-                    step["ms"] = wait_ms
-                steps.append(step)
-
-    return steps
-
-
 def modular_block_run(
     bot: "Botting",
     block_name: str,
@@ -298,8 +207,7 @@ def modular_block_run(
     if not isinstance(body_steps, list):
         body_steps = []
 
-    pre_steps = _legacy_pre_steps(data)
-    steps = [*pre_steps, *body_steps]
+    steps = list(body_steps)
 
     required_heroes = _coerce_required_heroes(data.get("required_hero"))
     if not required_heroes:
@@ -329,8 +237,7 @@ def modular_block_run(
         f"Recipe:{recipe_name}",
         (
             f"Registered block: {display_name} "
-            f"({total_registered_steps} expanded steps from {len(steps)} source steps, "
-            f"legacy_pre_steps={len(pre_steps)})"
+            f"({total_registered_steps} expanded steps from {len(steps)} source steps)"
         ),
     )
 
@@ -368,6 +275,18 @@ def list_available_farms() -> List[str]:
     return list_available_blocks(kind="farms")
 
 
+def list_available_dungeons() -> List[str]:
+    return list_available_blocks(kind="dungeons")
+
+
+def list_available_vanquishes() -> List[str]:
+    return list_available_blocks(kind="vanquishes")
+
+
+def list_available_bounties() -> List[str]:
+    return list_available_blocks(kind="bounties")
+
+
 def mission_run(bot: "Botting", mission_name: str) -> None:
     modular_block_run(bot, mission_name, kind="missions", recipe_name="Mission")
 
@@ -384,6 +303,18 @@ def farm_run(bot: "Botting", farm_name: str) -> None:
     modular_block_run(bot, farm_name, kind="farms", recipe_name="Farm")
 
 
+def dungeon_run(bot: "Botting", dungeon_name: str) -> None:
+    modular_block_run(bot, dungeon_name, kind="dungeons", recipe_name="Dungeon")
+
+
+def vanquish_run(bot: "Botting", vanquish_name: str) -> None:
+    modular_block_run(bot, vanquish_name, kind="vanquishes", recipe_name="Vanquish")
+
+
+def bounty_run(bot: "Botting", bounty_name: str) -> None:
+    modular_block_run(bot, bounty_name, kind="bounties", recipe_name="Bounty")
+
+
 def Mission(mission_name: str, name: Optional[str] = None, anchor: bool = False) -> Phase:
     return ModularBlock(mission_name, name=name, kind="missions", anchor=anchor)
 
@@ -398,4 +329,16 @@ def Route(route_name: str, name: Optional[str] = None, anchor: bool = False) -> 
 
 def Farm(farm_name: str, name: Optional[str] = None, anchor: bool = False) -> Phase:
     return ModularBlock(farm_name, name=name, kind="farms", anchor=anchor)
+
+
+def Dungeon(dungeon_name: str, name: Optional[str] = None, anchor: bool = False) -> Phase:
+    return ModularBlock(dungeon_name, name=name, kind="dungeons", anchor=anchor)
+
+
+def Vanquish(vanquish_name: str, name: Optional[str] = None, anchor: bool = False) -> Phase:
+    return ModularBlock(vanquish_name, name=name, kind="vanquishes", anchor=anchor)
+
+
+def Bounty(bounty_name: str, name: Optional[str] = None, anchor: bool = False) -> Phase:
+    return ModularBlock(bounty_name, name=name, kind="bounties", anchor=anchor)
 

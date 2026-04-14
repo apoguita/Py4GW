@@ -268,7 +268,7 @@ def create_nightfall_campaign_bot(
     main_ui=None,
     settings_ui=None,
     help_ui=None,
-    name: str = "Nightfall Campaign",
+    name: str = "Modular Nightfall",
 ) -> ModularBot:
     opts = options or NightfallCampaignOptions()
     all_phases = build_nightfall_campaign_phases(opts.team_selection)
@@ -281,7 +281,7 @@ def create_nightfall_campaign_bot(
         name=name,
         phases=phases,
         loop=bool(opts.loop),
-        # Nightfall Campaign is locked to HeroAI runtime behavior:
+        # Modular Nightfall is locked to HeroAI runtime behavior:
         # - disable CustomBehaviors startup
         # - keep HeroAI widget active
         template="multibox_aggressive",

@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "A Deal's a Deal",
   "steps": [
     {"type": "travel", "name": "Travel to Remains of Sahlahja outpost", "target_map_id": 545},
@@ -6,20 +6,20 @@
     {"type": "dialog", "id": "0x824701", "npc": "SAHLAHJAR_THE_DEAD", "name": "Dialog - Sahlahjar the Dead"},
     {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true},
     {"type": "auto_path", "name": "To Exit", "points": [[496, 3964]]},
-    {"type": "exit_map", "name": "Leave Remains of Sahlahja outpost", "x": 1206, "y": 4522, "target_map_id": 437},
+    {"type": "exit_map", "name": "Leave Remains of Sahlahja outpost", "point": [1206, 4522], "target_map_id": 437},
     {"type": "auto_path", "name": "To Palawa Joko", "points": [[-2095, -19092]]},
     {"type": "interact_npc", "name": "Interact Palawa Joko", "npc": "PALAWA_JOKO"},
     {"type": "dialog", "id": "0x824704", "npc": "PALAWA_JOKO", "name": "Dialog - Palawa Joko"},
     {"type": "auto_path", "name": "To Wurm Spoor", "points": [[-4317, -13046], [-5016, -13083], [-4281, -13057]]},
     {"type": "wait", "ms": 3000},
-    {"type": "interact_gadget", "name": "Interact Wurm Spoor", "gadget": "WURM_SPOOR", "x": -4246, "y": -12950},
-    {"type": "interact_gadget", "name": "Interact Wurm Spoor", "gadget": "WURM_SPOOR", "x": -4246, "y": -12950},
-    {"type": "flag_heroes", "x": 1962, "y": -7704},
+    {"type": "interact_gadget", "name": "Interact Wurm Spoor", "gadget": "WURM_SPOOR", "point": [-4246, -12950]},
+    {"type": "interact_gadget", "name": "Interact Wurm Spoor", "gadget": "WURM_SPOOR", "point": [-4246, -12950]},
+    {"type": "flag_heroes", "point": [1962, -7704]},
     {"type": "wait", "ms": 2000},
     {"type": "unflag_heroes"},
     {"type": "auto_path", "name": "Path", "points": [[-359, -8338], [1706, -7280], [1962, -7704], [3447, -4798]]},
-    {"type": "interact_gadget", "name": "Interact Wurm Spoor", "gadget": "WURM_SPOOR", "x": 2801, "y": -5251},
-    {"type": "interact_gadget", "name": "Interact Wurm Spoor", "gadget": "WURM_SPOOR", "x": 2801, "y": -5251},
+    {"type": "interact_gadget", "name": "Interact Wurm Spoor", "gadget": "WURM_SPOOR", "point": [2801, -5251]},
+    {"type": "interact_gadget", "name": "Interact Wurm Spoor", "gadget": "WURM_SPOOR", "point": [2801, -5251]},
     {"type": "auto_path", "name": "Path", "points": [[1706, -7280], [3447, -4798], [4000, -4303], [6941, -3453]]},
     {"type": "set_anchor", "phase": "Shrine after Wurms"},
     {"type": "wait", "ms": 100},
@@ -30,8 +30,8 @@
     {"type": "dialog", "id": "0x824704", "npc": "GENERAL_HUDUH", "name": "Dialog - General Huduh"},
     {"type": "auto_path", "name": "Path", "points": [[-1670, 6929], [-1897, 10502]]},
     {"type": "wait", "ms": 10000},
-    {"type": "interact_gadget", "name": "Interact Wurm Spoor", "gadget": "WURM_SPOOR", "x": -1999, "y": 10578},
-    {"type": "interact_gadget", "name": "Interact Wurm Spoor", "gadget": "WURM_SPOOR", "x": -1999, "y": 10578},
+    {"type": "interact_gadget", "name": "Interact Wurm Spoor", "gadget": "WURM_SPOOR", "point": [-1999, 10578]},
+    {"type": "interact_gadget", "name": "Interact Wurm Spoor", "gadget": "WURM_SPOOR", "point": [-1999, 10578]},
     {"type": "auto_path", "name": "Path", "points": [[-7653, 4806], [-8458, 5193], [-10596, 4977]]},
     {"type": "skip_cutscene"},
     {"type": "wait_for_map_load", "map_id": 438},
@@ -39,3 +39,5 @@
     {"type": "dialog", "id": "0x824707", "npc": "PRIEST_KEHMTUT", "name": "Dialog - Priest Kehmtut"}
   ]
 }
+
+

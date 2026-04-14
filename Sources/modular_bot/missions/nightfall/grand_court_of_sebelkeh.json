@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "Grand Court of Sebelkeh",
   "required_hero": ["Tahlkora"],
   "steps": [
@@ -9,7 +9,7 @@
     {"type": "wait", "ms": 7000},
     {"type": "wait_for_map_load", "map_id": 435},
     {"type": "set_auto_combat", "enabled": false},
-    {"type": "flag_heroes", "x": 1456, "y": 2767},
+    {"type": "flag_heroes", "point": [1456, 2767]},
     {"type": "auto_path", "name": "Path", "points": [[1456, 2767]]},
     {"type": "set_auto_combat", "enabled": true},
     {"type": "unflag_heroes"},
@@ -26,3 +26,5 @@
     {"type": "wait_for_map_load", "map_id": 414}
   ]
 }
+
+

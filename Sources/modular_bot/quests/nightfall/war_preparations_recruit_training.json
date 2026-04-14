@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "War Preparations (Recruit Training)",
   "steps": [
     {"type": "travel", "name": "Travel to Sunspear Great Hall", "target_map_id": 431},
@@ -7,7 +7,7 @@
     {"type": "travel", "name": "Travel to Kamadan Jewel of Istan", "target_map_id": 449},
     {"type": "auto_path", "name": "To Load Party", "points": [[-9223, 16397]]},
     {"type": "load_party", "name": "Load Party", "max_heroes": 4, "use_priority": true},
-    {"type": "exit_map", "name": "Leave Kamadan Jewel of Istan", "x": -9270, "y": 16806, "target_map_id": 430},
+    {"type": "exit_map", "name": "Leave Kamadan Jewel of Istan", "point": [-9270, 16806], "target_map_id": 430},
     {"type": "auto_path", "name": "To Kormir", "points": [[16504, 2244]]},
     {"type": "dialog", "id": "0x828204", "npc": "KORMIR", "name": "Dialog - Kormir"},
     {"type": "auto_path", "name": "To Nerashi", "points": [[17238, 1677]]},
@@ -22,3 +22,4 @@
     {"type": "dialog", "id": "0x828207", "npc": "CASTELLAN_PUUBA", "name": "Dialog - Castellan Puuba"}
   ]
 }
+
