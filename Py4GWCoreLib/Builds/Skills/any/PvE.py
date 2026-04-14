@@ -213,27 +213,13 @@ class PvE:
                 return True
         return False
 
-    @staticmethod
-    def _same_party_and_map(self_account, other_account) -> bool:
-        return (
-            int(self_account.AgentPartyData.PartyID) == int(other_account.AgentPartyData.PartyID)
-            and int(self_account.AgentData.Map.MapID) == int(other_account.AgentData.Map.MapID)
-            and int(self_account.AgentData.Map.Region) == int(other_account.AgentData.Map.Region)
-            and int(self_account.AgentData.Map.District) == int(other_account.AgentData.Map.District)
-            and int(self_account.AgentData.Map.Language) == int(other_account.AgentData.Map.Language)
-        )
-
     def _count_spirit_form_accounts(self) -> int:
-        from Py4GWCoreLib import GLOBAL_CACHE, Player
-        self_email = Player.GetAccountEmail()
-        self_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(self_email)
-        if self_account is None:
-            return 0
+        from Py4GWCoreLib import GLOBAL_CACHE
         count = 0
         for account in (GLOBAL_CACHE.ShMem.GetAllAccountData() or []):
             if not account.IsSlotActive or account.IsIsolated:
                 continue
-            if not self._same_party_and_map(self_account, account):
+            if not GLOBAL_CACHE.ShMem.SameMapOrPartyAsAccount(account):
                 continue
             try:
                 if any(
@@ -247,16 +233,12 @@ class PvE:
         return count
 
     def _get_spirit_form_agent_ids(self) -> set[int]:
-        from Py4GWCoreLib import GLOBAL_CACHE, Player
+        from Py4GWCoreLib import GLOBAL_CACHE
         result: set[int] = set()
-        self_email = Player.GetAccountEmail()
-        self_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(self_email)
-        if self_account is None:
-            return result
         for account in (GLOBAL_CACHE.ShMem.GetAllAccountData() or []):
             if not account.IsSlotActive or account.IsIsolated:
                 continue
-            if not self._same_party_and_map(self_account, account):
+            if not GLOBAL_CACHE.ShMem.SameMapOrPartyAsAccount(account):
                 continue
             try:
                 if any(
@@ -272,16 +254,12 @@ class PvE:
         return result
 
     def _get_morale_by_agent_id(self) -> dict[int, int]:
-        from Py4GWCoreLib import GLOBAL_CACHE, Player
+        from Py4GWCoreLib import GLOBAL_CACHE
         morale_by_agent: dict[int, int] = {}
-        self_email = Player.GetAccountEmail()
-        self_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(self_email)
-        if self_account is None:
-            return morale_by_agent
         for account in GLOBAL_CACHE.ShMem.GetAllAccountData():
             if not account.IsSlotActive or account.IsIsolated:
                 continue
-            if not self._same_party_and_map(self_account, account):
+            if not GLOBAL_CACHE.ShMem.SameMapOrPartyAsAccount(account):
                 continue
             agent_id = int(account.AgentData.AgentID or 0)
             if agent_id <= 0:
