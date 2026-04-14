@@ -1,14 +1,16 @@
-{
+﻿{
   "name": "Report to the White Mantle",
   "steps": [
     {"type": "travel", "name": "Travel to Quest Outpost", "target_map_id": 55},
-    {"type": "interact_npc", "name": "Take Quest - Reach NPC", "x": 2376, "y": 9268, "ms": 2000},
-    {"type": "dialogs", "name": "Take Quest", "id": ["0x801303", "0x801301"], "interval_ms": 2000, "ms": 2000, "x": 2376, "y": 9268},
+    {"type": "interact_npc", "name": "Take Quest - Reach NPC", "point": [2376, 9268], "ms": 2000},
+    {"type": "dialogs", "name": "Take Quest", "id": ["0x801303", "0x801301"], "interval_ms": 2000, "ms": 2000, "point": [2376, 9268]},
     {"type": "load_party", "name": "Load Party", "max_heroes": 6, "use_priority": true},
-    {"type": "exit_map", "x": 200, "y": 12400, "target_map_id": 58},
+    {"type": "exit_map", "point": [200, 12400], "target_map_id": 58},
     {"type": "auto_path", "name": "To D'allesio ", "points": [[5294, -16988], [1043, -16842], [-3345, -16503], [-8249, -15776], [-10616, -16863], [-11547, -19370]]},
-    {"type": "exit_map", "x": -11700, "y": -19700, "target_map_id": 15},
+    {"type": "exit_map", "point": [-11700, -19700], "target_map_id": 15},
     {"type": "auto_path", "name": "To Quest reward ", "points": [[16506, 15402], [18592, 12867], [21877, 9855]]},
-    {"type": "dialog", "x": 21771, "y": 9699, "id": "0x801307"}
+    {"type": "dialog", "point": [21771, 9699], "id": "0x801307"}
   ]
 }
+
+

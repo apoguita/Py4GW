@@ -3,7 +3,7 @@ from typing import Generator, Optional
 import Py4GW
 
 from Py4GWCoreLib.Item import Bag
-from Sources.frenkeyLib.ItemHandling.Items.ItemCache import ITEM_CACHE
+from Sources.frenkeyLib.ItemHandling.Items.item_snapshot import ItemSnapshot
 from Sources.frenkeyLib.ItemHandling.Rules.profile import RuleProfile
 from Sources.frenkeyLib.ItemHandling.Rules.types import ACTION_LIMITS_PER_FRAME, ItemAction
 from Sources.frenkeyLib.ItemHandling.utility import GetZeroFilledBags
@@ -55,7 +55,7 @@ class InventoryHandler:
         items = []
         for item_id in inventory_array:
             if item_id != 0:
-                items.append(ITEM_CACHE.get_item_snapshot(item_id))
+                items.append(ItemSnapshot.from_item_id(item_id))
         
         return items
     
@@ -67,7 +67,7 @@ class InventoryHandler:
         items = []
         for item_id in inventory_array:
             if item_id != 0:
-                items.append(ITEM_CACHE.get_item_snapshot(item_id))
+                items.append(ItemSnapshot.from_item_id(item_id))
         
         return items
     

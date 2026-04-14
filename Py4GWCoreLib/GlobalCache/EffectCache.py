@@ -8,9 +8,10 @@ class EffectsCache:
     @classmethod
     def _update_or_insert(cls, agent_id: int):
         """Insert or update cache for agent."""
-        effects = PyEffects.PyEffects(agent_id)
-        cls._buff_cache[agent_id] = effects.GetBuffs()
-        cls._effect_cache[agent_id] = effects.GetEffects()
+        from ..Effect import Effects
+
+        cls._buff_cache[agent_id] = list(Effects.GetBuffs(agent_id))
+        cls._effect_cache[agent_id] = list(Effects.GetEffects(agent_id))
 
     @classmethod
     def _reset_cache(cls, agent_id = None):
@@ -55,7 +56,9 @@ class EffectsCache:
 
     @classmethod
     def BuffExists(cls, agent_id: int, skill_id: int):
-        return any(buff.skill_id == skill_id for buff in cls.GetBuffs(agent_id))
+        from ..Agent import Agent
+
+        return any(buff.skill_id == skill_id for buff in cls.GetBuffs(agent_id)) or Agent.GetStanceID(agent_id) == skill_id
 
     @classmethod
     def EffectExists(cls, agent_id: int, skill_id: int):
@@ -77,6 +80,11 @@ class EffectsCache:
         for effect in cls.GetEffects(agent_id):
             if effect.skill_id == skill_id:
                 return effect.time_remaining
+        from ..Agent import Agent
+        from ..CombatEvents import CombatEvents
+
+        if Agent.GetStanceID(agent_id) == skill_id:
+            return Agent.GetStanceCooldown(agent_id)
         return 0
 
     @classmethod

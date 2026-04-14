@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "Gate of Desolation",
   "required_hero": ["Zhed Shadowhoof"],
   "steps": [
@@ -11,28 +11,28 @@
     {"type": "interact_npc", "name": "Interact Palawa Joko", "npc": "PALAWA_JOKO"},
     {"type": "wait", "ms": 43900},
     {"type": "disable_party_member_hooks"},
-    {"type": "flag_heroes", "x": 16339, "y": -8235},
+    {"type": "flag_heroes", "point": [16339, -8235]},
     {"type": "auto_path", "name": "Safe spot", "points": [[18525, -11208]]},
     {"type": "wait", "ms": 165000},
-    {"type": "flag_heroes", "x": 15578, "y": -8586},
+    {"type": "flag_heroes", "point": [15578, -8586]},
     {"type": "wait", "ms": 300000},
-    {"type": "flag_heroes", "x": 15966, "y": -9078},
+    {"type": "flag_heroes", "point": [15966, -9078]},
     {"type": "auto_path", "name": "Path", "points": [[15966, -9078]]},
     {"type": "unflag_heroes"},
     {"type": "wait", "ms": 3000},
     {"type": "enable_party_member_hooks"},
-    {"type": "interact_gadget", "name": "Interact Wurm Spoor", "gadget": "WURM_SPOOR", "x": 15933, "y": -9103},
+    {"type": "interact_gadget", "name": "Interact Wurm Spoor", "gadget": "WURM_SPOOR", "point": [15933, -9103]},
     {"type": "auto_path", "name": "Path", "points": [[15966, -9078]]},
     {"type": "wait", "ms": 10000},
-    {"type": "interact_gadget", "name": "Interact Wurm Spoor", "gadget": "WURM_SPOOR", "x": 15933, "y": -9103},
+    {"type": "interact_gadget", "name": "Interact Wurm Spoor", "gadget": "WURM_SPOOR", "point": [15933, -9103]},
     {"type": "auto_path", "name": "Path", "points": [[11107, -12526], [3940, -12402], [-3588, -13121], [-7339, -9230]]},
     {"type": "wait", "ms": 500},
     {"type": "auto_path", "name": "Path", "points": [[-4446, -3363], [-4830, -3305]]},
     {"type": "wait", "ms": 1700},
-    {"type": "interact_gadget", "name": "Interact Wurm Spoor", "gadget": "WURM_SPOOR", "x": -4897, "y": -3359},
+    {"type": "interact_gadget", "name": "Interact Wurm Spoor", "gadget": "WURM_SPOOR", "point": [-4897, -3359]},
     {"type": "auto_path", "name": "Path", "points": [[-4567, -2022], [-4503, 1807], [-3694, 3284], [-539, 5811]]},
     {"type": "auto_path", "name": "To Wurm Spoor", "points": [[409, 3014]]},
-    {"type": "interact_gadget", "name": "Interact Wurm Spoor", "gadget": "WURM_SPOOR", "x": 484, "y": 2790},
+    {"type": "interact_gadget", "name": "Interact Wurm Spoor", "gadget": "WURM_SPOOR", "point": [484, 2790]},
     {"type": "auto_path", "name": "Path", "points": [[2459, -1749], [4288, -404], [7856, -231], [10668, 4207], [8295, 9233], [6829, 7778], [9116, 10453]]},
     {"type": "wait", "ms": 1100},
     {"type": "auto_path", "name": "Path", "points": [[9167, 13253], [6255, 13864], [4645, 14440], [1879, 12608], [-87, 12656], [-1468, 15466]]},
@@ -41,3 +41,5 @@
     {"type": "wait_for_map_load", "map_id": 545}
   ]
 }
+
+

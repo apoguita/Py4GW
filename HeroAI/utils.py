@@ -9,7 +9,6 @@ from Py4GWCoreLib.py4gwcorelib_src.FrameCache import frame_cache
 def _account_key(account: AccountStruct):
     return (account.AccountEmail, int(account.AgentData.AgentID))
 
-
 def _agent_key(agent_id, *_, **__):
     return int(agent_id)
 
@@ -17,35 +16,14 @@ def _agent_key(agent_id, *_, **__):
 def _agent_skill_key(agent_id, skill_id, *_, **__):
     return (int(agent_id), int(skill_id))
 
-
 @frame_cache(category="utils", source_lib="SameMapAsAccount", key=_account_key)
-def SameMapAsAccount(account : AccountStruct):
-    if not Map.IsMapReady():
-        return False
-    
-    own_map_id = Map.GetMapID()
-    own_region = Map.GetRegion()[0]
-    own_district = Map.GetDistrict()
-    own_language = Map.GetLanguage()[0]
-    return own_map_id == account.AgentData.Map.MapID and own_region == account.AgentData.Map.Region and own_district == account.AgentData.Map.District and own_language == account.AgentData.Map.Language
+def SameMapAsAccount(account: AccountStruct):
+    return GLOBAL_CACHE.ShMem.SameMapAsAccount(account)
 
 @frame_cache(category="utils", source_lib="SameMapOrPartyAsAccount", key=_account_key)
-def SameMapOrPartyAsAccount(account : AccountStruct):
-    if not Map.IsMapReady():
-        return False
-    
-    own_map_id = Map.GetMapID()
-    own_region = Map.GetRegion()[0]
-    own_district = Map.GetDistrict()
-    own_language = Map.GetLanguage()[0]
-    party_members = [GLOBAL_CACHE.Party.Players.GetAgentIDByLoginNumber(party_member.login_number) for party_member in GLOBAL_CACHE.Party.GetPlayers()]
-    
-    same_map = own_map_id == account.AgentData.Map.MapID and own_district == account.AgentData.Map.District and own_language == account.AgentData.Map.Language
-    
-    if same_map and account.AgentData.AgentID in party_members and account.AgentPartyData.PartyID == GLOBAL_CACHE.Party.GetPartyID():
-        return True
-    
-    return same_map and own_region == account.AgentData.Map.Region
+def SameMapOrPartyAsAccount(account: AccountStruct):
+    return GLOBAL_CACHE.ShMem.SameMapOrPartyAsAccount(account)
+
 
 @frame_cache(category="utils", source_lib="DistanceFromLeader")
 def DistanceFromLeader():
@@ -63,7 +41,7 @@ def IsPartyMember(agent_id, live_cached_data : Optional[CacheData] = None) -> bo
     cached_data: CacheData = live_cached_data if live_cached_data is not None else CacheData()
                 
     for acc in cached_data.party:
-        if acc.IsSlotActive and acc.AgentData.AgentID == agent_id and SameMapOrPartyAsAccount(acc) and acc.AgentPartyData.PartyID == cached_data.party.party_id:
+        if acc.IsSlotActive and acc.AgentData.AgentID == agent_id and GLOBAL_CACHE.ShMem.SameMapOrPartyAsAccount(acc) and acc.AgentPartyData.PartyID == cached_data.party.party_id:
             return True
         
     allegiance , _ = Agent.GetAllegiance(agent_id)
@@ -105,7 +83,7 @@ def CheckForEffect(agent_id, skill_id, cached_data : Optional[CacheData] = None)
         return GLOBAL_CACHE.Effects.HasEffect(agent_id, skill_id)
     
     for acc in cached_data.party:
-        if acc.IsSlotActive and acc.AgentData.AgentID == agent_id and SameMapOrPartyAsAccount(acc) and acc.AgentPartyData.PartyID == cached_data.party.party_id:
+        if acc.IsSlotActive and acc.AgentData.AgentID == agent_id and GLOBAL_CACHE.ShMem.SameMapOrPartyAsAccount(acc) and acc.AgentPartyData.PartyID == cached_data.party.party_id:
             return any(buff.SkillId == skill_id for buff in acc.AgentData.Buffs.Buffs)        
 
     allegiance, allegiance_name = Agent.GetAllegiance(agent_id)
@@ -131,7 +109,7 @@ def HasIllusionaryWeaponry(agent_id, cached_data : Optional[CacheData] = None) -
         if (
             acc.IsSlotActive
             and acc.AgentData.AgentID == agent_id
-            and SameMapOrPartyAsAccount(acc)
+            and GLOBAL_CACHE.ShMem.SameMapOrPartyAsAccount(acc)
             and acc.AgentPartyData.PartyID == cached_data.party.party_id
         ):
             shared_skillbar_ids = {int(skill.Id) for skill in acc.AgentData.Skillbar.Skills if int(skill.Id) != 0}
@@ -156,7 +134,7 @@ def GetEffectAndBuffIds(agent_id, cached_data : Optional[CacheData] = None) -> l
     cached_data = cached_data if cached_data is not None else CacheData()
     
     for acc in cached_data.party:
-        if acc.IsSlotActive and acc.AgentData.AgentID == agent_id and SameMapOrPartyAsAccount(acc) and acc.AgentPartyData.PartyID == cached_data.party.party_id:
+        if acc.IsSlotActive and acc.AgentData.AgentID == agent_id and GLOBAL_CACHE.ShMem.SameMapOrPartyAsAccount(acc) and acc.AgentPartyData.PartyID == cached_data.party.party_id:
             return [buff.SkillId for buff in acc.AgentData.Buffs.Buffs]
     
     return [effect.skill_id for effect in GLOBAL_CACHE.Effects.GetBuffs(agent_id) + GLOBAL_CACHE.Effects.GetEffects(agent_id)]

@@ -1,5 +1,5 @@
 ﻿"""
-ModularBot â€” Orchestrator that wires Phases into a Botting FSM.
+ModularBot - Orchestrator that wires Phases into a Botting FSM.
 
 Handles all the boilerplate every bot repeats:
 - Template application
@@ -40,9 +40,9 @@ from Py4GWCoreLib import Botting, Routines, ConsoleLog, Agent, Player
 from .phase import Phase
 
 
-# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-# Template name â†’ method name mapping
-# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# 
+# Template name -> method name mapping
+# 
 
 _TEMPLATE_MAP: Dict[str, str] = {
     "aggressive":            "Aggressive",
@@ -59,9 +59,9 @@ def _sanitize_bot_name(name: str) -> str:
     return safe or "Bot"
 
 
-# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# 
 # Helpers
-# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# 
 
 def _apply_template(bot: Botting, template_name: str) -> None:
     """Apply a named template to the bot."""
@@ -174,6 +174,36 @@ def _is_hero_ai_runtime_active(bot: Botting) -> bool:
         return False
 
 
+def _player_death_pause_guard(fsm):
+    """
+    When no on_death recovery target is configured, pause FSM while the player
+    is dead and resume once revived. This prevents step advancement while dead
+    without rewinding to anchor.
+    """
+    paused_by_guard = False
+    while True:
+        dead = False
+        try:
+            if Routines.Checks.Map.MapValid():
+                player_id = int(Player.GetAgentID() or 0)
+                dead = bool(player_id and Agent.IsDead(player_id))
+        except Exception:
+            dead = False
+
+        if dead:
+            if not paused_by_guard:
+                fsm.pause()
+                paused_by_guard = True
+                ConsoleLog("ModularBot", "[Player death] Pausing FSM until revive (death recovery disabled).")
+        else:
+            if paused_by_guard:
+                fsm.resume()
+                paused_by_guard = False
+                ConsoleLog("ModularBot", "[Player death] Revived  resuming current state.")
+
+        yield from Routines.Yield.wait(500)
+
+
 class ModularBot:
     """
     A bot composed of :class:`Phase` objects, built on top of
@@ -190,7 +220,7 @@ class ModularBot:
                                 last phase completes.
         loop_to:                Phase name to loop to (default: first phase).
 
-        template:               Initial template â€” ``"aggressive"``,
+        template:               Initial template  ``"aggressive"``,
                                 ``"pacifist"``, or ``"multibox_aggressive"``.
 
         use_custom_behaviors:   If ``True``, call
@@ -202,13 +232,13 @@ class ModularBot:
         cb_on_party_death:      Handler for CustomBehaviors
                                 ``PARTY_DEATH`` event.
 
-        on_party_wipe:          Recovery target â€” phase name (``str``) to
+        on_party_wipe:          Recovery target - phase name (``str``) to
                                 jump to on party wipe, *or* a callable
                                 ``(bot: Botting) -> None`` for custom
                                 recovery logic.
         on_death:               Same, for player death.
 
-        background:             ``{name: coroutine_factory}`` â€” managed
+        background:             ``{name: coroutine_factory}`` - managed
                                 coroutines that run alongside the FSM.
 
         settings_ui:            Callable rendered in the Settings tab.
@@ -243,7 +273,7 @@ class ModularBot:
         botting_kwargs.pop("main_child_dimensions", None)
         # Defensive: icon path is for UI draw_window, not Botting constructor.
         legacy_icon_path = str(botting_kwargs.pop("icon_path", "") or "")
-        # â”€â”€ Store config â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        #  Store config 
         self._name = name
         self._phases = phases
         self._loop = loop
@@ -262,7 +292,7 @@ class ModularBot:
         self._settings_ui = settings_ui
         self._help_ui = help_ui
 
-        # â”€â”€ Phase header name tracking â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        #  Phase header name tracking 
         self._phase_headers: Dict[str, str] = {}
         self._header_to_phase: Dict[str, str] = {}
         self._runtime_anchor_header: Optional[str] = None
@@ -272,20 +302,20 @@ class ModularBot:
         self._suppress_recovery_until_outpost: bool = False
         self._recovery_active: bool = False
 
-        # â”€â”€ Create Botting instance â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        #  Create Botting instance 
         self._bot = Botting(_sanitize_bot_name(name), **botting_kwargs)
         setattr(self._bot, "_modular_owner", self)
         self._bot.SetMainRoutine(lambda bot: self._build_routine(bot))
 
-        # â”€â”€ Apply GUI overrides â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        #  Apply GUI overrides 
         if self._settings_ui is not None:
             self._bot.UI.override_draw_config(self._settings_ui)
         if self._help_ui is not None:
             self._bot.UI.override_draw_help(self._help_ui)
 
-    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # 
     # Public API
-    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # 
 
     @property
     def bot(self) -> Botting:
@@ -335,6 +365,34 @@ class ModularBot:
                         phase_name = known_phase
                         break
 
+            # Fallback: allow anchoring directly to an FSM state name
+            # (useful for recipe step names like "shrine").
+            if header is None:
+                fsm = getattr(self._bot.config, "FSM", None)
+                state_names = list(getattr(fsm, "get_state_names", lambda: [])() or [])
+                if state_names:
+                    value_l = value.lower()
+                    matches: list[tuple[int, int, str]] = []
+                    for idx, state_name in enumerate(state_names):
+                        state_name_l = str(state_name).lower()
+                        if value_l == state_name_l:
+                            matches.append((0, idx, state_name))  # exact
+                        elif value_l in state_name_l or state_name_l in value_l:
+                            matches.append((1, idx, state_name))  # fuzzy contains
+
+                    if matches:
+                        best_score = min(score for score, _idx, _name in matches)
+                        best_matches = [entry for entry in matches if entry[0] == best_score]
+                        current_idx = int(getattr(fsm, "get_current_state_index", lambda: -1)() or -1)
+                        if current_idx < 0:
+                            current_idx = len(state_names) - 1
+                        prior_matches = [entry for entry in best_matches if entry[1] <= current_idx]
+                        chosen = max(prior_matches, key=lambda entry: entry[1]) if prior_matches else min(
+                            best_matches, key=lambda entry: entry[1]
+                        )
+                        header = str(chosen[2])
+                        phase_name = self._header_to_phase.get(header, header)
+
         if not header:
             ConsoleLog("ModularBot", f"Set anchor failed: {value!r} not found.")
             return False
@@ -370,9 +428,46 @@ class ModularBot:
         self._suppress_recovery_events_remaining = event_budget
         self._suppress_recovery_until_outpost = bool(until_outpost)
 
-    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    def _should_defer_recovery_callback(self, reason: str) -> bool:
+        """
+        Filter known false-positive recovery callbacks during map transitions.
+        """
+        reason_l = str(reason or "").strip().lower()
+        if reason_l not in ("party wipe", "party defeated"):
+            return False
+
+        try:
+            if not bool(Routines.Checks.Map.MapValid()):
+                return True
+
+            if not bool(Routines.Checks.Map.IsExplorable()):
+                return True
+
+            player_id = int(Player.GetAgentID() or 0)
+            player_dead = bool(player_id and Agent.IsDead(player_id))
+
+            party_wiped = False
+            try:
+                party_wiped = bool(Routines.Checks.Party.IsPartyWiped())
+            except Exception:
+                party_wiped = False
+
+            party_defeated = False
+            try:
+                from Py4GWCoreLib import GLOBAL_CACHE
+
+                party_defeated = bool(GLOBAL_CACHE.Party.IsPartyDefeated())
+            except Exception:
+                party_defeated = False
+
+            return not (player_dead or party_wiped or party_defeated)
+        except Exception:
+            # If state sampling fails, do not block recovery.
+            return False
+
+    # 
     # Routine builder (called once by Botting.Update on first frame)
-    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # 
 
     def _build_routine(self, bot: Botting) -> None:
         """
@@ -391,10 +486,10 @@ class ModularBot:
         except Exception:
             setattr(bot.config, "_modular_start_engine", "none")
 
-        # â”€â”€ 1. Template â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        #  1. Template 
         _apply_template(bot, self._template)
 
-        # â”€â”€ 2. CustomBehaviors â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        #  2. CustomBehaviors 
         if self._use_cb:
             bot.Templates.Routines.UseCustomBehaviors(
                 on_player_critical_death=self._cb_on_death,
@@ -410,22 +505,44 @@ class ModularBot:
         # wait/recover if members are behind, in danger, or dead-behind.
         self._apply_party_member_hooks(bot)
 
-        # â”€â”€ 3. Event callbacks â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        #  3. Event callbacks 
         if self._on_party_wipe is not None:
             bot.Events.OnPartyWipeCallback(
                 lambda: self._handle_recovery(bot, self._on_party_wipe, "Party wipe")
             )
+            def _on_party_defeated_recovery() -> None:
+                # When on_death recovery is disabled, local death should use the
+                # death-pause guard instead of rewinding to party-wipe anchor.
+                if self._on_death is None:
+                    try:
+                        player_id = int(Player.GetAgentID() or 0)
+                        if player_id and Agent.IsDead(player_id):
+                            ConsoleLog(
+                                "ModularBot",
+                                "[Party defeated] Ignored while player is dead (on_death disabled).",
+                            )
+                            return
+                    except Exception:
+                        pass
+                self._handle_recovery(bot, self._on_party_wipe, "Party defeated")
+
+            bot.Events.OnPartyDefeatedCallback(_on_party_defeated_recovery)
         if self._on_death is not None:
             bot.Events.OnDeathCallback(
                 lambda: self._handle_recovery(bot, self._on_death, "Player death")
             )
+        else:
+            bot.States.AddManagedCoroutine(
+                "ModularBot_PlayerDeathPauseGuard",
+                lambda fsm=bot.config.FSM: _player_death_pause_guard(fsm),
+            )
 
-        # â”€â”€ 4. Register phases â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        #  4. Register phases 
         total_phases = len(self._phases)
         for phase_index, phase in enumerate(self._phases):
             self._register_phase(bot, phase, phase_index, total_phases)
 
-        # â”€â”€ 5. Loop â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        #  5. Loop 
         if self._loop and self._phases:
             target_name = self._loop_to or self._phases[0].name
             target_header = self._phase_headers.get(target_name)
@@ -438,13 +555,13 @@ class ModularBot:
                     f"Available: {list(self._phase_headers.keys())}",
                 )
 
-        # â”€â”€ 6. Background coroutines â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        #  6. Background coroutines 
         for coroutine_name, coroutine_factory in self._background.items():
             bot.States.AddManagedCoroutine(coroutine_name, coroutine_factory)
 
-    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # 
     # Phase registration
-    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # 
 
     def _register_phase(self, bot: Botting, phase: Phase, phase_index: int, total_phases: int) -> None:
         """
@@ -526,14 +643,24 @@ class ModularBot:
             should_wire = self._use_cb or _is_hero_ai_runtime_active(bot)
 
         if self._party_member_hooks_enabled and should_wire:
+            def _guarded_party_hook(fn: Callable[[], None]) -> Callable[[], None]:
+                def _wrapped() -> None:
+                    # During recovery we intentionally pause/rewind FSM; suppress
+                    # party-cohesion routines so they don't issue competing moves.
+                    if self._recovery_active:
+                        return
+                    fn()
+
+                return _wrapped
+
             bot.Events.OnPartyMemberBehindCallback(
-                lambda: bot.Templates.Routines.OnPartyMemberBehind()
+                _guarded_party_hook(lambda: bot.Templates.Routines.OnPartyMemberBehind())
             )
             bot.Events.OnPartyMemberInDangerCallback(
-                lambda: bot.Templates.Routines.OnPartyMemberInDanger()
+                _guarded_party_hook(lambda: bot.Templates.Routines.OnPartyMemberInDanger())
             )
             bot.Events.OnPartyMemberDeadBehindCallback(
-                lambda: bot.Templates.Routines.OnPartyMemberDeathBehind()
+                _guarded_party_hook(lambda: bot.Templates.Routines.OnPartyMemberDeathBehind())
             )
             return
 
@@ -541,9 +668,9 @@ class ModularBot:
         bot.Events.OnPartyMemberInDangerCallback(lambda: None)
         bot.Events.OnPartyMemberDeadBehindCallback(lambda: None)
 
-    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # 
     # Recovery handling
-    # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # 
 
     def _handle_recovery(
         self,
@@ -554,7 +681,7 @@ class ModularBot:
         """
         Handle a recovery event (wipe / death).
 
-        If *target* is a string, it is treated as a phase name â€” the FSM
+        If *target* is a string, it is treated as a phase name - the FSM
         is paused, a managed coroutine waits for the player to revive,
         then jumps to that phase's header.
 
@@ -563,7 +690,7 @@ class ModularBot:
         """
         now = time.monotonic()
         if now >= float(self._suppress_recovery_until):
-            self._suppress_recovery_events_remaining = 0
+            self._suppress_recovery_until = 0.0
             self._suppress_recovery_until_outpost = False
 
         if self._suppress_recovery_until_outpost:
@@ -588,11 +715,15 @@ class ModularBot:
         if now < float(self._suppress_recovery_until) or self._suppress_recovery_events_remaining > 0:
             if self._suppress_recovery_events_remaining > 0:
                 self._suppress_recovery_events_remaining = max(0, self._suppress_recovery_events_remaining - 1)
-            ConsoleLog("ModularBot", f"[{reason}] Recovery suppressed (intentional resign window).")
+            ConsoleLog("ModularBot", f"[{reason}] Recovery suppressed (transition/recovery window).")
+            return
+
+        if self._should_defer_recovery_callback(reason):
+            ConsoleLog("ModularBot", f"[{reason}] Recovery deferred (map transition or no active wipe state).")
             return
 
         if callable(target) and not isinstance(target, str):
-            # Custom handler â€” user manages FSM lifecycle
+            # Custom handler  user manages FSM lifecycle
             target()
             return
 
@@ -600,7 +731,7 @@ class ModularBot:
             ConsoleLog("ModularBot", f"[{reason}] Recovery already active; ignoring duplicate trigger.")
             return
 
-        # String target â†’ auto-recovery to named phase
+        # String target -> auto-recovery to named phase
         header, target_label = self._resolve_recovery_target(target)
         if header is None:
             ConsoleLog(
@@ -616,63 +747,45 @@ class ModularBot:
 
         def _recovery_coroutine():
             try:
-                ConsoleLog("ModularBot", f"[{reason}] Recovery started â€” target: {target_label}")
-                recovery_start = time.monotonic()
-                start_map_id = 0
-                start_explorable = False
-                try:
-                    from Py4GWCoreLib import Map
-
-                    start_map_id = int(Map.GetMapID() or 0)
-                    start_explorable = bool(Map.IsExplorable())
-                except Exception:
-                    pass
+                ConsoleLog("ModularBot", f"[{reason}] Recovery started - target: {target_label}")
 
                 # Wait for player to be alive (or map to change to outpost)
                 while True:
+                    map_valid = False
+                    is_explorable = False
                     try:
-                        player_id = Player.GetAgentID()
-                        if not Agent.IsDead(player_id):
-                            break
+                        map_valid = bool(Routines.Checks.Map.MapValid())
+                        is_explorable = bool(Routines.Checks.Map.IsExplorable()) if map_valid else False
                     except Exception:
-                        pass
+                        map_valid = False
+                        is_explorable = False
 
-                    # If we got kicked back to outpost, just restart
-                    if not Routines.Checks.Map.MapValid():
-                        ConsoleLog("ModularBot", f"[{reason}] Returned to outpost â€” restarting")
+                    # Loading transitions can briefly invalidate map/agent data.
+                    # Do not treat that as outpost recovery.
+                    if not map_valid:
+                        yield from Routines.Yield.wait(500)
+                        continue
+
+                    try:
+                        player_id = int(Player.GetAgentID() or 0)
+                    except Exception:
+                        player_id = 0
+
+                    if player_id > 0:
+                        try:
+                            if not Agent.IsDead(player_id):
+                                break
+                        except Exception:
+                            pass
+
+                    if not is_explorable:
+                        ConsoleLog("ModularBot", f"[{reason}] Returned to outpost - restarting")
                         yield from Routines.Yield.wait(3000)
-                        break
-
-                    # Safety timeout so recovery cannot hang forever.
-                    if (time.monotonic() - recovery_start) > 180.0:
-                        ConsoleLog("ModularBot", f"[{reason}] Recovery timeout waiting for revive; forcing resume.")
                         break
 
                     yield from Routines.Yield.wait(1000)
 
-                # If we revived on the same explorable map, continue current quest flow in-place.
-                try:
-                    from Py4GWCoreLib import Map
-
-                    now_map_id = int(Map.GetMapID() or 0)
-                    now_explorable = bool(Map.IsExplorable())
-                    player_id = int(Player.GetAgentID() or 0)
-                    alive = (not Agent.IsDead(player_id)) if player_id else True
-                    same_explorable_map = bool(
-                        alive
-                        and start_explorable
-                        and now_explorable
-                        and start_map_id > 0
-                        and now_map_id == start_map_id
-                    )
-                    if same_explorable_map:
-                        ConsoleLog("ModularBot", f"[{reason}] Recovered on same map ({now_map_id}) â€” resuming current state.")
-                        fsm.resume()
-                        return
-                except Exception:
-                    pass
-
-                ConsoleLog("ModularBot", f"[{reason}] Recovered â€” jumping to {target_label}")
+                ConsoleLog("ModularBot", f"[{reason}] Recovered - jumping to {target_label}")
                 yield from Routines.Yield.wait(1000)
 
                 try:
@@ -710,4 +823,6 @@ class ModularBot:
         if header is None:
             return None, phase_name
         return header, phase_name
+
+
 

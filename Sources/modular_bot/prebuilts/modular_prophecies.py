@@ -118,7 +118,7 @@ def create_prophecies_campaign_bot(
     main_ui=None,
     settings_ui=None,
     help_ui=None,
-    name: str = "Prophecies Campaign",
+    name: str = "Modular Prophecies",
 ) -> ModularBot:
     opts = options or PropheciesCampaignOptions()
     all_phases = build_prophecies_campaign_phases()

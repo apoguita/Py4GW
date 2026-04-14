@@ -56,11 +56,13 @@ class EventType:
     DAMAGE: int                   # Normal damage (fval=damage_fraction)
     CRITICAL: int                 # Critical hit (fval=damage_fraction)
     ARMOR_IGNORING: int           # Armor-ignoring damage (can be negative for heals)
+    HEALING: int                  # Healing/lifesteal gain (fval=heal_fraction)
 
     # Effect Events
     EFFECT_APPLIED: int           # Visual effect applied
     EFFECT_REMOVED: int           # Visual effect removed
     EFFECT_ON_TARGET: int         # Skill effect hit target
+    EFFECT_RENEWED: int           # Existing effect reapplied before removal
 
     # Energy Events
     ENERGY_GAINED: int            # Energy gained

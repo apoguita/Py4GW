@@ -90,6 +90,17 @@ from .enums_src.Calendar_enums import (
     ZAISHEN_MISSION, ZAISHEN_BOUNTY, ZAISHEN_COMBAT, ZAISHEN_VANQUISH,
 )
 
+from .enums_src.Event_enums import (
+    CombatEventDescriptor,
+    EVENT_TYPE_DESCRIPTORS,
+    EventFieldRole,
+    EventType,
+    coerce_event_type,
+    get_event_descriptor,
+    get_event_type_label,
+    get_event_type_name,
+)
+
 __all__ = [
     # GameData_enums
     "Ailment",
@@ -220,6 +231,16 @@ __all__ = [
     "ZAISHEN_BOUNTY",
     "ZAISHEN_COMBAT",
     "ZAISHEN_VANQUISH",
+    
+    # Event_enums
+    "CombatEventDescriptor",
+    "EVENT_TYPE_DESCRIPTORS",
+    "EventFieldRole",
+    "EventType",
+    "coerce_event_type",
+    "get_event_descriptor",
+    "get_event_type_label",
+    "get_event_type_name",
 ]
 
 

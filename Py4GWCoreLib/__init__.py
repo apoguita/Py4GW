@@ -87,7 +87,7 @@ from .Pathing import AutoPathing
 from .BuildMgr import BuildMgr
 from .Botting import BottingClass as Botting
 from .Context import GWContext
-from .CombatEvents import CombatEvents
+from .CombatEvents import CombatEventQueue, CombatEvents, COMBAT_EVENTS
 from .IniManager import IniManager
 from .GWUI import GWUI
 
@@ -135,6 +135,10 @@ GLOBAL_CACHE = GLOBAL_CACHE
 AutoPathing = AutoPathing
 IconsFontAwesome5 = IconsFontAwesome5
 IniManager = IniManager
+CombatEvents = CombatEvents
+CombatEvents = CombatEvents
+CombatEvents = CombatEvents
+COMBAT_EVENTS = COMBAT_EVENTS
 ProfilingRegistry = ProfilingRegistry
 SimpleProfiler = SimpleProfiler
 FRAME_CACHE = FRAME_CACHE

@@ -1,8 +1,11 @@
+from typing import List, Optional, Tuple
+
 import PyAgent
 from .native_src.context.AgentContext import AgentStruct, AgentLivingStruct, AgentItemStruct, AgentGadgetStruct
 from .native_src.context.WorldContext import AttributeStruct
 from .native_src.internals.helpers import encoded_wstr_to_str
 from .native_src.internals.string_table import decode as decode_raw
+from .CombatEventQueue_src import helpers as CombatEventHelpers
 
 
 class Agent:
@@ -938,7 +941,11 @@ class Agent:
             return 0
         
         return Utils.calculate_health_pips(living.max_hp, living.hp_pips)
-
+    
+    @staticmethod
+    def CanAct(agent_id: int) -> bool:
+        return CombatEventHelpers._can_act(agent_id)
+    
     @staticmethod
     def IsMoving(agent_id: int) -> bool:
         living  = Agent.GetLivingAgentByID(agent_id)
@@ -951,8 +958,13 @@ class Agent:
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
             return False
-        return living.is_knocked_down
-
+        return living.is_knocked_down or CombatEventHelpers._is_knocked_down(agent_id)  
+    
+    @staticmethod
+    def GetKnockDownTimeRemaining(agent_id: int) -> int:
+        return CombatEventHelpers._get_knockdown_time_remaining(agent_id)
+    
+    
     @staticmethod
     def IsBleeding(agent_id: int) -> bool:
         living = Agent.GetLivingAgentByID(agent_id)
@@ -1041,6 +1053,18 @@ class Agent:
         if living is None:
             return False
         return living.is_in_combat_stance
+    
+    @staticmethod
+    def HasStance(agent_id: int) -> bool:
+        return CombatEventHelpers._has_stance(agent_id)
+    
+    @staticmethod
+    def GetStanceID(agent_id: int) -> int:
+        return CombatEventHelpers._get_stance(agent_id) 
+    
+    @staticmethod
+    def GetStanceCooldown(agent_id: int) -> int:
+        return CombatEventHelpers._get_stance_cooldown(agent_id)
 
     @staticmethod
     def IsAggressive(agent_id: int) -> bool:
@@ -1057,14 +1081,14 @@ class Agent:
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
             return False
-        return living.is_attacking
+        return living.is_attacking or CombatEventHelpers._is_attacking(agent_id)
 
     @staticmethod
     def IsCasting(agent_id: int) -> bool:
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
             return False
-        return living.is_casting
+        return living.is_casting or CombatEventHelpers._is_casting(agent_id)
     
     @staticmethod
     def GetCastingSkillID(agent_id: int) -> int:
@@ -1075,8 +1099,105 @@ class Agent:
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
             return 0
-        return living.skill
+        
+        return CombatEventHelpers._casting_skill_id(agent_id) or living.skill
+    
+    @staticmethod
+    def GetTarget(agent_id: int) -> int:
+        """Purpose: Retrieve the best-known target for the agent."""
+        from .Player import Player
+        from .Party import Party
+        
+        if not Agent.IsValid(agent_id):
+            return 0
 
+        if agent_id == Player.GetAgentID():
+            return Player.GetTargetID()
+
+        hero_target_id = int(Party.Heroes.GetTargetIDByAgentID(agent_id) or 0)
+        if hero_target_id:
+            return hero_target_id
+
+        # Pets should use the dedicated pet helpers first for the local player's pet.
+        if Agent.IsPet(agent_id):
+            player_agent_id = Player.GetAgentID()
+            own_pet_id = int(Party.Pets.GetPetID(player_agent_id) or 0)
+            if own_pet_id != 0 and agent_id == own_pet_id:
+                pet_info = Party.Pets.GetPetInfo(player_agent_id)
+                target_id = pet_info.locked_target_id
+                if target_id:
+                    return target_id
+
+        # Combat events provide the best transient target for active casts/attacks.
+        cast = CombatEventHelpers._find_cast(agent_id)
+        if cast:
+            target_id = int(cast[1] or 0)
+            if target_id:
+                return target_id
+
+        attack_target = CombatEventHelpers._find_attack(agent_id)
+        if attack_target:
+            return int(attack_target)
+
+        return 0
+    
+    @staticmethod
+    def GetCastingTarget(agent_id: int) -> int:
+        return CombatEventHelpers._casting_target_id(agent_id)
+    
+    @staticmethod
+    def GetRemainingCastTime(agent_id: int) -> int:
+        return CombatEventHelpers._get_remaining_cast_time(agent_id)
+    
+    @staticmethod
+    def GetRemainingRechargeTime(agent_id: int, skill_id: int) -> int:
+        return CombatEventHelpers._get_remaining_recharge_time(agent_id, skill_id)
+    
+    @staticmethod
+    def IsTargeted(agent_id: int) -> bool:
+        return CombatEventHelpers._is_targeted(agent_id)
+    
+    @staticmethod
+    def GetAgetsTargeting(agent_id: int) -> List[int]:
+        return CombatEventHelpers._agets_targetting(agent_id)
+    
+    @staticmethod
+    def IsSkillOnCooldown(agent_id: int, skill_id: int) -> bool:
+        return CombatEventHelpers._is_skill_on_cooldown(agent_id, skill_id)
+    
+    @staticmethod
+    def IsCooldownEstimated(agent_id: int, skill_id: int) -> bool:
+        return CombatEventHelpers._is_cooldown_estimated(agent_id, skill_id)
+    
+    @staticmethod
+    def GetSkillsOnCooldown(agent_id: int) -> List[Tuple[int, int, bool]]:
+        """Returns a list of (skill_id, remaining_ms, is_estimated) 
+        for all skills currently on cooldown for the agent.
+        returns (skill_id, remaining_ms, is_estimated)"""
+        return CombatEventHelpers._get_skills_on_cooldown(agent_id)
+
+    @staticmethod
+    def GetRecentHealingReceived(agent_id: int, count: int = 20) -> List[Tuple[int, int, float, int]]:
+        """Returns (timestamp, source_id, healing_fraction, skill_id) for recent healing received."""
+        return CombatEventHelpers._get_recent_healing_received(agent_id, count)
+
+    @staticmethod
+    def GetRecentHealingDealt(agent_id: int, count: int = 20) -> List[Tuple[int, int, float, int]]:
+        """Returns (timestamp, target_id, healing_fraction, skill_id) for recent healing dealt."""
+        return CombatEventHelpers._get_recent_healing_dealt(agent_id, count)
+
+    @staticmethod
+    def HasEffectRenewed(agent_id: int, effect_id: int, window_ms: int = 10000) -> bool:
+        return CombatEventHelpers._has_effect_renewed(agent_id, effect_id, window_ms)
+    
+    @staticmethod
+    def GetObservedSkillbar(agent_id: int) -> List[int]:
+        """Returns a list of skill IDs representing the observed skillbar for the agent."""
+        return list(CombatEventHelpers._get_observed_skillbar(agent_id))
+
+    @staticmethod
+    def GetAttackTarget(agent_id: int) -> int:
+        return CombatEventHelpers._attack_target(agent_id)
 
     @staticmethod
     def IsIdle(agent_id: int) -> bool:
