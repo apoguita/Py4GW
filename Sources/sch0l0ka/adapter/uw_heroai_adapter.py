@@ -292,6 +292,9 @@ class UWHeroAIAdapter(UWCombatAdapter):
     def toggle_wait_if_party_member_mana_too_low(self, enabled: bool) -> None:
         pass
 
+    def toggle_local_movement(self, enabled: bool) -> None:
+        pass  # no CB utility skills in HeroAI mode
+
     # ── Party control ────────────────────────────────────────────────────
 
     def set_party_leader(self, email: str) -> None:
