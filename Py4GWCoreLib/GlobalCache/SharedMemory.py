@@ -47,6 +47,10 @@ from HeroAI.following import FollowFormationPublisher
 from ..py4gwcorelib_src.FrameCache import frame_cache
 
 
+def _account_key(account: AccountStruct):
+    return (account.AccountEmail, int(account.AgentData.AgentID))
+
+
 #region SharedMemoryManager    
 class Py4GWSharedMemoryManager:
     _instance = None  # Singleton instance
@@ -100,6 +104,47 @@ class Py4GWSharedMemoryManager:
     @frame_cache(category="SharedMemory", source_lib="GetAccountData")
     def GetAccountData(self, index: int) -> AccountStruct:
         return self.GetAllAccounts().GetAccountData(index)
+
+    @frame_cache(category="SharedMemory", source_lib="SameMapAsAccount", key=_account_key)
+    def SameMapAsAccount(self, account: AccountStruct) -> bool:
+        if not Map.IsMapReady():
+            return False
+
+        own_map_id = Map.GetMapID()
+        own_region = Map.GetRegion()[0]
+        own_district = Map.GetDistrict()
+        own_language = Map.GetLanguage()[0]
+        return (
+            own_map_id == account.AgentData.Map.MapID
+            and own_region == account.AgentData.Map.Region
+            and own_district == account.AgentData.Map.District
+            and own_language == account.AgentData.Map.Language
+        )
+
+    @frame_cache(category="SharedMemory", source_lib="SameMapOrPartyAsAccount", key=_account_key)
+    def SameMapOrPartyAsAccount(self, account: AccountStruct) -> bool:
+        if not Map.IsMapReady():
+            return False
+
+        own_map_id = Map.GetMapID()
+        own_region = Map.GetRegion()[0]
+        own_district = Map.GetDistrict()
+        own_language = Map.GetLanguage()[0]
+        party_members = [
+            Party.Players.GetAgentIDByLoginNumber(party_member.login_number)
+            for party_member in Party.GetPlayers()
+        ]
+
+        same_map = (
+            own_map_id == account.AgentData.Map.MapID
+            and own_district == account.AgentData.Map.District
+            and own_language == account.AgentData.Map.Language
+        )
+
+        if same_map and account.AgentData.AgentID in party_members and account.AgentPartyData.PartyID == Party.GetPartyID():
+            return True
+
+        return same_map and own_region == account.AgentData.Map.Region
             
     #region Messaging
     @frame_cache(category="SharedMemory", source_lib="GetAllMessages")
