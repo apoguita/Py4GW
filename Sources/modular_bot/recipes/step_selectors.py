@@ -5,8 +5,8 @@ from typing import Any, Dict
 import PyAgent
 from Py4GWCoreLib import Range
 
-from .target_enums import get_named_agent_target, get_named_item_target
-from .step_utils import parse_step_bool, parse_step_float, parse_step_int
+from .target_enums import get_named_agent_target
+from .step_utils import parse_step_bool, parse_step_float, parse_step_int, parse_step_point
 
 COMPASS_RANGE = float(Range.Compass.value)
 
@@ -37,8 +37,9 @@ def resolve_agent_xy_from_step(
     if default_max_dist is None:
         default_max_dist = COMPASS_RANGE
 
-    if "x" in step and "y" in step:
-        return float(step["x"]), float(step["y"])
+    explicit_point = parse_step_point(step)
+    if explicit_point is not None:
+        return explicit_point
 
     max_dist = parse_step_float(step.get("max_dist", default_max_dist), default_max_dist)
     if max_dist <= 0:
@@ -226,32 +227,14 @@ def resolve_item_model_id_from_step(
     from Py4GWCoreLib import ConsoleLog
     from Py4GWCoreLib.enums_src.Model_enums import ModelID
 
-    named_item_key = str(step.get("item", "") or "").strip()
-    named_item = get_named_item_target(named_item_key) if named_item_key else None
-    model_id_raw = step.get("model_id", None)
-
-    if model_id_raw is None and named_item is not None:
-        model_id = named_item.model_id
-        if model_id is not None:
-            return int(model_id)
-
+    model_id_raw = step.get("model_id", step.get("item", None))
     if model_id_raw is None:
-        if named_item_key:
-            ConsoleLog(
-                f"Recipe:{recipe_name}",
-                f"Unknown item selector at index {step_idx}: {named_item_key!r}",
-            )
         return None
 
-    # Backward-compatible symbolic selectors in model_id:
-    # {"model_id": "UNHOLY_TEXT"} or {"model_id": "Passage_Scroll_Fow"}
+    # Symbolic model selectors, e.g. {"model_id": "Passage_Scroll_Fow"}
     if isinstance(model_id_raw, str):
         symbolic_key = model_id_raw.strip()
         if symbolic_key:
-            symbolic_item = get_named_item_target(symbolic_key)
-            if symbolic_item is not None and symbolic_item.model_id is not None:
-                return int(symbolic_item.model_id)
-
             model_enum = ModelID.__members__.get(symbolic_key)
             if model_enum is not None:
                 return int(model_enum.value)
@@ -261,6 +244,6 @@ def resolve_item_model_id_from_step(
     except (TypeError, ValueError):
         ConsoleLog(
             f"Recipe:{recipe_name}",
-            f"Invalid item selector at index {step_idx}: model_id={model_id_raw!r}, item={named_item_key!r}",
+            f"Invalid item selector at index {step_idx}: model_id={model_id_raw!r}",
         )
         return None

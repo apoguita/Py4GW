@@ -121,13 +121,13 @@ class Item:
         def IsArmorType(item_id):
             """Purpose: Check if an item is an armor type by its ID."""
             item_type_value, _ = Item.GetItemType(item_id)
-            return Item.Utility.IsArmorType(ItemType(item_type_value))
+            return ItemType(item_type_value).is_armor_type()
         
         @staticmethod
         def IsWeapon(item_id):
             """Purpose: Check if an item is a weapon type by its ID."""
             item_type_value, _ = Item.GetItemType(item_id)
-            return Item.Utility.IsWeaponType(ItemType(item_type_value))
+            return ItemType(item_type_value).is_weapon_type()
 
         @staticmethod
         def GetModelID(item_id):
@@ -241,7 +241,7 @@ class Item:
                 """Purpose: Retrieve the requirement of a weapon item by its ID."""
                 
                 item_type = ItemType(Item.GetItemType(item_id)[0])
-                if not Item.Utility.IsWeaponType(item_type):
+                if not item_type.is_weapon_type():
                     return Attribute.None_, 0
                                 
                 rarity, _ = Item.Rarity.GetRarity(item_id)
@@ -255,7 +255,7 @@ class Item:
                 """Purpose: Retrieve the damage of a weapon item by its ID."""
                 
                 item_type = ItemType(Item.GetItemType(item_id)[0])
-                if not Item.Utility.IsWeaponType(item_type) and not item_type in [ItemType.Offhand, ItemType.Shield]:
+                if not item_type.is_weapon_type() and not item_type in [ItemType.Offhand, ItemType.Shield]:
                     return 0, 0
                                 
                 rarity, _ = Item.Rarity.GetRarity(item_id)
@@ -267,7 +267,7 @@ class Item:
             @staticmethod
             def GetArmor(item_id) -> int:                
                 item_type = ItemType(Item.GetItemType(item_id)[0])
-                if not Item.Utility.IsArmorType(item_type) and not item_type == ItemType.Shield:
+                if not item_type.is_armor_type() and not item_type == ItemType.Shield:
                     return 0
                                 
                 rarity, _ = Item.Rarity.GetRarity(item_id)
@@ -279,7 +279,7 @@ class Item:
             @staticmethod
             def GetEnergy(item_id) -> int:                
                 item_type = ItemType(Item.GetItemType(item_id)[0])
-                if not Item.Utility.IsArmorType(item_type) and not item_type in [ItemType.Offhand, ItemType.Staff]:
+                if not item_type.is_armor_type() and not item_type in [ItemType.Offhand, ItemType.Staff]:
                     return 0
                                 
                 rarity, _ = Item.Rarity.GetRarity(item_id)
@@ -521,9 +521,16 @@ class Item:
 
             class Upgrade:
                 @staticmethod
-                def HasUpgrade(item_id: int, upgrade_type : Type[UpgradeType], max : bool = False) -> bool:                                
+                def HasUpgradeType(item_id: int, upgrade_type : Type[UpgradeType], max : bool = False) -> bool:                                
                     if (upgrade := Item.Customization.GetUpgrade(item_id, upgrade_type)) is not None:
                         return not max or upgrade.is_maxed
+                    
+                    return False
+                
+                @staticmethod
+                def HasUpgrade(item_id: int, upgrade : Upgrade) -> bool:                                
+                    if (item_upgrade := Item.Customization.GetUpgrade(item_id, type(upgrade))) is not None:
+                        return item_upgrade.matches(upgrade)
                     
                     return False
             
@@ -537,52 +544,3 @@ class Item:
                     
                     return weapon_damage == damage_for_requirement[1]
                     
-       
-        class Utility:
-            @staticmethod
-            def IsWeaponType(item_type : ItemType | int) -> bool:
-                if isinstance(item_type, int):
-                    item_type = ItemType(item_type)
-                    
-                return item_type in (
-                        ItemType.Axe,
-                        ItemType.Bow,
-                        ItemType.Daggers,
-                        ItemType.Hammer,
-                        ItemType.Offhand,
-                        ItemType.Scythe,
-                        ItemType.Shield,
-                        ItemType.Spear,
-                        ItemType.Staff,
-                        ItemType.Sword,
-                        ItemType.Wand
-                    )
-                
-            @staticmethod
-            def IsArmorType(item_type : ItemType | int) -> bool:
-                if isinstance(item_type, int):
-                    item_type = ItemType(item_type)
-                    
-                return item_type in (
-                        ItemType.Headpiece,
-                        ItemType.Chestpiece,
-                        ItemType.Gloves,
-                        ItemType.Leggings,
-                        ItemType.Boots
-                    )
-
-        
-
-        
-
-        
-
-        
-
-        
-
-        
-
-        
-
-        

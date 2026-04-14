@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "dialog_recorded",
   "required_hero": ["Koss"],
   "steps": [
@@ -7,7 +7,7 @@
     {"type": "dialog", "id": "0x827A01", "npc": "EMISSARY_DAJMIR", "name": "Dialog - Emissary Dajmir"},
     {"type": "load_party", "name": "Load Party", "max_heroes": 4, "use_priority": true, "required_hero": ["Koss"]},
     {"type": "auto_path", "name": "To Exit", "points": [[-4128, 859]]},
-    {"type": "exit_map", "name": "Leave The Astralarium", "x": -4661, "y": 178, "target_map_id": 483},
+    {"type": "exit_map", "name": "Leave The Astralarium", "point": [-4661, 178], "target_map_id": 483},
     {"type": "auto_path", "name": "To Sunspear Scout", "points": [[19726, -4147]]},
     {"type": "dialog", "id": "0x84", "npc": "SUNSPEAR_SCOUT", "name": "Dialog - Sunspear Scout"},
     {"type": "auto_path", "name": "To Emissary Dajmir", "points": [[16647, -3808]]},
@@ -24,3 +24,4 @@
     {"type": "dialog", "id": "0x827A07", "npc": "DIGMASTER_GATAH", "name": "Dialog - Digmaster Gatah"}
   ]
 }
+

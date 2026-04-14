@@ -123,7 +123,10 @@ _hero_import_source_index: int = 0
 
 
 def ConfigureAggressiveEnv(bot: Botting) -> None:
-    bot.Templates.Aggressive()
+    if _party_mode == 1:
+        bot.Templates.Multibox_Aggressive()
+    else:
+        bot.Templates.Aggressive()
     bot.Properties.Enable("auto_inventory_management")
 
 

@@ -87,6 +87,7 @@ class Config:
             "smart_con_cleanse_toggled",
             "smart_hex_cleanse_toggled",
             "smart_interrupt_toggled",
+            "smart_panic_enabled",
             "smart_incoming_fallback_enabled",
             "user_hex_input",
             "user_skill_input"
@@ -109,6 +110,7 @@ class Config:
         self.smart_con_cleanse_toggled = ini_handler.read_bool(MODULE_NAME, "smart_con_cleanse_toggled", False)
         self.smart_hex_cleanse_toggled = ini_handler.read_bool(MODULE_NAME, "smart_hex_cleanse_toggled", False)
         self.smart_interrupt_toggled = ini_handler.read_bool(MODULE_NAME, "smart_interrupt_toggled", False)
+        self.smart_panic_enabled = ini_handler.read_bool(MODULE_NAME, "smart_panic_enabled", False)
         self.smart_incoming_fallback_enabled = ini_handler.read_bool(MODULE_NAME, "smart_incoming_fallback_enabled", False)
         
         self.user_hex_input = ini_handler.read_key(MODULE_NAME, "user_hex_input", "")
@@ -483,6 +485,40 @@ class Helper:
         )
 
     @staticmethod
+    def get_best_panic_target():
+        player_pos = Player.GetXY()
+        spell_range = Helper.get_spell_cast_range()
+        nearby_range = enums.Range.Nearby.value
+        enemy_ids = AgentArray.GetEnemyArray() or []
+
+        candidates = []
+        for enemy_id in enemy_ids:
+            if not Helper.is_agent_alive(enemy_id):
+                continue
+
+            enemy_pos = Agent.GetXY(enemy_id)
+            distance_from_player = Utils.Distance(player_pos, enemy_pos)
+            if distance_from_player > spell_range:
+                continue
+
+            clustered_enemies = Helper.count_enemies_in_range(nearby_range, enemy_pos)
+            if clustered_enemies < 3:
+                continue
+
+            candidates.append((
+                -clustered_enemies,
+                0 if Agent.IsCaster(enemy_id) else 1,
+                distance_from_player,
+                enemy_id
+            ))
+
+        if not candidates:
+            return None
+
+        candidates.sort()
+        return candidates[0][3]
+
+    @staticmethod
     def get_best_xinrae_target():
         player_id = Player.GetAgentID()
         if not player_id:
@@ -843,11 +879,39 @@ def smart_interrupt():
                 skill_id=skill_id,
                 enemy_range_check=spell_range,
                 cast_target_id=enemy_id,
-                distance_check_range=spell_range + 200
+                distance_check_range=spell_range + 200,
+                target_distance_check_range=spell_range
             )
             if result:
                 execute_hero_skill(*result)
                 return  # Interrupt once per cycle
+
+def smart_panic():
+    if Party.GetHeroCount() == 0:
+        return
+    if not Helper.can_execute_with_delay("smart_panic", 500):
+        return
+
+    player_id = Player.GetAgentID()
+    if not Helper.is_agent_alive(player_id):
+        return
+
+    target_id = Helper.get_best_panic_target()
+    if not target_id:
+        return
+
+    result = Helper.smartcast_hero_skill(
+        skill_id=Skill.GetID("Panic"),
+        cast_target_id=target_id,
+        effect_check=True,
+        distance_check_range=Helper.get_spell_cast_range() + 200,
+        target_distance_check_range=Helper.get_spell_cast_range(),
+        allow_out_of_combat=False,
+        min_energy_perc=0.20
+    )
+
+    if result:
+        execute_hero_skill(*result)
 
 def smart_hex_removal():
     if not Helper.can_execute_with_delay("smart_hex_removal", 1000):
@@ -1381,6 +1445,9 @@ def draw_tab_smart_skills(config):
     PyImGui.text_disabled("Toggle automated hero support behaviors grouped by profession.")
     PyImGui.separator()
     skill_groups = [
+        ("Mesmer", [
+            ("Panic", "smart_panic_enabled", "Casts Panic on clustered enemy groups, preferring caster clumps.", "Panic"),
+        ]),
         ("Monk", [
             ("Strength of Honor", "smart_honor_enabled", "[DISABLE HERO CASTING] Maintains Honor on melee player.", "Strength_of_Honor"),
             ("Life Bond", "smart_life_bond_enabled", "[DISABLE HERO CASTING] Maintains Life Bond on melee player.", "Life_Bond"),
@@ -1803,6 +1870,8 @@ def main():
             update_hero_follow_state()
             if widget_config.smart_interrupt_toggled:
                 smart_interrupt()
+            if widget_config.smart_panic_enabled:
+                smart_panic()
             if widget_config.smart_hex_cleanse_toggled:
                 smart_hex_removal()
             if widget_config.smart_con_cleanse_toggled:

@@ -1,7 +1,7 @@
 from typing import Any, Generator, override
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.enums import Profession, Range
-from Py4GWCoreLib import Agent, Player
+from Py4GWCoreLib import Agent, Player, Routines
 from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Sources.oazix.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Sources.oazix.CustomBehaviors.primitives.helpers import custom_behavior_helpers
@@ -34,6 +34,7 @@ class SplinterWeaponUtility(CustomSkillUtilityBase):
         self.score_definition: ScoreStaticDefinition = score_definition
 
         self.add_plugin_targetting_modifier(lambda x: BuffConfigurator(event_bus, self.custom_skill, buff_configuration_per_profession= BuffConfigurationPerProfession.BUFF_CONFIGURATION_MARTIAL))
+        self.ebon_vanguard_assassin_model_id = 5903
 
     def _get_target(self) -> int | None:
         
@@ -42,12 +43,23 @@ class SplinterWeaponUtility(CustomSkillUtilityBase):
                 within_range=Range.Spellcast.value * 1.2,
                 condition=lambda agent_id: 
                     agent_id != Player.GetAgentID() and 
-                    self.buff_configuration.get_agent_id_predicate()(agent_id) and not Agent.IsWeaponSpelled(agent_id),
+                    self.get_plugin_targeting_modifiers_filtering_predicate()(agent_id) and not Agent.IsWeaponSpelled(agent_id),
                 sort_key=(TargetingOrder.DISTANCE_DESC, TargetingOrder.CASTER_THEN_MELEE),
                 range_to_count_enemies=None,
                 range_to_count_allies=None)
-    
-        return target
+        if target is not None:
+            return target
+
+        # Fallback: if all martial allies are already weapon-spelled (or none available),
+        # allow splintering the Ebon Vanguard Assassin support summon.
+        npc_agent_id: int = Routines.Agents.GetNearestAliveAgentByModelID(
+            self.ebon_vanguard_assassin_model_id,
+            Range.Spellcast.value,
+        )
+        if npc_agent_id is not None and npc_agent_id != 0 and not Agent.IsWeaponSpelled(npc_agent_id):
+            return npc_agent_id
+
+        return None
 
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:

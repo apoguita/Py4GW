@@ -723,8 +723,7 @@ def _poll_exit_map_recording() -> None:
     step = {
         "type": "exit_map",
         "name": f"Leave {name_suffix}",
-        "x": int(_exit_record_last_x),
-        "y": int(_exit_record_last_y),
+        "point": [int(_exit_record_last_x), int(_exit_record_last_y)],
         "target_map_id": int(target_map_id),
     }
     _add_recorded_step(step)
@@ -786,7 +785,7 @@ def main():
     _poll_exit_map_recording()
     _poll_travel_recording()
 
-    if PyImGui.begin("ModularBot Helper"):
+    if PyImGui.begin("Modular Coder Assistant"):
         PyImGui.text("Dialog Recorder")
         _dialog_recorder_enabled = PyImGui.checkbox("Auto Capture Clicked Dialogs", _dialog_recorder_enabled)
         PyImGui.text(f"Recorded steps: {len(_dialog_recorder_steps)}")
@@ -906,8 +905,7 @@ def main():
                     step = {
                         "type": "interact_npc",
                         "name": "Interact NPC",
-                        "x": int(nx),
-                        "y": int(ny),
+                        "point": [int(nx), int(ny)],
                     }
                 _add_recorded_step(step)
                 _dialog_recorder_status = f"Recorded interact_npc for {npc_name or 'target'}."
@@ -930,15 +928,13 @@ def main():
                         "type": "interact_gadget",
                         "name": f"Interact {gadget_name}",
                         "gadget": gadget_key,
-                        "x": int(gx),
-                        "y": int(gy),
+                        "point": [int(gx), int(gy)],
                     }
                 else:
                     step = {
                         "type": "interact_gadget",
                         "name": "Interact Gadget",
-                        "x": int(gx),
-                        "y": int(gy),
+                        "point": [int(gx), int(gy)],
                     }
                 _add_recorded_step(step)
                 _dialog_recorder_status = f"Recorded interact_gadget at [{int(gx)}, {int(gy)}]."

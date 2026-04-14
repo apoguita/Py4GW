@@ -7,7 +7,7 @@ from .fow import (
     build_fow_phases,
     create_modular_fow_bot,
 )
-from .nightfall_campaign import (
+from .modular_nightfall import (
     NIGHTFALL_PHASE_SPECS,
     NIGHTFALL_REGION_SPANS,
     NightfallCampaignOptions,
@@ -16,7 +16,7 @@ from .nightfall_campaign import (
     create_nightfall_campaign_bot,
     derive_nightfall_region_spans,
 )
-from .prophecies_campaign import (
+from .modular_prophecies import (
     PROPHECIES_PHASE_SPECS,
     PROPHECIES_REGION_SPANS,
     PropheciesCampaignOptions,

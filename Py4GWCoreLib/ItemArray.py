@@ -1,5 +1,7 @@
 import Py4GW
 
+from Py4GWCoreLib.py4gwcorelib_src.FrameCache import frame_cache
+
 from .Item import Bag, Item
 import PyInventory 
 
@@ -24,6 +26,7 @@ class ItemArray:
         return bags_to_check
 
     @staticmethod
+    @frame_cache(category="ItemArray", source_lib="GetItemArray")
     def GetItemArray(bags_to_check):
         """
         Given a list of Bag enum members, retrieve the item IDs across all those bags.
@@ -52,6 +55,7 @@ class ItemArray:
         return all_item_ids
 
     @staticmethod
+    @frame_cache(category="ItemArray", source_lib="GetAllBags")
     def GetAllBags():
         """
         Returns a list of all Bag enums that are valid for use with GetItemArray().
@@ -68,7 +72,8 @@ class ItemArray:
 
         return valid_bags
     
-    @staticmethod
+    @staticmethod    
+    @frame_cache(category="ItemArray", source_lib="GetBag")
     def GetBag(bag: int):
         """
         Returns a Bag instance for the given bag enum.

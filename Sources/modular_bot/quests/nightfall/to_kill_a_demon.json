@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "To Kill a Demon",
   "steps": [
     {"type": "auto_path", "name": "To Master Of Whispers", "points": [[-6397, 17116]]},
@@ -6,7 +6,7 @@
     {"type": "travel", "name": "Travel to Outpost", "target_map_id": 424},
     {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true},
     {"type": "auto_path", "name": "To Exit", "points": [[469, 1495], [3484, 3567]]},
-    {"type": "exit_map", "name": "Leave Kodonur Crossroads outpost", "x": 4862, "y": 4408, "target_map_id": 384},
+    {"type": "exit_map", "name": "Leave Kodonur Crossroads outpost", "point": [4862, 4408], "target_map_id": 384},
     {"type": "auto_path", "name": "To Master Of Whispers", "points": [[-18894, -13512]]},
     {"type": "dialog", "id": "0x822B04", "npc": "MASTER_OF_WHISPERS", "name": "Dialog - Master of Whispers"},
     {"type": "auto_path", "name": "To Dehjah", "points": [[-15662, -7617], [-14242, -5346], [-13974, -5072], [-14178, -5295]]},
@@ -17,3 +17,4 @@
     {"type": "dialog", "id": "0x822B07", "npc": "DEHJAH", "name": "Dialog - Dehjah"}
   ]
 }
+

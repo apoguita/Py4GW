@@ -22,7 +22,7 @@ class SaveYourselvesUtility(CustomSkillUtilityBase):
         event_bus: EventBus,
         skill: CustomSkill,
         current_build: list[CustomSkill],
-        allies_health_less_than_percent: float = 0.90,
+        allies_health_less_than_percent: float = 2,
         allies_quantity_required: int = 2,
         score_definition: ScoreStaticDefinition = ScoreStaticDefinition(90),
         mana_required_to_cast: int = 0,

@@ -2,16 +2,18 @@ from typing import Optional, Type, TypeVar
 
 from PyItem import ItemModifier
 
-from Py4GWCoreLib.enums_src.Item_enums import Rarity
+from Py4GWCoreLib.enums_src.Item_enums import ItemType, Rarity
 from Py4GWCoreLib.item_mods_src.item_modifier_parser import ItemModifierParser
-from Py4GWCoreLib.item_mods_src.properties import InherentProperty, InscriptionProperty, ItemProperty, PrefixProperty, SuffixProperty
+from Py4GWCoreLib.item_mods_src.properties import InherentProperty, InscriptionProperty, ItemProperty, PrefixProperty, SuffixProperty, TargetItemTypeProperty
 from Py4GWCoreLib.item_mods_src.types import ItemUpgradeType
 from Py4GWCoreLib.item_mods_src.upgrades import Upgrade
+from Py4GWCoreLib.py4gwcorelib_src.FrameCache import frame_cache
 
 class ItemMod:
     T = TypeVar("T", bound="Upgrade")
 
     @staticmethod
+    @frame_cache(category="ItemMod", source_lib="get_upgrade")
     def get_upgrade(item_id : int, upgrade_type: Type[T]) -> Optional[T]:
         '''
         Gets the upgrade of the specified type from the item properties. This is a helper method that combines the logic of getting the item modifiers, parsing them into properties, and extracting the relevant upgrade property. It also includes validation for inherent upgrades on green items.
@@ -40,7 +42,7 @@ class ItemMod:
         return None
     
     @staticmethod
-    def validated_upgrades(rarity : Optional[Rarity] = None, prefix: Upgrade | None = None, suffix: Upgrade | None = None, inscription: Upgrade | None = None, inherent: list[Upgrade] | None = None) -> tuple[Upgrade | None, Upgrade | None, Upgrade | None, list[Upgrade] | None]:
+    def validated_upgrades(rarity : Optional[Rarity | int] = None, prefix: Upgrade | None = None, suffix: Upgrade | None = None, inscription: Upgrade | None = None, inherent: list[Upgrade] | None = None) -> tuple[Upgrade | None, Upgrade | None, Upgrade | None, list[Upgrade] | None]:
         if rarity != Rarity.Green:
             return prefix, suffix, inscription, inherent
         
@@ -56,28 +58,28 @@ class ItemMod:
         return prefix, suffix, inscription, inherent
     
     @staticmethod
+    @frame_cache(category="ItemMod", source_lib="get_item_upgrades")
     def get_item_upgrades(item_id : int) -> tuple[Upgrade | None, Upgrade | None, Upgrade | None, list[Upgrade] | None]:
         '''
         Gets the item upgrades from the item properties. This method combines the logic of getting the item modifiers, parsing them into properties,
         and extracting the relevant upgrade properties. It also includes validation for inherent upgrades on green items.
         '''
-        from Sources.frenkeyLib.ItemHandling.Items.ItemCache import ITEM_CACHE
+        from Py4GWCoreLib.Item import Item
         
-        item = ITEM_CACHE.get_item_snapshot(item_id)
-        rarity = item.rarity if item else Rarity.Blue
-        runtime_modifiers = item.modifiers if item else []
+        rarity, _ = Item.Rarity.GetRarity(item_id)
+        runtime_modifiers = Item.Customization.Modifiers.GetModifiers(item_id)
         
         return ItemMod.get_item_upgrades_from_modifiers(runtime_modifiers, rarity)
     
     @staticmethod
-    def get_item_upgrades_from_modifiers(runtime_modifiers : list[ItemModifier], rarity: Rarity = Rarity.Blue) -> tuple[Upgrade | None, Upgrade | None, Upgrade | None, list[Upgrade] | None]:
+    def get_item_upgrades_from_modifiers(runtime_modifiers : list[ItemModifier], rarity: Rarity | int = Rarity.Blue) -> tuple[Upgrade | None, Upgrade | None, Upgrade | None, list[Upgrade] | None]:
         parser = ItemModifierParser(runtime_modifiers, rarity)
         properties = parser.get_properties()
         
         return ItemMod.get_item_upgrades_from_properties(properties, rarity)
     
     @staticmethod
-    def get_item_upgrades_from_properties(properties : list[ItemProperty], rarity: Rarity = Rarity.Blue) -> tuple[Upgrade | None, Upgrade | None, Upgrade | None, list[Upgrade] | None]:
+    def get_item_upgrades_from_properties(properties : list[ItemProperty], rarity: Rarity | int = Rarity.Blue) -> tuple[Upgrade | None, Upgrade | None, Upgrade | None, list[Upgrade] | None]:
         if not properties:
             return None, None, None, None
         
@@ -92,3 +94,20 @@ class ItemMod:
         inherent : list[Upgrade] | None = [p.upgrade for p in inherent_props] if inherent_props else None
         
         return ItemMod.validated_upgrades(rarity, prefix, suffix, inscription, inherent)
+    
+    @staticmethod
+    @frame_cache(category="ItemMod", source_lib="get_target_item_type")
+    def get_target_item_type(item_id: int) -> Optional[ItemType]:
+        '''
+        Gets the target item type for an upgrade on the item, which is used for validating item type requirements on upgrades. This method checks all upgrades on the item for a specified target item type, and returns the first one it finds. If no target item type is found on any upgrade, it returns None.
+        '''                
+        from Py4GWCoreLib.Item import Item
+        
+        rarity, _ = Item.Rarity.GetRarity(item_id)
+        runtime_modifiers = Item.Customization.Modifiers.GetModifiers(item_id)
+        
+        parser = ItemModifierParser(runtime_modifiers, rarity)
+        properties = parser.get_properties()
+        target_item_type_prop = next((p for p in properties if isinstance(p, TargetItemTypeProperty)), None)
+        
+        return target_item_type_prop.item_type if target_item_type_prop else None
