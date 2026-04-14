@@ -8,7 +8,6 @@ import Py4GW
 from Py4GWCoreLib.enums_src.GameData_enums import DyeColor
 from Py4GWCoreLib.enums_src.Item_enums import ItemType, Rarity
 from Py4GWCoreLib.enums_src.Model_enums import ModelID
-from Sources.frenkeyLib.ItemHandling.Items.ItemCache import ITEM_CACHE
 from Sources.frenkeyLib.ItemHandling.Items.ItemData import DAMAGE_RANGES
 from Sources.frenkeyLib.ItemHandling.Items.item_snapshot import ItemSnapshot
 from Py4GWCoreLib.item_mods_src.properties import ItemProperty
@@ -35,7 +34,7 @@ class BaseRule:
         raise NotImplementedError("Subclasses must implement the applies method.")
 
     def get_item(self, item_id: int) -> Optional[ItemSnapshot]:
-        return ITEM_CACHE.get_item_snapshot(item_id)
+        return ItemSnapshot.from_item_id(item_id)
 
     def _serialize_data(self) -> dict[str, Any]:
         return {}

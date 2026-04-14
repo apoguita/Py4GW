@@ -17,7 +17,6 @@ from Py4GWCoreLib.enums_src.Model_enums import ModelID
 from Py4GWCoreLib.py4gwcorelib_src.Utils import Utils
 from Sources.frenkeyLib.ItemHandling.ConfigExamples.LootConfig import LootConfig
 from Sources.frenkeyLib.ItemHandling.ItemTexture import ItemTexture
-from Sources.frenkeyLib.ItemHandling.Items.ItemCache import ITEM_CACHE
 from Sources.frenkeyLib.ItemHandling.Items.ItemData import ITEM_DATA
 from Sources.frenkeyLib.ItemHandling.Items.item_snapshot import ItemSnapshot
 from Py4GWCoreLib.item_mods_src import properties as properties_module
@@ -230,7 +229,6 @@ class LootConfigView:
             self._clamp_selection()
         PyImGui.same_line(0, -1)
         if PyImGui.button("Refresh Inventory"):
-            ITEM_CACHE.reset()
             self.inventory_refresh_version += 1
             self.status_message = "Inventory cache refreshed."
 
@@ -495,7 +493,7 @@ class LootConfigView:
         PyImGui.end_child()
 
     def _flatten_inventory_snapshot(self) -> list[tuple[str, int, Optional[ItemSnapshot]]]:
-        snapshot = ITEM_CACHE.get_inventory_snapshot(Bag.Backpack, Bag.Max)
+        snapshot = ItemSnapshot.get_inventory_snapshot(Bag.Backpack, Bag.Max)
         rows: list[tuple[str, int, Optional[ItemSnapshot]]] = []
         for bag, bag_snapshot in snapshot.items():
             for slot, item in bag_snapshot.items():
