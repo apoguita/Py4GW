@@ -1,4 +1,5 @@
 from Py4GWCoreLib import Botting
+from Sources.oazix.CustomBehaviors.primitives.botting.botting_fsm_helper import BottingFsmHelpers
 from Sources.oazix.CustomBehaviors.primitives.botting.botting_helpers import BottingHelpers
 from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
 
@@ -11,7 +12,7 @@ def bot_routine(bot_instance: Botting):
         on_party_death=BottingHelpers.botting_unrecoverable_issue,
         on_player_critical_stuck=BottingHelpers.botting_unrecoverable_issue)
 
-    bot_instance.Templates.Aggressive()
+    BottingFsmHelpers.SetBottingBehaviorAsAggressive(bot_instance)
 
     # Set up the FSM states properly
     bot_instance.States.AddHeader("MAIN_LOOP")
