@@ -7,8 +7,9 @@ import inspect
 import math
 from pathlib import Path
 import random
-import sys
 from typing import TYPE_CHECKING, Any, Callable, cast
+
+import Py4GW
 
 if TYPE_CHECKING:
     from HeroAI.custom_skill import CustomSkillClass
@@ -1168,6 +1169,19 @@ class BuildMgr:
 
     def _process_phase(self, handler: BuildHandler | None, is_in_combat: bool) -> BuildCoroutine:
         if not self.CanProcess():
+            reasons: list[str] = []
+            from Py4GWCoreLib import Agent, Player, Routines
+
+            if not Routines.Checks.Map.MapValid():
+                reasons.append("map invalid")
+            if not Routines.Checks.Map.IsExplorable():
+                reasons.append("not explorable")
+            if not Routines.Checks.Player.CanAct():
+                reasons.append("player cannot act")
+            if Agent.IsDead(Player.GetAgentID()):
+                reasons.append("player dead")
+            if not reasons:
+                reasons.append("unknown")
             yield
             return
 
@@ -1364,7 +1378,7 @@ class BuildMgr:
         aftercast_delay: int = 1000,
         target_agent_id: int = 0,
     ):
-        from Py4GWCoreLib import GLOBAL_CACHE, Player, Routines, ConsoleLog, Console, SkillBar, Skill
+        from Py4GWCoreLib import GLOBAL_CACHE, Player, Routines, ConsoleLog, Console, SkillBar
         if False:
             yield
 
@@ -1381,7 +1395,7 @@ class BuildMgr:
             yield from Routines.Yield.wait(self._get_spirit_cast_wait_ms(skill_id, aftercast_delay))
             yield from self._wait_for_spirit_spawn_and_step_away(skill_id)
         if log:
-            ConsoleLog("CastSkillID", f"Cast {Skill.GetName(skill_id)}, slot: {slot}", Console.MessageType.Info, log=log)
+            ConsoleLog("CastSkillID", f"Cast {GLOBAL_CACHE.Skill.GetName(skill_id)}, slot: {slot}", Console.MessageType.Info, log=log)
         self.SetTickSuccess()
 
         return True
@@ -1538,12 +1552,12 @@ class BuildRegistry:
         self._cached_runtime_fallback_builds: list[BuildMgr] | None = None
         self._cached_match_only_fallback_builds: list[BuildMgr] | None = None
 
-    @staticmethod
-    def _get_build_module_names() -> list[str]:
+    @classmethod
+    def _scan_build_types(cls) -> list[type[BuildMgr]]:
         builds_pkg = importlib.import_module("Py4GWCoreLib.Builds")
-        module_names: list[str] = [builds_pkg.__name__]
+        build_types: list[type[BuildMgr]] = []
 
-        seen_module_names: set[str] = set(module_names)
+        seen_module_names: set[str] = set()
         for module_path in Path(builds_pkg.__path__[0]).rglob("*.py"):
             if module_path.name == "__init__.py":
                 continue
@@ -1553,14 +1567,7 @@ class BuildRegistry:
             if module_name in seen_module_names:
                 continue
             seen_module_names.add(module_name)
-            module_names.append(module_name)
 
-        return module_names
-
-    @classmethod
-    def _scan_build_types(cls) -> list[type[BuildMgr]]:
-        build_types: list[type[BuildMgr]] = []
-        for module_name in cls._get_build_module_names()[1:]:
             module = importlib.import_module(module_name)
             for _, value in inspect.getmembers(module, inspect.isclass):
                 if value is BuildMgr:
@@ -1582,43 +1589,6 @@ class BuildRegistry:
     @classmethod
     def ClearCache(cls) -> None:
         cls._cached_build_types = None
-
-    @classmethod
-    def ReloadBuildModules(cls) -> None:
-        importlib.invalidate_caches()
-        build_package_prefix = "Py4GWCoreLib.Builds"
-        loaded_module_names = [
-            module_name
-            for module_name in sys.modules
-            if module_name == build_package_prefix or module_name.startswith(f"{build_package_prefix}.")
-        ]
-
-        # Drop child modules before parents so package re-exports are rebuilt
-        # from a clean import state on the next scan.
-        loaded_module_names.sort(key=lambda module_name: module_name.count("."), reverse=True)
-        for module_name in loaded_module_names:
-            sys.modules.pop(module_name, None)
-
-        importlib.import_module(build_package_prefix)
-
-    def _clear_instance_caches(self) -> None:
-        self._runtime_build_instances.clear()
-        self._match_only_build_instances.clear()
-        self._cached_runtime_builds = None
-        self._cached_match_only_builds = None
-        self._cached_runtime_matchable_builds = None
-        self._cached_match_only_matchable_builds = None
-        self._cached_runtime_fallback_builds = None
-        self._cached_match_only_fallback_builds = None
-
-    def RefreshBuilds(self) -> list[BuildMgr]:
-        self._clear_instance_caches()
-        self.ClearCache()
-        self.ReloadBuildModules()
-        self.ClearCache()
-        self._iter_builds(match_only=False)
-        self._iter_builds(match_only=True)
-        return self._iter_builds(match_only=False)
 
     def _call_build_ctor(self, build_type: type[BuildMgr], *args: Any, **kwargs: Any) -> BuildMgr | None:
         try:
