@@ -61,6 +61,7 @@ RUNES_CATALOG_PATH = os.path.join(MODS_DATA_DIR, "runes.json")
 SEARCH_RESULT_LIMIT = 12
 TRAVEL_TIMEOUT_MS = 20000
 WINDOW_GEOMETRY_SAVE_THROTTLE_MS = 750
+DESTRUCTIVE_BUTTON_CONFIRM_TIMEOUT_MS = 5000
 DEFAULT_WINDOW_WIDTH = 760
 DEFAULT_WINDOW_HEIGHT = 860
 WORKSPACE_OVERVIEW = "overview"
@@ -2488,6 +2489,8 @@ class MerchantRulesWidget:
         self.shared_profile_entries_loaded = False
         self.shared_profile_pending_overwrite_path = ""
         self.shared_profile_pending_delete_path = ""
+        self.pending_destructive_button_key = ""
+        self.pending_destructive_button_expires_at_ms = 0
         self.buy_rules: list[BuyRule] = []
         self.sell_rules: list[SellRule] = []
         self.destroy_rules: list[DestroyRule] = []
@@ -2666,6 +2669,8 @@ class MerchantRulesWidget:
 
     def _set_main_window_visible(self, visible: bool, *, expand_on_show: bool = True):
         self.show_main_window = bool(visible)
+        if not self.show_main_window:
+            self._clear_pending_destructive_button()
         if self.show_main_window and expand_on_show:
             self.expand_main_window_on_next_show = True
         if self.floating_button is not None:
@@ -2677,6 +2682,8 @@ class MerchantRulesWidget:
 
     def _on_floating_icon_visibility_toggled(self, visible: bool):
         self.show_main_window = bool(visible)
+        if not self.show_main_window:
+            self._clear_pending_destructive_button()
         if self.show_main_window:
             self.expand_main_window_on_next_show = True
 
@@ -3821,6 +3828,7 @@ class MerchantRulesWidget:
             return False
 
     def _reset_runtime_after_profile_load(self, *, status_message: str = ""):
+        self._clear_pending_destructive_button()
         self.preview_plan = PlanResult()
         self.preview_ready = False
         self._clear_preview_projection_state()
@@ -3934,6 +3942,7 @@ class MerchantRulesWidget:
         }
 
     def _refresh_rule_ui_caches(self):
+        self._clear_pending_destructive_button()
         self._rebuild_text_caches()
         self.buy_model_search_cache.clear()
         self.buy_manual_model_id_cache.clear()
@@ -11286,11 +11295,85 @@ class MerchantRulesWidget:
             PyImGui.pop_style_color(3)
         return bool(clicked)
 
+    def _clear_pending_destructive_button(self):
+        self.pending_destructive_button_key = ""
+        self.pending_destructive_button_expires_at_ms = 0
+
+    def _get_destructive_button_key(self, label: str) -> str:
+        safe_label = str(label or "")
+        _visible_label, separator, hidden_id = safe_label.partition("##")
+        return hidden_id if separator else safe_label
+
+    def _get_destructive_confirm_label(self, label: str) -> str:
+        safe_label = str(label or "")
+        _visible_label, separator, hidden_id = safe_label.partition("##")
+        return f"Are you sure?##{hidden_id}" if separator else "Are you sure?"
+
+    def _push_destructive_confirm_button_style(self):
+        warning = UI_COLOR_WARNING
+        base = (warning[0] * 0.86, warning[1] * 0.56, warning[2] * 0.34, 0.96)
+        hover = (min(warning[0], base[0] + 0.10), min(warning[1], base[1] + 0.12), min(1.0, base[2] + 0.08), 1.0)
+        active = (max(base[0] - 0.10, 0.0), max(base[1] - 0.10, 0.0), max(base[2] - 0.05, 0.0), 1.0)
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Button, base)
+        PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, hover)
+        PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, active)
+
+    def _draw_confirm_destructive_button(self, label: str) -> bool:
+        now_ms = int(time.time() * 1000)
+        if self.pending_destructive_button_expires_at_ms <= now_ms:
+            self._clear_pending_destructive_button()
+
+        key = self._get_destructive_button_key(label)
+        is_armed = bool(key and key == self.pending_destructive_button_key)
+        draw_label = self._get_destructive_confirm_label(label) if is_armed else label
+
+        if is_armed:
+            self._push_destructive_confirm_button_style()
+        clicked = PyImGui.button(draw_label)
+        if is_armed:
+            PyImGui.pop_style_color(3)
+
+        if not clicked:
+            return False
+        if is_armed:
+            self._clear_pending_destructive_button()
+            return True
+
+        self.pending_destructive_button_key = key
+        self.pending_destructive_button_expires_at_ms = now_ms + DESTRUCTIVE_BUTTON_CONFIRM_TIMEOUT_MS
+        return False
+
     def _draw_inline_badge(self, label: str, color: tuple[float, float, float, float]):
         PyImGui.text_colored(f"[{label}]", color)
 
     def _draw_section_heading(self, label: str):
         PyImGui.text_colored(label, UI_COLOR_SECTION_HEADING)
+
+    def _draw_hover_tooltip(self, text: str):
+        if not text or not PyImGui.is_item_hovered():
+            return
+        tooltip_wrap_width = 360.0
+        PyImGui.begin_tooltip()
+        PyImGui.push_text_wrap_pos(PyImGui.get_cursor_pos_x() + tooltip_wrap_width)
+        PyImGui.text_wrapped(text)
+        PyImGui.pop_text_wrap_pos()
+        PyImGui.end_tooltip()
+
+    def _draw_protection_heading(self, label: str, tooltip: str = ""):
+        PyImGui.text_colored(label, UI_COLOR_WARNING)
+        self._draw_hover_tooltip(tooltip)
+
+    def _draw_protection_checkbox(self, label: str, value: bool, tooltip: str = "") -> bool:
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Text, UI_COLOR_WARNING)
+        next_value = PyImGui.checkbox(label, value)
+        PyImGui.pop_style_color(1)
+        self._draw_hover_tooltip(tooltip)
+        return next_value
+
+    def _draw_light_separator(self):
+        PyImGui.spacing()
+        PyImGui.separator()
+        PyImGui.spacing()
 
     def _draw_secondary_text(self, text: str, *, wrapped: bool = True):
         if not text:
@@ -13701,6 +13784,7 @@ class MerchantRulesWidget:
         if next_workspace == self.active_workspace:
             return
         self.active_workspace = next_workspace
+        self._clear_pending_destructive_button()
         if not preserve_sell_protection_jump:
             self._clear_sell_protection_jump(f"workspace changed to {next_workspace}")
 
@@ -13709,6 +13793,7 @@ class MerchantRulesWidget:
         if next_workspace == self.active_rules_workspace:
             return
         self.active_rules_workspace = next_workspace
+        self._clear_pending_destructive_button()
         if not preserve_sell_protection_jump:
             self._clear_sell_protection_jump(f"rules workspace changed to {next_workspace}")
 
@@ -13717,6 +13802,7 @@ class MerchantRulesWidget:
         if next_kind == self.active_sell_rule_kind:
             return
         self.active_sell_rule_kind = next_kind
+        self._clear_pending_destructive_button()
         if not preserve_sell_protection_jump:
             self._clear_sell_protection_jump(f"sell subsection changed to {next_kind}")
 
@@ -13745,11 +13831,12 @@ class MerchantRulesWidget:
         PyImGui.set_scroll_here_y(0.25)
         target.pending_inner_scroll = False
 
-    def _begin_sell_jump_target_group(self, index: int, subsection_anchor: str, label: str) -> bool:
+    def _begin_sell_jump_target_group(self, index: int, subsection_anchor: str, label: str, tooltip: str = "") -> bool:
         is_target = self._is_sell_jump_target_anchor(index, subsection_anchor)
         PyImGui.begin_group()
         if is_target:
             PyImGui.text_colored(label, UI_COLOR_INFO)
+            self._draw_hover_tooltip(tooltip)
             PyImGui.same_line(0, 8)
             self._draw_inline_badge("Jump Target", UI_COLOR_INFO)
             target = self._get_sell_protection_jump_target()
@@ -13757,7 +13844,7 @@ class MerchantRulesWidget:
                 PyImGui.set_scroll_here_y(0.22)
                 target.pending_outer_scroll = False
         else:
-            PyImGui.text(label)
+            self._draw_protection_heading(label, tooltip)
         return is_target
 
     def _end_sell_jump_target_group(self, index: int, subsection_anchor: str):
@@ -14237,7 +14324,7 @@ class MerchantRulesWidget:
         self._draw_secondary_text(f"Merchant: {MERCHANT_TYPE_LABELS[_get_buy_rule_merchant_type(rule)]}", wrapped=False)
         merchant_stock_targets = _normalize_merchant_stock_targets(rule.merchant_stock_targets)
 
-        if PyImGui.button(f"Clear Items##buy_stock_clear_{index}"):
+        if self._draw_confirm_destructive_button(f"Clear Items##buy_stock_clear_{index}"):
             if self._set_buy_rule_merchant_stock_targets(rule, []):
                 merchant_stock_targets = []
                 changed = True
@@ -14332,7 +14419,7 @@ class MerchantRulesWidget:
             if _is_scroll_trader_stock_model(target.model_id)
         ]
 
-        if PyImGui.button(f"Clear Scrolls##buy_scroll_clear_{index}"):
+        if self._draw_confirm_destructive_button(f"Clear Scrolls##buy_scroll_clear_{index}"):
             if self._set_buy_rule_scroll_trader_targets(rule, []):
                 scroll_targets = []
                 changed = True
@@ -14418,7 +14505,7 @@ class MerchantRulesWidget:
         changed = False
         material_targets = _normalize_material_targets(rule.material_targets)
 
-        if PyImGui.button(f"Clear Materials##buy_material_clear_{index}"):
+        if self._draw_confirm_destructive_button(f"Clear Materials##buy_material_clear_{index}"):
             if self._set_buy_rule_material_targets(rule, []):
                 material_targets = []
                 changed = True
@@ -14506,7 +14593,7 @@ class MerchantRulesWidget:
         changed = False
         rune_targets = _normalize_rune_trader_targets(rule.rune_targets)
 
-        if PyImGui.button(f"Clear Targets##buy_runes_clear_{index}"):
+        if self._draw_confirm_destructive_button(f"Clear Targets##buy_runes_clear_{index}"):
             if self._set_buy_rule_rune_targets(rule, []):
                 rune_targets = []
                 changed = True
@@ -14982,8 +15069,13 @@ class MerchantRulesWidget:
 
     def _draw_sell_rule_blacklist_editor(self, index: int, rule: SellRule) -> bool:
         changed = False
-        self._begin_sell_jump_target_group(index, SELL_PROTECTION_ANCHOR_MODELS, "Never Sell These Models")
-        if PyImGui.button(f"Clear Protected Models##sell_blacklist_clear_{index}"):
+        self._begin_sell_jump_target_group(
+            index,
+            SELL_PROTECTION_ANCHOR_MODELS,
+            "Never Sell These Models",
+            "Items with these model IDs are protected from this sell rule.",
+        )
+        if self._draw_confirm_destructive_button(f"Clear Protected Models##sell_blacklist_clear_{index}"):
             if self._set_sell_rule_blacklist_model_ids(rule, []):
                 changed = True
             self.sell_blacklist_import_feedback_cache[index] = ("Cleared all protected models.", UI_COLOR_MUTED)
@@ -15017,6 +15109,7 @@ class MerchantRulesWidget:
                             changed = True
 
         PyImGui.text(f"Protected Models: {len(rule.blacklist_model_ids)}")
+        self._draw_hover_tooltip("This count is for direct model protection.")
         removed_model_id = self._draw_selected_model_ids(
             "sell_blacklist_models",
             index,
@@ -15047,6 +15140,7 @@ class MerchantRulesWidget:
 
         search_text = self.sell_blacklist_search_cache.get(index, "")
         updated_search_text = PyImGui.input_text(f"Protect Models By Name##sell_blacklist_search_{index}", search_text)
+        self._draw_hover_tooltip("Search for item models to protect directly.")
         if updated_search_text != search_text:
             self.sell_blacklist_search_cache[index] = updated_search_text
 
@@ -15098,12 +15192,18 @@ class MerchantRulesWidget:
             return False
 
         changed = False
-        self._begin_sell_jump_target_group(index, SELL_PROTECTION_ANCHOR_WEAPON_TYPES, "Never Sell These Weapon Types")
-        if PyImGui.button(f"Clear Weapon Type Protection##sell_weapon_type_blacklist_clear_{index}"):
+        self._begin_sell_jump_target_group(
+            index,
+            SELL_PROTECTION_ANCHOR_WEAPON_TYPES,
+            "Never Sell These Weapon Types",
+            "All selected weapon types are protected from this sell rule.",
+        )
+        if self._draw_confirm_destructive_button(f"Clear Weapon Type Protection##sell_weapon_type_blacklist_clear_{index}"):
             if self._set_sell_rule_blacklist_item_type_ids(rule, []):
                 changed = True
 
         PyImGui.text(f"Protected Weapon Types: {len(rule.blacklist_item_type_ids)}")
+        self._draw_hover_tooltip("This count is for broad weapon-type protection.")
         if rule.blacklist_item_type_ids:
             selected_labels = [self._get_weapon_item_type_label(item_type_id) for item_type_id in rule.blacklist_item_type_ids]
             PyImGui.text_wrapped(", ".join(selected_labels))
@@ -15149,8 +15249,14 @@ class MerchantRulesWidget:
             rule.all_weapons_max_requirement = normalized_all_weapons_max_requirement
             changed = True
 
-        self._begin_sell_jump_target_group(index, SELL_PROTECTION_ANCHOR_REQUIREMENTS, "Protect All Weapons In Req Range")
+        self._begin_sell_jump_target_group(
+            index,
+            SELL_PROTECTION_ANCHOR_REQUIREMENTS,
+            "Protect All Weapons In Req Range",
+            "Protects any weapon whose requirement falls inside this range.",
+        )
         PyImGui.text("Low Req")
+        self._draw_hover_tooltip("Lowest requirement protected by this range.")
         PyImGui.same_line(0, 6)
         PyImGui.push_item_width(80)
         new_all_weapons_min_requirement = PyImGui.input_int(
@@ -15161,6 +15267,7 @@ class MerchantRulesWidget:
         PyImGui.pop_item_width()
         PyImGui.same_line(0, 12)
         PyImGui.text("High Req")
+        self._draw_hover_tooltip("Highest requirement protected by this range.")
         PyImGui.same_line(0, 6)
         PyImGui.push_item_width(80)
         new_all_weapons_max_requirement = PyImGui.input_int(
@@ -15197,13 +15304,18 @@ class MerchantRulesWidget:
             f"use unconditional model protection for unknown reqs. Values are capped at {MAX_WEAPON_REQUIREMENT}."
         )
 
-        PyImGui.text("Never Sell These Models In Req Range")
-        if PyImGui.button(f"Clear Model Requirement Protection##sell_weapon_requirement_clear_{index}"):
+        self._draw_light_separator()
+        self._draw_protection_heading(
+            "Never Sell These Models In Req Range",
+            "Protects selected weapon models only when their requirement is inside the saved range.",
+        )
+        if self._draw_confirm_destructive_button(f"Clear Model Requirement Protection##sell_weapon_requirement_clear_{index}"):
             if self._set_sell_rule_weapon_requirement_rules(rule, []):
                 changed = True
 
         requirement_rules = list(rule.protected_weapon_requirement_rules)
         PyImGui.text(f"Protected Models: {len(requirement_rules)}")
+        self._draw_hover_tooltip("This count is for model-specific requirement protection.")
         if requirement_rules:
             updated_rules = [
                 WeaponRequirementRule(
@@ -15290,6 +15402,7 @@ class MerchantRulesWidget:
 
         search_text = self.sell_weapon_requirement_search_cache.get(index, "")
         updated_search_text = PyImGui.input_text(f"Protect Weapon Models By Name##sell_weapon_requirement_search_{index}", search_text)
+        self._draw_hover_tooltip("Search for weapon models to protect with a requirement range.")
         if updated_search_text != search_text:
             self.sell_weapon_requirement_search_cache[index] = updated_search_text
 
@@ -15344,8 +15457,13 @@ class MerchantRulesWidget:
         selected_threshold_rules = _normalize_weapon_mod_threshold_rules(threshold_rules or [])
         selected_variant_rules = _normalize_weapon_mod_variant_rules(selected_variants or [])
         selected_variant_threshold_rules = _normalize_weapon_mod_variant_threshold_rules(variant_threshold_rules or [])
-        self._begin_sell_jump_target_group(index, anchor, title)
-        if PyImGui.button(f"Clear {title}##sell_protected_clear_{cache_suffix}_{index}"):
+        tooltip_text = (
+            "Protects items with matching weapon upgrades or saved roll thresholds."
+            if cache_suffix == "weapon_mods"
+            else "Protects armor with matching rune or insignia names."
+        )
+        self._begin_sell_jump_target_group(index, anchor, title, tooltip_text)
+        if self._draw_confirm_destructive_button(f"Clear {title}##sell_protected_clear_{cache_suffix}_{index}"):
             if setter(rule, []):
                 changed = True
                 selected_identifiers = []
@@ -15374,6 +15492,7 @@ class MerchantRulesWidget:
             )
             protected_choice_keys = [choice_key for choice_key in protected_choice_keys if choice_key]
             PyImGui.text(f"Protected Entries: {len(protected_choice_keys)}")
+            self._draw_hover_tooltip("Entries here can protect exact upgrades or minimum roll values.")
             if self._draw_selected_weapon_mod_protections(
                 f"sell_protected_{cache_suffix}",
                 index,
@@ -15395,6 +15514,7 @@ class MerchantRulesWidget:
                 selected_variant_threshold_rules = list(rule.protected_weapon_mod_variant_thresholds)
         else:
             PyImGui.text(f"Protected Entries: {len(selected_identifiers)}")
+            self._draw_hover_tooltip("Entries here protect matching rune or insignia names.")
             removed_identifier = self._draw_selected_identifiers(
                 f"sell_protected_{cache_suffix}",
                 index,
@@ -15409,6 +15529,7 @@ class MerchantRulesWidget:
 
         search_text = search_cache.get(index, "")
         updated_search_text = PyImGui.input_text(f"Protect By Name##sell_protected_search_{cache_suffix}_{index}", search_text)
+        self._draw_hover_tooltip("Search for entries to add to this protection list.")
         if updated_search_text != search_text:
             search_cache[index] = updated_search_text
 
@@ -15563,6 +15684,7 @@ class MerchantRulesWidget:
             self._draw_secondary_text("This legacy sell rule type is no longer supported and will be removed on save.")
             return changed
         if rule.kind in (SELL_KIND_WEAPONS, SELL_KIND_ARMOR):
+            self._draw_light_separator()
             if rule.kind == SELL_KIND_WEAPONS:
                 self._draw_secondary_text("Equippable weapons sell to Merchant. Standalone weapon mods route to the Rune Trader.")
             else:
@@ -15570,13 +15692,21 @@ class MerchantRulesWidget:
 
             changed = self._draw_sell_rule_rarity_toggles(index, rule) or changed
 
-            skip_customized = PyImGui.checkbox(f"Never Sell Customized Items##sell_skip_customized_{index}", bool(rule.skip_customized))
+            skip_customized = self._draw_protection_checkbox(
+                f"Never Sell Customized Items##sell_skip_customized_{index}",
+                bool(rule.skip_customized),
+                "Keeps customized matching items out of this sell rule.",
+            )
             if skip_customized != rule.skip_customized:
                 rule.skip_customized = skip_customized
                 changed = True
 
             PyImGui.same_line(0, 8)
-            skip_unidentified = PyImGui.checkbox(f"Never Sell Unidentified Items##sell_skip_unidentified_{index}", bool(rule.skip_unidentified))
+            skip_unidentified = self._draw_protection_checkbox(
+                f"Never Sell Unidentified Items##sell_skip_unidentified_{index}",
+                bool(rule.skip_unidentified),
+                "Keeps unidentified matching items out of this sell rule.",
+            )
             if skip_unidentified != rule.skip_unidentified:
                 rule.skip_unidentified = skip_unidentified
                 changed = True
@@ -15590,6 +15720,7 @@ class MerchantRulesWidget:
                     rule.include_standalone_runes = include_standalone_runes
                     changed = True
 
+            self._draw_light_separator()
             if is_target_rule and jump_target is not None and bool(jump_target.requires_advanced) and bool(jump_target.force_advanced_open):
                 self._debug_log(
                     f"Protections jump forcing Advanced open for rule {int(index)} | "
@@ -15605,10 +15736,17 @@ class MerchantRulesWidget:
                     jump_target = None
                     is_target_rule = False
             if advanced_open:
+                self._draw_section_heading("Model Protection")
                 changed = self._draw_sell_rule_blacklist_editor(index, rule) or changed
                 if rule.kind == SELL_KIND_WEAPONS:
+                    self._draw_light_separator()
+                    self._draw_section_heading("Weapon Type Protection")
                     changed = self._draw_sell_rule_weapon_type_blacklist_editor(index, rule) or changed
+                    self._draw_light_separator()
+                    self._draw_section_heading("Requirement Protection")
                     changed = self._draw_sell_rule_weapon_requirement_editor(index, rule) or changed
+                    self._draw_light_separator()
+                    self._draw_section_heading("Upgrade Protection")
                     changed = self._draw_protected_identifier_editor(
                         index,
                         rule,
@@ -15627,6 +15765,8 @@ class MerchantRulesWidget:
                         variant_threshold_setter=self._set_sell_rule_weapon_mod_variant_thresholds,
                     ) or changed
                 else:
+                    self._draw_light_separator()
+                    self._draw_section_heading("Upgrade Protection")
                     changed = self._draw_protected_identifier_editor(
                         index,
                         rule,
@@ -15662,15 +15802,15 @@ class MerchantRulesWidget:
                 if PyImGui.button(f"Add All Rare Materials##sell_rare_preset_{index}"):
                     if self._set_sell_rule_model_ids(index, rule, rule.model_ids + self._get_rare_material_preset()):
                         changed = True
-                if PyImGui.button(f"Replace With Common Materials##sell_common_replace_{index}"):
+                if self._draw_confirm_destructive_button(f"Replace With Common Materials##sell_common_replace_{index}"):
                     if self._set_sell_rule_model_ids(index, rule, self._get_common_material_preset()):
                         changed = True
                 PyImGui.same_line(0, 8)
-                if PyImGui.button(f"Replace With Rare Materials##sell_rare_replace_{index}"):
+                if self._draw_confirm_destructive_button(f"Replace With Rare Materials##sell_rare_replace_{index}"):
                     if self._set_sell_rule_model_ids(index, rule, self._get_rare_material_preset()):
                         changed = True
                 self._draw_secondary_text("Search can mix common and rare crafting materials in one sell rule.")
-            if PyImGui.button(f"Clear List##sell_clear_{index}"):
+            if self._draw_confirm_destructive_button(f"Clear List##sell_clear_{index}"):
                 if self._set_sell_rule_model_ids(index, rule, []):
                     changed = True
 
@@ -15734,7 +15874,10 @@ class MerchantRulesWidget:
                         changed = True
                 self._draw_secondary_text("Use comma-separated model IDs only when the search picker is not enough.")
 
-        PyImGui.spacing()
+        if rule.kind in (SELL_KIND_WEAPONS, SELL_KIND_ARMOR):
+            self._draw_light_separator()
+        else:
+            PyImGui.spacing()
         same_kind_indices = self._get_sell_rule_indices_for_kind(rule.kind)
         same_kind_position = same_kind_indices.index(index) if index in same_kind_indices else -1
         move_up_target_index = same_kind_indices[same_kind_position - 1] if same_kind_position > 0 else -1
@@ -15872,17 +16015,17 @@ class MerchantRulesWidget:
                 if PyImGui.button(f"Add All Rare Materials##destroy_rare_preset_{index}"):
                     if self._set_destroy_rule_model_ids(index, rule, rule.model_ids + self._get_rare_material_preset()):
                         changed = True
-                if PyImGui.button(f"Replace With Common Materials##destroy_common_replace_{index}"):
+                if self._draw_confirm_destructive_button(f"Replace With Common Materials##destroy_common_replace_{index}"):
                     if self._set_destroy_rule_model_ids(index, rule, self._get_common_material_preset()):
                         changed = True
                 PyImGui.same_line(0, 8)
-                if PyImGui.button(f"Replace With Rare Materials##destroy_rare_replace_{index}"):
+                if self._draw_confirm_destructive_button(f"Replace With Rare Materials##destroy_rare_replace_{index}"):
                     if self._set_destroy_rule_model_ids(index, rule, self._get_rare_material_preset()):
                         changed = True
             else:
                 self._draw_secondary_text("Matching inventory items are destroyed locally. Stackables honor Keep Count by quantity; non-stackables still use whole-item keeps.")
 
-            if PyImGui.button(f"Clear List##destroy_clear_{index}"):
+            if self._draw_confirm_destructive_button(f"Clear List##destroy_clear_{index}"):
                 if self._set_destroy_rule_model_ids(index, rule, []):
                     changed = True
 
@@ -15988,13 +16131,16 @@ class MerchantRulesWidget:
             kind: len(self._get_destroy_rule_indices_for_kind(kind))
             for kind in DESTROY_RULE_WORKSPACE_ORDER
         }
-        self.active_destroy_rule_kind = self._draw_rule_kind_tabs(
+        next_active_destroy_rule_kind = self._draw_rule_kind_tabs(
             workspace_id="merchant_rules_destroy_kind",
             active_kind=self.active_destroy_rule_kind,
             kind_order=DESTROY_RULE_WORKSPACE_ORDER,
             tab_labels=DESTROY_RULE_WORKSPACE_LABELS,
             rule_counts=rule_counts,
         )
+        if next_active_destroy_rule_kind != self.active_destroy_rule_kind:
+            self._clear_pending_destructive_button()
+            self.active_destroy_rule_kind = next_active_destroy_rule_kind
         PyImGui.separator()
 
         visible_indices = self._get_destroy_rule_indices_for_kind(self.active_destroy_rule_kind)
@@ -16326,13 +16472,16 @@ class MerchantRulesWidget:
             kind: len(self._get_buy_rule_indices_for_kind(kind))
             for kind in BUY_RULE_WORKSPACE_ORDER
         }
-        self.active_buy_rule_kind = self._draw_rule_kind_tabs(
+        next_active_buy_rule_kind = self._draw_rule_kind_tabs(
             workspace_id="merchant_rules_buy_kind",
             active_kind=self.active_buy_rule_kind,
             kind_order=BUY_RULE_WORKSPACE_ORDER,
             tab_labels=BUY_RULE_WORKSPACE_LABELS,
             rule_counts=rule_counts,
         )
+        if next_active_buy_rule_kind != self.active_buy_rule_kind:
+            self._clear_pending_destructive_button()
+            self.active_buy_rule_kind = next_active_buy_rule_kind
         PyImGui.separator()
 
         visible_indices = self._get_buy_rule_indices_for_kind(self.active_buy_rule_kind)
