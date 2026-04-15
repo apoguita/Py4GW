@@ -225,6 +225,11 @@ class BuildMgr:
             return None
         return self.GetCustomSkill(skill_id)
 
+    def IsCloseToAggro(self) -> bool:
+        """Returns True when combat is imminent but the player is not yet engaged."""
+        from Py4GWCoreLib import Routines
+        return Routines.Checks.Agents.IsCloseToAggro()
+
     def ResolveAllyTarget(self, skill_id: int, custom_skill: CustomSkill | None = None) -> int:
         from HeroAI.targeting import (
             TargetAllyByPredicate,
