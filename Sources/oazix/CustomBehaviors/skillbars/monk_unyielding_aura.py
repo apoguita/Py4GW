@@ -42,8 +42,6 @@ class MonkUnyieldingAura_UtilitySkillBar(CustomBehaviorBaseUtility):
         self.selfless_spirit_luxon_utility = (KeepSelfEffectUpUtility(event_bus=self.event_bus, current_build=in_game_build, skill=CustomSkill("Selfless_Spirit_luxon"), score_definition=ScoreStaticDefinition(88))
                                                                       .add_plugin_precondition(lambda x: ShouldWaitForSerpentsQuickness(x.custom_skill, True)))
 
-        self.dwarven_stability_utility = KeepSelfEffectUpUtility(event_bus=self.event_bus, current_build=in_game_build, skill=CustomSkill("Dwarven_Stability"), score_definition=ScoreStaticDefinition(95))
-
         self.serpents_quickness_utility = (KeepSelfEffectUpUtility(event_bus=self.event_bus, current_build=in_game_build, skill=CustomSkill("Serpents_Quickness"), score_definition=ScoreStaticDefinition(94))
                                                                     .add_plugin_precondition(lambda x: ShouldWaitForEffect(x.custom_skill, CustomSkill("Dwarven_Stability"), True)))
 
@@ -65,7 +63,6 @@ class MonkUnyieldingAura_UtilitySkillBar(CustomBehaviorBaseUtility):
             self.serpents_quickness_utility,
             self.selfless_spirit_luxon_utility,
             self.selfless_spirit_kurzick_utility,
-            self.dwarven_stability_utility,
         ]
 
     @property

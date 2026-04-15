@@ -23,7 +23,7 @@ class ShouldWaitForEffect(UtilitySkillPrecondition):
     @override
     def render_debug_ui(self):
         hash = f"should_wait_for_effect##should_wait_for_effect_{self.parent_skill_name}_{self.effect_skill.skill_name}"
-        self.should_wait_for_effect = PyImGui.checkbox(f"should_wait_for_effect##{hash}", self.should_wait_for_effect)
+        self.should_wait_for_effect = PyImGui.checkbox(f"should_wait_for_effect_{self.effect_skill.skill_name}##{hash}", self.should_wait_for_effect)
 
     @override
     def is_satisfied(self) -> bool:
