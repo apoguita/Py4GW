@@ -87,7 +87,7 @@ def create_bot_routine(bot: Botting) -> None:
     Quality_Steel(bot)
     Attribute_Points_Quest_1(bot)
     Craft_First_Weapon(bot)
-    Missing_Shipment(bot)
+    #Missing_Shipment(bot) Need Armored Transport to do this
     Proof_of_Courage_and_Suwash_the_Pirate(bot)
     A_Hidden_Threat(bot)
     Identity_Theft(bot) 
