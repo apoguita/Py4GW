@@ -545,8 +545,8 @@ def _enqueue_imprisoned_spirits_flags(bot_instance: Botting) -> None:
     """Clear flags, then assign left/right team accounts to their respective flag positions.
     The player's own account is excluded (it navigates via the bot FSM directly).
     Left accounts → LEFT_POINTS sequentially; right accounts → RIGHT_POINTS sequentially."""
-    LEFT_POINTS  = [(13849, 6602), (13876, 6752), (13985, 6840), (13598, 6779)]
-    RIGHT_POINTS = [(12871, 2512), (12640, 2485), (12402, 2472), (12137, 2444), (12150, 2139)]
+    LEFT_POINTS  = [(13849, 6602), (13876, 6752), (13985, 6840), (13598, 6779), (13845, 6489)]
+    RIGHT_POINTS = [(12871, 2512), (12640, 2485), (12402, 2472), (12137, 2444), (12150, 2139), (12239, 2324)]
 
     def _set_team_flags() -> None:
         my_email     = Player.GetAccountEmail()
@@ -1063,8 +1063,8 @@ def _coro_dhuum_spirit_form_watchdog(bot: Botting):
     on each follower locally.  A concurrent PixelStack coroutine would conflict with
     the Dhuum Helper's movement commands and cause unreliable dialog delivery."""
     _SPIRIT_FORM_SKILL_ID = 3134
-    _SPIRIT_FLAG_X = -16476
-    _SPIRIT_FLAG_Y = 17275
+    _SPIRIT_FLAG_X = -14374
+    _SPIRIT_FLAG_Y = 17261
     # email -> original flag (x, y) saved when Spirit Form was first detected
     _saved_flag_positions: dict[str, tuple[float, float]] = {}
     _last_sync_log_at: dict[str, float] = {}
@@ -1662,7 +1662,7 @@ def Terrorweb_Queen(bot_instance: Botting):
     bot_instance.Multibox.SendDialogToTarget(0x806B01)
     bot_instance.Move.XY(-12432, -15874, "Terrorweb Queen 1")
     bot_instance.Move.XY(-6957, -19478, "Back to Chamber")
-    bot_instance.Wait.ForTime(3000)
+    bot_instance.Wait.ForTime(10000)
     bot_instance.Dialogs.WithModel(UWNpcModelID.ReaperOfTheSpawningPools,0x806B07, "Back to Chamber")
     bot_instance.Multibox.SendDialogToTarget(0x806B07)
     bot_instance.Wait.ForTime(3000)
@@ -1695,6 +1695,10 @@ def Imprisoned_Spirits(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(False), "Disable WaitIfPartyMemberTooFar")
     bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(False), "Disable MoveToPartyMemberIfDead")
+    bot_instance.States.AddCustomState(
+        lambda: bot_instance.Properties.ApplyNow("pause_on_danger", "active", False),
+        "Disable PauseOnDanger for Imprisoned Spirits",
+    )
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_looting_enabled(False), "Disable Looting")
     bot_instance.Move.XY(13212, 4978)
     _enqueue_imprisoned_spirits_flags(bot_instance)
@@ -1726,6 +1730,10 @@ def Imprisoned_Spirits(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_looting_enabled(True), "Enable Looting")
     _blacklist(bot_instance, "chained soul")
 
+    bot_instance.States.AddCustomState(
+        lambda: bot_instance.Properties.ApplyNow("pause_on_danger", "active", True),
+        "Re-enable PauseOnDanger after Imprisoned Spirits",
+    )
     bot_instance.Move.XY(8692, 6292, "go to NPC")
     bot_instance.Dialogs.AtXY(8692, 6292, 0x8D, "Back to Chamber")
     bot_instance.States.AddCustomState(lambda: _record_quest_done("Imprisoned Spirits"), "Record Imprisoned Spirits done")
@@ -2619,6 +2627,10 @@ def _draw_imprisoned_spirits_settings() -> None:
     )
     PyImGui.separator()
 
+    if not Routines.Checks.Map.MapValid():
+        PyImGui.text("Waiting for map to load...")
+        return
+
     all_accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
     if not all_accounts:
         PyImGui.text("No multibox account data available.")
@@ -2770,6 +2782,10 @@ def _draw_dhuum_settings() -> None:
         DhuumSettings.save()
     PyImGui.separator()
 
+    if not Routines.Checks.Map.MapValid():
+        PyImGui.text("Waiting for map to load...")
+        return
+
     my_email = Player.GetAccountEmail()
     all_accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
 
@@ -2876,6 +2892,11 @@ def _draw_debug_settings():
     _DRAW_BLOCKED_AREAS_3D = PyImGui.checkbox("Draw Blocked Areas (3D)", _DRAW_BLOCKED_AREAS_3D)
     if _DRAW_BLOCKED_AREAS_3D:
         _BLOCKED_AREA_RADIUS = PyImGui.slider_float("Blocked Area Radius", _BLOCKED_AREA_RADIUS, 50.0, 600.0)
+
+    if not Routines.Checks.Map.MapValid():
+        PyImGui.separator()
+        PyImGui.text("Waiting for map to load...")
+        return
 
     PyImGui.separator()
     PyImGui.text("Spirit Form (3134) — Active accounts:")

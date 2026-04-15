@@ -56,6 +56,15 @@ class _DhuumModeTracker:
 
     _last_logged_candidate_signature: tuple[int, int, int] | None = None
 
+    # Cached reaper-candidate and party-member agent ID sets
+    _cached_reaper_candidate_ids: set[int] = set()
+    _reaper_candidate_timer: ThrottledTimer | None = None
+    _cached_party_member_ids: set[int] = set()
+    _party_member_timer: ThrottledTimer | None = None
+
+    # Cache for _skill_id_matches_candidates string lookups
+    _skill_name_cache: dict[int, str] = {}
+
     @classmethod
     def _ensure_timers(cls) -> None:
         if cls._reaper_refresh_timer is None:
@@ -65,6 +74,14 @@ class _DhuumModeTracker:
         if cls._event_refresh_timer is None:
             cls._event_refresh_timer = ThrottledTimer(250)
             cls._event_refresh_timer.Reset()
+
+        if cls._reaper_candidate_timer is None:
+            cls._reaper_candidate_timer = ThrottledTimer(1200)
+            cls._reaper_candidate_timer.Reset()
+
+        if cls._party_member_timer is None:
+            cls._party_member_timer = ThrottledTimer(2000)
+            cls._party_member_timer.Reset()
 
         if len(cls._dhuums_rest_skill_ids) == 0:
             for name in cls._DHUUMS_REST_CANDIDATES:
@@ -96,10 +113,8 @@ class _DhuumModeTracker:
             return
 
         reaper_ids: set[int] = set()
-        candidate_agent_ids = set(AgentArray.GetAllyArray())
-        candidate_agent_ids.update(AgentArray.GetNeutralArray())
-        candidate_agent_ids.update(AgentArray.GetNPCMinipetArray())
-        candidate_agent_ids.update(AgentArray.GetSpiritPetArray())
+        # Reuse the cached candidate set instead of rebuilding 4 arrays
+        candidate_agent_ids = cls._get_reaper_candidate_agent_ids()
 
         for agent_id in candidate_agent_ids:
             name = str(Agent.GetNameByID(agent_id) or "").strip().lower()
@@ -111,14 +126,21 @@ class _DhuumModeTracker:
 
     @classmethod
     def _get_reaper_candidate_agent_ids(cls) -> set[int]:
+        if cls._reaper_candidate_timer is not None and not cls._reaper_candidate_timer.IsExpired() and cls._cached_reaper_candidate_ids:
+            return cls._cached_reaper_candidate_ids
         candidate_agent_ids = set(AgentArray.GetAllyArray())
         candidate_agent_ids.update(AgentArray.GetNeutralArray())
         candidate_agent_ids.update(AgentArray.GetNPCMinipetArray())
         candidate_agent_ids.update(AgentArray.GetSpiritPetArray())
-        return {int(x) for x in candidate_agent_ids}
+        cls._cached_reaper_candidate_ids = {int(x) for x in candidate_agent_ids}
+        if cls._reaper_candidate_timer is not None:
+            cls._reaper_candidate_timer.Reset()
+        return cls._cached_reaper_candidate_ids
 
     @classmethod
     def _get_party_member_agent_ids(cls) -> set[int]:
+        if cls._party_member_timer is not None and not cls._party_member_timer.IsExpired() and cls._cached_party_member_ids:
+            return cls._cached_party_member_ids
         party_member_ids: set[int] = set()
         for player in Party.GetPlayers():
             login_number = int(getattr(player, "login_number", 0) or 0)
@@ -135,17 +157,24 @@ class _DhuumModeTracker:
             agent_id = int(getattr(henchman, "agent_id", 0) or 0)
             if agent_id > 0:
                 party_member_ids.add(agent_id)
+        cls._cached_party_member_ids = party_member_ids
+        if cls._party_member_timer is not None:
+            cls._party_member_timer.Reset()
         return party_member_ids
 
     @classmethod
     def _skill_id_matches_candidates(cls, skill_id: int, candidate_skill_ids: set[int], candidate_names: tuple[str, ...]) -> bool:
-        if int(skill_id) in candidate_skill_ids:
+        skill_id_int = int(skill_id)
+        if skill_id_int in candidate_skill_ids:
             return True
-        skill_name = str(GLOBAL_CACHE.Skill.GetName(int(skill_id)) or "").strip().lower().replace("_", " ")
+        # Use cached skill name lookup
+        skill_name = cls._skill_name_cache.get(skill_id_int)
+        if skill_name is None:
+            skill_name = str(GLOBAL_CACHE.Skill.GetName(skill_id_int) or "").strip().lower().replace("_", " ")
+            cls._skill_name_cache[skill_id_int] = skill_name
         if not skill_name:
             return False
-        normalized_candidates = [name.lower().replace("_", " ") for name in candidate_names]
-        return any(candidate in skill_name for candidate in normalized_candidates)
+        return any(name.lower().replace("_", " ") in skill_name for name in candidate_names)
 
     @classmethod
     def _log_candidate_detection(cls, ts: int, caster_id: int, skill_id: int, candidate_type: str) -> None:
@@ -245,6 +274,25 @@ class _DhuumModeTracker:
         return cls._shared_mode == cls.MODE_FURY
 
 
+# ── Debug-logging helper (throttled to avoid console spam) ────────────────
+_dhuum_debug_timer: ThrottledTimer | None = None
+_DHUUM_DEBUG_INTERVAL_MS = 5000  # log at most every 5 s
+
+def _dhuum_debug(tag: str, msg: str) -> None:
+    global _dhuum_debug_timer
+    if _dhuum_debug_timer is None:
+        _dhuum_debug_timer = ThrottledTimer(_DHUUM_DEBUG_INTERVAL_MS)
+        _dhuum_debug_timer.Reset()
+    if not _dhuum_debug_timer.IsExpired():
+        return
+    _dhuum_debug_timer.Reset()
+    try:
+        import Py4GW
+        Py4GW.Console.Log("AnyDhuum", f"[{tag}] {msg}", Py4GW.Console.MessageType.Info)
+    except Exception:
+        pass
+
+
 class Any_Dhuum(BuildMgr):
     """HeroAI BuildMgr adaptation of the CustomBehavior Dhuum utility build."""
 
@@ -309,23 +357,34 @@ class Any_Dhuum(BuildMgr):
 
     def _run_local_skill_logic(self):
         if not Routines.Checks.Skills.CanCast():
+            _dhuum_debug("CanCast", "CanCast() returned False — skipping skill logic")
             return False
+
+        drest_mode = _DhuumModeTracker.is_dhuums_rest_mode()
+        fury_mode = _DhuumModeTracker.is_ghostly_fury_mode()
+        mode_str = _DhuumModeTracker._shared_mode or "None"
 
         # Priority order matching CB scores (highest first):
         # Unyielding Aura — HeroAI-specific, highest priority
         if (yield from self._pve.Unyielding_Aura()):
+            _dhuum_debug("Cast", "Unyielding Aura fired")
             return True
         # Dhuum's Rest (score 97) — mirror Reaper phase
-        if (yield from self._pve.Dhuums_Rest(is_active=_DhuumModeTracker.is_dhuums_rest_mode())):
+        if (yield from self._pve.Dhuums_Rest(is_active=drest_mode)):
+            _dhuum_debug("Cast", "Dhuum's Rest fired")
             return True
         # Ghostly Fury (score 97) — mirror Reaper phase
-        if (yield from self._pve.Ghostly_Fury(is_active=_DhuumModeTracker.is_ghostly_fury_mode())):
+        if (yield from self._pve.Ghostly_Fury(is_active=fury_mode)):
+            _dhuum_debug("Cast", "Ghostly Fury fired")
             return True
         # Reversal of Death (score 94) — death penalty removal
         if (yield from self._pve.Reversal_of_Death()):
+            _dhuum_debug("Cast", "Reversal of Death fired")
             return True
         # Spiritual Healing (score 90) — heal low HP allies
         if (yield from self._pve.Spiritual_Healing()):
+            _dhuum_debug("Cast", "Spiritual Healing fired")
             return True
         # Encase Skeletal intentionally left passive (same as CB)
+        _dhuum_debug("NoSkill", f"No skill fired — mode={mode_str} drest={drest_mode} fury={fury_mode} chest={self._pve._is_uw_chest_present()}")
         return False
