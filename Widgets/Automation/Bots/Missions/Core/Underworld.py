@@ -179,6 +179,7 @@ MAIN_LOOP_HEADER_NAME = ""
 _entered_dungeon: bool = False      # set True once map 72 is loaded; watchdog uses this
 _dhuum_fight_active: bool = False   # set True from start of Dhuum fight to chest spawn
 _run_start_uptime_ms: int = 0       # Map.GetInstanceUptime() value (ms) when the dungeon was entered
+_enter_ep: list = ["", 0]           # [entrypoint_name, map_id] — resolved at FSM execution time by Enter_UW
 _SKELETON_OF_DHUUM_MODEL_ID: int = 2392
 _DRAW_BLOCKED_AREAS_3D = False
 
@@ -1359,23 +1360,43 @@ def Enter_UW(bot_instance: Botting):
     # ── Leave any existing party (multibox-aware) ─────────────────────
     handle_leave_party(_make_ctx({"type": "leave_party", "name": "Leave Party", "multibox": True}))
 
-    # ── Travel to the selected entrypoint ────────────────────────────
-    entrypoint_name, entrypoint_map_id = UW_ENTRYPOINTS.get(
-        EnterSettings.EntryPoint, UW_ENTRYPOINTS[DEFAULT_UW_ENTRYPOINT_KEY]
+    # ── Travel to the selected entrypoint (resolved at execution time) ──
+    # entrypoint_name / map_id are resolved lazily into _enter_ep so that
+    # any change made in the Settings UI before pressing Start is always
+    # honoured, even when the FSM was built at module-load with an older value.
+    def _resolve_entrypoint() -> None:
+        key = EnterSettings.EntryPoint or DEFAULT_UW_ENTRYPOINT_KEY
+        name, mid = UW_ENTRYPOINTS.get(key, UW_ENTRYPOINTS[DEFAULT_UW_ENTRYPOINT_KEY])
+        _enter_ep[0] = name
+        _enter_ep[1] = mid
+        ConsoleLog(BOT_NAME, f"[Enter] Entry point resolved: {name} (map {mid})", Py4GW.Console.MessageType.Info)
+
+    def _travel_to_entrypoint() -> None:
+        import random
+        from Py4GWCoreLib.enums_src.Region_enums import District
+        districts = [
+            District.EuropeItalian.value,
+            District.EuropeSpanish.value,
+            District.EuropePolish.value,
+            District.EuropeRussian.value,
+        ]
+        Map.TravelToDistrict(_enter_ep[1], district=random.choice(districts))
+
+    bot_instance.States.AddCustomState(_resolve_entrypoint, "Resolve Entry Point")
+    bot_instance.Party.LeaveParty()
+    bot_instance.States.AddCustomState(_travel_to_entrypoint, "Travel to Entrypoint")
+    bot_instance.Wait.ForTime(500)
+    bot_instance.Wait.UntilCondition(
+        lambda: Routines.Checks.Map.MapValid() and Map.GetMapID() == _enter_ep[1]
     )
-    handle_random_travel(_make_ctx({
-        "type": "random_travel",
-        "name": f"Travel to {entrypoint_name}",
-        "target_map_id": entrypoint_map_id,
-    }))
+    bot_instance.Wait.ForTime(1000)
 
     # ── Form party ───────────────────────────────────────────────────
     handle_summon_all_accounts(_make_ctx({"type": "summon_all_accounts", "name": "Summon Alts", "ms": 10000}))
 
     # Wait until every account has loaded into the entrypoint map (up to 90 s).
-    _expected_map = entrypoint_map_id
     bot_instance.Wait.UntilCondition(
-        lambda: all(int(acc.AgentData.Map.MapID) == _expected_map for acc in GLOBAL_CACHE.ShMem.GetAllAccountData()),
+        lambda: all(int(acc.AgentData.Map.MapID) == _enter_ep[1] for acc in GLOBAL_CACHE.ShMem.GetAllAccountData()),
         duration=5000,
     )
 
