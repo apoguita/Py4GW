@@ -3233,6 +3233,7 @@ class MerchantRulesWidget:
         normalized_next_path = os.path.normcase(os.path.normpath(safe_path))
         if normalized_current_path != normalized_next_path:
             self._clear_shared_profile_confirmation_state()
+            self._clear_pending_destructive_button()
         self.shared_profile_selected_path = safe_path
         selected_profile = self._get_selected_shared_profile()
         if selected_profile is not None:
@@ -5751,7 +5752,10 @@ class MerchantRulesWidget:
             return False
 
         PyImGui.begin_disabled(addable_count <= 0)
-        clicked = PyImGui.small_button(f"Add All Matches ({visible_count})##{button_id}")
+        clicked = self._draw_confirm_destructive_button(
+            f"Add All Matches ({visible_count})##{button_id}",
+            small=True,
+        )
         PyImGui.end_disabled()
         return clicked and addable_count > 0
 
@@ -5938,7 +5942,7 @@ class MerchantRulesWidget:
                     if len(group_model_ids) < 2:
                         continue
                     label = f"Add all matching variants: {display_name} ({len(group_model_ids)} models)"
-                    if PyImGui.selectable(f"{label}##{child_id}_group_{display_name}", False, PyImGui.SelectableFlags.NoFlag, (0, 0)):
+                    if self._draw_confirm_destructive_button(f"{label}##{child_id}_group_{display_name}"):
                         picked_group_info = {
                             "display_name": display_name,
                             "model_ids": group_model_ids,
@@ -11310,15 +11314,16 @@ class MerchantRulesWidget:
         return f"Are you sure?##{hidden_id}" if separator else "Are you sure?"
 
     def _push_destructive_confirm_button_style(self):
-        warning = UI_COLOR_WARNING
-        base = (warning[0] * 0.86, warning[1] * 0.56, warning[2] * 0.34, 0.96)
-        hover = (min(warning[0], base[0] + 0.10), min(warning[1], base[1] + 0.12), min(1.0, base[2] + 0.08), 1.0)
-        active = (max(base[0] - 0.10, 0.0), max(base[1] - 0.10, 0.0), max(base[2] - 0.05, 0.0), 1.0)
+        base = (0.36, 0.27, 0.09, 0.98)
+        hover = (0.46, 0.35, 0.12, 1.0)
+        active = (0.28, 0.20, 0.07, 1.0)
+        text = (0.98, 0.94, 0.82, 1.0)
         PyImGui.push_style_color(PyImGui.ImGuiCol.Button, base)
         PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, hover)
         PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, active)
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Text, text)
 
-    def _draw_confirm_destructive_button(self, label: str) -> bool:
+    def _draw_confirm_destructive_button(self, label: str, *, small: bool = False) -> bool:
         now_ms = int(time.time() * 1000)
         if self.pending_destructive_button_expires_at_ms <= now_ms:
             self._clear_pending_destructive_button()
@@ -11329,9 +11334,9 @@ class MerchantRulesWidget:
 
         if is_armed:
             self._push_destructive_confirm_button_style()
-        clicked = PyImGui.button(draw_label)
+        clicked = PyImGui.small_button(draw_label) if small else PyImGui.button(draw_label)
         if is_armed:
-            PyImGui.pop_style_color(3)
+            PyImGui.pop_style_color(4)
 
         if not clicked:
             return False
@@ -11339,6 +11344,8 @@ class MerchantRulesWidget:
             self._clear_pending_destructive_button()
             return True
 
+        self.shared_profile_pending_overwrite_path = ""
+        self.shared_profile_pending_delete_path = ""
         self.pending_destructive_button_key = key
         self.pending_destructive_button_expires_at_ms = now_ms + DESTRUCTIVE_BUTTON_CONFIRM_TIMEOUT_MS
         return False
@@ -11695,7 +11702,7 @@ class MerchantRulesWidget:
         self._draw_secondary_text(f"Recovery Folder: {recovery_folder}")
 
         PyImGui.begin_disabled(not backup_exists)
-        restore_clicked = PyImGui.button("Restore Last Backup##merchant_rules_restore_backup")
+        restore_clicked = self._draw_confirm_destructive_button("Restore Last Backup##merchant_rules_restore_backup")
         PyImGui.end_disabled()
         PyImGui.same_line(0, 8)
         open_folder_clicked = PyImGui.button("Open Config Folder##merchant_rules_open_config_folder")
@@ -13334,7 +13341,7 @@ class MerchantRulesWidget:
         batch_running = self._is_multibox_batch_running()
         no_selection = not selected_emails
         PyImGui.begin_disabled(no_selection or batch_running)
-        sync_clicked = PyImGui.button("Sync Rules To Selected")
+        sync_clicked = self._draw_confirm_destructive_button("Sync Rules To Selected##merchant_rules_multibox_sync_selected")
         PyImGui.end_disabled()
         PyImGui.same_line(0, 8)
         PyImGui.begin_disabled(no_selection or batch_running)
@@ -15030,7 +15037,7 @@ class MerchantRulesWidget:
         move_down = PyImGui.small_button(f"Move Down##buy_move_down_{index}")
         PyImGui.end_disabled()
         PyImGui.same_line(0, 8)
-        if PyImGui.button(f"Remove Rule##buy_remove_{index}"):
+        if self._draw_confirm_destructive_button(f"Remove Rule##buy_remove_{index}"):
             self.buy_rules.pop(index)
             self.rule_ui_structure_changed = True
             self._refresh_rule_ui_caches()
@@ -15080,7 +15087,7 @@ class MerchantRulesWidget:
                 changed = True
             self.sell_blacklist_import_feedback_cache[index] = ("Cleared all protected models.", UI_COLOR_MUTED)
         PyImGui.same_line(0, 8)
-        if PyImGui.button(f"Import From Clipboard##sell_blacklist_import_{index}"):
+        if self._draw_confirm_destructive_button(f"Import From Clipboard##sell_blacklist_import_{index}"):
             try:
                 clipboard_text = str(PyImGui.get_clipboard_text() or "")
             except Exception as exc:
@@ -15795,11 +15802,11 @@ class MerchantRulesWidget:
 
         if rule.kind not in (SELL_KIND_WEAPONS, SELL_KIND_ARMOR):
             if rule.kind == SELL_KIND_COMMON_MATERIALS:
-                if PyImGui.button(f"Add All Common Materials##sell_common_preset_{index}"):
+                if self._draw_confirm_destructive_button(f"Add All Common Materials##sell_common_preset_{index}"):
                     if self._set_sell_rule_model_ids(index, rule, rule.model_ids + self._get_common_material_preset()):
                         changed = True
                 PyImGui.same_line(0, 8)
-                if PyImGui.button(f"Add All Rare Materials##sell_rare_preset_{index}"):
+                if self._draw_confirm_destructive_button(f"Add All Rare Materials##sell_rare_preset_{index}"):
                     if self._set_sell_rule_model_ids(index, rule, rule.model_ids + self._get_rare_material_preset()):
                         changed = True
                 if self._draw_confirm_destructive_button(f"Replace With Common Materials##sell_common_replace_{index}"):
@@ -15891,7 +15898,7 @@ class MerchantRulesWidget:
         move_down = PyImGui.small_button(f"Move Down##sell_move_down_{index}")
         PyImGui.end_disabled()
         PyImGui.same_line(0, 8)
-        if PyImGui.button(f"Remove Rule##sell_remove_{index}"):
+        if self._draw_confirm_destructive_button(f"Remove Rule##sell_remove_{index}"):
             self.sell_rules.pop(index)
             self.rule_ui_structure_changed = True
             self._refresh_rule_ui_caches()
@@ -16008,11 +16015,11 @@ class MerchantRulesWidget:
         else:
             if rule.kind == DESTROY_KIND_MATERIALS:
                 self._draw_secondary_text("Matching material stacks honor Keep Count by quantity. Preview blocks partial destroys when a safe split slot is unavailable.")
-                if PyImGui.button(f"Add All Common Materials##destroy_common_preset_{index}"):
+                if self._draw_confirm_destructive_button(f"Add All Common Materials##destroy_common_preset_{index}"):
                     if self._set_destroy_rule_model_ids(index, rule, rule.model_ids + self._get_common_material_preset()):
                         changed = True
                 PyImGui.same_line(0, 8)
-                if PyImGui.button(f"Add All Rare Materials##destroy_rare_preset_{index}"):
+                if self._draw_confirm_destructive_button(f"Add All Rare Materials##destroy_rare_preset_{index}"):
                     if self._set_destroy_rule_model_ids(index, rule, rule.model_ids + self._get_rare_material_preset()):
                         changed = True
                 if self._draw_confirm_destructive_button(f"Replace With Common Materials##destroy_common_replace_{index}"):
@@ -16100,7 +16107,7 @@ class MerchantRulesWidget:
         move_down = PyImGui.small_button(f"Move Down##destroy_move_down_{index}")
         PyImGui.end_disabled()
         PyImGui.same_line(0, 8)
-        if PyImGui.button(f"Remove Rule##destroy_remove_{index}"):
+        if self._draw_confirm_destructive_button(f"Remove Rule##destroy_remove_{index}"):
             self.destroy_rules.pop(index)
             self.rule_ui_structure_changed = True
             self._refresh_rule_ui_caches()
@@ -17025,7 +17032,7 @@ class MerchantRulesWidget:
         PyImGui.end_disabled()
         PyImGui.same_line(0, 8)
         PyImGui.begin_disabled(load_disabled)
-        load_clicked = PyImGui.button(
+        load_clicked = self._draw_confirm_destructive_button(
             "Load Selected##merchant_rules_shared_profile_load"
         )
         PyImGui.end_disabled()
@@ -17065,6 +17072,7 @@ class MerchantRulesWidget:
             if overwrite_confirm_required:
                 self._save_current_over_selected_shared_profile()
             else:
+                self._clear_pending_destructive_button()
                 self.shared_profile_pending_overwrite_path = selected_profile.path
                 self.shared_profile_pending_delete_path = ""
                 self._set_shared_profile_feedback(
@@ -17078,6 +17086,7 @@ class MerchantRulesWidget:
             if delete_confirm_required:
                 self._delete_selected_shared_profile()
             else:
+                self._clear_pending_destructive_button()
                 self.shared_profile_pending_delete_path = selected_profile.path
                 self.shared_profile_pending_overwrite_path = ""
                 self._set_shared_profile_feedback(
