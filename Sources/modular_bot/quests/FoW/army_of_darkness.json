@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "Naughty Priest",
   "steps": [
     {"type": "auto_path", "name": "To the Priest", "points": [[2361, 14877]]},
@@ -11,6 +11,8 @@
     {"type": "auto_path", "name": "Wolf scan spot", "points": [[-762, 11836]]},
     {"type": "path_to_target", "enemy": "SHARD_WOLF"},
     {"type": "auto_path", "name": "Bring the book", "points": [[-7154, 11644]]},
-    {"type": "dialog", "name": "Reward menzies", "x": -7382, "y": 11942, "id": "0x80CB07"}
+    {"type": "dialog_multibox", "name": "Reward menzies", "point": [-7382, 11942], "id": "0x80CB07"}
   ]
 }
+
+

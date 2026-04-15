@@ -25,17 +25,17 @@ EXAMPLE CODE PATTERNS - Copy these into your own bots!
 from Py4GWCoreLib import CombatEvents, Player, Skillbar
 
 # Check if you can act (not disabled, not knocked down)
-if CombatEvents.can_act(Player.GetAgentID()):
+if CombatEvents.CanAct(Player.GetAgentID()):
     Skillbar.UseSkill(1)
 
 # Check enemy's cast
-if CombatEvents.is_casting(enemy_id):
-    skill = CombatEvents.get_casting_skill(enemy_id)
-    progress = CombatEvents.get_cast_progress(enemy_id)
+if CombatEvents.IsCasting(enemy_id):
+    skill = CombatEvents.GetCastingSkill(enemy_id)
+    progress = CombatEvents.GetCastProgress(enemy_id)
     print(f"Enemy casting {skill}, {progress*100:.0f}% done")
 
 # Check who's targeting you
-attackers = CombatEvents.get_agents_targeting(Player.GetAgentID())
+attackers = CombatEvents.GetAgentsTargeting(Player.GetAgentID())
 print(f"{len(attackers)} enemies targeting me!")
 ```
 
@@ -49,14 +49,14 @@ def on_aftercast_done(agent_id):
     if agent_id == Player.GetAgentID():
         Skillbar.UseSkill(next_skill_slot)
 
-CombatEvents.on_aftercast_ended(on_aftercast_done)
+CombatEvents.OnAftercastEnded(on_aftercast_done)
 
 # React to skill activations
 def on_skill_cast(caster_id, skill_id, target_id):
     if caster_id != Player.GetAgentID():  # Enemy cast
         print(f"Enemy casting skill {skill_id}!")
 
-CombatEvents.on_skill_activated(on_skill_cast)
+CombatEvents.OnSkillActivated(on_skill_cast)
 ```
 
 3. Damage Tracking:
@@ -69,7 +69,7 @@ def on_damage(target_id, source_id, damage_fraction, skill_id):
     actual_damage = damage_fraction * Agent.GetMaxHealth(target_id)
     print(f"Dealt {actual_damage:.0f} damage")
 
-CombatEvents.on_damage(on_damage)
+CombatEvents.OnDamage(on_damage)
 ```
 
 4. Skill Recharge Tracking (Build Enemy Skillbars!):
@@ -78,14 +78,14 @@ CombatEvents.on_damage(on_damage)
 from Py4GWCoreLib import CombatEvents, Skill
 
 # See what skills an enemy has used
-observed = CombatEvents.get_observed_skills(enemy_id)
+observed = CombatEvents.GetObservedSkills(enemy_id)
 print(f"Enemy has used {len(observed)} different skills")
 
 # Check if a specific skill is on cooldown
-if CombatEvents.is_skill_recharging(enemy_id, dangerous_skill_id):
-    remaining = CombatEvents.get_skill_recharge_remaining(enemy_id, dangerous_skill_id)
+if CombatEvents.IsSkillRecharging(enemy_id, dangerous_skill_id):
+    remaining = CombatEvents.GetSkillRechargeRemaining(enemy_id, dangerous_skill_id)
     # Check if it's an estimate (enemies) or actual server data (player/heroes)
-    is_estimated = CombatEvents.is_recharge_estimated(enemy_id, dangerous_skill_id)
+    is_estimated = CombatEvents.IsRechargeEstimated(enemy_id, dangerous_skill_id)
     if is_estimated:
         print(f"Skill on cooldown for ~{remaining}ms (estimated, no modifiers)")
     else:
@@ -95,7 +95,7 @@ if CombatEvents.is_skill_recharging(enemy_id, dangerous_skill_id):
 def on_skill_ready(agent_id, skill_id):
     print(f"Agent {agent_id}'s {Skill.GetName(skill_id)} is ready!")
 
-CombatEvents.on_skill_recharged(on_skill_ready)
+CombatEvents.OnSkillRecharged(on_skill_ready)
 
 # NOTE: Enemy recharges are ESTIMATED from base skill data.
 # They don't account for Fast Casting, Serpent's Quickness, etc.
@@ -107,21 +107,21 @@ CombatEvents.on_skill_recharged(on_skill_ready)
 ```python
 from Py4GWCoreLib import CombatEvents, Skill
 
-if CombatEvents.has_stance(enemy_id):
-    stance_id = CombatEvents.get_stance(enemy_id)
-    remaining = CombatEvents.get_stance_remaining(enemy_id)
+if CombatEvents.HasStance(enemy_id):
+    stance_id = CombatEvents.GetStance(enemy_id)
+    remaining = CombatEvents.GetStanceRemaining(enemy_id)
     print(f"Enemy has {Skill.GetName(stance_id)} for {remaining}ms")
 ```
 
 See Also:
 ---------
-- CombatEvents.py: Main module with full API documentation
+- CombatEventQueue.py: Main module with full API documentation
 - CombatEvents_Guide.md: Beginner-friendly guide with more examples
 - py_combat_events.h/.cpp: C++ packet handling (for advanced users)
 """
 
 from Py4GWCoreLib import *
-from Py4GWCoreLib.CombatEvents import CombatEvents, EventType
+from Py4GWCoreLib.CombatEvents import CombatEvents as CombatEvents, EventType
 from typing import List, Optional
 import time
 
@@ -226,21 +226,6 @@ def should_log_agent(agent_id: int) -> bool:
         return True
 
 
-def get_event_type_name(event_type: int) -> str:
-    """Convert event type int to readable name."""
-    names = {
-        EventType.SKILL_ACTIVATED: "CAST",
-        EventType.ATTACK_SKILL_ACTIVATED: "ATK_SKILL",
-        EventType.SKILL_STOPPED: "STOPPED",
-        EventType.SKILL_FINISHED: "FINISHED",
-        EventType.ATTACK_SKILL_FINISHED: "ATK_DONE",
-        EventType.INTERRUPTED: "INTERRUPT",
-        EventType.INSTANT_SKILL_ACTIVATED: "INSTANT",
-        EventType.ATTACK_SKILL_STOPPED: "ATK_STOP",
-    }
-    return names.get(event_type, f"TYPE_{event_type}")
-
-
 # ============================================================================
 # Event Callbacks - These demonstrate how to use the callback API
 # ============================================================================
@@ -343,7 +328,7 @@ def on_skill_recharge_started(agent_id: int, skill_id: int, recharge_ms: int):
         agent = get_agent_name(agent_id)
         skill = get_skill_name(skill_id)
         # Check if this is an estimated recharge
-        is_estimated = CombatEvents.is_recharge_estimated(agent_id, skill_id)
+        is_estimated = Agent.IsCooldownEstimated(agent_id, skill_id)
         if is_estimated:
             state.event_log.add("RECHARGE", f"{agent} {skill} on cooldown (~{recharge_ms/1000:.1f}s estimated)")
         else:
@@ -374,25 +359,25 @@ def register_callbacks():
 
     try:
         # Skill events
-        CombatEvents.on_skill_activated(on_skill_activated)
-        CombatEvents.on_skill_finished(on_skill_finished)
-        CombatEvents.on_skill_interrupted(on_skill_interrupted)
+        CombatEvents.OnSkillActivated(on_skill_activated)
+        CombatEvents.OnSkillFinished(on_skill_finished)
+        CombatEvents.OnSkillInterrupted(on_skill_interrupted)
 
         # Attack events
-        CombatEvents.on_attack_started(on_attack_started)
+        CombatEvents.OnAttackStarted(on_attack_started)
 
         # State events - THIS IS THE KEY ONE FOR SKILL CHAINING!
-        CombatEvents.on_aftercast_ended(on_aftercast_ended)
+        CombatEvents.OnAftercastEnded(on_aftercast_ended)
 
         # Knockdown events
-        CombatEvents.on_knockdown(on_knockdown)
+        CombatEvents.OnKnockdown(on_knockdown)
 
         # Damage events
-        CombatEvents.on_damage(on_damage)
+        CombatEvents.OnDamage(on_damage)
 
         # Skill recharge tracking
-        CombatEvents.on_skill_recharge_started(on_skill_recharge_started)
-        CombatEvents.on_skill_recharged(on_skill_recharged)
+        CombatEvents.OnSkillRechargeStarted(on_skill_recharge_started)
+        CombatEvents.OnSkillRecharged(on_skill_recharged)
 
         state.callbacks_registered = True
         state.event_log.add("SYSTEM", "Callbacks registered successfully")
@@ -403,7 +388,7 @@ def register_callbacks():
 def unregister_callbacks():
     """Clear all callbacks."""
     try:
-        CombatEvents.clear_callbacks()
+        CombatEvents.ClearCallbacks()
         state.callbacks_registered = False
         state.event_log.add("SYSTEM", "Callbacks cleared")
     except Exception as e:
@@ -438,7 +423,7 @@ def draw_event_log_tab():
         import PyCombatEvents
         queue = PyCombatEvents.GetCombatEventQueue()
         is_init = queue.IsInitialized()
-        raw_events = CombatEvents.get_events()
+        raw_events = CombatEvents.GetEvents()
 
         if is_init:
             PyImGui.text_colored(f"Combat Events: ACTIVE ({len(raw_events)} events captured)", (100, 255, 100, 255))
@@ -542,38 +527,33 @@ def draw_state_queries_tab():
         try:
             # === CASTING STATE ===
             if PyImGui.collapsing_header("Casting State", PyImGui.TreeNodeFlags.DefaultOpen):
-                is_casting = CombatEvents.is_casting(agent_id)
+                is_casting = Agent.IsCasting(agent_id)
                 PyImGui.text(f"is_casting(): {is_casting}")
 
                 if is_casting:
-                    skill_id = CombatEvents.get_casting_skill(agent_id)
-                    target = CombatEvents.get_cast_target(agent_id)
-                    progress = CombatEvents.get_cast_progress(agent_id)
-                    remaining = CombatEvents.get_cast_time_remaining(agent_id)
+                    skill_id = Agent.GetCastingSkillID(agent_id)
+                    target = Agent.GetCastingTarget(agent_id)
+                    remaining = Agent.GetRemainingCastTime(agent_id)
 
                     PyImGui.text(f"  get_casting_skill(): {get_skill_name(skill_id)} ({skill_id})")
                     PyImGui.text(f"  get_cast_target(): {get_agent_name(target) if target else 'none'}")
-                    if progress >= 0:
-                        PyImGui.text(f"  get_cast_progress(): {progress*100:.1f}%")
-                        PyImGui.text(f"  get_cast_time_remaining(): {remaining}ms")
-                        PyImGui.progress_bar(progress, 200.0, 0.0, "")
+                    PyImGui.text(f"  get_cast_time_remaining(): {remaining}ms")
+
 
             # === ATTACK STATE ===
             if PyImGui.collapsing_header("Attack State", PyImGui.TreeNodeFlags.DefaultOpen):
-                is_attacking = CombatEvents.is_attacking(agent_id)
+                is_attacking = Agent.IsAttacking(agent_id)
                 PyImGui.text(f"is_attacking(): {is_attacking}")
 
                 if is_attacking:
-                    attack_target = CombatEvents.get_attack_target(agent_id)
+                    attack_target = Agent.GetAttackTarget(agent_id)
                     PyImGui.text(f"  get_attack_target(): {get_agent_name(attack_target)}")
 
             # === ACTION STATE (Most Important!) ===
             if PyImGui.collapsing_header("Action State (IMPORTANT)", PyImGui.TreeNodeFlags.DefaultOpen):
-                can_act = CombatEvents.can_act(agent_id)
-                is_disabled = CombatEvents.is_disabled(agent_id)
-
+                can_act = Agent.CanAct(agent_id)
+                
                 PyImGui.text(f"can_act(): {can_act}")
-                PyImGui.text(f"is_disabled(): {is_disabled}")
 
                 if can_act:
                     PyImGui.text_colored("  --> AGENT CAN USE SKILLS NOW!", (100, 255, 100, 255))
@@ -582,28 +562,30 @@ def draw_state_queries_tab():
 
             # === KNOCKDOWN STATE ===
             if PyImGui.collapsing_header("Knockdown State", PyImGui.TreeNodeFlags.DefaultOpen):
-                is_kd = CombatEvents.is_knocked_down(agent_id)
+                is_kd = Agent.IsKnockedDown(agent_id)
                 PyImGui.text(f"is_knocked_down(): {is_kd}")
 
                 if is_kd:
-                    kd_remaining = CombatEvents.get_knockdown_remaining(agent_id)
+                    kd_remaining = Agent.GetKnockDownTimeRemaining(agent_id)
                     PyImGui.text(f"  get_knockdown_remaining(): {kd_remaining}ms")
 
             # === STANCE STATE ===
             if PyImGui.collapsing_header("Stance State (Estimated)", PyImGui.TreeNodeFlags.DefaultOpen):
-                has_stance = CombatEvents.has_stance(agent_id)
+                has_stance = Agent.HasStance(agent_id)
                 PyImGui.text(f"has_stance(): {has_stance}")
 
                 if has_stance:
-                    stance_id = CombatEvents.get_stance(agent_id)
-                    stance_remaining = CombatEvents.get_stance_remaining(agent_id)
+                    stance_id = Agent.GetStanceID(agent_id)
+                    stance_remaining = Agent.GetStanceCooldown(agent_id)
                     if stance_id:
                         PyImGui.text(f"  get_stance(): {get_skill_name(stance_id)}")
                         PyImGui.text(f"  get_stance_remaining(): {stance_remaining}ms")
 
             # === TARGETING INFO ===
             if PyImGui.collapsing_header("Targeting Info"):
-                agents_targeting = CombatEvents.get_agents_targeting(agent_id)
+                is_targeted = Agent.IsTargeted(agent_id)
+                PyImGui.text(f"is_targeted(): {is_targeted}")
+                agents_targeting = Agent.GetAgetsTargeting(agent_id)
                 PyImGui.text(f"get_agents_targeting(): {len(agents_targeting)} agents")
                 if agents_targeting:
                     for aid in agents_targeting[:5]:
@@ -754,7 +736,7 @@ def draw_skill_recharges_tab():
         # Show observed skills
         if PyImGui.collapsing_header(f"Observed Skills - {agent_name}", PyImGui.TreeNodeFlags.DefaultOpen):
             try:
-                observed = CombatEvents.get_observed_skills(agent_id)
+                observed = Agent.GetObservedSkillbar(agent_id)
                 if not observed:
                     PyImGui.text("  No skills observed yet")
                     PyImGui.text_colored("  (Skills appear when the agent uses them)", (150, 150, 150, 255))
@@ -762,9 +744,9 @@ def draw_skill_recharges_tab():
                     PyImGui.text(f"  Seen {len(observed)} different skills:")
                     for skill_id in sorted(observed):
                         skill_name = get_skill_name(skill_id)
-                        if CombatEvents.is_skill_recharging(agent_id, skill_id):
-                            remaining = CombatEvents.get_skill_recharge_remaining(agent_id, skill_id)
-                            is_estimated = CombatEvents.is_recharge_estimated(agent_id, skill_id)
+                        if Agent.IsSkillOnCooldown(agent_id, skill_id):
+                            remaining = Agent.GetRemainingRechargeTime(agent_id, skill_id)
+                            is_estimated = Agent.IsCooldownEstimated(agent_id, skill_id)
                             if is_estimated:
                                 # Yellow for estimated recharges
                                 PyImGui.text_colored(f"    {skill_name}: ~{remaining/1000:.1f}s remaining (estimated)", (255, 200, 100, 255))
@@ -779,7 +761,7 @@ def draw_skill_recharges_tab():
         # Show currently recharging
         if PyImGui.collapsing_header(f"Currently Recharging - {agent_name}", PyImGui.TreeNodeFlags.DefaultOpen):
             try:
-                recharging = CombatEvents.get_recharging_skills(agent_id)
+                recharging = Agent.GetSkillsOnCooldown(agent_id)
                 if not recharging:
                     PyImGui.text("  No skills on cooldown")
                 else:
@@ -798,7 +780,7 @@ def draw_skill_recharges_tab():
         # Debug: Show raw recharge data
         if PyImGui.collapsing_header("Debug: Raw Recharge Data"):
             try:
-                from Py4GWCoreLib.CombatEvents import _recharges, _tracked_agents
+                from Py4GWCoreLib.CombatEventQueue_src.helpers import _recharges, _tracked_agents
                 import ctypes
                 now = ctypes.windll.kernel32.GetTickCount()
 
@@ -826,7 +808,7 @@ def draw_skill_recharges_tab():
         PyImGui.separator()
         if PyImGui.button("Clear Recharge Data"):
             try:
-                CombatEvents.clear_recharge_data(agent_id)
+                CombatEvents.ClearRechargeData(agent_id)
                 state.event_log.add("SYSTEM", f"Cleared recharge data for {agent_name}")
             except Exception as e:
                 state.event_log.add("ERROR", f"Failed to clear recharge data: {e}")
@@ -845,7 +827,7 @@ def draw_event_history_tab():
         if PyImGui.begin_tab_item("Skill Events"):
             if PyImGui.begin_child("SkillHistoryChild", size=(0, 300), border=True, flags=PyImGui.WindowFlags.HorizontalScrollbar):
                 try:
-                    events = CombatEvents.get_recent_skills(count=20)
+                    events = CombatEvents.GetRecentSkills(count=20)
                     if not events:
                         PyImGui.text("No recent skill events")
                     else:
@@ -864,7 +846,7 @@ def draw_event_history_tab():
         if PyImGui.begin_tab_item("Damage Events"):
             if PyImGui.begin_child("DamageHistoryChild", size=(0, 300), border=True, flags=PyImGui.WindowFlags.HorizontalScrollbar):
                 try:
-                    events = CombatEvents.get_recent_damage(count=20)
+                    events = CombatEvents.GetRecentDamage(count=20)
                     if not events:
                         PyImGui.text("No recent damage events")
                     else:
@@ -896,10 +878,32 @@ def draw_debug_tab():
     if PyImGui.begin_child("DebugChild", (0, 550), True, 0):
         PyImGui.text(f"Callbacks Registered: {state.callbacks_registered}")
 
+        if PyImGui.collapsing_header("System Capabilities", PyImGui.TreeNodeFlags.DefaultOpen):
+            try:
+                from Py4GWCoreLib.CombatEventQueue_src.helpers import _disabled, _recharges, _stances, _tracked_agents
+
+                all_events = CombatEvents.GetEvents()
+                recent_skills = CombatEvents.GetRecentSkills(count=10)
+                recent_damage = CombatEvents.GetRecentDamage(count=10)
+                recent_healing = CombatEvents.GetRecentHealing(count=10)
+                renewed_effects = CombatEvents.GetRecentEffectRenewals(count=10)
+
+                PyImGui.text(f"  Raw events buffered: {len(all_events)}")
+                PyImGui.text(f"  Recent skill events available: {len(recent_skills)}")
+                PyImGui.text(f"  Recent damage events available: {len(recent_damage)}")
+                PyImGui.text(f"  Recent healing events available: {len(recent_healing)}")
+                PyImGui.text(f"  Recent effect renewals available: {len(renewed_effects)}")
+                PyImGui.text(f"  Agents currently disabled: {len(_disabled)}")
+                PyImGui.text(f"  Agents with tracked cooldown data: {len(_recharges)}")
+                PyImGui.text(f"  Agents with tracked stances: {len(_stances)}")
+                PyImGui.text(f"  Agents with real server recharge packets: {len(_tracked_agents)}")
+            except Exception as e:
+                PyImGui.text_colored(f"Error: {e}", (255, 0, 0, 255))
+
         # Show event type distribution in buffer
         if PyImGui.collapsing_header("Event Type Distribution (ALL events)", PyImGui.TreeNodeFlags.DefaultOpen):
             try:
-                all_events = CombatEvents.get_events()
+                all_events = CombatEvents.GetEvents()
                 PyImGui.text(f"  Total events in buffer: {len(all_events)}")
 
                 if all_events:
@@ -915,8 +919,8 @@ def draw_debug_tab():
                         7: "INSTANT_SKILL", 8: "ATTACK_SKILL_STOPPED",
                         13: "ATTACK_STARTED", 14: "ATTACK_STOPPED", 15: "MELEE_FINISHED",
                         16: "DISABLED", 17: "KNOCKED_DOWN", 18: "CASTTIME",
-                        30: "DAMAGE", 31: "CRITICAL", 32: "ARMOR_IGNORING",
-                        40: "EFFECT_APPLIED", 41: "EFFECT_REMOVED", 42: "EFFECT_ON_TARGET",
+                        30: "DAMAGE", 31: "CRITICAL", 32: "ARMOR_IGNORING", 33: "HEALING",
+                        40: "EFFECT_APPLIED", 41: "EFFECT_REMOVED", 42: "EFFECT_ON_TARGET", 43: "EFFECT_RENEWED",
                         50: "ENERGY_GAINED", 51: "ENERGY_SPENT",
                         60: "SKILL_DAMAGE", 70: "SKILL_ACTIVATE_PACKET",
                         80: "SKILL_RECHARGE", 81: "SKILL_RECHARGED"
@@ -935,7 +939,7 @@ def draw_debug_tab():
         # Show raw SKILL_RECHARGE events from the event buffer
         if PyImGui.collapsing_header("Raw SKILL_RECHARGE Events", PyImGui.TreeNodeFlags.DefaultOpen):
             try:
-                all_events = CombatEvents.get_events()
+                all_events = CombatEvents.GetEvents()
                 recharge_events = [(ts, etype, agent, val, target, fval)
                                    for ts, etype, agent, val, target, fval in all_events
                                    if etype == EventType.SKILL_RECHARGE or etype == EventType.SKILL_RECHARGED]
@@ -958,7 +962,7 @@ def draw_debug_tab():
         # Show raw DAMAGE events
         if PyImGui.collapsing_header("Raw DAMAGE Events"):
             try:
-                all_events = CombatEvents.get_events()
+                all_events = CombatEvents.GetEvents()
                 damage_events = [(ts, etype, agent, val, target, fval)
                                  for ts, etype, agent, val, target, fval in all_events
                                  if etype in (EventType.DAMAGE, EventType.CRITICAL, EventType.ARMOR_IGNORING)]
@@ -969,6 +973,86 @@ def draw_debug_tab():
                     for _, etype, agent, val, target, fval in damage_events[-10:]:
                         etype_name = {30: "DAMAGE", 31: "CRITICAL", 32: "ARMOR_IGN"}.get(etype, "?")
                         PyImGui.text(f"    [{etype_name}] target={agent} source={target} dmg={fval:.4f}")
+            except Exception as e:
+                PyImGui.text_colored(f"Error: {e}", (255, 0, 0, 255))
+
+        if PyImGui.collapsing_header("Raw HEALING Events", PyImGui.TreeNodeFlags.DefaultOpen):
+            try:
+                all_events = CombatEvents.GetEvents()
+                healing_events = [
+                    (ts, etype, agent, val, target, fval)
+                    for ts, etype, agent, val, target, fval in all_events
+                    if etype == EventType.HEALING
+                ]
+                if not healing_events:
+                    PyImGui.text("  No HEALING events in buffer")
+                else:
+                    PyImGui.text(f"  Found {len(healing_events)} healing events:")
+                    for _, _, target_id, skill_id, source_id, heal_frac in healing_events[-10:]:
+                        source_name = get_agent_name(source_id)
+                        target_name = get_agent_name(target_id)
+                        skill_name = get_skill_name(skill_id) if skill_id else "unknown"
+                        try:
+                            max_hp = Agent.GetMaxHealth(target_id)
+                            actual_heal = abs(heal_frac) * max_hp if max_hp > 0 else abs(heal_frac) * 500
+                        except:
+                            actual_heal = abs(heal_frac) * 500
+                        PyImGui.text(f"    {source_name} -> {target_name}: {actual_heal:.0f} ({skill_name}) frac={heal_frac:.4f}")
+            except Exception as e:
+                PyImGui.text_colored(f"Error: {e}", (255, 0, 0, 255))
+
+        if PyImGui.collapsing_header("Raw EFFECT_RENEWED Events", PyImGui.TreeNodeFlags.DefaultOpen):
+            try:
+                all_events = CombatEvents.GetEvents()
+                renewed_events = [
+                    (ts, etype, agent, val, target, fval)
+                    for ts, etype, agent, val, target, fval in all_events
+                    if etype == EventType.EFFECT_RENEWED
+                ]
+                if not renewed_events:
+                    PyImGui.text("  No EFFECT_RENEWED events in buffer")
+                else:
+                    PyImGui.text(f"  Found {len(renewed_events)} effect renewal events:")
+                    for ts, _, agent_id, effect_id, _, _ in renewed_events[-10:]:
+                        agent_name = get_agent_name(agent_id)
+                        PyImGui.text(f"    [{ts}] {agent_name}: effect_id={effect_id}")
+            except Exception as e:
+                PyImGui.text_colored(f"Error: {e}", (255, 0, 0, 255))
+
+        if PyImGui.collapsing_header("Tracked Runtime State"):
+            try:
+                from Py4GWCoreLib.CombatEventQueue_src.helpers import _disabled, _recharges, _stances, _tracked_agents
+
+                PyImGui.text(f"  Disabled agents: {sorted(_disabled)}")
+                PyImGui.text(f"  Recharge packet agents: {sorted(_tracked_agents)}")
+                if _stances:
+                    PyImGui.text("  Active stances:")
+                    for agent_id, (skill_id, start, end) in list(_stances.items())[:10]:
+                        remaining = max(0, end - Py4GW.Game.get_tick_count64())
+                        PyImGui.text(f"    {get_agent_name(agent_id)}: {get_skill_name(skill_id)} ({int(remaining)}ms)")
+                else:
+                    PyImGui.text("  Active stances: none")
+
+                if _recharges:
+                    PyImGui.text("  Recharge entries:")
+                    shown = 0
+                    for agent_id, skills in _recharges.items():
+                        for skill_id, data in skills.items():
+                            if shown >= 10:
+                                break
+                            if len(data) == 4:
+                                _, _, end, is_estimated = data
+                            else:
+                                _, _, end = data
+                                is_estimated = False
+                            remaining = max(0, int(end - Py4GW.Game.get_tick_count64()))
+                            est_marker = " estimated" if is_estimated else ""
+                            PyImGui.text(f"    {get_agent_name(agent_id)}: {get_skill_name(skill_id)} {remaining}ms{est_marker}")
+                            shown += 1
+                        if shown >= 10:
+                            break
+                else:
+                    PyImGui.text("  Recharge entries: none")
             except Exception as e:
                 PyImGui.text_colored(f"Error: {e}", (255, 0, 0, 255))
 
@@ -987,10 +1071,17 @@ def draw_debug_tab():
             PyImGui.text(f"  ATTACK_STOPPED = {EventType.ATTACK_STOPPED}")
             PyImGui.text(f"  DAMAGE = {EventType.DAMAGE}")
             PyImGui.text(f"  CRITICAL = {EventType.CRITICAL}")
+            PyImGui.text(f"  HEALING = {EventType.HEALING}")
 
         if PyImGui.collapsing_header("State Events"):
             PyImGui.text(f"  DISABLED = {EventType.DISABLED}")
             PyImGui.text(f"  KNOCKED_DOWN = {EventType.KNOCKED_DOWN}")
+
+        if PyImGui.collapsing_header("Effect Events"):
+            PyImGui.text(f"  EFFECT_APPLIED = {EventType.EFFECT_APPLIED}")
+            PyImGui.text(f"  EFFECT_REMOVED = {EventType.EFFECT_REMOVED}")
+            PyImGui.text(f"  EFFECT_ON_TARGET = {EventType.EFFECT_ON_TARGET}")
+            PyImGui.text(f"  EFFECT_RENEWED = {EventType.EFFECT_RENEWED}")
 
         if PyImGui.collapsing_header("Skill Recharge Events"):
             PyImGui.text(f"  SKILL_RECHARGE = {EventType.SKILL_RECHARGE}")
@@ -1089,13 +1180,6 @@ def main():
     """Main function (called every frame by widget system)."""
     if not Routines.Checks.Map.MapValid():
         return
-
-    # Ensure CombatEvents.update() is called every frame
-    # (It should be auto-registered, but call it explicitly as backup)
-    try:
-        CombatEvents.update()
-    except Exception:
-        pass  # Silently ignore if already updating
 
     draw_main_window()
 

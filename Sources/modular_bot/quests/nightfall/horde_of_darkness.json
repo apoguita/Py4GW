@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "Horde of Darkness",
   "steps": [
     {"type": "travel", "name": "Travel to Bone Palace", "target_map_id": 438},
@@ -6,16 +6,16 @@
     {"type": "dialog", "id": "0x824801", "npc": "PRIEST_KEHMTUT", "name": "Dialog - Priest Kehmtut"},
     {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true},
     {"type": "auto_path", "name": "To Exit", "points": [[-19332, 7323]]},
-    {"type": "exit_map", "name": "Leave Bone Palace", "x": -19878, "y": 7305, "target_map_id": 446},
+    {"type": "exit_map", "name": "Leave Bone Palace", "point": [-19878, 7305], "target_map_id": 446},
     {"type": "set_auto_combat", "enabled": false},
     {"type": "disable_party_member_hooks"},
     {"type": "auto_path", "name": "Path", "points": [[18128, -4181]]},
     {"type": "wait", "ms": 2000},
-    {"type": "interact_gadget", "name": "Interact Wurm Spoor", "gadget": "WURM_SPOOR", "x": 18043, "y": -4123},
+    {"type": "interact_gadget", "name": "Interact Wurm Spoor", "gadget": "WURM_SPOOR", "point": [18043, -4123]},
     {"type": "auto_path", "name": "Path", "points": [[2816, 6198]]},
-    {"type": "flag_heroes", "x": 4968, "y": 3627},
+    {"type": "flag_heroes", "point": [4968, 3627]},
     {"type": "wait", "ms": 3000},
-    {"type": "flag_heroes", "x": 1999, "y": 6807},
+    {"type": "flag_heroes", "point": [1999, 6807]},
     {"type": "suppress_recovery", "name": "Suppress Recovery During Planned Wipe", "ms": 130000, "max_events": 100},
     {"type": "unflag_heroes"},
     {"type": "set_auto_combat", "enabled": true},
@@ -32,3 +32,5 @@
     {"type": "dialogs", "id": ["0x824807"], "npc": "CAPTAIN_MEHHAN", "name": "Dialog - Captain Mehhan"}
   ]
 }
+
+

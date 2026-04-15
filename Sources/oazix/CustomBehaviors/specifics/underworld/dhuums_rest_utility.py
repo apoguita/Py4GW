@@ -21,7 +21,7 @@ class DhuumsRestUtility(CustomSkillUtilityBase):
     def __init__(self, event_bus: EventBus, current_build: list[CustomSkill]):
         super().__init__(
             event_bus=event_bus,
-            skill=CustomSkill("Dhuum's_Rest"),
+            skill=CustomSkill("Dhuums_Rest"),
             in_game_build=current_build,
             score_definition=ScoreStaticDefinition(97),
             mana_required_to_cast=0,

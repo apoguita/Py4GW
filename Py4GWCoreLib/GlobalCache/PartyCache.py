@@ -256,6 +256,31 @@ class PartyCache:
                 if hero.agent_id == agent_id:
                     return hero.hero_id.GetName()
             return ""
+
+        def GetHeroPartyPositionByAgentID(self, agent_id):
+            heroes = self._parent.GetHeroes()
+            if len(heroes) == 0:
+                return -1
+            for index, hero in enumerate(heroes):
+                if hero.agent_id == agent_id:
+                    return index
+            return -1
+
+        def GetTargetIDByAgentID(self, agent_id):
+            if self.GetHeroPartyPositionByAgentID(agent_id) < 0:
+                return 0
+
+            from ..Context import GWContext
+
+            world_ctx = GWContext.World.GetContext()
+            if world_ctx is None:
+                return 0
+
+            hero_flags = world_ctx.hero_flags or []
+            for hero_flag in hero_flags:
+                if hero_flag.agent_id == agent_id:
+                    return int(hero_flag.locked_target_id)
+            return 0
         
         def AddHero(self, hero_id):
             self._parent._action_queue_manager.AddAction("ACTION", self._parent._party_instance.AddHero, hero_id)

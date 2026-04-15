@@ -533,6 +533,46 @@ class Party:
             for hero in heroes:
                 if hero.agent_id == agent_id:
                     return hero.hero_id.GetName()
+            return ""
+
+        @staticmethod
+        @frame_cache(category="Party.Heroes", source_lib="GetHeroPartyPositionByAgentID")
+        def GetHeroPartyPositionByAgentID(agent_id):
+            """
+            Retrieve the 0-based party position for a hero agent.
+            Args:
+                agent_id (int): The hero agent ID.
+            Returns: int
+            """
+            heroes = Party.GetHeroes()
+            for index, hero in enumerate(heroes):
+                if hero.agent_id == agent_id:
+                    return index
+            return -1
+
+        @staticmethod
+        @frame_cache(category="Party.Heroes", source_lib="GetTargetIDByAgentID")
+        def GetTargetIDByAgentID(agent_id):
+            """
+            Retrieve the locked target ID for a hero agent.
+            Args:
+                agent_id (int): The hero agent ID.
+            Returns: int
+            """
+            if Party.Heroes.GetHeroPartyPositionByAgentID(agent_id) < 0:
+                return 0
+
+            from .Context import GWContext
+
+            world_ctx = GWContext.World.GetContext()
+            if world_ctx is None:
+                return 0
+
+            hero_flags = world_ctx.hero_flags or []
+            for hero_flag in hero_flags:
+                if hero_flag.agent_id == agent_id:
+                    return int(hero_flag.locked_target_id)
+            return 0
 
 
         @staticmethod

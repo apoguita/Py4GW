@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "All for One and One for Justice",
   "steps": [
     {"type": "travel", "name": "Travel to Consulate Docks outpost", "target_map_id": 493},
@@ -14,7 +14,7 @@
     {"type": "dialog", "id": "0x85", "npc": "LIONGUARD_NEIRO", "name": "Dialog - Lionguard Neiro"},
     {"type": "dialog", "id": "0x85", "npc": "LIONGUARD_NEIRO", "name": "Dialog - Lionguard Neiro"},
     {"type": "auto_path", "name": "To gate", "points": [[-1961, 1460]]},
-    {"type": "nudge_move", "name": "Nudge into portal", "x": -2000, "y": 1500, "pulses": 2, "pulse_ms": 180},
+    {"type": "nudge_move", "name": "Nudge into portal", "point": [-2000, 1500], "pulses": 2, "pulse_ms": 180},
     {"type": "wait_for_map_load", "map_id": 55},
     {"type": "auto_path", "name": "To Lionguard Figo", "points": [[-432, 3486]]},
     {"type": "load_party", "name": "Load Party", "max_heroes": 6, "team": "party_6"},
@@ -33,3 +33,4 @@
     {"type": "dialog", "id": "0x830E07", "npc": "CLERK_ARLON", "name": "Dialog - Clerk Arlon"}
   ]
 }
+

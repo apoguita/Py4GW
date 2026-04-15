@@ -1,28 +1,9 @@
 import time
 
-from Py4GWCoreLib import Agent, AgentArray, BuildMgr, CombatEvents, GLOBAL_CACHE, Party, Player, Profession, Range, Routines, Skill, ThrottledTimer
-from Py4GWCoreLib.CombatEvents import EventType
+from Py4GWCoreLib import Agent, AgentArray, BuildMgr, GLOBAL_CACHE, Party, Player, Profession, Range, Routines, Skill, ThrottledTimer
+from Py4GWCoreLib.CombatEvents import CombatEvents as CombatEvents, EventType
 from Py4GWCoreLib.Builds.Any.HeroAI import HeroAI_Build
-
-# ─── UW Chest detection ──────────────────────────────────────────────────────
-_UW_CHEST_POS = (-13987, 17291)
-_UW_CHEST_RADIUS = 3000.0
-_UW_CHEST_NAME_FRAGMENT = "underworld chest"
-
-
-def _is_uw_chest_present() -> bool:
-    """Return True if the Underworld Chest has spawned near the Dhuum arena."""
-    for agent_id in AgentArray.GetAgentArray():
-        if not Agent.IsGadget(agent_id):
-            continue
-        name = (Agent.GetNameByID(agent_id) or "").strip().lower()
-        if _UW_CHEST_NAME_FRAGMENT not in name:
-            continue
-        ax, ay = Agent.GetXY(agent_id)
-        cx, cy = _UW_CHEST_POS
-        if ((ax - cx) ** 2 + (ay - cy) ** 2) ** 0.5 <= _UW_CHEST_RADIUS:
-            return True
-    return False
+from Py4GWCoreLib.Builds.Skills.any.PvE import PvE
 
 
 class _DhuumModeTracker:
@@ -211,8 +192,7 @@ class _DhuumModeTracker:
         now_ms = time.monotonic() * 1000.0
         player_id = int(Player.GetAgentID())
 
-        CombatEvents.update()
-        recent_skills = CombatEvents.get_recent_skills(80)
+        recent_skills = CombatEvents.GetRecentSkills(80)
 
         reaper_candidate_agent_ids = cls._get_reaper_candidate_agent_ids()
         party_member_agent_ids = cls._get_party_member_agent_ids()
@@ -270,9 +250,6 @@ class Any_Dhuum(BuildMgr):
 
     TEMPLATE_CODE = "OQBDAqwDSPwQwRwSwTwAAAAAAA"
 
-    _SPIRIT_FORM_SKILL_ID = 3134
-    _SPIRIT_FORM_MIN_COUNT = 1
-
     def __init__(self, match_only: bool = False):
         self.unyielding_aura_id = self._resolve_skill_id(("Unyielding_Aura", "Unyielding Aura"))
         self.dhuums_rest_id = self._resolve_skill_id(("Dhuum_s_Rest", "Dhuum's Rest", "Dhuums_Rest"), fallback=3087)
@@ -315,6 +292,7 @@ class Any_Dhuum(BuildMgr):
             _DhuumModeTracker._ghostly_fury_skill_ids.add(self.ghostly_fury_id)
         _DhuumModeTracker._ensure_timers()
 
+        self._pve = PvE(self)
         self.SetFallback("HeroAI", HeroAI_Build(standalone_fallback=True))
         self.SetSkillCastingFn(self._run_local_skill_logic)
 
@@ -329,192 +307,25 @@ class Any_Dhuum(BuildMgr):
                 return skill_id
         return int(fallback)
 
-    def _can_use(self, skill_id: int) -> bool:
-        return skill_id > 0 and self.IsSkillEquipped(skill_id)
-
-    def _get_lowest_hp_ally(self, max_range: float, hp_below: float) -> int:
-        me_x, me_y = Player.GetXY()
-        candidates = AgentArray.Filter.ByCondition(
-            AgentArray.GetAllyArray(),
-            lambda aid: Agent.IsAlive(aid)
-            and Agent.GetHealth(aid) < hp_below
-            and ((Agent.GetXY(aid)[0] - me_x) ** 2 + (Agent.GetXY(aid)[1] - me_y) ** 2) ** 0.5 <= max_range,
-        )
-        if not candidates:
-            return 0
-
-        candidates.sort(key=lambda aid: (Agent.GetHealth(aid), ((Agent.GetXY(aid)[0] - me_x) ** 2 + (Agent.GetXY(aid)[1] - me_y) ** 2) ** 0.5))
-        return int(candidates[0])
-
-    @staticmethod
-    def _same_party_and_map(self_account, other_account) -> bool:
-        return (
-            int(self_account.AgentPartyData.PartyID) == int(other_account.AgentPartyData.PartyID)
-            and int(self_account.AgentData.Map.MapID) == int(other_account.AgentData.Map.MapID)
-            and int(self_account.AgentData.Map.Region) == int(other_account.AgentData.Map.Region)
-            and int(self_account.AgentData.Map.District) == int(other_account.AgentData.Map.District)
-            and int(self_account.AgentData.Map.Language) == int(other_account.AgentData.Map.Language)
-        )
-
-    def _count_spirit_form_accounts(self) -> int:
-        """Count how many active same-party accounts currently have Spirit Form (buff 3134)."""
-        self_email = Player.GetAccountEmail()
-        self_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(self_email)
-        if self_account is None:
-            return 0
-        count = 0
-        for account in (GLOBAL_CACHE.ShMem.GetAllAccountData() or []):
-            if not account.IsSlotActive or account.IsIsolated:
-                continue
-            if not self._same_party_and_map(self_account, account):
-                continue
-            try:
-                if any(
-                    b.SkillId == self._SPIRIT_FORM_SKILL_ID
-                    for b in account.AgentData.Buffs.Buffs
-                    if b.SkillId != 0
-                ):
-                    count += 1
-            except Exception:
-                pass
-        return count
-
-    def _get_spirit_form_agent_ids(self) -> set[int]:
-        """Return agent IDs of same-party accounts that currently have Spirit Form (buff 3134)."""
-        result: set[int] = set()
-        self_email = Player.GetAccountEmail()
-        self_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(self_email)
-        if self_account is None:
-            return result
-        for account in (GLOBAL_CACHE.ShMem.GetAllAccountData() or []):
-            if not account.IsSlotActive or account.IsIsolated:
-                continue
-            if not self._same_party_and_map(self_account, account):
-                continue
-            try:
-                if any(
-                    b.SkillId == self._SPIRIT_FORM_SKILL_ID
-                    for b in account.AgentData.Buffs.Buffs
-                    if b.SkillId != 0
-                ):
-                    agent_id = int(account.AgentData.AgentID or 0)
-                    if agent_id > 0:
-                        result.add(agent_id)
-            except Exception:
-                pass
-        return result
-
-    def _get_target_with_highest_death_penalty(self) -> int:
-        # Spirit Form gate: do not cast until at least one account is soul-splitting.
-        spirit_form_count = self._count_spirit_form_accounts()
-        if spirit_form_count < self._SPIRIT_FORM_MIN_COUNT:
-            return 0
-
-        spirit_form_agent_ids = self._get_spirit_form_agent_ids()
-        restrict_to_spirit_form = spirit_form_count <= 2
-
-        self_email = Player.GetAccountEmail()
-        self_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(self_email)
-        if self_account is None:
-            return 0
-
-        morale_by_agent: dict[int, int] = {}
-        for account in GLOBAL_CACHE.ShMem.GetAllAccountData():
-            if not account.IsSlotActive or account.IsIsolated:
-                continue
-            if not self._same_party_and_map(self_account, account):
-                continue
-            agent_id = int(account.AgentData.AgentID or 0)
-            if agent_id <= 0:
-                continue
-            morale_by_agent[agent_id] = int(account.AgentData.Morale)
-
-        if not morale_by_agent:
-            return 0
-
-        me_x, me_y = Player.GetXY()
-        my_id = int(Player.GetAgentID())
-        best_target = 0
-        best_death_penalty = 0
-        best_distance = float("inf")
-
-        for ally_id in AgentArray.GetAllyArray():
-            ally_id = int(ally_id)
-            if ally_id == my_id:
-                continue
-            if not Agent.IsAlive(ally_id):
-                continue
-            if restrict_to_spirit_form and ally_id not in spirit_form_agent_ids:
-                continue
-
-            morale = int(morale_by_agent.get(ally_id, 100))
-            death_penalty = max(0, 100 - morale)
-            if death_penalty <= 0:
-                continue
-
-            ax, ay = Agent.GetXY(ally_id)
-            distance = ((ax - me_x) ** 2 + (ay - me_y) ** 2) ** 0.5
-            if distance > Range.Spellcast.value * 1.2:
-                continue
-
-            if death_penalty > best_death_penalty or (
-                death_penalty == best_death_penalty and distance < best_distance
-            ):
-                best_target = ally_id
-                best_death_penalty = death_penalty
-                best_distance = distance
-
-        return int(best_target)
-
-    def _get_enemy_target_for_fury(self) -> int:
-        if self.priority_target and Agent.IsAlive(self.priority_target):
-            return int(self.priority_target)
-
-        me_x, me_y = Player.GetXY()
-        enemies = AgentArray.Filter.ByCondition(
-            AgentArray.GetEnemyArray(),
-            lambda aid: Agent.IsAlive(aid)
-            and ((Agent.GetXY(aid)[0] - me_x) ** 2 + (Agent.GetXY(aid)[1] - me_y) ** 2) ** 0.5 <= Range.Spellcast.value,
-        )
-        if not enemies:
-            return 0
-
-        enemies.sort(key=lambda aid: ((Agent.GetXY(aid)[0] - me_x) ** 2 + (Agent.GetXY(aid)[1] - me_y) ** 2) ** 0.5)
-        return int(enemies[0])
-
     def _run_local_skill_logic(self):
         if not Routines.Checks.Skills.CanCast():
             return False
 
-        if _is_uw_chest_present():
-            return False
-
-        # Highest priority: keep UA utility available.
-        if self._can_use(self.unyielding_aura_id):
-            ua_target = self.ResolveAllyTarget(self.unyielding_aura_id)
-            if ua_target and (yield from self.CastSkillIDAndRestoreTarget(self.unyielding_aura_id, ua_target)):
-                return True
-
-        # Heal pressure handling.
-        if self._can_use(self.spiritual_healing_id):
-            sh_target = self._get_lowest_hp_ally(Range.Spellcast.value * 1.2, 0.70)
-            if sh_target and (yield from self.CastSkillIDAndRestoreTarget(self.spiritual_healing_id, sh_target)):
-                return True
-
-        if self._can_use(self.reversal_of_death_id):
-            rod_target = self._get_target_with_highest_death_penalty()
-            if rod_target and (yield from self.CastSkillIDAndRestoreTarget(self.reversal_of_death_id, rod_target)):
-                return True
-
-        # Event-driven Dhuum phase mirroring.
-        if self._can_use(self.dhuums_rest_id) and _DhuumModeTracker.is_dhuums_rest_mode():
-            if (yield from self.CastSkillID(self.dhuums_rest_id)):
-                return True
-
-        if self._can_use(self.ghostly_fury_id) and _DhuumModeTracker.is_ghostly_fury_mode():
-            fury_target = self._get_enemy_target_for_fury()
-            if fury_target and (yield from self.CastSkillIDAndRestoreTarget(self.ghostly_fury_id, fury_target)):
-                return True
-
-        # Encase Skeletal intentionally left passive for now (same as CB pending utility).
+        # Priority order matching CB scores (highest first):
+        # Unyielding Aura — HeroAI-specific, highest priority
+        if (yield from self._pve.Unyielding_Aura()):
+            return True
+        # Dhuum's Rest (score 97) — mirror Reaper phase
+        if (yield from self._pve.Dhuums_Rest(is_active=_DhuumModeTracker.is_dhuums_rest_mode())):
+            return True
+        # Ghostly Fury (score 97) — mirror Reaper phase
+        if (yield from self._pve.Ghostly_Fury(is_active=_DhuumModeTracker.is_ghostly_fury_mode())):
+            return True
+        # Reversal of Death (score 94) — death penalty removal
+        if (yield from self._pve.Reversal_of_Death()):
+            return True
+        # Spiritual Healing (score 90) — heal low HP allies
+        if (yield from self._pve.Spiritual_Healing()):
+            return True
+        # Encase Skeletal intentionally left passive (same as CB)
         return False

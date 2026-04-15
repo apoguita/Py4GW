@@ -1,11 +1,12 @@
 ﻿# region Imports & Config
-from Py4GWCoreLib import Botting, Routines, GLOBAL_CACHE, ModelID, Agent, Player, ConsoleLog, IniManager, HeroType
+from Py4GWCoreLib import Botting, Routines, GLOBAL_CACHE, ModelID, Agent, Player, ConsoleLog, IniManager, HeroType, AgentArray, SharedCommandType
 from Py4GWCoreLib.Map import Map
 from Py4GWCoreLib.enums_src.Title_enums import TitleID, TITLE_TIERS
 from Py4GWCoreLib.botting_src.property import Property
 from Py4GWCoreLib.ImGui_src.ImGuisrc import ImGui
 import Py4GW
 import os
+import random
 import time
 import json
 from dataclasses import dataclass
@@ -24,6 +25,8 @@ START_COMBAT_STEP_NAME = "[H]Start Combat_3"
 _MULTIBOX_ALTS_KEY = "use_multibox_alts"
 _party_mode: int = 0  # 0 = Single Account with Heroes, 1 = Multiboxing
 _mode_loaded: bool = False
+_COMBAT_BACKEND_KEY = "combat_backend"
+_combat_backend: int = 0  # 0 = HeroAI, 1 = CustomBehaviors
 
 bot = Botting(BOT_NAME,
               upkeep_armor_of_salvation_restock=2,
@@ -42,6 +45,28 @@ bot.config.config_properties.use_pcons = Property(bot.config, "use_pcons", activ
 _SETTINGS_SECTION = "TitleBotSettings"
 _USE_CONSET_KEY = "use_conset"
 _USE_PCONS_KEY = "use_pcons"
+_USE_RESTOCK_KITS_KEY = "use_restock_kits"
+_ID_KITS_TARGET_KEY = "id_kits_target"
+_SALVAGE_KITS_TARGET_KEY = "salvage_kits_target"
+_MERCHANT_SELL_MATERIALS_KEY = "merchant_sell_materials"
+_MERCHANT_ALT_WAIT_MS_KEY = "merchant_alt_wait_ms"
+_RANDOMIZE_DISTRICT_KEY = "randomize_district"
+_DEFAULT_ID_KITS_TARGET = 2
+_DEFAULT_SALVAGE_KITS_TARGET = 5
+_DEFAULT_ALT_SETTLE_WAIT_MS = 2000
+_MAX_ALT_SETTLE_WAIT_MS = 5000
+
+_restock_kits_enabled: bool = False
+_id_kits_target: int = _DEFAULT_ID_KITS_TARGET
+_salvage_kits_target: int = _DEFAULT_SALVAGE_KITS_TARGET
+_merchant_sell_materials: bool = False
+_merchant_alt_wait_ms: int = _DEFAULT_ALT_SETTLE_WAIT_MS
+_randomize_district: bool = True
+_SCROLL_MODEL_IDS = {5594, 5595, 5611, 5853, 5975, 5976, 21233}
+_SCROLL_MODEL_FILTER = "5594,5595,5611,5853,5975,5976,21233"
+_MERCHANT_MANAGED_WIDGETS = ("InventoryPlus",)
+_PRETRAVEL_DISABLE_WIDGETS = ("InventoryPlus",)
+_RANDOM_DISTRICTS = [6, 7, 8, 9]
 
 # Hero config
 _BOT_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__)) if "__file__" in globals() else os.getcwd()
@@ -136,13 +161,18 @@ PCON_RESTOCK_MODELS   = [m for m, _ in PCON_ITEMS] + [
 
 
 def ConfigureAggressiveEnv(bot: Botting) -> None:
-    bot.Templates.Aggressive()
+    if _party_mode == 1:
+        bot.Templates.Multibox_Aggressive()
+    else:
+        bot.Templates.Aggressive()
+    _apply_combat_backend_local_now(bot)
     bot.Properties.Enable("auto_inventory_management")
 # endregion
 
 
 # region Bot Routine
 def Routine(bot: Botting) -> None:
+    _ensure_mode_loaded(bot)
     PrepareForCombat(bot)
     Fight(bot)
 
@@ -150,10 +180,14 @@ def Routine(bot: Botting) -> None:
 def PrepareForCombat(bot: Botting) -> None:
     bot.States.AddHeader("Prepare For Farm")
     _load_consumable_settings(bot)
+    _load_kit_restock_settings(bot)
     _sync_consumable_toggles(bot)
-    bot.Map.Travel(target_map_id=RATASUM)
+    bot.States.AddCustomState(lambda: _kick_accounts_if_multibox(bot), "Kick Accounts If Multibox")
+    bot.States.AddCustomState(lambda: _gh_merchant_setup_if_enabled(bot, RATASUM), "GH Merchant Setup If Enabled")
+    bot.States.AddCustomState(lambda: _coro_travel_random_district(bot, RATASUM), "Travel to Rata Sum")
     bot.States.AddCustomState(lambda: _maybe_setup_heroes(bot), "Setup Heroes")
     bot.States.AddCustomState(lambda: _restock_consumables_if_enabled(bot), "Restock Consumables If Enabled")
+    bot.States.AddCustomState(lambda: _apply_combat_backend_if_available(bot), "Apply Combat Backend If Available")
     bot.Party.SetHardMode(True)
 
 
@@ -171,11 +205,7 @@ def Fight(bot: Botting) -> None:
     ConfigureAggressiveEnv(bot)
     bot.States.AddHeader("Start Combat")
     bot.States.AddCustomState(lambda: PrepareForBattle(bot), "Use Consumables If Enabled")
-    bot.Move.XY(14778.00, 13178.00)
-    bot.Wait.ForTime(1500)
-    bot.Move.XYAndInteractNPC(14778.00, 13178.00)
-    bot.States.AddCustomState(lambda: _send_local_dialog(bot, 0x84), "Local Dialog 0x84")
-    bot.States.AddCustomState(lambda: _send_local_dialog(bot, 0x85), "Local Dialog 0x85")
+    bot.States.AddCustomState(lambda x=14778.00, y=13178.00: _take_asura_blessing_at(bot, x, y), "Take Blessing")
 
     # Path segment 1
     bot.Move.XY(18825, 6180, "First Spider Group")
@@ -222,11 +252,7 @@ def Fight(bot: Botting) -> None:
     bot.Move.XY(-12368, -7330, "Froggy Group")
 
     # Path segment 2 blessing
-    bot.Move.XY(-9317, -2618, "Taking Blessing")
-    bot.Wait.ForTime(1500)
-    bot.Move.XYAndInteractNPC(-9317, -2618)
-    bot.States.AddCustomState(lambda: _send_local_dialog(bot, 0x84), "Local Dialog 0x84")
-    bot.States.AddCustomState(lambda: _send_local_dialog(bot, 0x85), "Local Dialog 0x85")
+    bot.States.AddCustomState(lambda x=-9317, y=-2618: _take_asura_blessing_at(bot, x, y), "Take Blessing")
 
     # Path segment 2
     bot.Move.XY(-12368, -7330, "Froggy Group")
@@ -260,11 +286,7 @@ def Fight(bot: Botting) -> None:
     bot.Move.XY(-1346, 12360, "Moving")
 
     # Path segment 3 blessing
-    bot.Move.XY(4835, 440, "Taking Blessing")
-    bot.Wait.ForTime(1500)
-    bot.Move.XYAndInteractNPC(4835, 440)
-    bot.States.AddCustomState(lambda: _send_local_dialog(bot, 0x84), "Local Dialog 0x84")
-    bot.States.AddCustomState(lambda: _send_local_dialog(bot, 0x85), "Local Dialog 0x85")
+    bot.States.AddCustomState(lambda x=4835, y=440: _take_asura_blessing_at(bot, x, y), "Take Blessing")
 
     # Path segment 3
     bot.Move.XY(-1346, 12360, "Moving")
@@ -309,8 +331,7 @@ def Fight(bot: Botting) -> None:
         bot.Wait.UntilOnOutpost()
     else:
         bot.Map.Travel(target_map_id=RATASUM)
-    bot.States.JumpToStepName(ZONING_STEP_NAME)
-
+    bot.States.JumpToStepName("[H]Prepare For Farm_1")
 
 def PrepareForBattle(bot: Botting):
     _sync_consumable_toggles(bot)
@@ -320,6 +341,302 @@ def PrepareForBattle(bot: Botting):
 bot.UI.override_draw_config(lambda: _draw_settings(bot))
 
 bot.SetMainRoutine(Routine)
+# endregion
+
+
+# region Merchant
+def _find_npc_xy_by_name(name_fragment: str, max_dist: float = 15000.0):
+    npcs = AgentArray.GetNPCMinipetArray()
+    npcs = AgentArray.Filter.ByDistance(npcs, Player.GetXY(), max_dist)
+    for npc_id in npcs:
+        npc_name = Agent.GetNameByID(int(npc_id))
+        if name_fragment.lower() in npc_name.lower():
+            return Agent.GetXY(int(npc_id))
+    return None
+
+
+def _restock_kits_locally(bot: Botting, x: float, y: float):
+    yield from bot.Move._coro_xy_and_interact_npc(x, y)
+    yield from bot.Wait._coro_for_time(1200)
+
+    id_kits = int(GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Identification_Kit.value))
+    sup_id_kits = int(GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Superior_Identification_Kit.value))
+    salvage_kits = int(GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Salvage_Kit.value))
+
+    id_to_buy = max(0, _id_kits_target - (id_kits + sup_id_kits))
+    salvage_to_buy = max(0, _salvage_kits_target - salvage_kits)
+
+    yield from Routines.Yield.Merchant.BuyIDKits(id_to_buy, log=True)
+    yield from Routines.Yield.Merchant.BuySalvageKits(salvage_to_buy, log=True)
+
+
+def _restock_kits_if_enabled(bot: Botting):
+    yield from _gh_merchant_setup_if_enabled(bot, RATASUM)
+
+
+def _coro_travel_random_district(bot: Botting, target_map_id: int):
+    if _randomize_district:
+        district = random.choice(_RANDOM_DISTRICTS)
+        ConsoleLog(BOT_NAME, f"Traveling to map {target_map_id} with random EU district {district}")
+        Map.TravelToDistrict(target_map_id, district=district)
+        yield from Routines.Yield.wait(500)
+        yield from bot.Wait._coro_for_map_load(target_map_id=target_map_id)
+        return
+    yield from bot.Map._coro_travel(target_map_id, "")
+
+
+def _get_leftover_material_item_ids(batch_size: int = 10) -> list[int]:
+    bag_list = GLOBAL_CACHE.ItemArray.CreateBagList(1, 2, 3, 4)
+    item_array = GLOBAL_CACHE.ItemArray.GetItemArray(bag_list)
+    leftovers: list[int] = []
+    for item_id in item_array:
+        if not GLOBAL_CACHE.Item.Type.IsMaterial(item_id):
+            continue
+        if GLOBAL_CACHE.Item.Type.IsRareMaterial(item_id):
+            continue
+        qty = int(GLOBAL_CACHE.Item.Properties.GetQuantity(item_id))
+        if 0 < qty < batch_size:
+            leftovers.append(int(item_id))
+    return leftovers
+
+
+def _coro_sell_scrolls(bot: Botting, mx: float, my: float):
+    bag_list = GLOBAL_CACHE.ItemArray.CreateBagList(1, 2, 3, 4)
+    item_array = GLOBAL_CACHE.ItemArray.GetItemArray(bag_list)
+    sell_ids = [int(item_id) for item_id in item_array if int(GLOBAL_CACHE.Item.GetModelID(item_id)) in _SCROLL_MODEL_IDS]
+    if not sell_ids:
+        return
+    yield from bot.Move._coro_xy_and_interact_npc(mx, my, "GH Merchant (scrolls)")
+    yield from Routines.Yield.wait(1200)
+    yield from Routines.Yield.Merchant.SellItems(sell_ids, log=True)
+    yield from Routines.Yield.wait(300)
+
+
+def _coro_sell_nonsalvageable_golds(bot: Botting, mx: float, my: float):
+    bag_list = GLOBAL_CACHE.ItemArray.CreateBagList(1, 2, 3, 4)
+    item_array = GLOBAL_CACHE.ItemArray.GetItemArray(bag_list)
+    sell_ids = []
+    for item_id in item_array:
+        _, rarity = GLOBAL_CACHE.Item.Rarity.GetRarity(item_id)
+        if rarity != "Gold":
+            continue
+        if not GLOBAL_CACHE.Item.Usage.IsIdentified(item_id):
+            continue
+        if GLOBAL_CACHE.Item.Usage.IsSalvageable(item_id):
+            continue
+        sell_ids.append(int(item_id))
+    if not sell_ids:
+        return
+    yield from bot.Move._coro_xy_and_interact_npc(mx, my, "GH Merchant (non-salvageable golds)")
+    yield from Routines.Yield.wait(1200)
+    yield from Routines.Yield.Merchant.SellItems(sell_ids, log=True)
+    yield from Routines.Yield.wait(300)
+
+
+def _disable_inventoryplus_pretravel():
+    from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler as _get_wh
+    wh = _get_wh()
+    for name in _PRETRAVEL_DISABLE_WIDGETS:
+        wh.disable_widget(name)
+    my_email = Player.GetAccountEmail()
+    for acc in GLOBAL_CACHE.ShMem.GetAllAccountData():
+        if acc.AccountEmail != my_email:
+            for name in _PRETRAVEL_DISABLE_WIDGETS:
+                GLOBAL_CACHE.ShMem.SendMessage(my_email, acc.AccountEmail, SharedCommandType.DisableWidget, (0, 0, 0, 0), (name, "", "", ""))
+    yield from Routines.Yield.wait(1500)
+
+
+def _disable_merchant_widgets():
+    from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler as _get_wh
+    wh = _get_wh()
+    for name in _MERCHANT_MANAGED_WIDGETS:
+        wh.disable_widget(name)
+    my_email = Player.GetAccountEmail()
+    for acc in GLOBAL_CACHE.ShMem.GetAllAccountData():
+        if acc.AccountEmail != my_email:
+            for name in _MERCHANT_MANAGED_WIDGETS:
+                GLOBAL_CACHE.ShMem.SendMessage(my_email, acc.AccountEmail, SharedCommandType.DisableWidget, (0, 0, 0, 0), (name, "", "", ""))
+    yield
+
+
+def _reenable_merchant_widgets():
+    from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler as _get_wh
+    wh = _get_wh()
+    for name in _MERCHANT_MANAGED_WIDGETS:
+        wh.enable_widget(name)
+
+    my_email = Player.GetAccountEmail()
+    refs: list[tuple[str, int]] = []
+    for acc in GLOBAL_CACHE.ShMem.GetAllAccountData():
+        if acc.AccountEmail != my_email:
+            for name in _MERCHANT_MANAGED_WIDGETS:
+                idx = int(GLOBAL_CACHE.ShMem.SendMessage(my_email, acc.AccountEmail, SharedCommandType.EnableWidget, (0, 0, 0, 0), (name, "", "", "")))
+                if idx >= 0:
+                    refs.append((acc.AccountEmail, idx))
+    yield from _wait_for_alt_dispatch_completion("enable_widgets", refs, SharedCommandType.EnableWidget, timeout_ms=15000)
+
+
+def _dispatch_to_alts(command, params, extra_data=("", "", "", "")) -> list[tuple[str, int]]:
+    my_email = Player.GetAccountEmail()
+    refs: list[tuple[str, int]] = []
+    for acc in GLOBAL_CACHE.ShMem.GetAllAccountData():
+        if acc.AccountEmail != my_email:
+            idx = int(GLOBAL_CACHE.ShMem.SendMessage(my_email, acc.AccountEmail, command, params, extra_data))
+            refs.append((acc.AccountEmail, idx))
+    return refs
+
+
+def _wait_for_alt_dispatch_completion(stage_name: str, message_refs: list[tuple[str, int]], command, timeout_ms: int = 30000):
+    if not message_refs:
+        return
+    pending = {(email, idx): None for email, idx in message_refs if int(idx) >= 0}
+    if not pending:
+        return
+    deadline = time.monotonic() + (max(0, int(timeout_ms)) / 1000.0)
+    my_email = Player.GetAccountEmail()
+    while pending and time.monotonic() < deadline:
+        completed: list[tuple[str, int]] = []
+        for email, idx in list(pending.keys()):
+            message = GLOBAL_CACHE.ShMem.GetInbox(idx)
+            is_same_message = (
+                bool(getattr(message, "Active", False))
+                and str(getattr(message, "ReceiverEmail", "") or "") == email
+                and str(getattr(message, "SenderEmail", "") or "") == my_email
+                and int(getattr(message, "Command", -1)) == int(command)
+            )
+            if not is_same_message:
+                completed.append((email, idx))
+        for key in completed:
+            pending.pop(key, None)
+        if pending:
+            yield from Routines.Yield.wait(50)
+    if pending:
+        pending_accounts = ", ".join(sorted({email for email, _ in pending}))
+        ConsoleLog(BOT_NAME, f"[Merchant] {stage_name}: timeout waiting for alt completion. Pending: {pending_accounts}", Py4GW.Console.MessageType.Warning)
+
+
+def _wait_for_alts_on_current_map(stage_name: str, expected_alts: int, target_map_id: int, timeout_ms: int = 30000):
+    if _party_mode != 1:
+        return
+    if expected_alts <= 0:
+        return
+    my_email = Player.GetAccountEmail()
+    deadline = time.time() + (max(0, int(timeout_ms)) / 1000.0)
+    while time.time() < deadline:
+        accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+        arrived = sum(
+            1 for acc in accounts
+            if acc.AccountEmail != my_email and int(getattr(acc.AgentData.Map, "MapID", 0) or 0) == target_map_id
+        )
+        if arrived >= expected_alts:
+            yield from Routines.Yield.wait(1000)
+            return
+        yield from Routines.Yield.wait(500)
+    ConsoleLog(BOT_NAME, f"[Merchant] {stage_name}: alt arrival timeout on map {target_map_id}", Py4GW.Console.MessageType.Warning)
+
+
+def _kick_current_party_accounts():
+    own_login = int(Player.GetLoginNumber() or 0)
+    for member in list(GLOBAL_CACHE.Party.GetPlayers()):
+        login_number = int(getattr(member, "login_number", 0) or 0)
+        if login_number <= 0 or login_number == own_login:
+            continue
+        player_name = GLOBAL_CACHE.Party.Players.GetPlayerNameByLoginNumber(login_number)
+        if player_name:
+            GLOBAL_CACHE.Party.Players.KickPlayer(str(player_name))
+
+
+def _kick_accounts_if_multibox(bot: Botting):
+    if _party_mode != 1:
+        return
+    _kick_current_party_accounts()
+    for _ in range(20):
+        yield from bot.Wait._coro_for_time(250)
+        if GLOBAL_CACHE.Party.GetPlayerCount() <= 1:
+            break
+
+
+def _gh_merchant_setup_if_enabled(bot: Botting, outpost_id: int):
+    if not _restock_kits_enabled:
+        return
+
+    yield from _disable_inventoryplus_pretravel()
+
+    expected_gh_alts = 0
+    travel_refs: list[tuple[str, int]] = []
+    if _party_mode == 1:
+        my_email = Player.GetAccountEmail()
+        expected_gh_alts = len([acc for acc in GLOBAL_CACHE.ShMem.GetAllAccountData() if acc.AccountEmail != my_email])
+        travel_refs = _dispatch_to_alts(SharedCommandType.TravelToGuildHall, (0, 0, 0, 0))
+
+    if not Map.IsGuildHall():
+        Map.TravelGH()
+    yield from bot.Wait._coro_until_on_outpost()
+    if _party_mode == 1:
+        yield from _wait_for_alt_dispatch_completion("travel_gh", travel_refs, SharedCommandType.TravelToGuildHall, timeout_ms=10000)
+
+    gh_deadline = time.time() + 30.0
+    while not Map.IsGuildHall() and time.time() < gh_deadline:
+        yield from Routines.Yield.wait(500)
+    if not Map.IsGuildHall():
+        ConsoleLog(BOT_NAME, "[Merchant] Failed to reach Guild Hall, skipping merchant setup", Py4GW.Console.MessageType.Warning)
+        return
+
+    if _party_mode == 1:
+        yield from _wait_for_alts_on_current_map("travel_gh_arrival", expected_gh_alts, int(Map.GetMapID()), timeout_ms=60000)
+
+    npc_deadline = time.time() + 20.0
+    while _find_npc_xy_by_name("Merchant", max_dist=30000.0) is None and time.time() < npc_deadline:
+        yield from Routines.Yield.wait(500)
+
+    yield from _disable_merchant_widgets()
+
+    merchant_xy = _find_npc_xy_by_name("Merchant", max_dist=30000.0)
+    mat_xy = _find_npc_xy_by_name("Material Trader", max_dist=30000.0) if _merchant_sell_materials else None
+
+    if _merchant_sell_materials and mat_xy:
+        tmx, tmy = mat_xy
+        sell_mat_refs = _dispatch_to_alts(SharedCommandType.MerchantMaterials, (tmx, tmy, 0, 0), ("sell", "", "", "")) if _party_mode == 1 else []
+        yield from Routines.Yield.Merchant.SellMaterialsAtTrader(tmx, tmy)
+        if _party_mode == 1:
+            yield from _wait_for_alt_dispatch_completion("sell_materials", sell_mat_refs, SharedCommandType.MerchantMaterials)
+
+        if merchant_xy:
+            mx, my = merchant_xy
+            leftover_refs = _dispatch_to_alts(SharedCommandType.MerchantMaterials, (mx, my, 0, 0), ("sell_merchant_leftovers", "", "10", "")) if _party_mode == 1 else []
+            leftover_ids = _get_leftover_material_item_ids()
+            if leftover_ids:
+                yield from bot.Move._coro_xy_and_interact_npc(mx, my, "GH Merchant (leftovers)")
+                yield from Routines.Yield.wait(1200)
+                yield from Routines.Yield.Merchant.SellItems(leftover_ids, log=True)
+                yield from Routines.Yield.wait(300)
+            if _party_mode == 1:
+                yield from _wait_for_alt_dispatch_completion("sell_merchant_leftovers", leftover_refs, SharedCommandType.MerchantMaterials)
+
+    if merchant_xy:
+        mx, my = merchant_xy
+        sell_gold_refs = _dispatch_to_alts(SharedCommandType.MerchantMaterials, (mx, my, 0, 0), ("sell_nonsalvageable_golds", "", "", "")) if _party_mode == 1 else []
+        yield from _coro_sell_nonsalvageable_golds(bot, mx, my)
+        if _party_mode == 1:
+            yield from _wait_for_alt_dispatch_completion("sell_nonsalvageable_golds", sell_gold_refs, SharedCommandType.MerchantMaterials)
+
+        sell_scroll_refs = _dispatch_to_alts(SharedCommandType.MerchantMaterials, (mx, my, 0, 0), ("sell_scrolls", _SCROLL_MODEL_FILTER, "", "")) if _party_mode == 1 else []
+        yield from _coro_sell_scrolls(bot, mx, my)
+        if _party_mode == 1:
+            yield from _wait_for_alt_dispatch_completion("sell_scrolls", sell_scroll_refs, SharedCommandType.MerchantMaterials)
+
+        kit_refs = _dispatch_to_alts(SharedCommandType.MerchantItems, (mx, my, _id_kits_target, _salvage_kits_target)) if _party_mode == 1 else []
+        yield from _restock_kits_locally(bot, mx, my)
+        if _party_mode == 1:
+            yield from _wait_for_alt_dispatch_completion("restock_kits", kit_refs, SharedCommandType.MerchantItems)
+
+    if _merchant_alt_wait_ms > 0:
+        yield from Routines.Yield.wait(_merchant_alt_wait_ms)
+
+    #yield from _coro_travel_random_district(bot, outpost_id)
+    if _party_mode == 1:
+        yield from Routines.Yield.wait(1500)
+    yield from _reenable_merchant_widgets()
 # endregion
 
 
@@ -380,6 +697,28 @@ def _use_multibox_consumables(bot: Botting):
 # endregion
 
 
+# region Upkeep
+def _upkeep_consumables(bot: "Botting"):
+    while True:
+        yield from bot.Wait._coro_for_time(15000)
+        if not Routines.Checks.Map.MapValid() or Routines.Checks.Map.IsOutpost():
+            continue
+        if _party_mode == 1:
+            yield from _use_multibox_consumables(bot)
+            continue
+        if _as_bool(bot.Properties.Get("use_conset", "active")):
+            yield from bot.helpers.Items.use_conset()
+        if _as_bool(bot.Properties.Get("use_pcons", "active")):
+            yield from bot.helpers.Items.use_pcons()
+            for _ in range(4):
+                honeycomb_item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(ModelID.Honeycomb.value)
+                if not honeycomb_item_id:
+                    break
+                GLOBAL_CACHE.Inventory.UseItem(honeycomb_item_id)
+                yield from bot.Wait._coro_for_time(250)
+# endregion
+
+
 # region Events
 def _on_party_wipe(bot: "Botting"):
     if not Routines.Checks.Map.MapValid() or not Routines.Checks.Map.IsExplorable():
@@ -420,14 +759,6 @@ def _as_bool(value) -> bool:
     return bool(value)
 
 
-def _send_local_dialog(bot: Botting, dialog_id: int):
-    if _party_mode == 1:
-        yield from bot.helpers.Multibox._send_dialog_with_target(dialog_id)
-    else:
-        Player.SendDialog(dialog_id)
-        yield from bot.Wait._coro_for_time(500)
-
-
 def _ensure_bot_ini(bot: Botting) -> str:
     if not bot.config.ini_key_initialized:
         bot.config.ini_key = IniManager().ensure_key(
@@ -458,6 +789,43 @@ def _load_consumable_settings(bot: Botting) -> None:
     bot.Properties.ApplyNow("use_pcons", "active", _as_bool(saved_use_pcons))
 
 
+def _load_kit_restock_settings(bot: Botting) -> None:
+    global _restock_kits_enabled, _id_kits_target, _salvage_kits_target, _merchant_sell_materials, _merchant_alt_wait_ms
+    ini_key = _ensure_bot_ini(bot)
+    if not ini_key:
+        return
+    _restock_kits_enabled = IniManager().read_bool(
+        ini_key,
+        _SETTINGS_SECTION,
+        _USE_RESTOCK_KITS_KEY,
+        _restock_kits_enabled,
+    )
+    _id_kits_target = max(0, int(IniManager().read_int(
+        ini_key,
+        _SETTINGS_SECTION,
+        _ID_KITS_TARGET_KEY,
+        _id_kits_target,
+    )))
+    _salvage_kits_target = max(0, int(IniManager().read_int(
+        ini_key,
+        _SETTINGS_SECTION,
+        _SALVAGE_KITS_TARGET_KEY,
+        _salvage_kits_target,
+    )))
+    _merchant_sell_materials = IniManager().read_bool(
+        ini_key,
+        _SETTINGS_SECTION,
+        _MERCHANT_SELL_MATERIALS_KEY,
+        _merchant_sell_materials,
+    )
+    _merchant_alt_wait_ms = max(0, min(_MAX_ALT_SETTLE_WAIT_MS, int(IniManager().read_int(
+        ini_key,
+        _SETTINGS_SECTION,
+        _MERCHANT_ALT_WAIT_MS_KEY,
+        _merchant_alt_wait_ms,
+    ))))
+
+
 def _save_consumable_settings(bot: Botting) -> None:
     ini_key = _ensure_bot_ini(bot)
     if not ini_key:
@@ -476,10 +844,22 @@ def _save_consumable_settings(bot: Botting) -> None:
     )
 
 
+def _save_kit_restock_settings(bot: Botting) -> None:
+    ini_key = _ensure_bot_ini(bot)
+    if not ini_key:
+        return
+    IniManager().write_key(ini_key, _SETTINGS_SECTION, _USE_RESTOCK_KITS_KEY, bool(_restock_kits_enabled))
+    IniManager().write_key(ini_key, _SETTINGS_SECTION, _ID_KITS_TARGET_KEY, int(_id_kits_target))
+    IniManager().write_key(ini_key, _SETTINGS_SECTION, _SALVAGE_KITS_TARGET_KEY, int(_salvage_kits_target))
+    IniManager().write_key(ini_key, _SETTINGS_SECTION, _MERCHANT_SELL_MATERIALS_KEY, bool(_merchant_sell_materials))
+    IniManager().write_key(ini_key, _SETTINGS_SECTION, _MERCHANT_ALT_WAIT_MS_KEY, int(_merchant_alt_wait_ms))
+
+
 def _ensure_consumable_settings_ui_loaded(bot: Botting) -> None:
     if getattr(bot.config, "_consumable_settings_ui_loaded", False):
         return
     _load_consumable_settings(bot)
+    _load_kit_restock_settings(bot)
     bot.config._consumable_settings_ui_loaded = True
 
 
@@ -694,7 +1074,10 @@ def _draw_hero_settings_tab():
 
 def _setup_heroes(bot: Botting):
     global _hero_slots
-    GLOBAL_CACHE.Party.LeaveParty()
+    if _party_mode == 1:
+        _kick_current_party_accounts()
+    else:
+        GLOBAL_CACHE.Party.LeaveParty()
     for _ in range(8):
         yield from bot.Wait._coro_for_time(250)
         if GLOBAL_CACHE.Party.GetPlayerCount() <= 1:
@@ -721,6 +1104,76 @@ def _setup_heroes(bot: Botting):
             if template:
                 GLOBAL_CACHE.SkillBar.LoadHeroSkillTemplate(position, template)
             yield from bot.Wait._coro_for_time(500)
+
+
+def _apply_combat_backend_local_now(bot: Botting) -> None:
+    from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler as _get_wh
+
+    def _set_hero_ai_active(active: bool):
+        try:
+            bot.Properties.ApplyNow("hero_ai", "active", active)
+        except Exception:
+            try:
+                bot.Properties.ApplyNow("hero_ai", active)
+            except Exception:
+                pass
+        try:
+            if active:
+                bot.Properties.Enable("hero_ai")
+            else:
+                bot.Properties.Disable("hero_ai")
+        except Exception:
+            pass
+
+    wh = _get_wh()
+
+    if _combat_backend == 1:
+        _set_hero_ai_active(False)
+        try:
+            wh.disable_widget("HeroAI")
+        except Exception:
+            pass
+        try:
+            wh.enable_widget("CustomBehaviors")
+        except Exception:
+            pass
+    else:
+        _set_hero_ai_active(True)
+        try:
+            wh.disable_widget("CustomBehaviors")
+        except Exception:
+            pass
+        try:
+            wh.enable_widget("HeroAI")
+        except Exception:
+            pass
+
+
+def _apply_combat_backend_if_available(bot: Botting):
+    _apply_combat_backend_local_now(bot)
+
+    if _combat_backend == 1:
+        if _party_mode == 1:
+            try:
+                yield from bot.helpers.Multibox._disable_widget_message("HeroAI")
+            except Exception:
+                pass
+            try:
+                yield from bot.helpers.Multibox._enable_widget_message("CustomBehaviors")
+            except Exception:
+                pass
+    else:
+        if _party_mode == 1:
+            try:
+                yield from bot.helpers.Multibox._disable_widget_message("CustomBehaviors")
+            except Exception:
+                pass
+            try:
+                yield from bot.helpers.Multibox._enable_widget_message("HeroAI")
+            except Exception:
+                pass
+
+    yield from bot.Wait._coro_for_time(500)
 
 
 def _maybe_setup_heroes(bot: Botting):
@@ -764,12 +1217,27 @@ def _sync_consumable_toggles(bot: Botting) -> None:
 
 # region GUI
 def _load_mode_setting(bot: Botting) -> None:
-    global _party_mode
+    global _party_mode, _randomize_district, _combat_backend
     ini_key = _ensure_bot_ini(bot)
     if not ini_key:
         return
     raw = IniManager().read_bool(ini_key, _SETTINGS_SECTION, _MULTIBOX_ALTS_KEY, False)
     _party_mode = 1 if raw else 0
+    _randomize_district = IniManager().read_bool(ini_key, _SETTINGS_SECTION, _RANDOMIZE_DISTRICT_KEY, _randomize_district)
+    try:
+        _combat_backend = int(IniManager().read_int(ini_key, _SETTINGS_SECTION, _COMBAT_BACKEND_KEY, _combat_backend))
+    except Exception:
+        _combat_backend = 0
+    if _combat_backend not in (0, 1):
+        _combat_backend = 0
+
+
+def _ensure_mode_loaded(bot: Botting) -> None:
+    global _mode_loaded
+    if _mode_loaded:
+        return
+    _load_mode_setting(bot)
+    _mode_loaded = True
 
 
 def _save_mode_setting(bot: Botting) -> None:
@@ -777,6 +1245,24 @@ def _save_mode_setting(bot: Botting) -> None:
     if not ini_key:
         return
     IniManager().write_key(ini_key, _SETTINGS_SECTION, _MULTIBOX_ALTS_KEY, _party_mode == 1)
+    IniManager().write_key(ini_key, _SETTINGS_SECTION, _RANDOMIZE_DISTRICT_KEY, bool(_randomize_district))
+    IniManager().write_key(ini_key, _SETTINGS_SECTION, _COMBAT_BACKEND_KEY, int(_combat_backend))
+
+
+def _do_dialog_at(bot: Botting, x: float, y: float, dialog_id: int, broadcast_to_alts: bool = True):
+    if _party_mode == 1 and broadcast_to_alts:
+        yield from bot.Move._coro_xy_and_interact_npc(x, y)
+        yield from bot.Wait._coro_for_time(1500)
+        yield from bot.helpers.Multibox._send_dialog_with_target(dialog_id)
+        yield from bot.Wait._coro_for_time(1500)
+    else:
+        yield from bot.Move._coro_xy_and_dialog(x, y, dialog_id)
+        yield from bot.Wait._coro_for_time(500)
+
+
+def _take_asura_blessing_at(bot: Botting, x: float, y: float):
+    yield from _do_dialog_at(bot, x, y, 0x84)
+    yield from bot.Wait._coro_for_time(6000)
 
 
 def _draw_settings(bot: Botting):
@@ -786,10 +1272,8 @@ def _draw_settings(bot: Botting):
 
     _ensure_consumable_settings_ui_loaded(bot)
 
-    global _party_mode, _mode_loaded
-    if not _mode_loaded:
-        _load_mode_setting(bot)
-        _mode_loaded = True
+    global _party_mode, _randomize_district, _combat_backend
+    _ensure_mode_loaded(bot)
     PyImGui.separator()
     PyImGui.text("Party Mode:")
     new_mode = PyImGui.radio_button("Single Account with Heroes", _party_mode, 0)
@@ -802,10 +1286,19 @@ def _draw_settings(bot: Botting):
         PyImGui.push_style_color(PyImGui.ImGuiCol.Text, (0.6, 0.9, 1.0, 1.0))
         PyImGui.text("Resign uses Multibox Party Resign. Hero setup is skipped.")
         PyImGui.pop_style_color(1)
+    new_randomize = PyImGui.checkbox("Randomize EU District", _randomize_district)
+    if new_randomize != _randomize_district:
+        _randomize_district = new_randomize
+        _save_mode_setting(bot)
     PyImGui.separator()
 
     PyImGui.text("Combat Backend")
-    PyImGui.text("Current: Auto Combat")
+    new_backend = PyImGui.radio_button("HeroAI", _combat_backend, 0)
+    PyImGui.same_line(0, 16)
+    new_backend = PyImGui.radio_button("CustomBehaviors", new_backend, 1)
+    if new_backend != _combat_backend:
+        _combat_backend = new_backend
+        _save_mode_setting(bot)
 
     # Conset controls
     use_conset = _as_bool(bot.Properties.Get("use_conset", "active"))
@@ -821,6 +1314,34 @@ def _draw_settings(bot: Botting):
         bot.Properties.ApplyNow("use_pcons", "active", new_use_pcons)
         _save_consumable_settings(bot)
     _sync_consumable_toggles(bot)
+
+    global _restock_kits_enabled, _id_kits_target, _salvage_kits_target, _merchant_sell_materials, _merchant_alt_wait_ms
+    PyImGui.separator()
+    new_restock_kits = PyImGui.checkbox("Guild Hall merchant on startup", _restock_kits_enabled)
+    if new_restock_kits != _restock_kits_enabled:
+        _restock_kits_enabled = new_restock_kits
+        _save_kit_restock_settings(bot)
+
+    if _restock_kits_enabled:
+        new_id_target = PyImGui.input_int("ID Kits target##asura_id", _id_kits_target)
+        if new_id_target != _id_kits_target:
+            _id_kits_target = max(0, new_id_target)
+            _save_kit_restock_settings(bot)
+
+        new_salvage_target = PyImGui.input_int("Salvage Kits target##asura_salv", _salvage_kits_target)
+        if new_salvage_target != _salvage_kits_target:
+            _salvage_kits_target = max(0, new_salvage_target)
+            _save_kit_restock_settings(bot)
+
+        new_sell_materials = PyImGui.checkbox("Sell common materials##asura_sell", _merchant_sell_materials)
+        if new_sell_materials != _merchant_sell_materials:
+            _merchant_sell_materials = new_sell_materials
+            _save_kit_restock_settings(bot)
+
+        new_wait = PyImGui.input_int("Alt settle wait (ms)##asura_alt_wait", _merchant_alt_wait_ms)
+        if new_wait != _merchant_alt_wait_ms:
+            _merchant_alt_wait_ms = max(0, min(_MAX_ALT_SETTLE_WAIT_MS, new_wait))
+            _save_kit_restock_settings(bot)
 
 
 def tooltip():

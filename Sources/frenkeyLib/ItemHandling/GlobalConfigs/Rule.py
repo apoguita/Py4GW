@@ -6,6 +6,9 @@ from Py4GWCoreLib.Item import Item
 from Py4GWCoreLib.enums_src.GameData_enums import DyeColor
 from Py4GWCoreLib.enums_src.Item_enums import ItemType, Rarity
 from Py4GWCoreLib.enums_src.Model_enums import ModelID
+from Py4GWCoreLib.item_mods_src.item_mod import ItemMod
+from Py4GWCoreLib.item_mods_src.upgrades import Upgrade
+from Sources.frenkeyLib.ItemHandling.Items.item_snapshot import ItemSnapshot
 
 class Rule:
     _registry: ClassVar[dict[str, type["Rule"]]] = {}
@@ -16,6 +19,13 @@ class Rule:
 
     def __init__(self):
         pass
+
+    def get_item(self, item_id: int) -> Optional[ItemSnapshot]:
+        try:
+            return ItemSnapshot.from_item_id(item_id)
+        
+        except Exception:
+            return None
 
     def is_valid(self) -> bool:
         return True
@@ -63,153 +73,6 @@ class Rule:
         rule._deserialize_data(payload)
         return rule
 
-#region Single value rules
-class ModelIdRule(Rule):
-    """
-    **CAUTION**: This rule is very basic and can result in unwanted matches as model IDs can be shared between different items and item types!
-    """
-
-    def __init__(self, model_id: Optional[ModelID|int] = None):
-        super().__init__()
-        self.model_id: ModelID | int | None = model_id
-
-    def is_valid(self) -> bool:
-        return self.model_id is not None
-
-    def applies(self, item_id):
-        if not self.is_valid():
-            return False
-
-        model_id = Item.GetModelID(item_id)
-        if model_id is None or self.model_id is None:
-            return False
-        
-        if isinstance(self.model_id, ModelID):
-            return model_id == self.model_id.value
-        
-        return model_id == self.model_id
-
-    def _serialize_data(self) -> dict[str, Any]:
-        return {"model_id": int(self.model_id.value) if isinstance(self.model_id, ModelID) else self.model_id}
-
-    def _comparison_data(self) -> Any:
-        return int(self.model_id.value) if isinstance(self.model_id, ModelID) else self.model_id
-
-    def _deserialize_data(self, data: dict[str, Any]) -> None:
-        model_id = data.get("model_id", None)
-        if isinstance(model_id, int):
-            try:
-                self.model_id = ModelID(model_id)
-            except ValueError:
-                self.model_id = model_id
-        else:
-            self.model_id = None
-
-class ItemTypeRule(Rule):
-    """
-    A rule that checks if an item :class:`ItemType` is a specified item type.
-    """
-
-    def __init__(self, item_type: Optional[ItemType] = None):
-        super().__init__()
-        self.item_type: ItemType | None = item_type
-
-    def is_valid(self) -> bool:
-        return self.item_type is not None
-
-    def applies(self, item_id: int) -> bool:
-        if not self.is_valid():
-            return False
-
-        item_type, _ = Item.GetItemType(item_id)
-        return ItemType(item_type) == self.item_type if item_type else False
-
-    def _serialize_data(self) -> dict[str, Any]:
-        return {"item_type": self.item_type.name if self.item_type is not None else None}
-
-    def _comparison_data(self) -> Any:
-        return self.item_type
-
-    def _deserialize_data(self, data: dict[str, Any]) -> None:
-        item_type_name = data.get("item_type", None)
-        if isinstance(item_type_name, str) and item_type_name in ItemType.__members__:
-            self.item_type = ItemType[item_type_name]
-        else:
-            self.item_type = None
-            for name in data.get("item_types", []):
-                if isinstance(name, str) and name in ItemType.__members__:
-                    self.item_type = ItemType[name]
-                    break
-    
-class RarityRule(Rule):
-    """
-    A rule that checks if an item :class:`Rarity` is a specified rarity.
-    """
-
-    def __init__(self, rarity: Optional[Rarity] = None):
-        super().__init__()
-        self.rarity: Rarity | None = rarity
-
-    def is_valid(self) -> bool:
-        return self.rarity is not None
-
-    def applies(self, item_id: int) -> bool:
-        if not self.is_valid():
-            return False
-
-        rarity = Item.Rarity.GetRarity(item_id)
-        return rarity == self.rarity if rarity else False
-
-    def _serialize_data(self) -> dict[str, Any]:
-        return {"rarity": self.rarity.name if self.rarity is not None else None}
-
-    def _comparison_data(self) -> Any:
-        return self.rarity
-
-    def _deserialize_data(self, data: dict[str, Any]) -> None:
-        rarity_name = data.get("rarity", None)
-        if isinstance(rarity_name, str) and rarity_name in Rarity.__members__:
-            self.rarity = Rarity[rarity_name]
-        else:
-            self.rarity = None
-
-class DyeRule(Rule):
-    """
-    A rule if an item is a **Vial of Dye** of a specific :class:`DyeColor`. This is determined by the item's dye color.
-    """
-
-    def __init__(self, dye_color: Optional[DyeColor] = None):
-        super().__init__()
-        self.dye_color: DyeColor | None = dye_color
-
-    def is_valid(self) -> bool:
-        return self.dye_color is not None
-
-    def applies(self, item_id: int) -> bool:
-        if not self.is_valid():
-            return False
-
-        item_type, _ = Item.GetItemType(item_id)
-        if not item_type or item_type != ItemType.Dye:
-            return False
-        
-        item_color = Item.GetDyeColor(item_id)        
-        return item_type == ItemType.Dye and item_color == self.dye_color if item_type else False
-
-    def _serialize_data(self) -> dict[str, Any]:
-        return {"dye_color": self.dye_color.name if self.dye_color is not None else None}
-
-    def _comparison_data(self) -> Any:
-        return self.dye_color
-
-    def _deserialize_data(self, data: dict[str, Any]) -> None:
-        dye_color_name = data.get("dye_color", None)
-        if isinstance(dye_color_name, str) and dye_color_name in DyeColor.__members__:
-            self.dye_color = DyeColor[dye_color_name]
-        else:
-            self.dye_color = None
-#endregion Single value rules
-
 #region Multi value rules
 class ModelIdsRule(Rule):
     """
@@ -228,7 +91,11 @@ class ModelIdsRule(Rule):
         if not self.is_valid():
             return False
 
-        model_id = Item.GetModelID(item_id)
+        item_snapshot = self.get_item(item_id)
+        if item_snapshot is None:
+            return False
+
+        model_id = item_snapshot.model_id
         if model_id is None:
             return False
         
@@ -276,7 +143,11 @@ class ItemTypesRule(Rule):
         if not self.is_valid():
             return False
 
-        item_type, _ = Item.GetItemType(item_id)
+        item_snapshot = self.get_item(item_id)
+        if item_snapshot is None:
+            return False
+
+        item_type = item_snapshot.item_type
         return item_type in self.item_types if item_type else False
 
     def _serialize_data(self) -> dict[str, Any]:
@@ -308,7 +179,11 @@ class RaritiesRule(Rule):
         if not self.is_valid():
             return False
 
-        rarity = Item.Rarity.GetRarity(item_id)
+        item_snapshot = self.get_item(item_id)
+        if item_snapshot is None:
+            return False
+
+        rarity = item_snapshot.rarity
         return rarity in self.rarities if rarity else False
 
     def _serialize_data(self) -> dict[str, Any]:
@@ -340,11 +215,15 @@ class DyesRule(Rule):
         if not self.is_valid():
             return False
 
-        item_type, _ = Item.GetItemType(item_id)
+        item_snapshot = self.get_item(item_id)
+        if item_snapshot is None:
+            return False
+
+        item_type = item_snapshot.item_type
         if not item_type or item_type != ItemType.Dye:
             return False
         
-        item_color = Item.GetDyeColor(item_id)        
+        item_color = item_snapshot.color
         return item_color in self.dye_colors if item_color else False
 
     def _serialize_data(self) -> dict[str, Any]:
@@ -359,4 +238,93 @@ class DyesRule(Rule):
             for name in data.get("dye_colors", [])
             if isinstance(name, str) and name in DyeColor.__members__
         ]
+
+class UpgradeRule(Rule):
+    """
+    A rule that checks if an item has a one of the specified upgrades.
+    """
+    def __init__(self, upgrades: Optional[list[(tuple[Upgrade, list[ItemType]] | Upgrade)]] = None):
+        super().__init__()
+        #add ItemType.EquippableItem to all upgrades that are not already tuples
+        normalized_upgrades: list[tuple[Upgrade, list[ItemType]]] = []
+        if upgrades is not None:
+            for upgrade in upgrades:
+                if isinstance(upgrade, Upgrade):
+                    normalized_upgrades.append((upgrade, []))
+                    
+                elif isinstance(upgrade, tuple) and len(upgrade) == 2 and isinstance(upgrade[0], Upgrade) and (isinstance(upgrade[1], list) and all(isinstance(item_type, ItemType) for item_type in upgrade[1]) or upgrade[1] is None):
+                    normalized_upgrades.append((upgrade[0], upgrade[1] if upgrade[1] is not None else []))
+                    
+        self.upgrades: list[tuple[Upgrade, list[ItemType]]] = normalized_upgrades
+
+    def is_valid(self) -> bool:
+        return len(self.upgrades) > 0
+
+    def applies(self, item_id: int) -> bool:
+        if not self.is_valid():
+            return False
+        
+        item_snapshot = self.get_item(item_id)
+        if item_snapshot is None:
+            return False
+        
+        item_type = item_snapshot.item_type
+        if item_type == ItemType.Rune_Mod:
+            item_type = ItemMod.get_target_item_type(item_id) or item_type
+        
+        prefix, suffix, inscription, inherent = ItemMod.get_item_upgrades(item_id)
+        item_upgrades = [upgrade for upgrade in [prefix, suffix, inscription, *(inherent or [])] if upgrade is not None]
+        
+        ## check if any of the specified upgrades match an upgrade on the item, while also matching the item type requirement by checking ItemType.is_matching_item_type() to allow for meta types like Weapon or EquippableItem
+        for rule_upgrade, valid_item_types in self.upgrades:
+            if valid_item_types is not None and len(valid_item_types) > 0 and not any(item_type.matches(valid_type) for valid_type in valid_item_types):
+                continue
+            
+            for item_upgrade in item_upgrades:
+                if rule_upgrade.matches(item_upgrade):
+                    return True
+
+        return False
+
+    def _serialize_data(self) -> dict[str, Any]:
+        return {
+            "upgrades": [
+                {
+                    "upgrade": upgrade.to_dict(),
+                    "item_types": [item_type.name for item_type in item_types] if item_types is not None else None,
+                }
+                for upgrade, item_types in self.upgrades
+            ]
+        }
+
+    def _comparison_data(self) -> Any:
+        normalized_data = []
+        for upgrade, item_types in self.upgrades:
+            item_type_names = tuple(sorted(item_type.name for item_type in item_types)) if item_types is not None else None
+            normalized_data.append((upgrade._comparison_data(), item_type_names))
+        
+        return tuple(sorted(normalized_data))
+
+    def _deserialize_data(self, data: dict[str, Any]) -> None:
+        self.upgrades = []
+        for entry in data.get("upgrades", []):
+            upgrade_data = entry.get("upgrade", None)
+            item_type_names = entry.get("item_types", None)
+
+            if upgrade_data is None:
+                continue
+            
+            upgrade = Upgrade.from_dict(upgrade_data)
+            if upgrade is None:
+                continue
+            
+            item_types : list[ItemType] | None = None
+            if item_type_names is not None:
+                item_types = []
+                for name in item_type_names:
+                    if isinstance(name, str) and name in ItemType.__members__:
+                        item_types.append(ItemType[name])
+            
+            self.upgrades.append((upgrade, item_types if item_types is not None else []))
+
 #endregion Multi value rules

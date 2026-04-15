@@ -40,7 +40,7 @@ FLOATING_UI_INI_FILENAME = "MerchantRulesFloating.ini"
 FLOATING_ICON_WINDOW_ID = "##merchant_rules_floating_icon_button"
 FLOATING_ICON_WINDOW_NAME = "Merchant Rules Toggle"
 
-PROFILE_VERSION = 15
+PROFILE_VERSION = 16
 CONFIG_DIR = os.path.join(Py4GW.Console.get_projects_path(), "Widgets", "Config", "MerchantRules")
 SHARED_PROFILES_DIR = os.path.join(CONFIG_DIR, "Profiles")
 RECOVERY_DIR = os.path.join(CONFIG_DIR, "Recovery")
@@ -48,6 +48,14 @@ DATA_DIR = os.path.join(Py4GW.Console.get_projects_path(), "Widgets", "Data")
 CATALOG_PATH = os.path.join(DATA_DIR, "merchant_rules_catalog.json")
 ITEMS_CATALOG_PATH = os.path.join(DATA_DIR, "merchant_rules_items_catalog.json")
 DROP_DATA_PATH = os.path.join(DATA_DIR, "modelid_drop_data.json")
+ITEM_HANDLING_ITEMS_CATALOG_PATH = os.path.join(
+    Py4GW.Console.get_projects_path(),
+    "Sources",
+    "frenkeyLib",
+    "ItemHandling",
+    "Items",
+    "items.json",
+)
 MODS_DATA_DIR = os.path.join(Py4GW.Console.get_projects_path(), "Sources", "marks_sources", "mods_data")
 RUNES_CATALOG_PATH = os.path.join(MODS_DATA_DIR, "runes.json")
 SEARCH_RESULT_LIMIT = 12
@@ -566,6 +574,7 @@ class BuyRule:
 @dataclass
 class WeaponRequirementRule:
     model_id: int = 0
+    min_requirement: int = 0
     max_requirement: int = 0
 
 
@@ -581,6 +590,7 @@ class SellRule:
     rarities: dict[str, bool] = field(default_factory=dict)
     blacklist_model_ids: list[int] = field(default_factory=list)
     blacklist_item_type_ids: list[int] = field(default_factory=list)
+    all_weapons_min_requirement: int = 0
     all_weapons_max_requirement: int = 0
     protected_weapon_requirement_rules: list[WeaponRequirementRule] = field(default_factory=list)
     protected_weapon_mod_identifiers: list[str] = field(default_factory=list)
@@ -1099,6 +1109,17 @@ def _build_catalog_alias_labels(name: object, skin: object = "", wiki_url: objec
     return alias_labels
 
 
+def _humanize_model_id_enum_name(raw_name: object) -> str:
+    text = str(raw_name or "").strip()
+    if not text:
+        return ""
+    text = text.replace("_", " ")
+    text = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", " ", text)
+    text = re.sub(r"(?<=[A-Z])(?=[A-Z][a-z])", " ", text)
+    text = re.sub(r"\s+", " ", text)
+    return text.strip()
+
+
 def _get_mirrored_item_priority(item_type: object) -> int:
     normalized_type = str(item_type or "").strip().lower()
     if normalized_type in {
@@ -1125,6 +1146,86 @@ def _get_mirrored_item_priority(item_type: object) -> int:
     return 30
 
 
+MODEL_ID_FALLBACK_ITEM_TYPE_SUFFIXES: tuple[tuple[str, str], ...] = (
+    ("Daggers", "Daggers"),
+    ("Scythe", "Scythe"),
+    ("Shield", "Shield"),
+    ("Spear", "Spear"),
+    ("Staff", "Staff"),
+    ("Sword", "Sword"),
+    ("Hammer", "Hammer"),
+    ("Focus", "Offhand"),
+    ("Offhand", "Offhand"),
+    ("Icon", "Offhand"),
+    ("Prism", "Offhand"),
+    ("Wand", "Wand"),
+    ("Bow", "Bow"),
+    ("Axe", "Axe"),
+    ("Headpiece", "Headpiece"),
+    ("Chestpiece", "Chestpiece"),
+    ("Gloves", "Gloves"),
+    ("Leggings", "Leggings"),
+    ("Boots", "Boots"),
+    ("SalvageKit", "Salvage"),
+)
+
+
+def _infer_model_id_fallback_item_type(enum_names: list[str], display_name: str) -> str:
+    candidates = [display_name, *enum_names]
+    for candidate in candidates:
+        compact = re.sub(r"[^A-Za-z0-9]+", "", str(candidate or ""))
+        normalized = _normalize_catalog_search_text(_humanize_model_id_enum_name(candidate))
+        tokens = set(normalized.split())
+        for suffix, item_type in MODEL_ID_FALLBACK_ITEM_TYPE_SUFFIXES:
+            suffix_lower = suffix.lower()
+            if compact.lower().endswith(suffix_lower) or suffix_lower in tokens:
+                return item_type
+    return ""
+
+
+def _iter_model_id_enum_members() -> list[tuple[str, int]]:
+    members = getattr(ModelID, "__members__", None)
+    if isinstance(members, dict):
+        raw_members = list(members.items())
+    else:
+        raw_members = [
+            (name, getattr(ModelID, name))
+            for name in dir(ModelID)
+            if not name.startswith("_")
+        ]
+
+    resolved_members: list[tuple[str, int]] = []
+    for raw_name, raw_value in raw_members:
+        name = str(raw_name or "").strip()
+        if not name:
+            continue
+        try:
+            model_id = int(raw_value.value)
+        except Exception:
+            model_id = _safe_int(raw_value, 0)
+        if model_id > 0:
+            resolved_members.append((name, model_id))
+    return resolved_members
+
+
+def _iter_item_handling_catalog_entries(raw_catalog: object) -> list[dict[str, object]]:
+    entries: list[dict[str, object]] = []
+
+    def _walk(raw_value: object):
+        if isinstance(raw_value, dict):
+            if ("model_id" in raw_value or "ModelID" in raw_value) and ("name" in raw_value or "Name" in raw_value):
+                entries.append(raw_value)
+                return
+            for child_value in raw_value.values():
+                _walk(child_value)
+        elif isinstance(raw_value, list):
+            for child_value in raw_value:
+                _walk(child_value)
+
+    _walk(raw_catalog)
+    return entries
+
+
 def _is_common_crafting_material_model(model_id: object) -> bool:
     return max(0, _safe_int(model_id, 0)) in COMMON_CRAFTING_MATERIAL_MODEL_IDS
 
@@ -1143,6 +1244,44 @@ def _get_material_batch_size_for_model(model_id: object) -> int:
 
 def _normalize_weapon_requirement_level(value: object) -> int:
     return min(MAX_WEAPON_REQUIREMENT, max(0, _safe_int(value, 0)))
+
+
+def _normalize_weapon_requirement_range(min_value: object, max_value: object) -> tuple[int, int]:
+    min_requirement = _normalize_weapon_requirement_level(min_value)
+    max_requirement = _normalize_weapon_requirement_level(max_value)
+    if min_requirement > 0 and max_requirement > 0 and min_requirement > max_requirement:
+        min_requirement, max_requirement = max_requirement, min_requirement
+    return min_requirement, max_requirement
+
+
+def _should_defer_weapon_requirement_range_commit(min_value: object, max_value: object, *, input_active: bool) -> bool:
+    min_requirement = _normalize_weapon_requirement_level(min_value)
+    max_requirement = _normalize_weapon_requirement_level(max_value)
+    return bool(input_active and min_requirement > 0 and max_requirement > 0 and min_requirement > max_requirement)
+
+
+def _get_last_imgui_item_active() -> bool:
+    is_item_active = getattr(PyImGui, "is_item_active", None)
+    if not callable(is_item_active):
+        return False
+    try:
+        return bool(is_item_active())
+    except Exception:
+        return False
+
+
+def _is_weapon_requirement_range_active(min_requirement: object, max_requirement: object) -> bool:
+    normalized_min, normalized_max = _normalize_weapon_requirement_range(min_requirement, max_requirement)
+    return normalized_min > 0 and normalized_max > 0
+
+
+def _normalize_all_weapons_requirement_range_from_payload(entry: dict[str, object]) -> tuple[int, int]:
+    raw_max_requirement = entry.get("all_weapons_max_requirement", 0)
+    raw_min_requirement = entry.get(
+        "all_weapons_min_requirement",
+        1 if _normalize_weapon_requirement_level(raw_max_requirement) > 0 else 0,
+    )
+    return _normalize_weapon_requirement_range(raw_min_requirement, raw_max_requirement)
 
 
 def _is_weapon_catalog_item_type(item_type: object) -> bool:
@@ -1500,10 +1639,15 @@ def _normalize_weapon_requirement_rules(raw_rules: object) -> list[WeaponRequire
     for entry in raw_rules:
         if isinstance(entry, WeaponRequirementRule):
             model_id = entry.model_id
+            min_requirement = getattr(entry, "min_requirement", 0)
             max_requirement = entry.max_requirement
         elif isinstance(entry, dict):
             model_id = entry.get("model_id", 0)
             max_requirement = entry.get("max_requirement", 0)
+            min_requirement = entry.get(
+                "min_requirement",
+                1 if _normalize_weapon_requirement_level(max_requirement) > 0 else 0,
+            )
         else:
             continue
 
@@ -1511,11 +1655,13 @@ def _normalize_weapon_requirement_rules(raw_rules: object) -> list[WeaponRequire
         if safe_model_id <= 0 or safe_model_id in seen_model_ids:
             continue
 
+        min_requirement, max_requirement = _normalize_weapon_requirement_range(min_requirement, max_requirement)
         seen_model_ids.add(safe_model_id)
         normalized.append(
             WeaponRequirementRule(
                 model_id=safe_model_id,
-                max_requirement=_normalize_weapon_requirement_level(max_requirement),
+                min_requirement=min_requirement,
+                max_requirement=max_requirement,
             )
         )
 
@@ -1707,7 +1853,13 @@ def _normalize_sell_rule(rule: SellRule) -> SellRule | None:
     rule.rarities = _normalize_rarity_flags(rule.rarities)
     rule.blacklist_model_ids = _dedupe_model_ids(rule.blacklist_model_ids)
     rule.blacklist_item_type_ids = _dedupe_weapon_item_type_ids(rule.blacklist_item_type_ids)
-    rule.all_weapons_max_requirement = _normalize_weapon_requirement_level(getattr(rule, "all_weapons_max_requirement", 0))
+    (
+        rule.all_weapons_min_requirement,
+        rule.all_weapons_max_requirement,
+    ) = _normalize_weapon_requirement_range(
+        getattr(rule, "all_weapons_min_requirement", 0),
+        getattr(rule, "all_weapons_max_requirement", 0),
+    )
     rule.protected_weapon_requirement_rules = _normalize_weapon_requirement_rules(getattr(rule, "protected_weapon_requirement_rules", []))
     rule.protected_weapon_mod_identifiers = _dedupe_identifiers(rule.protected_weapon_mod_identifiers)
     rule.protected_rune_identifiers = _dedupe_identifiers(rule.protected_rune_identifiers)
@@ -1801,8 +1953,17 @@ def _has_explicit_equippable_hard_protection(rule: SellRule) -> bool:
     if rule.kind == SELL_KIND_WEAPONS:
         return bool(
             rule.blacklist_item_type_ids
-            or rule.all_weapons_max_requirement > 0
-            or rule.protected_weapon_requirement_rules
+            or _is_weapon_requirement_range_active(
+                getattr(rule, "all_weapons_min_requirement", 0),
+                getattr(rule, "all_weapons_max_requirement", 0),
+            )
+            or any(
+                _is_weapon_requirement_range_active(
+                    getattr(requirement_rule, "min_requirement", 0),
+                    getattr(requirement_rule, "max_requirement", 0),
+                )
+                for requirement_rule in rule.protected_weapon_requirement_rules
+            )
             or rule.protected_weapon_mod_identifiers
         )
     return bool(rule.protected_rune_identifiers)
@@ -2189,7 +2350,8 @@ class MerchantRulesWidget:
                     rarities=_normalize_rarity_flags(entry.get("rarities", {})),
                     blacklist_model_ids=[_safe_int(value, 0) for value in _coerce_list(entry.get("blacklist_model_ids", []))],
                     blacklist_item_type_ids=[_safe_int(value, 0) for value in _coerce_list(entry.get("blacklist_item_type_ids", []))],
-                    all_weapons_max_requirement=_normalize_weapon_requirement_level(entry.get("all_weapons_max_requirement", 0)),
+                    all_weapons_min_requirement=_normalize_all_weapons_requirement_range_from_payload(entry)[0],
+                    all_weapons_max_requirement=_normalize_all_weapons_requirement_range_from_payload(entry)[1],
                     protected_weapon_requirement_rules=_normalize_weapon_requirement_rules(_coerce_list(entry.get("protected_weapon_requirement_rules", []))),
                     protected_weapon_mod_identifiers=_dedupe_identifiers(_coerce_list(entry.get("protected_weapon_mod_identifiers", []))),
                     protected_rune_identifiers=_dedupe_identifiers(_coerce_list(entry.get("protected_rune_identifiers", []))),
@@ -2307,7 +2469,8 @@ class MerchantRulesWidget:
                 rarities=_normalize_rarity_flags(entry.get("rarities", {})),
                 blacklist_model_ids=[_safe_int(value, 0) for value in _coerce_list(entry.get("blacklist_model_ids", []))],
                 blacklist_item_type_ids=[_safe_int(value, 0) for value in _coerce_list(entry.get("blacklist_item_type_ids", []))],
-                all_weapons_max_requirement=_normalize_weapon_requirement_level(entry.get("all_weapons_max_requirement", 0)),
+                all_weapons_min_requirement=_normalize_all_weapons_requirement_range_from_payload(entry)[0],
+                all_weapons_max_requirement=_normalize_all_weapons_requirement_range_from_payload(entry)[1],
                 protected_weapon_requirement_rules=_normalize_weapon_requirement_rules(_coerce_list(entry.get("protected_weapon_requirement_rules", []))),
                 protected_weapon_mod_identifiers=_dedupe_identifiers(_coerce_list(entry.get("protected_weapon_mod_identifiers", []))),
                 protected_rune_identifiers=_dedupe_identifiers(_coerce_list(entry.get("protected_rune_identifiers", []))),
@@ -3394,14 +3557,20 @@ class MerchantRulesWidget:
         curated_common = int(self.catalog_stats.get("curated_common", 0) or 0)
         curated_rare = int(self.catalog_stats.get("curated_rare", 0) or 0)
         curated_essentials = int(self.catalog_stats.get("curated_essentials", 0) or 0)
+        item_handling_present = bool(self.catalog_stats.get("item_handling_present", False))
+        item_handling_items = int(self.catalog_stats.get("item_handling_items", 0) or 0)
         mirrored_present = bool(self.catalog_stats.get("mirrored_present", False))
         mirrored_items = int(self.catalog_stats.get("mirrored_items", 0) or 0)
+        mirrored_fallback_used = bool(self.catalog_stats.get("mirrored_deprecated_fallback_used", False))
         drop_data = int(self.catalog_stats.get("drop_data", 0) or 0)
+        modelid_fallback_items = int(self.catalog_stats.get("modelid_fallback_items", 0) or 0)
         final_models = int(self.catalog_stats.get("final_models", len(self.catalog_by_model_id)) or 0)
         alias_groups = int(self.catalog_stats.get("alias_groups", self._get_catalog_alias_group_count()) or 0)
         self._debug_log(
             f"{prefix}: curated={curated_total} (common={curated_common}, rare={curated_rare}, essentials={curated_essentials}) | "
-            f"mirrored_present={mirrored_present} mirrored_items={mirrored_items} | drop_data={drop_data} | "
+            f"item_handling_present={item_handling_present} item_handling_items={item_handling_items} | "
+            f"mirrored_present={mirrored_present} mirrored_items={mirrored_items} fallback_used={mirrored_fallback_used} | drop_data={drop_data} | "
+            f"modelid_fallback_items={modelid_fallback_items} | "
             f"final_models={final_models} | alias_groups={alias_groups}"
         )
         if self.catalog_load_error:
@@ -3616,6 +3785,57 @@ class MerchantRulesWidget:
             loaded_count += 1
         return loaded_count
 
+    def _load_item_handling_catalog(self) -> int:
+        if not os.path.exists(ITEM_HANDLING_ITEMS_CATALOG_PATH):
+            return 0
+
+        with open(ITEM_HANDLING_ITEMS_CATALOG_PATH, "r", encoding="utf-8") as file:
+            raw_catalog = json.load(file)
+
+        loaded_count = 0
+        for entry in _iter_item_handling_catalog_entries(raw_catalog):
+            model_id = _resolve_model_id_value(entry.get("model_id", entry.get("ModelID", 0)))
+            name = str(entry.get("name") or entry.get("Name") or "").strip()
+            if model_id <= 0 or not name:
+                continue
+
+            item_type = str(entry.get("item_type") or entry.get("ItemType") or "").strip()
+            skin = str(entry.get("skin") or entry.get("Skin") or "").strip()
+            wiki_url = str(entry.get("wiki_url") or entry.get("WikiURL") or "").strip()
+            category = str(entry.get("category") or "").strip()
+            sub_category = str(entry.get("sub_category") or "").strip()
+            raw_attributes = entry.get("attributes", [])
+            attributes = (
+                [str(attribute).strip() for attribute in raw_attributes if str(attribute or "").strip()]
+                if isinstance(raw_attributes, list)
+                else []
+            )
+            alias_labels = _build_catalog_alias_labels(name, skin, wiki_url)
+
+            extra: dict[str, object] = {
+                "alias_labels": alias_labels,
+                "attributes": attributes,
+            }
+            if skin:
+                extra["skin"] = skin
+            if wiki_url:
+                extra["wiki_url"] = wiki_url
+            if category:
+                extra["category"] = category
+            if sub_category:
+                extra["sub_category"] = sub_category
+
+            self._register_catalog_entry(
+                model_id=model_id,
+                name=name,
+                item_type=item_type,
+                source="item_handling_items_catalog",
+                priority=_get_mirrored_item_priority(item_type),
+                extra=extra,
+            )
+            loaded_count += 1
+        return loaded_count
+
     def _load_mirrored_item_catalog(self) -> int:
         if not os.path.exists(ITEMS_CATALOG_PATH):
             return 0
@@ -3653,6 +3873,47 @@ class MerchantRulesWidget:
                 source="merchant_rules_items_catalog",
                 priority=_get_mirrored_item_priority(item_type),
                 extra=extra,
+            )
+            loaded_count += 1
+        return loaded_count
+
+    def _load_model_id_fallback_catalog(self) -> int:
+        enum_names_by_model_id: dict[int, list[str]] = {}
+        for enum_name, model_id in _iter_model_id_enum_members():
+            if model_id <= 0:
+                continue
+            names = enum_names_by_model_id.setdefault(model_id, [])
+            if enum_name not in names:
+                names.append(enum_name)
+
+        loaded_count = 0
+        for model_id, enum_names in enum_names_by_model_id.items():
+            if model_id in self.catalog_by_model_id:
+                continue
+            if not enum_names:
+                continue
+
+            display_name = _humanize_model_id_enum_name(enum_names[0]) or f"Model {model_id}"
+            alias_labels = _build_catalog_alias_labels(display_name)
+            for enum_name in enum_names:
+                raw_name = str(enum_name or "").strip()
+                if not raw_name:
+                    continue
+                alias_labels.setdefault(_normalize_catalog_search_text(raw_name), raw_name)
+                humanized_name = _humanize_model_id_enum_name(raw_name)
+                if humanized_name:
+                    alias_labels.setdefault(_normalize_catalog_search_text(humanized_name), humanized_name)
+
+            self._register_catalog_entry(
+                model_id=model_id,
+                name=display_name,
+                item_type=_infer_model_id_fallback_item_type(enum_names, display_name),
+                source="modelid_enum_fallback",
+                priority=90,
+                extra={
+                    "alias_labels": alias_labels,
+                    "enum_names": list(enum_names),
+                },
             )
             loaded_count += 1
         return loaded_count
@@ -3695,8 +3956,11 @@ class MerchantRulesWidget:
         common_entries: list[dict[str, object]] = []
         rare_entries: list[dict[str, object]] = []
         merchant_entries: list[dict[str, object]] = []
+        item_handling_items_count = 0
         mirrored_items_count = 0
         drop_data_count = 0
+        model_id_fallback_count = 0
+        item_handling_present = os.path.exists(ITEM_HANDLING_ITEMS_CATALOG_PATH)
         mirrored_present = os.path.exists(ITEMS_CATALOG_PATH)
 
         try:
@@ -3733,9 +3997,18 @@ class MerchantRulesWidget:
             load_errors.append(f"Catalog load failed: {exc}")
 
         try:
-            mirrored_items_count = self._load_mirrored_item_catalog()
+            item_handling_items_count = self._load_item_handling_catalog()
         except Exception as exc:
-            load_errors.append(f"Mirrored item catalog load failed: {exc}")
+            load_errors.append(f"ItemHandling item catalog load failed: {exc}")
+
+        # Deprecated compatibility fallback. The ItemHandling catalog is the
+        # primary broad item catalog; only read the old MR mirror if it failed
+        # to contribute any searchable entries.
+        if item_handling_items_count <= 0:
+            try:
+                mirrored_items_count = self._load_mirrored_item_catalog()
+            except Exception as exc:
+                load_errors.append(f"Deprecated mirrored item catalog load failed: {exc}")
 
         try:
             drop_data_count = self._load_drop_data_catalog()
@@ -3755,15 +4028,24 @@ class MerchantRulesWidget:
         if MOD_DB_LOAD_ERROR:
             load_errors.append(MOD_DB_LOAD_ERROR)
 
+        try:
+            model_id_fallback_count = self._load_model_id_fallback_catalog()
+        except Exception as exc:
+            load_errors.append(f"ModelID fallback catalog load failed: {exc}")
+
         self._rebuild_catalog_alias_index()
         self.catalog_stats = {
             "curated_common": len(common_entries),
             "curated_rare": len(rare_entries),
             "curated_essentials": len(merchant_entries),
             "curated_total": len(common_entries) + len(rare_entries) + len(merchant_entries),
+            "item_handling_present": item_handling_present,
+            "item_handling_items": item_handling_items_count,
             "mirrored_present": mirrored_present,
             "mirrored_items": mirrored_items_count,
+            "mirrored_deprecated_fallback_used": item_handling_items_count <= 0 and mirrored_items_count > 0,
             "drop_data": drop_data_count,
+            "modelid_fallback_items": model_id_fallback_count,
             "final_models": len(self.catalog_by_model_id),
             "alias_groups": self._get_catalog_alias_group_count(),
         }
@@ -4264,8 +4546,8 @@ class MerchantRulesWidget:
             if model_id <= 0 or not name:
                 continue
 
-            item_type = str(entry.get("item_type", "")).strip().lower()
-            material_type = str(entry.get("material_type", "")).strip().lower()
+            item_type = _normalize_catalog_search_text(entry.get("item_type", ""))
+            material_type = _normalize_catalog_search_text(entry.get("material_type", ""))
             model_id_text = str(model_id)
             name_lower = _normalize_catalog_search_text(name)
             alias_labels = entry.get("alias_labels", {})
@@ -4678,15 +4960,24 @@ class MerchantRulesWidget:
         rule.protected_weapon_requirement_rules = normalized_rules
         return True
 
-    def _add_sell_rule_weapon_requirement_rule(self, rule: SellRule, model_id: int, *, max_requirement: int = 8) -> bool:
+    def _add_sell_rule_weapon_requirement_rule(
+        self,
+        rule: SellRule,
+        model_id: int,
+        *,
+        min_requirement: int = 1,
+        max_requirement: int = 8,
+    ) -> bool:
         safe_model_id = max(0, _safe_int(model_id, 0))
         if safe_model_id <= 0:
             return False
+        min_requirement, max_requirement = _normalize_weapon_requirement_range(min_requirement, max_requirement)
         next_rules = list(rule.protected_weapon_requirement_rules)
         next_rules.append(
             WeaponRequirementRule(
                 model_id=safe_model_id,
-                max_requirement=_normalize_weapon_requirement_level(max_requirement),
+                min_requirement=min_requirement,
+                max_requirement=max_requirement,
             )
         )
         return self._set_sell_rule_weapon_requirement_rules(rule, next_rules)
@@ -5840,18 +6131,34 @@ class MerchantRulesWidget:
         if requirement <= 0:
             return ""
 
+        has_model_requirement_range = False
         for requirement_rule in rule.protected_weapon_requirement_rules:
             if item.model_id != int(requirement_rule.model_id):
                 continue
-            max_requirement = _normalize_weapon_requirement_level(requirement_rule.max_requirement)
-            if requirement <= max_requirement:
+            min_requirement, max_requirement = _normalize_weapon_requirement_range(
+                getattr(requirement_rule, "min_requirement", 0),
+                getattr(requirement_rule, "max_requirement", 0),
+            )
+            if not _is_weapon_requirement_range_active(min_requirement, max_requirement):
+                continue
+            has_model_requirement_range = True
+            if min_requirement <= requirement <= max_requirement:
                 item_label = self._get_requirement_rule_item_label(item)
-                return f"Protected by requirement rule: {item_label} req {requirement} <= {max_requirement}."
+                return f"Protected by requirement range: {item_label} req {requirement} in {min_requirement}-{max_requirement}."
 
-        all_weapons_max_requirement = _normalize_weapon_requirement_level(getattr(rule, "all_weapons_max_requirement", 0))
-        if all_weapons_max_requirement > 0 and requirement <= all_weapons_max_requirement:
+        if has_model_requirement_range:
+            return ""
+
+        all_weapons_min_requirement, all_weapons_max_requirement = _normalize_weapon_requirement_range(
+            getattr(rule, "all_weapons_min_requirement", 0),
+            getattr(rule, "all_weapons_max_requirement", 0),
+        )
+        if (
+            _is_weapon_requirement_range_active(all_weapons_min_requirement, all_weapons_max_requirement)
+            and all_weapons_min_requirement <= requirement <= all_weapons_max_requirement
+        ):
             item_label = self._get_requirement_rule_item_label(item)
-            return f"Protected by all-weapons requirement rule: {item_label} req {requirement} <= {all_weapons_max_requirement}."
+            return f"Protected by all-weapons requirement range: {item_label} req {requirement} in {all_weapons_min_requirement}-{all_weapons_max_requirement}."
         return ""
 
     def _get_equippable_hard_protection_reason(self, item: InventoryItemInfo, rule: SellRule) -> tuple[str, str] | None:
@@ -10123,10 +10430,23 @@ class MerchantRulesWidget:
             parts.append(f"Models {len(normalized_rule.blacklist_model_ids)}")
         if normalized_rule.kind == SELL_KIND_WEAPONS and normalized_rule.blacklist_item_type_ids:
             parts.append(f"Weapon types {len(normalized_rule.blacklist_item_type_ids)}")
-        if normalized_rule.kind == SELL_KIND_WEAPONS and normalized_rule.all_weapons_max_requirement > 0:
-            parts.append(f"All weapons <= {int(normalized_rule.all_weapons_max_requirement)}")
-        if normalized_rule.kind == SELL_KIND_WEAPONS and normalized_rule.protected_weapon_requirement_rules:
-            parts.append(f"Req rules {len(normalized_rule.protected_weapon_requirement_rules)}")
+        if normalized_rule.kind == SELL_KIND_WEAPONS:
+            all_weapons_min_requirement, all_weapons_max_requirement = _normalize_weapon_requirement_range(
+                getattr(normalized_rule, "all_weapons_min_requirement", 0),
+                getattr(normalized_rule, "all_weapons_max_requirement", 0),
+            )
+            if _is_weapon_requirement_range_active(all_weapons_min_requirement, all_weapons_max_requirement):
+                parts.append(f"All weapons req {all_weapons_min_requirement}-{all_weapons_max_requirement}")
+            active_requirement_rule_count = sum(
+                1
+                for requirement_rule in normalized_rule.protected_weapon_requirement_rules
+                if _is_weapon_requirement_range_active(
+                    getattr(requirement_rule, "min_requirement", 0),
+                    getattr(requirement_rule, "max_requirement", 0),
+                )
+            )
+            if active_requirement_rule_count > 0:
+                parts.append(f"Req ranges {active_requirement_rule_count}")
         if normalized_rule.kind == SELL_KIND_WEAPONS and normalized_rule.protected_weapon_mod_identifiers:
             parts.append(f"Protected mods {len(normalized_rule.protected_weapon_mod_identifiers)}")
         if normalized_rule.kind == SELL_KIND_ARMOR and normalized_rule.protected_rune_identifiers:
@@ -12149,12 +12469,20 @@ class MerchantRulesWidget:
                 first_item_type_id = int(normalized_rule.blacklist_item_type_ids[0])
                 return SELL_PROTECTION_ANCHOR_WEAPON_TYPES, f"item_type:{first_item_type_id}"
             if normalized_rule.protected_weapon_requirement_rules:
-                first_requirement_rule = normalized_rule.protected_weapon_requirement_rules[0]
-                return (
-                    SELL_PROTECTION_ANCHOR_REQUIREMENTS,
-                    f"requirement_model:{int(first_requirement_rule.model_id)}",
-                )
-            if normalized_rule.all_weapons_max_requirement > 0:
+                for first_requirement_rule in normalized_rule.protected_weapon_requirement_rules:
+                    if not _is_weapon_requirement_range_active(
+                        getattr(first_requirement_rule, "min_requirement", 0),
+                        getattr(first_requirement_rule, "max_requirement", 0),
+                    ):
+                        continue
+                    return (
+                        SELL_PROTECTION_ANCHOR_REQUIREMENTS,
+                        f"requirement_model:{int(first_requirement_rule.model_id)}",
+                    )
+            if _is_weapon_requirement_range_active(
+                getattr(normalized_rule, "all_weapons_min_requirement", 0),
+                getattr(normalized_rule, "all_weapons_max_requirement", 0),
+            ):
                 return SELL_PROTECTION_ANCHOR_REQUIREMENTS, SELL_PROTECTION_TARGET_KEY_ALL_WEAPONS_REQUIREMENT
             if normalized_rule.protected_weapon_mod_identifiers:
                 first_identifier = str(normalized_rule.protected_weapon_mod_identifiers[0])
@@ -12247,22 +12575,32 @@ class MerchantRulesWidget:
                         target_key=f"item_type:{int(item_type_id)}",
                     )
 
-                if normalized_rule.all_weapons_max_requirement > 0:
+                all_weapons_min_requirement, all_weapons_max_requirement = _normalize_weapon_requirement_range(
+                    getattr(normalized_rule, "all_weapons_min_requirement", 0),
+                    getattr(normalized_rule, "all_weapons_max_requirement", 0),
+                )
+                if _is_weapon_requirement_range_active(all_weapons_min_requirement, all_weapons_max_requirement):
                     append_entry(
                         PROTECTION_FILTER_REQUIREMENTS,
-                        "Req Threshold",
-                        f"All weapons <= req {int(normalized_rule.all_weapons_max_requirement)}",
-                        f"global-{int(normalized_rule.all_weapons_max_requirement):02d}",
+                        "Req Range",
+                        f"All weapons req {all_weapons_min_requirement}-{all_weapons_max_requirement}",
+                        f"global-{all_weapons_min_requirement:02d}-{all_weapons_max_requirement:02d}",
                         subsection_anchor=SELL_PROTECTION_ANCHOR_REQUIREMENTS,
                         target_key=SELL_PROTECTION_TARGET_KEY_ALL_WEAPONS_REQUIREMENT,
                     )
 
                 for requirement_rule in normalized_rule.protected_weapon_requirement_rules:
+                    min_requirement, max_requirement = _normalize_weapon_requirement_range(
+                        getattr(requirement_rule, "min_requirement", 0),
+                        getattr(requirement_rule, "max_requirement", 0),
+                    )
+                    if not _is_weapon_requirement_range_active(min_requirement, max_requirement):
+                        continue
                     append_entry(
                         PROTECTION_FILTER_REQUIREMENTS,
-                        "Req Protection",
-                        f"{self._format_model_label(requirement_rule.model_id)} <= req {int(requirement_rule.max_requirement)}",
-                        f"{int(requirement_rule.model_id):09d}-{int(requirement_rule.max_requirement):02d}",
+                        "Req Range",
+                        f"{self._format_model_label(requirement_rule.model_id)} req {min_requirement}-{max_requirement}",
+                        f"{int(requirement_rule.model_id):09d}-{min_requirement:02d}-{max_requirement:02d}",
                         subsection_anchor=SELL_PROTECTION_ANCHOR_REQUIREMENTS,
                         target_key=f"requirement_model:{int(requirement_rule.model_id)}",
                     )
@@ -13187,26 +13525,67 @@ class MerchantRulesWidget:
             return False
 
         changed = False
-        self._begin_sell_jump_target_group(index, SELL_PROTECTION_ANCHOR_REQUIREMENTS, "Protect All Weapons At Or Below Req")
-        PyImGui.push_item_width(100)
+        normalized_all_weapons_min_requirement, normalized_all_weapons_max_requirement = _normalize_weapon_requirement_range(
+            getattr(rule, "all_weapons_min_requirement", 0),
+            getattr(rule, "all_weapons_max_requirement", 0),
+        )
+        if (
+            normalized_all_weapons_min_requirement != getattr(rule, "all_weapons_min_requirement", 0)
+            or normalized_all_weapons_max_requirement != getattr(rule, "all_weapons_max_requirement", 0)
+        ):
+            rule.all_weapons_min_requirement = normalized_all_weapons_min_requirement
+            rule.all_weapons_max_requirement = normalized_all_weapons_max_requirement
+            changed = True
+
+        self._begin_sell_jump_target_group(index, SELL_PROTECTION_ANCHOR_REQUIREMENTS, "Protect All Weapons In Req Range")
+        PyImGui.text("Low Req")
+        PyImGui.same_line(0, 6)
+        PyImGui.push_item_width(80)
+        new_all_weapons_min_requirement = PyImGui.input_int(
+            f"##sell_weapon_requirement_all_low_{index}",
+            int(rule.all_weapons_min_requirement),
+        )
+        all_weapons_min_input_active = _get_last_imgui_item_active()
+        PyImGui.pop_item_width()
+        PyImGui.same_line(0, 12)
+        PyImGui.text("High Req")
+        PyImGui.same_line(0, 6)
+        PyImGui.push_item_width(80)
         new_all_weapons_max_requirement = PyImGui.input_int(
-            f"##sell_weapon_requirement_all_{index}",
+            f"##sell_weapon_requirement_all_high_{index}",
             int(rule.all_weapons_max_requirement),
         )
+        all_weapons_max_input_active = _get_last_imgui_item_active()
         PyImGui.pop_item_width()
         self._maybe_scroll_sell_jump_target_row(
             index,
             SELL_PROTECTION_ANCHOR_REQUIREMENTS,
             SELL_PROTECTION_TARGET_KEY_ALL_WEAPONS_REQUIREMENT,
         )
-        normalized_all_weapons_max_requirement = _normalize_weapon_requirement_level(new_all_weapons_max_requirement)
-        if normalized_all_weapons_max_requirement != rule.all_weapons_max_requirement:
-            rule.all_weapons_max_requirement = normalized_all_weapons_max_requirement
-            changed = True
+        all_weapons_input_active = all_weapons_min_input_active or all_weapons_max_input_active
+        if not _should_defer_weapon_requirement_range_commit(
+            new_all_weapons_min_requirement,
+            new_all_weapons_max_requirement,
+            input_active=all_weapons_input_active,
+        ):
+            normalized_all_weapons_min_requirement, normalized_all_weapons_max_requirement = _normalize_weapon_requirement_range(
+                new_all_weapons_min_requirement,
+                new_all_weapons_max_requirement,
+            )
+            if (
+                normalized_all_weapons_min_requirement != rule.all_weapons_min_requirement
+                or normalized_all_weapons_max_requirement != rule.all_weapons_max_requirement
+            ):
+                rule.all_weapons_min_requirement = normalized_all_weapons_min_requirement
+                rule.all_weapons_max_requirement = normalized_all_weapons_max_requirement
+                changed = True
 
-        self._draw_secondary_text(f"Set to 0 to disable. Global weapon req protection is capped at {MAX_WEAPON_REQUIREMENT}.")
+        self._draw_secondary_text(
+            f"Inclusive range. Set either endpoint to 0 to disable. Req 0 / unknown does not match range rules; "
+            f"use unconditional model protection for unknown reqs. Values are capped at {MAX_WEAPON_REQUIREMENT}."
+        )
 
-        PyImGui.text("Never Sell These Models At Or Below Req")
+        PyImGui.text("Never Sell These Models In Req Range")
         if PyImGui.button(f"Clear Model Requirement Protection##sell_weapon_requirement_clear_{index}"):
             if self._set_sell_rule_weapon_requirement_rules(rule, []):
                 changed = True
@@ -13217,6 +13596,7 @@ class MerchantRulesWidget:
             updated_rules = [
                 WeaponRequirementRule(
                     model_id=requirement_rule.model_id,
+                    min_requirement=requirement_rule.min_requirement,
                     max_requirement=requirement_rule.max_requirement,
                 )
                 for requirement_rule in requirement_rules
@@ -13225,17 +13605,20 @@ class MerchantRulesWidget:
             removed_model_id = 0
             child_height = min(220, 58 + (32 * len(updated_rules)))
             if PyImGui.begin_child(f"sell_weapon_requirement_selected_{index}", (0, child_height), True, PyImGui.WindowFlags.NoFlag):
-                if PyImGui.begin_table(f"sell_weapon_requirement_table_{index}", 3, PyImGui.TableFlags.NoFlag):
+                if PyImGui.begin_table(f"sell_weapon_requirement_table_{index}", 4, PyImGui.TableFlags.NoFlag):
                     PyImGui.table_setup_column("Model", PyImGui.TableColumnFlags.WidthStretch)
-                    PyImGui.table_setup_column("Max Req", PyImGui.TableColumnFlags.WidthFixed, 110.0)
+                    PyImGui.table_setup_column("Low Req", PyImGui.TableColumnFlags.WidthFixed, 100.0)
+                    PyImGui.table_setup_column("High Req", PyImGui.TableColumnFlags.WidthFixed, 100.0)
                     PyImGui.table_setup_column("Remove", PyImGui.TableColumnFlags.WidthFixed, 60.0)
 
                     PyImGui.table_next_row()
                     PyImGui.table_set_column_index(0)
                     PyImGui.text("Model")
                     PyImGui.table_set_column_index(1)
-                    PyImGui.text("Max Req")
+                    PyImGui.text("Low Req")
                     PyImGui.table_set_column_index(2)
+                    PyImGui.text("High Req")
+                    PyImGui.table_set_column_index(3)
                     PyImGui.text("Remove")
 
                     for requirement_rule in display_rules:
@@ -13249,15 +13632,34 @@ class MerchantRulesWidget:
                         )
 
                         PyImGui.table_set_column_index(1)
-                        PyImGui.push_item_width(100)
+                        PyImGui.push_item_width(90)
+                        new_min_requirement = PyImGui.input_int(
+                            f"##sell_weapon_requirement_min_{index}_{requirement_rule.model_id}",
+                            int(requirement_rule.min_requirement),
+                        )
+                        min_requirement_input_active = _get_last_imgui_item_active()
+                        PyImGui.pop_item_width()
+
+                        PyImGui.table_set_column_index(2)
+                        PyImGui.push_item_width(90)
                         new_max_requirement = PyImGui.input_int(
                             f"##sell_weapon_requirement_max_{index}_{requirement_rule.model_id}",
                             int(requirement_rule.max_requirement),
                         )
+                        max_requirement_input_active = _get_last_imgui_item_active()
                         PyImGui.pop_item_width()
-                        requirement_rule.max_requirement = _normalize_weapon_requirement_level(new_max_requirement)
+                        requirement_input_active = min_requirement_input_active or max_requirement_input_active
+                        if not _should_defer_weapon_requirement_range_commit(
+                            new_min_requirement,
+                            new_max_requirement,
+                            input_active=requirement_input_active,
+                        ):
+                            (
+                                requirement_rule.min_requirement,
+                                requirement_rule.max_requirement,
+                            ) = _normalize_weapon_requirement_range(new_min_requirement, new_max_requirement)
 
-                        PyImGui.table_set_column_index(2)
+                        PyImGui.table_set_column_index(3)
                         if PyImGui.small_button(f"X##sell_weapon_requirement_remove_{index}_{requirement_rule.model_id}"):
                             removed_model_id = requirement_rule.model_id
                             break
@@ -13284,12 +13686,24 @@ class MerchantRulesWidget:
             self.sell_weapon_requirement_search_cache.get(index, ""),
         )
         if picked_model_id > 0:
-            if self._add_sell_rule_weapon_requirement_rule(rule, picked_model_id, max_requirement=8):
+            default_min_requirement, default_max_requirement = _normalize_weapon_requirement_range(
+                getattr(rule, "all_weapons_min_requirement", 0),
+                getattr(rule, "all_weapons_max_requirement", 0),
+            )
+            if not _is_weapon_requirement_range_active(default_min_requirement, default_max_requirement):
+                default_min_requirement, default_max_requirement = _normalize_weapon_requirement_range(1, 8)
+            if self._add_sell_rule_weapon_requirement_rule(
+                rule,
+                picked_model_id,
+                min_requirement=default_min_requirement,
+                max_requirement=default_max_requirement,
+            ):
                 changed = True
             self.sell_weapon_requirement_search_cache[index] = self._get_model_name(picked_model_id) or str(picked_model_id)
 
         self._draw_secondary_text(
-            f"Requirement protection applies only to equippable weapons with a parsed req value. Per-model rules are checked first, then the all-weapons threshold."
+            "Requirement ranges are inclusive and apply only to equippable weapons with a parsed req value. "
+            "Valid per-model ranges decide that model before the all-weapons range is considered."
         )
         self._end_sell_jump_target_group(index, SELL_PROTECTION_ANCHOR_REQUIREMENTS)
         return changed
@@ -13504,7 +13918,6 @@ class MerchantRulesWidget:
             )
 
         if rule.kind not in (SELL_KIND_WEAPONS, SELL_KIND_ARMOR):
-            whitelist_targets = _normalize_whitelist_targets(getattr(rule, "whitelist_targets", []))
             if rule.kind == SELL_KIND_COMMON_MATERIALS:
                 if PyImGui.button(f"Add All Common Materials##sell_common_preset_{index}"):
                     if self._set_sell_rule_model_ids(index, rule, rule.model_ids + self._get_common_material_preset()):
@@ -13525,6 +13938,7 @@ class MerchantRulesWidget:
                 if self._set_sell_rule_model_ids(index, rule, []):
                     changed = True
 
+            whitelist_targets = _normalize_whitelist_targets(getattr(rule, "whitelist_targets", []))
             selected_label = "Selected Materials" if rule.kind == SELL_KIND_COMMON_MATERIALS else "Selected Items"
             item_column_label = "Material" if rule.kind == SELL_KIND_COMMON_MATERIALS else "Item"
             empty_text = "No crafting materials selected yet." if rule.kind == SELL_KIND_COMMON_MATERIALS else "No items selected yet."

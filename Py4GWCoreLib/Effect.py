@@ -1,4 +1,3 @@
-
 import PyEffects
 
 from .Player import Player
@@ -34,8 +33,7 @@ class Effects:
         Returns: list: A list of BuffType objects for the specified agent.
         """
         agent_effects = PyEffects.PyEffects(agent_id)
-        buff_list = agent_effects.GetBuffs()
-        return buff_list
+        return agent_effects.GetBuffs()
 
     @staticmethod
     def GetEffects(agent_id: int):
@@ -82,9 +80,11 @@ class Effects:
             skill_id (int): The skill ID of the buff.
         Returns: bool: True if the buff exists, False otherwise.
         """
+        from .Agent import Agent
+
         agent_effects = PyEffects.PyEffects(agent_id)
         buff_exists = agent_effects.BuffExists(skill_id)
-        return buff_exists
+        return buff_exists or Agent.GetStanceID(agent_id) == skill_id
 
     @staticmethod
     def EffectExists(agent_id: int, skill_id: int):
@@ -101,7 +101,10 @@ class Effects:
 
     @staticmethod
     def HasEffect(agent_id: int, skill_id: int):
-        return Effects.EffectExists(agent_id, skill_id) or Effects.BuffExists(agent_id, skill_id)
+        return (
+            Effects.EffectExists(agent_id, skill_id)
+            or Effects.BuffExists(agent_id, skill_id)
+        )
 
 
     @staticmethod
@@ -134,6 +137,11 @@ class Effects:
         for effect in effects_list:
             if effect.skill_id == skill_id:
                 return effect.time_remaining
+        from .Agent import Agent
+        from .CombatEvents import CombatEvents
+
+        if Agent.GetStanceID(agent_id) == skill_id:
+            return Agent.GetStanceCooldown(agent_id)
         return 0
     
     @staticmethod

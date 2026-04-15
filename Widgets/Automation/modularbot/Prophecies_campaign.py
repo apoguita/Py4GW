@@ -12,15 +12,16 @@ from Sources.modular_bot.hero_setup import (
     draw_team_configuration_window,
     toggle_team_configuration_window,
 )
-from Sources.modular_bot.prebuilts.prophecies_campaign import (
+from Sources.modular_bot.prebuilts.modular_prophecies import (
     PROPHECIES_PHASE_SPECS,
     PROPHECIES_REGION_SPANS,
     PropheciesCampaignOptions,
     create_prophecies_campaign_bot,
 )
 
-MODULE_NAME = "Prophecies Campaign"
+MODULE_NAME = "Modular Prophecies"
 MODULE_ICON = "Textures/Module_Icons/Dialogs - Prophecies.png"
+MODULE_TAGS = ["Automation", "modular_bot"]
 BOT_NAME = "PropheciesCampaign"
 SYNC_INTERVAL_MS = 1000
 
@@ -81,7 +82,7 @@ def _build_bot():
         main_ui=_draw_main,
         settings_ui=_draw_settings,
         help_ui=_draw_help,
-        name="Prophecies Campaign",
+        name="Modular Prophecies",
     )
 
 
@@ -171,7 +172,7 @@ def _draw_prestart_window() -> None:
         return
 
     total_phases, remaining, skipped_pct = _phase_summary()
-    PyImGui.text("Prophecies Campaign")
+    PyImGui.text("Modular Prophecies")
     PyImGui.text(f"Phases: {total_phases} | Remaining from start: {remaining}")
     PyImGui.text(f"Skipped: {config.start_phase_index} ({skipped_pct:.1f}%)")
     PyImGui.separator()
@@ -231,12 +232,12 @@ def _draw_prestart_window() -> None:
 
     config.save_throttled()
     PyImGui.end()
-    draw_team_configuration_window(ui_id="prophecies_campaign", title="Prophecies Campaign Team Setup")
+    draw_team_configuration_window(ui_id="prophecies_campaign", title="Modular Prophecies Team Setup")
 
 
 def _draw_main() -> None:
     is_running = bool(bot is not None and bot.bot.config.fsm_running)
-    PyImGui.text("Prophecies Campaign")
+    PyImGui.text("Modular Prophecies")
     PyImGui.separator()
     PyImGui.text(f"Status: {'Running' if is_running else 'Idle'}")
     _draw_current_activity()
@@ -246,7 +247,7 @@ def _draw_main() -> None:
     PyImGui.text(f"Start index: {int(config.start_phase_index) + 1:02d}")
     PyImGui.text(f"Loop: {'On' if config.loop else 'Off'}")
     config.save_throttled()
-    draw_team_configuration_window(ui_id="prophecies_campaign", title="Prophecies Campaign Team Setup")
+    draw_team_configuration_window(ui_id="prophecies_campaign", title="Modular Prophecies Team Setup")
 
 
 def _draw_settings() -> None:
@@ -254,11 +255,11 @@ def _draw_settings() -> None:
 
 
 def _draw_help() -> None:
-    PyImGui.text("Prophecies Campaign")
+    PyImGui.text("Modular Prophecies")
     PyImGui.separator()
-    PyImGui.text_wrapped("Widget wrapper for the Prophecies campaign prebuilt (missions + primary quests + transit routes).")
+    PyImGui.text_wrapped("Widget wrapper for the modular Prophecies prebuilt (missions + primary quests + transit routes).")
     PyImGui.bullet_text("Select a campaign start point by region or step")
-    PyImGui.bullet_text("Uses Sources/modular_bot/prebuilts/prophecies_campaign.py")
+    PyImGui.bullet_text("Uses Sources/modular_bot/prebuilts/modular_prophecies.py")
     PyImGui.bullet_text("Hero team setup is available in Settings")
     PyImGui.bullet_text("Widget settings are persisted in Widgets/Config/PropheciesCampaign.ini")
 
@@ -294,7 +295,7 @@ def tooltip():
     PyImGui.spacing()
     PyImGui.separator()
     PyImGui.text_wrapped(
-        "Prophecies Campaign runs the modular Prophecies mission + primary-quest chain with region-based start selection."
+        "Modular Prophecies runs the modular Prophecies mission + primary-quest chain with region-based start selection."
     )
     PyImGui.end_tooltip()
 

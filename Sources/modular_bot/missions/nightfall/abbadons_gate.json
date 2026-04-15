@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "Abaddon's Gate",
   "steps": [
     {"type": "travel", "name": "Travel to Outpost", "target_map_id": 496},
@@ -24,6 +24,7 @@
     {"type": "auto_path", "name": "Path", "points": [[-15665, 10064], [-17207, 5884]]},
     {"type": "interact_npc", "name": "Interact Keeper Of Secrets", "npc": "KEEPER_OF_SECRETS"},
     {"type": "dialogs", "id": ["0x84", "0x85"], "npc": "VOLATISS", "name": "Dialog - Volatiss"},
-    {"type": "exit_map", "name": "Exit Map", "x": -18593, "y": 6156, "target_map_id": 370}
+    {"type": "exit_map", "name": "Exit Map", "point": [-18593, 6156], "target_map_id": 370}
   ]
 }
+

@@ -1,9 +1,9 @@
-{
+﻿{
   "name": "Beacons to Camp Rankor",
   "steps": [
     {"type": "travel", "name": "Travel to Route Outpost", "target_map_id": 133},
     {"type": "load_party", "name": "Load Party", "max_heroes": 8, "team": "party_8"},
-    {"type": "exit_map", "name": "Leave Beacons", "x": -8450, "y": 33150, "target_map_id": 90},
+    {"type": "exit_map", "name": "Leave Beacons", "point": [-8450, 33150], "target_map_id": 90},
     {"type": "auto_path", "name": "Lornar's Pass to Dreadnought's Drift", "points": [[-8740, 32238], [-8615, 22815], [616, 171], [-3313, -7278], [-5310, -14082], [-7373, -32749], [-8475, -35100]]},
     {"type": "wait_map_load", "map_id": 97},
     {"type": "auto_path", "name": "Dreadnought's Drift to Snake Dance", "points": [[-6850, 4881], [-2906, 156], [-1932, -5887], [-6047, -6092], [-7323, -7153], [-7347, -7629]]},
@@ -12,3 +12,4 @@
     {"type": "wait_map_load", "map_id": 155}
   ]
 }
+

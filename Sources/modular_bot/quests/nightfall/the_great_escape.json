@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "The Great Escape",
   "steps": [
     {"type": "travel", "name": "Travel to Sunspear Sanctuary", "target_map_id": 387},
@@ -6,17 +6,18 @@
     {"type": "dialogs", "id": ["0x822503", "0x822501"], "npc": "LONAI", "name": "Dialog - Lonai"},
     {"type": "auto_path", "name": "To Exit", "points": [[-961, 2690]]},
     {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true},
-    {"type": "exit_map", "name": "Leave Sunspear Sanctuary", "x": -480, "y": 3913, "target_map_id": 436},
+    {"type": "exit_map", "name": "Leave Sunspear Sanctuary", "point": [-480, 3913], "target_map_id": 436},
     {"type": "auto_path", "name": "To Exit", "points": [[3689, 4609]]},
-    {"type": "exit_map", "name": "Leave Command Post", "x": 5032, "y": 3847, "target_map_id": 380},
+    {"type": "exit_map", "name": "Leave Command Post", "point": [5032, 3847], "target_map_id": 380},
     {"type": "auto_path", "name": "To Nerashi", "points": [[-14185, 13346]]},
     {"type": "dialog", "id": "0x822504", "npc": "NERASHI", "name": "Dialog - Nerashi"},
     {"type": "auto_path", "name": "To Koss", "points": [[-6844, 8329], [7287, 1842], [5769, -8954], [9590, -1760], [12850, -3249], [11435, -6714], [11273, -11690], [8873, -11517], [9799, -10868]]},
     {"type": "dialog", "id": "0x822504", "npc": "KOSS", "name": "Dialog - Koss"},
     {"type": "auto_path", "name": "To Exit", "points": [[12518, -13342], [19975, -19365]]},
-    {"type": "exit_map", "name": "Leave Arkjok Ward", "x": 20686, "y": -20173, "target_map_id": 426},
+    {"type": "exit_map", "name": "Leave Arkjok Ward", "point": [20686, -20173], "target_map_id": 426},
     {"type": "travel", "name": "Travel to Sunspear Sanctuary", "target_map_id": 387},
     {"type": "auto_path", "name": "To Lonai", "points": [[-789, 1596]]},
     {"type": "dialog", "id": "0x822507", "npc": "LONAI", "name": "Dialog - Lonai"}
   ]
 }
+

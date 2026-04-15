@@ -20,11 +20,11 @@ from Py4GWCoreLib.py4gwcorelib_src.Color import Color
 from Py4GWCoreLib.py4gwcorelib_src.Utils import Utils
 from Py4GWCoreLib.native_src.internals import string_table
 from Sources.frenkeyLib.ItemHandling.ConfigExamples.ExampleGUIs.LootConfigView import draw_loot_config_view
+from Sources.frenkeyLib.ItemHandling.Items.item_snapshot import ItemSnapshot
 
 Utils.ClearSubModules("ItemHandling")
 Utils.ClearSubModules("frenkeyLib.Core")
 from Sources.frenkeyLib.Core.encoded_names import ItemName
-from Sources.frenkeyLib.ItemHandling.Items.ItemCache import ITEM_CACHE
 from Py4GWCoreLib.ItemMods import ItemMod 
 from Sources.frenkeyLib.ItemHandling.BTNodes import STORAGE_BAGS, BTNodes
 from Sources.frenkeyLib.ItemHandling.Rules.types import SalvageMode
@@ -88,7 +88,7 @@ def int_list_to_hex_string(int_list: list[int]) -> str:
     
 def bytes_to_hex_string(byte: bytes) -> str:
     try:
-        return " ".join(f"0x{v:X}" for v in byte)
+        return ", ".join(f"0x{byte:X}" for byte in byte)
     except Exception as e:
         Py4GW.Console.Log(MODULE_NAME, f"Error converting int list to hex string: {e}")
         return ""
@@ -143,12 +143,15 @@ def dump_string_table_to_json(language: ServerLanguage | int | None = None, outp
         target_path = output_path or os.path.join(INI_PATH, f"string_table_dump_{language_id}.json")
         dump: list[dict[str, object]] = []
 
-        for string_index, entry_data in sorted(table.items()):
+        for string_index in sorted(table):
             encoded_bytes = _build_string_reference_bytes(string_index)
-            decoded_text = string_table.decode(encoded_bytes, language=language_id) if encoded_bytes else ""
+            # Use the synchronous decoder directly so the dump doesn't lose
+            # first-seen strings to the public async cache path.
+            decoded_text = string_table._decode_sync(encoded_bytes, table) if encoded_bytes else ""
             sanitized_decoded_text = _sanitize_json_text(decoded_text)
 
             dump.append({
+                "string_index": string_index,
                 "encoded_bytes_hex": bytes_to_hex_string(encoded_bytes),
                 "decoded": sanitized_decoded_text,
             })
@@ -164,7 +167,6 @@ def dump_string_table_to_json(language: ServerLanguage | int | None = None, outp
     
 def main():
     global INI_KEY, hovered_item_id, auto_tick, tree, language, enc_input, decoded_ouput, decoded_name, int_lang, language_index, decoded, encoded, fully_decoded, collect, show_loot_config_view
-    ITEM_CACHE.reset()
     
     if not Routines.Checks.Map.IsMapReady():
         encoded = None
@@ -217,7 +219,7 @@ def main():
         PyImGui.separator()
         
         hovered_item_id = Inventory.GetHoveredItemID() or hovered_item_id
-        item = ITEM_CACHE.get_item_snapshot(hovered_item_id) if hovered_item_id else None
+        item = ItemSnapshot.from_item_id(hovered_item_id) if hovered_item_id else None
         
         if not item or not item.is_valid:
             hovered_item_id = 0
@@ -240,6 +242,7 @@ def main():
                 PyImGui.table_set_column_index(1)
                 PyImGui.text(value)
             
+            add_row("Item Name", item.name if item else "N/A")
             add_row("Item Data", item.data.english_name if item and item.data else "N/A")
             add_row("Model ID", str(item.model_id) if item else "N/A")
             add_row("Item Type", str(item.item_type.name) if item else "N/A")

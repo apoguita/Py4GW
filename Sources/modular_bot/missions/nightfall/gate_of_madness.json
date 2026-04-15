@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "Gate of Madness",
   "steps": [
     {"type": "travel", "name": "Travel to Outpost", "target_map_id": 495},
@@ -15,19 +15,19 @@
     {"type": "auto_path", "name": "Path", "points": [[8910, -8122], [7738, -10554]]},
     {"type": "auto_path", "name": "trigger dialog", "points": [[5255, -10677]]},
     {"type": "disable_party_member_hooks"},
-    {"type": "flag_heroes", "x": 4476, "y": -7780},
+    {"type": "flag_heroes", "point": [4476, -7780]},
     {"type": "auto_path", "name": "capture spot", "points": [[15837, -6917]]},
-    {"type": "flag_heroes", "x": 4476, "y": -7780},
+    {"type": "flag_heroes", "point": [4476, -7780]},
     {"type": "wait", "ms": 60000, "name": "Wait"},
-    {"type": "flag_heroes", "x": 1885, "y": -6792},
+    {"type": "flag_heroes", "point": [1885, -6792]},
     {"type": "wait", "ms": 60000, "name": "Wait"},
-    {"type": "flag_heroes", "x": -1888, "y": -12953},
+    {"type": "flag_heroes", "point": [-1888, -12953]},
     {"type": "wait", "ms": 60000, "name": "Wait"},
-    {"type": "flag_heroes", "x": 1576, "y": -14819},
+    {"type": "flag_heroes", "point": [1576, -14819]},
     {"type": "wait", "ms": 60000, "name": "Wait"},
-    {"type": "flag_heroes", "x": 4222, "y": -13762},
+    {"type": "flag_heroes", "point": [4222, -13762]},
     {"type": "wait", "ms": 60000, "name": "Wait"},
-    {"type": "flag_heroes", "x": 6871, "y": -10371},
+    {"type": "flag_heroes", "point": [6871, -10371]},
     {"type": "wait", "ms": 20000, "name": "Wait"},
     {"type": "auto_path", "name": "rendezvous spot", "points": [[6871, -10371]]},
     {"type": "unflag_heroes"},
@@ -39,3 +39,5 @@
     {"type": "wait_for_map_load", "map_id": 496}
   ]
 }
+
+

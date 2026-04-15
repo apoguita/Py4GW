@@ -1,25 +1,26 @@
-{
+﻿{
   "name": "Big News, Small Package",
   "steps": [
     {"type": "travel", "name": "Travel to Sunspear Great Hall", "target_map_id": 431},
     {"type": "auto_path", "name": "To Castellan Puuba", "points": [[-4046, 5237]]},
     {"type": "dialogs", "id": ["0x827E03", "0x827E01"], "npc": "CASTELLAN_PUUBA", "name": "Dialog - Castellan Puuba"},
     {"type": "auto_path", "name": "To Exit", "points": [[-3448, 4693]]},
-    {"type": "exit_map", "name": "Leave Sunspear Great Hall", "x": -3186, "y": 3906, "target_map_id": 430},
+    {"type": "exit_map", "name": "Leave Sunspear Great Hall", "point": [-3186, 3906], "target_map_id": 430},
     {"type": "auto_path", "name": "To Jerek", "points": [[-4088, 2485]]},
     {"type": "dialog", "id": "0x827E04", "npc": "JEREK", "name": "Dialog - Jerek"},
     {"type": "travel", "name": "Travel to Kodlonu Hamlet", "target_map_id": 489},
     {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true},
     {"type": "auto_path", "name": "To Exit", "points": [[3595, -3953]]},
-    {"type": "exit_map", "name": "Leave Kodlonu Hamlet", "x": 4355, "y": -3709, "target_map_id": 488},
+    {"type": "exit_map", "name": "Leave Kodlonu Hamlet", "point": [4355, -3709], "target_map_id": 488},
     {"type": "auto_path", "name": "To Item", "points": [[-7141, -2778]]},
     {"type": "interact_item", "name": "Pick Bag of Kournan Coins", "model_id": 15793},
     {"type": "interact_item", "name": "Pick Cryptic Scroll Piece", "model_id": 17075},
     {"type": "travel", "name": "Travel to Outpost", "target_map_id": 489},
     {"type": "travel", "name": "Travel to Sunspear Great Hall", "target_map_id": 431},
     {"type": "auto_path", "name": "To Exit", "points": [[-3315, 4629]]},
-    {"type": "exit_map", "name": "Leave Sunspear Great Hall", "x": -3085, "y": 3895, "target_map_id": 430},
+    {"type": "exit_map", "name": "Leave Sunspear Great Hall", "point": [-3085, 3895], "target_map_id": 430},
     {"type": "auto_path", "name": "To Jerek", "points": [[-3918, 2329]]},
     {"type": "dialog", "id": "0x827E07", "npc": "JEREK", "name": "Dialog - Jerek"}
   ]
 }
+

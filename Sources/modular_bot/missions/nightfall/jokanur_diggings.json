@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "dialog_recorded",
   "steps": [
     {"type": "travel", "name": "Travel to Jokanur Diggings outpost", "target_map_id": 491},
@@ -16,7 +16,7 @@
     {"type": "auto_path", "name": "To Item", "points": [[-4987, 14080], [-4877, 10892]]},
     {"type": "interact_item", "name": "Pick Stone Tablet", "model_id": 17055},
     {"type": "auto_path", "name": "To Stone Pedestal", "points": [[-5725, 11275]]},
-    {"type": "interact_gadget", "name": "Interact Stone Pedestal", "gadget": "STONE_PEDESTAL", "x": -5934, "y": 11249},
+    {"type": "interact_gadget", "name": "Interact Stone Pedestal", "gadget": "STONE_PEDESTAL", "point": [-5934, 11249]},
     {"type": "auto_path", "name": "Path", "points": [[-6813, 11477]]},
     {"type": "wait", "ms": 2200},
     {"type": "auto_path", "name": "Path", "points": [[-9490, 11437], [-12730, 9041], [-12256, 12856]]},
@@ -31,9 +31,9 @@
     {"type": "wait", "ms": 100, "name": "drop held item"},
     {"type": "auto_path", "name": "To Item", "points": [[-11911, 6816]]},
     {"type": "interact_item", "name": "Pick Stone Tablet", "model_id": 17055},
-    {"type": "interact_gadget", "name": "Interact Stone Pedestal", "gadget": "STONE_PEDESTAL", "x": -11928, "y": 6532},
+    {"type": "interact_gadget", "name": "Interact Stone Pedestal", "gadget": "STONE_PEDESTAL", "point": [-11928, 6532]},
     {"type": "interact_item", "name": "Pick Stone Tablet", "model_id": 17055},
-    {"type": "interact_gadget", "name": "Interact Stone Pedestal", "gadget": "STONE_PEDESTAL", "x": -11483, "y": 6534},
+    {"type": "interact_gadget", "name": "Interact Stone Pedestal", "gadget": "STONE_PEDESTAL", "point": [-11483, 6534]},
     {"type": "auto_path", "name": "To Kahdash", "points": [[-10189, 2082]]},
     {"type": "interact_npc", "name": "Interact Kahdash", "npc": "KAHDASH"},
     {"type": "auto_path", "name": "Path", "points": [[-11521, -46]]},
@@ -44,3 +44,5 @@
     {"type": "wait_for_map_load", "map_id": 449}
   ]
 }
+
+

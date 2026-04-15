@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "Kodonur Crossroads",
   "required_hero": ["Zhed Shadowhoof"],
   "steps": [
@@ -19,8 +19,8 @@
     {"type": "auto_path", "name": "Path", "points": [[-12140, 7992]]},
     {"type": "interact_item", "name": "Interact Item 15565", "model_id": 15565},
     {"type": "auto_path", "name": "Path", "points": [[-14020, 4491]]},
-    {"type": "interact_gadget", "name": "Interact Cell Lock", "gadget": "CELL_LOCK", "x": -14282, "y": 4269},
-    {"type": "interact_gadget", "name": "Interact Cell Lock", "gadget": "CELL_LOCK", "x": -14521, "y": 4928},
+    {"type": "interact_gadget", "name": "Interact Cell Lock", "gadget": "CELL_LOCK", "point": [-14282, 4269]},
+    {"type": "interact_gadget", "name": "Interact Cell Lock", "gadget": "CELL_LOCK", "point": [-14521, 4928]},
     {"type": "auto_path", "name": "Path", "points": [[-12382, 10589]]},
     {"type": "path_to_target", "name": "Target Kournan Taskmaster", "enemy": "KOURNAN_TASKMASTER"},
     {"type": "path_to_target", "name": "Target Kournan Taskmaster", "enemy": "KOURNAN_TASKMASTER"},
@@ -32,7 +32,7 @@
     {"type": "auto_path", "name": "Path", "points": [[-8314, 16370]]},
     {"type": "interact_item", "name": "Interact Item 15565", "model_id": 15565},
     {"type": "auto_path", "name": "Path", "points": [[-14049, 13440]]},
-    {"type": "interact_gadget", "name": "Interact Cell Lock", "gadget": "CELL_LOCK", "x": -14667, "y": 13701},
+    {"type": "interact_gadget", "name": "Interact Cell Lock", "gadget": "CELL_LOCK", "point": [-14667, 13701]},
     {"type": "auto_path", "name": "Path", "points": [[-8308, 15648], [-4176, 16628]]},
     {"type": "path_to_target", "name": "Target Kournan Taskmaster", "enemy": "KOURNAN_TASKMASTER"},
     {"type": "path_to_target", "name": "Target Kournan Taskmaster", "enemy": "KOURNAN_TASKMASTER"},
@@ -47,16 +47,16 @@
     {"type": "path_to_target", "name": "Target Taskmaster Vanahk", "enemy": "TASKMASTER_VANAHK"},
     {"type": "path_to_target", "name": "Target Taskmaster Vanahk", "enemy": "TASKMASTER_VANAHK"},
     {"type": "auto_path", "name": "Path", "points": [[-2714, 6739]]},
-    {"type": "interact_gadget", "name": "Interact Cell Lock", "gadget": "CELL_LOCK", "x": -2558, "y": 6562},
+    {"type": "interact_gadget", "name": "Interact Cell Lock", "gadget": "CELL_LOCK", "point": [-2558, 6562]},
     {"type": "auto_path", "name": "Path", "points": [[-5777, 7581], [-5896, 9824], [-7105, 8832], [-6112, 10014]]},
-    {"type": "interact_gadget", "name": "Interact Cell Lock", "gadget": "CELL_LOCK", "x": -6102, "y": 10345},
+    {"type": "interact_gadget", "name": "Interact Cell Lock", "gadget": "CELL_LOCK", "point": [-6102, 10345]},
     {"type": "auto_path", "name": "Path", "points": [[-1469, 2632], [-5163, 7302], [-5835, 5124]]},
     {"type": "path_to_target", "name": "Target Kournan Taskmaster", "enemy": "KOURNAN_TASKMASTER"},
     {"type": "path_to_target", "name": "Target Kournan Taskmaster", "enemy": "KOURNAN_TASKMASTER"},
     {"type": "auto_path", "name": "Path", "points": [[-6694, 3685]]},
     {"type": "interact_item", "name": "Interact Item 15565", "model_id": 15565},
     {"type": "auto_path", "name": "Path", "points": [[-9904, 3443], [-10308, 1339]]},
-    {"type": "interact_gadget", "name": "Interact Cell Lock", "gadget": "CELL_LOCK", "x": -10040, "y": 964},
+    {"type": "interact_gadget", "name": "Interact Cell Lock", "gadget": "CELL_LOCK", "point": [-10040, 964]},
     {"type": "auto_path", "name": "Path", "points": [[-11745, 2603], [-9608, -1336], [-9696, -3720], [-8136, -5813]]},
     {"type": "path_to_target", "name": "Target Taskmaster Suli", "enemy": "TASKMASTER_SULI"},
     {"type": "path_to_target", "name": "Target Taskmaster Suli", "enemy": "TASKMASTER_SULI"},
@@ -69,3 +69,5 @@
     {"type": "wait_for_map_load", "map_id": 387}
   ]
 }
+
+

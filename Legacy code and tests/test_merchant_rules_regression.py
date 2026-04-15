@@ -54,6 +54,18 @@ def _expect(condition: bool, message: str) -> None:
         raise AssertionError(message)
 
 
+def _catalog_model_ids(entries: list[dict[str, object]]) -> set[int]:
+    model_ids: set[int] = set()
+    for entry in entries:
+        try:
+            model_id = int(entry.get("model_id") or 0)
+        except Exception:
+            model_id = 0
+        if model_id > 0:
+            model_ids.add(model_id)
+    return model_ids
+
+
 def _ensure_package(name: str) -> types.ModuleType:
     module = sys.modules.get(name)
     if module is None:
@@ -102,6 +114,13 @@ def _install_stub_modules(project_root: Path) -> None:
     class DummyModelID:
         Glob_Of_Ectoplasm = DummyModelValue(930)
         Salvage_Kit = DummyModelValue(2992)
+        CrystallineSword = DummyModelValue(399)
+
+    DummyModelID.__members__ = {
+        "Glob_Of_Ectoplasm": DummyModelID.Glob_Of_Ectoplasm,
+        "Salvage_Kit": DummyModelID.Salvage_Kit,
+        "CrystallineSword": DummyModelID.CrystallineSword,
+    }
 
     class ItemType(enum.IntEnum):
         Unknown = 0
@@ -298,6 +317,53 @@ def _prime_initialized_widget(module, widget):
     return widget
 
 
+def _install_sell_rule_editor_click_stubs(module, clicked_button_label: str) -> None:
+    imgui = module.PyImGui
+    clicked_label = str(clicked_button_label or "")
+    imgui.button = lambda label: str(label or "") == clicked_label
+    imgui.small_button = lambda *_args, **_kwargs: False
+    imgui.same_line = lambda *_args, **_kwargs: None
+    imgui.spacing = lambda *_args, **_kwargs: None
+    imgui.text = lambda *_args, **_kwargs: None
+    imgui.text_wrapped = lambda *_args, **_kwargs: None
+    imgui.text_colored = lambda *_args, **_kwargs: None
+    imgui.input_text = lambda _label, value: value
+    imgui.collapsing_header = lambda *_args, **_kwargs: False
+    imgui.begin_disabled = lambda *_args, **_kwargs: None
+    imgui.end_disabled = lambda *_args, **_kwargs: None
+    imgui.tree_pop = lambda *_args, **_kwargs: None
+
+
+def _prepare_sell_rule_editor_widget(module, clicked_button_label: str):
+    _install_sell_rule_editor_click_stubs(module, clicked_button_label)
+    widget = _make_widget(module)
+    widget.catalog_common_material_ids = [921, 925, 946]
+    widget.catalog_rare_materials = [
+        {"model_id": int(module.ECTOPLASM_MODEL_ID), "name": "Glob of Ectoplasm", "material_type": "rare"},
+    ]
+    widget.catalog_by_model_id.update(
+        {
+            921: {"model_id": 921, "name": "Bone", "material_type": "common"},
+            925: {"model_id": 925, "name": "Bolt of Cloth", "material_type": "common"},
+            946: {"model_id": 946, "name": "Wood Plank", "material_type": "common"},
+            int(module.ECTOPLASM_MODEL_ID): {
+                "model_id": int(module.ECTOPLASM_MODEL_ID),
+                "name": "Glob of Ectoplasm",
+                "material_type": "rare",
+            },
+        }
+    )
+    widget._draw_rule_header_row = lambda *args, **_kwargs: (True, bool(args[8]), False)
+    widget._draw_section_heading = lambda *_args, **_kwargs: None
+    widget._draw_secondary_text = lambda *_args, **_kwargs: None
+    widget._draw_rule_name_input = lambda _label, value: value
+    widget._draw_whitelist_targets = lambda **kwargs: (kwargs["targets"], 0)
+    widget._draw_material_search_results = lambda *_args, **_kwargs: (0, [])
+    widget._draw_search_results = lambda *_args, **_kwargs: (0, [])
+    widget._draw_add_all_matches_button = lambda *_args, **_kwargs: False
+    return widget
+
+
 def _make_item(
     module,
     *,
@@ -353,6 +419,30 @@ def _rarity_flags(*enabled: str) -> dict[str, bool]:
         "gold": "gold" in enabled_keys,
         "green": "green" in enabled_keys,
     }
+
+
+def _make_weapon_item(
+    module,
+    *,
+    item_id: int,
+    model_id: int,
+    name: str,
+    requirement: int,
+    item_type=None,
+):
+    selected_item_type = item_type if item_type is not None else module.ItemType.Axe
+    return _make_item(
+        module,
+        item_id=item_id,
+        model_id=model_id,
+        name=name,
+        rarity="Gold",
+        identified=True,
+        is_weapon_like=True,
+        requirement=requirement,
+        item_type_id=int(selected_item_type),
+        item_type_name=str(getattr(selected_item_type, "name", "Axe")),
+    )
 
 
 def _drain_generator_return(generator):
@@ -428,6 +518,7 @@ def _test_legacy_profile_normalizes_and_saves(module, temp_root: Path) -> None:
     _expect(sell_rule.blacklist_model_ids == [], "Bad nested blacklist data should normalize to an empty list.")
     _expect(sell_rule.protected_weapon_mod_identifiers == [], "Bad protected-mod data should normalize to an empty list.")
     _expect(sell_rule.protected_weapon_requirement_rules == [], "Bad requirement-rule data should normalize to an empty list.")
+    _expect(sell_rule.all_weapons_min_requirement == 1, "Legacy max-only requirement thresholds should migrate to a low endpoint of 1.")
     _expect(sell_rule.all_weapons_max_requirement == 9, "Valid requirement threshold should survive legacy normalization.")
 
     saved_payload = json.loads(config_path.read_text(encoding="utf-8"))
@@ -494,6 +585,53 @@ def _test_legacy_whitelist_keep_count_migrates_to_per_target_rows(module, temp_r
         not saved_payload["sell_rules"][0].get("deposit_protected_matches", False),
         "Legacy sell rules should default the new deposit-protected flag off when normalized.",
     )
+
+
+def _test_sell_material_presets_survive_same_frame_table_writeback(module) -> None:
+    widget = _prepare_sell_rule_editor_widget(module, "Add All Common Materials##sell_common_preset_0")
+    widget.sell_rules = [
+        module._normalize_sell_rule(
+            module.SellRule(
+                enabled=False,
+                kind=module.SELL_KIND_COMMON_MATERIALS,
+                whitelist_targets=[module.WhitelistTarget(model_id=946, keep_count=0)],
+            )
+        )
+    ]
+
+    changed = widget._draw_sell_rule_editor(0, widget.sell_rules[0])
+
+    _expect(changed, "Sell material preset button should report a changed rule.")
+    _expect(
+        widget.sell_rules[0].model_ids == [946, 921, 925],
+        "Sell material preset clicks should not be undone by the selected-materials table in the same draw pass.",
+    )
+    _expect(
+        [target.model_id for target in widget.sell_rules[0].whitelist_targets] == [946, 921, 925],
+        "Sell material preset clicks should persist the expanded whitelist target rows.",
+    )
+
+
+def _test_sell_clear_list_survives_same_frame_table_writeback(module) -> None:
+    widget = _prepare_sell_rule_editor_widget(module, "Clear List##sell_clear_0")
+    widget.sell_rules = [
+        module._normalize_sell_rule(
+            module.SellRule(
+                enabled=False,
+                kind=module.SELL_KIND_EXPLICIT_MODELS,
+                whitelist_targets=[
+                    module.WhitelistTarget(model_id=111, keep_count=1),
+                    module.WhitelistTarget(model_id=555, keep_count=0),
+                ],
+            )
+        )
+    ]
+
+    changed = widget._draw_sell_rule_editor(0, widget.sell_rules[0])
+
+    _expect(changed, "Sell Clear List should report a changed rule.")
+    _expect(widget.sell_rules[0].model_ids == [], "Sell Clear List should clear model IDs.")
+    _expect(widget.sell_rules[0].whitelist_targets == [], "Sell Clear List should clear whitelist target rows.")
 
 
 def _test_legacy_nonsalvageable_gold_sell_rule_is_removed_safely(module, temp_root: Path) -> None:
@@ -613,7 +751,7 @@ def _test_lower_weapon_protection_hard_overrides_higher_explicit_sell(module) ->
                 enabled=True,
                 kind=module.SELL_KIND_WEAPONS,
                 protected_weapon_requirement_rules=[
-                    module.WeaponRequirementRule(model_id=111, max_requirement=8),
+                    module.WeaponRequirementRule(model_id=111, min_requirement=1, max_requirement=8),
                 ],
             )
         ),
@@ -692,7 +830,7 @@ def _test_protection_only_rules_hard_claim_before_later_sell_rules(module) -> No
                 kind=module.SELL_KIND_WEAPONS,
                 rarities=_rarity_flags(),
                 protected_weapon_requirement_rules=[
-                    module.WeaponRequirementRule(model_id=111, max_requirement=9),
+                    module.WeaponRequirementRule(model_id=111, min_requirement=1, max_requirement=9),
                 ],
             ),
             module.SellRule(
@@ -711,7 +849,7 @@ def _test_protection_only_rules_hard_claim_before_later_sell_rules(module) -> No
                 item_type_id=int(module.ItemType.Axe),
                 item_type_name="Axe",
             ),
-            "Protected by requirement rule:",
+            "Protected by requirement range:",
         ),
         (
             "weapon type protection",
@@ -819,6 +957,300 @@ def _test_protection_only_rules_hard_claim_before_later_sell_rules(module) -> No
             ),
             f"{label} should surface the hard-protection reason in preview output.",
         )
+
+
+def _test_global_weapon_requirement_range_is_inclusive_and_excludes_unknown(module) -> None:
+    widget = _make_widget(module)
+    rule = module._normalize_sell_rule(
+        module.SellRule(
+            enabled=True,
+            kind=module.SELL_KIND_WEAPONS,
+            all_weapons_min_requirement=7,
+            all_weapons_max_requirement=9,
+        )
+    )
+
+    for req in (7, 8, 9):
+        reason = widget._get_weapon_requirement_hit_reason(
+            _make_weapon_item(module, item_id=100 + req, model_id=111, name="Chaos Axe", requirement=req),
+            rule,
+        )
+        _expect(
+            "Protected by all-weapons requirement range:" in reason,
+            f"Global requirement range 7-9 should protect req {req}.",
+        )
+
+    for req in (6, 10, 0):
+        reason = widget._get_weapon_requirement_hit_reason(
+            _make_weapon_item(module, item_id=200 + req, model_id=111, name="Chaos Axe", requirement=req),
+            rule,
+        )
+        _expect(reason == "", f"Global requirement range 7-9 should not protect req {req}.")
+
+
+def _test_model_specific_weapon_requirement_range_is_inclusive(module) -> None:
+    widget = _make_widget(module)
+    rule = module._normalize_sell_rule(
+        module.SellRule(
+            enabled=True,
+            kind=module.SELL_KIND_WEAPONS,
+            protected_weapon_requirement_rules=[
+                module.WeaponRequirementRule(model_id=111, min_requirement=8, max_requirement=10),
+            ],
+        )
+    )
+
+    for req in (8, 9, 10):
+        reason = widget._get_weapon_requirement_hit_reason(
+            _make_weapon_item(module, item_id=300 + req, model_id=111, name="Chaos Axe", requirement=req),
+            rule,
+        )
+        _expect(
+            "Protected by requirement range:" in reason,
+            f"Chaos Axe model-specific range 8-10 should protect req {req}.",
+        )
+
+    for req in (7, 11):
+        reason = widget._get_weapon_requirement_hit_reason(
+            _make_weapon_item(module, item_id=400 + req, model_id=111, name="Chaos Axe", requirement=req),
+            rule,
+        )
+        _expect(reason == "", f"Chaos Axe model-specific range 8-10 should not protect req {req}.")
+
+
+def _test_model_specific_requirement_range_overrides_global_range(module) -> None:
+    widget = _make_widget(module)
+    rule = module._normalize_sell_rule(
+        module.SellRule(
+            enabled=True,
+            kind=module.SELL_KIND_WEAPONS,
+            all_weapons_min_requirement=7,
+            all_weapons_max_requirement=9,
+            protected_weapon_requirement_rules=[
+                module.WeaponRequirementRule(model_id=111, min_requirement=8, max_requirement=10),
+            ],
+        )
+    )
+
+    chaos_req_7 = widget._get_weapon_requirement_hit_reason(
+        _make_weapon_item(module, item_id=501, model_id=111, name="Chaos Axe", requirement=7),
+        rule,
+    )
+    _expect(
+        chaos_req_7 == "",
+        "A valid Chaos Axe model-specific range should prevent the global range from protecting Chaos Axe req 7.",
+    )
+
+    chaos_req_9 = widget._get_weapon_requirement_hit_reason(
+        _make_weapon_item(module, item_id=502, model_id=111, name="Chaos Axe", requirement=9),
+        rule,
+    )
+    _expect(
+        "Protected by requirement range:" in chaos_req_9,
+        "Chaos Axe req 9 should be protected by its model-specific range.",
+    )
+
+    fellblade_req_8 = widget._get_weapon_requirement_hit_reason(
+        _make_weapon_item(module, item_id=503, model_id=222, name="Fellblade", requirement=8, item_type=module.ItemType.Sword),
+        rule,
+    )
+    _expect(
+        "Protected by all-weapons requirement range:" in fellblade_req_8,
+        "A different model req 8 should still be protected by the global range.",
+    )
+
+
+def _test_unconditional_protected_model_still_protects_all_requirements(module) -> None:
+    widget = _make_widget(module)
+    rule = module._normalize_sell_rule(
+        module.SellRule(
+            enabled=True,
+            kind=module.SELL_KIND_WEAPONS,
+            blacklist_model_ids=[111],
+            all_weapons_min_requirement=7,
+            all_weapons_max_requirement=9,
+            protected_weapon_requirement_rules=[
+                module.WeaponRequirementRule(model_id=111, min_requirement=8, max_requirement=10),
+            ],
+        )
+    )
+
+    for req in (0, 7, 13):
+        protection = widget._get_equippable_hard_protection_reason(
+            _make_weapon_item(module, item_id=600 + req, model_id=111, name="Chaos Axe", requirement=req),
+            rule,
+        )
+        _expect(
+            protection is not None and protection[1] == "Blacklisted model.",
+            f"Unconditional protected models should still protect req {req}.",
+        )
+
+
+def _test_weapon_requirement_ranges_normalize_swapped_and_zero_endpoints(module, temp_root: Path) -> None:
+    widget = _make_widget(module)
+    config_path = temp_root / "requirement_range_normalization_profile.json"
+    widget.config_path = str(config_path)
+    widget.sell_rules = [
+        module._normalize_sell_rule(
+            module.SellRule(
+                enabled=True,
+                kind=module.SELL_KIND_WEAPONS,
+                all_weapons_min_requirement=10,
+                all_weapons_max_requirement=8,
+                protected_weapon_requirement_rules=[
+                    module.WeaponRequirementRule(model_id=111, min_requirement=10, max_requirement=8),
+                    module.WeaponRequirementRule(model_id=222, min_requirement=8, max_requirement=0),
+                ],
+            )
+        )
+    ]
+
+    rule = widget.sell_rules[0]
+    _expect(
+        (rule.all_weapons_min_requirement, rule.all_weapons_max_requirement) == (8, 10),
+        "Global requirement ranges should auto-swap low/high endpoints.",
+    )
+    _expect(
+        (rule.protected_weapon_requirement_rules[0].min_requirement, rule.protected_weapon_requirement_rules[0].max_requirement) == (8, 10),
+        "Model-specific requirement ranges should auto-swap low/high endpoints.",
+    )
+    _expect(
+        (rule.protected_weapon_requirement_rules[1].min_requirement, rule.protected_weapon_requirement_rules[1].max_requirement) == (8, 0),
+        "A zero endpoint should remain disabled without being swapped into a nonzero range.",
+    )
+
+    global_seven_five = module._normalize_sell_rule(
+        module.SellRule(
+            enabled=True,
+            kind=module.SELL_KIND_WEAPONS,
+            all_weapons_min_requirement=7,
+            all_weapons_max_requirement=5,
+        )
+    )
+    _expect(
+        (global_seven_five.all_weapons_min_requirement, global_seven_five.all_weapons_max_requirement) == (5, 7),
+        "Global range low=7 high=5 should normalize to low=5 high=7.",
+    )
+    _expect(
+        (global_seven_five.all_weapons_min_requirement, global_seven_five.all_weapons_max_requirement) != (5, 5),
+        "Global swapped ranges must not collapse both endpoints to the edited high value.",
+    )
+    _expect(
+        (rule.protected_weapon_requirement_rules[0].min_requirement, rule.protected_weapon_requirement_rules[0].max_requirement) != (10, 10),
+        "Model-specific swapped ranges must not collapse both endpoints to the edited low value.",
+    )
+    _expect(
+        module._normalize_weapon_requirement_range(8, 0) == (8, 0),
+        "Endpoint 0 should disable the range without swapping endpoint order.",
+    )
+    _expect(
+        module._should_defer_weapon_requirement_range_commit(7, 5, input_active=True),
+        "Reversed nonzero ranges should defer UI commits while an endpoint input is active.",
+    )
+    _expect(
+        not module._should_defer_weapon_requirement_range_commit(7, 5, input_active=False),
+        "Reversed nonzero ranges should commit once endpoint editing is no longer active.",
+    )
+    _expect(
+        not module._should_defer_weapon_requirement_range_commit(8, 0, input_active=True),
+        "Endpoint 0 should not be treated as an active reversed range in the UI commit path.",
+    )
+
+    disabled_model_reason = widget._get_weapon_requirement_hit_reason(
+        _make_weapon_item(module, item_id=701, model_id=222, name="Fellblade", requirement=8, item_type=module.ItemType.Sword),
+        rule,
+    )
+    _expect(
+        "Protected by all-weapons requirement range:" in disabled_model_reason,
+        "Inactive model-specific ranges should not block the global range for that model.",
+    )
+
+    endpoint_zero_rule = module._normalize_sell_rule(
+        module.SellRule(
+            enabled=True,
+            kind=module.SELL_KIND_WEAPONS,
+            all_weapons_min_requirement=0,
+            all_weapons_max_requirement=9,
+            protected_weapon_requirement_rules=[
+                module.WeaponRequirementRule(model_id=111, min_requirement=0, max_requirement=10),
+            ],
+        )
+    )
+    _expect(
+        widget._get_weapon_requirement_hit_reason(
+            _make_weapon_item(module, item_id=702, model_id=111, name="Chaos Axe", requirement=8),
+            endpoint_zero_rule,
+        )
+        == "",
+        "Endpoint 0 should disable global and model-specific requirement ranges.",
+    )
+
+    _expect(widget._save_profile(), "Saving swapped requirement ranges should succeed.")
+    saved_payload = json.loads(config_path.read_text(encoding="utf-8"))
+    saved_rule = saved_payload["sell_rules"][0]
+    _expect(
+        (saved_rule["all_weapons_min_requirement"], saved_rule["all_weapons_max_requirement"]) == (8, 10),
+        "Saved global requirement ranges should persist corrected endpoint order.",
+    )
+    _expect(
+        (
+            saved_rule["protected_weapon_requirement_rules"][0]["min_requirement"],
+            saved_rule["protected_weapon_requirement_rules"][0]["max_requirement"],
+        )
+        == (8, 10),
+        "Saved model-specific requirement ranges should persist corrected endpoint order.",
+    )
+
+
+def _test_legacy_requirement_thresholds_migrate_to_ranges(module, temp_root: Path) -> None:
+    widget = _make_widget(module)
+    config_path = temp_root / "legacy_requirement_threshold_profile.json"
+    payload = {
+        "version": module.PROFILE_VERSION - 1,
+        "sell_rules": [
+            {
+                "enabled": True,
+                "kind": module.SELL_KIND_WEAPONS,
+                "all_weapons_max_requirement": 8,
+                "protected_weapon_requirement_rules": [
+                    {"model_id": 111, "max_requirement": 10},
+                ],
+            }
+        ],
+    }
+    config_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    widget.config_path = str(config_path)
+
+    widget._load_profile()
+
+    rule = widget.sell_rules[0]
+    _expect(
+        (rule.all_weapons_min_requirement, rule.all_weapons_max_requirement) == (1, 8),
+        "Old global max-only configs should load as range 1-old max.",
+    )
+    _expect(
+        (
+            rule.protected_weapon_requirement_rules[0].min_requirement,
+            rule.protected_weapon_requirement_rules[0].max_requirement,
+        )
+        == (1, 10),
+        "Old model-specific max-only configs should load as range 1-old max.",
+    )
+
+    saved_payload = json.loads(config_path.read_text(encoding="utf-8"))
+    saved_rule = saved_payload["sell_rules"][0]
+    _expect(
+        (saved_rule["all_weapons_min_requirement"], saved_rule["all_weapons_max_requirement"]) == (1, 8),
+        "Migrated global requirement ranges should save the new low endpoint.",
+    )
+    _expect(
+        (
+            saved_rule["protected_weapon_requirement_rules"][0]["min_requirement"],
+            saved_rule["protected_weapon_requirement_rules"][0]["max_requirement"],
+        )
+        == (1, 10),
+        "Migrated model-specific requirement ranges should save the new low endpoint.",
+    )
 
 
 def _test_keep_count_claims_items_before_later_sell_rules(module) -> None:
@@ -1486,7 +1918,7 @@ def _test_execute_now_matches_preview_for_protection_only_rules(module) -> None:
                 kind=module.SELL_KIND_WEAPONS,
                 rarities=_rarity_flags(),
                 protected_weapon_requirement_rules=[
-                    module.WeaponRequirementRule(model_id=111, max_requirement=9),
+                    module.WeaponRequirementRule(model_id=111, min_requirement=1, max_requirement=9),
                 ],
             )
         ),
@@ -1633,7 +2065,7 @@ def _test_build_plan_deposits_protected_weapon_matches_conditionally(module) -> 
                 kind=module.SELL_KIND_WEAPONS,
                 deposit_protected_matches=True,
                 protected_weapon_requirement_rules=[
-                    module.WeaponRequirementRule(model_id=111, max_requirement=8),
+                    module.WeaponRequirementRule(model_id=111, min_requirement=1, max_requirement=8),
                 ],
             )
         )
@@ -2411,6 +2843,173 @@ def _test_rule_custom_names_persist_and_fallback_cleanly(module, temp_root: Path
     )
 
 
+def _test_item_handling_catalog_migration_loads_primary_catalog_and_modelid_fallback(module) -> None:
+    original_paths = {
+        "CATALOG_PATH": module.CATALOG_PATH,
+        "ITEMS_CATALOG_PATH": module.ITEMS_CATALOG_PATH,
+        "DROP_DATA_PATH": module.DROP_DATA_PATH,
+        "ITEM_HANDLING_ITEMS_CATALOG_PATH": module.ITEM_HANDLING_ITEMS_CATALOG_PATH,
+        "RUNES_CATALOG_PATH": module.RUNES_CATALOG_PATH,
+    }
+    try:
+        module.CATALOG_PATH = str(REPO_ROOT / "Widgets" / "Data" / "merchant_rules_catalog.json")
+        module.ITEMS_CATALOG_PATH = str(REPO_ROOT / "Widgets" / "Data" / "merchant_rules_items_catalog.json")
+        module.DROP_DATA_PATH = str(REPO_ROOT / "Widgets" / "Data" / "modelid_drop_data.json")
+        module.ITEM_HANDLING_ITEMS_CATALOG_PATH = str(REPO_ROOT / "Sources" / "frenkeyLib" / "ItemHandling" / "Items" / "items.json")
+        module.RUNES_CATALOG_PATH = str(REPO_ROOT / "Sources" / "marks_sources" / "mods_data" / "runes.json")
+
+        item_handling_catalog = json.loads(Path(module.ITEM_HANDLING_ITEMS_CATALOG_PATH).read_text(encoding="utf-8"))
+        item_handling_entries = module._iter_item_handling_catalog_entries(item_handling_catalog)
+        item_handling_model_ids = _catalog_model_ids(item_handling_entries)
+
+        _expect(
+            len(item_handling_model_ids) > 3600,
+            "ItemHandling items.json should provide the broad searchable item catalog without requiring the old Merchant Rules mirror.",
+        )
+        _expect(
+            {400, 2989, int(module.ECTOPLASM_MODEL_ID)}.issubset(item_handling_model_ids),
+            "ItemHandling items.json should cover known searchable catalog items and curated override ids.",
+        )
+        _expect(
+            399 not in item_handling_model_ids,
+            "Crystalline Sword should remain a ModelID-fallback case until richer catalog metadata is added.",
+        )
+
+        legacy_catalog_path = Path(module.ITEMS_CATALOG_PATH)
+        if legacy_catalog_path.exists():
+            legacy_catalog = json.loads(legacy_catalog_path.read_text(encoding="utf-8"))
+            legacy_model_ids = _catalog_model_ids(list(legacy_catalog.get("items", [])))
+            _expect(
+                len(item_handling_model_ids) > len(legacy_model_ids),
+                "ItemHandling items.json should contribute more unique model ids than the deprecated Merchant Rules item mirror.",
+            )
+            _expect(
+                legacy_model_ids.issubset(item_handling_model_ids),
+                "The deprecated Merchant Rules item mirror should remain covered by ItemHandling items.json while it exists.",
+            )
+
+        widget = _make_widget(module)
+        widget._load_catalog()
+
+        _expect(widget.catalog_stats.get("item_handling_present") is True, "Merchant Rules should detect the ItemHandling catalog file.")
+        _expect(
+            int(widget.catalog_stats.get("item_handling_items", 0)) > 3600,
+            "Merchant Rules should load the broader ItemHandling catalog as the primary searchable catalog.",
+        )
+        _expect(
+            int(widget.catalog_stats.get("mirrored_items", 0)) == 0,
+            "Merchant Rules should not load the deprecated mirror during normal catalog loading.",
+        )
+        _expect(
+            widget.catalog_stats.get("mirrored_deprecated_fallback_used") is False,
+            "The deprecated mirror fallback should remain idle when items.json loads successfully.",
+        )
+
+        fellblade_entry = widget.catalog_by_model_id.get(400, {})
+        _expect(fellblade_entry.get("source") == "item_handling_items_catalog", "ItemHandling entries should win over the legacy mirror for shared model ids.")
+        _expect(fellblade_entry.get("name") == "Fellblade", "ItemHandling entries should preserve display names.")
+        _expect(fellblade_entry.get("item_type") == "Sword", "ItemHandling entries should preserve item types.")
+        _expect(fellblade_entry.get("skin") == "Fellblade.png", "ItemHandling entries should preserve skin names for search aliases.")
+        _expect(fellblade_entry.get("wiki_url") == "https://wiki.guildwars.com/wiki/Fellblade", "ItemHandling entries should preserve wiki urls.")
+        _expect(fellblade_entry.get("attributes") == ["Swordsmanship"], "ItemHandling entries should preserve attributes without using name_encoded.")
+        _expect("name_encoded" not in fellblade_entry, "Merchant Rules should ignore name_encoded in ItemHandling entries.")
+
+        trophy_entry = widget.catalog_by_model_id.get(852, {})
+        _expect(trophy_entry.get("category") == "Trophy", "ItemHandling category metadata should be preserved when present.")
+
+        _expect(
+            widget.catalog_by_model_id.get(int(module.ECTOPLASM_MODEL_ID), {}).get("source") == "merchant_rules_catalog.rare",
+            "Curated Merchant Rules material entries should still override broad catalog entries.",
+        )
+        _expect(
+            widget.catalog_by_model_id.get(2989, {}).get("source") == "merchant_rules_catalog.essentials",
+            "Curated Merchant Rules merchant entries should still override broad catalog entries.",
+        )
+
+        crystalline_entry = widget.catalog_by_model_id.get(399, {})
+        _expect(crystalline_entry.get("source") == "modelid_enum_fallback", "Missing rich catalog items should be added from ModelID fallback.")
+        _expect(crystalline_entry.get("name") == "Crystalline Sword", "CamelCase ModelID fallback names should be humanized for display/search.")
+        _expect(crystalline_entry.get("item_type") == "Sword", "ModelID fallback should infer obvious weapon item types from enum names.")
+
+        for query in ("Crystalline Sword", "CrystallineSword", "Crystalline_Sword", "399"):
+            matches = widget._search_catalog(query, limit=max(1, len(widget.catalog_by_model_id)))
+            _expect(
+                399 in {int(entry.get("model_id", 0)) for entry in matches},
+                f"Catalog search should find Crystalline Sword fallback entries by {query!r}.",
+            )
+
+        for query in ("Fellblade", "Fellblade.png", "400", "Sword"):
+            matches = widget._search_catalog(query, limit=max(1, len(widget.catalog_by_model_id)))
+            _expect(
+                400 in {int(entry.get("model_id", 0)) for entry in matches},
+                f"Catalog search should find ItemHandling entries by {query!r}.",
+            )
+    finally:
+        for name, value in original_paths.items():
+            setattr(module, name, value)
+
+
+def _test_catalog_loads_without_deprecated_mirrored_item_catalog(module, temp_root: Path) -> None:
+    original_paths = {
+        "CATALOG_PATH": module.CATALOG_PATH,
+        "ITEMS_CATALOG_PATH": module.ITEMS_CATALOG_PATH,
+        "DROP_DATA_PATH": module.DROP_DATA_PATH,
+        "ITEM_HANDLING_ITEMS_CATALOG_PATH": module.ITEM_HANDLING_ITEMS_CATALOG_PATH,
+        "RUNES_CATALOG_PATH": module.RUNES_CATALOG_PATH,
+    }
+    try:
+        module.CATALOG_PATH = str(REPO_ROOT / "Widgets" / "Data" / "merchant_rules_catalog.json")
+        module.ITEMS_CATALOG_PATH = str(temp_root / "missing" / "merchant_rules_items_catalog.json")
+        module.DROP_DATA_PATH = str(REPO_ROOT / "Widgets" / "Data" / "modelid_drop_data.json")
+        module.ITEM_HANDLING_ITEMS_CATALOG_PATH = str(REPO_ROOT / "Sources" / "frenkeyLib" / "ItemHandling" / "Items" / "items.json")
+        module.RUNES_CATALOG_PATH = str(REPO_ROOT / "Sources" / "marks_sources" / "mods_data" / "runes.json")
+
+        _expect(not Path(module.ITEMS_CATALOG_PATH).exists(), "The deprecated mirror path should be missing for this regression check.")
+
+        widget = _make_widget(module)
+        widget._load_catalog()
+
+        _expect(widget.catalog_stats.get("item_handling_present") is True, "items.json should still be present for the missing-mirror test.")
+        _expect(widget.catalog_stats.get("mirrored_present") is False, "The deprecated mirror should be reported missing when the file is absent.")
+        _expect(int(widget.catalog_stats.get("mirrored_items", 0)) == 0, "A missing deprecated mirror should not add catalog entries.")
+        _expect(
+            widget.catalog_stats.get("mirrored_deprecated_fallback_used") is False,
+            "A missing deprecated mirror should not be treated as a used fallback when items.json loads.",
+        )
+        _expect(
+            all(entry.get("source") != "merchant_rules_items_catalog" for entry in widget.catalog_by_model_id.values()),
+            "Catalog contents should not depend on the deprecated Merchant Rules mirror.",
+        )
+
+        for query, expected_model_id in (
+            ("Fellblade", 400),
+            ("Fellblade.png", 400),
+            ("Sword", 400),
+            ("Identification Kit", 2989),
+            ("Glob of Ectoplasm", int(module.ECTOPLASM_MODEL_ID)),
+            ("Crystalline Sword", 399),
+            ("CrystallineSword", 399),
+            ("399", 399),
+        ):
+            matches = widget._search_catalog(query, limit=max(1, len(widget.catalog_by_model_id)))
+            _expect(
+                expected_model_id in {int(entry.get("model_id", 0)) for entry in matches},
+                f"Catalog search should find model {expected_model_id} by {query!r} without the deprecated mirror.",
+            )
+
+        _expect(
+            widget.catalog_by_model_id.get(399, {}).get("source") == "modelid_enum_fallback",
+            "ModelID fallback should provide Crystalline Sword when richer catalogs do not.",
+        )
+        _expect(
+            widget.catalog_by_model_id.get(400, {}).get("source") == "item_handling_items_catalog",
+            "items.json should provide Fellblade without the deprecated mirror.",
+        )
+    finally:
+        for name, value in original_paths.items():
+            setattr(module, name, value)
+
+
 def _test_display_sorting_helpers_and_summaries_are_case_insensitive(module) -> None:
     widget = _make_widget(module)
     _seed_display_sort_fixture(widget)
@@ -2424,9 +3023,9 @@ def _test_display_sorting_helpers_and_summaries_are_case_insensitive(module) -> 
             entry.model_id
             for entry in widget._sort_targets_by_model_label_for_display(
                 [
-                    module.WeaponRequirementRule(model_id=300, max_requirement=8),
-                    module.WeaponRequirementRule(model_id=100, max_requirement=8),
-                    module.WeaponRequirementRule(model_id=200, max_requirement=8),
+                    module.WeaponRequirementRule(model_id=300, min_requirement=1, max_requirement=8),
+                    module.WeaponRequirementRule(model_id=100, min_requirement=1, max_requirement=8),
+                    module.WeaponRequirementRule(model_id=200, min_requirement=1, max_requirement=8),
                 ]
             )
         ]
@@ -2625,9 +3224,9 @@ def _test_display_sort_reads_preserve_saved_child_entry_order(module, temp_root:
                 kind=module.SELL_KIND_WEAPONS,
                 blacklist_model_ids=[300, 100, 200],
                 protected_weapon_requirement_rules=[
-                    module.WeaponRequirementRule(model_id=300, max_requirement=8),
-                    module.WeaponRequirementRule(model_id=100, max_requirement=9),
-                    module.WeaponRequirementRule(model_id=200, max_requirement=10),
+                    module.WeaponRequirementRule(model_id=300, min_requirement=1, max_requirement=8),
+                    module.WeaponRequirementRule(model_id=100, min_requirement=1, max_requirement=9),
+                    module.WeaponRequirementRule(model_id=200, min_requirement=1, max_requirement=10),
                 ],
                 protected_weapon_mod_identifiers=["mod_z", "mod_b", "mod_a"],
                 rule_id="weapon_rule",
@@ -2740,8 +3339,8 @@ def _test_default_protection_jump_targets_still_use_first_stored_entry(module) -
         module.SellRule(
             kind=module.SELL_KIND_WEAPONS,
             protected_weapon_requirement_rules=[
-                module.WeaponRequirementRule(model_id=300, max_requirement=8),
-                module.WeaponRequirementRule(model_id=100, max_requirement=8),
+                module.WeaponRequirementRule(model_id=300, min_requirement=1, max_requirement=8),
+                module.WeaponRequirementRule(model_id=100, min_requirement=1, max_requirement=8),
             ],
         )
     )
@@ -3775,6 +4374,8 @@ def main() -> int:
             ("malformed_profile_is_preserved", lambda: _test_malformed_profile_is_preserved(module, temp_root)),
             ("legacy_profile_normalizes_and_saves", lambda: _test_legacy_profile_normalizes_and_saves(module, temp_root)),
             ("legacy_whitelist_keep_count_migrates_to_per_target_rows", lambda: _test_legacy_whitelist_keep_count_migrates_to_per_target_rows(module, temp_root)),
+            ("sell_material_presets_survive_same_frame_table_writeback", lambda: _test_sell_material_presets_survive_same_frame_table_writeback(module)),
+            ("sell_clear_list_survives_same_frame_table_writeback", lambda: _test_sell_clear_list_survives_same_frame_table_writeback(module)),
             (
                 "legacy_nonsalvageable_gold_sell_rule_is_removed_safely",
                 lambda: _test_legacy_nonsalvageable_gold_sell_rule_is_removed_safely(module, temp_root),
@@ -3782,6 +4383,12 @@ def main() -> int:
             ("build_plan_captures_inventory_and_marks_conditional_stock_buy", lambda: _test_build_plan_captures_inventory_and_marks_conditional_stock_buy(module)),
             ("lower_weapon_protection_hard_overrides_higher_explicit_sell", lambda: _test_lower_weapon_protection_hard_overrides_higher_explicit_sell(module)),
             ("protection_only_rules_hard_claim_before_later_sell_rules", lambda: _test_protection_only_rules_hard_claim_before_later_sell_rules(module)),
+            ("global_weapon_requirement_range_is_inclusive_and_excludes_unknown", lambda: _test_global_weapon_requirement_range_is_inclusive_and_excludes_unknown(module)),
+            ("model_specific_weapon_requirement_range_is_inclusive", lambda: _test_model_specific_weapon_requirement_range_is_inclusive(module)),
+            ("model_specific_requirement_range_overrides_global_range", lambda: _test_model_specific_requirement_range_overrides_global_range(module)),
+            ("unconditional_protected_model_still_protects_all_requirements", lambda: _test_unconditional_protected_model_still_protects_all_requirements(module)),
+            ("weapon_requirement_ranges_normalize_swapped_and_zero_endpoints", lambda: _test_weapon_requirement_ranges_normalize_swapped_and_zero_endpoints(module, temp_root)),
+            ("legacy_requirement_thresholds_migrate_to_ranges", lambda: _test_legacy_requirement_thresholds_migrate_to_ranges(module, temp_root)),
             ("keep_count_claims_items_before_later_sell_rules", lambda: _test_keep_count_claims_items_before_later_sell_rules(module)),
             ("common_material_rule_claims_stack_before_later_explicit_sell", lambda: _test_common_material_rule_claims_stack_before_later_explicit_sell(module)),
             ("sell_material_targets_keep_counts_apply_per_model", lambda: _test_sell_material_targets_keep_counts_apply_per_model(module)),
@@ -3818,6 +4425,14 @@ def main() -> int:
                 lambda: _test_execute_here_ignores_travel_and_reports_local_summary(module),
             ),
             ("rule_custom_names_persist_and_fallback_cleanly", lambda: _test_rule_custom_names_persist_and_fallback_cleanly(module, temp_root)),
+            (
+                "item_handling_catalog_migration_loads_primary_catalog_and_modelid_fallback",
+                lambda: _test_item_handling_catalog_migration_loads_primary_catalog_and_modelid_fallback(module),
+            ),
+            (
+                "catalog_loads_without_deprecated_mirrored_item_catalog",
+                lambda: _test_catalog_loads_without_deprecated_mirrored_item_catalog(module, temp_root),
+            ),
             ("display_sorting_helpers_and_summaries_are_case_insensitive", lambda: _test_display_sorting_helpers_and_summaries_are_case_insensitive(module)),
             ("display_sort_reads_preserve_saved_child_entry_order", lambda: _test_display_sort_reads_preserve_saved_child_entry_order(module, temp_root)),
             ("default_protection_jump_targets_still_use_first_stored_entry", lambda: _test_default_protection_jump_targets_still_use_first_stored_entry(module)),
