@@ -20,6 +20,7 @@ from Py4GWCoreLib import SharedCommandType
 from Py4GWCoreLib import UIManager
 from Py4GWCoreLib import AutoPathing
 from Py4GWCoreLib import IniHandler
+from Py4GWCoreLib.GlobalCache.shared_memory_src.AccountStruct import AccountStruct
 from Py4GWCoreLib.Py4GWcorelib import Keystroke
 from Py4GWCoreLib.Quest import Quest
 from Py4GWCoreLib.enums_src.Model_enums import ModelID
@@ -726,7 +727,7 @@ def MerchantItems(index: int, message: SharedMessageStruct):
                 values.append("")
         while len(values) < 4:
             values.append("")
-        return tuple(values[:4])
+        return values[0], values[1], values[2], values[3]
 
     extra0, extra1, extra2, extra3 = _extra_data(message)
     mode = extra0.strip().lower()
@@ -812,7 +813,7 @@ def MerchantMaterials(index: int, message: SharedMessageStruct):
                 values.append("")
         while len(values) < 4:
             values.append("")
-        return tuple(values[:4])
+        return values[0], values[1], values[2], values[3]
 
     def _parse_selected_models(raw: str) -> set[int] | None:
         if not raw.strip():
@@ -839,7 +840,7 @@ def MerchantMaterials(index: int, message: SharedMessageStruct):
     mode = extra0.strip().lower()
     selected_models = _parse_selected_models(extra1)
 
-    def _parse_exact_quantity(raw: str, default: int = 250) -> int | None:
+    def _parse_exact_quantity(raw: str, default: int = 250) -> int:
         value = str(raw).strip()
         if value == "":
             return int(default)
@@ -847,7 +848,7 @@ def MerchantMaterials(index: int, message: SharedMessageStruct):
             parsed = int(value)
         except Exception:
             return int(default)
-        return parsed if parsed > 0 else None
+        return parsed if parsed > 0 else 0
 
     try:
         x = float(message.Params[0])
@@ -1289,12 +1290,12 @@ def OpenChest(index: int, message: SharedMessageStruct):
                 map_district = Map.GetDistrict()
                 map_language = Map.GetLanguage()[0]
 
-                def on_same_map_and_party(account) -> bool:                    
+                def on_same_map_and_party(account : AccountStruct) -> bool:                    
                     return (account.AgentPartyData.PartyID == party_id and
-                            account.MapID == map_id and
-                            account.MapRegion == map_region and
-                            account.MapDistrict == map_district and
-                            account.MapLanguage == map_language)
+                            account.AgentData.Map.MapID == map_id and
+                            account.AgentData.Map.Region == map_region and
+                            account.AgentData.Map.District == map_district and
+                            account.AgentData.Map.Language == map_language)
                 
                 all_accounts = [account for account in GLOBAL_CACHE.ShMem.GetAllAccountData() if on_same_map_and_party(account) and account.AgentPartyData.PartyPosition > account_data.AgentPartyData.PartyPosition]
                 chest_pos = Agent.GetXY(chest_id)
@@ -2245,6 +2246,19 @@ def InventoryQuery(index: int, message: SharedMessageStruct):
 
 # endregion
 
+#region Reload Builds
+def RefreshHeroAIBuilds(index: int, message: SharedMessageStruct):
+    GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
+    from HeroAI import build_runtime
+
+    build_runtime.refresh_builds()
+
+    yield from Routines.Yield.wait(100)
+    GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+    ConsoleLog(MODULE_NAME, "ReloadBuilds message processed and finished.", Console.MessageType.Info, False)
+
+# endregion
+
 # region EquipItem
 def EquipItem(index: int, message: SharedMessageStruct):
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
@@ -2386,6 +2400,8 @@ def ProcessMessages():
             GLOBAL_CACHE.Coroutines.append(InventoryQuery(index, message))
         case SharedCommandType.EquipItem:
             GLOBAL_CACHE.Coroutines.append(EquipItem(index, message))
+        case SharedCommandType.RefreshHeroAIBuilds:
+            GLOBAL_CACHE.Coroutines.append(RefreshHeroAIBuilds(index, message))
         case SharedCommandType.LootEx:
             # privately Handled Command, by frenkey
             pass
