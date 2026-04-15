@@ -25,7 +25,13 @@ def bot_routine(bot_instance: Botting):
         on_player_critical_stuck=BottingHelpers.botting_unrecoverable_issue)
 
     bot_instance.Templates.Aggressive()
+    bot_instance.Wait.ForTime(3000)
+    bot_instance.Templates.Pacifist()
+    bot_instance.Wait.ForTime(3000)
+    bot_instance.Templates.Aggressive()
+    bot_instance.Wait.ForTime(3000)
 
+    
     CustomBehaviorParty().set_party_is_blessing_enabled(True)
     PartyFollowingManager().set_party_following_behavior_state(FollowingBehaviorPriority.LOW_PRIORITY) 
 

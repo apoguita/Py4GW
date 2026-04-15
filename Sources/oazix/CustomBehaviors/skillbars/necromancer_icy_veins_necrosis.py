@@ -50,6 +50,7 @@ class NecromancerIcyVeinsNecrosis_UtilitySkillBar(CustomBehaviorBaseUtility):
                 score_definition=ScoreStaticDefinition(41) # slightly more than above
             ),
             arcane_echo_score_definition=ScoreStaticDefinition(82))
+        
         self.auspicious_incantation_utility: CustomSkillUtilityBase = AuspiciousIncantationUtility(
             event_bus=self.event_bus,
             current_build=in_game_build,

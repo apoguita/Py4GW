@@ -61,12 +61,6 @@ class MesmerESurgery_UtilitySkillBar(CustomBehaviorBaseUtility):
                 score_definition=ScorePerAgentQuantityDefinition(lambda enemy_qte: 80 if enemy_qte >= 3 else 50 if enemy_qte <= 2 else 0), 
                 mana_required_to_cast=12),
             arcane_echo_score_definition=ScoreStaticDefinition(82))
-        self.auspicious_incantation_utility: CustomSkillUtilityBase = AuspiciousIncantationUtility(
-            event_bus=self.event_bus,
-            current_build=in_game_build,
-            original_skill_to_cast=self.arcane_echo_utility,
-            score_definition=ScoreStaticDefinition(82)
-        )
 
         #common
         self.ebon_vanguard_assassin_support: CustomSkillUtilityBase = EbonVanguardAssassinSupportUtility(event_bus=self.event_bus, score_definition=ScoreStaticDefinition(95), current_build=in_game_build, mana_required_to_cast=15)

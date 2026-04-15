@@ -50,6 +50,7 @@ class NecromancerNecrosisFoC_UtilitySkillBar(CustomBehaviorBaseUtility):
                 score_definition=ScorePerAgentQuantityDefinition(lambda enemy_qte: 81 if enemy_qte >= 3 else 51 if enemy_qte >= 2 else 21),  # prefer the skill on arcane echo slightly more
                 mana_required_to_cast=12),
             arcane_echo_score_definition=ScoreStaticDefinition(82))
+        
         self.auspicious_incantation_utility: CustomSkillUtilityBase = AuspiciousIncantationUtility(
             event_bus=self.event_bus,
             current_build=in_game_build,
