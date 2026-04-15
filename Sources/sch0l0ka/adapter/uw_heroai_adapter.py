@@ -226,32 +226,14 @@ class UWHeroAIAdapter(UWCombatAdapter):
         bot_instance.States.AddCustomState(_log_startup_done, "[Startup] Log Startup Done")
 
     def reactivate_for_step(self, bot_instance, step_label: str) -> None:
-        # Step 1: disable CustomBehaviors on all accounts FIRST, before enabling HeroAI.
-        # CB widgets can auto-re-enable on map load, so we must always disable before
-        # enabling HeroAI to prevent both systems running simultaneously.
-        for widget_name in ("CustomBehaviors", "Custom Behavior", "Custom Behaviors: Utility AI"):
-            self._disable_widget_locally(widget_name)
-            self._broadcast_widget_command(
-                widget_name, SharedCommandType.DisableWidget,
-                f"Disable CB for step '{step_label}'"
-            )
-        ConsoleLog(
-            self._bot_name,
-            f"[HeroAI] Step '{step_label}' — CustomBehaviors disabled on all accounts.",
-            Py4GW.Console.MessageType.Info,
-        )
-
-        # Step 2: re-enable HeroAI on all accounts (may have been reset by map load).
-        self._enable_widget_locally("HeroAI")
-        self._broadcast_widget_command(
-            "HeroAI", SharedCommandType.EnableWidget, f"Re-enable for step '{step_label}'"
-        )
-        # Explicitly restore all combat options in case HeroAI re-initialized with
-        # defaults (Following=False, Combat=False, Looting=False) after the map load.
+        # Only restore HeroAI combat options for the new step.
+        # Widget enable/disable is handled exclusively by configure_startup_states()
+        # which runs once when the Start button is pressed.
         self._set_all_heroai_options(following=True, combat=True, looting=True)
+        hero_ai_prop = bot_instance.config.upkeep.hero_ai.is_active() if hasattr(bot_instance.config, 'upkeep') else '?'
         ConsoleLog(
             self._bot_name,
-            f"[HeroAI] Step '{step_label}' — HeroAI re-enabled and combat options restored.",
+            f"[HeroAI] Step '{step_label}' — combat options restored. hero_ai property={hero_ai_prop}",
             Py4GW.Console.MessageType.Info,
         )
 
@@ -263,13 +245,21 @@ class UWHeroAIAdapter(UWCombatAdapter):
             self._set_all_heroai_options(combat=True)
         if self._wait_if_aggro_enabled and self._bot_instance is not None:
             self._sync_aggro_watchdog(self._bot_instance)
+        # Debug: ensure hero_ai property stays True
+        if self._bot_instance is not None and hasattr(self._bot_instance.config, 'upkeep'):
+            if not self._bot_instance.config.upkeep.hero_ai.is_active():
+                ConsoleLog(
+                    self._bot_name,
+                    "[HeroAI] WARNING: hero_ai property was False — forcing True.",
+                    Py4GW.Console.MessageType.Warning,
+                )
+                self._bot_instance.config.upkeep.hero_ai._apply("active", True)
 
     def _any_enemy_in_aggro_range(self) -> bool:
-        """Return True if at least one alive enemy is within Spellcast range."""
-        from Py4GWCoreLib.enums import Range
+        """Return True if at least one alive enemy is within aggro range."""
         from Py4GWCoreLib import AgentArray
         player_pos = Player.GetXY()
-        aggro_range = Range.Spellcast.value
+        aggro_range = 1100.0
         for agent_id in (AgentArray.GetEnemyArray() or []):
             if Agent.IsAlive(agent_id) and Utils.Distance(player_pos, Agent.GetXY(agent_id)) <= aggro_range:
                 return True
