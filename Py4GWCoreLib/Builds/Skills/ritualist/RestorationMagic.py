@@ -3,8 +3,6 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import TYPE_CHECKING
 
-import Py4GW
-
 from Py4GWCoreLib.BuildMgr import BuildCoroutine
 from Py4GWCoreLib import Range, Routines
 from Py4GWCoreLib.Agent import Agent
@@ -54,7 +52,7 @@ class RestorationMagic:
         health_threshold: float = max(0.0, min(1.0, float(mend_body_and_soul.Conditions.LessLife or 0.70)))
 
         def _resolve_mend_body_and_soul_target() -> int:
-            variants : list | None = None
+            variants = [None]
             if self._has_spirit_in_earshot():
                 variants = [
                     lambda custom_skill: setattr(custom_skill.Conditions, "HasCondition", True),
