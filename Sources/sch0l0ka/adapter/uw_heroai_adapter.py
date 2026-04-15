@@ -201,10 +201,47 @@ class UWHeroAIAdapter(UWCombatAdapter):
             ),
             "Enable Dhuum Helper on active accounts",
         )
+        # ── Always enable MerchantRules on all accounts ───────────────────
+        bot_instance.States.AddCustomState(
+            lambda: self._enable_widget_locally("MerchantRules"),
+            "Enable local MerchantRules",
+        )
+        bot_instance.States.AddCustomState(
+            lambda: self._broadcast_widget_command(
+                "MerchantRules", SharedCommandType.EnableWidget, "Broadcasted enable"
+            ),
+            "Enable MerchantRules on active accounts",
+        )
+        # ── Final startup confirmation ─────────────────────────────────────
+        def _log_startup_done() -> None:
+            accounts = self._active_multibox_emails()
+            ConsoleLog(
+                self._bot_name,
+                f"[Startup] Widget setup complete (HeroAI mode). "
+                f"CustomBehaviors disabled, HeroAI + DhuumHelper + MerchantRules enabled "
+                f"on {len(accounts)} active account(s): {accounts}",
+                Py4GW.Console.MessageType.Info,
+            )
+        bot_instance.States.AddCustomState(_log_startup_done, "[Startup] Log Startup Done")
 
     def reactivate_for_step(self, bot_instance, step_label: str) -> None:
-        # Re-broadcast "Enable HeroAI" so accounts whose widget was reset on map
-        # load (entering UW) get re-enabled at the start of each section.
+        # Step 1: disable CustomBehaviors on all accounts FIRST, before enabling HeroAI.
+        # CB widgets can auto-re-enable on map load, so we must always disable before
+        # enabling HeroAI to prevent both systems running simultaneously.
+        for widget_name in ("CustomBehaviors", "Custom Behavior", "Custom Behaviors: Utility AI"):
+            self._disable_widget_locally(widget_name)
+            self._broadcast_widget_command(
+                widget_name, SharedCommandType.DisableWidget,
+                f"Disable CB for step '{step_label}'"
+            )
+        ConsoleLog(
+            self._bot_name,
+            f"[HeroAI] Step '{step_label}' — CustomBehaviors disabled on all accounts.",
+            Py4GW.Console.MessageType.Info,
+        )
+
+        # Step 2: re-enable HeroAI on all accounts (may have been reset by map load).
+        self._enable_widget_locally("HeroAI")
         self._broadcast_widget_command(
             "HeroAI", SharedCommandType.EnableWidget, f"Re-enable for step '{step_label}'"
         )
@@ -213,7 +250,7 @@ class UWHeroAIAdapter(UWCombatAdapter):
         self._set_all_heroai_options(following=True, combat=True, looting=True)
         ConsoleLog(
             self._bot_name,
-            f"[HeroAI] Step '{step_label}' — re-enabled HeroAI and restored combat options.",
+            f"[HeroAI] Step '{step_label}' — HeroAI re-enabled and combat options restored.",
             Py4GW.Console.MessageType.Info,
         )
 
