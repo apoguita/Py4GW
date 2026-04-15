@@ -81,7 +81,6 @@ class HeroAICommands:
         self.DisbandParty = Command("Disband Party", IconsFontAwesome5.ICON_SIGN_OUT_ALT, self.__leave_party_command, "Make all heroes leave party", map_types=["Outpost"])
         self.FormParty = Command("Form Party", IconsFontAwesome5.ICON_USERS, self.__invite_all_command, "Invite all heroes to party", map_types=["Outpost"])
         self.LeavePartyAndTravelGH = Command("Leave & Travel to GH", IconsFontAwesome5.ICON_HOME, self.__leave_party_and_travel_gh_command, "Leave party and travel to Guild Hall")
-        self.ToggleBuildsWindow = Command("Toggle Builds Window", IconsFontAwesome5.ICON_SCREWDRIVER_WRENCH, self.__toggle_builds, "Open the builds configuration window")
         
         self.__commands = [
             self.Empty,
@@ -99,7 +98,6 @@ class HeroAICommands:
             self.DisbandParty,
             self.FormParty,
             self.LeavePartyAndTravelGH,
-            self.ToggleBuildsWindow,
         ]
     
     @property
@@ -143,11 +141,7 @@ class HeroAICommands:
             
             if same_map:
                 GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.SendDialog, (dialog_option, 0, 0, 0))
-    
-    def __toggle_builds(self, accounts: list[AccountStruct]):
-        from HeroAI.ui_base import HeroAI_BaseUI
-        HeroAI_BaseUI.show_build_match_window = not HeroAI_BaseUI.show_build_match_window
-    
+                
     def __leave_party_command(self, accounts: list[AccountStruct]):
         sender_email = Player.GetAccountEmail()        
         
