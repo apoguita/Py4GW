@@ -2,12 +2,14 @@ from typing import override
 
 from Sources.oazix.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Sources.oazix.CustomBehaviors.primitives.scores.score_per_agent_quantity_definition import ScorePerAgentQuantityDefinition
+from Sources.oazix.CustomBehaviors.primitives.scores.score_per_health_gravity_definition import ScorePerHealthGravityDefinition
 from Sources.oazix.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
 from Sources.oazix.CustomBehaviors.primitives.skillbars.custom_behavior_base_utility import CustomBehaviorBaseUtility
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
 from Sources.oazix.CustomBehaviors.skills.generic.raw_aoe_attack_utility import RawAoeAttackUtility
 from Sources.oazix.CustomBehaviors.skills.monk.castigation_signet_utility import CastigationSignetUtility
+from Sources.oazix.CustomBehaviors.skills.monk.seed_of_life_utility import SeedOfLifeUtility
 from Sources.oazix.CustomBehaviors.skills.monk.smite_hex_utility import SmiteHexUtility
 from Sources.oazix.CustomBehaviors.skills.monk.smite_condition_utility import SmiteConditionUtility
 from Sources.oazix.CustomBehaviors.skills.monk.strength_of_honor_utility import StrengthOfHonorUtility
@@ -25,7 +27,8 @@ class MonkSmite_UtilitySkillBar(CustomBehaviorBaseUtility):
         self.castigation_signet_utility: CustomSkillUtilityBase = CastigationSignetUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScoreStaticDefinition(55))
         self.ray_of_judgment_utility: CustomSkillUtilityBase = RawAoeAttackUtility(event_bus=self.event_bus, skill=CustomSkill("Ray_of_Judgment"), current_build=in_game_build, score_definition=ScorePerAgentQuantityDefinition(lambda enemy_qte: 70 if enemy_qte >= 3 else 55 if enemy_qte >= 2 else 40), mana_required_to_cast=10)
         self.strength_of_honor_utility: CustomSkillUtilityBase = StrengthOfHonorUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScoreStaticDefinition(50))
-        
+        self.seed_of_life_utility: CustomSkillUtilityBase = SeedOfLifeUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScorePerHealthGravityDefinition(1))
+
     @property
     @override
     def custom_skills_in_behavior(self) -> list[CustomSkillUtilityBase]:
@@ -35,6 +38,7 @@ class MonkSmite_UtilitySkillBar(CustomBehaviorBaseUtility):
             self.smite_hex_utility,
             self.smite_condition_utility,
             self.strength_of_honor_utility,
+            self.seed_of_life_utility,
         ]
 
     @property

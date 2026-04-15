@@ -89,7 +89,6 @@ class MesmerESurgery_UtilitySkillBar(CustomBehaviorBaseUtility):
             self.power_drain_utility,
 
             self.arcane_echo_utility,
-            self.auspicious_incantation_utility,
 
             self.ebon_vanguard_assassin_support,
             self.ebon_battle_standard_of_wisdom,

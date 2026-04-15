@@ -238,6 +238,20 @@ class CustomBehaviorBaseUtility():
 
             return result
 
+    def count_custom_skills_in_behavior_matching_in_game_build(self) -> int:
+            '''
+            count the number of custom skills in the behavior (custom_skills_in_behavior) that are in the in-game build.
+            '''
+            result:int = 0
+            in_game_build: dict[int, CustomSkill] = self.skillbar_management.get_in_game_build()
+            custom_skills: list[CustomSkillUtilityBase] = self.custom_skills_in_behavior
+
+            for custom_skill_utility in custom_skills:
+                if in_game_build.get(custom_skill_utility.custom_skill.skill_id) is not None:
+                    result +=1
+
+            return result
+
     def get_skills_final_list(self) -> list[CustomSkillUtilityBase]:
         '''
         get the full list of skills that are in game.

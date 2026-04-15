@@ -11,12 +11,14 @@ from Sources.oazix.CustomBehaviors.primitives.skillbars.custom_behavior_base_uti
 from Sources.oazix.CustomBehaviors.skillbars.autocombat_fallback import AutoCombatFallback_UtilitySkillBar
 
 class MatchResult:
-    def __init__(self, build_size: int, matching_count: int, instance: CustomBehaviorBaseUtility, is_matched_with_current_build: bool):
+    def __init__(self, build_size: int, matching_count: int, instance: CustomBehaviorBaseUtility, is_matched_with_current_build: bool, custom_skills_count: int, custom_skills_matching_count: int):
         self.build_size = build_size
         self.matching_count: int = matching_count
         self.matching_result = build_size - matching_count
         self.is_matched_with_current_build: bool = is_matched_with_current_build
         self.instance: CustomBehaviorBaseUtility = instance
+        self.custom_skills_count: int = custom_skills_count
+        self.custom_skills_matching_count: int = custom_skills_matching_count
 
 class CustomBehaviorLoader:
     _instance = None  # Singleton instance
@@ -103,7 +105,7 @@ class CustomBehaviorLoader:
         return subclasses
 
     def __find_and_order_custom_behaviors(self) -> List[MatchResult]:
-        
+
         subclasses: list[type] = self.__find_subclasses_in_folder(CustomBehaviorBaseUtility, "Sources.oazix.CustomBehaviors.skillbars")
         matches: List[MatchResult] = []
 
@@ -118,21 +120,26 @@ class CustomBehaviorLoader:
                 if constants.DEBUG: print(f"build_size: {build_size}")
                 matching_count = instance.count_matches_between_custom_behavior_and_in_game_build()
                 if constants.DEBUG: print(f"matching_count: {matching_count}")
+                custom_skills_count = len(instance.custom_skills_in_behavior)
+                if constants.DEBUG: print(f"custom_skills_count: {custom_skills_count}")
+                custom_skills_matching_count = instance.count_custom_skills_in_behavior_matching_in_game_build()
+                if constants.DEBUG: print(f"custom_skills_matching_count: {custom_skills_matching_count}")
 
                 if matching_count == build_size:
                     if constants.DEBUG: print(f"Found custom behavior: {subclass.__name__} (defined in {subclass.__module__})")
                     is_matched_with_current_build = True if matching_count > 0 else False
-                    matches.append(MatchResult(build_size=build_size, matching_count=matching_count, instance=instance, is_matched_with_current_build=is_matched_with_current_build))
+                    matches.append(MatchResult(build_size=build_size, matching_count=matching_count, instance=instance, is_matched_with_current_build=is_matched_with_current_build, custom_skills_count=custom_skills_count, custom_skills_matching_count=custom_skills_matching_count))
                 else:
                     if constants.DEBUG: print(f"{subclass.__name__} (defined in {subclass.__module__} - Custom behavior does not match in-game build.")
-                    matches.append(MatchResult(build_size=build_size, matching_count=matching_count, instance=instance, is_matched_with_current_build=False))
+                    matches.append(MatchResult(build_size=build_size, matching_count=matching_count, instance=instance, is_matched_with_current_build=False, custom_skills_count=custom_skills_count, custom_skills_matching_count=custom_skills_matching_count))
 
             except Exception as e:
                 # if there are errors on buildign out a skill bar class load the other classes but log the errors that prevented this one from loading
                 print(f"Exception loading subclass: {e}")
                 raise e
 
-        matches = sorted(matches, key=lambda x: (x.matching_result, -x.matching_count))
+        # Sort by: 1) matching_result (asc), 2) matching_count (desc), 3) custom_skills_matching_count (desc)
+        matches = sorted(matches, key=lambda x: (x.matching_result, -x.matching_count, -x.custom_skills_matching_count))
         return matches
 
     # public
