@@ -1,6 +1,5 @@
 
 import pathlib
-from pstats import Stats
 import sys
 
 import Py4GW
