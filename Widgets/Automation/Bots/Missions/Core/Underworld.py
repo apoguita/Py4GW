@@ -977,6 +977,8 @@ def _draw_blocked_areas_overlay() -> None:
     """Query blacklisted enemy positions and draw circles every frame. Called from main()."""
     if not _DRAW_BLOCKED_AREAS_3D:
         return
+    if not Routines.Checks.Map.MapValid():
+        return
     if Map.GetMapID() != UW_MAP_ID:
         return
     # Skip during the Dhuum fight — the per-frame INI reads and GetNameByID calls
@@ -3209,7 +3211,7 @@ def main():
         _draw_blocked_areas_overlay()
 
         _draw_armor_edit_window()
-        if bot.config.fsm_running:
+        if bot.config.fsm_running and Routines.Checks.Map.MapValid():
             _get_adapter().sync_runtime()
             # Watchdog: callback sometimes misses wipes — detect return to outpost by map ID
             if _entered_dungeon and Map.GetMapID() == 138:
