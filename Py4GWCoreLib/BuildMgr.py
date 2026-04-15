@@ -9,6 +9,8 @@ from pathlib import Path
 import random
 from typing import TYPE_CHECKING, Any, Callable, cast
 
+import Py4GW
+
 if TYPE_CHECKING:
     from HeroAI.custom_skill import CustomSkillClass
     from HeroAI.custom_skill_src.skill_types import CastConditions, CustomSkill
@@ -1167,6 +1169,19 @@ class BuildMgr:
 
     def _process_phase(self, handler: BuildHandler | None, is_in_combat: bool) -> BuildCoroutine:
         if not self.CanProcess():
+            reasons: list[str] = []
+            from Py4GWCoreLib import Agent, Player, Routines
+
+            if not Routines.Checks.Map.MapValid():
+                reasons.append("map invalid")
+            if not Routines.Checks.Map.IsExplorable():
+                reasons.append("not explorable")
+            if not Routines.Checks.Player.CanAct():
+                reasons.append("player cannot act")
+            if Agent.IsDead(Player.GetAgentID()):
+                reasons.append("player dead")
+            if not reasons:
+                reasons.append("unknown")
             yield
             return
 
@@ -1363,7 +1378,7 @@ class BuildMgr:
         aftercast_delay: int = 1000,
         target_agent_id: int = 0,
     ):
-        from Py4GWCoreLib import GLOBAL_CACHE, Player, Routines, ConsoleLog, Console, SkillBar, Skill
+        from Py4GWCoreLib import GLOBAL_CACHE, Player, Routines, ConsoleLog, Console, SkillBar
         if False:
             yield
 
@@ -1380,7 +1395,7 @@ class BuildMgr:
             yield from Routines.Yield.wait(self._get_spirit_cast_wait_ms(skill_id, aftercast_delay))
             yield from self._wait_for_spirit_spawn_and_step_away(skill_id)
         if log:
-            ConsoleLog("CastSkillID", f"Cast {Skill.GetName(skill_id)}, slot: {slot}", Console.MessageType.Info, log=log)
+            ConsoleLog("CastSkillID", f"Cast {GLOBAL_CACHE.Skill.GetName(skill_id)}, slot: {slot}", Console.MessageType.Info, log=log)
         self.SetTickSuccess()
 
         return True
