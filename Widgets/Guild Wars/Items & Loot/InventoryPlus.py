@@ -1,5 +1,6 @@
 import PyImGui
 import Py4GW
+import PyInventory
 import importlib.util
 import os
 import sys
@@ -9,10 +10,46 @@ from Py4GWCoreLib.py4gwcorelib_src.AutoInventoryHandler import AutoInventoryHand
 from Py4GWCoreLib.py4gwcorelib_src.Color import Color, ColorPalette
 from Py4GWCoreLib.py4gwcorelib_src.Utils import Utils
 from Py4GWCoreLib.enums_src.Texture_enums import get_texture_for_model
-from typing import Any, Generator, cast
+from types import ModuleType
+from typing import Generator, cast
 
 
 from dataclasses import dataclass, field
+
+
+class XunlaiManagerBridge:
+    def __init__(self, module: ModuleType) -> None:
+        self._module = module
+
+    def EnsureAccountSettingsLoaded(self) -> None:
+        ensure_loaded = getattr(self._module, "_ensure_account_settings_loaded", None)
+        if callable(ensure_loaded):
+            ensure_loaded()
+
+    def GetAvailableStorageBags(self, anniversary_unlocked: bool) -> list[int]:
+        return list(self._module._get_available_storage_bags(anniversary_unlocked))
+
+    def StartSortTask(self, available_storage_bags: list[int]) -> None:
+        self._module._start_sort_task(available_storage_bags)
+
+    def ProcessSortTask(self) -> None:
+        self._module._process_sort_task()
+
+    @property
+    def AnniversarySlotUnlocked(self) -> bool:
+        return bool(getattr(self._module, "ANNIVERSARY_SLOT_UNLOCKED", False))
+
+    @property
+    def SortTaskState(self) -> object | None:
+        return getattr(self._module, "_sort_task_state", None)
+
+    @property
+    def SortProgressText(self) -> str:
+        return str(getattr(self._module, "_sort_progress_text", "") or "")
+
+    @property
+    def SortProgressRatio(self) -> float:
+        return float(getattr(self._module, "_sort_progress_ratio", 0.0) or 0.0)
 
 INI_PATH = "Inventory/InventoryPlus" #path to save ini key
 INI_FILENAME = "InventoryPlus.ini" #ini file name
@@ -494,29 +531,29 @@ def _get_supported_salvage_kit_id(selected_kit: ItemSlotData | None = None) -> i
 
 
 
-def _call_inventory_bool_method(inventory_instance: Any, method_name: str) -> bool:
-    inventory_method = getattr(inventory_instance, method_name, None)
-    if not callable(inventory_method):
+def _call_inventory_bool_method(inventory_instance: PyInventory.PyInventory | None, method_name: str) -> bool:
+    if inventory_instance is None:
         return False
-    return bool(inventory_method())
+    if method_name == "IsSalvaging":
+        return bool(inventory_instance.IsSalvaging())
+    if method_name == "IsSalvageTransactionDone":
+        return bool(inventory_instance.IsSalvageTransactionDone())
+    return False
 
 
 
-def _finish_inventory_salvage(inventory_instance: Any) -> None:
-    finish_salvage = getattr(inventory_instance, "FinishSalvage", None)
-    if callable(finish_salvage):
-        finish_salvage()
+def _finish_inventory_salvage(inventory_instance: PyInventory.PyInventory | None) -> None:
+    if inventory_instance is not None:
+        inventory_instance.FinishSalvage()
 
-
-
-def _wait_for_salvage_session_idle(inventory_instance, timeout_ms: int = 1500, poll_ms: int = 50):
+def _wait_for_salvage_session_idle(
+    inventory_instance: PyInventory.PyInventory | None,
+    timeout_ms: int = 1500,
+    poll_ms: int = 50,
+):
     from Py4GWCoreLib.Routines import Routines
 
-    supports_state_tracking = (
-        inventory_instance is not None
-        and hasattr(inventory_instance, "IsSalvaging")
-        and hasattr(inventory_instance, "IsSalvageTransactionDone")
-    )
+    supports_state_tracking = inventory_instance is not None
     if not supports_state_tracking:
         return True
 
@@ -557,19 +594,22 @@ def _normalize_salvage_dialog_strategy(strategy: int) -> int:
 
 def _get_salvage_dialog_auto_settings() -> tuple[bool, int, bool, bool]:
     widget_instance = globals().get("InventoryPlusWidgetInstance")
-    auto_inventory_handler = getattr(widget_instance, "auto_inventory_handler", None)
+    auto_inventory_handler = None
+    if widget_instance is not None:
+        auto_inventory_handler = getattr(widget_instance, "auto_inventory_handler", None)
+    if not isinstance(auto_inventory_handler, AutoInventoryHandler):
+        return False, 0, False, False
 
-    auto_handle = bool(getattr(auto_inventory_handler, "salvage_dialog_auto_handle", False))
-    strategy = _normalize_salvage_dialog_strategy(int(getattr(auto_inventory_handler, "salvage_dialog_strategy", 0)))
-    auto_confirm_materials_warning = bool(getattr(auto_inventory_handler, "salvage_dialog_auto_confirm_materials", False))
-    debug_enabled = bool(getattr(auto_inventory_handler, "salvage_dialog_debug", False))
+    auto_handle = bool(auto_inventory_handler.salvage_dialog_auto_handle)
+    strategy = _normalize_salvage_dialog_strategy(int(auto_inventory_handler.salvage_dialog_strategy))
+    auto_confirm_materials_warning = bool(auto_inventory_handler.salvage_dialog_auto_confirm_materials)
+    debug_enabled = bool(auto_inventory_handler.salvage_dialog_debug)
 
     return auto_handle, strategy, auto_confirm_materials_warning, debug_enabled
 
 
 
 def _salvage_single_item_with_supported_kit(item_id: int, label: str, selected_kit: ItemSlotData | None = None, allowed_rarities: set[str] | None = None):
-    import PyInventory
     import PyItem
     from Py4GWCoreLib.Py4GWcorelib import ActionQueueManager, ConsoleLog, Console
     from Py4GWCoreLib import Item
@@ -614,13 +654,9 @@ def _salvage_single_item_with_supported_kit(item_id: int, label: str, selected_k
     }
     manual_choice_required = require_materials_confirmation and advanced_kit_tracking
 
-    inventory_instance = PyInventory.PyInventory() if advanced_kit_tracking else None
-    supports_state_tracking = (
-        inventory_instance is not None
-        and hasattr(inventory_instance, "IsSalvaging")
-        and hasattr(inventory_instance, "IsSalvageTransactionDone")
-    )
-    supports_finish_salvage = inventory_instance is not None and hasattr(inventory_instance, "FinishSalvage")
+    inventory_instance: PyInventory.PyInventory | None = PyInventory.PyInventory() if advanced_kit_tracking else None
+    supports_state_tracking = inventory_instance is not None
+    supports_finish_salvage = inventory_instance is not None
 
     if advanced_kit_tracking and inventory_instance is not None:
         try:
@@ -758,7 +794,12 @@ def _salvage_single_item_with_supported_kit(item_id: int, label: str, selected_k
 
 
 
-def _run_salvage_routine(item_ids: list[int], label: str, rarities: list[str] | None = None, selected_kit: ItemSlotData | None = None):
+def _run_salvage_routine(
+    item_ids: list[int],
+    label: str,
+    rarities: list[str] | None = None,
+    selected_kit: ItemSlotData | None = None,
+) -> Generator[object, None, None]:
     from Py4GWCoreLib.Py4GWcorelib import ConsoleLog, Console
     from Py4GWCoreLib.Routines import Routines
 
@@ -829,14 +870,14 @@ def _run_salvage_routine(item_ids: list[int], label: str, rarities: list[str] | 
     if salvaged_count > 0:
         ConsoleLog("SalvageItems", f"Salvaged {salvaged_count} items.", Console.MessageType.Info)
 
-    return salvaged_count
+    return None
 
 
 
 def _queue_salvage_routine(item_ids: list[int], label: str, rarities: list[str] | None = None, selected_kit: ItemSlotData | None = None):
     from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 
-    routine = cast(Generator[Any, None, None], _run_salvage_routine(item_ids, label, rarities=rarities, selected_kit=selected_kit))
+    routine = _run_salvage_routine(item_ids, label, rarities=rarities, selected_kit=selected_kit)
     GLOBAL_CACHE.Coroutines.append(routine)
 
 
@@ -844,7 +885,12 @@ def _queue_salvage_routine(item_ids: list[int], label: str, rarities: list[str] 
 # NEW: Stack salvage — repeatedly salvage the same bag+slot until depleted
 # ---------------------------------------------------------------------------
 
-def _run_salvage_stack_routine(bag_id: int, slot: int, label: str, selected_kit: ItemSlotData | None = None):
+def _run_salvage_stack_routine(
+    bag_id: int,
+    slot: int,
+    label: str,
+    selected_kit: ItemSlotData | None = None,
+) -> Generator[object, None, None]:
     """Coroutine: salvage every item in a stacked slot (same bag+slot) until gone."""
     from Py4GWCoreLib.Py4GWcorelib import ConsoleLog, Console
     from Py4GWCoreLib.Routines import Routines
@@ -884,17 +930,14 @@ def _run_salvage_stack_routine(bag_id: int, slot: int, label: str, selected_kit:
     if salvaged_count > 0:
         ConsoleLog("SalvageItems", f"Salvaged stack: {salvaged_count} items from bag {bag_id} slot {slot}.", Console.MessageType.Info)
 
-    return salvaged_count
+    return None
 
 
 def _queue_salvage_stack(item: ItemSlotData, selected_kit: ItemSlotData | None = None):
     """Queue a full-stack salvage coroutine for a single inventory slot."""
     from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 
-    routine = cast(
-        Generator[Any, None, None],
-        _run_salvage_stack_routine(item.BagID, item.Slot, f"Salvage Stack [{item.Rarity}]", selected_kit=selected_kit),
-    )
+    routine = _run_salvage_stack_routine(item.BagID, item.Slot, f"Salvage Stack [{item.Rarity}]", selected_kit=selected_kit)
     GLOBAL_CACHE.Coroutines.append(routine)
 
 
@@ -959,7 +1002,7 @@ def _salvage_all(cfg: SalvageSettings, selected_kit: ItemSlotData | None = None)
     )
 
 
-def _withdraw_all_matching_model_from_storage(model_id: int):
+def _withdraw_all_matching_model_from_storage(model_id: int) -> Generator[object, None, None]:
     from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
     from Py4GWCoreLib.Py4GWcorelib import Console, ConsoleLog
     from Py4GWCoreLib.Routines import Routines
@@ -1046,7 +1089,7 @@ class InventoryPlusWidget:
         
         self._init_popups()
 
-    def _get_xunlai_manager_bridge(self):
+    def _get_xunlai_manager_bridge(self) -> XunlaiManagerBridge | None:
         from Py4GWCoreLib.Py4GWcorelib import Console, ConsoleLog
 
         module_name = "_inventoryplus_xunlai_manager_bridge"
@@ -1100,7 +1143,7 @@ class InventoryPlusWidget:
             module = importlib.util.module_from_spec(spec)
             sys.modules[module_name] = module
             spec.loader.exec_module(module)
-            self._xunlai_manager_bridge = module
+            self._xunlai_manager_bridge = XunlaiManagerBridge(module)
             self._xunlai_manager_bridge_path = module_path
             self._xunlai_manager_bridge_mtime = module_mtime
             self._xunlai_manager_bridge_error = None
@@ -1154,24 +1197,16 @@ class InventoryPlusWidget:
         if bridge is None:
             return
 
-        ensure_loaded = getattr(bridge, "_ensure_account_settings_loaded", None)
-        if callable(ensure_loaded):
-            ensure_loaded()
+        bridge.EnsureAccountSettingsLoaded()
 
-        get_bags = getattr(bridge, "_get_available_storage_bags", None)
-        start_sort = getattr(bridge, "_start_sort_task", None)
-        process_sort = getattr(bridge, "_process_sort_task", None)
-        if not callable(get_bags) or not callable(start_sort) or not callable(process_sort):
-            return
+        if bridge.SortTaskState is not None:
+            bridge.ProcessSortTask()
 
-        if getattr(bridge, "_sort_task_state", None) is not None:
-            process_sort()
-
-        anniversary_unlocked = bool(getattr(bridge, "ANNIVERSARY_SLOT_UNLOCKED", False))
-        available_storage_bags = get_bags(anniversary_unlocked)
-        sort_running = getattr(bridge, "_sort_task_state", None) is not None
-        progress_text = str(getattr(bridge, "_sort_progress_text", "") or "")
-        progress_ratio = float(getattr(bridge, "_sort_progress_ratio", 0.0) or 0.0)
+        anniversary_unlocked = bridge.AnniversarySlotUnlocked
+        available_storage_bags = bridge.GetAvailableStorageBags(anniversary_unlocked)
+        sort_running = bridge.SortTaskState is not None
+        progress_text = bridge.SortProgressText
+        progress_ratio = bridge.SortProgressRatio
         icon_label = "XunlaiChestSort"
         icon_button_size = 22
         progress_width = 84
@@ -1209,7 +1244,7 @@ class InventoryPlusWidget:
         PyImGui.set_next_window_pos(icon_x, icon_y)
         PyImGui.set_next_window_size(icon_window_width, 0)
         if PyImGui.begin("##InventoryPlusXunlaiSortButton", True, window_flags):
-            PyImGui.push_style_var2(PyImGui.ImGuiStyleVar.FramePadding, 1, 1)
+            #PyImGui.push_style_var2(PyImGui.ImGuiStyleVar.FramePadding, 1, 1)
             use_texture_button = os.path.exists(self._xunlai_sort_icon_path)
             if sort_running:
                 PyImGui.begin_disabled(True)
@@ -1243,10 +1278,10 @@ class InventoryPlusWidget:
                 else:
                     clicked = PyImGui.button("S##SortChest", icon_button_size, icon_button_size)
                 if clicked and len(available_storage_bags) > 0:
-                    start_sort(available_storage_bags)
+                    bridge.StartSortTask(available_storage_bags)
                 if PyImGui.is_item_hovered():
                     PyImGui.set_tooltip("Sort Chest")
-            PyImGui.pop_style_var(1)
+            #PyImGui.pop_style_var(1)
         PyImGui.end()
 
         if not sort_running:
@@ -1666,18 +1701,18 @@ class InventoryPlusWidget:
 
         if is_storage_item:
             withdraw_label = "Withdraw Item"
-            if selected_item.Quantity > 1:
+            if selected_item is not None and selected_item.Quantity > 1:
                 withdraw_label = f"Withdraw Stack ({selected_item.Quantity})"
 
             if PyImGui.menu_item(withdraw_label):
-                GLOBAL_CACHE.Inventory.WithdrawItemFromStorage(selected_item.ItemID)
+                GLOBAL_CACHE.Inventory.WithdrawItemFromStorage(selected_item.ItemID if selected_item else 0)
                 self._invalidate_context_cache()
                 PyImGui.close_current_popup()
 
             if PyImGui.menu_item("Withdraw All Same ModelID"):
                 routine = cast(
-                    Generator[Any, None, None],
-                    _withdraw_all_matching_model_from_storage(selected_item.ModelID),
+                    Generator[object, None, None],
+                    _withdraw_all_matching_model_from_storage(selected_item.ModelID if selected_item else 0),
                 )
                 GLOBAL_CACHE.Coroutines.append(routine)
                 self._invalidate_context_cache()
@@ -2440,8 +2475,9 @@ class InventoryPlusWidget:
         from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 
         resolved_item_id = item_id
-        if hasattr(resolved_item_id, "item_id"):
-            resolved_item_id = resolved_item_id.item_id
+        item_attr = getattr(resolved_item_id, "item_id", None)
+        if isinstance(item_attr, int):
+            resolved_item_id = item_attr
 
         try:
             resolved_item_id = int(resolved_item_id)
@@ -2504,8 +2540,9 @@ class InventoryPlusWidget:
 
     def _normalize_item_id(self, item_id):
         resolved_item_id = item_id
-        if hasattr(resolved_item_id, "item_id"):
-            resolved_item_id = resolved_item_id.item_id
+        item_attr = getattr(resolved_item_id, "item_id", None)
+        if isinstance(item_attr, int):
+            resolved_item_id = item_attr
         try:
             return int(resolved_item_id)
         except Exception:

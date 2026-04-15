@@ -29,6 +29,9 @@ class Checks:
             #from ..Agent import Agent
             #return Agent.CanAct(Player.GetAgentID())
         
+            return True 
+        
+        
         @staticmethod
         def IsDead():
             from ..GlobalCache import GLOBAL_CACHE

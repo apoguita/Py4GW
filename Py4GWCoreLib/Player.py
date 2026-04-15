@@ -142,7 +142,7 @@ class Player:
         if not Agent.GetInstanceUptime(agent_id) > 750:
             return False
             
-        return False
+        return True
     
     @staticmethod
     def _require_player_loaded(default=None):

@@ -115,9 +115,13 @@ class CombatEvents:
     external API used by the rest of the codebase.
     """
 
+    _callback_name = "CombatEvents.Update"
+
 
     @staticmethod
     def GetEvents() -> List[Tuple[int, int, int, int, int, float]]:
+        if not helpers._is_callback_active():
+            return []
         return list(helpers._events)
 
     @staticmethod
@@ -126,6 +130,8 @@ class CombatEvents:
 
     @staticmethod
     def GetRecentDamage(count: int = 20) -> List[Tuple[int, int, int, float, int, bool]]:
+        if not helpers._is_callback_active():
+            return []
         result = []
         for ts, etype, agent, val, target, fval in reversed(list(helpers._events)):
             if etype in (helpers.EventType.DAMAGE, helpers.EventType.CRITICAL, helpers.EventType.ARMOR_IGNORING):
@@ -144,6 +150,8 @@ class CombatEvents:
 
     @staticmethod
     def GetRecentSkills(count: int = 20) -> List[Tuple[int, int, int, int, int]]:
+        if not helpers._is_callback_active():
+            return []
         skill_types = {
             helpers.EventType.SKILL_ACTIVATED,
             helpers.EventType.ATTACK_SKILL_ACTIVATED,
@@ -216,10 +224,32 @@ class CombatEvents:
     def Update():
         helpers._process_pending_events(CombatEventQueue)
 
+    @staticmethod
+    def Enable():
+        helpers._set_callback_active(False)
+        import PyCallback
+        PyCallback.PyCallback.Register(
+             CombatEvents._callback_name,
+             PyCallback.Phase.Data,
+             CombatEvents.Update,
+             priority=7,
+             context=PyCallback.Context.Draw
+         )
+
+    @staticmethod
+    def Disable():
+        helpers._set_callback_active(False)
+        try:
+            import PyCallback
+
+            PyCallback.PyCallback.RemoveByName(CombatEvents._callback_name)
+        except Exception:
+            pass
+
 COMBAT_EVENTS = CombatEvents()
 
 try:
-    helpers._enable_updates(CombatEvents)
+    CombatEvents.Enable()
 except Exception as e:
     Py4GW.Console.Log("CombatEvents", f"Module init error: {e}", Py4GW.Console.MessageType.Error)
 
