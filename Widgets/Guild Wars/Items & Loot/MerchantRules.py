@@ -96,6 +96,7 @@ MERCHANT_TYPE_TRAVEL = "travel"
 MERCHANT_TYPE_MERCHANT = "merchant"
 MERCHANT_TYPE_MATERIALS = "material_trader"
 MERCHANT_TYPE_RUNE_TRADER = "rune_trader"
+MERCHANT_TYPE_SCROLL_TRADER = "scroll_trader"
 MERCHANT_TYPE_RARE_MATERIALS = "rare_material_trader"
 MERCHANT_TYPE_INVENTORY = "inventory"
 MERCHANT_TYPE_STORAGE = "storage"
@@ -103,6 +104,7 @@ MERCHANT_TYPE_STORAGE = "storage"
 BUY_KIND_MERCHANT_STOCK = "merchant_stock_target"
 BUY_KIND_MATERIAL_TARGET = "buy_material_target"
 BUY_KIND_RUNE_TRADER_TARGET = "buy_rune_trader_target"
+BUY_KIND_SCROLL_TRADER_TARGET = "buy_scroll_trader_target"
 LEGACY_BUY_KIND_ID_KITS = "restock_id_kits"
 LEGACY_BUY_KIND_SALVAGE_KITS = "restock_salvage_kits"
 LEGACY_BUY_KIND_ECTO = "buy_ectoplasm"
@@ -123,6 +125,7 @@ BUY_RULE_KINDS = [
     BUY_KIND_MERCHANT_STOCK,
     BUY_KIND_MATERIAL_TARGET,
     BUY_KIND_RUNE_TRADER_TARGET,
+    BUY_KIND_SCROLL_TRADER_TARGET,
 ]
 
 SELL_RULE_KINDS = [
@@ -143,6 +146,7 @@ BUY_RULE_WORKSPACE_ORDER: tuple[str, ...] = (
     BUY_KIND_MERCHANT_STOCK,
     BUY_KIND_MATERIAL_TARGET,
     BUY_KIND_RUNE_TRADER_TARGET,
+    BUY_KIND_SCROLL_TRADER_TARGET,
 )
 
 SELL_RULE_WORKSPACE_ORDER: tuple[str, ...] = (
@@ -163,12 +167,14 @@ BUY_KIND_LABELS = {
     BUY_KIND_MERCHANT_STOCK: "Maintain Merchant Stock",
     BUY_KIND_MATERIAL_TARGET: "Maintain Crafting Materials",
     BUY_KIND_RUNE_TRADER_TARGET: "Maintain Runes & Insignias",
+    BUY_KIND_SCROLL_TRADER_TARGET: "Maintain Scroll Trader Stock",
 }
 
 BUY_RULE_WORKSPACE_LABELS = {
     BUY_KIND_MERCHANT_STOCK: "Merchant Stock",
     BUY_KIND_MATERIAL_TARGET: "Materials",
     BUY_KIND_RUNE_TRADER_TARGET: "Runes & Insignias",
+    BUY_KIND_SCROLL_TRADER_TARGET: "Scroll Trader Stock",
 }
 
 SELL_KIND_LABELS = {
@@ -232,6 +238,7 @@ MERCHANT_TYPE_LABELS = {
     MERCHANT_TYPE_MERCHANT: "Merchant",
     MERCHANT_TYPE_MATERIALS: "Material Trader",
     MERCHANT_TYPE_RUNE_TRADER: "Rune Trader",
+    MERCHANT_TYPE_SCROLL_TRADER: "Scroll Trader",
     MERCHANT_TYPE_RARE_MATERIALS: "Rare Material Trader",
     MERCHANT_TYPE_INVENTORY: "Inventory",
     MERCHANT_TYPE_STORAGE: "Xunlai Storage",
@@ -249,6 +256,7 @@ BUY_KIND_TO_MERCHANT_TYPE = {
     BUY_KIND_MERCHANT_STOCK: MERCHANT_TYPE_MERCHANT,
     BUY_KIND_MATERIAL_TARGET: MERCHANT_TYPE_MATERIALS,
     BUY_KIND_RUNE_TRADER_TARGET: MERCHANT_TYPE_RUNE_TRADER,
+    BUY_KIND_SCROLL_TRADER_TARGET: MERCHANT_TYPE_SCROLL_TRADER,
 }
 
 SELL_KIND_TO_MERCHANT_TYPE = {
@@ -272,11 +280,23 @@ RARE_CRAFTING_MATERIAL_MODEL_IDS: frozenset[int] = frozenset({
 ALL_CRAFTING_MATERIAL_MODEL_IDS: frozenset[int] = frozenset(
     set(COMMON_CRAFTING_MATERIAL_MODEL_IDS) | set(RARE_CRAFTING_MATERIAL_MODEL_IDS)
 )
+SCROLL_TRADER_STOCK_MODEL_IDS: frozenset[int] = frozenset({
+    int(ModelID.Passage_Scroll_Deep.value),
+    int(ModelID.Passage_Scroll_Urgoz.value),
+    int(ModelID.Passage_Scroll_Fow.value),
+    int(ModelID.Passage_Scroll_Uw.value),
+    int(ModelID.Scroll_Of_The_Lightbringer.value),
+    int(ModelID.Scroll_Of_Heros_Insight.value),
+    int(ModelID.Scroll_Of_Berserkers_Insight.value),
+    int(ModelID.Scroll_of_Slayers_Insight.value),
+})
 OUTPOST_SERVICE_SEARCH_MAX_DIST = 15_000.0
 MERCHANT_NAME_QUERY = "[Merchant]"
 MATERIAL_TRADER_NAME_QUERY = "[Material Trader]"
 RARE_MATERIAL_TRADER_NAME_QUERY = "[Rare Material Trader]"
 RUNE_TRADER_NAME_QUERY = "Rune Trader"
+SCROLL_TRADER_NAME_QUERY = "Scroll Trader"
+RARE_SCROLL_TRADER_NAME_QUERY = "[Rare Scroll Trader]"
 XUNLAI_AGENT_NAME_QUERY = "Xunlai Agent"
 XUNLAI_CHEST_NAME_QUERY = "Xunlai Chest"
 XUNLAI_AGENT_MODEL_IDS: tuple[int, ...] = (220, 221, 3287)
@@ -297,6 +317,7 @@ RARITY_OPTION_ORDER: tuple[tuple[str, str], ...] = (
     ("green", "Green"),
 )
 SUPPORTED_MAP_RUNE_TRADER_SELECTORS: dict[int, str] = {}
+SUPPORTED_MAP_SCROLL_TRADER_SELECTORS: dict[int, str] = {}
 ACTION_TYPE_LABELS = {
     "buy": "Buy",
     "sell": "Sell",
@@ -346,6 +367,7 @@ RULE_KIND_PRESENTATION: dict[str, tuple[str, tuple[float, float, float, float]]]
     BUY_KIND_MERCHANT_STOCK: ("Stock", UI_COLOR_INFO),
     BUY_KIND_MATERIAL_TARGET: ("Materials", UI_COLOR_TEAL),
     BUY_KIND_RUNE_TRADER_TARGET: ("Runes", UI_COLOR_PURPLE_ACCENT),
+    BUY_KIND_SCROLL_TRADER_TARGET: ("Scrolls", UI_COLOR_INDIGO),
     SELL_KIND_COMMON_MATERIALS: ("Materials", UI_COLOR_TEAL),
     SELL_KIND_EXPLICIT_MODELS: ("Items", UI_COLOR_INDIGO),
     SELL_KIND_WEAPONS: ("Weapons", UI_COLOR_SUCCESS),
@@ -766,6 +788,13 @@ class PlannedTraderBuy:
 
 
 @dataclass
+class PlannedScrollTraderBuy:
+    model_id: int
+    quantity: int
+    label: str
+
+
+@dataclass
 class StockLocationCounts:
     key: str
     label: str
@@ -814,6 +843,7 @@ class PlanResult:
     merchant_stock_buys: list[PlannedMerchantBuy] = field(default_factory=list)
     material_buys: list[PlannedMaterialBuy] = field(default_factory=list)
     rune_trader_buys: list[PlannedTraderBuy] = field(default_factory=list)
+    scroll_trader_buys: list[PlannedScrollTraderBuy] = field(default_factory=list)
     material_sales: list[PlannedMaterialSale] = field(default_factory=list)
     storage_transfers: list[PlannedStorageTransfer] = field(default_factory=list)
     cleanup_transfers: list[PlannedStorageTransfer] = field(default_factory=list)
@@ -1548,6 +1578,28 @@ def _get_mirrored_item_priority(item_type: object) -> int:
     return 30
 
 
+def _get_catalog_entry_priority(
+    model_id: object,
+    item_type: object,
+    category: object = "",
+    sub_category: object = "",
+) -> int:
+    priority = _get_mirrored_item_priority(item_type)
+    if not _is_scroll_trader_stock_model(model_id):
+        return priority
+
+    normalized_type = _normalize_catalog_search_text(item_type)
+    normalized_category = _normalize_catalog_search_text(category)
+    normalized_sub_category = _normalize_catalog_search_text(sub_category)
+    if (
+        normalized_type == "scroll"
+        or normalized_category == "scroll"
+        or normalized_sub_category.endswith("scroll")
+    ):
+        return min(priority, 15)
+    return priority
+
+
 MODEL_ID_FALLBACK_ITEM_TYPE_SUFFIXES: tuple[tuple[str, str], ...] = (
     ("Daggers", "Daggers"),
     ("Scythe", "Scythe"),
@@ -1638,6 +1690,10 @@ def _is_rare_crafting_material_model(model_id: object) -> bool:
 
 def _is_crafting_material_model(model_id: object) -> bool:
     return max(0, _safe_int(model_id, 0)) in ALL_CRAFTING_MATERIAL_MODEL_IDS
+
+
+def _is_scroll_trader_stock_model(model_id: object) -> bool:
+    return max(0, _safe_int(model_id, 0)) in SCROLL_TRADER_STOCK_MODEL_IDS
 
 
 def _get_material_batch_size_for_model(model_id: object) -> int:
@@ -2075,6 +2131,8 @@ def _get_buy_rule_merchant_type(rule: BuyRule) -> str:
         return MERCHANT_TYPE_MATERIALS
     if rule.kind == BUY_KIND_RUNE_TRADER_TARGET:
         return MERCHANT_TYPE_RUNE_TRADER
+    if rule.kind == BUY_KIND_SCROLL_TRADER_TARGET:
+        return MERCHANT_TYPE_SCROLL_TRADER
     return BUY_KIND_TO_MERCHANT_TYPE.get(rule.kind, MERCHANT_TYPE_MERCHANT)
 
 
@@ -2083,6 +2141,7 @@ def _default_buy_rules() -> list[BuyRule]:
         BuyRule(enabled=False, kind=BUY_KIND_MERCHANT_STOCK, merchant_type=MERCHANT_TYPE_MERCHANT, model_id=0, target_count=0, max_per_run=0),
         BuyRule(enabled=False, kind=BUY_KIND_MATERIAL_TARGET, merchant_type=MERCHANT_TYPE_MATERIALS, model_id=0, target_count=0, max_per_run=0),
         BuyRule(enabled=False, kind=BUY_KIND_RUNE_TRADER_TARGET, merchant_type=MERCHANT_TYPE_RUNE_TRADER, model_id=0, target_count=0, max_per_run=0),
+        BuyRule(enabled=False, kind=BUY_KIND_SCROLL_TRADER_TARGET, merchant_type=MERCHANT_TYPE_SCROLL_TRADER, model_id=0, target_count=0, max_per_run=0),
     ]
 
 
@@ -2158,6 +2217,25 @@ def _normalize_buy_rule(rule: BuyRule) -> BuyRule | None:
     elif rule.kind == BUY_KIND_RUNE_TRADER_TARGET:
         rule.merchant_stock_targets = []
         rule.material_targets = []
+        rule.model_id = 0
+        rule.target_count = 0
+        rule.max_per_run = 0
+    elif rule.kind == BUY_KIND_SCROLL_TRADER_TARGET:
+        if not rule.merchant_stock_targets and legacy_model_id > 0 and _is_scroll_trader_stock_model(legacy_model_id):
+            rule.merchant_stock_targets = [
+                MerchantStockTarget(
+                    model_id=legacy_model_id,
+                    target_count=legacy_target_count,
+                    max_per_run=legacy_max_per_run,
+                )
+            ]
+        rule.merchant_stock_targets = [
+            target
+            for target in rule.merchant_stock_targets
+            if _is_scroll_trader_stock_model(target.model_id)
+        ]
+        rule.material_targets = []
+        rule.rune_targets = []
         rule.model_id = 0
         rule.target_count = 0
         rule.max_per_run = 0
@@ -4050,7 +4128,8 @@ class MerchantRulesWidget:
             f"{prefix}: supported={plan.supported_map} has_actions={plan.has_actions} "
             f"entries={len(plan.entries)} travel={plan.travel_to_outpost_id} "
             f"destroy={len(plan.destroy_actions) if plan.destroy_actions else len(plan.destroy_item_ids)} "
-            f"merchant_stock={len(plan.merchant_stock_buys)} material_buys={len(plan.material_buys)} rune_buys={len(plan.rune_trader_buys)} "
+            f"merchant_stock={len(plan.merchant_stock_buys)} material_buys={len(plan.material_buys)} "
+            f"rune_buys={len(plan.rune_trader_buys)} scroll_buys={len(plan.scroll_trader_buys)} "
             f"storage_transfers={len(plan.storage_transfers)} cleanup_transfers={len(plan.cleanup_transfers)} "
             f"storage_state={plan.storage_plan_state} "
             f"material_sales={len(plan.material_sales)} "
@@ -4299,7 +4378,7 @@ class MerchantRulesWidget:
                 name=name,
                 item_type=item_type,
                 source="item_handling_items_catalog",
-                priority=_get_mirrored_item_priority(item_type),
+                priority=_get_catalog_entry_priority(model_id, item_type, category, sub_category),
                 extra=extra,
             )
             loaded_count += 1
@@ -4340,7 +4419,7 @@ class MerchantRulesWidget:
                 name=name,
                 item_type=item_type,
                 source="merchant_rules_items_catalog",
-                priority=_get_mirrored_item_priority(item_type),
+                priority=_get_catalog_entry_priority(model_id, item_type),
                 extra=extra,
             )
             loaded_count += 1
@@ -5002,6 +5081,15 @@ class MerchantRulesWidget:
     def _get_rare_material_catalog_entries(self) -> list[dict[str, object]]:
         return list(self.catalog_rare_materials)
 
+    def _get_scroll_trader_stock_entries(self) -> list[dict[str, object]]:
+        entries: list[dict[str, object]] = []
+        for model_id in SCROLL_TRADER_STOCK_MODEL_IDS:
+            entry = self._get_model_entry(model_id)
+            if entry is not None:
+                entries.append(entry)
+        entries.sort(key=lambda entry: self._get_model_display_sort_key(int(entry.get("model_id", 0))))
+        return entries
+
     def _get_material_catalog_entry(self, model_id: int) -> dict[str, object] | None:
         entry = self._get_model_entry(model_id)
         if entry is None:
@@ -5155,6 +5243,13 @@ class MerchantRulesWidget:
                 break
         return material_results
 
+    def _search_scroll_trader_stock_catalog(self, raw_query: str, limit: int = SEARCH_RESULT_LIMIT) -> list[dict[str, object]]:
+        return self._search_catalog_with_predicate(
+            raw_query,
+            entry_predicate=lambda entry: _is_scroll_trader_stock_model(entry.get("model_id", 0)),
+            limit=limit,
+        )
+
     def _search_weapon_catalog(self, raw_query: str, limit: int = SEARCH_RESULT_LIMIT) -> list[dict[str, object]]:
         catalog_limit = max(max(1, len(self.catalog_by_model_id)), limit * 4, SEARCH_RESULT_LIMIT * 4)
         results = self._search_catalog(raw_query, limit=catalog_limit)
@@ -5288,6 +5383,52 @@ class MerchantRulesWidget:
             )
         )
         return self._set_buy_rule_merchant_stock_targets(rule, existing_targets)
+
+    def _set_buy_rule_scroll_trader_targets(self, rule: BuyRule, targets: list[MerchantStockTarget]) -> bool:
+        normalized_targets = [
+            target
+            for target in _normalize_merchant_stock_targets(targets)
+            if _is_scroll_trader_stock_model(target.model_id)
+        ]
+        current_targets = [
+            target
+            for target in _normalize_merchant_stock_targets(rule.merchant_stock_targets)
+            if _is_scroll_trader_stock_model(target.model_id)
+        ]
+        if normalized_targets == current_targets:
+            return False
+        rule.merchant_stock_targets = normalized_targets
+        return True
+
+    def _add_buy_rule_scroll_trader_target(
+        self,
+        rule: BuyRule,
+        model_id: int,
+        *,
+        target_count: int = 0,
+        max_per_run: int = 0,
+    ) -> bool:
+        safe_model_id = max(0, _safe_int(model_id, 0))
+        if safe_model_id <= 0 or not _is_scroll_trader_stock_model(safe_model_id):
+            return False
+
+        existing_targets = [
+            target
+            for target in _normalize_merchant_stock_targets(rule.merchant_stock_targets)
+            if _is_scroll_trader_stock_model(target.model_id)
+        ]
+        for target in existing_targets:
+            if target.model_id == safe_model_id:
+                return False
+
+        existing_targets.append(
+            MerchantStockTarget(
+                model_id=safe_model_id,
+                target_count=max(0, _safe_int(target_count, 0)),
+                max_per_run=max(0, _safe_int(max_per_run, 0)),
+            )
+        )
+        return self._set_buy_rule_scroll_trader_targets(rule, existing_targets)
 
     def _set_buy_rule_material_targets(self, rule: BuyRule, material_targets: list[MaterialTarget]) -> bool:
         normalized_targets = _normalize_material_targets(material_targets)
@@ -5627,6 +5768,32 @@ class MerchantRulesWidget:
         PyImGui.end_child()
         return picked_model_id, visible_model_ids
 
+    def _draw_merchant_stock_search_results(self, child_id: str, query: str) -> tuple[int, list[int]]:
+        normalized_query = str(query or "").strip()
+        if not normalized_query:
+            return 0, []
+
+        results = [
+            entry
+            for entry in self._search_catalog(normalized_query)
+            if not _is_scroll_trader_stock_model(entry.get("model_id", 0))
+        ]
+        visible_model_ids = _collect_model_ids_from_catalog_entries(results)
+        picked_model_id = 0
+        child_height = 110 if len(results) > 4 else 80
+        if PyImGui.begin_child(child_id, (0, child_height), True, PyImGui.WindowFlags.NoFlag):
+            if not results:
+                PyImGui.text_wrapped("No matching regular merchant stock found in the local catalog.")
+            else:
+                for entry in results:
+                    model_id = int(entry.get("model_id", 0))
+                    label = self._format_model_label_long(model_id)
+                    if PyImGui.selectable(f"{label}##{child_id}_{model_id}", False, PyImGui.SelectableFlags.NoFlag, (0, 0)):
+                        picked_model_id = model_id
+                        break
+        PyImGui.end_child()
+        return picked_model_id, visible_model_ids
+
     def _draw_material_search_results(self, child_id: str, query: str) -> tuple[int, list[int]]:
         normalized_query = str(query or "").strip()
         if not normalized_query:
@@ -5646,6 +5813,28 @@ class MerchantRulesWidget:
                     label = self._format_model_label(model_id)
                     if material_type:
                         label = f"{label} [{material_type}]"
+                    if PyImGui.selectable(f"{label}##{child_id}_{model_id}", False, PyImGui.SelectableFlags.NoFlag, (0, 0)):
+                        picked_model_id = model_id
+                        break
+        PyImGui.end_child()
+        return picked_model_id, visible_model_ids
+
+    def _draw_scroll_trader_stock_search_results(self, child_id: str, query: str) -> tuple[int, list[int]]:
+        normalized_query = str(query or "").strip()
+        if not normalized_query:
+            return 0, []
+
+        results = self._search_scroll_trader_stock_catalog(normalized_query)
+        visible_model_ids = _collect_model_ids_from_catalog_entries(results)
+        picked_model_id = 0
+        child_height = 110 if len(results) > 4 else 80
+        if PyImGui.begin_child(child_id, (0, child_height), True, PyImGui.WindowFlags.NoFlag):
+            if not results:
+                PyImGui.text_wrapped("No matching scroll trader stock found in the confirmed list.")
+            else:
+                for entry in results:
+                    model_id = int(entry.get("model_id", 0))
+                    label = self._format_model_label_long(model_id)
                     if PyImGui.selectable(f"{label}##{child_id}_{model_id}", False, PyImGui.SelectableFlags.NoFlag, (0, 0)):
                         picked_model_id = model_id
                         break
@@ -6208,6 +6397,31 @@ class MerchantRulesWidget:
             log_failures=log_failures,
         )
 
+    def _get_scroll_trader_lookup(self) -> tuple[str, str]:
+        if Map.IsGuildHall():
+            return "scroll_trader", SCROLL_TRADER_NAME_QUERY
+        return "rare_scroll_trader", RARE_SCROLL_TRADER_NAME_QUERY
+
+    def _get_scroll_trader_service_label(self) -> str:
+        return "Scroll Trader" if Map.IsGuildHall() else "Rare Scroll Trader"
+
+    def _resolve_scroll_trader_coords(
+        self,
+        map_id: int,
+        selector_data: dict[str, str] | None = None,
+        *,
+        log_failures: bool = True,
+    ) -> tuple[float, float] | None:
+        selector_key, name_query = self._get_scroll_trader_lookup()
+        selector_name = str(SUPPORTED_MAP_SCROLL_TRADER_SELECTORS.get(int(map_id), "") or "").strip()
+        if not selector_name and selector_data:
+            selector_name = str(selector_data.get(selector_key, "") or "").strip()
+        return self._resolve_service_coords(
+            selector_name=selector_name,
+            name_query=name_query,
+            log_failures=log_failures,
+        )
+
     def _resolve_service_coords(
         self,
         *,
@@ -6429,6 +6643,7 @@ class MerchantRulesWidget:
             MERCHANT_TYPE_MERCHANT: None,
             MERCHANT_TYPE_MATERIALS: None,
             MERCHANT_TYPE_RUNE_TRADER: None,
+            MERCHANT_TYPE_SCROLL_TRADER: None,
             MERCHANT_TYPE_RARE_MATERIALS: None,
         }
 
@@ -6463,6 +6678,11 @@ class MerchantRulesWidget:
             )
 
         coords[MERCHANT_TYPE_RUNE_TRADER] = self._resolve_rune_trader_coords(map_id, log_failures=not passive)
+        coords[MERCHANT_TYPE_SCROLL_TRADER] = self._resolve_scroll_trader_coords(
+            map_id,
+            selector_data,
+            log_failures=bool(not passive and self._has_enabled_scroll_trader_buy_rules()),
+        )
 
         resolved_count = sum(1 for value in coords.values() if value is not None)
         location_label = "Guild Hall" if Map.IsGuildHall() else "Outpost"
@@ -6479,7 +6699,7 @@ class MerchantRulesWidget:
             reason = f"{base_message} Partial merchant/trader resolution succeeded."
         else:
             supported_map = True
-            reason = f"{base_message} Merchant, material trader, rune trader, and rare material trader resolved."
+            reason = f"{base_message} Merchant, material trader, rune trader, scroll trader, and rare material trader resolved."
 
         self.cached_context_map_id = current_map_id
         self.cached_supported_context = (supported_map, reason, coords)
@@ -6489,6 +6709,7 @@ class MerchantRulesWidget:
             f"supported={supported_map} merchant={self._format_debug_coords(coords[MERCHANT_TYPE_MERCHANT])} "
             f"materials={self._format_debug_coords(coords[MERCHANT_TYPE_MATERIALS])} "
             f"rune={self._format_debug_coords(coords[MERCHANT_TYPE_RUNE_TRADER])} "
+            f"scroll={self._format_debug_coords(coords[MERCHANT_TYPE_SCROLL_TRADER])} "
             f"rare={self._format_debug_coords(coords[MERCHANT_TYPE_RARE_MATERIALS])}"
         )
         if not supported_map or resolved_count < len(coords):
@@ -6502,6 +6723,7 @@ class MerchantRulesWidget:
             MERCHANT_TYPE_MERCHANT: PROJECTED_PREVIEW_CONTEXT_COORDS,
             MERCHANT_TYPE_MATERIALS: PROJECTED_PREVIEW_CONTEXT_COORDS,
             MERCHANT_TYPE_RUNE_TRADER: PROJECTED_PREVIEW_CONTEXT_COORDS,
+            MERCHANT_TYPE_SCROLL_TRADER: PROJECTED_PREVIEW_CONTEXT_COORDS,
             MERCHANT_TYPE_RARE_MATERIALS: PROJECTED_PREVIEW_CONTEXT_COORDS,
         }
         if safe_outpost_id <= 0 or not outpost_name:
@@ -6509,6 +6731,7 @@ class MerchantRulesWidget:
                 MERCHANT_TYPE_MERCHANT: None,
                 MERCHANT_TYPE_MATERIALS: None,
                 MERCHANT_TYPE_RUNE_TRADER: None,
+                MERCHANT_TYPE_SCROLL_TRADER: None,
                 MERCHANT_TYPE_RARE_MATERIALS: None,
             }
 
@@ -6528,6 +6751,7 @@ class MerchantRulesWidget:
             MERCHANT_TYPE_MERCHANT,
             MERCHANT_TYPE_MATERIALS,
             MERCHANT_TYPE_RUNE_TRADER,
+            MERCHANT_TYPE_SCROLL_TRADER,
             MERCHANT_TYPE_RARE_MATERIALS,
         ):
             return action_type in {"buy", "sell"}
@@ -7316,6 +7540,19 @@ class MerchantRulesWidget:
                 continue
             if _normalize_rune_trader_targets(rule.rune_targets):
                 return True
+        return False
+
+    def _has_enabled_scroll_trader_buy_rules(self) -> bool:
+        for raw_rule in self.buy_rules:
+            rule = _normalize_buy_rule(raw_rule)
+            if rule is None or not rule.enabled:
+                continue
+            if rule.kind == BUY_KIND_SCROLL_TRADER_TARGET:
+                if any(_is_scroll_trader_stock_model(target.model_id) for target in _normalize_merchant_stock_targets(rule.merchant_stock_targets)):
+                    return True
+            elif rule.kind == BUY_KIND_MERCHANT_STOCK:
+                if any(_is_scroll_trader_stock_model(target.model_id) for target in _normalize_merchant_stock_targets(rule.merchant_stock_targets)):
+                    return True
         return False
 
     def _get_items_after_planned_pre_buy_actions(
@@ -8614,11 +8851,13 @@ class MerchantRulesWidget:
                 for merchant_stock_target in merchant_stock_targets:
                     merchant_stock_model_id = max(0, int(merchant_stock_target.model_id))
                     model_label = self._format_model_label(merchant_stock_model_id)
+                    target_merchant_type = MERCHANT_TYPE_SCROLL_TRADER if _is_scroll_trader_stock_model(merchant_stock_model_id) else merchant_type
+                    target_merchant_coords = coords.get(target_merchant_type)
                     if merchant_stock_model_id <= 0:
                         plan.entries.append(
                             ExecutionPlanEntry(
                                 "buy",
-                                merchant_type,
+                                target_merchant_type,
                                 BUY_KIND_LABELS[buy_rule.kind],
                                 0,
                                 PLAN_STATE_SKIPPED,
@@ -8630,7 +8869,7 @@ class MerchantRulesWidget:
                         plan.entries.append(
                             ExecutionPlanEntry(
                                 action_type="buy",
-                                merchant_type=merchant_type,
+                                merchant_type=target_merchant_type,
                                 label=model_label,
                                 quantity=0,
                                 state=PLAN_STATE_SKIPPED,
@@ -8639,15 +8878,19 @@ class MerchantRulesWidget:
                         )
                         continue
 
-                    if merchant_coords is None:
+                    if target_merchant_coords is None:
                         plan.entries.append(
                             ExecutionPlanEntry(
                                 action_type="buy",
-                                merchant_type=merchant_type,
+                                merchant_type=target_merchant_type,
                                 label=model_label,
                                 quantity=0,
                                 state=PLAN_STATE_SKIPPED,
-                                reason=f"{MERCHANT_TYPE_LABELS[merchant_type]} selector was not resolved in the current map.",
+                                reason=(
+                                    f"{self._get_scroll_trader_service_label()} selector was not resolved in the current map."
+                                    if target_merchant_type == MERCHANT_TYPE_SCROLL_TRADER
+                                    else f"{MERCHANT_TYPE_LABELS[target_merchant_type]} selector was not resolved in the current map."
+                                ),
                             )
                         )
                         continue
@@ -8661,7 +8904,7 @@ class MerchantRulesWidget:
                         plan.entries.append(
                             ExecutionPlanEntry(
                                 "buy",
-                                merchant_type,
+                                target_merchant_type,
                                 model_label,
                                 0,
                                 PLAN_STATE_SKIPPED,
@@ -8670,21 +8913,134 @@ class MerchantRulesWidget:
                         )
                         continue
                     sim_model_counts[merchant_stock_model_id] = current_count + needed
-                    plan.merchant_stock_buys.append(
-                        PlannedMerchantBuy(
-                            model_id=merchant_stock_model_id,
+                    if target_merchant_type == MERCHANT_TYPE_SCROLL_TRADER:
+                        plan.scroll_trader_buys.append(
+                            PlannedScrollTraderBuy(
+                                model_id=merchant_stock_model_id,
+                                quantity=needed,
+                                label=model_label,
+                            )
+                        )
+                        entry_reason = (
+                            "Confirmed scroll trader stock. Will request a quote and buy only if the Scroll Trader or Rare Scroll Trader offers the item."
+                        )
+                    else:
+                        plan.merchant_stock_buys.append(
+                            PlannedMerchantBuy(
+                                model_id=merchant_stock_model_id,
+                                quantity=needed,
+                                label=model_label,
+                            )
+                        )
+                        entry_reason = "Will attempt this buy only if the currently opened merchant offers the item."
+                    plan.entries.append(
+                        ExecutionPlanEntry(
+                            "buy",
+                            target_merchant_type,
+                            model_label,
+                            needed,
+                            PLAN_STATE_CONDITIONAL,
+                            entry_reason,
+                        )
+                    )
+                continue
+
+            if buy_rule.kind == BUY_KIND_SCROLL_TRADER_TARGET:
+                scroll_targets = [
+                    target
+                    for target in _normalize_merchant_stock_targets(buy_rule.merchant_stock_targets)
+                    if _is_scroll_trader_stock_model(target.model_id)
+                ]
+                if not scroll_targets:
+                    plan.entries.append(
+                        ExecutionPlanEntry(
+                            "buy",
+                            MERCHANT_TYPE_SCROLL_TRADER,
+                            BUY_KIND_LABELS[buy_rule.kind],
+                            0,
+                            PLAN_STATE_SKIPPED,
+                            "No confirmed scroll trader stock selected.",
+                        )
+                    )
+                    continue
+
+                scroll_trader_coords = coords.get(MERCHANT_TYPE_SCROLL_TRADER)
+                for scroll_target in scroll_targets:
+                    scroll_model_id = max(0, int(scroll_target.model_id))
+                    scroll_label = self._format_model_label(scroll_model_id)
+                    if scroll_model_id <= 0 or not _is_scroll_trader_stock_model(scroll_model_id):
+                        plan.entries.append(
+                            ExecutionPlanEntry(
+                                "buy",
+                                MERCHANT_TYPE_SCROLL_TRADER,
+                                BUY_KIND_LABELS[buy_rule.kind],
+                                0,
+                                PLAN_STATE_SKIPPED,
+                                "Selected item is not confirmed scroll trader stock.",
+                            )
+                        )
+                        continue
+
+                    if not supported_map:
+                        plan.entries.append(
+                            ExecutionPlanEntry(
+                                action_type="buy",
+                                merchant_type=MERCHANT_TYPE_SCROLL_TRADER,
+                                label=scroll_label,
+                                quantity=0,
+                                state=PLAN_STATE_SKIPPED,
+                                reason=supported_reason,
+                            )
+                        )
+                        continue
+
+                    if scroll_trader_coords is None:
+                        plan.entries.append(
+                            ExecutionPlanEntry(
+                                action_type="buy",
+                                merchant_type=MERCHANT_TYPE_SCROLL_TRADER,
+                                label=scroll_label,
+                                quantity=0,
+                                state=PLAN_STATE_SKIPPED,
+                                reason=f"{self._get_scroll_trader_service_label()} selector was not resolved in the current map.",
+                            )
+                        )
+                        continue
+
+                    current_count = sim_model_counts.get(scroll_model_id, 0)
+                    needed = self._apply_max_per_run(
+                        int(scroll_target.target_count) - current_count,
+                        int(scroll_target.max_per_run),
+                    )
+                    if needed <= 0:
+                        plan.entries.append(
+                            ExecutionPlanEntry(
+                                "buy",
+                                MERCHANT_TYPE_SCROLL_TRADER,
+                                scroll_label,
+                                0,
+                                PLAN_STATE_SKIPPED,
+                                "Target already met.",
+                            )
+                        )
+                        continue
+
+                    sim_model_counts[scroll_model_id] = current_count + needed
+                    plan.scroll_trader_buys.append(
+                        PlannedScrollTraderBuy(
+                            model_id=scroll_model_id,
                             quantity=needed,
-                            label=model_label,
+                            label=scroll_label,
                         )
                     )
                     plan.entries.append(
                         ExecutionPlanEntry(
                             "buy",
-                            merchant_type,
-                            model_label,
+                            MERCHANT_TYPE_SCROLL_TRADER,
+                            scroll_label,
                             needed,
                             PLAN_STATE_CONDITIONAL,
-                            "Will attempt this buy only if the currently opened merchant offers the item.",
+                            "Will request a Scroll Trader quote and buy only if the trader currently offers the item.",
                         )
                     )
                 continue
@@ -9386,6 +9742,7 @@ class MerchantRulesWidget:
             or plan.merchant_sell_item_ids
             or plan.rune_trader_sales
             or plan.rune_trader_buys
+            or plan.scroll_trader_buys
             or plan.storage_transfers
             or plan.cleanup_transfers
             or self._plan_needs_exact_storage_scan(plan)
@@ -10041,6 +10398,92 @@ class MerchantRulesWidget:
         )
         return outcome
 
+    def _buy_planned_scroll_trader_items(
+        self,
+        coords: tuple[float, float],
+        scroll_buys: list[PlannedScrollTraderBuy],
+        *,
+        phase_label: str = "Scroll trader buys",
+    ) -> ExecutionPhaseOutcome:
+        outcome = ExecutionPhaseOutcome(
+            label=phase_label,
+            measure_label="items",
+            attempted=sum(max(0, int(planned_buy.quantity)) for planned_buy in scroll_buys),
+        )
+        if not scroll_buys:
+            return outcome
+
+        self._debug_log(
+            f"{phase_label}: coords={self._format_debug_coords(coords)} "
+            f"planned_targets={len(scroll_buys)} planned_items={outcome.attempted}"
+        )
+        x, y = coords
+        trader_items = yield from Routines.Yield.Merchant._interact_with_trader_xy(  # pylint: disable=protected-access
+            x,
+            y,
+            inventory_timeout_ms=2500,
+            inventory_step_ms=10,
+        )
+        if not trader_items:
+            ConsoleLog(MODULE_NAME, f"{phase_label} inventory did not load.", Console.MessageType.Warning)
+            outcome.load_failures += 1
+            self._debug_log(f"{phase_label}: trader inventory failed to load at {self._format_debug_coords(coords)}.")
+            return outcome
+
+        for planned_buy in scroll_buys:
+            safe_model_id = max(0, _safe_int(planned_buy.model_id, 0))
+            if safe_model_id <= 0 or not _is_scroll_trader_stock_model(safe_model_id):
+                outcome.unavailable += max(0, int(planned_buy.quantity))
+                continue
+
+            trader_item_id = 0
+            for candidate in trader_items:
+                if int(GLOBAL_CACHE.Item.GetModelID(candidate)) == safe_model_id:
+                    trader_item_id = int(candidate)
+                    break
+            if trader_item_id <= 0:
+                outcome.unavailable += max(0, int(planned_buy.quantity))
+                ConsoleLog(
+                    MODULE_NAME,
+                    f"{planned_buy.label} was not offered by the {self._get_scroll_trader_service_label()}.",
+                    Console.MessageType.Warning,
+                )
+                continue
+
+            for _ in range(max(0, int(planned_buy.quantity))):
+                character_gold = int(GLOBAL_CACHE.Inventory.GetGoldOnCharacter())
+                quoted_value = yield from Routines.Yield.Merchant._wait_for_quote(  # pylint: disable=protected-access
+                    GLOBAL_CACHE.Trading.Trader.RequestQuote,
+                    trader_item_id,
+                    timeout_ms=750,
+                    step_ms=10,
+                )
+                if quoted_value <= 0:
+                    outcome.quote_failures += 1
+                    break
+                if character_gold < quoted_value:
+                    outcome.gold_blocked += 1
+                    break
+
+                GLOBAL_CACHE.Trading.Trader.BuyItem(trader_item_id, quoted_value)
+                completed = yield from Routines.Yield.Merchant._wait_for_transaction(  # pylint: disable=protected-access
+                    timeout_ms=750,
+                    step_ms=10,
+                )
+                if not completed:
+                    outcome.timeout_failures += 1
+                    break
+                outcome.completed += 1
+                yield from Routines.Yield.wait(40)
+
+        self._debug_log(
+            f"{phase_label}: completed={outcome.completed}/{outcome.attempted} "
+            f"unavailable={outcome.unavailable} quote_failures={outcome.quote_failures} "
+            f"timeouts={outcome.timeout_failures} gold_blocked={outcome.gold_blocked} "
+            f"load_failures={outcome.load_failures}"
+        )
+        return outcome
+
     def _format_execution_phase_summary(self, outcome: ExecutionPhaseOutcome) -> str:
         if (
             outcome.attempted <= 0
@@ -10318,6 +10761,7 @@ class MerchantRulesWidget:
                         or plan.material_sales
                         or plan.merchant_sell_item_ids
                         or plan.rune_trader_sales
+                        or plan.scroll_trader_buys
                     )
                     if not has_other_runnable_actions:
                         self.status_message = "Could not open Xunlai for exact storage-aware execution."
@@ -10455,6 +10899,20 @@ class MerchantRulesWidget:
             rune_buy_summary = self._format_execution_phase_summary(rune_buy_outcome)
             if rune_buy_summary:
                 phase_summaries.append(rune_buy_summary)
+
+            scroll_trader_coords = plan.coords.get(MERCHANT_TYPE_SCROLL_TRADER)
+            scroll_buy_outcome = ExecutionPhaseOutcome(label="Scroll trader buys", measure_label="items")
+            scroll_buys_started_at = time.perf_counter()
+            if scroll_trader_coords and plan.scroll_trader_buys:
+                scroll_buy_outcome = yield from self._buy_planned_scroll_trader_items(
+                    scroll_trader_coords,
+                    plan.scroll_trader_buys,
+                    phase_label="Scroll trader buys",
+                )
+            self.last_execution_phase_durations_ms["scroll_buys"] = max(0.0, (time.perf_counter() - scroll_buys_started_at) * 1000.0)
+            scroll_buy_summary = self._format_execution_phase_summary(scroll_buy_outcome)
+            if scroll_buy_summary:
+                phase_summaries.append(scroll_buy_summary)
 
             merchant_buy_outcome = ExecutionPhaseOutcome(
                 label="Merchant stock",
@@ -10884,6 +11342,7 @@ class MerchantRulesWidget:
             MERCHANT_TYPE_MERCHANT: bool(coords.get(MERCHANT_TYPE_MERCHANT)),
             MERCHANT_TYPE_MATERIALS: bool(coords.get(MERCHANT_TYPE_MATERIALS)),
             MERCHANT_TYPE_RUNE_TRADER: bool(coords.get(MERCHANT_TYPE_RUNE_TRADER)),
+            MERCHANT_TYPE_SCROLL_TRADER: bool(coords.get(MERCHANT_TYPE_SCROLL_TRADER)),
             MERCHANT_TYPE_RARE_MATERIALS: bool(coords.get(MERCHANT_TYPE_RARE_MATERIALS)),
             MERCHANT_TYPE_STORAGE: self._has_local_storage_access(),
             MERCHANT_TYPE_INVENTORY: True,
@@ -10893,6 +11352,7 @@ class MerchantRulesWidget:
             availability_here[MERCHANT_TYPE_MERCHANT] = False
             availability_here[MERCHANT_TYPE_MATERIALS] = False
             availability_here[MERCHANT_TYPE_RUNE_TRADER] = False
+            availability_here[MERCHANT_TYPE_SCROLL_TRADER] = False
             availability_here[MERCHANT_TYPE_RARE_MATERIALS] = False
         return availability_here
 
@@ -11188,6 +11648,7 @@ class MerchantRulesWidget:
                 ("rune_sales", "Rune sales"),
                 ("storage_transfers", "Storage withdraws"),
                 ("rune_buys", "Rune buys"),
+                ("scroll_buys", "Scroll buys"),
                 ("material_buys", "Material buys"),
                 ("rare_material_buys", "Rare buys"),
                 ("cleanup_deposits", "Cleanup / Xunlai"),
@@ -11245,6 +11706,31 @@ class MerchantRulesWidget:
             ]
             summary = self._format_compact_list(target_labels, limit=2) or f"{len(rune_targets)} rune target(s)"
             return f"{len(rune_targets)} target(s) | {summary}", True
+        if normalized_rule.kind == BUY_KIND_SCROLL_TRADER_TARGET:
+            scroll_targets = [
+                target
+                for target in _normalize_merchant_stock_targets(normalized_rule.merchant_stock_targets)
+                if _is_scroll_trader_stock_model(target.model_id)
+            ]
+            if not scroll_targets:
+                return "Choose one or more confirmed scroll trader stock items to maintain.", False
+            if len(scroll_targets) == 1:
+                scroll_target = scroll_targets[0]
+                parts = [self._format_model_label(scroll_target.model_id)]
+                if scroll_target.target_count > 0:
+                    parts.append(f"Target {int(scroll_target.target_count)}")
+                else:
+                    parts.append("No target set")
+                if scroll_target.max_per_run > 0:
+                    parts.append(f"Max/run {int(scroll_target.max_per_run)}")
+                return " | ".join(parts), True
+
+            target_labels = [
+                self._get_model_name(target.model_id) or str(target.model_id)
+                for target in self._sort_targets_by_model_label_for_display(scroll_targets)
+            ]
+            summary = self._format_compact_list(target_labels, limit=2) or f"{len(scroll_targets)} scroll target(s)"
+            return f"{len(scroll_targets)} scroll target(s) | {summary}", True
         if normalized_rule.kind == BUY_KIND_MERCHANT_STOCK:
             merchant_stock_targets = _normalize_merchant_stock_targets(normalized_rule.merchant_stock_targets)
             if not merchant_stock_targets:
@@ -11388,6 +11874,7 @@ class MerchantRulesWidget:
         merchant_stock_rules: dict[int, list[int]] = {}
         material_target_rules: dict[int, list[int]] = {}
         rune_target_rules: dict[str, list[int]] = {}
+        scroll_target_rules: dict[int, list[int]] = {}
         for index, raw_rule in enumerate(self.buy_rules):
             rule = _normalize_buy_rule(raw_rule)
             if rule is None or not rule.enabled:
@@ -11395,7 +11882,10 @@ class MerchantRulesWidget:
             if rule.kind == BUY_KIND_MERCHANT_STOCK:
                 for target in _normalize_merchant_stock_targets(rule.merchant_stock_targets):
                     if int(target.model_id) > 0:
-                        merchant_stock_rules.setdefault(int(target.model_id), []).append(index)
+                        if _is_scroll_trader_stock_model(target.model_id):
+                            scroll_target_rules.setdefault(int(target.model_id), []).append(index)
+                        else:
+                            merchant_stock_rules.setdefault(int(target.model_id), []).append(index)
             elif rule.kind == BUY_KIND_MATERIAL_TARGET:
                 for target in _normalize_material_targets(rule.material_targets):
                     if int(target.model_id) > 0:
@@ -11404,6 +11894,10 @@ class MerchantRulesWidget:
                 for target in _normalize_rune_trader_targets(rule.rune_targets):
                     if target.identifier:
                         rune_target_rules.setdefault(str(target.identifier), []).append(index)
+            elif rule.kind == BUY_KIND_SCROLL_TRADER_TARGET:
+                for target in _normalize_merchant_stock_targets(rule.merchant_stock_targets):
+                    if _is_scroll_trader_stock_model(target.model_id):
+                        scroll_target_rules.setdefault(int(target.model_id), []).append(index)
 
         for model_id, indices in sorted(merchant_stock_rules.items()):
             if len(indices) < 2:
@@ -11425,6 +11919,13 @@ class MerchantRulesWidget:
             diagnostics.append(
                 f"{self._get_rune_label(identifier)} is maintained by buy rules {self._format_rule_index_list(indices, rules=self.buy_rules)}. "
                 f"Later rules only see shortages left after earlier rune targets update the simulated stock."
+            )
+        for model_id, indices in sorted(scroll_target_rules.items(), key=lambda row: self._get_model_display_sort_key(row[0])):
+            if len(indices) < 2:
+                continue
+            diagnostics.append(
+                f"{self._format_model_label(model_id)} is maintained by buy rules {self._format_rule_index_list(indices, rules=self.buy_rules)}. "
+                f"Later rules only see shortages left after earlier scroll trader targets update the simulated stock."
             )
         return diagnostics
 
@@ -11565,7 +12066,7 @@ class MerchantRulesWidget:
                 buy_model_ids: set[int] = set()
                 if buy_rule.kind == BUY_KIND_MATERIAL_TARGET:
                     buy_model_ids = {int(target.model_id) for target in buy_rule.material_targets}
-                elif buy_rule.kind == BUY_KIND_MERCHANT_STOCK:
+                elif buy_rule.kind in (BUY_KIND_MERCHANT_STOCK, BUY_KIND_SCROLL_TRADER_TARGET):
                     buy_model_ids = {int(target.model_id) for target in buy_rule.merchant_stock_targets}
                 overlap_ids = sorted(destroy_model_ids & buy_model_ids)
                 if overlap_ids:
@@ -12819,6 +13320,10 @@ class MerchantRulesWidget:
         if PyImGui.button("Runes & Insignias##guided_buy_runes"):
             self._add_buy_rule_of_kind(BUY_KIND_RUNE_TRADER_TARGET)
             return
+        PyImGui.same_line(0, 8)
+        if PyImGui.button("Scroll Trader Stock##guided_buy_scrolls"):
+            self._add_buy_rule_of_kind(BUY_KIND_SCROLL_TRADER_TARGET)
+            return
         PyImGui.spacing()
         self._draw_section_heading("Sell")
         if PyImGui.button("Specific Items##guided_sell_specific"):
@@ -12925,6 +13430,7 @@ class MerchantRulesWidget:
             ("Merchant", coords[MERCHANT_TYPE_MERCHANT] is not None),
             ("Materials", coords[MERCHANT_TYPE_MATERIALS] is not None),
             ("Rune Trader", coords[MERCHANT_TYPE_RUNE_TRADER] is not None),
+            ("Scroll Trader", coords[MERCHANT_TYPE_SCROLL_TRADER] is not None),
             ("Rare Trader", coords[MERCHANT_TYPE_RARE_MATERIALS] is not None),
         )
         for badge_index, (label, available) in enumerate(npc_badges):
@@ -13737,6 +14243,10 @@ class MerchantRulesWidget:
                 changed = True
 
         PyImGui.text(f"Selected Items: {len(merchant_stock_targets)}")
+        if any(_is_scroll_trader_stock_model(target.model_id) for target in merchant_stock_targets):
+            self._draw_secondary_text(
+                "Confirmed scroll trader stock in this legacy stock list will route to Scroll Trader / Rare Scroll Trader, never to a regular Merchant."
+            )
         if not merchant_stock_targets:
             self._draw_secondary_text("No merchant stock items selected yet.", wrapped=False)
             return changed
@@ -13809,6 +14319,97 @@ class MerchantRulesWidget:
             if self._set_buy_rule_merchant_stock_targets(rule, next_targets):
                 changed = True
         elif self._set_buy_rule_merchant_stock_targets(rule, updated_targets):
+            changed = True
+
+        return changed
+
+    def _draw_buy_rule_scroll_trader_targets_editor(self, index: int, rule: BuyRule) -> bool:
+        changed = False
+        self._draw_secondary_text("Merchant: Scroll Trader in Guild Halls, Rare Scroll Trader elsewhere.", wrapped=False)
+        scroll_targets = [
+            target
+            for target in _normalize_merchant_stock_targets(rule.merchant_stock_targets)
+            if _is_scroll_trader_stock_model(target.model_id)
+        ]
+
+        if PyImGui.button(f"Clear Scrolls##buy_scroll_clear_{index}"):
+            if self._set_buy_rule_scroll_trader_targets(rule, []):
+                scroll_targets = []
+                changed = True
+
+        PyImGui.text(f"Selected Scrolls: {len(scroll_targets)}")
+        if not scroll_targets:
+            self._draw_secondary_text("No confirmed scroll trader stock selected yet.", wrapped=False)
+            return changed
+
+        updated_targets = [
+            MerchantStockTarget(
+                model_id=target.model_id,
+                target_count=target.target_count,
+                max_per_run=target.max_per_run,
+            )
+            for target in scroll_targets
+        ]
+        display_targets = self._sort_targets_by_model_label_for_display(updated_targets)
+        removed_model_id = 0
+        child_height = min(220, 58 + (32 * len(updated_targets)))
+        if PyImGui.begin_child(f"buy_scroll_trader_selected_{index}", (0, child_height), True, PyImGui.WindowFlags.NoFlag):
+            if PyImGui.begin_table(f"buy_scroll_trader_selected_table_{index}", 4, self._get_dense_list_table_flags()):
+                PyImGui.table_setup_column("Scroll", PyImGui.TableColumnFlags.WidthStretch)
+                PyImGui.table_setup_column("Target", PyImGui.TableColumnFlags.WidthFixed, 130.0)
+                PyImGui.table_setup_column("Max/Run", PyImGui.TableColumnFlags.WidthFixed, 130.0)
+                PyImGui.table_setup_column("Remove", PyImGui.TableColumnFlags.WidthFixed, 60.0)
+
+                PyImGui.table_next_row()
+                PyImGui.table_set_column_index(0)
+                PyImGui.text("Scroll")
+                PyImGui.table_set_column_index(1)
+                PyImGui.text("Target")
+                PyImGui.table_set_column_index(2)
+                PyImGui.text("Max/Run")
+                PyImGui.table_set_column_index(3)
+                PyImGui.text("Remove")
+
+                for target_row in display_targets:
+                    PyImGui.table_next_row()
+                    PyImGui.table_set_column_index(0)
+                    PyImGui.text(self._format_model_label_short(target_row.model_id))
+
+                    PyImGui.table_set_column_index(1)
+                    PyImGui.push_item_width(120)
+                    new_target_count = PyImGui.input_int(
+                        f"##buy_scroll_target_count_{index}_{target_row.model_id}",
+                        int(target_row.target_count),
+                    )
+                    PyImGui.pop_item_width()
+                    target_row.target_count = max(0, int(new_target_count))
+
+                    PyImGui.table_set_column_index(2)
+                    PyImGui.push_item_width(120)
+                    new_max_per_run = PyImGui.input_int(
+                        f"##buy_scroll_max_per_run_{index}_{target_row.model_id}",
+                        int(target_row.max_per_run),
+                    )
+                    PyImGui.pop_item_width()
+                    target_row.max_per_run = max(0, int(new_max_per_run))
+
+                    PyImGui.table_set_column_index(3)
+                    if PyImGui.small_button(f"X##buy_scroll_remove_{index}_{target_row.model_id}"):
+                        removed_model_id = target_row.model_id
+                        break
+
+                PyImGui.end_table()
+        PyImGui.end_child()
+
+        if removed_model_id > 0:
+            next_targets = [
+                target
+                for target in updated_targets
+                if int(target.model_id) != int(removed_model_id)
+            ]
+            if self._set_buy_rule_scroll_trader_targets(rule, next_targets):
+                changed = True
+        elif self._set_buy_rule_scroll_trader_targets(rule, updated_targets):
             changed = True
 
         return changed
@@ -14164,7 +14765,7 @@ class MerchantRulesWidget:
             if updated_search_text != search_text:
                 self.buy_model_search_cache[index] = updated_search_text
 
-            picked_model_id, visible_buy_model_ids = self._draw_search_results(
+            picked_model_id, visible_buy_model_ids = self._draw_merchant_stock_search_results(
                 f"buy_search_results_{index}",
                 self.buy_model_search_cache.get(index, ""),
             )
@@ -14191,14 +14792,17 @@ class MerchantRulesWidget:
                 updated_manual_model_id = max(0, int(updated_manual_model_id))
                 if updated_manual_model_id != manual_model_id:
                     self.buy_manual_model_id_cache[index] = updated_manual_model_id
+                is_scroll_trader_stock = _is_scroll_trader_stock_model(updated_manual_model_id)
                 PyImGui.same_line(0, 8)
-                PyImGui.begin_disabled(updated_manual_model_id <= 0)
+                PyImGui.begin_disabled(updated_manual_model_id <= 0 or is_scroll_trader_stock)
                 add_manual_item = PyImGui.small_button(f"Add Item##buy_add_manual_model_{index}")
                 PyImGui.end_disabled()
                 if add_manual_item and self._add_buy_rule_merchant_stock_target(rule, updated_manual_model_id):
                     changed = True
                     self.buy_manual_model_id_cache[index] = 0
                     self.buy_model_search_cache[index] = self._get_model_name(updated_manual_model_id) or str(updated_manual_model_id)
+                if updated_manual_model_id > 0 and is_scroll_trader_stock:
+                    self._draw_secondary_text("This model is confirmed scroll trader stock. Add it from the Scroll Trader Stock section.")
         elif rule.kind == BUY_KIND_MATERIAL_TARGET:
             self._draw_secondary_text("Common materials buy in lots of 10. Rare materials buy in singles.")
             changed = self._draw_buy_rule_material_targets_editor(index, rule) or changed
@@ -14259,6 +14863,71 @@ class MerchantRulesWidget:
             self._draw_secondary_text("Maintains exact standalone runes and insignias. Inventory is topped up from storage first, then from the Rune Trader.")
             self._draw_secondary_text("Preview stays passive by default. Use Open Xunlai for exact storage scan when you want exact storage-aware planning.")
             changed = self._draw_buy_rule_rune_targets_editor(index, rule) or changed
+        elif rule.kind == BUY_KIND_SCROLL_TRADER_TARGET:
+            self._draw_secondary_text("Uses the trader quote + buy flow. No regular merchant fallback is attempted.")
+            self._draw_secondary_text("This section is limited to confirmed Scroll Trader / Rare Scroll Trader stock.")
+            changed = self._draw_buy_rule_scroll_trader_targets_editor(index, rule) or changed
+            existing_scroll_target_ids = {
+                max(0, _safe_int(target.model_id, 0))
+                for target in _normalize_merchant_stock_targets(rule.merchant_stock_targets)
+                if _is_scroll_trader_stock_model(target.model_id)
+            }
+
+            scroll_entries = self._get_scroll_trader_stock_entries()
+            if scroll_entries:
+                PyImGui.text("Quick Picks - Confirmed Stock")
+                for quick_index, entry in enumerate(scroll_entries):
+                    model_id = int(entry.get("model_id", 0))
+                    if PyImGui.small_button(f"{entry['name']}##buy_scroll_quick_{index}_{model_id}"):
+                        if self._add_buy_rule_scroll_trader_target(rule, model_id):
+                            changed = True
+                        self.buy_model_search_cache[index] = str(entry["name"])
+                    if quick_index % 2 == 0 and quick_index + 1 < len(scroll_entries):
+                        PyImGui.same_line(0, 6)
+
+            search_text = self.buy_model_search_cache.get(index, "")
+            updated_search_text = PyImGui.input_text(f"Search Confirmed Scrolls##buy_scroll_search_{index}", search_text)
+            if updated_search_text != search_text:
+                self.buy_model_search_cache[index] = updated_search_text
+
+            picked_model_id, visible_scroll_model_ids = self._draw_scroll_trader_stock_search_results(
+                f"buy_scroll_results_{index}",
+                self.buy_model_search_cache.get(index, ""),
+            )
+            addable_scroll_model_ids = [model_id for model_id in visible_scroll_model_ids if model_id not in existing_scroll_target_ids]
+            if self._draw_add_all_matches_button(
+                f"buy_scroll_results_add_all_{index}",
+                len(visible_scroll_model_ids),
+                len(addable_scroll_model_ids),
+            ):
+                added_any = False
+                for model_id in addable_scroll_model_ids:
+                    if self._add_buy_rule_scroll_trader_target(rule, model_id):
+                        added_any = True
+                if added_any:
+                    changed = True
+            if picked_model_id > 0:
+                if self._add_buy_rule_scroll_trader_target(rule, picked_model_id):
+                    changed = True
+                self.buy_model_search_cache[index] = self._get_model_name(picked_model_id) or str(picked_model_id)
+
+            if PyImGui.collapsing_header(f"Advanced##buy_scroll_advanced_{index}"):
+                manual_model_id = max(0, int(self.buy_manual_model_id_cache.get(index, 0)))
+                updated_manual_model_id = PyImGui.input_int(f"Manual Model ID##buy_scroll_model_{index}", manual_model_id)
+                updated_manual_model_id = max(0, int(updated_manual_model_id))
+                if updated_manual_model_id != manual_model_id:
+                    self.buy_manual_model_id_cache[index] = updated_manual_model_id
+                is_confirmed_stock = _is_scroll_trader_stock_model(updated_manual_model_id)
+                PyImGui.same_line(0, 8)
+                PyImGui.begin_disabled(updated_manual_model_id <= 0 or not is_confirmed_stock)
+                add_manual_item = PyImGui.small_button(f"Add Scroll##buy_scroll_add_manual_model_{index}")
+                PyImGui.end_disabled()
+                if add_manual_item and self._add_buy_rule_scroll_trader_target(rule, updated_manual_model_id):
+                    changed = True
+                    self.buy_manual_model_id_cache[index] = 0
+                    self.buy_model_search_cache[index] = self._get_model_name(updated_manual_model_id) or str(updated_manual_model_id)
+                if updated_manual_model_id > 0 and not is_confirmed_stock:
+                    self._draw_secondary_text("Manual IDs are accepted only for the confirmed scroll trader stock list.")
 
         PyImGui.spacing()
         same_kind_indices = self._get_buy_rule_indices_for_kind(rule.kind)
@@ -15678,7 +16347,7 @@ class MerchantRulesWidget:
                 section_changed = True
 
         if not self.buy_rules:
-            self._draw_secondary_text("No buy rules yet. Pick a section above and add the first rule to manage merchant stock, crafting materials, or rune trader stock.")
+            self._draw_secondary_text("No buy rules yet. Pick a section above and add the first rule to manage merchant stock, crafting materials, rune trader stock, or scroll trader stock.")
         elif not visible_indices:
             self._draw_secondary_text(f"No {section_label.lower()} buy rules in this section yet.")
 

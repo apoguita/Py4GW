@@ -115,11 +115,27 @@ def _install_stub_modules(project_root: Path) -> None:
         Glob_Of_Ectoplasm = DummyModelValue(930)
         Salvage_Kit = DummyModelValue(2992)
         CrystallineSword = DummyModelValue(399)
+        Passage_Scroll_Deep = DummyModelValue(22279)
+        Passage_Scroll_Fow = DummyModelValue(22280)
+        Passage_Scroll_Urgoz = DummyModelValue(3256)
+        Passage_Scroll_Uw = DummyModelValue(3746)
+        Scroll_Of_The_Lightbringer = DummyModelValue(21233)
+        Scroll_Of_Heros_Insight = DummyModelValue(5594)
+        Scroll_Of_Berserkers_Insight = DummyModelValue(5595)
+        Scroll_of_Slayers_Insight = DummyModelValue(5611)
 
     DummyModelID.__members__ = {
         "Glob_Of_Ectoplasm": DummyModelID.Glob_Of_Ectoplasm,
         "Salvage_Kit": DummyModelID.Salvage_Kit,
         "CrystallineSword": DummyModelID.CrystallineSword,
+        "Passage_Scroll_Deep": DummyModelID.Passage_Scroll_Deep,
+        "Passage_Scroll_Fow": DummyModelID.Passage_Scroll_Fow,
+        "Passage_Scroll_Urgoz": DummyModelID.Passage_Scroll_Urgoz,
+        "Passage_Scroll_Uw": DummyModelID.Passage_Scroll_Uw,
+        "Scroll_Of_The_Lightbringer": DummyModelID.Scroll_Of_The_Lightbringer,
+        "Scroll_Of_Heros_Insight": DummyModelID.Scroll_Of_Heros_Insight,
+        "Scroll_Of_Berserkers_Insight": DummyModelID.Scroll_Of_Berserkers_Insight,
+        "Scroll_of_Slayers_Insight": DummyModelID.Scroll_of_Slayers_Insight,
     }
 
     class ItemType(enum.IntEnum):
@@ -3738,6 +3754,74 @@ def _test_catalog_loads_without_deprecated_mirrored_item_catalog(module, temp_ro
             setattr(module, name, value)
 
 
+def _test_scroll_of_heros_insight_wins_duplicate_model_id_and_searches(module) -> None:
+    original_paths = {
+        "CATALOG_PATH": module.CATALOG_PATH,
+        "ITEMS_CATALOG_PATH": module.ITEMS_CATALOG_PATH,
+        "DROP_DATA_PATH": module.DROP_DATA_PATH,
+        "ITEM_HANDLING_ITEMS_CATALOG_PATH": module.ITEM_HANDLING_ITEMS_CATALOG_PATH,
+        "RUNES_CATALOG_PATH": module.RUNES_CATALOG_PATH,
+    }
+    try:
+        module.CATALOG_PATH = str(REPO_ROOT / "Widgets" / "Data" / "merchant_rules_catalog.json")
+        module.ITEMS_CATALOG_PATH = str(REPO_ROOT / "Widgets" / "Data" / "merchant_rules_items_catalog.json")
+        module.DROP_DATA_PATH = str(REPO_ROOT / "Widgets" / "Data" / "modelid_drop_data.json")
+        module.ITEM_HANDLING_ITEMS_CATALOG_PATH = str(REPO_ROOT / "Sources" / "frenkeyLib" / "ItemHandling" / "Items" / "items.json")
+        module.RUNES_CATALOG_PATH = str(REPO_ROOT / "Sources" / "marks_sources" / "mods_data" / "runes.json")
+
+        scroll_model_id = int(module.ModelID.Scroll_Of_Heros_Insight.value)
+        item_handling_catalog = json.loads(Path(module.ITEM_HANDLING_ITEMS_CATALOG_PATH).read_text(encoding="utf-8"))
+        duplicate_rows = [
+            entry
+            for entry in module._iter_item_handling_catalog_entries(item_handling_catalog)
+            if int(entry.get("model_id", 0) or 0) == scroll_model_id
+        ]
+        _expect(
+            {str(entry.get("name", "")) for entry in duplicate_rows} >= {"Salvage Kit", "Scroll of Hero's Insight"},
+            "The regression fixture should include both duplicate 5594 rows from items.json.",
+        )
+
+        widget = _make_widget(module)
+        widget._load_catalog()
+
+        entry = widget.catalog_by_model_id.get(scroll_model_id, {})
+        _expect(entry.get("source") == "item_handling_items_catalog", "Scroll of Hero's Insight should come from items.json.")
+        _expect(entry.get("name") == "Scroll of Hero's Insight", "Scroll duplicate metadata should win over the bogus Salvage Kit row.")
+        _expect(entry.get("item_type") == "Scroll", "Scroll duplicate metadata should preserve the Scroll item type.")
+        _expect(entry.get("category") == "Scroll", "Scroll duplicate metadata should preserve the Scroll category.")
+        _expect(entry.get("sub_category") == "RareXPScroll", "Scroll duplicate metadata should preserve the rare XP scroll sub-category.")
+        _expect(entry.get("skin") == "Scroll of Hero's Insight.png", "Scroll duplicate metadata should preserve the skin alias source.")
+        _expect(
+            entry.get("wiki_url") == "https://wiki.guildwars.com/wiki/Scroll_of_Hero%27s_Insight",
+            "Scroll duplicate metadata should preserve the wiki alias source.",
+        )
+
+        alias_labels = entry.get("alias_labels", {})
+        _expect(isinstance(alias_labels, dict), "Catalog aliases should be rebuilt for the selected scroll entry.")
+        _expect(
+            "scroll of hero's insight" in alias_labels,
+            "Scroll aliases should include the display/skin/wiki stem with apostrophe intact.",
+        )
+        _expect("salvage kit" not in alias_labels, "The skipped bogus duplicate should not leave a Salvage Kit alias on model 5594.")
+
+        for query in ("Scroll of Hero", "Hero's Insight", "Scroll of Hero's Insight", "5594"):
+            matches = widget._search_catalog(query)
+            _expect(
+                scroll_model_id in {int(match.get("model_id", 0)) for match in matches},
+                f"Generic item catalog search should find Scroll of Hero's Insight by {query!r}.",
+            )
+
+        for query in ("Scroll of Hero", "Hero's Insight", "Scroll of Hero's Insight", "5594", "Scroll"):
+            matches = widget._search_scroll_trader_stock_catalog(query)
+            _expect(
+                scroll_model_id in {int(match.get("model_id", 0)) for match in matches},
+                f"Scroll trader stock search should find Scroll of Hero's Insight by {query!r}.",
+            )
+    finally:
+        for name, value in original_paths.items():
+            setattr(module, name, value)
+
+
 def _test_display_sorting_helpers_and_summaries_are_case_insensitive(module) -> None:
     widget = _make_widget(module)
     _seed_display_sort_fixture(widget)
@@ -4839,12 +4923,14 @@ def _test_supported_context_cache_partial_and_negative_entries_refresh_correctly
                     "materials_selector": None,
                     module.MATERIAL_TRADER_NAME_QUERY: None,
                     "rare_selector": (3.0, 3.0),
+                    module.RARE_SCROLL_TRADER_NAME_QUERY: None,
                 }[selector]
             return {
                 "merchant_selector": (11.0, 11.0),
                 "materials_selector": (22.0, 22.0),
                 module.MATERIAL_TRADER_NAME_QUERY: (22.5, 22.5),
                 "rare_selector": (33.0, 33.0),
+                module.RARE_SCROLL_TRADER_NAME_QUERY: (44.0, 44.0),
             }[selector]
 
         module.resolve_agent_xy_from_step = _fake_resolve
@@ -4859,7 +4945,7 @@ def _test_supported_context_cache_partial_and_negative_entries_refresh_correctly
         _expect(first_supported, "Partial selector resolution should still mark the map supported when at least one merchant resolves.")
         _expect(first_coords[module.MERCHANT_TYPE_MATERIALS] is None, "The initial partial cache should preserve unresolved merchant types.")
         _expect(
-            len(resolve_calls) == 4,
+            len(resolve_calls) == 5,
             "Supported-context lookups should reuse cached partial selector results for the same map until the cache is invalidated.",
         )
         _expect(cached_supported == first_supported and cached_reason == first_reason and cached_coords == first_coords, "Partial supported-context results should be reused inside the retry window.")
@@ -5190,6 +5276,10 @@ def main() -> int:
             (
                 "catalog_loads_without_deprecated_mirrored_item_catalog",
                 lambda: _test_catalog_loads_without_deprecated_mirrored_item_catalog(module, temp_root),
+            ),
+            (
+                "scroll_of_heros_insight_wins_duplicate_model_id_and_searches",
+                lambda: _test_scroll_of_heros_insight_wins_duplicate_model_id_and_searches(module),
             ),
             ("display_sorting_helpers_and_summaries_are_case_insensitive", lambda: _test_display_sorting_helpers_and_summaries_are_case_insensitive(module)),
             ("display_sort_reads_preserve_saved_child_entry_order", lambda: _test_display_sort_reads_preserve_saved_child_entry_order(module, temp_root)),
