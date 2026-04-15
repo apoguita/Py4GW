@@ -20,16 +20,28 @@ _observed: dict = {}   # agent_id -> set of skill_ids we've seen them use
 _stances: dict = {}    # agent_id -> (skill_id, start, end)
 _tracked_agents: set = set()  # agent IDs that receive actual recharge packets from server
 _callbacks: dict = {}  # event_name -> [callbacks]
-_update_registered = False
+_callback_active = False
+
+
+def _set_callback_active(is_active: bool):
+    global _callback_active
+    _callback_active = is_active
+
+
+def _is_callback_active() -> bool:
+    return _callback_active
 
 
 def _is_disabled(agent_id: int) -> bool:
+    if not _is_callback_active():
+        return False
     return agent_id in _disabled
 
 def _find_cast(agent_id: int) -> tuple[int, int, int, float] | None:
     """Search recent events for an active cast by the agent. 
     Returns (skill_id, target_id, start_time, duration) or None."""
-    
+    if not _is_callback_active():
+        return None
     now = _get_tick_count()
     cast_start = None
     skill_id = 0
@@ -92,12 +104,16 @@ def _get_remaining_cast_time(agent_id: int) -> int:
     return max(0, int(duration * 1000) - (_get_tick_count() - start))
 
 def _get_remaining_recharge_time(agent_id: int, skill_id: int) -> int:
+    if not _is_callback_active():
+        return 0
     if agent_id not in _recharges or skill_id not in _recharges[agent_id]:
         return 0
     end = _recharges[agent_id][skill_id][2]
     return max(0, end - _get_tick_count())
 
 def _is_skill_on_cooldown(agent_id: int, skill_id: int) -> bool:
+    if not _is_callback_active():
+        return False
     if agent_id not in _recharges or skill_id not in _recharges[agent_id]:
         return False
     end = _recharges[agent_id][skill_id][2]
@@ -107,7 +123,8 @@ def _get_skills_on_cooldown(agent_id: int) -> List[Tuple[int, int, bool]]:
     """Returns a list of (skill_id, remaining_ms, is_estimated) 
     for all skills currently on cooldown for the agent.
     returns (skill_id, remaining_ms, is_estimated)"""
-    
+    if not _is_callback_active():
+        return []
     if agent_id not in _recharges:
         return []
     now = _get_tick_count()
@@ -123,6 +140,8 @@ def _get_skills_on_cooldown(agent_id: int) -> List[Tuple[int, int, bool]]:
     return result
 
 def _is_cooldown_estimated(agent_id: int, skill_id: int) -> bool:
+    if not _is_callback_active():
+        return False
     if agent_id not in _recharges or skill_id not in _recharges[agent_id]:
         return False
     data = _recharges[agent_id][skill_id]
@@ -130,6 +149,8 @@ def _is_cooldown_estimated(agent_id: int, skill_id: int) -> bool:
 
 
 def _find_attack(agent_id: int):
+    if not _is_callback_active():
+        return None
     now = _get_tick_count()
     for ts, etype, agent, _, target, _ in reversed(list(_events)):
         if agent != agent_id:
@@ -164,6 +185,8 @@ def _can_act(agent_id: int) -> bool:
 
 
 def _find_knockdown(agent_id: int):
+    if not _is_callback_active():
+        return None
     now = _get_tick_count()
     for ts, etype, agent, _, _, fval in reversed(list(_events)):
         if agent != agent_id:
@@ -187,20 +210,28 @@ def _get_knockdown_time_remaining(agent_id: int) -> int:
     return max(0, int(duration * 1000) - (_get_tick_count() - start))
 
 def _get_observed_skillbar(agent_id: int) -> Set[int]:
+    if not _is_callback_active():
+        return set()
     return _observed.get(agent_id, set()).copy()
 
 def _has_stance(agent_id: int) -> bool:
+    if not _is_callback_active():
+        return False
     if agent_id not in _stances:
         return False
     _, _, end = _stances[agent_id]
     return _get_tick_count() < end
 
 def _get_stance(agent_id: int) -> int:
+    if not _is_callback_active():
+        return 0
     if not _has_stance(agent_id):
         return 0
     return _stances[agent_id][0]
 
 def _get_stance_cooldown(agent_id: int) -> int:
+    if not _is_callback_active():
+        return 0
     if agent_id not in _stances:
         return 0
     _, _, end = _stances[agent_id]
@@ -208,6 +239,8 @@ def _get_stance_cooldown(agent_id: int) -> int:
 
 
 def _get_recent_healing(count: int = 20) -> List[Tuple[int, int, int, float, int]]:
+    if not _is_callback_active():
+        return []
     result = []
     for ts, etype, agent, val, target, fval in reversed(list(_events)):
         if etype == EventType.HEALING:
@@ -218,6 +251,8 @@ def _get_recent_healing(count: int = 20) -> List[Tuple[int, int, int, float, int
 
 
 def _get_recent_effect_renewals(count: int = 20) -> List[Tuple[int, int, int]]:
+    if not _is_callback_active():
+        return []
     result = []
     for ts, etype, agent, val, _, _ in reversed(list(_events)):
         if etype == EventType.EFFECT_RENEWED:
@@ -228,6 +263,8 @@ def _get_recent_effect_renewals(count: int = 20) -> List[Tuple[int, int, int]]:
 
 
 def _has_effect_renewed(agent_id: int, effect_id: int, window_ms: int = 10000) -> bool:
+    if not _is_callback_active():
+        return False
     now = _get_tick_count()
     for ts, etype, agent, val, _, _ in reversed(list(_events)):
         if now - ts > window_ms:
@@ -238,6 +275,8 @@ def _has_effect_renewed(agent_id: int, effect_id: int, window_ms: int = 10000) -
 
 
 def _get_recent_healing_received(agent_id: int, count: int = 20) -> List[Tuple[int, int, float, int]]:
+    if not _is_callback_active():
+        return []
     result = []
     for ts, target_id, source_id, amount, skill_id in reversed(_get_recent_healing(count=max(count * 4, count))):
         if target_id == agent_id:
@@ -248,6 +287,8 @@ def _get_recent_healing_received(agent_id: int, count: int = 20) -> List[Tuple[i
 
 
 def _get_recent_healing_dealt(agent_id: int, count: int = 20) -> List[Tuple[int, int, float, int]]:
+    if not _is_callback_active():
+        return []
     result = []
     for ts, target_id, source_id, amount, skill_id in reversed(_get_recent_healing(count=max(count * 4, count))):
         if source_id == agent_id:
@@ -257,6 +298,8 @@ def _get_recent_healing_dealt(agent_id: int, count: int = 20) -> List[Tuple[int,
     return list(reversed(result))
 
 def _agets_targetting(target_id: int) -> List[int]:
+    if not _is_callback_active():
+        return []
     result = set()
     now = _get_tick_count()
     for ts, etype, agent, _, target, _ in _events:
@@ -272,6 +315,8 @@ def _is_targeted (target_id: int) -> bool:
 
 
 def _check_stance(ts: int, agent: int, skill_id: int):
+    if not _is_callback_active():
+        return
     try:
         from ..Skill import Skill
 
@@ -288,6 +333,8 @@ def _check_stance(ts: int, agent: int, skill_id: int):
 
 
 def _get_pending_skill(agent_id: int) -> int:
+    if not _is_callback_active():
+        return 0
     for _, etype, agent, val, _, _ in reversed(list(_events)):
         if agent != agent_id:
             continue
@@ -297,6 +344,8 @@ def _get_pending_skill(agent_id: int) -> int:
 
 
 def _cleanup_expired_stances():
+    if not _is_callback_active():
+        return
     now = _get_tick_count()
     expired = [aid for aid, (_, _, end) in _stances.items() if now >= end]
     for aid in expired:
@@ -304,12 +353,16 @@ def _cleanup_expired_stances():
 
 
 def _process_pending_events(queue_cls):
+    if not _is_callback_active():
+        return
     for event in queue_cls.GetAndClearEvents():
         _process_event(event)
     _cleanup_expired_stances()
 
 
 def _process_event(event):
+    if not _is_callback_active():
+        return
     ts = event.timestamp
     etype = event.event_type
     agent = event.agent_id
@@ -366,6 +419,8 @@ def _process_event(event):
 
 
 def _create_estimated_recharge(ts: int, agent: int, skill_id: int):
+    if not _is_callback_active():
+        return
     if skill_id <= 0 or agent in _tracked_agents:
         return
     try:
@@ -383,26 +438,10 @@ def _create_estimated_recharge(ts: int, agent: int, skill_id: int):
 
 
 def _fire(event_name: str, *args):
+    if not _is_callback_active():
+        return
     for cb in _callbacks.get(event_name, []):
         try:
             cb(*args)
         except Exception as e:
             Py4GW.Console.Log("CombatEvents", f"Callback error in '{event_name}': {e}", Py4GW.Console.MessageType.Error)
-
-
-def _enable_updates(manager_cls):
-    global _update_registered
-    if _update_registered:
-        return
-    try:
-        import PyCallback
-
-        """PyCallback.PyCallback.Register(
-            "CombatEvents.Update",
-            PyCallback.Phase.Data,
-            manager_cls.update,
-            priority=99
-        )"""
-        _update_registered = True
-    except Exception as e:
-        Py4GW.Console.Log("CombatEvents", f"Failed to register update callback: {e}", Py4GW.Console.MessageType.Error)
