@@ -126,14 +126,12 @@ class UWCBAdapter(UWCombatAdapter):
         party.set_party_is_looting_enabled(True)
 
     def _active_multibox_emails(self) -> list[str]:
+        """Return emails of all reachable multibox accounts (excludes local account)."""
+        local_email = (Player.GetAccountEmail() or "").strip()
         emails: list[str] = []
         for account in (GLOBAL_CACHE.ShMem.GetAllAccountData() or []):
             email = str(getattr(account, "AccountEmail", "") or "").strip()
-            if not email:
-                continue
-            if not bool(getattr(account, "IsSlotActive", True)):
-                continue
-            if bool(getattr(account, "IsIsolated", False)):
+            if not email or email == local_email:
                 continue
             emails.append(email)
         return emails
@@ -184,17 +182,20 @@ class UWCBAdapter(UWCombatAdapter):
     ) -> None:
         sender_email = Player.GetAccountEmail()
         recipients = self._active_multibox_emails()
+        sent = 0
         for email in recipients:
-            GLOBAL_CACHE.ShMem.SendMessage(
+            result = GLOBAL_CACHE.ShMem.SendMessage(
                 sender_email,
                 email,
                 command,
                 (0, 0, 0, 0),
                 (widget_name, "", "", ""),
             )
+            if result >= 0:
+                sent += 1
         ConsoleLog(
             self._bot_name,
-            f"[Startup] {action_label} '{widget_name}' for {len(recipients)} active account(s).",
+            f"[Startup] {action_label} '{widget_name}': {sent}/{len(recipients)} account(s) reached.",
             Py4GW.Console.MessageType.Info,
         )
 

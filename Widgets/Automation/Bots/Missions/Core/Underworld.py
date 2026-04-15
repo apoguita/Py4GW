@@ -2851,8 +2851,17 @@ def _draw_quest_settings():
     mode_idx = 0 if BotSettings.BotMode == "custom_behavior" else 1
     new_mode_idx = PyImGui.radio_button("Custom Behavior##botmode", mode_idx, 0)
     PyImGui.same_line(0, -1)
-    new_mode_idx = PyImGui.radio_button("HeroAI (not working)##botmode", new_mode_idx, 1)
-    BotSettings.BotMode = "custom_behavior" if new_mode_idx == 0 else "heroai"
+    new_mode_idx = PyImGui.radio_button("HeroAI##botmode", new_mode_idx, 1)
+    new_mode = "custom_behavior" if new_mode_idx == 0 else "heroai"
+    # When the bot mode changes, force a full re-initialization so the next
+    # Start press rebuilds the FSM with the correct adapter's startup states.
+    if new_mode != BotSettings.BotMode:
+        BotSettings.BotMode = new_mode
+        if bot.config.fsm_running:
+            bot.Stop()
+        bot.config.initialized = False
+        bot.config.FSM.states.clear()
+        ConsoleLog(BOT_NAME, f"[Settings] Bot mode switched to '{new_mode}' — FSM will rebuild on next Start.", Py4GW.Console.MessageType.Info)
     _current = (BotSettings.Repeat, BotSettings.UseCons, BotSettings.HardMode, BotSettings.BotMode)
     if _current != _snapshot:
         BotSettings.save()
