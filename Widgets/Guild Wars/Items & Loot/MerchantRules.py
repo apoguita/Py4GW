@@ -5074,6 +5074,27 @@ class MerchantRulesWidget:
             return None
         return self.rune_buy_entries_by_identifier.get(safe_identifier)
 
+    def _get_rune_rarity_key_for_identifier(self, identifier: str) -> str:
+        entry = self._get_rune_buy_entry(identifier)
+        if entry is None:
+            return ""
+        return _normalize_rarity_key(str(entry.get("rarity", "") or ""))
+
+    def _get_rune_text_color_for_identifier(self, identifier: str) -> tuple[float, float, float, float] | None:
+        rarity_key = self._get_rune_rarity_key_for_identifier(identifier)
+        if not rarity_key:
+            return None
+        return RARITY_TEXT_COLORS.get(rarity_key)
+
+    def _get_rune_text_color_for_protection_entry(self, entry: ProtectionHubEntry) -> tuple[float, float, float, float] | None:
+        if entry.filter_key != PROTECTION_FILTER_RUNES:
+            return None
+        target_key = str(entry.target_key or "")
+        identifier_prefix = "identifier:"
+        if not target_key.startswith(identifier_prefix):
+            return None
+        return self._get_rune_text_color_for_identifier(target_key[len(identifier_prefix):])
+
     def _get_common_material_preset(self) -> list[int]:
         return list(self.catalog_common_material_ids)
 
@@ -5967,7 +5988,14 @@ class MerchantRulesWidget:
             "catalog_empty": len(self.catalog_by_model_id) <= 0,
         }, visible_item_model_ids
 
-    def _draw_identifier_search_results(self, child_id: str, query: str, entries: list[dict[str, str]]) -> tuple[str, list[str]]:
+    def _draw_identifier_search_results(
+        self,
+        child_id: str,
+        query: str,
+        entries: list[dict[str, str]],
+        *,
+        text_color_for_identifier: Callable[[str], tuple[float, float, float, float] | None] | None = None,
+    ) -> tuple[str, list[str]]:
         normalized_query = str(query or "").strip()
         if not normalized_query:
             return "", []
@@ -5983,7 +6011,15 @@ class MerchantRulesWidget:
                 for entry in results:
                     identifier = str(entry.get("identifier", "")).strip()
                     name = str(entry.get("name", identifier)).strip()
-                    if PyImGui.selectable(f"{name}##{child_id}_{identifier}", False, PyImGui.SelectableFlags.NoFlag, (0, 0)):
+                    text_color = text_color_for_identifier(identifier) if text_color_for_identifier is not None else None
+                    if text_color is not None:
+                        PyImGui.push_style_color(PyImGui.ImGuiCol.Text, text_color)
+                    try:
+                        selected = PyImGui.selectable(f"{name}##{child_id}_{identifier}", False, PyImGui.SelectableFlags.NoFlag, (0, 0))
+                    finally:
+                        if text_color is not None:
+                            PyImGui.pop_style_color(1)
+                    if selected:
                         picked_identifier = identifier
                         break
         PyImGui.end_child()
@@ -6370,6 +6406,7 @@ class MerchantRulesWidget:
         formatter,
         *,
         jump_anchor: str = "",
+        text_color_for_identifier: Callable[[str], tuple[float, float, float, float] | None] | None = None,
     ) -> str:
         if not identifiers:
             self._draw_secondary_text("No protected entries selected yet.", wrapped=False)
@@ -6388,7 +6425,12 @@ class MerchantRulesWidget:
                         removed_identifier = identifier
                         break
                     PyImGui.table_set_column_index(1)
-                    PyImGui.text(str(formatter(identifier)))
+                    label = str(formatter(identifier))
+                    text_color = text_color_for_identifier(identifier) if text_color_for_identifier is not None else None
+                    if text_color is not None:
+                        PyImGui.text_colored(label, text_color)
+                    else:
+                        PyImGui.text(label)
                     if jump_anchor:
                         self._maybe_scroll_sell_jump_target_row(index, jump_anchor, f"identifier:{str(identifier)}")
                 PyImGui.end_table()
@@ -14297,7 +14339,11 @@ class MerchantRulesWidget:
                     PyImGui.text(entry.protection_type_label)
 
                     PyImGui.table_set_column_index(2)
-                    PyImGui.text(entry.value_label)
+                    value_color = self._get_rune_text_color_for_protection_entry(entry)
+                    if value_color is not None:
+                        PyImGui.text_colored(entry.value_label, value_color)
+                    else:
+                        PyImGui.text(entry.value_label)
 
                     PyImGui.table_set_column_index(3)
                     self._draw_inline_badge(entry.owner_rule_kind_label, RULE_KIND_PRESENTATION.get(entry.owner_rule_kind, ("Rule", UI_COLOR_SUBTLE))[1])
@@ -14643,10 +14689,15 @@ class MerchantRulesWidget:
                     for target_row in display_targets:
                         entry = self._get_rune_buy_entry(target_row.identifier) or {}
                         kind_label = str(entry.get("kind_label", "") or "Rune / Insignia")
+                        text_color = self._get_rune_text_color_for_identifier(target_row.identifier)
 
                         PyImGui.table_next_row()
                         PyImGui.table_set_column_index(0)
-                        PyImGui.text(self._get_rune_label(target_row.identifier))
+                        rune_label = self._get_rune_label(target_row.identifier)
+                        if text_color is not None:
+                            PyImGui.text_colored(rune_label, text_color)
+                        else:
+                            PyImGui.text(rune_label)
 
                         PyImGui.table_set_column_index(1)
                         PyImGui.text(kind_label)
@@ -14754,10 +14805,9 @@ class MerchantRulesWidget:
         if PyImGui.begin_child(f"buy_rune_results_{index}", (0, child_height), True, PyImGui.WindowFlags.NoFlag):
             if not visible_entries:
                 PyImGui.text_wrapped("No matching runes or insignias found in this profession tab.")
-            elif PyImGui.begin_table(f"buy_rune_results_table_{index}", 4, PyImGui.TableFlags.RowBg):
+            elif PyImGui.begin_table(f"buy_rune_results_table_{index}", 3, PyImGui.TableFlags.RowBg):
                 PyImGui.table_setup_column("Rune / Insignia", PyImGui.TableColumnFlags.WidthStretch)
                 PyImGui.table_setup_column("Type", PyImGui.TableColumnFlags.WidthFixed, 105.0)
-                PyImGui.table_setup_column("Rarity", PyImGui.TableColumnFlags.WidthFixed, 85.0)
                 PyImGui.table_setup_column("Add", PyImGui.TableColumnFlags.WidthFixed, 55.0)
 
                 PyImGui.table_next_row()
@@ -14766,8 +14816,6 @@ class MerchantRulesWidget:
                 PyImGui.table_set_column_index(1)
                 PyImGui.text("Type")
                 PyImGui.table_set_column_index(2)
-                PyImGui.text("Rarity")
-                PyImGui.table_set_column_index(3)
                 PyImGui.text("Add")
 
                 for entry in visible_entries:
@@ -14778,15 +14826,17 @@ class MerchantRulesWidget:
 
                     PyImGui.table_next_row()
                     PyImGui.table_set_column_index(0)
-                    PyImGui.text(str(entry.get("name", "") or identifier))
+                    name = str(entry.get("name", "") or identifier)
+                    text_color = self._get_rune_text_color_for_identifier(identifier)
+                    if text_color is not None:
+                        PyImGui.text_colored(name, text_color)
+                    else:
+                        PyImGui.text(name)
 
                     PyImGui.table_set_column_index(1)
                     PyImGui.text(str(entry.get("kind_label", "") or "Rune / Insignia"))
 
                     PyImGui.table_set_column_index(2)
-                    PyImGui.text(str(entry.get("rarity", "") or "-"))
-
-                    PyImGui.table_set_column_index(3)
                     PyImGui.begin_disabled(already_selected)
                     add_clicked = PyImGui.small_button(f"+##buy_rune_add_{index}_{identifier}")
                     PyImGui.end_disabled()
@@ -15522,12 +15572,14 @@ class MerchantRulesWidget:
         else:
             PyImGui.text(f"Protected Entries: {len(selected_identifiers)}")
             self._draw_hover_tooltip("Entries here protect matching rune or insignia names.")
+            text_color_for_identifier = self._get_rune_text_color_for_identifier if cache_suffix == "runes" else None
             removed_identifier = self._draw_selected_identifiers(
                 f"sell_protected_{cache_suffix}",
                 index,
                 selected_identifiers,
                 formatter,
                 jump_anchor=anchor,
+                text_color_for_identifier=text_color_for_identifier,
             )
             if removed_identifier:
                 if setter(rule, [identifier for identifier in selected_identifiers if identifier != removed_identifier]):
@@ -15544,6 +15596,7 @@ class MerchantRulesWidget:
             f"sell_protected_results_{cache_suffix}_{index}",
             search_cache.get(index, ""),
             entries,
+            text_color_for_identifier=self._get_rune_text_color_for_identifier if cache_suffix == "runes" else None,
         )
         if threshold_setter is not None:
             protected_identifiers_for_add = _dedupe_identifiers(
