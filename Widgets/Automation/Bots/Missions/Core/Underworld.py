@@ -181,12 +181,6 @@ _dhuum_fight_active: bool = False   # set True from start of Dhuum fight to ches
 _run_start_uptime_ms: int = 0       # Map.GetInstanceUptime() value (ms) when the dungeon was entered
 _enter_ep: list = ["", 0]           # [entrypoint_name, map_id] — resolved at FSM execution time by Enter_UW
 _SKELETON_OF_DHUUM_MODEL_ID: int = 2392
-_DRAW_BLOCKED_AREAS_3D = False
-
-_BLOCKED_AREA_SEGMENTS = 48
-_BLOCKED_AREA_THICKNESS = 2.5
-_BLOCKED_AREA_COLOR = Utils.RGBToColor(255, 40, 40, 170)
-_BLOCKED_AREA_RADIUS = 200.0
 
 _pending_wipe_recovery: bool = False   # set by coroutine; consumed by main() before bot.Update()
 _pending_wipe_reason:   str  = ""      # human-readable label logged when the restart fires
@@ -974,49 +968,6 @@ def FocusKeeperOfSouls(bot_instance: Botting):
     bot_instance.States.AddCustomState(_focus_logic, "Focus Keeper of Souls")
 
 
-def _draw_blocked_areas_overlay() -> None:
-    """Query blacklisted enemy positions and draw circles every frame. Called from main()."""
-    if not _DRAW_BLOCKED_AREAS_3D:
-        return
-    if not Routines.Checks.Map.MapValid():
-        return
-    if Map.GetMapID() != UW_MAP_ID:
-        return
-    # Skip during the Dhuum fight — the per-frame INI reads and GetNameByID calls
-    # for every enemy in the arena add unnecessary load on the leader client.
-    if _dhuum_fight_active:
-        return
-    try:
-        from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist
-        _bl = EnemyBlacklist()
-        avoid_points = [
-            Agent.GetXY(_eid)
-            for _eid in AgentArray.GetEnemyArray()
-            if _bl.is_blacklisted(_eid) and Agent.IsAlive(_eid)
-        ]
-        if not avoid_points:
-            return
-        _overlay = Overlay()
-        _overlay.BeginDraw()
-        for _ax, _ay in avoid_points:
-            _az = _overlay.FindZ(_ax, _ay, 0)
-            _overlay.DrawPoly3D(
-                _ax,
-                _ay,
-                _az,
-                radius=_BLOCKED_AREA_RADIUS,
-                color=_BLOCKED_AREA_COLOR,
-                numsegments=_BLOCKED_AREA_SEGMENTS,
-                thickness=_BLOCKED_AREA_THICKNESS,
-            )
-        _overlay.EndDraw()
-    except Exception:
-        pass
-
-
-
-
-
 def _coro_skeleton_dhuum_watchdog(bot: Botting):
     """Continuously target the nearest alive Skeleton of Dhuum within spell range
     while pause_on_danger is active."""
@@ -1573,6 +1524,7 @@ def The_Four_Horsemen(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _get_adapter().clear_flags(),"Clear Flags")
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_following_enabled(True), "Enable Following")
     bot_instance.Move.XY(-5782, 12819, "TP back to Chaos")
+    bot_instance.Wait.ForTime(1000)
     bot_instance.Dialogs.WithModel(UWNpcModelID.ReaperOfTheLabyrinth,0x8B, "Tp back to Chaos") 
     bot_instance.Wait.ForTime(1000)
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_following_enabled(True), "Enable Following")
@@ -1924,6 +1876,11 @@ def Servants_of_Grenth(bot_instance: Botting):
         "Clear Flags",
     )
     bot_instance.Wait.ForTime(30000)
+    bot_instance.Move.XY(554, 18384, "go to NPC")
+    bot_instance.Dialogs.WithModel(UWNpcModelID.ReaperOfTheBonePits,0x806607, "Take Reward")
+    bot_instance.Multibox.SendDialogToTarget(0x806601)
+    bot_instance.Wait.ForTime(3000)
+    bot_instance.Multibox.SendDialogToTarget(0x806607)
     bot_instance.States.AddCustomState(lambda: _record_quest_done("Servants of Grenth"), "Record Servants of Grenth done")
 
 
@@ -2888,11 +2845,6 @@ def _draw_quest_settings():
 bot.SetMainRoutine(bot_routine)
 
 def _draw_debug_settings():
-    global _DRAW_BLOCKED_AREAS_3D, _BLOCKED_AREA_RADIUS
-    _DRAW_BLOCKED_AREAS_3D = PyImGui.checkbox("Draw Blocked Areas (3D)", _DRAW_BLOCKED_AREAS_3D)
-    if _DRAW_BLOCKED_AREAS_3D:
-        _BLOCKED_AREA_RADIUS = PyImGui.slider_float("Blocked Area Radius", _BLOCKED_AREA_RADIUS, 50.0, 600.0)
-
     if not Routines.Checks.Map.MapValid():
         PyImGui.separator()
         PyImGui.text("Waiting for map to load...")
@@ -3259,14 +3211,13 @@ def main():
     global _pending_wipe_recovery, _pending_wipe_reason
     import traceback as _tb
     try:
-        _draw_blocked_areas_overlay()
-
         _draw_armor_edit_window()
         if bot.config.fsm_running and Routines.Checks.Map.MapValid():
             _get_adapter().sync_runtime()
             # Watchdog: callback sometimes misses wipes — detect return to outpost by map ID
             if _entered_dungeon and Map.GetMapID() == 138:
                 ConsoleLog(BOT_NAME, "[WIPE] Watchdog: back in outpost (map 138) without wipe callback — restarting.", Py4GW.Console.MessageType.Warning)
+                _pending_wipe_recovery = False  # consume pending flag so we don't restart twice
                 _restart_main_loop(bot, "Watchdog: returned to map 138")
         # If a wipe-recovery was requested by a managed coroutine, perform the FSM
         # restart here — safely outside FSM.update()'s managed-coroutines loop.
