@@ -226,7 +226,7 @@ class CombatEvents:
 
     @staticmethod
     def Enable():
-        helpers._set_callback_active(False)
+        helpers._set_callback_active(True)
         import PyCallback
         PyCallback.PyCallback.Register(
              CombatEvents._callback_name,
