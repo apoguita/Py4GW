@@ -341,7 +341,7 @@ class PvE:
     def Ghostly_Fury(self, is_active: bool = True) -> BuildCoroutine:
         from Py4GWCoreLib import Agent, AgentArray, Player
 
-        ghostly_fury_id: int = self._resolve_dhuum_skill("Ghostly_Fury", fallback=3091)
+        ghostly_fury_id: int = self._resolve_dhuum_skill("Ghostly_Fury", fallback=3136)
         if not self.build.IsSkillEquipped(ghostly_fury_id):
             return False
         if not is_active:

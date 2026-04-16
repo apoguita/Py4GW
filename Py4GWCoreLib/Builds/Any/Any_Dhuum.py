@@ -97,7 +97,7 @@ class _DhuumModeTracker:
                     skill_id = 0
                 if skill_id > 0:
                     cls._ghostly_fury_skill_ids.add(skill_id)
-            cls._ghostly_fury_skill_ids.add(3091)
+            cls._ghostly_fury_skill_ids.add(3136)
 
     @classmethod
     def _refresh_reaper_ids(cls) -> None:
@@ -113,7 +113,7 @@ class _DhuumModeTracker:
             if any(matcher in name for matcher in cls.REAPER_NAME_MATCHERS):
                 reaper_ids.add(int(agent_id))
 
-        cls._cached_reaper_ids = reaper_ids
+        cls._cached_reaper_ids = cls._cached_reaper_ids.union(reaper_ids)
         cls._reaper_refresh_timer.Reset()
 
     @classmethod
@@ -246,7 +246,7 @@ class Any_Dhuum(BuildMgr):
         self.spiritual_healing_id = self._resolve_skill_id(("Spiritual_Healing",), fallback=3088)
         self.encase_skeletal_id = self._resolve_skill_id(("Encase_Skeletal",), fallback=3089)
         self.reversal_of_death_id = self._resolve_skill_id(("Reversal_of_Death",), fallback=3090)
-        self.ghostly_fury_id = self._resolve_skill_id(("Ghostly_Fury",), fallback=3091)
+        self.ghostly_fury_id = self._resolve_skill_id(("Ghostly_Fury",), fallback=3136)
 
         required_candidates = [
             self.unyielding_aura_id,

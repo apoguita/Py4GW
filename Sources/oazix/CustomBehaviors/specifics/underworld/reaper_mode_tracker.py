@@ -99,7 +99,7 @@ class ReaperModeTracker:
                 sid = 0
             if sid > 0:
                 cls.ghostly_fury_skill_ids.add(sid)
-            cls.ghostly_fury_skill_ids.add(3091)   # known fallback numeric ID
+            cls.ghostly_fury_skill_ids.add(3136)   # known fallback numeric ID
 
     # ── External registration (called by skill utilities at construction) ─────
 
@@ -136,7 +136,9 @@ class ReaperModeTracker:
             name = str(Agent.GetNameByID(agent_id) or "").strip().lower()
             if any(m in name for m in cls._REAPER_NAME_MATCHERS):
                 reaper_ids.add(int(agent_id))
-        cls._cached_reaper_ids = reaper_ids
+        # Merge instead of replace: dead reapers vanish from arrays but their
+        # IDs must stay known so we keep matching their events.
+        cls._cached_reaper_ids = cls._cached_reaper_ids.union(reaper_ids)
         cls._reaper_id_refresh_timer.Reset()
 
     @classmethod
