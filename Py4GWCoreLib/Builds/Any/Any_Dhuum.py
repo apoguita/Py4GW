@@ -1,7 +1,7 @@
 import time
 
 from Py4GWCoreLib import Agent, AgentArray, BuildMgr, GLOBAL_CACHE, Party, Player, Profession, Range, Routines, Skill, ThrottledTimer
-from Py4GWCoreLib.CombatEvents import CombatEvents as CombatEvents, EventType
+#from Py4GWCoreLib.CombatEvents import CombatEvents as CombatEvents, EventType
 from Py4GWCoreLib.Builds.Any.HeroAI import HeroAI_Build
 from Py4GWCoreLib.Builds.Skills.any.PvE import PvE
 
@@ -25,9 +25,9 @@ class _DhuumModeTracker:
     )
 
     ACTIVATION_EVENT_TYPES = (
-        EventType.SKILL_ACTIVATED,
-        EventType.ATTACK_SKILL_ACTIVATED,
-        EventType.INSTANT_SKILL_ACTIVATED,
+        #EventType.SKILL_ACTIVATED,
+        #EventType.ATTACK_SKILL_ACTIVATED,
+        #EventType.INSTANT_SKILL_ACTIVATED,
     )
 
     _DHUUMS_REST_CANDIDATES = (
@@ -192,7 +192,7 @@ class _DhuumModeTracker:
         now_ms = time.monotonic() * 1000.0
         player_id = int(Player.GetAgentID())
 
-        recent_skills = CombatEvents.GetRecentSkills(80)
+        recent_skills = [] #CombatEvents.GetRecentSkills(80)
 
         reaper_candidate_agent_ids = cls._get_reaper_candidate_agent_ids()
         party_member_agent_ids = cls._get_party_member_agent_ids()
