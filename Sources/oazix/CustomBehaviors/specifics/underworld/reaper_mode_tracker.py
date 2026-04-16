@@ -73,8 +73,6 @@ class ReaperModeTracker:
     dhuums_rest_skill_ids:  set[int] = set()
     ghostly_fury_skill_ids: set[int] = set()
 
-    _last_logged_candidate_signature: tuple[int, int, int] | None = None
-
     # ── Initialisation ────────────────────────────────────────────────────────
 
     @classmethod
@@ -117,19 +115,6 @@ class ReaperModeTracker:
         if skill_id > 0:
             cls.ghostly_fury_skill_ids.add(skill_id)
 
-    # ── Debug state ─────────────────────────────────────────────────────────
-    _reaper_scan_logged: bool = False
-    _event_scan_logged: bool = False
-    _event_scan_log_timer: ThrottledTimer | None = None
-
-    @classmethod
-    def _debug_log(cls, tag: str, msg: str) -> None:
-        try:
-            import Py4GW
-            Py4GW.Console.Log("ReaperTracker", f"[{tag}] {msg}", Py4GW.Console.MessageType.Info)
-        except Exception:
-            pass
-
     # ── Internal helpers ──────────────────────────────────────────────────────
 
     @classmethod
@@ -145,21 +130,6 @@ class ReaperModeTracker:
         candidates.update(AgentArray.GetNPCMinipetArray())
         candidates.update(AgentArray.GetSpiritPetArray())
 
-        # One-time dump of all candidate agent names
-        if not cls._reaper_scan_logged:
-            cls._reaper_scan_logged = True
-            ally_count = len(AgentArray.GetAllyArray())
-            neutral_count = len(AgentArray.GetNeutralArray())
-            npc_count = len(AgentArray.GetNPCMinipetArray())
-            spirit_count = len(AgentArray.GetSpiritPetArray())
-            cls._debug_log("Scan", f"Arrays: ally={ally_count} neutral={neutral_count} npc={npc_count} spirit={spirit_count} total_candidates={len(candidates)}")
-            sample_names = []
-            for agent_id in list(candidates)[:30]:
-                if Agent.IsValid(agent_id):
-                    name = str(Agent.GetNameByID(agent_id) or "").strip()
-                    sample_names.append(f"{agent_id}='{name}'")
-            cls._debug_log("Scan", f"Sample agents: {', '.join(sample_names)}")
-
         for agent_id in candidates:
             if not Agent.IsValid(agent_id):
                 continue
@@ -167,10 +137,6 @@ class ReaperModeTracker:
             if any(m in name for m in cls._REAPER_NAME_MATCHERS):
                 reaper_ids.add(int(agent_id))
         cls._cached_reaper_ids = reaper_ids
-
-        if not cls._reaper_scan_logged or reaper_ids:
-            cls._debug_log("Reapers", f"Found {len(reaper_ids)} reapers: {reaper_ids}")
-
         cls._reaper_id_refresh_timer.Reset()
 
     @classmethod
@@ -231,24 +197,6 @@ class ReaperModeTracker:
             cls._shared_mode = mode
             cls._shared_mode_locked_until_ms = now_ms + cls.MODE_SWITCH_DEBOUNCE_MS
 
-    @classmethod
-    def _log_candidate(cls, ts: int, caster_id: int, skill_id: int, kind: str) -> None:
-        signature = (int(ts), int(caster_id), int(skill_id))
-        if cls._last_logged_candidate_signature == signature:
-            return
-        cls._last_logged_candidate_signature = signature
-        try:
-            import Py4GW
-            caster_name = str(Agent.GetNameByID(int(caster_id)) or "<unknown>").strip() if Agent.IsValid(int(caster_id)) else "<invalid>"
-            skill_name  = str(GLOBAL_CACHE.Skill.GetName(int(skill_id)) or "<unknown>").strip()
-            Py4GW.Console.Log(
-                "AnyDhuum",
-                f"Detected {kind}: ts={ts} caster={caster_id} ('{caster_name}') skill={skill_id} ('{skill_name}')",
-                Py4GW.Console.MessageType.Info,
-            )
-        except Exception:
-            pass
-
     # ── Public API ────────────────────────────────────────────────────────────
 
     @classmethod
@@ -279,30 +227,6 @@ class ReaperModeTracker:
         candidate_agent_ids  = cls._reaper_candidate_agent_ids()
         party_member_ids     = cls._party_member_agent_ids()
 
-        # Periodic event scan debug (every 10s)
-        if cls._event_scan_log_timer is None:
-            cls._event_scan_log_timer = ThrottledTimer(10000)
-            cls._event_scan_log_timer.Reset()
-        if cls._event_scan_log_timer.IsExpired():
-            cls._event_scan_log_timer.Reset()
-            activation_events = [
-                (int(ts), int(cid), int(sid), int(et))
-                for ts, cid, sid, _, et in recent_skills
-                if int(et) in cls._ACTIVATION_EVENT_TYPES
-            ]
-            cls._debug_log("Events", f"total={len(recent_skills)} activations={len(activation_events)} effective_reapers={effective_ids} learned={cls._learned_reaper_ids} mode={cls._shared_mode}")
-            cls._debug_log("SkillIDs", f"drest_ids={cls.dhuums_rest_skill_ids} fury_ids={cls.ghostly_fury_skill_ids}")
-            # Log first few activation events with names
-            for ts_i, cid_i, sid_i, et_i in activation_events[:5]:
-                try:
-                    cname = str(Agent.GetNameByID(cid_i) or "?").strip() if Agent.IsValid(cid_i) else "?"
-                    sname = str(GLOBAL_CACHE.Skill.GetName(sid_i) or "?").strip()
-                    in_eff = cid_i in effective_ids
-                    is_party = cid_i in party_member_ids
-                    cls._debug_log("Evt", f"caster={cid_i}('{cname}') skill={sid_i}('{sname}') type={et_i} reaper={in_eff} party={is_party}")
-                except Exception:
-                    pass
-
         for ts, caster_id, skill_id, _, event_type in reversed(recent_skills):
             if int(event_type) not in cls._ACTIVATION_EVENT_TYPES:
                 continue
@@ -324,11 +248,9 @@ class ReaperModeTracker:
             if caster_id_int not in effective_ids:
                 continue
             if is_drest:
-                cls._log_candidate(int(ts), caster_id_int, skill_id_int, "_DHUUMS_REST_CANDIDATES")
                 cls._set_mode(cls.MODE_DREST, now_ms)
                 return
             if is_fury:
-                cls._log_candidate(int(ts), caster_id_int, skill_id_int, "_GHOSTLY_FURY_CANDIDATES")
                 cls._set_mode(cls.MODE_FURY, now_ms)
                 return
 
