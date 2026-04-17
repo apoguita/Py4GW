@@ -33,6 +33,9 @@ try:
         ImGui,
         Routines,
         Range,
+        Party,
+        SkillBar,
+        Skill,
     )
     from Py4GWCoreLib import PyImGui, Color
 
@@ -46,6 +49,7 @@ try:
     _ini = IniHandler(_ini_path)
 
     _enabled: bool = _ini.read_bool(MODULE_NAME, "enabled", True)
+    _skip_if_res_available: bool = _ini.read_bool(MODULE_NAME, "skip_if_res_available", False)
 
     # -----------------------------------------------------------------------
     # Constants
@@ -54,8 +58,21 @@ try:
     _CHECK_INTERVAL_MS = 1500    # how often we poll for death
     _USE_COOLDOWN_MS   = 8000    # don't re-use within 8 s of last attempt
 
-    # -----------------------------------------------------------------------
-    # State
+    # Known resurrection skills: id -> lowercase name
+    _RES_SKILLS = {
+        2:    "resurrection signet",
+        52:   "rebirth",
+        58:   "restore life",
+        247:  "resurrection chant",
+        509:  "we shall return!",
+        878:  "flesh of my flesh",
+        894:  "death pact signet",
+        1180: "lively was naomei",
+        1264: "sunspear rebirth signet",
+        1778: "signet of return",
+    }
+    _RES_SKILL_IDS   = set(_RES_SKILLS.keys())
+    _RES_SKILL_NAMES = set(_RES_SKILLS.values())
     # -----------------------------------------------------------------------
     _check_timer   = ThrottledTimer(_CHECK_INTERVAL_MS)
     _cooldown_timer = Timer()
@@ -64,11 +81,96 @@ try:
 
     _status_text = ""
 
+    # Cache: list of (agent_id, name, skill_name) for party members with res skills
+    _res_cache = []        # type: list[tuple[int, str, str]]
+    _cache_built = False
+    _last_was_explorable = False
+    _explorable_entry_timer = Timer()
+    _CACHE_DELAY_MS = 8000  # wait 8 seconds after map ready before scanning skillbars
+
     # -----------------------------------------------------------------------
     # Logic
     # -----------------------------------------------------------------------
+    def _build_res_cache():
+        """Scan all party player skillbars once (via shared memory) and cache who has a res skill."""
+        global _res_cache, _cache_built
+        _res_cache = []
+
+        # Check local player
+        player_id = Player.GetAgentID()
+        if player_id != 0:
+            try:
+                player_skills = SkillBar.GetSkillbar()  # list[int]
+                player_name = Agent.GetNameByID(player_id) or "Player"
+
+                if not player_skills:
+                    ConsoleLog(MODULE_NAME, f"[Cache] {player_name}: skillbar empty (not loaded yet?)", Console.MessageType.Warning)
+                    return  # don't mark cache as built — retry next tick
+
+                # Log all skills with IDs for diagnostics
+                skill_info = [(sid, Skill.GetNameFromWiki(sid)) for sid in player_skills]
+                ConsoleLog(MODULE_NAME, f"[Cache] {player_name} skills: {skill_info}", Console.MessageType.Info)
+
+                for skill_id in player_skills:
+                    skill_name = Skill.GetNameFromWiki(skill_id)
+                    if skill_id in _RES_SKILL_IDS or skill_name.lower() in _RES_SKILL_NAMES:
+                        _res_cache.append((player_id, player_name, skill_name))
+                        ConsoleLog(MODULE_NAME, f"[Cache] {player_name} has res skill '{skill_name}' (id {skill_id})", Console.MessageType.Info)
+                        break
+            except Exception as e:
+                ConsoleLog(MODULE_NAME, f"[Cache] Error reading local skillbar: {e}", Console.MessageType.Error)
+                return  # retry next tick
+
+        # Check other accounts via shared memory
+        try:
+            all_accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+            my_agent_id = player_id
+            for acc in all_accounts:
+                acc_agent_id = acc.AgentData.AgentID
+                if acc_agent_id == 0 or acc_agent_id == my_agent_id:
+                    continue
+                char_name = acc.AgentData.CharacterName or acc.AccountEmail or "Account"
+
+                acc_skill_ids = [int(s.Id) for s in acc.AgentData.Skillbar.Skills if int(s.Id) != 0]
+                if not acc_skill_ids:
+                    ConsoleLog(MODULE_NAME, f"[Cache] {char_name}: shared memory skillbar empty (not synced yet?)", Console.MessageType.Warning)
+                    return  # retry next tick
+
+                # Log all skills with IDs for diagnostics
+                acc_skill_info = [(sid, Skill.GetNameFromWiki(sid)) for sid in acc_skill_ids]
+                ConsoleLog(MODULE_NAME, f"[Cache] {char_name} skills: {acc_skill_info}", Console.MessageType.Info)
+
+                for sid in acc_skill_ids:
+                    skill_name = Skill.GetNameFromWiki(sid)
+                    if sid in _RES_SKILL_IDS or skill_name.lower() in _RES_SKILL_NAMES:
+                        _res_cache.append((acc_agent_id, char_name, skill_name))
+                        ConsoleLog(MODULE_NAME, f"[Cache] {char_name} has res skill '{skill_name}' (id {sid})", Console.MessageType.Info)
+                        break
+        except Exception as e:
+            ConsoleLog(MODULE_NAME, f"[Cache] Error reading shared memory: {e}", Console.MessageType.Error)
+            return  # retry next tick
+
+        if not _res_cache:
+            ConsoleLog(MODULE_NAME, "[Cache] No party members have a res skill equipped", Console.MessageType.Info)
+        else:
+            ConsoleLog(MODULE_NAME, f"[Cache] {len(_res_cache)} party member(s) with res skills cached", Console.MessageType.Info)
+
+        _cache_built = True
+
+    def _alive_party_member_has_res_skill():
+        """Check if any cached res-skill holder is currently alive."""
+        for agent_id, name, skill_name in _res_cache:
+            if agent_id == 0:
+                continue
+            try:
+                if Agent.IsValid(agent_id) and not Agent.IsDead(agent_id):
+                    return True
+            except Exception:
+                pass
+        return False
+
     def _tick():
-        global _on_cooldown, _status_text
+        global _on_cooldown, _status_text, _cache_built, _last_was_explorable
 
         if not _enabled:
             _status_text = "Disabled"
@@ -80,11 +182,32 @@ try:
 
         if not Routines.Checks.Map.MapValid():
             _status_text = "Map invalid"
+            _cache_built = False
+            _last_was_explorable = False
             return
 
-        if not Map.IsExplorable():
+        is_explorable = Map.IsExplorable()
+
+        # Invalidate cache when leaving explorable
+        if not is_explorable:
             _status_text = "Not in explorable"
+            _cache_built = False
+            _last_was_explorable = False
             return
+
+        # Build cache once on explorable entry (with delay for skillbar loading)
+        if not _cache_built and is_explorable:
+            if Routines.Checks.Map.IsMapReady() and Routines.Checks.Party.IsPartyLoaded():
+                if not _last_was_explorable:
+                    # First tick in explorable — start the delay timer
+                    _explorable_entry_timer.Reset()
+                    _last_was_explorable = True
+                    _status_text = "Waiting for skillbars to load..."
+                    return
+                if not _explorable_entry_timer.HasElapsed(_CACHE_DELAY_MS):
+                    _status_text = "Waiting for skillbars to load..."
+                    return
+                _build_res_cache()
 
         player_id = Player.GetAgentID()
         if player_id == 0:
@@ -100,6 +223,11 @@ try:
         if dead_ally_id == 0:
             _status_text = "All alive"
             _on_cooldown = False
+            return
+
+        # Skip scroll if an alive player/hero has a res skill
+        if _skip_if_res_available and _alive_party_member_has_res_skill():
+            _status_text = "Dead party member — res skill available"
             return
 
         # A party member is dead — check cooldown
@@ -141,7 +269,7 @@ except Exception as _e:
 # Widget entry points
 # ---------------------------------------------------------------------------
 def configure():
-    global _enabled, _config_module, _ini, _status_text
+    global _enabled, _skip_if_res_available, _config_module, _ini, _status_text, _cache_built
     if not _INIT_OK:
         return
 
@@ -152,13 +280,34 @@ def configure():
             _config_module.first_run = False
 
         if PyImGui.begin(_config_module.window_name, _config_module.window_flags):
-            changed, new_val = PyImGui.checkbox("Enable auto-use", _enabled)
-            if changed:
-                _enabled = new_val
+            new_enabled = PyImGui.checkbox("Enable auto-use", _enabled)
+            if new_enabled != _enabled:
+                _enabled = new_enabled
                 _ini.write_key(MODULE_NAME, "enabled", str(_enabled))
+
+            new_skip = PyImGui.checkbox("Skip if res skill available", _skip_if_res_available)
+            if new_skip != _skip_if_res_available:
+                _skip_if_res_available = new_skip
+                _ini.write_key(MODULE_NAME, "skip_if_res_available", str(_skip_if_res_available))
 
             PyImGui.spacing()
             PyImGui.text(f"Status: {_status_text}")
+
+            # Show cached res-skill holders
+            if _res_cache:
+                PyImGui.spacing()
+                PyImGui.text("Res skill holders:")
+                for agent_id, name, skill_name in _res_cache:
+                    alive = ""
+                    try:
+                        alive = "alive" if Agent.IsValid(agent_id) and not Agent.IsDead(agent_id) else "dead"
+                    except Exception:
+                        alive = "?"
+                    PyImGui.bullet_text(f"{name}: {skill_name} ({alive})")
+
+            PyImGui.spacing()
+            if PyImGui.button("Rebuild cache"):
+                _cache_built = False
 
             pos = PyImGui.get_window_pos()
             if pos != _config_module.window_pos:
