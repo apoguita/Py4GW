@@ -51,6 +51,14 @@ class CastConditions:
         self.Overcast = 0.0
         self.Overcast = 0.0
         self.SacrificeHealth = 0.0
+        # Fraction of the caster's max HP that this skill sacrifices on cast (e.g. 0.33 for BiP).
+        # Used by the post-sacrifice safety floors below to compute hp_after_sacrifice.
+        self.SacrificePercent = 0.0
+        # Opt-in post-sacrifice safety floors. Both default to 0 (disabled). When set, the caster
+        # must remain strictly above BOTH the percent-of-max floor AND the absolute-HP floor after
+        # paying the skill's sacrifice, or the cast is refused.
+        self.MinHealthAfterSacrificePercent = 0.0
+        self.MinHealthAfterSacrificeAbsolute = 0
 
         # Usage Flags
         self.IsPartyWide = False

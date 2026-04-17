@@ -24,6 +24,12 @@ class Communing:
         SpiritModelID.DISPLACEMENT,
     }
 
+    _PROTECTIVE_SKILL_TO_MODEL = {
+        "Shelter": SpiritModelID.SHELTER,
+        "Union": SpiritModelID.UNION,
+        "Displacement": SpiritModelID.DISPLACEMENT,
+    }
+
     def _is_soul_twisting_ready(self, min_remaining_ms: int = 1200) -> bool:
         soul_twisting_id = Skill.GetID("Soul_Twisting")
         player_agent_id = Player.GetAgentID()
@@ -32,7 +38,18 @@ class Communing:
         remaining_ms = int(GLOBAL_CACHE.Effects.GetEffectTimeRemaining(player_agent_id, soul_twisting_id) or 0)
         return remaining_ms > min_remaining_ms
 
-    def _get_owned_core_spirits(self, max_distance: float = Range.Spellcast.value) -> list[int]:
+    def _soul_twisting_remaining_ms(self) -> int:
+        soul_twisting_id = Skill.GetID("Soul_Twisting")
+        player_agent_id = Player.GetAgentID()
+        if not Routines.Checks.Agents.HasEffect(player_agent_id, soul_twisting_id):
+            return 0
+        return int(GLOBAL_CACHE.Effects.GetEffectTimeRemaining(player_agent_id, soul_twisting_id) or 0)
+
+    def _get_owned_spirits(
+        self,
+        model_ids: set[SpiritModelID],
+        max_distance: float = Range.Spellcast.value,
+    ) -> list[int]:
         player_agent_id = Player.GetAgentID()
         spirits = AgentArray.GetSpiritPetArray()
         spirits = AgentArray.Filter.ByDistance(spirits, Player.GetXY(), max_distance)
@@ -48,7 +65,7 @@ class Communing:
             model_value = Agent.GetPlayerNumber(spirit_id)
             if model_value not in SpiritModelID._value2member_map_:
                 continue
-            if SpiritModelID(model_value) not in self._CORE_SPIRIT_MODELS:
+            if SpiritModelID(model_value) not in model_ids:
                 continue
             nearby_spirits.append(spirit_id)
 
@@ -64,6 +81,9 @@ class Communing:
             return ownerless_spirits
         return nearby_spirits
 
+    def _get_owned_core_spirits(self, max_distance: float = Range.Spellcast.value) -> list[int]:
+        return self._get_owned_spirits(self._CORE_SPIRIT_MODELS, max_distance)
+
     def _resolve_armor_of_unfeeling_target(self) -> int:
         spirits = self._get_owned_core_spirits(Range.Spellcast.value)
         if not spirits:
@@ -78,14 +98,42 @@ class Communing:
             return spirit_id
         return spirits[0]
 
+    def _model_for_protective_skill(self, skill_id: int) -> SpiritModelID | None:
+        for name, model in self._PROTECTIVE_SKILL_TO_MODEL.items():
+            if Skill.GetID(name) == skill_id:
+                return model
+        return None
+
     def _cast_protective_spirit(self, skill_id: int) -> BuildCoroutine:
         if not self.build.IsSkillEquipped(skill_id):
             return False
-        if not self._is_soul_twisting_ready():
+
+        remaining_ms = self._soul_twisting_remaining_ms()
+        if remaining_ms <= 0:
+            return False
+        if remaining_ms <= 1200:
             return False
 
-        return (yield from self.build.CastSpiritSkillID(
+        model = self._model_for_protective_skill(skill_id)
+        matching_spirits: list[int] = []
+        if model is not None:
+            matching_spirits = self._get_owned_spirits({model}, Range.Spellcast.value)
+
+        if remaining_ms <= 5000:
+            if not matching_spirits:
+                return False
+            lowest_hp = min(Agent.GetHealth(spirit_id) for spirit_id in matching_spirits)
+            if lowest_hp >= 0.80:
+                return False
+        else:
+            if matching_spirits:
+                lowest_hp = min(Agent.GetHealth(spirit_id) for spirit_id in matching_spirits)
+                if lowest_hp >= 0.30:
+                    return False
+
+        return (yield from self.build.CastSkillID(
             skill_id=skill_id,
+            target_agent_id=0,
             log=False,
             aftercast_delay=250,
         ))
