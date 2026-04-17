@@ -18,19 +18,41 @@ _new_group_name: str = ""
 _last_error: str = ""
 _show_create_form: bool = False
 _context_email: str = ""
+_drag_email: str = ""
+_drag_source_gid: int = -1
+_drag_target_gid: int = -1
+_first_draw: bool = True
 
 
 def tooltip():
     PyImGui.begin_tooltip()
+
+    # Title
     title_color = Color(255, 200, 100, 255)
     ImGui.push_font("Regular", 20)
     PyImGui.text_colored(MODULE_NAME, title_color.to_tuple_normalized())
     ImGui.pop_font()
     PyImGui.spacing()
     PyImGui.separator()
+
+    # Info
+    PyImGui.text_colored("Info:", title_color.to_tuple_normalized())
     PyImGui.text("Lists all active shared-memory accounts, including isolated ones,")
-    PyImGui.text("and lets you toggle per-account isolation in place.")
-    PyImGui.text("Right-click a character name to assign a group.")
+    PyImGui.text("and lets you toggle per-account or per-group isolation in place.")
+    PyImGui.spacing()
+
+    # How to use
+    PyImGui.text_colored("How to use:", title_color.to_tuple_normalized())
+    PyImGui.bullet_text("Keep single account isolation in the Ungrouped category")
+    PyImGui.bullet_text("Create a group")
+    PyImGui.bullet_text("Drag & Drop or right-click a character name to assign a group")
+    PyImGui.spacing()
+
+    # Credits
+    PyImGui.text_colored("Credits:", title_color.to_tuple_normalized())
+    PyImGui.bullet_text("Developed by: Apo")
+    PyImGui.bullet_text("Contributors: Sloppynacho")
+
     PyImGui.end_tooltip()
 
 
@@ -110,24 +132,37 @@ def _apply_assignments():
     _assignments_applied = True
 
 
-def _draw_account_row(account, show_checkbox: bool = True):
+def _draw_account_row(account, current_gid: int, show_checkbox: bool = True):
     """Draw one account row. show_checkbox=True for ungrouped (legacy isolation), False for grouped."""
-    global _context_email
+    global _context_email, _drag_email, _drag_source_gid, _drag_target_gid
     email = str(account.AccountEmail or "").strip()
     if not email:
         return
 
     label = account.AgentData.CharacterName or account.AccountName or email
 
+    is_drag_source = (_drag_email == email)
+
     if show_checkbox:
-        # Legacy isolation checkbox — only for ungrouped accounts
+        # only for ungrouped accounts
         isolated = bool(account.IsIsolated)
-        new_isolated = PyImGui.checkbox(f"{label}##iso_{email}", isolated)
+        new_isolated = PyImGui.checkbox(f"##iso_{email}", isolated)
         if new_isolated != isolated:
             GLOBAL_CACHE.ShMem.SetAccountIsolationByEmail(email, new_isolated)
-    else:
-        # Grouped accounts — just show the name
-        PyImGui.text(f"  {label}")
+        PyImGui.same_line(0, 6)
+
+    prefix = ">> " if is_drag_source else ""
+    row_label = f"{prefix}{label}##row_{email}"
+    PyImGui.selectable(row_label, is_drag_source, PyImGui.SelectableFlags.NoFlag, (0.0, 0.0))
+
+    # Begin drag when row is held and mouse starts dragging.
+    if PyImGui.is_item_active() and PyImGui.is_mouse_dragging(0, 0.0):
+        _drag_email = email
+        _drag_source_gid = current_gid
+
+    # Hovering this row while dragging marks its group as drop target.
+    if _drag_email and _drag_email != email and PyImGui.is_item_hovered():
+        _drag_target_gid = current_gid
 
     # Right-click to open group assignment popup
     if PyImGui.is_item_hovered() and PyImGui.is_mouse_clicked(1):
@@ -168,6 +203,7 @@ def _draw_group_context_menu():
 
 def draw():
     global _new_group_name, _next_group_id, _last_error, _show_create_form
+    global _drag_email, _drag_source_gid, _drag_target_gid, _first_draw
 
     if not Routines.Checks.Map.MapValid():
         return
@@ -177,6 +213,10 @@ def draw():
         _apply_assignments()
     except Exception as e:
         _last_error = traceback.format_exc()
+
+    if _first_draw:
+        PyImGui.set_next_window_collapsed(True, 0)
+        _first_draw = False
 
     if ImGui.Begin(MODULE_NAME, MODULE_NAME, flags=PyImGui.WindowFlags.AlwaysAutoResize):
         try:
@@ -212,7 +252,7 @@ def draw():
                 PyImGui.text(f"Accounts: {len(accounts)}")
                 PyImGui.separator()
                 for account in accounts:
-                    _draw_account_row(account)
+                    _draw_account_row(account, 0)
             else:
                 # Bucket by group — read IsolationGroupID directly from struct
                 grouped: dict[int, list] = {}
@@ -227,7 +267,15 @@ def draw():
                 for gid in sorted(_groups.keys()):
                     members = grouped.get(gid, [])
                     group_name = _groups[gid]
-                    if PyImGui.collapsing_header(f"{group_name} ({len(members)})##group_{gid}", PyImGui.TreeNodeFlags.DefaultOpen):
+                    is_drop_here = (_drag_email != "" and _drag_target_gid == gid)
+                    header_label = f"{group_name} ({len(members)})"
+                    if is_drop_here:
+                        header_label += "  <DROP>"
+                    header_label += f"##group_{gid}"
+                    header_open = PyImGui.collapsing_header(header_label, PyImGui.TreeNodeFlags.DefaultOpen)
+                    if _drag_email and PyImGui.is_item_hovered():
+                        _drag_target_gid = gid
+                    if header_open:
                         if PyImGui.button(f"Delete Group##del_{gid}"):
                             for acc in members:
                                 em = str(acc.AccountEmail or "").strip()
@@ -238,12 +286,30 @@ def draw():
                             _save_groups()
                         else:
                             for acc in members:
-                                _draw_account_row(acc, show_checkbox=False)
+                                _draw_account_row(acc, gid, show_checkbox=False)
 
-                if ungrouped:
-                    if PyImGui.collapsing_header(f"Ungrouped ({len(ungrouped)})##ungrouped", PyImGui.TreeNodeFlags.DefaultOpen):
-                        for acc in ungrouped:
-                            _draw_account_row(acc)
+                ungrouped_drop = (_drag_email != "" and _drag_target_gid == 0)
+                ungrouped_label = f"Ungrouped ({len(ungrouped)})"
+                if ungrouped_drop:
+                    ungrouped_label += "  <DROP>"
+                ungrouped_label += "##ungrouped"
+                ungrouped_open = PyImGui.collapsing_header(ungrouped_label, PyImGui.TreeNodeFlags.DefaultOpen)
+                if _drag_email and PyImGui.is_item_hovered():
+                    _drag_target_gid = 0
+                if ungrouped_open and ungrouped:
+                    for acc in ungrouped:
+                        _draw_account_row(acc, 0)
+
+            # Apply drag-drop reorder when mouse is released.
+            mouse_down = bool(PyImGui.is_mouse_down(0))
+            if (not mouse_down) and _drag_email:
+                if _drag_target_gid >= 0 and _drag_target_gid != _drag_source_gid:
+                    if _drag_target_gid == 0 or _drag_target_gid in _groups:
+                        GLOBAL_CACHE.ShMem.SetAccountGroupByEmail(_drag_email, _drag_target_gid)
+                        _save_assignment(_drag_email, _drag_target_gid)
+                _drag_email = ""
+                _drag_source_gid = -1
+                _drag_target_gid = -1
 
             # Draw the shared context menu (only one popup active at a time)
             _draw_group_context_menu()

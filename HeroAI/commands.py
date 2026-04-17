@@ -80,6 +80,7 @@ class HeroAICommands:
         self.CombatPrep = Command("Prepare for Combat", IconsFontAwesome5.ICON_SHIELD_ALT, self.__combat_prep_command, "Use Combat Preparations", map_types=["Explorable"])
         self.DisbandParty = Command("Disband Party", IconsFontAwesome5.ICON_SIGN_OUT_ALT, self.__leave_party_command, "Make all heroes leave party", map_types=["Outpost"])
         self.FormParty = Command("Form Party", IconsFontAwesome5.ICON_USERS, self.__invite_all_command, "Invite all heroes to party", map_types=["Outpost"])
+        self.TravelAltsToLeaderMap = Command("Travel Alt Accounts to Leader's Map", IconsFontAwesome5.ICON_MAP_MARKED_ALT, self.__travel_alts_to_leader_map_command, "Send all alt accounts to the leader's map", map_types=["Outpost"])
         self.LeavePartyAndTravelGH = Command("Leave & Travel to GH", IconsFontAwesome5.ICON_HOME, self.__leave_party_and_travel_gh_command, "Leave party and travel to Guild Hall")
         
         self.__commands = [
@@ -97,6 +98,7 @@ class HeroAICommands:
             self.CombatPrep,
             self.DisbandParty,
             self.FormParty,
+            self.TravelAltsToLeaderMap,
             self.LeavePartyAndTravelGH,
         ]
     
@@ -177,12 +179,26 @@ class HeroAICommands:
     def __invite_all_command(self, accounts: list[AccountStruct]):
         sender_email = Player.GetAccountEmail()
         sender_id = Player.GetAgentID()
-        
+
         def SetWaitingActions(delay_ms: int):
             delays = math.ceil(delay_ms // 50)
             for _ in range(delays):
                 GLOBAL_CACHE._ActionQueueManager.AddAction("ACTION", lambda: None)  # Adding a no-op to ensure spacing between invites
-        
+
+        # Invite order priority:
+        # 1) melee-like first (R/W/A/D), 2) Mesmer, 3) Paragon, 4) Necro, 5) Ritualist, 6) others.
+        melee_professions = {1, 2, 7, 10}
+        priority_by_profession = {5: 1, 9: 2, 4: 3, 8: 4}
+
+        def _invite_priority(account: AccountStruct) -> tuple[int, str]:
+            prof = int(account.AgentData.Profession[0]) if account.AgentData.Profession else 0
+            char_name = str(account.AgentData.CharacterName or "")
+            if prof in melee_professions:
+                return (0, char_name)
+            return (priority_by_profession.get(prof, 5), char_name)
+
+        accounts = sorted(accounts, key=_invite_priority)
+
         for account in accounts:
             if account.AccountEmail == sender_email:
                 continue
@@ -211,6 +227,34 @@ class HeroAICommands:
                 )
             ) 
             
+    def __travel_alts_to_leader_map_command(self, accounts: list[AccountStruct]):
+        sender_email = Player.GetAccountEmail()
+        map_id = Map.GetMapID()
+        region = Map.GetRegion()[0]
+        district = Map.GetDistrict()
+        language = Map.GetLanguage()[0]
+
+        for account in GLOBAL_CACHE.ShMem.GetAllAccountData():
+            if account.AccountEmail == sender_email:
+                continue
+
+            same_map = (
+                map_id == account.AgentData.Map.MapID
+                and region == account.AgentData.Map.Region
+                and district == account.AgentData.Map.District
+                and language == account.AgentData.Map.Language
+            )
+            if same_map:
+                continue
+
+            ConsoleLog("HeroAI", f"Traveling {account.AgentData.CharacterName} to leader's map.")
+            GLOBAL_CACHE.ShMem.SendMessage(
+                sender_email,
+                account.AccountEmail,
+                SharedCommandType.TravelToMap,
+                (map_id, region, district, language),
+            )
+
     def __resign_command(self, accounts: list[AccountStruct]):
         sender_email = Player.GetAccountEmail()
         

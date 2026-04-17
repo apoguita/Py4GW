@@ -777,7 +777,69 @@ class Checks:
                     return True
 
             return False
-        
+
+        @staticmethod
+        @frame_cache(category="Checks.Agents", source_lib="IsCloseToAggro")
+        def IsCloseToAggro() -> bool:
+            """
+            Returns True when combat is imminent but the player is not yet
+            engaged. True when either:
+              - the party leader has an aggressive enemy within Spellcast+400
+                or any enemy within Spellcast, OR
+              - a non-aggressive enemy is within Spellcast+350 of the player.
+            Use this to gate upkeep and pre-engagement casts so they fire
+            before aggro lands.
+            """
+            from ..AgentArray import AgentArray
+            from ..Agent import Agent
+            from ..Party import Party
+            from ..enums_src.GameData_enums import Range
+
+            if not Checks.Map.MapValid():
+                return False
+            enemy_array = AgentArray.GetEnemyArray()
+            if not enemy_array:
+                return False
+
+            player_pos = Player.GetXY()
+            if not player_pos:
+                return False
+            px, py = player_pos
+
+            leader_id = Party.GetPartyLeaderID()
+            leader_pos = Agent.GetXY(leader_id) if leader_id and Agent.IsValid(leader_id) else None
+
+            spellcast = Range.Spellcast.value
+            r_leader_aggressive_sq = (spellcast + 400) * (spellcast + 400)
+            r_leader_any_sq = spellcast * spellcast
+            r_player_close_sq = (spellcast + 350) * (spellcast + 350)
+
+            for enemy_id in enemy_array:
+                if not Agent.IsAlive(enemy_id):
+                    continue
+                enemy_pos = Agent.GetXY(enemy_id)
+                if not enemy_pos:
+                    continue
+                ex, ey = enemy_pos
+                is_aggressive = Agent.IsAggressive(enemy_id)
+
+                if not is_aggressive:
+                    dx = px - ex
+                    dy = py - ey
+                    if (dx * dx + dy * dy) <= r_player_close_sq:
+                        return True
+
+                if leader_pos is not None:
+                    ldx = leader_pos[0] - ex
+                    ldy = leader_pos[1] - ey
+                    leader_dist_sq = ldx * ldx + ldy * ldy
+                    if is_aggressive and leader_dist_sq <= r_leader_aggressive_sq:
+                        return True
+                    if leader_dist_sq <= r_leader_any_sq:
+                        return True
+
+            return False
+
 
         @staticmethod
         @frame_cache(category="Checks.Agents", source_lib="IsEnemyBehind")

@@ -135,6 +135,11 @@ class NecromancerSkills:
         skill.Nature = SkillNature.EnergyBuff.value
         skill.Conditions.LessEnergy = 0.4
         skill.Conditions.SacrificeHealth = 0.3
+        # BiP sacrifices 33% of max HP. Require the caster to remain above 55% of max HP and
+        # above 175 HP absolute after the sacrifice, so we never self-kill or drop to unsafe HP.
+        skill.Conditions.SacrificePercent = 0.33
+        skill.Conditions.MinHealthAfterSacrificePercent = 0.55
+        skill.Conditions.MinHealthAfterSacrificeAbsolute = 175
         skill.Conditions.TargetingStrict = True
         skill_data[skill.SkillID] = skill
 

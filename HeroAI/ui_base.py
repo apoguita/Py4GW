@@ -19,6 +19,26 @@ from HeroAI.constants import (FOLLOW_DISTANCE_OUT_OF_COMBAT, MAX_NUM_PLAYERS, ME
                               PARTY_WINDOW_FRAME_OUTPOST_OFFSETS, PARTY_WINDOW_HASH, RANGED_RANGE_VALUE)
 
 
+_SKILL_NAME_SUFFIXES: dict[str, str] = {
+    "Summon_Spirits_kurzick": "(Kurzick)",
+    "Summon_Spirits_luxon": "(Luxon)",
+    "Save_Yourselves_kurzick": "(Kurzick)",
+    "Save_Yourselves_luxon": "(Luxon)",
+}
+_skill_name_suffix_cache: dict[int, str] | None = None
+
+
+def _get_skill_name_suffix(skill_id: int) -> str:
+    global _skill_name_suffix_cache
+    if _skill_name_suffix_cache is None:
+        _skill_name_suffix_cache = {}
+        for skill_key, suffix in _SKILL_NAME_SUFFIXES.items():
+            resolved_id = GLOBAL_CACHE.Skill.GetID(skill_key)
+            if resolved_id:
+                _skill_name_suffix_cache[resolved_id] = suffix
+    return _skill_name_suffix_cache.get(skill_id, "")
+
+
 class HeroAI_BaseUI:
     show_debug = False
     outline_color: Color = Color(255, 255, 255, 255)
@@ -925,6 +945,9 @@ class HeroAI_BaseUI:
 
         texture_path = GLOBAL_CACHE.Skill.ExtraData.GetTexturePath(skill_id)
         skill_name = GLOBAL_CACHE.Skill.GetNameFromWiki(skill_id) or GLOBAL_CACHE.Skill.GetName(skill_id) or str(skill_id)
+        suffix = _get_skill_name_suffix(skill_id)
+        if suffix:
+            skill_name = f"{skill_name} {suffix}"
         profession_value, profession_name = GLOBAL_CACHE.Skill.GetProfession(skill_id)
         _skill_type_value, skill_type_name = GLOBAL_CACHE.Skill.GetType(skill_id)
         energy_cost = int(GLOBAL_CACHE.Skill.Data.GetEnergyCost(skill_id))
