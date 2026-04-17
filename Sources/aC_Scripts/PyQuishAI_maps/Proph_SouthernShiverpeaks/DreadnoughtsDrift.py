@@ -94,6 +94,6 @@ DreadnoughtsDrift_outpost_path = [
 
 DreadnoughtsDrift_ids = {
     "outpost_id": 155,
-    "map_id": 206,
+    "map_id": 97,
     "transit_id": 91
 }
