@@ -270,6 +270,9 @@ SELL_KIND_TO_MERCHANT_TYPE = {
 ECTOPLASM_MODEL_ID = int(ModelID.Glob_Of_Ectoplasm.value)
 SALVAGE_KIT_MODEL_ID = int(ModelID.Salvage_Kit.value)
 MATERIAL_BATCH_SIZE = 10
+MATERIAL_STORAGE_BAG_ID = 6
+MATERIAL_STORAGE_BAG_NAME = "MaterialStorage"
+MATERIAL_STORAGE_MAX_STACK_SIZE = 250
 MAX_WEAPON_REQUIREMENT = 13
 MODIFIER_IDENTIFIER_ATTRIBUTE_REQUIREMENT = 0x279
 MODIFIER_IDENTIFIER_DAMAGE = 0x27A
@@ -289,6 +292,44 @@ RARE_CRAFTING_MATERIAL_MODEL_IDS: frozenset[int] = frozenset({
 ALL_CRAFTING_MATERIAL_MODEL_IDS: frozenset[int] = frozenset(
     set(COMMON_CRAFTING_MATERIAL_MODEL_IDS) | set(RARE_CRAFTING_MATERIAL_MODEL_IDS)
 )
+MATERIAL_STORAGE_SLOT_BY_MODEL_ID: dict[int, int] = {
+    921: 0,
+    922: 26,
+    923: 19,
+    925: 5,
+    926: 13,
+    927: 14,
+    928: 15,
+    929: 9,
+    930: 16,
+    931: 20,
+    932: 21,
+    933: 11,
+    934: 10,
+    935: 24,
+    936: 25,
+    937: 22,
+    938: 23,
+    939: 29,
+    940: 2,
+    941: 12,
+    942: 30,
+    943: 31,
+    944: 32,
+    945: 27,
+    946: 6,
+    948: 1,
+    949: 17,
+    950: 18,
+    951: 33,
+    952: 34,
+    953: 3,
+    954: 4,
+    955: 8,
+    956: 35,
+    6532: 36,
+    6533: 37,
+}
 SCROLL_TRADER_STOCK_MODEL_IDS: frozenset[int] = frozenset({
     int(ModelID.Passage_Scroll_Deep.value),
     int(ModelID.Passage_Scroll_Urgoz.value),
@@ -860,6 +901,14 @@ class PlannedStorageTransfer:
     item_id: int
     quantity: int
     model_id: int = 0
+
+
+@dataclass
+class MaterialStorageDepositResult:
+    attempted: bool = False
+    moved_quantity: int = 0
+    remaining_quantity: int = 0
+    abort_regular_fallback: bool = False
 
 
 @dataclass(frozen=True)
@@ -10301,6 +10350,244 @@ class MerchantRulesWidget:
             yield from Routines.Yield.wait(step_ms)
         return max(0, int(GLOBAL_CACHE.Item.Properties.GetQuantity(int(item_id))))
 
+    def _get_inventory_source_stack_quantity(self, item_id: int) -> int:
+        safe_item_id = int(item_id)
+        if safe_item_id <= 0:
+            return 0
+        try:
+            return max(0, int(self._get_inventory_stack_quantities([safe_item_id]).get(safe_item_id, 0)))
+        except Exception:
+            try:
+                return max(0, int(GLOBAL_CACHE.Item.Properties.GetQuantity(safe_item_id)))
+            except Exception:
+                return 0
+
+    def _wait_for_inventory_source_stack_quantity_target(
+        self,
+        item_id: int,
+        expected_quantity: int,
+        *,
+        timeout_ms: int = 2000,
+        step_ms: int = 50,
+    ):
+        waited_ms = 0
+        safe_expected_quantity = max(0, int(expected_quantity))
+        while waited_ms <= max(0, int(timeout_ms)):
+            current_quantity = self._get_inventory_source_stack_quantity(int(item_id))
+            if current_quantity <= safe_expected_quantity:
+                return current_quantity
+            waited_ms += max(1, int(step_ms))
+            yield from Routines.Yield.wait(step_ms)
+        return self._get_inventory_source_stack_quantity(int(item_id))
+
+    def _is_live_material_item(self, item_id: int, *, model_id: int = 0) -> bool:
+        safe_item_id = int(item_id)
+        if safe_item_id <= 0:
+            return False
+        safe_model_id = max(0, int(model_id))
+        try:
+            item_type_api = getattr(GLOBAL_CACHE.Item, "Type", None)
+            if item_type_api is not None:
+                is_material = bool(getattr(item_type_api, "IsMaterial", lambda _item_id: False)(safe_item_id))
+                is_rare_material = bool(getattr(item_type_api, "IsRareMaterial", lambda _item_id: False)(safe_item_id))
+                if is_material or is_rare_material:
+                    return True
+        except Exception:
+            pass
+        if safe_model_id <= 0:
+            try:
+                safe_model_id = max(0, int(GLOBAL_CACHE.Item.GetModelID(safe_item_id)))
+            except Exception:
+                safe_model_id = 0
+        return safe_model_id in ALL_CRAFTING_MATERIAL_MODEL_IDS
+
+    def _get_material_storage_quantity_and_slot(self, model_id: int) -> tuple[int, int | None, int]:
+        safe_model_id = max(0, int(model_id))
+        if safe_model_id <= 0:
+            return 0, None, 0
+
+        material_quantity = 0
+        resolved_slot: int | None = None
+        bag_size = 0
+        try:
+            import PyInventory
+
+            material_bag = PyInventory.Bag(MATERIAL_STORAGE_BAG_ID, MATERIAL_STORAGE_BAG_NAME)
+            try:
+                bag_size = max(0, int(material_bag.GetSize()))
+            except Exception:
+                bag_size = 0
+            for material_item in material_bag.GetItems():
+                if not material_item:
+                    continue
+                material_item_id = max(0, _safe_int(getattr(material_item, "item_id", 0), 0))
+                if material_item_id <= 0:
+                    continue
+                candidate_model_id = max(0, _safe_int(getattr(material_item, "model_id", 0), 0))
+                if candidate_model_id <= 0:
+                    try:
+                        candidate_model_id = max(0, int(GLOBAL_CACHE.Item.GetModelID(material_item_id)))
+                    except Exception:
+                        candidate_model_id = 0
+                if candidate_model_id != safe_model_id:
+                    continue
+                quantity = max(0, _safe_int(getattr(material_item, "quantity", 0), 0))
+                if quantity <= 0:
+                    try:
+                        quantity = max(0, int(GLOBAL_CACHE.Item.Properties.GetQuantity(material_item_id)))
+                    except Exception:
+                        quantity = 0
+                material_quantity += quantity
+                if resolved_slot is None:
+                    slot = _safe_int(getattr(material_item, "slot", -1), -1)
+                    if slot < 0:
+                        try:
+                            slot = int(GLOBAL_CACHE.Item.GetSlot(material_item_id))
+                        except Exception:
+                            slot = -1
+                    if slot >= 0:
+                        resolved_slot = int(slot)
+            return material_quantity, resolved_slot, bag_size
+        except Exception as exc:
+            self._debug_log(f"Material Storage live scan unavailable; falling back to item cache scan: {exc}")
+
+        try:
+            item_array_api = getattr(GLOBAL_CACHE, "ItemArray", None)
+            item_api = getattr(GLOBAL_CACHE, "Item", None)
+            if item_array_api is None or item_api is None:
+                return 0, None, 0
+            material_storage_bags = item_array_api.CreateBagList(MATERIAL_STORAGE_BAG_ID)
+            material_item_ids = item_array_api.GetItemArray(material_storage_bags)
+            for material_item_id in material_item_ids:
+                safe_material_item_id = int(material_item_id)
+                if safe_material_item_id <= 0:
+                    continue
+                if int(item_api.GetModelID(safe_material_item_id)) != safe_model_id:
+                    continue
+                material_quantity += max(0, int(item_api.Properties.GetQuantity(safe_material_item_id)))
+                if resolved_slot is None:
+                    slot = int(item_api.GetSlot(safe_material_item_id))
+                    if slot >= 0:
+                        resolved_slot = slot
+        except Exception:
+            return material_quantity, resolved_slot, bag_size
+
+        return material_quantity, resolved_slot, bag_size
+
+    def _deposit_material_to_storage_first(
+        self,
+        item_id: int,
+        requested_quantity: int,
+        *,
+        current_quantity: int | None = None,
+        planned_model_id: int = 0,
+    ) -> MaterialStorageDepositResult:
+        safe_item_id = int(item_id)
+        safe_requested_quantity = max(0, int(requested_quantity))
+        result = MaterialStorageDepositResult(remaining_quantity=safe_requested_quantity)
+        if safe_item_id <= 0 or safe_requested_quantity <= 0:
+            return result
+
+        safe_planned_model_id = max(0, int(planned_model_id))
+        try:
+            live_model_id = max(0, int(GLOBAL_CACHE.Item.GetModelID(safe_item_id)))
+        except Exception:
+            live_model_id = 0
+        model_id = live_model_id if live_model_id > 0 else safe_planned_model_id
+        if model_id <= 0:
+            return result
+        if not self._is_live_material_item(safe_item_id, model_id=model_id):
+            if model_id in ALL_CRAFTING_MATERIAL_MODEL_IDS:
+                self._debug_log(
+                    f"Material storage skipped: item_id={safe_item_id} model={model_id} was not classified as a live material."
+                )
+            return result
+
+        current_storage_quantity, resolved_slot, storage_bag_size = self._get_material_storage_quantity_and_slot(model_id)
+        target_slot = resolved_slot
+        if target_slot is None:
+            target_slot = MATERIAL_STORAGE_SLOT_BY_MODEL_ID.get(model_id)
+        if target_slot is None:
+            self._debug_log(
+                f"Material storage slot unresolved for item_id={safe_item_id} model={model_id}; falling back to regular storage panes."
+            )
+            return result
+        if storage_bag_size > 0 and not (0 <= int(target_slot) < storage_bag_size):
+            self._debug_log(
+                f"Material storage slot invalid for item_id={safe_item_id} model={model_id}: "
+                f"slot={int(target_slot)} bag_size={storage_bag_size}; falling back to regular storage panes."
+            )
+            return result
+
+        available_capacity = max(0, MATERIAL_STORAGE_MAX_STACK_SIZE - max(0, int(current_storage_quantity)))
+        reported_full = available_capacity <= 0
+        if reported_full:
+            self._debug_log(
+                f"Material storage reported full for model={model_id}; probing known slot={int(target_slot)} before regular fallback."
+            )
+
+        source_before = (
+            max(0, int(current_quantity))
+            if current_quantity is not None
+            else self._get_inventory_source_stack_quantity(safe_item_id)
+        )
+        if source_before <= 0:
+            return result
+
+        material_move_quantity = min(
+            safe_requested_quantity,
+            source_before,
+            available_capacity if not reported_full else safe_requested_quantity,
+        )
+        if material_move_quantity <= 0:
+            return result
+
+        move_item = getattr(getattr(GLOBAL_CACHE, "Inventory", None), "MoveItem", None)
+        if not callable(move_item):
+            return result
+
+        self._debug_log(
+            f"Material storage deposit attempt: item_id={safe_item_id} model={model_id} "
+            f"source={source_before} storage={current_storage_quantity} "
+            f"slot={int(target_slot)} move={material_move_quantity}"
+        )
+        try:
+            move_item(safe_item_id, MATERIAL_STORAGE_BAG_ID, int(target_slot), int(material_move_quantity))
+        except Exception as exc:
+            self._debug_log(
+                f"Material storage deposit fallback: item_id={safe_item_id} model={model_id} "
+                f"move failed before queueing: {exc}"
+            )
+            return result
+
+        result.attempted = True
+        queue_cleared = yield from self._wait_for_action_queue_empty("ACTION", timeout_ms=2000, step_ms=50)
+        final_quantity = self._get_inventory_source_stack_quantity(safe_item_id)
+        if queue_cleared:
+            expected_quantity = max(0, source_before - material_move_quantity)
+            final_quantity = yield from self._wait_for_inventory_source_stack_quantity_target(
+                safe_item_id,
+                expected_quantity,
+                timeout_ms=2000,
+                step_ms=50,
+            )
+
+        moved_quantity = min(material_move_quantity, max(0, source_before - max(0, int(final_quantity))))
+        result.moved_quantity = moved_quantity
+        result.remaining_quantity = max(0, safe_requested_quantity - moved_quantity)
+        if moved_quantity <= 0:
+            result.abort_regular_fallback = True
+            self._debug_log(
+                f"Material storage deposit unverified: item_id={safe_item_id} model={model_id} "
+                f"requested={material_move_quantity}; regular storage fallback skipped for this pass."
+            )
+        else:
+            self._debug_log(
+                f"Material storage deposit: item_id={safe_item_id} model={model_id} "
+                f"moved={moved_quantity} remaining={result.remaining_quantity}"
+            )
+        return result
+
     def _execute_destroy_phase(self, destroy_actions: list[PlannedDestroyAction] | list[int]) -> ExecutionPhaseOutcome:
         raw_destroy_actions = list(destroy_actions or [])
         tracked_item_ids = [
@@ -10705,6 +10992,39 @@ class MerchantRulesWidget:
             if transfer.direction == STORAGE_TRANSFER_WITHDRAW:
                 moved = bool(GLOBAL_CACHE.Inventory.WithdrawItemFromStorage(item_id, ammount=requested_quantity))
             elif transfer.direction == STORAGE_TRANSFER_DEPOSIT:
+                material_storage_result = yield from self._deposit_material_to_storage_first(
+                    item_id,
+                    requested_quantity,
+                    current_quantity=current_quantity,
+                    planned_model_id=transfer.model_id,
+                )
+                if material_storage_result.attempted:
+                    if material_storage_result.moved_quantity > 0:
+                        outcome.completed += int(material_storage_result.moved_quantity)
+                    if material_storage_result.abort_regular_fallback:
+                        outcome.timeout_failures += max(
+                            0,
+                            requested_quantity - max(0, int(material_storage_result.moved_quantity)),
+                        )
+                        outcome.depleted += depleted_quantity
+                        yield from Routines.Yield.wait(60)
+                        continue
+
+                    requested_quantity = max(0, int(material_storage_result.remaining_quantity))
+                    if requested_quantity <= 0:
+                        outcome.depleted += depleted_quantity
+                        yield from Routines.Yield.wait(60)
+                        continue
+
+                    current_quantity = max(0, int(GLOBAL_CACHE.Item.Properties.GetQuantity(item_id)))
+                    post_material_depleted_quantity = max(0, requested_quantity - current_quantity)
+                    requested_quantity = min(requested_quantity, current_quantity)
+                    if requested_quantity <= 0:
+                        outcome.depleted += depleted_quantity + post_material_depleted_quantity
+                        yield from Routines.Yield.wait(60)
+                        continue
+                    depleted_quantity += post_material_depleted_quantity
+
                 moved = bool(GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id, ammount=requested_quantity))
 
             if not moved:

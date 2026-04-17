@@ -3994,6 +3994,240 @@ def _test_execute_storage_transfers_tracks_partial_moves(module) -> None:
         module.GLOBAL_CACHE.Inventory = original_inventory
 
 
+def _install_material_storage_execution_stubs(
+    module,
+    widget,
+    *,
+    source_item_id: int = 330,
+    model_id: int = 921,
+    source_quantity: int = 40,
+    storage_quantity: int | None = None,
+    storage_slot: int = 0,
+    is_material: bool = True,
+    is_rare_material: bool = False,
+    verify_material_move: bool = True,
+):
+    quantities = {int(source_item_id): int(source_quantity)}
+    storage_item_id = 9330
+    if storage_quantity is not None:
+        quantities[storage_item_id] = int(storage_quantity)
+    calls: dict[str, list[tuple[int, int, int, int] | tuple[int, int]]] = {
+        "material_moves": [],
+        "regular_deposits": [],
+    }
+    original_item = getattr(module.GLOBAL_CACHE, "Item", None)
+    original_item_array = getattr(module.GLOBAL_CACHE, "ItemArray", None)
+    original_inventory = getattr(module.GLOBAL_CACHE, "Inventory", None)
+
+    def _get_model_id(item_id: int) -> int:
+        safe_item_id = int(item_id)
+        if safe_item_id in (int(source_item_id), storage_item_id):
+            return int(model_id)
+        return 0
+
+    def _get_quantity(item_id: int) -> int:
+        return max(0, int(quantities.get(int(item_id), 0)))
+
+    def _move_item(item_id: int, bag_id: int, slot: int, quantity: int = 1) -> bool:
+        safe_quantity = max(0, int(quantity))
+        calls["material_moves"].append((int(item_id), int(bag_id), int(slot), safe_quantity))
+        if verify_material_move:
+            quantities[int(item_id)] = max(0, int(quantities.get(int(item_id), 0)) - safe_quantity)
+        return True
+
+    def _deposit_item_to_storage(item_id: int, **kwargs) -> bool:
+        requested = max(0, int(kwargs.get("ammount", kwargs.get("amount", -1))))
+        current = max(0, int(quantities.get(int(item_id), 0)))
+        if requested < 0:
+            requested = current
+        moved = min(current, requested)
+        calls["regular_deposits"].append((int(item_id), moved))
+        quantities[int(item_id)] = max(0, current - moved)
+        return moved > 0
+
+    module.GLOBAL_CACHE.Item = types.SimpleNamespace(
+        GetModelID=_get_model_id,
+        GetSlot=lambda item_id: int(storage_slot) if int(item_id) == storage_item_id else 0,
+        Properties=types.SimpleNamespace(GetQuantity=_get_quantity),
+        Type=types.SimpleNamespace(
+            IsMaterial=lambda item_id: bool(is_material),
+            IsRareMaterial=lambda item_id: bool(is_rare_material),
+        ),
+    )
+    module.GLOBAL_CACHE.ItemArray = types.SimpleNamespace(
+        CreateBagList=lambda *bag_ids: list(bag_ids),
+        GetItemArray=lambda _bags: [storage_item_id] if storage_quantity is not None else [],
+    )
+    module.GLOBAL_CACHE.Inventory = types.SimpleNamespace(
+        MoveItem=_move_item,
+        DepositItemToStorage=_deposit_item_to_storage,
+        WithdrawItemFromStorage=lambda *_args, **_kwargs: False,
+    )
+
+    widget._get_inventory_stack_quantities = lambda item_ids: {
+        int(item_id): max(0, int(quantities.get(int(item_id), 0)))
+        for item_id in item_ids
+        if int(item_id) == int(source_item_id) and max(0, int(quantities.get(int(item_id), 0))) > 0
+    }
+
+    def _wait_for_queue(*_args, **_kwargs):
+        if False:
+            yield None
+        return True
+
+    def _wait_for_target(item_id: int, _expected_quantity: int, **_kwargs):
+        if False:
+            yield None
+        return max(0, int(quantities.get(int(item_id), 0)))
+
+    widget._wait_for_action_queue_empty = _wait_for_queue
+    widget._wait_for_stack_quantity_target = _wait_for_target
+    widget._wait_for_inventory_source_stack_quantity_target = _wait_for_target
+
+    def _restore() -> None:
+        module.GLOBAL_CACHE.Item = original_item
+        module.GLOBAL_CACHE.ItemArray = original_item_array
+        module.GLOBAL_CACHE.Inventory = original_inventory
+
+    return quantities, calls, _restore
+
+
+def _execute_single_deposit_transfer(module, widget, *, item_id: int = 330, quantity: int = 25, model_id: int = 921):
+    return _drain_generator_return(
+        widget._execute_storage_transfers(
+            [
+                module.PlannedStorageTransfer(
+                    direction=module.STORAGE_TRANSFER_DEPOSIT,
+                    key=f"item:{int(item_id)}",
+                    label="Bone",
+                    item_id=int(item_id),
+                    quantity=int(quantity),
+                    model_id=int(model_id),
+                )
+            ],
+            phase_label="Storage deposits",
+        )
+    )
+
+
+def _test_execute_storage_transfers_deposits_material_storage_first_when_space_exists(module) -> None:
+    widget = _make_widget(module)
+    _quantities, calls, restore = _install_material_storage_execution_stubs(module, widget)
+    try:
+        outcome = _execute_single_deposit_transfer(module, widget)
+
+        _expect(outcome.completed == 25 and outcome.timeout_failures == 0, "Material Storage should complete the whole requested material deposit when space exists.")
+        _expect(calls["material_moves"] == [(330, module.MATERIAL_STORAGE_BAG_ID, 0, 25)], "Material cleanup should move to Material Storage first.")
+        _expect(calls["regular_deposits"] == [], "Regular Xunlai item-pane deposit should not run when Material Storage accepts the full amount.")
+    finally:
+        restore()
+
+
+def _test_execute_storage_transfers_uses_live_material_storage_scan_over_stale_cache(module) -> None:
+    widget = _make_widget(module)
+    _quantities, calls, restore = _install_material_storage_execution_stubs(
+        module,
+        widget,
+        model_id=929,
+        storage_quantity=module.MATERIAL_STORAGE_MAX_STACK_SIZE,
+        storage_slot=9,
+    )
+    original_pyinventory = sys.modules.get("PyInventory")
+
+    class _LiveMaterialBag:
+        def __init__(self, _bag_id, _bag_name):
+            pass
+
+        def GetItems(self):
+            return []
+
+        def GetSize(self):
+            return 38
+
+    sys.modules["PyInventory"] = types.SimpleNamespace(Bag=_LiveMaterialBag)
+    try:
+        outcome = _execute_single_deposit_transfer(module, widget, model_id=929)
+
+        _expect(outcome.completed == 25 and outcome.timeout_failures == 0, "Live Material Storage scan should override stale cache data that incorrectly looks full.")
+        _expect(calls["material_moves"] == [(330, module.MATERIAL_STORAGE_BAG_ID, 9, 25)], "Glittering Dust should move to its Material Storage slot when live storage has room.")
+        _expect(calls["regular_deposits"] == [], "Stale full cache data must not force regular item-pane fallback when live Material Storage has room.")
+    finally:
+        if original_pyinventory is None:
+            sys.modules.pop("PyInventory", None)
+        else:
+            sys.modules["PyInventory"] = original_pyinventory
+        restore()
+
+
+def _test_execute_storage_transfers_probes_material_storage_when_quantity_reports_full(module) -> None:
+    widget = _make_widget(module)
+    _quantities, calls, restore = _install_material_storage_execution_stubs(
+        module,
+        widget,
+        storage_quantity=module.MATERIAL_STORAGE_MAX_STACK_SIZE,
+    )
+    try:
+        outcome = _execute_single_deposit_transfer(module, widget)
+
+        _expect(outcome.completed == 25 and outcome.timeout_failures == 0, "A reported-full Material Storage quantity should still probe the known material slot before fallback.")
+        _expect(calls["material_moves"] == [(330, module.MATERIAL_STORAGE_BAG_ID, 0, 25)], "Known material slots should be probed even when the quantity scan reports full.")
+        _expect(calls["regular_deposits"] == [], "Reported-full Material Storage scans must not cause immediate regular item-pane fallback.")
+    finally:
+        restore()
+
+
+def _test_execute_storage_transfers_partially_fills_material_storage_then_falls_back(module) -> None:
+    widget = _make_widget(module)
+    _quantities, calls, restore = _install_material_storage_execution_stubs(
+        module,
+        widget,
+        storage_quantity=240,
+    )
+    try:
+        outcome = _execute_single_deposit_transfer(module, widget)
+
+        _expect(outcome.completed == 25 and outcome.timeout_failures == 0, "Partial Material Storage capacity plus regular fallback should complete the requested deposit.")
+        _expect(calls["material_moves"] == [(330, module.MATERIAL_STORAGE_BAG_ID, 0, 10)], "Material Storage should receive only its available capacity first.")
+        _expect(calls["regular_deposits"] == [(330, 15)], "Only the verified remainder should fall back to regular storage panes.")
+    finally:
+        restore()
+
+
+def _test_execute_storage_transfers_non_material_uses_regular_storage_only(module) -> None:
+    widget = _make_widget(module)
+    _quantities, calls, restore = _install_material_storage_execution_stubs(
+        module,
+        widget,
+        model_id=111,
+        is_material=False,
+    )
+    try:
+        outcome = _execute_single_deposit_transfer(module, widget, model_id=111)
+
+        _expect(outcome.completed == 25 and outcome.timeout_failures == 0, "Non-material cleanup should keep using regular storage panes.")
+        _expect(calls["material_moves"] == [], "Non-material deposits should not attempt Material Storage.")
+        _expect(calls["regular_deposits"] == [(330, 25)], "Non-material deposits should call the existing regular storage helper.")
+    finally:
+        restore()
+
+
+def _test_execute_storage_transfers_unverified_material_move_skips_regular_fallback(module) -> None:
+    widget = _make_widget(module)
+    _quantities, calls, restore = _install_material_storage_execution_stubs(
+        module,
+        widget,
+        verify_material_move=False,
+    )
+    try:
+        outcome = _execute_single_deposit_transfer(module, widget)
+
+        _expect(outcome.completed == 0 and outcome.timeout_failures == 25, "Unverified Material Storage moves should report the requested deposit as unresolved.")
+        _expect(calls["material_moves"] == [(330, module.MATERIAL_STORAGE_BAG_ID, 0, 25)], "The Material Storage move should be attempted first.")
+        _expect(calls["regular_deposits"] == [], "Regular storage fallback must be skipped when the Material Storage move cannot be verified.")
+    finally:
+        restore()
+
+
 def _test_execute_now_runs_storage_deposits_as_final_phase(module) -> None:
     widget = _make_widget(module)
     widget.sell_rules = [
@@ -5805,6 +6039,30 @@ def main() -> int:
             ),
             ("build_plan_deposits_material_keep_remainder_to_storage", lambda: _test_build_plan_deposits_material_keep_remainder_to_storage(module)),
             ("execute_storage_transfers_tracks_partial_moves", lambda: _test_execute_storage_transfers_tracks_partial_moves(module)),
+            (
+                "execute_storage_transfers_deposits_material_storage_first_when_space_exists",
+                lambda: _test_execute_storage_transfers_deposits_material_storage_first_when_space_exists(module),
+            ),
+            (
+                "execute_storage_transfers_uses_live_material_storage_scan_over_stale_cache",
+                lambda: _test_execute_storage_transfers_uses_live_material_storage_scan_over_stale_cache(module),
+            ),
+            (
+                "execute_storage_transfers_probes_material_storage_when_quantity_reports_full",
+                lambda: _test_execute_storage_transfers_probes_material_storage_when_quantity_reports_full(module),
+            ),
+            (
+                "execute_storage_transfers_partially_fills_material_storage_then_falls_back",
+                lambda: _test_execute_storage_transfers_partially_fills_material_storage_then_falls_back(module),
+            ),
+            (
+                "execute_storage_transfers_non_material_uses_regular_storage_only",
+                lambda: _test_execute_storage_transfers_non_material_uses_regular_storage_only(module),
+            ),
+            (
+                "execute_storage_transfers_unverified_material_move_skips_regular_fallback",
+                lambda: _test_execute_storage_transfers_unverified_material_move_skips_regular_fallback(module),
+            ),
             ("execute_now_runs_storage_deposits_as_final_phase", lambda: _test_execute_now_runs_storage_deposits_as_final_phase(module)),
             (
                 "execute_here_ignores_travel_and_reports_local_summary",
