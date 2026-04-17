@@ -329,7 +329,7 @@ class AllAccounts(Structure):
         self.Keys[slot_index] = new_account.Key = Key
         self.AccountData[slot_index] = new_account
 
-        ConsoleLog(SHMEM_MODULE_NAME, f"Submitted hero data for HeroID {hero_data.hero_id.GetID()} at slot {slot_index}.", Py4GW.Console.MessageType.Debug)
+        ConsoleLog(SHMEM_MODULE_NAME, f"Submitted hero data for HeroID {hero_data.hero_id.GetID()} at slot {slot_index}.", Py4GW.Console.MessageType.Debug, log=False)
         return slot_index
     
     def SubmitPetData(self, pet_data: PetInfo) -> int:
