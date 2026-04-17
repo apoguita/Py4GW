@@ -209,6 +209,9 @@ def GetEnemyCasting(max_distance=4500.0, aggressive_only = False):
 def GetEnemyCastingSpell(max_distance=4500.0, aggressive_only = False):
     return _filter_blacklisted(Routines.Targeting.GetEnemyCastingSpell(max_distance, aggressive_only))
 
+def GetEnemyCastingSpellOrChant(max_distance=4500.0, aggressive_only=False):
+    return _filter_blacklisted(Routines.Targeting.GetEnemyCastingSpellOrChant(max_distance, aggressive_only))
+
 def GetEnemyInjured(max_distance=4500.0, aggressive_only = False):
     return _filter_blacklisted(Routines.Targeting.GetEnemyInjured(max_distance, aggressive_only))
 

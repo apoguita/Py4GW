@@ -134,6 +134,7 @@ class Skilltarget (IntEnum):
     EnemyPoisoned = 34
     EnemyCrippled = 35
     EnemyHealthy = 36
+    EnemyCastingSpellOrChant = 37
 
 
 
