@@ -81,6 +81,8 @@ class Communing:
     def _cast_protective_spirit(self, skill_id: int) -> BuildCoroutine:
         if not self.build.IsSkillEquipped(skill_id):
             return False
+        if self.build.SpiritBuffExists(skill_id):
+            return False
         if not self._is_soul_twisting_ready():
             return False
 

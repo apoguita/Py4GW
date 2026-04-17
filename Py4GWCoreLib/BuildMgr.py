@@ -1391,12 +1391,13 @@ class BuildMgr:
 
         GLOBAL_CACHE.SkillBar.UseSkill(slot, target_agent_id=target_agent_id, aftercast_delay=aftercast_delay)
         self._mark_local_cast_pending(aftercast_delay)
-        if self._is_spirit_skill(skill_id):
-            yield from Routines.Yield.wait(self._get_spirit_cast_wait_ms(skill_id, aftercast_delay))
-            yield from self._wait_for_spirit_spawn_and_step_away(skill_id)
         if log:
             ConsoleLog("CastSkillID", f"Cast {GLOBAL_CACHE.Skill.GetName(skill_id)}, slot: {slot}", Console.MessageType.Info, log=log)
         self.SetTickSuccess()
+
+        if self._is_spirit_skill(skill_id):
+            yield from Routines.Yield.wait(self._get_spirit_cast_wait_ms(skill_id, aftercast_delay))
+            yield from self._wait_for_spirit_spawn_and_step_away(skill_id)
 
         return True
 
@@ -1449,7 +1450,9 @@ class BuildMgr:
                 aftercast_delay=aftercast_delay,
             ))
 
-        yield from self._move_for_spirit_cast()
+        if not self.CanCastSkillID(skill_id, extra_condition=extra_condition):
+            return False
+
         return (yield from self.CastSkillID(
             skill_id=skill_id,
             extra_condition=extra_condition,
@@ -1479,12 +1482,13 @@ class BuildMgr:
 
         GLOBAL_CACHE.SkillBar.UseSkill(slot, target_agent_id=target_agent_id, aftercast_delay=aftercast_delay)
         self._mark_local_cast_pending(aftercast_delay)
-        if self._is_spirit_skill(skill_id):
-            yield from Routines.Yield.wait(self._get_spirit_cast_wait_ms(skill_id, aftercast_delay))
-            yield from self._wait_for_spirit_spawn_and_step_away(skill_id)
         if log:
             ConsoleLog("CastSkillSlot", f"Cast {GLOBAL_CACHE.Skill.GetName(skill_id)}, slot: {slot}", Console.MessageType.Info, log=log)
         self.SetTickSuccess()
+
+        if self._is_spirit_skill(skill_id):
+            yield from Routines.Yield.wait(self._get_spirit_cast_wait_ms(skill_id, aftercast_delay))
+            yield from self._wait_for_spirit_spawn_and_step_away(skill_id)
 
         return True
 
