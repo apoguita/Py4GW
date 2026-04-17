@@ -65,7 +65,11 @@ class Xinraes_Weapon_Resto_Healer(BuildMgr):
         if not Routines.Checks.Skills.CanCast():
             return False
 
-        if self.IsSkillEquipped(Air_of_Superiority_ID) and (yield from self.skills.Any.PvE.Air_of_Superiority()):
+        if (
+            self.IsSkillEquipped(Air_of_Superiority_ID)
+            and (Routines.Checks.Agents.InAggro() or self.IsCloseToAggro())
+            and (yield from self.skills.Any.PvE.Air_of_Superiority())
+        ):
             return True
 
         if (yield from self.skills.Ritualist.RestorationMagic.Mend_Body_and_Soul()):
