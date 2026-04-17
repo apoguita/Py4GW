@@ -48,16 +48,23 @@ class HolyInept(BuildMgr):
             yield from Routines.Yield.wait(100)
             return False
 
-        if self.IsSkillEquipped(Air_of_Superiority_ID) and (yield from self.skills.Any.PvE.Air_of_Superiority()):
+        if (
+            self.IsSkillEquipped(Air_of_Superiority_ID)
+            and (Routines.Checks.Agents.InAggro() or self.IsCloseToAggro())
+            and (yield from self.skills.Any.PvE.Air_of_Superiority())
+        ):
             return True
 
         if not Routines.Checks.Agents.InAggro():
             return False
 
+        if (yield from self.skills.Mesmer.InspirationMagic.Power_Drain(energy_threshold_pct=0.30)):
+            return True
+
         if self.IsSkillEquipped(Ebon_Vanguard_Assassin_Support_ID) and (yield from self.skills.Any.PvE.Ebon_Vanguard_Assassin_Support()):
             return True
 
-        if (yield from self.skills.Mesmer.DominationMagic.Power_Drain()):
+        if (yield from self.skills.Mesmer.InspirationMagic.Power_Drain()):
             return True
 
         if (yield from self.skills.Mesmer.IllusionMagic.Ineptitude()):

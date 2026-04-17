@@ -48,6 +48,11 @@ class CastConditions:
         self.LessLife = 0.0
         self.MoreLife = 0.0
         self.LessEnergy = 0.0
+        # Hard cap on caster's own energy. 0.0 disables. When > 0, the skill is only
+        # eligible while Agent.GetEnergy(player) (a 0.0-1.0 fraction of max) is at or
+        # below this value. Use for energy-return interrupts like Power Drain so the
+        # cast is skipped when the caster is already near full.
+        self.LessSelfEnergyPercentage = 0.0
         self.Overcast = 0.0
         self.Overcast = 0.0
         self.SacrificeHealth = 0.0

@@ -228,27 +228,6 @@ class DominationMagic:
         ))
     #endregion
 
-    #region P
-    def Power_Drain(self) -> BuildCoroutine:
-        from Py4GWCoreLib import Routines, Range
-
-        power_drain_id: int = Skill.GetID("Power_Drain")
-
-        if not self.build.IsSkillEquipped(power_drain_id):
-            return False
-
-        target_agent_id: int = Routines.Targeting.GetEnemyCastingSpell(Range.Spellcast.value)
-        if not target_agent_id:
-            return False
-
-        return (yield from self.build.CastSkillIDAndRestoreTarget(
-            skill_id=power_drain_id,
-            target_agent_id=target_agent_id,
-            log=False,
-            aftercast_delay=250,
-        ))
-    #endregion
-
     #region S
     def Shatter_Hex(self) -> BuildCoroutine:
         shatter_hex_id: int = Skill.GetID("Shatter_Hex")
