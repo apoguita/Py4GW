@@ -551,7 +551,7 @@ def draw_state_queries_tab():
 
             # === ACTION STATE (Most Important!) ===
             if PyImGui.collapsing_header("Action State (IMPORTANT)", PyImGui.TreeNodeFlags.DefaultOpen):
-                can_act = Agent.CanAct(agent_id)
+                can_act = True # Agent.CanAct(agent_id)
                 
                 PyImGui.text(f"can_act(): {can_act}")
 

@@ -5,7 +5,7 @@ from typing import Callable, Optional
 
 from Py4GWCoreLib import (GLOBAL_CACHE, Agent, Player, Routines, BuildMgr, Range, Py4GW, ConsoleLog,
                           Map, ActionQueueManager, AgentArray, AutoPathing)
-from Py4GWCoreLib.CombatEvents import CombatEvents as CombatEvents   # import the manager directly to avoid module shadowing
+#from Py4GWCoreLib.CombatEvents import CombatEvents as CombatEvents   # import the manager directly to avoid module shadowing
 from .AutoCombat import AutoCombat
 
 # ── Combat AI constants ───────────────────────────────────────────────────────
@@ -411,7 +411,7 @@ class KeiranThackerayEOTN(BuildMgr):
             # CombatEvents timestamps are GetTickCount() ms -- not time.time().
             _LOS_WINDOW_MS = 4000   # ms with no outgoing hits before gap-close triggers
             _tick_now      = ctypes.windll.kernel32.GetTickCount()
-            _los_recent    = CombatEvents.GetRecentDamage(count=100)
+            _los_recent    = [] #CombatEvents.GetRecentDamage(count=100)
             damage_dealt   = any(
                 src == player_id and (_tick_now - ts) < _LOS_WINDOW_MS
                 for ts, tgt, src, _dmg, _skill, _crit in _los_recent
