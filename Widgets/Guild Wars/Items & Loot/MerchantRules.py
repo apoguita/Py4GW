@@ -40,7 +40,7 @@ FLOATING_UI_INI_FILENAME = "MerchantRulesFloating.ini"
 FLOATING_ICON_WINDOW_ID = "##merchant_rules_floating_icon_button"
 FLOATING_ICON_WINDOW_NAME = "Merchant Rules Toggle"
 
-PROFILE_VERSION = 18
+PROFILE_VERSION = 19
 CONFIG_DIR = os.path.join(Py4GW.Console.get_projects_path(), "Widgets", "Config", "MerchantRules")
 SHARED_PROFILES_DIR = os.path.join(CONFIG_DIR, "Profiles")
 RECOVERY_DIR = os.path.join(CONFIG_DIR, "Recovery")
@@ -271,6 +271,14 @@ ECTOPLASM_MODEL_ID = int(ModelID.Glob_Of_Ectoplasm.value)
 SALVAGE_KIT_MODEL_ID = int(ModelID.Salvage_Kit.value)
 MATERIAL_BATCH_SIZE = 10
 MAX_WEAPON_REQUIREMENT = 13
+MODIFIER_IDENTIFIER_ATTRIBUTE_REQUIREMENT = 0x279
+MODIFIER_IDENTIFIER_DAMAGE = 0x27A
+MODIFIER_IDENTIFIER_DAMAGE_NO_REQ = 0x248
+MODIFIER_IDENTIFIER_ARMOR1 = 0x27B
+MODIFIER_IDENTIFIER_ARMOR2 = 0x23C
+MODIFIER_IDENTIFIER_ENERGY = 0x27C
+MODIFIER_IDENTIFIER_ENERGY2 = 0x22C
+ATTRIBUTE_NONE_REAL_VALUE = 45
 COMMON_CRAFTING_MATERIAL_MODEL_IDS: frozenset[int] = frozenset({
     921, 925, 929, 933, 934, 940, 946, 948, 953, 954, 955,
 })
@@ -422,6 +430,37 @@ WEAPON_ITEM_TYPE_IDS: set[int] = {int(item_type.value) for item_type, _label in 
 WEAPON_ITEM_TYPE_NAMES: dict[int, str] = {
     int(item_type.value): label
     for item_type, label in WEAPON_ITEM_TYPE_OPTIONS
+}
+PERFECT_BASE_DAMAGE_RANGES: dict[int, tuple[int, int]] = {
+    int(ItemType.Sword): (15, 22),
+    int(ItemType.Axe): (6, 28),
+    int(ItemType.Hammer): (19, 35),
+    int(ItemType.Bow): (15, 28),
+    int(ItemType.Daggers): (7, 17),
+    int(ItemType.Scythe): (9, 41),
+    int(ItemType.Spear): (14, 27),
+    int(ItemType.Wand): (11, 22),
+    int(ItemType.Staff): (11, 22),
+}
+PERFECT_BASE_ENERGY_VALUES: dict[int, int] = {
+    int(ItemType.Staff): 10,
+    int(ItemType.Offhand): 12,
+}
+PERFECT_BASE_ARMOR_VALUES: dict[int, int] = {
+    int(ItemType.Shield): 16,
+}
+PERFECT_BASE_ITEM_TYPE_LABELS: dict[int, str] = {
+    int(ItemType.Offhand): "Focus",
+    int(ItemType.Shield): "Shield",
+    int(ItemType.Staff): "Staff",
+    int(ItemType.Wand): "Wand",
+    int(ItemType.Sword): "Sword",
+    int(ItemType.Axe): "Axe",
+    int(ItemType.Hammer): "Hammer",
+    int(ItemType.Bow): "Bow",
+    int(ItemType.Daggers): "Daggers",
+    int(ItemType.Scythe): "Scythe",
+    int(ItemType.Spear): "Spear",
 }
 WEAPON_LIKE_ITEM_TYPES: frozenset[ItemType] = frozenset(item_type for item_type, _label in WEAPON_ITEM_TYPE_OPTIONS)
 ARMOR_PIECE_TYPES: frozenset[ItemType] = frozenset({
@@ -605,6 +644,7 @@ class WeaponRequirementRule:
     model_id: int = 0
     min_requirement: int = 0
     max_requirement: int = 0
+    perfect_stats_only: bool = False
 
 
 @dataclass
@@ -642,6 +682,7 @@ class SellRule:
     blacklist_item_type_ids: list[int] = field(default_factory=list)
     all_weapons_min_requirement: int = 0
     all_weapons_max_requirement: int = 0
+    all_weapons_perfect_stats_only: bool = False
     protected_weapon_requirement_rules: list[WeaponRequirementRule] = field(default_factory=list)
     protected_weapon_mod_identifiers: list[str] = field(default_factory=list)
     protected_weapon_mod_thresholds: list[WeaponModThresholdRule] = field(default_factory=list)
@@ -741,6 +782,12 @@ class InventoryItemInfo:
     is_weapon_like: bool
     is_armor_piece: bool
     requirement: int = 0
+    requirement_attribute_id: int = 0
+    requirement_attribute_name: str = ""
+    damage_min: int = 0
+    damage_max: int = 0
+    energy: int = 0
+    armor: int = 0
     standalone_kind: str = ""
     rune_identifiers: list[str] = field(default_factory=list)
     weapon_mod_identifiers: list[str] = field(default_factory=list)
@@ -899,6 +946,12 @@ class ParsedUpgradeMatch:
 @dataclass(frozen=True)
 class ParsedInventoryModifiers:
     requirement: int = 0
+    requirement_attribute_id: int = 0
+    requirement_attribute_name: str = ""
+    damage_min: int = 0
+    damage_max: int = 0
+    energy: int = 0
+    armor: int = 0
     standalone_kind: str = ""
     rune_identifiers: tuple[str, ...] = field(default_factory=tuple)
     weapon_mod_identifiers: tuple[str, ...] = field(default_factory=tuple)
@@ -1719,6 +1772,86 @@ def _should_defer_weapon_requirement_range_commit(min_value: object, max_value: 
     return bool(input_active and min_requirement > 0 and max_requirement > 0 and min_requirement > max_requirement)
 
 
+def _get_stripped_modifier_identifier(raw_identifier: object) -> int:
+    return (_safe_int(raw_identifier, 0) >> 4) & 0x3FF
+
+
+def _extract_base_stats_from_raw_modifiers(raw_modifiers: object) -> tuple[int, int, str, int, int, int, int]:
+    requirement = 0
+    requirement_attribute_id = 0
+    requirement_attribute_name = ""
+    damage_min = 0
+    damage_max = 0
+    energy = 0
+    armor = 0
+
+    for raw_modifier in raw_modifiers or ():
+        try:
+            identifier, arg1, arg2 = raw_modifier
+        except Exception:
+            continue
+        stripped_identifier = _get_stripped_modifier_identifier(identifier)
+        safe_arg1 = _safe_int(arg1, 0)
+        safe_arg2 = _safe_int(arg2, 0)
+        if stripped_identifier == MODIFIER_IDENTIFIER_ATTRIBUTE_REQUIREMENT:
+            requirement_attribute_id = safe_arg1
+            requirement = _normalize_weapon_requirement_level(safe_arg2)
+        elif stripped_identifier in (MODIFIER_IDENTIFIER_DAMAGE, MODIFIER_IDENTIFIER_DAMAGE_NO_REQ):
+            damage_min = max(0, safe_arg2)
+            damage_max = max(0, safe_arg1)
+        elif stripped_identifier in (MODIFIER_IDENTIFIER_ARMOR1, MODIFIER_IDENTIFIER_ARMOR2):
+            armor = max(0, safe_arg1)
+        elif stripped_identifier in (MODIFIER_IDENTIFIER_ENERGY, MODIFIER_IDENTIFIER_ENERGY2):
+            energy = max(0, safe_arg1)
+
+    return (
+        requirement,
+        requirement_attribute_id,
+        requirement_attribute_name,
+        damage_min,
+        damage_max,
+        energy,
+        armor,
+    )
+
+
+def _format_requirement_attribute_value(attribute: object) -> tuple[int, str]:
+    if attribute is None:
+        return 0, ""
+    try:
+        attribute_id = int(attribute)
+    except Exception:
+        attribute_id = _safe_int(getattr(attribute, "value", 0), 0)
+    raw_name = str(getattr(attribute, "name", "") or "").strip()
+    if raw_name in ("", "None_"):
+        return attribute_id, "" if raw_name != "None_" else "None"
+
+    label = MODEL_ID_ATTRIBUTE_FALLBACK_LABELS.get(raw_name, raw_name)
+    if label == raw_name:
+        label = re.sub(r"(?<!^)(?=[A-Z])", " ", raw_name).replace("_", " ").strip()
+    return attribute_id, label
+
+
+def _has_real_requirement_attribute(item: InventoryItemInfo) -> bool:
+    attribute_name = str(getattr(item, "requirement_attribute_name", "") or "").strip()
+    if attribute_name and attribute_name.lower() not in ("none", "none_"):
+        return True
+    attribute_id = _safe_int(getattr(item, "requirement_attribute_id", 0), 0)
+    return attribute_id > 0 and attribute_id != ATTRIBUTE_NONE_REAL_VALUE
+
+
+def _get_item_requirement_attribute_label(item: InventoryItemInfo) -> str:
+    attribute_name = str(getattr(item, "requirement_attribute_name", "") or "").strip()
+    if attribute_name.lower() in ("none", "none_"):
+        return ""
+    if attribute_name:
+        return attribute_name
+    attribute_id = _safe_int(getattr(item, "requirement_attribute_id", 0), 0)
+    if attribute_id <= 0 or attribute_id == ATTRIBUTE_NONE_REAL_VALUE:
+        return ""
+    return f"Attribute {attribute_id}"
+
+
 def _get_last_imgui_item_active() -> bool:
     is_item_active = getattr(PyImGui, "is_item_active", None)
     if not callable(is_item_active):
@@ -2100,6 +2233,7 @@ def _normalize_weapon_requirement_rules(raw_rules: object) -> list[WeaponRequire
             model_id = entry.model_id
             min_requirement = getattr(entry, "min_requirement", 0)
             max_requirement = entry.max_requirement
+            perfect_stats_only = getattr(entry, "perfect_stats_only", False)
         elif isinstance(entry, dict):
             model_id = entry.get("model_id", 0)
             max_requirement = entry.get("max_requirement", 0)
@@ -2107,6 +2241,7 @@ def _normalize_weapon_requirement_rules(raw_rules: object) -> list[WeaponRequire
                 "min_requirement",
                 1 if _normalize_weapon_requirement_level(max_requirement) > 0 else 0,
             )
+            perfect_stats_only = bool(entry.get("perfect_stats_only", entry.get("perfect_only", False)))
         else:
             continue
 
@@ -2121,6 +2256,7 @@ def _normalize_weapon_requirement_rules(raw_rules: object) -> list[WeaponRequire
                 model_id=safe_model_id,
                 min_requirement=min_requirement,
                 max_requirement=max_requirement,
+                perfect_stats_only=bool(perfect_stats_only),
             )
         )
 
@@ -2341,6 +2477,7 @@ def _normalize_sell_rule(rule: SellRule) -> SellRule | None:
         getattr(rule, "all_weapons_min_requirement", 0),
         getattr(rule, "all_weapons_max_requirement", 0),
     )
+    rule.all_weapons_perfect_stats_only = bool(getattr(rule, "all_weapons_perfect_stats_only", False))
     rule.protected_weapon_requirement_rules = _normalize_weapon_requirement_rules(getattr(rule, "protected_weapon_requirement_rules", []))
     rule.protected_weapon_mod_identifiers = _dedupe_identifiers(rule.protected_weapon_mod_identifiers)
     rule.protected_weapon_mod_thresholds = _normalize_weapon_mod_threshold_rules(
@@ -2505,6 +2642,7 @@ class MerchantRulesWidget:
         self.preview_requires_execute_travel = False
         self.preview_execute_travel_target_outpost_id = 0
         self.preview_execute_travel_target_outpost_name = ""
+        self.detailed_preview = False
         self.execution_running = False
         self.travel_preview_running = False
         self.instant_destroy_running = False
@@ -2767,6 +2905,7 @@ class MerchantRulesWidget:
             "target_outpost_id": max(0, int(self.target_outpost_id)),
             "favorite_outpost_ids": self._normalize_outpost_ids(self.favorite_outpost_ids),
             "debug_logging": bool(self.debug_logging),
+            "detailed_preview": bool(self.detailed_preview),
             "buy_rules": [asdict(rule) for rule in _normalize_buy_rules(self.buy_rules)],
             "sell_rules": [
                 payload_entry
@@ -2862,6 +3001,7 @@ class MerchantRulesWidget:
                     blacklist_item_type_ids=[_safe_int(value, 0) for value in _coerce_list(entry.get("blacklist_item_type_ids", []))],
                     all_weapons_min_requirement=_normalize_all_weapons_requirement_range_from_payload(entry)[0],
                     all_weapons_max_requirement=_normalize_all_weapons_requirement_range_from_payload(entry)[1],
+                    all_weapons_perfect_stats_only=bool(entry.get("all_weapons_perfect_stats_only", False)),
                     protected_weapon_requirement_rules=_normalize_weapon_requirement_rules(_coerce_list(entry.get("protected_weapon_requirement_rules", []))),
                     protected_weapon_mod_identifiers=_dedupe_identifiers(_coerce_list(entry.get("protected_weapon_mod_identifiers", []))),
                     protected_weapon_mod_thresholds=_normalize_weapon_mod_threshold_rules(_coerce_list(entry.get("protected_weapon_mod_thresholds", []))),
@@ -2945,6 +3085,7 @@ class MerchantRulesWidget:
             "target_outpost_id": max(0, _safe_int(raw_payload.get("target_outpost_id", 0), 0)),
             "favorite_outpost_ids": self._normalize_outpost_ids(_coerce_list(favorite_outpost_ids_raw)),
             "debug_logging": bool(raw_payload.get("debug_logging", False)),
+            "detailed_preview": bool(raw_payload.get("detailed_preview", False)),
             **window_geometry,
             "buy_rules": [asdict(rule) for rule in normalized_buy_rules],
             "sell_rules": [_serialize_sell_rule(rule) for rule in normalized_sell_rules],
@@ -2984,6 +3125,7 @@ class MerchantRulesWidget:
                 blacklist_item_type_ids=[_safe_int(value, 0) for value in _coerce_list(entry.get("blacklist_item_type_ids", []))],
                 all_weapons_min_requirement=_normalize_all_weapons_requirement_range_from_payload(entry)[0],
                 all_weapons_max_requirement=_normalize_all_weapons_requirement_range_from_payload(entry)[1],
+                all_weapons_perfect_stats_only=bool(entry.get("all_weapons_perfect_stats_only", False)),
                 protected_weapon_requirement_rules=_normalize_weapon_requirement_rules(_coerce_list(entry.get("protected_weapon_requirement_rules", []))),
                 protected_weapon_mod_identifiers=_dedupe_identifiers(_coerce_list(entry.get("protected_weapon_mod_identifiers", []))),
                 protected_weapon_mod_thresholds=_normalize_weapon_mod_threshold_rules(_coerce_list(entry.get("protected_weapon_mod_thresholds", []))),
@@ -3021,6 +3163,7 @@ class MerchantRulesWidget:
         self.target_outpost_id = max(0, _safe_int(payload.get("target_outpost_id", 0), 0))
         self.favorite_outpost_ids = self._normalize_outpost_ids(_coerce_list(payload.get("favorite_outpost_ids", [])))
         self.debug_logging = bool(payload.get("debug_logging", False))
+        self.detailed_preview = bool(payload.get("detailed_preview", False))
         window_geometry = self._normalize_window_geometry_payload(payload)
         self.window_x = window_geometry["window_x"]
         self.window_y = window_geometry["window_y"]
@@ -3224,6 +3367,7 @@ class MerchantRulesWidget:
     def _clear_shared_profile_confirmation_state(self):
         self.shared_profile_pending_overwrite_path = ""
         self.shared_profile_pending_delete_path = ""
+        self._clear_pending_destructive_button()
 
     def _set_selected_shared_profile_path(self, profile_path: str):
         safe_path = str(profile_path or "").strip()
@@ -6559,6 +6703,7 @@ class MerchantRulesWidget:
             "target_outpost_id": 0,
             "favorite_outpost_ids": [],
             "debug_logging": False,
+            "detailed_preview": False,
             "window_x": None,
             "window_y": None,
             "window_width": 0,
@@ -6952,6 +7097,15 @@ class MerchantRulesWidget:
 
         self.inventory_modifier_cache_misses += 1
         parsed_state = ParsedInventoryModifiers()
+        (
+            raw_requirement,
+            raw_requirement_attribute_id,
+            raw_requirement_attribute_name,
+            raw_damage_min,
+            raw_damage_max,
+            raw_energy,
+            raw_armor,
+        ) = _extract_base_stats_from_raw_modifiers(raw_modifiers)
         if raw_modifiers:
             parsed_modifiers = parse_modifiers(list(raw_modifiers), parse_item_type, model_id, MOD_DB)
             rune_identifiers = tuple(_dedupe_identifiers([match.rune.identifier for match in parsed_modifiers.runes]))
@@ -6975,12 +7129,44 @@ class MerchantRulesWidget:
                     standalone_kind = RUNE_STANDALONE_KIND
                 elif weapon_mod_identifiers:
                     standalone_kind = WEAPON_MOD_STANDALONE_KIND
+            damage = getattr(parsed_modifiers, "damage", (0, 0)) or (0, 0)
+            try:
+                parsed_damage_min, parsed_damage_max = damage
+            except Exception:
+                parsed_damage_min, parsed_damage_max = 0, 0
+            shield_armor = getattr(parsed_modifiers, "shield_armor", (0, 0)) or (0, 0)
+            try:
+                parsed_armor, _parsed_armor_secondary = shield_armor
+            except Exception:
+                parsed_armor = 0
+            parsed_requirement = _normalize_weapon_requirement_level(
+                getattr(parsed_modifiers, "requirements", 0)
+            )
+            parsed_attribute_id, parsed_attribute_name = _format_requirement_attribute_value(
+                getattr(parsed_modifiers, "attribute", None)
+            )
             parsed_state = ParsedInventoryModifiers(
-                requirement=_normalize_weapon_requirement_level(parsed_modifiers.requirements),
+                requirement=parsed_requirement or raw_requirement,
+                requirement_attribute_id=parsed_attribute_id or raw_requirement_attribute_id,
+                requirement_attribute_name=parsed_attribute_name or raw_requirement_attribute_name,
+                damage_min=max(0, _safe_int(parsed_damage_min, 0) or raw_damage_min),
+                damage_max=max(0, _safe_int(parsed_damage_max, 0) or raw_damage_max),
+                energy=max(0, raw_energy),
+                armor=max(0, _safe_int(parsed_armor, 0) or raw_armor),
                 standalone_kind=standalone_kind,
                 rune_identifiers=rune_identifiers,
                 weapon_mod_identifiers=weapon_mod_identifiers,
                 weapon_mod_matches=weapon_mod_matches,
+            )
+        elif any((raw_requirement, raw_damage_min, raw_damage_max, raw_energy, raw_armor)):
+            parsed_state = ParsedInventoryModifiers(
+                requirement=raw_requirement,
+                requirement_attribute_id=raw_requirement_attribute_id,
+                requirement_attribute_name=raw_requirement_attribute_name,
+                damage_min=raw_damage_min,
+                damage_max=raw_damage_max,
+                energy=raw_energy,
+                armor=raw_armor,
             )
 
         self.inventory_modifier_cache[item_id] = InventoryModifierCacheEntry(
@@ -7028,6 +7214,12 @@ class MerchantRulesWidget:
                 is_weapon_like=is_weapon_like,
                 is_armor_piece=is_armor_piece,
                 requirement=int(parsed_modifiers.requirement),
+                requirement_attribute_id=int(parsed_modifiers.requirement_attribute_id),
+                requirement_attribute_name=str(parsed_modifiers.requirement_attribute_name or ""),
+                damage_min=int(parsed_modifiers.damage_min),
+                damage_max=int(parsed_modifiers.damage_max),
+                energy=int(parsed_modifiers.energy),
+                armor=int(parsed_modifiers.armor),
                 standalone_kind=str(parsed_modifiers.standalone_kind or ""),
                 rune_identifiers=list(parsed_modifiers.rune_identifiers),
                 weapon_mod_identifiers=list(parsed_modifiers.weapon_mod_identifiers),
@@ -7277,14 +7469,123 @@ class MerchantRulesWidget:
             return item_name
         return f"Model {int(item.model_id)}"
 
-    def _get_weapon_requirement_hit_reason(self, item: InventoryItemInfo, rule: SellRule) -> str:
-        if rule.kind != SELL_KIND_WEAPONS:
+    def _get_perfect_base_spec(self, item: InventoryItemInfo) -> tuple[tuple[int, int] | None, int, int]:
+        item_type_id = int(getattr(item, "item_type_id", 0))
+        return (
+            PERFECT_BASE_DAMAGE_RANGES.get(item_type_id),
+            max(0, int(PERFECT_BASE_ENERGY_VALUES.get(item_type_id, 0))),
+            max(0, int(PERFECT_BASE_ARMOR_VALUES.get(item_type_id, 0))),
+        )
+
+    def _is_perfect_base_candidate_type(self, item: InventoryItemInfo) -> bool:
+        item_type_id = int(getattr(item, "item_type_id", 0))
+        return bool(
+            item_type_id in PERFECT_BASE_DAMAGE_RANGES
+            or item_type_id in PERFECT_BASE_ENERGY_VALUES
+            or item_type_id in PERFECT_BASE_ARMOR_VALUES
+        )
+
+    def _get_perfect_base_unavailable_reason(self, item: InventoryItemInfo) -> str:
+        if bool(getattr(item, "identified", False)):
             return ""
-        if not item.is_weapon_like or item.standalone_kind == WEAPON_MOD_STANDALONE_KIND:
+        if not bool(getattr(item, "is_weapon_like", False)):
+            return ""
+        if str(getattr(item, "standalone_kind", "") or "") == WEAPON_MOD_STANDALONE_KIND:
+            return ""
+        if not self._is_perfect_base_candidate_type(item):
             return ""
 
-        requirement = _normalize_weapon_requirement_level(item.requirement)
-        if requirement <= 0:
+        expected_damage, expected_energy, expected_armor = self._get_perfect_base_spec(item)
+        if _normalize_weapon_requirement_level(getattr(item, "requirement", 0)) <= 0:
+            return "Protected until identified: perfect-base stats unavailable."
+        if not _has_real_requirement_attribute(item):
+            return "Protected until identified: perfect-base stats unavailable."
+        if expected_damage is not None and (
+            max(0, _safe_int(getattr(item, "damage_min", 0), 0)) <= 0
+            or max(0, _safe_int(getattr(item, "damage_max", 0), 0)) <= 0
+        ):
+            return "Protected until identified: perfect-base stats unavailable."
+        if expected_energy > 0 and max(0, _safe_int(getattr(item, "energy", 0), 0)) <= 0:
+            return "Protected until identified: perfect-base stats unavailable."
+        if expected_armor > 0 and max(0, _safe_int(getattr(item, "armor", 0), 0)) <= 0:
+            return "Protected until identified: perfect-base stats unavailable."
+        return ""
+
+    def _format_perfect_base_stats(self, item: InventoryItemInfo) -> str:
+        item_type_id = int(getattr(item, "item_type_id", 0))
+        parts: list[str] = []
+        damage = PERFECT_BASE_DAMAGE_RANGES.get(item_type_id)
+        if damage is not None:
+            parts.append(f"{damage[0]}-{damage[1]}")
+        energy = max(0, int(PERFECT_BASE_ENERGY_VALUES.get(item_type_id, 0)))
+        if energy > 0:
+            parts.append(f"Energy +{energy}")
+        armor = max(0, int(PERFECT_BASE_ARMOR_VALUES.get(item_type_id, 0)))
+        if armor > 0:
+            parts.append(f"Armor {armor}")
+        return ", ".join(parts)
+
+    def _get_perfect_base_range_hit_reason(
+        self,
+        item: InventoryItemInfo,
+        min_requirement: int,
+        max_requirement: int,
+        *,
+        source: str,
+    ) -> str:
+        if not bool(getattr(item, "is_weapon_like", False)):
+            return ""
+        if str(getattr(item, "standalone_kind", "") or "") == WEAPON_MOD_STANDALONE_KIND:
+            return ""
+        if not self._is_perfect_base_candidate_type(item):
+            return ""
+
+        requirement = _normalize_weapon_requirement_level(getattr(item, "requirement", 0))
+        if requirement > 0 and not (min_requirement <= requirement <= max_requirement):
+            return ""
+
+        unavailable_reason = self._get_perfect_base_unavailable_reason(item)
+        if unavailable_reason:
+            return unavailable_reason
+
+        if requirement <= 0 or not _has_real_requirement_attribute(item):
+            return ""
+        if not (min_requirement <= requirement <= max_requirement):
+            return ""
+
+        expected_damage, expected_energy, expected_armor = self._get_perfect_base_spec(item)
+        if expected_damage is not None:
+            actual_damage = (
+                max(0, _safe_int(getattr(item, "damage_min", 0), 0)),
+                max(0, _safe_int(getattr(item, "damage_max", 0), 0)),
+            )
+            if actual_damage != expected_damage:
+                return ""
+        if expected_energy > 0 and max(0, _safe_int(getattr(item, "energy", 0), 0)) != expected_energy:
+            return ""
+        if expected_armor > 0 and max(0, _safe_int(getattr(item, "armor", 0), 0)) != expected_armor:
+            return ""
+
+        if source == "model":
+            label = self._get_requirement_rule_item_label(item)
+            prefix = "model"
+        else:
+            label = PERFECT_BASE_ITEM_TYPE_LABELS.get(
+                int(getattr(item, "item_type_id", 0)),
+                self._get_weapon_item_type_label(int(getattr(item, "item_type_id", 0))),
+            )
+            prefix = "all-weapons"
+        stats = self._format_perfect_base_stats(item)
+        attribute_label = _get_item_requirement_attribute_label(item)
+        attribute_suffix = f" {attribute_label}" if attribute_label else ""
+        return f"Protected by {prefix} perfect-base range: {label} {stats}, req {requirement}{attribute_suffix}."
+
+    def _get_perfect_only_unidentified_hold_reason(self, item: InventoryItemInfo, rule: SellRule) -> str:
+        if rule.kind != SELL_KIND_WEAPONS or bool(getattr(item, "identified", False)):
+            return ""
+        if not bool(getattr(item, "is_weapon_like", False)):
+            return ""
+        if str(getattr(item, "standalone_kind", "") or "") == WEAPON_MOD_STANDALONE_KIND:
             return ""
 
         has_model_requirement_range = False
@@ -7298,6 +7599,63 @@ class MerchantRulesWidget:
             if not _is_weapon_requirement_range_active(min_requirement, max_requirement):
                 continue
             has_model_requirement_range = True
+            if bool(getattr(requirement_rule, "perfect_stats_only", False)):
+                return self._get_perfect_base_range_hit_reason(
+                    item,
+                    min_requirement,
+                    max_requirement,
+                    source="model",
+                )
+
+        if has_model_requirement_range:
+            return ""
+
+        all_weapons_min_requirement, all_weapons_max_requirement = _normalize_weapon_requirement_range(
+            getattr(rule, "all_weapons_min_requirement", 0),
+            getattr(rule, "all_weapons_max_requirement", 0),
+        )
+        if (
+            bool(getattr(rule, "all_weapons_perfect_stats_only", False))
+            and _is_weapon_requirement_range_active(all_weapons_min_requirement, all_weapons_max_requirement)
+        ):
+            return self._get_perfect_base_range_hit_reason(
+                item,
+                all_weapons_min_requirement,
+                all_weapons_max_requirement,
+                source="all",
+            )
+        return ""
+
+    def _get_weapon_requirement_hit_reason(self, item: InventoryItemInfo, rule: SellRule) -> str:
+        if rule.kind != SELL_KIND_WEAPONS:
+            return ""
+        if not item.is_weapon_like or item.standalone_kind == WEAPON_MOD_STANDALONE_KIND:
+            return ""
+
+        requirement = _normalize_weapon_requirement_level(item.requirement)
+        has_model_requirement_range = False
+        for requirement_rule in rule.protected_weapon_requirement_rules:
+            if item.model_id != int(requirement_rule.model_id):
+                continue
+            min_requirement, max_requirement = _normalize_weapon_requirement_range(
+                getattr(requirement_rule, "min_requirement", 0),
+                getattr(requirement_rule, "max_requirement", 0),
+            )
+            if not _is_weapon_requirement_range_active(min_requirement, max_requirement):
+                continue
+            has_model_requirement_range = True
+            if bool(getattr(requirement_rule, "perfect_stats_only", False)):
+                perfect_reason = self._get_perfect_base_range_hit_reason(
+                    item,
+                    min_requirement,
+                    max_requirement,
+                    source="model",
+                )
+                if perfect_reason:
+                    return perfect_reason
+                continue
+            if requirement <= 0:
+                continue
             if min_requirement <= requirement <= max_requirement:
                 item_label = self._get_requirement_rule_item_label(item)
                 return f"Protected by requirement range: {item_label} req {requirement} in {min_requirement}-{max_requirement}."
@@ -7309,6 +7667,16 @@ class MerchantRulesWidget:
             getattr(rule, "all_weapons_min_requirement", 0),
             getattr(rule, "all_weapons_max_requirement", 0),
         )
+        if (
+            bool(getattr(rule, "all_weapons_perfect_stats_only", False))
+            and _is_weapon_requirement_range_active(all_weapons_min_requirement, all_weapons_max_requirement)
+        ):
+            return self._get_perfect_base_range_hit_reason(
+                item,
+                all_weapons_min_requirement,
+                all_weapons_max_requirement,
+                source="all",
+            )
         if (
             _is_weapon_requirement_range_active(all_weapons_min_requirement, all_weapons_max_requirement)
             and all_weapons_min_requirement <= requirement <= all_weapons_max_requirement
@@ -7325,6 +7693,9 @@ class MerchantRulesWidget:
         rarity_matches = self._rule_matches_selected_rarity(item, rule)
         if rarity_matches and rule.skip_customized and item.is_customized:
             return destination, "Customized item."
+        perfect_unidentified_reason = self._get_perfect_only_unidentified_hold_reason(item, rule)
+        if perfect_unidentified_reason:
+            return destination, perfect_unidentified_reason
         if rarity_matches and rule.skip_unidentified and not item.identified:
             return destination, "Unidentified item."
         if item.model_id in rule.blacklist_model_ids:
@@ -11940,7 +12311,10 @@ class MerchantRulesWidget:
                 getattr(normalized_rule, "all_weapons_max_requirement", 0),
             )
             if _is_weapon_requirement_range_active(all_weapons_min_requirement, all_weapons_max_requirement):
-                parts.append(f"All weapons req {all_weapons_min_requirement}-{all_weapons_max_requirement}")
+                if bool(getattr(normalized_rule, "all_weapons_perfect_stats_only", False)):
+                    parts.append(f"All weapons perfect req {all_weapons_min_requirement}-{all_weapons_max_requirement}")
+                else:
+                    parts.append(f"All weapons req {all_weapons_min_requirement}-{all_weapons_max_requirement}")
             active_requirement_rule_count = sum(
                 1
                 for requirement_rule in normalized_rule.protected_weapon_requirement_rules
@@ -11950,7 +12324,19 @@ class MerchantRulesWidget:
                 )
             )
             if active_requirement_rule_count > 0:
-                parts.append(f"Req ranges {active_requirement_rule_count}")
+                perfect_requirement_rule_count = sum(
+                    1
+                    for requirement_rule in normalized_rule.protected_weapon_requirement_rules
+                    if bool(getattr(requirement_rule, "perfect_stats_only", False))
+                    and _is_weapon_requirement_range_active(
+                        getattr(requirement_rule, "min_requirement", 0),
+                        getattr(requirement_rule, "max_requirement", 0),
+                    )
+                )
+                if perfect_requirement_rule_count > 0:
+                    parts.append(f"Req ranges {active_requirement_rule_count} ({perfect_requirement_rule_count} perfect)")
+                else:
+                    parts.append(f"Req ranges {active_requirement_rule_count}")
         if normalized_rule.kind == SELL_KIND_WEAPONS:
             protected_mod_count = (
                 len(normalized_rule.protected_weapon_mod_identifiers)
@@ -14130,10 +14516,11 @@ class MerchantRulesWidget:
                     getattr(normalized_rule, "all_weapons_max_requirement", 0),
                 )
                 if _is_weapon_requirement_range_active(all_weapons_min_requirement, all_weapons_max_requirement):
+                    perfect_suffix = " perfect" if bool(getattr(normalized_rule, "all_weapons_perfect_stats_only", False)) else ""
                     append_entry(
                         PROTECTION_FILTER_REQUIREMENTS,
                         "Req Range",
-                        f"All weapons req {all_weapons_min_requirement}-{all_weapons_max_requirement}",
+                        f"All weapons{perfect_suffix} req {all_weapons_min_requirement}-{all_weapons_max_requirement}",
                         f"global-{all_weapons_min_requirement:02d}-{all_weapons_max_requirement:02d}",
                         subsection_anchor=SELL_PROTECTION_ANCHOR_REQUIREMENTS,
                         target_key=SELL_PROTECTION_TARGET_KEY_ALL_WEAPONS_REQUIREMENT,
@@ -14146,10 +14533,11 @@ class MerchantRulesWidget:
                     )
                     if not _is_weapon_requirement_range_active(min_requirement, max_requirement):
                         continue
+                    perfect_suffix = " perfect" if bool(getattr(requirement_rule, "perfect_stats_only", False)) else ""
                     append_entry(
                         PROTECTION_FILTER_REQUIREMENTS,
                         "Req Range",
-                        f"{self._format_model_label(requirement_rule.model_id)} req {min_requirement}-{max_requirement}",
+                        f"{self._format_model_label(requirement_rule.model_id)}{perfect_suffix} req {min_requirement}-{max_requirement}",
                         f"{int(requirement_rule.model_id):09d}-{min_requirement:02d}-{max_requirement:02d}",
                         subsection_anchor=SELL_PROTECTION_ANCHOR_REQUIREMENTS,
                         target_key=f"requirement_model:{int(requirement_rule.model_id)}",
@@ -15338,6 +15726,18 @@ class MerchantRulesWidget:
             SELL_PROTECTION_ANCHOR_REQUIREMENTS,
             SELL_PROTECTION_TARGET_KEY_ALL_WEAPONS_REQUIREMENT,
         )
+        PyImGui.same_line(0, 12)
+        new_all_weapons_perfect_stats_only = PyImGui.checkbox(
+            f"Perfect stats only##sell_weapon_requirement_all_perfect_{index}",
+            bool(getattr(rule, "all_weapons_perfect_stats_only", False)),
+        )
+        self._draw_hover_tooltip(
+            "When enabled, this range protects only weapon-like items whose base damage, energy, or armor exactly matches the perfect-base value."
+        )
+        if new_all_weapons_perfect_stats_only != bool(getattr(rule, "all_weapons_perfect_stats_only", False)):
+            rule.all_weapons_perfect_stats_only = bool(new_all_weapons_perfect_stats_only)
+            changed = True
+
         all_weapons_input_active = all_weapons_min_input_active or all_weapons_max_input_active
         if not _should_defer_weapon_requirement_range_commit(
             new_all_weapons_min_requirement,
@@ -15358,7 +15758,8 @@ class MerchantRulesWidget:
 
         self._draw_secondary_text(
             f"Inclusive range. Set either endpoint to 0 to disable. Req 0 / unknown does not match range rules; "
-            f"use unconditional model protection for unknown reqs. Values are capped at {MAX_WEAPON_REQUIREMENT}."
+            f"use unconditional model protection for unknown reqs. Values are capped at {MAX_WEAPON_REQUIREMENT}. "
+            f"Perfect stats only holds unidentified items when needed stats are unavailable."
         )
 
         self._draw_light_separator()
@@ -15379,6 +15780,7 @@ class MerchantRulesWidget:
                     model_id=requirement_rule.model_id,
                     min_requirement=requirement_rule.min_requirement,
                     max_requirement=requirement_rule.max_requirement,
+                    perfect_stats_only=bool(getattr(requirement_rule, "perfect_stats_only", False)),
                 )
                 for requirement_rule in requirement_rules
             ]
@@ -15386,10 +15788,11 @@ class MerchantRulesWidget:
             removed_model_id = 0
             child_height = min(220, 58 + (32 * len(updated_rules)))
             if PyImGui.begin_child(f"sell_weapon_requirement_selected_{index}", (0, child_height), True, PyImGui.WindowFlags.NoFlag):
-                if PyImGui.begin_table(f"sell_weapon_requirement_table_{index}", 4, self._get_dense_list_table_flags()):
+                if PyImGui.begin_table(f"sell_weapon_requirement_table_{index}", 5, self._get_dense_list_table_flags()):
                     PyImGui.table_setup_column("Model", PyImGui.TableColumnFlags.WidthStretch)
                     PyImGui.table_setup_column("Low Req", PyImGui.TableColumnFlags.WidthFixed, 100.0)
                     PyImGui.table_setup_column("High Req", PyImGui.TableColumnFlags.WidthFixed, 100.0)
+                    PyImGui.table_setup_column("Perfect only", PyImGui.TableColumnFlags.WidthFixed, 110.0)
                     PyImGui.table_setup_column("Remove", PyImGui.TableColumnFlags.WidthFixed, 60.0)
 
                     PyImGui.table_next_row()
@@ -15400,6 +15803,8 @@ class MerchantRulesWidget:
                     PyImGui.table_set_column_index(2)
                     PyImGui.text("High Req")
                     PyImGui.table_set_column_index(3)
+                    PyImGui.text("Perfect only")
+                    PyImGui.table_set_column_index(4)
                     PyImGui.text("Remove")
 
                     for requirement_rule in display_rules:
@@ -15441,6 +15846,15 @@ class MerchantRulesWidget:
                             ) = _normalize_weapon_requirement_range(new_min_requirement, new_max_requirement)
 
                         PyImGui.table_set_column_index(3)
+                        requirement_rule.perfect_stats_only = bool(
+                            PyImGui.checkbox(
+                                f"##sell_weapon_requirement_perfect_{index}_{requirement_rule.model_id}",
+                                bool(getattr(requirement_rule, "perfect_stats_only", False)),
+                            )
+                        )
+                        self._draw_hover_tooltip("Protect this model only when its base stats exactly match the perfect-base value.")
+
+                        PyImGui.table_set_column_index(4)
                         if PyImGui.small_button(f"X##sell_weapon_requirement_remove_{index}_{requirement_rule.model_id}"):
                             removed_model_id = requirement_rule.model_id
                             break
@@ -16498,6 +16912,7 @@ class MerchantRulesWidget:
                 self._draw_preview_entries_table(
                     "merchant_rules_cleanup_preview_actions",
                     cleanup_actionable_entries,
+                    show_reasons=bool(self.detailed_preview),
                 )
             if cleanup_skipped_entries:
                 if cleanup_actionable_entries:
@@ -16708,7 +17123,12 @@ class MerchantRulesWidget:
                 if unavailable_here_reason:
                     self._draw_secondary_text(unavailable_here_reason)
                 displayed_reason = self._get_preview_reason_for_display(entry)
-                if (show_reasons or is_conditional) and displayed_reason:
+                if self._should_show_preview_reason(
+                    entry,
+                    displayed_reason,
+                    show_reasons=show_reasons,
+                    is_conditional=is_conditional,
+                ):
                     self._draw_secondary_text(displayed_reason)
 
                 PyImGui.table_set_column_index(3)
@@ -16719,15 +17139,39 @@ class MerchantRulesWidget:
 
             PyImGui.end_table()
 
+    def _normalize_preview_reason_display_text(self, reason: str) -> str:
+        display_reason = str(reason or "").strip()
+        if not display_reason:
+            return ""
+        display_reason = re.sub(r"\bHard-protected by\b", "Protected by", display_reason)
+        display_reason = re.sub(
+            r":\s+Protected by\s+((?:all-weapons|model|requirement range|all-weapons requirement range)\b)",
+            r": \1",
+            display_reason,
+        )
+        display_reason = re.sub(
+            r"^((?:Blocked by|Kept by|Matched by) [^:]+): Protected by ([^:]+): (.+)$",
+            r"\1: protected by \2, \3",
+            display_reason,
+        )
+        display_reason = re.sub(
+            r"\b((?:all-weapons|model) perfect-base range):\s+",
+            r"\1, ",
+            display_reason,
+        )
+        return display_reason
+
     def _get_preview_reason_for_display(self, entry: ExecutionPlanEntry) -> str:
         reason = str(entry.reason or "").strip()
-        if not reason or not self._preview_has_execute_travel_pending():
-            return reason
+        if not reason:
+            return ""
+        if not self._preview_has_execute_travel_pending():
+            return self._normalize_preview_reason_display_text(reason)
 
         target_outpost_name = self.preview_execute_travel_target_outpost_name or "the selected outpost"
         suffix = self._get_projected_preview_reason_suffix(entry.merchant_type, target_outpost_name)
         if not suffix:
-            return reason
+            return self._normalize_preview_reason_display_text(reason)
         legacy_suffix = suffix.replace("Travel + Execute", "Execute") if suffix else ""
         if reason == suffix:
             return ""
@@ -16735,16 +17179,32 @@ class MerchantRulesWidget:
             return ""
         spaced_suffix = f" {suffix}"
         if reason.endswith(spaced_suffix):
-            return reason[: -len(spaced_suffix)].rstrip()
+            return self._normalize_preview_reason_display_text(reason[: -len(spaced_suffix)].rstrip())
         if reason.endswith(suffix):
-            return reason[: -len(suffix)].rstrip()
+            return self._normalize_preview_reason_display_text(reason[: -len(suffix)].rstrip())
         if legacy_suffix:
             legacy_spaced_suffix = f" {legacy_suffix}"
             if reason.endswith(legacy_spaced_suffix):
-                return reason[: -len(legacy_spaced_suffix)].rstrip()
+                return self._normalize_preview_reason_display_text(reason[: -len(legacy_spaced_suffix)].rstrip())
             if reason.endswith(legacy_suffix):
-                return reason[: -len(legacy_suffix)].rstrip()
-        return reason
+                return self._normalize_preview_reason_display_text(reason[: -len(legacy_suffix)].rstrip())
+        return self._normalize_preview_reason_display_text(reason)
+
+    def _should_show_preview_reason(
+        self,
+        entry: ExecutionPlanEntry,
+        displayed_reason: str,
+        *,
+        show_reasons: bool = False,
+        is_conditional: bool = False,
+    ) -> bool:
+        if not str(displayed_reason or "").strip():
+            return False
+        return bool(
+            show_reasons
+            or is_conditional
+            or bool(getattr(self, "detailed_preview", False))
+        )
 
     def _draw_preview_section(self):
         actionable_entries, skipped_entries = self._split_preview_entries(self.preview_plan.entries)
@@ -16759,6 +17219,14 @@ class MerchantRulesWidget:
                     f"{direct_count} direct action(s) | {conditional_count} conditional action(s) | {skipped_count} blocked / skipped",
                     wrapped=False,
                 )
+                updated_detailed_preview = PyImGui.checkbox(
+                    "Detailed Preview##merchant_rules_detailed_preview",
+                    bool(self.detailed_preview),
+                )
+                self._draw_hover_tooltip("Shows why each preview row will buy, sell, destroy, deposit, withdraw, travel, or skip.")
+                if updated_detailed_preview != bool(self.detailed_preview):
+                    self.detailed_preview = bool(updated_detailed_preview)
+                    self._save_profile()
                 PyImGui.begin_disabled(not self.preview_ready)
                 compare_clicked = PyImGui.small_button("Compare With Current Inventory##merchant_rules_compare_preview_inventory")
                 PyImGui.end_disabled()
@@ -16810,6 +17278,7 @@ class MerchantRulesWidget:
                     self._draw_preview_entries_table(
                         "merchant_preview_actions",
                         actionable_entries,
+                        show_reasons=bool(self.detailed_preview),
                         plan=self.preview_plan,
                         availability_here=availability_here,
                     )
@@ -17054,25 +17523,6 @@ class MerchantRulesWidget:
         load_disabled = selected_profile is None
         overwrite_disabled = selected_profile is None
         delete_disabled = selected_profile is None
-        normalized_selected_path = (
-            os.path.normcase(os.path.normpath(selected_profile.path))
-            if selected_profile is not None
-            else ""
-        )
-        overwrite_confirm_required = bool(
-            normalized_selected_path
-            and normalized_selected_path
-            == os.path.normcase(
-                os.path.normpath(self.shared_profile_pending_overwrite_path)
-            )
-        )
-        delete_confirm_required = bool(
-            normalized_selected_path
-            and normalized_selected_path
-            == os.path.normcase(
-                os.path.normpath(self.shared_profile_pending_delete_path)
-            )
-        )
 
         save_new_clicked = PyImGui.button(
             "Save Current As New##merchant_rules_shared_profile_save_new"
@@ -17090,23 +17540,16 @@ class MerchantRulesWidget:
         )
         PyImGui.end_disabled()
 
-        overwrite_label = (
-            "Click Again to Save Over Selected##merchant_rules_shared_profile_overwrite"
-            if overwrite_confirm_required
-            else "Save Current Over Selected##merchant_rules_shared_profile_overwrite"
-        )
-        delete_label = (
-            "Click Again to Delete Selected##merchant_rules_shared_profile_delete"
-            if delete_confirm_required
-            else "Delete Selected##merchant_rules_shared_profile_delete"
-        )
-
         PyImGui.begin_disabled(overwrite_disabled)
-        overwrite_clicked = PyImGui.button(overwrite_label)
+        overwrite_clicked = self._draw_confirm_destructive_button(
+            "Save Current Over Selected##merchant_rules_shared_profile_overwrite"
+        )
         PyImGui.end_disabled()
         PyImGui.same_line(0, 8)
         PyImGui.begin_disabled(delete_disabled)
-        delete_clicked = PyImGui.button(delete_label)
+        delete_clicked = self._draw_confirm_destructive_button(
+            "Delete Selected##merchant_rules_shared_profile_delete"
+        )
         PyImGui.end_disabled()
 
         if save_new_clicked:
@@ -17122,32 +17565,10 @@ class MerchantRulesWidget:
             self._load_selected_shared_profile()
             selected_profile = self._get_selected_shared_profile()
         if overwrite_clicked and selected_profile is not None:
-            if overwrite_confirm_required:
-                self._save_current_over_selected_shared_profile()
-            else:
-                self._clear_pending_destructive_button()
-                self.shared_profile_pending_overwrite_path = selected_profile.path
-                self.shared_profile_pending_delete_path = ""
-                self._set_shared_profile_feedback(
-                    notice=(
-                        f"Click overwrite again to replace shared profile "
-                        f"'{selected_profile.display_name}'."
-                    )
-                )
+            self._save_current_over_selected_shared_profile()
             selected_profile = self._get_selected_shared_profile()
         if delete_clicked and selected_profile is not None:
-            if delete_confirm_required:
-                self._delete_selected_shared_profile()
-            else:
-                self._clear_pending_destructive_button()
-                self.shared_profile_pending_delete_path = selected_profile.path
-                self.shared_profile_pending_overwrite_path = ""
-                self._set_shared_profile_feedback(
-                    notice=(
-                        f"Click delete again to remove shared profile "
-                        f"'{selected_profile.display_name}'."
-                    )
-                )
+            self._delete_selected_shared_profile()
 
         PyImGui.separator()
         self._draw_section_heading("Live Config")

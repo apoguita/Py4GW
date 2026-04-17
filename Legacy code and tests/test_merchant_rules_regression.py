@@ -190,6 +190,8 @@ def _install_stub_modules(project_root: Path) -> None:
         HeaderActive=5,
         Text=6,
     )
+    imgui.push_style_color = lambda *_args, **_kwargs: None
+    imgui.pop_style_color = lambda *_args, **_kwargs: None
     sys.modules["PyImGui"] = imgui
 
     core = types.ModuleType("Py4GWCoreLib")
@@ -269,6 +271,9 @@ def _install_stub_modules(project_root: Path) -> None:
             weapon_mods=[],
             is_rune=False,
             requirements=0,
+            attribute=types.SimpleNamespace(name="None_", value=0),
+            damage=(0, 0),
+            shield_armor=(0, 0),
         )
     )
     sys.modules["Sources.marks_sources.mods_parser"] = mods_parser
@@ -348,7 +353,9 @@ def _prime_initialized_widget(module, widget):
 def _install_sell_rule_editor_click_stubs(module, clicked_button_label: str) -> None:
     imgui = module.PyImGui
     clicked_label = str(clicked_button_label or "")
-    imgui.button = lambda label: str(label or "") == clicked_label
+    _visible_label, separator, hidden_id = clicked_label.partition("##")
+    confirm_label = f"Are you sure?##{hidden_id}" if separator else "Are you sure?"
+    imgui.button = lambda label: str(label or "") in (clicked_label, confirm_label)
     imgui.small_button = lambda *_args, **_kwargs: False
     imgui.same_line = lambda *_args, **_kwargs: None
     imgui.spacing = lambda *_args, **_kwargs: None
@@ -365,6 +372,9 @@ def _install_sell_rule_editor_click_stubs(module, clicked_button_label: str) -> 
 def _prepare_sell_rule_editor_widget(module, clicked_button_label: str):
     _install_sell_rule_editor_click_stubs(module, clicked_button_label)
     widget = _make_widget(module)
+    if clicked_button_label:
+        widget.pending_destructive_button_key = widget._get_destructive_button_key(clicked_button_label)
+        widget.pending_destructive_button_expires_at_ms = int(module.time.time() * 1000) + module.DESTRUCTIVE_BUTTON_CONFIRM_TIMEOUT_MS
     widget.catalog_common_material_ids = [921, 925, 946]
     widget.catalog_rare_materials = [
         {"model_id": int(module.ECTOPLASM_MODEL_ID), "name": "Glob of Ectoplasm", "material_type": "rare"},
@@ -411,6 +421,12 @@ def _make_item(
     salvageable: bool = False,
     standalone_kind: str = "",
     requirement: int = 0,
+    requirement_attribute_id: int = 0,
+    requirement_attribute_name: str = "",
+    damage_min: int = 0,
+    damage_max: int = 0,
+    energy: int = 0,
+    armor: int = 0,
     rune_identifiers: list[str] | None = None,
     weapon_mod_identifiers: list[str] | None = None,
     weapon_mod_matches: list[object] | None = None,
@@ -433,6 +449,12 @@ def _make_item(
         is_weapon_like=is_weapon_like,
         is_armor_piece=is_armor_piece,
         requirement=requirement,
+        requirement_attribute_id=requirement_attribute_id,
+        requirement_attribute_name=requirement_attribute_name,
+        damage_min=damage_min,
+        damage_max=damage_max,
+        energy=energy,
+        armor=armor,
         standalone_kind=standalone_kind,
         rune_identifiers=list(rune_identifiers or []),
         weapon_mod_identifiers=list(weapon_mod_identifiers or []),
@@ -538,6 +560,13 @@ def _make_weapon_item(
     name: str,
     requirement: int,
     item_type=None,
+    identified: bool = True,
+    requirement_attribute_id: int = 1,
+    requirement_attribute_name: str = "Axe Mastery",
+    damage_min: int = 0,
+    damage_max: int = 0,
+    energy: int = 0,
+    armor: int = 0,
 ):
     selected_item_type = item_type if item_type is not None else module.ItemType.Axe
     return _make_item(
@@ -546,9 +575,15 @@ def _make_weapon_item(
         model_id=model_id,
         name=name,
         rarity="Gold",
-        identified=True,
+        identified=identified,
         is_weapon_like=True,
         requirement=requirement,
+        requirement_attribute_id=requirement_attribute_id,
+        requirement_attribute_name=requirement_attribute_name,
+        damage_min=damage_min,
+        damage_max=damage_max,
+        energy=energy,
+        armor=armor,
         item_type_id=int(selected_item_type),
         item_type_name=str(getattr(selected_item_type, "name", "Axe")),
     )
@@ -1830,6 +1865,334 @@ def _test_unconditional_protected_model_still_protects_all_requirements(module) 
         )
 
 
+def _test_perfect_base_raw_modifier_snapshot_extracts_stats(module) -> None:
+    raw_modifiers = (
+        (module.MODIFIER_IDENTIFIER_ATTRIBUTE_REQUIREMENT << 4, 20, 8),
+        (module.MODIFIER_IDENTIFIER_DAMAGE << 4, 22, 15),
+        (module.MODIFIER_IDENTIFIER_ENERGY << 4, 10, 0),
+        (module.MODIFIER_IDENTIFIER_ARMOR1 << 4, 16, 0),
+    )
+
+    extracted = module._extract_base_stats_from_raw_modifiers(raw_modifiers)
+
+    _expect(
+        extracted == (8, 20, "", 15, 22, 10, 16),
+        "Raw modifier snapshots should expose requirement, damage, energy, and armor for perfect-base matching.",
+    )
+
+
+def _test_all_weapons_perfect_only_requirement_range(module) -> None:
+    widget = _make_widget(module)
+    rule = module._normalize_sell_rule(
+        module.SellRule(
+            enabled=True,
+            kind=module.SELL_KIND_WEAPONS,
+            all_weapons_min_requirement=8,
+            all_weapons_max_requirement=9,
+            all_weapons_perfect_stats_only=True,
+        )
+    )
+
+    perfect_q8 = widget._get_weapon_requirement_hit_reason(
+        _make_weapon_item(
+            module,
+            item_id=650,
+            model_id=111,
+            name="Iron Sword",
+            requirement=8,
+            item_type=module.ItemType.Sword,
+            requirement_attribute_name="Swordsmanship",
+            damage_min=15,
+            damage_max=22,
+        ),
+        rule,
+    )
+    _expect(
+        perfect_q8 == "Protected by all-weapons perfect-base range: Sword 15-22, req 8 Swordsmanship.",
+        "All-weapons perfect-only range should protect a q8 perfect sword.",
+    )
+
+    nonperfect_q8 = widget._get_weapon_requirement_hit_reason(
+        _make_weapon_item(
+            module,
+            item_id=651,
+            model_id=111,
+            name="Iron Sword",
+            requirement=8,
+            item_type=module.ItemType.Sword,
+            requirement_attribute_name="Swordsmanship",
+            damage_min=14,
+            damage_max=22,
+        ),
+        rule,
+    )
+    _expect(nonperfect_q8 == "", "All-weapons perfect-only range should reject a q8 non-perfect sword.")
+
+    perfect_q10 = widget._get_weapon_requirement_hit_reason(
+        _make_weapon_item(
+            module,
+            item_id=652,
+            model_id=111,
+            name="Iron Sword",
+            requirement=10,
+            item_type=module.ItemType.Sword,
+            requirement_attribute_name="Swordsmanship",
+            damage_min=15,
+            damage_max=22,
+        ),
+        rule,
+    )
+    _expect(perfect_q10 == "", "All-weapons perfect-only range should reject a q10 perfect sword when range is 8-9.")
+
+
+def _test_model_specific_perfect_only_requirement_range(module) -> None:
+    widget = _make_widget(module)
+    rule = module._normalize_sell_rule(
+        module.SellRule(
+            enabled=True,
+            kind=module.SELL_KIND_WEAPONS,
+            all_weapons_min_requirement=8,
+            all_weapons_max_requirement=9,
+            all_weapons_perfect_stats_only=True,
+            protected_weapon_requirement_rules=[
+                module.WeaponRequirementRule(model_id=333, min_requirement=8, max_requirement=12, perfect_stats_only=True),
+            ],
+        )
+    )
+
+    model_perfect_q10 = widget._get_weapon_requirement_hit_reason(
+        _make_weapon_item(
+            module,
+            item_id=660,
+            model_id=333,
+            name="Storm Bow",
+            requirement=10,
+            item_type=module.ItemType.Bow,
+            requirement_attribute_name="Marksmanship",
+            damage_min=15,
+            damage_max=28,
+        ),
+        rule,
+    )
+    _expect(
+        model_perfect_q10 == "Protected by model perfect-base range: Storm Bow 15-28, req 10 Marksmanship.",
+        "Model-specific perfect-only range should protect a selected model in its broader range.",
+    )
+
+    other_model_q10 = widget._get_weapon_requirement_hit_reason(
+        _make_weapon_item(
+            module,
+            item_id=661,
+            model_id=444,
+            name="Shadow Bow",
+            requirement=10,
+            item_type=module.ItemType.Bow,
+            requirement_attribute_name="Marksmanship",
+            damage_min=15,
+            damage_max=28,
+        ),
+        rule,
+    )
+    _expect(other_model_q10 == "", "A different q10 model should not be protected by the narrower all-weapons range.")
+
+    model_nonperfect_q10 = widget._get_weapon_requirement_hit_reason(
+        _make_weapon_item(
+            module,
+            item_id=662,
+            model_id=333,
+            name="Storm Bow",
+            requirement=10,
+            item_type=module.ItemType.Bow,
+            requirement_attribute_name="Marksmanship",
+            damage_min=14,
+            damage_max=28,
+        ),
+        rule,
+    )
+    _expect(model_nonperfect_q10 == "", "Model-specific perfect-only range should reject the selected model when stats are low.")
+
+
+def _test_perfect_base_requires_staff_focus_and_shield_stats(module) -> None:
+    widget = _make_widget(module)
+    rule = module._normalize_sell_rule(
+        module.SellRule(
+            enabled=True,
+            kind=module.SELL_KIND_WEAPONS,
+            all_weapons_min_requirement=8,
+            all_weapons_max_requirement=9,
+            all_weapons_perfect_stats_only=True,
+        )
+    )
+
+    staff_perfect = widget._get_weapon_requirement_hit_reason(
+        _make_weapon_item(
+            module,
+            item_id=670,
+            model_id=6700,
+            name="Divine Staff",
+            requirement=9,
+            item_type=module.ItemType.Staff,
+            requirement_attribute_name="Divine Favor",
+            damage_min=11,
+            damage_max=22,
+            energy=10,
+        ),
+        rule,
+    )
+    _expect(
+        staff_perfect == "Protected by all-weapons perfect-base range: Staff 11-22, Energy +10, req 9 Divine Favor.",
+        "Perfect staff protection should require both 11-22 damage and Energy +10.",
+    )
+
+    staff_missing_energy = widget._get_weapon_requirement_hit_reason(
+        _make_weapon_item(
+            module,
+            item_id=671,
+            model_id=6701,
+            name="Divine Staff",
+            requirement=9,
+            item_type=module.ItemType.Staff,
+            requirement_attribute_name="Divine Favor",
+            damage_min=11,
+            damage_max=22,
+            energy=9,
+        ),
+        rule,
+    )
+    _expect(staff_missing_energy == "", "Perfect staff protection should reject 11-22 staves without Energy +10.")
+
+    focus_perfect = widget._get_weapon_requirement_hit_reason(
+        _make_weapon_item(
+            module,
+            item_id=672,
+            model_id=6702,
+            name="Jeweled Focus",
+            requirement=9,
+            item_type=module.ItemType.Offhand,
+            requirement_attribute_name="Domination Magic",
+            energy=12,
+        ),
+        rule,
+    )
+    _expect(
+        focus_perfect == "Protected by all-weapons perfect-base range: Focus Energy +12, req 9 Domination Magic.",
+        "Perfect focus protection should require Energy +12.",
+    )
+
+    focus_low_energy = widget._get_weapon_requirement_hit_reason(
+        _make_weapon_item(
+            module,
+            item_id=673,
+            model_id=6703,
+            name="Jeweled Focus",
+            requirement=9,
+            item_type=module.ItemType.Offhand,
+            requirement_attribute_name="Domination Magic",
+            energy=11,
+        ),
+        rule,
+    )
+    _expect(focus_low_energy == "", "Perfect focus protection should reject Energy +11.")
+
+    shield_perfect = widget._get_weapon_requirement_hit_reason(
+        _make_weapon_item(
+            module,
+            item_id=674,
+            model_id=6704,
+            name="Tower Shield",
+            requirement=9,
+            item_type=module.ItemType.Shield,
+            requirement_attribute_name="Tactics",
+            armor=16,
+        ),
+        rule,
+    )
+    _expect(
+        shield_perfect == "Protected by all-weapons perfect-base range: Shield Armor 16, req 9 Tactics.",
+        "Perfect shield protection should require Armor 16.",
+    )
+
+    shield_low_armor = widget._get_weapon_requirement_hit_reason(
+        _make_weapon_item(
+            module,
+            item_id=675,
+            model_id=6705,
+            name="Tower Shield",
+            requirement=9,
+            item_type=module.ItemType.Shield,
+            requirement_attribute_name="Tactics",
+            armor=15,
+        ),
+        rule,
+    )
+    _expect(shield_low_armor == "", "Perfect shield protection should reject Armor 15.")
+
+
+def _test_perfect_only_unidentified_missing_stats_fail_closed(module) -> None:
+    widget = _make_widget(module)
+    perfect_rule = module._normalize_sell_rule(
+        module.SellRule(
+            enabled=True,
+            kind=module.SELL_KIND_WEAPONS,
+            all_weapons_min_requirement=8,
+            all_weapons_max_requirement=9,
+            all_weapons_perfect_stats_only=True,
+            skip_unidentified=False,
+        )
+    )
+    normal_rule = module._normalize_sell_rule(
+        module.SellRule(
+            enabled=True,
+            kind=module.SELL_KIND_WEAPONS,
+            all_weapons_min_requirement=8,
+            all_weapons_max_requirement=9,
+            skip_unidentified=False,
+        )
+    )
+
+    unidentified_unknown = _make_weapon_item(
+        module,
+        item_id=680,
+        model_id=6800,
+        name="Unidentified Sword",
+        requirement=0,
+        item_type=module.ItemType.Sword,
+        identified=False,
+        requirement_attribute_id=0,
+        requirement_attribute_name="",
+        damage_min=0,
+        damage_max=0,
+    )
+    reason = widget._get_weapon_requirement_hit_reason(unidentified_unknown, perfect_rule)
+    _expect(
+        reason == "Protected until identified: perfect-base stats unavailable.",
+        "Perfect-only rules should fail closed for unidentified items when req/base stats are unavailable.",
+    )
+    protection = widget._get_equippable_hard_protection_reason(unidentified_unknown, perfect_rule)
+    _expect(
+        protection is not None and protection[1] == "Protected until identified: perfect-base stats unavailable.",
+        "Perfect-only unidentified fail-closed protection should flow through hard protection.",
+    )
+
+    normal_reason = widget._get_weapon_requirement_hit_reason(unidentified_unknown, normal_rule)
+    _expect(normal_reason == "", "Normal requirement protection should keep unknown req behavior unchanged.")
+
+    unidentified_q10_unknown_stats = _make_weapon_item(
+        module,
+        item_id=681,
+        model_id=6801,
+        name="Unidentified Sword",
+        requirement=10,
+        item_type=module.ItemType.Sword,
+        identified=False,
+        requirement_attribute_name="Swordsmanship",
+        damage_min=0,
+        damage_max=0,
+    )
+    q10_reason = widget._get_weapon_requirement_hit_reason(unidentified_q10_unknown_stats, perfect_rule)
+    _expect(q10_reason == "", "A known req outside the configured range should not fail closed just because stats are unavailable.")
+
+
 def _test_weapon_requirement_ranges_normalize_swapped_and_zero_endpoints(module, temp_root: Path) -> None:
     widget = _make_widget(module)
     config_path = temp_root / "requirement_range_normalization_profile.json"
@@ -3067,6 +3430,178 @@ def _test_preview_reason_display_hides_projected_suffix_without_mutating_plan(mo
     _expect(
         entry.reason == projected_reason,
         "Preview row rendering should stay UI-only and must not mutate the stored plan reason.",
+    )
+
+
+def _test_preview_reason_display_normalizes_nested_protection_wording(module) -> None:
+    widget = _prime_initialized_widget(module, _make_widget(module))
+    direct_linked = module.ExecutionPlanEntry(
+        action_type="deposit",
+        merchant_type=module.MERCHANT_TYPE_STORAGE,
+        label="Tower Shield",
+        quantity=1,
+        state=module.PLAN_STATE_WILL_EXECUTE,
+        reason="Protected by Weapons Protections (#1): Protected by all-weapons perfect-base range: Shield Armor 16, req 9 Strength.",
+    )
+    blocked_destroy = module.ExecutionPlanEntry(
+        action_type="destroy",
+        merchant_type=module.MERCHANT_TYPE_INVENTORY,
+        label="Chaos Axe",
+        quantity=1,
+        state=module.PLAN_STATE_SKIPPED,
+        reason="Blocked by Destroy Weapons rule #2: Hard-protected by Weapons Protections (#1): Protected by model perfect-base range: Chaos Axe 6-28, req 9 Axe Mastery.",
+    )
+
+    _expect(
+        widget._get_preview_reason_for_display(direct_linked)
+        == "Protected by Weapons Protections (#1): all-weapons perfect-base range, Shield Armor 16, req 9 Strength.",
+        "Preview display should collapse nested direct protection wording without mutating the stored reason.",
+    )
+    _expect(
+        direct_linked.reason
+        == "Protected by Weapons Protections (#1): Protected by all-weapons perfect-base range: Shield Armor 16, req 9 Strength.",
+        "Preview reason wording polish should be display-only.",
+    )
+    _expect(
+        widget._get_preview_reason_for_display(blocked_destroy)
+        == "Blocked by Destroy Weapons rule #2: protected by Weapons Protections (#1), model perfect-base range, Chaos Axe 6-28, req 9 Axe Mastery.",
+        "Preview display should make blocked nested protection wording scannable.",
+    )
+
+
+def _test_detailed_preview_controls_direct_storage_deposit_reasons(module) -> None:
+    widget = _prime_initialized_widget(module, _make_widget(module))
+
+    direct_perfect = module.ExecutionPlanEntry(
+        action_type="deposit",
+        merchant_type=module.MERCHANT_TYPE_STORAGE,
+        label="Tower Shield",
+        quantity=1,
+        state=module.PLAN_STATE_WILL_EXECUTE,
+        reason="Protected by all-weapons perfect-base range: Shield Armor 16, req 9 Strength.",
+    )
+    ordinary_cleanup = module.ExecutionPlanEntry(
+        action_type="deposit",
+        merchant_type=module.MERCHANT_TYPE_STORAGE,
+        label="Bone",
+        quantity=10,
+        state=module.PLAN_STATE_WILL_EXECUTE,
+        reason="Cleanup target keeps 0 on character.",
+    )
+    skipped_protection = module.ExecutionPlanEntry(
+        action_type="deposit",
+        merchant_type=module.MERCHANT_TYPE_STORAGE,
+        label="Tower Shield",
+        quantity=0,
+        state=module.PLAN_STATE_SKIPPED,
+        reason="Blocked by Rule 1 (Weapons): Hard-protected by Rule 1 (Weapons): Blacklisted model.",
+    )
+
+    _expect(
+        not widget._should_show_preview_reason(
+            direct_perfect,
+            widget._get_preview_reason_for_display(direct_perfect),
+        ),
+        "Compact preview should hide direct Xunlai deposit protection reasons.",
+    )
+    _expect(
+        not widget._should_show_preview_reason(
+            ordinary_cleanup,
+            widget._get_preview_reason_for_display(ordinary_cleanup),
+        ),
+        "Compact preview should hide ordinary direct Xunlai deposit reasons.",
+    )
+    widget.detailed_preview = True
+    _expect(
+        widget._should_show_preview_reason(
+            direct_perfect,
+            widget._get_preview_reason_for_display(direct_perfect),
+        ),
+        "Detailed Preview should show direct Xunlai deposit protection reasons.",
+    )
+    widget.detailed_preview = False
+    _expect(
+        widget._should_show_preview_reason(
+            skipped_protection,
+            widget._get_preview_reason_for_display(skipped_protection),
+            show_reasons=True,
+        ),
+        "Skipped protection reasons should continue to show through the skipped/blocked table.",
+    )
+
+
+def _test_detailed_preview_shows_all_direct_reasons(module) -> None:
+    widget = _prime_initialized_widget(module, _make_widget(module))
+    direct_destroy = module.ExecutionPlanEntry(
+        action_type="destroy",
+        merchant_type=module.MERCHANT_TYPE_INVENTORY,
+        label="Purple Sword",
+        quantity=1,
+        state=module.PLAN_STATE_WILL_EXECUTE,
+        reason="Matched by Destroy Weapons rule #2: rarity Purple.",
+    )
+    direct_sell = module.ExecutionPlanEntry(
+        action_type="sell",
+        merchant_type=module.MERCHANT_TYPE_MERCHANT,
+        label="Iron Sword",
+        quantity=1,
+        state=module.PLAN_STATE_WILL_EXECUTE,
+        reason="1 individual trade(s).",
+    )
+    conditional_buy = module.ExecutionPlanEntry(
+        action_type="buy",
+        merchant_type=module.MERCHANT_TYPE_MATERIALS,
+        label="Iron Ingot",
+        quantity=10,
+        state=module.PLAN_STATE_CONDITIONAL,
+        reason="Will attempt this buy only if the currently opened merchant offers the item.",
+    )
+    skipped_destroy = module.ExecutionPlanEntry(
+        action_type="destroy",
+        merchant_type=module.MERCHANT_TYPE_INVENTORY,
+        label="Chaos Axe",
+        quantity=0,
+        state=module.PLAN_STATE_SKIPPED,
+        reason="Blocked by Destroy Weapons rule #2: protected by Weapons Protections (#1), model perfect-base range.",
+    )
+
+    _expect(
+        not widget._should_show_preview_reason(
+            direct_destroy,
+            widget._get_preview_reason_for_display(direct_destroy),
+        ),
+        "Compact preview should keep ordinary direct destroy reasons hidden.",
+    )
+    widget.detailed_preview = True
+    _expect(
+        widget._should_show_preview_reason(
+            direct_destroy,
+            widget._get_preview_reason_for_display(direct_destroy),
+        ),
+        "Detailed Preview should show direct destroy reasons.",
+    )
+    _expect(
+        widget._should_show_preview_reason(
+            direct_sell,
+            widget._get_preview_reason_for_display(direct_sell),
+        ),
+        "Detailed Preview should show direct sell reasons.",
+    )
+    _expect(
+        widget._should_show_preview_reason(
+            conditional_buy,
+            widget._get_preview_reason_for_display(conditional_buy),
+            is_conditional=True,
+        ),
+        "Conditional reasons should remain visible in detailed preview.",
+    )
+    _expect(
+        widget._should_show_preview_reason(
+            skipped_destroy,
+            widget._get_preview_reason_for_display(skipped_destroy),
+            show_reasons=True,
+        ),
+        "Skipped / blocked reasons should remain visible through the existing skipped table path.",
     )
 
 
@@ -5231,6 +5766,11 @@ def main() -> int:
             ("model_specific_weapon_requirement_range_is_inclusive", lambda: _test_model_specific_weapon_requirement_range_is_inclusive(module)),
             ("model_specific_requirement_range_overrides_global_range", lambda: _test_model_specific_requirement_range_overrides_global_range(module)),
             ("unconditional_protected_model_still_protects_all_requirements", lambda: _test_unconditional_protected_model_still_protects_all_requirements(module)),
+            ("perfect_base_raw_modifier_snapshot_extracts_stats", lambda: _test_perfect_base_raw_modifier_snapshot_extracts_stats(module)),
+            ("all_weapons_perfect_only_requirement_range", lambda: _test_all_weapons_perfect_only_requirement_range(module)),
+            ("model_specific_perfect_only_requirement_range", lambda: _test_model_specific_perfect_only_requirement_range(module)),
+            ("perfect_base_requires_staff_focus_and_shield_stats", lambda: _test_perfect_base_requires_staff_focus_and_shield_stats(module)),
+            ("perfect_only_unidentified_missing_stats_fail_closed", lambda: _test_perfect_only_unidentified_missing_stats_fail_closed(module)),
             ("weapon_requirement_ranges_normalize_swapped_and_zero_endpoints", lambda: _test_weapon_requirement_ranges_normalize_swapped_and_zero_endpoints(module, temp_root)),
             ("legacy_requirement_thresholds_migrate_to_ranges", lambda: _test_legacy_requirement_thresholds_migrate_to_ranges(module, temp_root)),
             ("keep_count_claims_items_before_later_sell_rules", lambda: _test_keep_count_claims_items_before_later_sell_rules(module)),
@@ -5253,6 +5793,8 @@ def main() -> int:
             ("projected_preview_builds_post_travel_plan_without_travel_entry", lambda: _test_projected_preview_builds_post_travel_plan_without_travel_entry(module)),
             ("projected_preview_keeps_cleanup_visible_from_unsupported_current_map", lambda: _test_projected_preview_keeps_cleanup_visible_from_unsupported_current_map(module)),
             ("preview_reason_display_hides_projected_suffix_without_mutating_plan", lambda: _test_preview_reason_display_hides_projected_suffix_without_mutating_plan(module)),
+            ("preview_reason_display_normalizes_nested_protection_wording", lambda: _test_preview_reason_display_normalizes_nested_protection_wording(module)),
+            ("detailed_preview_shows_all_direct_reasons", lambda: _test_detailed_preview_shows_all_direct_reasons(module)),
             (
                 "projected_preview_here_availability_tracks_local_services_and_storage",
                 lambda: _test_projected_preview_here_availability_tracks_local_services_and_storage(module),
@@ -5288,6 +5830,7 @@ def main() -> int:
             ("compare_inventory_detects_preview_drift", lambda: _test_compare_inventory_detects_preview_drift(module)),
             ("compare_inventory_detects_preview_drift_for_projected_preview", lambda: _test_compare_inventory_detects_preview_drift_for_projected_preview(module)),
             ("merchant_sell_verification_confirms_changes_and_reports_timeouts", lambda: _test_merchant_sell_verification_confirms_changes_and_reports_timeouts(module)),
+            ("detailed_preview_controls_direct_storage_deposit_reasons", lambda: _test_detailed_preview_controls_direct_storage_deposit_reasons(module)),
             ("build_remote_preview_result_formats_multibox_states", lambda: _test_build_remote_preview_result_formats_multibox_states(module)),
             ("build_remote_execute_result_formats_multibox_states", lambda: _test_build_remote_execute_result_formats_multibox_states(module)),
             ("handle_multibox_result_updates_status_and_ignores_stale_requests", lambda: _test_handle_multibox_result_updates_status_and_ignores_stale_requests(module)),
