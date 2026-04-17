@@ -104,18 +104,12 @@ try:
                 player_name = Agent.GetNameByID(player_id) or "Player"
 
                 if not player_skills:
-                    ConsoleLog(MODULE_NAME, f"[Cache] {player_name}: skillbar empty (not loaded yet?)", Console.MessageType.Warning)
-                    return  # don't mark cache as built — retry next tick
-
-                # Log all skills with IDs for diagnostics
-                skill_info = [(sid, Skill.GetNameFromWiki(sid)) for sid in player_skills]
-                ConsoleLog(MODULE_NAME, f"[Cache] {player_name} skills: {skill_info}", Console.MessageType.Info)
+                    return  # skillbar not loaded yet — retry next tick
 
                 for skill_id in player_skills:
                     skill_name = Skill.GetNameFromWiki(skill_id)
                     if skill_id in _RES_SKILL_IDS or skill_name.lower() in _RES_SKILL_NAMES:
                         _res_cache.append((player_id, player_name, skill_name))
-                        ConsoleLog(MODULE_NAME, f"[Cache] {player_name} has res skill '{skill_name}' (id {skill_id})", Console.MessageType.Info)
                         break
             except Exception as e:
                 ConsoleLog(MODULE_NAME, f"[Cache] Error reading local skillbar: {e}", Console.MessageType.Error)
@@ -133,18 +127,12 @@ try:
 
                 acc_skill_ids = [int(s.Id) for s in acc.AgentData.Skillbar.Skills if int(s.Id) != 0]
                 if not acc_skill_ids:
-                    ConsoleLog(MODULE_NAME, f"[Cache] {char_name}: shared memory skillbar empty (not synced yet?)", Console.MessageType.Warning)
-                    return  # retry next tick
-
-                # Log all skills with IDs for diagnostics
-                acc_skill_info = [(sid, Skill.GetNameFromWiki(sid)) for sid in acc_skill_ids]
-                ConsoleLog(MODULE_NAME, f"[Cache] {char_name} skills: {acc_skill_info}", Console.MessageType.Info)
+                    return  # shared memory skillbar not synced yet — retry next tick
 
                 for sid in acc_skill_ids:
                     skill_name = Skill.GetNameFromWiki(sid)
                     if sid in _RES_SKILL_IDS or skill_name.lower() in _RES_SKILL_NAMES:
                         _res_cache.append((acc_agent_id, char_name, skill_name))
-                        ConsoleLog(MODULE_NAME, f"[Cache] {char_name} has res skill '{skill_name}' (id {sid})", Console.MessageType.Info)
                         break
         except Exception as e:
             ConsoleLog(MODULE_NAME, f"[Cache] Error reading shared memory: {e}", Console.MessageType.Error)
@@ -195,8 +183,8 @@ try:
             _last_was_explorable = False
             return
 
-        # Build cache once on explorable entry (with delay for skillbar loading)
-        if not _cache_built and is_explorable:
+        # Build cache once on explorable entry (only needed when skip feature is on)
+        if _skip_if_res_available and not _cache_built and is_explorable:
             if Routines.Checks.Map.IsMapReady() and Routines.Checks.Party.IsPartyLoaded():
                 if not _last_was_explorable:
                     # First tick in explorable — start the delay timer
