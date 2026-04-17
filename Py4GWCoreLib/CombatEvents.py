@@ -226,6 +226,7 @@ class CombatEvents:
 
     @staticmethod
     def Enable():
+        #deactivated by design
         helpers._set_callback_active(False)
         import PyCallback
         PyCallback.PyCallback.Register(
