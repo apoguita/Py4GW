@@ -59,9 +59,8 @@ class GenericUtilitySkillsList:
 
         skills.append(KeepSelfEffectUpUtility(event_bus=event_bus, skill=CustomSkill("Air_of_Superiority"), current_build=in_game_build, score_definition=ScoreStaticDefinition(30), allowed_states=[BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO]))
 
-
-
-
+        skills.append(KeepSelfEffectUpUtility(event_bus=event_bus, skill=CustomSkill("I_Am_the_Strongest"), current_build=in_game_build, score_definition=ScoreStaticDefinition(90), allowed_states=[BehaviorState.IN_AGGRO]))
+        skills.append(KeepSelfEffectUpUtility(event_bus=event_bus, skill=CustomSkill("Dwarven_Stability"), current_build=in_game_build, score_definition=ScoreStaticDefinition(95), allowed_states=[BehaviorState.IN_AGGRO, BehaviorState.CLOSE_TO_AGGRO, BehaviorState.FAR_FROM_AGGRO]))
 
         # naive JUNUNDU version
         skills.append(RawSimpleAttackUtility(event_bus=event_bus, skill=CustomSkill("Junundu_Strike"), current_build=in_game_build, score_definition=ScoreStaticDefinition(65)))

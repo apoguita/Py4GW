@@ -26,9 +26,10 @@ class _TEMPLATES:
         self.parent.Multibox.SetAccountIsolation(False) #single-account passive mode
         properties.Disable("auto_loot") #no waiting for loot
         properties.Disable("imp")
-        
-        #from Widgets.Config.CustomBehaviors.primitives.botting.botting_fsm_helper import BottingFsmHelpers
-        #BottingFsmHelpers.SetBottingBehaviorAsPacifist(self.parent)
+
+        from Sources.oazix.CustomBehaviors.primitives.botting.botting_fsm_helper import BottingFsmHelpers
+        BottingFsmHelpers.SetBottingBehaviorAsPacifist(self.parent)
+
     def Pacifist(self):
         properties = self.parent.Properties
         properties.Disable("pause_on_danger") #avoid combat
@@ -39,8 +40,9 @@ class _TEMPLATES:
         self.parent.Multibox.SetAccountIsolation(True) #single-account passive mode
         properties.Disable("auto_loot") #no waiting for loot
         properties.Disable("imp")
-        
 
+        from Sources.oazix.CustomBehaviors.primitives.botting.botting_fsm_helper import BottingFsmHelpers
+        BottingFsmHelpers.SetBottingBehaviorAsPacifist(self.parent)
 
     def AggressiveForceAutocombat(self, pause_on_danger: bool = True,
                    halt_on_death: bool = False,
@@ -77,6 +79,9 @@ class _TEMPLATES:
             properties.Enable("imp")
         else:
             properties.Disable("imp")
+
+        from Sources.oazix.CustomBehaviors.primitives.botting.botting_fsm_helper import BottingFsmHelpers
+        BottingFsmHelpers.SetBottingBehaviorAsAggressive(self.parent)
         
     def Aggressive(self, pause_on_danger: bool = True,
                    halt_on_death: bool = False,
@@ -113,7 +118,10 @@ class _TEMPLATES:
         else:
             properties.Disable("imp")
 
-        
+        from Sources.oazix.CustomBehaviors.primitives.botting.botting_fsm_helper import BottingFsmHelpers
+        BottingFsmHelpers.SetBottingBehaviorAsAggressive(self.parent)
+
+
     def Multibox_Aggressive(self):
         properties = self.parent.Properties
         properties.Enable("pause_on_danger") #engage in combat
@@ -125,8 +133,8 @@ class _TEMPLATES:
         properties.Enable("auto_loot") #wait for loot
         properties.Enable("auto_inventory_management") #manage inventory
         
-        #from Widgets.Config.CustomBehaviors.primitives.botting.botting_fsm_helper import BottingFsmHelpers
-        #BottingFsmHelpers.SetBottingBehaviorAsAggressive(self.parent)
+        from Sources.oazix.CustomBehaviors.primitives.botting.botting_fsm_helper import BottingFsmHelpers
+        BottingFsmHelpers.SetBottingBehaviorAsAggressive(self.parent)
 
 #region Routines
     class _Routines:
@@ -143,8 +151,8 @@ class _TEMPLATES:
                 map_id_to_travel:int | None = None):
             bot = self.parent
 
-            #from Widgets.Config.CustomBehaviors.primitives.botting.botting_fsm_helper import BottingFsmHelpers
-            #BottingFsmHelpers.UseCustomBehavior(bot, on_player_critical_stuck, on_player_critical_death, on_party_death)
+            from Sources.oazix.CustomBehaviors.primitives.botting.botting_fsm_helper import BottingFsmHelpers
+            BottingFsmHelpers.UseCustomBehavior(bot, on_player_critical_stuck, on_player_critical_death, on_party_death)
             if map_id_to_travel is not None:
                 bot.Map.Travel(target_map_id=map_id_to_travel)
         

@@ -13,6 +13,7 @@ from Sources.oazix.CustomBehaviors.primitives.helpers.custom_behavior_helpers_ta
 from Sources.oazix.CustomBehaviors.primitives.helpers.targeting_order import TargetingOrder
 from Sources.oazix.CustomBehaviors.primitives.helpers.sortable_agent_data import SortableAgentData
 from Sources.oazix.CustomBehaviors.primitives.parties.memory_cache_manager import MemoryCacheManager
+from Sources.oazix.CustomBehaviors.primitives.parties.party_disability_manager import PartyDisabilityManager
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 
 from Py4GWCoreLib import GLOBAL_CACHE, Agent, Player, Overlay, SkillBar, ActionQueueManager, Routines, Range, Utils, SPIRIT_BUFF_MAP, SpiritModelID, AgentArray, GWUI
@@ -565,9 +566,13 @@ class Targets:
             range_to_count_enemies: float | None = None,
             range_to_count_allies: float | None = None,
             is_alive: bool = True) -> list[SortableAgentData]:
+
         with EvalProfiler().measure("ally_targeting"):
             player_pos: tuple[float, float] = Player.GetXY()
-            all_agent_ids: list[int] = AgentArray.GetAllyArray()
+            all_agent_ids: list[int] = AgentArray.GetAllyArray() # only 8 team members  (no pets, no npc-allies)
+            all_agent_pets = [agent_id for agent_id in AgentArray.GetSpiritPetArray() if Agent.IsPet(agent_id)] # add pets
+            all_agent_ids = all_agent_ids + all_agent_pets
+
             all_enemies_ids: list[int] = AgentArray.GetEnemyArray()
 
             agent_ids = AgentArray.Filter.ByDistance(all_agent_ids, player_pos, within_range)
@@ -609,7 +614,9 @@ class Targets:
                     is_martial=Agent.IsMartial(agent_id),
                     enemy_quantity_within_range=enemies_quantity_within_range,
                     agent_quantity_within_range=allies_quantity_within_range,
-                    energy=Resources.get_energy_percent_in_party(agent_id)
+                    energy=Resources.get_energy_percent_in_party(agent_id),
+                    hex_priority_level=PartyDisabilityManager().get_hex_score(agent_id),
+                    condition_priority_level=PartyDisabilityManager().get_condition_score(agent_id),
                 )
 
             data_to_sort = list(map(lambda agent_id: build_sortable_array(agent_id), agent_ids))
@@ -641,6 +648,10 @@ class Targets:
                     data_to_sort = sorted(data_to_sort, key=lambda x: x.is_caster)
                 elif criterion == TargetingOrder.MELEE_THEN_CASTER:
                     data_to_sort = sorted(data_to_sort, key=lambda x: x.is_melee)
+                elif criterion == TargetingOrder.HEX_PRIORITY_LEVEL_DESC:
+                    data_to_sort = sorted(data_to_sort, key=lambda x: -x.hex_priority_level)
+                elif criterion == TargetingOrder.CONDITION_PRIORITY_LEVEL_DESC:
+                    data_to_sort = sorted(data_to_sort, key=lambda x: -x.condition_priority_level)
                 else:
                     raise ValueError(f"Invalid sorting criterion: {criterion}")
 
@@ -763,7 +774,9 @@ class Targets:
                     is_martial=agentData.is_martial,
                     enemy_quantity_within_range=enemy_quantity_within_range,
                     agent_quantity_within_range=0,  # Not used for enemies
-                    energy=0.0  # Not used for enemies
+                    energy=0.0,  # Not used for enemies
+                    hex_priority_level=0,  # Not used for enemies
+                    condition_priority_level=0,  # Not used for enemies
                 )
 
             data_to_sort = list(map(lambda agentData: build_sortable_array(agentData), agentDatas))

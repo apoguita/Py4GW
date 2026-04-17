@@ -1,10 +1,14 @@
 from typing import cast, override
 
 from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorState
+from Sources.oazix.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Sources.oazix.CustomBehaviors.primitives.scores.score_combot_definition import ScoreCombotDefinition
 from Sources.oazix.CustomBehaviors.primitives.scores.score_per_agent_quantity_definition import ScorePerAgentQuantityDefinition
 from Sources.oazix.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
 from Sources.oazix.CustomBehaviors.primitives.skillbars.custom_behavior_base_utility import CustomBehaviorBaseUtility
+from Sources.oazix.CustomBehaviors.primitives.skillbars.disabilities.condition_priority import ConditionPriority
+from Sources.oazix.CustomBehaviors.primitives.skillbars.disabilities.disability_priority import DisabilityPriority
+from Sources.oazix.CustomBehaviors.primitives.skillbars.disabilities.hex_prioritiy import HexPriority
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill_utility_base import CustomSkillUtilityBase
 from Sources.oazix.CustomBehaviors.skills.common.ebon_battle_standard_of_wisdom_utility import EbonBattleStandardOfWisdom
@@ -15,19 +19,18 @@ from Sources.oazix.CustomBehaviors.skills.generic.raw_combot_attack_utility impo
 from Sources.oazix.CustomBehaviors.skills.paragon.blazing_finale_utility import BlazingFinaleUtility
 from Sources.oazix.CustomBehaviors.skills.paragon.heroic_refrain_utility import HeroicRefrainUtility
 from Sources.oazix.CustomBehaviors.skills.paragon.hasty_refrain_utility import HastyRefrainUtility
-from Sources.oazix.CustomBehaviors.skills.paragon.holy_spear_utility import HolySpearUtility
 from Sources.oazix.CustomBehaviors.skills.paragon.make_your_time_utility import MakeYourTimeUtility
 from Sources.oazix.CustomBehaviors.skills.plugins.preconditions.should_wait_for_adrenaline_consumer import ShouldWaitForAdrenalineConsumer
 from Sources.oazix.CustomBehaviors.skills.plugins.preconditions.should_wait_for_save_yourselves_finalized_on_allies import ShouldWaitForSaveYourselvesFinalizedOnAllies
 from Sources.oazix.CustomBehaviors.skills.warrior.protectors_defense_utility import ProtectorsDefenseUtility
-from Sources.oazix.CustomBehaviors.skills.warrior.save_yourselves import SaveYourselvesUtility
+from Sources.oazix.CustomBehaviors.skills.warrior.save_yourselves_utility import SaveYourselvesUtility
 from Sources.oazix.CustomBehaviors.skills.warrior.to_the_limit_utility import ToTheLimitUtility
 
 
 class ParagonRefrain_UtilitySkillBar(CustomBehaviorBaseUtility):
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, event_bus: EventBus):
+        super().__init__(event_bus)
         in_game_build = list(self.skillbar_management.get_in_game_build().values())
 
         #core
@@ -54,6 +57,8 @@ class ParagonRefrain_UtilitySkillBar(CustomBehaviorBaseUtility):
         self.hasty_refrain_utility: CustomSkillUtilityBase = HastyRefrainUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScoreStaticDefinition(40))
         self.never_surrender: CustomSkillUtilityBase = ProtectiveShoutUtility(event_bus=self.event_bus, skill=CustomSkill("Never_Surrender"), current_build=in_game_build, allies_health_less_than_percent=0.7,allies_quantity_required=2,score_definition=ScoreStaticDefinition(88), allowed_states=[BehaviorState.IN_AGGRO])
         self.blazing_finale_utility: CustomSkillUtilityBase = BlazingFinaleUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScoreStaticDefinition(33))
+        self.stand_your_ground: CustomSkillUtilityBase = ProtectiveShoutUtility(event_bus=self.event_bus, skill=CustomSkill("Stand_Your_Ground"), current_build=in_game_build, allies_health_less_than_percent=0.9,allies_quantity_required=2,score_definition=ScoreStaticDefinition(88), allowed_states=[BehaviorState.IN_AGGRO])
+
 
         self.jagged_strike_utility: CustomSkillUtilityBase = RawCombotAttackUtility(event_bus=self.event_bus, skill=CustomSkill("Jagged_Strike"), current_build=in_game_build, score_definition=ScoreCombotDefinition(40), mana_required_to_cast=13)
         self.fox_fangs_utility: CustomSkillUtilityBase = RawCombotAttackUtility(event_bus=self.event_bus, skill=CustomSkill("Fox_Fangs"), current_build=in_game_build, score_definition=ScoreCombotDefinition(40), mana_required_to_cast=13)
@@ -96,4 +101,17 @@ class ParagonRefrain_UtilitySkillBar(CustomBehaviorBaseUtility):
         return [
             self.heroic_refrain_utility.custom_skill,
             self.theyre_on_fire_utility.custom_skill,
+        ]
+    
+    @override
+    def hexes_to_dispell_extra_priority(self) -> list[HexPriority]:
+        return [
+            HexPriority(CustomSkill("Vocal_Minority"), DisabilityPriority.VERY_HIGH), # paragon shouts are most important for the party
+            HexPriority(CustomSkill("Soothing_Images"), DisabilityPriority.VERY_HIGH), # paragon adrenaline generator is most important for the party
+        ]
+
+    @override
+    def conditions_to_dispell_extra_priority(self) -> list[ConditionPriority]:
+        return [
+            ConditionPriority(CustomSkill("Blind"), DisabilityPriority.VERY_HIGH), # paragon adrenaline generator is most important for the party
         ]

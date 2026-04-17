@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 
-
 @dataclass
 class SortableAgentData:
     agent_id: int
@@ -12,4 +11,5 @@ class SortableAgentData:
     enemy_quantity_within_range: int
     agent_quantity_within_range: int
     energy: float
-
+    hex_priority_level: int
+    condition_priority_level: int

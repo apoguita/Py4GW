@@ -41,7 +41,7 @@ class SmiteHexUtility(CustomSkillUtilityBase):
         targets: list[custom_behavior_helpers.SortableAgentData] = custom_behavior_helpers.Targets.get_all_possible_allies_ordered_by_priority_raw(
             within_range=Range.Spellcast.value * 1.2,
             condition=lambda agent_id: Agent.IsHexed(agent_id) and agent_id != player_agent_id,
-            sort_key=(TargetingOrder.HP_ASC, TargetingOrder.DISTANCE_ASC))
+            sort_key=(TargetingOrder.HEX_PRIORITY_LEVEL_DESC, TargetingOrder.HP_ASC, TargetingOrder.DISTANCE_ASC))
         return targets
 
     def _get_lock_key(self, agent_id: int) -> str:

@@ -1,5 +1,6 @@
 from Py4GWCoreLib import Botting
 from Sources.oazix.CustomBehaviors.gui.flag_panel.flag_backward_grid_placement import FlagBackwardGridPlacement
+from Sources.oazix.CustomBehaviors.primitives.botting.botting_fsm_helper import BottingFsmHelpers
 from Sources.oazix.CustomBehaviors.primitives.following_behavior_priority import FollowingBehaviorPriority
 from Sources.oazix.CustomBehaviors.primitives.botting.botting_helpers import BottingHelpers
 from Sources.oazix.CustomBehaviors.primitives.botting.botting_manager import BottingManager
@@ -24,8 +25,14 @@ def bot_routine(bot_instance: Botting):
         on_party_death=BottingHelpers.botting_unrecoverable_issue,
         on_player_critical_stuck=BottingHelpers.botting_unrecoverable_issue)
 
-    bot_instance.Templates.Aggressive()
+    BottingFsmHelpers.SetBottingBehaviorAsAggressive(bot_instance)
+    bot_instance.Wait.ForTime(3000)
+    BottingFsmHelpers.SetBottingBehaviorAsPacifist(bot_instance)
+    bot_instance.Wait.ForTime(3000)
+    BottingFsmHelpers.SetBottingBehaviorAsAggressive(bot_instance)
+    bot_instance.Wait.ForTime(3000)
 
+    
     CustomBehaviorParty().set_party_is_blessing_enabled(True)
     PartyFollowingManager().set_party_following_behavior_state(FollowingBehaviorPriority.LOW_PRIORITY) 
 

@@ -1,10 +1,10 @@
 # python
 # File: `Sources.oazix.CustomBehaviors/skillbars/elementalist_glimmeringmark.py`
-from typing import List, override
+from typing import override
 
 from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorState
-from Sources.oazix.CustomBehaviors.primitives.scores.score_per_agent_quantity_definition import \
-    ScorePerAgentQuantityDefinition
+from Sources.oazix.CustomBehaviors.primitives.bus.event_bus import EventBus
+from Sources.oazix.CustomBehaviors.primitives.scores.score_per_agent_quantity_definition import ScorePerAgentQuantityDefinition
 from Sources.oazix.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
 from Sources.oazix.CustomBehaviors.primitives.skillbars.custom_behavior_base_utility import CustomBehaviorBaseUtility
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
@@ -14,7 +14,6 @@ from Sources.oazix.CustomBehaviors.skills.elementalist.chain_lightning_utility i
 from Sources.oazix.CustomBehaviors.skills.elementalist.shock_arrow_utility import ShockArrowUtility
 from Sources.oazix.CustomBehaviors.skills.generic.preparation_utility import PreparationUtility
 from Sources.oazix.CustomBehaviors.skills.mesmer.arcane_echo_utility import ArcaneEchoUtility
-from Sources.oazix.CustomBehaviors.skills.paragon.fall_back_utility import FallBackUtility
 from Sources.oazix.CustomBehaviors.skills.elementalist.shellshock_utility import ShellShockUtility
 from Sources.oazix.CustomBehaviors.skills.generic.keep_self_effect_up_utility import KeepSelfEffectUpUtility
 
@@ -26,8 +25,8 @@ class ElementalistGlimmeringMark_UtilitySkillBar(CustomBehaviorBaseUtility):
     and Air Attunement, Shock Arrow and fallback utilities.
     """
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, event_bus: EventBus):
+        super().__init__(event_bus)
         in_game_build = list(self.skillbar_management.get_in_game_build().values())
 
         self.glimmering_mark_utility: GlimmeringMarkUtility = GlimmeringMarkUtility(

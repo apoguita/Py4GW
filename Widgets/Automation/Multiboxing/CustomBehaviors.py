@@ -8,6 +8,7 @@ from Py4GWCoreLib.Py4GWcorelib import ThrottledTimer
 from Py4GWCoreLib.UIManager import UIManager
 from Sources.oazix.CustomBehaviors.primitives import constants
 from Sources.oazix.CustomBehaviors.primitives.fps_monitor import FPSMonitor
+from Sources.oazix.CustomBehaviors.primitives.helpers.custom_behavior_helpers_party import CustomBehaviorHelperParty
 from Sources.oazix.CustomBehaviors.primitives.widget_monitor import WidgetMonitor
 
 # Iterate through all modules in sys.modules (already imported modules)
@@ -50,6 +51,8 @@ def gui():
     from Sources.oazix.CustomBehaviors.gui.auto_mover import render as auto_mover
     from Sources.oazix.CustomBehaviors.gui.teambuild import render as teambuild
     from Sources.oazix.CustomBehaviors.gui.botting import render as botting
+    from Sources.oazix.CustomBehaviors.gui.skill_metrics import render as skill_metrics
+    from Sources.oazix.CustomBehaviors.gui.debug_disabilities import render as debug_disabilities
 
     global party_forced_state_combo, monitor, widget_window_size, widget_window_pos
     
@@ -81,13 +84,13 @@ def gui():
             PyImGui.end_tab_item()
 
         if PyImGui.begin_tab_item("debug"):
-                
+
                 PyImGui.text(f"{monitor.fps_stats()[1]}")
                 PyImGui.text(f"{monitor.frame_stats()[1]}")
-                constants.DEBUG = PyImGui.checkbox("with debugging logs", constants.DEBUG)
-                
+                constants.DEBUG = PyImGui.checkbox("with_debugging_logs#with_debugging_logs", constants.DEBUG)
+
                 PyImGui.begin_tab_bar("debug_tab_bar")
-                
+
                 if PyImGui.begin_tab_item("debug_execution"):
                     debug_execution()
                     PyImGui.end_tab_item()
@@ -109,7 +112,17 @@ def gui():
                     debug_eval_profiler()
                     PyImGui.end_tab_item()
 
+                if PyImGui.begin_tab_item("debug_disabilities"):
+                    debug_disabilities()
+                    PyImGui.end_tab_item()
+
                 PyImGui.end_tab_bar()
+
+                PyImGui.end_tab_item()
+
+        if PyImGui.begin_tab_item("metrics"):
+            skill_metrics()
+            PyImGui.end_tab_item()
 
         PyImGui.end_tab_bar()
     PyImGui.end()
@@ -143,8 +156,14 @@ def main():
         if constants.DEBUG: print("map changed - throttling.")
 
     if map_change_throttler.IsExpired():
-        show_ui = not UIManager.IsWorldMapShowing() and not Map.IsInCinematic() and not Map.Pregame.InCharacterSelectScreen() and Py4GW.Console.is_window_active()
-        if show_ui:
+        show_ui = False
+        is_leader = CustomBehaviorHelperParty.is_party_leader()
+        if is_leader:
+            show_ui = True
+        else:
+            show_ui = Py4GW.Console.is_window_active()
+
+        if show_ui and not UIManager.IsWorldMapShowing() and not Map.IsInCinematic() and not Map.Pregame.InCharacterSelectScreen() :
             gui()
 
         daemon()

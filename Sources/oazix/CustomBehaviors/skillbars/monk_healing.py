@@ -1,6 +1,6 @@
 from typing import cast, override
 
-from Sources.oazix.CustomBehaviors.primitives.scores.score_per_agent_quantity_definition import ScorePerAgentQuantityDefinition
+from Sources.oazix.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Sources.oazix.CustomBehaviors.primitives.scores.score_per_health_gravity_definition import ScorePerHealthGravityDefinition
 from Sources.oazix.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
 from Sources.oazix.CustomBehaviors.primitives.skillbars.custom_behavior_base_utility import CustomBehaviorBaseUtility
@@ -10,13 +10,7 @@ from Sources.oazix.CustomBehaviors.skills.plugins.preconditions.should_wait_for_
 from Sources.oazix.CustomBehaviors.skills.plugins.preconditions.should_wait_for_heroic_refrain import ShouldWaitForHeroicRefrain
 from Sources.oazix.CustomBehaviors.skills.plugins.preconditions.should_wait_for_serpents_quickness import ShouldWaitForSerpentsQuickness
 from Sources.oazix.CustomBehaviors.skills.common.breath_of_the_great_dwarf_utility import BreathOfTheGreatDwarfUtility
-from Sources.oazix.CustomBehaviors.skills.common.by_urals_hammer_utility import ByUralsHammerUtility
-from Sources.oazix.CustomBehaviors.skills.common.finish_him_utility import FinishHimUtility
-from Sources.oazix.CustomBehaviors.skills.common.i_am_unstoppable_utility import IAmUnstoppableUtility
-from Sources.oazix.CustomBehaviors.skills.dervich.scythe_requiring_enchantment_utility import ScytheRequiringEnchantmentUtility
-from Sources.oazix.CustomBehaviors.skills.generic.generic_resurrection_utility import GenericResurrectionUtility
 from Sources.oazix.CustomBehaviors.skills.generic.keep_self_effect_up_utility import KeepSelfEffectUpUtility
-from Sources.oazix.CustomBehaviors.skills.generic.preparation_utility import PreparationUtility
 from Sources.oazix.CustomBehaviors.skills.generic.raw_simple_heal_utility import RawSimpleHealUtility
 from Sources.oazix.CustomBehaviors.skills.monk.cure_hex_utility import CureHexUtility
 from Sources.oazix.CustomBehaviors.skills.monk.dismiss_condition_utility import DismissConditionUtility
@@ -29,24 +23,20 @@ from Sources.oazix.CustomBehaviors.skills.monk.shield_of_absorption_utility impo
 from Sources.oazix.CustomBehaviors.skills.monk.unyielding_aura_drop_utility import UnyieldingAuraDropUtility
 from Sources.oazix.CustomBehaviors.skills.monk.unyielding_aura_utility import UnyieldingAuraUtility
 from Sources.oazix.CustomBehaviors.skills.monk.vigorous_spirit_utility import VigorousSpiritUtility
-from Sources.oazix.CustomBehaviors.skills.paragon.fall_back_utility import FallBackUtility
 from Sources.oazix.CustomBehaviors.skills.mesmer.arcane_mimicry_utility import ArcaneMimicryUtility
 
 
-class MonkHealingBurst_UtilitySkillBar(CustomBehaviorBaseUtility):
+class MonkHealing_UtilitySkillBar(CustomBehaviorBaseUtility):
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, event_bus: EventBus):
+        super().__init__(event_bus)
         in_game_build = list(self.skillbar_management.get_in_game_build().values())
 
         # core skills
 
         self.patient_spirit_utility: CustomSkillUtilityBase = RawSimpleHealUtility(event_bus=self.event_bus, skill=CustomSkill("Patient_Spirit"), current_build=in_game_build, score_definition=ScorePerHealthGravityDefinition(8))
         self.healing_burst_utility: CustomSkillUtilityBase = RawSimpleHealUtility(event_bus=self.event_bus, skill=CustomSkill("Healing_Burst"), current_build=in_game_build, score_definition=ScorePerHealthGravityDefinition(7))
-
-        self.seed_of_life_utility: CustomSkillUtilityBase = (SeedOfLifeUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScorePerHealthGravityDefinition(1)) 
-                                                                        .add_plugin_precondition(lambda x: ShouldWaitForSerpentsQuickness(x.custom_skill, True)))
-       
+        
         self.protective_spirit_utility: CustomSkillUtilityBase = ProtectiveSpiritUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScorePerHealthGravityDefinition(8))
         self.shield_of_absorption_utility: CustomSkillUtilityBase = ShieldOfAbsorptionUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScorePerHealthGravityDefinition(8))
         self.dwaynas_kiss_utility: CustomSkillUtilityBase = DwaynasKissUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScorePerHealthGravityDefinition(7))
@@ -65,12 +55,13 @@ class MonkHealingBurst_UtilitySkillBar(CustomBehaviorBaseUtility):
         self.selfless_spirit_luxon_utility: CustomSkillUtilityBase = (KeepSelfEffectUpUtility(event_bus=self.event_bus, current_build=in_game_build, skill=CustomSkill("Selfless_Spirit_luxon"), score_definition=ScoreStaticDefinition(88))
                                                                       .add_plugin_precondition(lambda x: ShouldWaitForSerpentsQuickness(x.custom_skill, True)))
 
-        self.dwarven_stability_utility = KeepSelfEffectUpUtility(event_bus=self.event_bus, current_build=in_game_build, skill=CustomSkill("Dwarven_Stability"), score_definition=ScoreStaticDefinition(95))
-
         self.serpents_quickness_utility = (KeepSelfEffectUpUtility(event_bus=self.event_bus, current_build=in_game_build, skill=CustomSkill("Serpents_Quickness"), score_definition=ScoreStaticDefinition(94))
                                                                     .add_plugin_precondition(lambda x: ShouldWaitForEffect(x.custom_skill, CustomSkill("Dwarven_Stability"), True)))
 
-        # combo Unyielding_Aura + Arcane_Mimicryzd
+        self.seed_of_life_utility: CustomSkillUtilityBase = (SeedOfLifeUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScorePerHealthGravityDefinition(1)) 
+                                                                        .add_plugin_precondition(lambda x: ShouldWaitForSerpentsQuickness(x.custom_skill, True)))
+       
+        # combo Unyielding_Aura + Arcane_Mimicry
         # we have an additionnal utility to drop the buff that we could have aquired from mimicry
         self.unyielding_aura_drop_utility: CustomSkillUtilityBase = UnyieldingAuraDropUtility(event_bus=self.event_bus, current_build=in_game_build)
 
@@ -79,16 +70,12 @@ class MonkHealingBurst_UtilitySkillBar(CustomBehaviorBaseUtility):
                                                                                    pre_check_condition= lambda: not cast(UnyieldingAuraDropUtility, self.unyielding_aura_drop_utility).has_buff(),
                                                                                    skill_to_copy_instance= lambda: UnyieldingAuraUtility(event_bus=self.event_bus, current_build=in_game_build, score_definition=ScoreStaticDefinition(93)))
                                                                         .add_plugin_precondition(lambda x: ShouldWaitForHeroicRefrain(x.custom_skill, True))
+                                                                        # todo add_plugin_precondition there  
                                                                         )
         
-        
-    @property
-    @override
-    def additional_autonomous_skills(self) -> list[CustomSkillUtilityBase]:
-        base = super().additional_autonomous_skills
-        # not part of the skillbar, if unyielding aura is aquired from mimicry
-        base.append(self.unyielding_aura_drop_utility)
-        return base
+        # -- AUTONOMOUS SKILLS (OUT OF THE GW SKILLBAR) --
+
+        self.add_additional_autonomous_skills(self.unyielding_aura_drop_utility)
 
     @property
     @override
@@ -108,12 +95,11 @@ class MonkHealingBurst_UtilitySkillBar(CustomBehaviorBaseUtility):
             self.selfless_spirit_kurzick_utility,
             self.vigorous_spirit_utility,
             self.arcane_mimicry_utility,
-            self.dwarven_stability_utility,
         ]
 
     @property
     @override
     def skills_required_in_behavior(self) -> list[CustomSkill]:
         return [
-            self.healing_burst_utility.custom_skill,
+            self.seed_of_life_utility.custom_skill,
         ]

@@ -1,6 +1,7 @@
 from typing import override
 
 from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorState
+from Sources.oazix.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Sources.oazix.CustomBehaviors.primitives.scores.score_per_agent_quantity_definition import \
     ScorePerAgentQuantityDefinition
 from Sources.oazix.CustomBehaviors.primitives.scores.score_static_definition import ScoreStaticDefinition
@@ -23,8 +24,8 @@ from Sources.oazix.CustomBehaviors.skills.necromancer.putrid_explosion_utility i
 
 class NecromancerIcyVeinsNecrosis_UtilitySkillBar(CustomBehaviorBaseUtility):
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, event_bus: EventBus):
+        super().__init__(event_bus)
         in_game_build = list(self.skillbar_management.get_in_game_build().values())
 
         # MM skills
@@ -49,11 +50,12 @@ class NecromancerIcyVeinsNecrosis_UtilitySkillBar(CustomBehaviorBaseUtility):
                 score_definition=ScoreStaticDefinition(41) # slightly more than above
             ),
             arcane_echo_score_definition=ScoreStaticDefinition(82))
+        
         self.auspicious_incantation_utility: CustomSkillUtilityBase = AuspiciousIncantationUtility(
             event_bus=self.event_bus,
             current_build=in_game_build,
             original_skill_to_cast=self.arcane_echo_utility,
-            auspicious_score_definition=ScoreStaticDefinition(82)
+            score_definition=ScoreStaticDefinition(82)
         )
 
         # utilities

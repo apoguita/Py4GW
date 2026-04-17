@@ -22,3 +22,20 @@ class CustomBehaviorSkillbarManagement():
             ordered_skills_by_skill_id[skill_id] = custom_skill
 
         return ordered_skills_by_skill_id
+
+    @staticmethod
+    def get_skill_ids_in_game_build(without_events:bool = True) -> list[tuple[int, int]]:
+        '''
+        return in-game build of the player as a list of skill_ids.
+        this is much more lightweight than get_in_game_build.
+        GLOBAL_CACHE.Skill.GetName is very expensive
+        '''
+        skill_ids:list[tuple[int, int]] = []
+        
+        for i in range(8):
+            skill_data = GLOBAL_CACHE.SkillBar.GetSkillData(i + 1)
+            skill_id = skill_data.id.id
+            skill_slot = i + 1
+            skill_ids.append((skill_id, skill_slot))
+
+        return skill_ids

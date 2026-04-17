@@ -98,6 +98,9 @@ class PartyTeamBuildConfigStruct(Structure):
 
         # Skillbar templates: template code for each of 12 slots
         ("SkillbarTemplates", (c_wchar * MAX_TEMPLATE_LEN) * MAX_TEMPLATE_SLOTS),
+
+        # Custom behavior skillbar class names being used for each slot
+        ("CustomBehaviorSkillbarUsed", (c_wchar * MAX_TEMPLATE_LEN) * MAX_TEMPLATE_SLOTS),
     ]
 
 
@@ -231,6 +234,7 @@ class CustomBehaviorWidgetMemoryManager:
             # Clear email by setting first character to null terminator
             mem.TeamBuildConfig.TemplateAccountEmails[i][0] = '\0'
             mem.TeamBuildConfig.SkillbarTemplates[i][0] = '\0'
+            mem.TeamBuildConfig.CustomBehaviorSkillbarUsed[i][0] = '\0'
 
         for i in range(MAX_LOCKS):
             mem.LockEntries[i].Key = ""

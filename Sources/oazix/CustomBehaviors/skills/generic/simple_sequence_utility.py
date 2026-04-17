@@ -3,6 +3,7 @@ from abc import abstractmethod
 import random
 from typing import Any, Generator, override
 
+from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorState
 from Sources.oazix.CustomBehaviors.primitives.bus.event_bus import EventBus
 from Sources.oazix.CustomBehaviors.primitives.helpers.behavior_result import BehaviorResult
@@ -39,7 +40,7 @@ class SimpleSequenceUtility(CustomSkillUtilityBase):
             in_game_build=current_build,
             score_definition=score_definition,
             mana_required_to_cast=mana_required_to_cast,
-            allowed_states=allowed_states,
+            allowed_states=allowed_states
         )
         self.utility_1 = utility_1
         self.utility_2 = utility_2
@@ -53,6 +54,11 @@ class SimpleSequenceUtility(CustomSkillUtilityBase):
 
     @override
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
+
+        # let's verify that the skill is in the skillbar first.
+        if GLOBAL_CACHE.SkillBar.GetSlotBySkillID(self.utility_1.custom_skill.skill_id) == 0: return None
+        if GLOBAL_CACHE.SkillBar.GetSlotBySkillID(self.utility_2.custom_skill.skill_id) == 0: return None
+
         # Both utilities must evaluate to a valid score
         try:
             score_1 = self.utility_1.evaluate(current_state, previously_attempted_skills)
@@ -74,10 +80,10 @@ class SimpleSequenceUtility(CustomSkillUtilityBase):
 
     @override
     def _execute(self, state: BehaviorState) -> Generator[Any, None, BehaviorResult]:
+
         # Execute utility_1 first
         result_1 = yield from self.utility_1._execute(state)
-        if result_1 is None or result_1 == BehaviorResult.ACTION_SKIPPED:
-            return result_1 if result_1 is not None else BehaviorResult.ACTION_SKIPPED
+        if result_1 is None or result_1 == BehaviorResult.ACTION_SKIPPED: return result_1
 
         # Execute utility_2 immediately after
         result_2 = yield from self.utility_2._execute(state)

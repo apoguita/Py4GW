@@ -5,7 +5,7 @@ import PyImGui
 from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
 from Sources.oazix.CustomBehaviors.primitives.skills.custom_skill import CustomSkill
 from Sources.oazix.CustomBehaviors.primitives.skills.plugins.utility_skill_precondition import UtilitySkillPrecondition
-from Sources.oazix.CustomBehaviors.skills.warrior.save_yourselves import SaveYourselvesUtility
+from Sources.oazix.CustomBehaviors.skills.warrior.save_yourselves_utility import SaveYourselvesUtility
 
 
 class ShouldWaitForSaveYourselvesFinalizedOnAllies(UtilitySkillPrecondition):

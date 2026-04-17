@@ -4,6 +4,7 @@ from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist
 from Sources.oazix.CustomBehaviors.primitives.helpers.sortable_agent_data import SortableAgentData
 from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
 from Sources.oazix.CustomBehaviors.primitives.parties.memory_cache_manager import MemoryCacheManager
+from Sources.oazix.CustomBehaviors.primitives.parties.party_disability_manager import PartyDisabilityManager
 
 
 class CustomTargeting:
@@ -52,7 +53,9 @@ class CustomTargeting:
             is_martial=Agent.IsMartial(agent_id),
             enemy_quantity_within_range=0,  # Computed separately if needed
             agent_quantity_within_range=0,  # Computed separately if needed
-            energy=0.0  # Computed separately if needed
+            energy=0.0,  # Computed separately if needed (not available for enemies)
+            hex_priority_level= 0, # Computed separately if needed (not available for enemies)
+            condition_priority_level= 0, # Computed separately if needed (not available for enemies)
         )
 
     def refresh(self):
