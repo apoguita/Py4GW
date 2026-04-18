@@ -1,13 +1,16 @@
 import time
 
 from Py4GWCoreLib import Agent, AgentArray, BuildMgr, GLOBAL_CACHE, Party, Player, Profession, Range, Routines, Skill, ThrottledTimer
-#from Py4GWCoreLib.CombatEvents import CombatEvents as CombatEvents, EventType
 from Py4GWCoreLib.Builds.Any.HeroAI import HeroAI_Build
 from Py4GWCoreLib.Builds.Skills.any.PvE import PvE
 
 
 class _DhuumModeTracker:
-    """Tracks Reaper casts and exposes a lightweight shared mode for Dhuum skills."""
+    """Tracks Reaper casts via Agent polling and exposes a lightweight shared mode for Dhuum skills.
+
+    Uses Agent.IsCasting / Agent.GetCastingSkillID directly — no dependency
+    on CombatEvents.
+    """
 
     MODE_DREST = "drest"
     MODE_FURY = "fury"
@@ -22,12 +25,6 @@ class _DhuumModeTracker:
         "reaper of the labyrinth",
         "reaper of the spawning pools",
         "reaper of the twin serpent mountains",
-    )
-
-    ACTIVATION_EVENT_TYPES = (
-        #EventType.SKILL_ACTIVATED,
-        #EventType.ATTACK_SKILL_ACTIVATED,
-        #EventType.INSTANT_SKILL_ACTIVATED,
     )
 
     _DHUUMS_REST_CANDIDATES = (
@@ -178,6 +175,11 @@ class _DhuumModeTracker:
 
     @classmethod
     def refresh_mode_from_reaper_events(cls) -> None:
+        """Poll known Reaper agents and update the shared mode when one is casting.
+
+        Uses Agent.IsCasting / Agent.GetCastingSkillID directly — no
+        dependency on CombatEvents.
+        """
         cls._ensure_timers()
         cls._refresh_reaper_ids()
 
@@ -185,53 +187,52 @@ class _DhuumModeTracker:
             return
         if not cls._event_refresh_timer.IsExpired():
             return
-
         cls._event_refresh_timer.Reset()
 
         effective_reaper_ids = set(cls._cached_reaper_ids).union(cls._learned_reaper_ids)
         now_ms = time.monotonic() * 1000.0
+
+        # First pass: check known reapers
+        for reaper_id in effective_reaper_ids:
+            if not Agent.IsValid(reaper_id) or not Agent.IsCasting(reaper_id):
+                continue
+            skill_id = Agent.GetCastingSkillID(reaper_id)
+            if skill_id <= 0:
+                continue
+            is_drest = cls._skill_id_matches_candidates(skill_id, cls._dhuums_rest_skill_ids, cls._DHUUMS_REST_CANDIDATES)
+            is_fury = cls._skill_id_matches_candidates(skill_id, cls._ghostly_fury_skill_ids, cls._GHOSTLY_FURY_CANDIDATES)
+            if is_drest:
+                cls._log_candidate_detection(int(now_ms), reaper_id, skill_id, "_DHUUMS_REST_CANDIDATES")
+                cls._set_mode(cls.MODE_DREST, now_ms)
+                return
+            if is_fury:
+                cls._log_candidate_detection(int(now_ms), reaper_id, skill_id, "_GHOSTLY_FURY_CANDIDATES")
+                cls._set_mode(cls.MODE_FURY, now_ms)
+                return
+
+        # Fallback: scan non-reaper allies casting candidate skills and learn them
         player_id = int(Player.GetAgentID())
-
-        recent_skills = [] #CombatEvents.GetRecentSkills(80)
-
         reaper_candidate_agent_ids = cls._get_reaper_candidate_agent_ids()
         party_member_agent_ids = cls._get_party_member_agent_ids()
 
-        for ts, caster_id, skill_id, _, event_type in reversed(recent_skills):
-            if int(event_type) not in cls.ACTIVATION_EVENT_TYPES:
+        for agent_id in reaper_candidate_agent_ids:
+            if agent_id == player_id or agent_id in party_member_agent_ids or agent_id in effective_reaper_ids:
                 continue
-
-            caster_id_int = int(caster_id)
-            skill_id_int = int(skill_id)
-
-            is_drest_candidate = cls._skill_id_matches_candidates(
-                skill_id_int, cls._dhuums_rest_skill_ids, cls._DHUUMS_REST_CANDIDATES
-            )
-            is_fury_candidate = cls._skill_id_matches_candidates(
-                skill_id_int, cls._ghostly_fury_skill_ids, cls._GHOSTLY_FURY_CANDIDATES
-            )
-            if not is_drest_candidate and not is_fury_candidate:
+            if not Agent.IsValid(agent_id) or not Agent.IsCasting(agent_id):
                 continue
-
-            if (
-                caster_id_int in reaper_candidate_agent_ids
-                and caster_id_int != player_id
-                and caster_id_int not in party_member_agent_ids
-                and caster_id_int not in effective_reaper_ids
-            ):
-                cls._learned_reaper_ids.add(caster_id_int)
-                effective_reaper_ids.add(caster_id_int)
-
-            if caster_id_int not in effective_reaper_ids:
+            skill_id = Agent.GetCastingSkillID(agent_id)
+            if skill_id <= 0:
                 continue
-
-            if is_drest_candidate:
-                cls._log_candidate_detection(int(ts), caster_id_int, skill_id_int, "_DHUUMS_REST_CANDIDATES")
-                cls._set_mode(cls.MODE_DREST, now_ms)
-                return
-            if is_fury_candidate:
-                cls._log_candidate_detection(int(ts), caster_id_int, skill_id_int, "_GHOSTLY_FURY_CANDIDATES")
-                cls._set_mode(cls.MODE_FURY, now_ms)
+            is_drest = cls._skill_id_matches_candidates(skill_id, cls._dhuums_rest_skill_ids, cls._DHUUMS_REST_CANDIDATES)
+            is_fury = cls._skill_id_matches_candidates(skill_id, cls._ghostly_fury_skill_ids, cls._GHOSTLY_FURY_CANDIDATES)
+            if is_drest or is_fury:
+                cls._learned_reaper_ids.add(agent_id)
+                if is_drest:
+                    cls._log_candidate_detection(int(now_ms), agent_id, skill_id, "_DHUUMS_REST_CANDIDATES (learned)")
+                    cls._set_mode(cls.MODE_DREST, now_ms)
+                else:
+                    cls._log_candidate_detection(int(now_ms), agent_id, skill_id, "_GHOSTLY_FURY_CANDIDATES (learned)")
+                    cls._set_mode(cls.MODE_FURY, now_ms)
                 return
 
     @classmethod
