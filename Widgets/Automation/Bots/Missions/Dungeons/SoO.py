@@ -1648,6 +1648,9 @@ def _summon_and_invite_party(settle_ms: int = 1000) -> Generator:
     yield
 
 def _gh_merchant_setup_for_alt_salvage_threshold() -> Generator:
+    if not _merchant_enabled:
+        yield
+        return
     _write_local_salvage_kit_count()
     yield from _request_alt_salvage_kit_counts()
     needs_restock, low_accounts, unknown_accounts = _alts_need_salvage_restock()
@@ -1673,6 +1676,9 @@ def _gh_merchant_setup_for_alt_salvage_threshold() -> Generator:
 
 def _gh_merchant_setup_if_inventory_full() -> Generator:
     """After quest reward: if only 1 free inventory slot remains, resign to outpost then run the full GH merchant routine."""
+    if not _merchant_enabled:
+        yield
+        return
     free_slots = int(GLOBAL_CACHE.Inventory.GetFreeSlotCount())
     if free_slots > _inventory_slots_threshold:
         yield
