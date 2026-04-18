@@ -390,7 +390,7 @@ class Player:
         Purpose: Retrieve the raw GW::Player.reforged_or_dhuums_flags bitfield.
         Args: None
         Returns: int
-        Bits: 0x1=Reforged, 0x2=Melandru's Accord, 0x4=Dhuum's Covenant.
+        Bits: 0x1=Dhuum's Covenant, 0x2=Melandru's Accord, 0x4=Reforged.
         """
         if (world_ctx := GWContext.World.GetContext()) is None:
             return 0
@@ -403,8 +403,8 @@ class Player:
         return local.reforged_or_dhuums_flags
 
     @staticmethod
-    def IsReforged() -> bool:
-        """True if the character is in Reforged mode."""
+    def IsDhuumsCovenant() -> bool:
+        """True if the character is under Dhuum's Covenant."""
         return (Player.GetAccountFlags() & 0x1) != 0
 
     @staticmethod
@@ -413,8 +413,8 @@ class Player:
         return (Player.GetAccountFlags() & 0x2) != 0
 
     @staticmethod
-    def IsDhuumsCovenant() -> bool:
-        """True if the character is under Dhuum's Covenant."""
+    def IsReforged() -> bool:
+        """True if the character is in Reforged mode."""
         return (Player.GetAccountFlags() & 0x4) != 0
     
     @staticmethod

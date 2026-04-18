@@ -597,9 +597,9 @@ class PlayerStruct(Structure):
         return (self.flags & 0x800) != 0
 
     # reforged_or_dhuums_flags (offset 0x34) bit decoding.
-    # Bit 0x1 = Reforged, 0x2 = Melandru's Accord, 0x4 = Dhuum's Covenant.
+    # Bit 0x1 = Dhuum's Covenant, 0x2 = Melandru's Accord, 0x4 = Reforged.
     @property
-    def is_reforged(self) -> bool:
+    def is_dhuums_covenant(self) -> bool:
         return (self.reforged_or_dhuums_flags & 0x1) != 0
 
     @property
@@ -607,7 +607,7 @@ class PlayerStruct(Structure):
         return (self.reforged_or_dhuums_flags & 0x2) != 0
 
     @property
-    def is_dhuums_covenant(self) -> bool:
+    def is_reforged(self) -> bool:
         return (self.reforged_or_dhuums_flags & 0x4) != 0
 
     @property
