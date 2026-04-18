@@ -254,3 +254,107 @@ def GetEnemyKnockedDown(max_distance=4500.0, aggressive_only = False):
 
 def GetEnemyWithEffect(effect_skill_id, max_distance=4500.0, aggressive_only = False):
     return _filter_blacklisted(Routines.Targeting.GetEnemyWithEffect(effect_skill_id, max_distance, aggressive_only))
+
+
+def TargetMeleeOrMartialClusterEnemy(
+    skill_id: int,
+    *,
+    require_attacking: bool = False,
+    max_distance: float = Range.Spellcast.value,
+) -> int:
+    """Pick the densest-cluster enemy for a melee-group AoE skill.
+
+    Candidate pool is (IsMelee OR IsMartial OR IsAttacking); falls back to
+    any enemy when no IsMelee/IsMartial is in range. Ranks by cluster size
+    then player-distance. require_attacking=True hard-requires IsAttacking.
+    """
+    player_x, player_y = Player.GetXY()
+    enemy_array = Routines.Agents.GetFilteredEnemyArray(player_x, player_y, max_distance)
+    enemy_array = AgentArray.Filter.ByCondition(
+        enemy_array,
+        lambda agent_id: Agent.IsValid(agent_id) and not Agent.IsDead(agent_id),
+    )
+    if not enemy_array:
+        return 0
+
+    aoe_range = GLOBAL_CACHE.Skill.Data.GetAoERange(skill_id) or Range.Nearby.value
+
+    melees_present = any(
+        Agent.IsMelee(agent_id) or Agent.IsMartial(agent_id)
+        for agent_id in enemy_array
+    )
+
+    if melees_present:
+        candidates = [
+            agent_id for agent_id in enemy_array
+            if Agent.IsMelee(agent_id)
+            or Agent.IsMartial(agent_id)
+            or Agent.IsAttacking(agent_id)
+        ]
+    else:
+        candidates = list(enemy_array)
+
+    if require_attacking:
+        candidates = [agent_id for agent_id in candidates if Agent.IsAttacking(agent_id)]
+
+    if not candidates:
+        return 0
+
+    player_pos = (player_x, player_y)
+    scored: list[tuple[int, float, int]] = []
+    for agent_id in candidates:
+        target_x, target_y = Agent.GetXY(agent_id)
+        nearby = Routines.Agents.GetFilteredEnemyArray(target_x, target_y, aoe_range)
+        nearby = AgentArray.Filter.ByCondition(
+            nearby,
+            lambda eid: Agent.IsValid(eid) and not Agent.IsDead(eid),
+        )
+        cluster_score = max(0, len(nearby) - 1)
+        distance = Utils.Distance(player_pos, Agent.GetXY(agent_id))
+        scored.append((cluster_score, distance, agent_id))
+
+    scored.sort(key=lambda item: (-item[0], item[1]))
+    return _filter_blacklisted(scored[0][2])
+
+
+def TargetCasterClusterEnemy(
+    skill_id: int,
+    *,
+    max_distance: float = Range.Spellcast.value,
+) -> int:
+    """Pick the densest-caster-cluster enemy for a caster-targeted AoE hex.
+
+    Candidate pool is IsCaster only. Ranks by caster-cluster size DESC
+    (adjacent casters within the skill's AoE range), then player-distance
+    ASC. Returns 0 if no caster is in range.
+    """
+    player_x, player_y = Player.GetXY()
+    enemy_array = Routines.Agents.GetFilteredEnemyArray(player_x, player_y, max_distance)
+    enemy_array = AgentArray.Filter.ByCondition(
+        enemy_array,
+        lambda agent_id: Agent.IsValid(agent_id) and not Agent.IsDead(agent_id),
+    )
+    if not enemy_array:
+        return 0
+
+    casters = [agent_id for agent_id in enemy_array if Agent.IsCaster(agent_id)]
+    if not casters:
+        return 0
+
+    aoe_range = GLOBAL_CACHE.Skill.Data.GetAoERange(skill_id) or Range.Nearby.value
+
+    player_pos = (player_x, player_y)
+    scored: list[tuple[int, float, int]] = []
+    for agent_id in casters:
+        target_x, target_y = Agent.GetXY(agent_id)
+        nearby = Routines.Agents.GetFilteredEnemyArray(target_x, target_y, aoe_range)
+        nearby = AgentArray.Filter.ByCondition(
+            nearby,
+            lambda eid: Agent.IsValid(eid) and not Agent.IsDead(eid) and Agent.IsCaster(eid),
+        )
+        cluster_score = max(0, len(nearby) - 1)
+        distance = Utils.Distance(player_pos, Agent.GetXY(agent_id))
+        scored.append((cluster_score, distance, agent_id))
+
+    scored.sort(key=lambda item: (-item[0], item[1]))
+    return _filter_blacklisted(scored[0][2])
