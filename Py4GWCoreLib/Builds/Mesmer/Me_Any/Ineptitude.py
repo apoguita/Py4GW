@@ -6,34 +6,34 @@ from Py4GWCoreLib.Skill import Skill
 from Py4GWCoreLib.Builds.Skills import SkillsTemplate
 
 Ineptitude_ID = Skill.GetID("Ineptitude")
-Judges_Insight_ID = Skill.GetID("Judges_Insight")
 Wandering_Eye_ID = Skill.GetID("Wandering_Eye")
+Signet_of_Clumsiness_ID = Skill.GetID("Signet_of_Clumsiness")
 Arcane_Conundrum_ID = Skill.GetID("Arcane_Conundrum")
 Air_of_Superiority_ID = Skill.GetID("Air_of_Superiority")
 Ebon_Vanguard_Assassin_Support_ID = Skill.GetID("Ebon_Vanguard_Assassin_Support")
 Ebon_Battle_Standard_of_Wisdom_ID = Skill.GetID("Ebon_Battle_Standard_of_Wisdom")
-Signet_of_Clumsiness_ID = Skill.GetID("Signet_of_Clumsiness")
 Power_Drain_ID = Skill.GetID("Power_Drain")
+Drain_Enchantment_ID = Skill.GetID("Drain_Enchantment")
 
-class HolyInept(BuildMgr):
+
+class Ineptitude(BuildMgr):
     def __init__(self, match_only: bool = False):
         super().__init__(
-            name="Holy Inept",
+            name="Ineptitude",
             required_primary=Profession.Mesmer,
-            required_secondary=Profession.Monk,
-            template_code="OQNDAcsuRvAIg5ZkA4i7iwlLEA",
+            template_code="OQBDAawDSvAIg5ZkAAAAAAAAAA",
             required_skills=[
                 Ineptitude_ID,
                 Wandering_Eye_ID,
-                Arcane_Conundrum_ID,
-                Ebon_Vanguard_Assassin_Support_ID,
+                Signet_of_Clumsiness_ID,
             ],
             optional_skills=[
+                Arcane_Conundrum_ID,
                 Air_of_Superiority_ID,
+                Ebon_Vanguard_Assassin_Support_ID,
                 Ebon_Battle_Standard_of_Wisdom_ID,
-                Judges_Insight_ID,
-                Signet_of_Clumsiness_ID,
-                Power_Drain_ID
+                Power_Drain_ID,
+                Drain_Enchantment_ID,
             ],
         )
         if match_only:
@@ -61,13 +61,19 @@ class HolyInept(BuildMgr):
         if (yield from self.skills.Mesmer.InspirationMagic.Power_Drain(energy_threshold_pct=0.30)):
             return True
 
+        if (yield from self.skills.Mesmer.InspirationMagic.Drain_Enchantment(energy_threshold_pct=0.30)):
+            return True
+
         if self.IsSkillEquipped(Ebon_Vanguard_Assassin_Support_ID) and (yield from self.skills.Any.PvE.Ebon_Vanguard_Assassin_Support()):
             return True
-
-        if (yield from self.skills.Mesmer.InspirationMagic.Power_Drain()):
+        
+        if (yield from self.skills.Mesmer.IllusionMagic.Ineptitude()):
             return True
 
-        if (yield from self.skills.Mesmer.IllusionMagic.Ineptitude()):
+        if (yield from self.skills.Mesmer.InspirationMagic.Power_Drain(energy_threshold_pct=0.50)):
+            return True
+
+        if (yield from self.skills.Mesmer.InspirationMagic.Drain_Enchantment(energy_threshold_pct=0.50)):
             return True
 
         if (yield from self.skills.Mesmer.IllusionMagic.Wandering_Eye()):
@@ -76,11 +82,14 @@ class HolyInept(BuildMgr):
         if self.IsSkillEquipped(Arcane_Conundrum_ID) and (yield from self.skills.Mesmer.IllusionMagic.Arcane_Conundrum()):
             return True
 
-        if (yield from self.skills.Monk.SmitingPrayers.Judges_Insight()):
+        if (yield from self.skills.Mesmer.IllusionMagic.Signet_of_Clumsiness()):
             return True
 
-        if self.IsSkillEquipped(Signet_of_Clumsiness_ID) and (yield from self.skills.Mesmer.IllusionMagic.Signet_of_Clumsiness()):
-            return
+        if (yield from self.skills.Mesmer.InspirationMagic.Power_Drain()):
+            return True
+
+        if (yield from self.skills.Mesmer.InspirationMagic.Drain_Enchantment()):
+            return True
 
         if self.IsSkillEquipped(Ebon_Battle_Standard_of_Wisdom_ID) and (yield from self.CastSkillID(
             skill_id=Ebon_Battle_Standard_of_Wisdom_ID,

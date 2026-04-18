@@ -58,7 +58,22 @@ class Bip_Resto(BuildMgr):
         if not Routines.Checks.Skills.CanCast():
             return False
 
-        if (yield from self.skills.Ritualist.RestorationMagic.Mend_Body_and_Soul()):
+        # emergency: any ally at or below 40% HP preempts everything.
+        if (yield from self.skills.Ritualist.RestorationMagic.Mend_Body_and_Soul(health_threshold=0.40)):
+            return True
+
+        # Signet of Lost Souls: emergency energy refill when caster < 30%.
+        if (yield from self.skills.Necromancer.SoulReaping.Signet_of_Lost_Souls(max_self_energy_pct=0.30)):
+            return True
+
+        # Recuperation 6+ allies below 75% HP OR 6+ allies degenning.
+        if self.IsSkillEquipped(Recuperation_ID) and (yield from self.skills.Ritualist.RestorationMagic.Recuperation(
+            min_party_damaged_count=6,
+        )):
+            return True
+        if self.IsSkillEquipped(Recuperation_ID) and (yield from self.skills.Ritualist.RestorationMagic.Recuperation(
+            min_degen_count=6,
+        )):
             return True
 
         if (yield from self.skills.Necromancer.BloodMagic.Blood_is_Power()):
@@ -73,6 +88,32 @@ class Bip_Resto(BuildMgr):
         if self.IsSkillEquipped(Spirit_Transfer_ID) and (yield from self.skills.Ritualist.RestorationMagic.Spirit_Transfer()):
             return True
 
+        # spirit-gated cleanse: blind on a martial (melee/ranger/paragon).
+        if (yield from self.skills.Ritualist.RestorationMagic.Mend_Body_and_Soul(cleanse_blind_martial=True)):
+            return True
+
+        # spirit-gated cleanse: cripple on a melee ally.
+        if (yield from self.skills.Ritualist.RestorationMagic.Mend_Body_and_Soul(cleanse_cripple_melee=True)):
+            return True
+
+        # Recuperation: 6+ allies below 75% HP OR 4+ allies degenning.
+        if self.IsSkillEquipped(Recuperation_ID) and (yield from self.skills.Ritualist.RestorationMagic.Recuperation(
+            min_party_damaged_count=6,
+        )):
+            return True
+        if self.IsSkillEquipped(Recuperation_ID) and (yield from self.skills.Ritualist.RestorationMagic.Recuperation(
+            min_degen_count=4,
+        )):
+            return True
+
+        # Signet of Lost Souls : energy refill when caster < 60%.
+        if (yield from self.skills.Necromancer.SoulReaping.Signet_of_Lost_Souls(max_self_energy_pct=0.60)):
+            return True
+
+        # damaged: any ally at or below 75% HP, before combat skills.
+        if (yield from self.skills.Ritualist.RestorationMagic.Mend_Body_and_Soul(health_threshold=0.75)):
+            return True
+
         if not Routines.Checks.Agents.InAggro():
             return False
 
@@ -85,7 +126,22 @@ class Bip_Resto(BuildMgr):
         if self.IsSkillEquipped(Recovery_ID) and (yield from self.skills.Ritualist.RestorationMagic.Recovery()):
             return True
 
-        if self.IsSkillEquipped(Recuperation_ID) and (yield from self.skills.Ritualist.RestorationMagic.Recuperation()):
+        # Signet of Lost Souls: opportunistic refill, no caster energy gate.
+        if (yield from self.skills.Necromancer.SoulReaping.Signet_of_Lost_Souls()):
+            return True
+
+        # Recuperation: 6+ allies below 75% HP OR 2+ allies degenning.
+        if self.IsSkillEquipped(Recuperation_ID) and (yield from self.skills.Ritualist.RestorationMagic.Recuperation(
+            min_party_damaged_count=6,
+        )):
+            return True
+        if self.IsSkillEquipped(Recuperation_ID) and (yield from self.skills.Ritualist.RestorationMagic.Recuperation(
+            min_degen_count=2,
+        )):
+            return True
+
+        # preventive: any ally at or below 85% HP, after Recuperation.
+        if (yield from self.skills.Ritualist.RestorationMagic.Mend_Body_and_Soul(health_threshold=0.85)):
             return True
 
         if self.IsSkillEquipped(Breath_of_the_Great_Dwarf_ID) and (yield from self.skills.Any.NoAttribute.Breath_of_the_Great_Dwarf()):
@@ -95,9 +151,6 @@ class Bip_Resto(BuildMgr):
             return True
 
         if self.IsSkillEquipped(Enfeebling_Blood_ID) and (yield from self.skills.Necromancer.Curses.Enfeebling_Blood()):
-            return True
-
-        if (yield from self.skills.Necromancer.SoulReaping.Signet_of_Lost_Souls()):
             return True
 
         if (yield from self.skills.Ritualist.RestorationMagic.Spirit_Light()):

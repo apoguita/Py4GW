@@ -5,8 +5,8 @@ from Py4GWCoreLib import Player, GLOBAL_CACHE, SpiritModelID, Timer, Agent, Rout
 from Py4GWCoreLib import Weapon, Effects
 from Py4GWCoreLib.enums import SPIRIT_BUFF_MAP, ModelID
 from .custom_skill import CustomSkillClass
-from .targeting import TargetLowestAlly, TargetLowestAllyEnergy, TargetClusteredEnemy, TargetLowestAllyCaster, TargetLowestAllyMartial, TargetLowestAllyMelee, TargetLowestAllyRanged, GetAllAlliesArray
-from .targeting import GetEnemyAttacking, GetEnemyCasting, GetEnemyCastingSpell, GetEnemyInjured, GetEnemyConditioned, GetEnemyHealthy
+from .targeting import TargetLowestAlly, TargetLowestAllyEnergy, TargetClusteredEnemy, TargetLowestAllyCaster, TargetLowestAllyMartial, TargetLowestAllyMelee, TargetLowestAllyRanged, GetAllAlliesArray, TargetAllyWeaponSpell
+from .targeting import GetEnemyAttacking, GetEnemyCasting, GetEnemyCastingSpell, GetEnemyCastingSpellOrChant, GetEnemyInjured, GetEnemyConditioned, GetEnemyHealthy
 from .targeting import GetEnemyHexed, GetEnemyDegenHexed, GetEnemyEnchanted, GetEnemyMoving, GetEnemyKnockedDown
 from .targeting import GetEnemyBleeding, GetEnemyPoisoned, GetEnemyCrippled
 from .types import SkillNature, Skilltarget, SkillType
@@ -100,7 +100,7 @@ class CombatClass:
         self.aftercast_timer.Start()
         self.ping_handler = Py4GW.PingHandler()
         self.oldCalledTarget: int = 0
-        
+
         self.in_aggro: bool = False
         self.is_targeting_enabled: bool = False
         self.is_combat_enabled: bool = False
@@ -540,6 +540,14 @@ class CombatClass:
             v_target = GetEnemyCastingSpell(self.get_combat_distance())
             if v_target == 0 and not targeting_strict:
                 v_target = get_nearest_enemy()
+        elif target_allegiance == Skilltarget.EnemyCastingSpellOrChant:
+            v_target = GetEnemyCastingSpellOrChant(self.get_combat_distance())
+            if v_target == 0 and not targeting_strict:
+                v_target = get_nearest_enemy()
+        elif target_allegiance == Skilltarget.AllyWeaponSpell:
+            v_target = TargetAllyWeaponSpell(self.skills[slot].skill_id, self.get_combat_distance())
+            if v_target == 0 and not targeting_strict:
+                v_target = get_lowest_ally()
         elif target_allegiance == Skilltarget.EnemyInjured:
             v_target = GetEnemyInjured(self.get_combat_distance())
             if v_target == 0 and not targeting_strict:
@@ -883,6 +891,7 @@ class CombatClass:
         feature_count += (1 if Conditions.LessLife > 0 else 0)
         feature_count += (1 if Conditions.MoreLife > 0 else 0)
         feature_count += (1 if Conditions.LessEnergy > 0 else 0)
+        feature_count += (1 if Conditions.LessSelfEnergyPercentage > 0 else 0)
         feature_count += (1 if Conditions.Overcast > 0 else 0)
         feature_count += (1 if Conditions.IsPartyWide else 0)
         feature_count += (1 if Conditions.RequiresSpiritInEarshot else 0)
@@ -1064,6 +1073,11 @@ class CombatClass:
                     number_of_features += 1
             else:
                 number_of_features += 1 #henchmen, allies, pets or something else thats not reporting energy
+
+        if Conditions.LessSelfEnergyPercentage > 0:
+            # Agent.GetEnergy returns a 0.0-1.0 fraction of max energy; threshold uses the same scale.
+            if Agent.GetEnergy(Player.GetAgentID()) <= Conditions.LessSelfEnergyPercentage:
+                number_of_features += 1
 
         if Conditions.Overcast != 0:
             if Player.GetAgentID() == vTarget:

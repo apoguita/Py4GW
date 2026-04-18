@@ -26,6 +26,7 @@ class _EnergySurgeBarSnapshot:
     enemy_in_spellcast: bool = False
     enemy_casting: bool = False
     enemy_casting_spell: bool = False
+    enemy_casting_spell_or_chant: bool = False
     dead_ally_in_spellcast: int = 0
 
 
@@ -83,6 +84,7 @@ class Energy_Surge(BuildMgr):
         if snapshot.enemy_in_spellcast:
             snapshot.enemy_casting = bool(Routines.Targeting.GetEnemyCasting(Range.Spellcast.value))
             snapshot.enemy_casting_spell = bool(Routines.Targeting.GetEnemyCastingSpell(Range.Spellcast.value))
+            snapshot.enemy_casting_spell_or_chant = bool(Routines.Targeting.GetEnemyCastingSpellOrChant(Range.Spellcast.value))
 
         return snapshot
 
@@ -93,7 +95,7 @@ class Energy_Surge(BuildMgr):
 
         snapshot = self._get_bar_snapshot()
 
-        if snapshot.in_aggro and (yield from self.skills.Any.PvE.Air_of_Superiority()):
+        if (snapshot.in_aggro or self.IsCloseToAggro()) and (yield from self.skills.Any.PvE.Air_of_Superiority()):
             return True
 
         if (yield from self.skills.Any.NoAttribute.Breath_of_the_Great_Dwarf()):
@@ -112,13 +114,16 @@ class Energy_Surge(BuildMgr):
         if not snapshot.in_aggro:
             return False
 
+        if snapshot.enemy_casting_spell_or_chant and (yield from self.skills.Mesmer.InspirationMagic.Power_Drain(energy_threshold_pct=0.30)):
+            return True
+
         if snapshot.enemy_casting_spell and (yield from self.skills.Mesmer.DominationMagic.Mistrust()):
             return True
 
         if (yield from self.skills.Mesmer.DominationMagic.Shatter_Hex()):
             return True
 
-        if snapshot.enemy_casting_spell and (yield from self.skills.Mesmer.DominationMagic.Power_Drain()):
+        if snapshot.enemy_casting_spell_or_chant and (yield from self.skills.Mesmer.InspirationMagic.Power_Drain()):
             return True
 
         if snapshot.enemy_casting and (yield from self.skills.Any.PvE.Cry_of_Pain(allow_hex_fallback=False)):

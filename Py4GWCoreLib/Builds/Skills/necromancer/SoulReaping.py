@@ -20,43 +20,42 @@ class SoulReaping:
         self.build: BuildMgr = build
 
     #region S
-    def Signet_of_Lost_Souls(self) -> BuildCoroutine:
+    def Signet_of_Lost_Souls(
+        self,
+        *,
+        max_self_energy_pct: float | None = None,
+    ) -> BuildCoroutine:
+        from Py4GWCoreLib import Utils
+
         signet_of_lost_souls_id: int = Skill.GetID("Signet_of_Lost_Souls")
-        signet_of_lost_souls: CustomSkill = self.build.GetCustomSkill(signet_of_lost_souls_id)
-
-        def _should_cast_signet_of_lost_souls() -> bool:
-            player_agent_id = Player.GetAgentID()
-            return (
-                Agent.GetHealth(player_agent_id) < signet_of_lost_souls.Conditions.LessLife
-                or Agent.GetEnergy(player_agent_id) < signet_of_lost_souls.Conditions.LessEnergy
-            )
-
-        def _resolve_signet_of_lost_souls_target() -> int:
-            enemy_array = AgentArray.GetEnemyArray()
-            enemy_array = AgentArray.Filter.ByDistance(
-                enemy_array,
-                Player.GetXY(),
-                Range.Spellcast.value,
-            )
-            enemy_array = AgentArray.Filter.ByCondition(
-                enemy_array,
-                lambda agent_id: Agent.IsAlive(agent_id),
-            )
-            enemy_array = AgentArray.Filter.ByCondition(
-                enemy_array,
-                lambda agent_id: Agent.GetHealth(agent_id) < 0.5,
-            )
-            enemy_array = AgentArray.Sort.ByHealth(enemy_array)
-            return enemy_array[0] if enemy_array else 0
 
         if not self.build.IsSkillEquipped(signet_of_lost_souls_id):
             return False
-        if not _should_cast_signet_of_lost_souls():
+
+        # Optional caster-energy gate. When set, fire only if the caster's energy
+        # fraction is strictly below the threshold. When None (default) there is
+        # no caster-side gate - the signet is free HP/energy whenever an eligible
+        # target exists, so the caller's chain position bounds when it fires.
+        if max_self_energy_pct is not None:
+            if Agent.GetEnergy(Player.GetAgentID()) >= max_self_energy_pct:
+                return False
+
+        # Target filter: enemy within Spellcast range, alive, below the signet's
+        # 50% trigger threshold. Sort closest-first with lower HP as tiebreak so
+        # the target is both reliable (unlikely to slip out of range during the
+        # 1/4s cast) and likely to still be <50% when the signet resolves.
+        player_pos = Player.GetXY()
+        enemy_array = AgentArray.GetEnemyArray()
+        enemy_array = AgentArray.Filter.ByDistance(enemy_array, player_pos, Range.Spellcast.value)
+        enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Agent.IsAlive(agent_id))
+        enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Agent.GetHealth(agent_id) < 0.5)
+        if not enemy_array:
             return False
 
-        target_agent_id = _resolve_signet_of_lost_souls_target()
-        if not target_agent_id:
-            return False
+        target_agent_id = sorted(
+            enemy_array,
+            key=lambda aid: (Utils.Distance(player_pos, Agent.GetXY(aid)), Agent.GetHealth(aid)),
+        )[0]
 
         return (yield from self.build.CastSkillID(
             skill_id=signet_of_lost_souls_id,
