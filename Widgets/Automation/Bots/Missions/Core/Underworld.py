@@ -1014,8 +1014,8 @@ def _coro_dhuum_spirit_form_watchdog(bot: Botting):
     on each follower locally.  A concurrent PixelStack coroutine would conflict with
     the Dhuum Helper's movement commands and cause unreliable dialog delivery."""
     _SPIRIT_FORM_SKILL_ID = 3134
-    _SPIRIT_FLAG_X = -14374
-    _SPIRIT_FLAG_Y = 17261
+    _SPIRIT_FLAG_X = 14744
+    _SPIRIT_FLAG_Y = 17265
     # email -> original flag (x, y) saved when Spirit Form was first detected
     _saved_flag_positions: dict[str, tuple[float, float]] = {}
     _last_sync_log_at: dict[str, float] = {}
