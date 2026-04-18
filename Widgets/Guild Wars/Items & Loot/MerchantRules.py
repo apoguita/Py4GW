@@ -17056,9 +17056,7 @@ class MerchantRulesWidget:
         visible_indices = self._get_destroy_rule_indices_for_kind(self.active_destroy_rule_kind)
         section_label = DESTROY_RULE_WORKSPACE_LABELS.get(self.active_destroy_rule_kind, "Rules")
         self._draw_section_heading(f"Destroy: {section_label}")
-        self._draw_secondary_text(
-            f"Showing {len(visible_indices)} of {len(self.destroy_rules)} destroy rule(s). Move Up / Move Down stays within this section."
-        )
+        self._draw_secondary_text("Move Up / Move Down stays within this section.")
         if PyImGui.button(f"Add {section_label} Rule##merchant_rules_add_destroy_{self.active_destroy_rule_kind}"):
             if self._append_destroy_rule_of_kind(self.active_destroy_rule_kind):
                 visible_indices = self._get_destroy_rule_indices_for_kind(self.active_destroy_rule_kind)
@@ -17398,9 +17396,7 @@ class MerchantRulesWidget:
         visible_indices = self._get_buy_rule_indices_for_kind(self.active_buy_rule_kind)
         section_label = BUY_RULE_WORKSPACE_LABELS.get(self.active_buy_rule_kind, "Rules")
         self._draw_section_heading(f"Buy: {section_label}")
-        self._draw_secondary_text(
-            f"Showing {len(visible_indices)} of {len(self.buy_rules)} buy rule(s). Move Up / Move Down stays within this section."
-        )
+        self._draw_secondary_text("Move Up / Move Down stays within this section.")
         if PyImGui.button(f"Add {section_label} Rule##merchant_rules_add_buy_{self.active_buy_rule_kind}"):
             if self._append_buy_rule_of_kind(self.active_buy_rule_kind):
                 visible_indices = self._get_buy_rule_indices_for_kind(self.active_buy_rule_kind)
@@ -17453,9 +17449,7 @@ class MerchantRulesWidget:
         visible_indices = self._get_sell_rule_indices_for_kind(self.active_sell_rule_kind)
         section_label = SELL_RULE_WORKSPACE_LABELS.get(self.active_sell_rule_kind, "Rules")
         self._draw_section_heading(f"Sell: {section_label}")
-        self._draw_secondary_text(
-            f"Showing {len(visible_indices)} of {len(self.sell_rules)} sell rule(s). Move Up / Move Down stays within this section."
-        )
+        self._draw_secondary_text("Move Up / Move Down stays within this section.")
         if PyImGui.button(f"Add {section_label} Rule##merchant_rules_add_sell_{self.active_sell_rule_kind}"):
             if self._append_sell_rule_of_kind(self.active_sell_rule_kind):
                 visible_indices = self._get_sell_rule_indices_for_kind(self.active_sell_rule_kind)
