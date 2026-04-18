@@ -15,7 +15,7 @@ to keep stable:
 - profile recovery and atomic profile rewrite edges
 
 Run:
-    python "Legacy code and tests/test_merchant_rules_regression.py"
+    python "Widgets/Data/test_merchant_rules_regression.py"
 """
 
 from __future__ import annotations
@@ -75,6 +75,25 @@ def _ensure_package(name: str) -> types.ModuleType:
     return module
 
 
+def _load_real_model_id_enum(repo_root: Path):
+    if "PySkill" not in sys.modules:
+        class DummySkill:
+            def __init__(self, _name):
+                self.id = types.SimpleNamespace(id=0)
+
+        py_skill = types.ModuleType("PySkill")
+        py_skill.Skill = DummySkill
+        sys.modules["PySkill"] = py_skill
+
+    model_enums_path = repo_root / "Py4GWCoreLib" / "enums_src" / "Model_enums.py"
+    spec = importlib.util.spec_from_file_location("merchant_rules_regression_model_enums", model_enums_path)
+    _expect(spec is not None and spec.loader is not None, "Failed to create import spec for Model_enums.")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module.ModelID
+
+
 def _install_stub_modules(project_root: Path) -> None:
     class DummyTimer:
         def __init__(self, *_args, **_kwargs):
@@ -107,36 +126,7 @@ def _install_stub_modules(project_root: Path) -> None:
         def get_projects_path() -> str:
             return str(project_root)
 
-    class DummyModelValue:
-        def __init__(self, value: int):
-            self.value = value
-
-    class DummyModelID:
-        Glob_Of_Ectoplasm = DummyModelValue(930)
-        Salvage_Kit = DummyModelValue(2992)
-        CrystallineSword = DummyModelValue(399)
-        Passage_Scroll_Deep = DummyModelValue(22279)
-        Passage_Scroll_Fow = DummyModelValue(22280)
-        Passage_Scroll_Urgoz = DummyModelValue(3256)
-        Passage_Scroll_Uw = DummyModelValue(3746)
-        Scroll_Of_The_Lightbringer = DummyModelValue(21233)
-        Scroll_Of_Heros_Insight = DummyModelValue(5594)
-        Scroll_Of_Berserkers_Insight = DummyModelValue(5595)
-        Scroll_of_Slayers_Insight = DummyModelValue(5611)
-
-    DummyModelID.__members__ = {
-        "Glob_Of_Ectoplasm": DummyModelID.Glob_Of_Ectoplasm,
-        "Salvage_Kit": DummyModelID.Salvage_Kit,
-        "CrystallineSword": DummyModelID.CrystallineSword,
-        "Passage_Scroll_Deep": DummyModelID.Passage_Scroll_Deep,
-        "Passage_Scroll_Fow": DummyModelID.Passage_Scroll_Fow,
-        "Passage_Scroll_Urgoz": DummyModelID.Passage_Scroll_Urgoz,
-        "Passage_Scroll_Uw": DummyModelID.Passage_Scroll_Uw,
-        "Scroll_Of_The_Lightbringer": DummyModelID.Scroll_Of_The_Lightbringer,
-        "Scroll_Of_Heros_Insight": DummyModelID.Scroll_Of_Heros_Insight,
-        "Scroll_Of_Berserkers_Insight": DummyModelID.Scroll_Of_Berserkers_Insight,
-        "Scroll_of_Slayers_Insight": DummyModelID.Scroll_of_Slayers_Insight,
-    }
+    real_model_id = _load_real_model_id_enum(REPO_ROOT)
 
     class ItemType(enum.IntEnum):
         Unknown = 0
@@ -213,7 +203,7 @@ def _install_stub_modules(project_root: Path) -> None:
         GetDistrict=lambda: 0,
         GetLanguage=lambda: (0, 0),
     )
-    core.ModelID = DummyModelID
+    core.ModelID = real_model_id
     core.Player = types.SimpleNamespace(
         GetAccountEmail=lambda: "merchant.rules@example.com",
         GetName=lambda: "Merchant Rules Tester",
@@ -233,6 +223,10 @@ def _install_stub_modules(project_root: Path) -> None:
     sys.modules["Py4GWCoreLib"] = core
 
     _ensure_package("Py4GWCoreLib.enums_src")
+    model_enums = types.ModuleType("Py4GWCoreLib.enums_src.Model_enums")
+    model_enums.ModelID = real_model_id
+    sys.modules["Py4GWCoreLib.enums_src.Model_enums"] = model_enums
+
     item_enums = types.ModuleType("Py4GWCoreLib.enums_src.Item_enums")
     item_enums.ItemType = ItemType
     sys.modules["Py4GWCoreLib.enums_src.Item_enums"] = item_enums
