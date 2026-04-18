@@ -343,9 +343,13 @@ def _snap_launch_path_coroutine(goal_x: float, goal_y: float, mm: "MissionMap"):
     """Coroutine: compute AutoPathing path to goal and store in mm.snap_current_path."""
     mm.snap_path_computing = True
     mm.snap_current_path = []
-    path = yield from AutoPathing().get_path_to(goal_x, goal_y)
-    mm.snap_current_path = list(path) if path else []
-    mm.snap_path_computing = False
+    try:
+        path = yield from AutoPathing().get_path_to(goal_x, goal_y)
+        mm.snap_current_path = list(path) if path else []
+    except Exception:
+        mm.snap_current_path = []
+    finally:
+        mm.snap_path_computing = False
 
 #endregion
 #region MARKERS
@@ -850,7 +854,6 @@ class MissionMap:
         # NavMesh right-click snap state
         self.snap_navmesh: NavMesh | None = None
         self.snap_navmesh_map_id: int = 0
-        self.snap_gw_last_right_click: tuple[float, float] = (0.0, 0.0)
         self.snap_clicked_target: tuple[float, float] | None = None
         self.snap_snapped_target: tuple[float, float] | None = None
         self.snap_current_path: list[tuple[float, float]] = []
@@ -932,7 +935,6 @@ class MissionMap:
             # Reset NavMesh snap state on map change
             self.snap_navmesh = None
             self.snap_navmesh_map_id = 0
-            self.snap_gw_last_right_click = (0.0, 0.0)
             self.snap_clicked_target = None
             self.snap_snapped_target = None
             self.snap_current_path = []
@@ -940,9 +942,6 @@ class MissionMap:
             self.snap_path_index = 0
             self.snap_path_following = False
             self.snap_move_retry_timer.Reset()
-            # Seed right-click state so first frame doesn't fire spuriously
-            _rc = Map.MissionMap.GetLastRightClickCoords()
-            self.snap_gw_last_right_click = (float(_rc[0]), float(_rc[1]))
 
         if map_id in self.map_boundaries_by_map_id:
             self.boundaries = self.map_boundaries_by_map_id[map_id]
@@ -1047,35 +1046,46 @@ class MissionMap:
         # aC  ---
 
         # NavMesh right-click snap (when enabled)
-        _rc_nx, _rc_ny = Map.MissionMap.GetLastRightClickCoords()
-        _rc_new = (float(_rc_nx), float(_rc_ny))
-        if _rc_new != (0.0, 0.0) and _rc_new != self.snap_gw_last_right_click:
-            self.snap_gw_last_right_click = _rc_new
-            if self.snap_enabled:
-                _gx, _gy = Map.MissionMap.MapProjection.NormalizedScreenToGamePos(_rc_nx, _rc_ny)
-                click_game: tuple[float, float] = (float(_gx), float(_gy))
-                self.snap_clicked_target = click_game
-                _nav = _snap_get_navmesh(self)
-                snapped = _nav.find_nearest_reachable(click_game) if _nav else None
-                self.snap_snapped_target = snapped
-                if snapped is not None:
+        # Detect right-clicks directly via ImGui (IO events callback was disabled)
+        RIGHT = 1
+        if PyImGui.is_mouse_clicked(RIGHT) and not io.want_capture_mouse:
+            if self.left <= mx <= self.right and self.top <= my <= self.bottom:
+                _gx, _gy = RawScreenToRawGamePos(
+                    mx, my,
+                    self.zoom, self.mega_zoom,
+                    self.left_bound, self.top_bound, self.boundaries,
+                    self.pan_offset_x, self.pan_offset_y,
+                    self.scale_x, self.scale_y,
+                    self.mission_map_screen_center_x, self.mission_map_screen_center_y
+                )
+                if self.snap_enabled:
+                    click_game: tuple[float, float] = (float(_gx), float(_gy))
+                    self.snap_clicked_target = click_game
+                    _nav = _snap_get_navmesh(self)
+                    snapped = _nav.find_nearest_reachable(click_game) if _nav else None
+                    self.snap_snapped_target = snapped
+                    if snapped is not None:
+                        self.snap_current_path = []
+                        self.snap_path_index = 0
+                        self.snap_path_following = False
+                        self.snap_move_retry_timer.Reset()
+                        GLOBAL_CACHE.Coroutines.append(
+                            _snap_launch_path_coroutine(snapped[0], snapped[1], self)
+                        )
+                else:
+                    self.snap_clicked_target = None
+                    self.snap_snapped_target = None
                     self.snap_current_path = []
                     self.snap_path_index = 0
                     self.snap_path_following = False
                     self.snap_move_retry_timer.Reset()
-                    GLOBAL_CACHE.Coroutines.append(
-                        _snap_launch_path_coroutine(snapped[0], snapped[1], self)
-                    )
-            else:
-                self.snap_clicked_target = None
-                self.snap_snapped_target = None
-                self.snap_current_path = []
-                self.snap_path_index = 0
-                self.snap_path_following = False
-                self.snap_move_retry_timer.Reset()
 
         # Follow computed AutoPathing path waypoint-by-waypoint
         if self.snap_snapped_target is not None and not self.snap_path_computing:
+            if len(self.snap_current_path) == 0:
+                # Pathfinding returned empty - fall back to direct move
+                self._snap_issue_move(self.snap_snapped_target[0], self.snap_snapped_target[1])
+                self.snap_current_path = [self.snap_snapped_target]
             if len(self.snap_current_path) > 0:
                 if not self.snap_path_following:
                     self.snap_path_index = 0
