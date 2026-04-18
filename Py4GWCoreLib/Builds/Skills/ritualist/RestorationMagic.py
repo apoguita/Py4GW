@@ -46,30 +46,77 @@ class RestorationMagic:
     #endregion
 
     #region M
-    def Mend_Body_and_Soul(self) -> BuildCoroutine:
+    def Mend_Body_and_Soul(
+        self,
+        *,
+        health_threshold: float | None = None,
+        cleanse_blind_martial: bool = False,
+        cleanse_cripple_melee: bool = False,
+    ) -> BuildCoroutine:
+        from HeroAI.targeting import GetAllAlliesArray
+
         mend_body_and_soul_id: int = Skill.GetID("Mend_Body_and_Soul")
         mend_body_and_soul: CustomSkill = self.build.GetCustomSkill(mend_body_and_soul_id)
-        health_threshold: float = max(0.0, min(1.0, float(mend_body_and_soul.Conditions.LessLife or 0.70)))
-
-        def _resolve_mend_body_and_soul_target() -> int:
-            variants = [None]
-            if self._has_spirit_in_earshot():
-                variants = [
-                    lambda custom_skill: setattr(custom_skill.Conditions, "HasCondition", True),
-                    None,
-                ]
-
-            return self.build.ResolvePreferredAllyTarget(
-                mend_body_and_soul_id,
-                mend_body_and_soul,
-                variants=variants,
-                validator=lambda agent_id: Agent.IsAlive(agent_id) and Agent.GetHealth(agent_id) < health_threshold,
-            )
 
         if not self.build.IsSkillEquipped(mend_body_and_soul_id):
             return False
 
-        target_agent_id = _resolve_mend_body_and_soul_target()
+        # Cleanse-oriented tiers: MBaS removes one condition per cast only when a
+        # spirit is in earshot, so gate the tier on the spirit + profession-specific
+        # carriers of the targeted condition.
+        if cleanse_blind_martial or cleanse_cripple_melee:
+            if not self._has_spirit_in_earshot():
+                return False
+
+            if cleanse_blind_martial:
+                blind_skill_id: int = Skill.GetID("Blind")
+                profession_predicate = lambda aid: Routines.Checks.Agents.IsMartial(aid)
+                condition_predicate = lambda aid: Routines.Checks.Agents.HasEffect(aid, blind_skill_id)
+            else:
+                profession_predicate = lambda aid: Routines.Checks.Agents.IsMelee(aid)
+                condition_predicate = lambda aid: Agent.IsCrippled(aid)
+
+            ally_array = GetAllAlliesArray(Range.Spellcast.value) or []
+            candidates = [
+                agent_id for agent_id in ally_array
+                if Agent.IsValid(agent_id)
+                and Agent.IsAlive(agent_id)
+                and profession_predicate(agent_id)
+                and condition_predicate(agent_id)
+            ]
+            if not candidates:
+                return False
+
+            candidates.sort(key=lambda aid: Agent.GetHealth(aid))
+            target_agent_id = candidates[0]
+        else:
+            # HP-threshold tier: caller overrides the metadata's LessLife when it
+            # wants a specific tier (emergency, damaged, preventive) rather than
+            # the bar-wide default. When None, fall back to metadata (0.70 default).
+            threshold: float = (
+                health_threshold
+                if health_threshold is not None
+                else float(mend_body_and_soul.Conditions.LessLife or 0.70)
+            )
+            threshold = max(0.0, min(1.0, threshold))
+
+            def _resolve_mend_body_and_soul_target() -> int:
+                variants: list = [None]
+                if self._has_spirit_in_earshot():
+                    variants = [
+                        lambda custom_skill: setattr(custom_skill.Conditions, "HasCondition", True),
+                        None,
+                    ]
+
+                return self.build.ResolvePreferredAllyTarget(
+                    mend_body_and_soul_id,
+                    mend_body_and_soul,
+                    variants=variants,
+                    validator=lambda aid: Agent.IsAlive(aid) and Agent.GetHealth(aid) < threshold,
+                )
+
+            target_agent_id = _resolve_mend_body_and_soul_target()
+
         if not target_agent_id:
             return False
 
@@ -113,21 +160,60 @@ class RestorationMagic:
 
     #region X
     def Xinraes_Weapon(self) -> BuildCoroutine:
-        xinraes_weapon_id: int = Skill.GetID("Xinraes_Weapon")
-        xinraes_weapon: CustomSkill = self.build.GetCustomSkill(xinraes_weapon_id)
+        from Py4GWCoreLib import AgentArray, GLOBAL_CACHE, Utils
+        from HeroAI.targeting import GetAllAlliesArray
 
-        def _resolve_xinraes_weapon_target() -> int:
-            return self.build.ResolveAllyTarget(
-                xinraes_weapon_id,
-                xinraes_weapon,
-            )
+        xinraes_weapon_id: int = Skill.GetID("Xinraes_Weapon")
+        refresh_window_ms = 1000
 
         if not self.build.IsSkillEquipped(xinraes_weapon_id):
             return False
 
-        target_agent_id = _resolve_xinraes_weapon_target()
-        if not target_agent_id:
+        # Eligible = no weapon spell, or our Xinrae's is about to expire.
+        # A different weapon spell on the ally blocks the cast so we never
+        # overwrite Wielder's Boon / Vital Weapon / etc.
+        def _is_refresh_eligible(agent_id: int) -> bool:
+            if not Agent.IsWeaponSpelled(agent_id):
+                return True
+            if not Routines.Checks.Agents.HasEffect(agent_id, xinraes_weapon_id):
+                return False
+            remaining_ms = GLOBAL_CACHE.Effects.GetEffectTimeRemaining(agent_id, xinraes_weapon_id)
+            return remaining_ms <= refresh_window_ms
+
+        ally_array = GetAllAlliesArray(Range.Spellcast.value) or []
+        candidates = [
+            agent_id for agent_id in ally_array
+            if Agent.IsValid(agent_id)
+            and Routines.Checks.Agents.IsAlive(agent_id)
+            and _is_refresh_eligible(agent_id)
+        ]
+        if not candidates:
             return False
+
+        # Xinrae's triggers on the ally's next incoming hit, so the best target
+        # is the one most likely to take damage soon: most enemies within
+        # Earshot first, then lowest HP, then closest to the caster.
+        def _enemies_near(agent_id: int) -> int:
+            ally_x, ally_y = Agent.GetXY(agent_id)
+            nearby = Routines.Agents.GetFilteredEnemyArray(ally_x, ally_y, Range.Earshot.value)
+            nearby = AgentArray.Filter.ByCondition(
+                nearby,
+                lambda enemy_id: Agent.IsValid(enemy_id) and not Agent.IsDead(enemy_id),
+            )
+            return len(nearby)
+
+        player_pos = Player.GetXY()
+        scored = [
+            (
+                -_enemies_near(agent_id),
+                Agent.GetHealth(agent_id),
+                Utils.Distance(player_pos, Agent.GetXY(agent_id)),
+                agent_id,
+            )
+            for agent_id in candidates
+        ]
+        scored.sort()
+        target_agent_id = scored[0][3]
 
         return (yield from self.build.CastSkillIDAndRestoreTarget(
             xinraes_weapon_id,
@@ -148,17 +234,102 @@ class RestorationMagic:
             aftercast_delay=250,
         ))
 
-    def Recuperation(self) -> BuildCoroutine:
+    def Recuperation(
+        self,
+        *,
+        min_degen_count: int = 0,
+        min_party_damaged_count: int = 0,
+    ) -> BuildCoroutine:
         recuperation_id: int = Skill.GetID("Recuperation")
 
         if not self.build.IsSkillEquipped(recuperation_id):
             return False
+
+        # State gate: only fire during active combat or the approach phase - never
+        # during pure downtime.
+        if not (Routines.Checks.Agents.InAggro() or self.build.IsCloseToAggro()):
+            return False
+
+        # Independent situational gates. Callers that want OR semantics across
+        # gates should call Recuperation twice (once per gate) so the "OR" is
+        # explicit in the priority chain.
+        #   `min_degen_count`         - N allies in Spirit range suffering any
+        #                               health-degen source (poison / bleeding /
+        #                               burning / degen hex).
+        #   `min_party_damaged_count` - N allies in Spirit range below 75% HP.
+        # HP-aware recast (spirit at < 20% HP) is enforced by
+        # BuildMgr.SpiritBuffExists via the Recuperation custom-skill metadata
+        # (Conditions.MinSpiritHpFractionForRecast = 0.20).
+        if min_degen_count > 0:
+            if self._count_allies_suffering_degen() < min_degen_count:
+                return False
+
+        if min_party_damaged_count > 0:
+            if not self._is_party_damaged(
+                within_range=Range.Spirit.value,
+                min_allies_count=min_party_damaged_count,
+                less_health_than_percent=0.75,
+            ):
+                return False
 
         return (yield from self.build.CastSpiritSkillID(
             skill_id=recuperation_id,
             log=False,
             aftercast_delay=250,
         ))
+
+    @staticmethod
+    def _is_suffering_degen(agent_id: int, burning_skill_id: int) -> bool:
+        """Check if an ally has any health-degen condition: poison (-4),
+        bleeding (-3), burning (-7), or a degen hex."""
+        from Py4GWCoreLib.Effect import Effects
+        if Agent.IsPoisoned(agent_id):
+            return True
+        if Agent.IsBleeding(agent_id):
+            return True
+        if Agent.IsDegenHexed(agent_id):
+            return True
+        if Effects.HasEffect(agent_id, burning_skill_id):
+            return True
+        return False
+
+    def _count_allies_suffering_degen(self) -> int:
+        """Count party allies in Spirit range suffering any health-degen source."""
+        from Py4GWCoreLib import AgentArray, GLOBAL_CACHE
+
+        ally_ids = AgentArray.GetAllyArray()
+        ally_ids = AgentArray.Filter.ByDistance(ally_ids, Player.GetXY(), Range.Spirit.value)
+        ally_ids = AgentArray.Filter.ByCondition(ally_ids, lambda aid: Agent.IsAlive(aid))
+
+        burning_skill_id = GLOBAL_CACHE.Skill.GetID("Burning")
+        count = 0
+        for aid in ally_ids:
+            if self._is_suffering_degen(aid, burning_skill_id):
+                count += 1
+        return count
+
+    @staticmethod
+    def _is_party_damaged(
+        within_range: float,
+        min_allies_count: int,
+        less_health_than_percent: float,
+    ) -> bool:
+        """Return True when at least `min_allies_count` allies within range are
+        alive and currently below `less_health_than_percent` HP (0.0-1.0). Short
+        -circuits as soon as the threshold is reached."""
+        from Py4GWCoreLib import AgentArray
+
+        ally_ids = AgentArray.GetAllyArray()
+        ally_ids = AgentArray.Filter.ByDistance(ally_ids, Player.GetXY(), within_range)
+        ally_ids = AgentArray.Filter.ByCondition(ally_ids, lambda aid: Agent.IsAlive(aid))
+
+        count = 0
+        for aid in ally_ids:
+            if Agent.GetHealth(aid) < less_health_than_percent:
+                count += 1
+                if count >= min_allies_count:
+                    return True
+        return False
     #endregion
 
     #region S

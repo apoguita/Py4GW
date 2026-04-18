@@ -725,6 +725,7 @@ class RitualistSkills:
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Healing.value
         skill.Conditions.IsOutOfCombat = False
+        skill.Conditions.MinSpiritHpFractionForRecast = 0.20
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()

@@ -1051,6 +1051,18 @@ class BuildMgr:
         if not self._is_spirit_skill(skill_id):
             return False
 
+        # Allow the skill's metadata to request HP-aware recast: when the spirit's
+        # current HP fraction drops below `MinSpiritHpFractionForRecast`, treat it
+        # as absent so the caller can refresh before the spirit naturally dies.
+        # 0.0 (default) keeps the pre-change binary alive/dead gate.
+        min_hp_fraction = 0.0
+        try:
+            custom_skill = self.GetCustomSkill(skill_id)
+            if custom_skill is not None:
+                min_hp_fraction = float(custom_skill.Conditions.MinSpiritHpFractionForRecast or 0.0)
+        except Exception:
+            min_hp_fraction = 0.0
+
         spirit_array = AgentArray.GetSpiritPetArray()
         spirit_array = AgentArray.Filter.ByDistance(spirit_array, Player.GetXY(), Range.Earshot.value)
         spirit_array = AgentArray.Filter.ByCondition(spirit_array, lambda agent_id: Agent.IsAlive(agent_id))
@@ -1062,6 +1074,8 @@ class BuildMgr:
 
             spirit_model_id = SpiritModelID(model_value)
             if SPIRIT_BUFF_MAP.get(spirit_model_id) == skill_id:
+                if min_hp_fraction > 0.0 and Agent.GetHealth(spirit_id) < min_hp_fraction:
+                    continue
                 return True
 
         return False
