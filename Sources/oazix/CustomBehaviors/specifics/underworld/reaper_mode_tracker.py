@@ -73,8 +73,6 @@ class ReaperModeTracker:
     dhuums_rest_skill_ids:  set[int] = set()
     ghostly_fury_skill_ids: set[int] = set()
 
-    _last_logged_candidate_signature: tuple[int, int, int] | None = None
-
     # ── Initialisation ────────────────────────────────────────────────────────
 
     @classmethod
@@ -101,7 +99,7 @@ class ReaperModeTracker:
                 sid = 0
             if sid > 0:
                 cls.ghostly_fury_skill_ids.add(sid)
-            cls.ghostly_fury_skill_ids.add(3091)   # known fallback numeric ID
+            cls.ghostly_fury_skill_ids.add(3136)   # known fallback numeric ID
 
     # ── External registration (called by skill utilities at construction) ─────
 
@@ -131,13 +129,16 @@ class ReaperModeTracker:
         candidates.update(AgentArray.GetNeutralArray())
         candidates.update(AgentArray.GetNPCMinipetArray())
         candidates.update(AgentArray.GetSpiritPetArray())
+
         for agent_id in candidates:
             if not Agent.IsValid(agent_id):
                 continue
             name = str(Agent.GetNameByID(agent_id) or "").strip().lower()
             if any(m in name for m in cls._REAPER_NAME_MATCHERS):
                 reaper_ids.add(int(agent_id))
-        cls._cached_reaper_ids = reaper_ids
+        # Merge instead of replace: dead reapers vanish from arrays but their
+        # IDs must stay known so we keep matching their events.
+        cls._cached_reaper_ids = cls._cached_reaper_ids.union(reaper_ids)
         cls._reaper_id_refresh_timer.Reset()
 
     @classmethod
@@ -198,24 +199,6 @@ class ReaperModeTracker:
             cls._shared_mode = mode
             cls._shared_mode_locked_until_ms = now_ms + cls.MODE_SWITCH_DEBOUNCE_MS
 
-    @classmethod
-    def _log_candidate(cls, ts: int, caster_id: int, skill_id: int, kind: str) -> None:
-        signature = (int(ts), int(caster_id), int(skill_id))
-        if cls._last_logged_candidate_signature == signature:
-            return
-        cls._last_logged_candidate_signature = signature
-        try:
-            import Py4GW
-            caster_name = str(Agent.GetNameByID(int(caster_id)) or "<unknown>").strip() if Agent.IsValid(int(caster_id)) else "<invalid>"
-            skill_name  = str(GLOBAL_CACHE.Skill.GetName(int(skill_id)) or "<unknown>").strip()
-            Py4GW.Console.Log(
-                "AnyDhuum",
-                f"Detected {kind}: ts={ts} caster={caster_id} ('{caster_name}') skill={skill_id} ('{skill_name}')",
-                Py4GW.Console.MessageType.Info,
-            )
-        except Exception:
-            pass
-
     # ── Public API ────────────────────────────────────────────────────────────
 
     @classmethod
@@ -267,11 +250,9 @@ class ReaperModeTracker:
             if caster_id_int not in effective_ids:
                 continue
             if is_drest:
-                cls._log_candidate(int(ts), caster_id_int, skill_id_int, "_DHUUMS_REST_CANDIDATES")
                 cls._set_mode(cls.MODE_DREST, now_ms)
                 return
             if is_fury:
-                cls._log_candidate(int(ts), caster_id_int, skill_id_int, "_GHOSTLY_FURY_CANDIDATES")
                 cls._set_mode(cls.MODE_FURY, now_ms)
                 return
 

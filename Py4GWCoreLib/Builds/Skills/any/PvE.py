@@ -187,19 +187,38 @@ class PvE:
     _SPIRIT_FORM_SKILL_ID = 3134
     _SPIRIT_FORM_MIN_COUNT = 1
 
+    # Cache for _resolve_dhuum_skill: (names_tuple, fallback) -> skill_id
+    _dhuum_skill_cache: dict[tuple, int] = {}
+
+    # Throttled cache for _is_uw_chest_present
+    _chest_present_cache: bool = False
+    _chest_present_ts: float = 0.0
+    _CHEST_CHECK_INTERVAL: float = 2.0  # seconds
+
     @staticmethod
     def _resolve_dhuum_skill(*names: str, fallback: int = 0) -> int:
+        cache_key = (names, fallback)
+        cached = PvE._dhuum_skill_cache.get(cache_key)
+        if cached is not None:
+            return cached
         for name in names:
             try:
                 skill_id = int(Skill.GetID(name))
             except Exception:
                 skill_id = 0
             if skill_id > 0:
+                PvE._dhuum_skill_cache[cache_key] = skill_id
                 return skill_id
+        PvE._dhuum_skill_cache[cache_key] = int(fallback)
         return int(fallback)
 
     @staticmethod
     def _is_uw_chest_present() -> bool:
+        import time as _time
+        now = _time.monotonic()
+        if now - PvE._chest_present_ts < PvE._CHEST_CHECK_INTERVAL:
+            return PvE._chest_present_cache
+        PvE._chest_present_ts = now
         from Py4GWCoreLib import Agent, AgentArray
         for agent_id in AgentArray.GetAgentArray():
             if not Agent.IsGadget(agent_id):
@@ -210,27 +229,13 @@ class PvE:
             ax, ay = Agent.GetXY(agent_id)
             cx, cy = PvE._UW_CHEST_POS
             if ((ax - cx) ** 2 + (ay - cy) ** 2) ** 0.5 <= PvE._UW_CHEST_RADIUS:
+                PvE._chest_present_cache = True
                 return True
+        PvE._chest_present_cache = False
         return False
 
     def _count_spirit_form_accounts(self) -> int:
-        from Py4GWCoreLib import GLOBAL_CACHE
-        count = 0
-        for account in (GLOBAL_CACHE.ShMem.GetAllAccountData() or []):
-            if not account.IsSlotActive or account.IsIsolated:
-                continue
-            if not GLOBAL_CACHE.ShMem.SameMapOrPartyAsAccount(account):
-                continue
-            try:
-                if any(
-                    b.SkillId == self._SPIRIT_FORM_SKILL_ID
-                    for b in account.AgentData.Buffs.Buffs
-                    if b.SkillId != 0
-                ):
-                    count += 1
-            except Exception:
-                pass
-        return count
+        return len(self._get_spirit_form_agent_ids())
 
     def _get_spirit_form_agent_ids(self) -> set[int]:
         from Py4GWCoreLib import GLOBAL_CACHE
@@ -270,12 +275,11 @@ class PvE:
     def _get_best_rod_target(self) -> int:
         from Py4GWCoreLib import Agent, AgentArray, Player
 
-        spirit_form_count = self._count_spirit_form_accounts()
-        if spirit_form_count < self._SPIRIT_FORM_MIN_COUNT:
+        spirit_form_ids = self._get_spirit_form_agent_ids()
+        if len(spirit_form_ids) < self._SPIRIT_FORM_MIN_COUNT:
             return 0
 
-        spirit_form_ids = self._get_spirit_form_agent_ids()
-        restrict_to_spirit_form = spirit_form_count <= 2
+        restrict_to_spirit_form = len(spirit_form_ids) <= 2
         morale_map = self._get_morale_by_agent_id()
         if not morale_map:
             return 0
@@ -293,7 +297,6 @@ class PvE:
         if not allies:
             return 0
 
-        # Sort by HP ascending, then distance ascending (matching CB ordering)
         allies.sort(key=lambda aid: (
             Agent.GetHealth(aid),
             ((Agent.GetXY(aid)[0] - me_x) ** 2 + (Agent.GetXY(aid)[1] - me_y) ** 2) ** 0.5,
@@ -313,8 +316,9 @@ class PvE:
 
         return best_target
 
+    # Skill names aligned with CB CustomSkill names
     def Unyielding_Aura(self) -> BuildCoroutine:
-        ua_id: int = self._resolve_dhuum_skill("Unyielding_Aura", "Unyielding Aura")
+        ua_id: int = self._resolve_dhuum_skill("Unyielding_Aura")
         if not self.build.IsSkillEquipped(ua_id):
             return False
         if self._is_uw_chest_present():
@@ -325,7 +329,7 @@ class PvE:
         return (yield from self.build.CastSkillIDAndRestoreTarget(ua_id, target))
 
     def Dhuums_Rest(self, is_active: bool = True) -> BuildCoroutine:
-        dhuums_rest_id: int = self._resolve_dhuum_skill("Dhuum_s_Rest", "Dhuum's Rest", "Dhuums_Rest", fallback=3087)
+        dhuums_rest_id: int = self._resolve_dhuum_skill("Dhuum's_Rest", fallback=3087)
         if not self.build.IsSkillEquipped(dhuums_rest_id):
             return False
         if not is_active:
@@ -337,7 +341,7 @@ class PvE:
     def Ghostly_Fury(self, is_active: bool = True) -> BuildCoroutine:
         from Py4GWCoreLib import Agent, AgentArray, Player
 
-        ghostly_fury_id: int = self._resolve_dhuum_skill("Ghostly_Fury", "Ghostly Fury", fallback=3091)
+        ghostly_fury_id: int = self._resolve_dhuum_skill("Ghostly_Fury", fallback=3136)
         if not self.build.IsSkillEquipped(ghostly_fury_id):
             return False
         if not is_active:
@@ -370,7 +374,7 @@ class PvE:
         return (yield from self.build.CastSkillIDAndRestoreTarget(ghostly_fury_id, target))
 
     def Reversal_of_Death(self) -> BuildCoroutine:
-        rod_id: int = self._resolve_dhuum_skill("Reversal_of_Death", "Reversal of Death", fallback=3090)
+        rod_id: int = self._resolve_dhuum_skill("Reversal_of_Death", fallback=3090)
         if not self.build.IsSkillEquipped(rod_id):
             return False
         if self._is_uw_chest_present():
@@ -383,7 +387,7 @@ class PvE:
     def Spiritual_Healing(self) -> BuildCoroutine:
         from Py4GWCoreLib import Agent, AgentArray, Player
 
-        sh_id: int = self._resolve_dhuum_skill("Spiritual_Healing", "Spiritual Healing", fallback=3088)
+        sh_id: int = self._resolve_dhuum_skill("Spiritual_Healing", fallback=3088)
         if not self.build.IsSkillEquipped(sh_id):
             return False
         if self._is_uw_chest_present():

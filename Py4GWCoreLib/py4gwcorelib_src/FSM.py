@@ -580,6 +580,11 @@ class FSM:
                     self.managed_coroutines.remove(routine)
                 except ValueError:
                     pass
+
+        # Re-check: a coroutine may have finished the FSM or nulled current_state
+        if not self.current_state or self.finished:
+            ConsoleLog("FSM", f"{self.name}: Guard triggered after coroutine loop — current_state={'None' if not self.current_state else self.current_state.name}, finished={self.finished}", Py4GW.Console.MessageType.Warning)
+            return
                 
         if self.paused:
             if self.log_actions:
@@ -587,11 +592,15 @@ class FSM:
             return
         
 
+        if not self.current_state:
+            ConsoleLog("FSM", f"{self.name}: Guard triggered before execute — current_state is None", Py4GW.Console.MessageType.Warning)
+            return
+
         if self.log_actions:
             ConsoleLog("FSM", f"{self.name}: Executing state: {self.current_state.name}", Py4GW.Console.MessageType.Info)
         self.current_state.execute()
 
-        if not self.current_state.can_exit():
+        if not self.current_state or not self.current_state.can_exit():
             return
 
         self.current_state.exit()
