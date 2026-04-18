@@ -858,7 +858,7 @@ class RitualistSkills:
         skill = CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Xinraes_Weapon")
         skill.SkillType = SkillType.WeaponSpell.value
-        skill.TargetAllegiance = Skilltarget.Ally.value
+        skill.TargetAllegiance = Skilltarget.AllyWeaponSpell.value
         skill.Nature = SkillNature.Buff.value
         skill_data[skill.SkillID] = skill
 

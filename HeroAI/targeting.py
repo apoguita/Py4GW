@@ -256,6 +256,59 @@ def GetEnemyWithEffect(effect_skill_id, max_distance=4500.0, aggressive_only = F
     return _filter_blacklisted(Routines.Targeting.GetEnemyWithEffect(effect_skill_id, max_distance, aggressive_only))
 
 
+def TargetAllyWeaponSpell(weapon_spell_skill_id, max_distance=Range.Spellcast.value, refresh_window_ms=1000):
+    # Picks the best ally to receive `weapon_spell_skill_id`.
+    # Eligible allies have no conflicting weapon spell, or already carry this same
+    # weapon spell with <= refresh_window_ms remaining (refresh tier). Scoring
+    # prefers allies about to take damage: most enemies within Earshot first,
+    # then lowest HP, then closest to the caster.
+    if not weapon_spell_skill_id:
+        return 0
+
+    ally_array = GetAllAlliesArray(max_distance) or []
+    if not ally_array:
+        return 0
+
+    def _is_refresh_eligible(agent_id):
+        if not Agent.IsWeaponSpelled(agent_id):
+            return True
+        if not Routines.Checks.Agents.HasEffect(agent_id, weapon_spell_skill_id):
+            return False
+        remaining_ms = GLOBAL_CACHE.Effects.GetEffectTimeRemaining(agent_id, weapon_spell_skill_id)
+        return remaining_ms <= refresh_window_ms
+
+    candidates = [
+        agent_id for agent_id in ally_array
+        if Agent.IsValid(agent_id)
+        and Routines.Checks.Agents.IsAlive(agent_id)
+        and _is_refresh_eligible(agent_id)
+    ]
+    if not candidates:
+        return 0
+
+    def _enemies_near(agent_id):
+        ally_x, ally_y = Agent.GetXY(agent_id)
+        nearby = Routines.Agents.GetFilteredEnemyArray(ally_x, ally_y, Range.Earshot.value)
+        nearby = AgentArray.Filter.ByCondition(
+            nearby,
+            lambda enemy_id: Agent.IsValid(enemy_id) and not Agent.IsDead(enemy_id),
+        )
+        return len(nearby)
+
+    player_pos = Player.GetXY()
+    scored = [
+        (
+            -_enemies_near(agent_id),
+            Agent.GetHealth(agent_id),
+            Utils.Distance(player_pos, Agent.GetXY(agent_id)),
+            agent_id,
+        )
+        for agent_id in candidates
+    ]
+    scored.sort()
+    return scored[0][3]
+
+
 def TargetMeleeOrMartialClusterEnemy(
     skill_id: int,
     *,

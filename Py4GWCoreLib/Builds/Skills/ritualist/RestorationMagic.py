@@ -160,60 +160,16 @@ class RestorationMagic:
 
     #region X
     def Xinraes_Weapon(self) -> BuildCoroutine:
-        from Py4GWCoreLib import AgentArray, GLOBAL_CACHE, Utils
-        from HeroAI.targeting import GetAllAlliesArray
+        from HeroAI.targeting import TargetAllyWeaponSpell
 
         xinraes_weapon_id: int = Skill.GetID("Xinraes_Weapon")
-        refresh_window_ms = 1000
 
         if not self.build.IsSkillEquipped(xinraes_weapon_id):
             return False
 
-        # Eligible = no weapon spell, or our Xinrae's is about to expire.
-        # A different weapon spell on the ally blocks the cast so we never
-        # overwrite Wielder's Boon / Vital Weapon / etc.
-        def _is_refresh_eligible(agent_id: int) -> bool:
-            if not Agent.IsWeaponSpelled(agent_id):
-                return True
-            if not Routines.Checks.Agents.HasEffect(agent_id, xinraes_weapon_id):
-                return False
-            remaining_ms = GLOBAL_CACHE.Effects.GetEffectTimeRemaining(agent_id, xinraes_weapon_id)
-            return remaining_ms <= refresh_window_ms
-
-        ally_array = GetAllAlliesArray(Range.Spellcast.value) or []
-        candidates = [
-            agent_id for agent_id in ally_array
-            if Agent.IsValid(agent_id)
-            and Routines.Checks.Agents.IsAlive(agent_id)
-            and _is_refresh_eligible(agent_id)
-        ]
-        if not candidates:
+        target_agent_id = TargetAllyWeaponSpell(xinraes_weapon_id, Range.Spellcast.value)
+        if not target_agent_id:
             return False
-
-        # Xinrae's triggers on the ally's next incoming hit, so the best target
-        # is the one most likely to take damage soon: most enemies within
-        # Earshot first, then lowest HP, then closest to the caster.
-        def _enemies_near(agent_id: int) -> int:
-            ally_x, ally_y = Agent.GetXY(agent_id)
-            nearby = Routines.Agents.GetFilteredEnemyArray(ally_x, ally_y, Range.Earshot.value)
-            nearby = AgentArray.Filter.ByCondition(
-                nearby,
-                lambda enemy_id: Agent.IsValid(enemy_id) and not Agent.IsDead(enemy_id),
-            )
-            return len(nearby)
-
-        player_pos = Player.GetXY()
-        scored = [
-            (
-                -_enemies_near(agent_id),
-                Agent.GetHealth(agent_id),
-                Utils.Distance(player_pos, Agent.GetXY(agent_id)),
-                agent_id,
-            )
-            for agent_id in candidates
-        ]
-        scored.sort()
-        target_agent_id = scored[0][3]
 
         return (yield from self.build.CastSkillIDAndRestoreTarget(
             xinraes_weapon_id,
