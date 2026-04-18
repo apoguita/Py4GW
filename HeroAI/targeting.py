@@ -118,8 +118,19 @@ def TargetLowestAllyEnergy(other_ally=False, filter_skill_id=0, less_energy=1.0)
     ally_array = AgentArray.Filter.ByCondition(ally_array, lambda agent_id: not CheckForEffect(agent_id, BLOOD_RITUAL))
     
     ally_array = AgentArray.Filter.ByCondition(ally_array, lambda agent_id: GetEnergyValues(agent_id) <= less_energy)
-    ally_array = SortAlliesByPartyPosition(ally_array)
-    
+
+    # Prioritize the ally with the lowest current energy, breaking ties by distance to the caster so
+    # the closest eligible ally wins when energy values match.
+    player_xy = Player.GetXY()
+    ally_array = sorted(
+        ally_array or [],
+        key=lambda agent_id: (
+            GetEnergyValues(agent_id),
+            Utils.Distance(Agent.GetXY(agent_id), player_xy),
+            agent_id,
+        ),
+    )
+
     ally = Utils.GetFirstFromArray(ally_array)
     return ally
 

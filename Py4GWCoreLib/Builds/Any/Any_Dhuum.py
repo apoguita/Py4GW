@@ -1,7 +1,7 @@
 import time
 
 from Py4GWCoreLib import Agent, AgentArray, BuildMgr, GLOBAL_CACHE, Party, Player, Profession, Range, Routines, Skill, ThrottledTimer
-from Py4GWCoreLib.CombatEvents import CombatEvents as CombatEvents, EventType
+#from Py4GWCoreLib.CombatEvents import CombatEvents as CombatEvents, EventType
 from Py4GWCoreLib.Builds.Any.HeroAI import HeroAI_Build
 from Py4GWCoreLib.Builds.Skills.any.PvE import PvE
 
@@ -28,9 +28,9 @@ class _DhuumModeTracker:
     )
 
     ACTIVATION_EVENT_TYPES = (
-        EventType.SKILL_ACTIVATED,
-        EventType.ATTACK_SKILL_ACTIVATED,
-        EventType.INSTANT_SKILL_ACTIVATED,
+        #EventType.SKILL_ACTIVATED,
+        #EventType.ATTACK_SKILL_ACTIVATED,
+        #EventType.INSTANT_SKILL_ACTIVATED,
     )
 
     # Skill name candidates matching the CB reaper_mode_tracker

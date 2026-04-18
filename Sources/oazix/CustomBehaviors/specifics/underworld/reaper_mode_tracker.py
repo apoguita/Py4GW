@@ -11,7 +11,7 @@ observation and state management.
 import time
 
 from Py4GWCoreLib import Agent, AgentArray, GLOBAL_CACHE, Party, Player, Skill, ThrottledTimer
-from Py4GWCoreLib.CombatEvents import CombatEvents as CombatEvents, EventType
+#from Py4GWCoreLib.CombatEvents import CombatEvents as CombatEvents, EventType
 
 
 class ReaperModeTracker:
@@ -45,9 +45,9 @@ class ReaperModeTracker:
 
     # Only these event types indicate a *cast* started (not queued or finished).
     _ACTIVATION_EVENT_TYPES = (
-        EventType.SKILL_ACTIVATED,
-        EventType.ATTACK_SKILL_ACTIVATED,
-        EventType.INSTANT_SKILL_ACTIVATED,
+        #EventType.SKILL_ACTIVATED,
+        #EventType.ATTACK_SKILL_ACTIVATED,
+        #EventType.INSTANT_SKILL_ACTIVATED,
     )
 
     # Locale-tolerant name candidates for the two tracked reaper skills.
@@ -225,7 +225,7 @@ class ReaperModeTracker:
         effective_ids = cls._effective_reaper_ids()
         now_ms        = time.monotonic() * 1000.0
         player_id     = int(Player.GetAgentID())
-        recent_skills        = CombatEvents.GetRecentSkills(80)
+        recent_skills        = [] #CombatEvents.GetRecentSkills(80)
         candidate_agent_ids  = cls._reaper_candidate_agent_ids()
         party_member_ids     = cls._party_member_agent_ids()
 

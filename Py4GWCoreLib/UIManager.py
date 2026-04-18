@@ -1376,4 +1376,6 @@ WindowFrames["FinalCreateCharacterButton"] = FinalCreateCharacterButtonFrame
 
 
 #region Callbacks
-UIManager.RegisterFrameIOCallbacks()
+#autiomatic IO events was deactivated due to instability over long sessions
+#use this feature on demand
+#UIManager.RegisterFrameIOCallbacks()

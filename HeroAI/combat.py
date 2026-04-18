@@ -1256,6 +1256,24 @@ class CombatClass:
             self.in_casting_routine = False
             return False, 0
 
+        # Opt-in post-sacrifice safety floors. Only applied when the skill sets at least one floor
+        # above 0. Sacrifice amount is derived from SacrificePercent (fraction of max HP).
+        # Refuses to cast unless the caster's HP after sacrifice is strictly greater than BOTH
+        # the percent-of-max floor AND the absolute-HP floor.
+        min_after_pct = getattr(conditions, "MinHealthAfterSacrificePercent", 0.0)
+        min_after_abs = getattr(conditions, "MinHealthAfterSacrificeAbsolute", 0)
+        sacrifice_pct = getattr(conditions, "SacrificePercent", 0.0)
+        if sacrifice_pct > 0 and (min_after_pct > 0 or min_after_abs > 0):
+            max_hp = Agent.GetMaxHealth(Player.GetAgentID())
+            sacrifice_amount = max_hp * sacrifice_pct
+            hp_after_sacrifice = (current_hp * max_hp) - sacrifice_amount
+            if min_after_abs > 0 and hp_after_sacrifice <= min_after_abs:
+                self.in_casting_routine = False
+                return False, 0
+            if min_after_pct > 0 and max_hp > 0 and (hp_after_sacrifice / max_hp) <= min_after_pct:
+                self.in_casting_routine = False
+                return False, 0
+
         # --- Expensive target resolution (only if all cheap checks passed) ---
         v_target = self.GetAppropiateTarget(slot)
 

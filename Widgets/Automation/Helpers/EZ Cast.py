@@ -1058,7 +1058,7 @@ def UseGenericSkills(energy, player_id, now):
     return False
 
 
-def MaintainRefrains(player_id, now):
+def MaintainRefrains_(player_id, now):
     effects = GW.Effects.GetEffects(player_id)
     effect : GW.PyEffects.EffectType
     rit_lord = next((effect for effect in effects if effect.skill_id == GW.Skill.GetID("Ritual_Lord")), None)
@@ -1161,6 +1161,91 @@ def MaintainRefrains(player_id, now):
                     GW.SkillBar.UseSkill(iau_slot, 0)
                     return True
     return False
+
+def MaintainRefrains(player_id, now):
+    # 1. Create a map of Skill ID -> Effect Object
+    # This replaces the linear search loop and all the 'next()' calls
+    effects = GW.Effects.GetEffects(player_id)
+    effect_map = {eff.skill_id: eff for eff in effects}
+
+    # 2. Define the IDs we care about (Best practice: cache these constants elsewhere)
+    HELP_ME_ID = GW.Skill.GetID("Help_Me")
+    R_HEROIC = GW.Skill.GetID("Heroic_Refrain")
+    R_BLADETURN = GW.Skill.GetID("Bladeturn_Refrain")
+    R_AGGRESSIVE = GW.Skill.GetID("Aggressive_Refrain")
+    R_BURNING = GW.Skill.GetID("Burning_Refrain")
+    R_HASTY = GW.Skill.GetID("Hasty_Refrain")
+    R_MENDING = GW.Skill.GetID("Mending_Refrain")
+
+    DT_ID = GW.Skill.GetID("Dont_Trip")
+    IAU_ID = GW.Skill.GetID("I_Am_Unstoppable")
+
+    # Check if "Help Me!" is already active to prevent over-casting
+    if HELP_ME_ID in effect_map:
+        return False
+
+    # 3. Collect active refrains using the map
+    refrain_ids = [R_HEROIC, R_BLADETURN, R_AGGRESSIVE, R_BURNING, R_HASTY, R_MENDING]
+    active_refrains = [effect_map[rid] for rid in refrain_ids if rid in effect_map]
+
+    if not active_refrains:
+        return False
+
+    # 4. Calculate the most urgent refrain (lowest time remaining)
+    lowest_dura = min(active_refrains, key=lambda eff: eff.time_remaining)
+    lowest_dur_sec = lowest_dura.time_remaining / 1000.0
+
+    # 5. Logic for "Help Me!" (The primary maintainer)
+    help_me_slot = GW.SkillBar.GetSlotBySkillID(HELP_ME_ID)
+    if help_me_slot != 0 and GW.Routines.Checks.Skills.IsSkillSlotReady(help_me_slot):
+        # Dynamic duration calculation based on Command attribute
+        help_me_skill = GW.PySkill.Skill(HELP_ME_ID)
+        attributes = GW.Agent.GetAttributes(player_id)
+        command_attr = next((attr for attr in attributes if attr.name == "Command"), None)
+
+        if command_attr:
+            # Scaled duration: base + (growth * level)
+            h_dur = help_me_skill.duration_0pts + ((help_me_skill.duration_15pts - help_me_skill.duration_0pts) / 15) * command_attr.level
+        else:
+            h_dur = help_me_skill.duration_0pts
+
+        if lowest_dur_sec > h_dur > (lowest_dur_sec - cache.refrain_buffer):
+            cache.busy_timer = cache.ezcast_cast_minimum_timer
+            GW.SkillBar.UseSkill(help_me_slot, 0)
+            return True
+
+    # 6. Logic for "Don't Trip!" and "I Am Unstoppable!"
+    dt_slot = GW.SkillBar.GetSlotBySkillID(DT_ID)
+    iau_slot = GW.SkillBar.GetSlotBySkillID(IAU_ID)
+
+    # Determine Don't Trip duration based on Deldrimor title
+    deld = GW.Player.GetTitle(GW.TitleID.Deldrimor)
+    dt_dur = {0:3, 1:3, 2:4, 3:4}.get(deld.current_title_tier_index if deld else -1, 5)
+
+    # Determine IAU duration based on Norn title
+    norn = GW.Player.GetTitle(GW.TitleID.Norn)
+    iau_dur = {0:16, 1:17, 2:18, 3:18, 4:19}.get(norn.current_title_tier_index if norn else -1, 20)
+
+    if dt_slot != 0 and DT_ID not in effect_map and GW.Routines.Checks.Skills.IsSkillSlotReady(dt_slot):
+        if lowest_dur_sec > dt_dur > (lowest_dur_sec - cache.refrain_buffer):
+            cache.busy_timer = cache.ezcast_cast_minimum_timer
+            GW.SkillBar.UseSkill(dt_slot, 0)
+            return True
+
+    if iau_slot != 0 and IAU_ID not in effect_map and GW.Routines.Checks.Skills.IsSkillSlotReady(iau_slot):
+        # IAU logic depends on Don't Trip being active
+        dt_effect = effect_map.get(DT_ID)
+        if dt_effect:
+            # Base duration of shortest refrain + remaining time of Don't Trip
+            # Note: Original code uses base_durations[0]. We use lowest_dura.duration
+            combined_dur = lowest_dura.duration + (dt_effect.time_remaining / 1000.0)
+            if combined_dur > iau_dur > (combined_dur - cache.refrain_buffer):
+                cache.busy_timer = cache.ezcast_cast_minimum_timer
+                GW.SkillBar.UseSkill(iau_slot, 0)
+                return True
+
+    return False
+
 
 def AuraOfTheAssassin(energy, player_id, now):
     player_x, player_y = GW.Agent.GetXY(player_id)
