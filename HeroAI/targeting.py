@@ -69,6 +69,13 @@ def SortAlliesByPartyPosition(agent_array):
 
     return sorted(agent_array or [], key=sort_key)
 
+def SortAlliesByLowestHp(agent_array):
+    """Sort allies by current HP ascending, with party position as a stable
+    tiebreak. Python's sort is stable, so equal-HP entries preserve the order
+    from SortAlliesByPartyPosition (players -> heroes -> pet-owners)."""
+    position_sorted = SortAlliesByPartyPosition(agent_array)
+    return sorted(position_sorted, key=lambda agent_id: Agent.GetHealth(agent_id))
+
 def TargetAllyByPredicate(
     predicate=None,
     other_ally=False,
@@ -101,10 +108,10 @@ def TargetLowestAlly(other_ally=False,filter_skill_id=0):
     spirit_pet_array = FilterAllyArray(spirit_pet_array, distance, other_ally, filter_skill_id)
     spirit_pet_array = AgentArray.Filter.ByCondition(spirit_pet_array, lambda agent_id: not Agent.IsSpawned(agent_id)) #filter spirits
     ally_array = AgentArray.Manipulation.Merge(ally_array, spirit_pet_array) #added Pets
-    
-    ally_array = SortAlliesByPartyPosition(ally_array)
+
+    ally_array = SortAlliesByLowestHp(ally_array)
     return Utils.GetFirstFromArray(ally_array)
-    
+
 
 def TargetLowestAllyEnergy(other_ally=False, filter_skill_id=0, less_energy=1.0):
     global BLOOD_IS_POWER, BLOOD_RITUAL
@@ -142,7 +149,7 @@ def TargetLowestAllyCaster(other_ally=False, filter_skill_id=0):
     ally_array = FilterAllyArray(ally_array, distance, other_ally, filter_skill_id)
     ally_array = AgentArray.Filter.ByCondition(ally_array, lambda agent_id: Routines.Checks.Agents.IsCaster(agent_id))
 
-    ally_array = SortAlliesByPartyPosition(ally_array)
+    ally_array = SortAlliesByLowestHp(ally_array)
     return Utils.GetFirstFromArray(ally_array)
 
 
@@ -154,13 +161,13 @@ def TargetLowestAllyMartial(other_ally=False, filter_skill_id=0):
     ally_array = FilterAllyArray(ally_array, distance, other_ally, filter_skill_id)
     ally_array = AgentArray.Filter.ByCondition(ally_array, lambda agent_id: Routines.Checks.Agents.IsMartial(agent_id))
     ally_array = AgentArray.Filter.ByCondition(ally_array, lambda agent_id: not HasIllusionaryWeaponry(agent_id))
-    
+
     spirit_pet_array = AgentArray.GetSpiritPetArray()
     spirit_pet_array = FilterAllyArray(spirit_pet_array, distance, other_ally, filter_skill_id)
     spirit_pet_array = AgentArray.Filter.ByCondition(spirit_pet_array, lambda agent_id: not Agent.IsSpawned(agent_id)) #filter spirits
     ally_array = AgentArray.Manipulation.Merge(ally_array, spirit_pet_array) #added Pets
-    
-    ally_array = SortAlliesByPartyPosition(ally_array)
+
+    ally_array = SortAlliesByLowestHp(ally_array)
     return Utils.GetFirstFromArray(ally_array)
 
 
@@ -172,13 +179,13 @@ def TargetLowestAllyMelee(other_ally=False, filter_skill_id=0):
     ally_array = FilterAllyArray(ally_array, distance, other_ally, filter_skill_id)
     ally_array = AgentArray.Filter.ByCondition(ally_array, lambda agent_id: Routines.Checks.Agents.IsMelee(agent_id))
     ally_array = AgentArray.Filter.ByCondition(ally_array, lambda agent_id: not HasIllusionaryWeaponry(agent_id))
-    
+
     spirit_pet_array = AgentArray.GetSpiritPetArray()
     spirit_pet_array = FilterAllyArray(spirit_pet_array, distance, other_ally, filter_skill_id)
     spirit_pet_array = AgentArray.Filter.ByCondition(spirit_pet_array, lambda agent_id: not Agent.IsSpawned(agent_id)) #filter spirits
     ally_array = AgentArray.Manipulation.Merge(ally_array, spirit_pet_array) #added Pets
-    
-    ally_array = SortAlliesByPartyPosition(ally_array)
+
+    ally_array = SortAlliesByLowestHp(ally_array)
     return Utils.GetFirstFromArray(ally_array)
 
 
@@ -188,11 +195,11 @@ def TargetLowestAllyRanged(other_ally=False, filter_skill_id=0):
     ally_array = AgentArray.GetAllyArray()
     ally_array = FilterAllyArray(ally_array, distance, other_ally, filter_skill_id)
     ally_array = AgentArray.Filter.ByCondition(ally_array, lambda agent_id: Routines.Checks.Agents.IsRanged(agent_id))
-    
-    ally_array = SortAlliesByPartyPosition(ally_array)
+
+    ally_array = SortAlliesByLowestHp(ally_array)
     return Utils.GetFirstFromArray(ally_array)
 
-   
+
 def TargetNearestItem():
     return Routines.Targeting.TargetNearestItem()
 
