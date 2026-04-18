@@ -3207,10 +3207,35 @@ def _draw_main_additional_ui() -> None:
         PyImGui.end_table()
 
 
+# Number of consecutive frames IsMapDataLoaded() must return True before we
+# allow any game-state access.  Prevents crashes from stale ctypes pointers
+# during the char-select → loading transition (the underlying GW memory may
+# be freed while cached context wrappers are still non-null).
+_map_stable_frames: int = 0
+_MAP_STABLE_THRESHOLD: int = 10  # ~150-300 ms at 30-60 fps
+
+
 def main():
-    global _pending_wipe_recovery, _pending_wipe_reason
+    global _pending_wipe_recovery, _pending_wipe_reason, _map_stable_frames
     import traceback as _tb
     try:
+        # Guard: skip EVERYTHING when map data is not fully loaded (char select,
+        # loading screen, map transitions).  IsMapDataLoaded() only checks
+        # cached pointer wrappers (is-not-None) — pure Python, no game-memory
+        # reads.  Safe even when the underlying GW pages are freed.
+        if not Map.IsMapDataLoaded():
+            _map_stable_frames = 0
+            return
+
+        # Debounce: after IsMapDataLoaded flips True, wait a few frames before
+        # touching any ctypes struct fields.  During the char-select → loading
+        # transition the context pointers appear non-null for a handful of
+        # frames while the game is still initialising / tearing down memory.
+        # Accessing struct fields in that window causes c0000005 (null-deref).
+        _map_stable_frames += 1
+        if _map_stable_frames < _MAP_STABLE_THRESHOLD:
+            return
+
         _draw_armor_edit_window()
         if bot.config.fsm_running and Routines.Checks.Map.MapValid():
             _get_adapter().sync_runtime()
