@@ -40,7 +40,7 @@ FLOATING_UI_INI_FILENAME = "MerchantRulesFloating.ini"
 FLOATING_ICON_WINDOW_ID = "##merchant_rules_floating_icon_button"
 FLOATING_ICON_WINDOW_NAME = "Merchant Rules Toggle"
 
-PROFILE_VERSION = 16
+PROFILE_VERSION = 19
 CONFIG_DIR = os.path.join(Py4GW.Console.get_projects_path(), "Widgets", "Config", "MerchantRules")
 SHARED_PROFILES_DIR = os.path.join(CONFIG_DIR, "Profiles")
 RECOVERY_DIR = os.path.join(CONFIG_DIR, "Recovery")
@@ -61,6 +61,7 @@ RUNES_CATALOG_PATH = os.path.join(MODS_DATA_DIR, "runes.json")
 SEARCH_RESULT_LIMIT = 12
 TRAVEL_TIMEOUT_MS = 20000
 WINDOW_GEOMETRY_SAVE_THROTTLE_MS = 750
+DESTRUCTIVE_BUTTON_CONFIRM_TIMEOUT_MS = 5000
 DEFAULT_WINDOW_WIDTH = 760
 DEFAULT_WINDOW_HEIGHT = 860
 WORKSPACE_OVERVIEW = "overview"
@@ -96,6 +97,7 @@ MERCHANT_TYPE_TRAVEL = "travel"
 MERCHANT_TYPE_MERCHANT = "merchant"
 MERCHANT_TYPE_MATERIALS = "material_trader"
 MERCHANT_TYPE_RUNE_TRADER = "rune_trader"
+MERCHANT_TYPE_SCROLL_TRADER = "scroll_trader"
 MERCHANT_TYPE_RARE_MATERIALS = "rare_material_trader"
 MERCHANT_TYPE_INVENTORY = "inventory"
 MERCHANT_TYPE_STORAGE = "storage"
@@ -103,6 +105,7 @@ MERCHANT_TYPE_STORAGE = "storage"
 BUY_KIND_MERCHANT_STOCK = "merchant_stock_target"
 BUY_KIND_MATERIAL_TARGET = "buy_material_target"
 BUY_KIND_RUNE_TRADER_TARGET = "buy_rune_trader_target"
+BUY_KIND_SCROLL_TRADER_TARGET = "buy_scroll_trader_target"
 LEGACY_BUY_KIND_ID_KITS = "restock_id_kits"
 LEGACY_BUY_KIND_SALVAGE_KITS = "restock_salvage_kits"
 LEGACY_BUY_KIND_ECTO = "buy_ectoplasm"
@@ -123,6 +126,7 @@ BUY_RULE_KINDS = [
     BUY_KIND_MERCHANT_STOCK,
     BUY_KIND_MATERIAL_TARGET,
     BUY_KIND_RUNE_TRADER_TARGET,
+    BUY_KIND_SCROLL_TRADER_TARGET,
 ]
 
 SELL_RULE_KINDS = [
@@ -143,6 +147,7 @@ BUY_RULE_WORKSPACE_ORDER: tuple[str, ...] = (
     BUY_KIND_MERCHANT_STOCK,
     BUY_KIND_MATERIAL_TARGET,
     BUY_KIND_RUNE_TRADER_TARGET,
+    BUY_KIND_SCROLL_TRADER_TARGET,
 )
 
 SELL_RULE_WORKSPACE_ORDER: tuple[str, ...] = (
@@ -163,12 +168,14 @@ BUY_KIND_LABELS = {
     BUY_KIND_MERCHANT_STOCK: "Maintain Merchant Stock",
     BUY_KIND_MATERIAL_TARGET: "Maintain Crafting Materials",
     BUY_KIND_RUNE_TRADER_TARGET: "Maintain Runes & Insignias",
+    BUY_KIND_SCROLL_TRADER_TARGET: "Maintain Scroll Trader Stock",
 }
 
 BUY_RULE_WORKSPACE_LABELS = {
     BUY_KIND_MERCHANT_STOCK: "Merchant Stock",
     BUY_KIND_MATERIAL_TARGET: "Materials",
     BUY_KIND_RUNE_TRADER_TARGET: "Runes & Insignias",
+    BUY_KIND_SCROLL_TRADER_TARGET: "Scroll Trader Stock",
 }
 
 SELL_KIND_LABELS = {
@@ -232,6 +239,7 @@ MERCHANT_TYPE_LABELS = {
     MERCHANT_TYPE_MERCHANT: "Merchant",
     MERCHANT_TYPE_MATERIALS: "Material Trader",
     MERCHANT_TYPE_RUNE_TRADER: "Rune Trader",
+    MERCHANT_TYPE_SCROLL_TRADER: "Scroll Trader",
     MERCHANT_TYPE_RARE_MATERIALS: "Rare Material Trader",
     MERCHANT_TYPE_INVENTORY: "Inventory",
     MERCHANT_TYPE_STORAGE: "Xunlai Storage",
@@ -249,6 +257,7 @@ BUY_KIND_TO_MERCHANT_TYPE = {
     BUY_KIND_MERCHANT_STOCK: MERCHANT_TYPE_MERCHANT,
     BUY_KIND_MATERIAL_TARGET: MERCHANT_TYPE_MATERIALS,
     BUY_KIND_RUNE_TRADER_TARGET: MERCHANT_TYPE_RUNE_TRADER,
+    BUY_KIND_SCROLL_TRADER_TARGET: MERCHANT_TYPE_SCROLL_TRADER,
 }
 
 SELL_KIND_TO_MERCHANT_TYPE = {
@@ -261,7 +270,18 @@ SELL_KIND_TO_MERCHANT_TYPE = {
 ECTOPLASM_MODEL_ID = int(ModelID.Glob_Of_Ectoplasm.value)
 SALVAGE_KIT_MODEL_ID = int(ModelID.Salvage_Kit.value)
 MATERIAL_BATCH_SIZE = 10
+MATERIAL_STORAGE_BAG_ID = 6
+MATERIAL_STORAGE_BAG_NAME = "MaterialStorage"
+MATERIAL_STORAGE_MAX_STACK_SIZE = 250
 MAX_WEAPON_REQUIREMENT = 13
+MODIFIER_IDENTIFIER_ATTRIBUTE_REQUIREMENT = 0x279
+MODIFIER_IDENTIFIER_DAMAGE = 0x27A
+MODIFIER_IDENTIFIER_DAMAGE_NO_REQ = 0x248
+MODIFIER_IDENTIFIER_ARMOR1 = 0x27B
+MODIFIER_IDENTIFIER_ARMOR2 = 0x23C
+MODIFIER_IDENTIFIER_ENERGY = 0x27C
+MODIFIER_IDENTIFIER_ENERGY2 = 0x22C
+ATTRIBUTE_NONE_REAL_VALUE = 45
 COMMON_CRAFTING_MATERIAL_MODEL_IDS: frozenset[int] = frozenset({
     921, 925, 929, 933, 934, 940, 946, 948, 953, 954, 955,
 })
@@ -272,17 +292,73 @@ RARE_CRAFTING_MATERIAL_MODEL_IDS: frozenset[int] = frozenset({
 ALL_CRAFTING_MATERIAL_MODEL_IDS: frozenset[int] = frozenset(
     set(COMMON_CRAFTING_MATERIAL_MODEL_IDS) | set(RARE_CRAFTING_MATERIAL_MODEL_IDS)
 )
+MATERIAL_STORAGE_SLOT_BY_MODEL_ID: dict[int, int] = {
+    921: 0,
+    922: 26,
+    923: 19,
+    925: 5,
+    926: 13,
+    927: 14,
+    928: 15,
+    929: 9,
+    930: 16,
+    931: 20,
+    932: 21,
+    933: 11,
+    934: 10,
+    935: 24,
+    936: 25,
+    937: 22,
+    938: 23,
+    939: 29,
+    940: 2,
+    941: 12,
+    942: 30,
+    943: 31,
+    944: 32,
+    945: 27,
+    946: 6,
+    948: 1,
+    949: 17,
+    950: 18,
+    951: 33,
+    952: 34,
+    953: 3,
+    954: 4,
+    955: 8,
+    956: 35,
+    6532: 36,
+    6533: 37,
+}
+SCROLL_TRADER_STOCK_MODEL_IDS: frozenset[int] = frozenset({
+    int(ModelID.Passage_Scroll_Deep.value),
+    int(ModelID.Passage_Scroll_Urgoz.value),
+    int(ModelID.Passage_Scroll_Fow.value),
+    int(ModelID.Passage_Scroll_Uw.value),
+    int(ModelID.Scroll_Of_The_Lightbringer.value),
+    int(ModelID.Scroll_Of_Heros_Insight.value),
+    int(ModelID.Scroll_Of_Berserkers_Insight.value),
+    int(ModelID.Scroll_of_Slayers_Insight.value),
+})
 OUTPOST_SERVICE_SEARCH_MAX_DIST = 15_000.0
 MERCHANT_NAME_QUERY = "[Merchant]"
 MATERIAL_TRADER_NAME_QUERY = "[Material Trader]"
 RARE_MATERIAL_TRADER_NAME_QUERY = "[Rare Material Trader]"
 RUNE_TRADER_NAME_QUERY = "Rune Trader"
+SCROLL_TRADER_NAME_QUERY = "Scroll Trader"
+RARE_SCROLL_TRADER_NAME_QUERY = "[Rare Scroll Trader]"
 XUNLAI_AGENT_NAME_QUERY = "Xunlai Agent"
 XUNLAI_CHEST_NAME_QUERY = "Xunlai Chest"
 XUNLAI_AGENT_MODEL_IDS: tuple[int, ...] = (220, 221, 3287)
 XUNLAI_CHEST_MODEL_ID = 5001
 RUNE_STANDALONE_KIND = "rune"
 WEAPON_MOD_STANDALONE_KIND = "weapon_mod"
+WEAPON_MOD_CHOICE_KIND_GENERIC = "generic"
+WEAPON_MOD_CHOICE_KIND_VARIANT = "variant"
+WEAPON_MOD_GENERIC_KEY_PREFIX = "identifier:"
+WEAPON_MOD_VARIANT_KEY_PREFIX = "variant:"
+WEAPON_MOD_CHOICE_SEPARATOR = "|"
+WEAPON_MOD_TARGET_ITEM_TYPE_MODIFIER_ID = 9656
 RARITY_OPTION_ORDER: tuple[tuple[str, str], ...] = (
     ("white", "White"),
     ("blue", "Blue"),
@@ -291,6 +367,7 @@ RARITY_OPTION_ORDER: tuple[tuple[str, str], ...] = (
     ("green", "Green"),
 )
 SUPPORTED_MAP_RUNE_TRADER_SELECTORS: dict[int, str] = {}
+SUPPORTED_MAP_SCROLL_TRADER_SELECTORS: dict[int, str] = {}
 ACTION_TYPE_LABELS = {
     "buy": "Buy",
     "sell": "Sell",
@@ -340,6 +417,7 @@ RULE_KIND_PRESENTATION: dict[str, tuple[str, tuple[float, float, float, float]]]
     BUY_KIND_MERCHANT_STOCK: ("Stock", UI_COLOR_INFO),
     BUY_KIND_MATERIAL_TARGET: ("Materials", UI_COLOR_TEAL),
     BUY_KIND_RUNE_TRADER_TARGET: ("Runes", UI_COLOR_PURPLE_ACCENT),
+    BUY_KIND_SCROLL_TRADER_TARGET: ("Scrolls", UI_COLOR_INDIGO),
     SELL_KIND_COMMON_MATERIALS: ("Materials", UI_COLOR_TEAL),
     SELL_KIND_EXPLICIT_MODELS: ("Items", UI_COLOR_INDIGO),
     SELL_KIND_WEAPONS: ("Weapons", UI_COLOR_SUCCESS),
@@ -393,6 +471,37 @@ WEAPON_ITEM_TYPE_IDS: set[int] = {int(item_type.value) for item_type, _label in 
 WEAPON_ITEM_TYPE_NAMES: dict[int, str] = {
     int(item_type.value): label
     for item_type, label in WEAPON_ITEM_TYPE_OPTIONS
+}
+PERFECT_BASE_DAMAGE_RANGES: dict[int, tuple[int, int]] = {
+    int(ItemType.Sword): (15, 22),
+    int(ItemType.Axe): (6, 28),
+    int(ItemType.Hammer): (19, 35),
+    int(ItemType.Bow): (15, 28),
+    int(ItemType.Daggers): (7, 17),
+    int(ItemType.Scythe): (9, 41),
+    int(ItemType.Spear): (14, 27),
+    int(ItemType.Wand): (11, 22),
+    int(ItemType.Staff): (11, 22),
+}
+PERFECT_BASE_ENERGY_VALUES: dict[int, int] = {
+    int(ItemType.Staff): 10,
+    int(ItemType.Offhand): 12,
+}
+PERFECT_BASE_ARMOR_VALUES: dict[int, int] = {
+    int(ItemType.Shield): 16,
+}
+PERFECT_BASE_ITEM_TYPE_LABELS: dict[int, str] = {
+    int(ItemType.Offhand): "Focus",
+    int(ItemType.Shield): "Shield",
+    int(ItemType.Staff): "Staff",
+    int(ItemType.Wand): "Wand",
+    int(ItemType.Sword): "Sword",
+    int(ItemType.Axe): "Axe",
+    int(ItemType.Hammer): "Hammer",
+    int(ItemType.Bow): "Bow",
+    int(ItemType.Daggers): "Daggers",
+    int(ItemType.Scythe): "Scythe",
+    int(ItemType.Spear): "Spear",
 }
 WEAPON_LIKE_ITEM_TYPES: frozenset[ItemType] = frozenset(item_type for item_type, _label in WEAPON_ITEM_TYPE_OPTIONS)
 ARMOR_PIECE_TYPES: frozenset[ItemType] = frozenset({
@@ -576,6 +685,28 @@ class WeaponRequirementRule:
     model_id: int = 0
     min_requirement: int = 0
     max_requirement: int = 0
+    perfect_stats_only: bool = False
+
+
+@dataclass
+class WeaponModThresholdRule:
+    identifier: str = ""
+    min_value: int = 0
+
+
+@dataclass(frozen=True)
+class WeaponModVariantRule:
+    identifier: str = ""
+    target_item_type: str = ""
+    component_kind: str = ""
+
+
+@dataclass(frozen=True)
+class WeaponModVariantThresholdRule:
+    identifier: str = ""
+    target_item_type: str = ""
+    component_kind: str = ""
+    min_value: int = 0
 
 
 @dataclass
@@ -592,8 +723,12 @@ class SellRule:
     blacklist_item_type_ids: list[int] = field(default_factory=list)
     all_weapons_min_requirement: int = 0
     all_weapons_max_requirement: int = 0
+    all_weapons_perfect_stats_only: bool = False
     protected_weapon_requirement_rules: list[WeaponRequirementRule] = field(default_factory=list)
     protected_weapon_mod_identifiers: list[str] = field(default_factory=list)
+    protected_weapon_mod_thresholds: list[WeaponModThresholdRule] = field(default_factory=list)
+    protected_weapon_mod_variants: list[WeaponModVariantRule] = field(default_factory=list)
+    protected_weapon_mod_variant_thresholds: list[WeaponModVariantThresholdRule] = field(default_factory=list)
     protected_rune_identifiers: list[str] = field(default_factory=list)
     skip_customized: bool = True
     skip_unidentified: bool = True
@@ -688,9 +823,16 @@ class InventoryItemInfo:
     is_weapon_like: bool
     is_armor_piece: bool
     requirement: int = 0
+    requirement_attribute_id: int = 0
+    requirement_attribute_name: str = ""
+    damage_min: int = 0
+    damage_max: int = 0
+    energy: int = 0
+    armor: int = 0
     standalone_kind: str = ""
     rune_identifiers: list[str] = field(default_factory=list)
     weapon_mod_identifiers: list[str] = field(default_factory=list)
+    weapon_mod_matches: list["ParsedUpgradeMatch"] = field(default_factory=list)
 
 
 @dataclass
@@ -735,6 +877,13 @@ class PlannedTraderBuy:
 
 
 @dataclass
+class PlannedScrollTraderBuy:
+    model_id: int
+    quantity: int
+    label: str
+
+
+@dataclass
 class StockLocationCounts:
     key: str
     label: str
@@ -752,6 +901,14 @@ class PlannedStorageTransfer:
     item_id: int
     quantity: int
     model_id: int = 0
+
+
+@dataclass
+class MaterialStorageDepositResult:
+    attempted: bool = False
+    moved_quantity: int = 0
+    remaining_quantity: int = 0
+    abort_regular_fallback: bool = False
 
 
 @dataclass(frozen=True)
@@ -783,6 +940,7 @@ class PlanResult:
     merchant_stock_buys: list[PlannedMerchantBuy] = field(default_factory=list)
     material_buys: list[PlannedMaterialBuy] = field(default_factory=list)
     rune_trader_buys: list[PlannedTraderBuy] = field(default_factory=list)
+    scroll_trader_buys: list[PlannedScrollTraderBuy] = field(default_factory=list)
     material_sales: list[PlannedMaterialSale] = field(default_factory=list)
     storage_transfers: list[PlannedStorageTransfer] = field(default_factory=list)
     cleanup_transfers: list[PlannedStorageTransfer] = field(default_factory=list)
@@ -823,11 +981,30 @@ class SharedProfileSummary:
 
 
 @dataclass(frozen=True)
+class ParsedUpgradeMatch:
+    identifier: str = ""
+    target_item_type: str = ""
+    component_kind: str = ""
+    mod_type: str = ""
+    value: int | None = None
+    min_value: int = 0
+    max_value: int = 0
+    is_maxed: bool = False
+
+
+@dataclass(frozen=True)
 class ParsedInventoryModifiers:
     requirement: int = 0
+    requirement_attribute_id: int = 0
+    requirement_attribute_name: str = ""
+    damage_min: int = 0
+    damage_max: int = 0
+    energy: int = 0
+    armor: int = 0
     standalone_kind: str = ""
     rune_identifiers: tuple[str, ...] = field(default_factory=tuple)
     weapon_mod_identifiers: tuple[str, ...] = field(default_factory=tuple)
+    weapon_mod_matches: tuple[ParsedUpgradeMatch, ...] = field(default_factory=tuple)
 
 
 @dataclass
@@ -915,6 +1092,364 @@ def _coerce_list(value: object) -> list[object]:
     if isinstance(value, tuple):
         return list(value)
     return []
+
+
+def _normalize_weapon_mod_target_item_type(raw_value: object) -> str:
+    if raw_value is None:
+        return ""
+    enum_name = str(getattr(raw_value, "name", "") or "").strip()
+    if enum_name:
+        return enum_name
+    if isinstance(raw_value, str):
+        candidate = raw_value.strip()
+        if not candidate:
+            return ""
+        if candidate in getattr(ItemType, "__members__", {}):
+            return candidate
+        try:
+            return ItemType(int(candidate, 0)).name
+        except Exception:
+            return candidate
+    try:
+        return ItemType(int(raw_value)).name
+    except Exception:
+        return str(raw_value or "").strip()
+
+
+def _normalize_weapon_mod_component_kind(raw_value: object) -> str:
+    return str(raw_value or "").strip()
+
+
+def _normalize_weapon_mod_variant_parts(
+    identifier: object,
+    target_item_type: object,
+    component_kind: object,
+) -> tuple[str, str, str]:
+    return (
+        str(identifier or "").strip(),
+        _normalize_weapon_mod_target_item_type(target_item_type),
+        _normalize_weapon_mod_component_kind(component_kind),
+    )
+
+
+def _make_weapon_mod_identifier_choice_key(identifier: object) -> str:
+    safe_identifier = str(identifier or "").strip()
+    return f"{WEAPON_MOD_GENERIC_KEY_PREFIX}{safe_identifier}" if safe_identifier else ""
+
+
+def _make_weapon_mod_variant_choice_key(
+    identifier: object,
+    target_item_type: object,
+    component_kind: object,
+) -> str:
+    safe_identifier, safe_target_item_type, safe_component_kind = _normalize_weapon_mod_variant_parts(
+        identifier,
+        target_item_type,
+        component_kind,
+    )
+    if not safe_identifier or not safe_target_item_type or not safe_component_kind:
+        return ""
+    return (
+        f"{WEAPON_MOD_VARIANT_KEY_PREFIX}{safe_identifier}"
+        f"{WEAPON_MOD_CHOICE_SEPARATOR}{safe_target_item_type}"
+        f"{WEAPON_MOD_CHOICE_SEPARATOR}{safe_component_kind}"
+    )
+
+
+def _parse_weapon_mod_choice_key(raw_key: object) -> tuple[str, str, str, str]:
+    key = str(raw_key or "").strip()
+    if not key:
+        return "", "", "", ""
+    if key.startswith(WEAPON_MOD_VARIANT_KEY_PREFIX):
+        payload = key[len(WEAPON_MOD_VARIANT_KEY_PREFIX):]
+        parts = payload.split(WEAPON_MOD_CHOICE_SEPARATOR, 2)
+        if len(parts) != 3:
+            return "", "", "", ""
+        identifier, target_item_type, component_kind = _normalize_weapon_mod_variant_parts(parts[0], parts[1], parts[2])
+        if not identifier or not target_item_type or not component_kind:
+            return "", "", "", ""
+        return WEAPON_MOD_CHOICE_KIND_VARIANT, identifier, target_item_type, component_kind
+    if key.startswith(WEAPON_MOD_GENERIC_KEY_PREFIX):
+        identifier = key[len(WEAPON_MOD_GENERIC_KEY_PREFIX):].strip()
+    else:
+        identifier = key
+    if not identifier:
+        return "", "", "", ""
+    return WEAPON_MOD_CHOICE_KIND_GENERIC, identifier, "", ""
+
+
+def _weapon_mod_variant_rule_key(rule: object) -> tuple[str, str, str]:
+    return _normalize_weapon_mod_variant_parts(
+        getattr(rule, "identifier", ""),
+        getattr(rule, "target_item_type", ""),
+        getattr(rule, "component_kind", ""),
+    )
+
+
+def _weapon_mod_variant_rule_choice_key(rule: object) -> str:
+    identifier, target_item_type, component_kind = _weapon_mod_variant_rule_key(rule)
+    return _make_weapon_mod_variant_choice_key(identifier, target_item_type, component_kind)
+
+
+def _humanize_weapon_mod_component_kind(component_kind: object) -> str:
+    safe_component_kind = _normalize_weapon_mod_component_kind(component_kind)
+    if not safe_component_kind:
+        return ""
+    return re.sub(r"(?<!^)(?=[A-Z])", " ", safe_component_kind).strip()
+
+
+def _get_weapon_mod_type_name(weapon_mod: object) -> str:
+    mod_type = getattr(weapon_mod, "mod_type", None)
+    return str(getattr(mod_type, "name", mod_type) or "").strip()
+
+
+def _is_expandable_weapon_mod_type(weapon_mod: object) -> bool:
+    return _get_weapon_mod_type_name(weapon_mod) in ("Prefix", "Suffix")
+
+
+def _format_weapon_mod_variant_label(weapon_mod: object, component_kind: object) -> str:
+    base_name = str(getattr(weapon_mod, "name", "") or getattr(weapon_mod, "identifier", "") or "").strip()
+    component_label = _humanize_weapon_mod_component_kind(component_kind)
+    if not base_name:
+        base_name = "Unknown Weapon Mod"
+    if not component_label:
+        return base_name
+    mod_type_name = _get_weapon_mod_type_name(weapon_mod)
+    if mod_type_name == "Prefix":
+        return f"{base_name} {component_label}"
+    if mod_type_name == "Suffix":
+        return f"{component_label} {base_name}"
+    return base_name
+
+
+def _normalize_weapon_mod_variant_rules(values: list[object]) -> list[WeaponModVariantRule]:
+    rules: list[WeaponModVariantRule] = []
+    seen: set[tuple[str, str, str]] = set()
+    for value in values:
+        if isinstance(value, WeaponModVariantRule):
+            identifier, target_item_type, component_kind = _weapon_mod_variant_rule_key(value)
+        elif isinstance(value, dict):
+            identifier, target_item_type, component_kind = _normalize_weapon_mod_variant_parts(
+                value.get("identifier", ""),
+                value.get("target_item_type", ""),
+                value.get("component_kind", ""),
+            )
+        else:
+            continue
+        if not identifier or not target_item_type or not component_kind:
+            continue
+        key = (identifier, target_item_type, component_kind)
+        if key in seen:
+            continue
+        seen.add(key)
+        rules.append(
+            WeaponModVariantRule(
+                identifier=identifier,
+                target_item_type=target_item_type,
+                component_kind=component_kind,
+            )
+        )
+    return rules
+
+
+def _normalize_weapon_mod_variant_threshold_rules(values: list[object]) -> list[WeaponModVariantThresholdRule]:
+    rules: list[WeaponModVariantThresholdRule] = []
+    seen: set[tuple[str, str, str, int]] = set()
+    for value in values:
+        if isinstance(value, WeaponModVariantThresholdRule):
+            identifier, target_item_type, component_kind = _weapon_mod_variant_rule_key(value)
+            raw_min_value = getattr(value, "min_value", None)
+        elif isinstance(value, dict):
+            identifier, target_item_type, component_kind = _normalize_weapon_mod_variant_parts(
+                value.get("identifier", ""),
+                value.get("target_item_type", ""),
+                value.get("component_kind", ""),
+            )
+            raw_min_value = value.get("min_value", None)
+        else:
+            continue
+        if not identifier or not target_item_type or not component_kind or raw_min_value is None:
+            continue
+        min_value = _safe_int(raw_min_value, 0)
+        key = (identifier, target_item_type, component_kind, min_value)
+        if key in seen:
+            continue
+        seen.add(key)
+        rules.append(
+            WeaponModVariantThresholdRule(
+                identifier=identifier,
+                target_item_type=target_item_type,
+                component_kind=component_kind,
+                min_value=min_value,
+            )
+        )
+    return rules
+
+
+def _serialize_weapon_mod_variant_rules(values: list[object]) -> list[dict[str, object]]:
+    return [
+        {
+            "identifier": rule.identifier,
+            "target_item_type": rule.target_item_type,
+            "component_kind": rule.component_kind,
+        }
+        for rule in _normalize_weapon_mod_variant_rules(values)
+    ]
+
+
+def _serialize_weapon_mod_variant_threshold_rules(values: list[object]) -> list[dict[str, object]]:
+    return [
+        {
+            "identifier": rule.identifier,
+            "target_item_type": rule.target_item_type,
+            "component_kind": rule.component_kind,
+            "min_value": int(rule.min_value),
+        }
+        for rule in _normalize_weapon_mod_variant_threshold_rules(values)
+    ]
+
+
+def _weapon_mod_variant_matches_parsed_match(rule: object, match: object) -> bool:
+    identifier, target_item_type, component_kind = _weapon_mod_variant_rule_key(rule)
+    match_identifier, match_target_item_type, match_component_kind = _normalize_weapon_mod_variant_parts(
+        getattr(match, "identifier", ""),
+        getattr(match, "target_item_type", ""),
+        getattr(match, "component_kind", ""),
+    )
+    return (
+        bool(identifier)
+        and identifier == match_identifier
+        and target_item_type == match_target_item_type
+        and component_kind == match_component_kind
+    )
+
+
+def _normalize_weapon_mod_threshold_rules(values: list[object]) -> list[WeaponModThresholdRule]:
+    rules: list[WeaponModThresholdRule] = []
+    seen: set[tuple[str, int]] = set()
+    for value in values:
+        if isinstance(value, WeaponModThresholdRule):
+            identifier = str(getattr(value, "identifier", "") or "").strip()
+            raw_min_value = getattr(value, "min_value", None)
+        elif isinstance(value, dict):
+            identifier = str(value.get("identifier", "") or "").strip()
+            raw_min_value = value.get("min_value", None)
+        else:
+            continue
+        if not identifier or raw_min_value is None:
+            continue
+        min_value = _safe_int(raw_min_value, 0)
+        key = (identifier, min_value)
+        if key in seen:
+            continue
+        seen.add(key)
+        rules.append(WeaponModThresholdRule(identifier=identifier, min_value=min_value))
+    return rules
+
+
+def _serialize_weapon_mod_threshold_rules(values: list[object]) -> list[dict[str, object]]:
+    return [
+        {
+            "identifier": rule.identifier,
+            "min_value": int(rule.min_value),
+        }
+        for rule in _normalize_weapon_mod_threshold_rules(values)
+    ]
+
+
+def _get_weapon_mod_variable_range(weapon_mod: object) -> tuple[int, int] | None:
+    for modifier in getattr(weapon_mod, "modifiers", []) or []:
+        value_arg = getattr(modifier, "modifier_value_arg", None)
+        value_arg_name = str(getattr(value_arg, "name", value_arg) or "")
+        if value_arg_name not in ("Arg1", "Arg2"):
+            continue
+        min_value = _safe_int(getattr(modifier, "min", 0), 0)
+        max_value = _safe_int(getattr(modifier, "max", 0), 0)
+        if min_value == max_value:
+            continue
+        if min_value > max_value:
+            min_value, max_value = max_value, min_value
+        return min_value, max_value
+    return None
+
+
+def _get_weapon_mod_component_kind_for_target(weapon_mod: object, target_item_type: object) -> str:
+    safe_target_item_type = _normalize_weapon_mod_target_item_type(target_item_type)
+    if not safe_target_item_type:
+        return ""
+    item_mods = getattr(weapon_mod, "item_mods", {}) or {}
+    if not isinstance(item_mods, dict):
+        return ""
+    for raw_target_item_type, raw_component_kind in item_mods.items():
+        if _normalize_weapon_mod_target_item_type(raw_target_item_type) == safe_target_item_type:
+            return _normalize_weapon_mod_component_kind(raw_component_kind)
+    return ""
+
+
+def _get_weapon_mod_target_item_type_from_raw_modifiers(raw_modifiers: object) -> str:
+    for raw_modifier in raw_modifiers or ():
+        try:
+            identifier, arg1, _arg2 = raw_modifier
+        except Exception:
+            continue
+        if _safe_int(identifier, 0) != WEAPON_MOD_TARGET_ITEM_TYPE_MODIFIER_ID:
+            continue
+        return _normalize_weapon_mod_target_item_type(arg1)
+    return ""
+
+
+def _resolve_parsed_weapon_mod_variant_context(
+    match: object,
+    raw_modifiers: object,
+    item_type_enum: ItemType,
+    parse_item_type: ItemType,
+) -> tuple[str, str, str]:
+    weapon_mod = getattr(match, "weapon_mod", None)
+    mod_type_name = _get_weapon_mod_type_name(match) or _get_weapon_mod_type_name(weapon_mod)
+    if weapon_mod is None:
+        return "", "", mod_type_name
+
+    if item_type_enum == ItemType.Rune_Mod:
+        target_item_type = _get_weapon_mod_target_item_type_from_raw_modifiers(raw_modifiers)
+    else:
+        target_item_type = _normalize_weapon_mod_target_item_type(parse_item_type)
+
+    component_kind = _get_weapon_mod_component_kind_for_target(weapon_mod, target_item_type)
+    if not component_kind:
+        return "", "", mod_type_name
+    return target_item_type, component_kind, mod_type_name
+
+
+def _build_parsed_weapon_mod_match(
+    match: object,
+    *,
+    raw_modifiers: object = (),
+    item_type_enum: ItemType = ItemType.Unknown,
+    parse_item_type: ItemType = ItemType.Unknown,
+) -> ParsedUpgradeMatch | None:
+    weapon_mod = getattr(match, "weapon_mod", None)
+    identifier = str(getattr(weapon_mod, "identifier", "") or "").strip()
+    if not identifier:
+        return None
+    range_values = _get_weapon_mod_variable_range(weapon_mod)
+    raw_value = getattr(match, "value", None) if hasattr(match, "value") else None
+    parsed_value = None if raw_value is None else _safe_int(raw_value, 0)
+    target_item_type, component_kind, mod_type = _resolve_parsed_weapon_mod_variant_context(
+        match,
+        raw_modifiers,
+        item_type_enum,
+        parse_item_type,
+    )
+    return ParsedUpgradeMatch(
+        identifier=identifier,
+        target_item_type=target_item_type,
+        component_kind=component_kind,
+        mod_type=mod_type,
+        value=parsed_value,
+        min_value=int(range_values[0]) if range_values is not None else 0,
+        max_value=int(range_values[1]) if range_values is not None else 0,
+        is_maxed=bool(getattr(match, "is_maxed", False)),
+    )
 
 
 def _sanitize_filename(value: str) -> str:
@@ -1146,6 +1681,28 @@ def _get_mirrored_item_priority(item_type: object) -> int:
     return 30
 
 
+def _get_catalog_entry_priority(
+    model_id: object,
+    item_type: object,
+    category: object = "",
+    sub_category: object = "",
+) -> int:
+    priority = _get_mirrored_item_priority(item_type)
+    if not _is_scroll_trader_stock_model(model_id):
+        return priority
+
+    normalized_type = _normalize_catalog_search_text(item_type)
+    normalized_category = _normalize_catalog_search_text(category)
+    normalized_sub_category = _normalize_catalog_search_text(sub_category)
+    if (
+        normalized_type == "scroll"
+        or normalized_category == "scroll"
+        or normalized_sub_category.endswith("scroll")
+    ):
+        return min(priority, 15)
+    return priority
+
+
 MODEL_ID_FALLBACK_ITEM_TYPE_SUFFIXES: tuple[tuple[str, str], ...] = (
     ("Daggers", "Daggers"),
     ("Scythe", "Scythe"),
@@ -1238,6 +1795,10 @@ def _is_crafting_material_model(model_id: object) -> bool:
     return max(0, _safe_int(model_id, 0)) in ALL_CRAFTING_MATERIAL_MODEL_IDS
 
 
+def _is_scroll_trader_stock_model(model_id: object) -> bool:
+    return max(0, _safe_int(model_id, 0)) in SCROLL_TRADER_STOCK_MODEL_IDS
+
+
 def _get_material_batch_size_for_model(model_id: object) -> int:
     return MATERIAL_BATCH_SIZE if _is_common_crafting_material_model(model_id) else 1
 
@@ -1258,6 +1819,86 @@ def _should_defer_weapon_requirement_range_commit(min_value: object, max_value: 
     min_requirement = _normalize_weapon_requirement_level(min_value)
     max_requirement = _normalize_weapon_requirement_level(max_value)
     return bool(input_active and min_requirement > 0 and max_requirement > 0 and min_requirement > max_requirement)
+
+
+def _get_stripped_modifier_identifier(raw_identifier: object) -> int:
+    return (_safe_int(raw_identifier, 0) >> 4) & 0x3FF
+
+
+def _extract_base_stats_from_raw_modifiers(raw_modifiers: object) -> tuple[int, int, str, int, int, int, int]:
+    requirement = 0
+    requirement_attribute_id = 0
+    requirement_attribute_name = ""
+    damage_min = 0
+    damage_max = 0
+    energy = 0
+    armor = 0
+
+    for raw_modifier in raw_modifiers or ():
+        try:
+            identifier, arg1, arg2 = raw_modifier
+        except Exception:
+            continue
+        stripped_identifier = _get_stripped_modifier_identifier(identifier)
+        safe_arg1 = _safe_int(arg1, 0)
+        safe_arg2 = _safe_int(arg2, 0)
+        if stripped_identifier == MODIFIER_IDENTIFIER_ATTRIBUTE_REQUIREMENT:
+            requirement_attribute_id = safe_arg1
+            requirement = _normalize_weapon_requirement_level(safe_arg2)
+        elif stripped_identifier in (MODIFIER_IDENTIFIER_DAMAGE, MODIFIER_IDENTIFIER_DAMAGE_NO_REQ):
+            damage_min = max(0, safe_arg2)
+            damage_max = max(0, safe_arg1)
+        elif stripped_identifier in (MODIFIER_IDENTIFIER_ARMOR1, MODIFIER_IDENTIFIER_ARMOR2):
+            armor = max(0, safe_arg1)
+        elif stripped_identifier in (MODIFIER_IDENTIFIER_ENERGY, MODIFIER_IDENTIFIER_ENERGY2):
+            energy = max(0, safe_arg1)
+
+    return (
+        requirement,
+        requirement_attribute_id,
+        requirement_attribute_name,
+        damage_min,
+        damage_max,
+        energy,
+        armor,
+    )
+
+
+def _format_requirement_attribute_value(attribute: object) -> tuple[int, str]:
+    if attribute is None:
+        return 0, ""
+    try:
+        attribute_id = int(attribute)
+    except Exception:
+        attribute_id = _safe_int(getattr(attribute, "value", 0), 0)
+    raw_name = str(getattr(attribute, "name", "") or "").strip()
+    if raw_name in ("", "None_"):
+        return attribute_id, "" if raw_name != "None_" else "None"
+
+    label = MODEL_ID_ATTRIBUTE_FALLBACK_LABELS.get(raw_name, raw_name)
+    if label == raw_name:
+        label = re.sub(r"(?<!^)(?=[A-Z])", " ", raw_name).replace("_", " ").strip()
+    return attribute_id, label
+
+
+def _has_real_requirement_attribute(item: InventoryItemInfo) -> bool:
+    attribute_name = str(getattr(item, "requirement_attribute_name", "") or "").strip()
+    if attribute_name and attribute_name.lower() not in ("none", "none_"):
+        return True
+    attribute_id = _safe_int(getattr(item, "requirement_attribute_id", 0), 0)
+    return attribute_id > 0 and attribute_id != ATTRIBUTE_NONE_REAL_VALUE
+
+
+def _get_item_requirement_attribute_label(item: InventoryItemInfo) -> str:
+    attribute_name = str(getattr(item, "requirement_attribute_name", "") or "").strip()
+    if attribute_name.lower() in ("none", "none_"):
+        return ""
+    if attribute_name:
+        return attribute_name
+    attribute_id = _safe_int(getattr(item, "requirement_attribute_id", 0), 0)
+    if attribute_id <= 0 or attribute_id == ATTRIBUTE_NONE_REAL_VALUE:
+        return ""
+    return f"Attribute {attribute_id}"
 
 
 def _get_last_imgui_item_active() -> bool:
@@ -1641,6 +2282,7 @@ def _normalize_weapon_requirement_rules(raw_rules: object) -> list[WeaponRequire
             model_id = entry.model_id
             min_requirement = getattr(entry, "min_requirement", 0)
             max_requirement = entry.max_requirement
+            perfect_stats_only = getattr(entry, "perfect_stats_only", False)
         elif isinstance(entry, dict):
             model_id = entry.get("model_id", 0)
             max_requirement = entry.get("max_requirement", 0)
@@ -1648,6 +2290,7 @@ def _normalize_weapon_requirement_rules(raw_rules: object) -> list[WeaponRequire
                 "min_requirement",
                 1 if _normalize_weapon_requirement_level(max_requirement) > 0 else 0,
             )
+            perfect_stats_only = bool(entry.get("perfect_stats_only", entry.get("perfect_only", False)))
         else:
             continue
 
@@ -1662,6 +2305,7 @@ def _normalize_weapon_requirement_rules(raw_rules: object) -> list[WeaponRequire
                 model_id=safe_model_id,
                 min_requirement=min_requirement,
                 max_requirement=max_requirement,
+                perfect_stats_only=bool(perfect_stats_only),
             )
         )
 
@@ -1673,6 +2317,8 @@ def _get_buy_rule_merchant_type(rule: BuyRule) -> str:
         return MERCHANT_TYPE_MATERIALS
     if rule.kind == BUY_KIND_RUNE_TRADER_TARGET:
         return MERCHANT_TYPE_RUNE_TRADER
+    if rule.kind == BUY_KIND_SCROLL_TRADER_TARGET:
+        return MERCHANT_TYPE_SCROLL_TRADER
     return BUY_KIND_TO_MERCHANT_TYPE.get(rule.kind, MERCHANT_TYPE_MERCHANT)
 
 
@@ -1681,6 +2327,7 @@ def _default_buy_rules() -> list[BuyRule]:
         BuyRule(enabled=False, kind=BUY_KIND_MERCHANT_STOCK, merchant_type=MERCHANT_TYPE_MERCHANT, model_id=0, target_count=0, max_per_run=0),
         BuyRule(enabled=False, kind=BUY_KIND_MATERIAL_TARGET, merchant_type=MERCHANT_TYPE_MATERIALS, model_id=0, target_count=0, max_per_run=0),
         BuyRule(enabled=False, kind=BUY_KIND_RUNE_TRADER_TARGET, merchant_type=MERCHANT_TYPE_RUNE_TRADER, model_id=0, target_count=0, max_per_run=0),
+        BuyRule(enabled=False, kind=BUY_KIND_SCROLL_TRADER_TARGET, merchant_type=MERCHANT_TYPE_SCROLL_TRADER, model_id=0, target_count=0, max_per_run=0),
     ]
 
 
@@ -1756,6 +2403,25 @@ def _normalize_buy_rule(rule: BuyRule) -> BuyRule | None:
     elif rule.kind == BUY_KIND_RUNE_TRADER_TARGET:
         rule.merchant_stock_targets = []
         rule.material_targets = []
+        rule.model_id = 0
+        rule.target_count = 0
+        rule.max_per_run = 0
+    elif rule.kind == BUY_KIND_SCROLL_TRADER_TARGET:
+        if not rule.merchant_stock_targets and legacy_model_id > 0 and _is_scroll_trader_stock_model(legacy_model_id):
+            rule.merchant_stock_targets = [
+                MerchantStockTarget(
+                    model_id=legacy_model_id,
+                    target_count=legacy_target_count,
+                    max_per_run=legacy_max_per_run,
+                )
+            ]
+        rule.merchant_stock_targets = [
+            target
+            for target in rule.merchant_stock_targets
+            if _is_scroll_trader_stock_model(target.model_id)
+        ]
+        rule.material_targets = []
+        rule.rune_targets = []
         rule.model_id = 0
         rule.target_count = 0
         rule.max_per_run = 0
@@ -1860,8 +2526,18 @@ def _normalize_sell_rule(rule: SellRule) -> SellRule | None:
         getattr(rule, "all_weapons_min_requirement", 0),
         getattr(rule, "all_weapons_max_requirement", 0),
     )
+    rule.all_weapons_perfect_stats_only = bool(getattr(rule, "all_weapons_perfect_stats_only", False))
     rule.protected_weapon_requirement_rules = _normalize_weapon_requirement_rules(getattr(rule, "protected_weapon_requirement_rules", []))
     rule.protected_weapon_mod_identifiers = _dedupe_identifiers(rule.protected_weapon_mod_identifiers)
+    rule.protected_weapon_mod_thresholds = _normalize_weapon_mod_threshold_rules(
+        _coerce_list(getattr(rule, "protected_weapon_mod_thresholds", []))
+    )
+    rule.protected_weapon_mod_variants = _normalize_weapon_mod_variant_rules(
+        _coerce_list(getattr(rule, "protected_weapon_mod_variants", []))
+    )
+    rule.protected_weapon_mod_variant_thresholds = _normalize_weapon_mod_variant_threshold_rules(
+        _coerce_list(getattr(rule, "protected_weapon_mod_variant_thresholds", []))
+    )
     rule.protected_rune_identifiers = _dedupe_identifiers(rule.protected_rune_identifiers)
     rule.skip_customized = bool(rule.skip_customized)
     rule.skip_unidentified = bool(rule.skip_unidentified)
@@ -1935,6 +2611,15 @@ def _serialize_sell_rule(rule: SellRule) -> dict[str, object]:
     payload = asdict(normalized_rule)
     payload["rule_id"] = str(normalized_rule.rule_id or "").strip()
     payload["whitelist_targets"] = _serialize_whitelist_targets(normalized_rule.whitelist_targets)
+    payload["protected_weapon_mod_thresholds"] = _serialize_weapon_mod_threshold_rules(
+        normalized_rule.protected_weapon_mod_thresholds
+    )
+    payload["protected_weapon_mod_variants"] = _serialize_weapon_mod_variant_rules(
+        normalized_rule.protected_weapon_mod_variants
+    )
+    payload["protected_weapon_mod_variant_thresholds"] = _serialize_weapon_mod_variant_threshold_rules(
+        normalized_rule.protected_weapon_mod_variant_thresholds
+    )
     return payload
 
 
@@ -1965,6 +2650,9 @@ def _has_explicit_equippable_hard_protection(rule: SellRule) -> bool:
                 for requirement_rule in rule.protected_weapon_requirement_rules
             )
             or rule.protected_weapon_mod_identifiers
+            or rule.protected_weapon_mod_thresholds
+            or rule.protected_weapon_mod_variants
+            or rule.protected_weapon_mod_variant_thresholds
         )
     return bool(rule.protected_rune_identifiers)
 
@@ -1987,6 +2675,12 @@ class MerchantRulesWidget:
         self.shared_profile_entries_loaded = False
         self.shared_profile_pending_overwrite_path = ""
         self.shared_profile_pending_delete_path = ""
+        self.pending_destructive_button_key = ""
+        self.pending_destructive_button_expires_at_ms = 0
+        self.rule_name_edit_key = ""
+        self.rule_name_edit_text = ""
+        self.manual_model_ids_edit_key = ""
+        self.manual_model_ids_edit_text = ""
         self.buy_rules: list[BuyRule] = []
         self.sell_rules: list[SellRule] = []
         self.destroy_rules: list[DestroyRule] = []
@@ -2001,6 +2695,7 @@ class MerchantRulesWidget:
         self.preview_requires_execute_travel = False
         self.preview_execute_travel_target_outpost_id = 0
         self.preview_execute_travel_target_outpost_name = ""
+        self.detailed_preview = False
         self.execution_running = False
         self.travel_preview_running = False
         self.instant_destroy_running = False
@@ -2058,6 +2753,8 @@ class MerchantRulesWidget:
         self.weapon_mod_entries: list[dict[str, str]] = []
         self.rune_entries: list[dict[str, str]] = []
         self.weapon_mod_names: dict[str, str] = {}
+        self.weapon_mod_generic_names: dict[str, str] = {}
+        self.weapon_mod_variant_names: dict[str, str] = {}
         self.rune_names: dict[str, str] = {}
         self.rune_buy_entries: list[dict[str, object]] = []
         self.rune_buy_entries_by_identifier: dict[str, dict[str, object]] = {}
@@ -2163,6 +2860,8 @@ class MerchantRulesWidget:
 
     def _set_main_window_visible(self, visible: bool, *, expand_on_show: bool = True):
         self.show_main_window = bool(visible)
+        if not self.show_main_window:
+            self._clear_pending_destructive_button()
         if self.show_main_window and expand_on_show:
             self.expand_main_window_on_next_show = True
         if self.floating_button is not None:
@@ -2174,6 +2873,8 @@ class MerchantRulesWidget:
 
     def _on_floating_icon_visibility_toggled(self, visible: bool):
         self.show_main_window = bool(visible)
+        if not self.show_main_window:
+            self._clear_pending_destructive_button()
         if self.show_main_window:
             self.expand_main_window_on_next_show = True
 
@@ -2257,6 +2958,7 @@ class MerchantRulesWidget:
             "target_outpost_id": max(0, int(self.target_outpost_id)),
             "favorite_outpost_ids": self._normalize_outpost_ids(self.favorite_outpost_ids),
             "debug_logging": bool(self.debug_logging),
+            "detailed_preview": bool(self.detailed_preview),
             "buy_rules": [asdict(rule) for rule in _normalize_buy_rules(self.buy_rules)],
             "sell_rules": [
                 payload_entry
@@ -2352,8 +3054,12 @@ class MerchantRulesWidget:
                     blacklist_item_type_ids=[_safe_int(value, 0) for value in _coerce_list(entry.get("blacklist_item_type_ids", []))],
                     all_weapons_min_requirement=_normalize_all_weapons_requirement_range_from_payload(entry)[0],
                     all_weapons_max_requirement=_normalize_all_weapons_requirement_range_from_payload(entry)[1],
+                    all_weapons_perfect_stats_only=bool(entry.get("all_weapons_perfect_stats_only", False)),
                     protected_weapon_requirement_rules=_normalize_weapon_requirement_rules(_coerce_list(entry.get("protected_weapon_requirement_rules", []))),
                     protected_weapon_mod_identifiers=_dedupe_identifiers(_coerce_list(entry.get("protected_weapon_mod_identifiers", []))),
+                    protected_weapon_mod_thresholds=_normalize_weapon_mod_threshold_rules(_coerce_list(entry.get("protected_weapon_mod_thresholds", []))),
+                    protected_weapon_mod_variants=_normalize_weapon_mod_variant_rules(_coerce_list(entry.get("protected_weapon_mod_variants", []))),
+                    protected_weapon_mod_variant_thresholds=_normalize_weapon_mod_variant_threshold_rules(_coerce_list(entry.get("protected_weapon_mod_variant_thresholds", []))),
                     protected_rune_identifiers=_dedupe_identifiers(_coerce_list(entry.get("protected_rune_identifiers", []))),
                     skip_customized=bool(entry.get("skip_customized", True)),
                     skip_unidentified=bool(entry.get("skip_unidentified", True)),
@@ -2432,6 +3138,7 @@ class MerchantRulesWidget:
             "target_outpost_id": max(0, _safe_int(raw_payload.get("target_outpost_id", 0), 0)),
             "favorite_outpost_ids": self._normalize_outpost_ids(_coerce_list(favorite_outpost_ids_raw)),
             "debug_logging": bool(raw_payload.get("debug_logging", False)),
+            "detailed_preview": bool(raw_payload.get("detailed_preview", False)),
             **window_geometry,
             "buy_rules": [asdict(rule) for rule in normalized_buy_rules],
             "sell_rules": [_serialize_sell_rule(rule) for rule in normalized_sell_rules],
@@ -2471,8 +3178,12 @@ class MerchantRulesWidget:
                 blacklist_item_type_ids=[_safe_int(value, 0) for value in _coerce_list(entry.get("blacklist_item_type_ids", []))],
                 all_weapons_min_requirement=_normalize_all_weapons_requirement_range_from_payload(entry)[0],
                 all_weapons_max_requirement=_normalize_all_weapons_requirement_range_from_payload(entry)[1],
+                all_weapons_perfect_stats_only=bool(entry.get("all_weapons_perfect_stats_only", False)),
                 protected_weapon_requirement_rules=_normalize_weapon_requirement_rules(_coerce_list(entry.get("protected_weapon_requirement_rules", []))),
                 protected_weapon_mod_identifiers=_dedupe_identifiers(_coerce_list(entry.get("protected_weapon_mod_identifiers", []))),
+                protected_weapon_mod_thresholds=_normalize_weapon_mod_threshold_rules(_coerce_list(entry.get("protected_weapon_mod_thresholds", []))),
+                protected_weapon_mod_variants=_normalize_weapon_mod_variant_rules(_coerce_list(entry.get("protected_weapon_mod_variants", []))),
+                protected_weapon_mod_variant_thresholds=_normalize_weapon_mod_variant_threshold_rules(_coerce_list(entry.get("protected_weapon_mod_variant_thresholds", []))),
                 protected_rune_identifiers=_dedupe_identifiers(_coerce_list(entry.get("protected_rune_identifiers", []))),
                 skip_customized=bool(entry.get("skip_customized", True)),
                 skip_unidentified=bool(entry.get("skip_unidentified", True)),
@@ -2505,6 +3216,7 @@ class MerchantRulesWidget:
         self.target_outpost_id = max(0, _safe_int(payload.get("target_outpost_id", 0), 0))
         self.favorite_outpost_ids = self._normalize_outpost_ids(_coerce_list(payload.get("favorite_outpost_ids", [])))
         self.debug_logging = bool(payload.get("debug_logging", False))
+        self.detailed_preview = bool(payload.get("detailed_preview", False))
         window_geometry = self._normalize_window_geometry_payload(payload)
         self.window_x = window_geometry["window_x"]
         self.window_y = window_geometry["window_y"]
@@ -2708,6 +3420,7 @@ class MerchantRulesWidget:
     def _clear_shared_profile_confirmation_state(self):
         self.shared_profile_pending_overwrite_path = ""
         self.shared_profile_pending_delete_path = ""
+        self._clear_pending_destructive_button()
 
     def _set_selected_shared_profile_path(self, profile_path: str):
         safe_path = str(profile_path or "").strip()
@@ -2717,6 +3430,7 @@ class MerchantRulesWidget:
         normalized_next_path = os.path.normcase(os.path.normpath(safe_path))
         if normalized_current_path != normalized_next_path:
             self._clear_shared_profile_confirmation_state()
+            self._clear_pending_destructive_button()
         self.shared_profile_selected_path = safe_path
         selected_profile = self._get_selected_shared_profile()
         if selected_profile is not None:
@@ -3312,6 +4026,7 @@ class MerchantRulesWidget:
             return False
 
     def _reset_runtime_after_profile_load(self, *, status_message: str = ""):
+        self._clear_pending_destructive_button()
         self.preview_plan = PlanResult()
         self.preview_ready = False
         self._clear_preview_projection_state()
@@ -3425,6 +4140,11 @@ class MerchantRulesWidget:
         }
 
     def _refresh_rule_ui_caches(self):
+        self._clear_pending_destructive_button()
+        self.rule_name_edit_key = ""
+        self.rule_name_edit_text = ""
+        self.manual_model_ids_edit_key = ""
+        self.manual_model_ids_edit_text = ""
         self._rebuild_text_caches()
         self.buy_model_search_cache.clear()
         self.buy_manual_model_id_cache.clear()
@@ -3442,13 +4162,51 @@ class MerchantRulesWidget:
         self.weapon_mod_entries = []
         self.rune_entries = []
         self.weapon_mod_names = {}
+        self.weapon_mod_generic_names = {}
+        self.weapon_mod_variant_names = {}
         self.rune_names = {}
 
         for identifier, weapon_mod in sorted(MOD_DB.weapon_mods.items(), key=lambda row: row[1].name.lower() or row[0].lower()):
             display_name = str(weapon_mod.name or identifier).strip()
-            entry = {"identifier": str(identifier), "name": display_name}
+            safe_identifier = str(identifier)
+            generic_label = (
+                f"{display_name} (all supported weapons)"
+                if _is_expandable_weapon_mod_type(weapon_mod)
+                else display_name
+            )
+            entry = {
+                "identifier": _make_weapon_mod_identifier_choice_key(safe_identifier),
+                "name": generic_label,
+                "base_identifier": safe_identifier,
+                "entry_kind": WEAPON_MOD_CHOICE_KIND_GENERIC,
+            }
             self.weapon_mod_entries.append(entry)
-            self.weapon_mod_names[str(identifier)] = display_name
+            self.weapon_mod_names[safe_identifier] = display_name
+            self.weapon_mod_generic_names[safe_identifier] = generic_label
+
+            if _is_expandable_weapon_mod_type(weapon_mod):
+                for target_item_type, component_kind in getattr(weapon_mod, "item_mods", {}).items():
+                    target_item_type_name = _normalize_weapon_mod_target_item_type(target_item_type)
+                    safe_component_kind = _normalize_weapon_mod_component_kind(component_kind)
+                    variant_key = _make_weapon_mod_variant_choice_key(
+                        safe_identifier,
+                        target_item_type_name,
+                        safe_component_kind,
+                    )
+                    if not variant_key:
+                        continue
+                    variant_label = _format_weapon_mod_variant_label(weapon_mod, safe_component_kind)
+                    self.weapon_mod_entries.append(
+                        {
+                            "identifier": variant_key,
+                            "name": variant_label,
+                            "base_identifier": safe_identifier,
+                            "entry_kind": WEAPON_MOD_CHOICE_KIND_VARIANT,
+                            "target_item_type": target_item_type_name,
+                            "component_kind": safe_component_kind,
+                        }
+                    )
+                    self.weapon_mod_variant_names[variant_key] = variant_label
 
         for identifier, rune in sorted(MOD_DB.runes.items(), key=lambda row: row[1].name.lower() or row[0].lower()):
             display_name = str(rune.name or identifier).strip()
@@ -3581,7 +4339,8 @@ class MerchantRulesWidget:
             f"{prefix}: supported={plan.supported_map} has_actions={plan.has_actions} "
             f"entries={len(plan.entries)} travel={plan.travel_to_outpost_id} "
             f"destroy={len(plan.destroy_actions) if plan.destroy_actions else len(plan.destroy_item_ids)} "
-            f"merchant_stock={len(plan.merchant_stock_buys)} material_buys={len(plan.material_buys)} rune_buys={len(plan.rune_trader_buys)} "
+            f"merchant_stock={len(plan.merchant_stock_buys)} material_buys={len(plan.material_buys)} "
+            f"rune_buys={len(plan.rune_trader_buys)} scroll_buys={len(plan.scroll_trader_buys)} "
             f"storage_transfers={len(plan.storage_transfers)} cleanup_transfers={len(plan.cleanup_transfers)} "
             f"storage_state={plan.storage_plan_state} "
             f"material_sales={len(plan.material_sales)} "
@@ -3830,7 +4589,7 @@ class MerchantRulesWidget:
                 name=name,
                 item_type=item_type,
                 source="item_handling_items_catalog",
-                priority=_get_mirrored_item_priority(item_type),
+                priority=_get_catalog_entry_priority(model_id, item_type, category, sub_category),
                 extra=extra,
             )
             loaded_count += 1
@@ -3871,7 +4630,7 @@ class MerchantRulesWidget:
                 name=name,
                 item_type=item_type,
                 source="merchant_rules_items_catalog",
-                priority=_get_mirrored_item_priority(item_type),
+                priority=_get_catalog_entry_priority(model_id, item_type),
                 extra=extra,
             )
             loaded_count += 1
@@ -4436,6 +5195,74 @@ class MerchantRulesWidget:
             return "Unknown Weapon Mod"
         return self.weapon_mod_names.get(safe_identifier, safe_identifier)
 
+    def _get_weapon_mod_generic_label(self, identifier: str) -> str:
+        safe_identifier = str(identifier or "").strip()
+        if not safe_identifier:
+            return "Unknown Weapon Mod"
+        if safe_identifier in self.weapon_mod_generic_names:
+            return self.weapon_mod_generic_names[safe_identifier]
+        base_label = self._get_weapon_mod_label(safe_identifier)
+        weapon_mod = MOD_DB.weapon_mods.get(safe_identifier)
+        if weapon_mod is not None and _is_expandable_weapon_mod_type(weapon_mod):
+            return f"{base_label} (all supported weapons)"
+        return base_label
+
+    def _get_weapon_mod_variant_label(
+        self,
+        identifier: str,
+        target_item_type: str,
+        component_kind: str,
+    ) -> str:
+        variant_key = _make_weapon_mod_variant_choice_key(identifier, target_item_type, component_kind)
+        if variant_key and variant_key in self.weapon_mod_variant_names:
+            return self.weapon_mod_variant_names[variant_key]
+        weapon_mod = MOD_DB.weapon_mods.get(str(identifier or "").strip())
+        if weapon_mod is not None:
+            return _format_weapon_mod_variant_label(weapon_mod, component_kind)
+        component_label = _humanize_weapon_mod_component_kind(component_kind)
+        base_label = self._get_weapon_mod_label(identifier)
+        return f"{component_label} {base_label}".strip() if component_label else base_label
+
+    def _get_weapon_mod_choice_label(self, choice_key: str) -> str:
+        kind, identifier, target_item_type, component_kind = _parse_weapon_mod_choice_key(choice_key)
+        if kind == WEAPON_MOD_CHOICE_KIND_VARIANT:
+            return self._get_weapon_mod_variant_label(identifier, target_item_type, component_kind)
+        if kind == WEAPON_MOD_CHOICE_KIND_GENERIC:
+            return self._get_weapon_mod_generic_label(identifier)
+        return self._get_weapon_mod_label(choice_key)
+
+    def _format_weapon_mod_variant_rule(self, variant_rule: object) -> str:
+        identifier, target_item_type, component_kind = _weapon_mod_variant_rule_key(variant_rule)
+        return self._get_weapon_mod_variant_label(identifier, target_item_type, component_kind)
+
+    def _get_weapon_mod_value_range(self, identifier: str) -> tuple[int, int] | None:
+        safe_identifier = str(identifier or "").strip()
+        if not safe_identifier:
+            return None
+        return _get_weapon_mod_variable_range(MOD_DB.weapon_mods.get(safe_identifier))
+
+    def _format_weapon_mod_threshold_value(self, identifier: str, min_value: object) -> str:
+        safe_min_value = _safe_int(min_value, 0)
+        value_range = self._get_weapon_mod_value_range(identifier)
+        if value_range is None:
+            return f"+{safe_min_value}+"
+        _range_min_value, max_value = value_range
+        suffix = "+" if safe_min_value < int(max_value) else ""
+        return f"+{safe_min_value}{suffix}"
+
+    def _format_weapon_mod_threshold_rule(self, threshold_rule: WeaponModThresholdRule) -> str:
+        identifier = str(getattr(threshold_rule, "identifier", "") or "").strip()
+        min_value = _safe_int(getattr(threshold_rule, "min_value", 0), 0)
+        return f"{self._get_weapon_mod_generic_label(identifier)} {self._format_weapon_mod_threshold_value(identifier, min_value)}"
+
+    def _format_weapon_mod_variant_threshold_rule(self, threshold_rule: WeaponModVariantThresholdRule) -> str:
+        identifier, target_item_type, component_kind = _weapon_mod_variant_rule_key(threshold_rule)
+        min_value = _safe_int(getattr(threshold_rule, "min_value", 0), 0)
+        return (
+            f"{self._get_weapon_mod_variant_label(identifier, target_item_type, component_kind)} "
+            f"{self._format_weapon_mod_threshold_value(identifier, min_value)}"
+        )
+
     def _get_rune_label(self, identifier: str) -> str:
         safe_identifier = str(identifier or "").strip()
         if not safe_identifier:
@@ -4447,6 +5274,27 @@ class MerchantRulesWidget:
         if not safe_identifier:
             return None
         return self.rune_buy_entries_by_identifier.get(safe_identifier)
+
+    def _get_rune_rarity_key_for_identifier(self, identifier: str) -> str:
+        entry = self._get_rune_buy_entry(identifier)
+        if entry is None:
+            return ""
+        return _normalize_rarity_key(str(entry.get("rarity", "") or ""))
+
+    def _get_rune_text_color_for_identifier(self, identifier: str) -> tuple[float, float, float, float] | None:
+        rarity_key = self._get_rune_rarity_key_for_identifier(identifier)
+        if not rarity_key:
+            return None
+        return RARITY_TEXT_COLORS.get(rarity_key)
+
+    def _get_rune_text_color_for_protection_entry(self, entry: ProtectionHubEntry) -> tuple[float, float, float, float] | None:
+        if entry.filter_key != PROTECTION_FILTER_RUNES:
+            return None
+        target_key = str(entry.target_key or "")
+        identifier_prefix = "identifier:"
+        if not target_key.startswith(identifier_prefix):
+            return None
+        return self._get_rune_text_color_for_identifier(target_key[len(identifier_prefix):])
 
     def _get_common_material_preset(self) -> list[int]:
         return list(self.catalog_common_material_ids)
@@ -4464,6 +5312,15 @@ class MerchantRulesWidget:
 
     def _get_rare_material_catalog_entries(self) -> list[dict[str, object]]:
         return list(self.catalog_rare_materials)
+
+    def _get_scroll_trader_stock_entries(self) -> list[dict[str, object]]:
+        entries: list[dict[str, object]] = []
+        for model_id in SCROLL_TRADER_STOCK_MODEL_IDS:
+            entry = self._get_model_entry(model_id)
+            if entry is not None:
+                entries.append(entry)
+        entries.sort(key=lambda entry: self._get_model_display_sort_key(int(entry.get("model_id", 0))))
+        return entries
 
     def _get_material_catalog_entry(self, model_id: int) -> dict[str, object] | None:
         entry = self._get_model_entry(model_id)
@@ -4618,6 +5475,13 @@ class MerchantRulesWidget:
                 break
         return material_results
 
+    def _search_scroll_trader_stock_catalog(self, raw_query: str, limit: int = SEARCH_RESULT_LIMIT) -> list[dict[str, object]]:
+        return self._search_catalog_with_predicate(
+            raw_query,
+            entry_predicate=lambda entry: _is_scroll_trader_stock_model(entry.get("model_id", 0)),
+            limit=limit,
+        )
+
     def _search_weapon_catalog(self, raw_query: str, limit: int = SEARCH_RESULT_LIMIT) -> list[dict[str, object]]:
         catalog_limit = max(max(1, len(self.catalog_by_model_id)), limit * 4, SEARCH_RESULT_LIMIT * 4)
         results = self._search_catalog(raw_query, limit=catalog_limit)
@@ -4751,6 +5615,52 @@ class MerchantRulesWidget:
             )
         )
         return self._set_buy_rule_merchant_stock_targets(rule, existing_targets)
+
+    def _set_buy_rule_scroll_trader_targets(self, rule: BuyRule, targets: list[MerchantStockTarget]) -> bool:
+        normalized_targets = [
+            target
+            for target in _normalize_merchant_stock_targets(targets)
+            if _is_scroll_trader_stock_model(target.model_id)
+        ]
+        current_targets = [
+            target
+            for target in _normalize_merchant_stock_targets(rule.merchant_stock_targets)
+            if _is_scroll_trader_stock_model(target.model_id)
+        ]
+        if normalized_targets == current_targets:
+            return False
+        rule.merchant_stock_targets = normalized_targets
+        return True
+
+    def _add_buy_rule_scroll_trader_target(
+        self,
+        rule: BuyRule,
+        model_id: int,
+        *,
+        target_count: int = 0,
+        max_per_run: int = 0,
+    ) -> bool:
+        safe_model_id = max(0, _safe_int(model_id, 0))
+        if safe_model_id <= 0 or not _is_scroll_trader_stock_model(safe_model_id):
+            return False
+
+        existing_targets = [
+            target
+            for target in _normalize_merchant_stock_targets(rule.merchant_stock_targets)
+            if _is_scroll_trader_stock_model(target.model_id)
+        ]
+        for target in existing_targets:
+            if target.model_id == safe_model_id:
+                return False
+
+        existing_targets.append(
+            MerchantStockTarget(
+                model_id=safe_model_id,
+                target_count=max(0, _safe_int(target_count, 0)),
+                max_per_run=max(0, _safe_int(max_per_run, 0)),
+            )
+        )
+        return self._set_buy_rule_scroll_trader_targets(rule, existing_targets)
 
     def _set_buy_rule_material_targets(self, rule: BuyRule, material_targets: list[MaterialTarget]) -> bool:
         normalized_targets = _normalize_material_targets(material_targets)
@@ -4989,6 +5899,27 @@ class MerchantRulesWidget:
         rule.protected_weapon_mod_identifiers = normalized_ids
         return True
 
+    def _set_sell_rule_weapon_mod_thresholds(self, rule: SellRule, threshold_rules: list[object]) -> bool:
+        normalized_rules = _normalize_weapon_mod_threshold_rules(threshold_rules)
+        if normalized_rules == rule.protected_weapon_mod_thresholds:
+            return False
+        rule.protected_weapon_mod_thresholds = normalized_rules
+        return True
+
+    def _set_sell_rule_weapon_mod_variants(self, rule: SellRule, variant_rules: list[object]) -> bool:
+        normalized_rules = _normalize_weapon_mod_variant_rules(variant_rules)
+        if normalized_rules == rule.protected_weapon_mod_variants:
+            return False
+        rule.protected_weapon_mod_variants = normalized_rules
+        return True
+
+    def _set_sell_rule_weapon_mod_variant_thresholds(self, rule: SellRule, threshold_rules: list[object]) -> bool:
+        normalized_rules = _normalize_weapon_mod_variant_threshold_rules(threshold_rules)
+        if normalized_rules == rule.protected_weapon_mod_variant_thresholds:
+            return False
+        rule.protected_weapon_mod_variant_thresholds = normalized_rules
+        return True
+
     def _set_sell_rule_rune_identifiers(self, rule: SellRule, identifiers: list[str]) -> bool:
         normalized_ids = _dedupe_identifiers(identifiers)
         if normalized_ids == rule.protected_rune_identifiers:
@@ -5035,12 +5966,18 @@ class MerchantRulesWidget:
             return same_kind_indices.index(index) + 1
         return int(index) + 1
 
+    def _get_dense_list_table_flags(self):
+        return PyImGui.TableFlags.RowBg | PyImGui.TableFlags.BordersInnerV
+
     def _draw_add_all_matches_button(self, button_id: str, visible_count: int, addable_count: int) -> bool:
         if visible_count <= 0:
             return False
 
         PyImGui.begin_disabled(addable_count <= 0)
-        clicked = PyImGui.small_button(f"Add All Matches ({visible_count})##{button_id}")
+        clicked = self._draw_confirm_destructive_button(
+            f"Add All Matches ({visible_count})##{button_id}",
+            small=True,
+        )
         PyImGui.end_disabled()
         return clicked and addable_count > 0
 
@@ -5056,6 +5993,32 @@ class MerchantRulesWidget:
         if PyImGui.begin_child(child_id, (0, child_height), True, PyImGui.WindowFlags.NoFlag):
             if not results:
                 PyImGui.text_wrapped("No matching items found in the local catalog.")
+            else:
+                for entry in results:
+                    model_id = int(entry.get("model_id", 0))
+                    label = self._format_model_label_long(model_id)
+                    if PyImGui.selectable(f"{label}##{child_id}_{model_id}", False, PyImGui.SelectableFlags.NoFlag, (0, 0)):
+                        picked_model_id = model_id
+                        break
+        PyImGui.end_child()
+        return picked_model_id, visible_model_ids
+
+    def _draw_merchant_stock_search_results(self, child_id: str, query: str) -> tuple[int, list[int]]:
+        normalized_query = str(query or "").strip()
+        if not normalized_query:
+            return 0, []
+
+        results = [
+            entry
+            for entry in self._search_catalog(normalized_query)
+            if not _is_scroll_trader_stock_model(entry.get("model_id", 0))
+        ]
+        visible_model_ids = _collect_model_ids_from_catalog_entries(results)
+        picked_model_id = 0
+        child_height = 110 if len(results) > 4 else 80
+        if PyImGui.begin_child(child_id, (0, child_height), True, PyImGui.WindowFlags.NoFlag):
+            if not results:
+                PyImGui.text_wrapped("No matching regular merchant stock found in the local catalog.")
             else:
                 for entry in results:
                     model_id = int(entry.get("model_id", 0))
@@ -5085,6 +6048,28 @@ class MerchantRulesWidget:
                     label = self._format_model_label(model_id)
                     if material_type:
                         label = f"{label} [{material_type}]"
+                    if PyImGui.selectable(f"{label}##{child_id}_{model_id}", False, PyImGui.SelectableFlags.NoFlag, (0, 0)):
+                        picked_model_id = model_id
+                        break
+        PyImGui.end_child()
+        return picked_model_id, visible_model_ids
+
+    def _draw_scroll_trader_stock_search_results(self, child_id: str, query: str) -> tuple[int, list[int]]:
+        normalized_query = str(query or "").strip()
+        if not normalized_query:
+            return 0, []
+
+        results = self._search_scroll_trader_stock_catalog(normalized_query)
+        visible_model_ids = _collect_model_ids_from_catalog_entries(results)
+        picked_model_id = 0
+        child_height = 110 if len(results) > 4 else 80
+        if PyImGui.begin_child(child_id, (0, child_height), True, PyImGui.WindowFlags.NoFlag):
+            if not results:
+                PyImGui.text_wrapped("No matching scroll trader stock found in the confirmed list.")
+            else:
+                for entry in results:
+                    model_id = int(entry.get("model_id", 0))
+                    label = self._format_model_label_long(model_id)
                     if PyImGui.selectable(f"{label}##{child_id}_{model_id}", False, PyImGui.SelectableFlags.NoFlag, (0, 0)):
                         picked_model_id = model_id
                         break
@@ -5179,7 +6164,7 @@ class MerchantRulesWidget:
                     if len(group_model_ids) < 2:
                         continue
                     label = f"Add all matching variants: {display_name} ({len(group_model_ids)} models)"
-                    if PyImGui.selectable(f"{label}##{child_id}_group_{display_name}", False, PyImGui.SelectableFlags.NoFlag, (0, 0)):
+                    if self._draw_confirm_destructive_button(f"{label}##{child_id}_group_{display_name}"):
                         picked_group_info = {
                             "display_name": display_name,
                             "model_ids": group_model_ids,
@@ -5204,7 +6189,14 @@ class MerchantRulesWidget:
             "catalog_empty": len(self.catalog_by_model_id) <= 0,
         }, visible_item_model_ids
 
-    def _draw_identifier_search_results(self, child_id: str, query: str, entries: list[dict[str, str]]) -> tuple[str, list[str]]:
+    def _draw_identifier_search_results(
+        self,
+        child_id: str,
+        query: str,
+        entries: list[dict[str, str]],
+        *,
+        text_color_for_identifier: Callable[[str], tuple[float, float, float, float] | None] | None = None,
+    ) -> tuple[str, list[str]]:
         normalized_query = str(query or "").strip()
         if not normalized_query:
             return "", []
@@ -5220,11 +6212,262 @@ class MerchantRulesWidget:
                 for entry in results:
                     identifier = str(entry.get("identifier", "")).strip()
                     name = str(entry.get("name", identifier)).strip()
-                    if PyImGui.selectable(f"{name}##{child_id}_{identifier}", False, PyImGui.SelectableFlags.NoFlag, (0, 0)):
+                    text_color = text_color_for_identifier(identifier) if text_color_for_identifier is not None else None
+                    if text_color is not None:
+                        PyImGui.push_style_color(PyImGui.ImGuiCol.Text, text_color)
+                    try:
+                        selected = PyImGui.selectable(f"{name}##{child_id}_{identifier}", False, PyImGui.SelectableFlags.NoFlag, (0, 0))
+                    finally:
+                        if text_color is not None:
+                            PyImGui.pop_style_color(1)
+                    if selected:
                         picked_identifier = identifier
                         break
         PyImGui.end_child()
         return picked_identifier, visible_identifiers
+
+    def _get_weapon_mod_roll_choice_options(
+        self,
+        identifier: str,
+        current_threshold_value: int | None,
+    ) -> tuple[list[str], list[int | None]]:
+        value_range = self._get_weapon_mod_value_range(identifier)
+        option_values: list[int | None] = [None]
+        if value_range is not None:
+            min_value, max_value = value_range
+            if min_value > max_value:
+                min_value, max_value = max_value, min_value
+            option_values.extend(range(min_value, max_value + 1))
+        if current_threshold_value is not None and current_threshold_value not in option_values:
+            numeric_values = sorted(
+                {
+                    int(value)
+                    for value in option_values
+                    if value is not None
+                }
+                | {int(current_threshold_value)}
+            )
+            option_values = [None] + numeric_values
+        labels = [
+            "Any" if value is None else self._format_weapon_mod_threshold_value(identifier, int(value))
+            for value in option_values
+        ]
+        return labels, option_values
+
+    def _draw_selected_weapon_mod_protections(
+        self,
+        section_name: str,
+        index: int,
+        rule: SellRule,
+        *,
+        selected_identifiers: list[str],
+        threshold_rules: list[WeaponModThresholdRule],
+        identifier_setter,
+        threshold_setter,
+        selected_variants: list[WeaponModVariantRule] | None = None,
+        variant_threshold_rules: list[WeaponModVariantThresholdRule] | None = None,
+        variant_setter=None,
+        variant_threshold_setter=None,
+        jump_anchor: str = "",
+    ) -> bool:
+        normalized_identifiers = _dedupe_identifiers(selected_identifiers)
+        normalized_threshold_rules = _normalize_weapon_mod_threshold_rules(threshold_rules)
+        normalized_variants = _normalize_weapon_mod_variant_rules(selected_variants or [])
+        normalized_variant_threshold_rules = _normalize_weapon_mod_variant_threshold_rules(variant_threshold_rules or [])
+
+        protected_choice_keys = _dedupe_identifiers(
+            [_make_weapon_mod_identifier_choice_key(identifier) for identifier in normalized_identifiers]
+            + [
+                _make_weapon_mod_identifier_choice_key(str(threshold_rule.identifier or "").strip())
+                for threshold_rule in normalized_threshold_rules
+            ]
+            + [_weapon_mod_variant_rule_choice_key(variant_rule) for variant_rule in normalized_variants]
+            + [
+                _weapon_mod_variant_rule_choice_key(threshold_rule)
+                for threshold_rule in normalized_variant_threshold_rules
+            ]
+        )
+        protected_choice_keys = [choice_key for choice_key in protected_choice_keys if choice_key]
+        if not protected_choice_keys:
+            self._draw_secondary_text("No protected entries selected yet.", wrapped=False)
+            return False
+
+        changed = False
+        selected_choice_key_set = {
+            _make_weapon_mod_identifier_choice_key(identifier)
+            for identifier in normalized_identifiers
+        } | {
+            _weapon_mod_variant_rule_choice_key(variant_rule)
+            for variant_rule in normalized_variants
+        }
+        threshold_values_by_choice_key: dict[str, list[int]] = {}
+        for threshold_rule in normalized_threshold_rules:
+            identifier = str(threshold_rule.identifier or "").strip()
+            if not identifier:
+                continue
+            choice_key = _make_weapon_mod_identifier_choice_key(identifier)
+            threshold_values_by_choice_key.setdefault(choice_key, []).append(int(threshold_rule.min_value))
+        for threshold_rule in normalized_variant_threshold_rules:
+            choice_key = _weapon_mod_variant_rule_choice_key(threshold_rule)
+            if not choice_key:
+                continue
+            threshold_values_by_choice_key.setdefault(choice_key, []).append(int(threshold_rule.min_value))
+
+        child_height = min(220, 54 + (28 * len(protected_choice_keys)))
+        if PyImGui.begin_child(f"{section_name}_selected_{index}", (0, child_height), True, PyImGui.WindowFlags.NoFlag):
+            table_flags = self._get_dense_list_table_flags()
+            if PyImGui.begin_table(f"{section_name}_weapon_mod_table_{index}", 3, table_flags):
+                PyImGui.table_setup_column("Upgrade", PyImGui.TableColumnFlags.WidthStretch)
+                PyImGui.table_setup_column("Keep If", PyImGui.TableColumnFlags.WidthFixed, 150.0)
+                PyImGui.table_setup_column("Remove", PyImGui.TableColumnFlags.WidthFixed, 60.0)
+
+                PyImGui.table_next_row()
+                for column_index, column_label in enumerate(("Upgrade", "Keep If", "Remove")):
+                    PyImGui.table_set_column_index(column_index)
+                    self._draw_secondary_text(column_label, wrapped=False)
+
+                for choice_key in self._sort_identifiers_for_display(protected_choice_keys, self._get_weapon_mod_choice_label):
+                    choice_key = str(choice_key or "").strip()
+                    kind, identifier, target_item_type, component_kind = _parse_weapon_mod_choice_key(choice_key)
+                    if not identifier:
+                        continue
+                    threshold_values = threshold_values_by_choice_key.get(choice_key, [])
+                    current_threshold_value = min(threshold_values) if threshold_values else None
+                    any_selected = choice_key in selected_choice_key_set
+                    current_choice_value = None if any_selected else current_threshold_value
+                    labels, option_values = self._get_weapon_mod_roll_choice_options(identifier, current_choice_value)
+                    show_roll_selector = len(option_values) > 1
+                    current_choice_index = option_values.index(current_choice_value) if current_choice_value in option_values else 0
+                    choice_hash = md5(choice_key.encode("utf-8")).hexdigest()
+
+                    PyImGui.table_next_row()
+                    PyImGui.table_set_column_index(0)
+                    PyImGui.text(self._get_weapon_mod_choice_label(choice_key))
+
+                    PyImGui.table_set_column_index(1)
+                    if show_roll_selector:
+                        PyImGui.push_item_width(138)
+                        next_choice_index = PyImGui.combo(
+                            f"##{section_name}_roll_{index}_{choice_hash}",
+                            current_choice_index,
+                            labels,
+                        )
+                        PyImGui.pop_item_width()
+                        next_choice_index = max(0, min(int(next_choice_index), len(option_values) - 1))
+                        if next_choice_index != current_choice_index:
+                            next_choice_value = option_values[next_choice_index]
+                            if kind == WEAPON_MOD_CHOICE_KIND_VARIANT:
+                                next_variants = [
+                                    variant_rule
+                                    for variant_rule in normalized_variants
+                                    if _weapon_mod_variant_rule_choice_key(variant_rule) != choice_key
+                                ]
+                                next_variant_threshold_rules = [
+                                    threshold_rule
+                                    for threshold_rule in normalized_variant_threshold_rules
+                                    if _weapon_mod_variant_rule_choice_key(threshold_rule) != choice_key
+                                ]
+                                if next_choice_value is None:
+                                    next_variants.append(
+                                        WeaponModVariantRule(
+                                            identifier=identifier,
+                                            target_item_type=target_item_type,
+                                            component_kind=component_kind,
+                                        )
+                                    )
+                                else:
+                                    next_variant_threshold_rules.append(
+                                        WeaponModVariantThresholdRule(
+                                            identifier=identifier,
+                                            target_item_type=target_item_type,
+                                            component_kind=component_kind,
+                                            min_value=int(next_choice_value),
+                                        )
+                                    )
+                                if variant_setter is not None and variant_setter(rule, next_variants):
+                                    changed = True
+                                if variant_threshold_setter is not None and variant_threshold_setter(rule, next_variant_threshold_rules):
+                                    changed = True
+                            else:
+                                next_identifiers = [
+                                    existing_identifier
+                                    for existing_identifier in normalized_identifiers
+                                    if existing_identifier != identifier
+                                ]
+                                next_threshold_rules = [
+                                    threshold_rule
+                                    for threshold_rule in normalized_threshold_rules
+                                    if str(threshold_rule.identifier or "").strip() != identifier
+                                ]
+                                if next_choice_value is None:
+                                    next_identifiers = _dedupe_identifiers(next_identifiers + [identifier])
+                                else:
+                                    next_threshold_rules.append(
+                                        WeaponModThresholdRule(identifier=identifier, min_value=int(next_choice_value))
+                                    )
+                                if identifier_setter(rule, next_identifiers):
+                                    changed = True
+                                if threshold_setter(rule, next_threshold_rules):
+                                    changed = True
+                    else:
+                        self._draw_secondary_text("Any", wrapped=False)
+
+                    PyImGui.table_set_column_index(2)
+                    if PyImGui.small_button(f"X##{section_name}_remove_{index}_{choice_hash}"):
+                        if kind == WEAPON_MOD_CHOICE_KIND_VARIANT:
+                            next_variants = [
+                                variant_rule
+                                for variant_rule in normalized_variants
+                                if _weapon_mod_variant_rule_choice_key(variant_rule) != choice_key
+                            ]
+                            next_variant_threshold_rules = [
+                                threshold_rule
+                                for threshold_rule in normalized_variant_threshold_rules
+                                if _weapon_mod_variant_rule_choice_key(threshold_rule) != choice_key
+                            ]
+                            if variant_setter is not None and variant_setter(rule, next_variants):
+                                changed = True
+                            if variant_threshold_setter is not None and variant_threshold_setter(rule, next_variant_threshold_rules):
+                                changed = True
+                        else:
+                            next_identifiers = [
+                                existing_identifier
+                                for existing_identifier in normalized_identifiers
+                                if existing_identifier != identifier
+                            ]
+                            next_threshold_rules = [
+                                threshold_rule
+                                for threshold_rule in normalized_threshold_rules
+                                if str(threshold_rule.identifier or "").strip() != identifier
+                            ]
+                            if identifier_setter(rule, next_identifiers):
+                                changed = True
+                            if threshold_setter(rule, next_threshold_rules):
+                                changed = True
+                        break
+
+                    if jump_anchor:
+                        if kind == WEAPON_MOD_CHOICE_KIND_VARIANT:
+                            self._maybe_scroll_sell_jump_target_row(index, jump_anchor, f"variant:{choice_key}")
+                        else:
+                            self._maybe_scroll_sell_jump_target_row(index, jump_anchor, f"identifier:{identifier}")
+                        if current_threshold_value is not None:
+                            if kind == WEAPON_MOD_CHOICE_KIND_VARIANT:
+                                self._maybe_scroll_sell_jump_target_row(
+                                    index,
+                                    jump_anchor,
+                                    f"variant_threshold:{choice_key}:{int(current_threshold_value)}",
+                                )
+                            else:
+                                self._maybe_scroll_sell_jump_target_row(
+                                    index,
+                                    jump_anchor,
+                                    f"threshold:{identifier}:{int(current_threshold_value)}",
+                                )
+
+                PyImGui.end_table()
+        PyImGui.end_child()
+        return changed
 
     def _draw_selected_model_ids(
         self,
@@ -5241,14 +6484,20 @@ class MerchantRulesWidget:
         removed_model_id = 0
         child_height = min(150, 28 + (22 * len(model_ids)))
         if PyImGui.begin_child(f"{section_name}_selected_{index}", (0, child_height), True, PyImGui.WindowFlags.NoFlag):
-            for model_id in self._sort_model_ids_for_display(model_ids):
-                if PyImGui.small_button(f"X##{section_name}_remove_{index}_{model_id}"):
-                    removed_model_id = model_id
-                    break
-                PyImGui.same_line(0, 6)
-                PyImGui.text(self._format_model_label_long(model_id))
-                if jump_anchor:
-                    self._maybe_scroll_sell_jump_target_row(index, jump_anchor, f"model:{int(model_id)}")
+            if PyImGui.begin_table(f"{section_name}_selected_table_{index}", 2, self._get_dense_list_table_flags()):
+                PyImGui.table_setup_column("Remove", PyImGui.TableColumnFlags.WidthFixed, 34.0)
+                PyImGui.table_setup_column("Item", PyImGui.TableColumnFlags.WidthStretch)
+                for model_id in self._sort_model_ids_for_display(model_ids):
+                    PyImGui.table_next_row()
+                    PyImGui.table_set_column_index(0)
+                    if PyImGui.small_button(f"X##{section_name}_remove_{index}_{model_id}"):
+                        removed_model_id = model_id
+                        break
+                    PyImGui.table_set_column_index(1)
+                    PyImGui.text(self._format_model_label_long(model_id))
+                    if jump_anchor:
+                        self._maybe_scroll_sell_jump_target_row(index, jump_anchor, f"model:{int(model_id)}")
+                PyImGui.end_table()
         PyImGui.end_child()
         return removed_model_id
 
@@ -5287,7 +6536,7 @@ class MerchantRulesWidget:
         column_count += 1
         child_height = min(220, 58 + (32 * len(updated_targets)))
         if PyImGui.begin_child(f"{section_name}_selected_{index}", (0, child_height), True, PyImGui.WindowFlags.NoFlag):
-            if PyImGui.begin_table(f"{section_name}_table_{index}", column_count, PyImGui.TableFlags.NoFlag):
+            if PyImGui.begin_table(f"{section_name}_table_{index}", column_count, self._get_dense_list_table_flags()):
                 PyImGui.table_setup_column(item_column_label, PyImGui.TableColumnFlags.WidthStretch)
                 if show_merchant_column:
                     PyImGui.table_setup_column("Merchant", PyImGui.TableColumnFlags.WidthFixed, 120.0)
@@ -5358,6 +6607,7 @@ class MerchantRulesWidget:
         formatter,
         *,
         jump_anchor: str = "",
+        text_color_for_identifier: Callable[[str], tuple[float, float, float, float] | None] | None = None,
     ) -> str:
         if not identifiers:
             self._draw_secondary_text("No protected entries selected yet.", wrapped=False)
@@ -5366,14 +6616,25 @@ class MerchantRulesWidget:
         removed_identifier = ""
         child_height = min(150, 28 + (22 * len(identifiers)))
         if PyImGui.begin_child(f"{section_name}_selected_{index}", (0, child_height), True, PyImGui.WindowFlags.NoFlag):
-            for identifier in self._sort_identifiers_for_display(identifiers, formatter):
-                if PyImGui.small_button(f"X##{section_name}_remove_{index}_{identifier}"):
-                    removed_identifier = identifier
-                    break
-                PyImGui.same_line(0, 6)
-                PyImGui.text(str(formatter(identifier)))
-                if jump_anchor:
-                    self._maybe_scroll_sell_jump_target_row(index, jump_anchor, f"identifier:{str(identifier)}")
+            if PyImGui.begin_table(f"{section_name}_selected_table_{index}", 2, self._get_dense_list_table_flags()):
+                PyImGui.table_setup_column("Remove", PyImGui.TableColumnFlags.WidthFixed, 34.0)
+                PyImGui.table_setup_column("Entry", PyImGui.TableColumnFlags.WidthStretch)
+                for identifier in self._sort_identifiers_for_display(identifiers, formatter):
+                    PyImGui.table_next_row()
+                    PyImGui.table_set_column_index(0)
+                    if PyImGui.small_button(f"X##{section_name}_remove_{index}_{identifier}"):
+                        removed_identifier = identifier
+                        break
+                    PyImGui.table_set_column_index(1)
+                    label = str(formatter(identifier))
+                    text_color = text_color_for_identifier(identifier) if text_color_for_identifier is not None else None
+                    if text_color is not None:
+                        PyImGui.text_colored(label, text_color)
+                    else:
+                        PyImGui.text(label)
+                    if jump_anchor:
+                        self._maybe_scroll_sell_jump_target_row(index, jump_anchor, f"identifier:{str(identifier)}")
+                PyImGui.end_table()
         PyImGui.end_child()
         return removed_identifier
 
@@ -5389,6 +6650,31 @@ class MerchantRulesWidget:
             step_idx=0,
             agent_kind="npc",
             default_max_dist=OUTPOST_SERVICE_SEARCH_MAX_DIST,
+            log_failures=log_failures,
+        )
+
+    def _get_scroll_trader_lookup(self) -> tuple[str, str]:
+        if Map.IsGuildHall():
+            return "scroll_trader", SCROLL_TRADER_NAME_QUERY
+        return "rare_scroll_trader", RARE_SCROLL_TRADER_NAME_QUERY
+
+    def _get_scroll_trader_service_label(self) -> str:
+        return "Scroll Trader" if Map.IsGuildHall() else "Rare Scroll Trader"
+
+    def _resolve_scroll_trader_coords(
+        self,
+        map_id: int,
+        selector_data: dict[str, str] | None = None,
+        *,
+        log_failures: bool = True,
+    ) -> tuple[float, float] | None:
+        selector_key, name_query = self._get_scroll_trader_lookup()
+        selector_name = str(SUPPORTED_MAP_SCROLL_TRADER_SELECTORS.get(int(map_id), "") or "").strip()
+        if not selector_name and selector_data:
+            selector_name = str(selector_data.get(selector_key, "") or "").strip()
+        return self._resolve_service_coords(
+            selector_name=selector_name,
+            name_query=name_query,
             log_failures=log_failures,
         )
 
@@ -5474,6 +6760,7 @@ class MerchantRulesWidget:
             "target_outpost_id": 0,
             "favorite_outpost_ids": [],
             "debug_logging": False,
+            "detailed_preview": False,
             "window_x": None,
             "window_y": None,
             "window_width": 0,
@@ -5613,6 +6900,7 @@ class MerchantRulesWidget:
             MERCHANT_TYPE_MERCHANT: None,
             MERCHANT_TYPE_MATERIALS: None,
             MERCHANT_TYPE_RUNE_TRADER: None,
+            MERCHANT_TYPE_SCROLL_TRADER: None,
             MERCHANT_TYPE_RARE_MATERIALS: None,
         }
 
@@ -5647,6 +6935,11 @@ class MerchantRulesWidget:
             )
 
         coords[MERCHANT_TYPE_RUNE_TRADER] = self._resolve_rune_trader_coords(map_id, log_failures=not passive)
+        coords[MERCHANT_TYPE_SCROLL_TRADER] = self._resolve_scroll_trader_coords(
+            map_id,
+            selector_data,
+            log_failures=bool(not passive and self._has_enabled_scroll_trader_buy_rules()),
+        )
 
         resolved_count = sum(1 for value in coords.values() if value is not None)
         location_label = "Guild Hall" if Map.IsGuildHall() else "Outpost"
@@ -5663,7 +6956,7 @@ class MerchantRulesWidget:
             reason = f"{base_message} Partial merchant/trader resolution succeeded."
         else:
             supported_map = True
-            reason = f"{base_message} Merchant, material trader, rune trader, and rare material trader resolved."
+            reason = f"{base_message} Merchant, material trader, rune trader, scroll trader, and rare material trader resolved."
 
         self.cached_context_map_id = current_map_id
         self.cached_supported_context = (supported_map, reason, coords)
@@ -5673,6 +6966,7 @@ class MerchantRulesWidget:
             f"supported={supported_map} merchant={self._format_debug_coords(coords[MERCHANT_TYPE_MERCHANT])} "
             f"materials={self._format_debug_coords(coords[MERCHANT_TYPE_MATERIALS])} "
             f"rune={self._format_debug_coords(coords[MERCHANT_TYPE_RUNE_TRADER])} "
+            f"scroll={self._format_debug_coords(coords[MERCHANT_TYPE_SCROLL_TRADER])} "
             f"rare={self._format_debug_coords(coords[MERCHANT_TYPE_RARE_MATERIALS])}"
         )
         if not supported_map or resolved_count < len(coords):
@@ -5686,6 +6980,7 @@ class MerchantRulesWidget:
             MERCHANT_TYPE_MERCHANT: PROJECTED_PREVIEW_CONTEXT_COORDS,
             MERCHANT_TYPE_MATERIALS: PROJECTED_PREVIEW_CONTEXT_COORDS,
             MERCHANT_TYPE_RUNE_TRADER: PROJECTED_PREVIEW_CONTEXT_COORDS,
+            MERCHANT_TYPE_SCROLL_TRADER: PROJECTED_PREVIEW_CONTEXT_COORDS,
             MERCHANT_TYPE_RARE_MATERIALS: PROJECTED_PREVIEW_CONTEXT_COORDS,
         }
         if safe_outpost_id <= 0 or not outpost_name:
@@ -5693,6 +6988,7 @@ class MerchantRulesWidget:
                 MERCHANT_TYPE_MERCHANT: None,
                 MERCHANT_TYPE_MATERIALS: None,
                 MERCHANT_TYPE_RUNE_TRADER: None,
+                MERCHANT_TYPE_SCROLL_TRADER: None,
                 MERCHANT_TYPE_RARE_MATERIALS: None,
             }
 
@@ -5712,6 +7008,7 @@ class MerchantRulesWidget:
             MERCHANT_TYPE_MERCHANT,
             MERCHANT_TYPE_MATERIALS,
             MERCHANT_TYPE_RUNE_TRADER,
+            MERCHANT_TYPE_SCROLL_TRADER,
             MERCHANT_TYPE_RARE_MATERIALS,
         ):
             return action_type in {"buy", "sell"}
@@ -5857,21 +7154,81 @@ class MerchantRulesWidget:
 
         self.inventory_modifier_cache_misses += 1
         parsed_state = ParsedInventoryModifiers()
+        (
+            raw_requirement,
+            raw_requirement_attribute_id,
+            raw_requirement_attribute_name,
+            raw_damage_min,
+            raw_damage_max,
+            raw_energy,
+            raw_armor,
+        ) = _extract_base_stats_from_raw_modifiers(raw_modifiers)
         if raw_modifiers:
             parsed_modifiers = parse_modifiers(list(raw_modifiers), parse_item_type, model_id, MOD_DB)
             rune_identifiers = tuple(_dedupe_identifiers([match.rune.identifier for match in parsed_modifiers.runes]))
-            weapon_mod_identifiers = tuple(_dedupe_identifiers([match.weapon_mod.identifier for match in parsed_modifiers.weapon_mods]))
+            weapon_mod_identifier_values = [match.weapon_mod.identifier for match in parsed_modifiers.weapon_mods]
+            if getattr(parsed_modifiers, "has_increased_value", False):
+                weapon_mod_identifier_values.append('"Show me the money!"')
+            if getattr(parsed_modifiers, "is_highly_salvageable", False):
+                weapon_mod_identifier_values.append('"Measure for Measure"')
+            weapon_mod_identifiers = tuple(_dedupe_identifiers(weapon_mod_identifier_values))
+            weapon_mod_matches = tuple(
+                parsed_match
+                for parsed_match in (
+                    _build_parsed_weapon_mod_match(
+                        match,
+                        raw_modifiers=raw_modifiers,
+                        item_type_enum=item_type_enum,
+                        parse_item_type=parse_item_type,
+                    )
+                    for match in parsed_modifiers.weapon_mods
+                )
+                if parsed_match is not None
+            )
             standalone_kind = ""
             if item_type_enum == ItemType.Rune_Mod:
                 if parsed_modifiers.is_rune or rune_identifiers:
                     standalone_kind = RUNE_STANDALONE_KIND
                 elif weapon_mod_identifiers:
                     standalone_kind = WEAPON_MOD_STANDALONE_KIND
+            damage = getattr(parsed_modifiers, "damage", (0, 0)) or (0, 0)
+            try:
+                parsed_damage_min, parsed_damage_max = damage
+            except Exception:
+                parsed_damage_min, parsed_damage_max = 0, 0
+            shield_armor = getattr(parsed_modifiers, "shield_armor", (0, 0)) or (0, 0)
+            try:
+                parsed_armor, _parsed_armor_secondary = shield_armor
+            except Exception:
+                parsed_armor = 0
+            parsed_requirement = _normalize_weapon_requirement_level(
+                getattr(parsed_modifiers, "requirements", 0)
+            )
+            parsed_attribute_id, parsed_attribute_name = _format_requirement_attribute_value(
+                getattr(parsed_modifiers, "attribute", None)
+            )
             parsed_state = ParsedInventoryModifiers(
-                requirement=_normalize_weapon_requirement_level(parsed_modifiers.requirements),
+                requirement=parsed_requirement or raw_requirement,
+                requirement_attribute_id=parsed_attribute_id or raw_requirement_attribute_id,
+                requirement_attribute_name=parsed_attribute_name or raw_requirement_attribute_name,
+                damage_min=max(0, _safe_int(parsed_damage_min, 0) or raw_damage_min),
+                damage_max=max(0, _safe_int(parsed_damage_max, 0) or raw_damage_max),
+                energy=max(0, raw_energy),
+                armor=max(0, _safe_int(parsed_armor, 0) or raw_armor),
                 standalone_kind=standalone_kind,
                 rune_identifiers=rune_identifiers,
                 weapon_mod_identifiers=weapon_mod_identifiers,
+                weapon_mod_matches=weapon_mod_matches,
+            )
+        elif any((raw_requirement, raw_damage_min, raw_damage_max, raw_energy, raw_armor)):
+            parsed_state = ParsedInventoryModifiers(
+                requirement=raw_requirement,
+                requirement_attribute_id=raw_requirement_attribute_id,
+                requirement_attribute_name=raw_requirement_attribute_name,
+                damage_min=raw_damage_min,
+                damage_max=raw_damage_max,
+                energy=raw_energy,
+                armor=raw_armor,
             )
 
         self.inventory_modifier_cache[item_id] = InventoryModifierCacheEntry(
@@ -5919,9 +7276,16 @@ class MerchantRulesWidget:
                 is_weapon_like=is_weapon_like,
                 is_armor_piece=is_armor_piece,
                 requirement=int(parsed_modifiers.requirement),
+                requirement_attribute_id=int(parsed_modifiers.requirement_attribute_id),
+                requirement_attribute_name=str(parsed_modifiers.requirement_attribute_name or ""),
+                damage_min=int(parsed_modifiers.damage_min),
+                damage_max=int(parsed_modifiers.damage_max),
+                energy=int(parsed_modifiers.energy),
+                armor=int(parsed_modifiers.armor),
                 standalone_kind=str(parsed_modifiers.standalone_kind or ""),
                 rune_identifiers=list(parsed_modifiers.rune_identifiers),
                 weapon_mod_identifiers=list(parsed_modifiers.weapon_mod_identifiers),
+                weapon_mod_matches=list(parsed_modifiers.weapon_mod_matches),
             )
         except Exception:
             return None
@@ -6072,9 +7436,82 @@ class MerchantRulesWidget:
     def _format_destroy_rule_reference(self, index: int, rule: DestroyRule) -> str:
         return self._format_rule_reference(index, DESTROY_KIND_LABELS.get(rule.kind, "Destroy Rule"), self._get_rule_custom_name(rule))
 
-    def _draw_rule_name_input(self, input_id: str, current_name: str) -> str:
-        updated_name = PyImGui.input_text(input_id, _normalize_rule_name(current_name))
-        return _normalize_rule_name(updated_name)
+    def _get_rule_header_tree_label(self, tree_label: str, edit_key: str) -> str:
+        if self.rule_name_edit_key != edit_key:
+            return tree_label
+        _visible_label, separator, hidden_id = str(tree_label or "").partition("###")
+        if separator:
+            return f"###{hidden_id}"
+        return str(tree_label or "")
+
+    def _draw_rule_header_rename_controls(
+        self,
+        edit_key: str,
+        current_name: str,
+    ) -> tuple[str, bool]:
+        normalized_current_name = _normalize_rule_name(current_name)
+        if self.rule_name_edit_key != edit_key:
+            PyImGui.same_line(0, 8)
+            if PyImGui.small_button(f"Rename##{edit_key}_rename"):
+                self.rule_name_edit_key = edit_key
+                self.rule_name_edit_text = normalized_current_name
+            return normalized_current_name, False
+
+        PyImGui.same_line(0, 8)
+        PyImGui.set_next_item_width(180)
+        self.rule_name_edit_text = PyImGui.input_text(f"Rule Name##{edit_key}_input", self.rule_name_edit_text)
+        apply_clicked = PyImGui.small_button(f"Apply##{edit_key}_apply")
+        PyImGui.same_line(0, 8)
+        cancel_clicked = PyImGui.small_button(f"Cancel##{edit_key}_cancel")
+
+        if cancel_clicked:
+            self.rule_name_edit_key = ""
+            self.rule_name_edit_text = ""
+            return normalized_current_name, False
+
+        if apply_clicked:
+            updated_name = _normalize_rule_name(self.rule_name_edit_text)
+            self.rule_name_edit_key = ""
+            self.rule_name_edit_text = ""
+            return updated_name, updated_name != normalized_current_name
+
+        return normalized_current_name, False
+
+    def _draw_manual_model_ids_editor(self, edit_key: str, current_raw: str) -> tuple[str, bool]:
+        safe_current_raw = str(current_raw or "").strip()
+        if self.manual_model_ids_edit_key != edit_key:
+            PyImGui.set_next_item_width(360)
+            PyImGui.input_text(
+                f"Model IDs##{edit_key}_readonly",
+                safe_current_raw,
+                PyImGui.InputTextFlags.ReadOnly,
+            )
+            PyImGui.same_line(0, 8)
+            if PyImGui.small_button(f"Edit IDs##{edit_key}_edit"):
+                self.manual_model_ids_edit_key = edit_key
+                self.manual_model_ids_edit_text = safe_current_raw
+            return safe_current_raw, False
+
+        self.manual_model_ids_edit_text = PyImGui.input_text(
+            f"Manual Model IDs##{edit_key}_input",
+            self.manual_model_ids_edit_text,
+        )
+        apply_clicked = PyImGui.small_button(f"Apply##{edit_key}_apply")
+        PyImGui.same_line(0, 8)
+        cancel_clicked = PyImGui.small_button(f"Cancel##{edit_key}_cancel")
+
+        if cancel_clicked:
+            self.manual_model_ids_edit_key = ""
+            self.manual_model_ids_edit_text = ""
+            return safe_current_raw, False
+
+        if apply_clicked:
+            updated_raw = str(self.manual_model_ids_edit_text or "").strip()
+            self.manual_model_ids_edit_key = ""
+            self.manual_model_ids_edit_text = ""
+            return updated_raw, True
+
+        return safe_current_raw, False
 
     def _get_equippable_rule_destination(self, item: InventoryItemInfo, rule: SellRule) -> str:
         if rule.kind == SELL_KIND_WEAPONS:
@@ -6097,8 +7534,54 @@ class MerchantRulesWidget:
                 if identifier in rule.protected_weapon_mod_identifiers
             ]
             if matched_identifiers:
-                labels = [self._get_weapon_mod_label(identifier) for identifier in matched_identifiers]
+                labels = [self._get_weapon_mod_generic_label(identifier) for identifier in matched_identifiers]
                 return f"Contains protected weapon mod: {', '.join(labels)}."
+
+            matched_thresholds: list[WeaponModThresholdRule] = []
+            for threshold_rule in _normalize_weapon_mod_threshold_rules(getattr(rule, "protected_weapon_mod_thresholds", [])):
+                threshold_identifier = str(threshold_rule.identifier or "").strip()
+                if not threshold_identifier:
+                    continue
+                for match in getattr(item, "weapon_mod_matches", []) or []:
+                    if str(getattr(match, "identifier", "") or "").strip() != threshold_identifier:
+                        continue
+                    matched_value = getattr(match, "value", None)
+                    if matched_value is None:
+                        continue
+                    if _safe_int(matched_value, 0) >= int(threshold_rule.min_value):
+                        matched_thresholds.append(threshold_rule)
+                        break
+            if matched_thresholds:
+                labels = [self._format_weapon_mod_threshold_rule(threshold_rule) for threshold_rule in matched_thresholds]
+                return f"Contains protected weapon mod threshold: {', '.join(labels)}."
+
+            matched_variants: list[WeaponModVariantRule] = []
+            for variant_rule in _normalize_weapon_mod_variant_rules(getattr(rule, "protected_weapon_mod_variants", [])):
+                for match in getattr(item, "weapon_mod_matches", []) or []:
+                    if _weapon_mod_variant_matches_parsed_match(variant_rule, match):
+                        matched_variants.append(variant_rule)
+                        break
+            if matched_variants:
+                labels = [self._format_weapon_mod_variant_rule(variant_rule) for variant_rule in matched_variants]
+                return f"Contains protected weapon mod variant: {', '.join(labels)}."
+
+            matched_variant_thresholds: list[WeaponModVariantThresholdRule] = []
+            for threshold_rule in _normalize_weapon_mod_variant_threshold_rules(getattr(rule, "protected_weapon_mod_variant_thresholds", [])):
+                for match in getattr(item, "weapon_mod_matches", []) or []:
+                    if not _weapon_mod_variant_matches_parsed_match(threshold_rule, match):
+                        continue
+                    matched_value = getattr(match, "value", None)
+                    if matched_value is None:
+                        continue
+                    if _safe_int(matched_value, 0) >= int(threshold_rule.min_value):
+                        matched_variant_thresholds.append(threshold_rule)
+                        break
+            if matched_variant_thresholds:
+                labels = [
+                    self._format_weapon_mod_variant_threshold_rule(threshold_rule)
+                    for threshold_rule in matched_variant_thresholds
+                ]
+                return f"Contains protected weapon mod variant threshold: {', '.join(labels)}."
 
         if rule.kind == SELL_KIND_ARMOR:
             matched_identifiers = [
@@ -6121,14 +7604,123 @@ class MerchantRulesWidget:
             return item_name
         return f"Model {int(item.model_id)}"
 
-    def _get_weapon_requirement_hit_reason(self, item: InventoryItemInfo, rule: SellRule) -> str:
-        if rule.kind != SELL_KIND_WEAPONS:
+    def _get_perfect_base_spec(self, item: InventoryItemInfo) -> tuple[tuple[int, int] | None, int, int]:
+        item_type_id = int(getattr(item, "item_type_id", 0))
+        return (
+            PERFECT_BASE_DAMAGE_RANGES.get(item_type_id),
+            max(0, int(PERFECT_BASE_ENERGY_VALUES.get(item_type_id, 0))),
+            max(0, int(PERFECT_BASE_ARMOR_VALUES.get(item_type_id, 0))),
+        )
+
+    def _is_perfect_base_candidate_type(self, item: InventoryItemInfo) -> bool:
+        item_type_id = int(getattr(item, "item_type_id", 0))
+        return bool(
+            item_type_id in PERFECT_BASE_DAMAGE_RANGES
+            or item_type_id in PERFECT_BASE_ENERGY_VALUES
+            or item_type_id in PERFECT_BASE_ARMOR_VALUES
+        )
+
+    def _get_perfect_base_unavailable_reason(self, item: InventoryItemInfo) -> str:
+        if bool(getattr(item, "identified", False)):
             return ""
-        if not item.is_weapon_like or item.standalone_kind == WEAPON_MOD_STANDALONE_KIND:
+        if not bool(getattr(item, "is_weapon_like", False)):
+            return ""
+        if str(getattr(item, "standalone_kind", "") or "") == WEAPON_MOD_STANDALONE_KIND:
+            return ""
+        if not self._is_perfect_base_candidate_type(item):
             return ""
 
-        requirement = _normalize_weapon_requirement_level(item.requirement)
-        if requirement <= 0:
+        expected_damage, expected_energy, expected_armor = self._get_perfect_base_spec(item)
+        if _normalize_weapon_requirement_level(getattr(item, "requirement", 0)) <= 0:
+            return "Protected until identified: perfect-base stats unavailable."
+        if not _has_real_requirement_attribute(item):
+            return "Protected until identified: perfect-base stats unavailable."
+        if expected_damage is not None and (
+            max(0, _safe_int(getattr(item, "damage_min", 0), 0)) <= 0
+            or max(0, _safe_int(getattr(item, "damage_max", 0), 0)) <= 0
+        ):
+            return "Protected until identified: perfect-base stats unavailable."
+        if expected_energy > 0 and max(0, _safe_int(getattr(item, "energy", 0), 0)) <= 0:
+            return "Protected until identified: perfect-base stats unavailable."
+        if expected_armor > 0 and max(0, _safe_int(getattr(item, "armor", 0), 0)) <= 0:
+            return "Protected until identified: perfect-base stats unavailable."
+        return ""
+
+    def _format_perfect_base_stats(self, item: InventoryItemInfo) -> str:
+        item_type_id = int(getattr(item, "item_type_id", 0))
+        parts: list[str] = []
+        damage = PERFECT_BASE_DAMAGE_RANGES.get(item_type_id)
+        if damage is not None:
+            parts.append(f"{damage[0]}-{damage[1]}")
+        energy = max(0, int(PERFECT_BASE_ENERGY_VALUES.get(item_type_id, 0)))
+        if energy > 0:
+            parts.append(f"Energy +{energy}")
+        armor = max(0, int(PERFECT_BASE_ARMOR_VALUES.get(item_type_id, 0)))
+        if armor > 0:
+            parts.append(f"Armor {armor}")
+        return ", ".join(parts)
+
+    def _get_perfect_base_range_hit_reason(
+        self,
+        item: InventoryItemInfo,
+        min_requirement: int,
+        max_requirement: int,
+        *,
+        source: str,
+    ) -> str:
+        if not bool(getattr(item, "is_weapon_like", False)):
+            return ""
+        if str(getattr(item, "standalone_kind", "") or "") == WEAPON_MOD_STANDALONE_KIND:
+            return ""
+        if not self._is_perfect_base_candidate_type(item):
+            return ""
+
+        requirement = _normalize_weapon_requirement_level(getattr(item, "requirement", 0))
+        if requirement > 0 and not (min_requirement <= requirement <= max_requirement):
+            return ""
+
+        unavailable_reason = self._get_perfect_base_unavailable_reason(item)
+        if unavailable_reason:
+            return unavailable_reason
+
+        if requirement <= 0 or not _has_real_requirement_attribute(item):
+            return ""
+        if not (min_requirement <= requirement <= max_requirement):
+            return ""
+
+        expected_damage, expected_energy, expected_armor = self._get_perfect_base_spec(item)
+        if expected_damage is not None:
+            actual_damage = (
+                max(0, _safe_int(getattr(item, "damage_min", 0), 0)),
+                max(0, _safe_int(getattr(item, "damage_max", 0), 0)),
+            )
+            if actual_damage != expected_damage:
+                return ""
+        if expected_energy > 0 and max(0, _safe_int(getattr(item, "energy", 0), 0)) != expected_energy:
+            return ""
+        if expected_armor > 0 and max(0, _safe_int(getattr(item, "armor", 0), 0)) != expected_armor:
+            return ""
+
+        if source == "model":
+            label = self._get_requirement_rule_item_label(item)
+            prefix = "model"
+        else:
+            label = PERFECT_BASE_ITEM_TYPE_LABELS.get(
+                int(getattr(item, "item_type_id", 0)),
+                self._get_weapon_item_type_label(int(getattr(item, "item_type_id", 0))),
+            )
+            prefix = "all-weapons"
+        stats = self._format_perfect_base_stats(item)
+        attribute_label = _get_item_requirement_attribute_label(item)
+        attribute_suffix = f" {attribute_label}" if attribute_label else ""
+        return f"Protected by {prefix} perfect-base range: {label} {stats}, req {requirement}{attribute_suffix}."
+
+    def _get_perfect_only_unidentified_hold_reason(self, item: InventoryItemInfo, rule: SellRule) -> str:
+        if rule.kind != SELL_KIND_WEAPONS or bool(getattr(item, "identified", False)):
+            return ""
+        if not bool(getattr(item, "is_weapon_like", False)):
+            return ""
+        if str(getattr(item, "standalone_kind", "") or "") == WEAPON_MOD_STANDALONE_KIND:
             return ""
 
         has_model_requirement_range = False
@@ -6142,6 +7734,63 @@ class MerchantRulesWidget:
             if not _is_weapon_requirement_range_active(min_requirement, max_requirement):
                 continue
             has_model_requirement_range = True
+            if bool(getattr(requirement_rule, "perfect_stats_only", False)):
+                return self._get_perfect_base_range_hit_reason(
+                    item,
+                    min_requirement,
+                    max_requirement,
+                    source="model",
+                )
+
+        if has_model_requirement_range:
+            return ""
+
+        all_weapons_min_requirement, all_weapons_max_requirement = _normalize_weapon_requirement_range(
+            getattr(rule, "all_weapons_min_requirement", 0),
+            getattr(rule, "all_weapons_max_requirement", 0),
+        )
+        if (
+            bool(getattr(rule, "all_weapons_perfect_stats_only", False))
+            and _is_weapon_requirement_range_active(all_weapons_min_requirement, all_weapons_max_requirement)
+        ):
+            return self._get_perfect_base_range_hit_reason(
+                item,
+                all_weapons_min_requirement,
+                all_weapons_max_requirement,
+                source="all",
+            )
+        return ""
+
+    def _get_weapon_requirement_hit_reason(self, item: InventoryItemInfo, rule: SellRule) -> str:
+        if rule.kind != SELL_KIND_WEAPONS:
+            return ""
+        if not item.is_weapon_like or item.standalone_kind == WEAPON_MOD_STANDALONE_KIND:
+            return ""
+
+        requirement = _normalize_weapon_requirement_level(item.requirement)
+        has_model_requirement_range = False
+        for requirement_rule in rule.protected_weapon_requirement_rules:
+            if item.model_id != int(requirement_rule.model_id):
+                continue
+            min_requirement, max_requirement = _normalize_weapon_requirement_range(
+                getattr(requirement_rule, "min_requirement", 0),
+                getattr(requirement_rule, "max_requirement", 0),
+            )
+            if not _is_weapon_requirement_range_active(min_requirement, max_requirement):
+                continue
+            has_model_requirement_range = True
+            if bool(getattr(requirement_rule, "perfect_stats_only", False)):
+                perfect_reason = self._get_perfect_base_range_hit_reason(
+                    item,
+                    min_requirement,
+                    max_requirement,
+                    source="model",
+                )
+                if perfect_reason:
+                    return perfect_reason
+                continue
+            if requirement <= 0:
+                continue
             if min_requirement <= requirement <= max_requirement:
                 item_label = self._get_requirement_rule_item_label(item)
                 return f"Protected by requirement range: {item_label} req {requirement} in {min_requirement}-{max_requirement}."
@@ -6153,6 +7802,16 @@ class MerchantRulesWidget:
             getattr(rule, "all_weapons_min_requirement", 0),
             getattr(rule, "all_weapons_max_requirement", 0),
         )
+        if (
+            bool(getattr(rule, "all_weapons_perfect_stats_only", False))
+            and _is_weapon_requirement_range_active(all_weapons_min_requirement, all_weapons_max_requirement)
+        ):
+            return self._get_perfect_base_range_hit_reason(
+                item,
+                all_weapons_min_requirement,
+                all_weapons_max_requirement,
+                source="all",
+            )
         if (
             _is_weapon_requirement_range_active(all_weapons_min_requirement, all_weapons_max_requirement)
             and all_weapons_min_requirement <= requirement <= all_weapons_max_requirement
@@ -6169,6 +7828,9 @@ class MerchantRulesWidget:
         rarity_matches = self._rule_matches_selected_rarity(item, rule)
         if rarity_matches and rule.skip_customized and item.is_customized:
             return destination, "Customized item."
+        perfect_unidentified_reason = self._get_perfect_only_unidentified_hold_reason(item, rule)
+        if perfect_unidentified_reason:
+            return destination, perfect_unidentified_reason
         if rarity_matches and rule.skip_unidentified and not item.identified:
             return destination, "Unidentified item."
         if item.model_id in rule.blacklist_model_ids:
@@ -6439,6 +8101,19 @@ class MerchantRulesWidget:
                 continue
             if _normalize_rune_trader_targets(rule.rune_targets):
                 return True
+        return False
+
+    def _has_enabled_scroll_trader_buy_rules(self) -> bool:
+        for raw_rule in self.buy_rules:
+            rule = _normalize_buy_rule(raw_rule)
+            if rule is None or not rule.enabled:
+                continue
+            if rule.kind == BUY_KIND_SCROLL_TRADER_TARGET:
+                if any(_is_scroll_trader_stock_model(target.model_id) for target in _normalize_merchant_stock_targets(rule.merchant_stock_targets)):
+                    return True
+            elif rule.kind == BUY_KIND_MERCHANT_STOCK:
+                if any(_is_scroll_trader_stock_model(target.model_id) for target in _normalize_merchant_stock_targets(rule.merchant_stock_targets)):
+                    return True
         return False
 
     def _get_items_after_planned_pre_buy_actions(
@@ -7737,11 +9412,13 @@ class MerchantRulesWidget:
                 for merchant_stock_target in merchant_stock_targets:
                     merchant_stock_model_id = max(0, int(merchant_stock_target.model_id))
                     model_label = self._format_model_label(merchant_stock_model_id)
+                    target_merchant_type = MERCHANT_TYPE_SCROLL_TRADER if _is_scroll_trader_stock_model(merchant_stock_model_id) else merchant_type
+                    target_merchant_coords = coords.get(target_merchant_type)
                     if merchant_stock_model_id <= 0:
                         plan.entries.append(
                             ExecutionPlanEntry(
                                 "buy",
-                                merchant_type,
+                                target_merchant_type,
                                 BUY_KIND_LABELS[buy_rule.kind],
                                 0,
                                 PLAN_STATE_SKIPPED,
@@ -7753,7 +9430,7 @@ class MerchantRulesWidget:
                         plan.entries.append(
                             ExecutionPlanEntry(
                                 action_type="buy",
-                                merchant_type=merchant_type,
+                                merchant_type=target_merchant_type,
                                 label=model_label,
                                 quantity=0,
                                 state=PLAN_STATE_SKIPPED,
@@ -7762,15 +9439,19 @@ class MerchantRulesWidget:
                         )
                         continue
 
-                    if merchant_coords is None:
+                    if target_merchant_coords is None:
                         plan.entries.append(
                             ExecutionPlanEntry(
                                 action_type="buy",
-                                merchant_type=merchant_type,
+                                merchant_type=target_merchant_type,
                                 label=model_label,
                                 quantity=0,
                                 state=PLAN_STATE_SKIPPED,
-                                reason=f"{MERCHANT_TYPE_LABELS[merchant_type]} selector was not resolved in the current map.",
+                                reason=(
+                                    f"{self._get_scroll_trader_service_label()} selector was not resolved in the current map."
+                                    if target_merchant_type == MERCHANT_TYPE_SCROLL_TRADER
+                                    else f"{MERCHANT_TYPE_LABELS[target_merchant_type]} selector was not resolved in the current map."
+                                ),
                             )
                         )
                         continue
@@ -7784,7 +9465,7 @@ class MerchantRulesWidget:
                         plan.entries.append(
                             ExecutionPlanEntry(
                                 "buy",
-                                merchant_type,
+                                target_merchant_type,
                                 model_label,
                                 0,
                                 PLAN_STATE_SKIPPED,
@@ -7793,21 +9474,134 @@ class MerchantRulesWidget:
                         )
                         continue
                     sim_model_counts[merchant_stock_model_id] = current_count + needed
-                    plan.merchant_stock_buys.append(
-                        PlannedMerchantBuy(
-                            model_id=merchant_stock_model_id,
+                    if target_merchant_type == MERCHANT_TYPE_SCROLL_TRADER:
+                        plan.scroll_trader_buys.append(
+                            PlannedScrollTraderBuy(
+                                model_id=merchant_stock_model_id,
+                                quantity=needed,
+                                label=model_label,
+                            )
+                        )
+                        entry_reason = (
+                            "Confirmed scroll trader stock. Will request a quote and buy only if the Scroll Trader or Rare Scroll Trader offers the item."
+                        )
+                    else:
+                        plan.merchant_stock_buys.append(
+                            PlannedMerchantBuy(
+                                model_id=merchant_stock_model_id,
+                                quantity=needed,
+                                label=model_label,
+                            )
+                        )
+                        entry_reason = "Will attempt this buy only if the currently opened merchant offers the item."
+                    plan.entries.append(
+                        ExecutionPlanEntry(
+                            "buy",
+                            target_merchant_type,
+                            model_label,
+                            needed,
+                            PLAN_STATE_CONDITIONAL,
+                            entry_reason,
+                        )
+                    )
+                continue
+
+            if buy_rule.kind == BUY_KIND_SCROLL_TRADER_TARGET:
+                scroll_targets = [
+                    target
+                    for target in _normalize_merchant_stock_targets(buy_rule.merchant_stock_targets)
+                    if _is_scroll_trader_stock_model(target.model_id)
+                ]
+                if not scroll_targets:
+                    plan.entries.append(
+                        ExecutionPlanEntry(
+                            "buy",
+                            MERCHANT_TYPE_SCROLL_TRADER,
+                            BUY_KIND_LABELS[buy_rule.kind],
+                            0,
+                            PLAN_STATE_SKIPPED,
+                            "No confirmed scroll trader stock selected.",
+                        )
+                    )
+                    continue
+
+                scroll_trader_coords = coords.get(MERCHANT_TYPE_SCROLL_TRADER)
+                for scroll_target in scroll_targets:
+                    scroll_model_id = max(0, int(scroll_target.model_id))
+                    scroll_label = self._format_model_label(scroll_model_id)
+                    if scroll_model_id <= 0 or not _is_scroll_trader_stock_model(scroll_model_id):
+                        plan.entries.append(
+                            ExecutionPlanEntry(
+                                "buy",
+                                MERCHANT_TYPE_SCROLL_TRADER,
+                                BUY_KIND_LABELS[buy_rule.kind],
+                                0,
+                                PLAN_STATE_SKIPPED,
+                                "Selected item is not confirmed scroll trader stock.",
+                            )
+                        )
+                        continue
+
+                    if not supported_map:
+                        plan.entries.append(
+                            ExecutionPlanEntry(
+                                action_type="buy",
+                                merchant_type=MERCHANT_TYPE_SCROLL_TRADER,
+                                label=scroll_label,
+                                quantity=0,
+                                state=PLAN_STATE_SKIPPED,
+                                reason=supported_reason,
+                            )
+                        )
+                        continue
+
+                    if scroll_trader_coords is None:
+                        plan.entries.append(
+                            ExecutionPlanEntry(
+                                action_type="buy",
+                                merchant_type=MERCHANT_TYPE_SCROLL_TRADER,
+                                label=scroll_label,
+                                quantity=0,
+                                state=PLAN_STATE_SKIPPED,
+                                reason=f"{self._get_scroll_trader_service_label()} selector was not resolved in the current map.",
+                            )
+                        )
+                        continue
+
+                    current_count = sim_model_counts.get(scroll_model_id, 0)
+                    needed = self._apply_max_per_run(
+                        int(scroll_target.target_count) - current_count,
+                        int(scroll_target.max_per_run),
+                    )
+                    if needed <= 0:
+                        plan.entries.append(
+                            ExecutionPlanEntry(
+                                "buy",
+                                MERCHANT_TYPE_SCROLL_TRADER,
+                                scroll_label,
+                                0,
+                                PLAN_STATE_SKIPPED,
+                                "Target already met.",
+                            )
+                        )
+                        continue
+
+                    sim_model_counts[scroll_model_id] = current_count + needed
+                    plan.scroll_trader_buys.append(
+                        PlannedScrollTraderBuy(
+                            model_id=scroll_model_id,
                             quantity=needed,
-                            label=model_label,
+                            label=scroll_label,
                         )
                     )
                     plan.entries.append(
                         ExecutionPlanEntry(
                             "buy",
-                            merchant_type,
-                            model_label,
+                            MERCHANT_TYPE_SCROLL_TRADER,
+                            scroll_label,
                             needed,
                             PLAN_STATE_CONDITIONAL,
-                            "Will attempt this buy only if the currently opened merchant offers the item.",
+                            "Will request a Scroll Trader quote and buy only if the trader currently offers the item.",
                         )
                     )
                 continue
@@ -8509,6 +10303,7 @@ class MerchantRulesWidget:
             or plan.merchant_sell_item_ids
             or plan.rune_trader_sales
             or plan.rune_trader_buys
+            or plan.scroll_trader_buys
             or plan.storage_transfers
             or plan.cleanup_transfers
             or self._plan_needs_exact_storage_scan(plan)
@@ -8640,6 +10435,244 @@ class MerchantRulesWidget:
             waited_ms += max(1, int(step_ms))
             yield from Routines.Yield.wait(step_ms)
         return max(0, int(GLOBAL_CACHE.Item.Properties.GetQuantity(int(item_id))))
+
+    def _get_inventory_source_stack_quantity(self, item_id: int) -> int:
+        safe_item_id = int(item_id)
+        if safe_item_id <= 0:
+            return 0
+        try:
+            return max(0, int(self._get_inventory_stack_quantities([safe_item_id]).get(safe_item_id, 0)))
+        except Exception:
+            try:
+                return max(0, int(GLOBAL_CACHE.Item.Properties.GetQuantity(safe_item_id)))
+            except Exception:
+                return 0
+
+    def _wait_for_inventory_source_stack_quantity_target(
+        self,
+        item_id: int,
+        expected_quantity: int,
+        *,
+        timeout_ms: int = 2000,
+        step_ms: int = 50,
+    ):
+        waited_ms = 0
+        safe_expected_quantity = max(0, int(expected_quantity))
+        while waited_ms <= max(0, int(timeout_ms)):
+            current_quantity = self._get_inventory_source_stack_quantity(int(item_id))
+            if current_quantity <= safe_expected_quantity:
+                return current_quantity
+            waited_ms += max(1, int(step_ms))
+            yield from Routines.Yield.wait(step_ms)
+        return self._get_inventory_source_stack_quantity(int(item_id))
+
+    def _is_live_material_item(self, item_id: int, *, model_id: int = 0) -> bool:
+        safe_item_id = int(item_id)
+        if safe_item_id <= 0:
+            return False
+        safe_model_id = max(0, int(model_id))
+        try:
+            item_type_api = getattr(GLOBAL_CACHE.Item, "Type", None)
+            if item_type_api is not None:
+                is_material = bool(getattr(item_type_api, "IsMaterial", lambda _item_id: False)(safe_item_id))
+                is_rare_material = bool(getattr(item_type_api, "IsRareMaterial", lambda _item_id: False)(safe_item_id))
+                if is_material or is_rare_material:
+                    return True
+        except Exception:
+            pass
+        if safe_model_id <= 0:
+            try:
+                safe_model_id = max(0, int(GLOBAL_CACHE.Item.GetModelID(safe_item_id)))
+            except Exception:
+                safe_model_id = 0
+        return safe_model_id in ALL_CRAFTING_MATERIAL_MODEL_IDS
+
+    def _get_material_storage_quantity_and_slot(self, model_id: int) -> tuple[int, int | None, int]:
+        safe_model_id = max(0, int(model_id))
+        if safe_model_id <= 0:
+            return 0, None, 0
+
+        material_quantity = 0
+        resolved_slot: int | None = None
+        bag_size = 0
+        try:
+            import PyInventory
+
+            material_bag = PyInventory.Bag(MATERIAL_STORAGE_BAG_ID, MATERIAL_STORAGE_BAG_NAME)
+            try:
+                bag_size = max(0, int(material_bag.GetSize()))
+            except Exception:
+                bag_size = 0
+            for material_item in material_bag.GetItems():
+                if not material_item:
+                    continue
+                material_item_id = max(0, _safe_int(getattr(material_item, "item_id", 0), 0))
+                if material_item_id <= 0:
+                    continue
+                candidate_model_id = max(0, _safe_int(getattr(material_item, "model_id", 0), 0))
+                if candidate_model_id <= 0:
+                    try:
+                        candidate_model_id = max(0, int(GLOBAL_CACHE.Item.GetModelID(material_item_id)))
+                    except Exception:
+                        candidate_model_id = 0
+                if candidate_model_id != safe_model_id:
+                    continue
+                quantity = max(0, _safe_int(getattr(material_item, "quantity", 0), 0))
+                if quantity <= 0:
+                    try:
+                        quantity = max(0, int(GLOBAL_CACHE.Item.Properties.GetQuantity(material_item_id)))
+                    except Exception:
+                        quantity = 0
+                material_quantity += quantity
+                if resolved_slot is None:
+                    slot = _safe_int(getattr(material_item, "slot", -1), -1)
+                    if slot < 0:
+                        try:
+                            slot = int(GLOBAL_CACHE.Item.GetSlot(material_item_id))
+                        except Exception:
+                            slot = -1
+                    if slot >= 0:
+                        resolved_slot = int(slot)
+            return material_quantity, resolved_slot, bag_size
+        except Exception as exc:
+            self._debug_log(f"Material Storage live scan unavailable; falling back to item cache scan: {exc}")
+
+        try:
+            item_array_api = getattr(GLOBAL_CACHE, "ItemArray", None)
+            item_api = getattr(GLOBAL_CACHE, "Item", None)
+            if item_array_api is None or item_api is None:
+                return 0, None, 0
+            material_storage_bags = item_array_api.CreateBagList(MATERIAL_STORAGE_BAG_ID)
+            material_item_ids = item_array_api.GetItemArray(material_storage_bags)
+            for material_item_id in material_item_ids:
+                safe_material_item_id = int(material_item_id)
+                if safe_material_item_id <= 0:
+                    continue
+                if int(item_api.GetModelID(safe_material_item_id)) != safe_model_id:
+                    continue
+                material_quantity += max(0, int(item_api.Properties.GetQuantity(safe_material_item_id)))
+                if resolved_slot is None:
+                    slot = int(item_api.GetSlot(safe_material_item_id))
+                    if slot >= 0:
+                        resolved_slot = slot
+        except Exception:
+            return material_quantity, resolved_slot, bag_size
+
+        return material_quantity, resolved_slot, bag_size
+
+    def _deposit_material_to_storage_first(
+        self,
+        item_id: int,
+        requested_quantity: int,
+        *,
+        current_quantity: int | None = None,
+        planned_model_id: int = 0,
+    ) -> MaterialStorageDepositResult:
+        safe_item_id = int(item_id)
+        safe_requested_quantity = max(0, int(requested_quantity))
+        result = MaterialStorageDepositResult(remaining_quantity=safe_requested_quantity)
+        if safe_item_id <= 0 or safe_requested_quantity <= 0:
+            return result
+
+        safe_planned_model_id = max(0, int(planned_model_id))
+        try:
+            live_model_id = max(0, int(GLOBAL_CACHE.Item.GetModelID(safe_item_id)))
+        except Exception:
+            live_model_id = 0
+        model_id = live_model_id if live_model_id > 0 else safe_planned_model_id
+        if model_id <= 0:
+            return result
+        if not self._is_live_material_item(safe_item_id, model_id=model_id):
+            if model_id in ALL_CRAFTING_MATERIAL_MODEL_IDS:
+                self._debug_log(
+                    f"Material storage skipped: item_id={safe_item_id} model={model_id} was not classified as a live material."
+                )
+            return result
+
+        current_storage_quantity, resolved_slot, storage_bag_size = self._get_material_storage_quantity_and_slot(model_id)
+        target_slot = resolved_slot
+        if target_slot is None:
+            target_slot = MATERIAL_STORAGE_SLOT_BY_MODEL_ID.get(model_id)
+        if target_slot is None:
+            self._debug_log(
+                f"Material storage slot unresolved for item_id={safe_item_id} model={model_id}; falling back to regular storage panes."
+            )
+            return result
+        if storage_bag_size > 0 and not (0 <= int(target_slot) < storage_bag_size):
+            self._debug_log(
+                f"Material storage slot invalid for item_id={safe_item_id} model={model_id}: "
+                f"slot={int(target_slot)} bag_size={storage_bag_size}; falling back to regular storage panes."
+            )
+            return result
+
+        available_capacity = max(0, MATERIAL_STORAGE_MAX_STACK_SIZE - max(0, int(current_storage_quantity)))
+        reported_full = available_capacity <= 0
+        if reported_full:
+            self._debug_log(
+                f"Material storage reported full for model={model_id}; probing known slot={int(target_slot)} before regular fallback."
+            )
+
+        source_before = (
+            max(0, int(current_quantity))
+            if current_quantity is not None
+            else self._get_inventory_source_stack_quantity(safe_item_id)
+        )
+        if source_before <= 0:
+            return result
+
+        material_move_quantity = min(
+            safe_requested_quantity,
+            source_before,
+            available_capacity if not reported_full else safe_requested_quantity,
+        )
+        if material_move_quantity <= 0:
+            return result
+
+        move_item = getattr(getattr(GLOBAL_CACHE, "Inventory", None), "MoveItem", None)
+        if not callable(move_item):
+            return result
+
+        self._debug_log(
+            f"Material storage deposit attempt: item_id={safe_item_id} model={model_id} "
+            f"source={source_before} storage={current_storage_quantity} "
+            f"slot={int(target_slot)} move={material_move_quantity}"
+        )
+        try:
+            move_item(safe_item_id, MATERIAL_STORAGE_BAG_ID, int(target_slot), int(material_move_quantity))
+        except Exception as exc:
+            self._debug_log(
+                f"Material storage deposit fallback: item_id={safe_item_id} model={model_id} "
+                f"move failed before queueing: {exc}"
+            )
+            return result
+
+        result.attempted = True
+        queue_cleared = yield from self._wait_for_action_queue_empty("ACTION", timeout_ms=2000, step_ms=50)
+        final_quantity = self._get_inventory_source_stack_quantity(safe_item_id)
+        if queue_cleared:
+            expected_quantity = max(0, source_before - material_move_quantity)
+            final_quantity = yield from self._wait_for_inventory_source_stack_quantity_target(
+                safe_item_id,
+                expected_quantity,
+                timeout_ms=2000,
+                step_ms=50,
+            )
+
+        moved_quantity = min(material_move_quantity, max(0, source_before - max(0, int(final_quantity))))
+        result.moved_quantity = moved_quantity
+        result.remaining_quantity = max(0, safe_requested_quantity - moved_quantity)
+        if moved_quantity <= 0:
+            result.abort_regular_fallback = True
+            self._debug_log(
+                f"Material storage deposit unverified: item_id={safe_item_id} model={model_id} "
+                f"requested={material_move_quantity}; regular storage fallback skipped for this pass."
+            )
+        else:
+            self._debug_log(
+                f"Material storage deposit: item_id={safe_item_id} model={model_id} "
+                f"moved={moved_quantity} remaining={result.remaining_quantity}"
+            )
+        return result
 
     def _execute_destroy_phase(self, destroy_actions: list[PlannedDestroyAction] | list[int]) -> ExecutionPhaseOutcome:
         raw_destroy_actions = list(destroy_actions or [])
@@ -9045,6 +11078,39 @@ class MerchantRulesWidget:
             if transfer.direction == STORAGE_TRANSFER_WITHDRAW:
                 moved = bool(GLOBAL_CACHE.Inventory.WithdrawItemFromStorage(item_id, ammount=requested_quantity))
             elif transfer.direction == STORAGE_TRANSFER_DEPOSIT:
+                material_storage_result = yield from self._deposit_material_to_storage_first(
+                    item_id,
+                    requested_quantity,
+                    current_quantity=current_quantity,
+                    planned_model_id=transfer.model_id,
+                )
+                if material_storage_result.attempted:
+                    if material_storage_result.moved_quantity > 0:
+                        outcome.completed += int(material_storage_result.moved_quantity)
+                    if material_storage_result.abort_regular_fallback:
+                        outcome.timeout_failures += max(
+                            0,
+                            requested_quantity - max(0, int(material_storage_result.moved_quantity)),
+                        )
+                        outcome.depleted += depleted_quantity
+                        yield from Routines.Yield.wait(60)
+                        continue
+
+                    requested_quantity = max(0, int(material_storage_result.remaining_quantity))
+                    if requested_quantity <= 0:
+                        outcome.depleted += depleted_quantity
+                        yield from Routines.Yield.wait(60)
+                        continue
+
+                    current_quantity = max(0, int(GLOBAL_CACHE.Item.Properties.GetQuantity(item_id)))
+                    post_material_depleted_quantity = max(0, requested_quantity - current_quantity)
+                    requested_quantity = min(requested_quantity, current_quantity)
+                    if requested_quantity <= 0:
+                        outcome.depleted += depleted_quantity + post_material_depleted_quantity
+                        yield from Routines.Yield.wait(60)
+                        continue
+                    depleted_quantity += post_material_depleted_quantity
+
                 moved = bool(GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id, ammount=requested_quantity))
 
             if not moved:
@@ -9126,6 +11192,92 @@ class MerchantRulesWidget:
                 ConsoleLog(
                     MODULE_NAME,
                     f"{planned_buy.label} was not offered by the Rune Trader.",
+                    Console.MessageType.Warning,
+                )
+                continue
+
+            for _ in range(max(0, int(planned_buy.quantity))):
+                character_gold = int(GLOBAL_CACHE.Inventory.GetGoldOnCharacter())
+                quoted_value = yield from Routines.Yield.Merchant._wait_for_quote(  # pylint: disable=protected-access
+                    GLOBAL_CACHE.Trading.Trader.RequestQuote,
+                    trader_item_id,
+                    timeout_ms=750,
+                    step_ms=10,
+                )
+                if quoted_value <= 0:
+                    outcome.quote_failures += 1
+                    break
+                if character_gold < quoted_value:
+                    outcome.gold_blocked += 1
+                    break
+
+                GLOBAL_CACHE.Trading.Trader.BuyItem(trader_item_id, quoted_value)
+                completed = yield from Routines.Yield.Merchant._wait_for_transaction(  # pylint: disable=protected-access
+                    timeout_ms=750,
+                    step_ms=10,
+                )
+                if not completed:
+                    outcome.timeout_failures += 1
+                    break
+                outcome.completed += 1
+                yield from Routines.Yield.wait(40)
+
+        self._debug_log(
+            f"{phase_label}: completed={outcome.completed}/{outcome.attempted} "
+            f"unavailable={outcome.unavailable} quote_failures={outcome.quote_failures} "
+            f"timeouts={outcome.timeout_failures} gold_blocked={outcome.gold_blocked} "
+            f"load_failures={outcome.load_failures}"
+        )
+        return outcome
+
+    def _buy_planned_scroll_trader_items(
+        self,
+        coords: tuple[float, float],
+        scroll_buys: list[PlannedScrollTraderBuy],
+        *,
+        phase_label: str = "Scroll trader buys",
+    ) -> ExecutionPhaseOutcome:
+        outcome = ExecutionPhaseOutcome(
+            label=phase_label,
+            measure_label="items",
+            attempted=sum(max(0, int(planned_buy.quantity)) for planned_buy in scroll_buys),
+        )
+        if not scroll_buys:
+            return outcome
+
+        self._debug_log(
+            f"{phase_label}: coords={self._format_debug_coords(coords)} "
+            f"planned_targets={len(scroll_buys)} planned_items={outcome.attempted}"
+        )
+        x, y = coords
+        trader_items = yield from Routines.Yield.Merchant._interact_with_trader_xy(  # pylint: disable=protected-access
+            x,
+            y,
+            inventory_timeout_ms=2500,
+            inventory_step_ms=10,
+        )
+        if not trader_items:
+            ConsoleLog(MODULE_NAME, f"{phase_label} inventory did not load.", Console.MessageType.Warning)
+            outcome.load_failures += 1
+            self._debug_log(f"{phase_label}: trader inventory failed to load at {self._format_debug_coords(coords)}.")
+            return outcome
+
+        for planned_buy in scroll_buys:
+            safe_model_id = max(0, _safe_int(planned_buy.model_id, 0))
+            if safe_model_id <= 0 or not _is_scroll_trader_stock_model(safe_model_id):
+                outcome.unavailable += max(0, int(planned_buy.quantity))
+                continue
+
+            trader_item_id = 0
+            for candidate in trader_items:
+                if int(GLOBAL_CACHE.Item.GetModelID(candidate)) == safe_model_id:
+                    trader_item_id = int(candidate)
+                    break
+            if trader_item_id <= 0:
+                outcome.unavailable += max(0, int(planned_buy.quantity))
+                ConsoleLog(
+                    MODULE_NAME,
+                    f"{planned_buy.label} was not offered by the {self._get_scroll_trader_service_label()}.",
                     Console.MessageType.Warning,
                 )
                 continue
@@ -9441,6 +11593,7 @@ class MerchantRulesWidget:
                         or plan.material_sales
                         or plan.merchant_sell_item_ids
                         or plan.rune_trader_sales
+                        or plan.scroll_trader_buys
                     )
                     if not has_other_runnable_actions:
                         self.status_message = "Could not open Xunlai for exact storage-aware execution."
@@ -9578,6 +11731,20 @@ class MerchantRulesWidget:
             rune_buy_summary = self._format_execution_phase_summary(rune_buy_outcome)
             if rune_buy_summary:
                 phase_summaries.append(rune_buy_summary)
+
+            scroll_trader_coords = plan.coords.get(MERCHANT_TYPE_SCROLL_TRADER)
+            scroll_buy_outcome = ExecutionPhaseOutcome(label="Scroll trader buys", measure_label="items")
+            scroll_buys_started_at = time.perf_counter()
+            if scroll_trader_coords and plan.scroll_trader_buys:
+                scroll_buy_outcome = yield from self._buy_planned_scroll_trader_items(
+                    scroll_trader_coords,
+                    plan.scroll_trader_buys,
+                    phase_label="Scroll trader buys",
+                )
+            self.last_execution_phase_durations_ms["scroll_buys"] = max(0.0, (time.perf_counter() - scroll_buys_started_at) * 1000.0)
+            scroll_buy_summary = self._format_execution_phase_summary(scroll_buy_outcome)
+            if scroll_buy_summary:
+                phase_summaries.append(scroll_buy_summary)
 
             merchant_buy_outcome = ExecutionPhaseOutcome(
                 label="Merchant stock",
@@ -9951,11 +12118,88 @@ class MerchantRulesWidget:
             PyImGui.pop_style_color(3)
         return bool(clicked)
 
+    def _clear_pending_destructive_button(self):
+        self.pending_destructive_button_key = ""
+        self.pending_destructive_button_expires_at_ms = 0
+
+    def _get_destructive_button_key(self, label: str) -> str:
+        safe_label = str(label or "")
+        _visible_label, separator, hidden_id = safe_label.partition("##")
+        return hidden_id if separator else safe_label
+
+    def _get_destructive_confirm_label(self, label: str) -> str:
+        safe_label = str(label or "")
+        _visible_label, separator, hidden_id = safe_label.partition("##")
+        return f"Are you sure?##{hidden_id}" if separator else "Are you sure?"
+
+    def _push_destructive_confirm_button_style(self):
+        base = (0.36, 0.27, 0.09, 0.98)
+        hover = (0.46, 0.35, 0.12, 1.0)
+        active = (0.28, 0.20, 0.07, 1.0)
+        text = (0.98, 0.94, 0.82, 1.0)
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Button, base)
+        PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, hover)
+        PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, active)
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Text, text)
+
+    def _draw_confirm_destructive_button(self, label: str, *, small: bool = False) -> bool:
+        now_ms = int(time.time() * 1000)
+        if self.pending_destructive_button_expires_at_ms <= now_ms:
+            self._clear_pending_destructive_button()
+
+        key = self._get_destructive_button_key(label)
+        is_armed = bool(key and key == self.pending_destructive_button_key)
+        draw_label = self._get_destructive_confirm_label(label) if is_armed else label
+
+        if is_armed:
+            self._push_destructive_confirm_button_style()
+        clicked = PyImGui.small_button(draw_label) if small else PyImGui.button(draw_label)
+        if is_armed:
+            PyImGui.pop_style_color(4)
+
+        if not clicked:
+            return False
+        if is_armed:
+            self._clear_pending_destructive_button()
+            return True
+
+        self.shared_profile_pending_overwrite_path = ""
+        self.shared_profile_pending_delete_path = ""
+        self.pending_destructive_button_key = key
+        self.pending_destructive_button_expires_at_ms = now_ms + DESTRUCTIVE_BUTTON_CONFIRM_TIMEOUT_MS
+        return False
+
     def _draw_inline_badge(self, label: str, color: tuple[float, float, float, float]):
         PyImGui.text_colored(f"[{label}]", color)
 
     def _draw_section_heading(self, label: str):
         PyImGui.text_colored(label, UI_COLOR_SECTION_HEADING)
+
+    def _draw_hover_tooltip(self, text: str):
+        if not text or not PyImGui.is_item_hovered():
+            return
+        tooltip_wrap_width = 360.0
+        PyImGui.begin_tooltip()
+        PyImGui.push_text_wrap_pos(PyImGui.get_cursor_pos_x() + tooltip_wrap_width)
+        PyImGui.text_wrapped(text)
+        PyImGui.pop_text_wrap_pos()
+        PyImGui.end_tooltip()
+
+    def _draw_protection_heading(self, label: str, tooltip: str = ""):
+        PyImGui.text_colored(label, UI_COLOR_WARNING)
+        self._draw_hover_tooltip(tooltip)
+
+    def _draw_protection_checkbox(self, label: str, value: bool, tooltip: str = "") -> bool:
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Text, UI_COLOR_WARNING)
+        next_value = PyImGui.checkbox(label, value)
+        PyImGui.pop_style_color(1)
+        self._draw_hover_tooltip(tooltip)
+        return next_value
+
+    def _draw_light_separator(self):
+        PyImGui.spacing()
+        PyImGui.separator()
+        PyImGui.spacing()
 
     def _draw_secondary_text(self, text: str, *, wrapped: bool = True):
         if not text:
@@ -10007,6 +12251,7 @@ class MerchantRulesWidget:
             MERCHANT_TYPE_MERCHANT: bool(coords.get(MERCHANT_TYPE_MERCHANT)),
             MERCHANT_TYPE_MATERIALS: bool(coords.get(MERCHANT_TYPE_MATERIALS)),
             MERCHANT_TYPE_RUNE_TRADER: bool(coords.get(MERCHANT_TYPE_RUNE_TRADER)),
+            MERCHANT_TYPE_SCROLL_TRADER: bool(coords.get(MERCHANT_TYPE_SCROLL_TRADER)),
             MERCHANT_TYPE_RARE_MATERIALS: bool(coords.get(MERCHANT_TYPE_RARE_MATERIALS)),
             MERCHANT_TYPE_STORAGE: self._has_local_storage_access(),
             MERCHANT_TYPE_INVENTORY: True,
@@ -10016,6 +12261,7 @@ class MerchantRulesWidget:
             availability_here[MERCHANT_TYPE_MERCHANT] = False
             availability_here[MERCHANT_TYPE_MATERIALS] = False
             availability_here[MERCHANT_TYPE_RUNE_TRADER] = False
+            availability_here[MERCHANT_TYPE_SCROLL_TRADER] = False
             availability_here[MERCHANT_TYPE_RARE_MATERIALS] = False
         return availability_here
 
@@ -10198,6 +12444,15 @@ class MerchantRulesWidget:
             key=lambda identifier: self._get_identifier_display_sort_key(identifier, formatter),
         )
 
+    def _sort_weapon_mod_thresholds_for_display(self, threshold_rules: list[WeaponModThresholdRule]) -> list[WeaponModThresholdRule]:
+        return sorted(
+            list(threshold_rules),
+            key=lambda threshold_rule: (
+                self._get_identifier_display_sort_key(threshold_rule.identifier, self._get_weapon_mod_label),
+                int(threshold_rule.min_value),
+            ),
+        )
+
     def _sort_targets_by_identifier_label_for_display(self, targets: list[object], formatter) -> list[object]:
         return sorted(
             list(targets),
@@ -10266,7 +12521,7 @@ class MerchantRulesWidget:
         self._draw_secondary_text(f"Recovery Folder: {recovery_folder}")
 
         PyImGui.begin_disabled(not backup_exists)
-        restore_clicked = PyImGui.button("Restore Last Backup##merchant_rules_restore_backup")
+        restore_clicked = self._draw_confirm_destructive_button("Restore Last Backup##merchant_rules_restore_backup")
         PyImGui.end_disabled()
         PyImGui.same_line(0, 8)
         open_folder_clicked = PyImGui.button("Open Config Folder##merchant_rules_open_config_folder")
@@ -10302,6 +12557,7 @@ class MerchantRulesWidget:
                 ("rune_sales", "Rune sales"),
                 ("storage_transfers", "Storage withdraws"),
                 ("rune_buys", "Rune buys"),
+                ("scroll_buys", "Scroll buys"),
                 ("material_buys", "Material buys"),
                 ("rare_material_buys", "Rare buys"),
                 ("cleanup_deposits", "Cleanup / Xunlai"),
@@ -10359,6 +12615,31 @@ class MerchantRulesWidget:
             ]
             summary = self._format_compact_list(target_labels, limit=2) or f"{len(rune_targets)} rune target(s)"
             return f"{len(rune_targets)} target(s) | {summary}", True
+        if normalized_rule.kind == BUY_KIND_SCROLL_TRADER_TARGET:
+            scroll_targets = [
+                target
+                for target in _normalize_merchant_stock_targets(normalized_rule.merchant_stock_targets)
+                if _is_scroll_trader_stock_model(target.model_id)
+            ]
+            if not scroll_targets:
+                return "Choose one or more confirmed scroll trader stock items to maintain.", False
+            if len(scroll_targets) == 1:
+                scroll_target = scroll_targets[0]
+                parts = [self._format_model_label(scroll_target.model_id)]
+                if scroll_target.target_count > 0:
+                    parts.append(f"Target {int(scroll_target.target_count)}")
+                else:
+                    parts.append("No target set")
+                if scroll_target.max_per_run > 0:
+                    parts.append(f"Max/run {int(scroll_target.max_per_run)}")
+                return " | ".join(parts), True
+
+            target_labels = [
+                self._get_model_name(target.model_id) or str(target.model_id)
+                for target in self._sort_targets_by_model_label_for_display(scroll_targets)
+            ]
+            summary = self._format_compact_list(target_labels, limit=2) or f"{len(scroll_targets)} scroll target(s)"
+            return f"{len(scroll_targets)} scroll target(s) | {summary}", True
         if normalized_rule.kind == BUY_KIND_MERCHANT_STOCK:
             merchant_stock_targets = _normalize_merchant_stock_targets(normalized_rule.merchant_stock_targets)
             if not merchant_stock_targets:
@@ -10436,7 +12717,10 @@ class MerchantRulesWidget:
                 getattr(normalized_rule, "all_weapons_max_requirement", 0),
             )
             if _is_weapon_requirement_range_active(all_weapons_min_requirement, all_weapons_max_requirement):
-                parts.append(f"All weapons req {all_weapons_min_requirement}-{all_weapons_max_requirement}")
+                if bool(getattr(normalized_rule, "all_weapons_perfect_stats_only", False)):
+                    parts.append(f"All weapons perfect req {all_weapons_min_requirement}-{all_weapons_max_requirement}")
+                else:
+                    parts.append(f"All weapons req {all_weapons_min_requirement}-{all_weapons_max_requirement}")
             active_requirement_rule_count = sum(
                 1
                 for requirement_rule in normalized_rule.protected_weapon_requirement_rules
@@ -10446,9 +12730,28 @@ class MerchantRulesWidget:
                 )
             )
             if active_requirement_rule_count > 0:
-                parts.append(f"Req ranges {active_requirement_rule_count}")
-        if normalized_rule.kind == SELL_KIND_WEAPONS and normalized_rule.protected_weapon_mod_identifiers:
-            parts.append(f"Protected mods {len(normalized_rule.protected_weapon_mod_identifiers)}")
+                perfect_requirement_rule_count = sum(
+                    1
+                    for requirement_rule in normalized_rule.protected_weapon_requirement_rules
+                    if bool(getattr(requirement_rule, "perfect_stats_only", False))
+                    and _is_weapon_requirement_range_active(
+                        getattr(requirement_rule, "min_requirement", 0),
+                        getattr(requirement_rule, "max_requirement", 0),
+                    )
+                )
+                if perfect_requirement_rule_count > 0:
+                    parts.append(f"Req ranges {active_requirement_rule_count} ({perfect_requirement_rule_count} perfect)")
+                else:
+                    parts.append(f"Req ranges {active_requirement_rule_count}")
+        if normalized_rule.kind == SELL_KIND_WEAPONS:
+            protected_mod_count = (
+                len(normalized_rule.protected_weapon_mod_identifiers)
+                + len(normalized_rule.protected_weapon_mod_thresholds)
+                + len(normalized_rule.protected_weapon_mod_variants)
+                + len(normalized_rule.protected_weapon_mod_variant_thresholds)
+            )
+            if protected_mod_count > 0:
+                parts.append(f"Protected mods {protected_mod_count}")
         if normalized_rule.kind == SELL_KIND_ARMOR and normalized_rule.protected_rune_identifiers:
             parts.append(f"Protected runes {len(normalized_rule.protected_rune_identifiers)}")
         if normalized_rule.kind == SELL_KIND_ARMOR and normalized_rule.include_standalone_runes:
@@ -10495,6 +12798,7 @@ class MerchantRulesWidget:
         merchant_stock_rules: dict[int, list[int]] = {}
         material_target_rules: dict[int, list[int]] = {}
         rune_target_rules: dict[str, list[int]] = {}
+        scroll_target_rules: dict[int, list[int]] = {}
         for index, raw_rule in enumerate(self.buy_rules):
             rule = _normalize_buy_rule(raw_rule)
             if rule is None or not rule.enabled:
@@ -10502,7 +12806,10 @@ class MerchantRulesWidget:
             if rule.kind == BUY_KIND_MERCHANT_STOCK:
                 for target in _normalize_merchant_stock_targets(rule.merchant_stock_targets):
                     if int(target.model_id) > 0:
-                        merchant_stock_rules.setdefault(int(target.model_id), []).append(index)
+                        if _is_scroll_trader_stock_model(target.model_id):
+                            scroll_target_rules.setdefault(int(target.model_id), []).append(index)
+                        else:
+                            merchant_stock_rules.setdefault(int(target.model_id), []).append(index)
             elif rule.kind == BUY_KIND_MATERIAL_TARGET:
                 for target in _normalize_material_targets(rule.material_targets):
                     if int(target.model_id) > 0:
@@ -10511,6 +12818,10 @@ class MerchantRulesWidget:
                 for target in _normalize_rune_trader_targets(rule.rune_targets):
                     if target.identifier:
                         rune_target_rules.setdefault(str(target.identifier), []).append(index)
+            elif rule.kind == BUY_KIND_SCROLL_TRADER_TARGET:
+                for target in _normalize_merchant_stock_targets(rule.merchant_stock_targets):
+                    if _is_scroll_trader_stock_model(target.model_id):
+                        scroll_target_rules.setdefault(int(target.model_id), []).append(index)
 
         for model_id, indices in sorted(merchant_stock_rules.items()):
             if len(indices) < 2:
@@ -10532,6 +12843,13 @@ class MerchantRulesWidget:
             diagnostics.append(
                 f"{self._get_rune_label(identifier)} is maintained by buy rules {self._format_rule_index_list(indices, rules=self.buy_rules)}. "
                 f"Later rules only see shortages left after earlier rune targets update the simulated stock."
+            )
+        for model_id, indices in sorted(scroll_target_rules.items(), key=lambda row: self._get_model_display_sort_key(row[0])):
+            if len(indices) < 2:
+                continue
+            diagnostics.append(
+                f"{self._format_model_label(model_id)} is maintained by buy rules {self._format_rule_index_list(indices, rules=self.buy_rules)}. "
+                f"Later rules only see shortages left after earlier scroll trader targets update the simulated stock."
             )
         return diagnostics
 
@@ -10672,7 +12990,7 @@ class MerchantRulesWidget:
                 buy_model_ids: set[int] = set()
                 if buy_rule.kind == BUY_KIND_MATERIAL_TARGET:
                     buy_model_ids = {int(target.model_id) for target in buy_rule.material_targets}
-                elif buy_rule.kind == BUY_KIND_MERCHANT_STOCK:
+                elif buy_rule.kind in (BUY_KIND_MERCHANT_STOCK, BUY_KIND_SCROLL_TRADER_TARGET):
                     buy_model_ids = {int(target.model_id) for target in buy_rule.merchant_stock_targets}
                 overlap_ids = sorted(destroy_model_ids & buy_model_ids)
                 if overlap_ids:
@@ -11857,7 +14175,7 @@ class MerchantRulesWidget:
         batch_running = self._is_multibox_batch_running()
         no_selection = not selected_emails
         PyImGui.begin_disabled(no_selection or batch_running)
-        sync_clicked = PyImGui.button("Sync Rules To Selected")
+        sync_clicked = self._draw_confirm_destructive_button("Sync Rules To Selected##merchant_rules_multibox_sync_selected")
         PyImGui.end_disabled()
         PyImGui.same_line(0, 8)
         PyImGui.begin_disabled(no_selection or batch_running)
@@ -11925,6 +14243,10 @@ class MerchantRulesWidget:
         PyImGui.same_line(0, 8)
         if PyImGui.button("Runes & Insignias##guided_buy_runes"):
             self._add_buy_rule_of_kind(BUY_KIND_RUNE_TRADER_TARGET)
+            return
+        PyImGui.same_line(0, 8)
+        if PyImGui.button("Scroll Trader Stock##guided_buy_scrolls"):
+            self._add_buy_rule_of_kind(BUY_KIND_SCROLL_TRADER_TARGET)
             return
         PyImGui.spacing()
         self._draw_section_heading("Sell")
@@ -12032,6 +14354,7 @@ class MerchantRulesWidget:
             ("Merchant", coords[MERCHANT_TYPE_MERCHANT] is not None),
             ("Materials", coords[MERCHANT_TYPE_MATERIALS] is not None),
             ("Rune Trader", coords[MERCHANT_TYPE_RUNE_TRADER] is not None),
+            ("Scroll Trader", coords[MERCHANT_TYPE_SCROLL_TRADER] is not None),
             ("Rare Trader", coords[MERCHANT_TYPE_RARE_MATERIALS] is not None),
         )
         for badge_index, (label, available) in enumerate(npc_badges):
@@ -12199,8 +14522,10 @@ class MerchantRulesWidget:
         checkbox_label: str,
         enabled: bool,
         *,
+        rename_edit_key: str = "",
+        rule_name: str = "",
         force_open: bool = False,
-    ) -> tuple[bool, bool, bool]:
+    ) -> tuple[bool, bool, bool, str, bool]:
         table_flags = PyImGui.TableFlags.RowBg | PyImGui.TableFlags.BordersInnerV
         if PyImGui.begin_table(table_id, 3, table_flags):
             PyImGui.table_setup_column("Rule", PyImGui.TableColumnFlags.WidthStretch)
@@ -12213,14 +14538,24 @@ class MerchantRulesWidget:
             PyImGui.same_line(0, 6)
             self._draw_inline_badge(type_label, type_color)
             PyImGui.same_line(0, 8)
-            tree_flags = getattr(PyImGui.TreeNodeFlags, "SpanFullWidth", PyImGui.TreeNodeFlags.NoFlag)
+            tree_flags = PyImGui.TreeNodeFlags.NoFlag
+            if not rename_edit_key:
+                tree_flags = getattr(PyImGui.TreeNodeFlags, "SpanFullWidth", PyImGui.TreeNodeFlags.NoFlag)
             if force_open:
                 self._debug_log(f"Protections jump applying rule-header force-open before tree node: {tree_label}")
                 self._force_next_item_open(True)
+            draw_tree_label = self._get_rule_header_tree_label(tree_label, rename_edit_key) if rename_edit_key else tree_label
             self._push_rule_header_hover_style()
-            opened = PyImGui.tree_node_ex(tree_label, tree_flags)
+            opened = PyImGui.tree_node_ex(draw_tree_label, tree_flags)
             header_clicked = bool(PyImGui.is_item_clicked(0))
             PyImGui.pop_style_color(3)
+            updated_rule_name = _normalize_rule_name(rule_name)
+            renamed = False
+            if rename_edit_key:
+                updated_rule_name, renamed = self._draw_rule_header_rename_controls(
+                    rename_edit_key,
+                    rule_name,
+                )
 
             PyImGui.table_set_column_index(1)
             self._draw_inline_badge(state_label, state_color)
@@ -12231,7 +14566,7 @@ class MerchantRulesWidget:
             PyImGui.table_set_column_index(2)
             new_enabled = PyImGui.checkbox(checkbox_label, enabled)
             PyImGui.end_table()
-            return bool(opened), bool(new_enabled), header_clicked
+            return bool(opened), bool(new_enabled), header_clicked, updated_rule_name, renamed
 
         PyImGui.text_colored("|", type_color)
         PyImGui.same_line(0, 6)
@@ -12240,10 +14575,18 @@ class MerchantRulesWidget:
         if force_open:
             self._debug_log(f"Protections jump applying rule-header force-open before tree node: {tree_label}")
             self._force_next_item_open(True)
+        draw_tree_label = self._get_rule_header_tree_label(tree_label, rename_edit_key) if rename_edit_key else tree_label
         self._push_rule_header_hover_style()
-        opened = PyImGui.tree_node(tree_label)
+        opened = PyImGui.tree_node(draw_tree_label)
         header_clicked = bool(PyImGui.is_item_clicked(0))
         PyImGui.pop_style_color(3)
+        updated_rule_name = _normalize_rule_name(rule_name)
+        renamed = False
+        if rename_edit_key:
+            updated_rule_name, renamed = self._draw_rule_header_rename_controls(
+                rename_edit_key,
+                rule_name,
+            )
         PyImGui.same_line(0, 8)
         self._draw_inline_badge(state_label, state_color)
         if summary_text:
@@ -12251,7 +14594,7 @@ class MerchantRulesWidget:
             PyImGui.text(summary_text)
         PyImGui.same_line(0, 8)
         new_enabled = PyImGui.checkbox(checkbox_label, enabled)
-        return bool(opened), bool(new_enabled), header_clicked
+        return bool(opened), bool(new_enabled), header_clicked, updated_rule_name, renamed
 
     def _format_sell_protection_jump_target_debug(self, target: SellProtectionJumpTarget | None = None) -> str:
         active_target = target if target is not None else self.sell_protection_jump_target
@@ -12302,6 +14645,7 @@ class MerchantRulesWidget:
         if next_workspace == self.active_workspace:
             return
         self.active_workspace = next_workspace
+        self._clear_pending_destructive_button()
         if not preserve_sell_protection_jump:
             self._clear_sell_protection_jump(f"workspace changed to {next_workspace}")
 
@@ -12310,6 +14654,7 @@ class MerchantRulesWidget:
         if next_workspace == self.active_rules_workspace:
             return
         self.active_rules_workspace = next_workspace
+        self._clear_pending_destructive_button()
         if not preserve_sell_protection_jump:
             self._clear_sell_protection_jump(f"rules workspace changed to {next_workspace}")
 
@@ -12318,6 +14663,7 @@ class MerchantRulesWidget:
         if next_kind == self.active_sell_rule_kind:
             return
         self.active_sell_rule_kind = next_kind
+        self._clear_pending_destructive_button()
         if not preserve_sell_protection_jump:
             self._clear_sell_protection_jump(f"sell subsection changed to {next_kind}")
 
@@ -12346,11 +14692,12 @@ class MerchantRulesWidget:
         PyImGui.set_scroll_here_y(0.25)
         target.pending_inner_scroll = False
 
-    def _begin_sell_jump_target_group(self, index: int, subsection_anchor: str, label: str) -> bool:
+    def _begin_sell_jump_target_group(self, index: int, subsection_anchor: str, label: str, tooltip: str = "") -> bool:
         is_target = self._is_sell_jump_target_anchor(index, subsection_anchor)
         PyImGui.begin_group()
         if is_target:
             PyImGui.text_colored(label, UI_COLOR_INFO)
+            self._draw_hover_tooltip(tooltip)
             PyImGui.same_line(0, 8)
             self._draw_inline_badge("Jump Target", UI_COLOR_INFO)
             target = self._get_sell_protection_jump_target()
@@ -12358,7 +14705,7 @@ class MerchantRulesWidget:
                 PyImGui.set_scroll_here_y(0.22)
                 target.pending_outer_scroll = False
         else:
-            PyImGui.text(label)
+            self._draw_protection_heading(label, tooltip)
         return is_target
 
     def _end_sell_jump_target_group(self, index: int, subsection_anchor: str):
@@ -12487,6 +14834,21 @@ class MerchantRulesWidget:
             if normalized_rule.protected_weapon_mod_identifiers:
                 first_identifier = str(normalized_rule.protected_weapon_mod_identifiers[0])
                 return SELL_PROTECTION_ANCHOR_WEAPON_MODS, f"identifier:{first_identifier}"
+            if normalized_rule.protected_weapon_mod_thresholds:
+                first_threshold_rule = normalized_rule.protected_weapon_mod_thresholds[0]
+                return (
+                    SELL_PROTECTION_ANCHOR_WEAPON_MODS,
+                    f"threshold:{str(first_threshold_rule.identifier)}:{int(first_threshold_rule.min_value)}",
+                )
+            if normalized_rule.protected_weapon_mod_variants:
+                first_variant_rule = normalized_rule.protected_weapon_mod_variants[0]
+                return SELL_PROTECTION_ANCHOR_WEAPON_MODS, f"variant:{_weapon_mod_variant_rule_choice_key(first_variant_rule)}"
+            if normalized_rule.protected_weapon_mod_variant_thresholds:
+                first_threshold_rule = normalized_rule.protected_weapon_mod_variant_thresholds[0]
+                return (
+                    SELL_PROTECTION_ANCHOR_WEAPON_MODS,
+                    f"variant_threshold:{_weapon_mod_variant_rule_choice_key(first_threshold_rule)}:{int(first_threshold_rule.min_value)}",
+                )
             return "", ""
 
         if normalized_rule.protected_rune_identifiers:
@@ -12580,10 +14942,11 @@ class MerchantRulesWidget:
                     getattr(normalized_rule, "all_weapons_max_requirement", 0),
                 )
                 if _is_weapon_requirement_range_active(all_weapons_min_requirement, all_weapons_max_requirement):
+                    perfect_suffix = " perfect" if bool(getattr(normalized_rule, "all_weapons_perfect_stats_only", False)) else ""
                     append_entry(
                         PROTECTION_FILTER_REQUIREMENTS,
                         "Req Range",
-                        f"All weapons req {all_weapons_min_requirement}-{all_weapons_max_requirement}",
+                        f"All weapons{perfect_suffix} req {all_weapons_min_requirement}-{all_weapons_max_requirement}",
                         f"global-{all_weapons_min_requirement:02d}-{all_weapons_max_requirement:02d}",
                         subsection_anchor=SELL_PROTECTION_ANCHOR_REQUIREMENTS,
                         target_key=SELL_PROTECTION_TARGET_KEY_ALL_WEAPONS_REQUIREMENT,
@@ -12596,10 +14959,11 @@ class MerchantRulesWidget:
                     )
                     if not _is_weapon_requirement_range_active(min_requirement, max_requirement):
                         continue
+                    perfect_suffix = " perfect" if bool(getattr(requirement_rule, "perfect_stats_only", False)) else ""
                     append_entry(
                         PROTECTION_FILTER_REQUIREMENTS,
                         "Req Range",
-                        f"{self._format_model_label(requirement_rule.model_id)} req {min_requirement}-{max_requirement}",
+                        f"{self._format_model_label(requirement_rule.model_id)}{perfect_suffix} req {min_requirement}-{max_requirement}",
                         f"{int(requirement_rule.model_id):09d}-{min_requirement:02d}-{max_requirement:02d}",
                         subsection_anchor=SELL_PROTECTION_ANCHOR_REQUIREMENTS,
                         target_key=f"requirement_model:{int(requirement_rule.model_id)}",
@@ -12609,10 +14973,45 @@ class MerchantRulesWidget:
                     append_entry(
                         PROTECTION_FILTER_WEAPON_MODS,
                         "Protected Weapon Mod",
-                        self._get_weapon_mod_label(identifier),
+                        self._get_weapon_mod_generic_label(identifier),
                         str(identifier),
                         subsection_anchor=SELL_PROTECTION_ANCHOR_WEAPON_MODS,
                         target_key=f"identifier:{str(identifier)}",
+                    )
+
+                for threshold_rule in normalized_rule.protected_weapon_mod_thresholds:
+                    identifier = str(threshold_rule.identifier or "").strip()
+                    min_value = int(threshold_rule.min_value)
+                    append_entry(
+                        PROTECTION_FILTER_WEAPON_MODS,
+                        "Protected Weapon Mod Roll",
+                        self._format_weapon_mod_threshold_rule(threshold_rule),
+                        f"{identifier}:{min_value:04d}",
+                        subsection_anchor=SELL_PROTECTION_ANCHOR_WEAPON_MODS,
+                        target_key=f"threshold:{identifier}:{min_value}",
+                    )
+
+                for variant_rule in normalized_rule.protected_weapon_mod_variants:
+                    variant_key = _weapon_mod_variant_rule_choice_key(variant_rule)
+                    append_entry(
+                        PROTECTION_FILTER_WEAPON_MODS,
+                        "Protected Weapon Mod Variant",
+                        self._format_weapon_mod_variant_rule(variant_rule),
+                        variant_key,
+                        subsection_anchor=SELL_PROTECTION_ANCHOR_WEAPON_MODS,
+                        target_key=f"variant:{variant_key}",
+                    )
+
+                for threshold_rule in normalized_rule.protected_weapon_mod_variant_thresholds:
+                    variant_key = _weapon_mod_variant_rule_choice_key(threshold_rule)
+                    min_value = int(threshold_rule.min_value)
+                    append_entry(
+                        PROTECTION_FILTER_WEAPON_MODS,
+                        "Protected Weapon Mod Variant Roll",
+                        self._format_weapon_mod_variant_threshold_rule(threshold_rule),
+                        f"{variant_key}:{min_value:04d}",
+                        subsection_anchor=SELL_PROTECTION_ANCHOR_WEAPON_MODS,
+                        target_key=f"variant_threshold:{variant_key}:{min_value}",
                     )
             else:
                 for identifier in normalized_rule.protected_rune_identifiers:
@@ -12754,7 +15153,11 @@ class MerchantRulesWidget:
                     PyImGui.text(entry.protection_type_label)
 
                     PyImGui.table_set_column_index(2)
-                    PyImGui.text(entry.value_label)
+                    value_color = self._get_rune_text_color_for_protection_entry(entry)
+                    if value_color is not None:
+                        PyImGui.text_colored(entry.value_label, value_color)
+                    else:
+                        PyImGui.text(entry.value_label)
 
                     PyImGui.table_set_column_index(3)
                     self._draw_inline_badge(entry.owner_rule_kind_label, RULE_KIND_PRESENTATION.get(entry.owner_rule_kind, ("Rule", UI_COLOR_SUBTLE))[1])
@@ -12788,12 +15191,16 @@ class MerchantRulesWidget:
         self._draw_secondary_text(f"Merchant: {MERCHANT_TYPE_LABELS[_get_buy_rule_merchant_type(rule)]}", wrapped=False)
         merchant_stock_targets = _normalize_merchant_stock_targets(rule.merchant_stock_targets)
 
-        if PyImGui.button(f"Clear Items##buy_stock_clear_{index}"):
+        if self._draw_confirm_destructive_button(f"Clear Items##buy_stock_clear_{index}"):
             if self._set_buy_rule_merchant_stock_targets(rule, []):
                 merchant_stock_targets = []
                 changed = True
 
         PyImGui.text(f"Selected Items: {len(merchant_stock_targets)}")
+        if any(_is_scroll_trader_stock_model(target.model_id) for target in merchant_stock_targets):
+            self._draw_secondary_text(
+                "Confirmed scroll trader stock in this legacy stock list will route to Scroll Trader / Rare Scroll Trader, never to a regular Merchant."
+            )
         if not merchant_stock_targets:
             self._draw_secondary_text("No merchant stock items selected yet.", wrapped=False)
             return changed
@@ -12810,7 +15217,7 @@ class MerchantRulesWidget:
         removed_model_id = 0
         child_height = min(220, 58 + (32 * len(updated_targets)))
         if PyImGui.begin_child(f"buy_merchant_stock_selected_{index}", (0, child_height), True, PyImGui.WindowFlags.NoFlag):
-            if PyImGui.begin_table(f"buy_merchant_stock_selected_table_{index}", 4, PyImGui.TableFlags.NoFlag):
+            if PyImGui.begin_table(f"buy_merchant_stock_selected_table_{index}", 4, self._get_dense_list_table_flags()):
                 PyImGui.table_setup_column("Item", PyImGui.TableColumnFlags.WidthStretch)
                 PyImGui.table_setup_column("Target", PyImGui.TableColumnFlags.WidthFixed, 130.0)
                 PyImGui.table_setup_column("Max/Run", PyImGui.TableColumnFlags.WidthFixed, 130.0)
@@ -12870,11 +15277,102 @@ class MerchantRulesWidget:
 
         return changed
 
+    def _draw_buy_rule_scroll_trader_targets_editor(self, index: int, rule: BuyRule) -> bool:
+        changed = False
+        self._draw_secondary_text("Merchant: Scroll Trader in Guild Halls, Rare Scroll Trader elsewhere.", wrapped=False)
+        scroll_targets = [
+            target
+            for target in _normalize_merchant_stock_targets(rule.merchant_stock_targets)
+            if _is_scroll_trader_stock_model(target.model_id)
+        ]
+
+        if self._draw_confirm_destructive_button(f"Clear Scrolls##buy_scroll_clear_{index}"):
+            if self._set_buy_rule_scroll_trader_targets(rule, []):
+                scroll_targets = []
+                changed = True
+
+        PyImGui.text(f"Selected Scrolls: {len(scroll_targets)}")
+        if not scroll_targets:
+            self._draw_secondary_text("No confirmed scroll trader stock selected yet.", wrapped=False)
+            return changed
+
+        updated_targets = [
+            MerchantStockTarget(
+                model_id=target.model_id,
+                target_count=target.target_count,
+                max_per_run=target.max_per_run,
+            )
+            for target in scroll_targets
+        ]
+        display_targets = self._sort_targets_by_model_label_for_display(updated_targets)
+        removed_model_id = 0
+        child_height = min(220, 58 + (32 * len(updated_targets)))
+        if PyImGui.begin_child(f"buy_scroll_trader_selected_{index}", (0, child_height), True, PyImGui.WindowFlags.NoFlag):
+            if PyImGui.begin_table(f"buy_scroll_trader_selected_table_{index}", 4, self._get_dense_list_table_flags()):
+                PyImGui.table_setup_column("Scroll", PyImGui.TableColumnFlags.WidthStretch)
+                PyImGui.table_setup_column("Target", PyImGui.TableColumnFlags.WidthFixed, 130.0)
+                PyImGui.table_setup_column("Max/Run", PyImGui.TableColumnFlags.WidthFixed, 130.0)
+                PyImGui.table_setup_column("Remove", PyImGui.TableColumnFlags.WidthFixed, 60.0)
+
+                PyImGui.table_next_row()
+                PyImGui.table_set_column_index(0)
+                PyImGui.text("Scroll")
+                PyImGui.table_set_column_index(1)
+                PyImGui.text("Target")
+                PyImGui.table_set_column_index(2)
+                PyImGui.text("Max/Run")
+                PyImGui.table_set_column_index(3)
+                PyImGui.text("Remove")
+
+                for target_row in display_targets:
+                    PyImGui.table_next_row()
+                    PyImGui.table_set_column_index(0)
+                    PyImGui.text(self._format_model_label_short(target_row.model_id))
+
+                    PyImGui.table_set_column_index(1)
+                    PyImGui.push_item_width(120)
+                    new_target_count = PyImGui.input_int(
+                        f"##buy_scroll_target_count_{index}_{target_row.model_id}",
+                        int(target_row.target_count),
+                    )
+                    PyImGui.pop_item_width()
+                    target_row.target_count = max(0, int(new_target_count))
+
+                    PyImGui.table_set_column_index(2)
+                    PyImGui.push_item_width(120)
+                    new_max_per_run = PyImGui.input_int(
+                        f"##buy_scroll_max_per_run_{index}_{target_row.model_id}",
+                        int(target_row.max_per_run),
+                    )
+                    PyImGui.pop_item_width()
+                    target_row.max_per_run = max(0, int(new_max_per_run))
+
+                    PyImGui.table_set_column_index(3)
+                    if PyImGui.small_button(f"X##buy_scroll_remove_{index}_{target_row.model_id}"):
+                        removed_model_id = target_row.model_id
+                        break
+
+                PyImGui.end_table()
+        PyImGui.end_child()
+
+        if removed_model_id > 0:
+            next_targets = [
+                target
+                for target in updated_targets
+                if int(target.model_id) != int(removed_model_id)
+            ]
+            if self._set_buy_rule_scroll_trader_targets(rule, next_targets):
+                changed = True
+        elif self._set_buy_rule_scroll_trader_targets(rule, updated_targets):
+            changed = True
+
+        return changed
+
     def _draw_buy_rule_material_targets_editor(self, index: int, rule: BuyRule) -> bool:
         changed = False
         material_targets = _normalize_material_targets(rule.material_targets)
 
-        if PyImGui.button(f"Clear Materials##buy_material_clear_{index}"):
+        if self._draw_confirm_destructive_button(f"Clear Materials##buy_material_clear_{index}"):
             if self._set_buy_rule_material_targets(rule, []):
                 material_targets = []
                 changed = True
@@ -12896,7 +15394,7 @@ class MerchantRulesWidget:
         removed_model_id = 0
         child_height = min(220, 58 + (32 * len(updated_targets)))
         if PyImGui.begin_child(f"buy_material_targets_selected_{index}", (0, child_height), True, PyImGui.WindowFlags.NoFlag):
-            if PyImGui.begin_table(f"buy_material_targets_table_{index}", 5, PyImGui.TableFlags.NoFlag):
+            if PyImGui.begin_table(f"buy_material_targets_table_{index}", 5, self._get_dense_list_table_flags()):
                 PyImGui.table_setup_column("Material", PyImGui.TableColumnFlags.WidthStretch)
                 PyImGui.table_setup_column("Trader", PyImGui.TableColumnFlags.WidthFixed, 115.0)
                 PyImGui.table_setup_column("Target", PyImGui.TableColumnFlags.WidthFixed, 130.0)
@@ -12962,7 +15460,7 @@ class MerchantRulesWidget:
         changed = False
         rune_targets = _normalize_rune_trader_targets(rule.rune_targets)
 
-        if PyImGui.button(f"Clear Targets##buy_runes_clear_{index}"):
+        if self._draw_confirm_destructive_button(f"Clear Targets##buy_runes_clear_{index}"):
             if self._set_buy_rule_rune_targets(rule, []):
                 rune_targets = []
                 changed = True
@@ -12983,7 +15481,7 @@ class MerchantRulesWidget:
             removed_identifier = ""
             child_height = min(240, 58 + (32 * len(updated_targets)))
             if PyImGui.begin_child(f"buy_rune_targets_selected_{index}", (0, child_height), True, PyImGui.WindowFlags.NoFlag):
-                if PyImGui.begin_table(f"buy_rune_targets_table_{index}", 5, PyImGui.TableFlags.NoFlag):
+                if PyImGui.begin_table(f"buy_rune_targets_table_{index}", 5, self._get_dense_list_table_flags()):
                     PyImGui.table_setup_column("Rune / Insignia", PyImGui.TableColumnFlags.WidthStretch)
                     PyImGui.table_setup_column("Type", PyImGui.TableColumnFlags.WidthFixed, 110.0)
                     PyImGui.table_setup_column("Target", PyImGui.TableColumnFlags.WidthFixed, 120.0)
@@ -13005,10 +15503,15 @@ class MerchantRulesWidget:
                     for target_row in display_targets:
                         entry = self._get_rune_buy_entry(target_row.identifier) or {}
                         kind_label = str(entry.get("kind_label", "") or "Rune / Insignia")
+                        text_color = self._get_rune_text_color_for_identifier(target_row.identifier)
 
                         PyImGui.table_next_row()
                         PyImGui.table_set_column_index(0)
-                        PyImGui.text(self._get_rune_label(target_row.identifier))
+                        rune_label = self._get_rune_label(target_row.identifier)
+                        if text_color is not None:
+                            PyImGui.text_colored(rune_label, text_color)
+                        else:
+                            PyImGui.text(rune_label)
 
                         PyImGui.table_set_column_index(1)
                         PyImGui.text(kind_label)
@@ -13116,10 +15619,9 @@ class MerchantRulesWidget:
         if PyImGui.begin_child(f"buy_rune_results_{index}", (0, child_height), True, PyImGui.WindowFlags.NoFlag):
             if not visible_entries:
                 PyImGui.text_wrapped("No matching runes or insignias found in this profession tab.")
-            elif PyImGui.begin_table(f"buy_rune_results_table_{index}", 4, PyImGui.TableFlags.RowBg):
+            elif PyImGui.begin_table(f"buy_rune_results_table_{index}", 3, PyImGui.TableFlags.RowBg):
                 PyImGui.table_setup_column("Rune / Insignia", PyImGui.TableColumnFlags.WidthStretch)
                 PyImGui.table_setup_column("Type", PyImGui.TableColumnFlags.WidthFixed, 105.0)
-                PyImGui.table_setup_column("Rarity", PyImGui.TableColumnFlags.WidthFixed, 85.0)
                 PyImGui.table_setup_column("Add", PyImGui.TableColumnFlags.WidthFixed, 55.0)
 
                 PyImGui.table_next_row()
@@ -13128,8 +15630,6 @@ class MerchantRulesWidget:
                 PyImGui.table_set_column_index(1)
                 PyImGui.text("Type")
                 PyImGui.table_set_column_index(2)
-                PyImGui.text("Rarity")
-                PyImGui.table_set_column_index(3)
                 PyImGui.text("Add")
 
                 for entry in visible_entries:
@@ -13140,15 +15640,17 @@ class MerchantRulesWidget:
 
                     PyImGui.table_next_row()
                     PyImGui.table_set_column_index(0)
-                    PyImGui.text(str(entry.get("name", "") or identifier))
+                    name = str(entry.get("name", "") or identifier)
+                    text_color = self._get_rune_text_color_for_identifier(identifier)
+                    if text_color is not None:
+                        PyImGui.text_colored(name, text_color)
+                    else:
+                        PyImGui.text(name)
 
                     PyImGui.table_set_column_index(1)
                     PyImGui.text(str(entry.get("kind_label", "") or "Rune / Insignia"))
 
                     PyImGui.table_set_column_index(2)
-                    PyImGui.text(str(entry.get("rarity", "") or "-"))
-
-                    PyImGui.table_set_column_index(3)
                     PyImGui.begin_disabled(already_selected)
                     add_clicked = PyImGui.small_button(f"+##buy_rune_add_{index}_{identifier}")
                     PyImGui.end_disabled()
@@ -13166,7 +15668,7 @@ class MerchantRulesWidget:
         state_label, state_color = self._get_rule_state_badge(enabled=bool(rule.enabled), ready=ready)
         type_label, type_color = self._get_rule_type_presentation(rule.kind)
 
-        opened, enabled, _header_clicked = self._draw_rule_header_row(
+        opened, enabled, _header_clicked, updated_rule_name, renamed = self._draw_rule_header_row(
             f"buy_rule_header_{index}",
             f"{self._get_rule_display_label(rule, BUY_KIND_LABELS.get(rule.kind, 'Buy Rule'))}###buy_rule_{index}",
             type_label,
@@ -13176,9 +15678,14 @@ class MerchantRulesWidget:
             state_color,
             f"Enabled##buy_enabled_{index}",
             bool(rule.enabled),
+            rename_edit_key=f"buy_rule_name_{index}",
+            rule_name=rule.name,
         )
         if enabled != rule.enabled:
             rule.enabled = enabled
+            changed = True
+        if renamed:
+            rule.name = updated_rule_name
             changed = True
 
         if not opened:
@@ -13189,10 +15696,6 @@ class MerchantRulesWidget:
             f"Category: {BUY_RULE_WORKSPACE_LABELS.get(rule.kind, BUY_KIND_LABELS.get(rule.kind, 'Buy Rule'))}",
             wrapped=False,
         )
-        updated_rule_name = self._draw_rule_name_input(f"Rule Name (Optional)##buy_rule_name_{index}", rule.name)
-        if updated_rule_name != rule.name:
-            rule.name = updated_rule_name
-            changed = True
 
         if rule.kind == BUY_KIND_MERCHANT_STOCK:
             changed = self._draw_buy_rule_merchant_stock_editor(index, rule) or changed
@@ -13221,7 +15724,7 @@ class MerchantRulesWidget:
             if updated_search_text != search_text:
                 self.buy_model_search_cache[index] = updated_search_text
 
-            picked_model_id, visible_buy_model_ids = self._draw_search_results(
+            picked_model_id, visible_buy_model_ids = self._draw_merchant_stock_search_results(
                 f"buy_search_results_{index}",
                 self.buy_model_search_cache.get(index, ""),
             )
@@ -13248,14 +15751,17 @@ class MerchantRulesWidget:
                 updated_manual_model_id = max(0, int(updated_manual_model_id))
                 if updated_manual_model_id != manual_model_id:
                     self.buy_manual_model_id_cache[index] = updated_manual_model_id
+                is_scroll_trader_stock = _is_scroll_trader_stock_model(updated_manual_model_id)
                 PyImGui.same_line(0, 8)
-                PyImGui.begin_disabled(updated_manual_model_id <= 0)
+                PyImGui.begin_disabled(updated_manual_model_id <= 0 or is_scroll_trader_stock)
                 add_manual_item = PyImGui.small_button(f"Add Item##buy_add_manual_model_{index}")
                 PyImGui.end_disabled()
                 if add_manual_item and self._add_buy_rule_merchant_stock_target(rule, updated_manual_model_id):
                     changed = True
                     self.buy_manual_model_id_cache[index] = 0
                     self.buy_model_search_cache[index] = self._get_model_name(updated_manual_model_id) or str(updated_manual_model_id)
+                if updated_manual_model_id > 0 and is_scroll_trader_stock:
+                    self._draw_secondary_text("This model is confirmed scroll trader stock. Add it from the Scroll Trader Stock section.")
         elif rule.kind == BUY_KIND_MATERIAL_TARGET:
             self._draw_secondary_text("Common materials buy in lots of 10. Rare materials buy in singles.")
             changed = self._draw_buy_rule_material_targets_editor(index, rule) or changed
@@ -13316,6 +15822,71 @@ class MerchantRulesWidget:
             self._draw_secondary_text("Maintains exact standalone runes and insignias. Inventory is topped up from storage first, then from the Rune Trader.")
             self._draw_secondary_text("Preview stays passive by default. Use Open Xunlai for exact storage scan when you want exact storage-aware planning.")
             changed = self._draw_buy_rule_rune_targets_editor(index, rule) or changed
+        elif rule.kind == BUY_KIND_SCROLL_TRADER_TARGET:
+            self._draw_secondary_text("Uses the trader quote + buy flow. No regular merchant fallback is attempted.")
+            self._draw_secondary_text("This section is limited to confirmed Scroll Trader / Rare Scroll Trader stock.")
+            changed = self._draw_buy_rule_scroll_trader_targets_editor(index, rule) or changed
+            existing_scroll_target_ids = {
+                max(0, _safe_int(target.model_id, 0))
+                for target in _normalize_merchant_stock_targets(rule.merchant_stock_targets)
+                if _is_scroll_trader_stock_model(target.model_id)
+            }
+
+            scroll_entries = self._get_scroll_trader_stock_entries()
+            if scroll_entries:
+                PyImGui.text("Quick Picks - Confirmed Stock")
+                for quick_index, entry in enumerate(scroll_entries):
+                    model_id = int(entry.get("model_id", 0))
+                    if PyImGui.small_button(f"{entry['name']}##buy_scroll_quick_{index}_{model_id}"):
+                        if self._add_buy_rule_scroll_trader_target(rule, model_id):
+                            changed = True
+                        self.buy_model_search_cache[index] = str(entry["name"])
+                    if quick_index % 2 == 0 and quick_index + 1 < len(scroll_entries):
+                        PyImGui.same_line(0, 6)
+
+            search_text = self.buy_model_search_cache.get(index, "")
+            updated_search_text = PyImGui.input_text(f"Search Confirmed Scrolls##buy_scroll_search_{index}", search_text)
+            if updated_search_text != search_text:
+                self.buy_model_search_cache[index] = updated_search_text
+
+            picked_model_id, visible_scroll_model_ids = self._draw_scroll_trader_stock_search_results(
+                f"buy_scroll_results_{index}",
+                self.buy_model_search_cache.get(index, ""),
+            )
+            addable_scroll_model_ids = [model_id for model_id in visible_scroll_model_ids if model_id not in existing_scroll_target_ids]
+            if self._draw_add_all_matches_button(
+                f"buy_scroll_results_add_all_{index}",
+                len(visible_scroll_model_ids),
+                len(addable_scroll_model_ids),
+            ):
+                added_any = False
+                for model_id in addable_scroll_model_ids:
+                    if self._add_buy_rule_scroll_trader_target(rule, model_id):
+                        added_any = True
+                if added_any:
+                    changed = True
+            if picked_model_id > 0:
+                if self._add_buy_rule_scroll_trader_target(rule, picked_model_id):
+                    changed = True
+                self.buy_model_search_cache[index] = self._get_model_name(picked_model_id) or str(picked_model_id)
+
+            if PyImGui.collapsing_header(f"Advanced##buy_scroll_advanced_{index}"):
+                manual_model_id = max(0, int(self.buy_manual_model_id_cache.get(index, 0)))
+                updated_manual_model_id = PyImGui.input_int(f"Manual Model ID##buy_scroll_model_{index}", manual_model_id)
+                updated_manual_model_id = max(0, int(updated_manual_model_id))
+                if updated_manual_model_id != manual_model_id:
+                    self.buy_manual_model_id_cache[index] = updated_manual_model_id
+                is_confirmed_stock = _is_scroll_trader_stock_model(updated_manual_model_id)
+                PyImGui.same_line(0, 8)
+                PyImGui.begin_disabled(updated_manual_model_id <= 0 or not is_confirmed_stock)
+                add_manual_item = PyImGui.small_button(f"Add Scroll##buy_scroll_add_manual_model_{index}")
+                PyImGui.end_disabled()
+                if add_manual_item and self._add_buy_rule_scroll_trader_target(rule, updated_manual_model_id):
+                    changed = True
+                    self.buy_manual_model_id_cache[index] = 0
+                    self.buy_model_search_cache[index] = self._get_model_name(updated_manual_model_id) or str(updated_manual_model_id)
+                if updated_manual_model_id > 0 and not is_confirmed_stock:
+                    self._draw_secondary_text("Manual IDs are accepted only for the confirmed scroll trader stock list.")
 
         PyImGui.spacing()
         same_kind_indices = self._get_buy_rule_indices_for_kind(rule.kind)
@@ -13331,7 +15902,7 @@ class MerchantRulesWidget:
         move_down = PyImGui.small_button(f"Move Down##buy_move_down_{index}")
         PyImGui.end_disabled()
         PyImGui.same_line(0, 8)
-        if PyImGui.button(f"Remove Rule##buy_remove_{index}"):
+        if self._draw_confirm_destructive_button(f"Remove Rule##buy_remove_{index}"):
             self.buy_rules.pop(index)
             self.rule_ui_structure_changed = True
             self._refresh_rule_ui_caches()
@@ -13370,13 +15941,18 @@ class MerchantRulesWidget:
 
     def _draw_sell_rule_blacklist_editor(self, index: int, rule: SellRule) -> bool:
         changed = False
-        self._begin_sell_jump_target_group(index, SELL_PROTECTION_ANCHOR_MODELS, "Never Sell These Models")
-        if PyImGui.button(f"Clear Protected Models##sell_blacklist_clear_{index}"):
+        self._begin_sell_jump_target_group(
+            index,
+            SELL_PROTECTION_ANCHOR_MODELS,
+            "Never Sell These Models",
+            "Items with these model IDs are protected from this sell rule.",
+        )
+        if self._draw_confirm_destructive_button(f"Clear Protected Models##sell_blacklist_clear_{index}"):
             if self._set_sell_rule_blacklist_model_ids(rule, []):
                 changed = True
             self.sell_blacklist_import_feedback_cache[index] = ("Cleared all protected models.", UI_COLOR_MUTED)
         PyImGui.same_line(0, 8)
-        if PyImGui.button(f"Import From Clipboard##sell_blacklist_import_{index}"):
+        if self._draw_confirm_destructive_button(f"Import From Clipboard##sell_blacklist_import_{index}"):
             try:
                 clipboard_text = str(PyImGui.get_clipboard_text() or "")
             except Exception as exc:
@@ -13405,6 +15981,7 @@ class MerchantRulesWidget:
                             changed = True
 
         PyImGui.text(f"Protected Models: {len(rule.blacklist_model_ids)}")
+        self._draw_hover_tooltip("This count is for direct model protection.")
         removed_model_id = self._draw_selected_model_ids(
             "sell_blacklist_models",
             index,
@@ -13434,7 +16011,8 @@ class MerchantRulesWidget:
             )
 
         search_text = self.sell_blacklist_search_cache.get(index, "")
-        updated_search_text = PyImGui.input_text(f"Protect Models By Name##sell_blacklist_search_{index}", search_text)
+        updated_search_text = PyImGui.input_text(f"Add Protected Models##sell_blacklist_search_{index}", search_text)
+        self._draw_hover_tooltip("Search by model name, model ID, type, or alias.")
         if updated_search_text != search_text:
             self.sell_blacklist_search_cache[index] = updated_search_text
 
@@ -13486,12 +16064,18 @@ class MerchantRulesWidget:
             return False
 
         changed = False
-        self._begin_sell_jump_target_group(index, SELL_PROTECTION_ANCHOR_WEAPON_TYPES, "Never Sell These Weapon Types")
-        if PyImGui.button(f"Clear Weapon Type Protection##sell_weapon_type_blacklist_clear_{index}"):
+        self._begin_sell_jump_target_group(
+            index,
+            SELL_PROTECTION_ANCHOR_WEAPON_TYPES,
+            "Never Sell These Weapon Types",
+            "All selected weapon types are protected from this sell rule.",
+        )
+        if self._draw_confirm_destructive_button(f"Clear Weapon Type Protection##sell_weapon_type_blacklist_clear_{index}"):
             if self._set_sell_rule_blacklist_item_type_ids(rule, []):
                 changed = True
 
         PyImGui.text(f"Protected Weapon Types: {len(rule.blacklist_item_type_ids)}")
+        self._draw_hover_tooltip("This count is for broad weapon-type protection.")
         if rule.blacklist_item_type_ids:
             selected_labels = [self._get_weapon_item_type_label(item_type_id) for item_type_id in rule.blacklist_item_type_ids]
             PyImGui.text_wrapped(", ".join(selected_labels))
@@ -13537,8 +16121,14 @@ class MerchantRulesWidget:
             rule.all_weapons_max_requirement = normalized_all_weapons_max_requirement
             changed = True
 
-        self._begin_sell_jump_target_group(index, SELL_PROTECTION_ANCHOR_REQUIREMENTS, "Protect All Weapons In Req Range")
+        self._begin_sell_jump_target_group(
+            index,
+            SELL_PROTECTION_ANCHOR_REQUIREMENTS,
+            "Protect All Weapons In Req Range",
+            "Protects any weapon whose requirement falls inside this range.",
+        )
         PyImGui.text("Low Req")
+        self._draw_hover_tooltip("Lowest requirement protected by this range.")
         PyImGui.same_line(0, 6)
         PyImGui.push_item_width(80)
         new_all_weapons_min_requirement = PyImGui.input_int(
@@ -13549,6 +16139,7 @@ class MerchantRulesWidget:
         PyImGui.pop_item_width()
         PyImGui.same_line(0, 12)
         PyImGui.text("High Req")
+        self._draw_hover_tooltip("Highest requirement protected by this range.")
         PyImGui.same_line(0, 6)
         PyImGui.push_item_width(80)
         new_all_weapons_max_requirement = PyImGui.input_int(
@@ -13562,6 +16153,18 @@ class MerchantRulesWidget:
             SELL_PROTECTION_ANCHOR_REQUIREMENTS,
             SELL_PROTECTION_TARGET_KEY_ALL_WEAPONS_REQUIREMENT,
         )
+        PyImGui.same_line(0, 12)
+        new_all_weapons_perfect_stats_only = PyImGui.checkbox(
+            f"Perfect stats only##sell_weapon_requirement_all_perfect_{index}",
+            bool(getattr(rule, "all_weapons_perfect_stats_only", False)),
+        )
+        self._draw_hover_tooltip(
+            "When enabled, this range protects only weapon-like items whose base damage, energy, or armor exactly matches the perfect-base value."
+        )
+        if new_all_weapons_perfect_stats_only != bool(getattr(rule, "all_weapons_perfect_stats_only", False)):
+            rule.all_weapons_perfect_stats_only = bool(new_all_weapons_perfect_stats_only)
+            changed = True
+
         all_weapons_input_active = all_weapons_min_input_active or all_weapons_max_input_active
         if not _should_defer_weapon_requirement_range_commit(
             new_all_weapons_min_requirement,
@@ -13582,22 +16185,29 @@ class MerchantRulesWidget:
 
         self._draw_secondary_text(
             f"Inclusive range. Set either endpoint to 0 to disable. Req 0 / unknown does not match range rules; "
-            f"use unconditional model protection for unknown reqs. Values are capped at {MAX_WEAPON_REQUIREMENT}."
+            f"use unconditional model protection for unknown reqs. Values are capped at {MAX_WEAPON_REQUIREMENT}. "
+            f"Perfect stats only holds unidentified items when needed stats are unavailable."
         )
 
-        PyImGui.text("Never Sell These Models In Req Range")
-        if PyImGui.button(f"Clear Model Requirement Protection##sell_weapon_requirement_clear_{index}"):
+        self._draw_light_separator()
+        self._draw_protection_heading(
+            "Never Sell These Models In Req Range",
+            "Protects selected weapon models only when their requirement is inside the saved range.",
+        )
+        if self._draw_confirm_destructive_button(f"Clear Model Requirement Protection##sell_weapon_requirement_clear_{index}"):
             if self._set_sell_rule_weapon_requirement_rules(rule, []):
                 changed = True
 
         requirement_rules = list(rule.protected_weapon_requirement_rules)
         PyImGui.text(f"Protected Models: {len(requirement_rules)}")
+        self._draw_hover_tooltip("This count is for model-specific requirement protection.")
         if requirement_rules:
             updated_rules = [
                 WeaponRequirementRule(
                     model_id=requirement_rule.model_id,
                     min_requirement=requirement_rule.min_requirement,
                     max_requirement=requirement_rule.max_requirement,
+                    perfect_stats_only=bool(getattr(requirement_rule, "perfect_stats_only", False)),
                 )
                 for requirement_rule in requirement_rules
             ]
@@ -13605,10 +16215,11 @@ class MerchantRulesWidget:
             removed_model_id = 0
             child_height = min(220, 58 + (32 * len(updated_rules)))
             if PyImGui.begin_child(f"sell_weapon_requirement_selected_{index}", (0, child_height), True, PyImGui.WindowFlags.NoFlag):
-                if PyImGui.begin_table(f"sell_weapon_requirement_table_{index}", 4, PyImGui.TableFlags.NoFlag):
+                if PyImGui.begin_table(f"sell_weapon_requirement_table_{index}", 5, self._get_dense_list_table_flags()):
                     PyImGui.table_setup_column("Model", PyImGui.TableColumnFlags.WidthStretch)
                     PyImGui.table_setup_column("Low Req", PyImGui.TableColumnFlags.WidthFixed, 100.0)
                     PyImGui.table_setup_column("High Req", PyImGui.TableColumnFlags.WidthFixed, 100.0)
+                    PyImGui.table_setup_column("Perfect only", PyImGui.TableColumnFlags.WidthFixed, 110.0)
                     PyImGui.table_setup_column("Remove", PyImGui.TableColumnFlags.WidthFixed, 60.0)
 
                     PyImGui.table_next_row()
@@ -13619,6 +16230,8 @@ class MerchantRulesWidget:
                     PyImGui.table_set_column_index(2)
                     PyImGui.text("High Req")
                     PyImGui.table_set_column_index(3)
+                    PyImGui.text("Perfect only")
+                    PyImGui.table_set_column_index(4)
                     PyImGui.text("Remove")
 
                     for requirement_rule in display_rules:
@@ -13660,6 +16273,15 @@ class MerchantRulesWidget:
                             ) = _normalize_weapon_requirement_range(new_min_requirement, new_max_requirement)
 
                         PyImGui.table_set_column_index(3)
+                        requirement_rule.perfect_stats_only = bool(
+                            PyImGui.checkbox(
+                                f"##sell_weapon_requirement_perfect_{index}_{requirement_rule.model_id}",
+                                bool(getattr(requirement_rule, "perfect_stats_only", False)),
+                            )
+                        )
+                        self._draw_hover_tooltip("Protect this model only when its base stats exactly match the perfect-base value.")
+
+                        PyImGui.table_set_column_index(4)
                         if PyImGui.small_button(f"X##sell_weapon_requirement_remove_{index}_{requirement_rule.model_id}"):
                             removed_model_id = requirement_rule.model_id
                             break
@@ -13677,7 +16299,8 @@ class MerchantRulesWidget:
             self._draw_secondary_text("No requirement-protected weapon models selected yet.", wrapped=False)
 
         search_text = self.sell_weapon_requirement_search_cache.get(index, "")
-        updated_search_text = PyImGui.input_text(f"Protect Weapon Models By Name##sell_weapon_requirement_search_{index}", search_text)
+        updated_search_text = PyImGui.input_text(f"Add Requirement-Protected Models##sell_weapon_requirement_search_{index}", search_text)
+        self._draw_hover_tooltip("Search by weapon model name, model ID, type, or alias.")
         if updated_search_text != search_text:
             self.sell_weapon_requirement_search_cache[index] = updated_search_text
 
@@ -13720,28 +16343,94 @@ class MerchantRulesWidget:
         setter,
         search_cache: dict[int, str],
         cache_suffix: str,
+        threshold_rules: list[WeaponModThresholdRule] | None = None,
+        threshold_setter=None,
+        selected_variants: list[WeaponModVariantRule] | None = None,
+        variant_setter=None,
+        variant_threshold_rules: list[WeaponModVariantThresholdRule] | None = None,
+        variant_threshold_setter=None,
     ) -> bool:
         changed = False
         anchor = SELL_PROTECTION_ANCHOR_WEAPON_MODS if cache_suffix == "weapon_mods" else SELL_PROTECTION_ANCHOR_RUNES
-        self._begin_sell_jump_target_group(index, anchor, title)
-        if PyImGui.button(f"Clear {title}##sell_protected_clear_{cache_suffix}_{index}"):
+        selected_threshold_rules = _normalize_weapon_mod_threshold_rules(threshold_rules or [])
+        selected_variant_rules = _normalize_weapon_mod_variant_rules(selected_variants or [])
+        selected_variant_threshold_rules = _normalize_weapon_mod_variant_threshold_rules(variant_threshold_rules or [])
+        tooltip_text = (
+            "Protects items with matching weapon upgrades or saved roll thresholds."
+            if cache_suffix == "weapon_mods"
+            else "Protects armor with matching rune or insignia names."
+        )
+        self._begin_sell_jump_target_group(index, anchor, title, tooltip_text)
+        if self._draw_confirm_destructive_button(f"Clear {title}##sell_protected_clear_{cache_suffix}_{index}"):
             if setter(rule, []):
                 changed = True
-
-        PyImGui.text(f"Protected Entries: {len(selected_identifiers)}")
-        removed_identifier = self._draw_selected_identifiers(
-            f"sell_protected_{cache_suffix}",
-            index,
-            selected_identifiers,
-            formatter,
-            jump_anchor=anchor,
-        )
-        if removed_identifier:
-            if setter(rule, [identifier for identifier in selected_identifiers if identifier != removed_identifier]):
+                selected_identifiers = []
+            if threshold_setter is not None and threshold_setter(rule, []):
                 changed = True
+                selected_threshold_rules = []
+            if variant_setter is not None and variant_setter(rule, []):
+                changed = True
+                selected_variant_rules = []
+            if variant_threshold_setter is not None and variant_threshold_setter(rule, []):
+                changed = True
+                selected_variant_threshold_rules = []
+
+        if threshold_setter is not None:
+            protected_choice_keys = _dedupe_identifiers(
+                [_make_weapon_mod_identifier_choice_key(identifier) for identifier in selected_identifiers]
+                + [
+                    _make_weapon_mod_identifier_choice_key(str(threshold_rule.identifier or "").strip())
+                    for threshold_rule in selected_threshold_rules
+                ]
+                + [_weapon_mod_variant_rule_choice_key(variant_rule) for variant_rule in selected_variant_rules]
+                + [
+                    _weapon_mod_variant_rule_choice_key(threshold_rule)
+                    for threshold_rule in selected_variant_threshold_rules
+                ]
+            )
+            protected_choice_keys = [choice_key for choice_key in protected_choice_keys if choice_key]
+            PyImGui.text(f"Protected Entries: {len(protected_choice_keys)}")
+            self._draw_hover_tooltip("Entries here can protect exact upgrades or minimum roll values.")
+            if self._draw_selected_weapon_mod_protections(
+                f"sell_protected_{cache_suffix}",
+                index,
+                rule,
+                selected_identifiers=selected_identifiers,
+                threshold_rules=selected_threshold_rules,
+                identifier_setter=setter,
+                threshold_setter=threshold_setter,
+                selected_variants=selected_variant_rules,
+                variant_threshold_rules=selected_variant_threshold_rules,
+                variant_setter=variant_setter,
+                variant_threshold_setter=variant_threshold_setter,
+                jump_anchor=anchor,
+            ):
+                changed = True
+                selected_identifiers = list(rule.protected_weapon_mod_identifiers)
+                selected_threshold_rules = list(rule.protected_weapon_mod_thresholds)
+                selected_variant_rules = list(rule.protected_weapon_mod_variants)
+                selected_variant_threshold_rules = list(rule.protected_weapon_mod_variant_thresholds)
+        else:
+            PyImGui.text(f"Protected Entries: {len(selected_identifiers)}")
+            self._draw_hover_tooltip("Entries here protect matching rune or insignia names.")
+            text_color_for_identifier = self._get_rune_text_color_for_identifier if cache_suffix == "runes" else None
+            removed_identifier = self._draw_selected_identifiers(
+                f"sell_protected_{cache_suffix}",
+                index,
+                selected_identifiers,
+                formatter,
+                jump_anchor=anchor,
+                text_color_for_identifier=text_color_for_identifier,
+            )
+            if removed_identifier:
+                if setter(rule, [identifier for identifier in selected_identifiers if identifier != removed_identifier]):
+                    changed = True
+                    selected_identifiers = list(rule.protected_rune_identifiers)
 
         search_text = search_cache.get(index, "")
-        updated_search_text = PyImGui.input_text(f"Protect By Name##sell_protected_search_{cache_suffix}_{index}", search_text)
+        search_label = "Add Protected Upgrades" if cache_suffix == "weapon_mods" else "Add Protected Runes / Insignias"
+        updated_search_text = PyImGui.input_text(f"{search_label}##sell_protected_search_{cache_suffix}_{index}", search_text)
+        self._draw_hover_tooltip("Search by name or identifier.")
         if updated_search_text != search_text:
             search_cache[index] = updated_search_text
 
@@ -13749,19 +16438,83 @@ class MerchantRulesWidget:
             f"sell_protected_results_{cache_suffix}_{index}",
             search_cache.get(index, ""),
             entries,
+            text_color_for_identifier=self._get_rune_text_color_for_identifier if cache_suffix == "runes" else None,
         )
-        addable_identifiers = [identifier for identifier in visible_identifiers if identifier not in selected_identifiers]
+        if threshold_setter is not None:
+            protected_identifiers_for_add = _dedupe_identifiers(
+                [_make_weapon_mod_identifier_choice_key(identifier) for identifier in selected_identifiers]
+                + [
+                    _make_weapon_mod_identifier_choice_key(str(threshold_rule.identifier or "").strip())
+                    for threshold_rule in selected_threshold_rules
+                ]
+                + [_weapon_mod_variant_rule_choice_key(variant_rule) for variant_rule in selected_variant_rules]
+                + [
+                    _weapon_mod_variant_rule_choice_key(threshold_rule)
+                    for threshold_rule in selected_variant_threshold_rules
+                ]
+            )
+        else:
+            protected_identifiers_for_add = _dedupe_identifiers(
+                selected_identifiers
+                + [str(threshold_rule.identifier or "").strip() for threshold_rule in selected_threshold_rules]
+            )
+        addable_identifiers = [identifier for identifier in visible_identifiers if identifier not in protected_identifiers_for_add]
         if self._draw_add_all_matches_button(
             f"sell_protected_results_add_all_{cache_suffix}_{index}",
             len(visible_identifiers),
             len(addable_identifiers),
         ):
-            if setter(rule, selected_identifiers + addable_identifiers):
-                changed = True
+            if threshold_setter is not None:
+                next_identifiers = list(selected_identifiers)
+                next_variants = list(selected_variant_rules)
+                for choice_key in addable_identifiers:
+                    kind, identifier, target_item_type, component_kind = _parse_weapon_mod_choice_key(choice_key)
+                    if kind == WEAPON_MOD_CHOICE_KIND_VARIANT:
+                        next_variants.append(
+                            WeaponModVariantRule(
+                                identifier=identifier,
+                                target_item_type=target_item_type,
+                                component_kind=component_kind,
+                            )
+                        )
+                    elif kind == WEAPON_MOD_CHOICE_KIND_GENERIC:
+                        next_identifiers.append(identifier)
+                if setter(rule, next_identifiers):
+                    changed = True
+                    selected_identifiers = list(rule.protected_weapon_mod_identifiers)
+                if variant_setter is not None and variant_setter(rule, next_variants):
+                    changed = True
+                    selected_variant_rules = list(rule.protected_weapon_mod_variants)
+            else:
+                if setter(rule, selected_identifiers + addable_identifiers):
+                    changed = True
+                    selected_identifiers = list(rule.protected_rune_identifiers)
         if picked_identifier:
-            if setter(rule, selected_identifiers + [picked_identifier]):
-                changed = True
-            search_cache[index] = str(formatter(picked_identifier))
+            if threshold_setter is not None:
+                if picked_identifier not in protected_identifiers_for_add:
+                    kind, identifier, target_item_type, component_kind = _parse_weapon_mod_choice_key(picked_identifier)
+                    if kind == WEAPON_MOD_CHOICE_KIND_VARIANT:
+                        next_variants = list(selected_variant_rules)
+                        next_variants.append(
+                            WeaponModVariantRule(
+                                identifier=identifier,
+                                target_item_type=target_item_type,
+                                component_kind=component_kind,
+                            )
+                        )
+                        if variant_setter is not None and variant_setter(rule, next_variants):
+                            changed = True
+                            selected_variant_rules = list(rule.protected_weapon_mod_variants)
+                    elif kind == WEAPON_MOD_CHOICE_KIND_GENERIC:
+                        if setter(rule, selected_identifiers + [identifier]):
+                            changed = True
+                            selected_identifiers = list(rule.protected_weapon_mod_identifiers)
+                search_cache[index] = self._get_weapon_mod_choice_label(picked_identifier)
+            else:
+                if picked_identifier not in protected_identifiers_for_add and setter(rule, selected_identifiers + [picked_identifier]):
+                    changed = True
+                    selected_identifiers = list(rule.protected_rune_identifiers)
+                search_cache[index] = str(formatter(picked_identifier))
         self._end_sell_jump_target_group(index, anchor)
         return changed
 
@@ -13784,7 +16537,7 @@ class MerchantRulesWidget:
                 f"{self._format_sell_protection_jump_target_debug(jump_target)}"
             )
 
-        opened, enabled, header_clicked = self._draw_rule_header_row(
+        opened, enabled, header_clicked, updated_rule_name, renamed = self._draw_rule_header_row(
             f"sell_rule_header_{index}",
             f"{self._get_rule_display_label(rule, SELL_KIND_LABELS.get(rule.kind, 'Sell Rule'))}###sell_rule_{index}",
             type_label,
@@ -13794,10 +16547,15 @@ class MerchantRulesWidget:
             state_color,
             f"Enabled##sell_enabled_{index}",
             bool(rule.enabled),
+            rename_edit_key=f"sell_rule_name_{index}",
+            rule_name=rule.name,
             force_open=bool(is_target_rule and jump_target is not None and jump_target.force_rule_open),
         )
         if enabled != rule.enabled:
             rule.enabled = enabled
+            changed = True
+        if renamed:
+            rule.name = updated_rule_name
             changed = True
         if header_clicked and jump_target is not None and int(jump_target.owner_rule_index) != int(index):
             self._clear_sell_protection_jump(f"different rule clicked ({int(index)})")
@@ -13821,10 +16579,6 @@ class MerchantRulesWidget:
             f"Category: {SELL_RULE_WORKSPACE_LABELS.get(rule.kind, SELL_KIND_LABELS.get(rule.kind, 'Sell Rule'))}",
             wrapped=False,
         )
-        updated_rule_name = self._draw_rule_name_input(f"Rule Name (Optional)##sell_rule_name_{index}", rule.name)
-        if updated_rule_name != rule.name:
-            rule.name = updated_rule_name
-            changed = True
         if highlight_basic_jump_target:
             self._end_sell_jump_target_group(index, "")
 
@@ -13833,6 +16587,7 @@ class MerchantRulesWidget:
             self._draw_secondary_text("This legacy sell rule type is no longer supported and will be removed on save.")
             return changed
         if rule.kind in (SELL_KIND_WEAPONS, SELL_KIND_ARMOR):
+            self._draw_light_separator()
             if rule.kind == SELL_KIND_WEAPONS:
                 self._draw_secondary_text("Equippable weapons sell to Merchant. Standalone weapon mods route to the Rune Trader.")
             else:
@@ -13840,13 +16595,21 @@ class MerchantRulesWidget:
 
             changed = self._draw_sell_rule_rarity_toggles(index, rule) or changed
 
-            skip_customized = PyImGui.checkbox(f"Never Sell Customized Items##sell_skip_customized_{index}", bool(rule.skip_customized))
+            skip_customized = self._draw_protection_checkbox(
+                f"Never Sell Customized Items##sell_skip_customized_{index}",
+                bool(rule.skip_customized),
+                "Keeps customized matching items out of this sell rule.",
+            )
             if skip_customized != rule.skip_customized:
                 rule.skip_customized = skip_customized
                 changed = True
 
             PyImGui.same_line(0, 8)
-            skip_unidentified = PyImGui.checkbox(f"Never Sell Unidentified Items##sell_skip_unidentified_{index}", bool(rule.skip_unidentified))
+            skip_unidentified = self._draw_protection_checkbox(
+                f"Never Sell Unidentified Items##sell_skip_unidentified_{index}",
+                bool(rule.skip_unidentified),
+                "Keeps unidentified matching items out of this sell rule.",
+            )
             if skip_unidentified != rule.skip_unidentified:
                 rule.skip_unidentified = skip_unidentified
                 changed = True
@@ -13860,6 +16623,7 @@ class MerchantRulesWidget:
                     rule.include_standalone_runes = include_standalone_runes
                     changed = True
 
+            self._draw_light_separator()
             if is_target_rule and jump_target is not None and bool(jump_target.requires_advanced) and bool(jump_target.force_advanced_open):
                 self._debug_log(
                     f"Protections jump forcing Advanced open for rule {int(index)} | "
@@ -13875,10 +16639,17 @@ class MerchantRulesWidget:
                     jump_target = None
                     is_target_rule = False
             if advanced_open:
+                self._draw_section_heading("Model Protection")
                 changed = self._draw_sell_rule_blacklist_editor(index, rule) or changed
                 if rule.kind == SELL_KIND_WEAPONS:
+                    self._draw_light_separator()
+                    self._draw_section_heading("Weapon Type Protection")
                     changed = self._draw_sell_rule_weapon_type_blacklist_editor(index, rule) or changed
+                    self._draw_light_separator()
+                    self._draw_section_heading("Requirement Protection")
                     changed = self._draw_sell_rule_weapon_requirement_editor(index, rule) or changed
+                    self._draw_light_separator()
+                    self._draw_section_heading("Upgrade Protection")
                     changed = self._draw_protected_identifier_editor(
                         index,
                         rule,
@@ -13889,8 +16660,16 @@ class MerchantRulesWidget:
                         setter=self._set_sell_rule_weapon_mod_identifiers,
                         search_cache=self.sell_weapon_mod_search_cache,
                         cache_suffix="weapon_mods",
+                        threshold_rules=rule.protected_weapon_mod_thresholds,
+                        threshold_setter=self._set_sell_rule_weapon_mod_thresholds,
+                        selected_variants=rule.protected_weapon_mod_variants,
+                        variant_setter=self._set_sell_rule_weapon_mod_variants,
+                        variant_threshold_rules=rule.protected_weapon_mod_variant_thresholds,
+                        variant_threshold_setter=self._set_sell_rule_weapon_mod_variant_thresholds,
                     ) or changed
                 else:
+                    self._draw_light_separator()
+                    self._draw_section_heading("Upgrade Protection")
                     changed = self._draw_protected_identifier_editor(
                         index,
                         rule,
@@ -13919,22 +16698,22 @@ class MerchantRulesWidget:
 
         if rule.kind not in (SELL_KIND_WEAPONS, SELL_KIND_ARMOR):
             if rule.kind == SELL_KIND_COMMON_MATERIALS:
-                if PyImGui.button(f"Add All Common Materials##sell_common_preset_{index}"):
+                if self._draw_confirm_destructive_button(f"Add All Common Materials##sell_common_preset_{index}"):
                     if self._set_sell_rule_model_ids(index, rule, rule.model_ids + self._get_common_material_preset()):
                         changed = True
                 PyImGui.same_line(0, 8)
-                if PyImGui.button(f"Add All Rare Materials##sell_rare_preset_{index}"):
+                if self._draw_confirm_destructive_button(f"Add All Rare Materials##sell_rare_preset_{index}"):
                     if self._set_sell_rule_model_ids(index, rule, rule.model_ids + self._get_rare_material_preset()):
                         changed = True
-                if PyImGui.button(f"Replace With Common Materials##sell_common_replace_{index}"):
+                if self._draw_confirm_destructive_button(f"Replace With Common Materials##sell_common_replace_{index}"):
                     if self._set_sell_rule_model_ids(index, rule, self._get_common_material_preset()):
                         changed = True
                 PyImGui.same_line(0, 8)
-                if PyImGui.button(f"Replace With Rare Materials##sell_rare_replace_{index}"):
+                if self._draw_confirm_destructive_button(f"Replace With Rare Materials##sell_rare_replace_{index}"):
                     if self._set_sell_rule_model_ids(index, rule, self._get_rare_material_preset()):
                         changed = True
                 self._draw_secondary_text("Search can mix common and rare crafting materials in one sell rule.")
-            if PyImGui.button(f"Clear List##sell_clear_{index}"):
+            if self._draw_confirm_destructive_button(f"Clear List##sell_clear_{index}"):
                 if self._set_sell_rule_model_ids(index, rule, []):
                     changed = True
 
@@ -13989,16 +16768,22 @@ class MerchantRulesWidget:
                 self.sell_model_search_cache[index] = self._get_model_name(picked_model_id) or str(picked_model_id)
 
             if PyImGui.collapsing_header(f"Advanced##sell_advanced_{index}"):
-                current_raw = self.sell_model_text_cache.get(index, _format_model_ids(rule.model_ids))
-                new_raw = PyImGui.input_text(f"Manual Model IDs##sell_models_{index}", current_raw)
-                if new_raw != current_raw:
+                current_raw = _format_model_ids(rule.model_ids)
+                new_raw, apply_manual_ids = self._draw_manual_model_ids_editor(
+                    f"sell_models_{index}",
+                    current_raw,
+                )
+                if apply_manual_ids:
                     self.sell_model_text_cache[index] = new_raw
                     parsed_model_ids = _dedupe_model_ids(_parse_model_ids(new_raw))
                     if self._set_sell_rule_model_ids(index, rule, parsed_model_ids):
                         changed = True
-                self._draw_secondary_text("Use comma-separated model IDs only when the search picker is not enough.")
+                self._draw_secondary_text("Comma-separated model IDs. Apply replaces the selected list. Use only when the search picker is not enough.")
 
-        PyImGui.spacing()
+        if rule.kind in (SELL_KIND_WEAPONS, SELL_KIND_ARMOR):
+            self._draw_light_separator()
+        else:
+            PyImGui.spacing()
         same_kind_indices = self._get_sell_rule_indices_for_kind(rule.kind)
         same_kind_position = same_kind_indices.index(index) if index in same_kind_indices else -1
         move_up_target_index = same_kind_indices[same_kind_position - 1] if same_kind_position > 0 else -1
@@ -14012,7 +16797,7 @@ class MerchantRulesWidget:
         move_down = PyImGui.small_button(f"Move Down##sell_move_down_{index}")
         PyImGui.end_disabled()
         PyImGui.same_line(0, 8)
-        if PyImGui.button(f"Remove Rule##sell_remove_{index}"):
+        if self._draw_confirm_destructive_button(f"Remove Rule##sell_remove_{index}"):
             self.sell_rules.pop(index)
             self.rule_ui_structure_changed = True
             self._refresh_rule_ui_caches()
@@ -14091,7 +16876,7 @@ class MerchantRulesWidget:
         state_label, state_color = self._get_rule_state_badge(enabled=bool(rule.enabled), ready=ready)
         type_label, type_color = self._get_rule_type_presentation(rule.kind)
 
-        opened, enabled, _header_clicked = self._draw_rule_header_row(
+        opened, enabled, _header_clicked, updated_rule_name, renamed = self._draw_rule_header_row(
             f"destroy_rule_header_{index}",
             f"{self._get_rule_display_label(rule, DESTROY_KIND_LABELS.get(rule.kind, 'Destroy Rule'))}###destroy_rule_{index}",
             type_label,
@@ -14101,9 +16886,14 @@ class MerchantRulesWidget:
             state_color,
             f"Enabled##destroy_enabled_{index}",
             bool(rule.enabled),
+            rename_edit_key=f"destroy_rule_name_{index}",
+            rule_name=rule.name,
         )
         if enabled != rule.enabled:
             rule.enabled = enabled
+            changed = True
+        if renamed:
+            rule.name = updated_rule_name
             changed = True
 
         if not opened:
@@ -14114,10 +16904,6 @@ class MerchantRulesWidget:
             f"Category: {DESTROY_RULE_WORKSPACE_LABELS.get(rule.kind, DESTROY_KIND_LABELS.get(rule.kind, 'Destroy Rule'))}",
             wrapped=False,
         )
-        updated_rule_name = self._draw_rule_name_input(f"Rule Name (Optional)##destroy_rule_name_{index}", rule.name)
-        if updated_rule_name != rule.name:
-            rule.name = updated_rule_name
-            changed = True
 
         if rule.kind in (DESTROY_KIND_WEAPONS, DESTROY_KIND_ARMOR):
             if rule.kind == DESTROY_KIND_WEAPONS:
@@ -14129,24 +16915,24 @@ class MerchantRulesWidget:
         else:
             if rule.kind == DESTROY_KIND_MATERIALS:
                 self._draw_secondary_text("Matching material stacks honor Keep Count by quantity. Preview blocks partial destroys when a safe split slot is unavailable.")
-                if PyImGui.button(f"Add All Common Materials##destroy_common_preset_{index}"):
+                if self._draw_confirm_destructive_button(f"Add All Common Materials##destroy_common_preset_{index}"):
                     if self._set_destroy_rule_model_ids(index, rule, rule.model_ids + self._get_common_material_preset()):
                         changed = True
                 PyImGui.same_line(0, 8)
-                if PyImGui.button(f"Add All Rare Materials##destroy_rare_preset_{index}"):
+                if self._draw_confirm_destructive_button(f"Add All Rare Materials##destroy_rare_preset_{index}"):
                     if self._set_destroy_rule_model_ids(index, rule, rule.model_ids + self._get_rare_material_preset()):
                         changed = True
-                if PyImGui.button(f"Replace With Common Materials##destroy_common_replace_{index}"):
+                if self._draw_confirm_destructive_button(f"Replace With Common Materials##destroy_common_replace_{index}"):
                     if self._set_destroy_rule_model_ids(index, rule, self._get_common_material_preset()):
                         changed = True
                 PyImGui.same_line(0, 8)
-                if PyImGui.button(f"Replace With Rare Materials##destroy_rare_replace_{index}"):
+                if self._draw_confirm_destructive_button(f"Replace With Rare Materials##destroy_rare_replace_{index}"):
                     if self._set_destroy_rule_model_ids(index, rule, self._get_rare_material_preset()):
                         changed = True
             else:
                 self._draw_secondary_text("Matching inventory items are destroyed locally. Stackables honor Keep Count by quantity; non-stackables still use whole-item keeps.")
 
-            if PyImGui.button(f"Clear List##destroy_clear_{index}"):
+            if self._draw_confirm_destructive_button(f"Clear List##destroy_clear_{index}"):
                 if self._set_destroy_rule_model_ids(index, rule, []):
                     changed = True
 
@@ -14198,14 +16984,17 @@ class MerchantRulesWidget:
                 self.destroy_model_search_cache[index] = self._get_model_name(picked_model_id) or str(picked_model_id)
 
             if PyImGui.collapsing_header(f"Advanced##destroy_advanced_{index}"):
-                current_raw = self.destroy_model_text_cache.get(index, _format_model_ids(rule.model_ids))
-                new_raw = PyImGui.input_text(f"Manual Model IDs##destroy_models_{index}", current_raw)
-                if new_raw != current_raw:
+                current_raw = _format_model_ids(rule.model_ids)
+                new_raw, apply_manual_ids = self._draw_manual_model_ids_editor(
+                    f"destroy_models_{index}",
+                    current_raw,
+                )
+                if apply_manual_ids:
                     self.destroy_model_text_cache[index] = new_raw
                     parsed_model_ids = _dedupe_model_ids(_parse_model_ids(new_raw))
                     if self._set_destroy_rule_model_ids(index, rule, parsed_model_ids):
                         changed = True
-                self._draw_secondary_text("Use comma-separated model IDs only when the search picker is not enough.")
+                self._draw_secondary_text("Comma-separated model IDs. Apply replaces the selected list. Use only when the search picker is not enough.")
 
         PyImGui.spacing()
         same_kind_indices = self._get_destroy_rule_indices_for_kind(rule.kind)
@@ -14221,7 +17010,7 @@ class MerchantRulesWidget:
         move_down = PyImGui.small_button(f"Move Down##destroy_move_down_{index}")
         PyImGui.end_disabled()
         PyImGui.same_line(0, 8)
-        if PyImGui.button(f"Remove Rule##destroy_remove_{index}"):
+        if self._draw_confirm_destructive_button(f"Remove Rule##destroy_remove_{index}"):
             self.destroy_rules.pop(index)
             self.rule_ui_structure_changed = True
             self._refresh_rule_ui_caches()
@@ -14252,21 +17041,22 @@ class MerchantRulesWidget:
             kind: len(self._get_destroy_rule_indices_for_kind(kind))
             for kind in DESTROY_RULE_WORKSPACE_ORDER
         }
-        self.active_destroy_rule_kind = self._draw_rule_kind_tabs(
+        next_active_destroy_rule_kind = self._draw_rule_kind_tabs(
             workspace_id="merchant_rules_destroy_kind",
             active_kind=self.active_destroy_rule_kind,
             kind_order=DESTROY_RULE_WORKSPACE_ORDER,
             tab_labels=DESTROY_RULE_WORKSPACE_LABELS,
             rule_counts=rule_counts,
         )
+        if next_active_destroy_rule_kind != self.active_destroy_rule_kind:
+            self._clear_pending_destructive_button()
+            self.active_destroy_rule_kind = next_active_destroy_rule_kind
         PyImGui.separator()
 
         visible_indices = self._get_destroy_rule_indices_for_kind(self.active_destroy_rule_kind)
         section_label = DESTROY_RULE_WORKSPACE_LABELS.get(self.active_destroy_rule_kind, "Rules")
         self._draw_section_heading(f"Destroy: {section_label}")
-        self._draw_secondary_text(
-            f"Showing {len(visible_indices)} of {len(self.destroy_rules)} destroy rule(s). Move Up / Move Down stays within this section."
-        )
+        self._draw_secondary_text("Move Up / Move Down stays within this section.")
         if PyImGui.button(f"Add {section_label} Rule##merchant_rules_add_destroy_{self.active_destroy_rule_kind}"):
             if self._append_destroy_rule_of_kind(self.active_destroy_rule_kind):
                 visible_indices = self._get_destroy_rule_indices_for_kind(self.active_destroy_rule_kind)
@@ -14348,7 +17138,7 @@ class MerchantRulesWidget:
         if updated_targets:
             child_height = min(220, 58 + (32 * len(updated_targets)))
             if PyImGui.begin_child("merchant_rules_cleanup_targets", (0, child_height), True, PyImGui.WindowFlags.NoFlag):
-                if PyImGui.begin_table("merchant_rules_cleanup_targets_table", 3, PyImGui.TableFlags.NoFlag):
+                if PyImGui.begin_table("merchant_rules_cleanup_targets_table", 3, self._get_dense_list_table_flags()):
                     PyImGui.table_setup_column("Item", PyImGui.TableColumnFlags.WidthStretch)
                     PyImGui.table_setup_column("Keep On Character", PyImGui.TableColumnFlags.WidthFixed, 150.0)
                     PyImGui.table_setup_column("Remove", PyImGui.TableColumnFlags.WidthFixed, 60.0)
@@ -14436,7 +17226,7 @@ class MerchantRulesWidget:
         if cleanup_sources:
             child_height = min(220, 58 + (32 * len(cleanup_sources)))
             if PyImGui.begin_child("merchant_rules_cleanup_sources", (0, child_height), True, PyImGui.WindowFlags.NoFlag):
-                if PyImGui.begin_table("merchant_rules_cleanup_sources_table", 4, PyImGui.TableFlags.NoFlag):
+                if PyImGui.begin_table("merchant_rules_cleanup_sources_table", 4, self._get_dense_list_table_flags()):
                     PyImGui.table_setup_column("Sell Rule", PyImGui.TableColumnFlags.WidthStretch)
                     PyImGui.table_setup_column("Status", PyImGui.TableColumnFlags.WidthFixed, 90.0)
                     PyImGui.table_setup_column("Jump", PyImGui.TableColumnFlags.WidthFixed, 92.0)
@@ -14556,6 +17346,7 @@ class MerchantRulesWidget:
                 self._draw_preview_entries_table(
                     "merchant_rules_cleanup_preview_actions",
                     cleanup_actionable_entries,
+                    show_reasons=bool(self.detailed_preview),
                 )
             if cleanup_skipped_entries:
                 if cleanup_actionable_entries:
@@ -14590,28 +17381,29 @@ class MerchantRulesWidget:
             kind: len(self._get_buy_rule_indices_for_kind(kind))
             for kind in BUY_RULE_WORKSPACE_ORDER
         }
-        self.active_buy_rule_kind = self._draw_rule_kind_tabs(
+        next_active_buy_rule_kind = self._draw_rule_kind_tabs(
             workspace_id="merchant_rules_buy_kind",
             active_kind=self.active_buy_rule_kind,
             kind_order=BUY_RULE_WORKSPACE_ORDER,
             tab_labels=BUY_RULE_WORKSPACE_LABELS,
             rule_counts=rule_counts,
         )
+        if next_active_buy_rule_kind != self.active_buy_rule_kind:
+            self._clear_pending_destructive_button()
+            self.active_buy_rule_kind = next_active_buy_rule_kind
         PyImGui.separator()
 
         visible_indices = self._get_buy_rule_indices_for_kind(self.active_buy_rule_kind)
         section_label = BUY_RULE_WORKSPACE_LABELS.get(self.active_buy_rule_kind, "Rules")
         self._draw_section_heading(f"Buy: {section_label}")
-        self._draw_secondary_text(
-            f"Showing {len(visible_indices)} of {len(self.buy_rules)} buy rule(s). Move Up / Move Down stays within this section."
-        )
+        self._draw_secondary_text("Move Up / Move Down stays within this section.")
         if PyImGui.button(f"Add {section_label} Rule##merchant_rules_add_buy_{self.active_buy_rule_kind}"):
             if self._append_buy_rule_of_kind(self.active_buy_rule_kind):
                 visible_indices = self._get_buy_rule_indices_for_kind(self.active_buy_rule_kind)
                 section_changed = True
 
         if not self.buy_rules:
-            self._draw_secondary_text("No buy rules yet. Pick a section above and add the first rule to manage merchant stock, crafting materials, or rune trader stock.")
+            self._draw_secondary_text("No buy rules yet. Pick a section above and add the first rule to manage merchant stock, crafting materials, rune trader stock, or scroll trader stock.")
         elif not visible_indices:
             self._draw_secondary_text(f"No {section_label.lower()} buy rules in this section yet.")
 
@@ -14657,9 +17449,7 @@ class MerchantRulesWidget:
         visible_indices = self._get_sell_rule_indices_for_kind(self.active_sell_rule_kind)
         section_label = SELL_RULE_WORKSPACE_LABELS.get(self.active_sell_rule_kind, "Rules")
         self._draw_section_heading(f"Sell: {section_label}")
-        self._draw_secondary_text(
-            f"Showing {len(visible_indices)} of {len(self.sell_rules)} sell rule(s). Move Up / Move Down stays within this section."
-        )
+        self._draw_secondary_text("Move Up / Move Down stays within this section.")
         if PyImGui.button(f"Add {section_label} Rule##merchant_rules_add_sell_{self.active_sell_rule_kind}"):
             if self._append_sell_rule_of_kind(self.active_sell_rule_kind):
                 visible_indices = self._get_sell_rule_indices_for_kind(self.active_sell_rule_kind)
@@ -14763,7 +17553,12 @@ class MerchantRulesWidget:
                 if unavailable_here_reason:
                     self._draw_secondary_text(unavailable_here_reason)
                 displayed_reason = self._get_preview_reason_for_display(entry)
-                if (show_reasons or is_conditional) and displayed_reason:
+                if self._should_show_preview_reason(
+                    entry,
+                    displayed_reason,
+                    show_reasons=show_reasons,
+                    is_conditional=is_conditional,
+                ):
                     self._draw_secondary_text(displayed_reason)
 
                 PyImGui.table_set_column_index(3)
@@ -14774,15 +17569,39 @@ class MerchantRulesWidget:
 
             PyImGui.end_table()
 
+    def _normalize_preview_reason_display_text(self, reason: str) -> str:
+        display_reason = str(reason or "").strip()
+        if not display_reason:
+            return ""
+        display_reason = re.sub(r"\bHard-protected by\b", "Protected by", display_reason)
+        display_reason = re.sub(
+            r":\s+Protected by\s+((?:all-weapons|model|requirement range|all-weapons requirement range)\b)",
+            r": \1",
+            display_reason,
+        )
+        display_reason = re.sub(
+            r"^((?:Blocked by|Kept by|Matched by) [^:]+): Protected by ([^:]+): (.+)$",
+            r"\1: protected by \2, \3",
+            display_reason,
+        )
+        display_reason = re.sub(
+            r"\b((?:all-weapons|model) perfect-base range):\s+",
+            r"\1, ",
+            display_reason,
+        )
+        return display_reason
+
     def _get_preview_reason_for_display(self, entry: ExecutionPlanEntry) -> str:
         reason = str(entry.reason or "").strip()
-        if not reason or not self._preview_has_execute_travel_pending():
-            return reason
+        if not reason:
+            return ""
+        if not self._preview_has_execute_travel_pending():
+            return self._normalize_preview_reason_display_text(reason)
 
         target_outpost_name = self.preview_execute_travel_target_outpost_name or "the selected outpost"
         suffix = self._get_projected_preview_reason_suffix(entry.merchant_type, target_outpost_name)
         if not suffix:
-            return reason
+            return self._normalize_preview_reason_display_text(reason)
         legacy_suffix = suffix.replace("Travel + Execute", "Execute") if suffix else ""
         if reason == suffix:
             return ""
@@ -14790,16 +17609,32 @@ class MerchantRulesWidget:
             return ""
         spaced_suffix = f" {suffix}"
         if reason.endswith(spaced_suffix):
-            return reason[: -len(spaced_suffix)].rstrip()
+            return self._normalize_preview_reason_display_text(reason[: -len(spaced_suffix)].rstrip())
         if reason.endswith(suffix):
-            return reason[: -len(suffix)].rstrip()
+            return self._normalize_preview_reason_display_text(reason[: -len(suffix)].rstrip())
         if legacy_suffix:
             legacy_spaced_suffix = f" {legacy_suffix}"
             if reason.endswith(legacy_spaced_suffix):
-                return reason[: -len(legacy_spaced_suffix)].rstrip()
+                return self._normalize_preview_reason_display_text(reason[: -len(legacy_spaced_suffix)].rstrip())
             if reason.endswith(legacy_suffix):
-                return reason[: -len(legacy_suffix)].rstrip()
-        return reason
+                return self._normalize_preview_reason_display_text(reason[: -len(legacy_suffix)].rstrip())
+        return self._normalize_preview_reason_display_text(reason)
+
+    def _should_show_preview_reason(
+        self,
+        entry: ExecutionPlanEntry,
+        displayed_reason: str,
+        *,
+        show_reasons: bool = False,
+        is_conditional: bool = False,
+    ) -> bool:
+        if not str(displayed_reason or "").strip():
+            return False
+        return bool(
+            show_reasons
+            or is_conditional
+            or bool(getattr(self, "detailed_preview", False))
+        )
 
     def _draw_preview_section(self):
         actionable_entries, skipped_entries = self._split_preview_entries(self.preview_plan.entries)
@@ -14814,6 +17649,14 @@ class MerchantRulesWidget:
                     f"{direct_count} direct action(s) | {conditional_count} conditional action(s) | {skipped_count} blocked / skipped",
                     wrapped=False,
                 )
+                updated_detailed_preview = PyImGui.checkbox(
+                    "Detailed Preview##merchant_rules_detailed_preview",
+                    bool(self.detailed_preview),
+                )
+                self._draw_hover_tooltip("Shows why each preview row will buy, sell, destroy, deposit, withdraw, travel, or skip.")
+                if updated_detailed_preview != bool(self.detailed_preview):
+                    self.detailed_preview = bool(updated_detailed_preview)
+                    self._save_profile()
                 PyImGui.begin_disabled(not self.preview_ready)
                 compare_clicked = PyImGui.small_button("Compare With Current Inventory##merchant_rules_compare_preview_inventory")
                 PyImGui.end_disabled()
@@ -14865,6 +17708,7 @@ class MerchantRulesWidget:
                     self._draw_preview_entries_table(
                         "merchant_preview_actions",
                         actionable_entries,
+                        show_reasons=bool(self.detailed_preview),
                         plan=self.preview_plan,
                         availability_here=availability_here,
                     )
@@ -15109,25 +17953,6 @@ class MerchantRulesWidget:
         load_disabled = selected_profile is None
         overwrite_disabled = selected_profile is None
         delete_disabled = selected_profile is None
-        normalized_selected_path = (
-            os.path.normcase(os.path.normpath(selected_profile.path))
-            if selected_profile is not None
-            else ""
-        )
-        overwrite_confirm_required = bool(
-            normalized_selected_path
-            and normalized_selected_path
-            == os.path.normcase(
-                os.path.normpath(self.shared_profile_pending_overwrite_path)
-            )
-        )
-        delete_confirm_required = bool(
-            normalized_selected_path
-            and normalized_selected_path
-            == os.path.normcase(
-                os.path.normpath(self.shared_profile_pending_delete_path)
-            )
-        )
 
         save_new_clicked = PyImGui.button(
             "Save Current As New##merchant_rules_shared_profile_save_new"
@@ -15140,28 +17965,21 @@ class MerchantRulesWidget:
         PyImGui.end_disabled()
         PyImGui.same_line(0, 8)
         PyImGui.begin_disabled(load_disabled)
-        load_clicked = PyImGui.button(
+        load_clicked = self._draw_confirm_destructive_button(
             "Load Selected##merchant_rules_shared_profile_load"
         )
         PyImGui.end_disabled()
 
-        overwrite_label = (
-            "Click Again to Save Over Selected##merchant_rules_shared_profile_overwrite"
-            if overwrite_confirm_required
-            else "Save Current Over Selected##merchant_rules_shared_profile_overwrite"
-        )
-        delete_label = (
-            "Click Again to Delete Selected##merchant_rules_shared_profile_delete"
-            if delete_confirm_required
-            else "Delete Selected##merchant_rules_shared_profile_delete"
-        )
-
         PyImGui.begin_disabled(overwrite_disabled)
-        overwrite_clicked = PyImGui.button(overwrite_label)
+        overwrite_clicked = self._draw_confirm_destructive_button(
+            "Save Current Over Selected##merchant_rules_shared_profile_overwrite"
+        )
         PyImGui.end_disabled()
         PyImGui.same_line(0, 8)
         PyImGui.begin_disabled(delete_disabled)
-        delete_clicked = PyImGui.button(delete_label)
+        delete_clicked = self._draw_confirm_destructive_button(
+            "Delete Selected##merchant_rules_shared_profile_delete"
+        )
         PyImGui.end_disabled()
 
         if save_new_clicked:
@@ -15177,30 +17995,10 @@ class MerchantRulesWidget:
             self._load_selected_shared_profile()
             selected_profile = self._get_selected_shared_profile()
         if overwrite_clicked and selected_profile is not None:
-            if overwrite_confirm_required:
-                self._save_current_over_selected_shared_profile()
-            else:
-                self.shared_profile_pending_overwrite_path = selected_profile.path
-                self.shared_profile_pending_delete_path = ""
-                self._set_shared_profile_feedback(
-                    notice=(
-                        f"Click overwrite again to replace shared profile "
-                        f"'{selected_profile.display_name}'."
-                    )
-                )
+            self._save_current_over_selected_shared_profile()
             selected_profile = self._get_selected_shared_profile()
         if delete_clicked and selected_profile is not None:
-            if delete_confirm_required:
-                self._delete_selected_shared_profile()
-            else:
-                self.shared_profile_pending_delete_path = selected_profile.path
-                self.shared_profile_pending_overwrite_path = ""
-                self._set_shared_profile_feedback(
-                    notice=(
-                        f"Click delete again to remove shared profile "
-                        f"'{selected_profile.display_name}'."
-                    )
-                )
+            self._delete_selected_shared_profile()
 
         PyImGui.separator()
         self._draw_section_heading("Live Config")
