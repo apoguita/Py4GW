@@ -30,7 +30,33 @@ class BloodMagic:
             return self.bip_throttle.IsStopped() or self.bip_throttle.IsExpired()
 
         def _can_safely_cast_bip() -> bool:
-            return Agent.GetHealth(Player.GetAgentID()) > blood_is_power.Conditions.SacrificeHealth
+            # Refuse if the caster's HP after the BiP sacrifice would land at or
+            # below the percent-of-max floor or the absolute-HP floor. Mirrors the
+            # post-sacrifice safety check in HeroAI/combat.py so the build path
+            # honors the same floors as the HeroAI fallback.
+            player_id = Player.GetAgentID()
+            conditions = blood_is_power.Conditions
+
+            current_hp_fraction = float(Agent.GetHealth(player_id))
+            sacrifice_floor = float(conditions.SacrificeHealth or 0.0)
+            if current_hp_fraction <= sacrifice_floor:
+                return False
+
+            sacrifice_pct = float(conditions.SacrificePercent or 0.0)
+            min_after_pct = float(conditions.MinHealthAfterSacrificePercent or 0.0)
+            min_after_abs = int(conditions.MinHealthAfterSacrificeAbsolute or 0)
+            if sacrifice_pct > 0 and (min_after_pct > 0 or min_after_abs > 0):
+                max_hp = Agent.GetMaxHealth(player_id)
+                if max_hp <= 0:
+                    return False
+                sacrifice_amount = max_hp * sacrifice_pct
+                hp_after_sacrifice = (current_hp_fraction * max_hp) - sacrifice_amount
+                if min_after_abs > 0 and hp_after_sacrifice <= min_after_abs:
+                    return False
+                if min_after_pct > 0 and (hp_after_sacrifice / max_hp) <= min_after_pct:
+                    return False
+
+            return True
 
         if not self.build.IsSkillEquipped(blood_is_power_id):
             return False

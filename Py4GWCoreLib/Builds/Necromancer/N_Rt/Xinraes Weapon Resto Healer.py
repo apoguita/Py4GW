@@ -68,6 +68,10 @@ class Xinraes_Weapon_Resto_Healer(BuildMgr):
         if (yield from self.skills.Ritualist.RestorationMagic.Mend_Body_and_Soul(health_threshold=0.40)):
             return True
 
+        # Signet of Lost Souls: emergency energy refill when caster < 30%.
+        if (yield from self.skills.Necromancer.SoulReaping.Signet_of_Lost_Souls(max_self_energy_pct=0.30)):
+            return True
+
         # Recuperation 6+ allies below 75% HP OR 6+ allies degenning.
         if self.IsSkillEquipped(Recuperation_ID) and (yield from self.skills.Ritualist.RestorationMagic.Recuperation(
             min_party_damaged_count=6,
@@ -112,6 +116,10 @@ class Xinraes_Weapon_Resto_Healer(BuildMgr):
         )):
             return True
 
+        # Signet of Lost Souls: energy refill when caster < 60%.
+        if (yield from self.skills.Necromancer.SoulReaping.Signet_of_Lost_Souls(max_self_energy_pct=0.60)):
+            return True
+
         # damaged: any ally at or below 75% HP, before combat skills.
         if (yield from self.skills.Ritualist.RestorationMagic.Mend_Body_and_Soul(health_threshold=0.75)):
             return True
@@ -134,9 +142,6 @@ class Xinraes_Weapon_Resto_Healer(BuildMgr):
         if self.IsSkillEquipped(Life_ID) and (yield from self.skills.Ritualist.RestorationMagic.Life()):
             return True
 
-        if (yield from self.skills.Necromancer.SoulReaping.Signet_of_Lost_Souls()):
-            return True
-
         if self.IsSkillEquipped(Weaken_Armor_ID) and (yield from self.skills.Necromancer.Curses.Weaken_Armor()):
             return True
 
@@ -144,6 +149,10 @@ class Xinraes_Weapon_Resto_Healer(BuildMgr):
             return True
 
         if self.IsSkillEquipped(Recovery_ID) and (yield from self.skills.Ritualist.RestorationMagic.Recovery()):
+            return True
+
+        # Signet of Lost Souls: opportunistic refill, no caster energy gate.
+        if (yield from self.skills.Necromancer.SoulReaping.Signet_of_Lost_Souls()):
             return True
 
         # Recuperation 6+ allies below 75% HP OR 2+ allies degenning.
