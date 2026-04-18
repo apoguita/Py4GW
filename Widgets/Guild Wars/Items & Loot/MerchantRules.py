@@ -2677,6 +2677,10 @@ class MerchantRulesWidget:
         self.shared_profile_pending_delete_path = ""
         self.pending_destructive_button_key = ""
         self.pending_destructive_button_expires_at_ms = 0
+        self.rule_name_edit_key = ""
+        self.rule_name_edit_text = ""
+        self.manual_model_ids_edit_key = ""
+        self.manual_model_ids_edit_text = ""
         self.buy_rules: list[BuyRule] = []
         self.sell_rules: list[SellRule] = []
         self.destroy_rules: list[DestroyRule] = []
@@ -4137,6 +4141,10 @@ class MerchantRulesWidget:
 
     def _refresh_rule_ui_caches(self):
         self._clear_pending_destructive_button()
+        self.rule_name_edit_key = ""
+        self.rule_name_edit_text = ""
+        self.manual_model_ids_edit_key = ""
+        self.manual_model_ids_edit_text = ""
         self._rebuild_text_caches()
         self.buy_model_search_cache.clear()
         self.buy_manual_model_id_cache.clear()
@@ -7423,9 +7431,82 @@ class MerchantRulesWidget:
     def _format_destroy_rule_reference(self, index: int, rule: DestroyRule) -> str:
         return self._format_rule_reference(index, DESTROY_KIND_LABELS.get(rule.kind, "Destroy Rule"), self._get_rule_custom_name(rule))
 
-    def _draw_rule_name_input(self, input_id: str, current_name: str) -> str:
-        updated_name = PyImGui.input_text(input_id, _normalize_rule_name(current_name))
-        return _normalize_rule_name(updated_name)
+    def _get_rule_header_tree_label(self, tree_label: str, edit_key: str) -> str:
+        if self.rule_name_edit_key != edit_key:
+            return tree_label
+        _visible_label, separator, hidden_id = str(tree_label or "").partition("###")
+        if separator:
+            return f"###{hidden_id}"
+        return str(tree_label or "")
+
+    def _draw_rule_header_rename_controls(
+        self,
+        edit_key: str,
+        current_name: str,
+    ) -> tuple[str, bool]:
+        normalized_current_name = _normalize_rule_name(current_name)
+        if self.rule_name_edit_key != edit_key:
+            PyImGui.same_line(0, 8)
+            if PyImGui.small_button(f"Rename##{edit_key}_rename"):
+                self.rule_name_edit_key = edit_key
+                self.rule_name_edit_text = normalized_current_name
+            return normalized_current_name, False
+
+        PyImGui.same_line(0, 8)
+        PyImGui.set_next_item_width(180)
+        self.rule_name_edit_text = PyImGui.input_text(f"Rule Name##{edit_key}_input", self.rule_name_edit_text)
+        apply_clicked = PyImGui.small_button(f"Apply##{edit_key}_apply")
+        PyImGui.same_line(0, 8)
+        cancel_clicked = PyImGui.small_button(f"Cancel##{edit_key}_cancel")
+
+        if cancel_clicked:
+            self.rule_name_edit_key = ""
+            self.rule_name_edit_text = ""
+            return normalized_current_name, False
+
+        if apply_clicked:
+            updated_name = _normalize_rule_name(self.rule_name_edit_text)
+            self.rule_name_edit_key = ""
+            self.rule_name_edit_text = ""
+            return updated_name, updated_name != normalized_current_name
+
+        return normalized_current_name, False
+
+    def _draw_manual_model_ids_editor(self, edit_key: str, current_raw: str) -> tuple[str, bool]:
+        safe_current_raw = str(current_raw or "").strip()
+        if self.manual_model_ids_edit_key != edit_key:
+            PyImGui.set_next_item_width(360)
+            PyImGui.input_text(
+                f"Model IDs##{edit_key}_readonly",
+                safe_current_raw,
+                PyImGui.InputTextFlags.ReadOnly,
+            )
+            PyImGui.same_line(0, 8)
+            if PyImGui.small_button(f"Edit IDs##{edit_key}_edit"):
+                self.manual_model_ids_edit_key = edit_key
+                self.manual_model_ids_edit_text = safe_current_raw
+            return safe_current_raw, False
+
+        self.manual_model_ids_edit_text = PyImGui.input_text(
+            f"Manual Model IDs##{edit_key}_input",
+            self.manual_model_ids_edit_text,
+        )
+        apply_clicked = PyImGui.small_button(f"Apply##{edit_key}_apply")
+        PyImGui.same_line(0, 8)
+        cancel_clicked = PyImGui.small_button(f"Cancel##{edit_key}_cancel")
+
+        if cancel_clicked:
+            self.manual_model_ids_edit_key = ""
+            self.manual_model_ids_edit_text = ""
+            return safe_current_raw, False
+
+        if apply_clicked:
+            updated_raw = str(self.manual_model_ids_edit_text or "").strip()
+            self.manual_model_ids_edit_key = ""
+            self.manual_model_ids_edit_text = ""
+            return updated_raw, True
+
+        return safe_current_raw, False
 
     def _get_equippable_rule_destination(self, item: InventoryItemInfo, rule: SellRule) -> str:
         if rule.kind == SELL_KIND_WEAPONS:
@@ -14436,8 +14517,10 @@ class MerchantRulesWidget:
         checkbox_label: str,
         enabled: bool,
         *,
+        rename_edit_key: str = "",
+        rule_name: str = "",
         force_open: bool = False,
-    ) -> tuple[bool, bool, bool]:
+    ) -> tuple[bool, bool, bool, str, bool]:
         table_flags = PyImGui.TableFlags.RowBg | PyImGui.TableFlags.BordersInnerV
         if PyImGui.begin_table(table_id, 3, table_flags):
             PyImGui.table_setup_column("Rule", PyImGui.TableColumnFlags.WidthStretch)
@@ -14450,14 +14533,24 @@ class MerchantRulesWidget:
             PyImGui.same_line(0, 6)
             self._draw_inline_badge(type_label, type_color)
             PyImGui.same_line(0, 8)
-            tree_flags = getattr(PyImGui.TreeNodeFlags, "SpanFullWidth", PyImGui.TreeNodeFlags.NoFlag)
+            tree_flags = PyImGui.TreeNodeFlags.NoFlag
+            if not rename_edit_key:
+                tree_flags = getattr(PyImGui.TreeNodeFlags, "SpanFullWidth", PyImGui.TreeNodeFlags.NoFlag)
             if force_open:
                 self._debug_log(f"Protections jump applying rule-header force-open before tree node: {tree_label}")
                 self._force_next_item_open(True)
+            draw_tree_label = self._get_rule_header_tree_label(tree_label, rename_edit_key) if rename_edit_key else tree_label
             self._push_rule_header_hover_style()
-            opened = PyImGui.tree_node_ex(tree_label, tree_flags)
+            opened = PyImGui.tree_node_ex(draw_tree_label, tree_flags)
             header_clicked = bool(PyImGui.is_item_clicked(0))
             PyImGui.pop_style_color(3)
+            updated_rule_name = _normalize_rule_name(rule_name)
+            renamed = False
+            if rename_edit_key:
+                updated_rule_name, renamed = self._draw_rule_header_rename_controls(
+                    rename_edit_key,
+                    rule_name,
+                )
 
             PyImGui.table_set_column_index(1)
             self._draw_inline_badge(state_label, state_color)
@@ -14468,7 +14561,7 @@ class MerchantRulesWidget:
             PyImGui.table_set_column_index(2)
             new_enabled = PyImGui.checkbox(checkbox_label, enabled)
             PyImGui.end_table()
-            return bool(opened), bool(new_enabled), header_clicked
+            return bool(opened), bool(new_enabled), header_clicked, updated_rule_name, renamed
 
         PyImGui.text_colored("|", type_color)
         PyImGui.same_line(0, 6)
@@ -14477,10 +14570,18 @@ class MerchantRulesWidget:
         if force_open:
             self._debug_log(f"Protections jump applying rule-header force-open before tree node: {tree_label}")
             self._force_next_item_open(True)
+        draw_tree_label = self._get_rule_header_tree_label(tree_label, rename_edit_key) if rename_edit_key else tree_label
         self._push_rule_header_hover_style()
-        opened = PyImGui.tree_node(tree_label)
+        opened = PyImGui.tree_node(draw_tree_label)
         header_clicked = bool(PyImGui.is_item_clicked(0))
         PyImGui.pop_style_color(3)
+        updated_rule_name = _normalize_rule_name(rule_name)
+        renamed = False
+        if rename_edit_key:
+            updated_rule_name, renamed = self._draw_rule_header_rename_controls(
+                rename_edit_key,
+                rule_name,
+            )
         PyImGui.same_line(0, 8)
         self._draw_inline_badge(state_label, state_color)
         if summary_text:
@@ -14488,7 +14589,7 @@ class MerchantRulesWidget:
             PyImGui.text(summary_text)
         PyImGui.same_line(0, 8)
         new_enabled = PyImGui.checkbox(checkbox_label, enabled)
-        return bool(opened), bool(new_enabled), header_clicked
+        return bool(opened), bool(new_enabled), header_clicked, updated_rule_name, renamed
 
     def _format_sell_protection_jump_target_debug(self, target: SellProtectionJumpTarget | None = None) -> str:
         active_target = target if target is not None else self.sell_protection_jump_target
@@ -15562,7 +15663,7 @@ class MerchantRulesWidget:
         state_label, state_color = self._get_rule_state_badge(enabled=bool(rule.enabled), ready=ready)
         type_label, type_color = self._get_rule_type_presentation(rule.kind)
 
-        opened, enabled, _header_clicked = self._draw_rule_header_row(
+        opened, enabled, _header_clicked, updated_rule_name, renamed = self._draw_rule_header_row(
             f"buy_rule_header_{index}",
             f"{self._get_rule_display_label(rule, BUY_KIND_LABELS.get(rule.kind, 'Buy Rule'))}###buy_rule_{index}",
             type_label,
@@ -15572,9 +15673,14 @@ class MerchantRulesWidget:
             state_color,
             f"Enabled##buy_enabled_{index}",
             bool(rule.enabled),
+            rename_edit_key=f"buy_rule_name_{index}",
+            rule_name=rule.name,
         )
         if enabled != rule.enabled:
             rule.enabled = enabled
+            changed = True
+        if renamed:
+            rule.name = updated_rule_name
             changed = True
 
         if not opened:
@@ -15585,10 +15691,6 @@ class MerchantRulesWidget:
             f"Category: {BUY_RULE_WORKSPACE_LABELS.get(rule.kind, BUY_KIND_LABELS.get(rule.kind, 'Buy Rule'))}",
             wrapped=False,
         )
-        updated_rule_name = self._draw_rule_name_input(f"Rule Name (Optional)##buy_rule_name_{index}", rule.name)
-        if updated_rule_name != rule.name:
-            rule.name = updated_rule_name
-            changed = True
 
         if rule.kind == BUY_KIND_MERCHANT_STOCK:
             changed = self._draw_buy_rule_merchant_stock_editor(index, rule) or changed
@@ -15904,8 +16006,8 @@ class MerchantRulesWidget:
             )
 
         search_text = self.sell_blacklist_search_cache.get(index, "")
-        updated_search_text = PyImGui.input_text(f"Protect Models By Name##sell_blacklist_search_{index}", search_text)
-        self._draw_hover_tooltip("Search for item models to protect directly.")
+        updated_search_text = PyImGui.input_text(f"Add Protected Models##sell_blacklist_search_{index}", search_text)
+        self._draw_hover_tooltip("Search by model name, model ID, type, or alias.")
         if updated_search_text != search_text:
             self.sell_blacklist_search_cache[index] = updated_search_text
 
@@ -16192,8 +16294,8 @@ class MerchantRulesWidget:
             self._draw_secondary_text("No requirement-protected weapon models selected yet.", wrapped=False)
 
         search_text = self.sell_weapon_requirement_search_cache.get(index, "")
-        updated_search_text = PyImGui.input_text(f"Protect Weapon Models By Name##sell_weapon_requirement_search_{index}", search_text)
-        self._draw_hover_tooltip("Search for weapon models to protect with a requirement range.")
+        updated_search_text = PyImGui.input_text(f"Add Requirement-Protected Models##sell_weapon_requirement_search_{index}", search_text)
+        self._draw_hover_tooltip("Search by weapon model name, model ID, type, or alias.")
         if updated_search_text != search_text:
             self.sell_weapon_requirement_search_cache[index] = updated_search_text
 
@@ -16321,8 +16423,9 @@ class MerchantRulesWidget:
                     selected_identifiers = list(rule.protected_rune_identifiers)
 
         search_text = search_cache.get(index, "")
-        updated_search_text = PyImGui.input_text(f"Protect By Name##sell_protected_search_{cache_suffix}_{index}", search_text)
-        self._draw_hover_tooltip("Search for entries to add to this protection list.")
+        search_label = "Add Protected Upgrades" if cache_suffix == "weapon_mods" else "Add Protected Runes / Insignias"
+        updated_search_text = PyImGui.input_text(f"{search_label}##sell_protected_search_{cache_suffix}_{index}", search_text)
+        self._draw_hover_tooltip("Search by name or identifier.")
         if updated_search_text != search_text:
             search_cache[index] = updated_search_text
 
@@ -16429,7 +16532,7 @@ class MerchantRulesWidget:
                 f"{self._format_sell_protection_jump_target_debug(jump_target)}"
             )
 
-        opened, enabled, header_clicked = self._draw_rule_header_row(
+        opened, enabled, header_clicked, updated_rule_name, renamed = self._draw_rule_header_row(
             f"sell_rule_header_{index}",
             f"{self._get_rule_display_label(rule, SELL_KIND_LABELS.get(rule.kind, 'Sell Rule'))}###sell_rule_{index}",
             type_label,
@@ -16439,10 +16542,15 @@ class MerchantRulesWidget:
             state_color,
             f"Enabled##sell_enabled_{index}",
             bool(rule.enabled),
+            rename_edit_key=f"sell_rule_name_{index}",
+            rule_name=rule.name,
             force_open=bool(is_target_rule and jump_target is not None and jump_target.force_rule_open),
         )
         if enabled != rule.enabled:
             rule.enabled = enabled
+            changed = True
+        if renamed:
+            rule.name = updated_rule_name
             changed = True
         if header_clicked and jump_target is not None and int(jump_target.owner_rule_index) != int(index):
             self._clear_sell_protection_jump(f"different rule clicked ({int(index)})")
@@ -16466,10 +16574,6 @@ class MerchantRulesWidget:
             f"Category: {SELL_RULE_WORKSPACE_LABELS.get(rule.kind, SELL_KIND_LABELS.get(rule.kind, 'Sell Rule'))}",
             wrapped=False,
         )
-        updated_rule_name = self._draw_rule_name_input(f"Rule Name (Optional)##sell_rule_name_{index}", rule.name)
-        if updated_rule_name != rule.name:
-            rule.name = updated_rule_name
-            changed = True
         if highlight_basic_jump_target:
             self._end_sell_jump_target_group(index, "")
 
@@ -16659,14 +16763,17 @@ class MerchantRulesWidget:
                 self.sell_model_search_cache[index] = self._get_model_name(picked_model_id) or str(picked_model_id)
 
             if PyImGui.collapsing_header(f"Advanced##sell_advanced_{index}"):
-                current_raw = self.sell_model_text_cache.get(index, _format_model_ids(rule.model_ids))
-                new_raw = PyImGui.input_text(f"Manual Model IDs##sell_models_{index}", current_raw)
-                if new_raw != current_raw:
+                current_raw = _format_model_ids(rule.model_ids)
+                new_raw, apply_manual_ids = self._draw_manual_model_ids_editor(
+                    f"sell_models_{index}",
+                    current_raw,
+                )
+                if apply_manual_ids:
                     self.sell_model_text_cache[index] = new_raw
                     parsed_model_ids = _dedupe_model_ids(_parse_model_ids(new_raw))
                     if self._set_sell_rule_model_ids(index, rule, parsed_model_ids):
                         changed = True
-                self._draw_secondary_text("Use comma-separated model IDs only when the search picker is not enough.")
+                self._draw_secondary_text("Comma-separated model IDs. Apply replaces the selected list. Use only when the search picker is not enough.")
 
         if rule.kind in (SELL_KIND_WEAPONS, SELL_KIND_ARMOR):
             self._draw_light_separator()
@@ -16764,7 +16871,7 @@ class MerchantRulesWidget:
         state_label, state_color = self._get_rule_state_badge(enabled=bool(rule.enabled), ready=ready)
         type_label, type_color = self._get_rule_type_presentation(rule.kind)
 
-        opened, enabled, _header_clicked = self._draw_rule_header_row(
+        opened, enabled, _header_clicked, updated_rule_name, renamed = self._draw_rule_header_row(
             f"destroy_rule_header_{index}",
             f"{self._get_rule_display_label(rule, DESTROY_KIND_LABELS.get(rule.kind, 'Destroy Rule'))}###destroy_rule_{index}",
             type_label,
@@ -16774,9 +16881,14 @@ class MerchantRulesWidget:
             state_color,
             f"Enabled##destroy_enabled_{index}",
             bool(rule.enabled),
+            rename_edit_key=f"destroy_rule_name_{index}",
+            rule_name=rule.name,
         )
         if enabled != rule.enabled:
             rule.enabled = enabled
+            changed = True
+        if renamed:
+            rule.name = updated_rule_name
             changed = True
 
         if not opened:
@@ -16787,10 +16899,6 @@ class MerchantRulesWidget:
             f"Category: {DESTROY_RULE_WORKSPACE_LABELS.get(rule.kind, DESTROY_KIND_LABELS.get(rule.kind, 'Destroy Rule'))}",
             wrapped=False,
         )
-        updated_rule_name = self._draw_rule_name_input(f"Rule Name (Optional)##destroy_rule_name_{index}", rule.name)
-        if updated_rule_name != rule.name:
-            rule.name = updated_rule_name
-            changed = True
 
         if rule.kind in (DESTROY_KIND_WEAPONS, DESTROY_KIND_ARMOR):
             if rule.kind == DESTROY_KIND_WEAPONS:
@@ -16871,14 +16979,17 @@ class MerchantRulesWidget:
                 self.destroy_model_search_cache[index] = self._get_model_name(picked_model_id) or str(picked_model_id)
 
             if PyImGui.collapsing_header(f"Advanced##destroy_advanced_{index}"):
-                current_raw = self.destroy_model_text_cache.get(index, _format_model_ids(rule.model_ids))
-                new_raw = PyImGui.input_text(f"Manual Model IDs##destroy_models_{index}", current_raw)
-                if new_raw != current_raw:
+                current_raw = _format_model_ids(rule.model_ids)
+                new_raw, apply_manual_ids = self._draw_manual_model_ids_editor(
+                    f"destroy_models_{index}",
+                    current_raw,
+                )
+                if apply_manual_ids:
                     self.destroy_model_text_cache[index] = new_raw
                     parsed_model_ids = _dedupe_model_ids(_parse_model_ids(new_raw))
                     if self._set_destroy_rule_model_ids(index, rule, parsed_model_ids):
                         changed = True
-                self._draw_secondary_text("Use comma-separated model IDs only when the search picker is not enough.")
+                self._draw_secondary_text("Comma-separated model IDs. Apply replaces the selected list. Use only when the search picker is not enough.")
 
         PyImGui.spacing()
         same_kind_indices = self._get_destroy_rule_indices_for_kind(rule.kind)
