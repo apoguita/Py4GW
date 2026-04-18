@@ -7166,7 +7166,12 @@ class MerchantRulesWidget:
         if raw_modifiers:
             parsed_modifiers = parse_modifiers(list(raw_modifiers), parse_item_type, model_id, MOD_DB)
             rune_identifiers = tuple(_dedupe_identifiers([match.rune.identifier for match in parsed_modifiers.runes]))
-            weapon_mod_identifiers = tuple(_dedupe_identifiers([match.weapon_mod.identifier for match in parsed_modifiers.weapon_mods]))
+            weapon_mod_identifier_values = [match.weapon_mod.identifier for match in parsed_modifiers.weapon_mods]
+            if getattr(parsed_modifiers, "has_increased_value", False):
+                weapon_mod_identifier_values.append('"Show me the money!"')
+            if getattr(parsed_modifiers, "is_highly_salvageable", False):
+                weapon_mod_identifier_values.append('"Measure for Measure"')
+            weapon_mod_identifiers = tuple(_dedupe_identifiers(weapon_mod_identifier_values))
             weapon_mod_matches = tuple(
                 parsed_match
                 for parsed_match in (
