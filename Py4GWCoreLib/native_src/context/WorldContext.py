@@ -592,9 +592,24 @@ class PlayerStruct(Structure):
         ("h0040_array", GW_Array),                             # +h0040 Array<void*>
     ]
  
-    @property 
+    @property
     def is_pvp(self) -> bool:
         return (self.flags & 0x800) != 0
+
+    # reforged_or_dhuums_flags (offset 0x34) bit decoding.
+    # Bit 0x1 = Reforged, 0x2 = Melandru's Accord, 0x4 = Dhuum's Covenant.
+    @property
+    def is_reforged(self) -> bool:
+        return (self.reforged_or_dhuums_flags & 0x1) != 0
+
+    @property
+    def is_melandrus_accord(self) -> bool:
+        return (self.reforged_or_dhuums_flags & 0x2) != 0
+
+    @property
+    def is_dhuums_covenant(self) -> bool:
+        return (self.reforged_or_dhuums_flags & 0x4) != 0
+
     @property
     def name_enc_encoded_str(self) -> str | None:
         return read_wstr(self.name_enc_ptr)
