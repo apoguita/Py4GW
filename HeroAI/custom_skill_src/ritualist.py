@@ -658,6 +658,7 @@ class RitualistSkills:
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Buff.value
         skill.Conditions.IsOutOfCombat = False
+        skill.Conditions.CloseToAggro = True
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()

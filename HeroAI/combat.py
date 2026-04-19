@@ -899,6 +899,7 @@ class CombatClass:
         feature_count += (1 if Conditions.AlliesInRange > 0 else 0)
         feature_count += (1 if Conditions.SpiritsInRange > 0 else 0)
         feature_count += (1 if Conditions.MinionsInRange > 0 else 0)
+        feature_count += (1 if Conditions.CloseToAggro else 0)
 
         if Conditions.IsAlive:
             if Routines.Checks.Agents.IsAlive(vTarget):
@@ -1184,6 +1185,12 @@ class CombatClass:
             player_pos = Player.GetXY()
             ally_array = ally_array = Routines.Agents.GetFilteredMinionArray(player_pos[0], player_pos[1], Conditions.MinionsInRangeArea)
             if len(ally_array) >= Conditions.MinionsInRange:
+                number_of_features += 1
+            else:
+                return False
+
+        if Conditions.CloseToAggro:
+            if Routines.Checks.Agents.InAggro() or Routines.Checks.Agents.IsCloseToAggro():
                 number_of_features += 1
             else:
                 return False

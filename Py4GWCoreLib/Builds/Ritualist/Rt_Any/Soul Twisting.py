@@ -19,6 +19,7 @@ Breath_of_the_Great_Dwarf_ID = Skill.GetID("Breath_of_the_Great_Dwarf")
 Ebon_Vanguard_Assassin_Support_ID = Skill.GetID("Ebon_Vanguard_Assassin_Support")
 Ebon_Battle_Standard_of_Wisdom_ID = Skill.GetID("Ebon_Battle_Standard_of_Wisdom")
 I_Am_Unstoppable_ID = Skill.GetID("I_Am_Unstoppable")
+Air_of_Superiority_ID = Skill.GetID("Air_of_Superiority")
 
 
 @dataclass(slots=True)
@@ -49,6 +50,7 @@ class Soul_Twisting(BuildMgr):
                 Ebon_Vanguard_Assassin_Support_ID,
                 Ebon_Battle_Standard_of_Wisdom_ID,
                 I_Am_Unstoppable_ID,
+                Air_of_Superiority_ID,
             ],
         )
         if match_only:
@@ -69,6 +71,7 @@ class Soul_Twisting(BuildMgr):
             Ebon_Vanguard_Assassin_Support_ID,
             Ebon_Battle_Standard_of_Wisdom_ID,
             I_Am_Unstoppable_ID,
+            Air_of_Superiority_ID,
         ])
         self.SetSkillCastingFn(self._run_local_skill_logic)
         self.skills: SkillsTemplate = SkillsTemplate(self)
@@ -88,7 +91,17 @@ class Soul_Twisting(BuildMgr):
         if not snapshot.close_to_aggro:
             return False
 
+        if (
+            self.IsSkillEquipped(Air_of_Superiority_ID)
+            and (snapshot.in_aggro or self.IsCloseToAggro())
+            and (yield from self.skills.Any.PvE.Air_of_Superiority())
+        ):
+            return True
+
         if snapshot.in_aggro and (yield from self.skills.Any.NoAttribute.I_Am_Unstoppable()):
+            return True
+
+        if (yield from self.skills.Ritualist.SpawningPower.Boon_of_Creation()):
             return True
 
         if (yield from self.skills.Ritualist.SpawningPower.Soul_Twisting()):
@@ -98,9 +111,6 @@ class Soul_Twisting(BuildMgr):
             return True
 
         if self.IsSkillEquipped(Summon_Spirits_luxon_ID) and (yield from self.skills.Any.NoAttribute.Summon_Spirits_luxon()):
-            return True
-
-        if (yield from self.skills.Ritualist.SpawningPower.Boon_of_Creation()):
             return True
 
         if (yield from self.skills.Ritualist.Communing.Shelter()):

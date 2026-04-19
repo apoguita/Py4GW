@@ -38,6 +38,9 @@ class RestorationMagic:
         if not self.build.IsSkillEquipped(life_id):
             return False
 
+        if not (Routines.Checks.Agents.InAggro() or self.build.IsCloseToAggro()):
+            return False
+
         return (yield from self.build.CastSpiritSkillID(
             skill_id=life_id,
             log=False,
@@ -289,10 +292,19 @@ class RestorationMagic:
     #endregion
 
     #region S
-    def Spirit_Light(self) -> BuildCoroutine:
+    def Spirit_Light(
+        self,
+        *,
+        health_threshold: float | None = None,
+    ) -> BuildCoroutine:
         spirit_light_id: int = Skill.GetID("Spirit_Light")
         spirit_light: CustomSkill = self.build.GetCustomSkill(spirit_light_id)
-        health_threshold: float = max(0.0, min(1.0, float(spirit_light.Conditions.LessLife or 0.60)))
+        threshold: float = (
+            health_threshold
+            if health_threshold is not None
+            else float(spirit_light.Conditions.LessLife or 0.60)
+        )
+        threshold = max(0.0, min(1.0, threshold))
 
         def _can_safely_cast_spirit_light() -> bool:
             return (
@@ -305,7 +317,7 @@ class RestorationMagic:
                 return self.build.ResolvePreferredAllyTarget(
                     spirit_light_id,
                     spirit_light,
-                    validator=lambda agent_id: Agent.IsAlive(agent_id) and Agent.GetHealth(agent_id) < health_threshold,
+                    validator=lambda agent_id: Agent.IsAlive(agent_id) and Agent.GetHealth(agent_id) < threshold,
                 )
 
             other_ally_skill = deepcopy(spirit_light)
@@ -316,7 +328,7 @@ class RestorationMagic:
                 validator=lambda agent_id: (
                     Agent.IsAlive(agent_id)
                     and agent_id != Player.GetAgentID()
-                    and Agent.GetHealth(agent_id) < health_threshold
+                    and Agent.GetHealth(agent_id) < threshold
                 ),
             )
 
@@ -335,10 +347,19 @@ class RestorationMagic:
             extra_condition=_can_safely_cast_spirit_light,
         ))
 
-    def Spirit_Transfer(self) -> BuildCoroutine:
+    def Spirit_Transfer(
+        self,
+        *,
+        health_threshold: float | None = None,
+    ) -> BuildCoroutine:
         spirit_transfer_id: int = Skill.GetID("Spirit_Transfer")
         spirit_transfer: CustomSkill = self.build.GetCustomSkill(spirit_transfer_id)
-        health_threshold: float = max(0.0, min(1.0, float(spirit_transfer.Conditions.LessLife or 0.50)))
+        threshold: float = (
+            health_threshold
+            if health_threshold is not None
+            else float(spirit_transfer.Conditions.LessLife or 0.50)
+        )
+        threshold = max(0.0, min(1.0, threshold))
 
         def _resolve_spirit_transfer_target() -> int:
             if not Routines.Agents.GetNearestSpirit(Range.Spellcast.value):
@@ -347,7 +368,7 @@ class RestorationMagic:
             return self.build.ResolvePreferredAllyTarget(
                 spirit_transfer_id,
                 spirit_transfer,
-                validator=lambda agent_id: Agent.IsAlive(agent_id) and Agent.GetHealth(agent_id) < health_threshold,
+                validator=lambda agent_id: Agent.IsAlive(agent_id) and Agent.GetHealth(agent_id) < threshold,
             )
 
         if not self.build.IsSkillEquipped(spirit_transfer_id):
