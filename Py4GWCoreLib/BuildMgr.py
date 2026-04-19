@@ -685,13 +685,17 @@ class BuildMgr:
         self,
         cluster_radius: float,
         preferred_condition: Callable[[int], bool] | None = None,
+        *,
+        filter_radius: float | None = None,
     ) -> int:
         from Py4GWCoreLib import Player, AgentArray
         from Py4GWCoreLib.Agent import Agent
 
+        effective_filter_radius = float(filter_radius if filter_radius is not None else cluster_radius)
+
         player_pos = Player.GetXY()
         enemy_array = AgentArray.GetEnemyArray()
-        enemy_array = AgentArray.Filter.ByDistance(enemy_array, player_pos, cluster_radius)
+        enemy_array = AgentArray.Filter.ByDistance(enemy_array, player_pos, effective_filter_radius)
         enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Agent.IsAlive(agent_id))
 
         if not enemy_array:
