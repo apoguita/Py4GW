@@ -19,6 +19,7 @@ Enfeebling_Blood_ID = Skill.GetID("Enfeebling_Blood")
 Recovery_ID = Skill.GetID("Recovery")
 Breath_of_the_Great_Dwarf_ID = Skill.GetID("Breath_of_the_Great_Dwarf")
 Recuperation_ID = Skill.GetID("Recuperation")
+Blood_Bond_ID = Skill.GetID("Blood_Bond")
 
 
 class Blood_is_Power_Healer(BuildMgr):
@@ -45,6 +46,7 @@ class Blood_is_Power_Healer(BuildMgr):
                 Recovery_ID,
                 Breath_of_the_Great_Dwarf_ID,
                 Recuperation_ID,
+                Blood_Bond_ID,
             ],
         )
         if match_only:
@@ -116,6 +118,9 @@ class Blood_is_Power_Healer(BuildMgr):
 
         # Signet of Lost Souls : energy refill when caster < 60%.
         if (yield from self.skills.Necromancer.SoulReaping.Signet_of_Lost_Souls(max_self_energy_pct=0.60)):
+            return True
+
+        if self.IsSkillEquipped(Blood_Bond_ID) and (yield from self.skills.Necromancer.BloodMagic.Blood_Bond()):
             return True
 
         # damaged: any ally at or below 75% HP, before combat skills.
