@@ -399,6 +399,102 @@ try:
             "text": (0.95, 0.91, 0.76, 1.00),
             "meta": (0.84, 0.79, 0.61, 1.00),
         },
+        "settings_profiles": {
+            "header": (0.95, 0.48, 0.00, 0.88),
+            "header_hovered": (1.00, 0.56, 0.06, 0.94),
+            "header_active": (1.00, 0.64, 0.14, 1.00),
+            "header_text": (0.06, 0.05, 0.02, 1.00),
+            "text": (0.90, 0.93, 0.97, 1.00),
+            "meta": (0.74, 0.79, 0.86, 1.00),
+        },
+        "settings_other_accounts": {
+            "header": (0.48, 0.17, 0.75, 0.88),
+            "header_hovered": (0.56, 0.27, 0.84, 0.94),
+            "header_active": (0.64, 0.36, 0.91, 1.00),
+            "header_text": (0.96, 0.96, 0.96, 1.00),
+            "text": (0.96, 0.88, 0.72, 1.00),
+            "meta": (0.88, 0.76, 0.54, 1.00),
+        },
+        "settings_select": {
+            "header": (0.00, 0.00, 0.00, 0.88),
+            "header_hovered": (0.08, 0.08, 0.08, 0.94),
+            "header_active": (0.14, 0.14, 0.14, 1.00),
+            "header_text": (0.96, 0.96, 0.96, 1.00),
+            "text": (0.90, 0.93, 0.97, 1.00),
+            "meta": (0.74, 0.79, 0.86, 1.00),
+        },
+        "settings_select_explorable": {
+            "header": (0.10, 0.10, 0.10, 0.88),
+            "header_hovered": (0.16, 0.16, 0.16, 0.94),
+            "header_active": (0.22, 0.22, 0.22, 1.00),
+            "header_text": (0.96, 0.96, 0.96, 1.00),
+            "text": (0.82, 0.93, 0.88, 1.00),
+            "meta": (0.68, 0.82, 0.77, 1.00),
+        },
+        "settings_select_summoning": {
+            "header": (0.15, 0.15, 0.15, 0.88),
+            "header_hovered": (0.21, 0.21, 0.21, 0.94),
+            "header_active": (0.27, 0.27, 0.27, 1.00),
+            "header_text": (0.96, 0.96, 0.96, 1.00),
+            "text": (0.96, 0.88, 0.76, 1.00),
+            "meta": (0.88, 0.77, 0.60, 1.00),
+        },
+        "settings_select_mbdp": {
+            "header": (0.20, 0.20, 0.20, 0.88),
+            "header_hovered": (0.26, 0.26, 0.26, 0.94),
+            "header_active": (0.32, 0.32, 0.32, 1.00),
+            "header_text": (0.96, 0.96, 0.96, 1.00),
+            "text": (0.96, 0.88, 0.72, 1.00),
+            "meta": (0.88, 0.76, 0.54, 1.00),
+        },
+        "settings_select_outpost": {
+            "header": (0.25, 0.25, 0.25, 0.88),
+            "header_hovered": (0.31, 0.31, 0.31, 0.94),
+            "header_active": (0.37, 0.37, 0.37, 1.00),
+            "header_text": (0.96, 0.96, 0.96, 1.00),
+            "text": (0.82, 0.89, 0.98, 1.00),
+            "meta": (0.67, 0.78, 0.92, 1.00),
+        },
+        "settings_select_alcohol": {
+            "header": (0.30, 0.30, 0.30, 0.88),
+            "header_hovered": (0.36, 0.36, 0.36, 0.94),
+            "header_active": (0.42, 0.42, 0.42, 1.00),
+            "header_text": (0.96, 0.96, 0.96, 1.00),
+            "text": (0.97, 0.84, 0.74, 1.00),
+            "meta": (0.88, 0.72, 0.58, 1.00),
+        },
+        "settings_mbdp": {
+            "header": (0.82, 0.00, 0.00, 0.88),
+            "header_hovered": (0.88, 0.10, 0.10, 0.94),
+            "header_active": (0.94, 0.20, 0.20, 1.00),
+            "header_text": (0.96, 0.96, 0.96, 1.00),
+            "text": (0.96, 0.88, 0.72, 1.00),
+            "meta": (0.88, 0.76, 0.54, 1.00),
+        },
+        "settings_alcohol": {
+            "header": (0.00, 0.64, 0.26, 0.88),
+            "header_hovered": (0.06, 0.72, 0.34, 0.94),
+            "header_active": (0.12, 0.80, 0.42, 1.00),
+            "header_text": (0.96, 0.98, 0.96, 1.00),
+            "text": (0.97, 0.84, 0.74, 1.00),
+            "meta": (0.88, 0.72, 0.58, 1.00),
+        },
+        "settings_restock": {
+            "header": (0.00, 0.45, 0.70, 0.88),
+            "header_hovered": (0.06, 0.52, 0.77, 0.94),
+            "header_active": (0.10, 0.58, 0.84, 1.00),
+            "header_text": (0.96, 0.98, 1.00, 1.00),
+            "text": (0.95, 0.91, 0.76, 1.00),
+            "meta": (0.84, 0.79, 0.61, 1.00),
+        },
+        "settings_tooltip": {
+            "header": (0.94, 0.89, 0.26, 0.88),
+            "header_hovered": (0.98, 0.93, 0.34, 0.94),
+            "header_active": (1.00, 0.97, 0.43, 1.00),
+            "header_text": (0.06, 0.06, 0.04, 1.00),
+            "text": (0.90, 0.93, 0.97, 1.00),
+            "meta": (0.74, 0.79, 0.86, 1.00),
+        },
     }
 
     def _section_palette(section_key: str) -> dict:
@@ -411,10 +507,11 @@ try:
             ("Header", "header"),
             ("HeaderHovered", "header_hovered"),
             ("HeaderActive", "header_active"),
+            ("Text", "header_text"),
         ):
             try:
                 col = getattr(PyImGui.ImGuiCol, col_name, None)
-                if col is None:
+                if col is None or key not in palette:
                     continue
                 PyImGui.push_style_color(col, palette[key])
                 pushed += 1
@@ -978,69 +1075,9 @@ try:
                 seen.add(key)
         return ordered
 
-    PRESET_SLOT_COUNT = 3
     LEADER_FORCE_PRESET_KEY = "leader_force_target_morale"
-    PRESET_BOOL_KEYS = {
-        "debug_logging",
-        "only_show_available_inventory",
-        "only_show_selected_items",
-        "show_advanced_intervals",
-        "persist_main_runtime_toggles",
-        "auto_vault_restock",
-        "restock_keep_target_on_deselect",
-        "alcohol_enabled",
-        "alcohol_disable_effect",
-        "alcohol_use_explorable",
-        "alcohol_use_outpost",
-        "mbdp_enabled",
-        "mbdp_allow_partywide_in_human_parties",
-        "mbdp_receiver_require_enabled",
-        "mbdp_prefer_seal_for_recharge",
-        "mbdp_strict_party_plus10",
-        "team_broadcast",
-        "team_consume_opt_in",
-    }
-    PRESET_SCALAR_KEYS = [
-        "debug_logging",
-        "only_show_available_inventory",
-        "only_show_selected_items",
-        "show_advanced_intervals",
-        "persist_main_runtime_toggles",
-        "auto_vault_restock",
-        "restock_interval_ms",
-        "restock_mode",
-        "restock_move_cap_per_cycle",
-        "restock_keep_target_on_deselect",
-        "alcohol_enabled",
-        "alcohol_disable_effect",
-        "alcohol_target_level",
-        "alcohol_use_explorable",
-        "alcohol_use_outpost",
-        "alcohol_preference",
-        "team_broadcast",
-        "team_consume_opt_in",
-        "force_team_morale_value",
-        "mbdp_enabled",
-        "mbdp_allow_partywide_in_human_parties",
-        "mbdp_receiver_require_enabled",
-        "mbdp_strict_party_plus10",
-        "mbdp_self_dp_minor_threshold",
-        "mbdp_self_dp_major_threshold",
-        "mbdp_self_morale_target_effective",
-        "mbdp_self_min_morale_gain",
-        "mbdp_party_min_members",
-        "mbdp_party_min_interval_ms",
-        "mbdp_party_target_effective",
-        "mbdp_party_min_total_gain_5",
-        "mbdp_party_min_total_gain_10",
-        "mbdp_party_light_dp_threshold",
-        "mbdp_party_heavy_dp_threshold",
-        "mbdp_powerstone_dp_threshold",
-        "mbdp_prefer_seal_for_recharge",
-    ]
     PYCONS_PROFILE_SECTION_PREFIX = "PyconsProfile:"
     PYCONS_SHARED_PROFILE_SECTION = "PyconsProfile"
-    PYCONS_PROFILE_MIGRATION_FLAG_KEY = "profiles_legacy_slots_migrated_v1"
     PYCONS_SHARED_PROFILE_MIGRATION_FLAG_KEY = "profiles_shared_library_migrated_v1"
     PROFILE_NAME_MAX_LEN = 64
     PROFILE_BOOL_KEYS = {
@@ -1095,9 +1132,6 @@ try:
 
     def _default_pycons_sync_category_selection() -> dict[str, bool]:
         return {str(key): False for key, _label in PYCONS_SYNC_CATEGORY_DEFS}
-
-    def _preset_slot_default_name(slot_idx: int) -> str:
-        return f"Preset {int(slot_idx)}"
 
     def _save_ini_config(ini_handler, config):
         ini_handler.save(config)
@@ -1827,34 +1861,6 @@ try:
         profiles.sort(key=lambda entry: (_profile_name_norm(entry.get("name", "")), str(entry.get("id", ""))))
         return profiles
 
-    def _list_legacy_slot_profile_records(ini_handler, *, fallback_payload: dict[str, Any] | None = None) -> list[dict[str, Any]]:
-        profiles: list[dict[str, Any]] = []
-        for slot in range(1, PRESET_SLOT_COUNT + 1):
-            prefix = f"preset_slot_{slot}_"
-            if not bool(ini_handler.read_bool(INI_SECTION, f"{prefix}saved", False)):
-                continue
-            payload = _read_profile_payload_from_ini(
-                ini_handler,
-                INI_SECTION,
-                prefix=prefix,
-                fallback_payload=fallback_payload,
-            )
-            profiles.append(
-                {
-                    "id": "",
-                    "name": _profile_display_name(
-                        ini_handler.read_key(INI_SECTION, f"{prefix}name", _preset_slot_default_name(slot)),
-                        f"slot{slot}",
-                    ),
-                    "created_at": "",
-                    "updated_at": "",
-                    "payload": payload,
-                    "payload_signature": _profile_payload_signature(payload),
-                    "slot": int(slot),
-                }
-            )
-        return profiles
-
     def _import_profile_record_into_shared_library(
         record: dict[str, Any],
         *,
@@ -1944,11 +1950,7 @@ try:
 
         live_payload = _read_profile_payload_from_ini(handler, INI_SECTION)
         local_profiles = _list_account_local_dynamic_profiles(handler, fallback_payload=live_payload)
-        migration_source = "local"
         source_records = local_profiles
-        if not source_records and not bool(handler.read_bool(INI_SECTION, PYCONS_PROFILE_MIGRATION_FLAG_KEY, False)):
-            migration_source = "legacy"
-            source_records = _list_legacy_slot_profile_records(handler, fallback_payload=live_payload)
 
         def _run_migration_locked():
             existing_shared_profiles = _list_pycons_profiles(include_payload=True)
@@ -1958,12 +1960,7 @@ try:
             skipped_duplicate_count = 0
 
             for record in source_records:
-                slot = int(record.get("slot", 0) or 0)
-                source_label = (
-                    f"legacy slot {slot} from {source_suffix}"
-                    if slot > 0
-                    else f"account {source_suffix}"
-                )
+                source_label = f"account {source_suffix}"
                 imported, renamed, skipped_duplicate = _import_profile_record_into_shared_library(
                     record,
                     existing_profiles=existing_shared_profiles,
@@ -1990,7 +1987,7 @@ try:
         _save_ini_config(handler, config)
 
         if imported_count > 0 or skipped_duplicate_count > 0:
-            source_text = "account-local Pycons saved profile(s)" if migration_source == "local" else "legacy Pycons preset slot(s)"
+            source_text = "account-local Pycons saved profile(s)"
             detail_parts = [f"imported {imported_count}"]
             if renamed_count > 0:
                 detail_parts.append(f"renamed {renamed_count}")
@@ -2295,84 +2292,6 @@ try:
                     f"Applied preset: Leader - Force Team Morale (target={_fmt_effective(cfg.mbdp_party_target_effective)}).",
                     Console.MessageType.Info,
                 )
-
-    def _save_custom_preset_slot(slot_idx: int):
-        slot = max(1, min(PRESET_SLOT_COUNT, int(slot_idx)))
-        ini_handler = _get_ini_handler()
-        prefix = f"preset_slot_{slot}_"
-        ini_handler.write_key(INI_SECTION, f"{prefix}saved", "True")
-        for key in PRESET_SCALAR_KEYS:
-            try:
-                ini_handler.write_key(INI_SECTION, f"{prefix}{key}", getattr(cfg, key))
-            except Exception:
-                pass
-        for item in ALL_CONSUMABLES:
-            k = str(item.get("key", "") or "")
-            if not k:
-                continue
-            ini_handler.write_key(INI_SECTION, f"{prefix}selected_{k}", str(bool(cfg.selected.get(k, False))))
-            ini_handler.write_key(INI_SECTION, f"{prefix}enabled_{k}", str(bool(cfg.enabled.get(k, False))))
-            ini_handler.write_key(INI_SECTION, f"{prefix}restock_enabled_{k}", str(bool(cfg.restock_enabled_items.get(k, False))))
-            ini_handler.write_key(INI_SECTION, f"{prefix}restock_target_{k}", str(int(max(0, min(2500, int(cfg.restock_targets.get(k, VAULT_RESTOCK_TARGET_QTY) or 0))))))
-        for item in ALCOHOL_ITEMS:
-            k = str(item.get("key", "") or "")
-            if not k:
-                continue
-            ini_handler.write_key(INI_SECTION, f"{prefix}alcohol_selected_{k}", str(bool(cfg.alcohol_selected.get(k, False))))
-            ini_handler.write_key(INI_SECTION, f"{prefix}alcohol_enabled_{k}", str(bool(cfg.alcohol_enabled_items.get(k, False))))
-            ini_handler.write_key(INI_SECTION, f"{prefix}restock_enabled_{k}", str(bool(cfg.restock_enabled_items.get(k, False))))
-            ini_handler.write_key(INI_SECTION, f"{prefix}restock_target_{k}", str(int(max(0, min(2500, int(cfg.restock_targets.get(k, VAULT_RESTOCK_TARGET_QTY) or 0))))))
-        _log(f"Saved custom preset slot {slot}.", Console.MessageType.Info)
-
-    def _load_custom_preset_slot(slot_idx: int) -> bool:
-        global _last_mbdp_party_ms
-        slot = max(1, min(PRESET_SLOT_COUNT, int(slot_idx)))
-        ini_handler = _get_ini_handler()
-        prefix = f"preset_slot_{slot}_"
-        if not ini_handler.read_bool(INI_SECTION, f"{prefix}saved", False):
-            _log(f"Preset slot {slot} is empty.", Console.MessageType.Warning)
-            return False
-
-        for key in PRESET_SCALAR_KEYS:
-            try:
-                if key in PRESET_BOOL_KEYS:
-                    setattr(cfg, key, bool(ini_handler.read_bool(INI_SECTION, f"{prefix}{key}", bool(getattr(cfg, key)))))
-                else:
-                    setattr(cfg, key, int(ini_handler.read_int(INI_SECTION, f"{prefix}{key}", int(getattr(cfg, key)))))
-            except Exception:
-                pass
-        cfg.restock_interval_ms = max(MIN_RESTOCK_INTERVAL_MS, int(getattr(cfg, "restock_interval_ms", DEFAULT_RESTOCK_INTERVAL_MS)))
-        cfg.restock_mode = max(RESTOCK_MODE_BALANCED, min(RESTOCK_MODE_DEPOSIT_ONLY, int(getattr(cfg, "restock_mode", DEFAULT_RESTOCK_MODE))))
-        cfg.restock_move_cap_per_cycle = max(
-            MIN_RESTOCK_MOVE_CAP_PER_CYCLE,
-            min(MAX_RESTOCK_MOVE_CAP_PER_CYCLE, int(getattr(cfg, "restock_move_cap_per_cycle", DEFAULT_RESTOCK_MOVE_CAP_PER_CYCLE))),
-        )
-
-        for item in ALL_CONSUMABLES:
-            k = str(item.get("key", "") or "")
-            if not k:
-                continue
-            cfg.selected[k] = bool(ini_handler.read_bool(INI_SECTION, f"{prefix}selected_{k}", bool(cfg.selected.get(k, False))))
-            cfg.enabled[k] = bool(ini_handler.read_bool(INI_SECTION, f"{prefix}enabled_{k}", bool(cfg.enabled.get(k, False))))
-            cfg.restock_enabled_items[k] = bool(ini_handler.read_bool(INI_SECTION, f"{prefix}restock_enabled_{k}", bool(cfg.restock_enabled_items.get(k, False))))
-            cfg.restock_targets[k] = max(0, min(2500, int(ini_handler.read_int(INI_SECTION, f"{prefix}restock_target_{k}", int(cfg.restock_targets.get(k, VAULT_RESTOCK_TARGET_QTY) or 0)))))
-        for item in ALCOHOL_ITEMS:
-            k = str(item.get("key", "") or "")
-            if not k:
-                continue
-            cfg.alcohol_selected[k] = bool(ini_handler.read_bool(INI_SECTION, f"{prefix}alcohol_selected_{k}", bool(cfg.alcohol_selected.get(k, False))))
-            cfg.alcohol_enabled_items[k] = bool(ini_handler.read_bool(INI_SECTION, f"{prefix}alcohol_enabled_{k}", bool(cfg.alcohol_enabled_items.get(k, False))))
-            cfg.restock_enabled_items[k] = bool(ini_handler.read_bool(INI_SECTION, f"{prefix}restock_enabled_{k}", bool(cfg.restock_enabled_items.get(k, False))))
-            cfg.restock_targets[k] = max(0, min(2500, int(ini_handler.read_int(INI_SECTION, f"{prefix}restock_target_{k}", int(cfg.restock_targets.get(k, VAULT_RESTOCK_TARGET_QTY) or 0)))))
-
-        _runtime_sync_from_cfg_full()
-
-        _last_mbdp_party_ms = 0
-        _set_active_applied_profile_id("")
-        cfg.last_applied_preset = str(cfg.preset_slot_names.get(slot, _preset_slot_default_name(slot)))
-        cfg.mark_dirty()
-        _log(f"Loaded custom preset slot {slot}.", Console.MessageType.Info)
-        return True
 
     def _resolve_same_party_accounts_for_opt_toggle(self_email: str):
         all_accounts = GLOBAL_CACHE.ShMem.GetAllAccountData() or []
@@ -3321,11 +3240,6 @@ try:
             self.tooltip_show_why = ini_handler.read_bool(INI_SECTION, "tooltip_show_why", True)
             self.last_applied_preset = str(ini_handler.read_key(INI_SECTION, "last_applied_preset", "None") or "None")
             self.last_party_opt_toggle_summary = str(ini_handler.read_key(INI_SECTION, "last_party_opt_toggle_summary", "None") or "None")
-            self.preset_slot_names = {}
-            for i in range(1, PRESET_SLOT_COUNT + 1):
-                default_name = _preset_slot_default_name(i)
-                name = str(ini_handler.read_key(INI_SECTION, f"preset_slot_{i}_name", default_name) or default_name).strip()
-                self.preset_slot_names[i] = name if name else default_name
 
             # Optional per-item min intervals
             self.show_advanced_intervals = ini_handler.read_bool(INI_SECTION, "show_advanced_intervals", False)
@@ -3508,8 +3422,6 @@ try:
             set_key("tooltip_show_why", bool(self.tooltip_show_why))
             set_key("last_applied_preset", self.last_applied_preset)
             set_key("last_party_opt_toggle_summary", self.last_party_opt_toggle_summary)
-            for i in range(1, PRESET_SLOT_COUNT + 1):
-                set_key(f"preset_slot_{i}_name", self.preset_slot_names.get(i, _preset_slot_default_name(i)))
 
             set_key("show_advanced_intervals", bool(self.show_advanced_intervals))
             set_key("persist_main_runtime_toggles", bool(self.persist_main_runtime_toggles))
@@ -7567,7 +7479,7 @@ try:
         PyImGui.separator()
 
         # --- Alcohol settings (collapsed dropdown for compactness) ---
-        if _styled_collapsing_header("Alcohol settings##pycons_alcohol_dropdown", False, "alcohol"):
+        if _styled_collapsing_header("Alcohol settings##pycons_alcohol_dropdown", False, "settings_alcohol"):
             PyImGui.text("Alcohol upkeep:")
             _same_line(10)
             if _badge_button("ON" if cfg.alcohol_enabled else "OFF", enabled=bool(cfg.alcohol_enabled), id_suffix="pycons_alcohol_toggle"):
@@ -7630,7 +7542,7 @@ try:
             "Selected consumables##pycons_list",
             force_open,
             bool(cfg.show_selected_list),
-            "general",
+            "settings_select",
         )
 
         if request_expand_selected[0]:
@@ -7972,7 +7884,7 @@ try:
             "Explorable##pycons_hdr_explorable",
             explorable_force,
             bool(cfg.settings_explorable_open),
-            "explorable",
+            "settings_select_explorable",
         )
         if bool(cfg.settings_explorable_open) != bool(explorable_open):
             cfg.settings_explorable_open = bool(explorable_open)
@@ -8019,7 +7931,7 @@ try:
             "Morale Boost & Death Penalty##pycons_hdr_mbdp",
             mbdp_force,
             bool(cfg.settings_mbdp_open),
-            "mbdp",
+            "settings_select_mbdp",
         )
         if bool(cfg.settings_mbdp_open) != bool(mbdp_open):
             cfg.settings_mbdp_open = bool(mbdp_open)
@@ -8087,7 +7999,7 @@ try:
             "In-town speed boosts##pycons_hdr_outpost",
             outpost_force,
             bool(cfg.settings_outpost_open),
-            "outpost",
+            "settings_select_outpost",
         )
         if bool(cfg.settings_outpost_open) != bool(outpost_open):
             cfg.settings_outpost_open = bool(outpost_open)
@@ -8117,7 +8029,7 @@ try:
             "Summoning Stones/Items##pycons_hdr_summoning",
             summoning_force,
             bool(cfg.settings_summoning_open),
-            "summoning",
+            "settings_select_summoning",
         )
         if bool(cfg.settings_summoning_open) != bool(summoning_open):
             cfg.settings_summoning_open = bool(summoning_open)
@@ -8148,7 +8060,7 @@ try:
             "Alcohol##pycons_hdr_alcohol",
             alcohol_force,
             bool(cfg.settings_alcohol_open),
-            "alcohol",
+            "settings_select_alcohol",
         )
         if bool(cfg.settings_alcohol_open) != bool(alcohol_open):
             cfg.settings_alcohol_open = bool(alcohol_open)
@@ -8253,7 +8165,7 @@ try:
         presets_section_open = _styled_collapsing_header(
             "Profiles##pycons_settings_presets_dropdown",
             bool(cfg.settings_ui_presets_open),
-            "mbdp",
+            "settings_profiles",
         )
         if bool(cfg.settings_ui_presets_open) != bool(presets_section_open):
             cfg.settings_ui_presets_open = bool(presets_section_open)
@@ -8489,7 +8401,7 @@ try:
         sync_section_open = _styled_collapsing_header(
             "Other Accounts##pycons_settings_sync_dropdown",
             bool(getattr(cfg, "settings_ui_sync_open", False)),
-            "general",
+            "settings_other_accounts",
         )
         if bool(getattr(cfg, "settings_ui_sync_open", False)) != bool(sync_section_open):
             cfg.settings_ui_sync_open = bool(sync_section_open)
@@ -8497,7 +8409,7 @@ try:
         if sync_section_open:
             _draw_pycons_sync_section()
             PyImGui.separator()
-        if _styled_collapsing_header("Select consumables to show in the main window##pycons_settings_consumables_dropdown", False, "general"):
+        if _styled_collapsing_header("Select consumables to show in the main window##pycons_settings_consumables_dropdown", False, "settings_select"):
             _text_secondary("Selected here -> shown in the main window.")
             if bool(cfg.persist_main_runtime_toggles):
                 _text_secondary("Main-window ON/OFF also updates saved enabled defaults.")
@@ -8764,7 +8676,7 @@ try:
         mbdp_section_open = _styled_collapsing_header(
             "Morale Boost & Death Penalty settings##pycons_settings_mbdp_dropdown",
             bool(cfg.settings_ui_mbdp_open),
-            "mbdp",
+            "settings_mbdp",
         )
         if bool(cfg.settings_ui_mbdp_open) != bool(mbdp_section_open):
             cfg.settings_ui_mbdp_open = bool(mbdp_section_open)
@@ -8966,7 +8878,7 @@ try:
         alcohol_section_open = _styled_collapsing_header(
             "Alcohol settings##pycons_settings_alcohol_dropdown",
             bool(cfg.settings_ui_alcohol_open),
-            "alcohol",
+            "settings_alcohol",
         )
         if bool(cfg.settings_ui_alcohol_open) != bool(alcohol_section_open):
             cfg.settings_ui_alcohol_open = bool(alcohol_section_open)
@@ -9022,7 +8934,7 @@ try:
         restock_section_open = _styled_collapsing_header(
             "Restock Settings##pycons_settings_restock_dropdown",
             bool(cfg.settings_ui_restock_open),
-            "restock",
+            "settings_restock",
         )
         if bool(cfg.settings_ui_restock_open) != bool(restock_section_open):
             cfg.settings_ui_restock_open = bool(restock_section_open)
@@ -9235,7 +9147,7 @@ try:
         tooltip_section_open = _styled_collapsing_header(
             "Tooltip settings##pycons_settings_tooltip_dropdown",
             bool(cfg.settings_ui_tooltip_open),
-            "general",
+            "settings_tooltip",
         )
         if bool(cfg.settings_ui_tooltip_open) != bool(tooltip_section_open):
             cfg.settings_ui_tooltip_open = bool(tooltip_section_open)
