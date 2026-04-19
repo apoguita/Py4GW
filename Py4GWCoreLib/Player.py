@@ -382,6 +382,40 @@ class Player:
         if (world_ctx := GWContext.World.GetContext()) is None:
             return 0, 0
         return world_ctx.current_skill_points, world_ctx.total_earned_skill_points
+
+    @staticmethod
+    @frame_cache(category="Player", source_lib="GetAccountFlags")
+    def GetAccountFlags() -> int:
+        """
+        Purpose: Retrieve the raw GW::Player.reforged_or_dhuums_flags bitfield.
+        Args: None
+        Returns: int
+        Bits: 0x1=Dhuum's Covenant, 0x2=Melandru's Accord, 0x4=Reforged.
+        """
+        if (world_ctx := GWContext.World.GetContext()) is None:
+            return 0
+        player_number = Player.GetPlayerNumber()
+        if not player_number:
+            return 0
+        local = world_ctx.GetPlayerById(player_number)
+        if local is None:
+            return 0
+        return local.reforged_or_dhuums_flags
+
+    @staticmethod
+    def IsDhuumsCovenant() -> bool:
+        """True if the character is under Dhuum's Covenant."""
+        return (Player.GetAccountFlags() & 0x1) != 0
+
+    @staticmethod
+    def IsMelandrusAccord() -> bool:
+        """True if the character is under Melandru's Accord."""
+        return (Player.GetAccountFlags() & 0x2) != 0
+
+    @staticmethod
+    def IsReforged() -> bool:
+        """True if the character is in Reforged mode."""
+        return (Player.GetAccountFlags() & 0x4) != 0
     
     @staticmethod
     def GetMissionsCompleted() -> list[int]:

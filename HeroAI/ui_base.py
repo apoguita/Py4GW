@@ -11,6 +11,7 @@ from Py4GWCoreLib.Player import Player
 
 from HeroAI.cache_data import CacheData
 from HeroAI.constants import NUMBER_OF_SKILLS
+from HeroAI.follow_movement import load_follow_movement_config, save_follow_movement_config
 from HeroAI.utils import DrawFlagAll, DrawHeroFlag, IsHeroFlagged
 from HeroAI.windows import HeroAI_FloatingWindows, HeroAI_Windows
 from .constants import MAX_NUM_PLAYERS, NUMBER_OF_SKILLS
@@ -1447,6 +1448,45 @@ class HeroAI_BaseUI:
                 if HeroAI_BaseUI.follow_move_threshold_flagged_mode != "Manual":
                     HeroAI_BaseUI.follow_move_threshold_flagged_mode = "Manual"
                 dirty_runtime_cfg = True
+
+            movement_cfg = load_follow_movement_config()
+            PyImGui.separator()
+            PyImGui.text("Combat Movement Mix")
+
+            new_recovery_distance = max(1.0, float(PyImGui.input_float("Slot Recovery Distance", float(movement_cfg.slot_recovery_distance))))
+            if abs(new_recovery_distance - movement_cfg.slot_recovery_distance) > 0.0001:
+                movement_cfg.slot_recovery_distance = new_recovery_distance
+                save_follow_movement_config(movement_cfg)
+
+            new_ally_radius = max(0.0, float(PyImGui.input_float("Ally Repulsion Radius", float(movement_cfg.ally_repulsion_radius))))
+            if abs(new_ally_radius - movement_cfg.ally_repulsion_radius) > 0.0001:
+                movement_cfg.ally_repulsion_radius = new_ally_radius
+                save_follow_movement_config(movement_cfg)
+
+            new_ally_weight = max(0.0, float(PyImGui.input_float("Ally Repulsion Weight", float(movement_cfg.ally_repulsion_weight))))
+            if abs(new_ally_weight - movement_cfg.ally_repulsion_weight) > 0.0001:
+                movement_cfg.ally_repulsion_weight = new_ally_weight
+                save_follow_movement_config(movement_cfg)
+
+            new_enemy_radius = max(0.0, float(PyImGui.input_float("Enemy Repulsion Radius", float(movement_cfg.enemy_repulsion_radius))))
+            if abs(new_enemy_radius - movement_cfg.enemy_repulsion_radius) > 0.0001:
+                movement_cfg.enemy_repulsion_radius = new_enemy_radius
+                save_follow_movement_config(movement_cfg)
+
+            new_enemy_weight = max(0.0, float(PyImGui.input_float("Enemy Repulsion Weight", float(movement_cfg.enemy_repulsion_weight))))
+            if abs(new_enemy_weight - movement_cfg.enemy_repulsion_weight) > 0.0001:
+                movement_cfg.enemy_repulsion_weight = new_enemy_weight
+                save_follow_movement_config(movement_cfg)
+
+            new_move_clamp = max(1.0, float(PyImGui.input_float("Local Move Clamp", float(movement_cfg.local_move_clamp))))
+            if abs(new_move_clamp - movement_cfg.local_move_clamp) > 0.0001:
+                movement_cfg.local_move_clamp = new_move_clamp
+                save_follow_movement_config(movement_cfg)
+
+            new_min_move = max(0.0, float(PyImGui.input_float("Local Min Move Threshold", float(movement_cfg.min_move_threshold))))
+            if abs(new_min_move - movement_cfg.min_move_threshold) > 0.0001:
+                movement_cfg.min_move_threshold = new_min_move
+                save_follow_movement_config(movement_cfg)
 
             if dirty_runtime_cfg:
                 HeroAI_BaseUI._save_follow_runtime_config(cached_data.formation_window_ini_key)
