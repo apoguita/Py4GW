@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from Py4GWCoreLib import Profession, Routines, BuildMgr
+from Py4GWCoreLib import Agent, Player, Profession, Routines, BuildMgr
 from Py4GWCoreLib.Skill import Skill
 from Py4GWCoreLib.Builds.Any.HeroAI import HeroAI as HeroAIBuild
 from Py4GWCoreLib.Builds.Skills import SkillsTemplate
@@ -26,6 +26,7 @@ Air_of_Superiority_ID = Skill.GetID("Air_of_Superiority")
 class _SoulTwistingSnapshot:
     in_aggro: bool = False
     close_to_aggro: bool = False
+    player_energy_pct: float = 1.0
 
 
 class Soul_Twisting(BuildMgr):
@@ -80,6 +81,7 @@ class Soul_Twisting(BuildMgr):
         snapshot = _SoulTwistingSnapshot()
         snapshot.in_aggro = bool(Routines.Checks.Agents.InAggro())
         snapshot.close_to_aggro = snapshot.in_aggro or self.IsCloseToAggro()
+        snapshot.player_energy_pct = float(Agent.GetEnergy(Player.GetAgentID()))
         return snapshot
 
     def _run_local_skill_logic(self):
@@ -131,7 +133,7 @@ class Soul_Twisting(BuildMgr):
         if not snapshot.in_aggro:
             return False
 
-        if (yield from self.skills.Any.PvE.Ebon_Vanguard_Assassin_Support()):
+        if snapshot.player_energy_pct >= 0.40 and (yield from self.skills.Any.PvE.Ebon_Vanguard_Assassin_Support()):
             return True
 
         if (yield from self.skills.Any.NoAttribute.Ebon_Battle_Standard_of_Wisdom()):
