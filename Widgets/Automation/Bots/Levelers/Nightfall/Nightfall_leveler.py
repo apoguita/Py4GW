@@ -80,13 +80,14 @@ def create_bot_routine(bot: Botting) -> None:
     Chahbek_Village_Mission(bot)
     Primary_Training(bot)
     A_Personal_Vault(bot)
-    Armored_Transport(bot)
+    #Armored_Transport(bot)  #Screw this guy
     Material_Girl(bot)
+    Hog_Hunt(bot)
     To_Champions_Dawn(bot)
     Quality_Steel(bot)
     Attribute_Points_Quest_1(bot)
     Craft_First_Weapon(bot)
-    Missing_Shipment(bot)
+    #Missing_Shipment(bot) Need Armored Transport to do this
     Proof_of_Courage_and_Suwash_the_Pirate(bot)
     A_Hidden_Threat(bot)
     Identity_Theft(bot) 
@@ -892,26 +893,39 @@ def A_Personal_Vault(bot: Botting):
 
 def Armored_Transport(bot: Botting):
     bot.States.AddHeader("Quest: Armored Transport")
-    bot.Map.Travel(target_map_id=449) # Kamadan
+    bot.Travel_To_Random_District(target_map_id=449) # Kamadan
     bot.Move.XYAndDialog(-11202, 9346,0x825F01) #+500xp protect quest
     PrepareForBattle(bot, Hero_List=[], Henchman_List=[1,3,4])
     bot.Move.XYAndExitMap(-9326, 18151, target_map_id=430) # Plains of Jarin
     ConfigureAggressiveEnv(bot)
+    bot.Move.XY(18460, 1002, step_name="Bounty")
+    bot.Move.XYAndDialog(18460, 1002, 0x85) #Blessing 
     bot.Properties.Disable("auto_loot")
     bot.Move.XYAndDialog(16448, 2320,0x825F04)
-    def _exit_condition():
+    def _exit_condition_1():
+        pos = Player.GetXY()
+        if not pos:
+            return False
+        dx = pos[0] - 5516.0
+        dy = pos[1] - 6262.0
+        return (dx * dx + dy * dy) <= (1000.0 * 1000.0)
+    exit_condition_1= lambda: _exit_condition_1()
+    def _exit_condition_2():
         pos = Player.GetXY()
         if not pos:
             return False
         dx = pos[0] - -2750.0
         dy = pos[1] - 1741.0
         return (dx * dx + dy * dy) <= (1000.0 * 1000.0)
-    exit_condition = lambda: _exit_condition()
-    bot.Move.FollowModel(4881, 100, exit_condition) #Model ID updated after GW reforged
+    exit_condition_2= lambda: _exit_condition_2()
+    bot.Move.FollowModel(4881, 100, exit_condition_1) #Spot 1 is the commonly stuck at area.
+    bot.Move.XY(6948.40, 12120.75) #Corsair Spawn Point maybe
+    bot.Move.FollowModel(4881, 100, exit_condition_2) #Spot 2 is the good spot from Spot 1
     bot.Move.XY(-2963, 1813)
     bot.Wait.ForTime(10000)
-    bot.Map.Travel(target_map_id=449) # Kamadan
+    bot.Travel_To_Random_District(target_map_id=449) # Kamadan
     bot.Move.XYAndDialog(-11202, 9346,0x825F07)
+
 
 def Material_Girl(bot: Botting):
     bot.States.AddHeader("Quest: Material Girl")
@@ -945,6 +959,59 @@ def Material_Girl(bot: Botting):
     bot.Move.XYAndDialog(-10024, 8590, 0x828804)
     bot.Dialogs.AtXY(-10024, 8590, 0x828807)
     bot.Move.XYAndDialog(-11356, 9066, 0x826107)
+
+def Hog_Hunt(bot:Botting):
+    bot.States.AddHeader("Quest: Hog Hunt") # 1,000 XP
+    bot.Travel_To_Random_District(431) #SSGH
+    PrepareForBattle(bot, Hero_List=[], Henchman_List=[1,3,4])
+    bot.Move.XYAndExitMap(-3172, 3271, 430) #Plains of Jarin
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XY(-1840.23, 2432.96)
+    bot.Move.XYAndDialog(-1297.00, 3229.00, 0x85) #Insect Bounty
+    Player.ChangeTarget(0) # No Target
+    bot.Move.XY(-269.29, 1981.00)
+    bot.Move.XY(-1894.08, 2403.29)
+    bot.Wait.ForTime(90000)
+    def interact_Nehdukah():
+        from Py4GWCoreLib.native_src.methods.PlayerMethods import PlayerMethods
+        import PyDialog
+        agent_id = Agent.GetAgentIDByEncString("\\x8101\\x246C\\xFDB5\\xB6AD\\x56AB")
+        if agent_id != 0:
+            PlayerMethods.InteractAgent(agent_id)
+        elapsed_ms = 0
+        timeout_ms = 10_000
+        while elapsed_ms < timeout_ms:
+            try:
+                if PyDialog.PyDialog.is_dialog_active():
+                    buttons = [
+                        button for button in PyDialog.PyDialog.get_active_dialog_buttons()
+                        if getattr(button, "dialog_id", 0) != 0
+                    ]
+                    if buttons:
+                        # Send dialog ID 0x828D01 to accept Hog Hunt quest
+                        Player.SendDialog(0x828D01)
+                        ConsoleLog("Hog Hunt", "Quest accepted from Nehdukah", log=True)
+                        yield
+                        return
+            except Exception:
+                pass
+            yield from Routines.Yield.wait(250)
+            elapsed_ms += 250
+        ConsoleLog("Hog Hunt", "Failed to accept quest from Nehdukah", log=True)
+        yield
+    bot.States.AddCustomState(interact_Nehdukah, "Interact with Nehdukah")
+    bot.Move.XY(-6038.05, 2229.41)
+    bot.Move.XY(-10117.84, 3935.15)
+    bot.Move.XY(-12969.55, 9102.46) #Protect Area
+    bot.Wait.UntilOnCombat()
+    bot.Move.XY(-12743.11, 8789.06) #2nd spawn wave
+    bot.Wait.UntilOutOfCombat()
+    bot.Move.XY(-8175.91, 7331.07)
+    bot.Move.XY(-6762.51, 2301.88)
+    bot.Move.XY(-149.15, 1838.02)
+    bot.Move.XY(-1158.39, 1917.86)
+    bot.Dialogs.WithModel(4869, 0x828D07) #Done
+    bot.Travel_To_Random_District(target_map_id=431) #Sunspear Great Hall
 
 def To_Champions_Dawn(bot: Botting): 
     bot.States.AddHeader("To Champion's Dawn")
@@ -1007,7 +1074,7 @@ def Missing_Shipment(bot: Botting):
     bot.Move.XYAndDialog(-10235, 16557, 0x827507)
 
 def Proof_of_Courage_and_Suwash_the_Pirate(bot: Botting):
-    bot.States.AddHeader("Quests: Proof of Courage and Suwash the Pirate")
+    bot.States.AddHeader("Quests: Proof of Courage and Suwash the Pirate") 
     bot.Map.Travel(target_map_id=431) #Sunspear Great Hall
     PrepareForBattle(bot, Hero_List=[], Henchman_List=[1,2,4])
     bot.Move.XYAndDialog(-4358, 6535, 0x829301) #Proof of Courage

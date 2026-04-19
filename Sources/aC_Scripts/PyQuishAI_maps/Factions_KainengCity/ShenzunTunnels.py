@@ -67,8 +67,9 @@ ShenzunTunnels = [
     (-809.0, -571.0),
 ]
 
-ShenzunTunnels_path = [
-    (-14603, 14336), (-16087, 16510), (-17399, 16601), (-17699, 16601),
+ShenzunTunnels_outpost_path = [
+    (-17054,16615),
+    (-17843,16604),
 ]
 
 ShenzunTunnels_ids = {
