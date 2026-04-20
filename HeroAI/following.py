@@ -82,8 +82,26 @@ class FollowFormationPublisher:
         self.thresholds = FollowThresholdConfig()
         self.tuning = FollowTuningConfig()
         self.state = FollowPublisherState()
+        self.state.selected_id_cache = "builtin_default"
+        self.state.points_cache = self._get_default_follow_points()
         self.ini_reload_timer = ThrottledTimer(self.ini.ini_reload_ms)
         self.publish_timer = ThrottledTimer(self.ini.publish_interval_ms)
+
+    def _get_default_follow_points(self) -> list[tuple[float, float]]:
+        # Stable built-in fallback so follow publication never collapses to an empty template.
+        return [
+            (144.0, 180.0),
+            (0.0, 180.0),
+            (-144.0, 180.0),
+            (216.0, 324.0),
+            (72.0, 324.0),
+            (-72.0, 324.0),
+            (-216.0, 324.0),
+            (288.0, 468.0),
+            (144.0, 468.0),
+            (0.0, 468.0),
+            (-144.0, 468.0),
+        ]
 
     def _ensure_global_ini_key_strict(self, path: str, filename: str) -> str:
         im = IniManager()
@@ -206,6 +224,10 @@ class FollowFormationPublisher:
             name = str(im.read_key(self.state.formations_ini_key, self.ini.formations_section, f"name_{index}", "") or "").strip()
             if name == selected_name:
                 return str(im.read_key(self.state.formations_ini_key, self.ini.formations_section, f"id_{index}", "") or "").strip()
+        for index in range(formation_count):
+            formation_id = str(im.read_key(self.state.formations_ini_key, self.ini.formations_section, f"id_{index}", "") or "").strip()
+            if formation_id:
+                return formation_id
         return ""
 
     def _resolve_selected_formation_section(self, im: IniManager, selected_id: str) -> str:
@@ -224,57 +246,63 @@ class FollowFormationPublisher:
         return section
 
     def _reload_follow_points_from_ini(self) -> None:
-        self._ensure_follow_ini_keys()
-        if not self.state.formations_ini_key or not self.state.settings_ini_key:
-            return
+        try:
+            self._ensure_follow_ini_keys()
+            if not self.state.formations_ini_key or not self.state.settings_ini_key:
+                self.state.selected_id_cache = "builtin_default"
+                self.state.points_cache = self._get_default_follow_points()
+                return
 
-        im = IniManager()
-        self._load_ini_vars_once(
-            self.state.settings_ini_key,
-            force_var_refresh=True,
-            reload_from_disk=True,
-        )
-        self._load_ini_vars_once(
-            self.state.formations_ini_key,
-            force_var_refresh=True,
-            reload_from_disk=True,
-        )
-        self._load_ini_vars_once(
-            self.state.runtime_ini_key,
-            force_var_refresh=True,
-            reload_from_disk=True,
-        )
-        self._reload_thresholds(im)
+            im = IniManager()
+            self._load_ini_vars_once(
+                self.state.settings_ini_key,
+                force_var_refresh=True,
+                reload_from_disk=True,
+            )
+            self._load_ini_vars_once(
+                self.state.formations_ini_key,
+                force_var_refresh=True,
+                reload_from_disk=True,
+            )
+            self._load_ini_vars_once(
+                self.state.runtime_ini_key,
+                force_var_refresh=True,
+                reload_from_disk=True,
+            )
+            self._reload_thresholds(im)
 
-        selected_id = self._resolve_selected_formation_id(im)
-        if not selected_id:
-            self.state.selected_id_cache = ""
-            self.state.points_cache = []
-            return
+            selected_id = self._resolve_selected_formation_id(im)
+            if not selected_id:
+                self.state.selected_id_cache = "builtin_default"
+                self.state.points_cache = self._get_default_follow_points()
+                return
 
-        section = self._resolve_selected_formation_section(im, selected_id)
-        self._ensure_follow_section_var_defs(section)
-        sec_tag = section.replace(":", "_")
-        point_count = max(
-            0,
-            min(
-                self.ini.max_follow_slots,
-                im.getInt(self.state.formations_ini_key, f"{sec_tag}_{self.ini.point_count_key}", 0, section=section),
-            ),
-        )
-        points: list[tuple[float, float]] = []
-        for index in range(point_count):
-            x_key = self.ini.point_x_key_template.format(index=index)
-            y_key = self.ini.point_y_key_template.format(index=index)
-            x = float(im.getFloat(self.state.formations_ini_key, f"{sec_tag}_{x_key}", 0.0, section=section))
-            y = float(im.getFloat(self.state.formations_ini_key, f"{sec_tag}_{y_key}", 0.0, section=section))
-            points.append((x, y))
+            section = self._resolve_selected_formation_section(im, selected_id)
+            self._ensure_follow_section_var_defs(section)
+            sec_tag = section.replace(":", "_")
+            point_count = max(
+                0,
+                min(
+                    self.ini.max_follow_slots,
+                    im.getInt(self.state.formations_ini_key, f"{sec_tag}_{self.ini.point_count_key}", 0, section=section),
+                ),
+            )
+            points: list[tuple[float, float]] = []
+            for index in range(point_count):
+                x_key = self.ini.point_x_key_template.format(index=index)
+                y_key = self.ini.point_y_key_template.format(index=index)
+                x = float(im.getFloat(self.state.formations_ini_key, f"{sec_tag}_{x_key}", 0.0, section=section))
+                y = float(im.getFloat(self.state.formations_ini_key, f"{sec_tag}_{y_key}", 0.0, section=section))
+                points.append((x, y))
 
-        self.state.selected_id_cache = selected_id
-        self.state.points_cache = points
+            self.state.selected_id_cache = selected_id
+            self.state.points_cache = points if points else self._get_default_follow_points()
+        except Exception:
+            self.state.selected_id_cache = "builtin_default"
+            self.state.points_cache = self._get_default_follow_points()
 
     def _get_follow_points(self) -> list[tuple[float, float]]:
-        if self.ini_reload_timer.IsExpired():
+        if (not self.state.points_cache) or self.ini_reload_timer.IsExpired():
             self._reload_follow_points_from_ini()
             self.ini_reload_timer.Reset()
         return self.state.points_cache
@@ -299,7 +327,35 @@ class FollowFormationPublisher:
     def _is_nonzero_vec2(self, vec: Vec2f) -> bool:
         return abs(float(vec.x)) > self.tuning.nonzero_epsilon or abs(float(vec.y)) > self.tuning.nonzero_epsilon
 
-    def _clear_follow_publish_state(self, all_accounts: AllAccounts, leader_account: AccountStruct) -> None:
+    def _reset_follow_slot(
+        self,
+        options: HeroAIOptionStruct,
+        *,
+        invalidate_flags: bool = False,
+    ) -> None:
+        options.FollowPos.x = 0.0
+        options.FollowPos.y = 0.0
+        options.FollowPos.z = 0.0
+        options.FollowOffset.x = 0.0
+        options.FollowOffset.y = 0.0
+        options.FollowMoveThreshold = self.thresholds.disabled_threshold
+        options.FollowMoveThresholdCombat = self.thresholds.disabled_threshold
+        options.LeaderFollowReady = False
+        if invalidate_flags:
+            options.IsFlagged = False
+            options.FlagPos.x = 0.0
+            options.FlagPos.y = 0.0
+            options.AllFlag.x = 0.0
+            options.AllFlag.y = 0.0
+            options.FlagFacingAngle = 0.0
+
+    def _clear_follow_publish_state(
+        self,
+        all_accounts: AllAccounts,
+        leader_index: int,
+        *,
+        invalidate_flags: bool = False,
+    ) -> None:
         self.state.map_signature = None
         self.state.hold_until_leader_moves = False
         self.state.leader_entry_pos = None
@@ -309,26 +365,32 @@ class FollowFormationPublisher:
         self.state.combat_cached_follow_pos.clear()
         for index in range(self.shared_memory_manager.max_num_players):
             account = all_accounts.AccountData[index]
-            if not (account.IsSlotActive and account.IsAccount) or all_accounts._is_slot_isolated_from_viewer(index, leader_index):
+            if (not account.IsAccount) or all_accounts._is_slot_isolated_from_viewer(index, leader_index):
                 continue
-            if not self._same_party_and_map(leader_account, account):
-                continue
-            options = all_accounts.HeroAIOptions[index]
-            options.FollowPos.x = 0.0
-            options.FollowPos.y = 0.0
-            options.FollowPos.z = 0.0
-            options.FollowOffset.x = 0.0
-            options.FollowOffset.y = 0.0
-            options.FollowMoveThreshold = self.thresholds.disabled_threshold
-            options.FollowMoveThresholdCombat = self.thresholds.disabled_threshold
-            options.LeaderFollowReady = False
+            self._reset_follow_slot(all_accounts.HeroAIOptions[index], invalidate_flags=invalidate_flags)
+
+    def _handle_map_signature_change(
+        self,
+        all_accounts: AllAccounts,
+        leader_index: int,
+        current_map_signature: tuple[int, int, int, int, int],
+        leader_x: float,
+        leader_y: float,
+    ) -> None:
+        self._clear_follow_publish_state(all_accounts, leader_index, invalidate_flags=True)
+        self.state.map_signature = current_map_signature
+        self.state.hold_until_leader_moves = True
+        self.state.leader_entry_pos = (float(leader_x), float(leader_y))
 
     def _apply_idle_slot(self, options: HeroAIOptionStruct) -> None:
+        options.FollowPos.x = 0.0
+        options.FollowPos.y = 0.0
+        options.FollowPos.z = 0.0
         options.FollowOffset.x = 0.0
         options.FollowOffset.y = 0.0
         options.FollowMoveThreshold = self.thresholds.disabled_threshold
         options.FollowMoveThresholdCombat = self.thresholds.disabled_threshold
-        options.LeaderFollowReady = (not self.state.hold_until_leader_moves)
+        options.LeaderFollowReady = False
 
     def _apply_missing_point_slot(self, options: HeroAIOptionStruct, account: AccountStruct, leader_zplane: int) -> None:
         options.FollowOffset.x = 0.0
@@ -510,7 +572,7 @@ class FollowFormationPublisher:
             return
 
         if (not Map.IsMapReady()) or Map.IsMapLoading() or (not Map.IsExplorable()):
-            self._clear_follow_publish_state(all_accounts, leader_account)
+            self._clear_follow_publish_state(all_accounts, leader_index, invalidate_flags=True)
             return
         
 
@@ -535,9 +597,13 @@ class FollowFormationPublisher:
             int(leader_account.AgentPartyData.PartyID),
         )
         if self.state.map_signature != current_map_signature:
-            self.state.map_signature = current_map_signature
-            self.state.hold_until_leader_moves = True
-            self.state.leader_entry_pos = (float(leader_x), float(leader_y))
+            self._handle_map_signature_change(
+                all_accounts,
+                leader_index,
+                current_map_signature,
+                leader_x,
+                leader_y,
+            )
 
         if self.state.hold_until_leader_moves and self.state.leader_entry_pos is not None:
             entry_x, entry_y = self.state.leader_entry_pos
