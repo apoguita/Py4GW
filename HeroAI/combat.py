@@ -105,6 +105,7 @@ class CombatClass:
         self.is_targeting_enabled: bool = False
         self.is_combat_enabled: bool = False
         self.is_skill_enabled: list[bool] = []
+        self.blocked_skill_ids: set[int] = set()
         self.fast_casting_exists: bool = False
         self.fast_casting_level: int = 0
         self.expertise_exists: bool = False
@@ -231,17 +232,19 @@ class CombatClass:
         options = cached_data.account_options
         self.is_targeting_enabled = options.Targeting if options is not None else False
         self.is_combat_enabled = options.Combat if options is not None else False
-        self.is_skill_enabled = options.Skills if options is not None else [False]*MAX_SKILLS
+        if options is not None:
+            self.is_skill_enabled = [bool(options.Skills[i]) for i in range(MAX_SKILLS)]
+        else:
+            self.is_skill_enabled = [False] * MAX_SKILLS
+        self.blocked_skill_ids = set()
         self.active_spirit_buff_skill_ids = None
 
     def ApplyBlockedSkillIDs(self, blocked_skill_ids: list[int] | None = None) -> None:
-        blocked_ids = {int(skill_id) for skill_id in (blocked_skill_ids or []) if int(skill_id) != 0}
         if len(self.is_skill_enabled) != MAX_SKILLS:
             self.is_skill_enabled = [True] * MAX_SKILLS
-
-        for slot in range(MAX_SKILLS):
-            skill_id = int(GLOBAL_CACHE.SkillBar.GetSkillIDBySlot(slot + 1) or 0)
-            self.is_skill_enabled[slot] = self.is_skill_enabled[slot] and skill_id not in blocked_ids
+        self.blocked_skill_ids = {
+            int(skill_id) for skill_id in (blocked_skill_ids or []) if int(skill_id) != 0
+        }
             
     def _get_active_spirit_buff_skill_ids(self) -> set[int]:
         spirit_array = AgentArray.GetSpiritPetArray()
@@ -429,8 +432,11 @@ class CombatClass:
 
         if self.skills[slot].skillbar_data.recharge != 0:
             return False
-        
-        return self.is_skill_enabled[original_index]
+
+        if not self.is_skill_enabled[original_index]:
+            return False
+
+        return self.skills[slot].skill_id not in self.blocked_skill_ids
         
     def InCastingRoutine(self) -> bool:
         if self.aftercast_timer.HasElapsed(self.aftercast):

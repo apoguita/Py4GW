@@ -225,6 +225,36 @@ class BuildMgr:
             return None
         return self.GetCustomSkill(skill_id)
 
+    def _get_shared_skill_toggle(self, slot: int) -> bool:
+        if not (1 <= int(slot) <= 8):
+            return False
+
+        options = getattr(self._cached_data, "account_options", None)
+        if options is None:
+            try:
+                from Py4GWCoreLib import GLOBAL_CACHE, Player
+
+                account_email = Player.GetAccountEmail()
+                if account_email:
+                    options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsFromEmail(account_email)
+            except Exception:
+                options = None
+
+        if options is None:
+            return True
+
+        skills = getattr(options, "Skills", None)
+        if skills is None:
+            return True
+
+        try:
+            return bool(skills[int(slot) - 1])
+        except (IndexError, TypeError, ValueError):
+            return True
+
+    def IsSharedSkillToggleEnabled(self, slot: int) -> bool:
+        return self._get_shared_skill_toggle(slot)
+
     def IsCloseToAggro(self) -> bool:
         """Returns True when combat is imminent but the player is not yet engaged."""
         from Py4GWCoreLib import Routines
@@ -1356,6 +1386,8 @@ class BuildMgr:
         slot = SkillBar.GetSlotBySkillID(skill_id)
         if not (1 <= slot <= 8):
             return False
+        if not self.IsSharedSkillToggleEnabled(slot):
+            return False
         if not Routines.Checks.Skills.HasEnoughAdrenalineBySlot(slot):
             return False
         if self.SpiritBuffExists(skill_id):
@@ -1381,6 +1413,8 @@ class BuildMgr:
 
         skill_id = SkillBar.GetSkillIDBySlot(slot)
         if not skill_id:
+            return False
+        if not self.IsSharedSkillToggleEnabled(slot):
             return False
         if not Routines.Checks.Skills.HasEnoughEnergy(Player.GetAgentID(), skill_id):
             return False
