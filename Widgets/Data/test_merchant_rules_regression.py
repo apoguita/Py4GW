@@ -94,6 +94,16 @@ def _load_real_model_id_enum(repo_root: Path):
     return module.ModelID
 
 
+def _load_real_title_enums(repo_root: Path):
+    title_enums_path = repo_root / "Py4GWCoreLib" / "enums_src" / "Title_enums.py"
+    spec = importlib.util.spec_from_file_location("merchant_rules_regression_title_enums", title_enums_path)
+    _expect(spec is not None and spec.loader is not None, "Failed to create import spec for Title_enums.")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module.TitleID, module.TITLE_TIERS
+
+
 def _install_stub_modules(project_root: Path) -> None:
     class DummyTimer:
         def __init__(self, *_args, **_kwargs):
@@ -127,6 +137,7 @@ def _install_stub_modules(project_root: Path) -> None:
             return str(project_root)
 
     real_model_id = _load_real_model_id_enum(REPO_ROOT)
+    real_title_id, real_title_tiers = _load_real_title_enums(REPO_ROOT)
 
     class ItemType(enum.IntEnum):
         Unknown = 0
@@ -204,10 +215,14 @@ def _install_stub_modules(project_root: Path) -> None:
         GetLanguage=lambda: (0, 0),
     )
     core.ModelID = real_model_id
+    core.TitleID = real_title_id
+    core.TITLE_TIERS = real_title_tiers
     core.Player = types.SimpleNamespace(
         GetAccountEmail=lambda: "merchant.rules@example.com",
         GetName=lambda: "Merchant Rules Tester",
         GetXY=lambda: (0.0, 0.0),
+        GetSkillPointData=lambda: (100, 100),
+        GetTitle=lambda _title_id: types.SimpleNamespace(current_points=999999),
     )
     core.Routines = types.SimpleNamespace(
         Yield=types.SimpleNamespace(
@@ -230,6 +245,11 @@ def _install_stub_modules(project_root: Path) -> None:
     item_enums = types.ModuleType("Py4GWCoreLib.enums_src.Item_enums")
     item_enums.ItemType = ItemType
     sys.modules["Py4GWCoreLib.enums_src.Item_enums"] = item_enums
+
+    title_enums = types.ModuleType("Py4GWCoreLib.enums_src.Title_enums")
+    title_enums.TitleID = real_title_id
+    title_enums.TITLE_TIERS = real_title_tiers
+    sys.modules["Py4GWCoreLib.enums_src.Title_enums"] = title_enums
 
     enums_module = types.ModuleType("Py4GWCoreLib.enums")
     enums_module.Attribute = Attribute
@@ -385,7 +405,7 @@ def _prepare_sell_rule_editor_widget(module, clicked_button_label: str):
             },
         }
     )
-    widget._draw_rule_header_row = lambda *args, **_kwargs: (True, bool(args[8]), False)
+    widget._draw_rule_header_row = lambda *args, **_kwargs: (True, bool(args[8]), False, "", False)
     widget._draw_section_heading = lambda *_args, **_kwargs: None
     widget._draw_secondary_text = lambda *_args, **_kwargs: None
     widget._draw_rule_name_input = lambda _label, value: value
@@ -872,6 +892,199 @@ def _test_build_plan_captures_inventory_and_marks_conditional_stock_buy(module) 
     _expect(any(entry.state == module.PLAN_STATE_CONDITIONAL for entry in plan.entries), "Merchant stock preview entries should remain conditional.")
     _expect(plan.merchant_sell_item_ids == [1], "Explicit sell rules should still allocate matching inventory items.")
     _expect(plan.has_actions, "Plan should be actionable when either buy or sell work was found.")
+
+
+def _test_consumable_crafter_plan_title_gate_blocks_low_rank(module) -> None:
+    widget = _make_widget(module)
+    essence_model_id = int(module.ModelID.Essence_Of_Celerity.value)
+    widget.buy_rules = [
+        module._normalize_buy_rule(
+            module.BuyRule(
+                enabled=True,
+                kind=module.BUY_KIND_CONSUMABLE_CRAFTER_TARGET,
+                merchant_stock_targets=[
+                    module.MerchantStockTarget(model_id=essence_model_id, target_count=1, max_per_run=1),
+                ],
+            )
+        )
+    ]
+    widget._get_supported_context = lambda: (
+        True,
+        "Ready",
+        {
+            module.MERCHANT_TYPE_CONSUMABLE_CRAFTER: (3592.99, 78.78),
+        },
+    )
+    widget._collect_inventory_items = lambda: []
+    original_inventory = getattr(module.GLOBAL_CACHE, "Inventory", None)
+    original_player = module.Player
+    try:
+        module.GLOBAL_CACHE.Inventory = types.SimpleNamespace(IsStorageOpen=lambda: False)
+        module.Player = types.SimpleNamespace(
+            GetSkillPointData=lambda: (100, 100),
+            GetTitle=lambda _title_id: types.SimpleNamespace(current_points=0),
+        )
+
+        plan = widget._build_plan()
+
+        _expect(not plan.consumable_crafter_buys, "Low title rank should block consumable crafter buys before execution.")
+        _expect(
+            any(
+                entry.merchant_type == module.MERCHANT_TYPE_CONSUMABLE_CRAFTER
+                and entry.state == module.PLAN_STATE_SKIPPED
+                and "requires rank 3" in entry.reason
+                for entry in plan.entries
+            ),
+            "Preview should explain the consumable crafter title-rank gate.",
+        )
+    finally:
+        module.GLOBAL_CACHE.Inventory = original_inventory
+        module.Player = original_player
+
+
+def _test_consumable_crafter_plan_caps_by_skill_gold_and_material_storage(module) -> None:
+    widget = _make_widget(module)
+    essence_model_id = int(module.ModelID.Essence_Of_Celerity.value)
+    feather_model_id = int(module.ModelID.Feather.value)
+    dust_model_id = int(module.ModelID.Pile_Of_Glittering_Dust.value)
+    widget.buy_rules = [
+        module._normalize_buy_rule(
+            module.BuyRule(
+                enabled=True,
+                kind=module.BUY_KIND_CONSUMABLE_CRAFTER_TARGET,
+                merchant_stock_targets=[
+                    module.MerchantStockTarget(model_id=essence_model_id, target_count=5, max_per_run=5),
+                ],
+            )
+        )
+    ]
+    widget._get_supported_context = lambda: (
+        True,
+        "Ready",
+        {
+            module.MERCHANT_TYPE_CONSUMABLE_CRAFTER: (3592.99, 78.78),
+        },
+    )
+    widget._collect_inventory_items = lambda: [
+        _make_item(module, item_id=1, model_id=feather_model_id, name="Feather", quantity=250, is_material=True),
+    ]
+    widget._collect_storage_items = lambda: []
+    widget._get_material_storage_quantity_and_slot = (
+        lambda model_id: (100, 3, 250) if int(model_id) == dust_model_id else (0, 0, 250)
+    )
+    original_inventory = getattr(module.GLOBAL_CACHE, "Inventory", None)
+    original_player = module.Player
+    try:
+        module.GLOBAL_CACHE.Inventory = types.SimpleNamespace(
+            IsStorageOpen=lambda: True,
+            GetGoldOnCharacter=lambda: 250,
+            GetGoldInStorage=lambda: 250,
+        )
+        module.Player = types.SimpleNamespace(
+            GetSkillPointData=lambda: (2, 100),
+            GetTitle=lambda _title_id: types.SimpleNamespace(current_points=999999),
+        )
+
+        plan = widget._build_plan()
+
+        _expect(plan.storage_exact, "Open storage should make consumable crafter planning use exact storage/material counts.")
+        _expect(len(plan.consumable_crafter_buys) == 1, "Supported consumable crafter target should plan one craft action.")
+        _expect(
+            plan.consumable_crafter_buys[0].quantity == 2,
+            "Consumable crafter planning should cap by skill points, combined gold, and material storage availability.",
+        )
+        _expect(
+            any(
+                entry.merchant_type == module.MERCHANT_TYPE_CONSUMABLE_CRAFTER
+                and entry.quantity == 2
+                and entry.state == module.PLAN_STATE_CONDITIONAL
+                and "Capped by available skill points, gold, or materials." in entry.reason
+                for entry in plan.entries
+            ),
+            "Preview should show the exact capped consumable crafter quantity.",
+        )
+    finally:
+        module.GLOBAL_CACHE.Inventory = original_inventory
+        module.Player = original_player
+
+
+def _test_consumable_crafter_execution_prepares_materials_before_opening_crafter(module) -> None:
+    widget = _make_widget(module)
+    essence_model_id = int(module.ModelID.Essence_Of_Celerity.value)
+    offered_item_id = 9001
+    calls: list[str] = []
+    original_player = module.Player
+    original_inventory = getattr(module.GLOBAL_CACHE, "Inventory", None)
+    original_item = getattr(module.GLOBAL_CACHE, "Item", None)
+    original_trading = getattr(module.GLOBAL_CACHE, "Trading", None)
+    original_merchant_yield = getattr(module.Routines.Yield, "Merchant", None)
+    try:
+        def _prepare(_crafts, *, vendor_name: str):
+            calls.append(f"prepare:{vendor_name}")
+            if False:
+                yield None
+            return True
+
+        def _open(_coords, vendor_name: str):
+            calls.append(f"open:{vendor_name}")
+            if False:
+                yield None
+            return [offered_item_id]
+
+        def _wait_for_transaction(*_args, **_kwargs):
+            calls.append("wait_transaction")
+            if False:
+                yield None
+            return True
+
+        def _craft_item(*_args, **_kwargs) -> None:
+            calls.append("craft")
+
+        widget._prepare_consumable_crafting_materials = _prepare
+        widget._open_consumable_crafter = _open
+        widget._collect_crafting_ingredients_from_inventory = lambda _recipe: ([101, 102], [50, 50], [])
+        module.Player = types.SimpleNamespace(
+            GetSkillPointData=lambda: (5, 100),
+            GetTitle=lambda _title_id: types.SimpleNamespace(current_points=999999),
+        )
+        module.GLOBAL_CACHE.Inventory = types.SimpleNamespace(
+            IsStorageOpen=lambda: True,
+            GetGoldOnCharacter=lambda: 1000,
+            GetModelCount=lambda _model_id: 0,
+        )
+        module.GLOBAL_CACHE.Item = types.SimpleNamespace(GetModelID=lambda item_id: essence_model_id if int(item_id) == offered_item_id else 0)
+        module.GLOBAL_CACHE.Trading = types.SimpleNamespace(
+            Crafter=types.SimpleNamespace(CraftItem=_craft_item),
+        )
+        module.Routines.Yield.Merchant = types.SimpleNamespace(_wait_for_transaction=_wait_for_transaction)
+
+        outcome = _drain_generator_return(
+            widget._craft_planned_consumables(
+                [
+                    module.PlannedConsumableCraft(
+                        model_id=essence_model_id,
+                        quantity=1,
+                        label="Essence of Celerity",
+                        vendor_key="kwat",
+                        vendor_name="Kwat",
+                        coords=(3592.99, 78.78),
+                    )
+                ]
+            )
+        )
+
+        _expect(outcome.completed == 1, "Consumable crafter execution should complete when prep, offer lookup, and transaction succeed.")
+        _expect(
+            calls[:2] == ["prepare:Kwat", "open:Kwat"],
+            "Consumable crafter execution must withdraw materials before opening the crafter window.",
+        )
+        _expect("craft" in calls, "Consumable crafter execution should send the craft request after opening the crafter.")
+    finally:
+        module.Player = original_player
+        module.GLOBAL_CACHE.Inventory = original_inventory
+        module.GLOBAL_CACHE.Item = original_item
+        module.GLOBAL_CACHE.Trading = original_trading
+        module.Routines.Yield.Merchant = original_merchant_yield
 
 
 def _test_lower_weapon_protection_hard_overrides_higher_explicit_sell(module) -> None:
@@ -4900,6 +5113,19 @@ def _test_display_sort_reads_preserve_saved_child_entry_order(module, temp_root:
     )
 
 
+def _test_rune_description_templates_resolve_for_tooltips(module) -> None:
+    description = "+{arg2[8680]} {arg1[8680]} (Non-stacking)\n-{arg2[8408]} Health"
+    modifiers = [
+        {"Identifier": 8680, "Arg1": 35, "Arg2": 2, "Arg": 8962},
+        {"Identifier": 8408, "Arg1": 0, "Arg2": 35, "Arg": 35},
+    ]
+    resolved = module._resolve_rune_description_template(description, modifiers)
+    _expect(
+        resolved == "+2 Critical Strikes (Non-stacking)\n-35 Health",
+        "Rune tooltip descriptions should resolve attribute and health placeholders while preserving non-stacking text.",
+    )
+
+
 def _test_default_protection_jump_targets_still_use_first_stored_entry(module) -> None:
     widget = _make_widget(module)
     _seed_display_sort_fixture(widget)
@@ -5974,6 +6200,15 @@ def main() -> int:
                 lambda: _test_legacy_nonsalvageable_gold_sell_rule_is_removed_safely(module, temp_root),
             ),
             ("build_plan_captures_inventory_and_marks_conditional_stock_buy", lambda: _test_build_plan_captures_inventory_and_marks_conditional_stock_buy(module)),
+            ("consumable_crafter_plan_title_gate_blocks_low_rank", lambda: _test_consumable_crafter_plan_title_gate_blocks_low_rank(module)),
+            (
+                "consumable_crafter_plan_caps_by_skill_gold_and_material_storage",
+                lambda: _test_consumable_crafter_plan_caps_by_skill_gold_and_material_storage(module),
+            ),
+            (
+                "consumable_crafter_execution_prepares_materials_before_opening_crafter",
+                lambda: _test_consumable_crafter_execution_prepares_materials_before_opening_crafter(module),
+            ),
             ("lower_weapon_protection_hard_overrides_higher_explicit_sell", lambda: _test_lower_weapon_protection_hard_overrides_higher_explicit_sell(module)),
             ("protection_only_rules_hard_claim_before_later_sell_rules", lambda: _test_protection_only_rules_hard_claim_before_later_sell_rules(module)),
             ("weapon_mod_identifier_protection_still_matches_all_rolls", lambda: _test_weapon_mod_identifier_protection_still_matches_all_rolls(module)),
@@ -6077,6 +6312,7 @@ def main() -> int:
             ),
             ("display_sorting_helpers_and_summaries_are_case_insensitive", lambda: _test_display_sorting_helpers_and_summaries_are_case_insensitive(module)),
             ("display_sort_reads_preserve_saved_child_entry_order", lambda: _test_display_sort_reads_preserve_saved_child_entry_order(module, temp_root)),
+            ("rune_description_templates_resolve_for_tooltips", lambda: _test_rune_description_templates_resolve_for_tooltips(module)),
             ("default_protection_jump_targets_still_use_first_stored_entry", lambda: _test_default_protection_jump_targets_still_use_first_stored_entry(module)),
             ("request_execute_now_queues_only_when_preview_matches", lambda: _test_request_execute_now_queues_only_when_preview_matches(module)),
             ("compare_inventory_detects_preview_drift", lambda: _test_compare_inventory_detects_preview_drift(module)),
