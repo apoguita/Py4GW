@@ -2193,6 +2193,17 @@ def RestockResurrectionScroll(index: int, message: SharedMessageStruct):
     ConsoleLog(MODULE_NAME, "RestockResurrectionScroll message processed and finished.", Console.MessageType.Info, False)
 # endregion
 
+
+#region WithdrawGold
+def WithdrawGold(index: int, message: SharedMessageStruct):
+    GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
+    target_gold = int(message.Params[0])
+    deposit_all = bool(int(message.Params[1]))
+    yield from Routines.Yield.Items.WithdrawGold(target_gold, deposit_all)
+    GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+    ConsoleLog(MODULE_NAME, "WithdrawGold message processed and finished.", Console.MessageType.Info, False)
+# endregion
+
 # region InventoryQuery
 def InventoryQuery(index: int, message: SharedMessageStruct):
     """Generic inventory count query.
@@ -2382,6 +2393,8 @@ def ProcessMessages():
             GLOBAL_CACHE.Coroutines.append(RestockConset(index, message))
         case SharedCommandType.RestockResurrectionScroll:
             GLOBAL_CACHE.Coroutines.append(RestockResurrectionScroll(index, message))
+        case SharedCommandType.WithdrawGold:
+            GLOBAL_CACHE.Coroutines.append(WithdrawGold(index, message))
         case SharedCommandType.InventoryQuery:
             GLOBAL_CACHE.Coroutines.append(InventoryQuery(index, message))
         case SharedCommandType.EquipItem:

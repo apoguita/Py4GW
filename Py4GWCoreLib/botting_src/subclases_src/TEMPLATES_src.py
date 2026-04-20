@@ -181,7 +181,8 @@ class _TEMPLATES:
                 bot.Multibox.LeavePartyOnAllAccounts()
             else:
                 bot.Multibox.KickAllAccounts()
-            bot.Map.Travel(target_map_id=map_id_to_travel)
+            #bot.Map.Travel(target_map_id=map_id_to_travel)
+            bot.Travel_To_Random_District(target_map_id=map_id_to_travel)
             bot.Multibox.SummonAllAccounts()
             bot.Wait.ForTime(4000)
             bot.Multibox.InviteAllAccounts()
