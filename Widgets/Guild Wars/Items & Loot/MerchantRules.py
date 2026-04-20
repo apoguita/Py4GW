@@ -15054,6 +15054,79 @@ class MerchantRulesWidget:
             return True
         return all(token in entry.search_text for token in query.split())
 
+    def _draw_protection_entries_table(self, table_id: str, entries: list[ProtectionHubEntry]):
+        if not entries:
+            return
+
+        table_flags = (
+            PyImGui.TableFlags.RowBg
+            | PyImGui.TableFlags.BordersInnerV
+            | PyImGui.TableFlags.Resizable
+            | PyImGui.TableFlags.ScrollX
+            | PyImGui.TableFlags.SizingFixedFit
+            | PyImGui.TableFlags.NoSavedSettings
+        )
+        if PyImGui.begin_table(table_id, 8, table_flags, 1180.0, 0.0):
+            PyImGui.table_setup_column("Source", PyImGui.TableColumnFlags.WidthFixed, 85.0)
+            PyImGui.table_setup_column("Type", PyImGui.TableColumnFlags.WidthFixed, 190.0)
+            PyImGui.table_setup_column("Value", PyImGui.TableColumnFlags.WidthFixed, 285.0)
+            PyImGui.table_setup_column("Owner Kind", PyImGui.TableColumnFlags.WidthFixed, 110.0)
+            PyImGui.table_setup_column("Owner Rule", PyImGui.TableColumnFlags.WidthFixed, 300.0)
+            PyImGui.table_setup_column("Enabled", PyImGui.TableColumnFlags.WidthFixed, 72.0)
+            PyImGui.table_setup_column("Order", PyImGui.TableColumnFlags.WidthFixed, 58.0)
+            PyImGui.table_setup_column("Jump", PyImGui.TableColumnFlags.WidthFixed, 58.0)
+
+            PyImGui.table_next_row()
+            for column_index, column_label in enumerate(("Source", "Type", "Value", "Owner Kind", "Owner Rule", "Enabled", "Order", "Jump")):
+                PyImGui.table_set_column_index(column_index)
+                self._draw_secondary_text(column_label, wrapped=False)
+
+            for row_index, entry in enumerate(entries):
+                PyImGui.table_next_row()
+
+                PyImGui.table_set_column_index(0)
+                PyImGui.text(entry.source_label)
+
+                PyImGui.table_set_column_index(1)
+                PyImGui.text(entry.protection_type_label)
+                self._draw_hover_tooltip(entry.protection_type_label)
+
+                PyImGui.table_set_column_index(2)
+                value_color = self._get_rune_text_color_for_protection_entry(entry)
+                if value_color is not None:
+                    PyImGui.text_colored(entry.value_label, value_color)
+                else:
+                    PyImGui.text(entry.value_label)
+                self._draw_hover_tooltip(entry.value_label)
+
+                PyImGui.table_set_column_index(3)
+                self._draw_inline_badge(entry.owner_rule_kind_label, RULE_KIND_PRESENTATION.get(entry.owner_rule_kind, ("Rule", UI_COLOR_SUBTLE))[1])
+                self._draw_hover_tooltip(entry.owner_rule_kind_label)
+
+                PyImGui.table_set_column_index(4)
+                PyImGui.text(entry.owner_rule_label)
+                self._draw_hover_tooltip(entry.owner_rule_label)
+
+                PyImGui.table_set_column_index(5)
+                enabled_label = "Yes" if entry.owner_rule_enabled else "No"
+                enabled_color = UI_COLOR_SUCCESS if entry.owner_rule_enabled else UI_COLOR_MUTED
+                PyImGui.text_colored(enabled_label, enabled_color)
+
+                PyImGui.table_set_column_index(6)
+                PyImGui.text(str(int(entry.owner_rule_order)))
+
+                PyImGui.table_set_column_index(7)
+                if PyImGui.small_button(f"Go##merchant_rules_protection_jump_{table_id}_{row_index}_{entry.owner_rule_index}"):
+                    self._request_jump_to_sell_rule(
+                        entry.owner_rule_index,
+                        entry.owner_rule_kind,
+                        subsection_anchor=entry.subsection_anchor,
+                        target_key=entry.target_key,
+                        requires_advanced=entry.requires_advanced,
+                    )
+
+            PyImGui.end_table()
+
     def _draw_protections_section(self):
         entries = self._build_protection_hub_entries()
         filtered_entries = [entry for entry in entries if self._entry_matches_protection_filters(entry)]
@@ -15126,64 +15199,35 @@ class MerchantRulesWidget:
             self._draw_secondary_text("No protection entries match the current search and filters.")
             return
 
-        if PyImGui.begin_child("merchant_rules_protections_table_child", (0, 0), True, PyImGui.WindowFlags.NoFlag):
-            table_flags = PyImGui.TableFlags.RowBg | PyImGui.TableFlags.BordersInnerV
-            if PyImGui.begin_table("merchant_rules_protections_table", 8, table_flags):
-                PyImGui.table_setup_column("Source", PyImGui.TableColumnFlags.WidthFixed, 85.0)
-                PyImGui.table_setup_column("Type", PyImGui.TableColumnFlags.WidthFixed, 140.0)
-                PyImGui.table_setup_column("Value", PyImGui.TableColumnFlags.WidthStretch)
-                PyImGui.table_setup_column("Owner Kind", PyImGui.TableColumnFlags.WidthFixed, 90.0)
-                PyImGui.table_setup_column("Owner Rule", PyImGui.TableColumnFlags.WidthStretch)
-                PyImGui.table_setup_column("Enabled", PyImGui.TableColumnFlags.WidthFixed, 72.0)
-                PyImGui.table_setup_column("Order", PyImGui.TableColumnFlags.WidthFixed, 58.0)
-                PyImGui.table_setup_column("Jump", PyImGui.TableColumnFlags.WidthFixed, 58.0)
+        self._draw_secondary_text("Open a category to view its entries. Tables scroll sideways and column dividers can be dragged wider.", wrapped=False)
 
-                PyImGui.table_next_row()
-                for column_index, column_label in enumerate(("Source", "Type", "Value", "Owner Kind", "Owner Rule", "Enabled", "Order", "Jump")):
-                    PyImGui.table_set_column_index(column_index)
-                    self._draw_secondary_text(column_label, wrapped=False)
+        if PyImGui.begin_child("merchant_rules_protections_table_child", (0, 0), True, PyImGui.WindowFlags.HorizontalScrollbar):
+            protection_type_order = {
+                "Protected Model": 0,
+                "Protected Weapon Type": 1,
+                "Req Range": 2,
+                "Protected Weapon Mod": 3,
+                "Protected Weapon Mod Roll": 4,
+                "Protected Weapon Mod Variant": 5,
+                "Protected Weapon Mod Variant Roll": 6,
+                "Protected Rune / Insignia": 7,
+            }
+            grouped_entries: dict[str, list[ProtectionHubEntry]] = {}
+            for entry in filtered_entries:
+                grouped_entries.setdefault(entry.protection_type_label, []).append(entry)
 
-                for row_index, entry in enumerate(filtered_entries):
-                    PyImGui.table_next_row()
-
-                    PyImGui.table_set_column_index(0)
-                    PyImGui.text(entry.source_label)
-
-                    PyImGui.table_set_column_index(1)
-                    PyImGui.text(entry.protection_type_label)
-
-                    PyImGui.table_set_column_index(2)
-                    value_color = self._get_rune_text_color_for_protection_entry(entry)
-                    if value_color is not None:
-                        PyImGui.text_colored(entry.value_label, value_color)
-                    else:
-                        PyImGui.text(entry.value_label)
-
-                    PyImGui.table_set_column_index(3)
-                    self._draw_inline_badge(entry.owner_rule_kind_label, RULE_KIND_PRESENTATION.get(entry.owner_rule_kind, ("Rule", UI_COLOR_SUBTLE))[1])
-
-                    PyImGui.table_set_column_index(4)
-                    PyImGui.text(entry.owner_rule_label)
-
-                    PyImGui.table_set_column_index(5)
-                    enabled_label = "Yes" if entry.owner_rule_enabled else "No"
-                    enabled_color = UI_COLOR_SUCCESS if entry.owner_rule_enabled else UI_COLOR_MUTED
-                    PyImGui.text_colored(enabled_label, enabled_color)
-
-                    PyImGui.table_set_column_index(6)
-                    PyImGui.text(str(int(entry.owner_rule_order)))
-
-                    PyImGui.table_set_column_index(7)
-                    if PyImGui.small_button(f"Go##merchant_rules_protection_jump_{row_index}_{entry.owner_rule_index}"):
-                        self._request_jump_to_sell_rule(
-                            entry.owner_rule_index,
-                            entry.owner_rule_kind,
-                            subsection_anchor=entry.subsection_anchor,
-                            target_key=entry.target_key,
-                            requires_advanced=entry.requires_advanced,
-                        )
-
-                PyImGui.end_table()
+            for group_index, protection_type_label in enumerate(
+                sorted(grouped_entries, key=lambda label: (protection_type_order.get(label, 99), label))
+            ):
+                group_entries = grouped_entries[protection_type_label]
+                header_label = f"{protection_type_label} ({len(group_entries)})##merchant_rules_protection_group_{group_index}"
+                if PyImGui.collapsing_header(header_label):
+                    safe_table_label = str(protection_type_label).lower().replace(" ", "_").replace("/", "_")
+                    self._draw_protection_entries_table(
+                        f"merchant_rules_protections_table_{group_index}_{safe_table_label}",
+                        group_entries,
+                    )
+                    PyImGui.spacing()
         PyImGui.end_child()
 
     def _draw_buy_rule_merchant_stock_editor(self, index: int, rule: BuyRule) -> bool:
