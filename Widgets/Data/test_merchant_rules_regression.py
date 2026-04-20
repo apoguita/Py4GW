@@ -385,7 +385,7 @@ def _prepare_sell_rule_editor_widget(module, clicked_button_label: str):
             },
         }
     )
-    widget._draw_rule_header_row = lambda *args, **_kwargs: (True, bool(args[8]), False)
+    widget._draw_rule_header_row = lambda *args, **_kwargs: (True, bool(args[8]), False, "", False)
     widget._draw_section_heading = lambda *_args, **_kwargs: None
     widget._draw_secondary_text = lambda *_args, **_kwargs: None
     widget._draw_rule_name_input = lambda _label, value: value
@@ -4900,6 +4900,19 @@ def _test_display_sort_reads_preserve_saved_child_entry_order(module, temp_root:
     )
 
 
+def _test_rune_description_templates_resolve_for_tooltips(module) -> None:
+    description = "+{arg2[8680]} {arg1[8680]} (Non-stacking)\n-{arg2[8408]} Health"
+    modifiers = [
+        {"Identifier": 8680, "Arg1": 35, "Arg2": 2, "Arg": 8962},
+        {"Identifier": 8408, "Arg1": 0, "Arg2": 35, "Arg": 35},
+    ]
+    resolved = module._resolve_rune_description_template(description, modifiers)
+    _expect(
+        resolved == "+2 Critical Strikes (Non-stacking)\n-35 Health",
+        "Rune tooltip descriptions should resolve attribute and health placeholders while preserving non-stacking text.",
+    )
+
+
 def _test_default_protection_jump_targets_still_use_first_stored_entry(module) -> None:
     widget = _make_widget(module)
     _seed_display_sort_fixture(widget)
@@ -6077,6 +6090,7 @@ def main() -> int:
             ),
             ("display_sorting_helpers_and_summaries_are_case_insensitive", lambda: _test_display_sorting_helpers_and_summaries_are_case_insensitive(module)),
             ("display_sort_reads_preserve_saved_child_entry_order", lambda: _test_display_sort_reads_preserve_saved_child_entry_order(module, temp_root)),
+            ("rune_description_templates_resolve_for_tooltips", lambda: _test_rune_description_templates_resolve_for_tooltips(module)),
             ("default_protection_jump_targets_still_use_first_stored_entry", lambda: _test_default_protection_jump_targets_still_use_first_stored_entry(module)),
             ("request_execute_now_queues_only_when_preview_matches", lambda: _test_request_execute_now_queues_only_when_preview_matches(module)),
             ("compare_inventory_detects_preview_drift", lambda: _test_compare_inventory_detects_preview_drift(module)),

@@ -281,6 +281,8 @@ MODIFIER_IDENTIFIER_ARMOR1 = 0x27B
 MODIFIER_IDENTIFIER_ARMOR2 = 0x23C
 MODIFIER_IDENTIFIER_ENERGY = 0x27C
 MODIFIER_IDENTIFIER_ENERGY2 = 0x22C
+MODIFIER_IDENTIFIER_RUNE_ATTRIBUTE = 8680
+MODIFIER_IDENTIFIER_RUNE_HEALTH_LOSS = 8408
 ATTRIBUTE_NONE_REAL_VALUE = 45
 COMMON_CRAFTING_MATERIAL_MODEL_IDS: frozenset[int] = frozenset({
     921, 925, 929, 933, 934, 940, 946, 948, 953, 954, 955,
@@ -571,6 +573,50 @@ MODEL_ID_ATTRIBUTE_FALLBACK_LABELS: dict[str, str] = {
 MODEL_ID_ATTRIBUTE_FALLBACK_SUFFIX_KEYS: tuple[str, ...] = tuple(
     sorted(MODEL_ID_ATTRIBUTE_FALLBACK_LABELS.keys(), key=len, reverse=True)
 )
+RUNE_ATTRIBUTE_LABELS: dict[int, str] = {
+    0: "Fast Casting",
+    1: "Illusion Magic",
+    2: "Domination Magic",
+    3: "Inspiration Magic",
+    4: "Blood Magic",
+    5: "Death Magic",
+    6: "Soul Reaping",
+    7: "Curses",
+    8: "Air Magic",
+    9: "Earth Magic",
+    10: "Fire Magic",
+    11: "Water Magic",
+    12: "Energy Storage",
+    13: "Healing Prayers",
+    14: "Smiting Prayers",
+    15: "Protection Prayers",
+    16: "Divine Favor",
+    17: "Strength",
+    18: "Axe Mastery",
+    19: "Hammer Mastery",
+    20: "Swordsmanship",
+    21: "Tactics",
+    22: "Beast Mastery",
+    23: "Expertise",
+    24: "Wilderness Survival",
+    25: "Marksmanship",
+    29: "Dagger Mastery",
+    30: "Deadly Arts",
+    31: "Shadow Arts",
+    32: "Communing",
+    33: "Restoration Magic",
+    34: "Channeling Magic",
+    35: "Critical Strikes",
+    36: "Spawning Power",
+    37: "Spear Mastery",
+    38: "Command",
+    39: "Motivation",
+    40: "Leadership",
+    41: "Scythe Mastery",
+    42: "Wind Prayers",
+    43: "Earth Prayers",
+    44: "Mysticism",
+}
 ARMOR_CATALOG_ITEM_TYPES: frozenset[str] = frozenset({
     "headpiece",
     "chestpiece",
@@ -2491,6 +2537,53 @@ def _get_rune_kind_sort_key(mod_type: object) -> int:
     return 0 if _get_rune_kind_label(mod_type) == "Insignia" else 1
 
 
+def _get_rune_modifier_value(modifier: object, field_name: str) -> object:
+    if not isinstance(modifier, dict):
+        return ""
+    normalized_field = str(field_name or "").strip().lower()
+    if normalized_field == "arg1":
+        return modifier.get("Arg1", "")
+    if normalized_field == "arg2":
+        return modifier.get("Arg2", "")
+    if normalized_field == "arg":
+        return modifier.get("Arg", "")
+    return ""
+
+
+def _resolve_rune_description_template(description: str, modifiers: object) -> str:
+    safe_description = str(description or "").strip()
+    if not safe_description or "{" not in safe_description:
+        return safe_description
+    if not isinstance(modifiers, list):
+        return safe_description
+
+    modifiers_by_identifier: dict[int, dict[str, object]] = {}
+    for modifier in modifiers:
+        if not isinstance(modifier, dict):
+            continue
+        modifier_identifier = _safe_int(modifier.get("Identifier", 0), 0)
+        if modifier_identifier:
+            modifiers_by_identifier[modifier_identifier] = modifier
+
+    def replace_placeholder(match: re.Match) -> str:
+        field_name = str(match.group(1) or "")
+        modifier_identifier = _safe_int(match.group(2), 0)
+        modifier = modifiers_by_identifier.get(modifier_identifier)
+        if modifier is None:
+            return str(match.group(0))
+
+        value = _get_rune_modifier_value(modifier, field_name)
+        if modifier_identifier == MODIFIER_IDENTIFIER_RUNE_ATTRIBUTE and field_name.lower() == "arg1":
+            attribute_id = _safe_int(value, 0)
+            return RUNE_ATTRIBUTE_LABELS.get(attribute_id, f"Attribute {attribute_id}")
+        try:
+            return str(int(value))
+        except Exception:
+            return str(value or match.group(0))
+
+    return re.sub(r"\{(arg1|arg2|arg)\[(\d+)\]\}", replace_placeholder, safe_description)
+
+
 def _get_rune_rarity_sort_key(rarity: object) -> int:
     rarity_order = {"blue": 0, "purple": 1, "gold": 2}
     return rarity_order.get(str(rarity or "").strip().lower(), 99)
@@ -4245,9 +4338,16 @@ class MerchantRulesWidget:
             rarity = str(raw_entry.get("Rarity", "") or "").strip()
             mod_type = str(raw_entry.get("ModType", "") or "").strip()
             vendor_value = max(0, _safe_int(raw_entry.get("VendorValue", 0), 0))
+            descriptions = raw_entry.get("Descriptions", {})
+            if isinstance(descriptions, dict):
+                english_description = str(descriptions.get("English", "") or "").strip()
+            else:
+                english_description = ""
+            english_description = _resolve_rune_description_template(english_description, raw_entry.get("Modifiers", []))
             entry = {
                 "identifier": identifier,
                 "name": display_name,
+                "description": english_description,
                 "profession": profession,
                 "profession_label": _get_rune_profession_label(profession),
                 "rarity": rarity,
@@ -5275,6 +5375,13 @@ class MerchantRulesWidget:
             return None
         return self.rune_buy_entries_by_identifier.get(safe_identifier)
 
+    def _get_rune_tooltip_text(self, identifier: str) -> str:
+        entry = self._get_rune_buy_entry(identifier)
+        if entry is None:
+            return ""
+
+        return str(entry.get("description", "") or "").strip()
+
     def _get_rune_rarity_key_for_identifier(self, identifier: str) -> str:
         entry = self._get_rune_buy_entry(identifier)
         if entry is None:
@@ -6196,6 +6303,7 @@ class MerchantRulesWidget:
         entries: list[dict[str, str]],
         *,
         text_color_for_identifier: Callable[[str], tuple[float, float, float, float] | None] | None = None,
+        tooltip_for_identifier: Callable[[str], str] | None = None,
     ) -> tuple[str, list[str]]:
         normalized_query = str(query or "").strip()
         if not normalized_query:
@@ -6217,6 +6325,8 @@ class MerchantRulesWidget:
                         PyImGui.push_style_color(PyImGui.ImGuiCol.Text, text_color)
                     try:
                         selected = PyImGui.selectable(f"{name}##{child_id}_{identifier}", False, PyImGui.SelectableFlags.NoFlag, (0, 0))
+                        if tooltip_for_identifier is not None:
+                            self._draw_hover_tooltip(tooltip_for_identifier(identifier))
                     finally:
                         if text_color is not None:
                             PyImGui.pop_style_color(1)
@@ -6608,6 +6718,7 @@ class MerchantRulesWidget:
         *,
         jump_anchor: str = "",
         text_color_for_identifier: Callable[[str], tuple[float, float, float, float] | None] | None = None,
+        tooltip_for_identifier: Callable[[str], str] | None = None,
     ) -> str:
         if not identifiers:
             self._draw_secondary_text("No protected entries selected yet.", wrapped=False)
@@ -6632,6 +6743,8 @@ class MerchantRulesWidget:
                         PyImGui.text_colored(label, text_color)
                     else:
                         PyImGui.text(label)
+                    if tooltip_for_identifier is not None:
+                        self._draw_hover_tooltip(tooltip_for_identifier(identifier))
                     if jump_anchor:
                         self._maybe_scroll_sell_jump_target_row(index, jump_anchor, f"identifier:{str(identifier)}")
                 PyImGui.end_table()
@@ -15097,7 +15210,10 @@ class MerchantRulesWidget:
                     PyImGui.text_colored(entry.value_label, value_color)
                 else:
                     PyImGui.text(entry.value_label)
-                self._draw_hover_tooltip(entry.value_label)
+                if entry.filter_key == PROTECTION_FILTER_RUNES and str(entry.target_key or "").startswith("identifier:"):
+                    self._draw_hover_tooltip(self._get_rune_tooltip_text(str(entry.target_key)[len("identifier:"):]))
+                else:
+                    self._draw_hover_tooltip(entry.value_label)
 
                 PyImGui.table_set_column_index(3)
                 self._draw_inline_badge(entry.owner_rule_kind_label, RULE_KIND_PRESENTATION.get(entry.owner_rule_kind, ("Rule", UI_COLOR_SUBTLE))[1])
@@ -15556,6 +15672,7 @@ class MerchantRulesWidget:
                             PyImGui.text_colored(rune_label, text_color)
                         else:
                             PyImGui.text(rune_label)
+                        self._draw_hover_tooltip(self._get_rune_tooltip_text(target_row.identifier))
 
                         PyImGui.table_set_column_index(1)
                         PyImGui.text(kind_label)
@@ -15690,6 +15807,7 @@ class MerchantRulesWidget:
                         PyImGui.text_colored(name, text_color)
                     else:
                         PyImGui.text(name)
+                    self._draw_hover_tooltip(self._get_rune_tooltip_text(identifier))
 
                     PyImGui.table_set_column_index(1)
                     PyImGui.text(str(entry.get("kind_label", "") or "Rune / Insignia"))
@@ -16465,6 +16583,7 @@ class MerchantRulesWidget:
                 formatter,
                 jump_anchor=anchor,
                 text_color_for_identifier=text_color_for_identifier,
+                tooltip_for_identifier=self._get_rune_tooltip_text if cache_suffix == "runes" else None,
             )
             if removed_identifier:
                 if setter(rule, [identifier for identifier in selected_identifiers if identifier != removed_identifier]):
@@ -16483,6 +16602,7 @@ class MerchantRulesWidget:
             search_cache.get(index, ""),
             entries,
             text_color_for_identifier=self._get_rune_text_color_for_identifier if cache_suffix == "runes" else None,
+            tooltip_for_identifier=self._get_rune_tooltip_text if cache_suffix == "runes" else None,
         )
         if threshold_setter is not None:
             protected_identifiers_for_add = _dedupe_identifiers(
