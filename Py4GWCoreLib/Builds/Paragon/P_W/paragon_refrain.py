@@ -19,6 +19,7 @@ Blazing_Finale_ID = Skill.GetID("Blazing_Finale")
 Ebon_Vanguard_Assassin_Support_ID = Skill.GetID("Ebon_Vanguard_Assassin_Support")
 Ebon_Battle_Standard_of_Wisdom_ID = Skill.GetID("Ebon_Battle_Standard_of_Wisdom")
 Protectors_Defense_ID = Skill.GetID("Protectors_Defense")
+Cant_Touch_This_ID = Skill.GetID("Cant_Touch_This")
 
 
 class Paragon_Refrain(BuildMgr):
@@ -47,6 +48,7 @@ class Paragon_Refrain(BuildMgr):
                 Ebon_Vanguard_Assassin_Support_ID,
                 Ebon_Battle_Standard_of_Wisdom_ID,
                 Protectors_Defense_ID,
+                Cant_Touch_This_ID,
             ],
         )
         if match_only:
@@ -87,6 +89,9 @@ class Paragon_Refrain(BuildMgr):
             return True
 
         if self.IsSkillEquipped(Save_Yourselves_kurzick_ID) and (yield from self.skills.Any.NoAttribute.Save_Yourselves_kurzick()):
+            return True
+
+        if self.IsSkillEquipped(Cant_Touch_This_ID) and (yield from self.skills.Paragon.Command.Cant_Touch_This()):
             return True
 
         if self.IsSkillEquipped(Hasty_Refrain_ID) and (yield from self.skills.Paragon.Motivation.Hasty_Refrain()):

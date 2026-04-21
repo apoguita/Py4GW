@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from Py4GWCoreLib import Profession, Routines, BuildMgr
+from Py4GWCoreLib import Agent, Player, Profession, Routines, BuildMgr
 from Py4GWCoreLib.Skill import Skill
 from Py4GWCoreLib.Builds.Any.HeroAI import HeroAI as HeroAIBuild
 from Py4GWCoreLib.Builds.Skills import SkillsTemplate
@@ -19,12 +19,14 @@ Breath_of_the_Great_Dwarf_ID = Skill.GetID("Breath_of_the_Great_Dwarf")
 Ebon_Vanguard_Assassin_Support_ID = Skill.GetID("Ebon_Vanguard_Assassin_Support")
 Ebon_Battle_Standard_of_Wisdom_ID = Skill.GetID("Ebon_Battle_Standard_of_Wisdom")
 I_Am_Unstoppable_ID = Skill.GetID("I_Am_Unstoppable")
+Air_of_Superiority_ID = Skill.GetID("Air_of_Superiority")
 
 
 @dataclass(slots=True)
 class _SoulTwistingSnapshot:
     in_aggro: bool = False
     close_to_aggro: bool = False
+    player_energy_pct: float = 1.0
 
 
 class Soul_Twisting(BuildMgr):
@@ -49,6 +51,7 @@ class Soul_Twisting(BuildMgr):
                 Ebon_Vanguard_Assassin_Support_ID,
                 Ebon_Battle_Standard_of_Wisdom_ID,
                 I_Am_Unstoppable_ID,
+                Air_of_Superiority_ID,
             ],
         )
         if match_only:
@@ -69,6 +72,7 @@ class Soul_Twisting(BuildMgr):
             Ebon_Vanguard_Assassin_Support_ID,
             Ebon_Battle_Standard_of_Wisdom_ID,
             I_Am_Unstoppable_ID,
+            Air_of_Superiority_ID,
         ])
         self.SetSkillCastingFn(self._run_local_skill_logic)
         self.skills: SkillsTemplate = SkillsTemplate(self)
@@ -77,6 +81,7 @@ class Soul_Twisting(BuildMgr):
         snapshot = _SoulTwistingSnapshot()
         snapshot.in_aggro = bool(Routines.Checks.Agents.InAggro())
         snapshot.close_to_aggro = snapshot.in_aggro or self.IsCloseToAggro()
+        snapshot.player_energy_pct = float(Agent.GetEnergy(Player.GetAgentID()))
         return snapshot
 
     def _run_local_skill_logic(self):
@@ -88,7 +93,17 @@ class Soul_Twisting(BuildMgr):
         if not snapshot.close_to_aggro:
             return False
 
+        if (
+            self.IsSkillEquipped(Air_of_Superiority_ID)
+            and (snapshot.in_aggro or self.IsCloseToAggro())
+            and (yield from self.skills.Any.PvE.Air_of_Superiority())
+        ):
+            return True
+
         if snapshot.in_aggro and (yield from self.skills.Any.NoAttribute.I_Am_Unstoppable()):
+            return True
+
+        if (yield from self.skills.Ritualist.SpawningPower.Boon_of_Creation()):
             return True
 
         if (yield from self.skills.Ritualist.SpawningPower.Soul_Twisting()):
@@ -98,9 +113,6 @@ class Soul_Twisting(BuildMgr):
             return True
 
         if self.IsSkillEquipped(Summon_Spirits_luxon_ID) and (yield from self.skills.Any.NoAttribute.Summon_Spirits_luxon()):
-            return True
-
-        if (yield from self.skills.Ritualist.SpawningPower.Boon_of_Creation()):
             return True
 
         if (yield from self.skills.Ritualist.Communing.Shelter()):
@@ -121,7 +133,7 @@ class Soul_Twisting(BuildMgr):
         if not snapshot.in_aggro:
             return False
 
-        if (yield from self.skills.Any.PvE.Ebon_Vanguard_Assassin_Support()):
+        if snapshot.player_energy_pct >= 0.40 and (yield from self.skills.Any.PvE.Ebon_Vanguard_Assassin_Support()):
             return True
 
         if (yield from self.skills.Any.NoAttribute.Ebon_Battle_Standard_of_Wisdom()):

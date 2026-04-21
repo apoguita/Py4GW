@@ -715,13 +715,17 @@ class BuildMgr:
         self,
         cluster_radius: float,
         preferred_condition: Callable[[int], bool] | None = None,
+        *,
+        filter_radius: float | None = None,
     ) -> int:
         from Py4GWCoreLib import Player, AgentArray
         from Py4GWCoreLib.Agent import Agent
 
+        effective_filter_radius = float(filter_radius if filter_radius is not None else cluster_radius)
+
         player_pos = Player.GetXY()
         enemy_array = AgentArray.GetEnemyArray()
-        enemy_array = AgentArray.Filter.ByDistance(enemy_array, player_pos, cluster_radius)
+        enemy_array = AgentArray.Filter.ByDistance(enemy_array, player_pos, effective_filter_radius)
         enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Agent.IsAlive(agent_id))
 
         if not enemy_array:
@@ -1502,7 +1506,26 @@ class BuildMgr:
                 aftercast_delay=aftercast_delay,
             ))
 
-        yield from self._move_for_spirit_cast()
+        # yield from self._move_for_spirit_cast()
+        #
+        # Pre-cast positioning disabled. Previously this path ran the line
+        # above, which issued Player.Move and interrupted any in-progress
+        # cast. When the player had not yet arrived at the destination by
+        # the time UseSkill ran, the cast silently failed - leaving the
+        # caster stuck in a cast-retry + reposition loop while HeroAI's
+        # follow behavior pulled them back. Post-cast step-away inside
+        # CastSkillID still runs and keeps the caster from standing inside
+        # the new spirit after it has actually spawned.
+        #
+        # The helpers _move_for_spirit_cast and _pick_spirit_precast_position
+        # are intentionally left in place. They do semi-work today (the move
+        # happens, the candidate search runs) but are mis-timed: the cast is
+        # fired before the player arrives at the destination, so the spirit
+        # spawns at an intermediate position or not at all. They can be re-
+        # enabled by uncommenting the line above after fixing the timing
+        # (arrival poll on Player.Move, widening the candidate search to
+        # avoid dead-ends in crowded spirit clusters, and decoupling the
+        # move-distance from the overlap radius).
         return (yield from self.CastSkillID(
             skill_id=skill_id,
             extra_condition=extra_condition,

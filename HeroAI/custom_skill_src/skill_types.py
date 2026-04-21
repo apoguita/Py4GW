@@ -76,6 +76,8 @@ class CastConditions:
         # (default), matches the pre-change binary alive/dead gate.
         self.MinSpiritHpFractionForRecast = 0.0
 
+        self.CloseToAggro = False
+
         # combat field checks
         self.EnemiesInRange = 0
         self.EnemiesInRangeArea = Range.Area.value

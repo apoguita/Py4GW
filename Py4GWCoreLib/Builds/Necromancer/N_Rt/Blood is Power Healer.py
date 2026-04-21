@@ -19,22 +19,23 @@ Enfeebling_Blood_ID = Skill.GetID("Enfeebling_Blood")
 Recovery_ID = Skill.GetID("Recovery")
 Breath_of_the_Great_Dwarf_ID = Skill.GetID("Breath_of_the_Great_Dwarf")
 Recuperation_ID = Skill.GetID("Recuperation")
+Blood_Bond_ID = Skill.GetID("Blood_Bond")
 
 
-class Bip_Resto(BuildMgr):
+class Blood_is_Power_Healer(BuildMgr):
     def __init__(self, match_only: bool = False):
         super().__init__(
-            name="Bip Resto Healer",
+            name="Blood is Power Healer",
             required_primary=Profession.Necromancer,
             required_secondary=Profession.Ritualist,
-            template_code="OAhkQoGIoFmzdoqKNncAAAAAAAA",
+            template_code="OAhjQkGZIP3hqq0EAAAAAAAAAA",
             required_skills=[
                 Blood_is_Power_ID,
                 Signet_of_Lost_Souls_ID,
                 Mend_Body_and_Soul_ID,
-                Spirit_Light_ID,
             ],
             optional_skills=[
+                Spirit_Light_ID,
                 Vital_Weapon_ID,
                 Wielders_Boon_ID,
                 Mending_Grip_ID,
@@ -45,6 +46,7 @@ class Bip_Resto(BuildMgr):
                 Recovery_ID,
                 Breath_of_the_Great_Dwarf_ID,
                 Recuperation_ID,
+                Blood_Bond_ID,
             ],
         )
         if match_only:
@@ -57,6 +59,14 @@ class Bip_Resto(BuildMgr):
     def _run_local_skill_logic(self):
         if not Routines.Checks.Skills.CanCast():
             return False
+
+        # emergency: Spirit Transfer when a spirit is in range and any ally is at or below 30% HP.
+        if (yield from self.skills.Ritualist.RestorationMagic.Spirit_Transfer(health_threshold=0.30)):
+            return True
+
+        # emergency: spirit-gated burst heal when any ally is at or below 30% HP.
+        if (yield from self.skills.Ritualist.RestorationMagic.Spirit_Light(health_threshold=0.30)):
+            return True
 
         # emergency: any ally at or below 40% HP preempts everything.
         if (yield from self.skills.Ritualist.RestorationMagic.Mend_Body_and_Soul(health_threshold=0.40)):
@@ -108,6 +118,9 @@ class Bip_Resto(BuildMgr):
 
         # Signet of Lost Souls : energy refill when caster < 60%.
         if (yield from self.skills.Necromancer.SoulReaping.Signet_of_Lost_Souls(max_self_energy_pct=0.60)):
+            return True
+
+        if self.IsSkillEquipped(Blood_Bond_ID) and (yield from self.skills.Necromancer.BloodMagic.Blood_Bond()):
             return True
 
         # damaged: any ally at or below 75% HP, before combat skills.

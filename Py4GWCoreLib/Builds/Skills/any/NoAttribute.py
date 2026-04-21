@@ -80,7 +80,8 @@ class NoAttribute:
             return False
 
         target_agent_id = self.build._pick_clustered_target(
-            Range.Spellcast.value,
+            Range.Adjacent.value,
+            filter_radius=Range.Spellcast.value,
         )
         if not target_agent_id:
             return False
