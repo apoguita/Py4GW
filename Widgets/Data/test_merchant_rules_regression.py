@@ -4004,6 +4004,434 @@ def _test_projected_preview_keeps_cleanup_visible_from_unsupported_current_map(m
         module.Map.IsGuildHall = original_is_guild_hall
 
 
+def _configure_consumable_multistop_fixture(
+    module,
+    *,
+    include_material_buy: bool = True,
+    destination_id: int = 2,
+    destination_name: str = "Regression Harbor",
+):
+    widget = _prime_initialized_widget(module, _make_widget(module))
+    widget.outpost_entries = [
+        entry
+        for entry in widget.outpost_entries
+        if int(entry.get("id", 0)) not in {int(module.EMBARK_BEACH_MAP_ID), int(destination_id)}
+    ]
+    widget.outpost_entries.append({"id": int(destination_id), "name": str(destination_name)})
+    widget.outpost_entries.append({"id": int(module.EMBARK_BEACH_MAP_ID), "name": "Embark Beach"})
+    widget.auto_travel_enabled = True
+    widget.target_outpost_id = int(destination_id)
+
+    armor_model_id = int(module.ModelID.Armor_Of_Salvation.value)
+    wood_model_id = int(module.ModelID.Wood_Plank.value)
+    bone_model_id = int(module.ModelID.Bone.value)
+    iron_model_id = int(module.ModelID.Iron_Ingot.value)
+    widget.catalog_by_model_id.update(
+        {
+            armor_model_id: {"model_id": armor_model_id, "name": "Armor of Salvation"},
+            wood_model_id: {"model_id": wood_model_id, "name": "Wood Plank", "material_type": "common"},
+            bone_model_id: {"model_id": bone_model_id, "name": "Bone", "material_type": "common"},
+            iron_model_id: {"model_id": iron_model_id, "name": "Iron Ingot", "material_type": "common"},
+        }
+    )
+    buy_rules = [
+        module._normalize_buy_rule(
+            module.BuyRule(
+                enabled=True,
+                kind=module.BUY_KIND_CONSUMABLE_CRAFTER_TARGET,
+                merchant_stock_targets=[
+                    module.MerchantStockTarget(model_id=armor_model_id, target_count=1, max_per_run=1),
+                ],
+                consumable_crafter_count_mode=module.CONSUMABLE_CRAFTER_COUNT_MODE_CRAFT_AMOUNT,
+            )
+        )
+    ]
+    if include_material_buy:
+        buy_rules.append(
+            module._normalize_buy_rule(
+                module.BuyRule(
+                    enabled=True,
+                    kind=module.BUY_KIND_MATERIAL_TARGET,
+                    material_targets=[
+                        module.MaterialTarget(model_id=wood_model_id, target_count=1, max_per_run=10),
+                    ],
+                )
+            )
+        )
+    widget.buy_rules = buy_rules
+    widget._collect_inventory_items = lambda: [
+        _make_item(
+            module,
+            item_id=11,
+            model_id=iron_model_id,
+            name="Iron Ingot",
+            quantity=50,
+            is_material=True,
+        ),
+        _make_item(
+            module,
+            item_id=12,
+            model_id=bone_model_id,
+            name="Bone",
+            quantity=50,
+            is_material=True,
+        )
+    ]
+    widget._collect_storage_items = lambda: []
+    widget._get_material_storage_quantity_and_slot = lambda _model_id: (0, 0, 250)
+    return widget
+
+
+def _test_consumable_multistop_preview_routes_embark_before_destination(module) -> None:
+    widget = _configure_consumable_multistop_fixture(module, include_material_buy=True)
+    original_inventory = getattr(module.GLOBAL_CACHE, "Inventory", None)
+    original_player = module.Player
+    try:
+        module.GLOBAL_CACHE.Inventory = types.SimpleNamespace(
+            IsStorageOpen=lambda: True,
+            GetGoldOnCharacter=lambda: 1000,
+            GetGoldInStorage=lambda: 0,
+            GetFreeSlotCount=lambda: 10,
+        )
+        module.Player = types.SimpleNamespace(
+            GetSkillPointData=lambda: (5, 100),
+            GetTitle=lambda _title_id: types.SimpleNamespace(current_points=999999),
+        )
+
+        plan = widget._build_plan(projected_preview=True)
+
+        travel_labels = [entry.label for entry in plan.entries if entry.action_type == "travel"]
+        _expect(plan.multi_stop_route, "Projected preview should mark the Embark Beach consumable route as multi-stop.")
+        _expect(
+            travel_labels == ["Embark Beach", "Regression Harbor"],
+            "Projected preview should show travel to Embark Beach before the selected destination.",
+        )
+        _expect(
+            any(
+                entry.merchant_type == module.MERCHANT_TYPE_CONSUMABLE_CRAFTER
+                and entry.label.startswith("Armor of Salvation")
+                and entry.quantity == 1
+                and entry.state == module.PLAN_STATE_CONDITIONAL
+                for entry in plan.entries
+            ),
+            "Projected destination previews should keep Embark Beach consumable crafting visible.",
+        )
+        _expect(
+            any(
+                entry.merchant_type == module.MERCHANT_TYPE_MATERIALS
+                and entry.label.startswith("Wood Plank")
+                and entry.quantity == 10
+                and entry.state == module.PLAN_STATE_CONDITIONAL
+                for entry in plan.entries
+            ),
+            "Projected multi-stop previews should keep remaining destination material buys visible.",
+        )
+        _expect(
+            not any(
+                entry.merchant_type == module.MERCHANT_TYPE_CONSUMABLE_CRAFTER
+                and "Embark Beach only" in entry.reason
+                for entry in plan.entries
+            ),
+            "Projected multi-stop previews should not hide consumable work behind the selected non-Embark destination.",
+        )
+    finally:
+        module.GLOBAL_CACHE.Inventory = original_inventory
+        module.Player = original_player
+
+
+def _test_consumable_multistop_execute_crafts_then_runs_destination_work(module) -> None:
+    guild_hall_id = 179
+    widget = _configure_consumable_multistop_fixture(
+        module,
+        include_material_buy=True,
+        destination_id=guild_hall_id,
+        destination_name="Guild Hall - Isle of the Dead",
+    )
+    current_map = {"id": 100, "guild_hall": False}
+    events: list[str] = []
+    debug_logs: list[str] = []
+    destination_plan_counts: list[tuple[int, int]] = []
+    original_map_methods = {
+        "GetMapID": module.Map.GetMapID,
+        "IsMapReady": module.Map.IsMapReady,
+        "IsOutpost": module.Map.IsOutpost,
+        "IsGuildHall": module.Map.IsGuildHall,
+        "IsMapIDMatch": module.Map.IsMapIDMatch,
+    }
+    original_inventory = getattr(module.GLOBAL_CACHE, "Inventory", None)
+    original_player = module.Player
+    try:
+        module.Map.GetMapID = lambda: int(current_map["id"])
+        module.Map.IsMapReady = lambda: True
+        module.Map.IsOutpost = lambda: True
+        module.Map.IsGuildHall = lambda: bool(current_map["guild_hall"])
+        module.Map.IsMapIDMatch = lambda current, target: int(current) == int(target)
+        module.GLOBAL_CACHE.Inventory = types.SimpleNamespace(
+            IsStorageOpen=lambda: True,
+            GetGoldOnCharacter=lambda: 1000,
+            GetGoldInStorage=lambda: 0,
+            GetFreeSlotCount=lambda: 10,
+        )
+        module.Player = types.SimpleNamespace(
+            GetSkillPointData=lambda: (5, 100),
+            GetTitle=lambda _title_id: types.SimpleNamespace(current_points=999999),
+        )
+
+        def _context(*_args, **_kwargs):
+            if int(current_map["id"]) == int(module.EMBARK_BEACH_MAP_ID):
+                return True, "Embark ready", {
+                    module.MERCHANT_TYPE_MERCHANT: None,
+                    module.MERCHANT_TYPE_MATERIALS: None,
+                    module.MERCHANT_TYPE_RUNE_TRADER: None,
+                    module.MERCHANT_TYPE_SCROLL_TRADER: None,
+                    module.MERCHANT_TYPE_RARE_MATERIALS: None,
+                    module.MERCHANT_TYPE_CONSUMABLE_CRAFTER: (3349.48, 596.78),
+                }
+            if bool(current_map["guild_hall"]):
+                return True, "Guild Hall ready", {
+                    module.MERCHANT_TYPE_MERCHANT: None,
+                    module.MERCHANT_TYPE_MATERIALS: (20.0, 20.0),
+                    module.MERCHANT_TYPE_RUNE_TRADER: None,
+                    module.MERCHANT_TYPE_SCROLL_TRADER: None,
+                    module.MERCHANT_TYPE_RARE_MATERIALS: None,
+                    module.MERCHANT_TYPE_CONSUMABLE_CRAFTER: None,
+                }
+            return False, "Unsupported", {
+                module.MERCHANT_TYPE_MERCHANT: None,
+                module.MERCHANT_TYPE_MATERIALS: None,
+                module.MERCHANT_TYPE_RUNE_TRADER: None,
+                module.MERCHANT_TYPE_SCROLL_TRADER: None,
+                module.MERCHANT_TYPE_RARE_MATERIALS: None,
+                module.MERCHANT_TYPE_CONSUMABLE_CRAFTER: None,
+            }
+
+        def _travel(outpost_id: int):
+            events.append(f"travel:{int(outpost_id)}")
+            current_map["id"] = int(outpost_id)
+            current_map["guild_hall"] = int(outpost_id) == guild_hall_id
+            if False:
+                yield None
+            return True
+
+        def _craft(crafts, *, phase_label="Consumable crafters"):
+            events.extend(f"craft:{craft.label}" for craft in crafts)
+            if False:
+                yield None
+            total = sum(max(0, int(craft.quantity)) for craft in crafts)
+            return module.ExecutionPhaseOutcome(label=phase_label, measure_label="crafts", attempted=total, completed=total)
+
+        def _buy_materials(_coords, buys, *, phase_label="Material buys"):
+            destination_plan_counts.append(
+                (
+                    len(widget.preview_plan.material_buys),
+                    len(widget.preview_plan.consumable_crafter_buys),
+                )
+            )
+            events.extend(f"material:{buy.label}" for buy in buys)
+            if False:
+                yield None
+            return module.ExecutionPhaseOutcome(label=phase_label, measure_label="trades", attempted=len(buys), completed=len(buys))
+
+        widget._debug_log = lambda message: debug_logs.append(str(message))
+        widget._get_supported_context = _context
+        widget._travel_to_target_outpost = _travel
+        widget._craft_planned_consumables = _craft
+        widget._buy_planned_materials = _buy_materials
+
+        _drain_generator_return(widget._execute_now())
+
+        _expect(
+            events == [
+                f"travel:{int(module.EMBARK_BEACH_MAP_ID)}",
+                "craft:Armor of Salvation (24860)",
+                f"travel:{guild_hall_id}",
+                "material:Wood Plank (946)",
+            ],
+            "Travel + Execute should craft Embark consumables before traveling to the selected destination for remaining work.",
+        )
+        _expect(
+            events.count(f"travel:{int(module.EMBARK_BEACH_MAP_ID)}") == 1,
+            "Travel + Execute should only travel to Embark Beach once per multi-stop run.",
+        )
+        _expect(
+            sum(1 for event in events if event.startswith("craft:Armor of Salvation")) == 1,
+            "Craft requested amount mode should not execute the same consumable craft twice in one multi-stop run.",
+        )
+        _expect(
+            destination_plan_counts == [(1, 0)],
+            "Destination execution should run a non-consumable plan with material_buys=1 and consumable_crafts=0.",
+        )
+        _expect(
+            sum("Multi-stop execution travel: target=Embark Beach" in row for row in debug_logs) == 1,
+            "Nested destination execution must not re-enter the Embark Beach multi-stop route after Guild Hall arrival.",
+        )
+    finally:
+        module.Map.GetMapID = original_map_methods["GetMapID"]
+        module.Map.IsMapReady = original_map_methods["IsMapReady"]
+        module.Map.IsOutpost = original_map_methods["IsOutpost"]
+        module.Map.IsGuildHall = original_map_methods["IsGuildHall"]
+        module.Map.IsMapIDMatch = original_map_methods["IsMapIDMatch"]
+        module.GLOBAL_CACHE.Inventory = original_inventory
+        module.Player = original_player
+
+
+def _test_consumable_multistop_execute_stops_at_embark_when_only_consumables(module) -> None:
+    widget = _configure_consumable_multistop_fixture(module, include_material_buy=False)
+    current_map = {"id": 100}
+    events: list[str] = []
+    original_map_methods = {
+        "GetMapID": module.Map.GetMapID,
+        "IsMapReady": module.Map.IsMapReady,
+        "IsOutpost": module.Map.IsOutpost,
+        "IsGuildHall": module.Map.IsGuildHall,
+        "IsMapIDMatch": module.Map.IsMapIDMatch,
+    }
+    original_inventory = getattr(module.GLOBAL_CACHE, "Inventory", None)
+    original_player = module.Player
+    try:
+        module.Map.GetMapID = lambda: int(current_map["id"])
+        module.Map.IsMapReady = lambda: True
+        module.Map.IsOutpost = lambda: True
+        module.Map.IsGuildHall = lambda: False
+        module.Map.IsMapIDMatch = lambda current, target: int(current) == int(target)
+        module.GLOBAL_CACHE.Inventory = types.SimpleNamespace(
+            IsStorageOpen=lambda: True,
+            GetGoldOnCharacter=lambda: 1000,
+            GetGoldInStorage=lambda: 0,
+            GetFreeSlotCount=lambda: 10,
+        )
+        module.Player = types.SimpleNamespace(
+            GetSkillPointData=lambda: (5, 100),
+            GetTitle=lambda _title_id: types.SimpleNamespace(current_points=999999),
+        )
+        widget._get_supported_context = lambda *_args, **_kwargs: (
+            int(current_map["id"]) == int(module.EMBARK_BEACH_MAP_ID),
+            "Ready" if int(current_map["id"]) == int(module.EMBARK_BEACH_MAP_ID) else "Unsupported",
+            {
+                module.MERCHANT_TYPE_MERCHANT: None,
+                module.MERCHANT_TYPE_MATERIALS: None,
+                module.MERCHANT_TYPE_RUNE_TRADER: None,
+                module.MERCHANT_TYPE_SCROLL_TRADER: None,
+                module.MERCHANT_TYPE_RARE_MATERIALS: None,
+                module.MERCHANT_TYPE_CONSUMABLE_CRAFTER: (3349.48, 596.78)
+                if int(current_map["id"]) == int(module.EMBARK_BEACH_MAP_ID)
+                else None,
+            },
+        )
+
+        def _travel(outpost_id: int):
+            events.append(f"travel:{int(outpost_id)}")
+            current_map["id"] = int(outpost_id)
+            if False:
+                yield None
+            return True
+
+        def _craft(crafts, *, phase_label="Consumable crafters"):
+            events.extend(f"craft:{craft.label}" for craft in crafts)
+            if False:
+                yield None
+            total = sum(max(0, int(craft.quantity)) for craft in crafts)
+            return module.ExecutionPhaseOutcome(label=phase_label, measure_label="crafts", attempted=total, completed=total)
+
+        widget._travel_to_target_outpost = _travel
+        widget._craft_planned_consumables = _craft
+
+        _drain_generator_return(widget._execute_now())
+
+        _expect(
+            events == [f"travel:{int(module.EMBARK_BEACH_MAP_ID)}", "craft:Armor of Salvation (24860)"],
+            "Travel + Execute should stop at Embark Beach when no non-consumable destination work remains.",
+        )
+    finally:
+        module.Map.GetMapID = original_map_methods["GetMapID"]
+        module.Map.IsMapReady = original_map_methods["IsMapReady"]
+        module.Map.IsOutpost = original_map_methods["IsOutpost"]
+        module.Map.IsGuildHall = original_map_methods["IsGuildHall"]
+        module.Map.IsMapIDMatch = original_map_methods["IsMapIDMatch"]
+        module.GLOBAL_CACHE.Inventory = original_inventory
+        module.Player = original_player
+
+
+def _test_consumable_multistop_execute_here_stays_local(module) -> None:
+    widget = _configure_consumable_multistop_fixture(module, include_material_buy=True)
+    current_map = {"id": 2}
+    events: list[str] = []
+    original_map_methods = {
+        "GetMapID": module.Map.GetMapID,
+        "IsMapReady": module.Map.IsMapReady,
+        "IsOutpost": module.Map.IsOutpost,
+        "IsGuildHall": module.Map.IsGuildHall,
+        "IsMapIDMatch": module.Map.IsMapIDMatch,
+    }
+    original_inventory = getattr(module.GLOBAL_CACHE, "Inventory", None)
+    original_player = module.Player
+    try:
+        module.Map.GetMapID = lambda: int(current_map["id"])
+        module.Map.IsMapReady = lambda: True
+        module.Map.IsOutpost = lambda: True
+        module.Map.IsGuildHall = lambda: False
+        module.Map.IsMapIDMatch = lambda current, target: int(current) == int(target)
+        module.GLOBAL_CACHE.Inventory = types.SimpleNamespace(
+            IsStorageOpen=lambda: True,
+            GetGoldOnCharacter=lambda: 1000,
+            GetGoldInStorage=lambda: 0,
+            GetFreeSlotCount=lambda: 10,
+        )
+        module.Player = types.SimpleNamespace(
+            GetSkillPointData=lambda: (5, 100),
+            GetTitle=lambda _title_id: types.SimpleNamespace(current_points=999999),
+        )
+        widget._get_supported_context = lambda *_args, **_kwargs: (
+            True,
+            "Destination ready",
+            {
+                module.MERCHANT_TYPE_MERCHANT: None,
+                module.MERCHANT_TYPE_MATERIALS: (20.0, 20.0),
+                module.MERCHANT_TYPE_RUNE_TRADER: None,
+                module.MERCHANT_TYPE_SCROLL_TRADER: None,
+                module.MERCHANT_TYPE_RARE_MATERIALS: None,
+                module.MERCHANT_TYPE_CONSUMABLE_CRAFTER: None,
+            },
+        )
+
+        def _travel(outpost_id: int):
+            events.append(f"travel:{int(outpost_id)}")
+            if False:
+                yield None
+            return True
+
+        def _craft(crafts, *, phase_label="Consumable crafters"):
+            events.extend(f"craft:{craft.label}" for craft in crafts)
+            if False:
+                yield None
+            return module.ExecutionPhaseOutcome(label=phase_label, measure_label="crafts", attempted=0, completed=0)
+
+        def _buy_materials(_coords, buys, *, phase_label="Material buys"):
+            events.extend(f"material:{buy.label}" for buy in buys)
+            if False:
+                yield None
+            return module.ExecutionPhaseOutcome(label=phase_label, measure_label="trades", attempted=len(buys), completed=len(buys))
+
+        widget._travel_to_target_outpost = _travel
+        widget._craft_planned_consumables = _craft
+        widget._buy_planned_materials = _buy_materials
+
+        _drain_generator_return(widget._execute_now(local_only=True))
+
+        _expect(
+            events == ["material:Wood Plank (946)"],
+            "Execute Here should stay local with consumable rules enabled and must not route through Embark Beach.",
+        )
+    finally:
+        module.Map.GetMapID = original_map_methods["GetMapID"]
+        module.Map.IsMapReady = original_map_methods["IsMapReady"]
+        module.Map.IsOutpost = original_map_methods["IsOutpost"]
+        module.Map.IsGuildHall = original_map_methods["IsGuildHall"]
+        module.Map.IsMapIDMatch = original_map_methods["IsMapIDMatch"]
+        module.GLOBAL_CACHE.Inventory = original_inventory
+        module.Player = original_player
+
+
 def _test_preview_reason_display_hides_projected_suffix_without_mutating_plan(module) -> None:
     widget = _prime_initialized_widget(module, _make_widget(module))
     widget.preview_ready = True
@@ -6675,6 +7103,22 @@ def main() -> int:
             ("build_plan_deposits_explicit_keep_targets_on_storage_only_preview", lambda: _test_build_plan_deposits_explicit_keep_targets_on_storage_only_preview(module)),
             ("projected_preview_builds_post_travel_plan_without_travel_entry", lambda: _test_projected_preview_builds_post_travel_plan_without_travel_entry(module)),
             ("projected_preview_keeps_cleanup_visible_from_unsupported_current_map", lambda: _test_projected_preview_keeps_cleanup_visible_from_unsupported_current_map(module)),
+            (
+                "consumable_multistop_preview_routes_embark_before_destination",
+                lambda: _test_consumable_multistop_preview_routes_embark_before_destination(module),
+            ),
+            (
+                "consumable_multistop_execute_crafts_then_runs_destination_work",
+                lambda: _test_consumable_multistop_execute_crafts_then_runs_destination_work(module),
+            ),
+            (
+                "consumable_multistop_execute_stops_at_embark_when_only_consumables",
+                lambda: _test_consumable_multistop_execute_stops_at_embark_when_only_consumables(module),
+            ),
+            (
+                "consumable_multistop_execute_here_stays_local",
+                lambda: _test_consumable_multistop_execute_here_stays_local(module),
+            ),
             ("preview_reason_display_hides_projected_suffix_without_mutating_plan", lambda: _test_preview_reason_display_hides_projected_suffix_without_mutating_plan(module)),
             ("preview_reason_display_normalizes_nested_protection_wording", lambda: _test_preview_reason_display_normalizes_nested_protection_wording(module)),
             ("detailed_preview_shows_all_direct_reasons", lambda: _test_detailed_preview_shows_all_direct_reasons(module)),

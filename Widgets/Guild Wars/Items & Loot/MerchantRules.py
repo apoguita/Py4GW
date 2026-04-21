@@ -1162,6 +1162,11 @@ class PlanResult:
     coords: dict[str, tuple[float, float] | None] = field(default_factory=dict)
     travel_to_outpost_id: int = 0
     travel_to_outpost_name: str = ""
+    multi_stop_route: bool = False
+    multi_stop_consumable_outpost_id: int = 0
+    multi_stop_consumable_outpost_name: str = ""
+    multi_stop_destination_outpost_id: int = 0
+    multi_stop_destination_outpost_name: str = ""
     merchant_stock_buys: list[PlannedMerchantBuy] = field(default_factory=list)
     material_buys: list[PlannedMaterialBuy] = field(default_factory=list)
     rune_trader_buys: list[PlannedTraderBuy] = field(default_factory=list)
@@ -5205,6 +5210,27 @@ class MerchantRulesWidget:
             current_map_id = int(Map.GetMapID() or 0)
         return Map.IsMapIDMatch(int(current_map_id or 0), safe_outpost_id)
 
+    def _get_embark_beach_outpost_name(self) -> str:
+        outpost_name = self._get_outpost_name(EMBARK_BEACH_MAP_ID)
+        if not outpost_name or outpost_name.lower().startswith("map "):
+            return "Embark Beach"
+        return outpost_name
+
+    def _get_consumable_crafter_multi_stop_target(self) -> tuple[int, str]:
+        if not self.auto_travel_enabled or not self._has_enabled_consumable_crafter_buy_rules():
+            return 0, ""
+        target_outpost_id = max(0, _safe_int(self.target_outpost_id, 0))
+        if target_outpost_id <= 0 or target_outpost_id == EMBARK_BEACH_MAP_ID:
+            return 0, ""
+        target_outpost_name = self._get_outpost_name(target_outpost_id)
+        if not target_outpost_name:
+            return 0, ""
+        return target_outpost_id, target_outpost_name
+
+    def _should_use_consumable_crafter_multi_stop_route(self) -> bool:
+        target_outpost_id, _target_outpost_name = self._get_consumable_crafter_multi_stop_target()
+        return target_outpost_id > 0
+
     def _get_preview_projection_target(self) -> tuple[int, str]:
         target_outpost_id = max(0, int(self.target_outpost_id)) if self.auto_travel_enabled else 0
         if target_outpost_id <= 0:
@@ -7473,6 +7499,112 @@ class MerchantRulesWidget:
             )
         return result
 
+    def _build_consumable_crafter_multi_stop_preview(self, destination_outpost_id: int) -> PlanResult:
+        safe_destination_id = max(0, _safe_int(destination_outpost_id, 0))
+        destination_name = self._get_outpost_name(safe_destination_id)
+        if safe_destination_id <= 0 or not destination_name:
+            return PlanResult(
+                supported_map=False,
+                supported_reason="Auto-travel target is not configured.",
+                has_actions=False,
+            )
+
+        embark_name = self._get_embark_beach_outpost_name()
+        embark_plan = self._build_plan(
+            projected_preview=True,
+            projected_target_override_outpost_id=EMBARK_BEACH_MAP_ID,
+            allow_consumable_multi_stop=False,
+            consumable_crafter_only=True,
+        )
+        destination_plan = self._build_plan(
+            projected_preview=True,
+            projected_target_override_outpost_id=safe_destination_id,
+            allow_consumable_multi_stop=False,
+            exclude_consumable_crafter=True,
+        )
+
+        if not embark_plan.has_actions:
+            return destination_plan
+
+        storage_states = {str(embark_plan.storage_plan_state), str(destination_plan.storage_plan_state)}
+        if STORAGE_PLAN_STATE_NEEDS_EXACT_SCAN in storage_states:
+            storage_plan_state = STORAGE_PLAN_STATE_NEEDS_EXACT_SCAN
+        elif STORAGE_PLAN_STATE_EXACT_READY in storage_states:
+            storage_plan_state = STORAGE_PLAN_STATE_EXACT_READY
+        else:
+            storage_plan_state = STORAGE_PLAN_STATE_NOT_NEEDED
+
+        coords = dict(destination_plan.coords)
+        coords[MERCHANT_TYPE_CONSUMABLE_CRAFTER] = embark_plan.coords.get(MERCHANT_TYPE_CONSUMABLE_CRAFTER)
+        destination_has_work = bool(destination_plan.has_actions)
+        entries: list[ExecutionPlanEntry] = []
+        if not self._is_travel_target_reached(EMBARK_BEACH_MAP_ID):
+            entries.append(
+                ExecutionPlanEntry(
+                    action_type="travel",
+                    merchant_type=MERCHANT_TYPE_TRAVEL,
+                    label=embark_name,
+                    quantity=1,
+                    state=PLAN_STATE_WILL_EXECUTE,
+                    reason="Travel to Embark Beach first for Consumable Crafter buys.",
+                )
+            )
+        entries.extend(
+            replace(entry)
+            for entry in embark_plan.entries
+            if str(entry.merchant_type) == MERCHANT_TYPE_CONSUMABLE_CRAFTER
+        )
+        if destination_has_work:
+            entries.append(
+                ExecutionPlanEntry(
+                    action_type="travel",
+                    merchant_type=MERCHANT_TYPE_TRAVEL,
+                    label=destination_name,
+                    quantity=1,
+                    state=PLAN_STATE_WILL_EXECUTE,
+                    reason="Travel to the selected Auto Travel destination for remaining Merchant Rules work.",
+                )
+            )
+        entries.extend(
+            replace(entry)
+            for entry in destination_plan.entries
+            if str(entry.merchant_type) != MERCHANT_TYPE_CONSUMABLE_CRAFTER
+        )
+
+        result = PlanResult(
+            entries=entries,
+            supported_map=True,
+            supported_reason=(
+                f"Multi-stop preview: craft Consumable Crafter targets at {embark_name}"
+                + (f", then run remaining work at {destination_name}." if destination_has_work else " and stop there.")
+            ),
+            coords=coords,
+            multi_stop_route=True,
+            multi_stop_consumable_outpost_id=EMBARK_BEACH_MAP_ID,
+            multi_stop_consumable_outpost_name=embark_name,
+            multi_stop_destination_outpost_id=safe_destination_id if destination_has_work else 0,
+            multi_stop_destination_outpost_name=destination_name if destination_has_work else "",
+            merchant_stock_buys=list(destination_plan.merchant_stock_buys),
+            material_buys=list(destination_plan.material_buys),
+            rune_trader_buys=list(destination_plan.rune_trader_buys),
+            scroll_trader_buys=list(destination_plan.scroll_trader_buys),
+            consumable_crafter_buys=list(embark_plan.consumable_crafter_buys),
+            material_sales=list(destination_plan.material_sales),
+            storage_transfers=list(destination_plan.storage_transfers),
+            cleanup_transfers=list(destination_plan.cleanup_transfers),
+            destroy_actions=list(destination_plan.destroy_actions),
+            destroy_item_ids=list(destination_plan.destroy_item_ids),
+            merchant_sell_item_ids=list(destination_plan.merchant_sell_item_ids),
+            rune_trader_sales=list(destination_plan.rune_trader_sales),
+            storage_plan_state=storage_plan_state,
+            storage_exact=bool(embark_plan.storage_exact and (destination_plan.storage_exact or not destination_has_work)),
+            inventory_snapshot_captured=bool(embark_plan.inventory_snapshot_captured or destination_plan.inventory_snapshot_captured),
+            inventory_model_counts=dict(embark_plan.inventory_model_counts or destination_plan.inventory_model_counts),
+            inventory_item_count=max(int(embark_plan.inventory_item_count), int(destination_plan.inventory_item_count)),
+            has_actions=bool(embark_plan.has_actions or destination_plan.has_actions),
+        )
+        return result
+
     def _get_bag_item_ids(self, bag_ids: tuple[int, ...] | list[int]) -> list[int]:
         normalized_bag_ids = tuple(
             int(bag_id)
@@ -8727,6 +8859,28 @@ class MerchantRulesWidget:
                 return True
         return False
 
+    def _has_enabled_rules_excluding_consumable_crafters(self) -> bool:
+        return bool(
+            any(
+                bool(rule.enabled)
+                and (normalized_rule := _normalize_buy_rule(rule)) is not None
+                and normalized_rule.kind != BUY_KIND_CONSUMABLE_CRAFTER_TARGET
+                for rule in self.buy_rules
+            )
+            or any(bool(rule.enabled) for rule in self.sell_rules)
+            or any(bool(rule.enabled) for rule in self.destroy_rules)
+            or self._has_cleanup_sources()
+        )
+
+    def _get_buy_rules_excluding_consumable_crafters(self) -> list[BuyRule]:
+        filtered_rules: list[BuyRule] = []
+        for raw_rule in self.buy_rules:
+            rule = _normalize_buy_rule(raw_rule)
+            if rule is None or rule.kind == BUY_KIND_CONSUMABLE_CRAFTER_TARGET:
+                continue
+            filtered_rules.append(rule)
+        return filtered_rules
+
     def _get_items_after_planned_pre_buy_actions(
         self,
         items: list[InventoryItemInfo],
@@ -9860,6 +10014,8 @@ class MerchantRulesWidget:
         *,
         sim_inventory_items: list[InventoryItemInfo] | None = None,
         storage_items: list[InventoryItemInfo] | None = None,
+        consumable_crafter_only: bool = False,
+        exclude_consumable_crafter: bool = False,
     ) -> None:
         supported_map = bool(plan.supported_map)
         supported_reason = str(plan.supported_reason or "")
@@ -9938,6 +10094,10 @@ class MerchantRulesWidget:
                 continue
             buy_rule = normalized_buy_rule
             if not buy_rule.enabled:
+                continue
+            if consumable_crafter_only and buy_rule.kind != BUY_KIND_CONSUMABLE_CRAFTER_TARGET:
+                continue
+            if exclude_consumable_crafter and buy_rule.kind == BUY_KIND_CONSUMABLE_CRAFTER_TARGET:
                 continue
 
             if buy_rule.kind == BUY_KIND_MATERIAL_TARGET:
@@ -10639,6 +10799,10 @@ class MerchantRulesWidget:
         cleanup_only: bool = False,
         projected_preview: bool = False,
         ignore_travel_target: bool = False,
+        projected_target_override_outpost_id: int = 0,
+        allow_consumable_multi_stop: bool = True,
+        consumable_crafter_only: bool = False,
+        exclude_consumable_crafter: bool = False,
     ) -> PlanResult:
         started_at = time.perf_counter()
         projected_target_outpost_id = 0
@@ -10648,7 +10812,25 @@ class MerchantRulesWidget:
             target_outpost_id = 0 if ignore_travel_target else (max(0, int(self.target_outpost_id)) if self.auto_travel_enabled else 0)
             current_map_id = int(Map.GetMapID() or 0)
             if projected_preview:
-                projected_target_outpost_id, projected_target_outpost_name = self._get_preview_projection_target()
+                if (
+                    allow_consumable_multi_stop
+                    and not consumable_crafter_only
+                    and not exclude_consumable_crafter
+                    and self._should_use_consumable_crafter_multi_stop_route()
+                ):
+                    target_outpost_id, _target_outpost_name = self._get_consumable_crafter_multi_stop_target()
+                    multi_stop_plan = self._build_consumable_crafter_multi_stop_preview(target_outpost_id)
+                    self._log_plan_summary("Plan built", multi_stop_plan)
+                    self.last_plan_build_duration_ms = max(0.0, (time.perf_counter() - started_at) * 1000.0)
+                    return multi_stop_plan
+                projected_target_override = max(0, _safe_int(projected_target_override_outpost_id, 0))
+                if projected_target_override > 0:
+                    projected_target_outpost_id = projected_target_override
+                    projected_target_outpost_name = self._get_outpost_name(projected_target_override)
+                    if projected_target_override == EMBARK_BEACH_MAP_ID:
+                        projected_target_outpost_name = self._get_embark_beach_outpost_name()
+                else:
+                    projected_target_outpost_id, projected_target_outpost_name = self._get_preview_projection_target()
                 projected_destination_context = projected_target_outpost_id > 0 and bool(projected_target_outpost_name)
             if (
                 not projected_destination_context
@@ -10669,7 +10851,13 @@ class MerchantRulesWidget:
             supported_reason=supported_reason,
             coords=coords,
         )
-        if not self._has_enabled_rules():
+        if consumable_crafter_only:
+            has_enabled_rules = self._has_enabled_consumable_crafter_buy_rules()
+        elif exclude_consumable_crafter:
+            has_enabled_rules = self._has_enabled_rules_excluding_consumable_crafters()
+        else:
+            has_enabled_rules = self._has_enabled_rules()
+        if not has_enabled_rules:
             self._debug_log("Plan build skipped inventory snapshot because no buy, sell, destroy, or cleanup rules are enabled.")
             self._log_plan_summary("Plan built", plan)
             self.last_plan_build_duration_ms = max(0.0, (time.perf_counter() - started_at) * 1000.0)
@@ -10684,7 +10872,9 @@ class MerchantRulesWidget:
         storage_api = getattr(GLOBAL_CACHE, "Inventory", None)
         storage_open = bool(storage_api is not None and bool(getattr(storage_api, "IsStorageOpen", lambda: False)()))
         storage_items: list[InventoryItemInfo] = []
-        if self._has_enabled_rune_buy_rules() or self._has_enabled_consumable_crafter_buy_rules():
+        needs_rune_storage_context = bool(not consumable_crafter_only and self._has_enabled_rune_buy_rules())
+        needs_consumable_storage_context = bool(not exclude_consumable_crafter and self._has_enabled_consumable_crafter_buy_rules())
+        if needs_rune_storage_context or needs_consumable_storage_context:
             if storage_open:
                 storage_items = self._collect_storage_items()
                 plan.storage_plan_state = STORAGE_PLAN_STATE_EXACT_READY
@@ -10693,17 +10883,18 @@ class MerchantRulesWidget:
                 plan.storage_plan_state = STORAGE_PLAN_STATE_NEEDS_EXACT_SCAN
                 plan.storage_exact = False
 
-        enabled_sell_rules = self._collect_enabled_sell_rules()
-        enabled_destroy_rules = self._collect_enabled_destroy_rules()
+        enabled_sell_rules = [] if consumable_crafter_only else self._collect_enabled_sell_rules()
+        enabled_destroy_rules = [] if consumable_crafter_only else self._collect_enabled_destroy_rules()
         claimed_item_ids: set[int] = set()
-        self._plan_destroy_actions(plan, items, enabled_destroy_rules, enabled_sell_rules, claimed_item_ids)
+        if not consumable_crafter_only:
+            self._plan_destroy_actions(plan, items, enabled_destroy_rules, enabled_sell_rules, claimed_item_ids)
         material_quantities = {
             item.item_id: item.quantity
             for item in items
             if item.is_material
         }
 
-        if supported_map or storage_context_ready:
+        if not consumable_crafter_only and (supported_map or storage_context_ready):
             for item in items:
                 if item.item_id in claimed_item_ids:
                     continue
@@ -11143,18 +11334,21 @@ class MerchantRulesWidget:
             sim_model_counts,
             sim_inventory_items=sim_inventory_items,
             storage_items=storage_items,
+            consumable_crafter_only=consumable_crafter_only,
+            exclude_consumable_crafter=exclude_consumable_crafter,
         )
         self._plan_consumable_crafter_bag_space_warning(
             plan,
             inventory_model_counts=pre_buy_model_counts,
         )
-        self._plan_cleanup_actions(
-            plan,
-            sim_inventory_items,
-            enabled_sell_rules,
-            storage_open=storage_open,
-            storage_context_available=storage_context_ready,
-        )
+        if not consumable_crafter_only:
+            self._plan_cleanup_actions(
+                plan,
+                sim_inventory_items,
+                enabled_sell_rules,
+                storage_open=storage_open,
+                storage_context_available=storage_context_ready,
+            )
         if projected_destination_context:
             self._apply_projected_preview_post_processing(plan, projected_target_outpost_name)
         plan.has_actions = bool(
@@ -12519,7 +12713,10 @@ class MerchantRulesWidget:
 
     def _scan_preview(self):
         self._invalidate_supported_context_cache()
-        projected_target_outpost_id, projected_target_outpost_name = self._get_preview_projection_target()
+        if self._should_use_consumable_crafter_multi_stop_route():
+            projected_target_outpost_id, projected_target_outpost_name = self._get_consumable_crafter_multi_stop_target()
+        else:
+            projected_target_outpost_id, projected_target_outpost_name = self._get_preview_projection_target()
         self.preview_plan = self._build_plan(projected_preview=True)
         self.preview_ready = True
         self._set_preview_projection_state(
@@ -12528,7 +12725,19 @@ class MerchantRulesWidget:
             target_outpost_name=projected_target_outpost_name,
         )
         self._clear_preview_inventory_diff()
-        if self._preview_has_execute_travel_pending():
+        if self.preview_plan.multi_stop_route:
+            embark_label = self.preview_plan.multi_stop_consumable_outpost_name or self._get_embark_beach_outpost_name()
+            destination_label = self.preview_plan.multi_stop_destination_outpost_name
+            if destination_label:
+                self.status_message = (
+                    f"Multi-stop preview complete. Travel + Execute will craft Consumable Crafter targets at {embark_label}, "
+                    f"then travel to {destination_label} for remaining Merchant Rules work."
+                )
+            else:
+                self.status_message = (
+                    f"Multi-stop preview complete. Travel + Execute will craft Consumable Crafter targets at {embark_label} and stop there."
+                )
+        elif self._preview_has_execute_travel_pending():
             if self.preview_plan.has_actions:
                 self.status_message = (
                     f"Projected preview complete. Travel + Execute will travel to {projected_target_outpost_name}, "
@@ -12635,7 +12844,156 @@ class MerchantRulesWidget:
         )
         return outcome
 
-    def _execute_now(self, *, local_only: bool = False):
+    def _execute_consumable_crafter_multi_stop_route(self):
+        self.execution_running = True
+        self.last_error = ""
+        self.last_execution_summary = ""
+        self.last_cleanup_summary = ""
+        self.last_execution_phase_durations_ms = {}
+        self._clear_preview_inventory_diff()
+        self._clear_preview_projection_state()
+        paused_inventory_plus = None
+        phase_summaries: list[str] = []
+        try:
+            destination_outpost_id, destination_name = self._get_consumable_crafter_multi_stop_target()
+            if destination_outpost_id <= 0:
+                yield from self._execute_now(local_only=False, allow_multi_stop=False)
+                return
+
+            embark_name = self._get_embark_beach_outpost_name()
+            self._invalidate_supported_context_cache()
+            if not self._is_travel_target_reached(EMBARK_BEACH_MAP_ID):
+                self.status_message = f"Traveling to {embark_name} for Consumable Crafter buys."
+                self._debug_log(f"Multi-stop execution travel: target={embark_name} ({EMBARK_BEACH_MAP_ID})")
+                travel_ok = yield from self._travel_to_target_outpost(EMBARK_BEACH_MAP_ID)
+                if not travel_ok:
+                    self.status_message = f"Failed to travel to {embark_name}."
+                    self._debug_log(f"Multi-stop execution aborted: failed to travel to {embark_name} ({EMBARK_BEACH_MAP_ID}).")
+                    return
+                self._invalidate_supported_context_cache()
+                yield from Routines.Yield.wait(300)
+
+            consumable_plan = self._build_plan(
+                ignore_travel_target=True,
+                allow_consumable_multi_stop=False,
+                consumable_crafter_only=True,
+            )
+            self.preview_plan = consumable_plan
+            self._log_plan_summary("Multi-stop Embark plan", consumable_plan)
+            if self._plan_needs_exact_storage_scan(consumable_plan):
+                self.status_message = "Opening Xunlai for exact Embark Beach consumable crafting checks."
+                storage_opened = yield from self._ensure_storage_open(purpose="Embark Beach consumable crafting")
+                if storage_opened:
+                    yield from Routines.Yield.wait(150)
+                    self._invalidate_supported_context_cache()
+                    consumable_plan = self._build_plan(
+                        ignore_travel_target=True,
+                        allow_consumable_multi_stop=False,
+                        consumable_crafter_only=True,
+                    )
+                    self.preview_plan = consumable_plan
+                    self._log_plan_summary("Multi-stop Embark storage-refreshed plan", consumable_plan)
+                else:
+                    phase_summaries.append("Consumable crafters were skipped because Xunlai could not be opened for exact material checks.")
+                    consumable_plan.consumable_crafter_buys = []
+
+            consumable_craft_outcome = ExecutionPhaseOutcome(label="Consumable crafters", measure_label="crafts")
+            consumable_crafts_started_at = time.perf_counter()
+            if consumable_plan.consumable_crafter_buys:
+                paused_inventory_plus = self._pause_inventory_plus()
+                if paused_inventory_plus is not None:
+                    self._debug_log("Multi-stop execution: paused Inventory Plus for consumable crafting.")
+                consumable_craft_outcome = yield from self._craft_planned_consumables(
+                    consumable_plan.consumable_crafter_buys,
+                    phase_label="Consumable crafters",
+                )
+            self.last_execution_phase_durations_ms["consumable_crafters"] = max(
+                0.0,
+                (time.perf_counter() - consumable_crafts_started_at) * 1000.0,
+            )
+            consumable_craft_summary = self._format_execution_phase_summary(consumable_craft_outcome)
+            if consumable_craft_summary:
+                phase_summaries.append(consumable_craft_summary)
+            if paused_inventory_plus is not None:
+                paused_inventory_plus.resume()
+                paused_inventory_plus = None
+                self._debug_log("Multi-stop execution: resumed Inventory Plus after consumable crafting.")
+
+            remaining_preview = self._build_plan(
+                projected_preview=True,
+                projected_target_override_outpost_id=destination_outpost_id,
+                allow_consumable_multi_stop=False,
+                exclude_consumable_crafter=True,
+            )
+            self.preview_plan = remaining_preview
+            if remaining_preview.has_actions:
+                self.status_message = f"Traveling to {destination_name} for remaining Merchant Rules work."
+                if not self._is_travel_target_reached(destination_outpost_id):
+                    travel_ok = yield from self._travel_to_target_outpost(destination_outpost_id)
+                    if not travel_ok:
+                        self.status_message = f"Failed to travel to {destination_name}."
+                        if phase_summaries:
+                            self.last_execution_summary = " ".join(summary for summary in phase_summaries if summary).strip()
+                        self._debug_log(
+                            f"Multi-stop execution aborted: failed to travel to {destination_name} ({destination_outpost_id})."
+                        )
+                        return
+                    self._invalidate_supported_context_cache()
+                    yield from Routines.Yield.wait(300)
+                yield from self._execute_now(
+                    local_only=False,
+                    allow_multi_stop=False,
+                    exclude_consumable_crafter=True,
+                )
+                if self.last_error:
+                    if phase_summaries:
+                        combined_summary = " ".join(
+                            summary
+                            for summary in [*phase_summaries, self.last_execution_summary]
+                            if summary
+                        ).strip()
+                        if combined_summary:
+                            self.last_execution_summary = combined_summary
+                    return
+                if self.last_execution_summary:
+                    phase_summaries.append(self.last_execution_summary)
+            else:
+                self._debug_log("Multi-stop execution: no remaining non-consumable work after Embark Beach crafting.")
+
+            self.last_execution_summary = " ".join(summary for summary in phase_summaries if summary).strip()
+            if not self.last_execution_summary:
+                self.last_execution_summary = "Execution finished, but no merchant actions reported a completed or attempted outcome."
+            self.status_message = "Travel + Execute finished. Preview again to refresh the post-run state."
+            self.preview_ready = False
+            self._debug_log(self.last_execution_summary)
+        except Exception as exc:
+            self.last_error = f"{exc}"
+            self.status_message = "Execution failed. See the console log for details."
+            ConsoleLog(MODULE_NAME, f"Execution error: {exc}", Console.MessageType.Error)
+            ConsoleLog(MODULE_NAME, traceback.format_exc(), Console.MessageType.Error)
+        finally:
+            self.execution_running = False
+            if paused_inventory_plus is not None:
+                paused_inventory_plus.resume()
+                self._debug_log("Multi-stop execution: resumed Inventory Plus.")
+            yield
+
+    def _execute_now(
+        self,
+        *,
+        local_only: bool = False,
+        allow_multi_stop: bool = True,
+        exclude_consumable_crafter: bool = False,
+    ):
+        if (
+            allow_multi_stop
+            and not local_only
+            and not exclude_consumable_crafter
+            and self._should_use_consumable_crafter_multi_stop_route()
+        ):
+            yield from self._execute_consumable_crafter_multi_stop_route()
+            return
+
         self.execution_running = True
         self.last_error = ""
         self.last_execution_summary = ""
@@ -12648,7 +13006,11 @@ class MerchantRulesWidget:
             self._invalidate_supported_context_cache()
             self._clear_preview_projection_state()
             execution_label = "Execute Here" if local_only else "Travel + Execute"
-            plan = self._build_plan(ignore_travel_target=local_only)
+            plan = self._build_plan(
+                ignore_travel_target=local_only,
+                allow_consumable_multi_stop=allow_multi_stop,
+                exclude_consumable_crafter=exclude_consumable_crafter,
+            )
             self.preview_plan = plan
             local_availability = self._get_preview_here_availability()
             actionable_here_count, skipped_here_count = self._get_locally_actionable_preview_counts(
@@ -12670,7 +13032,10 @@ class MerchantRulesWidget:
                     return
                 self._invalidate_supported_context_cache()
                 yield from Routines.Yield.wait(300)
-                plan = self._build_plan()
+                plan = self._build_plan(
+                    allow_consumable_multi_stop=allow_multi_stop,
+                    exclude_consumable_crafter=exclude_consumable_crafter,
+                )
                 self.preview_plan = plan
                 local_availability = self._get_preview_here_availability()
                 actionable_here_count, skipped_here_count = self._get_locally_actionable_preview_counts(
@@ -12709,7 +13074,11 @@ class MerchantRulesWidget:
                 if storage_opened:
                     yield from Routines.Yield.wait(150)
                     self._invalidate_supported_context_cache()
-                    plan = self._build_plan(ignore_travel_target=local_only)
+                    plan = self._build_plan(
+                        ignore_travel_target=local_only,
+                        allow_consumable_multi_stop=allow_multi_stop,
+                        exclude_consumable_crafter=exclude_consumable_crafter,
+                    )
                     self.preview_plan = plan
                     local_availability = self._get_preview_here_availability()
                     actionable_here_count, skipped_here_count = self._get_locally_actionable_preview_counts(
@@ -12836,7 +13205,11 @@ class MerchantRulesWidget:
                     )
                     yield from Routines.Yield.wait(100)
                     self._invalidate_supported_context_cache()
-                    plan = self._build_plan(ignore_travel_target=local_only)
+                    plan = self._build_plan(
+                        ignore_travel_target=local_only,
+                        allow_consumable_multi_stop=allow_multi_stop,
+                        exclude_consumable_crafter=exclude_consumable_crafter,
+                    )
                     self.preview_plan = plan
                     local_availability = self._get_preview_here_availability()
                     actionable_here_count, skipped_here_count = self._get_locally_actionable_preview_counts(
@@ -13641,6 +14014,20 @@ class MerchantRulesWidget:
         if self.execution_running or self.travel_preview_running or self.instant_destroy_running or self.storage_scan_running or self.auto_cleanup_running:
             return "Busy", UI_COLOR_WARNING, "Preview, cleanup, storage scan, or execution is currently running."
         if self.preview_ready:
+            if self.preview_plan.multi_stop_route:
+                embark_label = self.preview_plan.multi_stop_consumable_outpost_name or self._get_embark_beach_outpost_name()
+                destination_label = self.preview_plan.multi_stop_destination_outpost_name
+                detail = (
+                    f"Preview routes Consumable Crafter buys through {embark_label}, then continues to {destination_label} for remaining work. "
+                    "Execute Here runs only green local entries."
+                    if destination_label
+                    else f"Preview routes Consumable Crafter buys through {embark_label} and stops there. Execute Here runs only green local entries."
+                )
+                if actionable:
+                    return "Multi-stop", UI_COLOR_INFO, detail
+                if skipped:
+                    return "Multi-stop", UI_COLOR_MUTED, detail
+                return "Multi-stop", UI_COLOR_MUTED, detail
             if self._preview_has_execute_travel_pending():
                 target_label = self.preview_execute_travel_target_outpost_name or "the selected outpost"
                 detail = (
@@ -15149,7 +15536,25 @@ class MerchantRulesWidget:
             status_label = "No Actions"
             summary = "No actionable merchant work found."
 
-        if projected_preview:
+        if self.preview_plan.multi_stop_route:
+            embark_label = self.preview_plan.multi_stop_consumable_outpost_name or self._get_embark_beach_outpost_name()
+            destination_label = self.preview_plan.multi_stop_destination_outpost_name
+            detail_parts = [
+                (
+                    f"Multi-stop route: craft Consumable Crafter targets at {embark_label}, "
+                    f"then travel to {destination_label} for remaining Merchant Rules work."
+                )
+                if destination_label
+                else f"Multi-stop route: craft Consumable Crafter targets at {embark_label} and stop there."
+            ]
+            if self._plan_needs_exact_storage_scan(self.preview_plan):
+                detail_parts.append("Storage-aware planning is still partial until Xunlai is opened for an exact storage scan.")
+            elif conditional_cleanup_ready:
+                detail_parts.append("Planned Xunlai cleanup work will execute if storage can be opened after arrival.")
+            elif conditional_count > 0:
+                detail_parts.append("Conditional entries remain estimated until each stop is confirmed.")
+            detail = " ".join(detail_parts).strip()
+        elif projected_preview:
             target_label = self.preview_execute_travel_target_outpost_name or "the selected outpost"
             detail_parts = [
                 f"Projected after travel to {target_label}. Travel + Execute will auto-travel and rebuild live merchant handling on arrival.",
@@ -19112,7 +19517,19 @@ class MerchantRulesWidget:
                     self._draw_secondary_text(
                         "Conditional means the service can be attempted, but live stock, crafter offers, trader offers, quotes, or Xunlai access still decide the final action."
                     )
-                if self._preview_has_execute_travel_pending():
+                if self.preview_plan.multi_stop_route:
+                    embark_label = self.preview_plan.multi_stop_consumable_outpost_name or self._get_embark_beach_outpost_name()
+                    destination_label = self.preview_plan.multi_stop_destination_outpost_name
+                    route_detail = (
+                        f"* Multi-stop route: Travel to {embark_label}, run Consumable Crafter buys, then travel to {destination_label} for remaining buys, sells, and cleanup."
+                        if destination_label
+                        else f"* Multi-stop route: Travel to {embark_label}, run Consumable Crafter buys, then stop there."
+                    )
+                    PyImGui.text_colored(route_detail, UI_COLOR_INFO)
+                    self._draw_secondary_text(
+                        "Projected means destination rows are rebuilt live after travel; green rows can also run here through Execute Here."
+                    )
+                elif self._preview_has_execute_travel_pending():
                     target_label = self.preview_execute_travel_target_outpost_name or "the selected outpost"
                     PyImGui.text_colored(
                         f"* Projected preview assumes Auto Travel reaches {target_label}. Travel + Execute will travel there and rebuild live before running merchant handling.",
@@ -19121,7 +19538,7 @@ class MerchantRulesWidget:
                     self._draw_secondary_text(
                         "Projected means this row comes from the target plan. Green rows can also run here; yellow rows still need travel or unresolved local service."
                     )
-                if conditional_count > 0 or self._preview_has_execute_travel_pending():
+                if conditional_count > 0 or self._preview_has_execute_travel_pending() or self.preview_plan.multi_stop_route:
                     PyImGui.spacing()
                 if actionable_entries:
                     self._draw_preview_entries_table(
