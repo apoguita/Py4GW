@@ -14,17 +14,26 @@ class _DIALOGS:
         self._config = parent.config
         self._helpers = parent.helpers
         self.combat_status = False
+        self.hero_ai_pause_status = False
 
 
     #region Coroutines (_coro_)
     def _coro_disable_auto_combat(self):
         self.combat_status = self._config.upkeep.auto_combat.is_active()
+        self.hero_ai_pause_status = bool(getattr(self._config.upkeep, "hero_ai_paused", None) and self._config.upkeep.hero_ai_paused.is_active())
         self._config.upkeep.auto_combat.set_now("active", False)
+        if hasattr(self._config.upkeep, "hero_ai_paused"):
+            self._config.upkeep.hero_ai_paused.set_now("active", True)
         ActionQueueManager().ResetAllQueues()
         yield
     
     def _coro_restore_auto_combat(self):
+        from ...Routines import Routines
+        # Give dialog/UI actions time to settle before AI resumes.
+        yield from Routines.Yield.wait(350)
         self._config.upkeep.auto_combat.set_now("active", self.combat_status)
+        if hasattr(self._config.upkeep, "hero_ai_paused"):
+            self._config.upkeep.hero_ai_paused.set_now("active", self.hero_ai_pause_status)
         yield
         
     def _coro_at_xy(self, x: float, y: float, dialog:int):
