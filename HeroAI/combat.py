@@ -236,7 +236,6 @@ class CombatClass:
             self.is_skill_enabled = [bool(options.Skills[i]) for i in range(MAX_SKILLS)]
         else:
             self.is_skill_enabled = [False] * MAX_SKILLS
-        self.blocked_skill_ids = set()
         self.active_spirit_buff_skill_ids = None
 
     def ApplyBlockedSkillIDs(self, blocked_skill_ids: list[int] | None = None) -> None:
