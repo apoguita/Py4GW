@@ -423,6 +423,8 @@ def bot_routine(bot: Botting) -> None:
                     t_coord = _get_first_path_coord(vq.transit_paths[i])
                     bot.States.AddCustomState(lambda vi=vq_idx, si=section_idx, tc=t_coord: _set_section_header(_section_headers[vi][si], tc[0], tc[1]),
                                               f"SetSection_Transit_{vq_idx}_{i}")
+                    bot.config.FSM.RemoveManagedCoroutine("ConsetUpkeep")
+                    bot.config.FSM.RemoveManagedCoroutine("PconsUpkeep")
                     if _restock_conset:
                         bot.States.AddManagedCoroutine("ConsetUpkeep",
                             lambda: _conset_upkeep(bot))
@@ -457,6 +459,8 @@ def bot_routine(bot: Botting) -> None:
         vp_coord = _get_first_path_coord(vq.vanquish_path)
         bot.States.AddCustomState(lambda vi=vq_idx, si=section_idx, vc=vp_coord: _set_section_header(_section_headers[vi][si], vc[0], vc[1]),
                                   f"SetSection_VanquishPath_{vq_idx}")
+        bot.config.FSM.RemoveManagedCoroutine("ConsetUpkeep")
+        bot.config.FSM.RemoveManagedCoroutine("PconsUpkeep")
         if _restock_conset:
             bot.States.AddManagedCoroutine("ConsetUpkeep",
                 lambda: _conset_upkeep(bot))
