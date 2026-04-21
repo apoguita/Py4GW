@@ -5724,6 +5724,9 @@ class MerchantRulesWidget:
                 return entry
         return None
 
+    def _catalog_entry_matches_merchant_stock(self, entry: dict[str, object]) -> bool:
+        return self._get_merchant_essential(_safe_int(entry.get("model_id", 0), 0)) is not None
+
     def _catalog_entry_matches_common_material(self, entry: dict[str, object]) -> bool:
         return str(entry.get("material_type", "")).strip().lower() == "common"
 
@@ -5749,6 +5752,17 @@ class MerchantRulesWidget:
         if not include_standalone_runes or item_type != "rune_mod":
             return False
         return _is_armor_rune_catalog_name(entry.get("name", ""))
+
+    def _catalog_entry_matches_explicit_sell_item(self, entry: dict[str, object]) -> bool:
+        model_id = _safe_int(entry.get("model_id", 0), 0)
+        if self._get_material_catalog_entry(model_id) is not None:
+            return False
+
+        item_type = str(entry.get("item_type", "")).strip().lower()
+        if item_type in {"rune_mod", "salvage"} and _is_armor_rune_catalog_name(entry.get("name", "")):
+            return False
+
+        return True
 
     def _search_catalog(self, raw_query: str, limit: int = SEARCH_RESULT_LIMIT) -> list[dict[str, object]]:
         query = _normalize_catalog_search_text(raw_query)
@@ -5834,10 +5848,24 @@ class MerchantRulesWidget:
                 break
         return material_results
 
+    def _search_merchant_stock_catalog(self, raw_query: str, limit: int = SEARCH_RESULT_LIMIT) -> list[dict[str, object]]:
+        return self._search_catalog_with_predicate(
+            raw_query,
+            entry_predicate=self._catalog_entry_matches_merchant_stock,
+            limit=limit,
+        )
+
     def _search_scroll_trader_stock_catalog(self, raw_query: str, limit: int = SEARCH_RESULT_LIMIT) -> list[dict[str, object]]:
         return self._search_catalog_with_predicate(
             raw_query,
             entry_predicate=lambda entry: _is_scroll_trader_stock_model(entry.get("model_id", 0)),
+            limit=limit,
+        )
+
+    def _search_explicit_sell_item_catalog(self, raw_query: str, limit: int = SEARCH_RESULT_LIMIT) -> list[dict[str, object]]:
+        return self._search_catalog_with_predicate(
+            raw_query,
+            entry_predicate=self._catalog_entry_matches_explicit_sell_item,
             limit=limit,
         )
 
@@ -6413,17 +6441,13 @@ class MerchantRulesWidget:
         if not normalized_query:
             return 0, []
 
-        results = [
-            entry
-            for entry in self._search_catalog(normalized_query)
-            if not _is_scroll_trader_stock_model(entry.get("model_id", 0))
-        ]
+        results = self._search_merchant_stock_catalog(normalized_query)
         visible_model_ids = _collect_model_ids_from_catalog_entries(results)
         picked_model_id = 0
         child_height = 110 if len(results) > 4 else 80
         if PyImGui.begin_child(child_id, (0, child_height), True, PyImGui.WindowFlags.NoFlag):
             if not results:
-                PyImGui.text_wrapped("No matching regular merchant stock found in the local catalog.")
+                PyImGui.text_wrapped("No matching supported regular merchant stock found.")
             else:
                 for entry in results:
                     model_id = int(entry.get("model_id", 0))
@@ -6453,6 +6477,28 @@ class MerchantRulesWidget:
                     label = self._format_model_label(model_id)
                     if material_type:
                         label = f"{label} [{material_type}]"
+                    if PyImGui.selectable(f"{label}##{child_id}_{model_id}", False, PyImGui.SelectableFlags.NoFlag, (0, 0)):
+                        picked_model_id = model_id
+                        break
+        PyImGui.end_child()
+        return picked_model_id, visible_model_ids
+
+    def _draw_explicit_sell_item_search_results(self, child_id: str, query: str) -> tuple[int, list[int]]:
+        normalized_query = str(query or "").strip()
+        if not normalized_query:
+            return 0, []
+
+        results = self._search_explicit_sell_item_catalog(normalized_query)
+        visible_model_ids = _collect_model_ids_from_catalog_entries(results)
+        picked_model_id = 0
+        child_height = 110 if len(results) > 4 else 80
+        if PyImGui.begin_child(child_id, (0, child_height), True, PyImGui.WindowFlags.NoFlag):
+            if not results:
+                PyImGui.text_wrapped("No matching items found outside specialized vendor sections.")
+            else:
+                for entry in results:
+                    model_id = int(entry.get("model_id", 0))
+                    label = self._format_model_label_long(model_id)
                     if PyImGui.selectable(f"{label}##{child_id}_{model_id}", False, PyImGui.SelectableFlags.NoFlag, (0, 0)):
                         picked_model_id = model_id
                         break
@@ -17504,7 +17550,7 @@ class MerchantRulesWidget:
                         PyImGui.same_line(0, 6)
 
             search_text = self.buy_model_search_cache.get(index, "")
-            updated_search_text = PyImGui.input_text(f"Search Items##buy_search_{index}", search_text)
+            updated_search_text = PyImGui.input_text(f"Search Merchant Stock##buy_search_{index}", search_text)
             if updated_search_text != search_text:
                 self.buy_model_search_cache[index] = updated_search_text
 
@@ -17535,17 +17581,17 @@ class MerchantRulesWidget:
                 updated_manual_model_id = max(0, int(updated_manual_model_id))
                 if updated_manual_model_id != manual_model_id:
                     self.buy_manual_model_id_cache[index] = updated_manual_model_id
-                is_scroll_trader_stock = _is_scroll_trader_stock_model(updated_manual_model_id)
+                is_supported_merchant_stock = self._get_merchant_essential(updated_manual_model_id) is not None
                 PyImGui.same_line(0, 8)
-                PyImGui.begin_disabled(updated_manual_model_id <= 0 or is_scroll_trader_stock)
+                PyImGui.begin_disabled(updated_manual_model_id <= 0 or not is_supported_merchant_stock)
                 add_manual_item = PyImGui.small_button(f"Add Item##buy_add_manual_model_{index}")
                 PyImGui.end_disabled()
                 if add_manual_item and self._add_buy_rule_merchant_stock_target(rule, updated_manual_model_id):
                     changed = True
                     self.buy_manual_model_id_cache[index] = 0
                     self.buy_model_search_cache[index] = self._get_model_name(updated_manual_model_id) or str(updated_manual_model_id)
-                if updated_manual_model_id > 0 and is_scroll_trader_stock:
-                    self._draw_secondary_text("This model is confirmed scroll trader stock. Add it from the Scroll Trader Stock section.")
+                if updated_manual_model_id > 0 and not is_supported_merchant_stock:
+                    self._draw_secondary_text("This model is not in the supported regular merchant stock list.")
         elif rule.kind == BUY_KIND_CONSUMABLE_CRAFTER_TARGET:
             self._draw_secondary_text("Crafts Embark Beach consumables after checking rank, skill points, gold, inventory, Xunlai panes, and material storage.")
             self._draw_secondary_text("Use target count plus Max Per Run. Crafted items stay in inventory; Cleanup / Xunlai can deposit them afterward.")
@@ -18574,7 +18620,7 @@ class MerchantRulesWidget:
                     self.sell_model_search_cache.get(index, ""),
                 )
             else:
-                picked_model_id, visible_model_ids = self._draw_search_results(
+                picked_model_id, visible_model_ids = self._draw_explicit_sell_item_search_results(
                     f"sell_search_results_{index}",
                     self.sell_model_search_cache.get(index, ""),
                 )
