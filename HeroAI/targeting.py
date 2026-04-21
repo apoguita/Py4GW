@@ -204,8 +204,8 @@ def TargetNearestItem():
     return Routines.Targeting.TargetNearestItem()
 
 
-def TargetClusteredEnemy(area=4500.0):
-    return _filter_blacklisted(Routines.Targeting.TargetClusteredEnemy(area))
+def TargetClusteredEnemy(area=4500.0, *, cluster_radius: float | None = None):
+    return _filter_blacklisted(Routines.Targeting.TargetClusteredEnemy(area, cluster_radius=cluster_radius))
 
 def GetEnemyAttacking(max_distance=4500.0, aggressive_only = False):
     return _filter_blacklisted(Routines.Targeting.GetEnemyAttacking(max_distance, aggressive_only))

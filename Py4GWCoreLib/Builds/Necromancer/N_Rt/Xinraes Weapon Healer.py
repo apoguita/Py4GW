@@ -24,10 +24,10 @@ Air_of_Superiority_ID =  Skill.GetID("Air_of_Superiority")
 Ebon_Vanguard_Assassin_Support_ID = Skill.GetID("Ebon_Vanguard_Assassin_Support")
 
 
-class Xinraes_Weapon_Resto_Healer(BuildMgr):
+class Xinraes_Weapon_Healer(BuildMgr):
     def __init__(self, match_only: bool = False):
         super().__init__(
-            name="Xinrae's Weapon Resto Healer",
+            name="Xinraes Weapon Healer",
             required_primary=Profession.Necromancer,
             required_secondary=Profession.Ritualist,
             template_code="OAhiYwh8AAAAAgqq0cyNMHnA",
@@ -63,6 +63,14 @@ class Xinraes_Weapon_Resto_Healer(BuildMgr):
     def _run_local_skill_logic(self):
         if not Routines.Checks.Skills.CanCast():
             return False
+
+        # emergency: Spirit Transfer when a spirit is in range and any ally is at or below 30% HP.
+        if (yield from self.skills.Ritualist.RestorationMagic.Spirit_Transfer(health_threshold=0.30)):
+            return True
+
+        # emergency: spirit-gated burst heal when any ally is at or below 30% HP.
+        if (yield from self.skills.Ritualist.RestorationMagic.Spirit_Light(health_threshold=0.30)):
+            return True
 
         # emergency: any ally at or below 40% HP preempts everything.
         if (yield from self.skills.Ritualist.RestorationMagic.Mend_Body_and_Soul(health_threshold=0.40)):
@@ -127,6 +135,9 @@ class Xinraes_Weapon_Resto_Healer(BuildMgr):
         if not Routines.Checks.Agents.InAggro():
             return False
 
+        if self.IsSkillEquipped(Weaken_Armor_ID) and (yield from self.skills.Necromancer.Curses.Weaken_Armor()):
+            return True
+
         if self.IsSkillEquipped(Ebon_Vanguard_Assassin_Support_ID) and (yield from self.skills.Any.PvE.Ebon_Vanguard_Assassin_Support()):
             return True
 
@@ -140,9 +151,6 @@ class Xinraes_Weapon_Resto_Healer(BuildMgr):
             return True
 
         if self.IsSkillEquipped(Life_ID) and (yield from self.skills.Ritualist.RestorationMagic.Life()):
-            return True
-
-        if self.IsSkillEquipped(Weaken_Armor_ID) and (yield from self.skills.Necromancer.Curses.Weaken_Armor()):
             return True
 
         if self.IsSkillEquipped(Vital_Weapon_ID) and (yield from self.skills.Ritualist.Communing.Vital_Weapon()):

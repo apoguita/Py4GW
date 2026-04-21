@@ -1,9 +1,10 @@
-from Py4GWCoreLib import Profession
-from Py4GWCoreLib import Routines
-from Py4GWCoreLib.Builds.Any.HeroAI import HeroAI as HeroAIBuild
-from Py4GWCoreLib import BuildMgr
+from dataclasses import dataclass
+
+from Py4GWCoreLib import Profession, Range, Routines, BuildMgr
 from Py4GWCoreLib.Skill import Skill
+from Py4GWCoreLib.Builds.Any.HeroAI import HeroAI as HeroAIBuild
 from Py4GWCoreLib.Builds.Skills import SkillsTemplate
+
 
 Ineptitude_ID = Skill.GetID("Ineptitude")
 Wandering_Eye_ID = Skill.GetID("Wandering_Eye")
@@ -14,6 +15,14 @@ Ebon_Vanguard_Assassin_Support_ID = Skill.GetID("Ebon_Vanguard_Assassin_Support"
 Ebon_Battle_Standard_of_Wisdom_ID = Skill.GetID("Ebon_Battle_Standard_of_Wisdom")
 Power_Drain_ID = Skill.GetID("Power_Drain")
 Drain_Enchantment_ID = Skill.GetID("Drain_Enchantment")
+Cry_of_Pain_ID = Skill.GetID("Cry_of_Pain")
+
+
+@dataclass(slots=True)
+class _IneptitudeBarSnapshot:
+    in_aggro: bool = False
+    enemy_in_spellcast: bool = False
+    enemy_casting: bool = False
 
 
 class Ineptitude(BuildMgr):
@@ -34,6 +43,7 @@ class Ineptitude(BuildMgr):
                 Ebon_Battle_Standard_of_Wisdom_ID,
                 Power_Drain_ID,
                 Drain_Enchantment_ID,
+                Cry_of_Pain_ID,
             ],
         )
         if match_only:
@@ -43,19 +53,34 @@ class Ineptitude(BuildMgr):
         self.SetSkillCastingFn(self._run_local_skill_logic)
         self.skills: SkillsTemplate = SkillsTemplate(self)
 
+    def _get_bar_snapshot(self) -> _IneptitudeBarSnapshot:
+        snapshot = _IneptitudeBarSnapshot()
+        snapshot.in_aggro = bool(Routines.Checks.Agents.InAggro())
+
+        if not snapshot.in_aggro:
+            return snapshot
+
+        snapshot.enemy_in_spellcast = bool(Routines.Agents.GetNearestEnemy(Range.Spellcast.value))
+        if snapshot.enemy_in_spellcast:
+            snapshot.enemy_casting = bool(Routines.Targeting.GetEnemyCasting(Range.Spellcast.value))
+
+        return snapshot
+
     def _run_local_skill_logic(self):
         if not Routines.Checks.Skills.CanCast():
             yield from Routines.Yield.wait(100)
             return False
 
+        snapshot = self._get_bar_snapshot()
+
         if (
             self.IsSkillEquipped(Air_of_Superiority_ID)
-            and (Routines.Checks.Agents.InAggro() or self.IsCloseToAggro())
+            and (snapshot.in_aggro or self.IsCloseToAggro())
             and (yield from self.skills.Any.PvE.Air_of_Superiority())
         ):
             return True
 
-        if not Routines.Checks.Agents.InAggro():
+        if not snapshot.in_aggro:
             return False
 
         if (yield from self.skills.Mesmer.InspirationMagic.Power_Drain(energy_threshold_pct=0.30)):
@@ -66,7 +91,7 @@ class Ineptitude(BuildMgr):
 
         if self.IsSkillEquipped(Ebon_Vanguard_Assassin_Support_ID) and (yield from self.skills.Any.PvE.Ebon_Vanguard_Assassin_Support()):
             return True
-        
+
         if (yield from self.skills.Mesmer.IllusionMagic.Ineptitude()):
             return True
 
@@ -77,6 +102,12 @@ class Ineptitude(BuildMgr):
             return True
 
         if (yield from self.skills.Mesmer.IllusionMagic.Wandering_Eye()):
+            return True
+
+        if snapshot.enemy_casting and (yield from self.skills.Any.PvE.Cry_of_Pain(allow_hex_fallback=False)):
+            return True
+
+        if snapshot.enemy_in_spellcast and (yield from self.skills.Any.PvE.Cry_of_Pain()):
             return True
 
         if self.IsSkillEquipped(Arcane_Conundrum_ID) and (yield from self.skills.Mesmer.IllusionMagic.Arcane_Conundrum()):

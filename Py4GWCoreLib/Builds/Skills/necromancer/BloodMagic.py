@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from Py4GWCoreLib.BuildMgr import BuildCoroutine
-from Py4GWCoreLib import ThrottledTimer
+from Py4GWCoreLib import AgentArray, GLOBAL_CACHE, Range, Routines, ThrottledTimer, Utils
 from Py4GWCoreLib.Agent import Agent
 from Py4GWCoreLib.Player import Player
 from Py4GWCoreLib.Skill import Skill
@@ -22,6 +22,57 @@ class BloodMagic:
         self.bip_throttle.Stop()
 
     #region B
+    def Blood_Bond(self) -> BuildCoroutine:
+        blood_bond_id: int = Skill.GetID("Blood_Bond")
+
+        if not self.build.IsSkillEquipped(blood_bond_id):
+            return False
+        if not Routines.Checks.Agents.InAggro():
+            return False
+
+        player_pos = Player.GetXY()
+        enemy_array = Routines.Agents.GetFilteredEnemyArray(
+            player_pos[0], player_pos[1], Range.Spellcast.value
+        )
+        candidates = AgentArray.Filter.ByCondition(
+            enemy_array,
+            lambda agent_id: (
+                Agent.IsValid(agent_id)
+                and not Agent.IsDead(agent_id)
+                and Agent.GetHealth(agent_id) < 0.5
+            ),
+        )
+        if not candidates:
+            return False
+
+        candidates = sorted(
+            candidates,
+            key=lambda agent_id: (
+                Agent.GetHealth(agent_id),
+                Utils.Distance(player_pos, Agent.GetXY(agent_id)),
+            ),
+        )
+
+        target_agent_id = candidates[0]
+        target_pos = Agent.GetXY(target_agent_id)
+        aoe_range = Range.Adjacent.value
+        nearby = Routines.Agents.GetFilteredEnemyArray(
+            target_pos[0], target_pos[1], aoe_range
+        )
+        nearby = AgentArray.Filter.ByCondition(
+            nearby,
+            lambda agent_id: Agent.IsValid(agent_id) and not Agent.IsDead(agent_id),
+        )
+        if max(0, len(nearby) - 1) < 2:
+            return False
+
+        return (yield from self.build.CastSkillIDAndRestoreTarget(
+            blood_bond_id,
+            target_agent_id,
+            log=False,
+            aftercast_delay=250,
+        ))
+
     def Blood_is_Power(self) -> BuildCoroutine:
         blood_is_power_id: int = Skill.GetID("Blood_is_Power")
         blood_is_power: CustomSkill = self.build.GetCustomSkill(blood_is_power_id)

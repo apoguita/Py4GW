@@ -38,12 +38,16 @@ class SpawningPower:
     #region B
     def Boon_of_Creation(self) -> BuildCoroutine:
         boon_of_creation_id: int = Skill.GetID("Boon_of_Creation")
+        if not (Routines.Checks.Agents.InAggro() or self.build.IsCloseToAggro()):
+            return False
         return (yield from self._maintain_self_effect(boon_of_creation_id, renew_before_ms=4000))
     #endregion
 
     #region S
     def Soul_Twisting(self) -> BuildCoroutine:
         soul_twisting_id: int = Skill.GetID("Soul_Twisting")
+        if not (Routines.Checks.Agents.InAggro() or self.build.IsCloseToAggro()):
+            return False
         return (yield from self._maintain_self_effect(soul_twisting_id, renew_before_ms=1200))
 
     def Spirits_Gift(self) -> BuildCoroutine:

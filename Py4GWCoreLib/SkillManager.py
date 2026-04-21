@@ -241,8 +241,10 @@ def _GetAppropiateTarget(
     is_combat_enabled: bool = True,
     combat_distance: float = Range.Earshot.value,
 ):
-        def _TargetClusteredEnemy(combat_distance):
-            return TargetClusteredEnemy(combat_distance) if multibox else Routines.Targeting.TargetClusteredEnemy(combat_distance)
+        def _TargetClusteredEnemy(combat_distance, *, cluster_radius: float | None = None):
+            if multibox:
+                return TargetClusteredEnemy(combat_distance, cluster_radius=cluster_radius)
+            return Routines.Targeting.TargetClusteredEnemy(combat_distance, cluster_radius=cluster_radius)
         
         def _GetEnemyAttacking(combat_distance):
             return GetEnemyAttacking(combat_distance) if multibox else Routines.Targeting.GetEnemyAttacking(combat_distance)

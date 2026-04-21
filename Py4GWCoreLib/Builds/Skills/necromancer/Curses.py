@@ -46,24 +46,26 @@ class Curses:
     #region W
     def Weaken_Armor(self) -> BuildCoroutine:
         weaken_armor_id: int = Skill.GetID("Weaken_Armor")
+        cracked_armor_id: int = Skill.GetID("Cracked_Armor")
 
         if not self.build.IsSkillEquipped(weaken_armor_id):
             return False
-        
+
         target_agent_id = self.build._pick_clustered_target(
-            Range.Spellcast.value,
-            preferred_condition=lambda agent_id: not Routines.Checks.Agents.HasEffect(agent_id, weaken_armor_id),
+            Range.Adjacent.value,
+            preferred_condition=lambda agent_id: not Routines.Checks.Agents.HasEffect(agent_id, cracked_armor_id),
+            filter_radius=Range.Spellcast.value,
         )
         if not target_agent_id:
             return False
-        if Routines.Checks.Agents.HasEffect(target_agent_id, weaken_armor_id):
+        if Routines.Checks.Agents.HasEffect(target_agent_id, cracked_armor_id):
             return False
-        
+
         return (yield from self.build.CastSkillID(
             skill_id=weaken_armor_id,
             log=False,
             aftercast_delay=250,
             target_agent_id=target_agent_id,
-            extra_condition=lambda: not Routines.Checks.Agents.HasEffect(target_agent_id, weaken_armor_id),
+            extra_condition=lambda: not Routines.Checks.Agents.HasEffect(target_agent_id, cracked_armor_id),
         ))
     #endregion
