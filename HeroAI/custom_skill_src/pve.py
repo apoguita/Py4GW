@@ -14,6 +14,15 @@ class PVESkills:
         skill.Nature = SkillNature.Resurrection.value
         skill.Conditions.IsAlive = False
         skill_data[skill.SkillID] = skill
+        
+        skill = CustomSkill()
+        skill.SkillID = GLOBAL_CACHE.Skill.GetID("Signet_of_Capture")
+        skill.SkillType = SkillType.Signet.value
+        skill.TargetAllegiance = Skilltarget.Self.value
+        skill.Nature = SkillNature.Neutral.value
+        skill.Conditions.IsOutOfCombat = True
+        skill.Conditions.LessLife = 0.01 #skill effectively disabled
+        skill_data[skill.SkillID] = skill
 
         #region ANNIVERSARY
 

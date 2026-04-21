@@ -654,6 +654,20 @@ class _Multibox:
     def restock_resurrection_scroll(self, quantity: int = 250):
         yield from self._restock_resurrection_scroll_message(quantity)
 
+
+    def _withdraw_gold_message(self, target_gold: int, deposit_all: bool):
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Routines import Routines
+        sender_email = Player.GetAccountEmail()
+        accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+        for account in accounts:
+            GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.WithdrawGold, (target_gold, int(deposit_all), 0, 0))
+        yield from Routines.Yield.wait(500)
+
+    @_yield_step(label="WithdrawGold", counter_key="WITHDRAW_GOLD")
+    def withdraw_gold(self, target_gold: int = 20000, deposit_all: bool = True):
+        yield from self._withdraw_gold_message(target_gold, deposit_all)
+
     @_yield_step(label="EnableWidget", counter_key="ENABLE_WIDGET")
     def enable_widget(self, widget_name: str):
         yield from self._enable_widget_message(widget_name)
