@@ -21,6 +21,7 @@ from HeroAI.cache_data import CacheData
 from HeroAI.windows import (HeroAI_FloatingWindows ,HeroAI_Windows,)
 from HeroAI.ui_base import HeroAI_BaseUI
 from HeroAI.ui import (draw_configure_window, draw_skip_cutscene_overlay)
+from HeroAI import team_viewer_broadcast
 from Py4GWCoreLib import (GLOBAL_CACHE, Agent, ActionQueueManager, LootConfig,
                           Range, Routines, ThrottledTimer, SharedCommandType, Utils)
 from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
@@ -510,13 +511,14 @@ modulo = 0
 def main():
     global cached_data, map_quads, modulo
     
-    try:        
-        cached_data.Update()  
+    try:
+        cached_data.Update()
 
         if not _follow_ini_ready():
             get_widget_handler().enable_widget(FOLLOW_MODULE_NAME)
         HeroAI_FloatingWindows.update()
-        handle_UI(cached_data)  
+        team_viewer_broadcast.tick()
+        handle_UI(cached_data)
         
         if initialize(cached_data):
             modulo += 1
