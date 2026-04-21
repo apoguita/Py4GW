@@ -16,6 +16,7 @@ class _INTERACT:
         self._helpers = parent.helpers
         self._Events = parent.helpers.Events
         self.combat_status = False
+        self.hero_ai_pause_status = False
         
     #region Coroutines (_coro_)
     def _coro_with_agent(self, coords: Tuple[float, float], dialog_id: int = 0):
@@ -99,12 +100,20 @@ class _INTERACT:
     
     def _coro_disable_auto_combat(self):
         self.combat_status = self._config.upkeep.auto_combat.is_active()
+        self.hero_ai_pause_status = bool(getattr(self._config.upkeep, "hero_ai_paused", None) and self._config.upkeep.hero_ai_paused.is_active())
         self._config.upkeep.auto_combat.set_now("active", False)
+        if hasattr(self._config.upkeep, "hero_ai_paused"):
+            self._config.upkeep.hero_ai_paused.set_now("active", True)
         ActionQueueManager().ResetAllQueues()
         yield
     
     def _coro_restore_auto_combat(self):
+        from ...Routines import Routines
+        # Give interaction actions time to settle before AI resumes.
+        yield from Routines.Yield.wait(350)
         self._config.upkeep.auto_combat.set_now("active", self.combat_status)
+        if hasattr(self._config.upkeep, "hero_ai_paused"):
+            self._config.upkeep.hero_ai_paused.set_now("active", self.hero_ai_pause_status)
         yield
 
     def _coro_with_npc_at_xy(self, x: float, y: float, dialog_id: int = 0, step_name: str = ""):
