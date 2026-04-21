@@ -137,7 +137,7 @@ NorthKrytaProvince = [
     (2930,-6195),
 ]
 
-NorthKrytaProvince_path = [
+NorthKrytaProvince_outpost_path = [
     (810,7749),
     (1458,9940),
     (361,12256),

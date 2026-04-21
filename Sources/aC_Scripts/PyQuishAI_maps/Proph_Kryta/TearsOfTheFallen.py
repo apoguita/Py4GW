@@ -49,5 +49,5 @@ TearsOfTheFallen_outpost_path = [
 TearsOfTheFallen_ids = {
     "outpost_id": 137,
     "map_id": 53,
-    "transit": 63
+    "transit_id": 63
 }
