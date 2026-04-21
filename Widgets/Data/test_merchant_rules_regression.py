@@ -1008,6 +1008,340 @@ def _test_consumable_crafter_plan_caps_by_skill_gold_and_material_storage(module
         module.Player = original_player
 
 
+def _test_consumable_crafter_craft_amount_mode_ignores_existing_xunlai_output(module) -> None:
+    widget = _make_widget(module)
+    essence_model_id = int(module.ModelID.Essence_Of_Celerity.value)
+    feather_model_id = int(module.ModelID.Feather.value)
+    dust_model_id = int(module.ModelID.Pile_Of_Glittering_Dust.value)
+    widget.buy_rules = [
+        module._normalize_buy_rule(
+            module.BuyRule(
+                enabled=True,
+                kind=module.BUY_KIND_CONSUMABLE_CRAFTER_TARGET,
+                merchant_stock_targets=[
+                    module.MerchantStockTarget(model_id=essence_model_id, target_count=5, max_per_run=5),
+                ],
+                consumable_crafter_count_mode=module.CONSUMABLE_CRAFTER_COUNT_MODE_CRAFT_AMOUNT,
+            )
+        )
+    ]
+    widget._get_supported_context = lambda: (
+        True,
+        "Ready",
+        {
+            module.MERCHANT_TYPE_CONSUMABLE_CRAFTER: (3592.99, 78.78),
+        },
+    )
+    widget._collect_inventory_items = lambda: [
+        _make_item(module, item_id=1, model_id=feather_model_id, name="Feather", quantity=250, is_material=True),
+        _make_item(module, item_id=2, model_id=dust_model_id, name="Pile of Glittering Dust", quantity=250, is_material=True),
+    ]
+    widget._collect_storage_items = lambda: [
+        _make_item(module, item_id=3, model_id=essence_model_id, name="Essence of Celerity", quantity=1),
+    ]
+    original_inventory = getattr(module.GLOBAL_CACHE, "Inventory", None)
+    original_player = module.Player
+    try:
+        module.GLOBAL_CACHE.Inventory = types.SimpleNamespace(
+            IsStorageOpen=lambda: True,
+            GetGoldOnCharacter=lambda: 1250,
+            GetGoldInStorage=lambda: 0,
+        )
+        module.Player = types.SimpleNamespace(
+            GetSkillPointData=lambda: (5, 100),
+            GetTitle=lambda _title_id: types.SimpleNamespace(current_points=999999),
+        )
+
+        plan = widget._build_plan()
+
+        _expect(len(plan.consumable_crafter_buys) == 1, "Craft amount mode should plan the selected consumable craft.")
+        _expect(
+            plan.consumable_crafter_buys[0].quantity == 5,
+            "Craft amount mode should ignore matching consumables already in Xunlai storage.",
+        )
+    finally:
+        module.GLOBAL_CACHE.Inventory = original_inventory
+        module.Player = original_player
+
+
+def _test_consumable_crafter_maintain_mode_counts_existing_xunlai_output(module) -> None:
+    widget = _make_widget(module)
+    essence_model_id = int(module.ModelID.Essence_Of_Celerity.value)
+    feather_model_id = int(module.ModelID.Feather.value)
+    dust_model_id = int(module.ModelID.Pile_Of_Glittering_Dust.value)
+    widget.buy_rules = [
+        module._normalize_buy_rule(
+            module.BuyRule(
+                enabled=True,
+                kind=module.BUY_KIND_CONSUMABLE_CRAFTER_TARGET,
+                merchant_stock_targets=[
+                    module.MerchantStockTarget(model_id=essence_model_id, target_count=5, max_per_run=5),
+                ],
+                consumable_crafter_count_mode=module.CONSUMABLE_CRAFTER_COUNT_MODE_MAINTAIN_STOCK,
+            )
+        )
+    ]
+    widget._get_supported_context = lambda: (
+        True,
+        "Ready",
+        {
+            module.MERCHANT_TYPE_CONSUMABLE_CRAFTER: (3592.99, 78.78),
+        },
+    )
+    widget._collect_inventory_items = lambda: [
+        _make_item(module, item_id=1, model_id=feather_model_id, name="Feather", quantity=250, is_material=True),
+        _make_item(module, item_id=2, model_id=dust_model_id, name="Pile of Glittering Dust", quantity=250, is_material=True),
+    ]
+    widget._collect_storage_items = lambda: [
+        _make_item(module, item_id=3, model_id=essence_model_id, name="Essence of Celerity", quantity=1),
+    ]
+    original_inventory = getattr(module.GLOBAL_CACHE, "Inventory", None)
+    original_player = module.Player
+    try:
+        module.GLOBAL_CACHE.Inventory = types.SimpleNamespace(
+            IsStorageOpen=lambda: True,
+            GetGoldOnCharacter=lambda: 1250,
+            GetGoldInStorage=lambda: 0,
+        )
+        module.Player = types.SimpleNamespace(
+            GetSkillPointData=lambda: (5, 100),
+            GetTitle=lambda _title_id: types.SimpleNamespace(current_points=999999),
+        )
+
+        plan = widget._build_plan()
+
+        _expect(len(plan.consumable_crafter_buys) == 1, "Maintain mode should plan the selected consumable craft.")
+        _expect(
+            plan.consumable_crafter_buys[0].quantity == 4,
+            "Maintain mode should count matching consumables already in Xunlai storage before crafting the shortage.",
+        )
+    finally:
+        module.GLOBAL_CACHE.Inventory = original_inventory
+        module.Player = original_player
+
+
+def _test_consumable_crafter_plan_reserves_shared_material_storage_across_targets(module) -> None:
+    widget = _make_widget(module)
+    essence_model_id = int(module.ModelID.Essence_Of_Celerity.value)
+    grail_model_id = int(module.ModelID.Grail_Of_Might.value)
+    feather_model_id = int(module.ModelID.Feather.value)
+    iron_model_id = int(module.ModelID.Iron_Ingot.value)
+    dust_model_id = int(module.ModelID.Pile_Of_Glittering_Dust.value)
+    widget.buy_rules = [
+        module._normalize_buy_rule(
+            module.BuyRule(
+                enabled=True,
+                kind=module.BUY_KIND_CONSUMABLE_CRAFTER_TARGET,
+                merchant_stock_targets=[
+                    module.MerchantStockTarget(model_id=essence_model_id, target_count=3, max_per_run=3),
+                    module.MerchantStockTarget(model_id=grail_model_id, target_count=3, max_per_run=3),
+                ],
+                consumable_crafter_count_mode=module.CONSUMABLE_CRAFTER_COUNT_MODE_CRAFT_AMOUNT,
+            )
+        )
+    ]
+    widget._get_supported_context = lambda: (
+        True,
+        "Ready",
+        {
+            module.MERCHANT_TYPE_CONSUMABLE_CRAFTER: (3592.99, 78.78),
+        },
+    )
+    widget._collect_inventory_items = lambda: [
+        _make_item(module, item_id=1, model_id=feather_model_id, name="Feather", quantity=150, is_material=True),
+        _make_item(module, item_id=2, model_id=iron_model_id, name="Iron Ingot", quantity=150, is_material=True),
+    ]
+    widget._collect_storage_items = lambda: []
+    widget._get_material_storage_quantity_and_slot = (
+        lambda model_id: (158, 9, 250) if int(model_id) == dust_model_id else (0, 0, 250)
+    )
+    original_inventory = getattr(module.GLOBAL_CACHE, "Inventory", None)
+    original_player = module.Player
+    try:
+        module.GLOBAL_CACHE.Inventory = types.SimpleNamespace(
+            IsStorageOpen=lambda: True,
+            GetGoldOnCharacter=lambda: 1500,
+            GetGoldInStorage=lambda: 0,
+        )
+        module.Player = types.SimpleNamespace(
+            GetSkillPointData=lambda: (6, 100),
+            GetTitle=lambda _title_id: types.SimpleNamespace(current_points=999999),
+        )
+
+        plan = widget._build_plan()
+
+        quantities_by_model = {craft.model_id: craft.quantity for craft in plan.consumable_crafter_buys}
+        _expect(
+            quantities_by_model.get(essence_model_id, 0) == 3,
+            "First consumable crafter target should reserve the shared Glittering Dust it needs.",
+        )
+        _expect(
+            quantities_by_model.get(grail_model_id, 0) == 0,
+            "Later consumable crafter targets should not reuse Glittering Dust already reserved by earlier targets.",
+        )
+        _expect(
+            sum(int(craft.quantity) for craft in plan.consumable_crafter_buys) == 3,
+            "Consumable crafter preview should cap total crafts by shared material storage availability.",
+        )
+        _expect(
+            any(
+                entry.merchant_type == module.MERCHANT_TYPE_CONSUMABLE_CRAFTER
+                and entry.state == module.PLAN_STATE_SKIPPED
+                and "need 150" in entry.reason.lower()
+                and str(dust_model_id) in entry.reason
+                and "found 8" in entry.reason
+                for entry in plan.entries
+            ),
+            "Blocked consumable crafter preview rows should report the full requested material need and the remaining quantity found.",
+        )
+    finally:
+        module.GLOBAL_CACHE.Inventory = original_inventory
+        module.Player = original_player
+
+
+def _test_consumable_crafter_partial_cap_reports_remaining_material_shortage(module) -> None:
+    widget = _make_widget(module)
+    essence_model_id = int(module.ModelID.Essence_Of_Celerity.value)
+    grail_model_id = int(module.ModelID.Grail_Of_Might.value)
+    feather_model_id = int(module.ModelID.Feather.value)
+    iron_model_id = int(module.ModelID.Iron_Ingot.value)
+    dust_model_id = int(module.ModelID.Pile_Of_Glittering_Dust.value)
+    widget.buy_rules = [
+        module._normalize_buy_rule(
+            module.BuyRule(
+                enabled=True,
+                kind=module.BUY_KIND_CONSUMABLE_CRAFTER_TARGET,
+                merchant_stock_targets=[
+                    module.MerchantStockTarget(model_id=essence_model_id, target_count=2, max_per_run=2),
+                    module.MerchantStockTarget(model_id=grail_model_id, target_count=3, max_per_run=3),
+                ],
+                consumable_crafter_count_mode=module.CONSUMABLE_CRAFTER_COUNT_MODE_CRAFT_AMOUNT,
+            )
+        )
+    ]
+    widget._get_supported_context = lambda: (
+        True,
+        "Ready",
+        {
+            module.MERCHANT_TYPE_CONSUMABLE_CRAFTER: (3592.99, 78.78),
+        },
+    )
+    widget._collect_inventory_items = lambda: [
+        _make_item(module, item_id=1, model_id=feather_model_id, name="Feather", quantity=100, is_material=True),
+        _make_item(module, item_id=2, model_id=iron_model_id, name="Iron Ingot", quantity=150, is_material=True),
+    ]
+    widget._collect_storage_items = lambda: []
+    widget._get_material_storage_quantity_and_slot = (
+        lambda model_id: (158, 9, 250) if int(model_id) == dust_model_id else (0, 0, 250)
+    )
+    original_inventory = getattr(module.GLOBAL_CACHE, "Inventory", None)
+    original_player = module.Player
+    try:
+        module.GLOBAL_CACHE.Inventory = types.SimpleNamespace(
+            IsStorageOpen=lambda: True,
+            GetGoldOnCharacter=lambda: 1250,
+            GetGoldInStorage=lambda: 0,
+        )
+        module.Player = types.SimpleNamespace(
+            GetSkillPointData=lambda: (5, 100),
+            GetTitle=lambda _title_id: types.SimpleNamespace(current_points=999999),
+        )
+
+        plan = widget._build_plan()
+
+        quantities_by_model = {craft.model_id: craft.quantity for craft in plan.consumable_crafter_buys}
+        _expect(
+            quantities_by_model.get(essence_model_id, 0) == 2,
+            "First target should reserve enough Glittering Dust for two Essence crafts.",
+        )
+        _expect(
+            quantities_by_model.get(grail_model_id, 0) == 1,
+            "Second target should partially craft one Grail with the remaining shared Glittering Dust.",
+        )
+        _expect(
+            any(
+                entry.merchant_type == module.MERCHANT_TYPE_CONSUMABLE_CRAFTER
+                and entry.model_id == 0
+                and entry.label.startswith("Model")
+                and entry.quantity == 1
+                and entry.state == module.PLAN_STATE_CONDITIONAL
+                and "remaining request" in entry.reason.lower()
+                and "need 100" in entry.reason.lower()
+                and str(dust_model_id) in entry.reason
+                and "found 8" in entry.reason
+                for entry in plan.entries
+            ),
+            "Partially capped consumable crafter preview rows should explain the unfulfilled remaining material need.",
+        )
+    finally:
+        module.GLOBAL_CACHE.Inventory = original_inventory
+        module.Player = original_player
+
+
+def _test_consumable_crafter_resource_priority_follows_target_order(module) -> None:
+    widget = _make_widget(module)
+    essence_model_id = int(module.ModelID.Essence_Of_Celerity.value)
+    grail_model_id = int(module.ModelID.Grail_Of_Might.value)
+    feather_model_id = int(module.ModelID.Feather.value)
+    iron_model_id = int(module.ModelID.Iron_Ingot.value)
+    dust_model_id = int(module.ModelID.Pile_Of_Glittering_Dust.value)
+    widget.buy_rules = [
+        module._normalize_buy_rule(
+            module.BuyRule(
+                enabled=True,
+                kind=module.BUY_KIND_CONSUMABLE_CRAFTER_TARGET,
+                merchant_stock_targets=[
+                    module.MerchantStockTarget(model_id=grail_model_id, target_count=3, max_per_run=3),
+                    module.MerchantStockTarget(model_id=essence_model_id, target_count=3, max_per_run=3),
+                ],
+                consumable_crafter_count_mode=module.CONSUMABLE_CRAFTER_COUNT_MODE_CRAFT_AMOUNT,
+            )
+        )
+    ]
+    widget._get_supported_context = lambda: (
+        True,
+        "Ready",
+        {
+            module.MERCHANT_TYPE_CONSUMABLE_CRAFTER: (3673.02, -131.27),
+        },
+    )
+    widget._collect_inventory_items = lambda: [
+        _make_item(module, item_id=1, model_id=feather_model_id, name="Feather", quantity=150, is_material=True),
+        _make_item(module, item_id=2, model_id=iron_model_id, name="Iron Ingot", quantity=150, is_material=True),
+    ]
+    widget._collect_storage_items = lambda: []
+    widget._get_material_storage_quantity_and_slot = (
+        lambda model_id: (150, 9, 250) if int(model_id) == dust_model_id else (0, 0, 250)
+    )
+    original_inventory = getattr(module.GLOBAL_CACHE, "Inventory", None)
+    original_player = module.Player
+    try:
+        module.GLOBAL_CACHE.Inventory = types.SimpleNamespace(
+            IsStorageOpen=lambda: True,
+            GetGoldOnCharacter=lambda: 1500,
+            GetGoldInStorage=lambda: 0,
+        )
+        module.Player = types.SimpleNamespace(
+            GetSkillPointData=lambda: (6, 100),
+            GetTitle=lambda _title_id: types.SimpleNamespace(current_points=999999),
+        )
+
+        plan = widget._build_plan()
+
+        quantities_by_model = {craft.model_id: craft.quantity for craft in plan.consumable_crafter_buys}
+        _expect(
+            quantities_by_model.get(grail_model_id, 0) == 3,
+            "First selected consumable target should reserve scarce shared materials first.",
+        )
+        _expect(
+            quantities_by_model.get(essence_model_id, 0) == 0,
+            "Later selected consumable targets should not preempt resources reserved by earlier rows.",
+        )
+    finally:
+        module.GLOBAL_CACHE.Inventory = original_inventory
+        module.Player = original_player
+
+
 def _test_consumable_crafter_execution_prepares_materials_before_opening_crafter(module) -> None:
     widget = _make_widget(module)
     essence_model_id = int(module.ModelID.Essence_Of_Celerity.value)
@@ -6204,6 +6538,26 @@ def main() -> int:
             (
                 "consumable_crafter_plan_caps_by_skill_gold_and_material_storage",
                 lambda: _test_consumable_crafter_plan_caps_by_skill_gold_and_material_storage(module),
+            ),
+            (
+                "consumable_crafter_craft_amount_mode_ignores_existing_xunlai_output",
+                lambda: _test_consumable_crafter_craft_amount_mode_ignores_existing_xunlai_output(module),
+            ),
+            (
+                "consumable_crafter_maintain_mode_counts_existing_xunlai_output",
+                lambda: _test_consumable_crafter_maintain_mode_counts_existing_xunlai_output(module),
+            ),
+            (
+                "consumable_crafter_plan_reserves_shared_material_storage_across_targets",
+                lambda: _test_consumable_crafter_plan_reserves_shared_material_storage_across_targets(module),
+            ),
+            (
+                "consumable_crafter_partial_cap_reports_remaining_material_shortage",
+                lambda: _test_consumable_crafter_partial_cap_reports_remaining_material_shortage(module),
+            ),
+            (
+                "consumable_crafter_resource_priority_follows_target_order",
+                lambda: _test_consumable_crafter_resource_priority_follows_target_order(module),
             ),
             (
                 "consumable_crafter_execution_prepares_materials_before_opening_crafter",

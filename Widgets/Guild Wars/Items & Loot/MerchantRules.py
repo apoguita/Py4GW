@@ -42,7 +42,7 @@ FLOATING_UI_INI_FILENAME = "MerchantRulesFloating.ini"
 FLOATING_ICON_WINDOW_ID = "##merchant_rules_floating_icon_button"
 FLOATING_ICON_WINDOW_NAME = "Merchant Rules Toggle"
 
-PROFILE_VERSION = 20
+PROFILE_VERSION = 21
 CONFIG_DIR = os.path.join(Py4GW.Console.get_projects_path(), "Widgets", "Config", "MerchantRules")
 SHARED_PROFILES_DIR = os.path.join(CONFIG_DIR, "Profiles")
 RECOVERY_DIR = os.path.join(CONFIG_DIR, "Recovery")
@@ -110,6 +110,17 @@ BUY_KIND_MATERIAL_TARGET = "buy_material_target"
 BUY_KIND_RUNE_TRADER_TARGET = "buy_rune_trader_target"
 BUY_KIND_SCROLL_TRADER_TARGET = "buy_scroll_trader_target"
 BUY_KIND_CONSUMABLE_CRAFTER_TARGET = "consumable_crafter_target"
+
+CONSUMABLE_CRAFTER_COUNT_MODE_MAINTAIN_STOCK = "maintain_stock"
+CONSUMABLE_CRAFTER_COUNT_MODE_CRAFT_AMOUNT = "craft_amount"
+CONSUMABLE_CRAFTER_COUNT_MODES: tuple[str, ...] = (
+    CONSUMABLE_CRAFTER_COUNT_MODE_CRAFT_AMOUNT,
+    CONSUMABLE_CRAFTER_COUNT_MODE_MAINTAIN_STOCK,
+)
+CONSUMABLE_CRAFTER_COUNT_MODE_LABELS: dict[str, str] = {
+    CONSUMABLE_CRAFTER_COUNT_MODE_CRAFT_AMOUNT: "Craft requested amount",
+    CONSUMABLE_CRAFTER_COUNT_MODE_MAINTAIN_STOCK: "Maintain total stock",
+}
 LEGACY_BUY_KIND_ID_KITS = "restock_id_kits"
 LEGACY_BUY_KIND_SALVAGE_KITS = "restock_salvage_kits"
 LEGACY_BUY_KIND_ECTO = "buy_ectoplasm"
@@ -880,6 +891,7 @@ class BuyRule:
     merchant_stock_targets: list[MerchantStockTarget] = field(default_factory=list)
     material_targets: list[MaterialTarget] = field(default_factory=list)
     rune_targets: list[RuneTraderTarget] = field(default_factory=list)
+    consumable_crafter_count_mode: str = CONSUMABLE_CRAFTER_COUNT_MODE_CRAFT_AMOUNT
     name: str = ""
 
 
@@ -2241,6 +2253,13 @@ def _normalize_merchant_stock_targets(raw_targets: object) -> list[MerchantStock
     return normalized
 
 
+def _normalize_consumable_crafter_count_mode(mode: object) -> str:
+    safe_mode = str(mode or "").strip()
+    if safe_mode in CONSUMABLE_CRAFTER_COUNT_MODES:
+        return safe_mode
+    return CONSUMABLE_CRAFTER_COUNT_MODE_CRAFT_AMOUNT
+
+
 def _normalize_rune_identifier(identifier: object) -> str:
     return str(identifier or "").strip()
 
@@ -2542,7 +2561,15 @@ def _default_buy_rules() -> list[BuyRule]:
         BuyRule(enabled=False, kind=BUY_KIND_MATERIAL_TARGET, merchant_type=MERCHANT_TYPE_MATERIALS, model_id=0, target_count=0, max_per_run=0),
         BuyRule(enabled=False, kind=BUY_KIND_RUNE_TRADER_TARGET, merchant_type=MERCHANT_TYPE_RUNE_TRADER, model_id=0, target_count=0, max_per_run=0),
         BuyRule(enabled=False, kind=BUY_KIND_SCROLL_TRADER_TARGET, merchant_type=MERCHANT_TYPE_SCROLL_TRADER, model_id=0, target_count=0, max_per_run=0),
-        BuyRule(enabled=False, kind=BUY_KIND_CONSUMABLE_CRAFTER_TARGET, merchant_type=MERCHANT_TYPE_CONSUMABLE_CRAFTER, model_id=0, target_count=0, max_per_run=0),
+        BuyRule(
+            enabled=False,
+            kind=BUY_KIND_CONSUMABLE_CRAFTER_TARGET,
+            merchant_type=MERCHANT_TYPE_CONSUMABLE_CRAFTER,
+            model_id=0,
+            target_count=0,
+            max_per_run=0,
+            consumable_crafter_count_mode=CONSUMABLE_CRAFTER_COUNT_MODE_CRAFT_AMOUNT,
+        ),
     ]
 
 
@@ -2600,6 +2627,9 @@ def _normalize_buy_rule(rule: BuyRule) -> BuyRule | None:
     rule.merchant_stock_targets = _normalize_merchant_stock_targets(getattr(rule, "merchant_stock_targets", []))
     rule.material_targets = _normalize_material_targets(getattr(rule, "material_targets", []))
     rule.rune_targets = _normalize_rune_trader_targets(getattr(rule, "rune_targets", []))
+    rule.consumable_crafter_count_mode = _normalize_consumable_crafter_count_mode(
+        getattr(rule, "consumable_crafter_count_mode", CONSUMABLE_CRAFTER_COUNT_MODE_CRAFT_AMOUNT)
+    )
 
     if rule.kind == BUY_KIND_MATERIAL_TARGET:
         if not rule.material_targets and legacy_model_id > 0 and _is_crafting_material_model(legacy_model_id):
@@ -2641,6 +2671,7 @@ def _normalize_buy_rule(rule: BuyRule) -> BuyRule | None:
         rule.target_count = 0
         rule.max_per_run = 0
     elif rule.kind == BUY_KIND_CONSUMABLE_CRAFTER_TARGET:
+        rule.consumable_crafter_count_mode = _normalize_consumable_crafter_count_mode(rule.consumable_crafter_count_mode)
         if not rule.merchant_stock_targets and legacy_model_id > 0 and legacy_model_id in CONSUMABLE_CRAFTER_RECIPES_BY_MODEL:
             rule.merchant_stock_targets = [
                 MerchantStockTarget(
@@ -3307,6 +3338,9 @@ class MerchantRulesWidget:
                 merchant_stock_targets=_normalize_merchant_stock_targets(_coerce_list(entry.get("merchant_stock_targets", []))),
                 material_targets=_normalize_material_targets(_coerce_list(entry.get("material_targets", []))),
                 rune_targets=_normalize_rune_trader_targets(_coerce_list(entry.get("rune_targets", []))),
+                consumable_crafter_count_mode=_normalize_consumable_crafter_count_mode(
+                    entry.get("consumable_crafter_count_mode", CONSUMABLE_CRAFTER_COUNT_MODE_CRAFT_AMOUNT)
+                ),
                 name=_normalize_rule_name(entry.get("name", "")),
             )
             normalized_buy_rule = _normalize_buy_rule(rule)
@@ -3440,6 +3474,9 @@ class MerchantRulesWidget:
                 merchant_stock_targets=_normalize_merchant_stock_targets(_coerce_list(entry.get("merchant_stock_targets", []))),
                 material_targets=_normalize_material_targets(_coerce_list(entry.get("material_targets", []))),
                 rune_targets=_normalize_rune_trader_targets(_coerce_list(entry.get("rune_targets", []))),
+                consumable_crafter_count_mode=_normalize_consumable_crafter_count_mode(
+                    entry.get("consumable_crafter_count_mode", CONSUMABLE_CRAFTER_COUNT_MODE_CRAFT_AMOUNT)
+                ),
                 name=_normalize_rule_name(entry.get("name", "")),
             )
             for entry in _coerce_list(payload.get("buy_rules", []))
@@ -8531,6 +8568,49 @@ class MerchantRulesWidget:
             blockers.append(f"Need {gold_cost} gold; found {gold_available}.")
         return (min(caps) if caps else 0), blockers
 
+    def _get_consumable_craft_cap_from_reserved_resources(
+        self,
+        recipe: ConsumableCrafterRecipe,
+        *,
+        available_model_counts: dict[int, int],
+        skill_points_remaining: int,
+        gold_remaining: int,
+        requested_quantity: int = 1,
+    ) -> tuple[int, list[str]]:
+        blockers: list[str] = []
+        caps: list[int] = []
+        safe_requested_quantity = max(1, int(requested_quantity))
+
+        skill_points_per_craft = max(0, int(recipe.skill_points))
+        safe_skill_points_remaining = max(0, int(skill_points_remaining))
+        if skill_points_per_craft > 0:
+            caps.append(safe_skill_points_remaining // skill_points_per_craft)
+            if safe_skill_points_remaining < skill_points_per_craft:
+                needed_skill_points = skill_points_per_craft * safe_requested_quantity
+                blockers.append(f"Need {needed_skill_points} skill point(s); found {safe_skill_points_remaining}.")
+
+        gold_cost = max(0, int(recipe.gold_cost))
+        safe_gold_remaining = max(0, int(gold_remaining))
+        if gold_cost > 0:
+            caps.append(safe_gold_remaining // gold_cost)
+            if safe_gold_remaining < gold_cost:
+                needed_gold = gold_cost * safe_requested_quantity
+                blockers.append(f"Need {needed_gold} gold; found {safe_gold_remaining}.")
+
+        for ingredient_model_id, quantity_per_craft in recipe.ingredients:
+            safe_quantity = max(0, int(quantity_per_craft))
+            if safe_quantity <= 0:
+                continue
+            available = max(0, int(available_model_counts.get(int(ingredient_model_id), 0)))
+            caps.append(available // safe_quantity)
+            if available < safe_quantity:
+                needed_quantity = safe_quantity * safe_requested_quantity
+                blockers.append(
+                    f"Need {needed_quantity} {self._format_model_label_short(int(ingredient_model_id))}; found {available}."
+                )
+
+        return (min(caps) if caps else 0), blockers
+
     def _has_enabled_rune_buy_rules(self) -> bool:
         for raw_rule in self.buy_rules:
             rule = _normalize_buy_rule(raw_rule)
@@ -9708,6 +9788,67 @@ class MerchantRulesWidget:
         inventory_identifier_counts = self._get_standalone_rune_identifier_counts(sim_inventory_items)
         storage_model_counts = self._get_inventory_model_counts(sim_storage_items) if plan.storage_exact else {}
         storage_identifier_counts = self._get_standalone_rune_identifier_counts(sim_storage_items) if plan.storage_exact else {}
+        consumable_reserved_model_counts: dict[int, int] | None = None
+        consumable_skill_points_remaining: int | None = None
+        consumable_gold_remaining: int | None = None
+        consumable_material_storage_counts: dict[int, int] = {}
+
+        def _get_consumable_reserved_model_count(model_id: int) -> int:
+            nonlocal consumable_reserved_model_counts
+            safe_model_id = max(0, int(model_id))
+            if consumable_reserved_model_counts is None:
+                consumable_reserved_model_counts = {}
+            if safe_model_id not in consumable_reserved_model_counts:
+                available = max(0, int(sim_model_counts.get(safe_model_id, 0)))
+                if plan.storage_exact:
+                    available += max(0, int(storage_model_counts.get(safe_model_id, 0)))
+                    if safe_model_id in ALL_CRAFTING_MATERIAL_MODEL_IDS:
+                        if safe_model_id not in consumable_material_storage_counts:
+                            material_quantity, _slot, _bag_size = self._get_material_storage_quantity_and_slot(safe_model_id)
+                            consumable_material_storage_counts[safe_model_id] = max(0, int(material_quantity))
+                        available += max(0, int(consumable_material_storage_counts.get(safe_model_id, 0)))
+                consumable_reserved_model_counts[safe_model_id] = available
+            return max(0, int(consumable_reserved_model_counts.get(safe_model_id, 0)))
+
+        def _ensure_consumable_reserved_resources(recipe: ConsumableCrafterRecipe) -> tuple[dict[int, int], int, int]:
+            nonlocal consumable_skill_points_remaining, consumable_gold_remaining
+            if consumable_skill_points_remaining is None:
+                current_skill_points, _total_skill_points = Player.GetSkillPointData()
+                consumable_skill_points_remaining = max(0, int(current_skill_points))
+            if consumable_gold_remaining is None:
+                consumable_gold_remaining = max(0, int(GLOBAL_CACHE.Inventory.GetGoldOnCharacter()))
+                if plan.storage_exact:
+                    consumable_gold_remaining += max(0, int(GLOBAL_CACHE.Inventory.GetGoldInStorage()))
+            for ingredient_model_id, _quantity_per_craft in recipe.ingredients:
+                _get_consumable_reserved_model_count(int(ingredient_model_id))
+            return (
+                consumable_reserved_model_counts or {},
+                max(0, int(consumable_skill_points_remaining)),
+                max(0, int(consumable_gold_remaining)),
+            )
+
+        def _consume_reserved_consumable_resources(recipe: ConsumableCrafterRecipe, quantity: int) -> None:
+            nonlocal consumable_skill_points_remaining, consumable_gold_remaining
+            safe_quantity = max(0, int(quantity))
+            if safe_quantity <= 0:
+                return
+            if consumable_skill_points_remaining is not None:
+                consumable_skill_points_remaining = max(
+                    0,
+                    int(consumable_skill_points_remaining) - (max(0, int(recipe.skill_points)) * safe_quantity),
+                )
+            if consumable_gold_remaining is not None:
+                consumable_gold_remaining = max(
+                    0,
+                    int(consumable_gold_remaining) - (max(0, int(recipe.gold_cost)) * safe_quantity),
+                )
+            if consumable_reserved_model_counts is not None:
+                for ingredient_model_id, ingredient_quantity in recipe.ingredients:
+                    consumable_reserved_model_counts[int(ingredient_model_id)] = max(
+                        0,
+                        int(consumable_reserved_model_counts.get(int(ingredient_model_id), 0))
+                        - (max(0, int(ingredient_quantity)) * safe_quantity),
+                    )
 
         for buy_rule in self.buy_rules:
             normalized_buy_rule = _normalize_buy_rule(buy_rule)
@@ -10030,14 +10171,22 @@ class MerchantRulesWidget:
                         )
                         continue
 
+                    craft_requested_amount = (
+                        _normalize_consumable_crafter_count_mode(buy_rule.consumable_crafter_count_mode)
+                        == CONSUMABLE_CRAFTER_COUNT_MODE_CRAFT_AMOUNT
+                    )
                     current_count = max(0, int(sim_model_counts.get(crafter_model_id, 0)))
                     if plan.storage_exact:
                         current_count += max(0, int(storage_model_counts.get(crafter_model_id, 0)))
-                    missing = max(0, int(crafter_target.target_count) - current_count)
-                    needed = self._apply_max_per_run(missing, int(crafter_target.max_per_run))
+                    if craft_requested_amount:
+                        needed = self._apply_max_per_run(int(crafter_target.target_count), int(crafter_target.max_per_run))
+                    else:
+                        missing = max(0, int(crafter_target.target_count) - current_count)
+                        needed = self._apply_max_per_run(missing, int(crafter_target.max_per_run))
                     if needed <= 0:
+                        reason = "No craft quantity requested." if craft_requested_amount else "Target already met."
                         plan.entries.append(
-                            ExecutionPlanEntry("buy", MERCHANT_TYPE_CONSUMABLE_CRAFTER, crafter_label, 0, PLAN_STATE_SKIPPED, "Target already met.")
+                            ExecutionPlanEntry("buy", MERCHANT_TYPE_CONSUMABLE_CRAFTER, crafter_label, 0, PLAN_STATE_SKIPPED, reason)
                         )
                         continue
 
@@ -10065,11 +10214,13 @@ class MerchantRulesWidget:
                         )
                         continue
 
-                    craft_cap, blockers = self._get_consumable_craft_cap(
+                    available_resource_counts, skill_points_remaining, gold_remaining = _ensure_consumable_reserved_resources(recipe)
+                    craft_cap, blockers = self._get_consumable_craft_cap_from_reserved_resources(
                         recipe,
-                        inventory_model_counts=sim_model_counts,
-                        storage_model_counts=storage_model_counts,
-                        storage_exact=plan.storage_exact,
+                        available_model_counts=available_resource_counts,
+                        skill_points_remaining=skill_points_remaining,
+                        gold_remaining=gold_remaining,
+                        requested_quantity=needed,
                     )
                     craft_quantity = min(needed, max(0, int(craft_cap)))
                     if craft_quantity <= 0:
@@ -10085,6 +10236,7 @@ class MerchantRulesWidget:
                         )
                         continue
 
+                    _consume_reserved_consumable_resources(recipe, craft_quantity)
                     for ingredient_model_id, ingredient_quantity in recipe.ingredients:
                         sim_model_counts[int(ingredient_model_id)] = max(
                             0,
@@ -10102,8 +10254,22 @@ class MerchantRulesWidget:
                         )
                     )
                     reason = f"{recipe.vendor_name}; rank {current_rank} ({tier_name})."
+                    if craft_requested_amount:
+                        reason = f"{reason} Craft requested amount mode."
                     if craft_quantity < needed:
                         reason = f"{reason} Capped by available skill points, gold, or materials."
+                        remaining_needed = max(0, int(needed) - int(craft_quantity))
+                        if remaining_needed > 0:
+                            post_resource_counts, post_skill_points, post_gold = _ensure_consumable_reserved_resources(recipe)
+                            _remaining_cap, remaining_blockers = self._get_consumable_craft_cap_from_reserved_resources(
+                                recipe,
+                                available_model_counts=post_resource_counts,
+                                skill_points_remaining=post_skill_points,
+                                gold_remaining=post_gold,
+                                requested_quantity=remaining_needed,
+                            )
+                            if remaining_blockers:
+                                reason = f"{reason} Remaining request: {' '.join(remaining_blockers)}"
                     plan.entries.append(
                         ExecutionPlanEntry(
                             "buy",
@@ -13536,11 +13702,14 @@ class MerchantRulesWidget:
             ]
             if not crafter_targets:
                 return "Choose one or more Embark Beach consumables to craft.", False
+            count_mode = _normalize_consumable_crafter_count_mode(normalized_rule.consumable_crafter_count_mode)
+            count_mode_label = CONSUMABLE_CRAFTER_COUNT_MODE_LABELS.get(count_mode, "Craft requested amount")
             if len(crafter_targets) == 1:
                 crafter_target = crafter_targets[0]
-                parts = [self._format_model_label(crafter_target.model_id)]
+                parts = [self._format_model_label(crafter_target.model_id), count_mode_label]
                 if crafter_target.target_count > 0:
-                    parts.append(f"Target {int(crafter_target.target_count)}")
+                    quantity_label = "Craft" if count_mode == CONSUMABLE_CRAFTER_COUNT_MODE_CRAFT_AMOUNT else "Target"
+                    parts.append(f"{quantity_label} {int(crafter_target.target_count)}")
                 else:
                     parts.append("No target set")
                 if crafter_target.max_per_run > 0:
@@ -13552,7 +13721,7 @@ class MerchantRulesWidget:
                 for target in self._sort_targets_by_model_label_for_display(crafter_targets)
             ]
             summary = self._format_compact_list(target_labels, limit=2) or f"{len(crafter_targets)} crafter target(s)"
-            return f"{len(crafter_targets)} crafter target(s) | {summary}", True
+            return f"{len(crafter_targets)} crafter target(s) | {count_mode_label} | {summary}", True
         if normalized_rule.kind == BUY_KIND_MERCHANT_STOCK:
             merchant_stock_targets = _normalize_merchant_stock_targets(normalized_rule.merchant_stock_targets)
             if not merchant_stock_targets:
@@ -16346,6 +16515,37 @@ class MerchantRulesWidget:
             self._draw_secondary_text("No Embark Beach consumables selected yet.", wrapped=False)
             return changed
 
+        current_mode = _normalize_consumable_crafter_count_mode(rule.consumable_crafter_count_mode)
+        mode_values = list(CONSUMABLE_CRAFTER_COUNT_MODES)
+        mode_labels = [CONSUMABLE_CRAFTER_COUNT_MODE_LABELS.get(mode, mode) for mode in mode_values]
+        current_mode_index = mode_values.index(current_mode) if current_mode in mode_values else 0
+        PyImGui.push_item_width(230)
+        next_mode_index = PyImGui.combo(
+            f"Output Count Mode##buy_crafter_count_mode_{index}",
+            current_mode_index,
+            mode_labels,
+        )
+        PyImGui.pop_item_width()
+        next_mode_index = max(0, min(int(next_mode_index), len(mode_values) - 1))
+        if next_mode_index != current_mode_index:
+            rule.consumable_crafter_count_mode = mode_values[next_mode_index]
+            changed = True
+            current_mode = rule.consumable_crafter_count_mode
+        if current_mode == CONSUMABLE_CRAFTER_COUNT_MODE_CRAFT_AMOUNT:
+            self._draw_secondary_text(
+                "Craft requested amount ignores existing crafted consumables in inventory and Xunlai, but still checks skill points, gold, and materials.",
+                wrapped=True,
+            )
+        else:
+            self._draw_secondary_text(
+                "Maintain total stock counts matching consumables already in inventory and Xunlai before crafting the shortage.",
+                wrapped=True,
+            )
+        self._draw_secondary_text(
+            "When materials, gold, or skill points are limited, higher rows reserve resources first.",
+            wrapped=True,
+        )
+
         updated_targets = [
             MerchantStockTarget(
                 model_id=target.model_id,
@@ -16354,15 +16554,17 @@ class MerchantRulesWidget:
             )
             for target in crafter_targets
         ]
-        display_targets = self._sort_targets_by_model_label_for_display(updated_targets)
         removed_model_id = 0
+        move_from_index: int | None = None
+        move_to_index: int | None = None
         child_height = min(240, 58 + (32 * len(updated_targets)))
         if PyImGui.begin_child(f"buy_consumable_crafter_selected_{index}", (0, child_height), True, PyImGui.WindowFlags.NoFlag):
-            if PyImGui.begin_table(f"buy_consumable_crafter_selected_table_{index}", 5, self._get_dense_list_table_flags()):
+            if PyImGui.begin_table(f"buy_consumable_crafter_selected_table_{index}", 6, self._get_dense_list_table_flags()):
                 PyImGui.table_setup_column("Consumable", PyImGui.TableColumnFlags.WidthStretch)
                 PyImGui.table_setup_column("Crafter", PyImGui.TableColumnFlags.WidthFixed, 130.0)
-                PyImGui.table_setup_column("Target", PyImGui.TableColumnFlags.WidthFixed, 110.0)
+                PyImGui.table_setup_column("Amount", PyImGui.TableColumnFlags.WidthFixed, 110.0)
                 PyImGui.table_setup_column("Max/Run", PyImGui.TableColumnFlags.WidthFixed, 110.0)
+                PyImGui.table_setup_column("Priority", PyImGui.TableColumnFlags.WidthFixed, 90.0)
                 PyImGui.table_setup_column("Remove", PyImGui.TableColumnFlags.WidthFixed, 60.0)
 
                 PyImGui.table_next_row()
@@ -16371,13 +16573,15 @@ class MerchantRulesWidget:
                 PyImGui.table_set_column_index(1)
                 PyImGui.text("Crafter")
                 PyImGui.table_set_column_index(2)
-                PyImGui.text("Target")
+                PyImGui.text("Craft" if current_mode == CONSUMABLE_CRAFTER_COUNT_MODE_CRAFT_AMOUNT else "Target")
                 PyImGui.table_set_column_index(3)
                 PyImGui.text("Max/Run")
                 PyImGui.table_set_column_index(4)
+                PyImGui.text("Priority")
+                PyImGui.table_set_column_index(5)
                 PyImGui.text("Remove")
 
-                for target_row in display_targets:
+                for row_index, target_row in enumerate(updated_targets):
                     recipe = self._get_consumable_crafter_recipe_for_model(target_row.model_id)
                     PyImGui.table_next_row()
                     PyImGui.table_set_column_index(0)
@@ -16403,6 +16607,18 @@ class MerchantRulesWidget:
                     PyImGui.pop_item_width()
 
                     PyImGui.table_set_column_index(4)
+                    if row_index > 0 and PyImGui.small_button(f"Up##buy_crafter_up_{index}_{target_row.model_id}"):
+                        move_from_index = row_index
+                        move_to_index = row_index - 1
+                        break
+                    if row_index > 0 and row_index < len(updated_targets) - 1:
+                        PyImGui.same_line(0, 6)
+                    if row_index < len(updated_targets) - 1 and PyImGui.small_button(f"Down##buy_crafter_down_{index}_{target_row.model_id}"):
+                        move_from_index = row_index
+                        move_to_index = row_index + 1
+                        break
+
+                    PyImGui.table_set_column_index(5)
                     if PyImGui.small_button(f"X##buy_crafter_remove_{index}_{target_row.model_id}"):
                         removed_model_id = target_row.model_id
                         break
@@ -16412,6 +16628,12 @@ class MerchantRulesWidget:
 
         if removed_model_id > 0:
             next_targets = [target for target in updated_targets if int(target.model_id) != int(removed_model_id)]
+            if self._set_buy_rule_consumable_crafter_targets(rule, next_targets):
+                changed = True
+        elif move_from_index is not None and move_to_index is not None:
+            next_targets = list(updated_targets)
+            moved_target = next_targets.pop(int(move_from_index))
+            next_targets.insert(int(move_to_index), moved_target)
             if self._set_buy_rule_consumable_crafter_targets(rule, next_targets):
                 changed = True
         elif self._set_buy_rule_consumable_crafter_targets(rule, updated_targets):
