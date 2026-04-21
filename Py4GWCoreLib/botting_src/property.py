@@ -263,6 +263,7 @@ class UpkeepData:
                  green_rock_candy_restock: int = 0,
                  #H
                  hero_ai_active: bool = False,
+                 hero_ai_paused: bool = False,
                  honeycomb_active: bool = False,
                  honeycomb_restock: int = 0,
                  #I
@@ -363,6 +364,7 @@ class UpkeepData:
         self.summoning_stone = Property(parent, "summoning_stone", active=summoning_stone_active)
         self.auto_combat = Property(parent, "auto_combat", active=auto_combat_active)
         self.hero_ai = Property(parent, "hero_ai", active=hero_ai_active)
+        self.hero_ai_paused = Property(parent, "hero_ai_paused", active=hero_ai_paused)
         
         self.auto_inventory_management = Property(parent, "auto_inventory_management", active=auto_inventory_management_active)
         self.auto_loot = Property(parent, "auto_loot", active=auto_loot_active)

@@ -17,6 +17,8 @@ class _Upkeepers:
         self._config = parent._config
         self._Events = parent.Events
         self.cancel_movement_triggered = False
+        self._hero_ai_pause_applied = False
+        self._hero_ai_pause_snapshot = None
         
     
     def upkeep_auto_combat(self):
@@ -34,6 +36,42 @@ class _Upkeepers:
         from Py4GW_widget_manager import get_widget_handler
         handler = get_widget_handler()
         while True:   
+            pause_requested = bool(getattr(self._config.upkeep, "hero_ai_paused", None) and self._config.upkeep.hero_ai_paused.is_active())
+
+            if pause_requested:
+                account_email = Player.GetAccountEmail()
+                current_options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsFromEmail(account_email) if account_email else None
+                if current_options and not self._hero_ai_pause_applied:
+                    self._hero_ai_pause_snapshot = (
+                        current_options.Following,
+                        current_options.Targeting,
+                        current_options.Combat,
+                    )
+                    current_options.Following = False
+                    current_options.Targeting = False
+                    current_options.Combat = False
+                    GLOBAL_CACHE.ShMem.SetHeroAIOptionsByEmail(account_email, current_options)
+                    self._hero_ai_pause_applied = True
+
+                # If an interaction started while moving, stop once and let it settle.
+                if Agent.IsMoving(Player.GetAgentID()) and not self.cancel_movement_triggered:
+                    yield from Routines.Yield.Movement.StopMovement()
+                    self.cancel_movement_triggered = True
+
+                yield from Routines.Yield.wait(200)
+                continue
+            elif self._hero_ai_pause_applied:
+                account_email = Player.GetAccountEmail()
+                current_options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsFromEmail(account_email) if account_email else None
+                if current_options and self._hero_ai_pause_snapshot is not None:
+                    current_options.Following = bool(self._hero_ai_pause_snapshot[0])
+                    current_options.Targeting = bool(self._hero_ai_pause_snapshot[1])
+                    current_options.Combat = bool(self._hero_ai_pause_snapshot[2])
+                    GLOBAL_CACHE.ShMem.SetHeroAIOptionsByEmail(account_email, current_options)
+                self._hero_ai_pause_applied = False
+                self._hero_ai_pause_snapshot = None
+                self.cancel_movement_triggered = False
+
             if not self._config.upkeep.hero_ai.is_active():
                 if handler.is_widget_enabled("HeroAI"):
                     handler.disable_widget("HeroAI")
