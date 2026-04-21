@@ -23,6 +23,8 @@ from Py4GWCoreLib import Routines
 from Py4GWCoreLib import SharedCommandType
 from Py4GWCoreLib import ThrottledTimer
 from Py4GWCoreLib.enums_src.Item_enums import ItemType
+from Py4GWCoreLib.enums_src.Title_enums import TITLE_TIERS
+from Py4GWCoreLib.enums_src.Title_enums import TitleID
 from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
 from Sources.marks_sources.mods_parser import ModDatabase
 from Sources.marks_sources.mods_parser import MatchedRuneInfo
@@ -40,7 +42,7 @@ FLOATING_UI_INI_FILENAME = "MerchantRulesFloating.ini"
 FLOATING_ICON_WINDOW_ID = "##merchant_rules_floating_icon_button"
 FLOATING_ICON_WINDOW_NAME = "Merchant Rules Toggle"
 
-PROFILE_VERSION = 19
+PROFILE_VERSION = 20
 CONFIG_DIR = os.path.join(Py4GW.Console.get_projects_path(), "Widgets", "Config", "MerchantRules")
 SHARED_PROFILES_DIR = os.path.join(CONFIG_DIR, "Profiles")
 RECOVERY_DIR = os.path.join(CONFIG_DIR, "Recovery")
@@ -99,6 +101,7 @@ MERCHANT_TYPE_MATERIALS = "material_trader"
 MERCHANT_TYPE_RUNE_TRADER = "rune_trader"
 MERCHANT_TYPE_SCROLL_TRADER = "scroll_trader"
 MERCHANT_TYPE_RARE_MATERIALS = "rare_material_trader"
+MERCHANT_TYPE_CONSUMABLE_CRAFTER = "consumable_crafter"
 MERCHANT_TYPE_INVENTORY = "inventory"
 MERCHANT_TYPE_STORAGE = "storage"
 
@@ -106,6 +109,7 @@ BUY_KIND_MERCHANT_STOCK = "merchant_stock_target"
 BUY_KIND_MATERIAL_TARGET = "buy_material_target"
 BUY_KIND_RUNE_TRADER_TARGET = "buy_rune_trader_target"
 BUY_KIND_SCROLL_TRADER_TARGET = "buy_scroll_trader_target"
+BUY_KIND_CONSUMABLE_CRAFTER_TARGET = "consumable_crafter_target"
 LEGACY_BUY_KIND_ID_KITS = "restock_id_kits"
 LEGACY_BUY_KIND_SALVAGE_KITS = "restock_salvage_kits"
 LEGACY_BUY_KIND_ECTO = "buy_ectoplasm"
@@ -127,6 +131,7 @@ BUY_RULE_KINDS = [
     BUY_KIND_MATERIAL_TARGET,
     BUY_KIND_RUNE_TRADER_TARGET,
     BUY_KIND_SCROLL_TRADER_TARGET,
+    BUY_KIND_CONSUMABLE_CRAFTER_TARGET,
 ]
 
 SELL_RULE_KINDS = [
@@ -145,6 +150,7 @@ DESTROY_RULE_KINDS = [
 
 BUY_RULE_WORKSPACE_ORDER: tuple[str, ...] = (
     BUY_KIND_MERCHANT_STOCK,
+    BUY_KIND_CONSUMABLE_CRAFTER_TARGET,
     BUY_KIND_MATERIAL_TARGET,
     BUY_KIND_RUNE_TRADER_TARGET,
     BUY_KIND_SCROLL_TRADER_TARGET,
@@ -166,6 +172,7 @@ DESTROY_RULE_WORKSPACE_ORDER: tuple[str, ...] = (
 
 BUY_KIND_LABELS = {
     BUY_KIND_MERCHANT_STOCK: "Maintain Merchant Stock",
+    BUY_KIND_CONSUMABLE_CRAFTER_TARGET: "Maintain Consumable Crafters",
     BUY_KIND_MATERIAL_TARGET: "Maintain Crafting Materials",
     BUY_KIND_RUNE_TRADER_TARGET: "Maintain Runes & Insignias",
     BUY_KIND_SCROLL_TRADER_TARGET: "Maintain Scroll Trader Stock",
@@ -173,6 +180,7 @@ BUY_KIND_LABELS = {
 
 BUY_RULE_WORKSPACE_LABELS = {
     BUY_KIND_MERCHANT_STOCK: "Merchant Stock",
+    BUY_KIND_CONSUMABLE_CRAFTER_TARGET: "Consumable Crafters",
     BUY_KIND_MATERIAL_TARGET: "Materials",
     BUY_KIND_RUNE_TRADER_TARGET: "Runes & Insignias",
     BUY_KIND_SCROLL_TRADER_TARGET: "Scroll Trader Stock",
@@ -241,6 +249,7 @@ MERCHANT_TYPE_LABELS = {
     MERCHANT_TYPE_RUNE_TRADER: "Rune Trader",
     MERCHANT_TYPE_SCROLL_TRADER: "Scroll Trader",
     MERCHANT_TYPE_RARE_MATERIALS: "Rare Material Trader",
+    MERCHANT_TYPE_CONSUMABLE_CRAFTER: "Consumable Crafter",
     MERCHANT_TYPE_INVENTORY: "Inventory",
     MERCHANT_TYPE_STORAGE: "Xunlai Storage",
 }
@@ -258,6 +267,7 @@ BUY_KIND_TO_MERCHANT_TYPE = {
     BUY_KIND_MATERIAL_TARGET: MERCHANT_TYPE_MATERIALS,
     BUY_KIND_RUNE_TRADER_TARGET: MERCHANT_TYPE_RUNE_TRADER,
     BUY_KIND_SCROLL_TRADER_TARGET: MERCHANT_TYPE_SCROLL_TRADER,
+    BUY_KIND_CONSUMABLE_CRAFTER_TARGET: MERCHANT_TYPE_CONSUMABLE_CRAFTER,
 }
 
 SELL_KIND_TO_MERCHANT_TYPE = {
@@ -269,6 +279,7 @@ SELL_KIND_TO_MERCHANT_TYPE = {
 
 ECTOPLASM_MODEL_ID = int(ModelID.Glob_Of_Ectoplasm.value)
 SALVAGE_KIT_MODEL_ID = int(ModelID.Salvage_Kit.value)
+EMBARK_BEACH_MAP_ID = 857
 MATERIAL_BATCH_SIZE = 10
 MATERIAL_STORAGE_BAG_ID = 6
 MATERIAL_STORAGE_BAG_NAME = "MaterialStorage"
@@ -281,7 +292,24 @@ MODIFIER_IDENTIFIER_ARMOR1 = 0x27B
 MODIFIER_IDENTIFIER_ARMOR2 = 0x23C
 MODIFIER_IDENTIFIER_ENERGY = 0x27C
 MODIFIER_IDENTIFIER_ENERGY2 = 0x22C
+MODIFIER_IDENTIFIER_RUNE_ATTRIBUTE = 8680
+MODIFIER_IDENTIFIER_RUNE_HEALTH_LOSS = 8408
 ATTRIBUTE_NONE_REAL_VALUE = 45
+
+
+@dataclass(frozen=True)
+class ConsumableCrafterRecipe:
+    model_id: int
+    vendor_key: str
+    vendor_name: str
+    coords: tuple[float, float]
+    title_id: int
+    required_rank: int
+    skill_points: int
+    gold_cost: int
+    ingredients: tuple[tuple[int, int], ...]
+
+
 COMMON_CRAFTING_MATERIAL_MODEL_IDS: frozenset[int] = frozenset({
     921, 925, 929, 933, 934, 940, 946, 948, 953, 954, 955,
 })
@@ -330,6 +358,136 @@ MATERIAL_STORAGE_SLOT_BY_MODEL_ID: dict[int, int] = {
     6532: 36,
     6533: 37,
 }
+CONSUMABLE_CRAFTER_RECIPES: tuple[ConsumableCrafterRecipe, ...] = (
+    ConsumableCrafterRecipe(
+        model_id=int(ModelID.Essence_Of_Celerity.value),
+        vendor_key="kwat",
+        vendor_name="Kwat",
+        coords=(3592.99, 78.78),
+        title_id=int(TitleID.Asuran),
+        required_rank=3,
+        skill_points=1,
+        gold_cost=250,
+        ingredients=((int(ModelID.Feather.value), 50), (int(ModelID.Pile_Of_Glittering_Dust.value), 50)),
+    ),
+    ConsumableCrafterRecipe(
+        model_id=int(ModelID.Fossilized_Summon.value),
+        vendor_key="kwat",
+        vendor_name="Kwat",
+        coords=(3592.99, 78.78),
+        title_id=int(TitleID.Asuran),
+        required_rank=3,
+        skill_points=1,
+        gold_cost=1000,
+        ingredients=((int(ModelID.Monstrous_Claw.value), 1), (int(ModelID.Granite_Slab.value), 10), (int(ModelID.Bone.value), 100)),
+    ),
+    ConsumableCrafterRecipe(
+        model_id=int(ModelID.Grail_Of_Might.value),
+        vendor_key="eyja",
+        vendor_name="Eyja",
+        coords=(3349.48, 596.78),
+        title_id=int(TitleID.Norn),
+        required_rank=3,
+        skill_points=1,
+        gold_cost=250,
+        ingredients=((int(ModelID.Iron_Ingot.value), 50), (int(ModelID.Pile_Of_Glittering_Dust.value), 50)),
+    ),
+    ConsumableCrafterRecipe(
+        model_id=int(ModelID.Arctic_Summon.value),
+        vendor_key="eyja",
+        vendor_name="Eyja",
+        coords=(3349.48, 596.78),
+        title_id=int(TitleID.Norn),
+        required_rank=3,
+        skill_points=1,
+        gold_cost=1000,
+        ingredients=((int(ModelID.Fur_Square.value), 4), (int(ModelID.Granite_Slab.value), 10), (int(ModelID.Bone.value), 100)),
+    ),
+    ConsumableCrafterRecipe(
+        model_id=int(ModelID.Powerstone_Of_Courage.value),
+        vendor_key="edwin",
+        vendor_name="Edwin",
+        coords=(3525.58, 328.60),
+        title_id=int(TitleID.Ebon_Vanguard),
+        required_rank=3,
+        skill_points=1,
+        gold_cost=1000,
+        ingredients=((int(ModelID.Granite_Slab.value), 100), (int(ModelID.Pile_Of_Glittering_Dust.value), 100)),
+    ),
+    ConsumableCrafterRecipe(
+        model_id=int(ModelID.Chitinous_Summon.value),
+        vendor_key="edwin",
+        vendor_name="Edwin",
+        coords=(3525.58, 328.60),
+        title_id=int(TitleID.Ebon_Vanguard),
+        required_rank=3,
+        skill_points=1,
+        gold_cost=1000,
+        ingredients=((int(ModelID.Monstrous_Eye.value), 4), (int(ModelID.Granite_Slab.value), 10), (int(ModelID.Chitin_Fragment.value), 100)),
+    ),
+    ConsumableCrafterRecipe(
+        model_id=int(ModelID.Armor_Of_Salvation.value),
+        vendor_key="alcus",
+        vendor_name="Alcus Nailbiter",
+        coords=(3673.02, -131.27),
+        title_id=int(TitleID.Deldrimor),
+        required_rank=3,
+        skill_points=1,
+        gold_cost=250,
+        ingredients=((int(ModelID.Iron_Ingot.value), 50), (int(ModelID.Bone.value), 50)),
+    ),
+    ConsumableCrafterRecipe(
+        model_id=int(ModelID.Gelatinous_Summon.value),
+        vendor_key="alcus",
+        vendor_name="Alcus Nailbiter",
+        coords=(3673.02, -131.27),
+        title_id=int(TitleID.Deldrimor),
+        required_rank=3,
+        skill_points=1,
+        gold_cost=1000,
+        ingredients=((int(ModelID.Diamond.value), 1), (int(ModelID.Granite_Slab.value), 10), (int(ModelID.Pile_Of_Glittering_Dust.value), 100)),
+    ),
+)
+SHARED_CONSUMABLE_CRAFTER_RECIPES: tuple[tuple[int, int, tuple[tuple[int, int], ...]], ...] = (
+    (int(ModelID.Scroll_Of_Resurrection.value), 250, ((int(ModelID.Plant_Fiber.value), 25), (int(ModelID.Bone.value), 25))),
+    (int(ModelID.Star_Of_Transference.value), 250, ((int(ModelID.Wood_Plank.value), 25), (int(ModelID.Plant_Fiber.value), 25))),
+    (int(ModelID.Perfect_Salvage_Kit.value), 250, ((int(ModelID.Iron_Ingot.value), 25), (int(ModelID.Wood_Plank.value), 25))),
+)
+CONSUMABLE_CRAFTER_RECIPES_BY_VENDOR: dict[str, tuple[ConsumableCrafterRecipe, ...]] = {}
+for _base_recipe in CONSUMABLE_CRAFTER_RECIPES:
+    _vendor_recipes = list(CONSUMABLE_CRAFTER_RECIPES_BY_VENDOR.get(_base_recipe.vendor_key, ()))
+    _vendor_recipes.append(_base_recipe)
+    for _shared_model_id, _shared_gold_cost, _shared_ingredients in SHARED_CONSUMABLE_CRAFTER_RECIPES:
+        _vendor_recipes.append(
+            ConsumableCrafterRecipe(
+                model_id=_shared_model_id,
+                vendor_key=_base_recipe.vendor_key,
+                vendor_name=_base_recipe.vendor_name,
+                coords=_base_recipe.coords,
+                title_id=_base_recipe.title_id,
+                required_rank=_base_recipe.required_rank,
+                skill_points=1,
+                gold_cost=_shared_gold_cost,
+                ingredients=_shared_ingredients,
+            )
+        )
+    CONSUMABLE_CRAFTER_RECIPES_BY_VENDOR[_base_recipe.vendor_key] = tuple(_vendor_recipes)
+CONSUMABLE_CRAFTER_RECIPES_BY_VENDOR = {
+    _vendor_key: tuple({int(_recipe.model_id): _recipe for _recipe in _recipes}.values())
+    for _vendor_key, _recipes in CONSUMABLE_CRAFTER_RECIPES_BY_VENDOR.items()
+}
+CONSUMABLE_CRAFTER_RECIPES_BY_MODEL: dict[int, tuple[ConsumableCrafterRecipe, ...]] = {}
+for _vendor_recipe_list in CONSUMABLE_CRAFTER_RECIPES_BY_VENDOR.values():
+    for _recipe in _vendor_recipe_list:
+        _model_recipes = list(CONSUMABLE_CRAFTER_RECIPES_BY_MODEL.get(_recipe.model_id, ()))
+        _model_recipes.append(_recipe)
+        CONSUMABLE_CRAFTER_RECIPES_BY_MODEL[_recipe.model_id] = tuple(_model_recipes)
+CONSUMABLE_CRAFTER_QUICK_PICK_GROUPS: tuple[tuple[str, str], ...] = (
+    ("kwat", "Kwat - Asura"),
+    ("eyja", "Eyja - Norn"),
+    ("edwin", "Edwin - Vanguard"),
+    ("alcus", "Alcus Nailbiter - Deldrimor"),
+)
 SCROLL_TRADER_STOCK_MODEL_IDS: frozenset[int] = frozenset({
     int(ModelID.Passage_Scroll_Deep.value),
     int(ModelID.Passage_Scroll_Urgoz.value),
@@ -415,6 +573,7 @@ RARITY_TEXT_COLORS = {
 }
 RULE_KIND_PRESENTATION: dict[str, tuple[str, tuple[float, float, float, float]]] = {
     BUY_KIND_MERCHANT_STOCK: ("Stock", UI_COLOR_INFO),
+    BUY_KIND_CONSUMABLE_CRAFTER_TARGET: ("Crafters", UI_COLOR_SUCCESS),
     BUY_KIND_MATERIAL_TARGET: ("Materials", UI_COLOR_TEAL),
     BUY_KIND_RUNE_TRADER_TARGET: ("Runes", UI_COLOR_PURPLE_ACCENT),
     BUY_KIND_SCROLL_TRADER_TARGET: ("Scrolls", UI_COLOR_INDIGO),
@@ -571,6 +730,50 @@ MODEL_ID_ATTRIBUTE_FALLBACK_LABELS: dict[str, str] = {
 MODEL_ID_ATTRIBUTE_FALLBACK_SUFFIX_KEYS: tuple[str, ...] = tuple(
     sorted(MODEL_ID_ATTRIBUTE_FALLBACK_LABELS.keys(), key=len, reverse=True)
 )
+RUNE_ATTRIBUTE_LABELS: dict[int, str] = {
+    0: "Fast Casting",
+    1: "Illusion Magic",
+    2: "Domination Magic",
+    3: "Inspiration Magic",
+    4: "Blood Magic",
+    5: "Death Magic",
+    6: "Soul Reaping",
+    7: "Curses",
+    8: "Air Magic",
+    9: "Earth Magic",
+    10: "Fire Magic",
+    11: "Water Magic",
+    12: "Energy Storage",
+    13: "Healing Prayers",
+    14: "Smiting Prayers",
+    15: "Protection Prayers",
+    16: "Divine Favor",
+    17: "Strength",
+    18: "Axe Mastery",
+    19: "Hammer Mastery",
+    20: "Swordsmanship",
+    21: "Tactics",
+    22: "Beast Mastery",
+    23: "Expertise",
+    24: "Wilderness Survival",
+    25: "Marksmanship",
+    29: "Dagger Mastery",
+    30: "Deadly Arts",
+    31: "Shadow Arts",
+    32: "Communing",
+    33: "Restoration Magic",
+    34: "Channeling Magic",
+    35: "Critical Strikes",
+    36: "Spawning Power",
+    37: "Spear Mastery",
+    38: "Command",
+    39: "Motivation",
+    40: "Leadership",
+    41: "Scythe Mastery",
+    42: "Wind Prayers",
+    43: "Earth Prayers",
+    44: "Mysticism",
+}
 ARMOR_CATALOG_ITEM_TYPES: frozenset[str] = frozenset({
     "headpiece",
     "chestpiece",
@@ -884,6 +1087,16 @@ class PlannedScrollTraderBuy:
 
 
 @dataclass
+class PlannedConsumableCraft:
+    model_id: int
+    quantity: int
+    label: str
+    vendor_key: str
+    vendor_name: str
+    coords: tuple[float, float]
+
+
+@dataclass
 class StockLocationCounts:
     key: str
     label: str
@@ -941,6 +1154,7 @@ class PlanResult:
     material_buys: list[PlannedMaterialBuy] = field(default_factory=list)
     rune_trader_buys: list[PlannedTraderBuy] = field(default_factory=list)
     scroll_trader_buys: list[PlannedScrollTraderBuy] = field(default_factory=list)
+    consumable_crafter_buys: list[PlannedConsumableCraft] = field(default_factory=list)
     material_sales: list[PlannedMaterialSale] = field(default_factory=list)
     storage_transfers: list[PlannedStorageTransfer] = field(default_factory=list)
     cleanup_transfers: list[PlannedStorageTransfer] = field(default_factory=list)
@@ -2328,6 +2542,7 @@ def _default_buy_rules() -> list[BuyRule]:
         BuyRule(enabled=False, kind=BUY_KIND_MATERIAL_TARGET, merchant_type=MERCHANT_TYPE_MATERIALS, model_id=0, target_count=0, max_per_run=0),
         BuyRule(enabled=False, kind=BUY_KIND_RUNE_TRADER_TARGET, merchant_type=MERCHANT_TYPE_RUNE_TRADER, model_id=0, target_count=0, max_per_run=0),
         BuyRule(enabled=False, kind=BUY_KIND_SCROLL_TRADER_TARGET, merchant_type=MERCHANT_TYPE_SCROLL_TRADER, model_id=0, target_count=0, max_per_run=0),
+        BuyRule(enabled=False, kind=BUY_KIND_CONSUMABLE_CRAFTER_TARGET, merchant_type=MERCHANT_TYPE_CONSUMABLE_CRAFTER, model_id=0, target_count=0, max_per_run=0),
     ]
 
 
@@ -2425,6 +2640,25 @@ def _normalize_buy_rule(rule: BuyRule) -> BuyRule | None:
         rule.model_id = 0
         rule.target_count = 0
         rule.max_per_run = 0
+    elif rule.kind == BUY_KIND_CONSUMABLE_CRAFTER_TARGET:
+        if not rule.merchant_stock_targets and legacy_model_id > 0 and legacy_model_id in CONSUMABLE_CRAFTER_RECIPES_BY_MODEL:
+            rule.merchant_stock_targets = [
+                MerchantStockTarget(
+                    model_id=legacy_model_id,
+                    target_count=legacy_target_count,
+                    max_per_run=legacy_max_per_run,
+                )
+            ]
+        rule.merchant_stock_targets = [
+            target
+            for target in rule.merchant_stock_targets
+            if int(target.model_id) in CONSUMABLE_CRAFTER_RECIPES_BY_MODEL
+        ]
+        rule.material_targets = []
+        rule.rune_targets = []
+        rule.model_id = 0
+        rule.target_count = 0
+        rule.max_per_run = 0
     else:
         if not rule.merchant_stock_targets and legacy_model_id > 0:
             rule.merchant_stock_targets = [
@@ -2489,6 +2723,53 @@ def _get_rune_kind_label(mod_type: object) -> str:
 
 def _get_rune_kind_sort_key(mod_type: object) -> int:
     return 0 if _get_rune_kind_label(mod_type) == "Insignia" else 1
+
+
+def _get_rune_modifier_value(modifier: object, field_name: str) -> object:
+    if not isinstance(modifier, dict):
+        return ""
+    normalized_field = str(field_name or "").strip().lower()
+    if normalized_field == "arg1":
+        return modifier.get("Arg1", "")
+    if normalized_field == "arg2":
+        return modifier.get("Arg2", "")
+    if normalized_field == "arg":
+        return modifier.get("Arg", "")
+    return ""
+
+
+def _resolve_rune_description_template(description: str, modifiers: object) -> str:
+    safe_description = str(description or "").strip()
+    if not safe_description or "{" not in safe_description:
+        return safe_description
+    if not isinstance(modifiers, list):
+        return safe_description
+
+    modifiers_by_identifier: dict[int, dict[str, object]] = {}
+    for modifier in modifiers:
+        if not isinstance(modifier, dict):
+            continue
+        modifier_identifier = _safe_int(modifier.get("Identifier", 0), 0)
+        if modifier_identifier:
+            modifiers_by_identifier[modifier_identifier] = modifier
+
+    def replace_placeholder(match: re.Match) -> str:
+        field_name = str(match.group(1) or "")
+        modifier_identifier = _safe_int(match.group(2), 0)
+        modifier = modifiers_by_identifier.get(modifier_identifier)
+        if modifier is None:
+            return str(match.group(0))
+
+        value = _get_rune_modifier_value(modifier, field_name)
+        if modifier_identifier == MODIFIER_IDENTIFIER_RUNE_ATTRIBUTE and field_name.lower() == "arg1":
+            attribute_id = _safe_int(value, 0)
+            return RUNE_ATTRIBUTE_LABELS.get(attribute_id, f"Attribute {attribute_id}")
+        try:
+            return str(int(value))
+        except Exception:
+            return str(value or match.group(0))
+
+    return re.sub(r"\{(arg1|arg2|arg)\[(\d+)\]\}", replace_placeholder, safe_description)
 
 
 def _get_rune_rarity_sort_key(rarity: object) -> int:
@@ -4245,9 +4526,16 @@ class MerchantRulesWidget:
             rarity = str(raw_entry.get("Rarity", "") or "").strip()
             mod_type = str(raw_entry.get("ModType", "") or "").strip()
             vendor_value = max(0, _safe_int(raw_entry.get("VendorValue", 0), 0))
+            descriptions = raw_entry.get("Descriptions", {})
+            if isinstance(descriptions, dict):
+                english_description = str(descriptions.get("English", "") or "").strip()
+            else:
+                english_description = ""
+            english_description = _resolve_rune_description_template(english_description, raw_entry.get("Modifiers", []))
             entry = {
                 "identifier": identifier,
                 "name": display_name,
+                "description": english_description,
                 "profession": profession,
                 "profession_label": _get_rune_profession_label(profession),
                 "rarity": rarity,
@@ -4341,6 +4629,7 @@ class MerchantRulesWidget:
             f"destroy={len(plan.destroy_actions) if plan.destroy_actions else len(plan.destroy_item_ids)} "
             f"merchant_stock={len(plan.merchant_stock_buys)} material_buys={len(plan.material_buys)} "
             f"rune_buys={len(plan.rune_trader_buys)} scroll_buys={len(plan.scroll_trader_buys)} "
+            f"consumable_crafts={len(plan.consumable_crafter_buys)} "
             f"storage_transfers={len(plan.storage_transfers)} cleanup_transfers={len(plan.cleanup_transfers)} "
             f"storage_state={plan.storage_plan_state} "
             f"material_sales={len(plan.material_sales)} "
@@ -5275,6 +5564,13 @@ class MerchantRulesWidget:
             return None
         return self.rune_buy_entries_by_identifier.get(safe_identifier)
 
+    def _get_rune_tooltip_text(self, identifier: str) -> str:
+        entry = self._get_rune_buy_entry(identifier)
+        if entry is None:
+            return ""
+
+        return str(entry.get("description", "") or "").strip()
+
     def _get_rune_rarity_key_for_identifier(self, identifier: str) -> str:
         entry = self._get_rune_buy_entry(identifier)
         if entry is None:
@@ -5661,6 +5957,52 @@ class MerchantRulesWidget:
             )
         )
         return self._set_buy_rule_scroll_trader_targets(rule, existing_targets)
+
+    def _set_buy_rule_consumable_crafter_targets(self, rule: BuyRule, targets: list[MerchantStockTarget]) -> bool:
+        normalized_targets = [
+            target
+            for target in _normalize_merchant_stock_targets(targets)
+            if int(target.model_id) in CONSUMABLE_CRAFTER_RECIPES_BY_MODEL
+        ]
+        current_targets = [
+            target
+            for target in _normalize_merchant_stock_targets(rule.merchant_stock_targets)
+            if int(target.model_id) in CONSUMABLE_CRAFTER_RECIPES_BY_MODEL
+        ]
+        if normalized_targets == current_targets:
+            return False
+        rule.merchant_stock_targets = normalized_targets
+        return True
+
+    def _add_buy_rule_consumable_crafter_target(
+        self,
+        rule: BuyRule,
+        model_id: int,
+        *,
+        target_count: int = 0,
+        max_per_run: int = 0,
+    ) -> bool:
+        safe_model_id = max(0, _safe_int(model_id, 0))
+        if safe_model_id <= 0 or safe_model_id not in CONSUMABLE_CRAFTER_RECIPES_BY_MODEL:
+            return False
+
+        existing_targets = [
+            target
+            for target in _normalize_merchant_stock_targets(rule.merchant_stock_targets)
+            if int(target.model_id) in CONSUMABLE_CRAFTER_RECIPES_BY_MODEL
+        ]
+        for target in existing_targets:
+            if target.model_id == safe_model_id:
+                return False
+
+        existing_targets.append(
+            MerchantStockTarget(
+                model_id=safe_model_id,
+                target_count=max(0, _safe_int(target_count, 0)),
+                max_per_run=max(0, _safe_int(max_per_run, 0)),
+            )
+        )
+        return self._set_buy_rule_consumable_crafter_targets(rule, existing_targets)
 
     def _set_buy_rule_material_targets(self, rule: BuyRule, material_targets: list[MaterialTarget]) -> bool:
         normalized_targets = _normalize_material_targets(material_targets)
@@ -6196,6 +6538,7 @@ class MerchantRulesWidget:
         entries: list[dict[str, str]],
         *,
         text_color_for_identifier: Callable[[str], tuple[float, float, float, float] | None] | None = None,
+        tooltip_for_identifier: Callable[[str], str] | None = None,
     ) -> tuple[str, list[str]]:
         normalized_query = str(query or "").strip()
         if not normalized_query:
@@ -6217,6 +6560,8 @@ class MerchantRulesWidget:
                         PyImGui.push_style_color(PyImGui.ImGuiCol.Text, text_color)
                     try:
                         selected = PyImGui.selectable(f"{name}##{child_id}_{identifier}", False, PyImGui.SelectableFlags.NoFlag, (0, 0))
+                        if tooltip_for_identifier is not None:
+                            self._draw_hover_tooltip(tooltip_for_identifier(identifier))
                     finally:
                         if text_color is not None:
                             PyImGui.pop_style_color(1)
@@ -6608,6 +6953,7 @@ class MerchantRulesWidget:
         *,
         jump_anchor: str = "",
         text_color_for_identifier: Callable[[str], tuple[float, float, float, float] | None] | None = None,
+        tooltip_for_identifier: Callable[[str], str] | None = None,
     ) -> str:
         if not identifiers:
             self._draw_secondary_text("No protected entries selected yet.", wrapped=False)
@@ -6632,6 +6978,8 @@ class MerchantRulesWidget:
                         PyImGui.text_colored(label, text_color)
                     else:
                         PyImGui.text(label)
+                    if tooltip_for_identifier is not None:
+                        self._draw_hover_tooltip(tooltip_for_identifier(identifier))
                     if jump_anchor:
                         self._maybe_scroll_sell_jump_target_row(index, jump_anchor, f"identifier:{str(identifier)}")
                 PyImGui.end_table()
@@ -6902,6 +7250,7 @@ class MerchantRulesWidget:
             MERCHANT_TYPE_RUNE_TRADER: None,
             MERCHANT_TYPE_SCROLL_TRADER: None,
             MERCHANT_TYPE_RARE_MATERIALS: None,
+            MERCHANT_TYPE_CONSUMABLE_CRAFTER: (3592.99, 78.78) if current_map_id == EMBARK_BEACH_MAP_ID else None,
         }
 
         if not Map.IsMapReady():
@@ -6982,6 +7331,7 @@ class MerchantRulesWidget:
             MERCHANT_TYPE_RUNE_TRADER: PROJECTED_PREVIEW_CONTEXT_COORDS,
             MERCHANT_TYPE_SCROLL_TRADER: PROJECTED_PREVIEW_CONTEXT_COORDS,
             MERCHANT_TYPE_RARE_MATERIALS: PROJECTED_PREVIEW_CONTEXT_COORDS,
+            MERCHANT_TYPE_CONSUMABLE_CRAFTER: PROJECTED_PREVIEW_CONTEXT_COORDS if safe_outpost_id == EMBARK_BEACH_MAP_ID else None,
         }
         if safe_outpost_id <= 0 or not outpost_name:
             return False, "Projected preview target is not configured.", {
@@ -6990,6 +7340,7 @@ class MerchantRulesWidget:
                 MERCHANT_TYPE_RUNE_TRADER: None,
                 MERCHANT_TYPE_SCROLL_TRADER: None,
                 MERCHANT_TYPE_RARE_MATERIALS: None,
+                MERCHANT_TYPE_CONSUMABLE_CRAFTER: None,
             }
 
         selector_mode = "specific merchant selectors" if safe_outpost_id in SUPPORTED_MAP_NPC_SELECTORS else "generic merchant selectors"
@@ -7010,6 +7361,7 @@ class MerchantRulesWidget:
             MERCHANT_TYPE_RUNE_TRADER,
             MERCHANT_TYPE_SCROLL_TRADER,
             MERCHANT_TYPE_RARE_MATERIALS,
+            MERCHANT_TYPE_CONSUMABLE_CRAFTER,
         ):
             return action_type in {"buy", "sell"}
         if merchant_type == MERCHANT_TYPE_STORAGE:
@@ -8094,6 +8446,91 @@ class MerchantRulesWidget:
             capped_needed = min(capped_needed, cap)
         return capped_needed
 
+    def _get_title_rank_info(self, title_id: int) -> tuple[int, str, int]:
+        safe_title_id = max(0, int(title_id))
+        title = Player.GetTitle(safe_title_id)
+        current_points = max(0, int(getattr(title, "current_points", 0) or 0)) if title is not None else 0
+        current_rank = 0
+        tier_name = "Unranked"
+        for tier in TITLE_TIERS.get(safe_title_id, []):
+            if current_points >= int(tier.required):
+                current_rank = int(tier.tier)
+                tier_name = str(tier.name)
+            else:
+                break
+        return current_rank, tier_name, current_points
+
+    def _get_consumable_crafter_recipe_for_model(self, model_id: int) -> ConsumableCrafterRecipe | None:
+        recipes = CONSUMABLE_CRAFTER_RECIPES_BY_MODEL.get(max(0, int(model_id)), ())
+        if not recipes:
+            return None
+        for recipe in recipes:
+            current_rank, _tier_name, _points = self._get_title_rank_info(recipe.title_id)
+            if current_rank >= int(recipe.required_rank):
+                return recipe
+        return recipes[0]
+
+    def _get_consumable_material_available_count(
+        self,
+        model_id: int,
+        *,
+        inventory_model_counts: dict[int, int],
+        storage_model_counts: dict[int, int],
+        storage_exact: bool,
+    ) -> int:
+        safe_model_id = max(0, int(model_id))
+        total = max(0, int(inventory_model_counts.get(safe_model_id, 0)))
+        if storage_exact:
+            total += max(0, int(storage_model_counts.get(safe_model_id, 0)))
+            if safe_model_id in ALL_CRAFTING_MATERIAL_MODEL_IDS:
+                material_storage_quantity, _slot, _bag_size = self._get_material_storage_quantity_and_slot(safe_model_id)
+                total += max(0, int(material_storage_quantity))
+        return total
+
+    def _get_consumable_craft_cap(
+        self,
+        recipe: ConsumableCrafterRecipe,
+        *,
+        inventory_model_counts: dict[int, int],
+        storage_model_counts: dict[int, int],
+        storage_exact: bool,
+    ) -> tuple[int, list[str]]:
+        blockers: list[str] = []
+        caps: list[int] = []
+        current_skill_points, _total_skill_points = Player.GetSkillPointData()
+        skill_points_per_craft = max(0, int(recipe.skill_points))
+        if skill_points_per_craft > 0:
+            caps.append(max(0, int(current_skill_points)) // skill_points_per_craft)
+
+        gold_available = max(0, int(GLOBAL_CACHE.Inventory.GetGoldOnCharacter()))
+        if storage_exact:
+            gold_available += max(0, int(GLOBAL_CACHE.Inventory.GetGoldInStorage()))
+        gold_cost = max(0, int(recipe.gold_cost))
+        if gold_cost > 0:
+            caps.append(gold_available // gold_cost)
+
+        for ingredient_model_id, quantity_per_craft in recipe.ingredients:
+            safe_quantity = max(0, int(quantity_per_craft))
+            if safe_quantity <= 0:
+                continue
+            available = self._get_consumable_material_available_count(
+                int(ingredient_model_id),
+                inventory_model_counts=inventory_model_counts,
+                storage_model_counts=storage_model_counts,
+                storage_exact=storage_exact,
+            )
+            caps.append(available // safe_quantity)
+            if storage_exact and available < safe_quantity:
+                blockers.append(
+                    f"Need {safe_quantity} {self._format_model_label_short(int(ingredient_model_id))}; found {available}."
+                )
+
+        if skill_points_per_craft > 0 and max(0, int(current_skill_points)) < skill_points_per_craft:
+            blockers.append(f"Need {skill_points_per_craft} skill point; found {max(0, int(current_skill_points))}.")
+        if gold_cost > 0 and gold_available < gold_cost:
+            blockers.append(f"Need {gold_cost} gold; found {gold_available}.")
+        return (min(caps) if caps else 0), blockers
+
     def _has_enabled_rune_buy_rules(self) -> bool:
         for raw_rule in self.buy_rules:
             rule = _normalize_buy_rule(raw_rule)
@@ -8114,6 +8551,18 @@ class MerchantRulesWidget:
             elif rule.kind == BUY_KIND_MERCHANT_STOCK:
                 if any(_is_scroll_trader_stock_model(target.model_id) for target in _normalize_merchant_stock_targets(rule.merchant_stock_targets)):
                     return True
+        return False
+
+    def _has_enabled_consumable_crafter_buy_rules(self) -> bool:
+        for raw_rule in self.buy_rules:
+            rule = _normalize_buy_rule(raw_rule)
+            if rule is None or not rule.enabled or rule.kind != BUY_KIND_CONSUMABLE_CRAFTER_TARGET:
+                continue
+            if any(
+                int(target.model_id) in CONSUMABLE_CRAFTER_RECIPES_BY_MODEL
+                for target in _normalize_merchant_stock_targets(rule.merchant_stock_targets)
+            ):
+                return True
         return False
 
     def _get_items_after_planned_pre_buy_actions(
@@ -9506,6 +9955,167 @@ class MerchantRulesWidget:
                     )
                 continue
 
+            if buy_rule.kind == BUY_KIND_CONSUMABLE_CRAFTER_TARGET:
+                crafter_targets = [
+                    target
+                    for target in _normalize_merchant_stock_targets(buy_rule.merchant_stock_targets)
+                    if int(target.model_id) in CONSUMABLE_CRAFTER_RECIPES_BY_MODEL
+                ]
+                if not crafter_targets:
+                    plan.entries.append(
+                        ExecutionPlanEntry(
+                            "buy",
+                            MERCHANT_TYPE_CONSUMABLE_CRAFTER,
+                            BUY_KIND_LABELS[buy_rule.kind],
+                            0,
+                            PLAN_STATE_SKIPPED,
+                            "No consumable crafter items selected.",
+                        )
+                    )
+                    continue
+
+                crafter_coords = coords.get(MERCHANT_TYPE_CONSUMABLE_CRAFTER)
+                for crafter_target in crafter_targets:
+                    crafter_model_id = max(0, int(crafter_target.model_id))
+                    recipe = self._get_consumable_crafter_recipe_for_model(crafter_model_id)
+                    crafter_label = self._format_model_label(crafter_model_id)
+                    if recipe is None:
+                        plan.entries.append(
+                            ExecutionPlanEntry(
+                                "buy",
+                                MERCHANT_TYPE_CONSUMABLE_CRAFTER,
+                                crafter_label,
+                                0,
+                                PLAN_STATE_SKIPPED,
+                                "Selected item is not a supported Embark Beach consumable crafter recipe.",
+                            )
+                        )
+                        continue
+                    if not supported_map:
+                        plan.entries.append(
+                            ExecutionPlanEntry(
+                                "buy",
+                                MERCHANT_TYPE_CONSUMABLE_CRAFTER,
+                                crafter_label,
+                                0,
+                                PLAN_STATE_SKIPPED,
+                                supported_reason,
+                            )
+                        )
+                        continue
+                    if crafter_coords is None:
+                        plan.entries.append(
+                            ExecutionPlanEntry(
+                                "buy",
+                                MERCHANT_TYPE_CONSUMABLE_CRAFTER,
+                                crafter_label,
+                                0,
+                                PLAN_STATE_SKIPPED,
+                                "Consumable crafters are currently supported at Embark Beach only.",
+                            )
+                        )
+                        continue
+
+                    current_rank, tier_name, _title_points = self._get_title_rank_info(recipe.title_id)
+                    if current_rank < int(recipe.required_rank):
+                        plan.entries.append(
+                            ExecutionPlanEntry(
+                                "buy",
+                                MERCHANT_TYPE_CONSUMABLE_CRAFTER,
+                                crafter_label,
+                                0,
+                                PLAN_STATE_SKIPPED,
+                                f"{recipe.vendor_name} requires rank {recipe.required_rank}; current rank is {current_rank} ({tier_name}).",
+                            )
+                        )
+                        continue
+
+                    current_count = max(0, int(sim_model_counts.get(crafter_model_id, 0)))
+                    if plan.storage_exact:
+                        current_count += max(0, int(storage_model_counts.get(crafter_model_id, 0)))
+                    missing = max(0, int(crafter_target.target_count) - current_count)
+                    needed = self._apply_max_per_run(missing, int(crafter_target.max_per_run))
+                    if needed <= 0:
+                        plan.entries.append(
+                            ExecutionPlanEntry("buy", MERCHANT_TYPE_CONSUMABLE_CRAFTER, crafter_label, 0, PLAN_STATE_SKIPPED, "Target already met.")
+                        )
+                        continue
+
+                    if not plan.storage_exact:
+                        sim_model_counts[crafter_model_id] = current_count + needed
+                        plan.consumable_crafter_buys.append(
+                            PlannedConsumableCraft(
+                                model_id=crafter_model_id,
+                                quantity=needed,
+                                label=crafter_label,
+                                vendor_key=recipe.vendor_key,
+                                vendor_name=recipe.vendor_name,
+                                coords=recipe.coords,
+                            )
+                        )
+                        plan.entries.append(
+                            ExecutionPlanEntry(
+                                "buy",
+                                MERCHANT_TYPE_CONSUMABLE_CRAFTER,
+                                crafter_label,
+                                needed,
+                                PLAN_STATE_CONDITIONAL,
+                                "Needs exact Xunlai/material-storage scan before crafting.",
+                            )
+                        )
+                        continue
+
+                    craft_cap, blockers = self._get_consumable_craft_cap(
+                        recipe,
+                        inventory_model_counts=sim_model_counts,
+                        storage_model_counts=storage_model_counts,
+                        storage_exact=plan.storage_exact,
+                    )
+                    craft_quantity = min(needed, max(0, int(craft_cap)))
+                    if craft_quantity <= 0:
+                        plan.entries.append(
+                            ExecutionPlanEntry(
+                                "buy",
+                                MERCHANT_TYPE_CONSUMABLE_CRAFTER,
+                                crafter_label,
+                                0,
+                                PLAN_STATE_SKIPPED,
+                                " ".join(blockers) or "Missing skill points, gold, or materials.",
+                            )
+                        )
+                        continue
+
+                    for ingredient_model_id, ingredient_quantity in recipe.ingredients:
+                        sim_model_counts[int(ingredient_model_id)] = max(
+                            0,
+                            int(sim_model_counts.get(int(ingredient_model_id), 0)) - (int(ingredient_quantity) * craft_quantity),
+                        )
+                    sim_model_counts[crafter_model_id] = current_count + craft_quantity
+                    plan.consumable_crafter_buys.append(
+                        PlannedConsumableCraft(
+                            model_id=crafter_model_id,
+                            quantity=craft_quantity,
+                            label=crafter_label,
+                            vendor_key=recipe.vendor_key,
+                            vendor_name=recipe.vendor_name,
+                            coords=recipe.coords,
+                        )
+                    )
+                    reason = f"{recipe.vendor_name}; rank {current_rank} ({tier_name})."
+                    if craft_quantity < needed:
+                        reason = f"{reason} Capped by available skill points, gold, or materials."
+                    plan.entries.append(
+                        ExecutionPlanEntry(
+                            "buy",
+                            MERCHANT_TYPE_CONSUMABLE_CRAFTER,
+                            crafter_label,
+                            craft_quantity,
+                            PLAN_STATE_CONDITIONAL,
+                            reason,
+                        )
+                    )
+                continue
+
             if buy_rule.kind == BUY_KIND_SCROLL_TRADER_TARGET:
                 scroll_targets = [
                     target
@@ -9826,7 +10436,7 @@ class MerchantRulesWidget:
         storage_api = getattr(GLOBAL_CACHE, "Inventory", None)
         storage_open = bool(storage_api is not None and bool(getattr(storage_api, "IsStorageOpen", lambda: False)()))
         storage_items: list[InventoryItemInfo] = []
-        if self._has_enabled_rune_buy_rules():
+        if self._has_enabled_rune_buy_rules() or self._has_enabled_consumable_crafter_buy_rules():
             if storage_open:
                 storage_items = self._collect_storage_items()
                 plan.storage_plan_state = STORAGE_PLAN_STATE_EXACT_READY
@@ -10304,6 +10914,7 @@ class MerchantRulesWidget:
             or plan.rune_trader_sales
             or plan.rune_trader_buys
             or plan.scroll_trader_buys
+            or plan.consumable_crafter_buys
             or plan.storage_transfers
             or plan.cleanup_transfers
             or self._plan_needs_exact_storage_scan(plan)
@@ -10790,6 +11401,267 @@ class MerchantRulesWidget:
         self._debug_log(
             f"Destroy phase completed: completed={outcome.completed}/{outcome.attempted} "
             f"timeouts={outcome.timeout_failures} depleted={outcome.depleted}"
+        )
+        return outcome
+
+    def _get_item_ids_by_model_from_bags(self, model_id: int, bag_ids: tuple[int, ...] | list[int]) -> list[int]:
+        safe_model_id = max(0, int(model_id))
+        if safe_model_id <= 0:
+            return []
+        matches: list[int] = []
+        for item_id in self._get_bag_item_ids([int(bag_id) for bag_id in bag_ids]):
+            try:
+                if int(GLOBAL_CACHE.Item.GetModelID(item_id)) == safe_model_id:
+                    matches.append(int(item_id))
+            except Exception:
+                continue
+        return matches
+
+    def _get_inventory_model_item_ids(self, model_id: int) -> list[int]:
+        return self._get_item_ids_by_model_from_bags(model_id, INVENTORY_BAG_IDS)
+
+    def _get_storage_model_item_ids_for_crafting(self, model_id: int) -> list[int]:
+        return self._get_item_ids_by_model_from_bags(model_id, (MATERIAL_STORAGE_BAG_ID, *range(8, 22)))
+
+    def _wait_for_inventory_model_count_at_least(
+        self,
+        model_id: int,
+        expected_count: int,
+        *,
+        timeout_ms: int = 1500,
+        step_ms: int = 50,
+    ):
+        safe_model_id = max(0, int(model_id))
+        safe_expected_count = max(0, int(expected_count))
+        waited_ms = 0
+        while waited_ms <= max(0, int(timeout_ms)):
+            current_count = max(0, int(GLOBAL_CACHE.Inventory.GetModelCount(safe_model_id)))
+            if current_count >= safe_expected_count:
+                return current_count
+            waited_ms += max(1, int(step_ms))
+            yield from Routines.Yield.wait(step_ms)
+        return max(0, int(GLOBAL_CACHE.Inventory.GetModelCount(safe_model_id)))
+
+    def _withdraw_model_to_inventory_for_crafting(self, model_id: int, needed_quantity: int):
+        safe_model_id = max(0, int(model_id))
+        remaining = max(0, int(needed_quantity))
+        moved_total = 0
+        while safe_model_id > 0 and remaining > 0:
+            source_item_ids = self._get_storage_model_item_ids_for_crafting(safe_model_id)
+            if not source_item_ids:
+                break
+            moved_this_pass = False
+            for source_item_id in source_item_ids:
+                try:
+                    source_quantity = max(0, int(GLOBAL_CACHE.Item.Properties.GetQuantity(source_item_id)))
+                except Exception:
+                    source_quantity = 0
+                if source_quantity <= 0:
+                    continue
+                requested = min(source_quantity, remaining)
+                before = max(0, int(GLOBAL_CACHE.Inventory.GetModelCount(safe_model_id)))
+                if bool(GLOBAL_CACHE.Inventory.WithdrawItemFromStorage(source_item_id, ammount=requested)):
+                    after = yield from self._wait_for_inventory_model_count_at_least(
+                        safe_model_id,
+                        before + requested,
+                        timeout_ms=1800,
+                        step_ms=50,
+                    )
+                    gained = max(0, int(after) - before)
+                    if gained <= 0:
+                        self._debug_log(
+                            f"Crafting material withdraw did not reach inventory: "
+                            f"{self._format_model_label_short(safe_model_id)} requested={requested} before={before} after={after}."
+                        )
+                        continue
+                    moved_total += gained
+                    remaining = max(0, remaining - gained)
+                    moved_this_pass = True
+                    break
+            if not moved_this_pass:
+                break
+        return moved_total
+
+    def _prepare_consumable_crafting_materials(
+        self,
+        planned_crafts: list[PlannedConsumableCraft],
+        *,
+        vendor_name: str,
+    ) -> bool:
+        required_by_model: dict[int, int] = {}
+        for craft in planned_crafts:
+            recipe = self._get_consumable_crafter_recipe_for_model(craft.model_id)
+            if recipe is None:
+                continue
+            craft_quantity = max(0, int(craft.quantity))
+            if craft_quantity <= 0:
+                continue
+            for ingredient_model_id, ingredient_quantity in recipe.ingredients:
+                required_by_model[int(ingredient_model_id)] = required_by_model.get(int(ingredient_model_id), 0) + (
+                    max(0, int(ingredient_quantity)) * craft_quantity
+                )
+
+        if not required_by_model:
+            return True
+
+        if not self._is_storage_open() and not (yield from self._ensure_storage_open(purpose=f"{vendor_name} crafting material withdrawal")):
+            return False
+
+        all_ready = True
+        for ingredient_model_id, required_quantity in required_by_model.items():
+            inventory_quantity = max(0, int(GLOBAL_CACHE.Inventory.GetModelCount(int(ingredient_model_id))))
+            missing_quantity = max(0, int(required_quantity) - inventory_quantity)
+            if missing_quantity > 0:
+                moved_quantity = yield from self._withdraw_model_to_inventory_for_crafting(int(ingredient_model_id), missing_quantity)
+                if moved_quantity > 0:
+                    yield from Routines.Yield.wait(120)
+            final_quantity = max(0, int(GLOBAL_CACHE.Inventory.GetModelCount(int(ingredient_model_id))))
+            if final_quantity < int(required_quantity):
+                all_ready = False
+                ConsoleLog(
+                    MODULE_NAME,
+                    f"Cannot prepare {vendor_name} crafting materials: need {required_quantity} "
+                    f"{self._format_model_label_short(int(ingredient_model_id))}; found {final_quantity} in inventory.",
+                    Console.MessageType.Warning,
+                )
+        return all_ready
+
+    def _collect_crafting_ingredients_from_inventory(self, recipe: ConsumableCrafterRecipe) -> tuple[list[int], list[int], list[str]]:
+        ingredient_item_ids: list[int] = []
+        ingredient_quantities: list[int] = []
+        blockers: list[str] = []
+        for ingredient_model_id, quantity_needed in recipe.ingredients:
+            remaining = max(0, int(quantity_needed))
+            collected = 0
+            for item_id in self._get_inventory_model_item_ids(int(ingredient_model_id)):
+                if remaining <= 0:
+                    break
+                try:
+                    stack_quantity = max(0, int(GLOBAL_CACHE.Item.Properties.GetQuantity(item_id)))
+                except Exception:
+                    stack_quantity = 0
+                if stack_quantity <= 0:
+                    continue
+                take_quantity = min(stack_quantity, remaining)
+                ingredient_item_ids.append(int(item_id))
+                ingredient_quantities.append(int(take_quantity))
+                collected += take_quantity
+                remaining -= take_quantity
+            if remaining > 0:
+                blockers.append(f"Need {quantity_needed} {self._format_model_label_short(int(ingredient_model_id))}; found {collected}.")
+        return ingredient_item_ids, ingredient_quantities, blockers
+
+    def _open_consumable_crafter(self, coords: tuple[float, float], vendor_name: str):
+        self._debug_log(f"Opening consumable crafter {vendor_name} at {self._format_debug_coords(coords)}.")
+        x, y = coords
+        yield from Routines.Yield.Movement.FollowPath([(x, y)])
+        yield from Routines.Yield.wait(100)
+        ok = yield from Routines.Yield.Agents.InteractWithAgentXY(x, y)
+        if not ok:
+            self._debug_log(f"Consumable crafter interaction failed for {vendor_name}.")
+            return []
+        yield from Routines.Yield.wait(700)
+        return (yield from self._wait_for_merchant_inventory())
+
+    def _craft_planned_consumables(
+        self,
+        planned_crafts: list[PlannedConsumableCraft],
+        *,
+        phase_label: str = "Consumable crafters",
+    ) -> ExecutionPhaseOutcome:
+        outcome = ExecutionPhaseOutcome(
+            label=phase_label,
+            measure_label="crafts",
+            attempted=sum(max(0, int(craft.quantity)) for craft in planned_crafts),
+        )
+        if not planned_crafts:
+            return outcome
+
+        if not self._is_storage_open() and not (yield from self._ensure_storage_open(purpose="consumable crafter material scan")):
+            outcome.load_failures += 1
+            return outcome
+
+        grouped_by_vendor: dict[str, list[PlannedConsumableCraft]] = {}
+        for craft in planned_crafts:
+            grouped_by_vendor.setdefault(str(craft.vendor_key), []).append(craft)
+
+        for _vendor_key, vendor_crafts in grouped_by_vendor.items():
+            first_craft = vendor_crafts[0]
+            if not (yield from self._prepare_consumable_crafting_materials(vendor_crafts, vendor_name=first_craft.vendor_name)):
+                outcome.depleted += sum(max(0, int(craft.quantity)) for craft in vendor_crafts)
+                continue
+
+            opened_items = yield from self._open_consumable_crafter(first_craft.coords, first_craft.vendor_name)
+            if not opened_items:
+                outcome.load_failures += len(vendor_crafts)
+                continue
+            offered_by_model = {}
+            for offered_item_id in opened_items:
+                try:
+                    offered_by_model[int(GLOBAL_CACHE.Item.GetModelID(offered_item_id))] = int(offered_item_id)
+                except Exception:
+                    continue
+
+            for craft in vendor_crafts:
+                recipe = self._get_consumable_crafter_recipe_for_model(craft.model_id)
+                if recipe is None:
+                    outcome.unavailable += max(1, int(craft.quantity))
+                    continue
+                offered_item_id = int(offered_by_model.get(int(recipe.model_id), 0))
+                if offered_item_id <= 0:
+                    outcome.unavailable += max(1, int(craft.quantity))
+                    ConsoleLog(MODULE_NAME, f"{craft.label} was not offered by {craft.vendor_name}.", Console.MessageType.Warning)
+                    continue
+
+                for _ in range(max(0, int(craft.quantity))):
+                    current_skill_points, _total_skill_points = Player.GetSkillPointData()
+                    if int(current_skill_points) < int(recipe.skill_points):
+                        outcome.depleted += 1
+                        break
+
+                    character_gold = max(0, int(GLOBAL_CACHE.Inventory.GetGoldOnCharacter()))
+                    if character_gold < int(recipe.gold_cost):
+                        withdraw_amount = min(
+                            max(0, int(GLOBAL_CACHE.Inventory.GetGoldInStorage())),
+                            int(recipe.gold_cost) - character_gold,
+                        )
+                        if withdraw_amount > 0:
+                            GLOBAL_CACHE.Inventory.WithdrawGold(withdraw_amount)
+                            yield from Routines.Yield.wait(250)
+                            character_gold = max(0, int(GLOBAL_CACHE.Inventory.GetGoldOnCharacter()))
+                    if character_gold < int(recipe.gold_cost):
+                        outcome.gold_blocked += 1
+                        break
+
+                    ingredient_item_ids, ingredient_quantities, blockers = self._collect_crafting_ingredients_from_inventory(recipe)
+                    if blockers:
+                        outcome.depleted += 1
+                        ConsoleLog(MODULE_NAME, f"Cannot craft {craft.label}: {' '.join(blockers)}", Console.MessageType.Warning)
+                        break
+
+                    before_count = max(0, int(GLOBAL_CACHE.Inventory.GetModelCount(int(recipe.model_id))))
+                    GLOBAL_CACHE.Trading.Crafter.CraftItem(
+                        offered_item_id,
+                        int(recipe.gold_cost),
+                        ingredient_item_ids,
+                        ingredient_quantities,
+                    )
+                    completed = yield from Routines.Yield.Merchant._wait_for_transaction(  # pylint: disable=protected-access
+                        timeout_ms=1500,
+                        step_ms=50,
+                    )
+                    yield from Routines.Yield.wait(300)
+                    after_count = max(0, int(GLOBAL_CACHE.Inventory.GetModelCount(int(recipe.model_id))))
+                    if completed or after_count > before_count:
+                        outcome.completed += 1
+                    else:
+                        outcome.timeout_failures += 1
+                        break
+
+        self._debug_log(
+            f"{phase_label}: completed={outcome.completed}/{outcome.attempted} unavailable={outcome.unavailable} "
+            f"timeouts={outcome.timeout_failures} gold_blocked={outcome.gold_blocked} "
+            f"depleted={outcome.depleted} load_failures={outcome.load_failures}"
         )
         return outcome
 
@@ -11746,6 +12618,18 @@ class MerchantRulesWidget:
             if scroll_buy_summary:
                 phase_summaries.append(scroll_buy_summary)
 
+            consumable_craft_outcome = ExecutionPhaseOutcome(label="Consumable crafters", measure_label="crafts")
+            consumable_crafts_started_at = time.perf_counter()
+            if plan.consumable_crafter_buys:
+                consumable_craft_outcome = yield from self._craft_planned_consumables(
+                    plan.consumable_crafter_buys,
+                    phase_label="Consumable crafters",
+                )
+            self.last_execution_phase_durations_ms["consumable_crafters"] = max(0.0, (time.perf_counter() - consumable_crafts_started_at) * 1000.0)
+            consumable_craft_summary = self._format_execution_phase_summary(consumable_craft_outcome)
+            if consumable_craft_summary:
+                phase_summaries.append(consumable_craft_summary)
+
             merchant_buy_outcome = ExecutionPhaseOutcome(
                 label="Merchant stock",
                 measure_label="targets queued",
@@ -12253,6 +13137,7 @@ class MerchantRulesWidget:
             MERCHANT_TYPE_RUNE_TRADER: bool(coords.get(MERCHANT_TYPE_RUNE_TRADER)),
             MERCHANT_TYPE_SCROLL_TRADER: bool(coords.get(MERCHANT_TYPE_SCROLL_TRADER)),
             MERCHANT_TYPE_RARE_MATERIALS: bool(coords.get(MERCHANT_TYPE_RARE_MATERIALS)),
+            MERCHANT_TYPE_CONSUMABLE_CRAFTER: bool(coords.get(MERCHANT_TYPE_CONSUMABLE_CRAFTER)),
             MERCHANT_TYPE_STORAGE: self._has_local_storage_access(),
             MERCHANT_TYPE_INVENTORY: True,
             MERCHANT_TYPE_TRAVEL: False,
@@ -12263,6 +13148,7 @@ class MerchantRulesWidget:
             availability_here[MERCHANT_TYPE_RUNE_TRADER] = False
             availability_here[MERCHANT_TYPE_SCROLL_TRADER] = False
             availability_here[MERCHANT_TYPE_RARE_MATERIALS] = False
+            availability_here[MERCHANT_TYPE_CONSUMABLE_CRAFTER] = False
         return availability_here
 
     def _preview_entry_needs_local_storage_access(
@@ -12277,6 +13163,8 @@ class MerchantRulesWidget:
         if merchant_type == MERCHANT_TYPE_STORAGE:
             return True
         if merchant_type == MERCHANT_TYPE_RUNE_TRADER and action_type == "buy":
+            return self._plan_needs_exact_storage_scan(safe_plan)
+        if merchant_type == MERCHANT_TYPE_CONSUMABLE_CRAFTER and action_type == "buy":
             return self._plan_needs_exact_storage_scan(safe_plan)
         return False
 
@@ -12398,7 +13286,7 @@ class MerchantRulesWidget:
         if str(plan.storage_plan_state) != STORAGE_PLAN_STATE_NEEDS_EXACT_SCAN:
             return False
         return any(
-            str(entry.merchant_type) == MERCHANT_TYPE_RUNE_TRADER
+            str(entry.merchant_type) in (MERCHANT_TYPE_RUNE_TRADER, MERCHANT_TYPE_CONSUMABLE_CRAFTER)
             and str(entry.state) == PLAN_STATE_CONDITIONAL
             for entry in plan.entries
         )
@@ -12640,6 +13528,31 @@ class MerchantRulesWidget:
             ]
             summary = self._format_compact_list(target_labels, limit=2) or f"{len(scroll_targets)} scroll target(s)"
             return f"{len(scroll_targets)} scroll target(s) | {summary}", True
+        if normalized_rule.kind == BUY_KIND_CONSUMABLE_CRAFTER_TARGET:
+            crafter_targets = [
+                target
+                for target in _normalize_merchant_stock_targets(normalized_rule.merchant_stock_targets)
+                if int(target.model_id) in CONSUMABLE_CRAFTER_RECIPES_BY_MODEL
+            ]
+            if not crafter_targets:
+                return "Choose one or more Embark Beach consumables to craft.", False
+            if len(crafter_targets) == 1:
+                crafter_target = crafter_targets[0]
+                parts = [self._format_model_label(crafter_target.model_id)]
+                if crafter_target.target_count > 0:
+                    parts.append(f"Target {int(crafter_target.target_count)}")
+                else:
+                    parts.append("No target set")
+                if crafter_target.max_per_run > 0:
+                    parts.append(f"Max/run {int(crafter_target.max_per_run)}")
+                return " | ".join(parts), True
+
+            target_labels = [
+                self._get_model_name(target.model_id) or str(target.model_id)
+                for target in self._sort_targets_by_model_label_for_display(crafter_targets)
+            ]
+            summary = self._format_compact_list(target_labels, limit=2) or f"{len(crafter_targets)} crafter target(s)"
+            return f"{len(crafter_targets)} crafter target(s) | {summary}", True
         if normalized_rule.kind == BUY_KIND_MERCHANT_STOCK:
             merchant_stock_targets = _normalize_merchant_stock_targets(normalized_rule.merchant_stock_targets)
             if not merchant_stock_targets:
@@ -15054,6 +15967,82 @@ class MerchantRulesWidget:
             return True
         return all(token in entry.search_text for token in query.split())
 
+    def _draw_protection_entries_table(self, table_id: str, entries: list[ProtectionHubEntry]):
+        if not entries:
+            return
+
+        table_flags = (
+            PyImGui.TableFlags.RowBg
+            | PyImGui.TableFlags.BordersInnerV
+            | PyImGui.TableFlags.Resizable
+            | PyImGui.TableFlags.ScrollX
+            | PyImGui.TableFlags.SizingFixedFit
+            | PyImGui.TableFlags.NoSavedSettings
+        )
+        if PyImGui.begin_table(table_id, 8, table_flags, 1180.0, 0.0):
+            PyImGui.table_setup_column("Source", PyImGui.TableColumnFlags.WidthFixed, 85.0)
+            PyImGui.table_setup_column("Type", PyImGui.TableColumnFlags.WidthFixed, 190.0)
+            PyImGui.table_setup_column("Value", PyImGui.TableColumnFlags.WidthFixed, 285.0)
+            PyImGui.table_setup_column("Owner Kind", PyImGui.TableColumnFlags.WidthFixed, 110.0)
+            PyImGui.table_setup_column("Owner Rule", PyImGui.TableColumnFlags.WidthFixed, 300.0)
+            PyImGui.table_setup_column("Enabled", PyImGui.TableColumnFlags.WidthFixed, 72.0)
+            PyImGui.table_setup_column("Order", PyImGui.TableColumnFlags.WidthFixed, 58.0)
+            PyImGui.table_setup_column("Jump", PyImGui.TableColumnFlags.WidthFixed, 58.0)
+
+            PyImGui.table_next_row()
+            for column_index, column_label in enumerate(("Source", "Type", "Value", "Owner Kind", "Owner Rule", "Enabled", "Order", "Jump")):
+                PyImGui.table_set_column_index(column_index)
+                self._draw_secondary_text(column_label, wrapped=False)
+
+            for row_index, entry in enumerate(entries):
+                PyImGui.table_next_row()
+
+                PyImGui.table_set_column_index(0)
+                PyImGui.text(entry.source_label)
+
+                PyImGui.table_set_column_index(1)
+                PyImGui.text(entry.protection_type_label)
+                self._draw_hover_tooltip(entry.protection_type_label)
+
+                PyImGui.table_set_column_index(2)
+                value_color = self._get_rune_text_color_for_protection_entry(entry)
+                if value_color is not None:
+                    PyImGui.text_colored(entry.value_label, value_color)
+                else:
+                    PyImGui.text(entry.value_label)
+                if entry.filter_key == PROTECTION_FILTER_RUNES and str(entry.target_key or "").startswith("identifier:"):
+                    self._draw_hover_tooltip(self._get_rune_tooltip_text(str(entry.target_key)[len("identifier:"):]))
+                else:
+                    self._draw_hover_tooltip(entry.value_label)
+
+                PyImGui.table_set_column_index(3)
+                self._draw_inline_badge(entry.owner_rule_kind_label, RULE_KIND_PRESENTATION.get(entry.owner_rule_kind, ("Rule", UI_COLOR_SUBTLE))[1])
+                self._draw_hover_tooltip(entry.owner_rule_kind_label)
+
+                PyImGui.table_set_column_index(4)
+                PyImGui.text(entry.owner_rule_label)
+                self._draw_hover_tooltip(entry.owner_rule_label)
+
+                PyImGui.table_set_column_index(5)
+                enabled_label = "Yes" if entry.owner_rule_enabled else "No"
+                enabled_color = UI_COLOR_SUCCESS if entry.owner_rule_enabled else UI_COLOR_MUTED
+                PyImGui.text_colored(enabled_label, enabled_color)
+
+                PyImGui.table_set_column_index(6)
+                PyImGui.text(str(int(entry.owner_rule_order)))
+
+                PyImGui.table_set_column_index(7)
+                if PyImGui.small_button(f"Go##merchant_rules_protection_jump_{table_id}_{row_index}_{entry.owner_rule_index}"):
+                    self._request_jump_to_sell_rule(
+                        entry.owner_rule_index,
+                        entry.owner_rule_kind,
+                        subsection_anchor=entry.subsection_anchor,
+                        target_key=entry.target_key,
+                        requires_advanced=entry.requires_advanced,
+                    )
+
+            PyImGui.end_table()
+
     def _draw_protections_section(self):
         entries = self._build_protection_hub_entries()
         filtered_entries = [entry for entry in entries if self._entry_matches_protection_filters(entry)]
@@ -15126,64 +16115,35 @@ class MerchantRulesWidget:
             self._draw_secondary_text("No protection entries match the current search and filters.")
             return
 
-        if PyImGui.begin_child("merchant_rules_protections_table_child", (0, 0), True, PyImGui.WindowFlags.NoFlag):
-            table_flags = PyImGui.TableFlags.RowBg | PyImGui.TableFlags.BordersInnerV
-            if PyImGui.begin_table("merchant_rules_protections_table", 8, table_flags):
-                PyImGui.table_setup_column("Source", PyImGui.TableColumnFlags.WidthFixed, 85.0)
-                PyImGui.table_setup_column("Type", PyImGui.TableColumnFlags.WidthFixed, 140.0)
-                PyImGui.table_setup_column("Value", PyImGui.TableColumnFlags.WidthStretch)
-                PyImGui.table_setup_column("Owner Kind", PyImGui.TableColumnFlags.WidthFixed, 90.0)
-                PyImGui.table_setup_column("Owner Rule", PyImGui.TableColumnFlags.WidthStretch)
-                PyImGui.table_setup_column("Enabled", PyImGui.TableColumnFlags.WidthFixed, 72.0)
-                PyImGui.table_setup_column("Order", PyImGui.TableColumnFlags.WidthFixed, 58.0)
-                PyImGui.table_setup_column("Jump", PyImGui.TableColumnFlags.WidthFixed, 58.0)
+        self._draw_secondary_text("Open a category to view its entries. Tables scroll sideways and column dividers can be dragged wider.", wrapped=False)
 
-                PyImGui.table_next_row()
-                for column_index, column_label in enumerate(("Source", "Type", "Value", "Owner Kind", "Owner Rule", "Enabled", "Order", "Jump")):
-                    PyImGui.table_set_column_index(column_index)
-                    self._draw_secondary_text(column_label, wrapped=False)
+        if PyImGui.begin_child("merchant_rules_protections_table_child", (0, 0), True, PyImGui.WindowFlags.HorizontalScrollbar):
+            protection_type_order = {
+                "Protected Model": 0,
+                "Protected Weapon Type": 1,
+                "Req Range": 2,
+                "Protected Weapon Mod": 3,
+                "Protected Weapon Mod Roll": 4,
+                "Protected Weapon Mod Variant": 5,
+                "Protected Weapon Mod Variant Roll": 6,
+                "Protected Rune / Insignia": 7,
+            }
+            grouped_entries: dict[str, list[ProtectionHubEntry]] = {}
+            for entry in filtered_entries:
+                grouped_entries.setdefault(entry.protection_type_label, []).append(entry)
 
-                for row_index, entry in enumerate(filtered_entries):
-                    PyImGui.table_next_row()
-
-                    PyImGui.table_set_column_index(0)
-                    PyImGui.text(entry.source_label)
-
-                    PyImGui.table_set_column_index(1)
-                    PyImGui.text(entry.protection_type_label)
-
-                    PyImGui.table_set_column_index(2)
-                    value_color = self._get_rune_text_color_for_protection_entry(entry)
-                    if value_color is not None:
-                        PyImGui.text_colored(entry.value_label, value_color)
-                    else:
-                        PyImGui.text(entry.value_label)
-
-                    PyImGui.table_set_column_index(3)
-                    self._draw_inline_badge(entry.owner_rule_kind_label, RULE_KIND_PRESENTATION.get(entry.owner_rule_kind, ("Rule", UI_COLOR_SUBTLE))[1])
-
-                    PyImGui.table_set_column_index(4)
-                    PyImGui.text(entry.owner_rule_label)
-
-                    PyImGui.table_set_column_index(5)
-                    enabled_label = "Yes" if entry.owner_rule_enabled else "No"
-                    enabled_color = UI_COLOR_SUCCESS if entry.owner_rule_enabled else UI_COLOR_MUTED
-                    PyImGui.text_colored(enabled_label, enabled_color)
-
-                    PyImGui.table_set_column_index(6)
-                    PyImGui.text(str(int(entry.owner_rule_order)))
-
-                    PyImGui.table_set_column_index(7)
-                    if PyImGui.small_button(f"Go##merchant_rules_protection_jump_{row_index}_{entry.owner_rule_index}"):
-                        self._request_jump_to_sell_rule(
-                            entry.owner_rule_index,
-                            entry.owner_rule_kind,
-                            subsection_anchor=entry.subsection_anchor,
-                            target_key=entry.target_key,
-                            requires_advanced=entry.requires_advanced,
-                        )
-
-                PyImGui.end_table()
+            for group_index, protection_type_label in enumerate(
+                sorted(grouped_entries, key=lambda label: (protection_type_order.get(label, 99), label))
+            ):
+                group_entries = grouped_entries[protection_type_label]
+                header_label = f"{protection_type_label} ({len(group_entries)})##merchant_rules_protection_group_{group_index}"
+                if PyImGui.collapsing_header(header_label):
+                    safe_table_label = str(protection_type_label).lower().replace(" ", "_").replace("/", "_")
+                    self._draw_protection_entries_table(
+                        f"merchant_rules_protections_table_{group_index}_{safe_table_label}",
+                        group_entries,
+                    )
+                    PyImGui.spacing()
         PyImGui.end_child()
 
     def _draw_buy_rule_merchant_stock_editor(self, index: int, rule: BuyRule) -> bool:
@@ -15368,6 +16328,97 @@ class MerchantRulesWidget:
 
         return changed
 
+    def _draw_buy_rule_consumable_crafter_targets_editor(self, index: int, rule: BuyRule) -> bool:
+        changed = False
+        crafter_targets = [
+            target
+            for target in _normalize_merchant_stock_targets(rule.merchant_stock_targets)
+            if int(target.model_id) in CONSUMABLE_CRAFTER_RECIPES_BY_MODEL
+        ]
+
+        if self._draw_confirm_destructive_button(f"Clear Consumables##buy_crafter_clear_{index}"):
+            if self._set_buy_rule_consumable_crafter_targets(rule, []):
+                crafter_targets = []
+                changed = True
+
+        PyImGui.text(f"Selected Consumables: {len(crafter_targets)}")
+        if not crafter_targets:
+            self._draw_secondary_text("No Embark Beach consumables selected yet.", wrapped=False)
+            return changed
+
+        updated_targets = [
+            MerchantStockTarget(
+                model_id=target.model_id,
+                target_count=target.target_count,
+                max_per_run=target.max_per_run,
+            )
+            for target in crafter_targets
+        ]
+        display_targets = self._sort_targets_by_model_label_for_display(updated_targets)
+        removed_model_id = 0
+        child_height = min(240, 58 + (32 * len(updated_targets)))
+        if PyImGui.begin_child(f"buy_consumable_crafter_selected_{index}", (0, child_height), True, PyImGui.WindowFlags.NoFlag):
+            if PyImGui.begin_table(f"buy_consumable_crafter_selected_table_{index}", 5, self._get_dense_list_table_flags()):
+                PyImGui.table_setup_column("Consumable", PyImGui.TableColumnFlags.WidthStretch)
+                PyImGui.table_setup_column("Crafter", PyImGui.TableColumnFlags.WidthFixed, 130.0)
+                PyImGui.table_setup_column("Target", PyImGui.TableColumnFlags.WidthFixed, 110.0)
+                PyImGui.table_setup_column("Max/Run", PyImGui.TableColumnFlags.WidthFixed, 110.0)
+                PyImGui.table_setup_column("Remove", PyImGui.TableColumnFlags.WidthFixed, 60.0)
+
+                PyImGui.table_next_row()
+                PyImGui.table_set_column_index(0)
+                PyImGui.text("Consumable")
+                PyImGui.table_set_column_index(1)
+                PyImGui.text("Crafter")
+                PyImGui.table_set_column_index(2)
+                PyImGui.text("Target")
+                PyImGui.table_set_column_index(3)
+                PyImGui.text("Max/Run")
+                PyImGui.table_set_column_index(4)
+                PyImGui.text("Remove")
+
+                for target_row in display_targets:
+                    recipe = self._get_consumable_crafter_recipe_for_model(target_row.model_id)
+                    PyImGui.table_next_row()
+                    PyImGui.table_set_column_index(0)
+                    PyImGui.text(self._format_model_label_short(target_row.model_id))
+
+                    PyImGui.table_set_column_index(1)
+                    PyImGui.text(recipe.vendor_name if recipe is not None else "Unknown")
+
+                    PyImGui.table_set_column_index(2)
+                    PyImGui.push_item_width(100)
+                    target_row.target_count = max(0, int(PyImGui.input_int(
+                        f"##buy_crafter_target_count_{index}_{target_row.model_id}",
+                        int(target_row.target_count),
+                    )))
+                    PyImGui.pop_item_width()
+
+                    PyImGui.table_set_column_index(3)
+                    PyImGui.push_item_width(100)
+                    target_row.max_per_run = max(0, int(PyImGui.input_int(
+                        f"##buy_crafter_max_per_run_{index}_{target_row.model_id}",
+                        int(target_row.max_per_run),
+                    )))
+                    PyImGui.pop_item_width()
+
+                    PyImGui.table_set_column_index(4)
+                    if PyImGui.small_button(f"X##buy_crafter_remove_{index}_{target_row.model_id}"):
+                        removed_model_id = target_row.model_id
+                        break
+
+                PyImGui.end_table()
+        PyImGui.end_child()
+
+        if removed_model_id > 0:
+            next_targets = [target for target in updated_targets if int(target.model_id) != int(removed_model_id)]
+            if self._set_buy_rule_consumable_crafter_targets(rule, next_targets):
+                changed = True
+        elif self._set_buy_rule_consumable_crafter_targets(rule, updated_targets):
+            changed = True
+
+        return changed
+
     def _draw_buy_rule_material_targets_editor(self, index: int, rule: BuyRule) -> bool:
         changed = False
         material_targets = _normalize_material_targets(rule.material_targets)
@@ -15512,6 +16563,7 @@ class MerchantRulesWidget:
                             PyImGui.text_colored(rune_label, text_color)
                         else:
                             PyImGui.text(rune_label)
+                        self._draw_hover_tooltip(self._get_rune_tooltip_text(target_row.identifier))
 
                         PyImGui.table_set_column_index(1)
                         PyImGui.text(kind_label)
@@ -15646,6 +16698,7 @@ class MerchantRulesWidget:
                         PyImGui.text_colored(name, text_color)
                     else:
                         PyImGui.text(name)
+                    self._draw_hover_tooltip(self._get_rune_tooltip_text(identifier))
 
                     PyImGui.table_set_column_index(1)
                     PyImGui.text(str(entry.get("kind_label", "") or "Rune / Insignia"))
@@ -15762,6 +16815,44 @@ class MerchantRulesWidget:
                     self.buy_model_search_cache[index] = self._get_model_name(updated_manual_model_id) or str(updated_manual_model_id)
                 if updated_manual_model_id > 0 and is_scroll_trader_stock:
                     self._draw_secondary_text("This model is confirmed scroll trader stock. Add it from the Scroll Trader Stock section.")
+        elif rule.kind == BUY_KIND_CONSUMABLE_CRAFTER_TARGET:
+            self._draw_secondary_text("Crafts Embark Beach consumables after checking rank, skill points, gold, inventory, Xunlai panes, and material storage.")
+            self._draw_secondary_text("Use target count plus Max Per Run. Crafted items stay in inventory; Cleanup / Xunlai can deposit them afterward.")
+            changed = self._draw_buy_rule_consumable_crafter_targets_editor(index, rule) or changed
+            existing_crafter_target_ids = {
+                max(0, _safe_int(target.model_id, 0))
+                for target in _normalize_merchant_stock_targets(rule.merchant_stock_targets)
+                if int(target.model_id) in CONSUMABLE_CRAFTER_RECIPES_BY_MODEL
+            }
+
+            for vendor_key, vendor_label in CONSUMABLE_CRAFTER_QUICK_PICK_GROUPS:
+                recipes = list(CONSUMABLE_CRAFTER_RECIPES_BY_VENDOR.get(vendor_key, ()))
+                if not recipes:
+                    continue
+                PyImGui.text(f"Quick Picks - {vendor_label}")
+                added_row_count = 0
+                for recipe in recipes:
+                    already_selected = int(recipe.model_id) in existing_crafter_target_ids
+                    PyImGui.begin_disabled(already_selected)
+                    if PyImGui.small_button(f"{self._format_model_label_short(recipe.model_id)}##buy_crafter_quick_{index}_{vendor_key}_{recipe.model_id}"):
+                        if self._add_buy_rule_consumable_crafter_target(rule, int(recipe.model_id)):
+                            changed = True
+                            existing_crafter_target_ids.add(int(recipe.model_id))
+                    PyImGui.end_disabled()
+                    added_row_count += 1
+                    if added_row_count % 2 == 1 and added_row_count < len(recipes):
+                        PyImGui.same_line(0, 6)
+                addable_recipe_ids = [int(recipe.model_id) for recipe in recipes if int(recipe.model_id) not in existing_crafter_target_ids]
+                PyImGui.begin_disabled(not addable_recipe_ids)
+                if PyImGui.small_button(f"Add All {vendor_label}##buy_crafter_add_all_{index}_{vendor_key}"):
+                    added_any = False
+                    for model_id in addable_recipe_ids:
+                        if self._add_buy_rule_consumable_crafter_target(rule, model_id):
+                            added_any = True
+                            existing_crafter_target_ids.add(model_id)
+                    if added_any:
+                        changed = True
+                PyImGui.end_disabled()
         elif rule.kind == BUY_KIND_MATERIAL_TARGET:
             self._draw_secondary_text("Common materials buy in lots of 10. Rare materials buy in singles.")
             changed = self._draw_buy_rule_material_targets_editor(index, rule) or changed
@@ -16421,6 +17512,7 @@ class MerchantRulesWidget:
                 formatter,
                 jump_anchor=anchor,
                 text_color_for_identifier=text_color_for_identifier,
+                tooltip_for_identifier=self._get_rune_tooltip_text if cache_suffix == "runes" else None,
             )
             if removed_identifier:
                 if setter(rule, [identifier for identifier in selected_identifiers if identifier != removed_identifier]):
@@ -16439,6 +17531,7 @@ class MerchantRulesWidget:
             search_cache.get(index, ""),
             entries,
             text_color_for_identifier=self._get_rune_text_color_for_identifier if cache_suffix == "runes" else None,
+            tooltip_for_identifier=self._get_rune_tooltip_text if cache_suffix == "runes" else None,
         )
         if threshold_setter is not None:
             protected_identifiers_for_add = _dedupe_identifiers(
@@ -17687,11 +18780,11 @@ class MerchantRulesWidget:
                     PyImGui.spacing()
                 if conditional_count > 0:
                     PyImGui.text_colored(
-                        "* Conditional entries wait for live merchant or trader context. Merchant stock must be offered live, and Rune Trader buys depend on exact current trader offers.",
+                        "* Conditional entries wait for live merchant, trader, crafter, or Xunlai context. Merchant stock must be offered live, crafter recipes require exact storage checks, and trader buys depend on exact current offers.",
                         UI_COLOR_WARNING,
                     )
                     self._draw_secondary_text(
-                        "Conditional means the service can be attempted, but live stock, trader offers, quotes, or Xunlai access still decide the final action."
+                        "Conditional means the service can be attempted, but live stock, crafter offers, trader offers, quotes, or Xunlai access still decide the final action."
                     )
                 if self._preview_has_execute_travel_pending():
                     target_label = self.preview_execute_travel_target_outpost_name or "the selected outpost"

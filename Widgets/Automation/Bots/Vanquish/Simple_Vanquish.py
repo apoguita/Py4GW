@@ -394,6 +394,7 @@ def bot_routine(bot: Botting) -> None:
             bot.Multibox.RestockAllPcons(10)
         if _restock_res_scroll:
             bot.Multibox.RestockResurrectionScroll(25)
+        bot.Multibox.WithdrawGold()
 
         # -- Travel to explorable --
         has_outpost_path = bool(vq.outpost_path)

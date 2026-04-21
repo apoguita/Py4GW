@@ -133,6 +133,9 @@ class _MULTIBOX:
     def RestockResurrectionScroll(self, quantity: int = 250):
         self._helpers.Multibox.restock_resurrection_scroll(quantity)
 
+    def WithdrawGold(self, target_gold: int = 10000, deposit_all: bool = True):
+        self._helpers.Multibox.withdraw_gold(target_gold, deposit_all)
+
     def EnableWidget(self, widget_name: str):
         self._helpers.Multibox.enable_widget(widget_name)
 
