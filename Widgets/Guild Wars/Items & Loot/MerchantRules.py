@@ -8611,6 +8611,88 @@ class MerchantRulesWidget:
 
         return (min(caps) if caps else 0), blockers
 
+    def _estimate_consumable_crafter_free_slots_needed(
+        self,
+        planned_crafts: list[PlannedConsumableCraft],
+        inventory_model_counts: dict[int, int],
+    ) -> int:
+        if not planned_crafts:
+            return 0
+        safe_inventory_counts = {
+            max(0, int(model_id)): max(0, int(quantity))
+            for model_id, quantity in dict(inventory_model_counts or {}).items()
+            if max(0, int(model_id)) > 0 and max(0, int(quantity)) > 0
+        }
+        output_models: set[int] = set()
+        missing_material_models: set[int] = set()
+        for craft in planned_crafts:
+            craft_quantity = max(0, int(craft.quantity))
+            if craft_quantity <= 0:
+                continue
+            craft_model_id = max(0, int(craft.model_id))
+            if craft_model_id > 0 and safe_inventory_counts.get(craft_model_id, 0) <= 0:
+                output_models.add(craft_model_id)
+            recipe = self._get_consumable_crafter_recipe_for_model(craft_model_id)
+            if recipe is None:
+                continue
+            for ingredient_model_id, ingredient_quantity in recipe.ingredients:
+                safe_ingredient_model_id = max(0, int(ingredient_model_id))
+                if safe_ingredient_model_id <= 0:
+                    continue
+                total_required = max(0, int(ingredient_quantity)) * craft_quantity
+                if total_required > max(0, int(safe_inventory_counts.get(safe_ingredient_model_id, 0))):
+                    missing_material_models.add(safe_ingredient_model_id)
+        return len(output_models | missing_material_models)
+
+    def _get_inventory_free_slot_count(self) -> int:
+        try:
+            return max(0, int(GLOBAL_CACHE.Inventory.GetFreeSlotCount()))
+        except Exception:
+            try:
+                total_items, total_capacity = GLOBAL_CACHE.Inventory.GetInventorySpace()
+                return max(0, int(total_capacity) - int(total_items))
+            except Exception:
+                return -1
+
+    def _plan_consumable_crafter_bag_space_warning(
+        self,
+        plan: PlanResult,
+        *,
+        inventory_model_counts: dict[int, int],
+    ) -> None:
+        if not plan.consumable_crafter_buys:
+            return
+        estimated_needed = self._estimate_consumable_crafter_free_slots_needed(
+            plan.consumable_crafter_buys,
+            inventory_model_counts,
+        )
+        if estimated_needed <= 0:
+            return
+        free_slots = self._get_inventory_free_slot_count()
+        if free_slots < 0:
+            plan.entries.append(
+                ExecutionPlanEntry(
+                    "buy",
+                    MERCHANT_TYPE_CONSUMABLE_CRAFTER,
+                    "Inventory space",
+                    0,
+                    PLAN_STATE_SKIPPED,
+                    f"Could not verify free inventory slots. Consumable crafting may need up to {estimated_needed} free slot(s).",
+                )
+            )
+            return
+        if free_slots < estimated_needed:
+            plan.entries.append(
+                ExecutionPlanEntry(
+                    "buy",
+                    MERCHANT_TYPE_CONSUMABLE_CRAFTER,
+                    "Inventory space",
+                    0,
+                    PLAN_STATE_SKIPPED,
+                    f"Low inventory space: consumable crafting may need up to {estimated_needed} free slot(s); found {free_slots}.",
+                )
+            )
+
     def _has_enabled_rune_buy_rules(self) -> bool:
         for raw_rule in self.buy_rules:
             rule = _normalize_buy_rule(raw_rule)
@@ -11055,11 +11137,16 @@ class MerchantRulesWidget:
 
         sim_model_counts = self._build_simulated_model_counts(items, plan)
         sim_inventory_items = self._get_items_after_planned_pre_buy_actions(items, plan)
+        pre_buy_model_counts = dict(sim_model_counts)
         self._plan_buy_actions(
             plan,
             sim_model_counts,
             sim_inventory_items=sim_inventory_items,
             storage_items=storage_items,
+        )
+        self._plan_consumable_crafter_bag_space_warning(
+            plan,
+            inventory_model_counts=pre_buy_model_counts,
         )
         self._plan_cleanup_actions(
             plan,
@@ -11770,19 +11857,23 @@ class MerchantRulesWidget:
 
             for craft in vendor_crafts:
                 recipe = self._get_consumable_crafter_recipe_for_model(craft.model_id)
+                requested_craft_quantity = max(0, int(craft.quantity))
+                completed_for_craft = 0
+                blocked_reason = ""
                 if recipe is None:
-                    outcome.unavailable += max(1, int(craft.quantity))
+                    outcome.unavailable += max(1, requested_craft_quantity)
                     continue
                 offered_item_id = int(offered_by_model.get(int(recipe.model_id), 0))
                 if offered_item_id <= 0:
-                    outcome.unavailable += max(1, int(craft.quantity))
+                    outcome.unavailable += max(1, requested_craft_quantity)
                     ConsoleLog(MODULE_NAME, f"{craft.label} was not offered by {craft.vendor_name}.", Console.MessageType.Warning)
                     continue
 
-                for _ in range(max(0, int(craft.quantity))):
+                for _ in range(requested_craft_quantity):
                     current_skill_points, _total_skill_points = Player.GetSkillPointData()
                     if int(current_skill_points) < int(recipe.skill_points):
                         outcome.depleted += 1
+                        blocked_reason = "skill points"
                         break
 
                     character_gold = max(0, int(GLOBAL_CACHE.Inventory.GetGoldOnCharacter()))
@@ -11797,11 +11888,13 @@ class MerchantRulesWidget:
                             character_gold = max(0, int(GLOBAL_CACHE.Inventory.GetGoldOnCharacter()))
                     if character_gold < int(recipe.gold_cost):
                         outcome.gold_blocked += 1
+                        blocked_reason = "gold"
                         break
 
                     ingredient_item_ids, ingredient_quantities, blockers = self._collect_crafting_ingredients_from_inventory(recipe)
                     if blockers:
                         outcome.depleted += 1
+                        blocked_reason = "materials"
                         ConsoleLog(MODULE_NAME, f"Cannot craft {craft.label}: {' '.join(blockers)}", Console.MessageType.Warning)
                         break
 
@@ -11820,9 +11913,20 @@ class MerchantRulesWidget:
                     after_count = max(0, int(GLOBAL_CACHE.Inventory.GetModelCount(int(recipe.model_id))))
                     if completed or after_count > before_count:
                         outcome.completed += 1
+                        completed_for_craft += 1
                     else:
                         outcome.timeout_failures += 1
+                        blocked_reason = "transaction confirmation"
                         break
+
+                if 0 <= completed_for_craft < requested_craft_quantity:
+                    remaining = max(0, requested_craft_quantity - completed_for_craft)
+                    reason_suffix = f" blocked by {blocked_reason}" if blocked_reason else ""
+                    ConsoleLog(
+                        MODULE_NAME,
+                        f"Crafted {completed_for_craft}/{requested_craft_quantity} {craft.label}; {remaining} remaining{reason_suffix}.",
+                        Console.MessageType.Warning,
+                    )
 
         self._debug_log(
             f"{phase_label}: completed={outcome.completed}/{outcome.attempted} unavailable={outcome.unavailable} "

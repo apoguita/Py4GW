@@ -1342,6 +1342,68 @@ def _test_consumable_crafter_resource_priority_follows_target_order(module) -> N
         module.Player = original_player
 
 
+def _test_consumable_crafter_preview_warns_when_free_inventory_slots_are_low(module) -> None:
+    widget = _make_widget(module)
+    essence_model_id = int(module.ModelID.Essence_Of_Celerity.value)
+    feather_model_id = int(module.ModelID.Feather.value)
+    dust_model_id = int(module.ModelID.Pile_Of_Glittering_Dust.value)
+    widget.buy_rules = [
+        module._normalize_buy_rule(
+            module.BuyRule(
+                enabled=True,
+                kind=module.BUY_KIND_CONSUMABLE_CRAFTER_TARGET,
+                merchant_stock_targets=[
+                    module.MerchantStockTarget(model_id=essence_model_id, target_count=1, max_per_run=1),
+                ],
+                consumable_crafter_count_mode=module.CONSUMABLE_CRAFTER_COUNT_MODE_CRAFT_AMOUNT,
+            )
+        )
+    ]
+    widget._get_supported_context = lambda: (
+        True,
+        "Ready",
+        {
+            module.MERCHANT_TYPE_CONSUMABLE_CRAFTER: (3592.99, 78.78),
+        },
+    )
+    widget._collect_inventory_items = lambda: []
+    widget._collect_storage_items = lambda: [
+        _make_item(module, item_id=1, model_id=feather_model_id, name="Feather", quantity=50, is_material=True),
+        _make_item(module, item_id=2, model_id=dust_model_id, name="Pile of Glittering Dust", quantity=50, is_material=True),
+    ]
+    original_inventory = getattr(module.GLOBAL_CACHE, "Inventory", None)
+    original_player = module.Player
+    try:
+        module.GLOBAL_CACHE.Inventory = types.SimpleNamespace(
+            IsStorageOpen=lambda: True,
+            GetGoldOnCharacter=lambda: 250,
+            GetGoldInStorage=lambda: 0,
+            GetFreeSlotCount=lambda: 1,
+        )
+        module.Player = types.SimpleNamespace(
+            GetSkillPointData=lambda: (1, 100),
+            GetTitle=lambda _title_id: types.SimpleNamespace(current_points=999999),
+        )
+
+        plan = widget._build_plan()
+
+        _expect(len(plan.consumable_crafter_buys) == 1, "Low inventory-space warning should not block consumable crafter planning.")
+        _expect(
+            any(
+                entry.merchant_type == module.MERCHANT_TYPE_CONSUMABLE_CRAFTER
+                and entry.label == "Inventory space"
+                and entry.state == module.PLAN_STATE_SKIPPED
+                and "may need up to 3 free slot" in entry.reason
+                and "found 1" in entry.reason
+                for entry in plan.entries
+            ),
+            "Consumable crafter preview should warn when planned material withdrawals and output may exceed free inventory slots.",
+        )
+    finally:
+        module.GLOBAL_CACHE.Inventory = original_inventory
+        module.Player = original_player
+
+
 def _test_consumable_crafter_execution_prepares_materials_before_opening_crafter(module) -> None:
     widget = _make_widget(module)
     essence_model_id = int(module.ModelID.Essence_Of_Celerity.value)
@@ -6558,6 +6620,10 @@ def main() -> int:
             (
                 "consumable_crafter_resource_priority_follows_target_order",
                 lambda: _test_consumable_crafter_resource_priority_follows_target_order(module),
+            ),
+            (
+                "consumable_crafter_preview_warns_when_free_inventory_slots_are_low",
+                lambda: _test_consumable_crafter_preview_warns_when_free_inventory_slots_are_low(module),
             ),
             (
                 "consumable_crafter_execution_prepares_materials_before_opening_crafter",
