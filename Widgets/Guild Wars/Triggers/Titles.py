@@ -71,6 +71,11 @@ deldrimor_map_names = {
     "Raven's Point (Level 1)", "Raven's Point (Level 2)", "Raven's Point (Level 3)"
 }
 
+deldrimor_map_ids = {
+    # Raven's Point IDs used by some clients/data sources.
+    617, 618, 619,
+}
+
 norn_map_names = {
     "Attack of the Nornbear", "Bjora Marches",
     "Boreal Station", "Cold as Ice", "Curse of the Nornbear",
@@ -144,6 +149,7 @@ def main():
         return
     
     map_name = Map.GetMapName()
+    map_id = Map.GetMapID()
 
     if not widget_config.title_applied:
         # Quest-based overrides take priority over map-name matching
@@ -161,7 +167,7 @@ def main():
             Player.SetActiveTitle(quest_override.value)
         elif map_name in asuran_map_names:
             Player.SetActiveTitle(TitleID.Asuran.value)
-        elif map_name in deldrimor_map_names:
+        elif map_name in deldrimor_map_names or map_id in deldrimor_map_ids:
             Player.SetActiveTitle(TitleID.Deldrimor.value)
         elif map_name in norn_map_names:
             Player.SetActiveTitle(TitleID.Norn.value)
