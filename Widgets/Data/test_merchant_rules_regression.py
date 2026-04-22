@@ -585,6 +585,21 @@ def _salvage_settings(
     )
 
 
+def _identify_settings(
+    module,
+    *,
+    rarities: list[str] | None = None,
+    before_execute: bool = False,
+    on_inventory_change: bool = False,
+):
+    rarity_keys = {str(value or "").strip().lower() for value in (rarities or [])}
+    return module.IdentifySettings(
+        rarities={key: key in rarity_keys for key, _label in module.RARITY_OPTION_ORDER},
+        before_execute=before_execute,
+        on_inventory_change=on_inventory_change,
+    )
+
+
 def _make_weapon_item(
     module,
     *,
@@ -876,9 +891,16 @@ def _test_salvage_profile_defaults_are_off(module, temp_root: Path) -> None:
     _expect(not any(widget.salvage_settings.rarities.values()), "All salvage rarity selectors should default off.")
     _expect(not any(widget.salvage_settings.categories.values()), "All salvage category selectors should default off.")
     _expect(not widget.salvage_settings.on_inventory_change, "On-pickup/inventory-change salvage should default off.")
+    _expect(not any(widget.identify_settings.rarities.values()), "All identify rarity selectors should default off.")
+    _expect(not widget.identify_settings.before_execute, "Identify before Execute should default off.")
+    _expect(not widget.identify_settings.on_inventory_change, "On-pickup/inventory-change identify should default off.")
     saved_payload = json.loads(config_path.read_text(encoding="utf-8"))
     _expect("salvage_settings" in saved_payload, "Normalized profiles should persist the salvage settings object.")
+    _expect("identify_settings" in saved_payload, "Normalized profiles should persist the identify settings object.")
     _expect(not any(saved_payload["salvage_settings"]["rarities"].values()), "Saved salvage rarity selectors should remain off by default.")
+    _expect(not any(saved_payload["identify_settings"]["rarities"].values()), "Saved identify rarity selectors should remain off by default.")
+    _expect(not saved_payload["identify_settings"]["before_execute"], "Saved Identify before Execute should remain off by default.")
+    _expect(not saved_payload["identify_settings"]["on_inventory_change"], "Saved on-pickup/inventory-change identify should remain off by default.")
 
 
 def _test_salvage_candidate_evaluation_precedence(module) -> None:
@@ -1022,6 +1044,106 @@ def _test_salvage_category_selection(module) -> None:
     )
 
 
+def _test_salvage_rarity_and_category_filters_combine(module) -> None:
+    widget = _make_widget(
+        module,
+    )
+    widget.salvage_settings = _salvage_settings(
+        module,
+        rarities=["gold"],
+        categories=[module.SALVAGE_CATEGORY_WEAPONS, module.SALVAGE_CATEGORY_ARMOR],
+    )
+    gold_weapon = _make_item(
+        module,
+        item_id=22,
+        model_id=2002,
+        name="Gold Weapon",
+        rarity="Gold",
+        identified=True,
+        salvageable=True,
+        is_weapon_like=True,
+    )
+    gold_armor = _make_item(
+        module,
+        item_id=23,
+        model_id=2003,
+        name="Gold Armor",
+        rarity="Gold",
+        identified=True,
+        salvageable=True,
+        is_armor_piece=True,
+    )
+    white_weapon = _make_item(
+        module,
+        item_id=24,
+        model_id=2004,
+        name="White Weapon",
+        rarity="White",
+        identified=True,
+        salvageable=True,
+        is_weapon_like=True,
+    )
+    blue_weapon = _make_item(
+        module,
+        item_id=25,
+        model_id=2005,
+        name="Blue Weapon",
+        rarity="Blue",
+        identified=True,
+        salvageable=True,
+        is_weapon_like=True,
+    )
+    gold_material = _make_item(
+        module,
+        item_id=26,
+        model_id=2006,
+        name="Gold Material",
+        rarity="Gold",
+        identified=True,
+        salvageable=True,
+        is_material=True,
+    )
+
+    _expect(
+        widget._get_salvage_candidate_block_reason(gold_weapon, [], require_normal_kit=True, normal_salvage_kit_id=1) == "",
+        "Gold weapons should match combined rarity/category salvage filters.",
+    )
+    _expect(
+        widget._get_salvage_candidate_block_reason(gold_armor, [], require_normal_kit=True, normal_salvage_kit_id=1) == "",
+        "Gold armor should match combined rarity/category salvage filters.",
+    )
+    _expect(
+        widget._get_salvage_candidate_block_reason(white_weapon, [], require_normal_kit=True, normal_salvage_kit_id=1)
+        == "not selected by salvage settings",
+        "White weapons should not match Gold + Weapons salvage filters.",
+    )
+    _expect(
+        widget._get_salvage_candidate_block_reason(blue_weapon, [], require_normal_kit=True, normal_salvage_kit_id=1)
+        == "not selected by salvage settings",
+        "Blue weapons should not match Gold + Weapons salvage filters.",
+    )
+    _expect(
+        widget._get_salvage_candidate_block_reason(gold_material, [], require_normal_kit=True, normal_salvage_kit_id=1)
+        == "not selected by salvage settings",
+        "Gold non-selected categories should not match Gold + Weapons/Armor salvage filters.",
+    )
+
+
+def _test_salvage_filter_summary_describes_combined_filters(module) -> None:
+    widget = _make_widget(module)
+    widget.salvage_settings = _salvage_settings(
+        module,
+        rarities=["gold"],
+        categories=[module.SALVAGE_CATEGORY_WEAPONS, module.SALVAGE_CATEGORY_ARMOR],
+    )
+
+    _expect(
+        widget._format_salvage_filter_summary(widget.salvage_settings)
+        == "Current filter: Gold items in these categories: Weapons, Armor",
+        "Salvage filter summary should show that rarity/category selectors combine as filters.",
+    )
+
+
 def _test_salvage_selected_items_block_destroy(module) -> None:
     widget = _make_widget(module)
     widget.salvage_settings = _salvage_settings(module, rarities=["gold"])
@@ -1054,6 +1176,111 @@ def _test_salvage_selected_items_block_destroy(module) -> None:
         any("salvage wins over destroy" in entry.reason for entry in plan.entries if entry.action_type == "destroy"),
         "Destroy planning should explain when MR Salvage claims a matching item first.",
     )
+
+
+def _test_identify_exact_rarity_claims_before_destroy_and_cleanup(module) -> None:
+    widget = _make_widget(module)
+    widget.identify_settings = _identify_settings(module, rarities=["blue"], before_execute=True)
+    widget._get_id_kit_id = lambda: 900
+    widget.cleanup_targets = [module.CleanupTarget(model_id=200, keep_on_character=0)]
+    widget.destroy_rules = [
+        module._normalize_destroy_rule(
+            module.DestroyRule(
+                enabled=True,
+                kind=module.DESTROY_KIND_EXPLICIT_MODELS,
+                whitelist_targets=[
+                    module.WhitelistTarget(model_id=200, keep_count=0),
+                    module.WhitelistTarget(model_id=300, keep_count=0),
+                ],
+            )
+        )
+    ]
+    widget._get_supported_context = lambda: (
+        True,
+        "Ready",
+        {
+            module.MERCHANT_TYPE_MERCHANT: (1.0, 1.0),
+            module.MERCHANT_TYPE_MATERIALS: (2.0, 2.0),
+            module.MERCHANT_TYPE_RUNE_TRADER: (3.0, 3.0),
+            module.MERCHANT_TYPE_RARE_MATERIALS: (4.0, 4.0),
+        },
+    )
+    widget._collect_inventory_items = lambda: [
+        _make_item(module, item_id=1, model_id=200, name="Blue Sword", rarity="Blue", identified=False),
+        _make_item(module, item_id=2, model_id=300, name="Purple Sword", rarity="Purple", identified=False),
+    ]
+
+    plan = widget._build_plan()
+
+    _expect(plan.identify_item_ids == [1], "Identify planning should select only exact blue unidentified items.")
+    _expect(plan.identify_claimed_item_ids == [1], "Identify planning should claim selected items before later actions.")
+    _expect(1 not in [action.item_id for action in plan.destroy_actions], "Identify-selected items should not also be planned for destroy.")
+    _expect(2 in [action.item_id for action in plan.destroy_actions], "Unselected purple items should remain eligible for later destroy rules.")
+    _expect(1 not in [transfer.item_id for transfer in plan.cleanup_transfers], "Identify-selected items should not also be planned for cleanup.")
+
+
+def _test_identify_no_kit_still_claims_selected_items(module) -> None:
+    widget = _make_widget(module)
+    widget.identify_settings = _identify_settings(module, rarities=["blue"], before_execute=True)
+    widget._get_id_kit_id = lambda: 0
+    widget.cleanup_targets = [module.CleanupTarget(model_id=200, keep_on_character=0)]
+    widget.sell_rules = [
+        module._normalize_sell_rule(
+            module.SellRule(
+                enabled=True,
+                kind=module.SELL_KIND_EXPLICIT_MODELS,
+                whitelist_targets=[module.WhitelistTarget(model_id=200, keep_count=0)],
+            )
+        )
+    ]
+    widget.destroy_rules = [
+        module._normalize_destroy_rule(
+            module.DestroyRule(
+                enabled=True,
+                kind=module.DESTROY_KIND_EXPLICIT_MODELS,
+                whitelist_targets=[module.WhitelistTarget(model_id=200, keep_count=0)],
+            )
+        )
+    ]
+    widget._get_supported_context = lambda: (
+        True,
+        "Ready",
+        {
+            module.MERCHANT_TYPE_MERCHANT: (1.0, 1.0),
+            module.MERCHANT_TYPE_MATERIALS: (2.0, 2.0),
+            module.MERCHANT_TYPE_RUNE_TRADER: (3.0, 3.0),
+            module.MERCHANT_TYPE_RARE_MATERIALS: (4.0, 4.0),
+        },
+    )
+    widget._collect_inventory_items = lambda: [
+        _make_item(module, item_id=1, model_id=200, name="Blue Sword", rarity="Blue", identified=False),
+    ]
+
+    plan = widget._build_plan()
+
+    _expect(not plan.identify_item_ids, "No ID kit should leave identify with no runnable item IDs.")
+    _expect(plan.identify_claimed_item_ids == [1], "No-kit identify candidates should still be claimed in the preview.")
+    _expect(not plan.destroy_actions and not plan.destroy_item_ids, "No-kit identify candidates should not fall through to destroy.")
+    _expect(not plan.merchant_sell_item_ids, "No-kit identify candidates should not fall through to sell.")
+    _expect(not plan.cleanup_transfers, "No-kit identify candidates should not fall through to cleanup.")
+    _expect(
+        any(entry.action_type == "identify" and entry.state == module.PLAN_STATE_SKIPPED and "No ID kit" in entry.reason for entry in plan.entries),
+        "Preview should surface a no-ID-kit identify warning.",
+    )
+
+
+def _test_identify_on_inventory_change_queues_auto_pass(module) -> None:
+    widget = _make_widget(module)
+    widget.identify_settings = _identify_settings(module, rarities=["blue"], on_inventory_change=True)
+    widget.identify_last_signature = ((1, 1),)
+    widget._get_inventory_signature = lambda items=None: ((1, 1), (2, 1))
+    queued: list[bool] = []
+    widget._queue_identify_now = lambda *, auto_triggered=False: queued.append(bool(auto_triggered))
+
+    widget._update_identify_runtime()
+
+    _expect(queued == [True], "Inventory-change identify should queue an auto identify pass when inventory changes.")
+    _expect(not widget.identify_rescan_requested, "Auto identify queueing should consume the pending rescan flag.")
 
 
 def _test_protected_salvage_destroy_overlap_blocks_both(module) -> None:
@@ -6402,7 +6629,7 @@ def _test_build_remote_preview_result_formats_multibox_states(module) -> None:
     )
     projected_result = projected_widget.build_remote_preview_result()
     _expect(projected_result["status_label"] == "Projected", "Projected previews should report the dedicated Projected status.")
-    _expect(projected_result["summary"] == "1 actionable, 0 blocked, 1 conditional.", "Projected previews should still report actionable and conditional counts.")
+    _expect(projected_result["summary"] == "1 can run, 0 blocked, 1 need live checks.", "Projected previews should still report runnable and live-check counts.")
     _expect(
         "Regression Harbor" in projected_result["detail"],
         "Projected previews should name the auto-travel target in the remote detail text.",
@@ -6449,12 +6676,12 @@ def _test_build_remote_preview_result_formats_multibox_states(module) -> None:
     conditional_result = conditional_widget.build_remote_preview_result()
     _expect(conditional_result["status_label"] == "Conditional", "Conditional-only previews should use the Conditional status.")
     _expect(
-        conditional_result["summary"] == "1 actionable, 1 blocked, 1 conditional.",
-        "Conditional-only previews should include actionable, blocked, and conditional counts.",
+        conditional_result["summary"] == "1 can run, 1 blocked, 1 need live checks.",
+        "Conditional-only previews should include runnable, blocked, and live-check counts.",
     )
     _expect(
-        conditional_result["detail"] == "Conditional actions need live merchant or trader confirmation at runtime.",
-        "Conditional-only previews should explain why follower actions remain conditional.",
+        conditional_result["detail"] == "Some actions need a live merchant, trader, crafter, or Xunlai check before MR can confirm them.",
+        "Conditional-only previews should explain why follower actions still need live checks.",
     )
     _expect(conditional_result["primary_count"] == 1, "Conditional previews should report actionable counts to the leader.")
     _expect(conditional_result["secondary_count"] == 1, "Conditional previews should report blocked counts to the leader.")
@@ -6491,12 +6718,12 @@ def _test_build_remote_preview_result_formats_multibox_states(module) -> None:
     ready_result = ready_widget.build_remote_preview_result()
     _expect(ready_result["status_label"] == "Ready", "Mixed direct and conditional previews should stay in the Ready state.")
     _expect(
-        ready_result["summary"] == "2 actionable, 1 blocked, 1 conditional.",
-        "Ready previews should include actionable, blocked, and conditional counts when merchant stock checks remain.",
+        ready_result["summary"] == "2 can run, 1 blocked, 1 need live checks.",
+        "Ready previews should include runnable, blocked, and live-check counts when merchant stock checks remain.",
     )
     _expect(
-        ready_result["detail"] == "Conditional actions need live merchant or trader confirmation at runtime.",
-        "Ready previews should still explain runtime conditionality when present.",
+        ready_result["detail"] == "Some actions need a live merchant, trader, crafter, or Xunlai check before MR can confirm them.",
+        "Ready previews should still explain when live checks are needed.",
     )
 
     empty_widget = _prime_initialized_widget(module, _make_widget(module))
@@ -7289,7 +7516,12 @@ def main() -> int:
             ("salvage_candidate_evaluation_precedence", lambda: _test_salvage_candidate_evaluation_precedence(module)),
             ("salvage_broad_rarity_selection", lambda: _test_salvage_broad_rarity_selection(module)),
             ("salvage_category_selection", lambda: _test_salvage_category_selection(module)),
+            ("salvage_rarity_and_category_filters_combine", lambda: _test_salvage_rarity_and_category_filters_combine(module)),
+            ("salvage_filter_summary_describes_combined_filters", lambda: _test_salvage_filter_summary_describes_combined_filters(module)),
             ("salvage_selected_items_block_destroy", lambda: _test_salvage_selected_items_block_destroy(module)),
+            ("identify_exact_rarity_claims_before_destroy_and_cleanup", lambda: _test_identify_exact_rarity_claims_before_destroy_and_cleanup(module)),
+            ("identify_no_kit_still_claims_selected_items", lambda: _test_identify_no_kit_still_claims_selected_items(module)),
+            ("identify_on_inventory_change_queues_auto_pass", lambda: _test_identify_on_inventory_change_queues_auto_pass(module)),
             ("protected_salvage_destroy_overlap_blocks_both", lambda: _test_protected_salvage_destroy_overlap_blocks_both(module)),
             ("build_plan_captures_inventory_and_marks_conditional_stock_buy", lambda: _test_build_plan_captures_inventory_and_marks_conditional_stock_buy(module)),
             ("consumable_crafter_plan_title_gate_blocks_low_rank", lambda: _test_consumable_crafter_plan_title_gate_blocks_low_rank(module)),
