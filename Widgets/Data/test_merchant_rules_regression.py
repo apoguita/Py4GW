@@ -28,6 +28,7 @@ import shutil
 import sys
 import traceback
 import types
+from dataclasses import replace
 from pathlib import Path
 
 
@@ -566,6 +567,24 @@ def _rarity_flags(*enabled: str) -> dict[str, bool]:
     }
 
 
+def _salvage_settings(
+    module,
+    *,
+    model_ids: list[int] | None = None,
+    rarities: list[str] | None = None,
+    categories: list[str] | None = None,
+    on_inventory_change: bool = False,
+):
+    rarity_keys = {str(value or "").strip().lower() for value in (rarities or [])}
+    category_keys = {str(value or "").strip().lower() for value in (categories or [])}
+    return module.SalvageSettings(
+        model_ids=list(model_ids or []),
+        rarities={key: key in rarity_keys for key, _label in module.RARITY_OPTION_ORDER},
+        categories={key: key in category_keys for key, _label in module.SALVAGE_CATEGORY_ORDER},
+        on_inventory_change=on_inventory_change,
+    )
+
+
 def _make_weapon_item(
     module,
     *,
@@ -843,6 +862,249 @@ def _test_legacy_nonsalvageable_gold_sell_rule_is_removed_safely(module, temp_ro
         all(entry.get("kind") != module.LEGACY_SELL_KIND_NONSALVAGEABLE_GOLDS for entry in saved_payload["sell_rules"]),
         "Normalized profiles should not write the retired gold sell rule back to disk.",
     )
+
+
+def _test_salvage_profile_defaults_are_off(module, temp_root: Path) -> None:
+    widget = _make_widget(module)
+    config_path = temp_root / "salvage_defaults_profile.json"
+    config_path.write_text(json.dumps({"version": module.PROFILE_VERSION - 1}, indent=2), encoding="utf-8")
+    widget.config_path = str(config_path)
+
+    widget._load_profile()
+
+    _expect(not widget.salvage_settings.model_ids, "Legacy profiles should load with no explicit salvage models.")
+    _expect(not any(widget.salvage_settings.rarities.values()), "All salvage rarity selectors should default off.")
+    _expect(not any(widget.salvage_settings.categories.values()), "All salvage category selectors should default off.")
+    _expect(not widget.salvage_settings.on_inventory_change, "On-pickup/inventory-change salvage should default off.")
+    saved_payload = json.loads(config_path.read_text(encoding="utf-8"))
+    _expect("salvage_settings" in saved_payload, "Normalized profiles should persist the salvage settings object.")
+    _expect(not any(saved_payload["salvage_settings"]["rarities"].values()), "Saved salvage rarity selectors should remain off by default.")
+
+
+def _test_salvage_candidate_evaluation_precedence(module) -> None:
+    widget = _make_widget(module)
+    widget.salvage_settings = _salvage_settings(module, model_ids=[100])
+    enabled_sell_rules = []
+    selected_item = _make_item(
+        module,
+        item_id=1,
+        model_id=100,
+        name="Selected Gold",
+        rarity="Gold",
+        identified=True,
+        salvageable=True,
+    )
+
+    protected_rule = module._normalize_sell_rule(
+        module.SellRule(
+            enabled=True,
+            kind=module.SELL_KIND_WEAPONS,
+            rarities=_rarity_flags("gold"),
+            blacklist_model_ids=[100],
+        )
+    )
+    protected_item = _make_item(
+        module,
+        item_id=2,
+        model_id=100,
+        name="Protected Gold",
+        rarity="Gold",
+        identified=True,
+        salvageable=True,
+        is_weapon_like=True,
+    )
+    protected_reason = widget._get_salvage_candidate_block_reason(
+        protected_item,
+        [(0, protected_rule)],
+        require_normal_kit=True,
+        normal_salvage_kit_id=1,
+    )
+    _expect(protected_reason.startswith("protected:"), "Protection should be the first salvage block reason.")
+
+    unsalvageable_reason = widget._get_salvage_candidate_block_reason(
+        replace(selected_item, salvageable=False),
+        enabled_sell_rules,
+        require_normal_kit=True,
+        normal_salvage_kit_id=1,
+    )
+    _expect(unsalvageable_reason.startswith("unsalvageable:"), "Runtime IsSalvageable should block salvage.")
+
+    customized_reason = widget._get_salvage_candidate_block_reason(
+        replace(selected_item, is_customized=True),
+        enabled_sell_rules,
+        require_normal_kit=True,
+        normal_salvage_kit_id=1,
+    )
+    _expect(customized_reason.startswith("customized:"), "Customized items should block salvage.")
+
+    unidentified_reason = widget._get_salvage_candidate_block_reason(
+        replace(selected_item, identified=False),
+        enabled_sell_rules,
+        require_normal_kit=True,
+        normal_salvage_kit_id=1,
+    )
+    _expect(unidentified_reason.startswith("unidentified non-white:"), "Unidentified non-white items should block salvage.")
+
+    not_selected_reason = widget._get_salvage_candidate_block_reason(
+        replace(selected_item, model_id=101),
+        enabled_sell_rules,
+        require_normal_kit=True,
+        normal_salvage_kit_id=1,
+    )
+    _expect(not_selected_reason == "not selected by salvage settings", "Unselected items should not be salvage candidates.")
+
+    no_kit_reason = widget._get_salvage_candidate_block_reason(
+        selected_item,
+        enabled_sell_rules,
+        require_normal_kit=True,
+        normal_salvage_kit_id=0,
+    )
+    _expect(no_kit_reason == "no normal salvage kit", "Missing normal salvage kits should block salvage.")
+
+    ok_reason = widget._get_salvage_candidate_block_reason(
+        selected_item,
+        enabled_sell_rules,
+        require_normal_kit=True,
+        normal_salvage_kit_id=1,
+    )
+    _expect(ok_reason == "", "Selected safe items with a normal kit should be salvage candidates.")
+
+
+def _test_salvage_broad_rarity_selection(module) -> None:
+    widget = _make_widget(module)
+    widget.salvage_settings = _salvage_settings(module, rarities=["gold"])
+    gold_item = _make_item(module, item_id=10, model_id=1000, name="Gold Drop", rarity="Gold", identified=True, salvageable=True)
+    purple_item = _make_item(module, item_id=11, model_id=1001, name="Purple Drop", rarity="Purple", identified=True, salvageable=True)
+
+    _expect(
+        widget._get_salvage_candidate_block_reason(gold_item, [], require_normal_kit=True, normal_salvage_kit_id=1) == "",
+        "Enabled rarity selectors should select matching salvageable items.",
+    )
+    _expect(
+        widget._get_salvage_candidate_block_reason(purple_item, [], require_normal_kit=True, normal_salvage_kit_id=1)
+        == "not selected by salvage settings",
+        "Disabled rarity selectors should not select other rarities.",
+    )
+
+
+def _test_salvage_category_selection(module) -> None:
+    widget = _make_widget(module)
+    widget.salvage_settings = _salvage_settings(module, categories=[module.SALVAGE_CATEGORY_WEAPONS])
+    weapon_item = _make_item(
+        module,
+        item_id=20,
+        model_id=2000,
+        name="Weapon Drop",
+        rarity="Blue",
+        identified=True,
+        salvageable=True,
+        is_weapon_like=True,
+    )
+    armor_item = _make_item(
+        module,
+        item_id=21,
+        model_id=2001,
+        name="Armor Drop",
+        rarity="Blue",
+        identified=True,
+        salvageable=True,
+        is_armor_piece=True,
+    )
+
+    _expect(
+        widget._get_salvage_candidate_block_reason(weapon_item, [], require_normal_kit=True, normal_salvage_kit_id=1) == "",
+        "Enabled category selectors should select matching salvageable items.",
+    )
+    _expect(
+        widget._get_salvage_candidate_block_reason(armor_item, [], require_normal_kit=True, normal_salvage_kit_id=1)
+        == "not selected by salvage settings",
+        "Disabled category selectors should not select other categories.",
+    )
+
+
+def _test_salvage_selected_items_block_destroy(module) -> None:
+    widget = _make_widget(module)
+    widget.salvage_settings = _salvage_settings(module, rarities=["gold"])
+    widget.destroy_rules = [
+        module._normalize_destroy_rule(
+            module.DestroyRule(
+                enabled=True,
+                kind=module.DESTROY_KIND_WEAPONS,
+                rarities=_rarity_flags("gold"),
+            )
+        )
+    ]
+    widget._collect_inventory_items = lambda: [
+        _make_item(
+            module,
+            item_id=30,
+            model_id=3000,
+            name="Gold Weapon",
+            rarity="Gold",
+            identified=True,
+            salvageable=True,
+            is_weapon_like=True,
+        )
+    ]
+
+    plan = widget._build_plan()
+
+    _expect(not plan.destroy_actions, "Salvage-selected eligible items should not be planned for destroy.")
+    _expect(
+        any("salvage wins over destroy" in entry.reason for entry in plan.entries if entry.action_type == "destroy"),
+        "Destroy planning should explain when MR Salvage claims a matching item first.",
+    )
+
+
+def _test_protected_salvage_destroy_overlap_blocks_both(module) -> None:
+    widget = _make_widget(module)
+    widget.salvage_settings = _salvage_settings(module, rarities=["gold"])
+    widget.sell_rules = [
+        module._normalize_sell_rule(
+            module.SellRule(
+                enabled=True,
+                kind=module.SELL_KIND_WEAPONS,
+                rarities=_rarity_flags("gold"),
+                blacklist_model_ids=[4000],
+            )
+        )
+    ]
+    widget.destroy_rules = [
+        module._normalize_destroy_rule(
+            module.DestroyRule(
+                enabled=True,
+                kind=module.DESTROY_KIND_WEAPONS,
+                rarities=_rarity_flags("gold"),
+            )
+        )
+    ]
+    widget._collect_inventory_items = lambda: [
+        _make_item(
+            module,
+            item_id=40,
+            model_id=4000,
+            name="Protected Gold Weapon",
+            rarity="Gold",
+            identified=True,
+            salvageable=True,
+            is_weapon_like=True,
+        )
+    ]
+
+    plan = widget._build_plan()
+
+    _expect(not plan.destroy_actions, "Protected items should not be planned for destroy when they also match salvage.")
+    _expect(
+        any("Hard-protected" in entry.reason for entry in plan.entries if entry.action_type == "destroy"),
+        "Protection should be the displayed block reason when protection and salvage overlap.",
+    )
+    candidate_reason = widget._get_salvage_candidate_block_reason(
+        widget._collect_inventory_items()[0],
+        widget._collect_enabled_sell_rules(),
+        require_normal_kit=True,
+        normal_salvage_kit_id=1,
+    )
+    _expect(candidate_reason.startswith("protected:"), "Protected items should also block salvage candidate evaluation.")
 
 
 def _test_build_plan_captures_inventory_and_marks_conditional_stock_buy(module) -> None:
@@ -7023,6 +7285,12 @@ def main() -> int:
                 "legacy_nonsalvageable_gold_sell_rule_is_removed_safely",
                 lambda: _test_legacy_nonsalvageable_gold_sell_rule_is_removed_safely(module, temp_root),
             ),
+            ("salvage_profile_defaults_are_off", lambda: _test_salvage_profile_defaults_are_off(module, temp_root)),
+            ("salvage_candidate_evaluation_precedence", lambda: _test_salvage_candidate_evaluation_precedence(module)),
+            ("salvage_broad_rarity_selection", lambda: _test_salvage_broad_rarity_selection(module)),
+            ("salvage_category_selection", lambda: _test_salvage_category_selection(module)),
+            ("salvage_selected_items_block_destroy", lambda: _test_salvage_selected_items_block_destroy(module)),
+            ("protected_salvage_destroy_overlap_blocks_both", lambda: _test_protected_salvage_destroy_overlap_blocks_both(module)),
             ("build_plan_captures_inventory_and_marks_conditional_stock_buy", lambda: _test_build_plan_captures_inventory_and_marks_conditional_stock_buy(module)),
             ("consumable_crafter_plan_title_gate_blocks_low_rank", lambda: _test_consumable_crafter_plan_title_gate_blocks_low_rank(module)),
             (
