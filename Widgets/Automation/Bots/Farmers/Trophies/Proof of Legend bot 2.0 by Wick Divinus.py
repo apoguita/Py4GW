@@ -858,7 +858,7 @@ def Chahbek_Village_Mission_2(bot: Botting):
     bot.Map.Travel(target_map_id=544)
     PrepareForBattle(bot, Hero_List=[6], Henchman_List=[1,2])
     bot.SkillBar.LoadHeroSkillBar(1, "OQASEF6EC1vcNABWAAAA") #Koss
-    bot.Dialogs.AtXY(3485, -5246, 0x81)
+    bot.Move.XYAndDialog(3485, -5246, 0x81)
     bot.Dialogs.AtXY(3485, -5246, 0x84)
     bot.Wait.ForTime(2000)
     bot.Wait.UntilOnExplorable()
