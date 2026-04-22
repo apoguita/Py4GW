@@ -115,7 +115,6 @@ _save_requested:              bool            = False
 # ---------------------------------------------------------------------------
 
 def _run_ab_movement(bot: Botting) -> None:
-    bot.Wait.ForMapLoad(849)
     bot.Move.XY(11714,-4590)
     bot.Wait.UntilOnCombat()
     bot.Move.XY(9973,-6394)
@@ -550,30 +549,49 @@ def EnterQuest(bot: Botting) -> None:
         import PyDialog
         mission = _get_active_mission()
 
-        # Move to Keiran and open the dialog without sending a specific ID
-        yield from bot.Move._coro_xy_and_interact_npc(-6662.00, 6584.00)
+        _MAX_ATTEMPTS = 3
+        for attempt in range(1, _MAX_ATTEMPTS + 1):
+            # Move to Keiran and interact — re-runs on every retry
+            yield from bot.Move._coro_xy_and_interact_npc(-6662.00, 6584.00)
 
-        # Wait for the dialog to become active (up to 5 seconds)
-        deadline = time.time() + 5.0
-        while not PyDialog.PyDialog.is_dialog_active():
-            if time.time() > deadline:
-                ConsoleLog(MODULE_NAME, "[EnterQuest] Timed out waiting for Keiran's dialog", Py4GW.Console.MessageType.Warning)
+            # Wait for the dialog to become active (up to 5 seconds)
+            deadline = time.time() + 5.0
+            while not PyDialog.PyDialog.is_dialog_active():
+                if time.time() > deadline:
+                    ConsoleLog(MODULE_NAME, f"[EnterQuest] Timed out waiting for Keiran's dialog (attempt {attempt}/{_MAX_ATTEMPTS})", Py4GW.Console.MessageType.Warning)
+                    break
+                yield from Routines.Yield.wait(150)
+
+            if not PyDialog.PyDialog.is_dialog_active():
+                if attempt < _MAX_ATTEMPTS:
+                    yield from Routines.Yield.wait(500)
+                    continue
+                ConsoleLog(MODULE_NAME, "[EnterQuest] Failed to open Keiran's dialog after all attempts", Py4GW.Console.MessageType.Error)
+                bot.helpers.Events.on_unmanaged_fail()
                 return
-            yield from Routines.Yield.wait(150)
 
-        # Read the first button's dialog_id as the dynamic base
-        buttons = [b for b in PyDialog.PyDialog.get_active_dialog_buttons() if getattr(b, "dialog_id", 0) != 0]
-        if not buttons:
-            ConsoleLog(MODULE_NAME, "[EnterQuest] No dialog buttons found", Py4GW.Console.MessageType.Warning)
-            return
+            # Read the first button's dialog_id as the dynamic base
+            buttons = [b for b in PyDialog.PyDialog.get_active_dialog_buttons() if getattr(b, "dialog_id", 0) != 0]
+            if not buttons:
+                ConsoleLog(MODULE_NAME, f"[EnterQuest] No dialog buttons found (attempt {attempt}/{_MAX_ATTEMPTS})", Py4GW.Console.MessageType.Warning)
+                if attempt < _MAX_ATTEMPTS:
+                    yield from Routines.Yield.wait(500)
+                    continue
+                bot.helpers.Events.on_unmanaged_fail()
+                return
 
-        base_id = buttons[0].dialog_id
-        target_id = base_id + _HOTN_DIALOG_BASE_OFFSET + mission.mission_slot
-        ConsoleLog(MODULE_NAME, f"[EnterQuest] base={hex(base_id)} offset={hex(_HOTN_DIALOG_BASE_OFFSET + mission.mission_slot)} -> sending {hex(target_id)}")
-        Player.SendDialog(target_id)
-        yield from Routines.Yield.wait(500)
+            base_id = buttons[0].dialog_id
+            target_id = base_id + _HOTN_DIALOG_BASE_OFFSET + mission.mission_slot
+            ConsoleLog(MODULE_NAME, f"[EnterQuest] base={hex(base_id)} offset={hex(_HOTN_DIALOG_BASE_OFFSET + mission.mission_slot)} -> sending {hex(target_id)}")
+            Player.SendDialog(target_id)
+            yield from Routines.Yield.wait(500)
+            return  # success — let FSM advance to WaitForMissionLoad
 
     bot.States.AddCustomState(lambda: _enter_quest(bot), "EnterQuest")
+    bot.States.AddCustomState(
+        lambda: Routines.Yield.Map.WaitforMapLoad(_get_active_mission().map_id, timeout=30000),
+        "WaitForMissionLoad"
+    )
 
 def _on_quest_success(bot: Botting) -> None:
     """Called at runtime after any mission completes successfully."""
@@ -591,7 +609,7 @@ def RunQuest(bot: Botting) -> None:
         BotSettings.CURRENT_RUN_START_TIME = time.time()
         if BotSettings.DEBUG:
             print(f"[DEBUG] Started run timer at {BotSettings.CURRENT_RUN_START_TIME}")
-        yield
+        yield  
     bot.States.AddCustomState(lambda: _start_run_timer(), "StartRunTimer")
     bot.States.AddCustomState(lambda: _load_navmesh_object(bot), "Navmesh Init")
     bot.States.AddCustomState(lambda: _handle_bonus_bow(bot), "HandleBonusBow")
@@ -1237,10 +1255,14 @@ def _draw_hotn_help() -> None:
         PyImGui.bullet_text("Paragon - 80 Armor")
         PyImGui.bullet_text("Warrior - 80 Armor")
         PyImGui.spacing()
-        PyImGui.text_wrapped("Best Runes")
-        PyImGui.bullet_text("Paragon - Centurion")
+        PyImGui.text_wrapped("Best Insignia")
+        PyImGui.bullet_text("Paragon - Centurion (Only in Rise)")
         PyImGui.bullet_text("Warrior - Knight's/Dreadnought")
-        PyImGui.bullet_text("General - Stalwart/Brawler's")
+        PyImGui.bullet_text("Necro - Tormentor/Undertaker")
+        PyImGui.bullet_text("Mesmer - Prodigy")
+        PyImGui.bullet_text("Assassin - Nightstalker")
+        PyImGui.bullet_text("Dervish - Forsaken")
+        PyImGui.bullet_text("General - Sentry/Stalwart/Brawler's")
         PyImGui.spacing()
         PyImGui.text_wrapped("Best Runes")
         PyImGui.bullet_text("Clarity")

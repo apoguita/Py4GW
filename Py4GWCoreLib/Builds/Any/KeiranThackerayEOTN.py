@@ -1,12 +1,9 @@
-import ctypes
 import math
 import time
 from typing import Callable, Optional
 
 from Py4GWCoreLib import (GLOBAL_CACHE, Agent, Player, Routines, BuildMgr, Range, Py4GW, ConsoleLog,
                           Map, ActionQueueManager, AgentArray, AutoPathing)
-#from Py4GWCoreLib.CombatEvents import CombatEvents as CombatEvents   # import the manager directly to avoid module shadowing
-from .AutoCombat import AutoCombat
 
 # ── Combat AI constants ───────────────────────────────────────────────────────
 _MIKU_MODEL_ID = 8513
@@ -134,9 +131,8 @@ def _nearest_from(array, origin_x: float, origin_y: float, max_dist: float = 0) 
 
 class KeiranThackerayEOTN(BuildMgr):
     def __init__(self, fsm=None, debug_fn: Optional[Callable[[], bool]] = None):
-        super().__init__(name="AutoCombat Build")
+        super().__init__(name="KeiranThackerayEOTN")
         self.debug_fn: Callable[[], bool] = debug_fn if debug_fn is not None else (lambda: False)
-        self.auto_combat_handler: BuildMgr = AutoCombat()
 
         self.natures_blessing        = GLOBAL_CACHE.Skill.GetID("Natures_Blessing")
         self.relentless_assault      = GLOBAL_CACHE.Skill.GetID("Relentless_Assault")
@@ -175,13 +171,17 @@ class KeiranThackerayEOTN(BuildMgr):
         self.los_fail_since       = 0.0
         self.los_debug_at         = 0.0
 
+        # HP-delta hit detection (replaces CombatEvents which is fully deactivated)
+        self._prev_player_hp         : float      = 0.0   # player HP last frame
+        self._enemy_hp_cache         : dict       = {}    # agent_id -> HP last frame
+        self.last_damage_dealt_at    : float      = 0.0   # time.time() when any nearby enemy HP dropped
+        self.last_damage_received_at : float      = 0.0   # time.time() when player HP dropped
+
         # FSM pause/resume support
         self.fsm           = fsm
         self.pause_reasons: set = set()
         self.ai_paused_fsm = False
 
-        for slot in range(1, 7):
-            self.auto_combat_handler.auto_combat_handler.SetSkillEnabled(slot, False)
 
     @property
     def debug(self) -> bool:
@@ -232,6 +232,25 @@ class KeiranThackerayEOTN(BuildMgr):
         # ══════════════════════════════════════════════════════════════════════
         # ── Movement (throttled to once per second) ───────────────────────────
         player_health     = Agent.GetHealth(player_id)
+
+        # ── HP-delta hit detection (runs every frame) ─────────────────────────
+        # damage_received: player HP dropped since last frame
+        if self._prev_player_hp > 0.0 and player_health < self._prev_player_hp:
+            self.last_damage_received_at = now
+        self._prev_player_hp = player_health
+        # damage_dealt: any enemy in range lost HP since last frame
+        _current_enemy_ids = set(enemy_array)
+        for _eid in _current_enemy_ids:
+            _cur_hp  = Agent.GetHealth(_eid)
+            _prev_hp = self._enemy_hp_cache.get(_eid, _cur_hp)
+            if _cur_hp < _prev_hp:
+                self.last_damage_dealt_at = now
+            self._enemy_hp_cache[_eid] = _cur_hp
+        # prune enemies that left the array
+        for _eid in list(self._enemy_hp_cache):
+            if _eid not in _current_enemy_ids:
+                del self._enemy_hp_cache[_eid]
+
         enemies_close = AgentArray.Filter.ByCondition(enemy_array, lambda eid: _dist(player_x, player_y, *Agent.GetXY(eid)) <= 300)
         enemies_agro = AgentArray.Filter.ByCondition(enemy_array, lambda eid: _dist(player_x, player_y, *Agent.GetXY(eid)) <= 1500)
         enemies_far  = AgentArray.Filter.ByCondition(enemy_array, lambda eid: _dist(player_x, player_y, *Agent.GetXY(eid)) <= 2000)
@@ -407,19 +426,12 @@ class KeiranThackerayEOTN(BuildMgr):
                 yield from Routines.Yield.wait(500)
                 return
 
-            # ── Hit detection (shared by lazy Miku and LoS blocks below) ──────────
-            # CombatEvents timestamps are GetTickCount() ms -- not time.time().
-            _LOS_WINDOW_MS = 4000   # ms with no outgoing hits before gap-close triggers
-            _tick_now      = ctypes.windll.kernel32.GetTickCount()
-            _los_recent    = [] #CombatEvents.GetRecentDamage(count=100)
-            damage_dealt   = any(
-                src == player_id and (_tick_now - ts) < _LOS_WINDOW_MS
-                for ts, tgt, src, _dmg, _skill, _crit in _los_recent
-            )
-            damage_received   = any(
-                tgt == player_id and (_tick_now - ts) < _LOS_WINDOW_MS
-                for ts, tgt, src, _dmg, _skill, _crit in _los_recent
-            )
+            # ── Hit detection via HP delta ────────────────────────────────────────
+            # CombatEvents is fully deactivated; HP snapshots are taken every frame
+            # (above) and timestamps updated whenever a drop is detected.
+            _LOS_WINDOW_SEC = 4.0
+            damage_dealt    = (now - self.last_damage_dealt_at)    < _LOS_WINDOW_SEC
+            damage_received = (now - self.last_damage_received_at) < _LOS_WINDOW_SEC
 
             # Try to engage Miku by pulling enemies towards her -- if 1 enemy remains move towards enemy instead
             # Only fires when actively dealing damage and LoS is not broken.
@@ -626,6 +638,11 @@ class KeiranThackerayEOTN(BuildMgr):
                 yield from Routines.Yield.Skills.CastSkillID(skill_id, aftercast_delay=0)
             yield
 
+        # ── Mana guard -- hold attack skills while energy is below 60% ──────────
+        if Agent.GetEnergy(player_id) < 0.60:
+            yield
+            return
+
         # ── Skill ladder (only when the AI is in weapon range) ──────────────────────
         in_danger = Routines.Checks.Agents.InDanger(aggro_area=_WEAPON_RANGE)
         keiran_sniper_shot_ready       = yield from Routines.Yield.Skills.IsSkillIDUsable(self.keiran_sniper_shot)
@@ -718,6 +735,6 @@ class KeiranThackerayEOTN(BuildMgr):
                         return
 
         if not has_empathy:
-            yield from self.auto_combat_handler.ProcessSkillCasting()
+            yield from self.AutoAttack()
         else:
-            yield  # don't let AutoCombat re-target and re-attack while Empathy/Spirit Shackles is active
+            yield  # suppress auto-attack while Empathy / Spirit Shackles is active
