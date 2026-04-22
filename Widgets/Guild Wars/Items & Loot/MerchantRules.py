@@ -42,7 +42,7 @@ FLOATING_UI_INI_FILENAME = "MerchantRulesFloating.ini"
 FLOATING_ICON_WINDOW_ID = "##merchant_rules_floating_icon_button"
 FLOATING_ICON_WINDOW_NAME = "Merchant Rules Toggle"
 
-PROFILE_VERSION = 25
+PROFILE_VERSION = 26
 CONFIG_DIR = os.path.join(Py4GW.Console.get_projects_path(), "Widgets", "Config", "MerchantRules")
 SHARED_PROFILES_DIR = os.path.join(CONFIG_DIR, "Profiles")
 RECOVERY_DIR = os.path.join(CONFIG_DIR, "Recovery")
@@ -134,6 +134,7 @@ LEGACY_BUY_KIND_ECTO = "buy_ectoplasm"
 
 SELL_KIND_COMMON_MATERIALS = "sell_common_materials"
 SELL_KIND_EXPLICIT_MODELS = "sell_explicit_models"
+SELL_KIND_RUNE_TRADER_TARGET = "sell_rune_trader_target"
 SELL_KIND_WEAPONS = "sell_weapons"
 SELL_KIND_ARMOR = "sell_armor"
 DESTROY_KIND_MATERIALS = "destroy_materials"
@@ -155,6 +156,7 @@ BUY_RULE_KINDS = [
 SELL_RULE_KINDS = [
     SELL_KIND_COMMON_MATERIALS,
     SELL_KIND_EXPLICIT_MODELS,
+    SELL_KIND_RUNE_TRADER_TARGET,
     SELL_KIND_WEAPONS,
     SELL_KIND_ARMOR,
 ]
@@ -177,6 +179,7 @@ BUY_RULE_WORKSPACE_ORDER: tuple[str, ...] = (
 SELL_RULE_WORKSPACE_ORDER: tuple[str, ...] = (
     SELL_KIND_WEAPONS,
     SELL_KIND_ARMOR,
+    SELL_KIND_RUNE_TRADER_TARGET,
     SELL_KIND_EXPLICIT_MODELS,
     SELL_KIND_COMMON_MATERIALS,
 )
@@ -207,6 +210,7 @@ BUY_RULE_WORKSPACE_LABELS = {
 SELL_KIND_LABELS = {
     SELL_KIND_COMMON_MATERIALS: "Sell Materials",
     SELL_KIND_EXPLICIT_MODELS: "Sell Specific Items",
+    SELL_KIND_RUNE_TRADER_TARGET: "Sell Runes & Insignias",
     SELL_KIND_WEAPONS: "Sell Weapons",
     SELL_KIND_ARMOR: "Sell Armor",
 }
@@ -232,6 +236,7 @@ SALVAGE_CATEGORY_ORDER: tuple[tuple[str, str], ...] = (
 SELL_RULE_WORKSPACE_LABELS = {
     SELL_KIND_WEAPONS: "Weapons",
     SELL_KIND_ARMOR: "Armor",
+    SELL_KIND_RUNE_TRADER_TARGET: "Runes & Insignias",
     SELL_KIND_EXPLICIT_MODELS: "Items",
     SELL_KIND_COMMON_MATERIALS: "Materials",
 }
@@ -302,6 +307,7 @@ BUY_KIND_TO_MERCHANT_TYPE = {
 SELL_KIND_TO_MERCHANT_TYPE = {
     SELL_KIND_COMMON_MATERIALS: MERCHANT_TYPE_MATERIALS,
     SELL_KIND_EXPLICIT_MODELS: MERCHANT_TYPE_MERCHANT,
+    SELL_KIND_RUNE_TRADER_TARGET: MERCHANT_TYPE_RUNE_TRADER,
     SELL_KIND_WEAPONS: MERCHANT_TYPE_MERCHANT,
     SELL_KIND_ARMOR: MERCHANT_TYPE_MERCHANT,
 }
@@ -609,6 +615,7 @@ RULE_KIND_PRESENTATION: dict[str, tuple[str, tuple[float, float, float, float]]]
     BUY_KIND_SCROLL_TRADER_TARGET: ("Scrolls", UI_COLOR_INDIGO),
     SELL_KIND_COMMON_MATERIALS: ("Materials", UI_COLOR_TEAL),
     SELL_KIND_EXPLICIT_MODELS: ("Items", UI_COLOR_INDIGO),
+    SELL_KIND_RUNE_TRADER_TARGET: ("Runes", UI_COLOR_PURPLE_ACCENT),
     SELL_KIND_WEAPONS: ("Weapons", UI_COLOR_SUCCESS),
     SELL_KIND_ARMOR: ("Armor", UI_COLOR_PURPLE_ACCENT),
     DESTROY_KIND_MATERIALS: ("Destroy", UI_COLOR_DANGER),
@@ -893,6 +900,12 @@ class RuneTraderTarget:
 
 
 @dataclass
+class RuneSellTarget:
+    identifier: str = ""
+    keep_count: int = 0
+
+
+@dataclass
 class WhitelistTarget:
     model_id: int = 0
     keep_count: int = 0
@@ -963,6 +976,7 @@ class SellRule:
     protected_weapon_mod_thresholds: list[WeaponModThresholdRule] = field(default_factory=list)
     protected_weapon_mod_variants: list[WeaponModVariantRule] = field(default_factory=list)
     protected_weapon_mod_variant_thresholds: list[WeaponModVariantThresholdRule] = field(default_factory=list)
+    rune_sell_targets: list[RuneSellTarget] = field(default_factory=list)
     protected_rune_identifiers: list[str] = field(default_factory=list)
     skip_customized: bool = True
     skip_unidentified: bool = True
@@ -2395,6 +2409,40 @@ def _normalize_rune_trader_targets(raw_targets: object) -> list[RuneTraderTarget
     return normalized
 
 
+def _normalize_rune_sell_targets(raw_targets: object) -> list[RuneSellTarget]:
+    normalized: list[RuneSellTarget] = []
+    seen_identifiers: set[str] = set()
+    if not isinstance(raw_targets, list):
+        return normalized
+
+    for entry in raw_targets:
+        if isinstance(entry, RuneSellTarget):
+            identifier = entry.identifier
+            keep_count = entry.keep_count
+        elif isinstance(entry, RuneTraderTarget):
+            identifier = entry.identifier
+            keep_count = entry.target_count
+        elif isinstance(entry, dict):
+            identifier = entry.get("identifier", "")
+            keep_count = entry.get("keep_count", entry.get("target_count", 0))
+        else:
+            continue
+
+        safe_identifier = _normalize_rune_identifier(identifier)
+        if not safe_identifier or safe_identifier in seen_identifiers:
+            continue
+
+        seen_identifiers.add(safe_identifier)
+        normalized.append(
+            RuneSellTarget(
+                identifier=safe_identifier,
+                keep_count=max(0, _safe_int(keep_count, 0)),
+            )
+        )
+
+    return normalized
+
+
 def _normalize_whitelist_targets(raw_targets: object) -> list[WhitelistTarget]:
     normalized: list[WhitelistTarget] = []
     seen_model_ids: set[int] = set()
@@ -2690,6 +2738,12 @@ def _default_sell_rules() -> list[SellRule]:
             skip_customized=True,
             skip_unidentified=True,
         ),
+        SellRule(
+            enabled=False,
+            kind=SELL_KIND_RUNE_TRADER_TARGET,
+            merchant_type=MERCHANT_TYPE_RUNE_TRADER,
+            rune_sell_targets=[],
+        ),
     ]
 
 
@@ -2947,6 +3001,7 @@ def _normalize_sell_rule(rule: SellRule) -> SellRule | None:
     rule.protected_weapon_mod_variant_thresholds = _normalize_weapon_mod_variant_threshold_rules(
         _coerce_list(getattr(rule, "protected_weapon_mod_variant_thresholds", []))
     )
+    rule.rune_sell_targets = _normalize_rune_sell_targets(getattr(rule, "rune_sell_targets", []))
     rule.protected_rune_identifiers = _dedupe_identifiers(rule.protected_rune_identifiers)
     rule.skip_customized = bool(rule.skip_customized)
     rule.skip_unidentified = bool(rule.skip_unidentified)
@@ -2958,12 +3013,22 @@ def _normalize_sell_rule(rule: SellRule) -> SellRule | None:
         rule.model_ids = []
         rule.keep_count = 0
         rule.whitelist_targets = []
+        rule.rune_sell_targets = []
         if rule.kind != SELL_KIND_WEAPONS:
             rule.blacklist_item_type_ids = []
+    elif rule.kind == SELL_KIND_RUNE_TRADER_TARGET:
+        rule.model_ids = []
+        rule.keep_count = 0
+        rule.whitelist_targets = []
+        rule.rarities = _default_rarity_flags()
+        rule.blacklist_model_ids = []
+        rule.blacklist_item_type_ids = []
+        rule.deposit_protected_matches = False
     else:
         rule.model_ids = _get_whitelist_target_model_ids(rule.whitelist_targets)
         rule.keep_count = 0
         rule.blacklist_item_type_ids = []
+        rule.rune_sell_targets = []
         rule.deposit_protected_matches = False
     return rule
 
@@ -3203,6 +3268,8 @@ class MerchantRulesWidget:
         self.buy_rune_search_cache: dict[int, str] = {}
         self.buy_rune_profession_cache: dict[int, str] = {}
         self.sell_model_search_cache: dict[int, str] = {}
+        self.sell_exact_rune_search_cache: dict[int, str] = {}
+        self.sell_exact_rune_profession_cache: dict[int, str] = {}
         self.sell_blacklist_search_cache: dict[int, str] = {}
         self.sell_blacklist_import_feedback_cache: dict[int, tuple[str, tuple[float, float, float, float]]] = {}
         self.sell_weapon_requirement_search_cache: dict[int, str] = {}
@@ -3578,6 +3645,7 @@ class MerchantRulesWidget:
                     protected_weapon_mod_thresholds=_normalize_weapon_mod_threshold_rules(_coerce_list(entry.get("protected_weapon_mod_thresholds", []))),
                     protected_weapon_mod_variants=_normalize_weapon_mod_variant_rules(_coerce_list(entry.get("protected_weapon_mod_variants", []))),
                     protected_weapon_mod_variant_thresholds=_normalize_weapon_mod_variant_threshold_rules(_coerce_list(entry.get("protected_weapon_mod_variant_thresholds", []))),
+                    rune_sell_targets=_normalize_rune_sell_targets(_coerce_list(entry.get("rune_sell_targets", []))),
                     protected_rune_identifiers=_dedupe_identifiers(_coerce_list(entry.get("protected_rune_identifiers", []))),
                     skip_customized=bool(entry.get("skip_customized", True)),
                     skip_unidentified=bool(entry.get("skip_unidentified", True)),
@@ -3713,6 +3781,7 @@ class MerchantRulesWidget:
                 protected_weapon_mod_thresholds=_normalize_weapon_mod_threshold_rules(_coerce_list(entry.get("protected_weapon_mod_thresholds", []))),
                 protected_weapon_mod_variants=_normalize_weapon_mod_variant_rules(_coerce_list(entry.get("protected_weapon_mod_variants", []))),
                 protected_weapon_mod_variant_thresholds=_normalize_weapon_mod_variant_threshold_rules(_coerce_list(entry.get("protected_weapon_mod_variant_thresholds", []))),
+                rune_sell_targets=_normalize_rune_sell_targets(_coerce_list(entry.get("rune_sell_targets", []))),
                 protected_rune_identifiers=_dedupe_identifiers(_coerce_list(entry.get("protected_rune_identifiers", []))),
                 skip_customized=bool(entry.get("skip_customized", True)),
                 skip_unidentified=bool(entry.get("skip_unidentified", True)),
@@ -4704,6 +4773,8 @@ class MerchantRulesWidget:
         self.buy_rune_profession_cache.clear()
         self.destroy_model_search_cache.clear()
         self.sell_model_search_cache.clear()
+        self.sell_exact_rune_search_cache.clear()
+        self.sell_exact_rune_profession_cache.clear()
         self.sell_blacklist_search_cache.clear()
         self.sell_blacklist_import_feedback_cache.clear()
         self.sell_weapon_requirement_search_cache.clear()
@@ -6404,6 +6475,38 @@ class MerchantRulesWidget:
             )
         )
         return self._set_buy_rule_rune_targets(rule, existing_targets)
+
+    def _set_sell_rule_rune_sell_targets(self, rule: SellRule, rune_targets: list[RuneSellTarget]) -> bool:
+        normalized_targets = _normalize_rune_sell_targets(rune_targets)
+        current_targets = _normalize_rune_sell_targets(getattr(rule, "rune_sell_targets", []))
+        if normalized_targets == current_targets:
+            return False
+        rule.rune_sell_targets = normalized_targets
+        return True
+
+    def _add_sell_rule_rune_sell_target(
+        self,
+        rule: SellRule,
+        identifier: str,
+        *,
+        keep_count: int = 0,
+    ) -> bool:
+        safe_identifier = _normalize_rune_identifier(identifier)
+        if not safe_identifier:
+            return False
+
+        existing_targets = _normalize_rune_sell_targets(getattr(rule, "rune_sell_targets", []))
+        for rune_target in existing_targets:
+            if rune_target.identifier == safe_identifier:
+                return False
+
+        existing_targets.append(
+            RuneSellTarget(
+                identifier=safe_identifier,
+                keep_count=max(0, _safe_int(keep_count, 0)),
+            )
+        )
+        return self._set_sell_rule_rune_sell_targets(rule, existing_targets)
 
     def _set_sell_rule_whitelist_targets(self, index: int, rule: SellRule, whitelist_targets: list[WhitelistTarget]) -> bool:
         normalized_targets = _normalize_whitelist_targets(whitelist_targets)
@@ -9086,8 +9189,10 @@ class MerchantRulesWidget:
         rule_index: int,
         claimed_item_ids: set[int],
         coords: dict[str, tuple[float, float] | None],
+        reserved_rune_sell_identifiers: set[str] | None = None,
     ) -> None:
         candidate_label = SELL_KIND_LABELS[rule.kind]
+        reserved_rune_sell_identifiers = reserved_rune_sell_identifiers or set()
         had_category_candidate = False
         had_rarity_candidate = False
         planned_sale_count = 0
@@ -9103,6 +9208,13 @@ class MerchantRulesWidget:
 
             destination = self._get_equippable_rule_destination(item, rule)
             if not destination:
+                continue
+            if (
+                rule.kind == SELL_KIND_ARMOR
+                and item.standalone_kind == RUNE_STANDALONE_KIND
+                and reserved_rune_sell_identifiers
+                and any(identifier in reserved_rune_sell_identifiers for identifier in item.rune_identifiers)
+            ):
                 continue
 
             had_category_candidate = True
@@ -9180,6 +9292,130 @@ class MerchantRulesWidget:
             f"{candidate_label}: category_candidates={category_candidates} rarity_matches={rarity_matches} "
             f"merchant_sales={merchant_sales} rune_trader_sales={rune_trader_sales} "
             f"blocked_matches={blocked_matches}"
+        )
+
+    def _plan_rune_sell_target_sales(
+        self,
+        plan: PlanResult,
+        items: list[InventoryItemInfo],
+        rule: SellRule,
+        rule_index: int,
+        claimed_item_ids: set[int],
+        coords: dict[str, tuple[float, float] | None],
+    ) -> None:
+        rune_targets = _normalize_rune_sell_targets(getattr(rule, "rune_sell_targets", []))
+        if not rune_targets:
+            plan.entries.append(
+                ExecutionPlanEntry(
+                    "sell",
+                    MERCHANT_TYPE_RUNE_TRADER,
+                    SELL_KIND_LABELS[SELL_KIND_RUNE_TRADER_TARGET],
+                    0,
+                    PLAN_STATE_SKIPPED,
+                    "No rune or insignia targets selected.",
+                )
+            )
+            return
+
+        rule_reference = self._format_sell_rule_reference(rule_index, rule)
+        rune_trader_coords = coords.get(MERCHANT_TYPE_RUNE_TRADER)
+        planned_sale_count = 0
+        blocked_matches = 0
+        kept_matches = 0
+
+        for rune_target in rune_targets:
+            target_identifier = _normalize_rune_identifier(rune_target.identifier)
+            if not target_identifier:
+                continue
+
+            target_label = self._get_rune_label(target_identifier)
+            matching_items = [
+                item
+                for item in items
+                if item.item_id not in claimed_item_ids
+                and item.standalone_kind == RUNE_STANDALONE_KIND
+                and target_identifier in item.rune_identifiers
+            ]
+            if not matching_items:
+                plan.entries.append(
+                    ExecutionPlanEntry(
+                        "sell",
+                        MERCHANT_TYPE_RUNE_TRADER,
+                        target_label,
+                        0,
+                        PLAN_STATE_SKIPPED,
+                        "No matching standalone rune or insignia found.",
+                    )
+                )
+                continue
+
+            keep_count = max(0, int(rune_target.keep_count))
+            keep_ids = self._choose_keep_subset(matching_items, keep_count)
+            for item in matching_items:
+                claimed_item_ids.add(item.item_id)
+                if item.item_id not in keep_ids:
+                    continue
+                kept_matches += 1
+                plan.entries.append(
+                    ExecutionPlanEntry(
+                        "sell",
+                        MERCHANT_TYPE_RUNE_TRADER,
+                        item.name,
+                        item.quantity,
+                        PLAN_STATE_SKIPPED,
+                        f"Kept by {rule_reference}: reserved to satisfy keep count {keep_count}.",
+                        model_id=item.model_id,
+                    )
+                )
+
+            sell_items = [item for item in matching_items if item.item_id not in keep_ids]
+            if not sell_items:
+                continue
+
+            if rune_trader_coords is None:
+                blocked_matches += len(sell_items)
+                for item in sell_items:
+                    plan.entries.append(
+                        ExecutionPlanEntry(
+                            "sell",
+                            MERCHANT_TYPE_RUNE_TRADER,
+                            item.name,
+                            item.quantity,
+                            PLAN_STATE_SKIPPED,
+                            (
+                                f"Blocked by {rule_reference}: "
+                                f"{MERCHANT_TYPE_LABELS[MERCHANT_TYPE_RUNE_TRADER]} could not be found in the current map."
+                            ),
+                            model_id=item.model_id,
+                        )
+                    )
+                continue
+
+            for item in sell_items:
+                plan.rune_trader_sales.append(
+                    PlannedTraderSale(
+                        item_id=item.item_id,
+                        model_id=item.model_id,
+                        label=item.name,
+                    )
+                )
+                plan.entries.append(
+                    ExecutionPlanEntry(
+                        "sell",
+                        MERCHANT_TYPE_RUNE_TRADER,
+                        item.name,
+                        item.quantity,
+                        PLAN_STATE_WILL_EXECUTE,
+                        "Exact rune / insignia target.",
+                        model_id=item.model_id,
+                    )
+                )
+                planned_sale_count += 1
+
+        self._debug_log(
+            f"{SELL_KIND_LABELS[SELL_KIND_RUNE_TRADER_TARGET]}: "
+            f"targets={len(rune_targets)} planned_sales={planned_sale_count} "
+            f"kept_matches={kept_matches} blocked_matches={blocked_matches}"
         )
 
     def _get_inventory_model_counts(self, items: list[InventoryItemInfo]) -> dict[int, int]:
@@ -11550,6 +11786,13 @@ class MerchantRulesWidget:
                     )
                 )
 
+        reserved_rune_sell_identifiers = {
+            target.identifier
+            for _exact_rule_index, exact_rule in enabled_sell_rules
+            if exact_rule.kind == SELL_KIND_RUNE_TRADER_TARGET
+            for target in _normalize_rune_sell_targets(getattr(exact_rule, "rune_sell_targets", []))
+            if target.identifier
+        }
         for rule_index, sell_rule in enabled_sell_rules:
             merchant_coords = coords.get(sell_rule.merchant_type)
             if not supported_map and not storage_context_ready:
@@ -11568,6 +11811,18 @@ class MerchantRulesWidget:
             rule_reference = self._format_sell_rule_reference(rule_index, sell_rule)
             if sell_rule.kind in (SELL_KIND_WEAPONS, SELL_KIND_ARMOR):
                 self._plan_equippable_rule_sales(
+                    plan=plan,
+                    items=items,
+                    rule=sell_rule,
+                    rule_index=rule_index,
+                    claimed_item_ids=claimed_item_ids,
+                    coords=coords,
+                    reserved_rune_sell_identifiers=reserved_rune_sell_identifiers,
+                )
+                continue
+
+            if sell_rule.kind == SELL_KIND_RUNE_TRADER_TARGET:
+                self._plan_rune_sell_target_sales(
                     plan=plan,
                     items=items,
                     rule=sell_rule,
@@ -16102,6 +16357,16 @@ class MerchantRulesWidget:
             ]
             summary = self._format_compact_list(target_labels, limit=2) or f"{len(whitelist_targets)} selected target(s)"
             return f"{len(whitelist_targets)} selected target(s) | {summary}", True
+        if normalized_rule.kind == SELL_KIND_RUNE_TRADER_TARGET:
+            rune_targets = _normalize_rune_sell_targets(getattr(normalized_rule, "rune_sell_targets", []))
+            if not rune_targets:
+                return "Pick the runes or insignias to sell.", False
+            target_labels = [
+                f"{self._get_rune_label(target.identifier)} keep {int(target.keep_count)}"
+                for target in self._sort_targets_by_identifier_label_for_display(rune_targets, self._get_rune_label)
+            ]
+            summary = self._format_compact_list(target_labels, limit=2) or f"{len(rune_targets)} rune target(s)"
+            return f"{len(rune_targets)} target(s) | {summary}", True
 
         enabled_rarities = self._get_enabled_rarity_labels(normalized_rule)
         has_explicit_hard_protection = _has_explicit_equippable_hard_protection(normalized_rule)
@@ -16161,7 +16426,7 @@ class MerchantRulesWidget:
         if normalized_rule.kind == SELL_KIND_ARMOR and normalized_rule.protected_rune_identifiers:
             parts.append(f"Protected runes {len(normalized_rule.protected_rune_identifiers)}")
         if normalized_rule.kind == SELL_KIND_ARMOR and normalized_rule.include_standalone_runes:
-            parts.append("Sell standalone runes")
+            parts.append("Sell loose runes")
         return " | ".join(parts), True
 
     def _get_destroy_rule_summary(self, rule: DestroyRule) -> tuple[str, bool]:
@@ -16263,6 +16528,7 @@ class MerchantRulesWidget:
         diagnostics: list[str] = []
         explicit_model_rules: dict[int, list[int]] = {}
         material_rules: dict[int, list[int]] = {}
+        rune_sell_rules: dict[str, list[int]] = {}
         weapon_rules: list[tuple[int, set[str]]] = []
         armor_rules: list[tuple[int, set[str]]] = []
 
@@ -16278,6 +16544,10 @@ class MerchantRulesWidget:
             elif rule.kind == SELL_KIND_COMMON_MATERIALS:
                 for model_id in rule.model_ids:
                     material_rules.setdefault(int(model_id), []).append(index)
+            elif rule.kind == SELL_KIND_RUNE_TRADER_TARGET:
+                for target in _normalize_rune_sell_targets(getattr(rule, "rune_sell_targets", [])):
+                    if target.identifier:
+                        rune_sell_rules.setdefault(str(target.identifier), []).append(index)
             elif rule.kind == SELL_KIND_WEAPONS:
                 weapon_rules.append((index, set(self._get_enabled_rarity_labels(rule))))
             elif rule.kind == SELL_KIND_ARMOR:
@@ -16296,6 +16566,13 @@ class MerchantRulesWidget:
             diagnostics.append(
                 f"{self._format_model_label(model_id)} appears in material sell rules {self._format_rule_index_list(indices, rules=self.sell_rules)}. "
                 f"Earlier material rules consume tradable batches first."
+            )
+        for identifier, indices in sorted(rune_sell_rules.items(), key=lambda row: self._get_rune_label(row[0]).lower()):
+            if len(indices) < 2:
+                continue
+            diagnostics.append(
+                f"{self._get_rune_label(identifier)} appears in rune sell rules {self._format_rule_index_list(indices, rules=self.sell_rules)}. "
+                f"Earlier rune rules allocate matching loose runes first."
             )
 
         def _append_equippable_overlap_messages(rule_kind_label: str, rule_infos: list[tuple[int, set[str]]]):
@@ -17718,6 +17995,10 @@ class MerchantRulesWidget:
         PyImGui.same_line(0, 8)
         if PyImGui.button("Armor##guided_sell_armor"):
             self._add_sell_rule_of_kind(SELL_KIND_ARMOR)
+            return
+        PyImGui.same_line(0, 8)
+        if PyImGui.button("Runes & Insignias##guided_sell_runes"):
+            self._add_sell_rule_of_kind(SELL_KIND_RUNE_TRADER_TARGET)
             return
         PyImGui.spacing()
         self._draw_section_heading("Destroy")
@@ -19375,6 +19656,204 @@ class MerchantRulesWidget:
         PyImGui.end_child()
         return changed
 
+    def _draw_sell_rule_rune_targets_editor(self, index: int, rule: SellRule) -> bool:
+        changed = False
+        rune_targets = _normalize_rune_sell_targets(getattr(rule, "rune_sell_targets", []))
+
+        if self._draw_confirm_destructive_button(f"Clear Targets##sell_runes_clear_{index}"):
+            if self._set_sell_rule_rune_sell_targets(rule, []):
+                rune_targets = []
+                changed = True
+
+        PyImGui.text(f"Selected Runes / Insignias: {len(rune_targets)}")
+        if not rune_targets:
+            self._draw_secondary_text("No rune or insignia targets selected yet.", wrapped=False)
+        else:
+            updated_targets = [
+                RuneSellTarget(
+                    identifier=target.identifier,
+                    keep_count=target.keep_count,
+                )
+                for target in rune_targets
+            ]
+            display_targets = self._sort_targets_by_identifier_label_for_display(updated_targets, self._get_rune_label)
+            removed_identifier = ""
+            child_height = min(220, 58 + (32 * len(updated_targets)))
+            if PyImGui.begin_child(f"sell_rune_targets_selected_{index}", (0, child_height), True, PyImGui.WindowFlags.NoFlag):
+                if PyImGui.begin_table(f"sell_rune_targets_table_{index}", 4, self._get_dense_list_table_flags()):
+                    PyImGui.table_setup_column("Rune / Insignia", PyImGui.TableColumnFlags.WidthStretch)
+                    PyImGui.table_setup_column("Type", PyImGui.TableColumnFlags.WidthFixed, 110.0)
+                    PyImGui.table_setup_column("Keep", PyImGui.TableColumnFlags.WidthFixed, 120.0)
+                    PyImGui.table_setup_column("Remove", PyImGui.TableColumnFlags.WidthFixed, 60.0)
+
+                    PyImGui.table_next_row()
+                    PyImGui.table_set_column_index(0)
+                    PyImGui.text("Rune / Insignia")
+                    PyImGui.table_set_column_index(1)
+                    PyImGui.text("Type")
+                    PyImGui.table_set_column_index(2)
+                    PyImGui.text("Keep")
+                    PyImGui.table_set_column_index(3)
+                    PyImGui.text("Remove")
+
+                    for target_row in display_targets:
+                        entry = self._get_rune_buy_entry(target_row.identifier) or {}
+                        kind_label = str(entry.get("kind_label", "") or "Rune / Insignia")
+                        text_color = self._get_rune_text_color_for_identifier(target_row.identifier)
+
+                        PyImGui.table_next_row()
+                        PyImGui.table_set_column_index(0)
+                        rune_label = self._get_rune_label(target_row.identifier)
+                        if text_color is not None:
+                            PyImGui.text_colored(rune_label, text_color)
+                        else:
+                            PyImGui.text(rune_label)
+                        self._draw_hover_tooltip(self._get_rune_tooltip_text(target_row.identifier))
+
+                        PyImGui.table_set_column_index(1)
+                        PyImGui.text(kind_label)
+
+                        PyImGui.table_set_column_index(2)
+                        PyImGui.push_item_width(110)
+                        new_keep_count = PyImGui.input_int(
+                            f"##sell_rune_keep_count_{index}_{target_row.identifier}",
+                            int(target_row.keep_count),
+                        )
+                        PyImGui.pop_item_width()
+                        target_row.keep_count = max(0, int(new_keep_count))
+
+                        PyImGui.table_set_column_index(3)
+                        if PyImGui.small_button(f"X##sell_rune_remove_{index}_{target_row.identifier}"):
+                            removed_identifier = target_row.identifier
+                            break
+
+                    PyImGui.end_table()
+            PyImGui.end_child()
+
+            if removed_identifier:
+                next_targets = [
+                    target
+                    for target in updated_targets
+                    if target.identifier != removed_identifier
+                ]
+                if self._set_sell_rule_rune_sell_targets(rule, next_targets):
+                    changed = True
+            elif self._set_sell_rule_rune_sell_targets(rule, updated_targets):
+                changed = True
+
+        if not self.rune_buy_professions:
+            self._draw_secondary_text("Rune catalog entries are unavailable, so only saved targets can be edited right now.")
+            return changed
+
+        active_profession = str(
+            self.sell_exact_rune_profession_cache.get(index, self.rune_buy_professions[0])
+            or self.rune_buy_professions[0]
+        )
+        if active_profession not in self.rune_buy_professions:
+            active_profession = self.rune_buy_professions[0]
+
+        for tab_index, profession in enumerate(self.rune_buy_professions):
+            profession_label = _get_rune_profession_label(profession)
+            button_label = (
+                f"{profession_label} ({len(self.rune_buy_entries_by_profession.get(profession, []))})"
+                f"##sell_rune_profession_{index}_{profession}"
+            )
+            if self._draw_workspace_button(
+                button_label,
+                active=active_profession == profession,
+                color=UI_COLOR_PURPLE_ACCENT,
+            ):
+                active_profession = profession
+            if tab_index + 1 < len(self.rune_buy_professions):
+                PyImGui.same_line(0, 6)
+        self.sell_exact_rune_profession_cache[index] = active_profession
+
+        search_text = self.sell_exact_rune_search_cache.get(index, "")
+        updated_search_text = PyImGui.input_text(f"Search Runes / Insignias##sell_rune_search_{index}", search_text)
+        if updated_search_text != search_text:
+            self.sell_exact_rune_search_cache[index] = updated_search_text
+
+        existing_identifiers = {
+            _normalize_rune_identifier(target.identifier)
+            for target in _normalize_rune_sell_targets(getattr(rule, "rune_sell_targets", []))
+            if _normalize_rune_identifier(target.identifier)
+        }
+        query = str(self.sell_exact_rune_search_cache.get(index, "") or "").strip().lower()
+        visible_entries: list[dict[str, object]] = []
+        for entry in self.rune_buy_entries_by_profession.get(active_profession, []):
+            identifier = str(entry.get("identifier", "") or "").strip()
+            name = str(entry.get("name", "") or "").strip()
+            kind_label = str(entry.get("kind_label", "") or "").strip()
+            rarity = str(entry.get("rarity", "") or "").strip()
+            if query and query not in identifier.lower() and query not in name.lower() and query not in kind_label.lower() and query not in rarity.lower():
+                continue
+            visible_entries.append(entry)
+
+        addable_identifiers = [
+            str(entry.get("identifier", "")).strip()
+            for entry in visible_entries
+            if str(entry.get("identifier", "")).strip() not in existing_identifiers
+        ]
+        if self._draw_add_all_matches_button(
+            f"sell_rune_results_add_all_{index}",
+            len(visible_entries),
+            len(addable_identifiers),
+        ):
+            added_any = False
+            for identifier in addable_identifiers:
+                if self._add_sell_rule_rune_sell_target(rule, identifier):
+                    added_any = True
+            if added_any:
+                changed = True
+
+        child_height = 220 if len(visible_entries) > 6 else 170
+        if PyImGui.begin_child(f"sell_rune_results_{index}", (0, child_height), True, PyImGui.WindowFlags.NoFlag):
+            if not visible_entries:
+                PyImGui.text_wrapped("No matching runes or insignias found in this profession tab.")
+            elif PyImGui.begin_table(f"sell_rune_results_table_{index}", 3, PyImGui.TableFlags.RowBg):
+                PyImGui.table_setup_column("Rune / Insignia", PyImGui.TableColumnFlags.WidthStretch)
+                PyImGui.table_setup_column("Type", PyImGui.TableColumnFlags.WidthFixed, 105.0)
+                PyImGui.table_setup_column("Add", PyImGui.TableColumnFlags.WidthFixed, 55.0)
+
+                PyImGui.table_next_row()
+                PyImGui.table_set_column_index(0)
+                PyImGui.text("Rune / Insignia")
+                PyImGui.table_set_column_index(1)
+                PyImGui.text("Type")
+                PyImGui.table_set_column_index(2)
+                PyImGui.text("Add")
+
+                for entry in visible_entries:
+                    identifier = str(entry.get("identifier", "") or "").strip()
+                    if not identifier:
+                        continue
+                    already_selected = identifier in existing_identifiers
+
+                    PyImGui.table_next_row()
+                    PyImGui.table_set_column_index(0)
+                    name = str(entry.get("name", "") or identifier)
+                    text_color = self._get_rune_text_color_for_identifier(identifier)
+                    if text_color is not None:
+                        PyImGui.text_colored(name, text_color)
+                    else:
+                        PyImGui.text(name)
+                    self._draw_hover_tooltip(self._get_rune_tooltip_text(identifier))
+
+                    PyImGui.table_set_column_index(1)
+                    PyImGui.text(str(entry.get("kind_label", "") or "Rune / Insignia"))
+
+                    PyImGui.table_set_column_index(2)
+                    PyImGui.begin_disabled(already_selected)
+                    add_clicked = PyImGui.small_button(f"+##sell_rune_add_{index}_{identifier}")
+                    PyImGui.end_disabled()
+                    if add_clicked and self._add_sell_rule_rune_sell_target(rule, identifier):
+                        changed = True
+                        self.sell_exact_rune_search_cache[index] = str(entry.get("name", "") or identifier)
+
+                PyImGui.end_table()
+        PyImGui.end_child()
+        return changed
+
     def _draw_buy_rule_editor(self, index: int, rule: BuyRule) -> bool:
         changed = False
         summary_text, ready = self._get_buy_rule_summary(rule)
@@ -20344,7 +20823,7 @@ class MerchantRulesWidget:
             if rule.kind == SELL_KIND_WEAPONS:
                 self._draw_secondary_text("Equippable weapons sell to Merchant. Standalone weapon mods route to the Rune Trader.")
             else:
-                self._draw_secondary_text("Equippable armor sells to Merchant. Standalone runes and insignias are optional.")
+                self._draw_secondary_text("Equippable armor sells to Merchant. Loose runes and insignias are optional.")
 
             changed = self._draw_sell_rule_rarity_toggles(index, rule) or changed
 
@@ -20369,12 +20848,13 @@ class MerchantRulesWidget:
 
             if rule.kind == SELL_KIND_ARMOR:
                 include_standalone_runes = PyImGui.checkbox(
-                    f"Also Sell Standalone Runes / Insignias##sell_include_standalone_runes_{index}",
+                    f"Also sell loose runes and insignias##sell_include_standalone_runes_{index}",
                     bool(rule.include_standalone_runes),
                 )
                 if include_standalone_runes != rule.include_standalone_runes:
                     rule.include_standalone_runes = include_standalone_runes
                     changed = True
+                self._draw_secondary_text("For exact rune choices, use Sell -> Runes & Insignias.", wrapped=False)
 
             self._draw_light_separator()
             if is_target_rule and jump_target is not None and bool(jump_target.requires_advanced) and bool(jump_target.force_advanced_open):
@@ -20444,12 +20924,15 @@ class MerchantRulesWidget:
             merchant_prefix = "Merchants" if len(material_merchant_types) > 1 else "Merchant"
             self._draw_secondary_text(f"{merchant_prefix}: {self._format_compact_list(merchant_labels, limit=2)}", wrapped=False)
             self._draw_secondary_text("Common materials sell in lots of 10. Rare materials sell individually.")
+        elif rule.kind == SELL_KIND_RUNE_TRADER_TARGET:
+            self._draw_secondary_text("Sells exact loose runes and insignias to the Rune Trader.")
+            changed = self._draw_sell_rule_rune_targets_editor(index, rule) or changed
         else:
             self._draw_secondary_text(
                 "Routing: standalone runes / insignias -> Rune Trader, common materials -> Material Trader with Merchant leftovers under 10, rare materials -> Rare Material Trader, everything else -> Merchant.",
             )
 
-        if rule.kind not in (SELL_KIND_WEAPONS, SELL_KIND_ARMOR):
+        if rule.kind not in (SELL_KIND_WEAPONS, SELL_KIND_ARMOR, SELL_KIND_RUNE_TRADER_TARGET):
             if rule.kind == SELL_KIND_COMMON_MATERIALS:
                 if self._draw_confirm_destructive_button(f"Add All Common Materials##sell_common_preset_{index}"):
                     if self._set_sell_rule_model_ids(index, rule, rule.model_ids + self._get_common_material_preset()):
@@ -20858,7 +21341,6 @@ class MerchantRulesWidget:
 
     def _draw_identify_rarity_toggles(self, settings: IdentifySettings) -> bool:
         changed = False
-        PyImGui.text("Exact Rarity Selectors")
         settings.rarities = _normalize_identify_rarity_flags(settings.rarities)
         for rarity_index, (rarity_key, rarity_label) in enumerate(RARITY_OPTION_ORDER):
             current_value = bool(settings.rarities.get(rarity_key, False))
@@ -20882,6 +21364,47 @@ class MerchantRulesWidget:
         settings.rarities = next_flags
         return True
 
+    def _format_identify_filter_summary(self, settings: IdentifySettings) -> str:
+        normalized_settings = _normalize_identify_settings(settings)
+        rarity_labels = [
+            label
+            for key, label in RARITY_OPTION_ORDER
+            if bool(normalized_settings.rarities.get(key, False))
+        ]
+        modes: list[str] = []
+        if normalized_settings.before_execute:
+            modes.append("before Execute")
+        if normalized_settings.on_inventory_change:
+            modes.append("on inventory change")
+        mode_text = ", ".join(modes) if modes else "manual run only"
+        rarity_text = ", ".join(rarity_labels) if rarity_labels else "no rarities selected"
+        return f"Selected: {rarity_text} | Runs: {mode_text}"
+
+    def _draw_identify_status_badges(self, settings: IdentifySettings) -> int:
+        normalized_settings = _normalize_identify_settings(settings)
+        selector_count = sum(1 for value in normalized_settings.rarities.values() if bool(value))
+        auto_enabled = bool(normalized_settings.before_execute or normalized_settings.on_inventory_change)
+        ready = selector_count > 0
+
+        PyImGui.text("Identify:")
+        PyImGui.same_line(0, 8)
+        self._draw_inline_badge("On" if auto_enabled else "Off", UI_COLOR_SUCCESS if auto_enabled else UI_COLOR_MUTED)
+        PyImGui.same_line(0, 6)
+        self._draw_inline_badge(
+            f"Rarities: {selector_count}",
+            UI_COLOR_SUCCESS if ready else (UI_COLOR_WARNING if auto_enabled else UI_COLOR_MUTED),
+        )
+        if normalized_settings.before_execute:
+            PyImGui.same_line(0, 6)
+            self._draw_inline_badge("Execute", UI_COLOR_SUCCESS if ready else UI_COLOR_WARNING)
+        if normalized_settings.on_inventory_change:
+            PyImGui.same_line(0, 6)
+            self._draw_inline_badge("Pickup", UI_COLOR_SUCCESS if ready else UI_COLOR_WARNING)
+        if not auto_enabled:
+            PyImGui.same_line(0, 6)
+            self._draw_inline_badge("Manual", UI_COLOR_MUTED)
+        return selector_count
+
     def _draw_identify_workspace(self):
         settings = _normalize_identify_settings(self.identify_settings)
         changed = False
@@ -20891,6 +21414,13 @@ class MerchantRulesWidget:
             "MR Identify targets unidentified inventory items by exact rarity. Identify before Execute runs after any configured travel, then Merchant Rules rebuilds the live plan before the rest of Execute continues."
         )
 
+        selector_count = self._draw_identify_status_badges(settings)
+        self._draw_secondary_text(self._format_identify_filter_summary(settings), wrapped=False)
+        if selector_count <= 0:
+            PyImGui.text_colored("Choose at least one rarity before Identify can find items.", UI_COLOR_WARNING)
+
+        PyImGui.separator()
+        self._draw_section_heading("When to Identify")
         before_execute = PyImGui.checkbox(
             "Identify before Execute##merchant_rules_identify_before_execute",
             bool(settings.before_execute),
@@ -20912,12 +21442,11 @@ class MerchantRulesWidget:
                 self.identify_rescan_requested = False
 
         run_identify_reason = self._get_action_block_reason("identify")
+        PyImGui.same_line(0, 8)
         PyImGui.begin_disabled(bool(run_identify_reason))
         run_identify_clicked = PyImGui.button("Run Identify Now##merchant_rules_run_identify_now")
         PyImGui.end_disabled()
 
-        selector_count = sum(1 for value in settings.rarities.values() if bool(value))
-        self._draw_secondary_text(f"Selected rarit{'y' if selector_count == 1 else 'ies'}: {selector_count}", wrapped=False)
         if run_identify_reason:
             self._draw_secondary_text(f"Run Identify Now: {run_identify_reason}")
         if selector_count > 0 and self._get_id_kit_id() <= 0:
@@ -20927,14 +21456,18 @@ class MerchantRulesWidget:
         if self.last_identify_summary:
             self._draw_secondary_text(self.last_identify_summary)
         if settings.on_inventory_change:
-            PyImGui.text_colored("Inventory-change identify is active. MR pauses Inventory Plus while identifying.", UI_COLOR_WARNING)
+            self._draw_secondary_text("MR pauses Inventory Plus while identifying.")
 
         PyImGui.separator()
+        self._draw_section_heading("Rarities to Identify")
         changed = self._draw_identify_rarity_toggles(settings) or changed
-        self._draw_secondary_text("Selectors are exact. Blue identifies only blue items; it does not include purple, gold, or green.")
+        PyImGui.text_colored(
+            "Selectors are exact. Blue identifies only blue items; it does not include purple, gold, or green.",
+            UI_COLOR_WARNING,
+        )
 
         PyImGui.spacing()
-        PyImGui.text("Quick Presets")
+        self._draw_section_heading("Quick Presets")
         presets: tuple[tuple[str, set[str]], ...] = (
             ("White", {"white"}),
             ("Blue", {"blue"}),
@@ -21005,7 +21538,36 @@ class MerchantRulesWidget:
             return f"Current filter: {exact_model_count} exact model(s)"
         if broad_summary:
             return f"Current filter: {broad_summary}"
-        return "Current filter: no salvage settings enabled"
+        return "Current filter: no salvage settings selected"
+
+    def _draw_salvage_status_badges(self, settings: SalvageSettings) -> int:
+        normalized_settings = _normalize_salvage_settings(settings)
+        selector_count = (
+            len(normalized_settings.model_ids)
+            + sum(1 for value in normalized_settings.rarities.values() if bool(value))
+            + sum(1 for value in normalized_settings.categories.values() if bool(value))
+        )
+        auto_enabled = bool(normalized_settings.on_inventory_change)
+        ready = selector_count > 0
+
+        PyImGui.text("Salvage:")
+        PyImGui.same_line(0, 8)
+        self._draw_inline_badge("On" if auto_enabled else "Off", UI_COLOR_SUCCESS if auto_enabled else UI_COLOR_MUTED)
+        PyImGui.same_line(0, 6)
+        self._draw_inline_badge(
+            f"Filters: {selector_count}",
+            UI_COLOR_SUCCESS if ready else (UI_COLOR_WARNING if auto_enabled else UI_COLOR_MUTED),
+        )
+        if auto_enabled:
+            PyImGui.same_line(0, 6)
+            self._draw_inline_badge("Pickup", UI_COLOR_SUCCESS if ready else UI_COLOR_WARNING)
+        else:
+            PyImGui.same_line(0, 6)
+            self._draw_inline_badge("Manual", UI_COLOR_MUTED)
+        if bool(normalized_settings.categories.get(SALVAGE_CATEGORY_OTHER, False)):
+            PyImGui.same_line(0, 6)
+            self._draw_inline_badge("Other Items", UI_COLOR_WARNING)
+        return selector_count
 
     def _draw_salvage_workspace(self):
         settings = _normalize_salvage_settings(self.salvage_settings)
@@ -21017,6 +21579,13 @@ class MerchantRulesWidget:
         )
 
         run_salvage_reason = self._get_action_block_reason("salvage")
+        selector_count = self._draw_salvage_status_badges(settings)
+        self._draw_secondary_text(self._format_salvage_filter_summary(settings))
+        if selector_count <= 0:
+            PyImGui.text_colored("Choose a rarity, category, or specific item before Salvage can find items.", UI_COLOR_WARNING)
+
+        PyImGui.separator()
+        self._draw_section_heading("When to Salvage")
         on_inventory_change = PyImGui.checkbox(
             "Salvage selected items on inventory change / pickup##merchant_rules_salvage_on_inventory_change",
             bool(settings.on_inventory_change),
@@ -21033,32 +21602,30 @@ class MerchantRulesWidget:
         run_salvage_clicked = PyImGui.button("Run Salvage Now##merchant_rules_run_salvage_now")
         PyImGui.end_disabled()
 
-        selector_count = (
-            len(settings.model_ids)
-            + sum(1 for value in settings.rarities.values() if bool(value))
-            + sum(1 for value in settings.categories.values() if bool(value))
-        )
-        self._draw_secondary_text(f"Active salvage setting(s): {selector_count}", wrapped=False)
-        self._draw_secondary_text(self._format_salvage_filter_summary(settings))
         if run_salvage_reason:
             self._draw_secondary_text(f"Run Salvage Now: {run_salvage_reason}")
         if self.last_salvage_summary:
             self._draw_secondary_text(self.last_salvage_summary)
         if settings.on_inventory_change:
-            PyImGui.text_colored("Inventory-change salvage is active. MR pauses Inventory Plus while salvaging.", UI_COLOR_WARNING)
+            self._draw_secondary_text("MR pauses Inventory Plus while salvaging.")
         if bool(settings.categories.get(SALVAGE_CATEGORY_OTHER, False)):
             PyImGui.text_colored("Other Items may include unexpected salvageable item types. Keep it off unless testing specific drops.", UI_COLOR_WARNING)
 
         PyImGui.separator()
+        self._draw_section_heading("Rarities")
         changed = self._draw_salvage_rarity_toggles(settings) or changed
-        self._draw_secondary_text("Pick one or more rarities, then optionally narrow them by category. When both are selected, an item must match a selected rarity and a selected category.")
+        PyImGui.text_colored(
+            "Pick one or more rarities, then optionally narrow them by category. When both are selected, an item must match a selected rarity and a selected category.",
+            UI_COLOR_WARNING,
+        )
 
         PyImGui.spacing()
+        self._draw_section_heading("Categories")
         changed = self._draw_salvage_category_toggles(settings) or changed
         self._draw_secondary_text("Example: choosing Gold with Weapons and Armor salvages only gold weapons and gold armor. Exact model selections still follow protection and safety checks.")
 
         PyImGui.separator()
-        self._draw_section_heading("Explicit Models")
+        self._draw_section_heading("Specific Items")
         PyImGui.text(f"Selected Models: {len(settings.model_ids)}")
         removed_model_id = self._draw_selected_model_ids("salvage_models", 0, settings.model_ids)
         if removed_model_id > 0:
@@ -21481,7 +22048,7 @@ class MerchantRulesWidget:
                 section_changed = True
 
         if not self.sell_rules:
-            self._draw_secondary_text("No sell rules yet. Pick a section above and add the first rule to manage items, materials, weapons, or armor.")
+            self._draw_secondary_text("No sell rules yet. Pick a section above and add the first rule to manage items, materials, weapons, armor, or runes.")
         elif not visible_indices:
             self._draw_secondary_text(f"No {section_label.lower()} sell rules in this section yet.")
 
@@ -21795,7 +22362,7 @@ class MerchantRulesWidget:
             changed = True
 
         if self.auto_sell_to_any_merchant:
-            self._draw_secondary_text("These items may sell for less than they would at a trader.")
+            PyImGui.text_colored("These items may sell for less than they would at a trader.", UI_COLOR_WARNING)
             normal_items = PyImGui.checkbox(
                 "Normal merchant sell items##merchant_rules_manual_vendor_any_normal",
                 bool(self.auto_sell_any_merchant_normal_items),
@@ -21820,7 +22387,10 @@ class MerchantRulesWidget:
                 self.auto_sell_any_merchant_runes = bool(runes)
                 changed = True
 
-            self._draw_secondary_text("Scrolls and other trader items are skipped because MR does not currently have sell rules for them.")
+            PyImGui.text_colored(
+                "Scrolls and other trader items are skipped because MR does not currently have sell rules for them.",
+                UI_COLOR_WARNING,
+            )
 
         if self.manual_vendor_running:
             PyImGui.text_colored("Manual merchant automation is running.", UI_COLOR_INFO)
@@ -22247,6 +22817,7 @@ def tooltip():
     PyImGui.bullet_text("Leader-driven multibox sync, preview, and execute for selected active accounts.")
     PyImGui.bullet_text("Shared named profiles load locally first, then propagate only through explicit Sync Rules to Selected.")
     PyImGui.bullet_text("Standalone weapon mods, runes, and insignias can route through Rune Trader when found.")
+    PyImGui.bullet_text("Exact rune and insignia sell rules can target selected loose rune names.")
     PyImGui.bullet_text("Uses main-branch merchant routines.")
     PyImGui.end_tooltip()
 

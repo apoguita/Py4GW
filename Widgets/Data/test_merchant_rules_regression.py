@@ -1130,6 +1130,226 @@ def _test_manual_vendor_auto_buy_uses_current_offers(module) -> None:
     _expect(not widget.preview_ready, "Successful manual vendor buys should mark Preview dirty.")
 
 
+def _test_exact_rune_sell_rule_profile_roundtrip(module, temp_root: Path) -> None:
+    widget = _make_widget(module)
+    config_path = temp_root / "exact_rune_sell_profile.json"
+    payload = {
+        "version": module.PROFILE_VERSION - 1,
+        "sell_rules": [
+            {
+                "enabled": True,
+                "kind": module.SELL_KIND_RUNE_TRADER_TARGET,
+                "rune_sell_targets": [
+                    {"identifier": "rune_attunement", "keep_count": 1},
+                ],
+            },
+        ],
+    }
+    config_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    widget.config_path = str(config_path)
+
+    widget._load_profile()
+
+    _expect(
+        module.SELL_KIND_RUNE_TRADER_TARGET in module.SELL_RULE_KINDS,
+        "Exact rune sell rules should be a supported sell rule kind.",
+    )
+    _expect(
+        module.SELL_KIND_RUNE_TRADER_TARGET in module.SELL_RULE_WORKSPACE_ORDER,
+        "Exact rune sell rules should be available from the Sell workspace.",
+    )
+    _expect(len(widget.sell_rules) == 1, "Exact rune sell profiles should load one rule.")
+    rule = widget.sell_rules[0]
+    _expect(rule.kind == module.SELL_KIND_RUNE_TRADER_TARGET, "Exact rune sell rule kind should round-trip.")
+    _expect(rule.merchant_type == module.MERCHANT_TYPE_RUNE_TRADER, "Exact rune sell rules should route to the Rune Trader.")
+    _expect(len(rule.rune_sell_targets) == 1, "Exact rune sell target list should load.")
+    _expect(rule.rune_sell_targets[0].identifier == "rune_attunement", "Exact rune sell target identifier should round-trip.")
+    _expect(rule.rune_sell_targets[0].keep_count == 1, "Exact rune sell target keep count should round-trip.")
+
+    saved_payload = json.loads(config_path.read_text(encoding="utf-8"))
+    saved_rule = saved_payload["sell_rules"][0]
+    _expect(
+        saved_rule["rune_sell_targets"] == [{"identifier": "rune_attunement", "keep_count": 1}],
+        "Exact rune sell targets should save with plain keep-count rows.",
+    )
+
+
+def _test_exact_rune_sell_rule_plans_matching_standalone_runes(module) -> None:
+    widget = _make_widget(module)
+    widget.rune_names = {
+        "rune_attunement": "Rune of Attunement",
+        "rune_vigor": "Rune of Vigor",
+    }
+    widget.sell_rules = [
+        module._normalize_sell_rule(
+            module.SellRule(
+                enabled=True,
+                kind=module.SELL_KIND_RUNE_TRADER_TARGET,
+                rune_sell_targets=[
+                    module.RuneSellTarget(identifier="rune_attunement", keep_count=1),
+                ],
+            )
+        )
+    ]
+    widget._get_supported_context = lambda: (
+        True,
+        "Ready",
+        {
+            module.MERCHANT_TYPE_RUNE_TRADER: (0.0, 0.0),
+            module.MERCHANT_TYPE_MERCHANT: (0.0, 0.0),
+        },
+    )
+    widget._collect_inventory_items = lambda: [
+        _make_item(
+            module,
+            item_id=101,
+            model_id=9001,
+            name="Rune of Attunement",
+            rarity="Blue",
+            standalone_kind=module.RUNE_STANDALONE_KIND,
+            rune_identifiers=["rune_attunement"],
+        ),
+        _make_item(
+            module,
+            item_id=102,
+            model_id=9001,
+            name="Rune of Attunement",
+            rarity="Blue",
+            standalone_kind=module.RUNE_STANDALONE_KIND,
+            rune_identifiers=["rune_attunement"],
+        ),
+        _make_item(
+            module,
+            item_id=103,
+            model_id=9002,
+            name="Rune of Vigor",
+            rarity="Blue",
+            standalone_kind=module.RUNE_STANDALONE_KIND,
+            rune_identifiers=["rune_vigor"],
+        ),
+    ]
+
+    plan = widget._build_plan()
+
+    sold_ids = {sale.item_id for sale in plan.rune_trader_sales}
+    _expect(len(sold_ids) == 1, "Exact rune sell rules should sell only excess matching standalone runes.")
+    _expect(sold_ids <= {101, 102}, "Exact rune sell rules should not sell non-target rune names.")
+    _expect(103 not in sold_ids, "Exact rune sell rules should leave other standalone rune names alone.")
+    _expect(
+        any("reserved to satisfy keep count 1" in entry.reason for entry in plan.entries),
+        "Exact rune sell rules should show when a matching rune is kept.",
+    )
+
+
+def _test_exact_rune_sell_rule_reserves_names_from_broad_armor_rule(module) -> None:
+    widget = _make_widget(module)
+    widget.sell_rules = [
+        module._normalize_sell_rule(
+            module.SellRule(
+                enabled=True,
+                kind=module.SELL_KIND_ARMOR,
+                rarities=_rarity_flags("blue"),
+                include_standalone_runes=True,
+            )
+        ),
+        module._normalize_sell_rule(
+            module.SellRule(
+                enabled=True,
+                kind=module.SELL_KIND_RUNE_TRADER_TARGET,
+                rune_sell_targets=[
+                    module.RuneSellTarget(identifier="rune_attunement", keep_count=1),
+                ],
+            )
+        ),
+    ]
+    widget._get_supported_context = lambda: (
+        True,
+        "Ready",
+        {
+            module.MERCHANT_TYPE_RUNE_TRADER: (0.0, 0.0),
+            module.MERCHANT_TYPE_MERCHANT: (0.0, 0.0),
+        },
+    )
+    widget._collect_inventory_items = lambda: [
+        _make_item(
+            module,
+            item_id=101,
+            model_id=9001,
+            name="Rune of Attunement",
+            rarity="Blue",
+            standalone_kind=module.RUNE_STANDALONE_KIND,
+            rune_identifiers=["rune_attunement"],
+        ),
+        _make_item(
+            module,
+            item_id=102,
+            model_id=9001,
+            name="Rune of Attunement",
+            rarity="Blue",
+            standalone_kind=module.RUNE_STANDALONE_KIND,
+            rune_identifiers=["rune_attunement"],
+        ),
+        _make_item(
+            module,
+            item_id=103,
+            model_id=9002,
+            name="Rune of Vigor",
+            rarity="Blue",
+            standalone_kind=module.RUNE_STANDALONE_KIND,
+            rune_identifiers=["rune_vigor"],
+        ),
+    ]
+
+    plan = widget._build_plan()
+
+    sold_ids = {sale.item_id for sale in plan.rune_trader_sales}
+    _expect(103 in sold_ids, "Broad armor loose-rune rules should still sell non-reserved rune names.")
+    _expect(len(sold_ids & {101, 102}) == 1, "Exact rune sell rules should control reserved rune names before broad armor rules.")
+    _expect(
+        any("reserved to satisfy keep count 1" in entry.reason for entry in plan.entries),
+        "Exact rune keep counts should still apply when a broad armor loose-rune rule exists first.",
+    )
+
+
+def _test_manual_vendor_exact_rune_sell_runs_at_rune_trader(module) -> None:
+    widget = _make_widget(module)
+    widget.auto_sell_on_manual_vendor_interaction = True
+    widget.preview_ready = True
+    context = module.ManualVendorContext(
+        signature="rune-trader",
+        merchant_types={module.MERCHANT_TYPE_RUNE_TRADER},
+    )
+    plan = module.PlanResult(
+        supported_map=True,
+        rune_trader_sales=[
+            module.PlannedTraderSale(item_id=101, model_id=9001, label="Rune of Attunement"),
+        ],
+        has_actions=True,
+    )
+    captured_sales: list[int] = []
+
+    def _capture_rune_sales(_coords, trader_sales, *, phase_label="Rune trader sales", trader_items=None):
+        captured_sales.extend(int(sale.item_id) for sale in trader_sales)
+        if False:
+            yield None
+        return module.ExecutionPhaseOutcome(
+            label=phase_label,
+            measure_label="items",
+            attempted=len(trader_sales),
+            completed=len(trader_sales),
+        )
+
+    widget._is_merchant_window_open = lambda: True
+    widget._get_current_manual_vendor_context = lambda: context
+    widget._build_plan = lambda **_kwargs: plan
+    widget._sell_planned_trader_items = _capture_rune_sales
+
+    _drain_generator_return(widget._run_manual_vendor_pass(context))
+
+    _expect(captured_sales == [101], "Manual auto-sell should run exact rune trader sales at a Rune Trader.")
+    _expect(not widget.preview_ready, "Successful manual rune sales should mark Preview dirty.")
+
+
 def _test_salvage_candidate_evaluation_precedence(module) -> None:
     widget = _make_widget(module)
     widget.salvage_settings = _salvage_settings(module, model_ids=[100])
@@ -7745,6 +7965,10 @@ def main() -> int:
             ("manual_vendor_matching_sell_uses_current_merchant_only", lambda: _test_manual_vendor_matching_sell_uses_current_merchant_only(module)),
             ("manual_vendor_any_merchant_material_fallback", lambda: _test_manual_vendor_any_merchant_material_fallback(module)),
             ("manual_vendor_auto_buy_uses_current_offers", lambda: _test_manual_vendor_auto_buy_uses_current_offers(module)),
+            ("exact_rune_sell_rule_profile_roundtrip", lambda: _test_exact_rune_sell_rule_profile_roundtrip(module, temp_root)),
+            ("exact_rune_sell_rule_plans_matching_standalone_runes", lambda: _test_exact_rune_sell_rule_plans_matching_standalone_runes(module)),
+            ("exact_rune_sell_rule_reserves_names_from_broad_armor_rule", lambda: _test_exact_rune_sell_rule_reserves_names_from_broad_armor_rule(module)),
+            ("manual_vendor_exact_rune_sell_runs_at_rune_trader", lambda: _test_manual_vendor_exact_rune_sell_runs_at_rune_trader(module)),
             ("salvage_candidate_evaluation_precedence", lambda: _test_salvage_candidate_evaluation_precedence(module)),
             ("salvage_broad_rarity_selection", lambda: _test_salvage_broad_rarity_selection(module)),
             ("salvage_category_selection", lambda: _test_salvage_category_selection(module)),
