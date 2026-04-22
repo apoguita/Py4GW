@@ -500,6 +500,16 @@ class _Multibox:
             
             GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.PCon, params)
         yield from Routines.Yield.wait(500)
+
+    def _use_summoning_stone_message(self):
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Routines import Routines
+        sender_email = Player.GetAccountEmail()
+        accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+        for account in accounts:
+            ConsoleLog("Messaging", f"Sending UseSummoningStone message to {account.AccountEmail}", log=False)
+            GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.UseSummoningStone, (0, 0, 0, 0))
+        yield from Routines.Yield.wait(500)
         
     def _donate_faction(self):
         from ...GlobalCache import GLOBAL_CACHE
@@ -552,6 +562,10 @@ class _Multibox:
     @_yield_step(label="UseConsumable", counter_key="USE_CONSUMABLE")
     def use_consumable(self, params):
         yield from self._use_consumable_message(params)
+
+    @_yield_step(label="UseSummoningStone", counter_key="USE_SUMMONING_STONE")
+    def use_summoning_stone(self):
+        yield from self._use_summoning_stone_message()
         
     @_yield_step(label="SummonAllAccounts", counter_key="SUMMON_ALL_ACCOUNTS")
     def summon_all_accounts(self):
@@ -612,6 +626,15 @@ class _Multibox:
             GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.RestockResurrectionScroll, (quantity, 0, 0, 0))
         yield from Routines.Yield.wait(500)
 
+    def _restock_summoning_stones_message(self, quantity: int):
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Routines import Routines
+        sender_email = Player.GetAccountEmail()
+        accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+        for account in accounts:
+            GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.RestockSummoningStones, (quantity, 0, 0, 0))
+        yield from Routines.Yield.wait(500)
+
     def _enable_widget_message(self, widget_name: str):
         from ...GlobalCache import GLOBAL_CACHE
         from ...Routines import Routines
@@ -653,6 +676,10 @@ class _Multibox:
     @_yield_step(label="RestockResurrectionScroll", counter_key="RESTOCK_RESURRECTION_SCROLL")
     def restock_resurrection_scroll(self, quantity: int = 250):
         yield from self._restock_resurrection_scroll_message(quantity)
+
+    @_yield_step(label="RestockSummoningStones", counter_key="RESTOCK_SUMMONING_STONES")
+    def restock_summoning_stones(self, quantity: int = 250):
+        yield from self._restock_summoning_stones_message(quantity)
 
 
     def _withdraw_gold_message(self, target_gold: int, deposit_all: bool):
