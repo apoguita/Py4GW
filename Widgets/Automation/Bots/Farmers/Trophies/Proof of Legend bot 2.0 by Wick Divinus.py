@@ -97,6 +97,7 @@ def create_bot_routine(bot: Botting) -> None:
     To_Champions_Dawn(bot)
     Identity_Theft(bot)
     Quality_Steel(bot)
+    Craft_First_Weapon(bot)
     A_Hidden_Threat(bot)
     Chahbek_Village_Mission_2(bot)
     Deposit_Proof_Of_Legend(bot)
