@@ -903,6 +903,233 @@ def _test_salvage_profile_defaults_are_off(module, temp_root: Path) -> None:
     _expect(not saved_payload["identify_settings"]["on_inventory_change"], "Saved on-pickup/inventory-change identify should remain off by default.")
 
 
+def _test_manual_vendor_profile_defaults_and_roundtrip(module, temp_root: Path) -> None:
+    setting_names = [
+        "auto_sell_on_manual_vendor_interaction",
+        "auto_buy_on_manual_vendor_interaction",
+        "auto_sell_to_any_merchant",
+        "auto_sell_any_merchant_normal_items",
+        "auto_sell_any_merchant_materials",
+        "auto_sell_any_merchant_runes",
+    ]
+
+    widget = _make_widget(module)
+    normalized = widget._normalize_profile_payload({"version": module.PROFILE_VERSION - 1})
+    for setting_name in setting_names:
+        _expect(not normalized[setting_name], f"{setting_name} should default off for legacy profiles.")
+        _expect(not getattr(widget, setting_name), f"{setting_name} should default off on new widgets.")
+
+    config_path = temp_root / "manual_vendor_settings_profile.json"
+    widget.config_path = str(config_path)
+    for setting_name in setting_names:
+        setattr(widget, setting_name, True)
+
+    _expect(widget._save_profile(), "Manual vendor settings profile should save.")
+    saved_payload = json.loads(config_path.read_text(encoding="utf-8"))
+    for setting_name in setting_names:
+        _expect(saved_payload[setting_name] is True, f"{setting_name} should save as enabled.")
+
+    reloaded_widget = _make_widget(module)
+    reloaded_widget.config_path = str(config_path)
+    reloaded_widget._load_profile()
+    for setting_name in setting_names:
+        _expect(getattr(reloaded_widget, setting_name) is True, f"{setting_name} should reload as enabled.")
+
+
+def _test_manual_vendor_runtime_queues_once_per_signature(module) -> None:
+    widget = _make_widget(module)
+    widget.auto_sell_on_manual_vendor_interaction = True
+    widget._is_merchant_window_open = lambda: True
+
+    queued_coroutines: list[object] = []
+    original_coroutines = getattr(module.GLOBAL_CACHE, "Coroutines", None)
+    had_coroutines = hasattr(module.GLOBAL_CACHE, "Coroutines")
+    try:
+        module.GLOBAL_CACHE.Coroutines = queued_coroutines
+        context_a = module.ManualVendorContext(
+            signature="vendor-a",
+            merchant_types={module.MERCHANT_TYPE_MERCHANT},
+        )
+        context_b = module.ManualVendorContext(
+            signature="vendor-b",
+            merchant_types={module.MERCHANT_TYPE_MERCHANT},
+        )
+
+        widget._get_current_manual_vendor_context = lambda: context_a
+        widget._update_manual_vendor_runtime()
+        _expect(len(queued_coroutines) == 1, "Manual vendor runtime should queue once for a new vendor signature.")
+        _expect(widget.manual_vendor_running, "Manual vendor runtime should mark itself running before queueing.")
+
+        widget.manual_vendor_running = False
+        widget._update_manual_vendor_runtime()
+        _expect(len(queued_coroutines) == 1, "Manual vendor runtime should not queue twice for the same vendor signature.")
+
+        widget._get_current_manual_vendor_context = lambda: context_b
+        widget._update_manual_vendor_runtime()
+        _expect(len(queued_coroutines) == 2, "Manual vendor runtime should re-arm when the vendor signature changes.")
+
+        widget.manual_vendor_running = False
+        widget._is_merchant_window_open = lambda: False
+        widget._update_manual_vendor_runtime()
+        _expect(widget.manual_vendor_handled_signature == "", "Manual vendor runtime should re-arm after the merchant window closes.")
+    finally:
+        if had_coroutines:
+            module.GLOBAL_CACHE.Coroutines = original_coroutines
+        elif hasattr(module.GLOBAL_CACHE, "Coroutines"):
+            delattr(module.GLOBAL_CACHE, "Coroutines")
+
+
+def _test_manual_vendor_matching_sell_uses_current_merchant_only(module) -> None:
+    widget = _make_widget(module)
+    widget.auto_sell_on_manual_vendor_interaction = True
+    widget.preview_ready = True
+    context = module.ManualVendorContext(
+        signature="normal-merchant",
+        merchant_types={module.MERCHANT_TYPE_MERCHANT},
+    )
+    plan = module.PlanResult(
+        supported_map=True,
+        merchant_sell_item_ids=[10, 20],
+        material_sales=[
+            module.PlannedMaterialSale(
+                merchant_type=module.MERCHANT_TYPE_MATERIALS,
+                item_id=20,
+                model_id=946,
+                label="Wood Plank",
+                batches_to_sell=1,
+                quantity_to_sell=10,
+            )
+        ],
+        rune_trader_sales=[
+            module.PlannedTraderSale(item_id=30, model_id=5551, label="Superior Vigor"),
+        ],
+        has_actions=True,
+    )
+    captured_sales: list[tuple[int, int]] = []
+
+    def _capture_open_merchant_sales(manual_sales, *, phase_label="Merchant sells"):
+        captured_sales.extend((int(sale.item_id), int(sale.quantity_to_sell)) for sale in manual_sales)
+        if False:
+            yield None
+        return module.ExecutionPhaseOutcome(
+            label=phase_label,
+            measure_label="items",
+            attempted=len(manual_sales),
+            completed=len(manual_sales),
+        )
+
+    widget._is_merchant_window_open = lambda: True
+    widget._get_current_manual_vendor_context = lambda: context
+    widget._build_plan = lambda **_kwargs: plan
+    widget._execute_open_merchant_sell_phase = _capture_open_merchant_sales
+    widget._get_manual_merchant_sale_for_item_id = (
+        lambda item_id, quantity_to_sell=0, *, model_id=0, label="": module.PlannedManualMerchantSale(
+            item_id=int(item_id),
+            model_id=int(model_id or 111),
+            label=label or f"Item {item_id}",
+            quantity_to_sell=max(1, int(quantity_to_sell or 1)),
+        )
+    )
+
+    _drain_generator_return(widget._run_manual_vendor_pass(context))
+
+    _expect(captured_sales == [(10, 1)], "Matching auto-sell at a normal merchant should not include trader-targeted sales.")
+    _expect(not widget.preview_ready, "Successful manual vendor sales should mark Preview dirty.")
+
+
+def _test_manual_vendor_any_merchant_material_fallback(module) -> None:
+    widget = _make_widget(module)
+    widget.auto_sell_to_any_merchant = True
+    widget.auto_sell_any_merchant_materials = True
+    context = module.ManualVendorContext(
+        signature="normal-merchant",
+        merchant_types={module.MERCHANT_TYPE_MERCHANT},
+    )
+    plan = module.PlanResult(
+        supported_map=True,
+        merchant_sell_item_ids=[20],
+        material_sales=[
+            module.PlannedMaterialSale(
+                merchant_type=module.MERCHANT_TYPE_MATERIALS,
+                item_id=20,
+                model_id=946,
+                label="Wood Plank",
+                batches_to_sell=1,
+                quantity_to_sell=10,
+            )
+        ],
+        rune_trader_sales=[
+            module.PlannedTraderSale(item_id=30, model_id=5551, label="Superior Vigor"),
+        ],
+        has_actions=True,
+    )
+    captured_sales: list[tuple[int, int]] = []
+
+    def _capture_open_merchant_sales(manual_sales, *, phase_label="Merchant sells"):
+        captured_sales.extend((int(sale.item_id), int(sale.quantity_to_sell)) for sale in manual_sales)
+        if False:
+            yield None
+        return module.ExecutionPhaseOutcome(
+            label=phase_label,
+            measure_label="items",
+            attempted=len(manual_sales),
+            completed=len(manual_sales),
+        )
+
+    widget._is_merchant_window_open = lambda: True
+    widget._get_current_manual_vendor_context = lambda: context
+    widget._build_plan = lambda **_kwargs: plan
+    widget._execute_open_merchant_sell_phase = _capture_open_merchant_sales
+    widget._get_manual_material_fallback_merchant_sell_item_ids = lambda _plan: {20}
+    widget._get_manual_merchant_sale_for_item_id = (
+        lambda item_id, quantity_to_sell=0, *, model_id=0, label="": module.PlannedManualMerchantSale(
+            item_id=int(item_id),
+            model_id=int(model_id or 111),
+            label=label or f"Item {item_id}",
+            quantity_to_sell=int(quantity_to_sell),
+        )
+    )
+
+    _drain_generator_return(widget._run_manual_vendor_pass(context))
+
+    _expect(captured_sales == [(20, 0)], "Any-merchant material fallback should allow the full configured material stack.")
+
+
+def _test_manual_vendor_auto_buy_uses_current_offers(module) -> None:
+    widget = _make_widget(module)
+    widget.auto_buy_on_manual_vendor_interaction = True
+    widget.preview_ready = True
+    context = module.ManualVendorContext(
+        signature="normal-merchant",
+        merchant_types={module.MERCHANT_TYPE_MERCHANT},
+        merchant_item_ids=[501],
+    )
+    plan = module.PlanResult(
+        supported_map=True,
+        merchant_stock_buys=[
+            module.PlannedMerchantBuy(model_id=555, quantity=2, label="Identification Kit"),
+        ],
+        has_actions=True,
+    )
+    captured_buys: list[tuple[int, int, list[int]]] = []
+
+    def _capture_buy(model_id, quantity, *, offered_items=None):
+        captured_buys.append((int(model_id), int(quantity), list(offered_items or [])))
+        if False:
+            yield None
+        return True
+
+    widget._is_merchant_window_open = lambda: True
+    widget._get_current_manual_vendor_context = lambda: context
+    widget._build_plan = lambda **_kwargs: plan
+    widget._buy_merchant_model = _capture_buy
+
+    _drain_generator_return(widget._run_manual_vendor_pass(context))
+
+    _expect(captured_buys == [(555, 2, [501])], "Manual auto-buy should use only the currently opened merchant's offers.")
+    _expect(not widget.preview_ready, "Successful manual vendor buys should mark Preview dirty.")
+
+
 def _test_salvage_candidate_evaluation_precedence(module) -> None:
     widget = _make_widget(module)
     widget.salvage_settings = _salvage_settings(module, model_ids=[100])
@@ -7513,6 +7740,11 @@ def main() -> int:
                 lambda: _test_legacy_nonsalvageable_gold_sell_rule_is_removed_safely(module, temp_root),
             ),
             ("salvage_profile_defaults_are_off", lambda: _test_salvage_profile_defaults_are_off(module, temp_root)),
+            ("manual_vendor_profile_defaults_and_roundtrip", lambda: _test_manual_vendor_profile_defaults_and_roundtrip(module, temp_root)),
+            ("manual_vendor_runtime_queues_once_per_signature", lambda: _test_manual_vendor_runtime_queues_once_per_signature(module)),
+            ("manual_vendor_matching_sell_uses_current_merchant_only", lambda: _test_manual_vendor_matching_sell_uses_current_merchant_only(module)),
+            ("manual_vendor_any_merchant_material_fallback", lambda: _test_manual_vendor_any_merchant_material_fallback(module)),
+            ("manual_vendor_auto_buy_uses_current_offers", lambda: _test_manual_vendor_auto_buy_uses_current_offers(module)),
             ("salvage_candidate_evaluation_precedence", lambda: _test_salvage_candidate_evaluation_precedence(module)),
             ("salvage_broad_rarity_selection", lambda: _test_salvage_broad_rarity_selection(module)),
             ("salvage_category_selection", lambda: _test_salvage_category_selection(module)),
