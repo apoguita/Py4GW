@@ -41,6 +41,12 @@ FLOATING_UI_INI_PATH = "Widgets/Guild Wars/Items & Loot/MerchantRules"
 FLOATING_UI_INI_FILENAME = "MerchantRulesFloating.ini"
 FLOATING_ICON_WINDOW_ID = "##merchant_rules_floating_icon_button"
 FLOATING_ICON_WINDOW_NAME = "Merchant Rules Toggle"
+QUICK_ACTIONS_POPUP_ID = "merchant_rules_quick_actions_popup"
+QUICK_ACTIONS_MENU_ESTIMATED_WIDTH = 150.0
+QUICK_ACTIONS_MENU_ESTIMATED_HEIGHT = 360.0
+QUICK_ACTIONS_MENU_SCREEN_MARGIN = 8.0
+QUICK_ACTIONS_MENU_ICON_GAP = 4.0
+QUICK_ACTIONS_MENU_REASON_WIDTH = 130.0
 
 PROFILE_VERSION = 26
 CONFIG_DIR = os.path.join(Py4GW.Console.get_projects_path(), "Widgets", "Config", "MerchantRules")
@@ -3257,6 +3263,7 @@ class MerchantRulesWidget:
         self.last_cleanup_summary = ""
         self.debug_logging = False
         self.storage_scan_running = False
+        self.icon_xunlai_open_running = False
         self.outpost_search_text = ""
         self.cleanup_model_search_text = ""
         self.destroy_model_text_cache: dict[int, str] = {}
@@ -3351,6 +3358,14 @@ class MerchantRulesWidget:
         self.multibox_running_started_at_ms = 0
         self.show_main_window = False
         self.expand_main_window_on_next_show = True
+        self.quick_actions_menu_open = False
+        self.quick_actions_menu_pos: tuple[float, float] = (0.0, 0.0)
+        self.quick_actions_menu_anchor_rect: tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0)
+        self.quick_actions_menu_size: tuple[float, float] = (
+            QUICK_ACTIONS_MENU_ESTIMATED_WIDTH,
+            QUICK_ACTIONS_MENU_ESTIMATED_HEIGHT,
+        )
+        self.quick_actions_popup_visible = False
         self.floating_ui_ini_key = ""
         self.floating_ui_ini_loaded = False
         self.floating_button = None
@@ -3436,6 +3451,250 @@ class MerchantRulesWidget:
             self._clear_pending_destructive_button()
         if self.show_main_window:
             self.expand_main_window_on_next_show = True
+
+    def _is_floating_icon_right_clicked(self, floating_button) -> bool:
+        try:
+            if not PyImGui.is_mouse_released(1):
+                return False
+
+            if PyImGui.is_item_hovered():
+                return True
+
+            io = PyImGui.get_io()
+            icon_x, icon_y = floating_button.position
+            button_size = float(getattr(floating_button, "button_size", 45.0))
+            padding = max(2.0, button_size * 0.05)
+            hitbox_size = button_size + padding * 2
+            mouse_x = float(getattr(io, "mouse_pos_x", 0.0))
+            mouse_y = float(getattr(io, "mouse_pos_y", 0.0))
+            return bool(
+                float(icon_x) <= mouse_x <= float(icon_x) + hitbox_size
+                and float(icon_y) <= mouse_y <= float(icon_y) + hitbox_size
+            )
+        except Exception:
+            return False
+
+    def _request_open_xunlai_from_icon(self):
+        if self.icon_xunlai_open_running:
+            self.status_message = "Opening Xunlai..."
+            return
+        if self._is_storage_open():
+            self.status_message = "Xunlai is already open."
+            return
+        if not self._can_use_local_storage_actions():
+            self.status_message = "Go to an outpost or Guild Hall to open Xunlai."
+            return
+
+        self.icon_xunlai_open_running = True
+        self.status_message = "Opening Xunlai..."
+        GLOBAL_CACHE.Coroutines.append(self._open_xunlai_from_icon())
+
+    def _open_xunlai_from_icon(self):
+        try:
+            opened = yield from self._ensure_storage_open(purpose="right-click icon")
+            if opened:
+                self.status_message = "Xunlai is open."
+            else:
+                self.status_message = "Could not open Xunlai. Move closer to a Xunlai Agent or Chest and try again."
+        except Exception as exc:
+            self.last_error = f"{exc}"
+            self.status_message = "Could not open Xunlai."
+            ConsoleLog(MODULE_NAME, f"Open Xunlai from icon failed: {exc}", Console.MessageType.Error)
+            ConsoleLog(MODULE_NAME, traceback.format_exc(), Console.MessageType.Error)
+        finally:
+            self.icon_xunlai_open_running = False
+            yield
+
+    def _get_display_size(self) -> tuple[float, float]:
+        try:
+            io = PyImGui.get_io()
+            return (
+                max(0.0, float(getattr(io, "display_size_x", 0.0) or 0.0)),
+                max(0.0, float(getattr(io, "display_size_y", 0.0) or 0.0)),
+            )
+        except Exception:
+            return (0.0, 0.0)
+
+    def _clamp_quick_actions_menu_pos(self, menu_size: tuple[float, float]) -> tuple[float, float]:
+        anchor_left, anchor_top, anchor_right, anchor_bottom = self.quick_actions_menu_anchor_rect
+        menu_width = max(1.0, float(menu_size[0] or QUICK_ACTIONS_MENU_ESTIMATED_WIDTH))
+        menu_height = max(1.0, float(menu_size[1] or QUICK_ACTIONS_MENU_ESTIMATED_HEIGHT))
+        display_width, display_height = self._get_display_size()
+        margin = QUICK_ACTIONS_MENU_SCREEN_MARGIN
+        gap = QUICK_ACTIONS_MENU_ICON_GAP
+
+        if display_width <= 0.0 or display_height <= 0.0:
+            return (max(0.0, anchor_right + gap), max(0.0, anchor_top))
+
+        room_right = display_width - anchor_right - margin
+        room_left = anchor_left - margin
+        if room_right >= menu_width or room_right >= room_left:
+            x = anchor_right + gap
+        else:
+            x = anchor_left - menu_width - gap
+
+        if anchor_top + menu_height <= display_height - margin:
+            y = anchor_top
+        else:
+            y = anchor_bottom - menu_height
+
+        max_x = max(margin, display_width - menu_width - margin)
+        max_y = max(margin, display_height - menu_height - margin)
+        x = min(max(margin, x), max_x)
+        y = min(max(margin, y), max_y)
+        return (x, y)
+
+    def _open_quick_actions_menu(self, floating_button=None):
+        try:
+            if floating_button is not None:
+                icon_x, icon_y = floating_button.position
+                button_size = float(getattr(floating_button, "button_size", 45.0))
+                padding = max(2.0, button_size * 0.05)
+                icon_left = float(icon_x)
+                icon_top = float(icon_y)
+                icon_size = button_size + (padding * 2.0)
+                self.quick_actions_menu_anchor_rect = (
+                    icon_left,
+                    icon_top,
+                    icon_left + icon_size,
+                    icon_top + icon_size,
+                )
+            else:
+                io = PyImGui.get_io()
+                mouse_x = float(getattr(io, "mouse_pos_x", 0.0))
+                mouse_y = float(getattr(io, "mouse_pos_y", 0.0))
+                self.quick_actions_menu_anchor_rect = (
+                    mouse_x,
+                    mouse_y,
+                    mouse_x,
+                    mouse_y,
+                )
+            self.quick_actions_menu_pos = self._clamp_quick_actions_menu_pos(self.quick_actions_menu_size)
+        except Exception:
+            self.quick_actions_menu_pos = (0.0, 0.0)
+        self.quick_actions_menu_open = True
+
+    def _close_quick_actions_menu(self):
+        self.quick_actions_menu_open = False
+        self.quick_actions_popup_visible = False
+        try:
+            PyImGui.close_current_popup()
+        except Exception:
+            pass
+
+    def _handle_floating_icon_right_click(self, floating_button):
+        if self._is_floating_icon_right_clicked(floating_button):
+            self._open_quick_actions_menu(floating_button)
+
+    def _get_open_xunlai_block_reason(self) -> str:
+        if self.icon_xunlai_open_running:
+            return "Opening Xunlai..."
+        if self._is_storage_open():
+            return ""
+        if not Map.IsMapReady():
+            return "Wait for the current map to finish loading."
+        if not self._can_use_local_storage_actions():
+            return "Go to an outpost or Guild Hall to open Xunlai."
+        return ""
+
+    def _get_storage_scan_block_reason(self) -> str:
+        if not self.preview_ready:
+            return "Run Preview before refreshing Xunlai counts."
+        if not self._plan_needs_exact_storage_scan(self.preview_plan):
+            return "The current preview does not need a Xunlai refresh."
+        if not self._can_use_local_storage_actions():
+            return "Go to an outpost or Guild Hall to refresh Xunlai counts."
+        return self._get_action_block_reason("preview")
+
+    def _draw_quick_action_button(self, label: str, disabled_reason: str = "") -> bool:
+        is_disabled = bool(str(disabled_reason or "").strip())
+        if is_disabled:
+            PyImGui.begin_disabled(True)
+        clicked = PyImGui.button(label)
+        if is_disabled:
+            PyImGui.end_disabled()
+            PyImGui.push_text_wrap_pos(PyImGui.get_cursor_pos_x() + QUICK_ACTIONS_MENU_REASON_WIDTH)
+            self._draw_secondary_text(str(disabled_reason), wrapped=True)
+            PyImGui.pop_text_wrap_pos()
+        return bool(clicked and not is_disabled)
+
+    def _draw_quick_confirm_action_button(self, label: str, disabled_reason: str = "") -> bool:
+        is_disabled = bool(str(disabled_reason or "").strip())
+        if is_disabled:
+            PyImGui.begin_disabled(True)
+        confirmed = self._draw_confirm_destructive_button(label)
+        if is_disabled:
+            PyImGui.end_disabled()
+            PyImGui.push_text_wrap_pos(PyImGui.get_cursor_pos_x() + QUICK_ACTIONS_MENU_REASON_WIDTH)
+            self._draw_secondary_text(str(disabled_reason), wrapped=True)
+            PyImGui.pop_text_wrap_pos()
+        return bool(confirmed and not is_disabled)
+
+    def _show_overview_window(self):
+        self.active_workspace = WORKSPACE_OVERVIEW
+        self._set_main_window_visible(True, expand_on_show=True)
+
+    def _draw_floating_icon_quick_actions_menu(self):
+        should_position_popup = self.quick_actions_menu_open or self.quick_actions_popup_visible
+        if self.quick_actions_menu_open:
+            PyImGui.open_popup(QUICK_ACTIONS_POPUP_ID)
+            self.quick_actions_menu_open = False
+
+        if should_position_popup:
+            PyImGui.set_next_window_pos(self.quick_actions_menu_pos, PyImGui.ImGuiCond.Always)
+
+        if PyImGui.begin_popup(QUICK_ACTIONS_POPUP_ID):
+            self.quick_actions_popup_visible = True
+            popup_size = PyImGui.get_window_size()
+            if popup_size[0] > 0.0 and popup_size[1] > 0.0:
+                self.quick_actions_menu_size = (float(popup_size[0]), float(popup_size[1]))
+                next_pos = self._clamp_quick_actions_menu_pos(self.quick_actions_menu_size)
+                if next_pos != self.quick_actions_menu_pos:
+                    self.quick_actions_menu_pos = next_pos
+                    PyImGui.set_window_pos(next_pos[0], next_pos[1], PyImGui.ImGuiCond.Always)
+            open_xunlai_reason = self._get_open_xunlai_block_reason()
+            if self._draw_quick_action_button("Open Xunlai", open_xunlai_reason):
+                self._request_open_xunlai_from_icon()
+                self._close_quick_actions_menu()
+
+            preview_reason = self._get_action_block_reason("preview")
+            if self._draw_quick_action_button("Preview Plan", preview_reason):
+                self._show_overview_window()
+                self._scan_preview()
+                self._close_quick_actions_menu()
+
+            if self.preview_ready and self._plan_needs_exact_storage_scan(self.preview_plan):
+                storage_scan_reason = self._get_storage_scan_block_reason()
+                if self._draw_quick_action_button("Open Xunlai and Refresh Preview", storage_scan_reason):
+                    self._show_overview_window()
+                    GLOBAL_CACHE.Coroutines.append(self._open_xunlai_and_scan_preview())
+                    self._close_quick_actions_menu()
+
+            PyImGui.separator()
+
+            cleanup_reason = self._get_action_block_reason("cleanup")
+            if self._draw_quick_action_button("Run Cleanup Now", cleanup_reason):
+                self._queue_cleanup_now()
+                self._close_quick_actions_menu()
+
+            execute_here_reason = self._get_action_block_reason("execute_here")
+            if self.execute_drift_requires_confirmation and not execute_here_reason:
+                execute_here_reason = self.preview_inventory_diff_summary or "Inventory changed since preview. Re-Preview before executing here."
+            if self._draw_quick_confirm_action_button("Execute Here##merchant_rules_quick_execute_here", execute_here_reason):
+                self._request_execute_here()
+                self._close_quick_actions_menu()
+
+            execute_reason = self._get_action_block_reason("execute")
+            if self.execute_drift_requires_confirmation and not execute_reason:
+                execute_reason = self.preview_inventory_diff_summary or "Inventory changed since preview. Re-Preview before Travel + Execute."
+            if self._draw_quick_confirm_action_button("Travel + Execute##merchant_rules_quick_travel_execute", execute_reason):
+                self._request_execute_now()
+                self._close_quick_actions_menu()
+
+            PyImGui.end_popup()
+        elif self.quick_actions_popup_visible:
+            self.quick_actions_popup_visible = False
+            self._clear_pending_destructive_button()
 
     def on_enable(self):
         self._set_main_window_visible(False, expand_on_show=True)
@@ -22763,6 +23022,8 @@ class MerchantRulesWidget:
         self._tick_runtime()
         floating_button = self._ensure_floating_ui()
         floating_button.draw(self.floating_ui_ini_key)
+        self._handle_floating_icon_right_click(floating_button)
+        self._draw_floating_icon_quick_actions_menu()
         self.show_main_window = bool(floating_button.visible)
         if not self.show_main_window:
             return
