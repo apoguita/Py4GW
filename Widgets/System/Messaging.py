@@ -1130,6 +1130,44 @@ def UseSummoningStone(index: int, message: SharedMessageStruct):
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
 
+    # Guard against summon spam:
+    # - Summoning Sickness already active
+    # - summon ally already alive nearby/party-side
+    summoning_sickness_effect_id = 2886
+    has_summoning_sickness = False
+    try:
+        has_summoning_sickness = bool(GLOBAL_CACHE.Effects.HasEffect(Player.GetAgentID(), summoning_sickness_effect_id))
+    except Exception:
+        has_summoning_sickness = False
+
+    summon_creature_model_ids = {
+        513,         # Fire Imp
+        8028,        # Legionnaire
+        9055, 9076,  # Tengu Support Flare - Warrior
+        9056, 9077,  # Tengu Support Flare - Ranger
+        9058, 9079,  # Tengu Support Flare - Monk
+        9060, 9081,  # Tengu Support Flare - Mesmer
+        9062, 9083,  # Tengu Support Flare - Ritualist
+        9065, 9086,  # Tengu Support Flare - Assassin
+        9067, 9088,  # Tengu Support Flare - Elementalist
+        9069, 9090,  # Tengu Support Flare - Necromancer
+    }
+    has_alive_summon = False
+    try:
+        others = GLOBAL_CACHE.Party.GetOthers()
+        for other in others:
+            if Agent.IsAlive(other):
+                model_id = Agent.GetModelID(other)
+                if model_id in summon_creature_model_ids:
+                    has_alive_summon = True
+                    break
+    except Exception:
+        has_alive_summon = False
+
+    if has_summoning_sickness or has_alive_summon:
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+
     legionnaire_id = GLOBAL_CACHE.Inventory.GetFirstModelID(ModelID.Legionnaire_Summoning_Crystal.value)
     if legionnaire_id:
         GLOBAL_CACHE.Inventory.UseItem(legionnaire_id)
