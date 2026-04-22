@@ -92,6 +92,9 @@ class _MULTIBOX:
     def UseWarSupplies(self):
         from ...GlobalCache import GLOBAL_CACHE
         self._helpers.Multibox.use_consumable((ModelID.War_Supplies.value, GLOBAL_CACHE.Skill.GetID("Well_Supplied"), 0, 0))
+
+    def UseSummoningStone(self):
+        self._helpers.Multibox.use_summoning_stone()
    
    
     def UseConset(self):
@@ -132,6 +135,9 @@ class _MULTIBOX:
 
     def RestockResurrectionScroll(self, quantity: int = 250):
         self._helpers.Multibox.restock_resurrection_scroll(quantity)
+
+    def RestockSummoningStones(self, quantity: int = 250):
+        self._helpers.Multibox.restock_summoning_stones(quantity)
 
     def WithdrawGold(self, target_gold: int = 10000, deposit_all: bool = True):
         self._helpers.Multibox.withdraw_gold(target_gold, deposit_all)

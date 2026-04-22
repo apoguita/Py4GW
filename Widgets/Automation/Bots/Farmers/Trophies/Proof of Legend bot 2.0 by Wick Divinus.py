@@ -97,6 +97,7 @@ def create_bot_routine(bot: Botting) -> None:
     To_Champions_Dawn(bot)
     Identity_Theft(bot)
     Quality_Steel(bot)
+    Craft_First_Weapon(bot)
     A_Hidden_Threat(bot)
     Chahbek_Village_Mission_2(bot)
     Deposit_Proof_Of_Legend(bot)
@@ -858,7 +859,7 @@ def Chahbek_Village_Mission_2(bot: Botting):
     bot.Map.Travel(target_map_id=544)
     PrepareForBattle(bot, Hero_List=[6], Henchman_List=[1,2])
     bot.SkillBar.LoadHeroSkillBar(1, "OQASEF6EC1vcNABWAAAA") #Koss
-    bot.Dialogs.AtXY(3485, -5246, 0x81)
+    bot.Move.XYAndDialog(3485, -5246, 0x81)
     bot.Dialogs.AtXY(3485, -5246, 0x84)
     bot.Wait.ForTime(2000)
     bot.Wait.UntilOnExplorable()

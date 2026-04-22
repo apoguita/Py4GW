@@ -1121,6 +1121,103 @@ def UsePcon(index: int, message: SharedMessageStruct):
 # endregion
 
 
+# region UseSummoningStone
+def UseSummoningStone(index: int, message: SharedMessageStruct):
+    GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
+
+    # Never use summoning stones in The Norn Fighting Tournament.
+    if Map.GetMapID() == 700:
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+
+    # Guard against summon spam:
+    # - Summoning Sickness already active
+    # - summon ally already alive nearby/party-side
+    summoning_sickness_effect_id = 2886
+    has_summoning_sickness = False
+    try:
+        has_summoning_sickness = bool(GLOBAL_CACHE.Effects.HasEffect(Player.GetAgentID(), summoning_sickness_effect_id))
+    except Exception:
+        has_summoning_sickness = False
+
+    summon_creature_model_ids = {
+        513,         # Fire Imp
+        8028,        # Legionnaire
+        9055, 9076,  # Tengu Support Flare - Warrior
+        9056, 9077,  # Tengu Support Flare - Ranger
+        9058, 9079,  # Tengu Support Flare - Monk
+        9060, 9081,  # Tengu Support Flare - Mesmer
+        9062, 9083,  # Tengu Support Flare - Ritualist
+        9065, 9086,  # Tengu Support Flare - Assassin
+        9067, 9088,  # Tengu Support Flare - Elementalist
+        9069, 9090,  # Tengu Support Flare - Necromancer
+    }
+    has_alive_summon = False
+    try:
+        others = GLOBAL_CACHE.Party.GetOthers()
+        for other in others:
+            if Agent.IsAlive(other):
+                model_id = Agent.GetModelID(other)
+                if model_id in summon_creature_model_ids:
+                    has_alive_summon = True
+                    break
+    except Exception:
+        has_alive_summon = False
+
+    if has_summoning_sickness or has_alive_summon:
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+
+    legionnaire_id = GLOBAL_CACHE.Inventory.GetFirstModelID(ModelID.Legionnaire_Summoning_Crystal.value)
+    if legionnaire_id:
+        GLOBAL_CACHE.Inventory.UseItem(legionnaire_id)
+        yield from Routines.Yield.wait(500)
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+
+    player_level = Player.GetLevel()
+    if player_level < 20:
+        igneous_id = GLOBAL_CACHE.Inventory.GetFirstModelID(ModelID.Igneous_Summoning_Stone.value)
+        if igneous_id:
+            GLOBAL_CACHE.Inventory.UseItem(igneous_id)
+            yield from Routines.Yield.wait(500)
+            GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+            return
+
+    other_summons = [
+        ModelID.Amber_Summon.value,
+        ModelID.Arctic_Summon.value,
+        ModelID.Automaton_Summon.value,
+        ModelID.Celestial_Summon.value,
+        ModelID.Chitinous_Summon.value,
+        ModelID.Demonic_Summon.value,
+        ModelID.Fossilized_Summon.value,
+        ModelID.Frosty_Summon.value,
+        ModelID.Gelatinous_Summon.value,
+        ModelID.Ghastly_Summon.value,
+        ModelID.Imperial_Guard_Summon.value,
+        ModelID.Jadeite_Summon.value,
+        ModelID.Merchant_Summon.value,
+        ModelID.Mischievous_Summon.value,
+        ModelID.Mysterious_Summon.value,
+        ModelID.Mystical_Summon.value,
+        ModelID.Shining_Blade_Summon.value,
+        ModelID.Tengu_Summon.value,
+        ModelID.Zaishen_Summon.value,
+    ]
+
+    for summon_model in other_summons:
+        item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(summon_model)
+        if item_id:
+            GLOBAL_CACHE.Inventory.UseItem(item_id)
+            yield from Routines.Yield.wait(500)
+            GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+            return
+
+    GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+# endregion
+
+
 # region PressKey
 def PressKey(index: int, message: SharedMessageStruct):
     ConsoleLog(MODULE_NAME, f"Processing PressKey message: {message}", Console.MessageType.Info, False)
@@ -2194,6 +2291,50 @@ def RestockResurrectionScroll(index: int, message: SharedMessageStruct):
 # endregion
 
 
+#region RestockSummoningStones
+def RestockSummoningStones(index: int, message: SharedMessageStruct):
+    GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
+    quantity = int(message.Params[0])
+
+    legionnaire_model = ModelID.Legionnaire_Summoning_Crystal.value
+    yield from Routines.Yield.Items.RestockItems(legionnaire_model, quantity)
+    if GLOBAL_CACHE.Inventory.GetModelCount(legionnaire_model) > 0:
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+
+    summon_models = [
+        ModelID.Tengu_Summon.value,
+        ModelID.Igneous_Summoning_Stone.value,
+        ModelID.Amber_Summon.value,
+        ModelID.Arctic_Summon.value,
+        ModelID.Automaton_Summon.value,
+        ModelID.Celestial_Summon.value,
+        ModelID.Chitinous_Summon.value,
+        ModelID.Demonic_Summon.value,
+        ModelID.Fossilized_Summon.value,
+        ModelID.Frosty_Summon.value,
+        ModelID.Gelatinous_Summon.value,
+        ModelID.Ghastly_Summon.value,
+        ModelID.Imperial_Guard_Summon.value,
+        ModelID.Jadeite_Summon.value,
+        ModelID.Merchant_Summon.value,
+        ModelID.Mischievous_Summon.value,
+        ModelID.Mysterious_Summon.value,
+        ModelID.Mystical_Summon.value,
+        ModelID.Shining_Blade_Summon.value,
+        ModelID.Zaishen_Summon.value,
+    ]
+    for model_id in summon_models:
+        result = yield from Routines.Yield.Items.RestockItems(model_id, quantity)
+        if result:
+            break
+        yield from Routines.Yield.wait(1)
+
+    GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+    ConsoleLog(MODULE_NAME, "RestockSummoningStones message processed and finished.", Console.MessageType.Info, False)
+# endregion
+
+
 #region WithdrawGold
 def WithdrawGold(index: int, message: SharedMessageStruct):
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
@@ -2325,6 +2466,8 @@ def ProcessMessages():
             GLOBAL_CACHE.Coroutines.append(BruteForceUnstuck(index, message))
         case SharedCommandType.PCon:
             GLOBAL_CACHE.Coroutines.append(UsePcon(index, message))
+        case SharedCommandType.UseSummoningStone:
+            GLOBAL_CACHE.Coroutines.append(UseSummoningStone(index, message))
         case SharedCommandType.IdentifyItems:
             pass
         case SharedCommandType.SalvageItems:
@@ -2393,6 +2536,8 @@ def ProcessMessages():
             GLOBAL_CACHE.Coroutines.append(RestockConset(index, message))
         case SharedCommandType.RestockResurrectionScroll:
             GLOBAL_CACHE.Coroutines.append(RestockResurrectionScroll(index, message))
+        case SharedCommandType.RestockSummoningStones:
+            GLOBAL_CACHE.Coroutines.append(RestockSummoningStones(index, message))
         case SharedCommandType.WithdrawGold:
             GLOBAL_CACHE.Coroutines.append(WithdrawGold(index, message))
         case SharedCommandType.InventoryQuery:
