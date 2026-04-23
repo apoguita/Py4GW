@@ -48,7 +48,7 @@ QUICK_ACTIONS_MENU_SCREEN_MARGIN = 8.0
 QUICK_ACTIONS_MENU_ICON_GAP = 4.0
 QUICK_ACTIONS_MENU_REASON_WIDTH = 130.0
 
-PROFILE_VERSION = 26
+PROFILE_VERSION = 27
 CONFIG_DIR = os.path.join(Py4GW.Console.get_projects_path(), "Widgets", "Config", "MerchantRules")
 SHARED_PROFILES_DIR = os.path.join(CONFIG_DIR, "Profiles")
 RECOVERY_DIR = os.path.join(CONFIG_DIR, "Recovery")
@@ -1028,6 +1028,28 @@ class CleanupProtectionSource:
     sell_rule_id: str = ""
 
 
+def _normalize_cleanup_blacklist_model_ids(raw_model_ids: object) -> list[int]:
+    normalized: list[int] = []
+    seen_model_ids: set[int] = set()
+    if not isinstance(raw_model_ids, list):
+        return normalized
+
+    for entry in raw_model_ids:
+        if isinstance(entry, dict):
+            model_id = entry.get("model_id", 0)
+        else:
+            model_id = entry
+
+        safe_model_id = max(0, _safe_int(model_id, 0))
+        if safe_model_id <= 0 or safe_model_id in seen_model_ids:
+            continue
+
+        seen_model_ids.add(safe_model_id)
+        normalized.append(safe_model_id)
+
+    return normalized
+
+
 @dataclass
 class ExecutionPlanEntry:
     action_type: str
@@ -1188,6 +1210,7 @@ class PlannedStorageTransfer:
     item_id: int
     quantity: int
     model_id: int = 0
+    reason: str = ""
 
 
 @dataclass
@@ -2568,6 +2591,10 @@ def _serialize_cleanup_protection_sources(raw_sources: object) -> list[dict[str,
     ]
 
 
+def _serialize_cleanup_blacklist_model_ids(raw_model_ids: object) -> list[int]:
+    return [int(model_id) for model_id in _normalize_cleanup_blacklist_model_ids(raw_model_ids)]
+
+
 def _normalize_rule_id(value: object) -> str:
     return re.sub(r"[^a-zA-Z0-9_-]+", "", str(value or "").strip())
 
@@ -3227,6 +3254,7 @@ class MerchantRulesWidget:
         self.identify_settings = IdentifySettings()
         self.salvage_settings = SalvageSettings()
         self.cleanup_targets: list[CleanupTarget] = []
+        self.cleanup_blacklist_model_ids: list[int] = []
         self.cleanup_protection_sources: list[CleanupProtectionSource] = []
         self.auto_cleanup_on_outpost_entry = False
         self.auto_sell_on_manual_vendor_interaction = False
@@ -3266,6 +3294,7 @@ class MerchantRulesWidget:
         self.icon_xunlai_open_running = False
         self.outpost_search_text = ""
         self.cleanup_model_search_text = ""
+        self.cleanup_blacklist_search_text = ""
         self.destroy_model_text_cache: dict[int, str] = {}
         self.destroy_model_search_cache: dict[int, str] = {}
         self.salvage_model_search_text = ""
@@ -3796,6 +3825,7 @@ class MerchantRulesWidget:
             "identify_settings": _serialize_identify_settings(self.identify_settings),
             "salvage_settings": _serialize_salvage_settings(self.salvage_settings),
             "cleanup_targets": _serialize_cleanup_targets(self.cleanup_targets),
+            "cleanup_blacklist_model_ids": _serialize_cleanup_blacklist_model_ids(self.cleanup_blacklist_model_ids),
             "cleanup_protection_sources": _serialize_cleanup_protection_sources(self.cleanup_protection_sources),
         }
         if include_window_geometry:
@@ -3839,6 +3869,13 @@ class MerchantRulesWidget:
             cleanup_targets_raw = []
         if not isinstance(cleanup_targets_raw, list):
             raise ValueError("Merchant Rules cleanup_targets must be a list.")
+
+        cleanup_blacklist_present = "cleanup_blacklist_model_ids" in raw_payload
+        cleanup_blacklist_raw = raw_payload.get("cleanup_blacklist_model_ids", [])
+        if cleanup_blacklist_raw is None:
+            cleanup_blacklist_raw = []
+        if not isinstance(cleanup_blacklist_raw, list):
+            raise ValueError("Merchant Rules cleanup_blacklist_model_ids must be a list.")
 
         cleanup_sources_present = "cleanup_protection_sources" in raw_payload
         cleanup_sources_raw = raw_payload.get("cleanup_protection_sources", [])
@@ -3969,6 +4006,10 @@ class MerchantRulesWidget:
                 [asdict(target) for target in migrated_cleanup_targets_by_model.values()]
             )
 
+        normalized_cleanup_blacklist_model_ids = _normalize_cleanup_blacklist_model_ids(cleanup_blacklist_raw)
+        if not cleanup_blacklist_present:
+            normalized_cleanup_blacklist_model_ids = _normalize_cleanup_blacklist_model_ids([])
+
         normalized_cleanup_sources = _normalize_cleanup_protection_sources(cleanup_sources_raw)
         if not cleanup_sources_present:
             normalized_cleanup_sources = _normalize_cleanup_protection_sources(
@@ -3997,6 +4038,7 @@ class MerchantRulesWidget:
             "identify_settings": _serialize_identify_settings(_normalize_identify_settings(identify_settings_raw)),
             "salvage_settings": _serialize_salvage_settings(_normalize_salvage_settings(salvage_settings_raw)),
             "cleanup_targets": _serialize_cleanup_targets(normalized_cleanup_targets),
+            "cleanup_blacklist_model_ids": _serialize_cleanup_blacklist_model_ids(normalized_cleanup_blacklist_model_ids),
             "cleanup_protection_sources": _serialize_cleanup_protection_sources(normalized_cleanup_sources),
         }
 
@@ -4067,6 +4109,9 @@ class MerchantRulesWidget:
         self.identify_settings = _normalize_identify_settings(payload.get("identify_settings", {}))
         self.salvage_settings = _normalize_salvage_settings(payload.get("salvage_settings", {}))
         self.cleanup_targets = _normalize_cleanup_targets(_coerce_list(payload.get("cleanup_targets", [])))
+        self.cleanup_blacklist_model_ids = _normalize_cleanup_blacklist_model_ids(
+            _coerce_list(payload.get("cleanup_blacklist_model_ids", []))
+        )
         self.cleanup_protection_sources = _normalize_cleanup_protection_sources(
             _coerce_list(payload.get("cleanup_protection_sources", []))
         )
@@ -4095,9 +4140,11 @@ class MerchantRulesWidget:
         self.sell_rules = _normalize_sell_rules(self.sell_rules)
         self.destroy_rules = _normalize_destroy_rules(self.destroy_rules)
         self.cleanup_targets = _normalize_cleanup_targets(self.cleanup_targets)
+        self.cleanup_blacklist_model_ids = _normalize_cleanup_blacklist_model_ids(self.cleanup_blacklist_model_ids)
         self.cleanup_protection_sources = _normalize_cleanup_protection_sources(self.cleanup_protection_sources)
         self.outpost_search_text = ""
         self.cleanup_model_search_text = ""
+        self.cleanup_blacklist_search_text = ""
         self._refresh_rule_ui_caches()
 
     def _get_shared_profiles_dir(self) -> str:
@@ -4908,6 +4955,7 @@ class MerchantRulesWidget:
         self.auto_cleanup_zone_attempted = False
         self.auto_cleanup_zone_token = ""
         self.cleanup_model_search_text = ""
+        self.cleanup_blacklist_search_text = ""
         self.instant_destroy_running = False
         self.instant_destroy_rescan_requested = False
         self.instant_destroy_last_signature = ()
@@ -6839,6 +6887,23 @@ class MerchantRulesWidget:
         )
         return self._set_cleanup_targets(existing_targets)
 
+    def _set_cleanup_blacklist_model_ids(self, model_ids: list[int]) -> bool:
+        normalized_ids = _normalize_cleanup_blacklist_model_ids(model_ids)
+        if normalized_ids == self.cleanup_blacklist_model_ids:
+            return False
+        self.cleanup_blacklist_model_ids = normalized_ids
+        return True
+
+    def _add_cleanup_blacklist_model_id(self, model_id: int) -> bool:
+        safe_model_id = max(0, _safe_int(model_id, 0))
+        if safe_model_id <= 0:
+            return False
+        existing_model_ids = _normalize_cleanup_blacklist_model_ids(self.cleanup_blacklist_model_ids)
+        if safe_model_id in existing_model_ids:
+            return False
+        existing_model_ids.append(safe_model_id)
+        return self._set_cleanup_blacklist_model_ids(existing_model_ids)
+
     def _set_cleanup_protection_sources(self, cleanup_sources: list[CleanupProtectionSource]) -> bool:
         normalized_sources = _normalize_cleanup_protection_sources(cleanup_sources)
         if normalized_sources == self.cleanup_protection_sources:
@@ -7847,6 +7912,7 @@ class MerchantRulesWidget:
             "destroy_rules": [asdict(rule) for rule in (_default_destroy_rules() if profile_exists else [])],
             "identify_settings": _serialize_identify_settings(IdentifySettings()),
             "cleanup_targets": [],
+            "cleanup_blacklist_model_ids": [],
             "cleanup_protection_sources": [],
         }
         self._apply_profile_payload(default_payload)
@@ -9386,6 +9452,7 @@ class MerchantRulesWidget:
                 item_id=safe_item_id,
                 quantity=safe_quantity,
                 model_id=safe_model_id,
+                reason=str(reason or ""),
             )
         )
         plan.entries.append(
@@ -9425,6 +9492,7 @@ class MerchantRulesWidget:
             item_id=safe_item_id,
             quantity=safe_quantity,
             model_id=safe_model_id,
+            reason=str(reason or ""),
         )
         plan.cleanup_transfers.append(transfer)
         plan.storage_transfers.append(transfer)
@@ -10132,6 +10200,9 @@ class MerchantRulesWidget:
             sources_by_rule_id[safe_rule_id] = CleanupProtectionSource(sell_rule_id=safe_rule_id)
         return _normalize_cleanup_protection_sources([asdict(source) for source in sources_by_rule_id.values()])
 
+    def _get_cleanup_blacklist_model_id_set(self) -> set[int]:
+        return set(_normalize_cleanup_blacklist_model_ids(self.cleanup_blacklist_model_ids))
+
     def _plan_cleanup_actions(
         self,
         plan: PlanResult,
@@ -10147,6 +10218,7 @@ class MerchantRulesWidget:
             return
 
         cleanup_items = list(items)
+        cleanup_blacklist_model_ids = self._get_cleanup_blacklist_model_id_set()
         cleanup_targets = self._get_effective_cleanup_targets(enabled_sell_rules)
         for cleanup_target in cleanup_targets:
             target_model_id = max(0, int(cleanup_target.model_id))
@@ -10168,6 +10240,26 @@ class MerchantRulesWidget:
                         "No matching inventory items found for this cleanup target.",
                     )
                 )
+                continue
+
+            if target_model_id in cleanup_blacklist_model_ids:
+                plan.entries.append(
+                    ExecutionPlanEntry(
+                        "deposit",
+                        MERCHANT_TYPE_STORAGE,
+                        target_label,
+                        0,
+                        PLAN_STATE_SKIPPED,
+                        "Skipped by Cleanup blacklist.",
+                        model_id=target_model_id,
+                    )
+                )
+                blacklisted_item_ids = {int(item.item_id) for item in matching_items}
+                cleanup_items = [
+                    item
+                    for item in cleanup_items
+                    if int(item.item_id) not in blacklisted_item_ids
+                ]
                 continue
 
             total_quantity = sum(max(1, int(item.quantity)) for item in matching_items)
@@ -10260,6 +10352,7 @@ class MerchantRulesWidget:
                 continue
 
             planned_transfers: list[PlannedStorageTransfer] = []
+            blacklisted_matches_found = False
             for item in cleanup_items:
                 protection_match = self._get_hard_protection_match(item, enabled_sell_rules)
                 if protection_match is None:
@@ -10269,6 +10362,20 @@ class MerchantRulesWidget:
                     continue
                 explicit_deposit = self._get_equippable_explicit_deposit_reason(item, sell_rule)
                 if explicit_deposit is None:
+                    continue
+                if int(item.model_id) in cleanup_blacklist_model_ids:
+                    blacklisted_matches_found = True
+                    plan.entries.append(
+                        ExecutionPlanEntry(
+                            "deposit",
+                            MERCHANT_TYPE_STORAGE,
+                            item.name,
+                            0,
+                            PLAN_STATE_SKIPPED,
+                            f"Skipped by Cleanup blacklist. Protected by {rule_reference}: {detail}",
+                            model_id=item.model_id,
+                        )
+                    )
                     continue
                 planned_transfers.append(
                     PlannedStorageTransfer(
@@ -10292,6 +10399,8 @@ class MerchantRulesWidget:
                 )
 
             if not planned_transfers:
+                if blacklisted_matches_found:
+                    continue
                 plan.entries.append(
                     ExecutionPlanEntry(
                         "deposit",
@@ -13562,18 +13671,37 @@ class MerchantRulesWidget:
         for transfer in normalized_transfers:
             item_id = int(transfer.item_id)
             quantity = max(0, int(transfer.quantity))
+            transfer_label = str(transfer.label or f"Item {item_id}")
+            transfer_model_id = max(0, int(getattr(transfer, "model_id", 0)))
+            transfer_reason = str(getattr(transfer, "reason", "") or "")
             if quantity <= 0:
                 continue
 
             current_quantity = max(0, int(GLOBAL_CACHE.Item.Properties.GetQuantity(item_id)))
             if current_quantity <= 0:
+                self._debug_log(
+                    f"{phase_label} transfer skipped: direction={transfer.direction} label={transfer_label} "
+                    f"model={transfer_model_id} item_id={item_id} planned={quantity} current=0"
+                    + (f" reason={transfer_reason}" if transfer_reason else "")
+                )
                 outcome.depleted += quantity
                 continue
             requested_quantity = min(current_quantity, quantity)
             depleted_quantity = max(0, quantity - current_quantity)
             if requested_quantity <= 0:
+                self._debug_log(
+                    f"{phase_label} transfer skipped: direction={transfer.direction} label={transfer_label} "
+                    f"model={transfer_model_id} item_id={item_id} planned={quantity} move=0"
+                    + (f" reason={transfer_reason}" if transfer_reason else "")
+                )
                 outcome.depleted += quantity
                 continue
+
+            self._debug_log(
+                f"{phase_label} transfer: direction={transfer.direction} label={transfer_label} "
+                f"model={transfer_model_id} item_id={item_id} planned={quantity} current={current_quantity} move={requested_quantity}"
+                + (f" reason={transfer_reason}" if transfer_reason else "")
+            )
 
             moved = False
             if transfer.direction == STORAGE_TRANSFER_WITHDRAW:
@@ -13615,6 +13743,11 @@ class MerchantRulesWidget:
                 moved = bool(GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id, ammount=requested_quantity))
 
             if not moved:
+                self._debug_log(
+                    f"{phase_label} transfer queued-noop: direction={transfer.direction} label={transfer_label} "
+                    f"model={transfer_model_id} item_id={item_id} requested={requested_quantity}"
+                    + (f" reason={transfer_reason}" if transfer_reason else "")
+                )
                 outcome.timeout_failures += requested_quantity
                 outcome.depleted += depleted_quantity
                 continue
@@ -13637,6 +13770,12 @@ class MerchantRulesWidget:
             if shortfall > 0:
                 outcome.timeout_failures += shortfall
             outcome.depleted += depleted_quantity
+            self._debug_log(
+                f"{phase_label} transfer result: direction={transfer.direction} label={transfer_label} "
+                f"model={transfer_model_id} item_id={item_id} moved={moved_quantity} shortfall={shortfall} "
+                f"final={max(0, int(final_quantity))}"
+                + (f" reason={transfer_reason}" if transfer_reason else "")
+            )
             yield from Routines.Yield.wait(60)
 
         self._debug_log(
@@ -18336,6 +18475,7 @@ class MerchantRulesWidget:
         PyImGui.same_line(0, 8)
         self._draw_secondary_text(
             f"{len(_normalize_cleanup_targets(self.cleanup_targets))} explicit target(s) | "
+            f"{len(_normalize_cleanup_blacklist_model_ids(self.cleanup_blacklist_model_ids))} blacklisted item(s) | "
             f"{len(_normalize_cleanup_protection_sources(self.cleanup_protection_sources))} linked source(s)",
             wrapped=False,
         )
@@ -21938,10 +22078,47 @@ class MerchantRulesWidget:
         if run_salvage_clicked:
             self._queue_salvage_now(auto_triggered=False)
 
+    def _draw_cleanup_status_badges(
+        self,
+        cleanup_targets: list[CleanupTarget],
+        cleanup_blacklist_model_ids: list[int],
+        cleanup_sources: list[CleanupProtectionSource],
+    ) -> None:
+        auto_enabled = bool(self.auto_cleanup_on_outpost_entry)
+        target_count = len(_normalize_cleanup_targets(cleanup_targets))
+        blacklist_count = len(_normalize_cleanup_blacklist_model_ids(cleanup_blacklist_model_ids))
+        linked_count = len(_normalize_cleanup_protection_sources(cleanup_sources))
+        ready = (target_count + linked_count) > 0
+
+        PyImGui.text("Cleanup:")
+        PyImGui.same_line(0, 8)
+        self._draw_inline_badge("On" if auto_enabled else "Off", UI_COLOR_SUCCESS if auto_enabled else UI_COLOR_MUTED)
+        PyImGui.same_line(0, 6)
+        self._draw_inline_badge(
+            f"Targets: {target_count}",
+            UI_COLOR_INFO if target_count > 0 else UI_COLOR_MUTED,
+        )
+        PyImGui.same_line(0, 6)
+        self._draw_inline_badge(
+            f"Blacklist: {blacklist_count}",
+            UI_COLOR_WARNING if blacklist_count > 0 else UI_COLOR_MUTED,
+        )
+        PyImGui.same_line(0, 6)
+        self._draw_inline_badge(
+            f"Linked: {linked_count}",
+            UI_COLOR_PURPLE_ACCENT if linked_count > 0 else UI_COLOR_MUTED,
+        )
+        PyImGui.same_line(0, 6)
+        if auto_enabled:
+            self._draw_inline_badge("Pickup", UI_COLOR_SUCCESS if ready else UI_COLOR_WARNING)
+        else:
+            self._draw_inline_badge("Manual", UI_COLOR_MUTED)
+
     def _draw_cleanup_workspace(self):
         cleanup_changed = False
         automation_changed = False
         cleanup_targets = _normalize_cleanup_targets(self.cleanup_targets)
+        cleanup_blacklist_model_ids = _normalize_cleanup_blacklist_model_ids(self.cleanup_blacklist_model_ids)
         cleanup_sources = _normalize_cleanup_protection_sources(self.cleanup_protection_sources)
 
         self._draw_section_heading(CLEANUP_WORKSPACE_LABEL)
@@ -21962,14 +22139,20 @@ class MerchantRulesWidget:
         run_cleanup_clicked = PyImGui.button("Run Cleanup Now##merchant_rules_cleanup_workspace_run_now")
         PyImGui.end_disabled()
 
+        self._draw_cleanup_status_badges(cleanup_targets, cleanup_blacklist_model_ids, cleanup_sources)
         self._draw_secondary_text(
-            f"Explicit targets: {len(cleanup_targets)} | Linked protection sources: {len(cleanup_sources)}",
+            f"Explicit targets: {len(cleanup_targets)} | Blacklisted items: {len(cleanup_blacklist_model_ids)} | Linked protection sources: {len(cleanup_sources)}",
             wrapped=False,
         )
         if run_cleanup_reason:
-            self._draw_secondary_text(f"Run Cleanup Now: {run_cleanup_reason}")
+            PyImGui.text_colored(f"Run Cleanup Now: {run_cleanup_reason}", UI_COLOR_WARNING)
+        elif not cleanup_targets and not cleanup_sources:
+            PyImGui.text_colored("Cleanup needs at least one explicit target or linked protection source.", UI_COLOR_WARNING)
+        if self.auto_cleanup_running:
+            PyImGui.text_colored("Cleanup / Xunlai is running.", UI_COLOR_INFO)
         if self.last_cleanup_summary:
-            self._draw_secondary_text(self.last_cleanup_summary)
+            summary_color = UI_COLOR_SUCCESS if "found nothing to move" not in str(self.last_cleanup_summary).lower() else UI_COLOR_MUTED
+            PyImGui.text_colored(self.last_cleanup_summary, summary_color)
 
         PyImGui.separator()
         self._draw_section_heading("Explicit Cleanup Targets")
@@ -22023,7 +22206,7 @@ class MerchantRulesWidget:
                     PyImGui.end_table()
             PyImGui.end_child()
         else:
-            self._draw_secondary_text("No explicit cleanup targets yet.")
+            PyImGui.text_colored("No explicit cleanup targets yet.", UI_COLOR_MUTED)
 
         if removed_cleanup_model_id > 0:
             updated_targets = [target for target in updated_targets if int(target.model_id) != removed_cleanup_model_id]
@@ -22068,10 +22251,92 @@ class MerchantRulesWidget:
             self.cleanup_model_search_text = self._get_model_name(picked_cleanup_model_id) or str(picked_cleanup_model_id)
 
         PyImGui.separator()
+        self._draw_section_heading("Cleanup Blacklist")
+        self._draw_secondary_text(
+            "Blacklist exact item or material models to keep Cleanup / Xunlai from depositing them, even when explicit targets or linked protection sources would otherwise move them."
+        )
+        if cleanup_blacklist_model_ids:
+            PyImGui.text_colored("Blacklisted items always stay on character during cleanup.", UI_COLOR_WARNING)
+
+        removed_cleanup_blacklist_model_id = 0
+        display_blacklist_model_ids = self._sort_model_ids_for_display(cleanup_blacklist_model_ids)
+        if display_blacklist_model_ids:
+            child_height = min(220, 58 + (32 * len(display_blacklist_model_ids)))
+            if PyImGui.begin_child("merchant_rules_cleanup_blacklist", (0, child_height), True, PyImGui.WindowFlags.NoFlag):
+                if PyImGui.begin_table("merchant_rules_cleanup_blacklist_table", 2, self._get_dense_list_table_flags()):
+                    PyImGui.table_setup_column("Item", PyImGui.TableColumnFlags.WidthStretch)
+                    PyImGui.table_setup_column("Remove", PyImGui.TableColumnFlags.WidthFixed, 60.0)
+
+                    PyImGui.table_next_row()
+                    PyImGui.table_set_column_index(0)
+                    PyImGui.text("Item")
+                    PyImGui.table_set_column_index(1)
+                    PyImGui.text("Remove")
+
+                    for model_id in display_blacklist_model_ids:
+                        PyImGui.table_next_row()
+                        PyImGui.table_set_column_index(0)
+                        PyImGui.text(self._format_model_label_short(model_id))
+
+                        PyImGui.table_set_column_index(1)
+                        if PyImGui.small_button(f"X##merchant_rules_cleanup_blacklist_remove_{model_id}"):
+                            removed_cleanup_blacklist_model_id = int(model_id)
+                            break
+                    PyImGui.end_table()
+            PyImGui.end_child()
+        else:
+            PyImGui.text_colored("No cleanup blacklist items yet.", UI_COLOR_MUTED)
+
+        if removed_cleanup_blacklist_model_id > 0:
+            next_blacklist_model_ids = [
+                model_id
+                for model_id in cleanup_blacklist_model_ids
+                if int(model_id) != removed_cleanup_blacklist_model_id
+            ]
+            if self._set_cleanup_blacklist_model_ids(next_blacklist_model_ids):
+                cleanup_changed = True
+                cleanup_blacklist_model_ids = _normalize_cleanup_blacklist_model_ids(self.cleanup_blacklist_model_ids)
+
+        updated_cleanup_blacklist_search = PyImGui.input_text(
+            "Search Items / Materials##merchant_rules_cleanup_blacklist_search",
+            self.cleanup_blacklist_search_text,
+        )
+        if updated_cleanup_blacklist_search != self.cleanup_blacklist_search_text:
+            self.cleanup_blacklist_search_text = updated_cleanup_blacklist_search
+
+        picked_cleanup_blacklist_model_id, visible_cleanup_blacklist_model_ids = self._draw_search_results(
+            "merchant_rules_cleanup_blacklist_search_results",
+            self.cleanup_blacklist_search_text,
+        )
+        existing_cleanup_blacklist_model_ids = {int(model_id) for model_id in cleanup_blacklist_model_ids}
+        addable_cleanup_blacklist_model_ids = [
+            int(model_id)
+            for model_id in visible_cleanup_blacklist_model_ids
+            if int(model_id) not in existing_cleanup_blacklist_model_ids
+        ]
+        if self._draw_add_all_matches_button(
+            "merchant_rules_cleanup_blacklist_add_all_matches",
+            len(visible_cleanup_blacklist_model_ids),
+            len(addable_cleanup_blacklist_model_ids),
+        ):
+            next_blacklist_model_ids = list(cleanup_blacklist_model_ids) + addable_cleanup_blacklist_model_ids
+            if self._set_cleanup_blacklist_model_ids(next_blacklist_model_ids):
+                cleanup_changed = True
+                cleanup_blacklist_model_ids = _normalize_cleanup_blacklist_model_ids(self.cleanup_blacklist_model_ids)
+
+        if picked_cleanup_blacklist_model_id > 0:
+            if self._add_cleanup_blacklist_model_id(picked_cleanup_blacklist_model_id):
+                cleanup_changed = True
+                cleanup_blacklist_model_ids = _normalize_cleanup_blacklist_model_ids(self.cleanup_blacklist_model_ids)
+            self.cleanup_blacklist_search_text = self._get_model_name(picked_cleanup_blacklist_model_id) or str(picked_cleanup_blacklist_model_id)
+
+        PyImGui.separator()
         self._draw_section_heading("Linked Protection Sources")
         self._draw_secondary_text(
-            "Link a weapon or armor sell rule here to deposit whatever that rule currently hard-protects during cleanup."
+            "Link a weapon or armor sell rule here to deposit whatever that rule currently hard-protects during cleanup. Cleanup blacklist entries still override those deposits."
         )
+        if cleanup_sources:
+            PyImGui.text_colored("Linked protection deposits are active and still respect the cleanup blacklist.", UI_COLOR_INFO)
 
         removed_cleanup_source_id = ""
         if cleanup_sources:
@@ -22140,7 +22405,7 @@ class MerchantRulesWidget:
                     PyImGui.end_table()
             PyImGui.end_child()
         else:
-            self._draw_secondary_text("No linked protection sources yet.")
+            PyImGui.text_colored("No linked protection sources yet.", UI_COLOR_MUTED)
 
         if removed_cleanup_source_id:
             next_sources = [
@@ -22159,7 +22424,7 @@ class MerchantRulesWidget:
             if _normalize_rule_id(getattr(sell_rule, "rule_id", "")) not in linked_source_ids
         ]
         if available_linkable_rules:
-            self._draw_secondary_text("Available weapon and armor sell rules:")
+            PyImGui.text_colored("Available weapon and armor sell rules:", UI_COLOR_INFO)
             if PyImGui.begin_child("merchant_rules_cleanup_linkable_rules", (0, 120), True, PyImGui.WindowFlags.NoFlag):
                 for sell_rule in available_linkable_rules:
                     safe_rule_id = _normalize_rule_id(getattr(sell_rule, "rule_id", ""))
@@ -22174,7 +22439,7 @@ class MerchantRulesWidget:
                     self._draw_secondary_text(f"{rule_label} | {state_suffix}", wrapped=False)
             PyImGui.end_child()
         else:
-            self._draw_secondary_text("No additional weapon or armor sell rules are available to link.")
+            PyImGui.text_colored("No additional weapon or armor sell rules are available to link.", UI_COLOR_MUTED)
 
         PyImGui.separator()
         self._draw_section_heading("Cleanup Preview")
@@ -23071,7 +23336,7 @@ def tooltip():
     PyImGui.bullet_text("Preview projects the full post-travel merchant plan without moving the character.")
     PyImGui.bullet_text("Optional auto-travel to a selected outpost before merchant handling.")
     PyImGui.bullet_text("Top-level Overview, Rules, and Profiles workspaces, with live-config recovery under Profiles.")
-    PyImGui.bullet_text("Cleanup / Xunlai is a separate workspace with explicit stash targets, linked protection sources, and optional outpost-entry auto cleanup.")
+    PyImGui.bullet_text("Cleanup / Xunlai is a separate workspace with explicit stash targets, blacklist entries, linked protection sources, and optional outpost-entry auto cleanup.")
     PyImGui.bullet_text("Protections is a central hub over current sell-owned protection entries, with owner state, rule order, and Jump to Rule.")
     PyImGui.bullet_text("Identify can target exact rarities and optionally run before Execute rebuilds the live merchant plan.")
     PyImGui.bullet_text("Destroy supports Preview -> Execute plus session-only Instant Destroy and Include Protected Items toggles.")
