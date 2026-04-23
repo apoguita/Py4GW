@@ -43,6 +43,7 @@ class GameData:
         
         #combat field data
         self.in_aggro = False
+        self.party_in_aggro = False
         self.weapon_type = 0
               
         
@@ -245,6 +246,13 @@ class CacheData:
                     
                 if not self.stay_alert_timer.HasElapsed(STAY_ALERT_TIME):
                     self.data.in_aggro = True
+
+                self.data.party_in_aggro = self.data.in_aggro or any(
+                    bool(account.InAggro)
+                    for account in self.party
+                    if account.IsSlotActive
+                    and account.AgentPartyData.PartyID == self.party.party_id
+                )
                     
                 self.auto_attack_time = self.GetWeaponAttackAftercast()
                 
