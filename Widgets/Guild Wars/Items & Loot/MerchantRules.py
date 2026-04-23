@@ -3510,8 +3510,8 @@ class MerchantRulesWidget:
         if self._is_storage_open():
             self.status_message = "Xunlai is already open."
             return
-        if not self._can_use_local_storage_actions():
-            self.status_message = "Go to an outpost or Guild Hall to open Xunlai."
+        if not Map.IsMapReady():
+            self.status_message = "Wait for the current map to finish loading."
             return
 
         self.icon_xunlai_open_running = True
@@ -3524,7 +3524,7 @@ class MerchantRulesWidget:
             if opened:
                 self.status_message = "Xunlai is open."
             else:
-                self.status_message = "Could not open Xunlai. Move closer to a Xunlai Agent or Chest and try again."
+                self.status_message = "Could not open Xunlai right now."
         except Exception as exc:
             self.last_error = f"{exc}"
             self.status_message = "Could not open Xunlai."
@@ -3622,8 +3622,6 @@ class MerchantRulesWidget:
             return ""
         if not Map.IsMapReady():
             return "Wait for the current map to finish loading."
-        if not self._can_use_local_storage_actions():
-            return "Go to an outpost or Guild Hall to open Xunlai."
         return ""
 
     def _get_storage_scan_block_reason(self) -> str:
