@@ -289,6 +289,158 @@ class BTMap:
         ])
 
         return BehaviorTree(tree)
+
+    @staticmethod
+    def TravelGH(log: bool = False, wait_time: int = 1000, timeout: int = 15000) -> BehaviorTree:
+        """
+        Build a tree that travels to the guild hall and waits until it is loaded.
+
+        Meta:
+          Expose: true
+          Audience: beginner
+          Display: Travel Guild Hall
+          Purpose: Travel to the guild hall and wait for a ready guild hall outpost.
+          UserDescription: Use this when the current route needs to enter the guild hall and continue only after loading is complete.
+          Notes: Succeeds early when already in a loaded guild hall.
+        """
+        def already_in_guild_hall() -> bool:
+            if Map.IsMapReady() and Map.IsOutpost() and Map.IsGuildHall() and GLOBAL_CACHE.Party.IsPartyLoaded():
+                ConsoleLog("TravelGH", "Already in a loaded guild hall.", Console.MessageType.Info, log=log)
+                return True
+            return False
+
+        def travel_gh_action() -> BehaviorTree.NodeState:
+            """
+            Dispatch the travel-to-guild-hall request.
+
+            Meta:
+              Expose: false
+              Audience: advanced
+              Display: Internal Travel Guild Hall Helper
+              Purpose: Send the low-level map travel guild hall request.
+              UserDescription: Internal support routine.
+              Notes: Returns success immediately after dispatching the request.
+            """
+            ConsoleLog("TravelGH", "Traveling to guild hall.", Console.MessageType.Info, log=log)
+            Map.TravelGH()
+            return BehaviorTree.NodeState.SUCCESS
+
+        def guild_hall_loaded() -> BehaviorTree.NodeState:
+            if (
+                Map.IsMapReady()
+                and Map.IsOutpost()
+                and Map.IsGuildHall()
+                and GLOBAL_CACHE.Party.IsPartyLoaded()
+                and Map.GetInstanceUptime() >= 1500
+                and Player.GetInstanceUptime() >= 1500
+            ):
+                ConsoleLog("TravelGH", "Guild hall loaded.", Console.MessageType.Info, log=log)
+                return BehaviorTree.NodeState.SUCCESS
+            return BehaviorTree.NodeState.RUNNING
+
+        return BehaviorTree(
+            BehaviorTree.SelectorNode(
+                name="TravelGH",
+                children=[
+                    BehaviorTree.ConditionNode(
+                        name="AlreadyInGuildHall",
+                        condition_fn=already_in_guild_hall,
+                    ),
+                    BehaviorTree.SequenceNode(
+                        name="TravelGHSequence",
+                        children=[
+                            BehaviorTree.ActionNode(
+                                name="TravelGHAction",
+                                action_fn=travel_gh_action,
+                                aftercast_ms=wait_time,
+                            ),
+                            BehaviorTree.WaitUntilNode(
+                                name="WaitForGuildHallLoad",
+                                condition_fn=lambda node: guild_hall_loaded(),
+                                throttle_interval_ms=500,
+                                timeout_ms=timeout,
+                            ),
+                        ],
+                    ),
+                ],
+            )
+        )
+
+    @staticmethod
+    def LeaveGH(log: bool = False, wait_time: int = 1000, timeout: int = 15000) -> BehaviorTree:
+        """
+        Build a tree that leaves the guild hall and waits until a non-guild-hall outpost is loaded.
+
+        Meta:
+          Expose: true
+          Audience: beginner
+          Display: Leave Guild Hall
+          Purpose: Leave the guild hall and wait for a ready non-guild-hall outpost.
+          UserDescription: Use this when the current route needs to leave the guild hall before continuing in the returned outpost.
+          Notes: Succeeds early when already in a loaded non-guild-hall outpost.
+        """
+        def already_outside_guild_hall() -> bool:
+            if Map.IsMapReady() and Map.IsOutpost() and not Map.IsGuildHall() and GLOBAL_CACHE.Party.IsPartyLoaded():
+                ConsoleLog("LeaveGH", "Already outside the guild hall in a loaded outpost.", Console.MessageType.Info, log=log)
+                return True
+            return False
+
+        def leave_gh_action() -> BehaviorTree.NodeState:
+            """
+            Dispatch the leave-guild-hall request.
+
+            Meta:
+              Expose: false
+              Audience: advanced
+              Display: Internal Leave Guild Hall Helper
+              Purpose: Send the low-level map leave guild hall request.
+              UserDescription: Internal support routine.
+              Notes: Returns success immediately after dispatching the request.
+            """
+            ConsoleLog("LeaveGH", "Leaving guild hall.", Console.MessageType.Info, log=log)
+            Map.LeaveGH()
+            return BehaviorTree.NodeState.SUCCESS
+
+        def returned_outpost_loaded() -> BehaviorTree.NodeState:
+            if (
+                Map.IsMapReady()
+                and Map.IsOutpost()
+                and not Map.IsGuildHall()
+                and GLOBAL_CACHE.Party.IsPartyLoaded()
+                and Map.GetInstanceUptime() >= 1500
+                and Player.GetInstanceUptime() >= 1500
+            ):
+                ConsoleLog("LeaveGH", "Returned outpost loaded.", Console.MessageType.Info, log=log)
+                return BehaviorTree.NodeState.SUCCESS
+            return BehaviorTree.NodeState.RUNNING
+
+        return BehaviorTree(
+            BehaviorTree.SelectorNode(
+                name="LeaveGH",
+                children=[
+                    BehaviorTree.ConditionNode(
+                        name="AlreadyOutsideGuildHall",
+                        condition_fn=already_outside_guild_hall,
+                    ),
+                    BehaviorTree.SequenceNode(
+                        name="LeaveGHSequence",
+                        children=[
+                            BehaviorTree.ActionNode(
+                                name="LeaveGHAction",
+                                action_fn=leave_gh_action,
+                                aftercast_ms=wait_time,
+                            ),
+                            BehaviorTree.WaitUntilNode(
+                                name="WaitForReturnedOutpostLoad",
+                                condition_fn=lambda node: returned_outpost_loaded(),
+                                throttle_interval_ms=500,
+                                timeout_ms=timeout,
+                            ),
+                        ],
+                    ),
+                ],
+            )
+        )
     
     @staticmethod
     def WaitforMapLoad(map_id:int=0, log:bool=False, timeout: int = 10000, map_name: str =""):   
