@@ -1002,6 +1002,7 @@ class ImGui:
         style = ImGui.get_style()
         current_style_var = style.ButtonPadding.get_current()
         btn_padding = (current_style_var.value1, current_style_var.value2 or 0)
+        scale = max(min(float(width), float(height)) / 35.0, 1.0) if width and height else 1.0
         
         if current_style_var.img_style_enum:
             PyImGui.push_style_var2(current_style_var.img_style_enum, btn_padding[0], btn_padding[1]) 
@@ -1024,7 +1025,9 @@ class ImGui:
                     button_color.push_color()
         
 
+            PyImGui.push_font_scaled(ImguiFonts.Regular_14.value, scale)
             clicked = PyImGui.button(label, width, height)
+            PyImGui.pop_font_scaled()
             if enabled:
                 for button_color in button_colors:
                     button_color.pop_color()
@@ -1079,6 +1082,7 @@ class ImGui:
             tint=frame_tint,
         )
         
+        #PyImGui.push_font_scaled(ImguiFonts.Regular_14.value, scale)
         text_size = PyImGui.calc_text_size(display_label)
         text_x = button_texture_rect[0] + ((button_texture_rect[2] - text_size[0]) / 2)
         text_y = item_rect[1] + ((item_rect[3] - text_size[1]) / 2) + 2
@@ -1096,6 +1100,7 @@ class ImGui:
         )
 
         PyImGui.pop_clip_rect()
+        #PyImGui.pop_font_scaled()
         style.Text.pop_color()
 
         if current_style_var.img_style_enum:

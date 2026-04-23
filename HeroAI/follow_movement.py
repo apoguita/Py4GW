@@ -258,6 +258,8 @@ def compute_mixed_follow_target(
     follow_distance: float,
     in_combat: bool,
     config: FollowMovementConfig | None = None,
+    ally_positions: list[tuple[float, float]] | None = None,
+    enemy_positions: list[tuple[float, float]] | None = None,
 ) -> tuple[float, float] | None:
     cfg = config or load_follow_movement_config()
     target_tolerance = max(0.0, follow_distance)
@@ -272,7 +274,7 @@ def compute_mixed_follow_target(
     active_ally_count = 0
     active_enemy_count = 0
 
-    ally_positions = _collect_nearby_allies()
+    ally_positions = ally_positions if ally_positions is not None else _collect_nearby_allies()
     for ally_pos in ally_positions:
         if cfg.ally_repulsion_radius <= 0.0:
             break
@@ -280,7 +282,7 @@ def compute_mixed_follow_target(
             repulsion_positions.append(ally_pos)
             active_ally_count += 1
 
-    enemy_positions = _collect_nearby_enemies()
+    enemy_positions = enemy_positions if enemy_positions is not None else _collect_nearby_enemies()
     for enemy_pos in enemy_positions:
         if cfg.enemy_repulsion_radius <= 0.0:
             break
