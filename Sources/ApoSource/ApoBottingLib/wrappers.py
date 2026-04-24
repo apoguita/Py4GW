@@ -978,6 +978,7 @@ def SpawnAndDestroyBonusItems(exclude_list: list[int] = [], log: bool = False) -
             name="SpawnAndDestroyBonusItems",
             children=[
                 SpawnBonusItems(log=log).root,
+                Wait(100).root,
                 DestroyBonusItems(exclude_list=exclude_list, log=log).root,
             ],
         )

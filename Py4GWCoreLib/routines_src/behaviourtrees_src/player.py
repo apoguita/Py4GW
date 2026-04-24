@@ -1532,7 +1532,7 @@ class BTPlayer:
                             )
                         _set_blackboard(node, "running")
                     else:
-                        state["path_gen"] = AutoPathing().get_path_to(x, y)
+                        state["path_gen"] = AutoPathing().get_path_to(x, y, margin=150)
                         if _debug_enabled(node):
                             ConsoleLog("Move", f"Starting autopath to ({x}, {y}).", Console.MessageType.Info, log=True)
                         _set_blackboard(node, "running")

@@ -446,6 +446,24 @@ class AStar:
         start_id = self.navmesh.find_trapezoid_id_by_coord(start_pos)
         goal_id = self.navmesh.find_trapezoid_id_by_coord(goal_pos)
 
+        if start_id is None:
+            start_id = self.navmesh.find_nearest_trapezoid_id(start_pos[0], start_pos[1])
+            if start_id is not None:
+                Py4GW.Console.Log(
+                    "A-Star",
+                    f"Recovered missing start trapezoid via nearest lookup: {start_id} for {start_pos}",
+                    Py4GW.Console.MessageType.Warning,
+                )
+
+        if goal_id is None:
+            goal_id = self.navmesh.find_nearest_trapezoid_id(goal_pos[0], goal_pos[1])
+            if goal_id is not None:
+                Py4GW.Console.Log(
+                    "A-Star",
+                    f"Recovered missing goal trapezoid via nearest lookup: {goal_id} for {goal_pos}",
+                    Py4GW.Console.MessageType.Warning,
+                )
+
         if start_id is None or goal_id is None:
             Py4GW.Console.Log("A-Star", f"Invalid start or goal trapezoid: {start_id}, {goal_id}", Py4GW.Console.MessageType.Error)
             return False

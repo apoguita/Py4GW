@@ -459,7 +459,7 @@ class BTItems:
     def DestroyBonusItems(
         exclude_list: list[int] | None = None,
         log: bool = False,
-        aftercast_ms: int = 100,
+        aftercast_ms: int = 125,
     ) -> BehaviorTree:
         """
         Build a tree that destroys spawned bonus items except for excluded models.
