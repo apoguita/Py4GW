@@ -16,7 +16,7 @@ from Sources.ApoSource.ApoBottingLib import wrappers as BT
 from Py4GWCoreLib.enums_src.GameData_enums import Range
 
 
-MODULE_NAME = "Chahbek Farmer"
+MODULE_NAME = "Proof of Legend bot 3.0 by Wick Divinus"
 INI_PATH = "Widgets/Automation/Bots/Templates"
 INI_FILENAME = "ChahbekFarmer.ini"
 NEHDUKAH_ENC_STRING = "\\x8101\\x246C\\xFDB5\\xB6AD\\x56AB"
@@ -460,7 +460,7 @@ def Hog_Hunt() -> BehaviorTree:
                 BT.Move(Vec2f(-6762.51, 2301.88)),
                 BT.Move(Vec2f(-149.15, 1838.02)),
                 BT.Move(Vec2f(-1158.39, 1917.86)),
-                BT.MoveAndDialogByModelID(NEHDUKAH_ENC_STRING, dialog_id=0x828D07),
+                BT.MoveAndDialogByModelID(4869, dialog_id=0x828D07),
                 BT.TravelToRandomDistrict(target_map_id=431),
             ],
         )
