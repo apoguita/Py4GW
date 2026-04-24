@@ -460,7 +460,7 @@ def Hog_Hunt() -> BehaviorTree:
                 BT.Move(Vec2f(-6762.51, 2301.88)),
                 BT.Move(Vec2f(-149.15, 1838.02)),
                 BT.Move(Vec2f(-1158.39, 1917.86)),
-                BT.MoveAndDialogByModelID(NEHDUKAH_ENC_STRING, dialog_id=0x828D07),
+                BT.MoveAndDialogByModelID(4869, dialog_id=0x828D07),
                 BT.TravelToRandomDistrict(target_map_id=431),
             ],
         )
