@@ -204,8 +204,68 @@ def TargetNearestItem():
     return Routines.Targeting.TargetNearestItem()
 
 
-def TargetClusteredEnemy(area=4500.0, *, cluster_radius: float | None = None):
-    return _filter_blacklisted(Routines.Targeting.TargetClusteredEnemy(area, cluster_radius=cluster_radius))
+def TargetClusteredEnemy(
+    area=4500.0,
+    *,
+    skill_id: int = 0,
+    cluster_radius: float | None = None,
+):
+    if not skill_id:
+        return _filter_blacklisted(
+            Routines.Targeting.TargetClusteredEnemy(area, cluster_radius=cluster_radius)
+        )
+
+    player_x, player_y = Player.GetXY()
+    enemy_array = Routines.Agents.GetFilteredEnemyArray(player_x, player_y, area)
+    enemy_array = AgentArray.Filter.ByCondition(
+        enemy_array,
+        lambda agent_id: Agent.IsValid(agent_id) and not Agent.IsDead(agent_id),
+    )
+    if not enemy_array:
+        return 0
+
+    aoe_range = GLOBAL_CACHE.Skill.Data.GetAoERange(skill_id) or Range.Nearby.value
+    effective_cluster_radius = float(
+        cluster_radius if cluster_radius is not None else Range.Earshot.value
+    )
+    player_pos = (player_x, player_y)
+
+    scored: list[tuple[int, int, float, float, int]] = []
+    for agent_id in enemy_array:
+        target_x, target_y = Agent.GetXY(agent_id)
+
+        # Use aggro area to define the local blob, then prefer the center-ish
+        # target within that blob that also maximizes actual AoE hits.
+        blob = Routines.Agents.GetFilteredEnemyArray(
+            target_x, target_y, effective_cluster_radius
+        )
+        blob = AgentArray.Filter.ByCondition(
+            blob,
+            lambda eid: Agent.IsValid(eid) and not Agent.IsDead(eid),
+        )
+        if not blob:
+            continue
+
+        aoe_hits = Routines.Agents.GetFilteredEnemyArray(target_x, target_y, aoe_range)
+        aoe_hits = AgentArray.Filter.ByCondition(
+            aoe_hits,
+            lambda eid: Agent.IsValid(eid) and not Agent.IsDead(eid),
+        )
+
+        center_x = sum(Agent.GetXY(eid)[0] for eid in blob) / len(blob)
+        center_y = sum(Agent.GetXY(eid)[1] for eid in blob) / len(blob)
+        center_distance = Utils.Distance((target_x, target_y), (center_x, center_y))
+        player_distance = Utils.Distance(player_pos, (target_x, target_y))
+
+        scored.append(
+            (len(aoe_hits), len(blob), center_distance, player_distance, agent_id)
+        )
+
+    if not scored:
+        return 0
+
+    scored.sort(key=lambda item: (-item[0], -item[1], item[2], item[3]))
+    return _filter_blacklisted(scored[0][4])
 
 def GetEnemyAttacking(max_distance=4500.0, aggressive_only = False):
     return _filter_blacklisted(Routines.Targeting.GetEnemyAttacking(max_distance, aggressive_only))

@@ -1,7 +1,6 @@
 #region CONFIG_TEMPLATES
-from typing import TYPE_CHECKING, Any, Callable, Generator, List
+from typing import TYPE_CHECKING
 
-from Py4GWCoreLib.py4gwcorelib_src.FSM import FSM
 
 if TYPE_CHECKING:
     from Py4GWCoreLib.botting_src.helpers import BottingClass
@@ -27,8 +26,6 @@ class _TEMPLATES:
         properties.Disable("auto_loot") #no waiting for loot
         properties.Disable("imp")
         
-        #from Widgets.Config.CustomBehaviors.primitives.botting.botting_fsm_helper import BottingFsmHelpers
-        #BottingFsmHelpers.SetBottingBehaviorAsPacifist(self.parent)
     def Pacifist(self):
         properties = self.parent.Properties
         properties.Disable("pause_on_danger") #avoid combat
@@ -125,8 +122,6 @@ class _TEMPLATES:
         properties.Enable("auto_loot") #wait for loot
         properties.Enable("auto_inventory_management") #manage inventory
         
-        #from Widgets.Config.CustomBehaviors.primitives.botting.botting_fsm_helper import BottingFsmHelpers
-        #BottingFsmHelpers.SetBottingBehaviorAsAggressive(self.parent)
 
 #region Routines
     class _Routines:
@@ -135,19 +130,6 @@ class _TEMPLATES:
             self._config = parent.config
             self._helpers = parent.helpers
 
-        def UseCustomBehaviors(
-                self, 
-                on_player_critical_stuck: Callable[[FSM], Generator[Any, Any, Any]] | None = None,
-                on_player_critical_death: Callable[[FSM], Generator[Any, Any, Any]] | None = None,
-                on_party_death: Callable[[FSM], Generator[Any, Any, Any]] | None = None,
-                map_id_to_travel:int | None = None):
-            bot = self.parent
-
-            #from Widgets.Config.CustomBehaviors.primitives.botting.botting_fsm_helper import BottingFsmHelpers
-            #BottingFsmHelpers.UseCustomBehavior(bot, on_player_critical_stuck, on_player_critical_death, on_party_death)
-            if map_id_to_travel is not None:
-                bot.Map.Travel(target_map_id=map_id_to_travel)
-        
         def OnPartyMemberBehind(self):
             bot = self.parent
             print ("Party Member behind, Triggered")

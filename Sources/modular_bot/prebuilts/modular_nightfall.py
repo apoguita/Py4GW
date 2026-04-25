@@ -281,11 +281,8 @@ def create_nightfall_campaign_bot(
         name=name,
         phases=phases,
         loop=bool(opts.loop),
-        # Modular Nightfall is locked to HeroAI runtime behavior:
-        # - disable CustomBehaviors startup
-        # - keep HeroAI widget active
+        # Modular Nightfall is locked to HeroAI runtime behavior.
         template="multibox_aggressive",
-        use_custom_behaviors=False,
         on_party_wipe=restart_target,
         # Nightfall flow should only recover on true party wipe.
         # Player-only deaths can be resurrected in-place without phase rewind.

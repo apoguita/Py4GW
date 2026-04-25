@@ -61,7 +61,7 @@ class SharedCommandType(IntEnum):
 
     #region privately Handled Commands
     MultiBoxing = auto() # privately Handled Command, by frenkey
-    CustomBehaviors = auto() # privately Handled Command, used in CustomBehaviors widget
+    ReservedLegacyCommand = auto()
     UseSkillCombatPrep = auto() #handled in CombatPrep only by Mark
     LootEx = auto() # privately Handled Command, by frenkey
     Pycons = auto()

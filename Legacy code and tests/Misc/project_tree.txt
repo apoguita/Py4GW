@@ -3157,7 +3157,6 @@ C:.
 |   |   Color Picker.py
 |   |   CombatPrep.py
 |   |   Compass +.py
-|   |   CustomBehaviors.py
 |   |   Dialog Sync.py
 |   |   Drop Unyielding Aura.py
 |   |   Enter character on load.py
@@ -3255,7 +3254,6 @@ C:.
 |   |               single_backline.png
 |   |               st_sos_combo.png
 |   |               
-|   +---CustomBehaviors
 |   |   |   __init__.py
 |   |   |   
 |   |   +---gui
@@ -3584,7 +3582,6 @@ C:.
 |           Color Picker.cpython-313.pyc
 |           CombatPrep.cpython-313.pyc
 |           Compass +.cpython-313.pyc
-|           CustomBehaviors.cpython-313.pyc
 |           Dialog Sync.cpython-313.pyc
 |           Drop Unyielding Aura.cpython-313.pyc
 |           Enter character on load.cpython-313.pyc

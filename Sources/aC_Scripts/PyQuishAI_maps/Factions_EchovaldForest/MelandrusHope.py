@@ -86,7 +86,7 @@ MelandrusHope = [
 ]
 
 
-MelandrusHope_path = [
+MelandrusHope_outpost_path = [
     (-9490,338),
     (-9114,331),
     (-8478,844),

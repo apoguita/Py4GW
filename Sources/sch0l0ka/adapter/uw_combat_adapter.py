@@ -15,8 +15,8 @@ from Py4GWCoreLib import ConsoleLog
 class UWCombatAdapter(ABC):
     """Abstract interface for the UW bot's combat-system integration.
 
-    Concrete implementations swap between CustomBehavior and HeroAI without
-    changing any quest-section code in underworld.py.
+    Concrete implementations keep quest-section code isolated from the
+    underlying combat runtime.
     """
 
     # ── Event callback configuration ────────────────────────────────────

@@ -2,8 +2,8 @@
 modular_bot — Modular Bot Builder on top of Botting.
 
 Build bots by composing Phase objects — each Phase is a function that
-registers FSM states on a Botting instance.  ModularBot handles all
-orchestration: templates, CustomBehaviors, looping, recovery, GUI.
+registers FSM states on a Botting instance. ModularBot handles all
+orchestration: templates, HeroAI, looping, recovery, GUI.
 
 Quick Start:
     from modular_bot import ModularBot, Phase
@@ -30,7 +30,6 @@ Quick Start:
         ],
         loop=True,
         template="multibox_aggressive",
-        use_custom_behaviors=True,
         on_party_wipe="Travel",
     )
 

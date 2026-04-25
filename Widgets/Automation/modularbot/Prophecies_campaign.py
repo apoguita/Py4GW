@@ -41,8 +41,7 @@ class Config:
         return PropheciesCampaignOptions(
             start_phase_index=int(self.start_phase_index),
             loop=bool(self.loop),
-            template="aggressive",
-            use_custom_behaviors=True,
+            template="multibox_aggressive",
         )
 
     def save_throttled(self):

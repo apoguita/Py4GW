@@ -28,6 +28,7 @@ import shutil
 import sys
 import traceback
 import types
+from dataclasses import replace
 from pathlib import Path
 
 
@@ -566,6 +567,39 @@ def _rarity_flags(*enabled: str) -> dict[str, bool]:
     }
 
 
+def _salvage_settings(
+    module,
+    *,
+    model_ids: list[int] | None = None,
+    rarities: list[str] | None = None,
+    categories: list[str] | None = None,
+    on_inventory_change: bool = False,
+):
+    rarity_keys = {str(value or "").strip().lower() for value in (rarities or [])}
+    category_keys = {str(value or "").strip().lower() for value in (categories or [])}
+    return module.SalvageSettings(
+        model_ids=list(model_ids or []),
+        rarities={key: key in rarity_keys for key, _label in module.RARITY_OPTION_ORDER},
+        categories={key: key in category_keys for key, _label in module.SALVAGE_CATEGORY_ORDER},
+        on_inventory_change=on_inventory_change,
+    )
+
+
+def _identify_settings(
+    module,
+    *,
+    rarities: list[str] | None = None,
+    before_execute: bool = False,
+    on_inventory_change: bool = False,
+):
+    rarity_keys = {str(value or "").strip().lower() for value in (rarities or [])}
+    return module.IdentifySettings(
+        rarities={key: key in rarity_keys for key, _label in module.RARITY_OPTION_ORDER},
+        before_execute=before_execute,
+        on_inventory_change=on_inventory_change,
+    )
+
+
 def _make_weapon_item(
     module,
     *,
@@ -845,6 +879,908 @@ def _test_legacy_nonsalvageable_gold_sell_rule_is_removed_safely(module, temp_ro
     )
 
 
+def _test_salvage_profile_defaults_are_off(module, temp_root: Path) -> None:
+    widget = _make_widget(module)
+    config_path = temp_root / "salvage_defaults_profile.json"
+    config_path.write_text(json.dumps({"version": module.PROFILE_VERSION - 1}, indent=2), encoding="utf-8")
+    widget.config_path = str(config_path)
+
+    widget._load_profile()
+
+    _expect(not widget.salvage_settings.model_ids, "Legacy profiles should load with no explicit salvage models.")
+    _expect(not any(widget.salvage_settings.rarities.values()), "All salvage rarity selectors should default off.")
+    _expect(not any(widget.salvage_settings.categories.values()), "All salvage category selectors should default off.")
+    _expect(not widget.salvage_settings.on_inventory_change, "On-pickup/inventory-change salvage should default off.")
+    _expect(not any(widget.identify_settings.rarities.values()), "All identify rarity selectors should default off.")
+    _expect(not widget.identify_settings.before_execute, "Identify before Execute should default off.")
+    _expect(not widget.identify_settings.on_inventory_change, "On-pickup/inventory-change identify should default off.")
+    saved_payload = json.loads(config_path.read_text(encoding="utf-8"))
+    _expect("salvage_settings" in saved_payload, "Normalized profiles should persist the salvage settings object.")
+    _expect("identify_settings" in saved_payload, "Normalized profiles should persist the identify settings object.")
+    _expect(not any(saved_payload["salvage_settings"]["rarities"].values()), "Saved salvage rarity selectors should remain off by default.")
+    _expect(not any(saved_payload["identify_settings"]["rarities"].values()), "Saved identify rarity selectors should remain off by default.")
+    _expect(not saved_payload["identify_settings"]["before_execute"], "Saved Identify before Execute should remain off by default.")
+    _expect(not saved_payload["identify_settings"]["on_inventory_change"], "Saved on-pickup/inventory-change identify should remain off by default.")
+
+
+def _test_manual_vendor_profile_defaults_and_roundtrip(module, temp_root: Path) -> None:
+    setting_names = [
+        "auto_sell_on_manual_vendor_interaction",
+        "auto_buy_on_manual_vendor_interaction",
+        "auto_sell_to_any_merchant",
+        "auto_sell_any_merchant_normal_items",
+        "auto_sell_any_merchant_materials",
+        "auto_sell_any_merchant_runes",
+    ]
+
+    widget = _make_widget(module)
+    normalized = widget._normalize_profile_payload({"version": module.PROFILE_VERSION - 1})
+    for setting_name in setting_names:
+        _expect(not normalized[setting_name], f"{setting_name} should default off for legacy profiles.")
+        _expect(not getattr(widget, setting_name), f"{setting_name} should default off on new widgets.")
+
+    config_path = temp_root / "manual_vendor_settings_profile.json"
+    widget.config_path = str(config_path)
+    for setting_name in setting_names:
+        setattr(widget, setting_name, True)
+
+    _expect(widget._save_profile(), "Manual vendor settings profile should save.")
+    saved_payload = json.loads(config_path.read_text(encoding="utf-8"))
+    for setting_name in setting_names:
+        _expect(saved_payload[setting_name] is True, f"{setting_name} should save as enabled.")
+
+    reloaded_widget = _make_widget(module)
+    reloaded_widget.config_path = str(config_path)
+    reloaded_widget._load_profile()
+    for setting_name in setting_names:
+        _expect(getattr(reloaded_widget, setting_name) is True, f"{setting_name} should reload as enabled.")
+
+
+def _test_manual_vendor_runtime_queues_once_per_signature(module) -> None:
+    widget = _make_widget(module)
+    widget.auto_sell_on_manual_vendor_interaction = True
+    widget._is_merchant_window_open = lambda: True
+
+    queued_coroutines: list[object] = []
+    original_coroutines = getattr(module.GLOBAL_CACHE, "Coroutines", None)
+    had_coroutines = hasattr(module.GLOBAL_CACHE, "Coroutines")
+    try:
+        module.GLOBAL_CACHE.Coroutines = queued_coroutines
+        context_a = module.ManualVendorContext(
+            signature="vendor-a",
+            merchant_types={module.MERCHANT_TYPE_MERCHANT},
+        )
+        context_b = module.ManualVendorContext(
+            signature="vendor-b",
+            merchant_types={module.MERCHANT_TYPE_MERCHANT},
+        )
+
+        widget._get_current_manual_vendor_context = lambda: context_a
+        widget._update_manual_vendor_runtime()
+        _expect(len(queued_coroutines) == 1, "Manual vendor runtime should queue once for a new vendor signature.")
+        _expect(widget.manual_vendor_running, "Manual vendor runtime should mark itself running before queueing.")
+
+        widget.manual_vendor_running = False
+        widget._update_manual_vendor_runtime()
+        _expect(len(queued_coroutines) == 1, "Manual vendor runtime should not queue twice for the same vendor signature.")
+
+        widget._get_current_manual_vendor_context = lambda: context_b
+        widget._update_manual_vendor_runtime()
+        _expect(len(queued_coroutines) == 2, "Manual vendor runtime should re-arm when the vendor signature changes.")
+
+        widget.manual_vendor_running = False
+        widget._is_merchant_window_open = lambda: False
+        widget._update_manual_vendor_runtime()
+        _expect(widget.manual_vendor_handled_signature == "", "Manual vendor runtime should re-arm after the merchant window closes.")
+    finally:
+        if had_coroutines:
+            module.GLOBAL_CACHE.Coroutines = original_coroutines
+        elif hasattr(module.GLOBAL_CACHE, "Coroutines"):
+            delattr(module.GLOBAL_CACHE, "Coroutines")
+
+
+def _test_manual_vendor_matching_sell_uses_current_merchant_only(module) -> None:
+    widget = _make_widget(module)
+    widget.auto_sell_on_manual_vendor_interaction = True
+    widget.preview_ready = True
+    context = module.ManualVendorContext(
+        signature="normal-merchant",
+        merchant_types={module.MERCHANT_TYPE_MERCHANT},
+    )
+    plan = module.PlanResult(
+        supported_map=True,
+        merchant_sell_item_ids=[10, 20],
+        material_sales=[
+            module.PlannedMaterialSale(
+                merchant_type=module.MERCHANT_TYPE_MATERIALS,
+                item_id=20,
+                model_id=946,
+                label="Wood Plank",
+                batches_to_sell=1,
+                quantity_to_sell=10,
+            )
+        ],
+        rune_trader_sales=[
+            module.PlannedTraderSale(item_id=30, model_id=5551, label="Superior Vigor"),
+        ],
+        has_actions=True,
+    )
+    captured_sales: list[tuple[int, int]] = []
+
+    def _capture_open_merchant_sales(manual_sales, *, phase_label="Merchant sells"):
+        captured_sales.extend((int(sale.item_id), int(sale.quantity_to_sell)) for sale in manual_sales)
+        if False:
+            yield None
+        return module.ExecutionPhaseOutcome(
+            label=phase_label,
+            measure_label="items",
+            attempted=len(manual_sales),
+            completed=len(manual_sales),
+        )
+
+    widget._is_merchant_window_open = lambda: True
+    widget._get_current_manual_vendor_context = lambda: context
+    widget._build_plan = lambda **_kwargs: plan
+    widget._execute_open_merchant_sell_phase = _capture_open_merchant_sales
+    widget._get_manual_merchant_sale_for_item_id = (
+        lambda item_id, quantity_to_sell=0, *, model_id=0, label="": module.PlannedManualMerchantSale(
+            item_id=int(item_id),
+            model_id=int(model_id or 111),
+            label=label or f"Item {item_id}",
+            quantity_to_sell=max(1, int(quantity_to_sell or 1)),
+        )
+    )
+
+    _drain_generator_return(widget._run_manual_vendor_pass(context))
+
+    _expect(captured_sales == [(10, 1)], "Matching auto-sell at a normal merchant should not include trader-targeted sales.")
+    _expect(not widget.preview_ready, "Successful manual vendor sales should mark Preview dirty.")
+
+
+def _test_manual_vendor_any_merchant_material_fallback(module) -> None:
+    widget = _make_widget(module)
+    widget.auto_sell_to_any_merchant = True
+    widget.auto_sell_any_merchant_materials = True
+    context = module.ManualVendorContext(
+        signature="normal-merchant",
+        merchant_types={module.MERCHANT_TYPE_MERCHANT},
+    )
+    plan = module.PlanResult(
+        supported_map=True,
+        merchant_sell_item_ids=[20],
+        material_sales=[
+            module.PlannedMaterialSale(
+                merchant_type=module.MERCHANT_TYPE_MATERIALS,
+                item_id=20,
+                model_id=946,
+                label="Wood Plank",
+                batches_to_sell=1,
+                quantity_to_sell=10,
+            )
+        ],
+        rune_trader_sales=[
+            module.PlannedTraderSale(item_id=30, model_id=5551, label="Superior Vigor"),
+        ],
+        has_actions=True,
+    )
+    captured_sales: list[tuple[int, int]] = []
+
+    def _capture_open_merchant_sales(manual_sales, *, phase_label="Merchant sells"):
+        captured_sales.extend((int(sale.item_id), int(sale.quantity_to_sell)) for sale in manual_sales)
+        if False:
+            yield None
+        return module.ExecutionPhaseOutcome(
+            label=phase_label,
+            measure_label="items",
+            attempted=len(manual_sales),
+            completed=len(manual_sales),
+        )
+
+    widget._is_merchant_window_open = lambda: True
+    widget._get_current_manual_vendor_context = lambda: context
+    widget._build_plan = lambda **_kwargs: plan
+    widget._execute_open_merchant_sell_phase = _capture_open_merchant_sales
+    widget._get_manual_material_fallback_merchant_sell_item_ids = lambda _plan: {20}
+    widget._get_manual_merchant_sale_for_item_id = (
+        lambda item_id, quantity_to_sell=0, *, model_id=0, label="": module.PlannedManualMerchantSale(
+            item_id=int(item_id),
+            model_id=int(model_id or 111),
+            label=label or f"Item {item_id}",
+            quantity_to_sell=int(quantity_to_sell),
+        )
+    )
+
+    _drain_generator_return(widget._run_manual_vendor_pass(context))
+
+    _expect(captured_sales == [(20, 0)], "Any-merchant material fallback should allow the full configured material stack.")
+
+
+def _test_manual_vendor_auto_buy_uses_current_offers(module) -> None:
+    widget = _make_widget(module)
+    widget.auto_buy_on_manual_vendor_interaction = True
+    widget.preview_ready = True
+    context = module.ManualVendorContext(
+        signature="normal-merchant",
+        merchant_types={module.MERCHANT_TYPE_MERCHANT},
+        merchant_item_ids=[501],
+    )
+    plan = module.PlanResult(
+        supported_map=True,
+        merchant_stock_buys=[
+            module.PlannedMerchantBuy(model_id=555, quantity=2, label="Identification Kit"),
+        ],
+        has_actions=True,
+    )
+    captured_buys: list[tuple[int, int, list[int]]] = []
+
+    def _capture_buy(model_id, quantity, *, offered_items=None):
+        captured_buys.append((int(model_id), int(quantity), list(offered_items or [])))
+        if False:
+            yield None
+        return True
+
+    widget._is_merchant_window_open = lambda: True
+    widget._get_current_manual_vendor_context = lambda: context
+    widget._build_plan = lambda **_kwargs: plan
+    widget._buy_merchant_model = _capture_buy
+
+    _drain_generator_return(widget._run_manual_vendor_pass(context))
+
+    _expect(captured_buys == [(555, 2, [501])], "Manual auto-buy should use only the currently opened merchant's offers.")
+    _expect(not widget.preview_ready, "Successful manual vendor buys should mark Preview dirty.")
+
+
+def _test_exact_rune_sell_rule_profile_roundtrip(module, temp_root: Path) -> None:
+    widget = _make_widget(module)
+    config_path = temp_root / "exact_rune_sell_profile.json"
+    payload = {
+        "version": module.PROFILE_VERSION - 1,
+        "sell_rules": [
+            {
+                "enabled": True,
+                "kind": module.SELL_KIND_RUNE_TRADER_TARGET,
+                "rune_sell_targets": [
+                    {"identifier": "rune_attunement", "keep_count": 1},
+                ],
+            },
+        ],
+    }
+    config_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    widget.config_path = str(config_path)
+
+    widget._load_profile()
+
+    _expect(
+        module.SELL_KIND_RUNE_TRADER_TARGET in module.SELL_RULE_KINDS,
+        "Exact rune sell rules should be a supported sell rule kind.",
+    )
+    _expect(
+        module.SELL_KIND_RUNE_TRADER_TARGET in module.SELL_RULE_WORKSPACE_ORDER,
+        "Exact rune sell rules should be available from the Sell workspace.",
+    )
+    _expect(len(widget.sell_rules) == 1, "Exact rune sell profiles should load one rule.")
+    rule = widget.sell_rules[0]
+    _expect(rule.kind == module.SELL_KIND_RUNE_TRADER_TARGET, "Exact rune sell rule kind should round-trip.")
+    _expect(rule.merchant_type == module.MERCHANT_TYPE_RUNE_TRADER, "Exact rune sell rules should route to the Rune Trader.")
+    _expect(len(rule.rune_sell_targets) == 1, "Exact rune sell target list should load.")
+    _expect(rule.rune_sell_targets[0].identifier == "rune_attunement", "Exact rune sell target identifier should round-trip.")
+    _expect(rule.rune_sell_targets[0].keep_count == 1, "Exact rune sell target keep count should round-trip.")
+
+    saved_payload = json.loads(config_path.read_text(encoding="utf-8"))
+    saved_rule = saved_payload["sell_rules"][0]
+    _expect(
+        saved_rule["rune_sell_targets"] == [{"identifier": "rune_attunement", "keep_count": 1}],
+        "Exact rune sell targets should save with plain keep-count rows.",
+    )
+
+
+def _test_exact_rune_sell_rule_plans_matching_standalone_runes(module) -> None:
+    widget = _make_widget(module)
+    widget.rune_names = {
+        "rune_attunement": "Rune of Attunement",
+        "rune_vigor": "Rune of Vigor",
+    }
+    widget.sell_rules = [
+        module._normalize_sell_rule(
+            module.SellRule(
+                enabled=True,
+                kind=module.SELL_KIND_RUNE_TRADER_TARGET,
+                rune_sell_targets=[
+                    module.RuneSellTarget(identifier="rune_attunement", keep_count=1),
+                ],
+            )
+        )
+    ]
+    widget._get_supported_context = lambda: (
+        True,
+        "Ready",
+        {
+            module.MERCHANT_TYPE_RUNE_TRADER: (0.0, 0.0),
+            module.MERCHANT_TYPE_MERCHANT: (0.0, 0.0),
+        },
+    )
+    widget._collect_inventory_items = lambda: [
+        _make_item(
+            module,
+            item_id=101,
+            model_id=9001,
+            name="Rune of Attunement",
+            rarity="Blue",
+            standalone_kind=module.RUNE_STANDALONE_KIND,
+            rune_identifiers=["rune_attunement"],
+        ),
+        _make_item(
+            module,
+            item_id=102,
+            model_id=9001,
+            name="Rune of Attunement",
+            rarity="Blue",
+            standalone_kind=module.RUNE_STANDALONE_KIND,
+            rune_identifiers=["rune_attunement"],
+        ),
+        _make_item(
+            module,
+            item_id=103,
+            model_id=9002,
+            name="Rune of Vigor",
+            rarity="Blue",
+            standalone_kind=module.RUNE_STANDALONE_KIND,
+            rune_identifiers=["rune_vigor"],
+        ),
+    ]
+
+    plan = widget._build_plan()
+
+    sold_ids = {sale.item_id for sale in plan.rune_trader_sales}
+    _expect(len(sold_ids) == 1, "Exact rune sell rules should sell only excess matching standalone runes.")
+    _expect(sold_ids <= {101, 102}, "Exact rune sell rules should not sell non-target rune names.")
+    _expect(103 not in sold_ids, "Exact rune sell rules should leave other standalone rune names alone.")
+    _expect(
+        any("reserved to satisfy keep count 1" in entry.reason for entry in plan.entries),
+        "Exact rune sell rules should show when a matching rune is kept.",
+    )
+
+
+def _test_exact_rune_sell_rule_reserves_names_from_broad_armor_rule(module) -> None:
+    widget = _make_widget(module)
+    widget.sell_rules = [
+        module._normalize_sell_rule(
+            module.SellRule(
+                enabled=True,
+                kind=module.SELL_KIND_ARMOR,
+                rarities=_rarity_flags("blue"),
+                include_standalone_runes=True,
+            )
+        ),
+        module._normalize_sell_rule(
+            module.SellRule(
+                enabled=True,
+                kind=module.SELL_KIND_RUNE_TRADER_TARGET,
+                rune_sell_targets=[
+                    module.RuneSellTarget(identifier="rune_attunement", keep_count=1),
+                ],
+            )
+        ),
+    ]
+    widget._get_supported_context = lambda: (
+        True,
+        "Ready",
+        {
+            module.MERCHANT_TYPE_RUNE_TRADER: (0.0, 0.0),
+            module.MERCHANT_TYPE_MERCHANT: (0.0, 0.0),
+        },
+    )
+    widget._collect_inventory_items = lambda: [
+        _make_item(
+            module,
+            item_id=101,
+            model_id=9001,
+            name="Rune of Attunement",
+            rarity="Blue",
+            standalone_kind=module.RUNE_STANDALONE_KIND,
+            rune_identifiers=["rune_attunement"],
+        ),
+        _make_item(
+            module,
+            item_id=102,
+            model_id=9001,
+            name="Rune of Attunement",
+            rarity="Blue",
+            standalone_kind=module.RUNE_STANDALONE_KIND,
+            rune_identifiers=["rune_attunement"],
+        ),
+        _make_item(
+            module,
+            item_id=103,
+            model_id=9002,
+            name="Rune of Vigor",
+            rarity="Blue",
+            standalone_kind=module.RUNE_STANDALONE_KIND,
+            rune_identifiers=["rune_vigor"],
+        ),
+    ]
+
+    plan = widget._build_plan()
+
+    sold_ids = {sale.item_id for sale in plan.rune_trader_sales}
+    _expect(103 in sold_ids, "Broad armor loose-rune rules should still sell non-reserved rune names.")
+    _expect(len(sold_ids & {101, 102}) == 1, "Exact rune sell rules should control reserved rune names before broad armor rules.")
+    _expect(
+        any("reserved to satisfy keep count 1" in entry.reason for entry in plan.entries),
+        "Exact rune keep counts should still apply when a broad armor loose-rune rule exists first.",
+    )
+
+
+def _test_manual_vendor_exact_rune_sell_runs_at_rune_trader(module) -> None:
+    widget = _make_widget(module)
+    widget.auto_sell_on_manual_vendor_interaction = True
+    widget.preview_ready = True
+    context = module.ManualVendorContext(
+        signature="rune-trader",
+        merchant_types={module.MERCHANT_TYPE_RUNE_TRADER},
+    )
+    plan = module.PlanResult(
+        supported_map=True,
+        rune_trader_sales=[
+            module.PlannedTraderSale(item_id=101, model_id=9001, label="Rune of Attunement"),
+        ],
+        has_actions=True,
+    )
+    captured_sales: list[int] = []
+
+    def _capture_rune_sales(_coords, trader_sales, *, phase_label="Rune trader sales", trader_items=None):
+        captured_sales.extend(int(sale.item_id) for sale in trader_sales)
+        if False:
+            yield None
+        return module.ExecutionPhaseOutcome(
+            label=phase_label,
+            measure_label="items",
+            attempted=len(trader_sales),
+            completed=len(trader_sales),
+        )
+
+    widget._is_merchant_window_open = lambda: True
+    widget._get_current_manual_vendor_context = lambda: context
+    widget._build_plan = lambda **_kwargs: plan
+    widget._sell_planned_trader_items = _capture_rune_sales
+
+    _drain_generator_return(widget._run_manual_vendor_pass(context))
+
+    _expect(captured_sales == [101], "Manual auto-sell should run exact rune trader sales at a Rune Trader.")
+    _expect(not widget.preview_ready, "Successful manual rune sales should mark Preview dirty.")
+
+
+def _test_salvage_candidate_evaluation_precedence(module) -> None:
+    widget = _make_widget(module)
+    widget.salvage_settings = _salvage_settings(module, model_ids=[100])
+    enabled_sell_rules = []
+    selected_item = _make_item(
+        module,
+        item_id=1,
+        model_id=100,
+        name="Selected Gold",
+        rarity="Gold",
+        identified=True,
+        salvageable=True,
+    )
+
+    protected_rule = module._normalize_sell_rule(
+        module.SellRule(
+            enabled=True,
+            kind=module.SELL_KIND_WEAPONS,
+            rarities=_rarity_flags("gold"),
+            blacklist_model_ids=[100],
+        )
+    )
+    protected_item = _make_item(
+        module,
+        item_id=2,
+        model_id=100,
+        name="Protected Gold",
+        rarity="Gold",
+        identified=True,
+        salvageable=True,
+        is_weapon_like=True,
+    )
+    protected_reason = widget._get_salvage_candidate_block_reason(
+        protected_item,
+        [(0, protected_rule)],
+        require_normal_kit=True,
+        normal_salvage_kit_id=1,
+    )
+    _expect(protected_reason.startswith("protected:"), "Protection should be the first salvage block reason.")
+
+    unsalvageable_reason = widget._get_salvage_candidate_block_reason(
+        replace(selected_item, salvageable=False),
+        enabled_sell_rules,
+        require_normal_kit=True,
+        normal_salvage_kit_id=1,
+    )
+    _expect(unsalvageable_reason.startswith("unsalvageable:"), "Runtime IsSalvageable should block salvage.")
+
+    customized_reason = widget._get_salvage_candidate_block_reason(
+        replace(selected_item, is_customized=True),
+        enabled_sell_rules,
+        require_normal_kit=True,
+        normal_salvage_kit_id=1,
+    )
+    _expect(customized_reason.startswith("customized:"), "Customized items should block salvage.")
+
+    unidentified_reason = widget._get_salvage_candidate_block_reason(
+        replace(selected_item, identified=False),
+        enabled_sell_rules,
+        require_normal_kit=True,
+        normal_salvage_kit_id=1,
+    )
+    _expect(unidentified_reason.startswith("unidentified non-white:"), "Unidentified non-white items should block salvage.")
+
+    not_selected_reason = widget._get_salvage_candidate_block_reason(
+        replace(selected_item, model_id=101),
+        enabled_sell_rules,
+        require_normal_kit=True,
+        normal_salvage_kit_id=1,
+    )
+    _expect(not_selected_reason == "not selected by salvage settings", "Unselected items should not be salvage candidates.")
+
+    no_kit_reason = widget._get_salvage_candidate_block_reason(
+        selected_item,
+        enabled_sell_rules,
+        require_normal_kit=True,
+        normal_salvage_kit_id=0,
+    )
+    _expect(no_kit_reason == "no normal salvage kit", "Missing normal salvage kits should block salvage.")
+
+    ok_reason = widget._get_salvage_candidate_block_reason(
+        selected_item,
+        enabled_sell_rules,
+        require_normal_kit=True,
+        normal_salvage_kit_id=1,
+    )
+    _expect(ok_reason == "", "Selected safe items with a normal kit should be salvage candidates.")
+
+
+def _test_salvage_broad_rarity_selection(module) -> None:
+    widget = _make_widget(module)
+    widget.salvage_settings = _salvage_settings(module, rarities=["gold"])
+    gold_item = _make_item(module, item_id=10, model_id=1000, name="Gold Drop", rarity="Gold", identified=True, salvageable=True)
+    purple_item = _make_item(module, item_id=11, model_id=1001, name="Purple Drop", rarity="Purple", identified=True, salvageable=True)
+
+    _expect(
+        widget._get_salvage_candidate_block_reason(gold_item, [], require_normal_kit=True, normal_salvage_kit_id=1) == "",
+        "Enabled rarity selectors should select matching salvageable items.",
+    )
+    _expect(
+        widget._get_salvage_candidate_block_reason(purple_item, [], require_normal_kit=True, normal_salvage_kit_id=1)
+        == "not selected by salvage settings",
+        "Disabled rarity selectors should not select other rarities.",
+    )
+
+
+def _test_salvage_category_selection(module) -> None:
+    widget = _make_widget(module)
+    widget.salvage_settings = _salvage_settings(module, categories=[module.SALVAGE_CATEGORY_WEAPONS])
+    weapon_item = _make_item(
+        module,
+        item_id=20,
+        model_id=2000,
+        name="Weapon Drop",
+        rarity="Blue",
+        identified=True,
+        salvageable=True,
+        is_weapon_like=True,
+    )
+    armor_item = _make_item(
+        module,
+        item_id=21,
+        model_id=2001,
+        name="Armor Drop",
+        rarity="Blue",
+        identified=True,
+        salvageable=True,
+        is_armor_piece=True,
+    )
+
+    _expect(
+        widget._get_salvage_candidate_block_reason(weapon_item, [], require_normal_kit=True, normal_salvage_kit_id=1) == "",
+        "Enabled category selectors should select matching salvageable items.",
+    )
+    _expect(
+        widget._get_salvage_candidate_block_reason(armor_item, [], require_normal_kit=True, normal_salvage_kit_id=1)
+        == "not selected by salvage settings",
+        "Disabled category selectors should not select other categories.",
+    )
+
+
+def _test_salvage_rarity_and_category_filters_combine(module) -> None:
+    widget = _make_widget(
+        module,
+    )
+    widget.salvage_settings = _salvage_settings(
+        module,
+        rarities=["gold"],
+        categories=[module.SALVAGE_CATEGORY_WEAPONS, module.SALVAGE_CATEGORY_ARMOR],
+    )
+    gold_weapon = _make_item(
+        module,
+        item_id=22,
+        model_id=2002,
+        name="Gold Weapon",
+        rarity="Gold",
+        identified=True,
+        salvageable=True,
+        is_weapon_like=True,
+    )
+    gold_armor = _make_item(
+        module,
+        item_id=23,
+        model_id=2003,
+        name="Gold Armor",
+        rarity="Gold",
+        identified=True,
+        salvageable=True,
+        is_armor_piece=True,
+    )
+    white_weapon = _make_item(
+        module,
+        item_id=24,
+        model_id=2004,
+        name="White Weapon",
+        rarity="White",
+        identified=True,
+        salvageable=True,
+        is_weapon_like=True,
+    )
+    blue_weapon = _make_item(
+        module,
+        item_id=25,
+        model_id=2005,
+        name="Blue Weapon",
+        rarity="Blue",
+        identified=True,
+        salvageable=True,
+        is_weapon_like=True,
+    )
+    gold_material = _make_item(
+        module,
+        item_id=26,
+        model_id=2006,
+        name="Gold Material",
+        rarity="Gold",
+        identified=True,
+        salvageable=True,
+        is_material=True,
+    )
+
+    _expect(
+        widget._get_salvage_candidate_block_reason(gold_weapon, [], require_normal_kit=True, normal_salvage_kit_id=1) == "",
+        "Gold weapons should match combined rarity/category salvage filters.",
+    )
+    _expect(
+        widget._get_salvage_candidate_block_reason(gold_armor, [], require_normal_kit=True, normal_salvage_kit_id=1) == "",
+        "Gold armor should match combined rarity/category salvage filters.",
+    )
+    _expect(
+        widget._get_salvage_candidate_block_reason(white_weapon, [], require_normal_kit=True, normal_salvage_kit_id=1)
+        == "not selected by salvage settings",
+        "White weapons should not match Gold + Weapons salvage filters.",
+    )
+    _expect(
+        widget._get_salvage_candidate_block_reason(blue_weapon, [], require_normal_kit=True, normal_salvage_kit_id=1)
+        == "not selected by salvage settings",
+        "Blue weapons should not match Gold + Weapons salvage filters.",
+    )
+    _expect(
+        widget._get_salvage_candidate_block_reason(gold_material, [], require_normal_kit=True, normal_salvage_kit_id=1)
+        == "not selected by salvage settings",
+        "Gold non-selected categories should not match Gold + Weapons/Armor salvage filters.",
+    )
+
+
+def _test_salvage_filter_summary_describes_combined_filters(module) -> None:
+    widget = _make_widget(module)
+    widget.salvage_settings = _salvage_settings(
+        module,
+        rarities=["gold"],
+        categories=[module.SALVAGE_CATEGORY_WEAPONS, module.SALVAGE_CATEGORY_ARMOR],
+    )
+
+    _expect(
+        widget._format_salvage_filter_summary(widget.salvage_settings)
+        == "Current filter: Gold items in these categories: Weapons, Armor",
+        "Salvage filter summary should show that rarity/category selectors combine as filters.",
+    )
+
+
+def _test_salvage_selected_items_block_destroy(module) -> None:
+    widget = _make_widget(module)
+    widget.salvage_settings = _salvage_settings(module, rarities=["gold"])
+    widget.destroy_rules = [
+        module._normalize_destroy_rule(
+            module.DestroyRule(
+                enabled=True,
+                kind=module.DESTROY_KIND_WEAPONS,
+                rarities=_rarity_flags("gold"),
+            )
+        )
+    ]
+    widget._collect_inventory_items = lambda: [
+        _make_item(
+            module,
+            item_id=30,
+            model_id=3000,
+            name="Gold Weapon",
+            rarity="Gold",
+            identified=True,
+            salvageable=True,
+            is_weapon_like=True,
+        )
+    ]
+
+    plan = widget._build_plan()
+
+    _expect(not plan.destroy_actions, "Salvage-selected eligible items should not be planned for destroy.")
+    _expect(
+        any("salvage wins over destroy" in entry.reason for entry in plan.entries if entry.action_type == "destroy"),
+        "Destroy planning should explain when MR Salvage claims a matching item first.",
+    )
+
+
+def _test_identify_exact_rarity_claims_before_destroy_and_cleanup(module) -> None:
+    widget = _make_widget(module)
+    widget.identify_settings = _identify_settings(module, rarities=["blue"], before_execute=True)
+    widget._get_id_kit_id = lambda: 900
+    widget.cleanup_targets = [module.CleanupTarget(model_id=200, keep_on_character=0)]
+    widget.destroy_rules = [
+        module._normalize_destroy_rule(
+            module.DestroyRule(
+                enabled=True,
+                kind=module.DESTROY_KIND_EXPLICIT_MODELS,
+                whitelist_targets=[
+                    module.WhitelistTarget(model_id=200, keep_count=0),
+                    module.WhitelistTarget(model_id=300, keep_count=0),
+                ],
+            )
+        )
+    ]
+    widget._get_supported_context = lambda: (
+        True,
+        "Ready",
+        {
+            module.MERCHANT_TYPE_MERCHANT: (1.0, 1.0),
+            module.MERCHANT_TYPE_MATERIALS: (2.0, 2.0),
+            module.MERCHANT_TYPE_RUNE_TRADER: (3.0, 3.0),
+            module.MERCHANT_TYPE_RARE_MATERIALS: (4.0, 4.0),
+        },
+    )
+    widget._collect_inventory_items = lambda: [
+        _make_item(module, item_id=1, model_id=200, name="Blue Sword", rarity="Blue", identified=False),
+        _make_item(module, item_id=2, model_id=300, name="Purple Sword", rarity="Purple", identified=False),
+    ]
+
+    plan = widget._build_plan()
+
+    _expect(plan.identify_item_ids == [1], "Identify planning should select only exact blue unidentified items.")
+    _expect(plan.identify_claimed_item_ids == [1], "Identify planning should claim selected items before later actions.")
+    _expect(1 not in [action.item_id for action in plan.destroy_actions], "Identify-selected items should not also be planned for destroy.")
+    _expect(2 in [action.item_id for action in plan.destroy_actions], "Unselected purple items should remain eligible for later destroy rules.")
+    _expect(1 not in [transfer.item_id for transfer in plan.cleanup_transfers], "Identify-selected items should not also be planned for cleanup.")
+
+
+def _test_identify_no_kit_still_claims_selected_items(module) -> None:
+    widget = _make_widget(module)
+    widget.identify_settings = _identify_settings(module, rarities=["blue"], before_execute=True)
+    widget._get_id_kit_id = lambda: 0
+    widget.cleanup_targets = [module.CleanupTarget(model_id=200, keep_on_character=0)]
+    widget.sell_rules = [
+        module._normalize_sell_rule(
+            module.SellRule(
+                enabled=True,
+                kind=module.SELL_KIND_EXPLICIT_MODELS,
+                whitelist_targets=[module.WhitelistTarget(model_id=200, keep_count=0)],
+            )
+        )
+    ]
+    widget.destroy_rules = [
+        module._normalize_destroy_rule(
+            module.DestroyRule(
+                enabled=True,
+                kind=module.DESTROY_KIND_EXPLICIT_MODELS,
+                whitelist_targets=[module.WhitelistTarget(model_id=200, keep_count=0)],
+            )
+        )
+    ]
+    widget._get_supported_context = lambda: (
+        True,
+        "Ready",
+        {
+            module.MERCHANT_TYPE_MERCHANT: (1.0, 1.0),
+            module.MERCHANT_TYPE_MATERIALS: (2.0, 2.0),
+            module.MERCHANT_TYPE_RUNE_TRADER: (3.0, 3.0),
+            module.MERCHANT_TYPE_RARE_MATERIALS: (4.0, 4.0),
+        },
+    )
+    widget._collect_inventory_items = lambda: [
+        _make_item(module, item_id=1, model_id=200, name="Blue Sword", rarity="Blue", identified=False),
+    ]
+
+    plan = widget._build_plan()
+
+    _expect(not plan.identify_item_ids, "No ID kit should leave identify with no runnable item IDs.")
+    _expect(plan.identify_claimed_item_ids == [1], "No-kit identify candidates should still be claimed in the preview.")
+    _expect(not plan.destroy_actions and not plan.destroy_item_ids, "No-kit identify candidates should not fall through to destroy.")
+    _expect(not plan.merchant_sell_item_ids, "No-kit identify candidates should not fall through to sell.")
+    _expect(not plan.cleanup_transfers, "No-kit identify candidates should not fall through to cleanup.")
+    _expect(
+        any(entry.action_type == "identify" and entry.state == module.PLAN_STATE_SKIPPED and "No ID kit" in entry.reason for entry in plan.entries),
+        "Preview should surface a no-ID-kit identify warning.",
+    )
+
+
+def _test_identify_on_inventory_change_queues_auto_pass(module) -> None:
+    widget = _make_widget(module)
+    widget.identify_settings = _identify_settings(module, rarities=["blue"], on_inventory_change=True)
+    widget.identify_last_signature = ((1, 1),)
+    widget._get_inventory_signature = lambda items=None: ((1, 1), (2, 1))
+    queued: list[bool] = []
+    widget._queue_identify_now = lambda *, auto_triggered=False: queued.append(bool(auto_triggered))
+
+    widget._update_identify_runtime()
+
+    _expect(queued == [True], "Inventory-change identify should queue an auto identify pass when inventory changes.")
+    _expect(not widget.identify_rescan_requested, "Auto identify queueing should consume the pending rescan flag.")
+
+
+def _test_protected_salvage_destroy_overlap_blocks_both(module) -> None:
+    widget = _make_widget(module)
+    widget.salvage_settings = _salvage_settings(module, rarities=["gold"])
+    widget.sell_rules = [
+        module._normalize_sell_rule(
+            module.SellRule(
+                enabled=True,
+                kind=module.SELL_KIND_WEAPONS,
+                rarities=_rarity_flags("gold"),
+                blacklist_model_ids=[4000],
+            )
+        )
+    ]
+    widget.destroy_rules = [
+        module._normalize_destroy_rule(
+            module.DestroyRule(
+                enabled=True,
+                kind=module.DESTROY_KIND_WEAPONS,
+                rarities=_rarity_flags("gold"),
+            )
+        )
+    ]
+    widget._collect_inventory_items = lambda: [
+        _make_item(
+            module,
+            item_id=40,
+            model_id=4000,
+            name="Protected Gold Weapon",
+            rarity="Gold",
+            identified=True,
+            salvageable=True,
+            is_weapon_like=True,
+        )
+    ]
+
+    plan = widget._build_plan()
+
+    _expect(not plan.destroy_actions, "Protected items should not be planned for destroy when they also match salvage.")
+    _expect(
+        any("Hard-protected" in entry.reason for entry in plan.entries if entry.action_type == "destroy"),
+        "Protection should be the displayed block reason when protection and salvage overlap.",
+    )
+    candidate_reason = widget._get_salvage_candidate_block_reason(
+        widget._collect_inventory_items()[0],
+        widget._collect_enabled_sell_rules(),
+        require_normal_kit=True,
+        normal_salvage_kit_id=1,
+    )
+    _expect(candidate_reason.startswith("protected:"), "Protected items should also block salvage candidate evaluation.")
+
+
 def _test_build_plan_captures_inventory_and_marks_conditional_stock_buy(module) -> None:
     widget = _make_widget(module)
     widget.buy_rules = [
@@ -1002,6 +1938,402 @@ def _test_consumable_crafter_plan_caps_by_skill_gold_and_material_storage(module
                 for entry in plan.entries
             ),
             "Preview should show the exact capped consumable crafter quantity.",
+        )
+    finally:
+        module.GLOBAL_CACHE.Inventory = original_inventory
+        module.Player = original_player
+
+
+def _test_consumable_crafter_craft_amount_mode_ignores_existing_xunlai_output(module) -> None:
+    widget = _make_widget(module)
+    essence_model_id = int(module.ModelID.Essence_Of_Celerity.value)
+    feather_model_id = int(module.ModelID.Feather.value)
+    dust_model_id = int(module.ModelID.Pile_Of_Glittering_Dust.value)
+    widget.buy_rules = [
+        module._normalize_buy_rule(
+            module.BuyRule(
+                enabled=True,
+                kind=module.BUY_KIND_CONSUMABLE_CRAFTER_TARGET,
+                merchant_stock_targets=[
+                    module.MerchantStockTarget(model_id=essence_model_id, target_count=5, max_per_run=5),
+                ],
+                consumable_crafter_count_mode=module.CONSUMABLE_CRAFTER_COUNT_MODE_CRAFT_AMOUNT,
+            )
+        )
+    ]
+    widget._get_supported_context = lambda: (
+        True,
+        "Ready",
+        {
+            module.MERCHANT_TYPE_CONSUMABLE_CRAFTER: (3592.99, 78.78),
+        },
+    )
+    widget._collect_inventory_items = lambda: [
+        _make_item(module, item_id=1, model_id=feather_model_id, name="Feather", quantity=250, is_material=True),
+        _make_item(module, item_id=2, model_id=dust_model_id, name="Pile of Glittering Dust", quantity=250, is_material=True),
+    ]
+    widget._collect_storage_items = lambda: [
+        _make_item(module, item_id=3, model_id=essence_model_id, name="Essence of Celerity", quantity=1),
+    ]
+    original_inventory = getattr(module.GLOBAL_CACHE, "Inventory", None)
+    original_player = module.Player
+    try:
+        module.GLOBAL_CACHE.Inventory = types.SimpleNamespace(
+            IsStorageOpen=lambda: True,
+            GetGoldOnCharacter=lambda: 1250,
+            GetGoldInStorage=lambda: 0,
+        )
+        module.Player = types.SimpleNamespace(
+            GetSkillPointData=lambda: (5, 100),
+            GetTitle=lambda _title_id: types.SimpleNamespace(current_points=999999),
+        )
+
+        plan = widget._build_plan()
+
+        _expect(len(plan.consumable_crafter_buys) == 1, "Craft amount mode should plan the selected consumable craft.")
+        _expect(
+            plan.consumable_crafter_buys[0].quantity == 5,
+            "Craft amount mode should ignore matching consumables already in Xunlai storage.",
+        )
+    finally:
+        module.GLOBAL_CACHE.Inventory = original_inventory
+        module.Player = original_player
+
+
+def _test_consumable_crafter_maintain_mode_counts_existing_xunlai_output(module) -> None:
+    widget = _make_widget(module)
+    essence_model_id = int(module.ModelID.Essence_Of_Celerity.value)
+    feather_model_id = int(module.ModelID.Feather.value)
+    dust_model_id = int(module.ModelID.Pile_Of_Glittering_Dust.value)
+    widget.buy_rules = [
+        module._normalize_buy_rule(
+            module.BuyRule(
+                enabled=True,
+                kind=module.BUY_KIND_CONSUMABLE_CRAFTER_TARGET,
+                merchant_stock_targets=[
+                    module.MerchantStockTarget(model_id=essence_model_id, target_count=5, max_per_run=5),
+                ],
+                consumable_crafter_count_mode=module.CONSUMABLE_CRAFTER_COUNT_MODE_MAINTAIN_STOCK,
+            )
+        )
+    ]
+    widget._get_supported_context = lambda: (
+        True,
+        "Ready",
+        {
+            module.MERCHANT_TYPE_CONSUMABLE_CRAFTER: (3592.99, 78.78),
+        },
+    )
+    widget._collect_inventory_items = lambda: [
+        _make_item(module, item_id=1, model_id=feather_model_id, name="Feather", quantity=250, is_material=True),
+        _make_item(module, item_id=2, model_id=dust_model_id, name="Pile of Glittering Dust", quantity=250, is_material=True),
+    ]
+    widget._collect_storage_items = lambda: [
+        _make_item(module, item_id=3, model_id=essence_model_id, name="Essence of Celerity", quantity=1),
+    ]
+    original_inventory = getattr(module.GLOBAL_CACHE, "Inventory", None)
+    original_player = module.Player
+    try:
+        module.GLOBAL_CACHE.Inventory = types.SimpleNamespace(
+            IsStorageOpen=lambda: True,
+            GetGoldOnCharacter=lambda: 1250,
+            GetGoldInStorage=lambda: 0,
+        )
+        module.Player = types.SimpleNamespace(
+            GetSkillPointData=lambda: (5, 100),
+            GetTitle=lambda _title_id: types.SimpleNamespace(current_points=999999),
+        )
+
+        plan = widget._build_plan()
+
+        _expect(len(plan.consumable_crafter_buys) == 1, "Maintain mode should plan the selected consumable craft.")
+        _expect(
+            plan.consumable_crafter_buys[0].quantity == 4,
+            "Maintain mode should count matching consumables already in Xunlai storage before crafting the shortage.",
+        )
+    finally:
+        module.GLOBAL_CACHE.Inventory = original_inventory
+        module.Player = original_player
+
+
+def _test_consumable_crafter_plan_reserves_shared_material_storage_across_targets(module) -> None:
+    widget = _make_widget(module)
+    essence_model_id = int(module.ModelID.Essence_Of_Celerity.value)
+    grail_model_id = int(module.ModelID.Grail_Of_Might.value)
+    feather_model_id = int(module.ModelID.Feather.value)
+    iron_model_id = int(module.ModelID.Iron_Ingot.value)
+    dust_model_id = int(module.ModelID.Pile_Of_Glittering_Dust.value)
+    widget.buy_rules = [
+        module._normalize_buy_rule(
+            module.BuyRule(
+                enabled=True,
+                kind=module.BUY_KIND_CONSUMABLE_CRAFTER_TARGET,
+                merchant_stock_targets=[
+                    module.MerchantStockTarget(model_id=essence_model_id, target_count=3, max_per_run=3),
+                    module.MerchantStockTarget(model_id=grail_model_id, target_count=3, max_per_run=3),
+                ],
+                consumable_crafter_count_mode=module.CONSUMABLE_CRAFTER_COUNT_MODE_CRAFT_AMOUNT,
+            )
+        )
+    ]
+    widget._get_supported_context = lambda: (
+        True,
+        "Ready",
+        {
+            module.MERCHANT_TYPE_CONSUMABLE_CRAFTER: (3592.99, 78.78),
+        },
+    )
+    widget._collect_inventory_items = lambda: [
+        _make_item(module, item_id=1, model_id=feather_model_id, name="Feather", quantity=150, is_material=True),
+        _make_item(module, item_id=2, model_id=iron_model_id, name="Iron Ingot", quantity=150, is_material=True),
+    ]
+    widget._collect_storage_items = lambda: []
+    widget._get_material_storage_quantity_and_slot = (
+        lambda model_id: (158, 9, 250) if int(model_id) == dust_model_id else (0, 0, 250)
+    )
+    original_inventory = getattr(module.GLOBAL_CACHE, "Inventory", None)
+    original_player = module.Player
+    try:
+        module.GLOBAL_CACHE.Inventory = types.SimpleNamespace(
+            IsStorageOpen=lambda: True,
+            GetGoldOnCharacter=lambda: 1500,
+            GetGoldInStorage=lambda: 0,
+        )
+        module.Player = types.SimpleNamespace(
+            GetSkillPointData=lambda: (6, 100),
+            GetTitle=lambda _title_id: types.SimpleNamespace(current_points=999999),
+        )
+
+        plan = widget._build_plan()
+
+        quantities_by_model = {craft.model_id: craft.quantity for craft in plan.consumable_crafter_buys}
+        _expect(
+            quantities_by_model.get(essence_model_id, 0) == 3,
+            "First consumable crafter target should reserve the shared Glittering Dust it needs.",
+        )
+        _expect(
+            quantities_by_model.get(grail_model_id, 0) == 0,
+            "Later consumable crafter targets should not reuse Glittering Dust already reserved by earlier targets.",
+        )
+        _expect(
+            sum(int(craft.quantity) for craft in plan.consumable_crafter_buys) == 3,
+            "Consumable crafter preview should cap total crafts by shared material storage availability.",
+        )
+        _expect(
+            any(
+                entry.merchant_type == module.MERCHANT_TYPE_CONSUMABLE_CRAFTER
+                and entry.state == module.PLAN_STATE_SKIPPED
+                and "need 150" in entry.reason.lower()
+                and str(dust_model_id) in entry.reason
+                and "found 8" in entry.reason
+                for entry in plan.entries
+            ),
+            "Blocked consumable crafter preview rows should report the full requested material need and the remaining quantity found.",
+        )
+    finally:
+        module.GLOBAL_CACHE.Inventory = original_inventory
+        module.Player = original_player
+
+
+def _test_consumable_crafter_partial_cap_reports_remaining_material_shortage(module) -> None:
+    widget = _make_widget(module)
+    essence_model_id = int(module.ModelID.Essence_Of_Celerity.value)
+    grail_model_id = int(module.ModelID.Grail_Of_Might.value)
+    feather_model_id = int(module.ModelID.Feather.value)
+    iron_model_id = int(module.ModelID.Iron_Ingot.value)
+    dust_model_id = int(module.ModelID.Pile_Of_Glittering_Dust.value)
+    widget.buy_rules = [
+        module._normalize_buy_rule(
+            module.BuyRule(
+                enabled=True,
+                kind=module.BUY_KIND_CONSUMABLE_CRAFTER_TARGET,
+                merchant_stock_targets=[
+                    module.MerchantStockTarget(model_id=essence_model_id, target_count=2, max_per_run=2),
+                    module.MerchantStockTarget(model_id=grail_model_id, target_count=3, max_per_run=3),
+                ],
+                consumable_crafter_count_mode=module.CONSUMABLE_CRAFTER_COUNT_MODE_CRAFT_AMOUNT,
+            )
+        )
+    ]
+    widget._get_supported_context = lambda: (
+        True,
+        "Ready",
+        {
+            module.MERCHANT_TYPE_CONSUMABLE_CRAFTER: (3592.99, 78.78),
+        },
+    )
+    widget._collect_inventory_items = lambda: [
+        _make_item(module, item_id=1, model_id=feather_model_id, name="Feather", quantity=100, is_material=True),
+        _make_item(module, item_id=2, model_id=iron_model_id, name="Iron Ingot", quantity=150, is_material=True),
+    ]
+    widget._collect_storage_items = lambda: []
+    widget._get_material_storage_quantity_and_slot = (
+        lambda model_id: (158, 9, 250) if int(model_id) == dust_model_id else (0, 0, 250)
+    )
+    original_inventory = getattr(module.GLOBAL_CACHE, "Inventory", None)
+    original_player = module.Player
+    try:
+        module.GLOBAL_CACHE.Inventory = types.SimpleNamespace(
+            IsStorageOpen=lambda: True,
+            GetGoldOnCharacter=lambda: 1250,
+            GetGoldInStorage=lambda: 0,
+        )
+        module.Player = types.SimpleNamespace(
+            GetSkillPointData=lambda: (5, 100),
+            GetTitle=lambda _title_id: types.SimpleNamespace(current_points=999999),
+        )
+
+        plan = widget._build_plan()
+
+        quantities_by_model = {craft.model_id: craft.quantity for craft in plan.consumable_crafter_buys}
+        _expect(
+            quantities_by_model.get(essence_model_id, 0) == 2,
+            "First target should reserve enough Glittering Dust for two Essence crafts.",
+        )
+        _expect(
+            quantities_by_model.get(grail_model_id, 0) == 1,
+            "Second target should partially craft one Grail with the remaining shared Glittering Dust.",
+        )
+        _expect(
+            any(
+                entry.merchant_type == module.MERCHANT_TYPE_CONSUMABLE_CRAFTER
+                and entry.model_id == 0
+                and entry.label.startswith("Model")
+                and entry.quantity == 1
+                and entry.state == module.PLAN_STATE_CONDITIONAL
+                and "remaining request" in entry.reason.lower()
+                and "need 100" in entry.reason.lower()
+                and str(dust_model_id) in entry.reason
+                and "found 8" in entry.reason
+                for entry in plan.entries
+            ),
+            "Partially capped consumable crafter preview rows should explain the unfulfilled remaining material need.",
+        )
+    finally:
+        module.GLOBAL_CACHE.Inventory = original_inventory
+        module.Player = original_player
+
+
+def _test_consumable_crafter_resource_priority_follows_target_order(module) -> None:
+    widget = _make_widget(module)
+    essence_model_id = int(module.ModelID.Essence_Of_Celerity.value)
+    grail_model_id = int(module.ModelID.Grail_Of_Might.value)
+    feather_model_id = int(module.ModelID.Feather.value)
+    iron_model_id = int(module.ModelID.Iron_Ingot.value)
+    dust_model_id = int(module.ModelID.Pile_Of_Glittering_Dust.value)
+    widget.buy_rules = [
+        module._normalize_buy_rule(
+            module.BuyRule(
+                enabled=True,
+                kind=module.BUY_KIND_CONSUMABLE_CRAFTER_TARGET,
+                merchant_stock_targets=[
+                    module.MerchantStockTarget(model_id=grail_model_id, target_count=3, max_per_run=3),
+                    module.MerchantStockTarget(model_id=essence_model_id, target_count=3, max_per_run=3),
+                ],
+                consumable_crafter_count_mode=module.CONSUMABLE_CRAFTER_COUNT_MODE_CRAFT_AMOUNT,
+            )
+        )
+    ]
+    widget._get_supported_context = lambda: (
+        True,
+        "Ready",
+        {
+            module.MERCHANT_TYPE_CONSUMABLE_CRAFTER: (3673.02, -131.27),
+        },
+    )
+    widget._collect_inventory_items = lambda: [
+        _make_item(module, item_id=1, model_id=feather_model_id, name="Feather", quantity=150, is_material=True),
+        _make_item(module, item_id=2, model_id=iron_model_id, name="Iron Ingot", quantity=150, is_material=True),
+    ]
+    widget._collect_storage_items = lambda: []
+    widget._get_material_storage_quantity_and_slot = (
+        lambda model_id: (150, 9, 250) if int(model_id) == dust_model_id else (0, 0, 250)
+    )
+    original_inventory = getattr(module.GLOBAL_CACHE, "Inventory", None)
+    original_player = module.Player
+    try:
+        module.GLOBAL_CACHE.Inventory = types.SimpleNamespace(
+            IsStorageOpen=lambda: True,
+            GetGoldOnCharacter=lambda: 1500,
+            GetGoldInStorage=lambda: 0,
+        )
+        module.Player = types.SimpleNamespace(
+            GetSkillPointData=lambda: (6, 100),
+            GetTitle=lambda _title_id: types.SimpleNamespace(current_points=999999),
+        )
+
+        plan = widget._build_plan()
+
+        quantities_by_model = {craft.model_id: craft.quantity for craft in plan.consumable_crafter_buys}
+        _expect(
+            quantities_by_model.get(grail_model_id, 0) == 3,
+            "First selected consumable target should reserve scarce shared materials first.",
+        )
+        _expect(
+            quantities_by_model.get(essence_model_id, 0) == 0,
+            "Later selected consumable targets should not preempt resources reserved by earlier rows.",
+        )
+    finally:
+        module.GLOBAL_CACHE.Inventory = original_inventory
+        module.Player = original_player
+
+
+def _test_consumable_crafter_preview_warns_when_free_inventory_slots_are_low(module) -> None:
+    widget = _make_widget(module)
+    essence_model_id = int(module.ModelID.Essence_Of_Celerity.value)
+    feather_model_id = int(module.ModelID.Feather.value)
+    dust_model_id = int(module.ModelID.Pile_Of_Glittering_Dust.value)
+    widget.buy_rules = [
+        module._normalize_buy_rule(
+            module.BuyRule(
+                enabled=True,
+                kind=module.BUY_KIND_CONSUMABLE_CRAFTER_TARGET,
+                merchant_stock_targets=[
+                    module.MerchantStockTarget(model_id=essence_model_id, target_count=1, max_per_run=1),
+                ],
+                consumable_crafter_count_mode=module.CONSUMABLE_CRAFTER_COUNT_MODE_CRAFT_AMOUNT,
+            )
+        )
+    ]
+    widget._get_supported_context = lambda: (
+        True,
+        "Ready",
+        {
+            module.MERCHANT_TYPE_CONSUMABLE_CRAFTER: (3592.99, 78.78),
+        },
+    )
+    widget._collect_inventory_items = lambda: []
+    widget._collect_storage_items = lambda: [
+        _make_item(module, item_id=1, model_id=feather_model_id, name="Feather", quantity=50, is_material=True),
+        _make_item(module, item_id=2, model_id=dust_model_id, name="Pile of Glittering Dust", quantity=50, is_material=True),
+    ]
+    original_inventory = getattr(module.GLOBAL_CACHE, "Inventory", None)
+    original_player = module.Player
+    try:
+        module.GLOBAL_CACHE.Inventory = types.SimpleNamespace(
+            IsStorageOpen=lambda: True,
+            GetGoldOnCharacter=lambda: 250,
+            GetGoldInStorage=lambda: 0,
+            GetFreeSlotCount=lambda: 1,
+        )
+        module.Player = types.SimpleNamespace(
+            GetSkillPointData=lambda: (1, 100),
+            GetTitle=lambda _title_id: types.SimpleNamespace(current_points=999999),
+        )
+
+        plan = widget._build_plan()
+
+        _expect(len(plan.consumable_crafter_buys) == 1, "Low inventory-space warning should not block consumable crafter planning.")
+        _expect(
+            any(
+                entry.merchant_type == module.MERCHANT_TYPE_CONSUMABLE_CRAFTER
+                and entry.label == "Inventory space"
+                and entry.state == module.PLAN_STATE_SKIPPED
+                and "may need up to 3 free slot" in entry.reason
+                and "found 1" in entry.reason
+                for entry in plan.entries
+            ),
+            "Consumable crafter preview should warn when planned material withdrawals and output may exceed free inventory slots.",
         )
     finally:
         module.GLOBAL_CACHE.Inventory = original_inventory
@@ -3608,6 +4940,434 @@ def _test_projected_preview_keeps_cleanup_visible_from_unsupported_current_map(m
         module.Map.IsGuildHall = original_is_guild_hall
 
 
+def _configure_consumable_multistop_fixture(
+    module,
+    *,
+    include_material_buy: bool = True,
+    destination_id: int = 2,
+    destination_name: str = "Regression Harbor",
+):
+    widget = _prime_initialized_widget(module, _make_widget(module))
+    widget.outpost_entries = [
+        entry
+        for entry in widget.outpost_entries
+        if int(entry.get("id", 0)) not in {int(module.EMBARK_BEACH_MAP_ID), int(destination_id)}
+    ]
+    widget.outpost_entries.append({"id": int(destination_id), "name": str(destination_name)})
+    widget.outpost_entries.append({"id": int(module.EMBARK_BEACH_MAP_ID), "name": "Embark Beach"})
+    widget.auto_travel_enabled = True
+    widget.target_outpost_id = int(destination_id)
+
+    armor_model_id = int(module.ModelID.Armor_Of_Salvation.value)
+    wood_model_id = int(module.ModelID.Wood_Plank.value)
+    bone_model_id = int(module.ModelID.Bone.value)
+    iron_model_id = int(module.ModelID.Iron_Ingot.value)
+    widget.catalog_by_model_id.update(
+        {
+            armor_model_id: {"model_id": armor_model_id, "name": "Armor of Salvation"},
+            wood_model_id: {"model_id": wood_model_id, "name": "Wood Plank", "material_type": "common"},
+            bone_model_id: {"model_id": bone_model_id, "name": "Bone", "material_type": "common"},
+            iron_model_id: {"model_id": iron_model_id, "name": "Iron Ingot", "material_type": "common"},
+        }
+    )
+    buy_rules = [
+        module._normalize_buy_rule(
+            module.BuyRule(
+                enabled=True,
+                kind=module.BUY_KIND_CONSUMABLE_CRAFTER_TARGET,
+                merchant_stock_targets=[
+                    module.MerchantStockTarget(model_id=armor_model_id, target_count=1, max_per_run=1),
+                ],
+                consumable_crafter_count_mode=module.CONSUMABLE_CRAFTER_COUNT_MODE_CRAFT_AMOUNT,
+            )
+        )
+    ]
+    if include_material_buy:
+        buy_rules.append(
+            module._normalize_buy_rule(
+                module.BuyRule(
+                    enabled=True,
+                    kind=module.BUY_KIND_MATERIAL_TARGET,
+                    material_targets=[
+                        module.MaterialTarget(model_id=wood_model_id, target_count=1, max_per_run=10),
+                    ],
+                )
+            )
+        )
+    widget.buy_rules = buy_rules
+    widget._collect_inventory_items = lambda: [
+        _make_item(
+            module,
+            item_id=11,
+            model_id=iron_model_id,
+            name="Iron Ingot",
+            quantity=50,
+            is_material=True,
+        ),
+        _make_item(
+            module,
+            item_id=12,
+            model_id=bone_model_id,
+            name="Bone",
+            quantity=50,
+            is_material=True,
+        )
+    ]
+    widget._collect_storage_items = lambda: []
+    widget._get_material_storage_quantity_and_slot = lambda _model_id: (0, 0, 250)
+    return widget
+
+
+def _test_consumable_multistop_preview_routes_embark_before_destination(module) -> None:
+    widget = _configure_consumable_multistop_fixture(module, include_material_buy=True)
+    original_inventory = getattr(module.GLOBAL_CACHE, "Inventory", None)
+    original_player = module.Player
+    try:
+        module.GLOBAL_CACHE.Inventory = types.SimpleNamespace(
+            IsStorageOpen=lambda: True,
+            GetGoldOnCharacter=lambda: 1000,
+            GetGoldInStorage=lambda: 0,
+            GetFreeSlotCount=lambda: 10,
+        )
+        module.Player = types.SimpleNamespace(
+            GetSkillPointData=lambda: (5, 100),
+            GetTitle=lambda _title_id: types.SimpleNamespace(current_points=999999),
+        )
+
+        plan = widget._build_plan(projected_preview=True)
+
+        travel_labels = [entry.label for entry in plan.entries if entry.action_type == "travel"]
+        _expect(plan.multi_stop_route, "Projected preview should mark the Embark Beach consumable route as multi-stop.")
+        _expect(
+            travel_labels == ["Embark Beach", "Regression Harbor"],
+            "Projected preview should show travel to Embark Beach before the selected destination.",
+        )
+        _expect(
+            any(
+                entry.merchant_type == module.MERCHANT_TYPE_CONSUMABLE_CRAFTER
+                and entry.label.startswith("Armor of Salvation")
+                and entry.quantity == 1
+                and entry.state == module.PLAN_STATE_CONDITIONAL
+                for entry in plan.entries
+            ),
+            "Projected destination previews should keep Embark Beach consumable crafting visible.",
+        )
+        _expect(
+            any(
+                entry.merchant_type == module.MERCHANT_TYPE_MATERIALS
+                and entry.label.startswith("Wood Plank")
+                and entry.quantity == 10
+                and entry.state == module.PLAN_STATE_CONDITIONAL
+                for entry in plan.entries
+            ),
+            "Projected multi-stop previews should keep remaining destination material buys visible.",
+        )
+        _expect(
+            not any(
+                entry.merchant_type == module.MERCHANT_TYPE_CONSUMABLE_CRAFTER
+                and "Embark Beach only" in entry.reason
+                for entry in plan.entries
+            ),
+            "Projected multi-stop previews should not hide consumable work behind the selected non-Embark destination.",
+        )
+    finally:
+        module.GLOBAL_CACHE.Inventory = original_inventory
+        module.Player = original_player
+
+
+def _test_consumable_multistop_execute_crafts_then_runs_destination_work(module) -> None:
+    guild_hall_id = 179
+    widget = _configure_consumable_multistop_fixture(
+        module,
+        include_material_buy=True,
+        destination_id=guild_hall_id,
+        destination_name="Guild Hall - Isle of the Dead",
+    )
+    current_map = {"id": 100, "guild_hall": False}
+    events: list[str] = []
+    debug_logs: list[str] = []
+    destination_plan_counts: list[tuple[int, int]] = []
+    original_map_methods = {
+        "GetMapID": module.Map.GetMapID,
+        "IsMapReady": module.Map.IsMapReady,
+        "IsOutpost": module.Map.IsOutpost,
+        "IsGuildHall": module.Map.IsGuildHall,
+        "IsMapIDMatch": module.Map.IsMapIDMatch,
+    }
+    original_inventory = getattr(module.GLOBAL_CACHE, "Inventory", None)
+    original_player = module.Player
+    try:
+        module.Map.GetMapID = lambda: int(current_map["id"])
+        module.Map.IsMapReady = lambda: True
+        module.Map.IsOutpost = lambda: True
+        module.Map.IsGuildHall = lambda: bool(current_map["guild_hall"])
+        module.Map.IsMapIDMatch = lambda current, target: int(current) == int(target)
+        module.GLOBAL_CACHE.Inventory = types.SimpleNamespace(
+            IsStorageOpen=lambda: True,
+            GetGoldOnCharacter=lambda: 1000,
+            GetGoldInStorage=lambda: 0,
+            GetFreeSlotCount=lambda: 10,
+        )
+        module.Player = types.SimpleNamespace(
+            GetSkillPointData=lambda: (5, 100),
+            GetTitle=lambda _title_id: types.SimpleNamespace(current_points=999999),
+        )
+
+        def _context(*_args, **_kwargs):
+            if int(current_map["id"]) == int(module.EMBARK_BEACH_MAP_ID):
+                return True, "Embark ready", {
+                    module.MERCHANT_TYPE_MERCHANT: None,
+                    module.MERCHANT_TYPE_MATERIALS: None,
+                    module.MERCHANT_TYPE_RUNE_TRADER: None,
+                    module.MERCHANT_TYPE_SCROLL_TRADER: None,
+                    module.MERCHANT_TYPE_RARE_MATERIALS: None,
+                    module.MERCHANT_TYPE_CONSUMABLE_CRAFTER: (3349.48, 596.78),
+                }
+            if bool(current_map["guild_hall"]):
+                return True, "Guild Hall ready", {
+                    module.MERCHANT_TYPE_MERCHANT: None,
+                    module.MERCHANT_TYPE_MATERIALS: (20.0, 20.0),
+                    module.MERCHANT_TYPE_RUNE_TRADER: None,
+                    module.MERCHANT_TYPE_SCROLL_TRADER: None,
+                    module.MERCHANT_TYPE_RARE_MATERIALS: None,
+                    module.MERCHANT_TYPE_CONSUMABLE_CRAFTER: None,
+                }
+            return False, "Unsupported", {
+                module.MERCHANT_TYPE_MERCHANT: None,
+                module.MERCHANT_TYPE_MATERIALS: None,
+                module.MERCHANT_TYPE_RUNE_TRADER: None,
+                module.MERCHANT_TYPE_SCROLL_TRADER: None,
+                module.MERCHANT_TYPE_RARE_MATERIALS: None,
+                module.MERCHANT_TYPE_CONSUMABLE_CRAFTER: None,
+            }
+
+        def _travel(outpost_id: int):
+            events.append(f"travel:{int(outpost_id)}")
+            current_map["id"] = int(outpost_id)
+            current_map["guild_hall"] = int(outpost_id) == guild_hall_id
+            if False:
+                yield None
+            return True
+
+        def _craft(crafts, *, phase_label="Consumable crafters"):
+            events.extend(f"craft:{craft.label}" for craft in crafts)
+            if False:
+                yield None
+            total = sum(max(0, int(craft.quantity)) for craft in crafts)
+            return module.ExecutionPhaseOutcome(label=phase_label, measure_label="crafts", attempted=total, completed=total)
+
+        def _buy_materials(_coords, buys, *, phase_label="Material buys"):
+            destination_plan_counts.append(
+                (
+                    len(widget.preview_plan.material_buys),
+                    len(widget.preview_plan.consumable_crafter_buys),
+                )
+            )
+            events.extend(f"material:{buy.label}" for buy in buys)
+            if False:
+                yield None
+            return module.ExecutionPhaseOutcome(label=phase_label, measure_label="trades", attempted=len(buys), completed=len(buys))
+
+        widget._debug_log = lambda message: debug_logs.append(str(message))
+        widget._get_supported_context = _context
+        widget._travel_to_target_outpost = _travel
+        widget._craft_planned_consumables = _craft
+        widget._buy_planned_materials = _buy_materials
+
+        _drain_generator_return(widget._execute_now())
+
+        _expect(
+            events == [
+                f"travel:{int(module.EMBARK_BEACH_MAP_ID)}",
+                "craft:Armor of Salvation (24860)",
+                f"travel:{guild_hall_id}",
+                "material:Wood Plank (946)",
+            ],
+            "Travel + Execute should craft Embark consumables before traveling to the selected destination for remaining work.",
+        )
+        _expect(
+            events.count(f"travel:{int(module.EMBARK_BEACH_MAP_ID)}") == 1,
+            "Travel + Execute should only travel to Embark Beach once per multi-stop run.",
+        )
+        _expect(
+            sum(1 for event in events if event.startswith("craft:Armor of Salvation")) == 1,
+            "Craft requested amount mode should not execute the same consumable craft twice in one multi-stop run.",
+        )
+        _expect(
+            destination_plan_counts == [(1, 0)],
+            "Destination execution should run a non-consumable plan with material_buys=1 and consumable_crafts=0.",
+        )
+        _expect(
+            sum("Multi-stop execution travel: target=Embark Beach" in row for row in debug_logs) == 1,
+            "Nested destination execution must not re-enter the Embark Beach multi-stop route after Guild Hall arrival.",
+        )
+    finally:
+        module.Map.GetMapID = original_map_methods["GetMapID"]
+        module.Map.IsMapReady = original_map_methods["IsMapReady"]
+        module.Map.IsOutpost = original_map_methods["IsOutpost"]
+        module.Map.IsGuildHall = original_map_methods["IsGuildHall"]
+        module.Map.IsMapIDMatch = original_map_methods["IsMapIDMatch"]
+        module.GLOBAL_CACHE.Inventory = original_inventory
+        module.Player = original_player
+
+
+def _test_consumable_multistop_execute_stops_at_embark_when_only_consumables(module) -> None:
+    widget = _configure_consumable_multistop_fixture(module, include_material_buy=False)
+    current_map = {"id": 100}
+    events: list[str] = []
+    original_map_methods = {
+        "GetMapID": module.Map.GetMapID,
+        "IsMapReady": module.Map.IsMapReady,
+        "IsOutpost": module.Map.IsOutpost,
+        "IsGuildHall": module.Map.IsGuildHall,
+        "IsMapIDMatch": module.Map.IsMapIDMatch,
+    }
+    original_inventory = getattr(module.GLOBAL_CACHE, "Inventory", None)
+    original_player = module.Player
+    try:
+        module.Map.GetMapID = lambda: int(current_map["id"])
+        module.Map.IsMapReady = lambda: True
+        module.Map.IsOutpost = lambda: True
+        module.Map.IsGuildHall = lambda: False
+        module.Map.IsMapIDMatch = lambda current, target: int(current) == int(target)
+        module.GLOBAL_CACHE.Inventory = types.SimpleNamespace(
+            IsStorageOpen=lambda: True,
+            GetGoldOnCharacter=lambda: 1000,
+            GetGoldInStorage=lambda: 0,
+            GetFreeSlotCount=lambda: 10,
+        )
+        module.Player = types.SimpleNamespace(
+            GetSkillPointData=lambda: (5, 100),
+            GetTitle=lambda _title_id: types.SimpleNamespace(current_points=999999),
+        )
+        widget._get_supported_context = lambda *_args, **_kwargs: (
+            int(current_map["id"]) == int(module.EMBARK_BEACH_MAP_ID),
+            "Ready" if int(current_map["id"]) == int(module.EMBARK_BEACH_MAP_ID) else "Unsupported",
+            {
+                module.MERCHANT_TYPE_MERCHANT: None,
+                module.MERCHANT_TYPE_MATERIALS: None,
+                module.MERCHANT_TYPE_RUNE_TRADER: None,
+                module.MERCHANT_TYPE_SCROLL_TRADER: None,
+                module.MERCHANT_TYPE_RARE_MATERIALS: None,
+                module.MERCHANT_TYPE_CONSUMABLE_CRAFTER: (3349.48, 596.78)
+                if int(current_map["id"]) == int(module.EMBARK_BEACH_MAP_ID)
+                else None,
+            },
+        )
+
+        def _travel(outpost_id: int):
+            events.append(f"travel:{int(outpost_id)}")
+            current_map["id"] = int(outpost_id)
+            if False:
+                yield None
+            return True
+
+        def _craft(crafts, *, phase_label="Consumable crafters"):
+            events.extend(f"craft:{craft.label}" for craft in crafts)
+            if False:
+                yield None
+            total = sum(max(0, int(craft.quantity)) for craft in crafts)
+            return module.ExecutionPhaseOutcome(label=phase_label, measure_label="crafts", attempted=total, completed=total)
+
+        widget._travel_to_target_outpost = _travel
+        widget._craft_planned_consumables = _craft
+
+        _drain_generator_return(widget._execute_now())
+
+        _expect(
+            events == [f"travel:{int(module.EMBARK_BEACH_MAP_ID)}", "craft:Armor of Salvation (24860)"],
+            "Travel + Execute should stop at Embark Beach when no non-consumable destination work remains.",
+        )
+    finally:
+        module.Map.GetMapID = original_map_methods["GetMapID"]
+        module.Map.IsMapReady = original_map_methods["IsMapReady"]
+        module.Map.IsOutpost = original_map_methods["IsOutpost"]
+        module.Map.IsGuildHall = original_map_methods["IsGuildHall"]
+        module.Map.IsMapIDMatch = original_map_methods["IsMapIDMatch"]
+        module.GLOBAL_CACHE.Inventory = original_inventory
+        module.Player = original_player
+
+
+def _test_consumable_multistop_execute_here_stays_local(module) -> None:
+    widget = _configure_consumable_multistop_fixture(module, include_material_buy=True)
+    current_map = {"id": 2}
+    events: list[str] = []
+    original_map_methods = {
+        "GetMapID": module.Map.GetMapID,
+        "IsMapReady": module.Map.IsMapReady,
+        "IsOutpost": module.Map.IsOutpost,
+        "IsGuildHall": module.Map.IsGuildHall,
+        "IsMapIDMatch": module.Map.IsMapIDMatch,
+    }
+    original_inventory = getattr(module.GLOBAL_CACHE, "Inventory", None)
+    original_player = module.Player
+    try:
+        module.Map.GetMapID = lambda: int(current_map["id"])
+        module.Map.IsMapReady = lambda: True
+        module.Map.IsOutpost = lambda: True
+        module.Map.IsGuildHall = lambda: False
+        module.Map.IsMapIDMatch = lambda current, target: int(current) == int(target)
+        module.GLOBAL_CACHE.Inventory = types.SimpleNamespace(
+            IsStorageOpen=lambda: True,
+            GetGoldOnCharacter=lambda: 1000,
+            GetGoldInStorage=lambda: 0,
+            GetFreeSlotCount=lambda: 10,
+        )
+        module.Player = types.SimpleNamespace(
+            GetSkillPointData=lambda: (5, 100),
+            GetTitle=lambda _title_id: types.SimpleNamespace(current_points=999999),
+        )
+        widget._get_supported_context = lambda *_args, **_kwargs: (
+            True,
+            "Destination ready",
+            {
+                module.MERCHANT_TYPE_MERCHANT: None,
+                module.MERCHANT_TYPE_MATERIALS: (20.0, 20.0),
+                module.MERCHANT_TYPE_RUNE_TRADER: None,
+                module.MERCHANT_TYPE_SCROLL_TRADER: None,
+                module.MERCHANT_TYPE_RARE_MATERIALS: None,
+                module.MERCHANT_TYPE_CONSUMABLE_CRAFTER: None,
+            },
+        )
+
+        def _travel(outpost_id: int):
+            events.append(f"travel:{int(outpost_id)}")
+            if False:
+                yield None
+            return True
+
+        def _craft(crafts, *, phase_label="Consumable crafters"):
+            events.extend(f"craft:{craft.label}" for craft in crafts)
+            if False:
+                yield None
+            return module.ExecutionPhaseOutcome(label=phase_label, measure_label="crafts", attempted=0, completed=0)
+
+        def _buy_materials(_coords, buys, *, phase_label="Material buys"):
+            events.extend(f"material:{buy.label}" for buy in buys)
+            if False:
+                yield None
+            return module.ExecutionPhaseOutcome(label=phase_label, measure_label="trades", attempted=len(buys), completed=len(buys))
+
+        widget._travel_to_target_outpost = _travel
+        widget._craft_planned_consumables = _craft
+        widget._buy_planned_materials = _buy_materials
+
+        _drain_generator_return(widget._execute_now(local_only=True))
+
+        _expect(
+            events == ["material:Wood Plank (946)"],
+            "Execute Here should stay local with consumable rules enabled and must not route through Embark Beach.",
+        )
+    finally:
+        module.Map.GetMapID = original_map_methods["GetMapID"]
+        module.Map.IsMapReady = original_map_methods["IsMapReady"]
+        module.Map.IsOutpost = original_map_methods["IsOutpost"]
+        module.Map.IsGuildHall = original_map_methods["IsGuildHall"]
+        module.Map.IsMapIDMatch = original_map_methods["IsMapIDMatch"]
+        module.GLOBAL_CACHE.Inventory = original_inventory
+        module.Player = original_player
+
+
 def _test_preview_reason_display_hides_projected_suffix_without_mutating_plan(module) -> None:
     widget = _prime_initialized_widget(module, _make_widget(module))
     widget.preview_ready = True
@@ -5316,7 +7076,7 @@ def _test_build_remote_preview_result_formats_multibox_states(module) -> None:
     )
     projected_result = projected_widget.build_remote_preview_result()
     _expect(projected_result["status_label"] == "Projected", "Projected previews should report the dedicated Projected status.")
-    _expect(projected_result["summary"] == "1 actionable, 0 blocked, 1 conditional.", "Projected previews should still report actionable and conditional counts.")
+    _expect(projected_result["summary"] == "1 can run, 0 blocked, 1 need live checks.", "Projected previews should still report runnable and live-check counts.")
     _expect(
         "Regression Harbor" in projected_result["detail"],
         "Projected previews should name the auto-travel target in the remote detail text.",
@@ -5363,12 +7123,12 @@ def _test_build_remote_preview_result_formats_multibox_states(module) -> None:
     conditional_result = conditional_widget.build_remote_preview_result()
     _expect(conditional_result["status_label"] == "Conditional", "Conditional-only previews should use the Conditional status.")
     _expect(
-        conditional_result["summary"] == "1 actionable, 1 blocked, 1 conditional.",
-        "Conditional-only previews should include actionable, blocked, and conditional counts.",
+        conditional_result["summary"] == "1 can run, 1 blocked, 1 need live checks.",
+        "Conditional-only previews should include runnable, blocked, and live-check counts.",
     )
     _expect(
-        conditional_result["detail"] == "Conditional actions need live merchant or trader confirmation at runtime.",
-        "Conditional-only previews should explain why follower actions remain conditional.",
+        conditional_result["detail"] == "Some actions need a live merchant, trader, crafter, or Xunlai check before MR can confirm them.",
+        "Conditional-only previews should explain why follower actions still need live checks.",
     )
     _expect(conditional_result["primary_count"] == 1, "Conditional previews should report actionable counts to the leader.")
     _expect(conditional_result["secondary_count"] == 1, "Conditional previews should report blocked counts to the leader.")
@@ -5405,12 +7165,12 @@ def _test_build_remote_preview_result_formats_multibox_states(module) -> None:
     ready_result = ready_widget.build_remote_preview_result()
     _expect(ready_result["status_label"] == "Ready", "Mixed direct and conditional previews should stay in the Ready state.")
     _expect(
-        ready_result["summary"] == "2 actionable, 1 blocked, 1 conditional.",
-        "Ready previews should include actionable, blocked, and conditional counts when merchant stock checks remain.",
+        ready_result["summary"] == "2 can run, 1 blocked, 1 need live checks.",
+        "Ready previews should include runnable, blocked, and live-check counts when merchant stock checks remain.",
     )
     _expect(
-        ready_result["detail"] == "Conditional actions need live merchant or trader confirmation at runtime.",
-        "Ready previews should still explain runtime conditionality when present.",
+        ready_result["detail"] == "Some actions need a live merchant, trader, crafter, or Xunlai check before MR can confirm them.",
+        "Ready previews should still explain when live checks are needed.",
     )
 
     empty_widget = _prime_initialized_widget(module, _make_widget(module))
@@ -6199,11 +7959,55 @@ def main() -> int:
                 "legacy_nonsalvageable_gold_sell_rule_is_removed_safely",
                 lambda: _test_legacy_nonsalvageable_gold_sell_rule_is_removed_safely(module, temp_root),
             ),
+            ("salvage_profile_defaults_are_off", lambda: _test_salvage_profile_defaults_are_off(module, temp_root)),
+            ("manual_vendor_profile_defaults_and_roundtrip", lambda: _test_manual_vendor_profile_defaults_and_roundtrip(module, temp_root)),
+            ("manual_vendor_runtime_queues_once_per_signature", lambda: _test_manual_vendor_runtime_queues_once_per_signature(module)),
+            ("manual_vendor_matching_sell_uses_current_merchant_only", lambda: _test_manual_vendor_matching_sell_uses_current_merchant_only(module)),
+            ("manual_vendor_any_merchant_material_fallback", lambda: _test_manual_vendor_any_merchant_material_fallback(module)),
+            ("manual_vendor_auto_buy_uses_current_offers", lambda: _test_manual_vendor_auto_buy_uses_current_offers(module)),
+            ("exact_rune_sell_rule_profile_roundtrip", lambda: _test_exact_rune_sell_rule_profile_roundtrip(module, temp_root)),
+            ("exact_rune_sell_rule_plans_matching_standalone_runes", lambda: _test_exact_rune_sell_rule_plans_matching_standalone_runes(module)),
+            ("exact_rune_sell_rule_reserves_names_from_broad_armor_rule", lambda: _test_exact_rune_sell_rule_reserves_names_from_broad_armor_rule(module)),
+            ("manual_vendor_exact_rune_sell_runs_at_rune_trader", lambda: _test_manual_vendor_exact_rune_sell_runs_at_rune_trader(module)),
+            ("salvage_candidate_evaluation_precedence", lambda: _test_salvage_candidate_evaluation_precedence(module)),
+            ("salvage_broad_rarity_selection", lambda: _test_salvage_broad_rarity_selection(module)),
+            ("salvage_category_selection", lambda: _test_salvage_category_selection(module)),
+            ("salvage_rarity_and_category_filters_combine", lambda: _test_salvage_rarity_and_category_filters_combine(module)),
+            ("salvage_filter_summary_describes_combined_filters", lambda: _test_salvage_filter_summary_describes_combined_filters(module)),
+            ("salvage_selected_items_block_destroy", lambda: _test_salvage_selected_items_block_destroy(module)),
+            ("identify_exact_rarity_claims_before_destroy_and_cleanup", lambda: _test_identify_exact_rarity_claims_before_destroy_and_cleanup(module)),
+            ("identify_no_kit_still_claims_selected_items", lambda: _test_identify_no_kit_still_claims_selected_items(module)),
+            ("identify_on_inventory_change_queues_auto_pass", lambda: _test_identify_on_inventory_change_queues_auto_pass(module)),
+            ("protected_salvage_destroy_overlap_blocks_both", lambda: _test_protected_salvage_destroy_overlap_blocks_both(module)),
             ("build_plan_captures_inventory_and_marks_conditional_stock_buy", lambda: _test_build_plan_captures_inventory_and_marks_conditional_stock_buy(module)),
             ("consumable_crafter_plan_title_gate_blocks_low_rank", lambda: _test_consumable_crafter_plan_title_gate_blocks_low_rank(module)),
             (
                 "consumable_crafter_plan_caps_by_skill_gold_and_material_storage",
                 lambda: _test_consumable_crafter_plan_caps_by_skill_gold_and_material_storage(module),
+            ),
+            (
+                "consumable_crafter_craft_amount_mode_ignores_existing_xunlai_output",
+                lambda: _test_consumable_crafter_craft_amount_mode_ignores_existing_xunlai_output(module),
+            ),
+            (
+                "consumable_crafter_maintain_mode_counts_existing_xunlai_output",
+                lambda: _test_consumable_crafter_maintain_mode_counts_existing_xunlai_output(module),
+            ),
+            (
+                "consumable_crafter_plan_reserves_shared_material_storage_across_targets",
+                lambda: _test_consumable_crafter_plan_reserves_shared_material_storage_across_targets(module),
+            ),
+            (
+                "consumable_crafter_partial_cap_reports_remaining_material_shortage",
+                lambda: _test_consumable_crafter_partial_cap_reports_remaining_material_shortage(module),
+            ),
+            (
+                "consumable_crafter_resource_priority_follows_target_order",
+                lambda: _test_consumable_crafter_resource_priority_follows_target_order(module),
+            ),
+            (
+                "consumable_crafter_preview_warns_when_free_inventory_slots_are_low",
+                lambda: _test_consumable_crafter_preview_warns_when_free_inventory_slots_are_low(module),
             ),
             (
                 "consumable_crafter_execution_prepares_materials_before_opening_crafter",
@@ -6255,6 +8059,22 @@ def main() -> int:
             ("build_plan_deposits_explicit_keep_targets_on_storage_only_preview", lambda: _test_build_plan_deposits_explicit_keep_targets_on_storage_only_preview(module)),
             ("projected_preview_builds_post_travel_plan_without_travel_entry", lambda: _test_projected_preview_builds_post_travel_plan_without_travel_entry(module)),
             ("projected_preview_keeps_cleanup_visible_from_unsupported_current_map", lambda: _test_projected_preview_keeps_cleanup_visible_from_unsupported_current_map(module)),
+            (
+                "consumable_multistop_preview_routes_embark_before_destination",
+                lambda: _test_consumable_multistop_preview_routes_embark_before_destination(module),
+            ),
+            (
+                "consumable_multistop_execute_crafts_then_runs_destination_work",
+                lambda: _test_consumable_multistop_execute_crafts_then_runs_destination_work(module),
+            ),
+            (
+                "consumable_multistop_execute_stops_at_embark_when_only_consumables",
+                lambda: _test_consumable_multistop_execute_stops_at_embark_when_only_consumables(module),
+            ),
+            (
+                "consumable_multistop_execute_here_stays_local",
+                lambda: _test_consumable_multistop_execute_here_stays_local(module),
+            ),
             ("preview_reason_display_hides_projected_suffix_without_mutating_plan", lambda: _test_preview_reason_display_hides_projected_suffix_without_mutating_plan(module)),
             ("preview_reason_display_normalizes_nested_protection_wording", lambda: _test_preview_reason_display_normalizes_nested_protection_wording(module)),
             ("detailed_preview_shows_all_direct_reasons", lambda: _test_detailed_preview_shows_all_direct_reasons(module)),

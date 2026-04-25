@@ -58,7 +58,6 @@ SUPPORTED_MAP_NPC_SELECTORS: dict[int, dict[str, str]] = {
     },
 }
 
-_PARTY_BACKEND_CB = "custom_behaviors"
 _PARTY_BACKEND_HERO_AI = "hero_ai"
 _PARTY_BACKEND_SHARED = "shared"
 
@@ -67,12 +66,9 @@ def _resolve_party_backend() -> str:
     from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
 
     widget_handler = get_widget_handler()
-    cb_enabled = bool(widget_handler.is_widget_enabled("CustomBehaviors"))
     hero_ai_enabled = bool(widget_handler.is_widget_enabled("HeroAI"))
 
-    if cb_enabled and not hero_ai_enabled:
-        return _PARTY_BACKEND_CB
-    if hero_ai_enabled and not cb_enabled:
+    if hero_ai_enabled:
         return _PARTY_BACKEND_HERO_AI
     return _PARTY_BACKEND_SHARED
 
@@ -168,7 +164,7 @@ def _yield_toggle_widgets(ctx: StepContext, *, enabled: bool):
     from Py4GWCoreLib import GLOBAL_CACHE, Player, Routines, SharedCommandType
     from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
 
-    default_widgets = ["InventoryPlus", "CustomBehaviors"]
+    default_widgets = ["InventoryPlus"]
     names = _parse_widget_names(ctx.step.get("widgets", default_widgets))
     multibox = parse_step_bool(ctx.step.get("multibox", True), True)
     wait_step_ms = max(10, parse_step_int(ctx.step.get("multibox_wait_step_ms", 50), 50))
@@ -388,19 +384,6 @@ def _yield_cb_leave_party(ctx: StepContext, multibox: bool) -> Callable[[], obje
         used_cb_scheduler = False
         sent_messages: list[tuple[str, int]] = []
 
-        if backend == _PARTY_BACKEND_CB:
-            from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
-            from Sources.oazix.CustomBehaviors.primitives.parties.party_command_contants import PartyCommandConstants
-
-            yield from ctx.bot.Wait._coro_until_condition(lambda: CustomBehaviorParty().is_ready_for_action(), duration=100)
-            ok = bool(CustomBehaviorParty().schedule_action(PartyCommandConstants.leave_current_party))
-            if ok:
-                used_cb_scheduler = True
-                yield from ctx.bot.Wait._coro_until_condition(lambda: CustomBehaviorParty().is_ready_for_action(), duration=100)
-                debug_log_recipe(ctx, "inventory_setup: leave_party via CustomBehaviors scheduler.")
-            else:
-                debug_log_recipe(ctx, "inventory_setup: leave_party CB scheduler not ready; using shared fallback.")
-
         if backend == _PARTY_BACKEND_HERO_AI:
             debug_log_recipe(ctx, "inventory_setup: leave_party HeroAI backend; using shared dispatch.")
         elif backend == _PARTY_BACKEND_SHARED:
@@ -458,19 +441,6 @@ def _yield_travel_gh(ctx: StepContext, multibox: bool, _wait_time: int) -> Calla
         backend = _resolve_party_backend()
         used_cb_scheduler = False
         sent_messages: list[tuple[str, int]] = []
-
-        if backend == _PARTY_BACKEND_CB:
-            from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
-            from Sources.oazix.CustomBehaviors.primitives.parties.party_command_contants import PartyCommandConstants
-
-            yield from ctx.bot.Wait._coro_until_condition(lambda: CustomBehaviorParty().is_ready_for_action(), duration=100)
-            ok = bool(CustomBehaviorParty().schedule_action(PartyCommandConstants.travel_gh))
-            if ok:
-                used_cb_scheduler = True
-                yield from ctx.bot.Wait._coro_until_condition(lambda: CustomBehaviorParty().is_ready_for_action(), duration=100)
-                debug_log_recipe(ctx, "inventory_setup: travel_gh via CustomBehaviors scheduler.")
-            else:
-                debug_log_recipe(ctx, "inventory_setup: travel_gh CB scheduler not ready; using shared fallback.")
 
         if backend == _PARTY_BACKEND_HERO_AI:
             debug_log_recipe(ctx, "inventory_setup: travel_gh HeroAI backend; dispatching alts + local self-message.")

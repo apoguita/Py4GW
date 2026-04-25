@@ -31,7 +31,8 @@ from Py4GWCoreLib import Botting, Routines, Agent, AgentArray, Player, Utils, Au
 from Py4GWCoreLib.enums_src.Model_enums import ModelID
 from Py4GWCoreLib.enums_src.Map_enums import name_to_map_id
 from Py4GWCoreLib.enums_src.Multiboxing_enums import SharedCommandType
-from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorState
+class BehaviorState:
+    CLOSE_TO_AGGRO = "close_to_aggro"
 
 # ╔══════════════════════════════════════════════════════════════════
 # ║                     POSSIBLE IMPROVEMENTS                        
@@ -179,13 +180,8 @@ MAIN_LOOP_HEADER_NAME = ""
 _entered_dungeon: bool = False      # set True once map 72 is loaded; watchdog uses this
 _dhuum_fight_active: bool = False   # set True from start of Dhuum fight to chest spawn
 _run_start_uptime_ms: int = 0       # Map.GetInstanceUptime() value (ms) when the dungeon was entered
+_enter_ep: list = ["", 0]           # [entrypoint_name, map_id] — resolved at FSM execution time by Enter_UW
 _SKELETON_OF_DHUUM_MODEL_ID: int = 2392
-_DRAW_BLOCKED_AREAS_3D = False
-
-_BLOCKED_AREA_SEGMENTS = 48
-_BLOCKED_AREA_THICKNESS = 2.5
-_BLOCKED_AREA_COLOR = Utils.RGBToColor(255, 40, 40, 170)
-_BLOCKED_AREA_RADIUS = 200.0
 
 _pending_wipe_recovery: bool = False   # set by coroutine; consumed by main() before bot.Update()
 _pending_wipe_reason:   str  = ""      # human-readable label logged when the restart fires
@@ -262,23 +258,17 @@ DEFAULT_UW_ENTRYPOINT_KEY = "embark_beach"
 
 # ── Combat adapter (Strategy Pattern) ────────────────────────────────────────
 # _get_adapter() returns the right singleton based on BotSettings.BotMode.
-# CB mode (default): UWCBAdapter — uses CustomBehaviors shared-memory flags.
-# HeroAI mode:       UWHeroAIAdapter — drives native GW flags + HeroAI options.
-_cb_adapter_instance = None
+# HeroAI mode: UWHeroAIAdapter drives native GW flags + HeroAI options.
 _heroai_adapter_instance = None
 
 
 def _get_adapter():
-    global _cb_adapter_instance, _heroai_adapter_instance
-    if BotSettings.BotMode == "heroai":
-        if _heroai_adapter_instance is None:
-            from Sources.sch0l0ka.adapter.uw_heroai_adapter import UWHeroAIAdapter
-            _heroai_adapter_instance = UWHeroAIAdapter(BOT_NAME)
-        return _heroai_adapter_instance
-    if _cb_adapter_instance is None:
-        from Sources.sch0l0ka.adapter.uw_cb_adapter import UWCBAdapter
-        _cb_adapter_instance = UWCBAdapter(BOT_NAME)
-    return _cb_adapter_instance
+    global _heroai_adapter_instance
+    BotSettings.BotMode = "heroai"
+    if _heroai_adapter_instance is None:
+        from Sources.sch0l0ka.adapter.uw_heroai_adapter import UWHeroAIAdapter
+        _heroai_adapter_instance = UWHeroAIAdapter(BOT_NAME)
+    return _heroai_adapter_instance
 
 
 def _uw_aggressive(b: Botting, **kwargs) -> None:
@@ -412,7 +402,7 @@ class BotSettings:
     Repeat:    bool = bool(_ini.read_bool(BOT_NAME, "quest_repeat",    False))
     UseCons:   bool = bool(_ini.read_bool(BOT_NAME, "quest_use_cons",  True))
     HardMode:  bool = bool(_ini.read_bool(BOT_NAME, "quest_hardmode",  False))
-    BotMode:   str  = str(_ini.read_key(BOT_NAME,  "quest_bot_mode",  "custom_behavior") or "custom_behavior")
+    BotMode:   str  = "heroai"
 
     @classmethod
     def save(cls) -> None:
@@ -544,8 +534,8 @@ def _enqueue_imprisoned_spirits_flags(bot_instance: Botting) -> None:
     """Clear flags, then assign left/right team accounts to their respective flag positions.
     The player's own account is excluded (it navigates via the bot FSM directly).
     Left accounts → LEFT_POINTS sequentially; right accounts → RIGHT_POINTS sequentially."""
-    LEFT_POINTS  = [(13849, 6602), (13876, 6752), (13985, 6840), (13598, 6779)]
-    RIGHT_POINTS = [(12871, 2512), (12640, 2485), (12402, 2472), (12137, 2444), (12150, 2139)]
+    LEFT_POINTS  = [(13849, 6602), (13876, 6752), (13985, 6840), (13598, 6779), (13845, 6489)]
+    RIGHT_POINTS = [(12871, 2512), (12640, 2485), (12402, 2472), (12137, 2444), (12150, 2139), (12239, 2324)]
 
     def _set_team_flags() -> None:
         my_email     = Player.GetAccountEmail()
@@ -973,47 +963,6 @@ def FocusKeeperOfSouls(bot_instance: Botting):
     bot_instance.States.AddCustomState(_focus_logic, "Focus Keeper of Souls")
 
 
-def _draw_blocked_areas_overlay() -> None:
-    """Query blacklisted enemy positions and draw circles every frame. Called from main()."""
-    if not _DRAW_BLOCKED_AREAS_3D:
-        return
-    if Map.GetMapID() != UW_MAP_ID:
-        return
-    # Skip during the Dhuum fight — the per-frame INI reads and GetNameByID calls
-    # for every enemy in the arena add unnecessary load on the leader client.
-    if _dhuum_fight_active:
-        return
-    try:
-        from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist
-        _bl = EnemyBlacklist()
-        avoid_points = [
-            Agent.GetXY(_eid)
-            for _eid in AgentArray.GetEnemyArray()
-            if _bl.is_blacklisted(_eid) and Agent.IsAlive(_eid)
-        ]
-        if not avoid_points:
-            return
-        _overlay = Overlay()
-        _overlay.BeginDraw()
-        for _ax, _ay in avoid_points:
-            _az = _overlay.FindZ(_ax, _ay, 0)
-            _overlay.DrawPoly3D(
-                _ax,
-                _ay,
-                _az,
-                radius=_BLOCKED_AREA_RADIUS,
-                color=_BLOCKED_AREA_COLOR,
-                numsegments=_BLOCKED_AREA_SEGMENTS,
-                thickness=_BLOCKED_AREA_THICKNESS,
-            )
-        _overlay.EndDraw()
-    except Exception:
-        pass
-
-
-
-
-
 def _coro_skeleton_dhuum_watchdog(bot: Botting):
     """Continuously target the nearest alive Skeleton of Dhuum within spell range
     while pause_on_danger is active."""
@@ -1060,25 +1009,14 @@ def _coro_dhuum_spirit_form_watchdog(bot: Botting):
     on each follower locally.  A concurrent PixelStack coroutine would conflict with
     the Dhuum Helper's movement commands and cause unreliable dialog delivery."""
     _SPIRIT_FORM_SKILL_ID = 3134
-    _SPIRIT_FLAG_X = -16476
-    _SPIRIT_FLAG_Y = 17275
+    _SPIRIT_FLAG_X = -14667
+    _SPIRIT_FLAG_Y = 17231
     # email -> original flag (x, y) saved when Spirit Form was first detected
     _saved_flag_positions: dict[str, tuple[float, float]] = {}
     _last_sync_log_at: dict[str, float] = {}
 
     def _read_current_flag_pos(email: str) -> tuple[float, float] | None:
-        """Read the current CB flag position for *email* from shared memory."""
-        try:
-            from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
-            mgr = CustomBehaviorParty().party_flagging_manager
-            for i in range(12):
-                if mgr.get_flag_account_email(i).lower() == email.lower():
-                    pos = mgr.get_flag_position(i)
-                    if pos != (0.0, 0.0):
-                        return pos
-                    return None
-        except Exception:
-            pass
+        """Legacy flag reads are unavailable after legacy combat removal."""
         return None
 
     while True:
@@ -1282,7 +1220,7 @@ def bot_routine(bot: Botting):
     bot.Events.OnPartyWipeCallback(lambda: OnPartyWipe(bot))
     _get_adapter().set_blessing_enabled(True)
     _get_adapter().setup(bot)
-    # __reset_botting_behavior (called inside setup via UseCustomBehavior) queues
+    # Startup setup queues
     # Disable("auto_inventory_management"). Re-enable it immediately after so
     # the upkeep coroutine stays active for the entire run.
     bot.Properties.Enable("auto_inventory_management")
@@ -1357,23 +1295,43 @@ def Enter_UW(bot_instance: Botting):
     # ── Leave any existing party (multibox-aware) ─────────────────────
     handle_leave_party(_make_ctx({"type": "leave_party", "name": "Leave Party", "multibox": True}))
 
-    # ── Travel to the selected entrypoint ────────────────────────────
-    entrypoint_name, entrypoint_map_id = UW_ENTRYPOINTS.get(
-        EnterSettings.EntryPoint, UW_ENTRYPOINTS[DEFAULT_UW_ENTRYPOINT_KEY]
+    # ── Travel to the selected entrypoint (resolved at execution time) ──
+    # entrypoint_name / map_id are resolved lazily into _enter_ep so that
+    # any change made in the Settings UI before pressing Start is always
+    # honoured, even when the FSM was built at module-load with an older value.
+    def _resolve_entrypoint() -> None:
+        key = EnterSettings.EntryPoint or DEFAULT_UW_ENTRYPOINT_KEY
+        name, mid = UW_ENTRYPOINTS.get(key, UW_ENTRYPOINTS[DEFAULT_UW_ENTRYPOINT_KEY])
+        _enter_ep[0] = name
+        _enter_ep[1] = mid
+        ConsoleLog(BOT_NAME, f"[Enter] Entry point resolved: {name} (map {mid})", Py4GW.Console.MessageType.Info)
+
+    def _travel_to_entrypoint() -> None:
+        import random
+        from Py4GWCoreLib.enums_src.Region_enums import District
+        districts = [
+            District.EuropeItalian.value,
+            District.EuropeSpanish.value,
+            District.EuropePolish.value,
+            District.EuropeRussian.value,
+        ]
+        Map.TravelToDistrict(_enter_ep[1], district=random.choice(districts))
+
+    bot_instance.States.AddCustomState(_resolve_entrypoint, "Resolve Entry Point")
+    bot_instance.Party.LeaveParty()
+    bot_instance.States.AddCustomState(_travel_to_entrypoint, "Travel to Entrypoint")
+    bot_instance.Wait.ForTime(500)
+    bot_instance.Wait.UntilCondition(
+        lambda: Routines.Checks.Map.MapValid() and Map.GetMapID() == _enter_ep[1]
     )
-    handle_random_travel(_make_ctx({
-        "type": "random_travel",
-        "name": f"Travel to {entrypoint_name}",
-        "target_map_id": entrypoint_map_id,
-    }))
+    bot_instance.Wait.ForTime(1000)
 
     # ── Form party ───────────────────────────────────────────────────
     handle_summon_all_accounts(_make_ctx({"type": "summon_all_accounts", "name": "Summon Alts", "ms": 10000}))
 
     # Wait until every account has loaded into the entrypoint map (up to 90 s).
-    _expected_map = entrypoint_map_id
     bot_instance.Wait.UntilCondition(
-        lambda: all(int(acc.AgentData.Map.MapID) == _expected_map for acc in GLOBAL_CACHE.ShMem.GetAllAccountData()),
+        lambda: all(int(acc.AgentData.Map.MapID) == _enter_ep[1] for acc in GLOBAL_CACHE.ShMem.GetAllAccountData()),
         duration=5000,
     )
 
@@ -1550,6 +1508,7 @@ def The_Four_Horsemen(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _get_adapter().clear_flags(),"Clear Flags")
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_following_enabled(True), "Enable Following")
     bot_instance.Move.XY(-5782, 12819, "TP back to Chaos")
+    bot_instance.Wait.ForTime(1000)
     bot_instance.Dialogs.WithModel(UWNpcModelID.ReaperOfTheLabyrinth,0x8B, "Tp back to Chaos") 
     bot_instance.Wait.ForTime(1000)
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_following_enabled(True), "Enable Following")
@@ -1639,7 +1598,7 @@ def Terrorweb_Queen(bot_instance: Botting):
     bot_instance.Multibox.SendDialogToTarget(0x806B01)
     bot_instance.Move.XY(-12432, -15874, "Terrorweb Queen 1")
     bot_instance.Move.XY(-6957, -19478, "Back to Chamber")
-    bot_instance.Wait.ForTime(3000)
+    bot_instance.Wait.ForTime(10000)
     bot_instance.Dialogs.WithModel(UWNpcModelID.ReaperOfTheSpawningPools,0x806B07, "Back to Chamber")
     bot_instance.Multibox.SendDialogToTarget(0x806B07)
     bot_instance.Wait.ForTime(3000)
@@ -1672,6 +1631,10 @@ def Imprisoned_Spirits(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(False), "Disable WaitIfPartyMemberTooFar")
     bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(False), "Disable MoveToPartyMemberIfDead")
+    bot_instance.States.AddCustomState(
+        lambda: bot_instance.Properties.ApplyNow("pause_on_danger", "active", False),
+        "Disable PauseOnDanger for Imprisoned Spirits",
+    )
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_looting_enabled(False), "Disable Looting")
     bot_instance.Move.XY(13212, 4978)
     _enqueue_imprisoned_spirits_flags(bot_instance)
@@ -1703,6 +1666,10 @@ def Imprisoned_Spirits(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_looting_enabled(True), "Enable Looting")
     _blacklist(bot_instance, "chained soul")
 
+    bot_instance.States.AddCustomState(
+        lambda: bot_instance.Properties.ApplyNow("pause_on_danger", "active", True),
+        "Re-enable PauseOnDanger after Imprisoned Spirits",
+    )
     bot_instance.Move.XY(8692, 6292, "go to NPC")
     bot_instance.Dialogs.AtXY(8692, 6292, 0x8D, "Back to Chamber")
     bot_instance.States.AddCustomState(lambda: _record_quest_done("Imprisoned Spirits"), "Record Imprisoned Spirits done")
@@ -1893,6 +1860,11 @@ def Servants_of_Grenth(bot_instance: Botting):
         "Clear Flags",
     )
     bot_instance.Wait.ForTime(30000)
+    bot_instance.Move.XY(554, 18384, "go to NPC")
+    bot_instance.Dialogs.WithModel(UWNpcModelID.ReaperOfTheBonePits,0x806607, "Take Reward")
+    bot_instance.Multibox.SendDialogToTarget(0x806601)
+    bot_instance.Wait.ForTime(3000)
+    bot_instance.Multibox.SendDialogToTarget(0x806607)
     bot_instance.States.AddCustomState(lambda: _record_quest_done("Servants of Grenth"), "Record Servants of Grenth done")
 
 
@@ -2596,6 +2568,10 @@ def _draw_imprisoned_spirits_settings() -> None:
     )
     PyImGui.separator()
 
+    if not Routines.Checks.Map.MapValid():
+        PyImGui.text("Waiting for map to load...")
+        return
+
     all_accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
     if not all_accounts:
         PyImGui.text("No multibox account data available.")
@@ -2747,6 +2723,10 @@ def _draw_dhuum_settings() -> None:
         DhuumSettings.save()
     PyImGui.separator()
 
+    if not Routines.Checks.Map.MapValid():
+        PyImGui.text("Waiting for map to load...")
+        return
+
     my_email = Player.GetAccountEmail()
     all_accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
 
@@ -2825,11 +2805,17 @@ def _draw_quest_settings():
     BotSettings.HardMode = PyImGui.checkbox("Hard Mode", BotSettings.HardMode)
     PyImGui.separator()
     PyImGui.text("Bot Mode:")
-    mode_idx = 0 if BotSettings.BotMode == "custom_behavior" else 1
-    new_mode_idx = PyImGui.radio_button("Custom Behavior##botmode", mode_idx, 0)
-    PyImGui.same_line(0, -1)
-    new_mode_idx = PyImGui.radio_button("HeroAI (not working)##botmode", new_mode_idx, 1)
-    BotSettings.BotMode = "custom_behavior" if new_mode_idx == 0 else "heroai"
+    new_mode = "heroai"
+    PyImGui.text("HeroAI")
+    # When the bot mode changes, force a full re-initialization so the next
+    # Start press rebuilds the FSM with the correct adapter's startup states.
+    if new_mode != BotSettings.BotMode:
+        BotSettings.BotMode = new_mode
+        if bot.config.fsm_running:
+            bot.Stop()
+        bot.config.initialized = False
+        bot.config.FSM.states.clear()
+        ConsoleLog(BOT_NAME, f"[Settings] Bot mode switched to '{new_mode}' — FSM will rebuild on next Start.", Py4GW.Console.MessageType.Info)
     _current = (BotSettings.Repeat, BotSettings.UseCons, BotSettings.HardMode, BotSettings.BotMode)
     if _current != _snapshot:
         BotSettings.save()
@@ -2840,10 +2826,10 @@ def _draw_quest_settings():
 bot.SetMainRoutine(bot_routine)
 
 def _draw_debug_settings():
-    global _DRAW_BLOCKED_AREAS_3D, _BLOCKED_AREA_RADIUS
-    _DRAW_BLOCKED_AREAS_3D = PyImGui.checkbox("Draw Blocked Areas (3D)", _DRAW_BLOCKED_AREAS_3D)
-    if _DRAW_BLOCKED_AREAS_3D:
-        _BLOCKED_AREA_RADIUS = PyImGui.slider_float("Blocked Area Radius", _BLOCKED_AREA_RADIUS, 50.0, 600.0)
+    if not Routines.Checks.Map.MapValid():
+        PyImGui.separator()
+        PyImGui.text("Waiting for map to load...")
+        return
 
     PyImGui.separator()
     PyImGui.text("Spirit Form (3134) — Active accounts:")
@@ -3202,18 +3188,42 @@ def _draw_main_additional_ui() -> None:
         PyImGui.end_table()
 
 
+# Number of consecutive frames IsMapDataLoaded() must return True before we
+# allow any game-state access.  Prevents crashes from stale ctypes pointers
+# during the char-select → loading transition (the underlying GW memory may
+# be freed while cached context wrappers are still non-null).
+_map_stable_frames: int = 0
+_MAP_STABLE_THRESHOLD: int = 10  # ~150-300 ms at 30-60 fps
+
+
 def main():
-    global _pending_wipe_recovery, _pending_wipe_reason
+    global _pending_wipe_recovery, _pending_wipe_reason, _map_stable_frames
     import traceback as _tb
     try:
-        _draw_blocked_areas_overlay()
+        # Guard: skip EVERYTHING when map data is not fully loaded (char select,
+        # loading screen, map transitions).  IsMapDataLoaded() only checks
+        # cached pointer wrappers (is-not-None) — pure Python, no game-memory
+        # reads.  Safe even when the underlying GW pages are freed.
+        if not Map.IsMapDataLoaded():
+            _map_stable_frames = 0
+            return
+
+        # Debounce: after IsMapDataLoaded flips True, wait a few frames before
+        # touching any ctypes struct fields.  During the char-select → loading
+        # transition the context pointers appear non-null for a handful of
+        # frames while the game is still initialising / tearing down memory.
+        # Accessing struct fields in that window causes c0000005 (null-deref).
+        _map_stable_frames += 1
+        if _map_stable_frames < _MAP_STABLE_THRESHOLD:
+            return
 
         _draw_armor_edit_window()
-        if bot.config.fsm_running:
+        if bot.config.fsm_running and Routines.Checks.Map.MapValid():
             _get_adapter().sync_runtime()
             # Watchdog: callback sometimes misses wipes — detect return to outpost by map ID
             if _entered_dungeon and Map.GetMapID() == 138:
                 ConsoleLog(BOT_NAME, "[WIPE] Watchdog: back in outpost (map 138) without wipe callback — restarting.", Py4GW.Console.MessageType.Warning)
+                _pending_wipe_recovery = False  # consume pending flag so we don't restart twice
                 _restart_main_loop(bot, "Watchdog: returned to map 138")
         # If a wipe-recovery was requested by a managed coroutine, perform the FSM
         # restart here — safely outside FSM.update()'s managed-coroutines loop.

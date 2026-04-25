@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Callable
 
 from .actions_party import apply_auto_combat_state, apply_auto_looting_state
-from .combat_engine import ENGINE_CUSTOM_BEHAVIORS, ENGINE_HERO_AI, is_party_looting_enabled, resolve_engine_for_bot
+from .combat_engine import ENGINE_HERO_AI, is_party_looting_enabled, resolve_engine_for_bot
 from .step_context import StepContext
 from .step_selectors import resolve_agent_xy_from_step, resolve_item_model_id_from_step
 from .step_utils import wait_after_step
@@ -11,16 +11,6 @@ from .step_utils import wait_after_step
 
 def _current_auto_combat_enabled(ctx: StepContext) -> bool:
     engine = resolve_engine_for_bot(ctx.bot)
-    if engine == ENGINE_CUSTOM_BEHAVIORS:
-        try:
-            from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import (
-                CustomBehaviorParty,
-            )
-
-            return bool(CustomBehaviorParty().get_party_is_combat_enabled())
-        except Exception:
-            return False
-
     if engine == ENGINE_HERO_AI:
         try:
             from Py4GWCoreLib import GLOBAL_CACHE, Player
@@ -44,7 +34,7 @@ def _current_auto_combat_enabled(ctx: StepContext) -> bool:
 
 def _current_auto_looting_enabled(ctx: StepContext) -> bool:
     engine = resolve_engine_for_bot(ctx.bot)
-    if engine in (ENGINE_CUSTOM_BEHAVIORS, ENGINE_HERO_AI):
+    if engine == ENGINE_HERO_AI:
         try:
             return bool(is_party_looting_enabled(bot=ctx.bot, preferred_engine=engine))
         except Exception:

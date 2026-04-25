@@ -5,7 +5,6 @@ from typing import Callable
 
 from .actions_party import apply_auto_combat_state, apply_auto_looting_state
 from .combat_engine import (
-    ENGINE_CUSTOM_BEHAVIORS,
     ENGINE_HERO_AI,
     is_party_looting_enabled,
     outbound_messages_done,
@@ -25,7 +24,6 @@ from .step_utils import (
     wait_after_step,
 )
 
-_PARTY_BACKEND_CB = "custom_behaviors"
 _PARTY_BACKEND_HERO_AI = "hero_ai"
 _PARTY_BACKEND_SHARED = "shared"
 
@@ -35,29 +33,15 @@ def _resolve_party_backend() -> str:
     from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
 
     widget_handler = get_widget_handler()
-    cb_enabled = bool(widget_handler.is_widget_enabled("CustomBehaviors"))
     hero_ai_enabled = bool(widget_handler.is_widget_enabled("HeroAI"))
 
-    if cb_enabled and not hero_ai_enabled:
-        return _PARTY_BACKEND_CB
-    if hero_ai_enabled and not cb_enabled:
+    if hero_ai_enabled:
         return _PARTY_BACKEND_HERO_AI
-    # Ambiguous (both on) or neither on: use shared command transport.
     return _PARTY_BACKEND_SHARED
 
 
 def _current_auto_combat_enabled(ctx: StepContext) -> bool:
     engine = resolve_engine_for_bot(ctx.bot)
-    if engine == ENGINE_CUSTOM_BEHAVIORS:
-        try:
-            from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import (
-                CustomBehaviorParty,
-            )
-
-            return bool(CustomBehaviorParty().get_party_is_combat_enabled())
-        except Exception:
-            return False
-
     if engine == ENGINE_HERO_AI:
         try:
             from Py4GWCoreLib import GLOBAL_CACHE, Player
@@ -81,7 +65,7 @@ def _current_auto_combat_enabled(ctx: StepContext) -> bool:
 
 def _current_auto_looting_enabled(ctx: StepContext) -> bool:
     engine = resolve_engine_for_bot(ctx.bot)
-    if engine in (ENGINE_CUSTOM_BEHAVIORS, ENGINE_HERO_AI):
+    if engine == ENGINE_HERO_AI:
         try:
             return bool(is_party_looting_enabled(bot=ctx.bot, preferred_engine=engine))
         except Exception:
@@ -646,38 +630,7 @@ def handle_travel_gh(ctx: StepContext) -> None:
             return
 
         backend = _resolve_party_backend()
-        if multibox and backend == _PARTY_BACKEND_CB:
-            try:
-                from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
-                from Sources.oazix.CustomBehaviors.primitives.parties.party_command_contants import PartyCommandConstants
-
-                ctx.bot.Wait.UntilCondition(lambda: CustomBehaviorParty().is_ready_for_action(), duration=100)
-                ok = bool(CustomBehaviorParty().schedule_action(PartyCommandConstants.travel_gh))
-                if ok:
-                    local_refs = _send_local_gh_message()
-                    ctx.bot.Wait.UntilCondition(
-                        lambda refs=local_refs: outbound_messages_done(refs, SharedCommandType.TravelToGuildHall),
-                        duration=100,
-                    )
-                    ctx.bot.Wait.UntilCondition(lambda: CustomBehaviorParty().is_ready_for_action(), duration=100)
-                    debug_log_recipe(ctx, "travel_gh: dispatched via CustomBehaviors scheduler + local self-message.")
-                else:
-                    debug_log_recipe(ctx, "travel_gh: CustomBehaviors scheduler not ready; falling back to shared command.")
-                    sent_refs = send_multibox_command(SharedCommandType.TravelToGuildHall)
-                    sent_refs.extend(_send_local_gh_message())
-                    ctx.bot.Wait.UntilCondition(
-                        lambda refs=sent_refs: outbound_messages_done(refs, SharedCommandType.TravelToGuildHall),
-                        duration=100,
-                    )
-            except Exception as exc:
-                debug_log_recipe(ctx, f"travel_gh: CustomBehaviors dispatch failed ({exc}); falling back to shared command.")
-                sent_refs = send_multibox_command(SharedCommandType.TravelToGuildHall)
-                sent_refs.extend(_send_local_gh_message())
-                ctx.bot.Wait.UntilCondition(
-                    lambda refs=sent_refs: outbound_messages_done(refs, SharedCommandType.TravelToGuildHall),
-                    duration=100,
-                )
-        elif multibox and backend == _PARTY_BACKEND_HERO_AI:
+        if multibox and backend == _PARTY_BACKEND_HERO_AI:
             debug_log_recipe(ctx, "travel_gh: HeroAI backend active, dispatching alts + local self-message.")
             sent_refs = send_multibox_command(SharedCommandType.TravelToGuildHall)
             sent_refs.extend(_send_local_gh_message())
@@ -713,23 +666,6 @@ def handle_leave_party(ctx: StepContext) -> None:
         used_cb_scheduler = False
 
         backend = _resolve_party_backend()
-        if multibox and backend == _PARTY_BACKEND_CB:
-            # CB has its own party-command scheduler and is generally the most reliable
-            # "leave all accounts" path when that widget is active.
-            try:
-                from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
-                from Sources.oazix.CustomBehaviors.primitives.parties.party_command_contants import PartyCommandConstants
-
-                ctx.bot.Wait.UntilCondition(lambda: CustomBehaviorParty().is_ready_for_action(), duration=100)
-                used_cb_scheduler = bool(CustomBehaviorParty().schedule_action(PartyCommandConstants.leave_current_party))
-                if used_cb_scheduler:
-                    ctx.bot.Wait.UntilCondition(lambda: CustomBehaviorParty().is_ready_for_action(), duration=100)
-                    debug_log_recipe(ctx, "leave_party: dispatched via CustomBehaviors scheduler.")
-                else:
-                    debug_log_recipe(ctx, "leave_party: CustomBehaviors scheduler not ready; falling back to shared command.")
-            except Exception as exc:
-                debug_log_recipe(ctx, f"leave_party: CustomBehaviors dispatch failed ({exc}); falling back to shared command.")
-
         if multibox:
             if backend == _PARTY_BACKEND_HERO_AI:
                 debug_log_recipe(ctx, "leave_party: HeroAI backend active, dispatching shared leave command.")

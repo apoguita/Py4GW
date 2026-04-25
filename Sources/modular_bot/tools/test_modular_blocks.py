@@ -18,7 +18,6 @@ import PyImGui
 from Sources.modular_bot import ModularBot, Phase
 from Sources.modular_bot.hero_setup import draw_configure_teams_section
 from Sources.modular_bot.recipes.combat_engine import (
-    ENGINE_CUSTOM_BEHAVIORS,
     ENGINE_HERO_AI,
     resolve_active_engine,
 )
@@ -51,9 +50,9 @@ _blocks_by_kind: dict[str, list[str]] = {}
 _block_display_names: dict[str, dict[str, str]] = {}
 
 
-def _startup_engine_profile() -> tuple[str, bool, str]:
+def _startup_engine_profile() -> tuple[str, str]:
     """
-    Pick tester template/CB mode from currently enabled combat engine.
+    Pick tester template from currently enabled combat engine.
     """
     try:
         engine = str(resolve_active_engine() or "none").strip().lower()
@@ -62,15 +61,12 @@ def _startup_engine_profile() -> tuple[str, bool, str]:
 
     if engine == ENGINE_HERO_AI:
         # Keep HeroAI as the active backend.
-        return ("multibox_aggressive", False, engine)
-    if engine == ENGINE_CUSTOM_BEHAVIORS:
-        # Keep CustomBehaviors as the active backend.
-        return ("aggressive", True, engine)
+        return ("multibox_aggressive", engine)
     # No external engine active: default to plain aggressive botting.
-    return ("aggressive", False, engine)
+    return ("aggressive", engine)
 
 
-_START_TEMPLATE, _START_USE_CB, _START_ENGINE = _startup_engine_profile()
+_START_TEMPLATE, _START_ENGINE = _startup_engine_profile()
 _status = f"Startup engine detected: {_START_ENGINE or 'none'}"
 
 
@@ -420,7 +416,6 @@ bot = ModularBot(
     # behavior stable across dynamic rebuilds.
     loop=False,
     template=_START_TEMPLATE,
-    use_custom_behaviors=_START_USE_CB,
     upkeep_auto_inventory_management_active=True,
     on_party_wipe="Run Selected Modular Block",
     on_death=None,

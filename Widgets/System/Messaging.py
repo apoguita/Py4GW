@@ -2547,8 +2547,8 @@ def ProcessMessages():
         case SharedCommandType.LootEx:
             # privately Handled Command, by frenkey
             pass
-        case SharedCommandType.CustomBehaviors:
-            # privately Handled Command, used in CustomBehaviors widget
+        case SharedCommandType.ReservedLegacyCommand:
+            GLOBAL_CACHE.ShMem.MarkMessageAsFinished(account_email, index)
             pass
         case _:
             GLOBAL_CACHE.ShMem.MarkMessageAsFinished(account_email, index)

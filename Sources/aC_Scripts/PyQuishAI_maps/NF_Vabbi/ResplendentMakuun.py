@@ -105,7 +105,8 @@ ResplendentMakuun = [
 ]
 
 ResplendentMakuun_outpost_path = [
-    (-16849, 15501), (-18803, 14777), (-18745, 13593), (-18700, 13593)
+    (-18803,14777),
+    (-18737,13502),
 ]
 
 ResplendentMakuun_ids = {

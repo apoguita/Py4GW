@@ -7,7 +7,10 @@ from Py4GWCoreLib.Builds.Skills.any.PvE import PvE
 
 
 class _DhuumModeTracker:
-    """Tracks Reaper casts and exposes a lightweight shared mode for Dhuum skills."""
+    """Tracks Reaper casts and exposes a lightweight shared mode for Dhuum skills.
+
+    Aligned with the Underworld reaper mode behavior.
+    """
 
     MODE_DREST = "drest"
     MODE_FURY = "fury"
@@ -30,16 +33,12 @@ class _DhuumModeTracker:
         #EventType.INSTANT_SKILL_ACTIVATED,
     )
 
+    # Skill name candidates matching the CB reaper_mode_tracker
     _DHUUMS_REST_CANDIDATES = (
-        "Dhuum_s_Rest",
-        "Dhuum's Rest",
-        "Dhuums_Rest",
-        "Dhuums_Rest_reaper_skill",
+        "Dhuums_Rest_Reaper_skill",
     )
     _GHOSTLY_FURY_CANDIDATES = (
-        "Ghostly_Fury",
-        "Ghostly Fury",
-        "Ghostly Fury_reaper_skill",
+        "Ghostly_Fury_Reaper_skill",
     )
 
     _shared_mode: str | None = None
@@ -54,7 +53,12 @@ class _DhuumModeTracker:
     _dhuums_rest_skill_ids: set[int] = set()
     _ghostly_fury_skill_ids: set[int] = set()
 
-    _last_logged_candidate_signature: tuple[int, int, int] | None = None
+    _cached_reaper_candidate_ids: set[int] = set()
+    _reaper_candidate_timer: ThrottledTimer | None = None
+    _cached_party_member_ids: set[int] = set()
+    _party_member_timer: ThrottledTimer | None = None
+
+    _skill_name_cache: dict[int, str] = {}
 
     @classmethod
     def _ensure_timers(cls) -> None:
@@ -66,7 +70,16 @@ class _DhuumModeTracker:
             cls._event_refresh_timer = ThrottledTimer(250)
             cls._event_refresh_timer.Reset()
 
-        if len(cls._dhuums_rest_skill_ids) == 0:
+        if cls._reaper_candidate_timer is None:
+            cls._reaper_candidate_timer = ThrottledTimer(1200)
+            cls._reaper_candidate_timer.Reset()
+
+        if cls._party_member_timer is None:
+            cls._party_member_timer = ThrottledTimer(2000)
+            cls._party_member_timer.Reset()
+
+        # Resolve reaper skill IDs (matching CB fallback IDs)
+        if not cls._dhuums_rest_skill_ids:
             for name in cls._DHUUMS_REST_CANDIDATES:
                 try:
                     skill_id = int(Skill.GetID(name))
@@ -74,9 +87,9 @@ class _DhuumModeTracker:
                     skill_id = 0
                 if skill_id > 0:
                     cls._dhuums_rest_skill_ids.add(skill_id)
-            cls._dhuums_rest_skill_ids.update({3079, 3087})
+            cls._dhuums_rest_skill_ids.add(3079)
 
-        if len(cls._ghostly_fury_skill_ids) == 0:
+        if not cls._ghostly_fury_skill_ids:
             for name in cls._GHOSTLY_FURY_CANDIDATES:
                 try:
                     skill_id = int(Skill.GetID(name))
@@ -84,86 +97,74 @@ class _DhuumModeTracker:
                     skill_id = 0
                 if skill_id > 0:
                     cls._ghostly_fury_skill_ids.add(skill_id)
-            cls._ghostly_fury_skill_ids.add(3091)
+            cls._ghostly_fury_skill_ids.add(3136)
 
     @classmethod
     def _refresh_reaper_ids(cls) -> None:
         cls._ensure_timers()
         if cls._reaper_refresh_timer is None:
             return
-
         if not cls._reaper_refresh_timer.IsExpired() and cls._cached_reaper_ids:
             return
 
         reaper_ids: set[int] = set()
-        candidate_agent_ids = set(AgentArray.GetAllyArray())
-        candidate_agent_ids.update(AgentArray.GetNeutralArray())
-        candidate_agent_ids.update(AgentArray.GetNPCMinipetArray())
-        candidate_agent_ids.update(AgentArray.GetSpiritPetArray())
-
-        for agent_id in candidate_agent_ids:
+        for agent_id in cls._get_reaper_candidate_agent_ids():
             name = str(Agent.GetNameByID(agent_id) or "").strip().lower()
             if any(matcher in name for matcher in cls.REAPER_NAME_MATCHERS):
                 reaper_ids.add(int(agent_id))
 
-        cls._cached_reaper_ids = reaper_ids
+        cls._cached_reaper_ids = cls._cached_reaper_ids.union(reaper_ids)
         cls._reaper_refresh_timer.Reset()
 
     @classmethod
     def _get_reaper_candidate_agent_ids(cls) -> set[int]:
-        candidate_agent_ids = set(AgentArray.GetAllyArray())
-        candidate_agent_ids.update(AgentArray.GetNeutralArray())
-        candidate_agent_ids.update(AgentArray.GetNPCMinipetArray())
-        candidate_agent_ids.update(AgentArray.GetSpiritPetArray())
-        return {int(x) for x in candidate_agent_ids}
+        if cls._reaper_candidate_timer is not None and not cls._reaper_candidate_timer.IsExpired() and cls._cached_reaper_candidate_ids:
+            return cls._cached_reaper_candidate_ids
+        candidates = set(AgentArray.GetAllyArray())
+        candidates.update(AgentArray.GetNeutralArray())
+        candidates.update(AgentArray.GetNPCMinipetArray())
+        candidates.update(AgentArray.GetSpiritPetArray())
+        cls._cached_reaper_candidate_ids = {int(x) for x in candidates}
+        if cls._reaper_candidate_timer is not None:
+            cls._reaper_candidate_timer.Reset()
+        return cls._cached_reaper_candidate_ids
 
     @classmethod
     def _get_party_member_agent_ids(cls) -> set[int]:
-        party_member_ids: set[int] = set()
+        if cls._party_member_timer is not None and not cls._party_member_timer.IsExpired() and cls._cached_party_member_ids:
+            return cls._cached_party_member_ids
+        party_ids: set[int] = set()
         for player in Party.GetPlayers():
             login_number = int(getattr(player, "login_number", 0) or 0)
             if login_number <= 0:
                 continue
             agent_id = int(Party.Players.GetAgentIDByLoginNumber(login_number) or 0)
             if agent_id > 0:
-                party_member_ids.add(agent_id)
+                party_ids.add(agent_id)
         for hero in Party.GetHeroes():
             agent_id = int(getattr(hero, "agent_id", 0) or 0)
             if agent_id > 0:
-                party_member_ids.add(agent_id)
+                party_ids.add(agent_id)
         for henchman in Party.GetHenchmen():
             agent_id = int(getattr(henchman, "agent_id", 0) or 0)
             if agent_id > 0:
-                party_member_ids.add(agent_id)
-        return party_member_ids
+                party_ids.add(agent_id)
+        cls._cached_party_member_ids = party_ids
+        if cls._party_member_timer is not None:
+            cls._party_member_timer.Reset()
+        return party_ids
 
     @classmethod
-    def _skill_id_matches_candidates(cls, skill_id: int, candidate_skill_ids: set[int], candidate_names: tuple[str, ...]) -> bool:
-        if int(skill_id) in candidate_skill_ids:
+    def _skill_matches(cls, skill_id: int, id_set: set[int], name_candidates: tuple[str, ...]) -> bool:
+        if int(skill_id) in id_set:
             return True
-        skill_name = str(GLOBAL_CACHE.Skill.GetName(int(skill_id)) or "").strip().lower().replace("_", " ")
+        skill_name = cls._skill_name_cache.get(int(skill_id))
+        if skill_name is None:
+            skill_name = str(GLOBAL_CACHE.Skill.GetName(int(skill_id)) or "").strip().lower().replace("_", " ")
+            cls._skill_name_cache[int(skill_id)] = skill_name
         if not skill_name:
             return False
-        normalized_candidates = [name.lower().replace("_", " ") for name in candidate_names]
-        return any(candidate in skill_name for candidate in normalized_candidates)
-
-    @classmethod
-    def _log_candidate_detection(cls, ts: int, caster_id: int, skill_id: int, candidate_type: str) -> None:
-        signature = (int(ts), int(caster_id), int(skill_id))
-        if cls._last_logged_candidate_signature == signature:
-            return
-        cls._last_logged_candidate_signature = signature
-        try:
-            import Py4GW
-            caster_name = str(Agent.GetNameByID(int(caster_id)) or "<unknown>").strip()
-            skill_name = str(GLOBAL_CACHE.Skill.GetName(int(skill_id)) or "<unknown>").strip()
-            Py4GW.Console.Log(
-                "AnyDhuum",
-                f"Detected {candidate_type} candidate: ts={int(ts)} caster={int(caster_id)} ('{caster_name}') skill={int(skill_id)} ('{skill_name}')",
-                Py4GW.Console.MessageType.Info,
-            )
-        except Exception:
-            pass
+        return any(c.lower().replace("_", " ") in skill_name for c in name_candidates)
 
     @classmethod
     def _set_mode(cls, mode: str, now_ms: float) -> None:
@@ -171,92 +172,81 @@ class _DhuumModeTracker:
             cls._shared_mode = mode
             cls._shared_mode_locked_until_ms = now_ms + cls.MODE_SWITCH_DEBOUNCE_MS
             return
-
         if now_ms >= cls._shared_mode_locked_until_ms:
             cls._shared_mode = mode
             cls._shared_mode_locked_until_ms = now_ms + cls.MODE_SWITCH_DEBOUNCE_MS
 
     @classmethod
-    def refresh_mode_from_reaper_events(cls) -> None:
+    def refresh(cls) -> None:
         cls._ensure_timers()
         cls._refresh_reaper_ids()
 
-        if cls._event_refresh_timer is None:
+        if cls._event_refresh_timer is None or not cls._event_refresh_timer.IsExpired():
             return
-        if not cls._event_refresh_timer.IsExpired():
-            return
-
         cls._event_refresh_timer.Reset()
 
-        effective_reaper_ids = set(cls._cached_reaper_ids).union(cls._learned_reaper_ids)
+        effective_ids = set(cls._cached_reaper_ids).union(cls._learned_reaper_ids)
         now_ms = time.monotonic() * 1000.0
         player_id = int(Player.GetAgentID())
-
-        recent_skills = [] #CombatEvents.GetRecentSkills(80)
-
-        reaper_candidate_agent_ids = cls._get_reaper_candidate_agent_ids()
-        party_member_agent_ids = cls._get_party_member_agent_ids()
+        recent_skills = CombatEvents.GetRecentSkills(80)
+        candidate_agent_ids = cls._get_reaper_candidate_agent_ids()
+        party_member_ids = cls._get_party_member_agent_ids()
 
         for ts, caster_id, skill_id, _, event_type in reversed(recent_skills):
             if int(event_type) not in cls.ACTIVATION_EVENT_TYPES:
                 continue
-
             caster_id_int = int(caster_id)
             skill_id_int = int(skill_id)
 
-            is_drest_candidate = cls._skill_id_matches_candidates(
-                skill_id_int, cls._dhuums_rest_skill_ids, cls._DHUUMS_REST_CANDIDATES
-            )
-            is_fury_candidate = cls._skill_id_matches_candidates(
-                skill_id_int, cls._ghostly_fury_skill_ids, cls._GHOSTLY_FURY_CANDIDATES
-            )
-            if not is_drest_candidate and not is_fury_candidate:
+            is_drest = cls._skill_matches(skill_id_int, cls._dhuums_rest_skill_ids, cls._DHUUMS_REST_CANDIDATES)
+            is_fury = cls._skill_matches(skill_id_int, cls._ghostly_fury_skill_ids, cls._GHOSTLY_FURY_CANDIDATES)
+            if not is_drest and not is_fury:
                 continue
 
+            # Fallback learning: unknown non-party ally casting a candidate → promoted to reaper
             if (
-                caster_id_int in reaper_candidate_agent_ids
+                caster_id_int in candidate_agent_ids
                 and caster_id_int != player_id
-                and caster_id_int not in party_member_agent_ids
-                and caster_id_int not in effective_reaper_ids
+                and caster_id_int not in party_member_ids
+                and caster_id_int not in effective_ids
             ):
                 cls._learned_reaper_ids.add(caster_id_int)
-                effective_reaper_ids.add(caster_id_int)
+                effective_ids.add(caster_id_int)
 
-            if caster_id_int not in effective_reaper_ids:
+            if caster_id_int not in effective_ids:
                 continue
 
-            if is_drest_candidate:
-                cls._log_candidate_detection(int(ts), caster_id_int, skill_id_int, "_DHUUMS_REST_CANDIDATES")
+            if is_drest:
                 cls._set_mode(cls.MODE_DREST, now_ms)
                 return
-            if is_fury_candidate:
-                cls._log_candidate_detection(int(ts), caster_id_int, skill_id_int, "_GHOSTLY_FURY_CANDIDATES")
+            if is_fury:
                 cls._set_mode(cls.MODE_FURY, now_ms)
                 return
 
     @classmethod
     def is_dhuums_rest_mode(cls) -> bool:
-        cls.refresh_mode_from_reaper_events()
+        cls.refresh()
         return cls._shared_mode == cls.MODE_DREST
 
     @classmethod
     def is_ghostly_fury_mode(cls) -> bool:
-        cls.refresh_mode_from_reaper_events()
+        cls.refresh()
         return cls._shared_mode == cls.MODE_FURY
 
 
 class Any_Dhuum(BuildMgr):
-    """HeroAI BuildMgr adaptation of the CustomBehavior Dhuum utility build."""
+    """HeroAI BuildMgr adaptation of the Dhuum utility build."""
 
     TEMPLATE_CODE = "OQBDAqwDSPwQwRwSwTwAAAAAAA"
 
     def __init__(self, match_only: bool = False):
-        self.unyielding_aura_id = self._resolve_skill_id(("Unyielding_Aura", "Unyielding Aura"))
-        self.dhuums_rest_id = self._resolve_skill_id(("Dhuum_s_Rest", "Dhuum's Rest", "Dhuums_Rest"), fallback=3087)
-        self.spiritual_healing_id = self._resolve_skill_id(("Spiritual_Healing", "Spiritual Healing"), fallback=3088)
-        self.encase_skeletal_id = self._resolve_skill_id(("Encase_Skeletal", "Encase Skeletal"), fallback=3089)
-        self.reversal_of_death_id = self._resolve_skill_id(("Reversal_of_Death", "Reversal of Death"), fallback=3090)
-        self.ghostly_fury_id = self._resolve_skill_id(("Ghostly_Fury", "Ghostly Fury"), fallback=3091)
+        # Skill name resolution aligned with CB CustomSkill names
+        self.unyielding_aura_id = self._resolve_skill_id(("Unyielding_Aura",))
+        self.dhuums_rest_id = self._resolve_skill_id(("Dhuum's_Rest",), fallback=3087)
+        self.spiritual_healing_id = self._resolve_skill_id(("Spiritual_Healing",), fallback=3088)
+        self.encase_skeletal_id = self._resolve_skill_id(("Encase_Skeletal",), fallback=3089)
+        self.reversal_of_death_id = self._resolve_skill_id(("Reversal_of_Death",), fallback=3090)
+        self.ghostly_fury_id = self._resolve_skill_id(("Ghostly_Fury",), fallback=3136)
 
         required_candidates = [
             self.unyielding_aura_id,
@@ -279,13 +269,11 @@ class Any_Dhuum(BuildMgr):
             optional_skills=optional_skills,
         )
 
-        # Match when at least one known Dhuum-bar skill is present.
         self.minimum_required_match = 1
 
         if match_only:
             return
 
-        # Register resolved skill IDs into the shared tracker sets.
         if self.dhuums_rest_id > 0:
             _DhuumModeTracker._dhuums_rest_skill_ids.add(self.dhuums_rest_id)
         if self.ghostly_fury_id > 0:
@@ -311,21 +299,24 @@ class Any_Dhuum(BuildMgr):
         if not Routines.Checks.Skills.CanCast():
             return False
 
-        # Priority order matching CB scores (highest first):
-        # Unyielding Aura — HeroAI-specific, highest priority
+        drest_mode = _DhuumModeTracker.is_dhuums_rest_mode()
+        fury_mode = _DhuumModeTracker.is_ghostly_fury_mode()
+
+        # When no Reaper activity detected (e.g. Dhuum fight — no Reapers
+        # present), default Dhuum's Rest to active. Matches CB logic.
+        no_mode = _DhuumModeTracker._shared_mode is None
+        drest_active = drest_mode or no_mode
+        fury_active = fury_mode
+
+        # Priority order matching CB scores (highest first)
         if (yield from self._pve.Unyielding_Aura()):
             return True
-        # Dhuum's Rest (score 97) — mirror Reaper phase
-        if (yield from self._pve.Dhuums_Rest(is_active=_DhuumModeTracker.is_dhuums_rest_mode())):
+        if (yield from self._pve.Dhuums_Rest(is_active=drest_active)):
             return True
-        # Ghostly Fury (score 97) — mirror Reaper phase
-        if (yield from self._pve.Ghostly_Fury(is_active=_DhuumModeTracker.is_ghostly_fury_mode())):
+        if (yield from self._pve.Ghostly_Fury(is_active=fury_active)):
             return True
-        # Reversal of Death (score 94) — death penalty removal
         if (yield from self._pve.Reversal_of_Death()):
             return True
-        # Spiritual Healing (score 90) — heal low HP allies
         if (yield from self._pve.Spiritual_Healing()):
             return True
-        # Encase Skeletal intentionally left passive (same as CB)
         return False
