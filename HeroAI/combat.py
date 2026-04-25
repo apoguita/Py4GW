@@ -9,6 +9,7 @@ from .targeting import TargetLowestAlly, TargetLowestAllyEnergy, TargetClustered
 from .targeting import GetEnemyAttacking, GetEnemyCasting, GetEnemyCastingSpell, GetEnemyCastingSpellOrChant, GetEnemyInjured, GetEnemyConditioned, GetEnemyHealthy
 from .targeting import GetEnemyHexed, GetEnemyDegenHexed, GetEnemyEnchanted, GetEnemyMoving, GetEnemyKnockedDown
 from .targeting import GetEnemyBleeding, GetEnemyPoisoned, GetEnemyCrippled
+from .interrupt import is_interrupt_feasible, _queue_outcome
 from .types import SkillNature, Skilltarget, SkillType
 from .constants import MAX_NUM_PLAYERS
 from typing import TYPE_CHECKING, Optional, Protocol
@@ -1044,12 +1045,25 @@ class CombatClass:
         if Conditions.IsCasting:
             if Agent.IsCasting(vTarget):
                 casting_skill_id = Agent.GetCastingSkillID(vTarget)
-                if GLOBAL_CACHE.Skill.Data.GetActivation(casting_skill_id) >= 0.250:
-                    if len(Conditions.CastingSkillList) == 0:
-                        number_of_features += 1
-                    else:
-                        if casting_skill_id in Conditions.CastingSkillList:
+                nature = self.skills[slot].custom_skill_data.Nature
+                if nature == SkillNature.Interrupt.value:
+                    if is_interrupt_feasible(
+                        target_agent_id=vTarget,
+                        our_skill_id=self.skills[slot].skill_id,
+                        fast_casting_level=self.fast_casting_level,
+                        ping_ms=int(self.ping_handler.GetCurrentPing()),
+                    ):
+                        if (len(Conditions.CastingSkillList) == 0
+                                or casting_skill_id in Conditions.CastingSkillList):
                             number_of_features += 1
+                            _queue_outcome(vTarget, casting_skill_id, self.skills[slot].skill_id)
+                else:
+                    if GLOBAL_CACHE.Skill.Data.GetActivation(casting_skill_id) >= 0.250:
+                        if len(Conditions.CastingSkillList) == 0:
+                            number_of_features += 1
+                        else:
+                            if casting_skill_id in Conditions.CastingSkillList:
+                                number_of_features += 1
 
         if Conditions.IsKnockedDown:
             if Routines.Checks.Agents.IsKnockedDown(vTarget):

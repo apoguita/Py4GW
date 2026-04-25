@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 from Py4GWCoreLib.BuildMgr import BuildCoroutine
 from Py4GWCoreLib.Skill import Skill
+from Py4GWCoreLib.Builds.Skills._whiteboard import coordinates_via_whiteboard
 
 if TYPE_CHECKING:
     from HeroAI.custom_skill_src.skill_types import CustomSkill
@@ -91,6 +92,7 @@ class InspirationMagic:
             aftercast_delay=250,
         ))
 
+    @coordinates_via_whiteboard(Skill.GetID("Power_Drain"))
     def Power_Drain(
         self,
         *,

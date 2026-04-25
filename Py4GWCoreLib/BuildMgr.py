@@ -1221,6 +1221,11 @@ class BuildMgr:
         return result
 
     def _process_phase(self, handler: BuildHandler | None, is_in_combat: bool) -> BuildCoroutine:
+        # Whiteboard owner self-clear — release my (skill, target) slots on
+        # the cast-finish transition so sibling accounts can reuse them
+        # immediately. Lives here (not in Tick) because HeroAI's BT path
+        # calls ProcessCombat/ProcessOOC directly and bypasses Tick.
+        self._whiteboard_owner_self_clear()
         if not self.CanProcess():
             reasons: list[str] = []
             from Py4GWCoreLib import Agent, Player, Routines
@@ -1260,6 +1265,7 @@ class BuildMgr:
         handler: BuildHandler | None,
         is_in_combat: bool | None = None,
     ) -> BuildCoroutine:
+        self._whiteboard_owner_self_clear()
         if not self.CanProcess():
             yield
             return
@@ -1365,6 +1371,104 @@ class BuildMgr:
 
         return True
 
+    #region Whiteboard (cross-hero cast-intent coordination)
+    def _is_whiteboard_skill(self, skill_id: int) -> bool:
+        """True iff this skill opts into cross-hero whiteboard coordination,
+        via either CustomSkill.CoordinatesViaWhiteboard or the shared
+        Py4GWCoreLib.Builds.Skills._whiteboard registry.
+        """
+        if skill_id <= 0:
+            return False
+        # Lazy import — avoid a circular load of the Builds package during
+        # BuildMgr's own module initialization.
+        try:
+            from Py4GWCoreLib.Builds.Skills._whiteboard import is_registered as _wb_is_registered
+            if _wb_is_registered(skill_id):
+                return True
+        except Exception:
+            pass
+        try:
+            custom = self.GetCustomSkill(skill_id)
+            return bool(getattr(custom, "CoordinatesViaWhiteboard", False))
+        except Exception:
+            return False
+
+    def _whiteboard_is_claimed(self, skill_id: int, target_agent_id: int) -> bool:
+        """Read-gate: True if another account in my IsolationGroupID holds an
+        unexpired (skill_id, target_agent_id) claim. Failures fall back to
+        False so a broken ShMem path never blocks casting.
+        """
+        if skill_id <= 0 or target_agent_id <= 0:
+            return False
+        try:
+            from Py4GWCoreLib import GLOBAL_CACHE, Player
+            email = Player.GetAccountEmail() or ""
+            if not email:
+                return False
+            group_id = GLOBAL_CACHE.ShMem.GetAccountGroupByEmail(email)
+            now = Py4GW.Game.get_tick_count64()
+            return GLOBAL_CACHE.ShMem.IsIntentClaimed(
+                int(skill_id),
+                int(target_agent_id),
+                int(group_id),
+                email,
+                int(now),
+            )
+        except Exception:
+            return False
+
+    def _whiteboard_post_intent(self, skill_id: int, target_agent_id: int) -> None:
+        """Claim (skill_id, target_agent_id) just before the cast commits."""
+        if skill_id <= 0 or target_agent_id <= 0:
+            return
+        try:
+            from Py4GWCoreLib import GLOBAL_CACHE, Player
+            from Py4GWCoreLib.GlobalCache.shared_memory_src.Globals import (
+                SHMEM_INTENT_DEFAULT_PING_BUDGET_MS,
+            )
+            email = Player.GetAccountEmail() or ""
+            if not email:
+                return
+            activation_ms = 0
+            aftercast_ms = 0
+            try:
+                activation_ms = int((GLOBAL_CACHE.Skill.Data.GetActivation(skill_id) or 0) * 1000)
+            except Exception:
+                pass
+            try:
+                aftercast_ms = int((GLOBAL_CACHE.Skill.Data.GetAftercast(skill_id) or 0) * 1000)
+            except Exception:
+                pass
+            cast_window_ms = max(500, activation_ms + aftercast_ms)
+            now = Py4GW.Game.get_tick_count64()
+            expires_at = int(now) + cast_window_ms + int(SHMEM_INTENT_DEFAULT_PING_BUDGET_MS)
+            GLOBAL_CACHE.ShMem.PostIntent(
+                email, int(skill_id), int(target_agent_id), int(expires_at)
+            )
+            self._wb_posted_this_cast = True
+        except Exception:
+            pass
+
+    def _whiteboard_owner_self_clear(self) -> None:
+        """On the local-cast-pending True->False transition, zero my intent
+        slots so sibling accounts can reuse the (skill, target) immediately.
+        """
+        try:
+            pending = self._is_local_cast_pending()
+            prev = getattr(self, "_wb_prev_cast_pending", False)
+            self._wb_prev_cast_pending = pending
+            if not (prev and not pending):
+                return
+            if not getattr(self, "_wb_posted_this_cast", False):
+                return
+            from Py4GWCoreLib import GLOBAL_CACHE, Player
+            email = Player.GetAccountEmail() or ""
+            if email:
+                GLOBAL_CACHE.ShMem.ClearIntentsByOwner(email)
+            self._wb_posted_this_cast = False
+        except Exception:
+            pass
+
     def CanCastSkillID(
         self,
         skill_id: int,
@@ -1444,7 +1548,49 @@ class BuildMgr:
         if not self._validate_target_for_skill_cast(skill_id, target_agent_id):
             return False
 
+        # Interrupt feasibility gate — only for skills classified as
+        # SkillNature.Interrupt in HeroAI/custom_skill_src/. Non-interrupts
+        # short-circuit on the registry lookup with zero further work.
+        # Lazy import keeps BuildMgr independent at module load; HeroAI
+        # pushes the gate down via the registry.
+        try:
+            from HeroAI.interrupt import (
+                is_classified_as_interrupt,
+                is_interrupt_feasible,
+                _get_player_fast_casting_level,
+                _PING_HANDLER as _RUPT_PING_HANDLER,
+                _queue_outcome,
+            )
+            if target_agent_id and is_classified_as_interrupt(skill_id):
+                from Py4GWCoreLib.Agent import Agent as _RuptAgent
+                if not is_interrupt_feasible(
+                    target_agent_id=target_agent_id,
+                    our_skill_id=skill_id,
+                    fast_casting_level=_get_player_fast_casting_level(),
+                    ping_ms=int(_RUPT_PING_HANDLER.GetCurrentPing()),
+                ):
+                    return False
+                _queue_outcome(
+                    target_agent_id,
+                    _RuptAgent.GetCastingSkillID(target_agent_id),
+                    skill_id,
+                )
+        except Exception:
+            # Never let a feasibility-helper bug block casting. Legacy
+            # behavior (no feasibility gate) is the safe fallback.
+            pass
+
+        # Whiteboard read gate — skip if another hero in my isolation group
+        # already claimed this (skill_id, target_agent_id). Opt-in per skill.
+        if self._is_whiteboard_skill(skill_id) and self._whiteboard_is_claimed(skill_id, target_agent_id):
+            return False
+
         slot = SkillBar.GetSlotBySkillID(skill_id)
+
+        # Whiteboard write — claim (skill_id, target_agent_id) so other heroes
+        # in my isolation group skip this combo until my cast resolves.
+        if self._is_whiteboard_skill(skill_id):
+            self._whiteboard_post_intent(skill_id, target_agent_id)
 
         GLOBAL_CACHE.SkillBar.UseSkill(slot, target_agent_id=target_agent_id, aftercast_delay=aftercast_delay)
         self._mark_local_cast_pending(aftercast_delay)
@@ -1593,6 +1739,10 @@ class BuildMgr:
         yield from self._process_phase(self._local_combat_handler, is_in_combat=True)
 
     def Tick(self, is_in_combat: bool):
+        # Clear whiteboard intent slots on the cast-finish transition so
+        # sibling accounts can reuse the (skill, target) as soon as my
+        # local cast window has closed.
+        self._whiteboard_owner_self_clear()
         if is_in_combat:
             yield from self.ProcessCombat()
         else:

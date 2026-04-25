@@ -98,3 +98,7 @@ class CustomSkill:
         self.TargetAllegiance = Skilltarget.Enemy.value
         self.Nature = SkillNature.Offensive.value
         self.Conditions = CastConditions()
+        # When True, this skill participates in the cross-hero whiteboard:
+        # before casting, other heroes in the same IsolationGroupID who see an
+        # unexpired (SkillID, TargetAgentID) claim will skip this slot.
+        self.CoordinatesViaWhiteboard: bool = False

@@ -38,3 +38,11 @@ SHMEM_AGENT_SLOW_UPDATE_THROTTLE_MS = 141       # staged identity/attributes/wea
 SHMEM_HERO_EXTRA_UPDATE_THROTTLE_MS = 250
 SHMEM_PET_EXTRA_UPDATE_THROTTLE_MS = 250
 
+# Whiteboard — cross-hero cast-intent coordination
+SHMEM_MAX_INTENTS = 64
+# Added to (activation + aftercast) when computing ExpiresAtTick so a reader
+# never skips a still-valid claim due to round-trip latency.
+SHMEM_INTENT_DEFAULT_PING_BUDGET_MS = 150
+# Sweep cadence for the periodic compact pass.
+SHMEM_INTENT_SWEEP_INTERVAL_MS = 100
+
