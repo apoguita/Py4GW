@@ -292,8 +292,9 @@ def Follow(cached_data: CacheData) -> BehaviorTree.NodeState:
     # Out of combat: keep follow non-blocking so OOC behavior can still run freely.
     return BehaviorTree.NodeState.FAILURE
 
-def handle_UI (cached_data: CacheData):    
+def handle_UI (cached_data: CacheData):
     global HeroAI_BT
+    team_viewer_broadcast.tick()
     if not cached_data.ui_state_data.show_classic_controls:
         HeroAI_BaseUI.DrawEmbeddedWindow(cached_data)
     else:
@@ -558,7 +559,6 @@ def main():
         if not _follow_ini_ready():
             get_widget_handler().enable_widget(FOLLOW_MODULE_NAME)
         HeroAI_FloatingWindows.update()
-        team_viewer_broadcast.tick()
         handle_UI(cached_data)
         
         if initialize(cached_data):
