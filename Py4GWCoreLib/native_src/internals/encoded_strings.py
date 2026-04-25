@@ -238,7 +238,7 @@ class GWEncoded():
         # ItemBaneSpecies.Snakes :  bytes([0x63, 0xA]),
     }
     
-    SLAYING_BANE: dict[ItemBaneSpecies, bytes] = {
+    SPECIES: dict[ItemBaneSpecies, bytes] = {
         ItemBaneSpecies.Undead :    bytes([0xF7, 0x8]),
         ItemBaneSpecies.Charr :     bytes([0xEC, 0x8]),
         ItemBaneSpecies.Trolls :    bytes([0xF6, 0x8]),

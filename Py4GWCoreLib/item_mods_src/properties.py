@@ -253,7 +253,7 @@ class DamagePlusVsSpecies(ItemProperty):
     species: ItemBaneSpecies
 
     def create_encoded_description(self) -> GWStringEncoded:
-        return GWEncoded._append_line_with_fallback(GWEncoded._bonus_plus_percent(self.get_text_color(), bytes([*GWEncoded.DAMAGE_TEXT, 0x1, 0x0]), self.damage_increase, f"Damage +{self.damage_increase}%"), GWEncoded._dull_parenthesized(bytes([*GWEncoded.VS_STR1, *GWEncoded.SLAYING_BANE.get(self.species, bytes())]), f"(vs. {self.species.name})"), f"(vs. {self.species.name})")
+        return GWEncoded._append_line_with_fallback(GWEncoded._bonus_plus_percent(self.get_text_color(), bytes([*GWEncoded.DAMAGE_TEXT, 0x1, 0x0]), self.damage_increase, f"Damage +{self.damage_increase}%"), GWEncoded._dull_parenthesized(bytes([*GWEncoded.VS_STR1, *GWEncoded.SPECIES.get(self.species, bytes())]), f"(vs. {self.species.name})"), f"(vs. {self.species.name})")
 
 @dataclass
 class DamagePlusWhileBelow(ItemProperty):

@@ -2232,7 +2232,7 @@ class OfSlayingUpgrade(WeaponSuffix):
     damage_increase: int = 20
 
     def create_encoded_description(self) -> GWStringEncoded:
-        return GWEncoded._append_line_with_fallback(GWEncoded._bonus_plus_percent(self.get_text_color(), bytes([*GWEncoded.DAMAGE_TEXT, 0x1, 0x0]), self.damage_increase, f"Damage +{self.damage_increase}%"), GWEncoded._dull_parenthesized(bytes([*GWEncoded.VS_STR1, *GWEncoded.SLAYING_BANE.get(self.species, bytes())]), f"(vs. {self.species.name})"), f"(vs. {self.species.name})")
+        return GWEncoded._append_line_with_fallback(GWEncoded._bonus_plus_percent(self.get_text_color(), bytes([*GWEncoded.DAMAGE_TEXT, 0x1, 0x0]), self.damage_increase, f"Damage +{self.damage_increase}%"), GWEncoded._dull_parenthesized(bytes([*GWEncoded.VS_STR1, *GWEncoded.SPECIES.get(self.species, bytes())]), f"(vs. {self.species.name})"), f"(vs. {self.species.name})")
 
     def create_encoded_name(self) -> GWStringEncoded:
         return GWStringEncoded(self.get_text_color(True) + GWEncoded.STR1_OF_STR2 + GWEncoded.PLACEHOLDER_TO_REMOVE + bytes([0xB, 0x1]) + GWEncoded.SLAYING_SUFFIXES.get(self.species, bytes()) + bytes([0x1, 0x0, 0x1, 0x0, 0x0, 0x0]), 
@@ -5616,13 +5616,12 @@ class ArmorVsSpeciesUpgrade(Inherent):
     species: ItemBaneSpecies | None = None
     target_item_type = ItemType.Weapon
 
-    #TODO: implement proper encoded description once we have the correct bytes for the species
     def create_encoded_description(self) -> GWStringEncoded:
         if self.species is None:
-            return GWStringEncoded(bytes(), f"Armor +{self.armor} ({_humanize_identifier(self.__class__.__name__)})")
+            return GWStringEncoded(bytes(), f"Armor +{self.armor} vs. ({_humanize_identifier(self.__class__.__name__)})")
         
-        species = self.species.name if self.species != ItemBaneSpecies.Unknown else f"Unknown species ({self.species.value})"
-        return GWStringEncoded(bytes(), f"Armor +{self.armor} (vs. {species}) [{_humanize_identifier(self.__class__.__name__)}]")
+        encoed_bytes = bytes([*self.get_text_color(), 0x84, 0xA, 0xA, 0x1, 0x44, 0xA, 0x1, 0x0, 0x1, 0x1, self.armor, 0x1, *GWEncoded.ITEM_DULL, 0xA8, 0xA, 0xA, 0x1, 0xAF, 0xA, 0xA, 0x1, *GWEncoded.SPECIES.get(self.species, bytes()), 0x1, 0x0, 0x1, 0x0, 0x1, 0x0, 0x2, 0x0, 0x2, 0x1, 0x2, 0x0])
+        return GWStringEncoded(encoed_bytes, f"Armor +{self.armor} vs. ({_humanize_identifier(self.__class__.__name__)})")
 
 @dataclass(eq=False)
 class ArmorVsUndeadUpgrade(ArmorVsSpeciesUpgrade):
