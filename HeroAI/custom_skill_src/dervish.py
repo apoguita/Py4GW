@@ -398,9 +398,9 @@ class DervishSkills:
         skill = CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Lyssas_Assault")
         skill.SkillType = SkillType.Attack.value
-        skill.TargetAllegiance = Skilltarget.EnemyAttacking.value
+        skill.TargetAllegiance = Skilltarget.EnemyCasting.value
         skill.Nature = SkillNature.Interrupt.value
-        skill.Conditions.IsAttacking = True
+        skill.Conditions.IsCasting = True
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
