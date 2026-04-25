@@ -27,9 +27,12 @@ class UWHeroAIAdapter(UWCombatAdapter):
     def __init__(self, bot_name: str) -> None:
         self._bot_name = bot_name
         self._bot_instance = None
-        # Tracks whether combat should be forced active every frame.
-        # Set to False only when set_combat_enabled(False) is called explicitly.
-        self._combat_enforced: bool = True
+        # Desired HeroAI option state — pushed to all accounts every frame by
+        # sync_runtime() so the Messaging snapshot/restore cycle can never
+        # silently re-enable an option the leader has explicitly disabled.
+        self._enforced_combat: bool = True
+        self._enforced_following: bool = True
+        self._enforced_looting: bool = True
         # Tracks whether movement should be paused while enemies are in aggro range.
         self._wait_if_aggro_enabled: bool = True
         self._last_aggro_check: float = 0.0
@@ -37,14 +40,12 @@ class UWHeroAIAdapter(UWCombatAdapter):
     # ── Helpers ──────────────────────────────────────────────────────────
 
     def _active_multibox_emails(self) -> list[str]:
+        """Return emails of all reachable multibox accounts (excludes local account)."""
+        local_email = (Player.GetAccountEmail() or "").strip()
         emails: list[str] = []
         for account in (GLOBAL_CACHE.ShMem.GetAllAccountData() or []):
             email = str(getattr(account, "AccountEmail", "") or "").strip()
-            if not email:
-                continue
-            if not bool(getattr(account, "IsSlotActive", True)):
-                continue
-            if bool(getattr(account, "IsIsolated", False)):
+            if not email or email == local_email:
                 continue
             emails.append(email)
         return emails
@@ -57,17 +58,20 @@ class UWHeroAIAdapter(UWCombatAdapter):
     ) -> None:
         sender_email = Player.GetAccountEmail()
         recipients = self._active_multibox_emails()
+        sent = 0
         for email in recipients:
-            GLOBAL_CACHE.ShMem.SendMessage(
+            result = GLOBAL_CACHE.ShMem.SendMessage(
                 sender_email,
                 email,
                 command,
                 (0, 0, 0, 0),
                 (widget_name, "", "", ""),
             )
+            if result >= 0:
+                sent += 1
         ConsoleLog(
             self._bot_name,
-            f"[Startup] {action_label} '{widget_name}' for {len(recipients)} active account(s).",
+            f"[Startup] {action_label} '{widget_name}': {sent}/{len(recipients)} account(s) reached.",
             Py4GW.Console.MessageType.Info,
         )
 
@@ -86,6 +90,12 @@ class UWHeroAIAdapter(UWCombatAdapter):
                 options.Combat = combat
             if looting is not None:
                 options.Looting = looting
+
+    def _reset_enforced_defaults(self) -> None:
+        """Reset all enforced flags to True (default section-start state)."""
+        self._enforced_following = True
+        self._enforced_combat = True
+        self._enforced_looting = True
 
     # ── Lifecycle ────────────────────────────────────────────────────────
 
@@ -188,7 +198,7 @@ class UWHeroAIAdapter(UWCombatAdapter):
             "Enable HeroAI on active accounts",
         )
         bot_instance.States.AddCustomState(
-            lambda: self._set_all_heroai_options(following=True, combat=True, looting=True),
+            lambda: self._reset_enforced_defaults(),
             "Set HeroAI options on all accounts",
         )
         bot_instance.States.AddCustomState(
@@ -201,38 +211,74 @@ class UWHeroAIAdapter(UWCombatAdapter):
             ),
             "Enable Dhuum Helper on active accounts",
         )
+        # ── Always enable MerchantRules on all accounts ───────────────────
+        bot_instance.States.AddCustomState(
+            lambda: self._enable_widget_locally("MerchantRules"),
+            "Enable local MerchantRules",
+        )
+        bot_instance.States.AddCustomState(
+            lambda: self._broadcast_widget_command(
+                "MerchantRules", SharedCommandType.EnableWidget, "Broadcasted enable"
+            ),
+            "Enable MerchantRules on active accounts",
+        )
+        # ── Final startup confirmation ─────────────────────────────────────
+        def _log_startup_done() -> None:
+            accounts = self._active_multibox_emails()
+            ConsoleLog(
+                self._bot_name,
+                f"[Startup] Widget setup complete (HeroAI mode). "
+                f"CustomBehaviors disabled, HeroAI + DhuumHelper + MerchantRules enabled "
+                f"on {len(accounts)} active account(s): {accounts}",
+                Py4GW.Console.MessageType.Info,
+            )
+        bot_instance.States.AddCustomState(_log_startup_done, "[Startup] Log Startup Done")
 
     def reactivate_for_step(self, bot_instance, step_label: str) -> None:
-        # Re-broadcast "Enable HeroAI" so accounts whose widget was reset on map
-        # load (entering UW) get re-enabled at the start of each section.
-        self._broadcast_widget_command(
-            "HeroAI", SharedCommandType.EnableWidget, f"Re-enable for step '{step_label}'"
-        )
-        # Explicitly restore all combat options in case HeroAI re-initialized with
-        # defaults (Following=False, Combat=False, Looting=False) after the map load.
-        self._set_all_heroai_options(following=True, combat=True, looting=True)
+        # Restore all enforced flags to their defaults for the new section.
+        # sync_runtime() will push these to all accounts on the next frame.
+        self._enforced_following = True
+        self._enforced_combat = True
+        self._enforced_looting = True
+        hero_ai_prop = bot_instance.config.upkeep.hero_ai.is_active() if hasattr(bot_instance.config, 'upkeep') else '?'
         ConsoleLog(
             self._bot_name,
-            f"[HeroAI] Step '{step_label}' — re-enabled HeroAI and restored combat options.",
+            f"[HeroAI] Step '{step_label}' — options restored (F=True C=True L=True). hero_ai={hero_ai_prop}",
             Py4GW.Console.MessageType.Info,
         )
 
     def sync_runtime(self) -> None:
-        # Re-enforce combat every frame so HeroAI accounts that (re-)initialize
-        # with Combat=False (e.g. after a map load or mid-run bot restart) are
-        # immediately corrected without needing to wait for the next section setup.
-        if self._combat_enforced:
-            self._set_all_heroai_options(combat=True)
+        # Push the enforced option state to all accounts every frame.
+        # The Messaging system on followers may restore Combat/Following/Looting
+        # to True via RestoreHeroAISnapshot / EnableHeroAIOptions after completing
+        # shared commands.  Continuous enforcement ensures the leader always wins.
+        self._set_all_heroai_options(
+            following=self._enforced_following,
+            combat=self._enforced_combat,
+            looting=self._enforced_looting,
+        )
         if self._wait_if_aggro_enabled and self._bot_instance is not None:
             self._sync_aggro_watchdog(self._bot_instance)
+        # Debug: ensure hero_ai property stays True
+        if self._bot_instance is not None and hasattr(self._bot_instance.config, 'upkeep'):
+            if not self._bot_instance.config.upkeep.hero_ai.is_active():
+                ConsoleLog(
+                    self._bot_name,
+                    "[HeroAI] WARNING: hero_ai property was False — forcing True.",
+                    Py4GW.Console.MessageType.Warning,
+                )
+                self._bot_instance.config.upkeep.hero_ai._apply("active", True)
 
     def _any_enemy_in_aggro_range(self) -> bool:
-        """Return True if at least one alive enemy is within Spellcast range."""
-        from Py4GWCoreLib.enums import Range
+        """Return True if at least one alive, non-blacklisted enemy is within aggro range."""
         from Py4GWCoreLib import AgentArray
+        from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist
+        bl = EnemyBlacklist()
         player_pos = Player.GetXY()
-        aggro_range = Range.Spellcast.value
+        aggro_range = 1100.0
         for agent_id in (AgentArray.GetEnemyArray() or []):
+            if bl.is_blacklisted(agent_id):
+                continue
             if Agent.IsAlive(agent_id) and Utils.Distance(player_pos, Agent.GetXY(agent_id)) <= aggro_range:
                 return True
         return False
@@ -298,11 +344,11 @@ class UWHeroAIAdapter(UWCombatAdapter):
         pass  # HeroAI auto-detects the party leader.
 
     def set_following_enabled(self, enabled: bool) -> None:
+        self._enforced_following = enabled
         if enabled:
             # Clear flags so DistanceSafe uses the leader position again and
             # following resumes normally.
             self.clear_flags()
-            self._set_all_heroai_options(following=True, combat=True)
         else:
             # Flag every account at its current position so the headless-tree
             # DistanceSafe guard (which checks distance-to-destination) always
@@ -317,13 +363,15 @@ class UWHeroAIAdapter(UWCombatAdapter):
                 options.FlagPos.x = x
                 options.FlagPos.y = y
                 options.FlagFacingAngle = 0.0
-            self._set_all_heroai_options(following=False, combat=True)
+        # sync_runtime() will push the new state on the next frame.
 
     def set_combat_enabled(self, enabled: bool) -> None:
-        self._combat_enforced = enabled
+        self._enforced_combat = enabled
+        # Push immediately so the effect is visible within the same tick.
         self._set_all_heroai_options(combat=enabled)
 
     def set_looting_enabled(self, enabled: bool) -> None:
+        self._enforced_looting = enabled
         self._set_all_heroai_options(looting=enabled)
 
     def set_forced_state(self, state) -> None:
@@ -344,21 +392,19 @@ class UWHeroAIAdapter(UWCombatAdapter):
         """Resolve *email* to a HeroAI shared-memory slot and set its flag.
 
         Resolution strategy:
-          1. Iterate GetAllAccountData() to find the account whose email
-             matches, and derive its 1-based party position from its list index.
-          2. Call GetHeroAIOptionsByPartyNumber(party_pos) to obtain the
-             HeroAI options struct and apply IsFlagged / FlagPos.
-          3. Also call FlagHero for heroes that are in the local party.
+          1. Use GetHeroAIOptionsFromEmail to find the HeroAI options for the
+             account directly via its shared-memory slot index.
+          2. Also resolve the account's party position from its AccountData to
+             call FlagHero for heroes in the local party.
         """
-        all_accounts = GLOBAL_CACHE.ShMem.GetAllAccountData() or []
-        party_pos: int | None = None
-        for idx, account in enumerate(all_accounts):
-            acct_email = str(getattr(account, "AccountEmail", "") or "").strip()
-            if acct_email.lower() == email.lower():
-                party_pos = idx + 1  # 1-based
-                break
-
-        if party_pos is None:
+        # HeroAI shared-memory flag (multibox accounts)
+        options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsFromEmail(email)
+        if options is not None:
+            options.IsFlagged = True
+            options.FlagPos.x = float(x)
+            options.FlagPos.y = float(y)
+            options.FlagFacingAngle = 0.0
+        else:
             ConsoleLog(
                 self._bot_name,
                 f"[HeroAI] set_flag_for_email: '{email}' not found in account data — flag skipped.",
@@ -366,18 +412,14 @@ class UWHeroAIAdapter(UWCombatAdapter):
             )
             return
 
-        # HeroAI shared-memory flag (multibox accounts)
-        options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsByPartyNumber(party_pos)
-        if options is not None:
-            options.IsFlagged = True
-            options.FlagPos.x = float(x)
-            options.FlagPos.y = float(y)
-            options.FlagFacingAngle = 0.0
-
-        # Native GW hero flag (local party heroes)
-        agent_id = GLOBAL_CACHE.Party.Heroes.GetHeroAgentIDByPartyPosition(party_pos)
-        if agent_id and Agent.IsValid(agent_id):
-            GLOBAL_CACHE.Party.Heroes.FlagHero(agent_id, x, y)
+        # Native GW hero flag (local party heroes) — resolve party position from account data
+        account_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(email)
+        if account_data is not None:
+            party_pos = int(account_data.AgentPartyData.PartyPosition)
+            if party_pos > 0:
+                agent_id = GLOBAL_CACHE.Party.Heroes.GetHeroAgentIDByPartyPosition(party_pos)
+                if agent_id and Agent.IsValid(agent_id):
+                    GLOBAL_CACHE.Party.Heroes.FlagHero(agent_id, x, y)
 
     def set_flag(self, index: int, x: float, y: float) -> None:
         party_pos = index + 1

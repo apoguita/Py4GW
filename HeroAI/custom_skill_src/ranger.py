@@ -462,7 +462,7 @@ class RangerSkills:
         skill = CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Barrage")
         skill.SkillType = SkillType.Attack.value
-        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.TargetAllegiance = Skilltarget.EnemyClustered.value
         skill.Nature = SkillNature.Offensive.value
         skill_data[skill.SkillID] = skill
 

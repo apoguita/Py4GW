@@ -94,6 +94,7 @@ from .GWUI import GWUI
 from .py4gwcorelib_src.Profiling import ProfilingRegistry, SimpleProfiler
 from .py4gwcorelib_src.FrameCache import FRAME_CACHE, frame_cache
 from .py4gwcorelib_src.WidgetManager import WidgetHandler, Widget
+from .py4gwcorelib_src.WindowFactory import WindowFactory, ManagedWindowSpec, WindowVarSpec
 
 from .native_src.internals.types import Vec2f, Vec3f, GamePos
 
@@ -144,6 +145,9 @@ frame_cache = frame_cache
 WidgetHandler = WidgetHandler
 Widget = Widget
 GWUI = GWUI
+WindowFactory = WindowFactory
+ManagedWindowSpec = ManagedWindowSpec
+WindowVarSpec = WindowVarSpec
 
 
 #redirect print output to Py4GW Console

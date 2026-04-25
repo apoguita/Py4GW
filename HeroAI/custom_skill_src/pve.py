@@ -451,7 +451,7 @@ class PVESkills:
         skill = CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Technobabble")
         skill.SkillType = SkillType.Spell.value
-        skill.TargetAllegiance = Skilltarget.Enemy.value
+        skill.TargetAllegiance = Skilltarget.EnemyClustered.value
         skill.Nature = SkillNature.Offensive.value
         skill_data[skill.SkillID] = skill
 
@@ -778,7 +778,6 @@ class PVESkills:
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Buff.value
         skill.Conditions.IsMoving = True
-        skill.Conditions.IsOutOfCombat = True
         #skill.Conditions.UniqueProperty = True
         skill_data[skill.SkillID] = skill
 
@@ -790,6 +789,7 @@ class PVESkills:
         skill.Conditions.UniqueProperty = True
         skill_data[skill.SkillID] = skill
 
+        # Blood Washes Blood mission Ursan skills use different IDs than base Ursan.
         skill = CustomSkill()
         skill.SkillID = 2395  # Ursan Roar (Blood Washes Blood)
         skill.SkillType = SkillType.Skill.value
@@ -803,8 +803,16 @@ class PVESkills:
         skill.SkillType = SkillType.Skill.value
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Buff.value
+        skill.Conditions.IsMoving = True
+        skill_data[skill.SkillID] = skill
+
+        skill = CustomSkill()
+        skill.SkillID = GLOBAL_CACHE.Skill.GetID("Totem_of_Man")
+        skill.SkillType = SkillType.Form.value
+        skill.TargetAllegiance = Skilltarget.Self.value
+        skill.Nature = SkillNature.Neutral.value
         skill.Conditions.IsOutOfCombat = True
-        #skill.Conditions.UniqueProperty = True
+        skill.Conditions.LessLife = 0.01  # effectively disabled in all practical cases
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()

@@ -21,7 +21,7 @@ class DhuumsRestUtility(CustomSkillUtilityBase):
     def __init__(self, event_bus: EventBus, current_build: list[CustomSkill]):
         super().__init__(
             event_bus=event_bus,
-            skill=CustomSkill("Dhuums_Rest"),
+            skill=CustomSkill("Dhuum's_Rest"),
             in_game_build=current_build,
             score_definition=ScoreStaticDefinition(97),
             mana_required_to_cast=0,
@@ -32,7 +32,10 @@ class DhuumsRestUtility(CustomSkillUtilityBase):
     def _evaluate(self, current_state: BehaviorState, previously_attempted_skills: list[CustomSkill]) -> float | None:
         if is_uw_chest_present():
             return None
-        if not ReaperModeTracker.is_dhuums_rest_mode():
+        # When no Reaper activity has been detected (e.g. during the Dhuum fight
+        # where Reapers are absent), default to active so we always have at least
+        # one castable skill.
+        if not ReaperModeTracker.is_dhuums_rest_mode() and ReaperModeTracker._shared_mode is not None:
             return None
         return 97.0
 

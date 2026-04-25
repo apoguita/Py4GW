@@ -59,6 +59,11 @@ class BottingTree:
         self._last_heroai_state = None
         self.started = False
         self.paused = False
+        self.draw_move_path_enabled = True
+        self.draw_move_path_labels = False
+        self.draw_move_path_thickness = 4.0
+        self.draw_move_waypoint_radius = 15.0
+        self.draw_move_current_waypoint_radius = 20.0
 
     _LOG_LAST_MESSAGE_KEY = "last_log_message"
     _LOG_LAST_MESSAGE_DATA_KEY = "last_log_message_data"
@@ -759,6 +764,51 @@ class BottingTree:
         }
 
     #region DrawMovePath
+    def SetMovePathDrawingEnabled(self, enabled: bool) -> None:
+        self.draw_move_path_enabled = bool(enabled)
+
+    def IsMovePathDrawingEnabled(self) -> bool:
+        return bool(self.draw_move_path_enabled)
+
+    def DrawMovePathDebugOptions(self, label: str = "Draw Move Path Debug Options") -> None:
+        if PyImGui.collapsing_header(label):
+            self.draw_move_path_enabled = PyImGui.checkbox(
+                "Draw Move Path",
+                self.draw_move_path_enabled,
+            )
+            self.draw_move_path_labels = PyImGui.checkbox(
+                "Draw Path Labels",
+                self.draw_move_path_labels,
+            )
+            self.draw_move_path_thickness = PyImGui.slider_float(
+                "Path Thickness",
+                self.draw_move_path_thickness,
+                1.0,
+                6.0,
+            )
+            self.draw_move_waypoint_radius = PyImGui.slider_float(
+                "Waypoint Radius",
+                self.draw_move_waypoint_radius,
+                15.0,
+                100.0,
+            )
+            self.draw_move_current_waypoint_radius = PyImGui.slider_float(
+                "Current Waypoint Radius",
+                self.draw_move_current_waypoint_radius,
+                20.0,
+                120.0,
+            )
+
+    def DrawMovePathIfEnabled(self) -> None:
+        if not self.draw_move_path_enabled:
+            return
+        self.DrawMovePath(
+            draw_labels=self.draw_move_path_labels,
+            path_thickness=self.draw_move_path_thickness,
+            waypoint_radius=self.draw_move_waypoint_radius,
+            current_waypoint_radius=self.draw_move_current_waypoint_radius,
+        )
+
     def DrawMovePath(
         self,
         draw_labels: bool = False,
@@ -941,6 +991,11 @@ class BottingTree:
 
         if not self.started or self.paused:
             bb["PLANNER_STATUS"] = PlannerStatus.IDLE.value
+            bb["PLANNER_OWNER"] = PlannerStatus.OWNER_PLANNER.value
+            return BehaviorTree.NodeState.RUNNING
+
+        if Routines.Checks.Party.IsPartyWiped() or GLOBAL_CACHE.Party.IsPartyDefeated():
+            bb["PLANNER_STATUS"] = "PAUSED: Party wipe recovery"
             bb["PLANNER_OWNER"] = PlannerStatus.OWNER_PLANNER.value
             return BehaviorTree.NodeState.RUNNING
 

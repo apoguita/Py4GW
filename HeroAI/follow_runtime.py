@@ -3,10 +3,7 @@ from __future__ import annotations
 import random
 from dataclasses import dataclass
 
-from Py4GWCoreLib import ActionQueueManager, Utils
-from Py4GWCoreLib.Agent import Agent
-from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
-from Py4GWCoreLib.Map import Map
+from Py4GWCoreLib import ActionQueueManager, Weapon
 from Py4GWCoreLib.Player import Player
 from Py4GWCoreLib.enums_src.UI_enums import ControlAction
 from Py4GWCoreLib.UIManager import UIManager
@@ -32,32 +29,58 @@ def execute_follower_follow(
     def _has_valid_point(x: float, y: float) -> bool:
         return abs(float(x)) > 0.001 or abs(float(y)) > 0.001
 
+    def _cached_xy(account) -> tuple[float, float]:
+        return (float(account.AgentData.Pos.x), float(account.AgentData.Pos.y))
+
+    def _cached_is_melee(account) -> bool:
+        return int(account.AgentData.WeaponType) in {
+            Weapon.Axe.value,
+            Weapon.Hammer.value,
+            Weapon.Daggers.value,
+            Weapon.Scythe.value,
+            Weapon.Sword.value,
+        }
+
+    def _cached_ally_positions(own_agent_id: int) -> list[tuple[float, float]]:
+        positions: list[tuple[float, float]] = []
+        for account in cached_data.party:
+            agent_id = int(account.AgentData.AgentID)
+            if agent_id == 0 or agent_id == own_agent_id:
+                continue
+            if not bool(account.IsSlotActive):
+                continue
+            positions.append(_cached_xy(account))
+        return positions
+
     options = cached_data.account_options
     if not options or not options.Following:
+        return BehaviorTree.NodeState.FAILURE
+
+    own_account = cached_data.account_data
+    own_agent_id = int(own_account.AgentData.AgentID)
+    if own_agent_id == 0:
         return BehaviorTree.NodeState.FAILURE
 
     combat_handler = getattr(cached_data, "combat_handler", None)
     if (
         (combat_handler is not None and combat_handler.InCastingRoutine())
-        or GLOBAL_CACHE.SkillBar.GetCasting() != 0
+        or int(own_account.AgentData.Skillbar.CastingSkillID) != 0
     ):
         return BehaviorTree.NodeState.FAILURE
 
     if not cached_data.follow_throttle_timer.IsExpired():
         return BehaviorTree.NodeState.FAILURE
 
-    if Player.GetAgentID() == GLOBAL_CACHE.Party.GetPartyLeaderID():
+    if int(own_account.AgentPartyData.PartyPosition) == 0:
         cached_data.follow_throttle_timer.Reset()
         return BehaviorTree.NodeState.FAILURE
 
-    if not Agent.CanAct(Player.GetAgentID()):
-        return BehaviorTree.NodeState.FAILURE
-
+    own_map = own_account.AgentData.Map
     map_sig = (
-        int(Map.GetMapID()),
-        int(Map.GetRegion()[0]),
-        int(Map.GetDistrict()),
-        int(Map.GetLanguage()[0]),
+        int(own_map.MapID),
+        int(own_map.Region),
+        int(own_map.District),
+        int(own_map.Language),
     )
     if state.follow_map_entry_signature != map_sig:
         state.follow_map_entry_signature = map_sig
@@ -101,11 +124,9 @@ def execute_follower_follow(
         ActionQueueManager().AddAction("ACTION", UIManager.Keypress, ControlAction.ControlAction_Follow.value, 0)
         state.last_follow_move_point = None
         cached_data.follow_throttle_timer.Reset()
-        return BehaviorTree.NodeState.SUCCESS
+        return BehaviorTree.NodeState.SUCCESS if cached_data.data.in_aggro and _cached_is_melee(own_account) else BehaviorTree.NodeState.FAILURE
 
-    current_pos = Player.GetXY()
-    if current_pos is None:
-        return BehaviorTree.NodeState.FAILURE
+    current_pos = _cached_xy(own_account)
 
     mixed_target = compute_mixed_follow_target(
         current_pos=current_pos,
@@ -113,6 +134,7 @@ def execute_follower_follow(
         follow_distance=follow_distance,
         in_combat=bool(cached_data.data.in_aggro),
         config=load_follow_movement_config(),
+        ally_positions=_cached_ally_positions(own_agent_id),
     )
     if mixed_target is None:
         return BehaviorTree.NodeState.FAILURE
@@ -129,4 +151,4 @@ def execute_follower_follow(
     state.last_follow_move_point = (xx, yy)
 
     cached_data.follow_throttle_timer.Reset()
-    return BehaviorTree.NodeState.SUCCESS
+    return BehaviorTree.NodeState.SUCCESS if cached_data.data.in_aggro and _cached_is_melee(own_account) else BehaviorTree.NodeState.FAILURE

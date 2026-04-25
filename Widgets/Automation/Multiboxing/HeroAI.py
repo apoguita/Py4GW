@@ -17,12 +17,14 @@ from Py4GWCoreLib.Player import Player
 from Py4GWCoreLib.routines_src.BehaviourTrees import BehaviorTree
 
 from HeroAI.cache_data import CacheData
+from HeroAI.follow_movement import compute_mixed_follow_target, load_follow_movement_config
 
 from HeroAI.windows import (HeroAI_FloatingWindows ,HeroAI_Windows,)
 from HeroAI.ui_base import HeroAI_BaseUI
 from HeroAI.ui import (draw_configure_window, draw_skip_cutscene_overlay)
 from Py4GWCoreLib import (GLOBAL_CACHE, Agent, ActionQueueManager, LootConfig,
-                          Range, Routines, ThrottledTimer, SharedCommandType, Utils)
+                          Range, Routines, ThrottledTimer, SharedCommandType, Utils,
+                          Weapon)
 from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
 
 #region GLOBALS
@@ -155,6 +157,20 @@ def Follow(cached_data: CacheData) -> BehaviorTree.NodeState:
     def _is_nonzero_xy(x: float, y: float) -> bool:
         return abs(float(x)) > 0.001 or abs(float(y)) > 0.001
 
+    def _cached_xy(account) -> tuple[float, float]:
+        return (float(account.AgentData.Pos.x), float(account.AgentData.Pos.y))
+
+    def _cached_ally_positions(own_agent_id: int) -> list[tuple[float, float]]:
+        positions: list[tuple[float, float]] = []
+        for account in cached_data.party:
+            agent_id = int(account.AgentData.AgentID)
+            if agent_id == 0 or agent_id == own_agent_id:
+                continue
+            if not bool(account.IsSlotActive):
+                continue
+            positions.append(_cached_xy(account))
+        return positions
+
     options = cached_data.account_options
     if not options or not options.Following:  # halt operation if following is disabled
         return BehaviorTree.NodeState.FAILURE
@@ -204,27 +220,52 @@ def Follow(cached_data: CacheData) -> BehaviorTree.NodeState:
         follow_y = float(options.FollowPos.y)
         follow_z = int(float(options.FollowPos.z))
 
-    is_melee = Agent.IsMelee(Player.GetAgentID())
-    if cached_data.data.in_aggro:
+    party_in_aggro = bool(getattr(cached_data.data, "party_in_aggro", cached_data.data.in_aggro))
+    is_melee = cached_data.data.weapon_type in {
+        Weapon.Axe.value,
+        Weapon.Hammer.value,
+        Weapon.Daggers.value,
+        Weapon.Scythe.value,
+        Weapon.Sword.value,
+    }
+    if party_in_aggro:
         if combat_threshold_raw >= 0.0:
             follow_distance = max(0.0, combat_threshold_raw)
         else:
             follow_distance = max(0.0, follow_threshold_raw)
 
         if is_melee and not own_flag_active and not all_flag_active:
-            leader_agent_id = GLOBAL_CACHE.Party.GetPartyLeaderID()
-            if leader_agent_id:
-                leader_distance = Utils.Distance(Agent.GetXY(leader_agent_id), Player.GetXY())
+            own_account = cached_data.account_data
+            leader_account = cached_data.party.get_by_party_pos(0)
+            if leader_account is not None and int(own_account.AgentData.AgentID) != 0:
+                leader_distance = Utils.Distance(_cached_xy(leader_account), _cached_xy(own_account))
                 if leader_distance <= follow_distance:
                     return BehaviorTree.NodeState.FAILURE
     else:
         follow_distance = max(0.0, follow_threshold_raw)
-    if Utils.Distance((follow_x, follow_y), Player.GetXY()) <= follow_distance:
+    if (not party_in_aggro or follow_z != 0) and Utils.Distance((follow_x, follow_y), Player.GetXY()) <= follow_distance:
         # Inside threshold: do not let follow preempt OOC/combat logic.
         return BehaviorTree.NodeState.FAILURE
 
     xx = follow_x
     yy = follow_y
+    if party_in_aggro and follow_z == 0:
+        own_account = cached_data.account_data
+        own_agent_id = int(own_account.AgentData.AgentID)
+        if own_agent_id == 0:
+            return BehaviorTree.NodeState.FAILURE
+        mixed_target = compute_mixed_follow_target(
+            current_pos=_cached_xy(own_account),
+            assigned_pos=(follow_x, follow_y),
+            follow_distance=follow_distance,
+            in_combat=True,
+            config=load_follow_movement_config(),
+            ally_positions=_cached_ally_positions(own_agent_id),
+        )
+        if mixed_target is None:
+            return BehaviorTree.NodeState.FAILURE
+        xx, yy = mixed_target
+
     if last_follow_move_point is not None:
         last_x, last_y = last_follow_move_point
         if abs(xx - last_x) <= 10 and abs(yy - last_y) <= 10:
@@ -245,7 +286,7 @@ def Follow(cached_data: CacheData) -> BehaviorTree.NodeState:
     last_follow_move_point = (xx, yy)
     cached_data.follow_throttle_timer.Reset()
     # In combat and out of range: only melee follow should preempt combat.
-    if cached_data.data.in_aggro and is_melee:
+    if party_in_aggro and is_melee:
         return BehaviorTree.NodeState.SUCCESS
     # Out of combat: keep follow non-blocking so OOC behavior can still run freely.
     return BehaviorTree.NodeState.FAILURE

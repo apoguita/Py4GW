@@ -126,17 +126,53 @@ class UWCBAdapter(UWCombatAdapter):
         party.set_party_is_looting_enabled(True)
 
     def _active_multibox_emails(self) -> list[str]:
+        """Return emails of all reachable multibox accounts (excludes local account)."""
+        local_email = (Player.GetAccountEmail() or "").strip()
         emails: list[str] = []
         for account in (GLOBAL_CACHE.ShMem.GetAllAccountData() or []):
             email = str(getattr(account, "AccountEmail", "") or "").strip()
-            if not email:
-                continue
-            if not bool(getattr(account, "IsSlotActive", True)):
-                continue
-            if bool(getattr(account, "IsIsolated", False)):
+            if not email or email == local_email:
                 continue
             emails.append(email)
         return emails
+
+    def _disable_widget_locally(self, widget_name: str) -> None:
+        """Disable a widget on the local (executing) account via the widget handler."""
+        try:
+            from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
+            handler = get_widget_handler()
+            if handler.is_widget_enabled(widget_name):
+                handler.disable_widget(widget_name)
+                ConsoleLog(
+                    self._bot_name,
+                    f"[Startup] Disabled local widget '{widget_name}'.",
+                    Py4GW.Console.MessageType.Info,
+                )
+        except Exception as e:
+            ConsoleLog(
+                self._bot_name,
+                f"[Startup] Could not disable local widget '{widget_name}': {e}",
+                Py4GW.Console.MessageType.Warning,
+            )
+
+    def _enable_widget_locally(self, widget_name: str) -> None:
+        """Enable a widget on the local (executing) account via the widget handler."""
+        try:
+            from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
+            handler = get_widget_handler()
+            if not handler.is_widget_enabled(widget_name):
+                handler.enable_widget(widget_name)
+                ConsoleLog(
+                    self._bot_name,
+                    f"[Startup] Enabled local widget '{widget_name}'.",
+                    Py4GW.Console.MessageType.Info,
+                )
+        except Exception as e:
+            ConsoleLog(
+                self._bot_name,
+                f"[Startup] Could not enable local widget '{widget_name}': {e}",
+                Py4GW.Console.MessageType.Warning,
+            )
 
     def _broadcast_widget_command(
         self,
@@ -146,17 +182,20 @@ class UWCBAdapter(UWCombatAdapter):
     ) -> None:
         sender_email = Player.GetAccountEmail()
         recipients = self._active_multibox_emails()
+        sent = 0
         for email in recipients:
-            GLOBAL_CACHE.ShMem.SendMessage(
+            result = GLOBAL_CACHE.ShMem.SendMessage(
                 sender_email,
                 email,
                 command,
                 (0, 0, 0, 0),
                 (widget_name, "", "", ""),
             )
+            if result >= 0:
+                sent += 1
         ConsoleLog(
             self._bot_name,
-            f"[Startup] {action_label} '{widget_name}' for {len(recipients)} active account(s).",
+            f"[Startup] {action_label} '{widget_name}': {sent}/{len(recipients)} account(s) reached.",
             Py4GW.Console.MessageType.Info,
         )
 
@@ -192,6 +231,7 @@ class UWCBAdapter(UWCombatAdapter):
         )
 
     def configure_startup_states(self, bot_instance) -> None:
+        # ── Step 1: Disable HeroAI on all accounts ────────────────────────
         bot_instance.States.AddCustomState(
             lambda: ConsoleLog(
                 self._bot_name,
@@ -201,19 +241,28 @@ class UWCBAdapter(UWCombatAdapter):
             "[Startup] Log Disable HeroAI",
         )
         bot_instance.States.AddCustomState(
+            lambda: self._disable_widget_locally("HeroAI"),
+            "Disable local HeroAI",
+        )
+        bot_instance.States.AddCustomState(
             lambda: self._broadcast_widget_command(
                 "HeroAI", SharedCommandType.DisableWidget, "Broadcasted disable"
             ),
             "Disable HeroAI on active accounts",
         )
         bot_instance.Wait.ForTime(2000)
+        # ── Step 2: Enable CustomBehaviors on all accounts ────────────────
         bot_instance.States.AddCustomState(
             lambda: ConsoleLog(
                 self._bot_name,
-                "[Startup] Enabling CustomBehavior widgets on all accounts.",
+                "[Startup] Enabling CustomBehaviors widget on all accounts.",
                 Py4GW.Console.MessageType.Info,
             ),
             "[Startup] Log Enable CB Widgets",
+        )
+        bot_instance.States.AddCustomState(
+            lambda: self._enable_widget_locally("CustomBehaviors"),
+            "Enable local CustomBehaviors",
         )
         bot_instance.States.AddCustomState(
             lambda: self._broadcast_widget_command(
@@ -221,12 +270,39 @@ class UWCBAdapter(UWCombatAdapter):
             ),
             "Enable CustomBehaviors on active accounts",
         )
+        # ── Step 3: Always enable Dhuum Helper on all accounts ────────────
+        bot_instance.States.AddCustomState(
+            lambda: self._enable_widget_locally("Dhuum Helper"),
+            "Enable local Dhuum Helper",
+        )
         bot_instance.States.AddCustomState(
             lambda: self._broadcast_widget_command(
                 "Dhuum Helper", SharedCommandType.EnableWidget, "Broadcasted enable"
             ),
             "Enable Dhuum Helper on active accounts",
         )
+        # ── Step 4: Always enable MerchantRules on all accounts ───────────
+        bot_instance.States.AddCustomState(
+            lambda: self._enable_widget_locally("MerchantRules"),
+            "Enable local MerchantRules",
+        )
+        bot_instance.States.AddCustomState(
+            lambda: self._broadcast_widget_command(
+                "MerchantRules", SharedCommandType.EnableWidget, "Broadcasted enable"
+            ),
+            "Enable MerchantRules on active accounts",
+        )
+        # ── Step 5: Final startup confirmation ────────────────────────────
+        def _log_startup_done() -> None:
+            accounts = self._active_multibox_emails()
+            ConsoleLog(
+                self._bot_name,
+                f"[Startup] Widget setup complete (CB mode). "
+                f"HeroAI disabled, CustomBehaviors + DhuumHelper + MerchantRules enabled "
+                f"on {len(accounts)} active account(s): {accounts}",
+                Py4GW.Console.MessageType.Info,
+            )
+        bot_instance.States.AddCustomState(_log_startup_done, "[Startup] Log Startup Done")
 
     def reactivate_for_step(self, bot_instance, step_label: str) -> None:
         behavior = self._get_custom_behavior(initialize_if_needed=True)

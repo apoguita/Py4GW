@@ -41,8 +41,14 @@ FLOATING_UI_INI_PATH = "Widgets/Guild Wars/Items & Loot/MerchantRules"
 FLOATING_UI_INI_FILENAME = "MerchantRulesFloating.ini"
 FLOATING_ICON_WINDOW_ID = "##merchant_rules_floating_icon_button"
 FLOATING_ICON_WINDOW_NAME = "Merchant Rules Toggle"
+QUICK_ACTIONS_POPUP_ID = "merchant_rules_quick_actions_popup"
+QUICK_ACTIONS_MENU_ESTIMATED_WIDTH = 150.0
+QUICK_ACTIONS_MENU_ESTIMATED_HEIGHT = 360.0
+QUICK_ACTIONS_MENU_SCREEN_MARGIN = 8.0
+QUICK_ACTIONS_MENU_ICON_GAP = 4.0
+QUICK_ACTIONS_MENU_REASON_WIDTH = 130.0
 
-PROFILE_VERSION = 20
+PROFILE_VERSION = 27
 CONFIG_DIR = os.path.join(Py4GW.Console.get_projects_path(), "Widgets", "Config", "MerchantRules")
 SHARED_PROFILES_DIR = os.path.join(CONFIG_DIR, "Profiles")
 RECOVERY_DIR = os.path.join(CONFIG_DIR, "Recovery")
@@ -71,17 +77,24 @@ WORKSPACE_RULES = "rules"
 WORKSPACE_PROFILES = "profiles"
 RULES_WORKSPACE_BUY = "buy"
 RULES_WORKSPACE_SELL = "sell"
+RULES_WORKSPACE_IDENTIFY = "identify"
 RULES_WORKSPACE_CLEANUP = "cleanup"
 RULES_WORKSPACE_DESTROY = "destroy"
 RULES_WORKSPACE_PROTECTIONS = "protections"
+RULES_WORKSPACE_SALVAGE = "salvage"
 MULTIBOX_REMOTE_TIMEOUT_MS = 45000
 MULTIBOX_EXECUTE_REMOTE_TIMEOUT_MS = 180000
 MULTIBOX_REMOTE_IDLE_WAIT_TIMEOUT_MS = 120000
 MULTIBOX_REMOTE_STATUS_UPDATE_INTERVAL_MS = 5000
 MERCHANT_SELL_CONFIRM_TIMEOUT_MS = 1500
+MANUAL_VENDOR_COOLDOWN_MS = 2500
+MERCHANT_FRAME_HASH = 3613855137
 DESTROY_CONFIRM_TIMEOUT_MS = 1200
 PREVIEW_DIFF_ROW_LIMIT = 8
 INSTANT_DESTROY_POLL_MS = 400
+SALVAGE_POLL_MS = 400
+IDENTIFY_POLL_MS = 400
+IDENTIFY_CONFIRM_TIMEOUT_MS = 5000
 STACKABLE_DESTROY_MAX_STACK_SIZE = 250
 INVENTORY_BAG_IDS: tuple[int, ...] = (1, 2, 3, 4)
 PROFILE_WINDOW_GEOMETRY_KEYS: tuple[str, ...] = (
@@ -110,12 +123,24 @@ BUY_KIND_MATERIAL_TARGET = "buy_material_target"
 BUY_KIND_RUNE_TRADER_TARGET = "buy_rune_trader_target"
 BUY_KIND_SCROLL_TRADER_TARGET = "buy_scroll_trader_target"
 BUY_KIND_CONSUMABLE_CRAFTER_TARGET = "consumable_crafter_target"
+
+CONSUMABLE_CRAFTER_COUNT_MODE_MAINTAIN_STOCK = "maintain_stock"
+CONSUMABLE_CRAFTER_COUNT_MODE_CRAFT_AMOUNT = "craft_amount"
+CONSUMABLE_CRAFTER_COUNT_MODES: tuple[str, ...] = (
+    CONSUMABLE_CRAFTER_COUNT_MODE_CRAFT_AMOUNT,
+    CONSUMABLE_CRAFTER_COUNT_MODE_MAINTAIN_STOCK,
+)
+CONSUMABLE_CRAFTER_COUNT_MODE_LABELS: dict[str, str] = {
+    CONSUMABLE_CRAFTER_COUNT_MODE_CRAFT_AMOUNT: "Craft requested amount",
+    CONSUMABLE_CRAFTER_COUNT_MODE_MAINTAIN_STOCK: "Maintain total stock",
+}
 LEGACY_BUY_KIND_ID_KITS = "restock_id_kits"
 LEGACY_BUY_KIND_SALVAGE_KITS = "restock_salvage_kits"
 LEGACY_BUY_KIND_ECTO = "buy_ectoplasm"
 
 SELL_KIND_COMMON_MATERIALS = "sell_common_materials"
 SELL_KIND_EXPLICIT_MODELS = "sell_explicit_models"
+SELL_KIND_RUNE_TRADER_TARGET = "sell_rune_trader_target"
 SELL_KIND_WEAPONS = "sell_weapons"
 SELL_KIND_ARMOR = "sell_armor"
 DESTROY_KIND_MATERIALS = "destroy_materials"
@@ -137,6 +162,7 @@ BUY_RULE_KINDS = [
 SELL_RULE_KINDS = [
     SELL_KIND_COMMON_MATERIALS,
     SELL_KIND_EXPLICIT_MODELS,
+    SELL_KIND_RUNE_TRADER_TARGET,
     SELL_KIND_WEAPONS,
     SELL_KIND_ARMOR,
 ]
@@ -159,6 +185,7 @@ BUY_RULE_WORKSPACE_ORDER: tuple[str, ...] = (
 SELL_RULE_WORKSPACE_ORDER: tuple[str, ...] = (
     SELL_KIND_WEAPONS,
     SELL_KIND_ARMOR,
+    SELL_KIND_RUNE_TRADER_TARGET,
     SELL_KIND_EXPLICIT_MODELS,
     SELL_KIND_COMMON_MATERIALS,
 )
@@ -189,6 +216,7 @@ BUY_RULE_WORKSPACE_LABELS = {
 SELL_KIND_LABELS = {
     SELL_KIND_COMMON_MATERIALS: "Sell Materials",
     SELL_KIND_EXPLICIT_MODELS: "Sell Specific Items",
+    SELL_KIND_RUNE_TRADER_TARGET: "Sell Runes & Insignias",
     SELL_KIND_WEAPONS: "Sell Weapons",
     SELL_KIND_ARMOR: "Sell Armor",
 }
@@ -200,9 +228,21 @@ DESTROY_KIND_LABELS = {
     DESTROY_KIND_ARMOR: "Destroy Armor",
 }
 
+SALVAGE_CATEGORY_WEAPONS = "weapons"
+SALVAGE_CATEGORY_ARMOR = "armor"
+SALVAGE_CATEGORY_MATERIALS = "materials"
+SALVAGE_CATEGORY_OTHER = "other"
+SALVAGE_CATEGORY_ORDER: tuple[tuple[str, str], ...] = (
+    (SALVAGE_CATEGORY_WEAPONS, "Weapons"),
+    (SALVAGE_CATEGORY_ARMOR, "Armor"),
+    (SALVAGE_CATEGORY_MATERIALS, "Materials"),
+    (SALVAGE_CATEGORY_OTHER, "Other Items"),
+)
+
 SELL_RULE_WORKSPACE_LABELS = {
     SELL_KIND_WEAPONS: "Weapons",
     SELL_KIND_ARMOR: "Armor",
+    SELL_KIND_RUNE_TRADER_TARGET: "Runes & Insignias",
     SELL_KIND_EXPLICIT_MODELS: "Items",
     SELL_KIND_COMMON_MATERIALS: "Materials",
 }
@@ -273,6 +313,7 @@ BUY_KIND_TO_MERCHANT_TYPE = {
 SELL_KIND_TO_MERCHANT_TYPE = {
     SELL_KIND_COMMON_MATERIALS: MERCHANT_TYPE_MATERIALS,
     SELL_KIND_EXPLICIT_MODELS: MERCHANT_TYPE_MERCHANT,
+    SELL_KIND_RUNE_TRADER_TARGET: MERCHANT_TYPE_RUNE_TRADER,
     SELL_KIND_WEAPONS: MERCHANT_TYPE_MERCHANT,
     SELL_KIND_ARMOR: MERCHANT_TYPE_MERCHANT,
 }
@@ -528,6 +569,7 @@ SUPPORTED_MAP_RUNE_TRADER_SELECTORS: dict[int, str] = {}
 SUPPORTED_MAP_SCROLL_TRADER_SELECTORS: dict[int, str] = {}
 ACTION_TYPE_LABELS = {
     "buy": "Buy",
+    "identify": "Identify",
     "sell": "Sell",
     "destroy": "Destroy",
     "travel": "Travel",
@@ -579,6 +621,7 @@ RULE_KIND_PRESENTATION: dict[str, tuple[str, tuple[float, float, float, float]]]
     BUY_KIND_SCROLL_TRADER_TARGET: ("Scrolls", UI_COLOR_INDIGO),
     SELL_KIND_COMMON_MATERIALS: ("Materials", UI_COLOR_TEAL),
     SELL_KIND_EXPLICIT_MODELS: ("Items", UI_COLOR_INDIGO),
+    SELL_KIND_RUNE_TRADER_TARGET: ("Runes", UI_COLOR_PURPLE_ACCENT),
     SELL_KIND_WEAPONS: ("Weapons", UI_COLOR_SUCCESS),
     SELL_KIND_ARMOR: ("Armor", UI_COLOR_PURPLE_ACCENT),
     DESTROY_KIND_MATERIALS: ("Destroy", UI_COLOR_DANGER),
@@ -863,6 +906,12 @@ class RuneTraderTarget:
 
 
 @dataclass
+class RuneSellTarget:
+    identifier: str = ""
+    keep_count: int = 0
+
+
+@dataclass
 class WhitelistTarget:
     model_id: int = 0
     keep_count: int = 0
@@ -880,6 +929,7 @@ class BuyRule:
     merchant_stock_targets: list[MerchantStockTarget] = field(default_factory=list)
     material_targets: list[MaterialTarget] = field(default_factory=list)
     rune_targets: list[RuneTraderTarget] = field(default_factory=list)
+    consumable_crafter_count_mode: str = CONSUMABLE_CRAFTER_COUNT_MODE_CRAFT_AMOUNT
     name: str = ""
 
 
@@ -932,6 +982,7 @@ class SellRule:
     protected_weapon_mod_thresholds: list[WeaponModThresholdRule] = field(default_factory=list)
     protected_weapon_mod_variants: list[WeaponModVariantRule] = field(default_factory=list)
     protected_weapon_mod_variant_thresholds: list[WeaponModVariantThresholdRule] = field(default_factory=list)
+    rune_sell_targets: list[RuneSellTarget] = field(default_factory=list)
     protected_rune_identifiers: list[str] = field(default_factory=list)
     skip_customized: bool = True
     skip_unidentified: bool = True
@@ -952,6 +1003,21 @@ class DestroyRule:
 
 
 @dataclass
+class SalvageSettings:
+    model_ids: list[int] = field(default_factory=list)
+    rarities: dict[str, bool] = field(default_factory=dict)
+    categories: dict[str, bool] = field(default_factory=dict)
+    on_inventory_change: bool = False
+
+
+@dataclass
+class IdentifySettings:
+    rarities: dict[str, bool] = field(default_factory=dict)
+    before_execute: bool = False
+    on_inventory_change: bool = False
+
+
+@dataclass
 class CleanupTarget:
     model_id: int = 0
     keep_on_character: int = 0
@@ -960,6 +1026,28 @@ class CleanupTarget:
 @dataclass
 class CleanupProtectionSource:
     sell_rule_id: str = ""
+
+
+def _normalize_cleanup_blacklist_model_ids(raw_model_ids: object) -> list[int]:
+    normalized: list[int] = []
+    seen_model_ids: set[int] = set()
+    if not isinstance(raw_model_ids, list):
+        return normalized
+
+    for entry in raw_model_ids:
+        if isinstance(entry, dict):
+            model_id = entry.get("model_id", 0)
+        else:
+            model_id = entry
+
+        safe_model_id = max(0, _safe_int(model_id, 0))
+        if safe_model_id <= 0 or safe_model_id in seen_model_ids:
+            continue
+
+        seen_model_ids.add(safe_model_id)
+        normalized.append(safe_model_id)
+
+    return normalized
 
 
 @dataclass
@@ -1073,6 +1161,14 @@ class PlannedTraderSale:
 
 
 @dataclass
+class PlannedManualMerchantSale:
+    item_id: int
+    model_id: int
+    label: str
+    quantity_to_sell: int = 0
+
+
+@dataclass
 class PlannedTraderBuy:
     identifier: str
     quantity: int
@@ -1114,6 +1210,7 @@ class PlannedStorageTransfer:
     item_id: int
     quantity: int
     model_id: int = 0
+    reason: str = ""
 
 
 @dataclass
@@ -1150,6 +1247,11 @@ class PlanResult:
     coords: dict[str, tuple[float, float] | None] = field(default_factory=dict)
     travel_to_outpost_id: int = 0
     travel_to_outpost_name: str = ""
+    multi_stop_route: bool = False
+    multi_stop_consumable_outpost_id: int = 0
+    multi_stop_consumable_outpost_name: str = ""
+    multi_stop_destination_outpost_id: int = 0
+    multi_stop_destination_outpost_name: str = ""
     merchant_stock_buys: list[PlannedMerchantBuy] = field(default_factory=list)
     material_buys: list[PlannedMaterialBuy] = field(default_factory=list)
     rune_trader_buys: list[PlannedTraderBuy] = field(default_factory=list)
@@ -1158,6 +1260,8 @@ class PlanResult:
     material_sales: list[PlannedMaterialSale] = field(default_factory=list)
     storage_transfers: list[PlannedStorageTransfer] = field(default_factory=list)
     cleanup_transfers: list[PlannedStorageTransfer] = field(default_factory=list)
+    identify_claimed_item_ids: list[int] = field(default_factory=list)
+    identify_item_ids: list[int] = field(default_factory=list)
     destroy_actions: list[PlannedDestroyAction] = field(default_factory=list)
     destroy_item_ids: list[int] = field(default_factory=list)
     merchant_sell_item_ids: list[int] = field(default_factory=list)
@@ -1168,6 +1272,14 @@ class PlanResult:
     inventory_model_counts: dict[int, int] = field(default_factory=dict)
     inventory_item_count: int = 0
     has_actions: bool = False
+
+
+@dataclass
+class ManualVendorContext:
+    signature: str = ""
+    merchant_types: set[str] = field(default_factory=set)
+    merchant_item_ids: list[int] = field(default_factory=list)
+    trader_item_ids: list[int] = field(default_factory=list)
 
 
 @dataclass
@@ -1251,12 +1363,51 @@ def _default_rarity_flags() -> dict[str, bool]:
     }
 
 
+def _default_salvage_rarity_flags() -> dict[str, bool]:
+    return {key: False for key, _label in RARITY_OPTION_ORDER}
+
+
+def _default_identify_rarity_flags() -> dict[str, bool]:
+    return {key: False for key, _label in RARITY_OPTION_ORDER}
+
+
+def _default_salvage_category_flags() -> dict[str, bool]:
+    return {key: False for key, _label in SALVAGE_CATEGORY_ORDER}
+
+
 def _normalize_rarity_flags(raw_value: object) -> dict[str, bool]:
     flags = _default_rarity_flags()
     if isinstance(raw_value, dict):
         for key, _label in RARITY_OPTION_ORDER:
             if key in raw_value:
                 flags[key] = bool(raw_value.get(key, flags[key]))
+    return flags
+
+
+def _normalize_salvage_rarity_flags(raw_value: object) -> dict[str, bool]:
+    flags = _default_salvage_rarity_flags()
+    if isinstance(raw_value, dict):
+        for key, _label in RARITY_OPTION_ORDER:
+            if key in raw_value:
+                flags[key] = bool(raw_value.get(key, False))
+    return flags
+
+
+def _normalize_identify_rarity_flags(raw_value: object) -> dict[str, bool]:
+    flags = _default_identify_rarity_flags()
+    if isinstance(raw_value, dict):
+        for key, _label in RARITY_OPTION_ORDER:
+            if key in raw_value:
+                flags[key] = bool(raw_value.get(key, False))
+    return flags
+
+
+def _normalize_salvage_category_flags(raw_value: object) -> dict[str, bool]:
+    flags = _default_salvage_category_flags()
+    if isinstance(raw_value, dict):
+        for key, _label in SALVAGE_CATEGORY_ORDER:
+            if key in raw_value:
+                flags[key] = bool(raw_value.get(key, False))
     return flags
 
 
@@ -1693,6 +1844,7 @@ def _looks_like_merchant_rules_payload(raw_payload: object) -> bool:
             "buy_rules",
             "sell_rules",
             "destroy_rules",
+            "identify_settings",
             "cleanup_targets",
             "cleanup_protection_sources",
             "auto_cleanup_on_outpost_entry",
@@ -2241,6 +2393,13 @@ def _normalize_merchant_stock_targets(raw_targets: object) -> list[MerchantStock
     return normalized
 
 
+def _normalize_consumable_crafter_count_mode(mode: object) -> str:
+    safe_mode = str(mode or "").strip()
+    if safe_mode in CONSUMABLE_CRAFTER_COUNT_MODES:
+        return safe_mode
+    return CONSUMABLE_CRAFTER_COUNT_MODE_CRAFT_AMOUNT
+
+
 def _normalize_rune_identifier(identifier: object) -> str:
     return str(identifier or "").strip()
 
@@ -2273,6 +2432,40 @@ def _normalize_rune_trader_targets(raw_targets: object) -> list[RuneTraderTarget
                 identifier=safe_identifier,
                 target_count=max(0, _safe_int(target_count, 0)),
                 max_per_run=max(0, _safe_int(max_per_run, 0)),
+            )
+        )
+
+    return normalized
+
+
+def _normalize_rune_sell_targets(raw_targets: object) -> list[RuneSellTarget]:
+    normalized: list[RuneSellTarget] = []
+    seen_identifiers: set[str] = set()
+    if not isinstance(raw_targets, list):
+        return normalized
+
+    for entry in raw_targets:
+        if isinstance(entry, RuneSellTarget):
+            identifier = entry.identifier
+            keep_count = entry.keep_count
+        elif isinstance(entry, RuneTraderTarget):
+            identifier = entry.identifier
+            keep_count = entry.target_count
+        elif isinstance(entry, dict):
+            identifier = entry.get("identifier", "")
+            keep_count = entry.get("keep_count", entry.get("target_count", 0))
+        else:
+            continue
+
+        safe_identifier = _normalize_rune_identifier(identifier)
+        if not safe_identifier or safe_identifier in seen_identifiers:
+            continue
+
+        seen_identifiers.add(safe_identifier)
+        normalized.append(
+            RuneSellTarget(
+                identifier=safe_identifier,
+                keep_count=max(0, _safe_int(keep_count, 0)),
             )
         )
 
@@ -2396,6 +2589,10 @@ def _serialize_cleanup_protection_sources(raw_sources: object) -> list[dict[str,
         }
         for source in _normalize_cleanup_protection_sources(raw_sources)
     ]
+
+
+def _serialize_cleanup_blacklist_model_ids(raw_model_ids: object) -> list[int]:
+    return [int(model_id) for model_id in _normalize_cleanup_blacklist_model_ids(raw_model_ids)]
 
 
 def _normalize_rule_id(value: object) -> str:
@@ -2542,7 +2739,15 @@ def _default_buy_rules() -> list[BuyRule]:
         BuyRule(enabled=False, kind=BUY_KIND_MATERIAL_TARGET, merchant_type=MERCHANT_TYPE_MATERIALS, model_id=0, target_count=0, max_per_run=0),
         BuyRule(enabled=False, kind=BUY_KIND_RUNE_TRADER_TARGET, merchant_type=MERCHANT_TYPE_RUNE_TRADER, model_id=0, target_count=0, max_per_run=0),
         BuyRule(enabled=False, kind=BUY_KIND_SCROLL_TRADER_TARGET, merchant_type=MERCHANT_TYPE_SCROLL_TRADER, model_id=0, target_count=0, max_per_run=0),
-        BuyRule(enabled=False, kind=BUY_KIND_CONSUMABLE_CRAFTER_TARGET, merchant_type=MERCHANT_TYPE_CONSUMABLE_CRAFTER, model_id=0, target_count=0, max_per_run=0),
+        BuyRule(
+            enabled=False,
+            kind=BUY_KIND_CONSUMABLE_CRAFTER_TARGET,
+            merchant_type=MERCHANT_TYPE_CONSUMABLE_CRAFTER,
+            model_id=0,
+            target_count=0,
+            max_per_run=0,
+            consumable_crafter_count_mode=CONSUMABLE_CRAFTER_COUNT_MODE_CRAFT_AMOUNT,
+        ),
     ]
 
 
@@ -2565,6 +2770,12 @@ def _default_sell_rules() -> list[SellRule]:
             rarities=_default_rarity_flags(),
             skip_customized=True,
             skip_unidentified=True,
+        ),
+        SellRule(
+            enabled=False,
+            kind=SELL_KIND_RUNE_TRADER_TARGET,
+            merchant_type=MERCHANT_TYPE_RUNE_TRADER,
+            rune_sell_targets=[],
         ),
     ]
 
@@ -2600,6 +2811,9 @@ def _normalize_buy_rule(rule: BuyRule) -> BuyRule | None:
     rule.merchant_stock_targets = _normalize_merchant_stock_targets(getattr(rule, "merchant_stock_targets", []))
     rule.material_targets = _normalize_material_targets(getattr(rule, "material_targets", []))
     rule.rune_targets = _normalize_rune_trader_targets(getattr(rule, "rune_targets", []))
+    rule.consumable_crafter_count_mode = _normalize_consumable_crafter_count_mode(
+        getattr(rule, "consumable_crafter_count_mode", CONSUMABLE_CRAFTER_COUNT_MODE_CRAFT_AMOUNT)
+    )
 
     if rule.kind == BUY_KIND_MATERIAL_TARGET:
         if not rule.material_targets and legacy_model_id > 0 and _is_crafting_material_model(legacy_model_id):
@@ -2641,6 +2855,7 @@ def _normalize_buy_rule(rule: BuyRule) -> BuyRule | None:
         rule.target_count = 0
         rule.max_per_run = 0
     elif rule.kind == BUY_KIND_CONSUMABLE_CRAFTER_TARGET:
+        rule.consumable_crafter_count_mode = _normalize_consumable_crafter_count_mode(rule.consumable_crafter_count_mode)
         if not rule.merchant_stock_targets and legacy_model_id > 0 and legacy_model_id in CONSUMABLE_CRAFTER_RECIPES_BY_MODEL:
             rule.merchant_stock_targets = [
                 MerchantStockTarget(
@@ -2819,6 +3034,7 @@ def _normalize_sell_rule(rule: SellRule) -> SellRule | None:
     rule.protected_weapon_mod_variant_thresholds = _normalize_weapon_mod_variant_threshold_rules(
         _coerce_list(getattr(rule, "protected_weapon_mod_variant_thresholds", []))
     )
+    rule.rune_sell_targets = _normalize_rune_sell_targets(getattr(rule, "rune_sell_targets", []))
     rule.protected_rune_identifiers = _dedupe_identifiers(rule.protected_rune_identifiers)
     rule.skip_customized = bool(rule.skip_customized)
     rule.skip_unidentified = bool(rule.skip_unidentified)
@@ -2830,12 +3046,22 @@ def _normalize_sell_rule(rule: SellRule) -> SellRule | None:
         rule.model_ids = []
         rule.keep_count = 0
         rule.whitelist_targets = []
+        rule.rune_sell_targets = []
         if rule.kind != SELL_KIND_WEAPONS:
             rule.blacklist_item_type_ids = []
+    elif rule.kind == SELL_KIND_RUNE_TRADER_TARGET:
+        rule.model_ids = []
+        rule.keep_count = 0
+        rule.whitelist_targets = []
+        rule.rarities = _default_rarity_flags()
+        rule.blacklist_model_ids = []
+        rule.blacklist_item_type_ids = []
+        rule.deposit_protected_matches = False
     else:
         rule.model_ids = _get_whitelist_target_model_ids(rule.whitelist_targets)
         rule.keep_count = 0
         rule.blacklist_item_type_ids = []
+        rule.rune_sell_targets = []
         rule.deposit_protected_matches = False
     return rule
 
@@ -2882,6 +3108,66 @@ def _normalize_destroy_rule(rule: DestroyRule) -> DestroyRule:
 
 def _normalize_destroy_rules(rules: list[DestroyRule]) -> list[DestroyRule]:
     return [_normalize_destroy_rule(rule) for rule in rules]
+
+
+def _normalize_salvage_settings(raw_settings: object) -> SalvageSettings:
+    if isinstance(raw_settings, SalvageSettings):
+        return SalvageSettings(
+            model_ids=_dedupe_model_ids(raw_settings.model_ids),
+            rarities=_normalize_salvage_rarity_flags(raw_settings.rarities),
+            categories=_normalize_salvage_category_flags(raw_settings.categories),
+            on_inventory_change=bool(raw_settings.on_inventory_change),
+        )
+
+    if not isinstance(raw_settings, dict):
+        raw_settings = {}
+
+    return SalvageSettings(
+        model_ids=_dedupe_model_ids([
+            _safe_int(value, 0)
+            for value in _coerce_list(raw_settings.get("model_ids", []))
+        ]),
+        rarities=_normalize_salvage_rarity_flags(raw_settings.get("rarities", {})),
+        categories=_normalize_salvage_category_flags(raw_settings.get("categories", {})),
+        on_inventory_change=bool(raw_settings.get("on_inventory_change", False)),
+    )
+
+
+def _normalize_identify_settings(raw_settings: object) -> IdentifySettings:
+    if isinstance(raw_settings, IdentifySettings):
+        return IdentifySettings(
+            rarities=_normalize_identify_rarity_flags(raw_settings.rarities),
+            before_execute=bool(raw_settings.before_execute),
+            on_inventory_change=bool(raw_settings.on_inventory_change),
+        )
+
+    if not isinstance(raw_settings, dict):
+        raw_settings = {}
+
+    return IdentifySettings(
+        rarities=_normalize_identify_rarity_flags(raw_settings.get("rarities", {})),
+        before_execute=bool(raw_settings.get("before_execute", False)),
+        on_inventory_change=bool(raw_settings.get("on_inventory_change", False)),
+    )
+
+
+def _serialize_salvage_settings(settings: SalvageSettings) -> dict[str, object]:
+    normalized_settings = _normalize_salvage_settings(settings)
+    return {
+        "model_ids": list(normalized_settings.model_ids),
+        "rarities": dict(normalized_settings.rarities),
+        "categories": dict(normalized_settings.categories),
+        "on_inventory_change": bool(normalized_settings.on_inventory_change),
+    }
+
+
+def _serialize_identify_settings(settings: IdentifySettings) -> dict[str, object]:
+    normalized_settings = _normalize_identify_settings(settings)
+    return {
+        "rarities": dict(normalized_settings.rarities),
+        "before_execute": bool(normalized_settings.before_execute),
+        "on_inventory_change": bool(normalized_settings.on_inventory_change),
+    }
 
 
 def _serialize_sell_rule(rule: SellRule) -> dict[str, object]:
@@ -2965,9 +3251,18 @@ class MerchantRulesWidget:
         self.buy_rules: list[BuyRule] = []
         self.sell_rules: list[SellRule] = []
         self.destroy_rules: list[DestroyRule] = []
+        self.identify_settings = IdentifySettings()
+        self.salvage_settings = SalvageSettings()
         self.cleanup_targets: list[CleanupTarget] = []
+        self.cleanup_blacklist_model_ids: list[int] = []
         self.cleanup_protection_sources: list[CleanupProtectionSource] = []
         self.auto_cleanup_on_outpost_entry = False
+        self.auto_sell_on_manual_vendor_interaction = False
+        self.auto_buy_on_manual_vendor_interaction = False
+        self.auto_sell_to_any_merchant = False
+        self.auto_sell_any_merchant_normal_items = False
+        self.auto_sell_any_merchant_materials = False
+        self.auto_sell_any_merchant_runes = False
         self.auto_travel_enabled = False
         self.target_outpost_id = 0
         self.favorite_outpost_ids: list[int] = []
@@ -2979,27 +3274,38 @@ class MerchantRulesWidget:
         self.detailed_preview = False
         self.execution_running = False
         self.travel_preview_running = False
+        self.identify_running = False
         self.instant_destroy_running = False
+        self.salvage_running = False
         self.auto_cleanup_running = False
+        self.manual_vendor_running = False
         self.destroy_instant_enabled = False
         self.destroy_include_protected_items = False
         self.status_message = "Preview the current map plan before execution."
         self.last_error = ""
         self.last_execution_summary = ""
+        self.last_manual_vendor_summary = ""
+        self.last_identify_summary = ""
         self.last_instant_destroy_summary = ""
+        self.last_salvage_summary = ""
         self.last_cleanup_summary = ""
         self.debug_logging = False
         self.storage_scan_running = False
+        self.icon_xunlai_open_running = False
         self.outpost_search_text = ""
         self.cleanup_model_search_text = ""
+        self.cleanup_blacklist_search_text = ""
         self.destroy_model_text_cache: dict[int, str] = {}
         self.destroy_model_search_cache: dict[int, str] = {}
+        self.salvage_model_search_text = ""
         self.sell_model_text_cache: dict[int, str] = {}
         self.buy_model_search_cache: dict[int, str] = {}
         self.buy_manual_model_id_cache: dict[int, int] = {}
         self.buy_rune_search_cache: dict[int, str] = {}
         self.buy_rune_profession_cache: dict[int, str] = {}
         self.sell_model_search_cache: dict[int, str] = {}
+        self.sell_exact_rune_search_cache: dict[int, str] = {}
+        self.sell_exact_rune_profession_cache: dict[int, str] = {}
         self.sell_blacklist_search_cache: dict[int, str] = {}
         self.sell_blacklist_import_feedback_cache: dict[int, tuple[str, tuple[float, float, float, float]]] = {}
         self.sell_weapon_requirement_search_cache: dict[int, str] = {}
@@ -3010,6 +3316,8 @@ class MerchantRulesWidget:
         self.map_instance_uptime_snapshot_ms = 0
         self.auto_cleanup_zone_attempted = False
         self.auto_cleanup_zone_token = ""
+        self.manual_vendor_handled_signature = ""
+        self.manual_vendor_cooldown_until_ms = 0
         self.inventory_modifier_cache: dict[int, InventoryModifierCacheEntry] = {}
         self.inventory_modifier_cache_hits = 0
         self.inventory_modifier_cache_misses = 0
@@ -3053,6 +3361,12 @@ class MerchantRulesWidget:
         self.instant_destroy_poll_timer = ThrottledTimer(INSTANT_DESTROY_POLL_MS)
         self.instant_destroy_rescan_requested = False
         self.instant_destroy_last_signature: tuple[tuple[int, int], ...] = ()
+        self.salvage_poll_timer = ThrottledTimer(SALVAGE_POLL_MS)
+        self.salvage_rescan_requested = False
+        self.salvage_last_signature: tuple[tuple[int, int], ...] = ()
+        self.identify_poll_timer = ThrottledTimer(IDENTIFY_POLL_MS)
+        self.identify_rescan_requested = False
+        self.identify_last_signature: tuple[tuple[int, int], ...] = ()
         self.active_workspace = WORKSPACE_OVERVIEW
         self.active_rules_workspace = RULES_WORKSPACE_BUY
         self.active_buy_rule_kind = BUY_RULE_WORKSPACE_ORDER[0]
@@ -3073,6 +3387,14 @@ class MerchantRulesWidget:
         self.multibox_running_started_at_ms = 0
         self.show_main_window = False
         self.expand_main_window_on_next_show = True
+        self.quick_actions_menu_open = False
+        self.quick_actions_menu_pos: tuple[float, float] = (0.0, 0.0)
+        self.quick_actions_menu_anchor_rect: tuple[float, float, float, float] = (0.0, 0.0, 0.0, 0.0)
+        self.quick_actions_menu_size: tuple[float, float] = (
+            QUICK_ACTIONS_MENU_ESTIMATED_WIDTH,
+            QUICK_ACTIONS_MENU_ESTIMATED_HEIGHT,
+        )
+        self.quick_actions_popup_visible = False
         self.floating_ui_ini_key = ""
         self.floating_ui_ini_loaded = False
         self.floating_button = None
@@ -3159,13 +3481,258 @@ class MerchantRulesWidget:
         if self.show_main_window:
             self.expand_main_window_on_next_show = True
 
+    def _is_floating_icon_right_clicked(self, floating_button) -> bool:
+        try:
+            if not PyImGui.is_mouse_released(1):
+                return False
+
+            if PyImGui.is_item_hovered():
+                return True
+
+            io = PyImGui.get_io()
+            icon_x, icon_y = floating_button.position
+            button_size = float(getattr(floating_button, "button_size", 45.0))
+            padding = max(2.0, button_size * 0.05)
+            hitbox_size = button_size + padding * 2
+            mouse_x = float(getattr(io, "mouse_pos_x", 0.0))
+            mouse_y = float(getattr(io, "mouse_pos_y", 0.0))
+            return bool(
+                float(icon_x) <= mouse_x <= float(icon_x) + hitbox_size
+                and float(icon_y) <= mouse_y <= float(icon_y) + hitbox_size
+            )
+        except Exception:
+            return False
+
+    def _request_open_xunlai_from_icon(self):
+        if self.icon_xunlai_open_running:
+            self.status_message = "Opening Xunlai..."
+            return
+        if self._is_storage_open():
+            self.status_message = "Xunlai is already open."
+            return
+        if not Map.IsMapReady():
+            self.status_message = "Wait for the current map to finish loading."
+            return
+
+        self.icon_xunlai_open_running = True
+        self.status_message = "Opening Xunlai..."
+        GLOBAL_CACHE.Coroutines.append(self._open_xunlai_from_icon())
+
+    def _open_xunlai_from_icon(self):
+        try:
+            opened = yield from self._ensure_storage_open(purpose="right-click icon")
+            if opened:
+                self.status_message = "Xunlai is open."
+            else:
+                self.status_message = "Could not open Xunlai right now."
+        except Exception as exc:
+            self.last_error = f"{exc}"
+            self.status_message = "Could not open Xunlai."
+            ConsoleLog(MODULE_NAME, f"Open Xunlai from icon failed: {exc}", Console.MessageType.Error)
+            ConsoleLog(MODULE_NAME, traceback.format_exc(), Console.MessageType.Error)
+        finally:
+            self.icon_xunlai_open_running = False
+            yield
+
+    def _get_display_size(self) -> tuple[float, float]:
+        try:
+            io = PyImGui.get_io()
+            return (
+                max(0.0, float(getattr(io, "display_size_x", 0.0) or 0.0)),
+                max(0.0, float(getattr(io, "display_size_y", 0.0) or 0.0)),
+            )
+        except Exception:
+            return (0.0, 0.0)
+
+    def _clamp_quick_actions_menu_pos(self, menu_size: tuple[float, float]) -> tuple[float, float]:
+        anchor_left, anchor_top, anchor_right, anchor_bottom = self.quick_actions_menu_anchor_rect
+        menu_width = max(1.0, float(menu_size[0] or QUICK_ACTIONS_MENU_ESTIMATED_WIDTH))
+        menu_height = max(1.0, float(menu_size[1] or QUICK_ACTIONS_MENU_ESTIMATED_HEIGHT))
+        display_width, display_height = self._get_display_size()
+        margin = QUICK_ACTIONS_MENU_SCREEN_MARGIN
+        gap = QUICK_ACTIONS_MENU_ICON_GAP
+
+        if display_width <= 0.0 or display_height <= 0.0:
+            return (max(0.0, anchor_right + gap), max(0.0, anchor_top))
+
+        room_right = display_width - anchor_right - margin
+        room_left = anchor_left - margin
+        if room_right >= menu_width or room_right >= room_left:
+            x = anchor_right + gap
+        else:
+            x = anchor_left - menu_width - gap
+
+        if anchor_top + menu_height <= display_height - margin:
+            y = anchor_top
+        else:
+            y = anchor_bottom - menu_height
+
+        max_x = max(margin, display_width - menu_width - margin)
+        max_y = max(margin, display_height - menu_height - margin)
+        x = min(max(margin, x), max_x)
+        y = min(max(margin, y), max_y)
+        return (x, y)
+
+    def _open_quick_actions_menu(self, floating_button=None):
+        try:
+            if floating_button is not None:
+                icon_x, icon_y = floating_button.position
+                button_size = float(getattr(floating_button, "button_size", 45.0))
+                padding = max(2.0, button_size * 0.05)
+                icon_left = float(icon_x)
+                icon_top = float(icon_y)
+                icon_size = button_size + (padding * 2.0)
+                self.quick_actions_menu_anchor_rect = (
+                    icon_left,
+                    icon_top,
+                    icon_left + icon_size,
+                    icon_top + icon_size,
+                )
+            else:
+                io = PyImGui.get_io()
+                mouse_x = float(getattr(io, "mouse_pos_x", 0.0))
+                mouse_y = float(getattr(io, "mouse_pos_y", 0.0))
+                self.quick_actions_menu_anchor_rect = (
+                    mouse_x,
+                    mouse_y,
+                    mouse_x,
+                    mouse_y,
+                )
+            self.quick_actions_menu_pos = self._clamp_quick_actions_menu_pos(self.quick_actions_menu_size)
+        except Exception:
+            self.quick_actions_menu_pos = (0.0, 0.0)
+        self.quick_actions_menu_open = True
+
+    def _close_quick_actions_menu(self):
+        self.quick_actions_menu_open = False
+        self.quick_actions_popup_visible = False
+        try:
+            PyImGui.close_current_popup()
+        except Exception:
+            pass
+
+    def _handle_floating_icon_right_click(self, floating_button):
+        if self._is_floating_icon_right_clicked(floating_button):
+            self._open_quick_actions_menu(floating_button)
+
+    def _get_open_xunlai_block_reason(self) -> str:
+        if self.icon_xunlai_open_running:
+            return "Opening Xunlai..."
+        if self._is_storage_open():
+            return ""
+        if not Map.IsMapReady():
+            return "Wait for the current map to finish loading."
+        return ""
+
+    def _get_storage_scan_block_reason(self) -> str:
+        if not self.preview_ready:
+            return "Run Preview before refreshing Xunlai counts."
+        if not self._plan_needs_exact_storage_scan(self.preview_plan):
+            return "The current preview does not need a Xunlai refresh."
+        if not self._can_use_local_storage_actions():
+            return "Go to an outpost or Guild Hall to refresh Xunlai counts."
+        return self._get_action_block_reason("preview")
+
+    def _draw_quick_action_button(self, label: str, disabled_reason: str = "") -> bool:
+        is_disabled = bool(str(disabled_reason or "").strip())
+        if is_disabled:
+            PyImGui.begin_disabled(True)
+        clicked = PyImGui.button(label)
+        if is_disabled:
+            PyImGui.end_disabled()
+            PyImGui.push_text_wrap_pos(PyImGui.get_cursor_pos_x() + QUICK_ACTIONS_MENU_REASON_WIDTH)
+            self._draw_secondary_text(str(disabled_reason), wrapped=True)
+            PyImGui.pop_text_wrap_pos()
+        return bool(clicked and not is_disabled)
+
+    def _draw_quick_confirm_action_button(self, label: str, disabled_reason: str = "") -> bool:
+        is_disabled = bool(str(disabled_reason or "").strip())
+        if is_disabled:
+            PyImGui.begin_disabled(True)
+        confirmed = self._draw_confirm_destructive_button(label)
+        if is_disabled:
+            PyImGui.end_disabled()
+            PyImGui.push_text_wrap_pos(PyImGui.get_cursor_pos_x() + QUICK_ACTIONS_MENU_REASON_WIDTH)
+            self._draw_secondary_text(str(disabled_reason), wrapped=True)
+            PyImGui.pop_text_wrap_pos()
+        return bool(confirmed and not is_disabled)
+
+    def _show_overview_window(self):
+        self.active_workspace = WORKSPACE_OVERVIEW
+        self._set_main_window_visible(True, expand_on_show=True)
+
+    def _draw_floating_icon_quick_actions_menu(self):
+        should_position_popup = self.quick_actions_menu_open or self.quick_actions_popup_visible
+        if self.quick_actions_menu_open:
+            PyImGui.open_popup(QUICK_ACTIONS_POPUP_ID)
+            self.quick_actions_menu_open = False
+
+        if should_position_popup:
+            PyImGui.set_next_window_pos(self.quick_actions_menu_pos, PyImGui.ImGuiCond.Always)
+
+        if PyImGui.begin_popup(QUICK_ACTIONS_POPUP_ID):
+            self.quick_actions_popup_visible = True
+            popup_size = PyImGui.get_window_size()
+            if popup_size[0] > 0.0 and popup_size[1] > 0.0:
+                self.quick_actions_menu_size = (float(popup_size[0]), float(popup_size[1]))
+                next_pos = self._clamp_quick_actions_menu_pos(self.quick_actions_menu_size)
+                if next_pos != self.quick_actions_menu_pos:
+                    self.quick_actions_menu_pos = next_pos
+                    PyImGui.set_window_pos(next_pos[0], next_pos[1], PyImGui.ImGuiCond.Always)
+            open_xunlai_reason = self._get_open_xunlai_block_reason()
+            if self._draw_quick_action_button("Open Xunlai", open_xunlai_reason):
+                self._request_open_xunlai_from_icon()
+                self._close_quick_actions_menu()
+
+            preview_reason = self._get_action_block_reason("preview")
+            if self._draw_quick_action_button("Preview Plan", preview_reason):
+                self._show_overview_window()
+                self._scan_preview()
+                self._close_quick_actions_menu()
+
+            if self.preview_ready and self._plan_needs_exact_storage_scan(self.preview_plan):
+                storage_scan_reason = self._get_storage_scan_block_reason()
+                if self._draw_quick_action_button("Open Xunlai and Refresh Preview", storage_scan_reason):
+                    self._show_overview_window()
+                    GLOBAL_CACHE.Coroutines.append(self._open_xunlai_and_scan_preview())
+                    self._close_quick_actions_menu()
+
+            PyImGui.separator()
+
+            cleanup_reason = self._get_action_block_reason("cleanup")
+            if self._draw_quick_action_button("Run Cleanup Now", cleanup_reason):
+                self._queue_cleanup_now()
+                self._close_quick_actions_menu()
+
+            execute_here_reason = self._get_action_block_reason("execute_here")
+            if self.execute_drift_requires_confirmation and not execute_here_reason:
+                execute_here_reason = self.preview_inventory_diff_summary or "Inventory changed since preview. Re-Preview before executing here."
+            if self._draw_quick_confirm_action_button("Execute Here##merchant_rules_quick_execute_here", execute_here_reason):
+                self._request_execute_here()
+                self._close_quick_actions_menu()
+
+            execute_reason = self._get_action_block_reason("execute")
+            if self.execute_drift_requires_confirmation and not execute_reason:
+                execute_reason = self.preview_inventory_diff_summary or "Inventory changed since preview. Re-Preview before Travel + Execute."
+            if self._draw_quick_confirm_action_button("Travel + Execute##merchant_rules_quick_travel_execute", execute_reason):
+                self._request_execute_now()
+                self._close_quick_actions_menu()
+
+            PyImGui.end_popup()
+        elif self.quick_actions_popup_visible:
+            self.quick_actions_popup_visible = False
+            self._clear_pending_destructive_button()
+
     def on_enable(self):
         self._set_main_window_visible(False, expand_on_show=True)
 
     def _tick_runtime(self):
         self._ensure_initialized()
         self._advance_multibox_batch()
+        self._update_manual_vendor_runtime()
+        self._update_identify_runtime()
         self._update_auto_cleanup_runtime()
+        self._update_salvage_runtime()
         self._update_instant_destroy_runtime()
 
     def _draw_main_window(self):
@@ -3235,6 +3802,12 @@ class MerchantRulesWidget:
         payload = {
             "version": PROFILE_VERSION,
             "auto_cleanup_on_outpost_entry": bool(self.auto_cleanup_on_outpost_entry),
+            "auto_sell_on_manual_vendor_interaction": bool(self.auto_sell_on_manual_vendor_interaction),
+            "auto_buy_on_manual_vendor_interaction": bool(self.auto_buy_on_manual_vendor_interaction),
+            "auto_sell_to_any_merchant": bool(self.auto_sell_to_any_merchant),
+            "auto_sell_any_merchant_normal_items": bool(self.auto_sell_any_merchant_normal_items),
+            "auto_sell_any_merchant_materials": bool(self.auto_sell_any_merchant_materials),
+            "auto_sell_any_merchant_runes": bool(self.auto_sell_any_merchant_runes),
             "auto_travel_enabled": bool(self.auto_travel_enabled),
             "target_outpost_id": max(0, int(self.target_outpost_id)),
             "favorite_outpost_ids": self._normalize_outpost_ids(self.favorite_outpost_ids),
@@ -3247,7 +3820,10 @@ class MerchantRulesWidget:
                 if payload_entry
             ],
             "destroy_rules": [_serialize_destroy_rule(rule) for rule in _normalize_destroy_rules(self.destroy_rules)],
+            "identify_settings": _serialize_identify_settings(self.identify_settings),
+            "salvage_settings": _serialize_salvage_settings(self.salvage_settings),
             "cleanup_targets": _serialize_cleanup_targets(self.cleanup_targets),
+            "cleanup_blacklist_model_ids": _serialize_cleanup_blacklist_model_ids(self.cleanup_blacklist_model_ids),
             "cleanup_protection_sources": _serialize_cleanup_protection_sources(self.cleanup_protection_sources),
         }
         if include_window_geometry:
@@ -3273,12 +3849,31 @@ class MerchantRulesWidget:
         if not isinstance(destroy_rules_raw, list):
             raise ValueError("Merchant Rules destroy_rules must be a list.")
 
+        identify_settings_raw = raw_payload.get("identify_settings", {})
+        if identify_settings_raw is None:
+            identify_settings_raw = {}
+        if not isinstance(identify_settings_raw, dict):
+            raise ValueError("Merchant Rules identify_settings must be an object.")
+
+        salvage_settings_raw = raw_payload.get("salvage_settings", {})
+        if salvage_settings_raw is None:
+            salvage_settings_raw = {}
+        if not isinstance(salvage_settings_raw, dict):
+            raise ValueError("Merchant Rules salvage_settings must be an object.")
+
         cleanup_targets_present = "cleanup_targets" in raw_payload
         cleanup_targets_raw = raw_payload.get("cleanup_targets", [])
         if cleanup_targets_raw is None:
             cleanup_targets_raw = []
         if not isinstance(cleanup_targets_raw, list):
             raise ValueError("Merchant Rules cleanup_targets must be a list.")
+
+        cleanup_blacklist_present = "cleanup_blacklist_model_ids" in raw_payload
+        cleanup_blacklist_raw = raw_payload.get("cleanup_blacklist_model_ids", [])
+        if cleanup_blacklist_raw is None:
+            cleanup_blacklist_raw = []
+        if not isinstance(cleanup_blacklist_raw, list):
+            raise ValueError("Merchant Rules cleanup_blacklist_model_ids must be a list.")
 
         cleanup_sources_present = "cleanup_protection_sources" in raw_payload
         cleanup_sources_raw = raw_payload.get("cleanup_protection_sources", [])
@@ -3307,6 +3902,9 @@ class MerchantRulesWidget:
                 merchant_stock_targets=_normalize_merchant_stock_targets(_coerce_list(entry.get("merchant_stock_targets", []))),
                 material_targets=_normalize_material_targets(_coerce_list(entry.get("material_targets", []))),
                 rune_targets=_normalize_rune_trader_targets(_coerce_list(entry.get("rune_targets", []))),
+                consumable_crafter_count_mode=_normalize_consumable_crafter_count_mode(
+                    entry.get("consumable_crafter_count_mode", CONSUMABLE_CRAFTER_COUNT_MODE_CRAFT_AMOUNT)
+                ),
                 name=_normalize_rule_name(entry.get("name", "")),
             )
             normalized_buy_rule = _normalize_buy_rule(rule)
@@ -3341,6 +3939,7 @@ class MerchantRulesWidget:
                     protected_weapon_mod_thresholds=_normalize_weapon_mod_threshold_rules(_coerce_list(entry.get("protected_weapon_mod_thresholds", []))),
                     protected_weapon_mod_variants=_normalize_weapon_mod_variant_rules(_coerce_list(entry.get("protected_weapon_mod_variants", []))),
                     protected_weapon_mod_variant_thresholds=_normalize_weapon_mod_variant_threshold_rules(_coerce_list(entry.get("protected_weapon_mod_variant_thresholds", []))),
+                    rune_sell_targets=_normalize_rune_sell_targets(_coerce_list(entry.get("rune_sell_targets", []))),
                     protected_rune_identifiers=_dedupe_identifiers(_coerce_list(entry.get("protected_rune_identifiers", []))),
                     skip_customized=bool(entry.get("skip_customized", True)),
                     skip_unidentified=bool(entry.get("skip_unidentified", True)),
@@ -3405,6 +4004,10 @@ class MerchantRulesWidget:
                 [asdict(target) for target in migrated_cleanup_targets_by_model.values()]
             )
 
+        normalized_cleanup_blacklist_model_ids = _normalize_cleanup_blacklist_model_ids(cleanup_blacklist_raw)
+        if not cleanup_blacklist_present:
+            normalized_cleanup_blacklist_model_ids = _normalize_cleanup_blacklist_model_ids([])
+
         normalized_cleanup_sources = _normalize_cleanup_protection_sources(cleanup_sources_raw)
         if not cleanup_sources_present:
             normalized_cleanup_sources = _normalize_cleanup_protection_sources(
@@ -3415,6 +4018,12 @@ class MerchantRulesWidget:
         return {
             "version": PROFILE_VERSION,
             "auto_cleanup_on_outpost_entry": bool(raw_payload.get("auto_cleanup_on_outpost_entry", False)),
+            "auto_sell_on_manual_vendor_interaction": bool(raw_payload.get("auto_sell_on_manual_vendor_interaction", False)),
+            "auto_buy_on_manual_vendor_interaction": bool(raw_payload.get("auto_buy_on_manual_vendor_interaction", False)),
+            "auto_sell_to_any_merchant": bool(raw_payload.get("auto_sell_to_any_merchant", False)),
+            "auto_sell_any_merchant_normal_items": bool(raw_payload.get("auto_sell_any_merchant_normal_items", False)),
+            "auto_sell_any_merchant_materials": bool(raw_payload.get("auto_sell_any_merchant_materials", False)),
+            "auto_sell_any_merchant_runes": bool(raw_payload.get("auto_sell_any_merchant_runes", False)),
             "auto_travel_enabled": bool(raw_payload.get("auto_travel_enabled", False)),
             "target_outpost_id": max(0, _safe_int(raw_payload.get("target_outpost_id", 0), 0)),
             "favorite_outpost_ids": self._normalize_outpost_ids(_coerce_list(favorite_outpost_ids_raw)),
@@ -3424,7 +4033,10 @@ class MerchantRulesWidget:
             "buy_rules": [asdict(rule) for rule in normalized_buy_rules],
             "sell_rules": [_serialize_sell_rule(rule) for rule in normalized_sell_rules],
             "destroy_rules": [_serialize_destroy_rule(rule) for rule in normalized_destroy_rules],
+            "identify_settings": _serialize_identify_settings(_normalize_identify_settings(identify_settings_raw)),
+            "salvage_settings": _serialize_salvage_settings(_normalize_salvage_settings(salvage_settings_raw)),
             "cleanup_targets": _serialize_cleanup_targets(normalized_cleanup_targets),
+            "cleanup_blacklist_model_ids": _serialize_cleanup_blacklist_model_ids(normalized_cleanup_blacklist_model_ids),
             "cleanup_protection_sources": _serialize_cleanup_protection_sources(normalized_cleanup_sources),
         }
 
@@ -3440,6 +4052,9 @@ class MerchantRulesWidget:
                 merchant_stock_targets=_normalize_merchant_stock_targets(_coerce_list(entry.get("merchant_stock_targets", []))),
                 material_targets=_normalize_material_targets(_coerce_list(entry.get("material_targets", []))),
                 rune_targets=_normalize_rune_trader_targets(_coerce_list(entry.get("rune_targets", []))),
+                consumable_crafter_count_mode=_normalize_consumable_crafter_count_mode(
+                    entry.get("consumable_crafter_count_mode", CONSUMABLE_CRAFTER_COUNT_MODE_CRAFT_AMOUNT)
+                ),
                 name=_normalize_rule_name(entry.get("name", "")),
             )
             for entry in _coerce_list(payload.get("buy_rules", []))
@@ -3465,6 +4080,7 @@ class MerchantRulesWidget:
                 protected_weapon_mod_thresholds=_normalize_weapon_mod_threshold_rules(_coerce_list(entry.get("protected_weapon_mod_thresholds", []))),
                 protected_weapon_mod_variants=_normalize_weapon_mod_variant_rules(_coerce_list(entry.get("protected_weapon_mod_variants", []))),
                 protected_weapon_mod_variant_thresholds=_normalize_weapon_mod_variant_threshold_rules(_coerce_list(entry.get("protected_weapon_mod_variant_thresholds", []))),
+                rune_sell_targets=_normalize_rune_sell_targets(_coerce_list(entry.get("rune_sell_targets", []))),
                 protected_rune_identifiers=_dedupe_identifiers(_coerce_list(entry.get("protected_rune_identifiers", []))),
                 skip_customized=bool(entry.get("skip_customized", True)),
                 skip_unidentified=bool(entry.get("skip_unidentified", True)),
@@ -3488,11 +4104,22 @@ class MerchantRulesWidget:
             for entry in _coerce_list(payload.get("destroy_rules", []))
             if isinstance(entry, dict)
         ])
+        self.identify_settings = _normalize_identify_settings(payload.get("identify_settings", {}))
+        self.salvage_settings = _normalize_salvage_settings(payload.get("salvage_settings", {}))
         self.cleanup_targets = _normalize_cleanup_targets(_coerce_list(payload.get("cleanup_targets", [])))
+        self.cleanup_blacklist_model_ids = _normalize_cleanup_blacklist_model_ids(
+            _coerce_list(payload.get("cleanup_blacklist_model_ids", []))
+        )
         self.cleanup_protection_sources = _normalize_cleanup_protection_sources(
             _coerce_list(payload.get("cleanup_protection_sources", []))
         )
         self.auto_cleanup_on_outpost_entry = bool(payload.get("auto_cleanup_on_outpost_entry", False))
+        self.auto_sell_on_manual_vendor_interaction = bool(payload.get("auto_sell_on_manual_vendor_interaction", False))
+        self.auto_buy_on_manual_vendor_interaction = bool(payload.get("auto_buy_on_manual_vendor_interaction", False))
+        self.auto_sell_to_any_merchant = bool(payload.get("auto_sell_to_any_merchant", False))
+        self.auto_sell_any_merchant_normal_items = bool(payload.get("auto_sell_any_merchant_normal_items", False))
+        self.auto_sell_any_merchant_materials = bool(payload.get("auto_sell_any_merchant_materials", False))
+        self.auto_sell_any_merchant_runes = bool(payload.get("auto_sell_any_merchant_runes", False))
         self.auto_travel_enabled = bool(payload.get("auto_travel_enabled", False))
         self.target_outpost_id = max(0, _safe_int(payload.get("target_outpost_id", 0), 0))
         self.favorite_outpost_ids = self._normalize_outpost_ids(_coerce_list(payload.get("favorite_outpost_ids", [])))
@@ -3511,9 +4138,11 @@ class MerchantRulesWidget:
         self.sell_rules = _normalize_sell_rules(self.sell_rules)
         self.destroy_rules = _normalize_destroy_rules(self.destroy_rules)
         self.cleanup_targets = _normalize_cleanup_targets(self.cleanup_targets)
+        self.cleanup_blacklist_model_ids = _normalize_cleanup_blacklist_model_ids(self.cleanup_blacklist_model_ids)
         self.cleanup_protection_sources = _normalize_cleanup_protection_sources(self.cleanup_protection_sources)
         self.outpost_search_text = ""
         self.cleanup_model_search_text = ""
+        self.cleanup_blacklist_search_text = ""
         self._refresh_rule_ui_caches()
 
     def _get_shared_profiles_dir(self) -> str:
@@ -4315,16 +4944,31 @@ class MerchantRulesWidget:
         self.last_execution_summary = ""
         self.last_cleanup_summary = ""
         self.last_instant_destroy_summary = ""
+        self.last_identify_summary = ""
+        self.last_salvage_summary = ""
+        self.last_manual_vendor_summary = ""
         self.destroy_instant_enabled = False
         self.destroy_include_protected_items = False
         self.auto_cleanup_running = False
         self.auto_cleanup_zone_attempted = False
         self.auto_cleanup_zone_token = ""
         self.cleanup_model_search_text = ""
+        self.cleanup_blacklist_search_text = ""
         self.instant_destroy_running = False
         self.instant_destroy_rescan_requested = False
         self.instant_destroy_last_signature = ()
         self.instant_destroy_poll_timer.Reset()
+        self.identify_running = False
+        self.identify_rescan_requested = False
+        self.identify_last_signature = ()
+        self.identify_poll_timer.Reset()
+        self.salvage_running = False
+        self.salvage_rescan_requested = False
+        self.salvage_last_signature = ()
+        self.salvage_poll_timer.Reset()
+        self.manual_vendor_running = False
+        self.manual_vendor_handled_signature = ""
+        self.manual_vendor_cooldown_until_ms = 0
         self._clear_sell_protection_jump("runtime reset after profile load")
         self._clear_preview_inventory_diff()
         self.map_ready_snapshot = bool(Map.IsMapReady())
@@ -4426,6 +5070,7 @@ class MerchantRulesWidget:
         self.rule_name_edit_text = ""
         self.manual_model_ids_edit_key = ""
         self.manual_model_ids_edit_text = ""
+        self.salvage_model_search_text = ""
         self._rebuild_text_caches()
         self.buy_model_search_cache.clear()
         self.buy_manual_model_id_cache.clear()
@@ -4433,6 +5078,8 @@ class MerchantRulesWidget:
         self.buy_rune_profession_cache.clear()
         self.destroy_model_search_cache.clear()
         self.sell_model_search_cache.clear()
+        self.sell_exact_rune_search_cache.clear()
+        self.sell_exact_rune_profession_cache.clear()
         self.sell_blacklist_search_cache.clear()
         self.sell_blacklist_import_feedback_cache.clear()
         self.sell_weapon_requirement_search_cache.clear()
@@ -4626,6 +5273,7 @@ class MerchantRulesWidget:
         self._debug_log(
             f"{prefix}: supported={plan.supported_map} has_actions={plan.has_actions} "
             f"entries={len(plan.entries)} travel={plan.travel_to_outpost_id} "
+            f"identify={len(plan.identify_item_ids)} "
             f"destroy={len(plan.destroy_actions) if plan.destroy_actions else len(plan.destroy_item_ids)} "
             f"merchant_stock={len(plan.merchant_stock_buys)} material_buys={len(plan.material_buys)} "
             f"rune_buys={len(plan.rune_trader_buys)} scroll_buys={len(plan.scroll_trader_buys)} "
@@ -4703,6 +5351,18 @@ class MerchantRulesWidget:
             return
         self.auto_cleanup_running = True
         GLOBAL_CACHE.Coroutines.append(self._execute_cleanup_now(auto_triggered=auto_triggered))
+
+    def _queue_identify_now(self, *, auto_triggered: bool = False):
+        if self.identify_running:
+            return
+        self.identify_running = True
+        GLOBAL_CACHE.Coroutines.append(
+            self._run_identify_pass(
+                auto_triggered=auto_triggered,
+                running_already_marked=True,
+                summary_subject="Auto Identify" if auto_triggered else "Identify",
+            )
+        )
 
     def _request_execute_now(self):
         if not self._compare_current_inventory_against_preview():
@@ -5168,6 +5828,27 @@ class MerchantRulesWidget:
             current_map_id = int(Map.GetMapID() or 0)
         return Map.IsMapIDMatch(int(current_map_id or 0), safe_outpost_id)
 
+    def _get_embark_beach_outpost_name(self) -> str:
+        outpost_name = self._get_outpost_name(EMBARK_BEACH_MAP_ID)
+        if not outpost_name or outpost_name.lower().startswith("map "):
+            return "Embark Beach"
+        return outpost_name
+
+    def _get_consumable_crafter_multi_stop_target(self) -> tuple[int, str]:
+        if not self.auto_travel_enabled or not self._has_enabled_consumable_crafter_buy_rules():
+            return 0, ""
+        target_outpost_id = max(0, _safe_int(self.target_outpost_id, 0))
+        if target_outpost_id <= 0 or target_outpost_id == EMBARK_BEACH_MAP_ID:
+            return 0, ""
+        target_outpost_name = self._get_outpost_name(target_outpost_id)
+        if not target_outpost_name:
+            return 0, ""
+        return target_outpost_id, target_outpost_name
+
+    def _should_use_consumable_crafter_multi_stop_route(self) -> bool:
+        target_outpost_id, _target_outpost_name = self._get_consumable_crafter_multi_stop_target()
+        return target_outpost_id > 0
+
     def _get_preview_projection_target(self) -> tuple[int, str]:
         target_outpost_id = max(0, int(self.target_outpost_id)) if self.auto_travel_enabled else 0
         if target_outpost_id <= 0:
@@ -5219,8 +5900,8 @@ class MerchantRulesWidget:
         if safe_outpost_id <= 0:
             return ""
         if safe_outpost_id in SUPPORTED_MAP_NPC_SELECTORS:
-            return "Uses map-specific merchant selectors."
-        return "Uses generic merchant selectors and depends on runtime NPC resolution."
+            return "Uses known merchant locations for this map."
+        return "Uses generic merchant search and may depend on finding NPCs in the current map."
 
     def _get_pinned_outpost_group_label(self, outpost_name: str) -> str:
         base_name = str(outpost_name or "").strip().split(" - ", 1)[0].strip()
@@ -5661,6 +6342,9 @@ class MerchantRulesWidget:
                 return entry
         return None
 
+    def _catalog_entry_matches_merchant_stock(self, entry: dict[str, object]) -> bool:
+        return self._get_merchant_essential(_safe_int(entry.get("model_id", 0), 0)) is not None
+
     def _catalog_entry_matches_common_material(self, entry: dict[str, object]) -> bool:
         return str(entry.get("material_type", "")).strip().lower() == "common"
 
@@ -5686,6 +6370,17 @@ class MerchantRulesWidget:
         if not include_standalone_runes or item_type != "rune_mod":
             return False
         return _is_armor_rune_catalog_name(entry.get("name", ""))
+
+    def _catalog_entry_matches_explicit_sell_item(self, entry: dict[str, object]) -> bool:
+        model_id = _safe_int(entry.get("model_id", 0), 0)
+        if self._get_material_catalog_entry(model_id) is not None:
+            return False
+
+        item_type = str(entry.get("item_type", "")).strip().lower()
+        if item_type in {"rune_mod", "salvage"} and _is_armor_rune_catalog_name(entry.get("name", "")):
+            return False
+
+        return True
 
     def _search_catalog(self, raw_query: str, limit: int = SEARCH_RESULT_LIMIT) -> list[dict[str, object]]:
         query = _normalize_catalog_search_text(raw_query)
@@ -5771,10 +6466,24 @@ class MerchantRulesWidget:
                 break
         return material_results
 
+    def _search_merchant_stock_catalog(self, raw_query: str, limit: int = SEARCH_RESULT_LIMIT) -> list[dict[str, object]]:
+        return self._search_catalog_with_predicate(
+            raw_query,
+            entry_predicate=self._catalog_entry_matches_merchant_stock,
+            limit=limit,
+        )
+
     def _search_scroll_trader_stock_catalog(self, raw_query: str, limit: int = SEARCH_RESULT_LIMIT) -> list[dict[str, object]]:
         return self._search_catalog_with_predicate(
             raw_query,
             entry_predicate=lambda entry: _is_scroll_trader_stock_model(entry.get("model_id", 0)),
+            limit=limit,
+        )
+
+    def _search_explicit_sell_item_catalog(self, raw_query: str, limit: int = SEARCH_RESULT_LIMIT) -> list[dict[str, object]]:
+        return self._search_catalog_with_predicate(
+            raw_query,
+            entry_predicate=self._catalog_entry_matches_explicit_sell_item,
             limit=limit,
         )
 
@@ -6072,6 +6781,38 @@ class MerchantRulesWidget:
         )
         return self._set_buy_rule_rune_targets(rule, existing_targets)
 
+    def _set_sell_rule_rune_sell_targets(self, rule: SellRule, rune_targets: list[RuneSellTarget]) -> bool:
+        normalized_targets = _normalize_rune_sell_targets(rune_targets)
+        current_targets = _normalize_rune_sell_targets(getattr(rule, "rune_sell_targets", []))
+        if normalized_targets == current_targets:
+            return False
+        rule.rune_sell_targets = normalized_targets
+        return True
+
+    def _add_sell_rule_rune_sell_target(
+        self,
+        rule: SellRule,
+        identifier: str,
+        *,
+        keep_count: int = 0,
+    ) -> bool:
+        safe_identifier = _normalize_rune_identifier(identifier)
+        if not safe_identifier:
+            return False
+
+        existing_targets = _normalize_rune_sell_targets(getattr(rule, "rune_sell_targets", []))
+        for rune_target in existing_targets:
+            if rune_target.identifier == safe_identifier:
+                return False
+
+        existing_targets.append(
+            RuneSellTarget(
+                identifier=safe_identifier,
+                keep_count=max(0, _safe_int(keep_count, 0)),
+            )
+        )
+        return self._set_sell_rule_rune_sell_targets(rule, existing_targets)
+
     def _set_sell_rule_whitelist_targets(self, index: int, rule: SellRule, whitelist_targets: list[WhitelistTarget]) -> bool:
         normalized_targets = _normalize_whitelist_targets(whitelist_targets)
         current_targets = _normalize_whitelist_targets(getattr(rule, "whitelist_targets", []))
@@ -6112,6 +6853,15 @@ class MerchantRulesWidget:
         )
         return self._set_destroy_rule_whitelist_targets(index, rule, next_targets)
 
+    def _set_salvage_model_ids(self, model_ids: list[int]) -> bool:
+        next_model_ids = _dedupe_model_ids(model_ids)
+        current_settings = _normalize_salvage_settings(self.salvage_settings)
+        if next_model_ids == current_settings.model_ids:
+            return False
+        current_settings.model_ids = next_model_ids
+        self.salvage_settings = current_settings
+        return True
+
     def _set_cleanup_targets(self, cleanup_targets: list[CleanupTarget]) -> bool:
         normalized_targets = _normalize_cleanup_targets(cleanup_targets)
         if normalized_targets == self.cleanup_targets:
@@ -6134,6 +6884,23 @@ class MerchantRulesWidget:
             )
         )
         return self._set_cleanup_targets(existing_targets)
+
+    def _set_cleanup_blacklist_model_ids(self, model_ids: list[int]) -> bool:
+        normalized_ids = _normalize_cleanup_blacklist_model_ids(model_ids)
+        if normalized_ids == self.cleanup_blacklist_model_ids:
+            return False
+        self.cleanup_blacklist_model_ids = normalized_ids
+        return True
+
+    def _add_cleanup_blacklist_model_id(self, model_id: int) -> bool:
+        safe_model_id = max(0, _safe_int(model_id, 0))
+        if safe_model_id <= 0:
+            return False
+        existing_model_ids = _normalize_cleanup_blacklist_model_ids(self.cleanup_blacklist_model_ids)
+        if safe_model_id in existing_model_ids:
+            return False
+        existing_model_ids.append(safe_model_id)
+        return self._set_cleanup_blacklist_model_ids(existing_model_ids)
 
     def _set_cleanup_protection_sources(self, cleanup_sources: list[CleanupProtectionSource]) -> bool:
         normalized_sources = _normalize_cleanup_protection_sources(cleanup_sources)
@@ -6350,17 +7117,13 @@ class MerchantRulesWidget:
         if not normalized_query:
             return 0, []
 
-        results = [
-            entry
-            for entry in self._search_catalog(normalized_query)
-            if not _is_scroll_trader_stock_model(entry.get("model_id", 0))
-        ]
+        results = self._search_merchant_stock_catalog(normalized_query)
         visible_model_ids = _collect_model_ids_from_catalog_entries(results)
         picked_model_id = 0
         child_height = 110 if len(results) > 4 else 80
         if PyImGui.begin_child(child_id, (0, child_height), True, PyImGui.WindowFlags.NoFlag):
             if not results:
-                PyImGui.text_wrapped("No matching regular merchant stock found in the local catalog.")
+                PyImGui.text_wrapped("No matching supported regular merchant stock found.")
             else:
                 for entry in results:
                     model_id = int(entry.get("model_id", 0))
@@ -6390,6 +7153,28 @@ class MerchantRulesWidget:
                     label = self._format_model_label(model_id)
                     if material_type:
                         label = f"{label} [{material_type}]"
+                    if PyImGui.selectable(f"{label}##{child_id}_{model_id}", False, PyImGui.SelectableFlags.NoFlag, (0, 0)):
+                        picked_model_id = model_id
+                        break
+        PyImGui.end_child()
+        return picked_model_id, visible_model_ids
+
+    def _draw_explicit_sell_item_search_results(self, child_id: str, query: str) -> tuple[int, list[int]]:
+        normalized_query = str(query or "").strip()
+        if not normalized_query:
+            return 0, []
+
+        results = self._search_explicit_sell_item_catalog(normalized_query)
+        visible_model_ids = _collect_model_ids_from_catalog_entries(results)
+        picked_model_id = 0
+        child_height = 110 if len(results) > 4 else 80
+        if PyImGui.begin_child(child_id, (0, child_height), True, PyImGui.WindowFlags.NoFlag):
+            if not results:
+                PyImGui.text_wrapped("No matching items found outside specialized vendor sections.")
+            else:
+                for entry in results:
+                    model_id = int(entry.get("model_id", 0))
+                    label = self._format_model_label_long(model_id)
                     if PyImGui.selectable(f"{label}##{child_id}_{model_id}", False, PyImGui.SelectableFlags.NoFlag, (0, 0)):
                         picked_model_id = model_id
                         break
@@ -7104,6 +7889,12 @@ class MerchantRulesWidget:
         default_payload = {
             "version": PROFILE_VERSION,
             "auto_cleanup_on_outpost_entry": False,
+            "auto_sell_on_manual_vendor_interaction": False,
+            "auto_buy_on_manual_vendor_interaction": False,
+            "auto_sell_to_any_merchant": False,
+            "auto_sell_any_merchant_normal_items": False,
+            "auto_sell_any_merchant_materials": False,
+            "auto_sell_any_merchant_runes": False,
             "auto_travel_enabled": False,
             "target_outpost_id": 0,
             "favorite_outpost_ids": [],
@@ -7117,7 +7908,9 @@ class MerchantRulesWidget:
             "buy_rules": [asdict(rule) for rule in (_default_buy_rules() if profile_exists else [])],
             "sell_rules": [asdict(rule) for rule in (_default_sell_rules() if profile_exists else [])],
             "destroy_rules": [asdict(rule) for rule in (_default_destroy_rules() if profile_exists else [])],
+            "identify_settings": _serialize_identify_settings(IdentifySettings()),
             "cleanup_targets": [],
+            "cleanup_blacklist_model_ids": [],
             "cleanup_protection_sources": [],
         }
         self._apply_profile_payload(default_payload)
@@ -7299,7 +8092,7 @@ class MerchantRulesWidget:
         )
         if resolved_count <= 0:
             supported_map = False
-            reason = f"{base_message} No merchant or trader selectors resolved."
+            reason = f"{base_message} No merchant or trader NPCs were found."
         elif resolved_count < len(coords):
             supported_map = True
             reason = f"{base_message} Partial merchant/trader resolution succeeded."
@@ -7434,6 +8227,114 @@ class MerchantRulesWidget:
                 reason=travel_reason,
             )
             )
+        return result
+
+    def _build_consumable_crafter_multi_stop_preview(self, destination_outpost_id: int) -> PlanResult:
+        safe_destination_id = max(0, _safe_int(destination_outpost_id, 0))
+        destination_name = self._get_outpost_name(safe_destination_id)
+        if safe_destination_id <= 0 or not destination_name:
+            return PlanResult(
+                supported_map=False,
+                supported_reason="Auto-travel target is not configured.",
+                has_actions=False,
+            )
+
+        embark_name = self._get_embark_beach_outpost_name()
+        embark_plan = self._build_plan(
+            projected_preview=True,
+            projected_target_override_outpost_id=EMBARK_BEACH_MAP_ID,
+            allow_consumable_multi_stop=False,
+            consumable_crafter_only=True,
+        )
+        destination_plan = self._build_plan(
+            projected_preview=True,
+            projected_target_override_outpost_id=safe_destination_id,
+            allow_consumable_multi_stop=False,
+            exclude_consumable_crafter=True,
+        )
+
+        if not embark_plan.has_actions:
+            return destination_plan
+
+        storage_states = {str(embark_plan.storage_plan_state), str(destination_plan.storage_plan_state)}
+        if STORAGE_PLAN_STATE_NEEDS_EXACT_SCAN in storage_states:
+            storage_plan_state = STORAGE_PLAN_STATE_NEEDS_EXACT_SCAN
+        elif STORAGE_PLAN_STATE_EXACT_READY in storage_states:
+            storage_plan_state = STORAGE_PLAN_STATE_EXACT_READY
+        else:
+            storage_plan_state = STORAGE_PLAN_STATE_NOT_NEEDED
+
+        coords = dict(destination_plan.coords)
+        coords[MERCHANT_TYPE_CONSUMABLE_CRAFTER] = embark_plan.coords.get(MERCHANT_TYPE_CONSUMABLE_CRAFTER)
+        destination_has_work = bool(destination_plan.has_actions)
+        entries: list[ExecutionPlanEntry] = []
+        if not self._is_travel_target_reached(EMBARK_BEACH_MAP_ID):
+            entries.append(
+                ExecutionPlanEntry(
+                    action_type="travel",
+                    merchant_type=MERCHANT_TYPE_TRAVEL,
+                    label=embark_name,
+                    quantity=1,
+                    state=PLAN_STATE_WILL_EXECUTE,
+                    reason="Travel to Embark Beach first for Consumable Crafter buys.",
+                )
+            )
+        entries.extend(
+            replace(entry)
+            for entry in embark_plan.entries
+            if str(entry.merchant_type) == MERCHANT_TYPE_CONSUMABLE_CRAFTER
+        )
+        if destination_has_work:
+            entries.append(
+                ExecutionPlanEntry(
+                    action_type="travel",
+                    merchant_type=MERCHANT_TYPE_TRAVEL,
+                    label=destination_name,
+                    quantity=1,
+                    state=PLAN_STATE_WILL_EXECUTE,
+                    reason="Travel to the selected Auto Travel destination for remaining Merchant Rules work.",
+                )
+            )
+        entries.extend(
+            replace(entry)
+            for entry in destination_plan.entries
+            if str(entry.merchant_type) != MERCHANT_TYPE_CONSUMABLE_CRAFTER
+        )
+
+        result = PlanResult(
+            entries=entries,
+            supported_map=True,
+            supported_reason=(
+                f"Multi-stop preview: craft Consumable Crafter targets at {embark_name}"
+                + (f", then run remaining work at {destination_name}." if destination_has_work else " and stop there.")
+            ),
+            coords=coords,
+            multi_stop_route=True,
+            multi_stop_consumable_outpost_id=EMBARK_BEACH_MAP_ID,
+            multi_stop_consumable_outpost_name=embark_name,
+            multi_stop_destination_outpost_id=safe_destination_id if destination_has_work else 0,
+            multi_stop_destination_outpost_name=destination_name if destination_has_work else "",
+            merchant_stock_buys=list(destination_plan.merchant_stock_buys),
+            material_buys=list(destination_plan.material_buys),
+            rune_trader_buys=list(destination_plan.rune_trader_buys),
+            scroll_trader_buys=list(destination_plan.scroll_trader_buys),
+            consumable_crafter_buys=list(embark_plan.consumable_crafter_buys),
+            material_sales=list(destination_plan.material_sales),
+            storage_transfers=list(destination_plan.storage_transfers),
+            cleanup_transfers=list(destination_plan.cleanup_transfers),
+            identify_claimed_item_ids=list(destination_plan.identify_claimed_item_ids),
+            identify_item_ids=list(destination_plan.identify_item_ids),
+            destroy_actions=list(destination_plan.destroy_actions),
+            destroy_item_ids=list(destination_plan.destroy_item_ids),
+            merchant_sell_item_ids=list(destination_plan.merchant_sell_item_ids),
+            rune_trader_sales=list(destination_plan.rune_trader_sales),
+            storage_plan_state=storage_plan_state,
+            storage_exact=bool(embark_plan.storage_exact and (destination_plan.storage_exact or not destination_has_work)),
+            inventory_snapshot_captured=bool(embark_plan.inventory_snapshot_captured or destination_plan.inventory_snapshot_captured),
+            inventory_model_counts=dict(embark_plan.inventory_model_counts or destination_plan.inventory_model_counts),
+            inventory_item_count=max(int(embark_plan.inventory_item_count), int(destination_plan.inventory_item_count)),
+            has_actions=bool(embark_plan.has_actions or destination_plan.has_actions),
+        )
         return result
 
     def _get_bag_item_ids(self, bag_ids: tuple[int, ...] | list[int]) -> list[int]:
@@ -8243,6 +9144,280 @@ class MerchantRulesWidget:
             return destination, f"Hard-protected by {self._format_sell_rule_reference(rule_index, rule)}: {detail}"
         return None
 
+    def _has_enabled_identify_settings(self) -> bool:
+        settings = _normalize_identify_settings(self.identify_settings)
+        return any(bool(value) for value in settings.rarities.values())
+
+    def _should_identify_before_execute(self) -> bool:
+        settings = _normalize_identify_settings(self.identify_settings)
+        return bool(settings.before_execute and any(bool(value) for value in settings.rarities.values()))
+
+    def _get_id_kit_id(self) -> int:
+        inventory_api = getattr(GLOBAL_CACHE, "Inventory", None)
+        if inventory_api is None:
+            return 0
+        getter = getattr(inventory_api, "GetFirstIDKit", None)
+        if not callable(getter):
+            return 0
+        try:
+            return max(0, int(getter() or 0))
+        except Exception:
+            return 0
+
+    def _get_identify_selection_reason(self, item: InventoryItemInfo) -> str:
+        if bool(item.identified):
+            return ""
+        settings = _normalize_identify_settings(self.identify_settings)
+        rarity_key = _normalize_rarity_key(str(item.rarity or ""))
+        if not bool(settings.rarities.get(rarity_key, False)):
+            return ""
+        rarity_label = next(
+            (label for key, label in RARITY_OPTION_ORDER if key == rarity_key),
+            str(item.rarity or rarity_key).strip() or rarity_key,
+        )
+        return f"selected exact rarity {rarity_label}"
+
+    def _collect_identify_candidates(self, items: list[InventoryItemInfo]) -> list[InventoryItemInfo]:
+        candidates: list[InventoryItemInfo] = []
+        for item in items:
+            if int(item.item_id) <= 0:
+                continue
+            if not self._get_identify_selection_reason(item):
+                continue
+            candidates.append(item)
+        return candidates
+
+    def _plan_identify_actions(
+        self,
+        plan: PlanResult,
+        items: list[InventoryItemInfo],
+        claimed_item_ids: set[int],
+    ) -> None:
+        if not self._should_identify_before_execute():
+            return
+
+        candidates = self._collect_identify_candidates(items)
+        if not candidates:
+            plan.entries.append(
+                ExecutionPlanEntry(
+                    "identify",
+                    MERCHANT_TYPE_INVENTORY,
+                    "Identify selected rarities",
+                    0,
+                    PLAN_STATE_SKIPPED,
+                    "No unidentified items found for the selected exact rarities.",
+                )
+            )
+            return
+
+        id_kit_id = self._get_id_kit_id()
+        for item in candidates:
+            claimed_item_ids.add(int(item.item_id))
+            plan.identify_claimed_item_ids.append(int(item.item_id))
+            reason = self._get_identify_selection_reason(item)
+            if id_kit_id <= 0:
+                plan.entries.append(
+                    ExecutionPlanEntry(
+                        "identify",
+                        MERCHANT_TYPE_INVENTORY,
+                        item.name,
+                        item.quantity,
+                        PLAN_STATE_SKIPPED,
+                        "No ID kit found.",
+                        model_id=item.model_id,
+                    )
+                )
+                continue
+
+            plan.identify_item_ids.append(int(item.item_id))
+            plan.entries.append(
+                ExecutionPlanEntry(
+                    "identify",
+                    MERCHANT_TYPE_INVENTORY,
+                    item.name,
+                    item.quantity,
+                    PLAN_STATE_WILL_EXECUTE,
+                    reason,
+                    model_id=item.model_id,
+                )
+            )
+
+    def _has_enabled_salvage_settings(self) -> bool:
+        settings = _normalize_salvage_settings(self.salvage_settings)
+        return bool(
+            settings.model_ids
+            or any(bool(value) for value in settings.rarities.values())
+            or any(bool(value) for value in settings.categories.values())
+        )
+
+    def _get_salvage_category_key_for_item(self, item: InventoryItemInfo) -> str:
+        if bool(item.is_weapon_like):
+            return SALVAGE_CATEGORY_WEAPONS
+        if bool(item.is_armor_piece):
+            return SALVAGE_CATEGORY_ARMOR
+        if bool(item.is_material):
+            return SALVAGE_CATEGORY_MATERIALS
+        return SALVAGE_CATEGORY_OTHER
+
+    def _get_salvage_category_label(self, category_key: object) -> str:
+        safe_key = str(category_key or "").strip()
+        for key, label in SALVAGE_CATEGORY_ORDER:
+            if key == safe_key:
+                return label
+        return safe_key or "Unknown"
+
+    def _get_salvage_selection_reason(self, item: InventoryItemInfo) -> str:
+        settings = _normalize_salvage_settings(self.salvage_settings)
+        if int(item.model_id) in set(int(model_id) for model_id in settings.model_ids):
+            return f"selected model {self._format_model_label(int(item.model_id))}"
+
+        rarity_key = _normalize_rarity_key(str(item.rarity or ""))
+        category_key = self._get_salvage_category_key_for_item(item)
+        rarity_filter_active = any(bool(value) for value in settings.rarities.values())
+        category_filter_active = any(bool(value) for value in settings.categories.values())
+        rarity_matches = bool(settings.rarities.get(rarity_key, False))
+        category_matches = bool(settings.categories.get(category_key, False))
+        if rarity_filter_active and not rarity_matches:
+            return ""
+        if category_filter_active and not category_matches:
+            return ""
+        if rarity_filter_active or category_filter_active:
+            reason_parts: list[str] = []
+            if rarity_filter_active:
+                reason_parts.append(f"rarity {str(item.rarity or rarity_key).strip() or rarity_key}")
+            if category_filter_active:
+                reason_parts.append(f"category {self._get_salvage_category_label(category_key)}")
+            return f"selected {' and '.join(reason_parts)}"
+
+        return ""
+
+    def _get_normal_salvage_kit_id(self) -> int:
+        inventory_api = getattr(GLOBAL_CACHE, "Inventory", None)
+        item_api = getattr(GLOBAL_CACHE, "Item", None)
+        if inventory_api is None or item_api is None:
+            return 0
+        getter = getattr(inventory_api, "GetFirstSalvageKit", None)
+        if not callable(getter):
+            return 0
+        try:
+            salvage_kit_id = int(getter(use_lesser=True) or 0)
+        except TypeError:
+            salvage_kit_id = int(getter() or 0)
+        except Exception:
+            return 0
+        if salvage_kit_id <= 0:
+            return 0
+
+        normal_models = {
+            int(ModelID.Salvage_Kit),
+            int(ModelID.Salvage_Kit_preSearing),
+        }
+        try:
+            model_id = int(item_api.GetModelID(salvage_kit_id))
+            if model_id in normal_models:
+                uses = max(0, int(item_api.Usage.GetUses(salvage_kit_id)))
+                return salvage_kit_id if uses > 0 else 0
+        except Exception:
+            pass
+
+        try:
+            usage = item_api.Usage
+            is_normal = bool(usage.IsLesserKit(salvage_kit_id))
+            is_advanced = bool(usage.IsExpertSalvageKit(salvage_kit_id)) or bool(usage.IsPerfectSalvageKit(salvage_kit_id))
+            uses = max(0, int(usage.GetUses(salvage_kit_id)))
+            return salvage_kit_id if is_normal and not is_advanced and uses > 0 else 0
+        except Exception:
+            return 0
+
+    def _get_salvage_candidate_block_reason(
+        self,
+        item: InventoryItemInfo,
+        enabled_sell_rules: list[tuple[int, SellRule]],
+        *,
+        require_normal_kit: bool = False,
+        normal_salvage_kit_id: int = 0,
+        mode: str = "manual",
+    ) -> str:
+        hard_protection = self._get_hard_protection_hit(item, enabled_sell_rules)
+        if hard_protection is not None:
+            return f"protected: {hard_protection[1]}"
+        if not bool(item.salvageable):
+            return "unsalvageable: the game says this item is not salvageable"
+        if bool(item.is_customized):
+            return "customized: customized items are never salvaged"
+        rarity_key = _normalize_rarity_key(str(item.rarity or ""))
+        if not bool(item.identified) and rarity_key != "white":
+            return "unidentified non-white: identify before salvaging"
+        if not self._get_salvage_selection_reason(item):
+            return "not selected by salvage settings"
+        if require_normal_kit and int(normal_salvage_kit_id) <= 0:
+            return "no normal salvage kit"
+        if str(mode or "").strip().lower() == "auto" and not bool(_normalize_salvage_settings(self.salvage_settings).on_inventory_change):
+            return "immediate salvage is disabled"
+        return ""
+
+    def _get_salvage_destroy_claim_reason(
+        self,
+        item: InventoryItemInfo,
+        enabled_sell_rules: list[tuple[int, SellRule]],
+    ) -> str:
+        block_reason = self._get_salvage_candidate_block_reason(
+            item,
+            enabled_sell_rules,
+            require_normal_kit=False,
+            mode="manual",
+        )
+        if block_reason:
+            return ""
+        return self._get_salvage_selection_reason(item)
+
+    def _get_salvage_block_bucket(self, reason: str) -> str:
+        safe_reason = str(reason or "").strip()
+        if not safe_reason:
+            return ""
+        lowered = safe_reason.lower()
+        for prefix, label in (
+            ("protected:", "protected"),
+            ("unsalvageable:", "unsalvageable"),
+            ("customized:", "customized"),
+            ("unidentified non-white:", "unidentified non-white"),
+            ("no normal salvage kit", "no normal salvage kit"),
+            ("not selected", "not selected"),
+            ("immediate salvage is disabled", "immediate disabled"),
+        ):
+            if lowered.startswith(prefix):
+                return label
+        return safe_reason
+
+    def _collect_salvage_candidates(
+        self,
+        items: list[InventoryItemInfo],
+        enabled_sell_rules: list[tuple[int, SellRule]],
+        *,
+        require_normal_kit: bool = False,
+        normal_salvage_kit_id: int = 0,
+        mode: str = "manual",
+    ) -> tuple[list[InventoryItemInfo], dict[str, int]]:
+        candidates: list[InventoryItemInfo] = []
+        blocked_counts: dict[str, int] = {}
+        for item in items:
+            reason = self._get_salvage_candidate_block_reason(
+                item,
+                enabled_sell_rules,
+                require_normal_kit=require_normal_kit,
+                normal_salvage_kit_id=normal_salvage_kit_id,
+                mode=mode,
+            )
+            if reason:
+                bucket = self._get_salvage_block_bucket(reason)
+                if bucket and bucket != "not selected":
+                    blocked_counts[bucket] = blocked_counts.get(bucket, 0) + 1
+                if bucket != "not selected":
+                    self._debug_log(f"MR Salvage skipped {item.name} ({item.item_id}): {reason}")
+                continue
+            candidates.append(item)
+        return candidates, blocked_counts
+
     def _can_use_local_storage_actions(self) -> bool:
         return bool(Map.IsMapReady() and (Map.IsOutpost() or Map.IsGuildHall()))
 
@@ -8275,6 +9450,7 @@ class MerchantRulesWidget:
                 item_id=safe_item_id,
                 quantity=safe_quantity,
                 model_id=safe_model_id,
+                reason=str(reason or ""),
             )
         )
         plan.entries.append(
@@ -8314,6 +9490,7 @@ class MerchantRulesWidget:
             item_id=safe_item_id,
             quantity=safe_quantity,
             model_id=safe_model_id,
+            reason=str(reason or ""),
         )
         plan.cleanup_transfers.append(transfer)
         plan.storage_transfers.append(transfer)
@@ -8337,8 +9514,10 @@ class MerchantRulesWidget:
         rule_index: int,
         claimed_item_ids: set[int],
         coords: dict[str, tuple[float, float] | None],
+        reserved_rune_sell_identifiers: set[str] | None = None,
     ) -> None:
         candidate_label = SELL_KIND_LABELS[rule.kind]
+        reserved_rune_sell_identifiers = reserved_rune_sell_identifiers or set()
         had_category_candidate = False
         had_rarity_candidate = False
         planned_sale_count = 0
@@ -8354,6 +9533,13 @@ class MerchantRulesWidget:
 
             destination = self._get_equippable_rule_destination(item, rule)
             if not destination:
+                continue
+            if (
+                rule.kind == SELL_KIND_ARMOR
+                and item.standalone_kind == RUNE_STANDALONE_KIND
+                and reserved_rune_sell_identifiers
+                and any(identifier in reserved_rune_sell_identifiers for identifier in item.rune_identifiers)
+            ):
                 continue
 
             had_category_candidate = True
@@ -8375,7 +9561,7 @@ class MerchantRulesWidget:
                         "skipped",
                         (
                             f"Blocked by {self._format_sell_rule_reference(rule_index, rule)}: "
-                            f"{MERCHANT_TYPE_LABELS[destination]} selector was not resolved in the current map."
+                            f"{MERCHANT_TYPE_LABELS[destination]} could not be found in the current map."
                         ),
                         model_id=item.model_id,
                     )
@@ -8431,6 +9617,130 @@ class MerchantRulesWidget:
             f"{candidate_label}: category_candidates={category_candidates} rarity_matches={rarity_matches} "
             f"merchant_sales={merchant_sales} rune_trader_sales={rune_trader_sales} "
             f"blocked_matches={blocked_matches}"
+        )
+
+    def _plan_rune_sell_target_sales(
+        self,
+        plan: PlanResult,
+        items: list[InventoryItemInfo],
+        rule: SellRule,
+        rule_index: int,
+        claimed_item_ids: set[int],
+        coords: dict[str, tuple[float, float] | None],
+    ) -> None:
+        rune_targets = _normalize_rune_sell_targets(getattr(rule, "rune_sell_targets", []))
+        if not rune_targets:
+            plan.entries.append(
+                ExecutionPlanEntry(
+                    "sell",
+                    MERCHANT_TYPE_RUNE_TRADER,
+                    SELL_KIND_LABELS[SELL_KIND_RUNE_TRADER_TARGET],
+                    0,
+                    PLAN_STATE_SKIPPED,
+                    "No rune or insignia targets selected.",
+                )
+            )
+            return
+
+        rule_reference = self._format_sell_rule_reference(rule_index, rule)
+        rune_trader_coords = coords.get(MERCHANT_TYPE_RUNE_TRADER)
+        planned_sale_count = 0
+        blocked_matches = 0
+        kept_matches = 0
+
+        for rune_target in rune_targets:
+            target_identifier = _normalize_rune_identifier(rune_target.identifier)
+            if not target_identifier:
+                continue
+
+            target_label = self._get_rune_label(target_identifier)
+            matching_items = [
+                item
+                for item in items
+                if item.item_id not in claimed_item_ids
+                and item.standalone_kind == RUNE_STANDALONE_KIND
+                and target_identifier in item.rune_identifiers
+            ]
+            if not matching_items:
+                plan.entries.append(
+                    ExecutionPlanEntry(
+                        "sell",
+                        MERCHANT_TYPE_RUNE_TRADER,
+                        target_label,
+                        0,
+                        PLAN_STATE_SKIPPED,
+                        "No matching standalone rune or insignia found.",
+                    )
+                )
+                continue
+
+            keep_count = max(0, int(rune_target.keep_count))
+            keep_ids = self._choose_keep_subset(matching_items, keep_count)
+            for item in matching_items:
+                claimed_item_ids.add(item.item_id)
+                if item.item_id not in keep_ids:
+                    continue
+                kept_matches += 1
+                plan.entries.append(
+                    ExecutionPlanEntry(
+                        "sell",
+                        MERCHANT_TYPE_RUNE_TRADER,
+                        item.name,
+                        item.quantity,
+                        PLAN_STATE_SKIPPED,
+                        f"Kept by {rule_reference}: reserved to satisfy keep count {keep_count}.",
+                        model_id=item.model_id,
+                    )
+                )
+
+            sell_items = [item for item in matching_items if item.item_id not in keep_ids]
+            if not sell_items:
+                continue
+
+            if rune_trader_coords is None:
+                blocked_matches += len(sell_items)
+                for item in sell_items:
+                    plan.entries.append(
+                        ExecutionPlanEntry(
+                            "sell",
+                            MERCHANT_TYPE_RUNE_TRADER,
+                            item.name,
+                            item.quantity,
+                            PLAN_STATE_SKIPPED,
+                            (
+                                f"Blocked by {rule_reference}: "
+                                f"{MERCHANT_TYPE_LABELS[MERCHANT_TYPE_RUNE_TRADER]} could not be found in the current map."
+                            ),
+                            model_id=item.model_id,
+                        )
+                    )
+                continue
+
+            for item in sell_items:
+                plan.rune_trader_sales.append(
+                    PlannedTraderSale(
+                        item_id=item.item_id,
+                        model_id=item.model_id,
+                        label=item.name,
+                    )
+                )
+                plan.entries.append(
+                    ExecutionPlanEntry(
+                        "sell",
+                        MERCHANT_TYPE_RUNE_TRADER,
+                        item.name,
+                        item.quantity,
+                        PLAN_STATE_WILL_EXECUTE,
+                        "Exact rune / insignia target.",
+                        model_id=item.model_id,
+                    )
+                )
+                planned_sale_count += 1
+
+        self._debug_log(
+            f"{SELL_KIND_LABELS[SELL_KIND_RUNE_TRADER_TARGET]}: "
+            f"targets={len(rune_targets)} planned_sales={planned_sale_count} "
+            f"kept_matches={kept_matches} blocked_matches={blocked_matches}"
         )
 
     def _get_inventory_model_counts(self, items: list[InventoryItemInfo]) -> dict[int, int]:
@@ -8531,6 +9841,131 @@ class MerchantRulesWidget:
             blockers.append(f"Need {gold_cost} gold; found {gold_available}.")
         return (min(caps) if caps else 0), blockers
 
+    def _get_consumable_craft_cap_from_reserved_resources(
+        self,
+        recipe: ConsumableCrafterRecipe,
+        *,
+        available_model_counts: dict[int, int],
+        skill_points_remaining: int,
+        gold_remaining: int,
+        requested_quantity: int = 1,
+    ) -> tuple[int, list[str]]:
+        blockers: list[str] = []
+        caps: list[int] = []
+        safe_requested_quantity = max(1, int(requested_quantity))
+
+        skill_points_per_craft = max(0, int(recipe.skill_points))
+        safe_skill_points_remaining = max(0, int(skill_points_remaining))
+        if skill_points_per_craft > 0:
+            caps.append(safe_skill_points_remaining // skill_points_per_craft)
+            if safe_skill_points_remaining < skill_points_per_craft:
+                needed_skill_points = skill_points_per_craft * safe_requested_quantity
+                blockers.append(f"Need {needed_skill_points} skill point(s); found {safe_skill_points_remaining}.")
+
+        gold_cost = max(0, int(recipe.gold_cost))
+        safe_gold_remaining = max(0, int(gold_remaining))
+        if gold_cost > 0:
+            caps.append(safe_gold_remaining // gold_cost)
+            if safe_gold_remaining < gold_cost:
+                needed_gold = gold_cost * safe_requested_quantity
+                blockers.append(f"Need {needed_gold} gold; found {safe_gold_remaining}.")
+
+        for ingredient_model_id, quantity_per_craft in recipe.ingredients:
+            safe_quantity = max(0, int(quantity_per_craft))
+            if safe_quantity <= 0:
+                continue
+            available = max(0, int(available_model_counts.get(int(ingredient_model_id), 0)))
+            caps.append(available // safe_quantity)
+            if available < safe_quantity:
+                needed_quantity = safe_quantity * safe_requested_quantity
+                blockers.append(
+                    f"Need {needed_quantity} {self._format_model_label_short(int(ingredient_model_id))}; found {available}."
+                )
+
+        return (min(caps) if caps else 0), blockers
+
+    def _estimate_consumable_crafter_free_slots_needed(
+        self,
+        planned_crafts: list[PlannedConsumableCraft],
+        inventory_model_counts: dict[int, int],
+    ) -> int:
+        if not planned_crafts:
+            return 0
+        safe_inventory_counts = {
+            max(0, int(model_id)): max(0, int(quantity))
+            for model_id, quantity in dict(inventory_model_counts or {}).items()
+            if max(0, int(model_id)) > 0 and max(0, int(quantity)) > 0
+        }
+        output_models: set[int] = set()
+        missing_material_models: set[int] = set()
+        for craft in planned_crafts:
+            craft_quantity = max(0, int(craft.quantity))
+            if craft_quantity <= 0:
+                continue
+            craft_model_id = max(0, int(craft.model_id))
+            if craft_model_id > 0 and safe_inventory_counts.get(craft_model_id, 0) <= 0:
+                output_models.add(craft_model_id)
+            recipe = self._get_consumable_crafter_recipe_for_model(craft_model_id)
+            if recipe is None:
+                continue
+            for ingredient_model_id, ingredient_quantity in recipe.ingredients:
+                safe_ingredient_model_id = max(0, int(ingredient_model_id))
+                if safe_ingredient_model_id <= 0:
+                    continue
+                total_required = max(0, int(ingredient_quantity)) * craft_quantity
+                if total_required > max(0, int(safe_inventory_counts.get(safe_ingredient_model_id, 0))):
+                    missing_material_models.add(safe_ingredient_model_id)
+        return len(output_models | missing_material_models)
+
+    def _get_inventory_free_slot_count(self) -> int:
+        try:
+            return max(0, int(GLOBAL_CACHE.Inventory.GetFreeSlotCount()))
+        except Exception:
+            try:
+                total_items, total_capacity = GLOBAL_CACHE.Inventory.GetInventorySpace()
+                return max(0, int(total_capacity) - int(total_items))
+            except Exception:
+                return -1
+
+    def _plan_consumable_crafter_bag_space_warning(
+        self,
+        plan: PlanResult,
+        *,
+        inventory_model_counts: dict[int, int],
+    ) -> None:
+        if not plan.consumable_crafter_buys:
+            return
+        estimated_needed = self._estimate_consumable_crafter_free_slots_needed(
+            plan.consumable_crafter_buys,
+            inventory_model_counts,
+        )
+        if estimated_needed <= 0:
+            return
+        free_slots = self._get_inventory_free_slot_count()
+        if free_slots < 0:
+            plan.entries.append(
+                ExecutionPlanEntry(
+                    "buy",
+                    MERCHANT_TYPE_CONSUMABLE_CRAFTER,
+                    "Inventory space",
+                    0,
+                    PLAN_STATE_SKIPPED,
+                    f"Could not verify free inventory slots. Consumable crafting may need up to {estimated_needed} free slot(s).",
+                )
+            )
+            return
+        if free_slots < estimated_needed:
+            plan.entries.append(
+                ExecutionPlanEntry(
+                    "buy",
+                    MERCHANT_TYPE_CONSUMABLE_CRAFTER,
+                    "Inventory space",
+                    0,
+                    PLAN_STATE_SKIPPED,
+                    f"Low inventory space: consumable crafting may need up to {estimated_needed} free slot(s); found {free_slots}.",
+                )
+            )
+
     def _has_enabled_rune_buy_rules(self) -> bool:
         for raw_rule in self.buy_rules:
             rule = _normalize_buy_rule(raw_rule)
@@ -8565,6 +10000,29 @@ class MerchantRulesWidget:
                 return True
         return False
 
+    def _has_enabled_rules_excluding_consumable_crafters(self) -> bool:
+        return bool(
+            self._should_identify_before_execute()
+            or any(
+                bool(rule.enabled)
+                and (normalized_rule := _normalize_buy_rule(rule)) is not None
+                and normalized_rule.kind != BUY_KIND_CONSUMABLE_CRAFTER_TARGET
+                for rule in self.buy_rules
+            )
+            or any(bool(rule.enabled) for rule in self.sell_rules)
+            or any(bool(rule.enabled) for rule in self.destroy_rules)
+            or self._has_cleanup_sources()
+        )
+
+    def _get_buy_rules_excluding_consumable_crafters(self) -> list[BuyRule]:
+        filtered_rules: list[BuyRule] = []
+        for raw_rule in self.buy_rules:
+            rule = _normalize_buy_rule(raw_rule)
+            if rule is None or rule.kind == BUY_KIND_CONSUMABLE_CRAFTER_TARGET:
+                continue
+            filtered_rules.append(rule)
+        return filtered_rules
+
     def _get_items_after_planned_pre_buy_actions(
         self,
         items: list[InventoryItemInfo],
@@ -8573,6 +10031,11 @@ class MerchantRulesWidget:
         remaining_items: list[InventoryItemInfo] = []
         destroy_quantities_by_item_id: dict[int, int] = {}
         material_sale_quantities_by_item_id: dict[int, int] = {}
+        identify_item_ids = {
+            int(item_id)
+            for item_id in [*plan.identify_claimed_item_ids, *plan.identify_item_ids]
+            if int(item_id) > 0
+        }
         merchant_sell_item_ids = {int(item_id) for item_id in plan.merchant_sell_item_ids if int(item_id) > 0}
         rune_sale_item_ids = {
             int(trader_sale.item_id)
@@ -8613,7 +10076,7 @@ class MerchantRulesWidget:
             safe_item_id = int(item.item_id)
             remaining_quantity -= max(0, int(destroy_quantities_by_item_id.get(safe_item_id, 0)))
             remaining_quantity -= max(0, int(material_sale_quantities_by_item_id.get(safe_item_id, 0)))
-            if safe_item_id in merchant_sell_item_ids or safe_item_id in rune_sale_item_ids:
+            if safe_item_id in identify_item_ids or safe_item_id in merchant_sell_item_ids or safe_item_id in rune_sale_item_ids:
                 remaining_quantity = 0
             if remaining_quantity <= 0:
                 continue
@@ -8735,6 +10198,9 @@ class MerchantRulesWidget:
             sources_by_rule_id[safe_rule_id] = CleanupProtectionSource(sell_rule_id=safe_rule_id)
         return _normalize_cleanup_protection_sources([asdict(source) for source in sources_by_rule_id.values()])
 
+    def _get_cleanup_blacklist_model_id_set(self) -> set[int]:
+        return set(_normalize_cleanup_blacklist_model_ids(self.cleanup_blacklist_model_ids))
+
     def _plan_cleanup_actions(
         self,
         plan: PlanResult,
@@ -8750,6 +10216,7 @@ class MerchantRulesWidget:
             return
 
         cleanup_items = list(items)
+        cleanup_blacklist_model_ids = self._get_cleanup_blacklist_model_id_set()
         cleanup_targets = self._get_effective_cleanup_targets(enabled_sell_rules)
         for cleanup_target in cleanup_targets:
             target_model_id = max(0, int(cleanup_target.model_id))
@@ -8771,6 +10238,26 @@ class MerchantRulesWidget:
                         "No matching inventory items found for this cleanup target.",
                     )
                 )
+                continue
+
+            if target_model_id in cleanup_blacklist_model_ids:
+                plan.entries.append(
+                    ExecutionPlanEntry(
+                        "deposit",
+                        MERCHANT_TYPE_STORAGE,
+                        target_label,
+                        0,
+                        PLAN_STATE_SKIPPED,
+                        "Skipped by Cleanup blacklist.",
+                        model_id=target_model_id,
+                    )
+                )
+                blacklisted_item_ids = {int(item.item_id) for item in matching_items}
+                cleanup_items = [
+                    item
+                    for item in cleanup_items
+                    if int(item.item_id) not in blacklisted_item_ids
+                ]
                 continue
 
             total_quantity = sum(max(1, int(item.quantity)) for item in matching_items)
@@ -8863,6 +10350,7 @@ class MerchantRulesWidget:
                 continue
 
             planned_transfers: list[PlannedStorageTransfer] = []
+            blacklisted_matches_found = False
             for item in cleanup_items:
                 protection_match = self._get_hard_protection_match(item, enabled_sell_rules)
                 if protection_match is None:
@@ -8872,6 +10360,20 @@ class MerchantRulesWidget:
                     continue
                 explicit_deposit = self._get_equippable_explicit_deposit_reason(item, sell_rule)
                 if explicit_deposit is None:
+                    continue
+                if int(item.model_id) in cleanup_blacklist_model_ids:
+                    blacklisted_matches_found = True
+                    plan.entries.append(
+                        ExecutionPlanEntry(
+                            "deposit",
+                            MERCHANT_TYPE_STORAGE,
+                            item.name,
+                            0,
+                            PLAN_STATE_SKIPPED,
+                            f"Skipped by Cleanup blacklist. Protected by {rule_reference}: {detail}",
+                            model_id=item.model_id,
+                        )
+                    )
                     continue
                 planned_transfers.append(
                     PlannedStorageTransfer(
@@ -8895,6 +10397,8 @@ class MerchantRulesWidget:
                 )
 
             if not planned_transfers:
+                if blacklisted_matches_found:
+                    continue
                 plan.entries.append(
                     ExecutionPlanEntry(
                         "deposit",
@@ -8996,7 +10500,8 @@ class MerchantRulesWidget:
 
     def _has_enabled_rules(self) -> bool:
         return (
-            any(bool(rule.enabled) for rule in self.buy_rules)
+            self._should_identify_before_execute()
+            or any(bool(rule.enabled) for rule in self.buy_rules)
             or any(bool(rule.enabled) for rule in self.sell_rules)
             or any(bool(rule.enabled) for rule in self.destroy_rules)
             or self._has_cleanup_sources()
@@ -9316,12 +10821,16 @@ class MerchantRulesWidget:
                     continue
 
                 protected_items: list[tuple[InventoryItemInfo, str]] = []
+                salvage_items: list[tuple[InventoryItemInfo, str]] = []
                 destroy_pool: list[tuple[InventoryItemInfo, str]] = []
                 for item in matching_items:
                     hard_protection = self._get_hard_protection_hit(item, enabled_sell_rules)
                     protection_reason = hard_protection[1] if hard_protection is not None else ""
-                    if protection_reason and not include_protected_items:
+                    salvage_reason = self._get_salvage_destroy_claim_reason(item, enabled_sell_rules)
+                    if protection_reason and (not include_protected_items or salvage_reason):
                         protected_items.append((item, protection_reason))
+                    elif salvage_reason:
+                        salvage_items.append((item, salvage_reason))
                     else:
                         destroy_pool.append((item, protection_reason))
 
@@ -9335,6 +10844,10 @@ class MerchantRulesWidget:
                         0,
                         effective_keep_count - sum(max(1, int(item.quantity)) for item, _reason in protected_items),
                     )
+                effective_keep_count = max(
+                    0,
+                    effective_keep_count - sum(max(1, int(item.quantity)) for item, _reason in salvage_items),
+                )
 
                 destroy_items = [item for item, _reason in destroy_pool]
                 if any(int(item.quantity) > 1 for item in destroy_items):
@@ -9367,6 +10880,7 @@ class MerchantRulesWidget:
                         "target_keep_count": target_keep_count,
                         "matching_items": matching_items,
                         "protected_items": protected_items,
+                        "salvage_items": salvage_items,
                         "destroy_pool": destroy_pool,
                         "keep_quantities": keep_quantities,
                         "planned_actions": planned_actions,
@@ -9385,12 +10899,14 @@ class MerchantRulesWidget:
 
             total_matched = 0
             total_protected = 0
+            total_salvage_reserved = 0
             total_kept_quantity = 0
             total_planned_destroys = 0
             total_planned_destroy_quantity = 0
             for target_plan in target_plans:
                 matching_items = list(target_plan["matching_items"])
                 protected_items = list(target_plan["protected_items"])
+                salvage_items = list(target_plan["salvage_items"])
                 destroy_pool = list(target_plan["destroy_pool"])
                 keep_quantities = dict(target_plan["keep_quantities"])
                 planned_actions = list(target_plan["planned_actions"])
@@ -9417,6 +10933,7 @@ class MerchantRulesWidget:
 
                 total_matched += len(matching_items)
                 total_protected += len(protected_items)
+                total_salvage_reserved += len(salvage_items)
                 total_kept_quantity += kept_quantity_total
 
                 for item, protection_reason in protected_items:
@@ -9428,6 +10945,19 @@ class MerchantRulesWidget:
                             item.quantity,
                             PLAN_STATE_SKIPPED,
                             f"Blocked by {rule_reference}: {protection_reason}",
+                            model_id=item.model_id,
+                        )
+                    )
+
+                for item, salvage_reason in salvage_items:
+                    plan.entries.append(
+                        ExecutionPlanEntry(
+                            "destroy",
+                            MERCHANT_TYPE_INVENTORY,
+                            item.name,
+                            item.quantity,
+                            PLAN_STATE_SKIPPED,
+                            f"Blocked by {rule_reference}: selected for MR Salvage ({salvage_reason}); salvage wins over destroy.",
                             model_id=item.model_id,
                         )
                     )
@@ -9506,7 +11036,7 @@ class MerchantRulesWidget:
                 total_planned_destroy_quantity += planned_destroy_quantity
 
             self._debug_log(
-                f"{candidate_label}: matched={total_matched} protected={total_protected} "
+                f"{candidate_label}: matched={total_matched} protected={total_protected} salvage_reserved={total_salvage_reserved} "
                 f"kept_quantity={total_kept_quantity} planned_destroys={total_planned_destroys} "
                 f"planned_destroy_quantity={total_planned_destroy_quantity} include_protected={include_protected_items}"
             )
@@ -9555,12 +11085,16 @@ class MerchantRulesWidget:
             claimed_item_ids.add(item.item_id)
 
         protected_items: list[tuple[InventoryItemInfo, str]] = []
+        salvage_items: list[tuple[InventoryItemInfo, str]] = []
         destroy_pool: list[tuple[InventoryItemInfo, str]] = []
         for item in matching_items:
             hard_protection = self._get_hard_protection_hit(item, enabled_sell_rules)
             protection_reason = hard_protection[1] if hard_protection is not None else ""
-            if protection_reason and not include_protected_items:
+            salvage_reason = self._get_salvage_destroy_claim_reason(item, enabled_sell_rules)
+            if protection_reason and (not include_protected_items or salvage_reason):
                 protected_items.append((item, protection_reason))
+            elif salvage_reason:
+                salvage_items.append((item, salvage_reason))
             else:
                 destroy_pool.append((item, protection_reason))
 
@@ -9594,6 +11128,19 @@ class MerchantRulesWidget:
                 )
             )
 
+        for item, salvage_reason in salvage_items:
+            plan.entries.append(
+                ExecutionPlanEntry(
+                    "destroy",
+                    MERCHANT_TYPE_INVENTORY,
+                    item.name,
+                    item.quantity,
+                    PLAN_STATE_SKIPPED,
+                    f"Blocked by {rule_reference}: selected for MR Salvage ({salvage_reason}); salvage wins over destroy.",
+                    model_id=item.model_id,
+                )
+            )
+
         for item, protection_reason in destroy_pool:
             action = planned_actions_by_item_id.get(int(item.item_id))
             if action is None:
@@ -9618,7 +11165,7 @@ class MerchantRulesWidget:
             planned_destroy_quantity += max(0, int(action.quantity_to_destroy))
 
         self._debug_log(
-            f"{candidate_label}: matched={len(matching_items)} protected={len(protected_items)} "
+            f"{candidate_label}: matched={len(matching_items)} protected={len(protected_items)} salvage_reserved={len(salvage_items)} "
             f"kept_quantity=0 planned_destroys={planned_destroys} "
             f"planned_destroy_quantity={planned_destroy_quantity} include_protected={include_protected_items}"
         )
@@ -9698,6 +11245,8 @@ class MerchantRulesWidget:
         *,
         sim_inventory_items: list[InventoryItemInfo] | None = None,
         storage_items: list[InventoryItemInfo] | None = None,
+        consumable_crafter_only: bool = False,
+        exclude_consumable_crafter: bool = False,
     ) -> None:
         supported_map = bool(plan.supported_map)
         supported_reason = str(plan.supported_reason or "")
@@ -9708,6 +11257,67 @@ class MerchantRulesWidget:
         inventory_identifier_counts = self._get_standalone_rune_identifier_counts(sim_inventory_items)
         storage_model_counts = self._get_inventory_model_counts(sim_storage_items) if plan.storage_exact else {}
         storage_identifier_counts = self._get_standalone_rune_identifier_counts(sim_storage_items) if plan.storage_exact else {}
+        consumable_reserved_model_counts: dict[int, int] | None = None
+        consumable_skill_points_remaining: int | None = None
+        consumable_gold_remaining: int | None = None
+        consumable_material_storage_counts: dict[int, int] = {}
+
+        def _get_consumable_reserved_model_count(model_id: int) -> int:
+            nonlocal consumable_reserved_model_counts
+            safe_model_id = max(0, int(model_id))
+            if consumable_reserved_model_counts is None:
+                consumable_reserved_model_counts = {}
+            if safe_model_id not in consumable_reserved_model_counts:
+                available = max(0, int(sim_model_counts.get(safe_model_id, 0)))
+                if plan.storage_exact:
+                    available += max(0, int(storage_model_counts.get(safe_model_id, 0)))
+                    if safe_model_id in ALL_CRAFTING_MATERIAL_MODEL_IDS:
+                        if safe_model_id not in consumable_material_storage_counts:
+                            material_quantity, _slot, _bag_size = self._get_material_storage_quantity_and_slot(safe_model_id)
+                            consumable_material_storage_counts[safe_model_id] = max(0, int(material_quantity))
+                        available += max(0, int(consumable_material_storage_counts.get(safe_model_id, 0)))
+                consumable_reserved_model_counts[safe_model_id] = available
+            return max(0, int(consumable_reserved_model_counts.get(safe_model_id, 0)))
+
+        def _ensure_consumable_reserved_resources(recipe: ConsumableCrafterRecipe) -> tuple[dict[int, int], int, int]:
+            nonlocal consumable_skill_points_remaining, consumable_gold_remaining
+            if consumable_skill_points_remaining is None:
+                current_skill_points, _total_skill_points = Player.GetSkillPointData()
+                consumable_skill_points_remaining = max(0, int(current_skill_points))
+            if consumable_gold_remaining is None:
+                consumable_gold_remaining = max(0, int(GLOBAL_CACHE.Inventory.GetGoldOnCharacter()))
+                if plan.storage_exact:
+                    consumable_gold_remaining += max(0, int(GLOBAL_CACHE.Inventory.GetGoldInStorage()))
+            for ingredient_model_id, _quantity_per_craft in recipe.ingredients:
+                _get_consumable_reserved_model_count(int(ingredient_model_id))
+            return (
+                consumable_reserved_model_counts or {},
+                max(0, int(consumable_skill_points_remaining)),
+                max(0, int(consumable_gold_remaining)),
+            )
+
+        def _consume_reserved_consumable_resources(recipe: ConsumableCrafterRecipe, quantity: int) -> None:
+            nonlocal consumable_skill_points_remaining, consumable_gold_remaining
+            safe_quantity = max(0, int(quantity))
+            if safe_quantity <= 0:
+                return
+            if consumable_skill_points_remaining is not None:
+                consumable_skill_points_remaining = max(
+                    0,
+                    int(consumable_skill_points_remaining) - (max(0, int(recipe.skill_points)) * safe_quantity),
+                )
+            if consumable_gold_remaining is not None:
+                consumable_gold_remaining = max(
+                    0,
+                    int(consumable_gold_remaining) - (max(0, int(recipe.gold_cost)) * safe_quantity),
+                )
+            if consumable_reserved_model_counts is not None:
+                for ingredient_model_id, ingredient_quantity in recipe.ingredients:
+                    consumable_reserved_model_counts[int(ingredient_model_id)] = max(
+                        0,
+                        int(consumable_reserved_model_counts.get(int(ingredient_model_id), 0))
+                        - (max(0, int(ingredient_quantity)) * safe_quantity),
+                    )
 
         for buy_rule in self.buy_rules:
             normalized_buy_rule = _normalize_buy_rule(buy_rule)
@@ -9715,6 +11325,10 @@ class MerchantRulesWidget:
                 continue
             buy_rule = normalized_buy_rule
             if not buy_rule.enabled:
+                continue
+            if consumable_crafter_only and buy_rule.kind != BUY_KIND_CONSUMABLE_CRAFTER_TARGET:
+                continue
+            if exclude_consumable_crafter and buy_rule.kind == BUY_KIND_CONSUMABLE_CRAFTER_TARGET:
                 continue
 
             if buy_rule.kind == BUY_KIND_MATERIAL_TARGET:
@@ -9784,7 +11398,7 @@ class MerchantRulesWidget:
                                 label=material_label,
                                 quantity=0,
                                 state=PLAN_STATE_SKIPPED,
-                                reason=f"{MERCHANT_TYPE_LABELS[merchant_type]} selector was not resolved in the current map.",
+                                reason=f"{MERCHANT_TYPE_LABELS[merchant_type]} could not be found in the current map.",
                             )
                         )
                         continue
@@ -9897,9 +11511,9 @@ class MerchantRulesWidget:
                                 quantity=0,
                                 state=PLAN_STATE_SKIPPED,
                                 reason=(
-                                    f"{self._get_scroll_trader_service_label()} selector was not resolved in the current map."
+                                    f"{self._get_scroll_trader_service_label()} could not be found in the current map."
                                     if target_merchant_type == MERCHANT_TYPE_SCROLL_TRADER
-                                    else f"{MERCHANT_TYPE_LABELS[target_merchant_type]} selector was not resolved in the current map."
+                                    else f"{MERCHANT_TYPE_LABELS[target_merchant_type]} could not be found in the current map."
                                 ),
                             )
                         )
@@ -10030,14 +11644,22 @@ class MerchantRulesWidget:
                         )
                         continue
 
+                    craft_requested_amount = (
+                        _normalize_consumable_crafter_count_mode(buy_rule.consumable_crafter_count_mode)
+                        == CONSUMABLE_CRAFTER_COUNT_MODE_CRAFT_AMOUNT
+                    )
                     current_count = max(0, int(sim_model_counts.get(crafter_model_id, 0)))
                     if plan.storage_exact:
                         current_count += max(0, int(storage_model_counts.get(crafter_model_id, 0)))
-                    missing = max(0, int(crafter_target.target_count) - current_count)
-                    needed = self._apply_max_per_run(missing, int(crafter_target.max_per_run))
+                    if craft_requested_amount:
+                        needed = self._apply_max_per_run(int(crafter_target.target_count), int(crafter_target.max_per_run))
+                    else:
+                        missing = max(0, int(crafter_target.target_count) - current_count)
+                        needed = self._apply_max_per_run(missing, int(crafter_target.max_per_run))
                     if needed <= 0:
+                        reason = "No craft quantity requested." if craft_requested_amount else "Target already met."
                         plan.entries.append(
-                            ExecutionPlanEntry("buy", MERCHANT_TYPE_CONSUMABLE_CRAFTER, crafter_label, 0, PLAN_STATE_SKIPPED, "Target already met.")
+                            ExecutionPlanEntry("buy", MERCHANT_TYPE_CONSUMABLE_CRAFTER, crafter_label, 0, PLAN_STATE_SKIPPED, reason)
                         )
                         continue
 
@@ -10065,11 +11687,13 @@ class MerchantRulesWidget:
                         )
                         continue
 
-                    craft_cap, blockers = self._get_consumable_craft_cap(
+                    available_resource_counts, skill_points_remaining, gold_remaining = _ensure_consumable_reserved_resources(recipe)
+                    craft_cap, blockers = self._get_consumable_craft_cap_from_reserved_resources(
                         recipe,
-                        inventory_model_counts=sim_model_counts,
-                        storage_model_counts=storage_model_counts,
-                        storage_exact=plan.storage_exact,
+                        available_model_counts=available_resource_counts,
+                        skill_points_remaining=skill_points_remaining,
+                        gold_remaining=gold_remaining,
+                        requested_quantity=needed,
                     )
                     craft_quantity = min(needed, max(0, int(craft_cap)))
                     if craft_quantity <= 0:
@@ -10085,6 +11709,7 @@ class MerchantRulesWidget:
                         )
                         continue
 
+                    _consume_reserved_consumable_resources(recipe, craft_quantity)
                     for ingredient_model_id, ingredient_quantity in recipe.ingredients:
                         sim_model_counts[int(ingredient_model_id)] = max(
                             0,
@@ -10102,8 +11727,22 @@ class MerchantRulesWidget:
                         )
                     )
                     reason = f"{recipe.vendor_name}; rank {current_rank} ({tier_name})."
+                    if craft_requested_amount:
+                        reason = f"{reason} Craft requested amount mode."
                     if craft_quantity < needed:
                         reason = f"{reason} Capped by available skill points, gold, or materials."
+                        remaining_needed = max(0, int(needed) - int(craft_quantity))
+                        if remaining_needed > 0:
+                            post_resource_counts, post_skill_points, post_gold = _ensure_consumable_reserved_resources(recipe)
+                            _remaining_cap, remaining_blockers = self._get_consumable_craft_cap_from_reserved_resources(
+                                recipe,
+                                available_model_counts=post_resource_counts,
+                                skill_points_remaining=post_skill_points,
+                                gold_remaining=post_gold,
+                                requested_quantity=remaining_needed,
+                            )
+                            if remaining_blockers:
+                                reason = f"{reason} Remaining request: {' '.join(remaining_blockers)}"
                     plan.entries.append(
                         ExecutionPlanEntry(
                             "buy",
@@ -10173,7 +11812,7 @@ class MerchantRulesWidget:
                                 label=scroll_label,
                                 quantity=0,
                                 state=PLAN_STATE_SKIPPED,
-                                reason=f"{self._get_scroll_trader_service_label()} selector was not resolved in the current map.",
+                                reason=f"{self._get_scroll_trader_service_label()} could not be found in the current map.",
                             )
                         )
                         continue
@@ -10292,7 +11931,7 @@ class MerchantRulesWidget:
                             "Open Xunlai for exact storage scan so Merchant Rules can plan withdraws before any Rune Trader buy.",
                         ]
                         if rune_trader_coords is None:
-                            reason_parts.append("Rune Trader selector is also unresolved in the current map.")
+                            reason_parts.append("Rune Trader could not be found in the current map.")
                         plan.entries.append(
                             ExecutionPlanEntry(
                                 "buy",
@@ -10356,7 +11995,7 @@ class MerchantRulesWidget:
                                 label,
                                 needed,
                                 PLAN_STATE_SKIPPED,
-                                "Rune Trader selector was not resolved in the current map after storage withdrawals.",
+                                "Rune Trader could not be found in the current map after storage withdrawals.",
                             )
                         )
                         continue
@@ -10391,6 +12030,11 @@ class MerchantRulesWidget:
         cleanup_only: bool = False,
         projected_preview: bool = False,
         ignore_travel_target: bool = False,
+        projected_target_override_outpost_id: int = 0,
+        allow_consumable_multi_stop: bool = True,
+        consumable_crafter_only: bool = False,
+        exclude_consumable_crafter: bool = False,
+        supported_context_override: tuple[bool, str, dict[str, tuple[float, float] | None]] | None = None,
     ) -> PlanResult:
         started_at = time.perf_counter()
         projected_target_outpost_id = 0
@@ -10400,7 +12044,25 @@ class MerchantRulesWidget:
             target_outpost_id = 0 if ignore_travel_target else (max(0, int(self.target_outpost_id)) if self.auto_travel_enabled else 0)
             current_map_id = int(Map.GetMapID() or 0)
             if projected_preview:
-                projected_target_outpost_id, projected_target_outpost_name = self._get_preview_projection_target()
+                if (
+                    allow_consumable_multi_stop
+                    and not consumable_crafter_only
+                    and not exclude_consumable_crafter
+                    and self._should_use_consumable_crafter_multi_stop_route()
+                ):
+                    target_outpost_id, _target_outpost_name = self._get_consumable_crafter_multi_stop_target()
+                    multi_stop_plan = self._build_consumable_crafter_multi_stop_preview(target_outpost_id)
+                    self._log_plan_summary("Plan built", multi_stop_plan)
+                    self.last_plan_build_duration_ms = max(0.0, (time.perf_counter() - started_at) * 1000.0)
+                    return multi_stop_plan
+                projected_target_override = max(0, _safe_int(projected_target_override_outpost_id, 0))
+                if projected_target_override > 0:
+                    projected_target_outpost_id = projected_target_override
+                    projected_target_outpost_name = self._get_outpost_name(projected_target_override)
+                    if projected_target_override == EMBARK_BEACH_MAP_ID:
+                        projected_target_outpost_name = self._get_embark_beach_outpost_name()
+                else:
+                    projected_target_outpost_id, projected_target_outpost_name = self._get_preview_projection_target()
                 projected_destination_context = projected_target_outpost_id > 0 and bool(projected_target_outpost_name)
             if (
                 not projected_destination_context
@@ -10414,6 +12076,8 @@ class MerchantRulesWidget:
 
         if projected_destination_context:
             supported_map, supported_reason, coords = self._get_projected_supported_context(projected_target_outpost_id)
+        elif supported_context_override is not None:
+            supported_map, supported_reason, coords = supported_context_override
         else:
             supported_map, supported_reason, coords = self._get_supported_context()
         plan = PlanResult(
@@ -10421,7 +12085,13 @@ class MerchantRulesWidget:
             supported_reason=supported_reason,
             coords=coords,
         )
-        if not self._has_enabled_rules():
+        if consumable_crafter_only:
+            has_enabled_rules = self._has_enabled_consumable_crafter_buy_rules()
+        elif exclude_consumable_crafter:
+            has_enabled_rules = self._has_enabled_rules_excluding_consumable_crafters()
+        else:
+            has_enabled_rules = self._has_enabled_rules()
+        if not has_enabled_rules:
             self._debug_log("Plan build skipped inventory snapshot because no buy, sell, destroy, or cleanup rules are enabled.")
             self._log_plan_summary("Plan built", plan)
             self.last_plan_build_duration_ms = max(0.0, (time.perf_counter() - started_at) * 1000.0)
@@ -10436,7 +12106,9 @@ class MerchantRulesWidget:
         storage_api = getattr(GLOBAL_CACHE, "Inventory", None)
         storage_open = bool(storage_api is not None and bool(getattr(storage_api, "IsStorageOpen", lambda: False)()))
         storage_items: list[InventoryItemInfo] = []
-        if self._has_enabled_rune_buy_rules() or self._has_enabled_consumable_crafter_buy_rules():
+        needs_rune_storage_context = bool(not consumable_crafter_only and self._has_enabled_rune_buy_rules())
+        needs_consumable_storage_context = bool(not exclude_consumable_crafter and self._has_enabled_consumable_crafter_buy_rules())
+        if needs_rune_storage_context or needs_consumable_storage_context:
             if storage_open:
                 storage_items = self._collect_storage_items()
                 plan.storage_plan_state = STORAGE_PLAN_STATE_EXACT_READY
@@ -10445,17 +12117,20 @@ class MerchantRulesWidget:
                 plan.storage_plan_state = STORAGE_PLAN_STATE_NEEDS_EXACT_SCAN
                 plan.storage_exact = False
 
-        enabled_sell_rules = self._collect_enabled_sell_rules()
-        enabled_destroy_rules = self._collect_enabled_destroy_rules()
+        enabled_sell_rules = [] if consumable_crafter_only else self._collect_enabled_sell_rules()
+        enabled_destroy_rules = [] if consumable_crafter_only else self._collect_enabled_destroy_rules()
         claimed_item_ids: set[int] = set()
-        self._plan_destroy_actions(plan, items, enabled_destroy_rules, enabled_sell_rules, claimed_item_ids)
+        if not cleanup_only and not consumable_crafter_only:
+            self._plan_identify_actions(plan, items, claimed_item_ids)
+        if not consumable_crafter_only:
+            self._plan_destroy_actions(plan, items, enabled_destroy_rules, enabled_sell_rules, claimed_item_ids)
         material_quantities = {
             item.item_id: item.quantity
             for item in items
             if item.is_material
         }
 
-        if supported_map or storage_context_ready:
+        if not consumable_crafter_only and (supported_map or storage_context_ready):
             for item in items:
                 if item.item_id in claimed_item_ids:
                     continue
@@ -10477,6 +12152,13 @@ class MerchantRulesWidget:
                     )
                 )
 
+        reserved_rune_sell_identifiers = {
+            target.identifier
+            for _exact_rule_index, exact_rule in enabled_sell_rules
+            if exact_rule.kind == SELL_KIND_RUNE_TRADER_TARGET
+            for target in _normalize_rune_sell_targets(getattr(exact_rule, "rune_sell_targets", []))
+            if target.identifier
+        }
         for rule_index, sell_rule in enabled_sell_rules:
             merchant_coords = coords.get(sell_rule.merchant_type)
             if not supported_map and not storage_context_ready:
@@ -10495,6 +12177,18 @@ class MerchantRulesWidget:
             rule_reference = self._format_sell_rule_reference(rule_index, sell_rule)
             if sell_rule.kind in (SELL_KIND_WEAPONS, SELL_KIND_ARMOR):
                 self._plan_equippable_rule_sales(
+                    plan=plan,
+                    items=items,
+                    rule=sell_rule,
+                    rule_index=rule_index,
+                    claimed_item_ids=claimed_item_ids,
+                    coords=coords,
+                    reserved_rune_sell_identifiers=reserved_rune_sell_identifiers,
+                )
+                continue
+
+            if sell_rule.kind == SELL_KIND_RUNE_TRADER_TARGET:
+                self._plan_rune_sell_target_sales(
                     plan=plan,
                     items=items,
                     rule=sell_rule,
@@ -10558,7 +12252,7 @@ class MerchantRulesWidget:
                                     PLAN_STATE_SKIPPED,
                                     (
                                         f"Blocked by {rule_reference}: "
-                                        f"{MERCHANT_TYPE_LABELS[sale.merchant_type]} selector was not resolved in the current map."
+                                        f"{MERCHANT_TYPE_LABELS[sale.merchant_type]} could not be found in the current map."
                                     ),
                                     model_id=sale.model_id,
                                 )
@@ -10604,7 +12298,7 @@ class MerchantRulesWidget:
                                         PLAN_STATE_SKIPPED,
                                         (
                                             f"Blocked by {rule_reference}: "
-                                            f"{MERCHANT_TYPE_LABELS[MERCHANT_TYPE_MERCHANT]} selector was not resolved in the current map."
+                                            f"{MERCHANT_TYPE_LABELS[MERCHANT_TYPE_MERCHANT]} could not be found in the current map."
                                         ),
                                         model_id=item.model_id,
                                     )
@@ -10711,10 +12405,10 @@ class MerchantRulesWidget:
                                             item.name,
                                             item.quantity,
                                             PLAN_STATE_SKIPPED,
-                                            (
-                                                f"Blocked by {rule_reference}: "
-                                                f"{MERCHANT_TYPE_LABELS[MERCHANT_TYPE_MERCHANT]} selector was not resolved in the current map."
-                                            ),
+                                                (
+                                                    f"Blocked by {rule_reference}: "
+                                                    f"{MERCHANT_TYPE_LABELS[MERCHANT_TYPE_MERCHANT]} could not be found in the current map."
+                                                ),
                                             model_id=item.model_id,
                                         )
                                     )
@@ -10748,7 +12442,7 @@ class MerchantRulesWidget:
                                             PLAN_STATE_SKIPPED,
                                             (
                                                 f"Blocked by {rule_reference}: "
-                                                f"{MERCHANT_TYPE_LABELS[MERCHANT_TYPE_RUNE_TRADER]} selector was not resolved in the current map."
+                                                f"{MERCHANT_TYPE_LABELS[MERCHANT_TYPE_RUNE_TRADER]} could not be found in the current map."
                                             ),
                                             model_id=item.model_id,
                                         )
@@ -10830,10 +12524,10 @@ class MerchantRulesWidget:
                                             item.name,
                                             remaining_quantity,
                                             PLAN_STATE_SKIPPED,
-                                            (
-                                                f"Blocked by {rule_reference}: "
-                                                f"{MERCHANT_TYPE_LABELS[MERCHANT_TYPE_MERCHANT]} selector was not resolved in the current map."
-                                            ),
+                                                (
+                                                    f"Blocked by {rule_reference}: "
+                                                    f"{MERCHANT_TYPE_LABELS[MERCHANT_TYPE_MERCHANT]} could not be found in the current map."
+                                                ),
                                             model_id=item.model_id,
                                         )
                                     )
@@ -10862,7 +12556,7 @@ class MerchantRulesWidget:
                                         PLAN_STATE_SKIPPED,
                                         (
                                             f"Blocked by {rule_reference}: "
-                                            f"{MERCHANT_TYPE_LABELS[destination]} selector was not resolved in the current map."
+                                            f"{MERCHANT_TYPE_LABELS[destination]} could not be found in the current map."
                                         ),
                                         model_id=item.model_id,
                                     )
@@ -10889,23 +12583,32 @@ class MerchantRulesWidget:
 
         sim_model_counts = self._build_simulated_model_counts(items, plan)
         sim_inventory_items = self._get_items_after_planned_pre_buy_actions(items, plan)
+        pre_buy_model_counts = dict(sim_model_counts)
         self._plan_buy_actions(
             plan,
             sim_model_counts,
             sim_inventory_items=sim_inventory_items,
             storage_items=storage_items,
+            consumable_crafter_only=consumable_crafter_only,
+            exclude_consumable_crafter=exclude_consumable_crafter,
         )
-        self._plan_cleanup_actions(
+        self._plan_consumable_crafter_bag_space_warning(
             plan,
-            sim_inventory_items,
-            enabled_sell_rules,
-            storage_open=storage_open,
-            storage_context_available=storage_context_ready,
+            inventory_model_counts=pre_buy_model_counts,
         )
+        if not consumable_crafter_only:
+            self._plan_cleanup_actions(
+                plan,
+                sim_inventory_items,
+                enabled_sell_rules,
+                storage_open=storage_open,
+                storage_context_available=storage_context_ready,
+            )
         if projected_destination_context:
             self._apply_projected_preview_post_processing(plan, projected_target_outpost_name)
         plan.has_actions = bool(
-            plan.destroy_actions
+            plan.identify_item_ids
+            or plan.destroy_actions
             or plan.destroy_item_ids
             or plan.merchant_stock_buys
             or plan.material_buys
@@ -11604,19 +13307,23 @@ class MerchantRulesWidget:
 
             for craft in vendor_crafts:
                 recipe = self._get_consumable_crafter_recipe_for_model(craft.model_id)
+                requested_craft_quantity = max(0, int(craft.quantity))
+                completed_for_craft = 0
+                blocked_reason = ""
                 if recipe is None:
-                    outcome.unavailable += max(1, int(craft.quantity))
+                    outcome.unavailable += max(1, requested_craft_quantity)
                     continue
                 offered_item_id = int(offered_by_model.get(int(recipe.model_id), 0))
                 if offered_item_id <= 0:
-                    outcome.unavailable += max(1, int(craft.quantity))
+                    outcome.unavailable += max(1, requested_craft_quantity)
                     ConsoleLog(MODULE_NAME, f"{craft.label} was not offered by {craft.vendor_name}.", Console.MessageType.Warning)
                     continue
 
-                for _ in range(max(0, int(craft.quantity))):
+                for _ in range(requested_craft_quantity):
                     current_skill_points, _total_skill_points = Player.GetSkillPointData()
                     if int(current_skill_points) < int(recipe.skill_points):
                         outcome.depleted += 1
+                        blocked_reason = "skill points"
                         break
 
                     character_gold = max(0, int(GLOBAL_CACHE.Inventory.GetGoldOnCharacter()))
@@ -11631,11 +13338,13 @@ class MerchantRulesWidget:
                             character_gold = max(0, int(GLOBAL_CACHE.Inventory.GetGoldOnCharacter()))
                     if character_gold < int(recipe.gold_cost):
                         outcome.gold_blocked += 1
+                        blocked_reason = "gold"
                         break
 
                     ingredient_item_ids, ingredient_quantities, blockers = self._collect_crafting_ingredients_from_inventory(recipe)
                     if blockers:
                         outcome.depleted += 1
+                        blocked_reason = "materials"
                         ConsoleLog(MODULE_NAME, f"Cannot craft {craft.label}: {' '.join(blockers)}", Console.MessageType.Warning)
                         break
 
@@ -11654,9 +13363,20 @@ class MerchantRulesWidget:
                     after_count = max(0, int(GLOBAL_CACHE.Inventory.GetModelCount(int(recipe.model_id))))
                     if completed or after_count > before_count:
                         outcome.completed += 1
+                        completed_for_craft += 1
                     else:
                         outcome.timeout_failures += 1
+                        blocked_reason = "transaction confirmation"
                         break
+
+                if 0 <= completed_for_craft < requested_craft_quantity:
+                    remaining = max(0, requested_craft_quantity - completed_for_craft)
+                    reason_suffix = f" blocked by {blocked_reason}" if blocked_reason else ""
+                    ConsoleLog(
+                        MODULE_NAME,
+                        f"Crafted {completed_for_craft}/{requested_craft_quantity} {craft.label}; {remaining} remaining{reason_suffix}.",
+                        Console.MessageType.Warning,
+                    )
 
         self._debug_log(
             f"{phase_label}: completed={outcome.completed}/{outcome.attempted} unavailable={outcome.unavailable} "
@@ -11665,10 +13385,14 @@ class MerchantRulesWidget:
         )
         return outcome
 
-    def _buy_merchant_model(self, model_id: int, quantity: int):
+    def _buy_merchant_model(self, model_id: int, quantity: int, *, offered_items: list[int] | None = None):
         if quantity <= 0:
             return False
-        offered_items = list(GLOBAL_CACHE.Trading.Merchant.GetOfferedItems())
+        offered_items = (
+            list(offered_items)
+            if offered_items is not None
+            else list(GLOBAL_CACHE.Trading.Merchant.GetOfferedItems())
+        )
         matched_item_id = 0
         for offered_item_id in offered_items:
             if int(GLOBAL_CACHE.Item.GetModelID(offered_item_id)) == int(model_id):
@@ -11697,6 +13421,7 @@ class MerchantRulesWidget:
         material_buys: list[PlannedMaterialBuy],
         *,
         phase_label: str = "Material buys",
+        trader_items: list[int] | None = None,
     ) -> ExecutionPhaseOutcome:
         outcome = ExecutionPhaseOutcome(
             label=phase_label,
@@ -11713,13 +13438,16 @@ class MerchantRulesWidget:
             f"{phase_label}: coords={self._format_debug_coords(coords)} planned_targets={len(material_buys)} "
             f"planned_units={sum(max(0, int(buy.quantity)) for buy in material_buys)}"
         )
-        x, y = coords
-        trader_items = yield from Routines.Yield.Merchant._interact_with_trader_xy(  # pylint: disable=protected-access
-            x,
-            y,
-            inventory_timeout_ms=2500,
-            inventory_step_ms=10,
-        )
+        if trader_items is None:
+            x, y = coords
+            trader_items = yield from Routines.Yield.Merchant._interact_with_trader_xy(  # pylint: disable=protected-access
+                x,
+                y,
+                inventory_timeout_ms=2500,
+                inventory_step_ms=10,
+            )
+        else:
+            trader_items = list(trader_items)
         if not trader_items:
             ConsoleLog(MODULE_NAME, f"{phase_label} inventory did not load.", Console.MessageType.Warning)
             outcome.load_failures += 1
@@ -11781,6 +13509,7 @@ class MerchantRulesWidget:
         material_sales: list[PlannedMaterialSale],
         *,
         phase_label: str = "Material sales",
+        trader_items: list[int] | None = None,
     ) -> ExecutionPhaseOutcome:
         outcome = ExecutionPhaseOutcome(
             label=phase_label,
@@ -11794,13 +13523,16 @@ class MerchantRulesWidget:
             f"{phase_label}: coords={self._format_debug_coords(coords)} "
             f"sale_stacks={len(material_sales)} planned_trades={sum(max(0, int(sale.batches_to_sell)) for sale in material_sales)}"
         )
-        x, y = coords
-        trader_items = yield from Routines.Yield.Merchant._interact_with_trader_xy(  # pylint: disable=protected-access
-            x,
-            y,
-            inventory_timeout_ms=2500,
-            inventory_step_ms=10,
-        )
+        if trader_items is None:
+            x, y = coords
+            trader_items = yield from Routines.Yield.Merchant._interact_with_trader_xy(  # pylint: disable=protected-access
+                x,
+                y,
+                inventory_timeout_ms=2500,
+                inventory_step_ms=10,
+            )
+        else:
+            trader_items = list(trader_items)
         if not trader_items:
             ConsoleLog(MODULE_NAME, "Material trader inventory did not load.", Console.MessageType.Warning)
             outcome.load_failures += 1
@@ -11848,6 +13580,7 @@ class MerchantRulesWidget:
         trader_sales: list[PlannedTraderSale],
         *,
         phase_label: str = "Rune trader sales",
+        trader_items: list[int] | None = None,
     ) -> ExecutionPhaseOutcome:
         outcome = ExecutionPhaseOutcome(
             label=phase_label,
@@ -11860,13 +13593,16 @@ class MerchantRulesWidget:
         self._debug_log(
             f"{phase_label}: coords={self._format_debug_coords(coords)} planned_items={len(trader_sales)}"
         )
-        x, y = coords
-        trader_items = yield from Routines.Yield.Merchant._interact_with_trader_xy(  # pylint: disable=protected-access
-            x,
-            y,
-            inventory_timeout_ms=2500,
-            inventory_step_ms=10,
-        )
+        if trader_items is None:
+            x, y = coords
+            trader_items = yield from Routines.Yield.Merchant._interact_with_trader_xy(  # pylint: disable=protected-access
+                x,
+                y,
+                inventory_timeout_ms=2500,
+                inventory_step_ms=10,
+            )
+        else:
+            trader_items = list(trader_items)
         if not trader_items:
             ConsoleLog(MODULE_NAME, "Rune trader inventory did not load.", Console.MessageType.Warning)
             outcome.load_failures += 1
@@ -11933,18 +13669,37 @@ class MerchantRulesWidget:
         for transfer in normalized_transfers:
             item_id = int(transfer.item_id)
             quantity = max(0, int(transfer.quantity))
+            transfer_label = str(transfer.label or f"Item {item_id}")
+            transfer_model_id = max(0, int(getattr(transfer, "model_id", 0)))
+            transfer_reason = str(getattr(transfer, "reason", "") or "")
             if quantity <= 0:
                 continue
 
             current_quantity = max(0, int(GLOBAL_CACHE.Item.Properties.GetQuantity(item_id)))
             if current_quantity <= 0:
+                self._debug_log(
+                    f"{phase_label} transfer skipped: direction={transfer.direction} label={transfer_label} "
+                    f"model={transfer_model_id} item_id={item_id} planned={quantity} current=0"
+                    + (f" reason={transfer_reason}" if transfer_reason else "")
+                )
                 outcome.depleted += quantity
                 continue
             requested_quantity = min(current_quantity, quantity)
             depleted_quantity = max(0, quantity - current_quantity)
             if requested_quantity <= 0:
+                self._debug_log(
+                    f"{phase_label} transfer skipped: direction={transfer.direction} label={transfer_label} "
+                    f"model={transfer_model_id} item_id={item_id} planned={quantity} move=0"
+                    + (f" reason={transfer_reason}" if transfer_reason else "")
+                )
                 outcome.depleted += quantity
                 continue
+
+            self._debug_log(
+                f"{phase_label} transfer: direction={transfer.direction} label={transfer_label} "
+                f"model={transfer_model_id} item_id={item_id} planned={quantity} current={current_quantity} move={requested_quantity}"
+                + (f" reason={transfer_reason}" if transfer_reason else "")
+            )
 
             moved = False
             if transfer.direction == STORAGE_TRANSFER_WITHDRAW:
@@ -11986,6 +13741,11 @@ class MerchantRulesWidget:
                 moved = bool(GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id, ammount=requested_quantity))
 
             if not moved:
+                self._debug_log(
+                    f"{phase_label} transfer queued-noop: direction={transfer.direction} label={transfer_label} "
+                    f"model={transfer_model_id} item_id={item_id} requested={requested_quantity}"
+                    + (f" reason={transfer_reason}" if transfer_reason else "")
+                )
                 outcome.timeout_failures += requested_quantity
                 outcome.depleted += depleted_quantity
                 continue
@@ -12008,6 +13768,12 @@ class MerchantRulesWidget:
             if shortfall > 0:
                 outcome.timeout_failures += shortfall
             outcome.depleted += depleted_quantity
+            self._debug_log(
+                f"{phase_label} transfer result: direction={transfer.direction} label={transfer_label} "
+                f"model={transfer_model_id} item_id={item_id} moved={moved_quantity} shortfall={shortfall} "
+                f"final={max(0, int(final_quantity))}"
+                + (f" reason={transfer_reason}" if transfer_reason else "")
+            )
             yield from Routines.Yield.wait(60)
 
         self._debug_log(
@@ -12022,6 +13788,7 @@ class MerchantRulesWidget:
         rune_buys: list[PlannedTraderBuy],
         *,
         phase_label: str = "Rune trader buys",
+        trader_items: list[int] | None = None,
     ) -> ExecutionPhaseOutcome:
         outcome = ExecutionPhaseOutcome(
             label=phase_label,
@@ -12035,13 +13802,16 @@ class MerchantRulesWidget:
             f"{phase_label}: coords={self._format_debug_coords(coords)} "
             f"planned_targets={len(rune_buys)} planned_items={outcome.attempted}"
         )
-        x, y = coords
-        trader_items = yield from Routines.Yield.Merchant._interact_with_trader_xy(  # pylint: disable=protected-access
-            x,
-            y,
-            inventory_timeout_ms=2500,
-            inventory_step_ms=10,
-        )
+        if trader_items is None:
+            x, y = coords
+            trader_items = yield from Routines.Yield.Merchant._interact_with_trader_xy(  # pylint: disable=protected-access
+                x,
+                y,
+                inventory_timeout_ms=2500,
+                inventory_step_ms=10,
+            )
+        else:
+            trader_items = list(trader_items)
         if not trader_items:
             ConsoleLog(MODULE_NAME, f"{phase_label} inventory did not load.", Console.MessageType.Warning)
             outcome.load_failures += 1
@@ -12108,6 +13878,7 @@ class MerchantRulesWidget:
         scroll_buys: list[PlannedScrollTraderBuy],
         *,
         phase_label: str = "Scroll trader buys",
+        trader_items: list[int] | None = None,
     ) -> ExecutionPhaseOutcome:
         outcome = ExecutionPhaseOutcome(
             label=phase_label,
@@ -12121,13 +13892,16 @@ class MerchantRulesWidget:
             f"{phase_label}: coords={self._format_debug_coords(coords)} "
             f"planned_targets={len(scroll_buys)} planned_items={outcome.attempted}"
         )
-        x, y = coords
-        trader_items = yield from Routines.Yield.Merchant._interact_with_trader_xy(  # pylint: disable=protected-access
-            x,
-            y,
-            inventory_timeout_ms=2500,
-            inventory_step_ms=10,
-        )
+        if trader_items is None:
+            x, y = coords
+            trader_items = yield from Routines.Yield.Merchant._interact_with_trader_xy(  # pylint: disable=protected-access
+                x,
+                y,
+                inventory_timeout_ms=2500,
+                inventory_step_ms=10,
+            )
+        else:
+            trader_items = list(trader_items)
         if not trader_items:
             ConsoleLog(MODULE_NAME, f"{phase_label} inventory did not load.", Console.MessageType.Warning)
             outcome.load_failures += 1
@@ -12249,7 +14023,10 @@ class MerchantRulesWidget:
 
     def _scan_preview(self):
         self._invalidate_supported_context_cache()
-        projected_target_outpost_id, projected_target_outpost_name = self._get_preview_projection_target()
+        if self._should_use_consumable_crafter_multi_stop_route():
+            projected_target_outpost_id, projected_target_outpost_name = self._get_consumable_crafter_multi_stop_target()
+        else:
+            projected_target_outpost_id, projected_target_outpost_name = self._get_preview_projection_target()
         self.preview_plan = self._build_plan(projected_preview=True)
         self.preview_ready = True
         self._set_preview_projection_state(
@@ -12258,7 +14035,19 @@ class MerchantRulesWidget:
             target_outpost_name=projected_target_outpost_name,
         )
         self._clear_preview_inventory_diff()
-        if self._preview_has_execute_travel_pending():
+        if self.preview_plan.multi_stop_route:
+            embark_label = self.preview_plan.multi_stop_consumable_outpost_name or self._get_embark_beach_outpost_name()
+            destination_label = self.preview_plan.multi_stop_destination_outpost_name
+            if destination_label:
+                self.status_message = (
+                    f"Multi-stop preview complete. Travel + Execute will craft Consumable Crafter targets at {embark_label}, "
+                    f"then travel to {destination_label} for remaining Merchant Rules work."
+                )
+            else:
+                self.status_message = (
+                    f"Multi-stop preview complete. Travel + Execute will craft Consumable Crafter targets at {embark_label} and stop there."
+                )
+        elif self._preview_has_execute_travel_pending():
             if self.preview_plan.has_actions:
                 self.status_message = (
                     f"Projected preview complete. Travel + Execute will travel to {projected_target_outpost_name}, "
@@ -12365,7 +14154,808 @@ class MerchantRulesWidget:
         )
         return outcome
 
-    def _execute_now(self, *, local_only: bool = False):
+    def _manual_vendor_any_merchant_groups_enabled(self) -> bool:
+        return bool(
+            self.auto_sell_any_merchant_normal_items
+            or self.auto_sell_any_merchant_materials
+            or self.auto_sell_any_merchant_runes
+        )
+
+    def _manual_vendor_settings_enabled(self) -> bool:
+        return bool(
+            self.auto_sell_on_manual_vendor_interaction
+            or self.auto_buy_on_manual_vendor_interaction
+            or (
+                self.auto_sell_to_any_merchant
+                and self._manual_vendor_any_merchant_groups_enabled()
+            )
+        )
+
+    def _manual_vendor_blocked_by_runtime(self) -> bool:
+        return bool(
+            self.execution_running
+            or self.travel_preview_running
+            or self.identify_running
+            or self.instant_destroy_running
+            or self.salvage_running
+            or self.storage_scan_running
+            or self.auto_cleanup_running
+        )
+
+    def _format_manual_vendor_context_for_debug(self, context: ManualVendorContext) -> str:
+        type_labels = [
+            MERCHANT_TYPE_LABELS.get(merchant_type, merchant_type)
+            for merchant_type in sorted(context.merchant_types)
+        ]
+        return (
+            f"types={self._format_compact_list(type_labels, limit=4) or 'unknown'} "
+            f"merchant_offers={len(context.merchant_item_ids)} trader_offers={len(context.trader_item_ids)} "
+            f"signature={context.signature or 'none'}"
+        )
+
+    def _format_manual_vendor_modes_for_debug(self) -> str:
+        modes: list[str] = []
+        if self.auto_sell_on_manual_vendor_interaction:
+            modes.append("auto-sell matching merchant")
+        if self.auto_buy_on_manual_vendor_interaction:
+            modes.append("auto-buy matching merchant")
+        if self.auto_sell_to_any_merchant:
+            groups: list[str] = []
+            if self.auto_sell_any_merchant_normal_items:
+                groups.append("normal items")
+            if self.auto_sell_any_merchant_materials:
+                groups.append("materials")
+            if self.auto_sell_any_merchant_runes:
+                groups.append("runes")
+            modes.append(
+                "any merchant fallback"
+                + (f" ({', '.join(groups)})" if groups else " (no groups)")
+            )
+        return self._format_compact_list(modes, limit=4) or "none"
+
+    def _is_merchant_window_open(self) -> bool:
+        try:
+            from Py4GWCoreLib.UIManager import UIManager
+
+            frame_id = int(UIManager.GetFrameIDByHash(MERCHANT_FRAME_HASH) or 0)
+            return frame_id > 0 and bool(UIManager.FrameExists(frame_id))
+        except Exception:
+            return False
+
+    def _get_offered_item_ids(self, service: object) -> list[int]:
+        getter = getattr(service, "GetOfferedItems", None)
+        if not callable(getter):
+            return []
+        try:
+            offered_item_ids: list[int] = []
+            for raw_item_id in list(getter() or []):
+                item_id = max(0, _safe_int(raw_item_id, 0))
+                if item_id > 0:
+                    offered_item_ids.append(item_id)
+            return offered_item_ids
+        except Exception:
+            return []
+
+    def _get_item_models_from_ids(self, item_ids: list[int]) -> set[int]:
+        model_ids: set[int] = set()
+        for item_id in item_ids:
+            try:
+                model_id = int(GLOBAL_CACHE.Item.GetModelID(int(item_id)))
+            except Exception:
+                model_id = 0
+            if model_id > 0:
+                model_ids.add(model_id)
+        return model_ids
+
+    def _offered_items_include_rune_stock(self, item_ids: list[int], model_ids: set[int]) -> bool:
+        if int(ModelID.Rune_Of_Superior_Vigor.value) in model_ids:
+            return True
+        for item_id in item_ids:
+            try:
+                if self._get_standalone_rune_identifiers_for_item_id(int(item_id)):
+                    return True
+            except Exception:
+                continue
+        return False
+
+    def _get_current_manual_vendor_context(self) -> ManualVendorContext:
+        if not self._is_merchant_window_open():
+            return ManualVendorContext()
+
+        trading_api = getattr(GLOBAL_CACHE, "Trading", None)
+        merchant_api = getattr(trading_api, "Merchant", None) if trading_api is not None else None
+        trader_api = getattr(trading_api, "Trader", None) if trading_api is not None else None
+        merchant_item_ids = self._get_offered_item_ids(merchant_api)
+        trader_item_ids = self._get_offered_item_ids(trader_api)
+        merchant_models = self._get_item_models_from_ids(merchant_item_ids)
+        trader_models = self._get_item_models_from_ids(trader_item_ids)
+
+        merchant_types: set[str] = set()
+        if trader_models & COMMON_CRAFTING_MATERIAL_MODEL_IDS:
+            merchant_types.add(MERCHANT_TYPE_MATERIALS)
+        if trader_models & RARE_CRAFTING_MATERIAL_MODEL_IDS:
+            merchant_types.add(MERCHANT_TYPE_RARE_MATERIALS)
+        if any(_is_scroll_trader_stock_model(model_id) for model_id in trader_models):
+            merchant_types.add(MERCHANT_TYPE_SCROLL_TRADER)
+        if self._offered_items_include_rune_stock(trader_item_ids, trader_models):
+            merchant_types.add(MERCHANT_TYPE_RUNE_TRADER)
+
+        normal_merchant_stock = {
+            int(ModelID.Identification_Kit.value),
+            int(ModelID.Superior_Identification_Kit.value),
+            int(ModelID.Salvage_Kit.value),
+            int(ModelID.Salvage_Kit_preSearing.value),
+            int(ModelID.Expert_Salvage_Kit.value),
+            int(ModelID.Superior_Salvage_Kit.value),
+            int(ModelID.Vial_Of_Dye.value),
+        }
+        if merchant_models & normal_merchant_stock:
+            merchant_types.add(MERCHANT_TYPE_MERCHANT)
+        if not merchant_types and not trader_item_ids:
+            merchant_types.add(MERCHANT_TYPE_MERCHANT)
+
+        signature_parts = [
+            str(int(Map.GetMapID() or 0)),
+            ",".join(sorted(merchant_types)),
+            ",".join(str(model_id) for model_id in sorted(merchant_models)),
+            ",".join(str(model_id) for model_id in sorted(trader_models)),
+        ]
+        return ManualVendorContext(
+            signature="|".join(signature_parts),
+            merchant_types=merchant_types,
+            merchant_item_ids=merchant_item_ids,
+            trader_item_ids=trader_item_ids,
+        )
+
+    def _build_manual_vendor_supported_context(
+        self,
+        context: ManualVendorContext,
+    ) -> tuple[bool, str, dict[str, tuple[float, float] | None]]:
+        del context
+        return (
+            True,
+            "Manual merchant window is open.",
+            {
+                MERCHANT_TYPE_MERCHANT: (0.0, 0.0),
+                MERCHANT_TYPE_MATERIALS: (0.0, 0.0),
+                MERCHANT_TYPE_RARE_MATERIALS: (0.0, 0.0),
+                MERCHANT_TYPE_RUNE_TRADER: (0.0, 0.0),
+                MERCHANT_TYPE_SCROLL_TRADER: (0.0, 0.0),
+                MERCHANT_TYPE_CONSUMABLE_CRAFTER: None,
+            },
+        )
+
+    def _get_manual_merchant_sale_for_item_id(
+        self,
+        item_id: int,
+        quantity_to_sell: int = 0,
+        *,
+        model_id: int = 0,
+        label: str = "",
+    ) -> PlannedManualMerchantSale | None:
+        safe_item_id = max(0, _safe_int(item_id, 0))
+        if safe_item_id <= 0:
+            return None
+        item = self._build_inventory_item_info(safe_item_id)
+        if item is not None:
+            safe_model_id = int(item.model_id)
+            safe_label = str(item.name or "").strip() or self._format_model_label(safe_model_id)
+        else:
+            safe_model_id = max(0, _safe_int(model_id, 0))
+            if safe_model_id <= 0:
+                try:
+                    safe_model_id = max(0, int(GLOBAL_CACHE.Item.GetModelID(safe_item_id)))
+                except Exception:
+                    safe_model_id = 0
+            safe_label = str(label or "").strip() or self._format_model_label(safe_model_id) or f"Item {safe_item_id}"
+        return PlannedManualMerchantSale(
+            item_id=safe_item_id,
+            model_id=safe_model_id,
+            label=safe_label,
+            quantity_to_sell=max(0, _safe_int(quantity_to_sell, 0)),
+        )
+
+    def _add_manual_merchant_sale(
+        self,
+        sales_by_item_id: dict[int, PlannedManualMerchantSale],
+        sale: PlannedManualMerchantSale | None,
+    ) -> None:
+        if sale is None or int(sale.item_id) <= 0:
+            return
+        existing = sales_by_item_id.get(int(sale.item_id))
+        if existing is None:
+            sales_by_item_id[int(sale.item_id)] = sale
+            return
+        existing_quantity = max(0, int(existing.quantity_to_sell))
+        next_quantity = max(0, int(sale.quantity_to_sell))
+        existing.quantity_to_sell = 0 if existing_quantity <= 0 or next_quantity <= 0 else max(existing_quantity, next_quantity)
+
+    def _get_manual_material_fallback_merchant_sell_item_ids(self, plan: PlanResult) -> set[int]:
+        fallback_model_ids = {
+            int(entry.model_id)
+            for entry in plan.entries
+            if str(entry.action_type) == "sell"
+            and str(entry.merchant_type) == MERCHANT_TYPE_MERCHANT
+            and str(entry.state) == PLAN_STATE_WILL_EXECUTE
+            and int(entry.model_id) in ALL_CRAFTING_MATERIAL_MODEL_IDS
+            and "merchant fallback" in str(entry.reason or "").casefold()
+        }
+        if not fallback_model_ids:
+            return set()
+
+        fallback_item_ids: set[int] = set()
+        for item_id in plan.merchant_sell_item_ids:
+            safe_item_id = max(0, _safe_int(item_id, 0))
+            if safe_item_id <= 0:
+                continue
+            try:
+                model_id = int(GLOBAL_CACHE.Item.GetModelID(safe_item_id))
+            except Exception:
+                item = self._build_inventory_item_info(safe_item_id)
+                model_id = int(item.model_id) if item is not None else 0
+            if model_id in fallback_model_ids:
+                fallback_item_ids.add(safe_item_id)
+        return fallback_item_ids
+
+    def _get_manual_matching_merchant_sell_item_ids(self, plan: PlanResult) -> list[int]:
+        trader_owned_item_ids = {
+            int(sale.item_id)
+            for sale in plan.material_sales
+            if int(sale.item_id) > 0
+        }
+        trader_owned_item_ids.update(
+            int(sale.item_id)
+            for sale in plan.rune_trader_sales
+            if int(sale.item_id) > 0
+        )
+        trader_owned_item_ids.update(self._get_manual_material_fallback_merchant_sell_item_ids(plan))
+        return [
+            int(item_id)
+            for item_id in plan.merchant_sell_item_ids
+            if int(item_id) > 0 and int(item_id) not in trader_owned_item_ids
+        ]
+
+    def _debug_manual_vendor_sell_filter(
+        self,
+        plan: PlanResult,
+        matching_merchant_sell_item_ids: list[int],
+        material_fallback_item_ids: set[int],
+    ) -> None:
+        if not self.debug_logging or not plan.merchant_sell_item_ids:
+            return
+        trader_sale_item_ids = {
+            int(sale.item_id)
+            for sale in plan.material_sales
+            if int(sale.item_id) > 0
+        }
+        trader_sale_item_ids.update(
+            int(sale.item_id)
+            for sale in plan.rune_trader_sales
+            if int(sale.item_id) > 0
+        )
+        trader_sale_item_ids.update(int(item_id) for item_id in material_fallback_item_ids)
+        excluded_count = len(
+            [
+                item_id
+                for item_id in plan.merchant_sell_item_ids
+                if int(item_id) in trader_sale_item_ids
+            ]
+        )
+        self._debug_log(
+            "Manual vendor merchant-sell filter: "
+            f"planned={len(plan.merchant_sell_item_ids)} matching={len(matching_merchant_sell_item_ids)} "
+            f"trader_owned_or_fallback={excluded_count}"
+        )
+        if excluded_count <= 0:
+            return
+        if not self.auto_sell_to_any_merchant:
+            self._debug_log(
+                "Manual vendor skipped trader-targeted merchant fallback item(s) because "
+                "'Also sell selected items to any merchant' is off."
+            )
+            return
+        if material_fallback_item_ids and not self.auto_sell_any_merchant_materials:
+            self._debug_log(
+                "Manual vendor skipped material merchant fallback item(s) because the materials fallback group is off."
+            )
+        if plan.rune_trader_sales and not self.auto_sell_any_merchant_runes:
+            self._debug_log(
+                "Manual vendor skipped rune/insignia merchant fallback item(s) because the rune fallback group is off."
+            )
+
+    def _execute_open_merchant_sell_phase(
+        self,
+        manual_sales: list[PlannedManualMerchantSale],
+        *,
+        phase_label: str = "Merchant sells",
+    ) -> ExecutionPhaseOutcome:
+        outcome = ExecutionPhaseOutcome(
+            label=phase_label,
+            measure_label="items",
+            attempted=len(manual_sales),
+        )
+        if not manual_sales:
+            return outcome
+
+        for sale in manual_sales:
+            item_id = int(sale.item_id)
+            current_quantity = max(0, int(GLOBAL_CACHE.Item.Properties.GetQuantity(item_id)))
+            if current_quantity <= 0:
+                outcome.depleted += 1
+                continue
+
+            requested_quantity = max(0, int(sale.quantity_to_sell))
+            if requested_quantity <= 0:
+                requested_quantity = current_quantity
+            requested_quantity = min(requested_quantity, current_quantity)
+            if requested_quantity <= 0:
+                outcome.depleted += 1
+                continue
+
+            if requested_quantity < current_quantity:
+                split_destination = self._find_inventory_empty_slot()
+                if split_destination is None:
+                    outcome.timeout_failures += 1
+                    self._debug_log(
+                        f"Manual merchant sale skipped {sale.label}: no empty slot to split {requested_quantity}/{current_quantity}."
+                    )
+                    continue
+                keep_quantity = current_quantity - requested_quantity
+                GLOBAL_CACHE.Inventory.MoveItem(
+                    item_id,
+                    int(split_destination.bag_id),
+                    int(split_destination.slot),
+                    keep_quantity,
+                )
+                updated_quantity = yield from self._wait_for_stack_quantity_target(
+                    item_id,
+                    requested_quantity,
+                    timeout_ms=MERCHANT_SELL_CONFIRM_TIMEOUT_MS,
+                    step_ms=50,
+                )
+                if int(updated_quantity) != requested_quantity:
+                    outcome.timeout_failures += 1
+                    self._debug_log(
+                        f"Manual merchant sale split verification failed for {sale.label}: "
+                        f"expected {requested_quantity}, observed {updated_quantity}."
+                    )
+                    continue
+                current_quantity = updated_quantity
+
+            value = max(0, int(GLOBAL_CACHE.Item.Properties.GetValue(item_id)))
+            GLOBAL_CACHE.Trading.Merchant.SellItem(item_id, int(current_quantity) * value)
+            yield from self._wait_for_action_queue_empty("MERCHANT", timeout_ms=MERCHANT_SELL_CONFIRM_TIMEOUT_MS, step_ms=50)
+            confirmed_ids, pending_ids = yield from self._wait_for_merchant_sell_confirmation(
+                {item_id: int(current_quantity)},
+                timeout_ms=MERCHANT_SELL_CONFIRM_TIMEOUT_MS,
+                step_ms=50,
+            )
+            if confirmed_ids and not pending_ids:
+                outcome.completed += 1
+            else:
+                outcome.timeout_failures += 1
+            yield from Routines.Yield.wait(40)
+
+        self._debug_log(
+            f"{phase_label}: completed={outcome.completed}/{outcome.attempted} "
+            f"timeouts={outcome.timeout_failures} depleted={outcome.depleted}"
+        )
+        return outcome
+
+    def _run_manual_vendor_pass(
+        self,
+        context: ManualVendorContext,
+        *,
+        running_already_marked: bool = False,
+    ):
+        if self.manual_vendor_running and not running_already_marked:
+            return ExecutionPhaseOutcome(label="Manual merchant automation", measure_label="actions")
+        self.manual_vendor_running = True
+        self.last_error = ""
+        self.last_manual_vendor_summary = ""
+        paused_inventory_plus = None
+        completed_any = False
+        phase_summaries: list[str] = []
+        try:
+            yield from Routines.Yield.wait(120)
+            if not self._is_merchant_window_open():
+                return ExecutionPhaseOutcome(label="Manual merchant automation", measure_label="actions")
+
+            current_context = self._get_current_manual_vendor_context()
+            if current_context.signature:
+                context = current_context
+                self.manual_vendor_handled_signature = context.signature
+            if not context.signature or not context.merchant_types:
+                self._debug_log("Manual vendor automation skipped because the opened vendor type could not be detected.")
+                return ExecutionPhaseOutcome(label="Manual merchant automation", measure_label="actions")
+
+            self._debug_log(
+                "Manual vendor automation start: "
+                f"{self._format_manual_vendor_context_for_debug(context)} "
+                f"modes={self._format_manual_vendor_modes_for_debug()}"
+            )
+            plan = self._build_plan(
+                ignore_travel_target=True,
+                allow_consumable_multi_stop=False,
+                exclude_consumable_crafter=True,
+                supported_context_override=self._build_manual_vendor_supported_context(context),
+            )
+
+            paused_inventory_plus = self._pause_inventory_plus()
+            normal_merchant_sales: dict[int, PlannedManualMerchantSale] = {}
+            material_fallback_item_ids = self._get_manual_material_fallback_merchant_sell_item_ids(plan)
+            matching_merchant_sell_item_ids = self._get_manual_matching_merchant_sell_item_ids(plan)
+            self._debug_manual_vendor_sell_filter(
+                plan,
+                matching_merchant_sell_item_ids,
+                material_fallback_item_ids,
+            )
+            if (
+                self.auto_sell_on_manual_vendor_interaction
+                and MERCHANT_TYPE_MERCHANT in context.merchant_types
+            ):
+                for item_id in matching_merchant_sell_item_ids:
+                    self._add_manual_merchant_sale(
+                        normal_merchant_sales,
+                        self._get_manual_merchant_sale_for_item_id(int(item_id)),
+                    )
+
+            if (
+                self.auto_sell_to_any_merchant
+                and MERCHANT_TYPE_MERCHANT in context.merchant_types
+                and self._manual_vendor_any_merchant_groups_enabled()
+            ):
+                if self.auto_sell_any_merchant_normal_items:
+                    for item_id in matching_merchant_sell_item_ids:
+                        self._add_manual_merchant_sale(
+                            normal_merchant_sales,
+                            self._get_manual_merchant_sale_for_item_id(int(item_id)),
+                        )
+                if self.auto_sell_any_merchant_materials:
+                    for sale in plan.material_sales:
+                        self._add_manual_merchant_sale(
+                            normal_merchant_sales,
+                            self._get_manual_merchant_sale_for_item_id(
+                                int(sale.item_id),
+                                int(sale.quantity_to_sell),
+                                model_id=int(sale.model_id),
+                                label=sale.label,
+                            ),
+                        )
+                    for item_id in material_fallback_item_ids:
+                        self._add_manual_merchant_sale(
+                            normal_merchant_sales,
+                            self._get_manual_merchant_sale_for_item_id(int(item_id)),
+                        )
+                if self.auto_sell_any_merchant_runes:
+                    for sale in plan.rune_trader_sales:
+                        self._add_manual_merchant_sale(
+                            normal_merchant_sales,
+                            self._get_manual_merchant_sale_for_item_id(
+                                int(sale.item_id),
+                                model_id=int(sale.model_id),
+                                label=sale.label,
+                            ),
+                        )
+
+            if normal_merchant_sales:
+                outcome = yield from self._execute_open_merchant_sell_phase(
+                    list(normal_merchant_sales.values()),
+                    phase_label="Merchant sells",
+                )
+                completed_any = completed_any or outcome.completed > 0
+                summary = self._format_execution_phase_summary(outcome)
+                if summary:
+                    phase_summaries.append(summary)
+
+            if self.auto_sell_on_manual_vendor_interaction:
+                for merchant_type, label in (
+                    (MERCHANT_TYPE_MATERIALS, "Material sales"),
+                    (MERCHANT_TYPE_RARE_MATERIALS, "Rare material sales"),
+                ):
+                    if merchant_type not in context.merchant_types:
+                        continue
+                    sales = [sale for sale in plan.material_sales if sale.merchant_type == merchant_type]
+                    if not sales:
+                        continue
+                    outcome = yield from self._sell_planned_materials(
+                        (0.0, 0.0),
+                        sales,
+                        phase_label=label,
+                        trader_items=context.trader_item_ids,
+                    )
+                    completed_any = completed_any or outcome.completed > 0
+                    summary = self._format_execution_phase_summary(outcome)
+                    if summary:
+                        phase_summaries.append(summary)
+
+                if MERCHANT_TYPE_RUNE_TRADER in context.merchant_types and plan.rune_trader_sales:
+                    outcome = yield from self._sell_planned_trader_items(
+                        (0.0, 0.0),
+                        plan.rune_trader_sales,
+                        phase_label="Rune trader sales",
+                        trader_items=context.trader_item_ids,
+                    )
+                    completed_any = completed_any or outcome.completed > 0
+                    summary = self._format_execution_phase_summary(outcome)
+                    if summary:
+                        phase_summaries.append(summary)
+
+            if self.auto_buy_on_manual_vendor_interaction:
+                merchant_buy_outcome = ExecutionPhaseOutcome(
+                    label="Merchant buys",
+                    measure_label="items",
+                    attempted=sum(max(0, int(buy.quantity)) for buy in plan.merchant_stock_buys),
+                )
+                if MERCHANT_TYPE_MERCHANT in context.merchant_types:
+                    if plan.merchant_stock_buys and not context.merchant_item_ids:
+                        self._debug_log("Manual vendor auto-buy found no merchant offers loaded for merchant-stock buys.")
+                    for merchant_buy in plan.merchant_stock_buys:
+                        bought = yield from self._buy_merchant_model(
+                            int(merchant_buy.model_id),
+                            int(merchant_buy.quantity),
+                            offered_items=context.merchant_item_ids,
+                        )
+                        if bought:
+                            merchant_buy_outcome.completed += int(merchant_buy.quantity)
+                        else:
+                            merchant_buy_outcome.unavailable += int(merchant_buy.quantity)
+                    summary = self._format_execution_phase_summary(merchant_buy_outcome)
+                    if summary:
+                        phase_summaries.append(summary)
+                    completed_any = completed_any or merchant_buy_outcome.completed > 0
+
+                for merchant_type, label in (
+                    (MERCHANT_TYPE_MATERIALS, "Material buys"),
+                    (MERCHANT_TYPE_RARE_MATERIALS, "Rare material buys"),
+                ):
+                    if merchant_type not in context.merchant_types:
+                        continue
+                    buys = [buy for buy in plan.material_buys if buy.merchant_type == merchant_type]
+                    if not buys:
+                        continue
+                    outcome = yield from self._buy_planned_materials(
+                        (0.0, 0.0),
+                        buys,
+                        phase_label=label,
+                        trader_items=context.trader_item_ids,
+                    )
+                    completed_any = completed_any or outcome.completed > 0
+                    summary = self._format_execution_phase_summary(outcome)
+                    if summary:
+                        phase_summaries.append(summary)
+
+                if MERCHANT_TYPE_RUNE_TRADER in context.merchant_types and plan.rune_trader_buys:
+                    outcome = yield from self._buy_planned_rune_trader_items(
+                        (0.0, 0.0),
+                        plan.rune_trader_buys,
+                        phase_label="Rune trader buys",
+                        trader_items=context.trader_item_ids,
+                    )
+                    completed_any = completed_any or outcome.completed > 0
+                    summary = self._format_execution_phase_summary(outcome)
+                    if summary:
+                        phase_summaries.append(summary)
+
+                if MERCHANT_TYPE_SCROLL_TRADER in context.merchant_types and plan.scroll_trader_buys:
+                    outcome = yield from self._buy_planned_scroll_trader_items(
+                        (0.0, 0.0),
+                        plan.scroll_trader_buys,
+                        phase_label="Scroll trader buys",
+                        trader_items=context.trader_item_ids,
+                    )
+                    completed_any = completed_any or outcome.completed > 0
+                    summary = self._format_execution_phase_summary(outcome)
+                    if summary:
+                        phase_summaries.append(summary)
+
+            self.last_manual_vendor_summary = " ".join(summary for summary in phase_summaries if summary).strip()
+            if completed_any:
+                self._mark_preview_dirty("Manual merchant automation finished. Preview again to refresh the plan.")
+            elif self.last_manual_vendor_summary:
+                self.status_message = "Manual merchant automation finished."
+            if self.last_manual_vendor_summary:
+                self._debug_log(self.last_manual_vendor_summary)
+            return ExecutionPhaseOutcome(
+                label="Manual merchant automation",
+                measure_label="actions",
+                attempted=len(phase_summaries),
+                completed=1 if completed_any else 0,
+            )
+        except Exception as exc:
+            self.last_error = f"{exc}"
+            self.last_manual_vendor_summary = "Manual merchant automation failed. See the console log for details."
+            self.status_message = self.last_manual_vendor_summary
+            ConsoleLog(MODULE_NAME, f"Manual merchant automation error: {exc}", Console.MessageType.Error)
+            ConsoleLog(MODULE_NAME, traceback.format_exc(), Console.MessageType.Error)
+        finally:
+            self.manual_vendor_running = False
+            self.manual_vendor_cooldown_until_ms = int(time.time() * 1000) + MANUAL_VENDOR_COOLDOWN_MS
+            if paused_inventory_plus is not None:
+                paused_inventory_plus.resume()
+            if not self._is_merchant_window_open():
+                self.manual_vendor_handled_signature = ""
+            yield
+
+    def _update_manual_vendor_runtime(self):
+        if not Map.IsMapReady():
+            return
+        if not self._manual_vendor_settings_enabled():
+            self.manual_vendor_handled_signature = ""
+            return
+        if self.manual_vendor_running or self._manual_vendor_blocked_by_runtime():
+            return
+        if int(time.time() * 1000) < int(self.manual_vendor_cooldown_until_ms):
+            return
+        if not self._is_merchant_window_open():
+            self.manual_vendor_handled_signature = ""
+            return
+
+        context = self._get_current_manual_vendor_context()
+        if not context.signature:
+            return
+        if context.signature == self.manual_vendor_handled_signature:
+            return
+
+        self.manual_vendor_handled_signature = context.signature
+        self.manual_vendor_running = True
+        GLOBAL_CACHE.Coroutines.append(
+            self._run_manual_vendor_pass(
+                context,
+                running_already_marked=True,
+            )
+        )
+
+    def _execute_consumable_crafter_multi_stop_route(self):
+        self.execution_running = True
+        self.last_error = ""
+        self.last_execution_summary = ""
+        self.last_cleanup_summary = ""
+        self.last_execution_phase_durations_ms = {}
+        self._clear_preview_inventory_diff()
+        self._clear_preview_projection_state()
+        paused_inventory_plus = None
+        phase_summaries: list[str] = []
+        try:
+            destination_outpost_id, destination_name = self._get_consumable_crafter_multi_stop_target()
+            if destination_outpost_id <= 0:
+                yield from self._execute_now(local_only=False, allow_multi_stop=False)
+                return
+
+            embark_name = self._get_embark_beach_outpost_name()
+            self._invalidate_supported_context_cache()
+            if not self._is_travel_target_reached(EMBARK_BEACH_MAP_ID):
+                self.status_message = f"Traveling to {embark_name} for Consumable Crafter buys."
+                self._debug_log(f"Multi-stop execution travel: target={embark_name} ({EMBARK_BEACH_MAP_ID})")
+                travel_ok = yield from self._travel_to_target_outpost(EMBARK_BEACH_MAP_ID)
+                if not travel_ok:
+                    self.status_message = f"Failed to travel to {embark_name}."
+                    self._debug_log(f"Multi-stop execution aborted: failed to travel to {embark_name} ({EMBARK_BEACH_MAP_ID}).")
+                    return
+                self._invalidate_supported_context_cache()
+                yield from Routines.Yield.wait(300)
+
+            consumable_plan = self._build_plan(
+                ignore_travel_target=True,
+                allow_consumable_multi_stop=False,
+                consumable_crafter_only=True,
+            )
+            self.preview_plan = consumable_plan
+            self._log_plan_summary("Multi-stop Embark plan", consumable_plan)
+            if self._plan_needs_exact_storage_scan(consumable_plan):
+                self.status_message = "Opening Xunlai for exact Embark Beach consumable crafting checks."
+                storage_opened = yield from self._ensure_storage_open(purpose="Embark Beach consumable crafting")
+                if storage_opened:
+                    yield from Routines.Yield.wait(150)
+                    self._invalidate_supported_context_cache()
+                    consumable_plan = self._build_plan(
+                        ignore_travel_target=True,
+                        allow_consumable_multi_stop=False,
+                        consumable_crafter_only=True,
+                    )
+                    self.preview_plan = consumable_plan
+                    self._log_plan_summary("Multi-stop Embark storage-refreshed plan", consumable_plan)
+                else:
+                    phase_summaries.append("Consumable crafters were skipped because Xunlai could not be opened for exact material checks.")
+                    consumable_plan.consumable_crafter_buys = []
+
+            consumable_craft_outcome = ExecutionPhaseOutcome(label="Consumable crafters", measure_label="crafts")
+            consumable_crafts_started_at = time.perf_counter()
+            if consumable_plan.consumable_crafter_buys:
+                paused_inventory_plus = self._pause_inventory_plus()
+                if paused_inventory_plus is not None:
+                    self._debug_log("Multi-stop execution: paused Inventory Plus for consumable crafting.")
+                consumable_craft_outcome = yield from self._craft_planned_consumables(
+                    consumable_plan.consumable_crafter_buys,
+                    phase_label="Consumable crafters",
+                )
+            self.last_execution_phase_durations_ms["consumable_crafters"] = max(
+                0.0,
+                (time.perf_counter() - consumable_crafts_started_at) * 1000.0,
+            )
+            consumable_craft_summary = self._format_execution_phase_summary(consumable_craft_outcome)
+            if consumable_craft_summary:
+                phase_summaries.append(consumable_craft_summary)
+            if paused_inventory_plus is not None:
+                paused_inventory_plus.resume()
+                paused_inventory_plus = None
+                self._debug_log("Multi-stop execution: resumed Inventory Plus after consumable crafting.")
+
+            remaining_preview = self._build_plan(
+                projected_preview=True,
+                projected_target_override_outpost_id=destination_outpost_id,
+                allow_consumable_multi_stop=False,
+                exclude_consumable_crafter=True,
+            )
+            self.preview_plan = remaining_preview
+            if remaining_preview.has_actions:
+                self.status_message = f"Traveling to {destination_name} for remaining Merchant Rules work."
+                if not self._is_travel_target_reached(destination_outpost_id):
+                    travel_ok = yield from self._travel_to_target_outpost(destination_outpost_id)
+                    if not travel_ok:
+                        self.status_message = f"Failed to travel to {destination_name}."
+                        if phase_summaries:
+                            self.last_execution_summary = " ".join(summary for summary in phase_summaries if summary).strip()
+                        self._debug_log(
+                            f"Multi-stop execution aborted: failed to travel to {destination_name} ({destination_outpost_id})."
+                        )
+                        return
+                    self._invalidate_supported_context_cache()
+                    yield from Routines.Yield.wait(300)
+                yield from self._execute_now(
+                    local_only=False,
+                    allow_multi_stop=False,
+                    exclude_consumable_crafter=True,
+                )
+                if self.last_error:
+                    if phase_summaries:
+                        combined_summary = " ".join(
+                            summary
+                            for summary in [*phase_summaries, self.last_execution_summary]
+                            if summary
+                        ).strip()
+                        if combined_summary:
+                            self.last_execution_summary = combined_summary
+                    return
+                if self.last_execution_summary:
+                    phase_summaries.append(self.last_execution_summary)
+            else:
+                self._debug_log("Multi-stop execution: no remaining non-consumable work after Embark Beach crafting.")
+
+            self.last_execution_summary = " ".join(summary for summary in phase_summaries if summary).strip()
+            if not self.last_execution_summary:
+                self.last_execution_summary = "Execution finished, but no merchant actions reported a completed or attempted outcome."
+            self.status_message = "Travel + Execute finished. Preview again to refresh the post-run state."
+            self.preview_ready = False
+            self._debug_log(self.last_execution_summary)
+        except Exception as exc:
+            self.last_error = f"{exc}"
+            self.status_message = "Execution failed. See the console log for details."
+            ConsoleLog(MODULE_NAME, f"Execution error: {exc}", Console.MessageType.Error)
+            ConsoleLog(MODULE_NAME, traceback.format_exc(), Console.MessageType.Error)
+        finally:
+            self.execution_running = False
+            if paused_inventory_plus is not None:
+                paused_inventory_plus.resume()
+                self._debug_log("Multi-stop execution: resumed Inventory Plus.")
+            yield
+
+    def _execute_now(
+        self,
+        *,
+        local_only: bool = False,
+        allow_multi_stop: bool = True,
+        exclude_consumable_crafter: bool = False,
+    ):
+        if (
+            allow_multi_stop
+            and not local_only
+            and not exclude_consumable_crafter
+            and self._should_use_consumable_crafter_multi_stop_route()
+        ):
+            yield from self._execute_consumable_crafter_multi_stop_route()
+            return
+
         self.execution_running = True
         self.last_error = ""
         self.last_execution_summary = ""
@@ -12378,7 +14968,11 @@ class MerchantRulesWidget:
             self._invalidate_supported_context_cache()
             self._clear_preview_projection_state()
             execution_label = "Execute Here" if local_only else "Travel + Execute"
-            plan = self._build_plan(ignore_travel_target=local_only)
+            plan = self._build_plan(
+                ignore_travel_target=local_only,
+                allow_consumable_multi_stop=allow_multi_stop,
+                exclude_consumable_crafter=exclude_consumable_crafter,
+            )
             self.preview_plan = plan
             local_availability = self._get_preview_here_availability()
             actionable_here_count, skipped_here_count = self._get_locally_actionable_preview_counts(
@@ -12400,7 +14994,10 @@ class MerchantRulesWidget:
                     return
                 self._invalidate_supported_context_cache()
                 yield from Routines.Yield.wait(300)
-                plan = self._build_plan()
+                plan = self._build_plan(
+                    allow_consumable_multi_stop=allow_multi_stop,
+                    exclude_consumable_crafter=exclude_consumable_crafter,
+                )
                 self.preview_plan = plan
                 local_availability = self._get_preview_here_availability()
                 actionable_here_count, skipped_here_count = self._get_locally_actionable_preview_counts(
@@ -12409,14 +15006,76 @@ class MerchantRulesWidget:
                 )
                 self._clear_preview_projection_state()
                 self._log_plan_summary("Execution post-travel plan", plan)
+            if self._should_identify_before_execute():
+                self.status_message = "Identifying selected rarities before merchant handling."
+                identify_started_at = time.perf_counter()
+                identify_outcome = yield from self._run_identify_pass(
+                    mark_preview_dirty=False,
+                    summary_subject="Identify before Execute",
+                )
+                self.last_execution_phase_durations_ms["identifies"] = max(0.0, (time.perf_counter() - identify_started_at) * 1000.0)
+                identify_summary = self.last_identify_summary or self._format_identify_summary(
+                    identify_outcome,
+                    {},
+                    subject="Identify before Execute",
+                )
+                if identify_summary:
+                    phase_summaries.append(identify_summary)
+                if identify_outcome.timeout_failures > 0:
+                    self.last_execution_summary = " ".join(summary for summary in phase_summaries if summary).strip()
+                    self.status_message = "Identify before Execute did not finish safely; merchant actions were not run."
+                    if identify_outcome.completed > 0 or identify_outcome.depleted > 0:
+                        self.preview_ready = False
+                    self._debug_log("Execution aborted: Identify before Execute had timeout/failure results.")
+                    return
+                if identify_outcome.attempted > 0 or identify_outcome.completed > 0 or identify_outcome.depleted > 0 or identify_outcome.unavailable > 0:
+                    yield from Routines.Yield.wait(150)
+                    self._invalidate_supported_context_cache()
+                    plan = self._build_plan(
+                        ignore_travel_target=local_only,
+                        allow_consumable_multi_stop=allow_multi_stop,
+                        exclude_consumable_crafter=exclude_consumable_crafter,
+                    )
+                    self.preview_plan = plan
+                    local_availability = self._get_preview_here_availability()
+                    actionable_here_count, skipped_here_count = self._get_locally_actionable_preview_counts(
+                        plan,
+                        availability_here=local_availability,
+                    )
+                    self._clear_preview_projection_state()
+                    self._log_plan_summary("Execution post-identify plan", plan)
             if not plan.supported_map:
-                if not self._plan_has_local_destroy_actions(plan) and not self._plan_has_local_storage_actions(plan):
+                if (
+                    not self._plan_has_local_identify_actions(plan)
+                    and not self._plan_has_local_destroy_actions(plan)
+                    and not self._plan_has_local_storage_actions(plan)
+                ):
                     self.status_message = plan.supported_reason
                     self._debug_log(f"Execution aborted: unsupported map. {plan.supported_reason}")
                     return
-                if self._plan_has_local_destroy_actions(plan) and self._plan_has_local_storage_actions(plan):
+                if (
+                    self._plan_has_local_identify_actions(plan)
+                    and self._plan_has_local_destroy_actions(plan)
+                    and self._plan_has_local_storage_actions(plan)
+                ):
+                    self._debug_log(
+                        f"Execution continuing with local identify, local destroy actions, and Xunlai cleanup on unsupported map. {plan.supported_reason}"
+                    )
+                elif self._plan_has_local_identify_actions(plan) and self._plan_has_local_destroy_actions(plan):
+                    self._debug_log(
+                        f"Execution continuing with local identify and destroy actions on unsupported map. {plan.supported_reason}"
+                    )
+                elif self._plan_has_local_identify_actions(plan) and self._plan_has_local_storage_actions(plan):
+                    self._debug_log(
+                        f"Execution continuing with local identify and Xunlai cleanup on unsupported map. {plan.supported_reason}"
+                    )
+                elif self._plan_has_local_destroy_actions(plan) and self._plan_has_local_storage_actions(plan):
                     self._debug_log(
                         f"Execution continuing with local destroy actions and Xunlai cleanup on unsupported map. {plan.supported_reason}"
+                    )
+                elif self._plan_has_local_identify_actions(plan):
+                    self._debug_log(
+                        f"Execution continuing with local identify actions on unsupported map. {plan.supported_reason}"
                     )
                 elif self._plan_has_local_destroy_actions(plan):
                     self._debug_log(
@@ -12439,7 +15098,11 @@ class MerchantRulesWidget:
                 if storage_opened:
                     yield from Routines.Yield.wait(150)
                     self._invalidate_supported_context_cache()
-                    plan = self._build_plan(ignore_travel_target=local_only)
+                    plan = self._build_plan(
+                        ignore_travel_target=local_only,
+                        allow_consumable_multi_stop=allow_multi_stop,
+                        exclude_consumable_crafter=exclude_consumable_crafter,
+                    )
                     self.preview_plan = plan
                     local_availability = self._get_preview_here_availability()
                     actionable_here_count, skipped_here_count = self._get_locally_actionable_preview_counts(
@@ -12566,7 +15229,11 @@ class MerchantRulesWidget:
                     )
                     yield from Routines.Yield.wait(100)
                     self._invalidate_supported_context_cache()
-                    plan = self._build_plan(ignore_travel_target=local_only)
+                    plan = self._build_plan(
+                        ignore_travel_target=local_only,
+                        allow_consumable_multi_stop=allow_multi_stop,
+                        exclude_consumable_crafter=exclude_consumable_crafter,
+                    )
                     self.preview_plan = plan
                     local_availability = self._get_preview_here_availability()
                     actionable_here_count, skipped_here_count = self._get_locally_actionable_preview_counts(
@@ -12834,9 +15501,12 @@ class MerchantRulesWidget:
         if (
             self.execution_running
             or self.travel_preview_running
+            or self.identify_running
             or self.instant_destroy_running
+            or self.salvage_running
             or self.storage_scan_running
             or self.auto_cleanup_running
+            or self.manual_vendor_running
         ):
             return
         if self.auto_cleanup_zone_attempted:
@@ -12867,6 +15537,451 @@ class MerchantRulesWidget:
                 if int(item.item_id) > 0
             )
         )
+
+    def _format_identify_summary(
+        self,
+        outcome: ExecutionPhaseOutcome,
+        blocked_counts: dict[str, int],
+        *,
+        subject: str = "Identify",
+    ) -> str:
+        parts: list[str] = []
+        if outcome.completed > 0:
+            parts.append(f"{subject} processed {outcome.completed} item(s).")
+        elif outcome.attempted > 0:
+            parts.append(f"{subject} found matching items, but none were confirmed identified.")
+        else:
+            parts.append(f"{subject} found no matching unidentified items.")
+        if outcome.timeout_failures > 0:
+            parts.append(f"{outcome.timeout_failures} identify timeout/failure(s).")
+        if outcome.depleted > 0:
+            parts.append(f"{outcome.depleted} item(s) were already gone.")
+        for reason, count in sorted(blocked_counts.items()):
+            if count > 0:
+                parts.append(f"Skipped {count} {reason}.")
+        return " ".join(parts)
+
+    def _identify_one_item(self, item: InventoryItemInfo):
+        from Py4GWCoreLib.Inventory import Inventory
+
+        live_item = self._build_inventory_item_info(int(item.item_id))
+        if live_item is None:
+            return "missing_item"
+        if bool(live_item.identified):
+            return "identified"
+
+        selection_reason = self._get_identify_selection_reason(live_item)
+        if not selection_reason:
+            self._debug_log(f"MR Identify recheck skipped {live_item.name} ({live_item.item_id}): no longer selected.")
+            return "blocked"
+
+        id_kit_id = self._get_id_kit_id()
+        if id_kit_id <= 0:
+            self._debug_log(f"MR Identify skipped {live_item.name} ({live_item.item_id}): no ID kit found.")
+            return "no_kit"
+
+        item_id = int(live_item.item_id)
+        self.inventory_modifier_cache.pop(item_id, None)
+        self._debug_log(
+            f"MR Identify starting {live_item.name} ({item_id}) using ID kit {int(id_kit_id)}; {selection_reason}."
+        )
+
+        ActionQueueManager().AddAction("IDENTIFY", Inventory.IdentifyItem, item_id, int(id_kit_id))
+        queue_drained = yield from self._wait_for_action_queue_empty("IDENTIFY", timeout_ms=5000, step_ms=50)
+        if not queue_drained:
+            ConsoleLog(MODULE_NAME, f"MR Identify timed out starting item {item_id}.", Console.MessageType.Warning)
+            return "failed"
+
+        waited_ms = 0
+        while waited_ms <= IDENTIFY_CONFIRM_TIMEOUT_MS:
+            yield from Routines.Yield.wait(50)
+            waited_ms += 50
+            if item_id not in set(self._get_inventory_item_ids()):
+                self._debug_log(f"MR Identify stopped tracking {live_item.name} ({item_id}); item left inventory.")
+                return "missing_item"
+            current_item = self._build_inventory_item_info(item_id)
+            if current_item is not None and bool(current_item.identified):
+                self.inventory_modifier_cache.pop(item_id, None)
+                self._debug_log(f"MR Identify completed {current_item.name} ({item_id}).")
+                return "identified"
+
+        ConsoleLog(MODULE_NAME, f"MR Identify timed out waiting for item {item_id} to become identified.", Console.MessageType.Warning)
+        return "failed"
+
+    def _run_identify_pass(
+        self,
+        *,
+        auto_triggered: bool = False,
+        running_already_marked: bool = False,
+        mark_preview_dirty: bool = True,
+        summary_subject: str = "Identify",
+    ):
+        if self.identify_running and not running_already_marked:
+            return ExecutionPhaseOutcome(label=summary_subject, measure_label="items")
+        self.identify_running = True
+        self.last_error = ""
+        self.last_identify_summary = ""
+        paused_inventory_plus = None
+        outcome = ExecutionPhaseOutcome(label=summary_subject, measure_label="items")
+        blocked_counts: dict[str, int] = {}
+        try:
+            settings = _normalize_identify_settings(self.identify_settings)
+            if auto_triggered and not bool(settings.on_inventory_change):
+                return outcome
+            if not self._has_enabled_identify_settings():
+                blocked_counts["item(s): no rarity selector enabled"] = 1
+                self.last_identify_summary = self._format_identify_summary(
+                    outcome,
+                    blocked_counts,
+                    subject=summary_subject,
+                )
+                self.status_message = self.last_identify_summary
+                return outcome
+
+            items = self._collect_inventory_items()
+            self.identify_last_signature = self._get_inventory_signature(items)
+            candidates = self._collect_identify_candidates(items)
+            outcome.attempted = len(candidates)
+            if not candidates:
+                self.last_identify_summary = self._format_identify_summary(
+                    outcome,
+                    blocked_counts,
+                    subject=summary_subject,
+                )
+                self.status_message = self.last_identify_summary
+                self._debug_log(self.last_identify_summary)
+                return outcome
+
+            paused_inventory_plus = self._pause_inventory_plus()
+            if paused_inventory_plus is not None:
+                self._debug_log("MR Identify: paused Inventory Plus.")
+
+            for candidate in candidates:
+                status = yield from self._identify_one_item(candidate)
+                if status == "identified":
+                    outcome.completed += 1
+                    continue
+                if status == "missing_item":
+                    outcome.depleted += 1
+                    continue
+                if status == "no_kit":
+                    outcome.unavailable += 1
+                    blocked_counts["item(s): no ID kit"] = blocked_counts.get("item(s): no ID kit", 0) + 1
+                    continue
+                if status == "blocked":
+                    outcome.unavailable += 1
+                    blocked_counts["item(s): no longer match selected rarity"] = (
+                        blocked_counts.get("item(s): no longer match selected rarity", 0) + 1
+                    )
+                    continue
+                outcome.timeout_failures += 1
+
+            self.last_identify_summary = self._format_identify_summary(
+                outcome,
+                blocked_counts,
+                subject=summary_subject,
+            )
+            self.status_message = self.last_identify_summary
+            self._debug_log(self.last_identify_summary)
+            ConsoleLog(MODULE_NAME, self.last_identify_summary, Console.MessageType.Info)
+            if outcome.completed > 0:
+                self._request_salvage_rescan()
+                if self.destroy_instant_enabled:
+                    self._request_instant_destroy_rescan()
+                if mark_preview_dirty:
+                    self._mark_preview_dirty("Inventory changed due to MR Identify. Preview again before execution.")
+        except Exception as exc:
+            self.last_error = f"{exc}"
+            self.last_identify_summary = "MR Identify failed. See the console log for details."
+            self.status_message = self.last_identify_summary
+            ConsoleLog(MODULE_NAME, f"MR Identify error: {exc}", Console.MessageType.Error)
+            ConsoleLog(MODULE_NAME, traceback.format_exc(), Console.MessageType.Error)
+            outcome.timeout_failures += 1
+        finally:
+            if paused_inventory_plus is not None:
+                paused_inventory_plus.resume()
+                self._debug_log("MR Identify: resumed Inventory Plus.")
+            self.identify_running = False
+            self.identify_rescan_requested = False
+            self.identify_poll_timer.Reset()
+            self.identify_last_signature = self._get_inventory_signature()
+            yield
+        return outcome
+
+    def _request_identify_rescan(self):
+        self.identify_rescan_requested = True
+
+    def _update_identify_runtime(self):
+        if not Map.IsMapReady():
+            return
+        if (
+            self.execution_running
+            or self.travel_preview_running
+            or self.identify_running
+            or self.instant_destroy_running
+            or self.salvage_running
+            or self.storage_scan_running
+            or self.auto_cleanup_running
+            or self.manual_vendor_running
+        ):
+            return
+
+        current_signature = self._get_inventory_signature()
+        settings = _normalize_identify_settings(self.identify_settings)
+        if not bool(settings.on_inventory_change):
+            self.identify_rescan_requested = False
+            self.identify_last_signature = current_signature
+            return
+        if not self._has_enabled_identify_settings():
+            self.identify_rescan_requested = False
+            self.identify_last_signature = current_signature
+            return
+
+        should_rescan = bool(self.identify_rescan_requested)
+        if not should_rescan:
+            if current_signature == self.identify_last_signature:
+                return
+            if not self.identify_poll_timer.IsExpired():
+                return
+
+        self.identify_rescan_requested = False
+        self.identify_poll_timer.Reset()
+        self._queue_identify_now(auto_triggered=True)
+
+    def _request_salvage_rescan(self):
+        self.salvage_rescan_requested = True
+
+    def _format_salvage_summary(
+        self,
+        outcome: ExecutionPhaseOutcome,
+        blocked_counts: dict[str, int],
+        *,
+        auto_triggered: bool = False,
+    ) -> str:
+        subject = "Auto Salvage" if auto_triggered else "Salvage"
+        parts: list[str] = []
+        if outcome.completed > 0:
+            parts.append(f"{subject} processed {outcome.completed} item(s).")
+        elif outcome.attempted > 0:
+            parts.append(f"{subject} found matching items, but none were confirmed salvaged.")
+        else:
+            parts.append(f"{subject} found no eligible items.")
+        if outcome.timeout_failures > 0:
+            parts.append(f"{outcome.timeout_failures} timeout/failure(s).")
+        if outcome.depleted > 0:
+            parts.append(f"{outcome.depleted} item(s) were already gone.")
+        for reason, count in sorted(blocked_counts.items()):
+            if count > 0:
+                parts.append(f"Skipped {count} {reason}.")
+        return " ".join(parts)
+
+    def _queue_salvage_now(self, *, auto_triggered: bool = False):
+        if self.salvage_running:
+            return
+        self.salvage_running = True
+        GLOBAL_CACHE.Coroutines.append(self._run_salvage_pass(auto_triggered=auto_triggered, running_already_marked=True))
+
+    def _salvage_one_item_with_normal_kit(
+        self,
+        item: InventoryItemInfo,
+        enabled_sell_rules: list[tuple[int, SellRule]],
+        *,
+        auto_triggered: bool = False,
+    ):
+        from Py4GWCoreLib.Inventory import Inventory
+
+        mode = "auto" if auto_triggered else "manual"
+        live_item = self._build_inventory_item_info(int(item.item_id))
+        if live_item is None:
+            return "missing_item"
+
+        normal_salvage_kit_id = self._get_normal_salvage_kit_id()
+        block_reason = self._get_salvage_candidate_block_reason(
+            live_item,
+            enabled_sell_rules,
+            require_normal_kit=True,
+            normal_salvage_kit_id=normal_salvage_kit_id,
+            mode=mode,
+        )
+        if block_reason:
+            self._debug_log(f"MR Salvage recheck skipped {live_item.name} ({live_item.item_id}): {block_reason}")
+            return "blocked"
+
+        item_id = int(live_item.item_id)
+        starting_quantity = max(1, int(live_item.quantity))
+        rarity_key = _normalize_rarity_key(str(live_item.rarity or ""))
+        selection_reason = self._get_salvage_selection_reason(live_item)
+        self._debug_log(
+            f"MR Salvage starting {live_item.name} ({item_id}) using normal kit {int(normal_salvage_kit_id)}; {selection_reason}."
+        )
+
+        ActionQueueManager().AddAction("SALVAGE", Inventory.SalvageItem, item_id, int(normal_salvage_kit_id))
+        queue_drained = yield from self._wait_for_action_queue_empty("SALVAGE", timeout_ms=5000, step_ms=50)
+        if not queue_drained:
+            ConsoleLog(MODULE_NAME, f"MR Salvage timed out starting item {item_id}.", Console.MessageType.Warning)
+            return "failed"
+
+        if rarity_key in {"purple", "gold"}:
+            found_confirm_window = yield from Routines.Yield.Items._wait_for_salvage_materials_window(
+                timeout_ms=1500,
+                poll_ms=50,
+                initial_wait_ms=150,
+            )
+            if not found_confirm_window:
+                ConsoleLog(MODULE_NAME, f"MR Salvage did not find the materials confirmation for item {item_id}.", Console.MessageType.Warning)
+                return "failed"
+            ActionQueueManager().AddAction("SALVAGE", Inventory.AcceptSalvageMaterialsWindow)
+            queue_drained = yield from self._wait_for_action_queue_empty("SALVAGE", timeout_ms=5000, step_ms=50)
+            if not queue_drained:
+                ConsoleLog(MODULE_NAME, f"MR Salvage timed out confirming materials for item {item_id}.", Console.MessageType.Warning)
+                return "failed"
+
+        waited_ms = 0
+        while waited_ms <= 10000:
+            yield from Routines.Yield.wait(50)
+            waited_ms += 50
+            if item_id not in set(self._get_inventory_item_ids()):
+                self._debug_log(f"MR Salvage completed {live_item.name} ({item_id}); item left inventory.")
+                return "salvaged"
+            try:
+                current_quantity = max(0, int(GLOBAL_CACHE.Item.Properties.GetQuantity(item_id)))
+            except Exception:
+                current_quantity = starting_quantity
+            if current_quantity < starting_quantity:
+                self._debug_log(f"MR Salvage completed {live_item.name} ({item_id}); quantity dropped.")
+                return "salvaged"
+            current_item = self._build_inventory_item_info(item_id)
+            if current_item is not None and not bool(current_item.salvageable):
+                self._debug_log(f"MR Salvage processed {live_item.name} ({item_id}); item is no longer salvageable.")
+                return "processed"
+
+        ConsoleLog(MODULE_NAME, f"MR Salvage timed out waiting for result on item {item_id}.", Console.MessageType.Warning)
+        return "failed"
+
+    def _run_salvage_pass(self, *, auto_triggered: bool = False, running_already_marked: bool = False):
+        if self.salvage_running and not running_already_marked:
+            return
+        self.salvage_running = True
+        self.last_error = ""
+        self.last_salvage_summary = ""
+        paused_inventory_plus = None
+        try:
+            mode = "auto" if auto_triggered else "manual"
+            if auto_triggered and not bool(_normalize_salvage_settings(self.salvage_settings).on_inventory_change):
+                return
+            if not self._has_enabled_salvage_settings():
+                self.last_salvage_summary = (
+                    "Auto Salvage is enabled, but no salvage selectors are active."
+                    if auto_triggered
+                    else "Salvage has no active selectors."
+                )
+                self.status_message = self.last_salvage_summary
+                return
+
+            items = self._collect_inventory_items()
+            self.salvage_last_signature = self._get_inventory_signature(items)
+            enabled_sell_rules = self._collect_enabled_sell_rules()
+            normal_salvage_kit_id = self._get_normal_salvage_kit_id()
+            candidates, blocked_counts = self._collect_salvage_candidates(
+                items,
+                enabled_sell_rules,
+                require_normal_kit=True,
+                normal_salvage_kit_id=normal_salvage_kit_id,
+                mode=mode,
+            )
+            if not candidates:
+                self.last_salvage_summary = self._format_salvage_summary(
+                    ExecutionPhaseOutcome(label="MR Salvage", measure_label="items"),
+                    blocked_counts,
+                    auto_triggered=auto_triggered,
+                )
+                self.status_message = self.last_salvage_summary
+                self._debug_log(self.last_salvage_summary)
+                return
+
+            paused_inventory_plus = self._pause_inventory_plus()
+            if paused_inventory_plus is not None:
+                self._debug_log("MR Salvage: paused Inventory Plus.")
+
+            outcome = ExecutionPhaseOutcome(label="MR Salvage", measure_label="items", attempted=len(candidates))
+            for candidate in candidates:
+                status = yield from self._salvage_one_item_with_normal_kit(
+                    candidate,
+                    enabled_sell_rules,
+                    auto_triggered=auto_triggered,
+                )
+                if status in {"salvaged", "processed"}:
+                    outcome.completed += 1
+                    continue
+                if status == "missing_item":
+                    outcome.depleted += 1
+                    continue
+                if status == "blocked":
+                    outcome.unavailable += 1
+                    continue
+                outcome.timeout_failures += 1
+
+            self.last_salvage_summary = self._format_salvage_summary(
+                outcome,
+                blocked_counts,
+                auto_triggered=auto_triggered,
+            )
+            self.status_message = self.last_salvage_summary
+            self._debug_log(self.last_salvage_summary)
+            ConsoleLog(MODULE_NAME, self.last_salvage_summary, Console.MessageType.Info)
+            if outcome.completed > 0:
+                self._mark_preview_dirty("Inventory changed due to MR Salvage. Preview again before execution.")
+        except Exception as exc:
+            self.last_error = f"{exc}"
+            self.last_salvage_summary = "MR Salvage failed. See the console log for details."
+            self.status_message = self.last_salvage_summary
+            ConsoleLog(MODULE_NAME, f"MR Salvage error: {exc}", Console.MessageType.Error)
+            ConsoleLog(MODULE_NAME, traceback.format_exc(), Console.MessageType.Error)
+        finally:
+            if paused_inventory_plus is not None:
+                paused_inventory_plus.resume()
+                self._debug_log("MR Salvage: resumed Inventory Plus.")
+            self.salvage_running = False
+            self.salvage_rescan_requested = False
+            self.salvage_poll_timer.Reset()
+            self.salvage_last_signature = self._get_inventory_signature()
+            yield
+
+    def _update_salvage_runtime(self):
+        if not Map.IsMapReady():
+            return
+        if (
+            self.execution_running
+            or self.travel_preview_running
+            or self.identify_running
+            or self.instant_destroy_running
+            or self.salvage_running
+            or self.storage_scan_running
+            or self.auto_cleanup_running
+            or self.manual_vendor_running
+        ):
+            return
+
+        current_signature = self._get_inventory_signature()
+        if not bool(_normalize_salvage_settings(self.salvage_settings).on_inventory_change):
+            self.salvage_rescan_requested = False
+            self.salvage_last_signature = current_signature
+            return
+        if not self._has_enabled_salvage_settings():
+            self.salvage_rescan_requested = False
+            self.salvage_last_signature = current_signature
+            return
+
+        should_rescan = bool(self.salvage_rescan_requested)
+        if not should_rescan:
+            if current_signature == self.salvage_last_signature:
+                return
+            if not self.salvage_poll_timer.IsExpired():
+                return
+
+        self.salvage_rescan_requested = False
+        self.salvage_poll_timer.Reset()
+        self._queue_salvage_now(auto_triggered=True)
 
     def _request_instant_destroy_rescan(self):
         self.instant_destroy_rescan_requested = True
@@ -12961,7 +16076,16 @@ class MerchantRulesWidget:
     def _update_instant_destroy_runtime(self):
         if not Map.IsMapReady():
             return
-        if self.execution_running or self.travel_preview_running or self.instant_destroy_running or self.auto_cleanup_running:
+        if (
+            self.execution_running
+            or self.travel_preview_running
+            or self.identify_running
+            or self.instant_destroy_running
+            or self.salvage_running
+            or self.storage_scan_running
+            or self.auto_cleanup_running
+            or self.manual_vendor_running
+        ):
             return
 
         current_signature = self._get_inventory_signature()
@@ -13246,6 +16370,9 @@ class MerchantRulesWidget:
     def _plan_has_local_destroy_actions(self, plan: PlanResult) -> bool:
         return bool(plan.destroy_actions or plan.destroy_item_ids)
 
+    def _plan_has_local_identify_actions(self, plan: PlanResult) -> bool:
+        return bool(plan.identify_item_ids)
+
     def _plan_has_local_storage_actions(self, plan: PlanResult) -> bool:
         return bool(
             plan.cleanup_transfers
@@ -13368,9 +16495,23 @@ class MerchantRulesWidget:
 
     def _get_preview_state(self) -> tuple[str, tuple[float, float, float, float], str]:
         actionable, skipped = self._split_preview_entries(self.preview_plan.entries)
-        if self.execution_running or self.travel_preview_running or self.instant_destroy_running or self.storage_scan_running or self.auto_cleanup_running:
-            return "Busy", UI_COLOR_WARNING, "Preview, cleanup, storage scan, or execution is currently running."
+        if self.execution_running or self.travel_preview_running or self.identify_running or self.instant_destroy_running or self.salvage_running or self.storage_scan_running or self.auto_cleanup_running or self.manual_vendor_running:
+            return "Busy", UI_COLOR_WARNING, "Preview, identify, salvage, cleanup, storage scan, merchant automation, or execution is currently running."
         if self.preview_ready:
+            if self.preview_plan.multi_stop_route:
+                embark_label = self.preview_plan.multi_stop_consumable_outpost_name or self._get_embark_beach_outpost_name()
+                destination_label = self.preview_plan.multi_stop_destination_outpost_name
+                detail = (
+                    f"Preview routes Consumable Crafter buys through {embark_label}, then continues to {destination_label} for remaining work. "
+                    "Execute Here runs only green local entries."
+                    if destination_label
+                    else f"Preview routes Consumable Crafter buys through {embark_label} and stops there. Execute Here runs only green local entries."
+                )
+                if actionable:
+                    return "Multi-stop", UI_COLOR_INFO, detail
+                if skipped:
+                    return "Multi-stop", UI_COLOR_MUTED, detail
+                return "Multi-stop", UI_COLOR_MUTED, detail
             if self._preview_has_execute_travel_pending():
                 target_label = self.preview_execute_travel_target_outpost_name or "the selected outpost"
                 detail = (
@@ -13462,7 +16603,7 @@ class MerchantRulesWidget:
 
         if PyImGui.small_button("Clear Runtime Stats##merchant_rules_clear_runtime_stats"):
             self._clear_runtime_diagnostics()
-            self.status_message = "Merchant Rules runtime diagnostics cleared."
+            self.status_message = "Merchant Rules session diagnostics cleared."
         PyImGui.same_line(0, 8)
         if PyImGui.small_button("Clear Modifier Cache##merchant_rules_clear_modifier_cache"):
             self.inventory_modifier_cache.clear()
@@ -13536,11 +16677,14 @@ class MerchantRulesWidget:
             ]
             if not crafter_targets:
                 return "Choose one or more Embark Beach consumables to craft.", False
+            count_mode = _normalize_consumable_crafter_count_mode(normalized_rule.consumable_crafter_count_mode)
+            count_mode_label = CONSUMABLE_CRAFTER_COUNT_MODE_LABELS.get(count_mode, "Craft requested amount")
             if len(crafter_targets) == 1:
                 crafter_target = crafter_targets[0]
-                parts = [self._format_model_label(crafter_target.model_id)]
+                parts = [self._format_model_label(crafter_target.model_id), count_mode_label]
                 if crafter_target.target_count > 0:
-                    parts.append(f"Target {int(crafter_target.target_count)}")
+                    quantity_label = "Craft" if count_mode == CONSUMABLE_CRAFTER_COUNT_MODE_CRAFT_AMOUNT else "Target"
+                    parts.append(f"{quantity_label} {int(crafter_target.target_count)}")
                 else:
                     parts.append("No target set")
                 if crafter_target.max_per_run > 0:
@@ -13552,7 +16696,7 @@ class MerchantRulesWidget:
                 for target in self._sort_targets_by_model_label_for_display(crafter_targets)
             ]
             summary = self._format_compact_list(target_labels, limit=2) or f"{len(crafter_targets)} crafter target(s)"
-            return f"{len(crafter_targets)} crafter target(s) | {summary}", True
+            return f"{len(crafter_targets)} crafter target(s) | {count_mode_label} | {summary}", True
         if normalized_rule.kind == BUY_KIND_MERCHANT_STOCK:
             merchant_stock_targets = _normalize_merchant_stock_targets(normalized_rule.merchant_stock_targets)
             if not merchant_stock_targets:
@@ -13609,6 +16753,16 @@ class MerchantRulesWidget:
             ]
             summary = self._format_compact_list(target_labels, limit=2) or f"{len(whitelist_targets)} selected target(s)"
             return f"{len(whitelist_targets)} selected target(s) | {summary}", True
+        if normalized_rule.kind == SELL_KIND_RUNE_TRADER_TARGET:
+            rune_targets = _normalize_rune_sell_targets(getattr(normalized_rule, "rune_sell_targets", []))
+            if not rune_targets:
+                return "Pick the runes or insignias to sell.", False
+            target_labels = [
+                f"{self._get_rune_label(target.identifier)} keep {int(target.keep_count)}"
+                for target in self._sort_targets_by_identifier_label_for_display(rune_targets, self._get_rune_label)
+            ]
+            summary = self._format_compact_list(target_labels, limit=2) or f"{len(rune_targets)} rune target(s)"
+            return f"{len(rune_targets)} target(s) | {summary}", True
 
         enabled_rarities = self._get_enabled_rarity_labels(normalized_rule)
         has_explicit_hard_protection = _has_explicit_equippable_hard_protection(normalized_rule)
@@ -13668,7 +16822,7 @@ class MerchantRulesWidget:
         if normalized_rule.kind == SELL_KIND_ARMOR and normalized_rule.protected_rune_identifiers:
             parts.append(f"Protected runes {len(normalized_rule.protected_rune_identifiers)}")
         if normalized_rule.kind == SELL_KIND_ARMOR and normalized_rule.include_standalone_runes:
-            parts.append("Sell standalone runes")
+            parts.append("Sell loose runes")
         return " | ".join(parts), True
 
     def _get_destroy_rule_summary(self, rule: DestroyRule) -> tuple[str, bool]:
@@ -13770,6 +16924,7 @@ class MerchantRulesWidget:
         diagnostics: list[str] = []
         explicit_model_rules: dict[int, list[int]] = {}
         material_rules: dict[int, list[int]] = {}
+        rune_sell_rules: dict[str, list[int]] = {}
         weapon_rules: list[tuple[int, set[str]]] = []
         armor_rules: list[tuple[int, set[str]]] = []
 
@@ -13785,6 +16940,10 @@ class MerchantRulesWidget:
             elif rule.kind == SELL_KIND_COMMON_MATERIALS:
                 for model_id in rule.model_ids:
                     material_rules.setdefault(int(model_id), []).append(index)
+            elif rule.kind == SELL_KIND_RUNE_TRADER_TARGET:
+                for target in _normalize_rune_sell_targets(getattr(rule, "rune_sell_targets", [])):
+                    if target.identifier:
+                        rune_sell_rules.setdefault(str(target.identifier), []).append(index)
             elif rule.kind == SELL_KIND_WEAPONS:
                 weapon_rules.append((index, set(self._get_enabled_rarity_labels(rule))))
             elif rule.kind == SELL_KIND_ARMOR:
@@ -13803,6 +16962,13 @@ class MerchantRulesWidget:
             diagnostics.append(
                 f"{self._format_model_label(model_id)} appears in material sell rules {self._format_rule_index_list(indices, rules=self.sell_rules)}. "
                 f"Earlier material rules consume tradable batches first."
+            )
+        for identifier, indices in sorted(rune_sell_rules.items(), key=lambda row: self._get_rune_label(row[0]).lower()):
+            if len(indices) < 2:
+                continue
+            diagnostics.append(
+                f"{self._get_rune_label(identifier)} appears in rune sell rules {self._format_rule_index_list(indices, rules=self.sell_rules)}. "
+                f"Earlier rune rules allocate matching loose runes first."
             )
 
         def _append_equippable_overlap_messages(rule_kind_label: str, rule_infos: list[tuple[int, set[str]]]):
@@ -13927,7 +17093,7 @@ class MerchantRulesWidget:
             self._draw_secondary_text(f"...and {len(messages) - 6} more overlap warning(s).", wrapped=False)
 
     def _get_action_block_reason(self, action: str) -> str:
-        busy = self.execution_running or self.travel_preview_running or self.instant_destroy_running or self.storage_scan_running or self.auto_cleanup_running
+        busy = self.execution_running or self.travel_preview_running or self.identify_running or self.instant_destroy_running or self.salvage_running or self.storage_scan_running or self.auto_cleanup_running or self.manual_vendor_running
         if action == "preview":
             return "Merchant Rules is already busy." if busy else ""
         if action == "travel_preview":
@@ -13946,6 +17112,7 @@ class MerchantRulesWidget:
             if (
                 self.preview_plan.travel_to_outpost_id <= 0
                 and not self.preview_plan.supported_map
+                and not self._plan_has_local_identify_actions(self.preview_plan)
                 and not self._plan_has_local_destroy_actions(self.preview_plan)
                 and not self._plan_has_local_storage_actions(self.preview_plan)
             ):
@@ -13972,10 +17139,33 @@ class MerchantRulesWidget:
             if not self._can_use_local_storage_actions():
                 return "Run Cleanup Now requires an outpost or Guild Hall."
             return ""
+        if action == "salvage":
+            if busy:
+                return "Merchant Rules is already busy."
+            if not Map.IsMapReady():
+                return "Wait for the current map to finish loading."
+            if not self._has_enabled_salvage_settings():
+                return "No MR salvage settings are enabled."
+            return ""
+        if action == "identify":
+            if busy:
+                return "Merchant Rules is already busy."
+            if not Map.IsMapReady():
+                return "Wait for the current map to finish loading."
+            if not self._has_enabled_identify_settings():
+                return "No Identify rarities are selected."
+            return ""
         return ""
 
     def _has_any_rules(self) -> bool:
-        return bool(self.buy_rules or self.sell_rules or self.destroy_rules or self._has_cleanup_sources())
+        return bool(
+            self.buy_rules
+            or self.sell_rules
+            or self.destroy_rules
+            or self._has_enabled_identify_settings()
+            or self._has_cleanup_sources()
+            or self._has_enabled_salvage_settings()
+        )
 
     def _should_show_guided_empty_state(self) -> bool:
         return self.new_profile_session and not self._has_any_rules()
@@ -14586,12 +17776,18 @@ class MerchantRulesWidget:
             return "Merchant Rules execution is already running."
         if self.travel_preview_running:
             return "Merchant Rules Travel + Preview is already running."
+        if self.identify_running:
+            return "Merchant Rules Identify is already running."
         if self.instant_destroy_running:
             return "Merchant Rules Instant Destroy is already running."
+        if self.salvage_running:
+            return "Merchant Rules Salvage is already running."
         if self.storage_scan_running:
             return "Merchant Rules exact storage scan is already running."
         if self.auto_cleanup_running:
             return "Merchant Rules Cleanup / Xunlai is already running."
+        if self.manual_vendor_running:
+            return "Merchant Rules manual merchant automation is already running."
         if not Map.IsMapReady():
             return "Current map is still loading."
         return ""
@@ -14862,9 +18058,9 @@ class MerchantRulesWidget:
                 status_label = "Destroy Ready"
             else:
                 status_label = "Conditional" if direct_count <= 0 and conditional_count > 0 else "Ready"
-            summary_parts = [f"{actionable_count} actionable", f"{skipped_count} blocked"]
+            summary_parts = [f"{actionable_count} can run", f"{skipped_count} blocked"]
             if conditional_count > 0:
-                summary_parts.append(f"{conditional_count} conditional")
+                summary_parts.append(f"{conditional_count} need live checks")
             summary = ", ".join(summary_parts) + "."
         elif projected_preview:
             status_label = "No Actions"
@@ -14876,7 +18072,25 @@ class MerchantRulesWidget:
             status_label = "No Actions"
             summary = "No actionable merchant work found."
 
-        if projected_preview:
+        if self.preview_plan.multi_stop_route:
+            embark_label = self.preview_plan.multi_stop_consumable_outpost_name or self._get_embark_beach_outpost_name()
+            destination_label = self.preview_plan.multi_stop_destination_outpost_name
+            detail_parts = [
+                (
+                    f"Multi-stop route: craft Consumable Crafter targets at {embark_label}, "
+                    f"then travel to {destination_label} for remaining Merchant Rules work."
+                )
+                if destination_label
+                else f"Multi-stop route: craft Consumable Crafter targets at {embark_label} and stop there."
+            ]
+            if self._plan_needs_exact_storage_scan(self.preview_plan):
+                detail_parts.append("Storage-aware planning is still partial until Xunlai is opened for an exact storage scan.")
+            elif conditional_cleanup_ready:
+                detail_parts.append("Planned Xunlai cleanup work will execute if storage can be opened after arrival.")
+            elif conditional_count > 0:
+                detail_parts.append("Conditional entries remain estimated until each stop is confirmed.")
+            detail = " ".join(detail_parts).strip()
+        elif projected_preview:
             target_label = self.preview_execute_travel_target_outpost_name or "the selected outpost"
             detail_parts = [
                 f"Projected after travel to {target_label}. Travel + Execute will auto-travel and rebuild live merchant handling on arrival.",
@@ -14907,9 +18121,9 @@ class MerchantRulesWidget:
         elif self._plan_needs_exact_storage_scan(self.preview_plan):
             detail = "Storage-aware planning is still partial until Xunlai is opened for an exact storage scan."
         elif conditional_cleanup_ready:
-            detail = "Planned Xunlai cleanup work will execute if storage can be opened at runtime."
+            detail = "Planned Xunlai cleanup work will execute if storage can be opened."
         elif conditional_count > 0:
-            detail = "Conditional actions need live merchant or trader confirmation at runtime."
+            detail = "Some actions need a live merchant, trader, crafter, or Xunlai check before MR can confirm them."
         elif actionable_count > 0:
             detail = self.status_message or self.preview_plan.supported_reason
         else:
@@ -15178,6 +18392,10 @@ class MerchantRulesWidget:
         if PyImGui.button("Armor##guided_sell_armor"):
             self._add_sell_rule_of_kind(SELL_KIND_ARMOR)
             return
+        PyImGui.same_line(0, 8)
+        if PyImGui.button("Runes & Insignias##guided_sell_runes"):
+            self._add_sell_rule_of_kind(SELL_KIND_RUNE_TRADER_TARGET)
+            return
         PyImGui.spacing()
         self._draw_section_heading("Destroy")
         if PyImGui.button("Specific Items##guided_destroy_specific"):
@@ -15223,13 +18441,13 @@ class MerchantRulesWidget:
         if self.preview_ready and (actionable_entries or skipped_entries):
             PyImGui.same_line(0, 8)
             self._draw_secondary_text(
-                f"{direct_count} direct | {conditional_count} conditional | {skipped_count} skipped",
+                f"{direct_count} ready now | {conditional_count} need live check | {skipped_count} skipped",
                 wrapped=False,
             )
         self._draw_secondary_text(preview_detail)
         if self.preview_ready and self._plan_needs_exact_storage_scan(self.preview_plan):
             exact_scan_message = (
-                "Storage-aware planning is still partial. Use Open Xunlai for exact storage scan to confirm exact withdraws and make Xunlai steps direct before Execute."
+                "Storage-aware planning is still partial. Use Open Xunlai for an exact storage scan to confirm withdraws and make Xunlai steps ready before Execute."
                 if self._can_use_local_storage_actions()
                 else "Storage-aware planning is still partial. Exact Xunlai counts will stay estimated until Execute reaches an outpost or Guild Hall and can open storage."
             )
@@ -15237,7 +18455,7 @@ class MerchantRulesWidget:
         elif self.preview_ready and str(self.preview_plan.storage_plan_state) == STORAGE_PLAN_STATE_EXACT_READY:
             self._draw_secondary_text("Xunlai is open, so storage-aware planning is using exact inventory + storage counts where needed.")
         elif self.preview_ready and self._plan_has_conditional_cleanup_actions(self.preview_plan):
-            self._draw_secondary_text("Planned Xunlai cleanup steps are conditional until storage can be opened during Execute.")
+            self._draw_secondary_text("Planned Xunlai cleanup steps will wait until storage can be opened during Execute.")
         if self.preview_ready and not supported_map and self._plan_has_local_destroy_actions(self.preview_plan) and self._plan_has_local_storage_actions(self.preview_plan):
             PyImGui.text_colored("Merchant NPC support is unavailable here, but local destroy actions and Xunlai cleanup work can still execute.", UI_COLOR_WARNING)
         elif self.preview_ready and not supported_map and self._plan_has_local_destroy_actions(self.preview_plan):
@@ -15255,11 +18473,68 @@ class MerchantRulesWidget:
         PyImGui.same_line(0, 8)
         self._draw_secondary_text(
             f"{len(_normalize_cleanup_targets(self.cleanup_targets))} explicit target(s) | "
+            f"{len(_normalize_cleanup_blacklist_model_ids(self.cleanup_blacklist_model_ids))} blacklisted item(s) | "
             f"{len(_normalize_cleanup_protection_sources(self.cleanup_protection_sources))} linked source(s)",
             wrapped=False,
         )
         if self.auto_cleanup_running:
             PyImGui.text_colored("Cleanup / Xunlai is running.", UI_COLOR_INFO)
+
+        manual_vendor_modes: list[str] = []
+        if self.auto_sell_on_manual_vendor_interaction:
+            manual_vendor_modes.append("auto-sell")
+        if self.auto_buy_on_manual_vendor_interaction:
+            manual_vendor_modes.append("auto-buy")
+        if self.auto_sell_to_any_merchant and self._manual_vendor_any_merchant_groups_enabled():
+            manual_vendor_modes.append("any merchant sells")
+        manual_vendor_enabled = self._manual_vendor_settings_enabled()
+        PyImGui.text("Manual merchant:")
+        PyImGui.same_line(0, 8)
+        self._draw_inline_badge(
+            "On" if manual_vendor_enabled else "Off",
+            UI_COLOR_SUCCESS if manual_vendor_enabled else UI_COLOR_MUTED,
+        )
+        if manual_vendor_modes:
+            PyImGui.same_line(0, 8)
+            self._draw_secondary_text(", ".join(manual_vendor_modes), wrapped=False)
+        if self.manual_vendor_running:
+            PyImGui.text_colored("Manual merchant automation is running.", UI_COLOR_INFO)
+
+        identify_settings = _normalize_identify_settings(self.identify_settings)
+        identify_selector_count = sum(1 for value in identify_settings.rarities.values() if bool(value))
+        identify_modes = []
+        if identify_settings.on_inventory_change:
+            identify_modes.append("Pickup")
+        if identify_settings.before_execute:
+            identify_modes.append("Execute")
+        identify_state_label = "On" if identify_modes else "Off"
+        identify_state_color = UI_COLOR_SUCCESS if identify_modes else UI_COLOR_MUTED
+        PyImGui.text("Identify:")
+        PyImGui.same_line(0, 8)
+        self._draw_inline_badge(identify_state_label, identify_state_color)
+        PyImGui.same_line(0, 8)
+        identify_mode_text = f" | {', '.join(identify_modes)}" if identify_modes else ""
+        self._draw_secondary_text(f"{identify_selector_count} selected rarit{'y' if identify_selector_count == 1 else 'ies'}{identify_mode_text}", wrapped=False)
+        if self.identify_running:
+            PyImGui.text_colored("MR Identify is running.", UI_COLOR_INFO)
+        if identify_selector_count > 0 and self._get_id_kit_id() <= 0:
+            PyImGui.text_colored("No ID kit found for MR Identify.", UI_COLOR_WARNING)
+
+        salvage_settings = _normalize_salvage_settings(self.salvage_settings)
+        salvage_selector_count = (
+            len(salvage_settings.model_ids)
+            + sum(1 for value in salvage_settings.rarities.values() if bool(value))
+            + sum(1 for value in salvage_settings.categories.values() if bool(value))
+        )
+        salvage_state_label = "On" if salvage_settings.on_inventory_change else "Off"
+        salvage_state_color = UI_COLOR_SUCCESS if salvage_settings.on_inventory_change else UI_COLOR_MUTED
+        PyImGui.text("Salvage:")
+        PyImGui.same_line(0, 8)
+        self._draw_inline_badge(salvage_state_label, salvage_state_color)
+        PyImGui.same_line(0, 8)
+        self._draw_secondary_text(f"{salvage_selector_count} active salvage setting(s)", wrapped=False)
+        if self.salvage_running:
+            PyImGui.text_colored("MR Salvage is running.", UI_COLOR_INFO)
 
         PyImGui.text("NPCs:")
         PyImGui.same_line(0, 8)
@@ -15285,12 +18560,20 @@ class MerchantRulesWidget:
             PyImGui.text_colored("Inventory Plus will pause while merchant actions run.", UI_COLOR_WARNING)
         if self.destroy_instant_enabled:
             PyImGui.text_colored("Instant Destroy is active for this session.", UI_COLOR_DANGER)
+        if _normalize_salvage_settings(self.salvage_settings).on_inventory_change:
+            PyImGui.text_colored("MR Salvage on inventory change is active.", UI_COLOR_WARNING)
         if self.destroy_include_protected_items:
             PyImGui.text_colored("Include Protected Items is active for this session.", UI_COLOR_DANGER)
         if self.last_instant_destroy_summary:
             self._draw_secondary_text(self.last_instant_destroy_summary)
+        if self.last_identify_summary:
+            self._draw_secondary_text(self.last_identify_summary)
+        if self.last_salvage_summary:
+            self._draw_secondary_text(self.last_salvage_summary)
         if self.last_cleanup_summary:
             self._draw_secondary_text(self.last_cleanup_summary)
+        if self.last_manual_vendor_summary:
+            self._draw_secondary_text(self.last_manual_vendor_summary)
         if self.profile_warning:
             PyImGui.text_colored(f"Live Config: {self.profile_warning}", UI_COLOR_WARNING)
         elif self.profile_notice:
@@ -15305,7 +18588,9 @@ class MerchantRulesWidget:
             and self.status_message != "Preview the current map plan before execution."
             and self.status_message not in {
                 self.last_instant_destroy_summary,
+                self.last_salvage_summary,
                 self.last_cleanup_summary,
+                self.last_manual_vendor_summary,
                 self.last_execution_summary,
             }
         ):
@@ -16346,6 +19631,37 @@ class MerchantRulesWidget:
             self._draw_secondary_text("No Embark Beach consumables selected yet.", wrapped=False)
             return changed
 
+        current_mode = _normalize_consumable_crafter_count_mode(rule.consumable_crafter_count_mode)
+        mode_values = list(CONSUMABLE_CRAFTER_COUNT_MODES)
+        mode_labels = [CONSUMABLE_CRAFTER_COUNT_MODE_LABELS.get(mode, mode) for mode in mode_values]
+        current_mode_index = mode_values.index(current_mode) if current_mode in mode_values else 0
+        PyImGui.push_item_width(230)
+        next_mode_index = PyImGui.combo(
+            f"Output Count Mode##buy_crafter_count_mode_{index}",
+            current_mode_index,
+            mode_labels,
+        )
+        PyImGui.pop_item_width()
+        next_mode_index = max(0, min(int(next_mode_index), len(mode_values) - 1))
+        if next_mode_index != current_mode_index:
+            rule.consumable_crafter_count_mode = mode_values[next_mode_index]
+            changed = True
+            current_mode = rule.consumable_crafter_count_mode
+        if current_mode == CONSUMABLE_CRAFTER_COUNT_MODE_CRAFT_AMOUNT:
+            self._draw_secondary_text(
+                "Craft requested amount ignores existing crafted consumables in inventory and Xunlai, but still checks skill points, gold, and materials.",
+                wrapped=True,
+            )
+        else:
+            self._draw_secondary_text(
+                "Maintain total stock counts matching consumables already in inventory and Xunlai before crafting the shortage.",
+                wrapped=True,
+            )
+        self._draw_secondary_text(
+            "When materials, gold, or skill points are limited, higher rows reserve resources first.",
+            wrapped=True,
+        )
+
         updated_targets = [
             MerchantStockTarget(
                 model_id=target.model_id,
@@ -16354,15 +19670,17 @@ class MerchantRulesWidget:
             )
             for target in crafter_targets
         ]
-        display_targets = self._sort_targets_by_model_label_for_display(updated_targets)
         removed_model_id = 0
+        move_from_index: int | None = None
+        move_to_index: int | None = None
         child_height = min(240, 58 + (32 * len(updated_targets)))
         if PyImGui.begin_child(f"buy_consumable_crafter_selected_{index}", (0, child_height), True, PyImGui.WindowFlags.NoFlag):
-            if PyImGui.begin_table(f"buy_consumable_crafter_selected_table_{index}", 5, self._get_dense_list_table_flags()):
+            if PyImGui.begin_table(f"buy_consumable_crafter_selected_table_{index}", 6, self._get_dense_list_table_flags()):
                 PyImGui.table_setup_column("Consumable", PyImGui.TableColumnFlags.WidthStretch)
                 PyImGui.table_setup_column("Crafter", PyImGui.TableColumnFlags.WidthFixed, 130.0)
-                PyImGui.table_setup_column("Target", PyImGui.TableColumnFlags.WidthFixed, 110.0)
+                PyImGui.table_setup_column("Amount", PyImGui.TableColumnFlags.WidthFixed, 110.0)
                 PyImGui.table_setup_column("Max/Run", PyImGui.TableColumnFlags.WidthFixed, 110.0)
+                PyImGui.table_setup_column("Priority", PyImGui.TableColumnFlags.WidthFixed, 90.0)
                 PyImGui.table_setup_column("Remove", PyImGui.TableColumnFlags.WidthFixed, 60.0)
 
                 PyImGui.table_next_row()
@@ -16371,13 +19689,15 @@ class MerchantRulesWidget:
                 PyImGui.table_set_column_index(1)
                 PyImGui.text("Crafter")
                 PyImGui.table_set_column_index(2)
-                PyImGui.text("Target")
+                PyImGui.text("Craft" if current_mode == CONSUMABLE_CRAFTER_COUNT_MODE_CRAFT_AMOUNT else "Target")
                 PyImGui.table_set_column_index(3)
                 PyImGui.text("Max/Run")
                 PyImGui.table_set_column_index(4)
+                PyImGui.text("Priority")
+                PyImGui.table_set_column_index(5)
                 PyImGui.text("Remove")
 
-                for target_row in display_targets:
+                for row_index, target_row in enumerate(updated_targets):
                     recipe = self._get_consumable_crafter_recipe_for_model(target_row.model_id)
                     PyImGui.table_next_row()
                     PyImGui.table_set_column_index(0)
@@ -16403,6 +19723,18 @@ class MerchantRulesWidget:
                     PyImGui.pop_item_width()
 
                     PyImGui.table_set_column_index(4)
+                    if row_index > 0 and PyImGui.small_button(f"Up##buy_crafter_up_{index}_{target_row.model_id}"):
+                        move_from_index = row_index
+                        move_to_index = row_index - 1
+                        break
+                    if row_index > 0 and row_index < len(updated_targets) - 1:
+                        PyImGui.same_line(0, 6)
+                    if row_index < len(updated_targets) - 1 and PyImGui.small_button(f"Down##buy_crafter_down_{index}_{target_row.model_id}"):
+                        move_from_index = row_index
+                        move_to_index = row_index + 1
+                        break
+
+                    PyImGui.table_set_column_index(5)
                     if PyImGui.small_button(f"X##buy_crafter_remove_{index}_{target_row.model_id}"):
                         removed_model_id = target_row.model_id
                         break
@@ -16412,6 +19744,12 @@ class MerchantRulesWidget:
 
         if removed_model_id > 0:
             next_targets = [target for target in updated_targets if int(target.model_id) != int(removed_model_id)]
+            if self._set_buy_rule_consumable_crafter_targets(rule, next_targets):
+                changed = True
+        elif move_from_index is not None and move_to_index is not None:
+            next_targets = list(updated_targets)
+            moved_target = next_targets.pop(int(move_from_index))
+            next_targets.insert(int(move_to_index), moved_target)
             if self._set_buy_rule_consumable_crafter_targets(rule, next_targets):
                 changed = True
         elif self._set_buy_rule_consumable_crafter_targets(rule, updated_targets):
@@ -16715,6 +20053,204 @@ class MerchantRulesWidget:
         PyImGui.end_child()
         return changed
 
+    def _draw_sell_rule_rune_targets_editor(self, index: int, rule: SellRule) -> bool:
+        changed = False
+        rune_targets = _normalize_rune_sell_targets(getattr(rule, "rune_sell_targets", []))
+
+        if self._draw_confirm_destructive_button(f"Clear Targets##sell_runes_clear_{index}"):
+            if self._set_sell_rule_rune_sell_targets(rule, []):
+                rune_targets = []
+                changed = True
+
+        PyImGui.text(f"Selected Runes / Insignias: {len(rune_targets)}")
+        if not rune_targets:
+            self._draw_secondary_text("No rune or insignia targets selected yet.", wrapped=False)
+        else:
+            updated_targets = [
+                RuneSellTarget(
+                    identifier=target.identifier,
+                    keep_count=target.keep_count,
+                )
+                for target in rune_targets
+            ]
+            display_targets = self._sort_targets_by_identifier_label_for_display(updated_targets, self._get_rune_label)
+            removed_identifier = ""
+            child_height = min(220, 58 + (32 * len(updated_targets)))
+            if PyImGui.begin_child(f"sell_rune_targets_selected_{index}", (0, child_height), True, PyImGui.WindowFlags.NoFlag):
+                if PyImGui.begin_table(f"sell_rune_targets_table_{index}", 4, self._get_dense_list_table_flags()):
+                    PyImGui.table_setup_column("Rune / Insignia", PyImGui.TableColumnFlags.WidthStretch)
+                    PyImGui.table_setup_column("Type", PyImGui.TableColumnFlags.WidthFixed, 110.0)
+                    PyImGui.table_setup_column("Keep", PyImGui.TableColumnFlags.WidthFixed, 120.0)
+                    PyImGui.table_setup_column("Remove", PyImGui.TableColumnFlags.WidthFixed, 60.0)
+
+                    PyImGui.table_next_row()
+                    PyImGui.table_set_column_index(0)
+                    PyImGui.text("Rune / Insignia")
+                    PyImGui.table_set_column_index(1)
+                    PyImGui.text("Type")
+                    PyImGui.table_set_column_index(2)
+                    PyImGui.text("Keep")
+                    PyImGui.table_set_column_index(3)
+                    PyImGui.text("Remove")
+
+                    for target_row in display_targets:
+                        entry = self._get_rune_buy_entry(target_row.identifier) or {}
+                        kind_label = str(entry.get("kind_label", "") or "Rune / Insignia")
+                        text_color = self._get_rune_text_color_for_identifier(target_row.identifier)
+
+                        PyImGui.table_next_row()
+                        PyImGui.table_set_column_index(0)
+                        rune_label = self._get_rune_label(target_row.identifier)
+                        if text_color is not None:
+                            PyImGui.text_colored(rune_label, text_color)
+                        else:
+                            PyImGui.text(rune_label)
+                        self._draw_hover_tooltip(self._get_rune_tooltip_text(target_row.identifier))
+
+                        PyImGui.table_set_column_index(1)
+                        PyImGui.text(kind_label)
+
+                        PyImGui.table_set_column_index(2)
+                        PyImGui.push_item_width(110)
+                        new_keep_count = PyImGui.input_int(
+                            f"##sell_rune_keep_count_{index}_{target_row.identifier}",
+                            int(target_row.keep_count),
+                        )
+                        PyImGui.pop_item_width()
+                        target_row.keep_count = max(0, int(new_keep_count))
+
+                        PyImGui.table_set_column_index(3)
+                        if PyImGui.small_button(f"X##sell_rune_remove_{index}_{target_row.identifier}"):
+                            removed_identifier = target_row.identifier
+                            break
+
+                    PyImGui.end_table()
+            PyImGui.end_child()
+
+            if removed_identifier:
+                next_targets = [
+                    target
+                    for target in updated_targets
+                    if target.identifier != removed_identifier
+                ]
+                if self._set_sell_rule_rune_sell_targets(rule, next_targets):
+                    changed = True
+            elif self._set_sell_rule_rune_sell_targets(rule, updated_targets):
+                changed = True
+
+        if not self.rune_buy_professions:
+            self._draw_secondary_text("Rune catalog entries are unavailable, so only saved targets can be edited right now.")
+            return changed
+
+        active_profession = str(
+            self.sell_exact_rune_profession_cache.get(index, self.rune_buy_professions[0])
+            or self.rune_buy_professions[0]
+        )
+        if active_profession not in self.rune_buy_professions:
+            active_profession = self.rune_buy_professions[0]
+
+        for tab_index, profession in enumerate(self.rune_buy_professions):
+            profession_label = _get_rune_profession_label(profession)
+            button_label = (
+                f"{profession_label} ({len(self.rune_buy_entries_by_profession.get(profession, []))})"
+                f"##sell_rune_profession_{index}_{profession}"
+            )
+            if self._draw_workspace_button(
+                button_label,
+                active=active_profession == profession,
+                color=UI_COLOR_PURPLE_ACCENT,
+            ):
+                active_profession = profession
+            if tab_index + 1 < len(self.rune_buy_professions):
+                PyImGui.same_line(0, 6)
+        self.sell_exact_rune_profession_cache[index] = active_profession
+
+        search_text = self.sell_exact_rune_search_cache.get(index, "")
+        updated_search_text = PyImGui.input_text(f"Search Runes / Insignias##sell_rune_search_{index}", search_text)
+        if updated_search_text != search_text:
+            self.sell_exact_rune_search_cache[index] = updated_search_text
+
+        existing_identifiers = {
+            _normalize_rune_identifier(target.identifier)
+            for target in _normalize_rune_sell_targets(getattr(rule, "rune_sell_targets", []))
+            if _normalize_rune_identifier(target.identifier)
+        }
+        query = str(self.sell_exact_rune_search_cache.get(index, "") or "").strip().lower()
+        visible_entries: list[dict[str, object]] = []
+        for entry in self.rune_buy_entries_by_profession.get(active_profession, []):
+            identifier = str(entry.get("identifier", "") or "").strip()
+            name = str(entry.get("name", "") or "").strip()
+            kind_label = str(entry.get("kind_label", "") or "").strip()
+            rarity = str(entry.get("rarity", "") or "").strip()
+            if query and query not in identifier.lower() and query not in name.lower() and query not in kind_label.lower() and query not in rarity.lower():
+                continue
+            visible_entries.append(entry)
+
+        addable_identifiers = [
+            str(entry.get("identifier", "")).strip()
+            for entry in visible_entries
+            if str(entry.get("identifier", "")).strip() not in existing_identifiers
+        ]
+        if self._draw_add_all_matches_button(
+            f"sell_rune_results_add_all_{index}",
+            len(visible_entries),
+            len(addable_identifiers),
+        ):
+            added_any = False
+            for identifier in addable_identifiers:
+                if self._add_sell_rule_rune_sell_target(rule, identifier):
+                    added_any = True
+            if added_any:
+                changed = True
+
+        child_height = 220 if len(visible_entries) > 6 else 170
+        if PyImGui.begin_child(f"sell_rune_results_{index}", (0, child_height), True, PyImGui.WindowFlags.NoFlag):
+            if not visible_entries:
+                PyImGui.text_wrapped("No matching runes or insignias found in this profession tab.")
+            elif PyImGui.begin_table(f"sell_rune_results_table_{index}", 3, PyImGui.TableFlags.RowBg):
+                PyImGui.table_setup_column("Rune / Insignia", PyImGui.TableColumnFlags.WidthStretch)
+                PyImGui.table_setup_column("Type", PyImGui.TableColumnFlags.WidthFixed, 105.0)
+                PyImGui.table_setup_column("Add", PyImGui.TableColumnFlags.WidthFixed, 55.0)
+
+                PyImGui.table_next_row()
+                PyImGui.table_set_column_index(0)
+                PyImGui.text("Rune / Insignia")
+                PyImGui.table_set_column_index(1)
+                PyImGui.text("Type")
+                PyImGui.table_set_column_index(2)
+                PyImGui.text("Add")
+
+                for entry in visible_entries:
+                    identifier = str(entry.get("identifier", "") or "").strip()
+                    if not identifier:
+                        continue
+                    already_selected = identifier in existing_identifiers
+
+                    PyImGui.table_next_row()
+                    PyImGui.table_set_column_index(0)
+                    name = str(entry.get("name", "") or identifier)
+                    text_color = self._get_rune_text_color_for_identifier(identifier)
+                    if text_color is not None:
+                        PyImGui.text_colored(name, text_color)
+                    else:
+                        PyImGui.text(name)
+                    self._draw_hover_tooltip(self._get_rune_tooltip_text(identifier))
+
+                    PyImGui.table_set_column_index(1)
+                    PyImGui.text(str(entry.get("kind_label", "") or "Rune / Insignia"))
+
+                    PyImGui.table_set_column_index(2)
+                    PyImGui.begin_disabled(already_selected)
+                    add_clicked = PyImGui.small_button(f"+##sell_rune_add_{index}_{identifier}")
+                    PyImGui.end_disabled()
+                    if add_clicked and self._add_sell_rule_rune_sell_target(rule, identifier):
+                        changed = True
+                        self.sell_exact_rune_search_cache[index] = str(entry.get("name", "") or identifier)
+
+                PyImGui.end_table()
+        PyImGui.end_child()
+        return changed
+
     def _draw_buy_rule_editor(self, index: int, rule: BuyRule) -> bool:
         changed = False
         summary_text, ready = self._get_buy_rule_summary(rule)
@@ -16773,7 +20309,7 @@ class MerchantRulesWidget:
                         PyImGui.same_line(0, 6)
 
             search_text = self.buy_model_search_cache.get(index, "")
-            updated_search_text = PyImGui.input_text(f"Search Items##buy_search_{index}", search_text)
+            updated_search_text = PyImGui.input_text(f"Search Merchant Stock##buy_search_{index}", search_text)
             if updated_search_text != search_text:
                 self.buy_model_search_cache[index] = updated_search_text
 
@@ -16804,17 +20340,17 @@ class MerchantRulesWidget:
                 updated_manual_model_id = max(0, int(updated_manual_model_id))
                 if updated_manual_model_id != manual_model_id:
                     self.buy_manual_model_id_cache[index] = updated_manual_model_id
-                is_scroll_trader_stock = _is_scroll_trader_stock_model(updated_manual_model_id)
+                is_supported_merchant_stock = self._get_merchant_essential(updated_manual_model_id) is not None
                 PyImGui.same_line(0, 8)
-                PyImGui.begin_disabled(updated_manual_model_id <= 0 or is_scroll_trader_stock)
+                PyImGui.begin_disabled(updated_manual_model_id <= 0 or not is_supported_merchant_stock)
                 add_manual_item = PyImGui.small_button(f"Add Item##buy_add_manual_model_{index}")
                 PyImGui.end_disabled()
                 if add_manual_item and self._add_buy_rule_merchant_stock_target(rule, updated_manual_model_id):
                     changed = True
                     self.buy_manual_model_id_cache[index] = 0
                     self.buy_model_search_cache[index] = self._get_model_name(updated_manual_model_id) or str(updated_manual_model_id)
-                if updated_manual_model_id > 0 and is_scroll_trader_stock:
-                    self._draw_secondary_text("This model is confirmed scroll trader stock. Add it from the Scroll Trader Stock section.")
+                if updated_manual_model_id > 0 and not is_supported_merchant_stock:
+                    self._draw_secondary_text("This model is not in the supported regular merchant stock list.")
         elif rule.kind == BUY_KIND_CONSUMABLE_CRAFTER_TARGET:
             self._draw_secondary_text("Crafts Embark Beach consumables after checking rank, skill points, gold, inventory, Xunlai panes, and material storage.")
             self._draw_secondary_text("Use target count plus Max Per Run. Crafted items stay in inventory; Cleanup / Xunlai can deposit them afterward.")
@@ -17072,7 +20608,7 @@ class MerchantRulesWidget:
                             changed = True
 
         PyImGui.text(f"Protected Models: {len(rule.blacklist_model_ids)}")
-        self._draw_hover_tooltip("This count is for direct model protection.")
+        self._draw_hover_tooltip("This count is for model protection only.")
         removed_model_id = self._draw_selected_model_ids(
             "sell_blacklist_models",
             index,
@@ -17089,7 +20625,7 @@ class MerchantRulesWidget:
         feedback_message, feedback_color = self.sell_blacklist_import_feedback_cache.get(index, ("", UI_COLOR_MUTED))
         if feedback_message:
             PyImGui.text_colored(feedback_message, feedback_color)
-        self._draw_secondary_text("Import from clipboard expects model IDs only, not runtime item-instance IDs.")
+        self._draw_secondary_text("Import from clipboard expects model IDs only, not temporary in-game item IDs.")
 
         entry_predicate: Callable[[dict[str, object]], bool] | None = None
         if rule.kind == SELL_KIND_WEAPONS:
@@ -17684,7 +21220,7 @@ class MerchantRulesWidget:
             if rule.kind == SELL_KIND_WEAPONS:
                 self._draw_secondary_text("Equippable weapons sell to Merchant. Standalone weapon mods route to the Rune Trader.")
             else:
-                self._draw_secondary_text("Equippable armor sells to Merchant. Standalone runes and insignias are optional.")
+                self._draw_secondary_text("Equippable armor sells to Merchant. Loose runes and insignias are optional.")
 
             changed = self._draw_sell_rule_rarity_toggles(index, rule) or changed
 
@@ -17709,12 +21245,13 @@ class MerchantRulesWidget:
 
             if rule.kind == SELL_KIND_ARMOR:
                 include_standalone_runes = PyImGui.checkbox(
-                    f"Also Sell Standalone Runes / Insignias##sell_include_standalone_runes_{index}",
+                    f"Also sell loose runes and insignias##sell_include_standalone_runes_{index}",
                     bool(rule.include_standalone_runes),
                 )
                 if include_standalone_runes != rule.include_standalone_runes:
                     rule.include_standalone_runes = include_standalone_runes
                     changed = True
+                self._draw_secondary_text("For exact rune choices, use Sell -> Runes & Insignias.", wrapped=False)
 
             self._draw_light_separator()
             if is_target_rule and jump_target is not None and bool(jump_target.requires_advanced) and bool(jump_target.force_advanced_open):
@@ -17784,12 +21321,15 @@ class MerchantRulesWidget:
             merchant_prefix = "Merchants" if len(material_merchant_types) > 1 else "Merchant"
             self._draw_secondary_text(f"{merchant_prefix}: {self._format_compact_list(merchant_labels, limit=2)}", wrapped=False)
             self._draw_secondary_text("Common materials sell in lots of 10. Rare materials sell individually.")
+        elif rule.kind == SELL_KIND_RUNE_TRADER_TARGET:
+            self._draw_secondary_text("Sells exact loose runes and insignias to the Rune Trader.")
+            changed = self._draw_sell_rule_rune_targets_editor(index, rule) or changed
         else:
             self._draw_secondary_text(
                 "Routing: standalone runes / insignias -> Rune Trader, common materials -> Material Trader with Merchant leftovers under 10, rare materials -> Rare Material Trader, everything else -> Merchant.",
             )
 
-        if rule.kind not in (SELL_KIND_WEAPONS, SELL_KIND_ARMOR):
+        if rule.kind not in (SELL_KIND_WEAPONS, SELL_KIND_ARMOR, SELL_KIND_RUNE_TRADER_TARGET):
             if rule.kind == SELL_KIND_COMMON_MATERIALS:
                 if self._draw_confirm_destructive_button(f"Add All Common Materials##sell_common_preset_{index}"):
                     if self._set_sell_rule_model_ids(index, rule, rule.model_ids + self._get_common_material_preset()):
@@ -17843,7 +21383,7 @@ class MerchantRulesWidget:
                     self.sell_model_search_cache.get(index, ""),
                 )
             else:
-                picked_model_id, visible_model_ids = self._draw_search_results(
+                picked_model_id, visible_model_ids = self._draw_explicit_sell_item_search_results(
                     f"sell_search_results_{index}",
                     self.sell_model_search_cache.get(index, ""),
                 )
@@ -18180,10 +21720,403 @@ class MerchantRulesWidget:
                 self._request_instant_destroy_rescan()
             self._mark_preview_dirty("Destroy rules changed. Preview again before execution.")
 
+    def _draw_salvage_rarity_toggles(self, settings: SalvageSettings) -> bool:
+        changed = False
+        PyImGui.text("Rarity Selectors")
+        settings.rarities = _normalize_salvage_rarity_flags(settings.rarities)
+        for rarity_index, (rarity_key, rarity_label) in enumerate(RARITY_OPTION_ORDER):
+            current_value = bool(settings.rarities.get(rarity_key, False))
+            new_value = PyImGui.checkbox(f"##salvage_rarity_{rarity_key}", current_value)
+            if new_value != current_value:
+                settings.rarities[rarity_key] = new_value
+                changed = True
+            PyImGui.same_line(0, 4)
+            PyImGui.text_colored(rarity_label, RARITY_TEXT_COLORS.get(rarity_key, UI_COLOR_SUBTLE))
+            if rarity_index % 2 == 0 and rarity_index + 1 < len(RARITY_OPTION_ORDER):
+                PyImGui.same_line(0, 12)
+        return changed
+
+    def _draw_identify_rarity_toggles(self, settings: IdentifySettings) -> bool:
+        changed = False
+        settings.rarities = _normalize_identify_rarity_flags(settings.rarities)
+        for rarity_index, (rarity_key, rarity_label) in enumerate(RARITY_OPTION_ORDER):
+            current_value = bool(settings.rarities.get(rarity_key, False))
+            new_value = PyImGui.checkbox(f"##identify_rarity_{rarity_key}", current_value)
+            if new_value != current_value:
+                settings.rarities[rarity_key] = new_value
+                changed = True
+            PyImGui.same_line(0, 4)
+            PyImGui.text_colored(rarity_label, RARITY_TEXT_COLORS.get(rarity_key, UI_COLOR_SUBTLE))
+            if rarity_index % 2 == 0 and rarity_index + 1 < len(RARITY_OPTION_ORDER):
+                PyImGui.same_line(0, 12)
+        return changed
+
+    def _apply_identify_rarity_preset(self, settings: IdentifySettings, enabled_keys: set[str]) -> bool:
+        next_flags = {
+            key: key in enabled_keys
+            for key, _label in RARITY_OPTION_ORDER
+        }
+        if _normalize_identify_rarity_flags(settings.rarities) == next_flags:
+            return False
+        settings.rarities = next_flags
+        return True
+
+    def _format_identify_filter_summary(self, settings: IdentifySettings) -> str:
+        normalized_settings = _normalize_identify_settings(settings)
+        rarity_labels = [
+            label
+            for key, label in RARITY_OPTION_ORDER
+            if bool(normalized_settings.rarities.get(key, False))
+        ]
+        modes: list[str] = []
+        if normalized_settings.before_execute:
+            modes.append("before Execute")
+        if normalized_settings.on_inventory_change:
+            modes.append("on inventory change")
+        mode_text = ", ".join(modes) if modes else "manual run only"
+        rarity_text = ", ".join(rarity_labels) if rarity_labels else "no rarities selected"
+        return f"Selected: {rarity_text} | Runs: {mode_text}"
+
+    def _draw_identify_status_badges(self, settings: IdentifySettings) -> int:
+        normalized_settings = _normalize_identify_settings(settings)
+        selector_count = sum(1 for value in normalized_settings.rarities.values() if bool(value))
+        auto_enabled = bool(normalized_settings.before_execute or normalized_settings.on_inventory_change)
+        ready = selector_count > 0
+
+        PyImGui.text("Identify:")
+        PyImGui.same_line(0, 8)
+        self._draw_inline_badge("On" if auto_enabled else "Off", UI_COLOR_SUCCESS if auto_enabled else UI_COLOR_MUTED)
+        PyImGui.same_line(0, 6)
+        self._draw_inline_badge(
+            f"Rarities: {selector_count}",
+            UI_COLOR_SUCCESS if ready else (UI_COLOR_WARNING if auto_enabled else UI_COLOR_MUTED),
+        )
+        if normalized_settings.before_execute:
+            PyImGui.same_line(0, 6)
+            self._draw_inline_badge("Execute", UI_COLOR_SUCCESS if ready else UI_COLOR_WARNING)
+        if normalized_settings.on_inventory_change:
+            PyImGui.same_line(0, 6)
+            self._draw_inline_badge("Pickup", UI_COLOR_SUCCESS if ready else UI_COLOR_WARNING)
+        if not auto_enabled:
+            PyImGui.same_line(0, 6)
+            self._draw_inline_badge("Manual", UI_COLOR_MUTED)
+        return selector_count
+
+    def _draw_identify_workspace(self):
+        settings = _normalize_identify_settings(self.identify_settings)
+        changed = False
+
+        self._draw_section_heading("Identify")
+        self._draw_secondary_text(
+            "MR Identify targets unidentified inventory items by exact rarity. Identify before Execute runs after any configured travel, then Merchant Rules rebuilds the live plan before the rest of Execute continues."
+        )
+
+        selector_count = self._draw_identify_status_badges(settings)
+        self._draw_secondary_text(self._format_identify_filter_summary(settings), wrapped=False)
+        if selector_count <= 0:
+            PyImGui.text_colored("Choose at least one rarity before Identify can find items.", UI_COLOR_WARNING)
+
+        PyImGui.separator()
+        self._draw_section_heading("When to Identify")
+        before_execute = PyImGui.checkbox(
+            "Identify before Execute##merchant_rules_identify_before_execute",
+            bool(settings.before_execute),
+        )
+        if before_execute != settings.before_execute:
+            settings.before_execute = before_execute
+            changed = True
+
+        on_inventory_change = PyImGui.checkbox(
+            "Identify selected items on inventory change / pickup##merchant_rules_identify_on_inventory_change",
+            bool(settings.on_inventory_change),
+        )
+        if on_inventory_change != settings.on_inventory_change:
+            settings.on_inventory_change = on_inventory_change
+            changed = True
+            if settings.on_inventory_change:
+                self._request_identify_rescan()
+            else:
+                self.identify_rescan_requested = False
+
+        run_identify_reason = self._get_action_block_reason("identify")
+        PyImGui.same_line(0, 8)
+        PyImGui.begin_disabled(bool(run_identify_reason))
+        run_identify_clicked = PyImGui.button("Run Identify Now##merchant_rules_run_identify_now")
+        PyImGui.end_disabled()
+
+        if run_identify_reason:
+            self._draw_secondary_text(f"Run Identify Now: {run_identify_reason}")
+        if selector_count > 0 and self._get_id_kit_id() <= 0:
+            PyImGui.text_colored("No ID kit found. Matching items will be claimed in Preview but cannot be identified yet.", UI_COLOR_WARNING)
+        if self.identify_running:
+            PyImGui.text_colored("MR Identify is running.", UI_COLOR_INFO)
+        if self.last_identify_summary:
+            self._draw_secondary_text(self.last_identify_summary)
+        if settings.on_inventory_change:
+            self._draw_secondary_text("MR pauses Inventory Plus while identifying.")
+
+        PyImGui.separator()
+        self._draw_section_heading("Rarities to Identify")
+        changed = self._draw_identify_rarity_toggles(settings) or changed
+        PyImGui.text_colored(
+            "Selectors are exact. Blue identifies only blue items; it does not include purple, gold, or green.",
+            UI_COLOR_WARNING,
+        )
+
+        PyImGui.spacing()
+        self._draw_section_heading("Quick Presets")
+        presets: tuple[tuple[str, set[str]], ...] = (
+            ("White", {"white"}),
+            ("Blue", {"blue"}),
+            ("Purple", {"purple"}),
+            ("Gold", {"gold"}),
+            ("Green", {"green"}),
+            ("Blue/Purple/Gold", {"blue", "purple", "gold"}),
+            ("All", {key for key, _label in RARITY_OPTION_ORDER}),
+            ("None", set()),
+        )
+        for preset_index, (preset_label, enabled_keys) in enumerate(presets):
+            if PyImGui.small_button(f"{preset_label}##merchant_rules_identify_preset_{preset_index}"):
+                changed = self._apply_identify_rarity_preset(settings, enabled_keys) or changed
+            if preset_index + 1 < len(presets):
+                PyImGui.same_line(0, 6)
+
+        if changed:
+            self.identify_settings = _normalize_identify_settings(settings)
+            self._save_profile()
+            if self.identify_settings.on_inventory_change:
+                self._request_identify_rescan()
+            self._mark_preview_dirty("Identify settings changed. Preview again before execution.")
+
+        if run_identify_clicked:
+            self._queue_identify_now()
+
+    def _draw_salvage_category_toggles(self, settings: SalvageSettings) -> bool:
+        changed = False
+        PyImGui.text("Category Selectors")
+        settings.categories = _normalize_salvage_category_flags(settings.categories)
+        for category_index, (category_key, category_label) in enumerate(SALVAGE_CATEGORY_ORDER):
+            current_value = bool(settings.categories.get(category_key, False))
+            new_value = PyImGui.checkbox(f"##salvage_category_{category_key}", current_value)
+            if new_value != current_value:
+                settings.categories[category_key] = new_value
+                changed = True
+            PyImGui.same_line(0, 4)
+            PyImGui.text(category_label)
+            if category_index % 2 == 0 and category_index + 1 < len(SALVAGE_CATEGORY_ORDER):
+                PyImGui.same_line(0, 12)
+        return changed
+
+    def _format_salvage_filter_summary(self, settings: SalvageSettings) -> str:
+        normalized_settings = _normalize_salvage_settings(settings)
+        rarity_labels = [
+            label
+            for key, label in RARITY_OPTION_ORDER
+            if bool(normalized_settings.rarities.get(key, False))
+        ]
+        category_labels = [
+            label
+            for key, label in SALVAGE_CATEGORY_ORDER
+            if bool(normalized_settings.categories.get(key, False))
+        ]
+
+        exact_model_count = len(normalized_settings.model_ids)
+        broad_summary = ""
+        if rarity_labels and category_labels:
+            broad_summary = f"{', '.join(rarity_labels)} items in these categories: {', '.join(category_labels)}"
+        elif rarity_labels:
+            broad_summary = f"items with these rarities: {', '.join(rarity_labels)}"
+        elif category_labels:
+            broad_summary = f"items in these categories: {', '.join(category_labels)}"
+
+        if exact_model_count > 0 and broad_summary:
+            return f"Current filter: {exact_model_count} exact model(s), plus {broad_summary}"
+        if exact_model_count > 0:
+            return f"Current filter: {exact_model_count} exact model(s)"
+        if broad_summary:
+            return f"Current filter: {broad_summary}"
+        return "Current filter: no salvage settings selected"
+
+    def _draw_salvage_status_badges(self, settings: SalvageSettings) -> int:
+        normalized_settings = _normalize_salvage_settings(settings)
+        selector_count = (
+            len(normalized_settings.model_ids)
+            + sum(1 for value in normalized_settings.rarities.values() if bool(value))
+            + sum(1 for value in normalized_settings.categories.values() if bool(value))
+        )
+        auto_enabled = bool(normalized_settings.on_inventory_change)
+        ready = selector_count > 0
+
+        PyImGui.text("Salvage:")
+        PyImGui.same_line(0, 8)
+        self._draw_inline_badge("On" if auto_enabled else "Off", UI_COLOR_SUCCESS if auto_enabled else UI_COLOR_MUTED)
+        PyImGui.same_line(0, 6)
+        self._draw_inline_badge(
+            f"Filters: {selector_count}",
+            UI_COLOR_SUCCESS if ready else (UI_COLOR_WARNING if auto_enabled else UI_COLOR_MUTED),
+        )
+        if auto_enabled:
+            PyImGui.same_line(0, 6)
+            self._draw_inline_badge("Pickup", UI_COLOR_SUCCESS if ready else UI_COLOR_WARNING)
+        else:
+            PyImGui.same_line(0, 6)
+            self._draw_inline_badge("Manual", UI_COLOR_MUTED)
+        if bool(normalized_settings.categories.get(SALVAGE_CATEGORY_OTHER, False)):
+            PyImGui.same_line(0, 6)
+            self._draw_inline_badge("Other Items", UI_COLOR_WARNING)
+        return selector_count
+
+    def _draw_salvage_workspace(self):
+        settings = _normalize_salvage_settings(self.salvage_settings)
+        changed = False
+
+        self._draw_section_heading("Salvage")
+        self._draw_secondary_text(
+            "MR Salvage uses normal Salvage Kits only and targets crafting materials. Protection, customized-item, unidentified non-white, and runtime salvageability checks always run before the salvage API."
+        )
+
+        run_salvage_reason = self._get_action_block_reason("salvage")
+        selector_count = self._draw_salvage_status_badges(settings)
+        self._draw_secondary_text(self._format_salvage_filter_summary(settings))
+        if selector_count <= 0:
+            PyImGui.text_colored("Choose a rarity, category, or specific item before Salvage can find items.", UI_COLOR_WARNING)
+
+        PyImGui.separator()
+        self._draw_section_heading("When to Salvage")
+        on_inventory_change = PyImGui.checkbox(
+            "Salvage selected items on inventory change / pickup##merchant_rules_salvage_on_inventory_change",
+            bool(settings.on_inventory_change),
+        )
+        if on_inventory_change != settings.on_inventory_change:
+            settings.on_inventory_change = on_inventory_change
+            changed = True
+            if settings.on_inventory_change:
+                self._request_salvage_rescan()
+            else:
+                self.salvage_rescan_requested = False
+        PyImGui.same_line(0, 8)
+        PyImGui.begin_disabled(bool(run_salvage_reason))
+        run_salvage_clicked = PyImGui.button("Run Salvage Now##merchant_rules_run_salvage_now")
+        PyImGui.end_disabled()
+
+        if run_salvage_reason:
+            self._draw_secondary_text(f"Run Salvage Now: {run_salvage_reason}")
+        if self.last_salvage_summary:
+            self._draw_secondary_text(self.last_salvage_summary)
+        if settings.on_inventory_change:
+            self._draw_secondary_text("MR pauses Inventory Plus while salvaging.")
+        if bool(settings.categories.get(SALVAGE_CATEGORY_OTHER, False)):
+            PyImGui.text_colored("Other Items may include unexpected salvageable item types. Keep it off unless testing specific drops.", UI_COLOR_WARNING)
+
+        PyImGui.separator()
+        self._draw_section_heading("Rarities")
+        changed = self._draw_salvage_rarity_toggles(settings) or changed
+        PyImGui.text_colored(
+            "Pick one or more rarities, then optionally narrow them by category. When both are selected, an item must match a selected rarity and a selected category.",
+            UI_COLOR_WARNING,
+        )
+
+        PyImGui.spacing()
+        self._draw_section_heading("Categories")
+        changed = self._draw_salvage_category_toggles(settings) or changed
+        self._draw_secondary_text("Example: choosing Gold with Weapons and Armor salvages only gold weapons and gold armor. Exact model selections still follow protection and safety checks.")
+
+        PyImGui.separator()
+        self._draw_section_heading("Specific Items")
+        PyImGui.text(f"Selected Models: {len(settings.model_ids)}")
+        removed_model_id = self._draw_selected_model_ids("salvage_models", 0, settings.model_ids)
+        if removed_model_id > 0:
+            settings.model_ids = [model_id for model_id in settings.model_ids if int(model_id) != int(removed_model_id)]
+            changed = True
+
+        if self._draw_confirm_destructive_button("Clear Models##merchant_rules_salvage_clear_models"):
+            settings.model_ids = []
+            changed = True
+
+        updated_search_text = PyImGui.input_text("Search Items##merchant_rules_salvage_search", self.salvage_model_search_text)
+        if updated_search_text != self.salvage_model_search_text:
+            self.salvage_model_search_text = updated_search_text
+
+        picked_model_id, visible_model_ids = self._draw_search_results(
+            "merchant_rules_salvage_search_results",
+            self.salvage_model_search_text,
+        )
+        addable_model_ids = [model_id for model_id in visible_model_ids if model_id not in settings.model_ids]
+        if self._draw_add_all_matches_button(
+            "merchant_rules_salvage_search_results_add_all",
+            len(visible_model_ids),
+            len(addable_model_ids),
+        ):
+            settings.model_ids = _dedupe_model_ids(settings.model_ids + addable_model_ids)
+            changed = True
+        if picked_model_id > 0:
+            settings.model_ids = _dedupe_model_ids(settings.model_ids + [picked_model_id])
+            self.salvage_model_search_text = self._get_model_name(picked_model_id) or str(picked_model_id)
+            changed = True
+
+        if PyImGui.collapsing_header("Advanced##merchant_rules_salvage_advanced"):
+            current_raw = _format_model_ids(settings.model_ids)
+            new_raw, apply_manual_ids = self._draw_manual_model_ids_editor(
+                "salvage_models",
+                current_raw,
+            )
+            if apply_manual_ids:
+                settings.model_ids = _dedupe_model_ids(_parse_model_ids(new_raw))
+                changed = True
+            self._draw_secondary_text("Comma-separated model IDs. Apply replaces the exact model list.")
+
+        if changed:
+            self.salvage_settings = _normalize_salvage_settings(settings)
+            self._save_profile()
+            self._request_salvage_rescan()
+            if self.destroy_instant_enabled:
+                self._request_instant_destroy_rescan()
+            self._mark_preview_dirty("Salvage settings changed. Preview again before destroy execution.")
+
+        if run_salvage_clicked:
+            self._queue_salvage_now(auto_triggered=False)
+
+    def _draw_cleanup_status_badges(
+        self,
+        cleanup_targets: list[CleanupTarget],
+        cleanup_blacklist_model_ids: list[int],
+        cleanup_sources: list[CleanupProtectionSource],
+    ) -> None:
+        auto_enabled = bool(self.auto_cleanup_on_outpost_entry)
+        target_count = len(_normalize_cleanup_targets(cleanup_targets))
+        blacklist_count = len(_normalize_cleanup_blacklist_model_ids(cleanup_blacklist_model_ids))
+        linked_count = len(_normalize_cleanup_protection_sources(cleanup_sources))
+        ready = (target_count + linked_count) > 0
+
+        PyImGui.text("Cleanup:")
+        PyImGui.same_line(0, 8)
+        self._draw_inline_badge("On" if auto_enabled else "Off", UI_COLOR_SUCCESS if auto_enabled else UI_COLOR_MUTED)
+        PyImGui.same_line(0, 6)
+        self._draw_inline_badge(
+            f"Targets: {target_count}",
+            UI_COLOR_INFO if target_count > 0 else UI_COLOR_MUTED,
+        )
+        PyImGui.same_line(0, 6)
+        self._draw_inline_badge(
+            f"Blacklist: {blacklist_count}",
+            UI_COLOR_WARNING if blacklist_count > 0 else UI_COLOR_MUTED,
+        )
+        PyImGui.same_line(0, 6)
+        self._draw_inline_badge(
+            f"Linked: {linked_count}",
+            UI_COLOR_PURPLE_ACCENT if linked_count > 0 else UI_COLOR_MUTED,
+        )
+        PyImGui.same_line(0, 6)
+        if auto_enabled:
+            self._draw_inline_badge("Pickup", UI_COLOR_SUCCESS if ready else UI_COLOR_WARNING)
+        else:
+            self._draw_inline_badge("Manual", UI_COLOR_MUTED)
+
     def _draw_cleanup_workspace(self):
         cleanup_changed = False
         automation_changed = False
         cleanup_targets = _normalize_cleanup_targets(self.cleanup_targets)
+        cleanup_blacklist_model_ids = _normalize_cleanup_blacklist_model_ids(self.cleanup_blacklist_model_ids)
         cleanup_sources = _normalize_cleanup_protection_sources(self.cleanup_protection_sources)
 
         self._draw_section_heading(CLEANUP_WORKSPACE_LABEL)
@@ -18204,14 +22137,20 @@ class MerchantRulesWidget:
         run_cleanup_clicked = PyImGui.button("Run Cleanup Now##merchant_rules_cleanup_workspace_run_now")
         PyImGui.end_disabled()
 
+        self._draw_cleanup_status_badges(cleanup_targets, cleanup_blacklist_model_ids, cleanup_sources)
         self._draw_secondary_text(
-            f"Explicit targets: {len(cleanup_targets)} | Linked protection sources: {len(cleanup_sources)}",
+            f"Explicit targets: {len(cleanup_targets)} | Blacklisted items: {len(cleanup_blacklist_model_ids)} | Linked protection sources: {len(cleanup_sources)}",
             wrapped=False,
         )
         if run_cleanup_reason:
-            self._draw_secondary_text(f"Run Cleanup Now: {run_cleanup_reason}")
+            PyImGui.text_colored(f"Run Cleanup Now: {run_cleanup_reason}", UI_COLOR_WARNING)
+        elif not cleanup_targets and not cleanup_sources:
+            PyImGui.text_colored("Cleanup needs at least one explicit target or linked protection source.", UI_COLOR_WARNING)
+        if self.auto_cleanup_running:
+            PyImGui.text_colored("Cleanup / Xunlai is running.", UI_COLOR_INFO)
         if self.last_cleanup_summary:
-            self._draw_secondary_text(self.last_cleanup_summary)
+            summary_color = UI_COLOR_SUCCESS if "found nothing to move" not in str(self.last_cleanup_summary).lower() else UI_COLOR_MUTED
+            PyImGui.text_colored(self.last_cleanup_summary, summary_color)
 
         PyImGui.separator()
         self._draw_section_heading("Explicit Cleanup Targets")
@@ -18265,7 +22204,7 @@ class MerchantRulesWidget:
                     PyImGui.end_table()
             PyImGui.end_child()
         else:
-            self._draw_secondary_text("No explicit cleanup targets yet.")
+            PyImGui.text_colored("No explicit cleanup targets yet.", UI_COLOR_MUTED)
 
         if removed_cleanup_model_id > 0:
             updated_targets = [target for target in updated_targets if int(target.model_id) != removed_cleanup_model_id]
@@ -18310,10 +22249,92 @@ class MerchantRulesWidget:
             self.cleanup_model_search_text = self._get_model_name(picked_cleanup_model_id) or str(picked_cleanup_model_id)
 
         PyImGui.separator()
+        self._draw_section_heading("Cleanup Blacklist")
+        self._draw_secondary_text(
+            "Blacklist exact item or material models to keep Cleanup / Xunlai from depositing them, even when explicit targets or linked protection sources would otherwise move them."
+        )
+        if cleanup_blacklist_model_ids:
+            PyImGui.text_colored("Blacklisted items always stay on character during cleanup.", UI_COLOR_WARNING)
+
+        removed_cleanup_blacklist_model_id = 0
+        display_blacklist_model_ids = self._sort_model_ids_for_display(cleanup_blacklist_model_ids)
+        if display_blacklist_model_ids:
+            child_height = min(220, 58 + (32 * len(display_blacklist_model_ids)))
+            if PyImGui.begin_child("merchant_rules_cleanup_blacklist", (0, child_height), True, PyImGui.WindowFlags.NoFlag):
+                if PyImGui.begin_table("merchant_rules_cleanup_blacklist_table", 2, self._get_dense_list_table_flags()):
+                    PyImGui.table_setup_column("Item", PyImGui.TableColumnFlags.WidthStretch)
+                    PyImGui.table_setup_column("Remove", PyImGui.TableColumnFlags.WidthFixed, 60.0)
+
+                    PyImGui.table_next_row()
+                    PyImGui.table_set_column_index(0)
+                    PyImGui.text("Item")
+                    PyImGui.table_set_column_index(1)
+                    PyImGui.text("Remove")
+
+                    for model_id in display_blacklist_model_ids:
+                        PyImGui.table_next_row()
+                        PyImGui.table_set_column_index(0)
+                        PyImGui.text(self._format_model_label_short(model_id))
+
+                        PyImGui.table_set_column_index(1)
+                        if PyImGui.small_button(f"X##merchant_rules_cleanup_blacklist_remove_{model_id}"):
+                            removed_cleanup_blacklist_model_id = int(model_id)
+                            break
+                    PyImGui.end_table()
+            PyImGui.end_child()
+        else:
+            PyImGui.text_colored("No cleanup blacklist items yet.", UI_COLOR_MUTED)
+
+        if removed_cleanup_blacklist_model_id > 0:
+            next_blacklist_model_ids = [
+                model_id
+                for model_id in cleanup_blacklist_model_ids
+                if int(model_id) != removed_cleanup_blacklist_model_id
+            ]
+            if self._set_cleanup_blacklist_model_ids(next_blacklist_model_ids):
+                cleanup_changed = True
+                cleanup_blacklist_model_ids = _normalize_cleanup_blacklist_model_ids(self.cleanup_blacklist_model_ids)
+
+        updated_cleanup_blacklist_search = PyImGui.input_text(
+            "Search Items / Materials##merchant_rules_cleanup_blacklist_search",
+            self.cleanup_blacklist_search_text,
+        )
+        if updated_cleanup_blacklist_search != self.cleanup_blacklist_search_text:
+            self.cleanup_blacklist_search_text = updated_cleanup_blacklist_search
+
+        picked_cleanup_blacklist_model_id, visible_cleanup_blacklist_model_ids = self._draw_search_results(
+            "merchant_rules_cleanup_blacklist_search_results",
+            self.cleanup_blacklist_search_text,
+        )
+        existing_cleanup_blacklist_model_ids = {int(model_id) for model_id in cleanup_blacklist_model_ids}
+        addable_cleanup_blacklist_model_ids = [
+            int(model_id)
+            for model_id in visible_cleanup_blacklist_model_ids
+            if int(model_id) not in existing_cleanup_blacklist_model_ids
+        ]
+        if self._draw_add_all_matches_button(
+            "merchant_rules_cleanup_blacklist_add_all_matches",
+            len(visible_cleanup_blacklist_model_ids),
+            len(addable_cleanup_blacklist_model_ids),
+        ):
+            next_blacklist_model_ids = list(cleanup_blacklist_model_ids) + addable_cleanup_blacklist_model_ids
+            if self._set_cleanup_blacklist_model_ids(next_blacklist_model_ids):
+                cleanup_changed = True
+                cleanup_blacklist_model_ids = _normalize_cleanup_blacklist_model_ids(self.cleanup_blacklist_model_ids)
+
+        if picked_cleanup_blacklist_model_id > 0:
+            if self._add_cleanup_blacklist_model_id(picked_cleanup_blacklist_model_id):
+                cleanup_changed = True
+                cleanup_blacklist_model_ids = _normalize_cleanup_blacklist_model_ids(self.cleanup_blacklist_model_ids)
+            self.cleanup_blacklist_search_text = self._get_model_name(picked_cleanup_blacklist_model_id) or str(picked_cleanup_blacklist_model_id)
+
+        PyImGui.separator()
         self._draw_section_heading("Linked Protection Sources")
         self._draw_secondary_text(
-            "Link a weapon or armor sell rule here to deposit whatever that rule currently hard-protects during cleanup."
+            "Link a weapon or armor sell rule here to deposit whatever that rule currently hard-protects during cleanup. Cleanup blacklist entries still override those deposits."
         )
+        if cleanup_sources:
+            PyImGui.text_colored("Linked protection deposits are active and still respect the cleanup blacklist.", UI_COLOR_INFO)
 
         removed_cleanup_source_id = ""
         if cleanup_sources:
@@ -18382,7 +22403,7 @@ class MerchantRulesWidget:
                     PyImGui.end_table()
             PyImGui.end_child()
         else:
-            self._draw_secondary_text("No linked protection sources yet.")
+            PyImGui.text_colored("No linked protection sources yet.", UI_COLOR_MUTED)
 
         if removed_cleanup_source_id:
             next_sources = [
@@ -18401,7 +22422,7 @@ class MerchantRulesWidget:
             if _normalize_rule_id(getattr(sell_rule, "rule_id", "")) not in linked_source_ids
         ]
         if available_linkable_rules:
-            self._draw_secondary_text("Available weapon and armor sell rules:")
+            PyImGui.text_colored("Available weapon and armor sell rules:", UI_COLOR_INFO)
             if PyImGui.begin_child("merchant_rules_cleanup_linkable_rules", (0, 120), True, PyImGui.WindowFlags.NoFlag):
                 for sell_rule in available_linkable_rules:
                     safe_rule_id = _normalize_rule_id(getattr(sell_rule, "rule_id", ""))
@@ -18416,7 +22437,7 @@ class MerchantRulesWidget:
                     self._draw_secondary_text(f"{rule_label} | {state_suffix}", wrapped=False)
             PyImGui.end_child()
         else:
-            self._draw_secondary_text("No additional weapon or armor sell rules are available to link.")
+            PyImGui.text_colored("No additional weapon or armor sell rules are available to link.", UI_COLOR_MUTED)
 
         PyImGui.separator()
         self._draw_section_heading("Cleanup Preview")
@@ -18549,7 +22570,7 @@ class MerchantRulesWidget:
                 section_changed = True
 
         if not self.sell_rules:
-            self._draw_secondary_text("No sell rules yet. Pick a section above and add the first rule to manage items, materials, weapons, or armor.")
+            self._draw_secondary_text("No sell rules yet. Pick a section above and add the first rule to manage items, materials, weapons, armor, or runes.")
         elif not visible_indices:
             self._draw_secondary_text(f"No {section_label.lower()} sell rules in this section yet.")
 
@@ -18739,7 +22760,7 @@ class MerchantRulesWidget:
                 self._draw_secondary_text("Run Preview to see what Travel + Execute or Execute Here will do.")
             else:
                 self._draw_secondary_text(
-                    f"{direct_count} direct action(s) | {conditional_count} conditional action(s) | {skipped_count} blocked / skipped",
+                    f"{direct_count} ready now | {conditional_count} need live check | {skipped_count} blocked / skipped",
                     wrapped=False,
                 )
                 updated_detailed_preview = PyImGui.checkbox(
@@ -18763,7 +22784,7 @@ class MerchantRulesWidget:
                             self._draw_secondary_text(diff_row)
                 if self._plan_needs_exact_storage_scan(self.preview_plan):
                     exact_scan_message = (
-                        "Storage-aware planning is still partial. Use Open Xunlai for exact storage scan to turn storage-backed shortages into exact withdraw steps and direct Xunlai actions."
+                        "Storage-aware planning is still partial. Use Open Xunlai for an exact storage scan to confirm withdraw steps and make Xunlai actions ready to run."
                         if self._can_use_local_storage_actions()
                         else "Storage-aware planning is still partial. Xunlai counts will stay estimated until Execute reaches an outpost or Guild Hall and can open storage."
                     )
@@ -18774,28 +22795,40 @@ class MerchantRulesWidget:
                     PyImGui.spacing()
                 elif self._plan_has_conditional_cleanup_actions(self.preview_plan):
                     PyImGui.text_colored(
-                        "* Planned Xunlai cleanup steps stay conditional until storage can be opened during Execute.",
+                        "* Planned Xunlai cleanup steps will wait until storage can be opened during Execute.",
                         UI_COLOR_WARNING,
                     )
                     PyImGui.spacing()
                 if conditional_count > 0:
                     PyImGui.text_colored(
-                        "* Conditional entries wait for live merchant, trader, crafter, or Xunlai context. Merchant stock must be offered live, crafter recipes require exact storage checks, and trader buys depend on exact current offers.",
+                        "* Some entries need a live merchant, trader, crafter, or Xunlai check before MR can confirm them.",
                         UI_COLOR_WARNING,
                     )
                     self._draw_secondary_text(
-                        "Conditional means the service can be attempted, but live stock, crafter offers, trader offers, quotes, or Xunlai access still decide the final action."
+                        "MR can try these actions, but current stock, crafter recipes, trader offers, quotes, or Xunlai access still decide the final result."
                     )
-                if self._preview_has_execute_travel_pending():
+                if self.preview_plan.multi_stop_route:
+                    embark_label = self.preview_plan.multi_stop_consumable_outpost_name or self._get_embark_beach_outpost_name()
+                    destination_label = self.preview_plan.multi_stop_destination_outpost_name
+                    route_detail = (
+                        f"* Multi-stop route: Travel to {embark_label}, run Consumable Crafter buys, then travel to {destination_label} for remaining buys, sells, and cleanup."
+                        if destination_label
+                        else f"* Multi-stop route: Travel to {embark_label}, run Consumable Crafter buys, then stop there."
+                    )
+                    PyImGui.text_colored(route_detail, UI_COLOR_INFO)
+                    self._draw_secondary_text(
+                        "Destination rows are rebuilt after travel; green rows can also run here through Execute Here."
+                    )
+                elif self._preview_has_execute_travel_pending():
                     target_label = self.preview_execute_travel_target_outpost_name or "the selected outpost"
                     PyImGui.text_colored(
                         f"* Projected preview assumes Auto Travel reaches {target_label}. Travel + Execute will travel there and rebuild live before running merchant handling.",
                         UI_COLOR_INFO,
                     )
                     self._draw_secondary_text(
-                        "Projected means this row comes from the target plan. Green rows can also run here; yellow rows still need travel or unresolved local service."
+                        "Rows from the target plan are rebuilt after travel. Green rows can also run here; yellow rows still need travel or a service that is not available here."
                     )
-                if conditional_count > 0 or self._preview_has_execute_travel_pending():
+                if conditional_count > 0 or self._preview_has_execute_travel_pending() or self.preview_plan.multi_stop_route:
                     PyImGui.spacing()
                 if actionable_entries:
                     self._draw_preview_entries_table(
@@ -18821,6 +22854,73 @@ class MerchantRulesWidget:
                             availability_here=availability_here,
                         )
         PyImGui.end_child()
+
+    def _draw_manual_vendor_automation_section(self):
+        self._draw_section_heading("Manual Merchant Automation")
+        changed = False
+
+        auto_sell = PyImGui.checkbox(
+            "Auto-sell when I open the right merchant##merchant_rules_manual_vendor_auto_sell",
+            bool(self.auto_sell_on_manual_vendor_interaction),
+        )
+        if auto_sell != bool(self.auto_sell_on_manual_vendor_interaction):
+            self.auto_sell_on_manual_vendor_interaction = bool(auto_sell)
+            changed = True
+
+        auto_buy = PyImGui.checkbox(
+            "Auto-buy when I open the right merchant##merchant_rules_manual_vendor_auto_buy",
+            bool(self.auto_buy_on_manual_vendor_interaction),
+        )
+        if auto_buy != bool(self.auto_buy_on_manual_vendor_interaction):
+            self.auto_buy_on_manual_vendor_interaction = bool(auto_buy)
+            changed = True
+
+        any_merchant = PyImGui.checkbox(
+            "Also sell selected items to any merchant##merchant_rules_manual_vendor_any_merchant",
+            bool(self.auto_sell_to_any_merchant),
+        )
+        if any_merchant != bool(self.auto_sell_to_any_merchant):
+            self.auto_sell_to_any_merchant = bool(any_merchant)
+            changed = True
+
+        if self.auto_sell_to_any_merchant:
+            PyImGui.text_colored("These items may sell for less than they would at a trader.", UI_COLOR_WARNING)
+            normal_items = PyImGui.checkbox(
+                "Normal merchant sell items##merchant_rules_manual_vendor_any_normal",
+                bool(self.auto_sell_any_merchant_normal_items),
+            )
+            if normal_items != bool(self.auto_sell_any_merchant_normal_items):
+                self.auto_sell_any_merchant_normal_items = bool(normal_items)
+                changed = True
+
+            materials = PyImGui.checkbox(
+                "Materials from material trader sell rules##merchant_rules_manual_vendor_any_materials",
+                bool(self.auto_sell_any_merchant_materials),
+            )
+            if materials != bool(self.auto_sell_any_merchant_materials):
+                self.auto_sell_any_merchant_materials = bool(materials)
+                changed = True
+
+            runes = PyImGui.checkbox(
+                "Runes and insignias from rune trader sell rules##merchant_rules_manual_vendor_any_runes",
+                bool(self.auto_sell_any_merchant_runes),
+            )
+            if runes != bool(self.auto_sell_any_merchant_runes):
+                self.auto_sell_any_merchant_runes = bool(runes)
+                changed = True
+
+            PyImGui.text_colored(
+                "Scrolls and other trader items are skipped because MR does not currently have sell rules for them.",
+                UI_COLOR_WARNING,
+            )
+
+        if self.manual_vendor_running:
+            PyImGui.text_colored("Manual merchant automation is running.", UI_COLOR_INFO)
+        elif self.last_manual_vendor_summary:
+            self._draw_secondary_text(self.last_manual_vendor_summary)
+
+        if changed:
+            self._save_profile()
 
     def _draw_overview_actions(self):
         self._draw_section_heading("Actions")
@@ -18855,6 +22955,9 @@ class MerchantRulesWidget:
         )
         if action_hint:
             self._draw_secondary_text(action_hint)
+
+        PyImGui.spacing()
+        self._draw_manual_vendor_automation_section()
 
         if self._can_run_preview_exact_storage_scan():
             PyImGui.begin_disabled(bool(preview_reason))
@@ -19111,7 +23214,15 @@ class MerchantRulesWidget:
 
     def _draw_rules_workspace(self):
         if (
+            self.active_rules_workspace != RULES_WORKSPACE_IDENTIFY
+            and self.active_rules_workspace != RULES_WORKSPACE_CLEANUP
+            and not (self.buy_rules or self.sell_rules or self.destroy_rules)
+            and self._has_enabled_identify_settings()
+        ):
+            self.active_rules_workspace = RULES_WORKSPACE_IDENTIFY
+        if (
             self.active_rules_workspace != RULES_WORKSPACE_CLEANUP
+            and self.active_rules_workspace != RULES_WORKSPACE_IDENTIFY
             and not (self.buy_rules or self.sell_rules or self.destroy_rules)
             and self._has_cleanup_sources()
         ):
@@ -19122,6 +23233,12 @@ class MerchantRulesWidget:
         PyImGui.same_line(0, 8)
         if self._draw_workspace_button("Sell", active=self.active_rules_workspace == RULES_WORKSPACE_SELL, color=UI_COLOR_TAB_ACTIVE):
             self._set_active_rules_workspace(RULES_WORKSPACE_SELL)
+        PyImGui.same_line(0, 8)
+        if self._draw_workspace_button("Identify", active=self.active_rules_workspace == RULES_WORKSPACE_IDENTIFY, color=UI_COLOR_INFO):
+            self._set_active_rules_workspace(RULES_WORKSPACE_IDENTIFY)
+        PyImGui.same_line(0, 8)
+        if self._draw_workspace_button("Salvage", active=self.active_rules_workspace == RULES_WORKSPACE_SALVAGE, color=UI_COLOR_TEAL):
+            self._set_active_rules_workspace(RULES_WORKSPACE_SALVAGE)
         PyImGui.same_line(0, 8)
         if self._draw_workspace_button(CLEANUP_WORKSPACE_LABEL, active=self.active_rules_workspace == RULES_WORKSPACE_CLEANUP, color=UI_COLOR_INFO):
             self._set_active_rules_workspace(RULES_WORKSPACE_CLEANUP)
@@ -19149,6 +23266,10 @@ class MerchantRulesWidget:
                 self._draw_rule_overlap_diagnostics(diagnostics)
                 PyImGui.separator()
             self._draw_sell_rules_section()
+        elif self.active_rules_workspace == RULES_WORKSPACE_IDENTIFY:
+            self._draw_identify_workspace()
+        elif self.active_rules_workspace == RULES_WORKSPACE_SALVAGE:
+            self._draw_salvage_workspace()
         elif self.active_rules_workspace == RULES_WORKSPACE_CLEANUP:
             self._draw_cleanup_workspace()
         elif self.active_rules_workspace == RULES_WORKSPACE_PROTECTIONS:
@@ -19164,6 +23285,8 @@ class MerchantRulesWidget:
         self._tick_runtime()
         floating_button = self._ensure_floating_ui()
         floating_button.draw(self.floating_ui_ini_key)
+        self._handle_floating_icon_right_click(floating_button)
+        self._draw_floating_icon_quick_actions_menu()
         self.show_main_window = bool(floating_button.visible)
         if not self.show_main_window:
             return
@@ -19211,12 +23334,14 @@ def tooltip():
     PyImGui.bullet_text("Preview projects the full post-travel merchant plan without moving the character.")
     PyImGui.bullet_text("Optional auto-travel to a selected outpost before merchant handling.")
     PyImGui.bullet_text("Top-level Overview, Rules, and Profiles workspaces, with live-config recovery under Profiles.")
-    PyImGui.bullet_text("Cleanup / Xunlai is a separate workspace with explicit stash targets, linked protection sources, and optional outpost-entry auto cleanup.")
+    PyImGui.bullet_text("Cleanup / Xunlai is a separate workspace with explicit stash targets, blacklist entries, linked protection sources, and optional outpost-entry auto cleanup.")
     PyImGui.bullet_text("Protections is a central hub over current sell-owned protection entries, with owner state, rule order, and Jump to Rule.")
+    PyImGui.bullet_text("Identify can target exact rarities and optionally run before Execute rebuilds the live merchant plan.")
     PyImGui.bullet_text("Destroy supports Preview -> Execute plus session-only Instant Destroy and Include Protected Items toggles.")
     PyImGui.bullet_text("Leader-driven multibox sync, preview, and execute for selected active accounts.")
     PyImGui.bullet_text("Shared named profiles load locally first, then propagate only through explicit Sync Rules to Selected.")
     PyImGui.bullet_text("Standalone weapon mods, runes, and insignias can route through Rune Trader when found.")
+    PyImGui.bullet_text("Exact rune and insignia sell rules can target selected loose rune names.")
     PyImGui.bullet_text("Uses main-branch merchant routines.")
     PyImGui.end_tooltip()
 

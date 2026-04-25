@@ -530,7 +530,11 @@ class CombatClass:
             if v_target == 0 and not targeting_strict:
                 v_target = get_nearest_enemy()
         elif target_allegiance == Skilltarget.EnemyClustered:
-            v_target = TargetClusteredEnemy(self.get_combat_distance())
+            v_target = TargetClusteredEnemy(
+                self.get_combat_distance(),
+                skill_id=self.skills[slot].skill_id,
+                cluster_radius=Range.Earshot.value,
+            )
             if v_target == 0 and not targeting_strict:
                 v_target = get_nearest_enemy()
         elif target_allegiance == Skilltarget.EnemyAttacking:
@@ -1534,8 +1538,11 @@ class CombatClass:
             
         self.in_casting_routine = True
         self.aftercast = 250
+        skill = self.skills[slot]
+        if skill.custom_skill_data.Nature == SkillNature.Resurrection.value:
+            self.aftercast = 500
 
         self.aftercast_timer.Reset()
-        GLOBAL_CACHE.SkillBar.UseSkill(self.skill_order[slot]+1, target_agent_id)
+        GLOBAL_CACHE.SkillBar.UseSkill(self.skill_order[slot]+1, target_agent_id, aftercast_delay=self.aftercast)
         self.ResetSkillPointer()
         return True

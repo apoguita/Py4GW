@@ -68,13 +68,14 @@ _current_section_header: tuple = ("", 0.0, 0.0)
 _restock_conset: bool = True
 _restock_pcons: bool = True
 _restock_res_scroll: bool = True
+_restock_use_summoning_stones: bool = True
 _loop_queue: bool = False
 _loop_count: int = 0
 _reverse_detections: dict = {}  # {map_name: {"reverse1": [(x,y)], "reverse2": [(x,y)]}}
 _vq_timers: dict = {}        # {vq_idx: {"start": float, "elapsed": float, "done": bool}}
 _bot_start_time: float = 0.0  # time.time() when first VQ starts
 _bot_total_elapsed: float = 0.0  # frozen total when bot stops
-_prev_build_settings: tuple = (True, True, True, True, False, 2500, 3500, 5000)
+_prev_build_settings: tuple = (True, True, True, True, True, False, 2500, 3500, 5000)
 _aggro_range_forward: int = 2500
 _aggro_range_reverse1: int = 3500
 _aggro_range_reverse2: int = 5000
@@ -402,6 +403,8 @@ def bot_routine(bot: Botting) -> None:
             bot.Multibox.RestockAllPcons(10)
         if _restock_res_scroll:
             bot.Multibox.RestockResurrectionScroll(25)
+        if _restock_use_summoning_stones:
+            bot.Multibox.RestockSummoningStones(10)
         bot.Multibox.WithdrawGold()
 
         # -- Travel to explorable --
@@ -446,9 +449,10 @@ def bot_routine(bot: Botting) -> None:
         if _restock_conset:
             bot.States.AddManagedCoroutine("ConsetUpkeep", lambda: _conset_upkeep(bot))
         if _restock_pcons:
-            bot.States.AddManagedCoroutine("PconsUpkeep", lambda: _pcons_upkeep(bot))
-        target_header = _completed_header_names[vq_idx]
-        bot.States.AddManagedCoroutine("VanquishWatchdog", lambda h=target_header: VanquishWatchdog(bot, h))
+            bot.States.AddManagedCoroutine("PconsUpkeep",
+                lambda: _pcons_upkeep(bot))
+        if _restock_use_summoning_stones:
+            bot.Multibox.UseSummoningStone()
         _register_aggro_path(bot, vq.vanquish_path,
                              header_name=f"VanquishPath_{vq_idx}",
                              detection_radius=float(_aggro_range_forward),
@@ -858,7 +862,7 @@ def _draw_settings():
     #_draw_settings_debug()
 
 def _draw_settings_consumables():
-    global _loop_queue, _restock_pcons, _restock_res_scroll
+    global _loop_queue, _restock_pcons, _restock_res_scroll, _restock_use_summoning_stones
     global _queue_version, _prev_build_settings
 
     PyImGui.separator()
@@ -874,6 +878,7 @@ def _draw_settings_consumables():
     bot.Properties.ApplyNow("honeycomb", "active", use_honeycomb)
 
     _restock_res_scroll = PyImGui.checkbox("Restock Resurrection Scroll (Multibox)", _restock_res_scroll)
+    _restock_use_summoning_stones = PyImGui.checkbox("Restock & use Summoning Stones (Multibox)", _restock_use_summoning_stones)
 
     PyImGui.separator()
     PyImGui.text("Aggro Range Settings")
@@ -893,7 +898,7 @@ def _draw_settings_consumables():
         PyImGui.text(f"(loop #{_loop_count})")
 
     # Rebuild FSM if any build-time setting changed
-    current_build_settings = (_restock_conset, _restock_pcons, use_honeycomb, _restock_res_scroll, _loop_queue, _aggro_range_forward, _aggro_range_reverse1, _aggro_range_reverse2)
+    current_build_settings = (_restock_conset, _restock_pcons, use_honeycomb, _restock_res_scroll, _restock_use_summoning_stones, _loop_queue, _aggro_range_forward, _aggro_range_reverse1, _aggro_range_reverse2)
     if current_build_settings != _prev_build_settings:
         _prev_build_settings = current_build_settings
         _queue_version += 1
