@@ -44,12 +44,16 @@
     },
     "merchant_items": {
         "essentials": [
-            {"model_id": 2989, "name": "Identification Kit", "item_type": "kit", "default_target": 1},
-            {"model_id": 5899, "name": "Superior Identification Kit", "item_type": "kit", "default_target": 1},
+            {"model_id": 918, "name": "Vial of Dye [Gray]", "item_type": "dye", "default_target": 0},
             {"model_id": 2992, "name": "Salvage Kit", "item_type": "kit", "default_target": 2},
             {"model_id": 2991, "name": "Expert Salvage Kit", "item_type": "kit", "default_target": 1},
             {"model_id": 5900, "name": "Superior Salvage Kit", "item_type": "kit", "default_target": 0},
-            {"model_id": 22281, "name": "Perfect Salvage Kit", "item_type": "kit", "default_target": 0},
+            {"model_id": 2989, "name": "Identification Kit", "item_type": "kit", "default_target": 1},
+            {"model_id": 5899, "name": "Superior Identification Kit", "item_type": "kit", "default_target": 1},
+            {"model_id": 34, "name": "Belt Pouch", "item_type": "bag", "default_target": 1},
+            {"model_id": 35, "name": "Bag", "item_type": "bag", "default_target": 1},
+            {"model_id": 2988, "name": "Rune of Holding", "item_type": "kit", "default_target": 1},
+            {"model_id": 31221, "name": "Small Equipment Pack", "item_type": "bag", "default_target": 1},
             {"model_id": 22751, "name": "Lockpick", "item_type": "key", "default_target": 10}
         ]
     }

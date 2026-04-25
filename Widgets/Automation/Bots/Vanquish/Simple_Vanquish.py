@@ -5,6 +5,9 @@ import os
 import PyImGui
 import importlib.util
 import time
+import random
+from Py4GWCoreLib.enums_src.Region_enums import District
+
 projects_base_path = Py4GW.Console.get_projects_path()
 ac_folder_path = os.path.join(projects_base_path, "Sources", "aC_Scripts")
 from Sources.aC_Scripts.aC_api import *
@@ -26,6 +29,16 @@ bot = Botting(BotSettings.BOT_NAME,
               upkeep_auto_loot_active=True,
               upkeep_honeycomb_active=True,
               config_draw_path=True)
+
+_RANDOM_DISTRICTS = [
+    District.EuropeItalian.value,
+    District.EuropeSpanish.value,
+    District.EuropePolish.value,
+    District.EuropeRussian.value,
+    District.AsiaKorean.value,
+    District.AsiaChinese.value,
+    District.AsiaJapanese.value,
+]
 
 # =============================================================================
 # region VANQUISH QUEUE DATA
@@ -163,9 +176,7 @@ def _handle_keyword(bot, key, value):
         bot.Move.FollowAutoPath(value)
 
 
-def _register_aggro_path(bot, path, header_name=None,
-                        detection_radius=2500.0, clear_radius=2500.0,
-                        on_enemy_detected=None):
+def _register_aggro_path(bot, path, header_name=None, detection_radius=2500.0, clear_radius=2500.0, on_enemy_detected=None):
     """Register FSM states for an aggro path (movement + enemy engagement).
 
     Supports the same 3 formats as _register_path. For dict/tuple segments
@@ -182,8 +193,7 @@ def _register_aggro_path(bot, path, header_name=None,
 
     def _handle_aggro_keyword(key, value):
         if key == "path":
-            bot.Move.FollowAutoPathAggro(value, detection_radius, clear_radius,
-                                         on_enemy_detected=on_enemy_detected)
+            bot.Move.FollowAutoPathAggro(value, detection_radius, clear_radius, on_enemy_detected=on_enemy_detected)
         else:
             _handle_keyword(bot, key, value)
 
@@ -198,9 +208,7 @@ def _register_aggro_path(bot, path, header_name=None,
                 _handle_aggro_keyword(key, value)
 
     else:
-        bot.Move.FollowAutoPathAggro(path, detection_radius, clear_radius,
-                                     on_enemy_detected=on_enemy_detected)
-
+        bot.Move.FollowAutoPathAggro(path, detection_radius, clear_radius, on_enemy_detected=on_enemy_detected)
 
 
 def _get_first_path_coord(path):
@@ -269,6 +277,7 @@ def _build_reversed_path(vanquish_path):
 
 
 def VanquishWatchdog(bot: "Botting", completed_header_name: str):
+    ConsoleLog("VanquishWatchdog", "Vanquish Watchdog Coroutine Started", Py4GW.Console.MessageType.Debug, True)
     while True:
         if Map.IsVanquishCompleted():
             ConsoleLog("VanquishWatchdog", f"Vanquish trigger activated. Jumping to: {completed_header_name}", Py4GW.Console.MessageType.Debug, True)
@@ -382,8 +391,7 @@ def bot_routine(bot: Botting) -> None:
                 _bot_total_elapsed = 0.0
             bot.Events.OnPartyWipeCallback(lambda: OnPartyWipe(bot))
             yield
-        bot.States.AddCustomState(lambda idx=vq_idx: _set_current_index(idx),
-                                  f"SetVQIndex_{vq_idx}")
+        bot.States.AddCustomState(lambda idx=vq_idx: _set_current_index(idx), f"SetVQIndex_{vq_idx}")
 
         # -- Prepare for farm --
         bot.Templates.Routines.PrepareForFarm(map_id_to_travel=vq.outpost_id)
@@ -411,45 +419,35 @@ def bot_routine(bot: Botting) -> None:
                 for i in range(transit_count):
                     next_map = vq.transit_explorables[i + 1] if i + 1 < transit_count else vq.explorable_id
                     t_coord = _get_first_path_coord(vq.transit_paths[i])
-                    bot.States.AddCustomState(lambda vi=vq_idx, si=section_idx, tc=t_coord: _set_section_header(_section_headers[vi][si], tc[0], tc[1]),
-                                              f"SetSection_Transit_{vq_idx}_{i}")
+                    bot.States.AddCustomState(lambda vi=vq_idx, si=section_idx, tc=t_coord: _set_section_header(_section_headers[vi][si], tc[0], tc[1]), f"SetSection_Transit_{vq_idx}_{i}")
+                    bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Navigating Transit path.")
+                    bot.config.FSM.RemoveManagedCoroutine("ConsetUpkeep")
+                    bot.config.FSM.RemoveManagedCoroutine("PconsUpkeep")
                     if _restock_conset:
-                        bot.States.AddManagedCoroutine("ConsetUpkeep",
-                            lambda: _conset_upkeep(bot))
+                        bot.States.AddManagedCoroutine("ConsetUpkeep", lambda: _conset_upkeep(bot))
                     if _restock_pcons:
-                        bot.States.AddManagedCoroutine("PconsUpkeep",
-                            lambda: _pcons_upkeep(bot))
+                        bot.States.AddManagedCoroutine("PconsUpkeep", lambda: _pcons_upkeep(bot))
                     _register_path(bot, vq.transit_paths[i], header_name=f"Transit_{vq_idx}_{i}")
                     bot.Wait.ForMapToChange(next_map)
                     section_idx += 1
             else:
                 bot.Move.FollowPathAndExitMap(vq.outpost_path, target_map_id=vq.explorable_id)
         elif not has_outpost_path and not has_explorable:
-            bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"No outpost exit path. Executing transit paths from outpost.")
+            bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"No outpost exit path. Starting Vanquish from outpost.")
             for i in range(transit_count):
                 t_coord = _get_first_path_coord(vq.transit_paths[i])
-                bot.States.AddCustomState(lambda vi=vq_idx, si=section_idx, tc=t_coord: _set_section_header(_section_headers[vi][si], tc[0], tc[1]),
-                                          f"SetSection_Transit_{vq_idx}_{i}")
+                bot.States.AddCustomState(lambda vi=vq_idx, si=section_idx, tc=t_coord: _set_section_header(_section_headers[vi][si], tc[0], tc[1]), f"SetSection_Transit_{vq_idx}_{i}")
                 _register_path(bot, vq.transit_paths[i], header_name=f"Transit_{vq_idx}_{i}")
                 section_idx += 1
-        elif has_outpost_path and not has_explorable:
-            bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Following outpost path, then transit paths.")
-            if transit_count > 0:
-                _register_path(bot, vq.outpost_path)
-                for i in range(transit_count):
-                    _register_path(bot, vq.transit_paths[i], header_name=f"Transit_{vq_idx}_{i}")
-                    section_idx += 1
-            else:
-                _register_path(bot, vq.outpost_path)
 
         # -- Vanquish Path (Aggro: detect=2500, clear=2500) --
         bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Starting Vanquish (Aggro): {vq.display}")
         vp_coord = _get_first_path_coord(vq.vanquish_path)
-        bot.States.AddCustomState(lambda vi=vq_idx, si=section_idx, vc=vp_coord: _set_section_header(_section_headers[vi][si], vc[0], vc[1]),
-                                  f"SetSection_VanquishPath_{vq_idx}")
+        bot.States.AddCustomState(lambda vi=vq_idx, si=section_idx, vc=vp_coord: _set_section_header(_section_headers[vi][si], vc[0], vc[1]), f"SetSection_VanquishPath_{vq_idx}")
+        bot.config.FSM.RemoveManagedCoroutine("ConsetUpkeep")
+        bot.config.FSM.RemoveManagedCoroutine("PconsUpkeep")
         if _restock_conset:
-            bot.States.AddManagedCoroutine("ConsetUpkeep",
-                lambda: _conset_upkeep(bot))
+            bot.States.AddManagedCoroutine("ConsetUpkeep", lambda: _conset_upkeep(bot))
         if _restock_pcons:
             bot.States.AddManagedCoroutine("PconsUpkeep",
                 lambda: _pcons_upkeep(bot))
@@ -459,9 +457,6 @@ def bot_routine(bot: Botting) -> None:
                              header_name=f"VanquishPath_{vq_idx}",
                              detection_radius=float(_aggro_range_forward),
                              clear_radius=float(_aggro_range_forward))
-        target_header = _completed_header_names[vq_idx]
-        bot.States.AddManagedCoroutine("VanquishWatchdog",
-            lambda h=target_header: VanquishWatchdog(bot, h))
         bot.Wait.UntilOutOfCombat()
         section_idx += 1
 
@@ -469,8 +464,7 @@ def bot_routine(bot: Botting) -> None:
         bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Starting Reverse Aggro Path 1 (range={_aggro_range_reverse1}).")
         reversed_path = _build_reversed_path(vq.vanquish_path)
         rp_coord = _get_first_path_coord(reversed_path)
-        bot.States.AddCustomState(lambda vi=vq_idx, si=section_idx, rc=rp_coord: _set_section_header(_section_headers[vi][si], rc[0], rc[1]),
-                                  f"SetSection_ReverseAggro1_{vq_idx}")
+        bot.States.AddCustomState(lambda vi=vq_idx, si=section_idx, rc=rp_coord: _set_section_header(_section_headers[vi][si], rc[0], rc[1]), f"SetSection_ReverseAggro1_{vq_idx}")
         def _log_reverse1(x, y, mn=vq.map_name):
             _reverse_detections.setdefault(mn, {}).setdefault("reverse1", []).append((round(x), round(y)))
         _register_aggro_path(bot, reversed_path,
@@ -485,8 +479,7 @@ def bot_routine(bot: Botting) -> None:
         bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Starting Reverse Aggro Path 2 (range={_aggro_range_reverse2}).")
         reversed_path = _build_reversed_path(vq.vanquish_path)
         rp5_coord = _get_first_path_coord(reversed_path)
-        bot.States.AddCustomState(lambda vi=vq_idx, si=section_idx, rc=rp5_coord: _set_section_header(_section_headers[vi][si], rc[0], rc[1]),
-                                  f"SetSection_ReverseAggro2_{vq_idx}")
+        bot.States.AddCustomState(lambda vi=vq_idx, si=section_idx, rc=rp5_coord: _set_section_header(_section_headers[vi][si], rc[0], rc[1]), f"SetSection_ReverseAggro2_{vq_idx}")
         def _log_reverse2(x, y, mn=vq.map_name):
             _reverse_detections.setdefault(mn, {}).setdefault("reverse2", []).append((round(x), round(y)))
         _register_aggro_path(bot, reversed_path,
@@ -516,8 +509,7 @@ def bot_routine(bot: Botting) -> None:
                 bot.Multibox.ResignParty()
                 bot.Wait.ForTime(1000)
                 bot.Wait.UntilOnOutpost()
-                bot.States.AddCustomState(lambda h=first_vq_header: _do_loop_jump(bot, h),
-                                          f"DoLoopJump")
+                bot.States.AddCustomState(lambda h=first_vq_header: _do_loop_jump(bot, h), f"DoLoopJump")
         else:
             bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Vanquish SUCCESS: {vq.display}. Moving to next Vanquish.")
             bot.Multibox.ResignParty()
@@ -571,9 +563,7 @@ def _do_loop_jump(bot: "Botting", first_vq_header: str):
     """CustomState coroutine: increment loop count and jump back to first vanquish."""
     global _loop_count
     _loop_count += 1
-    ConsoleLog(BotSettings.BOT_NAME,
-               f"Back at outpost. Starting loop #{_loop_count}. Jumping to: {first_vq_header}",
-               Py4GW.Console.MessageType.Info, True)
+    ConsoleLog(BotSettings.BOT_NAME, f"Back at outpost. Starting loop #{_loop_count}. Jumping to: {first_vq_header}", Py4GW.Console.MessageType.Info, True)
     if bot.config.FSM.current_state:
         bot.config.FSM.current_state.reset()
     bot.config.FSM.jump_to_state_by_name(first_vq_header)
@@ -583,22 +573,21 @@ def _do_loop_jump(bot: "Botting", first_vq_header: str):
 # region EVENTS
 def _conset_upkeep(bot):
     """Background coroutine: applies conset immediately, then re-checks every 30s."""
+    ConsoleLog("ConsetUpkeep", "Conset Upkeep Coroutine Started", Py4GW.Console.MessageType.Debug, True)
     while True:
         if not _restock_conset or Map.IsOutpost():
             yield from Routines.Yield.wait(30000)
             continue
-        essence_params = (ModelID.Essence_Of_Celerity.value,
-                          GLOBAL_CACHE.Skill.GetID("Essence_of_Celerity_item_effect"), 0, 0)
-        grail_params = (ModelID.Grail_Of_Might.value,
-                        GLOBAL_CACHE.Skill.GetID("Grail_of_Might_item_effect"), 0, 0)
-        armor_params = (ModelID.Armor_Of_Salvation.value,
-                        GLOBAL_CACHE.Skill.GetID("Armor_of_Salvation_item_effect"), 0, 0)
+        essence_params = (ModelID.Essence_Of_Celerity.value, GLOBAL_CACHE.Skill.GetID("Essence_of_Celerity_item_effect"), 0, 0)
+        grail_params = (ModelID.Grail_Of_Might.value, GLOBAL_CACHE.Skill.GetID("Grail_of_Might_item_effect"), 0, 0)
+        armor_params = (ModelID.Armor_Of_Salvation.value, GLOBAL_CACHE.Skill.GetID("Armor_of_Salvation_item_effect"), 0, 0)
         for params in (essence_params, grail_params, armor_params):
             yield from bot.helpers.Multibox._use_consumable_message(params)
         yield from Routines.Yield.wait(30000)
 
 def _pcons_upkeep(bot):
     """Background coroutine: applies pcons immediately, then re-checks every 30s."""
+    ConsoleLog("PconsUpkeep", "Pcons Upkeep Coroutine Started", Py4GW.Console.MessageType.Debug, True)
     while True:
         if not _restock_pcons or Map.IsOutpost():
             yield from Routines.Yield.wait(30000)
@@ -661,15 +650,12 @@ def _on_party_wipe(bot: "Botting"):
 
     # Re-register managed coroutines if needed
     if _restock_conset:
-        bot.config.FSM.AddManagedCoroutine("ConsetUpkeep",
-            lambda: _conset_upkeep(bot))
+        bot.config.FSM.AddManagedCoroutine("ConsetUpkeep", lambda: _conset_upkeep(bot))
     if _restock_pcons:
-        bot.config.FSM.AddManagedCoroutine("PconsUpkeep",
-            lambda: _pcons_upkeep(bot))
+        bot.config.FSM.AddManagedCoroutine("PconsUpkeep", lambda: _pcons_upkeep(bot))
 
     # Jump to the current section header to re-execute the section path
-    ConsoleLog("on_party_wipe",
-               f"Jumping to section: {section_header}")
+    ConsoleLog("on_party_wipe", f"Jumping to section: {section_header}")
     if bot.config.FSM.current_state:
         bot.config.FSM.current_state.reset()
     bot.config.FSM.jump_to_state_by_name(section_header)
@@ -682,8 +668,7 @@ def OnPartyWipe(bot: "Botting"):
     # Reset current state to detach any SelfManagedYieldState coroutine
     if fsm.current_state:
         fsm.current_state.reset()
-    if not fsm.is_paused():
-        fsm.pause()
+    fsm.pause()
     fsm.RemoveManagedCoroutine("ConsetUpkeep")
     fsm.RemoveManagedCoroutine("PconsUpkeep")
     fsm.AddManagedCoroutine("OnWipe_OPD", lambda: _on_party_wipe(bot))
@@ -868,7 +853,7 @@ def _draw_settings():
     PyImGui.separator()
     if Map.GetMapID() != 857:
         if PyImGui.button("Travel to Embark Beach", 250, 30):
-            Map.Travel(857)
+            Map.TravelToDistrict(857, random.choice(_RANDOM_DISTRICTS))
     else:
         if PyImGui.button("Move to Vanquish signpost", 250, 30):
             Player.Move(-428.00, -3439.00)
