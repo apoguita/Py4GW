@@ -54,9 +54,18 @@ class IllusionMagic:
     #endregion
 
     #region S
-    def Signet_of_Clumsiness(self) -> BuildCoroutine:
+    def Signet_of_Clumsiness(
+        self,
+        *,
+        energy_threshold_pct: float = 1.0,
+    ) -> BuildCoroutine:
+        from Py4GWCoreLib import Agent, Player
+
         signet_of_clumsiness_id: int = Skill.GetID("Signet_of_Clumsiness")
         if not self.build.IsSkillEquipped(signet_of_clumsiness_id):
+            return False
+
+        if Agent.GetEnergy(Player.GetAgentID()) > energy_threshold_pct:
             return False
 
         # Signet of Clumsiness only interrupts and deals damage when the

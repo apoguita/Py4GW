@@ -26,12 +26,12 @@ class HolyInept(BuildMgr):
                 Ineptitude_ID,
                 Wandering_Eye_ID,
                 Arcane_Conundrum_ID,
-                Ebon_Vanguard_Assassin_Support_ID,
+                Judges_Insight_ID,
             ],
             optional_skills=[
                 Air_of_Superiority_ID,
                 Ebon_Battle_Standard_of_Wisdom_ID,
-                Judges_Insight_ID,
+                Ebon_Vanguard_Assassin_Support_ID,
                 Signet_of_Clumsiness_ID,
                 Power_Drain_ID
             ],
