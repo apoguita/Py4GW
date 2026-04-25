@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 from dataclasses import dataclass, field
 from Py4GWCoreLib.enums_src.GameData_enums import Ailment, Attribute, AttributeNames, DamageType, Profession, Reduced_Ailment
 from Py4GWCoreLib.enums_src.Item_enums import ItemType, Rarity
@@ -9,7 +9,7 @@ from Py4GWCoreLib.native_src.internals.encoded_strings import GWStringEncoded, G
 PERSISTENT = True
 
 if TYPE_CHECKING:
-    from Py4GWCoreLib.item_mods_src.upgrades import Inherent, Upgrade
+    from Py4GWCoreLib.item_mods_src.upgrades import Upgrade
 
 @dataclass
 class ItemProperty:
@@ -20,7 +20,7 @@ class ItemProperty:
         self.__encoded_description = self.create_encoded_description()
         
     def create_encoded_description(self) -> GWStringEncoded:
-        return GWStringEncoded(bytes(), f"No description available... ({self.__class__.__name__})")
+        return GWStringEncoded(bytes(), f"Unspecified Item Property.\nIdentifier: {self.modifier.identifier.name} (Id: {self.modifier.identifier}) | Arg1: {self.modifier.arg1} | Arg2: {self.modifier.arg2} | Arg: {self.modifier.arg} | Upgrade Id: {self.modifier.upgrade_id}")
     
     def get_text_color(self) -> bytes:
         match self.rarity:
@@ -50,7 +50,12 @@ class ItemProperty:
     @property
     def plain_description(self) -> str:        
         return self.__encoded_description.plain
-    
+
+@dataclass
+class EmptyProperty(ItemProperty):    
+    def create_encoded_description(self) -> GWStringEncoded:
+        return GWStringEncoded(bytes(), f"Empty Property.\nIdentifier: {self.modifier.identifier.name} (Id: {self.modifier.identifier}) | Arg1: {self.modifier.arg1} | Arg2: {self.modifier.arg2} | Arg: {self.modifier.arg} | Upgrade Id: {self.modifier.upgrade_id}")
+
 @dataclass
 class ArmorProperty(ItemProperty):
     armor: int
@@ -60,7 +65,7 @@ class ArmorProperty(ItemProperty):
         return GWStringEncoded(encoded_bytes, f"Armor: {self.armor}")
     
 @dataclass
-class ArmorEnergyRegen(ItemProperty):
+class EnergyRecovery(ItemProperty):
     energy_regen: int
 
     def create_encoded_description(self) -> GWStringEncoded:
@@ -77,19 +82,19 @@ class ArmorMinusAttacking(ItemProperty):
     
 @dataclass
 class ArmorPenetration(ItemProperty):
-    armor_pen: int
+    armor_penetration: int
     chance: int
 
     def create_encoded_description(self) -> GWStringEncoded:
         encoded = bytes([
             *self.get_text_color(),
-            *GWEncoded.PLUS_PERCENT_TEMPLATE, 0x45, 0xA, 0x1, 0x0, 0x1, 0x1, self.armor_pen, 0x1, 0x1, 0x0,
+            *GWEncoded.PLUS_PERCENT_TEMPLATE, 0x45, 0xA, 0x1, 0x0, 0x1, 0x1, self.armor_penetration, 0x1, 0x1, 0x0,
             *GWEncoded.ITEM_DULL,
             *GWEncoded.PARENTHESIS_STR1,
             *GWEncoded.CHANCE_TEMPLATE, 0x48, 0xA, 0x1, 0x0, 0x1, 0x1, self.chance, 0x1, 0x1, 0x0, 0x1, 0x0,
             0x1, 0x0
         ])
-        return GWStringEncoded(encoded, f"Armor penetration +{self.armor_pen}% (Chance: {self.chance}%)")
+        return GWStringEncoded(encoded, f"Armor penetration +{self.armor_penetration}% (Chance: {self.chance}%)")
     
 @dataclass
 class ArmorPlus(ItemProperty):
@@ -431,12 +436,12 @@ class HealthRegeneneration(ItemProperty):
 
 @dataclass
 class HealthMinus(ItemProperty):
-    health: int
+    health_reduction: int
 
     encoded_string = GWEncoded.HEALTH_MINUS_75
 
     def create_encoded_description(self) -> GWStringEncoded:
-        return GWEncoded._bonus_minus_num(self.get_text_color(), GWEncoded.HEALTH_BYTES, self.health, "Health")
+        return GWEncoded._bonus_minus_num(self.get_text_color(), GWEncoded.HEALTH_BYTES, self.health_reduction, "Health")
 
 @dataclass
 class HealthPlus(ItemProperty):
@@ -521,7 +526,7 @@ class OfTheProfession(ItemProperty):
     profession: Profession
 
     def create_encoded_description(self) -> GWStringEncoded:
-        encoded_bytes = bytes([*self.get_text_color(), 0x86, 0xA, 0xA, 0x1, *GWEncoded.ATTRIBUTE_NAMES.get(self.attribute, bytes()), 0x1, 0x0, 0x1, 0x1, 0x5, 0x1, 0x1, 0x0, 0x2, 0x0, 0x3E, 0xA, 0xA, 0x1, 0xA8, 0xA, 0xA, 0x1, 0x2, 0x81, 0xA8, 0x38, 0x1, 0x0])
+        encoded_bytes = bytes([*self.get_text_color(), 0x86, 0xA, 0xA, 0x1, *GWEncoded.ATTRIBUTE_NAMES.get(self.attribute, bytes()), 0x1, 0x0, 0x1, 0x1, self.attribute_level, 0x1, 0x1, 0x0, 0x2, 0x0, 0x3E, 0xA, 0xA, 0x1, 0xA8, 0xA, 0xA, 0x1, 0x2, 0x81, 0xA8, 0x38, 0x1, 0x0])
         return GWStringEncoded(encoded_bytes, f"{AttributeNames.get(self.attribute)}: {self.attribute_level} (if your rank is lower. No effect in PvP.)")
 
 @dataclass
@@ -645,7 +650,8 @@ class UnknownUpgradeProperty(ItemProperty):
     upgrade_id: ItemUpgradeId
     
     def create_encoded_description(self) -> GWStringEncoded:
-        return GWStringEncoded(bytes(), f"Unknown Upgrade (ID {self.upgrade_id})")
+        return GWStringEncoded(bytes(), f"Unknown (ID {self.upgrade_id})'\nIdentifier: {self.modifier.identifier.name} (Id: {self.modifier.identifier}) | Arg1: {self.modifier.arg1} | Arg2: {self.modifier.arg2} | Arg: {self.modifier.arg} | Upgrade Id: {self.modifier.upgrade_id.name} ({self.modifier.upgrade_id})")
+
 
 @dataclass
 class InscriptionProperty(ItemProperty):    
@@ -661,7 +667,7 @@ class UpgradeRuneProperty(ItemProperty):
     upgrade: "Upgrade"
 
     def create_encoded_description(self) -> GWStringEncoded:
-        return GWStringEncoded(bytes(), f"RUNE\n{self.upgrade.name if self.upgrade else f'Unknown (ID {self.upgrade_id})'}\n{self.upgrade.description if self.upgrade else ''}\n")
+        return GWStringEncoded(bytes(), f"{self.upgrade.name if self.upgrade else f'Unknown (ID {self.upgrade_id})'}\n{self.upgrade.description if self.upgrade else ''}\n")
     
 @dataclass
 class AppliesToRuneProperty(ItemProperty):    
@@ -672,8 +678,9 @@ class AppliesToRuneProperty(ItemProperty):
         return GWStringEncoded(bytes(), f"{self.upgrade.name if self.upgrade else f'Unknown (ID {self.upgrade_id})'}")
 
 @dataclass
-class TooltipProperty(ItemProperty):
-    pass
+class TooltipProperty(ItemProperty):    
+    def create_encoded_description(self) -> GWStringEncoded:
+        return GWStringEncoded(bytes(), f"Tooltip related property. We don't know yet exactly what this does.\nIdentifier: {self.modifier.identifier.name} (Id: {self.modifier.identifier}) | Arg1: {self.modifier.arg1} | Arg2: {self.modifier.arg2} | Arg: {self.modifier.arg} | Upgrade Id: {self.modifier.upgrade_id}")
 
 @dataclass
 class TargetItemTypeProperty(ItemProperty):

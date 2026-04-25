@@ -522,7 +522,7 @@ def _run_exchange(exchange: CollectorExchange):
         give_ids, give_qtys = _build_turn_in(stacks, exchange.exchange_rate)
         if not give_ids:
             break
-        GLOBAL_CACHE.Trading.Collector.ExghangeItem(receive_item_id, 0, give_ids, give_qtys)
+        GLOBAL_CACHE.Trading.Collector.ExchangeItem(receive_item_id, 0, give_ids, give_qtys)
         elapsed = 0
         while not GLOBAL_CACHE.Trading.IsTransactionComplete() and elapsed < _TRANSACTION_TIMEOUT_MS:
             yield from Routines.Yield.wait(100)

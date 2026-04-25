@@ -79,7 +79,7 @@ def _exchange_orders():
         if not give_ids:
             break   # not enough orders remaining across all stacks
 
-        GLOBAL_CACHE.Trading.Collector.ExghangeItem(
+        GLOBAL_CACHE.Trading.Collector.ExchangeItem(
             war_supply_item_id, 0,
             give_ids, give_qtys
         )
