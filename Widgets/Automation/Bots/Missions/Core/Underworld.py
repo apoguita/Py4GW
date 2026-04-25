@@ -31,7 +31,8 @@ from Py4GWCoreLib import Botting, Routines, Agent, AgentArray, Player, Utils, Au
 from Py4GWCoreLib.enums_src.Model_enums import ModelID
 from Py4GWCoreLib.enums_src.Map_enums import name_to_map_id
 from Py4GWCoreLib.enums_src.Multiboxing_enums import SharedCommandType
-from Sources.oazix.CustomBehaviors.primitives.behavior_state import BehaviorState
+class BehaviorState:
+    CLOSE_TO_AGGRO = "close_to_aggro"
 
 # ╔══════════════════════════════════════════════════════════════════
 # ║                     POSSIBLE IMPROVEMENTS                        
@@ -257,23 +258,17 @@ DEFAULT_UW_ENTRYPOINT_KEY = "embark_beach"
 
 # ── Combat adapter (Strategy Pattern) ────────────────────────────────────────
 # _get_adapter() returns the right singleton based on BotSettings.BotMode.
-# CB mode (default): UWCBAdapter — uses CustomBehaviors shared-memory flags.
-# HeroAI mode:       UWHeroAIAdapter — drives native GW flags + HeroAI options.
-_cb_adapter_instance = None
+# HeroAI mode: UWHeroAIAdapter drives native GW flags + HeroAI options.
 _heroai_adapter_instance = None
 
 
 def _get_adapter():
-    global _cb_adapter_instance, _heroai_adapter_instance
-    if BotSettings.BotMode == "heroai":
-        if _heroai_adapter_instance is None:
-            from Sources.sch0l0ka.adapter.uw_heroai_adapter import UWHeroAIAdapter
-            _heroai_adapter_instance = UWHeroAIAdapter(BOT_NAME)
-        return _heroai_adapter_instance
-    if _cb_adapter_instance is None:
-        from Sources.sch0l0ka.adapter.uw_cb_adapter import UWCBAdapter
-        _cb_adapter_instance = UWCBAdapter(BOT_NAME)
-    return _cb_adapter_instance
+    global _heroai_adapter_instance
+    BotSettings.BotMode = "heroai"
+    if _heroai_adapter_instance is None:
+        from Sources.sch0l0ka.adapter.uw_heroai_adapter import UWHeroAIAdapter
+        _heroai_adapter_instance = UWHeroAIAdapter(BOT_NAME)
+    return _heroai_adapter_instance
 
 
 def _uw_aggressive(b: Botting, **kwargs) -> None:
@@ -407,7 +402,7 @@ class BotSettings:
     Repeat:    bool = bool(_ini.read_bool(BOT_NAME, "quest_repeat",    False))
     UseCons:   bool = bool(_ini.read_bool(BOT_NAME, "quest_use_cons",  True))
     HardMode:  bool = bool(_ini.read_bool(BOT_NAME, "quest_hardmode",  False))
-    BotMode:   str  = str(_ini.read_key(BOT_NAME,  "quest_bot_mode",  "custom_behavior") or "custom_behavior")
+    BotMode:   str  = "heroai"
 
     @classmethod
     def save(cls) -> None:
@@ -1021,18 +1016,7 @@ def _coro_dhuum_spirit_form_watchdog(bot: Botting):
     _last_sync_log_at: dict[str, float] = {}
 
     def _read_current_flag_pos(email: str) -> tuple[float, float] | None:
-        """Read the current CB flag position for *email* from shared memory."""
-        try:
-            from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
-            mgr = CustomBehaviorParty().party_flagging_manager
-            for i in range(12):
-                if mgr.get_flag_account_email(i).lower() == email.lower():
-                    pos = mgr.get_flag_position(i)
-                    if pos != (0.0, 0.0):
-                        return pos
-                    return None
-        except Exception:
-            pass
+        """Legacy flag reads are unavailable after legacy combat removal."""
         return None
 
     while True:
@@ -1236,7 +1220,7 @@ def bot_routine(bot: Botting):
     bot.Events.OnPartyWipeCallback(lambda: OnPartyWipe(bot))
     _get_adapter().set_blessing_enabled(True)
     _get_adapter().setup(bot)
-    # __reset_botting_behavior (called inside setup via UseCustomBehavior) queues
+    # Startup setup queues
     # Disable("auto_inventory_management"). Re-enable it immediately after so
     # the upkeep coroutine stays active for the entire run.
     bot.Properties.Enable("auto_inventory_management")
@@ -2821,11 +2805,8 @@ def _draw_quest_settings():
     BotSettings.HardMode = PyImGui.checkbox("Hard Mode", BotSettings.HardMode)
     PyImGui.separator()
     PyImGui.text("Bot Mode:")
-    mode_idx = 0 if BotSettings.BotMode == "custom_behavior" else 1
-    new_mode_idx = PyImGui.radio_button("Custom Behavior##botmode", mode_idx, 0)
-    PyImGui.same_line(0, -1)
-    new_mode_idx = PyImGui.radio_button("HeroAI##botmode", new_mode_idx, 1)
-    new_mode = "custom_behavior" if new_mode_idx == 0 else "heroai"
+    new_mode = "heroai"
+    PyImGui.text("HeroAI")
     # When the bot mode changes, force a full re-initialization so the next
     # Start press rebuilds the FSM with the correct adapter's startup states.
     if new_mode != BotSettings.BotMode:

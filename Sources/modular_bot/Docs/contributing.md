@@ -15,7 +15,7 @@ File: `Sources/modular_bot/tools/test_modular_blocks.py`
 7. Use status text and recipe logs (`Recipe:ModularBlockTest`) to validate behavior.
 
 Notes:
-- Engine profile auto-detects HeroAI vs CustomBehaviors at startup.
+- Engine profile auto-detects HeroAI at startup.
 - Selection changes force FSM rebuild before next run.
 
 ## Tutorial B: Record and Replay with `script_helper.py` (Modular Coder Assistant)

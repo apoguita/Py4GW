@@ -69,7 +69,7 @@ Common runtime keys (all actions):
 - Failure/skip behavior: If validation/selector resolution/prerequisites fail, the step logs context and returns safely without fatal exceptions.
 - Runnable example:
 ```json
-{"type": "disable_widgets", "name": "Disable Widgets", "widgets": ["InventoryPlus", "CustomBehaviors"], "multibox": true}
+{"type": "disable_widgets", "name": "Disable Widgets", "widgets": ["InventoryPlus", "HeroAI"], "multibox": true}
 ```
 
 <a id="action-enable_widgets"></a>
@@ -85,7 +85,7 @@ Common runtime keys (all actions):
 - Failure/skip behavior: If validation/selector resolution/prerequisites fail, the step logs context and returns safely without fatal exceptions.
 - Runnable example:
 ```json
-{"type": "enable_widgets", "name": "Enable Widgets", "widgets": ["InventoryPlus", "CustomBehaviors"], "multibox": true}
+{"type": "enable_widgets", "name": "Enable Widgets", "widgets": ["InventoryPlus", "HeroAI"], "multibox": true}
 ```
 
 <a id="action-inventory_cleanup"></a>

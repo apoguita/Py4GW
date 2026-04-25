@@ -9,7 +9,7 @@ from Py4GWCoreLib.Builds.Skills.any.PvE import PvE
 class _DhuumModeTracker:
     """Tracks Reaper casts and exposes a lightweight shared mode for Dhuum skills.
 
-    Aligned with Sources/oazix/CustomBehaviors/specifics/underworld/reaper_mode_tracker.py.
+    Aligned with the Underworld reaper mode behavior.
     """
 
     MODE_DREST = "drest"
@@ -235,7 +235,7 @@ class _DhuumModeTracker:
 
 
 class Any_Dhuum(BuildMgr):
-    """HeroAI BuildMgr adaptation of the CustomBehavior Dhuum utility build."""
+    """HeroAI BuildMgr adaptation of the Dhuum utility build."""
 
     TEMPLATE_CODE = "OQBDAqwDSPwQwRwSwTwAAAAAAA"
 

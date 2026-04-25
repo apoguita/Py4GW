@@ -59,13 +59,11 @@ class PropheciesCampaignOptions:
         *,
         start_phase_index: int = 0,
         loop: bool = False,
-        template: str = "aggressive",
-        use_custom_behaviors: bool = True,
+        template: str = "multibox_aggressive",
     ) -> None:
         self.start_phase_index = int(start_phase_index)
         self.loop = bool(loop)
         self.template = str(template)
-        self.use_custom_behaviors = bool(use_custom_behaviors)
 
 
 def build_prophecies_campaign_phases() -> list[Phase]:
@@ -132,7 +130,6 @@ def create_prophecies_campaign_bot(
         phases=phases,
         loop=bool(opts.loop),
         template=str(opts.template),
-        use_custom_behaviors=bool(opts.use_custom_behaviors),
         on_party_wipe=restart_target,
         on_death=restart_target,
         main_ui=main_ui,

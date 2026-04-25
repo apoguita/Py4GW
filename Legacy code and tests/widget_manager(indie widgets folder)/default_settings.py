@@ -229,13 +229,6 @@ global_widget_defaults = {
         "icon": "ICON_BRAIN",
         "quickdock": "True",
     },
-    "CustomBehaviors": {
-        "enabled": "False",
-        "category": "Bots",
-        "subcategory": "Helpers",
-        "icon": "ICON_PEOPLE_CARRY",
-        "quickdock": "True"
-    },
     "NFDialogSender": {
         "enabled": "False",
         "category": "Gameplay",
@@ -499,13 +492,6 @@ account_widget_defaults = {
         "subcategory": "Helpers",
         "icon": "ICON_BRAIN",
         "quickdock": "True",
-    },
-    "CustomBehaviors": {
-        "enabled": "False",
-        "category": "Bots",
-        "subcategory": "Helpers",
-        "icon": "ICON_PEOPLE_CARRY",
-        "quickdock": "True"
     },
     "NFDialogSender": {
         "enabled": "False",

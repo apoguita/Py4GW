@@ -158,27 +158,11 @@ class UWHeroAIAdapter(UWCombatAdapter):
         bot_instance.States.AddCustomState(
             lambda: ConsoleLog(
                 self._bot_name,
-                "[Startup] Disabling CustomBehaviors widget on all accounts.",
+                "[Startup] Enforcing HeroAI widget on all accounts.",
                 Py4GW.Console.MessageType.Info,
             ),
-            "[Startup] Log Disable CB Widgets",
+            "[Startup] Log HeroAI Enforcement",
         )
-        for widget_name in (
-            "CustomBehaviors",
-            "Custom Behavior",
-            "Custom Behaviors: Utility AI",
-        ):
-            bot_instance.States.AddCustomState(
-                lambda wn=widget_name: self._disable_widget_locally(wn),
-                f"Disable local {widget_name}",
-            )
-            bot_instance.States.AddCustomState(
-                lambda wn=widget_name: self._broadcast_widget_command(
-                    wn, SharedCommandType.DisableWidget, "Broadcasted disable"
-                ),
-                f"Disable {widget_name} on active accounts",
-            )
-        bot_instance.Wait.ForTime(2000)
         bot_instance.States.AddCustomState(
             lambda: ConsoleLog(
                 self._bot_name,
@@ -228,7 +212,7 @@ class UWHeroAIAdapter(UWCombatAdapter):
             ConsoleLog(
                 self._bot_name,
                 f"[Startup] Widget setup complete (HeroAI mode). "
-                f"CustomBehaviors disabled, HeroAI + DhuumHelper + MerchantRules enabled "
+                f"HeroAI + DhuumHelper + MerchantRules enabled "
                 f"on {len(accounts)} active account(s): {accounts}",
                 Py4GW.Console.MessageType.Info,
             )

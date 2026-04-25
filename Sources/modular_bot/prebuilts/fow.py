@@ -64,9 +64,8 @@ FOW_TEMPLE_KNEEL_Y = 18678.10
 FOW_TEMPLE_ENTRY_DIALOG_ID = 0x86
 FOW_COMBAT_WIDGETS: dict[str, str] = {
     "hero_ai": "HeroAI",
-    "custom_behaviors": "CustomBehaviors",
 }
-DEFAULT_FOW_COMBAT_WIDGET_KEY = "custom_behaviors"
+DEFAULT_FOW_COMBAT_WIDGET_KEY = "hero_ai"
 
 
 def _format_inventory_location_label(map_id: int) -> str:
@@ -153,18 +152,16 @@ def _resolve_post_gh_combat_widget(widget_key: str) -> tuple[str, str]:
     return resolved_key, FOW_COMBAT_WIDGETS[resolved_key]
 
 
-def _resolve_combat_backend_profile(preferred_widget_key: str = DEFAULT_FOW_COMBAT_WIDGET_KEY) -> tuple[str, bool, str, bool]:
+def _resolve_combat_backend_profile(preferred_widget_key: str = DEFAULT_FOW_COMBAT_WIDGET_KEY) -> tuple[str, str, bool]:
     """
     Resolve which modular bot profile to use based on active widgets.
-    Returns: (template_name, use_custom_behaviors, backend_label, hero_ai_enabled)
+    Returns: (template_name, backend_label, hero_ai_enabled)
     """
     resolved_key, _widget_name = _resolve_post_gh_combat_widget(preferred_widget_key)
     if resolved_key == "hero_ai":
-        # HeroAI runtime: keep HeroAI upkeep active and do not wire CB hooks.
-        return ("multibox_aggressive", False, "hero_ai", True)
+        return ("multibox_aggressive", "hero_ai", True)
 
-    # Default behavior: CB profile.
-    return ("aggressive", True, "custom_behaviors", False)
+    return ("multibox_aggressive", "hero_ai", True)
 
 
 def _build_inventory_setup_steps(location_key: str) -> list[dict]:
@@ -262,49 +259,8 @@ def build_fow_phases(
             bot.States.AddCustomState(_coro_enter, "Enter FoW via Temple /kneel")
 
         def _configure_cb_following_spread() -> None:
-            try:
-                from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
-                from Py4GWCoreLib import GLOBAL_CACHE, ConsoleLog
-                from Sources.oazix.CustomBehaviors.primitives.following_behavior_priority import (
-                    FollowingBehaviorPriority,
-                )
-                from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import (
-                    CustomBehaviorParty,
-                )
+            return
 
-                widget_handler = get_widget_handler()
-                if not bool(widget_handler.is_widget_enabled("CustomBehaviors")):
-                    return
-
-                party = CustomBehaviorParty()
-                party.set_party_is_following_enabled(True)
-                party.set_party_following_behavior_priority(FollowingBehaviorPriority.LOW_PRIORITY)
-
-                manager = party.party_following_manager
-                updated = 0
-                for account in GLOBAL_CACHE.ShMem.GetAllAccountData():
-                    email = str(getattr(account, "AccountEmail", "") or "").strip()
-                    if not email:
-                        continue
-                    manager.initialize_account_forces(email)
-                    current_leader = manager.get_is_attraction_leader_active(email)
-                    current_enemies = manager.get_is_repulsion_enemies_active(email)
-                    manager.set_account_forces(
-                        email,
-                        is_repulsion_allies_active=True,
-                        is_attraction_leader_active=current_leader,
-                        is_repulsion_enemies_active=current_enemies,
-                    )
-                    updated += 1
-
-                ConsoleLog(
-                    "FoWSetup",
-                    f"CB following set to LOW_PRIORITY; allies repulsion enabled for {updated} account(s).",
-                )
-            except Exception as exc:
-                _debug(debug_hook, f"Failed to configure CB following spread: {exc}")
-
-        bot.States.AddCustomState(_configure_cb_following_spread, "Configure CB Following Spread")
         bot.States.AddCustomState(lambda: EnemyBlacklist().add_name("Wailing Lord"), "Blacklist Wailing Lord")
         bot.States.AddCustomState(
             lambda: LootConfig().AddToBlacklist(UNHOLY_TEXT_MODEL_ID),
@@ -344,7 +300,7 @@ def build_fow_phases(
             {
                 "type": "disable_widgets",
                 "name": "Disable Merchant Widgets",
-                "widgets": ["InventoryPlus", "CustomBehaviors", "HeroAI"],
+                "widgets": ["InventoryPlus", "HeroAI"],
                 "multibox": True,
                 "ms": 1500,
             }
@@ -399,8 +355,8 @@ def build_fow_phases(
         setup_steps.append(
             {
                 "type": "disable_widgets",
-                "name": "Normalize Combat Widgets (Disable Both Engines)",
-                "widgets": ["CustomBehaviors", "HeroAI"],
+                "name": "Normalize Combat Widgets",
+                "widgets": ["HeroAI"],
                 "multibox": True,
                 "ms": 500,
             }
@@ -470,13 +426,11 @@ def apply_fow_runtime_properties(
     debug_hook: Optional[Callable[[str], None]] = None,
 ) -> None:
     properties = bot.Properties
-    cb_enabled = False
     hero_ai_enabled = False
     try:
         from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
 
         widget_handler = get_widget_handler()
-        cb_enabled = bool(widget_handler.is_widget_enabled("CustomBehaviors"))
         hero_ai_enabled = bool(widget_handler.is_widget_enabled("HeroAI"))
     except Exception as exc:
         _debug(debug_hook, f"Could not resolve widget engine state for FoW runtime properties: {exc}")
@@ -524,11 +478,11 @@ def apply_fow_runtime_properties(
 
     # Let external engines own combat/loot execution.
     # Keep built-in upkeepers disabled to avoid pathing/combat/loot contention.
-    if properties.exists("auto_combat") and (cb_enabled or hero_ai_enabled):
+    if properties.exists("auto_combat") and hero_ai_enabled:
         properties.Disable("auto_combat")
 
     if properties.exists("auto_loot"):
-        if cb_enabled or hero_ai_enabled:
+        if hero_ai_enabled:
             properties.ApplyNow("auto_loot", "active", bool(options.auto_loot))
         elif options.auto_loot:
             properties.Enable("auto_loot")
@@ -559,13 +513,13 @@ def create_modular_fow_bot(
     help_ui=None,
     debug_hook: Optional[Callable[[str], None]] = None,
 ) -> ModularBot:
-    template_name, use_custom_behaviors, backend_label, hero_ai_enabled = _resolve_combat_backend_profile(
+    template_name, backend_label, hero_ai_enabled = _resolve_combat_backend_profile(
         options.post_gh_combat_widget
     )
     _debug(
         debug_hook,
         "FoW combat backend profile: "
-        f"backend={backend_label}, template={template_name}, use_custom_behaviors={use_custom_behaviors}",
+        f"backend={backend_label}, template={template_name}",
     )
 
     modular_bot = ModularBot(
@@ -574,7 +528,6 @@ def create_modular_fow_bot(
         loop=True,
         on_party_wipe="00. Setup: FoW Start Run",
         template=template_name,
-        use_custom_behaviors=use_custom_behaviors,
         main_ui=main_ui,
         settings_ui=settings_ui,
         help_ui=help_ui,

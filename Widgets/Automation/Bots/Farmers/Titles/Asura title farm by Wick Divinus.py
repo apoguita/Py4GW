@@ -26,7 +26,7 @@ _MULTIBOX_ALTS_KEY = "use_multibox_alts"
 _party_mode: int = 0  # 0 = Single Account with Heroes, 1 = Multiboxing
 _mode_loaded: bool = False
 _COMBAT_BACKEND_KEY = "combat_backend"
-_combat_backend: int = 0  # 0 = HeroAI, 1 = CustomBehaviors
+_combat_backend: int = 0  # HeroAI only
 
 bot = Botting(BOT_NAME,
               upkeep_armor_of_salvation_restock=2,
@@ -1127,51 +1127,21 @@ def _apply_combat_backend_local_now(bot: Botting) -> None:
 
     wh = _get_wh()
 
-    if _combat_backend == 1:
-        _set_hero_ai_active(False)
-        try:
-            wh.disable_widget("HeroAI")
-        except Exception:
-            pass
-        try:
-            wh.enable_widget("CustomBehaviors")
-        except Exception:
-            pass
-    else:
-        _set_hero_ai_active(True)
-        try:
-            wh.disable_widget("CustomBehaviors")
-        except Exception:
-            pass
-        try:
-            wh.enable_widget("HeroAI")
-        except Exception:
-            pass
+    _set_hero_ai_active(True)
+    try:
+        wh.enable_widget("HeroAI")
+    except Exception:
+        pass
 
 
 def _apply_combat_backend_if_available(bot: Botting):
     _apply_combat_backend_local_now(bot)
 
-    if _combat_backend == 1:
-        if _party_mode == 1:
-            try:
-                yield from bot.helpers.Multibox._disable_widget_message("HeroAI")
-            except Exception:
-                pass
-            try:
-                yield from bot.helpers.Multibox._enable_widget_message("CustomBehaviors")
-            except Exception:
-                pass
-    else:
-        if _party_mode == 1:
-            try:
-                yield from bot.helpers.Multibox._disable_widget_message("CustomBehaviors")
-            except Exception:
-                pass
-            try:
-                yield from bot.helpers.Multibox._enable_widget_message("HeroAI")
-            except Exception:
-                pass
+    if _party_mode == 1:
+        try:
+            yield from bot.helpers.Multibox._enable_widget_message("HeroAI")
+        except Exception:
+            pass
 
     yield from bot.Wait._coro_for_time(500)
 
@@ -1292,13 +1262,7 @@ def _draw_settings(bot: Botting):
         _save_mode_setting(bot)
     PyImGui.separator()
 
-    PyImGui.text("Combat Backend")
-    new_backend = PyImGui.radio_button("HeroAI", _combat_backend, 0)
-    PyImGui.same_line(0, 16)
-    new_backend = PyImGui.radio_button("CustomBehaviors", new_backend, 1)
-    if new_backend != _combat_backend:
-        _combat_backend = new_backend
-        _save_mode_setting(bot)
+    PyImGui.text("Combat Backend: HeroAI")
 
     # Conset controls
     use_conset = _as_bool(bot.Properties.Get("use_conset", "active"))

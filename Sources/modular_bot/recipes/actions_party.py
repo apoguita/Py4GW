@@ -3,7 +3,6 @@ from __future__ import annotations
 from typing import Callable
 
 from .combat_engine import (
-    ENGINE_CUSTOM_BEHAVIORS,
     ENGINE_HERO_AI,
     flag_all_accounts as engine_flag_all_accounts,
     resolve_engine_for_bot,
@@ -525,13 +524,6 @@ def apply_auto_combat_state(bot, enabled: bool) -> None:
         if bot.Properties.exists("auto_combat"):
             bot.Properties.ApplyNow("auto_combat", "active", False)
         return
-    if engine == ENGINE_CUSTOM_BEHAVIORS:
-        if bot.Properties.exists("hero_ai"):
-            bot.Properties.ApplyNow("hero_ai", "active", False)
-        if bot.Properties.exists("auto_combat"):
-            bot.Properties.ApplyNow("auto_combat", "active", False)
-        return
-
     if e:
         bot.Templates.Aggressive()
     else:
@@ -544,10 +536,6 @@ def apply_auto_looting_state(bot, enabled: bool) -> None:
     engine_set_auto_looting(e, preferred_engine=engine, bot=bot)
     # External engines: keep Botting auto-loot in sync with requested
     # looting state.
-    if engine == ENGINE_CUSTOM_BEHAVIORS:
-        if bot.Properties.exists("auto_loot"):
-            bot.Properties.ApplyNow("auto_loot", "active", e)
-        return
     # HeroAI mode: keep Botting auto-loot in sync with requested looting state.
     if engine == ENGINE_HERO_AI:
         if bot.Properties.exists("auto_loot"):
@@ -607,19 +595,16 @@ def handle_set_hard_mode(ctx: StepContext) -> None:
 
 
 def handle_set_combat_engine(ctx: StepContext) -> None:
-    from .combat_engine import ENGINE_CUSTOM_BEHAVIORS, ENGINE_HERO_AI, ENGINE_NONE
+    from .combat_engine import ENGINE_HERO_AI, ENGINE_NONE
 
     raw_engine = str(ctx.step.get("engine", ctx.step.get("value", "")) or "").strip().lower()
     aliases = {
         "heroai": ENGINE_HERO_AI,
         "hero_ai": ENGINE_HERO_AI,
-        "custombehaviors": ENGINE_CUSTOM_BEHAVIORS,
-        "custom_behaviors": ENGINE_CUSTOM_BEHAVIORS,
-        "cb": ENGINE_CUSTOM_BEHAVIORS,
         "none": ENGINE_NONE,
     }
     engine = aliases.get(raw_engine, raw_engine)
-    if engine not in (ENGINE_HERO_AI, ENGINE_CUSTOM_BEHAVIORS, ENGINE_NONE):
+    if engine not in (ENGINE_HERO_AI, ENGINE_NONE):
         debug_log_recipe(
             ctx,
             f"set_combat_engine invalid engine at index {ctx.step_idx}: {raw_engine!r}",
@@ -631,7 +616,7 @@ def handle_set_combat_engine(ctx: StepContext) -> None:
         # Optional runtime property sync for local bot flags.
         if ctx.bot.Properties.exists("hero_ai"):
             ctx.bot.Properties.ApplyNow("hero_ai", "active", engine == ENGINE_HERO_AI)
-        if ctx.bot.Properties.exists("auto_combat") and engine in (ENGINE_HERO_AI, ENGINE_CUSTOM_BEHAVIORS):
+        if ctx.bot.Properties.exists("auto_combat") and engine == ENGINE_HERO_AI:
             ctx.bot.Properties.ApplyNow("auto_combat", "active", False)
         debug_log_recipe(ctx, f"set_combat_engine pinned engine={engine!r}.")
 

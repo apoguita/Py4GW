@@ -36,10 +36,8 @@ flowchart TD
 flowchart TD
     A[Step requests combat/loot/party operation] --> B[resolve_engine_for_bot]
     B --> C{Engine}
-    C -- custom_behaviors --> D[CustomBehaviors party APIs]
     C -- hero_ai --> E[HeroAI shared-memory options]
     C -- none/shared --> F[Botting/native/shared command fallback]
-    D --> G[apply_auto_combat_state / apply_auto_looting_state]
     E --> G
     F --> G
     G --> H[Optional multibox send + outbound wait]

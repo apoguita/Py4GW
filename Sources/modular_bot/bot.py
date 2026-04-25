@@ -3,7 +3,7 @@ ModularBot - Orchestrator that wires Phases into a Botting FSM.
 
 Handles all the boilerplate every bot repeats:
 - Template application
-- CustomBehaviors setup
+- HeroAI-compatible setup
 - Event-driven recovery (wipe / death / stuck)
 - Phase header tracking & automatic looping
 - Background coroutines
@@ -21,7 +21,6 @@ Usage:
         ],
         loop=True,
         template="multibox_aggressive",
-        use_custom_behaviors=True,
         on_party_wipe="Travel",
     )
 
@@ -91,71 +90,6 @@ def _is_header_name(value: str) -> bool:
     return value.startswith("[H]")
 
 
-def _ensure_cb_loot_wait_enabled() -> None:
-    """
-    Force-enable CB loot wait utility for this runtime.
-    """
-    try:
-        from Sources.oazix.CustomBehaviors.primitives.botting.botting_manager import BottingManager
-    except Exception:
-        return
-
-    skill_name = "WaitIfPartyMemberNeedsToLootUtility"
-    manager = BottingManager()
-    changed = False
-    for skills in (manager.aggressive_skills, manager.automover_skills):
-        for skill in skills:
-            if skill.name == skill_name and not skill.enabled:
-                skill.enabled = True
-                changed = True
-    if changed:
-        ConsoleLog("ModularBot", f"Enabled {skill_name} for custom behaviors runtime.")
-
-
-def _modular_cb_skill_reinject_daemon():
-    """
-    ModularBot-only guard:
-    re-inject enabled CB utility skills when CB swaps to a new behavior instance
-    (e.g., during outpost/map transitions in multi-step setup flows).
-    """
-    try:
-        from Sources.oazix.CustomBehaviors.primitives.botting.botting_manager import BottingManager
-        from Sources.oazix.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
-        from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
-    except Exception:
-        while True:
-            yield from Routines.Yield.wait(1000)
-
-    loader = CustomBehaviorLoader()
-    manager = BottingManager()
-    injected_instance_id: Optional[int] = None
-
-    while True:
-        try:
-            if loader.custom_combat_behavior is None:
-                loader.initialize_custom_behavior_candidate()
-
-            instance = loader.custom_combat_behavior
-            if instance is not None:
-                current_instance_id = id(instance)
-                if injected_instance_id != current_instance_id:
-                    skills = (
-                        manager.get_enabled_aggressive_skills()
-                        if CustomBehaviorParty().get_party_is_combat_enabled()
-                        else manager.get_enabled_pacifist_skills()
-                    )
-                    manager.inject_enabled_skills(skills, instance)
-                    injected_instance_id = current_instance_id
-                    ConsoleLog(
-                        "ModularBot",
-                        "Re-injected CB utility skills after behavior refresh.",
-                    )
-        except Exception:
-            pass
-
-        yield from Routines.Yield.wait(250)
-
-
 def _is_hero_ai_runtime_active(bot: Botting) -> bool:
     """
     Detect HeroAI runtime activity for callback wiring decisions.
@@ -223,15 +157,6 @@ class ModularBot:
         template:               Initial template  ``"aggressive"``,
                                 ``"pacifist"``, or ``"multibox_aggressive"``.
 
-        use_custom_behaviors:   If ``True``, call
-                                ``bot.Templates.Routines.UseCustomBehaviors()``.
-        cb_on_death:            Handler for CustomBehaviors
-                                ``PLAYER_CRITICAL_DEATH`` event.
-        cb_on_stuck:            Handler for CustomBehaviors
-                                ``PLAYER_CRITICAL_STUCK`` event.
-        cb_on_party_death:      Handler for CustomBehaviors
-                                ``PARTY_DEATH`` event.
-
         on_party_wipe:          Recovery target - phase name (``str``) to
                                 jump to on party wipe, *or* a callable
                                 ``(bot: Botting) -> None`` for custom
@@ -255,10 +180,6 @@ class ModularBot:
         loop: bool = True,
         loop_to: Optional[str] = None,
         template: str = "aggressive",
-        use_custom_behaviors: bool = False,
-        cb_on_death: Optional[Callable] = None,
-        cb_on_stuck: Optional[Callable] = None,
-        cb_on_party_death: Optional[Callable] = None,
         on_party_wipe: Optional[Union[str, Callable]] = None,
         on_death: Optional[Union[str, Callable]] = None,
         background: Optional[Dict[str, Callable]] = None,
@@ -279,10 +200,6 @@ class ModularBot:
         self._loop = loop
         self._loop_to = loop_to
         self._template = template
-        self._use_cb = use_custom_behaviors
-        self._cb_on_death = cb_on_death
-        self._cb_on_stuck = cb_on_stuck
-        self._cb_on_party_death = cb_on_party_death
         self._on_party_wipe = on_party_wipe
         self._on_death = on_death
         self._background = background or {}
@@ -474,9 +391,6 @@ class ModularBot:
         Wires everything together.  Called automatically by
         ``Botting.Update()`` on the first frame.
         """
-        if self._use_cb:
-            _ensure_cb_loot_wait_enabled()
-
         # Pin the combat engine selected at startup so modular steps keep a
         # consistent backend for the full run.
         try:
@@ -488,18 +402,6 @@ class ModularBot:
 
         #  1. Template 
         _apply_template(bot, self._template)
-
-        #  2. CustomBehaviors 
-        if self._use_cb:
-            bot.Templates.Routines.UseCustomBehaviors(
-                on_player_critical_death=self._cb_on_death,
-                on_player_critical_stuck=self._cb_on_stuck,
-                on_party_death=self._cb_on_party_death,
-            )
-            bot.States.AddManagedCoroutine(
-                "ModularBot_CBSkillReinjectDaemon",
-                _modular_cb_skill_reinject_daemon,
-            )
 
         # Keep party cohesion in external engine modes (CB + HeroAI):
         # wait/recover if members are behind, in danger, or dead-behind.
@@ -638,9 +540,9 @@ class ModularBot:
         Apply party-member callbacks according to runtime toggle and engine state.
         """
         start_engine = str(getattr(bot.config, "_modular_start_engine", "") or "").strip().lower()
-        should_wire = start_engine in ("custom_behaviors", "hero_ai")
+        should_wire = start_engine == "hero_ai"
         if not start_engine:
-            should_wire = self._use_cb or _is_hero_ai_runtime_active(bot)
+            should_wire = _is_hero_ai_runtime_active(bot)
 
         if self._party_member_hooks_enabled and should_wire:
             def _guarded_party_hook(fn: Callable[[], None]) -> Callable[[], None]:

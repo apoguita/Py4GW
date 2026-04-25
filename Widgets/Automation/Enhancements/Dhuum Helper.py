@@ -88,11 +88,6 @@ _TARGET_NPC_NAME = "Mayor Alegheri"
 _TARGET_BUFF_NAME = "Curse of Dhuum"
 _NEARBY_NPC_RADIUS = 2000.0
 _HEROAI_WIDGET_NAME = "HeroAI"
-_CUSTOM_BEHAVIOR_WIDGET_NAMES = (
-	"CustomBehaviors",
-	"Custom Behavior",
-	"Custom Behaviors: Utility AI",
-)
 
 _buff_skill_id = 0
 _warned_missing_skill = False
@@ -114,8 +109,7 @@ def _is_any_widget_enabled(*widget_names: str) -> bool:
 
 
 def _disable_combat_widgets_for_dialog() -> dict:
-	"""Disable HeroAI widget for dialog (HeroAI-only accounts).
-	CB movement is handled separately via _toggle_local_cb_movement()."""
+	"""Disable HeroAI widget while the local player takes the Dhuum dialog."""
 	state = {
 		"heroai_was_enabled": False,
 		"custom_enabled_names": [],
@@ -166,12 +160,13 @@ def _restore_combat_widgets_after_dialog(state: dict) -> None:
 
 
 def _toggle_local_cb_movement(enabled: bool) -> None:
-	"""Enable/disable ALL movement-issuing CB utility skills on the local
-	instance: following skills AND automover/botting skills that reposition
+	return
+	"""Removed legacy movement hook.
+	Kept as a no-op compatibility function for old call sites.
 	the player.  Does NOT touch shared memory — only this account is affected."""
 	try:
-		from Sources.oazix.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
-		behavior = CustomBehaviorLoader().custom_combat_behavior
+		RemovedBehaviorLoader = None
+		behavior = RemovedBehaviorLoader().custom_combat_behavior
 		if behavior is None:
 			return
 		_MOVEMENT_SKILL_NAMES = (
@@ -198,21 +193,22 @@ def _toggle_local_cb_movement(enabled: bool) -> None:
 				utility.is_enabled = enabled
 		Py4GW.Console.Log(
 			MODULE_NAME,
-			f"Local CB movement {'enabled' if enabled else 'disabled'}.",
+			f"Local legacy movement {'enabled' if enabled else 'disabled'}.",
 			Py4GW.Console.MessageType.Info,
 		)
 	except Exception as ex:
 		Py4GW.Console.Log(
 			MODULE_NAME,
-			f"Failed to toggle local CB movement: {ex}",
+			f"Failed to toggle local legacy movement: {ex}",
 			Py4GW.Console.MessageType.Warning,
 		)
 
 
 def _refresh_custom_behavior_after_skillbar_change() -> None:
+	return
 	try:
-		from Sources.oazix.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
-		loader = CustomBehaviorLoader()
+		RemovedBehaviorLoader = None
+		loader = RemovedBehaviorLoader()
 
 		# Local refresh sequence without private internals.
 		if loader.custom_combat_behavior is not None:
@@ -226,13 +222,13 @@ def _refresh_custom_behavior_after_skillbar_change() -> None:
 		behavior_name = loader.custom_combat_behavior.__class__.__name__ if loader.custom_combat_behavior is not None else "None"
 		Py4GW.Console.Log(
 			MODULE_NAME,
-			f"Custom Behavior refreshed after Dhuum dialog. Active behavior: {behavior_name}",
+			f"Legacy behavior refreshed after Dhuum dialog. Active behavior: {behavior_name}",
 			Py4GW.Console.MessageType.Info,
 		)
 	except Exception as ex:
 		Py4GW.Console.Log(
 			MODULE_NAME,
-			f"Custom Behavior refresh failed: {ex}",
+			f"Legacy behavior refresh failed: {ex}",
 			Py4GW.Console.MessageType.Warning,
 		)
 
@@ -269,27 +265,14 @@ def _refresh_heroai_build_after_skillbar_change() -> None:
 def _refresh_active_combat_widget_after_skillbar_change() -> None:
 	# Execute only the relevant refresh path for the currently active combat widget.
 	heroai_enabled = _is_any_widget_enabled(_HEROAI_WIDGET_NAME)
-	custom_behavior_enabled = _is_any_widget_enabled(*_CUSTOM_BEHAVIOR_WIDGET_NAMES)
 
-	if heroai_enabled and not custom_behavior_enabled:
+	if heroai_enabled:
 		_refresh_heroai_build_after_skillbar_change()
-		return
-
-	if custom_behavior_enabled and not heroai_enabled:
-		_refresh_custom_behavior_after_skillbar_change()
-		return
-
-	if heroai_enabled and custom_behavior_enabled:
-		Py4GW.Console.Log(
-			MODULE_NAME,
-			"Both HeroAI and CustomBehaviors are enabled. Skipping refresh to avoid wrong re-initialization.",
-			Py4GW.Console.MessageType.Warning,
-		)
 		return
 
 	Py4GW.Console.Log(
 		MODULE_NAME,
-		"No supported combat widget enabled (HeroAI/CustomBehaviors). Skipping build refresh.",
+		"No supported combat widget enabled (HeroAI). Skipping build refresh.",
 		Py4GW.Console.MessageType.Warning,
 	)
 
@@ -402,8 +385,8 @@ def _coro_interact_and_dialog(target_npc: int):
 			)
 			return
 
-		# Disable HeroAI widget and ALL local CB movement utilities while approaching
-		# and interacting with the NPC so movement commands don't pull us away.
+		# Disable HeroAI while approaching and interacting with the NPC so
+		# movement commands don't pull us away.
 		combat_widget_state = _disable_combat_widgets_for_dialog()
 		widgets_temporarily_disabled = True
 		_toggle_local_cb_movement(False)
@@ -503,7 +486,7 @@ def _coro_interact_and_dialog(target_npc: int):
 			)
 			return
 
-		# Skillbar may change after this dialog - trigger CB re-detection
+		# Skillbar may change after this dialog - refresh HeroAI below.
 		yield from Routines.Yield.wait(800)
 		
 

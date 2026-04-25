@@ -20,10 +20,6 @@ from Py4GWCoreLib import (
     IniHandler,
 )
 from Py4GW_widget_manager import get_widget_handler
-from Sources.oazix.CustomBehaviors.primitives.botting.botting_helpers import BottingHelpers
-from Sources.oazix.CustomBehaviors.primitives.custom_behavior_loader import CustomBehaviorLoader
-from Sources.oazix.CustomBehaviors.primitives.parties.custom_behavior_party import CustomBehaviorParty
-from Sources.oazix.CustomBehaviors.skills.following.follow_party_leader_utility import FollowPartyLeaderUtility
 from Py4GWCoreLib.routines_src.Yield import Utils
 from Py4GWCoreLib.routines_src.Yield import Yield
 
@@ -35,8 +31,8 @@ MODULE_TAGS = ["Bone Dragon Staff", "BDS", "Bones", "Asura", "Drawf", "Rep"]
 # Widgets you want to force-manage at startup.
 # Edit these lists to choose which widgets to enable/disable.
 WIDGETS_TO_ENABLE: tuple[str, ...] = (
+    "HeroAI",
     "LootManager",
-    "CustomBehaviors",
     "ResurrectionScroll",
     "Return to outpost on defeat",
 )
@@ -177,10 +173,6 @@ bot = Botting(
 def farm_bds_routine(bot: Botting) -> None:
     
     # ===== INITIAL CONFIGURATION =====
-    bot.Templates.Routines.UseCustomBehaviors(
-        on_player_critical_death=BottingHelpers.botting_unrecoverable_issue,
-        on_party_death=BottingHelpers.botting_unrecoverable_issue,
-        on_player_critical_stuck=BottingHelpers.botting_unrecoverable_issue)
     # Register wipe callback
     bot.Events.OnPartyWipeCallback(lambda: OnPartyWipe(bot))
     
@@ -909,12 +901,12 @@ def _coro_sell_nonsalvageable_golds(mx: float, my: float) -> Generator:
     yield from Routines.Yield.wait(300)
 
 
-_MERCHANT_MANAGED_WIDGETS = ("InventoryPlus", "CustomBehaviors")
+_MERCHANT_MANAGED_WIDGETS = ("InventoryPlus",)
 _PRETRAVEL_DISABLE_WIDGETS = ("InventoryPlus",)  # disable before GH travel so deposit cycle doesn't run on GH entry
 
 
 def _disable_merchant_widgets() -> Generator:
-    """Disable InventoryPlus and CustomBehaviors on leader + all alts during GH merchant ops."""
+    """Disable InventoryPlus on leader + all alts during GH merchant ops."""
     from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler as _get_wh
     ConsoleLog(BOT_NAME, "[Merchant] Disabling managed widgets on all accounts")
     wh = _get_wh()
@@ -1171,7 +1163,7 @@ def _disable_inventoryplus_pretravel() -> Generator:
 
 
 def _reenable_merchant_widgets() -> Generator:
-    """Re-enable InventoryPlus and CustomBehaviors on leader + all alts after GH merchant ops.
+    """Re-enable InventoryPlus on leader + all alts after GH merchant ops.
     Called once all accounts are back in Vlox's Falls, ready to enter the dungeon."""
     from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler as _get_wh
     ConsoleLog(BOT_NAME, "[Merchant] Re-enabling managed widgets on all accounts")
@@ -1350,7 +1342,7 @@ def _gh_merchant_setup(leave_party: bool = True) -> Generator:
             break
         yield from Routines.Yield.wait(500)
 
-    # —— Disable CustomBehavior and InventoryPlus on all accounts during merchant ops ——
+    # —— Disable InventoryPlus on all accounts during merchant ops ——
     yield from _disable_merchant_widgets()
 
     # —— Step 2: Find NPC coordinates ——————————————————————————————————————————
@@ -2406,44 +2398,8 @@ def drop_bundle_safe(times: int = 2, delay_ms: int = 250) -> Generator:
     yield
 
 def _toggle_wait_for_party(enabled: bool) -> Generator:
-    _set_custom_utility_enabled(
-        enabled,
-        skill_names=("wait_if_party_member_too_far",),
-        class_names=("WaitIfPartyMemberTooFarUtility",),
-    )
     yield
 
-
-def _set_custom_utility_enabled(
-    enabled: bool,
-    *,
-    skill_names: tuple[str, ...] = (),
-    class_names: tuple[str, ...] = (),
-) -> bool:
-    behavior = _get_custom_behavior(initialize_if_needed=True)
-    if behavior is None:
-        return False
-
-    for utility in behavior.get_skills_final_list():
-        utility_skill_name = getattr(getattr(utility, "custom_skill", None), "skill_name", None)
-        utility_class_name = utility.__class__.__name__
-
-        if utility_skill_name in skill_names or utility_class_name in class_names:
-            utility.is_enabled = enabled
-            return True
-
-    return False
-
-
-def _get_custom_behavior(initialize_if_needed: bool = True):
-    loader = CustomBehaviorLoader()
-    behavior = loader.custom_combat_behavior
-
-    if behavior is None and initialize_if_needed:
-        loader.initialize_custom_behavior_candidate()
-        behavior = loader.custom_combat_behavior
-
-    return behavior
 
 def TrackCurrentStep(bot: "Botting") -> None:
     """Update last step name + idx (best-effort)."""
@@ -3377,7 +3333,7 @@ def tooltip():
     PyImGui.spacing()
     PyImGui.bullet_text("Requirements:")
     PyImGui.bullet_text("- Any number of accounts, but for best performance, 8 well-geared accounts is recommended")
-    PyImGui.bullet_text("- Custom Behavior widget enabled on all accounts")
+    PyImGui.bullet_text("- HeroAI widget enabled on all accounts")
     PyImGui.bullet_text("- Launch the script on the party leader only")
     PyImGui.bullet_text("Designed for Normal Mode (NM) and Hard Mode (HM), check bot settings for more details.")
     
