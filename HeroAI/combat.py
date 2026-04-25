@@ -530,7 +530,11 @@ class CombatClass:
             if v_target == 0 and not targeting_strict:
                 v_target = get_nearest_enemy()
         elif target_allegiance == Skilltarget.EnemyClustered:
-            v_target = TargetClusteredEnemy(self.get_combat_distance())
+            v_target = TargetClusteredEnemy(
+                self.get_combat_distance(),
+                skill_id=self.skills[slot].skill_id,
+                cluster_radius=Range.Earshot.value,
+            )
             if v_target == 0 and not targeting_strict:
                 v_target = get_nearest_enemy()
         elif target_allegiance == Skilltarget.EnemyAttacking:
