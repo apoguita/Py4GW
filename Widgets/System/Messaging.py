@@ -27,6 +27,7 @@ from Widgets.Automation.Helpers import Pycons as PyconsHelper
 from Widgets.Automation.Helpers.Pycons import resolve_pycons_account_ini_path
 from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
 from Py4GWCoreLib.GlobalCache.shared_memory_src.SharedMessageStruct import SharedMessageStruct
+from Py4GWCoreLib.GlobalCache.shared_memory_src.Globals import SHMEM_MAX_NUMBER_OF_SKILLS
 
 cached_data = CacheData()
 
@@ -350,6 +351,8 @@ def DisableHeroAIOptions(account_email: str):
     hero_ai_options.Looting = False
     hero_ai_options.Targeting = False
     hero_ai_options.Combat = False
+    for skill_index in range(SHMEM_MAX_NUMBER_OF_SKILLS):
+        hero_ai_options.Skills[skill_index] = False
 
 
 
@@ -363,6 +366,8 @@ def EnableHeroAIOptions(account_email: str):
     hero_ai_options.Looting = True
     hero_ai_options.Targeting = True
     hero_ai_options.Combat = True
+    for skill_index in range(SHMEM_MAX_NUMBER_OF_SKILLS):
+        hero_ai_options.Skills[skill_index] = True
 
 
 
@@ -2107,6 +2112,8 @@ def EnableWidget(index: int, message: SharedMessageStruct):
     widget_handler = get_widget_handler()
     if not widget_handler.is_widget_enabled(widget_name):
         widget_handler.enable_widget(widget_name)
+    if widget_name == "HeroAI":
+        EnableHeroAIOptions(message.ReceiverEmail)
     yield from Routines.Yield.wait(100)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
     ConsoleLog(MODULE_NAME, f"EnableWidget('{widget_name}') message processed and finished.", Console.MessageType.Info, False)

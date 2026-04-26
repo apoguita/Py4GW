@@ -197,7 +197,7 @@ def initialize_bot(bot_instance: Botting) -> None:
     bot_instance.Properties.Disable("auto_inventory_management")
     bot_instance.Properties.Disable("auto_loot")
     bot_instance.Properties.Disable("hero_ai")
-    bot_instance.Properties.Enable("auto_combat")
+    bot_instance.Properties.Enable("hero_ai")
     bot_instance.Properties.Disable("pause_on_danger")
     bot_instance.Properties.Enable("halt_on_death")
     bot_instance.Properties.Enable("identify_kits")

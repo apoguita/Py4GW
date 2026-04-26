@@ -47,7 +47,7 @@ def initialize_bot():
     bot.Properties.Disable("auto_loot")
     bot.Properties.Disable("hero_ai")
     bot.Properties.Disable("pause_on_danger")
-    bot.Properties.Enable("auto_combat")
+    bot.Properties.Enable("hero_ai")
     bot.helpers.Events.set_on_unmanaged_fail(lambda: bot.States.AddManagedCoroutine("ForceReset", _force_reset()))
 
 

@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "Grand Court of Sebelkeh",
   "required_hero": ["Tahlkora"],
   "steps": [
@@ -8,10 +8,10 @@
     {"type": "dialogs", "id": ["0x81", "0x84"], "npc": "HEAD_PRIEST_VAHMANI", "name": "Dialog - Head Priest Vahmani"},
     {"type": "wait", "ms": 7000},
     {"type": "wait_for_map_load", "map_id": 435},
-    {"type": "set_auto_combat", "enabled": false},
+    {"type": "set_hero_ai_combat", "enabled": false},
     {"type": "flag_heroes", "point": [1456, 2767]},
     {"type": "auto_path", "name": "Path", "points": [[1456, 2767]]},
-    {"type": "set_auto_combat", "enabled": true},
+    {"type": "set_hero_ai_combat", "enabled": true},
     {"type": "unflag_heroes"},
     {"type": "auto_path", "name": "Path", "points": [[1456, 2767]]},
     {"type": "auto_path", "name": "1st point", "points": [[1430, -441]]},

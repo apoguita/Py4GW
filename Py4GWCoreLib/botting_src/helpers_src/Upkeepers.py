@@ -68,7 +68,17 @@ class _Upkeepers:
                     handler.disable_widget("HeroAI")
                 yield from Routines.Yield.wait(500)
                 continue
-            
+
+            self.parent.ResetHeroAICombatState(
+                active=True,
+                following=True,
+                avoidance=True,
+                looting=True,
+                targeting=True,
+                combat=True,
+                skills=True,
+            )
+             
             if not (self.parent.config.pause_on_danger_fn()):
                 self.cancel_movement_triggered = False
             
@@ -80,6 +90,15 @@ class _Upkeepers:
                     
             if self._config.upkeep.hero_ai.is_active() and not handler.is_widget_enabled("HeroAI"):
                 handler.enable_widget("HeroAI")
+                self.parent.ResetHeroAICombatState(
+                    active=True,
+                    following=True,
+                    avoidance=True,
+                    looting=True,
+                    targeting=True,
+                    combat=True,
+                    skills=True,
+                )
             elif not self._config.upkeep.hero_ai.is_active() and handler.is_widget_enabled("HeroAI"):
                 handler.disable_widget("HeroAI")
             yield from Routines.Yield.wait(500)

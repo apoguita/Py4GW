@@ -478,9 +478,6 @@ def apply_fow_runtime_properties(
 
     # Let external engines own combat/loot execution.
     # Keep built-in upkeepers disabled to avoid pathing/combat/loot contention.
-    if properties.exists("auto_combat") and hero_ai_enabled:
-        properties.Disable("auto_combat")
-
     if properties.exists("auto_loot"):
         if hero_ai_enabled:
             properties.ApplyNow("auto_loot", "active", bool(options.auto_loot))

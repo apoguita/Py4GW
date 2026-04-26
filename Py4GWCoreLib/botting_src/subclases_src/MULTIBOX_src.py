@@ -160,9 +160,29 @@ class _MULTIBOX:
             for widget_name in enable_widgets:
                 if not widget_handler.is_widget_enabled(widget_name):
                     widget_handler.enable_widget(widget_name)
+                if widget_name == "HeroAI":
+                    self.parent.ResetHeroAICombatState(
+                        active=True,
+                        following=True,
+                        avoidance=True,
+                        looting=True,
+                        targeting=True,
+                        combat=True,
+                        skills=True,
+                    )
             for widget_name in disable_widgets:
                 if widget_handler.is_widget_enabled(widget_name):
                     widget_handler.disable_widget(widget_name)
+                if widget_name == "HeroAI":
+                    self.parent.ResetHeroAICombatState(
+                        active=False,
+                        following=False,
+                        avoidance=False,
+                        looting=False,
+                        targeting=False,
+                        combat=False,
+                        skills=True,
+                    )
 
         for widget_name in enable_widgets:
             self.EnableWidget(widget_name)

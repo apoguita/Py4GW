@@ -390,7 +390,7 @@ def farm_dungeon(bot: Botting) -> None:
     widget_handler.enable_widget('HeroAI')
     widget_handler.enable_widget('Return to outpost on defeat')
     widget_handler.enable_widget('CombatPrep')
-    bot.Properties.Enable('auto_combat')
+    bot.Properties.Enable('hero_ai')
 
     bot.Events.OnPartyWipeCallback(lambda: OnPartyWipe(bot))
 
@@ -400,7 +400,7 @@ def farm_dungeon(bot: Botting) -> None:
     bot.States.AddHeader('Exit To Farm')
     bot.Properties.Disable('pause_on_danger')
     bot.Templates.Multibox_Aggressive()
-    bot.Properties.Enable('auto_combat')
+    bot.Properties.Enable('hero_ai')
     bot.States.AddCustomState(lambda: setup_hero_ai_and_custom_builds(bot), "Set up leader combat stuff")
     bot.Party.SetHardMode(True)
     bot.Move.XYAndExitMap(-22735, 6339, target_map_id=VERDANT_CASCADES_MAP_ID)
@@ -408,7 +408,7 @@ def farm_dungeon(bot: Botting) -> None:
 
     bot.States.AddHeader("Enter Dungeon")
     bot.Templates.Multibox_Aggressive()
-    bot.Properties.Enable('auto_combat')
+    bot.Properties.Enable('hero_ai')
     bot.States.AddManagedCoroutine('handle_on_danger_flagging', lambda: handle_on_danger_flagging(bot))
     bot.Move.FollowAutoPath(VERDANT_CASCADES_TRAVEL_PATH, "To the dungeon route")
     bot.Move.XYAndExitMap(25729, -9360, target_map_id=SALVERS_EXILE_MAP_ID)
@@ -421,7 +421,7 @@ def farm_dungeon(bot: Botting) -> None:
     bot.Multibox.UsePConSet()
     bot.Multibox.UsePumpkinPie()
     bot.Templates.Multibox_Aggressive()
-    bot.Properties.Enable('auto_combat')
+    bot.Properties.Enable('hero_ai')
     bot.States.AddCustomState(lambda: disable_hero_ai_leader_combat(bot), "Set up leader combat stuff")
     bot.States.AddManagedCoroutine('handle_on_danger_flagging', lambda: handle_on_danger_flagging(bot))
 
@@ -432,7 +432,7 @@ def farm_dungeon(bot: Botting) -> None:
     bot.States.AddHeader("Justiciar Tommis pt2")
     bot.Multibox.UsePumpkinPie()
     bot.Templates.Multibox_Aggressive()
-    bot.Properties.Enable('auto_combat')
+    bot.Properties.Enable('hero_ai')
     bot.States.AddCustomState(lambda: disable_hero_ai_leader_combat(bot), "Set up leader combat stuff")
     bot.States.AddManagedCoroutine('handle_on_danger_flagging', lambda: handle_on_danger_flagging(bot))
 

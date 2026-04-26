@@ -311,7 +311,7 @@ def Unlock_ebon_battle_standard_of_honor(bot: Botting) -> None:
     bot.States.AddHeader("[Unlock] Ebon Battle Standard of Honor")
     bot.Properties.Enable("pause_on_danger")
     bot.Properties.Enable("halt_on_death")
-    bot.Properties.Enable("auto_combat")
+    bot.Properties.Enable("hero_ai")
     bot.Templates.Aggressive()
 
     bot.Map.Travel(target_map_name="Longeyes Ledge")
@@ -410,7 +410,7 @@ def Unlock_mental_block(bot: Botting) -> None:
     bot.Properties.Enable("pause_on_danger")
     bot.Properties.Disable("halt_on_death")
     bot.Properties.Set("movement_timeout", value=-1)
-    bot.Properties.Enable("auto_combat")
+    bot.Properties.Enable("hero_ai")
 
     bot.Map.Travel(target_map_id=641)
     bot.Wait.ForMapLoad(target_map_id=641)
@@ -450,7 +450,7 @@ def Unlock_smooth_criminal(bot: Botting) -> None:
     bot.Properties.ApplyNow("pause_on_danger", "active", True)
     bot.Properties.ApplyNow("halt_on_death", "active", True)
     bot.Properties.ApplyNow("movement_timeout", "value", 15000)
-    bot.Properties.ApplyNow("auto_combat", "active", True)
+    bot.Properties.ApplyNow("hero_ai", "active", True)
 
     bot.Move.XYAndDialog(25203, -10694, 0x837C01)  # Melandru (take quest)
 
@@ -551,7 +551,7 @@ def Unlock_dwarven_stability(bot: Botting) -> None:
     bot.Properties.Enable("pause_on_danger")
     bot.Properties.Disable("halt_on_death")
     bot.Properties.Set("movement_timeout", value=-1)
-    bot.Properties.Enable("auto_combat")
+    bot.Properties.Enable("hero_ai")
 
     # Big Unfriendly Jotun chain
     bot.Move.XYAndDialog(12009, 24726, 0x837E03)   # open dialog tree
@@ -634,7 +634,7 @@ def Unlock_you_move_like_a_dwarf(bot: Botting) -> None:
     bot.Properties.Enable("pause_on_danger")
     bot.Properties.Disable("halt_on_death")
     bot.Properties.Set("movement_timeout", value=-1)
-    bot.Properties.Enable("auto_combat")
+    bot.Properties.Enable("hero_ai")
 
     # Worthy Deeds (quest for this skill)
     bot.Move.XYAndDialog(14380, 23968, 0x833A01)  # take quest
@@ -676,7 +676,7 @@ def Unlock_i_am_unstoppable(bot: Botting) -> None:
     bot.Properties.Enable("pause_on_danger")
     bot.Properties.Disable("halt_on_death")
     bot.Properties.Set("movement_timeout", value=-1)
-    bot.Properties.Enable("auto_combat")
+    bot.Properties.Enable("hero_ai")
 
     # --- Part 1: Anything you can do ---
     bot.Move.XYAndDialog(14380, 23874, 0x833E01)  # Anything you can do
@@ -729,7 +729,7 @@ def Unlock_i_am_unstoppable(bot: Botting) -> None:
     bot.Properties.Enable("pause_on_danger")
     bot.Properties.Disable("halt_on_death")
     bot.Properties.Set("movement_timeout", value=-1)
-    bot.Properties.Enable("auto_combat")
+    bot.Properties.Enable("hero_ai")
 
     bot.Items.SpawnBonusItems()
     bot.Items.Equip(ModelID.Bonus_Nevermore_Flatbow.value)  # swap to prevent error (as script)
@@ -815,7 +815,7 @@ def Unlock_air_of_superiority(bot: Botting) -> None:
     bot.Properties.ApplyNow("pause_on_danger", "active", True)
     bot.Properties.ApplyNow("halt_on_death", "active", True)
     bot.Properties.ApplyNow("movement_timeout", "value", 15000)
-    bot.Properties.ApplyNow("auto_combat", "active", True)
+    bot.Properties.ApplyNow("hero_ai", "active", True)
     path=[(-2584.1,515.4),
     (-3168.0,-985.5),
     (-3228.0,-2487.7),
@@ -869,7 +869,7 @@ def Unlock_asuran_scan(bot: Botting) -> None:
     bot.Properties.ApplyNow("pause_on_danger", "active", True)
     bot.Properties.ApplyNow("halt_on_death", "active", True)
     bot.Properties.ApplyNow("movement_timeout", "value", 15000)
-    bot.Properties.ApplyNow("auto_combat", "active", True)
+    bot.Properties.ApplyNow("hero_ai", "active", True)
 
     path=[(-11165.4,-18283.9),    (-11328.1,-17780.3),    (-11384.3,-17280.2),    (-11334.4,-16778.1),    (-11299.2,-16276.2),    (-11329.3,-15772.8),    (-11316.9,-15269.3),    (-11349.1,-14767.7),    (-11348.2,-14267.3),    (-11384.4,-13765.5),    (-11316.9,-13265.2),    (-11233.8,-12765.2),    (-11150.5,-12263.8),    (-11067.2,-11762.9),    (-10896.6,-11260.0),    (-10667.6,-10758.3),    (-10461.4,-10258.3),    (-10254.9,-9757.7),    (-10064.7,-9256.7),    (-9835.3,-8756.4),    (-9718.4,-8251.5),    (-9640.7,-7750.0),    (-9561.5,-7249.7),    (-9512.5,-6749.1),    (-9480.4,-6248.2),    (-9458.3,-5743.9),    (-9469.2,-5241.0),    (-9559.7,-4740.4),    (-9232.6,-4238.3),    (-8888.4,-3737.5),    (-8548.9,-3233.5),    (-8232.0,-2729.6),    (-8124.7,-2227.3),    (-8145.7,-1727.3),    (-8172.7,-1223.1),    (-8213.0,-718.8),    (-8263.4,-217.4),    (-8315.9,285.3),    (-8388.2,789.5),    (-8511.6,1292.5),    (-8647.4,1797.6),    (-8766.6,2301.6),    (-9177.1,2804.6),    (-9641.8,3305.0),    (-9964.5,3809.8),    (-9928.1,4311.3),    (-9428.2,4814.2),    (-8927.0,5191.5),    (-8443.6,5693.6),    (-7941.2,5822.0),    (-7440.0,5904.8),    (-6935.2,5990.9),    (-6431.5,6070.9),    (-5925.0,6133.0),    (-5422.3,6192.9),    (-4917.6,6210.4),    (-4415.9,6234.1),    (-3914.2,6258.1),    (-3413.2,6288.2),    (-2911.0,6320.1),    (-2406.6,6352.2),    (-1902.5,6292.1),    (-1401.4,6104.2),    (-898.4,5923.1),    (-396.5,5874.6),    (107.0,5793.2),    (607.5,5705.9),    (1111.0,5617.4),    (1612.5,5529.3),    (2114.7,5559.1),    (2616.7,5820.9),    (3119.0,6102.4),    (3620.1,6494.9),    (4121.1,6888.0),    (4623.3,7275.8),    (5124.6,7435.8),    (5626.4,7537.5),    (6080.2,7037.3),    (6438.3,6533.6),    (6795.6,6031.0),    (7296.8,5720.0),    (7797.8,5498.1),    (8299.2,5427.9),    (8799.6,5350.6),    (9300.5,5511.6),    (9802.5,5812.5),    (10346.69,8246.0),    (10808.6,6189.0),    (11311.0,6333.2),    (11302.6,5831.4),    (11248.2,5330.4),    (11210.3,4828.7),    (11132.2,4326.2),    (11034.8,3821.7),    (10937.3,3320.5),   (10839.4,2817.3),    (10741.8,2315.8),    (10644.0,1813.2),    (10530.5,1311.6),    (10410.4,807.9),    (10264.4,304.8),    (10117.4,-196.6),    (10220.3,-697.2),    (10295.1,-1198.7),    (9793.1,-1453.9),    (9289.4,-1546.0),    (8787.0,-1543.4),    (8286.1,-1480.6),    (7785.1,-1417.8),    (7285.0,-1355.1),    (6779.9,-1303.0),    (6276.2,-1185.9),    (5774.2,-1006.9),    (5272.1,-1011.6),    (4769.0,-1198.1),    (4264.9,-1441.2),    (3764.1,-1665.9),    (3823.0,-2168.4),    (4325.4,-2468.7),    (4828.8,-2117.9),    (5331.0,-1838.1),    (5833.0,-1559.3),    (6319.6,-1055.8),    (6395.2,-554.3),    (6346.1,-53.7),    (6292.7,447.5),    (6241.4,950.9),    (6140.5,1451.3),    (6090.1,1953.7),    (6039.9,2455.2),    (5728.8,2957.0),    (5271.5,3458.7),    (4767.9,3612.2),    (4350.9,3108.4),    (3865.1,2604.3),    (3657.0,2100.5),    (3460.4,1598.3),(3360.7,1463.1)] #postion 1 
     bot.Move.FollowAutoPath(path)
@@ -894,7 +894,7 @@ def Unlock_radiation_field(bot: Botting) -> None:
     bot.Properties.ApplyNow("pause_on_danger", "active", True)
     bot.Properties.ApplyNow("halt_on_death", "active", True)
     bot.Properties.ApplyNow("movement_timeout", "value", 15000)
-    bot.Properties.ApplyNow("auto_combat", "active", True)
+    bot.Properties.ApplyNow("hero_ai", "active", True)
 
     path=[(-21603.1,8285.9),
     (-21798.3,9288.2),
@@ -1004,7 +1004,7 @@ def Unlock_technobabble(bot: Botting) -> None:
     bot.Properties.ApplyNow("pause_on_danger", "active", True)
     bot.Properties.ApplyNow("halt_on_death", "active", True)
     bot.Properties.ApplyNow("movement_timeout", "value", 15000)
-    bot.Properties.ApplyNow("auto_combat", "active", True)
+    bot.Properties.ApplyNow("hero_ai", "active", True)
     path1=[(16333.0,13134.0),
     (15831.3,12689.2),
     (14826.0,12244.9),
@@ -1162,7 +1162,7 @@ def Unlock_previous_skills(bot: Botting) -> None:
     bot.Properties.ApplyNow("pause_on_danger", "active", True)
     bot.Properties.ApplyNow("halt_on_death", "active", True)
     bot.Properties.ApplyNow("movement_timeout", "value", 15000)
-    bot.Properties.ApplyNow("auto_combat", "active", True)
+    bot.Properties.ApplyNow("hero_ai", "active", True)
 
     bot.Move.XYAndDialog(25203, -10694, 0x837C01)  # Melandru (take quest)
 
@@ -1201,7 +1201,7 @@ def Unlock_previous_skills(bot: Botting) -> None:
     bot.Properties.Enable("pause_on_danger")
     bot.Properties.Disable("halt_on_death")
     bot.Properties.Set("movement_timeout", value=-1)
-    bot.Properties.Enable("auto_combat")
+    bot.Properties.Enable("hero_ai")
 
     bot.Move.XYAndDialog(25203, -10694, 0x837701)  # Balthazar (take quest)
 
@@ -1238,7 +1238,7 @@ def Unlock_previous_skills(bot: Botting) -> None:
     bot.Properties.ApplyNow("pause_on_danger", "active", True)
     bot.Properties.ApplyNow("halt_on_death", "active", True)
     bot.Properties.ApplyNow("movement_timeout", "value", 15000)
-    bot.Properties.ApplyNow("auto_combat", "active", True)
+    bot.Properties.ApplyNow("hero_ai", "active", True)
 
     path=[(-21603.1,8285.9),
     (-21798.3,9288.2),
@@ -1340,7 +1340,7 @@ def Unlock_previous_skills(bot: Botting) -> None:
     bot.Properties.ApplyNow("pause_on_danger", "active", True)
     bot.Properties.ApplyNow("halt_on_death", "active", True)
     bot.Properties.ApplyNow("movement_timeout", "value", 15000)
-    bot.Properties.ApplyNow("auto_combat", "active", True)
+    bot.Properties.ApplyNow("hero_ai", "active", True)
 
     path=[(-11165.4,-18283.9),    (-11328.1,-17780.3),    (-11384.3,-17280.2),    (-11334.4,-16778.1),    (-11299.2,-16276.2),    (-11329.3,-15772.8),    (-11316.9,-15269.3),    (-11349.1,-14767.7),    (-11348.2,-14267.3),    (-11384.4,-13765.5),    (-11316.9,-13265.2),    (-11233.8,-12765.2),    (-11150.5,-12263.8),    (-11067.2,-11762.9),    (-10896.6,-11260.0),    (-10667.6,-10758.3),    (-10461.4,-10258.3),    (-10254.9,-9757.7),    (-10064.7,-9256.7),    (-9835.3,-8756.4),    (-9718.4,-8251.5),    (-9640.7,-7750.0),    (-9561.5,-7249.7),    (-9512.5,-6749.1),    (-9480.4,-6248.2),    (-9458.3,-5743.9),    (-9469.2,-5241.0),    (-9559.7,-4740.4),    (-9232.6,-4238.3),    (-8888.4,-3737.5),    (-8548.9,-3233.5),    (-8232.0,-2729.6),    (-8124.7,-2227.3),    (-8145.7,-1727.3),    (-8172.7,-1223.1),    (-8213.0,-718.8),    (-8263.4,-217.4),    (-8315.9,285.3),    (-8388.2,789.5),    (-8511.6,1292.5),    (-8647.4,1797.6),    (-8766.6,2301.6),    (-9177.1,2804.6),    (-9641.8,3305.0),    (-9964.5,3809.8),    (-9928.1,4311.3),    (-9428.2,4814.2),    (-8927.0,5191.5),    (-8443.6,5693.6),    (-7941.2,5822.0),    (-7440.0,5904.8),    (-6935.2,5990.9),    (-6431.5,6070.9),    (-5925.0,6133.0),    (-5422.3,6192.9),    (-4917.6,6210.4),    (-4415.9,6234.1),    (-3914.2,6258.1),    (-3413.2,6288.2),    (-2911.0,6320.1),    (-2406.6,6352.2),    (-1902.5,6292.1),    (-1401.4,6104.2),    (-898.4,5923.1),    (-396.5,5874.6),    (107.0,5793.2),    (607.5,5705.9),    (1111.0,5617.4),    (1612.5,5529.3),    (2114.7,5559.1),    (2616.7,5820.9),    (3119.0,6102.4),    (3620.1,6494.9),    (4121.1,6888.0),    (4623.3,7275.8),    (5124.6,7435.8),    (5626.4,7537.5),    (6080.2,7037.3),    (6438.3,6533.6),    (6795.6,6031.0),    (7296.8,5720.0),    (7797.8,5498.1),    (8299.2,5427.9),    (8799.6,5350.6),    (9300.5,5511.6),    (9802.5,5812.5),    (10346.69,8246.0),    (10808.6,6189.0),    (11311.0,6333.2),    (11302.6,5831.4),    (11248.2,5330.4),    (11210.3,4828.7),    (11132.2,4326.2),    (11034.8,3821.7),    (10937.3,3320.5),   (10839.4,2817.3),    (10741.8,2315.8),    (10644.0,1813.2),    (10530.5,1311.6),    (10410.4,807.9),    (10264.4,304.8),    (10117.4,-196.6),    (10220.3,-697.2),    (10295.1,-1198.7),    (9793.1,-1453.9),    (9289.4,-1546.0),    (8787.0,-1543.4),    (8286.1,-1480.6),    (7785.1,-1417.8),    (7285.0,-1355.1),    (6779.9,-1303.0),    (6276.2,-1185.9),    (5774.2,-1006.9),    (5272.1,-1011.6),    (4769.0,-1198.1),    (4264.9,-1441.2),    (3764.1,-1665.9),    (3823.0,-2168.4),    (4325.4,-2468.7),    (4828.8,-2117.9),    (5331.0,-1838.1),    (5833.0,-1559.3),    (6319.6,-1055.8),    (6395.2,-554.3),    (6346.1,-53.7),    (6292.7,447.5),    (6241.4,950.9),    (6140.5,1451.3),    (6090.1,1953.7),    (6039.9,2455.2),    (5728.8,2957.0),    (5271.5,3458.7),    (4767.9,3612.2),    (4350.9,3108.4),    (3865.1,2604.3),    (3657.0,2100.5),    (3460.4,1598.3),(3360.7,1463.1)] #postion 1 
     bot.Move.FollowAutoPath(path)
@@ -1363,7 +1363,7 @@ def Unlock_previous_skills(bot: Botting) -> None:
     bot.Properties.ApplyNow("pause_on_danger", "active", True)
     bot.Properties.ApplyNow("halt_on_death", "active", True)
     bot.Properties.ApplyNow("movement_timeout", "value", 15000)
-    bot.Properties.ApplyNow("auto_combat", "active", True)
+    bot.Properties.ApplyNow("hero_ai", "active", True)
     path1=[(16333.0,13134.0),
     (15831.3,12689.2),
     (14826.0,12244.9),

@@ -112,7 +112,7 @@ def InitializeBot(bot: Botting) -> None:
     bot.Properties.Disable("auto_inventory_management")
     bot.Properties.Disable("auto_loot")
     bot.Properties.Disable("hero_ai")
-    bot.Properties.Disable("auto_combat")
+    bot.Properties.Disable("hero_ai")
     bot.Properties.Disable("pause_on_danger")
     bot.Properties.Enable("halt_on_death")
     bot.Properties.Set("movement_timeout",value=-1)
@@ -329,7 +329,7 @@ def ChestRunRoutine(bot: Botting) -> None:
 
     MysticHealingSupport.InitHeroComanagedRoutines(bot, hero_list=hero_list)
 
-    bot.Properties.Enable("auto_combat")
+    bot.Properties.Enable("hero_ai")
     bot.Properties.Enable("alcohol")
     
     path_points: list[tuple[float, float]] = [
@@ -410,7 +410,7 @@ def ChestRunRoutine(bot: Botting) -> None:
 # Reset the farm loop to run Barbarous Shore again
 def ResetFarmLoop(bot: Botting):
     bot.States.AddHeader("Reset Farm Loop")
-    bot.Properties.Disable("auto_combat")
+    bot.Properties.Disable("hero_ai")
     bot.States.AddCustomState(lambda: stuck_helper.Toggle(False), "Deactivate Stuck Helper")
     bot.States.RemoveManagedCoroutine("Run Stuck Handler")
 

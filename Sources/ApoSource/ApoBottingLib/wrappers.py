@@ -403,29 +403,11 @@ def ResolveRerollNewCharacterName(
         character_name_key: str = "reroll_character_name",
         new_character_name_key: str = "reroll_character_name",
     ) -> BehaviorTree:
-    def _fallback_name(current_name: str) -> str:
-        suffixes = ["A", "B", "C", "D", "E", "F", "K", "H", "I", "J"]
-        cleaned = "".join(ch for ch in (current_name or "") if ch.isalpha() or ch == " ")
-        cleaned = " ".join(cleaned.split())
-        if not cleaned:
-            return "Fallback A"
-        parts = cleaned.split()
-        current_suffix = parts[-1] if parts and parts[-1] in suffixes else None
-        while parts and parts[-1] in suffixes:
-            parts.pop()
-        base_name = " ".join(parts).strip() or "Fallback"
-        suffix = suffixes[(suffixes.index(current_suffix) + 1) % len(suffixes)] if current_suffix in suffixes else suffixes[0]
-        return f"{base_name} {suffix}"
-
     def _resolve_new_name(node: BehaviorTree.Node) -> BehaviorTree.NodeState:
         character_name = str(node.blackboard.get(character_name_key, "") or "")
         if not character_name:
             return BehaviorTree.NodeState.FAILURE
-        try:
-            names = [c.player_name for c in Map.Pregame.GetAvailableCharacterList()]
-        except Exception:
-            names = []
-        node.blackboard[new_character_name_key] = _fallback_name(character_name) if character_name in names else character_name
+        node.blackboard[new_character_name_key] = character_name
         return BehaviorTree.NodeState.SUCCESS
 
     return BehaviorTree(

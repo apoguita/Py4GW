@@ -1,4 +1,6 @@
 from enum import Enum
+from collections.abc import Sequence as RuntimeSequence
+import time
 from typing import Callable, Sequence, cast
 
 import Py4GW
@@ -41,7 +43,8 @@ class BottingTree:
     - lets the user plug in their own planner tree via SetPlannerTree(...)
     """
 
-    def __init__(self, pause_on_combat: bool = True, isolation_enabled: bool = True):
+    def __init__(self, bot_name: str = "Botting Tree", pause_on_combat: bool = True, isolation_enabled: bool = True):
+        self.bot_name = bot_name
         self.pause_on_combat = pause_on_combat
         self.isolation_enabled = isolation_enabled
         self._restore_isolation_on_stop = True
@@ -51,6 +54,7 @@ class BottingTree:
         self.looting_enabled = True
         self._planner_steps: list[tuple[str, Callable[[], object] | object]] = []
         self._planner_sequence_name = "PlannerSequence"
+        self._planner_repeat = False
         self._service_steps: list[tuple[str, Callable[[], object] | object]] = []
         self._service_trees: list[tuple[str, BehaviorTree]] = []
         self.planner_tree = self._build_default_planner_tree()
@@ -64,6 +68,8 @@ class BottingTree:
         self.draw_move_path_thickness = 4.0
         self.draw_move_waypoint_radius = 15.0
         self.draw_move_current_waypoint_radius = 20.0
+        self.Templates = _BottingTreeTemplates(self)
+        self.UI = _BottingTreeUI(self)
 
     _LOG_LAST_MESSAGE_KEY = "last_log_message"
     _LOG_LAST_MESSAGE_DATA_KEY = "last_log_message_data"
@@ -297,6 +303,72 @@ class BottingTree:
         elif reset:
             self.Reset()
 
+    def SetMainRoutine(
+        self,
+        routine: BehaviorTree | BehaviorTree.Node | Callable[[], object] | Sequence[object] | None,
+        name: str = "MainRoutine",
+        auto_start: bool = False,
+        reset: bool = True,
+        repeat: bool = False,
+    ):
+        """
+        Configure the planner routine used by the default BottingTree UI.
+
+        Accepted shapes:
+        - BehaviorTree
+        - BehaviorTree.Node
+        - callable returning a BehaviorTree or node
+        - sequence of child trees/nodes/callables, wrapped in a SequenceNode
+        - sequence of (step_name, tree_or_builder) tuples, exposed as restartable named steps
+        """
+        if routine is None:
+            self.SetPlannerTree(None)
+        elif callable(routine):
+            self.SetPlannerTree(self._coerce_runtime_tree(routine))
+        elif isinstance(routine, RuntimeSequence) and not isinstance(routine, (str, bytes)):
+            routine_items = list(routine)
+            if routine_items and all(
+                isinstance(item, tuple)
+                and len(item) == 2
+                and isinstance(item[0], str)
+                for item in routine_items
+            ):
+                self.SetNamedPlannerSteps(
+                    cast(Sequence[tuple[str, Callable[[], object] | object]], routine_items),
+                    name=name,
+                    repeat=repeat,
+                )
+            else:
+                self._planner_steps = []
+                self._planner_sequence_name = name
+                self._planner_repeat = False
+                self.SetPlannerTree(self._build_sequence_from_children(routine_items, name=name))
+        else:
+            self.SetPlannerTree(self._coerce_runtime_tree(routine))
+
+        if auto_start:
+            self.Start()
+        elif reset:
+            self.Reset()
+
+    def _build_sequence_from_children(
+        self,
+        children: Sequence[object],
+        name: str = "MainRoutine",
+    ) -> BehaviorTree:
+        return BehaviorTree(
+            BehaviorTree.SequenceNode(
+                name=name,
+                children=[
+                    BehaviorTree.SubtreeNode(
+                        name=f"{name} Step {index + 1}",
+                        subtree_fn=lambda node, child=child: self._coerce_runtime_tree(child),
+                    )
+                    for index, child in enumerate(children)
+                ],
+            )
+        )
+
     def _rebuild_root_tree(self):
         blackboard = dict(self.tree.blackboard) if hasattr(self, "tree") and self.tree is not None else {}
         self.tree = self._build_parallel_tree()
@@ -307,6 +379,7 @@ class BottingTree:
         steps: Sequence[tuple[str, Callable[[], object] | object]],
         start_from: str | None = None,
         name: str = "PlannerSequence",
+        repeat: bool = False,
     ) -> BehaviorTree:
         if not steps:
             return BehaviorTree(BehaviorTree.SequenceNode(name=name, children=[]))
@@ -328,13 +401,38 @@ class BottingTree:
                 return cast(BehaviorTree, subtree)
             raise TypeError(f"Planner step returned invalid type {type(subtree).__name__}.")
 
-        children = [
-            BehaviorTree.SubtreeNode(
-                name=step_name,
-                subtree_fn=lambda node, subtree_or_builder=subtree_or_builder: _as_tree(subtree_or_builder),
+        def _mark_current_step(step_name: str) -> BehaviorTree.Node:
+            def _mark(node: BehaviorTree.Node, step_name: str = step_name) -> BehaviorTree.NodeState:
+                node.blackboard["current_step_name"] = step_name
+                return BehaviorTree.NodeState.SUCCESS
+
+            return BehaviorTree.ActionNode(
+                name=f"MarkCurrentStep({step_name})",
+                action_fn=_mark,
+                aftercast_ms=0,
+            )
+
+        children: list[BehaviorTree.Node] = [
+            BehaviorTree.SequenceNode(
+                name=f"Step: {step_name}",
+                children=[
+                    _mark_current_step(step_name),
+                    BehaviorTree.SubtreeNode(
+                        name=step_name,
+                        subtree_fn=lambda node, subtree_or_builder=subtree_or_builder: _as_tree(subtree_or_builder),
+                    ),
+                ],
             )
             for step_name, subtree_or_builder in steps[start_index:]
         ]
+        if repeat:
+            full_pass = self._build_named_planner_tree(steps, start_from=None, name=f"{name} Full Pass", repeat=False)
+            children.append(
+                BehaviorTree.RepeaterForeverNode(
+                    full_pass.root,
+                    name="Loop: restart routine",
+                )
+            )
         return BehaviorTree(BehaviorTree.SequenceNode(name=name, children=children))
 
     def SetNamedPlannerSteps(
@@ -342,10 +440,12 @@ class BottingTree:
         steps: Sequence[tuple[str, Callable[[], object] | object]],
         start_from: str | None = None,
         name: str = "PlannerSequence",
+        repeat: bool = False,
     ):
         self._planner_steps = list(steps)
         self._planner_sequence_name = name
-        self._set_planner_tree(self._build_named_planner_tree(self._planner_steps, start_from=start_from, name=name))
+        self._planner_repeat = repeat
+        self._set_planner_tree(self._build_named_planner_tree(self._planner_steps, start_from=start_from, name=name, repeat=repeat))
 
     def SetCurrentNamedPlannerSteps(
         self,
@@ -354,11 +454,13 @@ class BottingTree:
         name: str = "PlannerSequence",
         auto_start: bool = False,
         reset: bool = True,
+        repeat: bool = False,
     ):
         self.SetNamedPlannerSteps(
             steps,
             start_from=start_from,
             name=name,
+            repeat=repeat,
         )
         if auto_start:
             self.Start()
@@ -414,6 +516,83 @@ class BottingTree:
     def GetUpkeepTreeNames(self) -> list[str]:
         return self.GetServiceTreeNames()
 
+    def AddPartyWipeRecoveryService(
+        self,
+        default_step_name: str | None = None,
+        return_interval_ms: float = 1000.0,
+    ) -> None:
+        self.AddServiceTree(
+            "PartyWipeRecoveryService",
+            lambda: BottingTree.PartyWipeRecoveryServiceTree(
+                default_step_name=default_step_name,
+                return_interval_ms=return_interval_ms,
+            ),
+        )
+
+    @staticmethod
+    def PartyWipeRecoveryServiceTree(
+        default_step_name: str | None = None,
+        return_interval_ms: float = 1000.0,
+    ) -> BehaviorTree:
+        state = {
+            "active": False,
+            "step_name": "",
+            "last_return_ms": 0.0,
+        }
+
+        def _reset_state(node: BehaviorTree.Node) -> None:
+            state["active"] = False
+            state["step_name"] = ""
+            state["last_return_ms"] = 0.0
+            node.blackboard["party_wipe_recovery_active"] = False
+
+        def _tick_party_wipe_service(node: BehaviorTree.Node) -> BehaviorTree.NodeState:
+            from .Map import Map
+            from .py4gwcorelib_src.ActionQueue import ActionQueueManager
+
+            now = time.monotonic() * 1000.0
+            is_wiped = bool(Routines.Checks.Party.IsPartyWiped() or GLOBAL_CACHE.Party.IsPartyDefeated())
+
+            if not state["active"]:
+                if not is_wiped:
+                    node.blackboard["party_wipe_recovery_active"] = False
+                    return BehaviorTree.NodeState.RUNNING
+
+                step_name = str(node.blackboard.get("current_step_name", "") or "")
+                if not step_name:
+                    step_name = str(default_step_name or "")
+
+                state["active"] = True
+                state["step_name"] = step_name
+                state["last_return_ms"] = 0.0
+                node.blackboard["party_wipe_recovery_active"] = True
+                node.blackboard["party_wipe_recovery_step_name"] = step_name
+                ActionQueueManager().ResetAllQueues()
+                return BehaviorTree.NodeState.RUNNING
+
+            node.blackboard["party_wipe_recovery_active"] = True
+            node.blackboard["party_wipe_recovery_step_name"] = state["step_name"]
+
+            if Map.IsMapReady() and Map.IsOutpost() and GLOBAL_CACHE.Party.IsPartyLoaded():
+                if state["step_name"]:
+                    node.blackboard["restart_step_name_request"] = state["step_name"]
+                _reset_state(node)
+                return BehaviorTree.NodeState.SUCCESS
+
+            if now - float(state["last_return_ms"]) >= float(return_interval_ms):
+                GLOBAL_CACHE.Party.ReturnToOutpost()
+                state["last_return_ms"] = now
+
+            return BehaviorTree.NodeState.RUNNING
+
+        return BehaviorTree(
+            BehaviorTree.ActionNode(
+                name="PartyWipeRecoveryService",
+                action_fn=_tick_party_wipe_service,
+                aftercast_ms=0,
+            )
+        )
+
     def GetNamedPlannerStepNames(self
     ) -> list[str]:
         return [step_name for step_name, _ in self._planner_steps]
@@ -427,7 +606,12 @@ class BottingTree:
         if not self._planner_steps:
             return False
         sequence_name = name or self._planner_sequence_name
-        self.SetPlannerTree(self._build_named_planner_tree(self._planner_steps, start_from=step_name, name=sequence_name))
+        self._set_planner_tree(self._build_named_planner_tree(
+            self._planner_steps,
+            start_from=step_name,
+            name=sequence_name,
+            repeat=self._planner_repeat,
+        ))
         self.Reset()
         if auto_start:
             self.Start()
@@ -912,6 +1096,11 @@ class BottingTree:
             self.SetLootingEnabled(requested_looting_enabled)
         bb["looting_enabled"] = self.IsLootingEnabled()
 
+        requested_pause_on_combat = bb.pop("pause_on_combat_request", None)
+        if isinstance(requested_pause_on_combat, bool):
+            self.pause_on_combat = requested_pause_on_combat
+        bb["pause_on_combat"] = self.pause_on_combat
+
         if not self.started or self.paused:
             bb["COMBAT_ACTIVE"] = False
             bb["LOOTING_ACTIVE"] = False
@@ -1106,5 +1295,383 @@ class BottingTree:
             )
         )
 
+    def ProcessRestartRequest(self) -> bool:
+        restart_step_name = str(self.GetBlackboardValue("restart_step_name_request", "") or "")
+        if not restart_step_name:
+            return False
+
+        self.ClearBlackboardValue("restart_step_name_request")
+        self.ClearBlackboardValue("current_step_name")
+        return self.RestartFromNamedPlannerStep(restart_step_name, auto_start=True)
+
     def tick(self):
-        return self.tree.tick()
+        result = self.tree.tick()
+        self.ProcessRestartRequest()
+        return result
+
+
+class _BottingTreeTemplates:
+    def __init__(self, parent: BottingTree):
+        self.parent = parent
+
+    @staticmethod
+    def _request_template_state(
+        *,
+        name: str,
+        hero_ai: bool,
+        looting: bool,
+        isolation: bool,
+        pause_on_combat: bool,
+        reset_hero_ai: bool = True,
+    ) -> BehaviorTree:
+        state = {"requested": False}
+        request_keys = (
+            "headless_heroai_enabled_request",
+            "headless_heroai_reset_runtime_request",
+            "looting_enabled_request",
+            "account_isolation_enabled_request",
+            "pause_on_combat_request",
+        )
+
+        def _apply_template(node: BehaviorTree.Node) -> BehaviorTree.NodeState:
+            if state["requested"]:
+                if any(key in node.blackboard for key in request_keys):
+                    return BehaviorTree.NodeState.RUNNING
+                state["requested"] = False
+                return BehaviorTree.NodeState.SUCCESS
+
+            node.blackboard["headless_heroai_enabled_request"] = bool(hero_ai)
+            node.blackboard["headless_heroai_reset_runtime_request"] = bool(reset_hero_ai)
+            node.blackboard["looting_enabled_request"] = bool(looting)
+            node.blackboard["account_isolation_enabled_request"] = bool(isolation)
+            node.blackboard["pause_on_combat_request"] = bool(pause_on_combat)
+            node.blackboard["botting_tree_template"] = name
+            state["requested"] = True
+            return BehaviorTree.NodeState.RUNNING
+
+        return BehaviorTree(
+            BehaviorTree.ActionNode(
+                name=name,
+                action_fn=_apply_template,
+                aftercast_ms=0,
+            )
+        )
+
+    @staticmethod
+    def PacifistTree(
+        *,
+        account_isolation: bool = True,
+        reset_hero_ai: bool = True,
+        name: str = "ConfigurePacifistEnv",
+    ) -> BehaviorTree:
+        return _BottingTreeTemplates._request_template_state(
+            name=name,
+            hero_ai=False,
+            looting=False,
+            isolation=account_isolation,
+            pause_on_combat=False,
+            reset_hero_ai=reset_hero_ai,
+        )
+
+    @staticmethod
+    def PacifistForceHeroAITree(
+        *,
+        reset_hero_ai: bool = True,
+        name: str = "ConfigurePacifistForceHeroAIEnv",
+    ) -> BehaviorTree:
+        return _BottingTreeTemplates.PacifistTree(
+            account_isolation=False,
+            reset_hero_ai=reset_hero_ai,
+            name=name,
+        )
+
+    @staticmethod
+    def AggressiveTree(
+        *,
+        pause_on_danger: bool = True,
+        account_isolation: bool = True,
+        auto_loot: bool = True,
+        reset_hero_ai: bool = True,
+        name: str = "ConfigureAggressiveEnv",
+    ) -> BehaviorTree:
+        return _BottingTreeTemplates._request_template_state(
+            name=name,
+            hero_ai=True,
+            looting=auto_loot,
+            isolation=account_isolation,
+            pause_on_combat=pause_on_danger,
+            reset_hero_ai=reset_hero_ai,
+        )
+
+    @staticmethod
+    def AggressiveForceHeroAITree(
+        *,
+        pause_on_danger: bool = True,
+        auto_loot: bool = True,
+        reset_hero_ai: bool = True,
+        name: str = "ConfigureAggressiveForceHeroAIEnv",
+    ) -> BehaviorTree:
+        return _BottingTreeTemplates.AggressiveTree(
+            pause_on_danger=pause_on_danger,
+            account_isolation=False,
+            auto_loot=auto_loot,
+            reset_hero_ai=reset_hero_ai,
+            name=name,
+        )
+
+    @staticmethod
+    def MultiboxAggressiveTree(
+        *,
+        auto_loot: bool = True,
+        reset_hero_ai: bool = True,
+        name: str = "ConfigureMultiboxAggressiveEnv",
+    ) -> BehaviorTree:
+        return _BottingTreeTemplates.AggressiveTree(
+            pause_on_danger=True,
+            account_isolation=False,
+            auto_loot=auto_loot,
+            reset_hero_ai=reset_hero_ai,
+            name=name,
+        )
+
+    def Pacifist(self, **kwargs) -> BehaviorTree:
+        return self.PacifistTree(**kwargs)
+
+    def PacifistForceHeroAI(self, **kwargs) -> BehaviorTree:
+        return self.PacifistForceHeroAITree(**kwargs)
+
+    def Aggressive(self, **kwargs) -> BehaviorTree:
+        return self.AggressiveTree(**kwargs)
+
+    def AggressiveForceHeroAI(self, **kwargs) -> BehaviorTree:
+        return self.AggressiveForceHeroAITree(**kwargs)
+
+    def Multibox_Aggressive(self, **kwargs) -> BehaviorTree:
+        return self.MultiboxAggressiveTree(**kwargs)
+
+    ConfigurePacifistEnv = Pacifist
+    ConfigureAggressiveEnv = Aggressive
+
+
+BottingTreeTemplates = _BottingTreeTemplates
+
+
+class _BottingTreeUI:
+    def __init__(self, parent: BottingTree):
+        self.parent = parent
+        self.draw_texture_fn: Callable[[], None] | None = None
+        self.draw_config_fn: Callable[[], None] | None = None
+        self.draw_help_fn: Callable[[], None] | None = None
+        self._selected_start_index = 0
+        self._show_tree = True
+        self._debug_console_height = 200.0
+
+    def override_draw_texture(self, draw_fn: Callable[[], None] | None = None) -> None:
+        self.draw_texture_fn = draw_fn
+
+    def override_draw_config(self, draw_fn: Callable[[], None] | None = None) -> None:
+        self.draw_config_fn = draw_fn
+
+    def override_draw_help(self, draw_fn: Callable[[], None] | None = None) -> None:
+        self.draw_help_fn = draw_fn
+
+    def PrintMessageToConsole(self, source: str, message: str) -> None:
+        Py4GW.Console.Log(source, message, Py4GW.Console.MessageType.Info)
+
+    def _draw_texture(self, icon_path: str = "", size: tuple[float, float] = (96.0, 96.0)) -> None:
+        if self.draw_texture_fn is not None:
+            self.draw_texture_fn()
+            return
+        if not icon_path:
+            return
+
+        try:
+            from .ImGui import ImGui
+
+            ImGui.DrawTextureExtended(
+                texture_path=icon_path,
+                size=size,
+                uv0=(0.0, 0.0),
+                uv1=(1.0, 1.0),
+                tint=(255, 255, 255, 255),
+                border_color=(0, 0, 0, 0),
+            )
+        except Exception:
+            PyImGui.text(icon_path)
+
+    def _colored_bool(self, label: str, value: bool) -> None:
+        color = (0, 255, 0, 255) if value else (255, 80, 80, 255)
+        PyImGui.text_colored(f"{label}: {value}", color)
+
+    def _current_step_name(self) -> str:
+        current_step_name = str(self.parent.GetBlackboardValue("current_step_name", "") or "")
+        if current_step_name:
+            return current_step_name
+        planner_status = str(self.parent.GetBlackboardValue("PLANNER_STATUS", "") or "")
+        return planner_status or "Idle"
+
+    def _draw_main_child(
+        self,
+        main_child_dimensions: tuple[int, int] = (350, 275),
+        icon_path: str = "",
+        iconwidth: int = 96,
+    ) -> None:
+        if PyImGui.begin_table("botting_tree_header_table", 2, PyImGui.TableFlags.RowBg | PyImGui.TableFlags.BordersOuterH):
+            PyImGui.table_setup_column("Icon", PyImGui.TableColumnFlags.WidthFixed, iconwidth)
+            PyImGui.table_setup_column("Status", PyImGui.TableColumnFlags.WidthFixed, main_child_dimensions[0] - iconwidth)
+            PyImGui.table_next_row()
+            PyImGui.table_set_column_index(0)
+            self._draw_texture(icon_path, (float(iconwidth), float(iconwidth)))
+            PyImGui.table_set_column_index(1)
+            PyImGui.text(self.parent.bot_name)
+            PyImGui.text(f"Current: {self._current_step_name()}")
+            PyImGui.text(f"HeroAI: {self.parent.GetBlackboardValue('HEROAI_STATUS', 'Idle')}")
+            PyImGui.text(f"Planner: {self.parent.GetBlackboardValue('PLANNER_STATUS', 'Idle')}")
+            PyImGui.end_table()
+
+        if self.parent.IsStarted():
+            if PyImGui.button("Stop##BottingTreeStop"):
+                self.parent.Stop()
+            PyImGui.same_line(0, -1)
+            if self.parent.IsPaused():
+                if PyImGui.button("Resume##BottingTreePause"):
+                    self.parent.Pause(False)
+            else:
+                if PyImGui.button("Pause##BottingTreePause"):
+                    self.parent.Pause(True)
+        else:
+            step_names = self.parent.GetNamedPlannerStepNames()
+            if step_names:
+                self._selected_start_index = max(0, min(self._selected_start_index, len(step_names) - 1))
+                self._selected_start_index = PyImGui.combo("Start At", self._selected_start_index, step_names)
+                if PyImGui.button("Start##BottingTreeStart"):
+                    self.parent.RestartFromNamedPlannerStep(step_names[self._selected_start_index], auto_start=True)
+            else:
+                if PyImGui.button("Start##BottingTreeStart"):
+                    self.parent.Start()
+
+        PyImGui.separator()
+        self._colored_bool("Started", self.parent.IsStarted())
+        self._colored_bool("Paused", self.parent.IsPaused())
+        self._colored_bool("Headless HeroAI", self.parent.IsHeadlessHeroAIEnabled())
+        self._colored_bool("Looting", self.parent.IsLootingEnabled())
+        self._colored_bool("Account Isolation", self.parent.IsIsolationEnabled())
+        self._colored_bool("Combat Active", bool(self.parent.GetBlackboardValue("COMBAT_ACTIVE", False)))
+        self._colored_bool("Looting Active", bool(self.parent.GetBlackboardValue("LOOTING_ACTIVE", False)))
+
+    def _draw_navigation_child(self, child_size: tuple[int, int] = (350, 275)) -> None:
+        step_names = self.parent.GetNamedPlannerStepNames()
+        if not step_names:
+            PyImGui.text("No named planner steps configured.")
+            return
+
+        self._selected_start_index = max(0, min(self._selected_start_index, len(step_names) - 1))
+        self._selected_start_index = PyImGui.combo("Restart From", self._selected_start_index, step_names)
+        if PyImGui.button("Restart Selected"):
+            self.parent.RestartFromNamedPlannerStep(step_names[self._selected_start_index], auto_start=True)
+
+        PyImGui.separator()
+        if PyImGui.begin_child("BottingTreeNamedSteps", child_size, True, PyImGui.WindowFlags.HorizontalScrollbar):
+            for index, step_name in enumerate(step_names):
+                marker = ">" if index == self._selected_start_index else " "
+                PyImGui.text(f"{marker} {index}: {step_name}")
+        PyImGui.end_child()
+
+    def _draw_settings_child(self) -> None:
+        if self.draw_config_fn is not None:
+            self.draw_config_fn()
+            return
+
+        self.parent.pause_on_combat = PyImGui.checkbox("Pause Planner On Combat", self.parent.pause_on_combat)
+        headless_heroai_enabled = PyImGui.checkbox("Headless HeroAI", self.parent.IsHeadlessHeroAIEnabled())
+        if headless_heroai_enabled != self.parent.IsHeadlessHeroAIEnabled():
+            self.parent.SetHeadlessHeroAIEnabled(headless_heroai_enabled, reset_runtime=False)
+
+        looting_enabled = PyImGui.checkbox("Looting", self.parent.IsLootingEnabled())
+        if looting_enabled != self.parent.IsLootingEnabled():
+            self.parent.SetLootingEnabled(looting_enabled)
+
+        isolation_enabled = PyImGui.checkbox("Account Isolation", self.parent.IsIsolationEnabled())
+        if isolation_enabled != self.parent.IsIsolationEnabled():
+            self.parent.SetIsolationEnabled(isolation_enabled)
+        PyImGui.separator()
+        self.parent.DrawMovePathDebugOptions()
+
+    def _draw_help_child(self) -> None:
+        if self.draw_help_fn is not None:
+            self.draw_help_fn()
+            return
+
+        PyImGui.text("BottingTree default UI")
+        PyImGui.separator()
+        PyImGui.text("Use SetMainRoutine(...) with a BehaviorTree, node, callable, child list, or named step list.")
+        PyImGui.text("Call tick() every frame, then draw_window(...).")
+
+    def draw_debug_window(self) -> None:
+        if PyImGui.collapsing_header("Runtime"):
+            PyImGui.text(f"HeroAI Status: {self.parent.GetBlackboardValue('HEROAI_STATUS', '')}")
+            PyImGui.text(f"Planner Status: {self.parent.GetBlackboardValue('PLANNER_STATUS', '')}")
+            PyImGui.text(f"Last UI Log: {self.parent.GetDebugConsoleLastMessage()}")
+
+        if PyImGui.collapsing_header("Blackboard"):
+            for key in sorted(self.parent.blackboard.keys()):
+                value = self.parent.blackboard.get(key)
+                PyImGui.text_wrapped(f"{key}: {value}")
+
+        if PyImGui.collapsing_header("Debug Console"):
+            self.parent.DrawDebugConsole(height=self._debug_console_height)
+
+        if PyImGui.collapsing_header("Behavior Tree"):
+            self._show_tree = PyImGui.checkbox("Show Tree", self._show_tree)
+            if self._show_tree:
+                self.parent.Draw()
+
+    def draw_window(
+        self,
+        main_child_dimensions: tuple[int, int] = (350, 275),
+        icon_path: str = "",
+        iconwidth: int = 96,
+        additional_ui: Callable[[], None] | None = None,
+        extra_tabs: list[tuple[str, Callable[[], None]]] | None = None,
+    ) -> bool:
+        if PyImGui.begin(self.parent.bot_name, PyImGui.WindowFlags.AlwaysAutoResize):
+            if PyImGui.begin_tab_bar(self.parent.bot_name + "_tabs"):
+                if PyImGui.begin_tab_item("Main"):
+                    if PyImGui.begin_child(f"{self.parent.bot_name} - Main", main_child_dimensions, True, PyImGui.WindowFlags.NoFlag):
+                        self._draw_main_child(main_child_dimensions, icon_path, iconwidth)
+                        if additional_ui is not None:
+                            PyImGui.separator()
+                            additional_ui()
+                    PyImGui.end_child()
+                    PyImGui.end_tab_item()
+
+                if PyImGui.begin_tab_item("Navigation"):
+                    self._draw_navigation_child(main_child_dimensions)
+                    PyImGui.end_tab_item()
+
+                if PyImGui.begin_tab_item("Settings"):
+                    self._draw_settings_child()
+                    PyImGui.end_tab_item()
+
+                if PyImGui.begin_tab_item("Help"):
+                    self._draw_help_child()
+                    PyImGui.end_tab_item()
+
+                if PyImGui.begin_tab_item("Debug"):
+                    self.draw_debug_window()
+                    PyImGui.end_tab_item()
+
+                if extra_tabs:
+                    for tab_label, tab_draw_fn in extra_tabs:
+                        if PyImGui.begin_tab_item(tab_label):
+                            if callable(tab_draw_fn):
+                                tab_draw_fn()
+                            PyImGui.end_tab_item()
+
+                PyImGui.end_tab_bar()
+        PyImGui.end()
+        self.parent.DrawMovePathIfEnabled()
+        return True
+
+    DrawWindow = draw_window
+    DrawDebugWindow = draw_debug_window

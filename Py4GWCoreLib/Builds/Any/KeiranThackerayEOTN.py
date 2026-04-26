@@ -6,7 +6,7 @@ from typing import Callable, Optional
 from Py4GWCoreLib import (GLOBAL_CACHE, Agent, Player, Routines, BuildMgr, Range, Py4GW, ConsoleLog,
                           Map, ActionQueueManager, AgentArray, AutoPathing)
 #from Py4GWCoreLib.CombatEvents import CombatEvents as CombatEvents   # import the manager directly to avoid module shadowing
-from .AutoCombat import AutoCombat
+from .HeroAI import HeroAI_Build
 
 # ── Combat AI constants ───────────────────────────────────────────────────────
 _MIKU_MODEL_ID = 8513
@@ -134,9 +134,9 @@ def _nearest_from(array, origin_x: float, origin_y: float, max_dist: float = 0) 
 
 class KeiranThackerayEOTN(BuildMgr):
     def __init__(self, fsm=None, debug_fn: Optional[Callable[[], bool]] = None):
-        super().__init__(name="AutoCombat Build")
+        super().__init__(name="Keiran HeroAI Build")
         self.debug_fn: Callable[[], bool] = debug_fn if debug_fn is not None else (lambda: False)
-        self.auto_combat_handler: BuildMgr = AutoCombat()
+        self.hero_ai_handler: BuildMgr = HeroAI_Build(standalone_fallback=True)
 
         self.natures_blessing        = GLOBAL_CACHE.Skill.GetID("Natures_Blessing")
         self.relentless_assault      = GLOBAL_CACHE.Skill.GetID("Relentless_Assault")
@@ -180,12 +180,16 @@ class KeiranThackerayEOTN(BuildMgr):
         self.pause_reasons: set = set()
         self.ai_paused_fsm = False
 
-        for slot in range(1, 7):
-            self.auto_combat_handler.auto_combat_handler.SetSkillEnabled(slot, False)
-
     @property
     def debug(self) -> bool:
         return self.debug_fn()
+
+    def _sync_hero_ai_fallback_skill_blocks(self) -> None:
+        blocked_fallback_skill_ids = [
+            GLOBAL_CACHE.SkillBar.GetSkillIDBySlot(slot)
+            for slot in range(2, 8)
+        ]
+        self.hero_ai_handler.ApplyBlockedSkillIDs(blocked_fallback_skill_ids)
 
     def _set_pause(self, reason: str) -> None:
         self.pause_reasons.add(reason)
@@ -718,6 +722,7 @@ class KeiranThackerayEOTN(BuildMgr):
                         return
 
         if not has_empathy:
-            yield from self.auto_combat_handler.ProcessSkillCasting()
+            self._sync_hero_ai_fallback_skill_blocks()
+            yield from self.hero_ai_handler.ProcessSkillCasting()
         else:
-            yield  # don't let AutoCombat re-target and re-attack while Empathy/Spirit Shackles is active
+            yield  # don't let HeroAI re-target and re-attack while Empathy/Spirit Shackles is active

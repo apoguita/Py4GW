@@ -279,10 +279,21 @@ class BottingClass:
         self.config.FSM.reset()
         self.config.FSM.jump_to_state_by_name(step_name)
 
-    def ResetHeroAICombatState(self, active: bool = True, *, following: bool = True, targeting: bool = True, combat: bool = True) -> None:
+    def ResetHeroAICombatState(
+        self,
+        active: bool = True,
+        *,
+        following: bool = True,
+        avoidance: bool | None = None,
+        looting: bool | None = None,
+        targeting: bool = True,
+        combat: bool = True,
+        skills: bool = True,
+    ) -> None:
         from .GlobalCache import GLOBAL_CACHE
         from .Player import Player
         from .GlobalCache.shared_memory_src.HeroAIOptionStruct import HeroAIOptionStruct
+        from .GlobalCache.shared_memory_src.Globals import SHMEM_MAX_NUMBER_OF_SKILLS
 
         self.config.upkeep.hero_ai_paused.set_now("active", False)
         self.config.upkeep.hero_ai.set_now("active", active)
@@ -296,13 +307,20 @@ class BottingClass:
         if not account_email:
             return
 
+        if avoidance is None:
+            avoidance = active
+        if looting is None:
+            looting = active and combat
+
         options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsFromEmail(account_email) or HeroAIOptionStruct()
-        options.Email = account_email
         options.Following = bool(following)
+        options.Avoidance = bool(avoidance)
+        options.Looting = bool(looting)
         options.Targeting = bool(targeting)
         options.Combat = bool(combat)
-        options.Avoidance = True
-        options.Looting = self.config.upkeep.auto_loot.is_active()
+        if skills:
+            for skill_index in range(SHMEM_MAX_NUMBER_OF_SKILLS):
+                options.Skills[skill_index] = bool(active and combat)
         GLOBAL_CACHE.ShMem.SetHeroAIOptionsByEmail(account_email, options)
 
     #region Travel helpers

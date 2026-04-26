@@ -178,7 +178,7 @@ def _on_death(bot: "Botting"):
     bot.Properties.ApplyNow("pause_on_danger", "active", False)
     bot.Properties.ApplyNow("halt_on_death","active", True)
     bot.Properties.ApplyNow("movement_timeout","value", 15000)
-    bot.Properties.ApplyNow("auto_combat","active", False)
+    bot.Properties.ApplyNow("hero_ai","active", False)
     yield from RndTravelState(821, use_districts=8)
     fsm = bot.config.FSM
     fsm.resume()

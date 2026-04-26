@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Iterable
 
 from Py4GWCoreLib import ActionQueueManager, Agent, GLOBAL_CACHE, Key, Keystroke, Player, SharedCommandType
+from Py4GWCoreLib.GlobalCache.shared_memory_src.Globals import SHMEM_MAX_NUMBER_OF_SKILLS
 from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
 
 ENGINE_NONE = "none"
@@ -110,14 +111,36 @@ def _set_hero_ai_option_for_same_party(option_name: str, value) -> int:
         if options is None or not hasattr(options, option_name):
             continue
         setattr(options, option_name, value)
+        GLOBAL_CACHE.ShMem.SetHeroAIOptionsByEmail(account.AccountEmail, options)
         changed += 1
     return changed
 
 
-def set_auto_combat(enabled: bool, preferred_engine: str | None = None, bot=None) -> None:
+def _force_hero_ai_enabled_for_same_party() -> int:
+    changed = 0
+    for account in _iter_same_party_accounts(include_self=True):
+        options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsFromEmail(account.AccountEmail)
+        if options is None:
+            continue
+        options.Active = True
+        options.Following = True
+        options.Looting = True
+        options.Targeting = True
+        options.Combat = True
+        for skill_index in range(SHMEM_MAX_NUMBER_OF_SKILLS):
+            options.Skills[skill_index] = True
+        GLOBAL_CACHE.ShMem.SetHeroAIOptionsByEmail(account.AccountEmail, options)
+        changed += 1
+    return changed
+
+
+def set_hero_ai_combat(enabled: bool, preferred_engine: str | None = None, bot=None) -> None:
     engine = resolve_engine_for_bot(bot, preferred_engine)
     if engine == ENGINE_HERO_AI:
-        _set_hero_ai_option_for_same_party("Combat", bool(enabled))
+        if enabled:
+            _force_hero_ai_enabled_for_same_party()
+        else:
+            _set_hero_ai_option_for_same_party("Combat", False)
 
 
 def set_auto_looting(enabled: bool, preferred_engine: str | None = None, bot=None) -> None:

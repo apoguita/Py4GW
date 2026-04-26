@@ -12,7 +12,7 @@ from Py4GWCoreLib import Skill
 from Py4GWCoreLib import SpiritModelID
 from Py4GWCoreLib import Weapon
 from Py4GWCoreLib import Agent
-from Py4GWCoreLib.Builds.Any.AutoCombat import AutoCombat
+from Py4GWCoreLib.Builds.Any.HeroAI import HeroAI_Build
 
 ENEMY_BLACKLIST = {SpiritModelID.BLOODSONG, SpiritModelID.DESTRUCTION, AgentModelID.CHARR_AXEMASTER}
 
@@ -47,7 +47,7 @@ class DervBoneFarmer(BuildMgr):
         if match_only:
             return
 
-        self.SetFallback("AutoCombat", AutoCombat())
+        self.SetFallback("HeroAI", HeroAI_Build(standalone_fallback=True))
         # assign extra skill attributes from the already populated self.skills
         self.signet_of_mystic_speed = self.skills[0]
         self.pious_fury = self.skills[1]

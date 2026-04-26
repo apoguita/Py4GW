@@ -1,4 +1,4 @@
-﻿# Party Actions
+# Party Actions
 
 Party control, engine toggles, consumables, anchor/recovery control, and multibox account coordination.
 
@@ -205,9 +205,9 @@ Common runtime keys (all actions):
 {"type": "set_anchor", "phase": "03. Mission: Thunderhead Keep"}
 ```
 
-<a id="action-set_auto_combat"></a>
-## `set_auto_combat`
-- Action type: `set_auto_combat`
+<a id="action-set_hero_ai_combat"></a>
+## `set_hero_ai_combat`
+- Action type: `set_hero_ai_combat`
 - Aliases: `none`
 - Purpose: Execute party/engine/control behavior affecting team state.
 - Required fields: `none` (beyond `type`).
@@ -218,7 +218,7 @@ Common runtime keys (all actions):
 - Failure/skip behavior: If validation/selector resolution/prerequisites fail, the step logs context and returns safely without fatal exceptions.
 - Runnable example:
 ```json
-{"type": "set_auto_combat", "enabled": true}
+{"type": "set_hero_ai_combat", "enabled": true}
 ```
 
 <a id="action-set_auto_looting"></a>

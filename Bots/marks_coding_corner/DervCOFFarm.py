@@ -239,7 +239,7 @@ def cof_farm_bot(bot: Botting):
 
     # Actual Farming Loop
     bot.States.AddHeader('Farm Loop')
-    bot.Properties.Enable("auto_combat")
+    bot.Properties.Enable("hero_ai")
     bot.States.AddCustomState(return_to_outpost, "Return to Doomlore if dead")
     bot.Wait.ForTime(2000)
     bot.Wait.ForMapLoad(target_map_name=DOOMLORE_SHRINE)

@@ -6,7 +6,7 @@ from Py4GW import Game
 from Py4GWCoreLib import (GLOBAL_CACHE, Routines, Range, Py4GW, ConsoleLog, ModelID, Bags, Botting,
                           AutoPathing, ImGui, ActionQueueManager, Map, Agent, Player, UIManager, GWUI, HeroType, Skill, AgentArray)
 from Py4GWCoreLib.Builds.Any.KeiranThackerayEOTN import KeiranThackerayEOTN
-from Py4GWCoreLib.Builds.Any.AutoCombat import AutoCombat
+from Py4GWCoreLib.Builds.Any.HeroAI import HeroAI_Build
 from Py4GWCoreLib.ImGui_src.types import Alignment
 from Py4GWCoreLib.enums_src.UI_enums import UIMessage
 from Py4GWCoreLib.py4gwcorelib_src.Color import Color
@@ -1691,7 +1691,7 @@ def Attribute_Points_Quest_2(bot: Botting):
 
     def _cleanup_farm_settings():
         """Clear Keiran's build override and reset farm-specific properties."""
-        bot.OverrideBuild(AutoCombat())
+        bot.OverrideBuild(HeroAI_Build(standalone_fallback=True))
         bot.config.reset_pause_on_danger_fn(aggro_area=Range.Earshot)
         bot.Properties.ApplyNow("halt_on_death",   "active", False)
         bot.Properties.ApplyNow("pause_on_danger", "active", False)

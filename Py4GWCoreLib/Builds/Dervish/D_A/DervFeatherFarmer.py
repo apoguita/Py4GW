@@ -10,7 +10,7 @@ from Py4GWCoreLib import Range
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib import Weapon
 from Py4GWCoreLib import Agent
-from Py4GWCoreLib.Builds.Any.AutoCombat import AutoCombat
+from Py4GWCoreLib.Builds.Any.HeroAI import HeroAI_Build
 
 SENSALI_MODEL_IDS = {AgentModelID.SENSALI_CLAW, AgentModelID.SENSALI_CUTTER, AgentModelID.SENSALI_DARKFEATHER}
 
@@ -46,7 +46,7 @@ class DervFeatherFarmer(BuildMgr):
         if match_only:
             return
 
-        self.SetFallback("AutoCombat", AutoCombat())
+        self.SetFallback("HeroAI", HeroAI_Build(standalone_fallback=True))
         # assign extra skill attributes from the already populated self.skills
         self.sand_shards = self.skills[0]
         self.vow_of_strength = self.skills[1]
