@@ -272,6 +272,7 @@ class BuildMgr:
             TargetAllyNonEnchanted,
             TargetMinionNonEnchanted,
             TargetMinionOrAllyNonEnchanted,
+            TargetDeadPartyMember,
         )
         from HeroAI.types import Skilltarget, SkillType
         from Py4GWCoreLib import Agent, AgentArray, Player, Routines, Skill
@@ -367,13 +368,7 @@ class BuildMgr:
             return 0
         if target_allegiance == Skilltarget.DeadAlly.value:
             from Py4GWCoreLib.enums_src.GameData_enums import Range
-            dead_ally_array = AgentArray.GetDeadAllyArray()
-            dead_ally_array = AgentArray.Filter.ByDistance(dead_ally_array, Player.GetXY(), Range.Spellcast.value)
-            spirit_pet_array = AgentArray.GetSpiritPetArray()
-            spirit_pet_array = AgentArray.Filter.ByDistance(spirit_pet_array, Player.GetXY(), Range.Spellcast.value)
-            dead_ally_array = AgentArray.Manipulation.Subtract(dead_ally_array, spirit_pet_array)
-            dead_ally_array = AgentArray.Sort.ByDistance(dead_ally_array, Player.GetXY())
-            return dead_ally_array[0] if dead_ally_array else 0
+            return TargetDeadPartyMember(Range.Spellcast.value)
         if target_allegiance == Skilltarget.Self.value:
             return Player.GetAgentID()
 

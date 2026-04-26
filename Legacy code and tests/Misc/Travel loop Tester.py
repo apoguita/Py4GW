@@ -10,7 +10,7 @@ bot = Botting("Travel Test",
               upkeep_honeycomb_restock=20,
               upkeep_war_supplies_restock=2,
               upkeep_auto_inventory_management_active=False,
-              upkeep_auto_combat_active=False,
+              upkeep_hero_ai_active=False,
               upkeep_auto_loot_active=True)
  
 def create_bot_routine(bot: Botting) -> None:

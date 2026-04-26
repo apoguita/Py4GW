@@ -21,15 +21,6 @@ class _Upkeepers:
         self._hero_ai_pause_snapshot = None
         
     
-    def upkeep_auto_combat(self):
-        from ...Routines import Routines
-        while True:
-            #print (f"autocombat is: {self._config.upkeep.auto_combat.is_active()}")
-            if self._config.upkeep.auto_combat.is_active():
-                yield from self._config.build_handler.ProcessSkillCasting()
-            else:
-                yield from Routines.Yield.wait(250)       
-           
     def upkeep_hero_ai(self):
         from ...Routines import Routines
         from ...GlobalCache import GLOBAL_CACHE

@@ -11,7 +11,6 @@ if TYPE_CHECKING:
 from ..SkillManager import SkillManager
 from ..Py4GWcorelib import FSM
 from ..BuildMgr import BuildMgr
-from ..Builds.Any.AutoCombat import AutoCombat
 from .property import StepNameCounters, UpkeepData, ConfigProperties
 from .event import Events
     
@@ -37,7 +36,6 @@ class BotConfig:
                  alcohol_disable_visual: bool = True,
                  armor_of_salvation_active: bool = False,
                  armor_of_salvation_restock: int = 0,
-                 auto_combat_active: bool = False,
                  auto_inventory_management_active: bool = False,
                  auto_loot_active: bool = False,
                  #B
@@ -111,11 +109,10 @@ class BotConfig:
         self.fsm_running:bool = False
         self.state_description: str = "Idle"
         self.state_percentage: float = 0.0
-        #self.build_handler:SkillManager.Autocombat = SkillManager.Autocombat()
         if custom_build is not None:
             self.build_handler:BuildMgr = custom_build
         else:
-            self.build_handler:BuildMgr = AutoCombat()
+            self.build_handler:BuildMgr = BuildMgr()
 
         self.counters = StepNameCounters()
         
@@ -143,9 +140,6 @@ class BotConfig:
                                                   follow_path_color=config_follow_path_color
                                                   )
 
-        hero_ai_active = bool(hero_ai_active or auto_combat_active)
-        auto_combat_active = False
-
         self.upkeep = UpkeepData(self, 
                 #A
                  alcohol_active=alcohol_active,
@@ -153,7 +147,6 @@ class BotConfig:
                  alcohol_disable_visual=alcohol_disable_visual,
                  armor_of_salvation_active=armor_of_salvation_active,
                  armor_of_salvation_restock=armor_of_salvation_restock,
-                 auto_combat_active=auto_combat_active,
                  auto_inventory_management_active=auto_inventory_management_active,
                  auto_loot_active=auto_loot_active,
                 #B

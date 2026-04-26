@@ -37,10 +37,9 @@ class _TEMPLATES:
         
 
 
-    def AggressiveForceAutocombat(self, pause_on_danger: bool = True,
+    def AggressiveForceHeroAI(self, pause_on_danger: bool = True,
                    halt_on_death: bool = False,
                    movement_timeout: int = -1,
-                   auto_combat: bool = True, 
                    auto_loot: bool = True,
                    enable_imp: bool = True):
         properties = self.parent.Properties
@@ -70,7 +69,7 @@ class _TEMPLATES:
     def Aggressive(self, pause_on_danger: bool = True,
                    halt_on_death: bool = False,
                    movement_timeout: int = -1,
-                   auto_combat: bool = True, 
+                   account_isolation: bool = True,
                    auto_loot: bool = True,
                    enable_imp: bool = True):
         properties = self.parent.Properties
@@ -86,7 +85,7 @@ class _TEMPLATES:
 
         properties.Set("movement_timeout", value=movement_timeout)
         properties.Enable("hero_ai") #combat is always driven by HeroAI
-        if auto_combat:
+        if account_isolation:
             self.parent.Multibox.SetAccountIsolation(True) #single-account HeroAI
         else:
             self.parent.Multibox.SetAccountIsolation(False) #multi-account HeroAI

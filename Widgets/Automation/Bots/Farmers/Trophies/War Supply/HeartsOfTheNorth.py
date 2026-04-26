@@ -341,7 +341,7 @@ def on_death(bot: "Botting"):
 
 def _enable_combat(bot: Botting) -> None:
     bot.OverrideBuild(KeiranThackerayEOTN(fsm=bot.config.FSM, debug_fn=lambda: BotSettings.DEBUG))
-    bot.Templates.AggressiveForceAutocombat(enable_imp=False)
+    bot.Templates.AggressiveForceHeroAI(enable_imp=False)
 def _disable_combat(bot: Botting) -> None:
     bot.Templates.PacifistForceAutocombat()
 
@@ -597,11 +597,11 @@ def RunQuest(bot: Botting) -> None:
     bot.States.AddCustomState(lambda: _handle_bonus_bow(bot), "HandleBonusBow")
     bot.States.AddCustomState(lambda: _handle_war_supplies(bot, BotSettings.WAR_SUPPLIES_ENABLED), "HandleWarSupplies")
 
-    bot.Templates.AggressiveForceAutocombat(enable_imp=False)
+    bot.Templates.AggressiveForceHeroAI(enable_imp=False)
 
     def _fresh_build():
         bot.OverrideBuild(KeiranThackerayEOTN(fsm=bot.config.FSM, debug_fn=lambda: BotSettings.DEBUG))
-        bot.Templates.AggressiveForceAutocombat(enable_imp=False)  # re-arm combat template each run (Pacifist disables it at run end)
+        bot.Templates.AggressiveForceHeroAI(enable_imp=False)  # re-arm HeroAI template each run (Pacifist disables it at run end)
         yield
     bot.States.AddCustomState(_fresh_build, "FreshBuild")
     

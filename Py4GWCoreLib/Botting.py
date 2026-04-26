@@ -47,7 +47,6 @@ class BottingClass:
                  upkeep_alcohol_disable_visual: bool = True,
                  upkeep_armor_of_salvation_active: bool = False,
                  upkeep_armor_of_salvation_restock: int = 0,
-                 upkeep_auto_combat_active: bool = False,
                  upkeep_auto_inventory_management_active = False,
                  upkeep_auto_loot_active = False,
                  #B
@@ -134,7 +133,6 @@ class BottingClass:
                                 alcohol_disable_visual=upkeep_alcohol_disable_visual,
                                 armor_of_salvation_active=upkeep_armor_of_salvation_active,
                                 armor_of_salvation_restock=upkeep_armor_of_salvation_restock,
-                                auto_combat_active=upkeep_auto_combat_active,
                                 auto_inventory_management_active=upkeep_auto_inventory_management_active,
                                 auto_loot_active=upkeep_auto_loot_active,
                                 #B
@@ -243,7 +241,6 @@ class BottingClass:
         self.config.FSM.AddManagedCoroutine("keep_war_supplies",   H.upkeep_war_supplies())
         self.config.FSM.AddManagedCoroutine("keep_imp",            H.upkeep_imp())
         self.config.FSM.AddManagedCoroutine("keep_summoning_stone", H.upkeep_summoning_stone())
-        self.config.FSM.AddManagedCoroutine("keep_auto_combat",    H.upkeep_auto_combat())
         self.config.FSM.AddManagedCoroutine("keep_hero_ai",        H.upkeep_hero_ai())
         self.config.FSM.AddManagedCoroutine("keep_auto_inventory_management", H.upkeep_auto_inventory_management())
         self.config.FSM.AddManagedCoroutine("keep_auto_loot",      H.upkeep_auto_loot())
@@ -281,6 +278,32 @@ class BottingClass:
         self.config.fsm_running = True
         self.config.FSM.reset()
         self.config.FSM.jump_to_state_by_name(step_name)
+
+    def ResetHeroAICombatState(self, active: bool = True, *, following: bool = True, targeting: bool = True, combat: bool = True) -> None:
+        from .GlobalCache import GLOBAL_CACHE
+        from .Player import Player
+        from .GlobalCache.shared_memory_src.HeroAIOptionStruct import HeroAIOptionStruct
+
+        self.config.upkeep.hero_ai_paused.set_now("active", False)
+        self.config.upkeep.hero_ai.set_now("active", active)
+        upkeepers = getattr(getattr(self, "helpers", None), "Upkeepers", None)
+        if upkeepers is not None:
+            upkeepers._hero_ai_pause_applied = False
+            upkeepers._hero_ai_pause_snapshot = None
+            upkeepers.cancel_movement_triggered = False
+
+        account_email = Player.GetAccountEmail()
+        if not account_email:
+            return
+
+        options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsFromEmail(account_email) or HeroAIOptionStruct()
+        options.Email = account_email
+        options.Following = bool(following)
+        options.Targeting = bool(targeting)
+        options.Combat = bool(combat)
+        options.Avoidance = True
+        options.Looting = self.config.upkeep.auto_loot.is_active()
+        GLOBAL_CACHE.ShMem.SetHeroAIOptionsByEmail(account_email, options)
 
     #region Travel helpers
     def Travel_To_Random_District(

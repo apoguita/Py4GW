@@ -17,7 +17,7 @@ ICONS_PATH = os.path.join(Py4GW.Console.get_projects_path(), "Bots", "SkillsUnlo
 
 bot = Botting(
     bot_name=BOT_NAME,
-    upkeep_auto_combat_active=True,
+    upkeep_hero_ai_active=True,
     upkeep_auto_loot_active=False,
     upkeep_morale_active=True,
 )

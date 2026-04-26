@@ -160,7 +160,7 @@ TEKKS_POSITION = (12500, 22648)
 # ==================== GLOBAL VARIABLES ====================
 bot = Botting(
     bot_name=BOT_NAME,
-    upkeep_auto_combat_active=False,
+    upkeep_hero_ai_active=False,
     upkeep_auto_loot_active=True,
     upkeep_morale_active=True,
     upkeep_auto_inventory_management_active=True,

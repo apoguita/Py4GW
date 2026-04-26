@@ -17,7 +17,7 @@ MODULE_ICON = "Textures/Skill_Icons/[2424] - Stout-Hearted.jpg"
 
 bot = Botting("Deldrimor title farm by Wick Divinus",
               upkeep_honeycomb_active=True,
-              upkeep_auto_combat_active=True,
+              upkeep_hero_ai_active=True,
               upkeep_auto_inventory_management_active=True,
               upkeep_auto_loot_active=True)
 

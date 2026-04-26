@@ -50,7 +50,7 @@ bot = Botting(
             spellcast_table=barbarous_spellcast_table
         )),
     upkeep_alcohol_target_drunk_level=1,
-    upkeep_auto_combat_active=False,
+    upkeep_hero_ai_active=False,
     config_log_actions=False,
 )
 

@@ -79,7 +79,7 @@ bot = Botting(
         )),
     upkeep_alcohol_target_drunk_level=1,
     upkeep_birthday_cupcake_active=True,
-    upkeep_auto_combat_active=False,
+    upkeep_hero_ai_active=False,
     config_log_actions=False,
 )
 

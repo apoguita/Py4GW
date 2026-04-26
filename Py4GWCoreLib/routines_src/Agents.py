@@ -286,12 +286,14 @@ class Agents:
         from ..Py4GWcorelib import Utils
         from ..GlobalCache import GLOBAL_CACHE
         from ..Agent import Agent
+        from .Party import Party as PartyRoutines
 
         dead_ally_array = AgentArray.GetDeadAllyArray()
         dead_ally_array = AgentArray.Filter.ByDistance(dead_ally_array, Player.GetXY(), max_distance)
         spirit_pet_array = AgentArray.GetSpiritPetArray()
         spirit_pet_array = AgentArray.Filter.ByDistance(spirit_pet_array, Player.GetXY(), max_distance)
         dead_ally_array = AgentArray.Manipulation.Subtract(dead_ally_array, spirit_pet_array)
+        dead_ally_array = AgentArray.Filter.ByCondition(dead_ally_array, PartyRoutines.IsPartyMember)
         dead_ally_array = AgentArray.Sort.ByDistance(dead_ally_array, Player.GetXY())
     
         return Utils.GetFirstFromArray(dead_ally_array)

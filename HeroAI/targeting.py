@@ -76,6 +76,20 @@ def SortAlliesByLowestHp(agent_array):
     position_sorted = SortAlliesByPartyPosition(agent_array)
     return sorted(position_sorted, key=lambda agent_id: Agent.GetHealth(agent_id))
 
+
+def IsResurrectablePartyMember(agent_id: int) -> bool:
+    if not agent_id or not Agent.IsValid(agent_id):
+        return False
+    return Routines.Party.IsPartyMember(agent_id)
+
+
+def TargetDeadPartyMember(distance=Range.Spellcast.value):
+    dead_ally_array = AgentArray.GetDeadAllyArray()
+    dead_ally_array = AgentArray.Filter.ByDistance(dead_ally_array, Player.GetXY(), distance)
+    dead_ally_array = AgentArray.Filter.ByCondition(dead_ally_array, IsResurrectablePartyMember)
+    dead_ally_array = AgentArray.Sort.ByDistance(dead_ally_array, Player.GetXY())
+    return Utils.GetFirstFromArray(dead_ally_array)
+
 def TargetAllyByPredicate(
     predicate=None,
     other_ally=False,

@@ -15,7 +15,7 @@ class _INTERACT:
         self._config = parent.config
         self._helpers = parent.helpers
         self._Events = parent.helpers.Events
-        self.combat_status = False
+        self.hero_ai_status = False
         self.hero_ai_pause_status = False
         
     #region Coroutines (_coro_)
@@ -98,38 +98,38 @@ class _INTERACT:
 
         return True
     
-    def _coro_disable_auto_combat(self):
-        self.combat_status = self._config.upkeep.auto_combat.is_active()
+    def _coro_pause_hero_ai(self):
+        self.hero_ai_status = self._config.upkeep.hero_ai.is_active()
         self.hero_ai_pause_status = bool(getattr(self._config.upkeep, "hero_ai_paused", None) and self._config.upkeep.hero_ai_paused.is_active())
-        self._config.upkeep.auto_combat.set_now("active", False)
+        self._config.upkeep.hero_ai.set_now("active", False)
         if hasattr(self._config.upkeep, "hero_ai_paused"):
             self._config.upkeep.hero_ai_paused.set_now("active", True)
         ActionQueueManager().ResetAllQueues()
         yield
     
-    def _coro_restore_auto_combat(self):
+    def _coro_restore_hero_ai(self):
         from ...Routines import Routines
         # Give interaction actions time to settle before AI resumes.
         yield from Routines.Yield.wait(350)
-        self._config.upkeep.auto_combat.set_now("active", self.combat_status)
+        self._config.upkeep.hero_ai.set_now("active", self.hero_ai_status)
         if hasattr(self._config.upkeep, "hero_ai_paused"):
             self._config.upkeep.hero_ai_paused.set_now("active", self.hero_ai_pause_status)
         yield
 
     def _coro_with_npc_at_xy(self, x: float, y: float, dialog_id: int = 0, step_name: str = ""):
-        yield from self._coro_disable_auto_combat()
+        yield from self._coro_pause_hero_ai()
         yield from self._coro_with_agent((x, y), dialog_id=dialog_id)
-        yield from self._coro_restore_auto_combat()
+        yield from self._coro_restore_hero_ai()
         
     def _coro_with_gadget_at_xy(self, x: float, y: float, step_name: str=""):
-        yield from self._coro_disable_auto_combat()
+        yield from self._coro_pause_hero_ai()
         yield from self._coro_with_gadget((x, y))
-        yield from self._coro_restore_auto_combat()
+        yield from self._coro_restore_hero_ai()
         
     def _coro_with_item_at_xy(self, x: float, y: float, step_name: str=""):
-        yield from self._coro_disable_auto_combat()
+        yield from self._coro_pause_hero_ai()
         yield from self._coro_with_item((x, y))
-        yield from self._coro_restore_auto_combat()
+        yield from self._coro_restore_hero_ai()
 
     def _coro_with_model(self, model_id: int, dialog_id: int=0):
         from ...Routines import Routines
@@ -152,19 +152,19 @@ class _INTERACT:
         
     def _coro_get_blessing(self):
         from Widgets.Blessed import Get_Blessed  # delayed import to avoid circular dependencies
-        yield from self._coro_disable_auto_combat()
+        yield from self._coro_pause_hero_ai()
         Get_Blessed()  # starts the BlessingRunner (as in Blessed.py -> same as pushing the button in the widget)
-        yield from self._coro_restore_auto_combat()
+        yield from self._coro_restore_hero_ai()
 
 
     #region Yield Steps (ys_)
-    @_yield_step("DisableAutoCombat","AUTO_DISABLE_AUTO_COMBAT")
-    def ys_disable_auto_combat(self):
-        yield from self._coro_disable_auto_combat()
+    @_yield_step("PauseHeroAI","PAUSE_HERO_AI")
+    def ys_pause_hero_ai(self):
+        yield from self._coro_pause_hero_ai()
 
-    @_yield_step("RestoreAutoCombat","AUTO_RESTORE_AUTO_COMBAT")
-    def ys_restore_auto_combat(self):
-        yield from self._coro_restore_auto_combat()
+    @_yield_step("RestoreHeroAI","RESTORE_HERO_AI")
+    def ys_restore_hero_ai(self):
+        yield from self._coro_restore_hero_ai()
         
     @_yield_step("WithNpcAtXY","INTERACT_AT")
     def ys_with_npc_at_xy(self, x: float, y: float, dialog_id: int, step_name: str=""):

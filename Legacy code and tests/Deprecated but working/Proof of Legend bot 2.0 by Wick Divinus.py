@@ -19,7 +19,7 @@ MODULE_ICON = "Textures\\Module_Icons\\Proof of Legend.png"
 
 bot = Botting("Proof of Legend Bot 2.0 by Wick Divinus", MODULE_NAME, MODULE_ICON,
               upkeep_auto_inventory_management_active=False,
-              upkeep_auto_combat_active=False,
+              upkeep_hero_ai_active=False,
               upkeep_auto_loot_active=False)
 
 
