@@ -97,6 +97,9 @@ try:
     DEFAULT_INTERNAL_COOLDOWN_MS = 5000
     AFTERCAST_MS = 350
     ALCOHOL_EFFECT_TICK_MS = 1000
+    MIN_ALCOHOL_FAST_INTERVAL_MS = 250
+    DEFAULT_ALCOHOL_FAST_INTERVAL_MS = 1000
+    MAX_ALCOHOL_FAST_INTERVAL_MS = 60000
     MIN_PARTY_ITEM_INTERVAL_MS = 250
     DEFAULT_PARTY_ITEM_INTERVAL_MS = 1000
     MAX_PARTY_ITEM_INTERVAL_MS = 60000
@@ -400,15 +403,15 @@ try:
             "header": (0.22, 0.13, 0.08, 0.82),
             "header_hovered": (0.28, 0.17, 0.10, 0.90),
             "header_active": (0.34, 0.21, 0.12, 0.96),
-            "text": (0.97, 0.84, 0.74, 1.00),
-            "meta": (0.88, 0.72, 0.58, 1.00),
+            "text": (1.00, 0.78, 0.30, 1.00),
+            "meta": (0.92, 0.64, 0.22, 1.00),
         },
         "party_items": {
             "header": (0.34, 0.34, 0.34, 0.82),
             "header_hovered": (0.40, 0.40, 0.40, 0.90),
             "header_active": (0.46, 0.46, 0.46, 0.96),
-            "text": (0.94, 0.94, 0.94, 1.00),
-            "meta": (0.80, 0.80, 0.80, 1.00),
+            "text": (1.00, 0.78, 0.30, 1.00),
+            "meta": (0.92, 0.64, 0.22, 1.00),
         },
         "restock": {
             "header": (0.21, 0.18, 0.10, 0.82),
@@ -850,6 +853,16 @@ try:
             "long": "Smooth aims to hit target efficiently with minimal waste. Strong-first prioritizes high-point alcohol for fastest ramp-up. Weak-first prioritizes lower-point alcohol to conserve stronger stock.",
             "why": "This directly changes how quickly you reach target and how efficiently inventory is consumed.",
         },
+        "alcohol_fast_spending": {
+            "short": "Spend selected alcohol stacks quickly.",
+            "long": "When enabled, alcohol uses the selected ON items at the speed below instead of stopping at the target drunk level.",
+            "why": "Useful when you want title progress or stack cleanup instead of normal drunk-level upkeep.",
+        },
+        "alcohol_fast_interval_ms": {
+            "short": "How fast alcohol is used in fast spending mode.",
+            "long": "Controls how often Pycons tries to drink selected alcohol while Fast alcohol spending is enabled.",
+            "why": "Fast title spending should not force normal Pycons item checks to run faster.",
+        },
         "party_item_interval_ms": {
             "short": "How fast Party Items are used.",
             "long": "Controls how often Pycons tries to use selected Party Items. Lower values spend stacks faster; higher values are gentler for normal play.",
@@ -1121,6 +1134,7 @@ try:
         "restock_keep_target_on_deselect",
         "alcohol_enabled",
         "alcohol_disable_effect",
+        "alcohol_fast_spending",
         "alcohol_use_explorable",
         "alcohol_use_outpost",
         "team_broadcast",
@@ -1140,6 +1154,8 @@ try:
         "restock_keep_target_on_deselect",
         "alcohol_enabled",
         "alcohol_disable_effect",
+        "alcohol_fast_spending",
+        "alcohol_fast_interval_ms",
         "alcohol_target_level",
         "alcohol_use_explorable",
         "alcohol_use_outpost",
@@ -1292,6 +1308,8 @@ try:
             "restock_keep_target_on_deselect": True,
             "alcohol_enabled": False,
             "alcohol_disable_effect": False,
+            "alcohol_fast_spending": False,
+            "alcohol_fast_interval_ms": int(DEFAULT_ALCOHOL_FAST_INTERVAL_MS),
             "alcohol_target_level": 3,
             "alcohol_use_explorable": True,
             "alcohol_use_outpost": True,
@@ -1382,6 +1400,10 @@ try:
         payload["alcohol_target_level"] = max(0, min(5, int(payload.get("alcohol_target_level", 3))))
         alcohol_preference = int(payload.get("alcohol_preference", 0))
         payload["alcohol_preference"] = alcohol_preference if alcohol_preference in (0, 1, 2) else 0
+        payload["alcohol_fast_interval_ms"] = max(
+            MIN_ALCOHOL_FAST_INTERVAL_MS,
+            min(MAX_ALCOHOL_FAST_INTERVAL_MS, int(payload.get("alcohol_fast_interval_ms", DEFAULT_ALCOHOL_FAST_INTERVAL_MS))),
+        )
         payload["party_item_interval_ms"] = max(
             MIN_PARTY_ITEM_INTERVAL_MS,
             min(MAX_PARTY_ITEM_INTERVAL_MS, int(payload.get("party_item_interval_ms", DEFAULT_PARTY_ITEM_INTERVAL_MS))),
@@ -2728,6 +2750,8 @@ try:
     PYCONS_SYNC_ALCOHOL_SCALAR_KEYS = [
         "alcohol_enabled",
         "alcohol_disable_effect",
+        "alcohol_fast_spending",
+        "alcohol_fast_interval_ms",
         "alcohol_use_explorable",
         "alcohol_use_outpost",
         "alcohol_target_level",
@@ -3401,6 +3425,11 @@ try:
             # Alcohol
             self.alcohol_enabled = ini_handler.read_bool(INI_SECTION, "alcohol_enabled", False)
             self.alcohol_disable_effect = ini_handler.read_bool(INI_SECTION, "alcohol_disable_effect", False)
+            self.alcohol_fast_spending = ini_handler.read_bool(INI_SECTION, "alcohol_fast_spending", False)
+            self.alcohol_fast_interval_ms = max(
+                MIN_ALCOHOL_FAST_INTERVAL_MS,
+                min(MAX_ALCOHOL_FAST_INTERVAL_MS, int(ini_handler.read_int(INI_SECTION, "alcohol_fast_interval_ms", DEFAULT_ALCOHOL_FAST_INTERVAL_MS))),
+            )
             self.alcohol_target_level = max(0, min(5, int(ini_handler.read_int(INI_SECTION, "alcohol_target_level", 3))))
 
             self.alcohol_use_explorable = ini_handler.read_bool(INI_SECTION, "alcohol_use_explorable", True)
@@ -3585,6 +3614,11 @@ try:
 
             set_key("alcohol_enabled", bool(self.alcohol_enabled))
             set_key("alcohol_disable_effect", bool(self.alcohol_disable_effect))
+            set_key("alcohol_fast_spending", bool(self.alcohol_fast_spending))
+            set_key(
+                "alcohol_fast_interval_ms",
+                int(max(MIN_ALCOHOL_FAST_INTERVAL_MS, min(MAX_ALCOHOL_FAST_INTERVAL_MS, int(self.alcohol_fast_interval_ms)))),
+            )
             set_key("alcohol_target_level", int(self.alcohol_target_level))
             set_key("alcohol_use_explorable", bool(self.alcohol_use_explorable))
             set_key("alcohol_use_outpost", bool(self.alcohol_use_outpost))
@@ -4110,8 +4144,9 @@ try:
         if not bool(cfg.alcohol_enabled):
             return False, 0, [], False, 0, 0
 
+        fast_spending = bool(getattr(cfg, "alcohol_fast_spending", False))
         target = int(cfg.alcohol_target_level)
-        if target <= 0:
+        if target <= 0 and not fast_spending:
             return False, target, [], False, 0, 0
 
         if not bool(cfg.alcohol_use_explorable) and not bool(cfg.alcohol_use_outpost):
@@ -4136,7 +4171,7 @@ try:
 
         now = _now_ms()
         cur_level = _alcohol_current_level(now)
-        if cur_level >= target:
+        if cur_level >= target and not fast_spending:
             return False, target, pool_keys, in_explorable, now, cur_level
 
         return True, target, pool_keys, in_explorable, now, cur_level
@@ -7205,7 +7240,16 @@ try:
             return False
 
         t = _timer_for("alcohol_global")
-        if not (t.IsStopped() or t.HasElapsed(2500)):
+        fast_spending = bool(getattr(cfg, "alcohol_fast_spending", False))
+        interval_ms = (
+            max(
+                MIN_ALCOHOL_FAST_INTERVAL_MS,
+                min(MAX_ALCOHOL_FAST_INTERVAL_MS, int(getattr(cfg, "alcohol_fast_interval_ms", DEFAULT_ALCOHOL_FAST_INTERVAL_MS))),
+            )
+            if fast_spending
+            else 2500
+        )
+        if not (t.IsStopped() or t.HasElapsed(int(interval_ms))):
             return False
 
         pick = _pick_alcohol(cur_level, target, pool_keys)
@@ -7228,7 +7272,10 @@ try:
         if item_id <= 0:
             return False
 
-        _log(f"Drinking {pick.get('label','Alcohol')} (target {target}).", Console.MessageType.Debug)
+        if fast_spending:
+            _log(f"Fast drinking {pick.get('label','Alcohol')}.", Console.MessageType.Debug)
+        else:
+            _log(f"Drinking {pick.get('label','Alcohol')} (target {target}).", Console.MessageType.Debug)
         if _use_item_id(item_id, pick.get("key", "alcohol")):
             _alcohol_apply_drink(int(pick.get("drunk_add", 1) or 1), now)
             t.Start()
@@ -7794,6 +7841,7 @@ try:
 
         # --- Alcohol and Party settings (collapsed dropdown for compactness) ---
         if _styled_collapsing_header("Alcohol & Party Settings##pycons_alcohol_dropdown", False, "settings_alcohol"):
+            _section_text("Alcohol", "alcohol")
             PyImGui.text("Alcohol upkeep:")
             _same_line(10)
             if _badge_button("ON" if cfg.alcohol_enabled else "OFF", enabled=bool(cfg.alcohol_enabled), id_suffix="pycons_alcohol_toggle"):
@@ -7842,9 +7890,33 @@ try:
                 "Weak-first: conserves stronger alcohol."
             )
 
+            changed, fast_spending = ui_checkbox(
+                "Fast alcohol spending##pycons_alc_fast_spending_main",
+                bool(getattr(cfg, "alcohol_fast_spending", False)),
+            )
+            if changed:
+                cfg.alcohol_fast_spending = bool(fast_spending)
+                cfg.mark_dirty()
+            _tooltip_if_hovered(_tooltip_text_for("alcohol_fast_spending"))
+            _same_line(10)
+            PyImGui.text("Interval (ms):")
+            _same_line(6)
+            changed, fast_interval = ui_input_int_fixed(
+                "##pycons_alc_fast_interval_main",
+                int(getattr(cfg, "alcohol_fast_interval_ms", DEFAULT_ALCOHOL_FAST_INTERVAL_MS)),
+                width=120.0,
+            )
+            if changed:
+                cfg.alcohol_fast_interval_ms = int(
+                    max(MIN_ALCOHOL_FAST_INTERVAL_MS, min(MAX_ALCOHOL_FAST_INTERVAL_MS, int(fast_interval)))
+                )
+                cfg.mark_dirty()
+            _tooltip_if_hovered(_tooltip_text_for("alcohol_fast_interval_ms"))
+
             PyImGui.separator()
 
-            PyImGui.text("Party Items speed (ms):")
+            _section_text("Party Items", "party_items")
+            PyImGui.text("Speed (ms):")
             _same_line(10)
             changed, party_interval = ui_input_int_fixed(
                 "##pycons_party_item_interval_main",
@@ -9327,6 +9399,7 @@ try:
             cfg.settings_ui_alcohol_open = bool(alcohol_section_open)
             cfg.mark_dirty()
         if alcohol_section_open:
+            _section_text("Alcohol", "alcohol")
             PyImGui.text("Alcohol upkeep:")
             _same_line(10)
             if _badge_button("ON" if cfg.alcohol_enabled else "OFF", enabled=bool(cfg.alcohol_enabled), id_suffix="pycons_settings_alcohol_toggle"):
@@ -9373,9 +9446,33 @@ try:
                 cfg.mark_dirty()
             _show_setting_tooltip("alcohol_preference_mode")
 
+            changed, fast_spending = ui_checkbox(
+                "Fast alcohol spending##pycons_settings_alc_fast_spending",
+                bool(getattr(cfg, "alcohol_fast_spending", False)),
+            )
+            if changed:
+                cfg.alcohol_fast_spending = bool(fast_spending)
+                cfg.mark_dirty()
+            _tooltip_if_hovered(_tooltip_text_for("alcohol_fast_spending"))
+            _same_line(10)
+            PyImGui.text("Interval (ms):")
+            _same_line(6)
+            changed, fast_interval = ui_input_int_fixed(
+                "##pycons_settings_alc_fast_interval",
+                int(getattr(cfg, "alcohol_fast_interval_ms", DEFAULT_ALCOHOL_FAST_INTERVAL_MS)),
+                width=130.0,
+            )
+            if changed:
+                cfg.alcohol_fast_interval_ms = int(
+                    max(MIN_ALCOHOL_FAST_INTERVAL_MS, min(MAX_ALCOHOL_FAST_INTERVAL_MS, int(fast_interval)))
+                )
+                cfg.mark_dirty()
+            _show_setting_tooltip("alcohol_fast_interval_ms")
+
             PyImGui.separator()
 
-            PyImGui.text("Party Items speed (ms):")
+            _section_text("Party Items", "party_items")
+            PyImGui.text("Speed (ms):")
             _same_line(10)
             changed, party_interval = ui_input_int_fixed(
                 "##pycons_party_item_interval_ms",
@@ -9686,8 +9783,11 @@ try:
             used = _tick_morale_dp()
             if not used:
                 used = _tick_consume()
-            if not used:
+            if not used and not bool(getattr(cfg, "alcohol_fast_spending", False)):
                 _tick_alcohol()
+
+        if bool(getattr(cfg, "alcohol_fast_spending", False)):
+            _tick_alcohol()
 
         party_interval_ms = int(
             max(
