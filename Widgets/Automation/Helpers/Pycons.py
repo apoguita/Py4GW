@@ -18,6 +18,7 @@ MODULE_NAME = "Pycons"
 MODULE_ICON = "Textures\\Module_Icons\\Pycons.png"
 PYCONS_SYNC_OPCODE_RELOAD_CONFIG = 1
 PYCONS_SYNC_OPCODE_RELOAD_RESULT = 2
+PYCONS_SYNC_SELECTION_ENABLED_STATE_ONCE_KEY = "sync_selection_enabled_state_once"
 
 _PYCONS_CONFIG_DIR = os.path.normpath(os.path.join("Widgets", "Config", "Pycons"))
 _PYCONS_PROFILES_DIR = os.path.normpath(os.path.join(_PYCONS_CONFIG_DIR, "Profiles"))
@@ -100,6 +101,9 @@ try:
     MIN_ALCOHOL_FAST_INTERVAL_MS = 250
     DEFAULT_ALCOHOL_FAST_INTERVAL_MS = 1000
     MAX_ALCOHOL_FAST_INTERVAL_MS = 60000
+    MIN_SWEETS_FAST_INTERVAL_MS = 250
+    DEFAULT_SWEETS_FAST_INTERVAL_MS = 1000
+    MAX_SWEETS_FAST_INTERVAL_MS = 60000
     MIN_PARTY_ITEM_INTERVAL_MS = 250
     DEFAULT_PARTY_ITEM_INTERVAL_MS = 1000
     MAX_PARTY_ITEM_INTERVAL_MS = 60000
@@ -868,6 +872,16 @@ try:
             "long": "Controls how often Pycons tries to use selected Party Items. Lower values spend stacks faster; higher values are gentler for normal play.",
             "why": "Fast title-point spending should not force every other Pycons consumable to run faster.",
         },
+        "sweets_fast_spending": {
+            "short": "Spend selected sweet stacks quickly.",
+            "long": "When enabled, Pycons uses selected ON in-town speed boost sweets at the speed below instead of waiting for their normal speed effect to end.",
+            "why": "Useful when you want Sweet Tooth title progress or stack cleanup instead of normal speed upkeep.",
+        },
+        "sweets_fast_interval_ms": {
+            "short": "How fast sweets are used in fast spending mode.",
+            "long": "Controls how often Pycons tries to use selected in-town speed boost sweets while Fast sweets spending is enabled.",
+            "why": "Fast title spending should not force normal Pycons item checks to run faster.",
+        },
         "mbdp_enabled": {
             "short": "Master toggle for morale/DP automation.",
             "long": "Turns all morale boost and death penalty item automation on or off. If off, none of the settings below will use items.",
@@ -1135,6 +1149,7 @@ try:
         "alcohol_enabled",
         "alcohol_disable_effect",
         "alcohol_fast_spending",
+        "sweets_fast_spending",
         "alcohol_use_explorable",
         "alcohol_use_outpost",
         "team_broadcast",
@@ -1156,6 +1171,8 @@ try:
         "alcohol_disable_effect",
         "alcohol_fast_spending",
         "alcohol_fast_interval_ms",
+        "sweets_fast_spending",
+        "sweets_fast_interval_ms",
         "alcohol_target_level",
         "alcohol_use_explorable",
         "alcohol_use_outpost",
@@ -1310,6 +1327,8 @@ try:
             "alcohol_disable_effect": False,
             "alcohol_fast_spending": False,
             "alcohol_fast_interval_ms": int(DEFAULT_ALCOHOL_FAST_INTERVAL_MS),
+            "sweets_fast_spending": False,
+            "sweets_fast_interval_ms": int(DEFAULT_SWEETS_FAST_INTERVAL_MS),
             "alcohol_target_level": 3,
             "alcohol_use_explorable": True,
             "alcohol_use_outpost": True,
@@ -1403,6 +1422,10 @@ try:
         payload["alcohol_fast_interval_ms"] = max(
             MIN_ALCOHOL_FAST_INTERVAL_MS,
             min(MAX_ALCOHOL_FAST_INTERVAL_MS, int(payload.get("alcohol_fast_interval_ms", DEFAULT_ALCOHOL_FAST_INTERVAL_MS))),
+        )
+        payload["sweets_fast_interval_ms"] = max(
+            MIN_SWEETS_FAST_INTERVAL_MS,
+            min(MAX_SWEETS_FAST_INTERVAL_MS, int(payload.get("sweets_fast_interval_ms", DEFAULT_SWEETS_FAST_INTERVAL_MS))),
         )
         payload["party_item_interval_ms"] = max(
             MIN_PARTY_ITEM_INTERVAL_MS,
@@ -2645,6 +2668,7 @@ try:
     ]
 
     SUMMONING_ITEMS = [c for c in CONSUMABLES if str(c.get("use_where", "")).lower() == "summoning"]
+    SWEET_ITEMS = [c for c in CONSUMABLES if str(c.get("use_where", "")).lower() == "outpost"]
     PARTY_ITEMS = [c for c in CONSUMABLES if str(c.get("use_where", "")).lower() == "party_items"]
 
     MB_DP_ITEMS = [
@@ -2671,6 +2695,7 @@ try:
     ALL_CONSUMABLES = CONSUMABLES + MB_DP_ITEMS
     ALL_BY_KEY = {c["key"]: c for c in ALL_CONSUMABLES}
     SUMMONING_BY_KEY = {c["key"]: c for c in SUMMONING_ITEMS}
+    SWEET_ITEMS_BY_KEY = {c["key"]: c for c in SWEET_ITEMS}
     PARTY_ITEMS_BY_KEY = {c["key"]: c for c in PARTY_ITEMS}
     MB_DP_BY_KEY = {c["key"]: c for c in MB_DP_ITEMS}
     CONSET_KEYS = {"armor_of_salvation", "essence_of_celerity", "grail_of_might"}
@@ -2742,7 +2767,7 @@ try:
     PYCONS_SYNC_CATEGORY_RESTOCK = "restock_settings"
     PYCONS_SYNC_CATEGORY_SELECTION = "main_window_selection"
     PYCONS_SYNC_CATEGORY_DEFS = [
-        (PYCONS_SYNC_CATEGORY_ALCOHOL, "Alcohol & Party settings"),
+        (PYCONS_SYNC_CATEGORY_ALCOHOL, "Alcohol/Party & Sweets settings"),
         (PYCONS_SYNC_CATEGORY_MBDP, "Morale Boost & Death Penalty settings"),
         (PYCONS_SYNC_CATEGORY_RESTOCK, "Restock settings"),
         (PYCONS_SYNC_CATEGORY_SELECTION, "Select consumables to show in main window"),
@@ -2752,6 +2777,8 @@ try:
         "alcohol_disable_effect",
         "alcohol_fast_spending",
         "alcohol_fast_interval_ms",
+        "sweets_fast_spending",
+        "sweets_fast_interval_ms",
         "alcohol_use_explorable",
         "alcohol_use_outpost",
         "alcohol_target_level",
@@ -3360,6 +3387,7 @@ try:
 
         cfg = Config()
         _runtime_sync_from_cfg_full()
+        _clear_one_shot_synced_enabled_defaults_if_needed()
         _team_flags_cache.clear()
         try:
             _local_team_flags_refresh_timer.Stop()
@@ -3413,6 +3441,7 @@ try:
             self.last_applied_preset = str(ini_handler.read_key(INI_SECTION, "last_applied_preset", "None") or "None")
             self.last_party_opt_toggle_summary = str(ini_handler.read_key(INI_SECTION, "last_party_opt_toggle_summary", "None") or "None")
             self.sync_selection_include_enabled_state = ini_handler.read_bool(INI_SECTION, "sync_selection_include_enabled_state", False)
+            self._sync_selection_enabled_state_once = ini_handler.read_bool(INI_SECTION, PYCONS_SYNC_SELECTION_ENABLED_STATE_ONCE_KEY, False)
 
             # Optional per-item min intervals
             self.show_advanced_intervals = ini_handler.read_bool(INI_SECTION, "show_advanced_intervals", False)
@@ -3429,6 +3458,11 @@ try:
             self.alcohol_fast_interval_ms = max(
                 MIN_ALCOHOL_FAST_INTERVAL_MS,
                 min(MAX_ALCOHOL_FAST_INTERVAL_MS, int(ini_handler.read_int(INI_SECTION, "alcohol_fast_interval_ms", DEFAULT_ALCOHOL_FAST_INTERVAL_MS))),
+            )
+            self.sweets_fast_spending = ini_handler.read_bool(INI_SECTION, "sweets_fast_spending", False)
+            self.sweets_fast_interval_ms = max(
+                MIN_SWEETS_FAST_INTERVAL_MS,
+                min(MAX_SWEETS_FAST_INTERVAL_MS, int(ini_handler.read_int(INI_SECTION, "sweets_fast_interval_ms", DEFAULT_SWEETS_FAST_INTERVAL_MS))),
             )
             self.alcohol_target_level = max(0, min(5, int(ini_handler.read_int(INI_SECTION, "alcohol_target_level", 3))))
 
@@ -3606,6 +3640,7 @@ try:
             set_key("last_applied_preset", self.last_applied_preset)
             set_key("last_party_opt_toggle_summary", self.last_party_opt_toggle_summary)
             set_key("sync_selection_include_enabled_state", bool(self.sync_selection_include_enabled_state))
+            set_key(PYCONS_SYNC_SELECTION_ENABLED_STATE_ONCE_KEY, bool(getattr(self, "_sync_selection_enabled_state_once", False)))
 
             set_key("show_advanced_intervals", bool(self.show_advanced_intervals))
             set_key("persist_main_runtime_toggles", bool(self.persist_main_runtime_toggles))
@@ -3618,6 +3653,11 @@ try:
             set_key(
                 "alcohol_fast_interval_ms",
                 int(max(MIN_ALCOHOL_FAST_INTERVAL_MS, min(MAX_ALCOHOL_FAST_INTERVAL_MS, int(self.alcohol_fast_interval_ms)))),
+            )
+            set_key("sweets_fast_spending", bool(self.sweets_fast_spending))
+            set_key(
+                "sweets_fast_interval_ms",
+                int(max(MIN_SWEETS_FAST_INTERVAL_MS, min(MAX_SWEETS_FAST_INTERVAL_MS, int(self.sweets_fast_interval_ms)))),
             )
             set_key("alcohol_target_level", int(self.alcohol_target_level))
             set_key("alcohol_use_explorable", bool(self.alcohol_use_explorable))
@@ -3943,6 +3983,33 @@ try:
             _rt.runtime_alcohol_selected[k] = bool(cfg.alcohol_selected.get(k, False))
             _rt.runtime_alcohol_enabled[k] = bool(cfg.alcohol_enabled_items.get(k, False))
 
+    def _clear_one_shot_synced_enabled_defaults_if_needed() -> bool:
+        if cfg is None or not bool(getattr(cfg, "_sync_selection_enabled_state_once", False)):
+            return False
+
+        for c in ALL_CONSUMABLES:
+            key = str(c.get("key", "") or "")
+            if key:
+                cfg.enabled[key] = False
+        for a in ALCOHOL_ITEMS:
+            key = str(a.get("key", "") or "")
+            if key:
+                cfg.alcohol_enabled_items[key] = False
+
+        cfg._sync_selection_enabled_state_once = False
+        cfg.mark_dirty()
+        cfg.save_if_dirty_throttled(0)
+
+        try:
+            ini_handler = _get_ini_handler()
+            config = ini_handler.reload()
+            if config.has_section(INI_SECTION):
+                config.set(INI_SECTION, PYCONS_SYNC_SELECTION_ENABLED_STATE_ONCE_KEY, "False")
+                ini_handler.save(config)
+        except Exception:
+            pass
+        return True
+
     def _force_bind_ini_handler_to_account() -> bool:
         global _ini_handler_cache, _ini_path_cache, _ini_generic_cached_with_email_logged
         try:
@@ -3974,12 +4041,15 @@ try:
             _force_bind_ini_handler_to_account()
             cfg = Config()
             _runtime_sync_from_cfg_full()
+            cleared_one_shot_enabled_defaults = _clear_one_shot_synced_enabled_defaults_if_needed()
             _team_flags_cache.clear()
             try:
                 _local_team_flags_refresh_timer.Stop()
             except Exception:
                 pass
             detail = "Pycons config reloaded from disk."
+            if cleared_one_shot_enabled_defaults:
+                detail = f"{detail} Synced ON/OFF state is active for this session only."
             if reason:
                 detail = f"{detail} Reason: {str(reason)}."
             return True, detail
@@ -4023,6 +4093,14 @@ try:
     def _enabled_selected_party_item_keys() -> list[str]:
         out: list[str] = []
         for spec in PARTY_ITEMS:
+            key = str(spec.get("key", "") or "")
+            if key and bool(cfg.selected.get(key, False)) and _runtime_regular_enabled(key):
+                out.append(key)
+        return out
+
+    def _enabled_selected_sweet_keys() -> list[str]:
+        out: list[str] = []
+        for spec in SWEET_ITEMS:
             key = str(spec.get("key", "") or "")
             if key and bool(cfg.selected.get(key, False)) and _runtime_regular_enabled(key):
                 out.append(key)
@@ -4126,6 +4204,24 @@ try:
         Returns (ok, keys, in_explorable).
         """
         keys = _enabled_selected_party_item_keys()
+        if not keys:
+            return False, keys, False
+        if not Routines.Checks.Map.MapValid():
+            return False, keys, False
+        if _should_block_consumption():
+            return False, keys, False
+        if not (aftercast_timer.IsStopped() or aftercast_timer.HasElapsed(int(AFTERCAST_MS))):
+            return False, keys, False
+        return True, keys, bool(_in_explorable())
+
+    def _sweets_precheck():
+        """
+        Stable gate ordering for fast sweets spending.
+        Returns (ok, keys, in_explorable).
+        """
+        if not bool(getattr(cfg, "sweets_fast_spending", False)):
+            return False, [], False
+        keys = _enabled_selected_sweet_keys()
         if not keys:
             return False, keys, False
         if not Routines.Checks.Map.MapValid():
@@ -4320,6 +4416,9 @@ try:
 
     def _is_party_item_spec(spec: dict) -> bool:
         return str(spec.get("use_where", "") or "").strip().lower() == "party_items"
+
+    def _is_sweets_spec(spec: dict) -> bool:
+        return str(spec.get("use_where", "") or "").strip().lower() == "outpost"
 
     def _is_guild_hall() -> bool:
         try:
@@ -6243,6 +6342,7 @@ try:
 
         if PYCONS_SYNC_CATEGORY_SELECTION in category_set:
             include_enabled_state = bool(getattr(cfg, "sync_selection_include_enabled_state", False))
+            set_key(PYCONS_SYNC_SELECTION_ENABLED_STATE_ONCE_KEY, bool(include_enabled_state))
             for spec in ALL_CONSUMABLES:
                 item_key = str(spec.get("key", "") or "")
                 if not item_key:
@@ -7112,6 +7212,9 @@ try:
             if _is_party_item_spec(spec):
                 continue
 
+            if bool(getattr(cfg, "sweets_fast_spending", False)) and _is_sweets_spec(spec):
+                continue
+
             if not _allowed_here(spec, in_explorable):
                 continue
 
@@ -7224,6 +7327,57 @@ try:
             _log(f"Using {spec['label']}.", Console.MessageType.Debug)
             if _use_item_id(item_id, key):
                 t.Start()
+                aftercast_timer.Start()
+                _last_used_ms[key] = _now_ms()
+                _refresh_inventory_cache(force=True)
+                return True
+
+        return False
+
+    # -------------------------
+    # Tick: fast sweets spending
+    # -------------------------
+    def _tick_sweets() -> bool:
+        ok, keys, in_explorable = _sweets_precheck()
+        if not ok:
+            return False
+
+        t = _timer_for("sweets_fast_global")
+        interval_ms = int(
+            max(
+                MIN_SWEETS_FAST_INTERVAL_MS,
+                min(MAX_SWEETS_FAST_INTERVAL_MS, int(getattr(cfg, "sweets_fast_interval_ms", DEFAULT_SWEETS_FAST_INTERVAL_MS))),
+            )
+        )
+        if not (t.IsStopped() or t.HasElapsed(interval_ms)):
+            return False
+        t.Start()
+
+        for key in keys:
+            spec = SWEET_ITEMS_BY_KEY.get(key)
+            if not spec:
+                continue
+            if not _allowed_here(spec, in_explorable):
+                continue
+
+            model_id = int(spec.get("model_id", 0))
+            if model_id <= 0:
+                wt = _warn_timer_for(f"consume_modelid_missing_{key}")
+                if wt.IsStopped() or wt.HasElapsed(15000):
+                    wt.Start()
+                    _record_blocked_action(
+                        f"consume_modelid_missing_{key}",
+                        f"{str(spec.get('label', key) or key)}: model_id=0",
+                    )
+                    _debug(f"Skipping {spec.get('label','(unknown)')}: model_id is 0 (missing ModelID entry?).", Console.MessageType.Warning)
+                continue
+
+            item_id = _find_item_id_by_model_id(model_id)
+            if item_id <= 0:
+                continue
+
+            _log(f"Fast using {spec.get('label','Sweets')}.", Console.MessageType.Debug)
+            if _use_item_id(item_id, key):
                 aftercast_timer.Start()
                 _last_used_ms[key] = _now_ms()
                 _refresh_inventory_cache(force=True)
@@ -7839,8 +7993,8 @@ try:
 
         PyImGui.separator()
 
-        # --- Alcohol and Party settings (collapsed dropdown for compactness) ---
-        if _styled_collapsing_header("Alcohol & Party Settings##pycons_alcohol_dropdown", False, "settings_alcohol"):
+        # --- Alcohol, Party, and Sweets settings (collapsed dropdown for compactness) ---
+        if _styled_collapsing_header("Alcohol/Party & Sweets Settings##pycons_alcohol_dropdown", False, "settings_alcohol"):
             _section_text("Alcohol", "alcohol")
             PyImGui.text("Alcohol upkeep:")
             _same_line(10)
@@ -7929,6 +8083,32 @@ try:
                 )
                 cfg.mark_dirty()
             _tooltip_if_hovered(_tooltip_text_for("party_item_interval_ms"))
+
+            PyImGui.separator()
+
+            _section_text("Sweets", "alcohol")
+            changed, sweets_fast = ui_checkbox(
+                "Fast sweets spending##pycons_sweets_fast_spending_main",
+                bool(getattr(cfg, "sweets_fast_spending", False)),
+            )
+            if changed:
+                cfg.sweets_fast_spending = bool(sweets_fast)
+                cfg.mark_dirty()
+            _tooltip_if_hovered(_tooltip_text_for("sweets_fast_spending"))
+            _same_line(10)
+            PyImGui.text("Interval (ms):")
+            _same_line(6)
+            changed, sweets_interval = ui_input_int_fixed(
+                "##pycons_sweets_fast_interval_main",
+                int(getattr(cfg, "sweets_fast_interval_ms", DEFAULT_SWEETS_FAST_INTERVAL_MS)),
+                width=120.0,
+            )
+            if changed:
+                cfg.sweets_fast_interval_ms = int(
+                    max(MIN_SWEETS_FAST_INTERVAL_MS, min(MAX_SWEETS_FAST_INTERVAL_MS, int(sweets_interval)))
+                )
+                cfg.mark_dirty()
+            _tooltip_if_hovered(_tooltip_text_for("sweets_fast_interval_ms"))
 
             PyImGui.separator()
 
@@ -9389,9 +9569,9 @@ try:
 
             PyImGui.separator()
 
-        # --- Alcohol and Party settings (collapsed dropdown for compactness) ---
+        # --- Alcohol, Party, and Sweets settings (collapsed dropdown for compactness) ---
         alcohol_section_open = _styled_collapsing_header(
-            "Alcohol & Party Settings##pycons_settings_alcohol_dropdown",
+            "Alcohol/Party & Sweets Settings##pycons_settings_alcohol_dropdown",
             bool(cfg.settings_ui_alcohol_open),
             "settings_alcohol",
         )
@@ -9485,6 +9665,32 @@ try:
                 )
                 cfg.mark_dirty()
             _show_setting_tooltip("party_item_interval_ms")
+
+            PyImGui.separator()
+
+            _section_text("Sweets", "alcohol")
+            changed, sweets_fast = ui_checkbox(
+                "Fast sweets spending##pycons_settings_sweets_fast_spending",
+                bool(getattr(cfg, "sweets_fast_spending", False)),
+            )
+            if changed:
+                cfg.sweets_fast_spending = bool(sweets_fast)
+                cfg.mark_dirty()
+            _tooltip_if_hovered(_tooltip_text_for("sweets_fast_spending"))
+            _same_line(10)
+            PyImGui.text("Interval (ms):")
+            _same_line(6)
+            changed, sweets_interval = ui_input_int_fixed(
+                "##pycons_settings_sweets_fast_interval",
+                int(getattr(cfg, "sweets_fast_interval_ms", DEFAULT_SWEETS_FAST_INTERVAL_MS)),
+                width=130.0,
+            )
+            if changed:
+                cfg.sweets_fast_interval_ms = int(
+                    max(MIN_SWEETS_FAST_INTERVAL_MS, min(MAX_SWEETS_FAST_INTERVAL_MS, int(sweets_interval)))
+                )
+                cfg.mark_dirty()
+            _show_setting_tooltip("sweets_fast_interval_ms")
 
             PyImGui.separator()
         restock_section_open = _styled_collapsing_header(
@@ -9742,6 +9948,7 @@ try:
         if cfg is None:
             cfg = Config()
             _runtime_sync_from_cfg_full()
+            _clear_one_shot_synced_enabled_defaults_if_needed()
         else:
             _maybe_rebind_cfg_from_generic_ini()
 
@@ -9788,6 +9995,9 @@ try:
 
         if bool(getattr(cfg, "alcohol_fast_spending", False)):
             _tick_alcohol()
+
+        if bool(getattr(cfg, "sweets_fast_spending", False)):
+            _tick_sweets()
 
         party_interval_ms = int(
             max(
