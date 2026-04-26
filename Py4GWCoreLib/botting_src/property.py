@@ -237,6 +237,7 @@ class UpkeepData:
                  blue_rock_candy_restock: int = 0,
                  bowl_of_skalefin_soup_active: bool = False,
                  bowl_of_skalefin_soup_restock: int = 0,
+                 build_ticker_active: bool = False,
                  #C
                  candy_apple_active: bool = False,
                  candy_apple_restock: int = 0,
@@ -333,6 +334,7 @@ class UpkeepData:
         self.bowl_of_skalefin_soup = Property(parent, "bowl_of_skalefin_soup", active=bowl_of_skalefin_soup_active,
             extra_fields={"restock_quantity": bowl_of_skalefin_soup_restock,}
         )
+        self.build_ticker = Property(parent, "build_ticker", active=build_ticker_active)
         self.candy_apple = Property(parent, "candy_apple", active=candy_apple_active,
             extra_fields={"restock_quantity": candy_apple_restock,}
         )

@@ -36,13 +36,13 @@ class _WAIT:
                 break
                     
     def _coro_until_out_of_combat(self, range: Range = Range.Earshot):
-        from ...Routines import Routines
-        wait_condition = lambda: not(Routines.Checks.Agents.InDanger(aggro_area=range))
+        from ..helpers_src.HeroAICombatRange import hero_ai_combat_detected
+        wait_condition = lambda: not hero_ai_combat_detected()
         yield from self._coro_until_condition(wait_condition)
         
     def _coro_until_on_combat(self, range: Range = Range.Earshot):
-        from ...Routines import Routines
-        wait_condition = lambda: Routines.Checks.Agents.InDanger(aggro_area=range)
+        from ..helpers_src.HeroAICombatRange import hero_ai_combat_detected
+        wait_condition = lambda: hero_ai_combat_detected()
         yield from self._coro_until_condition(wait_condition)
         
     def _coro_until_on_outpost(self):
@@ -58,9 +58,9 @@ class _WAIT:
     def _coro_until_model_has_quest(self, model_id: int):
         from ...Routines import Routines
         from ...Agent import Agent
-        from ...enums import Range
+        from ..helpers_src.HeroAICombatRange import hero_ai_combat_detected
         wait_function = lambda: (
-            not (Routines.Checks.Agents.InDanger(aggro_area=Range.Spirit)) and
+            not hero_ai_combat_detected() and
             Agent.HasQuest(Routines.Agents.GetAgentIDByModelID(model_id))
         )
         yield from self._coro_until_condition(wait_function, duration=1000)

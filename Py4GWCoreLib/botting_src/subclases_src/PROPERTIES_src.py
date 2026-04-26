@@ -21,12 +21,16 @@ class _PROPERTIES:
         return self._resolve(name).is_active()
 
     def Enable(self, name: str) -> None:
+        if self._redirect_tagged_build_hero_ai(name, True):
+            return
         self._resolve(name).enable()
 
     def Disable(self, name: str) -> None:
         self._resolve(name).disable()
 
     def SetActive(self, name: str, active: bool) -> None:
+        if self._redirect_tagged_build_hero_ai(name, active):
+            return
         self._resolve(name).set_active(active)
 
     def ResetTodefault(self, name: str, field: str = "active") -> None:
@@ -41,6 +45,8 @@ class _PROPERTIES:
         Directly calls Property._apply(field, value).
         Use with care: this bypasses FSM AddState.
         """
+        if field == "active" and self._redirect_tagged_build_hero_ai(name, bool(value), immediate=True):
+            return
         self._resolve(name)._apply(field, value)
 
     # --- Internal resolver ---
@@ -52,6 +58,25 @@ class _PROPERTIES:
         if hasattr(self._config.upkeep, name):
             return getattr(self._config.upkeep, name)
         raise AttributeError(f"No property named {name!r}")
+
+    def _redirect_tagged_build_hero_ai(self, name: str, active: bool, immediate: bool = False) -> bool:
+        if name != "hero_ai" or not active:
+            return False
+
+        build = getattr(self._config, "build_handler", None)
+        if build is None or getattr(build, "is_combat_automator_compatible", True):
+            return False
+
+        if hasattr(self._config.upkeep, "build_ticker"):
+            if immediate:
+                self._config.upkeep.hero_ai.set_now("active", False)
+                self._config.upkeep.build_ticker.set_now("active", True)
+            else:
+                self._config.upkeep.hero_ai.disable()
+                self._config.upkeep.build_ticker.enable()
+            return True
+
+        return False
 
     def exists(self, name: str) -> bool:
         try:

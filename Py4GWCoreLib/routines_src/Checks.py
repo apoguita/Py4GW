@@ -69,7 +69,7 @@ class Checks:
             if not enemy_array:
                 return 0
 
-            radius = aggro_area.value
+            radius = aggro_area.value if hasattr(aggro_area, "value") else float(aggro_area)
             radius_sq = radius * radius
             self_agent_id = Player.GetAgentID()
 
@@ -702,7 +702,7 @@ class Checks:
             if not player_pos:
                 return False
 
-            radius = aggro_area.value
+            radius = aggro_area.value if hasattr(aggro_area, "value") else float(aggro_area)
             radius_sq = radius * radius
             px, py = player_pos
 

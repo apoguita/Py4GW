@@ -45,6 +45,7 @@ class BotConfig:
                  blue_rock_candy_restock: int = 0,
                  bowl_of_skalefin_soup_active: bool = False,
                  bowl_of_skalefin_soup_restock: int = 0,
+                 build_ticker_active: bool = False,
                  #C
                  candy_apple_active: bool = False,
                  candy_apple_restock: int = 0,
@@ -114,6 +115,10 @@ class BotConfig:
         else:
             self.build_handler:BuildMgr = BuildMgr()
 
+        if not self.build_handler.is_combat_automator_compatible:
+            build_ticker_active = True
+            hero_ai_active = False
+
         self.counters = StepNameCounters()
         
         self.path:List[Tuple[float, float]] = []
@@ -156,7 +161,8 @@ class BotConfig:
                  blue_rock_candy_restock=blue_rock_candy_restock,
                  bowl_of_skalefin_soup_active=bowl_of_skalefin_soup_active,
                  bowl_of_skalefin_soup_restock=bowl_of_skalefin_soup_restock,
-                    #C
+                 build_ticker_active=build_ticker_active,
+                #C
                  candy_apple_active=candy_apple_active,
                  candy_apple_restock=candy_apple_restock,
                  candy_corn_active=candy_corn_active,
@@ -220,11 +226,15 @@ class BotConfig:
                
     def _reset_pause_on_danger_fn(self, aggro_area=None) -> None:
         from ..Routines import Checks  # local import to avoid cycles
-        from ..enums_src.GameData_enums import Range
+        from .helpers_src.HeroAICombatRange import hero_ai_combat_detected
 
-        if aggro_area is None:
-            aggro_area = Range.Earshot
-        self._set_pause_on_danger_fn(lambda a=aggro_area: Checks.Agents.InDanger(aggro_area=a) or Checks.Party.IsPartyMemberDead() or Checks.Skills.InCastingProcess())
+        self._set_pause_on_danger_fn(
+            lambda: (
+                hero_ai_combat_detected()
+                or Checks.Party.IsPartyMemberDead()
+                or Checks.Skills.InCastingProcess()
+            )
+        )
 
     def _set_on_follow_path_failed(self, on_follow_path_failed: Callable[[], bool]) -> None:
         from ..Py4GWcorelib import ConsoleLog

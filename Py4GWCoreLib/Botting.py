@@ -56,6 +56,7 @@ class BottingClass:
                  upkeep_blue_rock_candy_restock: int = 0,
                  upkeep_bowl_of_skalefin_soup_active: bool = False,
                  upkeep_bowl_of_skalefin_soup_restock: int = 0,
+                 upkeep_build_ticker_active: bool = False,
                  #C
                  upkeep_candy_apple_active: bool = False,
                  upkeep_candy_apple_restock: int = 0,
@@ -142,6 +143,7 @@ class BottingClass:
                                 blue_rock_candy_restock=upkeep_blue_rock_candy_restock,
                                 bowl_of_skalefin_soup_active=upkeep_bowl_of_skalefin_soup_active,
                                 bowl_of_skalefin_soup_restock=upkeep_bowl_of_skalefin_soup_restock,
+                                build_ticker_active=upkeep_build_ticker_active,
                                 #C
                                 candy_apple_active=upkeep_candy_apple_active,
                                 candy_apple_restock=upkeep_candy_apple_restock,
@@ -242,6 +244,7 @@ class BottingClass:
         self.config.FSM.AddManagedCoroutine("keep_imp",            H.upkeep_imp())
         self.config.FSM.AddManagedCoroutine("keep_summoning_stone", H.upkeep_summoning_stone())
         self.config.FSM.AddManagedCoroutine("keep_hero_ai",        H.upkeep_hero_ai())
+        self.config.FSM.AddManagedCoroutine("keep_build_ticker",   H.upkeep_build_ticker())
         self.config.FSM.AddManagedCoroutine("keep_auto_inventory_management", H.upkeep_auto_inventory_management())
         self.config.FSM.AddManagedCoroutine("keep_auto_loot",      H.upkeep_auto_loot())
         self.config.events.start()
@@ -349,6 +352,10 @@ class BottingClass:
 
     def OverrideBuild(self, build: BuildMgr) -> None:
         self.config.build_handler = build
+        if not build.is_combat_automator_compatible:
+            self.config.upkeep.hero_ai.set_now("active", False)
+            self.config.upkeep.hero_ai_paused.set_now("active", False)
+            self.config.upkeep.build_ticker.set_now("active", True)
 
 
     

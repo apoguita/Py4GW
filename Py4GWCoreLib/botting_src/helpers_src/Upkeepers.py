@@ -102,6 +102,25 @@ class _Upkeepers:
             elif not self._config.upkeep.hero_ai.is_active() and handler.is_widget_enabled("HeroAI"):
                 handler.disable_widget("HeroAI")
             yield from Routines.Yield.wait(500)
+
+    def upkeep_build_ticker(self):
+        from ...BuildMgr import BuildMgr
+        from ...Routines import Routines
+
+        while True:
+            if not self._config.upkeep.build_ticker.is_active():
+                yield from Routines.Yield.wait(250)
+                continue
+
+            build = self._config.build_handler
+            if build is None or type(build) is BuildMgr:
+                yield from Routines.Yield.wait(250)
+                continue
+
+            try:
+                yield from build.ProcessSkillCasting()
+            except NotImplementedError:
+                yield from Routines.Yield.wait(250)
         
     def upkeep_auto_inventory_management(self):
         from ...py4gwcorelib_src.AutoInventoryHandler import AutoInventoryHandler

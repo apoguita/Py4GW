@@ -1588,9 +1588,9 @@ class BuildMgr:
         if self._local_ooc_handler is None and self._local_combat_handler is None:
             raise NotImplementedError
 
-        from Py4GWCoreLib import Range, Routines
+        from Py4GWCoreLib.botting_src.helpers_src.HeroAICombatRange import hero_ai_combat_detected
 
-        if Routines.Checks.Agents.InDanger(Range.Earshot):
+        if hero_ai_combat_detected():
             yield from self.ProcessCombat()
         else:
             yield from self.ProcessOOC()
