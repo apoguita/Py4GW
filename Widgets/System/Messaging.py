@@ -71,7 +71,7 @@ class HeroAIoptions:
         self.Looting = False
         self.Targeting = False
         self.Combat = False
-        self.Skills: list[bool] = [False] * 8
+        self.Skills: list[bool] = [False] * SHMEM_MAX_NUMBER_OF_SKILLS
 
 
 hero_ai_snapshots: dict[str, list[HeroAIoptions]] = {}
@@ -237,6 +237,8 @@ def SnapshotHeroAIOptions(account_email: str):
     data.Looting = hero_ai_options.Looting
     data.Targeting = hero_ai_options.Targeting
     data.Combat = hero_ai_options.Combat
+    for skill_index in range(SHMEM_MAX_NUMBER_OF_SKILLS):
+        data.Skills[skill_index] = bool(hero_ai_options.Skills[skill_index])
 
     hero_ai_snapshots.setdefault(account_email, []).append(data)
 
@@ -266,6 +268,8 @@ def RestoreHeroAISnapshot(account_email: str):
     hero_ai_options.Looting = last_state.Looting
     hero_ai_options.Targeting = last_state.Targeting
     hero_ai_options.Combat = last_state.Combat
+    for skill_index in range(SHMEM_MAX_NUMBER_OF_SKILLS):
+        hero_ai_options.Skills[skill_index] = bool(last_state.Skills[skill_index])
 
 
 _HERO_AI_SUSPENDING_COMMANDS = {
@@ -351,8 +355,6 @@ def DisableHeroAIOptions(account_email: str):
     hero_ai_options.Looting = False
     hero_ai_options.Targeting = False
     hero_ai_options.Combat = False
-    for skill_index in range(SHMEM_MAX_NUMBER_OF_SKILLS):
-        hero_ai_options.Skills[skill_index] = False
 
 
 
@@ -366,8 +368,6 @@ def EnableHeroAIOptions(account_email: str):
     hero_ai_options.Looting = True
     hero_ai_options.Targeting = True
     hero_ai_options.Combat = True
-    for skill_index in range(SHMEM_MAX_NUMBER_OF_SKILLS):
-        hero_ai_options.Skills[skill_index] = True
 
 
 
