@@ -537,6 +537,7 @@ class PVESkills:
         skill.SkillType = SkillType.WeaponSpell.value
         skill.TargetAllegiance = Skilltarget.AllyMartial.value
         skill.Nature = SkillNature.Buff.value
+        skill.Conditions.AllowOverlapWeaponSpell = True
         #skill.TargetAllegiance = Skilltarget.AllyNPCByModel.value
         #skill.Nature = SkillNature.CustomA.value
         skill.Conditions.TargetingStrict = True

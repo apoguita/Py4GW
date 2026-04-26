@@ -143,6 +143,9 @@ class BotConfig:
                                                   follow_path_color=config_follow_path_color
                                                   )
 
+        hero_ai_active = bool(hero_ai_active or auto_combat_active)
+        auto_combat_active = False
+
         self.upkeep = UpkeepData(self, 
                 #A
                  alcohol_active=alcohol_active,

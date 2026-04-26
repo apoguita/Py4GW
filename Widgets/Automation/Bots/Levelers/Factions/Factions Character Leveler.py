@@ -19,7 +19,7 @@ bot = Botting("Factions Leveler",
               upkeep_honeycomb_restock=20,
               upkeep_war_supplies_restock=10,
               upkeep_auto_inventory_management_active=False,
-              upkeep_auto_combat_active=False,
+              upkeep_hero_ai_active=False,
               upkeep_auto_loot_active=False)
 
 class BotSettings:
@@ -826,7 +826,7 @@ def _on_death(bot: "Botting", step_name: str = ""):
     bot.Properties.ApplyNow("pause_on_danger", "active", False)
     bot.Properties.ApplyNow("halt_on_death", "active", True)
     bot.Properties.ApplyNow("movement_timeout", "value", 15000)
-    bot.Properties.ApplyNow("auto_combat", "active", False)
+    bot.Properties.ApplyNow("hero_ai", "active", False)
     if died_in_ab:
         yield from Routines.Yield.wait(8000)
         fsm = bot.config.FSM
@@ -854,7 +854,7 @@ def _on_death(bot: "Botting", step_name: str = ""):
             yield
             return
         fsm.ResetAndStartAtStep(step_name)
-    bot.Properties.ApplyNow("auto_combat", "active", True)
+    bot.Properties.ApplyNow("hero_ai", "active", True)
     bot.Templates.Aggressive()
     yield
 
@@ -862,7 +862,7 @@ def _on_death(bot: "Botting", step_name: str = ""):
 def _on_party_defeated(bot: "Botting", step_name: str):
     """Party wiped: trigger return to outpost, then restart from the same step."""
     bot.Properties.ApplyNow("pause_on_danger", "active", False)
-    bot.Properties.ApplyNow("auto_combat", "active", False)
+    bot.Properties.ApplyNow("hero_ai", "active", False)
     # Short grace period, then keep retrying ReturnToOutpost until we reach the outpost
     yield from Routines.Yield.wait(1000)
     while True:
@@ -883,7 +883,7 @@ def _on_party_defeated(bot: "Botting", step_name: str):
         yield
         return
     fsm.ResetAndStartAtStep(step_name)
-    bot.Properties.ApplyNow("auto_combat", "active", True)
+    bot.Properties.ApplyNow("hero_ai", "active", True)
     bot.Templates.Aggressive()
     yield
 
@@ -1616,7 +1616,7 @@ def Farm_Until_Level_20(bot: Botting):
         bot.config.reset_pause_on_danger_fn(aggro_area=Range.Longbow)
         bot.Properties.ApplyNow("pause_on_danger", "active", True)
         bot.Properties.ApplyNow("halt_on_death",   "active", False)
-        bot.Properties.ApplyNow("auto_combat",     "active", True)
+        bot.Properties.ApplyNow("hero_ai",         "active", True)
         bot.Properties.ApplyNow("auto_loot",       "active", True)
         bot.Properties.ApplyNow("imp",             "active", False)
         yield
@@ -1646,7 +1646,7 @@ def Farm_Until_Level_20(bot: Botting):
 
     def _disable_farm_combat():
         bot.Properties.ApplyNow("pause_on_danger", "active", False)
-        bot.Properties.ApplyNow("auto_combat",     "active", False)
+        bot.Properties.ApplyNow("hero_ai",         "active", False)
         yield
 
     bot.States.AddCustomState(_disable_farm_combat, "Disable Farm Combat")
@@ -1675,9 +1675,9 @@ def Farm_Until_Level_20(bot: Botting):
 def Attribute_Points_Quest_2(bot: Botting):
     def enable_combat_and_wait(ms:int):
         global bot
-        bot.Properties.Enable("auto_combat")
+        bot.Properties.Enable("hero_ai")
         bot.Wait.ForTime(ms)
-        bot.Properties.Disable("auto_combat")
+        bot.Properties.Disable("hero_ai")
  
     bot.States.AddHeader("Attribute points quest n. 2")
 
@@ -1726,7 +1726,7 @@ def Attribute_Points_Quest_2(bot: Botting):
     bot.Interact.WithGadgetAtXY(-4862.00, 3005.00)
     bot.Move.XY(-9643.93, 7759.69) #Front of bridge 3
     bot.Wait.ForTime(5000)
-    bot.Properties.Disable("auto_combat")
+    bot.Properties.Disable("hero_ai")
     path =[(-8294.21, 10061.62)] #Position Zunraa
     bot.Move.FollowPath(path)
     enable_combat_and_wait(5000)
@@ -1736,17 +1736,17 @@ def Attribute_Points_Quest_2(bot: Botting):
     path =[(-6365.32, 10234.20)] #Position Zunraa2
     bot.Move.FollowPath(path)
     enable_combat_and_wait(5000)
-    bot.Properties.Enable("auto_combat")
+    bot.Properties.Enable("hero_ai")
     bot.Move.XY(-8655.04, -769.98) # To next Miasma on temple
     bot.Wait.ForTime(5000)
-    bot.Properties.Disable("auto_combat")
+    bot.Properties.Disable("hero_ai")
     path = [(-6744.75, -1842.97)] #Clear half the miasma 
     bot.Move.FollowPath(path)
     enable_combat_and_wait(10000)
     path = [(-7720.80, -905.19)] #Finish miasma
     bot.Move.FollowPath(path)
     enable_combat_and_wait(5000)
-    bot.Properties.Enable("auto_combat")
+    bot.Properties.Enable("hero_ai")
     auto_path_list:List[Tuple[float, float]] = [
     (-5016.76, -8800.93), #Half the map
     (3268.68, -6118.96), #Passtrough miasma
@@ -1763,17 +1763,17 @@ def Attribute_Points_Quest_2(bot: Botting):
     (11775.22, 11310.60)] #Zunraa
     bot.Move.FollowAutoPath(auto_path_list)
     bot.Interact.WithGadgetAtXY(11665, 11386)
-    bot.Properties.Disable("auto_combat")
+    bot.Properties.Disable("hero_ai")
     path = [(12954.96, 9288.47)] #Miasma
     bot.Move.FollowPath(path) 
     enable_combat_and_wait(5000)
     path = [(12507.05, 11450.91)] #Finish miasma
     bot.Move.FollowPath(path)
     enable_combat_and_wait(5000)
-    bot.Properties.Enable("auto_combat")
+    bot.Properties.Enable("hero_ai")
     bot.Move.XY(7709.06, 4550.47) #Past bridge trough miasma
     bot.Wait.ForTime(5000)
-    bot.Properties.Disable("auto_combat")
+    bot.Properties.Disable("hero_ai")
     path = [(9334.25, 5746.98)] #1/3 miasma
     bot.Move.FollowPath(path)
     enable_combat_and_wait(5000)
@@ -1783,11 +1783,11 @@ def Attribute_Points_Quest_2(bot: Botting):
     path =[(9242.30, 6127.45)] #Finish miasma
     bot.Move.FollowPath(path)
     enable_combat_and_wait(5000)
-    bot.Properties.Enable("auto_combat")
+    bot.Properties.Enable("hero_ai")
     bot.Move.XY(4855.66, 1521.21)
     bot.Interact.WithGadgetAtXY(4754,1451)
     bot.Move.XY(2958.13, 6410.57)  
-    bot.Properties.Disable("auto_combat")
+    bot.Properties.Disable("hero_ai")
     path = [(2683.69, 8036.28)] #Clear miasma
     bot.Move.FollowPath(path)
     enable_combat_and_wait(8000)
@@ -1802,7 +1802,7 @@ def Attribute_Points_Quest_2(bot: Botting):
     path =[(1855.78, -5376.80)]
     bot.Move.FollowPath(path)
     enable_combat_and_wait(5000)
-    bot.Properties.Enable("auto_combat")
+    bot.Properties.Enable("hero_ai")
     bot.Move.XY(-8655.04, -769.98)
     bot.Move.XY(-7453.22, -1483.71)
     wait_function = lambda: (

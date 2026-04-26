@@ -12,25 +12,25 @@ class _PROPERTIES:
         self._helpers = parent.helpers
 
     def Get(self, name: str, field: str = "active") -> Any:
-        return self._resolve(name).get(field)
+        return self._resolve(self._effective_name(name, field)).get(field)
 
     def Set(self, name: str, value: Any, field: str = "value") -> None:
-        self._resolve(name).set(field, value)
+        self._resolve(self._effective_name(name, field)).set(field, value)
 
     def IsActive(self, name: str) -> bool:
-        return self._resolve(name).is_active()
+        return self._resolve(self._effective_name(name, "active")).is_active()
 
     def Enable(self, name: str) -> None:
-        self._resolve(name).enable()
+        self._resolve(self._effective_name(name, "active")).enable()
 
     def Disable(self, name: str) -> None:
-        self._resolve(name).disable()
+        self._resolve(self._effective_name(name, "active")).disable()
 
     def SetActive(self, name: str, active: bool) -> None:
-        self._resolve(name).set_active(active)
+        self._resolve(self._effective_name(name, "active")).set_active(active)
 
     def ResetTodefault(self, name: str, field: str = "active") -> None:
-        self._resolve(name).reset(field)
+        self._resolve(self._effective_name(name, field)).reset(field)
 
     def ResetAll(self, name: str) -> None:
         self._resolve(name).reset_all()
@@ -41,9 +41,14 @@ class _PROPERTIES:
         Directly calls Property._apply(field, value).
         Use with care: this bypasses FSM AddState.
         """
-        self._resolve(name)._apply(field, value)
+        self._resolve(self._effective_name(name, field))._apply(field, value)
 
     # --- Internal resolver ---
+    def _effective_name(self, name: str, field: str = "active") -> str:
+        if name == "auto_combat" and field == "active":
+            return "hero_ai"
+        return name
+
     def _resolve(self, name: str):
         # Check config_properties first
         if hasattr(self._config.config_properties, name):

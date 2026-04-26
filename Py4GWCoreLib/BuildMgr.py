@@ -269,6 +269,9 @@ class BuildMgr:
             TargetLowestAllyMartial,
             TargetLowestAllyMelee,
             TargetLowestAllyRanged,
+            TargetAllyNonEnchanted,
+            TargetMinionNonEnchanted,
+            TargetMinionOrAllyNonEnchanted,
         )
         from HeroAI.types import Skilltarget, SkillType
         from Py4GWCoreLib import Agent, AgentArray, Player, Routines, Skill
@@ -280,6 +283,13 @@ class BuildMgr:
 
         target_allegiance = custom_skill.TargetAllegiance
         targeting_strict = bool(custom_skill.Conditions.TargetingStrict)
+
+        if target_allegiance == Skilltarget.MinionOrAllyNonEnchanted.value:
+            return TargetMinionOrAllyNonEnchanted(filter_skill_id=skill_id)
+        if target_allegiance == Skilltarget.MinionNonEnchanted.value:
+            return TargetMinionNonEnchanted()
+        if target_allegiance == Skilltarget.AllyNonEnchanted.value:
+            return TargetAllyNonEnchanted()
 
         if target_allegiance in (
             Skilltarget.Ally.value,
@@ -295,7 +305,14 @@ class BuildMgr:
             other_ally = target_allegiance == Skilltarget.OtherAlly.value
             base_target = 0
             if custom_skill.SkillType == SkillType.WeaponSpell.value:
-                weapon_spell_predicate = lambda agent_id: not Routines.Checks.Agents.IsWeaponSpelled(agent_id)
+                if custom_skill.Conditions.AllowOverlapWeaponSpell:
+                    weapon_spell_predicate = lambda agent_id: not Routines.Checks.Agents.HasEffect(
+                        agent_id,
+                        skill_id,
+                        exact_weapon_spell=True,
+                    )
+                else:
+                    weapon_spell_predicate = lambda agent_id: not Routines.Checks.Agents.IsWeaponSpelled(agent_id)
             if target_allegiance == Skilltarget.Ally.value:
                 base_target = TargetLowestAlly(other_ally=other_ally, filter_skill_id=skill_id)
             elif target_allegiance == Skilltarget.AllyCaster.value:
@@ -1360,7 +1377,10 @@ class BuildMgr:
                 return False
 
         if custom_skill.SkillType == SkillType.WeaponSpell.value:
-            if Routines.Checks.Agents.IsWeaponSpelled(target_agent_id):
+            if custom_skill.Conditions.AllowOverlapWeaponSpell:
+                if Routines.Checks.Agents.HasEffect(target_agent_id, skill_id, exact_weapon_spell=True):
+                    return False
+            elif Routines.Checks.Agents.IsWeaponSpelled(target_agent_id):
                 return False
 
         return True

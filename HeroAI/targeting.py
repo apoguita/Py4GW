@@ -113,6 +113,42 @@ def TargetLowestAlly(other_ally=False,filter_skill_id=0):
     return Utils.GetFirstFromArray(ally_array)
 
 
+def TargetMinionOrAllyNonEnchanted(filter_skill_id=0, distance=Range.Spellcast.value):
+    minion_array = AgentArray.GetMinionArray()
+    minion_array = AgentArray.Filter.ByDistance(minion_array, Player.GetXY(), distance)
+    minion_array = AgentArray.Filter.ByCondition(minion_array, lambda agent_id: Agent.IsAlive(agent_id))
+    minion_array = AgentArray.Filter.ByCondition(minion_array, lambda agent_id: not Agent.IsEnchanted(agent_id))
+    minion_array = SortAlliesByLowestHp(minion_array)
+    minion_target = Utils.GetFirstFromArray(minion_array)
+    if minion_target:
+        return minion_target
+
+    return TargetAllyNonEnchanted(distance=distance)
+
+
+def TargetMinionNonEnchanted(distance=Range.Spellcast.value):
+    minion_array = AgentArray.GetMinionArray()
+    minion_array = AgentArray.Filter.ByDistance(minion_array, Player.GetXY(), distance)
+    minion_array = AgentArray.Filter.ByCondition(minion_array, lambda agent_id: Agent.IsAlive(agent_id))
+    minion_array = AgentArray.Filter.ByCondition(minion_array, lambda agent_id: not Agent.IsEnchanted(agent_id))
+    minion_array = SortAlliesByLowestHp(minion_array)
+    return Utils.GetFirstFromArray(minion_array)
+
+
+def TargetAllyNonEnchanted(distance=Range.Spellcast.value):
+    ally_array = AgentArray.GetAllyArray()
+    ally_array = FilterAllyArray(ally_array, distance, False, 0)
+
+    spirit_pet_array = AgentArray.GetSpiritPetArray()
+    spirit_pet_array = FilterAllyArray(spirit_pet_array, distance, False, 0)
+    spirit_pet_array = AgentArray.Filter.ByCondition(spirit_pet_array, lambda agent_id: not Agent.IsSpawned(agent_id))
+    ally_array = AgentArray.Manipulation.Merge(ally_array, spirit_pet_array)
+
+    ally_array = AgentArray.Filter.ByCondition(ally_array, lambda agent_id: not Agent.IsEnchanted(agent_id))
+    ally_array = SortAlliesByLowestHp(ally_array)
+    return Utils.GetFirstFromArray(ally_array)
+
+
 def TargetLowestAllyEnergy(other_ally=False, filter_skill_id=0, less_energy=1.0):
     global BLOOD_IS_POWER, BLOOD_RITUAL
     from .utils import (CheckForEffect, GetEnergyValues)
@@ -316,7 +352,12 @@ def GetEnemyWithEffect(effect_skill_id, max_distance=4500.0, aggressive_only = F
     return _filter_blacklisted(Routines.Targeting.GetEnemyWithEffect(effect_skill_id, max_distance, aggressive_only))
 
 
-def TargetAllyWeaponSpell(weapon_spell_skill_id, max_distance=Range.Spellcast.value, refresh_window_ms=1000):
+def TargetAllyWeaponSpell(
+    weapon_spell_skill_id,
+    max_distance=Range.Spellcast.value,
+    refresh_window_ms=1000,
+    allow_overlap_weapon_spell=False,
+):
     # Picks the best ally to receive `weapon_spell_skill_id`.
     # Eligible allies have no conflicting weapon spell, or already carry this same
     # weapon spell with <= refresh_window_ms remaining (refresh tier). Scoring
@@ -330,9 +371,11 @@ def TargetAllyWeaponSpell(weapon_spell_skill_id, max_distance=Range.Spellcast.va
         return 0
 
     def _is_refresh_eligible(agent_id):
+        if allow_overlap_weapon_spell:
+            return not Routines.Checks.Agents.HasEffect(agent_id, weapon_spell_skill_id, exact_weapon_spell=True)
         if not Agent.IsWeaponSpelled(agent_id):
             return True
-        if not Routines.Checks.Agents.HasEffect(agent_id, weapon_spell_skill_id):
+        if not Routines.Checks.Agents.HasEffect(agent_id, weapon_spell_skill_id, exact_weapon_spell=True):
             return False
         remaining_ms = GLOBAL_CACHE.Effects.GetEffectTimeRemaining(agent_id, weapon_spell_skill_id)
         return remaining_ms <= refresh_window_ms

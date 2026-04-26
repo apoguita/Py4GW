@@ -5,7 +5,7 @@ from Py4GWCoreLib import Player, GLOBAL_CACHE, SpiritModelID, Timer, Agent, Rout
 from Py4GWCoreLib import Weapon, Effects
 from Py4GWCoreLib.enums import SPIRIT_BUFF_MAP, ModelID
 from .custom_skill import CustomSkillClass
-from .targeting import TargetLowestAlly, TargetLowestAllyEnergy, TargetClusteredEnemy, TargetLowestAllyCaster, TargetLowestAllyMartial, TargetLowestAllyMelee, TargetLowestAllyRanged, GetAllAlliesArray, TargetAllyWeaponSpell
+from .targeting import TargetLowestAlly, TargetLowestAllyEnergy, TargetClusteredEnemy, TargetLowestAllyCaster, TargetLowestAllyMartial, TargetLowestAllyMelee, TargetLowestAllyRanged, GetAllAlliesArray, TargetAllyWeaponSpell, TargetMinionOrAllyNonEnchanted, TargetMinionNonEnchanted, TargetAllyNonEnchanted
 from .targeting import GetEnemyAttacking, GetEnemyCasting, GetEnemyCastingSpell, GetEnemyCastingSpellOrChant, GetEnemyInjured, GetEnemyConditioned, GetEnemyHealthy
 from .targeting import GetEnemyHexed, GetEnemyDegenHexed, GetEnemyEnchanted, GetEnemyMoving, GetEnemyKnockedDown
 from .targeting import GetEnemyBleeding, GetEnemyPoisoned, GetEnemyCrippled
@@ -493,6 +493,7 @@ class CombatClass:
 
         targeting_strict = self.skills[slot].custom_skill_data.Conditions.TargetingStrict
         target_allegiance = self.skills[slot].custom_skill_data.TargetAllegiance
+        conditions = self.skills[slot].custom_skill_data.Conditions
 
         # Lazy helpers — only call expensive scans when a branch actually needs them
         _nearest_enemy = None
@@ -554,7 +555,11 @@ class CombatClass:
             if v_target == 0 and not targeting_strict:
                 v_target = get_nearest_enemy()
         elif target_allegiance == Skilltarget.AllyWeaponSpell:
-            v_target = TargetAllyWeaponSpell(self.skills[slot].skill_id, self.get_combat_distance())
+            v_target = TargetAllyWeaponSpell(
+                self.skills[slot].skill_id,
+                self.get_combat_distance(),
+                allow_overlap_weapon_spell=conditions.AllowOverlapWeaponSpell,
+            )
             if v_target == 0 and not targeting_strict:
                 v_target = get_lowest_ally()
         elif target_allegiance == Skilltarget.EnemyInjured:
@@ -640,6 +645,12 @@ class CombatClass:
             v_target = Routines.Agents.GetNearestSpirit(Range.Spellcast.value)
         elif target_allegiance == Skilltarget.Minion:
             v_target = Routines.Agents.GetLowestMinion(Range.Spellcast.value)
+        elif target_allegiance == Skilltarget.MinionOrAllyNonEnchanted:
+            v_target = TargetMinionOrAllyNonEnchanted(filter_skill_id=self.skills[slot].skill_id)
+        elif target_allegiance == Skilltarget.MinionNonEnchanted:
+            v_target = TargetMinionNonEnchanted()
+        elif target_allegiance == Skilltarget.AllyNonEnchanted:
+            v_target = TargetAllyNonEnchanted()
         elif target_allegiance == Skilltarget.Corpse:
             v_target = Routines.Agents.GetNearestCorpse(Range.Spellcast.value)
         elif target_allegiance == Skilltarget.AllyNPCByModel:
@@ -1328,7 +1339,11 @@ class CombatClass:
             return False, 0
 
         # Check if effect already exists on target (uses shared memory for party members)
-        if self.HasEffect(v_target, skill_id):
+        exact_weapon_spell = (
+            skill_type == SkillType.WeaponSpell.value
+            and conditions.AllowOverlapWeaponSpell
+        )
+        if self.HasEffect(v_target, skill_id, exact_weapon_spell=exact_weapon_spell):
             self.in_casting_routine = False
             return False, v_target
 
