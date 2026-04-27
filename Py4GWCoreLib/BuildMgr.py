@@ -294,6 +294,7 @@ class BuildMgr:
             TargetLowestAllyMelee,
             TargetLowestAllyRanged,
             TargetAllyNonEnchanted,
+            TargetAllyNonWeaponSpelled,
             TargetMinionNonEnchanted,
             TargetMinionOrAllyNonEnchanted,
             TargetDeadPartyMember,
@@ -315,6 +316,8 @@ class BuildMgr:
             return TargetMinionNonEnchanted()
         if target_allegiance == Skilltarget.AllyNonEnchanted.value:
             return TargetAllyNonEnchanted()
+        if target_allegiance == Skilltarget.NonWeaponSpelledAlly.value:
+            return Player.GetAgentID() if TargetAllyNonWeaponSpelled() else 0
 
         if target_allegiance in (
             Skilltarget.Ally.value,
@@ -1382,6 +1385,11 @@ class BuildMgr:
             return True
 
         target_allegiance = custom_skill.TargetAllegiance
+        if target_allegiance == Skilltarget.NonWeaponSpelledAlly.value:
+            from HeroAI.targeting import TargetAllyNonWeaponSpelled
+
+            return bool(TargetAllyNonWeaponSpelled())
+
         if target_allegiance == Skilltarget.AllyCaster.value:
             if (
                 not Routines.Checks.Agents.IsCaster(target_agent_id)

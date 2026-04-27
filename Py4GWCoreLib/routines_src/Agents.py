@@ -13,6 +13,124 @@ from ..Player import Player
 
 #region Agents
 class Agents:    
+    _exploitable_corpse_fail_signature = None
+    _exploitable_corpse_fail_last_uptime = 0
+    _exploitable_corpse_failed_attempts: dict[int, int] = {}
+    _exploitable_corpse_failed_models: set[int] = set()
+    _exploitable_corpse_fail_attempt_threshold = 2
+
+    @staticmethod
+    def _get_exploitable_corpse_fail_signature():
+        from ..Map import Map
+
+        if not Map.IsMapReady():
+            return None
+
+        try:
+            region = Map.GetRegion()[0]
+        except Exception:
+            region = 0
+        try:
+            language = Map.GetLanguage()[0]
+        except Exception:
+            language = 0
+
+        return (
+            int(Map.GetMapID()),
+            int(Map.GetInstanceType()),
+            int(region),
+            int(Map.GetDistrict()),
+            int(language),
+        )
+
+    @staticmethod
+    def _sync_exploitable_corpse_fail_cache():
+        from ..Map import Map
+
+        signature = Agents._get_exploitable_corpse_fail_signature()
+        try:
+            uptime = int(Map.GetInstanceUptime()) if signature is not None else 0
+        except Exception:
+            uptime = 0
+
+        if (
+            signature != Agents._exploitable_corpse_fail_signature
+            or uptime < Agents._exploitable_corpse_fail_last_uptime
+        ):
+            Agents._exploitable_corpse_failed_attempts.clear()
+            Agents._exploitable_corpse_failed_models.clear()
+            Agents._exploitable_corpse_fail_signature = signature
+
+        Agents._exploitable_corpse_fail_last_uptime = uptime
+        return signature
+
+    @staticmethod
+    def IsExploitableCorpseModelBlocked(model_id: int) -> bool:
+        Agents._sync_exploitable_corpse_fail_cache()
+        return int(model_id or 0) in Agents._exploitable_corpse_failed_models
+
+    @staticmethod
+    def MarkExploitableCorpseCastFailed(
+        agent_id: int = 0,
+        model_id: int = 0,
+        skill_id: int = 0,
+        reason: str = "cast_failed",
+    ) -> bool:
+        from ..Agent import Agent
+        from ..Py4GWcorelib import ConsoleLog, Console
+
+        Agents._sync_exploitable_corpse_fail_cache()
+        resolved_model_id = int(model_id or 0)
+        if not resolved_model_id and agent_id:
+            resolved_model_id = int(Agent.GetModelID(agent_id) or 0)
+        if not resolved_model_id:
+            return False
+
+        if resolved_model_id in Agents._exploitable_corpse_failed_models:
+            return True
+
+        name = Agent.GetNameByID(agent_id) if agent_id else ""
+        attempts = Agents._exploitable_corpse_failed_attempts.get(resolved_model_id, 0) + 1
+        Agents._exploitable_corpse_failed_attempts[resolved_model_id] = attempts
+
+        if attempts < Agents._exploitable_corpse_fail_attempt_threshold:
+            ConsoleLog(
+                "CorpseDenylist",
+                "Observed failed exploitable-corpse cast attempt "
+                f"attempt={attempts}/{Agents._exploitable_corpse_fail_attempt_threshold} "
+                f"model_id={resolved_model_id} agent_id={int(agent_id or 0)} "
+                f"name={name!r} skill_id={int(skill_id or 0)} reason={reason} "
+                f"map_signature={Agents._exploitable_corpse_fail_signature}",
+                Console.MessageType.Warning,
+            )
+            return False
+
+        Agents._exploitable_corpse_failed_models.add(resolved_model_id)
+        ConsoleLog(
+            "CorpseDenylist",
+            "Blocked exploitable-corpse model for this map "
+            f"attempt={attempts}/{Agents._exploitable_corpse_fail_attempt_threshold} "
+            f"model_id={resolved_model_id} agent_id={int(agent_id or 0)} "
+            f"name={name!r} skill_id={int(skill_id or 0)} reason={reason} "
+            f"map_signature={Agents._exploitable_corpse_fail_signature}",
+            Console.MessageType.Warning,
+        )
+        return True
+
+    @staticmethod
+    def GetExploitableCorpseFailedModels() -> set[int]:
+        Agents._sync_exploitable_corpse_fail_cache()
+        return set(Agents._exploitable_corpse_failed_models)
+
+    @staticmethod
+    def GetExploitableCorpseFailSignature():
+        return Agents._sync_exploitable_corpse_fail_cache()
+
+    @staticmethod
+    def ClearExploitableCorpseFailedModels() -> None:
+        Agents._exploitable_corpse_failed_attempts.clear()
+        Agents._exploitable_corpse_failed_models.clear()
+
     @staticmethod
     def GetNearestNPCXY(x,y, distance):
         from ..AgentArray import AgentArray
@@ -343,6 +461,10 @@ class Agents:
         corpse_array = AgentArray.Filter.ByDistance(corpse_array, Player.GetXY(), max_distance)
         corpse_array = AgentArray.Filter.ByCondition(corpse_array, lambda agent_id: Agent.IsExploitable(agent_id))
         corpse_array = AgentArray.Filter.ByCondition(corpse_array, lambda agent_id: _AllowedAlliegance(agent_id))
+        corpse_array = AgentArray.Filter.ByCondition(
+            corpse_array,
+            lambda agent_id: not Agents.IsExploitableCorpseModelBlocked(Agent.GetModelID(agent_id)),
+        )
         return corpse_array
 
     @staticmethod
@@ -374,11 +496,99 @@ class Agents:
     @staticmethod
     def GetNearestExploitableCorpse(max_distance=4500.0):
         from ..AgentArray import AgentArray
+        from ..Agent import Agent
+        from ..Py4GWcorelib import ConsoleLog, Console
         from ..Py4GWcorelib import Utils
 
         corpse_array = Agents.GetExploitableCorpses(max_distance)
         corpse_array = AgentArray.Sort.ByDistance(corpse_array, Player.GetXY())
-        return Utils.GetFirstFromArray(corpse_array)
+        selected = Utils.GetFirstFromArray(corpse_array)
+        if selected:
+            living = Agent.GetLivingAgentByID(selected)
+            _, allegiance = Agent.GetAllegiance(selected)
+            if living is not None:
+                player_xy = Player.GetXY()
+                corpse_xy = Agent.GetXY(selected)
+                ConsoleLog(
+                    "CorpseDebug",
+                    "GetNearestExploitableCorpse "
+                    f"max_distance={max_distance} candidates={len(corpse_array)} selected={selected} "
+                    f"distance={Utils.Distance(corpse_xy, player_xy):.1f} "
+                    f"xy=({corpse_xy[0]:.1f},{corpse_xy[1]:.1f}) "
+                    f"zplane={Agent.GetZPlane(selected)} "
+                    f"hp={float(living.hp):.3f} "
+                    f"max_hp={int(living.max_hp)} "
+                    f"hp_pips={float(living.hp_pips):.3f} "
+                    f"energy={float(living.energy):.3f} "
+                    f"max_energy={int(living.max_energy)} "
+                    f"energy_regen={float(living.energy_regen):.3f} "
+                    f"type_map=0x{int(living.type_map):08X} "
+                    f"effects=0x{int(living.effects):08X} "
+                    f"hex=0x{int(living.hex):02X} "
+                    f"bleeding={bool(living.is_bleeding)} "
+                    f"conditioned={bool(living.is_conditioned)} "
+                    f"crippled={bool(living.is_crippled)} "
+                    f"dead={bool(living.is_dead)} "
+                    f"deep_wounded={bool(living.is_deep_wounded)} "
+                    f"poisoned={bool(living.is_poisoned)} "
+                    f"enchanted={bool(living.is_enchanted)} "
+                    f"degen_hexed={bool(living.is_degen_hexed)} "
+                    f"hexed={bool(living.is_hexed)} "
+                    f"weapon_spelled={bool(living.is_weapon_spelled)} "
+                    f"combat_stance={bool(living.is_in_combat_stance)} "
+                    f"quest={bool(living.has_quest)} "
+                    f"dead_type={bool(living.is_dead_by_type_map)} "
+                    f"female={bool(living.is_female)} "
+                    f"hiding_cape={bool(living.is_hiding_cape)} "
+                    f"party_view={bool(living.can_be_viewed_in_party_window)} "
+                    f"observed={bool(living.is_being_observed)} "
+                    f"exploitable={bool(living.is_exploitable)} "
+                    f"model_state={int(living.model_state)} "
+                    f"model_id={int(living.player_number)} "
+                    f"agent_model_type=0x{int(living.agent_model_type):04X} "
+                    f"transmog={int(living.transmog_npc_id)} "
+                    f"primary={int(living.primary)} "
+                    f"secondary={int(living.secondary)} "
+                    f"anim_code={int(living.animation_code)} "
+                    f"anim_id={int(living.animation_id)} "
+                    f"anim_type={float(living.animation_type):.3f} "
+                    f"anim_speed={float(living.animation_speed):.3f} "
+                    f"weapon_attack_speed={float(living.weapon_attack_speed):.3f} "
+                    f"attack_speed_modifier={float(living.attack_speed_modifier):.3f} "
+                    f"weapon_type={int(living.weapon_type)} "
+                    f"weapon_item_type={int(living.weapon_item_type)} "
+                    f"offhand_item_type={int(living.offhand_item_type)} "
+                    f"weapon_item_id={int(living.weapon_item_id)} "
+                    f"offhand_item_id={int(living.offhand_item_id)} "
+                    f"skill={int(living.skill)} "
+                    f"allegiance={allegiance} "
+                    f"owner={int(living.owner)} "
+                    f"login={int(living.login_number)} "
+                    f"team={int(living.team_id)} "
+                    f"level={int(living.level)} "
+                    f"h00D4={[int(living.h00D4[i]) for i in range(3)]} "
+                    f"h00E4={[int(living.h00E4[i]) for i in range(2)]} "
+                    f"h0112={[int(living.h0112[i]) for i in range(2)]} "
+                    f"h0145={[int(living.h0145[i]) for i in range(19)]} "
+                    f"h0160={[int(living.h0160[i]) for i in range(4)]} "
+                    f"h0194={[int(living.h0194[i]) for i in range(32)]} "
+                    f"h00C8=0x{int(living.h00C8):08X} "
+                    f"h00CC=0x{int(living.h00CC):08X} "
+                    f"h00D0=0x{int(living.h00D0):08X} "
+                    f"h0100=0x{int(living.h0100):08X} "
+                    f"h0104=0x{int(living.h0104):08X} "
+                    f"h010C=0x{int(living.h010C):04X} "
+                    f"h0114=0x{int(living.h0114):08X} "
+                    f"h011C=0x{int(living.h011C):08X} "
+                    f"h0128=0x{int(living.h0128):08X} "
+                    f"h0130=0x{int(living.h0130):08X} "
+                    f"h0140=0x{int(living.h0140):08X} "
+                    f"h0180=0x{int(living.h0180):08X} "
+                    f"spawned={bool(living.is_spawned)} "
+                    f"boss={bool(living.has_boss_glow)}",
+                    Console.MessageType.Debug,
+                )
+        return selected
         
     @staticmethod
     def GetNearestSpirit(max_distance=4500.0):

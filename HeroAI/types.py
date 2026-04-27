@@ -140,6 +140,7 @@ class Skilltarget (IntEnum):
     EnemyHealthy = 36
     EnemyCastingSpellOrChant = 37
     AllyWeaponSpell = 38
+    NonWeaponSpelledAlly = 39
 
 
 
