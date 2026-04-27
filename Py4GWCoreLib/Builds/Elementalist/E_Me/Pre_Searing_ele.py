@@ -77,7 +77,7 @@ class Pre_Searing_ele(BuildMgr):
             )):
                 return True
 
-        if not Routines.Checks.Agents.InAggro():
+        if not self.IsInAggro():
             return False
 
         if self.IsSkillEquipped(Fire_Storm_ID) and (yield from self.CastSkillID(

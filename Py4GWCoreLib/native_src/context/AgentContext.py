@@ -638,6 +638,7 @@ class AgentLiving:
     is_in_combat_stance: bool
     has_quest: bool
     is_dead_by_type_map: bool
+    is_exploitable: bool
     is_female: bool
     has_boss_glow: bool
     is_hiding_cape: bool
@@ -793,6 +794,10 @@ class AgentLivingStruct(AgentStruct):
         """Return True if the agent is dead by type map."""
         return (self.type_map & 0x000008) != 0
     @property
+    def is_exploitable(self) -> bool:
+        """Return True if the corpse can still be exploited."""
+        return self.is_dead_by_type_map and self.is_dead and (self.effects & 0x0004) == 0
+    @property
     def is_female(self) -> bool:
         """Return True if the agent is female."""
         return (self.type_map & 0x000200) != 0
@@ -928,6 +933,7 @@ class AgentLivingStruct(AgentStruct):
             is_in_combat_stance=self.is_in_combat_stance,
             has_quest=self.has_quest,
             is_dead_by_type_map=self.is_dead_by_type_map,
+            is_exploitable=self.is_exploitable,
             is_female=self.is_female,
             has_boss_glow=self.has_boss_glow,
             is_hiding_cape=self.is_hiding_cape,

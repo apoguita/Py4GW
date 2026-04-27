@@ -2881,10 +2881,38 @@ class WidgetHandler:
     
     def enable_widget(self, name: str):
         self._set_widget_state(self.MANAGER_INI_KEY,name, True)
+        if name == "HeroAI" or str(name).replace("\\", "/").endswith("/HeroAI.py"):
+            self._force_heroai_player_options(True)
 
     def disable_widget(self, name: str):
         self._set_widget_state(self.MANAGER_INI_KEY,name, False)
-        
+        if name == "HeroAI" or str(name).replace("\\", "/").endswith("/HeroAI.py"):
+            self._force_heroai_player_options(False)
+
+    def _force_heroai_player_options(self, enabled: bool):
+        try:
+            from Py4GWCoreLib import GLOBAL_CACHE, Player
+            from Py4GWCoreLib.GlobalCache.shared_memory_src.Globals import SHMEM_MAX_NUMBER_OF_SKILLS
+
+            account_email = Player.GetAccountEmail()
+            if not account_email:
+                return
+
+            options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsFromEmail(account_email)
+            if options is None:
+                return
+
+            options.Following = bool(enabled)
+            options.Avoidance = bool(enabled)
+            options.Looting = bool(enabled)
+            options.Targeting = bool(enabled)
+            options.Combat = bool(enabled)
+            for skill_index in range(SHMEM_MAX_NUMBER_OF_SKILLS):
+                options.Skills[skill_index] = bool(enabled)
+            GLOBAL_CACHE.ShMem.SetHeroAIOptionsByEmail(account_email, options)
+        except Exception as exc:
+            Py4GW.Console.Log("WidgetHandler", f"Failed to force HeroAI player options: {exc}", Py4GW.Console.MessageType.Warning)
+         
     def set_widget_configuring(self, name: str, value: bool = True):
         widget = self._get_widget_by_plain_name(name)
         if not widget:

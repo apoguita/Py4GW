@@ -270,6 +270,7 @@ class AgentLiving:
     is_in_combat_stance: bool
     has_quest: bool
     is_dead_by_type_map: bool
+    is_exploitable: bool
     is_female: bool
     has_boss_glow: bool
     is_hiding_cape: bool
@@ -379,6 +380,8 @@ class AgentLivingStruct(AgentStruct):
     def has_quest(self) -> bool:...
     @property
     def is_dead_by_type_map(self) -> bool:...
+    @property
+    def is_exploitable(self) -> bool:...
     @property
     def is_female(self) -> bool:...
     @property

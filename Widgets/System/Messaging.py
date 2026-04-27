@@ -27,6 +27,7 @@ from Widgets.Automation.Helpers import Pycons as PyconsHelper
 from Widgets.Automation.Helpers.Pycons import resolve_pycons_account_ini_path
 from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
 from Py4GWCoreLib.GlobalCache.shared_memory_src.SharedMessageStruct import SharedMessageStruct
+from Py4GWCoreLib.GlobalCache.shared_memory_src.Globals import SHMEM_MAX_NUMBER_OF_SKILLS
 
 cached_data = CacheData()
 
@@ -70,7 +71,7 @@ class HeroAIoptions:
         self.Looting = False
         self.Targeting = False
         self.Combat = False
-        self.Skills: list[bool] = [False] * 8
+        self.Skills: list[bool] = [False] * SHMEM_MAX_NUMBER_OF_SKILLS
 
 
 hero_ai_snapshots: dict[str, list[HeroAIoptions]] = {}
@@ -236,6 +237,8 @@ def SnapshotHeroAIOptions(account_email: str):
     data.Looting = hero_ai_options.Looting
     data.Targeting = hero_ai_options.Targeting
     data.Combat = hero_ai_options.Combat
+    for skill_index in range(SHMEM_MAX_NUMBER_OF_SKILLS):
+        data.Skills[skill_index] = bool(hero_ai_options.Skills[skill_index])
 
     hero_ai_snapshots.setdefault(account_email, []).append(data)
 
@@ -265,6 +268,8 @@ def RestoreHeroAISnapshot(account_email: str):
     hero_ai_options.Looting = last_state.Looting
     hero_ai_options.Targeting = last_state.Targeting
     hero_ai_options.Combat = last_state.Combat
+    for skill_index in range(SHMEM_MAX_NUMBER_OF_SKILLS):
+        hero_ai_options.Skills[skill_index] = bool(last_state.Skills[skill_index])
 
 
 _HERO_AI_SUSPENDING_COMMANDS = {
@@ -2107,6 +2112,8 @@ def EnableWidget(index: int, message: SharedMessageStruct):
     widget_handler = get_widget_handler()
     if not widget_handler.is_widget_enabled(widget_name):
         widget_handler.enable_widget(widget_name)
+    if widget_name == "HeroAI":
+        EnableHeroAIOptions(message.ReceiverEmail)
     yield from Routines.Yield.wait(100)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
     ConsoleLog(MODULE_NAME, f"EnableWidget('{widget_name}') message processed and finished.", Console.MessageType.Info, False)

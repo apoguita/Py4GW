@@ -25,6 +25,18 @@ _FOLLOW_RUNTIME_KEY = ""
 _FOLLOW_MOVEMENT_VARS_REGISTERED = False
 _FOLLOW_MOVEMENT_CACHE: FollowMovementConfig | None = None
 _FOLLOW_MOVEMENT_CACHE_TIMER = ThrottledTimer(1000)
+_FOLLOW_RUNTIME_SECTION = "FollowRuntime"
+
+
+def _write_follow_movement_value(im: IniManager, key: str, name: str, value: float) -> None:
+    im.write_key(key, _FOLLOW_RUNTIME_SECTION, name, float(value))
+    node = im._get_node(key)
+    if node:
+        text_value = str(float(value))
+        node.ini_handler.write_key(_FOLLOW_RUNTIME_SECTION, name, text_value)
+        node.cached_values[(_FOLLOW_RUNTIME_SECTION, name)] = text_value
+        node.pending_writes.pop((_FOLLOW_RUNTIME_SECTION, name), None)
+        node.needs_flush = bool(node.pending_writes)
 
 
 def _ensure_follow_runtime_key() -> str:
@@ -121,31 +133,31 @@ def load_follow_movement_config(force_reload: bool = False) -> FollowMovementCon
     _FOLLOW_MOVEMENT_CACHE = FollowMovementConfig(
         slot_recovery_distance=max(
             1.0,
-            float(im.getFloat(key, "slot_recovery_distance", float(Range.Nearby.value), section="FollowRuntime")),
+            float(im.read_float(key, _FOLLOW_RUNTIME_SECTION, "slot_recovery_distance", float(Range.Nearby.value))),
         ),
         ally_repulsion_radius=max(
             0.0,
-            float(im.getFloat(key, "ally_repulsion_radius", float(Range.Adjacent.value), section="FollowRuntime")),
+            float(im.read_float(key, _FOLLOW_RUNTIME_SECTION, "ally_repulsion_radius", float(Range.Adjacent.value))),
         ),
         ally_repulsion_weight=max(
             0.0,
-            float(im.getFloat(key, "ally_repulsion_weight", 0.65, section="FollowRuntime")),
+            float(im.read_float(key, _FOLLOW_RUNTIME_SECTION, "ally_repulsion_weight", 0.65)),
         ),
         enemy_repulsion_radius=max(
             0.0,
-            float(im.getFloat(key, "enemy_repulsion_radius", float(Range.Nearby.value), section="FollowRuntime")),
+            float(im.read_float(key, _FOLLOW_RUNTIME_SECTION, "enemy_repulsion_radius", float(Range.Nearby.value))),
         ),
         enemy_repulsion_weight=max(
             0.0,
-            float(im.getFloat(key, "enemy_repulsion_weight", 0.45, section="FollowRuntime")),
+            float(im.read_float(key, _FOLLOW_RUNTIME_SECTION, "enemy_repulsion_weight", 0.45)),
         ),
         local_move_clamp=max(
             1.0,
-            float(im.getFloat(key, "local_move_clamp", float(Range.Area.value), section="FollowRuntime")),
+            float(im.read_float(key, _FOLLOW_RUNTIME_SECTION, "local_move_clamp", float(Range.Area.value))),
         ),
         min_move_threshold=max(
             0.0,
-            float(im.getFloat(key, "min_move_threshold", 15.0, section="FollowRuntime")),
+            float(im.read_float(key, _FOLLOW_RUNTIME_SECTION, "min_move_threshold", 15.0)),
         ),
     )
     _FOLLOW_MOVEMENT_CACHE_TIMER.Reset()
@@ -160,14 +172,21 @@ def save_follow_movement_config(config: FollowMovementConfig) -> None:
         return
 
     im = IniManager()
-    im.set(key, "slot_recovery_distance", float(config.slot_recovery_distance), section="FollowRuntime")
-    im.set(key, "ally_repulsion_radius", float(config.ally_repulsion_radius), section="FollowRuntime")
-    im.set(key, "ally_repulsion_weight", float(config.ally_repulsion_weight), section="FollowRuntime")
-    im.set(key, "enemy_repulsion_radius", float(config.enemy_repulsion_radius), section="FollowRuntime")
-    im.set(key, "enemy_repulsion_weight", float(config.enemy_repulsion_weight), section="FollowRuntime")
-    im.set(key, "local_move_clamp", float(config.local_move_clamp), section="FollowRuntime")
-    im.set(key, "min_move_threshold", float(config.min_move_threshold), section="FollowRuntime")
+    im.set(key, "slot_recovery_distance", float(config.slot_recovery_distance), section=_FOLLOW_RUNTIME_SECTION)
+    im.set(key, "ally_repulsion_radius", float(config.ally_repulsion_radius), section=_FOLLOW_RUNTIME_SECTION)
+    im.set(key, "ally_repulsion_weight", float(config.ally_repulsion_weight), section=_FOLLOW_RUNTIME_SECTION)
+    im.set(key, "enemy_repulsion_radius", float(config.enemy_repulsion_radius), section=_FOLLOW_RUNTIME_SECTION)
+    im.set(key, "enemy_repulsion_weight", float(config.enemy_repulsion_weight), section=_FOLLOW_RUNTIME_SECTION)
+    im.set(key, "local_move_clamp", float(config.local_move_clamp), section=_FOLLOW_RUNTIME_SECTION)
+    im.set(key, "min_move_threshold", float(config.min_move_threshold), section=_FOLLOW_RUNTIME_SECTION)
     im.save_vars(key)
+    _write_follow_movement_value(im, key, "slot_recovery_distance", config.slot_recovery_distance)
+    _write_follow_movement_value(im, key, "ally_repulsion_radius", config.ally_repulsion_radius)
+    _write_follow_movement_value(im, key, "ally_repulsion_weight", config.ally_repulsion_weight)
+    _write_follow_movement_value(im, key, "enemy_repulsion_radius", config.enemy_repulsion_radius)
+    _write_follow_movement_value(im, key, "enemy_repulsion_weight", config.enemy_repulsion_weight)
+    _write_follow_movement_value(im, key, "local_move_clamp", config.local_move_clamp)
+    _write_follow_movement_value(im, key, "min_move_threshold", config.min_move_threshold)
     _FOLLOW_MOVEMENT_CACHE = FollowMovementConfig(
         slot_recovery_distance=float(config.slot_recovery_distance),
         ally_repulsion_radius=float(config.ally_repulsion_radius),

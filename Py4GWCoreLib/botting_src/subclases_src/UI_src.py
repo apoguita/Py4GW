@@ -513,7 +513,6 @@ class _UI:
             debug_text("follow_path_succeeded", "value")
             debug_text("dialog_at_succeeded", "value")
             PyImGui.separator()
-            debug_text("auto_combat", "active")
             debug_text("hero_ai", "active")
             debug_text("auto_loot", "active")
             debug_text("auto_inventory_management", "active")
@@ -538,7 +537,6 @@ class _UI:
                 ITEMS = [
                     ("alcohol", ("active", "target_drunk_level", "disable_visual")),
                     "armor_of_salvation",
-                    ("auto_combat", ("active",)),
                     ("auto_inventory_management", ("active",)),
                     ("auto_loot", ("active",)),
                     "birthday_cupcake",

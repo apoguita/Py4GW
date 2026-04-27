@@ -10,7 +10,6 @@ if TYPE_CHECKING:
 
 STEP_NAMES: Final[tuple[str, ...]] = (
     "ALCOHOL_COUNTER",
-    "AUTO_COMBAT",
     "CANCEL_SKILL_REWARD_WINDOW",
     "CELERITY_COUNTER",
     "CITY_SPEED_COUNTER",
@@ -229,7 +228,6 @@ class UpkeepData:
                  alcohol_disable_visual: bool = True,
                  armor_of_salvation_active: bool = False,
                  armor_of_salvation_restock: int = 0,
-                 auto_combat_active: bool = True,
                  auto_inventory_management_active: bool = True,
                  auto_loot_active: bool = True,
                  #B
@@ -239,6 +237,7 @@ class UpkeepData:
                  blue_rock_candy_restock: int = 0,
                  bowl_of_skalefin_soup_active: bool = False,
                  bowl_of_skalefin_soup_restock: int = 0,
+                 build_ticker_active: bool = False,
                  #C
                  candy_apple_active: bool = False,
                  candy_apple_restock: int = 0,
@@ -335,6 +334,7 @@ class UpkeepData:
         self.bowl_of_skalefin_soup = Property(parent, "bowl_of_skalefin_soup", active=bowl_of_skalefin_soup_active,
             extra_fields={"restock_quantity": bowl_of_skalefin_soup_restock,}
         )
+        self.build_ticker = Property(parent, "build_ticker", active=build_ticker_active)
         self.candy_apple = Property(parent, "candy_apple", active=candy_apple_active,
             extra_fields={"restock_quantity": candy_apple_restock,}
         )
@@ -362,7 +362,6 @@ class UpkeepData:
 
         self.imp = Property(parent, "imp", active=imp_active)
         self.summoning_stone = Property(parent, "summoning_stone", active=summoning_stone_active)
-        self.auto_combat = Property(parent, "auto_combat", active=auto_combat_active)
         self.hero_ai = Property(parent, "hero_ai", active=hero_ai_active)
         self.hero_ai_paused = Property(parent, "hero_ai_paused", active=hero_ai_paused)
         

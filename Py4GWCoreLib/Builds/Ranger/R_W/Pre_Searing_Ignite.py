@@ -75,7 +75,7 @@ class Pre_Searing_Ignite(BuildMgr):
             )):
                 return True
 
-        if not Routines.Checks.Agents.InAggro():
+        if not self.IsInAggro():
             return False
 
         if self.IsSkillEquipped(Ignite_Arrows_ID):

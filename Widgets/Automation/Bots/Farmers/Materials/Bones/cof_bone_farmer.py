@@ -725,8 +725,20 @@ def Debug(message, title='Log', msg_type='Debug'):
     Py4GW.Console.Log(title, str(message), py4gw_msg_type)
 
 
+def DisableHeroAIWidget():
+    try:
+        from Py4GW_widget_manager import get_widget_handler
+
+        handler = get_widget_handler()
+        if handler.is_widget_enabled("HeroAI"):
+            handler.disable_widget("HeroAI")
+    except Exception:
+        pass
+
+
 def StartBot():
     global bot_vars
+    DisableHeroAIWidget()
     bot_vars.bot_started = True
     bot_vars.timers.total.Start()
     ResetVariables()

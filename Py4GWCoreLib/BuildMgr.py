@@ -254,6 +254,30 @@ class BuildMgr:
 
     def IsSharedSkillToggleEnabled(self, slot: int) -> bool:
         return self._get_shared_skill_toggle(slot)
+    
+    def GetActiveScanRange(self) -> float:
+        cached_data = getattr(self, "_cached_data", None)
+        if cached_data is not None and hasattr(cached_data, "GetActiveScanRange"):
+            return float(cached_data.GetActiveScanRange())
+        
+        try:
+            from HeroAI.cache_data import CacheData
+            cached_data = CacheData()
+            cached_data.Update()
+            return float(cached_data.GetActiveScanRange())
+        except Exception:
+            from Py4GWCoreLib import Range, Routines
+            return Range.Spellcast.value if Routines.Checks.Agents.InAggro() else Range.Earshot.value
+    
+    def IsInAggro(self) -> bool:
+        cached_data = getattr(self, "_cached_data", None)
+        if cached_data is not None:
+            data = getattr(cached_data, "data", None)
+            if data is not None:
+                return bool(data.in_aggro)
+        
+        from Py4GWCoreLib import Routines
+        return bool(Routines.Checks.Agents.InAggro(self.GetActiveScanRange()))
 
     def IsCloseToAggro(self) -> bool:
         """Returns True when combat is imminent but the player is not yet engaged."""
@@ -269,6 +293,10 @@ class BuildMgr:
             TargetLowestAllyMartial,
             TargetLowestAllyMelee,
             TargetLowestAllyRanged,
+            TargetAllyNonEnchanted,
+            TargetMinionNonEnchanted,
+            TargetMinionOrAllyNonEnchanted,
+            TargetDeadPartyMember,
         )
         from HeroAI.types import Skilltarget, SkillType
         from Py4GWCoreLib import Agent, AgentArray, Player, Routines, Skill
@@ -280,6 +308,13 @@ class BuildMgr:
 
         target_allegiance = custom_skill.TargetAllegiance
         targeting_strict = bool(custom_skill.Conditions.TargetingStrict)
+
+        if target_allegiance == Skilltarget.MinionOrAllyNonEnchanted.value:
+            return TargetMinionOrAllyNonEnchanted(filter_skill_id=skill_id)
+        if target_allegiance == Skilltarget.MinionNonEnchanted.value:
+            return TargetMinionNonEnchanted()
+        if target_allegiance == Skilltarget.AllyNonEnchanted.value:
+            return TargetAllyNonEnchanted()
 
         if target_allegiance in (
             Skilltarget.Ally.value,
@@ -295,7 +330,14 @@ class BuildMgr:
             other_ally = target_allegiance == Skilltarget.OtherAlly.value
             base_target = 0
             if custom_skill.SkillType == SkillType.WeaponSpell.value:
-                weapon_spell_predicate = lambda agent_id: not Routines.Checks.Agents.IsWeaponSpelled(agent_id)
+                if custom_skill.Conditions.AllowOverlapWeaponSpell:
+                    weapon_spell_predicate = lambda agent_id: not Routines.Checks.Agents.HasEffect(
+                        agent_id,
+                        skill_id,
+                        exact_weapon_spell=True,
+                    )
+                else:
+                    weapon_spell_predicate = lambda agent_id: not Routines.Checks.Agents.IsWeaponSpelled(agent_id)
             if target_allegiance == Skilltarget.Ally.value:
                 base_target = TargetLowestAlly(other_ally=other_ally, filter_skill_id=skill_id)
             elif target_allegiance == Skilltarget.AllyCaster.value:
@@ -350,13 +392,7 @@ class BuildMgr:
             return 0
         if target_allegiance == Skilltarget.DeadAlly.value:
             from Py4GWCoreLib.enums_src.GameData_enums import Range
-            dead_ally_array = AgentArray.GetDeadAllyArray()
-            dead_ally_array = AgentArray.Filter.ByDistance(dead_ally_array, Player.GetXY(), Range.Spellcast.value)
-            spirit_pet_array = AgentArray.GetSpiritPetArray()
-            spirit_pet_array = AgentArray.Filter.ByDistance(spirit_pet_array, Player.GetXY(), Range.Spellcast.value)
-            dead_ally_array = AgentArray.Manipulation.Subtract(dead_ally_array, spirit_pet_array)
-            dead_ally_array = AgentArray.Sort.ByDistance(dead_ally_array, Player.GetXY())
-            return dead_ally_array[0] if dead_ally_array else 0
+            return TargetDeadPartyMember(Range.Spellcast.value)
         if target_allegiance == Skilltarget.Self.value:
             return Player.GetAgentID()
 
@@ -705,7 +741,7 @@ class BuildMgr:
     def _refresh_target_tracking(self) -> None:
         from Py4GWCoreLib import Routines
 
-        in_aggro = bool(Routines.Checks.Agents.InAggro())
+        in_aggro = self.IsInAggro()
         if self._was_in_aggro and not in_aggro:
             self.ResetTarget()
             self.ResetPartyHealthMonitor()
@@ -777,7 +813,8 @@ class BuildMgr:
         if not Routines.Checks.Agents.IsMelee(Player.GetAgentID()):
             return desired_target
 
-        nearest_enemy = Routines.Agents.GetNearestEnemy(Range.Spellcast.value)
+        combat_distance = self.GetActiveScanRange()
+        nearest_enemy = Routines.Agents.GetNearestEnemy(combat_distance)
         if not (Agent.IsValid(nearest_enemy) and not Agent.IsDead(nearest_enemy)):
             return desired_target
 
@@ -788,7 +825,7 @@ class BuildMgr:
         nearby_enemies = Routines.Agents.GetFilteredEnemyArray(
             player_pos[0],
             player_pos[1],
-            Range.Spellcast.value,
+            combat_distance,
         )
 
         contact_enemies = [
@@ -850,35 +887,35 @@ class BuildMgr:
     
     def _pick_fallback_target(self, target_type: str) -> int:
         from HeroAI.targeting import GetEnemyAttacking, GetEnemyInjured, TargetClusteredEnemy
-        from Py4GWCoreLib import Range
         from Py4GWCoreLib.Agent import Agent
         
+        combat_distance = self.GetActiveScanRange()
         return_target = 0
         if target_type == "EnemyClustered":
-            return_target = TargetClusteredEnemy(Range.Earshot.value)
+            return_target = TargetClusteredEnemy(combat_distance)
             if not (Agent.IsValid(return_target) and not Agent.IsDead(return_target)):
-                return_target = GetEnemyInjured(Range.Earshot.value)
+                return_target = GetEnemyInjured(combat_distance)
         elif target_type == "EnemyHexedOrEnchantedClustered":
             return_target = self._pick_clustered_target(
-                Range.Earshot.value,
+                combat_distance,
                 preferred_condition=lambda agent_id: Agent.IsHexed(agent_id) or Agent.IsEnchanted(agent_id),
             )
             if not (Agent.IsValid(return_target) and not Agent.IsDead(return_target)):
-                return_target = GetEnemyInjured(Range.Earshot.value)
+                return_target = GetEnemyInjured(combat_distance)
         elif target_type == "EnemyAttackingClustered":
             return_target = self._pick_clustered_target(
-                Range.Earshot.value,
+                combat_distance,
                 preferred_condition=lambda agent_id: Agent.IsAttacking(agent_id),
             )
             if not (Agent.IsValid(return_target) and not Agent.IsDead(return_target)):
-                return_target = GetEnemyInjured(Range.Earshot.value)
+                return_target = GetEnemyInjured(combat_distance)
         elif target_type == "EnemyAttacking":
-            return_target = GetEnemyAttacking(Range.Earshot.value)
+            return_target = GetEnemyAttacking(combat_distance)
             if not (Agent.IsValid(return_target) and not Agent.IsDead(return_target)):
-                return_target = GetEnemyInjured(Range.Earshot.value)
-                 
+                return_target = GetEnemyInjured(combat_distance)
+                  
         elif target_type == "EnemyInjured":
-            return_target = GetEnemyInjured(Range.Earshot.value)
+            return_target = GetEnemyInjured(combat_distance)
 
         return_target = self._prefer_melee_nearest_enemy(return_target)
 
@@ -1366,7 +1403,10 @@ class BuildMgr:
                 return False
 
         if custom_skill.SkillType == SkillType.WeaponSpell.value:
-            if Routines.Checks.Agents.IsWeaponSpelled(target_agent_id):
+            if custom_skill.Conditions.AllowOverlapWeaponSpell:
+                if Routines.Checks.Agents.HasEffect(target_agent_id, skill_id, exact_weapon_spell=True):
+                    return False
+            elif Routines.Checks.Agents.IsWeaponSpelled(target_agent_id):
                 return False
 
         return True
@@ -1719,9 +1759,9 @@ class BuildMgr:
         if self._local_ooc_handler is None and self._local_combat_handler is None:
             raise NotImplementedError
 
-        from Py4GWCoreLib import Range, Routines
+        from Py4GWCoreLib.botting_src.helpers_src.HeroAICombatRange import hero_ai_combat_detected
 
-        if Routines.Checks.Agents.InDanger(Range.Earshot):
+        if hero_ai_combat_detected():
             yield from self.ProcessCombat()
         else:
             yield from self.ProcessOOC()

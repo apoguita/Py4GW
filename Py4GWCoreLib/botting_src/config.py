@@ -11,7 +11,6 @@ if TYPE_CHECKING:
 from ..SkillManager import SkillManager
 from ..Py4GWcorelib import FSM
 from ..BuildMgr import BuildMgr
-from ..Builds.Any.AutoCombat import AutoCombat
 from .property import StepNameCounters, UpkeepData, ConfigProperties
 from .event import Events
     
@@ -37,7 +36,6 @@ class BotConfig:
                  alcohol_disable_visual: bool = True,
                  armor_of_salvation_active: bool = False,
                  armor_of_salvation_restock: int = 0,
-                 auto_combat_active: bool = False,
                  auto_inventory_management_active: bool = False,
                  auto_loot_active: bool = False,
                  #B
@@ -47,6 +45,7 @@ class BotConfig:
                  blue_rock_candy_restock: int = 0,
                  bowl_of_skalefin_soup_active: bool = False,
                  bowl_of_skalefin_soup_restock: int = 0,
+                 build_ticker_active: bool = False,
                  #C
                  candy_apple_active: bool = False,
                  candy_apple_restock: int = 0,
@@ -111,11 +110,14 @@ class BotConfig:
         self.fsm_running:bool = False
         self.state_description: str = "Idle"
         self.state_percentage: float = 0.0
-        #self.build_handler:SkillManager.Autocombat = SkillManager.Autocombat()
         if custom_build is not None:
             self.build_handler:BuildMgr = custom_build
         else:
-            self.build_handler:BuildMgr = AutoCombat()
+            self.build_handler:BuildMgr = BuildMgr()
+
+        if not self.build_handler.is_combat_automator_compatible:
+            build_ticker_active = True
+            hero_ai_active = False
 
         self.counters = StepNameCounters()
         
@@ -150,7 +152,6 @@ class BotConfig:
                  alcohol_disable_visual=alcohol_disable_visual,
                  armor_of_salvation_active=armor_of_salvation_active,
                  armor_of_salvation_restock=armor_of_salvation_restock,
-                 auto_combat_active=auto_combat_active,
                  auto_inventory_management_active=auto_inventory_management_active,
                  auto_loot_active=auto_loot_active,
                 #B
@@ -160,7 +161,8 @@ class BotConfig:
                  blue_rock_candy_restock=blue_rock_candy_restock,
                  bowl_of_skalefin_soup_active=bowl_of_skalefin_soup_active,
                  bowl_of_skalefin_soup_restock=bowl_of_skalefin_soup_restock,
-                    #C
+                 build_ticker_active=build_ticker_active,
+                #C
                  candy_apple_active=candy_apple_active,
                  candy_apple_restock=candy_apple_restock,
                  candy_corn_active=candy_corn_active,
@@ -224,11 +226,15 @@ class BotConfig:
                
     def _reset_pause_on_danger_fn(self, aggro_area=None) -> None:
         from ..Routines import Checks  # local import to avoid cycles
-        from ..enums_src.GameData_enums import Range
+        from .helpers_src.HeroAICombatRange import hero_ai_combat_detected
 
-        if aggro_area is None:
-            aggro_area = Range.Earshot
-        self._set_pause_on_danger_fn(lambda a=aggro_area: Checks.Agents.InDanger(aggro_area=a) or Checks.Party.IsPartyMemberDead() or Checks.Skills.InCastingProcess())
+        self._set_pause_on_danger_fn(
+            lambda: (
+                hero_ai_combat_detected()
+                or Checks.Party.IsPartyMemberDead()
+                or Checks.Skills.InCastingProcess()
+            )
+        )
 
     def _set_on_follow_path_failed(self, on_follow_path_failed: Callable[[], bool]) -> None:
         from ..Py4GWcorelib import ConsoleLog

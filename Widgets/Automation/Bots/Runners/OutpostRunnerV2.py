@@ -55,7 +55,7 @@ bot = Botting(BotSettings.BOT_NAME,
             upkeep_grail_of_might_active=False,
             upkeep_honeycomb_restock=10,
             upkeep_honeycomb_active=False,
-            upkeep_auto_combat_active=True,
+            upkeep_hero_ai_active=True,
             config_draw_path=True)
 # endregion
 

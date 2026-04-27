@@ -10,7 +10,7 @@ from Py4GWCoreLib import Range
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib import ThrottledTimer
 from Py4GWCoreLib import Weapon
-from Py4GWCoreLib.Builds.Any.AutoCombat import AutoCombat
+from Py4GWCoreLib.Builds.Any.HeroAI import HeroAI_Build
 
 DUNGEON_MODEL_IDS = {
     6493: "Stone Summit Dominator",  # 6
@@ -59,7 +59,7 @@ class AssassinShadowTheftDaggerSpammer(BuildMgr):
         )
         if match_only:
             return
-        self.SetFallback("AutoCombat", AutoCombat())
+        self.SetFallback("HeroAI", HeroAI_Build(standalone_fallback=True))
 
         # === Skill References ===
         (

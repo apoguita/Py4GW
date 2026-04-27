@@ -8,7 +8,7 @@ bot = Botting("Auto Combat Tester",
               upkeep_honeycomb_restock=100,
               upkeep_auto_inventory_management_active=False,
               upkeep_auto_loot_active=False,
-              upkeep_auto_combat_active=False)
+              upkeep_hero_ai_active=False)
 
 def create_bot_routine(bot: Botting) -> None:
     condition = lambda: on_death(bot)

@@ -1,9 +1,6 @@
 from __future__ import annotations
 
-import time
 from typing import Callable
-
-import PyImGui
 
 from Py4GWCoreLib.BottingTree import BottingTree
 from Py4GWCoreLib.IniManager import IniManager
@@ -24,72 +21,6 @@ NEHDUKAH_ENC_STRING = "\\x8101\\x246C\\xFDB5\\xB6AD\\x56AB"
 initialized = False
 ini_key = ""
 botting_tree: BottingTree | None = None
-selected_start_index = 0
-
-
-def PartyWipeRecoveryService() -> BehaviorTree:
-    state = {
-        "active": False,
-        "step_name": "",
-        "last_return_ms": 0.0,
-        "last_log_ms": 0.0,
-    }
-
-    def _reset_state(node: BehaviorTree.Node) -> None:
-        state["active"] = False
-        state["step_name"] = ""
-        state["last_return_ms"] = 0.0
-        state["last_log_ms"] = 0.0
-        node.blackboard["party_wipe_recovery_active"] = False
-
-    def _tick_party_wipe_service(node: BehaviorTree.Node) -> BehaviorTree.NodeState:
-        from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
-        from Py4GWCoreLib.Map import Map
-        from Py4GWCoreLib.routines_src.Checks import Checks
-        from Py4GWCoreLib.py4gwcorelib_src.ActionQueue import ActionQueueManager
-
-        now = time.monotonic() * 1000.0
-        is_wiped = bool(Checks.Party.IsPartyWiped() or GLOBAL_CACHE.Party.IsPartyDefeated())
-
-        if not state["active"]:
-            if not is_wiped:
-                node.blackboard["party_wipe_recovery_active"] = False
-                return BehaviorTree.NodeState.RUNNING
-
-            step_name = str(node.blackboard.get("current_step_name", "") or "")
-            if not step_name:
-                step_name = get_execution_steps()[0][0]
-
-            state["active"] = True
-            state["step_name"] = step_name
-            state["last_return_ms"] = 0.0
-            state["last_log_ms"] = now
-            node.blackboard["party_wipe_recovery_active"] = True
-            node.blackboard["party_wipe_recovery_step_name"] = step_name
-            ActionQueueManager().ResetAllQueues()
-            return BehaviorTree.NodeState.RUNNING
-
-        node.blackboard["party_wipe_recovery_active"] = True
-        node.blackboard["party_wipe_recovery_step_name"] = state["step_name"]
-
-        if Map.IsMapReady() and Map.IsOutpost() and GLOBAL_CACHE.Party.IsPartyLoaded():
-            node.blackboard["restart_step_name_request"] = state["step_name"]
-            _reset_state(node)
-            return BehaviorTree.NodeState.SUCCESS
-
-        if now - state["last_return_ms"] >= 1000.0:
-            GLOBAL_CACHE.Party.ReturnToOutpost()
-            state["last_return_ms"] = now
-
-        return BehaviorTree.NodeState.RUNNING
-
-    return BehaviorTree(
-        BehaviorTree.ActionNode(
-            name="PartyWipeRecoveryService",
-            action_fn=_tick_party_wipe_service,
-            aftercast_ms=0,
-        )
-    )
 
 
 def configure_upkeep_trees(tree: BottingTree) -> BottingTree:
@@ -110,11 +41,8 @@ def configure_upkeep_trees(tree: BottingTree) -> BottingTree:
                 log=False,
             ),
         ),
-        (
-            "PartyWipeRecoveryService",
-            PartyWipeRecoveryService,
-        ),
     ])
+    tree.AddPartyWipeRecoveryService(default_step_name=get_execution_steps()[0][0])
     return tree
 
 
@@ -122,32 +50,25 @@ def ensure_botting_tree() -> BottingTree:
     global botting_tree
 
     if botting_tree is None:
-        botting_tree = configure_upkeep_trees(BottingTree())
+        botting_tree = configure_upkeep_trees(BottingTree(MODULE_NAME))
+        botting_tree.SetMainRoutine(
+            get_execution_steps(),
+            name="Proof of Legend Sequence",
+            repeat=True,
+            reset=False,
+        )
 
     return botting_tree
 
 
 def ConfigurePacifistEnv() -> BehaviorTree:
-    return BehaviorTree(
-        BehaviorTree.SequenceNode(
-            name="Configure Pacifist Env",
-            children=[
-                BottingTree.DisableHeroAITree(),
-                BottingTree.DisableLootingTree(),
-            ],
-        )
-    )
+    return ensure_botting_tree().Templates.Pacifist(name="Configure Pacifist Env")
 
 
 def ConfigureAggressiveEnv() -> BehaviorTree:
-    return BehaviorTree(
-        BehaviorTree.SequenceNode(
-            name="Configure Aggressive Env",
-            children=[
-                BottingTree.EnableHeroAITree(),
-                BottingTree.DisableLootingTree(),
-            ],
-        )
+    return ensure_botting_tree().Templates.Aggressive(
+        auto_loot=False,
+        name="Configure Aggressive Env",
     )
 
 
@@ -744,20 +665,6 @@ def InitializeBot() -> BehaviorTree:
     )
 
 
-def MarkCurrentStep(step_name: str) -> BehaviorTree:
-    def _mark_current_step(node: BehaviorTree.Node) -> BehaviorTree.NodeState:
-        node.blackboard["current_step_name"] = step_name
-        return BehaviorTree.NodeState.SUCCESS
-
-    return BehaviorTree(
-        BehaviorTree.ActionNode(
-            name=f"MarkCurrentStep({step_name})",
-            action_fn=_mark_current_step,
-            aftercast_ms=0,
-        )
-    )
-
-
 def get_execution_steps() -> list[tuple[str, Callable[[], BehaviorTree]]]:
     return [
         ("Initialize Bot", InitializeBot),
@@ -781,93 +688,6 @@ def get_execution_steps() -> list[tuple[str, Callable[[], BehaviorTree]]]:
     ]
 
 
-def build_execution_sequence(start_index: int = 0, name: str = "Proof of Legend Sequence") -> BehaviorTree:
-    steps = get_execution_steps()
-    bounded_start = max(0, min(start_index, len(steps) - 1))
-    return BehaviorTree(
-        BehaviorTree.SequenceNode(
-            name=name,
-            children=[
-                BehaviorTree.SequenceNode(
-                    name=f"Step: {label}",
-                    children=[
-                        MarkCurrentStep(label).root,
-                        builder().root,
-                    ],
-                )
-                for label, builder in steps[bounded_start:]
-            ],
-        )
-    )
-
-
-def build_execution_loop(start_index: int = 0) -> BehaviorTree:
-    return BehaviorTree(
-        BehaviorTree.SequenceNode(
-            name="Proof of Legend Loop",
-            children=[
-                build_execution_sequence(start_index, name="Selected Start Pass"),
-                BehaviorTree.RepeaterForeverNode(
-                    build_execution_sequence(0, name="Full Loop Pass").root,
-                    name="Loop: restart routine",
-                ),
-            ],
-        )
-    )
-
-
-def process_restart_request(tree: BottingTree) -> None:
-    restart_step_name = str(tree.GetBlackboardValue("restart_step_name_request", "") or "")
-    if not restart_step_name:
-        return
-
-    tree.ClearBlackboardValue("restart_step_name_request")
-    tree.ClearBlackboardValue("current_step_name")
-
-    steps = get_execution_steps()
-    labels = [label for label, _ in steps]
-    restart_index = labels.index(restart_step_name) if restart_step_name in labels else 0
-    tree.SetCurrentTree(
-        build_execution_loop(restart_index),
-        auto_start=True,
-    )
-
-
-def draw_window() -> None:
-    global selected_start_index
-
-    tree = ensure_botting_tree()
-    steps = get_execution_steps()
-    labels = [label for label, _ in steps]
-    current_step_name = str(tree.GetBlackboardValue("current_step_name", "Idle") or "Idle")
-
-    if PyImGui.begin(MODULE_NAME, PyImGui.WindowFlags.AlwaysAutoResize):
-        PyImGui.text(f"Current Step: {current_step_name}")
-        if tree.IsStarted():
-            if PyImGui.button("Stop"):
-                tree.Stop()
-            PyImGui.same_line(0, -1)
-            if tree.IsPaused():
-                if PyImGui.button("Resume"):
-                    tree.Pause(False)
-            else:
-                if PyImGui.button("Pause"):
-                    tree.Pause(True)
-        else:
-            selected_start_index = PyImGui.combo(
-                "Start At",
-                selected_start_index,
-                labels,
-            )
-            if PyImGui.button("Start"):
-                tree.SetCurrentTree(
-                    build_execution_loop(selected_start_index),
-                    auto_start=True,
-                )
-        tree.DrawMovePathDebugOptions()
-    PyImGui.end()
-
-
 def main() -> None:
     global initialized, ini_key
 
@@ -883,9 +703,7 @@ def main() -> None:
 
     tree = ensure_botting_tree()
     tree.tick()
-    process_restart_request(tree)
-    tree.DrawMovePathIfEnabled()
-    draw_window()
+    tree.UI.draw_window()
 
 
 if __name__ == "__main__":

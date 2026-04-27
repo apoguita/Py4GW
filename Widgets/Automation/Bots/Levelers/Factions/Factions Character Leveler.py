@@ -6,7 +6,7 @@ from Py4GW import Game
 from Py4GWCoreLib import (GLOBAL_CACHE, Routines, Range, Py4GW, ConsoleLog, ModelID, Bags, Botting,
                           AutoPathing, ImGui, ActionQueueManager, Map, Agent, Player, UIManager, GWUI, HeroType, Skill, AgentArray)
 from Py4GWCoreLib.Builds.Any.KeiranThackerayEOTN import KeiranThackerayEOTN
-from Py4GWCoreLib.Builds.Any.AutoCombat import AutoCombat
+from Py4GWCoreLib.Builds.Any.HeroAI import HeroAI_Build
 from Py4GWCoreLib.ImGui_src.types import Alignment
 from Py4GWCoreLib.enums_src.UI_enums import UIMessage
 from Py4GWCoreLib.py4gwcorelib_src.Color import Color
@@ -14,12 +14,14 @@ from Py4GWCoreLib.py4gwcorelib_src.Color import Color
 MODULE_NAME = "Factions Character Leveler"
 MODULE_ICON = "Textures\\Module_Icons\\Leveler - Factions.png"
 
+KAINENG_CENTER_MAP_ID = 817
+
 bot = Botting("Factions Leveler",
               upkeep_candy_apple_restock=10,
               upkeep_honeycomb_restock=20,
               upkeep_war_supplies_restock=10,
               upkeep_auto_inventory_management_active=False,
-              upkeep_auto_combat_active=False,
+              upkeep_hero_ai_active=False,
               upkeep_auto_loot_active=False)
 
 class BotSettings:
@@ -172,7 +174,7 @@ def AddHenchmen():
         henchmen_list.extend([2,3,1,8,5])
     elif Map.GetMapID() == Map.GetMapIDByName("The Marketplace"):
         henchmen_list.extend([6,9,5,1,4,7,3])
-    elif Map.GetMapID() == 194: # Kaineng_map_id
+    elif Map.GetMapID() == KAINENG_CENTER_MAP_ID: # Kaineng_map_id
         henchmen_list.extend([2,10,4,8,7,9,12])
     elif Map.GetMapID() == Map.GetMapIDByName("Boreal Station"):
         henchmen_list.extend([7,9,2,3,4,6,5])
@@ -823,10 +825,10 @@ def destroy_seitung_armor() -> Generator[Any, Any, None]:
 def _on_death(bot: "Botting", step_name: str = ""):
     """Player died (in-map): halt movement, wait for outpost, then resume."""
     died_in_ab = (Map.GetMapID() == _AB_MAP_ID)  # capture before the wait
+    bot.ResetHeroAICombatState(active=False, following=False, targeting=False, combat=False)
     bot.Properties.ApplyNow("pause_on_danger", "active", False)
     bot.Properties.ApplyNow("halt_on_death", "active", True)
     bot.Properties.ApplyNow("movement_timeout", "value", 15000)
-    bot.Properties.ApplyNow("auto_combat", "active", False)
     if died_in_ab:
         yield from Routines.Yield.wait(8000)
         fsm = bot.config.FSM
@@ -851,18 +853,19 @@ def _on_death(bot: "Botting", step_name: str = ""):
             step_name = state_names[0] if state_names else ""
         if not step_name:
             fsm.resume()
+            bot.ResetHeroAICombatState(active=True)
             yield
             return
         fsm.ResetAndStartAtStep(step_name)
-    bot.Properties.ApplyNow("auto_combat", "active", True)
     bot.Templates.Aggressive()
+    bot.ResetHeroAICombatState(active=True)
     yield
 
 
 def _on_party_defeated(bot: "Botting", step_name: str):
     """Party wiped: trigger return to outpost, then restart from the same step."""
+    bot.ResetHeroAICombatState(active=False, following=False, targeting=False, combat=False)
     bot.Properties.ApplyNow("pause_on_danger", "active", False)
-    bot.Properties.ApplyNow("auto_combat", "active", False)
     # Short grace period, then keep retrying ReturnToOutpost until we reach the outpost
     yield from Routines.Yield.wait(1000)
     while True:
@@ -880,17 +883,20 @@ def _on_party_defeated(bot: "Botting", step_name: str):
         step_name = state_names[0] if state_names else ""
     if not step_name:
         fsm.resume()
+        bot.ResetHeroAICombatState(active=True)
         yield
         return
     fsm.ResetAndStartAtStep(step_name)
-    bot.Properties.ApplyNow("auto_combat", "active", True)
     bot.Templates.Aggressive()
+    bot.ResetHeroAICombatState(active=True)
     yield
 
 def on_death(bot: "Botting"):
     player_morale  = Player.GetMorale()
     morale_trigger = (player_morale == 0)
     if (Map.GetMapID() == _AB_MAP_ID) or morale_trigger:
+        if bot.config.FSM.HasManagedCoroutine("OnDeath") or bot.config.FSM.HasManagedCoroutine("OnPartyDefeated"):
+            return
         print(f"Morale trigger fired (player={player_morale}. Run Failed, Restarting...")
         ActionQueueManager().ResetAllQueues()
         fsm = bot.config.FSM
@@ -915,6 +921,8 @@ def on_party_defeated(bot: "Botting"):
     # In AB the player is solo — OnDeathCallback fires first and handles it.
     # Skip here to avoid double-recovery.
     if Map.GetMapID() == _AB_MAP_ID:
+        return
+    if bot.config.FSM.HasManagedCoroutine("OnDeath") or bot.config.FSM.HasManagedCoroutine("OnPartyDefeated"):
         return
     print("Party defeated. Returning to outpost and retrying current step...")
     ActionQueueManager().ResetAllQueues()
@@ -1316,12 +1324,12 @@ def To_Kaineng_Center(bot: Botting):
     auto_path_list = [(-10254.0,-1759.0), (-10332.0,1442.0), (-10965.0,9309.0), (-9467.0,14207.0)]
     bot.Move.FollowAutoPath(auto_path_list)
     path_to_kc = [(-8601.28, 17419.64),(-6857.17, 19098.28),(-6706,20388)]
-    bot.Move.FollowPathAndExitMap(path_to_kc, target_map_id=194) #Kaineng Center
+    bot.Move.FollowPathAndExitMap(path_to_kc, target_map_id=KAINENG_CENTER_MAP_ID) #Kaineng Center
 
 def Craft_Max_Armor(bot: Botting):
     bot.States.AddHeader("Craft max armor")
     # Buy common materials (cloth or hide)
-    bot.Map.Travel(194)
+    bot.Map.Travel(KAINENG_CENTER_MAP_ID)
     bot.Move.XY(1592.00, -796.00)  # Move to material merchant area
     bot.Items.WithdrawGold(20000)
     bot.Move.XYAndInteractNPC(1592.00, -796.00)  # Common material merchant
@@ -1347,9 +1355,9 @@ def _ensure_bonus_bow(bot: Botting):
     if BotSettings.CUSTOM_BOW_ID != 0 or Routines.Checks.Inventory.IsModelInInventory(BotSettings.CRAFTED_BOW_ID)or Routines.Checks.Inventory.IsModelEquipped(BotSettings.CRAFTED_BOW_ID):
         yield
         return
-    if Map.GetMapID() != 194:
-        Map.Travel(194)
-        yield from Routines.Yield.Map.WaitforMapLoad(194, timeout=30000)
+    if Map.GetMapID() != KAINENG_CENTER_MAP_ID:
+        Map.Travel(KAINENG_CENTER_MAP_ID)
+        yield from Routines.Yield.Map.WaitforMapLoad(KAINENG_CENTER_MAP_ID, timeout=30000)
     yield from bot.Move._coro_xy(1592.00, -796.00)
     yield from Routines.Yield.Items.WithdrawGold(20000)
     yield from bot.Move._coro_xy_and_interact_npc(1592.00, -796.00)  # Common material merchant
@@ -1370,7 +1378,7 @@ def Destroy_Seitung_Armor(bot: Botting):
 
 def The_Search_For_A_Cure(bot: Botting) -> None:
     bot.States.AddHeader("Quest: The Search For A Cure")
-    bot.Map.Travel(194)
+    bot.Map.Travel(KAINENG_CENTER_MAP_ID)
     #bot.Move.XYAndDialog(3772.00, -961.00, 0x815001)
     exec_fn = lambda: QuestLoop(336, 3772.00, -961.00, 0x815001)
     bot.States.AddCustomState(exec_fn, "Accept - The Search for a Cure")
@@ -1385,14 +1393,14 @@ def The_Search_For_A_Cure(bot: Botting) -> None:
     bot.Move.XY(8300.00, 14100.00)
     bot.Items.LootItems()
     bot.Wait.ForTime(5000)
-    bot.Map.Travel(194)
+    bot.Map.Travel(KAINENG_CENTER_MAP_ID)
     #bot.Move.XYAndDialog(1784.00, 991.00, 0x815007)
     exec_fn = lambda: QuestLoop(336, 1784.00, 991.00, 0x815007, mode="complete")
     bot.States.AddCustomState(exec_fn, "Complete - The Search for a Cure")
 
 def A_Masters_Burden(bot: Botting) -> None:
     bot.States.AddHeader("Quest: A Master's Burden")
-    bot.Map.Travel(194)
+    bot.Map.Travel(KAINENG_CENTER_MAP_ID)
     #bot.Move.XYAndDialog(1784.00, 991.00, 0x815101)
     exec_fn = lambda: QuestLoop(337, 1784.00, 991.00, 0x815101)
     bot.States.AddCustomState(exec_fn, "Accept - Seek out Brother Tosai")
@@ -1435,14 +1443,14 @@ def A_Masters_Burden(bot: Botting) -> None:
 
 def Unlock_Mox(bot: Botting):
     bot.States.AddHeader("Unlock Mox")
-    bot.Map.Travel(target_map_id=194)
+    bot.Map.Travel(target_map_id=KAINENG_CENTER_MAP_ID)
     bot.Move.XYAndExitMap(3243, -4911, target_map_name="Bukdek Byway")
     bot.Move.XYAndDialog(-5803.48, 18951.70, 0x85)  # Unlock Mox
     bot.Wait.ForTime(1000)
 
 def To_Boreal_Station(bot: Botting):
     bot.States.AddHeader("To Boreal Station")
-    bot.Map.Travel(target_map_id=194)
+    bot.Map.Travel(target_map_id=KAINENG_CENTER_MAP_ID)
     bot.Move.XY(3444.90, -1728.31)
     #bot.Move.XYAndDialog(3747.00, -2174.00, 0x833501)    
     exec_fn = lambda: QuestLoop(821, 3747.00, -2174.00, 0x833501)
@@ -1616,7 +1624,7 @@ def Farm_Until_Level_20(bot: Botting):
         bot.config.reset_pause_on_danger_fn(aggro_area=Range.Longbow)
         bot.Properties.ApplyNow("pause_on_danger", "active", True)
         bot.Properties.ApplyNow("halt_on_death",   "active", False)
-        bot.Properties.ApplyNow("auto_combat",     "active", True)
+        bot.Properties.ApplyNow("hero_ai",         "active", True)
         bot.Properties.ApplyNow("auto_loot",       "active", True)
         bot.Properties.ApplyNow("imp",             "active", False)
         yield
@@ -1646,7 +1654,7 @@ def Farm_Until_Level_20(bot: Botting):
 
     def _disable_farm_combat():
         bot.Properties.ApplyNow("pause_on_danger", "active", False)
-        bot.Properties.ApplyNow("auto_combat",     "active", False)
+        bot.Properties.ApplyNow("hero_ai",         "active", False)
         yield
 
     bot.States.AddCustomState(_disable_farm_combat, "Disable Farm Combat")
@@ -1675,15 +1683,15 @@ def Farm_Until_Level_20(bot: Botting):
 def Attribute_Points_Quest_2(bot: Botting):
     def enable_combat_and_wait(ms:int):
         global bot
-        bot.Properties.Enable("auto_combat")
+        bot.Properties.Enable("hero_ai")
         bot.Wait.ForTime(ms)
-        bot.Properties.Disable("auto_combat")
+        bot.Properties.Disable("hero_ai")
  
     bot.States.AddHeader("Attribute points quest n. 2")
 
     def _cleanup_farm_settings():
         """Clear Keiran's build override and reset farm-specific properties."""
-        bot.OverrideBuild(AutoCombat())
+        bot.OverrideBuild(HeroAI_Build(standalone_fallback=True))
         bot.config.reset_pause_on_danger_fn(aggro_area=Range.Earshot)
         bot.Properties.ApplyNow("halt_on_death",   "active", False)
         bot.Properties.ApplyNow("pause_on_danger", "active", False)
@@ -1726,7 +1734,7 @@ def Attribute_Points_Quest_2(bot: Botting):
     bot.Interact.WithGadgetAtXY(-4862.00, 3005.00)
     bot.Move.XY(-9643.93, 7759.69) #Front of bridge 3
     bot.Wait.ForTime(5000)
-    bot.Properties.Disable("auto_combat")
+    bot.Properties.Disable("hero_ai")
     path =[(-8294.21, 10061.62)] #Position Zunraa
     bot.Move.FollowPath(path)
     enable_combat_and_wait(5000)
@@ -1736,17 +1744,17 @@ def Attribute_Points_Quest_2(bot: Botting):
     path =[(-6365.32, 10234.20)] #Position Zunraa2
     bot.Move.FollowPath(path)
     enable_combat_and_wait(5000)
-    bot.Properties.Enable("auto_combat")
+    bot.Properties.Enable("hero_ai")
     bot.Move.XY(-8655.04, -769.98) # To next Miasma on temple
     bot.Wait.ForTime(5000)
-    bot.Properties.Disable("auto_combat")
+    bot.Properties.Disable("hero_ai")
     path = [(-6744.75, -1842.97)] #Clear half the miasma 
     bot.Move.FollowPath(path)
     enable_combat_and_wait(10000)
     path = [(-7720.80, -905.19)] #Finish miasma
     bot.Move.FollowPath(path)
     enable_combat_and_wait(5000)
-    bot.Properties.Enable("auto_combat")
+    bot.Properties.Enable("hero_ai")
     auto_path_list:List[Tuple[float, float]] = [
     (-5016.76, -8800.93), #Half the map
     (3268.68, -6118.96), #Passtrough miasma
@@ -1763,17 +1771,17 @@ def Attribute_Points_Quest_2(bot: Botting):
     (11775.22, 11310.60)] #Zunraa
     bot.Move.FollowAutoPath(auto_path_list)
     bot.Interact.WithGadgetAtXY(11665, 11386)
-    bot.Properties.Disable("auto_combat")
+    bot.Properties.Disable("hero_ai")
     path = [(12954.96, 9288.47)] #Miasma
     bot.Move.FollowPath(path) 
     enable_combat_and_wait(5000)
     path = [(12507.05, 11450.91)] #Finish miasma
     bot.Move.FollowPath(path)
     enable_combat_and_wait(5000)
-    bot.Properties.Enable("auto_combat")
+    bot.Properties.Enable("hero_ai")
     bot.Move.XY(7709.06, 4550.47) #Past bridge trough miasma
     bot.Wait.ForTime(5000)
-    bot.Properties.Disable("auto_combat")
+    bot.Properties.Disable("hero_ai")
     path = [(9334.25, 5746.98)] #1/3 miasma
     bot.Move.FollowPath(path)
     enable_combat_and_wait(5000)
@@ -1783,11 +1791,11 @@ def Attribute_Points_Quest_2(bot: Botting):
     path =[(9242.30, 6127.45)] #Finish miasma
     bot.Move.FollowPath(path)
     enable_combat_and_wait(5000)
-    bot.Properties.Enable("auto_combat")
+    bot.Properties.Enable("hero_ai")
     bot.Move.XY(4855.66, 1521.21)
     bot.Interact.WithGadgetAtXY(4754,1451)
     bot.Move.XY(2958.13, 6410.57)  
-    bot.Properties.Disable("auto_combat")
+    bot.Properties.Disable("hero_ai")
     path = [(2683.69, 8036.28)] #Clear miasma
     bot.Move.FollowPath(path)
     enable_combat_and_wait(8000)
@@ -1802,7 +1810,7 @@ def Attribute_Points_Quest_2(bot: Botting):
     path =[(1855.78, -5376.80)]
     bot.Move.FollowPath(path)
     enable_combat_and_wait(5000)
-    bot.Properties.Enable("auto_combat")
+    bot.Properties.Enable("hero_ai")
     bot.Move.XY(-8655.04, -769.98)
     bot.Move.XY(-7453.22, -1483.71)
     wait_function = lambda: (
@@ -1975,7 +1983,7 @@ def Unlock_NPC_For_Vaettir_Farm(bot: Botting):
 
 def To_Lions_Arch(bot: Botting):
     bot.States.AddHeader("To Lion's Arch")
-    bot.Map.Travel(target_map_id=194)
+    bot.Map.Travel(target_map_id=KAINENG_CENTER_MAP_ID)
     auto_path_list = [(3049.35, -2020.75), (2739.30, -3710.67), 
                       (-648.30, -3493.72), (-1661.91, -636.09)]
     bot.Move.FollowAutoPath(auto_path_list)
@@ -2124,7 +2132,7 @@ def To_Temple_of_The_Ages(bot: Botting):
 
 def To_Kamadan(bot: Botting):
     bot.States.AddHeader("To Kamadan")
-    bot.Map.Travel(target_map_id=194)
+    bot.Map.Travel(target_map_id=KAINENG_CENTER_MAP_ID)
     bot.Party.LeaveParty()
     bot.States.AddCustomState(StandardHeroTeam, name="Standard Hero Team")
     bot.Party.AddHenchmanList([2, 12, 9])
@@ -2176,7 +2184,7 @@ def To_Kamadan(bot: Botting):
 
 def To_Consulate_Docks(bot: Botting):
     bot.States.AddHeader("To Consulate Docks")
-    bot.Map.Travel(target_map_id=194)
+    bot.Map.Travel(target_map_id=KAINENG_CENTER_MAP_ID)
     bot.Party.LeaveParty()
     bot.Map.Travel(target_map_id=449)
     bot.Move.XY(-8075.89, 14592.47)
@@ -2366,11 +2374,11 @@ WAYPOINTS: dict[int, WaypointData] = {
     12: WaypointData(label="Complete Skills Training",      MapID=242, step_name="[H]Complete Skills Training_19"),
     13: WaypointData(label="Zen Daijun Mission",            MapID=213, step_name="[H]Zen Daijun Mission_20"),
     # ── Factions Mainland ─────────────────────────────────────────────────────
-    14: WaypointData(label="To Marketplace",                MapID=250, step_name="[H]To Marketplace_21",                    section="Factions Mainland"),
-    15: WaypointData(label="Craft Max Armor",               MapID=194, step_name="[H]Craft max armor_23"),
-    16: WaypointData(label="Quest: The Search For A Cure",  MapID=194, step_name="[H]Quest: The Search For A Cure_25"),
-    17: WaypointData(label="Quest: A Master's Burden",      MapID=194, step_name="[H]Quest: A Master's Burden_26"),
-    18: WaypointData(label="To Boreal Station",             MapID=194, step_name="[H]To Boreal Station_27"),
+    14: WaypointData(label="To Marketplace",                MapID=KAINENG_CENTER_MAP_ID, step_name="[H]To Marketplace_21",                    section="Factions Mainland"),
+    15: WaypointData(label="Craft Max Armor",               MapID=KAINENG_CENTER_MAP_ID, step_name="[H]Craft max armor_23"),
+    16: WaypointData(label="Quest: The Search For A Cure",  MapID=KAINENG_CENTER_MAP_ID, step_name="[H]Quest: The Search For A Cure_25"),
+    17: WaypointData(label="Quest: A Master's Burden",      MapID=KAINENG_CENTER_MAP_ID, step_name="[H]Quest: A Master's Burden_26"),
+    18: WaypointData(label="To Boreal Station",             MapID=KAINENG_CENTER_MAP_ID, step_name="[H]To Boreal Station_27"),
     # ── Eye of the North ──────────────────────────────────────────────────────
     19: WaypointData(label="To Eye of the North",           MapID=675, step_name="[H]To Eye of the North_28",               section="Eye of the North"),
     20: WaypointData(label="Unlock EotN Pool",              MapID=642, step_name="[H]Unlock Eye Of The North Pool_29"),
@@ -2381,8 +2389,8 @@ WAYPOINTS: dict[int, WaypointData] = {
     25: WaypointData(label="To Longeye's Edge",             MapID=644, step_name="[H]To Longeye's Edge_36"),
     26: WaypointData(label="Unlock Vaettir NPC",            MapID=650, step_name="[H]Unlock NPC for vaettir farm_37"),
     # ── Prophecies / NF / GToB ────────────────────────────────────────────────
-    27: WaypointData(label="To Lion's Arch",                MapID=194, step_name="[H]To Lion's Arch_38",                    section="Prophecies / NF / GToB"),
-    28: WaypointData(label="To Kamadan",                    MapID=194, step_name="[H]To Kamadan_39"),
+    27: WaypointData(label="To Lion's Arch",                MapID=KAINENG_CENTER_MAP_ID, step_name="[H]To Lion's Arch_38",                    section="Prophecies / NF / GToB"),
+    28: WaypointData(label="To Kamadan",                    MapID=KAINENG_CENTER_MAP_ID, step_name="[H]To Kamadan_39"),
     29: WaypointData(label="Unlock Olias",                  MapID=493, step_name="[H]Unlock Olias_41"),
     30: WaypointData(label="Unlock Secondary Professions",  MapID=449, step_name="[H]Unlock remaining secondary professions_42"),
     31: WaypointData(label="Unlock Mercenary Heroes",       MapID=248, step_name="[H] Unlock Mercenary Heroes_43"),

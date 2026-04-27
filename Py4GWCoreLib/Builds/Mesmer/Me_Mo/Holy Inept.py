@@ -50,12 +50,12 @@ class HolyInept(BuildMgr):
 
         if (
             self.IsSkillEquipped(Air_of_Superiority_ID)
-            and (Routines.Checks.Agents.InAggro() or self.IsCloseToAggro())
+            and (self.IsInAggro() or self.IsCloseToAggro())
             and (yield from self.skills.Any.PvE.Air_of_Superiority())
         ):
             return True
 
-        if not Routines.Checks.Agents.InAggro():
+        if not self.IsInAggro():
             return False
 
         if (yield from self.skills.Mesmer.InspirationMagic.Power_Drain(energy_threshold_pct=0.30)):

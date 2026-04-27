@@ -35,7 +35,7 @@ bot = Botting(BOT_NAME,
               upkeep_war_supplies_restock=2,
               upkeep_birthday_cupcake_restock=2,
               upkeep_honeycomb_restock=20,
-              upkeep_auto_combat_active=True,
+              upkeep_hero_ai_active=True,
               upkeep_auto_inventory_management_active=True,
               upkeep_auto_loot_active=True)
 

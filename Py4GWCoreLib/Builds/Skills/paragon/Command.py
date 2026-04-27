@@ -23,7 +23,7 @@ class Command:
 
         if not self.build.IsSkillEquipped(cant_touch_this_id):
             return False
-        if not Routines.Checks.Agents.InAggro():
+        if not self.build.IsInAggro():
             return False
 
         if Routines.Checks.Agents.HasEffect(player_agent_id, cant_touch_this_id):
@@ -45,7 +45,7 @@ class Command:
 
         if not self.build.IsSkillEquipped(stand_your_ground_id):
             return False
-        if not Routines.Checks.Agents.InAggro():
+        if not self.build.IsInAggro():
             return False
         if Routines.Checks.Agents.HasEffect(player_agent_id, stand_your_ground_id):
             return False

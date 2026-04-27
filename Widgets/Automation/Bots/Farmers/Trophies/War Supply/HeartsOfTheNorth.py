@@ -133,10 +133,10 @@ def _run_ab_movement(bot: Botting) -> None:
     bot.Move.XY(-17952,-8940)
 
 def _run_avob_movement(bot: Botting) -> None:
-    bot.Properties.Disable("auto_combat")
+    bot.Properties.Disable("hero_ai")
     bot.Move.XY(15827,3742)
     bot.Move.XY(17666,5247)
-    bot.Properties.Enable("auto_combat")
+    bot.Properties.Enable("hero_ai")
     bot.Move.XY(15484,3559)
     bot.Move.XY(16680,360)
     bot.Move.XY(15511,-2017)
@@ -164,9 +164,9 @@ def _run_sitj_movement(bot: Botting) -> None:
     bot.Move.XY(-6606,8215)
     bot.Move.XY(-4914,11700)
     bot.Move.XY(-65,12308)
-    bot.Properties.Disable("auto_combat")
+    bot.Properties.Disable("hero_ai")
     bot.Move.XY(1165,10230)
-    bot.Properties.Enable("auto_combat")
+    bot.Properties.Enable("hero_ai")
     bot.Move.XY(4549,10181)
     bot.Move.XY(7136,6288)
     bot.Move.XY(6073,3836)
@@ -317,7 +317,7 @@ def _on_death(bot: "Botting"):
     bot.Properties.ApplyNow("pause_on_danger", "active", False)
     bot.Properties.ApplyNow("halt_on_death", "active", True)
     bot.Properties.ApplyNow("movement_timeout", "value", 15000)
-    bot.Properties.ApplyNow("auto_combat", "active", False)
+    bot.Properties.ApplyNow("hero_ai", "active", False)
     yield from Routines.Yield.wait(8000)
     yield from Routines.Yield.Map.WaitforMapLoad(BotSettings.HOM_OUTPOST_ID, timeout=30000)
     bot.Properties.ApplyNow("halt_on_death", "active", False)
@@ -341,7 +341,7 @@ def on_death(bot: "Botting"):
 
 def _enable_combat(bot: Botting) -> None:
     bot.OverrideBuild(KeiranThackerayEOTN(fsm=bot.config.FSM, debug_fn=lambda: BotSettings.DEBUG))
-    bot.Templates.AggressiveForceAutocombat(enable_imp=False)
+    bot.Templates.AggressiveForceHeroAI(enable_imp=False)
 def _disable_combat(bot: Botting) -> None:
     bot.Templates.PacifistForceAutocombat()
 
@@ -597,11 +597,11 @@ def RunQuest(bot: Botting) -> None:
     bot.States.AddCustomState(lambda: _handle_bonus_bow(bot), "HandleBonusBow")
     bot.States.AddCustomState(lambda: _handle_war_supplies(bot, BotSettings.WAR_SUPPLIES_ENABLED), "HandleWarSupplies")
 
-    bot.Templates.AggressiveForceAutocombat(enable_imp=False)
+    bot.Templates.AggressiveForceHeroAI(enable_imp=False)
 
     def _fresh_build():
         bot.OverrideBuild(KeiranThackerayEOTN(fsm=bot.config.FSM, debug_fn=lambda: BotSettings.DEBUG))
-        bot.Templates.AggressiveForceAutocombat(enable_imp=False)  # re-arm combat template each run (Pacifist disables it at run end)
+        bot.Templates.AggressiveForceHeroAI(enable_imp=False)  # re-arm HeroAI template each run (Pacifist disables it at run end)
         yield
     bot.States.AddCustomState(_fresh_build, "FreshBuild")
     

@@ -461,7 +461,7 @@ def dust_farm_bot(bot: Botting):
     # Actual Farming Loop
     bot.States.AddHeader('Farm Loop')
     bot.config.set_pause_on_danger_fn(detect_fog_nightmare_or_loot)
-    bot.Properties.Enable("auto_combat")
+    bot.Properties.Enable("hero_ai")
     bot.Properties.Enable("pause_on_danger")
     bot.States.AddCustomState(return_to_outpost, "Return to Seitung Harbor if Dead")
     bot.Wait.ForTime(2000)

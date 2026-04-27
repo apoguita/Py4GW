@@ -179,7 +179,7 @@ bot = Botting(
     custom_build=build,
     config_movement_timeout=MOVEMENT_TIMEOUT_MS,
     config_movement_tolerance=MOVE_TOLERANCE,
-    upkeep_auto_combat_active=True,
+    upkeep_hero_ai_active=True,
     upkeep_auto_inventory_management_active=False,
     upkeep_auto_loot_active=False,
     upkeep_identify_kits_active=True,
@@ -197,7 +197,7 @@ def initialize_bot(bot_instance: Botting) -> None:
     bot_instance.Properties.Disable("auto_inventory_management")
     bot_instance.Properties.Disable("auto_loot")
     bot_instance.Properties.Disable("hero_ai")
-    bot_instance.Properties.Enable("auto_combat")
+    bot_instance.Properties.Enable("hero_ai")
     bot_instance.Properties.Disable("pause_on_danger")
     bot_instance.Properties.Enable("halt_on_death")
     bot_instance.Properties.Enable("identify_kits")

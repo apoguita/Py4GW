@@ -47,6 +47,8 @@ _pet_meta_stage: dict[int, int] = {}
 _pet_progress_stage: dict[int, int] = {}
 _pet_static_stage: dict[int, int] = {}
 
+IN_AGGRO_STAY_ALERT_TIME = 750
+
 
 def _get_slot_timer(timer_map: dict[int, ThrottledTimer], slot_index: int, throttle_ms: int) -> ThrottledTimer:
     timer = timer_map.get(slot_index)
@@ -190,6 +192,64 @@ class AccountStruct(Structure):
 
         agent_id = Player.GetAgentID()
         self.AgentData.from_context(agent_id, throttle_key=slot_index)
+        
+        def _same_map_or_party_as_account(account: "AccountStruct") -> bool:
+            own_map_id = Map.GetMapID()
+            own_region = Map.GetRegion()[0]
+            own_district = Map.GetDistrict()
+            own_language = Map.GetLanguage()[0]
+            same_map = (
+                own_map_id == account.AgentData.Map.MapID
+                and own_district == account.AgentData.Map.District
+                and own_language == account.AgentData.Map.Language
+            )
+            if not same_map:
+                return False
+            
+            try:
+                party_members = [
+                    Party.Players.GetAgentIDByLoginNumber(party_member.login_number)
+                    for party_member in Party.GetPlayers()
+                ]
+                if (
+                    account.AgentData.AgentID in party_members
+                    and account.AgentPartyData.PartyID == Party.GetPartyID()
+                ):
+                    return True
+            except Exception:
+                pass
+            
+            return own_region == account.AgentData.Map.Region
+        
+        def _update_in_aggro_from_context() -> None:
+            try:
+                from ...GlobalCache import GLOBAL_CACHE
+                party_in_aggro = False
+                for account in GLOBAL_CACHE.ShMem.GetAllActiveSlotsData():
+                    if not account.IsSlotActive or not _same_map_or_party_as_account(account):
+                        continue
+                    account_in_aggro = bool(account.InAggro)
+                    if account_in_aggro:
+                        party_in_aggro = True
+                HighRange = Range.Longbow.value if not party_in_aggro else Range.Spellcast.value
+                LowRange = Range.Longbow.value if not party_in_aggro else Range.Earshot.value
+                
+                now = Py4GW.Game.get_tick_count64()
+                stay_alert = self.InAggroTick64 > 0 and now - self.InAggroTick64 < IN_AGGRO_STAY_ALERT_TIME
+                scan_range = HighRange if stay_alert else LowRange
+                detected_in_aggro = bool(Routines.Checks.Agents.InAggro(scan_range))
+                
+                if detected_in_aggro:
+                    self.InAggro = True
+                    self.InAggroTick64 = now
+                elif stay_alert:
+                    self.InAggro = True
+                else:
+                    self.InAggro = False
+                    self.InAggroTick64 = 0
+            except Exception:
+                self.InAggro = bool(Routines.Checks.Agents.InAggro(Range.Earshot.value))
+                self.InAggroTick64 = Py4GW.Game.get_tick_count64() if self.InAggro else 0
 
         meta_timer = _get_slot_timer(_player_meta_timers, slot_index, SHMEM_PLAYER_META_UPDATE_THROTTLE_MS)
         if force_full or meta_timer.IsExpired():
@@ -200,8 +260,7 @@ class AccountStruct(Structure):
                 self.ExperienceData.from_context()
                 _player_meta_stage[slot_index] = 0
                 
-                self.InAggro = bool(Routines.Checks.Agents.InAggro(Range.Earshot.value))
-                self.InAggroTick64 = Py4GW.Game.get_tick_count64() if self.InAggro else 0
+                _update_in_aggro_from_context()
         
             else:
                 meta_stage = _player_meta_stage.get(slot_index, 0)
@@ -214,8 +273,7 @@ class AccountStruct(Structure):
                 elif meta_stage == 3:
                     self.ExperienceData.from_context()
                 else:
-                    self.InAggro = bool(Routines.Checks.Agents.InAggro(Range.Earshot.value))
-                    self.InAggroTick64 = Py4GW.Game.get_tick_count64() if self.InAggro else 0
+                    _update_in_aggro_from_context()
                 _player_meta_stage[slot_index] = (meta_stage + 1) % 5
             meta_timer.Reset()
 

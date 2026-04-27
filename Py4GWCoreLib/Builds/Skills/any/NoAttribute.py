@@ -101,7 +101,7 @@ class NoAttribute:
 
         if not self.build.IsSkillEquipped(ebon_battle_standard_of_wisdom_id):
             return False
-        if not Routines.Checks.Agents.InAggro():
+        if not self.build.IsInAggro():
             return False
         if Routines.Checks.Agents.HasEffect(player_agent_id, ebon_battle_standard_of_wisdom_id):
             return False
@@ -128,7 +128,7 @@ class NoAttribute:
 
         if not self.build.IsSkillEquipped(i_am_unstoppable_id):
             return False
-        if not Routines.Checks.Agents.InAggro():
+        if not self.build.IsInAggro():
             return False
         if Agent.GetHealth(player_agent_id) > 0.70 and not Agent.IsKnockedDown(player_agent_id):
             return False
@@ -187,7 +187,7 @@ class NoAttribute:
 
         if not self.build.IsSkillEquipped(skill_id):
             return False
-        if not Routines.Checks.Agents.InAggro():
+        if not self.build.IsInAggro():
             return False
         if Routines.Checks.Agents.HasEffect(player_agent_id, skill_id):
             return False
@@ -254,7 +254,7 @@ class NoAttribute:
             self.build._debug(f"Summon Spirits skipped: skill not equipped ({skill_id})", True)
             return False
 
-        in_aggro = Routines.Checks.Agents.InAggro()
+        in_aggro = self.build.IsInAggro()
 
         spirits = self._get_owned_core_spirits()
         if not spirits:

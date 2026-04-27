@@ -163,7 +163,7 @@ SHANDRA_POSITION = (14067.01, -17253.24)
 # ==================== GLOBAL VARIABLES ====================
 bot = Botting(
     bot_name=BOT_NAME,
-    upkeep_auto_combat_active=False,
+    upkeep_hero_ai_active=False,
     upkeep_auto_loot_active=True,
     upkeep_morale_active=True,
     upkeep_auto_inventory_management_active=True,
@@ -205,7 +205,7 @@ def farm_bds_routine(bot: Botting) -> None:
     _ensure_ini_initialized()
     bot.Party.SetHardMode(_use_hard_mode)
     # Enable properties
-    bot.Properties.Enable('auto_combat')
+    bot.Properties.Enable('hero_ai')
     bot.States.AddCustomState(_step_anchor, "Reset farm")  # anchor for secure return on wipe    
     # ===== GO TO DUNGEON =====
     bot.States.AddHeader("Go to Dungeon")

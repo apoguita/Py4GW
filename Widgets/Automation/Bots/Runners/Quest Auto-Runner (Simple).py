@@ -2,7 +2,7 @@
 Quest Auto-Runner (Simple)
 
 - Follows active quest marker using AutoPathing + FollowPath
-- Pauses movement for combat/looting/party safety so AutoCombat can engage
+- Pauses movement for combat/looting/party safety so HeroAI can engage
 
 UI:
 - Main window (Start/Stop, Settings, Consumables)
@@ -242,7 +242,7 @@ bot = Botting(BOT_NAME)
 properties = bot.Properties
 
 properties.Enable("pause_on_danger")
-properties.Enable("auto_combat")
+properties.Enable("hero_ai")
 properties.Enable("auto_loot")
 properties.Disable("auto_inventory_management")
 properties.Disable("halt_on_death")
@@ -778,7 +778,7 @@ def tooltip():
     # Description
     PyImGui.text("A streamlined automation bot that follows active quest markers.")
     PyImGui.text("It bridges the gap between navigation and combat by pausing")
-    PyImGui.text("movement to allow HeroAI or AutoCombat to clear hostiles.")
+    PyImGui.text("movement to allow HeroAI to clear hostiles.")
     PyImGui.spacing()
 
     # Features

@@ -127,7 +127,7 @@ class Blood_is_Power_Healer(BuildMgr):
         if (yield from self.skills.Ritualist.RestorationMagic.Mend_Body_and_Soul(health_threshold=0.75)):
             return True
 
-        if not Routines.Checks.Agents.InAggro():
+        if not self.IsInAggro():
             return False
 
         if self.IsSkillEquipped(Vital_Weapon_ID) and (yield from self.skills.Ritualist.Communing.Vital_Weapon()):

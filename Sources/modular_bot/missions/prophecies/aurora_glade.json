@@ -1,4 +1,4 @@
-﻿{
+{
   "name": "Aurora Glade",
   "steps": [
     {"type": "travel", "name": "Travel to Mission Outpost", "target_map_id": 12},
@@ -36,7 +36,7 @@
     {"type": "auto_path", "name": "To left crystal", "points": [[2701, 9923], [5444, 8808]]},
     {"type": "interact_gadget", "ms": 100},
     {"type": "flag_heroes", "ms": 100, "point": [5318, 8550]},
-    {"type": "set_auto_combat", "enabled": false},
+    {"type": "set_hero_ai_combat", "enabled": false},
     {"type": "auto_path", "name": "To Crystal source", "points": [[1256, 10331]]},
     {"type": "interact_gadget", "ms": 10000},
     {"type": "auto_path", "name": "To middle Depo", "points": [[1310, 8874]]},
@@ -69,7 +69,7 @@
     {"type": "interact_gadget", "ms": 10000},
     {"type": "auto_path", "name": "To left crystal", "points": [[2701, 9923], [5444, 8808]]},
     {"type": "interact_gadget", "ms": 100},
-    {"type": "set_auto_combat", "enabled": true},
+    {"type": "set_hero_ai_combat", "enabled": true},
     {"type": "unflag_heroes", "ms": 100},
     {"type": "drop_bundle", "ms": 1000},
     {"type": "auto_path", "name": "Kill Demagogue", "points": [[6453, 7218], [5898, 3859], [8894, 3659]]},

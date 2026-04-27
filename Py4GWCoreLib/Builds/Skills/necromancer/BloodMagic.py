@@ -27,7 +27,7 @@ class BloodMagic:
 
         if not self.build.IsSkillEquipped(blood_bond_id):
             return False
-        if not Routines.Checks.Agents.InAggro():
+        if not self.build.IsInAggro():
             return False
 
         player_pos = Player.GetXY()

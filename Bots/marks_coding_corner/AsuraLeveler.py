@@ -32,7 +32,7 @@ def asura_leveler(bot: Botting) -> None:
 
     bot.Properties.Enable("pause_on_danger")
     bot.Properties.Disable("halt_on_death")
-    bot.Properties.Enable("auto_combat")
+    bot.Properties.Enable("hero_ai")
     bot.Map.Travel(target_map_name=RATA_SUM)
     bot.Wait.ForMapLoad(target_map_name=RATA_SUM)
     bot.States.AddCustomState(AddHenchies, "Add Henchmen")

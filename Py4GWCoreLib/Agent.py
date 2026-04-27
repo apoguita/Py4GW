@@ -1036,6 +1036,13 @@ class Agent:
         return is_dead or dead_by_type_map or health <= Agent.DEAD_HEALTH_EPSILON
 
     @staticmethod
+    def IsExploitable(agent_id: int) -> bool:
+        living = Agent.GetLivingAgentByID(agent_id)
+        if living is None:
+            return False
+        return living.is_exploitable
+
+    @staticmethod
     def IsAlive(agent_id: int) -> bool:
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
@@ -1406,7 +1413,7 @@ class Agent:
         if living is None:
             return False
         return living.is_dead_by_type_map
-
+    
     @staticmethod
     def IsFemale(agent_id: int) -> bool:
         living = Agent.GetLivingAgentByID(agent_id)

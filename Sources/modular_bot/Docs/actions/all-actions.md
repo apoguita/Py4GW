@@ -1,4 +1,4 @@
-﻿# All Action Types
+# All Action Types
 
 - `auto_path`
 - `auto_path_delayed`
@@ -56,7 +56,7 @@
 - `load_party`
 - `resign`
 - `set_anchor`
-- `set_auto_combat`
+- `set_hero_ai_combat`
 - `set_auto_looting`
 - `set_hard_mode`
 - `set_party_member_hooks`

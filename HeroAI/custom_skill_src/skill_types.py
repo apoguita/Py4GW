@@ -23,6 +23,7 @@ class CastConditions:
         # Special Conditions
         self.HasWeaponSpell = False
         self.WeaponSpellList = []
+        self.AllowOverlapWeaponSpell = False
         self.HasEnchantment = False
         self.EnchantmentList = []
         self.HasDervishEnchantment = False

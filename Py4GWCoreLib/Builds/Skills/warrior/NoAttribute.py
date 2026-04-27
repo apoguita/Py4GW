@@ -45,7 +45,7 @@ class NoAttribute:
 
         if not self.build.IsSkillEquipped(for_great_justice_id):
             return False
-        if not Routines.Checks.Agents.InAggro():
+        if not self.build.IsInAggro():
             return False
         if Agent.IsDead(player_agent_id):
             return False

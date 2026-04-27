@@ -60,7 +60,7 @@ Canonical machine-checkable action list for ModularBot. One row per registered a
 | `load_party` | `party` | `handle_load_party` | [load_party](party.md#action-load_party) |
 | `resign` | `party` | `handle_resign` | [resign](party.md#action-resign) |
 | `set_anchor` | `party` | `handle_set_anchor` | [set_anchor](party.md#action-set_anchor) |
-| `set_auto_combat` | `party` | `handle_set_auto_combat` | [set_auto_combat](party.md#action-set_auto_combat) |
+| `set_hero_ai_combat` | `party` | `handle_set_hero_ai_combat` | [set_hero_ai_combat](party.md#action-set_hero_ai_combat) |
 | `set_auto_looting` | `party` | `handle_set_auto_looting` | [set_auto_looting](party.md#action-set_auto_looting) |
 | `set_hard_mode` | `party` | `handle_set_hard_mode` | [set_hard_mode](party.md#action-set_hard_mode) |
 | `set_party_member_hooks` | `party` | `handle_set_party_member_hooks` | [set_party_member_hooks](party.md#action-set_party_member_hooks) |

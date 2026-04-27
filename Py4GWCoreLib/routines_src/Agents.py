@@ -286,12 +286,14 @@ class Agents:
         from ..Py4GWcorelib import Utils
         from ..GlobalCache import GLOBAL_CACHE
         from ..Agent import Agent
+        from .Party import Party as PartyRoutines
 
         dead_ally_array = AgentArray.GetDeadAllyArray()
         dead_ally_array = AgentArray.Filter.ByDistance(dead_ally_array, Player.GetXY(), max_distance)
         spirit_pet_array = AgentArray.GetSpiritPetArray()
         spirit_pet_array = AgentArray.Filter.ByDistance(spirit_pet_array, Player.GetXY(), max_distance)
         dead_ally_array = AgentArray.Manipulation.Subtract(dead_ally_array, spirit_pet_array)
+        dead_ally_array = AgentArray.Filter.ByCondition(dead_ally_array, PartyRoutines.IsPartyMember)
         dead_ally_array = AgentArray.Sort.ByDistance(dead_ally_array, Player.GetXY())
     
         return Utils.GetFirstFromArray(dead_ally_array)
@@ -322,6 +324,28 @@ class Agents:
         return corpse_array
 
     @staticmethod
+    def GetExploitableCorpses(max_distance=4500.0):
+        from ..AgentArray import AgentArray
+        from ..Agent import Agent
+
+        def _AllowedAlliegance(agent_id):
+            _, alliegance = Agent.GetAllegiance(agent_id)
+
+            if (alliegance == "Ally" or
+                    alliegance == "Neutral" or
+                    alliegance == "Enemy" or
+                    alliegance == "NPC/Minipet"
+            ):
+                return True
+            return False
+
+        corpse_array = AgentArray.GetAgentArray()
+        corpse_array = AgentArray.Filter.ByDistance(corpse_array, Player.GetXY(), max_distance)
+        corpse_array = AgentArray.Filter.ByCondition(corpse_array, lambda agent_id: Agent.IsExploitable(agent_id))
+        corpse_array = AgentArray.Filter.ByCondition(corpse_array, lambda agent_id: _AllowedAlliegance(agent_id))
+        return corpse_array
+
+    @staticmethod
     def GetNearestCorpse(max_distance=4500.0):
         from ..AgentArray import AgentArray
         from ..Py4GWcorelib import Utils
@@ -344,6 +368,15 @@ class Agents:
         corpse_array = AgentArray.Filter.ByDistance(corpse_array, Player.GetXY(), distance)
         corpse_array = AgentArray.Filter.ByCondition(corpse_array, lambda agent_id: Agent.IsDead(agent_id))
         corpse_array = AgentArray.Filter.ByCondition(corpse_array, lambda agent_id: _AllowedAlliegance(agent_id))
+        corpse_array = AgentArray.Sort.ByDistance(corpse_array, Player.GetXY())
+        return Utils.GetFirstFromArray(corpse_array)
+
+    @staticmethod
+    def GetNearestExploitableCorpse(max_distance=4500.0):
+        from ..AgentArray import AgentArray
+        from ..Py4GWcorelib import Utils
+
+        corpse_array = Agents.GetExploitableCorpses(max_distance)
         corpse_array = AgentArray.Sort.ByDistance(corpse_array, Player.GetXY())
         return Utils.GetFirstFromArray(corpse_array)
         

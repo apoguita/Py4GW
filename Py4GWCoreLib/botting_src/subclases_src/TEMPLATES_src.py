@@ -15,13 +15,25 @@ class _TEMPLATES:
         
     #region Property configuration
 
+    def _ForceHeroAIOptions(self, active: bool):
+        self.parent.ResetHeroAICombatState(
+            active=active,
+            following=active,
+            avoidance=active,
+            looting=active,
+            targeting=active,
+            combat=active,
+            skills=True,
+        )
+        yield
+
     def PacifistForceAutocombat(self):
         properties = self.parent.Properties
         properties.Disable("pause_on_danger") #avoid combat
         properties.Enable("halt_on_death") 
         properties.Set("movement_timeout",value=15000)
-        properties.Disable("auto_combat") #avoid combat
         properties.Disable("hero_ai") #no hero combat
+        self.parent.States.AddCustomState(lambda: self._ForceHeroAIOptions(False), "Force HeroAI Options OFF")
         self.parent.Multibox.SetAccountIsolation(False) #single-account passive mode
         properties.Disable("auto_loot") #no waiting for loot
         properties.Disable("imp")
@@ -31,18 +43,17 @@ class _TEMPLATES:
         properties.Disable("pause_on_danger") #avoid combat
         properties.Enable("halt_on_death") 
         properties.Set("movement_timeout",value=15000)
-        properties.Disable("auto_combat") #avoid combat
         properties.Disable("hero_ai") #no hero combat
+        self.parent.States.AddCustomState(lambda: self._ForceHeroAIOptions(False), "Force HeroAI Options OFF")
         self.parent.Multibox.SetAccountIsolation(True) #single-account passive mode
         properties.Disable("auto_loot") #no waiting for loot
         properties.Disable("imp")
         
 
 
-    def AggressiveForceAutocombat(self, pause_on_danger: bool = True,
+    def AggressiveForceHeroAI(self, pause_on_danger: bool = True,
                    halt_on_death: bool = False,
                    movement_timeout: int = -1,
-                   auto_combat: bool = True, 
                    auto_loot: bool = True,
                    enable_imp: bool = True):
         properties = self.parent.Properties
@@ -57,13 +68,8 @@ class _TEMPLATES:
             properties.Disable("halt_on_death")
 
         properties.Set("movement_timeout", value=movement_timeout)
-        #properties.Disable("auto_combat") #deprecated here; HeroAI handles combat now
-        properties.Enable("auto_combat")
-        #properties.Enable("hero_ai") #combat is always driven by HeroAI
-        #if auto_combat:
-        #    self.parent.Multibox.SetAccountIsolation(True) #single-account HeroAI
-        #else:
-        #   self.parent.Multibox.SetAccountIsolation(False) #multi-account HeroAI
+        properties.Enable("hero_ai") #combat is always driven by HeroAI
+        self.parent.States.AddCustomState(lambda: self._ForceHeroAIOptions(True), "Force HeroAI Options ON")
          
         if auto_loot:   
             properties.Enable("auto_loot") #wait for loot
@@ -78,7 +84,7 @@ class _TEMPLATES:
     def Aggressive(self, pause_on_danger: bool = True,
                    halt_on_death: bool = False,
                    movement_timeout: int = -1,
-                   auto_combat: bool = True, 
+                   account_isolation: bool = True,
                    auto_loot: bool = True,
                    enable_imp: bool = True):
         properties = self.parent.Properties
@@ -93,9 +99,9 @@ class _TEMPLATES:
             properties.Disable("halt_on_death")
 
         properties.Set("movement_timeout", value=movement_timeout)
-        properties.Disable("auto_combat") #deprecated here; HeroAI handles combat now
         properties.Enable("hero_ai") #combat is always driven by HeroAI
-        if auto_combat:
+        self.parent.States.AddCustomState(lambda: self._ForceHeroAIOptions(True), "Force HeroAI Options ON")
+        if account_isolation:
             self.parent.Multibox.SetAccountIsolation(True) #single-account HeroAI
         else:
             self.parent.Multibox.SetAccountIsolation(False) #multi-account HeroAI
@@ -116,8 +122,8 @@ class _TEMPLATES:
         properties.Enable("pause_on_danger") #engage in combat
         properties.Disable("halt_on_death") 
         properties.Set("movement_timeout",value=-1)
-        properties.Disable("auto_combat") #engage in combat
         properties.Enable("hero_ai") #hero combat
+        self.parent.States.AddCustomState(lambda: self._ForceHeroAIOptions(True), "Force HeroAI Options ON")
         self.parent.Multibox.SetAccountIsolation(False) #multibox mode must stay shared
         properties.Enable("auto_loot") #wait for loot
         properties.Enable("auto_inventory_management") #manage inventory

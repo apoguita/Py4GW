@@ -106,7 +106,7 @@ class VoS_Grenths_Aura_Farmer(BuildMgr):
 
     def _run_local_skill_logic(self):
         player_agent_id = Player.GetAgentID()
-        in_combat = Routines.Checks.Agents.InAggro()
+        in_combat = self.IsInAggro()
         enemy_array = self._get_enemy_array()
         nearby_enemy_count = self._count_enemies_near_player(enemy_array, Range.Area.value)
         player_hp = Agent.GetHealth(player_agent_id)

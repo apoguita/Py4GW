@@ -118,7 +118,7 @@ def deldrimor_leveler(bot: Botting) -> None:
     bot.States.AddHeader("LOOT_DUNGEON_LOCK_KEY")
     bot.Properties.Enable("pause_on_danger")
     bot.Properties.Disable("halt_on_death")
-    bot.Properties.Enable("auto_combat")
+    bot.Properties.Enable("hero_ai")
     bot.Move.XY(-14159.74, 15452.50, "Go to shrine for blessing")
     bot.Dialogs.AtXY(-14078.00, 15449.00, 0x84, 'Take blessing')
     bot.Move.XY(-14603, 11927, "go to the key step0")

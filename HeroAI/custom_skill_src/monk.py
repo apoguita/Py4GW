@@ -227,9 +227,10 @@ class MonkSkills:
         skill = CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Dwaynas_Sorrow")
         skill.SkillType = SkillType.Enchantment.value
-        skill.TargetAllegiance = Skilltarget.Ally.value
+        skill.TargetAllegiance = Skilltarget.MinionOrAllyNonEnchanted.value
         skill.Nature = SkillNature.Buff.value
-        skill.Conditions.LessLife = 0.25
+        skill.Conditions.LessLife = 0.4
+        skill.Conditions.IsOutOfCombat = True
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()

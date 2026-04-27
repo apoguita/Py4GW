@@ -97,7 +97,7 @@ Norn_Path: list[tuple[float, float]] = [
 
 bot = Botting(BOT_NAME,
               upkeep_honeycomb_active=True,
-              upkeep_auto_combat_active=True,
+              upkeep_hero_ai_active=True,
               upkeep_auto_inventory_management_active=True,
               upkeep_auto_loot_active=True)
 

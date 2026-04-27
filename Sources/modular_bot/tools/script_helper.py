@@ -76,8 +76,6 @@ def _sync_engine_upkeep(bot: Botting) -> None:
         hero_ai_enabled = bool(handler.is_widget_enabled("HeroAI"))
         if bot.Properties.exists("hero_ai"):
             bot.Properties.ApplyNow("hero_ai", "active", hero_ai_enabled)
-        if hero_ai_enabled and bot.Properties.exists("auto_combat"):
-            bot.Properties.ApplyNow("auto_combat", "active", False)
     except Exception as exc:
         _debug_log(f"Engine upkeep sync failed: {exc}")
 
@@ -108,7 +106,7 @@ def _run_replay(bot: Botting) -> None:
         return
 
     step_idx = 0
-    register_step(bot, {"type": "set_auto_combat", "enabled": True, "name": "Replay: Combat On"}, step_idx, "Replay")
+    register_step(bot, {"type": "set_hero_ai_combat", "enabled": True, "name": "Replay: Combat On"}, step_idx, "Replay")
     step_idx += 1
     register_step(
         bot,

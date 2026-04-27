@@ -47,7 +47,6 @@ class BottingClass:
                  upkeep_alcohol_disable_visual: bool = True,
                  upkeep_armor_of_salvation_active: bool = False,
                  upkeep_armor_of_salvation_restock: int = 0,
-                 upkeep_auto_combat_active: bool = False,
                  upkeep_auto_inventory_management_active = False,
                  upkeep_auto_loot_active = False,
                  #B
@@ -57,6 +56,7 @@ class BottingClass:
                  upkeep_blue_rock_candy_restock: int = 0,
                  upkeep_bowl_of_skalefin_soup_active: bool = False,
                  upkeep_bowl_of_skalefin_soup_restock: int = 0,
+                 upkeep_build_ticker_active: bool = False,
                  #C
                  upkeep_candy_apple_active: bool = False,
                  upkeep_candy_apple_restock: int = 0,
@@ -134,7 +134,6 @@ class BottingClass:
                                 alcohol_disable_visual=upkeep_alcohol_disable_visual,
                                 armor_of_salvation_active=upkeep_armor_of_salvation_active,
                                 armor_of_salvation_restock=upkeep_armor_of_salvation_restock,
-                                auto_combat_active=upkeep_auto_combat_active,
                                 auto_inventory_management_active=upkeep_auto_inventory_management_active,
                                 auto_loot_active=upkeep_auto_loot_active,
                                 #B
@@ -144,6 +143,7 @@ class BottingClass:
                                 blue_rock_candy_restock=upkeep_blue_rock_candy_restock,
                                 bowl_of_skalefin_soup_active=upkeep_bowl_of_skalefin_soup_active,
                                 bowl_of_skalefin_soup_restock=upkeep_bowl_of_skalefin_soup_restock,
+                                build_ticker_active=upkeep_build_ticker_active,
                                 #C
                                 candy_apple_active=upkeep_candy_apple_active,
                                 candy_apple_restock=upkeep_candy_apple_restock,
@@ -243,8 +243,8 @@ class BottingClass:
         self.config.FSM.AddManagedCoroutine("keep_war_supplies",   H.upkeep_war_supplies())
         self.config.FSM.AddManagedCoroutine("keep_imp",            H.upkeep_imp())
         self.config.FSM.AddManagedCoroutine("keep_summoning_stone", H.upkeep_summoning_stone())
-        self.config.FSM.AddManagedCoroutine("keep_auto_combat",    H.upkeep_auto_combat())
         self.config.FSM.AddManagedCoroutine("keep_hero_ai",        H.upkeep_hero_ai())
+        self.config.FSM.AddManagedCoroutine("keep_build_ticker",   H.upkeep_build_ticker())
         self.config.FSM.AddManagedCoroutine("keep_auto_inventory_management", H.upkeep_auto_inventory_management())
         self.config.FSM.AddManagedCoroutine("keep_auto_loot",      H.upkeep_auto_loot())
         self.config.events.start()
@@ -282,6 +282,50 @@ class BottingClass:
         self.config.FSM.reset()
         self.config.FSM.jump_to_state_by_name(step_name)
 
+    def ResetHeroAICombatState(
+        self,
+        active: bool = True,
+        *,
+        following: bool = True,
+        avoidance: bool | None = None,
+        looting: bool | None = None,
+        targeting: bool = True,
+        combat: bool = True,
+        skills: bool = True,
+    ) -> None:
+        from .GlobalCache import GLOBAL_CACHE
+        from .Player import Player
+        from .GlobalCache.shared_memory_src.HeroAIOptionStruct import HeroAIOptionStruct
+        from .GlobalCache.shared_memory_src.Globals import SHMEM_MAX_NUMBER_OF_SKILLS
+
+        self.config.upkeep.hero_ai_paused.set_now("active", False)
+        self.config.upkeep.hero_ai.set_now("active", active)
+        upkeepers = getattr(getattr(self, "helpers", None), "Upkeepers", None)
+        if upkeepers is not None:
+            upkeepers._hero_ai_pause_applied = False
+            upkeepers._hero_ai_pause_snapshot = None
+            upkeepers.cancel_movement_triggered = False
+
+        account_email = Player.GetAccountEmail()
+        if not account_email:
+            return
+
+        if avoidance is None:
+            avoidance = active
+        if looting is None:
+            looting = active and combat
+
+        options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsFromEmail(account_email) or HeroAIOptionStruct()
+        options.Following = bool(following)
+        options.Avoidance = bool(avoidance)
+        options.Looting = bool(looting)
+        options.Targeting = bool(targeting)
+        options.Combat = bool(combat)
+        if skills:
+            for skill_index in range(SHMEM_MAX_NUMBER_OF_SKILLS):
+                options.Skills[skill_index] = bool(active and combat)
+        GLOBAL_CACHE.ShMem.SetHeroAIOptionsByEmail(account_email, options)
+
     #region Travel helpers
     def Travel_To_Random_District(
         self,
@@ -308,6 +352,10 @@ class BottingClass:
 
     def OverrideBuild(self, build: BuildMgr) -> None:
         self.config.build_handler = build
+        if not build.is_combat_automator_compatible:
+            self.config.upkeep.hero_ai.set_now("active", False)
+            self.config.upkeep.hero_ai_paused.set_now("active", False)
+            self.config.upkeep.build_ticker.set_now("active", True)
 
 
     
