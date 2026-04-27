@@ -82,7 +82,7 @@ class PvE:
         ))
 
     @coordinates_via_whiteboard(Skill.GetID("Cry_of_Pain"))
-    def Cry_of_Pain(self, allow_hex_fallback: bool = True) -> BuildCoroutine:
+    def Cry_of_Pain(self, require_mesmer_hex: bool = False) -> BuildCoroutine:
         from Py4GWCoreLib import Agent, GLOBAL_CACHE
 
         cry_of_pain_id: int = Skill.GetID("Cry_of_Pain")
@@ -117,26 +117,12 @@ class PvE:
         ]
         target_agent_id = self._pick_best_target(preferred_targets, aoe_range)
 
-        if not target_agent_id:
+        if not target_agent_id and not require_mesmer_hex:
             fallback_targets = [
                 agent_id for agent_id in enemy_array
                 if _is_enemy_using_skill(agent_id)
             ]
             target_agent_id = self._pick_best_target(fallback_targets, aoe_range)
-
-        if not target_agent_id and allow_hex_fallback:
-            mesmer_hex_targets = [
-                agent_id for agent_id in enemy_array
-                if _has_mesmer_hex(agent_id)
-            ]
-            target_agent_id = self._pick_best_target(mesmer_hex_targets, aoe_range)
-
-        if not target_agent_id and allow_hex_fallback:
-            hexed_targets = [
-                agent_id for agent_id in enemy_array
-                if Agent.IsHexed(agent_id)
-            ]
-            target_agent_id = self._pick_best_target(hexed_targets, aoe_range)
 
         if not target_agent_id:
             return False

@@ -107,7 +107,7 @@ class Ineptitude(BuildMgr):
         if (yield from self.skills.Mesmer.IllusionMagic.Wandering_Eye()):
             return True
 
-        if snapshot.enemy_casting and (yield from self.skills.Any.PvE.Cry_of_Pain(allow_hex_fallback=False)):
+        if snapshot.enemy_casting and (yield from self.skills.Any.PvE.Cry_of_Pain()):
             return True
 
         if snapshot.enemy_in_spellcast and (yield from self.skills.Any.PvE.Cry_of_Pain()):
