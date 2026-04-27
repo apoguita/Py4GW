@@ -3,7 +3,7 @@ from __future__ import annotations
 import random
 from dataclasses import dataclass
 
-from Py4GWCoreLib import ActionQueueManager, GLOBAL_CACHE, Utils, Weapon
+from Py4GWCoreLib import ActionQueueManager, Agent, GLOBAL_CACHE, Utils, Weapon
 from Py4GWCoreLib.Map import Map
 from Py4GWCoreLib.Player import Player
 from Py4GWCoreLib.enums_src.UI_enums import ControlAction
@@ -17,6 +17,7 @@ from .follow_movement import compute_mixed_follow_target, load_follow_movement_c
 @dataclass(slots=True)
 class FollowExecutionState:
     last_follow_move_point: tuple[float, float] | None = None
+    last_follow_assigned_point: tuple[float, float, int] | None = None
     follow_map_entry_signature: tuple[int, int, int, int] | None = None
 
 
@@ -41,6 +42,19 @@ def execute_follower_follow(
             positions.append(_cached_xy(account))
         return positions
 
+    def _assigned_point_changed(
+        previous: tuple[float, float, int] | None,
+        current: tuple[float, float, int],
+        refresh_distance: float,
+    ) -> bool:
+        if previous is None:
+            return True
+        previous_x, previous_y, previous_z = previous
+        current_x, current_y, current_z = current
+        if previous_z != current_z:
+            return True
+        return Utils.Distance((previous_x, previous_y), (current_x, current_y)) > refresh_distance
+
     options = cached_data.account_options
     if not options or not options.Following:
         return BehaviorTree.NodeState.FAILURE
@@ -48,8 +62,12 @@ def execute_follower_follow(
     if not cached_data.follow_throttle_timer.IsExpired():
         return BehaviorTree.NodeState.FAILURE
 
-    if Player.GetAgentID() == GLOBAL_CACHE.Party.GetPartyLeaderID():
+    player_agent_id = int(Player.GetAgentID())
+    if player_agent_id == GLOBAL_CACHE.Party.GetPartyLeaderID():
         cached_data.follow_throttle_timer.Reset()
+        return BehaviorTree.NodeState.FAILURE
+
+    if Agent.IsCasting(player_agent_id):
         return BehaviorTree.NodeState.FAILURE
 
     map_sig = (
@@ -61,6 +79,7 @@ def execute_follower_follow(
     if state.follow_map_entry_signature != map_sig:
         state.follow_map_entry_signature = map_sig
         state.last_follow_move_point = None
+        state.last_follow_assigned_point = None
 
     own_flag_active = bool(getattr(options, "IsFlagged", False)) and _is_nonzero_xy(
         float(options.FlagPos.x),
@@ -98,6 +117,7 @@ def execute_follower_follow(
 
     if party_in_aggro and is_melee:
         state.last_follow_move_point = None
+        state.last_follow_assigned_point = None
         cached_data.follow_throttle_timer.Reset()
         return BehaviorTree.NodeState.FAILURE
 
@@ -108,6 +128,17 @@ def execute_follower_follow(
             follow_distance = max(0.0, follow_threshold_raw)
     else:
         follow_distance = max(0.0, follow_threshold_raw)
+
+    assigned_point = (follow_x, follow_y, follow_z)
+    destination_refresh_distance = max(25.0, min(150.0, follow_distance * 0.25))
+    assigned_changed = _assigned_point_changed(
+        state.last_follow_assigned_point,
+        assigned_point,
+        destination_refresh_distance,
+    )
+    if assigned_changed:
+        state.last_follow_move_point = None
+    state.last_follow_assigned_point = assigned_point
 
     avoidance_enabled = bool(options.Avoidance)
     if (
@@ -136,7 +167,7 @@ def execute_follower_follow(
             return BehaviorTree.NodeState.FAILURE
         xx, yy = mixed_target
 
-    if state.last_follow_move_point is not None:
+    if not assigned_changed and state.last_follow_move_point is not None:
         last_x, last_y = state.last_follow_move_point
         if abs(xx - last_x) <= 10 and abs(yy - last_y) <= 10:
             xx += random.uniform(-5.0, 5.0)

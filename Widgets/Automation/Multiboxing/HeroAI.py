@@ -90,6 +90,10 @@ def HandleOutOfCombat(cached_data: CacheData):
     if cached_data.data.in_aggro:
         return False
 
+    player_agent_id = Player.GetAgentID()
+    if cached_data.combat_handler.InCastingRoutine() or Agent.IsCasting(player_agent_id):
+        return False
+
     heroai_build.set_cached_data(cached_data)
     next(heroai_build.ProcessOOC(), None)
     return heroai_build.DidTickSucceed()
@@ -303,13 +307,13 @@ CastingBlockNode = BehaviorTree.ConditionNode(
     
 def movement_interrupt() -> BehaviorTree.NodeState:
     if Agent.IsMoving(Player.GetAgentID()):
-        return BehaviorTree.NodeState.RUNNING   # block automation
+        return BehaviorTree.NodeState.SUCCESS   # block lower-priority automation for this tick
     return BehaviorTree.NodeState.FAILURE      # allow next branch
 
 
 def user_interrupt() -> BehaviorTree.NodeState:
     if IsUserInterrupting():
-        return BehaviorTree.NodeState.RUNNING   # block non-OOC automation
+        return BehaviorTree.NodeState.SUCCESS   # block lower-priority automation for this tick
     return BehaviorTree.NodeState.FAILURE      # allow next branch
 
 
