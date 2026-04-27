@@ -376,8 +376,6 @@ def Unlock_Xunlai_Storage() -> BehaviorTree:
                 V(-3825.09, 10386.81),
             ]),
             BT.MoveAndDialog(V(-3825.09, 10386.81), dialog_id=0x84),
-            BT.Wait(500),
-            SendDialog(0x800001, "Unlock Xunlai Storage Dialog 1"),
         ],
     )
     return OptionalTree("Unlock Xunlai Storage", unlock_attempt)
