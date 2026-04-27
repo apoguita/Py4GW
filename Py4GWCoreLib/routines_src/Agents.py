@@ -16,6 +16,8 @@ class Agents:
     _exploitable_corpse_fail_signature = None
     _exploitable_corpse_fail_last_uptime = 0
     _exploitable_corpse_failed_attempts: dict[int, int] = {}
+    _exploitable_corpse_selected_model_id = 0
+    _exploitable_corpse_selected_retries = 0
     _exploitable_corpse_failed_models: set[int] = set()
     _exploitable_corpse_fail_attempt_threshold = 2
 
@@ -58,6 +60,8 @@ class Agents:
             or uptime < Agents._exploitable_corpse_fail_last_uptime
         ):
             Agents._exploitable_corpse_failed_attempts.clear()
+            Agents._exploitable_corpse_selected_model_id = 0
+            Agents._exploitable_corpse_selected_retries = 0
             Agents._exploitable_corpse_failed_models.clear()
             Agents._exploitable_corpse_fail_signature = signature
 
@@ -118,6 +122,23 @@ class Agents:
         return True
 
     @staticmethod
+    def _track_exploitable_corpse_selection(agent_id: int, model_id: int) -> None:
+        if not model_id or model_id in Agents._exploitable_corpse_failed_models:
+            return
+
+        if model_id != Agents._exploitable_corpse_selected_model_id:
+            Agents._exploitable_corpse_selected_model_id = model_id
+            Agents._exploitable_corpse_selected_retries = 0
+            return
+
+        Agents._exploitable_corpse_selected_retries += 1
+        Agents.MarkExploitableCorpseCastFailed(
+            agent_id=agent_id,
+            model_id=model_id,
+            reason="repeated_exploitable_corpse_selection",
+        )
+
+    @staticmethod
     def GetExploitableCorpseFailedModels() -> set[int]:
         Agents._sync_exploitable_corpse_fail_cache()
         return set(Agents._exploitable_corpse_failed_models)
@@ -129,6 +150,8 @@ class Agents:
     @staticmethod
     def ClearExploitableCorpseFailedModels() -> None:
         Agents._exploitable_corpse_failed_attempts.clear()
+        Agents._exploitable_corpse_selected_model_id = 0
+        Agents._exploitable_corpse_selected_retries = 0
         Agents._exploitable_corpse_failed_models.clear()
 
     @staticmethod
@@ -504,6 +527,7 @@ class Agents:
         corpse_array = AgentArray.Sort.ByDistance(corpse_array, Player.GetXY())
         selected = Utils.GetFirstFromArray(corpse_array)
         if selected:
+            Agents._track_exploitable_corpse_selection(selected, int(Agent.GetModelID(selected) or 0))
             living = Agent.GetLivingAgentByID(selected)
             _, allegiance = Agent.GetAllegiance(selected)
             if living is not None:

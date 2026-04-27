@@ -519,6 +519,24 @@ class CombatClass:
             return
 
         skill_id = skill.skill_id
+        model_id = int(Agent.GetModelID(target_agent_id) or 0)
+        map_signature = Routines.Agents.GetExploitableCorpseFailSignature()
+        pending = self.pending_exploitable_corpse_cast
+        if (
+            pending is not None
+            and pending.map_signature == map_signature
+            and pending.model_id == model_id
+            and pending.skill_id == skill_id
+            and not pending.saw_cast_start
+        ):
+            Py4GW.Console.Log(
+                "CorpseDenylist",
+                "Keeping existing pending exploitable-corpse cast attempt "
+                f"model_id={model_id} agent_id={target_agent_id} skill_id={skill_id}",
+                Py4GW.Console.MessageType.Debug,
+            )
+            return
+
         try:
             activation_ms = int(max(0.0, GLOBAL_CACHE.Skill.Data.GetActivation(skill_id)) * 1000)
         except Exception:
@@ -526,11 +544,11 @@ class CombatClass:
 
         self.pending_exploitable_corpse_cast = PendingExploitableCorpseCast(
             target_agent_id=target_agent_id,
-            model_id=Agent.GetModelID(target_agent_id),
+            model_id=model_id,
             skill_id=skill_id,
             slot_number=self.skill_order[slot] + 1,
             wait_ms=max(700, min(activation_ms + 250, 2500)),
-            map_signature=Routines.Agents.GetExploitableCorpseFailSignature(),
+            map_signature=map_signature,
         )
         self.pending_exploitable_corpse_timer.Reset()
  

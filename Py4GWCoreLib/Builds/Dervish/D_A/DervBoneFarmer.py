@@ -33,6 +33,7 @@ class DervBoneFarmer(BuildMgr):
             required_primary=Profession.Dervish,
             required_secondary=Profession.Assassin,
             template_code='OgCjkqqLrSYiihdftXjhOXhX0kA',
+            is_combat_automator_compatible=False,
             required_skills=[
                 GLOBAL_CACHE.Skill.GetID("Signet_of_Mystic_Speed"),
                 GLOBAL_CACHE.Skill.GetID("Pious_Fury"),
@@ -142,7 +143,7 @@ class DervBoneFarmer(BuildMgr):
 
             if (
                 yield from Routines.Yield.Skills.IsSkillIDUsable(self.grenths_aura)
-                and Routines.Yield.Skills.IsSkillIDUsable(self.vow_of_silence)
+                and (yield from Routines.Yield.Skills.IsSkillIDUsable(self.vow_of_silence))
             ) and has_signet_of_mystic_speed:
                 ActionQueueManager().ResetAllQueues()
                 yield from self._CastSkillID(self.pious_fury, aftercast_delay=100)
@@ -175,7 +176,7 @@ class DervBoneFarmer(BuildMgr):
                     and vos_buff_time_remaining > 2000
                     and not (
                         yield from Routines.Yield.Skills.IsSkillIDUsable(self.grenths_aura)
-                        and Routines.Yield.Skills.IsSkillIDUsable(self.vow_of_silence)
+                        and (yield from Routines.Yield.Skills.IsSkillIDUsable(self.vow_of_silence))
                     )
                 ):
                     yield from self.swap_to_scythe()

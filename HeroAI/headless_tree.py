@@ -127,6 +127,10 @@ class HeroAIHeadlessTree:
         if self.cached_data.data.in_aggro:
             return False
 
+        player_agent_id = Player.GetAgentID()
+        if self.cached_data.combat_handler.InCastingRoutine() or Agent.IsCasting(player_agent_id):
+            return False
+
         self.heroai_build.set_cached_data(self.cached_data)
         next(self.heroai_build.ProcessOOC(), None)
         return self.heroai_build.DidTickSucceed()
