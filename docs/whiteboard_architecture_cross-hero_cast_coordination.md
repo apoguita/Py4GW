@@ -25,7 +25,8 @@ The implementation lives in:
 - `Py4GWCoreLib/GlobalCache/shared_memory_src/AllAccounts.py` — slot array + methods + debug logger
 - `Py4GWCoreLib/GlobalCache/shared_memory_src/Globals.py` — capacity + budget constants
 - `Py4GWCoreLib/GlobalCache/SharedMemory.py` — manager wrappers + sweep tick
-- `Py4GWCoreLib/Builds/Skills/_whiteboard.py` — decorator-based opt-in registry
+- `Py4GWCoreLib/GlobalCache/Whiteboard.py` — general `(kind, key)` opt-in registry
+- `Py4GWCoreLib/Builds/Skills/_whiteboard.py` — thin skill-scoped wrapper (`kind="skill"`) that exposes the decorator + `is_registered(skill_id)` API used by the combat loop
 - `HeroAI/custom_skill_src/skill_types.py` — per-skill opt-in flag (`CoordinatesViaWhiteboard`)
 - `Py4GWCoreLib/BuildMgr.py` — read-gate + write + owner self-clear inside `CastSkillID`
 - `Py4GWCoreLib/py4gwcorelib_src/ActionQueue.py` — `WHITEBOARD_SWEEP` named queue (defined; sweep currently runs inline)
@@ -395,6 +396,50 @@ The two opt-in surfaces are independent and additive. New skill modules
 under `Py4GWCoreLib/Builds/Skills/**` can decorate methods at import time
 without touching HeroAI; new HeroAI custom-skill entries can flip
 `CoordinatesViaWhiteboard = True` without touching the build modules.
+
+### More consumer kinds (loot, resurrection, dialog, etc.)
+
+The opt-in registry at `Py4GWCoreLib/GlobalCache/Whiteboard.py` is keyed
+by `(kind, key)`, not just skill id. Any cross-hero coordination problem
+that can be expressed as "one hero claims, the others skip" can plug in
+without touching the schema, the slot allocator, or the expiry paths.
+
+Examples that fit the same shape:
+
+| Use case             | Suggested `kind`  | `key`        | Read-gate question                          |
+|----------------------|-------------------|--------------|---------------------------------------------|
+| Loot pickup          | `"loot"`          | `item_id`    | Has another hero already claimed this drop? |
+| Resurrection         | `"resurrect"`     | `agent_id`   | Has another hero already taken this rez?    |
+| NPC dialog           | `"dialog"`        | `npc_id`     | Has another hero already started this turn-in? |
+| Consumable usage     | `"consumable"`    | `model_id`   | Has another hero already popped a cons?     |
+| Pull / aggro lead    | `"pull"`          | `pack_id`    | Has another hero already pulled this pack?  |
+
+To wire a new consumer:
+
+1. **Pick a `kind` string.** Lowercase, snake-case, unique. Add it to the
+   table above so future contributors see it.
+2. **Add a thin wrapper module.** Mirror `Py4GWCoreLib/Builds/Skills/_whiteboard.py`:
+   pre-fill `KIND = "loot"` (or whatever) and re-export `register`,
+   `is_registered`, `coordinates_via_whiteboard`, etc. with the
+   consumer-specific argument shape (`item_id` instead of `skill_id`).
+   This keeps the call sites readable and prevents accidental
+   cross-kind collisions.
+3. **Wire the read-gate and write at the consumer's funnel.** For loot
+   that funnel is wherever pickup is dispatched; for resurrection it's
+   the resurrection routine; etc. Pattern is the same four-call shape
+   `BuildMgr.CastSkillID` uses today: `is_registered` → `IsIntentClaimed`
+   → action → `ClearIntentsByOwner` (or rely on the time-budget path).
+4. **Pick an expiry budget.** Skills derive theirs from
+   `activation + aftercast + ping_budget`. Other kinds need a
+   kind-appropriate budget — for loot, "time to walk and pick up"; for
+   resurrection, the cast time of the rez skill plus margin. The
+   `expires_at_tick` argument to `PostIntent` is set by the caller, so
+   each consumer picks its own.
+
+The shared-memory layer does not need to change for any of this. Slot
+capacity (`SHMEM_MAX_INTENTS = 64`) is the only thing that might need
+revisiting if the team is running many simultaneous consumers — bump
+`Globals.py` if the slot array starts running hot.
 
 ### More aggressive coordination
 
