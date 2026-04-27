@@ -16,6 +16,7 @@ from HeroAI.settings import Settings
 
 from HeroAI.ui import (draw_combined_hero_panel, draw_command_panel, draw_configure_window, draw_dialog_overlay, 
                        draw_hero_panel, draw_hotbars, draw_party_overlay, draw_party_search_overlay, draw_skip_cutscene_overlay)
+from HeroAI.call_target import CallTarget
 
 from .cache_data import CacheData
 from enum import Enum
@@ -106,9 +107,7 @@ class HeroAI_FloatingWindows():
 
             # 3. Shared Logic
             if clicked:
-                Player.ChangeTarget(agent_id)
-                Player.Interact(agent_id, True)
-                ActionQueueManager().AddAction("ACTION", Keystroke.PressAndReleaseCombo, [Key.Ctrl.value, Key.Space.value])
+                CallTarget(agent_id, interact=True)
         Overlay().EndDraw()
 
     @staticmethod

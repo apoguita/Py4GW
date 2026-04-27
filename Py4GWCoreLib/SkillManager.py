@@ -2,6 +2,7 @@ from HeroAI.custom_skill import CustomSkillClass
 from HeroAI.types import SkillType,SkillNature, Skilltarget
 
 from HeroAI.targeting import TargetLowestAlly, TargetLowestAllyEnergy, TargetClusteredEnemy, TargetLowestAllyCaster, TargetLowestAllyMartial, TargetLowestAllyMelee, TargetLowestAllyRanged, GetAllAlliesArray
+from HeroAI.targeting import TargetMinionOrAllyNonEnchanted, TargetMinionNonEnchanted, TargetAllyNonEnchanted
 from HeroAI.targeting import GetEnemyAttacking, GetEnemyCasting, GetEnemyCastingSpell, GetEnemyInjured, GetEnemyConditioned, GetEnemyHealthy
 from HeroAI.targeting import GetEnemyHexed, GetEnemyDegenHexed, GetEnemyEnchanted, GetEnemyMoving, GetEnemyKnockedDown
 from HeroAI.targeting import GetEnemyBleeding, GetEnemyPoisoned, GetEnemyCrippled
@@ -437,8 +438,16 @@ def _GetAppropiateTarget(
             v_target = Routines.Agents.GetNearestSpirit(Range.Spellcast.value)
         elif target_allegiance == Skilltarget.Minion:
             v_target = Routines.Agents.GetLowestMinion(Range.Spellcast.value)
+        elif target_allegiance == Skilltarget.MinionOrAllyNonEnchanted:
+            v_target = TargetMinionOrAllyNonEnchanted(filter_skill_id=skills[slot].skill_id)
+        elif target_allegiance == Skilltarget.MinionNonEnchanted:
+            v_target = TargetMinionNonEnchanted()
+        elif target_allegiance == Skilltarget.AllyNonEnchanted:
+            v_target = TargetAllyNonEnchanted()
         elif target_allegiance == Skilltarget.Corpse:
             v_target = Routines.Agents.GetNearestCorpse(Range.Spellcast.value)
+        elif target_allegiance == Skilltarget.ExploitableCorpse:
+            v_target = Routines.Agents.GetNearestExploitableCorpse(Range.Spellcast.value)
         else:
             v_target = GetPartytarget_fn()
             if v_target == 0:
@@ -1307,7 +1316,24 @@ class SkillManager:
         def GetPartyTarget(self):
             return _GetPartyTarget()
         
+        def GetActiveScanRange(self):
+            try:
+                from HeroAI.cache_data import CacheData
+                cached_data = CacheData()
+                cached_data.Update()
+                return cached_data.GetActiveScanRange()
+            except Exception:
+                return Range.Earshot.value if self.stay_alert_timer.IsExpired() else Range.Spellcast.value
+        
         def InAggro(self):
+            try:
+                from HeroAI.cache_data import CacheData
+                cached_data = CacheData()
+                cached_data.Update()
+                return bool(cached_data.data.in_aggro)
+            except Exception:
+                pass
+            
             if self.stay_alert_timer.IsExpired():
                 in_danger = Routines.Checks.Agents.InDanger(Range.Earshot, self.aggressive_enemies_only)
             else:
@@ -1319,7 +1345,7 @@ class SkillManager:
                 
         
         def get_combat_distance(self):
-            return Range.Spellcast.value if self.InAggro() else Range.Earshot.value
+            return self.GetActiveScanRange()
         
         def GetAppropiateTarget(self, slot):
             
@@ -1459,8 +1485,16 @@ class SkillManager:
                 v_target = Routines.Agents.GetNearestSpirit(Range.Spellcast.value)
             elif target_allegiance == Skilltarget.Minion:
                 v_target = Routines.Agents.GetLowestMinion(Range.Spellcast.value)
+            elif target_allegiance == Skilltarget.MinionOrAllyNonEnchanted:
+                v_target = TargetMinionOrAllyNonEnchanted(filter_skill_id=self.skills[slot].skill_id)
+            elif target_allegiance == Skilltarget.MinionNonEnchanted:
+                v_target = TargetMinionNonEnchanted()
+            elif target_allegiance == Skilltarget.AllyNonEnchanted:
+                v_target = TargetAllyNonEnchanted()
             elif target_allegiance == Skilltarget.Corpse:
                 v_target = Routines.Agents.GetNearestCorpse(Range.Spellcast.value)
+            elif target_allegiance == Skilltarget.ExploitableCorpse:
+                v_target = Routines.Agents.GetNearestExploitableCorpse(Range.Spellcast.value)
             else:
                 v_target = self.GetPartyTarget()
                 if v_target == 0:

@@ -111,13 +111,17 @@ def execute_follower_follow(
     else:
         follow_distance = max(0.0, follow_threshold_raw)
 
-    if (not party_in_aggro or follow_z != 0) and Utils.Distance((follow_x, follow_y), Player.GetXY()) <= follow_distance:
+    avoidance_enabled = bool(options.Avoidance)
+    if (
+        (not party_in_aggro or follow_z != 0 or not avoidance_enabled)
+        and Utils.Distance((follow_x, follow_y), Player.GetXY()) <= follow_distance
+    ):
         return BehaviorTree.NodeState.FAILURE
 
     xx = follow_x
     yy = follow_y
 
-    if party_in_aggro and follow_z == 0:
+    if party_in_aggro and follow_z == 0 and avoidance_enabled:
         own_account = cached_data.account_data
         own_agent_id = int(own_account.AgentData.AgentID)
         if own_agent_id == 0:

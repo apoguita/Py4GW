@@ -38,7 +38,7 @@ class RestorationMagic:
         if not self.build.IsSkillEquipped(life_id):
             return False
 
-        if not (Routines.Checks.Agents.InAggro() or self.build.IsCloseToAggro()):
+        if not (self.build.IsInAggro() or self.build.IsCloseToAggro()):
             return False
 
         return (yield from self.build.CastSpiritSkillID(
@@ -206,7 +206,7 @@ class RestorationMagic:
 
         # State gate: only fire during active combat or the approach phase - never
         # during pure downtime.
-        if not (Routines.Checks.Agents.InAggro() or self.build.IsCloseToAggro()):
+        if not (self.build.IsInAggro() or self.build.IsCloseToAggro()):
             return False
 
         # Independent situational gates. Callers that want OR semantics across

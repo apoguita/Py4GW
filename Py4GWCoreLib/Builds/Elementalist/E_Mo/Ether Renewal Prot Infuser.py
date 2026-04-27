@@ -74,7 +74,7 @@ class Ether_Renewal_Prot_Infuser(BuildMgr):
         if self.IsSkillEquipped(Breath_of_the_Great_Dwarf_ID) and (yield from self.skills.Any.NoAttribute.Breath_of_the_Great_Dwarf()):
             return True
 
-        if not Routines.Checks.Agents.InAggro():
+        if not self.IsInAggro():
             return False
 
         self.UpdatePartyHealthMonitor(sample_interval_ms=150)

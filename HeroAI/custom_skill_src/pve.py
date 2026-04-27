@@ -1003,7 +1003,7 @@ class PVESkills:
         skill = CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Junundu_Feast")
         skill.SkillType = SkillType.Skill.value
-        skill.TargetAllegiance = Skilltarget.Corpse.value
+        skill.TargetAllegiance = Skilltarget.ExploitableCorpse.value
         skill.Nature = SkillNature.Offensive.value
         skill.Conditions.IsAlive = False
         skill_data[skill.SkillID] = skill

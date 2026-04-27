@@ -79,12 +79,12 @@ class Tao_Dagger_Spam(BuildMgr):
             
         if (
             self.IsSkillEquipped(Air_of_Superiority_ID)
-            and (Routines.Checks.Agents.InAggro() or self.IsCloseToAggro())
+            and (self.IsInAggro() or self.IsCloseToAggro())
             and (yield from self.skills.Any.PvE.Air_of_Superiority())
         ):
             return
 
-        if not Routines.Checks.Agents.InAggro():
+        if not self.IsInAggro():
             return False
 
         if self.IsSkillEquipped(Lightning_Reflexes_ID) and (yield from self.CastSkillID(

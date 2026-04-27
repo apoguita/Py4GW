@@ -119,6 +119,7 @@ class Skilltarget (IntEnum):
     MinionOrAllyNonEnchanted = 18
     MinionNonEnchanted = 19
     AllyNonEnchanted = 20
+    ExploitableCorpse = 21
 
     #added targets
 

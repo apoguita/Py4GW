@@ -55,7 +55,7 @@ class Ineptitude(BuildMgr):
 
     def _get_bar_snapshot(self) -> _IneptitudeBarSnapshot:
         snapshot = _IneptitudeBarSnapshot()
-        snapshot.in_aggro = bool(Routines.Checks.Agents.InAggro())
+        snapshot.in_aggro = bool(self.IsInAggro())
 
         if not snapshot.in_aggro:
             return snapshot

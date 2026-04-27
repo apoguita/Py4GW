@@ -74,7 +74,7 @@ class Energy_Surge(BuildMgr):
 
     def _get_bar_snapshot(self) -> _EnergySurgeBarSnapshot:
         snapshot = _EnergySurgeBarSnapshot()
-        snapshot.in_aggro = bool(Routines.Checks.Agents.InAggro())
+        snapshot.in_aggro = bool(self.IsInAggro())
         snapshot.dead_ally_in_spellcast = int(Routines.Agents.GetDeadAlly(Range.Spellcast.value) or 0)
 
         if not snapshot.in_aggro:

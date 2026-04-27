@@ -373,14 +373,14 @@ class NecromancerSkills:
         skill = CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Well_of_Blood")
         skill.SkillType = SkillType.Well.value
-        skill.TargetAllegiance = Skilltarget.Self.value
+        skill.TargetAllegiance = Skilltarget.ExploitableCorpse.value
         skill.Nature = SkillNature.Buff.value
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Well_of_Power")
         skill.SkillType = SkillType.Well.value
-        skill.TargetAllegiance = Skilltarget.Self.value
+        skill.TargetAllegiance = Skilltarget.ExploitableCorpse.value
         skill.Nature = SkillNature.Buff.value
         skill_data[skill.SkillID] = skill
 
@@ -714,28 +714,28 @@ class NecromancerSkills:
         skill = CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Well_of_Darkness")
         skill.SkillType = SkillType.Well.value
-        skill.TargetAllegiance = Skilltarget.Self.value
+        skill.TargetAllegiance = Skilltarget.ExploitableCorpse.value
         skill.Nature = SkillNature.Offensive.value
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Well_of_Ruin")
         skill.SkillType = SkillType.Well.value
-        skill.TargetAllegiance = Skilltarget.Self.value
+        skill.TargetAllegiance = Skilltarget.ExploitableCorpse.value
         skill.Nature = SkillNature.Offensive.value
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Well_of_Silence")
         skill.SkillType = SkillType.Well.value
-        skill.TargetAllegiance = Skilltarget.Self.value
+        skill.TargetAllegiance = Skilltarget.ExploitableCorpse.value
         skill.Nature = SkillNature.Offensive.value
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Well_of_Weariness")
         skill.SkillType = SkillType.Well.value
-        skill.TargetAllegiance = Skilltarget.Self.value
+        skill.TargetAllegiance = Skilltarget.ExploitableCorpse.value
         skill.Nature = SkillNature.Offensive.value
         skill_data[skill.SkillID] = skill
 
@@ -751,57 +751,64 @@ class NecromancerSkills:
         skill = CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Animate_Bone_Fiend")
         skill.SkillType = SkillType.Spell.value
-        skill.TargetAllegiance = Skilltarget.Corpse.value
+        skill.TargetAllegiance = Skilltarget.ExploitableCorpse.value
         skill.Nature = SkillNature.Offensive.value
         skill.Conditions.IsAlive = False
+        skill.Conditions.IsOutOfCombat = True
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Animate_Bone_Horror")
         skill.SkillType = SkillType.Spell.value
-        skill.TargetAllegiance = Skilltarget.Corpse.value
+        skill.TargetAllegiance = Skilltarget.ExploitableCorpse.value
         skill.Nature = SkillNature.Offensive.value
         skill.Conditions.IsAlive = False
+        skill.Conditions.IsOutOfCombat = True
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Animate_Bone_Minions")
         skill.SkillType = SkillType.Spell.value
-        skill.TargetAllegiance = Skilltarget.Corpse.value
+        skill.TargetAllegiance = Skilltarget.ExploitableCorpse.value
         skill.Nature = SkillNature.Offensive.value
         skill.Conditions.IsAlive = False
+        skill.Conditions.IsOutOfCombat = True
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Animate_Flesh_Golem")
         skill.SkillType = SkillType.Spell.value
-        skill.TargetAllegiance = Skilltarget.Corpse.value
+        skill.TargetAllegiance = Skilltarget.ExploitableCorpse.value
         skill.Nature = SkillNature.Offensive.value
         skill.Conditions.IsAlive = False
+        skill.Conditions.IsOutOfCombat = True
         skill.Conditions.UniqueProperty = True
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Animate_Shambling_Horror")
         skill.SkillType = SkillType.Spell.value
-        skill.TargetAllegiance = Skilltarget.Corpse.value
+        skill.TargetAllegiance = Skilltarget.ExploitableCorpse.value
         skill.Nature = SkillNature.Offensive.value
         skill.Conditions.IsAlive = False
+        skill.Conditions.IsOutOfCombat = True
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Animate_Vampiric_Horror")
         skill.SkillType = SkillType.Spell.value
-        skill.TargetAllegiance = Skilltarget.Corpse.value
+        skill.TargetAllegiance = Skilltarget.ExploitableCorpse.value
         skill.Nature = SkillNature.Offensive.value
         skill.Conditions.IsAlive = False
+        skill.Conditions.IsOutOfCombat = True
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Aura_of_the_Lich")
         skill.SkillType = SkillType.Enchantment.value
-        skill.TargetAllegiance = Skilltarget.Self.value
+        skill.TargetAllegiance = Skilltarget.ExploitableCorpse.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.IsOutOfCombat = True
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -822,7 +829,7 @@ class NecromancerSkills:
         skill = CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Consume_Corpse")
         skill.SkillType = SkillType.Spell.value
-        skill.TargetAllegiance = Skilltarget.Corpse.value
+        skill.TargetAllegiance = Skilltarget.ExploitableCorpse.value
         skill.Nature = SkillNature.Offensive.value
         skill.Conditions.IsAlive = False
         skill_data[skill.SkillID] = skill
@@ -918,7 +925,7 @@ class NecromancerSkills:
         skill = CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Necrotic_Traversal")
         skill.SkillType = SkillType.Spell.value
-        skill.TargetAllegiance = Skilltarget.Corpse.value
+        skill.TargetAllegiance = Skilltarget.ExploitableCorpse.value
         skill.Nature = SkillNature.Offensive.value
         skill.Conditions.IsAlive = False
         skill_data[skill.SkillID] = skill
@@ -940,7 +947,7 @@ class NecromancerSkills:
         skill = CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Putrid_Explosion")
         skill.SkillType = SkillType.Spell.value
-        skill.TargetAllegiance = Skilltarget.Corpse.value
+        skill.TargetAllegiance = Skilltarget.ExploitableCorpse.value
         skill.Nature = SkillNature.Offensive.value
         skill.Conditions.IsAlive = False
         skill_data[skill.SkillID] = skill
@@ -969,7 +976,7 @@ class NecromancerSkills:
         skill = CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Soul_Feast")
         skill.SkillType = SkillType.Spell.value
-        skill.TargetAllegiance = Skilltarget.Corpse.value
+        skill.TargetAllegiance = Skilltarget.ExploitableCorpse.value
         skill.Nature = SkillNature.Offensive.value
         skill.Conditions.IsAlive = False
         skill_data[skill.SkillID] = skill

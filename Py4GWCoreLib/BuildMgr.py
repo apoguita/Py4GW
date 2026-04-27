@@ -254,6 +254,30 @@ class BuildMgr:
 
     def IsSharedSkillToggleEnabled(self, slot: int) -> bool:
         return self._get_shared_skill_toggle(slot)
+    
+    def GetActiveScanRange(self) -> float:
+        cached_data = getattr(self, "_cached_data", None)
+        if cached_data is not None and hasattr(cached_data, "GetActiveScanRange"):
+            return float(cached_data.GetActiveScanRange())
+        
+        try:
+            from HeroAI.cache_data import CacheData
+            cached_data = CacheData()
+            cached_data.Update()
+            return float(cached_data.GetActiveScanRange())
+        except Exception:
+            from Py4GWCoreLib import Range, Routines
+            return Range.Spellcast.value if Routines.Checks.Agents.InAggro() else Range.Earshot.value
+    
+    def IsInAggro(self) -> bool:
+        cached_data = getattr(self, "_cached_data", None)
+        if cached_data is not None:
+            data = getattr(cached_data, "data", None)
+            if data is not None:
+                return bool(data.in_aggro)
+        
+        from Py4GWCoreLib import Routines
+        return bool(Routines.Checks.Agents.InAggro(self.GetActiveScanRange()))
 
     def IsCloseToAggro(self) -> bool:
         """Returns True when combat is imminent but the player is not yet engaged."""
@@ -717,7 +741,7 @@ class BuildMgr:
     def _refresh_target_tracking(self) -> None:
         from Py4GWCoreLib import Routines
 
-        in_aggro = bool(Routines.Checks.Agents.InAggro())
+        in_aggro = self.IsInAggro()
         if self._was_in_aggro and not in_aggro:
             self.ResetTarget()
             self.ResetPartyHealthMonitor()
@@ -789,7 +813,8 @@ class BuildMgr:
         if not Routines.Checks.Agents.IsMelee(Player.GetAgentID()):
             return desired_target
 
-        nearest_enemy = Routines.Agents.GetNearestEnemy(Range.Spellcast.value)
+        combat_distance = self.GetActiveScanRange()
+        nearest_enemy = Routines.Agents.GetNearestEnemy(combat_distance)
         if not (Agent.IsValid(nearest_enemy) and not Agent.IsDead(nearest_enemy)):
             return desired_target
 
@@ -800,7 +825,7 @@ class BuildMgr:
         nearby_enemies = Routines.Agents.GetFilteredEnemyArray(
             player_pos[0],
             player_pos[1],
-            Range.Spellcast.value,
+            combat_distance,
         )
 
         contact_enemies = [
@@ -862,35 +887,35 @@ class BuildMgr:
     
     def _pick_fallback_target(self, target_type: str) -> int:
         from HeroAI.targeting import GetEnemyAttacking, GetEnemyInjured, TargetClusteredEnemy
-        from Py4GWCoreLib import Range
         from Py4GWCoreLib.Agent import Agent
         
+        combat_distance = self.GetActiveScanRange()
         return_target = 0
         if target_type == "EnemyClustered":
-            return_target = TargetClusteredEnemy(Range.Earshot.value)
+            return_target = TargetClusteredEnemy(combat_distance)
             if not (Agent.IsValid(return_target) and not Agent.IsDead(return_target)):
-                return_target = GetEnemyInjured(Range.Earshot.value)
+                return_target = GetEnemyInjured(combat_distance)
         elif target_type == "EnemyHexedOrEnchantedClustered":
             return_target = self._pick_clustered_target(
-                Range.Earshot.value,
+                combat_distance,
                 preferred_condition=lambda agent_id: Agent.IsHexed(agent_id) or Agent.IsEnchanted(agent_id),
             )
             if not (Agent.IsValid(return_target) and not Agent.IsDead(return_target)):
-                return_target = GetEnemyInjured(Range.Earshot.value)
+                return_target = GetEnemyInjured(combat_distance)
         elif target_type == "EnemyAttackingClustered":
             return_target = self._pick_clustered_target(
-                Range.Earshot.value,
+                combat_distance,
                 preferred_condition=lambda agent_id: Agent.IsAttacking(agent_id),
             )
             if not (Agent.IsValid(return_target) and not Agent.IsDead(return_target)):
-                return_target = GetEnemyInjured(Range.Earshot.value)
+                return_target = GetEnemyInjured(combat_distance)
         elif target_type == "EnemyAttacking":
-            return_target = GetEnemyAttacking(Range.Earshot.value)
+            return_target = GetEnemyAttacking(combat_distance)
             if not (Agent.IsValid(return_target) and not Agent.IsDead(return_target)):
-                return_target = GetEnemyInjured(Range.Earshot.value)
-                 
+                return_target = GetEnemyInjured(combat_distance)
+                  
         elif target_type == "EnemyInjured":
-            return_target = GetEnemyInjured(Range.Earshot.value)
+            return_target = GetEnemyInjured(combat_distance)
 
         return_target = self._prefer_melee_nearest_enemy(return_target)
 

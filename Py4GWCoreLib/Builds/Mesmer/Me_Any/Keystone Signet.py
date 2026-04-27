@@ -70,7 +70,7 @@ class KeystoneSignet(BuildMgr):
             has_keystone_signet=Routines.Checks.Effects.HasBuff(player_id, Keystone_Signet_ID),
         )
 
-        if not Routines.Checks.Agents.InAggro():
+        if not self.IsInAggro():
             return snapshot
 
         snapshot.enemy_in_spellcast = bool(Routines.Agents.GetNearestEnemy(Range.Spellcast.value))
@@ -97,7 +97,7 @@ class KeystoneSignet(BuildMgr):
         if self.IsSkillEquipped(Breath_of_the_Great_Dwarf_ID) and (yield from self.skills.Any.NoAttribute.Breath_of_the_Great_Dwarf()):
             return True
 
-        if not Routines.Checks.Agents.InAggro():
+        if not self.IsInAggro():
             return False
 
         if snapshot.keystone_signet_needed and (yield from self.skills.Mesmer.FastCasting.Keystone_Signet()):

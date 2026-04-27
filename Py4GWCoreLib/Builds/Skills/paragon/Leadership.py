@@ -70,7 +70,7 @@ class Leadership:
 
         if not self.build.IsSkillEquipped(aggressive_refrain_id):
             return False
-        if not (Routines.Checks.Agents.InAggro() or self.build.IsCloseToAggro()):
+        if not (self.build.IsInAggro() or self.build.IsCloseToAggro()):
             return False
         if Routines.Checks.Agents.HasEffect(player_agent_id, aggressive_refrain_id):
             return False

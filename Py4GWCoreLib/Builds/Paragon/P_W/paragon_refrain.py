@@ -70,7 +70,7 @@ class Paragon_Refrain(BuildMgr):
         if self.IsSkillEquipped(Theyre_on_Fire_ID) and (yield from self.skills.Paragon.Leadership.Theyre_on_Fire()):
             return True
 
-        if not Routines.Checks.Agents.InAggro():
+        if not self.IsInAggro():
             return False
 
         if self.IsSkillEquipped(Theres_Nothing_to_Fear_ID) and (yield from self.skills.Any.NoAttribute.Theres_Nothing_to_Fear()):

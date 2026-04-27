@@ -184,7 +184,7 @@ class Healing_Burst(BuildMgr):
         if support_snapshot.draw_conditions_needed and (yield from self.skills.Monk.ProtectionPrayers.Draw_Conditions()):
             return True
         
-        if not (Routines.Checks.Agents.InAggro()):
+        if not (self.IsInAggro()):
             return False
         
         if self.IsSkillEquipped(Vigorous_Spirit_ID) and (yield from self.skills.Monk.HealingPrayers.Vigorous_Spirit()):

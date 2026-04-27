@@ -85,7 +85,7 @@ class Pre_Searing_Necro(BuildMgr):
             )):
                 return True
 
-        if not Routines.Checks.Agents.InAggro():
+        if not self.IsInAggro():
             return False
 
         nearby_enemies = Routines.Agents.GetFilteredEnemyArray(

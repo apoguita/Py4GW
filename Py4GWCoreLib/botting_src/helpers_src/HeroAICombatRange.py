@@ -17,22 +17,18 @@ class HeroAICombatRangeState:
 
 def get_hero_ai_combat_range_state() -> HeroAICombatRangeState:
     from HeroAI.cache_data import CacheData
-    from Py4GWCoreLib import AgentArray, Range
+    from Py4GWCoreLib import AgentArray
 
     cached_data = CacheData()
     cached_data.Update()
     cached_data.UpdateCombat()
 
-    combat_handler = getattr(cached_data, "combat_handler", None)
-    if combat_handler is not None and hasattr(combat_handler, "get_combat_distance"):
-        combat_distance = float(combat_handler.get_combat_distance())
-    else:
-        combat_distance = Range.Spellcast.value if bool(cached_data.data.in_aggro) else Range.Earshot.value
+    combat_distance = float(cached_data.GetActiveScanRange())
 
     enemy_in_combat_distance = bool(cached_data.InAggro(AgentArray.GetEnemyArray(), combat_distance))
     return HeroAICombatRangeState(
         in_aggro=bool(cached_data.data.in_aggro),
-        party_in_aggro=bool(getattr(cached_data.data, "party_in_aggro", cached_data.data.in_aggro)),
+        party_in_aggro=bool(cached_data.data.party_in_aggro),
         combat_distance=combat_distance,
         enemy_in_combat_distance=enemy_in_combat_distance,
     )

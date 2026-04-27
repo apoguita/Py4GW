@@ -92,7 +92,7 @@ class Xinraes_Weapon_Healer(BuildMgr):
 
         if (
             self.IsSkillEquipped(Air_of_Superiority_ID)
-            and (Routines.Checks.Agents.InAggro() or self.IsCloseToAggro())
+            and (self.IsInAggro() or self.IsCloseToAggro())
             and (yield from self.skills.Any.PvE.Air_of_Superiority())
         ):
             return True
@@ -132,7 +132,7 @@ class Xinraes_Weapon_Healer(BuildMgr):
         if (yield from self.skills.Ritualist.RestorationMagic.Mend_Body_and_Soul(health_threshold=0.75)):
             return True
 
-        if not Routines.Checks.Agents.InAggro():
+        if not self.IsInAggro():
             return False
 
         if self.IsSkillEquipped(Weaken_Armor_ID) and (yield from self.skills.Necromancer.Curses.Weaken_Armor()):

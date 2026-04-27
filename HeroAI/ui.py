@@ -2699,6 +2699,11 @@ def draw_configure_window(module_name : str, configure_window : WindowModule):
                         settings.ShowFloatingTargets = show_floating_targets
                         settings.save_settings()
 
+                    auto_call_targets = ImGui.checkbox("Auto Call Combat Targets", settings.AutoCallTargets)
+                    if auto_call_targets != settings.AutoCallTargets:
+                        settings.AutoCallTargets = auto_call_targets
+                        settings.save_settings()
+
                     show_command_panel = ImGui.checkbox("Show Global Config Panel", settings.ShowCommandPanel)
                     if show_command_panel != settings.ShowCommandPanel:
                         settings.ShowCommandPanel = show_command_panel

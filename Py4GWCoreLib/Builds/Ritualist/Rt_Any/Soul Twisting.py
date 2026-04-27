@@ -79,7 +79,7 @@ class Soul_Twisting(BuildMgr):
 
     def _get_bar_snapshot(self) -> _SoulTwistingSnapshot:
         snapshot = _SoulTwistingSnapshot()
-        snapshot.in_aggro = bool(Routines.Checks.Agents.InAggro())
+        snapshot.in_aggro = bool(self.IsInAggro())
         snapshot.close_to_aggro = snapshot.in_aggro or self.IsCloseToAggro()
         snapshot.player_energy_pct = float(Agent.GetEnergy(Player.GetAgentID()))
         return snapshot

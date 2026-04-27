@@ -11,6 +11,8 @@ from .targeting import GetEnemyHexed, GetEnemyDegenHexed, GetEnemyEnchanted, Get
 from .targeting import GetEnemyBleeding, GetEnemyPoisoned, GetEnemyCrippled
 from .types import SkillNature, Skilltarget, SkillType
 from .constants import MAX_NUM_PLAYERS
+from .call_target import CallTarget
+from .settings import Settings
 from typing import TYPE_CHECKING, Optional, Protocol
 
 from Py4GWCoreLib.enums_src.GameData_enums import Profession
@@ -100,6 +102,8 @@ class CombatClass:
         self.aftercast_timer.Start()
         self.ping_handler = Py4GW.PingHandler()
         self.oldCalledTarget: int = 0
+        self.auto_call_target_id: int = 0
+        self.auto_call_target_called: bool = False
 
         self.in_aggro: bool = False
         self.is_targeting_enabled: bool = False
@@ -465,6 +469,34 @@ class CombatClass:
             Player.ChangeTarget(target_id)
             Player.Interact(target_id, False)
 
+    def MaybeCallCombatTarget(self, target_id: int, cached_data: CacheData | None) -> None:
+        if cached_data is None or not Settings().AutoCallTargets:
+            return
+
+        if not cached_data.account_data.AgentPartyData.IsPartyLeader:
+            return
+
+        if target_id != self.auto_call_target_id:
+            self.auto_call_target_id = target_id
+            self.auto_call_target_called = False
+
+        if self.auto_call_target_called:
+            return
+
+        if target_id == 0 or not Agent.IsValid(target_id) or Agent.IsDead(target_id):
+            return
+
+        _, target_allegiance = Agent.GetAllegiance(target_id)
+        if target_allegiance != "Enemy":
+            return
+
+        from Py4GWCoreLib import Party
+        if Party.GetPartyTarget() == target_id:
+            self.auto_call_target_called = True
+            return
+
+        if CallTarget(target_id, interact=False):
+            self.auto_call_target_called = True
 
     def GetPartyTarget(self) -> int:
         from Py4GWCoreLib import Party
@@ -480,6 +512,8 @@ class CombatClass:
         return 0
 
     def get_combat_distance(self) -> float:
+        if self.cached_data is not None:
+            return self.cached_data.GetActiveScanRange()
         return Range.Spellcast.value if self.in_aggro else Range.Earshot.value
 
 
@@ -653,6 +687,8 @@ class CombatClass:
             v_target = TargetAllyNonEnchanted()
         elif target_allegiance == Skilltarget.Corpse:
             v_target = Routines.Agents.GetNearestCorpse(Range.Spellcast.value)
+        elif target_allegiance == Skilltarget.ExploitableCorpse:
+            v_target = Routines.Agents.GetNearestExploitableCorpse(Range.Spellcast.value)
         elif target_allegiance == Skilltarget.AllyNPCByModel:
             model_id_filter = self.skills[slot].custom_skill_data.Conditions.ModelIDFilter
             if model_id_filter:
@@ -868,7 +904,7 @@ class CombatClass:
                     return True
                 
                 life = Agent.GetHealth(Player.GetAgentID()) < Conditions.LessLife
-                nearest = Routines.Agents.GetNearestEnemy(Range.Earshot.value)
+                nearest = Routines.Agents.GetNearestEnemy(self.get_combat_distance())
                 if nearest == 0:
                     return life
                 
@@ -876,7 +912,7 @@ class CombatClass:
 
 
             if (self.skills[slot].skill_id == self.junundu_tunnel):
-                return Routines.Agents.GetNearestEnemy(Range.Earshot.value) == 0
+                return Routines.Agents.GetNearestEnemy(self.get_combat_distance()) == 0
 
             if ((self.skills[slot].skill_id == self.unknown_junundu_ability) or
                 (self.skills[slot].skill_id == self.leave_junundu)
@@ -1210,7 +1246,7 @@ class CombatClass:
                 return False
 
         if Conditions.CloseToAggro:
-            if Routines.Checks.Agents.InAggro() or Routines.Checks.Agents.IsCloseToAggro():
+            if Routines.Checks.Agents.InAggro(self.get_combat_distance()) or Routines.Checks.Agents.IsCloseToAggro():
                 number_of_features += 1
             else:
                 return False
@@ -1407,6 +1443,7 @@ class CombatClass:
 
         if target_id == 0 or Agent.IsDead(target_id) or (target_allegiance != "Enemy"):
             if self.ChooseTarget():
+                self.MaybeCallCombatTarget(Player.GetTargetID(), cached_data)
                 cached_data.auto_attack_time = cached_data.GetWeaponAttackAftercast()
                 cached_data.auto_attack_timer.Reset()
                 return True
@@ -1416,6 +1453,7 @@ class CombatClass:
             and cached_data.data.weapon_type != 0
         ):
             if self.ChooseTarget():
+                self.MaybeCallCombatTarget(Player.GetTargetID(), cached_data)
                 cached_data.auto_attack_time = cached_data.GetWeaponAttackAftercast()
                 cached_data.auto_attack_timer.Reset()
                 self.ResetSkillPointer()
@@ -1558,6 +1596,7 @@ class CombatClass:
             self.aftercast = 500
 
         self.aftercast_timer.Reset()
+        self.MaybeCallCombatTarget(target_agent_id, cached_data)
         GLOBAL_CACHE.SkillBar.UseSkill(self.skill_order[slot]+1, target_agent_id, aftercast_delay=self.aftercast)
         self.ResetSkillPointer()
         return True

@@ -229,7 +229,8 @@ class MonkSkills:
         skill.SkillType = SkillType.Enchantment.value
         skill.TargetAllegiance = Skilltarget.MinionOrAllyNonEnchanted.value
         skill.Nature = SkillNature.Buff.value
-        skill.Conditions.LessLife = 0.40
+        skill.Conditions.LessLife = 0.4
+        skill.Conditions.IsOutOfCombat = True
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()

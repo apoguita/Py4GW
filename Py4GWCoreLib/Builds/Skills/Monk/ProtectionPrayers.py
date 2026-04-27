@@ -65,7 +65,7 @@ class ProtectionPrayers:
 
         if not self.build.IsSkillEquipped(protective_spirit_id):
             return False
-        if not Routines.Checks.Agents.InAggro():
+        if not self.build.IsInAggro():
             return False
 
         target_agent_id = _resolve_protective_spirit_target()
@@ -113,7 +113,7 @@ class ProtectionPrayers:
 
         if not self.build.IsSkillEquipped(reversal_of_fortune_id):
             return False
-        if not Routines.Checks.Agents.InAggro():
+        if not self.build.IsInAggro():
             return False
 
         target_agent_id = _resolve_reversal_of_fortune_target()

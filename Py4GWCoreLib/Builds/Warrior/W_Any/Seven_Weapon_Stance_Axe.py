@@ -36,7 +36,7 @@ class Seven_Weapon_Stance_Axe(BuildMgr):
         self.skills: SkillsTemplate = SkillsTemplate(self)
 
     def _run_local_skill_logic(self):
-        if not Routines.Checks.Agents.InAggro():
+        if not self.IsInAggro():
             return False
 
         if not Routines.Checks.Skills.CanCast():

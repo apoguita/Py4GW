@@ -134,6 +134,7 @@ class Settings:
         self.ShowHeroBars = True
         self.ShowHeroSkills = True
         self.ShowFloatingTargets = True
+        self.AutoCallTargets = False
         self.ShowPartyPanelUI = True
         self.HeroPanelPositions : dict[str, Settings.HeroPanelInfo] = {}
         
@@ -255,6 +256,7 @@ class Settings:
         self.ini_handler.write_key("General", "ShowHeroButtons", str(self.ShowHeroButtons))
         self.ini_handler.write_key("General", "ShowHeroBars", str(self.ShowHeroBars))
         self.ini_handler.write_key("General", "ShowFloatingTargets", str(self.ShowFloatingTargets))
+        self.ini_handler.write_key("General", "AutoCallTargets", str(self.AutoCallTargets))
         self.ini_handler.write_key("General", "ShowHeroSkills", str(self.ShowHeroSkills))
         
         self.ini_handler.write_key("General", "ShowPartyPanelUI", str(self.ShowPartyPanelUI))
@@ -301,6 +303,7 @@ class Settings:
         self.ShowHeroButtons = self.ini_handler.read_bool("General", "ShowHeroButtons", True)
         self.ShowHeroBars = self.ini_handler.read_bool("General", "ShowHeroBars", True)
         self.ShowFloatingTargets = self.ini_handler.read_bool("General", "ShowFloatingTargets", True)
+        self.AutoCallTargets = self.ini_handler.read_bool("General", "AutoCallTargets", False)
         self.ShowHeroSkills = self.ini_handler.read_bool("General", "ShowHeroSkills", True)
         
         self.ShowPartyPanelUI = self.ini_handler.read_bool("General", "ShowPartyPanelUI", True)
