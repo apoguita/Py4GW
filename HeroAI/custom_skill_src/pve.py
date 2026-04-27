@@ -97,7 +97,7 @@ class PVESkills:
         skill = CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Weapons_of_Three_Forges")
         skill.SkillType = SkillType.WeaponSpell.value
-        skill.TargetAllegiance = Skilltarget.Self.value
+        skill.TargetAllegiance = Skilltarget.NonWeaponSpelledAlly.value
         skill.Nature = SkillNature.Buff.value
         skill.Conditions.IsOutOfCombat = True
         skill.Conditions.AllowOverlapWeaponSpell = False
@@ -276,6 +276,7 @@ class PVESkills:
         skill.SkillType = SkillType.Enchantment.value
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Buff.value
+        skill.Conditions.IsOutOfCombat = True
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()

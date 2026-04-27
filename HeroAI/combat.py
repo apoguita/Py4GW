@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Optional, Protocol
+
 import Py4GW
 from Py4GWCoreLib import Player, GLOBAL_CACHE, SpiritModelID, Timer, Agent, Routines, Range, Allegiance, AgentArray
 from Py4GWCoreLib import Weapon, Effects
 from Py4GWCoreLib.enums import SPIRIT_BUFF_MAP, ModelID
 from .custom_skill import CustomSkillClass
-from .targeting import TargetLowestAlly, TargetLowestAllyEnergy, TargetClusteredEnemy, TargetLowestAllyCaster, TargetLowestAllyMartial, TargetLowestAllyMelee, TargetLowestAllyRanged, GetAllAlliesArray, TargetAllyWeaponSpell, TargetMinionOrAllyNonEnchanted, TargetMinionNonEnchanted, TargetAllyNonEnchanted, TargetDeadPartyMember, IsResurrectablePartyMember
+from .targeting import TargetLowestAlly, TargetLowestAllyEnergy, TargetClusteredEnemy, TargetLowestAllyCaster, TargetLowestAllyMartial, TargetLowestAllyMelee, TargetLowestAllyRanged, GetAllAlliesArray, TargetAllyWeaponSpell, TargetMinionOrAllyNonEnchanted, TargetMinionNonEnchanted, TargetAllyNonEnchanted, TargetAllyNonWeaponSpelled, TargetDeadPartyMember, IsResurrectablePartyMember
 from .targeting import GetEnemyAttacking, GetEnemyCasting, GetEnemyCastingSpell, GetEnemyCastingSpellOrChant, GetEnemyInjured, GetEnemyConditioned, GetEnemyHealthy
 from .targeting import GetEnemyHexed, GetEnemyDegenHexed, GetEnemyEnchanted, GetEnemyMoving, GetEnemyKnockedDown
 from .targeting import GetEnemyBleeding, GetEnemyPoisoned, GetEnemyCrippled
@@ -13,7 +16,6 @@ from .types import SkillNature, Skilltarget, SkillType
 from .constants import MAX_NUM_PLAYERS
 from .call_target import CallTarget
 from .settings import Settings
-from typing import TYPE_CHECKING, Optional, Protocol
 
 from Py4GWCoreLib.enums_src.GameData_enums import Profession
 
@@ -26,9 +28,25 @@ if TYPE_CHECKING:
 MAX_SKILLS = 8
 custom_skill_data_handler = CustomSkillClass()
 
+MapSignature = tuple[int, int, int, int, int] | None
+
+
+@dataclass(frozen=True)
+class PendingExploitableCorpseCast:
+    target_agent_id: int
+    model_id: int
+    skill_id: int
+    slot_number: int
+    wait_ms: int
+    map_signature: MapSignature
+    saw_cast_start: bool = False
+
 class SkillbarDataLike(Protocol):
-    recharge: int
-    adrenaline_a: int
+    @property
+    def recharge(self) -> int: ...
+
+    @property
+    def adrenaline_a(self) -> int: ...
 
 SPIRIT_BUFF_SKILL_IDS: frozenset[int] = frozenset(
     int(skill_id)
@@ -104,6 +122,9 @@ class CombatClass:
         self.oldCalledTarget: int = 0
         self.auto_call_target_id: int = 0
         self.auto_call_target_called: bool = False
+        self.pending_exploitable_corpse_cast: PendingExploitableCorpseCast | None = None
+        self.pending_exploitable_corpse_timer = Timer()
+        self.pending_exploitable_corpse_timer.Start()
 
         self.in_aggro: bool = False
         self.is_targeting_enabled: bool = False
@@ -442,11 +463,76 @@ class CombatClass:
         return self.skills[slot].skill_id not in self.blocked_skill_ids
         
     def InCastingRoutine(self) -> bool:
+        self._check_pending_exploitable_corpse_cast()
+
         if self.aftercast_timer.HasElapsed(self.aftercast):
             self.in_casting_routine = False
             self.aftercast_timer.Reset()
 
         return self.in_casting_routine
+
+    def _check_pending_exploitable_corpse_cast(self) -> None:
+        pending = self.pending_exploitable_corpse_cast
+        if not pending:
+            return
+
+        if pending.map_signature != Routines.Agents.GetExploitableCorpseFailSignature():
+            self.pending_exploitable_corpse_cast = None
+            return
+
+        player_id = Player.GetAgentID()
+        if Agent.IsCasting(player_id) or (GLOBAL_CACHE.SkillBar.GetCasting() or 0):
+            if not pending.saw_cast_start:
+                self.pending_exploitable_corpse_cast = PendingExploitableCorpseCast(
+                    target_agent_id=pending.target_agent_id,
+                    model_id=pending.model_id,
+                    skill_id=pending.skill_id,
+                    slot_number=pending.slot_number,
+                    wait_ms=pending.wait_ms,
+                    map_signature=pending.map_signature,
+                    saw_cast_start=True,
+                )
+            return
+
+        if not self.pending_exploitable_corpse_timer.HasElapsed(pending.wait_ms):
+            return
+
+        if pending.saw_cast_start:
+            self.pending_exploitable_corpse_cast = None
+            return
+
+        Routines.Agents.MarkExploitableCorpseCastFailed(
+            agent_id=pending.target_agent_id,
+            model_id=pending.model_id,
+            skill_id=pending.skill_id,
+            reason="cast_never_started",
+        )
+        self.pending_exploitable_corpse_cast = None
+
+    def _track_exploitable_corpse_cast_attempt(self, slot: int, target_agent_id: int) -> None:
+        skill = self.skills[slot]
+        if skill.custom_skill_data.TargetAllegiance != Skilltarget.ExploitableCorpse.value:
+            return
+
+        if not target_agent_id:
+            self.pending_exploitable_corpse_cast = None
+            return
+
+        skill_id = skill.skill_id
+        try:
+            activation_ms = int(max(0.0, GLOBAL_CACHE.Skill.Data.GetActivation(skill_id)) * 1000)
+        except Exception:
+            activation_ms = 0
+
+        self.pending_exploitable_corpse_cast = PendingExploitableCorpseCast(
+            target_agent_id=target_agent_id,
+            model_id=Agent.GetModelID(target_agent_id),
+            skill_id=skill_id,
+            slot_number=self.skill_order[slot] + 1,
+            wait_ms=max(700, min(activation_ms + 250, 2500)),
+            map_signature=Routines.Agents.GetExploitableCorpseFailSignature(),
+        )
+        self.pending_exploitable_corpse_timer.Reset()
  
     def GetPartyTargetID(self) -> int:
         if not GLOBAL_CACHE.Party.IsPartyLoaded():
@@ -685,6 +771,8 @@ class CombatClass:
             v_target = TargetMinionNonEnchanted()
         elif target_allegiance == Skilltarget.AllyNonEnchanted:
             v_target = TargetAllyNonEnchanted()
+        elif target_allegiance == Skilltarget.NonWeaponSpelledAlly:
+            v_target = Player.GetAgentID() if TargetAllyNonWeaponSpelled() else 0
         elif target_allegiance == Skilltarget.Corpse:
             v_target = Routines.Agents.GetNearestCorpse(Range.Spellcast.value)
         elif target_allegiance == Skilltarget.ExploitableCorpse:
@@ -1277,6 +1365,7 @@ class CombatClass:
         skillbar_data = skill.skillbar_data
         skill_id = skill.skill_id
         conditions = skill.custom_skill_data.Conditions
+        target_allegiance = skill.custom_skill_data.TargetAllegiance
 
         # Check if no skill is assigned to the slot
         if skill_id == 0:
@@ -1379,7 +1468,10 @@ class CombatClass:
             skill_type == SkillType.WeaponSpell.value
             and conditions.AllowOverlapWeaponSpell
         )
-        if self.HasEffect(v_target, skill_id, exact_weapon_spell=exact_weapon_spell):
+        if (
+            target_allegiance != Skilltarget.NonWeaponSpelledAlly.value
+            and self.HasEffect(v_target, skill_id, exact_weapon_spell=exact_weapon_spell)
+        ):
             self.in_casting_routine = False
             return False, v_target
 
@@ -1576,6 +1668,8 @@ class CombatClass:
         """
         Execute the first castable skill in the prioritized skill order.
         """
+        self._check_pending_exploitable_corpse_cast()
+
         slot, target_agent_id = self.FindCastableSkill(ooc=ooc)
         if slot < 0:
             self.ResetSkillPointer()
@@ -1597,6 +1691,7 @@ class CombatClass:
 
         self.aftercast_timer.Reset()
         self.MaybeCallCombatTarget(target_agent_id, cached_data)
+        self._track_exploitable_corpse_cast_attempt(slot, target_agent_id)
         GLOBAL_CACHE.SkillBar.UseSkill(self.skill_order[slot]+1, target_agent_id, aftercast_delay=self.aftercast)
         self.ResetSkillPointer()
         return True

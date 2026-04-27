@@ -95,19 +95,17 @@ def execute_follower_follow(
         Weapon.Scythe.value,
         Weapon.Sword.value,
     }
+
+    if party_in_aggro and is_melee:
+        state.last_follow_move_point = None
+        cached_data.follow_throttle_timer.Reset()
+        return BehaviorTree.NodeState.FAILURE
+
     if party_in_aggro:
         if combat_threshold_raw >= 0.0:
             follow_distance = max(0.0, combat_threshold_raw)
         else:
             follow_distance = max(0.0, follow_threshold_raw)
-
-        if is_melee and not own_flag_active and not all_flag_active:
-            own_account = cached_data.account_data
-            leader_account = cached_data.party.get_by_party_pos(0)
-            if leader_account is not None and int(own_account.AgentData.AgentID) != 0:
-                leader_distance = Utils.Distance(_cached_xy(leader_account), _cached_xy(own_account))
-                if leader_distance <= follow_distance:
-                    return BehaviorTree.NodeState.FAILURE
     else:
         follow_distance = max(0.0, follow_threshold_raw)
 

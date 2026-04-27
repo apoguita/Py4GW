@@ -796,7 +796,9 @@ class AgentLivingStruct(AgentStruct):
     @property
     def is_exploitable(self) -> bool:
         """Return True if the corpse can still be exploited."""
-        return self.is_dead_by_type_map and self.is_dead and (self.effects & 0x0004) == 0
+        if not self.is_dead_by_type_map:
+            return False
+        return self.effects == 0x00000010 and self.model_state == 1088 and self.max_hp > 0
     @property
     def is_female(self) -> bool:
         """Return True if the agent is female."""

@@ -2,7 +2,7 @@ from HeroAI.custom_skill import CustomSkillClass
 from HeroAI.types import SkillType,SkillNature, Skilltarget
 
 from HeroAI.targeting import TargetLowestAlly, TargetLowestAllyEnergy, TargetClusteredEnemy, TargetLowestAllyCaster, TargetLowestAllyMartial, TargetLowestAllyMelee, TargetLowestAllyRanged, GetAllAlliesArray
-from HeroAI.targeting import TargetMinionOrAllyNonEnchanted, TargetMinionNonEnchanted, TargetAllyNonEnchanted
+from HeroAI.targeting import TargetMinionOrAllyNonEnchanted, TargetMinionNonEnchanted, TargetAllyNonEnchanted, TargetAllyNonWeaponSpelled
 from HeroAI.targeting import GetEnemyAttacking, GetEnemyCasting, GetEnemyCastingSpell, GetEnemyInjured, GetEnemyConditioned, GetEnemyHealthy
 from HeroAI.targeting import GetEnemyHexed, GetEnemyDegenHexed, GetEnemyEnchanted, GetEnemyMoving, GetEnemyKnockedDown
 from HeroAI.targeting import GetEnemyBleeding, GetEnemyPoisoned, GetEnemyCrippled
@@ -444,6 +444,8 @@ def _GetAppropiateTarget(
             v_target = TargetMinionNonEnchanted()
         elif target_allegiance == Skilltarget.AllyNonEnchanted:
             v_target = TargetAllyNonEnchanted()
+        elif target_allegiance == Skilltarget.NonWeaponSpelledAlly:
+            v_target = Player.GetAgentID() if TargetAllyNonWeaponSpelled() else 0
         elif target_allegiance == Skilltarget.Corpse:
             v_target = Routines.Agents.GetNearestCorpse(Range.Spellcast.value)
         elif target_allegiance == Skilltarget.ExploitableCorpse:
@@ -1491,6 +1493,8 @@ class SkillManager:
                 v_target = TargetMinionNonEnchanted()
             elif target_allegiance == Skilltarget.AllyNonEnchanted:
                 v_target = TargetAllyNonEnchanted()
+            elif target_allegiance == Skilltarget.NonWeaponSpelledAlly:
+                v_target = Player.GetAgentID() if TargetAllyNonWeaponSpelled() else 0
             elif target_allegiance == Skilltarget.Corpse:
                 v_target = Routines.Agents.GetNearestCorpse(Range.Spellcast.value)
             elif target_allegiance == Skilltarget.ExploitableCorpse:
@@ -2064,7 +2068,11 @@ class SkillManager:
                 self.in_casting_routine = False
                 return False, v_target
 
-            if self.HasEffect(v_target, self.skills[slot].skill_id):
+            target_allegiance = self.skills[slot].custom_skill_data.TargetAllegiance
+            if (
+                target_allegiance != Skilltarget.NonWeaponSpelledAlly.value
+                and self.HasEffect(v_target, self.skills[slot].skill_id)
+            ):
                 self.in_casting_routine = False
                 return False, v_target
 

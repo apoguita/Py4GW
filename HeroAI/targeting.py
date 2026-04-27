@@ -163,6 +163,20 @@ def TargetAllyNonEnchanted(distance=Range.Spellcast.value):
     return Utils.GetFirstFromArray(ally_array)
 
 
+def TargetAllyNonWeaponSpelled(distance=Range.Earshot.value):
+    ally_array = AgentArray.GetAllyArray()
+    ally_array = FilterAllyArray(ally_array, distance, False, 0)
+
+    spirit_pet_array = AgentArray.GetSpiritPetArray()
+    spirit_pet_array = FilterAllyArray(spirit_pet_array, distance, False, 0)
+    spirit_pet_array = AgentArray.Filter.ByCondition(spirit_pet_array, lambda agent_id: not Agent.IsSpawned(agent_id))
+    ally_array = AgentArray.Manipulation.Merge(ally_array, spirit_pet_array)
+
+    ally_array = AgentArray.Filter.ByCondition(ally_array, lambda agent_id: not Agent.IsWeaponSpelled(agent_id))
+    ally_array = SortAlliesByLowestHp(ally_array)
+    return Utils.GetFirstFromArray(ally_array)
+
+
 def TargetLowestAllyEnergy(other_ally=False, filter_skill_id=0, less_energy=1.0):
     global BLOOD_IS_POWER, BLOOD_RITUAL
     from .utils import (CheckForEffect, GetEnergyValues)

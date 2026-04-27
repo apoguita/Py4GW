@@ -1,0 +1,561 @@
+{
+  "models": {
+    "6528": {
+      "count": 5,
+      "fields": {
+        "anim_code": [
+          "3259067528"
+        ],
+        "anim_id": [
+          "11"
+        ],
+        "animation_speed": [
+          "4.333"
+        ],
+        "base_h0092": [
+          "0x0000",
+          "0x0008"
+        ],
+        "base_h0094": [
+          "(1065353216, 0)"
+        ],
+        "base_name_properties": [
+          "0x00000402"
+        ],
+        "base_size": [
+          "(120.64, 218.437, 120.64, 218.437)"
+        ],
+        "base_visual_effects": [
+          "0x0000",
+          "0x0004"
+        ],
+        "condition_bits": [
+          "0x00000000"
+        ],
+        "effects": [
+          "0x00000080"
+        ],
+        "equip_maps": [
+          "(9, 0, 9, 9)"
+        ],
+        "equipment": [
+          "True"
+        ],
+        "h00D4_2": [
+          "17"
+        ],
+        "h00E4_0": [
+          "0x286DB480",
+          "0x585C6B78"
+        ],
+        "model_state": [
+          "76"
+        ],
+        "offhand_item_type": [
+          "101",
+          "38",
+          "97"
+        ],
+        "spirit_type": [
+          "False"
+        ],
+        "tag_data": [
+          "(0, 0, 0, 28)"
+        ],
+        "type_map": [
+          "0x00000000"
+        ],
+        "weapon_attack_speed": [
+          "0.0"
+        ],
+        "weapon_item_type": [
+          "46"
+        ],
+        "weapon_type": [
+          "0"
+        ]
+      },
+      "label": "non_fleshy",
+      "model_id": 6528,
+      "name": "Avalanche"
+    },
+    "6529": {
+      "count": 15,
+      "fields": {
+        "anim_code": [
+          "3259067528"
+        ],
+        "anim_id": [
+          "20"
+        ],
+        "animation_speed": [
+          "2.333"
+        ],
+        "base_h0092": [
+          "0x0000",
+          "0x0004",
+          "0x0008",
+          "0x000C",
+          "0x000D"
+        ],
+        "base_h0094": [
+          "(1065353216, 0)"
+        ],
+        "base_name_properties": [
+          "0x00000402"
+        ],
+        "base_size": [
+          "(85.256, 155.464, 32.749, 132.838)"
+        ],
+        "base_visual_effects": [
+          "0x0000",
+          "0x0001",
+          "0x0004"
+        ],
+        "condition_bits": [
+          "0x00000000"
+        ],
+        "effects": [
+          "0x00000080"
+        ],
+        "equip_maps": [
+          "(9, 0, 9, 9)"
+        ],
+        "equipment": [
+          "True"
+        ],
+        "h00D4_2": [
+          "17"
+        ],
+        "h00E4_0": [
+          "0x26B0B058",
+          "0x62F2C898",
+          "0x6BD53008"
+        ],
+        "model_state": [
+          "76"
+        ],
+        "offhand_item_type": [
+          "0",
+          "14",
+          "211",
+          "213",
+          "239",
+          "25",
+          "255",
+          "75",
+          "93",
+          "97"
+        ],
+        "spirit_type": [
+          "False"
+        ],
+        "tag_data": [
+          "(0, 0, 0, 24)"
+        ],
+        "type_map": [
+          "0x00000000",
+          "0x00000001"
+        ],
+        "weapon_attack_speed": [
+          "0.0"
+        ],
+        "weapon_item_type": [
+          "46"
+        ],
+        "weapon_type": [
+          "0"
+        ]
+      },
+      "label": "non_fleshy",
+      "model_id": 6529,
+      "name": "Frozen Elemental"
+    },
+    "6531": {
+      "count": 1,
+      "fields": {
+        "anim_code": [
+          "3259067516"
+        ],
+        "anim_id": [
+          "25"
+        ],
+        "animation_speed": [
+          "1.667"
+        ],
+        "base_h0092": [
+          "0x0000"
+        ],
+        "base_h0094": [
+          "(1065353216, 0)"
+        ],
+        "base_name_properties": [
+          "0x00004402"
+        ],
+        "base_size": [
+          "(56.9, 204.967, 56.9, 204.967)"
+        ],
+        "base_visual_effects": [
+          "0x0000"
+        ],
+        "condition_bits": [
+          "0x00000000"
+        ],
+        "effects": [
+          "0x00000000"
+        ],
+        "equip_maps": [
+          "(0, 9, 9, 9)"
+        ],
+        "equipment": [
+          "True"
+        ],
+        "h00D4_2": [
+          "17"
+        ],
+        "h00E4_0": [
+          "0x5D209AA8"
+        ],
+        "model_state": [
+          "76"
+        ],
+        "offhand_item_type": [
+          "110"
+        ],
+        "spirit_type": [
+          "False"
+        ],
+        "tag_data": [
+          "(0, 0, 0, 28)"
+        ],
+        "type_map": [
+          "0x00000000"
+        ],
+        "weapon_attack_speed": [
+          "0.0"
+        ],
+        "weapon_item_type": [
+          "46"
+        ],
+        "weapon_type": [
+          "3"
+        ]
+      },
+      "label": "fleshy",
+      "model_id": 6531,
+      "name": "Jotun Skullsmasher"
+    },
+    "6532": {
+      "count": 2,
+      "fields": {
+        "anim_code": [
+          "3259067528"
+        ],
+        "anim_id": [
+          "26"
+        ],
+        "animation_speed": [
+          "1.667"
+        ],
+        "base_h0092": [
+          "0x0000",
+          "0x000B"
+        ],
+        "base_h0094": [
+          "(1065353216, 0)"
+        ],
+        "base_name_properties": [
+          "0x00000402"
+        ],
+        "base_size": [
+          "(56.9, 204.967, 56.9, 204.967)"
+        ],
+        "base_visual_effects": [
+          "0x0000",
+          "0x0002"
+        ],
+        "condition_bits": [
+          "0x00000000"
+        ],
+        "effects": [
+          "0x00000000"
+        ],
+        "equip_maps": [
+          "(9, 0, 9, 9)"
+        ],
+        "equipment": [
+          "True"
+        ],
+        "h00D4_2": [
+          "17"
+        ],
+        "h00E4_0": [
+          "0x5D209AA8"
+        ],
+        "model_state": [
+          "76"
+        ],
+        "offhand_item_type": [
+          "0",
+          "255"
+        ],
+        "spirit_type": [
+          "False"
+        ],
+        "tag_data": [
+          "(0, 0, 0, 28)"
+        ],
+        "type_map": [
+          "0x00000000"
+        ],
+        "weapon_attack_speed": [
+          "0.0"
+        ],
+        "weapon_item_type": [
+          "46"
+        ],
+        "weapon_type": [
+          "3"
+        ]
+      },
+      "label": "fleshy",
+      "model_id": 6532,
+      "name": "Jotun Mindbreaker"
+    },
+    "6533": {
+      "count": 2,
+      "fields": {
+        "anim_code": [
+          "3259067528"
+        ],
+        "anim_id": [
+          "26"
+        ],
+        "animation_speed": [
+          "1.667"
+        ],
+        "base_h0092": [
+          "0x0000",
+          "0x0007"
+        ],
+        "base_h0094": [
+          "(1065353216, 0)"
+        ],
+        "base_name_properties": [
+          "0x00000402",
+          "0x00004402"
+        ],
+        "base_size": [
+          "(56.9, 204.967, 56.9, 204.967)"
+        ],
+        "base_visual_effects": [
+          "0x0000",
+          "0x0002"
+        ],
+        "condition_bits": [
+          "0x00000000"
+        ],
+        "effects": [
+          "0x00000000"
+        ],
+        "equip_maps": [
+          "(9, 0, 9, 9)"
+        ],
+        "equipment": [
+          "True"
+        ],
+        "h00D4_2": [
+          "17"
+        ],
+        "h00E4_0": [
+          "0x5D209AA8"
+        ],
+        "model_state": [
+          "76"
+        ],
+        "offhand_item_type": [
+          "0",
+          "85"
+        ],
+        "spirit_type": [
+          "False"
+        ],
+        "tag_data": [
+          "(0, 0, 0, 28)"
+        ],
+        "type_map": [
+          "0x00000000"
+        ],
+        "weapon_attack_speed": [
+          "0.0"
+        ],
+        "weapon_item_type": [
+          "46"
+        ],
+        "weapon_type": [
+          "3"
+        ]
+      },
+      "label": "fleshy",
+      "model_id": 6533,
+      "name": "Jotun Bladeturner"
+    },
+    "6534": {
+      "count": 1,
+      "fields": {
+        "anim_code": [
+          "3259067516"
+        ],
+        "anim_id": [
+          "25"
+        ],
+        "animation_speed": [
+          "1.667"
+        ],
+        "base_h0092": [
+          "0x0009"
+        ],
+        "base_h0094": [
+          "(1065353216, 0)"
+        ],
+        "base_name_properties": [
+          "0x00000402"
+        ],
+        "base_size": [
+          "(56.9, 204.967, 56.9, 204.967)"
+        ],
+        "base_visual_effects": [
+          "0x0002"
+        ],
+        "condition_bits": [
+          "0x00000000"
+        ],
+        "effects": [
+          "0x00000000"
+        ],
+        "equip_maps": [
+          "(0, 9, 9, 9)"
+        ],
+        "equipment": [
+          "True"
+        ],
+        "h00D4_2": [
+          "17"
+        ],
+        "h00E4_0": [
+          "0x5D209AA8"
+        ],
+        "model_state": [
+          "76"
+        ],
+        "offhand_item_type": [
+          "255"
+        ],
+        "spirit_type": [
+          "False"
+        ],
+        "tag_data": [
+          "(0, 0, 0, 28)"
+        ],
+        "type_map": [
+          "0x00000000"
+        ],
+        "weapon_attack_speed": [
+          "0.0"
+        ],
+        "weapon_item_type": [
+          "46"
+        ],
+        "weapon_type": [
+          "3"
+        ]
+      },
+      "label": "fleshy",
+      "model_id": 6534,
+      "name": "Jotun Bloodcurdler"
+    },
+    "6541": {
+      "count": 3,
+      "fields": {
+        "anim_code": [
+          "2307259448",
+          "3259067528"
+        ],
+        "anim_id": [
+          "11",
+          "9"
+        ],
+        "animation_speed": [
+          "1.667",
+          "3.333"
+        ],
+        "base_h0092": [
+          "0x0003",
+          "0x0008",
+          "0x000A"
+        ],
+        "base_h0094": [
+          "(1065353216, 0)"
+        ],
+        "base_name_properties": [
+          "0x00000402"
+        ],
+        "base_size": [
+          "(51.783, 140.008, 51.783, 140.008)"
+        ],
+        "base_visual_effects": [
+          "0x0002"
+        ],
+        "condition_bits": [
+          "0x00000000"
+        ],
+        "effects": [
+          "0x00000000"
+        ],
+        "equip_maps": [
+          "(9, 0, 9, 9)"
+        ],
+        "equipment": [
+          "True"
+        ],
+        "h00D4_2": [
+          "17",
+          "2",
+          "6"
+        ],
+        "h00E4_0": [
+          "0x5D20C898"
+        ],
+        "model_state": [
+          "64",
+          "68",
+          "76"
+        ],
+        "offhand_item_type": [
+          "0"
+        ],
+        "spirit_type": [
+          "False"
+        ],
+        "tag_data": [
+          "(0, 0, 0, 20)"
+        ],
+        "type_map": [
+          "0x00000000"
+        ],
+        "weapon_attack_speed": [
+          "0.0"
+        ],
+        "weapon_item_type": [
+          "46"
+        ],
+        "weapon_type": [
+          "0"
+        ]
+      },
+      "label": "non_fleshy",
+      "model_id": 6541,
+      "name": "Spectral Vaettir"
+    }
+  }
+}
