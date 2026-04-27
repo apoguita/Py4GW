@@ -11,8 +11,6 @@ Consumed by two evaluators:
 
 from __future__ import annotations
 
-from typing import Iterable
-
 import Py4GW
 from Py4GWCoreLib import (
     GLOBAL_CACHE,
@@ -169,12 +167,6 @@ def is_classified_as_interrupt(skill_id: int) -> bool:
     if not skill_id:
         return False
     return skill_id in _ensure_registry()
-
-
-def register_interrupt_skills(skill_ids: Iterable[int]) -> None:
-    """Manual registry override — for tests/whitelisting. Production picks
-    up ``custom_skill_src/`` tags automatically."""
-    _ensure_registry().update(int(s) for s in skill_ids if s)
 
 
 # --- CastObserver: per-frame sampler ---
@@ -534,14 +526,12 @@ def _calc_attack_skill_activation_ms(
     # Flight time only for bows. Bow subtype isn't exposed by Py4GW —
     # every bow is treated as Recurve (0.42 ms/gw).
     flight_ms = 0
-    weapon_kind = "non-bow"
     try:
         weapon_type, _ = Agent.GetWeaponType(player_id)
     except Exception:
         weapon_type = 0
     if weapon_type == 1:  # Weapon.Bow
         flight_ms = int(distance_gw * _BOW_FLIGHT_MS_PER_GW)
-        weapon_kind = "bow (recurve assumed)"
 
     total_ms = release_ms + flight_ms
 
@@ -551,7 +541,7 @@ def _calc_attack_skill_activation_ms(
         f"release={release_ms}ms",
     ]
     if flight_ms > 0:
-        breakdown.append(f"flight={flight_ms}ms ({weapon_kind})")
+        breakdown.append(f"flight={flight_ms}ms (bow recurve assumed)")
         breakdown.append(f"impact={total_ms}ms")
 
     return total_ms, release_ms, flight_ms, ias_modifier, breakdown
