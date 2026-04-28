@@ -75,6 +75,20 @@ class HeroAI_BaseUI:
     _supported_build_selected_skill_id = 0
     _supported_build_last_detail_key = ""
     _supported_builds_cache: dict[str, dict[str, object]] = {}
+    _team_viewer_anonymize = False
+    _team_viewer_timer = ThrottledTimer(750)
+    _team_viewer_rows: list[tuple[int, str, str, int, int, dict, tuple[int, ...], str]] = []
+    _team_viewer_parse_cache: dict[str, tuple[str, tuple[int, int, dict, list]]] = {}
+    _team_viewer_aliases: tuple[str, ...] = (
+        "Gaile Gray",
+        "Regina Buenaobra",
+        "Emily Diehl",
+        "Andrew Patrick",
+        "Linsey Murdock",
+        "Joe Kimmes",
+        "Michael Gills",
+        "Isaiah Cartwright",
+    )
     _flag_map_signature = None
     _profession_palette_names = {
         1: "GW_Warrior",
@@ -1133,11 +1147,235 @@ class HeroAI_BaseUI:
             PyImGui.end_child()
 
     @staticmethod
+    def _get_team_viewer_display_name(party_pos: int, character_name: str) -> str:
+        if not HeroAI_BaseUI._team_viewer_anonymize:
+            return character_name
+        aliases = HeroAI_BaseUI._team_viewer_aliases
+        if 0 <= party_pos < len(aliases):
+            return aliases[party_pos]
+        return character_name
+
+    @staticmethod
+    def _refresh_team_viewer_rows(cached_data: CacheData) -> None:
+        if not HeroAI_BaseUI._team_viewer_timer.IsExpired() and HeroAI_BaseUI._team_viewer_rows:
+            return
+
+        from HeroAI import team_viewer_broadcast
+
+        rows: list[tuple[int, str, str, int, int, dict, tuple[int, ...], str]] = []
+        sorted_accounts = sorted(
+            cached_data.party.accounts.values(),
+            key=lambda acc: acc.AgentPartyData.PartyPosition,
+        )
+        active_emails: set[str] = set()
+        seen_positions: set[int] = set()
+
+        current_party_id = int(GLOBAL_CACHE.Party.GetPartyID() or 0)
+        try:
+            current_email = str(Player.GetAccountEmail() or "")
+        except Exception:
+            current_email = ""
+
+        for account in sorted_accounts:
+            if not account or not account.IsSlotActive:
+                continue
+            if account.IsPet or account.IsNPC:
+                continue
+
+            account_party_id = int(account.AgentPartyData.PartyID)
+            email = str(getattr(account, "AccountEmail", "") or "")
+            is_self = bool(email) and email == current_email
+
+            if is_self:
+                if current_party_id > 0 and account_party_id != current_party_id:
+                    continue
+            else:
+                if account_party_id == 0 or account_party_id != current_party_id:
+                    continue
+
+            party_pos = int(account.AgentPartyData.PartyPosition)
+            if party_pos in seen_positions:
+                continue
+            seen_positions.add(party_pos)
+
+            active_emails.add(email)
+            character_name = str(account.AgentData.CharacterName)
+
+            template_code = team_viewer_broadcast.get_template_for_email(email) or ""
+            parsed: tuple[int, int, dict, list] | None = None
+            if template_code:
+                cached = HeroAI_BaseUI._team_viewer_parse_cache.get(email)
+                if cached is not None and cached[0] == template_code:
+                    parsed = cached[1]
+                else:
+                    try:
+                        parsed = Utils.ParseSkillbarTemplate(template_code)
+                        HeroAI_BaseUI._team_viewer_parse_cache[email] = (template_code, parsed)
+                    except Exception:
+                        parsed = None
+
+            if parsed is not None:
+                primary_value = int(parsed[0])
+                secondary_value = int(parsed[1])
+                attributes: dict = dict(parsed[2] or {})
+                raw_skills = list(parsed[3] or [])
+            else:
+                primary_value = int(account.AgentData.Profession[0])
+                secondary_value = int(account.AgentData.Profession[1])
+                attributes = {}
+                raw_skills = [int(skill.Id) for skill in account.AgentData.Skillbar.Skills]
+
+            skills = [int(s) for s in raw_skills[:8]]
+            while len(skills) < 8:
+                skills.append(0)
+
+            rows.append((
+                party_pos,
+                character_name,
+                email,
+                primary_value,
+                secondary_value,
+                attributes,
+                tuple(skills),
+                template_code,
+            ))
+
+        stale_emails = [e for e in HeroAI_BaseUI._team_viewer_parse_cache if e not in active_emails]
+        for stale_email in stale_emails:
+            HeroAI_BaseUI._team_viewer_parse_cache.pop(stale_email, None)
+
+        HeroAI_BaseUI._team_viewer_rows = rows
+        HeroAI_BaseUI._team_viewer_timer.Reset()
+
+    @staticmethod
+    def _apply_team_viewer_template(target_email: str, template_code: str) -> None:
+        if not target_email or not template_code:
+            return
+        try:
+            from Py4GWCoreLib.Player import Player
+
+            sender_email = Player.GetAccountEmail() or ""
+            chunk_size = 29
+            chunks = [template_code[i:i + chunk_size] for i in range(0, len(template_code), chunk_size)]
+            while len(chunks) < 4:
+                chunks.append("")
+            GLOBAL_CACHE.ShMem.SendMessage(
+                sender_email,
+                target_email,
+                SharedCommandType.LoadSkillTemplate,
+                (0.0, 0.0, 0.0, 0.0),
+                (chunks[0], chunks[1], chunks[2], chunks[3]),
+            )
+        except Exception as exc:
+            ConsoleLog("HeroAI", f"Team Viewer apply failed: {exc!r}")
+
+    @staticmethod
+    def _format_team_viewer_attributes(attributes: dict) -> str:
+        from Py4GWCoreLib.enums_src.GameData_enums import Attribute, AttributeNames
+
+        if not attributes:
+            return "No attributes"
+        parts: list[str] = []
+        for attr_id, level in attributes.items():
+            if not level:
+                continue
+            try:
+                name = AttributeNames.get(Attribute(int(attr_id)), f"Attr {attr_id}")
+            except Exception:
+                name = f"Attr {attr_id}"
+            parts.append(f"{name} {int(level)}")
+        return " | ".join(parts) if parts else "No attributes"
+
+    @staticmethod
+    def _draw_team_viewer_tab(cached_data: CacheData) -> None:
+        toggle_label = "Anonymize Names: ON" if HeroAI_BaseUI._team_viewer_anonymize else "Anonymize Names: OFF"
+        if PyImGui.button(f"{toggle_label}##team_viewer_anonymize"):
+            HeroAI_BaseUI._team_viewer_anonymize = not HeroAI_BaseUI._team_viewer_anonymize
+        PyImGui.separator()
+
+        if not HeroAI_BaseUI._team_viewer_rows:
+            PyImGui.text("No party accounts available.")
+            return
+
+        skill_icon_size = 50
+        name_box_width = 150
+        row_height = 140
+
+        for party_pos, character_name, email, primary_value, secondary_value, attributes, skills_tuple, template_code in HeroAI_BaseUI._team_viewer_rows:
+            display_name = HeroAI_BaseUI._get_team_viewer_display_name(party_pos, character_name)
+            skills = list(skills_tuple)
+            primary_label = HeroAI_BaseUI._profession_label(primary_value)
+            secondary_label = HeroAI_BaseUI._profession_label(secondary_value)
+
+            if PyImGui.begin_child(f"TVName_{party_pos}", (name_box_width, row_height), True, PyImGui.WindowFlags.NoFlag):
+                name_inner_y = PyImGui.get_cursor_pos_y()
+                PyImGui.set_cursor_pos_y(name_inner_y + max(0, (row_height - 40) // 2))
+                ImGui.push_font("Bold", 16)
+                PyImGui.text(f"{party_pos + 1}. {display_name}")
+                ImGui.pop_font()
+            PyImGui.end_child()
+
+            PyImGui.same_line(0, 6)
+
+            if PyImGui.begin_child(f"TVDetails_{party_pos}", (0, row_height), True, PyImGui.WindowFlags.NoFlag):
+                PyImGui.text_colored(primary_label, HeroAI_BaseUI._profession_color(primary_value).to_tuple_normalized())
+                if secondary_label:
+                    PyImGui.same_line(0, 8)
+                    PyImGui.text("/")
+                    PyImGui.same_line(0, 8)
+                    PyImGui.text_colored(secondary_label, HeroAI_BaseUI._profession_color(secondary_value).to_tuple_normalized())
+
+                PyImGui.text("Attributes:")
+                PyImGui.same_line(0, 8)
+                attr_text = HeroAI_BaseUI._format_team_viewer_attributes(attributes)
+                attr_color = ColorPalette.GetColor("white") if attributes else ColorPalette.GetColor("gray")
+                PyImGui.text_colored(attr_text, attr_color.to_tuple_normalized())
+
+                PyImGui.text("Template:")
+                PyImGui.same_line(0, 8)
+                if template_code:
+                    PyImGui.text_colored(template_code, ColorPalette.GetColor("white").to_tuple_normalized())
+                else:
+                    PyImGui.text_colored("(unavailable)", ColorPalette.GetColor("gray").to_tuple_normalized())
+
+                skill_row_y = PyImGui.get_cursor_pos_y()
+                for skill_index, skill_id in enumerate(skills[:8]):
+                    skill_id_int = int(skill_id)
+                    slot_label = skill_index + 1
+                    if skill_id_int != 0:
+                        texture_path = GLOBAL_CACHE.Skill.ExtraData.GetTexturePath(skill_id_int)
+                        if texture_path:
+                            ImGui.DrawTexture(texture_path, skill_icon_size, skill_icon_size)
+                        else:
+                            PyImGui.button(f"?##tv_skill_{party_pos}_{skill_index}", skill_icon_size, skill_icon_size)
+                        if PyImGui.is_item_hovered():
+                            PyImGui.begin_tooltip()
+                            HeroAI_BaseUI._draw_skill_info_card(skill_id_int, tooltip=True)
+                            PyImGui.end_tooltip()
+                    else:
+                        PyImGui.button(f"Empty##tv_empty_{party_pos}_{skill_index}", skill_icon_size, skill_icon_size)
+                        if PyImGui.is_item_hovered():
+                            PyImGui.begin_tooltip()
+                            PyImGui.text(f"Slot {slot_label}: Empty")
+                            PyImGui.end_tooltip()
+                    PyImGui.same_line(0, 5)
+
+                button_y_offset = max(0, (skill_icon_size - 24) // 2)
+                PyImGui.set_cursor_pos_y(skill_row_y + button_y_offset)
+                copy_disabled = not template_code
+                PyImGui.begin_disabled(copy_disabled)
+                if PyImGui.button(f"Copy Template##tv_copy_{party_pos}"):
+                    PyImGui.set_clipboard_text(template_code)
+                PyImGui.end_disabled()
+            PyImGui.end_child()
+
+    @staticmethod
     def DrawBuildMatchesWindow(cached_data: CacheData):
         if not HeroAI_BaseUI.show_build_match_window:
             return
 
         HeroAI_BaseUI._refresh_build_match_rows(cached_data)
+        HeroAI_BaseUI._refresh_team_viewer_rows(cached_data)
         registry = HeroAI_BaseUI._get_build_registry()
         PyImGui.set_next_window_size((980, 720), PyImGui.ImGuiCond.FirstUseEver)
 
@@ -1154,6 +1392,10 @@ class HeroAI_BaseUI:
 
                 if PyImGui.begin_tab_item("Supported Builds"):
                     HeroAI_BaseUI._draw_supported_builds_tab(registry)
+                    PyImGui.end_tab_item()
+
+                if PyImGui.begin_tab_item("Team Viewer"):
+                    HeroAI_BaseUI._draw_team_viewer_tab(cached_data)
                     PyImGui.end_tab_item()
 
                 PyImGui.end_tab_bar()

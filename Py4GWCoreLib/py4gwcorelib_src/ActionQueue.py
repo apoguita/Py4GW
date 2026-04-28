@@ -202,6 +202,8 @@ class ActionQueueManager:
             "IDENTIFY": ActionQueueNode(150),
             "FAST": ActionQueueNode(20),
             "TRANSITION": ActionQueueNode(50),
+            # Cross-hero cast-intent whiteboard sweep/compact pass.
+            "WHITEBOARD_SWEEP": ActionQueueNode(100),
             # Add more queues here if needed
         }
         

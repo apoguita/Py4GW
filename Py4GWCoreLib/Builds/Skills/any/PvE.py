@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from Py4GWCoreLib.BuildMgr import BuildCoroutine
 from Py4GWCoreLib import Range, Routines
 from Py4GWCoreLib.Skill import Skill
+from Py4GWCoreLib.Builds.Skills._whiteboard import coordinates_via_whiteboard
 
 if TYPE_CHECKING:
     from Py4GWCoreLib.BuildMgr import BuildMgr
@@ -80,7 +81,8 @@ class PvE:
             aftercast_delay=250,
         ))
 
-    def Cry_of_Pain(self, allow_hex_fallback: bool = True) -> BuildCoroutine:
+    @coordinates_via_whiteboard(Skill.GetID("Cry_of_Pain"))
+    def Cry_of_Pain(self, require_mesmer_hex: bool = False) -> BuildCoroutine:
         from Py4GWCoreLib import Agent, GLOBAL_CACHE
 
         cry_of_pain_id: int = Skill.GetID("Cry_of_Pain")
@@ -115,26 +117,12 @@ class PvE:
         ]
         target_agent_id = self._pick_best_target(preferred_targets, aoe_range)
 
-        if not target_agent_id:
+        if not target_agent_id and not require_mesmer_hex:
             fallback_targets = [
                 agent_id for agent_id in enemy_array
                 if _is_enemy_using_skill(agent_id)
             ]
             target_agent_id = self._pick_best_target(fallback_targets, aoe_range)
-
-        if not target_agent_id and allow_hex_fallback:
-            mesmer_hex_targets = [
-                agent_id for agent_id in enemy_array
-                if _has_mesmer_hex(agent_id)
-            ]
-            target_agent_id = self._pick_best_target(mesmer_hex_targets, aoe_range)
-
-        if not target_agent_id and allow_hex_fallback:
-            hexed_targets = [
-                agent_id for agent_id in enemy_array
-                if Agent.IsHexed(agent_id)
-            ]
-            target_agent_id = self._pick_best_target(hexed_targets, aoe_range)
 
         if not target_agent_id:
             return False
@@ -156,6 +144,7 @@ class PvE:
             return (
                 Agent.IsValid(agent_id)
                 and not Agent.IsDead(agent_id)
+                and Agent.GetHealth(agent_id) > 0.3
                 and (Agent.IsHexed(agent_id) or Agent.IsConditioned(agent_id))
             )
 

@@ -1005,9 +1005,9 @@ class WarriorSkills:
         skill = CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Distracting_Strike")
         skill.SkillType = SkillType.Attack.value
-        skill.TargetAllegiance = Skilltarget.EnemyAttacking.value
+        skill.TargetAllegiance = Skilltarget.EnemyCasting.value
         skill.Nature = SkillNature.Interrupt.value
-        skill.Conditions.IsAttacking = True
+        skill.Conditions.IsCasting = True
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()

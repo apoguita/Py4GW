@@ -479,7 +479,7 @@ def TargetMeleeOrMartialClusterEnemy(
         candidates = list(enemy_array)
 
     if require_attacking:
-        candidates = [agent_id for agent_id in candidates if Agent.IsAttacking(agent_id)]
+        candidates = [agent_id for agent_id in candidates if Agent.IsInCombatStance(agent_id)]
 
     if not candidates:
         return 0

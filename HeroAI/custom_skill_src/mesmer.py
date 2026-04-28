@@ -184,7 +184,7 @@ class MesmerSkills:
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Guilt")
         skill.SkillType = SkillType.Hex.value
         skill.TargetAllegiance = Skilltarget.EnemyCastingSpell.value
-        skill.Nature = SkillNature.Interrupt.value
+        skill.Nature = SkillNature.Offensive.value
         skill.Conditions.IsCasting = True
         skill_data[skill.SkillID] = skill
 
@@ -222,7 +222,7 @@ class MesmerSkills:
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Mistrust")
         skill.SkillType = SkillType.Hex.value
         skill.TargetAllegiance = Skilltarget.EnemyCastingSpell.value
-        skill.Nature = SkillNature.Interrupt.value
+        skill.Nature = SkillNature.Offensive.value
         skill.Conditions.IsCasting = True
         skill_data[skill.SkillID] = skill
 
@@ -299,7 +299,7 @@ class MesmerSkills:
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Shame")
         skill.SkillType = SkillType.Hex.value
         skill.TargetAllegiance = Skilltarget.EnemyCastingSpell.value
-        skill.Nature = SkillNature.Interrupt.value
+        skill.Nature = SkillNature.Offensive.value
         skill.Conditions.IsCasting = True
         skill_data[skill.SkillID] = skill
 

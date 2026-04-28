@@ -32,6 +32,7 @@ class DervFeatherFarmer(BuildMgr):
             required_primary=Profession.Dervish,
             required_secondary=Profession.Assassin,
             template_code='OgejkmrMbSmXfbaXNXTQ3l7XsXA',
+            is_combat_automator_compatible=False,
             required_skills=[
                 GLOBAL_CACHE.Skill.GetID("Sand_Shards"),
                 GLOBAL_CACHE.Skill.GetID("Vow_of_Strength"),
@@ -62,6 +63,7 @@ class DervFeatherFarmer(BuildMgr):
         self.spiked = False
         self.spiking = False
         self.current_sensali_count = 0
+        self._previous_status = None
 
     def _CastSkillID(self, skill_id:int, extra_condition:bool=True, log:bool=True, aftercast_delay:int=1000):
         result = yield from Routines.Yield.Skills.CastSkillID(skill_id, extra_condition=extra_condition, log=log, aftercast_delay=aftercast_delay)
@@ -98,7 +100,6 @@ class DervFeatherFarmer(BuildMgr):
             and Routines.Checks.Map.IsExplorable()
             and Routines.Checks.Skills.CanCast()
         ):
-            ActionQueueManager().ResetAllQueues()
             yield from Routines.Yield.wait(1000)
             return
 
@@ -107,9 +108,17 @@ class DervFeatherFarmer(BuildMgr):
             yield from Routines.Yield.wait(100)
             return
 
+        if self.status != self._previous_status:
+            self._previous_status = self.status
+            if self.status in (
+                DervBuildFarmStatus.Setup,
+                DervBuildFarmStatus.Move,
+                DervBuildFarmStatus.Ball,
+            ):
+                yield from self.swap_to_shield_set()
+
         if self.status == DervBuildFarmStatus.Setup:
             self.current_sensali_count = 0
-            yield from self.swap_to_shield_set()
             self.spiked = False
             if (yield from Routines.Yield.Skills.IsSkillIDUsable(self.dash)) and Agent.IsMoving(
                 Player.GetAgentID()
@@ -148,7 +157,6 @@ class DervFeatherFarmer(BuildMgr):
             return
 
         if self.status == DervBuildFarmStatus.Move:
-            yield from self.swap_to_shield_set()
             self.spiked = False
             if (
                 (yield from Routines.Yield.Skills.IsSkillIDUsable(self.dash))
@@ -160,7 +168,6 @@ class DervFeatherFarmer(BuildMgr):
                 return
 
         if self.status == DervBuildFarmStatus.Ball:
-            yield from self.swap_to_shield_set()
             self.spiked = False
 
         if self.status == DervBuildFarmStatus.Kill:
@@ -194,8 +201,8 @@ class DervFeatherFarmer(BuildMgr):
 
                 if (
                     (
-                        yield from Routines.Yield.Skills.IsSkillIDUsable(self.staggering_force)
-                        and Routines.Yield.Skills.IsSkillIDUsable(self.eremites_attack)
+                        (yield from Routines.Yield.Skills.IsSkillIDUsable(self.staggering_force))
+                        and (yield from Routines.Yield.Skills.IsSkillIDUsable(self.eremites_attack))
                     )
                     and has_vow_of_strength
                     and has_sand_shards
@@ -238,8 +245,8 @@ class DervFeatherFarmer(BuildMgr):
 
                     if (
                         (
-                            yield from Routines.Yield.Skills.IsSkillIDUsable(self.staggering_force)
-                            and Routines.Yield.Skills.IsSkillIDUsable(self.eremites_attack)
+                            (yield from Routines.Yield.Skills.IsSkillIDUsable(self.staggering_force))
+                            and (yield from Routines.Yield.Skills.IsSkillIDUsable(self.eremites_attack))
                         )
                         and has_vow_of_strength
                         and has_sand_shards
@@ -253,9 +260,9 @@ class DervFeatherFarmer(BuildMgr):
                                 yield from self._CastSkillID(self.eremites_attack, aftercast_delay=250)
                                 return
 
-                    yield
+                    yield from Routines.Yield.wait(100)
                     return
-        yield
+        yield from Routines.Yield.wait(500)
         return
 
 

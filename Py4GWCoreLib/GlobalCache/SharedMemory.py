@@ -18,9 +18,9 @@ from Py4GWCoreLib import SharedCommandType
 import Py4GW
 import PyQuest
 from .shared_memory_src.Globals import (
-    SHMEM_MODULE_NAME, 
+    SHMEM_MODULE_NAME,
     SHMEM_SHARED_MEMORY_FILE_NAME,
-    
+
     SHMEM_MAX_PLAYERS,
     SHMEM_MAX_EMAIL_LEN,
     SHMEM_MAX_CHAR_LEN,
@@ -36,6 +36,7 @@ from .shared_memory_src.Globals import (
     SHMEM_SUBSCRIBE_TIMEOUT_MILLISECONDS,
     SHMEM_HERO_UPDATE_THROTTLE_MS,
     SHMEM_PET_UPDATE_THROTTLE_MS,
+    SHMEM_INTENT_SWEEP_INTERVAL_MS,
 )
 
 from .shared_memory_src.SharedMessageStruct import SharedMessageStruct
@@ -80,6 +81,7 @@ class Py4GWSharedMemoryManager:
 
         self._hero_update_timer = ThrottledTimer(SHMEM_HERO_UPDATE_THROTTLE_MS)
         self._pet_update_timer = ThrottledTimer(SHMEM_PET_UPDATE_THROTTLE_MS)
+        self._intent_sweep_timer = ThrottledTimer(SHMEM_INTENT_SWEEP_INTERVAL_MS)
         self._initialized = True
 
     def PublishFormationFollowPoints(self):
@@ -327,7 +329,48 @@ class Py4GWSharedMemoryManager:
     def MarkMessageAsFinished(self, account_email: str, message_index: int):
         """Mark a specific message as finished."""
         return self.GetAllAccounts().MarkMessageAsFinished(account_email, message_index)
-    
+
+    #region Whiteboard (cross-hero cast-intent)
+    def PostIntent(
+        self,
+        owner_email: str,
+        skill_id: int,
+        target_agent_id: int,
+        expires_at_tick: int,
+        isolation_group_id: int | None = None,
+    ) -> int:
+        """Claim a (skill_id, target_agent_id) slot on the whiteboard."""
+        return self.GetAllAccounts().PostIntent(
+            owner_email, skill_id, target_agent_id, expires_at_tick, isolation_group_id
+        )
+
+    def ClearIntentsByOwner(self, owner_email: str) -> int:
+        """Zero every intent slot whose OwnerEmail matches."""
+        return self.GetAllAccounts().ClearIntentsByOwner(owner_email)
+
+    @frame_cache(category="SharedMemory", source_lib="IsIntentClaimed")
+    def IsIntentClaimed(
+        self,
+        skill_id: int,
+        target_agent_id: int,
+        group_id: int,
+        exclude_email: str,
+        now_tick: int,
+    ) -> bool:
+        """True iff another account in the same group holds an unexpired claim."""
+        return self.GetAllAccounts().IsIntentClaimed(
+            skill_id, target_agent_id, group_id, exclude_email, now_tick
+        )
+
+    def SweepExpiredIntents(self, now_tick: int) -> int:
+        """Compact pass — zero expired slots."""
+        return self.GetAllAccounts().SweepExpiredIntents(now_tick)
+
+    @frame_cache(category="SharedMemory", source_lib="GetAllIntents")
+    def GetAllIntents(self):
+        """Debug/probe helper: list of (index, IntentStruct) for active slots."""
+        return self.GetAllAccounts().GetAllIntents()
+
     #region Callback
     def update_callback(self):
         """Callback function to update shared memory data."""
@@ -339,6 +382,14 @@ class Py4GWSharedMemoryManager:
         if self._pet_update_timer.IsExpired():
             self.SetPetData()
             self._pet_update_timer.Reset()
+        if self._intent_sweep_timer.IsExpired():
+            self._intent_sweep_timer.Reset()
+            now = Py4GW.Game.get_tick_count64()
+            # Inline sweep; the ThrottledTimer above already rate-limits
+            # and iterating 64 slots is cheap. Bypasses the WHITEBOARD_SWEEP
+            # ActionQueue since no code in this repo drains named queues
+            # automatically, which would dead-letter the sweep.
+            self.SweepExpiredIntents(now)
         
         
     @staticmethod

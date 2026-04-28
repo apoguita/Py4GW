@@ -89,6 +89,9 @@ class Ineptitude(BuildMgr):
         if (yield from self.skills.Mesmer.InspirationMagic.Drain_Enchantment(energy_threshold_pct=0.30)):
             return True
 
+        if (yield from self.skills.Mesmer.IllusionMagic.Signet_of_Clumsiness(energy_threshold_pct=0.30)):
+            return True
+
         if self.IsSkillEquipped(Ebon_Vanguard_Assassin_Support_ID) and (yield from self.skills.Any.PvE.Ebon_Vanguard_Assassin_Support()):
             return True
 
@@ -104,16 +107,16 @@ class Ineptitude(BuildMgr):
         if (yield from self.skills.Mesmer.IllusionMagic.Wandering_Eye()):
             return True
 
-        if snapshot.enemy_casting and (yield from self.skills.Any.PvE.Cry_of_Pain(allow_hex_fallback=False)):
+        if snapshot.enemy_casting and (yield from self.skills.Any.PvE.Cry_of_Pain()):
             return True
 
         if snapshot.enemy_in_spellcast and (yield from self.skills.Any.PvE.Cry_of_Pain()):
             return True
 
-        if self.IsSkillEquipped(Arcane_Conundrum_ID) and (yield from self.skills.Mesmer.IllusionMagic.Arcane_Conundrum()):
+        if (yield from self.skills.Mesmer.IllusionMagic.Signet_of_Clumsiness()):
             return True
 
-        if (yield from self.skills.Mesmer.IllusionMagic.Signet_of_Clumsiness()):
+        if self.IsSkillEquipped(Arcane_Conundrum_ID) and (yield from self.skills.Mesmer.IllusionMagic.Arcane_Conundrum()):
             return True
 
         if (yield from self.skills.Mesmer.InspirationMagic.Power_Drain()):
