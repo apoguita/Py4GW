@@ -1204,6 +1204,7 @@ class ModelID(IntEnum):
     Elixir_Of_Valor = 21227
     Elonian_Key = 5960
     Elonian_Leather_Square = 943
+    Eaglecrest_Axe = 1985
     Emerald_Blade = 1976
     Enchanted_Lodestone = 431
     Elemental_Crystal_Shard = 38302

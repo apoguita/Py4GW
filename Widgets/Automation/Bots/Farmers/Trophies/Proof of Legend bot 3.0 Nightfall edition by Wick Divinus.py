@@ -13,7 +13,7 @@ from Sources.ApoSource.ApoBottingLib import wrappers as BT
 from Py4GWCoreLib.enums_src.GameData_enums import Range
 
 
-MODULE_NAME = "Proof of Legend bot 3.0 by Wick Divinus"
+MODULE_NAME = "Proof of Legend bot 3.0 Nightfall edition by Wick Divinus"
 INI_PATH = "Widgets/Automation/Bots/Templates"
 INI_FILENAME = "ChahbekFarmer.ini"
 NEHDUKAH_ENC_STRING = "\\x8101\\x246C\\xFDB5\\xB6AD\\x56AB"
