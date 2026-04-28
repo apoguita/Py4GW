@@ -1133,14 +1133,14 @@ class BuildMgr:
             return False
 
         # Allow the skill's metadata to request HP-aware recast: when the spirit's
-        # current HP fraction drops below `MinSpiritHpFractionForRecast`, treat it
+        # current HP fraction drops below `AllowRecastAtLife`, treat it
         # as absent so the caller can refresh before the spirit naturally dies.
         # 0.0 (default) keeps the pre-change binary alive/dead gate.
         min_hp_fraction = 0.0
         try:
             custom_skill = self.GetCustomSkill(skill_id)
             if custom_skill is not None:
-                min_hp_fraction = float(custom_skill.Conditions.MinSpiritHpFractionForRecast or 0.0)
+                min_hp_fraction = float(custom_skill.Conditions.AllowRecastAtLife or 0.0)
         except Exception:
             min_hp_fraction = 0.0
 

@@ -724,9 +724,9 @@ class RitualistSkills:
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Recuperation")
         skill.SkillType = SkillType.Ritual.value
         skill.TargetAllegiance = Skilltarget.Self.value
-        skill.Nature = SkillNature.Healing.value
+        skill.Nature = SkillNature.CustomA.value
         skill.Conditions.IsOutOfCombat = False
-        skill.Conditions.MinSpiritHpFractionForRecast = 0.20
+        skill.Conditions.AllowRecastAtLife = 0.20
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
