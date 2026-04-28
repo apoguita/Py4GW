@@ -103,3 +103,11 @@ class CustomSkill:
         # before casting, other heroes in the same IsolationGroupID who see an
         # unexpired (SkillID, TargetAgentID) claim will skip this slot.
         self.CoordinatesViaWhiteboard: bool = False
+        # Skill-wide lock. Unlike CoordinatesViaWhiteboard, this blocks on
+        # SkillID only (target_id=0), so only one account in the same
+        # IsolationGroupID can cast this skill during the lease.
+        self.SkillLock: bool = False
+        # Extra milliseconds added to the skill lock lease after the normal
+        # activation + aftercast window. Use this to stagger repeated team
+        # casts of skills such as Technobabble.
+        self.SkillLockAftercastMs: int = 0

@@ -456,6 +456,8 @@ class PVESkills:
         skill.SkillType = SkillType.Spell.value
         skill.TargetAllegiance = Skilltarget.EnemyClustered.value
         skill.Nature = SkillNature.Offensive.value
+        skill.SkillLock = True
+        skill.SkillLockAftercastMs = 3500
         skill_data[skill.SkillID] = skill
 
         #region DELDRIMOR
