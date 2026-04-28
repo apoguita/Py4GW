@@ -185,17 +185,17 @@ class UIMessage(IntEnum):
     kTriggerLogoutPrompt        = 0x1000016E # 0x1000016E, no args
     kToggleOptionsWindow        = 0x1000016F # 0x1000016F, no args
     kRedrawItem                 = 0x10000174 # 0x10000174, wparam = uint32_t item_id
-    kCheckUIState               = 0x10000175 # 0x10000175
-    kCloseSettings              = 0x10000176 # 0x10000176
-    kChangeSettingsTab          = 0x10000177 # 0x10000177, wparam = uint32_t is_interface_tab
+    kCheckUIState               = 0x10000176 # 0x10000175
+    kCloseSettings              = 0x10000177 # 0x10000176
+    kChangeSettingsTab          = 0x10000178 # 0x10000177, wparam = uint32_t is_interface_tab
     
-    kDestroyUIPositionOverlay   = 0x1000017C # 0x10000179 previously
-    kEnableUIPositionOverlay    = 0x1000017D # 0x1000017a, wparam = uint32_t enable previously
+    kDestroyUIPositionOverlay   = 0x1000017D # 0x10000179 previously
+    kEnableUIPositionOverlay    = 0x1000017E # 0x1000017a, wparam = uint32_t enable previously
       
-    kGuildHall                  = 0x1000017F # 0x1000017F, wparam = gh key (uint32_t[4])
-    kLeaveGuildHall             = 0x10000181 # 0x10000181
-    kTravel                     = 0x10000182 # 0x10000182
-    kOpenWikiUrl                = 0x10000183 # 0x10000183, wparam = char* url
+    kGuildHall                  = 0x10000180 # 0x1000017F, wparam = gh key (uint32_t[4])
+    kLeaveGuildHall             = 0x10000182 # 0x10000181
+    kTravel                     = 0x10000183 # 0x10000182
+    kOpenWikiUrl                = 0x10000184 # 0x10000183, wparam = char* url
     kSetPreGameContext_Value0   = 0x10000187 # 0x10000187, wparam = uint32_t value
     kGetPreGameContext_Value0   = 0x10000189 # 0x10000189, lparam = *uint32_t value_out
     kSetPreGameContext_Value1   = 0x1000018A # 0x1000018A, wparam = uint32_t value
