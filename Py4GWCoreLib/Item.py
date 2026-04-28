@@ -5,7 +5,7 @@ import PyInventory
 
 from enum import Enum
 
-from Py4GWCoreLib.enums_src.GameData_enums import Attribute, DyeColor
+from Py4GWCoreLib.enums_src.GameData_enums import Attribute, DyeColor, Gender
 from Py4GWCoreLib.enums_src.Item_enums import DAMAGE_RANGES, ItemType, Rarity
 from Py4GWCoreLib.item_mods_src.item_mod import ItemMod
 from Py4GWCoreLib.item_mods_src.item_modifier_parser import ItemModifierParser
@@ -139,6 +139,32 @@ class Item:
             """Purpose: Retrieve the model file ID of an item by its ID."""
             return Item.item_instance(item_id).model_file_id
 
+        @staticmethod
+        def GetCompositeModelIDs(model_file_id) -> list[int]:
+            """Purpose: Retrieve the composite model file IDs of an item by its ID."""
+            return PyItem.PyItem.GetCompositeModelIDs(model_file_id) if model_file_id > 0 else []
+
+        @staticmethod
+        def GetTrueModelFileID(model_file_id, gender : Gender = Gender.Unknown) -> int:
+            """Purpose: Retrieve the "true" model file ID of an item by its ID."""
+            from .Agent import Agent
+            from .Player import Player
+
+            true_id = model_file_id
+            female = Agent.IsFemale(Player.GetAgentID()) if gender == Gender.Unknown else gender == Gender.Female
+            file_ids = Item.GetCompositeModelIDs(model_file_id)
+                        
+            if file_ids:
+                true_id = file_ids[10] if len(file_ids) > 10 else 0
+                
+                if not true_id:
+                    true_id = file_ids[5] if female and len(file_ids) > 5 else file_ids[0]
+                
+                if not true_id:
+                    true_id = model_file_id
+                    
+            return true_id if true_id >= 0 else 0
+        
         @staticmethod
         def GetSlot(item_id):
             """Purpose: Retrieve the slot of an item is in a bag by its ID."""

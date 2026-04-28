@@ -1,8 +1,8 @@
-from enum import Enum
 import re
+import struct
 from typing import Optional
 from Py4GWCoreLib.enums_src.GameData_enums import Ailment, Attribute, DamageType, Profession, Reduced_Ailment
-from Py4GWCoreLib.enums_src.Item_enums import ItemType, Rarity
+from Py4GWCoreLib.enums_src.Item_enums import ItemType
 from Py4GWCoreLib.native_src.internals import string_table
 from Py4GWCoreLib.item_mods_src.types import ItemBaneSpecies
 
@@ -22,8 +22,31 @@ class GWStringEncoded:
         self.__plain = ""
         self.__bonuses_only = ""
         self.__full = ""
+        self.__singular = ""
 
     def decode(self) -> str:
+        decoded = string_table.decode(self.encoded)
+        if self.placeholder_bytes:
+            decoded = decoded.replace(string_table.decode(self.placeholder_bytes), "").strip()
+            
+        return decoded if decoded else ""
+    
+    def decode_with_amount(self, amount: int) -> str:
+        if amount < 1:
+            raise ValueError("Encoded string amounts must be non-negative.")
+
+        encoded = bytes([
+            *GWEncoded.NUM1_STR1,
+            0x1, 0x1,
+            *GWEncoded._encode_string_table_number(amount),
+            0xA, 0x1,
+            *self.encoded,
+            0x1, 0x0,
+        ])
+        decoded = string_table.decode_plain(encoded)
+        return decoded if decoded else ""
+    
+    def get_decoded(self) -> str:
         decoded = string_table.decode(self.encoded)
         if self.placeholder_bytes:
             decoded = decoded.replace(string_table.decode(self.placeholder_bytes), "").strip()
@@ -49,73 +72,106 @@ class GWStringEncoded:
     @property
     def plain(self) -> str:
         if not self.__plain:
-            self.__plain = self.remove_placeholder(self.COLOR_TAG_RE.sub(r"\1", self.decode()))
-                            
+            decoded = self.decode()
+            if not decoded:
+                return self.fallback
+            
+            plain = self.remove_placeholder(self.COLOR_TAG_RE.sub(r"\1", decoded))
+            self.__plain = plain
+        
         return self.__plain
 
     @property
     def bonuses_only(self) -> str:
         if not self.__bonuses_only:
-            lines = self.decode().splitlines()
-            bonus_lines = [line for line in lines if line.startswith(self.STAT_TAGS)]
-            self.__bonuses_only = self.remove_placeholder(self.COLOR_TAG_RE.sub(r"\1", "\n".join(bonus_lines)))
-                
+            decoded = self.decode()
+            if not decoded:
+                return self.fallback
+            
+            lines = decoded.splitlines()
+            bonus_lines = [line for line in lines if line.startswith(self.STAT_TAGS)]            
+            bonuses_only = self.remove_placeholder(self.COLOR_TAG_RE.sub(r"\1", "\n".join(bonus_lines)))
+            self.__bonuses_only = bonuses_only
+
         return self.__bonuses_only
 
     @property
     def full(self) -> str:
         if not self.__full:
-            self.__full = self.remove_placeholder(self.decode())
-                            
+            decoded = self.decode()
+            if not decoded:
+                return self.fallback
+            
+            full = self.remove_placeholder(decoded)
+            self.__full = full
+
         return self.__full
+    
+    @property
+    def singular(self) -> str:
+        if not self.__singular:
+            decoded = self.decode()
+            
+            if not decoded:
+                return self.fallback
+            
+            if '[s]' in decoded or '[pl:' in decoded:
+                decoded = self.decode_with_amount(1)
+            
+            self.__singular = self.remove_placeholder(decoded)
+            
+        return self.__singular
+    
+    def with_amount(self, amount: int = 1) -> str:
+        return self.decode_with_amount(amount) or f"{amount} {self.plain}"
 
 
 
 class GWEncoded():
     UNKNOWNN = bytes([0x86, 0x21, 0x0, 0x0]) # "Unknown"
     ATTRIBUTE_NAMES = {
-        Attribute.FastCasting: bytes([0x1E, 0x9]),
-        Attribute.IllusionMagic: bytes([0x20, 0x9]),
-        Attribute.DominationMagic: bytes([0x22, 0x9]),
-        Attribute.InspirationMagic: bytes([0x24, 0x9]),
-        Attribute.BloodMagic: bytes([0x26, 0x9]),
-        Attribute.DeathMagic: bytes([0x2A, 0x9]),
-        Attribute.SoulReaping: bytes([0x2C, 0x9]),
-        Attribute.Curses: bytes([0x28, 0x9]),    
-        Attribute.AirMagic: bytes([0x2E, 0x9]),
-        Attribute.EarthMagic: bytes([0x30, 0x9]),
-        Attribute.FireMagic: bytes([0x34, 0x9]),
-        Attribute.WaterMagic: bytes([0x36, 0x9]),
-        Attribute.EnergyStorage: bytes([0x32, 0x9]),
-        Attribute.HealingPrayers: bytes([0x3A, 0x9]),
-        Attribute.SmitingPrayers: bytes([0x3E, 0x9]),
-        Attribute.ProtectionPrayers: bytes([0x3C, 0x9]),
-        Attribute.DivineFavor: bytes([0x38, 0x9]),
-        Attribute.Strength: bytes([0x40, 0x9]),    
-        Attribute.AxeMastery: bytes([0x42, 0x9]),
-        Attribute.HammerMastery: bytes([0x44, 0x9]),
-        Attribute.Swordsmanship: bytes([0x46, 0x9]),
-        Attribute.Tactics: bytes([0x48, 0x9]),    
-        Attribute.BeastMastery: bytes([0x50, 0x9]),
-        Attribute.Expertise: bytes([0x52, 0x9]),
-        Attribute.WildernessSurvival: bytes([0x54, 0x9]),
-        Attribute.Marksmanship: bytes([0x56, 0x9]),
-        Attribute.DaggerMastery: bytes([0x5A, 0x9]),
-        Attribute.DeadlyArts: bytes([0x5C, 0x9]),
-        Attribute.ShadowArts: bytes([0x5E, 0x9]),
-        Attribute.Communing: bytes([0x60, 0x9]),
-        Attribute.RestorationMagic: bytes([0x64, 0x9]),    
-        Attribute.ChannelingMagic: bytes([0x66, 0x9]),
-        Attribute.CriticalStrikes: bytes([0x58, 0x9]),
-        Attribute.SpawningPower: bytes([0x62, 0x9]),
-        Attribute.SpearMastery: bytes([0x1, 0x81, 0x20, 0x11]),
-        Attribute.Command: bytes([0x1, 0x81, 0xD5, 0x6]),
-        Attribute.Motivation: bytes([0x1, 0x81, 0x1A, 0x12]),
-        Attribute.Leadership: bytes([0x1, 0x81, 0x33, 0x12]),
-        Attribute.ScytheMastery: bytes([0x1, 0x81, 0x22, 0x11]),
-        Attribute.WindPrayers: bytes([0x1, 0x81, 0x35, 0x12]),
-        Attribute.EarthPrayers: bytes([0x1, 0x81, 0x37, 0x12]),
-        Attribute.Mysticism: bytes([0x1, 0x81, 0x39, 0x12]),
+        Attribute.FastCasting:          bytes([0x1E, 0x9]),
+        Attribute.IllusionMagic:        bytes([0x20, 0x9]),
+        Attribute.DominationMagic:      bytes([0x22, 0x9]),
+        Attribute.InspirationMagic:     bytes([0x24, 0x9]),
+        Attribute.BloodMagic:           bytes([0x26, 0x9]),
+        Attribute.DeathMagic:           bytes([0x2A, 0x9]),
+        Attribute.SoulReaping:          bytes([0x2C, 0x9]),
+        Attribute.Curses:               bytes([0x28, 0x9]),    
+        Attribute.AirMagic:             bytes([0x2E, 0x9]),
+        Attribute.EarthMagic:           bytes([0x30, 0x9]),
+        Attribute.FireMagic:            bytes([0x34, 0x9]),
+        Attribute.WaterMagic:           bytes([0x36, 0x9]),
+        Attribute.EnergyStorage:        bytes([0x32, 0x9]),
+        Attribute.HealingPrayers:       bytes([0x3A, 0x9]),
+        Attribute.SmitingPrayers:       bytes([0x3E, 0x9]),
+        Attribute.ProtectionPrayers:    bytes([0x3C, 0x9]),
+        Attribute.DivineFavor:          bytes([0x38, 0x9]),
+        Attribute.Strength:             bytes([0x40, 0x9]),    
+        Attribute.AxeMastery:           bytes([0x42, 0x9]),
+        Attribute.HammerMastery:        bytes([0x44, 0x9]),
+        Attribute.Swordsmanship:        bytes([0x46, 0x9]),
+        Attribute.Tactics:              bytes([0x48, 0x9]),    
+        Attribute.BeastMastery:         bytes([0x50, 0x9]),
+        Attribute.Expertise:            bytes([0x52, 0x9]),
+        Attribute.WildernessSurvival:   bytes([0x54, 0x9]),
+        Attribute.Marksmanship:         bytes([0x56, 0x9]),
+        Attribute.DaggerMastery:        bytes([0x5A, 0x9]),
+        Attribute.DeadlyArts:           bytes([0x5C, 0x9]),
+        Attribute.ShadowArts:           bytes([0x5E, 0x9]),
+        Attribute.Communing:            bytes([0x60, 0x9]),
+        Attribute.RestorationMagic:     bytes([0x64, 0x9]),    
+        Attribute.ChannelingMagic:      bytes([0x66, 0x9]),
+        Attribute.CriticalStrikes:      bytes([0x58, 0x9]),
+        Attribute.SpawningPower:        bytes([0x62, 0x9]),
+        Attribute.SpearMastery:         bytes([0x1, 0x81, 0x20, 0x11]),
+        Attribute.Command:              bytes([0x1, 0x81, 0xD5, 0x6]),
+        Attribute.Motivation:           bytes([0x1, 0x81, 0x1A, 0x12]),
+        Attribute.Leadership:           bytes([0x1, 0x81, 0x33, 0x12]),
+        Attribute.ScytheMastery:        bytes([0x1, 0x81, 0x22, 0x11]),
+        Attribute.WindPrayers:          bytes([0x1, 0x81, 0x35, 0x12]),
+        Attribute.EarthPrayers:         bytes([0x1, 0x81, 0x37, 0x12]),
+        Attribute.Mysticism:            bytes([0x1, 0x81, 0x39, 0x12]),
     }
 
     STR1_STR2 = bytes([0x30, 0xA, 0xA, 0x1]) # %str1% %str2%
@@ -127,129 +183,132 @@ class GWEncoded():
     STAFF_WRAPPING_OF_STR2 = bytes([0x33, 0xA, 0xA, 0x1, 0xBF, 0x22, 0x1, 0x0, 0xB, 0x1]) # Staff Wrapping of %str2%
     PARENTHESIS_STR1 = bytes([0xA8, 0xA, 0xA, 0x1]) # (%str1%)
     VS_STR1 = bytes([0xAF, 0xA, 0xA, 0x1])
+    NUM1_STR1 = bytes([0x35, 0xA])
 
     STR1_PLUS_NUM1 = bytes([0x84, 0xA, 0xA, 0x1])
 
-    PLACEHOLDER_TO_REMOVE = bytes([0x9, 0x1, 0x0, 0x0])
+    PLACEHOLDER_TO_REMOVE = bytes([0xA5, 0x1, 0x1, 0x0])
     
     NON_STACKING = bytes([0xA8, 0xA, 0xA, 0x1, 0xB2, 0xA, 0x1, 0x0, 0x1, 0x0])
     HEALTH_MINUS_75 = bytes([0x7E, 0xA, 0xA, 0x1, 0x52, 0xA, 0x1, 0x0, 0x1, 0x1, 0x4B, 0x1, 0x1, 0x0]) # 0x4B = 75 in little endian, 0x1 = minus, 0x0 = health
     HEALTH_MINUS_NUM = bytes([0x7E, 0xA, 0xA, 0x1, 0x52, 0xA, 0x1, 0x0, 0x1, 0x1]) # 0x4B = 75 in little endian, 0x1 = minus, 0x0 = health
-
+    NUM1_GOLD = bytes([0xC2, 0xA])
+    NUM1_PLATINUM = bytes([0xC3, 0xA])
+    
     WEAPON_PREFIXES: dict[ItemType, bytes] = {
-        ItemType.Axe : bytes([*STR1_STR2, 0xB0, 0x22, 0x1, 0x0]), #Axe Haft
-        ItemType.Bow : bytes([*STR1_STR2, 0xB1, 0x22, 0x1, 0x0]), #Bow String
-        ItemType.Daggers : bytes([*STR1_STR2, 0xBE, 0x55, 0x1, 0x0]), #Dagger Tang
+        ItemType.Axe :      bytes([*STR1_STR2, 0xB0, 0x22, 0x1, 0x0, 0xB, 0x1]), #Axe Haft
+        ItemType.Bow :      bytes([*STR1_STR2, 0xB1, 0x22, 0x1, 0x0, 0xB, 0x1]), #Bow String
+        ItemType.Daggers :  bytes([*STR1_STR2, 0xBE, 0x55, 0x1, 0x0, 0xB, 0x1]), #Dagger Tang
         # ItemType.Offhand does not have a prefix mod, so no name format is needed
-        ItemType.Hammer : bytes([*STR1_STR2, 0xB2, 0x22, 0x1, 0x0]), #Hammer Haft
-        ItemType.Scythe : bytes([*STR1_STR2, 0x1, 0x81, 0x73, 0x1C]), #Scythe Snathe
+        ItemType.Hammer :   bytes([*STR1_STR2, 0xB2, 0x22, 0x1, 0x0, 0xB, 0x1]), #Hammer Haft
+        ItemType.Scythe :   bytes([*STR1_STR2, 0x1, 0x81, 0x6F, 0x1C, 0x1, 0x0, 0xB, 0x1]), #Scythe Snathe
         # ItemType.Shield does not have a prefix mod, so no name format is needed
-        ItemType.Spear : bytes([*STR1_STR2, 0x1, 0x81, 0x70, 0x1C, 0x1, 0x0]), #Spearhead
-        ItemType.Staff : bytes([*STR1_STR2, 0xB3, 0x22, 0x1, 0x0]), #Staff Head
-        ItemType.Sword : bytes([*STR1_STR2, 0xB4, 0x22, 0x1, 0x0]), #Sword Hilt
+        ItemType.Spear :    bytes([*STR1_STR2, 0x1, 0x81, 0x70, 0x1C, 0x1, 0x0, 0xB, 0x1]), #Spearhead
+        ItemType.Staff :    bytes([*STR1_STR2, 0xB3, 0x22, 0x1, 0x0, 0xB, 0x1]), #Staff Head
+        ItemType.Sword :    bytes([*STR1_STR2, 0xB4, 0x22, 0x1, 0x0, 0xB, 0x1]), #Sword Hilt
         # ItemType.Wand does not have a prefix mod, so no name format is needed    
     }
 
     WEAPON_SUFFIXES: dict[ItemType, bytes] = {
-        ItemType.Axe : bytes([*STR1_OF_STR2, 0xB0, 0x22, 0x1, 0x0]), #Axe Grip
-        ItemType.Bow : bytes([*STR1_OF_STR2, 0xBD, 0x22, 0x1, 0x0]), #Bow Grip
-        ItemType.Daggers : bytes([*STR1_OF_STR2, 0xC1, 0x55, 0x1, 0x0]), #Dagger Handle
-        ItemType.Offhand : bytes([*STR1_OF_STR2, 0x1, 0x81, 0xEB, 0x1C, 0x1, 0x0]), #Focus Core
-        ItemType.Hammer : bytes([*STR1_OF_STR2, 0xBE, 0x22, 0x1, 0x0]), #Hammer Grip
-        ItemType.Scythe : bytes([*STR1_OF_STR2, 0x1, 0x81, 0x73, 0x1C]), #Scythe Grip
-        ItemType.Shield : bytes([*STR1_OF_STR2, 0x1, 0x81, 0xED, 0x1C, 0x1, 0x0]), #Shield Handle
-        ItemType.Spear : bytes([*STR1_OF_STR2, 0x1, 0x81, 0x74, 0x1C, 0x1, 0x0]), #Spear Grip
-        ItemType.Staff : bytes([*STR1_OF_STR2, 0xBF, 0x22, 0x1, 0x0]), #Staff Wrapping
-        ItemType.Sword : bytes([*STR1_OF_STR2, 0xC0, 0x22, 0x1, 0x0]), #Sword Pommel
-        ItemType.Wand : bytes([*STR1_OF_STR2, 0x1, 0x81, 0xEC, 0x1C, 0x1, 0x0]), #Wand Wrapping
+        ItemType.Axe :      bytes([*STR1_OF_STR2, 0xB0, 0x22, 0x1, 0x0]), #Axe Grip
+        ItemType.Bow :      bytes([*STR1_OF_STR2, 0xBD, 0x22, 0x1, 0x0]), #Bow Grip
+        ItemType.Daggers :  bytes([*STR1_OF_STR2, 0xC1, 0x55, 0x1, 0x0]), #Dagger Handle
+        ItemType.Offhand :  bytes([*STR1_OF_STR2, 0x1, 0x81, 0xEB, 0x1C, 0x1, 0x0]), #Focus Core
+        ItemType.Hammer :   bytes([*STR1_OF_STR2, 0xBE, 0x22, 0x1, 0x0]), #Hammer Grip
+        ItemType.Scythe :   bytes([*STR1_OF_STR2, 0x1, 0x81, 0x73, 0x1C]), #Scythe Grip
+        ItemType.Shield :   bytes([*STR1_OF_STR2, 0x1, 0x81, 0xED, 0x1C, 0x1, 0x0]), #Shield Handle
+        ItemType.Spear :    bytes([*STR1_OF_STR2, 0x1, 0x81, 0x74, 0x1C, 0x1, 0x0]), #Spear Grip
+        ItemType.Staff :    bytes([*STR1_OF_STR2, 0xBF, 0x22, 0x1, 0x0]), #Staff Wrapping
+        ItemType.Sword :    bytes([*STR1_OF_STR2, 0xC0, 0x22, 0x1, 0x0]), #Sword Pommel
+        ItemType.Wand :     bytes([*STR1_OF_STR2, 0x1, 0x81, 0xEC, 0x1C, 0x1, 0x0]), #Wand Wrapping
     }
     
     SLAYING_SUFFIXES: dict[ItemBaneSpecies, bytes] = {
-        ItemBaneSpecies.Undead : bytes([0xB, 0x1, 0x68, 0xA, 0x1, 0x0]),
-        ItemBaneSpecies.Charr : bytes([0xB, 0x1, 0x5D, 0xA, 0x1, 0x0]),
-        ItemBaneSpecies.Trolls : bytes([0xB, 0x1, 0x67, 0xA, 0x1, 0x0]),
-        ItemBaneSpecies.Plants : bytes([0xB, 0x1, 0x64, 0xA, 0x1, 0x0]),
-        ItemBaneSpecies.Skeletons : bytes([0xB, 0x1, 0x65, 0xA, 0x1, 0x0]),
-        ItemBaneSpecies.Giants : bytes([0xB, 0x1, 0x62, 0xA, 0x1, 0x0]),
-        ItemBaneSpecies.Dwarves : bytes([0xB, 0x1, 0x60, 0xA, 0x1, 0x0]),
-        ItemBaneSpecies.Tengus : bytes([0xB, 0x1, 0x66, 0xA, 0x1, 0x0]),
-        ItemBaneSpecies.Demons : bytes([0xB, 0x1, 0x5E, 0xA, 0x1, 0x0]),
-        ItemBaneSpecies.Dragons : bytes([0xB, 0x1, 0x5F, 0xA, 0x1, 0x0]),
-        ItemBaneSpecies.Ogres : bytes([0xB, 0x1, 0x61, 0xA, 0x1, 0x0]),
-        # ItemBaneSpecies.Snakes : bytes([0xB, 0x1, 0x63, 0xA, 0x1, 0x0]),
+        ItemBaneSpecies.Undead :    bytes([0x68, 0xA]),
+        ItemBaneSpecies.Charr :     bytes([0x5D, 0xA]),
+        ItemBaneSpecies.Trolls :    bytes([0x67, 0xA]),
+        ItemBaneSpecies.Plants :    bytes([0x64, 0xA]),
+        ItemBaneSpecies.Skeletons : bytes([0x65, 0xA]),
+        ItemBaneSpecies.Giants :    bytes([0x62, 0xA]),
+        ItemBaneSpecies.Dwarves :   bytes([0x60, 0xA]),
+        ItemBaneSpecies.Tengus :    bytes([0x66, 0xA]),
+        ItemBaneSpecies.Demons :    bytes([0x5E, 0xA]),
+        ItemBaneSpecies.Dragons :   bytes([0x5F, 0xA]),
+        ItemBaneSpecies.Ogres :     bytes([0x61, 0xA]),
+        # ItemBaneSpecies.Snakes :  bytes([0x63, 0xA]),
     }
     
-    SLAYING_BANE: dict[ItemBaneSpecies, bytes] = {
-        ItemBaneSpecies.Undead : bytes([0xF7, 0x8]),
-        ItemBaneSpecies.Charr : bytes([0xEC, 0x8]),
-        ItemBaneSpecies.Trolls : bytes([0xF6, 0x8]),
-        ItemBaneSpecies.Plants : bytes([0xF3, 0x8]),
+    SPECIES: dict[ItemBaneSpecies, bytes] = {
+        ItemBaneSpecies.Undead :    bytes([0xF7, 0x8]),
+        ItemBaneSpecies.Charr :     bytes([0xEC, 0x8]),
+        ItemBaneSpecies.Trolls :    bytes([0xF6, 0x8]),
+        ItemBaneSpecies.Plants :    bytes([0xF3, 0x8]),
         ItemBaneSpecies.Skeletons : bytes([0xF4, 0x8]),
-        ItemBaneSpecies.Giants : bytes([0xF1, 0x8]),
-        ItemBaneSpecies.Dwarves : bytes([0xEF, 0x8]),
-        ItemBaneSpecies.Tengus : bytes([0xF5, 0x8]),
-        ItemBaneSpecies.Demons : bytes([0xED, 0x8]),
-        ItemBaneSpecies.Dragons : bytes([0xEE, 0x8]),
-        ItemBaneSpecies.Ogres : bytes([0xF0, 0x8]),
+        ItemBaneSpecies.Giants :    bytes([0xF1, 0x8]),
+        ItemBaneSpecies.Dwarves :   bytes([0xEF, 0x8]),
+        ItemBaneSpecies.Tengus :    bytes([0xF5, 0x8]),
+        ItemBaneSpecies.Demons :    bytes([0xED, 0x8]),
+        ItemBaneSpecies.Dragons :   bytes([0xEE, 0x8]),
+        ItemBaneSpecies.Ogres :     bytes([0xF0, 0x8]),
         # ItemBaneSpecies.Snakes : bytes([0xF2, 0x8]),
     }
     
     PROFESSION : dict[Profession, bytes] = {
-        Profession.Warrior: bytes([0xF9, 0x8]),
-        Profession.Ranger: bytes([0xFA, 0x8]),
-        Profession.Monk: bytes([0xFB, 0x8]),
-        Profession.Necromancer: bytes([0xFC, 0x8]),
-        Profession.Mesmer: bytes([0xFD, 0x8]),
-        Profession.Elementalist: bytes([0xFE, 0x8]),
-        Profession.Assassin: bytes([0xFF, 0x8]),
-        Profession.Ritualist: bytes([0x00, 0x09]),
-        Profession.Paragon: bytes([0x3C, 0x7C]),
-        Profession.Dervish: bytes([0x3D, 0x7C]),
+        Profession.Warrior:         bytes([0xF9, 0x8]),
+        Profession.Ranger:          bytes([0xFA, 0x8]),
+        Profession.Monk:            bytes([0xFB, 0x8]),
+        Profession.Necromancer:     bytes([0xFC, 0x8]),
+        Profession.Mesmer:          bytes([0xFD, 0x8]),
+        Profession.Elementalist:    bytes([0xFE, 0x8]),
+        Profession.Assassin:        bytes([0xFF, 0x8]),
+        Profession.Ritualist:       bytes([0x00, 0x09]),
+        Profession.Paragon:         bytes([0x3C, 0x7C]),
+        Profession.Dervish:         bytes([0x3D, 0x7C]),
     }
     
     PROFESSION_SHORT : dict[Profession, bytes] = {
-        Profession.Warrior: bytes([0x2, 0x9]),
-        Profession.Ranger: bytes([0x3, 0x9]),
-        Profession.Monk: bytes([0x4, 0x9]),
-        Profession.Necromancer: bytes([0x5, 0x9]),
-        Profession.Mesmer: bytes([0x6, 0x9]),
-        Profession.Elementalist: bytes([0x7, 0x9]),
-        Profession.Assassin: bytes([0x8, 0x9]),
-        Profession.Ritualist: bytes([0x9, 0x9]),
-        Profession.Paragon: bytes([0x41, 0x7C]),
-        Profession.Dervish: bytes([0x42, 0x7C]),
+        Profession.Warrior:         bytes([0x2, 0x9]),
+        Profession.Ranger:          bytes([0x3, 0x9]),
+        Profession.Monk:            bytes([0x4, 0x9]),
+        Profession.Necromancer:     bytes([0x5, 0x9]),
+        Profession.Mesmer:          bytes([0x6, 0x9]),
+        Profession.Elementalist:    bytes([0x7, 0x9]),
+        Profession.Assassin:        bytes([0x8, 0x9]),
+        Profession.Ritualist:       bytes([0x9, 0x9]),
+        Profession.Paragon:         bytes([0x41, 0x7C]),
+        Profession.Dervish:         bytes([0x42, 0x7C]),
     }
     
     THE_PROFESSION : dict[Profession, bytes] = {
-        Profession.Assassin: bytes([0xB, 0x1, 0x2, 0x81, 0xB2, 0x38, 0x1, 0x0]),
-        Profession.Dervish: bytes([0xB, 0x1, 0x2, 0x81, 0xB5, 0x38, 0x1, 0x0]),
-        Profession.Elementalist: bytes([0xB, 0x1, 0x2, 0x81, 0xAF, 0x38, 0x1, 0x0]),
-        Profession.Mesmer: bytes([0xB, 0x1, 0x2, 0x81, 0xAC, 0x38, 0x1, 0x0]),
-        Profession.Monk: bytes([0xB, 0x1, 0x2, 0x81, 0xAE, 0x38, 0x1, 0x0]),
-        Profession.Necromancer: bytes([0xB, 0x1, 0x2, 0x81, 0xAD, 0x38, 0x1, 0x0]),
-        Profession.Paragon: bytes([0xB, 0x1, 0x2, 0x81, 0xB4, 0x38, 0x1, 0x0]),
-        Profession.Ranger: bytes([0xB, 0x1, 0x2, 0x81, 0xB1, 0x38, 0x1, 0x0]),
-        Profession.Ritualist: bytes([0xB, 0x1, 0x2, 0x81, 0xB3, 0x38, 0x1, 0x0]),
-        Profession.Warrior: bytes([0xB, 0x1, 0x2, 0x81, 0xB0, 0x38, 0x1, 0x0]),
+        Profession.Assassin:        bytes([0xB, 0x1, 0x2, 0x81, 0xB2, 0x38, 0x1, 0x0]),
+        Profession.Dervish:         bytes([0xB, 0x1, 0x2, 0x81, 0xB5, 0x38, 0x1, 0x0]),
+        Profession.Elementalist:    bytes([0xB, 0x1, 0x2, 0x81, 0xAF, 0x38, 0x1, 0x0]),
+        Profession.Mesmer:          bytes([0xB, 0x1, 0x2, 0x81, 0xAC, 0x38, 0x1, 0x0]),
+        Profession.Monk:            bytes([0xB, 0x1, 0x2, 0x81, 0xAE, 0x38, 0x1, 0x0]),
+        Profession.Necromancer:     bytes([0xB, 0x1, 0x2, 0x81, 0xAD, 0x38, 0x1, 0x0]),
+        Profession.Paragon:         bytes([0xB, 0x1, 0x2, 0x81, 0xB4, 0x38, 0x1, 0x0]),
+        Profession.Ranger:          bytes([0xB, 0x1, 0x2, 0x81, 0xB1, 0x38, 0x1, 0x0]),
+        Profession.Ritualist:       bytes([0xB, 0x1, 0x2, 0x81, 0xB3, 0x38, 0x1, 0x0]),
+        Profession.Warrior:         bytes([0xB, 0x1, 0x2, 0x81, 0xB0, 0x38, 0x1, 0x0]),
     }
             
     DAMAGE_TYPE_BYTES = {
-        DamageType.Blunt: bytes([0xDE, 0x8]),
-        DamageType.Piercing: bytes([0xDF, 0x8]),
-        DamageType.Slashing: bytes([0xE0, 0x8]),
-        DamageType.Cold: bytes([0xE1, 0x8]),
-        DamageType.Lightning: bytes([0xE3, 0x8]),
-        DamageType.Fire: bytes([0xE4, 0x8]),
-        DamageType.Chaos: bytes([0xE5, 0x8]),
-        DamageType.Dark: bytes([0xE6, 0x8]),
-        DamageType.Holy: bytes([0xE7, 0x8]),
-        DamageType.unknown_9: bytes([]),
-        DamageType.unknown_10: bytes([]),
-        DamageType.Earth: bytes([0xE2, 0x8]),
-        DamageType.unknown_12: bytes([]),
-        DamageType.unknown_13: bytes([]),
-        DamageType.unknown_14: bytes([]),
-        DamageType.unknown_15: bytes([]),
+        DamageType.Blunt:       bytes([0xDE, 0x8]),
+        DamageType.Piercing:    bytes([0xDF, 0x8]),
+        DamageType.Slashing:    bytes([0xE0, 0x8]),
+        DamageType.Cold:        bytes([0xE1, 0x8]),
+        DamageType.Lightning:   bytes([0xE3, 0x8]),
+        DamageType.Fire:        bytes([0xE4, 0x8]),
+        DamageType.Chaos:       bytes([0xE5, 0x8]),
+        DamageType.Dark:        bytes([0xE6, 0x8]),
+        DamageType.Holy:        bytes([0xE7, 0x8]),
+        DamageType.unknown_9:   bytes([]),
+        DamageType.unknown_10:  bytes([]),
+        DamageType.Earth:       bytes([0xE2, 0x8]),
+        DamageType.unknown_12:  bytes([]),
+        DamageType.unknown_13:  bytes([]),
+        DamageType.unknown_14:  bytes([]),
+        DamageType.unknown_15:  bytes([]),
     }
                               
     ITEM_BASIC = bytes([0x2, 0x0, 0x3B, 0xA, 0xA, 0x1])
@@ -314,38 +373,39 @@ class GWEncoded():
     REDUCES_DISEASE_DURATION_BYTES = bytes([0xA7, 0xA, 0xA, 0x1, 0x92, 0x62, 0x1, 0x0, 0x1, 0x0])
 
     VS_DAMAGE_BYTES = {
-        DamageType.Blunt: bytes([0xAC, 0xA, 0xA, 0x1, 0xDE, 0x8, 0x1, 0x0, 0x1, 0x0]),
-        DamageType.Cold: bytes([0xAC, 0xA, 0xA, 0x1, 0xE1, 0x8, 0x1, 0x0, 0x1, 0x0]),
-        DamageType.Earth: bytes([0xAC, 0xA, 0xA, 0x1, 0xE2, 0x8, 0x1, 0x0, 0x1, 0x0]),
-        DamageType.Fire: bytes([0xAC, 0xA, 0xA, 0x1, 0xE4, 0x8, 0x1, 0x0, 0x1, 0x0]),
-        DamageType.Lightning: bytes([0xAC, 0xA, 0xA, 0x1, 0xE3, 0x8, 0x1, 0x0, 0x1, 0x0]),
-        DamageType.Piercing: bytes([0xAC, 0xA, 0xA, 0x1, 0xDF, 0x8, 0x1, 0x0, 0x1, 0x0]),
-        DamageType.Slashing: bytes([0xAC, 0xA, 0xA, 0x1, 0xE0, 0x8, 0x1, 0x0, 0x1, 0x0]),
+        DamageType.Blunt:       bytes([0xAC, 0xA, 0xA, 0x1, 0xDE, 0x8, 0x1, 0x0, 0x1, 0x0]),
+        DamageType.Cold:        bytes([0xAC, 0xA, 0xA, 0x1, 0xE1, 0x8, 0x1, 0x0, 0x1, 0x0]),
+        DamageType.Earth:       bytes([0xAC, 0xA, 0xA, 0x1, 0xE2, 0x8, 0x1, 0x0, 0x1, 0x0]),
+        DamageType.Fire:        bytes([0xAC, 0xA, 0xA, 0x1, 0xE4, 0x8, 0x1, 0x0, 0x1, 0x0]),
+        DamageType.Lightning:   bytes([0xAC, 0xA, 0xA, 0x1, 0xE3, 0x8, 0x1, 0x0, 0x1, 0x0]),
+        DamageType.Piercing:    bytes([0xAC, 0xA, 0xA, 0x1, 0xDF, 0x8, 0x1, 0x0, 0x1, 0x0]),
+        DamageType.Slashing:    bytes([0xAC, 0xA, 0xA, 0x1, 0xE0, 0x8, 0x1, 0x0, 0x1, 0x0]),
     }
 
     CONDITION_INCREASE_BYTES = {
-        Ailment.Crippled: bytes([0xA4, 0xA, 0xA, 0x1, 0x8E, 0x62, 0x1, 0x0, 0x1, 0x0]),
-        Ailment.Dazed: bytes([0xA4, 0xA, 0xA, 0x1, 0x96, 0x62, 0x1, 0x0, 0x1, 0x0]),
-        Ailment.Deep_Wound: bytes([0xA4, 0xA, 0xA, 0x1, 0x90, 0x62, 0x1, 0x0, 0x1, 0x0]),
-        Ailment.Weakness: bytes([0xA4, 0xA, 0xA, 0x1, 0x98, 0x62, 0x1, 0x0, 0x1, 0x0]),
+        Ailment.Crippled:       bytes([0xA4, 0xA, 0xA, 0x1, 0x8E, 0x62, 0x1, 0x0, 0x1, 0x0]),
+        Ailment.Dazed:          bytes([0xA4, 0xA, 0xA, 0x1, 0x96, 0x62, 0x1, 0x0, 0x1, 0x0]),
+        Ailment.Deep_Wound:     bytes([0xA4, 0xA, 0xA, 0x1, 0x90, 0x62, 0x1, 0x0, 0x1, 0x0]),
+        Ailment.Weakness:       bytes([0xA4, 0xA, 0xA, 0x1, 0x98, 0x62, 0x1, 0x0, 0x1, 0x0]),
     }
 
     REDUCED_CONDITION_BYTES = {
-        Reduced_Ailment.Bleeding: bytes([0xA7, 0xA, 0xA, 0x1, 0x88, 0x62, 0x1, 0x0, 0x1, 0x0]),
-        Reduced_Ailment.Blind: bytes([0xA7, 0xA, 0xA, 0x1, 0x8A, 0x62, 0x1, 0x0, 0x1, 0x0]),
-        Reduced_Ailment.Crippled: bytes([0xA7, 0xA, 0xA, 0x1, 0x8E, 0x62, 0x1, 0x0, 0x1, 0x0]),
-        Reduced_Ailment.Dazed: bytes([0xA7, 0xA, 0xA, 0x1, 0x96, 0x62, 0x1, 0x0, 0x1, 0x0]),
+        Reduced_Ailment.Bleeding:   bytes([0xA7, 0xA, 0xA, 0x1, 0x88, 0x62, 0x1, 0x0, 0x1, 0x0]),
+        Reduced_Ailment.Blind:      bytes([0xA7, 0xA, 0xA, 0x1, 0x8A, 0x62, 0x1, 0x0, 0x1, 0x0]),
+        Reduced_Ailment.Crippled:   bytes([0xA7, 0xA, 0xA, 0x1, 0x8E, 0x62, 0x1, 0x0, 0x1, 0x0]),
+        Reduced_Ailment.Dazed:      bytes([0xA7, 0xA, 0xA, 0x1, 0x96, 0x62, 0x1, 0x0, 0x1, 0x0]),
         Reduced_Ailment.Deep_Wound: bytes([0xA7, 0xA, 0xA, 0x1, 0x90, 0x62, 0x1, 0x0, 0x1, 0x0]),
-        Reduced_Ailment.Disease: bytes([0xA7, 0xA, 0xA, 0x1, 0x92, 0x62, 0x1, 0x0, 0x1, 0x0]),
-        Reduced_Ailment.Poison: bytes([0xA7, 0xA, 0xA, 0x1, 0x94, 0x62, 0x1, 0x0, 0x1, 0x0]),
-        Reduced_Ailment.Weakness: bytes([0xA7, 0xA, 0xA, 0x1, 0x98, 0x62, 0x1, 0x0, 0x1, 0x0]),
+        Reduced_Ailment.Disease:    bytes([0xA7, 0xA, 0xA, 0x1, 0x92, 0x62, 0x1, 0x0, 0x1, 0x0]),
+        Reduced_Ailment.Poison:     bytes([0xA7, 0xA, 0xA, 0x1, 0x94, 0x62, 0x1, 0x0, 0x1, 0x0]),
+        Reduced_Ailment.Weakness:   bytes([0xA7, 0xA, 0xA, 0x1, 0x98, 0x62, 0x1, 0x0, 0x1, 0x0]),
     }
 
+    REQUIRES_NUM1_STR1 = bytes([0xA9, 0xA, 0xA, 0x1]) # Requires %num1% %str1%
     DAMAGE_TEXT = bytes([0x4E, 0xA])
     DAMAGE_PLUS_PERCENT = bytes([*ITEM_BONUS, *PLUS_PERCENT_TEMPLATE, *DAMAGE_TEXT, 0x1, 0x0, 0x1, 0x1, ]) # Damage +X%
 
     ARMOR_TEXT = bytes([0x1, 0x81, 0xA4, 0x13])
-    GOLD_VALUE = bytes([0x8A, 0xA, 0xA, 0x1, 0x59, 0xA, 0x1, 0x0, 0xB, 0x1, 0xC2, 0xA, 0x1, 0x1])
+    GOLD_VALUE = bytes([0x8A, 0xA, 0xA, 0x1, 0x59, 0xA, 0x1, 0x0, 0xB, 0x1, *NUM1_GOLD, 0x1, 0x1])
     USE_TO_APPLY_TO_ITEM = bytes([0x97, 0xA, 0x1])
     UPGRADE_COMPONENT = bytes([0x96, 0xA,])
     ATTACHES_TO = bytes([0x1, 0x81, 0x1C, 0x14, 0xA, 0x1])
@@ -359,6 +419,54 @@ class GWEncoded():
                                             *ITEM_DULL, *ATTACHES_TO, *ARMOR_TEXT, 0x1, 0x0, 0x1, 0x0, 0x2, 0x0, 0x2, 0x1,
                                             *ITEM_DULL, *GOLD_VALUE, gold_amount, 0x1, 0x1, 0x0, 0x1, 0x0, 0x2, 0x0, 0x2, 0x1, 
                                             *ITEM_DULL, *USE_TO_APPLY_TO_ITEM, 0x0, 0x0, 0x0])
+    
+    ItemsAtrribute = bytes([0x1, 0x81, 0x86, 0x5E])
+    #0xA9, 0xA, 0xA, 0x1, (0x1, 0x81, 0x22, 0x11), 0x1, 0x0, 0x1, 0x1, (0x9, 0x1)
+    
+    #0xA9, 0xA, 0xA, 0x1, (0x1, 0x81, 0x86, 0x5E)
+    @staticmethod
+    def _requires_attribute_level(attribute : Attribute = Attribute.None_, attribute_level: int = 0) -> bytes:        
+        return bytes([*GWEncoded.REQUIRES_NUM1_STR1, *GWEncoded.ATTRIBUTE_NAMES.get(attribute, GWEncoded.ItemsAtrribute), 0x1, 0x0, 0x1, 0x1, *GWEncoded._encode_string_table_number(attribute_level)])
+    
+    @staticmethod
+    #0xA9, 0xA, 0xA, 0x1, 0x1, 0x81, 0x86, 0x5E 0x1, 0x0, 0x1, 0x1,( 0x9, 0x1)
+    def _requires_items_attribute_level(attribute : Attribute = Attribute.None_, attribute_level: int = 0) -> bytes:        
+        return bytes([*GWEncoded.REQUIRES_NUM1_STR1, *GWEncoded.ATTRIBUTE_NAMES.get(attribute, GWEncoded.ItemsAtrribute), 0x1, 0x0, 0x1, 0x1, *GWEncoded._encode_string_table_number(attribute_level)])
+    
+    @staticmethod
+    def _encode_string_table_number(value: int) -> bytes:
+        if value < 0:
+            raise ValueError("String-table numeric arguments must be non-negative.")
+
+        if value == 0:
+            return b""
+
+        digits: list[int] = []
+        current = value
+        while current > 0:
+            current, remainder = divmod(current, string_table._RANGE)
+            digits.append(remainder + string_table._BASE)
+
+        digits.reverse()
+        for i in range(len(digits) - 1):
+            digits[i] |= string_table._MORE
+
+        return struct.pack(f"<{len(digits)}H", *digits)
+
+    @staticmethod
+    def _gold_amount_bytes(amount: int) -> bytes:
+        return bytes([*GWEncoded.NUM1_GOLD, 0x1, 0x1]) + GWEncoded._encode_string_table_number(amount) + bytes([0x1, 0x0])
+
+    @staticmethod
+    def _platinum_amount_bytes(amount: int) -> bytes:
+        return bytes([*GWEncoded.NUM1_PLATINUM, 0x1, 0x1]) + GWEncoded._encode_string_table_number(amount) + bytes([0x1, 0x0])
+    
+    @staticmethod
+    def _formatted_currency_amount_bytes(amount: int) -> tuple[bytes, bytes]:
+        platinum_amount = amount // 1000
+        gold_amount = amount % 1000
+    
+        return GWEncoded._platinum_amount_bytes(platinum_amount) if platinum_amount > 0 else b"", GWEncoded._gold_amount_bytes(gold_amount) if gold_amount > 0 else b""
     
     @staticmethod
     def _attribute_bytes(attribute: Attribute) -> bytes | None:

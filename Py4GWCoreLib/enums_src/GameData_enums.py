@@ -48,6 +48,14 @@ class DyeColor(IntEnum):
 
 
 # endregion
+
+#region Gender
+class Gender(IntEnum):
+    Unknown = 0
+    Female = 1
+    Male = 2
+#endregion
+
 # region Profession
 class Profession(IntEnum):
     _None = 0
@@ -338,6 +346,21 @@ class Attribute(IntEnum):
     
     def get_profession(self) -> Profession:
         return _ATTRIBUTE_TO_PROFESSION.get(self, Profession._None)
+    
+    @property
+    def is_primary(self) -> bool:
+        return self in [
+            Attribute.Strength,
+            Attribute.Expertise,
+            Attribute.DivineFavor,
+            Attribute.SoulReaping,
+            Attribute.FastCasting,
+            Attribute.EnergyStorage,
+            Attribute.CriticalStrikes,
+            Attribute.SpawningPower,
+            Attribute.Leadership,
+            Attribute.Mysticism,
+        ]
 
 AttributeNames = {
     Attribute.FastCasting: "Fast Casting",
@@ -391,15 +414,15 @@ AttributeNames = {
 PROFESSION_ATTRIBUTES : dict[Profession, list[Attribute]] = {
     Profession._None: [],
     Profession.Warrior: [Attribute.Strength, Attribute.AxeMastery, Attribute.HammerMastery, Attribute.Swordsmanship, Attribute.Tactics],
-    Profession.Ranger: [Attribute.BeastMastery, Attribute.Expertise, Attribute.WildernessSurvival, Attribute.Marksmanship],
-    Profession.Monk: [Attribute.HealingPrayers, Attribute.SmitingPrayers, Attribute.ProtectionPrayers, Attribute.DivineFavor],
-    Profession.Necromancer: [Attribute.BloodMagic, Attribute.DeathMagic, Attribute.SoulReaping, Attribute.Curses],
+    Profession.Ranger: [Attribute.Expertise, Attribute.BeastMastery, Attribute.WildernessSurvival, Attribute.Marksmanship],
+    Profession.Monk: [Attribute.DivineFavor, Attribute.HealingPrayers, Attribute.SmitingPrayers, Attribute.ProtectionPrayers],
+    Profession.Necromancer: [Attribute.SoulReaping, Attribute.BloodMagic, Attribute.DeathMagic, Attribute.Curses],
     Profession.Mesmer: [Attribute.FastCasting, Attribute.IllusionMagic, Attribute.DominationMagic, Attribute.InspirationMagic],
-    Profession.Elementalist: [Attribute.AirMagic, Attribute.EarthMagic, Attribute.FireMagic, Attribute.WaterMagic],
-    Profession.Assassin: [Attribute.DaggerMastery, Attribute.DeadlyArts, Attribute.ShadowArts, Attribute.CriticalStrikes],
-    Profession.Ritualist: [Attribute.Communing, Attribute.RestorationMagic, Attribute.ChannelingMagic, Attribute.SpawningPower],
-    Profession.Paragon: [Attribute.Command, Attribute.Motivation, Attribute.Leadership, Attribute.SpearMastery],
-    Profession.Dervish: [Attribute.ScytheMastery, Attribute.WindPrayers, Attribute.EarthPrayers, Attribute.Mysticism],
+    Profession.Elementalist: [Attribute.EnergyStorage, Attribute.AirMagic, Attribute.EarthMagic, Attribute.FireMagic, Attribute.WaterMagic],
+    Profession.Assassin: [Attribute.CriticalStrikes, Attribute.DaggerMastery, Attribute.DeadlyArts, Attribute.ShadowArts],
+    Profession.Ritualist: [Attribute.SpawningPower, Attribute.Communing, Attribute.RestorationMagic, Attribute.ChannelingMagic],
+    Profession.Paragon: [Attribute.Leadership, Attribute.Command, Attribute.Motivation, Attribute.SpearMastery],
+    Profession.Dervish: [Attribute.Mysticism, Attribute.ScytheMastery, Attribute.WindPrayers, Attribute.EarthPrayers],
 }
 
 _ATTRIBUTE_TO_PROFESSION: dict[Attribute, Profession] = {}

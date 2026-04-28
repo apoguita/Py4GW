@@ -282,7 +282,7 @@ def ShowMerchantWindow():
                     PyImGui.table_set_column_index(0)
 
                     if PyImGui.button("Exchange Item"):
-                        GLOBAL_CACHE.Trading.Collector.ExghangeItem(item_id, cost, trade_item_list, quantity_list)
+                        GLOBAL_CACHE.Trading.Collector.ExchangeItem(item_id, cost, trade_item_list, quantity_list)
                     PyImGui.end_table()
 
         PyImGui.end()
