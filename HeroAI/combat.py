@@ -505,6 +505,56 @@ class CombatClass:
         if CallTarget(target_id, interact=False):
             self.auto_call_target_called = True
 
+    def _spike_lock_enabled(self, skill: SkillData) -> bool:
+        custom_skill = getattr(skill, "custom_skill_data", None)
+        return bool(getattr(custom_skill, "SpikeLock", False))
+
+    def _post_spike_lock(self, skill: SkillData, target_id: int) -> None:
+        if not self._spike_lock_enabled(skill):
+            return
+        if target_id == 0 or not Agent.IsValid(target_id) or Agent.IsDead(target_id):
+            return
+        try:
+            from Py4GWCoreLib.enums_src.Whiteboard_enums import (
+                WhiteboardClaimStrength,
+                WhiteboardLockKind,
+                WhiteboardLockMode,
+                WhiteboardReentryPolicy,
+            )
+
+            email = Player.GetAccountEmail() or ""
+            if not email:
+                return
+            group_id = GLOBAL_CACHE.ShMem.GetAccountGroupByEmail(email)
+            expires_at = int(Py4GW.Game.get_tick_count64()) + 1500
+            GLOBAL_CACHE.ShMem.PostLock(
+                email,
+                int(WhiteboardLockKind.CALL_TARGET),
+                int(skill.skill_id),
+                int(target_id),
+                int(expires_at),
+                int(group_id),
+                int(WhiteboardLockMode.BARRIER),
+                1,
+                int(WhiteboardReentryPolicy.OWNER_REENTRANT),
+                int(WhiteboardClaimStrength.HARD),
+            )
+        except Exception:
+            pass
+
+    def _apply_spike_lock(self, skill: SkillData, target_id: int) -> None:
+        if not self._spike_lock_enabled(skill):
+            return
+        if target_id == 0 or not Agent.IsValid(target_id) or Agent.IsDead(target_id):
+            return
+        _, target_allegiance = Agent.GetAllegiance(target_id)
+        if target_allegiance != "Enemy":
+            return
+        if CallTarget(target_id, interact=False):
+            self.auto_call_target_id = target_id
+            self.auto_call_target_called = True
+        self._post_spike_lock(skill, target_id)
+
     def GetPartyTarget(self) -> int:
         from Py4GWCoreLib import Party
         party_target = Party.GetPartyTarget()
@@ -1720,6 +1770,7 @@ class CombatClass:
 
         self.aftercast_timer.Reset()
         self.MaybeCallCombatTarget(target_agent_id, cached_data)
+        self._apply_spike_lock(skill, target_agent_id)
         self._skill_lock_post(skill)
         GLOBAL_CACHE.SkillBar.UseSkill(self.skill_order[slot]+1, target_agent_id, aftercast_delay=self.aftercast)
         self.ResetSkillPointer()

@@ -111,3 +111,7 @@ class CustomSkill:
         # activation + aftercast window. Use this to stagger repeated team
         # casts of skills such as Technobabble.
         self.SkillLockAftercastMs: int = 0
+        # When True, the caster calls the resolved enemy target and posts a
+        # CALL_TARGET whiteboard lock before casting, so party members converge
+        # on the same spike target.
+        self.SpikeLock: bool = False

@@ -630,6 +630,7 @@ class PVESkills:
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
         skill.Conditions.MoreLife = 0.3
+        skill.SpikeLock = True
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
