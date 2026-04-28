@@ -134,8 +134,12 @@ class PvE:
             aftercast_delay=250,
         ))
 
-    def Ebon_Vanguard_Assassin_Support(self) -> BuildCoroutine:
-        from Py4GWCoreLib import Agent
+    def Ebon_Vanguard_Assassin_Support(
+        self,
+        *,
+        min_self_energy_pct: float | None = None,
+    ) -> BuildCoroutine:
+        from Py4GWCoreLib import Agent, Player
 
         evas_id: int = Skill.GetID("Ebon_Vanguard_Assassin_Support")
         cluster_radius = Range.Nearby.value
@@ -150,6 +154,13 @@ class PvE:
 
         if not self.build.IsSkillEquipped(evas_id):
             return False
+
+        # Optional caster-energy gate. When set, fire only if the caster's
+        # energy fraction is at or above the threshold. Mirrors the
+        # max_self_energy_pct kwarg pattern on Signet_of_Lost_Souls.
+        if min_self_energy_pct is not None:
+            if Agent.GetEnergy(Player.GetAgentID()) < min_self_energy_pct:
+                return False
 
         enemy_array = self._get_enemy_array(Range.Spellcast.value)
         preferred_targets = [
