@@ -18,6 +18,7 @@ MODULE_NAME = "Pycons"
 MODULE_ICON = "Textures\\Module_Icons\\Pycons.png"
 PYCONS_SYNC_OPCODE_RELOAD_CONFIG = 1
 PYCONS_SYNC_OPCODE_RELOAD_RESULT = 2
+PYCONS_SYNC_SELECTION_ENABLED_STATE_ONCE_KEY = "sync_selection_enabled_state_once"
 
 _PYCONS_CONFIG_DIR = os.path.normpath(os.path.join("Widgets", "Config", "Pycons"))
 _PYCONS_PROFILES_DIR = os.path.normpath(os.path.join(_PYCONS_CONFIG_DIR, "Profiles"))
@@ -97,6 +98,20 @@ try:
     DEFAULT_INTERNAL_COOLDOWN_MS = 5000
     AFTERCAST_MS = 350
     ALCOHOL_EFFECT_TICK_MS = 1000
+    MIN_ALCOHOL_FAST_INTERVAL_MS = 250
+    DEFAULT_ALCOHOL_FAST_INTERVAL_MS = 1000
+    MAX_ALCOHOL_FAST_INTERVAL_MS = 60000
+    MIN_SWEETS_FAST_INTERVAL_MS = 250
+    DEFAULT_SWEETS_FAST_INTERVAL_MS = 1000
+    MAX_SWEETS_FAST_INTERVAL_MS = 60000
+    MIN_PARTY_ITEM_INTERVAL_MS = 250
+    DEFAULT_PARTY_ITEM_INTERVAL_MS = 1000
+    MAX_PARTY_ITEM_INTERVAL_MS = 60000
+    PARTY_ITEM_DEFAULT_COOLDOWN_MS = MIN_PARTY_ITEM_INTERVAL_MS
+    TONIC_TIPSINESS_EFFECT_ID = 3402
+    TONIC_TIPSINESS_DELAY_MS = 5000
+    CRATE_FIREWORKS_DISPLAY_MS = 10 * 60 * 1000
+    DISCO_BALL_DISPLAY_MS = 3 * 60 * 1000
     VAULT_RESTOCK_ACTION_MS = 800
     VAULT_RESTOCK_TARGET_QTY = 1
     RESTOCK_MODE_BALANCED = 0
@@ -187,6 +202,9 @@ try:
         "imperial_guard_reinforcement_order": ("imperial guard reinforcement order", "imperial guard summon"),
         "legionnaire_summoning_crystal": ("legionnaire summoning crystal",),
         "mercantile_summoning_stone": ("mercantile summoning stone", "merchant summon", "merchant summoning stone"),
+        "mischievous_tonic": ("mischievious tonic",),
+        "sinister_automatonic": ("sinister automatonic tonic",),
+        "skeletonic": ("skeletonic tonic",),
         "powerstone_of_courage": ("powerstone of courage",),
         "seal_of_the_dragon_empire": ("seal of the dragon empire",),
         "shining_blade_war_horn": ("shining blade war horn", "shining blade summon"),
@@ -389,8 +407,15 @@ try:
             "header": (0.22, 0.13, 0.08, 0.82),
             "header_hovered": (0.28, 0.17, 0.10, 0.90),
             "header_active": (0.34, 0.21, 0.12, 0.96),
-            "text": (0.97, 0.84, 0.74, 1.00),
-            "meta": (0.88, 0.72, 0.58, 1.00),
+            "text": (1.00, 0.78, 0.30, 1.00),
+            "meta": (0.92, 0.64, 0.22, 1.00),
+        },
+        "party_items": {
+            "header": (0.34, 0.34, 0.34, 0.82),
+            "header_hovered": (0.40, 0.40, 0.40, 0.90),
+            "header_active": (0.46, 0.46, 0.46, 0.96),
+            "text": (1.00, 0.78, 0.30, 1.00),
+            "meta": (0.92, 0.64, 0.22, 1.00),
         },
         "restock": {
             "header": (0.21, 0.18, 0.10, 0.82),
@@ -462,6 +487,14 @@ try:
             "header_text": (0.96, 0.96, 0.96, 1.00),
             "text": (0.97, 0.84, 0.74, 1.00),
             "meta": (0.88, 0.72, 0.58, 1.00),
+        },
+        "settings_select_party_items": {
+            "header": (0.35, 0.35, 0.35, 0.88),
+            "header_hovered": (0.41, 0.41, 0.41, 0.94),
+            "header_active": (0.47, 0.47, 0.47, 1.00),
+            "header_text": (0.96, 0.96, 0.96, 1.00),
+            "text": (0.94, 0.94, 0.94, 1.00),
+            "meta": (0.80, 0.80, 0.80, 1.00),
         },
         "settings_mbdp": {
             "header": (0.82, 0.00, 0.00, 0.88),
@@ -691,7 +724,7 @@ try:
     ALCOHOL_PREFERENCE_OPTIONS = ["Smooth", "Strong-first", "Weak-first"]
     RESTOCK_MODE_OPTIONS = ["Balanced", "Withdraw only", "Deposit only"]
     RESTOCK_SCOPE_OPTIONS = ["Account-wide", "Allow list", "Block list"]
-    SETTINGS_CONSUMABLE_CATEGORY_ORDER = ["explorable", "summoning", "mbdp", "outpost", "alcohol"]
+    SETTINGS_CONSUMABLE_CATEGORY_ORDER = ["explorable", "summoning", "mbdp", "outpost", "alcohol", "party_items"]
 
     _TOOLTIP_TEXTS = {
         "tooltip_visibility": {
@@ -823,6 +856,31 @@ try:
             "short": "Choose how alcohol strength is prioritized.",
             "long": "Smooth aims to hit target efficiently with minimal waste. Strong-first prioritizes high-point alcohol for fastest ramp-up. Weak-first prioritizes lower-point alcohol to conserve stronger stock.",
             "why": "This directly changes how quickly you reach target and how efficiently inventory is consumed.",
+        },
+        "alcohol_fast_spending": {
+            "short": "Spend selected alcohol stacks quickly.",
+            "long": "When enabled, alcohol uses the selected ON items at the speed below instead of stopping at the target drunk level.",
+            "why": "Useful when you want title progress or stack cleanup instead of normal drunk-level upkeep.",
+        },
+        "alcohol_fast_interval_ms": {
+            "short": "How fast alcohol is used in fast spending mode.",
+            "long": "Controls how often Pycons tries to drink selected alcohol while Fast alcohol spending is enabled.",
+            "why": "Fast title spending should not force normal Pycons item checks to run faster.",
+        },
+        "party_item_interval_ms": {
+            "short": "How fast Party Items are used.",
+            "long": "Controls how often Pycons tries to use selected Party Items. Lower values spend stacks faster; higher values are gentler for normal play.",
+            "why": "Fast title-point spending should not force every other Pycons consumable to run faster.",
+        },
+        "sweets_fast_spending": {
+            "short": "Spend selected sweet stacks quickly.",
+            "long": "When enabled, Pycons uses selected ON in-town speed boost sweets at the speed below instead of waiting for their normal speed effect to end.",
+            "why": "Useful when you want Sweet Tooth title progress or stack cleanup instead of normal speed upkeep.",
+        },
+        "sweets_fast_interval_ms": {
+            "short": "How fast sweets are used in fast spending mode.",
+            "long": "Controls how often Pycons tries to use selected in-town speed boost sweets while Fast sweets spending is enabled.",
+            "why": "Fast title spending should not force normal Pycons item checks to run faster.",
         },
         "mbdp_enabled": {
             "short": "Master toggle for morale/DP automation.",
@@ -1090,6 +1148,8 @@ try:
         "restock_keep_target_on_deselect",
         "alcohol_enabled",
         "alcohol_disable_effect",
+        "alcohol_fast_spending",
+        "sweets_fast_spending",
         "alcohol_use_explorable",
         "alcohol_use_outpost",
         "team_broadcast",
@@ -1109,10 +1169,15 @@ try:
         "restock_keep_target_on_deselect",
         "alcohol_enabled",
         "alcohol_disable_effect",
+        "alcohol_fast_spending",
+        "alcohol_fast_interval_ms",
+        "sweets_fast_spending",
+        "sweets_fast_interval_ms",
         "alcohol_target_level",
         "alcohol_use_explorable",
         "alcohol_use_outpost",
         "alcohol_preference",
+        "party_item_interval_ms",
         "team_broadcast",
         "team_consume_opt_in",
         "force_team_morale_value",
@@ -1260,10 +1325,15 @@ try:
             "restock_keep_target_on_deselect": True,
             "alcohol_enabled": False,
             "alcohol_disable_effect": False,
+            "alcohol_fast_spending": False,
+            "alcohol_fast_interval_ms": int(DEFAULT_ALCOHOL_FAST_INTERVAL_MS),
+            "sweets_fast_spending": False,
+            "sweets_fast_interval_ms": int(DEFAULT_SWEETS_FAST_INTERVAL_MS),
             "alcohol_target_level": 3,
             "alcohol_use_explorable": True,
             "alcohol_use_outpost": True,
             "alcohol_preference": 0,
+            "party_item_interval_ms": int(DEFAULT_PARTY_ITEM_INTERVAL_MS),
             "team_broadcast": False,
             "team_consume_opt_in": False,
             "force_team_morale_value": int(MBDP_DEFAULTS["force_team_morale_value"]),
@@ -1349,6 +1419,18 @@ try:
         payload["alcohol_target_level"] = max(0, min(5, int(payload.get("alcohol_target_level", 3))))
         alcohol_preference = int(payload.get("alcohol_preference", 0))
         payload["alcohol_preference"] = alcohol_preference if alcohol_preference in (0, 1, 2) else 0
+        payload["alcohol_fast_interval_ms"] = max(
+            MIN_ALCOHOL_FAST_INTERVAL_MS,
+            min(MAX_ALCOHOL_FAST_INTERVAL_MS, int(payload.get("alcohol_fast_interval_ms", DEFAULT_ALCOHOL_FAST_INTERVAL_MS))),
+        )
+        payload["sweets_fast_interval_ms"] = max(
+            MIN_SWEETS_FAST_INTERVAL_MS,
+            min(MAX_SWEETS_FAST_INTERVAL_MS, int(payload.get("sweets_fast_interval_ms", DEFAULT_SWEETS_FAST_INTERVAL_MS))),
+        )
+        payload["party_item_interval_ms"] = max(
+            MIN_PARTY_ITEM_INTERVAL_MS,
+            min(MAX_PARTY_ITEM_INTERVAL_MS, int(payload.get("party_item_interval_ms", DEFAULT_PARTY_ITEM_INTERVAL_MS))),
+        )
         payload["force_team_morale_value"] = max(-60, min(10, int(payload.get("force_team_morale_value", MBDP_DEFAULTS["force_team_morale_value"]))))
         payload["mbdp_self_dp_minor_threshold"] = _profile_dp_threshold_to_effective(payload.get("mbdp_self_dp_minor_threshold", MBDP_DEFAULTS["mbdp_self_dp_minor_threshold"]))
         payload["mbdp_self_dp_major_threshold"] = _profile_dp_threshold_to_effective(payload.get("mbdp_self_dp_major_threshold", MBDP_DEFAULTS["mbdp_self_dp_major_threshold"]))
@@ -2443,6 +2525,43 @@ try:
         except Exception:
             return int(default)
 
+    def _party_item_spec(
+        key: str,
+        label: str,
+        model_name: str,
+        points: int,
+        *,
+        tonic: bool = False,
+        guild_hall_only: bool = False,
+        town_or_guild_hall_only: bool = False,
+        display_cooldown_ms: int = 0,
+        note: str = "",
+    ) -> dict:
+        spec = {
+            "key": str(key),
+            "label": str(label),
+            "model_id": int(_model_id_value(model_name, 0)),
+            "use_where": "party_items",
+            "party_points": int(points),
+            "default_cooldown_ms": int(PARTY_ITEM_DEFAULT_COOLDOWN_MS),
+            "suppress_team_broadcast": True,
+        }
+        if bool(tonic):
+            spec["blocked_effect_id"] = int(TONIC_TIPSINESS_EFFECT_ID)
+            spec["fallback_duration_ms"] = int(TONIC_TIPSINESS_DELAY_MS)
+            spec["restriction_note"] = "Waits for Tonic Tipsiness before using another tonic."
+        if bool(guild_hall_only):
+            spec["guild_hall_only"] = True
+        if bool(town_or_guild_hall_only):
+            spec["town_or_guild_hall_only"] = True
+        if int(display_cooldown_ms) > 0:
+            # Fireworks displays do not expose a reliable active-display flag here,
+            # so Pycons waits for the display duration after one use attempt.
+            spec["fallback_duration_ms"] = int(display_cooldown_ms)
+        if str(note or "").strip():
+            spec["restriction_note"] = str(note or "").strip()
+        return spec
+
     # -------------------------
     # Consumables list (THIS is the working ModelID casing)
     # -------------------------
@@ -2496,9 +2615,61 @@ try:
         {"key": "jar_of_honey", "label": "Jar of Honey", "model_id": int(_model_id_value("Jar_Of_Honey", 0)), "skills": ["Sugar_Rush_(long)"], "use_where": "outpost", "require_effect_id": False, "fallback_duration_ms": FALLBACK_LONG_MS},
         {"key": "red_bean_cake", "label": "Red Bean Cake", "model_id": int(_model_id_value("Red_Bean_Cake", 0)), "skills": ["Sugar_Rush_(medium)"], "use_where": "outpost", "require_effect_id": True, "fallback_duration_ms": FALLBACK_MEDIUM_MS},
         {"key": "sugary_blue_drink", "label": "Sugary Blue Drink", "model_id": int(_model_id_value("Sugary_Blue_Drink", 0)), "skills": ["Sugar_Jolt_(short)"], "use_where": "outpost", "require_effect_id": False, "fallback_duration_ms": FALLBACK_SHORT_MS},
+
+        # Party Items (Party Animal title points). Most are safe to use repeatedly.
+        _party_item_spec("bottle_rocket", "Bottle Rocket", "Bottle_Rocket", 1),
+        _party_item_spec("champagne_popper", "Champagne Popper", "Champagne_Popper", 1),
+        _party_item_spec("ghost_in_the_box", "Ghost-in-the-Box", "Ghost_In_The_Box", 1),
+        _party_item_spec("snowman_summoner", "Snowman Summoner", "Snowman_Summoner", 1),
+        _party_item_spec("sparkler", "Sparkler", "Sparkler", 1),
+        _party_item_spec("squash_serum", "Squash Serum", "Squash_Serum", 1),
+        _party_item_spec("beetle_juice_tonic", "Beetle Juice Tonic", "Beetle_Juice_Tonic", 2, tonic=True),
+        _party_item_spec("cottontail_tonic", "Cottontail Tonic", "Cottontail_Tonic", 2, tonic=True),
+        _party_item_spec("frosty_tonic", "Frosty Tonic", "Frosty_Tonic", 2, tonic=True),
+        _party_item_spec("mischievous_tonic", "Mischievous Tonic", "Mischievious_Tonic", 2, tonic=True),
+        _party_item_spec("sinister_automatonic", "Sinister Automatonic", "Sinister_Automatonic_Tonic", 2, tonic=True),
+        _party_item_spec("transmogrifier_tonic", "Transmogrifier Tonic", "Transmogrifier_Tonic", 2, tonic=True),
+        _party_item_spec("yuletide_tonic", "Yuletide Tonic", "Yuletide_Tonic", 2, tonic=True),
+        _party_item_spec("cerebral_tonic", "Cerebral Tonic", "Cerebral_Tonic", 2, tonic=True),
+        _party_item_spec("searing_tonic", "Searing Tonic", "Searing_Tonic", 2, tonic=True),
+        _party_item_spec("abyssal_tonic", "Abyssal Tonic", "Abyssal_Tonic", 2, tonic=True),
+        _party_item_spec("unseen_tonic", "Unseen Tonic", "Unseen_Tonic", 2, tonic=True),
+        _party_item_spec("phantasmal_tonic", "Phantasmal Tonic", "Phantasmal_Tonic", 2, tonic=True),
+        _party_item_spec("automatonic", "Automatonic", "Automatonic_Tonic", 2, tonic=True),
+        _party_item_spec("boreal_tonic", "Boreal Tonic", "Boreal_Tonic", 2, tonic=True),
+        _party_item_spec("trapdoor_tonic", "Trapdoor Tonic", "Trapdoor_Tonic", 2, tonic=True),
+        _party_item_spec("macabre_tonic", "Macabre Tonic", "Macabre_Tonic", 2, tonic=True),
+        _party_item_spec("skeletonic", "Skeletonic", "Skeletonic_Tonic", 2, tonic=True),
+        _party_item_spec("gelatinous_tonic", "Gelatinous Tonic", "Gelatinous_Tonic", 2, tonic=True),
+        _party_item_spec("abominable_tonic", "Abominable Tonic", "Abominable_Tonic", 2, tonic=True),
+        _party_item_spec(
+            "crate_of_fireworks",
+            "Crate of Fireworks",
+            "Crate_Of_Fireworks",
+            3,
+            guild_hall_only=True,
+            display_cooldown_ms=CRATE_FIREWORKS_DISPLAY_MS,
+            note="Only used in a guild hall, then waits while the fireworks display is active.",
+        ),
+        _party_item_spec("minutely_mad_king_tonic", "Minutely Mad King Tonic", "Minutely_Mad_King_Tonic", 3, tonic=True),
+        _party_item_spec("zaishen_tonic", "Zaishen Tonic", "Zaishen_Tonic", 3, tonic=True),
+        _party_item_spec("mysterious_tonic", "Mysterious Tonic", "Mysterious_Tonic", 5, tonic=True),
+        _party_item_spec(
+            "disco_ball",
+            "Disco Ball",
+            "Disco_Ball",
+            7,
+            town_or_guild_hall_only=True,
+            display_cooldown_ms=DISCO_BALL_DISPLAY_MS,
+            note="Only used in towns, outposts, or guild halls, then waits while the display is active.",
+        ),
+        _party_item_spec("spooky_tonic", "Spooky Tonic", "Spooky_Tonic", 25, tonic=True),
+        _party_item_spec("party_beacon", "Party Beacon", "Party_Beacon", 50),
     ]
 
     SUMMONING_ITEMS = [c for c in CONSUMABLES if str(c.get("use_where", "")).lower() == "summoning"]
+    SWEET_ITEMS = [c for c in CONSUMABLES if str(c.get("use_where", "")).lower() == "outpost"]
+    PARTY_ITEMS = [c for c in CONSUMABLES if str(c.get("use_where", "")).lower() == "party_items"]
 
     MB_DP_ITEMS = [
         # Self-only morale
@@ -2524,6 +2695,8 @@ try:
     ALL_CONSUMABLES = CONSUMABLES + MB_DP_ITEMS
     ALL_BY_KEY = {c["key"]: c for c in ALL_CONSUMABLES}
     SUMMONING_BY_KEY = {c["key"]: c for c in SUMMONING_ITEMS}
+    SWEET_ITEMS_BY_KEY = {c["key"]: c for c in SWEET_ITEMS}
+    PARTY_ITEMS_BY_KEY = {c["key"]: c for c in PARTY_ITEMS}
     MB_DP_BY_KEY = {c["key"]: c for c in MB_DP_ITEMS}
     CONSET_KEYS = {"armor_of_salvation", "essence_of_celerity", "grail_of_might"}
     MBDP_PARTY_KEYS = frozenset({
@@ -2594,7 +2767,7 @@ try:
     PYCONS_SYNC_CATEGORY_RESTOCK = "restock_settings"
     PYCONS_SYNC_CATEGORY_SELECTION = "main_window_selection"
     PYCONS_SYNC_CATEGORY_DEFS = [
-        (PYCONS_SYNC_CATEGORY_ALCOHOL, "Alcohol settings"),
+        (PYCONS_SYNC_CATEGORY_ALCOHOL, "Alcohol/Party & Sweets settings"),
         (PYCONS_SYNC_CATEGORY_MBDP, "Morale Boost & Death Penalty settings"),
         (PYCONS_SYNC_CATEGORY_RESTOCK, "Restock settings"),
         (PYCONS_SYNC_CATEGORY_SELECTION, "Select consumables to show in main window"),
@@ -2602,10 +2775,15 @@ try:
     PYCONS_SYNC_ALCOHOL_SCALAR_KEYS = [
         "alcohol_enabled",
         "alcohol_disable_effect",
+        "alcohol_fast_spending",
+        "alcohol_fast_interval_ms",
+        "sweets_fast_spending",
+        "sweets_fast_interval_ms",
         "alcohol_use_explorable",
         "alcohol_use_outpost",
         "alcohol_target_level",
         "alcohol_preference",
+        "party_item_interval_ms",
     ]
     PYCONS_SYNC_MBDP_SCALAR_KEYS = [
         "mbdp_enabled",
@@ -2669,10 +2847,22 @@ try:
         "wintergreen_candy_cane": "Remove 15% of your Death Penalty.",
     }
 
+    def _party_points_text(points: int) -> str:
+        pts = int(points or 0)
+        return f"{pts} point" if pts == 1 else f"{pts} points"
+
     def _consumable_tooltip_text(key: str) -> str:
         tooltip = str(CONSUMABLE_TOOLTIPS.get(str(key or ""), "") or "").strip()
         if tooltip:
             return tooltip
+        party_spec = PARTY_ITEMS_BY_KEY.get(str(key or ""))
+        if party_spec:
+            points_text = _party_points_text(int(party_spec.get("party_points", 0) or 0))
+            note = str(party_spec.get("restriction_note", "") or "").strip()
+            base = f"Adds {points_text} toward the Party Animal title."
+            if note:
+                return f"{base} {note}"
+            return base
         summon_spec = SUMMONING_BY_KEY.get(str(key or ""))
         if summon_spec:
             duration_ms = int(summon_spec.get("summon_duration_ms", SUMMONING_STONE_DURATION_MS) or SUMMONING_STONE_DURATION_MS)
@@ -3197,6 +3387,7 @@ try:
 
         cfg = Config()
         _runtime_sync_from_cfg_full()
+        _clear_one_shot_synced_enabled_defaults_if_needed()
         _team_flags_cache.clear()
         try:
             _local_team_flags_refresh_timer.Stop()
@@ -3220,6 +3411,10 @@ try:
             ini_handler = _get_ini_handler()
             self.debug_logging = ini_handler.read_bool(INI_SECTION, "debug_logging", False)
             self.interval_ms = ini_handler.read_int(INI_SECTION, "interval_ms", 1500)
+            self.party_item_interval_ms = max(
+                MIN_PARTY_ITEM_INTERVAL_MS,
+                min(MAX_PARTY_ITEM_INTERVAL_MS, int(ini_handler.read_int(INI_SECTION, "party_item_interval_ms", DEFAULT_PARTY_ITEM_INTERVAL_MS))),
+            )
             self.restock_interval_ms = max(MIN_RESTOCK_INTERVAL_MS, int(ini_handler.read_int(INI_SECTION, "restock_interval_ms", DEFAULT_RESTOCK_INTERVAL_MS)))
             self.restock_mode = max(
                 RESTOCK_MODE_BALANCED,
@@ -3245,6 +3440,8 @@ try:
             self.tooltip_show_why = ini_handler.read_bool(INI_SECTION, "tooltip_show_why", True)
             self.last_applied_preset = str(ini_handler.read_key(INI_SECTION, "last_applied_preset", "None") or "None")
             self.last_party_opt_toggle_summary = str(ini_handler.read_key(INI_SECTION, "last_party_opt_toggle_summary", "None") or "None")
+            self.sync_selection_include_enabled_state = ini_handler.read_bool(INI_SECTION, "sync_selection_include_enabled_state", False)
+            self._sync_selection_enabled_state_once = ini_handler.read_bool(INI_SECTION, PYCONS_SYNC_SELECTION_ENABLED_STATE_ONCE_KEY, False)
 
             # Optional per-item min intervals
             self.show_advanced_intervals = ini_handler.read_bool(INI_SECTION, "show_advanced_intervals", False)
@@ -3257,6 +3454,16 @@ try:
             # Alcohol
             self.alcohol_enabled = ini_handler.read_bool(INI_SECTION, "alcohol_enabled", False)
             self.alcohol_disable_effect = ini_handler.read_bool(INI_SECTION, "alcohol_disable_effect", False)
+            self.alcohol_fast_spending = ini_handler.read_bool(INI_SECTION, "alcohol_fast_spending", False)
+            self.alcohol_fast_interval_ms = max(
+                MIN_ALCOHOL_FAST_INTERVAL_MS,
+                min(MAX_ALCOHOL_FAST_INTERVAL_MS, int(ini_handler.read_int(INI_SECTION, "alcohol_fast_interval_ms", DEFAULT_ALCOHOL_FAST_INTERVAL_MS))),
+            )
+            self.sweets_fast_spending = ini_handler.read_bool(INI_SECTION, "sweets_fast_spending", False)
+            self.sweets_fast_interval_ms = max(
+                MIN_SWEETS_FAST_INTERVAL_MS,
+                min(MAX_SWEETS_FAST_INTERVAL_MS, int(ini_handler.read_int(INI_SECTION, "sweets_fast_interval_ms", DEFAULT_SWEETS_FAST_INTERVAL_MS))),
+            )
             self.alcohol_target_level = max(0, min(5, int(ini_handler.read_int(INI_SECTION, "alcohol_target_level", 3))))
 
             self.alcohol_use_explorable = ini_handler.read_bool(INI_SECTION, "alcohol_use_explorable", True)
@@ -3288,6 +3495,7 @@ try:
             self.settings_outpost_open = ini_handler.read_bool(INI_SECTION, "settings_outpost_open", False)
             self.settings_mbdp_open = ini_handler.read_bool(INI_SECTION, "settings_mbdp_open", False)
             self.settings_alcohol_open = ini_handler.read_bool(INI_SECTION, "settings_alcohol_open", False)
+            self.settings_party_items_open = ini_handler.read_bool(INI_SECTION, "settings_party_items_open", False)
             # Settings-window top-level section open/closed state
             self.settings_ui_tooltip_open = ini_handler.read_bool(INI_SECTION, "settings_ui_tooltip_open", False)
             self.settings_ui_sync_open = ini_handler.read_bool(INI_SECTION, "settings_ui_sync_open", False)
@@ -3408,6 +3616,10 @@ try:
 
             set_key("debug_logging", bool(self.debug_logging))
             set_key("interval_ms", int(self.interval_ms))
+            set_key(
+                "party_item_interval_ms",
+                int(max(MIN_PARTY_ITEM_INTERVAL_MS, min(MAX_PARTY_ITEM_INTERVAL_MS, int(self.party_item_interval_ms)))),
+            )
             set_key("restock_interval_ms", int(max(MIN_RESTOCK_INTERVAL_MS, int(self.restock_interval_ms))))
             set_key("restock_mode", int(max(RESTOCK_MODE_BALANCED, min(RESTOCK_MODE_DEPOSIT_ONLY, int(self.restock_mode)))))
             set_key("restock_scope_mode", int(max(RESTOCK_SCOPE_ACCOUNT_WIDE, min(RESTOCK_SCOPE_BLOCK_LIST, int(self.restock_scope_mode)))))
@@ -3427,6 +3639,8 @@ try:
             set_key("tooltip_show_why", bool(self.tooltip_show_why))
             set_key("last_applied_preset", self.last_applied_preset)
             set_key("last_party_opt_toggle_summary", self.last_party_opt_toggle_summary)
+            set_key("sync_selection_include_enabled_state", bool(self.sync_selection_include_enabled_state))
+            set_key(PYCONS_SYNC_SELECTION_ENABLED_STATE_ONCE_KEY, bool(getattr(self, "_sync_selection_enabled_state_once", False)))
 
             set_key("show_advanced_intervals", bool(self.show_advanced_intervals))
             set_key("persist_main_runtime_toggles", bool(self.persist_main_runtime_toggles))
@@ -3435,6 +3649,16 @@ try:
 
             set_key("alcohol_enabled", bool(self.alcohol_enabled))
             set_key("alcohol_disable_effect", bool(self.alcohol_disable_effect))
+            set_key("alcohol_fast_spending", bool(self.alcohol_fast_spending))
+            set_key(
+                "alcohol_fast_interval_ms",
+                int(max(MIN_ALCOHOL_FAST_INTERVAL_MS, min(MAX_ALCOHOL_FAST_INTERVAL_MS, int(self.alcohol_fast_interval_ms)))),
+            )
+            set_key("sweets_fast_spending", bool(self.sweets_fast_spending))
+            set_key(
+                "sweets_fast_interval_ms",
+                int(max(MIN_SWEETS_FAST_INTERVAL_MS, min(MAX_SWEETS_FAST_INTERVAL_MS, int(self.sweets_fast_interval_ms)))),
+            )
             set_key("alcohol_target_level", int(self.alcohol_target_level))
             set_key("alcohol_use_explorable", bool(self.alcohol_use_explorable))
             set_key("alcohol_use_outpost", bool(self.alcohol_use_outpost))
@@ -3462,6 +3686,7 @@ try:
             set_key("settings_outpost_open", bool(self.settings_outpost_open))
             set_key("settings_mbdp_open", bool(self.settings_mbdp_open))
             set_key("settings_alcohol_open", bool(self.settings_alcohol_open))
+            set_key("settings_party_items_open", bool(self.settings_party_items_open))
             set_key("settings_ui_tooltip_open", bool(self.settings_ui_tooltip_open))
             set_key("settings_ui_sync_open", bool(self.settings_ui_sync_open))
             set_key("settings_ui_alcohol_open", bool(self.settings_ui_alcohol_open))
@@ -3577,6 +3802,8 @@ try:
 
     tick_timer = Timer()
     tick_timer.Start()
+    party_tick_timer = Timer()
+    party_tick_timer.Start()
     restock_tick_timer = Timer()
     restock_tick_timer.Start()
 
@@ -3756,6 +3983,33 @@ try:
             _rt.runtime_alcohol_selected[k] = bool(cfg.alcohol_selected.get(k, False))
             _rt.runtime_alcohol_enabled[k] = bool(cfg.alcohol_enabled_items.get(k, False))
 
+    def _clear_one_shot_synced_enabled_defaults_if_needed() -> bool:
+        if cfg is None or not bool(getattr(cfg, "_sync_selection_enabled_state_once", False)):
+            return False
+
+        for c in ALL_CONSUMABLES:
+            key = str(c.get("key", "") or "")
+            if key:
+                cfg.enabled[key] = False
+        for a in ALCOHOL_ITEMS:
+            key = str(a.get("key", "") or "")
+            if key:
+                cfg.alcohol_enabled_items[key] = False
+
+        cfg._sync_selection_enabled_state_once = False
+        cfg.mark_dirty()
+        cfg.save_if_dirty_throttled(0)
+
+        try:
+            ini_handler = _get_ini_handler()
+            config = ini_handler.reload()
+            if config.has_section(INI_SECTION):
+                config.set(INI_SECTION, PYCONS_SYNC_SELECTION_ENABLED_STATE_ONCE_KEY, "False")
+                ini_handler.save(config)
+        except Exception:
+            pass
+        return True
+
     def _force_bind_ini_handler_to_account() -> bool:
         global _ini_handler_cache, _ini_path_cache, _ini_generic_cached_with_email_logged
         try:
@@ -3787,12 +4041,15 @@ try:
             _force_bind_ini_handler_to_account()
             cfg = Config()
             _runtime_sync_from_cfg_full()
+            cleared_one_shot_enabled_defaults = _clear_one_shot_synced_enabled_defaults_if_needed()
             _team_flags_cache.clear()
             try:
                 _local_team_flags_refresh_timer.Stop()
             except Exception:
                 pass
             detail = "Pycons config reloaded from disk."
+            if cleared_one_shot_enabled_defaults:
+                detail = f"{detail} Synced ON/OFF state is active for this session only."
             if reason:
                 detail = f"{detail} Reason: {str(reason)}."
             return True, detail
@@ -3825,7 +4082,29 @@ try:
                 cfg.mark_dirty()
 
     def _enabled_selected_keys():
-        return [k for k in cfg.enabled.keys() if bool(cfg.selected.get(k, False)) and _runtime_regular_enabled(k)]
+        return [
+            k
+            for k in cfg.enabled.keys()
+            if bool(cfg.selected.get(k, False))
+            and _runtime_regular_enabled(k)
+            and not _is_party_item_spec(ALL_BY_KEY.get(k, {}))
+        ]
+
+    def _enabled_selected_party_item_keys() -> list[str]:
+        out: list[str] = []
+        for spec in PARTY_ITEMS:
+            key = str(spec.get("key", "") or "")
+            if key and bool(cfg.selected.get(key, False)) and _runtime_regular_enabled(key):
+                out.append(key)
+        return out
+
+    def _enabled_selected_sweet_keys() -> list[str]:
+        out: list[str] = []
+        for spec in SWEET_ITEMS:
+            key = str(spec.get("key", "") or "")
+            if key and bool(cfg.selected.get(key, False)) and _runtime_regular_enabled(key):
+                out.append(key)
+        return out
 
     def _alcohol_pool_keys():
         out = []
@@ -3919,6 +4198,40 @@ try:
             return False, keys, False
         return True, keys, bool(_in_explorable())
 
+    def _party_items_precheck():
+        """
+        Stable gate ordering for Party Items.
+        Returns (ok, keys, in_explorable).
+        """
+        keys = _enabled_selected_party_item_keys()
+        if not keys:
+            return False, keys, False
+        if not Routines.Checks.Map.MapValid():
+            return False, keys, False
+        if _should_block_consumption():
+            return False, keys, False
+        if not (aftercast_timer.IsStopped() or aftercast_timer.HasElapsed(int(AFTERCAST_MS))):
+            return False, keys, False
+        return True, keys, bool(_in_explorable())
+
+    def _sweets_precheck():
+        """
+        Stable gate ordering for fast sweets spending.
+        Returns (ok, keys, in_explorable).
+        """
+        if not bool(getattr(cfg, "sweets_fast_spending", False)):
+            return False, [], False
+        keys = _enabled_selected_sweet_keys()
+        if not keys:
+            return False, keys, False
+        if not Routines.Checks.Map.MapValid():
+            return False, keys, False
+        if _should_block_consumption():
+            return False, keys, False
+        if not (aftercast_timer.IsStopped() or aftercast_timer.HasElapsed(int(AFTERCAST_MS))):
+            return False, keys, False
+        return True, keys, bool(_in_explorable())
+
     def _alcohol_precheck():
         """
         Stable gate ordering for alcohol upkeep.
@@ -3927,8 +4240,9 @@ try:
         if not bool(cfg.alcohol_enabled):
             return False, 0, [], False, 0, 0
 
+        fast_spending = bool(getattr(cfg, "alcohol_fast_spending", False))
         target = int(cfg.alcohol_target_level)
-        if target <= 0:
+        if target <= 0 and not fast_spending:
             return False, target, [], False, 0, 0
 
         if not bool(cfg.alcohol_use_explorable) and not bool(cfg.alcohol_use_outpost):
@@ -3953,7 +4267,7 @@ try:
 
         now = _now_ms()
         cur_level = _alcohol_current_level(now)
-        if cur_level >= target:
+        if cur_level >= target and not fast_spending:
             return False, target, pool_keys, in_explorable, now, cur_level
 
         return True, target, pool_keys, in_explorable, now, cur_level
@@ -4086,6 +4400,8 @@ try:
         use_where = str(spec.get("use_where", "explorable")).lower().strip()
         if use_where == "both":
             return True
+        if use_where == "party_items":
+            return True
         if use_where == "outpost":
             return not in_explorable
         return in_explorable
@@ -4097,6 +4413,53 @@ try:
 
     def _is_summoning_spec(spec: dict) -> bool:
         return str(spec.get("use_where", "") or "").strip().lower() == "summoning"
+
+    def _is_party_item_spec(spec: dict) -> bool:
+        return str(spec.get("use_where", "") or "").strip().lower() == "party_items"
+
+    def _is_sweets_spec(spec: dict) -> bool:
+        return str(spec.get("use_where", "") or "").strip().lower() == "outpost"
+
+    def _is_guild_hall() -> bool:
+        try:
+            return bool(Map.IsGuildHall())
+        except Exception:
+            return False
+
+    def _is_outpost_or_guild_hall() -> bool:
+        if _is_guild_hall():
+            return True
+        try:
+            return bool(Map.IsOutpost())
+        except Exception:
+            return False
+
+    def _party_item_block_reason(key: str, spec: dict) -> str:
+        if not _is_party_item_spec(spec):
+            return ""
+
+        if bool(spec.get("guild_hall_only", False)) and not _is_guild_hall():
+            return "only used in a guild hall"
+
+        if bool(spec.get("town_or_guild_hall_only", False)) and not _is_outpost_or_guild_hall():
+            return "only used in towns, outposts, or guild halls"
+
+        blocked_effect_id = int(spec.get("blocked_effect_id", 0) or 0)
+        if blocked_effect_id > 0 and _has_effect(blocked_effect_id):
+            return "waiting for Tonic Tipsiness"
+
+        return ""
+
+    def _record_party_item_block(key: str, label: str, reason: str):
+        clean_reason = str(reason or "").strip()
+        if not clean_reason:
+            return
+        wt = _warn_timer_for(f"party_item_block_{key}")
+        if not (wt.IsStopped() or wt.HasElapsed(8000)):
+            return
+        wt.Start()
+        _record_blocked_action(f"party_item_block_{key}", f"{label}: {clean_reason}")
+        _debug(f"Skipping {label}: {clean_reason}.", Console.MessageType.Debug)
 
     def _party_player_agent_ids() -> set[int]:
         out = set()
@@ -5636,8 +5999,10 @@ try:
         candidates.sort(key=lambda x: (x[0], x[1]))
         return candidates[0][2]
 
-    def _cooldown_for_key(key: str) -> int:
+    def _cooldown_for_key(key: str, spec: dict | None = None) -> int:
         v = int(cfg.min_interval_ms.get(key, 0) or 0)
+        if v <= 0 and spec is not None:
+            v = int(spec.get("default_cooldown_ms", 0) or 0)
         if v <= 0:
             return int(DEFAULT_INTERNAL_COOLDOWN_MS)
         return int(max(250, v))
@@ -5976,13 +6341,17 @@ try:
                 set_key(f"restock_target_{item_key}", int(max(0, min(2500, int(cfg.restock_targets.get(item_key, VAULT_RESTOCK_TARGET_QTY) or 0)))))
 
         if PYCONS_SYNC_CATEGORY_SELECTION in category_set:
+            include_enabled_state = bool(getattr(cfg, "sync_selection_include_enabled_state", False))
+            set_key(PYCONS_SYNC_SELECTION_ENABLED_STATE_ONCE_KEY, bool(include_enabled_state))
             for spec in ALL_CONSUMABLES:
                 item_key = str(spec.get("key", "") or "")
                 if not item_key:
                     continue
                 selected_value = bool(cfg.selected.get(item_key, False))
                 set_key(f"selected_{item_key}", selected_value)
-                if not selected_value:
+                if bool(include_enabled_state):
+                    set_key(f"enabled_{item_key}", bool(_runtime_regular_enabled(item_key)) if selected_value else False)
+                elif not selected_value:
                     set_key(f"enabled_{item_key}", False)
             for spec in ALCOHOL_ITEMS:
                 item_key = str(spec.get("key", "") or "")
@@ -5990,7 +6359,9 @@ try:
                     continue
                 selected_value = bool(cfg.alcohol_selected.get(item_key, False))
                 set_key(f"alcohol_selected_{item_key}", selected_value)
-                if not selected_value:
+                if bool(include_enabled_state):
+                    set_key(f"alcohol_enabled_{item_key}", bool(_runtime_alcohol_enabled(item_key)) if selected_value else False)
+                elif not selected_value:
                     set_key(f"alcohol_enabled_{item_key}", False)
 
         ini_handler.save(config)
@@ -6838,6 +7209,12 @@ try:
             if key in MB_DP_BY_KEY:
                 continue
 
+            if _is_party_item_spec(spec):
+                continue
+
+            if bool(getattr(cfg, "sweets_fast_spending", False)) and _is_sweets_spec(spec):
+                continue
+
             if not _allowed_here(spec, in_explorable):
                 continue
 
@@ -6866,7 +7243,7 @@ try:
                 continue
 
             t = _timer_for(key)
-            cd = _cooldown_for_key(key)
+            cd = _cooldown_for_key(key, spec)
             if not (t.IsStopped() or t.HasElapsed(int(cd))):
                 continue
 
@@ -6891,12 +7268,118 @@ try:
                 t.Start()
                 aftercast_timer.Start()
                 _last_used_ms[key] = _now_ms()
-                if not _is_summoning_spec(spec):
+                if not _is_summoning_spec(spec) and not bool(spec.get("suppress_team_broadcast", False)):
                     try:
                         _broadcast_use(model_id, 1, effect_id)
                     except Exception:
                         pass
                 # Force refresh inventory cache to show accurate count after consumption
+                _refresh_inventory_cache(force=True)
+                return True
+
+        return False
+
+    # -------------------------
+    # Tick: Party Items
+    # -------------------------
+    def _tick_party_items() -> bool:
+        ok, keys, in_explorable = _party_items_precheck()
+        if not ok:
+            return False
+
+        for key in keys:
+            spec = PARTY_ITEMS_BY_KEY.get(key)
+            if not spec:
+                continue
+
+            if not _allowed_here(spec, in_explorable):
+                continue
+
+            party_block_reason = _party_item_block_reason(key, spec)
+            if party_block_reason:
+                _record_party_item_block(key, str(spec.get("label", key) or key), party_block_reason)
+                continue
+
+            if _fallback_active(key, spec):
+                continue
+
+            t = _timer_for(key)
+            cd = _cooldown_for_key(key, spec)
+            if not (t.IsStopped() or t.HasElapsed(int(cd))):
+                continue
+
+            model_id = int(spec.get("model_id", 0))
+            if model_id <= 0:
+                wt = _warn_timer_for(f"consume_modelid_missing_{key}")
+                if wt.IsStopped() or wt.HasElapsed(15000):
+                    wt.Start()
+                    _record_blocked_action(
+                        f"consume_modelid_missing_{key}",
+                        f"{str(spec.get('label', key) or key)}: model_id=0",
+                    )
+                    _debug(f"Skipping {spec.get('label','(unknown)')}: model_id is 0 (missing ModelID entry?).", Console.MessageType.Warning)
+                continue
+
+            item_id = _find_item_id_by_model_id(model_id)
+            if item_id <= 0:
+                continue
+
+            _log(f"Using {spec['label']}.", Console.MessageType.Debug)
+            if _use_item_id(item_id, key):
+                t.Start()
+                aftercast_timer.Start()
+                _last_used_ms[key] = _now_ms()
+                _refresh_inventory_cache(force=True)
+                return True
+
+        return False
+
+    # -------------------------
+    # Tick: fast sweets spending
+    # -------------------------
+    def _tick_sweets() -> bool:
+        ok, keys, in_explorable = _sweets_precheck()
+        if not ok:
+            return False
+
+        t = _timer_for("sweets_fast_global")
+        interval_ms = int(
+            max(
+                MIN_SWEETS_FAST_INTERVAL_MS,
+                min(MAX_SWEETS_FAST_INTERVAL_MS, int(getattr(cfg, "sweets_fast_interval_ms", DEFAULT_SWEETS_FAST_INTERVAL_MS))),
+            )
+        )
+        if not (t.IsStopped() or t.HasElapsed(interval_ms)):
+            return False
+        t.Start()
+
+        for key in keys:
+            spec = SWEET_ITEMS_BY_KEY.get(key)
+            if not spec:
+                continue
+            if not _allowed_here(spec, in_explorable):
+                continue
+
+            model_id = int(spec.get("model_id", 0))
+            if model_id <= 0:
+                wt = _warn_timer_for(f"consume_modelid_missing_{key}")
+                if wt.IsStopped() or wt.HasElapsed(15000):
+                    wt.Start()
+                    _record_blocked_action(
+                        f"consume_modelid_missing_{key}",
+                        f"{str(spec.get('label', key) or key)}: model_id=0",
+                    )
+                    _debug(f"Skipping {spec.get('label','(unknown)')}: model_id is 0 (missing ModelID entry?).", Console.MessageType.Warning)
+                continue
+
+            item_id = _find_item_id_by_model_id(model_id)
+            if item_id <= 0:
+                continue
+
+            _log(f"Fast using {spec.get('label','Sweets')}.", Console.MessageType.Debug)
+            if _use_item_id(item_id, key):
+                aftercast_timer.Start()
+                _last_used_ms[key] = _now_ms()
                 _refresh_inventory_cache(force=True)
                 return True
 
@@ -6911,7 +7394,16 @@ try:
             return False
 
         t = _timer_for("alcohol_global")
-        if not (t.IsStopped() or t.HasElapsed(2500)):
+        fast_spending = bool(getattr(cfg, "alcohol_fast_spending", False))
+        interval_ms = (
+            max(
+                MIN_ALCOHOL_FAST_INTERVAL_MS,
+                min(MAX_ALCOHOL_FAST_INTERVAL_MS, int(getattr(cfg, "alcohol_fast_interval_ms", DEFAULT_ALCOHOL_FAST_INTERVAL_MS))),
+            )
+            if fast_spending
+            else 2500
+        )
+        if not (t.IsStopped() or t.HasElapsed(int(interval_ms))):
             return False
 
         pick = _pick_alcohol(cur_level, target, pool_keys)
@@ -6934,7 +7426,10 @@ try:
         if item_id <= 0:
             return False
 
-        _log(f"Drinking {pick.get('label','Alcohol')} (target {target}).", Console.MessageType.Debug)
+        if fast_spending:
+            _log(f"Fast drinking {pick.get('label','Alcohol')}.", Console.MessageType.Debug)
+        else:
+            _log(f"Drinking {pick.get('label','Alcohol')} (target {target}).", Console.MessageType.Debug)
         if _use_item_id(item_id, pick.get("key", "alcohol")):
             _alcohol_apply_drink(int(pick.get("drunk_add", 1) or 1), now)
             t.Start()
@@ -7124,7 +7619,7 @@ try:
             _clear_remote_profile_apply_confirmation()
 
         _text_secondary("Select active multibox target accounts below. Both actions use the same target list.")
-        _text_secondary("Window layout, presets, filters, and temporary ON/OFF changes stay local.")
+        _text_secondary("Window layout, presets, and filters stay local. Temporary ON/OFF changes copy only when selected below.")
         PyImGui.dummy(0, 4)
 
         _text_secondary(f"{len(active_accounts)} active account(s) | {len(selected_accounts)} selected")
@@ -7227,6 +7722,18 @@ try:
             )
             if changed:
                 _rt.sync_selected_categories[str(category_key)] = bool(value)
+            if str(category_key) == PYCONS_SYNC_CATEGORY_SELECTION:
+                _same_line(10)
+                changed, include_enabled = ui_checkbox(
+                    "Copy ON/OFF state##pycons_sync_selection_enabled_state",
+                    bool(getattr(cfg, "sync_selection_include_enabled_state", False)),
+                )
+                if changed:
+                    cfg.sync_selection_include_enabled_state = bool(include_enabled)
+                    cfg.mark_dirty()
+                _tooltip_if_hovered(
+                    "When checked, this also copies the sender's current ON/OFF state for the selected main-window items."
+                )
 
         selected_categories = _get_selected_pycons_sync_categories()
         copy_disabled = (len(selected_categories) == 0 or len(selected_accounts) == 0)
@@ -7390,6 +7897,7 @@ try:
         selected_outpost: list,
         selected_mbdp: list,
         selected_alcohol: list,
+        selected_party_items: list,
     ) -> float:
         try:
             line_h = float(PyImGui.get_text_line_height() or 18.0)
@@ -7411,6 +7919,8 @@ try:
             rows += 3.0 + float(len(selected_mbdp)) + 0.8
         if selected_alcohol:
             rows += 1.0 + float(len(selected_alcohol)) + 0.4
+        if selected_party_items:
+            rows += 1.0 + float(len(selected_party_items)) + 0.4
 
         estimated = (line_h * max(3.0, rows)) + 16.0
         return float(max(MAIN_SELECTED_CHILD_MIN_HEIGHT, min(MAIN_SELECTED_CHILD_MAX_HEIGHT, estimated)))
@@ -7483,8 +7993,9 @@ try:
 
         PyImGui.separator()
 
-        # --- Alcohol settings (collapsed dropdown for compactness) ---
-        if _styled_collapsing_header("Alcohol settings##pycons_alcohol_dropdown", False, "settings_alcohol"):
+        # --- Alcohol, Party, and Sweets settings (collapsed dropdown for compactness) ---
+        if _styled_collapsing_header("Alcohol/Party & Sweets Settings##pycons_alcohol_dropdown", False, "settings_alcohol"):
+            _section_text("Alcohol", "alcohol")
             PyImGui.text("Alcohol upkeep:")
             _same_line(10)
             if _badge_button("ON" if cfg.alcohol_enabled else "OFF", enabled=bool(cfg.alcohol_enabled), id_suffix="pycons_alcohol_toggle"):
@@ -7532,6 +8043,72 @@ try:
                 "Strong-first: fastest ramp to target.\n"
                 "Weak-first: conserves stronger alcohol."
             )
+
+            changed, fast_spending = ui_checkbox(
+                "Fast alcohol spending##pycons_alc_fast_spending_main",
+                bool(getattr(cfg, "alcohol_fast_spending", False)),
+            )
+            if changed:
+                cfg.alcohol_fast_spending = bool(fast_spending)
+                cfg.mark_dirty()
+            _tooltip_if_hovered(_tooltip_text_for("alcohol_fast_spending"))
+            _same_line(10)
+            PyImGui.text("Interval (ms):")
+            _same_line(6)
+            changed, fast_interval = ui_input_int_fixed(
+                "##pycons_alc_fast_interval_main",
+                int(getattr(cfg, "alcohol_fast_interval_ms", DEFAULT_ALCOHOL_FAST_INTERVAL_MS)),
+                width=120.0,
+            )
+            if changed:
+                cfg.alcohol_fast_interval_ms = int(
+                    max(MIN_ALCOHOL_FAST_INTERVAL_MS, min(MAX_ALCOHOL_FAST_INTERVAL_MS, int(fast_interval)))
+                )
+                cfg.mark_dirty()
+            _tooltip_if_hovered(_tooltip_text_for("alcohol_fast_interval_ms"))
+
+            PyImGui.separator()
+
+            _section_text("Party Items", "party_items")
+            PyImGui.text("Speed (ms):")
+            _same_line(10)
+            changed, party_interval = ui_input_int_fixed(
+                "##pycons_party_item_interval_main",
+                int(getattr(cfg, "party_item_interval_ms", DEFAULT_PARTY_ITEM_INTERVAL_MS)),
+                width=120.0,
+            )
+            if changed:
+                cfg.party_item_interval_ms = int(
+                    max(MIN_PARTY_ITEM_INTERVAL_MS, min(MAX_PARTY_ITEM_INTERVAL_MS, int(party_interval)))
+                )
+                cfg.mark_dirty()
+            _tooltip_if_hovered(_tooltip_text_for("party_item_interval_ms"))
+
+            PyImGui.separator()
+
+            _section_text("Sweets", "alcohol")
+            changed, sweets_fast = ui_checkbox(
+                "Fast sweets spending##pycons_sweets_fast_spending_main",
+                bool(getattr(cfg, "sweets_fast_spending", False)),
+            )
+            if changed:
+                cfg.sweets_fast_spending = bool(sweets_fast)
+                cfg.mark_dirty()
+            _tooltip_if_hovered(_tooltip_text_for("sweets_fast_spending"))
+            _same_line(10)
+            PyImGui.text("Interval (ms):")
+            _same_line(6)
+            changed, sweets_interval = ui_input_int_fixed(
+                "##pycons_sweets_fast_interval_main",
+                int(getattr(cfg, "sweets_fast_interval_ms", DEFAULT_SWEETS_FAST_INTERVAL_MS)),
+                width=120.0,
+            )
+            if changed:
+                cfg.sweets_fast_interval_ms = int(
+                    max(MIN_SWEETS_FAST_INTERVAL_MS, min(MAX_SWEETS_FAST_INTERVAL_MS, int(sweets_interval)))
+                )
+                cfg.mark_dirty()
+            _tooltip_if_hovered(_tooltip_text_for("sweets_fast_interval_ms"))
 
             PyImGui.separator()
 
@@ -7602,10 +8179,11 @@ try:
             selected_outpost = [c for c in CONSUMABLES if c.get("use_where") == "outpost" and bool(cfg.selected.get(c["key"], False))]
             selected_mbdp = [c for c in MB_DP_ITEMS if bool(cfg.selected.get(c["key"], False))]
             selected_alcohol = [a for a in ALCOHOL_ITEMS if bool(cfg.alcohol_selected.get(a["key"], False))]
+            selected_party_items = [c for c in PARTY_ITEMS if bool(cfg.selected.get(c["key"], False))]
             # Keep the main selected-items panel stable even when inventory hits 0.
             # Availability filtering remains in the Settings browser.
 
-            any_selected = bool(selected_explorable_conset or selected_explorable_other or selected_summoning or selected_outpost or selected_mbdp or selected_alcohol)
+            any_selected = bool(selected_explorable_conset or selected_explorable_other or selected_summoning or selected_outpost or selected_mbdp or selected_alcohol or selected_party_items)
             if not any_selected:
                 PyImGui.text_disabled("None selected. Open Settings and pick consumables.")
             else:
@@ -7616,6 +8194,7 @@ try:
                     selected_outpost,
                     selected_mbdp,
                     selected_alcohol,
+                    selected_party_items,
                 )
                 try:
                     avail_h = float(PyImGui.get_content_region_avail()[1] or 0.0)
@@ -7730,6 +8309,17 @@ try:
                             )
                             if chg:
                                 _set_main_runtime_alcohol_enabled(k, bool(new_enabled))
+                        PyImGui.separator()
+
+                    if selected_party_items:
+                        _section_text("Party Items:", "party_items")
+                        for c in sorted(selected_party_items, key=lambda x: (int(x.get("party_points", 0) or 0), str(x.get("label", "")).lower())):
+                            k = c["key"]
+                            new_enabled, chg = _draw_main_row_checkbox_and_badge(
+                                k, c["label"], _runtime_regular_enabled(k), "pycons_party", int(c.get("model_id", 0))
+                            )
+                            if chg:
+                                _set_main_runtime_regular_enabled(k, bool(new_enabled))
                     PyImGui.end_child()
 
         ImGui.End(INI_KEY_MAIN)
@@ -7828,6 +8418,31 @@ try:
         selected = bool(selected)
         if prev != selected:
             _apply_alcohol_selection_change(k, selected)
+
+    def _draw_party_item_settings_row(spec: dict, flt: str, visible_keys_out=None, only_available: bool = False, only_selected: bool = False):
+        k = spec["key"]
+        label = spec["label"]
+        prev = bool(cfg.selected.get(k, False))
+        if not _passes_settings_item_filters(spec, label, flt, prev, only_available=only_available, only_selected=only_selected):
+            return
+        if visible_keys_out is not None:
+            visible_keys_out.append(k)
+        model_id = int(spec.get("model_id", 0))
+        selected, _changed, _used_icon = _draw_icon_toggle_or_checkbox(
+            prev, k, label, "pycons_party_selected", icon_size=18.0, highlight_selected_box=True
+        )
+        _same_line(10)
+        PyImGui.text(label)
+        _same_line(6)
+        _text_meta(f"({_party_points_text(int(spec.get('party_points', 0) or 0))})")
+        _tooltip_if_hovered(_consumable_tooltip_with_label(k, label))
+        _draw_inline_stock_text(model_id, spacing=10.0)
+
+        _draw_min_interval_editor(k)
+
+        selected = bool(selected)
+        if prev != selected:
+            _apply_regular_selection_change(k, selected)
 
     def _list_has_match(spec_list: list, flt: str) -> bool:
         if not flt:
@@ -8081,6 +8696,58 @@ try:
                     only_selected=only_selected_settings,
                 )
             if only_available_settings and len(visible_alcohol_keys) == before_alcohol:
+                PyImGui.text_disabled("No available items.")
+
+    def _draw_settings_party_items_category(
+        party_items_force,
+        flt: str,
+        party_items: list,
+        visible_regular_keys: list,
+        only_available_settings: bool,
+        only_selected_settings: bool,
+    ):
+        party_items_open = _styled_collapsing_header_force(
+            "Party Items##pycons_hdr_party_items",
+            party_items_force,
+            bool(getattr(cfg, "settings_party_items_open", False)),
+            "settings_select_party_items",
+        )
+        if bool(getattr(cfg, "settings_party_items_open", False)) != bool(party_items_open):
+            cfg.settings_party_items_open = bool(party_items_open)
+            cfg.mark_dirty()
+        if party_items_open:
+            before_party_items = len(visible_regular_keys)
+            sorted_party_items = sorted(
+                list(party_items or []),
+                key=lambda x: (int(x.get("party_points", 0) or 0), str(x.get("label", "")).lower()),
+            )
+            last_points = None
+            for spec in sorted_party_items:
+                points = int(spec.get("party_points", 0) or 0)
+                label = str(spec.get("label", "") or "")
+                selected_now = bool(cfg.selected.get(str(spec.get("key", "") or ""), False))
+                if not _passes_settings_item_filters(
+                    spec,
+                    label,
+                    flt,
+                    selected_now,
+                    only_available=only_available_settings,
+                    only_selected=only_selected_settings,
+                ):
+                    continue
+                if last_points != points:
+                    if last_points is not None:
+                        PyImGui.separator()
+                    _section_text(f"{_party_points_text(points)}:", "party_items", secondary=True)
+                    last_points = points
+                _draw_party_item_settings_row(
+                    spec,
+                    flt,
+                    visible_regular_keys,
+                    only_available=only_available_settings,
+                    only_selected=only_selected_settings,
+                )
+            if only_available_settings and len(visible_regular_keys) == before_party_items:
                 PyImGui.text_disabled("No available items.")
 
     def _draw_settings_window():
@@ -8442,6 +9109,7 @@ try:
             outpost_items = [c for c in CONSUMABLES if c.get("use_where") == "outpost"]
             mbdp_items = MB_DP_ITEMS
             alcohol_items = ALCOHOL_ITEMS
+            party_items = PARTY_ITEMS
 
             conset_has_match = search_active and _list_has_match(explorable_consets, flt)
             explorable_other_has_match = search_active and _list_has_match(explorable_other, flt)
@@ -8450,6 +9118,7 @@ try:
             outpost_has_match = search_active and _list_has_match(outpost_items, flt)
             mbdp_has_match = search_active and _list_has_match(mbdp_items, flt)
             alcohol_has_match = search_active and _list_has_match(alcohol_items, flt)
+            party_items_has_match = search_active and _list_has_match(party_items, flt)
 
             pending_select_visible = False
             pending_clear_visible = False
@@ -8466,6 +9135,7 @@ try:
             current_outpost_force = False if collapse_now else (True if outpost_has_match else (False if search_active else None))
             current_mbdp_force = False if collapse_now else (True if mbdp_has_match else (False if search_active else None))
             current_alcohol_force = False if collapse_now else (True if alcohol_has_match else (False if search_active else None))
+            current_party_items_force = False if collapse_now else (True if party_items_has_match else (False if search_active else None))
 
             current_visible_count = 0
             if _effective_section_open(current_explorable_force, bool(cfg.settings_explorable_open)):
@@ -8514,6 +9184,14 @@ try:
                     only_available=only_available_settings,
                     only_selected=only_selected_settings,
                     alcohol=True,
+                )
+            if _effective_section_open(current_party_items_force, bool(getattr(cfg, "settings_party_items_open", False))):
+                current_visible_count += _count_visible_settings_specs(
+                    party_items,
+                    flt,
+                    only_available=only_available_settings,
+                    only_selected=only_selected_settings,
+                    alcohol=False,
                 )
 
             disabled_top = (int(current_visible_count) == 0)
@@ -8565,23 +9243,26 @@ try:
                 outpost_force = True
                 mbdp_force = True
                 alcohol_force = True
+                party_items_force = True
             elif pending_collapse_all:
                 explorable_force = False
                 summoning_force = False
                 outpost_force = False
                 mbdp_force = False
                 alcohol_force = False
+                party_items_force = False
             else:
                 explorable_force = False if collapse_now else (True if explorable_has_match else (False if search_active else None))
                 summoning_force = False if collapse_now else (True if summoning_has_match else (False if search_active else None))
                 outpost_force = False if collapse_now else (True if outpost_has_match else (False if search_active else None))
                 mbdp_force = False if collapse_now else (True if mbdp_has_match else (False if search_active else None))
                 alcohol_force = False if collapse_now else (True if alcohol_has_match else (False if search_active else None))
+                party_items_force = False if collapse_now else (True if party_items_has_match else (False if search_active else None))
 
             visible_regular_keys = []
             visible_alcohol_keys = []
 
-            category_keys = _ordered_consumable_category_keys(["explorable", "summoning", "mbdp", "outpost", "alcohol"])
+            category_keys = _ordered_consumable_category_keys(["explorable", "summoning", "mbdp", "outpost", "alcohol", "party_items"])
             for category_key in category_keys:
                 if category_key == "explorable":
                     _draw_settings_explorable_category(
@@ -8629,6 +9310,15 @@ try:
                         flt,
                         alcohol_items,
                         visible_alcohol_keys,
+                        only_available_settings,
+                        only_selected_settings,
+                    )
+                elif category_key == "party_items":
+                    _draw_settings_party_items_category(
+                        party_items_force,
+                        flt,
+                        party_items,
+                        visible_regular_keys,
                         only_available_settings,
                         only_selected_settings,
                     )
@@ -8879,9 +9569,9 @@ try:
 
             PyImGui.separator()
 
-        # --- Alcohol settings (collapsed dropdown for compactness) ---
+        # --- Alcohol, Party, and Sweets settings (collapsed dropdown for compactness) ---
         alcohol_section_open = _styled_collapsing_header(
-            "Alcohol settings##pycons_settings_alcohol_dropdown",
+            "Alcohol/Party & Sweets Settings##pycons_settings_alcohol_dropdown",
             bool(cfg.settings_ui_alcohol_open),
             "settings_alcohol",
         )
@@ -8889,6 +9579,7 @@ try:
             cfg.settings_ui_alcohol_open = bool(alcohol_section_open)
             cfg.mark_dirty()
         if alcohol_section_open:
+            _section_text("Alcohol", "alcohol")
             PyImGui.text("Alcohol upkeep:")
             _same_line(10)
             if _badge_button("ON" if cfg.alcohol_enabled else "OFF", enabled=bool(cfg.alcohol_enabled), id_suffix="pycons_settings_alcohol_toggle"):
@@ -8934,6 +9625,72 @@ try:
                 cfg.alcohol_preference = int(pref_idx)
                 cfg.mark_dirty()
             _show_setting_tooltip("alcohol_preference_mode")
+
+            changed, fast_spending = ui_checkbox(
+                "Fast alcohol spending##pycons_settings_alc_fast_spending",
+                bool(getattr(cfg, "alcohol_fast_spending", False)),
+            )
+            if changed:
+                cfg.alcohol_fast_spending = bool(fast_spending)
+                cfg.mark_dirty()
+            _tooltip_if_hovered(_tooltip_text_for("alcohol_fast_spending"))
+            _same_line(10)
+            PyImGui.text("Interval (ms):")
+            _same_line(6)
+            changed, fast_interval = ui_input_int_fixed(
+                "##pycons_settings_alc_fast_interval",
+                int(getattr(cfg, "alcohol_fast_interval_ms", DEFAULT_ALCOHOL_FAST_INTERVAL_MS)),
+                width=130.0,
+            )
+            if changed:
+                cfg.alcohol_fast_interval_ms = int(
+                    max(MIN_ALCOHOL_FAST_INTERVAL_MS, min(MAX_ALCOHOL_FAST_INTERVAL_MS, int(fast_interval)))
+                )
+                cfg.mark_dirty()
+            _show_setting_tooltip("alcohol_fast_interval_ms")
+
+            PyImGui.separator()
+
+            _section_text("Party Items", "party_items")
+            PyImGui.text("Speed (ms):")
+            _same_line(10)
+            changed, party_interval = ui_input_int_fixed(
+                "##pycons_party_item_interval_ms",
+                int(getattr(cfg, "party_item_interval_ms", DEFAULT_PARTY_ITEM_INTERVAL_MS)),
+                width=120.0,
+            )
+            if changed:
+                cfg.party_item_interval_ms = int(
+                    max(MIN_PARTY_ITEM_INTERVAL_MS, min(MAX_PARTY_ITEM_INTERVAL_MS, int(party_interval)))
+                )
+                cfg.mark_dirty()
+            _show_setting_tooltip("party_item_interval_ms")
+
+            PyImGui.separator()
+
+            _section_text("Sweets", "alcohol")
+            changed, sweets_fast = ui_checkbox(
+                "Fast sweets spending##pycons_settings_sweets_fast_spending",
+                bool(getattr(cfg, "sweets_fast_spending", False)),
+            )
+            if changed:
+                cfg.sweets_fast_spending = bool(sweets_fast)
+                cfg.mark_dirty()
+            _tooltip_if_hovered(_tooltip_text_for("sweets_fast_spending"))
+            _same_line(10)
+            PyImGui.text("Interval (ms):")
+            _same_line(6)
+            changed, sweets_interval = ui_input_int_fixed(
+                "##pycons_settings_sweets_fast_interval",
+                int(getattr(cfg, "sweets_fast_interval_ms", DEFAULT_SWEETS_FAST_INTERVAL_MS)),
+                width=130.0,
+            )
+            if changed:
+                cfg.sweets_fast_interval_ms = int(
+                    max(MIN_SWEETS_FAST_INTERVAL_MS, min(MAX_SWEETS_FAST_INTERVAL_MS, int(sweets_interval)))
+                )
+                cfg.mark_dirty()
+            _show_setting_tooltip("sweets_fast_interval_ms")
 
             PyImGui.separator()
         restock_section_open = _styled_collapsing_header(
@@ -9191,6 +9948,7 @@ try:
         if cfg is None:
             cfg = Config()
             _runtime_sync_from_cfg_full()
+            _clear_one_shot_synced_enabled_defaults_if_needed()
         else:
             _maybe_rebind_cfg_from_generic_ini()
 
@@ -9232,8 +9990,24 @@ try:
             used = _tick_morale_dp()
             if not used:
                 used = _tick_consume()
-            if not used:
+            if not used and not bool(getattr(cfg, "alcohol_fast_spending", False)):
                 _tick_alcohol()
+
+        if bool(getattr(cfg, "alcohol_fast_spending", False)):
+            _tick_alcohol()
+
+        if bool(getattr(cfg, "sweets_fast_spending", False)):
+            _tick_sweets()
+
+        party_interval_ms = int(
+            max(
+                MIN_PARTY_ITEM_INTERVAL_MS,
+                min(MAX_PARTY_ITEM_INTERVAL_MS, int(getattr(cfg, "party_item_interval_ms", DEFAULT_PARTY_ITEM_INTERVAL_MS))),
+            )
+        )
+        if party_tick_timer.HasElapsed(party_interval_ms):
+            party_tick_timer.Start()
+            _tick_party_items()
 
     __all__ = ["main", "configure"]
     _INIT_OK = True

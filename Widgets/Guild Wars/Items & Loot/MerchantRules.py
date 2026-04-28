@@ -48,7 +48,7 @@ QUICK_ACTIONS_MENU_SCREEN_MARGIN = 8.0
 QUICK_ACTIONS_MENU_ICON_GAP = 4.0
 QUICK_ACTIONS_MENU_REASON_WIDTH = 130.0
 
-PROFILE_VERSION = 27
+PROFILE_VERSION = 28
 CONFIG_DIR = os.path.join(Py4GW.Console.get_projects_path(), "Widgets", "Config", "MerchantRules")
 SHARED_PROFILES_DIR = os.path.join(CONFIG_DIR, "Profiles")
 RECOVERY_DIR = os.path.join(CONFIG_DIR, "Recovery")
@@ -988,6 +988,8 @@ class SellRule:
     skip_unidentified: bool = True
     include_standalone_runes: bool = False
     deposit_protected_matches: bool = False
+    sell_from_xunlai: bool = False
+    include_material_storage: bool = False
     name: str = ""
 
 
@@ -3040,6 +3042,8 @@ def _normalize_sell_rule(rule: SellRule) -> SellRule | None:
     rule.skip_unidentified = bool(rule.skip_unidentified)
     rule.include_standalone_runes = bool(rule.include_standalone_runes)
     rule.deposit_protected_matches = bool(getattr(rule, "deposit_protected_matches", False))
+    rule.sell_from_xunlai = bool(getattr(rule, "sell_from_xunlai", False))
+    rule.include_material_storage = bool(getattr(rule, "include_material_storage", False)) and bool(rule.sell_from_xunlai)
     rule.name = _normalize_rule_name(getattr(rule, "name", ""))
     rule.whitelist_targets = _normalize_whitelist_targets(rule.whitelist_targets)
     if rule.kind in (SELL_KIND_WEAPONS, SELL_KIND_ARMOR):
@@ -3945,6 +3949,8 @@ class MerchantRulesWidget:
                     skip_unidentified=bool(entry.get("skip_unidentified", True)),
                     include_standalone_runes=bool(entry.get("include_standalone_runes", False)),
                     deposit_protected_matches=bool(entry.get("deposit_protected_matches", False)),
+                    sell_from_xunlai=bool(entry.get("sell_from_xunlai", False)),
+                    include_material_storage=bool(entry.get("include_material_storage", False)),
                     name=_normalize_rule_name(entry.get("name", "")),
                 )
             )
@@ -4086,6 +4092,8 @@ class MerchantRulesWidget:
                 skip_unidentified=bool(entry.get("skip_unidentified", True)),
                 include_standalone_runes=bool(entry.get("include_standalone_runes", False)),
                 deposit_protected_matches=bool(entry.get("deposit_protected_matches", False)),
+                sell_from_xunlai=bool(entry.get("sell_from_xunlai", False)),
+                include_material_storage=bool(entry.get("include_material_storage", False)),
                 name=_normalize_rule_name(entry.get("name", "")),
             )
             for entry in _coerce_list(payload.get("sell_rules", []))
@@ -8594,6 +8602,11 @@ class MerchantRulesWidget:
             return []
         return self._collect_item_infos_from_ids(self._get_storage_item_ids())
 
+    def _collect_material_storage_items(self) -> list[InventoryItemInfo]:
+        if not self._is_storage_open():
+            return []
+        return self._collect_item_infos_from_ids(self._get_bag_item_ids((MATERIAL_STORAGE_BAG_ID,)))
+
     def _get_standalone_rune_identifier_counts(self, items: list[InventoryItemInfo]) -> dict[str, int]:
         counts: dict[str, int] = {}
         for item in items:
@@ -10755,6 +10768,29 @@ class MerchantRulesWidget:
             enabled_sell_rules.append((rule_index, sell_rule))
         return enabled_sell_rules
 
+    def _collect_enabled_xunlai_sell_rules(self) -> list[tuple[int, SellRule]]:
+        return [
+            (rule_index, sell_rule)
+            for rule_index, sell_rule in self._collect_enabled_sell_rules()
+            if bool(getattr(sell_rule, "sell_from_xunlai", False))
+        ]
+
+    def _has_enabled_xunlai_sell_rules(self) -> bool:
+        return bool(self._collect_enabled_xunlai_sell_rules())
+
+    def _has_ready_xunlai_sell_rules(self) -> bool:
+        for _rule_index, rule in self._collect_enabled_xunlai_sell_rules():
+            if rule.kind in (SELL_KIND_COMMON_MATERIALS, SELL_KIND_EXPLICIT_MODELS):
+                if _normalize_whitelist_targets(getattr(rule, "whitelist_targets", [])):
+                    return True
+            elif rule.kind == SELL_KIND_RUNE_TRADER_TARGET:
+                if _normalize_rune_sell_targets(getattr(rule, "rune_sell_targets", [])):
+                    return True
+            elif rule.kind in (SELL_KIND_WEAPONS, SELL_KIND_ARMOR):
+                if any(bool(value) for value in getattr(rule, "rarities", {}).values()):
+                    return True
+        return False
+
     def _collect_enabled_destroy_rules(self) -> list[tuple[int, DestroyRule]]:
         enabled_destroy_rules: list[tuple[int, DestroyRule]] = []
         for rule_index, raw_destroy_rule in enumerate(self.destroy_rules):
@@ -12106,11 +12142,24 @@ class MerchantRulesWidget:
         storage_api = getattr(GLOBAL_CACHE, "Inventory", None)
         storage_open = bool(storage_api is not None and bool(getattr(storage_api, "IsStorageOpen", lambda: False)()))
         storage_items: list[InventoryItemInfo] = []
+        xunlai_sell_material_storage_items: list[InventoryItemInfo] = []
         needs_rune_storage_context = bool(not consumable_crafter_only and self._has_enabled_rune_buy_rules())
         needs_consumable_storage_context = bool(not exclude_consumable_crafter and self._has_enabled_consumable_crafter_buy_rules())
-        if needs_rune_storage_context or needs_consumable_storage_context:
+        needs_xunlai_sell_storage_context = bool(
+            not cleanup_only
+            and not consumable_crafter_only
+            and self._has_ready_xunlai_sell_rules()
+        )
+        if needs_rune_storage_context or needs_consumable_storage_context or needs_xunlai_sell_storage_context:
             if storage_open:
                 storage_items = self._collect_storage_items()
+                if needs_xunlai_sell_storage_context:
+                    include_xunlai_material_storage = any(
+                        bool(getattr(rule, "include_material_storage", False))
+                        for _rule_index, rule in self._collect_enabled_xunlai_sell_rules()
+                    )
+                    if include_xunlai_material_storage:
+                        xunlai_sell_material_storage_items = self._collect_material_storage_items()
                 plan.storage_plan_state = STORAGE_PLAN_STATE_EXACT_READY
                 plan.storage_exact = True
             else:
@@ -12209,6 +12258,14 @@ class MerchantRulesWidget:
                 for material_target in material_targets:
                     material_model_id = max(0, int(material_target.model_id))
                     target_keep_count = max(0, int(material_target.keep_count))
+                    if target_keep_count > 0:
+                        storage_keep_available = self._get_xunlai_storage_keep_available(
+                            sell_rule,
+                            material_model_id,
+                            storage_items,
+                            xunlai_sell_material_storage_items,
+                        )
+                        target_keep_count = max(0, target_keep_count - storage_keep_available)
                     target_label = self._format_model_label(material_model_id)
                     matching_items = [
                         item
@@ -12354,6 +12411,14 @@ class MerchantRulesWidget:
                 for explicit_target in explicit_targets:
                     target_model_id = max(0, int(explicit_target.model_id))
                     target_keep_count = max(0, int(explicit_target.keep_count))
+                    if target_keep_count > 0:
+                        storage_keep_available = self._get_xunlai_storage_keep_available(
+                            sell_rule,
+                            target_model_id,
+                            storage_items,
+                            xunlai_sell_material_storage_items,
+                        )
+                        target_keep_count = max(0, target_keep_count - storage_keep_available)
                     target_label = self._format_model_label(target_model_id)
                     matching_items = [
                         item
@@ -12581,6 +12646,58 @@ class MerchantRulesWidget:
                             )
                 continue
 
+        has_xunlai_sell_withdrawals = False
+        if needs_xunlai_sell_storage_context:
+            xunlai_sell_transfers: list[PlannedStorageTransfer] = []
+            include_material_storage = any(
+                bool(getattr(rule, "include_material_storage", False))
+                for _rule_index, rule in enabled_sell_rules
+                if bool(getattr(rule, "sell_from_xunlai", False))
+            )
+            source_detail = (
+                "regular Xunlai item panes and Material Storage"
+                if include_material_storage
+                else "regular Xunlai item panes"
+            )
+            if storage_open:
+                xunlai_sell_transfers, _adjusted_rules = self._plan_xunlai_sell_withdrawals(
+                    self._collect_enabled_xunlai_sell_rules(),
+                    items,
+                    storage_items,
+                    xunlai_sell_material_storage_items,
+                    coords,
+                )
+                self._debug_log(
+                    f"Xunlai sell preview: enabled_rules={len(self._collect_enabled_xunlai_sell_rules())} "
+                    f"inventory_items={len(items)} regular_storage_items={len(storage_items)} "
+                    f"material_storage_items={len(xunlai_sell_material_storage_items)} "
+                    f"include_material_storage={include_material_storage} transfers={len(xunlai_sell_transfers)} "
+                    f"quantity={sum(max(0, int(transfer.quantity)) for transfer in xunlai_sell_transfers)}"
+                )
+            if xunlai_sell_transfers:
+                has_xunlai_sell_withdrawals = True
+                plan.entries.append(
+                    ExecutionPlanEntry(
+                        "sell",
+                        MERCHANT_TYPE_STORAGE,
+                        "Sell from Xunlai too",
+                        sum(max(0, int(transfer.quantity)) for transfer in xunlai_sell_transfers),
+                        PLAN_STATE_WILL_EXECUTE if storage_open else PLAN_STATE_CONDITIONAL,
+                        f"Before selling, Merchant Rules will pull matching stacks from {source_detail}, then sell the combined inventory.",
+                    )
+                )
+            elif not storage_open:
+                plan.entries.append(
+                    ExecutionPlanEntry(
+                        "sell",
+                        MERCHANT_TYPE_STORAGE,
+                        "Sell from Xunlai too",
+                        0,
+                        PLAN_STATE_CONDITIONAL,
+                        f"Xunlai contents are not scanned yet. Open Xunlai for an exact scan before preview can confirm matching stacks in {source_detail}.",
+                    )
+                )
+
         sim_model_counts = self._build_simulated_model_counts(items, plan)
         sim_inventory_items = self._get_items_after_planned_pre_buy_actions(items, plan)
         pre_buy_model_counts = dict(sim_model_counts)
@@ -12620,6 +12737,7 @@ class MerchantRulesWidget:
             or plan.consumable_crafter_buys
             or plan.storage_transfers
             or plan.cleanup_transfers
+            or has_xunlai_sell_withdrawals
             or self._plan_needs_exact_storage_scan(plan)
         )
         self._log_plan_summary("Plan built", plan)
@@ -13702,7 +13820,13 @@ class MerchantRulesWidget:
             )
 
             moved = False
+            before_inventory_model_count = 0
             if transfer.direction == STORAGE_TRANSFER_WITHDRAW:
+                if transfer_model_id > 0:
+                    try:
+                        before_inventory_model_count = max(0, int(GLOBAL_CACHE.Inventory.GetModelCount(transfer_model_id)))
+                    except Exception:
+                        before_inventory_model_count = 0
                 moved = bool(GLOBAL_CACHE.Inventory.WithdrawItemFromStorage(item_id, ammount=requested_quantity))
             elif transfer.direction == STORAGE_TRANSFER_DEPOSIT:
                 material_storage_result = yield from self._deposit_material_to_storage_first(
@@ -13752,7 +13876,16 @@ class MerchantRulesWidget:
 
             queue_cleared = yield from self._wait_for_action_queue_empty("ACTION", timeout_ms=2000, step_ms=50)
             final_quantity = max(0, int(GLOBAL_CACHE.Item.Properties.GetQuantity(item_id)))
-            if queue_cleared:
+            moved_quantity = 0
+            if transfer.direction == STORAGE_TRANSFER_WITHDRAW and transfer_model_id > 0:
+                final_inventory_model_count = yield from self._wait_for_inventory_model_count_at_least(
+                    transfer_model_id,
+                    before_inventory_model_count + requested_quantity,
+                    timeout_ms=2000 if queue_cleared else 1000,
+                    step_ms=50,
+                )
+                moved_quantity = max(0, int(final_inventory_model_count) - before_inventory_model_count)
+            elif queue_cleared:
                 expected_quantity = max(0, current_quantity - requested_quantity)
                 final_quantity = yield from self._wait_for_stack_quantity_target(
                     item_id,
@@ -13761,7 +13894,8 @@ class MerchantRulesWidget:
                     step_ms=50,
                 )
 
-            moved_quantity = max(0, current_quantity - max(0, int(final_quantity)))
+            if moved_quantity <= 0:
+                moved_quantity = max(0, current_quantity - max(0, int(final_quantity)))
             if moved_quantity > 0:
                 outcome.completed += moved_quantity
             shortfall = max(0, requested_quantity - moved_quantity)
@@ -14104,6 +14238,624 @@ class MerchantRulesWidget:
         finally:
             self.travel_preview_running = False
             yield
+
+    def _merge_phase_outcome(self, total: ExecutionPhaseOutcome, part: ExecutionPhaseOutcome) -> None:
+        total.attempted += max(0, int(part.attempted))
+        total.completed += max(0, int(part.completed))
+        total.unavailable += max(0, int(part.unavailable))
+        total.quote_failures += max(0, int(part.quote_failures))
+        total.timeout_failures += max(0, int(part.timeout_failures))
+        total.load_failures += max(0, int(part.load_failures))
+        total.gold_blocked += max(0, int(part.gold_blocked))
+        total.depleted += max(0, int(part.depleted))
+
+    def _sum_item_quantities(self, items: list[InventoryItemInfo]) -> int:
+        return sum(max(1, int(item.quantity)) for item in items if int(item.item_id) > 0)
+
+    def _get_xunlai_storage_keep_available(
+        self,
+        rule: SellRule,
+        model_id: int,
+        regular_storage_items: list[InventoryItemInfo],
+        material_storage_items: list[InventoryItemInfo],
+    ) -> int:
+        if not bool(getattr(rule, "sell_from_xunlai", False)):
+            return 0
+        safe_model_id = max(0, int(model_id))
+        if safe_model_id <= 0:
+            return 0
+        source_items = list(regular_storage_items)
+        if bool(getattr(rule, "include_material_storage", False)):
+            source_items = [*material_storage_items, *source_items]
+        return self._sum_item_quantities(
+            [item for item in source_items if int(item.model_id) == safe_model_id]
+        )
+
+    def _build_xunlai_storage_keep_reservations(
+        self,
+        source_items: list[tuple[InventoryItemInfo, str]],
+        keep_count: int,
+    ) -> tuple[dict[int, int], int]:
+        remaining_keep = max(0, int(keep_count))
+        if remaining_keep <= 0:
+            return {}, 0
+
+        reservations: dict[int, int] = {}
+        reserved_total = 0
+        reserve_order = sorted(
+            source_items,
+            key=lambda pair: (
+                0 if str(pair[1]) == "Material Storage" else 1,
+                int(pair[0].item_id),
+            ),
+        )
+        for item, _source_label in reserve_order:
+            if remaining_keep <= 0:
+                break
+            item_quantity = max(1, int(item.quantity))
+            reserve_quantity = min(item_quantity, remaining_keep)
+            if reserve_quantity <= 0:
+                continue
+            reservations[int(item.item_id)] = reserve_quantity
+            reserved_total += reserve_quantity
+            remaining_keep -= reserve_quantity
+        return reservations, reserved_total
+
+    def _clone_xunlai_sell_rule_for_pass(
+        self,
+        rule: SellRule,
+        *,
+        model_keep_overrides: dict[tuple[str, int], int],
+        rune_keep_overrides: dict[tuple[str, str], int],
+        include_equippable: bool,
+    ) -> SellRule | None:
+        safe_rule_id = _normalize_rule_id(getattr(rule, "rule_id", ""))
+        cloned_rule = replace(rule)
+        cloned_rule.sell_from_xunlai = False
+        cloned_rule.include_material_storage = False
+
+        if rule.kind in (SELL_KIND_COMMON_MATERIALS, SELL_KIND_EXPLICIT_MODELS):
+            next_targets: list[WhitelistTarget] = []
+            for target in _normalize_whitelist_targets(getattr(rule, "whitelist_targets", [])):
+                key = (safe_rule_id, int(target.model_id))
+                if key not in model_keep_overrides:
+                    continue
+                next_targets.append(
+                    WhitelistTarget(
+                        model_id=int(target.model_id),
+                        keep_count=max(0, int(model_keep_overrides[key])),
+                        deposit_to_storage=False,
+                    )
+                )
+            if not next_targets:
+                return None
+            cloned_rule.whitelist_targets = next_targets
+            cloned_rule.model_ids = _get_whitelist_target_model_ids(next_targets)
+            cloned_rule.keep_count = 0
+            return cloned_rule
+
+        if rule.kind == SELL_KIND_RUNE_TRADER_TARGET:
+            next_targets: list[RuneSellTarget] = []
+            for target in _normalize_rune_sell_targets(getattr(rule, "rune_sell_targets", [])):
+                key = (safe_rule_id, _normalize_rune_identifier(target.identifier))
+                if key not in rune_keep_overrides:
+                    continue
+                next_targets.append(
+                    RuneSellTarget(
+                        identifier=key[1],
+                        keep_count=max(0, int(rune_keep_overrides[key])),
+                    )
+                )
+            if not next_targets:
+                return None
+            cloned_rule.rune_sell_targets = next_targets
+            return cloned_rule
+
+        if rule.kind in (SELL_KIND_WEAPONS, SELL_KIND_ARMOR) and include_equippable:
+            return cloned_rule
+
+        return None
+
+    def _build_xunlai_sell_subplan(self, rules: list[SellRule]) -> PlanResult:
+        original_buy_rules = self.buy_rules
+        original_sell_rules = self.sell_rules
+        original_destroy_rules = self.destroy_rules
+        original_identify_settings = self.identify_settings
+        original_cleanup_targets = self.cleanup_targets
+        original_cleanup_blacklist_model_ids = self.cleanup_blacklist_model_ids
+        original_cleanup_protection_sources = self.cleanup_protection_sources
+        try:
+            self.buy_rules = []
+            self.sell_rules = rules
+            self.destroy_rules = []
+            self.identify_settings = IdentifySettings()
+            self.cleanup_targets = []
+            self.cleanup_blacklist_model_ids = []
+            self.cleanup_protection_sources = []
+            return self._build_plan(
+                ignore_travel_target=True,
+                allow_consumable_multi_stop=False,
+                exclude_consumable_crafter=True,
+            )
+        finally:
+            self.buy_rules = original_buy_rules
+            self.sell_rules = original_sell_rules
+            self.destroy_rules = original_destroy_rules
+            self.identify_settings = original_identify_settings
+            self.cleanup_targets = original_cleanup_targets
+            self.cleanup_blacklist_model_ids = original_cleanup_blacklist_model_ids
+            self.cleanup_protection_sources = original_cleanup_protection_sources
+
+    def _get_xunlai_model_target_withdraw_quantity(
+        self,
+        *,
+        current_quantity: int,
+        storage_quantity: int,
+        keep_count: int,
+        model_id: int,
+        destination: str,
+    ) -> int:
+        safe_storage_quantity = max(0, int(storage_quantity))
+        if safe_storage_quantity <= 0:
+            return 0
+
+        safe_keep_count = max(0, int(keep_count))
+        safe_current_quantity = max(0, int(current_quantity))
+        if (
+            safe_keep_count > 0
+            and destination == MERCHANT_TYPE_MATERIALS
+            and max(0, int(model_id)) in COMMON_CRAFTING_MATERIAL_MODEL_IDS
+        ):
+            batch_size = max(1, int(self._get_material_batch_size(model_id)))
+            combined_quantity = safe_current_quantity + safe_storage_quantity
+            if ((combined_quantity - safe_keep_count) // batch_size) <= 0:
+                return 0
+            return safe_storage_quantity
+
+        sellable_quantity = max(0, safe_current_quantity + safe_storage_quantity - safe_keep_count)
+        withdraw_quantity = min(safe_storage_quantity, sellable_quantity)
+        if withdraw_quantity <= 0:
+            return 0
+        return max(0, int(withdraw_quantity))
+
+    def _append_xunlai_sell_withdrawals(
+        self,
+        transfers: list[PlannedStorageTransfer],
+        source_items: list[tuple[InventoryItemInfo, str]],
+        *,
+        quantity: int,
+        rule_reference: str,
+        key: str,
+        reserved_quantities: dict[int, int] | None = None,
+    ) -> None:
+        remaining = max(0, int(quantity))
+        if remaining <= 0:
+            return
+
+        reserved_quantities = reserved_quantities or {}
+        for item, source_label in source_items:
+            if remaining <= 0:
+                break
+            source_quantity = max(1, int(item.quantity))
+            reserved_quantity = max(0, int(reserved_quantities.get(int(item.item_id), 0)))
+            available_quantity = max(0, source_quantity - reserved_quantity)
+            move_quantity = min(remaining, available_quantity)
+            if move_quantity <= 0:
+                continue
+            transfer_label = (
+                self._format_model_label_short(int(item.model_id))
+                if int(item.model_id) in ALL_CRAFTING_MATERIAL_MODEL_IDS
+                else str(item.name or f"Item {int(item.item_id)}")
+            )
+            transfers.append(
+                PlannedStorageTransfer(
+                    direction=STORAGE_TRANSFER_WITHDRAW,
+                    key=key,
+                    label=transfer_label,
+                    item_id=int(item.item_id),
+                    quantity=move_quantity,
+                    model_id=int(item.model_id),
+                    reason=f"{rule_reference}: Sell from Xunlai too ({source_label}).",
+                )
+            )
+            remaining -= move_quantity
+
+    def _xunlai_model_target_has_sell_service(
+        self,
+        rule: SellRule,
+        model_id: int,
+        source_items: list[tuple[InventoryItemInfo, str]],
+        coords: dict[str, tuple[float, float] | None],
+        *,
+        withdraw_quantity: int,
+        keep_count: int,
+    ) -> bool:
+        if rule.kind == SELL_KIND_COMMON_MATERIALS:
+            destination = self._get_material_merchant_type_by_model(model_id)
+            if coords.get(destination) is not None:
+                return True
+            return bool(
+                destination == MERCHANT_TYPE_MATERIALS
+                and max(0, int(keep_count)) <= 0
+                and max(0, int(withdraw_quantity)) < max(1, int(self._get_material_batch_size(model_id)))
+                and coords.get(MERCHANT_TYPE_MERCHANT) is not None
+            )
+
+        for item, _source_label in source_items:
+            destination = self._get_explicit_sell_destination(item)
+            if coords.get(destination) is not None:
+                return True
+            if (
+                destination == MERCHANT_TYPE_MATERIALS
+                and max(0, int(keep_count)) <= 0
+                and max(0, int(withdraw_quantity)) < max(1, int(self._get_material_batch_size(item.model_id)))
+                and coords.get(MERCHANT_TYPE_MERCHANT) is not None
+            ):
+                return True
+        return False
+
+    def _plan_xunlai_sell_withdrawals(
+        self,
+        enabled_xunlai_rules: list[tuple[int, SellRule]],
+        current_items: list[InventoryItemInfo],
+        regular_storage_items: list[InventoryItemInfo],
+        material_storage_items: list[InventoryItemInfo],
+        coords: dict[str, tuple[float, float] | None],
+    ) -> tuple[list[PlannedStorageTransfer], list[SellRule]]:
+        all_enabled_sell_rules = self._collect_enabled_sell_rules()
+        transfers: list[PlannedStorageTransfer] = []
+        model_keep_overrides: dict[tuple[str, int], int] = {}
+        rune_keep_overrides: dict[tuple[str, str], int] = {}
+        equippable_rule_ids: set[str] = set()
+        claimed_storage_item_ids: set[int] = set()
+
+        for rule_index, rule in enabled_xunlai_rules:
+            safe_rule_id = _normalize_rule_id(getattr(rule, "rule_id", ""))
+            if not safe_rule_id:
+                continue
+            rule_reference = self._format_sell_rule_reference(rule_index, rule)
+
+            regular_sources = [
+                (item, "regular Xunlai item panes")
+                for item in regular_storage_items
+                if int(item.item_id) not in claimed_storage_item_ids
+            ]
+            material_sources = [
+                (item, "Material Storage")
+                for item in material_storage_items
+                if bool(getattr(rule, "include_material_storage", False))
+                and int(item.item_id) not in claimed_storage_item_ids
+                and int(item.model_id) in ALL_CRAFTING_MATERIAL_MODEL_IDS
+            ]
+
+            if rule.kind in (SELL_KIND_COMMON_MATERIALS, SELL_KIND_EXPLICIT_MODELS):
+                for target in _normalize_whitelist_targets(getattr(rule, "whitelist_targets", [])):
+                    target_model_id = max(0, int(target.model_id))
+                    if target_model_id <= 0:
+                        continue
+                    if rule.kind == SELL_KIND_COMMON_MATERIALS and target_model_id not in ALL_CRAFTING_MATERIAL_MODEL_IDS:
+                        continue
+
+                    matching_sources = [
+                        (item, source_label)
+                        for item, source_label in [*regular_sources, *material_sources]
+                        if int(item.model_id) == target_model_id
+                        and self._get_hard_protection_hit(item, all_enabled_sell_rules) is None
+                    ]
+                    if not matching_sources:
+                        continue
+
+                    current_matching_items = [
+                        item
+                        for item in current_items
+                        if int(item.model_id) == target_model_id
+                    ]
+                    current_quantity = self._sum_item_quantities(current_matching_items)
+                    storage_quantity = self._sum_item_quantities([item for item, _source_label in matching_sources])
+                    destination = (
+                        self._get_material_merchant_type_by_model(target_model_id)
+                        if rule.kind == SELL_KIND_COMMON_MATERIALS
+                        else self._get_explicit_sell_destination(matching_sources[0][0])
+                    )
+                    storage_keep_reservations, storage_reserved_keep = self._build_xunlai_storage_keep_reservations(
+                        matching_sources,
+                        max(0, int(target.keep_count)),
+                    )
+                    inventory_keep_count = max(0, int(target.keep_count) - storage_reserved_keep)
+                    withdraw_quantity = max(0, storage_quantity - storage_reserved_keep)
+                    for item, _source_label in matching_sources:
+                        claimed_storage_item_ids.add(int(item.item_id))
+                    if withdraw_quantity <= 0:
+                        continue
+                    if current_quantity + withdraw_quantity <= inventory_keep_count:
+                        continue
+                    if not self._xunlai_model_target_has_sell_service(
+                        rule,
+                        target_model_id,
+                        matching_sources,
+                        coords,
+                        withdraw_quantity=withdraw_quantity,
+                        keep_count=inventory_keep_count,
+                    ):
+                        continue
+
+                    model_keep_overrides[(safe_rule_id, target_model_id)] = inventory_keep_count
+                    self._append_xunlai_sell_withdrawals(
+                        transfers,
+                        matching_sources,
+                        quantity=withdraw_quantity,
+                        rule_reference=rule_reference,
+                        key=f"xunlai_sell:{safe_rule_id}:model:{target_model_id}",
+                        reserved_quantities=storage_keep_reservations,
+                    )
+                continue
+
+            if rule.kind == SELL_KIND_RUNE_TRADER_TARGET:
+                if coords.get(MERCHANT_TYPE_RUNE_TRADER) is None:
+                    continue
+                for target in _normalize_rune_sell_targets(getattr(rule, "rune_sell_targets", [])):
+                    target_identifier = _normalize_rune_identifier(target.identifier)
+                    if not target_identifier:
+                        continue
+                    matching_sources = [
+                        (item, source_label)
+                        for item, source_label in regular_sources
+                        if item.standalone_kind == RUNE_STANDALONE_KIND
+                        and target_identifier in item.rune_identifiers
+                        and self._get_hard_protection_hit(item, all_enabled_sell_rules) is None
+                    ]
+                    if not matching_sources:
+                        continue
+
+                    current_matching_items = [
+                        item
+                        for item in current_items
+                        if item.standalone_kind == RUNE_STANDALONE_KIND
+                        and target_identifier in item.rune_identifiers
+                    ]
+                    current_quantity = self._sum_item_quantities(current_matching_items)
+                    storage_quantity = self._sum_item_quantities([item for item, _source_label in matching_sources])
+                    withdraw_quantity = max(
+                        0,
+                        min(
+                            storage_quantity,
+                            current_quantity + storage_quantity - max(0, int(target.keep_count)),
+                        ),
+                    )
+                    for item, _source_label in matching_sources:
+                        claimed_storage_item_ids.add(int(item.item_id))
+                    if withdraw_quantity <= 0:
+                        continue
+                    rune_keep_overrides[(safe_rule_id, target_identifier)] = current_quantity
+                    self._append_xunlai_sell_withdrawals(
+                        transfers,
+                        matching_sources,
+                        quantity=withdraw_quantity,
+                        rule_reference=rule_reference,
+                        key=f"xunlai_sell:{safe_rule_id}:rune:{target_identifier}",
+                    )
+                continue
+
+            if rule.kind in (SELL_KIND_WEAPONS, SELL_KIND_ARMOR):
+                matching_sources: list[tuple[InventoryItemInfo, str]] = []
+                for item, source_label in regular_sources:
+                    destination = self._get_equippable_rule_destination(item, rule)
+                    if not destination:
+                        continue
+                    if coords.get(destination) is None:
+                        claimed_storage_item_ids.add(int(item.item_id))
+                        continue
+                    if not self._rule_matches_selected_rarity(item, rule):
+                        continue
+                    if self._get_hard_protection_hit(item, all_enabled_sell_rules) is not None:
+                        claimed_storage_item_ids.add(int(item.item_id))
+                        continue
+                    matching_sources.append((item, source_label))
+                    claimed_storage_item_ids.add(int(item.item_id))
+                if not matching_sources:
+                    continue
+                equippable_rule_ids.add(safe_rule_id)
+                self._append_xunlai_sell_withdrawals(
+                    transfers,
+                    matching_sources,
+                    quantity=self._sum_item_quantities([item for item, _source_label in matching_sources]),
+                    rule_reference=rule_reference,
+                    key=f"xunlai_sell:{safe_rule_id}:equippable",
+                )
+
+        adjusted_rules: list[SellRule] = []
+        for _rule_index, rule in enabled_xunlai_rules:
+            cloned_rule = self._clone_xunlai_sell_rule_for_pass(
+                rule,
+                model_keep_overrides=model_keep_overrides,
+                rune_keep_overrides=rune_keep_overrides,
+                include_equippable=_normalize_rule_id(getattr(rule, "rule_id", "")) in equippable_rule_ids,
+            )
+            if cloned_rule is not None:
+                adjusted_rules.append(cloned_rule)
+
+        return transfers, adjusted_rules
+
+    def _execute_sell_actions_for_plan(
+        self,
+        plan: PlanResult,
+        *,
+        phase_label: str,
+    ) -> ExecutionPhaseOutcome:
+        outcome = ExecutionPhaseOutcome(label=phase_label, measure_label="sell action(s)")
+
+        material_coords = plan.coords.get(MERCHANT_TYPE_MATERIALS)
+        common_material_sales = [sale for sale in plan.material_sales if sale.merchant_type == MERCHANT_TYPE_MATERIALS]
+        if material_coords and common_material_sales:
+            material_outcome = yield from self._sell_planned_materials(
+                material_coords,
+                common_material_sales,
+                phase_label=f"{phase_label} material sales",
+            )
+            self._merge_phase_outcome(outcome, material_outcome)
+
+        rare_material_coords = plan.coords.get(MERCHANT_TYPE_RARE_MATERIALS)
+        rare_material_sales = [sale for sale in plan.material_sales if sale.merchant_type == MERCHANT_TYPE_RARE_MATERIALS]
+        if rare_material_coords and rare_material_sales:
+            rare_outcome = yield from self._sell_planned_materials(
+                rare_material_coords,
+                rare_material_sales,
+                phase_label=f"{phase_label} rare material sales",
+            )
+            self._merge_phase_outcome(outcome, rare_outcome)
+
+        merchant_outcome = yield from self._execute_merchant_sell_phase(
+            plan.coords.get(MERCHANT_TYPE_MERCHANT),
+            plan.merchant_sell_item_ids,
+        )
+        merchant_outcome.label = f"{phase_label} merchant sales"
+        self._merge_phase_outcome(outcome, merchant_outcome)
+
+        rune_trader_coords = plan.coords.get(MERCHANT_TYPE_RUNE_TRADER)
+        if rune_trader_coords and plan.rune_trader_sales:
+            rune_outcome = yield from self._sell_planned_trader_items(
+                rune_trader_coords,
+                plan.rune_trader_sales,
+                phase_label=f"{phase_label} rune trader sales",
+            )
+            self._merge_phase_outcome(outcome, rune_outcome)
+
+        return outcome
+
+    def _execute_xunlai_sell_withdraw_phase(
+        self,
+        plan: PlanResult,
+        *,
+        local_only: bool = False,
+        storage_available_here: bool = False,
+    ) -> ExecutionPhaseOutcome:
+        enabled_xunlai_rules = self._collect_enabled_xunlai_sell_rules()
+        outcome = ExecutionPhaseOutcome(label="Xunlai sell pre-pull", measure_label="items")
+        if not enabled_xunlai_rules:
+            return outcome
+
+        if local_only and not storage_available_here:
+            outcome.load_failures += 1
+            return outcome
+
+        storage_ready = self._is_storage_open()
+        if not storage_ready:
+            storage_ready = yield from self._ensure_storage_open(purpose="Sell from Xunlai too")
+        if not storage_ready:
+            outcome.load_failures += 1
+            ConsoleLog(MODULE_NAME, "Could not open Xunlai for Sell from Xunlai too.", Console.MessageType.Warning)
+            return outcome
+
+        current_items = self._collect_inventory_items()
+        regular_storage_items = self._collect_storage_items()
+        include_material_storage = any(
+            bool(getattr(rule, "include_material_storage", False))
+            for _rule_index, rule in enabled_xunlai_rules
+        )
+        material_storage_items = self._collect_material_storage_items() if include_material_storage else []
+        transfers, _adjusted_rules = self._plan_xunlai_sell_withdrawals(
+            enabled_xunlai_rules,
+            current_items,
+            regular_storage_items,
+            material_storage_items,
+            plan.coords,
+        )
+        self._debug_log(
+            f"Xunlai sell pre-pull: enabled_rules={len(enabled_xunlai_rules)} "
+            f"inventory_items={len(current_items)} regular_storage_items={len(regular_storage_items)} "
+            f"material_storage_items={len(material_storage_items)} include_material_storage={include_material_storage} "
+            f"transfers={len(transfers)} quantity={sum(max(0, int(transfer.quantity)) for transfer in transfers)}"
+        )
+        if not transfers:
+            return outcome
+
+        transfer_outcome = yield from self._execute_storage_transfers(
+            transfers,
+            phase_label="Xunlai sell pre-pull",
+        )
+        self._merge_phase_outcome(outcome, transfer_outcome)
+        return outcome
+
+    def _execute_xunlai_sell_phase(
+        self,
+        plan: PlanResult,
+        *,
+        local_only: bool = False,
+        storage_available_here: bool = False,
+    ) -> ExecutionPhaseOutcome:
+        enabled_xunlai_rules = self._collect_enabled_xunlai_sell_rules()
+        outcome = ExecutionPhaseOutcome(label="Xunlai sells", measure_label="sell action(s)")
+        if not enabled_xunlai_rules:
+            self._debug_log("Xunlai sell phase skipped: no enabled Sell from Xunlai too rules.")
+            return outcome
+
+        if local_only and not storage_available_here:
+            outcome.load_failures += 1
+            return outcome
+
+        storage_ready = self._is_storage_open()
+        if not storage_ready:
+            storage_ready = yield from self._ensure_storage_open(purpose="Sell from Xunlai too")
+        if not storage_ready:
+            outcome.load_failures += 1
+            ConsoleLog(MODULE_NAME, "Could not open Xunlai for Sell from Xunlai too.", Console.MessageType.Warning)
+            return outcome
+
+        max_passes = 40
+        for pass_index in range(max_passes):
+            current_items = self._collect_inventory_items()
+            regular_storage_items = self._collect_storage_items()
+            include_material_storage = any(
+                bool(getattr(rule, "include_material_storage", False))
+                for _rule_index, rule in enabled_xunlai_rules
+            )
+            material_storage_items = self._collect_material_storage_items() if include_material_storage else []
+            self._debug_log(
+                f"Xunlai sell pass {pass_index + 1}: enabled_rules={len(enabled_xunlai_rules)} "
+                f"inventory_items={len(current_items)} regular_storage_items={len(regular_storage_items)} "
+                f"material_storage_items={len(material_storage_items)} include_material_storage={include_material_storage}"
+            )
+            transfers, adjusted_rules = self._plan_xunlai_sell_withdrawals(
+                enabled_xunlai_rules,
+                current_items,
+                regular_storage_items,
+                material_storage_items,
+                plan.coords,
+            )
+            if not transfers or not adjusted_rules:
+                self._debug_log(
+                    f"Xunlai sell pass {pass_index + 1}: no withdrawable matching storage stacks "
+                    f"(transfers={len(transfers)} adjusted_rules={len(adjusted_rules)})."
+                )
+                break
+
+            self._debug_log(
+                f"Xunlai sell pass {pass_index + 1}: transfers={len(transfers)} "
+                f"quantity={sum(max(0, int(transfer.quantity)) for transfer in transfers)} "
+                f"rules={len(adjusted_rules)}"
+            )
+            transfer_outcome = yield from self._execute_storage_transfers(
+                transfers,
+                phase_label="Xunlai sell withdraws",
+            )
+            outcome.timeout_failures += max(0, int(transfer_outcome.timeout_failures))
+            outcome.load_failures += max(0, int(transfer_outcome.load_failures))
+            outcome.depleted += max(0, int(transfer_outcome.depleted))
+            if transfer_outcome.completed <= 0:
+                break
+
+            yield from Routines.Yield.wait(150)
+            sell_plan = self._build_xunlai_sell_subplan(adjusted_rules)
+            sell_outcome = yield from self._execute_sell_actions_for_plan(
+                sell_plan,
+                phase_label="Xunlai sells",
+            )
+            self._merge_phase_outcome(outcome, sell_outcome)
+            if sell_outcome.completed <= 0:
+                break
+            yield from Routines.Yield.wait(100)
+
+        return outcome
 
     def _execute_merchant_sell_phase(
         self,
@@ -15154,6 +15906,40 @@ class MerchantRulesWidget:
             if destroy_summary:
                 phase_summaries.append(destroy_summary)
 
+            xunlai_prefetch_outcome = ExecutionPhaseOutcome(label="Xunlai sell pre-pull", measure_label="items")
+            xunlai_prefetch_started_at = time.perf_counter()
+            if self._has_ready_xunlai_sell_rules():
+                xunlai_prefetch_outcome = yield from self._execute_xunlai_sell_withdraw_phase(
+                    plan,
+                    local_only=local_only,
+                    storage_available_here=storage_available_here,
+                )
+                if xunlai_prefetch_outcome.completed > 0:
+                    yield from Routines.Yield.wait(150)
+                    self._invalidate_supported_context_cache()
+                    plan = self._build_plan(
+                        ignore_travel_target=local_only,
+                        allow_consumable_multi_stop=allow_multi_stop,
+                        exclude_consumable_crafter=exclude_consumable_crafter,
+                    )
+                    self.preview_plan = plan
+                    local_availability = self._get_preview_here_availability()
+                    actionable_here_count, skipped_here_count = self._get_locally_actionable_preview_counts(
+                        plan,
+                        availability_here=local_availability,
+                    )
+                    storage_available_here = bool(local_availability.get(MERCHANT_TYPE_STORAGE, False))
+                    merchant_coords = plan.coords.get(MERCHANT_TYPE_MERCHANT)
+                    self._clear_preview_projection_state()
+                    self._log_plan_summary("Execution post-Xunlai pre-pull plan", plan)
+            self.last_execution_phase_durations_ms["xunlai_sell_prefetch"] = max(
+                0.0,
+                (time.perf_counter() - xunlai_prefetch_started_at) * 1000.0,
+            )
+            xunlai_prefetch_summary = self._format_execution_phase_summary(xunlai_prefetch_outcome)
+            if xunlai_prefetch_summary:
+                phase_summaries.append(xunlai_prefetch_summary)
+
             material_coords = plan.coords.get(MERCHANT_TYPE_MATERIALS)
             common_material_sales = [sale for sale in plan.material_sales if sale.merchant_type == MERCHANT_TYPE_MATERIALS]
             material_sale_outcome = ExecutionPhaseOutcome(label="Material sales", measure_label="trades")
@@ -15204,6 +15990,19 @@ class MerchantRulesWidget:
             rune_sale_summary = self._format_execution_phase_summary(rune_sale_outcome)
             if rune_sale_summary:
                 phase_summaries.append(rune_sale_summary)
+
+            xunlai_sell_started_at = time.perf_counter()
+            xunlai_sell_outcome = ExecutionPhaseOutcome(label="Xunlai sells", measure_label="sell action(s)")
+            if xunlai_prefetch_outcome.timeout_failures > 0:
+                xunlai_sell_outcome = yield from self._execute_xunlai_sell_phase(
+                    plan,
+                    local_only=local_only,
+                    storage_available_here=storage_available_here,
+                )
+            self.last_execution_phase_durations_ms["xunlai_sells"] = max(0.0, (time.perf_counter() - xunlai_sell_started_at) * 1000.0)
+            xunlai_sell_summary = self._format_execution_phase_summary(xunlai_sell_outcome)
+            if xunlai_sell_summary:
+                phase_summaries.append(xunlai_sell_summary)
 
             storage_withdraw_transfers = [
                 transfer
@@ -16413,7 +17212,7 @@ class MerchantRulesWidget:
         if str(plan.storage_plan_state) != STORAGE_PLAN_STATE_NEEDS_EXACT_SCAN:
             return False
         return any(
-            str(entry.merchant_type) in (MERCHANT_TYPE_RUNE_TRADER, MERCHANT_TYPE_CONSUMABLE_CRAFTER)
+            str(entry.merchant_type) in (MERCHANT_TYPE_RUNE_TRADER, MERCHANT_TYPE_CONSUMABLE_CRAFTER, MERCHANT_TYPE_STORAGE)
             and str(entry.state) == PLAN_STATE_CONDITIONAL
             for entry in plan.entries
         )
@@ -16579,6 +17378,7 @@ class MerchantRulesWidget:
         if self.last_execution_phase_durations_ms:
             ordered_phase_labels = (
                 ("destroys", "Destroy"),
+                ("xunlai_sell_prefetch", "Xunlai sell pre-pull"),
                 ("merchant_stock", "Merchant stock"),
                 ("material_sales", "Material sales"),
                 ("rare_material_sales", "Rare material sales"),
@@ -21211,6 +22011,37 @@ class MerchantRulesWidget:
         if highlight_basic_jump_target:
             self._end_sell_jump_target_group(index, "")
 
+        sell_from_xunlai = PyImGui.checkbox(
+            f"Sell from Xunlai too##sell_from_xunlai_{index}",
+            bool(getattr(rule, "sell_from_xunlai", False)),
+        )
+        self._draw_hover_tooltip(
+            "Before selling, pull matching stacks from regular Xunlai item storage panes and sell the combined inventory."
+        )
+        if sell_from_xunlai != bool(getattr(rule, "sell_from_xunlai", False)):
+            rule.sell_from_xunlai = bool(sell_from_xunlai)
+            changed = True
+        PyImGui.begin_disabled(not bool(rule.sell_from_xunlai))
+        include_material_storage = PyImGui.checkbox(
+            f"Include Material Storage##sell_include_material_storage_{index}",
+            bool(getattr(rule, "include_material_storage", False)) and bool(rule.sell_from_xunlai),
+        )
+        self._draw_hover_tooltip(
+            "Also pull matching crafting materials from Xunlai Material Storage. This only applies when Sell from Xunlai too is enabled."
+        )
+        PyImGui.end_disabled()
+        if include_material_storage != bool(getattr(rule, "include_material_storage", False)):
+            rule.include_material_storage = bool(include_material_storage) and bool(rule.sell_from_xunlai)
+            changed = True
+        if not bool(rule.sell_from_xunlai) and bool(getattr(rule, "include_material_storage", False)):
+            rule.include_material_storage = False
+            changed = True
+        if bool(rule.sell_from_xunlai):
+            self._draw_secondary_text(
+                "Regular Xunlai item panes are included. Material Storage is separate and only included when the nested option is on.",
+                wrapped=True,
+            )
+
         normalized_rule = _normalize_sell_rule(rule)
         if normalized_rule is None:
             self._draw_secondary_text("This legacy sell rule type is no longer supported and will be removed on save.")
@@ -22641,8 +23472,16 @@ class MerchantRulesWidget:
                     availability_here=availability_here,
                     plan=plan,
                 )
-                action_color = UI_COLOR_MUTED if muted else (UI_COLOR_SUCCESS if available_here else UI_COLOR_WARNING)
-                text_color = UI_COLOR_MUTED if muted else (UI_COLOR_SUCCESS if available_here else UI_COLOR_WARNING)
+                action_color = (
+                    UI_COLOR_MUTED
+                    if muted
+                    else UI_COLOR_WARNING if is_conditional else (UI_COLOR_SUCCESS if available_here else UI_COLOR_WARNING)
+                )
+                text_color = (
+                    UI_COLOR_MUTED
+                    if muted
+                    else UI_COLOR_WARNING if is_conditional else (UI_COLOR_SUCCESS if available_here else UI_COLOR_WARNING)
+                )
 
                 PyImGui.table_next_row()
                 PyImGui.table_set_column_index(0)
