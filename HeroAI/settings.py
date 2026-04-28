@@ -8,6 +8,13 @@ from Py4GWCoreLib.py4gwcorelib_src.Console import Console, ConsoleLog
 from Py4GWCoreLib.py4gwcorelib_src.IniHandler import IniHandler
 
 class Settings:
+    COMBAT_RANGE_MODE_PARTY_AGGRO = "party_aggro"
+    COMBAT_RANGE_MODE_LEGACY = "legacy"
+    COMBAT_RANGE_MODE_LABELS = {
+        COMBAT_RANGE_MODE_PARTY_AGGRO: "Party aggro",
+        COMBAT_RANGE_MODE_LEGACY: "Legacy",
+    }
+
     class HeroPanelInfo:
         def __init__(self, x: int = 200, y: int = 200, collapsed: bool = False, visible: bool = True):
             self.x: int = x
@@ -135,6 +142,8 @@ class Settings:
         self.ShowHeroSkills = True
         self.ShowFloatingTargets = True
         self.AutoCallTargets = False
+        self.CombatRangeMode = self.COMBAT_RANGE_MODE_PARTY_AGGRO
+        self._combat_range_mode_override: str | None = None
         self.ShowPartyPanelUI = True
         self.HeroPanelPositions : dict[str, Settings.HeroPanelInfo] = {}
         
@@ -181,6 +190,21 @@ class Settings:
     def reset(self): 
         self.account_email = ""
         pass 
+
+    @classmethod
+    def normalize_combat_range_mode(cls, mode: str | None) -> str:
+        mode = str(mode or "").strip().lower()
+        if mode in ("legacy", "botting", "botting_class", "old"):
+            return cls.COMBAT_RANGE_MODE_LEGACY
+        if mode in ("party", "party_aggro", "party aggro", "new"):
+            return cls.COMBAT_RANGE_MODE_PARTY_AGGRO
+        return cls.COMBAT_RANGE_MODE_PARTY_AGGRO
+
+    def get_combat_range_mode(self) -> str:
+        return self._combat_range_mode_override or self.normalize_combat_range_mode(self.CombatRangeMode)
+
+    def set_runtime_combat_range_mode_override(self, mode: str | None) -> None:
+        self._combat_range_mode_override = None if mode is None else self.normalize_combat_range_mode(mode)
     
     def ensure_initialized(self) -> bool: 
         account_email = Player.GetAccountEmail()
@@ -257,6 +281,7 @@ class Settings:
         self.ini_handler.write_key("General", "ShowHeroBars", str(self.ShowHeroBars))
         self.ini_handler.write_key("General", "ShowFloatingTargets", str(self.ShowFloatingTargets))
         self.ini_handler.write_key("General", "AutoCallTargets", str(self.AutoCallTargets))
+        self.ini_handler.write_key("General", "CombatRangeMode", self.normalize_combat_range_mode(self.CombatRangeMode))
         self.ini_handler.write_key("General", "ShowHeroSkills", str(self.ShowHeroSkills))
         
         self.ini_handler.write_key("General", "ShowPartyPanelUI", str(self.ShowPartyPanelUI))
@@ -304,6 +329,9 @@ class Settings:
         self.ShowHeroBars = self.ini_handler.read_bool("General", "ShowHeroBars", True)
         self.ShowFloatingTargets = self.ini_handler.read_bool("General", "ShowFloatingTargets", True)
         self.AutoCallTargets = self.ini_handler.read_bool("General", "AutoCallTargets", False)
+        self.CombatRangeMode = self.normalize_combat_range_mode(
+            self.ini_handler.read_key("General", "CombatRangeMode", self.COMBAT_RANGE_MODE_PARTY_AGGRO)
+        )
         self.ShowHeroSkills = self.ini_handler.read_bool("General", "ShowHeroSkills", True)
         
         self.ShowPartyPanelUI = self.ini_handler.read_bool("General", "ShowPartyPanelUI", True)

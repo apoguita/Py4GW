@@ -13,147 +13,6 @@ from ..Player import Player
 
 #region Agents
 class Agents:    
-    _exploitable_corpse_fail_signature = None
-    _exploitable_corpse_fail_last_uptime = 0
-    _exploitable_corpse_failed_attempts: dict[int, int] = {}
-    _exploitable_corpse_selected_model_id = 0
-    _exploitable_corpse_selected_retries = 0
-    _exploitable_corpse_failed_models: set[int] = set()
-    _exploitable_corpse_fail_attempt_threshold = 2
-
-    @staticmethod
-    def _get_exploitable_corpse_fail_signature():
-        from ..Map import Map
-
-        if not Map.IsMapReady():
-            return None
-
-        try:
-            region = Map.GetRegion()[0]
-        except Exception:
-            region = 0
-        try:
-            language = Map.GetLanguage()[0]
-        except Exception:
-            language = 0
-
-        return (
-            int(Map.GetMapID()),
-            int(Map.GetInstanceType()),
-            int(region),
-            int(Map.GetDistrict()),
-            int(language),
-        )
-
-    @staticmethod
-    def _sync_exploitable_corpse_fail_cache():
-        from ..Map import Map
-
-        signature = Agents._get_exploitable_corpse_fail_signature()
-        try:
-            uptime = int(Map.GetInstanceUptime()) if signature is not None else 0
-        except Exception:
-            uptime = 0
-
-        if (
-            signature != Agents._exploitable_corpse_fail_signature
-            or uptime < Agents._exploitable_corpse_fail_last_uptime
-        ):
-            Agents._exploitable_corpse_failed_attempts.clear()
-            Agents._exploitable_corpse_selected_model_id = 0
-            Agents._exploitable_corpse_selected_retries = 0
-            Agents._exploitable_corpse_failed_models.clear()
-            Agents._exploitable_corpse_fail_signature = signature
-
-        Agents._exploitable_corpse_fail_last_uptime = uptime
-        return signature
-
-    @staticmethod
-    def IsExploitableCorpseModelBlocked(model_id: int) -> bool:
-        Agents._sync_exploitable_corpse_fail_cache()
-        return int(model_id or 0) in Agents._exploitable_corpse_failed_models
-
-    @staticmethod
-    def MarkExploitableCorpseCastFailed(
-        agent_id: int = 0,
-        model_id: int = 0,
-        skill_id: int = 0,
-        reason: str = "cast_failed",
-    ) -> bool:
-        from ..Agent import Agent
-        from ..Py4GWcorelib import ConsoleLog, Console
-
-        Agents._sync_exploitable_corpse_fail_cache()
-        resolved_model_id = int(model_id or 0)
-        if not resolved_model_id and agent_id:
-            resolved_model_id = int(Agent.GetModelID(agent_id) or 0)
-        if not resolved_model_id:
-            return False
-
-        if resolved_model_id in Agents._exploitable_corpse_failed_models:
-            return True
-
-        name = Agent.GetNameByID(agent_id) if agent_id else ""
-        attempts = Agents._exploitable_corpse_failed_attempts.get(resolved_model_id, 0) + 1
-        Agents._exploitable_corpse_failed_attempts[resolved_model_id] = attempts
-
-        if attempts < Agents._exploitable_corpse_fail_attempt_threshold:
-            ConsoleLog(
-                "CorpseDenylist",
-                "Observed failed exploitable-corpse cast attempt "
-                f"attempt={attempts}/{Agents._exploitable_corpse_fail_attempt_threshold} "
-                f"model_id={resolved_model_id} agent_id={int(agent_id or 0)} "
-                f"name={name!r} skill_id={int(skill_id or 0)} reason={reason} "
-                f"map_signature={Agents._exploitable_corpse_fail_signature}",
-                Console.MessageType.Warning,
-            )
-            return False
-
-        Agents._exploitable_corpse_failed_models.add(resolved_model_id)
-        ConsoleLog(
-            "CorpseDenylist",
-            "Blocked exploitable-corpse model for this map "
-            f"attempt={attempts}/{Agents._exploitable_corpse_fail_attempt_threshold} "
-            f"model_id={resolved_model_id} agent_id={int(agent_id or 0)} "
-            f"name={name!r} skill_id={int(skill_id or 0)} reason={reason} "
-            f"map_signature={Agents._exploitable_corpse_fail_signature}",
-            Console.MessageType.Warning,
-        )
-        return True
-
-    @staticmethod
-    def _track_exploitable_corpse_selection(agent_id: int, model_id: int) -> None:
-        if not model_id or model_id in Agents._exploitable_corpse_failed_models:
-            return
-
-        if model_id != Agents._exploitable_corpse_selected_model_id:
-            Agents._exploitable_corpse_selected_model_id = model_id
-            Agents._exploitable_corpse_selected_retries = 0
-            return
-
-        Agents._exploitable_corpse_selected_retries += 1
-        Agents.MarkExploitableCorpseCastFailed(
-            agent_id=agent_id,
-            model_id=model_id,
-            reason="repeated_exploitable_corpse_selection",
-        )
-
-    @staticmethod
-    def GetExploitableCorpseFailedModels() -> set[int]:
-        Agents._sync_exploitable_corpse_fail_cache()
-        return set(Agents._exploitable_corpse_failed_models)
-
-    @staticmethod
-    def GetExploitableCorpseFailSignature():
-        return Agents._sync_exploitable_corpse_fail_cache()
-
-    @staticmethod
-    def ClearExploitableCorpseFailedModels() -> None:
-        Agents._exploitable_corpse_failed_attempts.clear()
-        Agents._exploitable_corpse_selected_model_id = 0
-        Agents._exploitable_corpse_selected_retries = 0
-        Agents._exploitable_corpse_failed_models.clear()
-
     @staticmethod
     def GetNearestNPCXY(x,y, distance):
         from ..AgentArray import AgentArray
@@ -484,10 +343,6 @@ class Agents:
         corpse_array = AgentArray.Filter.ByDistance(corpse_array, Player.GetXY(), max_distance)
         corpse_array = AgentArray.Filter.ByCondition(corpse_array, lambda agent_id: Agent.IsExploitable(agent_id))
         corpse_array = AgentArray.Filter.ByCondition(corpse_array, lambda agent_id: _AllowedAlliegance(agent_id))
-        corpse_array = AgentArray.Filter.ByCondition(
-            corpse_array,
-            lambda agent_id: not Agents.IsExploitableCorpseModelBlocked(Agent.GetModelID(agent_id)),
-        )
         return corpse_array
 
     @staticmethod
@@ -527,7 +382,6 @@ class Agents:
         corpse_array = AgentArray.Sort.ByDistance(corpse_array, Player.GetXY())
         selected = Utils.GetFirstFromArray(corpse_array)
         if selected:
-            Agents._track_exploitable_corpse_selection(selected, int(Agent.GetModelID(selected) or 0))
             living = Agent.GetLivingAgentByID(selected)
             _, allegiance = Agent.GetAllegiance(selected)
             if living is not None:

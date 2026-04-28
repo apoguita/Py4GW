@@ -47,47 +47,11 @@ class Pre_Searing_Necro(BuildMgr):
         corpse_array = AgentArray.Filter.ByDistance(corpse_array, Player.GetXY(), max_distance)
         corpse_array = AgentArray.Filter.ByCondition(
             corpse_array,
-            lambda agent_id: (
-                Agent.IsDead(agent_id)
-                and not Agent.HasBossGlow(agent_id)
-                and not Agent.IsSpirit(agent_id)
-                and not Agent.IsSpawned(agent_id)
-                and not Agent.IsMinion(agent_id)
-                and not Routines.Agents.IsExploitableCorpseModelBlocked(Agent.GetModelID(agent_id))
-            ),
+            lambda agent_id: Agent.IsExploitable(agent_id),
         )
         corpse_array = AgentArray.Filter.ByCondition(corpse_array, _allowed_allegiance)
         corpse_array = AgentArray.Sort.ByDistance(corpse_array, Player.GetXY())
         return corpse_array[0] if corpse_array else 0
-
-    def _mark_corpse_model_if_cast_failed(
-        self,
-        corpse_agent_id: int,
-        skill_id: int,
-        wait_ms: int = 900,
-    ):
-        if False:
-            yield
-
-        model_id = int(Agent.GetModelID(corpse_agent_id) or 0)
-        saw_cast_start = False
-        remaining_ms = wait_ms
-        while remaining_ms > 0:
-            step_ms = min(50, remaining_ms)
-            yield from Routines.Yield.wait(step_ms)
-            remaining_ms -= step_ms
-            if Agent.IsCasting(Player.GetAgentID()) or (GLOBAL_CACHE.SkillBar.GetCasting() or 0):
-                saw_cast_start = True
-
-        if saw_cast_start:
-            return False
-
-        return Routines.Agents.MarkExploitableCorpseCastFailed(
-            agent_id=corpse_agent_id,
-            model_id=model_id,
-            skill_id=skill_id,
-            reason="cast_never_started",
-        )
 
     def _run_local_skill_logic(self):
         player_agent_id = Player.GetAgentID()
@@ -133,11 +97,6 @@ class Pre_Searing_Necro(BuildMgr):
                 log=False,
                 aftercast_delay=250,
             )):
-                yield from self._mark_corpse_model_if_cast_failed(
-                    nearest_exploitable_corpse,
-                    Animate_Bone_Horror_ID,
-                    wait_ms=1200,
-                )
                 return True
 
         if self.IsSkillEquipped(Fire_Storm_ID):

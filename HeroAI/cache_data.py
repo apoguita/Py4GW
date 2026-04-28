@@ -205,6 +205,11 @@ class CacheData:
         return len(filtered) > 0
     
     def GetActiveScanRange(self) -> float:
+        from .settings import Settings
+
+        if Settings().get_combat_range_mode() == Settings.COMBAT_RANGE_MODE_LEGACY:
+            return Range.Earshot.value if self.stay_alert_timer.HasElapsed(STAY_ALERT_TIME) else Range.Spellcast.value
+
         HighRange = Range.Longbow.value if not self.data.party_in_aggro else Range.Spellcast.value
         LowRange = Range.Longbow.value if self.data.party_in_aggro else Range.Earshot.value
         return LowRange if self.stay_alert_timer.HasElapsed(STAY_ALERT_TIME) else HighRange

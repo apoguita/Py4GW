@@ -231,12 +231,20 @@ class AccountStruct(Structure):
                     account_in_aggro = bool(account.InAggro)
                     if account_in_aggro:
                         party_in_aggro = True
-                HighRange = Range.Longbow.value if not party_in_aggro else Range.Spellcast.value
-                LowRange = Range.Longbow.value if not party_in_aggro else Range.Earshot.value
-                
                 now = Py4GW.Game.get_tick_count64()
                 stay_alert = self.InAggroTick64 > 0 and now - self.InAggroTick64 < IN_AGGRO_STAY_ALERT_TIME
-                scan_range = HighRange if stay_alert else LowRange
+                try:
+                    from HeroAI.settings import Settings
+                    legacy_range = Settings().get_combat_range_mode() == Settings.COMBAT_RANGE_MODE_LEGACY
+                except Exception:
+                    legacy_range = False
+
+                if legacy_range:
+                    scan_range = Range.Spellcast.value if stay_alert else Range.Earshot.value
+                else:
+                    HighRange = Range.Longbow.value if not party_in_aggro else Range.Spellcast.value
+                    LowRange = Range.Longbow.value if not party_in_aggro else Range.Earshot.value
+                    scan_range = HighRange if stay_alert else LowRange
                 detected_in_aggro = bool(Routines.Checks.Agents.InAggro(scan_range))
                 
                 if detected_in_aggro:

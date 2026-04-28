@@ -18,7 +18,6 @@ class _EVENTS:
             from ...Py4GWcorelib import Utils
             from ...enums import Range
             from ...GlobalCache import GLOBAL_CACHE
-            from ..helpers_src.HeroAICombatRange import hero_ai_combat_detected
             bot = self.parent
 
             left_direction  = True
@@ -61,7 +60,7 @@ class _EVENTS:
                                 yield from bot.helpers.Multibox._brute_force_unstuck()
 
 
-                        if not hero_ai_combat_detected():
+                        if not Routines.Checks.Agents.InDanger():
                             if left_direction:
                                 yield from Routines.Yield.Movement.TurnLeft(300)
                                 left_direction = False
@@ -97,7 +96,6 @@ class _EVENTS:
         from ...Pathing import AutoPathing
         from ...Py4GWcorelib import Utils
         from ...enums import Range
-        from ..helpers_src.HeroAICombatRange import get_hero_ai_combat_distance, hero_ai_combat_detected
         bot = self.parent
 
         try:
@@ -108,12 +106,10 @@ class _EVENTS:
                 if Routines.Checks.Party.IsPartyWiped() or GLOBAL_CACHE.Party.IsPartyDefeated():
                     return
 
-                if hero_ai_combat_detected():
+                if Routines.Checks.Agents.InDanger():
                     return
 
-                party_member_id = Routines.Checks.Party.GetPartyMemberInDangerID(
-                    aggro_area=get_hero_ai_combat_distance()
-                )
+                party_member_id = Routines.Checks.Party.GetPartyMemberInDangerID()
                 if party_member_id == 0 or not Agent.IsValid(party_member_id) or Agent.IsDead(party_member_id):
                     return
 
@@ -127,12 +123,10 @@ class _EVENTS:
 
                 exit_condition = lambda: (
                     not Routines.Checks.Map.MapValid()
-                    or hero_ai_combat_detected()
+                    or Routines.Checks.Agents.InDanger()
                     or Routines.Checks.Party.IsPartyWiped()
                     or GLOBAL_CACHE.Party.IsPartyDefeated()
-                    or Routines.Checks.Party.GetPartyMemberInDangerID(
-                        aggro_area=get_hero_ai_combat_distance()
-                    ) == 0
+                    or Routines.Checks.Party.GetPartyMemberInDangerID() == 0
                 )
 
                 yield from Routines.Yield.Movement.FollowPath(
@@ -151,7 +145,6 @@ class _EVENTS:
         from ...Routines import Routines
         from ...GlobalCache import GLOBAL_CACHE
         from ...Agent import Agent
-        from ..helpers_src.HeroAICombatRange import hero_ai_combat_detected
         bot = self.parent
         
         if Routines.Checks.Party.IsPartyWiped() or GLOBAL_CACHE.Party.IsPartyDefeated():
@@ -166,7 +159,7 @@ class _EVENTS:
             return
 
         # If we're in danger, end combat first (wait until safe)
-        while hero_ai_combat_detected():
+        while Routines.Checks.Agents.InDanger():
             # You can replace with your combat reset routine if you have one
             #print ("In danger, waiting to be safe before moving to dead party member")
             if Routines.Checks.Party.IsPartyWiped() or GLOBAL_CACHE.Party.IsPartyDefeated():
