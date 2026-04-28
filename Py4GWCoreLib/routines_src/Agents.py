@@ -281,11 +281,8 @@ class Agents:
         return Utils.GetFirstFromArray(ally_array)
     
     @staticmethod   
-    def GetDeadAlly(max_distance=4500.0):
+    def GetDeadAllyArray(max_distance=4500.0):
         from ..AgentArray import AgentArray
-        from ..Py4GWcorelib import Utils
-        from ..GlobalCache import GLOBAL_CACHE
-        from ..Agent import Agent
         from .Party import Party as PartyRoutines
 
         dead_ally_array = AgentArray.GetDeadAllyArray()
@@ -295,8 +292,33 @@ class Agents:
         dead_ally_array = AgentArray.Manipulation.Subtract(dead_ally_array, spirit_pet_array)
         dead_ally_array = AgentArray.Filter.ByCondition(dead_ally_array, PartyRoutines.IsPartyMember)
         dead_ally_array = AgentArray.Sort.ByDistance(dead_ally_array, Player.GetXY())
-    
+        return dead_ally_array
+
+    @staticmethod   
+    def GetDeadAlly(max_distance=4500.0):
+        from ..Py4GWcorelib import Utils
+
+        dead_ally_array = Agents.GetDeadAllyArray(max_distance)
         return Utils.GetFirstFromArray(dead_ally_array)
+
+    @staticmethod
+    def GetResurrectionTarget(max_distance=4500.0, reserve: bool = False, skill_id: int = 0, aftercast_delay: int = 250):
+        from ..Py4GWcorelib import Utils
+
+        dead_ally_array = Agents.GetDeadAllyArray(max_distance)
+        try:
+            from ..GlobalCache.WhiteboardLocks import filter_unlocked_resurrection_targets
+            dead_ally_array = filter_unlocked_resurrection_targets(dead_ally_array)
+        except Exception:
+            pass
+        selected = Utils.GetFirstFromArray(dead_ally_array)
+        if selected and reserve:
+            try:
+                from ..GlobalCache.WhiteboardLocks import post_resurrection_lock
+                post_resurrection_lock(selected, skill_id=skill_id, aftercast_delay=aftercast_delay)
+            except Exception:
+                pass
+        return selected
 
     @staticmethod
     def GetCorpses(max_distance=4500.0):
@@ -343,6 +365,11 @@ class Agents:
         corpse_array = AgentArray.Filter.ByDistance(corpse_array, Player.GetXY(), max_distance)
         corpse_array = AgentArray.Filter.ByCondition(corpse_array, lambda agent_id: Agent.IsExploitable(agent_id))
         corpse_array = AgentArray.Filter.ByCondition(corpse_array, lambda agent_id: _AllowedAlliegance(agent_id))
+        try:
+            from ..GlobalCache.WhiteboardLocks import filter_unlocked_minion_corpses
+            corpse_array = filter_unlocked_minion_corpses(corpse_array)
+        except Exception:
+            pass
         return corpse_array
 
     @staticmethod
@@ -372,7 +399,7 @@ class Agents:
         return Utils.GetFirstFromArray(corpse_array)
 
     @staticmethod
-    def GetNearestExploitableCorpse(max_distance=4500.0):
+    def GetNearestExploitableCorpse(max_distance=4500.0, reserve: bool = False, skill_id: int = 0, aftercast_delay: int = 250):
         from ..AgentArray import AgentArray
         from ..Agent import Agent
         from ..Py4GWcorelib import ConsoleLog, Console
@@ -381,6 +408,12 @@ class Agents:
         corpse_array = Agents.GetExploitableCorpses(max_distance)
         corpse_array = AgentArray.Sort.ByDistance(corpse_array, Player.GetXY())
         selected = Utils.GetFirstFromArray(corpse_array)
+        if selected and reserve:
+            try:
+                from ..GlobalCache.WhiteboardLocks import post_minion_lock
+                post_minion_lock(selected, skill_id=skill_id, aftercast_delay=aftercast_delay)
+            except Exception:
+                pass
         if selected:
             living = Agent.GetLivingAgentByID(selected)
             _, allegiance = Agent.GetAllegiance(selected)

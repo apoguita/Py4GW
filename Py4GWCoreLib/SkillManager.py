@@ -434,6 +434,12 @@ def _GetAppropiateTarget(
             v_target = GLOBAL_CACHE.Party.Pets.GetPetID(Player.GetAgentID())
         elif target_allegiance == Skilltarget.DeadAlly:
             v_target = Routines.Agents.GetDeadAlly(Range.Spellcast.value)
+        elif target_allegiance == Skilltarget.ResurrectionAlly:
+            v_target = Routines.Agents.GetResurrectionTarget(
+                Range.Spellcast.value,
+                reserve=True,
+                skill_id=skills[slot].skill_id,
+            )
         elif target_allegiance == Skilltarget.Spirit:
             v_target = Routines.Agents.GetNearestSpirit(Range.Spellcast.value)
         elif target_allegiance == Skilltarget.Minion:
@@ -449,7 +455,11 @@ def _GetAppropiateTarget(
         elif target_allegiance == Skilltarget.Corpse:
             v_target = Routines.Agents.GetNearestCorpse(Range.Spellcast.value)
         elif target_allegiance == Skilltarget.ExploitableCorpse:
-            v_target = Routines.Agents.GetNearestExploitableCorpse(Range.Spellcast.value)
+            v_target = Routines.Agents.GetNearestExploitableCorpse(
+                Range.Spellcast.value,
+                reserve=True,
+                skill_id=skills[slot].skill_id,
+            )
         else:
             v_target = GetPartytarget_fn()
             if v_target == 0:
@@ -1483,6 +1493,12 @@ class SkillManager:
                 v_target = GLOBAL_CACHE.Party.Pets.GetPetID(Player.GetAgentID())
             elif target_allegiance == Skilltarget.DeadAlly:
                 v_target = Routines.Agents.GetDeadAlly(Range.Spellcast.value)
+            elif target_allegiance == Skilltarget.ResurrectionAlly:
+                v_target = Routines.Agents.GetResurrectionTarget(
+                    Range.Spellcast.value,
+                    reserve=True,
+                    skill_id=self.skills[slot].skill_id,
+                )
             elif target_allegiance == Skilltarget.Spirit:
                 v_target = Routines.Agents.GetNearestSpirit(Range.Spellcast.value)
             elif target_allegiance == Skilltarget.Minion:
@@ -1498,7 +1514,11 @@ class SkillManager:
             elif target_allegiance == Skilltarget.Corpse:
                 v_target = Routines.Agents.GetNearestCorpse(Range.Spellcast.value)
             elif target_allegiance == Skilltarget.ExploitableCorpse:
-                v_target = Routines.Agents.GetNearestExploitableCorpse(Range.Spellcast.value)
+                v_target = Routines.Agents.GetNearestExploitableCorpse(
+                    Range.Spellcast.value,
+                    reserve=True,
+                    skill_id=self.skills[slot].skill_id,
+                )
             else:
                 v_target = self.GetPartyTarget()
                 if v_target == 0:

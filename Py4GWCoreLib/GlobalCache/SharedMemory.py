@@ -344,6 +344,33 @@ class Py4GWSharedMemoryManager:
             owner_email, skill_id, target_agent_id, expires_at_tick, isolation_group_id
         )
 
+    def PostLock(
+        self,
+        owner_email: str,
+        kind_id: int,
+        key_id: int,
+        target_id: int,
+        expires_at_tick: int,
+        isolation_group_id: int | None = None,
+        lock_mode: int = 1,
+        max_holders: int = 1,
+        reentry_policy: int = 1,
+        claim_strength: int = 1,
+    ) -> int:
+        """Claim a generic expiring whiteboard lock slot."""
+        return self.GetAllAccounts().PostLock(
+            owner_email,
+            kind_id,
+            key_id,
+            target_id,
+            expires_at_tick,
+            isolation_group_id,
+            lock_mode,
+            max_holders,
+            reentry_policy,
+            claim_strength,
+        )
+
     def ClearIntentsByOwner(self, owner_email: str) -> int:
         """Zero every intent slot whose OwnerEmail matches."""
         return self.GetAllAccounts().ClearIntentsByOwner(owner_email)
@@ -360,6 +387,82 @@ class Py4GWSharedMemoryManager:
         """True iff another account in the same group holds an unexpired claim."""
         return self.GetAllAccounts().IsIntentClaimed(
             skill_id, target_agent_id, group_id, exclude_email, now_tick
+        )
+
+    @frame_cache(category="SharedMemory", source_lib="IsLockBlocked")
+    def IsLockBlocked(
+        self,
+        kind_id: int,
+        key_id: int,
+        target_id: int,
+        group_id: int,
+        exclude_email: str,
+        now_tick: int,
+        lock_mode: int = 1,
+        max_holders: int = 1,
+        reentry_policy: int = 1,
+        claim_strength: int = 1,
+    ) -> bool:
+        """True when matching unexpired whiteboard locks should block this caller."""
+        return self.GetAllAccounts().IsLockBlocked(
+            kind_id,
+            key_id,
+            target_id,
+            group_id,
+            exclude_email,
+            now_tick,
+            lock_mode,
+            max_holders,
+            reentry_policy,
+            claim_strength,
+        )
+
+    @frame_cache(category="SharedMemory", source_lib="CountLocks")
+    def CountLocks(
+        self,
+        kind_id: int,
+        key_id: int,
+        target_id: int,
+        group_id: int,
+        exclude_email: str,
+        now_tick: int,
+        reentry_policy: int = 1,
+        claim_strength: int = 1,
+    ) -> int:
+        """Count matching unexpired whiteboard locks."""
+        return self.GetAllAccounts().CountLocks(
+            kind_id,
+            key_id,
+            target_id,
+            group_id,
+            exclude_email,
+            now_tick,
+            reentry_policy,
+            claim_strength,
+        )
+
+    @frame_cache(category="SharedMemory", source_lib="IsLockSatisfied")
+    def IsLockSatisfied(
+        self,
+        kind_id: int,
+        key_id: int,
+        target_id: int,
+        group_id: int,
+        exclude_email: str,
+        now_tick: int,
+        required_holders: int,
+        claim_strength: int = 1,
+    ) -> bool:
+        """Barrier helper: True when enough matching unexpired locks exist."""
+        return self.GetAllAccounts().IsLockSatisfied(
+            kind_id,
+            key_id,
+            target_id,
+            group_id,
+            exclude_email,
+            now_tick,
+            required_holders,
+            claim_strength,
         )
 
     def SweepExpiredIntents(self, now_tick: int) -> int:
