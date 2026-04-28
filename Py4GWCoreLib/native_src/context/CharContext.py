@@ -1,5 +1,5 @@
 import PyPointers
-from ctypes import Structure, c_uint32, c_uint8, c_wchar, POINTER, cast, c_int32
+from ctypes import Structure, c_uint32, c_uint8, c_wchar, POINTER, cast, c_int32, c_float, sizeof
 from ..internals.helpers import read_wstr, encoded_wstr_to_str
 from ..internals.gw_array import GW_Array, GW_Array_Value_View
 from typing import List
@@ -82,7 +82,7 @@ class ProgressBar(Structure):
         ("color", c_uint8 * 4),             # +0x0004 RGBA
         ("background", c_uint8 * 4),        # +0x0008 RGBA
         ("unk", c_uint32 * 7),              # +0x000C
-        ("progress", c_uint32),             # +0x0028 float 0.0 ... 1.0
+        ("progress", c_float),              # +0x0028 float 0.0 ... 1.0
         #// possibly more
     ]
 
@@ -108,22 +108,22 @@ class CharContextStruct(Structure):
         ("is_explorable", c_uint32),        # +0x019C
         ("host", c_uint8 * 0x18),           # +0x01A0
         ("token2", c_uint32),               # +0x01B8 player id
-        ("h01BC", c_uint32 * 25),           # +0x01BC
-        ("district_number", c_int32),      # +0x0220
-        ("language", c_uint32),             # +0x0224 GW::Constants::Language
-        ("observe_map_id", c_uint32),       # +0x0228
-        ("current_map_id", c_uint32),       # +0x022C
-        ("observe_map_type", c_uint32),     # +0x0230
-        ("current_map_type", c_uint32),     # +0x0234
-        ("h0238", c_uint32 * 5),            # +0x0238
-        ("observer_matches_array", GW_Array), # +0x024C Array<ObserverMatch*>
-        ("h025C", c_uint32 * 17),           # +0x025C
-        ("player_flags", c_uint32),         # +0x02A0
-        ("player_number", c_uint32),        # +0x02A4
-        ("h02A8", c_uint32 * 40),           # +0x02A8
-        ("progress_bar_ptr", POINTER(ProgressBar)),     # +0x0348 ProgressBar*
-        ("h034C", c_uint32 * 27),           # +0x034C
-        ("player_email_ptr", c_wchar * 0x40),   # +0x03B8 wchar_t[64]
+        ("h01BC", c_uint32 * 27),           # +0x01BC
+        ("district_number", c_int32),       # +0x0228
+        ("language", c_uint32),             # +0x022C GW::Constants::Language
+        ("observe_map_id", c_uint32),       # +0x0230
+        ("current_map_id", c_uint32),       # +0x0234
+        ("observe_map_type", c_uint32),     # +0x0238
+        ("current_map_type", c_uint32),     # +0x023C
+        ("h0240", c_uint32 * 5),            # +0x0240
+        ("observer_matches_array", GW_Array), # +0x0254 Array<ObserverMatch*>
+        ("h0264", c_uint32 * 17),           # +0x0264
+        ("player_flags", c_uint32),         # +0x02A8
+        ("player_number", c_uint32),        # +0x02AC
+        ("h02B0", c_uint32 * 40),           # +0x02B0
+        ("progress_bar_ptr", POINTER(ProgressBar)),     # +0x0350 ProgressBar*
+        ("h0354", c_uint32 * 27),           # +0x0354
+        ("player_email_ptr", c_wchar * 0x40),   # +0x03C0 wchar_t[64]
     ]
     @property
     def player_uuid(self) -> tuple[int, int, int, int]:
@@ -252,4 +252,7 @@ class CharContext:
     def get_context() -> CharContextStruct | None:
         return CharContext._cached_ctx
         
+assert sizeof(ProgressBar) == 0x2C
+assert sizeof(CharContextStruct) == 0x440
+
 CharContext.enable()
