@@ -141,6 +141,7 @@ class Skilltarget (IntEnum):
     EnemyCastingSpellOrChant = 37
     AllyWeaponSpell = 38
     NonWeaponSpelledAlly = 39
+    ResurrectionAlly = 40
 
 
 

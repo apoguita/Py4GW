@@ -1,7 +1,7 @@
 from Py4GWCoreLib import Profession
 from Py4GWCoreLib import BuildMgr
 from Py4GWCoreLib import Routines
-from Py4GWCoreLib import Agent, AgentArray, Player, Range, GLOBAL_CACHE
+from Py4GWCoreLib import Player, Range, GLOBAL_CACHE
 from Py4GWCoreLib.Skill import Skill
 from Py4GWCoreLib.Builds.Any.HeroAI import HeroAI_Build
 
@@ -39,19 +39,11 @@ class Pre_Searing_Necro(BuildMgr):
 
     @staticmethod
     def _get_nearest_exploitable_corpse(max_distance=Range.Spellcast.value):
-        def _allowed_allegiance(agent_id: int) -> bool:
-            _, allegiance = Agent.GetAllegiance(agent_id)
-            return allegiance in ("Ally", "Neutral", "Enemy", "NPC/Minipet")
-
-        corpse_array = AgentArray.GetAgentArray()
-        corpse_array = AgentArray.Filter.ByDistance(corpse_array, Player.GetXY(), max_distance)
-        corpse_array = AgentArray.Filter.ByCondition(
-            corpse_array,
-            lambda agent_id: Agent.IsExploitable(agent_id),
+        return Routines.Agents.GetNearestExploitableCorpse(
+            max_distance,
+            reserve=True,
+            skill_id=Animate_Bone_Horror_ID,
         )
-        corpse_array = AgentArray.Filter.ByCondition(corpse_array, _allowed_allegiance)
-        corpse_array = AgentArray.Sort.ByDistance(corpse_array, Player.GetXY())
-        return corpse_array[0] if corpse_array else 0
 
     def _run_local_skill_logic(self):
         player_agent_id = Player.GetAgentID()
@@ -61,7 +53,11 @@ class Pre_Searing_Necro(BuildMgr):
             return False
 
         if self.IsSkillEquipped(Resurrection_Signet_ID):
-            dead_ally_id = Routines.Agents.GetDeadAlly(max_distance=Range.Spellcast.value)
+            dead_ally_id = Routines.Agents.GetResurrectionTarget(
+                max_distance=Range.Spellcast.value,
+                reserve=True,
+                skill_id=Resurrection_Signet_ID,
+            )
             if dead_ally_id and (yield from self.CastSkillID(
                 skill_id=Resurrection_Signet_ID,
                 target_agent_id=dead_ally_id,

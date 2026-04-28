@@ -38,6 +38,12 @@ from .enums_src.Map_enums import (
 from .enums_src.Model_enums import AgentModelID, ModelID, PetModelID, SPIRIT_BUFF_MAP, SpiritModelID
 from .enums_src.Multiboxing_enums import CombatPrepSkillsType, SharedCommandType
 from .enums_src.Py4GW_enums import Console
+from .enums_src.Whiteboard_enums import (
+    WhiteboardClaimStrength,
+    WhiteboardLockKind,
+    WhiteboardLockMode,
+    WhiteboardReentryPolicy,
+)
 from .enums_src.Quest_enums import QUEST_DATA, QUEST_NAMES, get_quest_id, get_quest_ids, get_quest_name
 from .enums_src.Region_enums import (
     Campaign,
@@ -162,6 +168,12 @@ __all__ = [
     # Multiboxing_enums
     "CombatPrepSkillsType",
     "SharedCommandType",
+
+    # Whiteboard_enums
+    "WhiteboardClaimStrength",
+    "WhiteboardLockKind",
+    "WhiteboardLockMode",
+    "WhiteboardReentryPolicy",
 
     # Py4GW_enums
     "Console",
