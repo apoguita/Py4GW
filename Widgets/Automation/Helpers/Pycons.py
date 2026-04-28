@@ -108,6 +108,10 @@ try:
     DEFAULT_PARTY_ITEM_INTERVAL_MS = 1000
     MAX_PARTY_ITEM_INTERVAL_MS = 60000
     PARTY_ITEM_DEFAULT_COOLDOWN_MS = MIN_PARTY_ITEM_INTERVAL_MS
+    MIN_MOVEMENT_SAFETY_WINDOW_MS = 250
+    DEFAULT_MOVEMENT_SAFETY_WINDOW_MS = 5000
+    MAX_MOVEMENT_SAFETY_WINDOW_MS = 60000
+    MOVEMENT_DELTA_EPSILON_SQ = 25.0
     TONIC_TIPSINESS_EFFECT_ID = 3402
     TONIC_TIPSINESS_DELAY_MS = 5000
     CRATE_FIREWORKS_DISPLAY_MS = 10 * 60 * 1000
@@ -139,10 +143,15 @@ try:
     BROADCAST_KEEPALIVE_MS = 5000
     TEAM_SETTINGS_CACHE_MS = 3000
 
-    # Fallback durations (ms) for items that cannot resolve effect IDs:
-    FALLBACK_SHORT_MS = 10 * 60 * 1000
-    FALLBACK_MEDIUM_MS = 20 * 60 * 1000
-    FALLBACK_LONG_MS = 30 * 60 * 1000
+    # In-town speed effects use explicit ids so fallback timing matches the visible effect.
+    SUGAR_JOLT_SHORT_EFFECT_ID = 1916
+    SUGAR_JOLT_SHORT_MS = 2 * 60 * 1000
+    SUGAR_JOLT_LONG_EFFECT_ID = 1933
+    SUGAR_JOLT_LONG_MS = 5 * 60 * 1000
+    SUGAR_RUSH_MEDIUM_EFFECT_ID = 1323
+    SUGAR_RUSH_MEDIUM_MS = 3 * 60 * 1000
+    SUGAR_RUSH_LONG_EFFECT_ID = 1612
+    SUGAR_RUSH_LONG_MS = 5 * 60 * 1000
     SUMMONING_STONE_DURATION_MS = 30 * 60 * 1000
     IGNEOUS_SUMMON_DURATION_MS = 60 * 60 * 1000
     SUMMONING_SICKNESS_EFFECT_ID = 2886
@@ -511,6 +520,14 @@ try:
             "header_text": (0.96, 0.98, 0.96, 1.00),
             "text": (0.97, 0.84, 0.74, 1.00),
             "meta": (0.88, 0.72, 0.58, 1.00),
+        },
+        "settings_movement_safety": {
+            "header": (0.81, 0.76, 0.62, 0.88),
+            "header_hovered": (0.87, 0.82, 0.68, 0.94),
+            "header_active": (0.93, 0.88, 0.74, 1.00),
+            "header_text": (0.08, 0.07, 0.04, 1.00),
+            "text": (0.98, 0.93, 0.78, 1.00),
+            "meta": (0.84, 0.79, 0.64, 1.00),
         },
         "settings_restock": {
             "header": (0.00, 0.45, 0.70, 0.88),
@@ -882,6 +899,41 @@ try:
             "long": "Controls how often Pycons tries to use selected in-town speed boost sweets while Fast sweets spending is enabled.",
             "why": "Fast title spending should not force normal Pycons item checks to run faster.",
         },
+        "movement_safety_window_ms": {
+            "short": "How long movement counts as recent.",
+            "long": "When a movement requirement is enabled, Pycons only uses that item type if your character moved within this many milliseconds.",
+            "why": "This helps prevent item waste if a bot is stuck or the player has gone idle.",
+        },
+        "movement_require_explorable": {
+            "short": "Require recent movement before explorable consumables are used.",
+            "long": "When enabled, regular explorable consumables wait until your character has moved recently.",
+            "why": "Useful for consets and long-duration items that should not keep spending while stuck or idle.",
+        },
+        "movement_require_summoning": {
+            "short": "Require recent movement before summoning items are used.",
+            "long": "When enabled, summoning stones and similar summoning items wait until your character has moved recently.",
+            "why": "Prevents summoning items from being burned while the character is not actively moving through content.",
+        },
+        "movement_require_mbdp": {
+            "short": "Require recent movement before morale and DP items are used.",
+            "long": "When enabled, Morale Boost and Death Penalty cleanup items wait until your character has moved recently.",
+            "why": "This can reduce wasted morale and DP spending while idle, but may delay recovery if you are intentionally standing still.",
+        },
+        "movement_require_alcohol": {
+            "short": "Require recent movement before alcohol is used.",
+            "long": "When enabled, normal alcohol upkeep and fast alcohol spending wait until your character has moved recently.",
+            "why": "Useful when title spending should pause if the character is no longer active.",
+        },
+        "movement_require_party_items": {
+            "short": "Require recent movement before Party Items are used.",
+            "long": "When enabled, selected Party Items wait until your character has moved recently.",
+            "why": "Useful when party-point spending should pause if the character is stuck or idle.",
+        },
+        "movement_require_sweets": {
+            "short": "Require recent movement before sweets are used.",
+            "long": "When enabled, in-town speed boost sweets and fast sweets spending wait until your character has moved recently.",
+            "why": "Useful when Sweet Tooth spending should pause while idle.",
+        },
         "mbdp_enabled": {
             "short": "Master toggle for morale/DP automation.",
             "long": "Turns all morale boost and death penalty item automation on or off. If off, none of the settings below will use items.",
@@ -1150,6 +1202,12 @@ try:
         "alcohol_disable_effect",
         "alcohol_fast_spending",
         "sweets_fast_spending",
+        "movement_require_explorable",
+        "movement_require_summoning",
+        "movement_require_mbdp",
+        "movement_require_alcohol",
+        "movement_require_party_items",
+        "movement_require_sweets",
         "alcohol_use_explorable",
         "alcohol_use_outpost",
         "team_broadcast",
@@ -1173,6 +1231,13 @@ try:
         "alcohol_fast_interval_ms",
         "sweets_fast_spending",
         "sweets_fast_interval_ms",
+        "movement_safety_window_ms",
+        "movement_require_explorable",
+        "movement_require_summoning",
+        "movement_require_mbdp",
+        "movement_require_alcohol",
+        "movement_require_party_items",
+        "movement_require_sweets",
         "alcohol_target_level",
         "alcohol_use_explorable",
         "alcohol_use_outpost",
@@ -1329,6 +1394,13 @@ try:
             "alcohol_fast_interval_ms": int(DEFAULT_ALCOHOL_FAST_INTERVAL_MS),
             "sweets_fast_spending": False,
             "sweets_fast_interval_ms": int(DEFAULT_SWEETS_FAST_INTERVAL_MS),
+            "movement_safety_window_ms": int(DEFAULT_MOVEMENT_SAFETY_WINDOW_MS),
+            "movement_require_explorable": False,
+            "movement_require_summoning": False,
+            "movement_require_mbdp": False,
+            "movement_require_alcohol": False,
+            "movement_require_party_items": False,
+            "movement_require_sweets": False,
             "alcohol_target_level": 3,
             "alcohol_use_explorable": True,
             "alcohol_use_outpost": True,
@@ -1430,6 +1502,10 @@ try:
         payload["party_item_interval_ms"] = max(
             MIN_PARTY_ITEM_INTERVAL_MS,
             min(MAX_PARTY_ITEM_INTERVAL_MS, int(payload.get("party_item_interval_ms", DEFAULT_PARTY_ITEM_INTERVAL_MS))),
+        )
+        payload["movement_safety_window_ms"] = max(
+            MIN_MOVEMENT_SAFETY_WINDOW_MS,
+            min(MAX_MOVEMENT_SAFETY_WINDOW_MS, int(payload.get("movement_safety_window_ms", DEFAULT_MOVEMENT_SAFETY_WINDOW_MS))),
         )
         payload["force_team_morale_value"] = max(-60, min(10, int(payload.get("force_team_morale_value", MBDP_DEFAULTS["force_team_morale_value"]))))
         payload["mbdp_self_dp_minor_threshold"] = _profile_dp_threshold_to_effective(payload.get("mbdp_self_dp_minor_threshold", MBDP_DEFAULTS["mbdp_self_dp_minor_threshold"]))
@@ -2609,12 +2685,12 @@ try:
         {"key": "zaishen_summoning_stone", "label": "Zaishen Summoning Stone", "model_id": int(_model_id_value("Zaishen_Summon", 0)), "use_where": "summoning", "summon_duration_ms": SUMMONING_STONE_DURATION_MS},
 
         # Outpost-only (alphabetical by label)
-        {"key": "chocolate_bunny", "label": "Chocolate Bunny", "model_id": int(_model_id_value("Chocolate_Bunny", 0)), "skills": ["Sugar_Jolt_(long)"], "use_where": "outpost", "require_effect_id": True, "fallback_duration_ms": FALLBACK_LONG_MS},
-        {"key": "creme_brulee", "label": "Crème Brûlée", "model_id": int(_model_id_value("Creme_Brulee", 0)), "skills": ["Sugar_Jolt_(long)"], "use_where": "outpost", "require_effect_id": True, "fallback_duration_ms": FALLBACK_LONG_MS},
-        {"key": "fruitcake", "label": "Fruitcake", "model_id": int(_model_id_value("Fruitcake", 0)), "skills": ["Sugar_Rush_(medium)"], "use_where": "outpost", "require_effect_id": True, "fallback_duration_ms": FALLBACK_MEDIUM_MS},
-        {"key": "jar_of_honey", "label": "Jar of Honey", "model_id": int(_model_id_value("Jar_Of_Honey", 0)), "skills": ["Sugar_Rush_(long)"], "use_where": "outpost", "require_effect_id": False, "fallback_duration_ms": FALLBACK_LONG_MS},
-        {"key": "red_bean_cake", "label": "Red Bean Cake", "model_id": int(_model_id_value("Red_Bean_Cake", 0)), "skills": ["Sugar_Rush_(medium)"], "use_where": "outpost", "require_effect_id": True, "fallback_duration_ms": FALLBACK_MEDIUM_MS},
-        {"key": "sugary_blue_drink", "label": "Sugary Blue Drink", "model_id": int(_model_id_value("Sugary_Blue_Drink", 0)), "skills": ["Sugar_Jolt_(short)"], "use_where": "outpost", "require_effect_id": False, "fallback_duration_ms": FALLBACK_SHORT_MS},
+        {"key": "chocolate_bunny", "label": "Chocolate Bunny", "model_id": int(_model_id_value("Chocolate_Bunny", 0)), "skills": ["Sugar_Jolt_(long)"], "effect_id": SUGAR_JOLT_LONG_EFFECT_ID, "use_where": "outpost", "require_effect_id": True, "fallback_duration_ms": SUGAR_JOLT_LONG_MS},
+        {"key": "creme_brulee", "label": "Crème Brûlée", "model_id": int(_model_id_value("Creme_Brulee", 0)), "skills": ["Sugar_Jolt_(long)"], "effect_id": SUGAR_JOLT_LONG_EFFECT_ID, "use_where": "outpost", "require_effect_id": True, "fallback_duration_ms": SUGAR_JOLT_LONG_MS},
+        {"key": "fruitcake", "label": "Fruitcake", "model_id": int(_model_id_value("Fruitcake", 0)), "skills": ["Sugar_Rush_(medium)"], "effect_id": SUGAR_RUSH_MEDIUM_EFFECT_ID, "use_where": "outpost", "require_effect_id": True, "fallback_duration_ms": SUGAR_RUSH_MEDIUM_MS},
+        {"key": "jar_of_honey", "label": "Jar of Honey", "model_id": int(_model_id_value("Jar_Of_Honey", 0)), "skills": ["Sugar_Rush_(long)"], "effect_id": SUGAR_RUSH_LONG_EFFECT_ID, "use_where": "outpost", "require_effect_id": False, "fallback_duration_ms": SUGAR_RUSH_LONG_MS},
+        {"key": "red_bean_cake", "label": "Red Bean Cake", "model_id": int(_model_id_value("Red_Bean_Cake", 0)), "skills": ["Sugar_Rush_(medium)"], "effect_id": SUGAR_RUSH_MEDIUM_EFFECT_ID, "use_where": "outpost", "require_effect_id": True, "fallback_duration_ms": SUGAR_RUSH_MEDIUM_MS},
+        {"key": "sugary_blue_drink", "label": "Sugary Blue Drink", "model_id": int(_model_id_value("Sugary_Blue_Drink", 0)), "skills": ["Sugar_Jolt_(short)"], "effect_id": SUGAR_JOLT_SHORT_EFFECT_ID, "use_where": "outpost", "require_effect_id": False, "fallback_duration_ms": SUGAR_JOLT_SHORT_MS},
 
         # Party Items (Party Animal title points). Most are safe to use repeatedly.
         _party_item_spec("bottle_rocket", "Bottle Rocket", "Bottle_Rocket", 1),
@@ -2763,11 +2839,13 @@ try:
     ]
     ALCOHOL_BY_KEY = {a["key"]: a for a in ALCOHOL_ITEMS}
     PYCONS_SYNC_CATEGORY_ALCOHOL = "alcohol_settings"
+    PYCONS_SYNC_CATEGORY_MOVEMENT_SAFETY = "movement_safety_settings"
     PYCONS_SYNC_CATEGORY_MBDP = "mbdp_settings"
     PYCONS_SYNC_CATEGORY_RESTOCK = "restock_settings"
     PYCONS_SYNC_CATEGORY_SELECTION = "main_window_selection"
     PYCONS_SYNC_CATEGORY_DEFS = [
         (PYCONS_SYNC_CATEGORY_ALCOHOL, "Alcohol/Party & Sweets settings"),
+        (PYCONS_SYNC_CATEGORY_MOVEMENT_SAFETY, "Movement safety settings"),
         (PYCONS_SYNC_CATEGORY_MBDP, "Morale Boost & Death Penalty settings"),
         (PYCONS_SYNC_CATEGORY_RESTOCK, "Restock settings"),
         (PYCONS_SYNC_CATEGORY_SELECTION, "Select consumables to show in main window"),
@@ -2784,6 +2862,15 @@ try:
         "alcohol_target_level",
         "alcohol_preference",
         "party_item_interval_ms",
+    ]
+    PYCONS_SYNC_MOVEMENT_SAFETY_SCALAR_KEYS = [
+        "movement_safety_window_ms",
+        "movement_require_explorable",
+        "movement_require_summoning",
+        "movement_require_mbdp",
+        "movement_require_alcohol",
+        "movement_require_party_items",
+        "movement_require_sweets",
     ]
     PYCONS_SYNC_MBDP_SCALAR_KEYS = [
         "mbdp_enabled",
@@ -3464,6 +3551,19 @@ try:
                 MIN_SWEETS_FAST_INTERVAL_MS,
                 min(MAX_SWEETS_FAST_INTERVAL_MS, int(ini_handler.read_int(INI_SECTION, "sweets_fast_interval_ms", DEFAULT_SWEETS_FAST_INTERVAL_MS))),
             )
+            self.movement_safety_window_ms = max(
+                MIN_MOVEMENT_SAFETY_WINDOW_MS,
+                min(
+                    MAX_MOVEMENT_SAFETY_WINDOW_MS,
+                    int(ini_handler.read_int(INI_SECTION, "movement_safety_window_ms", DEFAULT_MOVEMENT_SAFETY_WINDOW_MS)),
+                ),
+            )
+            self.movement_require_explorable = ini_handler.read_bool(INI_SECTION, "movement_require_explorable", False)
+            self.movement_require_summoning = ini_handler.read_bool(INI_SECTION, "movement_require_summoning", False)
+            self.movement_require_mbdp = ini_handler.read_bool(INI_SECTION, "movement_require_mbdp", False)
+            self.movement_require_alcohol = ini_handler.read_bool(INI_SECTION, "movement_require_alcohol", False)
+            self.movement_require_party_items = ini_handler.read_bool(INI_SECTION, "movement_require_party_items", False)
+            self.movement_require_sweets = ini_handler.read_bool(INI_SECTION, "movement_require_sweets", False)
             self.alcohol_target_level = max(0, min(5, int(ini_handler.read_int(INI_SECTION, "alcohol_target_level", 3))))
 
             self.alcohol_use_explorable = ini_handler.read_bool(INI_SECTION, "alcohol_use_explorable", True)
@@ -3500,6 +3600,7 @@ try:
             self.settings_ui_tooltip_open = ini_handler.read_bool(INI_SECTION, "settings_ui_tooltip_open", False)
             self.settings_ui_sync_open = ini_handler.read_bool(INI_SECTION, "settings_ui_sync_open", False)
             self.settings_ui_alcohol_open = ini_handler.read_bool(INI_SECTION, "settings_ui_alcohol_open", False)
+            self.settings_ui_movement_safety_open = ini_handler.read_bool(INI_SECTION, "settings_ui_movement_safety_open", False)
             self.settings_ui_mbdp_open = ini_handler.read_bool(INI_SECTION, "settings_ui_mbdp_open", False)
             self.settings_ui_presets_open = ini_handler.read_bool(INI_SECTION, "settings_ui_presets_open", False)
             self.settings_ui_restock_open = ini_handler.read_bool(INI_SECTION, "settings_ui_restock_open", False)
@@ -3659,6 +3760,16 @@ try:
                 "sweets_fast_interval_ms",
                 int(max(MIN_SWEETS_FAST_INTERVAL_MS, min(MAX_SWEETS_FAST_INTERVAL_MS, int(self.sweets_fast_interval_ms)))),
             )
+            set_key(
+                "movement_safety_window_ms",
+                int(max(MIN_MOVEMENT_SAFETY_WINDOW_MS, min(MAX_MOVEMENT_SAFETY_WINDOW_MS, int(self.movement_safety_window_ms)))),
+            )
+            set_key("movement_require_explorable", bool(self.movement_require_explorable))
+            set_key("movement_require_summoning", bool(self.movement_require_summoning))
+            set_key("movement_require_mbdp", bool(self.movement_require_mbdp))
+            set_key("movement_require_alcohol", bool(self.movement_require_alcohol))
+            set_key("movement_require_party_items", bool(self.movement_require_party_items))
+            set_key("movement_require_sweets", bool(self.movement_require_sweets))
             set_key("alcohol_target_level", int(self.alcohol_target_level))
             set_key("alcohol_use_explorable", bool(self.alcohol_use_explorable))
             set_key("alcohol_use_outpost", bool(self.alcohol_use_outpost))
@@ -3690,6 +3801,7 @@ try:
             set_key("settings_ui_tooltip_open", bool(self.settings_ui_tooltip_open))
             set_key("settings_ui_sync_open", bool(self.settings_ui_sync_open))
             set_key("settings_ui_alcohol_open", bool(self.settings_ui_alcohol_open))
+            set_key("settings_ui_movement_safety_open", bool(self.settings_ui_movement_safety_open))
             set_key("settings_ui_mbdp_open", bool(self.settings_ui_mbdp_open))
             set_key("settings_ui_presets_open", bool(self.settings_ui_presets_open))
             set_key("settings_ui_restock_open", bool(self.settings_ui_restock_open))
@@ -3821,6 +3933,11 @@ try:
     _last_broadcast_ms = {}
     _team_flags_cache = {}
     _last_mbdp_party_ms = 0
+    _movement_last_xy = None
+    _movement_last_ms = 0
+    _movement_last_map_id = 0
+    _movement_last_poll_ms = 0
+    _movement_position_known = False
     _local_team_flags_refresh_timer = Timer()
     _local_team_flags_refresh_timer.Start()
     _local_team_flags_refresh_timer.Stop()
@@ -3914,6 +4031,167 @@ try:
         rows.sort(key=lambda r: int(r[0]), reverse=True)
         top = rows[:max(1, int(limit))]
         return [(str(msg), int(count), max(0, int((now - int(last_ms)) / 1000))) for last_ms, msg, count in top]
+
+    def _movement_safety_window_ms() -> int:
+        if cfg is None:
+            return int(DEFAULT_MOVEMENT_SAFETY_WINDOW_MS)
+        try:
+            raw = int(getattr(cfg, "movement_safety_window_ms", DEFAULT_MOVEMENT_SAFETY_WINDOW_MS))
+        except Exception:
+            raw = int(DEFAULT_MOVEMENT_SAFETY_WINDOW_MS)
+        return int(max(MIN_MOVEMENT_SAFETY_WINDOW_MS, min(MAX_MOVEMENT_SAFETY_WINDOW_MS, raw)))
+
+    def _current_map_id() -> int:
+        try:
+            for name in ("GetMapID", "GetMapId", "GetCurrentMapID", "GetCurrentMapId"):
+                fn = getattr(Map, name, None)
+                if callable(fn):
+                    value = int(fn() or 0)
+                    if value > 0:
+                        return value
+        except Exception:
+            pass
+        return 0
+
+    def _player_xy() -> tuple[float, float] | None:
+        try:
+            pos = Player.GetXY()
+            if isinstance(pos, (tuple, list)) and len(pos) >= 2:
+                return float(pos[0]), float(pos[1])
+            x = getattr(pos, "x", None)
+            y = getattr(pos, "y", None)
+            if x is not None and y is not None:
+                return float(x), float(y)
+        except Exception:
+            pass
+
+        try:
+            agent_id = int(Player.GetAgentID() or 0)
+            if agent_id <= 0:
+                return None
+            pos = Agent.GetXY(agent_id)
+            if isinstance(pos, (tuple, list)) and len(pos) >= 2:
+                return float(pos[0]), float(pos[1])
+            x = getattr(pos, "x", None)
+            y = getattr(pos, "y", None)
+            if x is not None and y is not None:
+                return float(x), float(y)
+        except Exception:
+            pass
+        return None
+
+    def _update_movement_tracker(force: bool = False) -> None:
+        global _movement_last_xy, _movement_last_ms, _movement_last_map_id, _movement_last_poll_ms, _movement_position_known
+
+        now = int(_now_ms())
+        if (not bool(force)) and int(_movement_last_poll_ms or 0) > 0 and (now - int(_movement_last_poll_ms)) < 250:
+            return
+        _movement_last_poll_ms = int(now)
+
+        xy = _player_xy()
+        if xy is None:
+            _movement_position_known = False
+            return
+
+        map_id = int(_current_map_id())
+        if _movement_last_xy is None or (map_id > 0 and int(_movement_last_map_id or 0) > 0 and map_id != int(_movement_last_map_id)):
+            _movement_last_xy = (float(xy[0]), float(xy[1]))
+            _movement_last_ms = int(now)
+            _movement_last_map_id = int(map_id)
+            _movement_position_known = True
+            return
+
+        prev_x, prev_y = _movement_last_xy
+        dx = float(xy[0]) - float(prev_x)
+        dy = float(xy[1]) - float(prev_y)
+        if (dx * dx + dy * dy) >= float(MOVEMENT_DELTA_EPSILON_SQ):
+            _movement_last_xy = (float(xy[0]), float(xy[1]))
+            _movement_last_ms = int(now)
+        if map_id > 0:
+            _movement_last_map_id = int(map_id)
+        _movement_position_known = True
+
+    def _movement_recently_moved(now_ms: int | None = None) -> bool:
+        _update_movement_tracker()
+        if not bool(_movement_position_known):
+            return True
+        now = int(_now_ms() if now_ms is None else now_ms)
+        last_ms = int(_movement_last_ms or 0)
+        if last_ms <= 0:
+            return True
+        return bool((now - last_ms) <= int(_movement_safety_window_ms()))
+
+    def _movement_status_summary() -> tuple[str, bool, int]:
+        _update_movement_tracker(force=True)
+        if not bool(_movement_position_known):
+            return "Movement status: unavailable", True, 0
+        now = int(_now_ms())
+        elapsed_ms = max(0, int(now - int(_movement_last_ms or now)))
+        if _movement_recently_moved(now):
+            return f"Movement status: Recently moved ({elapsed_ms} ms ago)", True, int(elapsed_ms)
+        return f"Movement status: Standing still ({elapsed_ms} ms ago)", False, int(elapsed_ms)
+
+    def _movement_requirement_attr(category: str) -> str:
+        category_key = str(category or "").strip().lower()
+        attrs = {
+            "explorable": "movement_require_explorable",
+            "summoning": "movement_require_summoning",
+            "mbdp": "movement_require_mbdp",
+            "alcohol": "movement_require_alcohol",
+            "party_items": "movement_require_party_items",
+            "sweets": "movement_require_sweets",
+        }
+        return attrs.get(category_key, "")
+
+    def _movement_category_label(category: str) -> str:
+        category_key = str(category or "").strip().lower()
+        labels = {
+            "explorable": "Explorable consumables",
+            "summoning": "Summoning items",
+            "mbdp": "Morale/DP items",
+            "alcohol": "Alcohol",
+            "party_items": "Party Items",
+            "sweets": "Sweets",
+        }
+        return labels.get(category_key, "Consumables")
+
+    def _movement_required_for_category(category: str) -> bool:
+        if cfg is None:
+            return False
+        attr = _movement_requirement_attr(category)
+        if not attr:
+            return False
+        return bool(getattr(cfg, attr, False))
+
+    def _movement_gate_allows(category: str) -> bool:
+        if not _movement_required_for_category(category):
+            return True
+        return bool(_movement_recently_moved())
+
+    def _movement_category_for_spec(spec: dict) -> str:
+        if _is_party_item_spec(spec):
+            return "party_items"
+        if _is_summoning_spec(spec):
+            return "summoning"
+        if _is_sweets_spec(spec):
+            return "sweets"
+        use_where = str(spec.get("use_where", "explorable") or "explorable").strip().lower()
+        if use_where in ("explorable", "both"):
+            return "explorable"
+        return ""
+
+    def _record_movement_block(category: str, label: str):
+        category_key = str(category or "").strip().lower()
+        if not category_key:
+            return
+        wt = _warn_timer_for(f"movement_required_{category_key}")
+        if not (wt.IsStopped() or wt.HasElapsed(8000)):
+            return
+        wt.Start()
+        category_label = _movement_category_label(category_key)
+        clean_label = str(label or category_label).strip() or category_label
+        _record_blocked_action(f"movement_required_{category_key}", f"{category_label}: waiting for movement")
+        _debug(f"Skipping {clean_label}: movement required.", Console.MessageType.Debug)
 
     def _deposit_dest_key(model_id: int, bag_id: int, slot: int) -> tuple[int, int, int]:
         return int(model_id), int(bag_id), int(slot)
@@ -4212,6 +4490,9 @@ try:
             return False, keys, False
         if not (aftercast_timer.IsStopped() or aftercast_timer.HasElapsed(int(AFTERCAST_MS))):
             return False, keys, False
+        if not _movement_gate_allows("party_items"):
+            _record_movement_block("party_items", "Party Items")
+            return False, keys, False
         return True, keys, bool(_in_explorable())
 
     def _sweets_precheck():
@@ -4229,6 +4510,9 @@ try:
         if _should_block_consumption():
             return False, keys, False
         if not (aftercast_timer.IsStopped() or aftercast_timer.HasElapsed(int(AFTERCAST_MS))):
+            return False, keys, False
+        if not _movement_gate_allows("sweets"):
+            _record_movement_block("sweets", "Sweets")
             return False, keys, False
         return True, keys, bool(_in_explorable())
 
@@ -4255,6 +4539,10 @@ try:
             return False, target, [], False, 0, 0
 
         if not (aftercast_timer.IsStopped() or aftercast_timer.HasElapsed(int(AFTERCAST_MS))):
+            return False, target, [], False, 0, 0
+
+        if not _movement_gate_allows("alcohol"):
+            _record_movement_block("alcohol", "Alcohol")
             return False, target, [], False, 0, 0
 
         pool_keys = _alcohol_pool_keys()
@@ -4349,6 +4637,11 @@ try:
         return out
 
     def _resolve_effect_id_for(key: str, spec: dict) -> int:
+        explicit_effect_id = int(spec.get("effect_id", 0) or 0)
+        if explicit_effect_id > 0:
+            _skill_id_cache[key] = int(explicit_effect_id)
+            return int(explicit_effect_id)
+
         cached = int(_skill_id_cache.get(key, 0))
         if cached > 0:
             return cached
@@ -4659,7 +4952,7 @@ try:
                     mid = int(mid)
                     qty = int(qty)
                     counts[mid] = int(counts.get(mid, 0)) + qty
-                    if qty > int(best_qty_by_model.get(mid, -1)):
+                    if qty < int(best_qty_by_model.get(mid, 10**9)):
                         best_qty_by_model[mid] = qty
                         best_item_ids[mid] = int(item_id)
 
@@ -4685,7 +4978,7 @@ try:
                         mid = int(mid)
                         qty = int(qty)
                         counts[mid] = int(counts.get(mid, 0)) + qty
-                        if qty > int(best_qty_by_model.get(mid, -1)):
+                        if qty < int(best_qty_by_model.get(mid, 10**9)):
                             best_qty_by_model[mid] = qty
                             best_item_ids[mid] = int(iid)
                     except Exception:
@@ -4722,7 +5015,7 @@ try:
                 return int(cached_item_id)
 
         best_item_id = 0
-        best_qty = -1
+        best_qty = 10**9
         for _bag_enum, _bag, _size, items in _get_inventory_bag_handles():
             for it in items:
                 try:
@@ -4741,7 +5034,7 @@ try:
                     qty = max(1, int(qty))
                 except Exception:
                     continue
-                if qty > best_qty:
+                if qty < best_qty:
                     best_qty = int(qty)
                     best_item_id = int(item_id)
 
@@ -6320,6 +6613,10 @@ try:
             for key in PYCONS_SYNC_ALCOHOL_SCALAR_KEYS:
                 set_key(key, getattr(cfg, key))
 
+        if PYCONS_SYNC_CATEGORY_MOVEMENT_SAFETY in category_set:
+            for key in PYCONS_SYNC_MOVEMENT_SAFETY_SCALAR_KEYS:
+                set_key(key, getattr(cfg, key))
+
         if PYCONS_SYNC_CATEGORY_MBDP in category_set:
             for key in PYCONS_SYNC_MBDP_SCALAR_KEYS:
                 set_key(key, getattr(cfg, key))
@@ -6905,6 +7202,9 @@ try:
             return False
         if not (aftercast_timer.IsStopped() or aftercast_timer.HasElapsed(int(AFTERCAST_MS))):
             return False
+        if not _movement_gate_allows("mbdp"):
+            _record_movement_block("mbdp", "Morale/DP items")
+            return False
         return True
 
     def _mbdp_run_self_phase() -> bool:
@@ -7216,6 +7516,11 @@ try:
                 continue
 
             if not _allowed_here(spec, in_explorable):
+                continue
+
+            movement_category = _movement_category_for_spec(spec)
+            if movement_category and not _movement_gate_allows(movement_category):
+                _record_movement_block(movement_category, str(spec.get("label", key) or key))
                 continue
 
             if _is_summoning_spec(spec):
@@ -7889,6 +8194,36 @@ try:
         _section_text("Restock:", "restock")
         _same_line(8)
         _text_secondary(f"Shortages {int(shortages)} | Excess {int(excess)} | Vault {vault_state}")
+
+    def _draw_movement_status_line():
+        status_text, is_recent, _elapsed_ms = _movement_status_summary()
+        color = (0.62, 0.90, 0.62, 1.00) if bool(is_recent) else (0.98, 0.70, 0.38, 1.00)
+        _text_with_color(status_text, color)
+
+    def _draw_movement_requirement_checkbox(attr_name: str, label: str, tooltip_key: str):
+        current = bool(getattr(cfg, attr_name, False))
+        changed, value = ui_checkbox(f"{label}##pycons_{attr_name}", current)
+        if changed:
+            setattr(cfg, attr_name, bool(value))
+            cfg.mark_dirty()
+        _show_setting_tooltip(tooltip_key)
+
+    def _set_all_movement_requirements(enabled: bool):
+        attrs = (
+            "movement_require_explorable",
+            "movement_require_summoning",
+            "movement_require_mbdp",
+            "movement_require_alcohol",
+            "movement_require_party_items",
+            "movement_require_sweets",
+        )
+        changed_any = False
+        for attr_name in attrs:
+            if bool(getattr(cfg, attr_name, False)) != bool(enabled):
+                setattr(cfg, attr_name, bool(enabled))
+                changed_any = True
+        if changed_any:
+            cfg.mark_dirty()
 
     def _selected_list_child_height(
         selected_explorable_conset: list,
@@ -9693,6 +10028,73 @@ try:
             _show_setting_tooltip("sweets_fast_interval_ms")
 
             PyImGui.separator()
+
+        movement_section_open = _styled_collapsing_header(
+            "Movement Safety Settings##pycons_settings_movement_safety_dropdown",
+            bool(getattr(cfg, "settings_ui_movement_safety_open", False)),
+            "settings_movement_safety",
+        )
+        if bool(getattr(cfg, "settings_ui_movement_safety_open", False)) != bool(movement_section_open):
+            cfg.settings_ui_movement_safety_open = bool(movement_section_open)
+            cfg.mark_dirty()
+        if movement_section_open:
+            _section_text("Movement Safety", "settings_movement_safety")
+            _draw_movement_status_line()
+
+            PyImGui.text("Movement window (ms):")
+            _same_line(10)
+            changed, movement_window = ui_input_int_fixed(
+                "##pycons_movement_safety_window_ms",
+                int(getattr(cfg, "movement_safety_window_ms", DEFAULT_MOVEMENT_SAFETY_WINDOW_MS)),
+                width=130.0,
+            )
+            if changed:
+                cfg.movement_safety_window_ms = int(
+                    max(MIN_MOVEMENT_SAFETY_WINDOW_MS, min(MAX_MOVEMENT_SAFETY_WINDOW_MS, int(movement_window)))
+                )
+                cfg.mark_dirty()
+            _show_setting_tooltip("movement_safety_window_ms")
+
+            PyImGui.separator()
+            if PyImGui.small_button("Enable all##pycons_movement_safety_enable_all"):
+                _set_all_movement_requirements(True)
+            _same_line(10)
+            if PyImGui.small_button("Disable all##pycons_movement_safety_disable_all"):
+                _set_all_movement_requirements(False)
+            PyImGui.separator()
+
+            _draw_movement_requirement_checkbox(
+                "movement_require_explorable",
+                "Require movement for Explorable consumables",
+                "movement_require_explorable",
+            )
+            _draw_movement_requirement_checkbox(
+                "movement_require_summoning",
+                "Require movement for Summoning items",
+                "movement_require_summoning",
+            )
+            _draw_movement_requirement_checkbox(
+                "movement_require_mbdp",
+                "Require movement for Morale/DP items",
+                "movement_require_mbdp",
+            )
+            _draw_movement_requirement_checkbox(
+                "movement_require_alcohol",
+                "Require movement for Alcohol",
+                "movement_require_alcohol",
+            )
+            _draw_movement_requirement_checkbox(
+                "movement_require_party_items",
+                "Require movement for Party Items",
+                "movement_require_party_items",
+            )
+            _draw_movement_requirement_checkbox(
+                "movement_require_sweets",
+                "Require movement for Sweets",
+                "movement_require_sweets",
+            )
+            PyImGui.separator()
+
         restock_section_open = _styled_collapsing_header(
             "Restock Settings##pycons_settings_restock_dropdown",
             bool(cfg.settings_ui_restock_open),
@@ -9965,6 +10367,7 @@ try:
             _refresh_local_team_flags_from_ini()
 
         _drain_scheduled_refresh_queue()
+        _update_movement_tracker()
 
         floating_button = _ensure_floating_ui()
         floating_button.draw(INI_KEY_FLOATING_UI)
