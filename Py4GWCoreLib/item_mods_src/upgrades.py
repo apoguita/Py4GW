@@ -194,9 +194,20 @@ class Upgrade:
         for field_info in fields(self):
             if not field_info.init:
                 continue
+
             field_value = getattr(cls, field_info.name, MISSING)
             if field_value is not MISSING:
-                object.__setattr__(self, field_info.name, field_value)
+                current_value = getattr(self, field_info.name)
+
+                # Allow subclasses to override inherited dataclass defaults via
+                # class attributes, but do not clobber explicit constructor args.
+                if field_info.default is not MISSING:
+                    if current_value == field_info.default:
+                        object.__setattr__(self, field_info.name, field_value)
+                elif field_info.default_factory is not MISSING:  # type: ignore[attr-defined]
+                    default_value = field_info.default_factory()  # type: ignore[misc]
+                    if current_value == default_value:
+                        object.__setattr__(self, field_info.name, field_value)
         
         self._refresh_encoded_strings()
 

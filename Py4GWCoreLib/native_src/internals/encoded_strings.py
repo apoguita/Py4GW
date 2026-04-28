@@ -14,8 +14,8 @@ class GWStringEncoded:
         "<c=@ItemRare>",
     )
 
-    def __init__(self, encoded: bytes, fallback: str, placeholder_bytes: bytes = bytes(), placeholder_replacement: Optional[list[str]] = None):
-        self.encoded = encoded
+    def __init__(self, encoded: bytes | list[int], fallback: str, placeholder_bytes: bytes = bytes(), placeholder_replacement: Optional[list[str]] = None):
+        self.encoded = bytes(encoded) if isinstance(encoded, list) else encoded
         self.fallback = fallback
         self.placeholder_bytes = placeholder_bytes
         self.placeholder_replacement = placeholder_replacement
@@ -71,6 +71,7 @@ class GWStringEncoded:
 
     @property
     def plain(self) -> str:
+        ''' Returns the decoded string with color tags removed. This is useful for general display purposes where color formatting is not needed or desired. The result is cached after the first decoding for performance. If the encoded string cannot be decoded, the fallback value is returned. '''
         if not self.__plain:
             decoded = self.decode()
             if not decoded:
@@ -83,6 +84,8 @@ class GWStringEncoded:
 
     @property
     def bonuses_only(self) -> str:
+        ''' Returns only the lines from the decoded string that start with specific stat tags (e.g., "<c=@ItemBonus>", "<c=@ItemUncommon>", "<c=@ItemRare>"). This is useful for extracting just the bonus information from an item description.
+        \nThe result is cached after the first decoding for performance. If the encoded string cannot be decoded, the fallback value is returned. '''
         if not self.__bonuses_only:
             decoded = self.decode()
             if not decoded:
@@ -97,6 +100,7 @@ class GWStringEncoded:
 
     @property
     def full(self) -> str:
+        ''' Returns the fully decoded string, including any color tags and placeholders. This is useful for displaying the complete item description as it appears in the game. The result is cached after the first decoding for performance. If the encoded string cannot be decoded, the fallback value is returned. '''
         if not self.__full:
             decoded = self.decode()
             if not decoded:
@@ -109,6 +113,8 @@ class GWStringEncoded:
     
     @property
     def singular(self) -> str:
+        ''' Returns the singular form of the decoded string, if applicable. This is useful for item names that may have a plural form in the encoded string but need to be displayed in singular form (e.g., "Birthday Cupcake" instead of "137 Birthday Cupcakes").
+        \nThe method checks for specific patterns in the decoded string to determine if it should attempt to convert it to singular form. The result is cached after the first decoding for performance. If the encoded string cannot be decoded, the fallback value is returned. '''
         if not self.__singular:
             decoded = self.decode()
             
@@ -123,6 +129,8 @@ class GWStringEncoded:
         return self.__singular
     
     def with_amount(self, amount: int = 1) -> str:
+        ''' Returns the decoded string with the specified amount inserted, if the encoded string is designed to include an amount. This is useful for item names that include a quantity (e.g., "137 Birthday Cupcakes") and allows you to get the correctly formatted string for any given amount.
+        \nIf the encoded string does not support amounts, it will simply return the plain decoded string with the amount prefixed. '''
         return self.decode_with_amount(amount) or f"{amount} {self.plain}"
 
 

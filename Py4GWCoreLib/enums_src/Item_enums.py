@@ -58,7 +58,7 @@ class Bags(IntEnum):
     Storage14 = 21
     EquippedItems = 22
 
-INVENTORY_BAGS = [Bags.Backpack, Bags.Bag1, Bags.Bag2, Bags.EquipmentPack]
+INVENTORY_BAGS = [Bags.Backpack, Bags.BeltPouch, Bags.Bag1, Bags.Bag2, Bags.EquipmentPack]
 STORAGE_BAGS = [
     Bags.Storage1, Bags.Storage2, Bags.Storage3, Bags.Storage4, Bags.Storage5, Bags.Storage6,
     Bags.Storage7, Bags.Storage8, Bags.Storage9, Bags.Storage10, Bags.Storage11, Bags.Storage12,
@@ -206,6 +206,7 @@ ITEM_TYPE_META_TYPES: dict[ItemType, list[ItemType]] = {
 
 class ItemAction(IntEnum):
     NONE = 0
+    Ignore = auto() # Ignore the item, no actions will be performed on it. This can be useful to exclude certain items from being processed by other rules.
     
     PickUp = auto() # Pick up the item and put it in the inventory.
     Drop = auto() # Drop the item to the floor the inventory.

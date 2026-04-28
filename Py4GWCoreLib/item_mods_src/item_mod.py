@@ -14,7 +14,7 @@ class ItemMod:
 
     @staticmethod
     @frame_cache(category="ItemMod", source_lib="get_upgrade")
-    def get_upgrade(item_id : int, upgrade_type: Type[T]) -> Optional[T]:
+    def get_upgrade(item_id : int, upgrade: Type[T] | T) -> Optional[T]:
         '''
         Gets the upgrade of the specified type from the item properties. This is a helper method that combines the logic of getting the item modifiers, parsing them into properties, and extracting the relevant upgrade property. It also includes validation for inherent upgrades on green items.
         Recommended usage is with an assignment expression to avoid unnecessary processing if the upgrade is not present or of the wrong type.
@@ -25,19 +25,37 @@ class ItemMod:
         '''
         
         prefix, suffix, inscription, inherent = ItemMod.get_item_upgrades(item_id)
+        upgrade_type = upgrade if isinstance(upgrade, type) else type(upgrade)
+        desired_upgrade = upgrade if isinstance(upgrade, Upgrade) else None
 
         if prefix and isinstance(prefix, upgrade_type):
-            return prefix
+            if desired_upgrade:
+                if desired_upgrade.matches(prefix):
+                    return prefix
+            else:
+                return prefix
 
         if suffix and isinstance(suffix, upgrade_type):
-            return suffix
+            if desired_upgrade:
+                if desired_upgrade.matches(suffix):
+                    return suffix
+            else:
+                return suffix
 
         if inscription and isinstance(inscription, upgrade_type):
-            return inscription
+            if desired_upgrade:
+                if desired_upgrade.matches(inscription):
+                    return inscription
+            else:
+                return inscription
         
         for inh in inherent or []:
             if inh and isinstance(inh, upgrade_type):
-                return inh
+                if desired_upgrade:
+                    if desired_upgrade.matches(inh):
+                        return inh
+                else:
+                    return inh
 
         return None
     
