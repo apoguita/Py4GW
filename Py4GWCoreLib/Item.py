@@ -406,8 +406,7 @@ class Item:
                 """Purpose: Check if an item is identified by its ID."""
                 return Item.item_instance(item_id).is_identified
 
-        class Customization:
-    
+        class Customization:            
             @staticmethod
             def IsInscription(item_id): 
                 """Purpose: Check if an item is an inscription by its ID."""
@@ -483,17 +482,46 @@ class Item:
                 return Item.item_instance(item_id).is_sparkly
 
             @staticmethod
-            def GetUpgrade(item_id, upgrade_type : Type[UpgradeType]) -> Optional[UpgradeType] | None:
+            def GetUpgrade(item_id, upgrade : Type[UpgradeType] | Upgrade) -> Optional[UpgradeType] | None:
                 """Gets a specific upgrade of an item by its ID and upgrade type.
                 Args:
                     item_id (int): The ID of the item to check for the upgrade.
-                    upgrade_type (type): The type of the upgrade to retrieve (e.g., PrefixUpgrade, SuffixUpgrade, InscriptionUpgrade).  
+                    upgrade_type (type | Upgrade): The type of the upgrade to retrieve (e.g., PrefixUpgrade, SuffixUpgrade, InscriptionUpgrade) or an instance of the upgrade.  
                 Returns:
                     Upgrade | None: The upgrade of the specified type if found, otherwise None.
                 """
-                upgrade = ItemMod.get_upgrade(item_id, upgrade_type)
-                return upgrade
+                existing_upgrade : Optional[UpgradeType] = ItemMod.get_upgrade(item_id, upgrade)
+                return existing_upgrade
             
+            @staticmethod
+            def HasUpgrades(item_id):
+                """Purpose: Check if an item has upgrades by its ID."""
+                return any(upgrade is not None for upgrade in Item.Customization.GetUpgrades(item_id)[:3])
+            
+            @staticmethod
+            def HasInherentUpgrades(item_id):
+                """Purpose: Check if an item has inherent upgrades by its ID."""
+                inherent_upgrades = Item.Customization.GetInherentUpgrades(item_id)
+                return inherent_upgrades is not None and len(inherent_upgrades) > 0
+            
+            @staticmethod
+            def HasUpgradeType(item_id, upgrade_type : Type[UpgradeType], max : bool = False) -> bool:
+                """Purpose: Check if an item has a specific upgrade type by its ID."""             
+                                  
+                if (upgrade := Item.Customization.GetUpgrade(item_id, upgrade_type)) is not None:
+                    return not max or upgrade.is_maxed
+                
+                return False
+            
+            @staticmethod
+            def HasUpgrade(item_id, upgrade : Upgrade) -> bool:
+                """Purpose: Check if an item has a specific upgrade by its ID."""             
+                                  
+                if (item_upgrade := Item.Customization.GetUpgrade(item_id, upgrade)) is not None:
+                    return item_upgrade.matches(upgrade)
+                
+                return False
+                        
             @staticmethod
             def GetUpgrades(item_id) -> tuple[Upgrade | None, Upgrade | None, Upgrade | None, list[Upgrade] | None]:
                 """Gets the upgrades of an item by its ID.
@@ -545,21 +573,6 @@ class Item:
                     
                     return item_type == ItemType.Dye and item_color == color
 
-            class Upgrade:
-                @staticmethod
-                def HasUpgradeType(item_id: int, upgrade_type : Type[UpgradeType], max : bool = False) -> bool:                                
-                    if (upgrade := Item.Customization.GetUpgrade(item_id, upgrade_type)) is not None:
-                        return not max or upgrade.is_maxed
-                    
-                    return False
-                
-                @staticmethod
-                def HasUpgrade(item_id: int, upgrade : Upgrade) -> bool:                                
-                    if (item_upgrade := Item.Customization.GetUpgrade(item_id, type(upgrade))) is not None:
-                        return item_upgrade.matches(upgrade)
-                    
-                    return False
-            
             class Weapon:
                 @staticmethod
                 def IsMaxDamage(item_id: int) -> bool:
