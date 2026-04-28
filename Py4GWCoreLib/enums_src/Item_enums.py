@@ -1,4 +1,4 @@
-from enum import Enum
+from enum import Enum, auto
 from enum import IntEnum
 from .Model_enums import ModelID
 
@@ -58,7 +58,12 @@ class Bags(IntEnum):
     Storage14 = 21
     EquippedItems = 22
 
-
+INVENTORY_BAGS = [Bags.Backpack, Bags.BeltPouch, Bags.Bag1, Bags.Bag2, Bags.EquipmentPack]
+STORAGE_BAGS = [
+    Bags.Storage1, Bags.Storage2, Bags.Storage3, Bags.Storage4, Bags.Storage5, Bags.Storage6,
+    Bags.Storage7, Bags.Storage8, Bags.Storage9, Bags.Storage10, Bags.Storage11, Bags.Storage12,
+    Bags.Storage13, Bags.Storage14
+]
 # endregion
 # region ItemType
 class ItemType(IntEnum):
@@ -104,6 +109,9 @@ class ItemType(IntEnum):
     Costume_Headpiece = 45
     Unknown = 255
     
+    @property
+    def item_types(self) -> list["ItemType"]:
+        return ITEM_TYPE_META_TYPES.get(self, [self])
     
     @staticmethod
     def is_matching_item_type(item_type: "ItemType", target: "ItemType") -> bool:
@@ -196,6 +204,41 @@ ITEM_TYPE_META_TYPES: dict[ItemType, list[ItemType]] = {
 
 # endregion
 
+class ItemAction(IntEnum):
+    NONE = 0
+    Ignore = auto() # Ignore the item, no actions will be performed on it. This can be useful to exclude certain items from being processed by other rules.
+    
+    PickUp = auto() # Pick up the item and put it in the inventory.
+    Drop = auto() # Drop the item to the floor the inventory.
+    
+    Hold = auto() # Hold the item in the inventory, no other actions will be performed on it. This can be useful to exclude certain items from being processed by other rules.
+    Stash = auto() # Move the item to the xunlai stash.
+    
+    # Item processing actions:
+    Identify = auto() # Identify the item.
+    ExtractUpgrade = auto() # Extract the upgrades of the item.
+    Salvage_Rare_Materials = auto() # Salvage the item for rare materials with an (Superior) Expert Salvage Kit.
+    Salvage_Common_Materials = auto() # Salvage the item for common materials with a (Basic) Salvage Kit.
+    Destroy = auto() # Destroy the item.
+    
+    # Merchant interactions:
+    Sell_To_Merchant = auto() # Sell the item to a merchant.
+    
+    Sell_To_Trader = auto() # Sell the item to a trader.
+    
+    Use = auto() # Use the item. 
+    
+    ## Some stuff we might be able to implement at some point in the future, but not a priority right now:
+    TradeToPlayer = auto() # Open the trade window with a specific player and offer the item. The player name should be specified in the rule's parameters.
+
+class SalvageMode(IntEnum):
+    NONE = auto()
+    LesserCraftingMaterials = auto()
+    RareCraftingMaterials = auto()
+    Prefix = auto()
+    Suffix = auto()
+    Inscription = auto()
+    
 MaterialMap = {
     ModelID.Bolt_Of_Cloth: "Bolt Of Cloth",
     ModelID.Bone: "Bone",

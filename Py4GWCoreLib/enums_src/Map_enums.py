@@ -712,6 +712,9 @@ map_variants_to_base: dict[int, int] = {
     # Shing Jea Monastery variants -> base Shing Jea (242)
     815: 242,  # Shing Jea Monastery - Dragon Festival
     816: 242,  # Shing Jea Monastery - Canthan New Year
+
+    # Kaineng Center variants -> base Kaineng Center (194)
+    817: 194,  # Kaineng Center - seasonal event
     
     # Kamadan variants -> base Kamadan (449)
     818: 449,  # Kamadan Jewel of Istan - Halloween

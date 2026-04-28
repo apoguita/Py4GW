@@ -14,7 +14,7 @@ from Py4GWCoreLib.py4gwcorelib_src.Color import Color
 MODULE_NAME = "Factions Character Leveler"
 MODULE_ICON = "Textures\\Module_Icons\\Leveler - Factions.png"
 
-KAINENG_CENTER_MAP_ID = 817
+KAINENG_CENTER_MAP_ID = 194
 
 bot = Botting("Factions Leveler",
               upkeep_candy_apple_restock=10,
@@ -174,7 +174,7 @@ def AddHenchmen():
         henchmen_list.extend([2,3,1,8,5])
     elif Map.GetMapID() == Map.GetMapIDByName("The Marketplace"):
         henchmen_list.extend([6,9,5,1,4,7,3])
-    elif Map.GetMapID() == KAINENG_CENTER_MAP_ID: # Kaineng_map_id
+    elif Map.IsMapIDMatch(Map.GetMapID(), KAINENG_CENTER_MAP_ID): # Kaineng_map_id
         henchmen_list.extend([2,10,4,8,7,9,12])
     elif Map.GetMapID() == Map.GetMapIDByName("Boreal Station"):
         henchmen_list.extend([7,9,2,3,4,6,5])
@@ -1355,7 +1355,7 @@ def _ensure_bonus_bow(bot: Botting):
     if BotSettings.CUSTOM_BOW_ID != 0 or Routines.Checks.Inventory.IsModelInInventory(BotSettings.CRAFTED_BOW_ID)or Routines.Checks.Inventory.IsModelEquipped(BotSettings.CRAFTED_BOW_ID):
         yield
         return
-    if Map.GetMapID() != KAINENG_CENTER_MAP_ID:
+    if not Map.IsMapIDMatch(Map.GetMapID(), KAINENG_CENTER_MAP_ID):
         Map.Travel(KAINENG_CENTER_MAP_ID)
         yield from Routines.Yield.Map.WaitforMapLoad(KAINENG_CENTER_MAP_ID, timeout=30000)
     yield from bot.Move._coro_xy(1592.00, -796.00)

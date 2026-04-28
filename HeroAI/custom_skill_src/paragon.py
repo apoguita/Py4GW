@@ -160,7 +160,7 @@ class ParagonSkills:
         skill = CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Signet_of_Return")
         skill.SkillType = SkillType.Signet.value
-        skill.TargetAllegiance = Skilltarget.DeadAlly.value
+        skill.TargetAllegiance = Skilltarget.ResurrectionAlly.value
         skill.Nature = SkillNature.Resurrection.value
         skill.Conditions.IsAlive = False
         skill_data[skill.SkillID] = skill
@@ -271,7 +271,7 @@ class ParagonSkills:
         skill = CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("We_Shall_Return")
         skill.SkillType = SkillType.Shout.value
-        skill.TargetAllegiance = Skilltarget.DeadAlly.value
+        skill.TargetAllegiance = Skilltarget.ResurrectionAlly.value
         skill.Nature = SkillNature.Resurrection.value
         skill.Conditions.IsAlive = False
         skill_data[skill.SkillID] = skill

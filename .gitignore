@@ -211,3 +211,4 @@ cython_debug/
 
 # macOS system files
 .DS_Store
+/Sources/frenkeyLib/Scripts/output

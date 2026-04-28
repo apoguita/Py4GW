@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional, Protocol
 
 import Py4GW
@@ -29,19 +28,6 @@ if TYPE_CHECKING:
 MAX_SKILLS = 8
 custom_skill_data_handler = CustomSkillClass()
 
-MapSignature = tuple[int, int, int, int, int] | None
-
-
-@dataclass(frozen=True)
-class PendingExploitableCorpseCast:
-    target_agent_id: int
-    model_id: int
-    skill_id: int
-    slot_number: int
-    wait_ms: int
-    map_signature: MapSignature
-    saw_cast_start: bool = False
-
 class SkillbarDataLike(Protocol):
     @property
     def recharge(self) -> int: ...
@@ -65,6 +51,8 @@ VOW_SPELL_TYPES: tuple[int, ...] = (
     SkillType.WeaponSpell.value,
     SkillType.Form.value,
 )
+
+SKILL_LOCK_MIN_LEASE_MS = 500
 
 
 # Level 3 alcohol: each drink gives +3 or more — one drink reaches target level
@@ -123,9 +111,6 @@ class CombatClass:
         self.oldCalledTarget: int = 0
         self.auto_call_target_id: int = 0
         self.auto_call_target_called: bool = False
-        self.pending_exploitable_corpse_cast: PendingExploitableCorpseCast | None = None
-        self.pending_exploitable_corpse_timer = Timer()
-        self.pending_exploitable_corpse_timer.Start()
 
         self.in_aggro: bool = False
         self.is_targeting_enabled: bool = False
@@ -464,95 +449,12 @@ class CombatClass:
         return self.skills[slot].skill_id not in self.blocked_skill_ids
         
     def InCastingRoutine(self) -> bool:
-        self._check_pending_exploitable_corpse_cast()
-
         if self.aftercast_timer.HasElapsed(self.aftercast):
             self.in_casting_routine = False
             self.aftercast_timer.Reset()
 
         return self.in_casting_routine
 
-    def _check_pending_exploitable_corpse_cast(self) -> None:
-        pending = self.pending_exploitable_corpse_cast
-        if not pending:
-            return
-
-        if pending.map_signature != Routines.Agents.GetExploitableCorpseFailSignature():
-            self.pending_exploitable_corpse_cast = None
-            return
-
-        player_id = Player.GetAgentID()
-        if Agent.IsCasting(player_id) or (GLOBAL_CACHE.SkillBar.GetCasting() or 0):
-            if not pending.saw_cast_start:
-                self.pending_exploitable_corpse_cast = PendingExploitableCorpseCast(
-                    target_agent_id=pending.target_agent_id,
-                    model_id=pending.model_id,
-                    skill_id=pending.skill_id,
-                    slot_number=pending.slot_number,
-                    wait_ms=pending.wait_ms,
-                    map_signature=pending.map_signature,
-                    saw_cast_start=True,
-                )
-            return
-
-        if not self.pending_exploitable_corpse_timer.HasElapsed(pending.wait_ms):
-            return
-
-        if pending.saw_cast_start:
-            self.pending_exploitable_corpse_cast = None
-            return
-
-        Routines.Agents.MarkExploitableCorpseCastFailed(
-            agent_id=pending.target_agent_id,
-            model_id=pending.model_id,
-            skill_id=pending.skill_id,
-            reason="cast_never_started",
-        )
-        self.pending_exploitable_corpse_cast = None
-
-    def _track_exploitable_corpse_cast_attempt(self, slot: int, target_agent_id: int) -> None:
-        skill = self.skills[slot]
-        if skill.custom_skill_data.TargetAllegiance != Skilltarget.ExploitableCorpse.value:
-            return
-
-        if not target_agent_id:
-            self.pending_exploitable_corpse_cast = None
-            return
-
-        skill_id = skill.skill_id
-        model_id = int(Agent.GetModelID(target_agent_id) or 0)
-        map_signature = Routines.Agents.GetExploitableCorpseFailSignature()
-        pending = self.pending_exploitable_corpse_cast
-        if (
-            pending is not None
-            and pending.map_signature == map_signature
-            and pending.model_id == model_id
-            and pending.skill_id == skill_id
-            and not pending.saw_cast_start
-        ):
-            Py4GW.Console.Log(
-                "CorpseDenylist",
-                "Keeping existing pending exploitable-corpse cast attempt "
-                f"model_id={model_id} agent_id={target_agent_id} skill_id={skill_id}",
-                Py4GW.Console.MessageType.Debug,
-            )
-            return
-
-        try:
-            activation_ms = int(max(0.0, GLOBAL_CACHE.Skill.Data.GetActivation(skill_id)) * 1000)
-        except Exception:
-            activation_ms = 0
-
-        self.pending_exploitable_corpse_cast = PendingExploitableCorpseCast(
-            target_agent_id=target_agent_id,
-            model_id=model_id,
-            skill_id=skill_id,
-            slot_number=self.skill_order[slot] + 1,
-            wait_ms=max(700, min(activation_ms + 250, 2500)),
-            map_signature=map_signature,
-        )
-        self.pending_exploitable_corpse_timer.Reset()
- 
     def GetPartyTargetID(self) -> int:
         if not GLOBAL_CACHE.Party.IsPartyLoaded():
             return 0
@@ -602,6 +504,56 @@ class CombatClass:
 
         if CallTarget(target_id, interact=False):
             self.auto_call_target_called = True
+
+    def _spike_lock_enabled(self, skill: SkillData) -> bool:
+        custom_skill = getattr(skill, "custom_skill_data", None)
+        return bool(getattr(custom_skill, "SpikeLock", False))
+
+    def _post_spike_lock(self, skill: SkillData, target_id: int) -> None:
+        if not self._spike_lock_enabled(skill):
+            return
+        if target_id == 0 or not Agent.IsValid(target_id) or Agent.IsDead(target_id):
+            return
+        try:
+            from Py4GWCoreLib.enums_src.Whiteboard_enums import (
+                WhiteboardClaimStrength,
+                WhiteboardLockKind,
+                WhiteboardLockMode,
+                WhiteboardReentryPolicy,
+            )
+
+            email = Player.GetAccountEmail() or ""
+            if not email:
+                return
+            group_id = GLOBAL_CACHE.ShMem.GetAccountGroupByEmail(email)
+            expires_at = int(Py4GW.Game.get_tick_count64()) + 1500
+            GLOBAL_CACHE.ShMem.PostLock(
+                email,
+                int(WhiteboardLockKind.CALL_TARGET),
+                int(skill.skill_id),
+                int(target_id),
+                int(expires_at),
+                int(group_id),
+                int(WhiteboardLockMode.BARRIER),
+                1,
+                int(WhiteboardReentryPolicy.OWNER_REENTRANT),
+                int(WhiteboardClaimStrength.HARD),
+            )
+        except Exception:
+            pass
+
+    def _apply_spike_lock(self, skill: SkillData, target_id: int) -> None:
+        if not self._spike_lock_enabled(skill):
+            return
+        if target_id == 0 or not Agent.IsValid(target_id) or Agent.IsDead(target_id):
+            return
+        _, target_allegiance = Agent.GetAllegiance(target_id)
+        if target_allegiance != "Enemy":
+            return
+        if CallTarget(target_id, interact=False):
+            self.auto_call_target_id = target_id
+            self.auto_call_target_called = True
+        self._post_spike_lock(skill, target_id)
 
     def GetPartyTarget(self) -> int:
         from Py4GWCoreLib import Party
@@ -780,6 +732,12 @@ class CombatClass:
             v_target = GLOBAL_CACHE.Party.Pets.GetPetID(Player.GetAgentID())
         elif target_allegiance == Skilltarget.DeadAlly:
             v_target = TargetDeadPartyMember(Range.Spellcast.value)
+        elif target_allegiance == Skilltarget.ResurrectionAlly:
+            v_target = Routines.Agents.GetResurrectionTarget(
+                Range.Spellcast.value,
+                reserve=True,
+                skill_id=self.skills[slot].skill_id,
+            )
         elif target_allegiance == Skilltarget.Spirit:
             v_target = Routines.Agents.GetNearestSpirit(Range.Spellcast.value)
         elif target_allegiance == Skilltarget.Minion:
@@ -795,7 +753,11 @@ class CombatClass:
         elif target_allegiance == Skilltarget.Corpse:
             v_target = Routines.Agents.GetNearestCorpse(Range.Spellcast.value)
         elif target_allegiance == Skilltarget.ExploitableCorpse:
-            v_target = Routines.Agents.GetNearestExploitableCorpse(Range.Spellcast.value)
+            v_target = Routines.Agents.GetNearestExploitableCorpse(
+                Range.Spellcast.value,
+                reserve=True,
+                skill_id=self.skills[slot].skill_id,
+            )
         elif target_allegiance == Skilltarget.AllyNPCByModel:
             model_id_filter = self.skills[slot].custom_skill_data.Conditions.ModelIDFilter
             if model_id_filter:
@@ -1696,12 +1658,93 @@ class CombatClass:
             Py4GW.Console.Log("HeroAI", f"Error in UseAlcoholIfAvailable: {e}", Py4GW.Console.MessageType.Warning)
         return False
 
+    def _skill_lock_enabled(self, skill: SkillData) -> bool:
+        custom_skill = getattr(skill, "custom_skill_data", None)
+        return bool(getattr(custom_skill, "SkillLock", False))
+
+    def _skill_lock_extra_ms(self, skill: SkillData) -> int:
+        custom_skill = getattr(skill, "custom_skill_data", None)
+        try:
+            return max(0, int(getattr(custom_skill, "SkillLockAftercastMs", 0) or 0))
+        except (TypeError, ValueError):
+            return 0
+
+    def _skill_lock_is_blocked(self, skill: SkillData) -> bool:
+        if not self._skill_lock_enabled(skill):
+            return False
+        try:
+            from Py4GWCoreLib.enums_src.Whiteboard_enums import (
+                WhiteboardClaimStrength,
+                WhiteboardLockKind,
+                WhiteboardLockMode,
+                WhiteboardReentryPolicy,
+            )
+
+            email = Player.GetAccountEmail() or ""
+            if not email:
+                return False
+            group_id = GLOBAL_CACHE.ShMem.GetAccountGroupByEmail(email)
+            now = Py4GW.Game.get_tick_count64()
+            return GLOBAL_CACHE.ShMem.IsLockBlocked(
+                int(WhiteboardLockKind.COOLDOWN),
+                int(skill.skill_id),
+                0,
+                int(group_id),
+                email,
+                int(now),
+                int(WhiteboardLockMode.EXCLUSIVE),
+                1,
+                int(WhiteboardReentryPolicy.OWNER_REENTRANT),
+                int(WhiteboardClaimStrength.HARD),
+            )
+        except Exception:
+            return False
+
+    def _skill_lock_post(self, skill: SkillData) -> None:
+        if not self._skill_lock_enabled(skill):
+            return
+        try:
+            from Py4GWCoreLib.GlobalCache.shared_memory_src.Globals import (
+                SHMEM_INTENT_DEFAULT_PING_BUDGET_MS,
+            )
+            from Py4GWCoreLib.enums_src.Whiteboard_enums import (
+                WhiteboardClaimStrength,
+                WhiteboardLockKind,
+                WhiteboardLockMode,
+                WhiteboardReentryPolicy,
+            )
+
+            email = Player.GetAccountEmail() or ""
+            if not email:
+                return
+            activation_ms = int((GLOBAL_CACHE.Skill.Data.GetActivation(skill.skill_id) or 0) * 1000)
+            aftercast_ms = int((GLOBAL_CACHE.Skill.Data.GetAftercast(skill.skill_id) or 0) * 1000)
+            extra_ms = self._skill_lock_extra_ms(skill)
+            lease_ms = (
+                max(SKILL_LOCK_MIN_LEASE_MS, activation_ms + aftercast_ms)
+                + extra_ms
+                + int(SHMEM_INTENT_DEFAULT_PING_BUDGET_MS)
+            )
+            expires_at = int(Py4GW.Game.get_tick_count64()) + int(lease_ms)
+            GLOBAL_CACHE.ShMem.PostLock(
+                email,
+                int(WhiteboardLockKind.COOLDOWN),
+                int(skill.skill_id),
+                0,
+                int(expires_at),
+                None,
+                int(WhiteboardLockMode.EXCLUSIVE),
+                1,
+                int(WhiteboardReentryPolicy.OWNER_REENTRANT),
+                int(WhiteboardClaimStrength.HARD),
+            )
+        except Exception:
+            pass
+
     def HandleCombat(self, cached_data: CacheData | None = None, ooc: bool = False) -> bool:
         """
         Execute the first castable skill in the prioritized skill order.
         """
-        self._check_pending_exploitable_corpse_cast()
-
         slot, target_agent_id = self.FindCastableSkill(ooc=ooc)
         if slot < 0:
             self.ResetSkillPointer()
@@ -1721,9 +1764,14 @@ class CombatClass:
         if skill.custom_skill_data.Nature == SkillNature.Resurrection.value:
             self.aftercast = 500
 
+        if self._skill_lock_is_blocked(skill):
+            self.ResetSkillPointer()
+            return False
+
         self.aftercast_timer.Reset()
         self.MaybeCallCombatTarget(target_agent_id, cached_data)
-        self._track_exploitable_corpse_cast_attempt(slot, target_agent_id)
+        self._apply_spike_lock(skill, target_agent_id)
+        self._skill_lock_post(skill)
         GLOBAL_CACHE.SkillBar.UseSkill(self.skill_order[slot]+1, target_agent_id, aftercast_delay=self.aftercast)
         self.ResetSkillPointer()
         return True

@@ -1,5 +1,7 @@
 import PyMerchant
 
+from Py4GWCoreLib.py4gwcorelib_src.FrameCache import frame_cache
+
 class Trading:
     @staticmethod
     def merchant_instance():
@@ -43,6 +45,7 @@ class Trading:
             return Trading.merchant_instance().get_quoted_value()
             
         @staticmethod
+        @frame_cache("Trading.Trader", "GetOfferedItems")    
         def GetOfferedItems():
             """
             Purpose: Retrieve the offered items from the Trader.
@@ -53,6 +56,7 @@ class Trading:
             return Trading.merchant_instance().get_trader_item_list()
 
         @staticmethod
+        @frame_cache("Trading.Trader", "GetOfferedItems2")
         def GetOfferedItems2():
             """
             Purpose: Retrieve the offered items from the Trader.
@@ -132,6 +136,7 @@ class Trading:
             Trading.merchant_instance().merchant_sell_item(item_id, cost)
 
         @staticmethod
+        @frame_cache("Trading.Merchant", "GetOfferedItems")
         def GetOfferedItems():
             """
             Purpose: Retrieve the offered items from the merchant.
@@ -156,6 +161,7 @@ class Trading:
             Trading.merchant_instance().crafter_buy_item(item_id, cost, item_list, item_quantities)
 
         @staticmethod
+        @frame_cache("Trading.Crafter", "GetOfferedItems")
         def GetOfferedItems():
             """
             Purpose: Retrieve the offered items from the merchant.
@@ -167,7 +173,7 @@ class Trading:
 
     class Collector:
         @staticmethod
-        def ExghangeItem(item_id, cost =0, item_list=[], item_quantities=[]):
+        def ExchangeItem(item_id, cost =0, item_list=[], item_quantities=[]):
             """
             Purpose: Exchange an item.
             Args:
@@ -180,6 +186,7 @@ class Trading:
             Trading.merchant_instance().collector_buy_item(item_id, cost,  item_list, item_quantities)
 
         @staticmethod
+        @frame_cache("Trading.Collector", "GetOfferedItems")
         def GetOfferedItems():
             """
             Purpose: Retrieve the offered items from the merchant.

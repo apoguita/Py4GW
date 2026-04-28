@@ -161,28 +161,26 @@ class OnPartyMemberBehind(Event):
 class OnPartyMemberInDanger(Event):
     def should_trigger(self):
         from Py4GWCoreLib import Routines, GLOBAL_CACHE
-        from Py4GWCoreLib.botting_src.helpers_src.HeroAICombatRange import get_hero_ai_combat_distance, hero_ai_combat_detected
         if not Routines.Checks.Map.MapValid() or not Routines.Checks.Map.IsExplorable():
             return False
 
         if Routines.Checks.Party.IsPartyWiped() or GLOBAL_CACHE.Party.IsPartyDefeated():
             return False
 
-        if hero_ai_combat_detected():
+        if Routines.Checks.Agents.InDanger():
             return False
 
-        return Routines.Checks.Party.IsPartyMemberInDanger(aggro_area=get_hero_ai_combat_distance())
+        return Routines.Checks.Party.IsPartyMemberInDanger()
 
     def should_reset(self):
         from ..Routines import Checks, Routines, GLOBAL_CACHE
-        from Py4GWCoreLib.botting_src.helpers_src.HeroAICombatRange import get_hero_ai_combat_distance, hero_ai_combat_detected
         if not Routines.Checks.Map.MapValid():
             return True
         if Routines.Checks.Party.IsPartyWiped() or GLOBAL_CACHE.Party.IsPartyDefeated():
             return True
-        if hero_ai_combat_detected():
+        if Checks.Agents.InDanger():
             return True
-        return not Checks.Party.IsPartyMemberInDanger(aggro_area=get_hero_ai_combat_distance())
+        return not Checks.Party.IsPartyMemberInDanger()
     
 class OnPartyMemberDeadBehind(Event):
     def should_trigger(self):

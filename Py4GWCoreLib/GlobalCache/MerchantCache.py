@@ -68,7 +68,7 @@ class TradingCache:
         def __init__(self, parent):
             self._parent = parent
             
-        def ExghangeItem(self, item_id, cost =0, item_list=[], item_quantities=[]):
+        def ExchangeItem(self, item_id, cost =0, item_list=[], item_quantities=[]):
             self._parent._action_queue_manager.AddAction("ACTION", self._parent._merchant_instance.collector_buy_item,item_id, cost, item_list, item_quantities)
             
         def GetOfferedItems(self):

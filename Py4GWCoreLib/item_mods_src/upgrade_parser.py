@@ -45,12 +45,21 @@ def get_upgrade_property(modifier: DecodedModifier, all_modifiers: list[DecodedM
     return None
 
 def get_upgrade(modifier : DecodedModifier, remaining_modifiers: list[DecodedModifier], all_modifiers: list[DecodedModifier], upgrade_type: ItemUpgradeType | None = None, rarity: Rarity = Rarity.Blue) -> tuple["Upgrade", ItemUpgradeType]:
-    creator_type = next((t for t in _UPGRADES if t.has_id(modifier.upgrade_id) and (upgrade_type is None or t.mod_type == upgrade_type)), None)     
+    creator_types = [t for t in _UPGRADES if t.has_id(modifier.upgrade_id) and (upgrade_type is None or t.mod_type == upgrade_type)]
+    matches: list[tuple[type[Upgrade], Upgrade]] = []
 
-    if creator_type is not None:        
-        upgrade = creator_type.compose_from_modifiers(modifier, remaining_modifiers, all_modifiers, rarity)
-        if upgrade is not None:
-            return upgrade, creator_type.mod_type
+    for creator_type in creator_types:
+        if creator_type is not None:
+            upgrade = creator_type.compose_from_modifiers(modifier, remaining_modifiers.copy(), all_modifiers, rarity)
+            if upgrade is not None:
+                matches.append((creator_type, upgrade))
+
+    if matches:
+        best_creator_type, best_upgrade = max(
+            matches,
+            key=lambda entry: entry[0].get_specificity_score(),
+        )
+        return best_upgrade, best_creator_type.mod_type
         
     return UnknownUpgrade(), ItemUpgradeType.Unknown
 
@@ -73,11 +82,11 @@ def get_item_requirement(modifiers: list[DecodedModifier]) -> Attribute:
 
 def get_property_factory() -> dict[ModifierIdentifier, Callable[[DecodedModifier, list[DecodedModifier], Rarity], ItemProperty]]:
     return {
+        ModifierIdentifier.Empty: lambda m, _, rarity: EmptyProperty(modifier=m, rarity=rarity),
         ModifierIdentifier.Armor1: lambda m, _, rarity: ArmorProperty(modifier=m, armor=m.arg1, rarity=rarity),
         ModifierIdentifier.Armor2: lambda m, _, rarity: ArmorProperty(modifier=m, armor=m.arg1, rarity=rarity),
-        ModifierIdentifier.ArmorEnergyRegen: lambda m, _, rarity: ArmorEnergyRegen(modifier=m, energy_regen=m.arg1, rarity=rarity),
         ModifierIdentifier.ArmorMinusAttacking: lambda m, _, rarity: ArmorMinusAttacking(modifier=m, armor=m.arg2, rarity=rarity),
-        ModifierIdentifier.ArmorPenetration: lambda m, _, rarity: ArmorPenetration(modifier=m, armor_pen=m.arg2, chance=m.arg1, rarity=rarity),
+        ModifierIdentifier.ArmorPenetration: lambda m, _, rarity: ArmorPenetration(modifier=m, armor_penetration=m.arg2, chance=m.arg1, rarity=rarity),
         ModifierIdentifier.ArmorPlus: lambda m, _, rarity: ArmorPlus(modifier=m, armor=m.arg2, rarity=rarity),
         ModifierIdentifier.ArmorPlusAttacking: lambda m, _, rarity: ArmorPlusAttacking(modifier=m, armor=m.arg2, rarity=rarity),
         ModifierIdentifier.ArmorPlusCasting: lambda m, _, rarity: ArmorPlusCasting(modifier=m, armor=m.arg2, rarity=rarity),
@@ -108,7 +117,8 @@ def get_property_factory() -> dict[ModifierIdentifier, Callable[[DecodedModifier
         ModifierIdentifier.DamageTypeProperty: lambda m, _, rarity: DamageTypeProperty(modifier=m, damage_type=DamageType(m.arg1), rarity=rarity),
         ModifierIdentifier.Energy: lambda m, _, rarity: EnergyProperty(modifier=m, energy=m.arg1, rarity=rarity),
         ModifierIdentifier.Energy2: lambda m, _, rarity: EnergyProperty(modifier=m, energy=m.arg1, rarity=rarity),
-        ModifierIdentifier.EnergyRegeneration: lambda m, _, rarity: EnergyRegeneration(modifier=m, energy_regeneration=m.arg2, rarity=rarity),
+        ModifierIdentifier.EnergyRecovery: lambda m, _, rarity: EnergyRecovery(modifier=m, energy_regen=m.arg1, rarity=rarity),
+        ModifierIdentifier.EnergyRegeneration: lambda m, _, rarity: EnergyRegeneration(modifier=m, energy_regeneration=-m.arg2, rarity=rarity),
         ModifierIdentifier.EnergyGainOnHit: lambda m, _, rarity: EnergyGainOnHit(modifier=m, energy_gain=m.arg2, rarity=rarity),
         ModifierIdentifier.EnergyMinus: lambda m, _, rarity: EnergyMinus(modifier=m, energy=m.arg2, rarity=rarity),
         ModifierIdentifier.EnergyPlus : lambda m, _, rarity: EnergyPlus(modifier=m, energy=m.arg2, rarity=rarity),
@@ -126,7 +136,7 @@ def get_property_factory() -> dict[ModifierIdentifier, Callable[[DecodedModifier
         ModifierIdentifier.HeadpieceAttribute: lambda m, _, rarity: HeadpieceAttribute(modifier=m, attribute=Attribute(m.arg1), attribute_level=m.arg2, rarity=rarity),
         ModifierIdentifier.HeadpieceGenericAttribute: lambda m, _, rarity: HeadpieceGenericAttribute(modifier=m, rarity=rarity),
         ModifierIdentifier.HealthRegeneneration: lambda m, _, rarity: HealthRegeneneration(modifier=m, health_regeneration=-m.arg2, rarity=rarity),
-        ModifierIdentifier.HealthMinus: lambda m, _, rarity: HealthMinus(modifier=m, health=m.arg2, rarity=rarity),
+        ModifierIdentifier.HealthMinus: lambda m, _, rarity: HealthMinus(modifier=m, health_reduction=m.arg2, rarity=rarity),
         ModifierIdentifier.HealthPlus: lambda m, _, rarity: HealthPlus(modifier=m, health=m.arg1, rarity=rarity),
         ModifierIdentifier.HealthPlus2 : lambda m, _, rarity: HealthPlus(modifier=m, health=m.arg2, rarity=rarity),
         ModifierIdentifier.HealthPlusEnchanted: lambda m, _, rarity: HealthPlusEnchanted(modifier=m, health=m.arg1, rarity=rarity),
@@ -147,13 +157,21 @@ def get_property_factory() -> dict[ModifierIdentifier, Callable[[DecodedModifier
         ModifierIdentifier.ReducesDiseaseDuration: lambda m, _, rarity: ReducesDiseaseDuration(modifier=m, rarity=rarity),
         ModifierIdentifier.ReceiveLessDamage: lambda m, _, rarity: ReceiveLessDamage(modifier=m, damage_reduction=m.arg2, chance=m.arg1, rarity=rarity),
         ModifierIdentifier.TargetItemType: lambda m, _, rarity: TargetItemTypeProperty(modifier=m, item_type=ItemType(m.arg1), rarity=rarity),
+        ModifierIdentifier.TooltipDescription: lambda m, _, rarity: TooltipProperty(modifier=m, rarity=rarity),
         
-        ModifierIdentifier.AttributeRune: lambda m, mods, rarity:   get_upgrade_property(m, mods, ItemUpgradeType.Suffix, rarity) or
+        ModifierIdentifier.AttributeRune: lambda m, mods, rarity:  
+                                                            get_upgrade_property(m, mods, ItemUpgradeType.Prefix, rarity) or
+                                                            get_upgrade_property(m, mods, ItemUpgradeType.Inscription, rarity) or
+                                                            get_upgrade_property(m, mods, ItemUpgradeType.Suffix, rarity) or
+                                                            get_upgrade_property(m, mods, ItemUpgradeType.UpgradeRune, rarity) or
+                                                            get_upgrade_property(m, mods, ItemUpgradeType.AppliesToRune, rarity) or
                                                             UnknownUpgradeProperty(modifier=m, upgrade_id=m.upgrade_id, rarity=rarity),
                                                             
         ModifierIdentifier.Upgrade: lambda m, mods, rarity: 
-                                                                        get_upgrade_property(m, mods, ItemUpgradeType.Prefix, rarity) or
-                                                                        get_upgrade_property(m, mods, ItemUpgradeType.Inscription, rarity) or
-                                                                        get_upgrade_property(m, mods, ItemUpgradeType.Suffix, rarity) or
-                                                                        UnknownUpgradeProperty(modifier=m, upgrade_id=m.upgrade_id, rarity=rarity),
+                                                            get_upgrade_property(m, mods, ItemUpgradeType.Prefix, rarity) or
+                                                            get_upgrade_property(m, mods, ItemUpgradeType.Inscription, rarity) or
+                                                            get_upgrade_property(m, mods, ItemUpgradeType.Suffix, rarity) or
+                                                            get_upgrade_property(m, mods, ItemUpgradeType.UpgradeRune, rarity) or
+                                                            get_upgrade_property(m, mods, ItemUpgradeType.AppliesToRune, rarity) or
+                                                            UnknownUpgradeProperty(modifier=m, upgrade_id=m.upgrade_id, rarity=rarity),
     }

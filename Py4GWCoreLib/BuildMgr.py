@@ -395,7 +395,14 @@ class BuildMgr:
             return 0
         if target_allegiance == Skilltarget.DeadAlly.value:
             from Py4GWCoreLib.enums_src.GameData_enums import Range
-            return TargetDeadPartyMember(Range.Spellcast.value)
+            return Routines.Agents.GetDeadAlly(Range.Spellcast.value)
+        if target_allegiance == Skilltarget.ResurrectionAlly.value:
+            from Py4GWCoreLib.enums_src.GameData_enums import Range
+            return Routines.Agents.GetResurrectionTarget(
+                Range.Spellcast.value,
+                reserve=True,
+                skill_id=skill_id,
+            )
         if target_allegiance == Skilltarget.Self.value:
             return Player.GetAgentID()
 

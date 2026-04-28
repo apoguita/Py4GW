@@ -42,7 +42,11 @@ class Pre_Searing_ele(BuildMgr):
             return False
 
         if self.IsSkillEquipped(Resurrection_Signet_ID):
-            dead_ally_id = Routines.Agents.GetDeadAlly(max_distance=Range.Spellcast.value)
+            dead_ally_id = Routines.Agents.GetResurrectionTarget(
+                max_distance=Range.Spellcast.value,
+                reserve=True,
+                skill_id=Resurrection_Signet_ID,
+            )
             if dead_ally_id and (yield from self.CastSkillID(
                 skill_id=Resurrection_Signet_ID,
                 target_agent_id=dead_ally_id,

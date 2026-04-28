@@ -10,7 +10,7 @@ class PVESkills:
         skill = CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Resurrection_Signet")
         skill.SkillType = SkillType.Signet.value
-        skill.TargetAllegiance = Skilltarget.DeadAlly.value
+        skill.TargetAllegiance = Skilltarget.ResurrectionAlly.value
         skill.Nature = SkillNature.Resurrection.value
         skill.Conditions.IsAlive = False
         skill_data[skill.SkillID] = skill
@@ -333,7 +333,7 @@ class PVESkills:
         skill = CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Sunspear_Rebirth_Signet")
         skill.SkillType = SkillType.Signet.value
-        skill.TargetAllegiance = Skilltarget.DeadAlly.value
+        skill.TargetAllegiance = Skilltarget.ResurrectionAlly.value
         skill.Nature = SkillNature.Resurrection.value
         skill.Conditions.IsAlive = False
         skill_data[skill.SkillID] = skill
@@ -456,6 +456,8 @@ class PVESkills:
         skill.SkillType = SkillType.Spell.value
         skill.TargetAllegiance = Skilltarget.EnemyClustered.value
         skill.Nature = SkillNature.Offensive.value
+        skill.SkillLock = True
+        skill.SkillLockAftercastMs = 3500
         skill_data[skill.SkillID] = skill
 
         #region DELDRIMOR
@@ -463,7 +465,7 @@ class PVESkills:
         skill = CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("By_Urals_Hammer")
         skill.SkillType = SkillType.Shout.value
-        skill.TargetAllegiance = Skilltarget.DeadAlly.value
+        skill.TargetAllegiance = Skilltarget.ResurrectionAlly.value
         skill.Nature = SkillNature.Resurrection.value
         skill.Conditions.IsAlive = False
         skill_data[skill.SkillID] = skill
@@ -628,6 +630,7 @@ class PVESkills:
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
         skill.Conditions.MoreLife = 0.3
+        skill.SpikeLock = True
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()

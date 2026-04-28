@@ -875,7 +875,7 @@ class BTItems:
                 if remaining_quantity > 0:
                     return BehaviorTree.NodeState.FAILURE
 
-            GLOBAL_CACHE.Trading.Collector.ExghangeItem(
+            GLOBAL_CACHE.Trading.Collector.ExchangeItem(
                 offered_item_id,
                 cost,
                 trade_item_ids,

@@ -613,7 +613,7 @@ class RitualistSkills:
         skill = CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Death_Pact_Signet")
         skill.SkillType = SkillType.Signet.value
-        skill.TargetAllegiance = Skilltarget.DeadAlly.value
+        skill.TargetAllegiance = Skilltarget.ResurrectionAlly.value
         skill.Nature = SkillNature.Resurrection.value
         skill.Conditions.IsAlive = False
         skill_data[skill.SkillID] = skill
@@ -629,7 +629,7 @@ class RitualistSkills:
         skill = CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Flesh_of_My_Flesh")
         skill.SkillType = SkillType.Spell.value
-        skill.TargetAllegiance = Skilltarget.DeadAlly.value
+        skill.TargetAllegiance = Skilltarget.ResurrectionAlly.value
         skill.Nature = SkillNature.Resurrection.value
         skill.Conditions.IsAlive = False
         skill_data[skill.SkillID] = skill

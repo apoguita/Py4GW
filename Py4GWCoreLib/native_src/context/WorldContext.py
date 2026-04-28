@@ -554,6 +554,11 @@ class NPC_ModelStruct(Structure):
     @property
     def is_pet(self) -> bool:
         return self.npc_flags == 0xD
+
+    @property
+    def is_fleshy(self) -> bool:
+        """Return True when this NPC model can leave an exploitable corpse."""
+        return (self.npc_flags & 0x8) != 0
     
     @property
     def name_encoded_str(self) -> str | None:

@@ -1043,6 +1043,23 @@ class Agent:
         return living.is_exploitable
 
     @staticmethod
+    def IsExploitableCorpse(agent_id: int) -> bool:
+        """Return True when the agent is a dead, unexploited, fleshy corpse."""
+        return Agent.IsExploitable(agent_id) and Agent.IsFleshy(agent_id)
+
+    @staticmethod
+    def IsUsedCorpse(agent_id: int) -> bool:
+        living = Agent.GetLivingAgentByID(agent_id)
+        if living is None:
+            return False
+        return living.is_used_corpse
+
+    @staticmethod
+    def IsExploitedCorpse(agent_id: int) -> bool:
+        """Return True when the agent corpse has already been exploited."""
+        return Agent.IsUsedCorpse(agent_id)
+
+    @staticmethod
     def IsAlive(agent_id: int) -> bool:
         living = Agent.GetLivingAgentByID(agent_id)
         if living is None:
@@ -1399,6 +1416,44 @@ class Agent:
     def IsNPC(agent_id: int) -> bool:
         login_number = Agent.GetLoginNumber(agent_id)
         return login_number  == 0
+
+    @staticmethod
+    def GetNPCModelByID(model_id: int):
+        from .Context import GWContext
+
+        if model_id <= 0:
+            return None
+        if (world_ctx := GWContext.World.GetContext()) is None:
+            return None
+        npc_models = world_ctx.npc_models
+        if not npc_models:
+            return None
+        if model_id < len(npc_models):
+            npc = npc_models[model_id]
+            if npc and npc.is_valid:
+                return npc
+        for npc in npc_models:
+            if int(npc.model_file_id) == int(model_id):
+                return npc
+        return None
+
+    @staticmethod
+    def GetNPCFlags(agent_id: int) -> int:
+        living = Agent.GetLivingAgentByID(agent_id)
+        if living is None or living.is_player:
+            return 0
+        npc = Agent.GetNPCModelByID(int(living.player_number))
+        return int(npc.npc_flags) if npc else 0
+
+    @staticmethod
+    def IsFleshy(agent_id: int) -> bool:
+        living = Agent.GetLivingAgentByID(agent_id)
+        if living is None:
+            return False
+        if living.is_player:
+            return True
+        npc = Agent.GetNPCModelByID(int(living.player_number))
+        return bool(npc and npc.is_fleshy)
 
     @staticmethod
     def HasQuest(agent_id: int) -> bool:
