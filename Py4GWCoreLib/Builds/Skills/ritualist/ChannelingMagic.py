@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from Py4GWCoreLib.BuildMgr import BuildCoroutine
+from Py4GWCoreLib.Builds.Skills._whiteboard import coordinates_whiteboard_skill_target
 from Py4GWCoreLib.Skill import Skill
 
 if TYPE_CHECKING:
@@ -99,6 +100,7 @@ class ChannelingMagic:
     #endregion
 
     #region P
+    @coordinates_whiteboard_skill_target(Skill.GetID("Painful_Bond"))
     def Painful_Bond(self) -> BuildCoroutine:
         from Py4GWCoreLib import Range, GLOBAL_CACHE
 

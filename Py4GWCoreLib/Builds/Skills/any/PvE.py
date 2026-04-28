@@ -124,6 +124,7 @@ class PvE:
             aftercast_delay=250,
         ))
 
+    @coordinates_whiteboard_skill_target(Skill.GetID("Technobabble"))
     def Technobabble(self) -> BuildCoroutine:
         from Py4GWCoreLib import Agent, AgentArray, GLOBAL_CACHE, Player
 
