@@ -6,13 +6,10 @@ from __future__ import annotations
 import time
 
 from Py4GWCoreLib import Console, ConsoleLog
+from Py4GWCoreLib.routines_src.behaviourtrees_src import botting_combat_toggles
 
 from .combat_engine import (
-    ENGINE_HERO_AI,
     resolve_engine_for_bot,
-    set_auto_combat as engine_set_auto_combat,
-    set_auto_following as engine_set_auto_following,
-    set_auto_looting as engine_set_auto_looting,
 )
 from .step_context import StepContext
 from .step_registration import modular_step
@@ -39,81 +36,17 @@ def _get_desired_toggle(bot, key: str, default: bool = True) -> bool:
 
 
 def current_auto_combat_enabled(bot) -> bool:
-    cfg = getattr(bot, "config", None)
-    if cfg is not None and hasattr(cfg, _DESIRED_AUTO_COMBAT_KEY):
-        return bool(getattr(cfg, _DESIRED_AUTO_COMBAT_KEY))
-
-    engine = resolve_engine_for_bot(bot)
-    if engine == ENGINE_HERO_AI:
-        try:
-            from Py4GWCoreLib import GLOBAL_CACHE, Player
-
-            options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsFromEmail(Player.GetAccountEmail())
-            if options is not None:
-                return bool(getattr(options, "Combat", False))
-        except Exception:
-            pass
-        if bot.Properties.exists("hero_ai"):
-            return bool(bot.Properties.IsActive("hero_ai"))
-        return False
-
-    if bot.Properties.exists("auto_combat"):
-        return bool(bot.Properties.IsActive("auto_combat"))
-    if bot.Properties.exists("hero_ai"):
-        return bool(bot.Properties.IsActive("hero_ai"))
-    return False
+    return botting_combat_toggles.current_auto_combat_enabled(bot)
 
 
 def current_auto_looting_enabled(bot) -> bool:
-    cfg = getattr(bot, "config", None)
-    if cfg is not None and hasattr(cfg, _DESIRED_AUTO_LOOTING_KEY):
-        return bool(getattr(cfg, _DESIRED_AUTO_LOOTING_KEY))
-
-    engine = resolve_engine_for_bot(bot)
-    if engine == ENGINE_HERO_AI:
-        try:
-            from .combat_engine import is_party_looting_enabled
-
-            return bool(is_party_looting_enabled(bot=bot, preferred_engine=engine))
-        except Exception:
-            return False
-
-    if bot.Properties.exists("auto_loot"):
-        return bool(bot.Properties.IsActive("auto_loot"))
-    return False
-
-
-def _normalize_backend_toggle_result(raw_result, backend: str) -> dict[str, str | int]:
-    if isinstance(raw_result, dict):
-        return {
-            "backend": str(raw_result.get("backend", backend) or backend),
-            "selector": str(raw_result.get("selector", "none") or "none"),
-            "targeted": int(raw_result.get("targeted", 0) or 0),
-            "updated": int(raw_result.get("updated", 0) or 0),
-        }
-    return {"backend": str(backend), "selector": "none", "targeted": 0, "updated": 0}
-
-
-def _build_toggle_summary(toggle: str, enabled: bool, results: list[dict[str, str | int]]) -> dict:
-    targeted = int(sum(int(entry.get("targeted", 0) or 0) for entry in results))
-    updated = int(sum(int(entry.get("updated", 0) or 0) for entry in results))
-    zero_targets = any(
-        str(entry.get("backend", "")) == ENGINE_HERO_AI and int(entry.get("targeted", 0) or 0) == 0
-        for entry in results
-    )
-    return {
-        "toggle": str(toggle),
-        "enabled": bool(enabled),
-        "results": list(results),
-        "targeted": targeted,
-        "updated": updated,
-        "zero_targets": bool(zero_targets),
-    }
+    return botting_combat_toggles.current_auto_looting_enabled(bot)
 
 
 def _hero_ai_result(summary: dict) -> dict[str, str | int]:
+    hero_ai_engine = botting_combat_toggles.ENGINE_HERO_AI
     for result in list(summary.get("results", []) or []):
-        if str(result.get("backend", "")) == ENGINE_HERO_AI:
+        if str(result.get("backend", "")) == hero_ai_engine:
             return {
                 "selector": str(result.get("selector", "none") or "none"),
                 "targeted": int(result.get("targeted", 0) or 0),
@@ -186,25 +119,8 @@ def _record_toggle_diagnostics(bot, summary: dict, *, reason: str) -> None:
         _record_toggle_reconciled(owner, summary)
 
 
-def _backend_error_result(backend: str) -> dict[str, str | int]:
-    return {"backend": str(backend), "selector": "error", "targeted": 0, "updated": 0}
-
-
 def apply_auto_combat_state(bot, enabled: bool, *, reason: str = "step") -> dict:
-    e = bool(enabled)
-    _set_desired_toggle(bot, _DESIRED_AUTO_COMBAT_KEY, e)
-    if bot.Properties.exists("pause_on_danger"):
-        bot.Properties.ApplyNow("pause_on_danger", "active", e)
-
-    backend_results: list[dict[str, str | int]] = []
-    try:
-        backend_results.append(_normalize_backend_toggle_result(engine_set_auto_combat(e, preferred_engine=ENGINE_HERO_AI, bot=bot), ENGINE_HERO_AI))
-    except Exception:
-        backend_results.append(_backend_error_result(ENGINE_HERO_AI))
-
-    if bot.Properties.exists("auto_combat"):
-        bot.Properties.ApplyNow("auto_combat", "active", e)
-
+    summary = botting_combat_toggles.apply_auto_combat_state(bot, enabled)
     try:
         owner = getattr(bot, "_modular_owner", None)
         if owner is not None and hasattr(owner, "_apply_party_member_hooks"):
@@ -212,38 +128,18 @@ def apply_auto_combat_state(bot, enabled: bool, *, reason: str = "step") -> dict
     except Exception:
         pass
 
-    summary = _build_toggle_summary("combat", e, backend_results)
     _record_toggle_diagnostics(bot, summary, reason=reason)
     return summary
 
 
 def apply_auto_looting_state(bot, enabled: bool, *, reason: str = "step") -> dict:
-    e = bool(enabled)
-    _set_desired_toggle(bot, _DESIRED_AUTO_LOOTING_KEY, e)
-    backend_results: list[dict[str, str | int]] = []
-    try:
-        backend_results.append(_normalize_backend_toggle_result(engine_set_auto_looting(e, preferred_engine=ENGINE_HERO_AI, bot=bot), ENGINE_HERO_AI))
-    except Exception:
-        backend_results.append(_backend_error_result(ENGINE_HERO_AI))
-
-    if bot.Properties.exists("auto_loot"):
-        bot.Properties.ApplyNow("auto_loot", "active", e)
-
-    summary = _build_toggle_summary("looting", e, backend_results)
+    summary = botting_combat_toggles.apply_auto_looting_state(bot, enabled)
     _record_toggle_diagnostics(bot, summary, reason=reason)
     return summary
 
 
 def apply_auto_following_state(bot, enabled: bool, *, reason: str = "step") -> dict:
-    e = bool(enabled)
-    _set_desired_toggle(bot, _DESIRED_AUTO_FOLLOWING_KEY, e)
-    backend_results: list[dict[str, str | int]] = []
-    try:
-        backend_results.append(_normalize_backend_toggle_result(engine_set_auto_following(e, preferred_engine=ENGINE_HERO_AI, bot=bot), ENGINE_HERO_AI))
-    except Exception:
-        backend_results.append(_backend_error_result(ENGINE_HERO_AI))
-
-    summary = _build_toggle_summary("following", e, backend_results)
+    summary = botting_combat_toggles.apply_auto_following_state(bot, enabled)
     _record_toggle_diagnostics(bot, summary, reason=reason)
     return summary
 

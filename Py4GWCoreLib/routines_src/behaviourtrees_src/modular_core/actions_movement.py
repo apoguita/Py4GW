@@ -5,8 +5,26 @@ This module is part of the modular runtime surface.
 """
 from __future__ import annotations
 
-import random
 from typing import Callable
+
+from Py4GWCoreLib.routines_src.behaviourtrees_src.botting_movement import (
+    add_enter_challenge_state,
+    add_exit_map_state,
+    add_follow_model_state,
+    add_move_state,
+    add_nudge_move_state,
+    add_path_state,
+    add_random_travel_state,
+    add_wait_map_change_state,
+    add_wait_map_load_state,
+    add_wait_out_of_combat_state,
+    dispatch_travel,
+)
+from Py4GWCoreLib.routines_src.behaviourtrees_src.botting_multibox import (
+    add_leave_party_state,
+    add_travel_gh_state,
+)
+from Py4GWCoreLib.routines_src.behaviourtrees_src.botting_pathing import add_path_to_target_state
 
 from .actions_party_toggles import (
     apply_auto_combat_state,
@@ -15,9 +33,7 @@ from .actions_party_toggles import (
     current_auto_looting_enabled,
 )
 from .combat_engine import (
-    outbound_messages_done,
     party_loot_wait_required,
-    send_multibox_command,
 )
 from .step_context import StepContext
 from .step_selectors import resolve_enemy_agent_id_from_step
@@ -39,21 +55,6 @@ from .step_utils import (
     wait_after_step,
 )
 from .step_registration import modular_step
-
-_PARTY_BACKEND_HERO_AI = "hero_ai"
-_PARTY_BACKEND_SHARED = "shared"
-
-
-def _resolve_party_backend() -> str:
-    """Choose party-control backend from currently enabled widgets."""
-    from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
-
-    widget_handler = get_widget_handler()
-    hero_ai_enabled = bool(widget_handler.is_widget_enabled("HeroAI"))
-
-    if hero_ai_enabled:
-        return _PARTY_BACKEND_HERO_AI
-    return _PARTY_BACKEND_SHARED
 
 
 def _wrap_with_auto_state_guard(ctx: StepContext, action_factory: Callable):
@@ -87,17 +88,7 @@ def handle_path(ctx: StepContext) -> None:
     points = [tuple(p) for p in ctx.step["points"]]
     name = ctx.step.get("name", f"Path {ctx.step_idx + 1}")
     _add_pre_movement_loot_wait(ctx, str(name))
-
-    def _run_path():
-        for point_i, (x, y) in enumerate(points):
-            if cutscene_active():
-                return
-            step_name = f"{name} [{point_i + 1}/{len(points)}]"
-            yield from ctx.bot.Move._coro_xy(float(x), float(y), step_name=step_name)
-            if cutscene_active():
-                return
-
-    ctx.bot.States.AddCustomState(_run_path, str(name))
+    add_path_state(ctx.bot, points, str(name))
     wait_after_step(ctx.bot, ctx.step)
 
 
@@ -106,27 +97,13 @@ def handle_wait(ctx: StepContext) -> None:
 
 
 def handle_wait_out_of_combat(ctx: StepContext) -> None:
-    def _wait_out_of_combat():
-        from Py4GWCoreLib import Range, Routines
-
-        while Routines.Checks.Agents.InDanger(aggro_area=Range.Earshot):
-            if cutscene_active():
-                return
-            yield from ctx.bot.Wait._coro_for_time(1000)
-
-    ctx.bot.States.AddCustomState(_wait_out_of_combat, ctx.step.get("name", "Wait Out Of Combat"))
+    add_wait_out_of_combat_state(ctx.bot, str(ctx.step.get("name", "Wait Out Of Combat")))
     wait_after_step(ctx.bot, ctx.step)
 
 
 def handle_wait_map_load(ctx: StepContext) -> None:
     map_id = int(ctx.step.get("map_id", ctx.step.get("target_map_id", 0)) or 0)
-
-    def _wait_map_load():
-        if cutscene_active():
-            return
-        yield from ctx.bot.Wait._coro_for_map_load(target_map_id=map_id)
-
-    ctx.bot.States.AddCustomState(_wait_map_load, ctx.step.get("name", "Wait Map Load"))
+    add_wait_map_load_state(ctx.bot, target_map_id=map_id, name=str(ctx.step.get("name", "Wait Map Load")))
     wait_after_step(ctx.bot, ctx.step)
 
 
@@ -139,19 +116,11 @@ def handle_move(ctx: StepContext) -> None:
     x, y = coords
     name = ctx.step.get("name", "")
     _add_pre_movement_loot_wait(ctx, str(name or f"Move {ctx.step_idx + 1}"))
-
-    def _move():
-        if cutscene_active():
-            return
-        yield from ctx.bot.Move._coro_xy(x, y, step_name=name)
-
-    ctx.bot.States.AddCustomState(_move, str(name or f"Move {ctx.step_idx + 1}"))
+    add_move_state(ctx.bot, x, y, str(name or f"Move {ctx.step_idx + 1}"))
     wait_after_step(ctx.bot, ctx.step)
 
 
 def handle_nudge_move(ctx: StepContext) -> None:
-    from Py4GWCoreLib import Player
-
     coords = parse_step_point(ctx.step)
     if coords is None:
         log_recipe(ctx, f"nudge_move invalid coordinates at index {ctx.step_idx}: expected point [x, y].")
@@ -161,23 +130,12 @@ def handle_nudge_move(ctx: StepContext) -> None:
     name = str(ctx.step.get("name", f"Nudge {ctx.step_idx + 1}") or f"Nudge {ctx.step_idx + 1}")
     pulses = max(1, parse_step_int(ctx.step.get("pulses", 1), 1))
     pulse_ms = max(0, parse_step_int(ctx.step.get("pulse_ms", ctx.step.get("move_ms", 250)), 250))
-
-    def _nudge():
-        for pulse_idx in range(pulses):
-            if cutscene_active():
-                return
-            Player.Move(x, y)
-            if pulse_ms > 0 and pulse_idx < (pulses - 1):
-                yield from ctx.bot.Wait._coro_for_time(pulse_ms)
-                if cutscene_active():
-                    return
-
-    ctx.bot.States.AddCustomState(_nudge, name)
+    add_nudge_move_state(ctx.bot, x, y, name=name, pulses=pulses, pulse_ms=pulse_ms)
     wait_after_step(ctx.bot, ctx.step)
 
 
 def handle_path_to_target(ctx: StepContext) -> None:
-    from Py4GWCoreLib import Agent, Player, Range, Utils
+    from Py4GWCoreLib import Range
 
     max_dist = parse_step_float(ctx.step.get("max_dist", Range.Compass.value), Range.Compass.value)
     tolerance = parse_step_float(ctx.step.get("tolerance", 150.0), 150.0)
@@ -190,37 +148,22 @@ def handle_path_to_target(ctx: StepContext) -> None:
     if tolerance <= 0:
         tolerance = 150.0
 
-    def _enqueue_path_to_target():
-        px, py = Player.GetXY()
-        target_agent_id = resolve_enemy_agent_id_from_step(
+    def _resolve_target():
+        return resolve_enemy_agent_id_from_step(
             ctx.step,
             recipe_name=ctx.recipe_name,
             step_idx=ctx.step_idx,
             default_max_dist=max_dist,
         )
-        if target_agent_id is None:
-            if not required:
-                wait_after_step(ctx.bot, ctx.step)
-            return
 
-        tx, ty = Agent.GetXY(target_agent_id)
-        distance = Utils.Distance((px, py), (tx, ty))
-
-        def _target_invalid(agent_id: int = target_agent_id) -> bool:
-            if not Agent.IsValid(agent_id):
-                return True
-            if not Agent.IsAlive(agent_id):
-                return True
-            cx, cy = Agent.GetXY(agent_id)
-            return Utils.Distance(Player.GetXY(), (cx, cy)) <= tolerance
-
-        Player.ChangeTarget(target_agent_id)
-        yield from ctx.bot.Move._coro_xy(tx, ty, step_name, forced_timeout=max(3000, int(distance * 4)))
-        if cutscene_active():
-            return
-        yield from ctx.bot.Wait._coro_until_condition(_target_invalid, duration=100)
-
-    ctx.bot.States.AddCustomState(_enqueue_path_to_target, step_name)
+    add_path_to_target_state(
+        ctx.bot,
+        target_resolver=_resolve_target,
+        max_dist=max_dist,
+        tolerance=tolerance,
+        required=required,
+        name=str(step_name),
+    )
     wait_after_step(ctx.bot, ctx.step)
 
 
@@ -228,177 +171,50 @@ def handle_travel(ctx: StepContext) -> None:
     target_map_id = int(ctx.step.get("target_map_id", 0))
     target_map_name = str(ctx.step.get("target_map_name", "") or "")
     leave_party = parse_step_bool(ctx.step.get("leave_party", True), True)
-    if leave_party:
-        ctx.bot.Party.LeaveParty()
-    ctx.bot.Map.Travel(target_map_id=target_map_id, target_map_name=target_map_name)
+    dispatch_travel(ctx.bot, target_map_id=target_map_id, target_map_name=target_map_name, leave_party=leave_party)
     wait_after_step(ctx.bot, ctx.step)
 
 
 def handle_random_travel(ctx: StepContext) -> None:
-    from Py4GWCoreLib import Map
-    from Py4GWCoreLib.enums_src.Map_enums import name_to_map_id
-    from Py4GWCoreLib.enums_src.Region_enums import District
-
     target_map_id = parse_step_int(ctx.step.get("target_map_id", 0), 0)
     target_map_name = str(ctx.step.get("target_map_name", "") or "").strip()
     settle_wait_ms = parse_step_int(ctx.step.get("travel_wait_ms", 500), 500)
-
-    if target_map_id <= 0 and target_map_name:
-        target_map_id = int(name_to_map_id.get(target_map_name, 0))
-
-    if target_map_id <= 0:
-        log_recipe(ctx, f"random_travel skipped: unresolved target map for step {ctx.step_idx + 1}.")
-        wait_after_step(ctx.bot, ctx.step)
-        return
-
     leave_party = parse_step_bool(ctx.step.get("leave_party", True), True)
-    if leave_party:
-        ctx.bot.Party.LeaveParty()
-
     raw_districts = ctx.step.get("districts", ctx.step.get("allowed_districts"))
-    if raw_districts is None:
-        raw_districts = [
-            District.EuropeItalian.name,
-            District.EuropeSpanish.name,
-            District.EuropePolish.name,
-            District.EuropeRussian.name,
-        ]
-
-    allowed_districts: list[int] = []
-    for raw_district in raw_districts:
-        if isinstance(raw_district, str):
-            district_name = raw_district.strip()
-            district = District.__members__.get(district_name)
-            if district is not None:
-                allowed_districts.append(int(district.value))
-                continue
-
-        district_value = parse_step_int(raw_district, -1)
-        if district_value in District._value2member_map_:
-            allowed_districts.append(district_value)
-
-    allowed_districts = [
-        district for district in allowed_districts if district not in (District.Current.value, District.Unknown.value)
-    ]
-    if not allowed_districts:
-        allowed_districts = [
-            District.EuropeItalian.value,
-            District.EuropeSpanish.value,
-            District.EuropePolish.value,
-            District.EuropeRussian.value,
-        ]
-
-    def _travel() -> None:
-        district = int(random.choice(allowed_districts))
-        Map.TravelToDistrict(target_map_id, district=district)
-
-    ctx.bot.States.AddCustomState(_travel, ctx.step.get("name", f"Random Travel {ctx.step_idx + 1}"))
-    if settle_wait_ms > 0:
-        ctx.bot.Wait.ForTime(settle_wait_ms)
-    ctx.bot.Wait.ForMapLoad(target_map_id=target_map_id)
+    add_random_travel_state(
+        ctx.bot,
+        target_map_id=target_map_id,
+        target_map_name=target_map_name,
+        districts=raw_districts,
+        leave_party=leave_party,
+        settle_wait_ms=settle_wait_ms,
+        name=str(ctx.step.get("name", f"Random Travel {ctx.step_idx + 1}")),
+        log=lambda message: log_recipe(ctx, f"{message} step={ctx.step_idx + 1}"),
+    )
     wait_after_step(ctx.bot, ctx.step)
 
 
 def handle_travel_gh(ctx: StepContext) -> None:
-    from Py4GWCoreLib import GLOBAL_CACHE, Map, Player, Routines, SharedCommandType
-
     multibox = parse_step_bool(ctx.step.get("multibox", False), False)
     per_account_delay_ms = max(0, parse_step_int(ctx.step.get("per_account_delay_ms", 500), 500))
-
-    def _run_travel_gh():
-        def _prepare_local_for_gh() -> None:
-            if Routines.Checks.Map.MapValid() and Routines.Checks.Map.IsExplorable():
-                debug_log_recipe(ctx, "travel_gh requested while explorable; resigning to outpost first.")
-                if multibox:
-                    ctx.bot.Multibox.ResignParty()
-                else:
-                    ctx.bot.Party.Resign()
-                ctx.bot.Wait.UntilOnOutpost()
-                ctx.bot.Wait.ForTime(1000)
-
-        def _send_remote_gh_messages():
-            sender_email = Player.GetAccountEmail()
-            refs: list[tuple[str, int]] = []
-            for account in GLOBAL_CACHE.ShMem.GetAllAccountData():
-                account_email = str(getattr(account, "AccountEmail", "") or "")
-                if not account_email or account_email == sender_email:
-                    continue
-                message_index = GLOBAL_CACHE.ShMem.SendMessage(
-                    sender_email,
-                    account_email,
-                    SharedCommandType.TravelToGuildHall,
-                    (0, 0, 0, 0),
-                )
-                refs.append((account_email, int(message_index)))
-                if per_account_delay_ms > 0:
-                    yield from ctx.bot.Wait._coro_for_time(per_account_delay_ms)
-            return refs
-
-        def _travel_local_gh():
-            if not Map.IsGuildHall():
-                yield from ctx.bot.Map._coro_travel_to_gh(wait_time=1000)
-
-        _prepare_local_for_gh()
-        if Map.IsGuildHall():
-            debug_log_recipe(ctx, "Already in Guild Hall; skipping TravelGH.")
-            return
-
-        backend = _resolve_party_backend()
-        if multibox and backend == _PARTY_BACKEND_HERO_AI:
-            debug_log_recipe(
-                ctx,
-                f"travel_gh: HeroAI backend active, dispatching shared GH travel command "
-                f"(delay={per_account_delay_ms}ms/account).",
-            )
-            sent_refs = yield from _send_remote_gh_messages()
-            yield from _travel_local_gh()
-            yield from ctx.bot.Wait._coro_until_condition(
-                lambda refs=sent_refs: outbound_messages_done(refs, SharedCommandType.TravelToGuildHall),
-                duration=100,
-            )
-        elif multibox:
-            debug_log_recipe(
-                ctx,
-                f"travel_gh: no HeroAI widget state, dispatching shared GH travel command "
-                f"(delay={per_account_delay_ms}ms/account).",
-            )
-            sent_refs = yield from _send_remote_gh_messages()
-            yield from _travel_local_gh()
-            yield from ctx.bot.Wait._coro_until_condition(
-                lambda refs=sent_refs: outbound_messages_done(refs, SharedCommandType.TravelToGuildHall),
-                duration=100,
-            )
-        else:
-            yield from _travel_local_gh()
-
-    ctx.bot.States.AddCustomState(_run_travel_gh, ctx.step.get("name", f"Travel GH {ctx.step_idx + 1}"))
+    add_travel_gh_state(
+        ctx.bot,
+        multibox=multibox,
+        per_account_delay_ms=per_account_delay_ms,
+        name=str(ctx.step.get("name", f"Travel GH {ctx.step_idx + 1}")),
+        log=lambda message: debug_log_recipe(ctx, message),
+    )
     wait_after_step(ctx.bot, ctx.step)
 
 
 def handle_leave_party(ctx: StepContext) -> None:
-    from Py4GWCoreLib import SharedCommandType
-
     multibox = parse_step_bool(ctx.step.get("multibox", False), False)
-    def _run_leave_party() -> None:
-        sent_refs: list[tuple[str, int]] = []
-
-        backend = _resolve_party_backend()
-        if multibox:
-            if backend == _PARTY_BACKEND_HERO_AI:
-                debug_log_recipe(ctx, "leave_party: HeroAI backend active, dispatching shared leave command.")
-            elif backend == _PARTY_BACKEND_SHARED:
-                debug_log_recipe(ctx, "leave_party: no HeroAI widget state, dispatching shared leave command.")
-            sent_refs = send_multibox_command(SharedCommandType.LeaveParty)
-            ctx.bot.Party.LeaveParty()
-            if sent_refs:
-                ctx.bot.Wait.UntilCondition(
-                    lambda refs=sent_refs: outbound_messages_done(refs, SharedCommandType.LeaveParty),
-                    duration=100,
-                )
-        else:
-            ctx.bot.Party.LeaveParty()
-
-    ctx.bot.States.AddCustomState(_run_leave_party, ctx.step.get("name", f"Leave Party {ctx.step_idx + 1}"))
+    add_leave_party_state(
+        ctx.bot,
+        multibox=multibox,
+        name=str(ctx.step.get("name", f"Leave Party {ctx.step_idx + 1}")),
+        log=lambda message: debug_log_recipe(ctx, message),
+    )
     wait_after_step(ctx.bot, ctx.step)
 
 
@@ -416,16 +232,6 @@ def handle_exit_map(ctx: StepContext) -> None:
     suppress_recovery_ms = max(0, parse_step_int(ctx.step.get("suppress_recovery_ms", 10_000), 10_000))
     suppress_recovery_events = max(0, parse_step_int(ctx.step.get("suppress_recovery_events", 6), 6))
 
-    def _exit_map_core():
-        yield from ctx.bot.Move._coro_xy(x, y, step_name=step_name)
-        if cutscene_active():
-            return
-        if target_map_id > 0 or target_map_name:
-            yield from ctx.bot.Wait._coro_for_map_load(
-                target_map_id=target_map_id,
-                target_map_name=target_map_name,
-            )
-
     if (target_map_id > 0 or target_map_name) and suppress_recovery_ms > 0:
         def _suppress_transition_recovery(
             _ms: int = suppress_recovery_ms,
@@ -438,7 +244,14 @@ def handle_exit_map(ctx: StepContext) -> None:
 
         ctx.bot.States.AddCustomState(_suppress_transition_recovery, f"{step_name}: Suppress Recovery")
 
-    ctx.bot.States.AddCustomState(_exit_map_core, step_name)
+    add_exit_map_state(
+        ctx.bot,
+        x=x,
+        y=y,
+        name=step_name,
+        target_map_id=target_map_id,
+        target_map_name=target_map_name,
+    )
 
     def _set_post_exit_anchor(_anchor_state: str = anchor_state_name) -> None:
         owner = getattr(ctx.bot, "_modular_owner", None)
@@ -453,60 +266,27 @@ def handle_exit_map(ctx: StepContext) -> None:
 
 
 def handle_follow_model(ctx: StepContext) -> None:
-    from time import monotonic
-
     model_id = int(str(ctx.step["model_id"]), 0)
     follow_range = float(ctx.step.get("follow_range", ctx.step.get("range", 600)))
     timeout_ms = int(ctx.step.get("timeout_ms", 0))
-
-    if timeout_ms > 0:
-        start = monotonic()
-        ctx.bot.Move.FollowModel(
-            model_id,
-            follow_range,
-            exit_condition=lambda _s=start, _t=timeout_ms: (
-                cutscene_active() or (monotonic() - _s) * 1000.0 >= _t
-            ),
-        )
-    else:
-        ctx.bot.Move.FollowModel(model_id, follow_range, exit_condition=cutscene_active)
+    add_follow_model_state(ctx.bot, model_id=model_id, follow_range=follow_range, timeout_ms=timeout_ms)
     wait_after_step(ctx.bot, ctx.step)
 
 
 def handle_wait_map_change(ctx: StepContext) -> None:
-    def _wait_map_change():
-        if cutscene_active():
-            return
-        yield from ctx.bot.Wait._coro_for_map_to_change(target_map_id=ctx.step["target_map_id"])
-
-    ctx.bot.States.AddCustomState(_wait_map_change, ctx.step.get("name", "Wait Map Change"))
+    add_wait_map_change_state(
+        ctx.bot,
+        target_map_id=parse_step_int(ctx.step.get("target_map_id", 0), 0),
+        name=str(ctx.step.get("name", "Wait Map Change")),
+    )
     wait_after_step(ctx.bot, ctx.step)
 
 
 def handle_enter_challenge(ctx: StepContext) -> None:
-    from Py4GWCoreLib import Key, Keystroke, Map
-
     step_name = str(ctx.step.get("name", "Enter Challenge") or "Enter Challenge")
     delay_ms = parse_step_int(ctx.step.get("delay_ms", ctx.step.get("delay", 2000)), 2000)
     target_map_id = parse_step_int(ctx.step.get("target_map_id", 0), 0)
-
-    def _enter_challenge():
-        if cutscene_active():
-            return
-        Map.EnterChallenge()
-        if delay_ms > 0:
-            yield from ctx.bot.Wait._coro_for_time(delay_ms)
-        if cutscene_active():
-            return
-        Keystroke.PressAndRelease(getattr(Key, "Enter").value)
-        if cutscene_active():
-            return
-        if target_map_id > 0:
-            yield from ctx.bot.Wait._coro_for_map_to_change(target_map_id=target_map_id)
-        else:
-            yield from ctx.bot.Wait._coro_for_map_to_change()
-
-    ctx.bot.States.AddCustomState(_enter_challenge, step_name)
+    add_enter_challenge_state(ctx.bot, name=step_name, delay_ms=delay_ms, target_map_id=target_map_id)
     wait_after_step(ctx.bot, ctx.step)
 
 

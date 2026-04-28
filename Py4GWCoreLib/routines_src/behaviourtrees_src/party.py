@@ -286,3 +286,140 @@ class BTParty:
                 aftercast_ms=max(0, int(aftercast_ms)),
             )
         )
+
+    @staticmethod
+    def SetTitle(title_id: int, log: bool = False, aftercast_ms: int = 250) -> BehaviorTree:
+        """
+        Build an action tree that sets the local player's active title.
+
+        Meta:
+          Expose: true
+          Audience: beginner
+          Display: Set Title
+          Purpose: Set the active player title by title id.
+          UserDescription: Use this when a route or setup needs a specific title active.
+          Notes: Dispatches the title change and returns success immediately.
+        """
+
+        def _set_title() -> BehaviorTree.NodeState:
+            Player.SetTitle(int(title_id))
+            if log:
+                ConsoleLog("BTParty.SetTitle", f"Set title id={int(title_id)}.", Console.MessageType.Info, log=log)
+            return BehaviorTree.NodeState.SUCCESS
+
+        return BehaviorTree(
+            BehaviorTree.ActionNode(
+                name="SetTitle",
+                action_fn=_set_title,
+                aftercast_ms=max(0, int(aftercast_ms)),
+            )
+        )
+
+    @staticmethod
+    def ForceHeroState(behavior: int, log: bool = False, aftercast_ms: int = 125) -> BehaviorTree:
+        """
+        Build an action tree that sets every current hero to a behavior mode.
+
+        Meta:
+          Expose: true
+          Audience: intermediate
+          Display: Force Hero State
+          Purpose: Set all local heroes to fight, guard, or avoid behavior.
+          UserDescription: Use this when you want to force the whole hero party into one behavior mode.
+          Notes: Behavior values are the native hero behavior ids 0, 1, and 2.
+        """
+
+        def _force_hero_state() -> BehaviorTree.NodeState:
+            behavior_value = int(behavior)
+            if behavior_value not in (0, 1, 2):
+                return BehaviorTree.NodeState.FAILURE
+            used = 0
+            for hero in Party.GetHeroes():
+                hero_agent_id = getattr(hero, "agent_id", 0)
+                if hero_agent_id:
+                    Party.Heroes.SetHeroBehavior(hero_agent_id, behavior_value)
+                    used += 1
+            if log:
+                ConsoleLog("BTParty.ForceHeroState", f"Updated {used} hero behavior(s).", Console.MessageType.Info, log=log)
+            return BehaviorTree.NodeState.SUCCESS
+
+        return BehaviorTree(
+            BehaviorTree.ActionNode(
+                name="ForceHeroState",
+                action_fn=_force_hero_state,
+                aftercast_ms=max(0, int(aftercast_ms)),
+            )
+        )
+
+    @staticmethod
+    def DropBundle(log: bool = False) -> BehaviorTree:
+        """
+        Build an action tree that drops the currently held bundle.
+
+        Meta:
+          Expose: true
+          Audience: intermediate
+          Display: Drop Bundle
+          Purpose: Press the standard keys used to drop a held bundle.
+          UserDescription: Use this when a route needs to release a bundle before continuing.
+          Notes: Sends F2 then F1 with short waits between key presses.
+        """
+        from ...enums_src.IO_enums import Key
+        from ...py4gwcorelib_src.Keystroke import Keystroke
+
+        def _press(key_value: int, label: str) -> BehaviorTree.NodeState:
+            Keystroke.PressAndRelease(key_value)
+            if log:
+                ConsoleLog("BTParty.DropBundle", f"Pressed {label}.", Console.MessageType.Info, log=log)
+            return BehaviorTree.NodeState.SUCCESS
+
+        return BehaviorTree(
+            BehaviorTree.SequenceNode(
+                name="DropBundle",
+                children=[
+                    BehaviorTree.ActionNode(
+                        name="DropBundleF2",
+                        action_fn=lambda: _press(getattr(Key, "F2").value, "F2"),
+                        aftercast_ms=200,
+                    ),
+                    BehaviorTree.ActionNode(
+                        name="DropBundleF1",
+                        action_fn=lambda: _press(getattr(Key, "F1").value, "F1"),
+                        aftercast_ms=200,
+                    ),
+                ],
+            )
+        )
+
+    @staticmethod
+    def AbandonQuest(quest_id: int, log: bool = False, aftercast_ms: int = 250) -> BehaviorTree:
+        """
+        Build an action tree that abandons a quest by id.
+
+        Meta:
+          Expose: true
+          Audience: intermediate
+          Display: Abandon Quest
+          Purpose: Abandon a quest by quest id.
+          UserDescription: Use this when a route needs to reset or clear a specific quest.
+          Notes: Fails when the quest id is not positive.
+        """
+
+        def _abandon_quest() -> BehaviorTree.NodeState:
+            qid = int(quest_id)
+            if qid <= 0:
+                return BehaviorTree.NodeState.FAILURE
+            from ...Quest import Quest
+
+            Quest.AbandonQuest(qid)
+            if log:
+                ConsoleLog("BTParty.AbandonQuest", f"Abandoned quest id={qid}.", Console.MessageType.Info, log=log)
+            return BehaviorTree.NodeState.SUCCESS
+
+        return BehaviorTree(
+            BehaviorTree.ActionNode(
+                name="AbandonQuest",
+                action_fn=_abandon_quest,
+                aftercast_ms=max(0, int(aftercast_ms)),
+            )
+        )

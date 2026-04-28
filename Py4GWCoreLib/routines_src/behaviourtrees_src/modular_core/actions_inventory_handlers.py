@@ -5,17 +5,17 @@ This module provides inventory-oriented modular step handlers.
 """
 from __future__ import annotations
 
-from .actions_inventory import (
+from Py4GWCoreLib.routines_src.behaviourtrees_src.botting_inventory import (
     CONS_COMMON_MATERIAL_MODEL_IDS,
     NON_CONS_COMMON_MATERIAL_MODEL_IDS,
-    _apply_default_npc_selector,
-    _get_id_kit_count,
-    _get_salvage_kit_count,
-    _iter_other_account_emails,
-    _wait_for_outbound_messages,
-    _yield_inventory_setup,
-    _yield_toggle_widgets,
+    add_inventory_guard_state,
+    add_restock_consumables_state,
+    add_restock_kits_state,
+    add_toggle_widgets_state,
+    apply_default_npc_selector,
+    parse_widget_names,
 )
+from .actions_inventory import _yield_inventory_setup
 from .contracts import StepNodeRequest
 from .node_registry import get_action_node_builder
 from .step_registration import modular_step
@@ -30,157 +30,62 @@ from .step_utils import (
 )
 
 
-def handle_restock_kits(ctx: StepContext) -> None:
-    from Py4GWCoreLib import GLOBAL_CACHE, Player, Routines, SharedCommandType
-
-    selector_step = dict(ctx.step)
-
-    name = ctx.step.get("name", "Restock Kits")
-    multibox_raw = ctx.step.get("multibox", False)
-    multibox_wait_step_ms = max(10, parse_step_int(ctx.step.get("multibox_wait_step_ms", 50), 50))
-    multibox_wait_timeout_ms = max(1_000, parse_step_int(ctx.step.get("multibox_wait_timeout_ms", 30_000), 30_000))
-
+def _parse_restock_kit_targets(step: dict) -> tuple[int, int]:
     try:
-        id_kits_target = int(ctx.step.get("id_kits", 2))
+        id_kits_target = int(step.get("id_kits", 2))
     except (TypeError, ValueError):
         id_kits_target = 2
 
     try:
-        salvage_kits_target = int(ctx.step.get("salvage_kits", 8))
+        salvage_kits_target = int(step.get("salvage_kits", 8))
     except (TypeError, ValueError):
         salvage_kits_target = 8
 
-    multibox = (
-        multibox_raw.strip().lower() in ("1", "true", "yes", "on")
-        if isinstance(multibox_raw, str)
-        else bool(multibox_raw)
-    )
+    return max(0, id_kits_target), max(0, salvage_kits_target)
 
-    if id_kits_target < 0:
-        id_kits_target = 0
-    if salvage_kits_target < 0:
-        salvage_kits_target = 0
 
-    def _restock_local():
+def _parse_multibox_enabled(raw_value) -> bool:
+    if isinstance(raw_value, str):
+        return raw_value.strip().lower() in ("1", "true", "yes", "on")
+    return bool(raw_value)
+
+
+def handle_restock_kits(ctx: StepContext) -> None:
+    selector_step = dict(ctx.step)
+
+    name = ctx.step.get("name", "Restock Kits")
+    multibox = _parse_multibox_enabled(ctx.step.get("multibox", False))
+    multibox_wait_step_ms = max(10, parse_step_int(ctx.step.get("multibox_wait_step_ms", 50), 50))
+    multibox_wait_timeout_ms = max(1_000, parse_step_int(ctx.step.get("multibox_wait_timeout_ms", 30_000), 30_000))
+    id_kits_target, salvage_kits_target = _parse_restock_kit_targets(ctx.step)
+
+    def _coords():
         step_selector = dict(selector_step)
-        _apply_default_npc_selector(step_selector, "merchant")
-        coords = resolve_agent_xy_from_step(
+        apply_default_npc_selector(step_selector, "merchant")
+        return resolve_agent_xy_from_step(
             step_selector,
             recipe_name=ctx.recipe_name,
             step_idx=ctx.step_idx,
             agent_kind="npc",
         )
-        if coords is None:
-            yield
-            return
-        x, y = coords
-        yield from ctx.bot.Move._coro_xy_and_interact_npc(x, y, name)
-        yield from ctx.bot.Wait._coro_for_time(1200)
 
-        # Recompute kit counts each purchase pass, but cap by initial deficit
-        # so stale cache reads cannot cause overbuy.
-        initial_id_kits_in_inv = _get_id_kit_count()
-        initial_salvage_kits_in_inv = _get_salvage_kit_count()
-        id_buy_budget = max(0, id_kits_target - initial_id_kits_in_inv)
-        salvage_buy_budget = max(0, salvage_kits_target - initial_salvage_kits_in_inv)
-        id_bought = 0
-        salvage_bought = 0
-
-        for _ in range(2):
-            id_remaining_by_observed = max(0, id_kits_target - _get_id_kit_count())
-            salvage_remaining_by_observed = max(0, salvage_kits_target - _get_salvage_kit_count())
-            id_remaining_by_budget = max(0, id_buy_budget - id_bought)
-            salvage_remaining_by_budget = max(0, salvage_buy_budget - salvage_bought)
-
-            id_kits_to_buy = min(id_remaining_by_observed, id_remaining_by_budget)
-            salvage_kits_to_buy = min(salvage_remaining_by_observed, salvage_remaining_by_budget)
-
-            if id_kits_to_buy <= 0 and salvage_kits_to_buy <= 0:
-                break
-
-            yield from Routines.Yield.Merchant.BuyIDKits(id_kits_to_buy)
-            yield from Routines.Yield.Merchant.BuySalvageKits(salvage_kits_to_buy)
-            id_bought += id_kits_to_buy
-            salvage_bought += salvage_kits_to_buy
-            yield from Routines.Yield.wait(150)
-
-        if multibox:
-            sender_email = Player.GetAccountEmail()
-            account_emails = _iter_other_account_emails()
-            sent_messages: list[tuple[str, int]] = []
-            for account_email in account_emails:
-                message_index = GLOBAL_CACHE.ShMem.SendMessage(
-                    sender_email,
-                    account_email,
-                    SharedCommandType.MerchantItems,
-                    (x, y, float(id_kits_target), float(salvage_kits_target)),
-                )
-                sent_messages.append((account_email, int(message_index)))
-            yield from _wait_for_outbound_messages(
-                ctx,
-                "restock_kits",
-                sent_messages,
-                SharedCommandType.MerchantItems,
-                wait_step_ms=multibox_wait_step_ms,
-                timeout_ms=multibox_wait_timeout_ms,
-            )
-
-        yield
-
-    ctx.bot.States.AddCustomState(_restock_local, f"{name} Execute")
+    add_restock_kits_state(
+        ctx.bot,
+        coords_resolver=_coords,
+        id_kits_target=id_kits_target,
+        salvage_kits_target=salvage_kits_target,
+        multibox=multibox,
+        wait_step_ms=multibox_wait_step_ms,
+        timeout_ms=multibox_wait_timeout_ms,
+        name=str(name),
+        log=lambda message: log_recipe(ctx, message),
+    )
     wait_after_step(ctx.bot, ctx.step)
 
 
 def handle_restock_cons(ctx: StepContext) -> None:
-    from Py4GWCoreLib import Inventory
-
     name = ctx.step.get("name", "Restock Consumables")
-    restock_specs = (
-        ("birthday_cupcake", "BirthdayCupcake"),
-        ("candy_apple", "CandyApple"),
-        ("honeycomb", "Honeycomb"),
-        ("war_supplies", "WarSupplies"),
-        ("essence_of_celerity", "EssenceOfCelerity"),
-        ("grail_of_might", "GrailOfMight"),
-        ("armor_of_salvation", "ArmorOfSalvation"),
-        ("golden_egg", "GoldenEgg"),
-        ("candy_corn", "CandyCorn"),
-        ("slice_of_pumpkin_pie", "SliceOfPumpkinPie"),
-        ("drake_kabob", "DrakeKabob"),
-        ("bowl_of_skalefin_soup", "BowlOfSkalefinSoup"),
-        ("pahnai_salad", "PahnaiSalad"),
-    )
-
-    ctx.bot.States.AddCustomState(
-        lambda: Inventory.OpenXunlaiWindow() if not Inventory.IsStorageOpen() else None,
-        f"{name} Open Xunlai",
-    )
-    ctx.bot.Wait.ForTime(1000)
-
-    def _enable_restock_properties() -> None:
-        for prop_name, _ in restock_specs:
-            if not ctx.bot.Properties.exists(prop_name):
-                continue
-            is_active = bool(ctx.bot.Properties.Get(prop_name, "active"))
-            qty = int(ctx.bot.Properties.Get(prop_name, "restock_quantity") or 0)
-            if not is_active and qty > 0:
-                ctx.bot.Properties.Enable(prop_name)
-
-    ctx.bot.States.AddCustomState(_enable_restock_properties, f"{name} Enable Properties")
-
-    scheduled = 0
-    for _, method_name in restock_specs:
-        method = getattr(ctx.bot.Items.Restock, method_name, None)
-        if callable(method):
-            method()
-            scheduled += 1
-
-    if scheduled == 0:
-        ctx.bot.States.AddCustomState(
-            lambda: debug_log_recipe(ctx, "restock_cons found no restock methods to execute."),
-            f"{name} Warn: No Restock Methods",
-        )
-
+    add_restock_consumables_state(ctx.bot, name=str(name), log=lambda message: debug_log_recipe(ctx, message))
     wait_after_step(ctx.bot, ctx.step)
 
 
@@ -198,23 +103,16 @@ def handle_inventory_guard(ctx: StepContext) -> None:
     )
 
     def _guard():
-        current_id_kits = _get_id_kit_count()
-        current_salvage_kits = _get_salvage_kit_count()
-        if current_id_kits >= id_kits_min and current_salvage_kits >= salvage_kits_min:
-            log_recipe(
-                ctx,
-                f"inventory_guard: skipped (id_kits={current_id_kits}, salvage_kits={current_salvage_kits}, mins={id_kits_min}/{salvage_kits_min}).",
-            )
-            yield
-            return
-
-        log_recipe(
-            ctx,
-            f"inventory_guard: triggering setup (id_kits={current_id_kits}, salvage_kits={current_salvage_kits}, mins={id_kits_min}/{salvage_kits_min}).",
-        )
         yield from _yield_inventory_setup(ctx, ctx.step)()
 
-    ctx.bot.States.AddCustomState(_guard, name)
+    add_inventory_guard_state(
+        ctx.bot,
+        id_kits_min=id_kits_min,
+        salvage_kits_min=salvage_kits_min,
+        setup_factory=_guard,
+        name=str(name),
+        log=lambda message: log_recipe(ctx, message),
+    )
     wait_after_step(ctx.bot, ctx.step)
 
 
@@ -354,14 +252,37 @@ def handle_inventory_cleanup(ctx: StepContext) -> None:
 
 def handle_disable_widgets(ctx: StepContext) -> None:
     name = str(ctx.step.get("name", "Disable Widgets") or "Disable Widgets")
-    ctx.bot.States.AddCustomState(_yield_toggle_widgets(ctx, enabled=False), name)
+    _add_toggle_widgets_step(ctx, enabled=False, name=name)
     wait_after_step(ctx.bot, ctx.step)
 
 
 def handle_enable_widgets(ctx: StepContext) -> None:
     name = str(ctx.step.get("name", "Enable Widgets") or "Enable Widgets")
-    ctx.bot.States.AddCustomState(_yield_toggle_widgets(ctx, enabled=True), name)
+    _add_toggle_widgets_step(ctx, enabled=True, name=name)
     wait_after_step(ctx.bot, ctx.step)
+
+
+def _add_toggle_widgets_step(ctx: StepContext, *, enabled: bool, name: str) -> None:
+    names = parse_widget_names(ctx.step.get("widgets", ["InventoryPlus"]))
+    multibox = parse_step_bool(ctx.step.get("multibox", True), True)
+    wait_step_ms = max(10, parse_step_int(ctx.step.get("multibox_wait_step_ms", 50), 50))
+    timeout_ms = max(500, parse_step_int(ctx.step.get("multibox_timeout_ms", 30_000), 30_000))
+    wait_ms = max(0, parse_step_int(ctx.step.get("ms", 0), 0))
+    remember_key = str(ctx.step.get("remember_key", "") or "").strip()
+    restore_key = str(ctx.step.get("restore_key", "") or "").strip()
+    add_toggle_widgets_state(
+        ctx.bot,
+        enabled=enabled,
+        names=names,
+        multibox=multibox,
+        wait_step_ms=wait_step_ms,
+        timeout_ms=timeout_ms,
+        wait_ms=wait_ms,
+        remember_key=remember_key,
+        restore_key=restore_key,
+        name=name,
+        log=lambda message: log_recipe(ctx, message),
+    )
 
 
 # Decorator-driven step registration bindings.

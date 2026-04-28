@@ -7,6 +7,8 @@ This module provides extracted runtime build/update helpers for ModularBot.
 from __future__ import annotations
 
 import traceback
+from time import monotonic
+
 from Py4GWCoreLib import Console, ConsoleLog
 
 from .runtime_native import apply_template
@@ -32,18 +34,32 @@ def debug_log(self, message: str, message_type=Console.MessageType.Info) -> None
 
 def tick_cinematic_guard(self) -> None:
     try:
-        from Py4GWCoreLib import GLOBAL_CACHE, Map
+        from Py4GWCoreLib.routines_src.behaviourtrees_src.botting_movement import (
+            cutscene_active,
+            request_skip_cinematic,
+        )
 
-        in_cinematic = bool(Map.IsMapReady() and GLOBAL_CACHE.Party.IsPartyLoaded() and Map.IsInCinematic())
+        in_cinematic = cutscene_active()
         if not in_cinematic:
             setattr(self, "_cinematic_skip_queued", False)
+            setattr(self, "_cinematic_seen_at", 0.0)
+            return
+        now = monotonic()
+        seen_at = float(getattr(self, "_cinematic_seen_at", 0.0) or 0.0)
+        if seen_at <= 0.0:
+            setattr(self, "_cinematic_seen_at", now)
+            return
+        delay_ms = max(0, int(getattr(self, "_cinematic_skip_delay_ms", 3000) or 3000))
+        if (now - seen_at) * 1000.0 < delay_ms:
             return
         if bool(getattr(self, "_cinematic_skip_queued", False)):
             return
         setattr(self, "_cinematic_skip_queued", True)
-        self._debug_log("Cinematic detected; queueing skip.")
-        Map.SkipCinematic()
-        Map.SkipCinematic()
+        if not bool(getattr(self, "_cinematic_guard_auto_skip", False)):
+            self._debug_log("Cinematic detected; waiting for explicit skip_cutscene step.")
+            return
+        self._debug_log("Cinematic detected; queueing guard skip.")
+        request_skip_cinematic()
     except Exception as exc:
         self._debug_log(f"Cinematic guard failed: {exc}", Console.MessageType.Warning)
 
