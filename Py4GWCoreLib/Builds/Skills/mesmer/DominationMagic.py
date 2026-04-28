@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 from Py4GWCoreLib.BuildMgr import BuildCoroutine
 from Py4GWCoreLib.Skill import Skill
-from Py4GWCoreLib.Builds.Skills._whiteboard import coordinates_via_whiteboard
+from Py4GWCoreLib.Builds.Skills._whiteboard import coordinates_whiteboard_skill_target
 
 if TYPE_CHECKING:
     from HeroAI.custom_skill_src.skill_types import CustomSkill
@@ -117,7 +117,7 @@ class DominationMagic:
     #endregion
 
     #region C
-    @coordinates_via_whiteboard(Skill.GetID("Cry_of_Frustration"))
+    @coordinates_whiteboard_skill_target(Skill.GetID("Cry_of_Frustration"))
     def Cry_of_Frustration(self) -> BuildCoroutine:
         from Py4GWCoreLib import Agent, Range, GLOBAL_CACHE
 
@@ -151,7 +151,7 @@ class DominationMagic:
     #endregion
 
     #region M
-    @coordinates_via_whiteboard(Skill.GetID("Mistrust"))
+    @coordinates_whiteboard_skill_target(Skill.GetID("Mistrust"))
     def Mistrust(self) -> BuildCoroutine:
         from Py4GWCoreLib import Agent, Range, GLOBAL_CACHE
 
@@ -187,7 +187,7 @@ class DominationMagic:
     #endregion
 
     #region O
-    @coordinates_via_whiteboard(Skill.GetID("Overload"))
+    @coordinates_whiteboard_skill_target(Skill.GetID("Overload"))
     def Overload(self) -> BuildCoroutine:
         from Py4GWCoreLib import Agent, Player, Range, GLOBAL_CACHE
 
@@ -233,7 +233,7 @@ class DominationMagic:
     #endregion
 
     #region P
-    @coordinates_via_whiteboard(Skill.GetID("Panic"))
+    @coordinates_whiteboard_skill_target(Skill.GetID("Panic"))
     def Panic(self) -> BuildCoroutine:
         from Py4GWCoreLib import Agent, Range, GLOBAL_CACHE
 

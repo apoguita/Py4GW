@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 from Py4GWCoreLib.BuildMgr import BuildCoroutine
 from Py4GWCoreLib import Range, Routines
 from Py4GWCoreLib.Skill import Skill
-from Py4GWCoreLib.Builds.Skills._whiteboard import coordinates_via_whiteboard
+from Py4GWCoreLib.Builds.Skills._whiteboard import coordinates_whiteboard_skill_target
 
 if TYPE_CHECKING:
     from Py4GWCoreLib.BuildMgr import BuildMgr
@@ -81,7 +81,7 @@ class PvE:
             aftercast_delay=250,
         ))
 
-    @coordinates_via_whiteboard(Skill.GetID("Cry_of_Pain"))
+    @coordinates_whiteboard_skill_target(Skill.GetID("Cry_of_Pain"))
     def Cry_of_Pain(self, require_mesmer_hex: bool = False) -> BuildCoroutine:
         from Py4GWCoreLib import Agent, GLOBAL_CACHE
 
