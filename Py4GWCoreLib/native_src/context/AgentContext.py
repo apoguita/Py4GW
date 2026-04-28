@@ -627,6 +627,7 @@ class AgentLiving:
     visible_effects: List[VisibleEffect]
     is_bleeding: bool
     is_conditioned: bool
+    is_used_corpse: bool
     is_crippled: bool
     is_dead: bool
     is_deep_wounded: bool
@@ -750,6 +751,10 @@ class AgentLivingStruct(AgentStruct):
         """Return True if the agent is conditioned."""
         return (self.effects & 0x0002) != 0
     @property
+    def is_used_corpse(self) -> bool:
+        """Return True if the corpse has already been exploited."""
+        return (self.effects & 0x0004) != 0
+    @property
     def is_crippled(self) -> bool:
         """Return True if the agent is crippled."""
         return (self.effects & 0x000A) == 0xA
@@ -793,12 +798,44 @@ class AgentLivingStruct(AgentStruct):
     def is_dead_by_type_map(self) -> bool:
         """Return True if the agent is dead by type map."""
         return (self.type_map & 0x000008) != 0
+
     @property
     def is_exploitable(self) -> bool:
         """Return True if the corpse can still be exploited."""
-        if not self.is_dead_by_type_map:
-            return False
-        return self.effects == 0x00000010 and self.model_state == 1088 and self.max_hp > 0
+        return not self.is_alive and not self.is_used_corpse
+
+    @property
+    def corpse_exploit_state(self) -> str:
+        """Return a compact label for corpse exploit diagnostics."""
+        if self.is_alive:
+            return "alive"
+        if self.is_used_corpse:
+            return "used_corpse"
+        return "exploitable"
+
+    @property
+    def corpse_exploit_signature(self) -> tuple[int, ...]:
+        """Return native fields most likely to differ between corpse exploit states."""
+        return (
+            int(self.effects),
+            int(self.model_state),
+            int(self.type_map),
+            int(self.player_number),
+            int(self.agent_model_type),
+            int(self.animation_code),
+            int(self.animation_id),
+            int(self.h00D4[0]),
+            int(self.h00D4[1]),
+            int(self.h00D4[2]),
+            int(self.h00E4[0]),
+            int(self.h00E4[1]),
+            int(self.h0140),
+            int(self.h0160[0]),
+            int(self.h0160[1]),
+            int(self.h0160[2]),
+            int(self.h0160[3]),
+            int(self.h0180),
+        )
     @property
     def is_female(self) -> bool:
         """Return True if the agent is female."""
@@ -924,6 +961,7 @@ class AgentLivingStruct(AgentStruct):
             visible_effects= [ve.snapshot() for ve in self.visible_effects] if self.visible_effects else [],
             is_bleeding=self.is_bleeding,
             is_conditioned=self.is_conditioned,
+            is_used_corpse=self.is_used_corpse,
             is_crippled=self.is_crippled,
             is_dead=self.is_dead,
             is_deep_wounded=self.is_deep_wounded,

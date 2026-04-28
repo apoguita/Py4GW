@@ -41,6 +41,8 @@ KNOWN_NONFLESH_LABELS = {
 }
 
 OBSERVED_MODEL_SUMMARY = {}
+_CURRENT_DUMP_ENEMY_IDS = set()
+_CURRENT_DUMP_DEAD_ENEMY_IDS = set()
 _PAGE_NOACCESS = 0x01
 _PAGE_GUARD = 0x100
 _MEM_COMMIT = 0x1000
@@ -61,6 +63,12 @@ class _MemoryBasicInformation(ctypes.Structure):
 COMPARE_FIELDS = (
     "type_map",
     "effects",
+    "corpse_state",
+    "corpse_signature",
+    "is_dead",
+    "is_dead_by_type_map",
+    "is_exploitable",
+    "max_hp",
     "condition_bits",
     "spirit_type",
     "model_state",
@@ -239,6 +247,88 @@ def _format_base_agent(agent_id: int) -> str:
     )
 
 
+def _format_array_membership(agent_id: int) -> str:
+    return (
+        f"in_enemy_array={agent_id in _CURRENT_DUMP_ENEMY_IDS} "
+        f"in_dead_enemy_array={agent_id in _CURRENT_DUMP_DEAD_ENEMY_IDS}"
+    )
+
+
+def _corpse_exploit_state(living) -> str:
+    try:
+        return str(living.corpse_exploit_state)
+    except Exception:
+        if bool(living.is_alive):
+            return "alive"
+        if bool(living.is_used_corpse):
+            return "used_corpse"
+        return "exploitable"
+
+
+def _corpse_exploit_signature(living) -> tuple[int, ...]:
+    try:
+        return tuple(int(value) for value in living.corpse_exploit_signature)
+    except Exception:
+        return (
+            int(living.effects),
+            int(living.model_state),
+            int(living.type_map),
+            int(living.player_number),
+            int(living.agent_model_type),
+            int(living.animation_code),
+            int(living.animation_id),
+            int(living.h00D4[0]),
+            int(living.h00D4[1]),
+            int(living.h00D4[2]),
+            int(living.h00E4[0]),
+            int(living.h00E4[1]),
+            int(living.h0140),
+            int(living.h0160[0]),
+            int(living.h0160[1]),
+            int(living.h0160[2]),
+            int(living.h0160[3]),
+            int(living.h0180),
+        )
+
+
+def _format_corpse_evidence(living) -> str:
+    effects = int(living.effects)
+    type_map = int(living.type_map)
+    gwca_dead = (effects & 0x0010) != 0
+    gwca_used_corpse = (effects & 0x0004) != 0
+    gwca_alive = not gwca_dead and float(living.hp) > 0.0
+    gwca_exploitable = not gwca_alive and not gwca_used_corpse
+    return (
+        f"corpse_state={_corpse_exploit_state(living)} "
+        f"corpse_sig={_corpse_exploit_signature(living)} "
+        f"gwca_dead_effect={gwca_dead} "
+        f"gwca_dead_type={(type_map & 0x000008) != 0} "
+        f"gwca_used_corpse={gwca_used_corpse} "
+        f"gwca_alive={gwca_alive} "
+        f"gwca_exploitable={gwca_exploitable} "
+        f"used_corpse_bit_set={(effects & 0x0004) != 0} "
+        f"dead_effect_bit_set={(effects & 0x0010) != 0}"
+    )
+
+
+def _format_agent_corpse_helpers(agent_id: int, living) -> str:
+    npc = Agent.GetNPCModelByID(int(living.player_number)) if bool(living.is_npc) else None
+    npc_flags = Agent.GetNPCFlags(agent_id)
+    return (
+        f"agent_is_dead={bool(Agent.IsDead(agent_id))} "
+        f"agent_is_alive={bool(Agent.IsAlive(agent_id))} "
+        f"agent_is_used_corpse={bool(Agent.IsUsedCorpse(agent_id))} "
+        f"agent_is_exploited_corpse={bool(Agent.IsExploitedCorpse(agent_id))} "
+        f"agent_is_exploitable={bool(Agent.IsExploitable(agent_id))} "
+        f"agent_is_fleshy={bool(Agent.IsFleshy(agent_id))} "
+        f"agent_is_exploitable_corpse={bool(Agent.IsExploitableCorpse(agent_id))} "
+        f"npc_lookup_found={npc is not None} "
+        f"npc_model_file_id={int(npc.model_file_id) if npc else 0} "
+        f"npc_flags={_hex(npc_flags)} npc_fleshy_bit={(int(npc_flags) & 0x8) != 0} "
+        f"player_corpse={bool(living.is_player)} npc_corpse={bool(living.is_npc)}"
+    )
+
+
 def _format_direct_evidence(living) -> str:
     is_spirit_type = (int(living.type_map) & 0x00040000) != 0
     condition_bits = int(living.effects) & 0x0000007B
@@ -399,6 +489,7 @@ def _format_agent(agent_id: int) -> str:
     return (
         f"id={agent_id} name='{_safe_name(agent_id)}' enc='{_safe_enc_name(agent_id)}' "
         f"xy=({x:.1f},{y:.1f}) zplane={Agent.GetZPlane(agent_id)} "
+        f"{_format_array_membership(agent_id)} "
         f"hp={float(living.hp):.3f} max_hp={int(living.max_hp)} "
         f"hp_pips={float(living.hp_pips):.3f} energy={float(living.energy):.3f} "
         f"max_energy={int(living.max_energy)} energy_regen={float(living.energy_regen):.3f} "
@@ -417,6 +508,7 @@ def _format_agent(agent_id: int) -> str:
         f"attacking={bool(living.is_attacking)} casting={bool(living.is_casting)} "
         f"idle={bool(living.is_idle)} alive={bool(living.is_alive)} "
         f"player={bool(living.is_player)} npc={bool(living.is_npc)} "
+        f"{_format_agent_corpse_helpers(agent_id, living)} "
         f"model_state={int(living.model_state)} model_id={Agent.GetModelID(agent_id)} "
         f"player_number={int(living.player_number)} agent_model_type={_hex(living.agent_model_type, 4)} "
         f"transmog={int(living.transmog_npc_id)} primary={int(living.primary)} secondary={int(living.secondary)} "
@@ -435,6 +527,7 @@ def _format_agent(agent_id: int) -> str:
         f"h0130={_hex(living.h0130)} h0140={_hex(living.h0140)} h0180={_hex(living.h0180)} "
         f"h00D4={list(living.h00D4)} h00E4={list(living.h00E4)} h0112={list(living.h0112)} "
         f"h0145={list(living.h0145)} h0160={list(living.h0160)} h0194={list(living.h0194)} "
+        f"{_format_corpse_evidence(living)} "
         f"{_format_direct_evidence(living)} "
         f"{_format_candidate_features(living, Agent.GetAgentByID(agent_id))} "
         f"{_format_unknown_interpretations(living)} "
@@ -461,6 +554,12 @@ def _collect_model_summary(agent_ids: list[int]) -> dict[int, dict]:
                 "enc": set(),
                 "type_map": set(),
                 "effects": set(),
+                "corpse_state": set(),
+                "corpse_signature": set(),
+                "is_dead": set(),
+                "is_dead_by_type_map": set(),
+                "is_exploitable": set(),
+                "max_hp": set(),
                 "model_state": set(),
                 "anim_code": set(),
                 "anim_id": set(),
@@ -508,6 +607,12 @@ def _collect_model_summary(agent_ids: list[int]) -> dict[int, dict]:
         model["enc"].add(_safe_enc_name(agent_id))
         model["type_map"].add(int(living.type_map))
         model["effects"].add(int(living.effects))
+        model["corpse_state"].add(_corpse_exploit_state(living))
+        model["corpse_signature"].add(_corpse_exploit_signature(living))
+        model["is_dead"].add(bool(living.is_dead))
+        model["is_dead_by_type_map"].add(bool(living.is_dead_by_type_map))
+        model["is_exploitable"].add(bool(living.is_exploitable))
+        model["max_hp"].add(int(living.max_hp))
         model["model_state"].add(int(living.model_state))
         model["anim_code"].add(int(living.animation_code))
         model["anim_id"].add(int(living.animation_id))
@@ -595,6 +700,12 @@ def _format_model_summary(model_id: int, data: dict) -> str:
         f"names={_format_summary_values(data['names'])} "
         f"type_map={_format_summary_values(data['type_map'], _hex)} "
         f"effects={_format_summary_values(data['effects'], _hex)} "
+        f"corpse_state={_format_summary_values(data['corpse_state'])} "
+        f"corpse_signature={_format_summary_values(data['corpse_signature'])} "
+        f"is_dead={_format_summary_values(data['is_dead'])} "
+        f"is_dead_by_type_map={_format_summary_values(data['is_dead_by_type_map'])} "
+        f"is_exploitable={_format_summary_values(data['is_exploitable'])} "
+        f"max_hp={_format_summary_values(data['max_hp'])} "
         f"condition_bits={_format_summary_values(data['condition_bits'], _hex)} "
         f"spirit_type={_format_summary_values(data['spirit_type'])} "
         f"model_state={_format_summary_values(data['model_state'])} "
@@ -878,9 +989,16 @@ def _format_compact_agent(agent_id: int) -> str:
 
     return (
         f"COMPACT id={agent_id} name='{_safe_name(agent_id)}' "
+        f"{_format_array_membership(agent_id)} "
         f"model_id={int(living.player_number)} known_label={_known_flesh_label(int(living.player_number))} "
         f"level={int(living.level)} "
         f"type_map={_hex(living.type_map)} effects={_hex(living.effects)} "
+        f"dead={bool(living.is_dead)} dead_type={bool(living.is_dead_by_type_map)} "
+        f"alive={bool(living.is_alive)} used_corpse={bool(living.is_used_corpse)} "
+        f"fleshy={bool(Agent.IsFleshy(agent_id))} exploitable_corpse={bool(Agent.IsExploitableCorpse(agent_id))} "
+        f"npc_flags={_hex(Agent.GetNPCFlags(agent_id))} "
+        f"corpse_state={_corpse_exploit_state(living)} "
+        f"corpse_sig={_corpse_exploit_signature(living)} "
         f"condition_bits={_hex(condition_bits)} spirit_type={is_spirit_type} "
         f"conditioned={bool(living.is_conditioned)} bleeding={bool(living.is_bleeding)} "
         f"poisoned={bool(living.is_poisoned)} exploitable={bool(living.is_exploitable)} "
@@ -903,13 +1021,25 @@ def _format_compact_agent(agent_id: int) -> str:
 
 
 def dump_enemy_array() -> None:
+    global _CURRENT_DUMP_ENEMY_IDS, _CURRENT_DUMP_DEAD_ENEMY_IDS
     enemy_array = AgentArray.GetEnemyArray()
+    dead_enemy_array = AgentArray.GetDeadEnemyArray()
+    exploitable_array = Routines.Agents.GetExploitableCorpses()
+    _CURRENT_DUMP_ENEMY_IDS = set(enemy_array)
+    _CURRENT_DUMP_DEAD_ENEMY_IDS = set(dead_enemy_array)
+    dump_array = sorted(
+        _CURRENT_DUMP_ENEMY_IDS
+        .union(_CURRENT_DUMP_DEAD_ENEMY_IDS)
+        .union(int(agent_id) for agent_id in exploitable_array)
+    )
     ConsoleLog(
         MODULE_NAME,
-        f"Enemy array count={len(enemy_array)}",
+        f"Enemy array count={len(enemy_array)} dead_enemy_array count={len(dead_enemy_array)} "
+        f"exploitable_corpse_count={len(exploitable_array)} exploitable_ids={list(exploitable_array)} "
+        f"dump_count={len(dump_array)}",
         Console.MessageType.Info,
     )
-    summary = _collect_model_summary(enemy_array)
+    summary = _collect_model_summary(dump_array)
     _merge_observed_model_summary(summary)
     sample_db = _update_sample_db(summary)
     for model_id in sorted(summary):
@@ -922,15 +1052,15 @@ def dump_enemy_array() -> None:
         ConsoleLog(MODULE_NAME, line, Console.MessageType.Info)
     for line in _format_persistent_known_field_comparisons(sample_db):
         ConsoleLog(MODULE_NAME, line, Console.MessageType.Info)
-    for agent_id in enemy_array:
+    for agent_id in dump_array:
         ConsoleLog(MODULE_NAME, _format_compact_agent(agent_id), Console.MessageType.Info)
-    for agent_id in enemy_array:
+    for agent_id in dump_array:
         ConsoleLog(MODULE_NAME, _format_agent(agent_id), Console.MessageType.Debug)
 
 
 def main():
     if PyImGui.begin("Agent Enemy Debug Dump", PyImGui.WindowFlags.AlwaysAutoResize):
-        PyImGui.text("Dumps every agent from AgentArray.GetEnemyArray() to the console.")
+        PyImGui.text("Dumps enemy and dead-enemy agents to the console.")
         PyImGui.text("Names are identifiers only. No filtering by name or model is done.")
         if PyImGui.button("Dump Enemy Array"):
             dump_enemy_array()

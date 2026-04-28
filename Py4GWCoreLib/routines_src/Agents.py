@@ -363,7 +363,7 @@ class Agents:
 
         corpse_array = AgentArray.GetAgentArray()
         corpse_array = AgentArray.Filter.ByDistance(corpse_array, Player.GetXY(), max_distance)
-        corpse_array = AgentArray.Filter.ByCondition(corpse_array, lambda agent_id: Agent.IsExploitable(agent_id))
+        corpse_array = AgentArray.Filter.ByCondition(corpse_array, lambda agent_id: Agent.IsExploitableCorpse(agent_id))
         corpse_array = AgentArray.Filter.ByCondition(corpse_array, lambda agent_id: _AllowedAlliegance(agent_id))
         try:
             from ..GlobalCache.WhiteboardLocks import filter_unlocked_minion_corpses
@@ -453,7 +453,12 @@ class Agents:
                     f"hiding_cape={bool(living.is_hiding_cape)} "
                     f"party_view={bool(living.can_be_viewed_in_party_window)} "
                     f"observed={bool(living.is_being_observed)} "
+                    f"used_corpse={bool(Agent.IsUsedCorpse(selected))} "
                     f"exploitable={bool(living.is_exploitable)} "
+                    f"fleshy={bool(Agent.IsFleshy(selected))} "
+                    f"npc_flags=0x{Agent.GetNPCFlags(selected):08X} "
+                    f"corpse_state={living.corpse_exploit_state} "
+                    f"corpse_sig={living.corpse_exploit_signature} "
                     f"model_state={int(living.model_state)} "
                     f"model_id={int(living.player_number)} "
                     f"agent_model_type=0x{int(living.agent_model_type):04X} "
@@ -498,6 +503,7 @@ class Agents:
                     f"spawned={bool(living.is_spawned)} "
                     f"boss={bool(living.has_boss_glow)}",
                     Console.MessageType.Debug,
+                    log=False
                 )
         return selected
         

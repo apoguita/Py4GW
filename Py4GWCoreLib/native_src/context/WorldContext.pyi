@@ -372,6 +372,9 @@ class NPC_ModelStruct(Structure):
     model_files_ptr: Optional[int]     # pointer to uint32_t buffer
     files_count: int
     files_capacity: int  
+
+    @property
+    def is_fleshy(self) -> bool: ...
     
     @property
     def is_valid(self) -> bool: ...
