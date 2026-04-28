@@ -12,6 +12,9 @@ from Py4GWCoreLib import Rarity
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib import Map, Player, AutoPathing
 from Py4GWCoreLib import Agent, AgentArray
+from Py4GWCoreLib.BottingTree import BottingTree
+from Py4GWCoreLib.routines_src.BehaviourTrees import BT as RoutinesBT
+from Py4GWCoreLib.py4gwcorelib_src.BehaviorTree import BehaviorTree
 from Py4GWCoreLib.Pathing import NavMesh
 from Py4GWCoreLib.native_src.context.AgentContext import AgentStruct
 
@@ -35,6 +38,9 @@ CHEST_GADGET_IDS = [9,69,4579,8141, 9523, 4582]
 _SNAP_ARRIVAL_RADIUS   = 200.0
 _SNAP_WAYPOINT_RADIUS  = 140.0
 _SNAP_RESUME_REISSUE_MS = 1000
+_SNAP_USE_BT_MOVETO = True
+_SNAP_PAUSE_ON_DANGER = True
+_SNAP_DANGER_RADIUS = Range.Earshot.value
 
 #end region
 
@@ -225,8 +231,8 @@ def RawGwinchToPixels(gwinch_value: float, zoom:float, zoom_offset:float, scale_
     pixels_per_gwinch = (scale_x * (zoom + zoom_offset)) / GWINCHES
     return gwinch_value * pixels_per_gwinch
 
-def FloatingMoveToggle(x: float, y: float, enabled: bool, margin: int = 8) -> bool:
-    """Draw a small checkbox in the top-left of the mission map to toggle NavMesh snap."""
+def FloatingMoveToggle(x: float, y: float, enabled: bool, show_stop: bool = False, margin: int = 8) -> tuple[bool, bool]:
+    """Draw Move toggle and Stop button; returns (move_enabled, stop_requested)."""
     win_x = x + margin + 2
     win_y = y + margin + 20
     PyImGui.set_next_window_pos(win_x, win_y)
@@ -240,10 +246,12 @@ def FloatingMoveToggle(x: float, y: float, enabled: bool, margin: int = 8) -> bo
         PyImGui.WindowFlags.NoBackground
     )
     PyImGui.push_style_var2(ImGui.ImGuiStyleVar.WindowPadding, 2.0, 2.0)
+    PyImGui.push_style_var2(ImGui.ImGuiStyleVar.FramePadding, 1.0, 1.0)
     PyImGui.push_style_var(ImGui.ImGuiStyleVar.WindowRounding, 0.0)
     PyImGui.push_style_color(PyImGui.ImGuiCol.WindowBg, (0.0, 0.0, 0.0, 0.0))
 
     result = enabled
+    stop_requested = False
     if PyImGui.begin("##mm_move_toggle", flags):
         cb = PyImGui.checkbox("Move", bool(enabled))
         if isinstance(cb, tuple) and len(cb) == 2:
@@ -251,17 +259,24 @@ def FloatingMoveToggle(x: float, y: float, enabled: bool, margin: int = 8) -> bo
         else:
             result = bool(cb)
         if PyImGui.is_item_hovered():
-            ImGui.show_tooltip("Right-click on map moves player to nearest NavMesh point.")
+            ImGui.show_tooltip("Right-click on map moves player to nearest NavMesh point. Hold Shift + Right-click to queue waypoints.")
+
+        if show_stop:
+            PyImGui.same_line(0, 6)
+            if PyImGui.button("Stop", 44, 16):
+                stop_requested = True
+            if PyImGui.is_item_hovered():
+                ImGui.show_tooltip("Stop current movement and clear queued waypoints.")
     PyImGui.end()
 
     PyImGui.pop_style_color(1)
-    PyImGui.pop_style_var(2)
-    return result
+    PyImGui.pop_style_var(3)
+    return result, stop_requested
 
 
 def FloatingMapIdStrip(x: float, y: float, map_id: int, margin: int = 8) -> None:
     win_x = x + margin + 2
-    win_y = y + margin + 52
+    win_y = y + margin + 76
     PyImGui.set_next_window_pos(win_x, win_y)
 
     flags = (
@@ -345,11 +360,85 @@ def _snap_launch_path_coroutine(goal_x: float, goal_y: float, mm: "MissionMap"):
     mm.snap_current_path = []
     try:
         path = yield from AutoPathing().get_path_to(goal_x, goal_y)
-        mm.snap_current_path = list(path) if path else []
-    except Exception:
-        mm.snap_current_path = []
+        computed_path = list(path) if path else []
+        if len(computed_path) == 0:
+            # Ensure movement/draw logic has at least one waypoint even when planner returns empty.
+            mm.snap_current_path = [(float(goal_x), float(goal_y))]
+            import Py4GW
+            Py4GW.Console.Log(
+                MODULE_NAME,
+                f"Snap path was empty; using direct fallback waypoint at ({goal_x:.1f}, {goal_y:.1f}).",
+                Py4GW.Console.MessageType.Warning,
+            )
+        else:
+            mm.snap_current_path = computed_path
+    except Exception as e:
+        mm.snap_current_path = [(float(goal_x), float(goal_y))]
+        import Py4GW
+        Py4GW.Console.Log(
+            MODULE_NAME,
+            f"Snap path computation failed ({goal_x:.1f}, {goal_y:.1f}): {e}",
+            Py4GW.Console.MessageType.Error,
+        )
     finally:
         mm.snap_path_computing = False
+
+
+def _snap_launch_bt_move_coroutine(goal_x: float, goal_y: float, mm: "MissionMap", generation: int):
+    """Coroutine: run BottingTree MoveTo and allow cancellation via generation token."""
+    mm.snap_move_running = True
+    move_tree = RoutinesBT.Player.Move(goal_x, goal_y, log=False)
+    mm.snap_bt_move_tree = move_tree
+    try:
+        while generation == mm.snap_move_generation:
+            pause_for_danger = mm._snap_is_danger_nearby()
+            move_tree.blackboard["PAUSE_MOVEMENT"] = pause_for_danger
+            if pause_for_danger != mm.snap_paused_for_danger:
+                mm.snap_paused_for_danger = pause_for_danger
+            state = BehaviorTree.Node._normalize_state(move_tree.tick())
+            if state in (RoutinesBT.NodeState.SUCCESS, RoutinesBT.NodeState.FAILURE):
+                break
+            yield from Routines.Yield.wait(100)
+    except Exception:
+        pass
+    finally:
+        move_tree.blackboard["PAUSE_MOVEMENT"] = False
+        if generation == mm.snap_move_generation:
+            mm.snap_bt_move_tree = None
+        if generation == mm.snap_move_generation:
+            mm.snap_move_running = False
+            mm.snap_paused_for_danger = False
+
+
+def _snap_launch_queue_preview_path_coroutine(
+    start_x: float,
+    start_y: float,
+    goal_x: float,
+    goal_y: float,
+    mm: "MissionMap",
+    generation: int,
+    queue_index: int,
+):
+    """Compute and cache a minimap preview path for one queued target segment."""
+    try:
+        zplane = 0.0
+        _player = Player.GetAgent()
+        if _player:
+            zplane = float(_player.pos.zplane)
+
+        path3d = yield from AutoPathing().get_path(
+            (float(start_x), float(start_y), zplane),
+            (float(goal_x), float(goal_y), zplane),
+        )
+        preview_path = [(float(x), float(y)) for (x, y, _) in path3d] if path3d else []
+        if len(preview_path) == 0:
+            preview_path = [(float(start_x), float(start_y)), (float(goal_x), float(goal_y))]
+
+        if generation == mm.snap_queue_preview_generation and 0 <= queue_index < len(mm.snap_target_queue_paths):
+            mm.snap_target_queue_paths[queue_index] = preview_path
+    except Exception:
+        if generation == mm.snap_queue_preview_generation and 0 <= queue_index < len(mm.snap_target_queue_paths):
+            mm.snap_target_queue_paths[queue_index] = [(float(start_x), float(start_y)), (float(goal_x), float(goal_y))]
 
 #endregion
 #region MARKERS
@@ -856,11 +945,21 @@ class MissionMap:
         self.snap_navmesh_map_id: int = 0
         self.snap_clicked_target: tuple[float, float] | None = None
         self.snap_snapped_target: tuple[float, float] | None = None
+        self.snap_target_queue: list[tuple[float, float]] = []
+        self.snap_target_queue_paths: list[list[tuple[float, float]]] = []
+        self.snap_queue_preview_generation: int = 0
         self.snap_current_path: list[tuple[float, float]] = []
         self.snap_path_computing: bool = False
         self.snap_path_index: int = 0
         self.snap_path_following: bool = False
+        self.snap_move_generation: int = 0
+        self.snap_move_running: bool = False
         self.snap_enabled: bool = False
+        self.snap_pause_on_danger: bool = _SNAP_PAUSE_ON_DANGER
+        self.snap_danger_radius: float = float(_SNAP_DANGER_RADIUS)
+        self.snap_paused_for_danger: bool = False
+        self.snap_bt_move_tree: BehaviorTree | None = None
+        self.snap_bt_draw_helper = BottingTree("MissionMap+ Snap Draw")
         self.snap_move_retry_timer = Timer()
         self.snap_move_retry_timer.Start()
 
@@ -886,15 +985,147 @@ class MissionMap:
         self.mega_zoom_renderer.world_space.set_world_space(True)
         self._mask_enabled = True
 
+    def _clear_snap_bt_draw_state(self) -> None:
+        bb = self.snap_bt_draw_helper.blackboard
+        bb["move_state"] = ""
+        bb["move_reason"] = ""
+        bb["move_target"] = None
+        bb["move_path_points"] = []
+        bb["move_path_index"] = 0
+        bb["move_path_count"] = 0
+        bb["move_current_waypoint"] = None
+        bb["move_current_waypoint_index"] = -1
+
+    def DrawSnapPath3D(self) -> None:
+        if not Routines.Checks.Map.MapValid():
+            return
+
+        # Prefer live movement data from the running BT move tree.
+        if self.snap_bt_move_tree is not None:
+            src_bb = self.snap_bt_move_tree.blackboard
+            src_state = str(src_bb.get("move_state", ""))
+            src_points_raw = src_bb.get("move_path_points", [])
+            if src_state in ("running", "paused") and isinstance(src_points_raw, list) and len(src_points_raw) > 0:
+                bb = self.snap_bt_draw_helper.blackboard
+                bb["move_state"] = src_state
+                bb["move_reason"] = str(src_bb.get("move_reason", "mission_map_snap"))
+                bb["move_target"] = src_bb.get("move_target")
+                bb["move_path_points"] = src_points_raw
+                bb["move_path_index"] = int(src_bb.get("move_path_index", 0) or 0)
+                bb["move_path_count"] = int(src_bb.get("move_path_count", len(src_points_raw)) or len(src_points_raw))
+                bb["move_current_waypoint"] = src_bb.get("move_current_waypoint")
+                bb["move_current_waypoint_index"] = int(src_bb.get("move_current_waypoint_index", -1) or -1)
+                self.snap_bt_draw_helper.DrawMovePath(
+                    draw_labels=False,
+                    path_thickness=3.0,
+                    waypoint_radius=15.0,
+                    current_waypoint_radius=20.0,
+                )
+                return
+
+        move_points = [(float(x), float(y)) for x, y in self.snap_current_path]
+        if len(move_points) == 0 and self.snap_snapped_target is not None:
+            move_points = [
+                (float(self.snap_snapped_target[0]), float(self.snap_snapped_target[1]))
+            ]
+
+        if len(move_points) == 0:
+            self._clear_snap_bt_draw_state()
+            return
+
+        # Compute a draw index from live player position so already reached waypoints are hidden.
+        player_x, player_y = Player.GetXY()
+        current_index = int(self.snap_path_index)
+        if current_index < 0:
+            current_index = 0
+        if current_index >= len(move_points):
+            current_index = len(move_points) - 1
+
+        while current_index < (len(move_points) - 1):
+            wp_x, wp_y = move_points[current_index]
+            dx = player_x - wp_x
+            dy = player_y - wp_y
+            if (dx * dx + dy * dy) <= (_SNAP_WAYPOINT_RADIUS * _SNAP_WAYPOINT_RADIUS):
+                current_index += 1
+                continue
+            break
+
+        current_waypoint = move_points[current_index] if len(move_points) > 0 else None
+        move_target = (
+            (float(self.snap_snapped_target[0]), float(self.snap_snapped_target[1]))
+            if self.snap_snapped_target is not None
+            else move_points[-1]
+        )
+
+        bb = self.snap_bt_draw_helper.blackboard
+        bb["move_state"] = "running"
+        bb["move_reason"] = "mission_map_snap"
+        bb["move_target"] = move_target
+        bb["move_path_points"] = move_points
+        bb["move_path_index"] = current_index
+        bb["move_path_count"] = len(move_points)
+        bb["move_current_waypoint"] = current_waypoint
+        bb["move_current_waypoint_index"] = current_index if current_waypoint is not None else -1
+
+        self.snap_bt_draw_helper.DrawMovePath(
+            draw_labels=False,
+            path_thickness=3.0,
+            waypoint_radius=15.0,
+            current_waypoint_radius=20.0,
+        )
+
     def snap_clear(self) -> None:
         """Clear snap markers, path, and stop any running movement."""
+        self.snap_move_generation += 1
+        self.snap_move_running = False
+        self.snap_paused_for_danger = False
+        self.snap_bt_move_tree = None
         self.snap_clicked_target = None
         self.snap_snapped_target = None
+        self.snap_target_queue = []
+        self.snap_target_queue_paths = []
+        self.snap_queue_preview_generation += 1
         self.snap_current_path   = []
+        self._clear_snap_bt_draw_state()
         self.snap_path_index = 0
         self.snap_path_following = False
         self.snap_move_retry_timer.Reset()
         Player.Move(self.player_x, self.player_y)
+
+    def _snap_is_danger_nearby(self) -> bool:
+        if not self.snap_pause_on_danger:
+            return False
+        if not Player.IsPlayerLoaded():
+            return False
+        try:
+            px, py = Player.GetXY()
+            enemies = Routines.Agents.GetFilteredEnemyArray(px, py, self.snap_danger_radius)
+            return len(enemies) > 0
+        except Exception:
+            return False
+
+    def _snap_start_navigation(self, snapped_target: tuple[float, float]) -> None:
+        self.snap_move_generation += 1
+        _move_generation = self.snap_move_generation
+        self.snap_move_running = False
+        self.snap_bt_move_tree = None
+        self.snap_snapped_target = snapped_target
+        self.snap_current_path = []
+        self._clear_snap_bt_draw_state()
+        self.snap_path_index = 0
+        self.snap_path_following = False
+        self.snap_move_retry_timer.Reset()
+        if _SNAP_USE_BT_MOVETO:
+            GLOBAL_CACHE.Coroutines.append(
+                _snap_launch_path_coroutine(snapped_target[0], snapped_target[1], self)
+            )
+            GLOBAL_CACHE.Coroutines.append(
+                _snap_launch_bt_move_coroutine(snapped_target[0], snapped_target[1], self, _move_generation)
+            )
+        else:
+            GLOBAL_CACHE.Coroutines.append(
+                _snap_launch_path_coroutine(snapped_target[0], snapped_target[1], self)
+            )
 
     def _snap_can_resume_move(self) -> bool:
         if not Player.IsPlayerLoaded():
@@ -937,10 +1168,18 @@ class MissionMap:
             self.snap_navmesh_map_id = 0
             self.snap_clicked_target = None
             self.snap_snapped_target = None
+            self.snap_target_queue = []
+            self.snap_target_queue_paths = []
+            self.snap_queue_preview_generation += 1
             self.snap_current_path = []
+            self._clear_snap_bt_draw_state()
             self.snap_path_computing = False
             self.snap_path_index = 0
             self.snap_path_following = False
+            self.snap_move_generation += 1
+            self.snap_move_running = False
+            self.snap_paused_for_danger = False
+            self.snap_bt_move_tree = None
             self.snap_move_retry_timer.Reset()
 
         if map_id in self.map_boundaries_by_map_id:
@@ -1040,9 +1279,6 @@ class MissionMap:
                     self.mission_map_screen_center_x, self.mission_map_screen_center_y
                 )
                 self.last_click_x, self.last_click_y = gx, gy
-                # Left-click on the map cancels any active snap navigation
-                if self.snap_snapped_target is not None:
-                    self.snap_clear()
         # aC  ---
 
         # NavMesh right-click snap (when enabled)
@@ -1059,29 +1295,57 @@ class MissionMap:
                     self.mission_map_screen_center_x, self.mission_map_screen_center_y
                 )
                 if self.snap_enabled:
+                    shift_pressed = bool(io.key_shift)
                     click_game: tuple[float, float] = (float(_gx), float(_gy))
                     self.snap_clicked_target = click_game
                     _nav = _snap_get_navmesh(self)
                     snapped = _nav.find_nearest_reachable(click_game) if _nav else None
-                    self.snap_snapped_target = snapped
                     if snapped is not None:
-                        self.snap_current_path = []
-                        self.snap_path_index = 0
-                        self.snap_path_following = False
-                        self.snap_move_retry_timer.Reset()
-                        GLOBAL_CACHE.Coroutines.append(
-                            _snap_launch_path_coroutine(snapped[0], snapped[1], self)
-                        )
+                        if shift_pressed and (self.snap_snapped_target is not None or len(self.snap_target_queue) > 0):
+                            if len(self.snap_target_queue) > 0:
+                                _start_x, _start_y = self.snap_target_queue[-1]
+                            elif self.snap_snapped_target is not None:
+                                _start_x, _start_y = self.snap_snapped_target
+                            else:
+                                _start_x, _start_y = self.player_x, self.player_y
+
+                            self.snap_target_queue.append(snapped)
+                            self.snap_target_queue_paths.append([])
+                            _queue_index = len(self.snap_target_queue_paths) - 1
+                            _queue_generation = self.snap_queue_preview_generation
+                            GLOBAL_CACHE.Coroutines.append(
+                                _snap_launch_queue_preview_path_coroutine(
+                                    _start_x,
+                                    _start_y,
+                                    snapped[0],
+                                    snapped[1],
+                                    self,
+                                    _queue_generation,
+                                    _queue_index,
+                                )
+                            )
+                        else:
+                            self.snap_target_queue = []
+                            self.snap_target_queue_paths = []
+                            self.snap_queue_preview_generation += 1
+                            self._snap_start_navigation(snapped)
                 else:
                     self.snap_clicked_target = None
                     self.snap_snapped_target = None
+                    self.snap_target_queue = []
+                    self.snap_target_queue_paths = []
+                    self.snap_queue_preview_generation += 1
                     self.snap_current_path = []
+                    self._clear_snap_bt_draw_state()
                     self.snap_path_index = 0
                     self.snap_path_following = False
+                    self.snap_move_generation += 1
+                    self.snap_move_running = False
+                    self.snap_bt_move_tree = None
                     self.snap_move_retry_timer.Reset()
 
         # Follow computed AutoPathing path waypoint-by-waypoint
-        if self.snap_snapped_target is not None and not self.snap_path_computing:
+        if (not _SNAP_USE_BT_MOVETO) and self.snap_snapped_target is not None and not self.snap_path_computing:
             if len(self.snap_current_path) == 0:
                 # Pathfinding returned empty - fall back to direct move
                 self._snap_issue_move(self.snap_snapped_target[0], self.snap_snapped_target[1])
@@ -1124,7 +1388,13 @@ class MissionMap:
             _dx = self.player_x - self.snap_snapped_target[0]
             _dy = self.player_y - self.snap_snapped_target[1]
             if (_dx * _dx + _dy * _dy) <= (_SNAP_ARRIVAL_RADIUS * _SNAP_ARRIVAL_RADIUS):
-                self.snap_clear()
+                if len(self.snap_target_queue) > 0:
+                    next_target = self.snap_target_queue.pop(0)
+                    if len(self.snap_target_queue_paths) > 0:
+                        self.snap_target_queue_paths.pop(0)
+                    self._snap_start_navigation(next_target)
+                else:
+                    self.snap_clear()
 
         if not self._mask_enabled:
             self.renderer.mask.set_rectangle_mask(True)
@@ -1476,11 +1746,18 @@ def DrawFrame():
                 DLLine(_prev_s[0], _prev_s[1], _cur_s[0], _cur_s[1], _path_color, 2.5)
             _prev_s = _cur_s
 
-    # Thin connector line from click to snap
-    if _snap_click_screen is not None and _snap_snapped_screen is not None:
-        _line_col = Utils.RGBToColor(255, 255, 255, 160)
-        DLLine(_snap_click_screen[0], _snap_click_screen[1],
-               _snap_snapped_screen[0], _snap_snapped_screen[1], _line_col, 1.0)
+    # Queued paths (lighter blue polylines)
+    if len(mission_map.snap_target_queue_paths) > 0:
+        _queue_path_color = Utils.RGBToColor(120, 190, 255, 170)
+        for _queue_path in mission_map.snap_target_queue_paths:
+            if len(_queue_path) < 2:
+                continue
+            _prev_qs: tuple[float, float] | None = None
+            for _qpx, _qpy in _queue_path:
+                _cur_qs = _snap_to_screen(_qpx, _qpy)
+                if _prev_qs is not None:
+                    DLLine(_prev_qs[0], _prev_qs[1], _cur_qs[0], _cur_qs[1], _queue_path_color, 1.8)
+                _prev_qs = _cur_qs
 
     # Click marker (small white ring) – hide when nearly on top of snap marker
     _draw_click = _snap_click_screen is not None
@@ -1507,6 +1784,17 @@ def DrawFrame():
         DLLine(_sx + _r_outer, _sy, _sx + _cross, _sy, _redring, 1.5)
         DLLine(_sx, _sy - _cross, _sx, _sy - _r_outer, _redring, 1.5)
         DLLine(_sx, _sy + _r_outer, _sx, _sy + _cross, _redring, 1.5)
+
+    # Queued target point markers (ordered)
+    if len(mission_map.snap_target_queue) > 0:
+        _q_ring = Utils.RGBToColor(255, 220, 80, 230)
+        _q_fill = Utils.RGBToColor(255, 220, 80, 140)
+        _q_text = Utils.RGBToColor(255, 245, 170, 255)
+        for _qi, (_qx, _qy) in enumerate(mission_map.snap_target_queue, start=1):
+            _qxs, _qys = _snap_to_screen(_qx, _qy)
+            DLCircleFilled(_qxs, _qys, 3.0, _q_fill, 12)
+            DLCircle(_qxs, _qys, 6.0, _q_ring, 14, 1.5)
+            PyImGui.draw_list_add_text(_qxs + 8.0, _qys - 9.0, _q_text, str(_qi))
     # ── end NavMesh snap overlay ────────────────────────────────────────
 
     _end_imgui_draw_window()
@@ -1555,6 +1843,8 @@ def draw():
             mission_map.geometry = [] 
             mission_map.Map_load_timer.Reset()
             return
+
+        mission_map.DrawSnapPath3D()
         
         #if not mission_map.Map_load_timer.HasElapsed(1000):
         #    return
@@ -1562,10 +1852,20 @@ def draw():
         if Map.MissionMap.IsWindowOpen():
             mission_map.update()
             DrawFrame()
-            mission_map.snap_enabled = FloatingMoveToggle(
+            _show_stop_button = (
+                mission_map.snap_snapped_target is not None
+                or mission_map.snap_path_computing
+                or mission_map.snap_move_running
+                or len(mission_map.snap_target_queue) > 0
+                or len(mission_map.snap_current_path) > 0
+            )
+            mission_map.snap_enabled, _snap_stop_requested = FloatingMoveToggle(
                 mission_map.left, mission_map.top,
                 mission_map.snap_enabled,
+                _show_stop_button,
             )
+            if _snap_stop_requested:
+                mission_map.snap_clear()
             FloatingMapIdStrip(
                 mission_map.left,
                 mission_map.top,
