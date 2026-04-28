@@ -238,6 +238,8 @@ class MesmerSkills:
         skill.SkillType = SkillType.Hex.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.EnemiesInRange = 3
+        skill.Conditions.EnemiesInRangeArea = Range.Nearby.value
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()

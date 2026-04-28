@@ -232,6 +232,58 @@ class DominationMagic:
         ))
     #endregion
 
+    #region P
+    @coordinates_via_whiteboard(Skill.GetID("Panic"))
+    def Panic(self) -> BuildCoroutine:
+        from Py4GWCoreLib import Agent, Range, GLOBAL_CACHE
+
+        panic_id: int = Skill.GetID("Panic")
+        aoe_range = GLOBAL_CACHE.Skill.Data.GetAoERange(panic_id) or Range.Nearby.value
+
+        if not self.build.IsSkillEquipped(panic_id):
+            return False
+
+        enemy_array = self._get_enemy_array(Range.Spellcast.value)
+        if not enemy_array:
+            return False
+
+        # Tier 1: caster clusters. Panic's cascade only fires on activated
+        # skills and spells (stances and shouts are instant and do NOT
+        # trigger). Dense caster mobs cast spells constantly, maximising
+        # the cascade.
+        caster_targets = [
+            agent_id for agent_id in enemy_array
+            if Agent.IsCaster(agent_id)
+        ]
+        target_agent_id = self._pick_best_target(caster_targets, aoe_range)
+
+        # Tier 2: martial / melee clusters. Attack skills and signets have
+        # activation times and trigger the cascade; stances and shouts do
+        # not, so the trigger rate is lower than casters but still useful.
+        if not target_agent_id:
+            martial_targets = [
+                agent_id for agent_id in enemy_array
+                if Agent.IsMartial(agent_id) or Agent.IsMelee(agent_id)
+            ]
+            target_agent_id = self._pick_best_target(martial_targets, aoe_range)
+
+        # Tier 3: densest cluster of any foe. The hex still spreads on cast,
+        # and any activated skill or spell from a hexed foe triggers the
+        # cascade. Auto-attacks, stances, and shouts do not.
+        if not target_agent_id:
+            target_agent_id = self._pick_best_target(enemy_array, aoe_range)
+
+        if not target_agent_id:
+            return False
+
+        return (yield from self.build.CastSkillIDAndRestoreTarget(
+            skill_id=panic_id,
+            target_agent_id=target_agent_id,
+            log=False,
+            aftercast_delay=250,
+        ))
+    #endregion
+
     #region S
     def Shatter_Hex(self) -> BuildCoroutine:
         shatter_hex_id: int = Skill.GetID("Shatter_Hex")
