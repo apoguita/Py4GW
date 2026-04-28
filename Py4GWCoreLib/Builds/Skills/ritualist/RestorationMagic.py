@@ -218,7 +218,7 @@ class RestorationMagic:
         #   `min_party_damaged_count` - N allies in Spirit range below 75% HP.
         # HP-aware recast (spirit at < 20% HP) is enforced by
         # BuildMgr.SpiritBuffExists via the Recuperation custom-skill metadata
-        # (Conditions.MinSpiritHpFractionForRecast = 0.20).
+        # (Conditions.AllowRecastAtLife = 0.20).
         if min_degen_count > 0:
             if self._count_allies_suffering_degen() < min_degen_count:
                 return False

@@ -47,7 +47,7 @@ class ProgressBar():
     color: List[int]
     background: List[int]
     unk: List[int]
-    progress: int
+    progress: float
 
 
 class CharContextStruct():
@@ -76,14 +76,14 @@ class CharContextStruct():
     current_map_id: int
     observe_map_type: int
     current_map_type: int
-    h0238: List[int]
+    h0240: List[int]
     observer_matches_array: GW_Array
-    h025C: List[int]
+    h0264: List[int]
     player_flags: int
     player_number: int
-    h02A8: List[int]
+    h02B0: List[int]
     progress_bar_ptr: CPointer[ProgressBar]
-    h034C: List[int]
+    h0354: List[int]
     player_email_ptr: str
 
     @property
