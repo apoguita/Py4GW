@@ -17,93 +17,44 @@ class DominationMagic:
     def __init__(self, build: BuildMgr) -> None:
         self.build: BuildMgr = build
 
-    def _get_enemy_array(self, max_distance: float) -> list[int]:
-        from Py4GWCoreLib import Agent, AgentArray, Player, Routines
-
-        player_x, player_y = Player.GetXY()
-        enemy_array = Routines.Agents.GetFilteredEnemyArray(player_x, player_y, max_distance)
-        return AgentArray.Filter.ByCondition(
-            enemy_array,
-            lambda agent_id: Agent.IsValid(agent_id) and not Agent.IsDead(agent_id),
-        )
-
-    def _get_cluster_score(self, agent_id: int, cluster_radius: float) -> int:
-        from Py4GWCoreLib import Agent, AgentArray, Routines
-
-        if not agent_id or cluster_radius <= 0:
-            return 0
-
-        target_x, target_y = Agent.GetXY(agent_id)
-        nearby_enemies = Routines.Agents.GetFilteredEnemyArray(target_x, target_y, cluster_radius)
-        nearby_enemies = AgentArray.Filter.ByCondition(
-            nearby_enemies,
-            lambda enemy_id: Agent.IsValid(enemy_id) and not Agent.IsDead(enemy_id),
-        )
-        return max(0, len(nearby_enemies) - 1)
-
-    def _pick_best_target(self, agent_ids: list[int], cluster_radius: float) -> int:
-        from Py4GWCoreLib import Agent, Player, Utils
-
-        if not agent_ids:
-            return 0
-
-        player_pos = Player.GetXY()
-        scored_targets = [
-            (
-                self._get_cluster_score(agent_id, cluster_radius),
-                Utils.Distance(player_pos, Agent.GetXY(agent_id)),
-                agent_id,
-            )
-            for agent_id in agent_ids
-        ]
-        scored_targets.sort(key=lambda item: (-item[0], item[1]))
-        return scored_targets[0][2]
-
     #region E
     def Energy_Surge(self) -> BuildCoroutine:
         from Py4GWCoreLib import Agent, Player, Range, GLOBAL_CACHE
 
         energy_surge_id: int = Skill.GetID("Energy_Surge")
+        aoe_range = GLOBAL_CACHE.Skill.Data.GetAoERange(energy_surge_id) or Range.Nearby.value
 
         if not self.build.IsSkillEquipped(energy_surge_id):
             return False
 
-        enemy_array = self._get_enemy_array(Range.Spellcast.value)
-        if not enemy_array:
-            return False
-
-        aoe_range = GLOBAL_CACHE.Skill.Data.GetAoERange(energy_surge_id) or Range.Nearby.value
-
         def _is_enemy_casting_spell(agent_id: int) -> bool:
-            if not (
-                agent_id
-                and Agent.IsValid(agent_id)
-                and not Agent.IsDead(agent_id)
-                and Agent.IsCaster(agent_id)
-            ):
+            if not Agent.IsCaster(agent_id):
                 return False
             if not Agent.IsCasting(agent_id):
                 return False
             casting_skill_id = Agent.GetCastingSkillID(agent_id)
             return bool(casting_skill_id and GLOBAL_CACHE.Skill.Flags.IsSpell(casting_skill_id))
 
-        casting_spell_targets = [
-            agent_id for agent_id in enemy_array
-            if _is_enemy_casting_spell(agent_id)
-        ]
-        target_agent_id = self._pick_best_target(casting_spell_targets, aoe_range)
+        target_agent_id = self.build._pick_clustered_target(
+            cluster_radius=aoe_range,
+            preferred_condition=_is_enemy_casting_spell,
+            filter_radius=Range.Spellcast.value,
+        )
 
         if not target_agent_id:
+            best_enemy_target_id = self.build._pick_clustered_target(
+                cluster_radius=aoe_range,
+                filter_radius=Range.Spellcast.value,
+            )
             current_target_id = Player.GetTargetID()
-            best_enemy_target_id = self._pick_best_target(enemy_array, aoe_range)
             if Agent.IsValid(current_target_id) and not Agent.IsDead(current_target_id):
-                current_target_score = self._get_cluster_score(current_target_id, aoe_range)
-                best_enemy_score = self._get_cluster_score(best_enemy_target_id, aoe_range)
+                current_target_score = self.build._count_nearby_enemies(current_target_id, aoe_range)
+                best_enemy_score = self.build._count_nearby_enemies(best_enemy_target_id, aoe_range)
                 if current_target_score >= best_enemy_score:
                     target_agent_id = current_target_id
 
-        if not target_agent_id:
-            target_agent_id = self._pick_best_target(enemy_array, aoe_range)
+            if not target_agent_id:
+                target_agent_id = best_enemy_target_id
 
         if not target_agent_id:
             return False
@@ -124,20 +75,11 @@ class DominationMagic:
         cry_of_frustration_id: int = Skill.GetID("Cry_of_Frustration")
         aoe_range = GLOBAL_CACHE.Skill.Data.GetAoERange(cry_of_frustration_id) or Range.Nearby.value
 
-        def _is_enemy_using_skill(agent_id: int) -> bool:
-            return bool(
-                agent_id
-                and Agent.IsValid(agent_id)
-                and not Agent.IsDead(agent_id)
-                and Agent.IsCasting(agent_id)
-            )
-
-        enemy_array = self._get_enemy_array(Range.Spellcast.value)
-        casting_targets = [
-            agent_id for agent_id in enemy_array
-            if _is_enemy_using_skill(agent_id)
-        ]
-        target_agent_id = self._pick_best_target(casting_targets, aoe_range)
+        target_agent_id = self.build._pick_clustered_target(
+            cluster_radius=aoe_range,
+            preferred_condition=lambda agent_id: Agent.IsCasting(agent_id),
+            filter_radius=Range.Spellcast.value,
+        )
 
         if not target_agent_id:
             return False
@@ -159,21 +101,16 @@ class DominationMagic:
         aoe_range = GLOBAL_CACHE.Skill.Data.GetAoERange(mistrust_id) or Range.Nearby.value
 
         def _is_enemy_casting_spell(agent_id: int) -> bool:
-            if not agent_id:
-                return False
-            if not Agent.IsValid(agent_id) or Agent.IsDead(agent_id):
-                return False
             if not Agent.IsCasting(agent_id):
                 return False
             casting_skill_id = Agent.GetCastingSkillID(agent_id)
             return bool(casting_skill_id and GLOBAL_CACHE.Skill.Flags.IsSpell(casting_skill_id))
 
-        enemy_array = self._get_enemy_array(Range.Spellcast.value)
-        casting_spell_targets = [
-            agent_id for agent_id in enemy_array
-            if _is_enemy_casting_spell(agent_id)
-        ]
-        target_agent_id = self._pick_best_target(casting_spell_targets, aoe_range)
+        target_agent_id = self.build._pick_clustered_target(
+            cluster_radius=aoe_range,
+            preferred_condition=_is_enemy_casting_spell,
+            filter_radius=Range.Spellcast.value,
+        )
 
         if not target_agent_id:
             return False
@@ -194,32 +131,26 @@ class DominationMagic:
         overload_id: int = Skill.GetID("Overload")
         aoe_range = GLOBAL_CACHE.Skill.Data.GetAoERange(overload_id) or Range.Adjacent.value
 
-        def _is_enemy_using_skill(agent_id: int) -> bool:
-            return bool(
-                agent_id
-                and Agent.IsValid(agent_id)
-                and not Agent.IsDead(agent_id)
-                and Agent.IsCasting(agent_id)
-            )
-
-        enemy_array = self._get_enemy_array(Range.Spellcast.value)
-        casting_targets = [
-            agent_id for agent_id in enemy_array
-            if _is_enemy_using_skill(agent_id)
-        ]
-        target_agent_id = self._pick_best_target(casting_targets, aoe_range)
+        target_agent_id = self.build._pick_clustered_target(
+            cluster_radius=aoe_range,
+            preferred_condition=lambda agent_id: Agent.IsCasting(agent_id),
+            filter_radius=Range.Spellcast.value,
+        )
 
         if not target_agent_id:
+            best_enemy_target_id = self.build._pick_clustered_target(
+                cluster_radius=aoe_range,
+                filter_radius=Range.Spellcast.value,
+            )
             current_target_id = Player.GetTargetID()
-            best_enemy_target_id = self._pick_best_target(enemy_array, aoe_range)
             if Agent.IsValid(current_target_id) and not Agent.IsDead(current_target_id):
-                current_target_score = self._get_cluster_score(current_target_id, aoe_range)
-                best_enemy_score = self._get_cluster_score(best_enemy_target_id, aoe_range)
+                current_target_score = self.build._count_nearby_enemies(current_target_id, aoe_range)
+                best_enemy_score = self.build._count_nearby_enemies(best_enemy_target_id, aoe_range)
                 if current_target_score >= best_enemy_score:
                     target_agent_id = current_target_id
 
-        if not target_agent_id:
-            target_agent_id = self._pick_best_target(enemy_array, aoe_range)
+            if not target_agent_id:
+                target_agent_id = best_enemy_target_id
 
         if not target_agent_id:
             return False
@@ -243,35 +174,34 @@ class DominationMagic:
         if not self.build.IsSkillEquipped(panic_id):
             return False
 
-        enemy_array = self._get_enemy_array(Range.Spellcast.value)
-        if not enemy_array:
-            return False
-
         # Tier 1: caster clusters. Panic's cascade only fires on activated
         # skills and spells (stances and shouts are instant and do NOT
         # trigger). Dense caster mobs cast spells constantly, maximising
         # the cascade.
-        caster_targets = [
-            agent_id for agent_id in enemy_array
-            if Agent.IsCaster(agent_id)
-        ]
-        target_agent_id = self._pick_best_target(caster_targets, aoe_range)
+        target_agent_id = self.build._pick_clustered_target(
+            cluster_radius=aoe_range,
+            preferred_condition=lambda agent_id: Agent.IsCaster(agent_id),
+            filter_radius=Range.Spellcast.value,
+        )
 
         # Tier 2: martial / melee clusters. Attack skills and signets have
         # activation times and trigger the cascade; stances and shouts do
         # not, so the trigger rate is lower than casters but still useful.
         if not target_agent_id:
-            martial_targets = [
-                agent_id for agent_id in enemy_array
-                if Agent.IsMartial(agent_id) or Agent.IsMelee(agent_id)
-            ]
-            target_agent_id = self._pick_best_target(martial_targets, aoe_range)
+            target_agent_id = self.build._pick_clustered_target(
+                cluster_radius=aoe_range,
+                preferred_condition=lambda agent_id: Agent.IsMartial(agent_id) or Agent.IsMelee(agent_id),
+                filter_radius=Range.Spellcast.value,
+            )
 
         # Tier 3: densest cluster of any foe. The hex still spreads on cast,
         # and any activated skill or spell from a hexed foe triggers the
         # cascade. Auto-attacks, stances, and shouts do not.
         if not target_agent_id:
-            target_agent_id = self._pick_best_target(enemy_array, aoe_range)
+            target_agent_id = self.build._pick_clustered_target(
+                cluster_radius=aoe_range,
+                filter_radius=Range.Spellcast.value,
+            )
 
         if not target_agent_id:
             return False
@@ -312,23 +242,21 @@ class DominationMagic:
         from Py4GWCoreLib import Agent, Range, GLOBAL_CACHE
 
         unnatural_signet_id: int = Skill.GetID("Unnatural_Signet")
+        aoe_range = GLOBAL_CACHE.Skill.Data.GetAoERange(unnatural_signet_id) or Range.Adjacent.value
 
         if not self.build.IsSkillEquipped(unnatural_signet_id):
             return False
 
-        enemy_array = self._get_enemy_array(Range.Spellcast.value)
-        if not enemy_array:
-            return False
-
-        aoe_range = GLOBAL_CACHE.Skill.Data.GetAoERange(unnatural_signet_id) or Range.Adjacent.value
-
-        preferred_targets = [
-            agent_id for agent_id in enemy_array
-            if Agent.IsHexed(agent_id) or Agent.IsEnchanted(agent_id)
-        ]
-        target_agent_id = self._pick_best_target(preferred_targets, aoe_range)
+        target_agent_id = self.build._pick_clustered_target(
+            cluster_radius=aoe_range,
+            preferred_condition=lambda agent_id: Agent.IsHexed(agent_id) or Agent.IsEnchanted(agent_id),
+            filter_radius=Range.Spellcast.value,
+        )
         if not target_agent_id:
-            target_agent_id = self._pick_best_target(enemy_array, aoe_range)
+            target_agent_id = self.build._pick_clustered_target(
+                cluster_radius=aoe_range,
+                filter_radius=Range.Spellcast.value,
+            )
 
         if not target_agent_id:
             return False

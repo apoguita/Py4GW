@@ -764,8 +764,24 @@ class BuildMgr:
         *,
         filter_radius: float | None = None,
     ) -> int:
-        from Py4GWCoreLib import Player, AgentArray
+        """Pick the enemy with the most direct neighbors within
+        ``cluster_radius``.
+
+        Candidate pool is enemies within ``filter_radius`` (defaults to
+        ``cluster_radius``) of the player. When ``preferred_condition`` is
+        provided, candidates are restricted to matches; if none match,
+        returns 0 so the caller can drive its own fallback. Ties broken by
+        distance to player.
+
+        Suited to AoE-on-cast skills where the effect applies in a single
+        radius around the cast target (e.g. Panic, Painful Bond, Cry of
+        Frustration, Energy Surge).
+        """
+        from Py4GWCoreLib import Player, AgentArray, Utils
         from Py4GWCoreLib.Agent import Agent
+
+        if cluster_radius <= 0:
+            return 0
 
         effective_filter_radius = float(filter_radius if filter_radius is not None else cluster_radius)
 
@@ -773,49 +789,89 @@ class BuildMgr:
         enemy_array = AgentArray.GetEnemyArray()
         enemy_array = AgentArray.Filter.ByDistance(enemy_array, player_pos, effective_filter_radius)
         enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Agent.IsAlive(agent_id))
-
         if not enemy_array:
             return 0
 
-        cluster_radius_sq = cluster_radius ** 2
+        candidates = enemy_array
+        if preferred_condition is not None:
+            candidates = [agent_id for agent_id in enemy_array if preferred_condition(agent_id)]
+            if not candidates:
+                return 0
 
-        def is_in_radius(agent1: int, agent2: int) -> bool:
-            x1, y1 = Agent.GetXY(agent1)
-            x2, y2 = Agent.GetXY(agent2)
-            dx, dy = x1 - x2, y1 - y2
-            return (dx * dx + dy * dy) <= cluster_radius_sq
+        scored = sorted(
+            candidates,
+            key=lambda c: (
+                -self._count_nearby_enemies(c, cluster_radius),
+                Utils.Distance(player_pos, Agent.GetXY(c)),
+            ),
+        )
+        return scored[0]
 
-        unvisited = set(enemy_array)
-        clusters: list[list[int]] = []
+    def _count_nearby_enemies(self, agent_id: int, cluster_radius: float) -> int:
+        """Count alive enemies within ``cluster_radius`` of ``agent_id``,
+        excluding ``agent_id`` itself. Returns 0 for invalid inputs.
+        """
+        from Py4GWCoreLib import AgentArray, Routines
+        from Py4GWCoreLib.Agent import Agent
 
-        while unvisited:
-            current = unvisited.pop()
-            cluster = [current]
-            stack = [current]
-
-            while stack:
-                node = stack.pop()
-                neighbors = [agent_id for agent_id in list(unvisited) if is_in_radius(node, agent_id)]
-                for neighbor in neighbors:
-                    unvisited.remove(neighbor)
-                    cluster.append(neighbor)
-                    stack.append(neighbor)
-
-            clusters.append(cluster)
-
-        if not clusters:
+        if not agent_id or cluster_radius <= 0:
             return 0
 
-        largest_cluster = max(clusters, key=len)
+        target_x, target_y = Agent.GetXY(agent_id)
+        nearby = Routines.Agents.GetFilteredEnemyArray(target_x, target_y, cluster_radius)
+        nearby = AgentArray.Filter.ByCondition(
+            nearby,
+            lambda nid: Agent.IsValid(nid) and not Agent.IsDead(nid),
+        )
+        return max(0, len(nearby) - 1)
 
-        if preferred_condition is not None:
-            preferred_targets = [agent_id for agent_id in largest_cluster if preferred_condition(agent_id)]
-            if preferred_targets:
-                preferred_targets = AgentArray.Sort.ByDistance(preferred_targets, player_pos)
-                return preferred_targets[0]
+    def _resolve_self_agent_id(self) -> int:
+        """Resolve the running bot's effective self agent_id for ownership
+        comparisons (e.g. ``Agent.GetOwnerID(spirit) == self_agent_id``).
 
-        cluster_targets = AgentArray.Sort.ByDistance(largest_cluster, player_pos)
-        return cluster_targets[0] if cluster_targets else 0
+        Tries the API first: shared-memory account broadcast for the
+        running email, falling back to ``Player.GetAgentID()``. Then
+        refines via observation: if alive nearby spirits all agree on a
+        single non-zero ``owner_id``, that owner is us (since spirits
+        record the caster's agent_id). This handles environments where
+        the API returns an ID that differs from the engine's caster
+        identity.
+
+        Caches the resolved value on the instance once observation gives
+        a definitive answer. Cache lives for the build's lifetime
+        (BuildRegistry rebuilds builds on map change).
+        """
+        cached = getattr(self, "_resolved_self_agent_id", None)
+        if cached:
+            return cached
+
+        from Py4GWCoreLib import AgentArray, GLOBAL_CACHE, Player, Range
+        from Py4GWCoreLib.Agent import Agent
+
+        account_email = Player.GetAccountEmail() or ""
+        self_account = (
+            GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(account_email) if account_email else None
+        )
+        api_id = (
+            int(self_account.AgentData.AgentID)
+            if self_account is not None
+            else Player.GetAgentID()
+        )
+
+        spirits = AgentArray.GetSpiritPetArray()
+        spirits = AgentArray.Filter.ByDistance(spirits, Player.GetXY(), Range.Compass.value)
+        spirits = AgentArray.Filter.ByCondition(
+            spirits,
+            lambda agent_id: Agent.IsAlive(agent_id),
+        )
+        owners = {Agent.GetOwnerID(s) for s in spirits}
+        owners.discard(0)
+        if len(owners) == 1:
+            observed = next(iter(owners))
+            self._resolved_self_agent_id = observed
+            return observed
+
+        return api_id
 
     def _prefer_melee_nearest_enemy(self, desired_target: int) -> int:
         from Py4GWCoreLib import Agent, Player, Range, Routines, Utils
