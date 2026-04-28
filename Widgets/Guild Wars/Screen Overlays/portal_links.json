@@ -633,6 +633,82 @@
     {
       "link_id": 34,
       "portal_a": {
+        "global_id": 31001,
+        "map_id": 31,
+        "map_name": "Xaquang Skyway",
+        "portal_index": 1,
+        "game_x": -16408.0,
+        "game_y": 8312.0
+      },
+      "portal_b": {
+        "global_id": 239005,
+        "map_id": 239,
+        "map_name": "Wajjun Bazaar",
+        "portal_index": 5,
+        "game_x": 17384.0,
+        "game_y": 5240.0
+      }
+    },
+    {
+      "link_id": 35,
+      "portal_a": {
+        "global_id": 31002,
+        "map_id": 31,
+        "map_name": "Xaquang Skyway",
+        "portal_index": 2,
+        "game_x": -8120.0,
+        "game_y": 16546.0
+      },
+      "portal_b": {
+        "global_id": 240003,
+        "map_id": 240,
+        "map_name": "Bukdek Byway",
+        "portal_index": 3,
+        "game_x": -5048.0,
+        "game_y": -20318.0
+      }
+    },
+    {
+      "link_id": 36,
+      "portal_a": {
+        "global_id": 31006,
+        "map_id": 31,
+        "map_name": "Xaquang Skyway",
+        "portal_index": 6,
+        "game_x": 6247.0,
+        "game_y": -12961.0
+      },
+      "portal_b": {
+        "global_id": 51006,
+        "map_id": 51,
+        "map_name": "Senjis Corner",
+        "portal_index": 6,
+        "game_x": 6247.0,
+        "game_y": -12961.0
+      }
+    },
+    {
+      "link_id": 37,
+      "portal_a": {
+        "global_id": 31007,
+        "map_id": 31,
+        "map_name": "Xaquang Skyway",
+        "portal_index": 7,
+        "game_x": 19380.0,
+        "game_y": -430.0
+      },
+      "portal_b": {
+        "global_id": 197000,
+        "map_id": 197,
+        "map_name": "Shenzun Tunnels",
+        "portal_index": 0,
+        "game_x": -14412.0,
+        "game_y": 14930.0
+      }
+    },
+    {
+      "link_id": 38,
+      "portal_a": {
         "global_id": 33001,
         "map_id": 33,
         "map_name": "Old Ascalon",
@@ -650,7 +726,7 @@
       }
     },
     {
-      "link_id": 35,
+      "link_id": 39,
       "portal_a": {
         "global_id": 33003,
         "map_id": 33,
@@ -669,7 +745,7 @@
       }
     },
     {
-      "link_id": 36,
+      "link_id": 40,
       "portal_a": {
         "global_id": 33004,
         "map_id": 33,
@@ -688,7 +764,7 @@
       }
     },
     {
-      "link_id": 37,
+      "link_id": 41,
       "portal_a": {
         "global_id": 33005,
         "map_id": 33,
@@ -707,7 +783,7 @@
       }
     },
     {
-      "link_id": 38,
+      "link_id": 42,
       "portal_a": {
         "global_id": 35000,
         "map_id": 35,
@@ -726,7 +802,7 @@
       }
     },
     {
-      "link_id": 39,
+      "link_id": 43,
       "portal_a": {
         "global_id": 38000,
         "map_id": 38,
@@ -745,7 +821,7 @@
       }
     },
     {
-      "link_id": 40,
+      "link_id": 44,
       "portal_a": {
         "global_id": 40002,
         "map_id": 40,
@@ -764,7 +840,7 @@
       }
     },
     {
-      "link_id": 41,
+      "link_id": 45,
       "portal_a": {
         "global_id": 41000,
         "map_id": 41,
@@ -783,7 +859,7 @@
       }
     },
     {
-      "link_id": 42,
+      "link_id": 46,
       "portal_a": {
         "global_id": 41002,
         "map_id": 41,
@@ -802,7 +878,7 @@
       }
     },
     {
-      "link_id": 43,
+      "link_id": 47,
       "portal_a": {
         "global_id": 41003,
         "map_id": 41,
@@ -821,7 +897,7 @@
       }
     },
     {
-      "link_id": 44,
+      "link_id": 48,
       "portal_a": {
         "global_id": 42000,
         "map_id": 42,
@@ -840,7 +916,7 @@
       }
     },
     {
-      "link_id": 45,
+      "link_id": 49,
       "portal_a": {
         "global_id": 43001,
         "map_id": 43,
@@ -859,7 +935,7 @@
       }
     },
     {
-      "link_id": 46,
+      "link_id": 50,
       "portal_a": {
         "global_id": 43002,
         "map_id": 43,
@@ -878,7 +954,7 @@
       }
     },
     {
-      "link_id": 47,
+      "link_id": 51,
       "portal_a": {
         "global_id": 44000,
         "map_id": 44,
@@ -897,7 +973,7 @@
       }
     },
     {
-      "link_id": 48,
+      "link_id": 52,
       "portal_a": {
         "global_id": 44002,
         "map_id": 44,
@@ -916,7 +992,7 @@
       }
     },
     {
-      "link_id": 49,
+      "link_id": 53,
       "portal_a": {
         "global_id": 44003,
         "map_id": 44,
@@ -935,7 +1011,7 @@
       }
     },
     {
-      "link_id": 50,
+      "link_id": 54,
       "portal_a": {
         "global_id": 45000,
         "map_id": 45,
@@ -954,7 +1030,7 @@
       }
     },
     {
-      "link_id": 51,
+      "link_id": 55,
       "portal_a": {
         "global_id": 47001,
         "map_id": 47,
@@ -973,7 +1049,7 @@
       }
     },
     {
-      "link_id": 52,
+      "link_id": 56,
       "portal_a": {
         "global_id": 48001,
         "map_id": 48,
@@ -992,7 +1068,7 @@
       }
     },
     {
-      "link_id": 53,
+      "link_id": 57,
       "portal_a": {
         "global_id": 48002,
         "map_id": 48,
@@ -1011,7 +1087,7 @@
       }
     },
     {
-      "link_id": 54,
+      "link_id": 58,
       "portal_a": {
         "global_id": 53000,
         "map_id": 53,
@@ -1030,7 +1106,7 @@
       }
     },
     {
-      "link_id": 55,
+      "link_id": 59,
       "portal_a": {
         "global_id": 53001,
         "map_id": 53,
@@ -1049,7 +1125,7 @@
       }
     },
     {
-      "link_id": 56,
+      "link_id": 60,
       "portal_a": {
         "global_id": 54000,
         "map_id": 54,
@@ -1068,7 +1144,7 @@
       }
     },
     {
-      "link_id": 57,
+      "link_id": 61,
       "portal_a": {
         "global_id": 55001,
         "map_id": 55,
@@ -1087,7 +1163,7 @@
       }
     },
     {
-      "link_id": 58,
+      "link_id": 62,
       "portal_a": {
         "global_id": 56004,
         "map_id": 56,
@@ -1106,7 +1182,7 @@
       }
     },
     {
-      "link_id": 59,
+      "link_id": 63,
       "portal_a": {
         "global_id": 57005,
         "map_id": 57,
@@ -1125,7 +1201,7 @@
       }
     },
     {
-      "link_id": 60,
+      "link_id": 64,
       "portal_a": {
         "global_id": 58002,
         "map_id": 58,
@@ -1144,7 +1220,7 @@
       }
     },
     {
-      "link_id": 61,
+      "link_id": 65,
       "portal_a": {
         "global_id": 59003,
         "map_id": 59,
@@ -1163,7 +1239,7 @@
       }
     },
     {
-      "link_id": 62,
+      "link_id": 66,
       "portal_a": {
         "global_id": 61000,
         "map_id": 61,
@@ -1182,7 +1258,7 @@
       }
     },
     {
-      "link_id": 63,
+      "link_id": 67,
       "portal_a": {
         "global_id": 62001,
         "map_id": 62,
@@ -1201,7 +1277,7 @@
       }
     },
     {
-      "link_id": 64,
+      "link_id": 68,
       "portal_a": {
         "global_id": 63001,
         "map_id": 63,
@@ -1220,7 +1296,45 @@
       }
     },
     {
-      "link_id": 65,
+      "link_id": 69,
+      "portal_a": {
+        "global_id": 77000,
+        "map_id": 77,
+        "map_name": "House zu Heltzer",
+        "portal_index": 0,
+        "game_x": 6147.0,
+        "game_y": 5931.0
+      },
+      "portal_b": {
+        "global_id": 272000,
+        "map_id": 272,
+        "map_name": "Altrumm Ruins outpost",
+        "portal_index": 0,
+        "game_x": 6147.0,
+        "game_y": 5931.0
+      }
+    },
+    {
+      "link_id": 70,
+      "portal_a": {
+        "global_id": 77002,
+        "map_id": 77,
+        "map_name": "House zu Heltzer",
+        "portal_index": 2,
+        "game_x": 10540.0,
+        "game_y": -1148.0
+      },
+      "portal_b": {
+        "global_id": 210001,
+        "map_id": 210,
+        "map_name": "Ferndale",
+        "portal_index": 1,
+        "game_x": -14036.0,
+        "game_y": 14212.0
+      }
+    },
+    {
+      "link_id": 71,
       "portal_a": {
         "global_id": 87001,
         "map_id": 87,
@@ -1239,7 +1353,7 @@
       }
     },
     {
-      "link_id": 66,
+      "link_id": 72,
       "portal_a": {
         "global_id": 88000,
         "map_id": 88,
@@ -1258,7 +1372,7 @@
       }
     },
     {
-      "link_id": 67,
+      "link_id": 73,
       "portal_a": {
         "global_id": 88001,
         "map_id": 88,
@@ -1277,7 +1391,7 @@
       }
     },
     {
-      "link_id": 68,
+      "link_id": 74,
       "portal_a": {
         "global_id": 89000,
         "map_id": 89,
@@ -1296,7 +1410,7 @@
       }
     },
     {
-      "link_id": 69,
+      "link_id": 75,
       "portal_a": {
         "global_id": 89001,
         "map_id": 89,
@@ -1315,7 +1429,7 @@
       }
     },
     {
-      "link_id": 70,
+      "link_id": 76,
       "portal_a": {
         "global_id": 90001,
         "map_id": 90,
@@ -1334,7 +1448,7 @@
       }
     },
     {
-      "link_id": 71,
+      "link_id": 77,
       "portal_a": {
         "global_id": 90002,
         "map_id": 90,
@@ -1353,7 +1467,7 @@
       }
     },
     {
-      "link_id": 72,
+      "link_id": 78,
       "portal_a": {
         "global_id": 91000,
         "map_id": 91,
@@ -1372,7 +1486,7 @@
       }
     },
     {
-      "link_id": 73,
+      "link_id": 79,
       "portal_a": {
         "global_id": 91001,
         "map_id": 91,
@@ -1391,7 +1505,7 @@
       }
     },
     {
-      "link_id": 74,
+      "link_id": 80,
       "portal_a": {
         "global_id": 91003,
         "map_id": 91,
@@ -1410,7 +1524,7 @@
       }
     },
     {
-      "link_id": 75,
+      "link_id": 81,
       "portal_a": {
         "global_id": 92002,
         "map_id": 92,
@@ -1429,7 +1543,7 @@
       }
     },
     {
-      "link_id": 76,
+      "link_id": 82,
       "portal_a": {
         "global_id": 92004,
         "map_id": 92,
@@ -1448,7 +1562,7 @@
       }
     },
     {
-      "link_id": 77,
+      "link_id": 83,
       "portal_a": {
         "global_id": 93000,
         "map_id": 93,
@@ -1467,7 +1581,7 @@
       }
     },
     {
-      "link_id": 78,
+      "link_id": 84,
       "portal_a": {
         "global_id": 93001,
         "map_id": 93,
@@ -1486,7 +1600,7 @@
       }
     },
     {
-      "link_id": 79,
+      "link_id": 85,
       "portal_a": {
         "global_id": 93003,
         "map_id": 93,
@@ -1505,7 +1619,7 @@
       }
     },
     {
-      "link_id": 80,
+      "link_id": 86,
       "portal_a": {
         "global_id": 94000,
         "map_id": 94,
@@ -1524,7 +1638,7 @@
       }
     },
     {
-      "link_id": 81,
+      "link_id": 87,
       "portal_a": {
         "global_id": 94001,
         "map_id": 94,
@@ -1543,7 +1657,7 @@
       }
     },
     {
-      "link_id": 82,
+      "link_id": 88,
       "portal_a": {
         "global_id": 95001,
         "map_id": 95,
@@ -1562,7 +1676,7 @@
       }
     },
     {
-      "link_id": 83,
+      "link_id": 89,
       "portal_a": {
         "global_id": 98002,
         "map_id": 98,
@@ -1581,7 +1695,7 @@
       }
     },
     {
-      "link_id": 84,
+      "link_id": 90,
       "portal_a": {
         "global_id": 99003,
         "map_id": 99,
@@ -1600,7 +1714,7 @@
       }
     },
     {
-      "link_id": 85,
+      "link_id": 91,
       "portal_a": {
         "global_id": 99004,
         "map_id": 99,
@@ -1619,7 +1733,7 @@
       }
     },
     {
-      "link_id": 86,
+      "link_id": 92,
       "portal_a": {
         "global_id": 100002,
         "map_id": 100,
@@ -1638,7 +1752,7 @@
       }
     },
     {
-      "link_id": 87,
+      "link_id": 93,
       "portal_a": {
         "global_id": 101002,
         "map_id": 101,
@@ -1657,7 +1771,7 @@
       }
     },
     {
-      "link_id": 88,
+      "link_id": 94,
       "portal_a": {
         "global_id": 104002,
         "map_id": 104,
@@ -1676,7 +1790,7 @@
       }
     },
     {
-      "link_id": 89,
+      "link_id": 95,
       "portal_a": {
         "global_id": 104003,
         "map_id": 104,
@@ -1695,7 +1809,7 @@
       }
     },
     {
-      "link_id": 90,
+      "link_id": 96,
       "portal_a": {
         "global_id": 105022,
         "map_id": 105,
@@ -1714,7 +1828,7 @@
       }
     },
     {
-      "link_id": 91,
+      "link_id": 97,
       "portal_a": {
         "global_id": 107001,
         "map_id": 107,
@@ -1733,7 +1847,7 @@
       }
     },
     {
-      "link_id": 92,
+      "link_id": 98,
       "portal_a": {
         "global_id": 108000,
         "map_id": 108,
@@ -1752,7 +1866,7 @@
       }
     },
     {
-      "link_id": 93,
+      "link_id": 99,
       "portal_a": {
         "global_id": 108002,
         "map_id": 108,
@@ -1771,7 +1885,7 @@
       }
     },
     {
-      "link_id": 94,
+      "link_id": 100,
       "portal_a": {
         "global_id": 108003,
         "map_id": 108,
@@ -1790,7 +1904,7 @@
       }
     },
     {
-      "link_id": 95,
+      "link_id": 101,
       "portal_a": {
         "global_id": 109001,
         "map_id": 109,
@@ -1809,7 +1923,7 @@
       }
     },
     {
-      "link_id": 96,
+      "link_id": 102,
       "portal_a": {
         "global_id": 110001,
         "map_id": 110,
@@ -1828,7 +1942,7 @@
       }
     },
     {
-      "link_id": 97,
+      "link_id": 103,
       "portal_a": {
         "global_id": 110002,
         "map_id": 110,
@@ -1847,7 +1961,7 @@
       }
     },
     {
-      "link_id": 98,
+      "link_id": 104,
       "portal_a": {
         "global_id": 110003,
         "map_id": 110,
@@ -1866,7 +1980,7 @@
       }
     },
     {
-      "link_id": 99,
+      "link_id": 105,
       "portal_a": {
         "global_id": 111000,
         "map_id": 111,
@@ -1885,7 +1999,7 @@
       }
     },
     {
-      "link_id": 100,
+      "link_id": 106,
       "portal_a": {
         "global_id": 111001,
         "map_id": 111,
@@ -1904,7 +2018,7 @@
       }
     },
     {
-      "link_id": 101,
+      "link_id": 107,
       "portal_a": {
         "global_id": 111002,
         "map_id": 111,
@@ -1923,7 +2037,7 @@
       }
     },
     {
-      "link_id": 102,
+      "link_id": 108,
       "portal_a": {
         "global_id": 111003,
         "map_id": 111,
@@ -1942,7 +2056,7 @@
       }
     },
     {
-      "link_id": 103,
+      "link_id": 109,
       "portal_a": {
         "global_id": 111004,
         "map_id": 111,
@@ -1961,7 +2075,7 @@
       }
     },
     {
-      "link_id": 104,
+      "link_id": 110,
       "portal_a": {
         "global_id": 112003,
         "map_id": 112,
@@ -1980,7 +2094,7 @@
       }
     },
     {
-      "link_id": 105,
+      "link_id": 111,
       "portal_a": {
         "global_id": 113001,
         "map_id": 113,
@@ -1999,7 +2113,7 @@
       }
     },
     {
-      "link_id": 106,
+      "link_id": 112,
       "portal_a": {
         "global_id": 113003,
         "map_id": 113,
@@ -2018,7 +2132,7 @@
       }
     },
     {
-      "link_id": 107,
+      "link_id": 113,
       "portal_a": {
         "global_id": 114000,
         "map_id": 114,
@@ -2037,7 +2151,7 @@
       }
     },
     {
-      "link_id": 108,
+      "link_id": 114,
       "portal_a": {
         "global_id": 114002,
         "map_id": 114,
@@ -2056,7 +2170,7 @@
       }
     },
     {
-      "link_id": 109,
+      "link_id": 115,
       "portal_a": {
         "global_id": 115007,
         "map_id": 115,
@@ -2075,7 +2189,83 @@
       }
     },
     {
-      "link_id": 110,
+      "link_id": 116,
+      "portal_a": {
+        "global_id": 128004,
+        "map_id": 128,
+        "map_name": "The Eternal Grove (explorable area)",
+        "portal_index": 4,
+        "game_x": 13324.0,
+        "game_y": -9873.0
+      },
+      "portal_b": {
+        "global_id": 209001,
+        "map_id": 209,
+        "map_name": "Mourning Veil Falls",
+        "portal_index": 1,
+        "game_x": -8180.0,
+        "game_y": 11631.0
+      }
+    },
+    {
+      "link_id": 117,
+      "portal_a": {
+        "global_id": 128005,
+        "map_id": 128,
+        "map_name": "The Eternal Grove (explorable area)",
+        "portal_index": 5,
+        "game_x": 18380.0,
+        "game_y": 2197.0
+      },
+      "portal_b": {
+        "global_id": 130005,
+        "map_id": 130,
+        "map_name": "Vasburg Armory",
+        "portal_index": 5,
+        "game_x": 18380.0,
+        "game_y": 2197.0
+      }
+    },
+    {
+      "link_id": 118,
+      "portal_a": {
+        "global_id": 129002,
+        "map_id": 129,
+        "map_name": "Lutgardis Conservatory",
+        "portal_index": 2,
+        "game_x": -13731.0,
+        "game_y": 1634.0
+      },
+      "portal_b": {
+        "global_id": 210005,
+        "map_id": 210,
+        "map_name": "Ferndale",
+        "portal_index": 5,
+        "game_x": 16989.0,
+        "game_y": -22942.0
+      }
+    },
+    {
+      "link_id": 119,
+      "portal_a": {
+        "global_id": 129004,
+        "map_id": 129,
+        "map_name": "Lutgardis Conservatory",
+        "portal_index": 4,
+        "game_x": -7596.0,
+        "game_y": 1789.0
+      },
+      "portal_b": {
+        "global_id": 201004,
+        "map_id": 201,
+        "map_name": "Melandru's Hope",
+        "portal_index": 4,
+        "game_x": -7596.0,
+        "game_y": 1789.0
+      }
+    },
+    {
+      "link_id": 120,
       "portal_a": {
         "global_id": 190000,
         "map_id": 190,
@@ -2092,7 +2282,7 @@
       }
     },
     {
-      "link_id": 111,
+      "link_id": 121,
       "portal_a": {
         "global_id": 191002,
         "map_id": 191,
@@ -2111,7 +2301,558 @@
       }
     },
     {
-      "link_id": 112,
+      "link_id": 122,
+      "portal_a": {
+        "global_id": 194002,
+        "map_id": 194,
+        "map_name": "Kaineng Center",
+        "portal_index": 2,
+        "game_x": 3139.0,
+        "game_y": -4695.0
+      },
+      "portal_b": {
+        "global_id": 240002,
+        "map_id": 240,
+        "map_name": "Bukdek Byway",
+        "portal_index": 2,
+        "game_x": -6677.0,
+        "game_y": 20382.0
+      }
+    },
+    {
+      "link_id": 123,
+      "portal_a": {
+        "global_id": 195000,
+        "map_id": 195,
+        "map_name": "Drazach Thicket",
+        "portal_index": 0,
+        "game_x": -11287.0,
+        "game_y": 20019.0
+      },
+      "portal_b": {
+        "global_id": 349002,
+        "map_id": 349,
+        "map_name": "Saint Anjeka's Shrine",
+        "portal_index": 2,
+        "game_x": -11287.0,
+        "game_y": -22989.0
+      }
+    },
+    {
+      "link_id": 124,
+      "portal_a": {
+        "global_id": 195002,
+        "map_id": 195,
+        "map_name": "Drazach Thicket",
+        "portal_index": 2,
+        "game_x": -3333.0,
+        "game_y": -16492.0
+      },
+      "portal_b": {
+        "global_id": 222000,
+        "map_id": 222,
+        "map_name": "The Eternal Grove outpost",
+        "portal_index": 0,
+        "game_x": -6405.0,
+        "game_y": 14228.0
+      }
+    },
+    {
+      "link_id": 125,
+      "portal_a": {
+        "global_id": 195005,
+        "map_id": 195,
+        "map_name": "Drazach Thicket",
+        "portal_index": 5,
+        "game_x": 13447.0,
+        "game_y": 1031.0
+      },
+      "portal_b": {
+        "global_id": 286005,
+        "map_id": 286,
+        "map_name": "Brauer Academy",
+        "portal_index": 5,
+        "game_x": 13447.0,
+        "game_y": 1031.0
+      }
+    },
+    {
+      "link_id": 126,
+      "portal_a": {
+        "global_id": 195006,
+        "map_id": 195,
+        "map_name": "Drazach Thicket",
+        "portal_index": 6,
+        "game_x": 15355.0,
+        "game_y": 5892.0
+      },
+      "portal_b": {
+        "global_id": 286006,
+        "map_id": 286,
+        "map_name": "Brauer Academy",
+        "portal_index": 6,
+        "game_x": 15355.0,
+        "game_y": 5892.0
+      }
+    },
+    {
+      "link_id": 127,
+      "portal_a": {
+        "global_id": 197001,
+        "map_id": 197,
+        "map_name": "Shenzun Tunnels",
+        "portal_index": 1,
+        "game_x": -13735.0,
+        "game_y": -18626.0
+      },
+      "portal_b": {
+        "global_id": 265002,
+        "map_id": 265,
+        "map_name": "Nahpui Quarter (explorable area)",
+        "portal_index": 2,
+        "game_x": 23129.0,
+        "game_y": -3266.0
+      }
+    },
+    {
+      "link_id": 128,
+      "portal_a": {
+        "global_id": 197002,
+        "map_id": 197,
+        "map_name": "Shenzun Tunnels",
+        "portal_index": 2,
+        "game_x": 10065.0,
+        "game_y": -20268.0
+      },
+      "portal_b": {
+        "global_id": 283002,
+        "map_id": 283,
+        "map_name": "Maatu Keep",
+        "portal_index": 2,
+        "game_x": -17583.0,
+        "game_y": 16596.0
+      }
+    },
+    {
+      "link_id": 129,
+      "portal_a": {
+        "global_id": 197003,
+        "map_id": 197,
+        "map_name": "Shenzun Tunnels",
+        "portal_index": 3,
+        "game_x": 16504.0,
+        "game_y": 18765.0
+      },
+      "portal_b": {
+        "global_id": 217000,
+        "map_id": 217,
+        "map_name": "Tahnnakai Temple outpost",
+        "portal_index": 0,
+        "game_x": -11144.0,
+        "game_y": -15027.0
+      }
+    },
+    {
+      "link_id": 130,
+      "portal_a": {
+        "global_id": 197004,
+        "map_id": 197,
+        "map_name": "Shenzun Tunnels",
+        "portal_index": 4,
+        "game_x": 17566.0,
+        "game_y": -7190.0
+      },
+      "portal_b": {
+        "global_id": 220000,
+        "map_id": 220,
+        "map_name": "Sunjiang District outpost",
+        "portal_index": 0,
+        "game_x": -13154.0,
+        "game_y": -4118.0
+      }
+    },
+    {
+      "link_id": 131,
+      "portal_a": {
+        "global_id": 201003,
+        "map_id": 201,
+        "map_name": "Melandru's Hope",
+        "portal_index": 3,
+        "game_x": -13408.0,
+        "game_y": -17262.0
+      },
+      "portal_b": {
+        "global_id": 286008,
+        "map_id": 286,
+        "map_name": "Brauer Academy",
+        "portal_index": 8,
+        "game_x": 17312.0,
+        "game_y": 1170.0
+      }
+    },
+    {
+      "link_id": 132,
+      "portal_a": {
+        "global_id": 201005,
+        "map_id": 201,
+        "map_name": "Melandru's Hope",
+        "portal_index": 5,
+        "game_x": 16808.0,
+        "game_y": 23451.0
+      },
+      "portal_b": {
+        "global_id": 390001,
+        "map_id": 390,
+        "map_name": "Jade Flats Kurzick",
+        "portal_index": 1,
+        "game_x": -6919.0,
+        "game_y": -10560.0
+      }
+    },
+    {
+      "link_id": 133,
+      "portal_a": {
+        "global_id": 205001,
+        "map_id": 205,
+        "map_name": "Morostav Trail",
+        "portal_index": 1,
+        "game_x": 7828.0,
+        "game_y": -10662.0
+      },
+      "portal_b": {
+        "global_id": 209002,
+        "map_id": 209,
+        "map_name": "Mourning Veil Falls",
+        "portal_index": 2,
+        "game_x": 27609.0,
+        "game_y": 5704.0
+      }
+    },
+    {
+      "link_id": 134,
+      "portal_a": {
+        "global_id": 205002,
+        "map_id": 205,
+        "map_name": "Morostav Trail",
+        "portal_index": 2,
+        "game_x": 22997.0,
+        "game_y": 13778.0
+      },
+      "portal_b": {
+        "global_id": 298000,
+        "map_id": 298,
+        "map_name": "Unwaking Waters Kurzick",
+        "portal_index": 0,
+        "game_x": -13867.0,
+        "game_y": -7726.0
+      }
+    },
+    {
+      "link_id": 135,
+      "portal_a": {
+        "global_id": 209000,
+        "map_id": 209,
+        "map_name": "Mourning Veil Falls",
+        "portal_index": 0,
+        "game_x": -16742.0,
+        "game_y": -7746.0
+      },
+      "portal_b": {
+        "global_id": 230000,
+        "map_id": 230,
+        "map_name": "Amatz Basin outpost",
+        "portal_index": 0,
+        "game_x": -4454.0,
+        "game_y": 4542.0
+      }
+    },
+    {
+      "link_id": 136,
+      "portal_a": {
+        "global_id": 210003,
+        "map_id": 210,
+        "map_name": "Ferndale",
+        "portal_index": 3,
+        "game_x": -9300.0,
+        "game_y": -21561.0
+      },
+      "portal_b": {
+        "global_id": 349003,
+        "map_id": 349,
+        "map_name": "Saint Anjeka's Shrine",
+        "portal_index": 3,
+        "game_x": -9300.0,
+        "game_y": -21561.0
+      }
+    },
+    {
+      "link_id": 137,
+      "portal_a": {
+        "global_id": 211001,
+        "map_id": 211,
+        "map_name": "Pongmei Valley",
+        "portal_index": 1,
+        "game_x": -17965.0,
+        "game_y": -9560.0
+      },
+      "portal_b": {
+        "global_id": 348001,
+        "map_id": 348,
+        "map_name": "Tanglewood Copse",
+        "portal_index": 1,
+        "game_x": -17965.0,
+        "game_y": -9560.0
+      }
+    },
+    {
+      "link_id": 138,
+      "portal_a": {
+        "global_id": 211003,
+        "map_id": 211,
+        "map_name": "Pongmei Valley",
+        "portal_index": 3,
+        "game_x": -13366.0,
+        "game_y": 11275.0
+      },
+      "portal_b": {
+        "global_id": 283003,
+        "map_id": 283,
+        "map_name": "Maatu Keep",
+        "portal_index": 3,
+        "game_x": -13366.0,
+        "game_y": 11275.0
+      }
+    },
+    {
+      "link_id": 139,
+      "portal_a": {
+        "global_id": 216000,
+        "map_id": 216,
+        "map_name": "Nahpui Quarter outpost",
+        "portal_index": 0,
+        "game_x": -21656.0,
+        "game_y": 13762.0
+      },
+      "portal_b": {
+        "global_id": 239000,
+        "map_id": 239,
+        "map_name": "Wajjun Bazaar",
+        "portal_index": 0,
+        "game_x": 9064.0,
+        "game_y": -20030.0
+      }
+    },
+    {
+      "link_id": 140,
+      "portal_a": {
+        "global_id": 232001,
+        "map_id": 232,
+        "map_name": "Shadow's Passage",
+        "portal_index": 1,
+        "game_x": -13600.0,
+        "game_y": 5142.0
+      },
+      "portal_b": {
+        "global_id": 240008,
+        "map_id": 240,
+        "map_name": "Bukdek Byway",
+        "portal_index": 8,
+        "game_x": 14048.0,
+        "game_y": 5142.0
+      }
+    },
+    {
+      "link_id": 141,
+      "portal_a": {
+        "global_id": 232003,
+        "map_id": 232,
+        "map_name": "Shadow's Passage",
+        "portal_index": 3,
+        "game_x": 3130.0,
+        "game_y": 11629.0
+      },
+      "portal_b": {
+        "global_id": 274000,
+        "map_id": 274,
+        "map_name": "Dragons Throat outpost",
+        "portal_index": 0,
+        "game_x": -12230.0,
+        "game_y": 8557.0
+      }
+    },
+    {
+      "link_id": 142,
+      "portal_a": {
+        "global_id": 239001,
+        "map_id": 239,
+        "map_name": "Wajjun Bazaar",
+        "portal_index": 1,
+        "game_x": 11646.0,
+        "game_y": 15383.0
+      },
+      "portal_b": {
+        "global_id": 303001,
+        "map_id": 303,
+        "map_name": "The Marketplace",
+        "portal_index": 1,
+        "game_x": 11646.0,
+        "game_y": 15383.0
+      }
+    },
+    {
+      "link_id": 143,
+      "portal_a": {
+        "global_id": 239004,
+        "map_id": 239,
+        "map_name": "Wajjun Bazaar",
+        "portal_index": 4,
+        "game_x": 17214.0,
+        "game_y": -10007.0
+      },
+      "portal_b": {
+        "global_id": 241000,
+        "map_id": 241,
+        "map_name": "The Undercity",
+        "portal_index": 0,
+        "game_x": -16578.0,
+        "game_y": -6935.0
+      }
+    },
+    {
+      "link_id": 144,
+      "portal_a": {
+        "global_id": 240000,
+        "map_id": 240,
+        "map_name": "Bukdek Byway",
+        "portal_index": 0,
+        "game_x": -14071.0,
+        "game_y": -14169.0
+      },
+      "portal_b": {
+        "global_id": 303003,
+        "map_id": 303,
+        "map_name": "The Marketplace",
+        "portal_index": 3,
+        "game_x": 16649.0,
+        "game_y": 19623.0
+      }
+    },
+    {
+      "link_id": 145,
+      "portal_a": {
+        "global_id": 240006,
+        "map_id": 240,
+        "map_name": "Bukdek Byway",
+        "portal_index": 6,
+        "game_x": 4273.0,
+        "game_y": -16800.0
+      },
+      "portal_b": {
+        "global_id": 241004,
+        "map_id": 241,
+        "map_name": "The Undercity",
+        "portal_index": 4,
+        "game_x": 1192.0,
+        "game_y": 17774.0
+      }
+    },
+    {
+      "link_id": 146,
+      "portal_a": {
+        "global_id": 241006,
+        "map_id": 241,
+        "map_name": "The Undercity",
+        "portal_index": 6,
+        "game_x": 19845.0,
+        "game_y": 17125.0
+      },
+      "portal_b": {
+        "global_id": 291002,
+        "map_id": 291,
+        "map_name": "Vizunah Square Local Quarter",
+        "portal_index": 2,
+        "game_x": -4731.0,
+        "game_y": -19739.0
+      }
+    },
+    {
+      "link_id": 147,
+      "portal_a": {
+        "global_id": 244002,
+        "map_id": 244,
+        "map_name": "Arborstone (explorable area)",
+        "portal_index": 2,
+        "game_x": 9228.0,
+        "game_y": -20301.0
+      },
+      "portal_b": {
+        "global_id": 272001,
+        "map_id": 272,
+        "map_name": "Altrumm Ruins outpost",
+        "portal_index": 1,
+        "game_x": 6156.0,
+        "game_y": 7347.0
+      }
+    },
+    {
+      "link_id": 148,
+      "portal_a": {
+        "global_id": 244003,
+        "map_id": 244,
+        "map_name": "Arborstone (explorable area)",
+        "portal_index": 3,
+        "game_x": 13892.0,
+        "game_y": 23378.0
+      },
+      "portal_b": {
+        "global_id": 348000,
+        "map_id": 348,
+        "map_name": "Tanglewood Copse",
+        "portal_index": 0,
+        "game_x": -19900.0,
+        "game_y": -13486.0
+      }
+    },
+    {
+      "link_id": 149,
+      "portal_a": {
+        "global_id": 296002,
+        "map_id": 296,
+        "map_name": "The Jade Quarry - Kurzick",
+        "portal_index": 2,
+        "game_x": -2211.0,
+        "game_y": -8316.0
+      },
+      "portal_b": {
+        "global_id": 390002,
+        "map_id": 390,
+        "map_name": "Jade Flats Kurzick",
+        "portal_index": 2,
+        "game_x": -2211.0,
+        "game_y": -8316.0
+      }
+    },
+    {
+      "link_id": 150,
+      "portal_a": {
+        "global_id": 302002,
+        "map_id": 302,
+        "map_name": "Kaineng Docks",
+        "portal_index": 2,
+        "game_x": 11850.0,
+        "game_y": 18794.0
+      },
+      "portal_b": {
+        "global_id": 303002,
+        "map_id": 303,
+        "map_name": "The Marketplace",
+        "portal_index": 2,
+        "game_x": 11850.0,
+        "game_y": 18794.0
+      }
+    },
+    {
+      "link_id": 151,
       "portal_a": {
         "global_id": 482000,
         "map_id": 482,
@@ -2130,7 +2871,7 @@
       }
     },
     {
-      "link_id": 113,
+      "link_id": 152,
       "portal_a": {
         "global_id": 482001,
         "map_id": 482,
@@ -2149,7 +2890,7 @@
       }
     },
     {
-      "link_id": 114,
+      "link_id": 153,
       "portal_a": {
         "global_id": 482002,
         "map_id": 482,
@@ -2166,7 +2907,7 @@
       }
     },
     {
-      "link_id": 115,
+      "link_id": 154,
       "portal_a": {
         "global_id": 482003,
         "map_id": 482,
@@ -2185,7 +2926,7 @@
       }
     },
     {
-      "link_id": 116,
+      "link_id": 155,
       "portal_a": {
         "global_id": 485000,
         "map_id": 485,
@@ -2204,7 +2945,7 @@
       }
     },
     {
-      "link_id": 117,
+      "link_id": 156,
       "portal_a": {
         "global_id": 485001,
         "map_id": 485,
@@ -2223,7 +2964,7 @@
       }
     },
     {
-      "link_id": 118,
+      "link_id": 157,
       "portal_a": {
         "global_id": 485002,
         "map_id": 485,
@@ -2240,7 +2981,7 @@
       }
     },
     {
-      "link_id": 119,
+      "link_id": 158,
       "portal_a": {
         "global_id": 499002,
         "map_id": 499,
@@ -2259,7 +3000,7 @@
       }
     },
     {
-      "link_id": 120,
+      "link_id": 159,
       "portal_a": {
         "global_id": 499003,
         "map_id": 499,
@@ -2278,7 +3019,7 @@
       }
     },
     {
-      "link_id": 121,
+      "link_id": 160,
       "portal_a": {
         "global_id": 499004,
         "map_id": 499,
@@ -2297,7 +3038,7 @@
       }
     },
     {
-      "link_id": 122,
+      "link_id": 161,
       "portal_a": {
         "global_id": 501000,
         "map_id": 501,
@@ -2316,7 +3057,7 @@
       }
     },
     {
-      "link_id": 123,
+      "link_id": 162,
       "portal_a": {
         "global_id": 501001,
         "map_id": 501,
@@ -2335,7 +3076,7 @@
       }
     },
     {
-      "link_id": 124,
+      "link_id": 163,
       "portal_a": {
         "global_id": 513000,
         "map_id": 513,
@@ -2352,7 +3093,7 @@
       }
     },
     {
-      "link_id": 125,
+      "link_id": 164,
       "portal_a": {
         "global_id": 513001,
         "map_id": 513,
@@ -2371,7 +3112,7 @@
       }
     },
     {
-      "link_id": 126,
+      "link_id": 165,
       "portal_a": {
         "global_id": 513002,
         "map_id": 513,
@@ -2390,7 +3131,7 @@
       }
     },
     {
-      "link_id": 127,
+      "link_id": 166,
       "portal_a": {
         "global_id": 513003,
         "map_id": 513,
@@ -2409,7 +3150,7 @@
       }
     },
     {
-      "link_id": 128,
+      "link_id": 167,
       "portal_a": {
         "global_id": 513004,
         "map_id": 513,
@@ -2428,7 +3169,7 @@
       }
     },
     {
-      "link_id": 129,
+      "link_id": 168,
       "portal_a": {
         "global_id": 513006,
         "map_id": 513,
@@ -2447,7 +3188,7 @@
       }
     },
     {
-      "link_id": 130,
+      "link_id": 169,
       "portal_a": {
         "global_id": 546000,
         "map_id": 546,
@@ -2466,7 +3207,7 @@
       }
     },
     {
-      "link_id": 131,
+      "link_id": 170,
       "portal_a": {
         "global_id": 546001,
         "map_id": 546,
@@ -2483,7 +3224,7 @@
       }
     },
     {
-      "link_id": 132,
+      "link_id": 171,
       "portal_a": {
         "global_id": 548001,
         "map_id": 548,
@@ -2502,7 +3243,7 @@
       }
     },
     {
-      "link_id": 133,
+      "link_id": 172,
       "portal_a": {
         "global_id": 548003,
         "map_id": 548,
@@ -2521,7 +3262,7 @@
       }
     },
     {
-      "link_id": 134,
+      "link_id": 173,
       "portal_a": {
         "global_id": 553000,
         "map_id": 553,
@@ -2538,7 +3279,7 @@
       }
     },
     {
-      "link_id": 135,
+      "link_id": 174,
       "portal_a": {
         "global_id": 553001,
         "map_id": 553,
@@ -2557,7 +3298,7 @@
       }
     },
     {
-      "link_id": 136,
+      "link_id": 175,
       "portal_a": {
         "global_id": 553003,
         "map_id": 553,
@@ -2576,7 +3317,7 @@
       }
     },
     {
-      "link_id": 137,
+      "link_id": 176,
       "portal_a": {
         "global_id": 558002,
         "map_id": 558,
@@ -2593,7 +3334,7 @@
       }
     },
     {
-      "link_id": 138,
+      "link_id": 177,
       "portal_a": {
         "global_id": 558003,
         "map_id": 558,
@@ -2610,7 +3351,7 @@
       }
     },
     {
-      "link_id": 139,
+      "link_id": 178,
       "portal_a": {
         "global_id": 566001,
         "map_id": 566,
@@ -2629,7 +3370,7 @@
       }
     },
     {
-      "link_id": 140,
+      "link_id": 179,
       "portal_a": {
         "global_id": 566002,
         "map_id": 566,
@@ -2646,7 +3387,7 @@
       }
     },
     {
-      "link_id": 141,
+      "link_id": 180,
       "portal_a": {
         "global_id": 569000,
         "map_id": 569,
@@ -2658,12 +3399,12 @@
       "portal_b": {
         "global_id": 658000,
         "map_id": 658,
-        "map_name": "Oolas Laboratory",
+        "map_name": "Oolas Lab",
         "portal_index": 0
       }
     },
     {
-      "link_id": 142,
+      "link_id": 181,
       "portal_a": {
         "global_id": 569001,
         "map_id": 569,
@@ -2680,7 +3421,7 @@
       }
     },
     {
-      "link_id": 143,
+      "link_id": 182,
       "portal_a": {
         "global_id": 569002,
         "map_id": 569,
@@ -2699,7 +3440,7 @@
       }
     },
     {
-      "link_id": 144,
+      "link_id": 183,
       "portal_a": {
         "global_id": 569003,
         "map_id": 569,
@@ -2718,7 +3459,7 @@
       }
     },
     {
-      "link_id": 145,
+      "link_id": 184,
       "portal_a": {
         "global_id": 570000,
         "map_id": 570,
@@ -2735,7 +3476,7 @@
       }
     },
     {
-      "link_id": 146,
+      "link_id": 185,
       "portal_a": {
         "global_id": 572002,
         "map_id": 572,
@@ -2754,7 +3495,7 @@
       }
     },
     {
-      "link_id": 147,
+      "link_id": 186,
       "portal_a": {
         "global_id": 572003,
         "map_id": 572,
@@ -2773,7 +3514,7 @@
       }
     },
     {
-      "link_id": 148,
+      "link_id": 187,
       "portal_a": {
         "global_id": 573000,
         "map_id": 573,
@@ -2790,7 +3531,7 @@
       }
     },
     {
-      "link_id": 149,
+      "link_id": 188,
       "portal_a": {
         "global_id": 604000,
         "map_id": 604,
@@ -2809,7 +3550,7 @@
       }
     },
     {
-      "link_id": 150,
+      "link_id": 189,
       "portal_a": {
         "global_id": 604001,
         "map_id": 604,
@@ -2828,7 +3569,7 @@
       }
     },
     {
-      "link_id": 151,
+      "link_id": 190,
       "portal_a": {
         "global_id": 642001,
         "map_id": 642,
@@ -2847,7 +3588,7 @@
       }
     },
     {
-      "link_id": 152,
+      "link_id": 191,
       "portal_a": {
         "global_id": 647000,
         "map_id": 647,
@@ -2866,7 +3607,7 @@
       }
     },
     {
-      "link_id": 153,
+      "link_id": 192,
       "portal_a": {
         "global_id": 647002,
         "map_id": 647,
@@ -2885,7 +3626,7 @@
       }
     },
     {
-      "link_id": 154,
+      "link_id": 193,
       "portal_a": {
         "global_id": 647003,
         "map_id": 647,
@@ -2904,7 +3645,7 @@
       }
     },
     {
-      "link_id": 155,
+      "link_id": 194,
       "portal_a": {
         "global_id": 649001,
         "map_id": 649,
@@ -2923,7 +3664,7 @@
       }
     },
     {
-      "link_id": 156,
+      "link_id": 195,
       "portal_a": {
         "global_id": 649003,
         "map_id": 649,

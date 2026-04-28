@@ -33,6 +33,8 @@ from Py4GWCoreLib.Pathing import AutoPathing
 from Py4GWCoreLib.Routines import Routines
 from Py4GWCoreLib.enums_src.GameData_enums import Range
 from Py4GWCoreLib.native_src.methods.MapMethods import MapMethods
+from Py4GWCoreLib.routines_src.BehaviourTrees import BT as RoutinesBT
+from Py4GWCoreLib.py4gwcorelib_src.BehaviorTree import BehaviorTree
 
 MODULE_NAME = "WorldPathing"
 
@@ -195,6 +197,11 @@ class WorldPathing:
         self.mtnw_runner_active:  list[bool] = [False]
         self.mtnw_job_id:         list[int]  = [0]
         self.mtnw_paused_danger:  list[bool] = [False]
+        # Active BottingTree move tree (set during coroutine; None when idle).
+        self.mtnw_bt_tree: "BehaviorTree | None" = None
+        # Pause-on-danger configuration
+        self.mtnw_pause_on_danger: bool  = True
+        self.mtnw_danger_radius:   float = float(Range.Earshot.value)
 
         # ── MoveToMapid state ──────────────────────────────────────────────────
         self.mtm_runner_active: list[bool]        = [False]
@@ -325,28 +332,30 @@ class WorldPathing:
         from_map_id: int | None = None,
     ) -> dict | None:
         """Return the best unlocked non-explorable outpost to fast-travel to
-        in order to reach *target_map_id* on foot from *from_map_id*.
+        in order to reach *target_map_id* on foot after the FT.
 
-        When *from_map_id* is given (the player's current map), the combined
-        cost keeps both legs into account:
+        Fast-travel is always instant (zero travel time) so the player's
+        current location is irrelevant for the primary ranking.  The only
+        metric that matters is: after FT'ing to this outpost, how far do I
+        still need to walk to reach the target?
 
-          cost = path_distance(candidate → target)          # walking leg
-                 + hops_to_target    * HOP_PENALTY          # structural depth
-                 + hops_from_player  * HOP_PENALTY          # fast-travel cost
+        Ranking (ascending = better):
+          1. hops_to_target   – BFS portal-hop count from outpost to target
+          2. walk_distance    – game-unit walking distance (path_distance);
+                                0.0 is returned for direct 1-hop neighbours,
+                                so within the 1-hop tier use icon_distance as
+                                tiebreaker (geographic outpost→target dist)
+          3. icon_distance    – Euclidean distance between map icon centres
+                                (available when _ICON_BOUNDS is set via EXT)
+          4. map_id           – deterministic fallback
 
-        The hops_from_player term favourises outposts that are also close to
-        the player's current position, so that the round trip
-        "FT somewhere → walk to target" is minimised.
-
-        When *from_map_id* is None or not present in the graph the old
-        target-only cost is used (backward-compatible).
+        The *from_map_id* parameter is ignored for ranking (FT is free) but
+        is kept for API compatibility.
 
         Return value:
           { "map_id": int, "name": str, "hops": int, "distance": float | None }
         or None when no unlocked outpost is reachable.
         """
-        HOP_PENALTY = 5_000.0   # game units added per hop (roughly 1 zone width)
-
         combined = self.get_world_adj()
         if target_map_id not in combined:
             return None
@@ -363,60 +372,80 @@ class WorldPathing:
                 "distance": 0.0,
             }
 
-        # ── Pre-compute hop distances FROM the player's current map ───────────
-        # BFS from from_map_id → hop count to every reachable map.
-        player_hops: dict[int, int] = {}
-        if from_map_id is not None and from_map_id in combined:
-            pq: deque = deque([(from_map_id, 0)])
-            pv: set[int] = {from_map_id}
-            while pq:
-                cur, d = pq.popleft()
-                player_hops[cur] = d
-                for nb in combined.get(cur, set()):
-                    if nb not in pv:
-                        pv.add(nb)
-                        pq.append((nb, d + 1))
-
-        # ── BFS from target to collect all reachable unlocked outposts ────────
-        visited: set[int] = {target_map_id}
-        queue:   deque    = deque([(target_map_id, 0)])
-        candidates: list  = []
-
-        while queue:
-            cur, hops = queue.popleft()
+        # ── BFS from target → hop distance to every map ───────────────────────
+        hops_to_target: dict[int, int] = {target_map_id: 0}
+        bfs_q: deque = deque([(target_map_id, 0)])
+        while bfs_q:
+            cur, d = bfs_q.popleft()
             for nb in combined.get(cur, set()):
-                if nb in visited:
-                    continue
-                visited.add(nb)
-                meta = WorldPathing._MAP_META.get(nb)
-                if (meta
-                        and meta[0] != WorldPathing._RT_EXPLORABLE
-                        and meta[1] != "Unknown Map ID"
-                        and Map.IsMapUnlocked(nb)):
-                    dist = self.path_distance(nb, target_map_id)
-                    ft_hops = player_hops.get(nb, hops + 1)  # hops from player → outpost
-                    if dist is not None:
-                        cost = dist + (hops + ft_hops) * HOP_PENALTY
-                    else:
-                        cost = (hops + 1 + ft_hops) * HOP_PENALTY * 10
-                    candidates.append({
-                        "map_id":   nb,
-                        "name":     meta[1],
-                        "hops":     hops + 1,
-                        "distance": dist,
-                        "_cost":    cost,
-                    })
-                queue.append((nb, hops + 1))
+                if nb not in hops_to_target:
+                    hops_to_target[nb] = d + 1
+                    bfs_q.append((nb, d + 1))
+
+        # ── Icon-centre lookup for geographic tiebreaking ─────────────────────
+        # _ICON_BOUNDS_EXT is optionally injected by WorldMap+ (the same
+        # mechanism used for _PORTAL_ICON_POS_EXT).
+        icon_bounds: dict = getattr(self, "_ICON_BOUNDS_EXT", None) or {}
+
+        def _icon_centre(mid: int) -> tuple[float, float] | None:
+            bnd = icon_bounds.get(mid)
+            if bnd:
+                return ((bnd[0] + bnd[2]) * 0.5, (bnd[1] + bnd[3]) * 0.5)
+            return None
+
+        target_centre = _icon_centre(target_map_id)
+
+        def _icon_dist(mid: int) -> float:
+            """Euclidean icon-space distance from outpost centre to target centre."""
+            if target_centre is None:
+                return 0.0
+            oc = _icon_centre(mid)
+            if oc is None:
+                return 0.0
+            return math.hypot(oc[0] - target_centre[0], oc[1] - target_centre[1])
+
+        # ── Collect all unlocked outposts reachable from the target ───────────
+        # Only accept candidates for which a real portal-linked path exists
+        # (IsPath uses portal_adj, not the broader world_adj, so candidates
+        # reachable only via static _MAP_ADJACENCY entries are filtered out).
+        candidates: list[dict] = []
+        for mid, meta in WorldPathing._MAP_META.items():
+            if meta[0] == WorldPathing._RT_EXPLORABLE:
+                continue
+            if meta[1] == "Unknown Map ID":
+                continue
+            if not Map.IsMapUnlocked(mid):
+                continue
+            if mid not in hops_to_target:
+                continue
+            # Reject if no recorded portal path exists from this outpost to the target.
+            if not self.IsPath(mid, target_map_id):
+                continue
+            hops = hops_to_target[mid]
+            dist = self.path_distance(mid, target_map_id)
+            candidates.append({
+                "map_id":        mid,
+                "name":          meta[1],
+                "hops":          hops,
+                "distance":      dist,
+                "_walk":         dist if dist is not None else float("inf"),
+                "_icon_dist":    _icon_dist(mid),
+            })
 
         if not candidates:
             return None
 
-        # Primary sort by hops (hop count from target via BFS) — the most
-        # reliable proximity metric.  Path-distance is only a tiebreaker when
-        # two candidates are the same number of hops away.
-        candidates.sort(key=lambda c: (c["hops"], c["_cost"], c["map_id"]))
+        # Sort: fewest walking hops → then game-unit distance → then icon
+        # distance → then map_id for determinism.
+        candidates.sort(key=lambda c: (
+            c["hops"],
+            c["_walk"],
+            c["_icon_dist"],
+            c["map_id"],
+        ))
         best = candidates[0]
-        best.pop("_cost", None)
+        best.pop("_walk",      None)
+        best.pop("_icon_dist", None)
         return best
 
     # ── Internal helpers ───────────────────────────────────────────────────────
@@ -672,6 +701,7 @@ class WorldPathing:
         self.mtnw_path_computing[0] = False
         self.mtnw_runner_active[0]  = False
         self.mtnw_paused_danger[0]  = False
+        self.mtnw_bt_tree           = None
 
     def _mtm_clear(self) -> None:
         self.mtm_runner_active[0] = False
@@ -688,6 +718,17 @@ class WorldPathing:
             Player.Move(px, py)
         except Exception:
             pass
+
+    # ── Danger check ───────────────────────────────────────────────────────────
+
+    def _mtnw_is_danger_nearby(self) -> bool:
+        """Return True when hostile agents are within mtnw_danger_radius of the player."""
+        try:
+            px, py = Player.GetXY()
+            enemies = Routines.Agents.GetFilteredEnemyArray(px, py, self.mtnw_danger_radius)
+            return len(enemies) > 0
+        except Exception:
+            return False
 
     # ── Movement coroutines ────────────────────────────────────────────────────
 
@@ -753,43 +794,43 @@ class WorldPathing:
                 self._mtnw_clear()
                 return
 
-            self.mtnw_path_computing[0] = True
-            path = yield from AutoPathing().get_path_to(goal_x, goal_y)
-            self.mtnw_path[:] = list(path) if path else []
-            self.mtnw_path_index[0]     = 0
-            self.mtnw_path_following[0] = False
-            self.mtnw_path_computing[0] = False
-
-            if not self.mtnw_path:
-                yield from Routines.Yield.wait(250)
-                continue
-
-            def _pause_on_danger() -> bool:
-                in_danger = Routines.Checks.Agents.InDanger(Range.Earshot)
-                if in_danger and not self.mtnw_paused_danger[0]:
-                    self.mtnw_paused_danger[0] = True
-                elif not in_danger and self.mtnw_paused_danger[0]:
-                    self.mtnw_paused_danger[0] = False
-                return in_danger
-
-            def _stop_condition() -> bool:
+            # Use BottingTree BT for movement (handles autopathing, stall recovery,
+            # pause-on-combat internally).
+            move_tree = RoutinesBT.Player.Move(goal_x, goal_y, log=False)
+            self.mtnw_bt_tree = move_tree
+            while True:
                 if job_id != self.mtnw_job_id[0]:
-                    return True
+                    move_tree.blackboard["PAUSE_MOVEMENT"] = False
+                    return
                 if Map.GetMapID() == target_map_id:
-                    return True
-                cx, cy = Player.GetXY()
-                ddx = cx - goal_x
-                ddy = cy - goal_y
-                return (ddx * ddx + ddy * ddy) <= (self.MTNW_ARRIVAL_RADIUS ** 2)
+                    move_tree.blackboard["PAUSE_MOVEMENT"] = False
+                    self._mtnw_clear()
+                    return
 
-            yield from Routines.Yield.Movement.FollowPath(
-                path_points=self.mtnw_path,
-                custom_exit_condition=_stop_condition,
-                tolerance=self.MTNW_WAYPOINT_RADIUS,
-                timeout=20_000,
-                custom_pause_fn=_pause_on_danger,
-                stop_on_party_wipe=False,
-            )
+                # Sync path data to mtnw_path/index so WorldMap+ overlay still works.
+                bb_path = move_tree.blackboard.get("move_path_points")
+                if bb_path is not None:
+                    self.mtnw_path[:] = [(float(p[0]), float(p[1])) for p in bb_path]
+                    self.mtnw_path_index[0] = int(
+                        move_tree.blackboard.get("move_path_index", 0)
+                    )
+                    self.mtnw_path_following[0] = len(self.mtnw_path) > 0
+
+                # Sync danger state and set PAUSE_MOVEMENT flag.
+                if self.mtnw_pause_on_danger:
+                    in_danger = self._mtnw_is_danger_nearby()
+                else:
+                    in_danger = False
+                if in_danger != self.mtnw_paused_danger[0]:
+                    self.mtnw_paused_danger[0] = in_danger
+                move_tree.blackboard["PAUSE_MOVEMENT"] = in_danger
+
+                bt_result = BehaviorTree.Node._normalize_state(move_tree.tick())
+                if bt_result in (RoutinesBT.NodeState.SUCCESS, RoutinesBT.NodeState.FAILURE):
+                    move_tree.blackboard["PAUSE_MOVEMENT"] = False
+                    self.mtnw_bt_tree = None
+                    break
+                yield from Routines.Yield.wait(100)
 
             if job_id != self.mtnw_job_id[0]:
                 return

@@ -19,15 +19,20 @@ import math
 import Py4GW
 import json
 import os
-from collections import defaultdict
+from collections import defaultdict, deque
 
-from Py4GWCoreLib import Map, Utils, Player, AutoPathing, GLOBAL_CACHE, Routines, Range
+from Py4GWCoreLib import Map, Utils, Player, AutoPathing, GLOBAL_CACHE, Routines, Range, Party
+from Py4GWCoreLib.enums_src.Hero_enums import HeroType as _HeroType
+from Py4GWCoreLib.IniManager import IniManager as _IniManager
+from Py4GWCoreLib.Pathing import NavMesh as _PathingNavMesh, AStar as _PathingAStar
 from Py4GWCoreLib.native_src.methods.MapMethods import MapMethods
 from Py4GWCoreLib.native_src.methods.FfnaMapMethods import FfnaMapMethods
 from Py4GWCoreLib.Overlay import Overlay as _Overlay
+from Py4GWCoreLib.BottingTree import BottingTree as _BottingTree
 import PyOverlay
 
 _overlay3d = _Overlay()
+_bt_draw_helper = _BottingTree("WorldMap+ Path Draw")
 
 MODULE_NAME = "WorldMap+"
 
@@ -139,23 +144,52 @@ _CAMPAIGN_GROUP_NAMES: dict[int, str] = {
 
 # ── Overlay rendering helpers (WorldMap+-only; not needed by bots) ─────────────
 
+def _compute_game_bounds(pathing_maps) -> tuple[float, float, float, float] | None:
+    """Return (gx_min, gx_max, gy_min, gy_max) from a list of pathing maps, or None if degenerate."""
+    gx_min = float('inf');  gx_max = float('-inf')
+    gy_min = float('inf');  gy_max = float('-inf')
+    for pm in pathing_maps:
+        for trap in pm.trapezoids:
+            for x in (trap.XTL, trap.XTR, trap.XBL, trap.XBR):
+                if x < gx_min: gx_min = x
+                if x > gx_max: gx_max = x
+            for y in (trap.YT, trap.YB):
+                if y < gy_min: gy_min = y
+                if y > gy_max: gy_max = y
+    if gx_min == float('inf') or gx_max <= gx_min or gy_max <= gy_min:
+        return None
+    return (gx_min, gx_max, gy_min, gy_max)
+
+
+def _zoom_is_default() -> bool:
+    """Return True when the World Map zoom is at 100% (the only zoom level we draw at)."""
+    return abs(Map.WorldMap.GetZoom() - 1.0) <= 0.001
+
+
+def _get_panel_flags() -> int:
+    """Return the standard floating-panel WindowFlags used by all WorldMap+ panels."""
+    return (
+        PyImGui.WindowFlags.NoTitleBar        |
+        PyImGui.WindowFlags.NoResize          |
+        PyImGui.WindowFlags.NoMove            |
+        PyImGui.WindowFlags.NoScrollbar       |
+        PyImGui.WindowFlags.NoScrollWithMouse |
+        PyImGui.WindowFlags.NoCollapse        |
+        PyImGui.WindowFlags.AlwaysAutoResize  |
+        PyImGui.WindowFlags.NoSavedSettings
+    )
+
+
 def _traps_to_icon(trapezoids: list, ix1: float, iy1: float, ix2: float, iy2: float,
                    offset: tuple[float, float] = (0.0, 0.0)
                    ) -> list[tuple]:
     """Convert trapezoid list to icon-space quads.  Returns [] if bounds are degenerate."""
     if not trapezoids:
         return []
-    gx_min = float('inf');  gx_max = float('-inf')
-    gy_min = float('inf');  gy_max = float('-inf')
-    for trap in trapezoids:
-        for x in (trap.XTL, trap.XTR, trap.XBL, trap.XBR):
-            if x < gx_min: gx_min = x
-            if x > gx_max: gx_max = x
-        for y in (trap.YT, trap.YB):
-            if y < gy_min: gy_min = y
-            if y > gy_max: gy_max = y
-    if gx_min == float('inf') or gx_max <= gx_min or gy_max <= gy_min:
+    _gb = _compute_game_bounds(trapezoids)
+    if _gb is None:
         return []
+    gx_min, gx_max, gy_min, gy_max = _gb
     gw = gx_max - gx_min
     gh = gy_max - gy_min
     iw_map = ix2 - ix1
@@ -452,36 +486,6 @@ def _load_portal_destinations() -> None:
 
 def _ensure_portal_dots(map_id: int, is_live: bool) -> None:
     """Lazily build portal dot positions for map_id (live or offline .dat)."""
-    debug_map = False
-
-    def _debug_log(stage: str, portals_count: int, dots: list[tuple]) -> None:
-        if not debug_map:
-            return
-        gids = [int(d[4]) for d in dots if len(d) >= 5]
-        sample = gids[:12]
-        suffix = "" if len(gids) <= 12 else f" ...(+{len(gids) - 12})"
-        coord_preview: list[str] = []
-        for d in dots[:8]:
-            if len(d) < 5:
-                continue
-            gid = int(d[4])
-            ix = float(d[0]) if len(d) >= 1 else 0.0
-            iy = float(d[1]) if len(d) >= 2 else 0.0
-            if len(d) >= 7:
-                gx = float(d[5])
-                gy = float(d[6])
-                coord_preview.append(
-                    f"portal_id={gid} icon({ix:.1f},{iy:.1f}) game({gx:.1f},{gy:.1f})"
-                )
-            else:
-                coord_preview.append(f"portal_id={gid} icon({ix:.1f},{iy:.1f})")
-        coord_suffix = "" if len(dots) <= 8 else f" ...(+{len(dots) - 8})"
-        Py4GW.Console.Log(MODULE_NAME,
-            (f"Map {map_id} portal debug [{stage}] src={'live' if is_live else 'dat'} "
-             f"raw_portals={portals_count} dots={len(dots)} gids={sample}{suffix} "
-             f"coords={coord_preview}{coord_suffix}"),
-            Py4GW.Console.MessageType.Info)
-
     if map_id in _PORTAL_BUILT:
         existing = _PORTAL_ICON_POS.get(map_id, [])
         if existing:
@@ -495,7 +499,6 @@ def _ensure_portal_dots(map_id: int, is_live: bool) -> None:
     icon_bnd = _ICON_BOUNDS.get(map_id)
     if not icon_bnd:
         _PORTAL_ICON_POS[map_id] = []
-        _debug_log("no-icon-bounds", 0, [])
         return
     ix1, iy1, ix2, iy2 = icon_bnd
     try:
@@ -518,7 +521,6 @@ def _ensure_portal_dots(map_id: int, is_live: bool) -> None:
                     Py4GW.Console.MessageType.Info)
     except Exception:
         _PORTAL_ICON_POS[map_id] = []
-        _debug_log("read-exception", 0, [])
         return
 
     def _build_neighbor_fallback_dots() -> list[tuple]:
@@ -598,14 +600,9 @@ def _ensure_portal_dots(map_id: int, is_live: bool) -> None:
                 gy_min2 = _cached_extents["gy_min"]; gy_max2 = _cached_extents["gy_max"]
                 ext_ok = gx_max2 > gx_min2 and gy_max2 > gy_min2
             elif pathing_maps:
-                for pm in pathing_maps:
-                    for trap in pm.trapezoids:
-                        for x in (trap.XTL, trap.XTR, trap.XBL, trap.XBR):
-                            if x < gx_min2: gx_min2 = x
-                            if x > gx_max2: gx_max2 = x
-                        for y in (trap.YT, trap.YB):
-                            if y < gy_min2: gy_min2 = y
-                            if y > gy_max2: gy_max2 = y
+                _gb2 = _compute_game_bounds(pathing_maps)
+                if _gb2:
+                    gx_min2, gx_max2, gy_min2, gy_max2 = _gb2
                 ext_ok = gx_max2 > gx_min2 and gy_max2 > gy_min2
 
             iw_map = ix2 - ix1
@@ -686,7 +683,6 @@ def _ensure_portal_dots(map_id: int, is_live: bool) -> None:
 
             if dots_all:
                 _PORTAL_ICON_POS[map_id] = dots_all
-                _debug_log("portal-all-data", len(specs), dots_all)
                 # If live and we have extents, cache them for offline viewing later.
                 # Never cache for manually-curated maps.
                 if is_live and ext_ok and map_id not in _MANUAL_PORTAL_MAPS:
@@ -704,7 +700,6 @@ def _ensure_portal_dots(map_id: int, is_live: bool) -> None:
     if (not pathing_maps and _cached_extents is None) or not portals:
         fallback = _build_neighbor_fallback_dots()
         _PORTAL_ICON_POS[map_id] = fallback
-        _debug_log("fallback-missing-pathing-or-portals", len(portals) if portals else 0, fallback)
         return
     if _cached_extents is not None:
         gx_min = _cached_extents["gx_min"]
@@ -712,16 +707,11 @@ def _ensure_portal_dots(map_id: int, is_live: bool) -> None:
         gy_min = _cached_extents["gy_min"]
         gy_max = _cached_extents["gy_max"]
     else:
-        gx_min = float('inf');  gx_max = float('-inf')
-        gy_min = float('inf');  gy_max = float('-inf')
-        for pm in pathing_maps:
-            for trap in pm.trapezoids:
-                for x in (trap.XTL, trap.XTR, trap.XBL, trap.XBR):
-                    if x < gx_min: gx_min = x
-                    if x > gx_max: gx_max = x
-                for y in (trap.YT, trap.YB):
-                    if y < gy_min: gy_min = y
-                    if y > gy_max: gy_max = y
+        _gb3 = _compute_game_bounds(pathing_maps)
+        if _gb3:
+            gx_min, gx_max, gy_min, gy_max = _gb3
+        else:
+            gx_min = gx_max = gy_min = gy_max = float('inf')
     if gx_min == float('inf') or gx_max <= gx_min or gy_max <= gy_min:
         cx = (ix1 + ix2) * 0.5
         cy = (iy1 + iy2) * 0.5
@@ -753,7 +743,6 @@ def _ensure_portal_dots(map_id: int, is_live: bool) -> None:
         if not dots:
             dots = _build_neighbor_fallback_dots()
         _PORTAL_ICON_POS[map_id] = dots
-        _debug_log("fallback-invalid-pathing-extents", len(portals), dots)
         return
     gw = gx_max - gx_min
     gh = gy_max - gy_min
@@ -778,7 +767,6 @@ def _ensure_portal_dots(map_id: int, is_live: bool) -> None:
         _GLOBAL_ID_TO_PORTAL[gid] = key
         dots.append((pix, piy, dest, idx, gid, tp.x, tp.y))
     _PORTAL_ICON_POS[map_id] = dots
-    _debug_log("normal", len(portals), dots)
     # Don't overwrite live cache for maps without a DAT entry or manually-curated maps.
     if is_live and portals and FfnaMapMethods.HasDatEntry(map_id) and map_id not in _MANUAL_PORTAL_MAPS:
         _live_portal_cache[map_id] = {
@@ -1210,7 +1198,8 @@ def _build_cache() -> None:
     _load_portal_destinations()   # also calls _load_portal_links() at the end
     _load_portal_all_data()
     linked_maps = {int(gid // 1000) for gid in _PORTAL_LINKS.keys()}
-    # Maps appearing in portal_links.json are the only ones shown when Developer is off.
+    # When Developer mode is off, only maps with known portal links should be
+    # shown. Keep _CONNECTED_MAP_IDS limited to portal-linked maps.
     _CONNECTED_MAP_IDS.clear()
     _CONNECTED_MAP_IDS.update(linked_maps)
     # Custom dungeon placements must be applied AFTER portal_all data is loaded
@@ -1222,38 +1211,114 @@ def _build_cache() -> None:
 
 
 # ── Region type → packed color ──────────────────────────────────────────────
+_FILL_RGB: dict[int, tuple[int, int, int]] = {
+    _RT_EXPLORABLE:   ( 50, 190,  80),
+    _RT_OUTPOST:      ( 70, 130, 245),
+    _RT_TOWN:         ( 70, 130, 245),
+    _RT_CITY:         ( 70, 130, 245),
+    _RT_MISSION_OUT:  ( 50, 200, 200),
+    _RT_COOP:         ( 50, 200, 200),
+    _RT_CHALLENGE:    (245, 150,  50),
+    _RT_COMPETITIVE:  (245, 150,  50),
+    _RT_ELITE:        (245, 150,  50),
+    _RT_HERO_BATTLE:  (200,  80, 255),
+}
+_BORDER_RGB: dict[int, tuple[int, int, int]] = {
+    _RT_EXPLORABLE:   ( 90, 230, 120),
+    _RT_OUTPOST:      (130, 170, 255),
+    _RT_TOWN:         (130, 170, 255),
+    _RT_CITY:         (130, 170, 255),
+    _RT_MISSION_OUT:  ( 90, 230, 230),
+    _RT_COOP:         ( 90, 230, 230),
+    _RT_CHALLENGE:    (255, 190,  90),
+    _RT_COMPETITIVE:  (255, 190,  90),
+    _RT_ELITE:        (255, 190,  90),
+}
+
 def _type_fill(rtype: int, alpha: int) -> int:
-    if rtype == _RT_EXPLORABLE:                               return Utils.RGBToColor( 50, 190,  80, alpha)
-    if rtype in (_RT_OUTPOST, _RT_TOWN, _RT_CITY):           return Utils.RGBToColor( 70, 130, 245, alpha)
-    if rtype in (_RT_MISSION_OUT, _RT_COOP):                 return Utils.RGBToColor( 50, 200, 200, alpha)
-    if rtype in (_RT_CHALLENGE, _RT_COMPETITIVE, _RT_ELITE): return Utils.RGBToColor(245, 150,  50, alpha)
-    if rtype == _RT_HERO_BATTLE:                             return Utils.RGBToColor(200,  80, 255, alpha)
-    return Utils.RGBToColor(150, 150, 150, alpha)
+    r, g, b = _FILL_RGB.get(rtype, (150, 150, 150))
+    return Utils.RGBToColor(r, g, b, alpha)
 
 
 def _type_border(rtype: int, alpha: int) -> int:
-    if rtype == _RT_EXPLORABLE:                               return Utils.RGBToColor( 90, 230, 120, alpha)
-    if rtype in (_RT_OUTPOST, _RT_TOWN, _RT_CITY):           return Utils.RGBToColor(130, 170, 255, alpha)
-    if rtype in (_RT_MISSION_OUT, _RT_COOP):                 return Utils.RGBToColor( 90, 230, 230, alpha)
-    if rtype in (_RT_CHALLENGE, _RT_COMPETITIVE, _RT_ELITE): return Utils.RGBToColor(255, 190,  90, alpha)
-    return Utils.RGBToColor(190, 190, 190, alpha)
+    r, g, b = _BORDER_RGB.get(rtype, (190, 190, 190))
+    return Utils.RGBToColor(r, g, b, alpha)
 
 
 # ── UI state ──────────────────────────────────────────────────────────────────
 _show_frames         = [True]
-_show_other          = [False]
 _show_pmap_current   = [False]
 _show_pmap_all       = [False]
 _pmap_opacity        = [0.2]
 _show_portals        = [False]
 _show_portals_3d     = [False]
 _show_portal_ids     = [False]
-_show_labels         = [True]
 _opacity             = [0.75]
 _show_debug          = [False]
 _show_developer      = [False]
 _show_player_cross        = [False]
+_show_mtnw_waypoint_dots  = [False]
 _show_reachable_unvisited = [False]
+_show_hero_loadout        = [False]
+
+# ── Hero Loadout state ────────────────────────────────────────────────────────
+_HL_MAX_SLOTS   = 7
+_HL_HERO_IDS: list[int] = [
+    int(_HeroType.Norgu), int(_HeroType.Goren), int(_HeroType.Tahlkora),
+    int(_HeroType.MasterOfWhispers), int(_HeroType.AcolyteJin), int(_HeroType.Koss),
+    int(_HeroType.Dunkoro), int(_HeroType.AcolyteSousuke), int(_HeroType.Melonni),
+    int(_HeroType.ZhedShadowhoof), int(_HeroType.GeneralMorgahn), int(_HeroType.MagridTheSly),
+    int(_HeroType.Zenmai), int(_HeroType.Olias), int(_HeroType.Razah),
+    int(_HeroType.MOX), int(_HeroType.KeiranThackeray), int(_HeroType.Jora),
+    int(_HeroType.PyreFierceshot), int(_HeroType.Anton), int(_HeroType.Livia),
+    int(_HeroType.Hayda), int(_HeroType.Kahmu), int(_HeroType.Gwen),
+    int(_HeroType.Xandra), int(_HeroType.Vekk), int(_HeroType.Ogden),
+    int(_HeroType.Miku), int(_HeroType.ZeiRi),
+]
+_HL_HERO_NAMES: list[str] = [_HeroType(h).name for h in _HL_HERO_IDS]
+_HL_COMBO_ITEMS: list[str] = ["(none)"] + _HL_HERO_NAMES
+_hl_slot_ids:    list[int]  = [0] * _HL_MAX_SLOTS
+_hl_auto_apply:  list[bool] = [False]
+_hl_applying:    list[bool] = [False]
+_hl_last_map:    list[int]  = [-1]
+
+def _hl_hero_id_to_combo(hero_id: int) -> int:
+    try:
+        return _HL_HERO_IDS.index(hero_id) + 1
+    except ValueError:
+        return 0
+
+def _hl_combo_to_hero_id(idx: int) -> int:
+    if idx <= 0 or idx > len(_HL_HERO_IDS):
+        return 0
+    return _HL_HERO_IDS[idx - 1]
+
+def _hl_apply_loadout_coroutine():
+    """Kick all heroes, then add the first N slots allowed by the current map."""
+    _hl_applying[0] = True
+    try:
+        if not Map.IsOutpost():
+            Py4GW.Console.Log(MODULE_NAME, "Hero Loadout: not in outpost, skipped.",
+                              Py4GW.Console.MessageType.Warning)
+            return
+        max_slots = max(0, Map.GetMaxPartySize() - 1)
+        heroes_to_add = [_hl_slot_ids[i] for i in range(min(max_slots, _HL_MAX_SLOTS))
+                         if _hl_slot_ids[i] != 0]
+        Party.Heroes.KickAllHeroes()
+        yield from Routines.Yield.wait(600)
+        for hero_id in heroes_to_add:
+            Party.Heroes.AddHero(hero_id)
+            yield from Routines.Yield.wait(250)
+        names = [_HeroType(h).name for h in heroes_to_add]
+        Py4GW.Console.Log(MODULE_NAME,
+            f"Hero Loadout applied ({max_slots} slots): {', '.join(names) if names else 'empty'}",
+            Py4GW.Console.MessageType.Info)
+    finally:
+        _hl_applying[0] = False
+
+def _hl_trigger_apply() -> None:
+    if not _hl_applying[0]:
+        GLOBAL_CACHE.Coroutines.append(_hl_apply_loadout_coroutine())
 
 # Auto-explore: iterate through all reachable-but-unvisited outposts
 _auto_explore_active: list[bool] = [False]
@@ -1263,6 +1328,10 @@ _auto_explore_target: list[int]  = [0]     # map_id of the outpost currently bei
 # Each entry: (rep_map_id, btn_x, btn_y)  – screen pixel coords
 _travel_btn_data: list[tuple[int, float, float]] = []
 _travel_btn_seen:  set[int] = set()   # dedup by map_id
+# Queued map targets added via the '+' button next to green travel buttons.
+_travel_queue: deque[int] = deque()
+_travel_queue_inflight_target: list[int] = [0]
+_travel_queue_dispatch_ms: list[int] = [0]
 
 # UI state for link editor
 _link_input_a    = [0]
@@ -1276,6 +1345,54 @@ _cp_dungeon_id    = [0]        # dungeon map ID   (e.g. 581)
 _cp_dungeon_name  = [""]       # dungeon display name (mutable string)
 # Tracks which map IDs were added via custom dungeon placements (for save filter)
 _CUSTOM_DUNGEON_MAP_IDS: set[int] = set()
+
+# ── INI persistence ──────────────────────────────────────────────────────────────
+_WMP_INI_PATH     = "Widgets/WorldMap+"
+_WMP_INI_FILENAME = "WorldMap+.ini"
+_wmp_ini_key: list[str]  = [""]
+_wmp_ini_ready: list[bool] = [False]
+
+
+def _wmp_ini_try_init() -> bool:
+    """Register handler and load settings from the account-scoped INI.
+    Returns True once ready, False while account is not yet available."""
+    if _wmp_ini_ready[0]:
+        return True
+    key = _IniManager().ensure_key(_WMP_INI_PATH, _WMP_INI_FILENAME)
+    if not key:
+        return False
+    _wmp_ini_key[0] = key
+    ini = _IniManager()
+    s = "Settings"
+    hl = "HeroLoadout"
+    # Display settings
+    _show_frames[0]              = ini.read_bool(key, s, "show_frames",          True)
+    _opacity[0]                  = ini.read_float(key, s, "opacity",             0.75)
+    _show_reachable_unvisited[0] = ini.read_bool(key, s, "show_reachable",       False)
+    _show_hero_loadout[0]        = ini.read_bool(key, s, "show_hero_loadout",    False)
+    # Hero Loadout
+    _hl_auto_apply[0] = ini.read_bool(key, hl, "auto_apply", False)
+    for _i in range(_HL_MAX_SLOTS):
+        _hl_slot_ids[_i] = ini.read_int(key, hl, f"slot_{_i}", 0)
+    _wmp_ini_ready[0] = True
+    return True
+
+
+def _wmp_ini_save() -> None:
+    """Persist all saveable WorldMap+ settings to the INI file."""
+    key = _wmp_ini_key[0]
+    if not key:
+        return
+    ini = _IniManager()
+    s = "Settings"
+    hl = "HeroLoadout"
+    ini.write_key(key, s, "show_frames",       _show_frames[0])
+    ini.write_key(key, s, "opacity",           _opacity[0])
+    ini.write_key(key, s, "show_reachable",    _show_reachable_unvisited[0])
+    ini.write_key(key, s, "show_hero_loadout", _show_hero_loadout[0])
+    ini.write_key(key, hl, "auto_apply",       _hl_auto_apply[0])
+    for _i in range(_HL_MAX_SLOTS):
+        ini.write_key(key, hl, f"slot_{_i}",  _hl_slot_ids[_i])
 
 # ── Route path state (driven by travel buttons / MoveToMapid) ────────────────
 _path_gids:       list[int] = []   # ordered GID sequence: [exit1,enter1,exit2,enter2,...]
@@ -1348,6 +1465,83 @@ _MTM_LOAD_TIMEOUT_MS         = 60000
 def _abort_worldmap_movement() -> None:
     """Cancel any active movement (delegates to WorldPathing._abort_wp_movement)."""
     _abort_wp_movement()
+    _travel_queue.clear()
+    _travel_queue_inflight_target[0] = 0
+    _travel_queue_dispatch_ms[0] = 0
+
+
+def _enqueue_travel_target(map_id: int) -> None:
+    """Append a map target to the travel queue if it is not already queued."""
+    if map_id <= 0:
+        return
+    if map_id in _travel_queue:
+        return
+    _travel_queue.append(map_id)
+
+
+def _process_travel_queue() -> None:
+    """Dispatch queued travel targets one by one when no movement runner is active."""
+    if not _travel_queue:
+        _travel_queue_inflight_target[0] = 0
+        _travel_queue_dispatch_ms[0] = 0
+        if _auto_explore_active[0]:
+            _auto_explore_active[0] = False
+            _auto_explore_target[0] = 0
+            Py4GW.Console.Log(MODULE_NAME,
+                "Unlock All: complete – all queued outposts visited.",
+                Py4GW.Console.MessageType.Info)
+        return
+
+    now_ms = int(Utils.GetBaseTimestamp())
+    current_map = Map.GetMapID()
+
+    # Drop already-reached targets from the head of the queue.
+    while _travel_queue and _travel_queue[0] == current_map:
+        _travel_queue.popleft()
+    if not _travel_queue:
+        _travel_queue_inflight_target[0] = 0
+        _travel_queue_dispatch_ms[0] = 0
+        if _auto_explore_active[0]:
+            _auto_explore_active[0] = False
+            _auto_explore_target[0] = 0
+            Py4GW.Console.Log(MODULE_NAME,
+                "Unlock All: complete – all queued outposts visited.",
+                Py4GW.Console.MessageType.Info)
+        return
+
+    active = _mtm_runner_active[0] or _mtnw_runner_active[0]
+    if active:
+        return
+
+    head = _travel_queue[0]
+
+    # Wait a short grace period after dispatch before declaring failure.
+    if _travel_queue_inflight_target[0] == head:
+        if now_ms - _travel_queue_dispatch_ms[0] < 1500:
+            return
+        if Map.GetMapID() == head:
+            _travel_queue.popleft()
+        else:
+            _head_name = (_MAP_META.get(head) or (None, f"Map {head}"))[1]
+            Py4GW.Console.Log(
+                MODULE_NAME,
+                f"Queue: failed to start/complete travel to {_head_name} [{head}], skipping.",
+                Py4GW.Console.MessageType.Warning,
+            )
+            _travel_queue.popleft()
+        _travel_queue_inflight_target[0] = 0
+        _travel_queue_dispatch_ms[0] = 0
+        return
+
+    _target_name = (_MAP_META.get(head) or (None, f"Map {head}"))[1]
+    GLOBAL_CACHE.Coroutines.append(_travel_button_coroutine(head, fast_travel_first=True))
+    _travel_queue_inflight_target[0] = head
+    _travel_queue_dispatch_ms[0] = now_ms
+    Py4GW.Console.Log(
+        MODULE_NAME,
+        f"Queue: starting travel to {_target_name} [{head}] ({len(_travel_queue)} queued).",
+        Py4GW.Console.MessageType.Info,
+    )
 
 
 def _mtm_log_debug(message: str) -> None:
@@ -1361,6 +1555,7 @@ def _mtm_log_debug(message: str) -> None:
 
 
 _PMAP_GAME_BOUNDS: dict[int, tuple[float, float, float, float]] = {}
+_MAP_GAME_BOUNDS_CACHE: dict[int, tuple[float, float, float, float]] = {}
 
 
 def _get_player_icon_pos(map_id: int) -> tuple[float, float] | None:
@@ -1375,19 +1570,10 @@ def _get_player_icon_pos(map_id: int) -> tuple[float, float] | None:
             return None
         if not pathing_maps:
             return None
-        gx_min = float('inf');  gx_max = float('-inf')
-        gy_min = float('inf');  gy_max = float('-inf')
-        for pm in pathing_maps:
-            for trap in pm.trapezoids:
-                for x in (trap.XTL, trap.XTR, trap.XBL, trap.XBR):
-                    if x < gx_min: gx_min = x
-                    if x > gx_max: gx_max = x
-                for y in (trap.YT, trap.YB):
-                    if y < gy_min: gy_min = y
-                    if y > gy_max: gy_max = y
-        if gx_min == float('inf') or gx_max <= gx_min or gy_max <= gy_min:
+        _gb4 = _compute_game_bounds(pathing_maps)
+        if _gb4 is None:
             return None
-        _PMAP_GAME_BOUNDS[map_id] = (gx_min, gx_max, gy_min, gy_max)
+        _PMAP_GAME_BOUNDS[map_id] = _gb4
     gx_min, gx_max, gy_min, gy_max = _PMAP_GAME_BOUNDS[map_id]
     ix1, iy1, ix2, iy2 = icon_bnd
     gw = gx_max - gx_min
@@ -1411,29 +1597,24 @@ def _mtnw_path_icon_points(map_id: int) -> list[tuple[float, float]]:
         return []
     ix1, iy1, ix2, iy2 = icon_bnd
 
-    try:
-        pathing_maps = Map.Pathing.GetPathingMaps()
-    except Exception:
-        return []
-    if not pathing_maps:
-        return []
+    # Use cached game bounds if available (populated by _get_player_icon_pos or _get_map_game_bounds)
+    if map_id not in _PMAP_GAME_BOUNDS:
+        try:
+            pathing_maps = Map.Pathing.GetPathingMaps()
+        except Exception:
+            return []
+        if not pathing_maps:
+            return []
+        _gb5 = _compute_game_bounds(pathing_maps)
+        if _gb5 is None:
+            return []
+        _PMAP_GAME_BOUNDS[map_id] = _gb5
 
-    gx_min = float('inf'); gx_max = float('-inf')
-    gy_min = float('inf'); gy_max = float('-inf')
-    for pm in pathing_maps:
-        for trap in pm.trapezoids:
-            for x in (trap.XTL, trap.XTR, trap.XBL, trap.XBR):
-                if x < gx_min: gx_min = x
-                if x > gx_max: gx_max = x
-            for y in (trap.YT, trap.YB):
-                if y < gy_min: gy_min = y
-                if y > gy_max: gy_max = y
-
-    if gx_min == float('inf') or gx_max <= gx_min or gy_max <= gy_min:
-        return []
-
+    gx_min, gx_max, gy_min, gy_max = _PMAP_GAME_BOUNDS[map_id]
     gw = gx_max - gx_min
     gh = gy_max - gy_min
+    if not gw or not gh:
+        return []
     iw_map = ix2 - ix1
     ih_map = iy2 - iy1
 
@@ -1443,6 +1624,112 @@ def _mtnw_path_icon_points(map_id: int) -> list[tuple[float, float]]:
         piy = iy1 + (gy_max - gy) / gh * ih_map
         out.append((pix, piy))
     return out
+
+
+def _get_map_game_bounds(map_id: int) -> tuple[float, float, float, float] | None:
+    """Return cached game-space bounds (gx_min, gx_max, gy_min, gy_max) for map_id."""
+    bnd = _MAP_GAME_BOUNDS_CACHE.get(map_id)
+    if bnd is not None:
+        return bnd
+
+    if map_id in _PMAP_GAME_BOUNDS:
+        bnd = _PMAP_GAME_BOUNDS[map_id]
+        _MAP_GAME_BOUNDS_CACHE[map_id] = bnd
+        return bnd
+
+    try:
+        if map_id == Map.GetMapID():
+            pathing_maps = Map.Pathing.GetPathingMaps()
+        else:
+            pathing_maps = FfnaMapMethods.GetPathingMapsForMap(map_id)
+    except Exception:
+        pathing_maps = []
+
+    if pathing_maps:
+        _gb6 = _compute_game_bounds(pathing_maps)
+        if _gb6 is not None:
+            _MAP_GAME_BOUNDS_CACHE[map_id] = _gb6
+            return _gb6
+
+    cached = _live_portal_cache.get(map_id)
+    if isinstance(cached, dict):
+        ext = cached.get("extents")
+        if isinstance(ext, dict):
+            try:
+                gx_min = float(ext["gx_min"])
+                gx_max = float(ext["gx_max"])
+                gy_min = float(ext["gy_min"])
+                gy_max = float(ext["gy_max"])
+            except Exception:
+                return None
+            if gx_max > gx_min and gy_max > gy_min:
+                bnd = (gx_min, gx_max, gy_min, gy_max)
+                _MAP_GAME_BOUNDS_CACHE[map_id] = bnd
+                return bnd
+
+    return None
+
+
+def _game_to_icon_xy(map_id: int, gx: float, gy: float) -> tuple[float, float] | None:
+    """Convert one game-space point to icon-space for a specific map."""
+    icon_bnd = _ICON_BOUNDS.get(map_id)
+    if not icon_bnd:
+        return None
+
+    gb = _get_map_game_bounds(map_id)
+    if gb is None:
+        return None
+    gx_min, gx_max, gy_min, gy_max = gb
+    gw = gx_max - gx_min
+    gh = gy_max - gy_min
+    if gw <= 0.0 or gh <= 0.0:
+        return None
+
+    ix1, iy1, ix2, iy2 = icon_bnd
+    ix = ix1 + (float(gx) - gx_min) / gw * (ix2 - ix1)
+    iy = iy1 + (gy_max - float(gy)) / gh * (iy2 - iy1)
+    return (ix, iy)
+
+
+def _build_segment_icon_path(map_id: int,
+                             start_gxy: tuple[float, float] | None,
+                             goal_gxy: tuple[float, float] | None) -> list[tuple[float, float]]:
+    """Build a local polyline in icon-space for one map segment (start->goal)."""
+    if start_gxy is None or goal_gxy is None:
+        return []
+
+    try:
+        if map_id == Map.GetMapID():
+            pathing_maps = Map.Pathing.GetPathingMaps()
+        else:
+            pathing_maps = FfnaMapMethods.GetPathingMapsForMap(map_id)
+    except Exception:
+        pathing_maps = []
+
+    game_points: list[tuple[float, float]]
+    if pathing_maps:
+        try:
+            nav = _PathingNavMesh(pathing_maps, map_id)
+            astar = _PathingAStar(nav)
+            if astar.search(start_gxy, goal_gxy):
+                game_points = astar.get_path()
+            else:
+                game_points = [start_gxy, goal_gxy]
+        except Exception:
+            game_points = [start_gxy, goal_gxy]
+    else:
+        game_points = [start_gxy, goal_gxy]
+
+    icon_points: list[tuple[float, float]] = []
+    for gx, gy in game_points:
+        ip = _game_to_icon_xy(map_id, gx, gy)
+        if ip is None:
+            continue
+        if icon_points and abs(icon_points[-1][0] - ip[0]) < 0.5 and abs(icon_points[-1][1] - ip[1]) < 0.5:
+            continue
+        icon_points.append(ip)
+
+    return icon_points
 
 
 def _get_portal_icon_xy(gid: int) -> tuple[float, float] | None:
@@ -1463,17 +1750,41 @@ def _build_route_overlay(result: dict) -> list[dict]:
     segs: list[dict] = []
     if not result.get("found"):
         return segs
-    for wp in result["waypoints"]:
+    prev_enter_gid = 0
+    for i, wp in enumerate(result["waypoints"]):
+        from_map = int(wp["from_map"])
+        to_map = int(wp["to_map"])
+        exit_gid = int(wp["exit_gid"])
+        enter_gid = int(wp["enter_gid"])
+
         exit_xy  = _get_portal_icon_xy(wp["exit_gid"])
         enter_xy = _get_portal_icon_xy(wp["enter_gid"])
+
+        start_game: tuple[float, float] | None = None
+        if i == 0 and from_map == Map.GetMapID():
+            try:
+                px, py = Player.GetXY()
+                start_game = (float(px), float(py))
+            except Exception:
+                start_game = None
+        if start_game is None and prev_enter_gid:
+            pe_key = _GLOBAL_ID_TO_PORTAL.get(prev_enter_gid)
+            if pe_key and int(pe_key[0]) == from_map:
+                start_game = _get_portal_game_xy(prev_enter_gid)
+
+        goal_game = _get_portal_game_xy(exit_gid)
+        path_ixy = _build_segment_icon_path(from_map, start_game, goal_game)
+
         segs.append({
-            "from_map":  wp["from_map"],
-            "to_map":    wp["to_map"],
+            "from_map":  from_map,
+            "to_map":    to_map,
             "exit_ix":   exit_xy[0]  if exit_xy  else None,
             "exit_iy":   exit_xy[1]  if exit_xy  else None,
             "enter_ix":  enter_xy[0] if enter_xy else None,
             "enter_iy":  enter_xy[1] if enter_xy else None,
+            "path_ixy":  path_ixy,
         })
+        prev_enter_gid = enter_gid
     return segs
 
 
@@ -1502,18 +1813,12 @@ def IsPath(start_map_id: int, target_map_id: int) -> bool:
     return _WP_IsPath(start_map_id, target_map_id)
 
 
-_reachable_adj_cache: dict[int, set[int]] | None = None
 _reachable_list_cache: list[dict] = []
 _reachable_list_last_map: list[int] = [-1]
 
 def _path_distance(start_map: int, end_map: int) -> float | None:
     """Game-unit path distance between two maps. Delegates to WorldPathing."""
     return _wp_path_distance(start_map, end_map)
-
-
-def _build_reachable_adj() -> dict[int, set[int]]:
-    """Delegates to WorldPathing._build_world_adj()."""
-    return _wp_get_world_adj()
 
 
 def _get_reachable_adj() -> dict[int, set[int]]:
@@ -1523,8 +1828,6 @@ def _get_reachable_adj() -> dict[int, set[int]]:
 
 def invalidate_reachable_adj() -> None:
     """Call this whenever portal links change so the combined adj is rebuilt."""
-    global _reachable_adj_cache
-    _reachable_adj_cache = None
     _wp_invalidate_world_adj()        # also invalidate the shared WorldPathing cache
     _reachable_list_last_map[0] = -1  # force list rebuild on next frame
     _reachable_list_cache.clear()
@@ -1616,6 +1919,7 @@ def GetNearestUnlockedOutpost(
     # coordinates (real game units) rather than falling back to None for
     # maps not yet present in portal_links.json.
     _WP._PORTAL_ICON_POS_EXT = _PORTAL_ICON_POS
+    _WP._ICON_BOUNDS_EXT = _ICON_BOUNDS  # inject map icon bounds for geographic tiebreaking
     return _WP_GetNearestUnlockedOutpost(target_map_id, from_map_id)
 
 
@@ -1628,163 +1932,6 @@ def GetNearestFastTravelTo(
     Kept for backwards-compatibility and readability in travel-UI code.
     """
     return GetNearestUnlockedOutpost(target_map_id, from_map_id)
-
-
-def _unlock_all_coroutine():
-    """Coroutine: iterate through all reachable-unvisited outposts one by one."""
-    try:
-        while True:
-            if not _auto_explore_active[0]:
-                return
-
-            # Rebuild candidate list from current map each iteration
-            cmap = Map.GetMapID()
-            candidates: list[dict] = []
-            for m in GetReachableMaps(cmap):
-                if Map.IsMapUnlocked(m["map_id"]):
-                    continue
-                meta = _MAP_META.get(m["map_id"])
-                if meta is None or meta[0] == _RT_EXPLORABLE:
-                    continue
-                dist = _path_distance(cmap, m["map_id"])
-                ft   = GetNearestFastTravelTo(m["map_id"], cmap)
-                entry = dict(m)
-                entry["distance"]   = dist
-                entry["nearest_ft"] = ft
-                candidates.append(entry)
-            candidates.sort(key=lambda e: (
-                e["nearest_ft"]["hops"] if e.get("nearest_ft") else 999,
-                e["hops"],
-                e["distance"] if e["distance"] is not None else float("inf"),
-                e["name"],
-            ))
-
-            if not candidates:
-                Py4GW.Console.Log(MODULE_NAME,
-                    "Unlock All: list complete – all reachable outposts visited.",
-                    Py4GW.Console.MessageType.Info)
-                break
-
-            target = candidates[0]
-            ft     = target.get("nearest_ft")
-            ft_id  = ft["map_id"] if ft else None
-            _auto_explore_target[0] = target["map_id"]
-
-            # ── Step 1: fast-travel to the nearest unlocked outpost ──────────
-            if ft_id and ft_id != Map.GetMapID():
-                Map.TravelToDistrict(ft_id, 0, 0)
-                _t0 = int(Utils.GetBaseTimestamp())
-                while not Map.IsMapLoading():
-                    if not _auto_explore_active[0]:
-                        return
-                    if int(Utils.GetBaseTimestamp()) - _t0 > 10_000:
-                        break
-                    yield from Routines.Yield.wait(150)
-                loaded = yield from Routines.Yield.Map.WaitforMapLoad(
-                    ft_id, log=False, timeout=60_000
-                )
-                if not _auto_explore_active[0]:
-                    return
-                if not loaded:
-                    Py4GW.Console.Log(MODULE_NAME,
-                        f"Unlock All: could not load FT map {ft_id}, stopping.",
-                        Py4GW.Console.MessageType.Warning)
-                    break
-                yield from Routines.Yield.wait(500)
-                if not _auto_explore_active[0]:
-                    return
-
-            # ── Step 2: start walking navigation ────────────────────────────
-            if not _auto_explore_active[0]:
-                return
-            current_map = Map.GetMapID()
-            route = GetPath(current_map, target["map_id"])
-            if route.get("found"):
-                _travel_route_overlay[:] = _build_route_overlay(route)
-                _path_map_names[:] = route.get("map_names", [])
-                gids: list[int] = []
-                for wp in route.get("waypoints", []):
-                    gids.extend([wp["exit_gid"], wp["enter_gid"]])
-                _path_gids[:] = gids
-                _now = int(Utils.GetBaseTimestamp())
-                _num_hops = max(0, len(_path_map_names) - 1)
-                _travel_route_start_ms[0] = _now
-                _travel_hop_times[:] = [(_now, 0)] + [(0, 0)] * (_num_hops - 1)
-                _travel_prev_done_count[0] = 0
-            MoveToMapid(target["map_id"])
-
-            # ── Step 3: wait until arrived or movement ends ──────────────────
-            # Brief startup delay – let MoveToMapid's coroutine actually run
-            # its first frame before we start polling the runner flag.
-            yield from Routines.Yield.wait(400)
-            if not _auto_explore_active[0]:
-                return
-
-            _wait_start      = int(Utils.GetBaseTimestamp())
-            _arrived         = False
-            _last_seen_map   = Map.GetMapID()   # track map changes as "progress"
-            _last_progress_t = int(Utils.GetBaseTimestamp())
-            _NO_PROGRESS_TIMEOUT_MS = 15_000    # abort only if stuck on same map for 15 s
-
-            while True:
-                if not _auto_explore_active[0]:
-                    _abort_wp_movement()
-                    return
-
-                _cur_map = Map.GetMapID()
-
-                # Success: we arrived
-                if _cur_map == target["map_id"]:
-                    _arrived = True
-                    break
-
-                # Any map change (including intermediate hops) counts as progress
-                if _cur_map != _last_seen_map:
-                    _last_seen_map   = _cur_map
-                    _last_progress_t = int(Utils.GetBaseTimestamp())
-
-                # Hard overall timeout
-                if int(Utils.GetBaseTimestamp()) - _wait_start > 300_000:
-                    Py4GW.Console.Log(MODULE_NAME,
-                        f"Unlock All: overall timeout waiting for map {target['map_id']}, skipping.",
-                        Py4GW.Console.MessageType.Warning)
-                    break
-
-                # Only abort after no map change AND runner inactive for _NO_PROGRESS_TIMEOUT_MS
-                _stuck = (
-                    not _mtm_runner_active[0]
-                    and not Map.IsMapLoading()
-                    and (int(Utils.GetBaseTimestamp()) - _last_progress_t) > _NO_PROGRESS_TIMEOUT_MS
-                )
-                if _stuck:
-                    Py4GW.Console.Log(MODULE_NAME,
-                        f"Unlock All: movement stuck on map {_cur_map} "
-                        f"(target {target['map_id']}), skipping.",
-                        Py4GW.Console.MessageType.Warning)
-                    break
-
-                yield from Routines.Yield.wait(200)
-
-            # If we didn't actually arrive, skip to next iteration without
-            # treating this outpost as visited.
-            if not _arrived and Map.GetMapID() != target["map_id"]:
-                _reachable_list_last_map[0] = -1
-                _reachable_list_cache.clear()
-                yield from Routines.Yield.wait(500)
-                if not _auto_explore_active[0]:
-                    return
-                continue
-
-            # ── Step 4: pause, then invalidate cache for next iteration ──────
-            yield from Routines.Yield.wait(1_000)
-            if not _auto_explore_active[0]:
-                return
-            _reachable_list_last_map[0] = -1
-            _reachable_list_cache.clear()
-
-    finally:
-        _auto_explore_active[0] = False
-        _auto_explore_target[0] = 0
 
 
 def GetPath(start_map_id: int, target_map_id: int) -> dict:
@@ -1826,23 +1973,42 @@ def MoveToMapID(target_map_id: int) -> bool:
     return _WP_MoveToMapID(target_map_id)
 
 
-def _travel_button_coroutine(target_map_id: int):
+def _travel_button_coroutine(target_map_id: int, fast_travel_first: bool = False):
     """Coroutine triggered by a Travel button click.
 
     Steps:
-      1. If no direct portal path exists, find the nearest unlocked outpost
-         and fast-travel there.  Skip this step when the player is already
-         reachable from the current map via portals.
+      0. (Loadout) If hero loadout auto-apply is active and heroes are
+         configured, kick all heroes before leaving so the party is empty
+         during travel.  Auto-apply on zone will re-add them on arrival.
+      1. (Queue mode) If fast_travel_first is True and no direct portal path
+         exists, fast-travel to the nearest unlocked outpost first.
+         When fast_travel_first is False (green button) the route starts from
+         the player's current location without any preliminary fast-travel.
       2. Build the route overlay from the current position and start MoveToMapid.
     """
     current_map_at_start = Map.GetMapID()
 
-    # Only fast-travel when there is no direct portal path from here to target.
-    if not IsPath(current_map_at_start, target_map_id):
+    # ── Step 0: kick heroes before leaving if loadout auto-apply is on ──────
+    _hl_has_loadout = _hl_auto_apply[0] and any(h != 0 for h in _hl_slot_ids)
+    if _hl_has_loadout:
+        try:
+            Party.Heroes.KickAllHeroes()
+            yield from Routines.Yield.wait(400)
+        except Exception:
+            pass
+
+    # Queue mode: always fast-travel to the nearest staging outpost so that
+    # every queue item starts reliably from an outpost, not just when IsPath
+    # returns False.  (IsPath may return True for a hop-connected target even
+    # when the player is mid-exploration and cannot reach it without FT.)
+    if fast_travel_first:
         ft = GetNearestUnlockedOutpost(target_map_id, current_map_at_start)
         ft_id = ft["map_id"] if ft else None
+    else:
+        ft_id = None
 
-        # ── Step 1: fast-travel to nearest unlocked outpost if needed ───────────
+    # ── Step 1: fast-travel to nearest unlocked outpost if needed ───────────
+    if fast_travel_first:
         if ft_id and ft_id != current_map_at_start:
             Py4GW.Console.Log(MODULE_NAME,
                 f"Travel: fast-traveling to nearest outpost {ft_id} ({ft.get('name','?')}) "
@@ -1892,12 +2058,36 @@ def _should_show(rtype: int) -> bool:
     if rtype in (_RT_EXPLORABLE, _RT_OUTPOST, _RT_TOWN, _RT_CITY,
                  _RT_MISSION_OUT, _RT_COOP, _RT_CHALLENGE, _RT_COMPETITIVE, _RT_ELITE):
         return _show_frames[0]
-    return _show_other[0]
+    return False
 
 
 # ── World-map overlay draw ─────────────────────────────────────────────────────
 
 _PORTAL_3D_LABEL_RADIUS = 1000.0  # kept for reference, no longer used as filter
+
+
+def _draw_mtnw_path_3d() -> None:
+    """Draw the active BottingTree move-path as a 3D overlay in-game."""
+    from Py4GWCoreLib.WorldPathing import _wp
+    bt_tree = _wp.mtnw_bt_tree
+    if bt_tree is None:
+        return
+    if Map.WorldMap.IsWindowOpen():
+        return
+    # Mirror relevant BT blackboard keys into the draw helper so DrawMovePath can read them.
+    src_bb = bt_tree.blackboard
+    dst_bb = _bt_draw_helper.blackboard
+    for _key in (
+        "move_state", "move_reason", "move_target",
+        "move_path_points", "move_path_index", "move_path_count",
+        "move_current_waypoint", "move_current_waypoint_index",
+        "move_last_move_point", "move_resume_recovery_active",
+        "move_resume_recovery_reason", "move_resume_recovery_restart_pending",
+        "move_current_pause_reason",
+    ):
+        if _key in src_bb:
+            dst_bb[_key] = src_bb[_key]
+    _bt_draw_helper.DrawMovePath()
 
 
 def _draw_portal_ids_3d() -> None:
@@ -1950,6 +2140,10 @@ def _draw_overlay() -> None:
     if not Map.WorldMap.IsWindowOpen():
         return
 
+    # Hide all drawings when zoom is not 1.0 (100%)
+    if not _zoom_is_default():
+        return
+
     frame_info = Map.WorldMap.GetFrameInfo()
     if frame_info is None:
         return
@@ -1980,8 +2174,10 @@ def _draw_overlay() -> None:
     cur_fill     = Utils.RGBToColor(255, 230, 50, 210)
     cur_border   = Utils.RGBToColor(255, 255, 100, 255)
 
-    # Determine current campaign group for optional filtering
-    current_camp_group = -1
+    # Determine current campaign group for filtering.
+    # Default to Prophecies/EotN (group 1) so that Factions and Nightfall maps
+    # are hidden until portal links for those campaigns are recorded.
+    current_camp_group = 1
     if True:
         cur_meta = _MAP_META.get(current_map)
         if cur_meta:
@@ -2037,9 +2233,8 @@ def _draw_overlay() -> None:
 
         is_standard_type = rtype in (_RT_EXPLORABLE, _RT_OUTPOST, _RT_TOWN, _RT_CITY,
                                        _RT_MISSION_OUT, _RT_COOP, _RT_CHALLENGE, _RT_COMPETITIVE, _RT_ELITE)
-        # Non-standard (Other/PvP) types are fully skipped when _show_other is off.
         # Standard types are always processed so buttons/labels appear even when frames are off.
-        if not is_standard_type and not _show_other[0]:
+        if not is_standard_type:
             if _show_debug[0] and contains_current:
                 reason = f"filtered current map {current_map}: type filter disabled (rtype={rtype})"
                 if _debug_last_filter_reason[0] != reason:
@@ -2131,11 +2326,11 @@ def _draw_overlay() -> None:
                 raw     = f"{line} [{mid}]" if mid >= 0 else line
                 has_btn = mid in btn_ids_here
                 if frames_on:
-                    lbl_x = x1 + 20.0 if has_btn else x1 + 2.0
+                    lbl_x = x1 + 36.0 if has_btn else x1 + 2.0
                 else:
                     raw_w   = len(raw) * 6.5
-                    total_w = (20.0 + raw_w) if has_btn else raw_w
-                    lbl_x   = cx - total_w * 0.5 + (20.0 if has_btn else 0.0)
+                    total_w = (36.0 + raw_w) if has_btn else raw_w
+                    lbl_x   = cx - total_w * 0.5 + (36.0 if has_btn else 0.0)
                 lbl_y = block_top + i * line_h
                 PyImGui.draw_list_add_text(lbl_x, lbl_y, lbl_color, raw)
 
@@ -2262,11 +2457,6 @@ def _draw_overlay() -> None:
             _ensure_portal_dots(mid, is_live=is_live_mid)
             dots_for_mid = _PORTAL_ICON_POS.get(mid, [])
             for pix, piy, _dest, _local_idx, gid, *_gc in dots_for_mid:
-                sx, sy = _i2s(pix, piy)
-                if sx < sl or sx > sr or sy < st or sy > sb:
-                    continue
-                if gid:
-                    visible_portal_sx[gid] = (sx, sy)
                 sx, sy = _i2s(pix, piy)
                 if sx < sl or sx > sr or sy < st or sy > sb:
                     continue
@@ -2454,11 +2644,10 @@ def _draw_overlay() -> None:
         d_name   = d_meta[1] if d_meta else f"Map {dungeon_mid}"
         raw_lbl  = f"{d_name} [{dungeon_mid}]"
         lbl_col  = Utils.RGBToColor(255, 255, 255, 220)
-        PyImGui.draw_list_add_text(bx + 20.0, by, lbl_col, raw_lbl)
+        PyImGui.draw_list_add_text(bx + 36.0, by, lbl_col, raw_lbl)
 
     # ── Pass 4: draw computed portal path (always, regardless of _show_portals) ─
     if _path_gids:
-        path_line_col  = Utils.RGBToColor( 50, 220, 255, 220)
         path_done_col  = Utils.RGBToColor( 80,  80,  80, 100)  # dimmed for traveled
         path_dot_col   = Utils.RGBToColor(255, 255, 255, 240)
         path_dot_rim   = Utils.RGBToColor( 30, 150, 200, 255)
@@ -2482,21 +2671,6 @@ def _draw_overlay() -> None:
                     path_icon[pgid] = (pt[0], pt[1])
                     break
 
-        # Draw segments between consecutive GIDs
-        for seg_idx in range(len(_path_gids) - 1):
-            gid_a = _path_gids[seg_idx]
-            gid_b = _path_gids[seg_idx + 1]
-            pa_ix = path_icon.get(gid_a)
-            pb_ix = path_icon.get(gid_b)
-            if pa_ix is None or pb_ix is None:
-                continue
-            sa = _i2s(pa_ix[0], pa_ix[1])
-            sb = _i2s(pb_ix[0], pb_ix[1])
-            if seg_idx < first_pending:
-                PyImGui.draw_list_add_line(sa[0], sa[1], sb[0], sb[1], path_done_col, 1.5)
-            else:
-                PyImGui.draw_list_add_line(sa[0], sa[1], sb[0], sb[1], path_line_col, 2.5)
-
         # Draw dots at each portal position
         for dot_idx, pgid in enumerate(_path_gids):
             pa_ix = path_icon.get(pgid)
@@ -2518,17 +2692,21 @@ def _draw_overlay() -> None:
             mtnw_dot_col  = Utils.RGBToColor(255, 220, 255, 235)
             mtnw_cur_col  = Utils.RGBToColor(255, 255, 120, 255)
 
-            # Polyline
-            for i in range(len(mtnw_icon) - 1):
+            # Start from current path index (skip already-reached waypoints)
+            start_idx = max(0, min(_mtnw_path_index[0], len(mtnw_icon) - 1))
+
+            # Polyline (only future waypoints)
+            for i in range(start_idx, len(mtnw_icon) - 1):
                 a = _i2s(mtnw_icon[i][0], mtnw_icon[i][1])
                 b = _i2s(mtnw_icon[i + 1][0], mtnw_icon[i + 1][1])
                 PyImGui.draw_list_add_line(a[0], a[1], b[0], b[1], mtnw_line_col, 2.0)
 
-            # Sparse waypoint dots
-            step = 3 if len(mtnw_icon) > 30 else 1
-            for i in range(0, len(mtnw_icon), step):
-                s = _i2s(mtnw_icon[i][0], mtnw_icon[i][1])
-                PyImGui.draw_list_add_circle_filled(s[0], s[1], 3.2, mtnw_dot_col, 10)
+            # Sparse waypoint dots (only future waypoints, can be hidden)
+            if _show_mtnw_waypoint_dots[0]:
+                step = 3 if len(mtnw_icon) > 30 else 1
+                for i in range(start_idx, len(mtnw_icon), step):
+                    s = _i2s(mtnw_icon[i][0], mtnw_icon[i][1])
+                    PyImGui.draw_list_add_circle_filled(s[0], s[1], 3.2, mtnw_dot_col, 10)
 
             # Highlight current target waypoint
             if 0 <= _mtnw_path_index[0] < len(mtnw_icon):
@@ -2574,21 +2752,28 @@ def _draw_route_segments(overlay: list[dict], i2s, draw_link: bool = True) -> No
     col_trav  = Utils.RGBToColor(120, 200, 255, 160)
     col_dst   = Utils.RGBToColor( 80, 255, 120, 255)
 
+    current_map = Map.GetMapID()
     segments: list[tuple] = []
     for seg in overlay:
+        from_map = int(seg.get("from_map", 0) or 0)
         ex = (i2s(seg["exit_ix"],  seg["exit_iy"])  if seg["exit_ix"]  is not None else None)
         en = (i2s(seg["enter_ix"], seg["enter_iy"]) if seg["enter_ix"] is not None else None)
-        segments.append((ex, en))
+        ipath = seg.get("path_ixy", [])
+        spath = [i2s(p[0], p[1]) for p in ipath if isinstance(p, (list, tuple)) and len(p) >= 2]
+        segments.append((from_map, ex, en, spath))
 
     prev_ex: tuple | None = None
-    for ex, en in segments:
+    for from_map, ex, en, spath in segments:
         if draw_link and prev_ex is not None and en is not None:
             PyImGui.draw_list_add_line(prev_ex[0], prev_ex[1], en[0], en[1], col_link, 1.5)
-        if en is not None and ex is not None:
-            PyImGui.draw_list_add_line(en[0], en[1], ex[0], ex[1], col_trav, 2.0)
+        if from_map != current_map and len(spath) >= 2:
+            for j in range(len(spath) - 1):
+                a = spath[j]
+                b = spath[j + 1]
+                PyImGui.draw_list_add_line(a[0], a[1], b[0], b[1], col_trav, 2.0)
         prev_ex = ex
 
-    for i, (ex, en) in enumerate(segments):
+    for i, (_from_map, ex, en, _spath) in enumerate(segments):
         is_last = (i == len(segments) - 1)
         if ex is not None:
             PyImGui.draw_list_add_circle_filled(ex[0], ex[1], 5.5, col_exit, 12)
@@ -2607,6 +2792,10 @@ def _draw_travel_buttons() -> None:
     across the entire world map area (unlike a full-screen overlay).
     """
     if not Map.WorldMap.IsWindowOpen() or not _travel_btn_data:
+        return
+
+    # Hide all drawings when zoom is not 1.0 (100%)
+    if not _zoom_is_default():
         return
 
     current_map = Map.GetMapID()
@@ -2654,8 +2843,9 @@ def _draw_travel_buttons() -> None:
         if not direct and not via_ft:
             continue
 
+        plus_w = (btn_h + 2.0) if direct else 0.0
         PyImGui.set_next_window_pos(btn_x, btn_y)
-        PyImGui.set_next_window_size(btn_w + 2.0, btn_h + 2.0)
+        PyImGui.set_next_window_size(btn_w + 2.0 + plus_w, btn_h + 2.0)
         if not PyImGui.begin(f"##wm_travel_{rep_id}", btn_flags):
             PyImGui.end()
             continue
@@ -2671,9 +2861,31 @@ def _draw_travel_buttons() -> None:
         PyImGui.set_cursor_pos(0.0, 0.0)
         if PyImGui.button(f"##t{rep_id}", btn_w, btn_h):
             GLOBAL_CACHE.Coroutines.append(_travel_button_coroutine(rep_id))
+        travel_btn_hovered = PyImGui.is_item_hovered()
         PyImGui.pop_style_color(3)
 
-        if PyImGui.is_item_hovered():
+        if direct:
+            queued = rep_id in _travel_queue
+            PyImGui.same_line(0.0, 2.0)
+            PyImGui.push_style_color(PyImGui.ImGuiCol.Button,        (0.08, 0.42, 0.12, 0.90))
+            PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (0.12, 0.58, 0.18, 0.98))
+            PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive,  (0.18, 0.72, 0.24, 1.00))
+            if queued:
+                PyImGui.begin_disabled(True)
+            if PyImGui.button(f"+##q{rep_id}", btn_h, btn_h):
+                _enqueue_travel_target(rep_id)
+            if queued:
+                PyImGui.end_disabled()
+            if PyImGui.is_item_hovered():
+                PyImGui.begin_tooltip()
+                if queued:
+                    PyImGui.text("Already queued")
+                else:
+                    PyImGui.text("Queue this travel")
+                PyImGui.end_tooltip()
+            PyImGui.pop_style_color(3)
+
+        if travel_btn_hovered:
             meta = _MAP_META.get(rep_id)
             name = meta[1] if meta else f"Map {rep_id}"
             PyImGui.begin_tooltip()
@@ -2714,35 +2926,38 @@ def _draw_travel_buttons() -> None:
 
 def _draw_travel_roadmap() -> None:
     """Right-side panel showing the active inter-map travel route as a roadmap."""
-    if not Map.WorldMap.IsWindowOpen():
-        return
-    # Only show when a route is active or route data is present
-    if not _path_map_names and not _mtm_runner_active[0]:
-        _pathfinder_win_h[0] = 0.0
+    map_open = Map.WorldMap.IsWindowOpen()
+
+    # Keep map-overlay behavior when world map is open.
+    if map_open and not _zoom_is_default():
         return
 
-    fi = Map.WorldMap.GetFrameInfo()
-    if fi is None:
+    # Show when a route is active/present or queued travel targets exist.
+    if not _path_map_names and not _mtm_runner_active[0] and not _mtnw_runner_active[0] and not _travel_queue:
+        _pathfinder_win_h[0] = 0.0
         return
-    sc = fi.GetContentCoords()
-    if not sc:
-        return
-    sr, st = float(sc[2]), float(sc[1])
 
     win_w  = 210.0
     margin = 8.0
 
-    panel_flags = (
-        PyImGui.WindowFlags.NoTitleBar        |
-        PyImGui.WindowFlags.NoResize          |
-        PyImGui.WindowFlags.NoMove            |
-        PyImGui.WindowFlags.NoScrollbar       |
-        PyImGui.WindowFlags.NoScrollWithMouse |
-        PyImGui.WindowFlags.NoCollapse        |
-        PyImGui.WindowFlags.AlwaysAutoResize  |
-        PyImGui.WindowFlags.NoSavedSettings
-    )
-    PyImGui.set_next_window_pos(sr - win_w - margin, st + margin)
+    if map_open:
+        fi = Map.WorldMap.GetFrameInfo()
+        if fi is None:
+            return
+        sc = fi.GetContentCoords()
+        if not sc:
+            return
+        sr, st = float(sc[2]), float(sc[1])
+        pos_x = sr - win_w - margin
+        pos_y = st + margin
+    else:
+        io = PyImGui.get_io()
+        sr = float(io.display_size_x)
+        pos_x = sr - win_w - margin
+        pos_y = margin
+
+    panel_flags = _get_panel_flags()
+    PyImGui.set_next_window_pos(pos_x, pos_y)
     PyImGui.set_next_window_size(win_w, 0.0)
     if not PyImGui.begin("##wm_travel_roadmap", panel_flags):
         PyImGui.end()
@@ -2800,14 +3015,16 @@ def _draw_travel_roadmap() -> None:
         if 0 <= hop_idx < len(_travel_hop_times):
             ht_s, ht_e = _travel_hop_times[hop_idx]
             if ht_e != 0:
-                elapsed = (ht_e - ht_s) / 1000.0
-                time_str = f"  ({elapsed:.0f}s)"
+                elapsed = int((ht_e - ht_s) / 1000.0)
+                _hm, _hs = divmod(elapsed, 60)
+                time_str = f"  ({_hm}m {_hs:02d}s)" if _hm > 0 else f"  ({_hs}s)"
             elif ht_s > 0:
-                elapsed = (now_ms - ht_s) / 1000.0
-                time_str = f"  ({elapsed:.0f}s...)"
+                elapsed = int((now_ms - ht_s) / 1000.0)
+                _hm, _hs = divmod(elapsed, 60)
+                time_str = f"  ({_hm}m {_hs:02d}s...)" if _hm > 0 else f"  ({_hs}s...)"
 
         label = f"{prefix}{step}{time_str}"
-        if i == 0 and current_map == (route.get("maps", [0])[0] if route else 0):
+        if i == done_count:
             col = cur_col
         elif i < done_count:
             col = done_col
@@ -2816,6 +3033,37 @@ def _draw_travel_roadmap() -> None:
         else:
             col = pend_col
         PyImGui.draw_list_add_text(sx2, sy2, col, label)
+
+    if _travel_queue:
+        PyImGui.spacing()
+        PyImGui.separator()
+        q_title_col = Utils.RGBToColor(120, 220, 255, 255)
+        q_head_col  = Utils.RGBToColor(220, 220, 220, 255)
+        q_wait_col  = Utils.RGBToColor(170, 170, 170, 220)
+        q_run_col   = Utils.RGBToColor(120, 255, 160, 255)
+        qx, qy = PyImGui.get_cursor_screen_pos()
+        PyImGui.dummy(int(win_w - 8), 14)
+        PyImGui.draw_list_add_text(qx, qy, q_title_col, f"Queue ({len(_travel_queue)})")
+
+        for qi, qmid in enumerate(_travel_queue):
+            qname = (_MAP_META.get(qmid) or (None, f"Map {qmid}"))[1]
+            row_x, row_y = PyImGui.get_cursor_screen_pos()
+            PyImGui.dummy(int(win_w - 8), 14)
+            is_head = (qi == 0)
+            is_running = is_head and (_travel_queue_inflight_target[0] == qmid)
+            if is_running:
+                qcol = q_run_col
+                prefix = "> "
+                suffix = " (starting...)"
+            elif is_head:
+                qcol = q_head_col
+                prefix = "> "
+                suffix = ""
+            else:
+                qcol = q_wait_col
+                prefix = "  "
+                suffix = ""
+            PyImGui.draw_list_add_text(row_x, row_y, qcol, f"{prefix}{qname} [{qmid}]{suffix}")
 
     # Total elapsed time since route start
     if _travel_route_start_ms[0] > 0:
@@ -2846,6 +3094,17 @@ def _draw_travel_roadmap() -> None:
         _travel_prev_done_count[0] = -1
     PyImGui.pop_style_color(3)
 
+    if _travel_queue:
+        clear_col = (0.55, 0.20, 0.20, 0.90)
+        PyImGui.push_style_color(PyImGui.ImGuiCol.Button,        clear_col)
+        PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (0.72, 0.25, 0.25, 1.0))
+        PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive,  (0.80, 0.30, 0.30, 1.0))
+        if PyImGui.button("Clear Queue##rm", btn_w_full, 0):
+            _travel_queue.clear()
+            _travel_queue_inflight_target[0] = 0
+            _travel_queue_dispatch_ms[0] = 0
+        PyImGui.pop_style_color(3)
+
     _pathfinder_win_h[0] = PyImGui.get_window_height()
     PyImGui.end()
 
@@ -2860,6 +3119,11 @@ def _draw_worldpathing_demo() -> None:
         return
     if not Map.WorldMap.IsWindowOpen():
         return
+
+    # Hide all drawings when zoom is not 1.0 (100%)
+    if not _zoom_is_default():
+        return
+
     fi = Map.WorldMap.GetFrameInfo()
     if fi is None:
         return
@@ -3057,6 +3321,10 @@ def _draw_legend() -> None:
     if not Map.WorldMap.IsWindowOpen():
         return
 
+    # Hide all drawings when zoom is not 1.0 (100%)
+    if not _zoom_is_default():
+        return
+
     fi = Map.WorldMap.GetFrameInfo()
     if fi is None:
         return
@@ -3081,16 +3349,7 @@ def _draw_legend() -> None:
         ("Unlinked Portal",     Utils.RGBToColor(255,  80,  80, 230), Utils.RGBToColor(255, 200, 200, 255)),
     ]
 
-    panel_flags = (
-        PyImGui.WindowFlags.NoTitleBar        |
-        PyImGui.WindowFlags.NoResize          |
-        PyImGui.WindowFlags.NoMove            |
-        PyImGui.WindowFlags.NoScrollbar       |
-        PyImGui.WindowFlags.NoScrollWithMouse |
-        PyImGui.WindowFlags.NoCollapse        |
-        PyImGui.WindowFlags.AlwaysAutoResize  |
-        PyImGui.WindowFlags.NoSavedSettings
-    )
+    panel_flags = _get_panel_flags()
     PyImGui.set_next_window_pos(sl + margin, st + margin)
     PyImGui.set_next_window_size(win_w, 0.0)   # width fixed, height auto
     if not PyImGui.begin("##wm_plus_panel", panel_flags):
@@ -3139,9 +3398,20 @@ def _draw_legend() -> None:
     # ── Settings ───────────────────────────────────────────────────────────
     PyImGui.separator()
     PyImGui.push_item_width(win_w - 16.0)
-    _show_frames[0]      = PyImGui.checkbox("Draw all Frames##wmp",   _show_frames[0])
-    _show_reachable_unvisited[0] = PyImGui.checkbox(
+    _new_frames      = PyImGui.checkbox("Draw all Frames##wmp",          _show_frames[0])
+    _new_opacity     = PyImGui.slider_float("Opacity##wmp",              _opacity[0], 0.1, 1.0)
+    _new_reachable   = PyImGui.checkbox(
         "  Reachable (not visited)##wmp", _show_reachable_unvisited[0])
+    _new_hero_loadout = PyImGui.checkbox("  Setup Team##wmp", _show_hero_loadout[0])
+    if (_new_frames != _show_frames[0] or
+            _new_opacity != _opacity[0] or
+            _new_reachable != _show_reachable_unvisited[0] or
+            _new_hero_loadout != _show_hero_loadout[0]):
+        _show_frames[0]              = _new_frames
+        _opacity[0]                  = _new_opacity
+        _show_reachable_unvisited[0] = _new_reachable
+        _show_hero_loadout[0]        = _new_hero_loadout
+        _wmp_ini_save()
     PyImGui.pop_item_width()
 
     PyImGui.separator()
@@ -3152,7 +3422,6 @@ def _draw_legend() -> None:
         if _show_portals[0]:
             _show_portals_3d[0] = PyImGui.checkbox("    Draw 3D Portals##wmp", _show_portals_3d[0])
             _show_portal_ids[0] = PyImGui.checkbox("    Show Portal IDs##wmp",  _show_portal_ids[0])
-        #_show_other[0]       = PyImGui.checkbox("  Other / PvP##wmp",   _show_other[0])
         _show_pmap_current[0] = PyImGui.checkbox("  Navmap Current Map##wmp", _show_pmap_current[0])
         _show_pmap_all[0]     = PyImGui.checkbox("  Navmap All##wmp",         _show_pmap_all[0])
         if _show_pmap_current[0] or _show_pmap_all[0]:
@@ -3167,6 +3436,8 @@ def _draw_legend() -> None:
 
 def _draw_reachable_list_panel() -> None:
     """Floating panel listing reachable-but-unvisited outposts, shown when the checkbox is active."""
+    if not _zoom_is_default():
+        return
     if not Map.WorldMap.IsWindowOpen() or not _show_reachable_unvisited[0]:
         return
 
@@ -3186,11 +3457,18 @@ def _draw_reachable_list_panel() -> None:
     if cmap != _reachable_list_last_map[0]:
         _reachable_list_last_map[0] = cmap
         _reachable_list_cache.clear()
+        # Determine current campaign group so we only show outposts from the
+        # same campaign as the player's current map.
+        cur_meta_rv = _MAP_META.get(cmap)
+        cur_camp_rv = _campaign_group(cur_meta_rv[2]) if cur_meta_rv else 1
         for m in GetReachableMaps(cmap):
             if Map.IsMapUnlocked(m["map_id"]):
                 continue
             meta = _MAP_META.get(m["map_id"])
             if meta is None or meta[0] == _RT_EXPLORABLE:
+                continue
+            # Skip outposts from other campaigns.
+            if _campaign_group(meta[2]) != cur_camp_rv:
                 continue
             dist  = _path_distance(cmap, m["map_id"])
             ft    = GetNearestFastTravelTo(m["map_id"], cmap)
@@ -3205,16 +3483,7 @@ def _draw_reachable_list_panel() -> None:
         ))
     rv_list = _reachable_list_cache
 
-    panel_flags = (
-        PyImGui.WindowFlags.NoTitleBar        |
-        PyImGui.WindowFlags.NoResize          |
-        PyImGui.WindowFlags.NoMove            |
-        PyImGui.WindowFlags.NoScrollbar       |
-        PyImGui.WindowFlags.NoScrollWithMouse |
-        PyImGui.WindowFlags.NoCollapse        |
-        PyImGui.WindowFlags.AlwaysAutoResize  |
-        PyImGui.WindowFlags.NoSavedSettings
-    )
+    panel_flags = _get_panel_flags()
     PyImGui.set_next_window_pos(sl + margin + legend_w + margin, st + margin)
     PyImGui.set_next_window_size(win_w, 0.0)
     if not PyImGui.begin("##wm_rv_list_panel", panel_flags):
@@ -3232,14 +3501,20 @@ def _draw_reachable_list_panel() -> None:
     else:
         # ── Unlock All buttons ─────────────────────────────────────────────
         if _auto_explore_active[0]:
-            target_name = _map_name_cached(_auto_explore_target[0]) if _auto_explore_target[0] else "..."
+            target_name = _map_name_cached(_travel_queue_inflight_target[0]) if _travel_queue_inflight_target[0] else "..."
             PyImGui.push_style_color(PyImGui.ImGuiCol.Button,        (0.60, 0.15, 0.10, 0.90))
             PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (0.80, 0.20, 0.15, 0.95))
             PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive,  (0.90, 0.25, 0.20, 1.00))
             if PyImGui.button(f"Stop Unlock All  ({target_name})##ae_stop", win_w - 16.0, 0):
-                _abort_wp_movement()
+                _abort_worldmap_movement()
                 _auto_explore_active[0] = False
                 _auto_explore_target[0] = 0
+                _travel_route_overlay.clear()
+                _path_gids.clear()
+                _path_map_names.clear()
+                _travel_route_start_ms[0] = 0
+                _travel_hop_times.clear()
+                _travel_prev_done_count[0] = -1
             PyImGui.pop_style_color(3)
         elif rv_list:
             PyImGui.push_style_color(PyImGui.ImGuiCol.Button,        (0.10, 0.45, 0.15, 0.90))
@@ -3247,9 +3522,13 @@ def _draw_reachable_list_panel() -> None:
             PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive,  (0.20, 0.75, 0.28, 1.00))
             if PyImGui.button(f"Start Unlock All  ({len(rv_list)} remaining)##ae_start",
                               win_w - 16.0, 0):
+                _travel_queue.clear()
+                for _m in rv_list:
+                    _travel_queue.append(_m["map_id"])
+                _travel_queue_inflight_target[0] = 0
+                _travel_queue_dispatch_ms[0] = 0
                 _auto_explore_active[0] = True
                 _auto_explore_target[0] = 0
-                GLOBAL_CACHE.Coroutines.append(_unlock_all_coroutine())
             PyImGui.pop_style_color(3)
             if PyImGui.is_item_hovered():
                 first = rv_list[0]
@@ -3295,8 +3574,116 @@ def _draw_reachable_list_panel() -> None:
     PyImGui.end()
 
 
+def _draw_hero_loadout_panel() -> None:
+    """Floating panel for configuring and applying the hero loadout."""
+    if not _zoom_is_default():
+        return
+    if not Map.WorldMap.IsWindowOpen() or not _show_hero_loadout[0]:
+        return
+
+    fi = Map.WorldMap.GetFrameInfo()
+    if fi is None:
+        return
+    sc = fi.GetContentCoords()
+    if not sc:
+        return
+    sl, st = float(sc[0]), float(sc[1])
+
+    legend_w = 190.0
+    margin   = 8.0
+    win_w    = 240.0
+
+    max_slots = 0
+    try:
+        if Map.IsOutpost():
+            max_slots = max(0, Map.GetMaxPartySize() - 1)
+    except Exception:
+        pass
+
+    panel_flags = _get_panel_flags()
+    PyImGui.set_next_window_pos(sl + margin + legend_w + margin, st + margin)
+    PyImGui.set_next_window_size(win_w, 0.0)
+    if not PyImGui.begin("##wm_hero_loadout_panel", panel_flags):
+        PyImGui.end()
+        return
+
+    title_col = Utils.RGBToColor(255, 230, 140, 255)
+    tx, ty = PyImGui.get_cursor_screen_pos()
+    PyImGui.dummy(int(win_w), 16)
+    PyImGui.draw_list_add_text(tx, ty, title_col, "Setup Team")
+    PyImGui.separator()
+
+    changed = False
+    for i in range(_HL_MAX_SLOTS):
+        active = (i < max_slots)
+        if active:
+            PyImGui.text_colored(f"{i + 1}.", (0.4, 0.9, 0.4, 1.0))
+        else:
+            PyImGui.text_colored(f"{i + 1}.", (0.4, 0.4, 0.4, 1.0))
+        PyImGui.same_line(0, 4)
+        if not active:
+            PyImGui.begin_disabled(True)
+        PyImGui.push_item_width(win_w - 80.0)
+        combo_idx = _hl_hero_id_to_combo(_hl_slot_ids[i])
+        new_idx   = PyImGui.combo(f"##hl_{i}", combo_idx, _HL_COMBO_ITEMS)
+        PyImGui.pop_item_width()
+        if new_idx != combo_idx:
+            _hl_slot_ids[i] = _hl_combo_to_hero_id(new_idx)
+            changed = True
+        if not active:
+            PyImGui.end_disabled()
+        PyImGui.same_line(0, 4)
+        if i > 0:
+            if PyImGui.small_button(f"^##hl_u{i}"):
+                _hl_slot_ids[i], _hl_slot_ids[i - 1] = _hl_slot_ids[i - 1], _hl_slot_ids[i]
+                changed = True
+        else:
+            PyImGui.dummy(19, 0)
+        PyImGui.same_line(0, 2)
+        if i < _HL_MAX_SLOTS - 1:
+            if PyImGui.small_button(f"v##hl_d{i}"):
+                _hl_slot_ids[i], _hl_slot_ids[i + 1] = _hl_slot_ids[i + 1], _hl_slot_ids[i]
+                changed = True
+        else:
+            PyImGui.dummy(19, 0)
+
+    if changed:
+        _wmp_ini_save()
+
+    PyImGui.separator()
+
+    if max_slots > 0:
+        PyImGui.text_colored(f"Map allows {max_slots} hero slot(s).", (0.7, 0.9, 0.7, 1.0))
+    else:
+        PyImGui.text_disabled("Not in an outpost.")
+    PyImGui.spacing()
+
+    _new_auto = PyImGui.checkbox("Auto-apply on zone##hl", _hl_auto_apply[0])
+    if _new_auto != _hl_auto_apply[0]:
+        _hl_auto_apply[0] = _new_auto
+        _wmp_ini_save()
+    PyImGui.spacing()
+
+    can_apply = Map.IsOutpost() and not _hl_applying[0]
+    if not can_apply:
+        PyImGui.begin_disabled(True)
+    PyImGui.push_style_color(PyImGui.ImGuiCol.Button,        (0.15, 0.45, 0.20, 0.90))
+    PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (0.20, 0.60, 0.28, 0.95))
+    PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive,  (0.25, 0.75, 0.35, 1.00))
+    label = "Applying..." if _hl_applying[0] else "Apply Loadout"
+    if PyImGui.button(f"{label}##hl_apply", win_w - 16.0, 0):
+        _hl_trigger_apply()
+    PyImGui.pop_style_color(3)
+    if not can_apply:
+        PyImGui.end_disabled()
+
+    PyImGui.end()
+
+
 def _draw_portal_link_editor() -> None:
     """Dedicated panel for portal linking, positioned right of the legend panel."""
+    if not _zoom_is_default():
+        return
     if not Map.WorldMap.IsWindowOpen() or not _show_developer[0] or not _show_debug[0]:
         return
 
@@ -3312,16 +3699,7 @@ def _draw_portal_link_editor() -> None:
     margin = 8.0
     win_w = 260.0
 
-    panel_flags = (
-        PyImGui.WindowFlags.NoTitleBar        |
-        PyImGui.WindowFlags.NoResize          |
-        PyImGui.WindowFlags.NoMove            |
-        PyImGui.WindowFlags.NoScrollbar       |
-        PyImGui.WindowFlags.NoScrollWithMouse |
-        PyImGui.WindowFlags.NoCollapse        |
-        PyImGui.WindowFlags.AlwaysAutoResize  |
-        PyImGui.WindowFlags.NoSavedSettings
-    )
+    panel_flags = _get_panel_flags()
 
     PyImGui.set_next_window_pos(sl + margin + legend_w + margin, st + margin)
     PyImGui.set_next_window_size(win_w, 0.0)
@@ -3613,6 +3991,7 @@ def main() -> None:
     global _cache_built
     try:
         _set_runtime_heartbeat()
+        _wmp_ini_try_init()
         if not _cache_built:
             _build_cache()
 
@@ -3631,6 +4010,9 @@ def main() -> None:
             _is_path_cache.clear()
             _is_ft_path_cache.clear()
             _debug_last_map[0] = cmap
+            # Hero Loadout: auto-apply when zoning into an outpost
+            if _hl_auto_apply[0] and Map.IsOutpost():
+                _hl_trigger_apply()
             # Only wipe route data when no runner is active.
             # While the bot is travelling, the route must stay visible.
             # Also keep when Unlock All is running (it rebuilds the overlay itself).
@@ -3662,13 +4044,17 @@ def main() -> None:
             _wp_move_result[0]     = None
             _wp_move_map_result[0] = None
 
+        _process_travel_queue()
+
         _draw_overlay()
         _draw_travel_buttons()
         _draw_legend()
         _draw_reachable_list_panel()
+        _draw_hero_loadout_panel()
         _draw_portal_link_editor()
         _draw_travel_roadmap()
         _draw_worldpathing_demo()
+        _draw_mtnw_path_3d()
         _draw_portal_ids_3d()
     except Exception as e:
         Py4GW.Console.Log(MODULE_NAME, f"{e}\n{traceback.format_exc()}",
