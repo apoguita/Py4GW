@@ -816,7 +816,9 @@ class AllAccounts(Structure):
         
         for i in range(SHMEM_MAX_PLAYERS):
             message = self.GetInbox(i)
-        
+            if message.Active:
+                continue
+         
             message.SenderEmail = sender_email
             message.ReceiverEmail = receiver_email
             message.Command = command.value
