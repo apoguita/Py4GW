@@ -659,7 +659,7 @@ def _AreCastConditionsMet(slot,
         feature_count += (1 if Conditions.Overcast > 0 else 0)
         feature_count += (1 if Conditions.IsPartyWide else 0)
         feature_count += (1 if Conditions.RequiresSpiritInEarshot else 0)
-        feature_count += (1 if Conditions.EnemiesInRange > 0 else 0)
+        feature_count += (1 if Conditions.EnemyCount > 0 else 0)
         feature_count += (1 if Conditions.AlliesInRange > 0 else 0)
         feature_count += (1 if Conditions.SpiritsInRange > 0 else 0)
         feature_count += (1 if Conditions.MinionsInRange > 0 else 0)
@@ -886,10 +886,10 @@ def _AreCastConditionsMet(slot,
                     if HasEffect_fn(pet_id,skills[slot].skill_id ):
                         return False
             
-        if Conditions.EnemiesInRange != 0:
+        if Conditions.EnemyCount != 0:
             player_pos = Player.GetXY()
-            enemy_array = enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], Conditions.EnemiesInRangeArea)
-            if len(enemy_array) >= Conditions.EnemiesInRange:
+            enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], Conditions.EnemiesInRange)
+            if len(enemy_array) >= Conditions.EnemyCount:
                 number_of_features += 1
             else:
                 number_of_features = 0
@@ -1709,7 +1709,7 @@ class SkillManager:
             feature_count += (1 if Conditions.Overcast > 0 else 0)
             feature_count += (1 if Conditions.IsPartyWide else 0)
             feature_count += (1 if Conditions.RequiresSpiritInEarshot else 0)
-            feature_count += (1 if Conditions.EnemiesInRange > 0 else 0)
+            feature_count += (1 if Conditions.EnemyCount > 0 else 0)
             feature_count += (1 if Conditions.AlliesInRange > 0 else 0)
             feature_count += (1 if Conditions.SpiritsInRange > 0 else 0)
             feature_count += (1 if Conditions.MinionsInRange > 0 else 0)
@@ -1930,10 +1930,10 @@ class SkillManager:
                         if self.HasEffect(pet_id,self.skills[slot].skill_id ):
                             return False
                         
-            if Conditions.EnemiesInRange != 0:
+            if Conditions.EnemyCount != 0:
                 player_pos = Player.GetXY()
-                enemy_array = enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], Conditions.EnemiesInRangeArea)
-                if len(enemy_array) >= Conditions.EnemiesInRange:
+                enemy_array = Routines.Agents.GetFilteredEnemyArray(player_pos[0], player_pos[1], Conditions.EnemiesInRange)
+                if len(enemy_array) >= Conditions.EnemyCount:
                     number_of_features += 1
                 else:
                     number_of_features = 0
