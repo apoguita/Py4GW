@@ -79,8 +79,8 @@ class CastConditions:
         self.CloseToAggro = False
 
         # combat field checks
-        self.EnemiesInRange = 0
-        self.EnemiesInRangeArea = Range.Area.value
+        self.EnemiesInRange = Range.Area.value
+        self.EnemyCount = 0
 
         self.AlliesInRange = 0
         self.AlliesInRangeArea = Range.Area.value
@@ -90,6 +90,14 @@ class CastConditions:
 
         self.MinionsInRange = 0
         self.MinionsInRangeArea = Range.Area.value
+
+    @property
+    def EnemiesInRangeArea(self):
+        return self.EnemiesInRange
+
+    @EnemiesInRangeArea.setter
+    def EnemiesInRangeArea(self, value):
+        self.EnemiesInRange = value
             
 class CustomSkill:
     def __init__(self):

@@ -376,10 +376,8 @@ class ModelPopUp:
         
 #region id_helpers
 def _id_items(rarity: str):
-    from Py4GWCoreLib.Routines import Routines
     from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
-    white_items = Routines.Items.GetUnidentifiedItems([rarity], [])
-    routine = Routines.Yield.Items.IdentifyItems(white_items, log=True)
+    routine = AutoInventoryHandler().IdentifyItems(rarities=[rarity], log=True)
     GLOBAL_CACHE.Coroutines.append(routine)
     
 def _id_whites():
@@ -398,7 +396,6 @@ def _id_golds():
     _id_items("Gold")
     
 def _id_all(cfg: IdentificationSettings):
-    from Py4GWCoreLib.Routines import Routines
     from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
     rarities = []
     if cfg.identify_all_whites:
@@ -411,8 +408,7 @@ def _id_all(cfg: IdentificationSettings):
         rarities.append("Purple")
     if cfg.identify_all_golds:
         rarities.append("Gold")
-    all_items = Routines.Items.GetUnidentifiedItems(rarities, [])
-    routine = Routines.Yield.Items.IdentifyItems(all_items, log=True)
+    routine = AutoInventoryHandler().IdentifyItems(rarities=rarities, log=True)
     GLOBAL_CACHE.Coroutines.append(routine)
     
 #region salvage_helpers
@@ -800,76 +796,15 @@ def _run_salvage_routine(
     rarities: list[str] | None = None,
     selected_kit: ItemSlotData | None = None,
 ) -> Generator[object, None, None]:
-    from Py4GWCoreLib.Py4GWcorelib import ConsoleLog, Console
-    from Py4GWCoreLib.Routines import Routines
-
-    item_ids = list(dict.fromkeys(item_ids))
-    allow_unidentified_nonwhite = _allows_unidentified_nonwhite_salvage(selected_kit)
-
-    salvaged_count = 0
-    failed_item_ids: set[int] = set()
-    aborted = False
-
-    if rarities is None:
-        for item_id in item_ids:
-            while True:
-                status = yield from _salvage_single_item_with_supported_kit(item_id, label, selected_kit=selected_kit)
-                if status in {"salvaged", "processed"}:
-                    salvaged_count += 1
-                    break
-                if status == "retry":
-                    yield from Routines.Yield.wait(150)
-                    continue
-                if status in {"missing_item", "filtered_out"}:
-                    break
-                if status in {"no_kit", "manual_timeout", "popup_failed"}:
-                    aborted = True
-                    break
-                failed_item_ids.add(item_id)
-                break
-            if aborted:
-                break
-    else:
-        allowed_rarities = set(rarities)
-        while True:
-            matching_items = [
-                item_id
-                for item_id in _get_salvageable_items_for_rarities(
-                    rarities,
-                    allow_unidentified_nonwhite=allow_unidentified_nonwhite,
-                )
-                if item_id not in failed_item_ids
-            ]
-            if not matching_items:
-                break
-
-            item_id = matching_items[0]
-            while True:
-                status = yield from _salvage_single_item_with_supported_kit(
-                    item_id,
-                    label,
-                    selected_kit=selected_kit,
-                    allowed_rarities=allowed_rarities,
-                )
-                if status in {"salvaged", "processed"}:
-                    salvaged_count += 1
-                    break
-                if status == "retry":
-                    yield from Routines.Yield.wait(150)
-                    continue
-                if status in {"missing_item", "filtered_out"}:
-                    break
-                if status in {"no_kit", "manual_timeout", "popup_failed"}:
-                    aborted = True
-                    break
-                failed_item_ids.add(item_id)
-                break
-            if aborted:
-                break
-
-    if salvaged_count > 0:
-        ConsoleLog("SalvageItems", f"Salvaged {salvaged_count} items.", Console.MessageType.Info)
-
+    preferred_kit_id = _get_supported_salvage_kit_id(selected_kit)
+    yield from AutoInventoryHandler().SalvageItems(
+        item_ids=list(dict.fromkeys(item_ids)),
+        rarities=rarities,
+        preferred_kit_id=preferred_kit_id if preferred_kit_id > 0 else None,
+        allow_unidentified_nonwhite=_allows_unidentified_nonwhite_salvage(selected_kit),
+        respect_settings=False,
+        log=True,
+    )
     return None
 
 
@@ -891,44 +826,20 @@ def _run_salvage_stack_routine(
     label: str,
     selected_kit: ItemSlotData | None = None,
 ) -> Generator[object, None, None]:
-    """Coroutine: salvage every item in a stacked slot (same bag+slot) until gone."""
-    from Py4GWCoreLib.Py4GWcorelib import ConsoleLog, Console
-    from Py4GWCoreLib.Routines import Routines
+    preferred_kit_id = _get_supported_salvage_kit_id(selected_kit)
 
-    salvaged_count = 0
-    aborted = False
-    max_iterations = 250  # safety cap — no real stack exceeds this
-
-    for _ in range(max_iterations):
-        # Re-resolve the item at this slot each iteration (quantity decreases or item vanishes)
+    for _ in range(250):
         item_id = _get_item_id_at_bag_slot(bag_id, slot)
         if item_id == 0:
-            break  # stack fully consumed
-
-        while True:
-            status = yield from _salvage_single_item_with_supported_kit(item_id, label, selected_kit=selected_kit)
-            if status in {"salvaged", "processed"}:
-                salvaged_count += 1
-                break
-            if status == "retry":
-                yield from Routines.Yield.wait(150)
-                continue
-            if status in {"missing_item", "filtered_out"}:
-                # Item gone or became unsalvageable — stop
-                aborted = True
-                break
-            if status in {"no_kit", "manual_timeout", "popup_failed"}:
-                aborted = True
-                break
-            # Any other failure: stop to avoid infinite loop
-            aborted = True
             break
 
-        if aborted:
-            break
-
-    if salvaged_count > 0:
-        ConsoleLog("SalvageItems", f"Salvaged stack: {salvaged_count} items from bag {bag_id} slot {slot}.", Console.MessageType.Info)
+        yield from AutoInventoryHandler().SalvageItems(
+            item_ids=[item_id],
+            preferred_kit_id=preferred_kit_id if preferred_kit_id > 0 else None,
+            allow_unidentified_nonwhite=_allows_unidentified_nonwhite_salvage(selected_kit),
+            respect_settings=False,
+            log=False,
+        )
 
     return None
 
