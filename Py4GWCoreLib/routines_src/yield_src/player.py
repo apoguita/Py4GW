@@ -52,6 +52,18 @@ class Player:
         yield from _run_bt_tree(tree, throttle_ms=300)
 
     @staticmethod
+    def SendAutomaticDialog(button_number: int, log: bool = False):
+        """
+        Purpose: Press the currently visible dialog button by 0-based position.
+        Args:
+            button_number (int): Visible button index starting at 0.
+            log (bool) Optional: Whether to log the action. Default is False.
+        Returns: None
+        """
+        tree = BT.Player.SendAutomaticDialog(button_number, log=log)
+        yield from _run_bt_tree(tree, throttle_ms=100)
+
+    @staticmethod
     def SetTitle(title_id: int, log: bool = False):
         """
         Purpose: Set the player's title to the specified title ID.

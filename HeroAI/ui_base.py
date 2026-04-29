@@ -488,7 +488,7 @@ class HeroAI_BaseUI:
                         if self_account.AccountEmail == account.AccountEmail:
                             continue
                         ConsoleLog("Messaging", f"Ordering {account.AccountEmail} to interact with target: {target}")
-                        GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.TakeDialogWithTarget, (target, 1, 0, 0))
+                        GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.TakeDialogWithTarget, (target, 0, 0, 0))
                 ImGui.pop_font()
                 ImGui.show_tooltip("Get Dialog")
                 ImGui.push_font("Regular", 10)

@@ -18,7 +18,8 @@ from .follow_movement import compute_mixed_follow_target, load_follow_movement_c
 class FollowExecutionState:
     last_follow_move_point: tuple[float, float] | None = None
     last_follow_assigned_point: tuple[float, float, int] | None = None
-    follow_map_entry_signature: tuple[int, int, int, int] | None = None
+    follow_map_entry_signature: tuple[int, int, int, int, int] | None = None
+    last_leader_publish_signature: tuple[int, int, int, int, int] | None = None
 
 
 def execute_follower_follow(
@@ -28,8 +29,23 @@ def execute_follower_follow(
     def _is_nonzero_xy(x: float, y: float) -> bool:
         return abs(float(x)) > 0.001 or abs(float(y)) > 0.001
 
+    def _reset_follow_runtime() -> None:
+        state.last_follow_move_point = None
+        state.last_follow_assigned_point = None
+
     def _cached_xy(account) -> tuple[float, float]:
         return (float(account.AgentData.Pos.x), float(account.AgentData.Pos.y))
+
+    def _account_map_signature(account) -> tuple[int, int, int, int, int] | None:
+        if account is None or not bool(getattr(account, "IsSlotActive", False)):
+            return None
+        return (
+            int(account.AgentData.Map.MapID),
+            int(account.AgentData.Map.Region),
+            int(account.AgentData.Map.District),
+            int(account.AgentData.Map.Language),
+            int(account.AgentPartyData.PartyID),
+        )
 
     def _cached_ally_positions(own_agent_id: int) -> list[tuple[float, float]]:
         positions: list[tuple[float, float]] = []
@@ -75,18 +91,28 @@ def execute_follower_follow(
         int(Map.GetRegion()[0]),
         int(Map.GetDistrict()),
         int(Map.GetLanguage()[0]),
+        int(cached_data.account_data.AgentPartyData.PartyID),
     )
     if state.follow_map_entry_signature != map_sig:
         state.follow_map_entry_signature = map_sig
-        state.last_follow_move_point = None
-        state.last_follow_assigned_point = None
+        state.last_leader_publish_signature = None
+        _reset_follow_runtime()
 
     own_flag_active = bool(getattr(options, "IsFlagged", False)) and _is_nonzero_xy(
         float(options.FlagPos.x),
         float(options.FlagPos.y),
     )
+    leader_account = GLOBAL_CACHE.ShMem.GetAccountDataFromPartyNumber(0)
+    leader_publish_signature = _account_map_signature(leader_account)
+    leader_signature_matches_local = leader_publish_signature == map_sig
+    if state.last_leader_publish_signature != leader_publish_signature:
+        state.last_leader_publish_signature = leader_publish_signature
+        _reset_follow_runtime()
+
     leader_options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsByPartyNumber(0)
     all_flag_active = (
+        leader_signature_matches_local
+        and
         leader_options is not None
         and bool(getattr(leader_options, "IsFlagged", False))
         and _is_nonzero_xy(float(leader_options.AllFlag.x), float(leader_options.AllFlag.y))
@@ -100,11 +126,21 @@ def execute_follower_follow(
         follow_y = float(options.FlagPos.y)
         follow_z = 0
     else:
+        if not bool(getattr(options, "LeaderFollowReady", False)):
+            _reset_follow_runtime()
+            return BehaviorTree.NodeState.FAILURE
+        if not leader_signature_matches_local:
+            _reset_follow_runtime()
+            return BehaviorTree.NodeState.FAILURE
         if follow_threshold_raw < 0.0 and combat_threshold_raw < 0.0:
+            _reset_follow_runtime()
             return BehaviorTree.NodeState.FAILURE
         follow_x = float(options.FollowPos.x)
         follow_y = float(options.FollowPos.y)
         follow_z = int(float(options.FollowPos.z))
+        if (not _is_nonzero_xy(follow_x, follow_y)) and follow_z == 0:
+            _reset_follow_runtime()
+            return BehaviorTree.NodeState.FAILURE
 
     party_in_aggro = bool(getattr(cached_data.data, "party_in_aggro", cached_data.data.in_aggro))
     is_melee = cached_data.data.weapon_type in {
