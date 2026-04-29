@@ -30,6 +30,13 @@ DEFAULT_WINDOW_WIDTH = 680.0
 DEFAULT_WINDOW_HEIGHT = 430.0
 
 
+def _normalize_widget_id(value: str) -> str:
+    normalized = str(value or "").replace("\\", "/").strip()
+    while "//" in normalized:
+        normalized = normalized.replace("//", "/")
+    return normalized.strip("/")
+
+
 def _default_gw_blue() -> Color:
     return cast(Color, ColorPalette.GetColor("GW_BLUE").copy())
 
@@ -1491,7 +1498,7 @@ class WidgetCatalogWindow:
         else:
             entries = []
 
-        return {str(entry).strip() for entry in entries if str(entry).strip()}
+        return {_normalize_widget_id(str(entry)) for entry in entries if str(entry).strip()}
 
     def _build_virtual_query_cache_stamp(self, snapshot, favorite_ids: set[str]) -> tuple:
         widget_ids = tuple(sorted(snapshot.widgets_by_id.keys()))
@@ -1552,7 +1559,7 @@ class WidgetCatalogWindow:
 
     def _set_widget_favorite(self, widget, favorite: bool) -> None:
         favorite_ids = self._get_favorite_ids()
-        widget_id = widget.folder_script_name
+        widget_id = _normalize_widget_id(widget.folder_script_name)
         if favorite:
             favorite_ids.add(widget_id)
         else:
