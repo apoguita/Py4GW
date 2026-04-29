@@ -27,24 +27,6 @@ class _Events:
     def on_unmanaged_fail(self):
         from ...Py4GWcorelib import ConsoleLog, Console
 
-        def _stop_with_reason(reason: str) -> None:
-            owner = getattr(self.parent, "_modular_owner", None)
-            if owner is not None:
-                try:
-                    owner.record_diagnostics_event(
-                        "unmanaged_fail",
-                        message=reason,
-                        autostart_session=True,
-                    )
-                except Exception:
-                    pass
-                try:
-                    owner.stop(reason=reason)
-                    return
-                except Exception:
-                    pass
-            self.parent.Stop()
-
         result = True
         if self._custom_unmanaged_fail:
             result =  self._custom_unmanaged_fail()
@@ -52,32 +34,14 @@ class _Events:
 
         if result:
             ConsoleLog("On Unmanaged Fail", "there was an unmanaged failure, stopping bot.", Console.MessageType.Error)
-            _stop_with_reason("On Unmanaged Fail")
+            self.parent.Stop()
             return True
         
     def default_on_unmanaged_fail(self) -> bool:
         from ...Py4GWcorelib import ConsoleLog, Console
 
-        def _stop_with_reason(reason: str) -> None:
-            owner = getattr(self.parent, "_modular_owner", None)
-            if owner is not None:
-                try:
-                    owner.record_diagnostics_event(
-                        "unmanaged_fail",
-                        message=reason,
-                        autostart_session=True,
-                    )
-                except Exception:
-                    pass
-                try:
-                    owner.stop(reason=reason)
-                    return
-                except Exception:
-                    pass
-            self.parent.Stop()
-
         ConsoleLog("On Unmanaged Fail", "there was an unmanaged failure, stopping bot.", Console.MessageType.Error)
-        _stop_with_reason("On Unmanaged Fail")
+        self.parent.Stop()
         return True
     
     

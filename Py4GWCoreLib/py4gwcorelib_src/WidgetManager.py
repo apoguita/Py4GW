@@ -36,22 +36,6 @@ def _get_profiling():
         _profiling_registry = ProfilingRegistry()
     return _profiling_registry
 
-
-def _normalize_widget_path(value: str) -> str:
-    """Normalize widget-relative paths to forward slashes."""
-    normalized = str(value or "").replace("\\", "/").strip()
-    while "//" in normalized:
-        normalized = normalized.replace("//", "/")
-    return normalized
-
-
-def _normalize_widget_id(value: str) -> str:
-    """Normalize widget IDs to canonical `folder/file.py` form."""
-    normalized = _normalize_widget_path(value).strip("/")
-    if normalized.startswith("./"):
-        normalized = normalized[2:]
-    return normalized
-
 #region Py4GW Library
 class LayoutMode(IntEnum):
     Library = 0
@@ -185,11 +169,10 @@ class WidgetCatalog:
                 if tag:
                     tags.add(tag)
 
-            widget_path = _normalize_widget_path(widget.widget_path).strip("/")
-            if widget_path:
-                widget_container_paths.add(widget_path)
+            if widget.widget_path:
+                widget_container_paths.add(widget.widget_path)
                 current_path = ""
-                for part in widget_path.split("/"):
+                for part in widget.widget_path.split("/"):
                     current_path = f"{current_path}/{part}" if current_path else part
                     paths.add(current_path)
                     node = node.get_child(part)
@@ -225,11 +208,11 @@ class WidgetCatalog:
             if not matched_preset:
                 remaining_keywords.append(kw)
 
-        favorite_ids = {_normalize_widget_id(widget_id) for widget_id in (query.favorite_ids or set())}
+        favorite_ids = query.favorite_ids or set()
 
         match query.scope:
             case "favorites":
-                widgets = [widget for widget in widgets if _normalize_widget_id(widget.folder_script_name) in favorite_ids]
+                widgets = [widget for widget in widgets if widget.folder_script_name in favorite_ids]
             case "active":
                 widgets = [widget for widget in widgets if widget.enabled]
             case "inactive":
@@ -239,7 +222,7 @@ class WidgetCatalog:
             widget for widget in widgets
             if (not preset_checks["enabled"] or widget.enabled)
             and (not preset_checks["disabled"] or not widget.enabled)
-            and (not preset_checks["favorites"] or _normalize_widget_id(widget.folder_script_name) in favorite_ids)
+            and (not preset_checks["favorites"] or widget.folder_script_name in favorite_ids)
             and (not preset_checks["no_image"] or cls._has_missing_icon(widget))
             and (not preset_checks["system"] or widget.category == "System")
             and (widget.category == query.category or not query.category)
@@ -275,13 +258,11 @@ class WidgetCatalog:
 
     @staticmethod
     def _matches_path(widget: "Widget", path: str) -> bool:
-        normalized_path = _normalize_widget_path(path).strip("/")
-        if not normalized_path:
+        if not path:
             return True
-        widget_path = _normalize_widget_path(widget.widget_path).strip("/")
-        if not widget_path:
+        if not widget.widget_path:
             return False
-        return widget_path == normalized_path or widget_path.startswith(f"{normalized_path}/")
+        return widget.widget_path == path or widget.widget_path.startswith(f"{path}/")
 
     @staticmethod
     def _has_missing_icon(widget: "Widget") -> bool:
@@ -453,8 +434,7 @@ class Py4GWLibrary:
             self.favorites.clear()            
             favs = IniManager().read_key(key=self.ini_key, section="Favorites", name="favorites", default="").split(",")
             for fav in favs:
-                normalized_fav = _normalize_widget_id(fav)
-                widget = self.widget_manager.widgets.get(normalized_fav)
+                widget = self.widget_manager.widgets.get(fav)
                 
                 if widget:
                     self.favorites.append(widget)
@@ -493,9 +473,8 @@ class Py4GWLibrary:
         for _, widget in widgets.items():
             node = root
 
-            widget_path = _normalize_widget_path(widget.widget_path).strip("/")
-            if widget_path:
-                for part in widget_path.split("/"):
+            if widget.widget_path:
+                for part in widget.widget_path.split("/"):
                     node = node.get_child(part)
 
         return root
@@ -2067,7 +2046,7 @@ class Widget:
             Py4GW.Console.Log("WidgetManager", f"Widget script not found: {self.script_path}", Py4GW.Console.MessageType.Error)
             return False
         
-        unique_name = f"py4gw_widget_{self.folder_script_name.replace('/', '_').replace('\\\\', '_').replace('.', '_')}"
+        unique_name = f"py4gw_widget_{self.folder_script_name.replace('/', '_').replace('.', '_')}"
         
         spec = importlib.util.spec_from_file_location(unique_name, self.script_path)
         if spec is None or spec.loader is None:
@@ -2248,8 +2227,6 @@ class Widget:
                     
     def __post_init__(self):
         """Extract callbacks from module after initialization"""      
-        self.folder_script_name = _normalize_widget_id(self.folder_script_name)
-        self.widget_path = _normalize_widget_path(self.widget_path).strip("/")
         
         # --- capability flags (what exists in the widget module) ---
         self.has_main_property      = False
@@ -2276,18 +2253,16 @@ class Widget:
     @property
     def folder(self) -> str:
         """Extract folder path from name"""
-        normalized_name = _normalize_widget_id(self.folder_script_name)
-        if "/" in normalized_name:
-            return normalized_name.rsplit("/", 1)[0]
+        if '/' in self.folder_script_name:
+            return self.folder_script_name.rsplit('/', 1)[0]
         return ""
     
     @property  
     def script_name(self) -> str:
         """Extract script name from name"""
-        normalized_name = _normalize_widget_id(self.folder_script_name)
-        if "/" in normalized_name:
-            return normalized_name.rsplit("/", 1)[1]
-        return normalized_name
+        if '/' in self.folder_script_name:
+            return self.folder_script_name.rsplit('/', 1)[1]
+        return self.folder_script_name
     
     @property
     def can_save(self) -> bool:
@@ -2384,60 +2359,14 @@ class WidgetHandler:
         Py4GW.Console.Log("WidgetManager", message, Py4GW.Console.MessageType.Info)
         
     def _get_config_var(self, widget_name: str, var_name: str) -> Optional[WidgetConfigVars]:
-        widget_name = _normalize_widget_id(widget_name)
-        var_name = _normalize_widget_path(var_name)
         for cv in self.config_vars:
-            if _normalize_widget_id(cv.widget_id) == widget_name and _normalize_widget_path(cv.var_name) == var_name:
+            if cv.widget_id == widget_name and cv.var_name == var_name:
                 return cv
         return None
     
     def _widget_var(self, widget_id: str, suffix: str) -> str:
         """Returns the unique variable name for IniManager lookup"""
-        widget_id = _normalize_widget_id(widget_id)
         return f"{widget_id}__{suffix}"
-
-    @staticmethod
-    def _legacy_widget_id(widget_id: str) -> str:
-        return _normalize_widget_id(widget_id).replace("/", "\\")
-
-    def _read_enabled_state(self, widget_id: str, default: bool = False) -> bool:
-        """Read enabled flag with backward compatibility for legacy backslash IDs."""
-        widget_id = _normalize_widget_id(widget_id)
-        canonical_var = self._widget_var(widget_id, "enabled")
-        canonical_section = f"Widget:{widget_id}"
-        canonical_value = IniManager().get(
-            key=self.MANAGER_INI_KEY,
-            section=canonical_section,
-            var_name=canonical_var,
-            default=None,
-        )
-        if canonical_value is not None:
-            return bool(canonical_value)
-
-        legacy_id = self._legacy_widget_id(widget_id)
-        if legacy_id == widget_id:
-            return bool(default)
-
-        legacy_var = f"{legacy_id}__enabled"
-        legacy_section = f"Widget:{legacy_id}"
-        legacy_value = IniManager().get(
-            key=self.MANAGER_INI_KEY,
-            section=legacy_section,
-            var_name=legacy_var,
-            default=None,
-        )
-        if legacy_value is None:
-            return bool(default)
-
-        migrated = bool(legacy_value)
-        IniManager().set(
-            key=self.MANAGER_INI_KEY,
-            section=canonical_section,
-            var_name=canonical_var,
-            value=migrated,
-        )
-        IniManager().save_vars(self.MANAGER_INI_KEY)
-        return migrated
     
     def _get_widget_by_plain_name(self, plain_name: str) -> Optional[Widget]:
         for widget in self.widgets.values():
@@ -2506,11 +2435,10 @@ class WidgetHandler:
         """Load a widget module without INI configuration"""
         # Create widget ID
         rel_folder = os.path.relpath(folder, self.widgets_path)
-        normalized_folder = "" if rel_folder == "." else _normalize_widget_path(rel_folder).strip("/")
-        widget_id = f"{normalized_folder}/{filename}" if normalized_folder else filename
+        widget_id = f"{rel_folder}/{filename}" if rel_folder != "." else filename
 
         plain = os.path.splitext(filename)[0]
-        widget_path = normalized_folder
+        widget_path = "" if rel_folder == "." else rel_folder.replace("\\", "/")
 
                 
         if widget_id in self.widgets:
@@ -2545,7 +2473,9 @@ class WidgetHandler:
                 var_name=f"{widget_id}__optional"
             ))                    
 
-            enabled = self._read_enabled_state(widget.folder_script_name, default=False)
+            cv = self._get_config_var(widget.folder_script_name, self._widget_var(widget.folder_script_name, "enabled"))
+            
+            enabled = bool(IniManager().get(key=self.MANAGER_INI_KEY, section=cv.section, var_name=cv.var_name, default=False)) if cv else False
             if enabled:
                 widget.enable()
                 
@@ -2563,7 +2493,7 @@ class WidgetHandler:
             section = f"Widget:{wid}"
             
             # 1. Read the current state from IniManager (which just loaded from disk)
-            enabled = self._read_enabled_state(wid, default=False)
+            enabled = bool(IniManager().get(key=self.MANAGER_INI_KEY, section=section, var_name=vname, default=False))
             
             # 2. THE FORCE: Check if this is a System widget section
             is_system = "Widget:System" in section
@@ -2623,8 +2553,8 @@ class WidgetHandler:
                         # Define the section once to ensure consistency
                         section_name = f"Widget:{widget_id}"
 
-                        # Read with legacy-ID compatibility (`\` -> `/`) for older INI sections.
-                        val = self._read_enabled_state(widget_id, default=False)
+                        # FIXED: Added the section parameter to the get call
+                        val = bool(IniManager().get(INI_KEY, v_enabled, False, section=section_name))
                         new_enabled = ImGui.checkbox(label, val)
                         if PyImGui.is_item_hovered():
                             if widget.has_tooltip_property:
