@@ -372,12 +372,24 @@ class WorldPathing:
                 "distance": 0.0,
             }
 
-        # ── BFS from target → hop distance to every map ───────────────────────
+        # ── Build portal-only adjacency set for the hop-distance BFS ─────────
+        # Using portal_adj (not the broader world_adj) ensures the hop count
+        # matches the actual portal-linked route that MoveToMapid will walk.
+        # Candidates reachable only via static _MAP_ADJACENCY (no portal links)
+        # are naturally excluded, making the IsPath filter redundant.
+        portal_adj_raw = self._get_portal_adj()
+        portal_sets: dict[int, set[int]] = {}
+        for m, edges in portal_adj_raw.items():
+            for _, _, nb in edges:
+                portal_sets.setdefault(m, set()).add(nb)
+                portal_sets.setdefault(nb, set()).add(m)
+
+        # ── BFS from target → portal-hop distance to every map ───────────────
         hops_to_target: dict[int, int] = {target_map_id: 0}
         bfs_q: deque = deque([(target_map_id, 0)])
         while bfs_q:
             cur, d = bfs_q.popleft()
-            for nb in combined.get(cur, set()):
+            for nb in portal_sets.get(cur, set()):
                 if nb not in hops_to_target:
                     hops_to_target[nb] = d + 1
                     bfs_q.append((nb, d + 1))
@@ -417,9 +429,6 @@ class WorldPathing:
             if not Map.IsMapUnlocked(mid):
                 continue
             if mid not in hops_to_target:
-                continue
-            # Reject if no recorded portal path exists from this outpost to the target.
-            if not self.IsPath(mid, target_map_id):
                 continue
             hops = hops_to_target[mid]
             dist = self.path_distance(mid, target_map_id)

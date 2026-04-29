@@ -1301,7 +1301,7 @@ def _hl_apply_loadout_coroutine():
             Py4GW.Console.Log(MODULE_NAME, "Hero Loadout: not in outpost, skipped.",
                               Py4GW.Console.MessageType.Warning)
             return
-        max_slots = max(0, Map.GetMaxPartySize() - 1)
+        max_slots = max(0, Map.GetMaxPartySize())
         heroes_to_add = [_hl_slot_ids[i] for i in range(min(max_slots, _HL_MAX_SLOTS))
                          if _hl_slot_ids[i] != 0]
         Party.Heroes.KickAllHeroes()
@@ -1320,6 +1320,15 @@ def _hl_trigger_apply() -> None:
     if not _hl_applying[0]:
         GLOBAL_CACHE.Coroutines.append(_hl_apply_loadout_coroutine())
 
+
+def _hl_trigger_apply_delayed() -> None:
+    """Queue a hero loadout apply with a short settling delay (for on-zone use)."""
+    def _delayed():
+        yield from Routines.Yield.wait(800)
+        yield from _hl_apply_loadout_coroutine()
+    if not _hl_applying[0]:
+        GLOBAL_CACHE.Coroutines.append(_delayed())
+
 # Auto-explore: iterate through all reachable-but-unvisited outposts
 _auto_explore_active: list[bool] = [False]
 _auto_explore_target: list[int]  = [0]     # map_id of the outpost currently being visited
@@ -1332,6 +1341,7 @@ _travel_btn_seen:  set[int] = set()   # dedup by map_id
 _travel_queue: deque[int] = deque()
 _travel_queue_inflight_target: list[int] = [0]
 _travel_queue_dispatch_ms: list[int] = [0]
+_travel_coroutine_active: list[bool] = [False]  # True while _travel_button_coroutine is running (before runner activates)
 
 # UI state for link editor
 _link_input_a    = [0]
@@ -1468,6 +1478,7 @@ def _abort_worldmap_movement() -> None:
     _travel_queue.clear()
     _travel_queue_inflight_target[0] = 0
     _travel_queue_dispatch_ms[0] = 0
+    _travel_coroutine_active[0] = False
 
 
 def _enqueue_travel_target(map_id: int) -> None:
@@ -1477,6 +1488,17 @@ def _enqueue_travel_target(map_id: int) -> None:
     if map_id in _travel_queue:
         return
     _travel_queue.append(map_id)
+
+
+def _resort_travel_queue() -> None:
+    """Re-sort the travel queue by path distance from the current map (nearest first)."""
+    if len(_travel_queue) < 2:
+        return
+    current_map = Map.GetMapID()
+    items = list(_travel_queue)
+    items.sort(key=lambda m: _path_distance(current_map, m) or float('inf'))
+    _travel_queue.clear()
+    _travel_queue.extend(items)
 
 
 def _process_travel_queue() -> None:
@@ -1498,6 +1520,8 @@ def _process_travel_queue() -> None:
     # Drop already-reached targets from the head of the queue.
     while _travel_queue and _travel_queue[0] == current_map:
         _travel_queue.popleft()
+    if _travel_queue:
+        _resort_travel_queue()
     if not _travel_queue:
         _travel_queue_inflight_target[0] = 0
         _travel_queue_dispatch_ms[0] = 0
@@ -1509,15 +1533,18 @@ def _process_travel_queue() -> None:
                 Py4GW.Console.MessageType.Info)
         return
 
-    active = _mtm_runner_active[0] or _mtnw_runner_active[0]
+    active = _mtm_runner_active[0] or _mtnw_runner_active[0] or _travel_coroutine_active[0]
     if active:
         return
 
     head = _travel_queue[0]
 
-    # Wait a short grace period after dispatch before declaring failure.
+    # If a runner or coroutine is still active, stay put regardless of elapsed time.
+    # Only check for a stale dispatch when everything is truly idle.
     if _travel_queue_inflight_target[0] == head:
-        if now_ms - _travel_queue_dispatch_ms[0] < 1500:
+        if active:
+            return
+        if Map.IsMapLoading():
             return
         if Map.GetMapID() == head:
             _travel_queue.popleft()
@@ -1525,12 +1552,12 @@ def _process_travel_queue() -> None:
             _head_name = (_MAP_META.get(head) or (None, f"Map {head}"))[1]
             Py4GW.Console.Log(
                 MODULE_NAME,
-                f"Queue: failed to start/complete travel to {_head_name} [{head}], skipping.",
+                f"Queue: travel to {_head_name} [{head}] did not start, retrying.",
                 Py4GW.Console.MessageType.Warning,
             )
-            _travel_queue.popleft()
-        _travel_queue_inflight_target[0] = 0
-        _travel_queue_dispatch_ms[0] = 0
+            # Don't skip — reset and retry next frame
+            _travel_queue_inflight_target[0] = 0
+            _travel_queue_dispatch_ms[0] = 0
         return
 
     _target_name = (_MAP_META.get(head) or (None, f"Map {head}"))[1]
@@ -1986,14 +2013,22 @@ def _travel_button_coroutine(target_map_id: int, fast_travel_first: bool = False
          the player's current location without any preliminary fast-travel.
       2. Build the route overlay from the current position and start MoveToMapid.
     """
+    _travel_coroutine_active[0] = True
+    try:
+        yield from _travel_button_coroutine_inner(target_map_id, fast_travel_first)
+    finally:
+        _travel_coroutine_active[0] = False
+
+
+def _travel_button_coroutine_inner(target_map_id: int, fast_travel_first: bool = False):
     current_map_at_start = Map.GetMapID()
 
     # ── Step 0: kick heroes before leaving if loadout auto-apply is on ──────
     _hl_has_loadout = _hl_auto_apply[0] and any(h != 0 for h in _hl_slot_ids)
-    if _hl_has_loadout:
+    if _hl_has_loadout and Map.IsOutpost():
         try:
             Party.Heroes.KickAllHeroes()
-            yield from Routines.Yield.wait(400)
+            yield from Routines.Yield.wait(600)
         except Exception:
             pass
 
@@ -2014,6 +2049,11 @@ def _travel_button_coroutine(target_map_id: int, fast_travel_first: bool = False
                 f"Travel: fast-traveling to nearest outpost {ft_id} ({ft.get('name','?')}) "
                 f"before routing to {target_map_id}.",
                 Py4GW.Console.MessageType.Info)
+            try:
+                Party.LeaveParty()
+                yield from Routines.Yield.wait(300)
+            except Exception:
+                pass
             Map.TravelToDistrict(ft_id, 0, 0)
             _t0 = int(Utils.GetBaseTimestamp())
             while not Map.IsMapLoading():
@@ -2051,6 +2091,9 @@ def _travel_button_coroutine(target_map_id: int, fast_travel_first: bool = False
         _travel_hop_times.clear()
         _travel_prev_done_count[0] = -1
 
+    # Reset the dispatch timestamp so the 1-frame gap between this coroutine
+    # ending and the movement runner activating doesn't trigger a false timeout.
+    _travel_queue_dispatch_ms[0] = int(Utils.GetBaseTimestamp())
     MoveToMapid(target_map_id)
 
 
@@ -3477,7 +3520,8 @@ def _draw_reachable_list_panel() -> None:
             entry["nearest_ft"] = ft
             _reachable_list_cache.append(entry)
         _reachable_list_cache.sort(key=lambda e: (
-            e["distance"] if e["distance"] is not None else float("inf"),
+            e["nearest_ft"]["hops"] if e.get("nearest_ft") else e["hops"],
+            e["nearest_ft"].get("distance") or float("inf") if e.get("nearest_ft") else float("inf"),
             e["hops"],
             e["name"]
         ))
@@ -3596,7 +3640,7 @@ def _draw_hero_loadout_panel() -> None:
     max_slots = 0
     try:
         if Map.IsOutpost():
-            max_slots = max(0, Map.GetMaxPartySize() - 1)
+            max_slots = max(0, Map.GetMaxPartySize())
     except Exception:
         pass
 
@@ -4010,9 +4054,12 @@ def main() -> None:
             _is_path_cache.clear()
             _is_ft_path_cache.clear()
             _debug_last_map[0] = cmap
-            # Hero Loadout: auto-apply when zoning into an outpost
-            if _hl_auto_apply[0] and Map.IsOutpost():
-                _hl_trigger_apply()
+            # Hero Loadout: auto-apply when zoning into an outpost during an active route.
+            _has_active_route = (_mtm_runner_active[0] or _mtnw_runner_active[0]
+                                 or _travel_coroutine_active[0] or bool(_travel_queue)
+                                 or _auto_explore_active[0])
+            if _hl_auto_apply[0] and Map.IsOutpost() and _has_active_route:
+                _hl_trigger_apply_delayed()
             # Only wipe route data when no runner is active.
             # While the bot is travelling, the route must stay visible.
             # Also keep when Unlock All is running (it rebuilds the overlay itself).
