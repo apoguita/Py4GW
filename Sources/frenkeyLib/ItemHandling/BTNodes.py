@@ -712,7 +712,7 @@ class BTNodes:
             def _reset_state(node: BehaviorTree.Node):
                 node.blackboard.pop(state_key, None)
 
-            def _debug(message: str, msg_type: Py4GW.Console.MessageType = Py4GW.Console.MessageType.Info):
+            def _debug(message: str, msg_type: int = Py4GW.Console.MessageType.Info):
                 if not debug_enabled:
                     return
                 Py4GW.Console.Log("BTNodes.Items.SalvageItem", message, msg_type)
