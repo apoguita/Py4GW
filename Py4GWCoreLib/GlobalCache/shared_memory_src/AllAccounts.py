@@ -248,6 +248,17 @@ class AllAccounts(Structure):
             return False
         if sender_email == receiver_email:
             return True
+
+        # Party members are always allowed to exchange coordination messages,
+        # even when one side is grouped/isolated differently.
+        try:
+            s_party = int(getattr(self.AccountData[s_idx].AgentPartyData, "PartyID", 0) or 0)
+            r_party = int(getattr(self.AccountData[r_idx].AgentPartyData, "PartyID", 0) or 0)
+            if s_party > 0 and s_party == r_party:
+                return True
+        except Exception:
+            pass
+
         s_g = int(self.AccountData[s_idx].IsolationGroupID)
         r_g = int(self.AccountData[r_idx].IsolationGroupID)
         if s_g > 0 and r_g > 0:
@@ -370,9 +381,9 @@ class AllAccounts(Structure):
         """Set player data for the account with the given email."""  
         if not account_email:
             return    
-        index = self.GetSlotByEmail(account_email)
+        index = self._find_account_slot_by_email(account_email)
         if index == -1:
-            ConsoleLog(SHMEM_MODULE_NAME, f"No slot found for account {account_email}.", Py4GW.Console.MessageType.Warning)
+            self.SubmitAccountData(account_email)
             return
         
         self.AccountData[index].from_context(account_email, index)
