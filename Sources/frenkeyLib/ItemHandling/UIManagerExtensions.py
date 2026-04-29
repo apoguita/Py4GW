@@ -1,12 +1,17 @@
 import Py4GW
 import PyUIManager
 
+from Py4GWCoreLib.Inventory import Inventory
 from Py4GWCoreLib.GWUI import GWUI
 from Py4GWCoreLib.UIManager import UIManager
 from Sources.frenkeyLib.ItemHandling.Rules.types import SalvageMode
 
 
 class UIManagerExtensions:
+    @staticmethod
+    def _frame_exists(frame_id: int) -> bool:
+        return isinstance(frame_id, int) and frame_id > 0 and UIManager.FrameExists(frame_id)
+
     @staticmethod
     def IsElementVisible(frame_id: int) -> bool:
         """
@@ -18,20 +23,79 @@ class UIManagerExtensions:
         Returns:
             bool: True if the frame is open, False otherwise.
         """
-        return isinstance(frame_id, int) and frame_id > 0
+        return UIManagerExtensions._frame_exists(frame_id)
+
+    @staticmethod
+    def _find_first_visible_frame(frame_ids: list[int]) -> int:
+        for frame_id in frame_ids:
+            if UIManagerExtensions._frame_exists(frame_id):
+                return frame_id
+        return 0
+
+    @staticmethod
+    def _click_frame(frame_id: int) -> bool:
+        if not UIManagerExtensions._frame_exists(frame_id):
+            return False
+
+        UIManager.FrameClick(frame_id)
+        PyUIManager.UIManager.test_mouse_action(frame_id, 8, 0, 0)
+        return True
+
+    @staticmethod
+    def _get_confirm_salvage_window_frame_id() -> int:
+        candidate_frame_ids = [
+            UIManager.GetChildFrameID(140452905, [6, 110, 6]),
+            UIManager.GetChildFrameID(140452905, [6, 111, 6]),
+            UIManager.GetChildFrameID(140452905, [6, 100, 6]),
+            UIManager.GetChildFrameID(684387150, [0, 6]),
+        ]
+        return UIManagerExtensions._find_first_visible_frame(candidate_frame_ids)
+
+    @staticmethod
+    def _get_salvage_option_entries():
+        try:
+            visible_entries_by_parent = Inventory._build_visible_frame_entry_map()
+            _, _, option_entries = Inventory._get_salvage_choice_dialog_options(visible_entries_by_parent)
+            return option_entries
+        except Exception:
+            return []
     
     @staticmethod
     def GetSalvageOptions() -> dict[SalvageMode, int]:
-        salvage_window_mod_one_id = UIManager.GetChildFrameID(684387150, [
-                                                              5, 0])
-        salvage_window_mod_two_id = UIManager.GetChildFrameID(684387150, [
-                                                              5, 1])
-        salvage_window_mod_three_id = UIManager.GetChildFrameID(684387150, [
-                                                                5, 2])
-        salvage_window_materials_id = UIManager.GetChildFrameID(684387150, [
-                                                                5, 3])
-
         options: dict[SalvageMode, int] = {}
+
+        option_entries = UIManagerExtensions._get_salvage_option_entries()
+        if option_entries:
+            for order, entry in enumerate(option_entries, start=1):
+                entry["order"] = order
+                path_root_frame_ids = list(entry["path_root_frame_ids"]) if "path_root_frame_ids" in entry else [int(entry["frame_id"])]
+                entry["text"] = Inventory._collect_salvage_choice_option_text(
+                    path_root_frame_ids,
+                    children_map=Inventory._build_frame_children_map(),
+                    max_depth=2,
+                )
+
+            material_entry, _ = Inventory._choose_salvage_choice_dialog_option(option_entries, strategy=0)
+            upgrade_entry, _ = Inventory._choose_salvage_choice_dialog_option(option_entries, strategy=1)
+
+            if material_entry is not None:
+                material_frame_id = int(material_entry["frame_id"])
+                options[SalvageMode.LesserCraftingMaterials] = material_frame_id
+                options[SalvageMode.RareCraftingMaterials] = material_frame_id
+
+            if upgrade_entry is not None:
+                upgrade_frame_id = int(upgrade_entry["frame_id"])
+                options[SalvageMode.Prefix] = upgrade_frame_id
+                options[SalvageMode.Suffix] = upgrade_frame_id
+                options[SalvageMode.Inscription] = upgrade_frame_id
+
+            if options:
+                return options
+
+        salvage_window_mod_one_id = UIManager.GetChildFrameID(684387150, [5, 0])
+        salvage_window_mod_two_id = UIManager.GetChildFrameID(684387150, [5, 1])
+        salvage_window_mod_three_id = UIManager.GetChildFrameID(684387150, [5, 2])
+        salvage_window_materials_id = UIManager.GetChildFrameID(684387150, [5, 3])
 
         if UIManagerExtensions.IsElementVisible(salvage_window_mod_one_id):
             options[SalvageMode.Prefix] = salvage_window_mod_one_id
@@ -43,34 +107,29 @@ class UIManagerExtensions:
             options[SalvageMode.Inscription] = salvage_window_mod_three_id
 
         if UIManagerExtensions.IsElementVisible(salvage_window_materials_id):
+            options[SalvageMode.LesserCraftingMaterials] = salvage_window_materials_id
             options[SalvageMode.RareCraftingMaterials] = salvage_window_materials_id
 
         return options
     
     @staticmethod
     def ConfirmSalvageOption() -> bool:
-        salvage_window_salvage_button_id = UIManager.GetChildFrameID(684387150, [
-                                                                     2])
-        visible = UIManagerExtensions.IsElementVisible(
-            salvage_window_salvage_button_id)
+        salvage_window_salvage_button_id = Inventory._get_salvage_choice_confirm_frame_id()
+        if salvage_window_salvage_button_id == 0:
+            salvage_window_salvage_button_id = UIManager.GetChildFrameID(684387150, [2])
 
-        if not visible:
+        if not UIManagerExtensions.IsElementVisible(salvage_window_salvage_button_id):
             return False
 
-        UIManager.FrameClick(salvage_window_salvage_button_id)
-        return True
+        return UIManagerExtensions._click_frame(salvage_window_salvage_button_id)
     
     @staticmethod
     def CancelSalvageOption() -> bool:
         salvage_window_cancel_button_id = UIManager.GetChildFrameID(684387150, [1])
-        visible = UIManagerExtensions.IsElementVisible(
-            salvage_window_cancel_button_id)
-
-        if not visible:
+        if not UIManagerExtensions.IsElementVisible(salvage_window_cancel_button_id):
             return False
 
-        UIManager.FrameClick(salvage_window_cancel_button_id)
-        return True
+        return UIManagerExtensions._click_frame(salvage_window_cancel_button_id)
     
     @staticmethod
     def SelectSalvageOptionAndSalvage(option: SalvageMode) -> bool:
@@ -86,11 +145,8 @@ class UIManagerExtensions:
         options = UIManagerExtensions.GetSalvageOptions()
 
         if option in options:
-            # UIManager.FrameClick(options[option])
-            PyUIManager.UIManager.test_mouse_action(options[option], 8, 0, 0)              
-            UIManagerExtensions.ConfirmSalvageOption()
-            
-            return True
+            if UIManagerExtensions._click_frame(options[option]):
+                return UIManagerExtensions.ConfirmSalvageOption()
         else:
             UIManagerExtensions.CancelSalvageOption()
 
@@ -109,11 +165,8 @@ class UIManagerExtensions:
         """
         options = UIManagerExtensions.GetSalvageOptions()
 
-        if option in options:       
-            # UIManager.FrameClick(options[option])
-            PyUIManager.UIManager.test_mouse_action(options[option], 8, 0, 0)
-            
-            return True
+        if option in options:
+            return UIManagerExtensions._click_frame(options[option])
 
         return False
     
@@ -157,32 +210,29 @@ class UIManagerExtensions:
 
     @staticmethod
     def IsConfirmLesserMaterialsWindowOpen() -> bool:
-        # salvage_lower_kit_id = UIManager.GetChildFrameID(140452905, [6,110])
-        salvage_lower_kit_yes_button_id = UIManager.GetChildFrameID(140452905, [6, 110, 6])
-        # salvage_lower_kit_no_button_id = UIManager.GetChildFrameID(140452905, [
-        #                                                            6, 110, 4])
-
-        return UIManagerExtensions.IsElementVisible(salvage_lower_kit_yes_button_id)
+        return Inventory.IsSalvageChoiceMaterialConfirmVisible() or UIManagerExtensions._get_confirm_salvage_window_frame_id() != 0
 
     @staticmethod
     def ConfirmLesserSalvage():
-        salvage_lower_kit_yes_button_id = UIManager.GetChildFrameID(140452905, [6, 110, 6])
-        
-        UIManager.FrameClick(salvage_lower_kit_yes_button_id)
-        PyUIManager.UIManager.test_mouse_action(salvage_lower_kit_yes_button_id, 8, 0, 0) 
+        inventory = Inventory.inventory_instance()
+        try:
+            inventory.AcceptSalvageWindow()
+        except Exception:
+            pass
+        return UIManagerExtensions._click_frame(UIManagerExtensions._get_confirm_salvage_window_frame_id())
 
     @staticmethod
     def ConfirmModMaterialSalvage():
-        salvage_with_mods_yes_button_id = UIManager.GetChildFrameID(684387150, [
-                                                                    0, 6])
-        UIManager.FrameClick(salvage_with_mods_yes_button_id)
-        PyUIManager.UIManager.test_mouse_action(salvage_with_mods_yes_button_id, 8, 0, 0) 
+        inventory = Inventory.inventory_instance()
+        try:
+            inventory.AcceptSalvageWindow()
+        except Exception:
+            pass
+        return UIManagerExtensions._click_frame(UIManagerExtensions._get_confirm_salvage_window_frame_id())
         
     @staticmethod
     def ConfirmModMaterialSalvageVisible():
-        salvage_with_mods_yes_button_id = UIManager.GetChildFrameID(684387150, [
-                                                                    0, 6])
-        return UIManagerExtensions.IsElementVisible(salvage_with_mods_yes_button_id)  
+        return Inventory.IsSalvageChoiceMaterialConfirmVisible() or UIManagerExtensions._get_confirm_salvage_window_frame_id() != 0
         
     @staticmethod
     def CancelLesserSalvage():
@@ -192,26 +242,32 @@ class UIManagerExtensions:
     
     @staticmethod
     def IsSalvageWindowOpen() -> bool:
-        # salvage_window_frame_id = UIManager.GetFrameIDByHash(684387150)
-        salvage_window_salvage_button_id = UIManager.GetChildFrameID(684387150, [2])
-        # salvage_window_cancel_button_id = UIManager.GetChildFrameID(684387150, [1])
+        salvage_window_salvage_button_id = Inventory._get_salvage_choice_confirm_frame_id()
+        if salvage_window_salvage_button_id == 0:
+            salvage_window_salvage_button_id = UIManager.GetChildFrameID(684387150, [2])
 
         return UIManagerExtensions.IsElementVisible(salvage_window_salvage_button_id)
     
     @staticmethod
     def IsSalvageWindowNoIdentifiedOpen() -> bool:
-        # salvage_window_frame_id = UIManager.GetFrameIDByHash(140452905)
         salvage_window_salvage_button_id = UIManager.GetChildFrameID(140452905, [6, 111, 6])
-        # salvage_window_cancel_button_id = UIManager.GetChildFrameID(140452905, [6,111,4])
-
         return UIManagerExtensions.IsElementVisible(salvage_window_salvage_button_id)
     
     @staticmethod
     def ConfirmSalvageWindowNoIdentified():
-        salvage_window_salvage_button_id = UIManager.GetChildFrameID(140452905, [6, 111, 6])
-        UIManager.FrameClick(salvage_window_salvage_button_id)
+        inventory = Inventory.inventory_instance()
+        try:
+            inventory.AcceptSalvageWindow()
+        except Exception:
+            pass
+        return UIManagerExtensions._click_frame(UIManager.GetChildFrameID(140452905, [6, 111, 6]))
             
     
     @staticmethod
     def AnySalvageRelatedWindowOpen() -> bool:
-        return UIManagerExtensions.IsSalvageWindowOpen() or UIManagerExtensions.IsConfirmLesserMaterialsWindowOpen() or UIManagerExtensions.ConfirmModMaterialSalvageVisible()
+        return (
+            UIManagerExtensions.IsSalvageWindowOpen()
+            or UIManagerExtensions.IsConfirmLesserMaterialsWindowOpen()
+            or UIManagerExtensions.ConfirmModMaterialSalvageVisible()
+            or UIManagerExtensions.IsSalvageWindowNoIdentifiedOpen()
+        )

@@ -203,6 +203,28 @@ class AutoInventoryHandler():
             return 0
         return strategy
 
+    def _get_salvage_kit_capabilities(self):
+        from Py4GWCoreLib.enums_src.Model_enums import ModelID
+
+        capabilities = {
+            "lesser": False,
+            "expert": False,
+            "upgrade": False,
+        }
+
+        for item in self._get_inventory_items():
+            if not item.is_salvage_kit or item.uses <= 0:
+                continue
+            if item.model_id == ModelID.Salvage_Kit:
+                capabilities["lesser"] = True
+            elif item.model_id in (ModelID.Expert_Salvage_Kit, ModelID.Superior_Salvage_Kit):
+                capabilities["expert"] = True
+                capabilities["upgrade"] = True
+            elif item.model_id == ModelID.Perfect_Salvage_Kit:
+                capabilities["upgrade"] = True
+
+        return capabilities
+
     def _get_salvage_modes_for_item(self, item, strategy: Optional[int] = None, allow_unidentified_nonwhite: bool = False, respect_settings: bool = True):
         from ..Item import Item
         from ..enums_src.Item_enums import Rarity
@@ -219,38 +241,52 @@ class AutoInventoryHandler():
         if item.rarity != Rarity.White and not item.is_identified and not allow_unidentified_nonwhite:
             return []
 
+        kit_caps = self._get_salvage_kit_capabilities()
         material_modes: list[SalvageMode] = []
         if item.rarity == Rarity.White:
             if item.is_material and item.is_material_salvageable:
                 if respect_settings and not self.salvage_rare_materials:
                     return []
-                material_modes.append(SalvageMode.RareCraftingMaterials)
+                if kit_caps["expert"]:
+                    material_modes.append(SalvageMode.RareCraftingMaterials)
             else:
                 if respect_settings and not self.salvage_whites:
                     return []
-                material_modes.append(SalvageMode.LesserCraftingMaterials)
+                if kit_caps["lesser"]:
+                    material_modes.append(SalvageMode.LesserCraftingMaterials)
+                elif kit_caps["expert"]:
+                    material_modes.append(SalvageMode.RareCraftingMaterials)
         elif item.rarity == Rarity.Blue:
             if respect_settings and not self.salvage_blues:
                 return []
-            material_modes.append(SalvageMode.RareCraftingMaterials)
+            if kit_caps["lesser"]:
+                material_modes.append(SalvageMode.LesserCraftingMaterials)
+            elif kit_caps["expert"]:
+                material_modes.append(SalvageMode.RareCraftingMaterials)
         elif item.rarity == Rarity.Purple:
             if respect_settings and not self.salvage_purples:
                 return []
-            material_modes.append(SalvageMode.RareCraftingMaterials)
+            if kit_caps["lesser"]:
+                material_modes.append(SalvageMode.LesserCraftingMaterials)
+            elif kit_caps["expert"]:
+                material_modes.append(SalvageMode.RareCraftingMaterials)
         elif item.rarity == Rarity.Gold:
             if respect_settings and not self.salvage_golds:
                 return []
-            material_modes.append(SalvageMode.RareCraftingMaterials)
+            if kit_caps["lesser"]:
+                material_modes.append(SalvageMode.LesserCraftingMaterials)
+            elif kit_caps["expert"]:
+                material_modes.append(SalvageMode.RareCraftingMaterials)
         else:
             return []
 
         prefix, suffix, inscription, _ = Item.Customization.GetUpgrades(item.id)
         upgrade_modes: list[SalvageMode] = []
-        if inscription is not None:
+        if kit_caps["upgrade"] and inscription is not None:
             upgrade_modes.append(SalvageMode.Inscription)
-        if suffix is not None:
+        if kit_caps["upgrade"] and suffix is not None:
             upgrade_modes.append(SalvageMode.Suffix)
-        if prefix is not None:
+        if kit_caps["upgrade"] and prefix is not None:
             upgrade_modes.append(SalvageMode.Prefix)
 
         ordered_modes = material_modes + upgrade_modes if (strategy if strategy is not None else self._normalize_salvage_strategy()) == 0 else upgrade_modes + material_modes
@@ -339,6 +375,7 @@ class AutoInventoryHandler():
             f"strategy={strategy} preferred_kit_id={preferred_kit_id or 0} "
             f"allow_unidentified_nonwhite={allow_unidentified_nonwhite} respect_settings={respect_settings} "
             f"timeout_ms_per_item={timeout_ms_per_item} "
+            f"kit_caps={self._get_salvage_kit_capabilities()} "
             f"flags=white:{self.salvage_whites},rare_materials:{self.salvage_rare_materials},blue:{self.salvage_blues},purple:{self.salvage_purples},gold:{self.salvage_golds} "
             f"model_blacklist_count={len(self.salvage_blacklist)} type_blacklist_count={len(self.item_type_blacklist)}",
         )

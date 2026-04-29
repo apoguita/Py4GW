@@ -757,6 +757,26 @@ class BTNodes:
                     return 0
                 
                 return min(lesser_kits, key=lambda k: k.uses).id
+
+            def _get_upgrade_salvage_kit() -> int:
+                preferred = _resolve_preferred_kit((ModelID.Perfect_Salvage_Kit, ModelID.Expert_Salvage_Kit, ModelID.Superior_Salvage_Kit))
+                if preferred > 0:
+                    return preferred
+
+                inventory_snapshot = ItemSnapshot.get_inventory_snapshot(Bag.Backpack, Bag.Bag_2)
+                upgrade_kits = [
+                    i for bag in inventory_snapshot.values() for i in bag.values()
+                    if i is not None and i.is_valid and i.is_salvage_kit and i.model_id in (
+                        ModelID.Perfect_Salvage_Kit,
+                        ModelID.Expert_Salvage_Kit,
+                        ModelID.Superior_Salvage_Kit,
+                    )
+                ]
+
+                if not upgrade_kits:
+                    return 0
+
+                return min(upgrade_kits, key=lambda k: k.uses).id
             
             def _is_mod_salvaged(item: ItemSnapshot, salvage_mode: SalvageMode) -> bool:
                 match salvage_mode:
@@ -829,13 +849,14 @@ class BTNodes:
 
                 # Start salvage once per item.
                 if not state.salvage_started_at:                    
-                    if salvage_mode != SalvageMode.LesserCraftingMaterials:
-                        kit_id = _get_expert_salvage_kit()
-                        
-                    else:
+                    if mode == SalvageMode.LesserCraftingMaterials:
                         kit_id = _get_lesser_salvage_kit()
                         if allow_expert_for_common_materials and kit_id == 0:
                             kit_id = _get_expert_salvage_kit()
+                    elif mode == SalvageMode.RareCraftingMaterials:
+                        kit_id = _get_expert_salvage_kit()
+                    else:
+                        kit_id = _get_upgrade_salvage_kit()
 
                     kit = ItemSnapshot.from_item_id(kit_id)
                     if kit_id <= 0 or (kit is None or kit.model_id == ModelID.Salvage_Kit and (item.rarity > Rarity.White and not item.is_identified)):
@@ -889,6 +910,27 @@ class BTNodes:
                         UIManagerExtensions.CancelSalvageOption()
                         return BehaviorTree.NodeState.FAILURE
 
+                inventory_instance = Inventory.inventory_instance()
+                try:
+                    is_salvaging = bool(inventory_instance.IsSalvaging())
+                except Exception:
+                    is_salvaging = False
+
+                try:
+                    transaction_done = bool(inventory_instance.IsSalvageTransactionDone())
+                except Exception:
+                    transaction_done = False
+
+                if transaction_done:
+                    _debug(f"Salvage transaction done for item={item.id}; calling FinishSalvage().")
+                    try:
+                        inventory_instance.FinishSalvage()
+                    except Exception as exc:
+                        _debug(f"FinishSalvage failed for item={item.id}: {exc!r}.", Py4GW.Console.MessageType.Warning)
+                        return BehaviorTree.NodeState.FAILURE
+                    state.confirm_clicked_at = now
+                    return BehaviorTree.NodeState.RUNNING
+
                 # Completion checks.
                 current_qty = item.quantity
                 initial_qty = state.initial_qty
@@ -901,6 +943,7 @@ class BTNodes:
                 windows_closed_after_confirm = (
                     confirm_clicked_at > 0.0
                     and not UIManagerExtensions.AnySalvageRelatedWindowOpen()
+                    and not is_salvaging
                     and (now - confirm_clicked_at) >= 0.20
                 )
                 
@@ -928,6 +971,7 @@ class BTNodes:
                         f"Timeout item={item.id} mode={mode.name} after {timeout_ms_per_item} ms. "
                         f"initial_qty={initial_qty} current_qty={current_qty} desired_qty={desired_qty} "
                         f"confirm_clicked_at={confirm_clicked_at:.3f} "
+                        f"inventory_state={{is_salvaging:{is_salvaging}, transaction_done:{transaction_done}}} "
                         f"windows={{salvage:{UIManagerExtensions.IsSalvageWindowOpen()}, "
                         f"lesser_confirm:{UIManagerExtensions.IsConfirmLesserMaterialsWindowOpen()}, "
                         f"mod_confirm:{UIManagerExtensions.ConfirmModMaterialSalvageVisible()}, "
@@ -942,7 +986,8 @@ class BTNodes:
                     f"Waiting item={item.id} mode={mode.name} "
                     f"elapsed_ms={int((now - float(state.salvage_started_at)) * 1000)} "
                     f"initial_qty={initial_qty} current_qty={current_qty} desired_qty={desired_qty} "
-                    f"confirm_clicked_at={confirm_clicked_at:.3f}."
+                    f"confirm_clicked_at={confirm_clicked_at:.3f} "
+                    f"is_salvaging={is_salvaging} transaction_done={transaction_done}."
                 )
                 return BehaviorTree.NodeState.RUNNING
 
