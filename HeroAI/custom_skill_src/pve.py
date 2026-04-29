@@ -83,8 +83,8 @@ class PVESkills:
         skill.SkillType = SkillType.Ward.value
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.CustomC.value
-        skill.Conditions.EnemiesInRange = 3
-        skill.Conditions.EnemiesInRangeArea = Range.Spellcast.value
+        skill.Conditions.EnemyCount = 3
+        skill.Conditions.EnemiesInRange = Range.Spellcast.value
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -391,6 +391,8 @@ class PVESkills:
         skill.SkillType = SkillType.Enchantment.value
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Buff.value
+        skill.Conditions.EnemyCount = 1
+        skill.Conditions.EnemiesInRange = Range.Adjacent.value
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -412,8 +414,8 @@ class PVESkills:
         skill.SkillType = SkillType.Ward.value
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Offensive.value
-        skill.Conditions.EnemiesInRange = 3
-        skill.Conditions.EnemiesInRangeArea = Range.Area.value
+        skill.Conditions.EnemyCount = 3
+        skill.Conditions.EnemiesInRange = Range.Area.value
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -584,8 +586,8 @@ class PVESkills:
         skill.SkillType = SkillType.Ward.value
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Buff.value
-        skill.Conditions.EnemiesInRange = 3
-        skill.Conditions.EnemiesInRangeArea = Range.Area.value
+        skill.Conditions.EnemyCount = 3
+        skill.Conditions.EnemiesInRange = Range.Area.value
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -593,8 +595,8 @@ class PVESkills:
         skill.SkillType = SkillType.Ward.value
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Buff.value
-        skill.Conditions.EnemiesInRange = 1
-        skill.Conditions.EnemiesInRangeArea = Range.Area.value
+        skill.Conditions.EnemyCount = 1
+        skill.Conditions.EnemiesInRange = Range.Area.value
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -602,8 +604,8 @@ class PVESkills:
         skill.SkillType = SkillType.Ward.value
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Buff.value
-        skill.Conditions.EnemiesInRange = 3
-        skill.Conditions.EnemiesInRangeArea = Range.Spellcast.value
+        skill.Conditions.EnemyCount = 3
+        skill.Conditions.EnemiesInRange = Range.Spellcast.value
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -611,8 +613,8 @@ class PVESkills:
         skill.SkillType = SkillType.Ward.value
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Buff.value
-        skill.Conditions.EnemiesInRange = 3
-        skill.Conditions.EnemiesInRangeArea = Range.Area.value
+        skill.Conditions.EnemyCount = 3
+        skill.Conditions.EnemiesInRange = Range.Area.value
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -776,8 +778,8 @@ class PVESkills:
         skill.SkillType = SkillType.Shout.value
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Offensive.value
-        skill.Conditions.EnemiesInRange = 1
-        skill.Conditions.EnemiesInRangeArea = Range.Nearby.value
+        skill.Conditions.EnemyCount = 1
+        skill.Conditions.EnemiesInRange = Range.Nearby.value
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -959,8 +961,8 @@ class PVESkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.EnemyClustered.value
         skill.Nature = SkillNature.Offensive.value
-        skill.Conditions.EnemiesInRange = 2
-        skill.Conditions.EnemiesInRangeArea = Range.Adjacent.value
+        skill.Conditions.EnemyCount = 2
+        skill.Conditions.EnemiesInRange = Range.Adjacent.value
         skill_data[skill.SkillID] = skill
         
         skill = CustomSkill()

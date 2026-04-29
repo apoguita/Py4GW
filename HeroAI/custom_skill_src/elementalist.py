@@ -298,8 +298,8 @@ class ElementalistSkills:
         skill.SkillType = SkillType.Spell.value
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Offensive.value
-        skill.Conditions.EnemiesInRange = 3
-        skill.Conditions.EnemiesInRangeArea = Range.Area.value
+        skill.Conditions.EnemyCount = 3
+        skill.Conditions.EnemiesInRange = Range.Area.value
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -459,8 +459,8 @@ class ElementalistSkills:
         skill.SkillType = SkillType.Spell.value
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Offensive.value
-        skill.Conditions.EnemiesInRange = 3
-        skill.Conditions.EnemiesInRangeArea = Range.Area.value
+        skill.Conditions.EnemyCount = 3
+        skill.Conditions.EnemiesInRange = Range.Area.value
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -526,8 +526,8 @@ class ElementalistSkills:
         skill.SkillType = SkillType.Ward.value
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Buff.value
-        skill.Conditions.EnemiesInRange = 3
-        skill.Conditions.EnemiesInRangeArea = Range.Area.value
+        skill.Conditions.EnemyCount = 3
+        skill.Conditions.EnemiesInRange = Range.Area.value
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -535,8 +535,8 @@ class ElementalistSkills:
         skill.SkillType = SkillType.Ward.value
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Buff.value
-        skill.Conditions.EnemiesInRange = 3
-        skill.Conditions.EnemiesInRangeArea = Range.Area.value
+        skill.Conditions.EnemyCount = 3
+        skill.Conditions.EnemiesInRange = Range.Area.value
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -544,8 +544,8 @@ class ElementalistSkills:
         skill.SkillType = SkillType.Ward.value
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Buff.value
-        skill.Conditions.EnemiesInRange = 3
-        skill.Conditions.EnemiesInRangeArea = Range.Area.value
+        skill.Conditions.EnemyCount = 3
+        skill.Conditions.EnemiesInRange = Range.Area.value
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -562,8 +562,8 @@ class ElementalistSkills:
         skill.SkillType = SkillType.Ward.value
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Buff.value
-        skill.Conditions.EnemiesInRange = 3
-        skill.Conditions.EnemiesInRangeArea = Range.Area.value
+        skill.Conditions.EnemyCount = 3
+        skill.Conditions.EnemiesInRange = Range.Area.value
         skill_data[skill.SkillID] = skill
 
         #region FIRE_MAGIC
@@ -689,8 +689,8 @@ class ElementalistSkills:
         skill.SkillType = SkillType.Spell.value
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Offensive.value
-        skill.Conditions.EnemiesInRange = 3
-        skill.Conditions.EnemiesInRangeArea = Range.Area.value
+        skill.Conditions.EnemyCount = 3
+        skill.Conditions.EnemiesInRange = Range.Area.value
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -705,8 +705,8 @@ class ElementalistSkills:
         skill.SkillType = SkillType.Spell.value
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Offensive.value
-        skill.Conditions.EnemiesInRange = 3
-        skill.Conditions.EnemiesInRangeArea = Range.Area.value
+        skill.Conditions.EnemyCount = 3
+        skill.Conditions.EnemiesInRange = Range.Area.value
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -805,8 +805,8 @@ class ElementalistSkills:
         skill.SkillType = SkillType.Ward.value
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Offensive.value
-        skill.Conditions.EnemiesInRange = 3
-        skill.Conditions.EnemiesInRangeArea = Range.Area.value
+        skill.Conditions.EnemyCount = 3
+        skill.Conditions.EnemiesInRange = Range.Area.value
         skill_data[skill.SkillID] = skill
 
         #region WATER_MAGIC
@@ -1005,8 +1005,8 @@ class ElementalistSkills:
         skill.SkillType = SkillType.Ward.value
         skill.TargetAllegiance = Skilltarget.Self.value
         skill.Nature = SkillNature.Buff.value
-        skill.Conditions.EnemiesInRange = 3
-        skill.Conditions.EnemiesInRangeArea = Range.Area.value
+        skill.Conditions.EnemyCount = 3
+        skill.Conditions.EnemiesInRange = Range.Area.value
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()

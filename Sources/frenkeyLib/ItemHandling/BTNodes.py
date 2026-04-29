@@ -691,10 +691,12 @@ class BTNodes:
             item_id : int,
             salvage_mode: "SalvageMode | int" = 0,
             salvage_amount: Optional[int] = None,
+            preferred_kit_id: Optional[int] = None,
             allow_expert_for_common_materials: bool = False,
             state_key: str = "_salvage_state",
             timeout_ms_per_item: int = 1500,
             aftercast_ms: int = 0,
+            debug_enabled: bool = False,
         ):
             """
             Build an action node that salvages an item using the requested salvage mode and UI flow.
@@ -709,8 +711,32 @@ class BTNodes:
             """
             def _reset_state(node: BehaviorTree.Node):
                 node.blackboard.pop(state_key, None)
+
+            def _debug(message: str, msg_type: Py4GW.Console.MessageType = Py4GW.Console.MessageType.Info):
+                if not debug_enabled:
+                    return
+                Py4GW.Console.Log("BTNodes.Items.SalvageItem", message, msg_type)
             
+            def _resolve_preferred_kit(valid_model_ids: tuple[ModelID, ...]) -> int:
+                if preferred_kit_id is None or preferred_kit_id <= 0:
+                    return 0
+
+                preferred = ItemSnapshot.from_item_id(preferred_kit_id)
+                if preferred is None or not preferred.is_valid or not preferred.is_salvage_kit or preferred.uses <= 0:
+                    return 0
+
+                try:
+                    preferred_model_id = ModelID(preferred.model_id)
+                except ValueError:
+                    return 0
+
+                return preferred.id if preferred_model_id in valid_model_ids else 0
+
             def _get_expert_salvage_kit() -> int:
+                preferred = _resolve_preferred_kit((ModelID.Expert_Salvage_Kit, ModelID.Superior_Salvage_Kit))
+                if preferred > 0:
+                    return preferred
+
                 inventory_snapshot = ItemSnapshot.get_inventory_snapshot(Bag.Backpack, Bag.Bag_2)
                 expert_kits = [i for bag in inventory_snapshot.values() for i in bag.values() if i is not None and i.is_valid and i.is_salvage_kit and i.model_id in (ModelID.Expert_Salvage_Kit, ModelID.Superior_Salvage_Kit)]
                 
@@ -720,6 +746,10 @@ class BTNodes:
                 return min(expert_kits, key=lambda k: k.uses).id
             
             def _get_lesser_salvage_kit() -> int:
+                preferred = _resolve_preferred_kit((ModelID.Salvage_Kit,))
+                if preferred > 0:
+                    return preferred
+
                 inventory_snapshot = ItemSnapshot.get_inventory_snapshot(Bag.Backpack, Bag.Bag_2)
                 lesser_kits = [i for bag in inventory_snapshot.values() for i in bag.values() if i is not None and i.is_valid and i.is_salvage_kit and i.model_id == ModelID.Salvage_Kit]
                 
@@ -743,6 +773,7 @@ class BTNodes:
             
             def _salvage(node: BehaviorTree.Node):        
                 if item_id is None or item_id <= 0:
+                    _debug(f"Invalid item_id={item_id}.")
                     return BehaviorTree.NodeState.FAILURE
                 
                 try:
@@ -751,22 +782,49 @@ class BTNodes:
                     mode = SalvageMode.NONE
                 
                 if mode == SalvageMode.NONE:
+                    _debug(f"Invalid salvage mode for item_id={item_id}: raw={salvage_mode!r}.")
                     return BehaviorTree.NodeState.FAILURE
-                                
+                                 
                 state = node.blackboard.get(state_key)
                 state = cast(BTNodes.Items.SavalvageProgress, state) if state else None
                 item = ItemSnapshot.from_item_id(item_id)
                 
-                if (state and item_id != state.item_id) or item is None or not item.is_valid or not item.is_salvageable or not item.is_inventory_item or _is_mod_salvaged(item, mode):
+                if state and item_id != state.item_id:
+                    _debug(f"State item mismatch: requested={item_id}, state_item={state.item_id}.")
+                    return BehaviorTree.NodeState.SUCCESS
+
+                if item is None:
+                    _debug(f"Item {item_id} no longer exists.")
+                    return BehaviorTree.NodeState.SUCCESS
+
+                if not item.is_valid:
+                    _debug(f"Item {item_id} is not valid.")
+                    return BehaviorTree.NodeState.SUCCESS
+
+                if not item.is_salvageable:
+                    _debug(f"Item {item.id} is no longer salvageable.")
+                    return BehaviorTree.NodeState.SUCCESS
+
+                if not item.is_inventory_item:
+                    _debug(f"Item {item.id} is no longer in inventory.")
+                    return BehaviorTree.NodeState.SUCCESS
+
+                if _is_mod_salvaged(item, mode):
+                    _debug(f"Requested salvage mode {mode.name} already resolved for item {item.id}.")
                     return BehaviorTree.NodeState.SUCCESS
                 
                 if state is None:
                     state = BTNodes.Items.SavalvageProgress(item_id=item.id, salvage_started_at=0.0, initial_qty=item.quantity, salvage_amount=min(item.quantity, salvage_amount if salvage_amount else item.quantity))                   
                     node.blackboard[state_key] = state
+                    _debug(
+                        f"Initialized salvage state for item={item.id} mode={mode.name} "
+                        f"qty={item.quantity} desired_qty={state.desired_qty} timeout_ms={timeout_ms_per_item}."
+                    )
                     
                 now = time.monotonic()
 
                 if Inventory.GetFreeSlotCount() <= 0:
+                    _debug(f"Cannot salvage item {item.id}: no free inventory slots.", Py4GW.Console.MessageType.Warning)
                     return BehaviorTree.NodeState.FAILURE
 
                 # Start salvage once per item.
@@ -781,33 +839,53 @@ class BTNodes:
 
                     kit = ItemSnapshot.from_item_id(kit_id)
                     if kit_id <= 0 or (kit is None or kit.model_id == ModelID.Salvage_Kit and (item.rarity > Rarity.White and not item.is_identified)):
+                        _debug(
+                            f"Failed to resolve valid salvage kit for item={item.id} mode={mode.name}. "
+                            f"kit_id={kit_id} kit_model={(kit.model_id if kit else 'None')} "
+                            f"item_rarity={item.rarity.name} item_identified={item.is_identified}.",
+                            Py4GW.Console.MessageType.Warning,
+                        )
                         return BehaviorTree.NodeState.FAILURE
 
+                    _debug(
+                        f"Starting salvage item={item.id} mode={mode.name} kit_id={kit_id} "
+                        f"kit_model={kit.model_id if kit else 'None'} item_qty={item.quantity} "
+                        f"preferred_kit_id={preferred_kit_id or 0}."
+                    )
                     Inventory.SalvageItem(item_id, kit_id)
                     state.salvage_started_at = now
                     return BehaviorTree.NodeState.RUNNING
 
                 # Handle salvage windows/frames while waiting for completion.
                 if UIManagerExtensions.IsConfirmLesserMaterialsWindowOpen():
+                    _debug(f"Confirm lesser materials window open for item={item.id}.")
                     if UIManagerExtensions.ConfirmLesserSalvage():
                         state.confirm_clicked_at = now
+                        _debug(f"Confirmed lesser materials salvage for item={item.id}.")
                         return BehaviorTree.NodeState.RUNNING
                     
                 if UIManagerExtensions.ConfirmModMaterialSalvageVisible():
+                    _debug(f"Confirm mod/material warning visible for item={item.id}.")
                     if UIManagerExtensions.ConfirmModMaterialSalvage():
                         state.confirm_clicked_at = now
+                        _debug(f"Confirmed mod/material warning for item={item.id}.")
                         return BehaviorTree.NodeState.RUNNING
                     
                 if UIManagerExtensions.IsSalvageWindowNoIdentifiedOpen():
+                    _debug(f"Unidentified salvage warning open for item={item.id}.")
                     if UIManagerExtensions.ConfirmSalvageWindowNoIdentified():
                         state.confirm_clicked_at = now
+                        _debug(f"Confirmed unidentified salvage warning for item={item.id}.")
                         return BehaviorTree.NodeState.RUNNING
                     
                 if UIManagerExtensions.IsSalvageWindowOpen():
+                    _debug(f"Salvage choice window open for item={item.id}, selecting mode={mode.name}.")
                     if UIManagerExtensions.SelectSalvageOptionAndSalvage(mode):
                         state.confirm_clicked_at = now
+                        _debug(f"Selected salvage option {mode.name} for item={item.id}.")
                         return BehaviorTree.NodeState.RUNNING
                     else:
+                        _debug(f"Failed to select salvage option {mode.name} for item={item.id}; cancelling.", Py4GW.Console.MessageType.Warning)
                         UIManagerExtensions.CancelSalvageOption()
                         return BehaviorTree.NodeState.FAILURE
 
@@ -827,20 +905,45 @@ class BTNodes:
                 )
                 
                 if not item_gone and item.is_stackable and qty_changed and current_qty > desired_qty:
-                    Py4GW.Console.Log("BTNodes.Items.SalvageItem", f"Partially salvaged item id {item.id}, quantity reduced from {initial_qty} to {current_qty}, desired quantity is {desired_qty}. Continuing to salvage the remaining quantity.")
+                    _debug(
+                        f"Partial salvage item={item.id}: initial_qty={initial_qty}, current_qty={current_qty}, "
+                        f"desired_qty={desired_qty}. Restarting for remaining quantity."
+                    )
                     state.salvage_started_at = 0.0
                     state.initial_qty = item.quantity
                     
                     return BehaviorTree.NodeState.RUNNING
 
                 if qty_changed or item_gone or windows_closed_after_confirm or mod_salvaged:
+                    _debug(
+                        f"Salvage complete item={item.id} mode={mode.name} "
+                        f"qty_changed={qty_changed} item_gone={item_gone} "
+                        f"windows_closed_after_confirm={windows_closed_after_confirm} mod_salvaged={mod_salvaged} "
+                        f"initial_qty={initial_qty} current_qty={current_qty} desired_qty={desired_qty}."
+                    )
                     return BehaviorTree.NodeState.SUCCESS
 
                 if (now - float(state.salvage_started_at)) * 1000 >= timeout_ms_per_item:
-                    Py4GW.Console.Log("BTNodes.Items.SalvageItem", f"Salvage of item id {item.id} timed out after {timeout_ms_per_item} ms. Failing salvage action.")
+                    _debug(
+                        f"Timeout item={item.id} mode={mode.name} after {timeout_ms_per_item} ms. "
+                        f"initial_qty={initial_qty} current_qty={current_qty} desired_qty={desired_qty} "
+                        f"confirm_clicked_at={confirm_clicked_at:.3f} "
+                        f"windows={{salvage:{UIManagerExtensions.IsSalvageWindowOpen()}, "
+                        f"lesser_confirm:{UIManagerExtensions.IsConfirmLesserMaterialsWindowOpen()}, "
+                        f"mod_confirm:{UIManagerExtensions.ConfirmModMaterialSalvageVisible()}, "
+                        f"unidentified:{UIManagerExtensions.IsSalvageWindowNoIdentifiedOpen()}}} "
+                        f"free_slots={Inventory.GetFreeSlotCount()}.",
+                        Py4GW.Console.MessageType.Warning,
+                    )
                     node.blackboard.pop(state_key, None)
                     return BehaviorTree.NodeState.FAILURE
 
+                _debug(
+                    f"Waiting item={item.id} mode={mode.name} "
+                    f"elapsed_ms={int((now - float(state.salvage_started_at)) * 1000)} "
+                    f"initial_qty={initial_qty} current_qty={current_qty} desired_qty={desired_qty} "
+                    f"confirm_clicked_at={confirm_clicked_at:.3f}."
+                )
                 return BehaviorTree.NodeState.RUNNING
 
             return BehaviorTree.ActionNode(name="Items.SalvageItems", action_fn=_salvage, aftercast_ms=aftercast_ms)
