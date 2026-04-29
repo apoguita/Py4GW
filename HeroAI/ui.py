@@ -1169,7 +1169,7 @@ def draw_buttons(account_data: AccountStruct, cached_data: CacheData, message_qu
                 IconsFontAwesome5.ICON_COMMENT_DOTS,
                 "Dialog with Target",
                 SharedCommandType.TakeDialogWithTarget,
-                lambda: GLOBAL_CACHE.ShMem.SendMessage(player_email, account_email, SharedCommandType.TakeDialogWithTarget, (target_id, 1, 0, 0)),
+                lambda: GLOBAL_CACHE.ShMem.SendMessage(player_email, account_email, SharedCommandType.TakeDialogWithTarget, (target_id, 0, 0, 0)),
                 lambda: is_queued(SharedCommandType.TakeDialogWithTarget),
                 True,
             ),
@@ -1247,7 +1247,7 @@ def draw_buttons(account_data: AccountStruct, cached_data: CacheData, message_qu
              SharedCommandType.InteractWithTarget, lambda: GLOBAL_CACHE.ShMem.SendMessage(player_email, account_email, SharedCommandType.InteractWithTarget, (target_id, 0, 0, 0)), lambda: is_queued(SharedCommandType.InteractWithTarget)),
 
             ("dialog", IconsFontAwesome5.ICON_COMMENT_DOTS, "Dialog with Target",
-             SharedCommandType.TakeDialogWithTarget, lambda: GLOBAL_CACHE.ShMem.SendMessage(player_email, account_email, SharedCommandType.TakeDialogWithTarget, (target_id, 1, 0, 0)), lambda: is_queued(SharedCommandType.TakeDialogWithTarget), True),
+             SharedCommandType.TakeDialogWithTarget, lambda: GLOBAL_CACHE.ShMem.SendMessage(player_email, account_email, SharedCommandType.TakeDialogWithTarget, (target_id, 0, 0, 0)), lambda: is_queued(SharedCommandType.TakeDialogWithTarget), True),
 
             ("flag", IconsFontAwesome5.ICON_FLAG, "Flag Target",
              SharedCommandType.NoCommand, flag_hero_account, lambda: IsHeroFlagged(account_data.AgentPartyData.PartyPosition)),
@@ -1596,15 +1596,25 @@ consumables = [
     # (ModelID.Dwarven_Ale, ("Textures\\Consumables\\Trimmed\\Dwarven_Ale.png", (ModelID.Dwarven_Ale.value, GLOBAL_CACHE.Skill.GetID("Dwarven_Ale_item_effect"), 0, 0))),
 ]
 
+_last_pcon_post_ms = 0
+
 def _post_pcon_message(params, cached_data: CacheData):
+    global _last_pcon_post_ms
+
     self_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(cached_data.account_email)
     if not self_account:
+        return
+
+    now_ms = int(Utils.GetBaseTimestamp())
+    if now_ms - _last_pcon_post_ms < 100:
         return
 
     accounts = cached_data.party.accounts.values()
     sender_email = cached_data.account_email
     for account in accounts:
         GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.PCon, params)
+    _last_pcon_post_ms = now_ms
+
 
 def _use_all_cons(cached_data: CacheData):
     # Paced like party_command_contants.use_all_consumables — enqueueing all
@@ -2235,7 +2245,7 @@ def draw_dialog_overlay(cached_data: CacheData, messages: list[tuple[int, Shared
             if ImGui.is_mouse_in_rect((frame[0], frame[1], frame[2] - frame[0], frame[3] - frame[1]), mouse_pos):                                
                 if is_left_mouse_clicked() and pyimgui_io.key_ctrl:
                     accounts = [acc for acc in cached_data.party.accounts.values() if acc.AccountEmail != cached_data.account_email]
-                    commands.send_dialog(accounts, i + 1)
+                    commands.send_automatic_dialog(accounts, i)
                     return
                 else:
                     ImGui.begin_tooltip()

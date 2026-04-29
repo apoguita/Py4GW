@@ -45,6 +45,8 @@ Docstring parsing rules
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 from ...Agent import Agent
 from ...GlobalCache import GLOBAL_CACHE
 from ...Player import Player
@@ -351,6 +353,86 @@ class BTItems:
                 name=f"IsItemEquipped({modelID_or_encStr})",
                 condition_fn=_is_item_equipped,
             )
+        )
+
+    @staticmethod
+    def UseConsumable(
+        modelID_or_encStr: int | str,
+        effect_name: str = "",
+        aftercast_ms: int = 100,
+    ) -> BehaviorTree:
+        """
+        Build a tree that uses a single consumable item when runtime checks allow it.
+
+        Meta:
+          Expose: true
+          Audience: intermediate
+          Display: Use Consumable
+          Purpose: Use one consumable item with map, life-state, and active-effect checks.
+          UserDescription: Use this when you want to consume one item safely without duplicating active effects.
+          Notes: Succeeds quietly when the effect is already active or the item is missing.
+        """
+        def _use_consumable(node: BehaviorTree.Node) -> BehaviorTree.NodeState:
+            from ..Checks import Checks
+            from ...Map import Map
+
+            if not Checks.Map.MapValid():
+                return BehaviorTree.NodeState.FAILURE
+
+            if not Map.IsExplorable():
+                return BehaviorTree.NodeState.FAILURE
+
+            if Agent.IsDead(Player.GetAgentID()):
+                return BehaviorTree.NodeState.FAILURE
+
+            resolved_model_id = BTItems._resolve_model_id_value(modelID_or_encStr)
+
+            if effect_name:
+                effect_id = GLOBAL_CACHE.Skill.GetID(effect_name)
+                if GLOBAL_CACHE.Effects.HasEffect(Player.GetAgentID(), effect_id):
+                    return BehaviorTree.NodeState.SUCCESS
+
+            item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(resolved_model_id)
+            if item_id == 0:
+                return BehaviorTree.NodeState.SUCCESS
+
+            GLOBAL_CACHE.Inventory.UseItem(item_id)
+            return BehaviorTree.NodeState.SUCCESS
+
+        return BehaviorTree(
+            BehaviorTree.ActionNode(
+                name=f"UseConsumable({modelID_or_encStr})",
+                action_fn=_use_consumable,
+                aftercast_ms=aftercast_ms,
+            )
+        )
+
+    @staticmethod
+    def UseConsumables(
+        consumable_effects: Sequence[tuple[int | str, str]],
+        aftercast_ms: int = 100,
+    ) -> BehaviorTree:
+        """
+        Build a tree that uses a list of consumables with per-item checks.
+
+        Meta:
+          Expose: true
+          Audience: intermediate
+          Display: Use Consumables
+          Purpose: Use several consumables safely through individual checked BT item nodes.
+          UserDescription: Use this when you want a batch consumable pass that skips active or missing effects/items.
+          Notes: Internally composes `UseConsumable` nodes into a sequence.
+        """
+        return BTComposite.Sequence(
+            *[
+                BTItems.UseConsumable(
+                    model_id,
+                    effect_name,
+                    aftercast_ms=aftercast_ms,
+                )
+                for model_id, effect_name in consumable_effects
+            ],
+            name="UseConsumables",
         )
 
 

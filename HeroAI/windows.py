@@ -261,6 +261,7 @@ class HeroAI_Windows():
     capture_flag_all = False
     outline_color:Color = Color(255, 255, 255, 255)
     color_tick = 0
+    _last_pcon_post_ms = 0
     
     class ButtonColor:
         def __init__(self, button_color:Color, hovered_color:Color, active_color:Color, texture_path=""):
@@ -865,12 +866,17 @@ class HeroAI_Windows():
             self_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(cached_data.account_email)
             if not self_account:
                 return
-            
+
+            now_ms = int(Utils.GetBaseTimestamp())
+            if now_ms - HeroAI_Windows._last_pcon_post_ms < 100:
+                return
+             
             sender_email = cached_data.account_email
             for account in cached_data.party:
                 ConsoleLog("Messaging", f"Sending Pcon Message to  {account.AccountEmail}")
-                
+                 
                 GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.PCon, params)
+            HeroAI_Windows._last_pcon_post_ms = now_ms
 
         if ImGui.colored_button(f"{IconsFontAwesome5.ICON_TIMES}##commands_resign", HeroAI_Windows.ButtonColors["Resign"].button_color, HeroAI_Windows.ButtonColors["Resign"].hovered_color, HeroAI_Windows.ButtonColors["Resign"].active_color):
         #if PyImGui.button(f"{IconsFontAwesome5.ICON_TIMES}##commands_resign"):
@@ -928,9 +934,6 @@ class HeroAI_Windows():
                 ConsoleLog("Messaging", "No dialog is open.")
                 return
             
-            # i need to display a modal dialog here to confirm options
-            options = UIManager.GetDialogButtonCount()
-            
             self_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(cached_data.account_email)
             if not self_account:
                 return
@@ -940,7 +943,7 @@ class HeroAI_Windows():
                 if self_account.AccountEmail == account.AccountEmail:
                     continue
                 ConsoleLog("Messaging", f"Ordering {account.AccountEmail} to interact with target: {target}")
-                GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.TakeDialogWithTarget, (target,1,0,0))
+                GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.TakeDialogWithTarget, (target,0,0,0))
         ImGui.show_tooltip("Get Dialog")
         PyImGui.separator()
         if PyImGui.collapsing_header("PCons"):

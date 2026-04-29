@@ -122,6 +122,42 @@ class _ITEMS:
         """Uses only pcon items (Cupcake, Golden Egg, Candy Corn, Candy Apple, Pumpkin Pie, Drake Kabob, Skalefin Soup, Pahnai Salad, War Supplies). Skips any already active."""
         self._helpers.Items.use_pcons()
 
+    def UseEssenceOfCelerity(self):
+        self._helpers.Items.use_essence_of_celerity()
+
+    def UseGrailOfMight(self):
+        self._helpers.Items.use_grail_of_might()
+
+    def UseArmorOfSalvation(self):
+        self._helpers.Items.use_armor_of_salvation()
+
+    def UseBirthdayCupcake(self):
+        self._helpers.Items.use_birthday_cupcake()
+
+    def UseGoldenEgg(self):
+        self._helpers.Items.use_golden_egg()
+
+    def UseCandyCorn(self):
+        self._helpers.Items.use_candy_corn()
+
+    def UseCandyApple(self):
+        self._helpers.Items.use_candy_apple()
+
+    def UsePumpkinPie(self):
+        self._helpers.Items.use_slice_of_pumpkin_pie()
+
+    def UseDrakeKabob(self):
+        self._helpers.Items.use_drake_kabob()
+
+    def UseBowlOfSkalefinSoup(self):
+        self._helpers.Items.use_bowl_of_skalefin_soup()
+
+    def UsePahnaiSalad(self):
+        self._helpers.Items.use_pahnai_salad()
+
+    def UseWarSupplies(self):
+        self._helpers.Items.use_war_supplies()
+
     def UseAllConsumables(self):
         """
         Uses all consumables for the current player only (not multibox).

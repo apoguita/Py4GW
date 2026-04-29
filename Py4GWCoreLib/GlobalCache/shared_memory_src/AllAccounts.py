@@ -772,6 +772,9 @@ class AllAccounts(Structure):
         import ctypes as ct
         index = self.GetSlotByEmail(receiver_email)
         
+        normalized_params = tuple(float(params[i]) if i < len(params) else 0.0 for i in range(4))
+        normalized_extra_data = tuple(str(ExtraData[i]) if i < len(ExtraData) else "" for i in range(4))
+        
         if index == -1:
             ConsoleLog(SHMEM_MODULE_NAME, f"Receiver account {receiver_email} not found.", Py4GW.Console.MessageType.Error)
             return -1
@@ -793,14 +796,38 @@ class AllAccounts(Structure):
             if message.Active:
                 continue  # Find the first unfinished message slot
             
+            if message.ReceiverEmail != receiver_email:
+                continue  # This slot is not for the intended receiver
+            
+            if int(message.Command) != int(command.value):
+                continue  # This slot has a different command (could be from another sender)
+            
+            message_Params = tuple(float(message.Params[j]) for j in range(4))
+            
+            if message_Params != normalized_params:
+                continue  # This slot has different params (could be from another sender or an old message)
+            
+            message_extra_data = tuple(self._c_wchar_array_to_str(message.ExtraData[j]) for j in range(4))
+            
+            if message_extra_data != normalized_extra_data:
+                continue  # This slot has different extra data (could be from another sender or an old message)
+            
+            return i  # This message slot matches the intended receiver, command, params, and extra data - reuse it
+        
+        for i in range(SHMEM_MAX_PLAYERS):
+            message = self.GetInbox(i)
+            if message.Active:
+                continue
+         
             message.SenderEmail = sender_email
             message.ReceiverEmail = receiver_email
             message.Command = command.value
-            message.Params = (c_float * 4)(*params)
+            message.Params = (ct.c_float * 4)(*normalized_params)
+            
             # Pack 4 strings into 4 arrays of c_wchar[SHMEM_MAX_CHAR_LEN]
             arr_type = ct.c_wchar * SHMEM_MAX_CHAR_LEN
             packed = [self._str_to_c_wchar_array(
-                        ExtraData[j] if j < len(ExtraData) else "",
+                        normalized_extra_data[j],
                         SHMEM_MAX_CHAR_LEN)
                     for j in range(4)]
             message.ExtraData = (arr_type * 4)(*packed)

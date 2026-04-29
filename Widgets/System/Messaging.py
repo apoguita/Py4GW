@@ -613,10 +613,9 @@ def TakeDialogWithTarget(index: int, message: SharedMessageStruct):
         yield from Routines.Yield.Movement.FollowPath([(x, y)])
         yield from Routines.Yield.wait(100)
         yield from Routines.Yield.Player.InteractAgent(target)
-        yield from Routines.Yield.wait(500)
-        if UIManager.IsNPCDialogVisible():
-            UIManager.ClickDialogButton(int(message.Params[1]))
-            yield from Routines.Yield.wait(200)
+        # Deprecated legacy transport name; the payload now represents the
+        # 0-based automatic dialog button to press after interaction.
+        yield from Routines.Yield.Player.SendAutomaticDialog(int(message.Params[1]))
 
         ConsoleLog(MODULE_NAME, "TakeDialogWithTarget message processed and finished.", Console.MessageType.Info, False)
     finally:
@@ -668,10 +667,9 @@ def SendDialog(index: int, message: SharedMessageStruct):
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
 
-    if UIManager.IsNPCDialogVisible():
-        UIManager.ClickDialogButton(int(message.Params[0]))
-        
-    yield from Routines.Yield.wait(500)
+    # Deprecated legacy command name retained for compatibility; this now
+    # routes through the automatic dialog routine using a 0-based index.
+    yield from Routines.Yield.Player.SendAutomaticDialog(int(message.Params[0]))
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
 # endregion
 
