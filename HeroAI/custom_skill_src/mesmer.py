@@ -230,7 +230,8 @@ class MesmerSkills:
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Overload")
         skill.SkillType = SkillType.Hex.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
-        skill.Nature = SkillNature.Offensive.value
+        skill.Nature = SkillNature.Interrupt.value
+        skill.Conditions.IsCasting = True
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -238,6 +239,8 @@ class MesmerSkills:
         skill.SkillType = SkillType.Hex.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.EnemiesInRange = 3
+        skill.Conditions.EnemiesInRangeArea = Range.Nearby.value
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -600,7 +603,7 @@ class MesmerSkills:
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Signet_of_Clumsiness")
         skill.SkillType = SkillType.Signet.value
         skill.TargetAllegiance = Skilltarget.EnemyAttacking.value
-        skill.Nature = SkillNature.Interrupt.value
+        skill.Nature = SkillNature.Offensive.value
         skill.Conditions.IsAttacking = True
         skill_data[skill.SkillID] = skill
 

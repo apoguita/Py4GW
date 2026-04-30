@@ -157,6 +157,77 @@ class NoAttribute:
             minimum_allies=0,
         ))
 
+    def Summon_Spirits(self) -> BuildCoroutine:
+        """Pull or heal owned spirits.
+
+        Auto-detects whether the Kurzick or Luxon variant is on the bar.
+        Three independent triggers — any one fires the cast:
+        - Far from aggro: any owned spirit is more than 3750 GU
+          (Compass * 0.75) away — pull lagging spirits while travelling.
+        - Close to aggro or in aggro: any owned spirit is more than
+          322 GU (Range.Area) away — keep the spirits tight on the
+          caster during combat.
+        - Any state: any owned spirit is below 90% health (Summon
+          Spirits restores HP/energy on each owned spirit on cast).
+        """
+        summon_spirits_kurzick_id: int = Skill.GetID("Summon_Spirits_kurzick")
+        summon_spirits_luxon_id: int = Skill.GetID("Summon_Spirits_luxon")
+
+        if self.build.IsSkillEquipped(summon_spirits_kurzick_id):
+            skill_id = summon_spirits_kurzick_id
+        elif self.build.IsSkillEquipped(summon_spirits_luxon_id):
+            skill_id = summon_spirits_luxon_id
+        else:
+            return False
+
+        self_agent_id = self.build._resolve_self_agent_id()
+        player_xy = Player.GetXY()
+
+        owned_spirits = AgentArray.GetSpiritPetArray()
+        owned_spirits = AgentArray.Filter.ByDistance(owned_spirits, player_xy, Range.Compass.value)
+        owned_spirits = AgentArray.Filter.ByCondition(
+            owned_spirits,
+            lambda agent_id: (
+                Agent.IsAlive(agent_id)
+                and Agent.IsSpawned(agent_id)
+                and Agent.GetOwnerID(agent_id) == self_agent_id
+            ),
+        )
+        if not owned_spirits:
+            return False
+
+        in_aggro = self.build.IsInAggro()
+        close_to_aggro = in_aggro or self.build.IsCloseToAggro()
+
+        if close_to_aggro:
+            combat_threshold = Range.Area.value
+            combat_pull = any(
+                Utils.Distance(player_xy, Agent.GetXY(spirit_id)) > combat_threshold
+                for spirit_id in owned_spirits
+            )
+        else:
+            combat_pull = False
+
+        if not close_to_aggro:
+            travel_threshold = Range.Compass.value * 0.75
+            travel_pull = any(
+                Utils.Distance(player_xy, Agent.GetXY(spirit_id)) > travel_threshold
+                for spirit_id in owned_spirits
+            )
+        else:
+            travel_pull = False
+
+        needs_heal = any(Agent.GetHealth(spirit_id) < 0.9 for spirit_id in owned_spirits)
+
+        if not (combat_pull or travel_pull or needs_heal):
+            return False
+
+        return (yield from self.build.CastSkillID(
+            skill_id=skill_id,
+            log=False,
+            aftercast_delay=250,
+        ))
+
     def Summon_Spirits_kurzick(self) -> BuildCoroutine:
         summon_spirits_kurzick_id: int = Skill.GetID("Summon_Spirits_kurzick")
         return (yield from self._summon_spirits(summon_spirits_kurzick_id))

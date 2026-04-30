@@ -54,26 +54,17 @@ class IllusionMagic:
     #endregion
 
     #region S
-    def Signet_of_Clumsiness(
-        self,
-        *,
-        energy_threshold_pct: float = 1.0,
-    ) -> BuildCoroutine:
-        from Py4GWCoreLib import Agent, Player
+    def Signet_of_Clumsiness(self) -> BuildCoroutine:
+        from Py4GWCoreLib import Agent, Range
 
         signet_of_clumsiness_id: int = Skill.GetID("Signet_of_Clumsiness")
         if not self.build.IsSkillEquipped(signet_of_clumsiness_id):
             return False
 
-        if Agent.GetEnergy(Player.GetAgentID()) > energy_threshold_pct:
-            return False
-
-        # Signet of Clumsiness only interrupts and deals damage when the
-        # target is attacking, so require an attacking enemy in both the
-        # primary and fallback branches; if no attacker exists, skip the cast.
-        target_agent_id = TargetMeleeOrMartialClusterEnemy(
-            signet_of_clumsiness_id,
-            require_attacking=True,
+        target_agent_id = self.build._pick_clustered_target(
+            cluster_radius=Range.Adjacent.value,
+            preferred_condition=lambda agent_id: Agent.IsAttacking(agent_id),
+            filter_radius=Range.Spellcast.value,
         )
         if not target_agent_id:
             return False
