@@ -32,6 +32,9 @@ from .IntentStruct import IntentStruct
 #   from Py4GWCoreLib.GlobalCache.shared_memory_src import AllAccounts as _wb_mod
 #   _wb_mod.WHITEBOARD_DEBUG = False
 WHITEBOARD_DEBUG: bool = False
+_HERO_SUBMIT_RETRY_AFTER: dict[tuple[int, int], int] = {}
+_PET_SUBMIT_RETRY_AFTER: dict[tuple[int, int], int] = {}
+_SLOT_SUBMIT_RETRY_COOLDOWN_MS = 5000
 
 #region AllAccounts
 class AllAccounts(Structure):
@@ -198,6 +201,29 @@ class AllAccounts(Structure):
                 return i
         return -1
 
+    def _find_player_slot_by_key(self, account_email: str, hwnd: int) -> int:
+        if not account_email or not hwnd:
+            return -1
+        for i in range(SHMEM_MAX_PLAYERS):
+            account = self.AccountData[i]
+            if not account.IsAccount:
+                continue
+            if account.AccountEmail != account_email:
+                continue
+            key = self.Keys[i]
+            if key.HWND == hwnd and key.EntityType == 0:
+                return i
+        return -1
+
+    def _find_slot_by_key(self, hwnd: int, entity_type: int, local_index: int) -> int:
+        if not hwnd:
+            return -1
+        for i in range(SHMEM_MAX_PLAYERS):
+            key = self.Keys[i]
+            if key.HWND == hwnd and key.EntityType == entity_type and key.LocalIndex == local_index:
+                return i
+        return -1
+
     def IsAccountIsolated(self, account_email: str) -> bool:
         index = self._find_account_slot_by_email(account_email)
         if index == -1:
@@ -301,24 +327,35 @@ class AllAccounts(Structure):
     def GetHeroExpiredSlot(self, hero_data: HeroPartyMember) -> int:
         """Find the slot index for the given hero data that has expired."""
         from ...Party import Party
+        from ...Player import Player
+        owner_email = Player.GetAccountEmail()
         owner_id = Party.Players.GetAgentIDByLoginNumber(hero_data.owner_player_id)
         expired_slots = self.GetExpiredSlots()
         for index in expired_slots:
             account_data = self.AccountData[index]
             if (account_data.IsHero and 
-                account_data.AgentData.HeroID == hero_data.hero_id.GetID() and 
-                account_data.AgentData.OwnerAgentID == owner_id):
+                account_data.AgentData.HeroID == hero_data.hero_id.GetID() and
+                (
+                    account_data.AccountEmail == owner_email or
+                    account_data.AgentData.OwnerAgentID == owner_id
+                )):
                 return index
         return -1
     
     def GetPetExpiredSlot(self, pet_data: PetInfo) -> int:
         """Find the slot index for the given pet data that has expired."""
+        from ...Player import Player
+        owner_email = Player.GetAccountEmail()
         expired_slots = self.GetExpiredSlots()
         for index in expired_slots:
             account_data = self.AccountData[index]
-            if (account_data.IsPet and 
-                account_data.AgentData.AgentID == pet_data.agent_id and 
-                account_data.AgentData.OwnerAgentID == pet_data.owner_agent_id):
+            if (account_data.IsPet and (
+                account_data.AccountEmail == owner_email or
+                (
+                    account_data.AgentData.AgentID == pet_data.agent_id and
+                    account_data.AgentData.OwnerAgentID == pet_data.owner_agent_id
+                )
+            )):
                 return index
         return -1
     
@@ -350,17 +387,24 @@ class AllAccounts(Structure):
     def SubmitHeroData(self, hero_data: HeroPartyMember) -> int:
         """Submit hero data to shared memory. Returns the slot index or -1 on failure."""
         from ...Party import Party
+        owner_id = Party.Players.GetAgentIDByLoginNumber(hero_data.owner_player_id)
+        retry_key = (int(hero_data.hero_id.GetID()), int(owner_id))
+        now = Py4GW.Game.get_tick_count64()
+        if now < _HERO_SUBMIT_RETRY_AFTER.get(retry_key, 0):
+            return -1
+
         slot_index = self.GetHeroExpiredSlot(hero_data)
         if slot_index == -1:
             slot_index = self.GetEmptySlot(allow_expired_reclaim=False)
         if slot_index == -1:
-            ConsoleLog(SHMEM_MODULE_NAME, "No empty slot available to submit hero data.", Py4GW.Console.MessageType.Error)
+            _HERO_SUBMIT_RETRY_AFTER[retry_key] = now + _SLOT_SUBMIT_RETRY_COOLDOWN_MS
             return -1
+        _HERO_SUBMIT_RETRY_AFTER.pop(retry_key, None)
         
         new_account = AccountStruct()
         new_account.from_hero_context(hero_data, slot_index)
         
-        Key = KeyStruct().AsHeroKey(Py4GW.Console.get_gw_window_handle(), slot_index)
+        Key = KeyStruct().AsHeroKey(Py4GW.Console.get_gw_window_handle(), int(hero_data.hero_id.GetID()))
         self.Keys[slot_index] = new_account.Key = Key
         self.AccountData[slot_index] = new_account
 
@@ -369,17 +413,23 @@ class AllAccounts(Structure):
     
     def SubmitPetData(self, pet_data: PetInfo) -> int:
         """Submit pet data to shared memory. Returns the slot index or -1 on failure."""
+        retry_key = (int(pet_data.agent_id), int(pet_data.owner_agent_id))
+        now = Py4GW.Game.get_tick_count64()
+        if now < _PET_SUBMIT_RETRY_AFTER.get(retry_key, 0):
+            return -1
+
         slot_index = self.GetPetExpiredSlot(pet_data)
         if slot_index == -1:
             slot_index = self.GetEmptySlot(allow_expired_reclaim=False)
         if slot_index == -1:
-            ConsoleLog(SHMEM_MODULE_NAME, "No empty slot available to submit pet data.", Py4GW.Console.MessageType.Error)
+            _PET_SUBMIT_RETRY_AFTER[retry_key] = now + _SLOT_SUBMIT_RETRY_COOLDOWN_MS
             return -1
+        _PET_SUBMIT_RETRY_AFTER.pop(retry_key, None)
         
         new_account = AccountStruct()
         new_account.from_pet_context(pet_data, slot_index)
         
-        Key = KeyStruct().AsPetKey(Py4GW.Console.get_gw_window_handle(), slot_index)
+        Key = KeyStruct().AsPetKey(Py4GW.Console.get_gw_window_handle(), 0)
         self.Keys[slot_index] = new_account.Key = Key
         self.AccountData[slot_index] = new_account
         
@@ -412,7 +462,6 @@ class AllAccounts(Structure):
         """Set player data for the account with the given email."""     
         index = self.GetHeroSlotByHeroData(hero_data)
         if index == -1:
-            ConsoleLog(SHMEM_MODULE_NAME, f"No slot found for hero {hero_data.hero_id.GetName()} (ID: {hero_data.hero_id.GetID()}).", Py4GW.Console.MessageType.Warning)
             return
         
         account = self.AccountData[index]
@@ -433,7 +482,6 @@ class AllAccounts(Structure):
         
         index = self.GetPetSlotByPetData(pet_info)
         if index == -1:
-            ConsoleLog(SHMEM_MODULE_NAME, f"No slot found for pet {pet_info.agent_id}.", Py4GW.Console.MessageType.Warning)
             return
         
         account = self.AccountData[index]
@@ -447,10 +495,15 @@ class AllAccounts(Structure):
             return -1
         
         """Find the index of the account with the given email."""
+        hwnd = Py4GW.Console.get_gw_window_handle()
+        own_index = self._find_player_slot_by_key(account_email, hwnd)
+        if own_index != -1:
+            return own_index
+
         all_accounts = self.AccountData
         for i in range(SHMEM_MAX_PLAYERS):
             account = all_accounts[i]
-            if account.AccountEmail == account_email and account.IsAccount:
+            if account.AccountEmail == account_email and account.IsAccount and self._is_slot_active(i):
                 return i
             
         #submit if not found
@@ -484,15 +537,22 @@ class AllAccounts(Structure):
     def GetHeroSlotByHeroData(self, hero_data:HeroPartyMember) -> int:
         """Find the index of the hero with the given ID."""
         from ...Party import Party
+        from ...Player import Player
         all_accounts = self.AccountData
         hero_id = hero_data.hero_id.GetID()
+        key_slot = self._find_slot_by_key(Py4GW.Console.get_gw_window_handle(), 1, int(hero_id))
+        if key_slot != -1:
+            return key_slot
         owner_agent_id = Party.Players.GetAgentIDByLoginNumber(hero_data.owner_player_id)
+        owner_email = Player.GetAccountEmail()
         for i in range(SHMEM_MAX_PLAYERS):
             player = all_accounts[i]
             if not player.IsHero:
                 continue
             if player.AgentData.HeroID != hero_id:
                 continue
+            if player.AccountEmail == owner_email:
+                return i
             # Only enforce owner match when both sides have a known (non-zero) value.
             # If either is 0 (not yet resolved), trust HeroID alone.
             if (owner_agent_id != 0 and player.AgentData.OwnerAgentID != 0 and
@@ -506,12 +566,21 @@ class AllAccounts(Structure):
     
     def GetPetSlotByPetData(self, pet_data:PetInfo) -> int:
         """Find the index of the pet with the given ID."""
+        from ...Player import Player
+        owner_email = Player.GetAccountEmail()
+        key_slot = self._find_slot_by_key(Py4GW.Console.get_gw_window_handle(), 2, 0)
+        if key_slot != -1:
+            return key_slot
         all_accounts = self.AccountData
         for i in range(SHMEM_MAX_PLAYERS):
             player = all_accounts[i]
   
-            if (player.IsPet and 
-                player.AgentData.AgentID == pet_data.agent_id and 
+            if not player.IsPet:
+                continue
+            if player.AccountEmail == owner_email:
+                return i
+            if (
+                player.AgentData.AgentID == pet_data.agent_id and
                 player.AgentData.OwnerAgentID == pet_data.owner_agent_id
             ):
                 return i

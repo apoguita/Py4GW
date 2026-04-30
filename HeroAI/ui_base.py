@@ -1884,6 +1884,7 @@ class HeroAI_BaseUI:
         ImGui.End(ini_key=cached_data.formation_window_ini_key)
 
         if HeroAI_BaseUI.show_follow_formations_editor_window:
+            import Py4GW
             try:
                 from HeroAI.follow.editor import main as draw_follow_formations_editor
                 HeroAI_BaseUI.show_follow_formations_editor_window = bool(draw_follow_formations_editor())

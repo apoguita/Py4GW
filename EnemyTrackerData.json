@@ -1,0 +1,390 @@
+{
+  "enemies": {
+    "enc:\\\\x0BCF\\\\x8FBE\\\\xAE3E\\\\x4796": {
+      "encoded_names": [
+        "\\\\x0BCF\\\\x8FBE\\\\xAE3E\\\\x4796"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "last_seen": 177279906,
+      "model_ids": [
+        129
+      ],
+      "names": [
+        "Master of Lightning"
+      ],
+      "observed_skills": {
+        "164": {
+          "count": 1,
+          "id": 164,
+          "last_seen": 177279906,
+          "name": "Elemental_Attunement",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      },
+      "profession_counts": {
+        "Elementalist": 1
+      }
+    },
+    "enc:\\\\x0BD1\\\\xFDC1\\\\xE5BB\\\\x5299": {
+      "encoded_names": [
+        "\\\\x0BD1\\\\xFDC1\\\\xE5BB\\\\x5299"
+      ],
+      "inferred_primary": "Necromancer",
+      "inferred_secondary": "",
+      "last_seen": 177279906,
+      "model_ids": [
+        135
+      ],
+      "names": [
+        "Master of Hexes"
+      ],
+      "observed_skills": {
+        "126": {
+          "count": 2,
+          "id": 126,
+          "last_seen": 174892640,
+          "name": "Life_Transfer",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "135": {
+          "count": 2,
+          "id": 135,
+          "last_seen": 174882156,
+          "name": "Faintheartedness",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "143": {
+          "count": 1,
+          "id": 143,
+          "last_seen": 174877890,
+          "name": "Strip_Enchantment",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "99": {
+          "count": 2,
+          "id": 99,
+          "last_seen": 174879734,
+          "name": "Parasitic_Bond",
+          "profession": "Necromancer",
+          "profession_id": 4
+        }
+      },
+      "profession_counts": {
+        "Necromancer": 7
+      }
+    },
+    "enc:\\\\x0BD4\\\\x8E71\\\\xF6DB\\\\x0BAB": {
+      "encoded_names": [
+        "\\\\x0BD4\\\\x8E71\\\\xF6DB\\\\x0BAB"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "last_seen": 177279906,
+      "model_ids": [
+        134
+      ],
+      "names": [
+        "Master of Healing"
+      ],
+      "observed_skills": {},
+      "profession_counts": {}
+    },
+    "enc:\\\\x0BD7\\\\x82CB\\\\x0528": {
+      "encoded_names": [
+        "\\\\x0BD7\\\\x82CB\\\\x0528"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "last_seen": 179376609,
+      "model_ids": [
+        154
+      ],
+      "names": [
+        "Suit of 100 Armor"
+      ],
+      "observed_skills": {},
+      "profession_counts": {}
+    },
+    "enc:\\\\x0BD8\\\\xA06E\\\\xC195\\\\x4292": {
+      "encoded_names": [
+        "\\\\x0BD8\\\\xA06E\\\\xC195\\\\x4292"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "last_seen": 179376609,
+      "model_ids": [
+        152
+      ],
+      "names": [
+        "Suit of 60 Armor"
+      ],
+      "observed_skills": {},
+      "profession_counts": {}
+    },
+    "enc:\\\\x0BD9\\\\xE564\\\\x5BF4": {
+      "encoded_names": [
+        "\\\\x0BD9\\\\xE564\\\\x5BF4"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "last_seen": 179376609,
+      "model_ids": [
+        153
+      ],
+      "names": [
+        "Suit of 80 Armor"
+      ],
+      "observed_skills": {},
+      "profession_counts": {}
+    },
+    "enc:\\\\x0BDA\\\\x8F1B\\\\xCCCF\\\\x7F30": {
+      "encoded_names": [
+        "\\\\x0BDA\\\\x8F1B\\\\xCCCF\\\\x7F30"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "last_seen": 180971218,
+      "model_ids": [
+        155
+      ],
+      "names": [
+        "Practice Target",
+        "Agent 71"
+      ],
+      "observed_skills": {},
+      "profession_counts": {}
+    },
+    "enc:\\\\x0BDC\\\\xF8B5\\\\xCE9B\\\\x6BFE": {
+      "encoded_names": [
+        "\\\\x0BDC\\\\xF8B5\\\\xCE9B\\\\x6BFE"
+      ],
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "",
+      "last_seen": 180998578,
+      "model_ids": [
+        157
+      ],
+      "names": [
+        "Student of Blind",
+        "Agent 117"
+      ],
+      "observed_skills": {
+        "1": {
+          "count": 1,
+          "id": 1,
+          "last_seen": 178626515,
+          "name": "Healing_Signet",
+          "profession": "Warrior",
+          "profession_id": 1
+        }
+      },
+      "profession_counts": {
+        "Warrior": 1
+      }
+    },
+    "enc:\\\\x0BDF\\\\xFB0B\\\\xF320\\\\x3739": {
+      "encoded_names": [
+        "\\\\x0BDF\\\\xFB0B\\\\xF320\\\\x3739"
+      ],
+      "inferred_primary": "Monk",
+      "inferred_secondary": "",
+      "last_seen": 180998578,
+      "model_ids": [
+        160
+      ],
+      "names": [
+        "Student of Dazed",
+        "Agent 96"
+      ],
+      "observed_skills": {
+        "313": {
+          "count": 2,
+          "id": 313,
+          "last_seen": 178604593,
+          "name": "Healing_Touch",
+          "profession": "Monk",
+          "profession_id": 3
+        }
+      },
+      "profession_counts": {
+        "Monk": 2
+      }
+    },
+    "enc:\\\\x0BE0\\\\x8D50\\\\xD487\\\\x7295": {
+      "encoded_names": [
+        "\\\\x0BE0\\\\x8D50\\\\xD487\\\\x7295"
+      ],
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "",
+      "last_seen": 180998578,
+      "model_ids": [
+        161
+      ],
+      "names": [
+        "Student of Disease",
+        "Agent 93"
+      ],
+      "observed_skills": {
+        "1": {
+          "count": 108,
+          "id": 1,
+          "last_seen": 180998578,
+          "name": "Healing_Signet",
+          "profession": "Warrior",
+          "profession_id": 1
+        }
+      },
+      "profession_counts": {
+        "Warrior": 108
+      }
+    },
+    "enc:\\\\x0BE2\\\\x9F4A\\\\xCAE8\\\\x0687": {
+      "encoded_names": [
+        "\\\\x0BE2\\\\x9F4A\\\\xCAE8\\\\x0687"
+      ],
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "",
+      "last_seen": 180998578,
+      "model_ids": [
+        163
+      ],
+      "names": [
+        "Student of Weakness",
+        "Agent 99"
+      ],
+      "observed_skills": {
+        "1": {
+          "count": 55,
+          "id": 1,
+          "last_seen": 178840328,
+          "name": "Healing_Signet",
+          "profession": "Warrior",
+          "profession_id": 1
+        }
+      },
+      "profession_counts": {
+        "Warrior": 55
+      }
+    },
+    "enc:\\\\x0D39\\\\xCF3B\\\\xED6E\\\\x4EF1": {
+      "encoded_names": [
+        "\\\\x0D39\\\\xCF3B\\\\xED6E\\\\x4EF1"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "last_seen": 179376609,
+      "model_ids": [
+        149
+      ],
+      "names": [
+        "Guard of the Isles"
+      ],
+      "observed_skills": {},
+      "profession_counts": {}
+    },
+    "enc:\\\\x0D7F\\\\xB5A9\\\\x3373": {
+      "encoded_names": [
+        "\\\\x0D7F\\\\xB5A9\\\\x3373"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "last_seen": 180971515,
+      "model_ids": [
+        155
+      ],
+      "names": [
+        "Adjacent"
+      ],
+      "observed_skills": {},
+      "profession_counts": {}
+    },
+    "enc:\\\\x0D80\\\\xD7E3\\\\x96FB\\\\x5C39": {
+      "encoded_names": [
+        "\\\\x0D80\\\\xD7E3\\\\x96FB\\\\x5C39"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "last_seen": 180971859,
+      "model_ids": [
+        155
+      ],
+      "names": [
+        "In the Area"
+      ],
+      "observed_skills": {},
+      "profession_counts": {}
+    },
+    "enc:\\\\x0D82\\\\xFDF3\\\\x95B0\\\\x4670": {
+      "encoded_names": [
+        "\\\\x0D82\\\\xFDF3\\\\x95B0\\\\x4670"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "last_seen": 180971031,
+      "model_ids": [
+        155
+      ],
+      "names": [
+        "Adjacent to Foe"
+      ],
+      "observed_skills": {},
+      "profession_counts": {}
+    },
+    "enc:\\\\x0D83\\\\x8FB5\\\\xFA35\\\\x771A": {
+      "encoded_names": [
+        "\\\\x0D83\\\\x8FB5\\\\xFA35\\\\x771A"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "last_seen": 180971890,
+      "model_ids": [
+        155
+      ],
+      "names": [
+        "Nearby"
+      ],
+      "observed_skills": {},
+      "profession_counts": {}
+    },
+    "enc:\\\\x8101\\\\x07C9\\\\xB3FA\\\\x9C14\\\\x5D72": {
+      "encoded_names": [
+        "\\\\x8101\\\\x07C9\\\\xB3FA\\\\x9C14\\\\x5D72"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "last_seen": 179217593,
+      "model_ids": [
+        144
+      ],
+      "names": [
+        "Master of Damage",
+        "Agent 121"
+      ],
+      "observed_skills": {},
+      "profession_counts": {}
+    },
+    "enc:\\\\x8103\\\\x073F\\\\x8210\\\\xAE49\\\\x48D5": {
+      "encoded_names": [
+        "\\\\x8103\\\\x073F\\\\x8210\\\\xAE49\\\\x48D5"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "last_seen": 179376609,
+      "model_ids": [
+        165
+      ],
+      "names": [
+        "Agent 139",
+        "Student of Cracked Armor"
+      ],
+      "observed_skills": {},
+      "profession_counts": {}
+    }
+  },
+  "schema": "py4gw_enemy_tracker_v1"
+}
