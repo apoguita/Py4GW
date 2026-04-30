@@ -453,6 +453,8 @@ def bot_routine(bot: Botting) -> None:
                 lambda: _pcons_upkeep(bot))
         if _restock_use_summoning_stones:
             bot.Multibox.UseSummoningStone()
+        target_header = _completed_header_names[vq_idx]  
+        bot.States.AddManagedCoroutine("VanquishWatchdog", lambda h=target_header: VanquishWatchdog(bot, h))    
         _register_aggro_path(bot, vq.vanquish_path,
                              header_name=f"VanquishPath_{vq_idx}",
                              detection_radius=float(_aggro_range_forward),
