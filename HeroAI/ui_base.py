@@ -11,7 +11,7 @@ from Py4GWCoreLib.Player import Player
 
 from HeroAI.cache_data import CacheData
 from HeroAI.constants import NUMBER_OF_SKILLS
-from HeroAI.follow_movement import load_follow_movement_config, save_follow_movement_config
+from HeroAI.follow.vector_fields import load_follow_movement_config, save_follow_movement_config
 from HeroAI.utils import DrawFlagAll, DrawHeroFlag, IsHeroFlagged
 from HeroAI.windows import HeroAI_FloatingWindows, HeroAI_Windows
 from .constants import MAX_NUM_PLAYERS, NUMBER_OF_SKILLS
@@ -46,6 +46,7 @@ class HeroAI_BaseUI:
     color_tick = 0
     show_build_match_window = False
     show_follow_formations_quick_window = False
+    show_follow_formations_editor_window = False
     HeroFlags: list[bool] = [False, False, False, False, False, False, False, False, False]
     AllFlag = False
     ClearFlags = False
@@ -1584,6 +1585,76 @@ class HeroAI_BaseUI:
         im.write_key(key, "Formations", "selected", selected_name)
 
     @staticmethod
+    def _set_party_follow_option(cached_data: CacheData, option_name: str, value: bool) -> None:
+        if cached_data.global_options is not None and hasattr(cached_data.global_options, option_name):
+            setattr(cached_data.global_options, option_name, bool(value))
+
+        for account in cached_data.party.accounts.values():
+            if (
+                not account
+                or not account.IsSlotActive
+                or account.IsHero
+                or account.AgentPartyData.PartyID != GLOBAL_CACHE.Party.GetPartyID()
+            ):
+                continue
+
+            account_options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsFromEmail(account.AccountEmail)
+            if account_options is not None and hasattr(account_options, option_name):
+                setattr(account_options, option_name, bool(value))
+
+    @staticmethod
+    def _refresh_follow_publisher_live(cached_data: CacheData, *, reload_ini: bool = False) -> None:
+        try:
+            publisher = getattr(GLOBAL_CACHE.ShMem, "follow_publisher", None)
+            if publisher is None:
+                return
+            if reload_ini and hasattr(publisher, "refresh_from_ini"):
+                publisher.refresh_from_ini()
+            publisher.publish(force=True)
+        except Exception:
+            pass
+
+    @staticmethod
+    def _apply_follow_thresholds_to_party(cached_data: CacheData) -> None:
+        leader_options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsByPartyNumber(0)
+        leader_all_flag_active = (
+            leader_options is not None
+            and bool(getattr(leader_options, "IsFlagged", False))
+            and (
+                abs(float(getattr(leader_options.AllFlag, "x", 0.0))) > 0.001
+                or abs(float(getattr(leader_options.AllFlag, "y", 0.0))) > 0.001
+            )
+        )
+
+        for account in cached_data.party.accounts.values():
+            if (
+                not account
+                or not account.IsSlotActive
+                or account.IsHero
+                or account.AgentPartyData.PartyID != GLOBAL_CACHE.Party.GetPartyID()
+            ):
+                continue
+
+            options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsFromEmail(account.AccountEmail)
+            if options is None:
+                continue
+
+            personal_flag_active = (
+                bool(getattr(options, "IsFlagged", False))
+                and (
+                    abs(float(getattr(options.FlagPos, "x", 0.0))) > 0.001
+                    or abs(float(getattr(options.FlagPos, "y", 0.0))) > 0.001
+                )
+            )
+
+            if personal_flag_active or leader_all_flag_active:
+                options.FollowMoveThreshold = float(HeroAI_BaseUI.follow_move_threshold_flagged)
+                options.FollowMoveThresholdCombat = float(HeroAI_BaseUI.follow_move_threshold_flagged)
+            else:
+                options.FollowMoveThreshold = float(HeroAI_BaseUI.follow_move_threshold_default)
+                options.FollowMoveThresholdCombat = float(HeroAI_BaseUI.follow_move_threshold_combat)
+
+    @staticmethod
     def DrawFlaggingWindow(cached_data: CacheData):
         party_size = GLOBAL_CACHE.Party.GetPartySize()
         if party_size == 1:
@@ -1663,15 +1734,40 @@ class HeroAI_BaseUI:
             if PyImGui.button("Refresh Formations"):
                 HeroAI_BaseUI._load_follow_formations_quick_data()
                 HeroAI_BaseUI._load_follow_runtime_config(cached_data.formation_window_ini_key)
+            PyImGui.same_line(0, 6)
+            editor_label = "Close Editor" if HeroAI_BaseUI.show_follow_formations_editor_window else "Open Editor"
+            if PyImGui.button(editor_label):
+                HeroAI_BaseUI.show_follow_formations_editor_window = not HeroAI_BaseUI.show_follow_formations_editor_window
+                if HeroAI_BaseUI.show_follow_formations_editor_window:
+                    from HeroAI.follow.editor import open_editor
+                    open_editor()
 
             if HeroAI_BaseUI.follow_formations_names:
                 idx = PyImGui.combo("Formation", HeroAI_BaseUI.follow_formations_selected_index, HeroAI_BaseUI.follow_formations_names)
                 if idx != HeroAI_BaseUI.follow_formations_selected_index:
                     HeroAI_BaseUI._set_selected_follow_formation(idx)
+                    HeroAI_BaseUI._refresh_follow_publisher_live(cached_data, reload_ini=True)
             else:
                 PyImGui.text_disabled("No saved follow formations found.")
 
             dirty_runtime_cfg = False
+
+            PyImGui.separator()
+            PyImGui.text("Follower Behavior")
+
+            if cached_data.global_options is not None:
+                new_following = PyImGui.checkbox("Enable Following", bool(cached_data.global_options.Following))
+                if new_following != bool(cached_data.global_options.Following):
+                    HeroAI_BaseUI._set_party_follow_option(cached_data, "Following", new_following)
+                    HeroAI_BaseUI._refresh_follow_publisher_live(cached_data)
+
+                new_avoidance = PyImGui.checkbox("Enable Combat Avoidance Mix", bool(cached_data.global_options.Avoidance))
+                if new_avoidance != bool(cached_data.global_options.Avoidance):
+                    HeroAI_BaseUI._set_party_follow_option(cached_data, "Avoidance", new_avoidance)
+                    HeroAI_BaseUI._refresh_follow_publisher_live(cached_data)
+
+            PyImGui.separator()
+            PyImGui.text("Follow Publish")
 
             new_show_broadcast_follow_positions = PyImGui.checkbox("Draw Followers FollowPos (3D)", hero_globals.show_broadcast_follow_positions)
             if new_show_broadcast_follow_positions != hero_globals.show_broadcast_follow_positions:
@@ -1735,47 +1831,65 @@ class HeroAI_BaseUI:
             if abs(new_recovery_distance - movement_cfg.slot_recovery_distance) > 0.0001:
                 movement_cfg.slot_recovery_distance = new_recovery_distance
                 save_follow_movement_config(movement_cfg)
+                HeroAI_BaseUI._refresh_follow_publisher_live(cached_data, reload_ini=True)
 
             new_ally_radius = max(0.0, float(PyImGui.input_float("Ally Repulsion Radius", float(movement_cfg.ally_repulsion_radius))))
             if abs(new_ally_radius - movement_cfg.ally_repulsion_radius) > 0.0001:
                 movement_cfg.ally_repulsion_radius = new_ally_radius
                 save_follow_movement_config(movement_cfg)
+                HeroAI_BaseUI._refresh_follow_publisher_live(cached_data, reload_ini=True)
 
             new_ally_weight = max(0.0, float(PyImGui.input_float("Ally Repulsion Weight", float(movement_cfg.ally_repulsion_weight))))
             if abs(new_ally_weight - movement_cfg.ally_repulsion_weight) > 0.0001:
                 movement_cfg.ally_repulsion_weight = new_ally_weight
                 save_follow_movement_config(movement_cfg)
+                HeroAI_BaseUI._refresh_follow_publisher_live(cached_data, reload_ini=True)
 
             new_enemy_radius = max(0.0, float(PyImGui.input_float("Enemy Repulsion Radius", float(movement_cfg.enemy_repulsion_radius))))
             if abs(new_enemy_radius - movement_cfg.enemy_repulsion_radius) > 0.0001:
                 movement_cfg.enemy_repulsion_radius = new_enemy_radius
                 save_follow_movement_config(movement_cfg)
+                HeroAI_BaseUI._refresh_follow_publisher_live(cached_data, reload_ini=True)
 
             new_enemy_weight = max(0.0, float(PyImGui.input_float("Enemy Repulsion Weight", float(movement_cfg.enemy_repulsion_weight))))
             if abs(new_enemy_weight - movement_cfg.enemy_repulsion_weight) > 0.0001:
                 movement_cfg.enemy_repulsion_weight = new_enemy_weight
                 save_follow_movement_config(movement_cfg)
+                HeroAI_BaseUI._refresh_follow_publisher_live(cached_data, reload_ini=True)
 
             new_move_clamp = max(1.0, float(PyImGui.input_float("Local Move Clamp", float(movement_cfg.local_move_clamp))))
             if abs(new_move_clamp - movement_cfg.local_move_clamp) > 0.0001:
                 movement_cfg.local_move_clamp = new_move_clamp
                 save_follow_movement_config(movement_cfg)
+                HeroAI_BaseUI._refresh_follow_publisher_live(cached_data, reload_ini=True)
 
             new_min_move = max(0.0, float(PyImGui.input_float("Local Min Move Threshold", float(movement_cfg.min_move_threshold))))
             if abs(new_min_move - movement_cfg.min_move_threshold) > 0.0001:
                 movement_cfg.min_move_threshold = new_min_move
                 save_follow_movement_config(movement_cfg)
+                HeroAI_BaseUI._refresh_follow_publisher_live(cached_data, reload_ini=True)
 
             if dirty_runtime_cfg:
                 HeroAI_BaseUI._save_follow_runtime_config(cached_data.formation_window_ini_key)
+                HeroAI_BaseUI._apply_follow_thresholds_to_party(cached_data)
+                HeroAI_BaseUI._refresh_follow_publisher_live(cached_data, reload_ini=True)
 
             if Map.IsExplorable() and Player.GetAgentID() == GLOBAL_CACHE.Party.GetPartyLeaderID():
                 new_show_flagging_window = PyImGui.checkbox("Show Flagging Window", hero_globals.show_flagging_window)
                 if new_show_flagging_window != hero_globals.show_flagging_window:
                     hero_globals.show_flagging_window = new_show_flagging_window
                     HeroAI_BaseUI._save_follow_runtime_config(cached_data.formation_window_ini_key)
+                    HeroAI_BaseUI._refresh_follow_publisher_live(cached_data, reload_ini=True)
 
         ImGui.End(ini_key=cached_data.formation_window_ini_key)
+
+        if HeroAI_BaseUI.show_follow_formations_editor_window:
+            try:
+                from HeroAI.follow.editor import main as draw_follow_formations_editor
+                HeroAI_BaseUI.show_follow_formations_editor_window = bool(draw_follow_formations_editor())
+            except Exception as e:
+                Py4GW.Console.Log("HeroAI", f"Follow formations editor failed: {e}", Py4GW.Console.MessageType.Error)
+                HeroAI_BaseUI.show_follow_formations_editor_window = False
 
         if hero_globals.show_flagging_window and Map.IsExplorable() and Player.GetAgentID() == GLOBAL_CACHE.Party.GetPartyLeaderID():
             if ImGui.Begin(ini_key=cached_data.flagging_window_ini_key, name="Flagging Window", p_open=True, flags=PyImGui.WindowFlags.AlwaysAutoResize):
@@ -1986,9 +2100,6 @@ class HeroAI_BaseUI:
                 style.ItemSpacing.pop_style_var()
 
         ImGui.End(cached_data.ini_key)
-        HeroAI_BaseUI.DrawBuildMatchesWindow(cached_data)
-        HeroAI_BaseUI.DrawFollowFormationsQuickWindow(cached_data)
-        HeroAI_BaseUI._process_flagging_runtime(cached_data)
 
     @staticmethod
     def draw_debug_window(heroai_bt=None):

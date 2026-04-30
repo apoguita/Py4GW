@@ -8,7 +8,7 @@ from Py4GWCoreLib.routines_src.BehaviourTrees import BehaviorTree
 from Py4GWCoreLib import ActionQueueManager, LootConfig, Range, SharedCommandType, ThrottledTimer, Utils
 
 from .cache_data import CacheData
-from .follow_runtime import FollowExecutionState, execute_follower_follow
+from .follow.follower_runtime import FollowExecutionState, execute_follower_follow
 
 
 class HeroAIHeadlessTree:

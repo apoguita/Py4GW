@@ -793,9 +793,9 @@ class AllAccounts(Structure):
         
         for i in range(SHMEM_MAX_PLAYERS):
             message = self.GetInbox(i)
-            if message.Active:
-                continue  # Find the first unfinished message slot
-            
+            if not message.Active:
+                continue
+
             if message.ReceiverEmail != receiver_email:
                 continue  # This slot is not for the intended receiver
             
@@ -812,7 +812,7 @@ class AllAccounts(Structure):
             if message_extra_data != normalized_extra_data:
                 continue  # This slot has different extra data (could be from another sender or an old message)
             
-            return i  # This message slot matches the intended receiver, command, params, and extra data - reuse it
+            return i  # Matching active message is already queued/running; reuse it instead of duplicating it.
         
         for i in range(SHMEM_MAX_PLAYERS):
             message = self.GetInbox(i)

@@ -124,7 +124,7 @@ def load_follow_movement_config(force_reload: bool = False) -> FollowMovementCon
         return _FOLLOW_MOVEMENT_CACHE
 
     im = IniManager()
-    if force_reload:
+    if force_reload or _FOLLOW_MOVEMENT_CACHE_TIMER.IsExpired():
         try:
             im.reload(key)
         except Exception:
