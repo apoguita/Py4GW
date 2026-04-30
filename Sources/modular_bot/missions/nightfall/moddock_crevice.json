@@ -1,0 +1,36 @@
+{
+  "name": "Moddok Crevice",
+  "required_hero": ["Dunkoro"],
+  "steps": [
+    {"type": "travel", "name": "Travel to Outpost", "target_map_id": 427},
+    {"type": "auto_path", "name": "Path", "points": [[-13781, -12741]]},
+    {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true, "required_hero": ["Dunkoro"]},
+    {"type": "dialogs", "id": ["0x81", "0x84"], "npc": "UNLUCKY_SIMON", "name": "Dialog - Unlucky Simon"},
+    {"type": "wait", "ms": 7500},
+    {"type": "wait_for_map_load", "map_id": 427},
+    {"type": "auto_path", "name": "Path", "points": [[-9348, -7283]]},
+    {"type": "wait", "ms": 62500},
+    {"type": "dialog", "id": "0x85", "npc": "CAPTAIN_BOHSEDA", "name": "Dialog - Captain Bohseda"},
+    {"type": "auto_path", "name": "Path", "points": [[-7623, -6494], [-7658, -1379], [-9414, -1777], [-8084, -610], [-7361, 1049], [-8134, -925], [-9470, -1767]]},
+    {"type": "wait", "ms": 74500},
+    {"type": "auto_path", "name": "Path", "points": [[-7387, 1161], [-12409, -140], [-10183, 4382]]},
+    {"type": "wait", "ms": 14800},
+    {"type": "auto_path", "name": "Path", "points": [[-9887, 4356], [-6836, 5123]]},
+    {"type": "path_to_target", "name": "Target Corsair Runner", "enemy": "CORSAIR_RUNNER"},
+    {"type": "path_to_target", "name": "Target Corsair Runner", "enemy": "CORSAIR_RUNNER"},
+    {"type": "auto_path", "name": "Path", "points": [[-5530, 9781], [-7930, 13807], [-11567, 10159]]},
+    {"type": "auto_path", "name": "safety step", "points": [[-11007, 12443]]},
+    {"type": "auto_path", "name": "safety step", "points": [[-11007, 12443]]},
+    {"type": "skip_cutscene"},
+    {"type": "set_hero_ai_combat", "enabled": false},
+    {"type": "flag_heroes", "point": [-12653, 15023]},
+    {"type": "auto_path", "name": "Path", "points": [[-12653, 15023]]},
+    {"type": "set_hero_ai_combat", "enabled": true},
+    {"type": "unflag_heroes"},
+    {"type": "wait", "ms": 32900},
+    {"type": "path_to_target", "name": "Target The Hunger", "enemy": "THE_HUNGER"},
+    {"type": "wait_for_map_load", "map_id": 378}
+  ]
+}
+
+

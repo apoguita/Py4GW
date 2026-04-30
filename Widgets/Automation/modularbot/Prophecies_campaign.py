@@ -7,18 +7,17 @@ from Py4GWCoreLib import IniHandler, Party, Timer
 from Py4GWCoreLib.ImGui_src.ImGuisrc import ImGui
 from Py4GWCoreLib.ImGui_src.types import Alignment
 from Py4GWCoreLib.py4gwcorelib_src.Color import Color
-from Py4GWCoreLib.modular.hero_setup import (
+from Sources.modular_bot.hero_setup import (
     draw_setup_tab,
     draw_team_configuration_window,
     toggle_team_configuration_window,
 )
-from Sources.modular_data.prebuilt.modular_prophecies import (
+from Sources.modular_bot.prebuilts.modular_prophecies import (
     PROPHECIES_PHASE_SPECS,
     PROPHECIES_REGION_SPANS,
     PropheciesCampaignOptions,
     create_prophecies_campaign_bot,
 )
-from Py4GWCoreLib.modular.widget_runtime import guarded_widget_main, start_widget_bot
 
 MODULE_NAME = "Modular Prophecies"
 MODULE_ICON = "Textures/Module_Icons/Dialogs - Prophecies.png"
@@ -37,14 +36,12 @@ class Config:
     def __init__(self):
         self.start_phase_index = max(0, int(ini_handler.read_int(BOT_NAME, "start_phase_index", 0) or 0))
         self.loop = bool(ini_handler.read_bool(BOT_NAME, "loop", False))
-        self.debug_logging = bool(ini_handler.read_bool(BOT_NAME, "debug_logging", False))
 
     def to_options(self) -> PropheciesCampaignOptions:
         return PropheciesCampaignOptions(
             start_phase_index=int(self.start_phase_index),
             loop=bool(self.loop),
             template="multibox_aggressive",
-            debug_logging=bool(self.debug_logging),
         )
 
     def save_throttled(self):
@@ -53,7 +50,6 @@ class Config:
         sync_timer.Start()
         ini_handler.write_key(BOT_NAME, "start_phase_index", str(int(self.start_phase_index)))
         ini_handler.write_key(BOT_NAME, "loop", str(bool(self.loop)))
-        ini_handler.write_key(BOT_NAME, "debug_logging", str(bool(self.debug_logging)))
 
 
 config = Config()
@@ -65,8 +61,6 @@ _regions_initialized = False
 
 def _should_show_widget() -> bool:
     try:
-        if bot is not None:
-            return True
         if not Party.IsPartyLoaded():
             return True
         if Party.GetPlayerCount() <= 1:
@@ -109,15 +103,25 @@ def _phase_summary() -> tuple[int, int, float]:
 def _fsm_step_name() -> str:
     if bot is None:
         return ""
-    return str(bot.get_current_step_name() or "")
+    fsm = bot.bot.config.FSM
+    try:
+        return str(fsm.get_current_step_name() or "")
+    except Exception:
+        current_state = getattr(fsm, "current_state", None)
+        return str(getattr(current_state, "name", "") or "")
 
 
 def _detect_current_phase_index() -> int | None:
     if bot is None:
         return None
-    phase_index, _phase_total, _phase_title = bot.get_phase_progress()
-    if phase_index > 0:
-        return int(phase_index - 1)
+    current_step = _fsm_step_name()
+    for idx, phase in enumerate(bot._phases):
+        header_name = bot.get_phase_header(phase.name)
+        if header_name and current_step.startswith(header_name):
+            return idx
+    for idx, phase in enumerate(bot._phases):
+        if phase.name and phase.name in current_step:
+            return idx
     return None
 
 
@@ -143,17 +147,18 @@ def _set_start_phase_index(index: int) -> None:
         config.start_phase_index = 0
     else:
         config.start_phase_index = max(0, min(int(index), total - 1))
-    if bot is not None and not bot.is_running():
+    if bot is not None and not bot.bot.config.fsm_running:
         _queue_rebuild()
 
 
 def _start_bot() -> None:
     global bot, _BOT_REBUILD_PENDING
-    started_bot = start_widget_bot(BOT_NAME, _build_bot)
-    if started_bot is None:
-        _BOT_REBUILD_PENDING = False
-        return
-    bot = started_bot
+    bot = _build_bot()
+    if not bot.bot.config.initialized:
+        bot._build_routine(bot.bot)
+        bot.bot.config.initialized = True
+        bot.bot.SetMainRoutine(lambda *_args, **_kwargs: None)
+    bot.bot.Start()
     _BOT_REBUILD_PENDING = False
 
 
@@ -172,7 +177,6 @@ def _draw_prestart_window() -> None:
     PyImGui.separator()
 
     config.loop = PyImGui.checkbox("Loop Campaign", config.loop)
-    config.debug_logging = PyImGui.checkbox("Debug Logging", config.debug_logging)
     if PyImGui.button("Configure Teams / Templates"):
         toggle_team_configuration_window("prophecies_campaign")
 
@@ -231,7 +235,7 @@ def _draw_prestart_window() -> None:
 
 
 def _draw_main() -> None:
-    is_running = bool(bot is not None and bot.is_running())
+    is_running = bool(bot is not None and bot.bot.config.fsm_running)
     PyImGui.text("Modular Prophecies")
     PyImGui.separator()
     PyImGui.text(f"Status: {'Running' if is_running else 'Idle'}")
@@ -241,23 +245,11 @@ def _draw_main() -> None:
         toggle_team_configuration_window("prophecies_campaign")
     PyImGui.text(f"Start index: {int(config.start_phase_index) + 1:02d}")
     PyImGui.text(f"Loop: {'On' if config.loop else 'Off'}")
-    new_debug_logging = PyImGui.checkbox("Debug Logging", config.debug_logging)
-    if bool(new_debug_logging) != bool(config.debug_logging):
-        config.debug_logging = bool(new_debug_logging)
-        if bot is not None:
-            bot.set_debug_logging(config.debug_logging)
     config.save_throttled()
     draw_team_configuration_window(ui_id="prophecies_campaign", title="Modular Prophecies Team Setup")
 
 
 def _draw_settings() -> None:
-    new_debug_logging = PyImGui.checkbox("Debug Logging", config.debug_logging)
-    if bool(new_debug_logging) != bool(config.debug_logging):
-        config.debug_logging = bool(new_debug_logging)
-        if bot is not None:
-            bot.set_debug_logging(config.debug_logging)
-    config.save_throttled()
-    PyImGui.separator()
     draw_setup_tab()
 
 
@@ -266,30 +258,27 @@ def _draw_help() -> None:
     PyImGui.separator()
     PyImGui.text_wrapped("Widget wrapper for the modular Prophecies prebuilt (missions + primary quests + transit routes).")
     PyImGui.bullet_text("Select a campaign start point by region or step")
-    PyImGui.bullet_text("Uses Sources/modular_data/prebuilt/modular_prophecies.py")
+    PyImGui.bullet_text("Uses Sources/modular_bot/prebuilts/modular_prophecies.py")
     PyImGui.bullet_text("Hero team setup is available in Settings")
     PyImGui.bullet_text("Widget settings are persisted in Widgets/Config/PropheciesCampaign.ini")
 
 
-def _main_impl() -> None:
+def main():
     global bot, _BOT_REBUILD_PENDING
+    if not _should_show_widget():
+        return
+
     if bot is None:
-        if not _should_show_widget():
-            return
         _draw_prestart_window()
         return
 
-    if _BOT_REBUILD_PENDING and not bot.is_running():
+    if _BOT_REBUILD_PENDING and not bot.bot.config.fsm_running:
         bot = None
         _BOT_REBUILD_PENDING = False
         _draw_prestart_window()
         return
 
     bot.update()
-
-
-def main():
-    guarded_widget_main(BOT_NAME, _main_impl, get_bot=lambda: bot)
 
 
 def tooltip():
@@ -312,3 +301,4 @@ def tooltip():
 
 if __name__ == "__main__":
     main()
+
