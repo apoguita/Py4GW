@@ -28,12 +28,7 @@ class _MOVE:
         self._config.path_to_draw.extend(path.copy())
         yield
         
-    def _coro_follow_path_to(
-        self,
-        forced_timeout=-1,
-        autopath: bool = True,
-        fail_on_unmanaged: bool = True,
-    ) -> Generator[Any, Any, bool]:
+    def _coro_follow_path_to(self, forced_timeout = -1, autopath: bool = True) -> Generator[Any, Any, bool]:
         from ...Routines import Routines
         from ...Map import Map
         from ...py4gwcorelib_src.Lootconfig_src import LootConfig
@@ -51,8 +46,6 @@ class _MOVE:
         initial_instance_uptime = Map.GetInstanceUptime()
 
         def map_transition_detected() -> bool:
-            if Map.IsInCinematic():
-                return True
             # Any map-invalid/loading phase should let movement step exit cleanly.
             if not Routines.Checks.Map.MapValid() or Map.IsMapLoading():
                 return True
@@ -104,15 +97,9 @@ class _MOVE:
 
         # --- merged pause condition ---
         def pause_condition() -> bool:
-            # Death should hard-pause movement so timeout windows do not
-            # expire while waiting for revive.
-            if Routines.Checks.Player.IsDead():
-                return True
             if danger_pause and danger_pause():
                 return True
             if loot_config_enabled and loot_pause():
-                return True
-            if Map.IsInCinematic():
                 return True
             if fsm_pause():
                 return True
@@ -145,8 +132,7 @@ class _MOVE:
             if exit_condition():
                 return True
 
-            if fail_on_unmanaged:
-                self._Events.on_unmanaged_fail()
+            self._Events.on_unmanaged_fail()
             return False
 
         return True
@@ -165,24 +151,13 @@ class _MOVE:
         yield from self._coro_follow_path_to()
         return True
 
-    def _coro_xy(
-        self,
-        x: float,
-        y: float,
-        step_name: str = "",
-        forced_timeout: int = -1,
-        fail_on_unmanaged: bool = True,
-    ) -> Generator[Any, Any, bool]:
+    def _coro_xy(self, x: float, y: float, step_name: str = "", forced_timeout: int = -1) -> Generator[Any, Any, None]:
         if step_name == "":
             step_name = f"MoveTo_{self._config.get_counter('MOVE_TO')}"
 
         yield from self._coro_get_path_to(x, y)
         # pass forced_timeout through to the follow-path stage
-        result = yield from self._coro_follow_path_to(
-            forced_timeout,
-            fail_on_unmanaged=fail_on_unmanaged,
-        )
-        return bool(result)
+        yield from self._coro_follow_path_to(forced_timeout)
         
     def _coro_xy_and_exit_map(self, x: float, y: float, target_map_id: int = 0, target_map_name: str = "", step_name: str="") -> Generator[Any, Any, None]:
         if step_name == "":
@@ -285,8 +260,6 @@ class _MOVE:
         initial_instance_uptime = Map.GetInstanceUptime()
 
         def _map_changed() -> bool:
-            if Map.IsInCinematic():
-                return True
             if not Routines.Checks.Map.MapValid() or Map.IsMapLoading():
                 return True
             if Map.GetMapID() != initial_map_id:
@@ -326,15 +299,9 @@ class _MOVE:
             )) > 0
 
         def _pause() -> bool:
-            # Death should hard-pause movement so timeout windows do not
-            # expire while waiting for revive.
-            if Routines.Checks.Player.IsDead():
-                return True
             if danger_pause and danger_pause():
                 return True
             if loot_enabled and _loot_pause():
-                return True
-            if Map.IsInCinematic():
                 return True
             if fsm.is_paused():
                 return True
