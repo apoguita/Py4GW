@@ -1,4 +1,5 @@
 from Py4GWCoreLib import GLOBAL_CACHE, Utils, AgentArray, Routines, Agent, Player, Party
+from Py4GWCoreLib.Context import GWContext
 from Py4GWCoreLib.EnemyBlacklist import EnemyBlacklist
 from .constants import (
     Range,
@@ -16,6 +17,25 @@ def _filter_blacklisted(agent_id: int) -> int:
     if bl.is_empty():
         return agent_id
     return 0 if bl.is_blacklisted(agent_id) else agent_id
+
+def GetPartyVisibleAllyArray():
+    world_ctx = GWContext.World.GetContext()
+    party_allies = world_ctx.party_allies if world_ctx else None
+    if not party_allies:
+        return []
+
+    return [
+        agent_id
+        for agent_id in (int(getattr(ally, "agent_id", 0) or 0) for ally in party_allies)
+        if agent_id and Agent.IsValid(agent_id)
+    ]
+
+def GetHealableAllyArray():
+    ally_array = AgentArray.GetAllyArray()
+    party_visible_ally_array = GetPartyVisibleAllyArray()
+    if party_visible_ally_array:
+        ally_array = AgentArray.Manipulation.Merge(ally_array, party_visible_ally_array)
+    return ally_array
 
 def GetAllAlliesArray(distance=Range.SafeCompass.value):
     #Pets are added here
@@ -105,7 +125,7 @@ def TargetAllyByPredicate(
     include_spirit_pets=False,
     distance=Range.Spellcast.value,
 ):
-    ally_array = AgentArray.GetAllyArray()
+    ally_array = GetHealableAllyArray()
     ally_array = FilterAllyArray(ally_array, distance, other_ally, filter_skill_id)
 
     if include_spirit_pets:
@@ -122,7 +142,7 @@ def TargetAllyByPredicate(
 
 def TargetLowestAlly(other_ally=False,filter_skill_id=0):
     distance = Range.Spellcast.value
-    ally_array = AgentArray.GetAllyArray()
+    ally_array = GetHealableAllyArray()
     ally_array = FilterAllyArray(ally_array, distance, other_ally, filter_skill_id) 
      
     
@@ -158,7 +178,7 @@ def TargetMinionNonEnchanted(distance=Range.Spellcast.value):
 
 
 def TargetAllyNonEnchanted(distance=Range.Spellcast.value):
-    ally_array = AgentArray.GetAllyArray()
+    ally_array = GetHealableAllyArray()
     ally_array = FilterAllyArray(ally_array, distance, False, 0)
 
     spirit_pet_array = AgentArray.GetSpiritPetArray()
@@ -172,7 +192,7 @@ def TargetAllyNonEnchanted(distance=Range.Spellcast.value):
 
 
 def TargetAllyNonWeaponSpelled(distance=Range.Earshot.value):
-    ally_array = AgentArray.GetAllyArray()
+    ally_array = GetHealableAllyArray()
     ally_array = FilterAllyArray(ally_array, distance, False, 0)
 
     spirit_pet_array = AgentArray.GetSpiritPetArray()
