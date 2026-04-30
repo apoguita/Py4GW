@@ -22,10 +22,10 @@ from Py4GWCoreLib.native_src.internals import string_table
 from Sources.frenkeyLib.ItemHandling.ConfigExamples.ExampleGUIs.LootConfigView import draw_loot_config_view
 from Sources.frenkeyLib.ItemHandling.Items.item_snapshot import ItemSnapshot
 
-Utils.ClearSubModules("ItemHandling")
-Utils.ClearSubModules("frenkeyLib.Core")
+Utils.ClearSubModules("Sources.frenkeyLib.ItemHandling")
+Utils.ClearSubModules("Sources.frenkeyLib.Core")
 from Sources.frenkeyLib.Core.encoded_names import ItemName
-from Py4GWCoreLib.ItemMods import ItemMod 
+from Py4GWCoreLib.item_mods_src.item_mod import ItemMod
 from Sources.frenkeyLib.ItemHandling.BTNodes import STORAGE_BAGS, BTNodes
 from Sources.frenkeyLib.ItemHandling.Rules.types import SalvageMode
 from Sources.frenkeyLib.ItemHandling.Items.item_collecting import ItemCollector
