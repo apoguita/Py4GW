@@ -928,6 +928,14 @@ class WorldPathing:
                 if next_map <= 0:
                     return
 
+                Py4GW.Console.Log(
+                    MODULE_NAME,
+                    f"MoveToMapid: hop {current_map}->{next_map} "
+                    f"exit_gid={hop.get('exit_gid')} "
+                    f"game_pos=({hop.get('game_x')}, {hop.get('game_y')})",
+                    Py4GW.Console.MessageType.Info,
+                )
+
                 # Refresh coords if missing (player is on current_map, live data available)
                 if hop.get("game_x") is None or hop.get("game_y") is None:
                     exit_gid = hop.get("exit_gid", 0)

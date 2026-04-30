@@ -1496,7 +1496,12 @@ def _resort_travel_queue() -> None:
         return
     current_map = Map.GetMapID()
     items = list(_travel_queue)
-    items.sort(key=lambda m: _path_distance(current_map, m) or float('inf'))
+
+    def _sort_key(m: int) -> float:
+        d = _path_distance(current_map, m)
+        return d if d is not None else float('inf')
+
+    items.sort(key=_sort_key)
     _travel_queue.clear()
     _travel_queue.extend(items)
 
@@ -1561,6 +1566,20 @@ def _process_travel_queue() -> None:
         return
 
     _target_name = (_MAP_META.get(head) or (None, f"Map {head}"))[1]
+
+    # Skip if no portal path exists from any reachable outpost to this target.
+    ft = GetNearestUnlockedOutpost(head, current_map)
+    if ft is None:
+        Py4GW.Console.Log(
+            MODULE_NAME,
+            f"Queue: no path to {_target_name} [{head}], skipping.",
+            Py4GW.Console.MessageType.Warning,
+        )
+        _travel_queue.popleft()
+        if _travel_queue:
+            _resort_travel_queue()
+        return
+
     GLOBAL_CACHE.Coroutines.append(_travel_button_coroutine(head, fast_travel_first=True))
     _travel_queue_inflight_target[0] = head
     _travel_queue_dispatch_ms[0] = now_ms
@@ -2024,8 +2043,10 @@ def _travel_button_coroutine_inner(target_map_id: int, fast_travel_first: bool =
     current_map_at_start = Map.GetMapID()
 
     # ── Step 0: kick heroes before leaving if loadout auto-apply is on ──────
+    # (Heroes are always kicked again in Step 1 before any fast-travel, so
+    # this step is only needed when starting from the current outpost directly.)
     _hl_has_loadout = _hl_auto_apply[0] and any(h != 0 for h in _hl_slot_ids)
-    if _hl_has_loadout and Map.IsOutpost():
+    if _hl_has_loadout and Map.IsOutpost() and not fast_travel_first:
         try:
             Party.Heroes.KickAllHeroes()
             yield from Routines.Yield.wait(600)
@@ -2043,6 +2064,9 @@ def _travel_button_coroutine_inner(target_map_id: int, fast_travel_first: bool =
         ft_id = None
 
     # ── Step 1: fast-travel to nearest unlocked outpost if needed ───────────
+    # In queue mode always FT to the optimal staging outpost.
+    # The inner guard (ft_id != current_map_at_start) handles the case where
+    # we are already at the best outpost and no FT is needed.
     if fast_travel_first:
         if ft_id and ft_id != current_map_at_start:
             Py4GW.Console.Log(MODULE_NAME,
@@ -2050,8 +2074,9 @@ def _travel_button_coroutine_inner(target_map_id: int, fast_travel_first: bool =
                 f"before routing to {target_map_id}.",
                 Py4GW.Console.MessageType.Info)
             try:
+                Party.Heroes.KickAllHeroes()
                 Party.LeaveParty()
-                yield from Routines.Yield.wait(300)
+                yield from Routines.Yield.wait(600)
             except Exception:
                 pass
             Map.TravelToDistrict(ft_id, 0, 0)
@@ -2072,6 +2097,13 @@ def _travel_button_coroutine_inner(target_map_id: int, fast_travel_first: bool =
     current_map = Map.GetMapID()
     route = GetPath(current_map, target_map_id)
     if route.get("found"):
+        first_wp   = route["waypoints"][0] if route.get("waypoints") else None
+        first_gid  = first_wp.get("exit_gid") if first_wp else "?"
+        first_next = first_wp.get("to_map")   if first_wp else "?"
+        Py4GW.Console.Log(MODULE_NAME,
+            f"Travel step2: map {current_map} -> target {target_map_id} "
+            f"({len(route['waypoints'])} hops), first exit_gid={first_gid} -> map {first_next}",
+            Py4GW.Console.MessageType.Info)
         _travel_route_overlay[:] = _build_route_overlay(route)
         _path_map_names[:] = route.get("map_names", [])
         gids: list[int] = []

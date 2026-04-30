@@ -306,11 +306,15 @@
       {
         "portal_index": 0,
         "global_id": 27000,
+        "game_x": -7674.0,
+        "game_y": -7566.0,
         "linked_to": 54002
       },
       {
         "portal_index": 1,
         "global_id": 27001,
+        "game_x": 7692.0,
+        "game_y": 7837.0,
         "linked_to": 100000
       }
     ],
@@ -1521,16 +1525,22 @@
       {
         "portal_index": 0,
         "global_id": 93000,
+        "game_x": -14635.0,
+        "game_y": 248.0,
         "linked_to": 191003
       },
       {
         "portal_index": 1,
         "global_id": 93001,
+        "game_x": -11561.0,
+        "game_y": 15418.0,
         "linked_to": 156001
       },
       {
         "portal_index": 3,
         "global_id": 93003,
+        "game_x": 7806.0,
+        "game_y": -26581.0,
         "linked_to": 159001
       }
     ],

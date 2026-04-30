@@ -541,9 +541,7 @@
         "global_id": 27000,
         "map_id": 27,
         "map_name": "Griffon's Mouth",
-        "portal_index": 0,
-        "game_x": -7674.0,
-        "game_y": -7566.0
+        "portal_index": 0
       },
       "portal_b": {
         "global_id": 54002,
@@ -560,9 +558,7 @@
         "global_id": 27001,
         "map_id": 27,
         "map_name": "Griffon's Mouth",
-        "portal_index": 1,
-        "game_x": 7692.0,
-        "game_y": 7837.0
+        "portal_index": 1
       },
       "portal_b": {
         "global_id": 100000,
@@ -1567,9 +1563,7 @@
         "global_id": 93000,
         "map_id": 93,
         "map_name": "Spearhead Peak",
-        "portal_index": 0,
-        "game_x": -14635.0,
-        "game_y": 248.0
+        "portal_index": 0
       },
       "portal_b": {
         "global_id": 191003,
@@ -1586,9 +1580,7 @@
         "global_id": 93001,
         "map_id": 93,
         "map_name": "Spearhead Peak",
-        "portal_index": 1,
-        "game_x": -11561.0,
-        "game_y": 15418.0
+        "portal_index": 1
       },
       "portal_b": {
         "global_id": 156001,
@@ -1605,9 +1597,7 @@
         "global_id": 93003,
         "map_id": 93,
         "map_name": "Spearhead Peak",
-        "portal_index": 3,
-        "game_x": 7806.0,
-        "game_y": -26581.0
+        "portal_index": 3
       },
       "portal_b": {
         "global_id": 159001,
