@@ -1,5 +1,4 @@
 import os
-import traceback
 
 import Py4GW
 import PyImGui
@@ -8,11 +7,9 @@ from Py4GWCoreLib import Console, ConsoleLog, IniHandler, Party, Player, Timer
 from Py4GWCoreLib.ImGui_src.ImGuisrc import ImGui
 from Py4GWCoreLib.ImGui_src.types import Alignment
 from Py4GWCoreLib.py4gwcorelib_src.Color import Color
-from Sources.modular_bot.prebuilts.fow import (
-    DEFAULT_FOW_COMBAT_WIDGET_KEY,
+from Sources.modular_data.prebuilt.fow import (
     DEFAULT_INVENTORY_MANAGEMENT_LOCATION_KEY,
     DEFAULT_FOW_ENTRYPOINT_KEY,
-    FOW_COMBAT_WIDGETS,
     FOW_ENTRYPOINTS,
     FOW_QUEST_ORDER,
     INVENTORY_MANAGEMENT_LOCATIONS,
@@ -20,6 +17,7 @@ from Sources.modular_bot.prebuilts.fow import (
     apply_fow_runtime_properties,
     create_modular_fow_bot,
 )
+from Py4GWCoreLib.modular.widget_runtime import guarded_widget_main, start_widget_bot
 
 MODULE_NAME = "Modular FoW"
 MODULE_ICON = "Textures/Module_Icons/Fissure of Woe.png"
@@ -68,14 +66,6 @@ class Config:
             )
             or DEFAULT_INVENTORY_MANAGEMENT_LOCATION_KEY
         )
-        self.post_gh_combat_widget = str(
-            ini_handler.read_key(
-                BOT_NAME,
-                "post_gh_combat_widget",
-                DEFAULT_FOW_COMBAT_WIDGET_KEY,
-            )
-            or DEFAULT_FOW_COMBAT_WIDGET_KEY
-        )
 
     def to_options(self) -> ModularFowOptions:
         return ModularFowOptions(
@@ -93,7 +83,6 @@ class Config:
             entrypoint=self.entrypoint,
             entry_method=self.entry_method,
             inventory_management_location=self.inventory_management_location,
-            post_gh_combat_widget=self.post_gh_combat_widget,
         )
 
     def save_throttled(self):
@@ -119,7 +108,6 @@ class Config:
         ini_handler.write_key(BOT_NAME, "entrypoint", str(self.entrypoint))
         ini_handler.write_key(BOT_NAME, "entry_method", str(self.entry_method))
         ini_handler.write_key(BOT_NAME, "inventory_management_location", str(self.inventory_management_location))
-        ini_handler.write_key(BOT_NAME, "post_gh_combat_widget", str(self.post_gh_combat_widget))
 
 
 config = Config()
@@ -131,8 +119,6 @@ ENTRY_METHOD_KEYS = list(FOW_ENTRY_METHODS.keys())
 ENTRY_METHOD_LABELS = [FOW_ENTRY_METHODS[key] for key in ENTRY_METHOD_KEYS]
 INVENTORY_LOCATION_KEYS = list(INVENTORY_MANAGEMENT_LOCATIONS.keys())
 INVENTORY_LOCATION_LABELS = [INVENTORY_MANAGEMENT_LOCATIONS[key] for key in INVENTORY_LOCATION_KEYS]
-COMBAT_WIDGET_KEYS = list(FOW_COMBAT_WIDGETS.keys())
-COMBAT_WIDGET_LABELS = [FOW_COMBAT_WIDGETS[key] for key in COMBAT_WIDGET_KEYS]
 
 
 def _entrypoint_index() -> int:
@@ -215,77 +201,22 @@ def _draw_inventory_location_combo(disabled: bool = False) -> None:
         PyImGui.end_disabled()
 
 
-def _combat_widget_index() -> int:
-    try:
-        return COMBAT_WIDGET_KEYS.index(config.post_gh_combat_widget)
-    except ValueError:
-        return 0
-
-
-def _draw_combat_widget_combo(disabled: bool = False) -> None:
-    if disabled:
-        PyImGui.begin_disabled(True)
-    PyImGui.text("Combat Engine")
-    PyImGui.push_item_width(PyImGui.get_content_region_avail()[0])
-    selected_index = PyImGui.combo(
-        "##FoWPostGhCombatWidget",
-        _combat_widget_index(),
-        COMBAT_WIDGET_LABELS,
-    )
-    PyImGui.pop_item_width()
-    if 0 <= selected_index < len(COMBAT_WIDGET_KEYS):
-        new_widget = COMBAT_WIDGET_KEYS[selected_index]
-        if new_widget != config.post_gh_combat_widget:
-            config.post_gh_combat_widget = new_widget
-            if bot is not None:
-                _queue_rebuild()
-    if disabled:
-        PyImGui.end_disabled()
-
-
 def _fsm_step_name() -> str:
     if bot is None:
         return ""
-    fsm = bot.bot.config.FSM
-    try:
-        return str(fsm.get_current_step_name() or "")
-    except Exception:
-        current_state = getattr(fsm, "current_state", None)
-        return str(getattr(current_state, "name", "") or "")
+    return str(bot.get_current_step_name() or "")
 
 
 def _phase_progress() -> tuple[int, int, str]:
     if bot is None:
         return (0, 0, "")
-
-    current_step = _fsm_step_name()
-    phases = getattr(bot, "_phases", [])
-    total = len(phases)
-    if total <= 0:
-        return (0, 0, "")
-
-    for idx, phase in enumerate(phases):
-        header_name = bot.get_phase_header(phase.name)
-        if header_name and current_step.startswith(header_name):
-            return (idx + 1, total, phase.name)
-
-    for idx, phase in enumerate(phases):
-        if phase.name and phase.name in current_step:
-            return (idx + 1, total, phase.name)
-
-    return (0, total, "")
+    return bot.get_phase_progress()
 
 
 def _step_progress() -> tuple[int, int, str, str]:
     if bot is None:
         return (0, 0, "", "")
-
-    config_obj = bot.bot.config
-    step_index = int(getattr(config_obj, "modular_step_index", 0) or 0)
-    step_total = int(getattr(config_obj, "modular_step_total", 0) or 0)
-    recipe_title = str(getattr(config_obj, "modular_recipe_title", "") or "")
-    step_title = str(getattr(config_obj, "modular_step_title", "") or "")
-    return (step_index, step_total, recipe_title, step_title)
+    return bot.get_step_progress()
 
 
 def _debug(message: str) -> None:
@@ -336,71 +267,20 @@ def _build_bot():
     )
 
 
-def _ensure_party_safety_callbacks_runtime() -> None:
-    """
-    Re-apply party safety callbacks at runtime for FoW runs.
-    This is idempotent and ensures callbacks stay wired in HeroAI mode.
-    """
-    if bot is None:
-        return
-    try:
-        bot.bot.Events.OnPartyMemberBehindCallback(
-            lambda: bot.bot.Templates.Routines.OnPartyMemberBehind()
-        )
-        bot.bot.Events.OnPartyMemberInDangerCallback(
-            lambda: bot.bot.Templates.Routines.OnPartyMemberInDanger()
-        )
-        bot.bot.Events.OnPartyMemberDeadBehindCallback(
-            lambda: bot.bot.Templates.Routines.OnPartyMemberDeathBehind()
-        )
-        behind_cb = bool(getattr(bot.bot.config.events.on_party_member_behind, "callback", None))
-        danger_cb = bool(getattr(bot.bot.config.events.on_party_member_in_danger, "callback", None))
-        dead_behind_cb = bool(getattr(bot.bot.config.events.on_party_member_dead_behind, "callback", None))
-        _debug(
-            "FoW safety callbacks armed "
-            f"(behind={behind_cb}, in_danger={danger_cb}, dead_behind={dead_behind_cb})"
-        )
-    except Exception as exc:
-        _debug(f"Failed to arm FoW safety callbacks: {exc}")
-
-
 def _start_bot() -> None:
     global bot, _BOT_REBUILD_PENDING
 
-    try:
-        _debug("Start button clicked.")
-        bot = _build_bot()
-        if not bot.bot.config.initialized:
-            _debug("Building ModularBot routine manually.")
-            bot._build_routine(bot.bot)
-            bot.bot.config.initialized = True
-            bot.bot.SetMainRoutine(lambda *_args, **_kwargs: None)
-            _debug(
-                "Routine build complete. "
-                f"fsm_states={len(bot.bot.config.FSM.states)} "
-                f"headers={len(getattr(bot, '_phase_headers', {}))}"
-            )
+    def _post_build(new_bot) -> None:
+        apply_fow_runtime_properties(new_bot.bot, config.to_options(), debug_hook=_debug)
 
-        apply_fow_runtime_properties(bot.bot, config.to_options(), debug_hook=_debug)
-        _ensure_party_safety_callbacks_runtime()
-        _debug(
-            "Calling bot.Start(). "
-            f"initialized={bot.bot.config.initialized} "
-            f"fsm_running_before={bot.bot.config.fsm_running} "
-            f"fsm_states={len(bot.bot.config.FSM.states)}"
-        )
-        bot.bot.Start()
-        _debug(
-            "bot.Start() returned. "
-            f"fsm_running_after={bot.bot.config.fsm_running} "
-            f"current_state={getattr(bot.bot.config.FSM.current_state, 'name', None)}"
-        )
+    _debug("Start button clicked.")
+    started_bot = start_widget_bot(BOT_NAME, _build_bot, post_build_fn=_post_build)
+    if started_bot is None:
         _BOT_REBUILD_PENDING = False
-        _debug("Initialized and started FoW widget bot.")
-    except Exception as exc:
-        _BOT_REBUILD_PENDING = False
-        ConsoleLog(BOT_NAME, f"Failed to start FoW bot: {exc}", Console.MessageType.Error)
-        _debug(traceback.format_exc())
+        return
+    bot = started_bot
+    _BOT_REBUILD_PENDING = False
+    _debug("Initialized and started FoW widget bot.")
 
 
 def _draw_prestart_window() -> None:
@@ -442,7 +322,6 @@ def _draw_prestart_window() -> None:
     config.buy_ectoplasm = PyImGui.checkbox("Buy Ectoplasm", config.buy_ectoplasm)
     PyImGui.end_disabled()
     _draw_inventory_location_combo(disabled=False)
-    _draw_combat_widget_combo(disabled=False)
     PyImGui.end_disabled()
     _draw_entry_method_combo()
     _draw_entrypoint_combo(disabled=_uses_temple_kneel_entry())
@@ -461,7 +340,7 @@ def _draw_prestart_window() -> None:
 
 
 def _draw_main() -> None:
-    is_running = bool(bot.bot.config.fsm_running) if bot is not None else False
+    is_running = bool(bot is not None and bot.is_running())
     current_step = _fsm_step_name() or "Idle"
     phase_index, phase_total, phase_name = _phase_progress()
     step_index, step_total, recipe_title, step_title = _step_progress()
@@ -547,7 +426,6 @@ def _draw_main() -> None:
         _queue_rebuild()
     PyImGui.end_disabled()
     _draw_inventory_location_combo(disabled=is_running)
-    _draw_combat_widget_combo(disabled=is_running)
     PyImGui.end_disabled()
     _draw_entry_method_combo(disabled=is_running)
     _draw_entrypoint_combo(disabled=is_running or _uses_temple_kneel_entry())
@@ -559,7 +437,7 @@ def _draw_main() -> None:
 
 
 def _draw_settings() -> None:
-    is_running = bool(bot is not None and bot.bot.config.fsm_running)
+    is_running = bool(bot is not None and bot.is_running())
     PyImGui.begin_disabled(is_running)
     new_auto_inventory_management = PyImGui.checkbox(
         "Auto Inventory Management",
@@ -581,13 +459,12 @@ def _draw_settings() -> None:
         _queue_rebuild()
     if config.use_merchant_rules_inventory:
         PyImGui.text_wrapped("FoW merchant stage will call MerchantRules Execute (leader + alts). Sell/buy options below are ignored in this mode.")
-    _draw_inventory_location_combo(disabled=bool(bot is not None and bot.bot.config.fsm_running) or config.skip_merchant_actions)
+    _draw_inventory_location_combo(disabled=bool(bot is not None and bot.is_running()) or config.skip_merchant_actions)
     _draw_entry_method_combo(disabled=is_running)
     _draw_entrypoint_combo(disabled=is_running or _uses_temple_kneel_entry())
     if _uses_temple_kneel_entry():
         PyImGui.text_wrapped("Temple of the Ages is used automatically when /kneel entry is selected.")
     PyImGui.begin_disabled(config.skip_merchant_actions)
-    _draw_combat_widget_combo(disabled=is_running)
     PyImGui.begin_disabled(config.use_merchant_rules_inventory)
     new_sell_non_cons_materials = PyImGui.checkbox("Sell Non-Cons Materials", config.sell_non_cons_materials)
     if new_sell_non_cons_materials != config.sell_non_cons_materials:
@@ -604,7 +481,11 @@ def _draw_settings() -> None:
     PyImGui.end_disabled()
     PyImGui.end_disabled()
     PyImGui.end_disabled()
-    config.debug_logging = PyImGui.checkbox("Debug Logging", config.debug_logging)
+    new_debug_logging = PyImGui.checkbox("Debug Logging", config.debug_logging)
+    if bool(new_debug_logging) != bool(config.debug_logging):
+        config.debug_logging = bool(new_debug_logging)
+        if bot is not None:
+            bot.set_debug_logging(config.debug_logging)
     config.save_throttled()
 
 
@@ -613,7 +494,7 @@ def _draw_help() -> None:
     PyImGui.separator()
     PyImGui.text_wrapped("Widget wrapper for the FoW prebuilt route using the shared modular FoW builder.")
     PyImGui.bullet_text("Uses the same FoW route builder as the standalone modular bot")
-    PyImGui.bullet_text("Loads quest steps from Sources/modular_bot/quests/FoW/*.json")
+    PyImGui.bullet_text("Loads quest steps from Sources/modular_data/quests/FoW/*.json")
     PyImGui.bullet_text("Supports inventory management in Guild Hall or Eye of the North")
     PyImGui.bullet_text("Optional skip for all merchant/inventory management setup actions")
     PyImGui.bullet_text("Optional MerchantRules-backed merchant stage (leader + multibox followers)")
@@ -626,7 +507,7 @@ def _draw_help() -> None:
     PyImGui.bullet_text("Settings are persisted in Widgets/Config/ModularFow.ini")
 
 
-def main():
+def _main_impl() -> None:
     global bot, _BOT_REBUILD_PENDING
 
     if bot is None:
@@ -635,7 +516,7 @@ def main():
         _draw_prestart_window()
         return
 
-    if _BOT_REBUILD_PENDING and not bot.bot.config.fsm_running:
+    if _BOT_REBUILD_PENDING and not bot.is_running():
         bot = None
         _BOT_REBUILD_PENDING = False
         _debug("FoW widget bot invalidated; it will rebuild on next start.")
@@ -643,6 +524,10 @@ def main():
         return
 
     bot.update()
+
+
+def main():
+    guarded_widget_main(BOT_NAME, _main_impl, get_bot=lambda: bot)
 
 
 def tooltip():
