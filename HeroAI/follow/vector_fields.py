@@ -284,9 +284,9 @@ def compute_mixed_follow_target(
     target_tolerance = max(0.0, follow_distance)
 
     slot_distance = Utils.Distance(current_pos, assigned_pos)
-    attraction_active = slot_distance > target_tolerance
+    outside_tolerance = slot_distance > target_tolerance
 
-    if slot_distance <= target_tolerance and not in_combat:
+    if not outside_tolerance and not in_combat:
         return None
 
     repulsion_positions: list[tuple[float, float]] = []
@@ -309,7 +309,7 @@ def compute_mixed_follow_target(
             repulsion_positions.append(enemy_pos)
             active_enemy_count += 1
 
-    if not attraction_active and not repulsion_positions:
+    if not outside_tolerance and not repulsion_positions:
         return None
 
     max_repulsion_radius = max(cfg.ally_repulsion_radius, cfg.enemy_repulsion_radius, 1.0)
@@ -323,6 +323,7 @@ def compute_mixed_follow_target(
     for repulsion_pos in repulsion_positions:
         vf.add_custom_repulsion_position(repulsion_pos)
 
+    attraction_active = outside_tolerance or bool(repulsion_positions)
     if attraction_active:
         vf.add_custom_attraction_position(assigned_pos)
 
@@ -332,7 +333,7 @@ def compute_mixed_follow_target(
         return None
 
     movement_scale = 50.0
-    if attraction_active:
+    if outside_tolerance:
         distance_error = max(0.0, slot_distance - target_tolerance)
         if slot_distance > cfg.slot_recovery_distance:
             movement_scale = max(

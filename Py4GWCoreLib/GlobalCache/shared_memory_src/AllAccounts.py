@@ -257,11 +257,25 @@ class AllAccounts(Structure):
         # both ungrouped: legacy
         return not self.AccountData[s_idx].IsIsolated and not self.AccountData[r_idx].IsIsolated
 
-    def GetEmptySlot(self) -> int:
-        """Find the first empty slot in shared memory."""    
+    def _is_slot_expired(self, index: int) -> bool:
+        slot_data = self.AccountData[index]
+        if not slot_data.IsSlotActive:
+            return False
+        return (Py4GW.Game.get_tick_count64() - slot_data.LastUpdated) >= SHMEM_SUBSCRIBE_TIMEOUT_MILLISECONDS
+
+    def GetEmptySlot(self, allow_expired_reclaim: bool = True) -> int:
+        """Find the first empty or safely reclaimable slot in shared memory."""
         for i, account in enumerate(self.AccountData):
-            if not self._is_slot_active(i):
+            if not account.IsSlotActive:
                 return i    
+
+        if not allow_expired_reclaim:
+            return -1
+
+        for i, account in enumerate(self.AccountData):
+            if not self._is_slot_expired(i):
+                continue
+            return i
         return -1
     
     def GetExpiredSlots(self) -> list[int]:
@@ -314,7 +328,9 @@ class AllAccounts(Structure):
             ConsoleLog(SHMEM_MODULE_NAME, "Account email is empty.", Py4GW.Console.MessageType.Error)
             return -1
         
-        slot_index = self.GetEmptySlot()
+        slot_index = self.GetPlayerExpiredSlot(account_email)
+        if slot_index == -1:
+            slot_index = self.GetEmptySlot(allow_expired_reclaim=True)
         if slot_index == -1:
             ConsoleLog(SHMEM_MODULE_NAME, "No empty slot available to submit account data.", Py4GW.Console.MessageType.Error)
             return -1
@@ -334,7 +350,9 @@ class AllAccounts(Structure):
     def SubmitHeroData(self, hero_data: HeroPartyMember) -> int:
         """Submit hero data to shared memory. Returns the slot index or -1 on failure."""
         from ...Party import Party
-        slot_index = self.GetEmptySlot()
+        slot_index = self.GetHeroExpiredSlot(hero_data)
+        if slot_index == -1:
+            slot_index = self.GetEmptySlot(allow_expired_reclaim=False)
         if slot_index == -1:
             ConsoleLog(SHMEM_MODULE_NAME, "No empty slot available to submit hero data.", Py4GW.Console.MessageType.Error)
             return -1
@@ -351,7 +369,9 @@ class AllAccounts(Structure):
     
     def SubmitPetData(self, pet_data: PetInfo) -> int:
         """Submit pet data to shared memory. Returns the slot index or -1 on failure."""
-        slot_index = self.GetEmptySlot()
+        slot_index = self.GetPetExpiredSlot(pet_data)
+        if slot_index == -1:
+            slot_index = self.GetEmptySlot(allow_expired_reclaim=False)
         if slot_index == -1:
             ConsoleLog(SHMEM_MODULE_NAME, "No empty slot available to submit pet data.", Py4GW.Console.MessageType.Error)
             return -1
