@@ -126,7 +126,7 @@ class DominationMagic:
     #region O
     @coordinates_whiteboard_skill_target(Skill.GetID("Overload"))
     def Overload(self) -> BuildCoroutine:
-        from Py4GWCoreLib import Agent, Player, Range, GLOBAL_CACHE
+        from Py4GWCoreLib import Agent, Range, GLOBAL_CACHE
 
         overload_id: int = Skill.GetID("Overload")
         aoe_range = GLOBAL_CACHE.Skill.Data.GetAoERange(overload_id) or Range.Adjacent.value
@@ -136,21 +136,6 @@ class DominationMagic:
             preferred_condition=lambda agent_id: Agent.IsCasting(agent_id),
             filter_radius=Range.Spellcast.value,
         )
-
-        if not target_agent_id:
-            best_enemy_target_id = self.build._pick_clustered_target(
-                cluster_radius=aoe_range,
-                filter_radius=Range.Spellcast.value,
-            )
-            current_target_id = Player.GetTargetID()
-            if Agent.IsValid(current_target_id) and not Agent.IsDead(current_target_id):
-                current_target_score = self.build._count_nearby_enemies(current_target_id, aoe_range)
-                best_enemy_score = self.build._count_nearby_enemies(best_enemy_target_id, aoe_range)
-                if current_target_score >= best_enemy_score:
-                    target_agent_id = current_target_id
-
-            if not target_agent_id:
-                target_agent_id = best_enemy_target_id
 
         if not target_agent_id:
             return False

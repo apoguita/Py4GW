@@ -230,7 +230,8 @@ class MesmerSkills:
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Overload")
         skill.SkillType = SkillType.Hex.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
-        skill.Nature = SkillNature.Offensive.value
+        skill.Nature = SkillNature.Interrupt.value
+        skill.Conditions.IsCasting = True
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
