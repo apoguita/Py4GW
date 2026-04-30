@@ -48,7 +48,6 @@ def _find_repo_root(start_path: Path) -> Path:
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = _find_repo_root(SCRIPT_DIR)
 MERCHANT_RULES_PATH = REPO_ROOT / "Widgets" / "Guild Wars" / "Items & Loot" / "MerchantRules.py"
-UNDERWORLD_PATH = REPO_ROOT / "Widgets" / "Automation" / "Bots" / "Missions" / "Core" / "Underworld.py"
 
 
 def _expect(condition: bool, message: str) -> None:
@@ -294,16 +293,17 @@ def _install_stub_modules(project_root: Path) -> None:
     )
     sys.modules["Sources.marks_sources.mods_parser"] = mods_parser
 
-    _ensure_package("Py4GWCoreLib.modular")
-    _ensure_package("Py4GWCoreLib.modular.recipes")
-    _ensure_package("Py4GWCoreLib.modular.actions")
-    actions_module = types.ModuleType("Py4GWCoreLib.modular.actions")
-    actions_module.DEFAULT_NPC_SELECTORS = {}
-    actions_module.SUPPORTED_MAP_NPC_SELECTORS = {}
-    actions_module.resolve_agent_xy_from_step = lambda *_args, **_kwargs: None
-    actions_module.run_step = lambda *_args, **_kwargs: None
-    actions_module.run_steps = lambda *_args, **_kwargs: None
-    sys.modules["Py4GWCoreLib.modular.actions"] = actions_module
+    _ensure_package("Sources.modular_bot")
+    _ensure_package("Sources.modular_bot.recipes")
+    actions_inventory = types.ModuleType("Sources.modular_bot.recipes.actions_inventory")
+    actions_inventory.DEFAULT_NPC_SELECTORS = {}
+    actions_inventory.SUPPORTED_MAP_NPC_SELECTORS = {}
+    actions_inventory._get_nonsalvageable_gold_item_ids = lambda: []
+    sys.modules["Sources.modular_bot.recipes.actions_inventory"] = actions_inventory
+
+    step_selectors = types.ModuleType("Sources.modular_bot.recipes.step_selectors")
+    step_selectors.resolve_agent_xy_from_step = lambda *_args, **_kwargs: None
+    sys.modules["Sources.modular_bot.recipes.step_selectors"] = step_selectors
 
 
 def _load_merchant_rules_module(project_root: Path):
@@ -315,41 +315,6 @@ def _load_merchant_rules_module(project_root: Path):
     sys.modules[module_name] = module
     spec.loader.exec_module(module)
     return module
-
-
-def _test_widget_modular_import_targets_exist() -> None:
-    expected_modules = [
-        "Py4GWCoreLib.modular.actions",
-    ]
-
-    for module_name in expected_modules:
-        module_root = REPO_ROOT.joinpath(*module_name.split("."))
-        module_path = module_root.with_suffix(".py")
-        package_path = module_root / "__init__.py"
-        _expect(
-            module_path.is_file() or package_path.is_file(),
-            f"Expected modular import target is missing: {module_name} ({module_path} or {package_path})",
-        )
-
-    merchant_source = MERCHANT_RULES_PATH.read_text(encoding="utf-8-sig")
-    _expect(
-        "from Py4GWCoreLib.modular.actions import DEFAULT_NPC_SELECTORS" in merchant_source,
-        "MerchantRules should import modular inventory selector constants from modular.actions.",
-    )
-    _expect(
-        "from Py4GWCoreLib.modular.actions import resolve_agent_xy_from_step" in merchant_source,
-        "MerchantRules should import selector helpers from modular.actions.",
-    )
-
-    underworld_source = UNDERWORLD_PATH.read_text(encoding="utf-8-sig")
-    _expect(
-        "from Py4GWCoreLib.modular.actions import run_step" in underworld_source,
-        "Underworld should import run_step from modular.actions.",
-    )
-    _expect(
-        "run_step(bot_instance" in underworld_source,
-        "Underworld should execute modular actions through run_step.",
-    )
 
 
 def _make_widget(module):
@@ -7985,7 +7950,6 @@ def main() -> int:
         module = _load_merchant_rules_module(temp_root)
 
         tests = [
-            ("widget_modular_import_targets_exist", _test_widget_modular_import_targets_exist),
             ("malformed_profile_is_preserved", lambda: _test_malformed_profile_is_preserved(module, temp_root)),
             ("legacy_profile_normalizes_and_saves", lambda: _test_legacy_profile_normalizes_and_saves(module, temp_root)),
             ("legacy_whitelist_keep_count_migrates_to_per_target_rows", lambda: _test_legacy_whitelist_keep_count_migrates_to_per_target_rows(module, temp_root)),
