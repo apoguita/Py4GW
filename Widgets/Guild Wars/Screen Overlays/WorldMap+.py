@@ -1321,6 +1321,72 @@ def _hl_trigger_apply() -> None:
         GLOBAL_CACHE.Coroutines.append(_hl_apply_loadout_coroutine())
 
 
+def _refresh_hero_slot_owner_ids() -> None:
+    """Patch stale OwnerAgentID values in shared memory hero slots after a map change.
+
+    Agent IDs are reassigned on every map transition, so any hero slot written in a
+    previous map carries the old OwnerAgentID.  GetHeroSlotByHeroData rejects slots
+    where both the stored and live values are non-zero but differ, causing a new slot
+    to be submitted every frame until the old one expires (5 s) -> spam.
+
+    This runs once per map change: for each of my heroes, find its slot by
+    HeroID + AccountEmail (both stable) and write the fresh OwnerAgentID so the
+    regular update_callback finds the slot immediately.
+    """
+    try:
+        from Py4GWCoreLib import Player, Party
+        my_email   = str(Player.GetAccountEmail() or "").strip()
+        my_agent   = Player.GetAgentID()
+        if not my_email or not my_agent:
+            return
+        all_accounts = GLOBAL_CACHE.ShMem.GetAllAccounts()
+        shmem_max    = 64  # SHMEM_MAX_PLAYERS
+        for hero_data in Party.GetHeroes():
+            owner_agent = Party.Players.GetAgentIDByLoginNumber(hero_data.owner_player_id)
+            if owner_agent != my_agent:
+                continue  # not my hero
+            if owner_agent == 0:
+                continue
+            hero_id = hero_data.hero_id.GetID()
+            for i in range(shmem_max):
+                slot = all_accounts.AccountData[i]
+                if not slot.IsHero:
+                    continue
+                if slot.AgentData.HeroID != hero_id:
+                    continue
+                stored_email = str(slot.AccountEmail).strip()
+                if stored_email != my_email:
+                    continue
+                # Found the slot for my hero - refresh the stale OwnerAgentID
+                slot.AgentData.OwnerAgentID = owner_agent
+                break
+    except Exception:
+        pass  # non-critical; update_callback will retry next tick
+
+
+def _hl_load_current_team() -> bool:
+    """Read the currently active heroes from the party and write them into _hl_slot_ids.
+
+    Returns True if at least one hero was found, False otherwise.
+    """
+    try:
+        heroes = GLOBAL_CACHE.Party.GetHeroes()
+    except Exception:
+        return False
+    if not heroes:
+        return False
+    for i in range(_HL_MAX_SLOTS):
+        if i < len(heroes):
+            try:
+                _hl_slot_ids[i] = heroes[i].hero_id.GetID()
+            except Exception:
+                _hl_slot_ids[i] = 0
+        else:
+            _hl_slot_ids[i] = 0
+    _wmp_ini_save()
+    return True
+
+
 def _hl_trigger_apply_delayed() -> None:
     """Queue a hero loadout apply with a short settling delay (for on-zone use)."""
     def _delayed():
@@ -1420,6 +1486,7 @@ _portal_3d_last_map: list[int] = [-1]
 _travel_route_start_ms:   list[int] = [0]                    # timestamp when route started
 _travel_hop_times:        list[tuple[int, int]] = []         # [(start_ms, end_ms|0), ...] per hop; end_ms=0 = still running
 _travel_prev_done_count:  list[int] = [-1]                   # done_count from previous frame
+_path_name_offset:        list[int] = [0]                    # hops trimmed from _path_map_names front (absolute index correction)
 
 
 def _path_first_pending_idx() -> int:
@@ -2115,6 +2182,7 @@ def _travel_button_coroutine_inner(target_map_id: int, fast_travel_first: bool =
         _travel_route_start_ms[0] = _now
         _travel_hop_times[:] = [(_now, 0)] + [(0, 0)] * (_num_hops - 1)
         _travel_prev_done_count[0] = 0
+        _path_name_offset[0] = 0
     else:
         _travel_route_overlay.clear()
         _path_gids.clear()
@@ -2122,6 +2190,7 @@ def _travel_button_coroutine_inner(target_map_id: int, fast_travel_first: bool =
         _travel_route_start_ms[0] = 0
         _travel_hop_times.clear()
         _travel_prev_done_count[0] = -1
+        _path_name_offset[0] = 0
 
     # Reset the dispatch timestamp so the 1-frame gap between this coroutine
     # ending and the movement runner activating doesn't trigger a false timeout.
@@ -3084,9 +3153,10 @@ def _draw_travel_roadmap() -> None:
         is_last = (i == len(names) - 1)
         prefix = "" if i == 0 else "-> "
 
-        # Show elapsed time for the hop that departs from names[i] (hop index = i)
+        # Show elapsed time for the hop that departs from names[i] (hop index = i).
+        # hop_idx is absolute (offset-corrected) to index into _travel_hop_times.
         time_str = ""
-        hop_idx = i
+        hop_idx = i + _path_name_offset[0]
         if 0 <= hop_idx < len(_travel_hop_times):
             ht_s, ht_e = _travel_hop_times[hop_idx]
             if ht_e != 0:
@@ -3099,9 +3169,9 @@ def _draw_travel_roadmap() -> None:
                 time_str = f"  ({_hm}m {_hs:02d}s...)" if _hm > 0 else f"  ({_hs}s...)"
 
         label = f"{prefix}{step}{time_str}"
-        if i == done_count:
+        if hop_idx == done_count:
             col = cur_col
-        elif i < done_count:
+        elif hop_idx < done_count:
             col = done_col
         elif is_last:
             col = dst_col
@@ -3536,13 +3606,15 @@ def _draw_reachable_list_panel() -> None:
         # same campaign as the player's current map.
         cur_meta_rv = _MAP_META.get(cmap)
         cur_camp_rv = _campaign_group(cur_meta_rv[2]) if cur_meta_rv else 1
+        seen_ids: set[int] = set()
+
+        # Phase 1: directly reachable on foot from the current map.
         for m in GetReachableMaps(cmap):
             if Map.IsMapUnlocked(m["map_id"]):
                 continue
             meta = _MAP_META.get(m["map_id"])
             if meta is None or meta[0] == _RT_EXPLORABLE:
                 continue
-            # Skip outposts from other campaigns.
             if _campaign_group(meta[2]) != cur_camp_rv:
                 continue
             dist  = _path_distance(cmap, m["map_id"])
@@ -3551,9 +3623,59 @@ def _draw_reachable_list_panel() -> None:
             entry["distance"] = dist
             entry["nearest_ft"] = ft
             _reachable_list_cache.append(entry)
+            seen_ids.add(m["map_id"])
+
+        # Phase 2: reachable via fast-travel to an unlocked outpost + walk.
+        # Multi-source BFS from every unlocked outpost through portal adjacency.
+        # For each reachable target, the BFS records which source (FT outpost)
+        # reaches it first (fewest portal hops).
+        _portal_adj_rv = _get_portal_adj()
+        # seed: every unlocked non-explorable outpost is a FT source
+        _rv_visited: dict[int, tuple[int, str, int]] = {}  # map_id -> (ft_map_id, ft_name, hops)
+        _rv_queue: deque[int] = deque()
+        for _mid, _meta in _MAP_META.items():
+            if _meta[0] == _RT_EXPLORABLE:
+                continue
+            if not Map.IsMapUnlocked(_mid):
+                continue
+            _rv_visited[_mid] = (_mid, _meta[1], 0)
+            _rv_queue.append(_mid)
+        while _rv_queue:
+            _cur = _rv_queue.popleft()
+            _ft_id, _ft_name, _hops = _rv_visited[_cur]
+            for _eg, _ig, _nb in _portal_adj_rv.get(_cur, []):
+                if _nb not in _rv_visited:
+                    _rv_visited[_nb] = (_ft_id, _ft_name, _hops + 1)
+                    _rv_queue.append(_nb)
+        for _target, (_ft_id, _ft_name, _ft_hops) in _rv_visited.items():
+            if _target in seen_ids:
+                continue
+            if Map.IsMapUnlocked(_target):
+                continue
+            _meta = _MAP_META.get(_target)
+            if _meta is None or _meta[0] == _RT_EXPLORABLE:
+                continue
+            if _campaign_group(_meta[2]) != cur_camp_rv:
+                continue
+            _ft_dist = _path_distance(_ft_id, _target)
+            _entry: dict = {
+                "map_id":   _target,
+                "name":     _meta[1],
+                "hops":     _ft_hops,
+                "distance": _ft_dist,
+                "nearest_ft": {
+                    "map_id":   _ft_id,
+                    "name":     _ft_name,
+                    "hops":     _ft_hops,
+                    "distance": _ft_dist,
+                },
+            }
+            _reachable_list_cache.append(_entry)
+            seen_ids.add(_target)
+
         _reachable_list_cache.sort(key=lambda e: (
             e["nearest_ft"]["hops"] if e.get("nearest_ft") else e["hops"],
-            e["nearest_ft"].get("distance") or float("inf") if e.get("nearest_ft") else float("inf"),
+            e["nearest_ft"]["distance"] if e.get("nearest_ft") and e["nearest_ft"].get("distance") is not None else float("inf"),
             e["hops"],
             e["name"]
         ))
@@ -3668,6 +3790,15 @@ def _draw_hero_loadout_panel() -> None:
     legend_w = 190.0
     margin   = 8.0
     win_w    = 240.0
+    rv_win_w = 360.0  # width of the reachable-list panel
+
+    # If the reachable-not-visited panel is also open, place the loadout panel
+    # to the right of it; otherwise fall back to the default position (next to
+    # the legend).
+    if _show_reachable_unvisited[0]:
+        panel_x = sl + margin + legend_w + margin + rv_win_w + margin
+    else:
+        panel_x = sl + margin + legend_w + margin
 
     max_slots = 0
     try:
@@ -3677,7 +3808,7 @@ def _draw_hero_loadout_panel() -> None:
         pass
 
     panel_flags = _get_panel_flags()
-    PyImGui.set_next_window_pos(sl + margin + legend_w + margin, st + margin)
+    PyImGui.set_next_window_pos(panel_x, st + margin)
     PyImGui.set_next_window_size(win_w, 0.0)
     if not PyImGui.begin("##wm_hero_loadout_panel", panel_flags):
         PyImGui.end()
@@ -3725,6 +3856,21 @@ def _draw_hero_loadout_panel() -> None:
 
     if changed:
         _wmp_ini_save()
+
+    PyImGui.separator()
+
+    can_load = Map.IsOutpost() and not _hl_applying[0]
+    if not can_load:
+        PyImGui.begin_disabled(True)
+    if PyImGui.button("Load Current Team##hl_load", win_w - 16.0, 0):
+        _hl_load_current_team()
+    if not can_load:
+        PyImGui.end_disabled()
+    if PyImGui.is_item_hovered():
+        PyImGui.begin_tooltip()
+        PyImGui.text("Read the heroes currently in your party")
+        PyImGui.text("and fill the slots above with them.")
+        PyImGui.end_tooltip()
 
     PyImGui.separator()
 
@@ -4086,6 +4232,12 @@ def main() -> None:
             _is_path_cache.clear()
             _is_ft_path_cache.clear()
             _debug_last_map[0] = cmap
+            # Patch stale hero OwnerAgentID values in shared memory.
+            # Agent IDs change on every map transition. Any hero slot written in a
+            # previous map has the old (now-wrong) OwnerAgentID stored, causing
+            # GetHeroSlotByHeroData to reject it and spam "No slot found" every frame.
+            # Fix: scan all slots by HeroID + AccountEmail and refresh OwnerAgentID.
+            _refresh_hero_slot_owner_ids()
             # Hero Loadout: auto-apply when zoning into an outpost during an active route.
             _has_active_route = (_mtm_runner_active[0] or _mtnw_runner_active[0]
                                  or _travel_coroutine_active[0] or bool(_travel_queue)
@@ -4102,13 +4254,16 @@ def main() -> None:
                 _travel_route_start_ms[0] = 0
                 _travel_hop_times.clear()
                 _travel_prev_done_count[0] = -1
+                _path_name_offset[0] = 0
             elif _auto_explore_active[0] and _mtm_target_map[0]:
                 # Unlock All active: rebuild overlay from the current map toward the target
                 # so the remaining route lines stay accurate on every hop.
                 _new_route = GetPath(cmap, _mtm_target_map[0])
                 if _new_route.get("found"):
                     _travel_route_overlay[:] = _build_route_overlay(_new_route)
+                    _old_name_len = len(_path_map_names)
                     _path_map_names[:] = _new_route.get("map_names", [])
+                    _path_name_offset[0] += max(0, _old_name_len - len(_path_map_names))
                     gids: list[int] = []
                     for _wp in _new_route.get("waypoints", []):
                         gids.extend([_wp["exit_gid"], _wp["enter_gid"]])
