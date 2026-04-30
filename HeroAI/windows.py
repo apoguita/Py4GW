@@ -434,6 +434,10 @@ class HeroAI_Windows():
 
     @staticmethod
     def DrawFlags(cached_data:CacheData):
+        from HeroAI.ui_base import HeroAI_BaseUI
+        HeroAI_BaseUI._process_flagging_runtime(cached_data)
+        return
+
         global show_broadcast_follow_positions, show_broadcast_follow_threshold_rings
         shmem = GLOBAL_CACHE.ShMem
         party = GLOBAL_CACHE.Party
@@ -570,6 +574,10 @@ class HeroAI_Windows():
         
     @staticmethod
     def DrawFlaggingWindow(cached_data:CacheData):
+        from HeroAI.ui_base import HeroAI_BaseUI
+        HeroAI_BaseUI.DrawFlaggingWindow(cached_data)
+        return
+
         party_size = GLOBAL_CACHE.Party.GetPartySize()
         if party_size == 1:
             PyImGui.text("No Follower or Heroes to Flag.")
@@ -763,9 +771,12 @@ class HeroAI_Windows():
 
     @staticmethod
     def DrawFlagDebug(cached_data:CacheData):
+        PyImGui.text_disabled("Flag debug moved to the base HeroAI flagging runtime.")
+        return
+
         global MAX_NUM_PLAYERS
         
-        PyImGui.text("Flag Debug")
+        PyImGui.text("Legacy flag state")
         PyImGui.text(f"HeroAI_Windows.capture_flag_all: {HeroAI_Windows.capture_flag_all}")
         PyImGui.text(f"HeroAI_Windows.capture_hero_flag: {HeroAI_Windows.capture_hero_flag}")
         if PyImGui.button("Toggle Flags"):
@@ -797,6 +808,12 @@ class HeroAI_Windows():
 
     @staticmethod
     def DrawFollowDebug(cached_data:CacheData):
+        PyImGui.text_disabled("Follow options moved to the base HeroAI Follow Formations window.")
+        if PyImGui.button("Open Follow Options##legacy_follow_debug"):
+            from HeroAI.ui_base import HeroAI_BaseUI
+            HeroAI_BaseUI.show_follow_formations_quick_window = True
+        return
+
         global show_area_rings, show_hero_follow_grid, show_distance_on_followers
         global MAX_NUM_PLAYERS
 
@@ -858,7 +875,13 @@ class HeroAI_Windows():
     @staticmethod   
     def DrawOptions(cached_data:CacheData):
         cached_data.ui_state_data.show_classic_controls = PyImGui.checkbox("Show Classic Controls", cached_data.ui_state_data.show_classic_controls)
-        #TODO Select combat engine options
+        try:
+            from HeroAI.ui_base import HeroAI_BaseUI
+            if PyImGui.button("Open Follow Options"):
+                HeroAI_BaseUI.show_follow_formations_quick_window = True
+            ImGui.show_tooltip("Open the base UI Follow Formations options window.")
+        except Exception:
+            pass
 
     @staticmethod
     def DrawMessagingOptions(cached_data:CacheData):
@@ -1099,11 +1122,6 @@ class HeroAI_Windows():
             HeroAI_Windows.DrawHeroesDebug(cached_data)
 
         if Map.IsExplorable():
-            if PyImGui.collapsing_header("Follow Debug"):
-                HeroAI_Windows.DrawPrioritizedSkills(cached_data)
-                HeroAI_Windows.DrawFollowDebug(cached_data)
-            if PyImGui.collapsing_header("Flag Debug"):
-                HeroAI_Windows.DrawFlagDebug(cached_data)
             if PyImGui.collapsing_header("Prioritized Skills"):
                 HeroAI_Windows.DrawPrioritizedSkills(cached_data)
             if PyImGui.collapsing_header("Buff Debug"):

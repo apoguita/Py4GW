@@ -10,8 +10,8 @@ from Py4GWCoreLib.enums_src.UI_enums import ControlAction
 from Py4GWCoreLib.UIManager import UIManager
 from Py4GWCoreLib.py4gwcorelib_src.BehaviorTree import BehaviorTree
 
-from .cache_data import CacheData
-from .follow_movement import compute_mixed_follow_target, load_follow_movement_config
+from ..cache_data import CacheData
+from .vector_fields import compute_mixed_follow_target, load_follow_movement_config
 
 
 @dataclass(slots=True)

@@ -49,6 +49,8 @@ width, height = 0, 0
 _merchant_busy: bool = False
 MERCHANT_RULES_WIDGET_NAME = "Merchant Rules"
 PYCONS_WIDGET_NAME = "Pycons"
+_pcon_last_exec_ms_by_signature: dict[tuple[str, tuple[int, int, int, int]], int] = {}
+PCON_EXEC_DEDUP_MS = 500
 
 
 def _extra_data(message: SharedMessageStruct) -> tuple[str, str, str, str]:
@@ -278,6 +280,7 @@ _HERO_AI_SUSPENDING_COMMANDS = {
     SharedCommandType.InteractWithTarget,
     SharedCommandType.TakeDialogWithTarget,
     SharedCommandType.SendDialogToTarget,
+    SharedCommandType.SendDialog,
     SharedCommandType.GetBlessing,
     SharedCommandType.MerchantItems,
     SharedCommandType.MerchantMaterials,
@@ -669,8 +672,15 @@ def SendDialog(index: int, message: SharedMessageStruct):
 
     # Deprecated legacy command name retained for compatibility; this now
     # routes through the automatic dialog routine using a 0-based index.
-    yield from Routines.Yield.Player.SendAutomaticDialog(int(message.Params[0]))
-    GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+    SnapshotHeroAIOptions(message.ReceiverEmail)
+    try:
+        DisableHeroAIOptions(message.ReceiverEmail)
+        yield from Routines.Yield.wait(100)
+        yield from Routines.Yield.Player.SendAutomaticDialog(int(message.Params[0]))
+        ConsoleLog(MODULE_NAME, "SendDialog message processed and finished.", Console.MessageType.Info, False)
+    finally:
+        RestoreHeroAISnapshot(message.ReceiverEmail)
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
 # endregion
 
 # region GetBlessing
@@ -1083,6 +1093,16 @@ def UsePcon(index: int, message: SharedMessageStruct):
     pcon_skill_id = int(message.Params[1])
     pcon_model_id2 = int(message.Params[2])
     pcon_skill_id2 = int(message.Params[3])
+    now_ms = int(Utils.GetBaseTimestamp())
+    signature = (
+        str(message.ReceiverEmail),
+        (pcon_model_id, pcon_skill_id, pcon_model_id2, pcon_skill_id2),
+    )
+    last_exec_ms = _pcon_last_exec_ms_by_signature.get(signature, 0)
+    if now_ms - last_exec_ms < PCON_EXEC_DEDUP_MS:
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+    _pcon_last_exec_ms_by_signature[signature] = now_ms
 
     # Halt if any of the effects is already active.
     # Use live game-state check (Effects.HasEffect) rather than shared-memory
@@ -2470,6 +2490,7 @@ def ProcessMessages():
         case SharedCommandType.BruteForceUnstuck:
             GLOBAL_CACHE.Coroutines.append(BruteForceUnstuck(index, message))
         case SharedCommandType.PCon:
+            GLOBAL_CACHE.ShMem.MarkMessageAsRunning(account_email, index)
             GLOBAL_CACHE.Coroutines.append(UsePcon(index, message))
         case SharedCommandType.UseSummoningStone:
             GLOBAL_CACHE.Coroutines.append(UseSummoningStone(index, message))

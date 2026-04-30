@@ -2743,12 +2743,6 @@ def draw_configure_window(module_name : str, configure_window : WindowModule):
                         settings.save_settings()
                     ImGui.show_tooltip("Overlay buttons on NPC dialog with an invisible button for quick selection on all accounts by holding CTRL.\nOnly available to the party leader.\n\nThis is quite expensive due to UI queries, so only enable if needed.")
                         
-                    confirm_follow_point = ImGui.checkbox("Confirm Follow Point", settings.ConfirmFollowPoint)
-                    if confirm_follow_point != settings.ConfirmFollowPoint:
-                        settings.ConfirmFollowPoint = confirm_follow_point
-                        settings.save_settings()
-                    ImGui.show_tooltip("Reevalutes the follow point when following is enabled. This is beeing tested right now and can impact the performance a lot.")
-                        
                 ImGui.end_child()
                 ImGui.end_tab_item()
                 

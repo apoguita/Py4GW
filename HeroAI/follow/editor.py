@@ -132,6 +132,7 @@ class UIState:
         self.show_control_window = True
         self.show_editor_window = True
         self.show_canvas_window = True
+        self.close_requested = False
         self.editor_tab_index = 0
 
         self.show_canvas = True
@@ -1224,6 +1225,12 @@ def _draw_control_window():
         return
     PyImGui.set_next_window_size((390, 0), PyImGui.ImGuiCond.Once)
     if ImGui.Begin(SETTINGS_INI_KEY, "Formation Control", flags=PyImGui.WindowFlags.AlwaysAutoResize):
+        if PyImGui.button("Close Editor"):
+            ui.close_requested = True
+            ui.show_control_window = False
+            ui.show_editor_window = False
+            ui.show_canvas_window = False
+
         names = [f.name for f in ui.formations] or [DEFAULT_FORMATION_NAME]
         old_sel = ui.selected_formation_index
         ui.selected_formation_index = PyImGui.combo("Formation", ui.selected_formation_index, names)
@@ -1417,9 +1424,19 @@ def _init_once():
     return True
 
 
+def open_editor():
+    ui.close_requested = False
+    ui.show_control_window = True
+    if not ui.show_editor_window and not ui.show_canvas_window:
+        ui.show_editor_window = True
+        ui.show_canvas_window = True
+
+
 def main():
+    if ui.close_requested:
+        return False
     if not _init_once():
-        return
+        return True
     if not ui.data_loaded:
         _load_from_ini()
 
@@ -1430,6 +1447,7 @@ def main():
 
     # Persist only lightweight UI state every frame; full formation save is explicit via UI buttons.
     _save_ui_state_only()
+    return not ui.close_requested
 
 
 if __name__ == "__main__":
