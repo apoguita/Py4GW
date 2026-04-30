@@ -152,21 +152,7 @@ class _Upkeepers:
             if not self._config.upkeep.auto_loot.is_active():
                 yield from Routines.Yield.wait(500)
                 continue
-
-            # Enforce strict priority when combat is enabled:
-            # combat > loot > movement.
-            if self._config.upkeep.auto_combat.is_active():
-                player_id = Player.GetAgentID()
-                if (
-                    self.parent.config.pause_on_danger_fn()
-                    or Agent.IsInCombatStance(player_id)
-                    or Routines.Checks.Agents.InAggro()
-                    or Routines.Checks.Agents.IsCloseToAggro()
-                    or Routines.Checks.Party.IsPartyMemberInDanger()
-                ):
-                    yield from Routines.Yield.wait(500)
-                    continue
-             
+            
             if self.parent.config.pause_on_danger_fn():
                 yield from Routines.Yield.wait(500)
                 continue
