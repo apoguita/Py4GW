@@ -1005,7 +1005,7 @@ def _draw_settings_debug():
 
 def _draw_help():
     PyImGui.text("Developed by: Aura")
-    PyImGui.text("Vanquish paths credits to: aC, Aura, AH,Simfoniya, Wick Divinus")
+    PyImGui.text("Contributors: aC, Aura, AH,Simfoniya, Wick Divinus")
 # endregion
 
 # =============================================================================
