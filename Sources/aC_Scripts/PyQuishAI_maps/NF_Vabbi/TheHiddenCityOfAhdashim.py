@@ -133,7 +133,11 @@ TheHiddenCityOfAhdashim = [
 ]
 
 TheHiddenCityOfAhdashim_outpost_path = [
-    (1387, -20884), (1339, -20418)
+    {
+        "path": [(1387, -20884), (1339, -20418)],
+        "xydialog": (1341.00, -20346.00, 0x84),
+        "map": 413,
+    },
 ]
 
 TheHiddenCityOfAhdashim_ids = {

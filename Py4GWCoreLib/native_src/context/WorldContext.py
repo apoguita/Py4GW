@@ -1197,7 +1197,6 @@ class WorldContextStruct(Structure):
     
     @property
     def vanquished_areas(self) -> list[int] | None:
-        return None
         areas = GW_Array_Value_View(self.vanquished_areas_array, c_uint32).to_list()
         if not areas:
             return None

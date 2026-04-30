@@ -69,13 +69,14 @@ _restock_conset: bool = True
 _restock_pcons: bool = True
 _restock_res_scroll: bool = True
 _restock_use_summoning_stones: bool = True
+_skip_completed_vanquishes: bool = True
 _loop_queue: bool = False
 _loop_count: int = 0
 _reverse_detections: dict = {}  # {map_name: {"reverse1": [(x,y)], "reverse2": [(x,y)]}}
 _vq_timers: dict = {}        # {vq_idx: {"start": float, "elapsed": float, "done": bool}}
 _bot_start_time: float = 0.0  # time.time() when first VQ starts
 _bot_total_elapsed: float = 0.0  # frozen total when bot stops
-_prev_build_settings: tuple = (True, True, True, True, True, False, 2500, 3500, 5000)
+_prev_build_settings: tuple = (True, True, True, True, True, True, False, 2500, 3500, 5000)
 _aggro_range_forward: int = 2500
 _aggro_range_reverse1: int = 3500
 _aggro_range_reverse2: int = 5000
@@ -125,6 +126,11 @@ def _register_path(bot, path, header_name=None):
         bot.Move.FollowAutoPath(path)
 
 
+def _is_complex_path(path):
+    """Return True when a path uses keyword actions instead of plain coordinates."""
+    return bool(path) and isinstance(path[0], (dict, list))
+
+
 def _handle_keyword(bot, key, value):
     """Process a single keyword action from a complex path segment."""
     if key == "bless":
@@ -149,6 +155,10 @@ def _handle_keyword(bot, key, value):
         bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Sending dialog target.")
         bot.Wait.ForTime(500)
         bot.Multibox.SendDialogToTarget(value)
+    elif key == "xydialog":
+        x, y, dialog_id = value
+        bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Leader dialog at ({x}, {y}).")
+        bot.Move.XYAndDialog(x, y, dialog_id)
     elif key == "wait":
         bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Waiting...")
         bot.Wait.ForTime(value)
@@ -270,6 +280,53 @@ def _build_reversed_path(vanquish_path):
         return reversed_list
     else:
         return list(reversed(vanquish_path))
+
+
+def _vanquished_bitmap_contains(vanquished_areas, map_id: int) -> bool:
+    if map_id <= 0:
+        return False
+
+    real_index = int(map_id) // 32
+    if real_index >= len(vanquished_areas):
+        return False
+
+    return (int(vanquished_areas[real_index]) & (1 << (int(map_id) % 32))) != 0
+
+
+def _account_has_vanquished(account, map_id: int) -> bool:
+    """Read the shared-memory vanquish bitmap for one account."""
+    return _vanquished_bitmap_contains(account.VanquishedAreas, map_id)
+
+
+def _all_accounts_have_vanquished(map_id: int) -> bool:
+    """Return True only when every active player account has vanquished map_id."""
+    if map_id <= 0:
+        return False
+
+    try:
+        accounts = [
+            account for account in GLOBAL_CACHE.ShMem.GetAllAccountData()
+            if bool(getattr(account, "IsAccount", False))
+        ]
+    except Exception:
+        accounts = []
+
+    if not accounts:
+        return False
+
+    return all(_account_has_vanquished(account, map_id) for account in accounts)
+
+
+def _mark_vanquish_skipped(vq_idx: int, display: str):
+    """Mark an already-completed vanquish as done in the UI timers."""
+    _vq_timers[vq_idx] = {"start": 0.0, "elapsed": 0.0, "done": True}
+    ConsoleLog(BotSettings.BOT_NAME, f"Skipping {display}: all active accounts have already vanquished it.", Py4GW.Console.MessageType.Info, True)
+    yield
+
+
+def _use_consumables_on_transit(vq: QueuedVanquish) -> bool:
+    """Some routes use a transit map before the actual vanquish instance."""
+    return vq.map_name != "GardenOfSeborhin"
 # endregion
 
 # =============================================================================
@@ -375,11 +432,27 @@ def bot_routine(bot: Botting) -> None:
     # -------------------------------------------------------------------------
     # Build FSM states for each vanquish
     # -------------------------------------------------------------------------
+    skipped_vq_indices = {
+        idx for idx, queued_vq in enumerate(_queued_vanquishes)
+        if _skip_completed_vanquishes and _all_accounts_have_vanquished(queued_vq.explorable_id)
+    }
+    runnable_vq_indices = [
+        idx for idx in range(len(_queued_vanquishes))
+        if idx not in skipped_vq_indices
+    ]
+
     for vq_idx, vq in enumerate(_queued_vanquishes):
-        is_last = (vq_idx == len(_queued_vanquishes) - 1)
+        is_last = bool(runnable_vq_indices) and vq_idx == runnable_vq_indices[-1]
 
         # -- Header for this vanquish --
         bot.States.AddHeader(f"VQ_{vq_idx}_{vq.map_name}")
+
+        if vq_idx in skipped_vq_indices:
+            bot.States.AddCustomState(
+                lambda idx=vq_idx, display=vq.display: _mark_vanquish_skipped(idx, display),
+                f"SkipCompletedVQ_{vq_idx}",
+            )
+            continue
 
         # -- Update current vanquish index --
         def _set_current_index(idx=vq_idx):
@@ -415,7 +488,10 @@ def bot_routine(bot: Botting) -> None:
 
         if has_outpost_path and has_explorable:
             if transit_count > 0:
-                bot.Move.FollowPathAndExitMap(vq.outpost_path, target_map_id=vq.transit_explorables[0])
+                if _is_complex_path(vq.outpost_path):
+                    _register_path(bot, vq.outpost_path, header_name=f"Outpost_{vq_idx}")
+                else:
+                    bot.Move.FollowPathAndExitMap(vq.outpost_path, target_map_id=vq.transit_explorables[0])
                 for i in range(transit_count):
                     next_map = vq.transit_explorables[i + 1] if i + 1 < transit_count else vq.explorable_id
                     t_coord = _get_first_path_coord(vq.transit_paths[i])
@@ -423,15 +499,18 @@ def bot_routine(bot: Botting) -> None:
                     bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Navigating Transit path.")
                     bot.config.FSM.RemoveManagedCoroutine("ConsetUpkeep")
                     bot.config.FSM.RemoveManagedCoroutine("PconsUpkeep")
-                    if _restock_conset:
+                    if _restock_conset and _use_consumables_on_transit(vq):
                         bot.States.AddManagedCoroutine("ConsetUpkeep", lambda: _conset_upkeep(bot))
-                    if _restock_pcons:
+                    if _restock_pcons and _use_consumables_on_transit(vq):
                         bot.States.AddManagedCoroutine("PconsUpkeep", lambda: _pcons_upkeep(bot))
                     _register_path(bot, vq.transit_paths[i], header_name=f"Transit_{vq_idx}_{i}")
                     bot.Wait.ForMapToChange(next_map)
                     section_idx += 1
             else:
-                bot.Move.FollowPathAndExitMap(vq.outpost_path, target_map_id=vq.explorable_id)
+                if _is_complex_path(vq.outpost_path):
+                    _register_path(bot, vq.outpost_path, header_name=f"Outpost_{vq_idx}")
+                else:
+                    bot.Move.FollowPathAndExitMap(vq.outpost_path, target_map_id=vq.explorable_id)
         elif not has_outpost_path and not has_explorable:
             bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"No outpost exit path. Starting Vanquish from outpost.")
             for i in range(transit_count):
@@ -446,6 +525,11 @@ def bot_routine(bot: Botting) -> None:
         bot.States.AddCustomState(lambda vi=vq_idx, si=section_idx, vc=vp_coord: _set_section_header(_section_headers[vi][si], vc[0], vc[1]), f"SetSection_VanquishPath_{vq_idx}")
         bot.config.FSM.RemoveManagedCoroutine("ConsetUpkeep")
         bot.config.FSM.RemoveManagedCoroutine("PconsUpkeep")
+        bot.config.FSM.RemoveManagedCoroutine("VanquishWatchdog")
+        bot.States.AddManagedCoroutine(
+            "VanquishWatchdog",
+            lambda completed_header=_completed_header_names[vq_idx]: VanquishWatchdog(bot, completed_header),
+        )
         if _restock_conset:
             bot.States.AddManagedCoroutine("ConsetUpkeep", lambda: _conset_upkeep(bot))
         if _restock_pcons:
@@ -505,10 +589,10 @@ def bot_routine(bot: Botting) -> None:
         bot.States.RemoveManagedCoroutine("PconsUpkeep")
         if is_last:
             bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Vanquish queue SUCCESS: {vq.display}.")
+            bot.Multibox.ResignParty()
+            bot.Wait.ForTime(1000)
+            bot.Wait.UntilOnOutpost()
             if _loop_queue:
-                bot.Multibox.ResignParty()
-                bot.Wait.ForTime(1000)
-                bot.Wait.UntilOnOutpost()
                 bot.States.AddCustomState(lambda h=first_vq_header: _do_loop_jump(bot, h), f"DoLoopJump")
         else:
             bot.UI.PrintMessageToConsole(BotSettings.BOT_NAME, f"Vanquish SUCCESS: {vq.display}. Moving to next Vanquish.")
@@ -862,7 +946,7 @@ def _draw_settings():
     #_draw_settings_debug()
 
 def _draw_settings_consumables():
-    global _loop_queue, _restock_pcons, _restock_res_scroll, _restock_use_summoning_stones
+    global _loop_queue, _restock_pcons, _restock_res_scroll, _restock_use_summoning_stones, _skip_completed_vanquishes
     global _queue_version, _prev_build_settings
 
     PyImGui.separator()
@@ -879,6 +963,9 @@ def _draw_settings_consumables():
 
     _restock_res_scroll = PyImGui.checkbox("Restock Resurrection Scroll (Multibox)", _restock_res_scroll)
     _restock_use_summoning_stones = PyImGui.checkbox("Restock & use Summoning Stones (Multibox)", _restock_use_summoning_stones)
+
+    PyImGui.separator()
+    _skip_completed_vanquishes = PyImGui.checkbox("Skip completed vanquishes (all active accounts)", _skip_completed_vanquishes)
 
     PyImGui.separator()
     PyImGui.text("Aggro Range Settings")
@@ -898,7 +985,7 @@ def _draw_settings_consumables():
         PyImGui.text(f"(loop #{_loop_count})")
 
     # Rebuild FSM if any build-time setting changed
-    current_build_settings = (_restock_conset, _restock_pcons, use_honeycomb, _restock_res_scroll, _restock_use_summoning_stones, _loop_queue, _aggro_range_forward, _aggro_range_reverse1, _aggro_range_reverse2)
+    current_build_settings = (_restock_conset, _restock_pcons, use_honeycomb, _restock_res_scroll, _restock_use_summoning_stones, _skip_completed_vanquishes, _loop_queue, _aggro_range_forward, _aggro_range_reverse1, _aggro_range_reverse2)
     if current_build_settings != _prev_build_settings:
         _prev_build_settings = current_build_settings
         _queue_version += 1

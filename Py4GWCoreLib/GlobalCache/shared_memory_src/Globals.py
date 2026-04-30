@@ -15,6 +15,7 @@ SHMEM_MAX_QUESTS = 150
 
 MISSION_BITMAP_ENTRIES = 25 #each entry is a bitmap of a mission flags (32 bits each)
 SKILL_BITMAP_ENTRIES = 108 #each entry is a bitmap of a skill flags (32 bits each)
+VANQUISHED_AREAS_BITMAP_ENTRIES = 32 #each entry is a bitmap of a map ID flags (32 bits each)
 
 SHMEM_SUBSCRIBE_TIMEOUT_MILLISECONDS = 5000 # milliseconds
 

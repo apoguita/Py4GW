@@ -11,6 +11,7 @@ from .Globals import (
     SHMEM_PLAYER_STATIC_UPDATE_THROTTLE_MS,
     SHMEM_HERO_EXTRA_UPDATE_THROTTLE_MS,
     SHMEM_PET_EXTRA_UPDATE_THROTTLE_MS,
+    VANQUISHED_AREAS_BITMAP_ENTRIES,
 )
 
 from .RankStruct import RankStruct
@@ -59,6 +60,21 @@ def _get_slot_timer(timer_map: dict[int, ThrottledTimer], slot_index: int, throt
         timer.SetThrottleTime(throttle_ms)
     return timer
 
+
+def _reset_vanquished_areas(target) -> None:
+    for i in range(VANQUISHED_AREAS_BITMAP_ENTRIES):
+        target[i] = 0
+
+
+def _update_vanquished_areas_from_context(target) -> None:
+    from ...Context import GWContext
+
+    world_ctx = GWContext.World.GetContext()
+    areas = world_ctx.vanquished_areas if world_ctx else None
+
+    for i in range(VANQUISHED_AREAS_BITMAP_ENTRIES):
+        target[i] = areas[i] if areas and i < len(areas) else 0
+
 class AccountStruct(Structure):
     _pack_ = 1
     _fields_ = [      
@@ -76,6 +92,7 @@ class AccountStruct(Structure):
         ("ExperienceData", ExperienceStruct),
         ("MissionData", MissionDataStruct),
         ("UnlockedSkills", UnlockedSkillsStruct),
+        ("VanquishedAreas", c_uint * VANQUISHED_AREAS_BITMAP_ENTRIES),
         ("AvailableCharacters", AvailableCharacterStruct),    
         
         ("SlotNumber", c_uint),  # Slot number for the player
@@ -108,6 +125,7 @@ class AccountStruct(Structure):
     ExperienceData: ExperienceStruct
     MissionData: MissionDataStruct
     UnlockedSkills: UnlockedSkillsStruct
+    VanquishedAreas: list[int]
     AvailableCharacters: AvailableCharacterStruct
     
     SlotNumber: int
@@ -140,6 +158,8 @@ class AccountStruct(Structure):
         self.ExperienceData.reset()
         self.MissionData.reset()
         self.UnlockedSkills.reset()
+        for i in range(VANQUISHED_AREAS_BITMAP_ENTRIES):
+            self.VanquishedAreas[i] = 0
         self.AvailableCharacters.reset()
         
         self.SlotNumber = 0
@@ -290,14 +310,17 @@ class AccountStruct(Structure):
             if force_full:
                 self.TitlesData.from_context()
                 self.QuestLog.from_context()
+                _update_vanquished_areas_from_context(self.VanquishedAreas)
                 _player_progress_stage[slot_index] = 0
             else:
                 progress_stage = _player_progress_stage.get(slot_index, 0)
                 if progress_stage == 0:
                     self.TitlesData.from_context()
-                else:
+                elif progress_stage == 1:
                     self.QuestLog.from_context()
-                _player_progress_stage[slot_index] = (progress_stage + 1) % 2
+                else:
+                    _update_vanquished_areas_from_context(self.VanquishedAreas)
+                _player_progress_stage[slot_index] = (progress_stage + 1) % 3
             
             progress_timer.Reset()
 
@@ -416,6 +439,7 @@ class AccountStruct(Structure):
                 self.AvailableCharacters.reset()
                 self.MissionData.reset()
                 self.UnlockedSkills.reset()
+                _reset_vanquished_areas(self.VanquishedAreas)
                 _hero_static_stage[slot_index] = 0
             else:
                 static_stage = _hero_static_stage.get(slot_index, 0)
@@ -423,9 +447,11 @@ class AccountStruct(Structure):
                     self.AvailableCharacters.reset()
                 elif static_stage == 1:
                     self.MissionData.reset()
-                else:
+                elif static_stage == 2:
                     self.UnlockedSkills.reset()
-                _hero_static_stage[slot_index] = (static_stage + 1) % 3
+                else:
+                    _reset_vanquished_areas(self.VanquishedAreas)
+                _hero_static_stage[slot_index] = (static_stage + 1) % 4
             static_timer.Reset()
         self.LastUpdated = Py4GW.Game.get_tick_count64()
         
@@ -527,6 +553,7 @@ class AccountStruct(Structure):
                 self.AvailableCharacters.reset()
                 self.MissionData.reset()
                 self.UnlockedSkills.reset()
+                _reset_vanquished_areas(self.VanquishedAreas)
                 _pet_static_stage[slot_index] = 0
             else:
                 static_stage = _pet_static_stage.get(slot_index, 0)
@@ -534,9 +561,11 @@ class AccountStruct(Structure):
                     self.AvailableCharacters.reset()
                 elif static_stage == 1:
                     self.MissionData.reset()
-                else:
+                elif static_stage == 2:
                     self.UnlockedSkills.reset()
-                _pet_static_stage[slot_index] = (static_stage + 1) % 3
+                else:
+                    _reset_vanquished_areas(self.VanquishedAreas)
+                _pet_static_stage[slot_index] = (static_stage + 1) % 4
             static_timer.Reset()
         self.LastUpdated = Py4GW.Game.get_tick_count64()
         

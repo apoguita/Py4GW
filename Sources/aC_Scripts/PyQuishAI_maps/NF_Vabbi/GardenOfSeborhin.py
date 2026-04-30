@@ -1,6 +1,5 @@
 GardenOfSeborhin = [
     {
-        "bless": (-4495.0, 15817.0),
         "path": [
             (1130.0, -13809.0),
             (-535.0, -10938.0),
@@ -112,7 +111,15 @@ GardenOfSeborhin_outpost_path = [
     (-1896, 14429), (-2029, 14479), (-2100, 14479)
 ]
 
+GardenOfSeborhin_transit_path = [
+    {
+        "xydialog": (-4552.0, 15863.0, 0x84),
+        "map": 394,
+    },
+]
+
 GardenOfSeborhin_ids = {
     "outpost_id": 428,
-    "map_id": 399
+    "map_id": 394,
+    "transit_id": 399
 }
