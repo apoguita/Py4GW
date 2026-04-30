@@ -69,10 +69,15 @@ class _WAIT:
         """Waits until all action finishes in current map and game sends you to a new one"""
         from ...Routines import Routines
         from ...Map import Map
+        from ...Player import Player
+        from ...GlobalCache import GLOBAL_CACHE
 
         wait_condition = lambda: (
             not Map.IsMapLoading()
             and Routines.Checks.Map.MapValid()
+            and GLOBAL_CACHE.Party.IsPartyLoaded()
+            and Map.GetInstanceUptime() >= 1500
+            and Player.GetInstanceUptime() >= 1500
             and Map.IsMapIDMatch(Map.GetMapID(), 
                 target_map_id if target_map_id else Map.GetMapIDByName(target_map_name)
             )
