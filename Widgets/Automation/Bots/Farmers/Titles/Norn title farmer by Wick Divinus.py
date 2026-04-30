@@ -1,4 +1,4 @@
-﻿# region Imports & Config
+# region Imports & Config
 from Py4GWCoreLib import Botting, Routines, GLOBAL_CACHE, ModelID, Agent, Player, ConsoleLog, IniManager, HeroType, AgentArray, SharedCommandType
 from Py4GWCoreLib.Map import Map
 from Py4GWCoreLib.enums_src.Title_enums import TitleID, TITLE_TIERS
@@ -30,6 +30,7 @@ START_COMBAT_STEP_NAME = "[H]Start Combat_3"
 _MULTIBOX_ALTS_KEY = "use_multibox_alts"
 _party_mode: int = 0  # 0 = Single Account with Heroes, 1 = Multiboxing
 _mode_loaded: bool = False
+_path_refresh_requires_party_setup: bool = False
 
 Norn_Path: list[tuple[float, float]] = [
     (-2484.73, 118.55),
@@ -103,10 +104,12 @@ bot = Botting(BOT_NAME,
 
 bot.config.config_properties.use_conset = Property(bot.config, "use_conset", active=False)
 bot.config.config_properties.use_pcons = Property(bot.config, "use_pcons", active=False)
+bot.config.config_properties.use_summoning_stones = Property(bot.config, "use_summoning_stones", active=False)
 
 _SETTINGS_SECTION = "TitleBotSettings"
 _USE_CONSET_KEY = "use_conset"
 _USE_PCONS_KEY = "use_pcons"
+_USE_SUMMONING_STONES_KEY = "use_summoning_stones"
 _USE_RESTOCK_KITS_KEY = "use_restock_kits"
 _ID_KITS_TARGET_KEY = "id_kits_target"
 _SALVAGE_KITS_TARGET_KEY = "salvage_kits_target"
@@ -220,6 +223,29 @@ PCON_RESTOCK_MODELS   = [m for m, _ in PCON_ITEMS] + [
     ModelID.Honeycomb.value,
     ModelID.Scroll_Of_Resurrection.value,
 ]
+SUMMONING_STONE_RESTOCK_MODELS = [
+    ModelID.Legionnaire_Summoning_Crystal.value,
+    ModelID.Tengu_Summon.value,
+    ModelID.Igneous_Summoning_Stone.value,
+    ModelID.Amber_Summon.value,
+    ModelID.Arctic_Summon.value,
+    ModelID.Automaton_Summon.value,
+    ModelID.Celestial_Summon.value,
+    ModelID.Chitinous_Summon.value,
+    ModelID.Demonic_Summon.value,
+    ModelID.Fossilized_Summon.value,
+    ModelID.Frosty_Summon.value,
+    ModelID.Gelatinous_Summon.value,
+    ModelID.Ghastly_Summon.value,
+    ModelID.Imperial_Guard_Summon.value,
+    ModelID.Jadeite_Summon.value,
+    ModelID.Merchant_Summon.value,
+    ModelID.Mischievous_Summon.value,
+    ModelID.Mysterious_Summon.value,
+    ModelID.Mystical_Summon.value,
+    ModelID.Shining_Blade_Summon.value,
+    ModelID.Zaishen_Summon.value,
+]
 
 
 def ConfigureAggressiveEnv(bot: Botting) -> None:
@@ -248,12 +274,14 @@ def bot_routine(bot: Botting) -> None:
     _load_kit_restock_settings(bot)
     _sync_consumable_toggles(bot)
     bot.States.AddCustomState(lambda: _gh_merchant_setup_if_enabled(bot, OLAFSTEAD), "GH Merchant Setup If Enabled")
-    bot.States.AddCustomState(lambda: _refresh_path_to_revelations_if_completed(bot), "Refresh Path to Revelations If Completed")
+    bot.States.AddCustomState(lambda: _refresh_path_to_revelations_if_completed(bot, return_to_olafstead=False), "Refresh Path to Revelations If Completed")
+    bot.States.AddCustomState(lambda: _leave_party_before_initial_olafstead(bot), "Leave Party Before Olafstead")
     bot.States.AddCustomState(lambda: _coro_travel_random_district(bot, OLAFSTEAD), "Travel to Olafstead")
     bot.States.AddCustomState(lambda: _maybe_setup_heroes(bot), "Setup Heroes")
     bot.States.AddCustomState(lambda: _restock_consumables_if_enabled(bot), "Restock Consumables If Enabled")
 
     bot.States.AddHeader("Zoning into explorable area")
+    bot.States.AddCustomState(lambda: _setup_party_after_path_refresh_if_needed(bot), "Setup Party After Path Refresh")
     bot.Party.SetHardMode(True)
     auto_path_list = [(-328.0, 1240.0), (-1500.0, 1250.0)]
     bot.Move.FollowPath(auto_path_list)
@@ -441,6 +469,7 @@ def bot_routine(bot: Botting) -> None:
         bot.Wait.UntilOnOutpost()
     else:
         bot.Map.Travel(target_map_id=OLAFSTEAD)
+    bot.States.AddCustomState(lambda: _refresh_path_to_revelations_if_completed(bot), "Refresh Path to Revelations After Run")
     bot.States.JumpToStepName(ZONING_STEP_NAME)
 
 
@@ -491,28 +520,109 @@ def _coro_travel_random_district(bot: Botting, target_map_id: int):
     yield from bot.Map._coro_travel(target_map_id, "")
 
 
-def _refresh_path_to_revelations_if_completed(bot: Botting):
-    if not bot.Quest.IsQuestCompleted(PATH_TO_REVELATIONS_QUEST_ID):
+def _account_has_completed_path_to_revelations(account) -> bool:
+    quest_log = getattr(account, "QuestLog", None)
+    for quest in getattr(quest_log, "Quests", []):
+        if int(getattr(quest, "QuestID", 0) or 0) != PATH_TO_REVELATIONS_QUEST_ID:
+            continue
+        return bool(getattr(quest, "IsCompleted", False))
+    return False
+
+
+def _get_accounts_with_completed_path_to_revelations(bot: Botting) -> list[str]:
+    completed_emails: list[str] = []
+    my_email = str(Player.GetAccountEmail() or "")
+
+    if bot.Quest.IsQuestCompleted(PATH_TO_REVELATIONS_QUEST_ID):
+        completed_emails.append(my_email)
+
+    if _party_mode != 1:
+        return completed_emails
+
+    for account in GLOBAL_CACHE.ShMem.GetAllAccountData():
+        email = str(getattr(account, "AccountEmail", "") or "")
+        if not email or email == my_email:
+            continue
+        if _account_has_completed_path_to_revelations(account):
+            completed_emails.append(email)
+    return completed_emails
+
+
+def _dispatch_to_accounts(emails: list[str], command, params, extra_data=("", "", "", "")) -> list[tuple[str, int]]:
+    my_email = Player.GetAccountEmail()
+    refs: list[tuple[str, int]] = []
+    for email in emails:
+        if not email or email == my_email:
+            continue
+        idx = int(GLOBAL_CACHE.ShMem.SendMessage(my_email, email, command, params, extra_data))
+        refs.append((email, idx))
+    return refs
+
+def _travel_accounts_to_map(emails: list[str], target_map_id: int, stage_name: str):
+    if not emails:
+        return
+    if _randomize_district:
+        district = random.choice(_RANDOM_DISTRICTS)
+        language_by_district = {6: 4, 7: 5, 8: 9, 9: 10}
+        params = (target_map_id, 2, 0, language_by_district.get(district, 0))
+    else:
+        params = (target_map_id, Map.GetRegion()[0], 0, Map.GetLanguage()[0])
+    refs = _dispatch_to_accounts(emails, SharedCommandType.TravelToMap, params)
+    yield from _wait_for_alt_dispatch_completion(stage_name, refs, SharedCommandType.TravelToMap, timeout_ms=60000)
+    yield from _wait_for_alts_on_current_map(stage_name, len(emails), target_map_id, timeout_ms=60000)
+
+
+def _refresh_path_to_revelations_if_completed(bot: Botting, return_to_olafstead: bool = True):
+    global _path_refresh_requires_party_setup
+    if not Routines.Checks.Map.IsOutpost():
+        ConsoleLog(BOT_NAME, "Skipping Path to Revelations refresh: current map is not an outpost.", Py4GW.Console.MessageType.Warning)
+        return
+    completed_emails = _get_accounts_with_completed_path_to_revelations(bot)
+    if not completed_emails:
         return
 
-    if _party_mode == 1:
-        _kick_current_party_accounts()
-        for _ in range(20):
-            yield from bot.Wait._coro_for_time(250)
-            if GLOBAL_CACHE.Party.GetPlayerCount() <= 1:
-                break
+    my_email = str(Player.GetAccountEmail() or "")
+    remote_completed_emails = [email for email in completed_emails if email != my_email]
+    local_completed = my_email in completed_emails
 
-    yield from _coro_travel_random_district(bot, TARNISHED_HAVEN)
-    bot.Quest.AbandonQuest(PATH_TO_REVELATIONS_QUEST_ID)
-    yield from bot.Wait._coro_for_time(500)
-    yield from bot.Move._coro_xy_and_dialog(
-        KERRSH_XY[0],
-        KERRSH_XY[1],
-        PATH_TO_REVELATIONS_DIALOG,
-        "Take Path to Revelations",
-    )
-    yield from bot.Wait._coro_for_time(500)
-    yield from _coro_travel_random_district(bot, OLAFSTEAD)
+    ConsoleLog(BOT_NAME, f"Refreshing Path to Revelations for {len(completed_emails)} completed account(s).")
+
+    if _party_mode == 1:
+        _path_refresh_requires_party_setup = True
+        yield from bot.helpers.Multibox._leave_party_on_all_accounts()
+        GLOBAL_CACHE.Party.LeaveParty()
+        yield from bot.Wait._coro_for_time(1000)
+
+    if local_completed:
+        yield from _coro_travel_random_district(bot, TARNISHED_HAVEN)
+        bot.Quest.AbandonQuest(PATH_TO_REVELATIONS_QUEST_ID)
+        yield from bot.Wait._coro_for_time(500)
+
+    if remote_completed_emails:
+        yield from _travel_accounts_to_map(remote_completed_emails, TARNISHED_HAVEN, "path_refresh_travel_tarnished")
+        abandon_refs = _dispatch_to_accounts(remote_completed_emails, SharedCommandType.AbandonQuest, (PATH_TO_REVELATIONS_QUEST_ID, 0, 0, 0))
+        yield from _wait_for_alt_dispatch_completion("path_refresh_abandon", abandon_refs, SharedCommandType.AbandonQuest, timeout_ms=15000)
+        dialog_refs = _dispatch_to_accounts(
+            remote_completed_emails,
+            SharedCommandType.SendDialogToTarget,
+            (0, PATH_TO_REVELATIONS_DIALOG, KERRSH_XY[0], KERRSH_XY[1]),
+        )
+        yield from _wait_for_alt_dispatch_completion("path_refresh_retake", dialog_refs, SharedCommandType.SendDialogToTarget, timeout_ms=60000)
+
+    if local_completed:
+        yield from bot.Move._coro_xy_and_dialog(
+            KERRSH_XY[0],
+            KERRSH_XY[1],
+            PATH_TO_REVELATIONS_DIALOG,
+            "Take Path to Revelations",
+        )
+        yield from bot.Wait._coro_for_time(500)
+
+    if return_to_olafstead:
+        if local_completed:
+            yield from _coro_travel_random_district(bot, OLAFSTEAD)
+        if remote_completed_emails:
+            yield from _travel_accounts_to_map(remote_completed_emails, OLAFSTEAD, "path_refresh_travel_olafstead")
 
 
 def _get_leftover_material_item_ids(batch_size: int = 10) -> list[int]:
@@ -774,27 +884,69 @@ def _restock_consumables_if_enabled(bot: Botting):
             yield from bot.helpers.Multibox._restock_conset_message(250)
         if _as_bool(bot.Properties.Get("use_pcons", "active")):
             yield from bot.helpers.Multibox._restock_all_pcons_message(250)
+        if _as_bool(bot.Properties.Get("use_summoning_stones", "active")):
+            yield from bot.helpers.Multibox._restock_summoning_stones_message(10)
         return
     if _as_bool(bot.Properties.Get("use_conset", "active")):
         yield from _restock_models_locally(CONSET_RESTOCK_MODELS, 250)
     if _as_bool(bot.Properties.Get("use_pcons", "active")):
         yield from _restock_models_locally(PCON_RESTOCK_MODELS, 250)
+    if _as_bool(bot.Properties.Get("use_summoning_stones", "active")):
+        yield from _restock_summoning_stones_locally(10)
 
 
 def _use_consumables_if_enabled(bot: Botting):
     _sync_consumable_toggles(bot)
+    if not Routines.Checks.Map.MapValid() or Routines.Checks.Map.IsOutpost():
+        return
     if _party_mode == 1:
+        my_email = Player.GetAccountEmail()
+        expected_alts = len([acc for acc in GLOBAL_CACHE.ShMem.GetAllAccountData() if acc.AccountEmail != my_email])
+        yield from _wait_for_alts_on_current_map("use_consumables_explorable", expected_alts, int(Map.GetMapID()), timeout_ms=30000)
         yield from _use_multibox_consumables(bot)
         return
     if _as_bool(bot.Properties.Get("use_conset", "active")):
         yield from bot.helpers.Items.use_conset()
     if _as_bool(bot.Properties.Get("use_pcons", "active")):
         yield from bot.helpers.Items.use_pcons()
+    if _as_bool(bot.Properties.Get("use_summoning_stones", "active")):
+        yield from _use_summoning_stone_locally(bot)
 
 
 def _restock_models_locally(model_ids: list[int], quantity: int):
     for model_id in model_ids:
         yield from Routines.Yield.Items.RestockItems(model_id, quantity)
+
+def _restock_summoning_stones_locally(quantity: int):
+    legionnaire_model = ModelID.Legionnaire_Summoning_Crystal.value
+    yield from Routines.Yield.Items.RestockItems(legionnaire_model, quantity)
+    if GLOBAL_CACHE.Inventory.GetModelCount(legionnaire_model) > 0:
+        return
+    for model_id in SUMMONING_STONE_RESTOCK_MODELS[1:]:
+        result = yield from Routines.Yield.Items.RestockItems(model_id, quantity)
+        if result:
+            return
+        yield from Routines.Yield.wait(1)
+
+def _use_summoning_stone_locally(bot: Botting):
+    if Map.GetMapID() == 700:
+        return
+    if GLOBAL_CACHE.Effects.HasEffect(Player.GetAgentID(), 2886):
+        return
+    summon_creature_model_ids = {513, 8028, 9055, 9076, 9056, 9077, 9058, 9079, 9060, 9081, 9062, 9083, 9065, 9086, 9067, 9088, 9069, 9090}
+    for other in GLOBAL_CACHE.Party.GetOthers():
+        if Agent.IsAlive(other) and Agent.GetModelID(other) in summon_creature_model_ids:
+            return
+    preferred_models = [ModelID.Legionnaire_Summoning_Crystal.value]
+    if Player.GetLevel() < 20:
+        preferred_models.append(ModelID.Igneous_Summoning_Stone.value)
+    preferred_models.extend(SUMMONING_STONE_RESTOCK_MODELS[1:])
+    for model_id in preferred_models:
+        item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(model_id)
+        if item_id:
+            GLOBAL_CACHE.Inventory.UseItem(item_id)
+            yield from bot.Wait._coro_for_time(500)
+            return
 
 
 def _use_multibox_consumables(bot: Botting):
@@ -808,18 +960,29 @@ def _use_multibox_consumables(bot: Botting):
             ))
     if _as_bool(bot.Properties.Get("use_pcons", "active")):
         for model_id, effect_name in PCON_ITEMS:
-            yield from bot.helpers.Multibox._use_consumable_message((
+            params = (
                 model_id,
                 GLOBAL_CACHE.Skill.GetID(effect_name),
                 0,
                 0,
-            ))
-        yield from bot.helpers.Multibox._use_consumable_message((
+            )
+            refs = _dispatch_to_alts(SharedCommandType.PCon, params)
+            yield from bot.helpers.Multibox._use_consumable_message(params)
+            yield from _wait_for_alt_dispatch_completion("use_pcon", refs, SharedCommandType.PCon, timeout_ms=10000)
+
+        honeycomb_params = (
             ModelID.Honeycomb.value,
             0,
             0,
             0,
-        ))
+        )
+        refs = _dispatch_to_alts(SharedCommandType.PCon, honeycomb_params)
+        yield from bot.helpers.Multibox._use_consumable_message(honeycomb_params)
+        yield from _wait_for_alt_dispatch_completion("use_honeycomb", refs, SharedCommandType.PCon, timeout_ms=10000)
+    if _as_bool(bot.Properties.Get("use_summoning_stones", "active")):
+        refs = _dispatch_to_alts(SharedCommandType.UseSummoningStone, (0, 0, 0, 0))
+        yield from _use_summoning_stone_locally(bot)
+        yield from _wait_for_alt_dispatch_completion("use_summoning_stone", refs, SharedCommandType.UseSummoningStone, timeout_ms=10000)
 # endregion
 
 
@@ -842,6 +1005,8 @@ def _upkeep_consumables(bot: "Botting"):
                     break
                 GLOBAL_CACHE.Inventory.UseItem(honeycomb_item_id)
                 yield from bot.Wait._coro_for_time(250)
+        if _as_bool(bot.Properties.Get("use_summoning_stones", "active")):
+            yield from _use_summoning_stone_locally(bot)
 # endregion
 
 
@@ -932,8 +1097,15 @@ def _load_consumable_settings(bot: Botting) -> None:
         _USE_PCONS_KEY,
         _as_bool(bot.Properties.Get("use_pcons", "active")),
     )
+    saved_use_summoning_stones = IniManager().read_bool(
+        ini_key,
+        _SETTINGS_SECTION,
+        _USE_SUMMONING_STONES_KEY,
+        _as_bool(bot.Properties.Get("use_summoning_stones", "active")),
+    )
     bot.Properties.ApplyNow("use_conset", "active", _as_bool(saved_use_conset))
     bot.Properties.ApplyNow("use_pcons", "active", _as_bool(saved_use_pcons))
+    bot.Properties.ApplyNow("use_summoning_stones", "active", _as_bool(saved_use_summoning_stones))
 
 
 def _load_kit_restock_settings(bot: Botting) -> None:
@@ -988,6 +1160,12 @@ def _save_consumable_settings(bot: Botting) -> None:
         _SETTINGS_SECTION,
         _USE_PCONS_KEY,
         _as_bool(bot.Properties.Get("use_pcons", "active")),
+    )
+    IniManager().write_key(
+        ini_key,
+        _SETTINGS_SECTION,
+        _USE_SUMMONING_STONES_KEY,
+        _as_bool(bot.Properties.Get("use_summoning_stones", "active")),
     )
 
 
@@ -1254,12 +1432,27 @@ def _setup_heroes(bot: Botting):
 
 
 def _maybe_setup_heroes(bot: Botting):
+    global _path_refresh_requires_party_setup
     if _party_mode == 1:
         yield from bot.helpers.Multibox._summon_all_accounts()
         yield from bot.Wait._coro_for_time(4000)
         yield from bot.helpers.Multibox._invite_all_accounts()
+        _path_refresh_requires_party_setup = False
         return
     yield from _setup_heroes(bot)
+    _path_refresh_requires_party_setup = False
+
+
+def _leave_party_before_initial_olafstead(bot: Botting):
+    if _party_mode == 1:
+        yield from bot.helpers.Multibox._leave_party_on_all_accounts()
+    GLOBAL_CACHE.Party.LeaveParty()
+    yield from bot.Wait._coro_for_time(1000)
+
+def _setup_party_after_path_refresh_if_needed(bot: Botting):
+    if not _path_refresh_requires_party_setup:
+        return
+    yield from _maybe_setup_heroes(bot)
 
 
 def _resign(bot: Botting):
@@ -1370,6 +1563,11 @@ def _draw_settings(bot: Botting):
     new_use_pcons = PyImGui.checkbox("Restock & use Pcons", use_pcons)
     if new_use_pcons != use_pcons:
         bot.Properties.ApplyNow("use_pcons", "active", new_use_pcons)
+        _save_consumable_settings(bot)
+    use_summoning_stones = _as_bool(bot.Properties.Get("use_summoning_stones", "active"))
+    new_use_summoning_stones = PyImGui.checkbox("Restock & use Summoning Stones", use_summoning_stones)
+    if new_use_summoning_stones != use_summoning_stones:
+        bot.Properties.ApplyNow("use_summoning_stones", "active", new_use_summoning_stones)
         _save_consumable_settings(bot)
     _sync_consumable_toggles(bot)
 

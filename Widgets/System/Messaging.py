@@ -636,21 +636,31 @@ def SendDialogToTarget(index: int, message: SharedMessageStruct):
         return
 
     target = int(message.Params[0])
-    if target == 0:
-        ConsoleLog(MODULE_NAME, "Invalid target ID.", Console.MessageType.Warning)
-        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
-        return
-
     dialog = int(message.Params[1])
 
     SnapshotHeroAIOptions(message.ReceiverEmail)
     try:
         DisableHeroAIOptions(message.ReceiverEmail)
         yield from Routines.Yield.wait(100)
-        x, y = Agent.GetXY(target)
-        yield from Routines.Yield.Movement.FollowPath([(x, y)])
-        yield from Routines.Yield.wait(100)
-        yield from Routines.Yield.Player.InteractAgent(target)
+
+        if target == 0:
+            x = float(message.Params[2])
+            y = float(message.Params[3])
+            if x == 0 and y == 0:
+                ConsoleLog(MODULE_NAME, "Invalid target ID and coordinates.", Console.MessageType.Warning)
+                return
+            yield from Routines.Yield.Movement.FollowPath([(x, y)])
+            yield from Routines.Yield.wait(100)
+            interacted = yield from Routines.Yield.Agents.InteractWithAgentXY(x, y)
+            if not interacted:
+                ConsoleLog(MODULE_NAME, f"Could not interact with NPC at ({x}, {y}).", Console.MessageType.Warning)
+                return
+        else:
+            x, y = Agent.GetXY(target)
+            yield from Routines.Yield.Movement.FollowPath([(x, y)])
+            yield from Routines.Yield.wait(100)
+            yield from Routines.Yield.Player.InteractAgent(target)
+
         yield from Routines.Yield.wait(500)
         Player.SendDialog(dialog)
         yield from Routines.Yield.wait(500)

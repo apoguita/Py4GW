@@ -69,14 +69,14 @@ _restock_conset: bool = True
 _restock_pcons: bool = True
 _restock_res_scroll: bool = True
 _restock_use_summoning_stones: bool = True
-_skip_completed_vanquishes: bool = True
+_skip_completed_vanquishes: bool = False
 _loop_queue: bool = False
 _loop_count: int = 0
 _reverse_detections: dict = {}  # {map_name: {"reverse1": [(x,y)], "reverse2": [(x,y)]}}
 _vq_timers: dict = {}        # {vq_idx: {"start": float, "elapsed": float, "done": bool}}
 _bot_start_time: float = 0.0  # time.time() when first VQ starts
 _bot_total_elapsed: float = 0.0  # frozen total when bot stops
-_prev_build_settings: tuple = (True, True, True, True, True, True, False, 2500, 3500, 5000)
+_prev_build_settings: tuple = (True, True, True, True, True, False, False, 2500, 3500, 5000)
 _aggro_range_forward: int = 2500
 _aggro_range_reverse1: int = 3500
 _aggro_range_reverse2: int = 5000
@@ -349,6 +349,10 @@ def VanquishWatchdog(bot: "Botting", completed_header_name: str):
                 bot.config.FSM.current_state.reset()
             bot.config.FSM.RemoveManagedCoroutine("ConsetUpkeep")
             bot.config.FSM.RemoveManagedCoroutine("PconsUpkeep")
+            ConsoleLog("VanquishWatchdog", "Vanquish complete. Resigning party now.", Py4GW.Console.MessageType.Info, True)
+            yield from Routines.Yield.Player.Resign(log=False)
+            yield from bot.helpers.Multibox._resignParty()
+            yield from bot.Wait._coro_until_on_outpost()
             bot.config.FSM.jump_to_state_by_name(completed_header_name)
             bot.config.FSM.resume()
             return
