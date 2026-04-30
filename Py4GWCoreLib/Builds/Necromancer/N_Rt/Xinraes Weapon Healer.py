@@ -141,9 +141,6 @@ class Xinraes_Weapon_Healer(BuildMgr):
         if self.IsSkillEquipped(Ebon_Vanguard_Assassin_Support_ID) and (yield from self.skills.Any.PvE.Ebon_Vanguard_Assassin_Support()):
             return True
 
-        if (yield from self.skills.Ritualist.RestorationMagic.Xinraes_Weapon()):
-            return True
-
         if self.IsSkillEquipped(You_Are_All_Weaklings_ID) and (yield from self.skills.Any.NoAttribute.You_Are_All_Weaklings()):
             return True
 
@@ -183,4 +180,7 @@ class Xinraes_Weapon_Healer(BuildMgr):
         if self.IsSkillEquipped(Enfeebling_Blood_ID) and (yield from self.skills.Necromancer.Curses.Enfeebling_Blood()):
             return True
 
+        if (yield from self.skills.Ritualist.RestorationMagic.Xinraes_Weapon()):
+            return True
+            
         return False

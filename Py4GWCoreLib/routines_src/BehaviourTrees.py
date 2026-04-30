@@ -61,7 +61,20 @@ from Py4GWCoreLib.py4gwcorelib_src.BehaviorTree import BehaviorTree
 from enum import Enum, auto
 from typing import Callable
 
-from .behaviourtrees_src import BTAgents, BTComposite, BTCompositeHelpers, BTItems, BTKeybinds, BTMap, BTMovement, BTPlayer, BTSkills, BTUpkeepers
+from .behaviourtrees_src import (
+    BTAgents,
+    BTComposite,
+    BTCompositeHelpers,
+    BTItems,
+    BTKeybinds,
+    BTMap,
+    BTMovement,
+    BTParty,
+    BTPlayer,
+    BTShared,
+    BTSkills,
+    BTUpkeepers,
+)
 from .Checks import Checks
 
 import importlib
@@ -119,4 +132,7 @@ class BT:
     Upkeepers = BTUpkeepers
     Items = BTItems
     Agents = BTAgents
+    Party = BTParty
+    Shared = BTShared
+    Multibox = BTShared
     Keybinds = BTKeybinds
