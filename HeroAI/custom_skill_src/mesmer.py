@@ -603,7 +603,7 @@ class MesmerSkills:
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Signet_of_Clumsiness")
         skill.SkillType = SkillType.Signet.value
         skill.TargetAllegiance = Skilltarget.EnemyAttacking.value
-        skill.Nature = SkillNature.Interrupt.value
+        skill.Nature = SkillNature.Offensive.value
         skill.Conditions.IsAttacking = True
         skill_data[skill.SkillID] = skill
 
