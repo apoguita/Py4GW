@@ -825,6 +825,62 @@ class BuildMgr:
         )
         return max(0, len(nearby) - 1)
 
+    def _pick_clustered_corpse(
+        self,
+        cluster_radius: float,
+        *,
+        filter_radius: float | None = None,
+        min_enemy_targets: int = 1,
+    ) -> int:
+        """Pick the exploitable corpse with the most alive enemy targets
+        within ``cluster_radius`` around the corpse.
+
+        Candidate corpses are restricted to ``filter_radius`` around the
+        player (defaults to ``cluster_radius`` when not set). Returns 0
+        when no corpse meets the ``min_enemy_targets`` floor.
+
+        Any exploitable corpse is fair game — this helper does not respect
+        whiteboard minion-master reservations. Suited to skills that
+        consume the corpse on cast (e.g. Putrid Explosion).
+        """
+        from Py4GWCoreLib import AgentArray, Player, Routines
+        from Py4GWCoreLib.Agent import Agent
+
+        if cluster_radius <= 0:
+            return 0
+
+        effective_filter_radius = float(filter_radius if filter_radius is not None else cluster_radius)
+
+        player_pos = Player.GetXY()
+        corpses = AgentArray.GetAgentArray()
+        corpses = AgentArray.Filter.ByDistance(corpses, player_pos, effective_filter_radius)
+        corpses = AgentArray.Filter.ByCondition(
+            corpses,
+            lambda agent_id: Agent.IsExploitableCorpse(agent_id),
+        )
+        if not corpses:
+            return 0
+
+        best_corpse_id = 0
+        best_count = -1
+        for corpse_id in corpses:
+            corpse_x, corpse_y = Agent.GetXY(corpse_id)
+            enemy_targets = Routines.Agents.GetFilteredEnemyArray(
+                corpse_x, corpse_y, cluster_radius
+            )
+            enemy_targets = AgentArray.Filter.ByCondition(
+                enemy_targets,
+                lambda eid: Agent.IsValid(eid) and Agent.IsAlive(eid),
+            )
+            count = len(enemy_targets) if enemy_targets else 0
+            if count < min_enemy_targets:
+                continue
+            if count > best_count:
+                best_count = count
+                best_corpse_id = corpse_id
+
+        return best_corpse_id
+
     def _resolve_self_agent_id(self) -> int:
         """Resolve the running bot's effective self agent_id for ownership
         comparisons (e.g. ``Agent.GetOwnerID(spirit) == self_agent_id``).
