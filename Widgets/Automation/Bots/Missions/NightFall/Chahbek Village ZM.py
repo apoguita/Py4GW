@@ -58,16 +58,17 @@ def PrepareForBattle(bot: Botting, Hero_List = [6], Henchman_List = [1,2]) -> No
 
 def SkipTutorialDialog(bot: Botting) -> None:
     bot.States.AddHeader("Skip Tutorial")
-    bot.Dialogs.AtXY(10289, 6405, 0x82A501)  
+    bot.Move.XYAndDialog(10289, 6405, 0x82A501)
     bot.Map.TravelGH()
     bot.Map.LeaveGH()
     bot.Wait.ForMapToChange(target_map_id=544)
 
 def TakeZM(bot: Botting):
     bot.States.AddHeader("Take ZM")
+    bot.Move.XYAndDialog(4626.00, -9617.00,0x98)
     def _state():
-        yield from RndTravelState(796, use_districts=8)
-    bot.States.AddCustomState(_state, "RndTravel -> Codex Arena")
+        yield from RndTravelState(857, use_districts=8)
+    bot.States.AddCustomState(_state, "RndTravel -> Embark Beach")
     def _state2():
         yield from RndTravelState(248, use_districts=8)
     bot.States.AddCustomState(_state2, "RndTravel -> Great Temple of Balthazar")
@@ -133,12 +134,11 @@ def EnterChahbekMission(bot: Botting):
     bot.Move.XY(227, -5658)
     bot.Move.XY(-1144, -4378)
     bot.Move.XY(-2058, -3494)
+    bot.Move.XY(-1422.47, 1810.77)
+    bot.Move.XY(-1725, -2551)
     bot.Move.XY(-4725, -1830)
     bot.Interact.WithGadgetAtXY(-4725, -1830) #Oil 1
     bot.Wait.ForTime(2000)
-    bot.Party.FlagAllHeroes(-1422.47, 1810.77)
-    bot.Move.XY(-1725, -2551)
-    bot.Wait.ForTime(1500)
     bot.Interact.WithGadgetAtXY(-1725, -2550) #Cata load
     bot.Wait.ForTime(1500)
     bot.Interact.WithGadgetAtXY(-1725, -2550) #Cata fire
@@ -148,11 +148,10 @@ def EnterChahbekMission(bot: Botting):
     bot.Interact.WithGadgetAtXY(-1731, -4138) #Cata 2 load
     bot.Wait.ForTime(2000)
     bot.Interact.WithGadgetAtXY(-1731, -4138) #Cata 2 fire
-    #bot.Move.XY(-2331, -419)
+    bot.Move.XY(-2331, -419)
     bot.Wait.ForTime(10000)
-    bot.Party.UnflagAllHeroes()
     bot.Move.XY(-276.01, -1219.04)
-    #bot.Move.XY(-1685, 1459)
+    bot.Move.XY(-1685, 1459)
     bot.Move.XY(-2895, -6247)
     bot.Move.XY(-3938, -6315) #Boss
     bot.Wait.ForMapToChange(target_map_id=456)
