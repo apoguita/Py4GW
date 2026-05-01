@@ -1265,10 +1265,10 @@ def bot_routine(bot: Botting):
 
 
 def Enter_UW(bot_instance: Botting):
-    from Sources.modular_bot.recipes.step_context import StepContext
-    from Sources.modular_bot.recipes.actions_movement import handle_random_travel, handle_wait_map_change, handle_leave_party
-    from Sources.modular_bot.recipes.actions_party import handle_summon_all_accounts, handle_invite_all_accounts, handle_set_hard_mode
-    from Sources.modular_bot.recipes.actions_interaction import handle_use_item
+    from Py4GWCoreLib.routines_src.behaviourtrees_src.modular_core.step_context import StepContext
+    from Py4GWCoreLib.routines_src.behaviourtrees_src.modular_core.actions_movement import handle_random_travel, handle_wait_map_change, handle_leave_party
+    from Py4GWCoreLib.routines_src.behaviourtrees_src.modular_core.actions_party import handle_summon_all_accounts, handle_invite_all_accounts, handle_set_hard_mode
+    from Py4GWCoreLib.routines_src.behaviourtrees_src.modular_core.actions_interaction import handle_use_item
 
     def _make_ctx(step: dict) -> StepContext:
         return StepContext(
@@ -2335,7 +2335,7 @@ def _do_merchant_rules_refill(bot_instance: Botting) -> None:
             return
 
         # ── 6. Wait for all follower messages to be consumed ──────────
-        from Sources.modular_bot.recipes.combat_engine import outbound_messages_done
+        from Py4GWCoreLib.routines_src.behaviourtrees_src.modular_core.combat_engine import outbound_messages_done
         elapsed = 0
         all_done = False
         while elapsed < _FOLLOWER_TIMEOUT_MS:

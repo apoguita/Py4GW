@@ -20,6 +20,8 @@ def wait(ms: int, break_on_map_transition: bool = False):
         initial_instance_uptime = _Map.GetInstanceUptime()
 
         def _map_transition_detected() -> bool:
+            if _Map.IsInCinematic():
+                return True
             if not Checks.Map.MapValid() or _Map.IsMapLoading():
                 return True
             if _Map.GetMapID() != initial_map_id:
