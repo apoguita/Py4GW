@@ -1220,7 +1220,7 @@ def Command_Training(bot: Botting):
     bot.Map.Travel(target_map_id=449) # Kamadan
     bot.Move.XYAndDialog(-7874, 9799, 0x82C801)
     PrepareForBattle(bot, Hero_List=[6], Henchman_List=[3,4])
-    bot.Move.XY(-4383, -2078)
+    bot.Move.XY(-7426.91, 6648.80)
     bot.Move.XYAndDialog(-7525, 6288, 0x84, step_name="Churrhir Fields") 
     bot.Wait.ForMapToChange(target_map_id=456)
     bot.Move.XYAndDialog(-2000, -2825,0x8B) #Command Training
