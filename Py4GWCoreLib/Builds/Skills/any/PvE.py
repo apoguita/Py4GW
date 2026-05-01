@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 from Py4GWCoreLib.BuildMgr import BuildCoroutine
 from Py4GWCoreLib import Range, Routines
 from Py4GWCoreLib.Skill import Skill
-from Py4GWCoreLib.Builds.Skills._whiteboard import coordinates_via_whiteboard
+from Py4GWCoreLib.Builds.Skills._whiteboard import coordinates_whiteboard_skill_target
 
 if TYPE_CHECKING:
     from Py4GWCoreLib.BuildMgr import BuildMgr
@@ -16,48 +16,6 @@ __all__ = ["PvE"]
 class PvE:
     def __init__(self, build: BuildMgr) -> None:
         self.build: BuildMgr = build
-
-    def _get_enemy_array(self, max_distance: float) -> list[int]:
-        from Py4GWCoreLib import Agent, AgentArray, Player, Routines
-
-        player_x, player_y = Player.GetXY()
-        enemy_array = Routines.Agents.GetFilteredEnemyArray(player_x, player_y, max_distance)
-        return AgentArray.Filter.ByCondition(
-            enemy_array,
-            lambda agent_id: Agent.IsValid(agent_id) and not Agent.IsDead(agent_id),
-        )
-
-    def _get_cluster_score(self, agent_id: int, cluster_radius: float) -> int:
-        from Py4GWCoreLib import Agent, AgentArray, Routines
-
-        if not agent_id or cluster_radius <= 0:
-            return 0
-
-        target_x, target_y = Agent.GetXY(agent_id)
-        nearby_enemies = Routines.Agents.GetFilteredEnemyArray(target_x, target_y, cluster_radius)
-        nearby_enemies = AgentArray.Filter.ByCondition(
-            nearby_enemies,
-            lambda enemy_id: Agent.IsValid(enemy_id) and not Agent.IsDead(enemy_id),
-        )
-        return max(0, len(nearby_enemies) - 1)
-
-    def _pick_best_target(self, agent_ids: list[int], cluster_radius: float) -> int:
-        from Py4GWCoreLib import Agent, Player, Utils
-
-        if not agent_ids:
-            return 0
-
-        player_pos = Player.GetXY()
-        scored_targets = [
-            (
-                self._get_cluster_score(agent_id, cluster_radius),
-                Utils.Distance(player_pos, Agent.GetXY(agent_id)),
-                agent_id,
-            )
-            for agent_id in agent_ids
-        ]
-        scored_targets.sort(key=lambda item: (-item[0], item[1]))
-        return scored_targets[0][2]
 
     def Air_of_Superiority(self) -> BuildCoroutine:
         from Py4GWCoreLib import Player, GLOBAL_CACHE
@@ -81,15 +39,18 @@ class PvE:
             aftercast_delay=250,
         ))
 
-    @coordinates_via_whiteboard(Skill.GetID("Cry_of_Pain"))
+    @coordinates_whiteboard_skill_target(Skill.GetID("Cry_of_Pain"))
     def Cry_of_Pain(self, require_mesmer_hex: bool = False) -> BuildCoroutine:
         from Py4GWCoreLib import Agent, GLOBAL_CACHE
 
         cry_of_pain_id: int = Skill.GetID("Cry_of_Pain")
         aoe_range = GLOBAL_CACHE.Skill.Data.GetAoERange(cry_of_pain_id) or Range.Nearby.value
 
+        if not self.build.IsSkillEquipped(cry_of_pain_id):
+            return False
+
         def _has_mesmer_hex(agent_id: int) -> bool:
-            if not agent_id or not Agent.IsHexed(agent_id):
+            if not Agent.IsHexed(agent_id):
                 return False
             for effect_skill_id in self.build.GetEffectAndBuffIds(agent_id):
                 if not GLOBAL_CACHE.Skill.Flags.IsHex(effect_skill_id):
@@ -99,30 +60,20 @@ class PvE:
                     return True
             return False
 
-        def _is_enemy_using_skill(agent_id: int) -> bool:
-            return bool(
-                agent_id
-                and Agent.IsValid(agent_id)
-                and not Agent.IsDead(agent_id)
-                and Agent.IsCasting(agent_id)
-            )
+        # Tier 1: prefer foes that are casting AND under a mesmer hex.
+        target_agent_id = self.build._pick_clustered_target(
+            cluster_radius=aoe_range,
+            preferred_condition=lambda agent_id: Agent.IsCasting(agent_id) and _has_mesmer_hex(agent_id),
+            filter_radius=Range.Spellcast.value,
+        )
 
-        if not self.build.IsSkillEquipped(cry_of_pain_id):
-            return False
-
-        enemy_array = self._get_enemy_array(Range.Spellcast.value)
-        preferred_targets = [
-            agent_id for agent_id in enemy_array
-            if _is_enemy_using_skill(agent_id) and _has_mesmer_hex(agent_id)
-        ]
-        target_agent_id = self._pick_best_target(preferred_targets, aoe_range)
-
+        # Tier 2: any casting foe, only when require_mesmer_hex is False.
         if not target_agent_id and not require_mesmer_hex:
-            fallback_targets = [
-                agent_id for agent_id in enemy_array
-                if _is_enemy_using_skill(agent_id)
-            ]
-            target_agent_id = self._pick_best_target(fallback_targets, aoe_range)
+            target_agent_id = self.build._pick_clustered_target(
+                cluster_radius=aoe_range,
+                preferred_condition=lambda agent_id: Agent.IsCasting(agent_id),
+                filter_radius=Range.Spellcast.value,
+            )
 
         if not target_agent_id:
             return False
@@ -134,29 +85,34 @@ class PvE:
             aftercast_delay=250,
         ))
 
-    def Ebon_Vanguard_Assassin_Support(self) -> BuildCoroutine:
-        from Py4GWCoreLib import Agent
+    def Ebon_Vanguard_Assassin_Support(
+        self,
+        *,
+        min_self_energy_pct: float | None = None,
+    ) -> BuildCoroutine:
+        from Py4GWCoreLib import Agent, Player
 
         evas_id: int = Skill.GetID("Ebon_Vanguard_Assassin_Support")
         cluster_radius = Range.Nearby.value
 
-        def _is_preferred_target(agent_id: int) -> bool:
-            return (
-                Agent.IsValid(agent_id)
-                and not Agent.IsDead(agent_id)
-                and Agent.GetHealth(agent_id) > 0.3
-                and (Agent.IsHexed(agent_id) or Agent.IsConditioned(agent_id))
-            )
-
         if not self.build.IsSkillEquipped(evas_id):
             return False
 
-        enemy_array = self._get_enemy_array(Range.Spellcast.value)
-        preferred_targets = [
-            agent_id for agent_id in enemy_array
-            if _is_preferred_target(agent_id)
-        ]
-        target_agent_id = self._pick_best_target(preferred_targets, cluster_radius)
+        # Optional caster-energy gate. When set, fire only if the caster's
+        # energy fraction is at or above the threshold. Mirrors the
+        # max_self_energy_pct kwarg pattern on Signet_of_Lost_Souls.
+        if min_self_energy_pct is not None:
+            if Agent.GetEnergy(Player.GetAgentID()) < min_self_energy_pct:
+                return False
+
+        target_agent_id = self.build._pick_clustered_target(
+            cluster_radius=cluster_radius,
+            preferred_condition=lambda agent_id: (
+                Agent.GetHealth(agent_id) > 0.3
+                and (Agent.IsHexed(agent_id) or Agent.IsConditioned(agent_id))
+            ),
+            filter_radius=Range.Spellcast.value,
+        )
 
         if not target_agent_id:
             return False
@@ -164,6 +120,89 @@ class PvE:
         return (yield from self.build.CastSkillIDAndRestoreTarget(
             skill_id=evas_id,
             target_agent_id=target_agent_id,
+            log=False,
+            aftercast_delay=250,
+        ))
+
+    @coordinates_whiteboard_skill_target(Skill.GetID("Technobabble"))
+    def Technobabble(self) -> BuildCoroutine:
+        from Py4GWCoreLib import Agent, AgentArray, GLOBAL_CACHE, Player
+
+        technobabble_id: int = Skill.GetID("Technobabble")
+
+        if not self.build.IsSkillEquipped(technobabble_id):
+            return False
+        if not self.build.IsInAggro():
+            return False
+
+        aoe_range = GLOBAL_CACHE.Skill.Data.GetAoERange(technobabble_id) or Range.Nearby.value
+
+        # Prefer casters; fall back to any clustered enemy.
+        target_agent_id = self.build._pick_clustered_target(
+            cluster_radius=aoe_range,
+            preferred_condition=Agent.IsCaster,
+            filter_radius=Range.Spellcast.value,
+        )
+
+        if not target_agent_id:
+            target_agent_id = self.build._pick_clustered_target(
+                cluster_radius=aoe_range,
+                filter_radius=Range.Spellcast.value,
+            )
+
+        # Fallback: lowest-HP hexed-or-conditioned enemy in spellcast range.
+        if not target_agent_id:
+            player_xy = Player.GetXY()
+            enemy_array = AgentArray.GetEnemyArray()
+            enemy_array = AgentArray.Filter.ByDistance(enemy_array, player_xy, Range.Spellcast.value)
+            enemy_array = AgentArray.Filter.ByCondition(
+                enemy_array,
+                lambda agent_id: (
+                    Agent.IsAlive(agent_id)
+                    and (Agent.IsHexed(agent_id) or Agent.IsConditioned(agent_id))
+                ),
+            )
+            if enemy_array:
+                target_agent_id = min(
+                    enemy_array,
+                    key=lambda agent_id: Agent.GetHealth(agent_id),
+                )
+
+        if not target_agent_id:
+            return False
+
+        return (yield from self.build.CastSkillIDAndRestoreTarget(
+            skill_id=technobabble_id,
+            target_agent_id=target_agent_id,
+            log=False,
+            aftercast_delay=250,
+        ))
+
+    def Vampirism(self) -> BuildCoroutine:
+        from Py4GWCoreLib import Agent, AgentArray, Player, SpiritModelID
+
+        vampirism_id: int = Skill.GetID("Vampirism")
+
+        if not self.build.IsSkillEquipped(vampirism_id):
+            return False
+        if not self.build.IsInAggro():
+            return False
+
+        # Skip if an owned Vampirism spirit already exists.
+        self_agent_id = self.build._resolve_self_agent_id()
+        spirits = AgentArray.GetSpiritPetArray()
+        spirits = AgentArray.Filter.ByDistance(spirits, Player.GetXY(), Range.Compass.value)
+        if any(
+            Agent.IsAlive(spirit_id)
+            and Agent.IsSpawned(spirit_id)
+            and Agent.GetOwnerID(spirit_id) == self_agent_id
+            and Agent.GetPlayerNumber(spirit_id) == SpiritModelID.VAMPIRISM.value
+            for spirit_id in spirits
+        ):
+            return False
+
+        return (yield from self.build.CastSpiritSkillID(
+            skill_id=vampirism_id,
             log=False,
             aftercast_delay=250,
         ))

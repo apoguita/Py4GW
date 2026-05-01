@@ -7,7 +7,7 @@ The underlying ``(kind, key)`` registry lives at
 A skill participates in whiteboard coordination when any of:
 
 - its CustomSkill metadata has ``CoordinatesViaWhiteboard = True``, OR
-- it is registered here via :func:`register` or ``@coordinates_via_whiteboard``.
+- it is registered here via :func:`register` or ``@coordinates_whiteboard_skill_target``.
 
 The combat loop (``BuildMgr._is_whiteboard_skill``) unions the two surfaces,
 so a skill module under ``Py4GWCoreLib/Builds/Skills/**`` can opt in
@@ -48,12 +48,12 @@ def registered_skill_ids() -> frozenset[int]:
     return _wb_registered_keys(KIND)
 
 
-def coordinates_via_whiteboard(skill_id: int) -> Callable[[F], F]:
-    """Decorator form that registers ``skill_id`` at import time.
+def coordinates_whiteboard_skill_target(skill_id: int) -> Callable[[F], F]:
+    """Decorator form that registers ``skill_id`` for SKILL_TARGET coordination.
 
     Usage on a skill method::
 
-        @coordinates_via_whiteboard(Skill.GetID("Power_Drain"))
+        @coordinates_whiteboard_skill_target(Skill.GetID("Power_Drain"))
         def Power_Drain(self) -> BuildCoroutine:
             ...
     """

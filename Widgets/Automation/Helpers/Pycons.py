@@ -111,7 +111,9 @@ try:
     MIN_MOVEMENT_SAFETY_WINDOW_MS = 250
     DEFAULT_MOVEMENT_SAFETY_WINDOW_MS = 5000
     MAX_MOVEMENT_SAFETY_WINDOW_MS = 60000
+    DEFAULT_MOVEMENT_PARTY_ITEMS_FAST_THRESHOLD_MS = DEFAULT_PARTY_ITEM_INTERVAL_MS
     MOVEMENT_DELTA_EPSILON_SQ = 25.0
+    MOVEMENT_POSITION_RESET_DELTA_SQ = 4000000.0
     TONIC_TIPSINESS_EFFECT_ID = 3402
     TONIC_TIPSINESS_DELAY_MS = 5000
     CRATE_FIREWORKS_DISPLAY_MS = 10 * 60 * 1000
@@ -765,9 +767,9 @@ try:
             "why": "Useful when an item is not being used and you want to see the reason.",
         },
         "team_broadcast": {
-            "short": "Tell your other accounts when this account uses team items.",
-            "long": "When this account uses a team morale or DP item, Pycons tells your other same-party accounts on the same map. Those accounts still use their own safety checks before spending anything.",
-            "why": "Turn this on for the account that should lead team morale and DP item use.",
+            "short": "Broadcast usage to team.",
+            "long": "When this account uses a broadcastable consumable, Pycons tells your other same-party accounts on the same map. Those accounts still use their own safety checks before spending anything.",
+            "why": "Turn this on for the account that should lead shared consumable use, including team morale/DP calls.",
         },
         "mbdp_name": {
             "short": "MB/DP means Morale Boost / Death Penalty.",
@@ -775,9 +777,9 @@ try:
             "why": "The short name is kept because it is compact, but the feature is about morale and DP recovery items.",
         },
         "team_consume_opt_in": {
-            "short": "Let this account react to team item calls.",
-            "long": "When enabled, this account can use matching morale or DP items when another account sends a team item call. If disabled, this account ignores those calls.",
-            "why": "Use this on follower accounts that should help with team consumables.",
+            "short": "Opt in to team broadcasts.",
+            "long": "When enabled, this account can use matching items when another account broadcasts a team call. If disabled, this account ignores those calls.",
+            "why": "Use this on follower accounts that should help with shared consumables.",
         },
         "advanced_intervals": {
             "short": "Show timing controls for each item.",
@@ -933,6 +935,26 @@ try:
             "short": "Require recent movement before sweets are used.",
             "long": "When enabled, in-town speed boost sweets and fast sweets spending wait until your character has moved recently.",
             "why": "Useful when Sweet Tooth spending should pause while idle.",
+        },
+        "movement_alcohol_fast_only": {
+            "short": "Only require movement during Fast alcohol spending.",
+            "long": "When enabled, the Alcohol movement requirement applies only while Fast alcohol spending is on. Normal drunk-level upkeep can still run without movement.",
+            "why": "Good when you want anti-AFK protection for stack spending without changing normal alcohol upkeep.",
+        },
+        "movement_party_items_speed_only": {
+            "short": "Only require movement when Party Items are being used quickly.",
+            "long": "When enabled, the Party Items movement requirement applies only when Party Items speed is below the safety cutoff below.",
+            "why": "Good when normal Party Item use is fine, but faster title spending should pause while idle.",
+        },
+        "movement_party_items_fast_threshold_ms": {
+            "short": "Choose when Party Items speed should require movement.",
+            "long": "This does not change how fast Party Items are used. It only decides when movement safety treats the Party Items speed as fast spending.",
+            "why": "Use this if you consider a different Party Items speed to be normal play instead of title spending.",
+        },
+        "movement_sweets_fast_only": {
+            "short": "Only require movement during Fast sweets spending.",
+            "long": "When enabled, the Sweets movement requirement applies only while Fast sweets spending is on. Normal in-town speed upkeep can still run without movement.",
+            "why": "Good when you want Sweet Tooth stack cleanup protected without changing normal speed boost behavior.",
         },
         "mbdp_enabled": {
             "short": "Master toggle for morale/DP automation.",
@@ -1105,13 +1127,13 @@ try:
             "why": "Keeps the saved-profile list tidy when a setup is no longer needed.",
         },
         "preset_set_others_optin": {
-            "short": "Let other same-party accounts use team calls.",
-            "long": "Turns team item calls on for every other account Pycons currently sees in the same party and map.",
-            "why": "Useful after applying leader presets so followers can react to team item calls.",
+            "short": "Set all other party accounts: Opt-in ON.",
+            "long": "Turns team broadcast opt-in on for every other account Pycons currently sees in the same party and map.",
+            "why": "Useful after applying leader presets so followers can react to team broadcasts.",
         },
         "preset_set_others_optout": {
-            "short": "Stop other same-party accounts from using team calls.",
-            "long": "Turns team item calls off for every other account Pycons currently sees.",
+            "short": "Set all other party accounts: Opt-in OFF.",
+            "long": "Turns team broadcast opt-in off for every other account Pycons currently sees.",
             "why": "Useful for quickly stopping follower consumption without editing each account manually.",
         },
     }
@@ -1208,6 +1230,9 @@ try:
         "movement_require_alcohol",
         "movement_require_party_items",
         "movement_require_sweets",
+        "movement_alcohol_fast_only",
+        "movement_party_items_speed_only",
+        "movement_sweets_fast_only",
         "alcohol_use_explorable",
         "alcohol_use_outpost",
         "team_broadcast",
@@ -1232,12 +1257,16 @@ try:
         "sweets_fast_spending",
         "sweets_fast_interval_ms",
         "movement_safety_window_ms",
+        "movement_party_items_fast_threshold_ms",
         "movement_require_explorable",
         "movement_require_summoning",
         "movement_require_mbdp",
         "movement_require_alcohol",
         "movement_require_party_items",
         "movement_require_sweets",
+        "movement_alcohol_fast_only",
+        "movement_party_items_speed_only",
+        "movement_sweets_fast_only",
         "alcohol_target_level",
         "alcohol_use_explorable",
         "alcohol_use_outpost",
@@ -1395,12 +1424,16 @@ try:
             "sweets_fast_spending": False,
             "sweets_fast_interval_ms": int(DEFAULT_SWEETS_FAST_INTERVAL_MS),
             "movement_safety_window_ms": int(DEFAULT_MOVEMENT_SAFETY_WINDOW_MS),
+            "movement_party_items_fast_threshold_ms": int(DEFAULT_MOVEMENT_PARTY_ITEMS_FAST_THRESHOLD_MS),
             "movement_require_explorable": False,
             "movement_require_summoning": False,
             "movement_require_mbdp": False,
             "movement_require_alcohol": False,
             "movement_require_party_items": False,
             "movement_require_sweets": False,
+            "movement_alcohol_fast_only": False,
+            "movement_party_items_speed_only": False,
+            "movement_sweets_fast_only": False,
             "alcohol_target_level": 3,
             "alcohol_use_explorable": True,
             "alcohol_use_outpost": True,
@@ -1506,6 +1539,13 @@ try:
         payload["movement_safety_window_ms"] = max(
             MIN_MOVEMENT_SAFETY_WINDOW_MS,
             min(MAX_MOVEMENT_SAFETY_WINDOW_MS, int(payload.get("movement_safety_window_ms", DEFAULT_MOVEMENT_SAFETY_WINDOW_MS))),
+        )
+        payload["movement_party_items_fast_threshold_ms"] = max(
+            MIN_PARTY_ITEM_INTERVAL_MS,
+            min(
+                MAX_PARTY_ITEM_INTERVAL_MS,
+                int(payload.get("movement_party_items_fast_threshold_ms", DEFAULT_MOVEMENT_PARTY_ITEMS_FAST_THRESHOLD_MS)),
+            ),
         )
         payload["force_team_morale_value"] = max(-60, min(10, int(payload.get("force_team_morale_value", MBDP_DEFAULTS["force_team_morale_value"]))))
         payload["mbdp_self_dp_minor_threshold"] = _profile_dp_threshold_to_effective(payload.get("mbdp_self_dp_minor_threshold", MBDP_DEFAULTS["mbdp_self_dp_minor_threshold"]))
@@ -2865,12 +2905,16 @@ try:
     ]
     PYCONS_SYNC_MOVEMENT_SAFETY_SCALAR_KEYS = [
         "movement_safety_window_ms",
+        "movement_party_items_fast_threshold_ms",
         "movement_require_explorable",
         "movement_require_summoning",
         "movement_require_mbdp",
         "movement_require_alcohol",
         "movement_require_party_items",
         "movement_require_sweets",
+        "movement_alcohol_fast_only",
+        "movement_party_items_speed_only",
+        "movement_sweets_fast_only",
     ]
     PYCONS_SYNC_MBDP_SCALAR_KEYS = [
         "mbdp_enabled",
@@ -3558,12 +3602,28 @@ try:
                     int(ini_handler.read_int(INI_SECTION, "movement_safety_window_ms", DEFAULT_MOVEMENT_SAFETY_WINDOW_MS)),
                 ),
             )
+            self.movement_party_items_fast_threshold_ms = max(
+                MIN_PARTY_ITEM_INTERVAL_MS,
+                min(
+                    MAX_PARTY_ITEM_INTERVAL_MS,
+                    int(
+                        ini_handler.read_int(
+                            INI_SECTION,
+                            "movement_party_items_fast_threshold_ms",
+                            DEFAULT_MOVEMENT_PARTY_ITEMS_FAST_THRESHOLD_MS,
+                        )
+                    ),
+                ),
+            )
             self.movement_require_explorable = ini_handler.read_bool(INI_SECTION, "movement_require_explorable", False)
             self.movement_require_summoning = ini_handler.read_bool(INI_SECTION, "movement_require_summoning", False)
             self.movement_require_mbdp = ini_handler.read_bool(INI_SECTION, "movement_require_mbdp", False)
             self.movement_require_alcohol = ini_handler.read_bool(INI_SECTION, "movement_require_alcohol", False)
             self.movement_require_party_items = ini_handler.read_bool(INI_SECTION, "movement_require_party_items", False)
             self.movement_require_sweets = ini_handler.read_bool(INI_SECTION, "movement_require_sweets", False)
+            self.movement_alcohol_fast_only = ini_handler.read_bool(INI_SECTION, "movement_alcohol_fast_only", False)
+            self.movement_party_items_speed_only = ini_handler.read_bool(INI_SECTION, "movement_party_items_speed_only", False)
+            self.movement_sweets_fast_only = ini_handler.read_bool(INI_SECTION, "movement_sweets_fast_only", False)
             self.alcohol_target_level = max(0, min(5, int(ini_handler.read_int(INI_SECTION, "alcohol_target_level", 3))))
 
             self.alcohol_use_explorable = ini_handler.read_bool(INI_SECTION, "alcohol_use_explorable", True)
@@ -3764,12 +3824,24 @@ try:
                 "movement_safety_window_ms",
                 int(max(MIN_MOVEMENT_SAFETY_WINDOW_MS, min(MAX_MOVEMENT_SAFETY_WINDOW_MS, int(self.movement_safety_window_ms)))),
             )
+            set_key(
+                "movement_party_items_fast_threshold_ms",
+                int(
+                    max(
+                        MIN_PARTY_ITEM_INTERVAL_MS,
+                        min(MAX_PARTY_ITEM_INTERVAL_MS, int(self.movement_party_items_fast_threshold_ms)),
+                    )
+                ),
+            )
             set_key("movement_require_explorable", bool(self.movement_require_explorable))
             set_key("movement_require_summoning", bool(self.movement_require_summoning))
             set_key("movement_require_mbdp", bool(self.movement_require_mbdp))
             set_key("movement_require_alcohol", bool(self.movement_require_alcohol))
             set_key("movement_require_party_items", bool(self.movement_require_party_items))
             set_key("movement_require_sweets", bool(self.movement_require_sweets))
+            set_key("movement_alcohol_fast_only", bool(self.movement_alcohol_fast_only))
+            set_key("movement_party_items_speed_only", bool(self.movement_party_items_speed_only))
+            set_key("movement_sweets_fast_only", bool(self.movement_sweets_fast_only))
             set_key("alcohol_target_level", int(self.alcohol_target_level))
             set_key("alcohol_use_explorable", bool(self.alcohol_use_explorable))
             set_key("alcohol_use_outpost", bool(self.alcohol_use_outpost))
@@ -3936,8 +4008,10 @@ try:
     _movement_last_xy = None
     _movement_last_ms = 0
     _movement_last_map_id = 0
+    _movement_last_map_signature = None
     _movement_last_poll_ms = 0
     _movement_position_known = False
+    _movement_wait_reason = ""
     _local_team_flags_refresh_timer = Timer()
     _local_team_flags_refresh_timer.Start()
     _local_team_flags_refresh_timer.Stop()
@@ -4041,6 +4115,24 @@ try:
             raw = int(DEFAULT_MOVEMENT_SAFETY_WINDOW_MS)
         return int(max(MIN_MOVEMENT_SAFETY_WINDOW_MS, min(MAX_MOVEMENT_SAFETY_WINDOW_MS, raw)))
 
+    def _party_item_interval_ms() -> int:
+        if cfg is None:
+            return int(DEFAULT_PARTY_ITEM_INTERVAL_MS)
+        try:
+            raw = int(getattr(cfg, "party_item_interval_ms", DEFAULT_PARTY_ITEM_INTERVAL_MS))
+        except Exception:
+            raw = int(DEFAULT_PARTY_ITEM_INTERVAL_MS)
+        return int(max(MIN_PARTY_ITEM_INTERVAL_MS, min(MAX_PARTY_ITEM_INTERVAL_MS, raw)))
+
+    def _movement_party_items_fast_threshold_ms() -> int:
+        if cfg is None:
+            return int(DEFAULT_MOVEMENT_PARTY_ITEMS_FAST_THRESHOLD_MS)
+        try:
+            raw = int(getattr(cfg, "movement_party_items_fast_threshold_ms", DEFAULT_MOVEMENT_PARTY_ITEMS_FAST_THRESHOLD_MS))
+        except Exception:
+            raw = int(DEFAULT_MOVEMENT_PARTY_ITEMS_FAST_THRESHOLD_MS)
+        return int(max(MIN_PARTY_ITEM_INTERVAL_MS, min(MAX_PARTY_ITEM_INTERVAL_MS, raw)))
+
     def _current_map_id() -> int:
         try:
             for name in ("GetMapID", "GetMapId", "GetCurrentMapID", "GetCurrentMapId"):
@@ -4052,6 +4144,35 @@ try:
         except Exception:
             pass
         return 0
+
+    def _current_map_signature() -> tuple[int, int, int, int]:
+        map_id = int(_current_map_id())
+        if map_id <= 0:
+            return 0, 0, 0, 0
+        region = 0
+        district = 0
+        language = 0
+        try:
+            region_value = Map.GetRegion()
+            if isinstance(region_value, (tuple, list)) and len(region_value) >= 1:
+                region = int(region_value[0] or 0)
+            else:
+                region = int(region_value or 0)
+        except Exception:
+            region = 0
+        try:
+            district = int(Map.GetDistrict() or 0)
+        except Exception:
+            district = 0
+        try:
+            language_value = Map.GetLanguage()
+            if isinstance(language_value, (tuple, list)) and len(language_value) >= 1:
+                language = int(language_value[0] or 0)
+            else:
+                language = int(language_value or 0)
+        except Exception:
+            language = 0
+        return int(map_id), int(region), int(district), int(language)
 
     def _player_xy() -> tuple[float, float] | None:
         try:
@@ -4080,8 +4201,17 @@ try:
             pass
         return None
 
+    def _player_is_moving_now() -> bool | None:
+        try:
+            agent_id = int(Player.GetAgentID() or 0)
+            if agent_id <= 0:
+                return None
+            return bool(Agent.IsMoving(agent_id))
+        except Exception:
+            return None
+
     def _update_movement_tracker(force: bool = False) -> None:
-        global _movement_last_xy, _movement_last_ms, _movement_last_map_id, _movement_last_poll_ms, _movement_position_known
+        global _movement_last_xy, _movement_last_ms, _movement_last_map_id, _movement_last_map_signature, _movement_last_poll_ms, _movement_position_known, _movement_wait_reason
 
         now = int(_now_ms())
         if (not bool(force)) and int(_movement_last_poll_ms or 0) > 0 and (now - int(_movement_last_poll_ms)) < 250:
@@ -4093,22 +4223,56 @@ try:
             _movement_position_known = False
             return
 
-        map_id = int(_current_map_id())
-        if _movement_last_xy is None or (map_id > 0 and int(_movement_last_map_id or 0) > 0 and map_id != int(_movement_last_map_id)):
+        map_signature = _current_map_signature()
+        map_id = int(map_signature[0])
+        previous_signature = _movement_last_map_signature
+        map_context_became_known = bool(
+            map_id > 0
+            and previous_signature is not None
+            and int(previous_signature[0]) <= 0
+        )
+        map_changed = bool(
+            map_context_became_known
+            or (
+                map_id > 0
+                and previous_signature is not None
+                and int(previous_signature[0]) > 0
+                and tuple(map_signature) != tuple(previous_signature)
+            )
+        )
+        if _movement_last_xy is None or map_changed:
             _movement_last_xy = (float(xy[0]), float(xy[1]))
-            _movement_last_ms = int(now)
+            _movement_last_ms = 0
             _movement_last_map_id = int(map_id)
+            _movement_last_map_signature = tuple(map_signature)
+            _movement_position_known = True
+            _movement_wait_reason = "map_load" if bool(map_changed) else "startup"
+            return
+
+        moving_now = _player_is_moving_now()
+        if moving_now is False:
+            _movement_last_xy = (float(xy[0]), float(xy[1]))
+            if map_id > 0:
+                _movement_last_map_id = int(map_id)
+                _movement_last_map_signature = tuple(map_signature)
             _movement_position_known = True
             return
 
         prev_x, prev_y = _movement_last_xy
         dx = float(xy[0]) - float(prev_x)
         dy = float(xy[1]) - float(prev_y)
-        if (dx * dx + dy * dy) >= float(MOVEMENT_DELTA_EPSILON_SQ):
+        delta_sq = float(dx * dx + dy * dy)
+        if (moving_now is not False) and delta_sq >= float(MOVEMENT_POSITION_RESET_DELTA_SQ):
+            _movement_last_xy = (float(xy[0]), float(xy[1]))
+            _movement_last_ms = 0
+            _movement_wait_reason = "map_load"
+        elif (moving_now is not False) and delta_sq >= float(MOVEMENT_DELTA_EPSILON_SQ):
             _movement_last_xy = (float(xy[0]), float(xy[1]))
             _movement_last_ms = int(now)
+            _movement_wait_reason = ""
         if map_id > 0:
             _movement_last_map_id = int(map_id)
+            _movement_last_map_signature = tuple(map_signature)
         _movement_position_known = True
 
     def _movement_recently_moved(now_ms: int | None = None) -> bool:
@@ -4118,18 +4282,31 @@ try:
         now = int(_now_ms() if now_ms is None else now_ms)
         last_ms = int(_movement_last_ms or 0)
         if last_ms <= 0:
-            return True
+            return False
         return bool((now - last_ms) <= int(_movement_safety_window_ms()))
 
-    def _movement_status_summary() -> tuple[str, bool, int]:
+    def _movement_status_summary(compact: bool = False) -> tuple[str, bool, int]:
         _update_movement_tracker(force=True)
         if not bool(_movement_position_known):
-            return "Movement status: unavailable", True, 0
+            prefix = "Movement" if bool(compact) else "Movement status"
+            return f"{prefix}: unavailable", True, 0
         now = int(_now_ms())
-        elapsed_ms = max(0, int(now - int(_movement_last_ms or now)))
-        if _movement_recently_moved(now):
+        last_ms = int(_movement_last_ms or 0)
+        elapsed_ms = max(0, int(now - int(last_ms or now)))
+        recently_moved = bool(_movement_recently_moved(now))
+        prefix = "Movement" if bool(compact) else "Movement status"
+        wait_reason = str(_movement_wait_reason or "")
+        if bool(compact):
+            if recently_moved:
+                return f"{prefix}: recent", True, int(elapsed_ms)
+            return f"{prefix}: waiting", False, int(elapsed_ms)
+        if recently_moved:
             return f"Movement status: Recently moved ({elapsed_ms} ms ago)", True, int(elapsed_ms)
-        return f"Movement status: Standing still ({elapsed_ms} ms ago)", False, int(elapsed_ms)
+        if wait_reason == "map_load":
+            return f"{prefix}: Waiting for movement after map load", False, int(elapsed_ms)
+        if wait_reason == "startup":
+            return f"{prefix}: Waiting for movement after startup", False, int(elapsed_ms)
+        return f"{prefix}: Standing still ({elapsed_ms} ms ago)", False, int(elapsed_ms)
 
     def _movement_requirement_attr(category: str) -> str:
         category_key = str(category or "").strip().lower()
@@ -4161,7 +4338,16 @@ try:
         attr = _movement_requirement_attr(category)
         if not attr:
             return False
-        return bool(getattr(cfg, attr, False))
+        if not bool(getattr(cfg, attr, False)):
+            return False
+        category_key = str(category or "").strip().lower()
+        if category_key == "alcohol" and bool(getattr(cfg, "movement_alcohol_fast_only", False)):
+            return bool(getattr(cfg, "alcohol_fast_spending", False))
+        if category_key == "party_items" and bool(getattr(cfg, "movement_party_items_speed_only", False)):
+            return bool(_party_item_interval_ms() < int(_movement_party_items_fast_threshold_ms()))
+        if category_key == "sweets" and bool(getattr(cfg, "movement_sweets_fast_only", False)):
+            return bool(getattr(cfg, "sweets_fast_spending", False))
+        return True
 
     def _movement_gate_allows(category: str) -> bool:
         if not _movement_required_for_category(category):
@@ -7766,11 +7952,35 @@ try:
         except Exception:
             PyImGui.text(str(text))
 
+    def _text_wrapped_with_color(text: str, color: tuple[float, float, float, float]):
+        pushed = False
+        try:
+            PyImGui.push_style_color(PyImGui.ImGuiCol.Text, color)
+            pushed = True
+            if hasattr(PyImGui, "text_wrapped"):
+                PyImGui.text_wrapped(str(text))
+            else:
+                PyImGui.text(str(text))
+        except Exception:
+            if hasattr(PyImGui, "text_wrapped"):
+                PyImGui.text_wrapped(str(text))
+            else:
+                PyImGui.text(str(text))
+        finally:
+            if pushed:
+                try:
+                    PyImGui.pop_style_color(1)
+                except Exception:
+                    pass
+
     def _text_secondary(text: str):
         _text_with_color(str(text), (0.82, 0.84, 0.88, 1.00))
 
     def _text_meta(text: str):
         _text_with_color(str(text), (0.72, 0.75, 0.80, 1.00))
+
+    def _text_meta_wrapped(text: str):
+        _text_wrapped_with_color(str(text), (0.72, 0.75, 0.80, 1.00))
 
     def _profile_set_ui_status(text: str, *, error: bool = False):
         _rt.profile_status_text = str(text or "")
@@ -8195,8 +8405,8 @@ try:
         _same_line(8)
         _text_secondary(f"Shortages {int(shortages)} | Excess {int(excess)} | Vault {vault_state}")
 
-    def _draw_movement_status_line():
-        status_text, is_recent, _elapsed_ms = _movement_status_summary()
+    def _draw_movement_status_line(compact: bool = False):
+        status_text, is_recent, _elapsed_ms = _movement_status_summary(compact=compact)
         color = (0.62, 0.90, 0.62, 1.00) if bool(is_recent) else (0.98, 0.70, 0.38, 1.00)
         _text_with_color(status_text, color)
 
@@ -8208,8 +8418,8 @@ try:
             cfg.mark_dirty()
         _show_setting_tooltip(tooltip_key)
 
-    def _set_all_movement_requirements(enabled: bool):
-        attrs = (
+    def _movement_requirement_attrs() -> tuple[str, ...]:
+        return (
             "movement_require_explorable",
             "movement_require_summoning",
             "movement_require_mbdp",
@@ -8217,13 +8427,111 @@ try:
             "movement_require_party_items",
             "movement_require_sweets",
         )
+
+    def _movement_fast_only_attrs() -> tuple[str, ...]:
+        return (
+            "movement_alcohol_fast_only",
+            "movement_party_items_speed_only",
+            "movement_sweets_fast_only",
+        )
+
+    def _any_movement_requirement_enabled() -> bool:
+        if cfg is None:
+            return False
+        return any(
+            bool(_movement_required_for_category(category))
+            for category in ("explorable", "summoning", "mbdp", "alcohol", "party_items", "sweets")
+        )
+
+    def _movement_rule_summary_text() -> str:
+        if cfg is None:
+            return "Active rules: unavailable"
+
+        parts: list[str] = []
+        for category in ("explorable", "summoning", "mbdp", "alcohol", "party_items", "sweets"):
+            attr_name = _movement_requirement_attr(category)
+            if not attr_name or not bool(getattr(cfg, attr_name, False)):
+                continue
+
+            label = _movement_category_label(category)
+            if category == "alcohol" and bool(getattr(cfg, "movement_alcohol_fast_only", False)):
+                parts.append("Alcohol during Fast alcohol spending")
+            elif category == "party_items" and bool(getattr(cfg, "movement_party_items_speed_only", False)):
+                parts.append(
+                    f"Party Items below {_movement_party_items_fast_threshold_ms()} ms (speed is {_party_item_interval_ms()} ms)"
+                )
+            elif category == "sweets" and bool(getattr(cfg, "movement_sweets_fast_only", False)):
+                parts.append("Sweets during Fast sweets spending")
+            else:
+                parts.append(f"{label} always")
+
+        if not parts:
+            return "Active rules: Off"
+        return "Active rules: " + ", ".join(parts)
+
+    def _set_movement_requirements(values_by_attr: dict[str, bool]):
         changed_any = False
-        for attr_name in attrs:
-            if bool(getattr(cfg, attr_name, False)) != bool(enabled):
-                setattr(cfg, attr_name, bool(enabled))
+        for attr_name in _movement_requirement_attrs():
+            next_value = bool(values_by_attr.get(attr_name, False))
+            if bool(getattr(cfg, attr_name, False)) != next_value:
+                setattr(cfg, attr_name, next_value)
                 changed_any = True
         if changed_any:
             cfg.mark_dirty()
+
+    def _set_all_movement_requirements(enabled: bool):
+        _set_movement_requirements({attr_name: bool(enabled) for attr_name in _movement_requirement_attrs()})
+
+    def _set_movement_fast_only(values_by_attr: dict[str, bool]):
+        changed_any = False
+        for attr_name in _movement_fast_only_attrs():
+            next_value = bool(values_by_attr.get(attr_name, False))
+            if bool(getattr(cfg, attr_name, False)) != next_value:
+                setattr(cfg, attr_name, next_value)
+                changed_any = True
+        if changed_any:
+            cfg.mark_dirty()
+
+    def _apply_movement_safety_preset(preset: str):
+        preset_key = str(preset or "").strip().lower()
+        if preset_key == "safe_botting":
+            _set_all_movement_requirements(True)
+            _set_movement_fast_only({
+                "movement_alcohol_fast_only": False,
+                "movement_party_items_speed_only": False,
+                "movement_sweets_fast_only": False,
+            })
+            return
+        if preset_key == "title_spending":
+            _set_movement_requirements({
+                "movement_require_explorable": False,
+                "movement_require_summoning": False,
+                "movement_require_mbdp": False,
+                "movement_require_alcohol": True,
+                "movement_require_party_items": True,
+                "movement_require_sweets": True,
+            })
+            _set_movement_fast_only({
+                "movement_alcohol_fast_only": True,
+                "movement_party_items_speed_only": True,
+                "movement_sweets_fast_only": True,
+            })
+            return
+        if preset_key == "off":
+            _set_all_movement_requirements(False)
+            _set_movement_fast_only({
+                "movement_alcohol_fast_only": False,
+                "movement_party_items_speed_only": False,
+                "movement_sweets_fast_only": False,
+            })
+
+    def _draw_movement_fast_only_checkbox(attr_name: str, label: str, tooltip_key: str):
+        current = bool(getattr(cfg, attr_name, False))
+        changed, value = ui_checkbox(f"{label}##pycons_{attr_name}", current)
+        if changed:
+            setattr(cfg, attr_name, bool(value))
+            cfg.mark_dirty()
+        _show_setting_tooltip(tooltip_key)
 
     def _selected_list_child_height(
         selected_explorable_conset: list,
@@ -8324,6 +8632,8 @@ try:
             cfg.mark_dirty()
 
         _draw_restock_status_line()
+        if _any_movement_requirement_enabled():
+            _draw_movement_status_line(compact=True)
         _draw_blocked_actions_section()
 
         PyImGui.separator()
@@ -9116,7 +9426,7 @@ try:
         _show_setting_tooltip("debug_logging")
 
         # Team settings
-        changed, v = ui_checkbox("Tell team when this account uses team items##pycons_team_broadcast", bool(cfg.team_broadcast))
+        changed, v = ui_checkbox("Broadcast usage to team##pycons_team_broadcast", bool(cfg.team_broadcast))
         if changed:
             cfg.team_broadcast = bool(v)
             _mark_mbdp_preset_custom()
@@ -9130,7 +9440,7 @@ try:
                 _debug(f"Failed to write team_broadcast: {e}", Console.MessageType.Warning)
         _show_setting_tooltip("team_broadcast")
 
-        changed, v = ui_checkbox("Use items when another account sends a team call##pycons_team_optin", bool(cfg.team_consume_opt_in))
+        changed, v = ui_checkbox("Opt in to team broadcasts (consume when others broadcast)##pycons_team_optin", bool(cfg.team_consume_opt_in))
         if changed:
             cfg.team_consume_opt_in = bool(v)
             _mark_mbdp_preset_custom()
@@ -9159,11 +9469,11 @@ try:
             cfg.mark_dirty()
         _show_setting_tooltip("persist_main_runtime_toggles")
 
-        if PyImGui.button("Let other party accounts use team calls##pycons_preset_set_other_optin"):
+        if PyImGui.button("Set all other party accounts: Opt-in ON##pycons_preset_set_other_optin"):
             _set_other_party_accounts_opt_in()
         _show_setting_tooltip("preset_set_others_optin")
 
-        if PyImGui.button("Stop other party accounts using team calls##pycons_preset_set_other_optout"):
+        if PyImGui.button("Set all other party accounts: Opt-in OFF##pycons_preset_set_other_optout"):
             _set_other_party_accounts_opt_out()
         _show_setting_tooltip("preset_set_others_optout")
         PyImGui.text(f"Last team-call change: {str(cfg.last_party_opt_toggle_summary or 'None')}")
@@ -10056,11 +10366,19 @@ try:
             _show_setting_tooltip("movement_safety_window_ms")
 
             PyImGui.separator()
-            if PyImGui.small_button("Enable all##pycons_movement_safety_enable_all"):
-                _set_all_movement_requirements(True)
+            PyImGui.text("Presets:")
             _same_line(10)
-            if PyImGui.small_button("Disable all##pycons_movement_safety_disable_all"):
-                _set_all_movement_requirements(False)
+            if PyImGui.small_button("Safe botting##pycons_movement_safety_preset_safe"):
+                _apply_movement_safety_preset("safe_botting")
+            _same_line(6)
+            if PyImGui.small_button("Title spending##pycons_movement_safety_preset_title"):
+                _apply_movement_safety_preset("title_spending")
+            _same_line(6)
+            if PyImGui.small_button("Off##pycons_movement_safety_preset_off"):
+                _apply_movement_safety_preset("off")
+            _text_meta_wrapped(
+                "Safe botting checks all categories. Title spending checks Alcohol, Party Items, and Sweets while spending stacks."
+            )
             PyImGui.separator()
 
             _draw_movement_requirement_checkbox(
@@ -10093,6 +10411,42 @@ try:
                 "Require movement for Sweets",
                 "movement_require_sweets",
             )
+
+            PyImGui.separator()
+            _section_text("Fast-use only", "settings_movement_safety")
+            _text_secondary("Use these when only stack spending should wait for movement.")
+            _draw_movement_fast_only_checkbox(
+                "movement_alcohol_fast_only",
+                "Alcohol: fast spending only",
+                "movement_alcohol_fast_only",
+            )
+            _draw_movement_fast_only_checkbox(
+                "movement_party_items_speed_only",
+                "Party Items: fast speed only",
+                "movement_party_items_speed_only",
+            )
+            PyImGui.text("Party Items movement cutoff (ms):")
+            _same_line(10)
+            changed, party_fast_threshold = ui_input_int_fixed(
+                "##pycons_movement_party_items_fast_threshold_ms",
+                int(_movement_party_items_fast_threshold_ms()),
+                width=130.0,
+            )
+            if changed:
+                cfg.movement_party_items_fast_threshold_ms = int(
+                    max(MIN_PARTY_ITEM_INTERVAL_MS, min(MAX_PARTY_ITEM_INTERVAL_MS, int(party_fast_threshold)))
+                )
+                cfg.mark_dirty()
+            _show_setting_tooltip("movement_party_items_fast_threshold_ms")
+            _text_meta_wrapped(
+                f"This cutoff value only decides when movement safety treats it as fast spending. Party Items speed is set above in Alcohol/Party & Sweets Settings, currently ({_party_item_interval_ms()} ms)."
+            )
+            _draw_movement_fast_only_checkbox(
+                "movement_sweets_fast_only",
+                "Sweets: fast spending only",
+                "movement_sweets_fast_only",
+            )
+            _text_meta_wrapped(_movement_rule_summary_text())
             PyImGui.separator()
 
         restock_section_open = _styled_collapsing_header(
