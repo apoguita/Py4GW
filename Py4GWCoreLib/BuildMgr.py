@@ -825,6 +825,50 @@ class BuildMgr:
         )
         return max(0, len(nearby) - 1)
 
+    def _count_party_members_in_range(self, within_range: float) -> int:
+        """Count alive party members (Players + Heroes + Henchmen, deduped)
+        within ``within_range`` GW units of the player position. Used by
+        shouts and banners that scale with nearby party-member count.
+        """
+        from Py4GWCoreLib import Party, Player, Utils
+        from Py4GWCoreLib.Agent import Agent
+
+        if within_range <= 0:
+            return 0
+
+        player_pos = Player.GetXY()
+        seen: set[int] = set()
+        count = 0
+
+        for player in Party.GetPlayers():
+            login_number = int(getattr(player, "login_number", 0) or 0)
+            if login_number <= 0:
+                continue
+            agent_id = int(Party.Players.GetAgentIDByLoginNumber(login_number) or 0)
+            if agent_id <= 0 or agent_id in seen:
+                continue
+            seen.add(agent_id)
+            if Agent.IsAlive(agent_id) and Utils.Distance(player_pos, Agent.GetXY(agent_id)) <= within_range:
+                count += 1
+
+        for hero in Party.GetHeroes():
+            agent_id = int(getattr(hero, "agent_id", 0) or 0)
+            if agent_id <= 0 or agent_id in seen:
+                continue
+            seen.add(agent_id)
+            if Agent.IsAlive(agent_id) and Utils.Distance(player_pos, Agent.GetXY(agent_id)) <= within_range:
+                count += 1
+
+        for henchman in Party.GetHenchmen():
+            agent_id = int(getattr(henchman, "agent_id", 0) or 0)
+            if agent_id <= 0 or agent_id in seen:
+                continue
+            seen.add(agent_id)
+            if Agent.IsAlive(agent_id) and Utils.Distance(player_pos, Agent.GetXY(agent_id)) <= within_range:
+                count += 1
+
+        return count
+
     def _pick_clustered_corpse(
         self,
         cluster_radius: float,

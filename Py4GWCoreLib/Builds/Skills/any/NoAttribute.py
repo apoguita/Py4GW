@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from Py4GWCoreLib.BuildMgr import BuildCoroutine
-from Py4GWCoreLib import AgentArray, GLOBAL_CACHE, Player, Range, Routines, SpiritModelID, Utils
+from Py4GWCoreLib import AgentArray, GLOBAL_CACHE, Player, Range, Routines, SpiritModelID, ThrottledTimer, Utils
 from Py4GWCoreLib.Agent import Agent
 from Py4GWCoreLib.Skill import Skill
 
@@ -17,6 +17,8 @@ __all__ = ["NoAttribute"]
 class NoAttribute:
     def __init__(self, build: BuildMgr) -> None:
         self.build: BuildMgr = build
+        self._save_yourselves_throttle: ThrottledTimer = ThrottledTimer(4000)
+        self._save_yourselves_throttle.Stop()
 
     #region B
     def Breath_of_the_Great_Dwarf(self) -> BuildCoroutine:
@@ -430,6 +432,8 @@ class NoAttribute:
     ) -> BuildCoroutine:
         player_agent_id = Player.GetAgentID()
 
+        if not (self._save_yourselves_throttle.IsStopped() or self._save_yourselves_throttle.IsExpired()):
+            return False
         if not self.build.IsSkillEquipped(skill_id):
             return False
         if not self.build.IsInAggro():
@@ -445,11 +449,14 @@ class NoAttribute:
         if len(ally_array or []) < minimum_allies:
             return False
 
-        return (yield from self.build.CastSkillID(
+        cast_result = yield from self.build.CastSkillID(
             skill_id=skill_id,
             log=False,
             aftercast_delay=250,
-        ))
+        )
+        if cast_result:
+            self._save_yourselves_throttle.Reset()
+        return cast_result
 
     def _get_owned_core_spirits(
         self,

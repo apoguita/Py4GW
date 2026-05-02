@@ -20,6 +20,7 @@ Ebon_Vanguard_Assassin_Support_ID = Skill.GetID("Ebon_Vanguard_Assassin_Support"
 Ebon_Battle_Standard_of_Wisdom_ID = Skill.GetID("Ebon_Battle_Standard_of_Wisdom")
 Protectors_Defense_ID = Skill.GetID("Protectors_Defense")
 Cant_Touch_This_ID = Skill.GetID("Cant_Touch_This")
+Make_Your_Time_ID = Skill.GetID("Make_Your_Time")
 
 
 class Paragon_Refrain(BuildMgr):
@@ -49,6 +50,7 @@ class Paragon_Refrain(BuildMgr):
                 Ebon_Battle_Standard_of_Wisdom_ID,
                 Protectors_Defense_ID,
                 Cant_Touch_This_ID,
+                Make_Your_Time_ID,
             ],
         )
         if match_only:
@@ -82,13 +84,16 @@ class Paragon_Refrain(BuildMgr):
         if self.IsSkillEquipped(For_Great_Justice_ID) and (yield from self.skills.Warrior.NoAttribute.For_Great_Justice()):
             return True
 
-        if self.IsSkillEquipped(Stand_Your_Ground_ID) and (yield from self.skills.Paragon.Command.Stand_Your_Ground()):
+        if self.IsSkillEquipped(Make_Your_Time_ID) and (yield from self.skills.Paragon.Leadership.Make_Your_Time()):
             return True
 
         if self.IsSkillEquipped(Save_Yourselves_luxon_ID) and (yield from self.skills.Any.NoAttribute.Save_Yourselves_luxon()):
             return True
 
         if self.IsSkillEquipped(Save_Yourselves_kurzick_ID) and (yield from self.skills.Any.NoAttribute.Save_Yourselves_kurzick()):
+            return True
+
+        if self.IsSkillEquipped(Stand_Your_Ground_ID) and (yield from self.skills.Paragon.Command.Stand_Your_Ground()):
             return True
 
         if self.IsSkillEquipped(Cant_Touch_This_ID) and (yield from self.skills.Paragon.Command.Cant_Touch_This()):
