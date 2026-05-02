@@ -646,5 +646,4 @@ class Targeting:
         return scored[0]
 
 
-
 #endregion

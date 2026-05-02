@@ -85,7 +85,8 @@ class Leadership:
 
     #region M
     def Make_Your_Time(self) -> BuildCoroutine:
-        from Py4GWCoreLib import Range
+        from Py4GWCoreLib import Agent, AgentArray, Range
+        from HeroAI.utils import IsPartyMember
 
         make_your_time_id: int = Skill.GetID("Make_Your_Time")
         player_agent_id = Player.GetAgentID()
@@ -96,7 +97,10 @@ class Leadership:
         if not (self.build.IsInAggro() or self.build.IsCloseToAggro()):
             return False
 
-        if self.build._count_party_members_in_range(Range.Earshot.value) < 3:
+        candidates = AgentArray.GetAllyArray() + AgentArray.GetSpiritPetArray()
+        candidates = AgentArray.Filter.ByDistance(candidates, Player.GetXY(), Range.Earshot.value)
+        candidates = AgentArray.Filter.ByCondition(candidates, lambda a: Agent.IsAlive(a) and IsPartyMember(a))
+        if len(candidates) < 3:
             return False
 
         return (yield from self.build.CastSkillID(
