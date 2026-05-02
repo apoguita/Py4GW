@@ -412,6 +412,59 @@ def LeaveParty(index: int, message: SharedMessageStruct):
 
 # endregion
 
+# region MoveToXY
+
+
+def MoveToXY(index: int, message: SharedMessageStruct):
+    # ConsoleLog(MODULE_NAME, f"Processing TravelToMap message: {message}", Console.MessageType.Info)
+    GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
+    sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
+    if sender_data is None:
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+
+    map_id = int(message.Params[0])
+    map_x = int(message.Params[1])
+    map_y = int(message.Params[2])
+    dialog_id = int(message.Params[3])
+
+    if Map.GetMapID() == map_id:
+        if Utils.Distance((map_x, map_y), Player.GetXY()) > 150:
+
+            path3d = yield from AutoPathing().get_path_to(map_x, map_y, smooth_by_los=True, margin=100.0, step_dist=242.0)
+            path2d:list[tuple[float, float]]  = [(x, y) for (x, y, *_ ) in path3d]
+
+            yield from Routines.Yield.Movement.FollowPath(
+                path_points= path2d,
+                custom_exit_condition=lambda: Agent.IsDead(Player.GetAgentID()),
+                tolerance=150,
+                log=False,
+                timeout=15_000,
+                progress_callback=lambda progress: ConsoleLog("MoveToXY", f"FollowPath: progress: {progress}", Console.MessageType.Info),
+                custom_pause_fn=lambda: False)
+
+
+        ConsoleLog(MODULE_NAME, f"MoveToXY at ({map_x}, {map_y}).", Console.MessageType.Info, False)
+
+        if dialog_id > 0:
+            result = yield from Routines.Yield.Agents.InteractWithAgentXY(x=map_x, y=map_y)
+            yield from Routines.Yield.wait(500)
+            #ConsoleLog(MODULE_NAME, f"Interaction result: {result}", Py4GW.Console.MessageType.Info)
+            if result:
+                ConsoleLog(MODULE_NAME, f"Dialog {dialog_id} at ({map_x}, {map_y}).", Console.MessageType.Info, False)
+                Player.SendDialog(dialog_id)
+                yield from Routines.Yield.wait(500)
+            else:
+                ConsoleLog(MODULE_NAME, f"Dialog at ({map_x}, {map_y}) failed, could not find an npc there.", Console.MessageType.Info, False)
+    else:
+        ConsoleLog(MODULE_NAME, f"Wrong map id.", Console.MessageType.Info, False)
+
+    GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+    ConsoleLog(MODULE_NAME, "MoveToXY message processed", Console.MessageType.Info, False)
+
+
+# endregion
+
 # region TravelToMap
 
 
@@ -2576,6 +2629,8 @@ def ProcessMessages():
         case SharedCommandType.ReservedLegacyCommand:
             GLOBAL_CACHE.ShMem.MarkMessageAsFinished(account_email, index)
             pass
+        case SharedCommandType.MoveToXY:
+            GLOBAL_CACHE.Coroutines.append(MoveToXY(index, message))
         case _:
             GLOBAL_CACHE.ShMem.MarkMessageAsFinished(account_email, index)
             pass
