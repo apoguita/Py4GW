@@ -125,9 +125,11 @@ def ConfigureFirstBattle(bot: Botting):
     PrepareForBattle(bot, Hero_List=[6], Henchman_List=[1,2])
 
 def EnterChahbekMission(bot: Botting):
+
     bot.States.AddHeader("Chahbek Village")
-    bot.Dialogs.AtXY(3485, -5246, 0x81)
-    bot.Dialogs.AtXY(3485, -5246, 0x84)
+
+    bot.Move.XYAndDialog(3485, -5246, 0x81)
+    bot.Move.XYAndDialog(3485, -5246, 0x84)
     bot.Wait.ForTime(2000)
     bot.Wait.UntilOnExplorable()
     bot.Move.XY(2240, -3535)
@@ -162,8 +164,7 @@ def TakeReward(bot: Botting):
         # 7=EU, 8=EU+INT, 11=ALL (incl. Asia)
         yield from RndTravelState(248, use_districts=8)
     bot.States.AddCustomState(_state, "RndTravel -> Great Temple of Balthazar")
-    bot.Move.XY(-5159.01, -5548.32)
-    bot.Dialogs.WithModel(1192,0x83D207)
+    bot.Move.XYAndDialog(-5019.00, -5496.00,0x83D207)
 
 def UnlockXunlai(bot : Botting) :
     bot.States.AddHeader("Unlock Xunlai Storage")
