@@ -6,7 +6,7 @@ from Py4GWCoreLib.native_src.internals.types import Vec2f
 from Py4GWCoreLib.enums import Range
 from Py4GWCoreLib.enums_src.IO_enums import CHAR_MAP, Key
 from Py4GWCoreLib.enums_src.UI_enums import ControlAction
-from Py4GWCoreLib.enums_src.Region_enums import District
+from Py4GWCoreLib.enums_src.Region_enums import District, ServerLanguage, ServerRegion
 from Py4GWCoreLib.Agent import Agent
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib.Map import Map
@@ -311,7 +311,7 @@ def PasteTextFromBlackboard(
 
 def PressRightArrowTimes(
         count_key: str,
-        delay_ms: int = 100,
+        delay_ms: int = 800,
         name: str = "PressRightArrowTimes",
     ) -> BehaviorTree:
     state = {
@@ -450,6 +450,7 @@ def CreateCharacterFromBlackboard(
             children=[
                 WaitUntilCharacterSelect(timeout_ms=timeout_ms),
                 Wait(1000),
+                Wait(3000),
                 ClickWindowFrame("CreateCharacterButton1", aftercast_ms=500),
                 ClickWindowFrame("CreateCharacterButton2", aftercast_ms=1000),
                 ClickWindowFrame("CreateCharacterTypeNextButton", aftercast_ms=1000),
@@ -512,7 +513,49 @@ def WaitForMapToChange(map_id: int, timeout_ms: int = 30000) -> BehaviorTree:
 def TravelToOutpost(outpost_id: int) -> BehaviorTree:
     return RoutinesBT.Map.TravelToOutpost(outpost_id=outpost_id)
 
-def TravelToRandomDistrict(target_map_id: int = 0, target_map_name: str = "", region_pool: str = "eu") -> BehaviorTree:
+
+def _current_travel_district_enum() -> int | None:
+    """
+    Same district id passed as Map.TravelToDistrict(map_id, district=...).
+    Map.GetDistrict() is instance district_number, not this enum — exclusion must use region + language.
+    """
+    try:
+        region_id = int(Map.GetRegion()[0])
+        lang_id = int(Map.GetLanguage()[0])
+    except Exception:
+        return None
+
+    if region_id == ServerRegion.Europe.value:
+        eu_lang_to_dist = {
+            ServerLanguage.French.value: District.EuropeFrench.value,
+            ServerLanguage.German.value: District.EuropeGerman.value,
+            ServerLanguage.Italian.value: District.EuropeItalian.value,
+            ServerLanguage.Spanish.value: District.EuropeSpanish.value,
+            ServerLanguage.Polish.value: District.EuropePolish.value,
+            ServerLanguage.Russian.value: District.EuropeRussian.value,
+            ServerLanguage.English.value: District.EuropeEnglish.value,
+        }
+        return eu_lang_to_dist.get(lang_id)
+
+    if region_id == ServerRegion.Korea.value and lang_id == ServerLanguage.Korean.value:
+        return District.AsiaKorean.value
+    if region_id == ServerRegion.China.value and lang_id == ServerLanguage.TraditionalChinese.value:
+        return District.AsiaChinese.value
+    if region_id == ServerRegion.Japan.value and lang_id == ServerLanguage.Japanese.value:
+        return District.AsiaJapanese.value
+
+    return None
+
+
+_TRAVEL_RANDOM_DISTRICT_MIN_UPTIME_MS = 1500
+
+
+def TravelToRandomDistrict(
+    target_map_id: int = 0,
+    target_map_name: str = "",
+    region_pool: str = "eu",
+    force_random_district: bool = False,
+) -> BehaviorTree:
     def _normalize_region_pool() -> str:
         mode = (region_pool or "eu").strip().lower()
         mode = mode.replace("+", "_").replace("-", "_").replace(" ", "_")
@@ -549,11 +592,40 @@ def TravelToRandomDistrict(target_map_id: int = 0, target_map_name: str = "", re
         resolved_map_id = Map.GetMapIDByName(target_map_name) if target_map_name else target_map_id
         if resolved_map_id <= 0:
             return BehaviorTree.NodeState.FAILURE
-        if Map.IsMapReady() and Map.IsMapIDMatch(Map.GetMapID(), resolved_map_id):
+        on_target = Map.IsMapReady() and Map.IsMapIDMatch(Map.GetMapID(), resolved_map_id)
+        if on_target and not force_random_district:
             node.blackboard["travel_to_random_district_target_map_id"] = resolved_map_id
             return BehaviorTree.NodeState.SUCCESS
 
-        district = random.choice(_get_random_district_candidates())
+        # Avoid queueing TravelToDistrict during load / low uptime — overlapping transitions
+        # have been observed to destabilize the client with district hopping.
+        if not Routines.Checks.Map.MapValid():
+            return BehaviorTree.NodeState.RUNNING
+        if Map.IsMapLoading():
+            return BehaviorTree.NodeState.RUNNING
+        if not Map.IsMapReady():
+            return BehaviorTree.NodeState.RUNNING
+        if not GLOBAL_CACHE.Party.IsPartyLoaded():
+            return BehaviorTree.NodeState.RUNNING
+        try:
+            map_up = Map.GetInstanceUptime()
+            player_up = Player.GetInstanceUptime()
+        except Exception:
+            map_up = player_up = _TRAVEL_RANDOM_DISTRICT_MIN_UPTIME_MS
+        if (
+            map_up < _TRAVEL_RANDOM_DISTRICT_MIN_UPTIME_MS
+            or player_up < _TRAVEL_RANDOM_DISTRICT_MIN_UPTIME_MS
+        ):
+            return BehaviorTree.NodeState.RUNNING
+
+        candidates = list(_get_random_district_candidates())
+        cur_district_enum = _current_travel_district_enum()
+        if on_target and cur_district_enum is not None and cur_district_enum in candidates:
+            others = [d for d in candidates if d != cur_district_enum]
+            if others:
+                candidates = others
+
+        district = random.choice(candidates)
         node.blackboard["travel_to_random_district_target_map_id"] = resolved_map_id
         node.blackboard["travel_to_random_district_district"] = district
         Map.TravelToDistrict(resolved_map_id, district)
@@ -566,7 +638,7 @@ def TravelToRandomDistrict(target_map_id: int = 0, target_map_name: str = "", re
                 BehaviorTree.ActionNode(
                     name="TravelToRandomDistrictAction",
                     action_fn=_travel_to_random_district,
-                    aftercast_ms=500,
+                    aftercast_ms=1200,
                 ),
                 BehaviorTree.SubtreeNode(
                     name="WaitForRandomDistrictMapLoad",
@@ -1042,6 +1114,49 @@ def DepositModelToStorage(model_id: int, aftercast_ms: int = 350) -> BehaviorTre
         )
     )
 
+def WithdrawModelFromStorageUpToFreeSlots(
+        model_id: int,
+        assumed_stack_size: int = 250,
+        aftercast_ms: int = 400,
+    ) -> BehaviorTree:
+    """Pull material from storage into bags until storage has none left or bags cannot fit more.
+
+    Uses repeated withdrawals (storage API pulls one stack chain per call).
+    """
+
+    def _withdraw_batch() -> BehaviorTree.NodeState:
+        in_storage = GLOBAL_CACHE.Inventory.GetModelCountInStorage(model_id)
+        if in_storage <= 0:
+            return BehaviorTree.NodeState.SUCCESS
+
+        free_slots = GLOBAL_CACHE.Inventory.GetFreeSlotCount()
+        if free_slots <= 0:
+            return BehaviorTree.NodeState.SUCCESS
+
+        max_qty = min(in_storage, max(1, free_slots) * assumed_stack_size)
+        if max_qty <= 0:
+            return BehaviorTree.NodeState.SUCCESS
+
+        moved = GLOBAL_CACHE.Inventory.WithdrawItemFromStorageByModelID(model_id, max_qty)
+        if not moved:
+            return BehaviorTree.NodeState.SUCCESS
+
+        still_storage = GLOBAL_CACHE.Inventory.GetModelCountInStorage(model_id)
+        still_free = GLOBAL_CACHE.Inventory.GetFreeSlotCount()
+        if still_storage > 0 and still_free > 0:
+            return BehaviorTree.NodeState.RUNNING
+
+        return BehaviorTree.NodeState.SUCCESS
+
+    return BehaviorTree(
+        BehaviorTree.ActionNode(
+            name=f"WithdrawModelFromStorageUpToFreeSlots({model_id})",
+            action_fn=_withdraw_batch,
+            aftercast_ms=aftercast_ms,
+        )
+    )
+
+
 def DepositGoldKeep(gold_amount_to_leave_on_character: int = 0, aftercast_ms: int = 350) -> BehaviorTree:
     def _deposit_gold_keep() -> BehaviorTree.NodeState:
         gold_on_character = GLOBAL_CACHE.Inventory.GetGoldOnCharacter()
@@ -1083,17 +1198,57 @@ def ExchangeCollectorItem(
         aftercast_ms=aftercast_ms,
     )
 
+
+def WaitUntilTransactionComplete(
+    timeout_ms: int = 30000,
+    throttle_interval_ms: int = 50,
+) -> BehaviorTree:
+    """Wait until GLOBAL_CACHE.Trading.IsTransactionComplete() is true.
+
+    Note: When already idle this succeeds immediately — do not use right after
+    only queueing a craft without a guaranteed busy phase; use CraftItem's
+    post_queue_settle_ms instead.
+    """
+
+    def _transaction_idle() -> BehaviorTree.NodeState:
+        if GLOBAL_CACHE.Trading.IsTransactionComplete():
+            return BehaviorTree.NodeState.SUCCESS
+        return BehaviorTree.NodeState.RUNNING
+
+    return BehaviorTree(
+        BehaviorTree.WaitUntilNode(
+            name="WaitUntilTransactionComplete",
+            condition_fn=_transaction_idle,
+            throttle_interval_ms=throttle_interval_ms,
+            timeout_ms=timeout_ms,
+        )
+    )
+
+
 def CraftItem(
         output_model_id: int,
         cost: int,
         trade_model_ids: list[int],
         quantity_list: list[int],
         aftercast_ms: int = 500,
+        post_queue_settle_ms: int = 2000,
     ) -> BehaviorTree:
-    def _craft_item() -> BehaviorTree.NodeState:
+    """Queue crafter trade, then wait post_queue_settle_ms for the action queue / UI.
+
+    Materials are taken across multiple inventory stacks per model (same as collector
+    exchange), so e.g. 50 copper can come from 35 + 15 across two slots.
+
+    IsTransactionComplete() is often already true while idle, so waiting on it
+    immediately after Crafter.CraftItem returns instantly and the next craft fails.
+    """
+
+    def _craft_item_queue() -> BehaviorTree.NodeState:
         k = min(len(trade_model_ids), len(quantity_list))
         if k == 0:
             return BehaviorTree.NodeState.FAILURE
+
+        requested_models = trade_model_ids[:k]
+        requested_quantities = quantity_list[:k]
 
         target_item_id = 0
         for offered_item_id in GLOBAL_CACHE.Trading.Merchant.GetOfferedItems():
@@ -1103,26 +1258,56 @@ def CraftItem(
         if target_item_id == 0:
             return BehaviorTree.NodeState.FAILURE
 
-        trade_item_ids = []
-        for model_id in trade_model_ids[:k]:
-            item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(model_id)
-            if item_id == 0:
+        trade_item_ids: list[int] = []
+        trade_item_quantities: list[int] = []
+
+        for model_id, required_quantity in zip(requested_models, requested_quantities):
+            remaining_quantity = int(required_quantity)
+
+            for item_id in GLOBAL_CACHE.Inventory.GetAllInventoryItemIds():
+                if item_id == 0:
+                    continue
+                if GLOBAL_CACHE.Item.GetModelID(item_id) != model_id:
+                    continue
+
+                item_quantity = int(GLOBAL_CACHE.Item.Properties.GetQuantity(item_id) or 1)
+                if item_quantity <= 0:
+                    continue
+
+                used_quantity = min(item_quantity, remaining_quantity)
+                trade_item_ids.append(item_id)
+                trade_item_quantities.append(used_quantity)
+                remaining_quantity -= used_quantity
+
+                if remaining_quantity <= 0:
+                    break
+
+            if remaining_quantity > 0:
                 return BehaviorTree.NodeState.FAILURE
-            trade_item_ids.append(item_id)
 
         GLOBAL_CACHE.Trading.Crafter.CraftItem(
             target_item_id,
             cost,
             trade_item_ids,
-            quantity_list[:k],
+            trade_item_quantities,
         )
         return BehaviorTree.NodeState.SUCCESS
 
-    return BehaviorTree(
+    sequence_children: list = [
         BehaviorTree.ActionNode(
+            name=f"CraftItemQueue({output_model_id})",
+            action_fn=_craft_item_queue,
+            aftercast_ms=0,
+        ),
+        Wait(max(0, post_queue_settle_ms)),
+    ]
+    if aftercast_ms > 0:
+        sequence_children.append(Wait(aftercast_ms))
+
+    return BehaviorTree(
+        BehaviorTree.SequenceNode(
             name=f"CraftItem({output_model_id})",
-            action_fn=_craft_item,
-            aftercast_ms=aftercast_ms,
+            children=sequence_children,
         )
     )
      
