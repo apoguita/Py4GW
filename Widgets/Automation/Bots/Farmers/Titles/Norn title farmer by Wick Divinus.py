@@ -1,4 +1,4 @@
-﻿# region Imports & Config
+# region Imports & Config
 from Py4GWCoreLib import Botting, Routines, GLOBAL_CACHE, ModelID, Agent, Player, ConsoleLog, IniManager, HeroType, AgentArray, SharedCommandType
 from Py4GWCoreLib.Map import Map
 from Py4GWCoreLib.enums_src.Title_enums import TitleID, TITLE_TIERS
@@ -346,9 +346,9 @@ def bot_routine(bot: Botting) -> None:
     bot.Move.XY(23504, 1801) # Fifth boss
     bot.Wait.ForTime(10000)
     bot.Wait.UntilOutOfCombat()
-    bot.Move.XY(23504, 1801) # Sixth boss
-    bot.Wait.ForTime(10000)
-    bot.Wait.UntilOutOfCombat()
+    #bot.Move.XY(23504, 1801) # Sixth boss
+    #bot.Wait.ForTime(10000)
+    #bot.Wait.UntilOutOfCombat()
 
     # Continue route
     # bot.Move.XY(-2290, 14879, "Aggro: Modnir")
