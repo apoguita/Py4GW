@@ -61,7 +61,7 @@ class PvE:
             return False
 
         # Tier 1: prefer foes that are casting AND under a mesmer hex.
-        target_agent_id = self.build._pick_clustered_target(
+        target_agent_id = Routines.Targeting.PickClusteredTarget(
             cluster_radius=aoe_range,
             preferred_condition=lambda agent_id: Agent.IsCasting(agent_id) and _has_mesmer_hex(agent_id),
             filter_radius=Range.Spellcast.value,
@@ -69,7 +69,7 @@ class PvE:
 
         # Tier 2: any casting foe, only when require_mesmer_hex is False.
         if not target_agent_id and not require_mesmer_hex:
-            target_agent_id = self.build._pick_clustered_target(
+            target_agent_id = Routines.Targeting.PickClusteredTarget(
                 cluster_radius=aoe_range,
                 preferred_condition=lambda agent_id: Agent.IsCasting(agent_id),
                 filter_radius=Range.Spellcast.value,
@@ -105,7 +105,7 @@ class PvE:
             if Agent.GetEnergy(Player.GetAgentID()) < min_self_energy_pct:
                 return False
 
-        target_agent_id = self.build._pick_clustered_target(
+        target_agent_id = Routines.Targeting.PickClusteredTarget(
             cluster_radius=cluster_radius,
             preferred_condition=lambda agent_id: (
                 Agent.GetHealth(agent_id) > 0.3
@@ -138,14 +138,14 @@ class PvE:
         aoe_range = GLOBAL_CACHE.Skill.Data.GetAoERange(technobabble_id) or Range.Nearby.value
 
         # Prefer casters; fall back to any clustered enemy.
-        target_agent_id = self.build._pick_clustered_target(
+        target_agent_id = Routines.Targeting.PickClusteredTarget(
             cluster_radius=aoe_range,
             preferred_condition=Agent.IsCaster,
             filter_radius=Range.Spellcast.value,
         )
 
         if not target_agent_id:
-            target_agent_id = self.build._pick_clustered_target(
+            target_agent_id = Routines.Targeting.PickClusteredTarget(
                 cluster_radius=aoe_range,
                 filter_radius=Range.Spellcast.value,
             )

@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from Py4GWCoreLib.BuildMgr import BuildCoroutine
-from Py4GWCoreLib import AgentArray, Range, Utils
+from Py4GWCoreLib import AgentArray, Range, Routines, Utils
 from Py4GWCoreLib.Agent import Agent
 from Py4GWCoreLib.Player import Player
 from Py4GWCoreLib.Skill import Skill
@@ -29,9 +29,9 @@ class DeadlyArts:
 
         # Tier 1: best cluster with 2+ enemies in Range.Nearby — ideal anchor
         # for the bile detonation chain.
-        target_agent_id = self.build._pick_clustered_target(
+        target_agent_id = Routines.Targeting.PickClusteredTarget(
             cluster_radius=Range.Nearby.value,
-            preferred_condition=lambda agent_id: self.build._count_nearby_enemies(
+            preferred_condition=lambda agent_id: Routines.Targeting.CountNearbyEnemies(
                 agent_id, Range.Nearby.value
             ) >= 2,
             filter_radius=Range.Spellcast.value,
@@ -39,9 +39,9 @@ class DeadlyArts:
 
         # Tier 2: best cluster with 1+ enemy in Range.Nearby.
         if not target_agent_id:
-            target_agent_id = self.build._pick_clustered_target(
+            target_agent_id = Routines.Targeting.PickClusteredTarget(
                 cluster_radius=Range.Nearby.value,
-                preferred_condition=lambda agent_id: self.build._count_nearby_enemies(
+                preferred_condition=lambda agent_id: Routines.Targeting.CountNearbyEnemies(
                     agent_id, Range.Nearby.value
                 ) >= 1,
                 filter_radius=Range.Spellcast.value,

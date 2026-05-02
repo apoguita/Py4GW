@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from Py4GWCoreLib import Routines
 from Py4GWCoreLib.BuildMgr import BuildCoroutine
 from Py4GWCoreLib.Builds.Skills._whiteboard import coordinates_whiteboard_skill_target
 from Py4GWCoreLib.Skill import Skill
@@ -113,7 +114,7 @@ class ChannelingMagic:
 
         aoe_range = GLOBAL_CACHE.Skill.Data.GetAoERange(painful_bond_id) or Range.Nearby.value
 
-        target_agent_id = self.build._pick_clustered_target(
+        target_agent_id = Routines.Targeting.PickClusteredTarget(
             cluster_radius=aoe_range,
             filter_radius=Range.Spellcast.value,
         )

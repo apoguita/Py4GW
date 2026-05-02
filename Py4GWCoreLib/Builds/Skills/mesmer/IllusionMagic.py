@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from HeroAI.targeting import TargetCasterClusterEnemy, TargetMeleeOrMartialClusterEnemy
+from Py4GWCoreLib import Routines
 from Py4GWCoreLib.BuildMgr import BuildCoroutine
 from Py4GWCoreLib.Skill import Skill
 
@@ -61,7 +62,7 @@ class IllusionMagic:
         if not self.build.IsSkillEquipped(signet_of_clumsiness_id):
             return False
 
-        target_agent_id = self.build._pick_clustered_target(
+        target_agent_id = Routines.Targeting.PickClusteredTarget(
             cluster_radius=Range.Adjacent.value,
             preferred_condition=lambda agent_id: Agent.IsAttacking(agent_id),
             filter_radius=Range.Spellcast.value,

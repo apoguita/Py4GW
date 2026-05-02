@@ -81,7 +81,7 @@ class NoAttribute:
         if not self.build.IsSkillEquipped(you_are_all_weaklings_id):
             return False
 
-        target_agent_id = self.build._pick_clustered_target(
+        target_agent_id = Routines.Targeting.PickClusteredTarget(
             Range.Adjacent.value,
             filter_radius=Range.Spellcast.value,
         )

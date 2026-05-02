@@ -52,10 +52,10 @@ class DeathMagic:
         # Tier 2: best cluster with 2+ neighbors in Range.Nearby. Anchor must
         # be < 25% HP (about to die) so the detonation pays off.
         if not target_agent_id:
-            target_agent_id = self.build._pick_clustered_target(
+            target_agent_id = Routines.Targeting.PickClusteredTarget(
                 cluster_radius=Range.Nearby.value,
                 preferred_condition=lambda agent_id: (
-                    self.build._count_nearby_enemies(agent_id, Range.Nearby.value) >= 2
+                    Routines.Targeting.CountNearbyEnemies(agent_id, Range.Nearby.value) >= 2
                     and Agent.GetHealth(agent_id) < 0.25
                     and not _has_putrid_bile(agent_id)
                 ),
@@ -65,10 +65,10 @@ class DeathMagic:
         # Tier 3: best cluster with 1+ neighbor in Range.Nearby. Anchor must
         # be < 35% HP.
         if not target_agent_id:
-            target_agent_id = self.build._pick_clustered_target(
+            target_agent_id = Routines.Targeting.PickClusteredTarget(
                 cluster_radius=Range.Nearby.value,
                 preferred_condition=lambda agent_id: (
-                    self.build._count_nearby_enemies(agent_id, Range.Nearby.value) >= 1
+                    Routines.Targeting.CountNearbyEnemies(agent_id, Range.Nearby.value) >= 1
                     and Agent.GetHealth(agent_id) < 0.35
                     and not _has_putrid_bile(agent_id)
                 ),
@@ -111,22 +111,22 @@ class DeathMagic:
         # through to 3+, 2+, 1+. Each tier returns the highest-scoring corpse
         # meeting its floor.
         target_corpse_id = (
-            self.build._pick_clustered_enemies_around_corpse(
+            Routines.Targeting.PickClusteredEnemiesAroundCorpse(
                 cluster_radius=Range.Nearby.value,
                 filter_radius=Range.Spellcast.value,
                 min_enemy_targets=4,
             )
-            or self.build._pick_clustered_enemies_around_corpse(
+            or Routines.Targeting.PickClusteredEnemiesAroundCorpse(
                 cluster_radius=Range.Nearby.value,
                 filter_radius=Range.Spellcast.value,
                 min_enemy_targets=3,
             )
-            or self.build._pick_clustered_enemies_around_corpse(
+            or Routines.Targeting.PickClusteredEnemiesAroundCorpse(
                 cluster_radius=Range.Nearby.value,
                 filter_radius=Range.Spellcast.value,
                 min_enemy_targets=2,
             )
-            or self.build._pick_clustered_enemies_around_corpse(
+            or Routines.Targeting.PickClusteredEnemiesAroundCorpse(
                 cluster_radius=Range.Nearby.value,
                 filter_radius=Range.Spellcast.value,
                 min_enemy_targets=1,
@@ -156,10 +156,10 @@ class DeathMagic:
         # Hard floor of 2+ neighbors (3+ total foes damaged) — Rising Bile only
         # pays off when the on-end AoE hits a real cluster. Cast as the opening
         # hex so the 20s timer accumulates maximum per-second damage.
-        target_agent_id = self.build._pick_clustered_target(
+        target_agent_id = Routines.Targeting.PickClusteredTarget(
             cluster_radius=Range.Area.value,
             preferred_condition=lambda agent_id: (
-                self.build._count_nearby_enemies(agent_id, Range.Area.value) >= 2
+                Routines.Targeting.CountNearbyEnemies(agent_id, Range.Area.value) >= 2
                 and rising_bile_id not in self.build.GetEffectAndBuffIds(agent_id)
             ),
             filter_radius=Range.Spellcast.value,
