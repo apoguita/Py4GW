@@ -111,22 +111,22 @@ class DeathMagic:
         # through to 3+, 2+, 1+. Each tier returns the highest-scoring corpse
         # meeting its floor.
         target_corpse_id = (
-            self.build._pick_clustered_corpse(
+            self.build._pick_clustered_enemies_around_corpse(
                 cluster_radius=Range.Nearby.value,
                 filter_radius=Range.Spellcast.value,
                 min_enemy_targets=4,
             )
-            or self.build._pick_clustered_corpse(
+            or self.build._pick_clustered_enemies_around_corpse(
                 cluster_radius=Range.Nearby.value,
                 filter_radius=Range.Spellcast.value,
                 min_enemy_targets=3,
             )
-            or self.build._pick_clustered_corpse(
+            or self.build._pick_clustered_enemies_around_corpse(
                 cluster_radius=Range.Nearby.value,
                 filter_radius=Range.Spellcast.value,
                 min_enemy_targets=2,
             )
-            or self.build._pick_clustered_corpse(
+            or self.build._pick_clustered_enemies_around_corpse(
                 cluster_radius=Range.Nearby.value,
                 filter_radius=Range.Spellcast.value,
                 min_enemy_targets=1,

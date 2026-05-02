@@ -869,7 +869,7 @@ class BuildMgr:
 
         return count
 
-    def _pick_clustered_corpse(
+    def _pick_clustered_enemies_around_corpse(
         self,
         cluster_radius: float,
         *,
