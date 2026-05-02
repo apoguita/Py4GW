@@ -244,7 +244,7 @@ SALVAGE_OPTION_PREFIX = "prefix"
 SALVAGE_OPTION_SUFFIX = "suffix"
 SALVAGE_OPTION_INSCRIPTION = "inscription"
 SALVAGE_OPTION_ORDER: tuple[tuple[str, str], ...] = (
-    (SALVAGE_OPTION_DEFAULT, "Default"),
+    (SALVAGE_OPTION_DEFAULT, "Default (legacy behavior)"),
     (SALVAGE_OPTION_MATERIALS, "Salvage materials"),
     (SALVAGE_OPTION_PREFIX, "Salvage prefix"),
     (SALVAGE_OPTION_SUFFIX, "Salvage suffix"),
@@ -3204,7 +3204,7 @@ def _get_salvage_option_label(raw_option: object) -> str:
     for option, label in SALVAGE_OPTION_ORDER:
         if option == safe_option:
             return label
-    return "Default"
+    return "Default (legacy behavior)"
 
 
 def _salvage_rule_has_selectors(rule: SalvageRule) -> bool:
@@ -23639,7 +23639,7 @@ class MerchantRulesWidget:
         if selected_option in SALVAGE_UPGRADE_OPTIONS:
             self._draw_secondary_text("Uses a Perfect, Expert, or Superior Salvage Kit when available.")
         else:
-            self._draw_secondary_text("Default and materials use normal Salvage Kits.")
+            self._draw_secondary_text("Default (legacy behavior) and materials use normal Salvage Kits.")
 
         PyImGui.spacing()
         self._draw_section_heading("Rarities")
