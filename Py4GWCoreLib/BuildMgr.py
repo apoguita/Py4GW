@@ -757,74 +757,6 @@ class BuildMgr:
             self.ResetPartyHealthMonitor()
         self._was_in_aggro = in_aggro
 
-    def _pick_clustered_target(
-        self,
-        cluster_radius: float,
-        preferred_condition: Callable[[int], bool] | None = None,
-        *,
-        filter_radius: float | None = None,
-    ) -> int:
-        """Pick the enemy with the most direct neighbors within
-        ``cluster_radius``.
-
-        Candidate pool is enemies within ``filter_radius`` (defaults to
-        ``cluster_radius``) of the player. When ``preferred_condition`` is
-        provided, candidates are restricted to matches; if none match,
-        returns 0 so the caller can drive its own fallback. Ties broken by
-        distance to player.
-
-        Suited to AoE-on-cast skills where the effect applies in a single
-        radius around the cast target (e.g. Panic, Painful Bond, Cry of
-        Frustration, Energy Surge).
-        """
-        from Py4GWCoreLib import Player, AgentArray, Utils
-        from Py4GWCoreLib.Agent import Agent
-
-        if cluster_radius <= 0:
-            return 0
-
-        effective_filter_radius = float(filter_radius if filter_radius is not None else cluster_radius)
-
-        player_pos = Player.GetXY()
-        enemy_array = AgentArray.GetEnemyArray()
-        enemy_array = AgentArray.Filter.ByDistance(enemy_array, player_pos, effective_filter_radius)
-        enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Agent.IsAlive(agent_id))
-        if not enemy_array:
-            return 0
-
-        candidates = enemy_array
-        if preferred_condition is not None:
-            candidates = [agent_id for agent_id in enemy_array if preferred_condition(agent_id)]
-            if not candidates:
-                return 0
-
-        scored = sorted(
-            candidates,
-            key=lambda c: (
-                -self._count_nearby_enemies(c, cluster_radius),
-                Utils.Distance(player_pos, Agent.GetXY(c)),
-            ),
-        )
-        return scored[0]
-
-    def _count_nearby_enemies(self, agent_id: int, cluster_radius: float) -> int:
-        """Count alive enemies within ``cluster_radius`` of ``agent_id``,
-        excluding ``agent_id`` itself. Returns 0 for invalid inputs.
-        """
-        from Py4GWCoreLib import AgentArray, Routines
-        from Py4GWCoreLib.Agent import Agent
-
-        if not agent_id or cluster_radius <= 0:
-            return 0
-
-        target_x, target_y = Agent.GetXY(agent_id)
-        nearby = Routines.Agents.GetFilteredEnemyArray(target_x, target_y, cluster_radius)
-        nearby = AgentArray.Filter.ByCondition(
-            nearby,
-            lambda nid: Agent.IsValid(nid) and not Agent.IsDead(nid),
-        )
-        return max(0, len(nearby) - 1)
-
     def _resolve_self_agent_id(self) -> int:
         """Resolve the running bot's effective self agent_id for ownership
         comparisons (e.g. ``Agent.GetOwnerID(spirit) == self_agent_id``).
@@ -953,8 +885,9 @@ class BuildMgr:
     
     def _pick_fallback_target(self, target_type: str) -> int:
         from HeroAI.targeting import GetEnemyAttacking, GetEnemyInjured, TargetClusteredEnemy
+        from Py4GWCoreLib import Routines
         from Py4GWCoreLib.Agent import Agent
-        
+
         combat_distance = self.GetActiveScanRange()
         return_target = 0
         if target_type == "EnemyClustered":
@@ -962,14 +895,14 @@ class BuildMgr:
             if not (Agent.IsValid(return_target) and not Agent.IsDead(return_target)):
                 return_target = GetEnemyInjured(combat_distance)
         elif target_type == "EnemyHexedOrEnchantedClustered":
-            return_target = self._pick_clustered_target(
+            return_target = Routines.Targeting.PickClusteredTarget(
                 combat_distance,
                 preferred_condition=lambda agent_id: Agent.IsHexed(agent_id) or Agent.IsEnchanted(agent_id),
             )
             if not (Agent.IsValid(return_target) and not Agent.IsDead(return_target)):
                 return_target = GetEnemyInjured(combat_distance)
         elif target_type == "EnemyAttackingClustered":
-            return_target = self._pick_clustered_target(
+            return_target = Routines.Targeting.PickClusteredTarget(
                 combat_distance,
                 preferred_condition=lambda agent_id: Agent.IsAttacking(agent_id),
             )

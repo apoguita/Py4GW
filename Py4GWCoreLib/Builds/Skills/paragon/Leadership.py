@@ -83,6 +83,34 @@ class Leadership:
         ))
     #endregion
 
+    #region M
+    def Make_Your_Time(self) -> BuildCoroutine:
+        from Py4GWCoreLib import Agent, AgentArray, Range
+        from HeroAI.utils import IsPartyMember
+
+        make_your_time_id: int = Skill.GetID("Make_Your_Time")
+        player_agent_id = Player.GetAgentID()
+
+        if not self.build.IsSkillEquipped(make_your_time_id):
+            return False
+
+        if not (self.build.IsInAggro() or self.build.IsCloseToAggro()):
+            return False
+
+        candidates = AgentArray.GetAllyArray() + AgentArray.GetSpiritPetArray()
+        candidates = AgentArray.Filter.ByDistance(candidates, Player.GetXY(), Range.Earshot.value)
+        candidates = AgentArray.Filter.ByCondition(candidates, lambda a: Agent.IsAlive(a) and IsPartyMember(a))
+        if len(candidates) < 3:
+            return False
+
+        return (yield from self.build.CastSkillID(
+            skill_id=make_your_time_id,
+            target_agent_id=player_agent_id,
+            log=False,
+            aftercast_delay=250,
+        ))
+    #endregion
+
     #region T
     def Theyre_on_Fire(self) -> BuildCoroutine:
         theyre_on_fire_id: int = Skill.GetID("Theyre_on_Fire")

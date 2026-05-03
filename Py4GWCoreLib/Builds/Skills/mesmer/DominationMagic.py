@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from Py4GWCoreLib import Routines
 from Py4GWCoreLib.BuildMgr import BuildCoroutine
 from Py4GWCoreLib.Skill import Skill
 from Py4GWCoreLib.Builds.Skills._whiteboard import coordinates_whiteboard_skill_target
@@ -35,21 +36,21 @@ class DominationMagic:
             casting_skill_id = Agent.GetCastingSkillID(agent_id)
             return bool(casting_skill_id and GLOBAL_CACHE.Skill.Flags.IsSpell(casting_skill_id))
 
-        target_agent_id = self.build._pick_clustered_target(
+        target_agent_id = Routines.Targeting.PickClusteredTarget(
             cluster_radius=aoe_range,
             preferred_condition=_is_enemy_casting_spell,
             filter_radius=Range.Spellcast.value,
         )
 
         if not target_agent_id:
-            best_enemy_target_id = self.build._pick_clustered_target(
+            best_enemy_target_id = Routines.Targeting.PickClusteredTarget(
                 cluster_radius=aoe_range,
                 filter_radius=Range.Spellcast.value,
             )
             current_target_id = Player.GetTargetID()
             if Agent.IsValid(current_target_id) and not Agent.IsDead(current_target_id):
-                current_target_score = self.build._count_nearby_enemies(current_target_id, aoe_range)
-                best_enemy_score = self.build._count_nearby_enemies(best_enemy_target_id, aoe_range)
+                current_target_score = Routines.Targeting.CountNearbyEnemies(current_target_id, aoe_range)
+                best_enemy_score = Routines.Targeting.CountNearbyEnemies(best_enemy_target_id, aoe_range)
                 if current_target_score >= best_enemy_score:
                     target_agent_id = current_target_id
 
@@ -75,7 +76,7 @@ class DominationMagic:
         cry_of_frustration_id: int = Skill.GetID("Cry_of_Frustration")
         aoe_range = GLOBAL_CACHE.Skill.Data.GetAoERange(cry_of_frustration_id) or Range.Nearby.value
 
-        target_agent_id = self.build._pick_clustered_target(
+        target_agent_id = Routines.Targeting.PickClusteredTarget(
             cluster_radius=aoe_range,
             preferred_condition=lambda agent_id: Agent.IsCasting(agent_id),
             filter_radius=Range.Spellcast.value,
@@ -106,7 +107,7 @@ class DominationMagic:
             casting_skill_id = Agent.GetCastingSkillID(agent_id)
             return bool(casting_skill_id and GLOBAL_CACHE.Skill.Flags.IsSpell(casting_skill_id))
 
-        target_agent_id = self.build._pick_clustered_target(
+        target_agent_id = Routines.Targeting.PickClusteredTarget(
             cluster_radius=aoe_range,
             preferred_condition=_is_enemy_casting_spell,
             filter_radius=Range.Spellcast.value,
@@ -131,7 +132,7 @@ class DominationMagic:
         overload_id: int = Skill.GetID("Overload")
         aoe_range = GLOBAL_CACHE.Skill.Data.GetAoERange(overload_id) or Range.Adjacent.value
 
-        target_agent_id = self.build._pick_clustered_target(
+        target_agent_id = Routines.Targeting.PickClusteredTarget(
             cluster_radius=aoe_range,
             preferred_condition=lambda agent_id: Agent.IsCasting(agent_id),
             filter_radius=Range.Spellcast.value,
@@ -163,7 +164,7 @@ class DominationMagic:
         # skills and spells (stances and shouts are instant and do NOT
         # trigger). Dense caster mobs cast spells constantly, maximising
         # the cascade.
-        target_agent_id = self.build._pick_clustered_target(
+        target_agent_id = Routines.Targeting.PickClusteredTarget(
             cluster_radius=aoe_range,
             preferred_condition=lambda agent_id: Agent.IsCaster(agent_id),
             filter_radius=Range.Spellcast.value,
@@ -173,7 +174,7 @@ class DominationMagic:
         # activation times and trigger the cascade; stances and shouts do
         # not, so the trigger rate is lower than casters but still useful.
         if not target_agent_id:
-            target_agent_id = self.build._pick_clustered_target(
+            target_agent_id = Routines.Targeting.PickClusteredTarget(
                 cluster_radius=aoe_range,
                 preferred_condition=lambda agent_id: Agent.IsMartial(agent_id) or Agent.IsMelee(agent_id),
                 filter_radius=Range.Spellcast.value,
@@ -183,7 +184,7 @@ class DominationMagic:
         # and any activated skill or spell from a hexed foe triggers the
         # cascade. Auto-attacks, stances, and shouts do not.
         if not target_agent_id:
-            target_agent_id = self.build._pick_clustered_target(
+            target_agent_id = Routines.Targeting.PickClusteredTarget(
                 cluster_radius=aoe_range,
                 filter_radius=Range.Spellcast.value,
             )
@@ -232,13 +233,13 @@ class DominationMagic:
         if not self.build.IsSkillEquipped(unnatural_signet_id):
             return False
 
-        target_agent_id = self.build._pick_clustered_target(
+        target_agent_id = Routines.Targeting.PickClusteredTarget(
             cluster_radius=aoe_range,
             preferred_condition=lambda agent_id: Agent.IsHexed(agent_id) or Agent.IsEnchanted(agent_id),
             filter_radius=Range.Spellcast.value,
         )
         if not target_agent_id:
-            target_agent_id = self.build._pick_clustered_target(
+            target_agent_id = Routines.Targeting.PickClusteredTarget(
                 cluster_radius=aoe_range,
                 filter_radius=Range.Spellcast.value,
             )

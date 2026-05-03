@@ -51,7 +51,7 @@ class Curses:
         if not self.build.IsSkillEquipped(weaken_armor_id):
             return False
 
-        target_agent_id = self.build._pick_clustered_target(
+        target_agent_id = Routines.Targeting.PickClusteredTarget(
             Range.Adjacent.value,
             preferred_condition=lambda agent_id: not Routines.Checks.Agents.HasEffect(agent_id, cracked_armor_id),
             filter_radius=Range.Spellcast.value,

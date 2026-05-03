@@ -3,13 +3,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from Py4GWCoreLib.BuildMgr import BuildCoroutine
-from Py4GWCoreLib import AgentArray, Range
+from Py4GWCoreLib import AgentArray, GLOBAL_CACHE, Range, Routines
 from Py4GWCoreLib.Agent import Agent
 from Py4GWCoreLib.Player import Player
 from Py4GWCoreLib.Skill import Skill
 
 if TYPE_CHECKING:
-    from HeroAI.custom_skill_src.skill_types import CustomSkill
     from Py4GWCoreLib.BuildMgr import BuildMgr
 
 __all__ = ["SoulReaping"]
@@ -18,6 +17,36 @@ __all__ = ["SoulReaping"]
 class SoulReaping:
     def __init__(self, build: BuildMgr) -> None:
         self.build: BuildMgr = build
+
+    #region M
+    def Masochism(self) -> BuildCoroutine:
+        masochism_id: int = Skill.GetID("Masochism")
+
+        if not self.build.IsSkillEquipped(masochism_id):
+            return False
+
+        # Aggro gate: only cast when in aggro or close to aggro
+        if not (self.build.IsInAggro() or self.build.IsCloseToAggro()):
+            return False
+
+        player_agent_id = Player.GetAgentID()
+
+        # Refresh window: skip when Masochism is already up with more than
+        # 2 seconds remaining. Cast otherwise — initial application when
+        # the effect is gone, or refresh inside the last 2-second window.
+        if Routines.Checks.Agents.HasEffect(player_agent_id, masochism_id):
+            remaining_ms = GLOBAL_CACHE.Effects.GetEffectTimeRemaining(
+                player_agent_id, masochism_id
+            )
+            if remaining_ms > 2000:
+                return False
+
+        return (yield from self.build.CastSkillID(
+            skill_id=masochism_id,
+            log=False,
+            aftercast_delay=250,
+        ))
+    #endregion
 
     #region S
     def Signet_of_Lost_Souls(
