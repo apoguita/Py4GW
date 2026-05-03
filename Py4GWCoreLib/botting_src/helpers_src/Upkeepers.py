@@ -155,7 +155,7 @@ class _Upkeepers:
 
             # Enforce strict priority when combat is enabled:
             # combat > loot > movement.
-            if self._config.upkeep.auto_combat.is_active():
+            if handler.is_widget_enabled("HeroAI"):
                 player_id = Player.GetAgentID()
                 if (
                     self.parent.config.pause_on_danger_fn()
@@ -168,10 +168,6 @@ class _Upkeepers:
                     continue
              
             if self.parent.config.pause_on_danger_fn():
-                yield from Routines.Yield.wait(500)
-                continue
-            
-            if handler.is_widget_enabled("HeroAI"):
                 yield from Routines.Yield.wait(500)
                 continue
             
