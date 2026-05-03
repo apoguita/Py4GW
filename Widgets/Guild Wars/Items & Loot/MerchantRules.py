@@ -48,7 +48,7 @@ QUICK_ACTIONS_MENU_SCREEN_MARGIN = 8.0
 QUICK_ACTIONS_MENU_ICON_GAP = 4.0
 QUICK_ACTIONS_MENU_REASON_WIDTH = 130.0
 
-PROFILE_VERSION = 28
+PROFILE_VERSION = 29
 CONFIG_DIR = os.path.join(Py4GW.Console.get_projects_path(), "Widgets", "Config", "MerchantRules")
 SHARED_PROFILES_DIR = os.path.join(CONFIG_DIR, "Profiles")
 RECOVERY_DIR = os.path.join(CONFIG_DIR, "Recovery")
@@ -238,6 +238,29 @@ SALVAGE_CATEGORY_ORDER: tuple[tuple[str, str], ...] = (
     (SALVAGE_CATEGORY_MATERIALS, "Materials"),
     (SALVAGE_CATEGORY_OTHER, "Other Items"),
 )
+SALVAGE_OPTION_DEFAULT = "default"
+SALVAGE_OPTION_MATERIALS = "materials"
+SALVAGE_OPTION_PREFIX = "prefix"
+SALVAGE_OPTION_SUFFIX = "suffix"
+SALVAGE_OPTION_INSCRIPTION = "inscription"
+SALVAGE_OPTION_ORDER: tuple[tuple[str, str], ...] = (
+    (SALVAGE_OPTION_DEFAULT, "Default (legacy behavior)"),
+    (SALVAGE_OPTION_MATERIALS, "Salvage materials"),
+    (SALVAGE_OPTION_PREFIX, "Salvage prefix"),
+    (SALVAGE_OPTION_SUFFIX, "Salvage suffix"),
+    (SALVAGE_OPTION_INSCRIPTION, "Salvage inscription"),
+)
+SALVAGE_SESSION_OPTIONS: frozenset[str] = frozenset({
+    SALVAGE_OPTION_MATERIALS,
+    SALVAGE_OPTION_PREFIX,
+    SALVAGE_OPTION_SUFFIX,
+    SALVAGE_OPTION_INSCRIPTION,
+})
+SALVAGE_UPGRADE_OPTIONS: frozenset[str] = frozenset({
+    SALVAGE_OPTION_PREFIX,
+    SALVAGE_OPTION_SUFFIX,
+    SALVAGE_OPTION_INSCRIPTION,
+})
 
 SELL_RULE_WORKSPACE_LABELS = {
     SELL_KIND_WEAPONS: "Weapons",
@@ -320,6 +343,22 @@ SELL_KIND_TO_MERCHANT_TYPE = {
 
 ECTOPLASM_MODEL_ID = int(ModelID.Glob_Of_Ectoplasm.value)
 SALVAGE_KIT_MODEL_ID = int(ModelID.Salvage_Kit.value)
+NORMAL_SALVAGE_KIT_MODEL_IDS: tuple[int, ...] = (
+    int(ModelID.Salvage_Kit.value),
+    int(ModelID.Salvage_Kit_preSearing.value),
+)
+UPGRADE_SALVAGE_KIT_MODEL_IDS: tuple[int, ...] = (
+    int(ModelID.Perfect_Salvage_Kit.value),
+    int(ModelID.Expert_Salvage_Kit.value),
+    int(ModelID.Superior_Salvage_Kit.value),
+)
+SALVAGE_KIT_MODEL_LABELS: dict[int, str] = {
+    int(ModelID.Salvage_Kit.value): "Salvage Kit",
+    int(ModelID.Salvage_Kit_preSearing.value): "Salvage Kit",
+    int(ModelID.Expert_Salvage_Kit.value): "Expert Salvage Kit",
+    int(ModelID.Superior_Salvage_Kit.value): "Superior Salvage Kit",
+    int(ModelID.Perfect_Salvage_Kit.value): "Perfect Salvage Kit",
+}
 EMBARK_BEACH_MAP_ID = 857
 MATERIAL_BATCH_SIZE = 10
 MATERIAL_STORAGE_BAG_ID = 6
@@ -1005,11 +1044,22 @@ class DestroyRule:
 
 
 @dataclass
+class SalvageRule:
+    enabled: bool = True
+    model_ids: list[int] = field(default_factory=list)
+    rarities: dict[str, bool] = field(default_factory=dict)
+    categories: dict[str, bool] = field(default_factory=dict)
+    salvage_option: str = SALVAGE_OPTION_DEFAULT
+    name: str = ""
+
+
+@dataclass
 class SalvageSettings:
     model_ids: list[int] = field(default_factory=list)
     rarities: dict[str, bool] = field(default_factory=dict)
     categories: dict[str, bool] = field(default_factory=dict)
     on_inventory_change: bool = False
+    rules: list[SalvageRule] = field(default_factory=list)
 
 
 @dataclass
@@ -1126,6 +1176,14 @@ class InventoryItemInfo:
     rune_identifiers: list[str] = field(default_factory=list)
     weapon_mod_identifiers: list[str] = field(default_factory=list)
     weapon_mod_matches: list["ParsedUpgradeMatch"] = field(default_factory=list)
+
+
+@dataclass
+class SalvageCandidate:
+    item: InventoryItemInfo
+    rule_index: int
+    rule: SalvageRule
+    reason: str = ""
 
 
 @dataclass
@@ -3114,26 +3172,146 @@ def _normalize_destroy_rules(rules: list[DestroyRule]) -> list[DestroyRule]:
     return [_normalize_destroy_rule(rule) for rule in rules]
 
 
+def _normalize_salvage_option(raw_option: object) -> str:
+    safe_option = str(raw_option or "").strip().lower()
+    aliases = {
+        "": SALVAGE_OPTION_DEFAULT,
+        "current": SALVAGE_OPTION_DEFAULT,
+        "default/current behavior": SALVAGE_OPTION_DEFAULT,
+        "salvage materials": SALVAGE_OPTION_MATERIALS,
+        "material": SALVAGE_OPTION_MATERIALS,
+        "prefix": SALVAGE_OPTION_PREFIX,
+        "salvage prefix": SALVAGE_OPTION_PREFIX,
+        "suffix": SALVAGE_OPTION_SUFFIX,
+        "salvage suffix": SALVAGE_OPTION_SUFFIX,
+        "inscription": SALVAGE_OPTION_INSCRIPTION,
+        "salvage inscription": SALVAGE_OPTION_INSCRIPTION,
+    }
+    safe_option = aliases.get(safe_option, safe_option)
+    valid_options = {option for option, _label in SALVAGE_OPTION_ORDER}
+    return safe_option if safe_option in valid_options else SALVAGE_OPTION_DEFAULT
+
+
+def _resolve_salvage_session_option(raw_option: object) -> str:
+    safe_option = _normalize_salvage_option(raw_option)
+    if safe_option == SALVAGE_OPTION_DEFAULT:
+        return SALVAGE_OPTION_MATERIALS
+    return safe_option
+
+
+def _get_salvage_option_label(raw_option: object) -> str:
+    safe_option = _normalize_salvage_option(raw_option)
+    for option, label in SALVAGE_OPTION_ORDER:
+        if option == safe_option:
+            return label
+    return "Default (legacy behavior)"
+
+
+def _salvage_rule_has_selectors(rule: SalvageRule) -> bool:
+    return bool(
+        _dedupe_model_ids(getattr(rule, "model_ids", []))
+        or any(bool(value) for value in _normalize_salvage_rarity_flags(getattr(rule, "rarities", {})).values())
+        or any(bool(value) for value in _normalize_salvage_category_flags(getattr(rule, "categories", {})).values())
+    )
+
+
+def _normalize_salvage_rule(raw_rule: object) -> SalvageRule | None:
+    if isinstance(raw_rule, SalvageRule):
+        rule = SalvageRule(
+            enabled=bool(raw_rule.enabled),
+            model_ids=_dedupe_model_ids(raw_rule.model_ids),
+            rarities=_normalize_salvage_rarity_flags(raw_rule.rarities),
+            categories=_normalize_salvage_category_flags(raw_rule.categories),
+            salvage_option=_normalize_salvage_option(raw_rule.salvage_option),
+            name=_normalize_rule_name(getattr(raw_rule, "name", "")),
+        )
+    elif isinstance(raw_rule, dict):
+        rule = SalvageRule(
+            enabled=bool(raw_rule.get("enabled", True)),
+            model_ids=_dedupe_model_ids([
+                _safe_int(value, 0)
+                for value in _coerce_list(raw_rule.get("model_ids", []))
+            ]),
+            rarities=_normalize_salvage_rarity_flags(raw_rule.get("rarities", {})),
+            categories=_normalize_salvage_category_flags(raw_rule.get("categories", {})),
+            salvage_option=_normalize_salvage_option(raw_rule.get("salvage_option", SALVAGE_OPTION_DEFAULT)),
+            name=_normalize_rule_name(raw_rule.get("name", "")),
+        )
+    else:
+        return None
+
+    return rule
+
+
+def _normalize_salvage_rules(raw_rules: object) -> list[SalvageRule]:
+    normalized_rules: list[SalvageRule] = []
+    for raw_rule in _coerce_list(raw_rules):
+        normalized_rule = _normalize_salvage_rule(raw_rule)
+        if normalized_rule is None:
+            continue
+        normalized_rules.append(normalized_rule)
+    return normalized_rules
+
+
 def _normalize_salvage_settings(raw_settings: object) -> SalvageSettings:
     if isinstance(raw_settings, SalvageSettings):
+        legacy_model_ids = _dedupe_model_ids(raw_settings.model_ids)
+        legacy_rarities = _normalize_salvage_rarity_flags(raw_settings.rarities)
+        legacy_categories = _normalize_salvage_category_flags(raw_settings.categories)
+        normalized_rules = _normalize_salvage_rules(raw_settings.rules)
+        if not normalized_rules and (
+            legacy_model_ids
+            or any(bool(value) for value in legacy_rarities.values())
+            or any(bool(value) for value in legacy_categories.values())
+        ):
+            normalized_rules = [
+                SalvageRule(
+                    enabled=True,
+                    model_ids=list(legacy_model_ids),
+                    rarities=dict(legacy_rarities),
+                    categories=dict(legacy_categories),
+                    salvage_option=SALVAGE_OPTION_DEFAULT,
+                )
+            ]
         return SalvageSettings(
-            model_ids=_dedupe_model_ids(raw_settings.model_ids),
-            rarities=_normalize_salvage_rarity_flags(raw_settings.rarities),
-            categories=_normalize_salvage_category_flags(raw_settings.categories),
+            model_ids=legacy_model_ids,
+            rarities=legacy_rarities,
+            categories=legacy_categories,
             on_inventory_change=bool(raw_settings.on_inventory_change),
+            rules=normalized_rules,
         )
 
     if not isinstance(raw_settings, dict):
         raw_settings = {}
 
+    legacy_model_ids = _dedupe_model_ids([
+        _safe_int(value, 0)
+        for value in _coerce_list(raw_settings.get("model_ids", []))
+    ])
+    legacy_rarities = _normalize_salvage_rarity_flags(raw_settings.get("rarities", {}))
+    legacy_categories = _normalize_salvage_category_flags(raw_settings.get("categories", {}))
+    rules = _normalize_salvage_rules(raw_settings.get("rules", []))
+    if not rules and (
+        legacy_model_ids
+        or any(bool(value) for value in legacy_rarities.values())
+        or any(bool(value) for value in legacy_categories.values())
+    ):
+        rules = [
+            SalvageRule(
+                enabled=True,
+                model_ids=list(legacy_model_ids),
+                rarities=dict(legacy_rarities),
+                categories=dict(legacy_categories),
+                salvage_option=SALVAGE_OPTION_DEFAULT,
+            )
+        ]
+
     return SalvageSettings(
-        model_ids=_dedupe_model_ids([
-            _safe_int(value, 0)
-            for value in _coerce_list(raw_settings.get("model_ids", []))
-        ]),
-        rarities=_normalize_salvage_rarity_flags(raw_settings.get("rarities", {})),
-        categories=_normalize_salvage_category_flags(raw_settings.get("categories", {})),
+        model_ids=legacy_model_ids,
+        rarities=legacy_rarities,
+        categories=legacy_categories,
         on_inventory_change=bool(raw_settings.get("on_inventory_change", False)),
+        rules=rules,
     )
 
 
@@ -3162,6 +3340,22 @@ def _serialize_salvage_settings(settings: SalvageSettings) -> dict[str, object]:
         "rarities": dict(normalized_settings.rarities),
         "categories": dict(normalized_settings.categories),
         "on_inventory_change": bool(normalized_settings.on_inventory_change),
+        "rules": [
+            _serialize_salvage_rule(rule)
+            for rule in normalized_settings.rules
+        ],
+    }
+
+
+def _serialize_salvage_rule(rule: SalvageRule) -> dict[str, object]:
+    normalized_rule = _normalize_salvage_rule(rule) or SalvageRule()
+    return {
+        "enabled": bool(normalized_rule.enabled),
+        "model_ids": list(normalized_rule.model_ids),
+        "rarities": dict(normalized_rule.rarities),
+        "categories": dict(normalized_rule.categories),
+        "salvage_option": _normalize_salvage_option(normalized_rule.salvage_option),
+        "name": _normalize_rule_name(normalized_rule.name),
     }
 
 
@@ -3301,7 +3495,7 @@ class MerchantRulesWidget:
         self.cleanup_blacklist_search_text = ""
         self.destroy_model_text_cache: dict[int, str] = {}
         self.destroy_model_search_cache: dict[int, str] = {}
-        self.salvage_model_search_text = ""
+        self.salvage_model_search_cache: dict[int, str] = {}
         self.sell_model_text_cache: dict[int, str] = {}
         self.buy_model_search_cache: dict[int, str] = {}
         self.buy_manual_model_id_cache: dict[int, int] = {}
@@ -5078,13 +5272,13 @@ class MerchantRulesWidget:
         self.rule_name_edit_text = ""
         self.manual_model_ids_edit_key = ""
         self.manual_model_ids_edit_text = ""
-        self.salvage_model_search_text = ""
         self._rebuild_text_caches()
         self.buy_model_search_cache.clear()
         self.buy_manual_model_id_cache.clear()
         self.buy_rune_search_cache.clear()
         self.buy_rune_profession_cache.clear()
         self.destroy_model_search_cache.clear()
+        self.salvage_model_search_cache.clear()
         self.sell_model_search_cache.clear()
         self.sell_exact_rune_search_cache.clear()
         self.sell_exact_rune_profession_cache.clear()
@@ -5236,6 +5430,9 @@ class MerchantRulesWidget:
             return
         debug_type = getattr(Console.MessageType, "Debug", Console.MessageType.Info)
         ConsoleLog(MODULE_NAME, str(message), debug_type)
+
+    def _salvage_flow_log(self, message: str, message_type=None):
+        ConsoleLog(MODULE_NAME, str(message), message_type or Console.MessageType.Info)
 
     def _format_debug_coords(self, coords: tuple[float, float] | None) -> str:
         if coords is None:
@@ -6861,13 +7058,11 @@ class MerchantRulesWidget:
         )
         return self._set_destroy_rule_whitelist_targets(index, rule, next_targets)
 
-    def _set_salvage_model_ids(self, model_ids: list[int]) -> bool:
+    def _set_salvage_rule_model_ids(self, rule: SalvageRule, model_ids: list[int]) -> bool:
         next_model_ids = _dedupe_model_ids(model_ids)
-        current_settings = _normalize_salvage_settings(self.salvage_settings)
-        if next_model_ids == current_settings.model_ids:
+        if next_model_ids == _dedupe_model_ids(getattr(rule, "model_ids", [])):
             return False
-        current_settings.model_ids = next_model_ids
-        self.salvage_settings = current_settings
+        rule.model_ids = next_model_ids
         return True
 
     def _set_cleanup_targets(self, cleanup_targets: list[CleanupTarget]) -> bool:
@@ -9257,11 +9452,7 @@ class MerchantRulesWidget:
 
     def _has_enabled_salvage_settings(self) -> bool:
         settings = _normalize_salvage_settings(self.salvage_settings)
-        return bool(
-            settings.model_ids
-            or any(bool(value) for value in settings.rarities.values())
-            or any(bool(value) for value in settings.categories.values())
-        )
+        return any(bool(rule.enabled) and _salvage_rule_has_selectors(rule) for rule in settings.rules)
 
     def _get_salvage_category_key_for_item(self, item: InventoryItemInfo) -> str:
         if bool(item.is_weapon_like):
@@ -9279,17 +9470,19 @@ class MerchantRulesWidget:
                 return label
         return safe_key or "Unknown"
 
-    def _get_salvage_selection_reason(self, item: InventoryItemInfo) -> str:
-        settings = _normalize_salvage_settings(self.salvage_settings)
-        if int(item.model_id) in set(int(model_id) for model_id in settings.model_ids):
+    def _get_salvage_rule_filter_reason(self, rule: SalvageRule, item: InventoryItemInfo) -> str:
+        normalized_rule = _normalize_salvage_rule(rule)
+        if normalized_rule is None or not bool(normalized_rule.enabled):
+            return ""
+        if int(item.model_id) in set(int(model_id) for model_id in normalized_rule.model_ids):
             return f"selected model {self._format_model_label(int(item.model_id))}"
 
         rarity_key = _normalize_rarity_key(str(item.rarity or ""))
         category_key = self._get_salvage_category_key_for_item(item)
-        rarity_filter_active = any(bool(value) for value in settings.rarities.values())
-        category_filter_active = any(bool(value) for value in settings.categories.values())
-        rarity_matches = bool(settings.rarities.get(rarity_key, False))
-        category_matches = bool(settings.categories.get(category_key, False))
+        rarity_filter_active = any(bool(value) for value in normalized_rule.rarities.values())
+        category_filter_active = any(bool(value) for value in normalized_rule.categories.values())
+        rarity_matches = bool(normalized_rule.rarities.get(rarity_key, False))
+        category_matches = bool(normalized_rule.categories.get(category_key, False))
         if rarity_filter_active and not rarity_matches:
             return ""
         if category_filter_active and not category_matches:
@@ -9304,51 +9497,119 @@ class MerchantRulesWidget:
 
         return ""
 
+    def _collect_enabled_salvage_rules(self) -> list[tuple[int, SalvageRule]]:
+        settings = _normalize_salvage_settings(self.salvage_settings)
+        enabled_rules: list[tuple[int, SalvageRule]] = []
+        for rule_index, raw_rule in enumerate(settings.rules):
+            rule = _normalize_salvage_rule(raw_rule)
+            if rule is None or not bool(rule.enabled):
+                continue
+            if not _salvage_rule_has_selectors(rule):
+                continue
+            enabled_rules.append((rule_index, rule))
+        return enabled_rules
+
+    def _format_salvage_rule_reference(self, index: int, rule: SalvageRule) -> str:
+        return self._format_rule_reference(index, "Salvage Rule", self._get_rule_custom_name(rule))
+
+    def _get_matching_salvage_rule(self, item: InventoryItemInfo) -> tuple[int, SalvageRule, str] | None:
+        for rule_index, rule in self._collect_enabled_salvage_rules():
+            reason = self._get_salvage_rule_filter_reason(rule, item)
+            if reason:
+                return rule_index, rule, reason
+        return None
+
+    def _get_salvage_selection_reason(self, item: InventoryItemInfo) -> str:
+        match = self._get_matching_salvage_rule(item)
+        if match is None:
+            return ""
+        rule_index, rule, reason = match
+        option_label = _get_salvage_option_label(rule.salvage_option)
+        return f"{reason}; {option_label} via {self._format_salvage_rule_reference(rule_index, rule)}"
+
     def _get_normal_salvage_kit_id(self) -> int:
-        inventory_api = getattr(GLOBAL_CACHE, "Inventory", None)
         item_api = getattr(GLOBAL_CACHE, "Item", None)
-        if inventory_api is None or item_api is None:
-            return 0
-        getter = getattr(inventory_api, "GetFirstSalvageKit", None)
-        if not callable(getter):
-            return 0
-        try:
-            salvage_kit_id = int(getter(use_lesser=True) or 0)
-        except TypeError:
-            salvage_kit_id = int(getter() or 0)
-        except Exception:
-            return 0
-        if salvage_kit_id <= 0:
+        if item_api is None:
             return 0
 
-        normal_models = {
-            int(ModelID.Salvage_Kit),
-            int(ModelID.Salvage_Kit_preSearing),
-        }
-        try:
-            model_id = int(item_api.GetModelID(salvage_kit_id))
-            if model_id in normal_models:
-                uses = max(0, int(item_api.Usage.GetUses(salvage_kit_id)))
-                return salvage_kit_id if uses > 0 else 0
-        except Exception:
-            pass
+        best_kit_id = 0
+        best_uses: int | None = None
+        for item_id in self._get_inventory_item_ids():
+            try:
+                model_id = int(item_api.GetModelID(item_id))
+            except Exception:
+                continue
+            if model_id not in NORMAL_SALVAGE_KIT_MODEL_IDS:
+                continue
+            try:
+                uses = max(0, int(item_api.Usage.GetUses(item_id)))
+            except Exception:
+                uses = 0
+            if uses <= 0:
+                continue
+            if best_uses is None or uses < best_uses:
+                best_uses = uses
+                best_kit_id = int(item_id)
+        return best_kit_id
 
+    def _get_salvage_kit_model_id(self, kit_id: int) -> int:
+        item_api = getattr(GLOBAL_CACHE, "Item", None)
+        if item_api is None or int(kit_id) <= 0:
+            return 0
         try:
-            usage = item_api.Usage
-            is_normal = bool(usage.IsLesserKit(salvage_kit_id))
-            is_advanced = bool(usage.IsExpertSalvageKit(salvage_kit_id)) or bool(usage.IsPerfectSalvageKit(salvage_kit_id))
-            uses = max(0, int(usage.GetUses(salvage_kit_id)))
-            return salvage_kit_id if is_normal and not is_advanced and uses > 0 else 0
+            return int(item_api.GetModelID(int(kit_id)))
         except Exception:
             return 0
+
+    def _get_salvage_kit_label(self, kit_id: int) -> str:
+        model_id = self._get_salvage_kit_model_id(int(kit_id))
+        if model_id in SALVAGE_KIT_MODEL_LABELS:
+            return SALVAGE_KIT_MODEL_LABELS[model_id]
+        if int(kit_id) > 0:
+            return f"Salvage kit model {model_id or 'unknown'}"
+        return "No salvage kit"
+
+    def _get_upgrade_salvage_kit_id(self) -> int:
+        item_api = getattr(GLOBAL_CACHE, "Item", None)
+        if item_api is None:
+            return 0
+
+        best_by_model: dict[int, int] = {}
+        for item_id in self._get_inventory_item_ids():
+            try:
+                model_id = int(item_api.GetModelID(item_id))
+            except Exception:
+                continue
+            if model_id not in UPGRADE_SALVAGE_KIT_MODEL_IDS:
+                continue
+            try:
+                uses = max(0, int(item_api.Usage.GetUses(item_id)))
+            except Exception:
+                uses = 0
+            if uses <= 0:
+                continue
+            best_by_model.setdefault(model_id, int(item_id))
+
+        for model_id in UPGRADE_SALVAGE_KIT_MODEL_IDS:
+            kit_id = int(best_by_model.get(model_id, 0))
+            if kit_id > 0:
+                return kit_id
+        return 0
+
+    def _get_salvage_kit_id_for_option(self, option: object) -> int:
+        session_option = _resolve_salvage_session_option(option)
+        if session_option in SALVAGE_UPGRADE_OPTIONS:
+            return self._get_upgrade_salvage_kit_id()
+        return self._get_normal_salvage_kit_id()
 
     def _get_salvage_candidate_block_reason(
         self,
         item: InventoryItemInfo,
         enabled_sell_rules: list[tuple[int, SellRule]],
         *,
-        require_normal_kit: bool = False,
-        normal_salvage_kit_id: int = 0,
+        salvage_rule: SalvageRule | None = None,
+        require_salvage_kit: bool = False,
+        salvage_kit_id: int = 0,
         mode: str = "manual",
     ) -> str:
         hard_protection = self._get_hard_protection_hit(item, enabled_sell_rules)
@@ -9361,9 +9622,14 @@ class MerchantRulesWidget:
         rarity_key = _normalize_rarity_key(str(item.rarity or ""))
         if not bool(item.identified) and rarity_key != "white":
             return "unidentified non-white: identify before salvaging"
-        if not self._get_salvage_selection_reason(item):
+        selected_rule = salvage_rule
+        selection_reason = self._get_salvage_rule_filter_reason(selected_rule, item) if selected_rule is not None else self._get_salvage_selection_reason(item)
+        if not selection_reason:
             return "not selected by salvage settings"
-        if require_normal_kit and int(normal_salvage_kit_id) <= 0:
+        if require_salvage_kit and int(salvage_kit_id) <= 0:
+            selected_option = _resolve_salvage_session_option(getattr(selected_rule, "salvage_option", SALVAGE_OPTION_DEFAULT))
+            if selected_option in SALVAGE_UPGRADE_OPTIONS:
+                return "no upgrade salvage kit"
             return "no normal salvage kit"
         if str(mode or "").strip().lower() == "auto" and not bool(_normalize_salvage_settings(self.salvage_settings).on_inventory_change):
             return "immediate salvage is disabled"
@@ -9377,7 +9643,7 @@ class MerchantRulesWidget:
         block_reason = self._get_salvage_candidate_block_reason(
             item,
             enabled_sell_rules,
-            require_normal_kit=False,
+            require_salvage_kit=False,
             mode="manual",
         )
         if block_reason:
@@ -9395,6 +9661,9 @@ class MerchantRulesWidget:
             ("customized:", "customized"),
             ("unidentified non-white:", "unidentified non-white"),
             ("no normal salvage kit", "no normal salvage kit"),
+            ("no upgrade salvage kit", "no upgrade salvage kit"),
+            ("salvage option unavailable", "option unavailable"),
+            ("salvage popup mismatch", "popup mismatch"),
             ("not selected", "not selected"),
             ("immediate salvage is disabled", "immediate disabled"),
         ):
@@ -9407,18 +9676,26 @@ class MerchantRulesWidget:
         items: list[InventoryItemInfo],
         enabled_sell_rules: list[tuple[int, SellRule]],
         *,
-        require_normal_kit: bool = False,
-        normal_salvage_kit_id: int = 0,
+        require_salvage_kit: bool = False,
         mode: str = "manual",
-    ) -> tuple[list[InventoryItemInfo], dict[str, int]]:
-        candidates: list[InventoryItemInfo] = []
+    ) -> tuple[list[SalvageCandidate], dict[str, int]]:
+        candidates: list[SalvageCandidate] = []
         blocked_counts: dict[str, int] = {}
         for item in items:
+            rule_match = self._get_matching_salvage_rule(item)
+            salvage_rule = rule_match[1] if rule_match is not None else None
+            selection_reason = rule_match[2] if rule_match is not None else ""
+            salvage_kit_id = (
+                self._get_salvage_kit_id_for_option(getattr(salvage_rule, "salvage_option", SALVAGE_OPTION_DEFAULT))
+                if salvage_rule is not None
+                else 0
+            )
             reason = self._get_salvage_candidate_block_reason(
                 item,
                 enabled_sell_rules,
-                require_normal_kit=require_normal_kit,
-                normal_salvage_kit_id=normal_salvage_kit_id,
+                salvage_rule=salvage_rule,
+                require_salvage_kit=require_salvage_kit,
+                salvage_kit_id=salvage_kit_id,
                 mode=mode,
             )
             if reason:
@@ -9428,7 +9705,14 @@ class MerchantRulesWidget:
                 if bucket != "not selected":
                     self._debug_log(f"MR Salvage skipped {item.name} ({item.item_id}): {reason}")
                 continue
-            candidates.append(item)
+            candidates.append(
+                SalvageCandidate(
+                    item=item,
+                    rule_index=rule_match[0] if rule_match is not None else -1,
+                    rule=salvage_rule or SalvageRule(),
+                    reason=selection_reason,
+                )
+            )
         return candidates, blocked_counts
 
     def _can_use_local_storage_actions(self) -> bool:
@@ -16567,6 +16851,8 @@ class MerchantRulesWidget:
             parts.append(f"{subject} found no eligible items.")
         if outcome.timeout_failures > 0:
             parts.append(f"{outcome.timeout_failures} timeout/failure(s).")
+        if outcome.unavailable > 0:
+            parts.append(f"Skipped {outcome.unavailable} unavailable/blocked item(s).")
         if outcome.depleted > 0:
             parts.append(f"{outcome.depleted} item(s) were already gone.")
         for reason, count in sorted(blocked_counts.items()):
@@ -16580,26 +16866,410 @@ class MerchantRulesWidget:
         self.salvage_running = True
         GLOBAL_CACHE.Coroutines.append(self._run_salvage_pass(auto_triggered=auto_triggered, running_already_marked=True))
 
-    def _salvage_one_item_with_normal_kit(
+    def _get_salvage_session_value(self, session: object, key: str, default: object = None) -> object:
+        if isinstance(session, dict):
+            return session.get(key, default)
+        return getattr(session, key, default)
+
+    def _salvage_session_is_active(self, session: object) -> bool:
+        return bool(self._get_salvage_session_value(session, "active", False))
+
+    def _get_salvage_session_item_id(self, session: object) -> int:
+        return max(0, _safe_int(self._get_salvage_session_value(session, "item_id", 0), 0))
+
+    def _get_salvage_session_chosen_option(self, session: object) -> str:
+        raw_option = str(self._get_salvage_session_value(session, "chosen_option", "") or "").strip()
+        return _normalize_salvage_option(raw_option) if raw_option else ""
+
+    def _get_salvage_session_available_option_names(self, session: object) -> list[str]:
+        available_names = self._get_salvage_session_value(session, "available_option_names", [])
+        if isinstance(available_names, (list, tuple, set)):
+            return [
+                option
+                for option in (
+                    _normalize_salvage_option(str(value or "").strip())
+                    for value in available_names
+                )
+                if option in SALVAGE_SESSION_OPTIONS
+            ]
+
+        available_options = self._get_salvage_session_value(session, "available_options", {})
+        if isinstance(available_options, dict):
+            return [
+                option
+                for option in (SALVAGE_OPTION_MATERIALS, SALVAGE_OPTION_PREFIX, SALVAGE_OPTION_SUFFIX, SALVAGE_OPTION_INSCRIPTION)
+                if bool(available_options.get(option, False))
+            ]
+        return []
+
+    def _format_salvage_session_option_names(self, session: object) -> str:
+        option_names = self._get_salvage_session_available_option_names(session)
+        return ", ".join(option_names) if option_names else "none"
+
+    def _log_salvage_session_read(self, item_id: int, session: object):
+        session_item_id = self._get_salvage_session_item_id(session)
+        chosen_option = self._get_salvage_session_chosen_option(session) or "none"
+        self._salvage_flow_log(
+            f"MR Salvage session read for item {int(item_id)}: "
+            f"session_item={session_item_id or 'none'} available=[{self._format_salvage_session_option_names(session)}] "
+            f"chosen={chosen_option}."
+        )
+
+    def _salvage_session_option_available(self, session: object, option: str) -> bool:
+        safe_option = _resolve_salvage_session_option(option)
+        available_options = self._get_salvage_session_value(session, "available_options", {})
+        if isinstance(available_options, dict) and bool(available_options.get(safe_option, False)):
+            return True
+        available_names = self._get_salvage_session_value(session, "available_option_names", [])
+        if isinstance(available_names, (list, tuple, set)):
+            return safe_option in {str(value or "").strip().lower() for value in available_names}
+        return False
+
+    def _get_salvage_session_option_item_id(self, session: object, option: str) -> int:
+        safe_option = _resolve_salvage_session_option(option)
+        option_item_ids = self._get_salvage_session_value(session, "option_item_ids", {})
+        if isinstance(option_item_ids, dict):
+            return max(0, _safe_int(option_item_ids.get(safe_option, 0), 0))
+        return 0
+
+    def _wait_for_salvage_session_for_item(
         self,
-        item: InventoryItemInfo,
+        inventory_instance: object,
+        item_id: int,
+        *,
+        timeout_ms: int = 1500,
+        poll_ms: int = 50,
+    ):
+        waited_ms = 0
+        last_session: object = {}
+        while waited_ms <= max(0, int(timeout_ms)):
+            try:
+                last_session = inventory_instance.GetSalvageSessionInfo()
+            except Exception:
+                last_session = {}
+            if self._salvage_session_is_active(last_session):
+                if self._get_salvage_session_item_id(last_session) == int(item_id):
+                    return last_session
+            yield from Routines.Yield.wait(max(1, int(poll_ms)))
+            waited_ms += max(1, int(poll_ms))
+        return last_session
+
+    def _get_salvage_runtime_state(self, inventory_instance: object) -> tuple[bool, bool]:
+        try:
+            is_salvaging = bool(inventory_instance.IsSalvaging())
+        except Exception:
+            is_salvaging = False
+        try:
+            transaction_done = bool(inventory_instance.IsSalvageTransactionDone())
+        except Exception:
+            transaction_done = False
+        return is_salvaging, transaction_done
+
+    def _has_native_salvage_session_api(self, inventory_instance: object) -> bool:
+        return (
+            callable(getattr(inventory_instance, "StartSalvage", None))
+            and callable(getattr(inventory_instance, "GetSalvageSessionInfo", None))
+            and callable(getattr(inventory_instance, "SelectSalvageSessionOption", None))
+        )
+
+    def _any_salvage_related_window_open(self) -> bool:
+        try:
+            from Sources.frenkeyLib.ItemHandling.UIManagerExtensions import UIManagerExtensions
+
+            return bool(UIManagerExtensions.AnySalvageRelatedWindowOpen())
+        except Exception:
+            return False
+
+    def _queue_salvage_start(self, item_id: int, salvage_kit_id: int, attempt: int):
+        from Py4GWCoreLib.Inventory import Inventory
+
+        self._salvage_flow_log(
+            f"MR Salvage issuing start attempt {int(attempt)} for item {int(item_id)} "
+            f"with kit {int(salvage_kit_id)} ({self._get_salvage_kit_label(int(salvage_kit_id))})."
+        )
+        ActionQueueManager().AddAction("SALVAGE", Inventory.SalvageItem, int(item_id), int(salvage_kit_id))
+        queue_drained = yield from self._wait_for_action_queue_empty("SALVAGE", timeout_ms=5000, step_ms=50)
+        if not queue_drained:
+            ConsoleLog(MODULE_NAME, f"MR Salvage timed out starting item {int(item_id)}.", Console.MessageType.Warning)
+            return False
+        yield from Routines.Yield.wait(150)
+        return True
+
+    def _direct_salvage_start(self, inventory_instance: object, item_id: int, salvage_kit_id: int, attempt: int):
+        start_method = getattr(inventory_instance, "StartSalvage", None)
+        start_method_name = "StartSalvage" if callable(start_method) else "Salvage"
+        self._salvage_flow_log(
+            f"MR Salvage issuing direct start attempt {int(attempt)} for item {int(item_id)} "
+            f"with kit {int(salvage_kit_id)} ({self._get_salvage_kit_label(int(salvage_kit_id))}) "
+            f"via PyInventory.{start_method_name}."
+        )
+        try:
+            if callable(start_method):
+                start_result = bool(start_method(int(salvage_kit_id), int(item_id)))
+            else:
+                start_result = inventory_instance.Salvage(int(salvage_kit_id), int(item_id))
+        except Exception as exc:
+            ConsoleLog(
+                MODULE_NAME,
+                f"MR Salvage direct start failed for item {int(item_id)} with kit {int(salvage_kit_id)}: {exc}.",
+                Console.MessageType.Warning,
+            )
+            return False
+        self._salvage_flow_log(
+            f"MR Salvage native start result for item {int(item_id)} via PyInventory.{start_method_name}: {start_result}."
+        )
+        if start_result is False:
+            ConsoleLog(
+                MODULE_NAME,
+                f"MR Salvage native start rejected item {int(item_id)} with kit {int(salvage_kit_id)}.",
+                Console.MessageType.Warning,
+            )
+            return False
+        yield from Routines.Yield.wait(150)
+        return True
+
+    def _start_salvage_and_wait_for_session(
+        self,
+        inventory_instance: object,
+        item_id: int,
+        salvage_kit_id: int,
+        *,
+        max_attempts: int = 2,
+        session_timeout_ms: int = 3500,
+    ):
+        last_session: object = {}
+        attempts = max(1, int(max_attempts))
+        for attempt in range(1, attempts + 1):
+            started = yield from self._direct_salvage_start(inventory_instance, item_id, salvage_kit_id, attempt)
+            if not started:
+                return {}, attempt, "start_failed"
+
+            last_session = yield from self._wait_for_salvage_session_for_item(
+                inventory_instance,
+                item_id,
+                timeout_ms=max(0, int(session_timeout_ms)),
+                poll_ms=50,
+            )
+            self._log_salvage_session_read(item_id, last_session)
+            if self._salvage_session_is_active(last_session):
+                return last_session, attempt, "active"
+
+            is_salvaging, transaction_done = self._get_salvage_runtime_state(inventory_instance)
+            self._salvage_flow_log(
+                f"MR Salvage start attempt {attempt} for item {int(item_id)} produced no active session; "
+                f"is_salvaging={is_salvaging} transaction_done={transaction_done}."
+            )
+
+            if attempt >= attempts:
+                break
+            if self._any_salvage_related_window_open():
+                return last_session, attempt, "window_without_session"
+            live_item = self._build_inventory_item_info(int(item_id))
+            if live_item is None or not bool(live_item.salvageable):
+                return last_session, attempt, "item_changed"
+
+            self._salvage_flow_log(
+                f"MR Salvage retrying start for item {int(item_id)} after no active session appeared."
+            )
+
+        return last_session, attempts, "no_session"
+
+    def _select_salvage_session_option(
+        self,
+        inventory_instance: object,
+        item_id: int,
+        option: str,
+    ):
+        safe_option = _resolve_salvage_session_option(option)
+        try:
+            session = inventory_instance.GetSalvageSessionInfo()
+        except Exception as exc:
+            return False, f"salvage option unavailable: failed reading salvage session ({exc}).", 0
+
+        if not self._salvage_session_is_active(session):
+            return False, "salvage option unavailable: no active salvage session.", 0
+        session_item_id = self._get_salvage_session_item_id(session)
+        if session_item_id != int(item_id):
+            return False, f"salvage popup mismatch: active item {session_item_id}, expected {int(item_id)}.", 0
+        if not self._salvage_session_option_available(session, safe_option):
+            return False, f"salvage option unavailable: {_get_salvage_option_label(safe_option)} is not available.", 0
+
+        option_item_id = self._get_salvage_session_option_item_id(session, safe_option)
+        chosen_option = self._get_salvage_session_chosen_option(session)
+        if chosen_option == safe_option:
+            self._salvage_flow_log(
+                f"MR Salvage option already selected for item {int(item_id)}: requested={safe_option} chosen={chosen_option}."
+            )
+            return True, "", option_item_id
+
+        try:
+            selected = bool(inventory_instance.SelectSalvageSessionOption(safe_option))
+        except Exception as exc:
+            self._salvage_flow_log(
+                f"MR Salvage SelectSalvageSessionOption('{safe_option}') -> error.",
+                Console.MessageType.Warning,
+            )
+            return False, f"salvage option unavailable: SelectSalvageSessionOption failed ({exc}).", option_item_id
+        self._salvage_flow_log(
+            f"MR Salvage SelectSalvageSessionOption('{safe_option}') -> {selected}."
+        )
+        if not selected:
+            return False, f"salvage option unavailable: native selection returned false for {_get_salvage_option_label(safe_option)}.", option_item_id
+
+        waited_ms = 0
+        while waited_ms <= 750:
+            try:
+                next_session = inventory_instance.GetSalvageSessionInfo()
+            except Exception:
+                next_session = {}
+            if (
+                self._salvage_session_is_active(next_session)
+                and self._get_salvage_session_item_id(next_session) == int(item_id)
+                and self._get_salvage_session_chosen_option(next_session) == safe_option
+            ):
+                return True, "", self._get_salvage_session_option_item_id(next_session, safe_option) or option_item_id
+            yield from Routines.Yield.wait(50)
+            waited_ms += 50
+        return False, f"salvage option unavailable: {_get_salvage_option_label(safe_option)} did not become selected.", option_item_id
+
+    def _confirm_salvage_choice_dialog(
+        self,
+        item_id: int,
+        *,
+        auto_confirm_materials_warning: bool = False,
+    ):
+        from Py4GWCoreLib.Inventory import Inventory
+        from Py4GWCoreLib.UIManager import UIManager
+
+        confirm_frame_id = Inventory._get_salvage_choice_confirm_frame_id()
+        if confirm_frame_id == 0:
+            return "confirm_missing"
+
+        ActionQueueManager().AddAction("SALVAGE", UIManager.FrameClick, confirm_frame_id)
+        queue_drained = yield from self._wait_for_action_queue_empty("SALVAGE", timeout_ms=5000, step_ms=50)
+        if not queue_drained:
+            return "queue_timeout"
+
+        return (yield from Inventory._wait_for_salvage_choice_dialog_close(
+            auto_confirm_materials_warning=auto_confirm_materials_warning,
+            queue_name="SALVAGE",
+            log_module=MODULE_NAME,
+            queue_wait_timeout_ms=5000,
+            poll_ms=50,
+            close_timeout_ms=1500,
+            debug_enabled=bool(self.debug_logging),
+            item_id=int(item_id),
+            after_action_label="confirm click",
+        ))
+
+    def _cancel_active_salvage_choice_dialog(self) -> bool:
+        try:
+            from Sources.frenkeyLib.ItemHandling.UIManagerExtensions import UIManagerExtensions
+
+            return bool(UIManagerExtensions.CancelSalvageOption())
+        except Exception:
+            return False
+
+    def _get_materials_confirm_yes_frame_id(self) -> int:
+        try:
+            from Py4GWCoreLib.Inventory import Inventory
+
+            yes_frame_id = int(Inventory._get_salvage_choice_material_confirm_yes_frame_id() or 0)
+            if yes_frame_id > 0:
+                return yes_frame_id
+        except Exception:
+            pass
+
+        try:
+            from Py4GWCoreLib.UIManager import UIManager
+        except Exception:
+            return 0
+
+        candidate_frame_ids = [
+            UIManager.GetChildFrameID(140452905, [6, 98, 6]),
+            UIManager.GetChildFrameID(140452905, [6, 100, 6]),
+            UIManager.GetChildFrameID(140452905, [6, 110, 6]),
+            UIManager.GetChildFrameID(140452905, [6, 111, 6]),
+            UIManager.GetChildFrameID(684387150, [0, 6]),
+        ]
+        for frame_id in candidate_frame_ids:
+            try:
+                safe_frame_id = int(frame_id or 0)
+            except Exception:
+                safe_frame_id = 0
+            if safe_frame_id > 0 and UIManager.FrameExists(safe_frame_id):
+                return safe_frame_id
+        return 0
+
+    def _wait_and_confirm_materials_popup(self, item_id: int, kit_id: int, *, timeout_ms: int = 2000):
+        from Py4GWCoreLib.UIManager import UIManager
+
+        waited_ms = 0
+        yield from Routines.Yield.wait(100)
+        while waited_ms <= max(0, int(timeout_ms)):
+            yes_frame_id = self._get_materials_confirm_yes_frame_id()
+            if yes_frame_id > 0:
+                self._salvage_flow_log(
+                    f"MR Salvage materials confirmation visible for item {int(item_id)} "
+                    f"with {self._get_salvage_kit_label(int(kit_id))}; accepting materials confirmation."
+                )
+                ActionQueueManager().AddAction("SALVAGE", UIManager.FrameClick, yes_frame_id)
+                ActionQueueManager().AddAction("SALVAGE", UIManager.TestMouseClickAction, yes_frame_id, 0, 0)
+                queue_drained = yield from self._wait_for_action_queue_empty("SALVAGE", timeout_ms=5000, step_ms=50)
+                if not queue_drained:
+                    return "queue_timeout"
+                yield from Routines.Yield.wait(150)
+                return "handled"
+            yield from Routines.Yield.wait(50)
+            waited_ms += 50
+        return "not_visible"
+
+    def _has_salvage_upgrade_removed(self, item_id: int, option: str) -> bool:
+        if int(item_id) not in set(self._get_inventory_item_ids()):
+            return True
+        safe_option = _resolve_salvage_session_option(option)
+        getter_name_by_option = {
+            SALVAGE_OPTION_PREFIX: "GetPrefixUpgrade",
+            SALVAGE_OPTION_SUFFIX: "GetSuffixUpgrade",
+            SALVAGE_OPTION_INSCRIPTION: "GetInscriptionUpgrade",
+        }
+        getter_name = getter_name_by_option.get(safe_option, "")
+        if not getter_name:
+            return False
+        try:
+            from Py4GWCoreLib.Item import Item
+
+            getter = getattr(Item.Customization, getter_name, None)
+            if not callable(getter):
+                return False
+            return getter(int(item_id)) is None
+        except Exception:
+            return False
+
+    def _salvage_one_item_with_rule(
+        self,
+        candidate: SalvageCandidate,
         enabled_sell_rules: list[tuple[int, SellRule]],
         *,
         auto_triggered: bool = False,
     ):
-        from Py4GWCoreLib.Inventory import Inventory
+        import PyInventory
 
         mode = "auto" if auto_triggered else "manual"
+        item = candidate.item
+        rule = _normalize_salvage_rule(candidate.rule) or SalvageRule()
         live_item = self._build_inventory_item_info(int(item.item_id))
         if live_item is None:
             return "missing_item"
 
-        normal_salvage_kit_id = self._get_normal_salvage_kit_id()
+        selected_option = _resolve_salvage_session_option(rule.salvage_option)
+        salvage_kit_id = self._get_salvage_kit_id_for_option(rule.salvage_option)
         block_reason = self._get_salvage_candidate_block_reason(
             live_item,
             enabled_sell_rules,
-            require_normal_kit=True,
-            normal_salvage_kit_id=normal_salvage_kit_id,
+            salvage_rule=rule,
+            require_salvage_kit=True,
+            salvage_kit_id=salvage_kit_id,
             mode=mode,
         )
         if block_reason:
@@ -16609,31 +17279,121 @@ class MerchantRulesWidget:
         item_id = int(live_item.item_id)
         starting_quantity = max(1, int(live_item.quantity))
         rarity_key = _normalize_rarity_key(str(live_item.rarity or ""))
-        selection_reason = self._get_salvage_selection_reason(live_item)
+        selection_reason = candidate.reason or self._get_salvage_rule_filter_reason(rule, live_item)
+        option_label = _get_salvage_option_label(rule.salvage_option)
         self._debug_log(
-            f"MR Salvage starting {live_item.name} ({item_id}) using normal kit {int(normal_salvage_kit_id)}; {selection_reason}."
+            f"MR Salvage starting {live_item.name} ({item_id}) using kit {int(salvage_kit_id)}; "
+            f"{selection_reason}; {option_label}."
+        )
+        rule_reference = self._format_salvage_rule_reference(int(candidate.rule_index), rule) if int(candidate.rule_index) >= 0 else "Salvage Rule"
+        self._salvage_flow_log(
+            f"MR Salvage matched {live_item.name} ({item_id}) with {rule_reference}: "
+            f"requested={option_label}; kit={int(salvage_kit_id)} ({self._get_salvage_kit_label(int(salvage_kit_id))})."
         )
 
-        ActionQueueManager().AddAction("SALVAGE", Inventory.SalvageItem, item_id, int(normal_salvage_kit_id))
-        queue_drained = yield from self._wait_for_action_queue_empty("SALVAGE", timeout_ms=5000, step_ms=50)
-        if not queue_drained:
-            ConsoleLog(MODULE_NAME, f"MR Salvage timed out starting item {item_id}.", Console.MessageType.Warning)
-            return "failed"
-
-        if rarity_key in {"purple", "gold"}:
-            found_confirm_window = yield from Routines.Yield.Items._wait_for_salvage_materials_window(
-                timeout_ms=1500,
-                poll_ms=50,
-                initial_wait_ms=150,
+        option_item_id = 0
+        if selected_option in SALVAGE_UPGRADE_OPTIONS:
+            inventory_instance = PyInventory.PyInventory()
+            if not self._has_native_salvage_session_api(inventory_instance):
+                ConsoleLog(
+                    MODULE_NAME,
+                    f"MR Salvage skipped {live_item.name} ({item_id}): {_get_salvage_option_label(selected_option)} "
+                    "requires native salvage-session API support.",
+                    Console.MessageType.Warning,
+                )
+                return "blocked"
+            session, start_attempts, start_status = yield from self._start_salvage_and_wait_for_session(
+                inventory_instance,
+                item_id,
+                int(salvage_kit_id),
+                max_attempts=2,
+                session_timeout_ms=3500,
             )
-            if not found_confirm_window:
-                ConsoleLog(MODULE_NAME, f"MR Salvage did not find the materials confirmation for item {item_id}.", Console.MessageType.Warning)
+            if not self._salvage_session_is_active(session):
+                ConsoleLog(
+                    MODULE_NAME,
+                    f"MR Salvage issued salvage start for item {item_id}, but no active session appeared "
+                    f"(attempts={int(start_attempts)} status={start_status}).",
+                    Console.MessageType.Warning,
+                )
                 return "failed"
-            ActionQueueManager().AddAction("SALVAGE", Inventory.AcceptSalvageMaterialsWindow)
-            queue_drained = yield from self._wait_for_action_queue_empty("SALVAGE", timeout_ms=5000, step_ms=50)
-            if not queue_drained:
-                ConsoleLog(MODULE_NAME, f"MR Salvage timed out confirming materials for item {item_id}.", Console.MessageType.Warning)
+            session_item_id = self._get_salvage_session_item_id(session)
+            if session_item_id != item_id:
+                ConsoleLog(
+                    MODULE_NAME,
+                    f"MR Salvage popup mismatch for {item_id}: active session item is {session_item_id}.",
+                    Console.MessageType.Warning,
+                )
+                self._cancel_active_salvage_choice_dialog()
+                return "blocked"
+            if not self._salvage_session_option_available(session, selected_option):
+                ConsoleLog(
+                    MODULE_NAME,
+                    f"MR Salvage skipped {live_item.name} ({item_id}): requested={selected_option} unavailable; "
+                    f"available=[{self._format_salvage_session_option_names(session)}] "
+                    f"chosen={self._get_salvage_session_chosen_option(session) or 'none'}.",
+                    Console.MessageType.Warning,
+                )
+                self._cancel_active_salvage_choice_dialog()
+                return "blocked"
+
+            selected, select_reason, option_item_id = yield from self._select_salvage_session_option(
+                inventory_instance,
+                item_id,
+                selected_option,
+            )
+            if not selected:
+                ConsoleLog(MODULE_NAME, f"MR Salvage skipped {live_item.name} ({item_id}): {select_reason}", Console.MessageType.Warning)
+                self._cancel_active_salvage_choice_dialog()
+                return "blocked"
+
+            try:
+                final_session = inventory_instance.GetSalvageSessionInfo()
+            except Exception:
+                final_session = {}
+            final_chosen_option = self._get_salvage_session_chosen_option(final_session) or selected_option
+            confirm_status = yield from self._confirm_salvage_choice_dialog(
+                item_id,
+                auto_confirm_materials_warning=False,
+            )
+            if confirm_status != "handled":
+                ConsoleLog(
+                    MODULE_NAME,
+                    f"MR Salvage could not confirm {_get_salvage_option_label(selected_option)} for item {item_id}: {confirm_status}.",
+                    Console.MessageType.Warning,
+                )
+                self._cancel_active_salvage_choice_dialog()
                 return "failed"
+            self._salvage_flow_log(
+                f"MR Salvage confirmed selected option for item {item_id}: chosen={final_chosen_option}."
+            )
+
+        else:
+            started = yield from self._queue_salvage_start(item_id, int(salvage_kit_id), 1)
+            if not started:
+                return "failed"
+            if rarity_key in {"purple", "gold"}:
+                materials_confirm_status = yield from self._wait_and_confirm_materials_popup(
+                    item_id,
+                    int(salvage_kit_id),
+                    timeout_ms=2500,
+                )
+                if materials_confirm_status != "handled":
+                    ConsoleLog(MODULE_NAME, f"MR Salvage did not find the materials confirmation for item {item_id}.", Console.MessageType.Warning)
+                    return "failed"
+            else:
+                materials_confirm_status = yield from self._wait_and_confirm_materials_popup(
+                    item_id,
+                    int(salvage_kit_id),
+                    timeout_ms=700,
+                )
+                if materials_confirm_status not in {"handled", "not_visible"}:
+                    ConsoleLog(
+                        MODULE_NAME,
+                        f"MR Salvage could not accept materials confirmation for item {item_id}: {materials_confirm_status}.",
+                        Console.MessageType.Warning,
+                    )
+                    return "failed"
 
         waited_ms = 0
         while waited_ms <= 10000:
@@ -16653,6 +17413,13 @@ class MerchantRulesWidget:
             if current_item is not None and not bool(current_item.salvageable):
                 self._debug_log(f"MR Salvage processed {live_item.name} ({item_id}); item is no longer salvageable.")
                 return "processed"
+            if selected_option in SALVAGE_UPGRADE_OPTIONS and self._has_salvage_upgrade_removed(item_id, selected_option):
+                option_suffix = f" option_item_id={option_item_id}" if option_item_id > 0 else ""
+                self._debug_log(
+                    f"MR Salvage processed {live_item.name} ({item_id}); "
+                    f"{_get_salvage_option_label(selected_option)} removed.{option_suffix}"
+                )
+                return "processed"
 
         ConsoleLog(MODULE_NAME, f"MR Salvage timed out waiting for result on item {item_id}.", Console.MessageType.Warning)
         return "failed"
@@ -16670,9 +17437,9 @@ class MerchantRulesWidget:
                 return
             if not self._has_enabled_salvage_settings():
                 self.last_salvage_summary = (
-                    "Auto Salvage is enabled, but no salvage selectors are active."
+                    "Auto Salvage is enabled, but no salvage rules are active."
                     if auto_triggered
-                    else "Salvage has no active selectors."
+                    else "Salvage has no active rules."
                 )
                 self.status_message = self.last_salvage_summary
                 return
@@ -16680,12 +17447,10 @@ class MerchantRulesWidget:
             items = self._collect_inventory_items()
             self.salvage_last_signature = self._get_inventory_signature(items)
             enabled_sell_rules = self._collect_enabled_sell_rules()
-            normal_salvage_kit_id = self._get_normal_salvage_kit_id()
             candidates, blocked_counts = self._collect_salvage_candidates(
                 items,
                 enabled_sell_rules,
-                require_normal_kit=True,
-                normal_salvage_kit_id=normal_salvage_kit_id,
+                require_salvage_kit=True,
                 mode=mode,
             )
             if not candidates:
@@ -16704,7 +17469,7 @@ class MerchantRulesWidget:
 
             outcome = ExecutionPhaseOutcome(label="MR Salvage", measure_label="items", attempted=len(candidates))
             for candidate in candidates:
-                status = yield from self._salvage_one_item_with_normal_kit(
+                status = yield from self._salvage_one_item_with_rule(
                     candidate,
                     enabled_sell_rules,
                     auto_triggered=auto_triggered,
@@ -16726,7 +17491,6 @@ class MerchantRulesWidget:
                 auto_triggered=auto_triggered,
             )
             self.status_message = self.last_salvage_summary
-            self._debug_log(self.last_salvage_summary)
             ConsoleLog(MODULE_NAME, self.last_salvage_summary, Console.MessageType.Info)
             if outcome.completed > 0:
                 self._mark_preview_dirty("Inventory changed due to MR Salvage. Preview again before execution.")
@@ -19321,10 +20085,10 @@ class MerchantRulesWidget:
             PyImGui.text_colored("No ID kit found for MR Identify.", UI_COLOR_WARNING)
 
         salvage_settings = _normalize_salvage_settings(self.salvage_settings)
-        salvage_selector_count = (
-            len(salvage_settings.model_ids)
-            + sum(1 for value in salvage_settings.rarities.values() if bool(value))
-            + sum(1 for value in salvage_settings.categories.values() if bool(value))
+        salvage_ready_rule_count = sum(
+            1
+            for rule in salvage_settings.rules
+            if bool(rule.enabled) and _salvage_rule_has_selectors(rule)
         )
         salvage_state_label = "On" if salvage_settings.on_inventory_change else "Off"
         salvage_state_color = UI_COLOR_SUCCESS if salvage_settings.on_inventory_change else UI_COLOR_MUTED
@@ -19332,7 +20096,7 @@ class MerchantRulesWidget:
         PyImGui.same_line(0, 8)
         self._draw_inline_badge(salvage_state_label, salvage_state_color)
         PyImGui.same_line(0, 8)
-        self._draw_secondary_text(f"{salvage_selector_count} active salvage setting(s)", wrapped=False)
+        self._draw_secondary_text(f"{salvage_ready_rule_count} active salvage rule(s)", wrapped=False)
         if self.salvage_running:
             PyImGui.text_colored("MR Salvage is running.", UI_COLOR_INFO)
 
@@ -22551,13 +23315,13 @@ class MerchantRulesWidget:
                 self._request_instant_destroy_rescan()
             self._mark_preview_dirty("Destroy rules changed. Preview again before execution.")
 
-    def _draw_salvage_rarity_toggles(self, settings: SalvageSettings) -> bool:
+    def _draw_salvage_rarity_toggles(self, settings: SalvageRule | SalvageSettings, id_suffix: str = "") -> bool:
         changed = False
         PyImGui.text("Rarity Selectors")
         settings.rarities = _normalize_salvage_rarity_flags(settings.rarities)
         for rarity_index, (rarity_key, rarity_label) in enumerate(RARITY_OPTION_ORDER):
             current_value = bool(settings.rarities.get(rarity_key, False))
-            new_value = PyImGui.checkbox(f"##salvage_rarity_{rarity_key}", current_value)
+            new_value = PyImGui.checkbox(f"##salvage_rarity_{id_suffix}_{rarity_key}", current_value)
             if new_value != current_value:
                 settings.rarities[rarity_key] = new_value
                 changed = True
@@ -22722,13 +23486,13 @@ class MerchantRulesWidget:
         if run_identify_clicked:
             self._queue_identify_now()
 
-    def _draw_salvage_category_toggles(self, settings: SalvageSettings) -> bool:
+    def _draw_salvage_category_toggles(self, settings: SalvageRule | SalvageSettings, id_suffix: str = "") -> bool:
         changed = False
         PyImGui.text("Category Selectors")
         settings.categories = _normalize_salvage_category_flags(settings.categories)
         for category_index, (category_key, category_label) in enumerate(SALVAGE_CATEGORY_ORDER):
             current_value = bool(settings.categories.get(category_key, False))
-            new_value = PyImGui.checkbox(f"##salvage_category_{category_key}", current_value)
+            new_value = PyImGui.checkbox(f"##salvage_category_{id_suffix}_{category_key}", current_value)
             if new_value != current_value:
                 settings.categories[category_key] = new_value
                 changed = True
@@ -22740,50 +23504,67 @@ class MerchantRulesWidget:
 
     def _format_salvage_filter_summary(self, settings: SalvageSettings) -> str:
         normalized_settings = _normalize_salvage_settings(settings)
+        enabled_rules = [
+            rule
+            for rule in normalized_settings.rules
+            if bool(rule.enabled) and _salvage_rule_has_selectors(rule)
+        ]
+        if not enabled_rules:
+            return "Current filter: no salvage rules selected"
+        option_labels = [
+            _get_salvage_option_label(rule.salvage_option)
+            for rule in enabled_rules
+        ]
+        distinct_options = []
+        for label in option_labels:
+            if label not in distinct_options:
+                distinct_options.append(label)
+        return f"Current filter: {len(enabled_rules)} active rule(s) | {', '.join(distinct_options)}"
+
+    def _get_salvage_rule_summary(self, rule: SalvageRule) -> tuple[str, bool]:
+        normalized_rule = _normalize_salvage_rule(rule) or SalvageRule()
+        selector_parts: list[str] = []
+        if normalized_rule.model_ids:
+            selector_parts.append(f"{len(normalized_rule.model_ids)} exact model(s)")
+
         rarity_labels = [
             label
             for key, label in RARITY_OPTION_ORDER
-            if bool(normalized_settings.rarities.get(key, False))
+            if bool(normalized_rule.rarities.get(key, False))
         ]
+        if rarity_labels:
+            selector_parts.append(f"rarities {', '.join(rarity_labels)}")
+
         category_labels = [
             label
             for key, label in SALVAGE_CATEGORY_ORDER
-            if bool(normalized_settings.categories.get(key, False))
+            if bool(normalized_rule.categories.get(key, False))
         ]
+        if category_labels:
+            selector_parts.append(f"categories {', '.join(category_labels)}")
 
-        exact_model_count = len(normalized_settings.model_ids)
-        broad_summary = ""
-        if rarity_labels and category_labels:
-            broad_summary = f"{', '.join(rarity_labels)} items in these categories: {', '.join(category_labels)}"
-        elif rarity_labels:
-            broad_summary = f"items with these rarities: {', '.join(rarity_labels)}"
-        elif category_labels:
-            broad_summary = f"items in these categories: {', '.join(category_labels)}"
-
-        if exact_model_count > 0 and broad_summary:
-            return f"Current filter: {exact_model_count} exact model(s), plus {broad_summary}"
-        if exact_model_count > 0:
-            return f"Current filter: {exact_model_count} exact model(s)"
-        if broad_summary:
-            return f"Current filter: {broad_summary}"
-        return "Current filter: no salvage settings selected"
+        option_label = _get_salvage_option_label(normalized_rule.salvage_option)
+        if not selector_parts:
+            return f"{option_label} | Choose at least one selector.", False
+        return f"{option_label} | {'; '.join(selector_parts)}", True
 
     def _draw_salvage_status_badges(self, settings: SalvageSettings) -> int:
         normalized_settings = _normalize_salvage_settings(settings)
-        selector_count = (
-            len(normalized_settings.model_ids)
-            + sum(1 for value in normalized_settings.rarities.values() if bool(value))
-            + sum(1 for value in normalized_settings.categories.values() if bool(value))
+        enabled_rule_count = sum(1 for rule in normalized_settings.rules if bool(rule.enabled))
+        ready_rule_count = sum(
+            1
+            for rule in normalized_settings.rules
+            if bool(rule.enabled) and _salvage_rule_has_selectors(rule)
         )
         auto_enabled = bool(normalized_settings.on_inventory_change)
-        ready = selector_count > 0
+        ready = ready_rule_count > 0
 
         PyImGui.text("Salvage:")
         PyImGui.same_line(0, 8)
         self._draw_inline_badge("On" if auto_enabled else "Off", UI_COLOR_SUCCESS if auto_enabled else UI_COLOR_MUTED)
         PyImGui.same_line(0, 6)
         self._draw_inline_badge(
-            f"Filters: {selector_count}",
+            f"Rules: {ready_rule_count}/{enabled_rule_count}",
             UI_COLOR_SUCCESS if ready else (UI_COLOR_WARNING if auto_enabled else UI_COLOR_MUTED),
         )
         if auto_enabled:
@@ -22792,25 +23573,167 @@ class MerchantRulesWidget:
         else:
             PyImGui.same_line(0, 6)
             self._draw_inline_badge("Manual", UI_COLOR_MUTED)
-        if bool(normalized_settings.categories.get(SALVAGE_CATEGORY_OTHER, False)):
+        if any(bool(rule.categories.get(SALVAGE_CATEGORY_OTHER, False)) for rule in normalized_settings.rules):
             PyImGui.same_line(0, 6)
             self._draw_inline_badge("Other Items", UI_COLOR_WARNING)
-        return selector_count
+        return ready_rule_count
+
+    def _draw_salvage_option_combo(self, index: int, rule: SalvageRule) -> bool:
+        option_values = [option for option, _label in SALVAGE_OPTION_ORDER]
+        option_labels = [label for _option, label in SALVAGE_OPTION_ORDER]
+        current_option = _normalize_salvage_option(getattr(rule, "salvage_option", SALVAGE_OPTION_DEFAULT))
+        current_index = option_values.index(current_option) if current_option in option_values else 0
+        PyImGui.push_item_width(220)
+        next_index = PyImGui.combo(
+            f"Upgrade to salvage##merchant_rules_salvage_option_{index}",
+            current_index,
+            option_labels,
+        )
+        PyImGui.pop_item_width()
+        next_index = max(0, min(int(next_index), len(option_values) - 1))
+        if next_index == current_index:
+            return False
+        rule.salvage_option = option_values[next_index]
+        return True
+
+    def _draw_salvage_rule_editor(self, index: int, rule: SalvageRule, settings: SalvageSettings) -> bool:
+        changed = False
+        summary_text, ready = self._get_salvage_rule_summary(rule)
+        state_label, state_color = self._get_rule_state_badge(enabled=bool(rule.enabled), ready=ready)
+        type_label, type_color = "Salvage", UI_COLOR_WARNING
+
+        opened, enabled, _header_clicked, updated_rule_name, renamed = self._draw_rule_header_row(
+            f"salvage_rule_header_{index}",
+            f"{self._get_rule_display_label(rule, 'Salvage Rule')}###salvage_rule_{index}",
+            type_label,
+            type_color,
+            summary_text,
+            state_label,
+            state_color,
+            f"Enabled##salvage_enabled_{index}",
+            bool(rule.enabled),
+            rename_edit_key=f"salvage_rule_name_{index}",
+            rule_name=rule.name,
+        )
+        if enabled != rule.enabled:
+            rule.enabled = enabled
+            changed = True
+        if renamed:
+            rule.name = updated_rule_name
+            changed = True
+
+        if not opened:
+            return changed
+
+        self._draw_section_heading("Basic")
+        changed = self._draw_salvage_option_combo(index, rule) or changed
+        selected_option = _resolve_salvage_session_option(rule.salvage_option)
+        if selected_option in SALVAGE_UPGRADE_OPTIONS:
+            self._draw_secondary_text("Uses a Perfect, Expert, or Superior Salvage Kit when available.")
+        else:
+            self._draw_secondary_text("Default (legacy behavior) and materials use normal Salvage Kits.")
+
+        PyImGui.spacing()
+        self._draw_section_heading("Rarities")
+        changed = self._draw_salvage_rarity_toggles(rule, f"rule_{index}") or changed
+
+        PyImGui.spacing()
+        self._draw_section_heading("Categories")
+        changed = self._draw_salvage_category_toggles(rule, f"rule_{index}") or changed
+        if bool(rule.categories.get(SALVAGE_CATEGORY_OTHER, False)):
+            PyImGui.text_colored("Other Items may include unexpected salvageable item types. Keep it off unless testing specific drops.", UI_COLOR_WARNING)
+
+        PyImGui.separator()
+        self._draw_section_heading("Specific Items")
+        PyImGui.text(f"Selected Models: {len(rule.model_ids)}")
+        removed_model_id = self._draw_selected_model_ids(f"salvage_models_{index}", index, rule.model_ids)
+        if removed_model_id > 0:
+            changed = self._set_salvage_rule_model_ids(
+                rule,
+                [model_id for model_id in rule.model_ids if int(model_id) != int(removed_model_id)],
+            ) or changed
+
+        if self._draw_confirm_destructive_button(f"Clear Models##merchant_rules_salvage_clear_models_{index}"):
+            changed = self._set_salvage_rule_model_ids(rule, []) or changed
+
+        search_text = self.salvage_model_search_cache.get(index, "")
+        updated_search_text = PyImGui.input_text(f"Search Items##merchant_rules_salvage_search_{index}", search_text)
+        if updated_search_text != search_text:
+            self.salvage_model_search_cache[index] = updated_search_text
+
+        picked_model_id, visible_model_ids = self._draw_search_results(
+            f"merchant_rules_salvage_search_results_{index}",
+            self.salvage_model_search_cache.get(index, ""),
+        )
+        addable_model_ids = [model_id for model_id in visible_model_ids if model_id not in rule.model_ids]
+        if self._draw_add_all_matches_button(
+            f"merchant_rules_salvage_search_results_add_all_{index}",
+            len(visible_model_ids),
+            len(addable_model_ids),
+        ):
+            changed = self._set_salvage_rule_model_ids(rule, rule.model_ids + addable_model_ids) or changed
+        if picked_model_id > 0:
+            changed = self._set_salvage_rule_model_ids(rule, rule.model_ids + [picked_model_id]) or changed
+            self.salvage_model_search_cache[index] = self._get_model_name(picked_model_id) or str(picked_model_id)
+
+        if PyImGui.collapsing_header(f"Advanced##merchant_rules_salvage_advanced_{index}"):
+            current_raw = _format_model_ids(rule.model_ids)
+            new_raw, apply_manual_ids = self._draw_manual_model_ids_editor(
+                f"salvage_models_{index}",
+                current_raw,
+            )
+            if apply_manual_ids:
+                changed = self._set_salvage_rule_model_ids(rule, _parse_model_ids(new_raw)) or changed
+            self._draw_secondary_text("Comma-separated model IDs. Apply replaces the exact model list.")
+
+        PyImGui.spacing()
+        move_up = False
+        move_down = False
+        PyImGui.begin_disabled(index <= 0)
+        move_up = PyImGui.small_button(f"Move Up##salvage_move_up_{index}")
+        PyImGui.end_disabled()
+        PyImGui.same_line(0, 8)
+        PyImGui.begin_disabled(index >= len(settings.rules) - 1)
+        move_down = PyImGui.small_button(f"Move Down##salvage_move_down_{index}")
+        PyImGui.end_disabled()
+        PyImGui.same_line(0, 8)
+        if self._draw_confirm_destructive_button(f"Remove Rule##salvage_remove_{index}"):
+            if 0 <= index < len(settings.rules):
+                settings.rules.pop(index)
+                self.rule_ui_structure_changed = True
+                self._refresh_rule_ui_caches()
+                changed = True
+            PyImGui.tree_pop()
+            return changed
+        if move_up:
+            if self._move_rule_entry(settings.rules, index, -1):
+                changed = True
+            PyImGui.tree_pop()
+            return changed
+        if move_down:
+            if self._move_rule_entry(settings.rules, index, 1):
+                changed = True
+            PyImGui.tree_pop()
+            return changed
+
+        PyImGui.tree_pop()
+        return changed
 
     def _draw_salvage_workspace(self):
         settings = _normalize_salvage_settings(self.salvage_settings)
         changed = False
+        self.rule_ui_structure_changed = False
 
         self._draw_section_heading("Salvage")
         self._draw_secondary_text(
-            "MR Salvage uses normal Salvage Kits only and targets crafting materials. Protection, customized-item, unidentified non-white, and runtime salvageability checks always run before the salvage API."
+            "MR Salvage uses per-rule salvage choices. Protection, customized-item, unidentified non-white, and runtime salvageability checks always run before the salvage API."
         )
 
         run_salvage_reason = self._get_action_block_reason("salvage")
-        selector_count = self._draw_salvage_status_badges(settings)
+        ready_rule_count = self._draw_salvage_status_badges(settings)
         self._draw_secondary_text(self._format_salvage_filter_summary(settings))
-        if selector_count <= 0:
-            PyImGui.text_colored("Choose a rarity, category, or specific item before Salvage can find items.", UI_COLOR_WARNING)
+        if ready_rule_count <= 0:
+            PyImGui.text_colored("Add or configure a salvage rule before Salvage can find items.", UI_COLOR_WARNING)
 
         PyImGui.separator()
         self._draw_section_heading("When to Salvage")
@@ -22836,65 +23759,26 @@ class MerchantRulesWidget:
             self._draw_secondary_text(self.last_salvage_summary)
         if settings.on_inventory_change:
             self._draw_secondary_text("MR pauses Inventory Plus while salvaging.")
-        if bool(settings.categories.get(SALVAGE_CATEGORY_OTHER, False)):
-            PyImGui.text_colored("Other Items may include unexpected salvageable item types. Keep it off unless testing specific drops.", UI_COLOR_WARNING)
 
         PyImGui.separator()
-        self._draw_section_heading("Rarities")
-        changed = self._draw_salvage_rarity_toggles(settings) or changed
-        PyImGui.text_colored(
-            "Pick one or more rarities, then optionally narrow them by category. When both are selected, an item must match a selected rarity and a selected category.",
-            UI_COLOR_WARNING,
-        )
-
-        PyImGui.spacing()
-        self._draw_section_heading("Categories")
-        changed = self._draw_salvage_category_toggles(settings) or changed
-        self._draw_secondary_text("Example: choosing Gold with Weapons and Armor salvages only gold weapons and gold armor. Exact model selections still follow protection and safety checks.")
-
-        PyImGui.separator()
-        self._draw_section_heading("Specific Items")
-        PyImGui.text(f"Selected Models: {len(settings.model_ids)}")
-        removed_model_id = self._draw_selected_model_ids("salvage_models", 0, settings.model_ids)
-        if removed_model_id > 0:
-            settings.model_ids = [model_id for model_id in settings.model_ids if int(model_id) != int(removed_model_id)]
+        self._draw_section_heading("Rules")
+        if PyImGui.button("Add Salvage Rule##merchant_rules_add_salvage_rule"):
+            settings.rules.append(_normalize_salvage_rule(SalvageRule()) or SalvageRule())
+            self.rule_ui_structure_changed = True
+            self._refresh_rule_ui_caches()
             changed = True
 
-        if self._draw_confirm_destructive_button("Clear Models##merchant_rules_salvage_clear_models"):
-            settings.model_ids = []
-            changed = True
-
-        updated_search_text = PyImGui.input_text("Search Items##merchant_rules_salvage_search", self.salvage_model_search_text)
-        if updated_search_text != self.salvage_model_search_text:
-            self.salvage_model_search_text = updated_search_text
-
-        picked_model_id, visible_model_ids = self._draw_search_results(
-            "merchant_rules_salvage_search_results",
-            self.salvage_model_search_text,
-        )
-        addable_model_ids = [model_id for model_id in visible_model_ids if model_id not in settings.model_ids]
-        if self._draw_add_all_matches_button(
-            "merchant_rules_salvage_search_results_add_all",
-            len(visible_model_ids),
-            len(addable_model_ids),
-        ):
-            settings.model_ids = _dedupe_model_ids(settings.model_ids + addable_model_ids)
-            changed = True
-        if picked_model_id > 0:
-            settings.model_ids = _dedupe_model_ids(settings.model_ids + [picked_model_id])
-            self.salvage_model_search_text = self._get_model_name(picked_model_id) or str(picked_model_id)
-            changed = True
-
-        if PyImGui.collapsing_header("Advanced##merchant_rules_salvage_advanced"):
-            current_raw = _format_model_ids(settings.model_ids)
-            new_raw, apply_manual_ids = self._draw_manual_model_ids_editor(
-                "salvage_models",
-                current_raw,
-            )
-            if apply_manual_ids:
-                settings.model_ids = _dedupe_model_ids(_parse_model_ids(new_raw))
+        if not settings.rules:
+            self._draw_secondary_text("No salvage rules yet.")
+        for index, rule in enumerate(list(settings.rules)):
+            if index >= len(settings.rules):
+                break
+            if self._draw_salvage_rule_editor(index, rule, settings):
                 changed = True
-            self._draw_secondary_text("Comma-separated model IDs. Apply replaces the exact model list.")
+            if self.rule_ui_structure_changed:
+                break
+            if index + 1 < len(settings.rules):
+                PyImGui.spacing()
 
         if changed:
             self.salvage_settings = _normalize_salvage_settings(settings)
