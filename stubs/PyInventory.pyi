@@ -1,42 +1,7 @@
 # PyInventory.pyi - Auto-generated .pyi file for PyInventory module
 
-from typing import Any, Dict, List, TypedDict
+from typing import Any, List
 from PyItem import PyItem
-
-
-class SalvageSessionInfo(TypedDict):
-    active: bool
-    frame_id: int
-    item_id: int
-    kit_id: int
-    available_options: Dict[str, bool]
-    available_option_names: List[str]
-    option_item_ids: Dict[str, int]
-    chosen_option: str
-
-class SalvageStartStatus(TypedDict, total=False):
-    item_id: int
-    kit_id: int
-    item_exists: bool
-    kit_exists: bool
-    item_model_id: int
-    kit_model_id: int
-    item_type: int
-    item_formula: int
-    kit_formula: int
-    item_interaction: int
-    kit_interaction: int
-    item_is_salvageable: bool
-    kit_is_salvage_kit: bool
-    kit_is_lesser_kit: bool
-    kit_is_expert_salvage_kit: bool
-    kit_is_perfect_salvage_kit: bool
-    item_can_interact: bool
-    kit_can_interact: bool
-    safeitem_precheck: bool
-    salvage_start_func_ready: bool
-    gwca_interaction_precheck: bool
-    failure_reason: str
 
 # Class Bag (SafeBag)
 class Bag:
@@ -75,12 +40,8 @@ class PyInventory:
     def WithdrawGold(self, amount: int) -> int: ...
     def DropGold(self, amount: int) -> bool: ...
     def MoveItem(self, item_id: int, bag_id: int, slot: int, quantity: int = 1) -> bool: ...
-    def GetSalvageStartStatus(self, salv_kit_id: int, item_id: int) -> SalvageStartStatus: ...
-    def StartSalvage(self, salv_kit_id: int, item_id: int) -> bool: ...
     def Salvage(self, salv_kit_id: int, item_id: int) -> None: ...
     def AcceptSalvageWindow(self) -> None: ...
-    def GetSalvageSessionInfo(self) -> SalvageSessionInfo: ...
-    def SelectSalvageSessionOption(self, option: str) -> bool: ...
     def IsSalvaging(self) -> bool: ...
     def IsSalvageTransactionDone(self) -> bool: ...
     def FinishSalvage(self) -> None: ...

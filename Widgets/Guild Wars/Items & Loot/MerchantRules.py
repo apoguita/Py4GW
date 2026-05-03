@@ -16965,6 +16965,13 @@ class MerchantRulesWidget:
             transaction_done = False
         return is_salvaging, transaction_done
 
+    def _has_native_salvage_session_api(self, inventory_instance: object) -> bool:
+        return (
+            callable(getattr(inventory_instance, "StartSalvage", None))
+            and callable(getattr(inventory_instance, "GetSalvageSessionInfo", None))
+            and callable(getattr(inventory_instance, "SelectSalvageSessionOption", None))
+        )
+
     def _any_salvage_related_window_open(self) -> bool:
         try:
             from Sources.frenkeyLib.ItemHandling.UIManagerExtensions import UIManagerExtensions
@@ -17012,29 +17019,6 @@ class MerchantRulesWidget:
             f"MR Salvage native start result for item {int(item_id)} via PyInventory.{start_method_name}: {start_result}."
         )
         if start_result is False:
-            status_method = getattr(inventory_instance, "GetSalvageStartStatus", None)
-            if callable(status_method):
-                try:
-                    start_status = status_method(int(salvage_kit_id), int(item_id))
-                except Exception as exc:
-                    self._salvage_flow_log(
-                        f"MR Salvage start diagnostics failed for item {int(item_id)}: {exc}.",
-                        Console.MessageType.Warning,
-                    )
-                else:
-                    if isinstance(start_status, dict):
-                        reason = str(start_status.get("failure_reason", "unknown") or "unknown")
-                        self._salvage_flow_log(
-                            f"MR Salvage start diagnostics for item {int(item_id)}: reason={reason} "
-                            f"item_exists={bool(start_status.get('item_exists', False))} "
-                            f"kit_exists={bool(start_status.get('kit_exists', False))} "
-                            f"kit_is_salvage_kit={bool(start_status.get('kit_is_salvage_kit', False))} "
-                            f"item_is_salvageable={bool(start_status.get('item_is_salvageable', False))} "
-                            f"kit_can_interact={bool(start_status.get('kit_can_interact', False))} "
-                            f"item_can_interact={bool(start_status.get('item_can_interact', False))} "
-                            f"safeitem_precheck={bool(start_status.get('safeitem_precheck', False))} "
-                            f"salvage_start_func_ready={bool(start_status.get('salvage_start_func_ready', False))}."
-                        )
             ConsoleLog(
                 MODULE_NAME,
                 f"MR Salvage native start rejected item {int(item_id)} with kit {int(salvage_kit_id)}.",
@@ -17310,6 +17294,14 @@ class MerchantRulesWidget:
         option_item_id = 0
         if selected_option in SALVAGE_UPGRADE_OPTIONS:
             inventory_instance = PyInventory.PyInventory()
+            if not self._has_native_salvage_session_api(inventory_instance):
+                ConsoleLog(
+                    MODULE_NAME,
+                    f"MR Salvage skipped {live_item.name} ({item_id}): {_get_salvage_option_label(selected_option)} "
+                    "requires native salvage-session API support.",
+                    Console.MessageType.Warning,
+                )
+                return "blocked"
             session, start_attempts, start_status = yield from self._start_salvage_and_wait_for_session(
                 inventory_instance,
                 item_id,
