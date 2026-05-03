@@ -584,6 +584,7 @@ def _salvage_settings(
     rarities: list[str] | None = None,
     categories: list[str] | None = None,
     on_inventory_change: bool = False,
+    rules: list[object] | None = None,
 ):
     rarity_keys = {str(value or "").strip().lower() for value in (rarities or [])}
     category_keys = {str(value or "").strip().lower() for value in (categories or [])}
@@ -592,6 +593,7 @@ def _salvage_settings(
         rarities={key: key in rarity_keys for key, _label in module.RARITY_OPTION_ORDER},
         categories={key: key in category_keys for key, _label in module.SALVAGE_CATEGORY_ORDER},
         on_inventory_change=on_inventory_change,
+        rules=list(rules or []),
     )
 
 
@@ -1633,6 +1635,170 @@ def _test_salvage_selected_items_block_destroy(module) -> None:
         any("salvage wins over destroy" in entry.reason for entry in plan.entries if entry.action_type == "destroy"),
         "Destroy planning should explain when MR Salvage claims a matching item first.",
     )
+
+
+def _make_specific_suffix_salvage_rule(module, salvage_option: str):
+    return module._normalize_salvage_rule(
+        module.SalvageRule(
+            enabled=True,
+            salvage_option=salvage_option,
+            target_weapon_mod_variant_thresholds=[
+                module.WeaponModVariantThresholdRule(
+                    identifier="of Defense",
+                    target_item_type="Daggers",
+                    component_kind="DaggerHandle",
+                    min_value=5,
+                )
+            ],
+        )
+    )
+
+
+def _make_specific_suffix_item(module, *, item_id: int = 40):
+    return _make_item(
+        module,
+        item_id=item_id,
+        model_id=4000 + item_id,
+        name="Dagger Handle of Defense",
+        rarity="Gold",
+        identified=True,
+        salvageable=True,
+        is_weapon_like=True,
+        item_type_id=int(module.ItemType.Daggers),
+        item_type_name="Daggers",
+        weapon_mod_identifiers=["of Defense"],
+        weapon_mod_matches=[
+            _make_weapon_mod_match(
+                module,
+                "of Defense",
+                5,
+                target_item_type="Daggers",
+                component_kind="DaggerHandle",
+                mod_type="Suffix",
+            )
+        ],
+    )
+
+
+def _test_specific_upgrade_salvage_target_accepts_compatible_option(module) -> None:
+    original_db = _install_weapon_mod_catalog_fixture(module)
+    try:
+        widget = _make_widget(module)
+        widget._has_salvage_upgrade_session_support = lambda: True
+        widget.salvage_settings = _salvage_settings(
+            module,
+            rules=[_make_specific_suffix_salvage_rule(module, module.SALVAGE_OPTION_SUFFIX)],
+        )
+        item = _make_specific_suffix_item(module)
+
+        reason = widget._get_salvage_candidate_block_reason(
+            item,
+            [],
+            require_salvage_kit=True,
+            salvage_kit_id=1,
+        )
+
+        _expect(reason == "", "Specific suffix target should be executable with the suffix salvage option.")
+        _expect(
+            "specific upgrade target" in widget._get_salvage_selection_reason(item),
+            "Specific upgrade target should produce a salvage selection reason.",
+        )
+    finally:
+        module.MOD_DB = original_db
+
+
+def _test_specific_upgrade_salvage_target_blocks_mismatched_option(module) -> None:
+    original_db = _install_weapon_mod_catalog_fixture(module)
+    try:
+        widget = _make_widget(module)
+        widget._has_salvage_upgrade_session_support = lambda: True
+        widget.salvage_settings = _salvage_settings(
+            module,
+            rules=[_make_specific_suffix_salvage_rule(module, module.SALVAGE_OPTION_PREFIX)],
+        )
+        item = _make_specific_suffix_item(module)
+
+        reason = widget._get_salvage_candidate_block_reason(
+            item,
+            [],
+            require_salvage_kit=True,
+            salvage_kit_id=1,
+        )
+
+        _expect(
+            reason.startswith("specific upgrade target requires Salvage suffix"),
+            "Specific suffix target should not execute through prefix salvage.",
+        )
+        _expect(
+            "configured for Salvage prefix" in reason,
+            "Mismatched specific-upgrade block should name the configured broad option.",
+        )
+    finally:
+        module.MOD_DB = original_db
+
+
+def _test_specific_upgrade_salvage_target_mismatch_still_blocks_destroy(module) -> None:
+    original_db = _install_weapon_mod_catalog_fixture(module)
+    try:
+        widget = _make_widget(module)
+        widget.salvage_settings = _salvage_settings(
+            module,
+            rules=[_make_specific_suffix_salvage_rule(module, module.SALVAGE_OPTION_PREFIX)],
+        )
+        widget.destroy_rules = [
+            module._normalize_destroy_rule(
+                module.DestroyRule(
+                    enabled=True,
+                    kind=module.DESTROY_KIND_WEAPONS,
+                    rarities=_rarity_flags("gold"),
+                )
+            )
+        ]
+        widget._collect_inventory_items = lambda: [_make_specific_suffix_item(module)]
+
+        plan = widget._build_plan()
+
+        _expect(
+            not plan.destroy_actions,
+            "Mismatched specific-upgrade salvage targets should still reserve matching items from destroy.",
+        )
+        _expect(
+            any(
+                "salvage wins over destroy" in entry.reason
+                for entry in plan.entries
+                if entry.action_type == "destroy"
+            ),
+            "Destroy preview should still explain that the specific-upgrade salvage rule claimed the item.",
+        )
+    finally:
+        module.MOD_DB = original_db
+
+
+def _test_specific_upgrade_salvage_target_blocks_default_and_material_options(module) -> None:
+    original_db = _install_weapon_mod_catalog_fixture(module)
+    try:
+        item = _make_specific_suffix_item(module)
+        for salvage_option in (module.SALVAGE_OPTION_DEFAULT, module.SALVAGE_OPTION_MATERIALS):
+            widget = _make_widget(module)
+            widget._has_salvage_upgrade_session_support = lambda: True
+            widget.salvage_settings = _salvage_settings(
+                module,
+                rules=[_make_specific_suffix_salvage_rule(module, salvage_option)],
+            )
+
+            reason = widget._get_salvage_candidate_block_reason(
+                item,
+                [],
+                require_salvage_kit=True,
+                salvage_kit_id=1,
+            )
+
+            _expect(
+                reason == "specific upgrade target requires prefix, suffix, or inscription salvage option",
+                "Specific-upgrade targets should not execute through default/material salvage.",
+            )
+    finally:
+        module.MOD_DB = original_db
 
 
 def _test_identify_exact_rarity_claims_before_destroy_and_cleanup(module) -> None:
@@ -7985,6 +8151,22 @@ def main() -> int:
             ("salvage_rarity_and_category_filters_combine", lambda: _test_salvage_rarity_and_category_filters_combine(module)),
             ("salvage_filter_summary_describes_combined_filters", lambda: _test_salvage_filter_summary_describes_combined_filters(module)),
             ("salvage_selected_items_block_destroy", lambda: _test_salvage_selected_items_block_destroy(module)),
+            (
+                "specific_upgrade_salvage_target_accepts_compatible_option",
+                lambda: _test_specific_upgrade_salvage_target_accepts_compatible_option(module),
+            ),
+            (
+                "specific_upgrade_salvage_target_blocks_mismatched_option",
+                lambda: _test_specific_upgrade_salvage_target_blocks_mismatched_option(module),
+            ),
+            (
+                "specific_upgrade_salvage_target_mismatch_still_blocks_destroy",
+                lambda: _test_specific_upgrade_salvage_target_mismatch_still_blocks_destroy(module),
+            ),
+            (
+                "specific_upgrade_salvage_target_blocks_default_and_material_options",
+                lambda: _test_specific_upgrade_salvage_target_blocks_default_and_material_options(module),
+            ),
             ("identify_exact_rarity_claims_before_destroy_and_cleanup", lambda: _test_identify_exact_rarity_claims_before_destroy_and_cleanup(module)),
             ("identify_no_kit_still_claims_selected_items", lambda: _test_identify_no_kit_still_claims_selected_items(module)),
             ("identify_on_inventory_change_queues_auto_pass", lambda: _test_identify_on_inventory_change_queues_auto_pass(module)),

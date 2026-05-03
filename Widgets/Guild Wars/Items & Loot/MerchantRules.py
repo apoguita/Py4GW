@@ -1193,6 +1193,12 @@ class SalvageCandidate:
     reason: str = ""
 
 
+@dataclass(frozen=True)
+class SalvageUpgradeTargetMatch:
+    label: str = ""
+    required_option: str = ""
+
+
 @dataclass
 class PlannedMerchantBuy:
     model_id: int
@@ -9540,21 +9546,81 @@ class MerchantRulesWidget:
                 return label
         return safe_key or "Unknown"
 
-    def _get_salvage_rule_upgrade_target_reason(self, rule: SalvageRule, item: InventoryItemInfo) -> str:
-        normalized_rule = _normalize_salvage_rule(rule)
-        if normalized_rule is None or not _salvage_rule_has_upgrade_targets(normalized_rule):
+    def _get_weapon_mod_required_salvage_option(
+        self,
+        identifier: object,
+        match: object | None = None,
+    ) -> str:
+        safe_identifier = str(identifier or "").strip()
+        if not safe_identifier:
             return ""
 
-        labels: list[str] = []
+        weapon_mod = MOD_DB.weapon_mods.get(safe_identifier)
+        weapon_mod_name = str(
+            getattr(weapon_mod, "name", "")
+            or self.weapon_mod_names.get(safe_identifier, "")
+            or safe_identifier
+        ).strip()
+        if weapon_mod_name.startswith('"'):
+            return SALVAGE_OPTION_INSCRIPTION
+
+        mod_type = str(getattr(match, "mod_type", "") or "").strip()
+        if not mod_type:
+            mod_type = _get_weapon_mod_type_name(weapon_mod)
+        normalized_mod_type = mod_type.casefold()
+        if normalized_mod_type == "prefix":
+            return SALVAGE_OPTION_PREFIX
+        if normalized_mod_type == "suffix":
+            return SALVAGE_OPTION_SUFFIX
+        return ""
+
+    def _build_salvage_upgrade_target_match(
+        self,
+        label: object,
+        identifier: object,
+        match: object | None,
+    ) -> SalvageUpgradeTargetMatch:
+        safe_label = str(label or "").strip() or self._get_weapon_mod_generic_label(str(identifier or "").strip())
+        return SalvageUpgradeTargetMatch(
+            label=safe_label,
+            required_option=self._get_weapon_mod_required_salvage_option(identifier, match),
+        )
+
+    def _get_salvage_rule_upgrade_target_matches(
+        self,
+        rule: SalvageRule,
+        item: InventoryItemInfo,
+    ) -> list[SalvageUpgradeTargetMatch]:
+        normalized_rule = _normalize_salvage_rule(rule)
+        if normalized_rule is None or not _salvage_rule_has_upgrade_targets(normalized_rule):
+            return []
+
+        target_matches: list[SalvageUpgradeTargetMatch] = []
+        seen_matches: set[tuple[str, str]] = set()
         item_weapon_mod_identifiers = set(_dedupe_identifiers(getattr(item, "weapon_mod_identifiers", [])))
         item_weapon_mod_matches = tuple(getattr(item, "weapon_mod_matches", []) or ())
 
-        matched_identifiers = [
-            identifier
-            for identifier in normalized_rule.target_weapon_mod_identifiers
-            if identifier in item_weapon_mod_identifiers
-        ]
-        labels.extend(self._get_weapon_mod_generic_label(identifier) for identifier in matched_identifiers)
+        def append_match(label: object, identifier: object, match: object | None) -> None:
+            target_match = self._build_salvage_upgrade_target_match(label, identifier, match)
+            match_key = (target_match.label, target_match.required_option)
+            if match_key in seen_matches:
+                return
+            seen_matches.add(match_key)
+            target_matches.append(target_match)
+
+        for identifier in normalized_rule.target_weapon_mod_identifiers:
+            if identifier not in item_weapon_mod_identifiers:
+                continue
+            parsed_matches = [
+                match
+                for match in item_weapon_mod_matches
+                if str(getattr(match, "identifier", "") or "").strip() == identifier
+            ]
+            if parsed_matches:
+                for match in parsed_matches:
+                    append_match(self._get_weapon_mod_generic_label(identifier), identifier, match)
+            else:
+                append_match(self._get_weapon_mod_generic_label(identifier), identifier, None)
 
         for threshold_rule in normalized_rule.target_weapon_mod_thresholds:
             threshold_identifier = str(threshold_rule.identifier or "").strip()
@@ -9567,13 +9633,17 @@ class MerchantRulesWidget:
                 if matched_value is None:
                     continue
                 if _safe_int(matched_value, 0) >= int(threshold_rule.min_value):
-                    labels.append(self._format_weapon_mod_threshold_rule(threshold_rule))
+                    append_match(self._format_weapon_mod_threshold_rule(threshold_rule), threshold_identifier, match)
                     break
 
         for variant_rule in normalized_rule.target_weapon_mod_variants:
             for match in item_weapon_mod_matches:
                 if _weapon_mod_variant_matches_parsed_match(variant_rule, match):
-                    labels.append(self._format_weapon_mod_variant_rule(variant_rule))
+                    append_match(
+                        self._format_weapon_mod_variant_rule(variant_rule),
+                        getattr(variant_rule, "identifier", ""),
+                        match,
+                    )
                     break
 
         for threshold_rule in normalized_rule.target_weapon_mod_variant_thresholds:
@@ -9584,12 +9654,63 @@ class MerchantRulesWidget:
                 if matched_value is None:
                     continue
                 if _safe_int(matched_value, 0) >= int(threshold_rule.min_value):
-                    labels.append(self._format_weapon_mod_variant_threshold_rule(threshold_rule))
+                    append_match(
+                        self._format_weapon_mod_variant_threshold_rule(threshold_rule),
+                        getattr(threshold_rule, "identifier", ""),
+                        match,
+                    )
                     break
 
-        if not labels:
+        return target_matches
+
+    def _get_salvage_rule_upgrade_target_reason(self, rule: SalvageRule, item: InventoryItemInfo) -> str:
+        target_matches = self._get_salvage_rule_upgrade_target_matches(rule, item)
+        if not target_matches:
             return ""
-        return f"specific upgrade target {self._format_compact_list(_dedupe_identifiers(labels), limit=3)}"
+        labels = _dedupe_identifiers([target_match.label for target_match in target_matches])
+        return f"specific upgrade target {self._format_compact_list(labels, limit=3)}"
+
+    def _get_salvage_upgrade_target_option_block_reason(
+        self,
+        rule: SalvageRule,
+        item: InventoryItemInfo,
+        selected_option: object,
+    ) -> str:
+        target_matches = self._get_salvage_rule_upgrade_target_matches(rule, item)
+        if not target_matches:
+            return ""
+
+        unknown_option_labels = [
+            target_match.label
+            for target_match in target_matches
+            if not str(target_match.required_option or "").strip()
+        ]
+        if unknown_option_labels:
+            return (
+                "specific upgrade target option unknown: "
+                f"{self._format_compact_list(_dedupe_identifiers(unknown_option_labels), limit=3)}"
+            )
+
+        safe_selected_option = _resolve_salvage_session_option(selected_option)
+        if safe_selected_option not in SALVAGE_UPGRADE_OPTIONS:
+            return "specific upgrade target requires prefix, suffix, or inscription salvage option"
+
+        required_options = {
+            str(target_match.required_option or "").strip()
+            for target_match in target_matches
+            if str(target_match.required_option or "").strip()
+        }
+        if safe_selected_option in required_options:
+            return ""
+
+        required_option_labels = [
+            _get_salvage_option_label(required_option)
+            for required_option in sorted(required_options)
+        ]
+        return (
+            f"specific upgrade target requires {self._format_compact_list(required_option_labels, limit=3)}; "
+            f"rule is configured for {_get_salvage_option_label(safe_selected_option)}"
+        )
 
     def _get_salvage_rule_filter_reason(self, rule: SalvageRule, item: InventoryItemInfo) -> str:
         normalized_rule = _normalize_salvage_rule(rule)
@@ -9748,19 +9869,26 @@ class MerchantRulesWidget:
         if not bool(item.identified) and rarity_key != "white":
             return "unidentified non-white: identify before salvaging"
         selected_rule = salvage_rule
-        selection_reason = self._get_salvage_rule_filter_reason(selected_rule, item) if selected_rule is not None else self._get_salvage_selection_reason(item)
+        if selected_rule is not None:
+            selection_reason = self._get_salvage_rule_filter_reason(selected_rule, item)
+        else:
+            rule_match = self._get_matching_salvage_rule(item)
+            selected_rule = rule_match[1] if rule_match is not None else None
+            selection_reason = rule_match[2] if rule_match is not None else ""
         if not selection_reason:
             return "not selected by salvage settings"
         if require_salvage_kit:
             selected_option = _resolve_salvage_session_option(
                 getattr(selected_rule, "salvage_option", SALVAGE_OPTION_DEFAULT)
             )
-            if (
-                selected_rule is not None
-                and _salvage_rule_has_upgrade_targets(selected_rule)
-                and selected_option not in SALVAGE_UPGRADE_OPTIONS
-            ):
-                return "specific upgrade target requires prefix, suffix, or inscription salvage option"
+            if selected_rule is not None:
+                option_block_reason = self._get_salvage_upgrade_target_option_block_reason(
+                    selected_rule,
+                    item,
+                    selected_option,
+                )
+                if option_block_reason:
+                    return option_block_reason
             if selected_option in SALVAGE_UPGRADE_OPTIONS and not self._has_salvage_upgrade_session_support():
                 return SALVAGE_NATIVE_SESSION_UNAVAILABLE_REASON
             if int(salvage_kit_id) <= 0:
@@ -9797,6 +9925,7 @@ class MerchantRulesWidget:
             ("customized:", "customized"),
             ("unidentified non-white:", "unidentified non-white"),
             ("native salvage-session api unavailable:", "native upgrade salvage unavailable"),
+            ("specific upgrade target option unknown:", "specific upgrade target option unknown"),
             ("specific upgrade target requires", "specific upgrade target not executable"),
             ("no normal salvage kit", "no normal salvage kit"),
             ("no upgrade salvage kit", "no upgrade salvage kit"),
