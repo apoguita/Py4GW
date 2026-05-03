@@ -20,6 +20,7 @@ from Py4GWCoreLib.native_src.context.AgentContext import AgentStruct
 
 from typing import Any, Union, cast
 import math
+import sys
 
 #region CONSTANTS
 MODULE_NAME = "Mission Map+"
@@ -230,6 +231,18 @@ def RawGwinchToPixels(gwinch_value: float, zoom:float, zoom_offset:float, scale_
     global GWINCHES
     pixels_per_gwinch = (scale_x * (zoom + zoom_offset)) / GWINCHES
     return gwinch_value * pixels_per_gwinch
+
+
+def GetEnemyTrackerRangeFilter() -> int:
+    for module in list(sys.modules.values()):
+        floating_button = getattr(module, "FloatingButton", None)
+        vars_obj = getattr(floating_button, "vars", None)
+        if vars_obj is not None and hasattr(vars_obj, "range_filter"):
+            try:
+                return int(vars_obj.range_filter)
+            except Exception:
+                return 0
+    return 0
 
 def FloatingMoveToggle(x: float, y: float, enabled: bool, show_stop: bool = False, margin: int = 8) -> tuple[bool, bool]:
     """Draw Move toggle and Stop button; returns (move_enabled, stop_requested)."""
@@ -1484,6 +1497,19 @@ def DrawFrame():
         segments = _segments_for_radius(radius)
         _draw_circle_stroke(mission_map.player_screen_x, mission_map.player_screen_y, radius, compass_outline_color, segments, 1.0)
         _draw_circle_stroke(mission_map.player_screen_x, mission_map.player_screen_y, radius-(2.85*zoom), color, segments, (5.7*zoom))
+
+    def _draw_enemy_tracker_range():
+        range_filter = GetEnemyTrackerRangeFilter()
+        if range_filter <= 0:
+            return
+        radius = RawGwinchToPixels(range_filter, mission_map.zoom, mission_map.mega_zoom, mission_map.scale_x)
+        if radius <= 0:
+            return
+        color = Utils.RGBToColor(80, 190, 255, 230)
+        outline_color = Utils.RGBToColor(0, 0, 0, 220)
+        segments = _segments_for_radius(radius)
+        _draw_circle_stroke(mission_map.player_screen_x, mission_map.player_screen_y, radius + 1.0, outline_color, segments, 2.0)
+        _draw_circle_stroke(mission_map.player_screen_x, mission_map.player_screen_y, radius, color, segments, 2.0)
     
     #terrain 
     zoom = mission_map.zoom + mission_map.mega_zoom
@@ -1501,6 +1527,7 @@ def DrawFrame():
     if imgui_draw_window_open:
         _draw_aggro_bubble()
         _draw_compass_range(zoom)
+        _draw_enemy_tracker_range()
     
       
     neutral_array = AgentArray.GetNeutralArray()

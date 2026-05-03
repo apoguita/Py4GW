@@ -641,38 +641,27 @@ class _Items:
         Only uses a consumable if its effect is not already active.
         """
         from ...Routines import Routines
-        from ...GlobalCache import GLOBAL_CACHE
-
-        # Map consumable model_id to their effect skill_id (as used in multibox)
         consumable_effects = [
-            (ModelID.Essence_Of_Celerity.value, GLOBAL_CACHE.Skill.GetID("Essence_of_Celerity_item_effect")),
-            (ModelID.Grail_Of_Might.value, GLOBAL_CACHE.Skill.GetID("Grail_of_Might_item_effect")),
-            (ModelID.Armor_Of_Salvation.value, GLOBAL_CACHE.Skill.GetID("Armor_of_Salvation_item_effect")),
-            (ModelID.Birthday_Cupcake.value, GLOBAL_CACHE.Skill.GetID("Birthday_Cupcake_skill")),
-            (ModelID.Golden_Egg.value, GLOBAL_CACHE.Skill.GetID("Golden_Egg_skill")),
-            (ModelID.Candy_Corn.value, GLOBAL_CACHE.Skill.GetID("Candy_Corn_skill")),
-            (ModelID.Candy_Apple.value, GLOBAL_CACHE.Skill.GetID("Candy_Apple_skill")),
-            (ModelID.Slice_Of_Pumpkin_Pie.value, GLOBAL_CACHE.Skill.GetID("Pie_Induced_Ecstasy")),
-            (ModelID.Drake_Kabob.value, GLOBAL_CACHE.Skill.GetID("Drake_Skin")),
-            (ModelID.Bowl_Of_Skalefin_Soup.value, GLOBAL_CACHE.Skill.GetID("Skale_Vigor")),
-            (ModelID.Pahnai_Salad.value, GLOBAL_CACHE.Skill.GetID("Pahnai_Salad_item_effect")),
-            (ModelID.War_Supplies.value, GLOBAL_CACHE.Skill.GetID("Well_Supplied")),
+            (ModelID.Essence_Of_Celerity, "Essence_of_Celerity_item_effect"),
+            (ModelID.Grail_Of_Might, "Grail_of_Might_item_effect"),
+            (ModelID.Armor_Of_Salvation, "Armor_of_Salvation_item_effect"),
+            (ModelID.Birthday_Cupcake, "Birthday_Cupcake_skill"),
+            (ModelID.Golden_Egg, "Golden_Egg_skill"),
+            (ModelID.Candy_Corn, "Candy_Corn_skill"),
+            (ModelID.Candy_Apple, "Candy_Apple_skill"),
+            (ModelID.Slice_Of_Pumpkin_Pie, "Pie_Induced_Ecstasy"),
+            (ModelID.Drake_Kabob, "Drake_Skin"),
+            (ModelID.Bowl_Of_Skalefin_Soup, "Skale_Vigor"),
+            (ModelID.Pahnai_Salad, "Pahnai_Salad_item_effect"),
+            (ModelID.War_Supplies, "Well_Supplied"),
         ]
-        
-        # Wait for any prior game action to finish before using items
-        yield from Routines.Yield.wait(500)
 
-        # Check for each consumable if the effect is already active
-        for consumable_model_id, effect_skill_id in consumable_effects:
-            # Check if effect is already active
-            if hasattr(GLOBAL_CACHE, "Effects") and callable(getattr(GLOBAL_CACHE.Effects, "HasEffect", None)):
-                if GLOBAL_CACHE.Effects.HasEffect(Player.GetAgentID(), effect_skill_id):
-                    continue
-            # Otherwise, just proceed (may overuse if no effect check is available)
-            item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(consumable_model_id)
-            if item_id:
-                GLOBAL_CACHE.Inventory.UseItem(item_id)
-                yield from Routines.Yield.wait(500)
+        from ...Routines import Routines
+        resolved = [
+            ((model_id.value if hasattr(model_id, "value") else int(model_id)), effect_name)
+            for model_id, effect_name in consumable_effects
+        ]
+        yield from Routines.Yield.Items.UseConsumables(resolved)
 
     @_yield_step(label="UseConset", counter_key="USE_CONSET")
     def use_conset(self) -> Generator[Any, Any, None]:
@@ -680,25 +669,18 @@ class _Items:
         Uses only conset items (Essence of Celerity, Grail of Might, Armor of Salvation)
         for the current player. Skips any whose effect is already active.
         """
-        from ...Routines import Routines
-        from ...GlobalCache import GLOBAL_CACHE
-
         conset_effects = [
-            (ModelID.Essence_Of_Celerity.value, GLOBAL_CACHE.Skill.GetID("Essence_of_Celerity_item_effect")),
-            (ModelID.Grail_Of_Might.value,       GLOBAL_CACHE.Skill.GetID("Grail_of_Might_item_effect")),
-            (ModelID.Armor_Of_Salvation.value,   GLOBAL_CACHE.Skill.GetID("Armor_of_Salvation_item_effect")),
+            (ModelID.Essence_Of_Celerity, "Essence_of_Celerity_item_effect"),
+            (ModelID.Grail_Of_Might, "Grail_of_Might_item_effect"),
+            (ModelID.Armor_Of_Salvation, "Armor_of_Salvation_item_effect"),
         ]
 
-        yield from Routines.Yield.wait(500)
-
-        for consumable_model_id, effect_skill_id in conset_effects:
-            if hasattr(GLOBAL_CACHE, "Effects") and callable(getattr(GLOBAL_CACHE.Effects, "HasEffect", None)):
-                if GLOBAL_CACHE.Effects.HasEffect(Player.GetAgentID(), effect_skill_id):
-                    continue
-            item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(consumable_model_id)
-            if item_id:
-                GLOBAL_CACHE.Inventory.UseItem(item_id)
-                yield from Routines.Yield.wait(500)
+        from ...Routines import Routines
+        resolved = [
+            ((model_id.value if hasattr(model_id, "value") else int(model_id)), effect_name)
+            for model_id, effect_name in conset_effects
+        ]
+        yield from Routines.Yield.Items.UseConsumables(resolved)
 
     @_yield_step(label="UsePcons", counter_key="USE_PCONS")
     def use_pcons(self) -> Generator[Any, Any, None]:
@@ -707,31 +689,84 @@ class _Items:
         Pumpkin Pie, Drake Kabob, Skalefin Soup, Pahnai Salad, War Supplies)
         for the current player. Skips any whose effect is already active.
         """
-        from ...Routines import Routines
-        from ...GlobalCache import GLOBAL_CACHE
-
         pcon_effects = [
-            (ModelID.Birthday_Cupcake.value,      GLOBAL_CACHE.Skill.GetID("Birthday_Cupcake_skill")),
-            (ModelID.Golden_Egg.value,             GLOBAL_CACHE.Skill.GetID("Golden_Egg_skill")),
-            (ModelID.Candy_Corn.value,             GLOBAL_CACHE.Skill.GetID("Candy_Corn_skill")),
-            (ModelID.Candy_Apple.value,            GLOBAL_CACHE.Skill.GetID("Candy_Apple_skill")),
-            (ModelID.Slice_Of_Pumpkin_Pie.value,  GLOBAL_CACHE.Skill.GetID("Pie_Induced_Ecstasy")),
-            (ModelID.Drake_Kabob.value,            GLOBAL_CACHE.Skill.GetID("Drake_Skin")),
-            (ModelID.Bowl_Of_Skalefin_Soup.value, GLOBAL_CACHE.Skill.GetID("Skale_Vigor")),
-            (ModelID.Pahnai_Salad.value,           GLOBAL_CACHE.Skill.GetID("Pahnai_Salad_item_effect")),
-            (ModelID.War_Supplies.value,           GLOBAL_CACHE.Skill.GetID("Well_Supplied")),
+            (ModelID.Birthday_Cupcake, "Birthday_Cupcake_skill"),
+            (ModelID.Golden_Egg, "Golden_Egg_skill"),
+            (ModelID.Candy_Corn, "Candy_Corn_skill"),
+            (ModelID.Candy_Apple, "Candy_Apple_skill"),
+            (ModelID.Slice_Of_Pumpkin_Pie, "Pie_Induced_Ecstasy"),
+            (ModelID.Drake_Kabob, "Drake_Skin"),
+            (ModelID.Bowl_Of_Skalefin_Soup, "Skale_Vigor"),
+            (ModelID.Pahnai_Salad, "Pahnai_Salad_item_effect"),
+            (ModelID.War_Supplies, "Well_Supplied"),
         ]
 
-        yield from Routines.Yield.wait(500)
+        from ...Routines import Routines
+        resolved = [
+            ((model_id.value if hasattr(model_id, "value") else int(model_id)), effect_name)
+            for model_id, effect_name in pcon_effects
+        ]
+        yield from Routines.Yield.Items.UseConsumables(resolved)
 
-        for consumable_model_id, effect_skill_id in pcon_effects:
-            if hasattr(GLOBAL_CACHE, "Effects") and callable(getattr(GLOBAL_CACHE.Effects, "HasEffect", None)):
-                if GLOBAL_CACHE.Effects.HasEffect(Player.GetAgentID(), effect_skill_id):
-                    continue
-            item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(consumable_model_id)
-            if item_id:
-                GLOBAL_CACHE.Inventory.UseItem(item_id)
-                yield from Routines.Yield.wait(500)
+    @_yield_step(label="UseEssenceOfCelerity", counter_key="USE_ESSENCE_OF_CELERITY")
+    def use_essence_of_celerity(self) -> Generator[Any, Any, None]:
+        from ...Routines import Routines
+        yield from Routines.Yield.Items.UseConsumable(ModelID.Essence_Of_Celerity.value, "Essence_of_Celerity_item_effect")
+
+    @_yield_step(label="UseGrailOfMight", counter_key="USE_GRAIL_OF_MIGHT")
+    def use_grail_of_might(self) -> Generator[Any, Any, None]:
+        from ...Routines import Routines
+        yield from Routines.Yield.Items.UseConsumable(ModelID.Grail_Of_Might.value, "Grail_of_Might_item_effect")
+
+    @_yield_step(label="UseArmorOfSalvation", counter_key="USE_ARMOR_OF_SALVATION")
+    def use_armor_of_salvation(self) -> Generator[Any, Any, None]:
+        from ...Routines import Routines
+        yield from Routines.Yield.Items.UseConsumable(ModelID.Armor_Of_Salvation.value, "Armor_of_Salvation_item_effect")
+
+    @_yield_step(label="UseBirthdayCupcake", counter_key="USE_BIRTHDAY_CUPCAKE")
+    def use_birthday_cupcake(self) -> Generator[Any, Any, None]:
+        from ...Routines import Routines
+        yield from Routines.Yield.Items.UseConsumable(ModelID.Birthday_Cupcake.value, "Birthday_Cupcake_skill")
+
+    @_yield_step(label="UseGoldenEgg", counter_key="USE_GOLDEN_EGG")
+    def use_golden_egg(self) -> Generator[Any, Any, None]:
+        from ...Routines import Routines
+        yield from Routines.Yield.Items.UseConsumable(ModelID.Golden_Egg.value, "Golden_Egg_skill")
+
+    @_yield_step(label="UseCandyCorn", counter_key="USE_CANDY_CORN")
+    def use_candy_corn(self) -> Generator[Any, Any, None]:
+        from ...Routines import Routines
+        yield from Routines.Yield.Items.UseConsumable(ModelID.Candy_Corn.value, "Candy_Corn_skill")
+
+    @_yield_step(label="UseCandyApple", counter_key="USE_CANDY_APPLE")
+    def use_candy_apple(self) -> Generator[Any, Any, None]:
+        from ...Routines import Routines
+        yield from Routines.Yield.Items.UseConsumable(ModelID.Candy_Apple.value, "Candy_Apple_skill")
+
+    @_yield_step(label="UseSliceOfPumpkinPie", counter_key="USE_SLICE_OF_PUMPKIN_PIE")
+    def use_slice_of_pumpkin_pie(self) -> Generator[Any, Any, None]:
+        from ...Routines import Routines
+        yield from Routines.Yield.Items.UseConsumable(ModelID.Slice_Of_Pumpkin_Pie.value, "Pie_Induced_Ecstasy")
+
+    @_yield_step(label="UseDrakeKabob", counter_key="USE_DRAKE_KABOB")
+    def use_drake_kabob(self) -> Generator[Any, Any, None]:
+        from ...Routines import Routines
+        yield from Routines.Yield.Items.UseConsumable(ModelID.Drake_Kabob.value, "Drake_Skin")
+
+    @_yield_step(label="UseBowlOfSkalefinSoup", counter_key="USE_BOWL_OF_SKALEFIN_SOUP")
+    def use_bowl_of_skalefin_soup(self) -> Generator[Any, Any, None]:
+        from ...Routines import Routines
+        yield from Routines.Yield.Items.UseConsumable(ModelID.Bowl_Of_Skalefin_Soup.value, "Skale_Vigor")
+
+    @_yield_step(label="UsePahnaiSalad", counter_key="USE_PAHNAI_SALAD")
+    def use_pahnai_salad(self) -> Generator[Any, Any, None]:
+        from ...Routines import Routines
+        yield from Routines.Yield.Items.UseConsumable(ModelID.Pahnai_Salad.value, "Pahnai_Salad_item_effect")
+
+    @_yield_step(label="UseWarSupplies", counter_key="USE_WAR_SUPPLIES")
+    def use_war_supplies(self) -> Generator[Any, Any, None]:
+        from ...Routines import Routines
+        yield from Routines.Yield.Items.UseConsumable(ModelID.War_Supplies.value, "Well_Supplied")
 
     @_yield_step(label="UseSummoningStone", counter_key="USE_SUMMONING_STONE")
     def use_summoning_stone(self) -> Generator[Any, Any, None]:

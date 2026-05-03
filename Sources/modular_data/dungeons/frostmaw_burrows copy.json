@@ -1,0 +1,30 @@
+﻿{
+    "name": "frostmaws burrows (22)",
+    "steps": [
+        {"type": "wait", "ms": 100, "anchor": true},
+        {"type": "use_consumables", "mode": "all", "multibox": true},
+        {"type": "auto_path", "name": "shrine", "points": [[-13752, 16705]], "anchor": true},
+        {"type": "auto_path", "name": "initial room", "points": [[-12971, 15661], [-11749, 15556], [-18248, 3941]]},
+        {"type": "auto_path", "name": "Siege wurms", "points": [[-17805, 1737], [-14518, 4200], [-14519, 2422]]},
+        {"type": "auto_path", "name": "shrine", "points": [[-12141, -1354]], "anchor": true},
+        {"type": "auto_path", "name": "To Exit", "points": [[-15729, -12074]]},
+        {"type": "exit_map", "name": "Leave Frostmaw's Burrows (level 4)", "point": [-17200, -14700], "target_map_id": 634},
+        {"type": "use_consumables", "mode": "conset", "multibox": false},
+        {"type": "auto_path", "name": "shrine", "points": [[3940, -18094]], "anchor": true},
+        {"type": "auto_path", "name": "initial snow balls", "points": [[3546, -16541], [3589, -15324]]},
+        {"type": "auto_path", "name": "yotun to door", "points": [[4362, -14108], [6677, -14882], [7753, -14333], [9047, -14931]]},
+        {"type": "auto_path", "name": "boss tour", "points": [[15088, -14850], [13309, -17431], [18185, -16267], [15325, -15016]]},
+        {"type": "auto_path", "name": "boss tour", "points": [[15088, -14850], [13309, -17431], [18185, -16267], [15325, -15016]]},
+        {"type": "auto_path", "name": "To Chest Of Burrows", "points": [[15675, -16330]]},
+        {"type": "interact_gadget", "name": "Interact Chest of Burrows", "gadget": "CHEST_OF_BURROWS", "point": [15514, -16373]},
+        {"type": "loot_chest", "gadget": "CHEST_OF_BURROWS", "multibox": true},
+        {"type": "loot_chest", "gadget": "CHEST_OF_BURROWS", "multibox": true},
+        {"type": "loot_chest", "gadget": "CHEST_OF_BURROWS", "multibox": true},
+        {"type": "dialog_multibox", "id": "0x832A07", "npc": "LATHAM", "name": "Dialog - Latham"},
+        {"type": "dialog_multibox", "id": "0x832A07", "npc": "LATHAM", "name": "Dialog - Latham"},
+        {"type": "wait_for_map_load", "map_id": 546}
+    ]
+  }
+
+
+

@@ -504,6 +504,18 @@ class Items:
         return True
 
     @staticmethod
+    def UseConsumables(consumable_effects: list[tuple[int, str]]) -> Generator[Any, Any, bool]:
+        tree = BT.Items.UseConsumables(consumable_effects, aftercast_ms=100)
+        result = yield from _run_bt_tree(tree, return_bool=True, throttle_ms=100)
+        return bool(result)
+
+    @staticmethod
+    def UseConsumable(model_id: int, effect_name: str = "") -> Generator[Any, Any, bool]:
+        tree = BT.Items.UseConsumable(int(model_id), effect_name, aftercast_ms=100)
+        result = yield from _run_bt_tree(tree, return_bool=True, throttle_ms=100)
+        return bool(result)
+
+    @staticmethod
     def SpawnBonusItems():
         Player.SendChatCommand("bonus")
         yield from wait(250)

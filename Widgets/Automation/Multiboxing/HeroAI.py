@@ -16,7 +16,7 @@ from Py4GWCoreLib.Player import Player
 from Py4GWCoreLib.routines_src.BehaviourTrees import BehaviorTree
 
 from HeroAI.cache_data import CacheData
-from HeroAI.follow_runtime import FollowExecutionState, execute_follower_follow
+from HeroAI.follow.follower_runtime import FollowExecutionState, execute_follower_follow
 
 from HeroAI.windows import (HeroAI_FloatingWindows ,HeroAI_Windows,)
 from HeroAI.ui_base import HeroAI_BaseUI
@@ -24,7 +24,6 @@ from HeroAI.ui import (draw_configure_window, draw_skip_cutscene_overlay)
 from HeroAI import team_viewer_broadcast
 from Py4GWCoreLib import (GLOBAL_CACHE, Agent, LootConfig,
                           Range, Routines, ThrottledTimer, SharedCommandType)
-from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
 
 #region GLOBALS
 LOOT_THROTTLE_CHECK = ThrottledTimer(250)
@@ -116,12 +115,10 @@ def HandleCombat(cached_data: CacheData):
 #region Following
 following_flag = False
 follow_execution_state = FollowExecutionState()
-FOLLOW_MODULE_NAME = "FollowingModule"
 FOLLOW_INI_FILENAMES = (
     "FollowModule_Formations.ini",
     "FollowModule_Settings.ini",
 )
-follow_ini_bootstrap_disable_after_create = False
 printed_widget_list = False
 
 def _follow_ini_paths() -> list[str]:
@@ -137,21 +134,14 @@ def _follow_ini_ready() -> bool:
     return all(os.path.exists(path) for path in _follow_ini_paths())
 
 def EnsureFollowModuleIni() -> None:
-    global follow_ini_bootstrap_disable_after_create
-
     if _follow_ini_ready():
-        if follow_ini_bootstrap_disable_after_create:
-            widget_handler = get_widget_handler()
-            if widget_handler.is_widget_enabled(FOLLOW_MODULE_NAME):
-                widget_handler.disable_widget(FOLLOW_MODULE_NAME)
-            follow_ini_bootstrap_disable_after_create = False
-        return
-    widget_handler = get_widget_handler()
-    if widget_handler.is_widget_enabled(FOLLOW_MODULE_NAME):
         return
 
-    widget_handler.enable_widget(FOLLOW_MODULE_NAME)
-    follow_ini_bootstrap_disable_after_create = True
+    try:
+        from HeroAI.follow.editor import _init_once
+        _init_once()
+    except Exception as e:
+        Py4GW.Console.Log(MODULE_NAME, f"Follow formation INI bootstrap failed: {e}", Py4GW.Console.MessageType.Error)
 
 def Follow(cached_data: CacheData) -> BehaviorTree.NodeState:
     return execute_follower_follow(cached_data, follow_execution_state)
@@ -170,6 +160,8 @@ def handle_UI (cached_data: CacheData):
         HeroAI_BaseUI.draw_debug_window(HeroAI_BT)
 
     HeroAI_FloatingWindows.show_ui(cached_data)
+    HeroAI_BaseUI.DrawBuildMatchesWindow(cached_data)
+    HeroAI_BaseUI.DrawFollowFormationsQuickWindow(cached_data)
    
 def initialize(cached_data: CacheData) -> bool:  
     global build_contract_map_signature
@@ -190,7 +182,7 @@ def initialize(cached_data: CacheData) -> bool:
     if Map.IsInCinematic():  # halt operation during cinematic
         return False
     
-    HeroAI_Windows.DrawFlags(cached_data)
+    HeroAI_BaseUI._process_flagging_runtime(cached_data)
     #HeroAI_FloatingWindows.draw_Targeting_floating_buttons(cached_data)     
     heroai_build.set_cached_data(cached_data)
     map_signature = (
@@ -427,8 +419,7 @@ def main():
     try:
         cached_data.Update()
 
-        if not _follow_ini_ready():
-            get_widget_handler().enable_widget(FOLLOW_MODULE_NAME)
+        EnsureFollowModuleIni()
         HeroAI_FloatingWindows.update()
         handle_UI(cached_data)
         

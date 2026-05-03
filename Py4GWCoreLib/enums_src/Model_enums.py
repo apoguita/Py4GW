@@ -1208,6 +1208,7 @@ class ModelID(IntEnum):
     Emerald_Blade = 1976
     Enchanted_Lodestone = 431
     Elemental_Crystal_Shard = 38302
+    Elemental_Keystone = 38301
     Enchanted_Vine = 834
     Encrusted_Lodestone = 451
     Encrypted_Charr_Battle_Plans = 27976

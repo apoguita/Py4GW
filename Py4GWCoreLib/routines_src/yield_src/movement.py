@@ -73,7 +73,7 @@ class Movement:
         _initial_map_id = _Map.GetMapID()
 
         def _map_still_valid() -> bool:
-            return Checks.Map.MapValid() and _Map.GetMapID() == _initial_map_id
+            return Checks.Map.MapValid() and (not _Map.IsInCinematic()) and _Map.GetMapID() == _initial_map_id
 
         def _abort_on_map_invalid(msg: str) -> bool:
             ConsoleLog("FollowPath", msg, Console.MessageType.Warning, log=log)

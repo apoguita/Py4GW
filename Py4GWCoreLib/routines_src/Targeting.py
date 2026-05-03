@@ -12,7 +12,34 @@ from ..Player import Player
 
 #region Targetting
 class Targeting:
-    
+
+    # Class-level shared HeroAI CacheData slot. Lazy-initialized on first
+    # _resolve_cached_data() call so the singleton instance pays its setup
+    # cost only once and is reused across every Targeting helper. Callers
+    # may still override per-call by passing a live cached_data into the
+    # individual methods.
+    _cached_data = None
+
+    @classmethod
+    def _resolve_cached_data(cls, override=None):
+        """Return the cached_data instance to use for this call.
+
+        Preference order:
+          1. Caller-supplied ``override`` (e.g. HeroAI's live cache - assumed
+             already refreshed by HeroAI's own update loop).
+          2. The class-level ``_cached_data`` singleton, instanced lazily
+             from ``HeroAI.cache_data.CacheData`` on first use, then
+             ``Update()``-ed each call so callers without a live cache get
+             current game state.
+        """
+        if override is not None:
+            return override
+        if cls._cached_data is None:
+            from HeroAI.cache_data import CacheData
+            cls._cached_data = CacheData()
+        cls._cached_data.Update()
+        return cls._cached_data
+
     @staticmethod
     def InteractTarget():
         from ..GlobalCache import GLOBAL_CACHE
@@ -472,4 +499,151 @@ class Targeting:
         enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Checks.Effects.HasEffect(agent_id, effect_skill_id))
         enemy_array = AgentArray.Sort.ByDistance(enemy_array, player_pos)
         return Utils.GetFirstFromArray(enemy_array)
+
+    @staticmethod
+    def PickClusteredEnemiesAroundCorpse(
+        cluster_radius,
+        *,
+        filter_radius=None,
+        min_enemy_targets=1,
+        cached_data=None,
+    ):
+        """Pick the exploitable corpse with the most alive enemy targets
+        within ``cluster_radius`` around the corpse.
+
+        Candidate corpses are restricted to ``filter_radius`` around the
+        player (defaults to ``cluster_radius`` when not set). Returns 0
+        when no corpse meets the ``min_enemy_targets`` floor.
+
+        Any exploitable corpse is fair game - this helper does not respect
+        whiteboard minion-master reservations. Suited to skills that
+        consume the corpse on cast (e.g. Putrid Explosion).
+
+        ``cached_data`` is the HeroAI live cache. When omitted the
+        class-level singleton is used (instanced once on first call).
+        """
+        from ..AgentArray import AgentArray
+        from ..Agent import Agent
+        from .Agents import Agents
+
+        cached_data = Targeting._resolve_cached_data(cached_data)
+
+        if cluster_radius <= 0:
+            return 0
+
+        effective_filter_radius = float(filter_radius if filter_radius is not None else cluster_radius)
+
+        player_pos = Player.GetXY()
+        corpses = AgentArray.GetAgentArray()
+        corpses = AgentArray.Filter.ByDistance(corpses, player_pos, effective_filter_radius)
+        corpses = AgentArray.Filter.ByCondition(
+            corpses,
+            lambda agent_id: Agent.IsExploitableCorpse(agent_id),
+        )
+        if not corpses:
+            return 0
+
+        best_corpse_id = 0
+        best_count = -1
+        for corpse_id in corpses:
+            corpse_x, corpse_y = Agent.GetXY(corpse_id)
+            enemy_targets = Agents.GetFilteredEnemyArray(corpse_x, corpse_y, cluster_radius)
+            enemy_targets = AgentArray.Filter.ByCondition(
+                enemy_targets,
+                lambda eid: Agent.IsValid(eid) and Agent.IsAlive(eid),
+            )
+            count = len(enemy_targets) if enemy_targets else 0
+            if count < min_enemy_targets:
+                continue
+            if count > best_count:
+                best_count = count
+                best_corpse_id = corpse_id
+
+        return best_corpse_id
+
+    @staticmethod
+    def CountNearbyEnemies(agent_id, cluster_radius, *, cached_data=None):
+        """Count alive enemies within ``cluster_radius`` of ``agent_id``,
+        excluding ``agent_id`` itself. Returns 0 for invalid inputs.
+
+        ``cached_data`` follows the same convention as the rest of the
+        Targeting helpers - caller passes HeroAI's live cache when
+        available, otherwise the class-level singleton is used.
+        """
+        from ..AgentArray import AgentArray
+        from ..Agent import Agent
+        from .Agents import Agents
+
+        cached_data = Targeting._resolve_cached_data(cached_data)
+
+        if not agent_id or cluster_radius <= 0:
+            return 0
+
+        target_x, target_y = Agent.GetXY(agent_id)
+        nearby = Agents.GetFilteredEnemyArray(target_x, target_y, cluster_radius)
+        nearby = AgentArray.Filter.ByCondition(
+            nearby,
+            lambda nid: Agent.IsValid(nid) and not Agent.IsDead(nid),
+        )
+        return max(0, len(nearby) - 1)
+
+    @staticmethod
+    def PickClusteredTarget(
+        cluster_radius,
+        preferred_condition=None,
+        *,
+        filter_radius=None,
+        cached_data=None,
+    ):
+        """Pick the enemy with the most direct neighbors within
+        ``cluster_radius``.
+
+        Candidate pool is enemies within ``filter_radius`` (defaults to
+        ``cluster_radius``) of the player. When ``preferred_condition`` is
+        provided, candidates are restricted to matches; if none match,
+        returns 0 so the caller can drive its own fallback. Ties broken
+        by distance to player.
+
+        Suited to AoE-on-cast skills where the effect applies in a single
+        radius around the cast target (e.g. Panic, Painful Bond, Cry of
+        Frustration, Energy Surge).
+
+        ``cached_data`` is resolved once and forwarded into the per-
+        candidate ``CountNearbyEnemies`` calls so the sort doesn't
+        re-update the cache on every scored candidate.
+        """
+        from ..AgentArray import AgentArray
+        from ..Agent import Agent
+        from ..Py4GWcorelib import Utils
+
+        cached_data = Targeting._resolve_cached_data(cached_data)
+
+        if cluster_radius <= 0:
+            return 0
+
+        effective_filter_radius = float(filter_radius if filter_radius is not None else cluster_radius)
+
+        player_pos = Player.GetXY()
+        enemy_array = AgentArray.GetEnemyArray()
+        enemy_array = AgentArray.Filter.ByDistance(enemy_array, player_pos, effective_filter_radius)
+        enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Agent.IsAlive(agent_id))
+        if not enemy_array:
+            return 0
+
+        candidates = enemy_array
+        if preferred_condition is not None:
+            candidates = [agent_id for agent_id in enemy_array if preferred_condition(agent_id)]
+            if not candidates:
+                return 0
+
+        scored = sorted(
+            candidates,
+            key=lambda c: (
+                -Targeting.CountNearbyEnemies(c, cluster_radius, cached_data=cached_data),
+                Utils.Distance(player_pos, Agent.GetXY(c)),
+            ),
+        )
+        return scored[0]
+
+
 #endregion

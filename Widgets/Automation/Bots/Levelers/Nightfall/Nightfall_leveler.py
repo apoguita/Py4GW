@@ -80,6 +80,7 @@ def create_bot_routine(bot: Botting) -> None:
     Chahbek_Village_Mission(bot)
     Primary_Training(bot)
     A_Personal_Vault(bot)
+    Extend_Inventory_Space(bot)
     #Armored_Transport(bot)  #Screw this guy
     Material_Girl(bot)
     Hog_Hunt(bot)
@@ -95,7 +96,7 @@ def create_bot_routine(bot: Botting) -> None:
     Honing_your_Skills(bot)
     Command_Training(bot)
     Secondary_Training(bot)
-    Leaving_A_Legacy(bot)  
+    Leaving_A_Legacy(bot) 
     # === EQUIPMENT CRAFTING ===
     if Agent.GetProfessionNames(Player.GetAgentID())[0] in ["Paragon", "Elementalist", "Monk", "Necromancer"]:
         CraftArmorWithDoubleMats(bot)
@@ -106,7 +107,6 @@ def create_bot_routine(bot: Botting) -> None:
     # === LEVELING ===
     Farm_Until_Level_10(bot)
     To_Consulate_Docks(bot)
-    Extend_Inventory_Space(bot)
     Unlock_Remaining_Secondary_Professions(bot)
     Unlock_Mercenary_Heroes(bot)
     Unlock_Xunlai_Material_Storage(bot)
@@ -1220,7 +1220,7 @@ def Command_Training(bot: Botting):
     bot.Map.Travel(target_map_id=449) # Kamadan
     bot.Move.XYAndDialog(-7874, 9799, 0x82C801)
     PrepareForBattle(bot, Hero_List=[6], Henchman_List=[3,4])
-    bot.Move.XY(-4383, -2078)
+    bot.Move.XY(-7558.02, 6826.11)
     bot.Move.XYAndDialog(-7525, 6288, 0x84, step_name="Churrhir Fields") 
     bot.Wait.ForMapToChange(target_map_id=456)
     bot.Move.XYAndDialog(-2000, -2825,0x8B) #Command Training
@@ -1446,14 +1446,16 @@ def Extend_Inventory_Space(bot: Botting):
     bot.Move.XY(-6017.76, -5899.94)
     bot.Move.XYAndInteractNPC(-4861.00, -7441.00) # Merchant NPC in GTOB
     bot.helpers.Merchant.buy_item(ModelID.Bag.value, 1) # Buy Bag 1
-    bot.Wait.ForTime(250)
-    bot.helpers.Merchant.buy_item(ModelID.Bag.value, 1) # Buy Bag 2
-    bot.Wait.ForTime(250)
-    bot.helpers.Merchant.buy_item(ModelID.Belt_Pouch.value, 1) # Buy Belt Pouch
-    bot.Wait.ForTime(250)
-    bot.Items.EquipInventoryBag(ModelID.Belt_Pouch.value, Bags.BeltPouch)
+    bot.Wait.ForTime(500)
     bot.Items.EquipInventoryBag(ModelID.Bag.value, Bags.Bag1)
+    bot.Wait.ForTime(500)
+    bot.helpers.Merchant.buy_item(ModelID.Bag.value, 1) # Buy Bag 2
+    bot.Wait.ForTime(500)
     bot.Items.EquipInventoryBag(ModelID.Bag.value, Bags.Bag2)
+    bot.Wait.ForTime(500)
+    bot.helpers.Merchant.buy_item(ModelID.Belt_Pouch.value, 1) # Buy Belt Pouch
+    bot.Wait.ForTime(500)
+    bot.Items.EquipInventoryBag(ModelID.Belt_Pouch.value, Bags.BeltPouch)
 
 def Unlock_Remaining_Secondary_Professions(bot: Botting):
     bot.States.AddHeader("Unlock Remaining Secondary Professions")
@@ -1633,9 +1635,9 @@ def Unlock_Eye_Of_The_North_Pool(bot: Botting):
     bot.Move.XY(-6572.70, 6588.83)
     bot.Dialogs.WithModel(6021, 0x800001) # Eotn_pool_cinematic. Model id updated 20.12.2025 GW Reforged
     bot.Wait.ForTime(1000)
-    #bot.Dialogs.WithModel(5959, 0x630) # Eotn_pool_cinematic. Model id updated 20.12.2025 GW Reforged
-    #bot.Wait.ForTime(1000)
-    bot.Dialogs.WithModel(5959, 0x638) # Eotn_pool_cinematic. Model id updated 20.12.2025 GW Reforged
+    bot.Dialogs.WithModel(5959, 0x63A) # Eotn_pool_cinematic. Model id updated 20.12.2025 GW Reforged
+    bot.Wait.ForTime(1000)
+    bot.Dialogs.WithModel(5959, 0x63C) # Eotn_pool_cinematic. Model id updated 20.12.2025 GW Reforged
     bot.Wait.ForTime(1000)
     bot.Wait.ForMapToChange(target_map_id=646)
     bot.Dialogs.WithModel(6021, 0x89) # Gwen dialog. Model id updated 20.12.2025 GW Reforged

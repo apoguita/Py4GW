@@ -131,7 +131,7 @@ class HeroAICommands:
         
         return False
     
-    def send_dialog(self, accounts: list[AccountStruct], dialog_option: int):
+    def send_automatic_dialog(self, accounts: list[AccountStruct], button_number: int):
         sender_email = Player.GetAccountEmail()
         own_map_id = Map.GetMapID()
         own_region = Map.GetRegion()[0]
@@ -142,7 +142,13 @@ class HeroAICommands:
             same_map = own_map_id == account.AgentData.Map.MapID and own_region == account.AgentData.Map.Region and own_district == account.AgentData.Map.District and own_language == account.AgentData.Map.Language
             
             if same_map:
-                GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.SendDialog, (dialog_option, 0, 0, 0))
+                # Legacy transport name retained for compatibility; payload is
+                # now the 0-based automatic-dialog button index.
+                GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.SendDialog, (button_number, 0, 0, 0))
+
+    def send_dialog(self, accounts: list[AccountStruct], dialog_option: int):
+        # Deprecated wrapper for older callers.
+        self.send_automatic_dialog(accounts, dialog_option)
                 
     def __leave_party_command(self, accounts: list[AccountStruct]):
         sender_email = Player.GetAccountEmail()        
@@ -311,7 +317,7 @@ class HeroAICommands:
         target_id = Player.GetTargetID()
         
         for account in accounts:
-            GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.TakeDialogWithTarget, (target_id, 1, 0, 0))
+            GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.TakeDialogWithTarget, (target_id, 0, 0, 0))
 
     def __open_consumables_commands(self, accounts: list[AccountStruct]):
         from HeroAI import ui

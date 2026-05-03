@@ -1,6 +1,5 @@
 from Py4GWCoreLib.BottingTree import BottingTree
 from Py4GWCoreLib.py4gwcorelib_src.BehaviorTree import BehaviorTree
-from Py4GWCoreLib.routines_src.BehaviourTrees import BT as RoutinesBT
 
 from Sources.ApoSource.ApoBottingLib import wrappers as BT
 from Sources.ApoSource.beautiful_pre_searing_src.helpers import (
@@ -15,30 +14,21 @@ botting_tree: BottingTree | None = None
 selected_start_sequence = "Sequence_001_Common"
 
 
-def configure_upkeep_trees(tree: BottingTree) -> BottingTree:
-    tree.SetUpkeepTrees([
-        (
-            "OutpostImpService",
-            lambda: RoutinesBT.Upkeepers.OutpostImpService(
-                target_bag=1,
-                slot=0,
-                log=False,
-            ),
-        ),
-        (
-            "ExplorableImpService",
-            lambda: RoutinesBT.Upkeepers.ExplorableImpService(
-                log=False,
-            ),
-        ),
-    ])
-    return tree
-
-
 def ensure_botting_tree() -> BottingTree:
     global botting_tree
     if botting_tree is None:
-        botting_tree = configure_upkeep_trees(BottingTree())
+        botting_tree = BottingTree.Create(
+            configure_fn=lambda tree: tree.Config.ConfigureUpkeepTrees(
+                disable_looting=False,
+                restore_isolation_on_stop=True,
+                enable_outpost_imp_service=True,
+                enable_explorable_imp_service=True,
+                imp_target_bag=1,
+                imp_slot=0,
+                imp_log=False,
+                enable_party_wipe_recovery=False,
+            ),
+        )
     return botting_tree
 
 

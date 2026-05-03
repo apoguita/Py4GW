@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from functools import wraps
-from typing import Any, Callable, Hashable
+from typing import Any, Callable, Hashable, ParamSpec, TypeVar
+
+P = ParamSpec("P")
+T = TypeVar("T")
 
 
 @dataclass(frozen=True)
@@ -36,10 +39,10 @@ class FrameCache:
         self,
         category: str,
         function_name: str,
-        factory: Callable[[], Any],
+        factory: Callable[[], T],
         source_lib: str = "",
         key: Any = "",
-    ) -> Any:
+    ) -> T:
         cache_key = FrameCacheKey(
             category=str(category),
             source_lib=str(source_lib),
@@ -129,10 +132,10 @@ def frame_cache(
     category: str,
     source_lib: str = "",
     key: Any = None,
-) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
-    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+) -> Callable[[Callable[P, T]], Callable[P, T]]:
+    def decorator(func: Callable[P, T]) -> Callable[P, T]:
         @wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
             if callable(key):
                 resolved_key = key(*args, **kwargs)
             elif key is not None:

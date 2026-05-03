@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from Py4GWCoreLib.BuildMgr import BuildCoroutine
-from Py4GWCoreLib import AgentArray, Player, Range, Routines, SpiritModelID, Utils
+from Py4GWCoreLib import AgentArray, GLOBAL_CACHE, Player, Range, Routines, SpiritModelID, ThrottledTimer, Utils
 from Py4GWCoreLib.Agent import Agent
 from Py4GWCoreLib.Skill import Skill
 
@@ -17,6 +17,8 @@ __all__ = ["NoAttribute"]
 class NoAttribute:
     def __init__(self, build: BuildMgr) -> None:
         self.build: BuildMgr = build
+        self._save_yourselves_throttle: ThrottledTimer = ThrottledTimer(4000)
+        self._save_yourselves_throttle.Stop()
 
     #region B
     def Breath_of_the_Great_Dwarf(self) -> BuildCoroutine:
@@ -79,7 +81,7 @@ class NoAttribute:
         if not self.build.IsSkillEquipped(you_are_all_weaklings_id):
             return False
 
-        target_agent_id = self.build._pick_clustered_target(
+        target_agent_id = Routines.Targeting.PickClusteredTarget(
             Range.Adjacent.value,
             filter_radius=Range.Spellcast.value,
         )
@@ -92,9 +94,183 @@ class NoAttribute:
             aftercast_delay=250,
             target_agent_id=target_agent_id,
         ))
+
+    def You_Move_Like_a_Dwarf(
+        self,
+        *,
+        energy_threshold_pct: float = 0.30,
+        energy_threshold_abs: float | None = None,
+    ) -> BuildCoroutine:
+        you_move_id: int = Skill.GetID("You_Move_Like_a_Dwarf")
+        assassins_promise_id: int = Skill.GetID("Assassins_Promise")
+
+        if not self.build.IsSkillEquipped(you_move_id):
+            return False
+        if not self.build.IsInAggro():
+            return False
+
+        player_id = Player.GetAgentID()
+
+        def _has_enough_energy() -> bool:
+            if energy_threshold_abs is not None:
+                current_energy_abs = Agent.GetEnergy(player_id) * Agent.GetMaxEnergy(player_id)
+                return current_energy_abs >= energy_threshold_abs
+            return Agent.GetEnergy(player_id) >= energy_threshold_pct
+
+        # Snapshot alive enemies in earshot range — Norn-style shouts use
+        # earshot reach.
+        player_pos = Player.GetXY()
+        enemy_array = AgentArray.GetEnemyArray()
+        enemy_array = AgentArray.Filter.ByDistance(enemy_array, player_pos, Range.Earshot.value)
+        enemy_array = AgentArray.Filter.ByCondition(
+            enemy_array,
+            lambda agent_id: Agent.IsAlive(agent_id),
+        )
+        if not enemy_array:
+            return False
+
+        # Tier 1: Assassins_Promise-hexed target — chain the knockdown with the AP focus.
+        # No energy gate; this synergy outweighs energy cost.
+        target_agent_id = 0
+        for enemy_id in enemy_array:
+            if assassins_promise_id in self.build.GetEffectAndBuffIds(enemy_id):
+                target_agent_id = enemy_id
+                break
+
+        # Tier 2 & 3 require caster energy at or above the threshold.
+        if not target_agent_id and _has_enough_energy():
+            # Tier 2: melee enemies, closest first — interrupt the runners.
+            melee_candidates = [
+                aid for aid in enemy_array
+                if Agent.IsMelee(aid)
+            ]
+            if melee_candidates:
+                target_agent_id = sorted(
+                    melee_candidates,
+                    key=lambda aid: Utils.Distance(player_pos, Agent.GetXY(aid)),
+                )[0]
+
+            # Tier 3: any enemy in earshot, closest first.
+            if not target_agent_id:
+                target_agent_id = sorted(
+                    enemy_array,
+                    key=lambda aid: Utils.Distance(player_pos, Agent.GetXY(aid)),
+                )[0]
+
+        if not target_agent_id:
+            return False
+
+        return (yield from self.build.CastSkillIDAndRestoreTarget(
+            skill_id=you_move_id,
+            target_agent_id=target_agent_id,
+            log=False,
+            aftercast_delay=250,
+        ))
+    #endregion
+
+    #region F
+    def Finish_Him(self) -> BuildCoroutine:
+        finish_him_id: int = Skill.GetID("Finish_Him")
+        assassins_promise_id: int = Skill.GetID("Assassins_Promise")
+        cracked_armor_id: int = Skill.GetID("Cracked_Armor")
+        deep_wound_id: int = Skill.GetID("Deep_Wound")
+
+        if not self.build.IsSkillEquipped(finish_him_id):
+            return False
+        if not self.build.IsInAggro():
+            return False
+
+        # Snapshot alive enemies in earshot range with HP < 50%. Finish Him!
+        # is a Norn shout that only applies its conditions when the foe is
+        # below 50% HP, so the trigger threshold gates every tier.
+        player_pos = Player.GetXY()
+        enemy_array = AgentArray.GetEnemyArray()
+        enemy_array = AgentArray.Filter.ByDistance(enemy_array, player_pos, Range.Earshot.value)
+        enemy_array = AgentArray.Filter.ByCondition(
+            enemy_array,
+            lambda agent_id: Agent.IsAlive(agent_id) and Agent.GetHealth(agent_id) < 0.5,
+        )
+        if not enemy_array:
+            return False
+
+        def _has_cracked_armor(agent_id: int) -> bool:
+            return Routines.Checks.Agents.HasEffect(agent_id, cracked_armor_id)
+
+        def _has_deep_wound(agent_id: int) -> bool:
+            return Routines.Checks.Agents.HasEffect(agent_id, deep_wound_id)
+
+        # Tier 1: Assassins_Promise-hexed target — synergy with the AP focus. Cast regardless
+        # of existing cracked armor / deep wound on the target.
+        target_agent_id = 0
+        for enemy_id in enemy_array:
+            if assassins_promise_id in self.build.GetEffectAndBuffIds(enemy_id):
+                target_agent_id = enemy_id
+                break
+
+        # Tier 2: clean target (no cracked armor, no deep wound) with the
+        # highest max HP — Deep Wound's -20% max-HP penalty is most valuable
+        # on the fattest target.
+        if not target_agent_id:
+            candidates = [
+                aid for aid in enemy_array
+                if not _has_cracked_armor(aid) and not _has_deep_wound(aid)
+            ]
+            if candidates:
+                target_agent_id = sorted(
+                    candidates,
+                    key=lambda aid: -Agent.GetMaxHealth(aid),
+                )[0]
+
+        # Tier 3: target with exactly one of (cracked armor, deep wound) —
+        # apply the missing condition for full value. Highest max HP first.
+        if not target_agent_id:
+            candidates = [
+                aid for aid in enemy_array
+                if _has_cracked_armor(aid) ^ _has_deep_wound(aid)
+            ]
+            if candidates:
+                target_agent_id = sorted(
+                    candidates,
+                    key=lambda aid: -Agent.GetMaxHealth(aid),
+                )[0]
+
+        if not target_agent_id:
+            return False
+
+        return (yield from self.build.CastSkillIDAndRestoreTarget(
+            skill_id=finish_him_id,
+            target_agent_id=target_agent_id,
+            log=False,
+            aftercast_delay=250,
+        ))
     #endregion
 
     #region E
+    def Ebon_Battle_Standard_of_Honor(self) -> BuildCoroutine:
+        ebsoh_id: int = Skill.GetID("Ebon_Battle_Standard_of_Honor")
+
+        if not self.build.IsSkillEquipped(ebsoh_id):
+            return False
+        if not self.build.IsInAggro():
+            return False
+
+        player_agent_id = Player.GetAgentID()
+
+        # last 2-second refresh window.
+        if not Routines.Checks.Agents.HasEffect(player_agent_id, ebsoh_id):
+            return False
+        remaining_ms = GLOBAL_CACHE.Effects.GetEffectTimeRemaining(
+            player_agent_id, ebsoh_id
+        )
+        if remaining_ms > 2000:
+            return False
+
+        return (yield from self.build.CastSkillID(
+            skill_id=ebsoh_id,
+            log=False,
+            aftercast_delay=250,
+        ))
+
     def Ebon_Battle_Standard_of_Wisdom(self) -> BuildCoroutine:
         ebon_battle_standard_of_wisdom_id: int = Skill.GetID("Ebon_Battle_Standard_of_Wisdom")
         player_agent_id = Player.GetAgentID()
@@ -157,6 +333,77 @@ class NoAttribute:
             minimum_allies=0,
         ))
 
+    def Summon_Spirits(self) -> BuildCoroutine:
+        """Pull or heal owned spirits.
+
+        Auto-detects whether the Kurzick or Luxon variant is on the bar.
+        Three independent triggers — any one fires the cast:
+        - Far from aggro: any owned spirit is more than 3750 GU
+          (Compass * 0.75) away — pull lagging spirits while travelling.
+        - Close to aggro or in aggro: any owned spirit is more than
+          322 GU (Range.Area) away — keep the spirits tight on the
+          caster during combat.
+        - Any state: any owned spirit is below 90% health (Summon
+          Spirits restores HP/energy on each owned spirit on cast).
+        """
+        summon_spirits_kurzick_id: int = Skill.GetID("Summon_Spirits_kurzick")
+        summon_spirits_luxon_id: int = Skill.GetID("Summon_Spirits_luxon")
+
+        if self.build.IsSkillEquipped(summon_spirits_kurzick_id):
+            skill_id = summon_spirits_kurzick_id
+        elif self.build.IsSkillEquipped(summon_spirits_luxon_id):
+            skill_id = summon_spirits_luxon_id
+        else:
+            return False
+
+        self_agent_id = self.build._resolve_self_agent_id()
+        player_xy = Player.GetXY()
+
+        owned_spirits = AgentArray.GetSpiritPetArray()
+        owned_spirits = AgentArray.Filter.ByDistance(owned_spirits, player_xy, Range.Compass.value)
+        owned_spirits = AgentArray.Filter.ByCondition(
+            owned_spirits,
+            lambda agent_id: (
+                Agent.IsAlive(agent_id)
+                and Agent.IsSpawned(agent_id)
+                and Agent.GetOwnerID(agent_id) == self_agent_id
+            ),
+        )
+        if not owned_spirits:
+            return False
+
+        in_aggro = self.build.IsInAggro()
+        close_to_aggro = in_aggro or self.build.IsCloseToAggro()
+
+        if close_to_aggro:
+            combat_threshold = Range.Area.value
+            combat_pull = any(
+                Utils.Distance(player_xy, Agent.GetXY(spirit_id)) > combat_threshold
+                for spirit_id in owned_spirits
+            )
+        else:
+            combat_pull = False
+
+        if not close_to_aggro:
+            travel_threshold = Range.Compass.value * 0.75
+            travel_pull = any(
+                Utils.Distance(player_xy, Agent.GetXY(spirit_id)) > travel_threshold
+                for spirit_id in owned_spirits
+            )
+        else:
+            travel_pull = False
+
+        needs_heal = any(Agent.GetHealth(spirit_id) < 0.9 for spirit_id in owned_spirits)
+
+        if not (combat_pull or travel_pull or needs_heal):
+            return False
+
+        return (yield from self.build.CastSkillID(
+            skill_id=skill_id,
+            log=False,
+            aftercast_delay=250,
+        ))
+
     def Summon_Spirits_kurzick(self) -> BuildCoroutine:
         summon_spirits_kurzick_id: int = Skill.GetID("Summon_Spirits_kurzick")
         return (yield from self._summon_spirits(summon_spirits_kurzick_id))
@@ -185,6 +432,8 @@ class NoAttribute:
     ) -> BuildCoroutine:
         player_agent_id = Player.GetAgentID()
 
+        if not (self._save_yourselves_throttle.IsStopped() or self._save_yourselves_throttle.IsExpired()):
+            return False
         if not self.build.IsSkillEquipped(skill_id):
             return False
         if not self.build.IsInAggro():
@@ -200,11 +449,14 @@ class NoAttribute:
         if len(ally_array or []) < minimum_allies:
             return False
 
-        return (yield from self.build.CastSkillID(
+        cast_result = yield from self.build.CastSkillID(
             skill_id=skill_id,
             log=False,
             aftercast_delay=250,
-        ))
+        )
+        if cast_result:
+            self._save_yourselves_throttle.Reset()
+        return cast_result
 
     def _get_owned_core_spirits(
         self,

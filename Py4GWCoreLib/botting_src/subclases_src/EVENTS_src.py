@@ -145,6 +145,10 @@ class _EVENTS:
         from ...Routines import Routines
         from ...GlobalCache import GLOBAL_CACHE
         from ...Agent import Agent
+        from ...Player import Player
+        from ...Py4GWcorelib import Utils
+        from ...enums import Range
+        from ..helpers_src.HeroAICombatRange import hero_ai_combat_detected
         bot = self.parent
         
         if Routines.Checks.Party.IsPartyWiped() or GLOBAL_CACHE.Party.IsPartyDefeated():
@@ -155,6 +159,9 @@ class _EVENTS:
         # Find a dead party member
         dead_player = Routines.Party.GetDeadPartyMemberID()
         if dead_player == 0:
+            bot.config.FSM.resume()
+            return
+        if not Agent.IsValid(dead_player):
             bot.config.FSM.resume()
             return
 
@@ -175,15 +182,23 @@ class _EVENTS:
             print("All party members alive!")
             bot.config.FSM.resume()
             return
+        if not Agent.IsValid(dead_player):
+            bot.config.FSM.resume()
+            return
+
+        dead_pos = Agent.GetXY(dead_player)
+        if Utils.Distance(dead_pos, Player.GetXY()) <= Range.Spellcast.value:
+            print("Dead party member already within spellcast range")
+            bot.config.FSM.resume()
+            return
 
         exit_movement_condition = lambda: Routines.Checks.Party.IsPartyWiped() or GLOBAL_CACHE.Party.IsPartyDefeated()
 
-        pos = Agent.GetXY(dead_player)
-        path = [(pos[0], pos[1])]
+        path = [(dead_pos[0], dead_pos[1])]
         result = (yield from Routines.Yield.Movement.FollowPath(
             path,
             custom_exit_condition=exit_movement_condition,
-            tolerance=10,
+            tolerance=Range.Spellcast.value,
             timeout=30000,
         ))
         yield from Routines.Yield.wait(100)

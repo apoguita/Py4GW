@@ -1,0 +1,62 @@
+{
+  "enemies": {
+    "enc:\\\\x8101\\\\x7F4D\\\\xFC50\\\\xD378\\\\x2E42": {
+      "encoded_names": [
+        "\\\\x8101\\\\x7F4D\\\\xFC50\\\\xD378\\\\x2E42"
+      ],
+      "inferred_primary": "Ranger",
+      "inferred_secondary": "None",
+      "model_ids": [
+        6709
+      ],
+      "observed_maps": {
+        "649": {
+          "base_id": 649,
+          "id": 649,
+          "instance_type": "Explorable",
+          "name": "Grothmar Wardowns"
+        }
+      },
+      "observed_skills": {
+        "1476": {
+          "id": 1476,
+          "name": "Tripwire",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "1729": {
+          "id": 1729,
+          "name": "Smoke Trap",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "2083": {
+          "id": 2083,
+          "name": "Mandragors_Charge",
+          "profession": "None",
+          "profession_id": 0
+        },
+        "459": {
+          "id": 459,
+          "name": "Flame Trap",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "460": {
+          "id": 460,
+          "name": "Healing Spring",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "854": {
+          "id": 854,
+          "name": "Snare",
+          "profession": "Ranger",
+          "profession_id": 2
+        }
+      }
+    }
+  },
+  "schema": "py4gw_enemy_tracker",
+  "schema_version": 2
+}

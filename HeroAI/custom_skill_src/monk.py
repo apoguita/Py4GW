@@ -120,7 +120,7 @@ class MonkSkills:
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Peace_and_Harmony")
         skill.SkillType = SkillType.Enchantment.value
         skill.TargetAllegiance = Skilltarget.Ally.value
-        skill.Nature = SkillNature.Buff.value
+        skill.Nature = SkillNature.CustomA.value
         skill.Conditions.HasCondition = True
         skill.Conditions.HasHex = True
         skill.Conditions.UniqueProperty = True

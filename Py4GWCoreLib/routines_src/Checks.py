@@ -57,6 +57,8 @@ class Checks:
             from ..GlobalCache import GLOBAL_CACHE
             from ..AgentArray import AgentArray
             from ..Agent import Agent
+            from ..Map import Map
+            from ..Party import Party
             from ..enums_src.GameData_enums import Range
 
             if not Checks.Map.MapValid():
@@ -72,12 +74,44 @@ class Checks:
             radius = aggro_area.value if hasattr(aggro_area, "value") else float(aggro_area)
             radius_sq = radius * radius
             self_agent_id = Player.GetAgentID()
+            shared_in_aggro_by_agent: dict[int, bool] = {}
+
+            # Shared-memory fallback for multiboxed party members:
+            # local enemy arrays can miss fights happening away from the leader.
+            try:
+                own_map_id = int(Map.GetMapID() or 0)
+                own_region = int(Map.GetRegion()[0] or 0)
+                own_district = int(Map.GetDistrict() or 0)
+                own_language = int(Map.GetLanguage()[0] or 0)
+                own_party_id = int(Party.GetPartyID() or 0)
+
+                for account in GLOBAL_CACHE.ShMem.GetAllAccountData():
+                    agent_id = int(getattr(account.AgentData, "AgentID", 0) or 0)
+                    if agent_id <= 0:
+                        continue
+                    if own_party_id > 0 and int(getattr(account.AgentPartyData, "PartyID", 0) or 0) != own_party_id:
+                        continue
+
+                    same_map = (
+                        int(getattr(account.AgentData.Map, "MapID", 0) or 0) == own_map_id
+                        and int(getattr(account.AgentData.Map, "Region", 0) or 0) == own_region
+                        and int(getattr(account.AgentData.Map, "District", 0) or 0) == own_district
+                        and int(getattr(account.AgentData.Map, "Language", 0) or 0) == own_language
+                    )
+                    if not same_map:
+                        continue
+
+                    shared_in_aggro_by_agent[agent_id] = bool(getattr(account, "InAggro", False))
+            except Exception:
+                shared_in_aggro_by_agent = {}
 
             def _member_in_danger(agent_id: int) -> bool:
                 if not Agent.IsValid(agent_id) or Agent.IsDead(agent_id):
                     return False
                 if agent_id == self_agent_id:
                     return False
+                if bool(shared_in_aggro_by_agent.get(int(agent_id), False)):
+                    return True
 
                 member_pos = Agent.GetXY(agent_id)
                 if not member_pos:

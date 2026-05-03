@@ -1,13 +1,14 @@
 """
 Modular Tester widget entry point.
 
-Thin wrapper that exposes Sources.modular_bot.tools.test_modular_blocks
+Thin wrapper that exposes Sources.modular_data.tools.test_modular_blocks
 inside the Widgets tree.
 """
 
 import PyImGui
 
-from Sources.modular_bot.tools import test_modular_blocks
+from Sources.modular_data.tools import test_modular_blocks
+from Py4GWCoreLib.modular.widget_runtime import guarded_widget_main
 
 
 MODULE_NAME = "Modular Tester"
@@ -16,7 +17,11 @@ MODULE_TAGS = ["Automation", "modular_bot"]
 
 
 def main():
-    test_modular_blocks.main()
+    guarded_widget_main(
+        MODULE_NAME,
+        test_modular_blocks.main,
+        get_bot=test_modular_blocks.get_bot,
+    )
 
 
 def tooltip():
@@ -28,7 +33,7 @@ def tooltip():
         "Run modular blocks by kind/folder/recipe selection with one-click start."
     )
     PyImGui.text_wrapped(
-        "Wrapper for Sources/modular_bot/tools/test_modular_blocks.py"
+        "Wrapper for Sources/modular_data/tools/test_modular_blocks.py"
     )
     PyImGui.end_tooltip()
 

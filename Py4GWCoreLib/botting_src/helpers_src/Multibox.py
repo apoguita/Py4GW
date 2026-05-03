@@ -20,6 +20,7 @@ class _Multibox:
     def __init__(self, parent: "BottingHelpers"):
         from ...GlobalCache import GLOBAL_CACHE
         self.parent = parent.parent
+        self._helpers = parent
         self._config = parent._config
         self._Events = parent.Events   
         
@@ -413,8 +414,6 @@ class _Multibox:
             ConsoleLog("Messaging", "No dialog is open.")
             return
         
-        # i need to display a modal dialog here to confirm options
-        options = UIManager.GetDialogButtonCount()
         sender_email = Player.GetAccountEmail()
 
         self_account = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(sender_email)
@@ -425,7 +424,7 @@ class _Multibox:
             if self_account.AccountEmail == account.AccountEmail:
                 continue
             ConsoleLog("Messaging", f"Ordering {account.AccountEmail} to interact with target: {target}", log=False)
-            GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.TakeDialogWithTarget, (target,1,0,0))
+            GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.TakeDialogWithTarget, (target,0,0,0))
         yield
 
     @staticmethod
@@ -466,11 +465,9 @@ class _Multibox:
         for model_id in (primary_model_id, secondary_model_id):
             if model_id == 0:
                 continue
-            item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(model_id)
-            if item_id:
+            if self._can_use_local_consumable_model(model_id):
                 ConsoleLog("Messaging", f"Using party-wide consumable locally from model {model_id}", log=False)
-                GLOBAL_CACHE.Inventory.UseItem(item_id)
-                yield from Routines.Yield.wait(1000)
+                yield from self._use_local_consumable_models(model_id)
                 return
 
         for account in accounts:
@@ -485,21 +482,58 @@ class _Multibox:
                 return
         
     def _use_consumable_message(self, params):
-        from ...GlobalCache import GLOBAL_CACHE
-        from ...Routines import Routines
-        account_email = sender_email = Player.GetAccountEmail()
+        primary_model_id = int(params[0]) if len(params) > 0 else 0
+        primary_skill_id = int(params[1]) if len(params) > 1 else 0
+        secondary_model_id = int(params[2]) if len(params) > 2 else 0
+        secondary_skill_id = int(params[3]) if len(params) > 3 else 0
 
         if self._is_partywide_conset(params):
             yield from self._use_partywide_consumable_message(params)
             return
 
-        accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
-        sender_email = account_email
-        for account in accounts:
-            ConsoleLog("Messaging", f"Sending Consumable Message to  {account.AccountEmail}", log= False)
-            
-            GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.PCon, params)
-        yield from Routines.Yield.wait(500)
+        if primary_model_id or secondary_model_id:
+            ConsoleLog(
+                "Messaging",
+                f"Using local consumable from models {(primary_model_id, secondary_model_id)}",
+                log=False,
+            )
+            yield from self._use_local_consumable_models(primary_model_id, secondary_model_id)
+
+    def _can_use_local_consumable_model(self, model_id: int) -> bool:
+        from ...GlobalCache import GLOBAL_CACHE
+
+        return bool(model_id and GLOBAL_CACHE.Inventory.GetFirstModelID(model_id))
+
+    def _use_local_consumable_models(self, primary_model_id: int, secondary_model_id: int = 0):
+        from ...enums_src.Model_enums import ModelID
+        from ...routines_src.BehaviourTrees import BT
+        from ...routines_src.yield_src.helpers import _run_bt_tree
+
+        single_consumable_effects = {
+            ModelID.Essence_Of_Celerity.value: "Essence_of_Celerity_item_effect",
+            ModelID.Grail_Of_Might.value: "Grail_of_Might_item_effect",
+            ModelID.Armor_Of_Salvation.value: "Armor_of_Salvation_item_effect",
+            ModelID.Birthday_Cupcake.value: "Birthday_Cupcake_skill",
+            ModelID.Golden_Egg.value: "Golden_Egg_skill",
+            ModelID.Candy_Corn.value: "Candy_Corn_skill",
+            ModelID.Candy_Apple.value: "Candy_Apple_skill",
+            ModelID.Slice_Of_Pumpkin_Pie.value: "Pie_Induced_Ecstasy",
+            ModelID.Drake_Kabob.value: "Drake_Skin",
+            ModelID.Bowl_Of_Skalefin_Soup.value: "Skale_Vigor",
+            ModelID.Pahnai_Salad.value: "Pahnai_Salad_item_effect",
+            ModelID.War_Supplies.value: "Well_Supplied",
+        }
+
+        model_ids = [model_id for model_id in (primary_model_id, secondary_model_id) if model_id]
+        consumable_effects = [
+            (model_id, single_consumable_effects.get(model_id, ""))
+            for model_id in model_ids
+        ]
+        if not consumable_effects:
+            return
+
+        tree = BT.Items.UseConsumables(consumable_effects, aftercast_ms=100)
+        yield from _run_bt_tree(tree, throttle_ms=100)
 
     def _use_summoning_stone_message(self):
         from ...GlobalCache import GLOBAL_CACHE

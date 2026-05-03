@@ -21,52 +21,37 @@ NEHDUKAH_ENC_STRING = "\\x8101\\x246C\\xFDB5\\xB6AD\\x56AB"
 initialized = False
 ini_key = ""
 botting_tree: BottingTree | None = None
-
-
-def configure_upkeep_trees(tree: BottingTree) -> BottingTree:
-    tree.DisableLooting()
-    tree.SetRestoreIsolationOnStop(True)
-    tree.SetUpkeepTrees([
-        (
-            "OutpostImpService",
-            lambda: RoutinesBT.Upkeepers.OutpostImpService(
-                target_bag=1,
-                slot=0,
-                log=False,
-            ),
-        ),
-        (
-            "ExplorableImpService",
-            lambda: RoutinesBT.Upkeepers.ExplorableImpService(
-                log=False,
-            ),
-        ),
-    ])
-    tree.AddPartyWipeRecoveryService(default_step_name=get_execution_steps()[0][0])
-    return tree
-
-
 def ensure_botting_tree() -> BottingTree:
     global botting_tree
 
     if botting_tree is None:
-        botting_tree = configure_upkeep_trees(BottingTree(MODULE_NAME))
-        botting_tree.SetMainRoutine(
-            get_execution_steps(),
-            name="Proof of Legend Sequence",
+        botting_tree = BottingTree.Create(
+            MODULE_NAME,
+            main_routine=get_execution_steps(),
+            routine_name="Proof of Legend Sequence",
             repeat=True,
             reset=False,
+            configure_fn=lambda tree: tree.Config.ConfigureUpkeepTrees(
+                disable_looting=True,
+                restore_isolation_on_stop=True,
+                enable_outpost_imp_service=True,
+                enable_explorable_imp_service=True,
+                imp_target_bag=1,
+                imp_slot=0,
+                imp_log=False,
+                enable_party_wipe_recovery=True,
+            ),
         )
 
     return botting_tree
 
 
 def ConfigurePacifistEnv() -> BehaviorTree:
-    return ensure_botting_tree().Templates.Pacifist(name="Configure Pacifist Env")
+    return ensure_botting_tree().Config.Pacifist(name="Configure Pacifist Env")
 
 
 def ConfigureAggressiveEnv() -> BehaviorTree:
-    return ensure_botting_tree().Templates.Aggressive(
+    return ensure_botting_tree().Config.Aggressive(
         auto_loot=False,
         name="Configure Aggressive Env",
     )

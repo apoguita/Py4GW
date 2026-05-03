@@ -194,6 +194,8 @@ def _install_stub_modules(project_root: Path) -> None:
     )
     imgui.push_style_color = lambda *_args, **_kwargs: None
     imgui.pop_style_color = lambda *_args, **_kwargs: None
+    imgui.checkbox = lambda _label, checked: bool(checked)
+    imgui.is_item_hovered = lambda *_args, **_kwargs: False
     sys.modules["PyImGui"] = imgui
 
     core = types.ModuleType("Py4GWCoreLib")
@@ -236,6 +238,7 @@ def _install_stub_modules(project_root: Path) -> None:
     )
     core.SharedCommandType = types.SimpleNamespace(MerchantRules=1)
     core.ThrottledTimer = DummyTimer
+    core.__path__ = []
     sys.modules["Py4GWCoreLib"] = core
 
     _ensure_package("Py4GWCoreLib.enums_src")
@@ -263,6 +266,13 @@ def _install_stub_modules(project_root: Path) -> None:
         is_widget_enabled=lambda _name: False,
     )
     sys.modules["Py4GWCoreLib.py4gwcorelib_src.WidgetManager"] = widget_manager
+
+    _ensure_package("Py4GWCoreLib.modular")
+    modular_actions = types.ModuleType("Py4GWCoreLib.modular.actions")
+    modular_actions.DEFAULT_NPC_SELECTORS = {}
+    modular_actions.SUPPORTED_MAP_NPC_SELECTORS = {}
+    modular_actions.resolve_agent_xy_from_step = lambda *_args, **_kwargs: None
+    sys.modules["Py4GWCoreLib.modular.actions"] = modular_actions
 
     _ensure_package("Sources")
     _ensure_package("Sources.marks_sources")

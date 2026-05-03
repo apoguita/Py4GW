@@ -111,6 +111,7 @@ class CombatClass:
         self.oldCalledTarget: int = 0
         self.auto_call_target_id: int = 0
         self.auto_call_target_called: bool = False
+        self.auto_call_target_source: str = ""
 
         self.in_aggro: bool = False
         self.is_targeting_enabled: bool = False
@@ -462,7 +463,7 @@ class CombatClass:
         players = GLOBAL_CACHE.Party.GetPlayers()
         target = players[0].called_target_id
 
-        if Agent.IsValid(target):
+        if Agent.IsLiving(target) and not Agent.IsDead(target):
             return target  
         
         return 0 
@@ -476,25 +477,47 @@ class CombatClass:
             Player.ChangeTarget(target_id)
             Player.Interact(target_id, False)
 
-    def MaybeCallCombatTarget(self, target_id: int, cached_data: CacheData | None) -> None:
+    def _is_valid_call_target(self, target_id: int) -> bool:
+        if target_id == 0 or not Agent.IsValid(target_id) or Agent.IsDead(target_id):
+            return False
+        _, target_allegiance = Agent.GetAllegiance(target_id)
+        return target_allegiance == "Enemy"
+
+    def MaybeCallCombatTarget(
+        self,
+        target_id: int,
+        cached_data: CacheData | None,
+        *,
+        force: bool = False,
+        source: str = "auto",
+    ) -> None:
         if cached_data is None or not Settings().AutoCallTargets:
             return
 
         if not cached_data.account_data.AgentPartyData.IsPartyLeader:
             return
 
+        if not self._is_valid_call_target(self.auto_call_target_id):
+            self.auto_call_target_id = 0
+            self.auto_call_target_called = False
+            self.auto_call_target_source = ""
+
+        if (
+            self.auto_call_target_id != 0
+            and target_id != self.auto_call_target_id
+            and not force
+        ):
+            return
+
         if target_id != self.auto_call_target_id:
             self.auto_call_target_id = target_id
             self.auto_call_target_called = False
+            self.auto_call_target_source = source
 
         if self.auto_call_target_called:
             return
 
-        if target_id == 0 or not Agent.IsValid(target_id) or Agent.IsDead(target_id):
-            return
-
-        _, target_allegiance = Agent.GetAllegiance(target_id)
-        if target_allegiance != "Enemy":
+        if not self._is_valid_call_target(target_id):
             return
 
         from Py4GWCoreLib import Party
@@ -553,6 +576,7 @@ class CombatClass:
         if CallTarget(target_id, interact=False):
             self.auto_call_target_id = target_id
             self.auto_call_target_called = True
+            self.auto_call_target_source = "spike"
         self._post_spike_lock(skill, target_id)
 
     def GetPartyTarget(self) -> int:
@@ -1769,7 +1793,6 @@ class CombatClass:
             return False
 
         self.aftercast_timer.Reset()
-        self.MaybeCallCombatTarget(target_agent_id, cached_data)
         self._apply_spike_lock(skill, target_agent_id)
         self._skill_lock_post(skill)
         GLOBAL_CACHE.SkillBar.UseSkill(self.skill_order[slot]+1, target_agent_id, aftercast_delay=self.aftercast)

@@ -16,7 +16,7 @@ SHMEM_MAX_QUESTS = 150
 MISSION_BITMAP_ENTRIES = 25 #each entry is a bitmap of a mission flags (32 bits each)
 SKILL_BITMAP_ENTRIES = 108 #each entry is a bitmap of a skill flags (32 bits each)
 
-SHMEM_SUBSCRIBE_TIMEOUT_MILLISECONDS = 500 # milliseconds
+SHMEM_SUBSCRIBE_TIMEOUT_MILLISECONDS = 5000 # milliseconds
 
 # Shared memory update throttles (milliseconds)
 # Tune these to balance responsiveness vs CPU cost.

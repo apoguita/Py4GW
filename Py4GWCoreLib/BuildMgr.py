@@ -757,65 +757,53 @@ class BuildMgr:
             self.ResetPartyHealthMonitor()
         self._was_in_aggro = in_aggro
 
-    def _pick_clustered_target(
-        self,
-        cluster_radius: float,
-        preferred_condition: Callable[[int], bool] | None = None,
-        *,
-        filter_radius: float | None = None,
-    ) -> int:
-        from Py4GWCoreLib import Player, AgentArray
+    def _resolve_self_agent_id(self) -> int:
+        """Resolve the running bot's effective self agent_id for ownership
+        comparisons (e.g. ``Agent.GetOwnerID(spirit) == self_agent_id``).
+
+        Tries the API first: shared-memory account broadcast for the
+        running email, falling back to ``Player.GetAgentID()``. Then
+        refines via observation: if alive nearby spirits all agree on a
+        single non-zero ``owner_id``, that owner is us (since spirits
+        record the caster's agent_id). This handles environments where
+        the API returns an ID that differs from the engine's caster
+        identity.
+
+        Caches the resolved value on the instance once observation gives
+        a definitive answer. Cache lives for the build's lifetime
+        (BuildRegistry rebuilds builds on map change).
+        """
+        cached = getattr(self, "_resolved_self_agent_id", None)
+        if cached:
+            return cached
+
+        from Py4GWCoreLib import AgentArray, GLOBAL_CACHE, Player, Range
         from Py4GWCoreLib.Agent import Agent
 
-        effective_filter_radius = float(filter_radius if filter_radius is not None else cluster_radius)
+        account_email = Player.GetAccountEmail() or ""
+        self_account = (
+            GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(account_email) if account_email else None
+        )
+        api_id = (
+            int(self_account.AgentData.AgentID)
+            if self_account is not None
+            else Player.GetAgentID()
+        )
 
-        player_pos = Player.GetXY()
-        enemy_array = AgentArray.GetEnemyArray()
-        enemy_array = AgentArray.Filter.ByDistance(enemy_array, player_pos, effective_filter_radius)
-        enemy_array = AgentArray.Filter.ByCondition(enemy_array, lambda agent_id: Agent.IsAlive(agent_id))
+        spirits = AgentArray.GetSpiritPetArray()
+        spirits = AgentArray.Filter.ByDistance(spirits, Player.GetXY(), Range.Compass.value)
+        spirits = AgentArray.Filter.ByCondition(
+            spirits,
+            lambda agent_id: Agent.IsAlive(agent_id),
+        )
+        owners = {Agent.GetOwnerID(s) for s in spirits}
+        owners.discard(0)
+        if len(owners) == 1:
+            observed = next(iter(owners))
+            self._resolved_self_agent_id = observed
+            return observed
 
-        if not enemy_array:
-            return 0
-
-        cluster_radius_sq = cluster_radius ** 2
-
-        def is_in_radius(agent1: int, agent2: int) -> bool:
-            x1, y1 = Agent.GetXY(agent1)
-            x2, y2 = Agent.GetXY(agent2)
-            dx, dy = x1 - x2, y1 - y2
-            return (dx * dx + dy * dy) <= cluster_radius_sq
-
-        unvisited = set(enemy_array)
-        clusters: list[list[int]] = []
-
-        while unvisited:
-            current = unvisited.pop()
-            cluster = [current]
-            stack = [current]
-
-            while stack:
-                node = stack.pop()
-                neighbors = [agent_id for agent_id in list(unvisited) if is_in_radius(node, agent_id)]
-                for neighbor in neighbors:
-                    unvisited.remove(neighbor)
-                    cluster.append(neighbor)
-                    stack.append(neighbor)
-
-            clusters.append(cluster)
-
-        if not clusters:
-            return 0
-
-        largest_cluster = max(clusters, key=len)
-
-        if preferred_condition is not None:
-            preferred_targets = [agent_id for agent_id in largest_cluster if preferred_condition(agent_id)]
-            if preferred_targets:
-                preferred_targets = AgentArray.Sort.ByDistance(preferred_targets, player_pos)
-                return preferred_targets[0]
-
-        cluster_targets = AgentArray.Sort.ByDistance(largest_cluster, player_pos)
-        return cluster_targets[0] if cluster_targets else 0
+        return api_id
 
     def _prefer_melee_nearest_enemy(self, desired_target: int) -> int:
         from Py4GWCoreLib import Agent, Player, Range, Routines, Utils
@@ -897,8 +885,9 @@ class BuildMgr:
     
     def _pick_fallback_target(self, target_type: str) -> int:
         from HeroAI.targeting import GetEnemyAttacking, GetEnemyInjured, TargetClusteredEnemy
+        from Py4GWCoreLib import Routines
         from Py4GWCoreLib.Agent import Agent
-        
+
         combat_distance = self.GetActiveScanRange()
         return_target = 0
         if target_type == "EnemyClustered":
@@ -906,14 +895,14 @@ class BuildMgr:
             if not (Agent.IsValid(return_target) and not Agent.IsDead(return_target)):
                 return_target = GetEnemyInjured(combat_distance)
         elif target_type == "EnemyHexedOrEnchantedClustered":
-            return_target = self._pick_clustered_target(
+            return_target = Routines.Targeting.PickClusteredTarget(
                 combat_distance,
                 preferred_condition=lambda agent_id: Agent.IsHexed(agent_id) or Agent.IsEnchanted(agent_id),
             )
             if not (Agent.IsValid(return_target) and not Agent.IsDead(return_target)):
                 return_target = GetEnemyInjured(combat_distance)
         elif target_type == "EnemyAttackingClustered":
-            return_target = self._pick_clustered_target(
+            return_target = Routines.Targeting.PickClusteredTarget(
                 combat_distance,
                 preferred_condition=lambda agent_id: Agent.IsAttacking(agent_id),
             )

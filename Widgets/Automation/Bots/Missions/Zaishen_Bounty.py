@@ -5,6 +5,7 @@ import os
 import PyImGui
 import importlib.util
 import time
+import random
 projects_base_path = Py4GW.Console.get_projects_path()
 BOUNTIES_DIR = os.path.join(projects_base_path,"Sources","ZaishenBounty")
 
@@ -24,6 +25,16 @@ bot = Botting(BotSettings.BOT_NAME,
               upkeep_auto_loot_active=True,
               upkeep_honeycomb_active=True,
               config_draw_path=True)
+
+_RANDOM_DISTRICTS = [
+    District.EuropeItalian.value,
+    District.EuropeSpanish.value,
+    District.EuropePolish.value,
+    District.EuropeRussian.value,
+    District.AsiaKorean.value,
+    District.AsiaChinese.value,
+    District.AsiaJapanese.value,
+]
 
 # =============================================================================
 # region BOUNTY QUEUE DATA
@@ -594,7 +605,7 @@ def _draw_settings():
     PyImGui.separator()
     if Map.GetMapID() != 857:
         if PyImGui.button("Travel to Embark Beach", 250, 30):
-            Map.Travel(857)
+            Map.TravelToDistrict(857, random.choice(_RANDOM_DISTRICTS))
     else:
         if PyImGui.button("Move to Bounty signpost", 250, 30):
             Player.Move(-557.00, -3333.00)

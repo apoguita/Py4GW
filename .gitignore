@@ -16,6 +16,12 @@ Settings/*/
 # 4. Keep ALL contents of Defaults directory
 !Settings/Defaults/**
 
+# Ignore ALL Logs in root
+Logs/*
+
+# Ignore generated modular tool widget config
+Sources/modular_data/tools/Widgets/Config/
+
 imgui.ini
 Inject.au3
 AlcoholProc.ini

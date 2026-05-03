@@ -396,17 +396,33 @@ class _UI:
         if PyImGui.button(icon + legend + "##BotToggle"):
             if self._config.fsm_running:
                 # Stop
-                self._config.fsm_running = False
-                ConsoleLog(self._config.bot_name, "Script stopped", Console.MessageType.Info)
                 self._config.state_description = "Idle"
-                self._config.FSM.stop()
+                try:
+                    stop_fn = getattr(self.parent, "Stop", None)
+                    if callable(stop_fn):
+                        stop_fn()
+                    else:
+                        self._config.fsm_running = False
+                        self._config.FSM.stop()
+                    ConsoleLog(self._config.bot_name, "Script stopped", Console.MessageType.Info)
+                except Exception as exc:
+                    ConsoleLog(self._config.bot_name, f"Stop failed: {exc}", Console.MessageType.Error)
                 GLOBAL_CACHE.Coroutines.clear()
             else:
                 # Start
-                self._config.fsm_running = True
-                ConsoleLog(self._config.bot_name, "Script started", Console.MessageType.Info)
                 self._config.state_description = "Running"
-                self._config.FSM.restart()
+                try:
+                    start_fn = getattr(self.parent, "Start", None)
+                    if callable(start_fn):
+                        start_fn()
+                    else:
+                        self._config.fsm_running = True
+                        self._config.FSM.restart()
+                    ConsoleLog(self._config.bot_name, "Script started", Console.MessageType.Info)
+                except Exception as exc:
+                    self._config.state_description = "Idle"
+                    self._config.fsm_running = False
+                    ConsoleLog(self._config.bot_name, f"Start failed: {exc}", Console.MessageType.Error)
 
 
             

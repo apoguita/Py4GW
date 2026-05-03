@@ -20,6 +20,7 @@ Recovery_ID = Skill.GetID("Recovery")
 Breath_of_the_Great_Dwarf_ID = Skill.GetID("Breath_of_the_Great_Dwarf")
 Recuperation_ID = Skill.GetID("Recuperation")
 Blood_Bond_ID = Skill.GetID("Blood_Bond")
+Ebon_Vanguard_Assassin_Support_ID = Skill.GetID("Ebon_Vanguard_Assassin_Support")
 
 
 class Blood_is_Power_Healer(BuildMgr):
@@ -47,6 +48,7 @@ class Blood_is_Power_Healer(BuildMgr):
                 Breath_of_the_Great_Dwarf_ID,
                 Recuperation_ID,
                 Blood_Bond_ID,
+                Ebon_Vanguard_Assassin_Support_ID,
             ],
         )
         if match_only:
@@ -114,6 +116,9 @@ class Blood_is_Power_Healer(BuildMgr):
         if self.IsSkillEquipped(Recuperation_ID) and (yield from self.skills.Ritualist.RestorationMagic.Recuperation(
             min_degen_count=4,
         )):
+            return True
+
+        if self.IsSkillEquipped(Ebon_Vanguard_Assassin_Support_ID) and (yield from self.skills.Any.PvE.Ebon_Vanguard_Assassin_Support(min_self_energy_pct=0.40)):
             return True
 
         # Signet of Lost Souls : energy refill when caster < 60%.
