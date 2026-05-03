@@ -1052,6 +1052,10 @@ class SalvageRule:
     model_ids: list[int] = field(default_factory=list)
     rarities: dict[str, bool] = field(default_factory=dict)
     categories: dict[str, bool] = field(default_factory=dict)
+    target_weapon_mod_identifiers: list[str] = field(default_factory=list)
+    target_weapon_mod_thresholds: list[WeaponModThresholdRule] = field(default_factory=list)
+    target_weapon_mod_variants: list[WeaponModVariantRule] = field(default_factory=list)
+    target_weapon_mod_variant_thresholds: list[WeaponModVariantThresholdRule] = field(default_factory=list)
     salvage_option: str = SALVAGE_OPTION_DEFAULT
     name: str = ""
 
@@ -3210,11 +3214,35 @@ def _get_salvage_option_label(raw_option: object) -> str:
     return "Default (legacy behavior)"
 
 
+def _get_salvage_rule_upgrade_target_count(rule: object) -> int:
+    target_identifiers = _dedupe_identifiers(_coerce_list(getattr(rule, "target_weapon_mod_identifiers", [])))
+    target_thresholds = _normalize_weapon_mod_threshold_rules(
+        _coerce_list(getattr(rule, "target_weapon_mod_thresholds", []))
+    )
+    target_variants = _normalize_weapon_mod_variant_rules(
+        _coerce_list(getattr(rule, "target_weapon_mod_variants", []))
+    )
+    target_variant_thresholds = _normalize_weapon_mod_variant_threshold_rules(
+        _coerce_list(getattr(rule, "target_weapon_mod_variant_thresholds", []))
+    )
+    return (
+        len(target_identifiers)
+        + len(target_thresholds)
+        + len(target_variants)
+        + len(target_variant_thresholds)
+    )
+
+
+def _salvage_rule_has_upgrade_targets(rule: object) -> bool:
+    return _get_salvage_rule_upgrade_target_count(rule) > 0
+
+
 def _salvage_rule_has_selectors(rule: SalvageRule) -> bool:
     return bool(
         _dedupe_model_ids(getattr(rule, "model_ids", []))
         or any(bool(value) for value in _normalize_salvage_rarity_flags(getattr(rule, "rarities", {})).values())
         or any(bool(value) for value in _normalize_salvage_category_flags(getattr(rule, "categories", {})).values())
+        or _salvage_rule_has_upgrade_targets(rule)
     )
 
 
@@ -3225,6 +3253,18 @@ def _normalize_salvage_rule(raw_rule: object) -> SalvageRule | None:
             model_ids=_dedupe_model_ids(raw_rule.model_ids),
             rarities=_normalize_salvage_rarity_flags(raw_rule.rarities),
             categories=_normalize_salvage_category_flags(raw_rule.categories),
+            target_weapon_mod_identifiers=_dedupe_identifiers(
+                _coerce_list(getattr(raw_rule, "target_weapon_mod_identifiers", []))
+            ),
+            target_weapon_mod_thresholds=_normalize_weapon_mod_threshold_rules(
+                _coerce_list(getattr(raw_rule, "target_weapon_mod_thresholds", []))
+            ),
+            target_weapon_mod_variants=_normalize_weapon_mod_variant_rules(
+                _coerce_list(getattr(raw_rule, "target_weapon_mod_variants", []))
+            ),
+            target_weapon_mod_variant_thresholds=_normalize_weapon_mod_variant_threshold_rules(
+                _coerce_list(getattr(raw_rule, "target_weapon_mod_variant_thresholds", []))
+            ),
             salvage_option=_normalize_salvage_option(raw_rule.salvage_option),
             name=_normalize_rule_name(getattr(raw_rule, "name", "")),
         )
@@ -3237,6 +3277,18 @@ def _normalize_salvage_rule(raw_rule: object) -> SalvageRule | None:
             ]),
             rarities=_normalize_salvage_rarity_flags(raw_rule.get("rarities", {})),
             categories=_normalize_salvage_category_flags(raw_rule.get("categories", {})),
+            target_weapon_mod_identifiers=_dedupe_identifiers(
+                _coerce_list(raw_rule.get("target_weapon_mod_identifiers", []))
+            ),
+            target_weapon_mod_thresholds=_normalize_weapon_mod_threshold_rules(
+                _coerce_list(raw_rule.get("target_weapon_mod_thresholds", []))
+            ),
+            target_weapon_mod_variants=_normalize_weapon_mod_variant_rules(
+                _coerce_list(raw_rule.get("target_weapon_mod_variants", []))
+            ),
+            target_weapon_mod_variant_thresholds=_normalize_weapon_mod_variant_threshold_rules(
+                _coerce_list(raw_rule.get("target_weapon_mod_variant_thresholds", []))
+            ),
             salvage_option=_normalize_salvage_option(raw_rule.get("salvage_option", SALVAGE_OPTION_DEFAULT)),
             name=_normalize_rule_name(raw_rule.get("name", "")),
         )
@@ -3352,7 +3404,7 @@ def _serialize_salvage_settings(settings: SalvageSettings) -> dict[str, object]:
 
 def _serialize_salvage_rule(rule: SalvageRule) -> dict[str, object]:
     normalized_rule = _normalize_salvage_rule(rule) or SalvageRule()
-    return {
+    payload: dict[str, object] = {
         "enabled": bool(normalized_rule.enabled),
         "model_ids": list(normalized_rule.model_ids),
         "rarities": dict(normalized_rule.rarities),
@@ -3360,6 +3412,21 @@ def _serialize_salvage_rule(rule: SalvageRule) -> dict[str, object]:
         "salvage_option": _normalize_salvage_option(normalized_rule.salvage_option),
         "name": _normalize_rule_name(normalized_rule.name),
     }
+    if normalized_rule.target_weapon_mod_identifiers:
+        payload["target_weapon_mod_identifiers"] = list(normalized_rule.target_weapon_mod_identifiers)
+    if normalized_rule.target_weapon_mod_thresholds:
+        payload["target_weapon_mod_thresholds"] = _serialize_weapon_mod_threshold_rules(
+            normalized_rule.target_weapon_mod_thresholds
+        )
+    if normalized_rule.target_weapon_mod_variants:
+        payload["target_weapon_mod_variants"] = _serialize_weapon_mod_variant_rules(
+            normalized_rule.target_weapon_mod_variants
+        )
+    if normalized_rule.target_weapon_mod_variant_thresholds:
+        payload["target_weapon_mod_variant_thresholds"] = _serialize_weapon_mod_variant_threshold_rules(
+            normalized_rule.target_weapon_mod_variant_thresholds
+        )
+    return payload
 
 
 def _serialize_identify_settings(settings: IdentifySettings) -> dict[str, object]:
@@ -9473,12 +9540,67 @@ class MerchantRulesWidget:
                 return label
         return safe_key or "Unknown"
 
+    def _get_salvage_rule_upgrade_target_reason(self, rule: SalvageRule, item: InventoryItemInfo) -> str:
+        normalized_rule = _normalize_salvage_rule(rule)
+        if normalized_rule is None or not _salvage_rule_has_upgrade_targets(normalized_rule):
+            return ""
+
+        labels: list[str] = []
+        item_weapon_mod_identifiers = set(_dedupe_identifiers(getattr(item, "weapon_mod_identifiers", [])))
+        item_weapon_mod_matches = tuple(getattr(item, "weapon_mod_matches", []) or ())
+
+        matched_identifiers = [
+            identifier
+            for identifier in normalized_rule.target_weapon_mod_identifiers
+            if identifier in item_weapon_mod_identifiers
+        ]
+        labels.extend(self._get_weapon_mod_generic_label(identifier) for identifier in matched_identifiers)
+
+        for threshold_rule in normalized_rule.target_weapon_mod_thresholds:
+            threshold_identifier = str(threshold_rule.identifier or "").strip()
+            if not threshold_identifier:
+                continue
+            for match in item_weapon_mod_matches:
+                if str(getattr(match, "identifier", "") or "").strip() != threshold_identifier:
+                    continue
+                matched_value = getattr(match, "value", None)
+                if matched_value is None:
+                    continue
+                if _safe_int(matched_value, 0) >= int(threshold_rule.min_value):
+                    labels.append(self._format_weapon_mod_threshold_rule(threshold_rule))
+                    break
+
+        for variant_rule in normalized_rule.target_weapon_mod_variants:
+            for match in item_weapon_mod_matches:
+                if _weapon_mod_variant_matches_parsed_match(variant_rule, match):
+                    labels.append(self._format_weapon_mod_variant_rule(variant_rule))
+                    break
+
+        for threshold_rule in normalized_rule.target_weapon_mod_variant_thresholds:
+            for match in item_weapon_mod_matches:
+                if not _weapon_mod_variant_matches_parsed_match(threshold_rule, match):
+                    continue
+                matched_value = getattr(match, "value", None)
+                if matched_value is None:
+                    continue
+                if _safe_int(matched_value, 0) >= int(threshold_rule.min_value):
+                    labels.append(self._format_weapon_mod_variant_threshold_rule(threshold_rule))
+                    break
+
+        if not labels:
+            return ""
+        return f"specific upgrade target {self._format_compact_list(_dedupe_identifiers(labels), limit=3)}"
+
     def _get_salvage_rule_filter_reason(self, rule: SalvageRule, item: InventoryItemInfo) -> str:
         normalized_rule = _normalize_salvage_rule(rule)
         if normalized_rule is None or not bool(normalized_rule.enabled):
             return ""
         if int(item.model_id) in set(int(model_id) for model_id in normalized_rule.model_ids):
             return f"selected model {self._format_model_label(int(item.model_id))}"
+
+        upgrade_target_reason = self._get_salvage_rule_upgrade_target_reason(normalized_rule, item)
+        if upgrade_target_reason:
+            return upgrade_target_reason
 
         rarity_key = _normalize_rarity_key(str(item.rarity or ""))
         category_key = self._get_salvage_category_key_for_item(item)
@@ -9633,6 +9755,12 @@ class MerchantRulesWidget:
             selected_option = _resolve_salvage_session_option(
                 getattr(selected_rule, "salvage_option", SALVAGE_OPTION_DEFAULT)
             )
+            if (
+                selected_rule is not None
+                and _salvage_rule_has_upgrade_targets(selected_rule)
+                and selected_option not in SALVAGE_UPGRADE_OPTIONS
+            ):
+                return "specific upgrade target requires prefix, suffix, or inscription salvage option"
             if selected_option in SALVAGE_UPGRADE_OPTIONS and not self._has_salvage_upgrade_session_support():
                 return SALVAGE_NATIVE_SESSION_UNAVAILABLE_REASON
             if int(salvage_kit_id) <= 0:
@@ -9669,6 +9797,7 @@ class MerchantRulesWidget:
             ("customized:", "customized"),
             ("unidentified non-white:", "unidentified non-white"),
             ("native salvage-session api unavailable:", "native upgrade salvage unavailable"),
+            ("specific upgrade target requires", "specific upgrade target not executable"),
             ("no normal salvage kit", "no normal salvage kit"),
             ("no upgrade salvage kit", "no upgrade salvage kit"),
             ("salvage option unavailable", "option unavailable"),
@@ -23569,6 +23698,11 @@ class MerchantRulesWidget:
 
         option_label = _get_salvage_option_label(normalized_rule.salvage_option)
         selected_option = _resolve_salvage_session_option(normalized_rule.salvage_option)
+        upgrade_target_count = _get_salvage_rule_upgrade_target_count(normalized_rule)
+        if upgrade_target_count > 0:
+            selector_parts.append(f"specific upgrades {upgrade_target_count}")
+            if selected_option not in SALVAGE_UPGRADE_OPTIONS:
+                option_label = f"{option_label} (specific-upgrade targets require prefix/suffix/inscription)"
         if selected_option in SALVAGE_UPGRADE_OPTIONS and not self._has_salvage_upgrade_session_support():
             option_label = f"{option_label} (native support unavailable)"
         if not selector_parts:
