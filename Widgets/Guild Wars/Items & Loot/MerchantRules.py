@@ -3572,6 +3572,7 @@ class MerchantRulesWidget:
         self.destroy_model_text_cache: dict[int, str] = {}
         self.destroy_model_search_cache: dict[int, str] = {}
         self.salvage_model_search_cache: dict[int, str] = {}
+        self.salvage_weapon_mod_search_cache: dict[int, str] = {}
         self.sell_model_text_cache: dict[int, str] = {}
         self.buy_model_search_cache: dict[int, str] = {}
         self.buy_manual_model_id_cache: dict[int, int] = {}
@@ -5355,6 +5356,7 @@ class MerchantRulesWidget:
         self.buy_rune_profession_cache.clear()
         self.destroy_model_search_cache.clear()
         self.salvage_model_search_cache.clear()
+        self.salvage_weapon_mod_search_cache.clear()
         self.sell_model_search_cache.clear()
         self.sell_exact_rune_search_cache.clear()
         self.sell_exact_rune_profession_cache.clear()
@@ -7141,6 +7143,36 @@ class MerchantRulesWidget:
         rule.model_ids = next_model_ids
         return True
 
+    def _set_salvage_rule_weapon_mod_identifiers(self, rule: SalvageRule, identifiers: list[str]) -> bool:
+        normalized_ids = _dedupe_identifiers(identifiers)
+        if normalized_ids == _dedupe_identifiers(getattr(rule, "target_weapon_mod_identifiers", [])):
+            return False
+        rule.target_weapon_mod_identifiers = normalized_ids
+        return True
+
+    def _set_salvage_rule_weapon_mod_thresholds(self, rule: SalvageRule, threshold_rules: list[object]) -> bool:
+        normalized_rules = _normalize_weapon_mod_threshold_rules(threshold_rules)
+        if normalized_rules == _normalize_weapon_mod_threshold_rules(getattr(rule, "target_weapon_mod_thresholds", [])):
+            return False
+        rule.target_weapon_mod_thresholds = normalized_rules
+        return True
+
+    def _set_salvage_rule_weapon_mod_variants(self, rule: SalvageRule, variant_rules: list[object]) -> bool:
+        normalized_rules = _normalize_weapon_mod_variant_rules(variant_rules)
+        if normalized_rules == _normalize_weapon_mod_variant_rules(getattr(rule, "target_weapon_mod_variants", [])):
+            return False
+        rule.target_weapon_mod_variants = normalized_rules
+        return True
+
+    def _set_salvage_rule_weapon_mod_variant_thresholds(self, rule: SalvageRule, threshold_rules: list[object]) -> bool:
+        normalized_rules = _normalize_weapon_mod_variant_threshold_rules(threshold_rules)
+        if normalized_rules == _normalize_weapon_mod_variant_threshold_rules(
+            getattr(rule, "target_weapon_mod_variant_thresholds", [])
+        ):
+            return False
+        rule.target_weapon_mod_variant_thresholds = normalized_rules
+        return True
+
     def _set_cleanup_targets(self, cleanup_targets: list[CleanupTarget]) -> bool:
         normalized_targets = _normalize_cleanup_targets(cleanup_targets)
         if normalized_targets == self.cleanup_targets:
@@ -7667,7 +7699,7 @@ class MerchantRulesWidget:
         self,
         section_name: str,
         index: int,
-        rule: SellRule,
+        rule: object,
         *,
         selected_identifiers: list[str],
         threshold_rules: list[WeaponModThresholdRule],
@@ -7678,6 +7710,8 @@ class MerchantRulesWidget:
         variant_setter=None,
         variant_threshold_setter=None,
         jump_anchor: str = "",
+        empty_text: str = "No protected entries selected yet.",
+        value_column_label: str = "Keep If",
     ) -> bool:
         normalized_identifiers = _dedupe_identifiers(selected_identifiers)
         normalized_threshold_rules = _normalize_weapon_mod_threshold_rules(threshold_rules)
@@ -7698,7 +7732,7 @@ class MerchantRulesWidget:
         )
         protected_choice_keys = [choice_key for choice_key in protected_choice_keys if choice_key]
         if not protected_choice_keys:
-            self._draw_secondary_text("No protected entries selected yet.", wrapped=False)
+            self._draw_secondary_text(empty_text, wrapped=False)
             return False
 
         changed = False
@@ -7727,11 +7761,11 @@ class MerchantRulesWidget:
             table_flags = self._get_dense_list_table_flags()
             if PyImGui.begin_table(f"{section_name}_weapon_mod_table_{index}", 3, table_flags):
                 PyImGui.table_setup_column("Upgrade", PyImGui.TableColumnFlags.WidthStretch)
-                PyImGui.table_setup_column("Keep If", PyImGui.TableColumnFlags.WidthFixed, 150.0)
+                PyImGui.table_setup_column(value_column_label, PyImGui.TableColumnFlags.WidthFixed, 150.0)
                 PyImGui.table_setup_column("Remove", PyImGui.TableColumnFlags.WidthFixed, 60.0)
 
                 PyImGui.table_next_row()
-                for column_index, column_label in enumerate(("Upgrade", "Keep If", "Remove")):
+                for column_index, column_label in enumerate(("Upgrade", value_column_label, "Remove")):
                     PyImGui.table_set_column_index(column_index)
                     self._draw_secondary_text(column_label, wrapped=False)
 
@@ -23886,6 +23920,155 @@ class MerchantRulesWidget:
         rule.salvage_option = option_values[next_index]
         return True
 
+    def _draw_salvage_upgrade_target_editor(self, index: int, rule: SalvageRule) -> bool:
+        changed = False
+        selected_identifiers = _dedupe_identifiers(getattr(rule, "target_weapon_mod_identifiers", []))
+        selected_threshold_rules = _normalize_weapon_mod_threshold_rules(
+            getattr(rule, "target_weapon_mod_thresholds", [])
+        )
+        selected_variant_rules = _normalize_weapon_mod_variant_rules(getattr(rule, "target_weapon_mod_variants", []))
+        selected_variant_threshold_rules = _normalize_weapon_mod_variant_threshold_rules(
+            getattr(rule, "target_weapon_mod_variant_thresholds", [])
+        )
+
+        def build_target_choice_keys() -> list[str]:
+            choice_keys = _dedupe_identifiers(
+                [_make_weapon_mod_identifier_choice_key(identifier) for identifier in selected_identifiers]
+                + [
+                    _make_weapon_mod_identifier_choice_key(str(threshold_rule.identifier or "").strip())
+                    for threshold_rule in selected_threshold_rules
+                ]
+                + [_weapon_mod_variant_rule_choice_key(variant_rule) for variant_rule in selected_variant_rules]
+                + [
+                    _weapon_mod_variant_rule_choice_key(threshold_rule)
+                    for threshold_rule in selected_variant_threshold_rules
+                ]
+            )
+            return [choice_key for choice_key in choice_keys if choice_key]
+
+        target_choice_keys = build_target_choice_keys()
+        selected_option = _resolve_salvage_session_option(rule.salvage_option)
+
+        self._draw_secondary_text(
+            "Targets matching items for Merchant Rules salvage planning/protection. "
+            "Run Salvage extracts only when native salvage-session support is available."
+        )
+        if selected_option not in SALVAGE_UPGRADE_OPTIONS and target_choice_keys:
+            PyImGui.text_colored(
+                "Specific-upgrade targets require prefix, suffix, or inscription salvage. "
+                "Run Salvage skips these targets while this rule uses default/material salvage.",
+                UI_COLOR_WARNING,
+            )
+        elif selected_option in SALVAGE_UPGRADE_OPTIONS and not self._has_salvage_upgrade_session_support():
+            self._draw_secondary_text(
+                "Native salvage-session support is unavailable, so matching items stay protected and Run Salvage skips extraction."
+            )
+
+        PyImGui.text(f"Target Entries: {len(target_choice_keys)}")
+        self._draw_hover_tooltip("Exact upgrade names and minimum roll targets can match items for salvage planning.")
+
+        if self._draw_confirm_destructive_button(f"Clear Specific Upgrade Targets##merchant_rules_salvage_upgrade_clear_{index}"):
+            if self._set_salvage_rule_weapon_mod_identifiers(rule, []):
+                changed = True
+                selected_identifiers = []
+            if self._set_salvage_rule_weapon_mod_thresholds(rule, []):
+                changed = True
+                selected_threshold_rules = []
+            if self._set_salvage_rule_weapon_mod_variants(rule, []):
+                changed = True
+                selected_variant_rules = []
+            if self._set_salvage_rule_weapon_mod_variant_thresholds(rule, []):
+                changed = True
+                selected_variant_threshold_rules = []
+            target_choice_keys = build_target_choice_keys()
+
+        if self._draw_selected_weapon_mod_protections(
+            "salvage_upgrade_targets",
+            index,
+            rule,
+            selected_identifiers=selected_identifiers,
+            threshold_rules=selected_threshold_rules,
+            identifier_setter=self._set_salvage_rule_weapon_mod_identifiers,
+            threshold_setter=self._set_salvage_rule_weapon_mod_thresholds,
+            selected_variants=selected_variant_rules,
+            variant_threshold_rules=selected_variant_threshold_rules,
+            variant_setter=self._set_salvage_rule_weapon_mod_variants,
+            variant_threshold_setter=self._set_salvage_rule_weapon_mod_variant_thresholds,
+            empty_text="No specific upgrade targets selected yet.",
+            value_column_label="Target If",
+        ):
+            changed = True
+            selected_identifiers = list(rule.target_weapon_mod_identifiers)
+            selected_threshold_rules = list(rule.target_weapon_mod_thresholds)
+            selected_variant_rules = list(rule.target_weapon_mod_variants)
+            selected_variant_threshold_rules = list(rule.target_weapon_mod_variant_thresholds)
+            target_choice_keys = build_target_choice_keys()
+
+        search_text = self.salvage_weapon_mod_search_cache.get(index, "")
+        updated_search_text = PyImGui.input_text(
+            f"Search Specific Upgrades##merchant_rules_salvage_upgrade_search_{index}",
+            search_text,
+        )
+        self._draw_hover_tooltip("Search by upgrade name or identifier.")
+        if updated_search_text != search_text:
+            self.salvage_weapon_mod_search_cache[index] = updated_search_text
+
+        picked_identifier, visible_identifiers = self._draw_identifier_search_results(
+            f"merchant_rules_salvage_upgrade_results_{index}",
+            self.salvage_weapon_mod_search_cache.get(index, ""),
+            self.weapon_mod_entries,
+        )
+        addable_identifiers = [identifier for identifier in visible_identifiers if identifier not in target_choice_keys]
+        if self._draw_add_all_matches_button(
+            f"merchant_rules_salvage_upgrade_results_add_all_{index}",
+            len(visible_identifiers),
+            len(addable_identifiers),
+        ):
+            next_identifiers = list(selected_identifiers)
+            next_variants = list(selected_variant_rules)
+            for choice_key in addable_identifiers:
+                kind, identifier, target_item_type, component_kind = _parse_weapon_mod_choice_key(choice_key)
+                if kind == WEAPON_MOD_CHOICE_KIND_VARIANT:
+                    next_variants.append(
+                        WeaponModVariantRule(
+                            identifier=identifier,
+                            target_item_type=target_item_type,
+                            component_kind=component_kind,
+                        )
+                    )
+                elif kind == WEAPON_MOD_CHOICE_KIND_GENERIC:
+                    next_identifiers.append(identifier)
+            if self._set_salvage_rule_weapon_mod_identifiers(rule, next_identifiers):
+                changed = True
+                selected_identifiers = list(rule.target_weapon_mod_identifiers)
+            if self._set_salvage_rule_weapon_mod_variants(rule, next_variants):
+                changed = True
+                selected_variant_rules = list(rule.target_weapon_mod_variants)
+            target_choice_keys = build_target_choice_keys()
+
+        if picked_identifier:
+            if picked_identifier not in target_choice_keys:
+                kind, identifier, target_item_type, component_kind = _parse_weapon_mod_choice_key(picked_identifier)
+                if kind == WEAPON_MOD_CHOICE_KIND_VARIANT:
+                    next_variants = list(selected_variant_rules)
+                    next_variants.append(
+                        WeaponModVariantRule(
+                            identifier=identifier,
+                            target_item_type=target_item_type,
+                            component_kind=component_kind,
+                        )
+                    )
+                    if self._set_salvage_rule_weapon_mod_variants(rule, next_variants):
+                        changed = True
+                        selected_variant_rules = list(rule.target_weapon_mod_variants)
+                elif kind == WEAPON_MOD_CHOICE_KIND_GENERIC:
+                    if self._set_salvage_rule_weapon_mod_identifiers(rule, selected_identifiers + [identifier]):
+                        changed = True
+                        selected_identifiers = list(rule.target_weapon_mod_identifiers)
+            self.salvage_weapon_mod_search_cache[index] = self._get_weapon_mod_choice_label(picked_identifier)
+
+        return changed
+
     def _draw_salvage_rule_editor(self, index: int, rule: SalvageRule, settings: SalvageSettings) -> bool:
         changed = False
         summary_text, ready = self._get_salvage_rule_summary(rule)
@@ -23938,6 +24121,10 @@ class MerchantRulesWidget:
         changed = self._draw_salvage_category_toggles(rule, f"rule_{index}") or changed
         if bool(rule.categories.get(SALVAGE_CATEGORY_OTHER, False)):
             PyImGui.text_colored("Other Items may include unexpected salvageable item types. Keep it off unless testing specific drops.", UI_COLOR_WARNING)
+
+        PyImGui.separator()
+        self._draw_section_heading("Specific Upgrade Targets")
+        changed = self._draw_salvage_upgrade_target_editor(index, rule) or changed
 
         PyImGui.separator()
         self._draw_section_heading("Specific Items")
