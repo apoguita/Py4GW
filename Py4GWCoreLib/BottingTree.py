@@ -1,9 +1,10 @@
-from typing import Callable
+from typing import Callable, Sequence
 
 import Py4GW
 from HeroAI.headless_tree import HeroAIHeadlessTree
 
 from .botting_tree_src.blackboard import BottingTreeBlackboardMixin
+from .botting_tree_src.config import _BottingTreeConfig
 from .botting_tree_src.debugging import BottingTreeDebuggingMixin
 from .botting_tree_src.enums import HeroAIStatus, PlannerStatus
 from .botting_tree_src.heroai import BottingTreeHeroAIMixin
@@ -37,6 +38,42 @@ class BottingTree(
     - lets the user plug in their own planner tree via SetPlannerTree(...)
     """
 
+    @classmethod
+    def Create(
+        cls,
+        bot_name: str = 'Botting Tree',
+        *,
+        main_routine: BehaviorTree | BehaviorTree.Node | Callable[[], object] | Sequence[object] | None = None,
+        routine_name: str = 'MainRoutine',
+        repeat: bool = False,
+        reset: bool = False,
+        auto_start: bool = False,
+        pause_on_combat: bool = True,
+        isolation_enabled: bool = True,
+        configure_fn: Callable[['BottingTree'], object] | None = None,
+    ) -> 'BottingTree':
+        tree = cls(
+            bot_name=bot_name,
+            pause_on_combat=pause_on_combat,
+            isolation_enabled=isolation_enabled,
+        )
+
+        if callable(configure_fn):
+            configure_fn(tree)
+
+        if main_routine is not None:
+            tree.SetMainRoutine(
+                main_routine,
+                name=routine_name,
+                repeat=repeat,
+                reset=reset,
+            )
+
+        if auto_start:
+            tree.Start()
+
+        return tree
+
     def __init__(self, bot_name: str = 'Botting Tree', pause_on_combat: bool = True, isolation_enabled: bool = True):
         self.bot_name = bot_name
         self._previous_isolation_state: bool | None = None
@@ -50,6 +87,7 @@ class BottingTree(
         self.tree = self._build_parallel_tree()
         self._last_planner_gate_state = None
         self._last_heroai_state = None
+        self.Config = _BottingTreeConfig(self)
         self.Templates = _BottingTreeTemplates(self)
         self.UI = _BottingTreeUI(self)
 
@@ -131,6 +169,7 @@ __all__ = [
     'BottingTreeTemplates',
     'HeroAIStatus',
     'PlannerStatus',
+    '_BottingTreeConfig',
     '_BottingTreeTemplates',
     '_BottingTreeUI',
 ]
