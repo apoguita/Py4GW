@@ -218,3 +218,9 @@ cython_debug/
 # macOS system files
 .DS_Store
 /Sources/frenkeyLib/Scripts/output
+
+# Add ignores
+/Widgets/Automation/Bots/Farmers/Materials/Bones/DoA Gemstone Farm Heroes.json
+/Widgets/Automation/Bots/Farmers/Titles/Lightbringer - MirrorOfLyss Heroes.json
+/Bots/common_ac/loot_settings.ini
+/Widgets/Automation/Bots/Missions/Dungeons/Tunnels of the Forsaken Heroes.json
