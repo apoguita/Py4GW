@@ -166,11 +166,10 @@ def _draw_settings() -> None:
 
     radio_value = which_key
 
-    radio_value = ImGui.radio_button(f"{WhichKey.CTRL.name}", which_key, WhichKey.CTRL.value)
-    radio_value = ImGui.radio_button(f"{WhichKey.SHIFT.name}", which_key, WhichKey.SHIFT.value)
+    radio_value = ImGui.radio_button(f"{WhichKey.CTRL.name}", radio_value, WhichKey.CTRL.value)
+    radio_value = ImGui.radio_button(f"{WhichKey.SHIFT.name}", radio_value, WhichKey.SHIFT.value)
 
-    if radio_value:
-        which_key = radio_value
+    which_key = radio_value
 
 
 # Multibox helper functions
