@@ -429,38 +429,48 @@ def MoveToXY(index: int, message: SharedMessageStruct):
     dialog_id = int(message.Params[3])
 
     if Map.GetMapID() == map_id:
-        if Utils.Distance((map_x, map_y), Player.GetXY()) > 150:
-
-            path3d = yield from AutoPathing().get_path_to(map_x, map_y, smooth_by_los=True, margin=100.0, step_dist=242.0)
-            path2d:list[tuple[float, float]]  = [(x, y) for (x, y, *_ ) in path3d]
-
-            yield from Routines.Yield.Movement.FollowPath(
-                path_points= path2d,
-                custom_exit_condition=lambda: Agent.IsDead(Player.GetAgentID()),
-                tolerance=150,
-                log=False,
-                timeout=15_000,
-                progress_callback=lambda progress: ConsoleLog("MoveToXY", f"FollowPath: progress: {progress}", Console.MessageType.Info),
-                custom_pause_fn=lambda: False)
-
-
-        ConsoleLog(MODULE_NAME, f"MoveToXY at ({map_x}, {map_y}).", Console.MessageType.Info, False)
-
-        if dialog_id > 0:
-            result = yield from Routines.Yield.Agents.InteractWithAgentXY(x=map_x, y=map_y)
-            yield from Routines.Yield.wait(500)
-            #ConsoleLog(MODULE_NAME, f"Interaction result: {result}", Py4GW.Console.MessageType.Info)
-            if result:
-                ConsoleLog(MODULE_NAME, f"Dialog {dialog_id} at ({map_x}, {map_y}).", Console.MessageType.Info, False)
-                Player.SendDialog(dialog_id)
-                yield from Routines.Yield.wait(500)
-            else:
-                ConsoleLog(MODULE_NAME, f"Dialog at ({map_x}, {map_y}) failed, could not find an npc there.", Console.MessageType.Info, False)
+        yield from MoveToXY_correct_map(dialog_id, map_x, map_y)
     else:
         ConsoleLog(MODULE_NAME, f"Wrong map id.", Console.MessageType.Info, False)
 
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
     ConsoleLog(MODULE_NAME, "MoveToXY message processed", Console.MessageType.Info, False)
+
+
+def MoveToXY_correct_map(dialog_id, map_x, map_y):
+
+    ConsoleLog(MODULE_NAME, f"MoveToXY at ({map_x}, {map_y}).", Console.MessageType.Info, False)
+
+    range_adjacent_value = Range.Adjacent.value
+    if Utils.Distance((map_x, map_y), Player.GetXY()) > range_adjacent_value:
+        path3d = yield from AutoPathing().get_path_to(map_x, map_y, smooth_by_los=True, margin=100.0, step_dist=242.0)
+        path2d: list[tuple[float, float]] = [(x, y) for (x, y, *_) in path3d]
+
+        yield from Routines.Yield.Movement.FollowPath(
+            path_points=path2d,
+            custom_exit_condition=lambda: Agent.IsDead(Player.GetAgentID()),
+            tolerance=range_adjacent_value,
+            log=False,
+            timeout=15_000,
+            progress_callback=lambda progress: ConsoleLog("MoveToXY", f"FollowPath: progress: {progress}",
+                                                          Console.MessageType.Info),
+            custom_pause_fn=lambda: False)
+
+    if dialog_id > 0:
+        yield from MoveToXY_send_dialog_id(dialog_id, map_x, map_y)
+
+
+def MoveToXY_send_dialog_id(dialog_id, map_x, map_y):
+    result = yield from Routines.Yield.Agents.InteractWithAgentXY(x=map_x, y=map_y)
+    yield from Routines.Yield.wait(500)
+    # ConsoleLog(MODULE_NAME, f"Interaction result: {result}", Py4GW.Console.MessageType.Info)
+    if result:
+        ConsoleLog(MODULE_NAME, f"Dialog {dialog_id} at ({map_x}, {map_y}).", Console.MessageType.Info, False)
+        Player.SendDialog(dialog_id)
+        yield from Routines.Yield.wait(500)
+    else:
+        ConsoleLog(MODULE_NAME, f"Dialog at ({map_x}, {map_y}) failed, could not find an npc there.",
+                   Console.MessageType.Info, False)
 
 
 # endregion

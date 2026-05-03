@@ -9,7 +9,7 @@ from enum import IntEnum
 import Py4GW
 import PyDialog
 import PyImGui
-from Py4GWCoreLib import Player
+from Py4GWCoreLib import Player, Agent, Map
 from HeroAI.cache_data import CacheData
 from Py4GWCoreLib import GLOBAL_CACHE, PyUIManager, UIManager, IconsFontAwesome5
 from Py4GWCoreLib import IniHandler
@@ -52,6 +52,8 @@ class WhichKey(IntEnum):
     SHIFT = 2
 
 which_key: int = 2
+# Should use new MoveToXY or old Agent Id + Dialog id that can fail.
+legacy_mode: bool = False
 to_hex : str = "?"
 dialog_int : int = 0
 gray_color = Color(150, 150, 150, 255)
@@ -141,6 +143,34 @@ def _draw_multibox_controls() -> None:
         _send_dialog()
     
     PyImGui.text_wrapped("Ctrl+Shift+Click on dialog buttons to send to all accounts")
+
+
+def _draw_settings() -> None:
+    """Draw multibox dialog settings"""
+    global legacy_mode, which_key
+
+    radio_legacy_mode = 0 if legacy_mode else 1
+
+    PyImGui.text(f"How to find the target on other boxes")
+
+    radio_legacy_mode = ImGui.radio_button("Prefer Agent Id", radio_legacy_mode, 0)
+    radio_legacy_mode = ImGui.radio_button("Prefer Map + Location", radio_legacy_mode, 1)
+
+    if radio_legacy_mode == 0:
+        legacy_mode = True
+    elif radio_legacy_mode == 1:
+        legacy_mode = False
+
+    PyImGui.separator()
+    PyImGui.text(f"Which key?")
+
+    radio_value = which_key
+
+    radio_value = ImGui.radio_button(f"{WhichKey.CTRL.name}", which_key, WhichKey.CTRL.value)
+    radio_value = ImGui.radio_button(f"{WhichKey.SHIFT.name}", which_key, WhichKey.SHIFT.value)
+
+    if radio_value:
+        which_key = radio_value
 
 
 # Multibox helper functions
@@ -255,6 +285,7 @@ def _send_dialog():
 
 def _send_dialog_for_all(dialog_string: str, dialog_id: int, include_sender: bool = True):
     """Send dialog command to all accounts"""
+    global legacy_mode
     print(f"Starting sending {dialog_string} as {dialog_id}")
     target = Player.GetTargetID()
     if target == 0:
@@ -266,11 +297,20 @@ def _send_dialog_for_all(dialog_string: str, dialog_id: int, include_sender: boo
             if not include_sender and sender_email == account.AccountEmail:
                 continue
 
-            print(f"Ordering {account.AccountEmail} to send dialog {dialog_id} ({dialog_string}) to target: {target}")
-            GLOBAL_CACHE.ShMem.SendMessage(
-                sender_email, account.AccountEmail, SharedCommandType.SendDialogToTarget,
-                (target, dialog_id, 0, 0)
-            )
+            agent_x , agent_y = Agent.GetXY(target)
+            print(f"Ordering {account.AccountEmail} to send dialog {dialog_id} ({dialog_string}) to target: {target} @ ({agent_x},{agent_y})")
+
+            if legacy_mode:
+                GLOBAL_CACHE.ShMem.SendMessage(
+                    sender_email, account.AccountEmail, SharedCommandType.SendDialogToTarget,
+                    (target, dialog_id, 0, 0)
+                )
+            else:
+                map_id: int = Map.GetMapID()
+                GLOBAL_CACHE.ShMem.SendMessage(
+                    sender_email, account.AccountEmail, SharedCommandType.MoveToXY,
+                    (map_id, agent_x, agent_y, dialog_id)
+                )
 
 
 def main():
@@ -289,6 +329,9 @@ def main():
                     ImGui.end_tab_item()
                 if ImGui.begin_tab_item("Actions"):
                     _draw_multibox_controls()
+                    ImGui.end_tab_item()
+                if ImGui.begin_tab_item("Settings"):
+                    _draw_settings()
                     ImGui.end_tab_item()
             PyImGui.end_tab_bar()
         PyImGui.end()
