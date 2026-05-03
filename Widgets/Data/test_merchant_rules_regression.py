@@ -1395,56 +1395,56 @@ def _test_salvage_candidate_evaluation_precedence(module) -> None:
     protected_reason = widget._get_salvage_candidate_block_reason(
         protected_item,
         [(0, protected_rule)],
-        require_normal_kit=True,
-        normal_salvage_kit_id=1,
+        require_salvage_kit=True,
+        salvage_kit_id=1,
     )
     _expect(protected_reason.startswith("protected:"), "Protection should be the first salvage block reason.")
 
     unsalvageable_reason = widget._get_salvage_candidate_block_reason(
         replace(selected_item, salvageable=False),
         enabled_sell_rules,
-        require_normal_kit=True,
-        normal_salvage_kit_id=1,
+        require_salvage_kit=True,
+        salvage_kit_id=1,
     )
     _expect(unsalvageable_reason.startswith("unsalvageable:"), "Runtime IsSalvageable should block salvage.")
 
     customized_reason = widget._get_salvage_candidate_block_reason(
         replace(selected_item, is_customized=True),
         enabled_sell_rules,
-        require_normal_kit=True,
-        normal_salvage_kit_id=1,
+        require_salvage_kit=True,
+        salvage_kit_id=1,
     )
     _expect(customized_reason.startswith("customized:"), "Customized items should block salvage.")
 
     unidentified_reason = widget._get_salvage_candidate_block_reason(
         replace(selected_item, identified=False),
         enabled_sell_rules,
-        require_normal_kit=True,
-        normal_salvage_kit_id=1,
+        require_salvage_kit=True,
+        salvage_kit_id=1,
     )
     _expect(unidentified_reason.startswith("unidentified non-white:"), "Unidentified non-white items should block salvage.")
 
     not_selected_reason = widget._get_salvage_candidate_block_reason(
         replace(selected_item, model_id=101),
         enabled_sell_rules,
-        require_normal_kit=True,
-        normal_salvage_kit_id=1,
+        require_salvage_kit=True,
+        salvage_kit_id=1,
     )
     _expect(not_selected_reason == "not selected by salvage settings", "Unselected items should not be salvage candidates.")
 
     no_kit_reason = widget._get_salvage_candidate_block_reason(
         selected_item,
         enabled_sell_rules,
-        require_normal_kit=True,
-        normal_salvage_kit_id=0,
+        require_salvage_kit=True,
+        salvage_kit_id=0,
     )
     _expect(no_kit_reason == "no normal salvage kit", "Missing normal salvage kits should block salvage.")
 
     ok_reason = widget._get_salvage_candidate_block_reason(
         selected_item,
         enabled_sell_rules,
-        require_normal_kit=True,
-        normal_salvage_kit_id=1,
+        require_salvage_kit=True,
+        salvage_kit_id=1,
     )
     _expect(ok_reason == "", "Selected safe items with a normal kit should be salvage candidates.")
 
@@ -1456,11 +1456,11 @@ def _test_salvage_broad_rarity_selection(module) -> None:
     purple_item = _make_item(module, item_id=11, model_id=1001, name="Purple Drop", rarity="Purple", identified=True, salvageable=True)
 
     _expect(
-        widget._get_salvage_candidate_block_reason(gold_item, [], require_normal_kit=True, normal_salvage_kit_id=1) == "",
+        widget._get_salvage_candidate_block_reason(gold_item, [], require_salvage_kit=True, salvage_kit_id=1) == "",
         "Enabled rarity selectors should select matching salvageable items.",
     )
     _expect(
-        widget._get_salvage_candidate_block_reason(purple_item, [], require_normal_kit=True, normal_salvage_kit_id=1)
+        widget._get_salvage_candidate_block_reason(purple_item, [], require_salvage_kit=True, salvage_kit_id=1)
         == "not selected by salvage settings",
         "Disabled rarity selectors should not select other rarities.",
     )
@@ -1491,11 +1491,11 @@ def _test_salvage_category_selection(module) -> None:
     )
 
     _expect(
-        widget._get_salvage_candidate_block_reason(weapon_item, [], require_normal_kit=True, normal_salvage_kit_id=1) == "",
+        widget._get_salvage_candidate_block_reason(weapon_item, [], require_salvage_kit=True, salvage_kit_id=1) == "",
         "Enabled category selectors should select matching salvageable items.",
     )
     _expect(
-        widget._get_salvage_candidate_block_reason(armor_item, [], require_normal_kit=True, normal_salvage_kit_id=1)
+        widget._get_salvage_candidate_block_reason(armor_item, [], require_salvage_kit=True, salvage_kit_id=1)
         == "not selected by salvage settings",
         "Disabled category selectors should not select other categories.",
     )
@@ -1562,25 +1562,25 @@ def _test_salvage_rarity_and_category_filters_combine(module) -> None:
     )
 
     _expect(
-        widget._get_salvage_candidate_block_reason(gold_weapon, [], require_normal_kit=True, normal_salvage_kit_id=1) == "",
+        widget._get_salvage_candidate_block_reason(gold_weapon, [], require_salvage_kit=True, salvage_kit_id=1) == "",
         "Gold weapons should match combined rarity/category salvage filters.",
     )
     _expect(
-        widget._get_salvage_candidate_block_reason(gold_armor, [], require_normal_kit=True, normal_salvage_kit_id=1) == "",
+        widget._get_salvage_candidate_block_reason(gold_armor, [], require_salvage_kit=True, salvage_kit_id=1) == "",
         "Gold armor should match combined rarity/category salvage filters.",
     )
     _expect(
-        widget._get_salvage_candidate_block_reason(white_weapon, [], require_normal_kit=True, normal_salvage_kit_id=1)
+        widget._get_salvage_candidate_block_reason(white_weapon, [], require_salvage_kit=True, salvage_kit_id=1)
         == "not selected by salvage settings",
         "White weapons should not match Gold + Weapons salvage filters.",
     )
     _expect(
-        widget._get_salvage_candidate_block_reason(blue_weapon, [], require_normal_kit=True, normal_salvage_kit_id=1)
+        widget._get_salvage_candidate_block_reason(blue_weapon, [], require_salvage_kit=True, salvage_kit_id=1)
         == "not selected by salvage settings",
         "Blue weapons should not match Gold + Weapons salvage filters.",
     )
     _expect(
-        widget._get_salvage_candidate_block_reason(gold_material, [], require_normal_kit=True, normal_salvage_kit_id=1)
+        widget._get_salvage_candidate_block_reason(gold_material, [], require_salvage_kit=True, salvage_kit_id=1)
         == "not selected by salvage settings",
         "Gold non-selected categories should not match Gold + Weapons/Armor salvage filters.",
     )
@@ -1594,10 +1594,10 @@ def _test_salvage_filter_summary_describes_combined_filters(module) -> None:
         categories=[module.SALVAGE_CATEGORY_WEAPONS, module.SALVAGE_CATEGORY_ARMOR],
     )
 
+    summary = widget._format_salvage_filter_summary(widget.salvage_settings)
     _expect(
-        widget._format_salvage_filter_summary(widget.salvage_settings)
-        == "Current filter: Gold items in these categories: Weapons, Armor",
-        "Salvage filter summary should show that rarity/category selectors combine as filters.",
+        "1 active rule(s)" in summary and "Default (legacy behavior)" in summary,
+        "Salvage filter summary should show the active rule count and salvage option label.",
     )
 
 
@@ -1785,8 +1785,8 @@ def _test_protected_salvage_destroy_overlap_blocks_both(module) -> None:
     candidate_reason = widget._get_salvage_candidate_block_reason(
         widget._collect_inventory_items()[0],
         widget._collect_enabled_sell_rules(),
-        require_normal_kit=True,
-        normal_salvage_kit_id=1,
+        require_salvage_kit=True,
+        salvage_kit_id=1,
     )
     _expect(candidate_reason.startswith("protected:"), "Protected items should also block salvage candidate evaluation.")
 

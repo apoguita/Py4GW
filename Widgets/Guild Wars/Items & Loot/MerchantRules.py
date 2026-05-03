@@ -261,6 +261,9 @@ SALVAGE_UPGRADE_OPTIONS: frozenset[str] = frozenset({
     SALVAGE_OPTION_SUFFIX,
     SALVAGE_OPTION_INSCRIPTION,
 })
+SALVAGE_NATIVE_SESSION_UNAVAILABLE_REASON = (
+    "native salvage-session API unavailable: prefix/suffix/inscription salvage is skipped safely"
+)
 
 SELL_RULE_WORKSPACE_LABELS = {
     SELL_KIND_WEAPONS: "Weapons",
@@ -9626,11 +9629,16 @@ class MerchantRulesWidget:
         selection_reason = self._get_salvage_rule_filter_reason(selected_rule, item) if selected_rule is not None else self._get_salvage_selection_reason(item)
         if not selection_reason:
             return "not selected by salvage settings"
-        if require_salvage_kit and int(salvage_kit_id) <= 0:
-            selected_option = _resolve_salvage_session_option(getattr(selected_rule, "salvage_option", SALVAGE_OPTION_DEFAULT))
-            if selected_option in SALVAGE_UPGRADE_OPTIONS:
-                return "no upgrade salvage kit"
-            return "no normal salvage kit"
+        if require_salvage_kit:
+            selected_option = _resolve_salvage_session_option(
+                getattr(selected_rule, "salvage_option", SALVAGE_OPTION_DEFAULT)
+            )
+            if selected_option in SALVAGE_UPGRADE_OPTIONS and not self._has_salvage_upgrade_session_support():
+                return SALVAGE_NATIVE_SESSION_UNAVAILABLE_REASON
+            if int(salvage_kit_id) <= 0:
+                if selected_option in SALVAGE_UPGRADE_OPTIONS:
+                    return "no upgrade salvage kit"
+                return "no normal salvage kit"
         if str(mode or "").strip().lower() == "auto" and not bool(_normalize_salvage_settings(self.salvage_settings).on_inventory_change):
             return "immediate salvage is disabled"
         return ""
@@ -9660,6 +9668,7 @@ class MerchantRulesWidget:
             ("unsalvageable:", "unsalvageable"),
             ("customized:", "customized"),
             ("unidentified non-white:", "unidentified non-white"),
+            ("native salvage-session api unavailable:", "native upgrade salvage unavailable"),
             ("no normal salvage kit", "no normal salvage kit"),
             ("no upgrade salvage kit", "no upgrade salvage kit"),
             ("salvage option unavailable", "option unavailable"),
@@ -16972,6 +16981,21 @@ class MerchantRulesWidget:
             and callable(getattr(inventory_instance, "SelectSalvageSessionOption", None))
         )
 
+    def _has_salvage_upgrade_session_support(self) -> bool:
+        cached_value = getattr(self, "_salvage_upgrade_session_support_cache", None)
+        if isinstance(cached_value, bool):
+            return cached_value
+
+        try:
+            import PyInventory
+
+            supported = self._has_native_salvage_session_api(PyInventory.PyInventory())
+        except Exception:
+            supported = False
+
+        self._salvage_upgrade_session_support_cache = bool(supported)
+        return bool(supported)
+
     def _any_salvage_related_window_open(self) -> bool:
         try:
             from Sources.frenkeyLib.ItemHandling.UIManagerExtensions import UIManagerExtensions
@@ -23544,6 +23568,9 @@ class MerchantRulesWidget:
             selector_parts.append(f"categories {', '.join(category_labels)}")
 
         option_label = _get_salvage_option_label(normalized_rule.salvage_option)
+        selected_option = _resolve_salvage_session_option(normalized_rule.salvage_option)
+        if selected_option in SALVAGE_UPGRADE_OPTIONS and not self._has_salvage_upgrade_session_support():
+            option_label = f"{option_label} (native support unavailable)"
         if not selector_parts:
             return f"{option_label} | Choose at least one selector.", False
         return f"{option_label} | {'; '.join(selector_parts)}", True
@@ -23629,7 +23656,13 @@ class MerchantRulesWidget:
         changed = self._draw_salvage_option_combo(index, rule) or changed
         selected_option = _resolve_salvage_session_option(rule.salvage_option)
         if selected_option in SALVAGE_UPGRADE_OPTIONS:
-            self._draw_secondary_text("Uses a Perfect, Expert, or Superior Salvage Kit when available.")
+            if self._has_salvage_upgrade_session_support():
+                self._draw_secondary_text("Uses a Perfect, Expert, or Superior Salvage Kit when available.")
+            else:
+                self._draw_secondary_text(
+                    "Prefix, suffix, and inscription salvage require native salvage-session support. "
+                    "Matching items stay protected, but Run Salvage skips them safely."
+                )
         else:
             self._draw_secondary_text("Default (legacy behavior) and materials use normal Salvage Kits.")
 
