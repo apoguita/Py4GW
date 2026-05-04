@@ -643,6 +643,38 @@ class BTPlayer:
             
             tree: BehaviorTree.ActionNode = BehaviorTree.ActionNode(name="SendChatMessage", action_fn=lambda: _send_chat_message(channel, message), aftercast_ms=300)
             return BehaviorTree(tree)
+        
+        @staticmethod
+        def SendChatCommandWithMessage(channel: str, command: str, message: str, log: bool = False) -> BehaviorTree:
+            """
+            Build a tree that sends a chat command followed by a chat message.
+
+            Meta:
+              Expose: true
+              Audience: intermediate
+              Display: Send Chat Command With Message
+              Purpose: Send a chat command.
+              UserDescription: Use this when you want to issue a chat command.
+            """
+            def _send_chat_command(_command: str) -> BehaviorTree.NodeState:
+                """
+                Send the requested chat command.
+
+                Meta:
+                  Expose: false
+                  Audience: advanced
+                  Display: Internal Send Chat Command Helper
+                  Purpose: Dispatch the low-level player chat command request.
+                  UserDescription: Internal support routine.
+                  Notes: Returns success immediately after sending the command.
+                """
+                Player.SendChatCommand(_command)
+                _log("SendChatCommandWithMessage", f"Sent chat command: {_command}.", log=log)
+                return BehaviorTree.NodeState.SUCCESS
+            
+            tree: BehaviorTree.ActionNode = BehaviorTree.ActionNode(name="SendChatCommand", action_fn=lambda: _send_chat_command(command), aftercast_ms=300)
+            return BehaviorTree(tree)
+                
 
         @staticmethod
         def PrintMessageToConsole(source: str, message: str, message_type: int = Console.MessageType.Info) -> BehaviorTree:

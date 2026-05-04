@@ -1,6 +1,107 @@
 {
   "language": "en",
   "names": {
+    "enc:\\\\x0F95\\\\xF318\\\\x6CFE": [
+      "Spirit of Favorable Winds"
+    ],
+    "enc:\\\\x1232\\\\xF535\\\\x05E0": [
+      "Agent 160",
+      "Agent 191",
+      "Bone Minion"
+    ],
+    "enc:\\\\x7B64\\\\x95DB\\\\xAB29\\\\x1430": [
+      "Kournan Seer"
+    ],
+    "enc:\\\\x7B65\\\\x8C79\\\\xA766\\\\x3402": [
+      "Kournan Oppressor"
+    ],
+    "enc:\\\\x7B66\\\\xFB29\\\\x8327\\\\x4869": [
+      "Kournan Scribe"
+    ],
+    "enc:\\\\x7B68\\\\x8BBE\\\\xBBF3\\\\x416A": [
+      "Kournan Priest"
+    ],
+    "enc:\\\\x7B69\\\\xD0CB\\\\x8475\\\\x20A2": [
+      "Kournan Guard"
+    ],
+    "enc:\\\\x7B6A\\\\xEBA0\\\\x5E45": [
+      "Kournan Bowman"
+    ],
+    "enc:\\\\x7B75\\\\xC299\\\\xEC48\\\\x5558": [
+      "Kournan Zealot"
+    ],
+    "enc:\\\\x7D54\\\\xF46D\\\\xEC6C\\\\x721C": [
+      "Kournan Phalanx"
+    ],
+    "enc:\\\\x8101\\\\x09C2\\\\x8FDA\\\\x911A\\\\x46E7": [
+      "Skree Griffin"
+    ],
+    "enc:\\\\x8101\\\\x09C3\\\\xCD6C\\\\x8FE6\\\\x7BD7": [
+      "Skree Raider"
+    ],
+    "enc:\\\\x8101\\\\x09C4\\\\xA88E\\\\xE8DD\\\\x2A21": [
+      "Skree Tracker"
+    ],
+    "enc:\\\\x8101\\\\x09C5\\\\xEFF1\\\\x247F": [
+      "Skree Singer"
+    ],
+    "enc:\\\\x8101\\\\x09C7\\\\xA4FE\\\\xB958\\\\x2879": [
+      "Margonite Seer"
+    ],
+    "enc:\\\\x8101\\\\x09C8\\\\x9A97\\\\x9F98\\\\x0468": [
+      "Margonite Warlock"
+    ],
+    "enc:\\\\x8101\\\\x09C9\\\\xFDC3\\\\xD720\\\\x7612": [
+      "Margonite Sorcerer"
+    ],
+    "enc:\\\\x8101\\\\x09CB\\\\x9756\\\\xE318\\\\x3604": [
+      "Margonite Cleric"
+    ],
+    "enc:\\\\x8101\\\\x09CC\\\\xC423\\\\x8448\\\\x347B": [
+      "Margonite Executioner"
+    ],
+    "enc:\\\\x8101\\\\x09CD\\\\xBB25\\\\x8A1E\\\\x5E2F": [
+      "Margonite Bowmaster"
+    ],
+    "enc:\\\\x8101\\\\x09CE\\\\x8C33\\\\x4349": [
+      "Margonite Reaper"
+    ],
+    "enc:\\\\x8101\\\\x1CE3\\\\xA10F\\\\x9001\\\\x49F3": [
+      "Makdeh the Aggravating"
+    ],
+    "enc:\\\\x8101\\\\x4731\\\\x9857\\\\x863A\\\\x3B88": [
+      "Spirit of Infuriating Heat"
+    ],
+    "enc:\\\\x8101\\\\x4C88\\\\xB01C\\\\xF31C\\\\x3879": [
+      "Kournan Guard"
+    ],
+    "enc:\\\\x8101\\\\x5134\\\\x877B\\\\x8D12\\\\x7167": [
+      "Behemoth Gravebane"
+    ],
+    "enc:\\\\x8101\\\\x5137\\\\x9E87\\\\xCE88\\\\x5E97": [
+      "Rock Beetle"
+    ],
+    "enc:\\\\x8101\\\\x5138\\\\xA38C\\\\xE7CD\\\\x7A40": [
+      "Rain Beetle"
+    ],
+    "enc:\\\\x8101\\\\x513A\\\\xBDA7\\\\x8CA7\\\\x6E92": [
+      "Scytheclaw Behemoth"
+    ],
+    "enc:\\\\x8101\\\\x5150\\\\xA134\\\\xC3B2\\\\x5A26": [
+      "Hajok Earthguardian"
+    ],
+    "enc:\\\\x8101\\\\x51F0\\\\xA80A\\\\xECC2\\\\x2B31": [
+      "Tain the Corrupter"
+    ],
+    "enc:\\\\x8101\\\\x51F1\\\\x9B68\\\\xB507\\\\x0423": [
+      "Lushivahr the Invoker"
+    ],
+    "enc:\\\\x8101\\\\x571C\\\\xC16F\\\\xF995\\\\x3C6F": [
+      "Lieutenant Vanahk"
+    ],
+    "enc:\\\\x8101\\\\x571D\\\\xBFC6\\\\xE2B5\\\\x6324": [
+      "Corporal Suli"
+    ],
     "enc:\\\\x8101\\\\x7F4D\\\\xFC50\\\\xD378\\\\x2E42": [
       "Mandragor Smoke Devil"
     ]
