@@ -198,7 +198,7 @@ def Sequence_002_Common() -> BehaviorTree:
             LogMessage("Moving to Meerak"),
             BT.MoveAndAutoDialog(MEERAK_COORDS),
             LogMessage("Traveling to Ascalon City to turn in quests"),
-            BT.TravelToOutpost(ASCALON_CITY_MAP_ID),
+            BT.Travel(ASCALON_CITY_MAP_ID),
             LogMessage("Turning in quests to Amin Saberlin"),
             BT.MoveAndAutoDialog(AMIN_SABERLIN_COORDS),
             BT.AutoDialog(),

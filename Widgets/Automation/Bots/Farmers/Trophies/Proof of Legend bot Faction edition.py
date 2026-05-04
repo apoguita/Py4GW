@@ -102,19 +102,6 @@ def ensure_botting_tree() -> BottingTree:
         )
 
     return botting_tree
-
-
-def ConfigurePacifistEnv() -> BehaviorTree:
-    return ensure_botting_tree().Config.Pacifist(name="Configure Pacifist Env")
-
-
-def ConfigureAggressiveEnv() -> BehaviorTree:
-    return ensure_botting_tree().Config.Aggressive(
-        auto_loot=False,
-        name="Configure Aggressive Env",
-    )
-
-
 def AddHenchmen() -> BehaviorTree:
     def _build_henchmen_tree(_node: BehaviorTree.Node) -> BehaviorTree:
         party_size = Map.GetMaxPartySize()
@@ -228,11 +215,14 @@ def EquipSkillBar() -> BehaviorTree:
 
 
 def PrepareForBattle() -> BehaviorTree:
+    bot = ensure_botting_tree()
     return Sequence(
-        "Prepare For Battle",
-        [
-            ConfigureAggressiveEnv(),
-            EquipStarterWeapon(),
+            "Prepare For Battle",
+            [
+                bot.Config.Aggressive(
+                    auto_loot=False,
+                ),
+                EquipStarterWeapon(),
             EquipSkillBar(),
             BT.LeaveParty(),
             AddHenchmen(),
@@ -329,11 +319,12 @@ def Exit_Monastery_Overlook() -> BehaviorTree:
 
 
 def Unlock_Secondary_Profession() -> BehaviorTree:
+    bot = ensure_botting_tree()
     return Sequence(
         "Unlock Secondary Profession",
         [
-            BT.TravelToRandomDistrict(target_map_name="Shing Jea Monastery"),
-            ConfigurePacifistEnv(),
+            BT.Travel(random_travel=True, target_map_name="Shing Jea Monastery"),
+            bot.Config.Pacifist(),
             BT.MoveAndExitMap(V(-3480, 9460), target_map_name="Linnok Courtyard"),
             BT.Move(V(-159, 9174)),
             BT.StoreProfessionNames(),
@@ -371,12 +362,13 @@ def Unlock_Xunlai_Storage() -> BehaviorTree:
 
 
 def To_Minister_Chos_Estate() -> BehaviorTree:
+    bot = ensure_botting_tree()
     return Sequence(
         "To Minister Cho's Estate",
         [
-            BT.TravelToRandomDistrict(target_map_name="Shing Jea Monastery"),
+            BT.Travel(random_travel=True, target_map_name="Shing Jea Monastery"),
             BT.MoveAndExitMap(V(-14961, 11453), target_map_name="Sunqua Vale"),
-            ConfigurePacifistEnv(),
+            bot.Config.Pacifist(),
             BT.Move([V(16182.62, -7841.86), V(6611.58, 15847.51)]),
             QuestDialog("Step 1 - A Formal Introduction", V(6637, 16147), 0x80000B),
             BT.WaitForMapLoad(map_id=214),
@@ -389,7 +381,7 @@ def Unlock_Skills_Trainer() -> BehaviorTree:
     return Sequence(
         "Unlock Skills Trainer",
         [
-            BT.TravelToRandomDistrict(target_map_name="Shing Jea Monastery"),
+            BT.Travel(random_travel=True, target_map_name="Shing Jea Monastery"),
             BT.MoveAndDialog(V(-8790.00, 10366.00), dialog_id=0x84),
             BT.Wait(3000),
             RoutinesBT.Player.BuySkill(57),
@@ -402,10 +394,11 @@ def Unlock_Skills_Trainer() -> BehaviorTree:
 
 
 def Minister_Chos_Estate_Mission() -> BehaviorTree:
+    bot = ensure_botting_tree()
     return Sequence(
         "Minister Cho's Estate Mission",
         [
-            BT.TravelToRandomDistrict(target_map_id=214),
+            BT.Travel(random_travel=True, target_map_id=214),
             PrepareForBattle(),
             EnterChallenge(),
             LongMove([V(6220.76, -7360.73), V(5523.95, -7746.41)]),
@@ -418,7 +411,9 @@ def Minister_Chos_Estate_Mission() -> BehaviorTree:
             BT.Wait(30000),
             LongMove([V(333.32, 1124.44), V(-3337.14, -4741.27)]),
             BT.Wait(35000),
-            ConfigureAggressiveEnv(),
+            bot.Config.Aggressive(
+                auto_loot=False,
+            ),
             LongMove([
                 V(-4661.99, -6285.81),
                 V(-7454, -7384),
@@ -438,7 +433,7 @@ def Deposit_Proof_Of_Legend() -> BehaviorTree:
     return Sequence(
         "Deposit Proof of Legend",
         [
-            BT.TravelToRandomDistrict(target_map_id=251),
+            BT.Travel(random_travel=True, target_map_id=251),
             BT.DepositModelToStorage(37841),
             BT.DepositGoldKeep(0),
         ],

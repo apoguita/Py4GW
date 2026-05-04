@@ -422,7 +422,7 @@ class Items:
             yield from wait(350)
 
     @staticmethod
-    def RestockItems(model_id: int, desired_quantity: int) -> Generator[Any, Any, bool]:
+    def RestockItems(model_id: int, desired_quantity: int, allow_missing: bool = False) -> Generator[Any, Any, bool]:
         in_bags = GLOBAL_CACHE.Inventory.GetModelCount(model_id)
         if in_bags >= desired_quantity:
             return True
@@ -430,8 +430,10 @@ class Items:
         need = desired_quantity - in_bags
         in_storage = GLOBAL_CACHE.Inventory.GetModelCountInStorage(model_id)
 
-        if need <= 0 or in_storage <= 0:
+        if need <= 0:
             return False
+        if in_storage <= 0:
+            return bool(allow_missing)
 
         ok = GLOBAL_CACHE.Inventory.WithdrawItemFromStorageByModelID(model_id, need)
         yield from wait(250)
@@ -443,7 +445,9 @@ class Items:
                 yield from wait(250)
 
         final_bags = GLOBAL_CACHE.Inventory.GetModelCount(model_id)
-        return final_bags >= desired_quantity
+        if final_bags >= desired_quantity:
+            return True
+        return bool(allow_missing)
 
     @staticmethod
     def CraftItem(output_model_id: int, cost: int, trade_model_ids: list[int], quantity_list: list[int]) -> Generator[Any, Any, bool]:

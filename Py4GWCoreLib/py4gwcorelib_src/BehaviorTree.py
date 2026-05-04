@@ -1487,6 +1487,11 @@ class BehaviorTree:
             # still running → check timeout
             if self.timeout_ms > 0:
                 if (now - self._start_time_ms) >= self.timeout_ms:
+                    ConsoleLog(
+                        "WaitNode",
+                        f"[{self.name}] TIMEOUT ({now - self._start_time_ms} >= {self.timeout_ms})",
+                        Console.MessageType.Warning,
+                    )
                     self._start_time_ms = None
                     return BehaviorTree.NodeState.FAILURE
 
@@ -1561,7 +1566,11 @@ class BehaviorTree:
 
             # --- TIMEOUT ---
             if self.timeout_ms > 0 and (now - self._start_time_ms) >= self.timeout_ms:
-                #ConsoleLog("WaitUntilNode",f"[{self.name}] TIMEOUT exceeded ({now - self._start_time_ms} ms >= {self.timeout_ms})",log=True)
+                ConsoleLog(
+                    "WaitUntilNode",
+                    f"[{self.name}] TIMEOUT ({now - self._start_time_ms} >= {self.timeout_ms})",
+                    Console.MessageType.Warning,
+                )
                 self._start_time_ms = None
                 self._last_check_time_ms = None
                 return BehaviorTree.NodeState.FAILURE
@@ -1591,12 +1600,9 @@ class BehaviorTree:
 
             # --- NodeState ---
             if isinstance(result, BehaviorTree.NodeState):
-                #ConsoleLog("WaitUntilNode", f"[{self.name}] Returning NodeState: {result}",log=True)
-                
-                # FIX: reset state so next tick does not throttle
-                self._start_time_ms = None
-                self._last_check_time_ms = None
-                
+                if result != BehaviorTree.NodeState.RUNNING:
+                    self._start_time_ms = None
+                    self._last_check_time_ms = None
                 return result
 
             # --- BOOL ---

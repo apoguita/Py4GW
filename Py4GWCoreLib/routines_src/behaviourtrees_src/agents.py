@@ -45,6 +45,8 @@ Docstring parsing rules
 
 from __future__ import annotations
 
+from typing import Any
+
 from ...Agent import Agent
 from ...Player import Player
 from ...Py4GWcorelib import ConsoleLog, Console
@@ -77,6 +79,70 @@ class BTAgents:
             if isinstance(modelID_or_encStr, str):
                 return Agent.GetModelIDByEncString(modelID_or_encStr)
             return int(modelID_or_encStr)
+
+    @staticmethod
+    def _resolve_aggro_area(aggro_area: float | Range) -> Any:
+            if isinstance(aggro_area, Range):
+                return aggro_area
+            return float(aggro_area)
+
+    @staticmethod
+    def WaitUntilOutOfCombat(range: float = Range.Earshot.value, timeout_ms: int = 60000) -> BehaviorTree:
+            """
+            Build a tree that waits until no danger remains within the requested aggro range.
+
+            Meta:
+              Expose: true
+              Audience: beginner
+              Display: Wait Until Out Of Combat
+              Purpose: Wait until nearby combat danger clears.
+              UserDescription: Use this when a step should pause until the player is safely out of combat.
+              Notes: Uses the standard agent-danger check against the provided aggro radius.
+            """
+            aggro_area = BTAgents._resolve_aggro_area(range)
+
+            def _wait_until_out_of_combat() -> BehaviorTree.NodeState:
+                if not Checks.Agents.InDanger(aggro_area=aggro_area):
+                    return BehaviorTree.NodeState.SUCCESS
+                return BehaviorTree.NodeState.RUNNING
+
+            return BehaviorTree(
+                BehaviorTree.WaitUntilNode(
+                    name="WaitUntilOutOfCombat",
+                    condition_fn=_wait_until_out_of_combat,
+                    throttle_interval_ms=1000,
+                    timeout_ms=timeout_ms,
+                )
+            )
+
+    @staticmethod
+    def WaitUntilOnCombat(range: float = Range.Earshot.value, timeout_ms: int = 60000) -> BehaviorTree:
+            """
+            Build a tree that waits until nearby combat danger is detected.
+
+            Meta:
+              Expose: true
+              Audience: beginner
+              Display: Wait Until On Combat
+              Purpose: Wait until nearby combat danger begins.
+              UserDescription: Use this when a step should pause until the player enters combat.
+              Notes: Uses the standard agent-danger check against the provided aggro radius.
+            """
+            aggro_area = BTAgents._resolve_aggro_area(range)
+
+            def _wait_until_on_combat() -> BehaviorTree.NodeState:
+                if Checks.Agents.InDanger(aggro_area=aggro_area):
+                    return BehaviorTree.NodeState.SUCCESS
+                return BehaviorTree.NodeState.RUNNING
+
+            return BehaviorTree(
+                BehaviorTree.WaitUntilNode(
+                    name="WaitUntilOnCombat",
+                    condition_fn=_wait_until_on_combat,
+                    throttle_interval_ms=1000,
+                    timeout_ms=timeout_ms,
+                )
+            )
 
     @staticmethod
     def GetAgentIDByName(agent_name: str) -> BehaviorTree:

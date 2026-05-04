@@ -44,19 +44,6 @@ def ensure_botting_tree() -> BottingTree:
         )
 
     return botting_tree
-
-
-def ConfigurePacifistEnv() -> BehaviorTree:
-    return ensure_botting_tree().Config.Pacifist(name="Configure Pacifist Env")
-
-
-def ConfigureAggressiveEnv() -> BehaviorTree:
-    return ensure_botting_tree().Config.Aggressive(
-        auto_loot=False,
-        name="Configure Aggressive Env",
-    )
-
-
 def Skip_Tutorial() -> BehaviorTree:
     return BehaviorTree(
         BehaviorTree.SequenceNode(
@@ -75,12 +62,12 @@ def Into_Chahbek_Village() -> BehaviorTree:
         BehaviorTree.SequenceNode(
             name="Quest: Into Chahbek Village",
             children=[
-                BT.TravelToOutpost(544),
+                BT.Travel(544),
                 BT.MoveAndDialog(Vec2f(3493, -5247), dialog_id=0x82A507),
                 BT.MoveAndDialog(Vec2f(3493, -5247), dialog_id=0x82C501),
-                BT.OpenHero(),
+                BT.ToggleHeroPanel(),
                 BT.Wait(100),
-                BT.OpenSkillsAndAttributes(),
+                BT.ToggleSkillsAndAttributes(),
                 BT.Wait(100),
             ],
         )
@@ -92,7 +79,7 @@ def Quiz_the_Recruits() -> BehaviorTree:
         BehaviorTree.SequenceNode(
             name="Quest: Quiz the Recruits",
             children=[
-                BT.TravelToOutpost(544),
+                BT.Travel(544),
                 BT.Move(Vec2f(4750, -6105)),
                 BT.MoveAndDialog(Vec2f(4750, -6105), dialog_id=0x82C504),
                 BT.MoveAndDialog(Vec2f(5019, -6940), dialog_id=0x82C504),
@@ -104,11 +91,14 @@ def Quiz_the_Recruits() -> BehaviorTree:
 
 
 def PrepareForBattle(hero_list: list[int] | None = None, henchman_list: list[int] | None = None) -> BehaviorTree:
+    bot = ensure_botting_tree()
     return BehaviorTree(
         BehaviorTree.SequenceNode(
             name="PrepareForBattle",
             children=[
-                ConfigureAggressiveEnv(),
+                bot.Config.Aggressive(
+                    auto_loot=False,
+                ),
                 EquipSkillBar(),
                 BT.LeaveParty(),
                 BT.AddHeroList(hero_list or []),
@@ -149,7 +139,7 @@ def Never_Fight_Alone() -> BehaviorTree:
         BehaviorTree.SequenceNode(
             name="Quest: Never Fight Alone",
             children=[
-                BT.TravelToOutpost(544),
+                BT.Travel(544),
                 PrepareForBattle(hero_list=[6], henchman_list=[1, 2]),
                 BT.SpawnAndDestroyBonusItems(
                     exclude_list=[ModelID.Igneous_Summoning_Stone.value],
@@ -163,17 +153,20 @@ def Never_Fight_Alone() -> BehaviorTree:
 
 
 def Chahbek_Village_Mission() -> BehaviorTree:
+    bot = ensure_botting_tree()
     return BehaviorTree(
         BehaviorTree.SequenceNode(
             name="Chahbek Village Mission",
             children=[
-                BT.TravelToOutpost(544),
+                BT.Travel(544),
                 BT.LoadHeroSkillbar(1, "OQASEF6EC1vcNABWAAAA"),
                 BT.MoveAndDialog(Vec2f(3485, -5246), dialog_id=0x81),
                 BT.MoveAndDialog(Vec2f(3485, -5246), dialog_id=0x84),
                 BT.Wait(2000),
                 BT.WaitUntilOnExplorable(),
-                ConfigureAggressiveEnv(),
+                bot.Config.Aggressive(
+                    auto_loot=False,
+                ),
                 BT.Move(Vec2f(2240, -3535)),
                 BT.Move(Vec2f(227, -5658)),
                 BT.Move(Vec2f(-1144, -4378)),
@@ -201,18 +194,21 @@ def Chahbek_Village_Mission() -> BehaviorTree:
 
 
 def Chahbek_Village_Mission_2() -> BehaviorTree:
+    bot = ensure_botting_tree()
     return BehaviorTree(
         BehaviorTree.SequenceNode(
             name="Chahbek Village Mission_2",
             children=[
-                BT.TravelToOutpost(544),
+                BT.Travel(544),
                 PrepareForBattle(hero_list=[6], henchman_list=[1, 2]),
                 BT.LoadHeroSkillbar(1, "OQASEF6EC1vcNABWAAAA"),
                 BT.MoveAndDialog(Vec2f(3485, -5246), dialog_id=0x81),
                 BT.MoveAndDialog(Vec2f(3485, -5246), dialog_id=0x84),
                 BT.Wait(2000),
                 BT.WaitUntilOnExplorable(),
-                ConfigureAggressiveEnv(),
+                bot.Config.Aggressive(
+                    auto_loot=False,
+                ),
                 BT.Move(Vec2f(2240, -3535)),
                 BT.Move(Vec2f(227, -5658)),
                 BT.Move(Vec2f(-1144, -4378)),
@@ -240,6 +236,7 @@ def Chahbek_Village_Mission_2() -> BehaviorTree:
 
 
 def Get_Skills() -> BehaviorTree:
+    bot = ensure_botting_tree()
     def _skill_route(dialog_pos: Vec2f, return_to_trainer: bool = False) -> BehaviorTree:
         children = [
             BT.Move(dialog_pos),
@@ -258,7 +255,7 @@ def Get_Skills() -> BehaviorTree:
         BehaviorTree.SequenceNode(
             name="Get Skills",
             children=[
-                ConfigurePacifistEnv(),
+                bot.Config.Pacifist(),
                 BT.StoreProfessionNames(),
                 BehaviorTree.SwitchNode(
                     name="GetSkillsByProfession",
@@ -299,7 +296,7 @@ def A_Personal_Vault() -> BehaviorTree:
         BehaviorTree.SequenceNode(
             name="Quest: A Personal Vault",
             children=[
-                BT.TravelToRandomDistrict(target_map_id=449),
+                BT.Travel(random_travel=True, target_map_id=449),
                 BT.MoveAndDialog(Vec2f(-9251, 11826), dialog_id=0x82A101),
                 BT.MoveAndDialog(Vec2f(-7761, 14393), dialog_id=0x84),
                 BT.MoveAndDialog(Vec2f(-9251, 11826), dialog_id=0x82A107),
@@ -309,16 +306,19 @@ def A_Personal_Vault() -> BehaviorTree:
 
 
 def Material_Girl() -> BehaviorTree:
+    bot = ensure_botting_tree()
     return BehaviorTree(
         BehaviorTree.SequenceNode(
             name="Quest: Material Girl",
             children=[
-                BT.TravelToRandomDistrict(target_map_id=449),
+                BT.Travel(random_travel=True, target_map_id=449),
                 BT.Move(Vec2f(-10839.96, 9197.05)),
                 BT.MoveAndDialog(Vec2f(-11363, 9066), dialog_id=0x826101),
                 PrepareForBattle(hero_list=[], henchman_list=[1, 3, 4]),
                 BT.MoveAndExitMap(Vec2f(-9326, 18151), target_map_id=430),
-                ConfigureAggressiveEnv(),
+                bot.Config.Aggressive(
+                    auto_loot=False,
+                ),
                 BT.Move(Vec2f(18460, 1002)),
                 BT.MoveAndDialog(Vec2f(18460, 1002), dialog_id=0x85),
                 BT.Move(Vec2f(9675, 1038)),
@@ -333,7 +333,7 @@ def Material_Girl() -> BehaviorTree:
                 BT.Move(Vec2f(-3145, 2412)),
                 BT.MoveAndExitMap(Vec2f(-3236, 4503), target_map_id=431),
                 BT.Wait(2000),
-                BT.TravelToRandomDistrict(target_map_id=449),
+                BT.Travel(random_travel=True, target_map_id=449),
                 BT.MoveAndDialog(Vec2f(-10024, 8590), dialog_id=0x828804),
                 BT.DialogAtXY(Vec2f(-10024, 8590), dialog_id=0x828807),
                 BT.MoveAndDialog(Vec2f(-11356, 9066), dialog_id=0x826107),
@@ -343,14 +343,17 @@ def Material_Girl() -> BehaviorTree:
 
 
 def Hog_Hunt() -> BehaviorTree:
+    bot = ensure_botting_tree()
     return BehaviorTree(
         BehaviorTree.SequenceNode(
             name="Quest: Hog Hunt",
             children=[
-                BT.TravelToRandomDistrict(target_map_id=431),
+                BT.Travel(random_travel=True, target_map_id=431),
                 PrepareForBattle(hero_list=[], henchman_list=[1, 3, 4]),
                 BT.MoveAndExitMap(Vec2f(-3172, 3271), target_map_id=430),
-                ConfigureAggressiveEnv(),
+                bot.Config.Aggressive(
+                    auto_loot=False,
+                ),
                 BT.Move(Vec2f(-1840.23, 2432.96)),
                 BT.MoveAndDialog(Vec2f(-1297, 3229), dialog_id=0x85),
                 BT.Move(Vec2f(-269.29, 1981)),
@@ -367,21 +370,24 @@ def Hog_Hunt() -> BehaviorTree:
                 BT.Move(Vec2f(-149.15, 1838.02)),
                 BT.Move(Vec2f(-1158.39, 1917.86)),
                 BT.MoveAndDialogByModelID(4869, dialog_id=0x828D07),
-                BT.TravelToRandomDistrict(target_map_id=431),
+                BT.Travel(random_travel=True, target_map_id=431),
             ],
         )
     )
 
 
 def To_Champions_Dawn() -> BehaviorTree:
+    bot = ensure_botting_tree()
     return BehaviorTree(
         BehaviorTree.SequenceNode(
             name="To Champion's Dawn",
             children=[
-                BT.TravelToRandomDistrict(target_map_id=431),
+                BT.Travel(random_travel=True, target_map_id=431),
                 PrepareForBattle(hero_list=[], henchman_list=[1, 3, 4]),
                 BT.MoveAndExitMap(Vec2f(-3172, 3271), target_map_id=430),
-                ConfigureAggressiveEnv(),
+                bot.Config.Aggressive(
+                    auto_loot=False,
+                ),
                 BT.Move(Vec2f(-1840.23, 2432.96)),
                 BT.MoveAndDialog(Vec2f(-1297, 3229), dialog_id=0x85),
                 BT.Move(Vec2f(-4507, 616)),
@@ -394,26 +400,29 @@ def To_Champions_Dawn() -> BehaviorTree:
 
 
 def Identity_Theft() -> BehaviorTree:
+    bot = ensure_botting_tree()
     return BehaviorTree(
         BehaviorTree.SequenceNode(
             name="Quest: Identity Theft",
             children=[
-                BT.TravelToRandomDistrict(target_map_id=449),
+                BT.Travel(random_travel=True, target_map_id=449),
                 BT.Move(Vec2f(-7519.91, 14468.26)),
                 BT.MoveAndDialog(Vec2f(-10461, 15229), dialog_id=0x827201),
-                BT.TravelToRandomDistrict(target_map_id=479),
+                BT.Travel(random_travel=True, target_map_id=479),
                 BT.MoveAndDialog(Vec2f(25345, 8604), dialog_id=0x827204),
                 PrepareForBattle(hero_list=[], henchman_list=[1, 6, 7]),
                 BT.MoveAndExitMap(Vec2f(22483, 6115), target_map_id=432),
-                ConfigureAggressiveEnv(),
+                bot.Config.Aggressive(
+                    auto_loot=False,
+                ),
                 BT.MoveAndDialog(Vec2f(20215, 5285), dialog_id=0x85),
                 BT.AddModelToLootWhitelist(15850),
                 BT.MoveAndKill(Vec2f(14429, 10337), clear_area_radius=Range.Spellcast.value),
                 BT.WaitUntilOutOfCombat(),
-                ConfigurePacifistEnv(),
+                bot.Config.Pacifist(),
                 BT.LootItems(),
                 BT.Wait(1000),
-                BT.TravelToRandomDistrict(target_map_id=449),
+                BT.Travel(random_travel=True, target_map_id=449),
                 BT.Move(Vec2f(-7519.91, 14468.26)),
                 BT.MoveAndDialog(Vec2f(-10461, 15229), dialog_id=0x827207),
             ],
@@ -422,24 +431,27 @@ def Identity_Theft() -> BehaviorTree:
 
 
 def Quality_Steel() -> BehaviorTree:
+    bot = ensure_botting_tree()
     return BehaviorTree(
         BehaviorTree.SequenceNode(
             name="Quest: Quality Steel",
             children=[
-                BT.TravelToRandomDistrict(target_map_id=449),
+                BT.Travel(random_travel=True, target_map_id=449),
                 BT.MoveAndDialog(Vec2f(-11208, 8815), dialog_id=0x826001),
-                BT.TravelToRandomDistrict(target_map_id=431),
+                BT.Travel(random_travel=True, target_map_id=431),
                 BT.MoveAndDialog(Vec2f(-4076, 5362), dialog_id=0x826004),
                 BT.MoveAndDialog(Vec2f(-2866, 7093), dialog_id=0x84),
                 PrepareForBattle(hero_list=[], henchman_list=[1, 3, 4]),
                 BT.MoveAndExitMap(Vec2f(-3172, 3271), target_map_id=430),
-                ConfigureAggressiveEnv(),
+                bot.Config.Aggressive(
+                    auto_loot=False,
+                ),
                 BT.Move(Vec2f(-1840.23, 2432.96)),
                 BT.MoveAndDialog(Vec2f(-1297, 3229), dialog_id=0x85),
                 BT.Move(Vec2f(-3225, 1749)),
                 BT.Move(Vec2f(-995, -2423)),
                 BT.MoveAndKill(Vec2f(-513, 67), clear_area_radius=Range.Spellcast.value),
-                BT.TravelToRandomDistrict(target_map_id=449),
+                BT.Travel(random_travel=True, target_map_id=449),
                 BT.MoveAndDialog(Vec2f(-11208, 8815), dialog_id=0x826007),
             ],
         )
@@ -558,7 +570,7 @@ def Craft_First_Weapon() -> BehaviorTree:
         BehaviorTree.SequenceNode(
             name="Craft first weapon",
             children=[
-                BT.TravelToRandomDistrict(target_map_id=449),
+                BT.Travel(random_travel=True, target_map_id=449),
                 BT.MoveAndInteract(Vec2f(-11270, 8785)),
                 BT.Wait(1000),
                 Craft1stWeapon(),
@@ -569,18 +581,23 @@ def Craft_First_Weapon() -> BehaviorTree:
 
 
 def A_Hidden_Threat() -> BehaviorTree:
+    bot = ensure_botting_tree()
     return BehaviorTree(
         BehaviorTree.SequenceNode(
             name="Quest: A Hidden Threat",
             children=[
-                BT.TravelToRandomDistrict(target_map_id=431),
+                BT.Travel(random_travel=True, target_map_id=431),
                 PrepareForBattle(hero_list=[], henchman_list=[1, 2, 4]),
                 BT.MoveAndDialog(Vec2f(-1835, 6505), dialog_id=0x825A01),
                 BT.MoveAndExitMap(Vec2f(-3172, 3271), target_map_id=430),
-                ConfigureAggressiveEnv(),
+                bot.Config.Aggressive(
+                    auto_loot=False,
+                ),
                 BT.Move(Vec2f(-1840.23, 2432.96)),
                 BT.MoveAndDialog(Vec2f(-1297, 3229), dialog_id=0x85),
-                ConfigureAggressiveEnv(),
+                bot.Config.Aggressive(
+                    auto_loot=False,
+                ),
                 BT.Move(Vec2f(-4680.29, 1867.42)),
                 BT.Move(Vec2f(-13276, -151)),
                 BT.Move(Vec2f(-17946.33, 2426.69)),
@@ -589,7 +606,7 @@ def A_Hidden_Threat() -> BehaviorTree:
                 BT.Move(Vec2f(-16911.47, 19039.31)),
                 BT.WaitUntilOnCombat(),
                 BT.WaitUntilOutOfCombat(),
-                BT.TravelToRandomDistrict(target_map_id=431),
+                BT.Travel(random_travel=True, target_map_id=431),
                 BT.MoveAndDialog(Vec2f(-1835, 6505), dialog_id=0x825A07),
             ],
         )
@@ -601,7 +618,7 @@ def Deposit_Proof_Of_Legend() -> BehaviorTree:
         BehaviorTree.SequenceNode(
             name="Deposit Proof of Legend",
             children=[
-                BT.TravelToRandomDistrict(target_map_id=449),
+                BT.Travel(random_travel=True, target_map_id=449),
                 BT.DepositModelToStorage(37841),
                 BT.DepositGoldKeep(0),
             ],

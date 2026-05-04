@@ -1,20 +1,53 @@
-from typing import TYPE_CHECKING, Callable
+import os
+import re
+from typing import TYPE_CHECKING, Callable, Protocol, cast
 
 import Py4GW
 import PyImGui
 
 from ..GlobalCache import GLOBAL_CACHE
+from ..ImGui import ImGui
 from ..Overlay import Overlay
 from ..Player import Player
 from ..py4gwcorelib_src.Color import Color, ColorPalette
+from ..py4gwcorelib_src.WindowFactory import ManagedWindowSpec, WindowFactory
 
 if TYPE_CHECKING:
     from ..BottingTree import BottingTree
 
 
+class _BottingTreeUIMovePathHost(Protocol):
+    class _DrawableTree(Protocol):
+        def draw(self) -> None: ...
+
+    blackboard: dict
+    draw_move_path_enabled: bool
+    draw_move_path_labels: bool
+    draw_move_path_thickness: float
+    draw_move_waypoint_radius: float
+    draw_move_current_waypoint_radius: float
+    tree: _DrawableTree
+
+    def DrawMovePath(
+        self,
+        draw_labels: bool = False,
+        player_to_waypoint_color: Color = ColorPalette.GetColor('aqua'),
+        remaining_path_color: Color = ColorPalette.GetColor('orange'),
+        waypoint_color: Color = ColorPalette.GetColor('dodger_blue'),
+        current_waypoint_color: Color = ColorPalette.GetColor('tomato'),
+        player_marker_color: Color = ColorPalette.GetColor('white'),
+        path_thickness: float = 4.0,
+        waypoint_radius: float = 15.0,
+        current_waypoint_radius: float = 20.0,
+    ) -> None: ...
+
+    def GetMoveData(self) -> dict: ...
+
+
 class BottingTreeUIMovePathMixin:
     def GetMoveData(self) -> dict:
-        bb = self.blackboard
+        host = cast(_BottingTreeUIMovePathHost, self)
+        bb = host.blackboard
         path_points_raw = bb.get('move_path_points', [])
         path_points: list[tuple[float, float]] = []
         if isinstance(path_points_raw, list):
@@ -51,48 +84,52 @@ class BottingTreeUIMovePathMixin:
         }
 
     def SetMovePathDrawingEnabled(self, enabled: bool) -> None:
-        self.draw_move_path_enabled = bool(enabled)
+        host = cast(_BottingTreeUIMovePathHost, self)
+        host.draw_move_path_enabled = bool(enabled)
 
     def IsMovePathDrawingEnabled(self) -> bool:
-        return bool(self.draw_move_path_enabled)
+        host = cast(_BottingTreeUIMovePathHost, self)
+        return bool(host.draw_move_path_enabled)
 
     def DrawMovePathDebugOptions(self, label: str = 'Draw Move Path Debug Options') -> None:
+        host = cast(_BottingTreeUIMovePathHost, self)
         if PyImGui.collapsing_header(label):
-            self.draw_move_path_enabled = PyImGui.checkbox(
+            host.draw_move_path_enabled = PyImGui.checkbox(
                 'Draw Move Path',
-                self.draw_move_path_enabled,
+                host.draw_move_path_enabled,
             )
-            self.draw_move_path_labels = PyImGui.checkbox(
+            host.draw_move_path_labels = PyImGui.checkbox(
                 'Draw Path Labels',
-                self.draw_move_path_labels,
+                host.draw_move_path_labels,
             )
-            self.draw_move_path_thickness = PyImGui.slider_float(
+            host.draw_move_path_thickness = PyImGui.slider_float(
                 'Path Thickness',
-                self.draw_move_path_thickness,
+                host.draw_move_path_thickness,
                 1.0,
                 6.0,
             )
-            self.draw_move_waypoint_radius = PyImGui.slider_float(
+            host.draw_move_waypoint_radius = PyImGui.slider_float(
                 'Waypoint Radius',
-                self.draw_move_waypoint_radius,
+                host.draw_move_waypoint_radius,
                 15.0,
                 100.0,
             )
-            self.draw_move_current_waypoint_radius = PyImGui.slider_float(
+            host.draw_move_current_waypoint_radius = PyImGui.slider_float(
                 'Current Waypoint Radius',
-                self.draw_move_current_waypoint_radius,
+                host.draw_move_current_waypoint_radius,
                 20.0,
                 120.0,
             )
 
     def DrawMovePathIfEnabled(self) -> None:
-        if not self.draw_move_path_enabled:
+        host = cast(_BottingTreeUIMovePathHost, self)
+        if not host.draw_move_path_enabled:
             return
-        self.DrawMovePath(
-            draw_labels=self.draw_move_path_labels,
-            path_thickness=self.draw_move_path_thickness,
-            waypoint_radius=self.draw_move_waypoint_radius,
-            current_waypoint_radius=self.draw_move_current_waypoint_radius,
+        host.DrawMovePath(
+            draw_labels=host.draw_move_path_labels,
+            path_thickness=host.draw_move_path_thickness,
+            waypoint_radius=host.draw_move_waypoint_radius,
+            current_waypoint_radius=host.draw_move_current_waypoint_radius,
         )
 
     def DrawMovePath(
@@ -107,7 +144,8 @@ class BottingTreeUIMovePathMixin:
         waypoint_radius: float = 15.0,
         current_waypoint_radius: float = 20.0,
     ) -> None:
-        move_data = self.GetMoveData()
+        host = cast(_BottingTreeUIMovePathHost, self)
+        move_data = host.GetMoveData()
         move_state = move_data['state']
         path_points = move_data['path_points']
         if move_state not in ('running', 'paused') or not path_points:
@@ -178,7 +216,8 @@ class BottingTreeUIMovePathMixin:
             overlay.EndDraw()
 
     def Draw(self):
-        self.tree.draw()
+        host = cast(_BottingTreeUIMovePathHost, self)
+        host.tree.draw()
 
 
 class _BottingTreeUI:
@@ -190,6 +229,136 @@ class _BottingTreeUI:
         self._selected_start_index = 0
         self._show_tree = True
         self._debug_console_height = 200.0
+        self._window_factory: WindowFactory | None = None
+        self._floating_button: ImGui.FloatingIcon | None = None
+        self._window_factory_ready = False
+        self._window_args: dict[str, object] = {
+            'main_child_dimensions': (350, 325),
+            'icon_path': '',
+            'iconwidth': 96,
+            'additional_ui': None,
+            'extra_tabs': None,
+        }
+
+    @staticmethod
+    def _sanitize_identifier(value: str) -> str:
+        return re.sub(r'[^A-Za-z0-9_-]+', '_', value).strip('_') or 'BottingTree'
+
+    def _default_icon_path(self) -> str:
+        return os.path.join(Py4GW.Console.get_projects_path(), 'python_icon_round.png')
+
+    def _ensure_window_factory(self) -> bool:
+        if self._window_factory_ready and self._window_factory is not None:
+            return True
+
+        safe_name = self._sanitize_identifier(self.parent.bot_name)
+        ini_path = f'Widgets/Automation/BottingTree/{safe_name}'
+        factory = WindowFactory(ini_path)
+        factory.register_window(
+            ManagedWindowSpec(
+                identifier='main',
+                filename='BottingTreeUI.ini',
+                title=self.parent.bot_name,
+                flags=PyImGui.WindowFlags(PyImGui.WindowFlags.AlwaysAutoResize),
+                open_var_name='show_main_window',
+                open_default=True,
+            )
+        )
+        factory.register_window(
+            ManagedWindowSpec(
+                identifier='floating',
+                filename='BottingTreeFloating.ini',
+                title=f'{self.parent.bot_name} Toggle',
+            )
+        )
+
+        if not factory.ensure_ini():
+            return False
+
+        self._window_factory = factory
+        self._window_factory_ready = True
+        return True
+
+    def _ensure_floating_button(self, icon_path: str = '') -> ImGui.FloatingIcon | None:
+        if not self._ensure_window_factory() or self._window_factory is None:
+            return None
+
+        resolved_icon_path = icon_path or self._default_icon_path()
+        if self._floating_button is None:
+            safe_name = self._sanitize_identifier(self.parent.bot_name)
+            self._floating_button = ImGui.FloatingIcon(
+                icon_path=resolved_icon_path,
+                window_id=f'##{safe_name}_floating_toggle_button',
+                window_name=f'{self.parent.bot_name} Toggle',
+                tooltip_visible=f'Hide {self.parent.bot_name}',
+                tooltip_hidden=f'Show {self.parent.bot_name}',
+                toggle_ini_key=self._window_factory.key('main'),
+                toggle_var_name='show_main_window',
+                toggle_default=True,
+                draw_callback=self._draw_managed_window,
+            )
+            self._floating_button.load_visibility()
+            self._floating_button.load_config(self._window_factory.key('floating'))
+        else:
+            self._floating_button.icon_path = resolved_icon_path
+            self._floating_button.draw_callback = self._draw_managed_window
+
+        return self._floating_button
+
+    def _draw_managed_window(self) -> None:
+        if self._window_factory is None:
+            return
+
+        expanded, open_ = self._window_factory.begin(
+            'main',
+            p_open=(self._floating_button.visible if self._floating_button is not None else self._window_factory.is_open('main')),
+        )
+        if self._floating_button is not None:
+            self._floating_button.sync_begin_with_close(open_)
+
+        if expanded:
+            main_child_dimensions = cast(tuple[int, int], self._window_args['main_child_dimensions'])
+            icon_path = cast(str, self._window_args['icon_path'])
+            iconwidth = cast(int, self._window_args['iconwidth'])
+            additional_ui = cast(Callable[[], None] | None, self._window_args['additional_ui'])
+            extra_tabs = cast(list[tuple[str, Callable[[], None]]] | None, self._window_args['extra_tabs'])
+
+            if PyImGui.begin_tab_bar(self.parent.bot_name + '_tabs'):
+                if PyImGui.begin_tab_item('Main'):
+                    if PyImGui.begin_child(f'{self.parent.bot_name} - Main', main_child_dimensions, True, PyImGui.WindowFlags.NoFlag):
+                        self._draw_main_child(main_child_dimensions, icon_path, iconwidth)
+                        if additional_ui is not None:
+                            PyImGui.separator()
+                            additional_ui()
+                    PyImGui.end_child()
+                    PyImGui.end_tab_item()
+
+                if PyImGui.begin_tab_item('Navigation'):
+                    self._draw_navigation_child(main_child_dimensions)
+                    PyImGui.end_tab_item()
+
+                if PyImGui.begin_tab_item('Settings'):
+                    self._draw_settings_child()
+                    PyImGui.end_tab_item()
+
+                if PyImGui.begin_tab_item('Help'):
+                    self._draw_help_child()
+                    PyImGui.end_tab_item()
+
+                if PyImGui.begin_tab_item('Debug'):
+                    self.draw_debug_window()
+                    PyImGui.end_tab_item()
+
+                if extra_tabs:
+                    for tab_label, tab_draw_fn in extra_tabs:
+                        if PyImGui.begin_tab_item(tab_label):
+                            if callable(tab_draw_fn):
+                                tab_draw_fn()
+                            PyImGui.end_tab_item()
+
+                PyImGui.end_tab_bar()
+
+        ImGui.End(self._window_factory.key('main'))
 
     def override_draw_texture(self, draw_fn: Callable[[], None] | None = None) -> None:
         self.draw_texture_fn = draw_fn
@@ -237,7 +406,7 @@ class _BottingTreeUI:
 
     def _draw_main_child(
         self,
-        main_child_dimensions: tuple[int, int] = (350, 275),
+        main_child_dimensions: tuple[int, int] = (350, 300),
         icon_path: str = '',
         iconwidth: int = 96,
     ) -> None:
@@ -353,48 +522,26 @@ class _BottingTreeUI:
 
     def draw_window(
         self,
-        main_child_dimensions: tuple[int, int] = (350, 275),
+        main_child_dimensions: tuple[int, int] = (350, 325),
         icon_path: str = '',
         iconwidth: int = 96,
         additional_ui: Callable[[], None] | None = None,
         extra_tabs: list[tuple[str, Callable[[], None]]] | None = None,
     ) -> bool:
-        if PyImGui.begin(self.parent.bot_name, PyImGui.WindowFlags.AlwaysAutoResize):
-            if PyImGui.begin_tab_bar(self.parent.bot_name + '_tabs'):
-                if PyImGui.begin_tab_item('Main'):
-                    if PyImGui.begin_child(f'{self.parent.bot_name} - Main', main_child_dimensions, True, PyImGui.WindowFlags.NoFlag):
-                        self._draw_main_child(main_child_dimensions, icon_path, iconwidth)
-                        if additional_ui is not None:
-                            PyImGui.separator()
-                            additional_ui()
-                    PyImGui.end_child()
-                    PyImGui.end_tab_item()
+        self._window_args = {
+            'main_child_dimensions': main_child_dimensions,
+            'icon_path': icon_path,
+            'iconwidth': iconwidth,
+            'additional_ui': additional_ui,
+            'extra_tabs': extra_tabs,
+        }
 
-                if PyImGui.begin_tab_item('Navigation'):
-                    self._draw_navigation_child(main_child_dimensions)
-                    PyImGui.end_tab_item()
+        floating_button = self._ensure_floating_button(icon_path)
+        if floating_button is not None and self._window_factory is not None:
+            floating_button.draw(self._window_factory.key('floating'))
+        else:
+            self._draw_managed_window()
 
-                if PyImGui.begin_tab_item('Settings'):
-                    self._draw_settings_child()
-                    PyImGui.end_tab_item()
-
-                if PyImGui.begin_tab_item('Help'):
-                    self._draw_help_child()
-                    PyImGui.end_tab_item()
-
-                if PyImGui.begin_tab_item('Debug'):
-                    self.draw_debug_window()
-                    PyImGui.end_tab_item()
-
-                if extra_tabs:
-                    for tab_label, tab_draw_fn in extra_tabs:
-                        if PyImGui.begin_tab_item(tab_label):
-                            if callable(tab_draw_fn):
-                                tab_draw_fn()
-                            PyImGui.end_tab_item()
-
-                PyImGui.end_tab_bar()
-        PyImGui.end()
         self.parent.DrawMovePathIfEnabled()
         return True
 

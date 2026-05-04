@@ -302,7 +302,7 @@ class BTParty:
         """
 
         def _set_title() -> BehaviorTree.NodeState:
-            Player.SetTitle(int(title_id))
+            Player.SetActiveTitle(int(title_id))
             if log:
                 ConsoleLog("BTParty.SetTitle", f"Set title id={int(title_id)}.", Console.MessageType.Info, log=log)
             return BehaviorTree.NodeState.SUCCESS
@@ -421,5 +421,65 @@ class BTParty:
                 name="AbandonQuest",
                 action_fn=_abandon_quest,
                 aftercast_ms=max(0, int(aftercast_ms)),
+            )
+        )
+
+    @staticmethod
+    def WaitForActiveQuest(quest_id: int, timeout_ms: int = 10000, throttle_interval_ms: int = 250) -> BehaviorTree:
+        """
+        Build a tree that waits until the requested quest becomes the active quest.
+
+        Meta:
+          Expose: true
+          Audience: intermediate
+          Display: Wait For Active Quest
+          Purpose: Wait until a specific quest id is the active quest.
+          UserDescription: Use this when a dialog or interaction should be confirmed by checking the active quest id.
+          Notes: Succeeds only when the requested quest becomes active before timeout.
+        """
+
+        def _wait_for_active_quest() -> BehaviorTree.NodeState:
+            from ...Quest import Quest
+
+            if int(Quest.GetActiveQuest() or 0) == int(quest_id):
+                return BehaviorTree.NodeState.SUCCESS
+            return BehaviorTree.NodeState.RUNNING
+
+        return BehaviorTree(
+            BehaviorTree.WaitUntilNode(
+                name=f"WaitForActiveQuest({int(quest_id)})",
+                condition_fn=_wait_for_active_quest,
+                throttle_interval_ms=max(1, int(throttle_interval_ms)),
+                timeout_ms=max(0, int(timeout_ms)),
+            )
+        )
+
+    @staticmethod
+    def WaitForQuestCleared(quest_id: int, timeout_ms: int = 10000, throttle_interval_ms: int = 250) -> BehaviorTree:
+        """
+        Build a tree that waits until the requested quest is no longer the active quest.
+
+        Meta:
+          Expose: true
+          Audience: intermediate
+          Display: Wait For Quest Cleared
+          Purpose: Wait until a specific quest id is no longer active.
+          UserDescription: Use this when quest completion or abandonment should be confirmed by checking that the active quest changed away.
+          Notes: Succeeds when the active quest differs from the requested quest before timeout.
+        """
+
+        def _wait_for_quest_cleared() -> BehaviorTree.NodeState:
+            from ...Quest import Quest
+
+            if int(Quest.GetActiveQuest() or 0) != int(quest_id):
+                return BehaviorTree.NodeState.SUCCESS
+            return BehaviorTree.NodeState.RUNNING
+
+        return BehaviorTree(
+            BehaviorTree.WaitUntilNode(
+                name=f"WaitForQuestCleared({int(quest_id)})",
+                condition_fn=_wait_for_quest_cleared,
+                throttle_interval_ms=max(1, int(throttle_interval_ms)),
+                timeout_ms=max(0, int(timeout_ms)),
             )
         )

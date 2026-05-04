@@ -1,10 +1,34 @@
 from collections.abc import Sequence as RuntimeSequence
-from typing import Callable, Sequence, cast
+from typing import TYPE_CHECKING, Callable, Sequence, cast
 
 from ..py4gwcorelib_src.BehaviorTree import BehaviorTree
 
 
-class BottingTreeRoutineMixin:
+class BottingTreePlannerMixin:
+    _service_trees: list[tuple[str, BehaviorTree]]
+    planner_tree: BehaviorTree
+    tree: BehaviorTree
+    _planner_steps: list[tuple[str, Callable[[], object] | object]]
+    _planner_sequence_name: str
+    planner_repeat: bool
+
+    if TYPE_CHECKING:
+        def Start(self) -> None: ...
+
+        def Reset(self) -> None: ...
+
+        def GetBlackboardValue(self, key: str, default=None): ...
+
+        def SetBlackboardValue(self, key: str, value) -> None: ...
+
+        def ClearBlackboardValue(self, key: str) -> None: ...
+
+        def _tick_heroai(self, node: BehaviorTree.Node) -> BehaviorTree.NodeState: ...
+
+        def _tick_planner(self, node: BehaviorTree.Node) -> BehaviorTree.NodeState: ...
+
+        def _tick_service_tree(self, node: BehaviorTree.Node, service_tree: BehaviorTree, service_name: str) -> BehaviorTree.NodeState: ...
+
     def _build_default_planner_tree(self) -> BehaviorTree:
         return BehaviorTree(
             root=BehaviorTree.ActionNode(

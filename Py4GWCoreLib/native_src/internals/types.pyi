@@ -1,6 +1,6 @@
 from typing import Optional
 from ctypes import Structure
-from typing import Generic, TypeVar
+from typing import Generic, TypeAlias, TypeVar
 
 T = TypeVar("T")
 
@@ -14,6 +14,17 @@ class Vec2f(Structure):
     def __init__(self, x: float = 0.0, y: float = 0.0): ...
     def to_tuple(self) -> tuple[float, float]: ...
     def to_list(self) -> list[float]: ...
+
+Point2D = tuple[float, float]
+PointOrPath: TypeAlias = Vec2f | Point2D | list[Vec2f] | list[Point2D]
+
+class PointPath:
+    Value: TypeAlias = PointOrPath
+
+    @staticmethod
+    def as_path(pos: PointOrPath) -> list[Vec2f]: ...
+    @staticmethod
+    def final_point(pos: PointOrPath) -> Vec2f | None: ...
     
 class Vec3f(Structure):
     x: float

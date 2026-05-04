@@ -46,7 +46,10 @@ Docstring parsing rules
 from __future__ import annotations
 
 import importlib
+from collections.abc import Mapping
+from collections.abc import Sequence
 
+from ...Agent import Agent
 from ...GlobalCache import GLOBAL_CACHE
 from ...Player import Player
 from ...Py4GWcorelib import ConsoleLog, Console
@@ -126,8 +129,70 @@ class BTSkills:
             ConsoleLog("LoadSkillbar", f"Loaded skillbar template.", Console.MessageType.Info, log=log)
             return BehaviorTree.NodeState.SUCCESS
         
-        tree = BehaviorTree.ActionNode(name="LoadSkillbar", action_fn=lambda: _load_skillbar(template), aftercast_ms=500)
+        tree = BehaviorTree.ActionNode(name="LoadSkillbar", action_fn=lambda: _load_skillbar(template), aftercast_ms=250)
         return BehaviorTree(tree)
+
+    @staticmethod
+    def LoadSkillbarFromMap(
+        profession_level_skillbars: Mapping[str, Sequence[tuple[int | None, str]]],
+        default_template: str = "",
+        log: bool = False,
+    ):
+        """
+        Build a tree that resolves a skillbar template from profession/level rules and loads it.
+
+        Meta:
+          Expose: true
+          Audience: intermediate
+          Display: Load Skillbar From Map
+          Purpose: Select a player skillbar template automatically from a profession and level mapping.
+          UserDescription: Use this when different professions or level bands should load different templates without local selection code.
+          Notes: Each profession maps to ordered `(max_level_exclusive, template)` pairs. Use `None` for the final fallback pair. A `"default"` mapping key or `default_template` is used when no profession-specific entry matches.
+        """
+        state = {
+            "template": "",
+        }
+
+        def _select_template() -> str:
+            primary_profession, _ = Agent.GetProfessionNames(Player.GetAgentID())
+            current_level = int(Agent.GetLevel(Player.GetAgentID()) or 0)
+
+            candidates = profession_level_skillbars.get(primary_profession)
+            if not candidates:
+                candidates = profession_level_skillbars.get("default")
+            if not candidates:
+                return str(default_template or "")
+
+            fallback_template = str(default_template or "")
+            for max_level_exclusive, template in candidates:
+                if max_level_exclusive is None:
+                    fallback_template = str(template)
+                    continue
+                if current_level < int(max_level_exclusive):
+                    return str(template)
+
+            return fallback_template
+
+        def _resolve_template() -> BehaviorTree.NodeState:
+            state["template"] = _select_template()
+            return BehaviorTree.NodeState.SUCCESS if state["template"] else BehaviorTree.NodeState.FAILURE
+
+        return BehaviorTree(
+            BehaviorTree.SequenceNode(
+                name="LoadSkillbarFromMap",
+                children=[
+                    BehaviorTree.ActionNode(
+                        name="ResolveSkillbarTemplate",
+                        action_fn=_resolve_template,
+                        aftercast_ms=0,
+                    ),
+                    BehaviorTree.SubtreeNode(
+                        name="LoadResolvedSkillbar",
+                        subtree_fn=lambda _node: BTSkills.LoadSkillbar(state["template"], log=log),
+                    ),
+                ],
+            )
+        )
     
     @staticmethod
     def LoadHeroSkillbar(hero_index:int, template:str, log:bool=False):
@@ -158,7 +223,7 @@ class BTSkills:
             ConsoleLog("LoadHeroSkillbar", f"Loaded hero {hero_index} skillbar template.", Console.MessageType.Info, log=log)
             return BehaviorTree.NodeState.SUCCESS
         
-        tree = BehaviorTree.ActionNode(name="LoadHeroSkillbar", action_fn=lambda: _load_hero_skillbar(hero_index, template), aftercast_ms=500)
+        tree = BehaviorTree.ActionNode(name="LoadHeroSkillbar", action_fn=lambda: _load_hero_skillbar(hero_index, template), aftercast_ms=250)
         return BehaviorTree(tree)
     
     @staticmethod
