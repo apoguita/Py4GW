@@ -23,6 +23,12 @@ from .step_utils import log_recipe, recipe_debug_logging_enabled
 from .step_utils import parse_step_bool, parse_step_float, parse_step_int, wait_after_step
 
 
+def _recipe_log(recipe_name: str, message: str) -> None:
+    from Py4GWCoreLib import ConsoleLog
+
+    ConsoleLog(f"Recipe:{recipe_name}", message)
+
+
 def handle_target_enemy(ctx: StepContext) -> None:
     set_party_target = parse_step_bool(ctx.step.get("set_party_target", False), False)
     step_name = ctx.step.get("name", "Target Enemy")
@@ -51,8 +57,6 @@ def handle_target_enemy(ctx: StepContext) -> None:
 
 
 def handle_debug_nearby_enemies(ctx: StepContext) -> None:
-    from Py4GWCoreLib import ConsoleLog
-
     max_dist = parse_step_float(ctx.step.get("max_dist", 5000.0), 5000.0)
     if max_dist <= 0:
         max_dist = 5000.0
@@ -69,14 +73,12 @@ def handle_debug_nearby_enemies(ctx: StepContext) -> None:
         include_dead=include_dead,
         enabled=lambda: recipe_debug_logging_enabled(ctx),
         name=str(ctx.step.get("name", "Debug Nearby Enemies")),
-        log=lambda message: ConsoleLog(f"Recipe:{ctx.recipe_name}", message),
+        log=lambda message: _recipe_log(ctx.recipe_name, message),
     )
     wait_after_step(ctx.bot, ctx.step)
 
 
 def handle_debug_nearby_agents(ctx: StepContext) -> None:
-    from Py4GWCoreLib import ConsoleLog
-
     max_dist = parse_step_float(ctx.step.get("max_dist", 5000.0), 5000.0)
     if max_dist <= 0:
         max_dist = 5000.0
@@ -93,7 +95,7 @@ def handle_debug_nearby_agents(ctx: StepContext) -> None:
         include_dead=include_dead,
         enabled=lambda: recipe_debug_logging_enabled(ctx),
         name=str(ctx.step.get("name", "Debug Nearby Agents")),
-        log=lambda message: ConsoleLog(f"Recipe:{ctx.recipe_name}", message),
+        log=lambda message: _recipe_log(ctx.recipe_name, message),
     )
     wait_after_step(ctx.bot, ctx.step)
 

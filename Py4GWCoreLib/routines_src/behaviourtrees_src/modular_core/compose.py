@@ -55,13 +55,17 @@ def expand_steps(
     return expanded
 
 
+def _fail_log(message: str, *, message_type=Console.MessageType.Error) -> None:
+    ConsoleLog("ModularBot", message, message_type)
+
+
 def _unknown_step_tree(request: StepNodeRequest) -> BehaviorTree:
     def _fail_unknown() -> BehaviorTree.NodeState:
         message = (
             f"Unknown step type {request.step_type!r} at index {request.step_idx} "
             f"for phase={request.phase_name!r}."
         )
-        ConsoleLog("ModularBot", message, Console.MessageType.Error)
+        _fail_log(message, message_type=Console.MessageType.Error)
         request.owner.record_diagnostics_event(
             "step_registration_failed",
             phase=request.phase_name,

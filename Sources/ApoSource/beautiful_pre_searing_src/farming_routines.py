@@ -35,7 +35,7 @@ def FarmUntilItemQuantityReached(
                 name="FarmUntilItemQuantityReachedLoop",
                 children=[
                     LogMessage("Starting farming routine"),
-                    BT.TravelToOutpost(start_map_id),
+                    BT.Travel(start_map_id),
                     merchant_cleanup(
                         exclude_models=exclude_models,
                         destroy_zero_value_items=True,
@@ -60,7 +60,7 @@ def FarmUntilItemQuantityReached(
                                 name="TravelBackAndRepeat",
                                 children=[
                                     LogMessage("Target quantity not reached, restarting routine"),
-                                    BT.TravelToOutpost(start_map_id),
+                                    BT.Travel(start_map_id),
                                     BehaviorTree.FailerNode(
                                         name="RepeatFarmRoutine",
                                     ),

@@ -38,9 +38,9 @@ class BottingTreeTicksMixin:
             return BehaviorTree.NodeState.RUNNING
 
         if not self.IsHeadlessHeroAIEnabled():
-            if self._last_heroai_state != 'disabled':
+            if self._should_log_heroai_state('disabled'):
                 Py4GW.Console.Log('BottingTree', 'Headless HeroAI is disabled.', Py4GW.Console.MessageType.Info)
-                self._last_heroai_state = 'disabled'
+            self._last_heroai_state = 'disabled'
             bb['COMBAT_ACTIVE'] = False
             bb['LOOTING_ACTIVE'] = False
             bb['PAUSE_MOVEMENT'] = False
@@ -52,9 +52,9 @@ class BottingTreeTicksMixin:
         self.EnsureHeroAIOptionsEnabled()
 
         if Routines.Checks.Map.IsLoading() or not Routines.Checks.Map.IsExplorable():
-            if self._last_heroai_state != 'waiting_map':
+            if self._should_log_heroai_state('waiting_map'):
                 Py4GW.Console.Log('BottingTree', 'HeroAI waiting for combat-ready map.', Py4GW.Console.MessageType.Info)
-                self._last_heroai_state = 'waiting_map'
+            self._last_heroai_state = 'waiting_map'
             bb['COMBAT_ACTIVE'] = False
             bb['LOOTING_ACTIVE'] = False
             bb['PAUSE_MOVEMENT'] = False
@@ -64,9 +64,9 @@ class BottingTreeTicksMixin:
             return BehaviorTree.NodeState.RUNNING
 
         if Routines.Checks.Player.IsDead():
-            if self._last_heroai_state != 'player_dead':
+            if self._should_log_heroai_state('player_dead'):
                 Py4GW.Console.Log('BottingTree', 'HeroAI paused because player is dead.', Py4GW.Console.MessageType.Warning)
-                self._last_heroai_state = 'player_dead'
+            self._last_heroai_state = 'player_dead'
             bb['COMBAT_ACTIVE'] = False
             bb['LOOTING_ACTIVE'] = False
             bb['PAUSE_MOVEMENT'] = False
@@ -75,9 +75,9 @@ class BottingTreeTicksMixin:
             return BehaviorTree.NodeState.RUNNING
 
         if Routines.Checks.Player.IsKnockedDown():
-            if self._last_heroai_state != 'knocked_down':
+            if self._should_log_heroai_state('knocked_down'):
                 Py4GW.Console.Log('BottingTree', 'HeroAI paused because player is knocked down.', Py4GW.Console.MessageType.Warning)
-                self._last_heroai_state = 'knocked_down'
+            self._last_heroai_state = 'knocked_down'
             bb['COMBAT_ACTIVE'] = bool(self.headless_heroai.cached_data.data.in_aggro)
             bb['LOOTING_ACTIVE'] = False
             bb['PAUSE_MOVEMENT'] = False

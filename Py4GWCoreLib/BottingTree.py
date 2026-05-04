@@ -1,3 +1,4 @@
+import time
 from typing import Callable, Sequence
 
 import Py4GW
@@ -10,7 +11,8 @@ from .botting_tree_src.enums import HeroAIStatus, PlannerStatus
 from .botting_tree_src.heroai import BottingTreeHeroAIMixin
 from .botting_tree_src.isolation import BottingTreeIsolationMixin
 from .botting_tree_src.messaging import BottingTreeMessagingMixin
-from .botting_tree_src.routine import BottingTreeRoutineMixin
+from .botting_tree_src.planner import BottingTreePlannerMixin
+from .botting_tree_src.routines import _BottingTreeRoutines
 from .botting_tree_src.services import BottingTreeServicesMixin
 from .botting_tree_src.templates import BottingTreeTemplates, _BottingTreeTemplates
 from .botting_tree_src.ticks import BottingTreeTicksMixin
@@ -23,7 +25,7 @@ class BottingTree(
     BottingTreeBlackboardMixin,
     BottingTreeDebuggingMixin,
     BottingTreeMessagingMixin,
-    BottingTreeRoutineMixin,
+    BottingTreePlannerMixin,
     BottingTreeUpkeepMixin,
     BottingTreeServicesMixin,
     BottingTreeIsolationMixin,
@@ -88,6 +90,7 @@ class BottingTree(
         self._last_planner_gate_state = None
         self._last_heroai_state = None
         self.Config = _BottingTreeConfig(self)
+        self.Routines = _BottingTreeRoutines(self)
         self.Templates = _BottingTreeTemplates(self)
         self.UI = _BottingTreeUI(self)
 
@@ -105,6 +108,9 @@ class BottingTree(
         self.draw_move_waypoint_radius = 15.0
         self.draw_move_current_waypoint_radius = 20.0
         self.output_detailed_logging = False
+        self.heroai_state_logging_enabled = True
+        self.heroai_state_log_interval_ms = 5000
+        self._last_heroai_log_ms = 0
 
     def Start(self):
         self.Reset()
@@ -164,12 +170,34 @@ class BottingTree(
     def IsStarted(self) -> bool:
         return self.started
 
+    def SetHeroAIStateLogging(self, enabled: bool = True, interval_ms: int = 5000):
+        self.heroai_state_logging_enabled = bool(enabled)
+        self.heroai_state_log_interval_ms = max(0, int(interval_ms))
+        self._last_heroai_log_ms = 0
+
+    def _should_log_heroai_state(self, state_key: str) -> bool:
+        if not self.heroai_state_logging_enabled:
+            return False
+        now_ms = int(time.monotonic() * 1000)
+        interval_ms = max(0, int(self.heroai_state_log_interval_ms))
+        if self._last_heroai_state != state_key:
+            self._last_heroai_log_ms = now_ms
+            return True
+        if interval_ms == 0:
+            self._last_heroai_log_ms = now_ms
+            return True
+        if now_ms - int(self._last_heroai_log_ms) >= interval_ms:
+            self._last_heroai_log_ms = now_ms
+            return True
+        return False
+
 __all__ = [
     'BottingTree',
     'BottingTreeTemplates',
     'HeroAIStatus',
     'PlannerStatus',
     '_BottingTreeConfig',
+    '_BottingTreeRoutines',
     '_BottingTreeTemplates',
     '_BottingTreeUI',
 ]

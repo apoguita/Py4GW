@@ -17,6 +17,10 @@ from .step_actions import StepActionHandler
 from .step_context import StepContext
 
 
+def _fail_log(message: str, *, message_type=Console.MessageType.Error) -> None:
+    ConsoleLog("ModularBot", message, message_type)
+
+
 def _build_step_context(request: StepNodeRequest) -> StepContext:
     runtime_step = dict(request.step)
     # Step delay is handled by the BT post-delay decorator.
@@ -53,7 +57,7 @@ class _StepNodeRuntimeAction:
 
     def _fail(self, message: str, *, traceback_text: str = "") -> BehaviorTree.NodeState:
         owner = self.request.owner
-        ConsoleLog("ModularBot", message, Console.MessageType.Error)
+        _fail_log(message, message_type=Console.MessageType.Error)
         owner.record_diagnostics_event(
             "exception",
             phase=self.request.phase_name,

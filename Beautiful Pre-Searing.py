@@ -61,7 +61,7 @@ def CharrAtTheGate() -> BehaviorTree:
         name="CharrAtTheGateSingleCycle",
         children=[
             LogMessage("Traveling to Ascalon City for Charr At The Gate"),
-            BT.TravelToOutpost(ASCALON_CITY_MAP_ID),
+            BT.Travel(ASCALON_CITY_MAP_ID),
             equip_build_for_level(),
             merchant_cleanup(
                 exclude_models=ITEMS_BLACKLIST,
@@ -103,7 +103,7 @@ def CharrAtTheGate() -> BehaviorTree:
             BT.Move(CHARR_AT_THE_GATE_PATH_COORDS),
             BT.WaitForClearEnemiesInArea(Vec2f(-4636.60, 11331.79), allowed_alive_enemies=1),
             LogMessage("Bailing out!"),
-            BT.TravelToOutpost(ASCALON_CITY_MAP_ID),
+            BT.Travel(ASCALON_CITY_MAP_ID),
             BottingTree.EnableHeroAITree(),
             BehaviorTree.ActionNode(
                 name="RefreshCharrAtTheGateQuest",
@@ -169,7 +169,7 @@ def WarriorExtraSkills() -> BehaviorTree:
                 name="Unlock Warrior Extra Skills",
                 children=[
                     LogMessage("Traveling to Barradin State"),
-                    BT.TravelToOutpost(BARRADIN_STATE_MAP_ID),
+                    BT.Travel(BARRADIN_STATE_MAP_ID),
                     merchant_cleanup(
                         exclude_models=ITEMS_BLACKLIST,
                         destroy_zero_value_items=True,
@@ -197,7 +197,7 @@ def RangerExtraSkills() -> BehaviorTree:
                     BT.MoveAndKill(Vec2f(11586.69, 4460.53), Range.Earshot.value),
                     BT.MoveAndAutoDialog(WARMASTER_GRAST_COORDS),
                     BT.AutoDialog(),
-                    BT.TravelToOutpost(BARRADIN_STATE_MAP_ID),
+                    BT.Travel(BARRADIN_STATE_MAP_ID),
                     BT.LoadSkillbar("OgESglcFaVxAAAAIA+m2"),
                     BT.MoveAndAutoDialog(DUKE_BARRADIN_COORDS),
                     BT.AutoDialog(),
@@ -223,7 +223,7 @@ def MonkExtraSkills() -> BehaviorTree:
                     BT.WaitForMapLoad(GREEN_HILLS_COUNTY_MAP_ID),
                     BT.MoveAndAutoDialog(GADDEN_THE_PROTECTOR_COORDS),
                     BT.AutoDialog(),
-                    BT.TravelToOutpost(ASHFORD_ABBEY_MAP_ID),
+                    BT.Travel(ASHFORD_ABBEY_MAP_ID),
                     BT.LoadSkillbar("OwISglcFgkf023bGAAAA"),
                     BT.MoveAndAutoDialog(BROTHER_MHENLO_COORDS, button_number=1),
                     BT.AutoDialog(),
@@ -244,7 +244,7 @@ def NecromancerExtraSkills() -> BehaviorTree:
                     LogMessage("Moving to Necromancer Munne"),
                     BT.MoveAndAutoDialog(NECROMANCER_MUNNE_COORDS, button_number=1),
                     BT.AutoDialog(),
-                    BT.TravelToOutpost(ASHFORD_ABBEY_MAP_ID),
+                    BT.Travel(ASHFORD_ABBEY_MAP_ID),
                     LogMessage("Necromancer Extra skills Unlocked"),
                 ],
             )
@@ -259,7 +259,7 @@ def MesmerExtraSkills() -> BehaviorTree:
                 name="MesmerExtraSkills",
                 children=[
                     BT.LogMessage("traveling to foibles fair to unlock mesmer extra skills"),
-                    BT.TravelToOutpost(FOIBLES_FAIR_MAP_ID),
+                    BT.Travel(FOIBLES_FAIR_MAP_ID),
                     merchant_cleanup(
                         exclude_models=ITEMS_BLACKLIST,
                         destroy_zero_value_items=True,
@@ -277,7 +277,7 @@ def ElementalistExtraSkills() -> BehaviorTree:
                 name="ElementalistExtraSkills",
                 children=[
                     BT.LogMessage("traveling to foibles fair to unlock elementalist extra skills"),
-                    BT.TravelToOutpost(FOIBLES_FAIR_MAP_ID),
+                    BT.Travel(FOIBLES_FAIR_MAP_ID),
                     merchant_cleanup(
                         exclude_models=ITEMS_BLACKLIST,
                         destroy_zero_value_items=True,
@@ -295,7 +295,7 @@ def ElementalistExtraSkills() -> BehaviorTree:
                                     BT.MoveAndAutoDialog(ELEMENTALIST_AZIURE_COORDS),
                                     BT.Wait(150),
                                     BT.AutoDialog(),
-                                    BT.TravelToOutpost(FOIBLES_FAIR_MAP_ID),
+                                    BT.Travel(FOIBLES_FAIR_MAP_ID),
                                     LogMessage("Elementalist Extra skills Unlocked"),
                                 ],
                             )

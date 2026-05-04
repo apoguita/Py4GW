@@ -23,7 +23,7 @@ def AcquireBeltPouch(
                         name="BeltPouchFarmLoop",
                         children=[
                             LogMessage("Traveling to Ascalon City before belt pouch farm"),
-                            BT.TravelToOutpost(ASCALON_CITY_MAP_ID),
+                            BT.Travel(ASCALON_CITY_MAP_ID),
                             LogMessage("Handling merchant before belt pouch farm"),
                             merchant_cleanup(
                                 exclude_models=belt_pouch_exclude_models,
@@ -36,7 +36,7 @@ def AcquireBeltPouch(
                                 subtree_fn=lambda node: FarmSkale(),
                             ),
                             LogMessage("Returning to Ascalon City after belt pouch farm"),
-                            BT.TravelToOutpost(ASCALON_CITY_MAP_ID),
+                            BT.Travel(ASCALON_CITY_MAP_ID),
                             LogMessage("Handling merchant after belt pouch farm"),
                             merchant_cleanup(
                                 exclude_models=belt_pouch_exclude_models,
@@ -67,7 +67,7 @@ def AcquireBeltPouch(
                     ),
                 ),
                 LogMessage("Traveling to Ascalon City for belt pouch exchange"),
-                BT.TravelToOutpost(ASCALON_CITY_MAP_ID),
+                BT.Travel(ASCALON_CITY_MAP_ID),
                 exit_current_map(),
                 LogMessage("Moving to Bronlow"),
                 BT.MoveAndInteract(BRONLOW_COORDS, target_distance=Range.Area.value),
@@ -85,7 +85,7 @@ def AcquireBeltPouch(
                     target_bag=Bags.BeltPouch,
                 ),
                 LogMessage("Traveling to Ascalon City."),
-                BT.TravelToOutpost(ASCALON_CITY_MAP_ID),
+                BT.Travel(ASCALON_CITY_MAP_ID),
                 LogMessage("Belt pouch equipped, Routine complete."),
             ],
         )

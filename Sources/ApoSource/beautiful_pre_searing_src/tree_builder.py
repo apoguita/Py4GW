@@ -43,7 +43,7 @@ def CommonMapExit(
             name="CommonMapExit",
             children=[
                 LogMessage("Common map exit routine started"),
-                BT.TravelToOutpost(travel_map_id),
+                BT.Travel(travel_map_id),
                 equip_build_for_level(),
                 merchant_cleanup(
                     exclude_models=exclude_models,

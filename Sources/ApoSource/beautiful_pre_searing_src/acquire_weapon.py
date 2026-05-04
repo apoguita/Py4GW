@@ -1125,7 +1125,7 @@ def FarmBow(exclude_models: list[int] | None = None) -> BehaviorTree:
             name="Farm Bow",
             children=[
                 LogMessage("Traveling to Ashford Abbey to Farm for Ascalon Hornbow"),
-                BT.TravelToOutpost(ASHFORD_ABBEY_MAP_ID),
+                BT.Travel(ASHFORD_ABBEY_MAP_ID),
                 BehaviorTree.SubtreeNode(
                     name="RuntimeMerchantCleanup",
                     subtree_fn=_build_runtime_merchant_cleanup,
@@ -1194,7 +1194,7 @@ def FarmWarriorMaterials(exclude_models: list[int] | None = None) -> BehaviorTre
                     name="MaterialsReadyAfterMerchantPrep",
                     children=[
                         LogMessage("Traveling to Ashford Abbey to farm warrior weapon materials"),
-                        BT.TravelToOutpost(ASHFORD_ABBEY_MAP_ID),
+                        BT.Travel(ASHFORD_ABBEY_MAP_ID),
                         BehaviorTree.SubtreeNode(
                             name="RuntimeWarriorMerchantCleanup",
                             subtree_fn=_build_runtime_warrior_cleanup,
@@ -1211,7 +1211,7 @@ def FarmWarriorMaterials(exclude_models: list[int] | None = None) -> BehaviorTre
                     name="FarmWarriorMaterialsInRegentValley",
                     children=[
                         LogMessage("Traveling to Ashford Abbey to farm warrior weapon materials"),
-                        BT.TravelToOutpost(ASHFORD_ABBEY_MAP_ID),
+                        BT.Travel(ASHFORD_ABBEY_MAP_ID),
                         BehaviorTree.SubtreeNode(
                             name="RuntimeWarriorMerchantCleanup",
                             subtree_fn=_build_runtime_warrior_cleanup,
@@ -1323,7 +1323,7 @@ def AcquireWarriorCollectorAxe() -> BehaviorTree:
                     name="TravelExchangeAndEquipKhilaAxe",
                     children=[
                         LogMessage("Traveling to Ascalon City for Arthur Ayala"),
-                        BT.TravelToOutpost(ASCALON_CITY_MAP_ID),
+                        BT.Travel(ASCALON_CITY_MAP_ID),
                         LogMessage("Moving to Arthur Ayala"),
                         BT.MoveAndInteract(ARTHUR_AYALA_COORDS, target_distance=Range.Area.value),
                         LogMessage("Crafting Khila Axe of Fortitude with 4 Iron Ingots, 1 Wood Plank, and 100 gold"),
@@ -1371,7 +1371,7 @@ def FarmBowUntilFlatbowEquipped(
                 LogMessage(F"Equipping {target_item_model_id}"),
                 BT.EquipItemByModelID(target_item_model_id),
                 LogMessage("Traveling to Ashford Abbey, routine finished"),
-                BT.TravelToOutpost(ASHFORD_ABBEY_MAP_ID),
+                BT.Travel(ASHFORD_ABBEY_MAP_ID),
                 BT.IsItemEquipped(target_item_model_id),
             ],
         )

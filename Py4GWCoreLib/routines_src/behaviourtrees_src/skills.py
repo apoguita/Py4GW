@@ -46,12 +46,23 @@ Docstring parsing rules
 from __future__ import annotations
 
 import importlib
+from collections.abc import Mapping
+from collections.abc import Sequence
 
+from ...Agent import Agent
 from ...GlobalCache import GLOBAL_CACHE
 from ...Player import Player
 from ...Py4GWcorelib import ConsoleLog, Console
 from ...py4gwcorelib_src.BehaviorTree import BehaviorTree
 from ..Checks import Checks
+
+
+def _log(source: str, message: str, *, log: bool = False, message_type=Console.MessageType.Info) -> None:
+    ConsoleLog(source, message, message_type, log=log)
+
+
+def _fail_log(source: str, message: str, message_type=Console.MessageType.Warning) -> None:
+    ConsoleLog(source, message, message_type, log=True)
 
 
 class _RProxy:
@@ -123,11 +134,76 @@ class BTSkills:
               Notes: Returns success immediately after dispatching the load request.
             """
             GLOBAL_CACHE.SkillBar.LoadSkillTemplate(template)
-            ConsoleLog("LoadSkillbar", f"Loaded skillbar template.", Console.MessageType.Info, log=log)
+            if not template:
+                _fail_log("LoadSkillbar", "Failed to load skillbar: template is empty.")
+                return BehaviorTree.NodeState.FAILURE
+            _log("LoadSkillbar", "Loaded skillbar template.", log=log)
             return BehaviorTree.NodeState.SUCCESS
         
-        tree = BehaviorTree.ActionNode(name="LoadSkillbar", action_fn=lambda: _load_skillbar(template), aftercast_ms=500)
+        tree = BehaviorTree.ActionNode(name="LoadSkillbar", action_fn=lambda: _load_skillbar(template), aftercast_ms=250)
         return BehaviorTree(tree)
+
+    @staticmethod
+    def LoadSkillbarFromMap(
+        profession_level_skillbars: Mapping[str, Sequence[tuple[int | None, str]]],
+        default_template: str = "",
+        log: bool = False,
+    ):
+        """
+        Build a tree that resolves a skillbar template from profession/level rules and loads it.
+
+        Meta:
+          Expose: true
+          Audience: intermediate
+          Display: Load Skillbar From Map
+          Purpose: Select a player skillbar template automatically from a profession and level mapping.
+          UserDescription: Use this when different professions or level bands should load different templates without local selection code.
+          Notes: Each profession maps to ordered `(max_level_exclusive, template)` pairs. Use `None` for the final fallback pair. A `"default"` mapping key or `default_template` is used when no profession-specific entry matches.
+        """
+        state = {
+            "template": "",
+        }
+
+        def _select_template() -> str:
+            primary_profession, _ = Agent.GetProfessionNames(Player.GetAgentID())
+            current_level = int(Agent.GetLevel(Player.GetAgentID()) or 0)
+
+            candidates = profession_level_skillbars.get(primary_profession)
+            if not candidates:
+                candidates = profession_level_skillbars.get("default")
+            if not candidates:
+                return str(default_template or "")
+
+            fallback_template = str(default_template or "")
+            for max_level_exclusive, template in candidates:
+                if max_level_exclusive is None:
+                    fallback_template = str(template)
+                    continue
+                if current_level < int(max_level_exclusive):
+                    return str(template)
+
+            return fallback_template
+
+        def _resolve_template() -> BehaviorTree.NodeState:
+            state["template"] = _select_template()
+            return BehaviorTree.NodeState.SUCCESS if state["template"] else BehaviorTree.NodeState.FAILURE
+
+        return BehaviorTree(
+            BehaviorTree.SequenceNode(
+                name="LoadSkillbarFromMap",
+                children=[
+                    BehaviorTree.ActionNode(
+                        name="ResolveSkillbarTemplate",
+                        action_fn=_resolve_template,
+                        aftercast_ms=0,
+                    ),
+                    BehaviorTree.SubtreeNode(
+                        name="LoadResolvedSkillbar",
+                        subtree_fn=lambda _node: BTSkills.LoadSkillbar(state["template"], log=log),
+                    ),
+                ],
+            )
+        )
     
     @staticmethod
     def LoadHeroSkillbar(hero_index:int, template:str, log:bool=False):
@@ -155,10 +231,16 @@ class BTSkills:
               Notes: Returns success immediately after dispatching the load request.
             """
             GLOBAL_CACHE.SkillBar.LoadHeroSkillTemplate(hero_index, template)
-            ConsoleLog("LoadHeroSkillbar", f"Loaded hero {hero_index} skillbar template.", Console.MessageType.Info, log=log)
+            if hero_index < 0:
+                _fail_log("LoadHeroSkillbar", f"Failed to load hero skillbar: invalid hero index {hero_index}.")
+                return BehaviorTree.NodeState.FAILURE
+            if not template:
+                _fail_log("LoadHeroSkillbar", f"Failed to load hero {hero_index} skillbar: template is empty.")
+                return BehaviorTree.NodeState.FAILURE
+            _log("LoadHeroSkillbar", f"Loaded hero {hero_index} skillbar template.", log=log)
             return BehaviorTree.NodeState.SUCCESS
         
-        tree = BehaviorTree.ActionNode(name="LoadHeroSkillbar", action_fn=lambda: _load_hero_skillbar(hero_index, template), aftercast_ms=500)
+        tree = BehaviorTree.ActionNode(name="LoadHeroSkillbar", action_fn=lambda: _load_hero_skillbar(hero_index, template), aftercast_ms=250)
         return BehaviorTree(tree)
     
     @staticmethod
@@ -187,7 +269,15 @@ class BTSkills:
               Notes: Logs the cast using the original skill id after the request is sent.
             """
             GLOBAL_CACHE.SkillBar.UseSkill(slot, target_agent_id=target_agent_id, aftercast_delay=aftercast_delay)
-            ConsoleLog("CastSkillID", f"Cast {GLOBAL_CACHE.Skill.GetName(skill_id)}, slot: {GLOBAL_CACHE.SkillBar.GetSlotBySkillID(skill_id)}", log=log)
+            resolved_slot = GLOBAL_CACHE.SkillBar.GetSlotBySkillID(skill_id)
+            if not 1 <= resolved_slot <= 8:
+                _fail_log("CastSkillID", f"Failed to cast skill {skill_id}: no valid slot was resolved.")
+                return BehaviorTree.NodeState.FAILURE
+            _log(
+                "CastSkillID",
+                f"Cast {GLOBAL_CACHE.Skill.GetName(skill_id)}, slot: {resolved_slot}",
+                log=log,
+            )
             return BehaviorTree.NodeState.SUCCESS
         
         tree = BehaviorTree.SequenceNode(children=[
@@ -227,7 +317,14 @@ class BTSkills:
               Notes: Logs the cast using the slot's current skill id after the request is sent.
             """
             GLOBAL_CACHE.SkillBar.UseSkill(slot, target_agent_id=target_agent_id, aftercast_delay=aftercast_delay)
-            ConsoleLog("CastSkillSlot", f"Cast {GLOBAL_CACHE.Skill.GetName(GLOBAL_CACHE.SkillBar.GetSkillIDBySlot(slot))}, slot: {slot}", log=log)
+            if not 1 <= slot <= 8:
+                _fail_log("CastSkillSlot", f"Failed to cast skill slot: invalid slot {slot}.")
+                return BehaviorTree.NodeState.FAILURE
+            _log(
+                "CastSkillSlot",
+                f"Cast {GLOBAL_CACHE.Skill.GetName(GLOBAL_CACHE.SkillBar.GetSkillIDBySlot(slot))}, slot: {slot}",
+                log=log,
+            )
             return BehaviorTree.NodeState.SUCCESS
         
         tree = BehaviorTree.SequenceNode(children=[

@@ -16,6 +16,14 @@ from ...Py4GWcorelib import ConsoleLog, Console
 from ...py4gwcorelib_src.BehaviorTree import BehaviorTree
 
 
+def _log(source: str, message: str, *, log: bool = False, message_type=Console.MessageType.Info) -> None:
+    ConsoleLog(source, message, message_type, log=log)
+
+
+def _fail_log(source: str, message: str, message_type=Console.MessageType.Warning) -> None:
+    ConsoleLog(source, message, message_type, log=True)
+
+
 class BTParty:
     """
     Public BT helper group for party-management routines.
@@ -45,8 +53,7 @@ class BTParty:
 
         def _is_party_leader() -> bool:
             result = bool(Party.IsPartyLeader())
-            if log:
-                ConsoleLog("BTParty.IsPartyLeader", f"is_party_leader={result}", Console.MessageType.Info, log=log)
+            _log("BTParty.IsPartyLeader", f"is_party_leader={result}", log=log)
             return result
 
         return BehaviorTree(
@@ -72,8 +79,7 @@ class BTParty:
 
         def _leave_party() -> BehaviorTree.NodeState:
             Party.LeaveParty()
-            if log:
-                ConsoleLog("BTParty.LeaveParty", "LeaveParty dispatched.", Console.MessageType.Info, log=log)
+            _log("BTParty.LeaveParty", "LeaveParty dispatched.", log=log)
             return BehaviorTree.NodeState.SUCCESS
 
         return BehaviorTree(
@@ -100,8 +106,7 @@ class BTParty:
 
         def _flag_all_heroes() -> BehaviorTree.NodeState:
             Party.Heroes.FlagAllHeroes(float(x), float(y))
-            if log:
-                ConsoleLog("BTParty.FlagAllHeroes", f"FlagAllHeroes x={x:.2f}, y={y:.2f}", Console.MessageType.Info, log=log)
+            _log("BTParty.FlagAllHeroes", f"FlagAllHeroes x={x:.2f}, y={y:.2f}", log=log)
             return BehaviorTree.NodeState.SUCCESS
 
         return BehaviorTree(
@@ -128,8 +133,7 @@ class BTParty:
 
         def _unflag_all_heroes() -> BehaviorTree.NodeState:
             Party.Heroes.UnflagAllHeroes()
-            if log:
-                ConsoleLog("BTParty.UnflagAllHeroes", "UnflagAllHeroes dispatched.", Console.MessageType.Info, log=log)
+            _log("BTParty.UnflagAllHeroes", "UnflagAllHeroes dispatched.", log=log)
             return BehaviorTree.NodeState.SUCCESS
 
         return BehaviorTree(
@@ -166,13 +170,11 @@ class BTParty:
 
         def _load_party() -> BehaviorTree.NodeState:
             if not Party.IsPartyLeader():
-                if log:
-                    ConsoleLog("BTParty.LoadParty", "Skipped: local player is not party leader.", Console.MessageType.Warning, log=log)
+                _fail_log("BTParty.LoadParty", "Failed to load party: local player is not party leader.")
                 return BehaviorTree.NodeState.FAILURE
 
             if require_outpost and not Map.IsOutpost():
-                if log:
-                    ConsoleLog("BTParty.LoadParty", "Skipped: can only add party members in outpost.", Console.MessageType.Warning, log=log)
+                _fail_log("BTParty.LoadParty", "Failed to load party: can only add party members in outpost.")
                 return BehaviorTree.NodeState.FAILURE
 
             if clear_existing:
@@ -193,13 +195,11 @@ class BTParty:
             for henchman_id in henchman_ids:
                 Party.Henchmen.AddHenchman(henchman_id)
 
-            if log:
-                ConsoleLog(
-                    "BTParty.LoadParty",
-                    f"LoadParty dispatched heroes={hero_ids}, henchmen={henchman_ids}, clear_existing={clear_existing}",
-                    Console.MessageType.Info,
-                    log=log,
-                )
+            _log(
+                "BTParty.LoadParty",
+                f"LoadParty dispatched heroes={hero_ids}, henchmen={henchman_ids}, clear_existing={clear_existing}",
+                log=log,
+            )
             return BehaviorTree.NodeState.SUCCESS
 
         return BehaviorTree(
@@ -236,18 +236,21 @@ class BTParty:
         timeout_ms = max(0, int(timeout_ms))
         poll_interval_ms = max(10, int(poll_interval_ms))
 
+        state = {"started": False}
+
         def _is_loaded() -> bool:
             heroes = int(Party.GetHeroCount() or 0)
             henchmen = int(Party.GetHenchmanCount() or 0)
             loaded_flag = bool(Party.IsPartyLoaded()) if require_party_loaded_flag else True
             result = loaded_flag and heroes >= expected_heroes and henchmen >= expected_henchmen
-            if log and result:
-                ConsoleLog(
+            if result:
+                _log(
                     "BTParty.WaitForPartyLoaded",
                     f"Party ready heroes={heroes}/{expected_heroes}, henchmen={henchmen}/{expected_henchmen}",
-                    Console.MessageType.Info,
                     log=log,
                 )
+            elif not state["started"]:
+                state["started"] = True
             return result
 
         return BehaviorTree(
@@ -275,8 +278,7 @@ class BTParty:
 
         def _resign() -> BehaviorTree.NodeState:
             Player.SendChatCommand("resign")
-            if log:
-                ConsoleLog("BTParty.Resign", "Resign dispatched.", Console.MessageType.Info, log=log)
+            _log("BTParty.Resign", "Resign dispatched.", log=log)
             return BehaviorTree.NodeState.SUCCESS
 
         return BehaviorTree(
@@ -302,9 +304,8 @@ class BTParty:
         """
 
         def _set_title() -> BehaviorTree.NodeState:
-            Player.SetTitle(int(title_id))
-            if log:
-                ConsoleLog("BTParty.SetTitle", f"Set title id={int(title_id)}.", Console.MessageType.Info, log=log)
+            Player.SetActiveTitle(int(title_id))
+            _log("BTParty.SetTitle", f"Set title id={int(title_id)}.", log=log)
             return BehaviorTree.NodeState.SUCCESS
 
         return BehaviorTree(
@@ -332,6 +333,7 @@ class BTParty:
         def _force_hero_state() -> BehaviorTree.NodeState:
             behavior_value = int(behavior)
             if behavior_value not in (0, 1, 2):
+                _fail_log("BTParty.ForceHeroState", f"Failed to update hero behavior: invalid behavior value {behavior_value}.")
                 return BehaviorTree.NodeState.FAILURE
             used = 0
             for hero in Party.GetHeroes():
@@ -339,8 +341,7 @@ class BTParty:
                 if hero_agent_id:
                     Party.Heroes.SetHeroBehavior(hero_agent_id, behavior_value)
                     used += 1
-            if log:
-                ConsoleLog("BTParty.ForceHeroState", f"Updated {used} hero behavior(s).", Console.MessageType.Info, log=log)
+            _log("BTParty.ForceHeroState", f"Updated {used} hero behavior(s).", log=log)
             return BehaviorTree.NodeState.SUCCESS
 
         return BehaviorTree(
@@ -369,8 +370,7 @@ class BTParty:
 
         def _press(key_value: int, label: str) -> BehaviorTree.NodeState:
             Keystroke.PressAndRelease(key_value)
-            if log:
-                ConsoleLog("BTParty.DropBundle", f"Pressed {label}.", Console.MessageType.Info, log=log)
+            _log("BTParty.DropBundle", f"Pressed {label}.", log=log)
             return BehaviorTree.NodeState.SUCCESS
 
         return BehaviorTree(
@@ -408,12 +408,12 @@ class BTParty:
         def _abandon_quest() -> BehaviorTree.NodeState:
             qid = int(quest_id)
             if qid <= 0:
+                _fail_log("BTParty.AbandonQuest", f"Failed to abandon quest: invalid quest id {qid}.")
                 return BehaviorTree.NodeState.FAILURE
             from ...Quest import Quest
 
             Quest.AbandonQuest(qid)
-            if log:
-                ConsoleLog("BTParty.AbandonQuest", f"Abandoned quest id={qid}.", Console.MessageType.Info, log=log)
+            _log("BTParty.AbandonQuest", f"Abandoned quest id={qid}.", log=log)
             return BehaviorTree.NodeState.SUCCESS
 
         return BehaviorTree(
@@ -421,5 +421,67 @@ class BTParty:
                 name="AbandonQuest",
                 action_fn=_abandon_quest,
                 aftercast_ms=max(0, int(aftercast_ms)),
+            )
+        )
+
+    @staticmethod
+    def WaitForActiveQuest(quest_id: int, timeout_ms: int = 10000, throttle_interval_ms: int = 250, log: bool = False) -> BehaviorTree:
+        """
+        Build a tree that waits until the requested quest becomes the active quest.
+
+        Meta:
+          Expose: true
+          Audience: intermediate
+          Display: Wait For Active Quest
+          Purpose: Wait until a specific quest id is the active quest.
+          UserDescription: Use this when a dialog or interaction should be confirmed by checking the active quest id.
+          Notes: Succeeds only when the requested quest becomes active before timeout.
+        """
+
+        def _wait_for_active_quest() -> BehaviorTree.NodeState:
+            from ...Quest import Quest
+
+            if int(Quest.GetActiveQuest() or 0) == int(quest_id):
+                _log("BTParty.WaitForActiveQuest", f"Quest {int(quest_id)} is now active.", log=log)
+                return BehaviorTree.NodeState.SUCCESS
+            return BehaviorTree.NodeState.RUNNING
+
+        return BehaviorTree(
+            BehaviorTree.WaitUntilNode(
+                name=f"WaitForActiveQuest({int(quest_id)})",
+                condition_fn=_wait_for_active_quest,
+                throttle_interval_ms=max(1, int(throttle_interval_ms)),
+                timeout_ms=max(0, int(timeout_ms)),
+            )
+        )
+
+    @staticmethod
+    def WaitForQuestCleared(quest_id: int, timeout_ms: int = 10000, throttle_interval_ms: int = 250, log: bool = False) -> BehaviorTree:
+        """
+        Build a tree that waits until the requested quest is no longer the active quest.
+
+        Meta:
+          Expose: true
+          Audience: intermediate
+          Display: Wait For Quest Cleared
+          Purpose: Wait until a specific quest id is no longer active.
+          UserDescription: Use this when quest completion or abandonment should be confirmed by checking that the active quest changed away.
+          Notes: Succeeds when the active quest differs from the requested quest before timeout.
+        """
+
+        def _wait_for_quest_cleared() -> BehaviorTree.NodeState:
+            from ...Quest import Quest
+
+            if int(Quest.GetActiveQuest() or 0) != int(quest_id):
+                _log("BTParty.WaitForQuestCleared", f"Quest {int(quest_id)} is no longer active.", log=log)
+                return BehaviorTree.NodeState.SUCCESS
+            return BehaviorTree.NodeState.RUNNING
+
+        return BehaviorTree(
+            BehaviorTree.WaitUntilNode(
+                name=f"WaitForQuestCleared({int(quest_id)})",
+                condition_fn=_wait_for_quest_cleared,
+                throttle_interval_ms=max(1, int(throttle_interval_ms)),
+                timeout_ms=max(0, int(timeout_ms)),
             )
         )

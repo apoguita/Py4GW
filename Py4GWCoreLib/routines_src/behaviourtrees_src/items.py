@@ -45,6 +45,7 @@ Docstring parsing rules
 
 from __future__ import annotations
 
+import time
 from collections.abc import Sequence
 
 from ...Agent import Agent
@@ -55,9 +56,18 @@ from ...UIManager import UIManager
 from ...enums_src.Item_enums import Bags
 from ...enums_src.Model_enums import ModelID
 from ...enums_src.UI_enums import ControlAction
+from ...py4gwcorelib_src.Lootconfig_src import LootConfig
 from ...py4gwcorelib_src.BehaviorTree import BehaviorTree
 from .composite import BTComposite
 from .player import BTPlayer
+
+
+def _log(source: str, message: str, *, log: bool = False, message_type=Console.MessageType.Info) -> None:
+    ConsoleLog(source, message, message_type, log=log)
+
+
+def _fail_log(source: str, message: str, message_type=Console.MessageType.Warning) -> None:
+    ConsoleLog(source, message, message_type, log=True)
 
 
 class BTItems:
@@ -88,7 +98,7 @@ class BTItems:
         if isinstance(modelID_or_encStr, str):
             return Agent.GetModelIDByEncString(modelID_or_encStr)
         return int(modelID_or_encStr)
-    
+
     @staticmethod
     def EquipItemByModelID(modelID_or_encStr: int | str, aftercast_ms: int = 750) -> BehaviorTree:
         """
@@ -182,12 +192,7 @@ class BTItems:
                 resolved_model_id = BTItems._resolve_model_id_value(modelID_or_encStr)
                 item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(resolved_model_id)
                 if item_id == 0:
-                    ConsoleLog(
-                        "EquipInventoryBag",
-                        f"Item model {resolved_model_id} not found in inventory.",
-                        Console.MessageType.Error,
-                        log=True,
-                    )
+                    _fail_log("EquipInventoryBag", f"Item model {resolved_model_id} not found in inventory.", Console.MessageType.Error)
                     _reset_state()
                     return BehaviorTree.NodeState.FAILURE
 
@@ -211,19 +216,19 @@ class BTItems:
                     return BehaviorTree.NodeState.RUNNING
 
                 if GLOBAL_CACHE.Inventory.MoveModelToBagSlot(int(state["resolved_model_id"]), Bags.Backpack, 0):
-                    ConsoleLog(
+                    _log(
                         "EquipInventoryBag",
                         f"Native UseItem did not populate bag {target_bag}; trying backpack slot double-click fallback for model {int(state['resolved_model_id'])}.",
-                        Console.MessageType.Warning,
+                        message_type=Console.MessageType.Warning,
                         log=log,
                     )
                     state["stage"] = "fallback_wait_before_open"
-                    state["next_check_ms"] = now + 250
+                    state["next_check_ms"] = now + poll_interval_ms
                 else:
-                    ConsoleLog(
+                    _log(
                         "EquipInventoryBag",
                         f"Fallback move to backpack slot 0 failed for model {int(state['resolved_model_id'])}.",
-                        Console.MessageType.Warning,
+                        message_type=Console.MessageType.Warning,
                         log=log,
                     )
                     state["stage"] = "final_wait"
@@ -242,7 +247,7 @@ class BTItems:
                     return BehaviorTree.NodeState.RUNNING
 
                 state["stage"] = "fallback_wait_before_double_click"
-                state["next_check_ms"] = now + 125
+                state["next_check_ms"] = now + poll_interval_ms
                 return BehaviorTree.NodeState.RUNNING
 
             if state["stage"] == "fallback_toggle_bags_release":
@@ -251,7 +256,7 @@ class BTItems:
 
                 UIManager.Keyup(ControlAction.ControlAction_ToggleAllBags.value, 0)
                 state["stage"] = "fallback_wait_before_double_click"
-                state["next_check_ms"] = now + 175
+                state["next_check_ms"] = now + poll_interval_ms
                 return BehaviorTree.NodeState.RUNNING
 
             if state["stage"] == "fallback_wait_before_double_click":
@@ -260,12 +265,7 @@ class BTItems:
 
                 frame_id = _get_backpack_slot_frame_id()
                 if not UIManager.FrameExists(frame_id):
-                    ConsoleLog(
-                        "EquipInventoryBag",
-                        "Frame does not exist for backpack slot 0.",
-                        Console.MessageType.Error,
-                        log=True,
-                    )
+                    _fail_log("EquipInventoryBag", "Frame does not exist for backpack slot 0.", Console.MessageType.Error)
                     _reset_state()
                     return BehaviorTree.NodeState.FAILURE
 
@@ -280,18 +280,13 @@ class BTItems:
 
                 frame_id = _get_backpack_slot_frame_id()
                 if not UIManager.FrameExists(frame_id):
-                    ConsoleLog(
-                        "EquipInventoryBag",
-                        "Frame does not exist for backpack slot 0.",
-                        Console.MessageType.Error,
-                        log=True,
-                    )
+                    _fail_log("EquipInventoryBag", "Frame does not exist for backpack slot 0.", Console.MessageType.Error)
                     _reset_state()
                     return BehaviorTree.NodeState.FAILURE
 
                 UIManager.TestMouseClickAction(frame_id=frame_id, current_state=9, wparam_value=0, lparam_value=0)
                 state["stage"] = "final_wait"
-                state["next_check_ms"] = now + 125
+                state["next_check_ms"] = now + 60
                 return BehaviorTree.NodeState.RUNNING
 
             if state["stage"] == "final_wait":
@@ -306,7 +301,7 @@ class BTItems:
                     state["next_check_ms"] = now + poll_interval_ms
                     return BehaviorTree.NodeState.RUNNING
 
-                ConsoleLog(
+                _fail_log(
                     "EquipInventoryBag",
                     (
                         f"Failed to equip model {int(state['resolved_model_id'])} item {int(state['item_id'])} into bag {target_bag} within {timeout_ms}ms. "
@@ -314,7 +309,6 @@ class BTItems:
                         f"size={GLOBAL_CACHE.Inventory.GetBagSize(target_bag)}."
                     ),
                     Console.MessageType.Error,
-                    log=True,
                 )
                 _reset_state()
                 return BehaviorTree.NodeState.FAILURE
@@ -462,7 +456,7 @@ class BTItems:
               Notes: Returns success immediately after sending the command.
             """
             Player.SendChatCommand("bonus")
-            ConsoleLog("SpawnBonusItems", "Sent /bonus command.", Console.MessageType.Info, log=log)
+            _log("SpawnBonusItems", "Sent /bonus command.", message_type=Console.MessageType.Info, log=log)
             return BehaviorTree.NodeState.SUCCESS
 
         tree = BehaviorTree.ActionNode(
@@ -505,27 +499,20 @@ class BTItems:
             resolved_model_id = BTItems._resolve_model_id_value(modelID_or_encStr)
             item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(resolved_model_id)
             if item_id == 0:
-                ConsoleLog(
+                _fail_log(
                     "DestroyItem",
                     f"Item model {resolved_model_id} was not found in inventory for destruction.",
                     Console.MessageType.Warning if required else Console.MessageType.Info,
-                    log=True,
                 )
                 if required:
-                    ConsoleLog(
-                        "DestroyItem",
-                        f"Item model {resolved_model_id} was not found for destruction.",
-                        Console.MessageType.Warning,
-                        log=True if required else log,
-                    )
                     return BehaviorTree.NodeState.FAILURE
                 return BehaviorTree.NodeState.SUCCESS
 
             GLOBAL_CACHE.Inventory.DestroyItem(item_id)
-            ConsoleLog(
+            _log(
                 "DestroyItem",
                 f"Queued destroy for item model {resolved_model_id} (item_id={item_id}).",
-                Console.MessageType.Info,
+                message_type=Console.MessageType.Info,
                 log=log,
             )
             return BehaviorTree.NodeState.SUCCESS
@@ -656,18 +643,18 @@ class BTItems:
                 state["next_attempt_ms"] = int(now + aftercast_ms)
                 node.blackboard["destroy_items_last_model_id"] = model_id
                 node.blackboard["destroy_items_last_item_id"] = item_id
-                ConsoleLog(
+                _log(
                     "DestroyItems",
                     f"Queued destroy for item model {model_id} (item_id={item_id}).",
-                    Console.MessageType.Info,
+                    message_type=Console.MessageType.Info,
                     log=log,
                 )
                 return BehaviorTree.NodeState.RUNNING
 
-            ConsoleLog(
+            _log(
                 "DestroyItems",
                 f"Destroy pass completed for models: {models_to_destroy}",
-                Console.MessageType.Info,
+                message_type=Console.MessageType.Info,
                 log=log,
             )
             return BehaviorTree.NodeState.SUCCESS
@@ -712,7 +699,7 @@ class BTItems:
             for model_id in model_ids:
                 item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(model_id)
                 if item_id != 0:
-                    ConsoleLog("WaitForAnyModelInInventory", f"Detected inventory model {model_id} as item_id={item_id}.", Console.MessageType.Info, log=log)
+                    _log("WaitForAnyModelInInventory", f"Detected inventory model {model_id} as item_id={item_id}.", message_type=Console.MessageType.Info, log=log)
                     return BehaviorTree.NodeState.SUCCESS
             return BehaviorTree.NodeState.RUNNING
 
@@ -761,19 +748,17 @@ class BTItems:
             moved = GLOBAL_CACHE.Inventory.MoveModelToBagSlot(resolved_model_id, target_bag, slot)
             if not moved:
                 if required:
-                    ConsoleLog(
+                    _fail_log(
                         "MoveModelToBagSlot",
                         f"Failed to move model {resolved_model_id} to bag {target_bag} slot {slot}.",
-                        Console.MessageType.Warning,
-                        log=True if required else log,
                     )
                     return BehaviorTree.NodeState.FAILURE
                 return BehaviorTree.NodeState.SUCCESS
 
-            ConsoleLog(
+            _log(
                 "MoveModelToBagSlot",
                 f"Moved model {resolved_model_id} to bag {target_bag} slot {slot}.",
-                Console.MessageType.Info,
+                message_type=Console.MessageType.Info,
                 log=log,
             )
             return BehaviorTree.NodeState.SUCCESS
@@ -895,12 +880,577 @@ class BTItems:
         )
 
     @staticmethod
+    def SpawnAndDestroyBonusItems(exclude_list: list[int] | None = None, log: bool = False) -> BehaviorTree:
+        """
+        Build a tree that spawns bonus items and then destroys the unwanted ones.
+
+        Meta:
+          Expose: true
+          Audience: intermediate
+          Display: Spawn And Destroy Bonus Items
+          Purpose: Spawn available bonus items and immediately clean them up except for excluded models.
+          UserDescription: Use this when you want a one-step bonus spawn and cleanup routine.
+          Notes: Composes the existing spawn and destroy bonus item routines with a short settle delay.
+        """
+        from ..BehaviourTrees import BT
+
+        return BT.Composite.Sequence(
+            BT.Items.SpawnBonusItems(log=log),
+            BT.Player.Wait(duration_ms=125, log=False),
+            BT.Items.DestroyBonusItems(exclude_list=exclude_list, log=log),
+            name="SpawnAndDestroyBonusItems",
+        )
+
+    @staticmethod
+    def AddModelToLootWhitelist(model_id: int, aftercast_ms: int = 50) -> BehaviorTree:
+        """
+        Build a tree that adds a model id to the loot whitelist.
+
+        Meta:
+          Expose: true
+          Audience: intermediate
+          Display: Add Model To Loot Whitelist
+          Purpose: Add an item model id to the active loot whitelist.
+          UserDescription: Use this when a routine should mark an item model as lootable before item collection starts.
+          Notes: Returns success immediately after mutating the local loot configuration.
+        """
+        def _add_model_to_loot_whitelist() -> BehaviorTree.NodeState:
+            LootConfig().AddToWhitelist(model_id)
+            return BehaviorTree.NodeState.SUCCESS
+
+        return BehaviorTree(
+            BehaviorTree.ActionNode(
+                name=f"AddModelToLootWhitelist({model_id})",
+                action_fn=_add_model_to_loot_whitelist,
+                aftercast_ms=aftercast_ms,
+            )
+        )
+
+    @staticmethod
+    def LootItems(distance: float, timeout_ms: int = 10000, aftercast_ms: int = 500) -> BehaviorTree:
+        """
+        Build a tree that loots nearby items until no loot remains, inventory fills, or timeout expires.
+
+        Meta:
+          Expose: true
+          Audience: intermediate
+          Display: Loot Items
+          Purpose: Interact with nearby loot items using the active loot configuration.
+          UserDescription: Use this when you want to perform a bounded nearby loot pass.
+          Notes: Stops when no items remain, bags are full, or the timeout expires.
+        """
+        state = {
+            "started_at": 0.0,
+            "last_item_agent_id": 0,
+        }
+
+        def _loot_items() -> BehaviorTree.NodeState:
+            if state["started_at"] == 0.0:
+                state["started_at"] = time.monotonic()
+
+            if GLOBAL_CACHE.Inventory.GetFreeSlotCount() <= 0:
+                state["started_at"] = 0.0
+                return BehaviorTree.NodeState.SUCCESS
+
+            loot_array = LootConfig().GetfilteredLootArray(
+                distance=distance,
+                multibox_loot=True,
+                allow_unasigned_loot=False,
+            )
+            if not loot_array:
+                state["started_at"] = 0.0
+                return BehaviorTree.NodeState.SUCCESS
+
+            if (time.monotonic() - state["started_at"]) * 1000 >= timeout_ms:
+                state["started_at"] = 0.0
+                return BehaviorTree.NodeState.SUCCESS
+
+            item_agent_id = loot_array[0]
+            state["last_item_agent_id"] = item_agent_id
+            Player.ChangeTarget(item_agent_id)
+            Player.Interact(item_agent_id, False)
+            return BehaviorTree.NodeState.RUNNING
+
+        return BehaviorTree(
+            BehaviorTree.ActionNode(
+                name="LootItems",
+                action_fn=_loot_items,
+                aftercast_ms=aftercast_ms,
+            )
+        )
+
+    @staticmethod
+    def RestockItems(model_id: int, desired_quantity: int, allow_missing: bool = False) -> BehaviorTree:
+        """
+        Build a tree that restocks an inventory model from storage up to the requested quantity.
+
+        Meta:
+          Expose: true
+          Audience: intermediate
+          Display: Restock Items
+          Purpose: Withdraw a model from storage until the requested on-character quantity is met.
+          UserDescription: Use this when a step needs a consumable or item restocked from storage before leaving outpost.
+          Notes: Mirrors the original coroutine flow using native BT state: check, withdraw once, wait, then re-check.
+        """
+        from ...Py4GWcorelib import Utils
+
+        state = {
+            "started": False,
+            "resume_ms": 0,
+        }
+
+        def _reset_state() -> None:
+            state["started"] = False
+            state["resume_ms"] = 0
+
+        def _restock_items(node: BehaviorTree.Node) -> BehaviorTree.NodeState:
+            now = int(Utils.GetBaseTimestamp())
+            current_bags = int(GLOBAL_CACHE.Inventory.GetModelCount(model_id) or 0)
+            desired = int(desired_quantity)
+
+            if current_bags >= desired:
+                _reset_state()
+                return BehaviorTree.NodeState.SUCCESS
+
+            if not state["started"]:
+                needed = desired - current_bags
+                available = int(GLOBAL_CACHE.Inventory.GetModelCountInStorage(model_id) or 0)
+                if needed <= 0:
+                    _reset_state()
+                    return BehaviorTree.NodeState.SUCCESS
+                if available <= 0:
+                    _reset_state()
+                    return BehaviorTree.NodeState.SUCCESS if allow_missing else BehaviorTree.NodeState.FAILURE
+
+                moved = bool(GLOBAL_CACHE.Inventory.WithdrawItemFromStorageByModelID(model_id, needed))
+                if not moved:
+                    fallback_amount = min(needed, available)
+                    if fallback_amount > 0:
+                        moved = bool(GLOBAL_CACHE.Inventory.WithdrawItemFromStorageByModelID(model_id, fallback_amount))
+                    if not moved:
+                        _reset_state()
+                        return BehaviorTree.NodeState.SUCCESS if allow_missing else BehaviorTree.NodeState.FAILURE
+
+                state["started"] = True
+                state["resume_ms"] = now + 100
+                node.blackboard["restock_items_last_model_id"] = int(model_id)
+                node.blackboard["restock_items_last_requested_quantity"] = desired
+                return BehaviorTree.NodeState.RUNNING
+
+            if now < int(state["resume_ms"]):
+                return BehaviorTree.NodeState.RUNNING
+
+            final_bags = int(GLOBAL_CACHE.Inventory.GetModelCount(model_id) or 0)
+            _reset_state()
+            if final_bags >= desired:
+                return BehaviorTree.NodeState.SUCCESS
+            return BehaviorTree.NodeState.SUCCESS if allow_missing else BehaviorTree.NodeState.FAILURE
+
+        return BehaviorTree(
+            BehaviorTree.ActionNode(
+                name=f"RestockItems({model_id},{desired_quantity})",
+                action_fn=_restock_items,
+            )
+        )
+
+    @staticmethod
+    def DepositModelToStorage(model_id: int, aftercast_ms: int = 350) -> BehaviorTree:
+        """
+        Build a tree that deposits all inventory items of a specific model into storage.
+
+        Meta:
+          Expose: true
+          Audience: intermediate
+          Display: Deposit Model To Storage
+          Purpose: Deposit all items matching a model id into Xunlai storage.
+          UserDescription: Use this when you want to move one inventory model to storage.
+          Notes: Repeats until no matching inventory item remains.
+        """
+        def _deposit_model_to_storage() -> BehaviorTree.NodeState:
+            item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(model_id)
+            if item_id == 0:
+                return BehaviorTree.NodeState.SUCCESS
+
+            GLOBAL_CACHE.Inventory.DepositItemToStorage(item_id)
+            return BehaviorTree.NodeState.RUNNING
+
+        return BehaviorTree(
+            BehaviorTree.ActionNode(
+                name=f"DepositModelToStorage({model_id})",
+                action_fn=_deposit_model_to_storage,
+                aftercast_ms=aftercast_ms,
+            )
+        )
+
+    @staticmethod
+    def DepositGoldKeep(gold_amount_to_leave_on_character: int = 0, aftercast_ms: int = 350) -> BehaviorTree:
+        """
+        Build a tree that deposits character gold while preserving a requested amount on the character.
+
+        Meta:
+          Expose: true
+          Audience: intermediate
+          Display: Deposit Gold Keep
+          Purpose: Deposit as much gold as possible into storage while leaving a specified amount on the character.
+          UserDescription: Use this when you want to clean up character gold without fully emptying it.
+          Notes: Obeys storage cap and succeeds quietly when nothing needs to be deposited.
+        """
+        def _deposit_gold_keep() -> BehaviorTree.NodeState:
+            gold_on_character = GLOBAL_CACHE.Inventory.GetGoldOnCharacter()
+            gold_in_storage = GLOBAL_CACHE.Inventory.GetGoldInStorage()
+            if gold_on_character <= gold_amount_to_leave_on_character:
+                return BehaviorTree.NodeState.SUCCESS
+
+            available_storage = max(0, 1_000_000 - gold_in_storage)
+            gold_to_deposit = min(
+                gold_on_character - gold_amount_to_leave_on_character,
+                available_storage,
+            )
+            if gold_to_deposit <= 0:
+                return BehaviorTree.NodeState.SUCCESS
+
+            GLOBAL_CACHE.Inventory.DepositGold(gold_to_deposit)
+            return BehaviorTree.NodeState.SUCCESS
+
+        return BehaviorTree(
+            BehaviorTree.ActionNode(
+                name=f"DepositGoldKeep({gold_amount_to_leave_on_character})",
+                action_fn=_deposit_gold_keep,
+                aftercast_ms=aftercast_ms,
+            )
+        )
+
+    @staticmethod
+    def EqualizeGold(
+        target_gold: int,
+        deposit_all: bool = True,
+        log: bool = False,
+        aftercast_ms: int = 150,
+    ) -> BehaviorTree:
+        """
+        Build a tree that adjusts character gold toward a target amount by optionally depositing excess first and then withdrawing.
+
+        Meta:
+          Expose: true
+          Audience: intermediate
+          Display: Withdraw Gold
+          Purpose: Bring character gold toward a target amount while respecting storage availability and cap.
+          UserDescription: Use this when a step needs a target amount of character gold before proceeding.
+          Notes: Mirrors the existing yield helper flow: deposit excess if requested, wait, then withdraw toward target and wait again.
+        """
+        from ...Py4GWcorelib import Utils
+
+        state = {
+            "stage": "init",
+            "resume_ms": 0,
+        }
+
+        def _reset_state() -> None:
+            state["stage"] = "init"
+            state["resume_ms"] = 0
+
+        def _withdraw_gold() -> BehaviorTree.NodeState:
+            now = int(Utils.GetBaseTimestamp())
+
+            if state["stage"] == "wait_after_deposit":
+                if now < int(state["resume_ms"]):
+                    return BehaviorTree.NodeState.RUNNING
+                state["stage"] = "withdraw"
+
+            if state["stage"] == "wait_after_withdraw":
+                if now < int(state["resume_ms"]):
+                    return BehaviorTree.NodeState.RUNNING
+                _reset_state()
+                return BehaviorTree.NodeState.SUCCESS
+
+            gold_on_char = int(GLOBAL_CACHE.Inventory.GetGoldOnCharacter() or 0)
+
+            if state["stage"] == "init":
+                if deposit_all and gold_on_char > target_gold:
+                    to_deposit = gold_on_char - int(target_gold)
+                    gold_in_storage = int(GLOBAL_CACHE.Inventory.GetGoldInStorage() or 0)
+                    available_space = max(0, 1_000_000 - gold_in_storage)
+                    to_deposit = min(to_deposit, available_space)
+                    if to_deposit > 0:
+                        GLOBAL_CACHE.Inventory.DepositGold(to_deposit)
+                        if log:
+                            _log("WithdrawGold", f"Deposited {to_deposit} gold (excess).", message_type=Console.MessageType.Info, log=log)
+                        state["stage"] = "wait_after_deposit"
+                        state["resume_ms"] = now + max(0, int(aftercast_ms))
+                        return BehaviorTree.NodeState.RUNNING
+                state["stage"] = "withdraw"
+
+            if state["stage"] == "withdraw":
+                if gold_on_char < target_gold:
+                    to_withdraw = int(target_gold) - gold_on_char
+                    gold_in_storage = int(GLOBAL_CACHE.Inventory.GetGoldInStorage() or 0)
+                    to_withdraw = min(to_withdraw, gold_in_storage)
+                    if to_withdraw > 0:
+                        GLOBAL_CACHE.Inventory.WithdrawGold(to_withdraw)
+                        if log:
+                            _log("WithdrawGold", f"Withdrew {to_withdraw} gold.", message_type=Console.MessageType.Info, log=log)
+                        state["stage"] = "wait_after_withdraw"
+                        state["resume_ms"] = now + max(0, int(aftercast_ms))
+                        return BehaviorTree.NodeState.RUNNING
+                    _fail_log("WithdrawGold", "Not enough gold in storage to reach target.")
+                _reset_state()
+                return BehaviorTree.NodeState.SUCCESS
+
+            _reset_state()
+            return BehaviorTree.NodeState.FAILURE
+
+        return BehaviorTree(
+            BehaviorTree.ActionNode(
+                name=f"WithdrawGold({target_gold})",
+                action_fn=_withdraw_gold,
+            )
+        )
+
+    @staticmethod
+    def BuyMaterial(
+        model_id: int,
+        log: bool = False,
+        aftercast_ms: int = 125,
+    ) -> BehaviorTree:
+        return BTItems.BuyMaterials(
+            model_id=model_id,
+            batches=1,
+            log=log,
+            aftercast_ms=aftercast_ms,
+        )
+
+    @staticmethod
+    def BuyMaterials(
+        model_id: int,
+        batches: int = 1,
+        log: bool = False,
+        aftercast_ms: int = 125,
+    ) -> BehaviorTree:
+        """
+        Build a tree that buys one or more material-trader batches of the requested material.
+
+        Meta:
+          Expose: true
+          Audience: intermediate
+          Display: Buy Materials
+          Purpose: Buy one or more batches of a material from the currently open trader window.
+          UserDescription: Use this when a material trader is already open and you need to buy a material multiple times.
+          Notes: Mirrors the original helper flow: resolve the offered item, request a quote, wait for the quote, buy, wait for completion, then repeat for the requested batch count.
+        """
+        target_batches = max(0, int(batches))
+        state = {
+            "stage": "init",
+            "item_id": 0,
+            "remaining_batches": target_batches,
+        }
+
+        def _reset_state() -> None:
+            state["stage"] = "init"
+            state["item_id"] = 0
+            state["remaining_batches"] = target_batches
+
+        def _is_material_trader() -> bool:
+            merchant_models = [
+                GLOBAL_CACHE.Item.GetModelID(item_id)
+                for item_id in GLOBAL_CACHE.Trading.Trader.GetOfferedItems()
+            ]
+            return ModelID.Wood_Plank.value in merchant_models
+
+        def _buy_material() -> BehaviorTree.NodeState:
+            if state["remaining_batches"] <= 0:
+                _reset_state()
+                return BehaviorTree.NodeState.SUCCESS
+
+            if state["stage"] == "init":
+                item_id = 0
+                for candidate in GLOBAL_CACHE.Trading.Trader.GetOfferedItems():
+                    if GLOBAL_CACHE.Item.GetModelID(candidate) == model_id:
+                        item_id = candidate
+                        break
+
+                if item_id == 0:
+                    _fail_log("BuyMaterial", f"Model {model_id} not sold here.")
+                    _reset_state()
+                    return BehaviorTree.NodeState.FAILURE
+
+                state["item_id"] = item_id
+                GLOBAL_CACHE.Trading.Trader.RequestQuote(item_id)
+                state["stage"] = "wait_for_quote"
+                return BehaviorTree.NodeState.RUNNING
+
+            if state["stage"] == "wait_for_quote":
+                cost = int(GLOBAL_CACHE.Trading.Trader.GetQuotedValue() or -1)
+                if cost < 0:
+                    return BehaviorTree.NodeState.RUNNING
+
+                if cost == 0:
+                    _fail_log("BuyMaterial", f"Item {state['item_id']} has no price.")
+                    _reset_state()
+                    return BehaviorTree.NodeState.FAILURE
+
+                GLOBAL_CACHE.Trading.Trader.BuyItem(int(state["item_id"]), cost)
+                state["stage"] = "wait_for_completion"
+                return BehaviorTree.NodeState.RUNNING
+
+            if state["stage"] == "wait_for_completion":
+                if not GLOBAL_CACHE.Trading.IsTransactionComplete():
+                    return BehaviorTree.NodeState.RUNNING
+
+                state["remaining_batches"] -= 1
+                if log:
+                    quantity = 10 if _is_material_trader() else 1
+                    _log(
+                        "BuyMaterials",
+                        f"Bought batch {target_batches - state['remaining_batches']}/{target_batches} for model {model_id} ({quantity} units).",
+                        message_type=Console.MessageType.Success,
+                        log=log,
+                    )
+                if state["remaining_batches"] <= 0:
+                    _reset_state()
+                    return BehaviorTree.NodeState.SUCCESS
+
+                state["stage"] = "init"
+                state["item_id"] = 0
+                return BehaviorTree.NodeState.RUNNING
+
+            _reset_state()
+            return BehaviorTree.NodeState.FAILURE
+
+        return BehaviorTree(
+            BehaviorTree.ActionNode(
+                name=f"BuyMaterials({model_id}, {target_batches})",
+                action_fn=_buy_material,
+                aftercast_ms=aftercast_ms,
+            )
+        )
+
+    @staticmethod
+    def BuyMaterialsFromList(
+        materials: list[tuple[int, int]],
+        log: bool = False,
+        aftercast_ms: int = 125,
+    ) -> BehaviorTree:
+        """
+        Build a tree that buys multiple materials from a list of `(model_id, batches)` entries.
+
+        Meta:
+          Expose: true
+          Audience: intermediate
+          Display: Buy Materials From List
+          Purpose: Buy several material batches from the currently open trader window.
+          UserDescription: Use this when a material trader is already open and you want to buy a prepared list of materials and batch counts.
+          Notes: Runs the existing single-material BT purchase routine sequentially for each entry in the provided list.
+        """
+        return BehaviorTree(
+            BehaviorTree.SequenceNode(
+                name="BuyMaterialsFromList",
+                children=[
+                    BTItems.BuyMaterials(
+                        model_id=model_id,
+                        batches=batches,
+                        log=log,
+                        aftercast_ms=aftercast_ms,
+                    ).root
+                    for model_id, batches in materials
+                ],
+            )
+        )
+
+    @staticmethod
+    def BuyMerchantItem(
+        model_id: int,
+        quantity: int = 1,
+        log: bool = False,
+        aftercast_ms: int = 125,
+    ) -> BehaviorTree:
+        """
+        Build a tree that buys one or more copies of a merchant item by model id.
+
+        Meta:
+          Expose: true
+          Audience: intermediate
+          Display: Buy Merchant Item
+          Purpose: Buy one or more copies of a standard merchant item from the currently open merchant window.
+          UserDescription: Use this when a merchant window is already open and you want to buy a specific item model a fixed number of times.
+          Notes: Resolves the offered item once, buys at merchant price, then waits for each transaction to complete before the next purchase.
+        """
+        target_quantity = max(0, int(quantity))
+        state = {
+            "stage": "init",
+            "item_id": 0,
+            "remaining_quantity": target_quantity,
+            "item_value": 0,
+        }
+
+        def _reset_state() -> None:
+            state["stage"] = "init"
+            state["item_id"] = 0
+            state["remaining_quantity"] = target_quantity
+            state["item_value"] = 0
+
+        def _buy_merchant_item() -> BehaviorTree.NodeState:
+            if state["remaining_quantity"] <= 0:
+                _reset_state()
+                return BehaviorTree.NodeState.SUCCESS
+
+            if state["stage"] == "init":
+                item_id = 0
+                item_value = 0
+                for candidate in GLOBAL_CACHE.Trading.Merchant.GetOfferedItems():
+                    if GLOBAL_CACHE.Item.GetModelID(candidate) != model_id:
+                        continue
+                    item_id = candidate
+                    item_value = int(GLOBAL_CACHE.Item.Properties.GetValue(candidate) or 0)
+                    break
+
+                if item_id == 0 or item_value <= 0:
+                    _fail_log("BuyMerchantItem", f"Model {model_id} not sold here.")
+                    _reset_state()
+                    return BehaviorTree.NodeState.FAILURE
+
+                state["item_id"] = item_id
+                state["item_value"] = item_value
+                GLOBAL_CACHE.Trading.Merchant.BuyItem(item_id, item_value * 2)
+                state["stage"] = "wait_for_completion"
+                return BehaviorTree.NodeState.RUNNING
+
+            if state["stage"] == "wait_for_completion":
+                if not GLOBAL_CACHE.Trading.IsTransactionComplete():
+                    return BehaviorTree.NodeState.RUNNING
+
+                state["remaining_quantity"] -= 1
+                if log:
+                    _log(
+                        "BuyMerchantItem",
+                        f"Bought {target_quantity - state['remaining_quantity']}/{target_quantity} of model {model_id}.",
+                        message_type=Console.MessageType.Success,
+                        log=log,
+                    )
+                if state["remaining_quantity"] <= 0:
+                    _reset_state()
+                    return BehaviorTree.NodeState.SUCCESS
+
+                state["stage"] = "init"
+                return BehaviorTree.NodeState.RUNNING
+
+            _reset_state()
+            return BehaviorTree.NodeState.FAILURE
+
+        return BehaviorTree(
+            BehaviorTree.ActionNode(
+                name=f"BuyMerchantItem({model_id}, {target_quantity})",
+                action_fn=_buy_merchant_item,
+                aftercast_ms=aftercast_ms,
+            )
+        )
+
+    @staticmethod
     def ExchangeCollectorItem(
         output_model_id: int,
         trade_model_ids: list[int],
         quantity_list: list[int],
         cost: int = 0,
-        aftercast_ms: int = 500,
+        aftercast_ms: int = 250,
     ) -> BehaviorTree:
         """
         Build a tree that exchanges collector items based on the specified output model, trade models, and quantities.
@@ -969,6 +1519,61 @@ class BTItems:
             BehaviorTree.ActionNode(
                 name=f"ExchangeCollectorItem({output_model_id})",
                 action_fn=_exchange_item,
+                aftercast_ms=aftercast_ms,
+            )
+        )
+
+    @staticmethod
+    def CraftItem(
+        output_model_id: int,
+        cost: int,
+        trade_model_ids: list[int],
+        quantity_list: list[int],
+        aftercast_ms: int = 500,
+    ) -> BehaviorTree:
+        """
+        Build a tree that crafts an offered item using the requested trade materials and gold cost.
+
+        Meta:
+          Expose: true
+          Audience: intermediate
+          Display: Craft Item
+          Purpose: Craft an offered item through the crafter window.
+          UserDescription: Use this when a crafter is already open and you want to craft a specific offered model.
+          Notes: Resolves the offered item id and the input inventory item ids before dispatching the craft action.
+        """
+        def _craft_item() -> BehaviorTree.NodeState:
+            k = min(len(trade_model_ids), len(quantity_list))
+            if k == 0:
+                return BehaviorTree.NodeState.FAILURE
+
+            target_item_id = 0
+            for offered_item_id in GLOBAL_CACHE.Trading.Merchant.GetOfferedItems():
+                if GLOBAL_CACHE.Item.GetModelID(offered_item_id) == output_model_id:
+                    target_item_id = offered_item_id
+                    break
+            if target_item_id == 0:
+                return BehaviorTree.NodeState.FAILURE
+
+            trade_item_ids: list[int] = []
+            for model_id in trade_model_ids[:k]:
+                item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(model_id)
+                if item_id == 0:
+                    return BehaviorTree.NodeState.FAILURE
+                trade_item_ids.append(item_id)
+
+            GLOBAL_CACHE.Trading.Crafter.CraftItem(
+                target_item_id,
+                cost,
+                trade_item_ids,
+                quantity_list[:k],
+            )
+            return BehaviorTree.NodeState.SUCCESS
+
+        return BehaviorTree(
+            BehaviorTree.ActionNode(
+                name=f"CraftItem({output_model_id})",
+                action_fn=_craft_item,
                 aftercast_ms=aftercast_ms,
             )
         )
@@ -1052,20 +1657,20 @@ class BTItems:
 
             if not sellable_item_ids:
                 if log:
-                    ConsoleLog(
+                    _log(
                         "SellInventoryItems",
                         "No eligible inventory items found to sell.",
-                        Console.MessageType.Info,
+                        message_type=Console.MessageType.Info,
                         log=True,
                     )
                 return BehaviorTree.NodeState.SUCCESS
 
             if log:
                 excluded_models_text = ", ".join(str(model_id) for model_id in sorted(set(exclude_models or []))) or "none"
-                ConsoleLog(
+                _log(
                     "SellInventoryItems",
                     f"Selling {len(sellable_item_ids)} inventory items. Excluded models: {excluded_models_text}.",
-                    Console.MessageType.Info,
+                    message_type=Console.MessageType.Info,
                     log=True,
                 )
 
@@ -1111,10 +1716,10 @@ class BTItems:
                 return BehaviorTree.NodeState.RUNNING
 
             if log:
-                ConsoleLog(
+                _log(
                     "SellInventoryItems",
                     f"Sold {queued_count} inventory items through merchant queue.",
-                    Console.MessageType.Info,
+                    message_type=Console.MessageType.Info,
                     log=True,
                 )
             return BehaviorTree.NodeState.SUCCESS
@@ -1175,10 +1780,10 @@ class BTItems:
             state["next_attempt_ms"] = int(now + aftercast_ms)
 
             if log:
-                ConsoleLog(
+                _log(
                     "DestroyZeroValueItems",
                     f"Queued destroy for zero-value item model {model_id} (item_id={item_id}).",
-                    Console.MessageType.Info,
+                    message_type=Console.MessageType.Info,
                     log=True,
                 )
 

@@ -28,7 +28,7 @@ def UnlockPet() -> BehaviorTree:
         children=[
             LogMessage("Traveling to Ashford Abbey to unlock Ranger Pet and secondary profession"),
 
-            BT.TravelToOutpost(ASHFORD_ABBEY_MAP_ID),
+            BT.Travel(ASHFORD_ABBEY_MAP_ID),
             LogMessage("Exiting to Lakeside County"),
              
             BT.Move(EXIT_TO_LAKESIDE_COUNTY_COORDS[0]),
@@ -103,7 +103,7 @@ def UnlockPet() -> BehaviorTree:
             ),
             
             LogMessage("Pet Charmed and Ranger secondary profession unlocked, activating HeroAI and traveling back to Ashford Abbey"),
-            BT.TravelToOutpost(ASHFORD_ABBEY_MAP_ID),
+            BT.Travel(ASHFORD_ABBEY_MAP_ID),
             LogMessage("Finished."),
             
         ],

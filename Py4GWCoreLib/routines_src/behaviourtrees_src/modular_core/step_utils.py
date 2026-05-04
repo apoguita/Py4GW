@@ -16,6 +16,12 @@ if TYPE_CHECKING:
 DEFAULT_STEP_DELAY_MS = 250
 
 
+def _log_recipe(recipe_name: str, message: str) -> None:
+    from Py4GWCoreLib import ConsoleLog
+
+    ConsoleLog(f"Recipe:{recipe_name}", message)
+
+
 def step_display_name(step: Dict[str, Any], step_type: str, step_idx: int) -> str:
     name = str(step.get("name", "") or "").strip()
     if name:
@@ -83,9 +89,7 @@ def cutscene_active() -> bool:
 def log_recipe(ctx: StepContext, message: str) -> None:
     if not recipe_debug_logging_enabled(ctx):
         return
-    from Py4GWCoreLib import ConsoleLog
-
-    ConsoleLog(f"Recipe:{ctx.recipe_name}", message)
+    _log_recipe(ctx.recipe_name, message)
 
 
 def recipe_debug_logging_enabled(ctx: StepContext) -> bool:
@@ -108,6 +112,4 @@ def recipe_debug_logging_enabled(ctx: StepContext) -> bool:
 def debug_log_recipe(ctx: StepContext, message: str) -> None:
     if not recipe_debug_logging_enabled(ctx):
         return
-    from Py4GWCoreLib import ConsoleLog
-
-    ConsoleLog(f"Recipe:{ctx.recipe_name}", message)
+    _log_recipe(ctx.recipe_name, message)

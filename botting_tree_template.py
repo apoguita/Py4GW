@@ -12,9 +12,9 @@ from Sources.ApoSource.ApoBottingLib import wrappers as BT
 from Py4GWCoreLib.enums_src.GameData_enums import Range
 
 
-MODULE_NAME = "Factions Leveler Redux"
+MODULE_NAME = "Botting Tree Template"
 INI_PATH = "Widgets/Automation/Bots/Templates"
-INI_FILENAME = "FactionsLeveler.ini"
+INI_FILENAME = "BottingTreeTemplate.ini"
 
 initialized = False
 ini_key = ""
@@ -44,25 +44,13 @@ def ensure_botting_tree() -> BottingTree:
         )
 
     return botting_tree
-
-
-def ConfigurePacifistEnv() -> BehaviorTree:
-    return ensure_botting_tree().Config.Pacifist(name="Configure Pacifist Env")
-
-
-def ConfigureAggressiveEnv() -> BehaviorTree:
-    return ensure_botting_tree().Config.Aggressive(
-        auto_loot=False,
-        name="Configure Aggressive Env",
-    )
-
-
 def InitializeBot() -> BehaviorTree:
+    bot = ensure_botting_tree()
     return BehaviorTree(
         BehaviorTree.SequenceNode(
             name="Initialize Bot",
             children=[
-                BT.ResetActionQueues(),
+                bot.Config.Aggressive(auto_loot=False),
             ],
         )
     )

@@ -107,8 +107,14 @@ def handle_dialog_with_model(ctx: StepContext) -> None:
     wait_after_step(ctx.bot, ctx.step)
 
 
+def _recipe_log(recipe_name: str, message: str) -> None:
+    from Py4GWCoreLib import ConsoleLog
+
+    ConsoleLog(f"Recipe:{recipe_name}", message)
+
+
 def handle_dialogs(ctx: StepContext) -> None:
-    from Py4GWCoreLib import ConsoleLog, Player
+    from Py4GWCoreLib import Player
 
     name = ctx.step.get("name", f"Dialogs {ctx.step_idx + 1}")
     interval_ms = int(ctx.step.get("interval_ms", 200))
@@ -120,7 +126,7 @@ def handle_dialogs(ctx: StepContext) -> None:
         try:
             dialog_ids.append(int(str(value), 0))
         except (TypeError, ValueError):
-            ConsoleLog(f"Recipe:{ctx.recipe_name}", f"Invalid dialogs.id value at index {ctx.step_idx}: {value!r}")
+            _recipe_log(ctx.recipe_name, f"Invalid dialogs.id value at index {ctx.step_idx}: {value!r}")
             return
 
     def _coords():
@@ -142,8 +148,6 @@ def handle_dialogs(ctx: StepContext) -> None:
 
 
 def handle_dialog_multibox(ctx: StepContext) -> None:
-    from Py4GWCoreLib import ConsoleLog
-
     name = ctx.step.get("name", f"Dialog Multibox {ctx.step_idx + 1}")
     interval_ms = int(ctx.step.get("interval_ms", 200))
     send_wait_step_ms = max(10, int(ctx.step.get("multibox_wait_step_ms", 50)))
@@ -156,7 +160,7 @@ def handle_dialog_multibox(ctx: StepContext) -> None:
         try:
             dialog_ids.append(int(str(value), 0))
         except (TypeError, ValueError):
-            ConsoleLog(f"Recipe:{ctx.recipe_name}", f"Invalid dialog_multibox.id value at index {ctx.step_idx}: {value!r}")
+            _recipe_log(ctx.recipe_name, f"Invalid dialog_multibox.id value at index {ctx.step_idx}: {value!r}")
             return
 
     def _coords():
@@ -175,7 +179,7 @@ def handle_dialog_multibox(ctx: StepContext) -> None:
         send_wait_step_ms=send_wait_step_ms,
         send_timeout_ms=send_timeout_ms,
         name=str(name),
-        log=lambda message: ConsoleLog(f"Recipe:{ctx.recipe_name}", f"{message} step index {ctx.step_idx}"),
+        log=lambda message: _recipe_log(ctx.recipe_name, f"{message} step index {ctx.step_idx}"),
     )
     wait_after_step(ctx.bot, ctx.step)
 
@@ -231,7 +235,7 @@ def handle_interact_gadget_at_xy(ctx: StepContext) -> None:
 
 
 def handle_loot_chest(ctx: StepContext) -> None:
-    from Py4GWCoreLib import ConsoleLog, Range
+    from Py4GWCoreLib import Range
 
     chest_step = dict(ctx.step)
     if (
@@ -276,7 +280,7 @@ def handle_loot_chest(ctx: StepContext) -> None:
         max_dist=max_dist,
         multibox=multibox,
         name=str(name),
-        log=lambda message: ConsoleLog(f"Recipe:{ctx.recipe_name}", message),
+        log=lambda message: _recipe_log(ctx.recipe_name, message),
     )
     wait_after_step(ctx.bot, ctx.step)
 
@@ -356,13 +360,11 @@ def handle_skip_cutscene(ctx: StepContext) -> None:
 
 
 def handle_key_press(ctx: StepContext) -> None:
-    from Py4GWCoreLib import ConsoleLog
-
     key_name = str(ctx.step["key"]).upper()
     if not add_key_press_state(
         ctx.bot,
         key_name=key_name,
-        log=lambda message: ConsoleLog(f"Recipe:{ctx.recipe_name}", message),
+        log=lambda message: _recipe_log(ctx.recipe_name, message),
     ):
         return
     wait_after_step(ctx.bot, ctx.step)
