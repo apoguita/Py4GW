@@ -29,7 +29,7 @@ def LongMove(points: Vec2f | list[Vec2f], timeout_ms: int = 60000) -> BehaviorTr
     return Sequence(
         "Long Timeout Move",
         [
-            RoutinesBT.Player.Move(
+            RoutinesBT.Movement.Move(
                 x=point.x,
                 y=point.y,
                 tolerance=75.0,
