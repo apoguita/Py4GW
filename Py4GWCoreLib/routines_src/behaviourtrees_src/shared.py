@@ -16,6 +16,14 @@ from ...enums_src.Multiboxing_enums import SharedCommandType
 from ...py4gwcorelib_src.BehaviorTree import BehaviorTree
 
 
+def _log(source: str, message: str, *, log: bool = False, message_type=Console.MessageType.Info) -> None:
+    ConsoleLog(source, message, message_type, log=log)
+
+
+def _fail_log(source: str, message: str, message_type=Console.MessageType.Warning) -> None:
+    ConsoleLog(source, message, message_type, log=True)
+
+
 def _coerce_command_value(command: SharedCommandType | int) -> int:
     try:
         return int(command.value)  # SharedCommandType
@@ -68,6 +76,10 @@ class BTShared:
             if not sender_email:
                 node.blackboard[refs_blackboard_key] = []
                 node.blackboard[f"{refs_blackboard_key}_command"] = command_value
+                _fail_log(
+                    "BTShared.SendCommand",
+                    f"Failed to send shared command {command_value}: sender email is empty.",
+                )
                 return BehaviorTree.NodeState.FAILURE
 
             if recipients is None:
@@ -98,13 +110,11 @@ class BTShared:
             node.blackboard[refs_blackboard_key] = refs
             node.blackboard[f"{refs_blackboard_key}_command"] = command_value
 
-            if log:
-                ConsoleLog(
-                    "BTShared.SendCommand",
-                    f"Sent command={command_value} to recipients={len(refs)}.",
-                    Console.MessageType.Info,
-                    log=log,
-                )
+            _log(
+                "BTShared.SendCommand",
+                f"Sent command={command_value} to recipients={len(refs)}.",
+                log=log,
+            )
 
             return BehaviorTree.NodeState.SUCCESS
 
@@ -166,13 +176,11 @@ class BTShared:
 
             if clear_refs_on_success:
                 node.blackboard[refs_blackboard_key] = []
-            if log:
-                ConsoleLog(
-                    "BTShared.WaitCommandDispatch",
-                    f"Dispatch complete for refs_key={refs_blackboard_key}.",
-                    Console.MessageType.Info,
-                    log=log,
-                )
+            _log(
+                "BTShared.WaitCommandDispatch",
+                f"Dispatch complete for refs_key={refs_blackboard_key}.",
+                log=log,
+            )
             return True
 
         return BehaviorTree(

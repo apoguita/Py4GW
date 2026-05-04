@@ -16,6 +16,12 @@ from .step_utils import parse_step_bool, parse_step_float, parse_step_int, parse
 COMPASS_RANGE = float(Range.Compass.value)
 
 
+def _log_recipe(recipe_name: str, message: str) -> None:
+    from Py4GWCoreLib import ConsoleLog
+
+    ConsoleLog(f"Recipe:{recipe_name}", message)
+
+
 def _matches_encoded_name(agent_id: int, encoded_names: tuple[tuple[int, ...], ...]) -> bool:
     if not encoded_names:
         return False
@@ -37,7 +43,7 @@ def resolve_agent_xy_from_step(
     default_max_dist: float | None = None,
     log_failures: bool = True,
 ) -> tuple[float, float] | None:
-    from Py4GWCoreLib import Agent, AgentArray, ConsoleLog, Player
+    from Py4GWCoreLib import Agent, AgentArray, Player
 
     if default_max_dist is None:
         default_max_dist = COMPASS_RANGE
@@ -70,7 +76,7 @@ def resolve_agent_xy_from_step(
     elif agent_kind == "gadget":
         agent_array = AgentArray.GetGadgetArray()
     else:
-        ConsoleLog(f"Recipe:{recipe_name}", f"Unsupported agent resolver kind: {agent_kind!r}")
+        _log_recipe(recipe_name, f"Unsupported agent resolver kind: {agent_kind!r}")
         return None
 
     px, py = Player.GetXY()
@@ -81,10 +87,7 @@ def resolve_agent_xy_from_step(
         if agent_array:
             return Agent.GetXY(int(agent_array[0]))
         if log_failures:
-            ConsoleLog(
-                f"Recipe:{recipe_name}",
-                f"No nearest {agent_kind} found within {max_dist:.0f} at index {step_idx}",
-            )
+            _log_recipe(recipe_name, f"No nearest {agent_kind} found within {max_dist:.0f} at index {step_idx}")
         return None
 
     target_name_l = target_name.lower()
@@ -126,10 +129,7 @@ def resolve_agent_xy_from_step(
         descriptor_parts.append("nearest=true")
     descriptor = ", ".join(descriptor_parts) or "no selector"
     if log_failures:
-        ConsoleLog(
-            f"Recipe:{recipe_name}",
-            f"Could not resolve {agent_kind} using {descriptor} within {max_dist:.0f} at index {step_idx}",
-        )
+        _log_recipe(recipe_name, f"Could not resolve {agent_kind} using {descriptor} within {max_dist:.0f} at index {step_idx}")
     return None
 
 
@@ -140,7 +140,7 @@ def resolve_enemy_agent_id_from_step(
     step_idx: int,
     default_max_dist: float | None = None,
 ) -> int | None:
-    from Py4GWCoreLib import Agent, AgentArray, ConsoleLog, Player
+    from Py4GWCoreLib import Agent, AgentArray, Player
 
     if default_max_dist is None:
         default_max_dist = COMPASS_RANGE
@@ -150,10 +150,7 @@ def resolve_enemy_agent_id_from_step(
         agent_id = parse_step_int(agent_id_raw, 0)
         if agent_id > 0 and Agent.IsValid(agent_id):
             return agent_id
-        ConsoleLog(
-            f"Recipe:{recipe_name}",
-            f"Invalid enemy agent_id at index {step_idx}: {agent_id_raw!r}",
-        )
+        _log_recipe(recipe_name, f"Invalid enemy agent_id at index {step_idx}: {agent_id_raw!r}")
         return None
 
     max_dist = parse_step_float(step.get("max_dist", default_max_dist), default_max_dist)
@@ -220,10 +217,7 @@ def resolve_enemy_agent_id_from_step(
     if nearest:
         descriptor_parts.append("nearest=true")
     descriptor = ", ".join(descriptor_parts) or "no selector"
-    ConsoleLog(
-        f"Recipe:{recipe_name}",
-        f"Could not resolve enemy using {descriptor} within {max_dist:.0f} at index {step_idx}",
-    )
+    _log_recipe(recipe_name, f"Could not resolve enemy using {descriptor} within {max_dist:.0f} at index {step_idx}")
     return None
 
 
@@ -233,7 +227,6 @@ def resolve_item_model_id_from_step(
     recipe_name: str,
     step_idx: int,
 ) -> int | None:
-    from Py4GWCoreLib import ConsoleLog
     from Py4GWCoreLib.enums_src.Model_enums import ModelID
 
     model_id_raw = step.get("model_id", None)
@@ -251,8 +244,5 @@ def resolve_item_model_id_from_step(
     try:
         return int(str(model_id_raw), 0)
     except (TypeError, ValueError):
-        ConsoleLog(
-            f"Recipe:{recipe_name}",
-            f"Invalid item selector at index {step_idx}: model_id={model_id_raw!r}",
-        )
+        _log_recipe(recipe_name, f"Invalid item selector at index {step_idx}: model_id={model_id_raw!r}")
         return None

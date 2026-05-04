@@ -45,9 +45,17 @@ Docstring parsing rules
 
 from __future__ import annotations
 
-from ...Py4GWcorelib import ConsoleLog
+from ...Py4GWcorelib import ConsoleLog, Console
 from ...UIManager import UIManager
 from ...py4gwcorelib_src.BehaviorTree import BehaviorTree
+
+
+def _log(source: str, message: str, *, log: bool = False, message_type=Console.MessageType.Info) -> None:
+    ConsoleLog(source, message, message_type, log=log)
+
+
+def _fail_log(source: str, message: str, message_type=Console.MessageType.Warning) -> None:
+    ConsoleLog(source, message, message_type, log=True)
 
 
 class BTKeybinds:
@@ -87,6 +95,9 @@ class BTKeybinds:
               UserDescription: Internal support routine.
               Notes: Returns success immediately after the key-down request.
             """
+            if keybind_index < 0:
+                _fail_log("PressKeybind", f"Failed to press keybind: invalid keybind index {keybind_index}.")
+                return BehaviorTree.NodeState.FAILURE
             UIManager.Keydown(keybind_index,0)
             return BehaviorTree.NodeState.SUCCESS
         
@@ -102,6 +113,9 @@ class BTKeybinds:
               UserDescription: Internal support routine.
               Notes: Returns success immediately after the key-up request.
             """
+            if keybind_index < 0:
+                _fail_log("PressKeybind", f"Failed to release keybind: invalid keybind index {keybind_index}.")
+                return BehaviorTree.NodeState.FAILURE
             UIManager.Keyup(keybind_index,0)
             return BehaviorTree.NodeState.SUCCESS
         
@@ -117,7 +131,7 @@ class BTKeybinds:
               UserDescription: Internal support routine.
               Notes: Returns success whether logging is enabled or not.
             """
-            ConsoleLog("PressKeybind", f"Pressed keybind index {keybind_index} for {duration_ms}ms.", log=log)
+            _log("PressKeybind", f"Pressed keybind index {keybind_index} for {duration_ms}ms.", log=log)
             return BehaviorTree.NodeState.SUCCESS
         
         tree = BehaviorTree.SequenceNode(

@@ -69,6 +69,14 @@ from ...enums_src.UI_enums import ControlAction
 
 
 
+def _log(source: str, message: str, *, log: bool = False, message_type=Console.MessageType.Info) -> None:
+    ConsoleLog(source, message, message_type, log=log)
+
+
+def _fail_log(source: str, message: str, message_type=Console.MessageType.Warning) -> None:
+    ConsoleLog(source, message, message_type, log=True)
+
+
 DEFAULT_MOVE_TOLERANCE = 150.0
 
 class BTMovement:
@@ -330,7 +338,7 @@ class BTMovement:
                     distance_to_waypoint = Utils.Distance(current_pos, waypoint)
                     remaining_waypoints = len(state["path_points"]) - state["path_index"]
                 failure_details: dict[str, Any] = state.get("failure_details", {})
-                ConsoleLog(
+                _fail_log(
                     "Move",
                     (
                         f"Movement failed: reason={reason or 'unknown'}, target=({x}, {y}), "
@@ -342,14 +350,12 @@ class BTMovement:
                         f"current_pause_reason={state['current_pause_reason']}, "
                         f"failure_details={failure_details}."
                     ),
-                    Console.MessageType.Warning,
-                    log=True,
                 )
             elif _debug_enabled(node):
-                ConsoleLog(
+                _log(
                     "Move",
                     f"Finalizing move with state={move_state}, reason={reason or 'none'}, path_index={state['path_index']}.",
-                    Console.MessageType.Info if move_state == "finished" else Console.MessageType.Warning,
+                    message_type=Console.MessageType.Info if move_state == "finished" else Console.MessageType.Warning,
                     log=True,
                 )
             _set_blackboard(node, move_state, reason)
@@ -414,14 +420,14 @@ class BTMovement:
             state["last_move_command_ms"] = Utils.GetBaseTimestamp()
             if log:
                 if move_x != target_x or move_y != target_y:
-                    ConsoleLog(
+                    _log(
                         "Move",
                         f"Moving to waypoint ({target_x}, {target_y}) with jittered point ({move_x}, {move_y}).",
-                        Console.MessageType.Info,
+                        message_type=Console.MessageType.Info,
                         log=log,
                     )
                 else:
-                    ConsoleLog("Move", f"Moving to waypoint ({target_x}, {target_y}).", Console.MessageType.Info, log=log)
+                    _log("Move", f"Moving to waypoint ({target_x}, {target_y}).", message_type=Console.MessageType.Info, log=log)
 
         def _get_combat_move_issue_cooldown_ms() -> int:
             player_living = Agent.GetLivingAgentByID(Player.GetAgentID())
@@ -509,12 +515,12 @@ class BTMovement:
             effective_tolerance: float = max(float(tolerance), 125.0) if not pause_on_combat else float(tolerance)
             if state["completed"] and state["result_state"] == "finished":
                 if log:
-                    ConsoleLog("Move", f"Movement already finished ({state['result_reason']}).", Console.MessageType.Info, log=log)
+                    _log("Move", f"Movement already finished ({state['result_reason']}).", message_type=Console.MessageType.Info, log=log)
                 return BehaviorTree.NodeState.SUCCESS
 
             if state["completed"] and state["result_state"] == "failed":
                 if log:
-                    ConsoleLog("Move", f"Movement already failed ({state['result_reason']}).", Console.MessageType.Warning, log=log)
+                    _log("Move", f"Movement already failed ({state['result_reason']}).", message_type=Console.MessageType.Warning, log=log)
                 return BehaviorTree.NodeState.FAILURE
 
             if state["path_gen"] is None and state["path_points"] is None:
@@ -533,17 +539,17 @@ class BTMovement:
                     state["pause_logged"] = False
                     state["last_logged_waypoint_index"] = -1
                     if _debug_enabled(node):
-                        ConsoleLog(
+                        _log(
                             "MoveDirect",
                             f"Starting direct move with {len(state['path_points'])} supplied points to ({x}, {y}).",
-                            Console.MessageType.Info,
+                            message_type=Console.MessageType.Info,
                             log=True,
                         )
                     _set_blackboard(node, "running")
                 else:
                     state["path_gen"] = AutoPathing().get_path_to(x, y, margin=150)
                     if _debug_enabled(node):
-                        ConsoleLog("Move", f"Starting autopath to ({x}, {y}).", Console.MessageType.Info, log=True)
+                        _log("Move", f"Starting autopath to ({x}, {y}).", message_type=Console.MessageType.Info, log=True)
                     _set_blackboard(node, "running")
 
             if state["path_gen"] is not None:
@@ -562,30 +568,30 @@ class BTMovement:
                     state["last_logged_waypoint_index"] = -1
 
                     if _debug_enabled(node):
-                        ConsoleLog(
+                        _log(
                             "Move",
                             f"Autopath resolved with {len(state['path_points'])} points to ({x}, {y}).",
-                            Console.MessageType.Info,
+                            message_type=Console.MessageType.Info,
                             log=True,
                         )
 
                     current_pos: Point2D = Player.GetXY()
                     if Utils.Distance(current_pos, (x, y)) <= effective_tolerance:
                         if _debug_enabled(node):
-                            ConsoleLog("Move", "Already within tolerance of destination.", Console.MessageType.Success, log=True)
+                            _log("Move", "Already within tolerance of destination.", message_type=Console.MessageType.Success, log=True)
                         _finalize_move(node, "finished")
                         return BehaviorTree.NodeState.SUCCESS
 
                     if len(state["path_points"]) == 0:
                         if _debug_enabled(node):
-                            ConsoleLog("Move", "Autopath returned no path points; failing because there is no path to follow.", Console.MessageType.Warning, log=True)
+                            _fail_log("Move", "Autopath returned no path points; failing because there is no path to follow.")
                         _finalize_move(node, "failed", "autopath_failed")
                         return BehaviorTree.NodeState.FAILURE
 
             if Checks.Player.IsDead():
                 _stop_strafe()
                 if log:
-                    ConsoleLog("Move", "Player is dead; movement remains active and waiting.", Console.MessageType.Warning, log=log)
+                    _log("Move", "Player is dead; movement remains active and waiting.", message_type=Console.MessageType.Warning, log=log)
                 state["was_paused"] = True
                 state["current_pause_reason"] = "player_dead"
                 state["last_progress_ms"] = None
@@ -604,7 +610,7 @@ class BTMovement:
             if pause_reason:
                 _stop_strafe()
                 if not state["pause_logged"] and log:
-                        ConsoleLog("Move", f"Movement paused due to {pause_reason}.", Console.MessageType.Info, log=log)
+                        _log("Move", f"Movement paused due to {pause_reason}.", message_type=Console.MessageType.Info, log=log)
                 state["pause_logged"] = True
                 state["was_paused"] = True
                 state["current_pause_reason"] = pause_reason
@@ -621,7 +627,7 @@ class BTMovement:
                 return BehaviorTree.NodeState.RUNNING
             elif state["pause_logged"]:
                 if log:
-                    ConsoleLog("Move", "Movement resumed.", Console.MessageType.Info, log=log)
+                    _log("Move", "Movement resumed.", message_type=Console.MessageType.Info, log=log)
                 state["pause_logged"] = False
             if state["was_paused"]:
                 state["was_paused"] = False
@@ -636,16 +642,16 @@ class BTMovement:
 
             if state["path_points"] is None or state["path_index"] >= len(state["path_points"]):
                 if log:
-                    ConsoleLog("Move", "Movement finished with no remaining path points.", Console.MessageType.Success, log=log)
+                    _log("Move", "Movement finished with no remaining path points.", message_type=Console.MessageType.Success, log=log)
                 _finalize_move(node, "finished")
                 return BehaviorTree.NodeState.SUCCESS
 
             target_x, target_y = state["path_points"][state["path_index"]]
             if state["last_logged_waypoint_index"] != state["path_index"] and log:
-                ConsoleLog(
+                _log(
                     "Move",
                     f"Tracking waypoint {state['path_index'] + 1}/{len(state['path_points'])} at ({target_x}, {target_y}).",
-                    Console.MessageType.Info,
+                    message_type=Console.MessageType.Info,
                     log=log,
                 )
                 state["last_logged_waypoint_index"] = state["path_index"]
@@ -669,11 +675,11 @@ class BTMovement:
                 state["strafe_side"] = ""
                 state["strafe_phase"] = 0
                 if log:
-                    ConsoleLog("Move", f"Reached waypoint, advancing to index {state['path_index']}.", Console.MessageType.Info, log=log)
+                    _log("Move", f"Reached waypoint, advancing to index {state['path_index']}.", message_type=Console.MessageType.Info, log=log)
 
                 if state["path_index"] >= len(state["path_points"]):
                     if log:
-                        ConsoleLog("Move", "Reached final destination.", Console.MessageType.Success, log=log)
+                        _log("Move", "Reached final destination.", message_type=Console.MessageType.Success, log=log)
                     _finalize_move(node, "finished")
                     return BehaviorTree.NodeState.SUCCESS
 
@@ -704,10 +710,10 @@ class BTMovement:
             elif state["last_progress_ms"] is not None and now - state["last_progress_ms"] >= stall_threshold_ms:
                 state["stall_retry_count"] += 1
                 if log:
-                    ConsoleLog(
+                    _log(
                         "Move",
                         f"No progress for {stall_threshold_ms}ms, nudging waypoint ({target_x}, {target_y}); retry {state['stall_retry_count']}.",
-                        Console.MessageType.Warning,
+                        message_type=Console.MessageType.Warning,
                         log=log,
                     )
                 if pause_on_combat and state["stall_retry_count"] >= 4:
@@ -716,10 +722,10 @@ class BTMovement:
                         state["strafe_phase"] = 1
                         _start_strafe(chosen_side, now)
                         if log:
-                            ConsoleLog(
+                            _log(
                                 "Move",
                                 f"Retry threshold reached; strafing {chosen_side} for {state['strafe_duration_ms']}ms before reattempting movement.",
-                                Console.MessageType.Warning,
+                                message_type=Console.MessageType.Warning,
                                 log=log,
                             )
                         state["stall_retry_count"] = 0
@@ -731,10 +737,10 @@ class BTMovement:
                         state["strafe_phase"] = 2
                         _start_strafe(opposite_side, now)
                         if log:
-                            ConsoleLog(
+                            _log(
                                 "Move",
                                 f"Still stalled after post-strafe retries; strafing {opposite_side} for {state['strafe_duration_ms']}ms.",
-                                Console.MessageType.Warning,
+                                message_type=Console.MessageType.Warning,
                                 log=log,
                             )
                         state["stall_retry_count"] = 0
@@ -789,13 +795,13 @@ class BTMovement:
 
             if state["completed"] and state["result_state"] == "finished":
                 if log:
-                    ConsoleLog("Move", f"Timeout watcher finished because movement succeeded ({state['result_reason']}).", Console.MessageType.Info, log=log)
+                    _log("Move", f"Timeout watcher finished because movement succeeded ({state['result_reason']}).", message_type=Console.MessageType.Info, log=log)
                 _reset_timeout()
                 return BehaviorTree.NodeState.SUCCESS
 
             if state["completed"] and state["result_state"] == "failed":
                 if log:
-                    ConsoleLog("Move", f"Timeout watcher finished because movement failed: {state['result_reason']}.", Console.MessageType.Info, log=log)
+                    _log("Move", f"Timeout watcher finished because movement failed: {state['result_reason']}.", message_type=Console.MessageType.Info, log=log)
                 _reset_timeout()
                 return BehaviorTree.NodeState.SUCCESS
 
@@ -858,22 +864,19 @@ class BTMovement:
                     "current_waypoint": waypoint,
                     "distance_to_waypoint": distance_to_waypoint,
                 }
-                if log:
-                    ConsoleLog(
-                        "Move",
-                        (
-                            f"Movement timed out after {elapsed_ms}ms on path_index={state['path_index']} "
-                            f"(budget={effective_timeout_ms}ms, base_timeout={timeout_ms}ms, "
-                            f"paused_total={timeout_state['paused_total_ms']}ms, "
-                            f"resume_recovery_active={state['resume_recovery_active']}, "
-                            f"resume_recovery_reason='{state['resume_recovery_reason']}', "
-                            f"current_pause_reason='{state['current_pause_reason']}', "
-                            f"current_pos={current_pos}, "
-                            f"waypoint={waypoint}, distance_to_waypoint={distance_to_waypoint})."
-                        ),
-                        Console.MessageType.Warning,
-                        log=log,
-                    )
+                _fail_log(
+                    "Move",
+                    (
+                        f"Movement timed out after {elapsed_ms}ms on path_index={state['path_index']} "
+                        f"(budget={effective_timeout_ms}ms, base_timeout={timeout_ms}ms, "
+                        f"paused_total={timeout_state['paused_total_ms']}ms, "
+                        f"resume_recovery_active={state['resume_recovery_active']}, "
+                        f"resume_recovery_reason='{state['resume_recovery_reason']}', "
+                        f"current_pause_reason='{state['current_pause_reason']}', "
+                        f"current_pos={current_pos}, "
+                        f"waypoint={waypoint}, distance_to_waypoint={distance_to_waypoint})."
+                    ),
+                )
                 _finalize_move(node, "failed", "timeout")
                 _reset_timeout()
                 return BehaviorTree.NodeState.FAILURE
@@ -910,10 +913,10 @@ class BTMovement:
             if map_loading or map_changed:
                 reason = "map_loading" if map_loading else "map_changed"
                 if _debug_enabled(node):
-                    ConsoleLog(
+                    _log(
                         "Move",
                         f"Movement finished successfully due to {reason}.",
-                        Console.MessageType.Info,
+                        message_type=Console.MessageType.Info,
                         log=True,
                     )
                 _finalize_move(node, "finished", reason)
@@ -921,10 +924,10 @@ class BTMovement:
 
             if not Checks.Map.MapValid():
                 if _debug_enabled(node):
-                    ConsoleLog(
+                    _log(
                         "Move",
                         "Map is temporarily invalid during movement; waiting without finalizing move.",
-                        Console.MessageType.Info,
+                        message_type=Console.MessageType.Info,
                         log=True,
                     )
                 return BehaviorTree.NodeState.RUNNING

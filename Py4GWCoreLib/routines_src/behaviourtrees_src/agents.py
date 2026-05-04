@@ -60,6 +60,14 @@ from .movement import BTMovement
 from .player import BTPlayer
 
 
+def _log(source: str, message: str, *, log: bool = False, message_type=Console.MessageType.Info) -> None:
+    ConsoleLog(source, message, message_type, log=log)
+
+
+def _fail_log(source: str, message: str, message_type=Console.MessageType.Warning) -> None:
+    ConsoleLog(source, message, message_type, log=True)
+
+
 class BTAgents:
     """
     Public BT helper group for targeting, lookup, and agent-driven interaction flows.
@@ -87,7 +95,7 @@ class BTAgents:
             return float(aggro_area)
 
     @staticmethod
-    def WaitUntilOutOfCombat(range: float = Range.Earshot.value, timeout_ms: int = 60000) -> BehaviorTree:
+    def WaitUntilOutOfCombat(range: float = Range.Earshot.value, timeout_ms: int = 60000, log: bool = False) -> BehaviorTree:
             """
             Build a tree that waits until no danger remains within the requested aggro range.
 
@@ -103,6 +111,7 @@ class BTAgents:
 
             def _wait_until_out_of_combat() -> BehaviorTree.NodeState:
                 if not Checks.Agents.InDanger(aggro_area=aggro_area):
+                    _log("WaitUntilOutOfCombat", f"No danger remains within range {range}.", log=log)
                     return BehaviorTree.NodeState.SUCCESS
                 return BehaviorTree.NodeState.RUNNING
 
@@ -116,7 +125,7 @@ class BTAgents:
             )
 
     @staticmethod
-    def WaitUntilOnCombat(range: float = Range.Earshot.value, timeout_ms: int = 60000) -> BehaviorTree:
+    def WaitUntilOnCombat(range: float = Range.Earshot.value, timeout_ms: int = 60000, log: bool = False) -> BehaviorTree:
             """
             Build a tree that waits until nearby combat danger is detected.
 
@@ -132,6 +141,7 @@ class BTAgents:
 
             def _wait_until_on_combat() -> BehaviorTree.NodeState:
                 if Checks.Agents.InDanger(aggro_area=aggro_area):
+                    _log("WaitUntilOnCombat", f"Combat danger detected within range {range}.", log=log)
                     return BehaviorTree.NodeState.SUCCESS
                 return BehaviorTree.NodeState.RUNNING
 
@@ -214,12 +224,7 @@ class BTAgents:
 
                 node.blackboard["resolved_model_id"] = resolved_model_id
                 if resolved_model_id == 0:
-                    ConsoleLog(
-                        "GetAgentIDByModelID",
-                        f"Failed to resolve model ID from '{modelID_or_encStr}'.",
-                        Console.MessageType.Warning,
-                        log=log,
-                    )
+                    _fail_log("GetAgentIDByModelID", f"Failed to resolve model ID from '{modelID_or_encStr}'.")
                     node.blackboard["result"] = 0
                     return BehaviorTree.NodeState.FAILURE
 
@@ -230,10 +235,10 @@ class BTAgents:
 
                 node.blackboard["result"] = found
                 if found != 0:
-                    ConsoleLog("GetAgentIDByModelID", f"Found agent ID {found} for model ID {resolved_model_id}.", Console.MessageType.Info, log=log)
+                    _log("GetAgentIDByModelID", f"Found agent ID {found} for model ID {resolved_model_id}.", log=log)
                     BehaviorTree.NodeState.SUCCESS
                 else:
-                    ConsoleLog("GetAgentIDByModelID", f"No agent found for model ID {resolved_model_id}.", Console.MessageType.Warning, log=log) 
+                    _fail_log("GetAgentIDByModelID", f"No agent found for model ID {resolved_model_id}.")
                     BehaviorTree.NodeState.FAILURE
                 
                 return (BehaviorTree.NodeState.SUCCESS
@@ -653,9 +658,9 @@ class BTAgents:
                 nearest_npc = RoutinesAgents.GetNearestNPC(distance)
                 node.blackboard["nearest_npc_id"] = nearest_npc
                 if nearest_npc != 0:
-                    ConsoleLog("TargetNearestNPC", f"Found nearest NPC with ID {nearest_npc} within distance {distance}.", Console.MessageType.Info, log=log)
+                    _log("TargetNearestNPC", f"Found nearest NPC with ID {nearest_npc} within distance {distance}.", log=log)
                     return BehaviorTree.NodeState.SUCCESS
-                ConsoleLog("TargetNearestNPC", f"No NPC found within distance {distance}.", Console.MessageType.Warning, log=log)
+                _fail_log("TargetNearestNPC", f"No NPC found within distance {distance}.")
                 return BehaviorTree.NodeState.FAILURE
 
             tree = BehaviorTree.SequenceNode(name="TargetNearestNPCRoot",
@@ -696,9 +701,9 @@ class BTAgents:
                 nearest_npc = RoutinesAgents.GetNearestNPCXY(x,y,distance)
                 node.blackboard["nearest_npc_id"] = nearest_npc
                 if nearest_npc != 0:
-                    ConsoleLog("TargetNearestNPCXY", f"Found nearest NPC with ID {nearest_npc} near ({x}, {y}) within distance {distance}.", Console.MessageType.Info, log=log)
+                    _log("TargetNearestNPCXY", f"Found nearest NPC with ID {nearest_npc} near ({x}, {y}) within distance {distance}.", log=log)
                     return BehaviorTree.NodeState.SUCCESS
-                ConsoleLog("TargetNearestNPCXY", f"No NPC found near ({x}, {y}) within distance {distance}.", Console.MessageType.Warning, log=log)
+                _fail_log("TargetNearestNPCXY", f"No NPC found near ({x}, {y}) within distance {distance}.")
                 return BehaviorTree.NodeState.FAILURE
 
             tree = BehaviorTree.SequenceNode(name="TargetNearestNPCXYRoot",
@@ -739,9 +744,9 @@ class BTAgents:
                 nearest_gadget = RoutinesAgents.GetNearestGadgetXY(x,y, distance)
                 node.blackboard["nearest_gadget_id"] = nearest_gadget
                 if nearest_gadget != 0:
-                    ConsoleLog("TargetNearestGadgetXY", f"Found nearest gadget with ID {nearest_gadget} near ({x}, {y}) within distance {distance}.", Console.MessageType.Info, log=log)
+                    _log("TargetNearestGadgetXY", f"Found nearest gadget with ID {nearest_gadget} near ({x}, {y}) within distance {distance}.", log=log)
                     return BehaviorTree.NodeState.SUCCESS
-                ConsoleLog("TargetNearestGadgetXY", f"No gadget found near ({x}, {y}) within distance {distance}.", Console.MessageType.Warning, log=log)
+                _fail_log("TargetNearestGadgetXY", f"No gadget found near ({x}, {y}) within distance {distance}.")
                 return BehaviorTree.NodeState.FAILURE
 
             tree = BehaviorTree.SequenceNode(name="TargetNearestGadgetXYRoot",
@@ -782,9 +787,9 @@ class BTAgents:
                 nearest_item = RoutinesAgents.GetNearestItemXY(x,y, distance)
                 node.blackboard["nearest_item_id"] = nearest_item
                 if nearest_item != 0:
-                    ConsoleLog("TargetNearestItemXY", f"Found nearest item with ID {nearest_item} near ({x}, {y}) within distance {distance}.", Console.MessageType.Info, log=log)
+                    _log("TargetNearestItemXY", f"Found nearest item with ID {nearest_item} near ({x}, {y}) within distance {distance}.", log=log)
                     return BehaviorTree.NodeState.SUCCESS
-                ConsoleLog("TargetNearestItemXY", f"No item found near ({x}, {y}) within distance {distance}.", Console.MessageType.Warning, log=log)
+                _fail_log("TargetNearestItemXY", f"No item found near ({x}, {y}) within distance {distance}.")
                 return BehaviorTree.NodeState.FAILURE
 
             tree = BehaviorTree.SequenceNode(name="TargetNearestItemXYRoot",
@@ -825,9 +830,9 @@ class BTAgents:
                 nearest_enemy = RoutinesAgents.GetNearestEnemy(distance)
                 node.blackboard["nearest_enemy_id"] = nearest_enemy
                 if nearest_enemy != 0:
-                    ConsoleLog("TargetNearestEnemy", f"Found nearest enemy with ID {nearest_enemy} within distance {distance}.", Console.MessageType.Info, log=log)
+                    _log("TargetNearestEnemy", f"Found nearest enemy with ID {nearest_enemy} within distance {distance}.", log=log)
                     return BehaviorTree.NodeState.SUCCESS
-                ConsoleLog("TargetNearestEnemy", f"No enemy found within distance {distance}.", Console.MessageType.Warning, log=log)
+                _fail_log("TargetNearestEnemy", f"No enemy found within distance {distance}.")
                 return BehaviorTree.NodeState.FAILURE
 
             tree = BehaviorTree.SequenceNode(name="TargetNearestEnemyRoot",
@@ -930,12 +935,7 @@ class BTAgents:
                 pause_reason = _get_pause_reason(node)
                 if pause_reason:
                     if log and not state["paused_for_looting"]:
-                        ConsoleLog(
-                            "ClearEnemiesInArea",
-                            f"Pausing clear-area routine near ({x}, {y}) due to {pause_reason}.",
-                            Console.MessageType.Info,
-                            log=log,
-                        )
+                        _log("ClearEnemiesInArea", f"Pausing clear-area routine near ({x}, {y}) due to {pause_reason}.", log=log)
                     state["paused_for_looting"] = True
                     return BehaviorTree.NodeState.RUNNING
 
@@ -943,11 +943,11 @@ class BTAgents:
 
                 if len(enemies) <= allowed_alive_enemies:
                     if log:
-                        ConsoleLog(
+                        _log(
                             "ClearEnemiesInArea",
                             f"Area at ({x}, {y}) is clear enough: alive_enemies={len(enemies)}, allowed={allowed_alive_enemies}.",
-                            Console.MessageType.Success,
                             log=log,
+                            message_type=Console.MessageType.Success,
                         )
                     state["last_target_id"] = 0
                     state["last_interact_ms"] = 0
@@ -962,10 +962,9 @@ class BTAgents:
                     state["last_target_id"] = target_id
                     state["last_interact_ms"] = now
                     if log:
-                        ConsoleLog(
+                        _log(
                             "ClearEnemiesInArea",
                             f"Clearing area: interacting enemy {target_id} near ({x}, {y}); remaining enemies={len(enemies)}.",
-                            Console.MessageType.Info,
                             log=log,
                         )
 
@@ -1042,12 +1041,7 @@ class BTAgents:
                 pause_reason = _get_pause_reason(node)
                 if pause_reason:
                     if log and not state["paused_for_looting"]:
-                        ConsoleLog(
-                            "WaitForClearEnemiesInArea",
-                            f"Pausing wait-for-clear routine near ({x}, {y}) due to {pause_reason}.",
-                            Console.MessageType.Info,
-                            log=log,
-                        )
+                        _log("WaitForClearEnemiesInArea", f"Pausing wait-for-clear routine near ({x}, {y}) due to {pause_reason}.", log=log)
                     state["paused_for_looting"] = True
                     return BehaviorTree.NodeState.RUNNING
 
@@ -1055,19 +1049,18 @@ class BTAgents:
 
                 if len(enemies) <= allowed_alive_enemies:
                     if log:
-                        ConsoleLog(
+                        _log(
                             "WaitForClearEnemiesInArea",
                             f"Area at ({x}, {y}) is clear enough: alive_enemies={len(enemies)}, allowed={allowed_alive_enemies}.",
-                            Console.MessageType.Success,
                             log=log,
+                            message_type=Console.MessageType.Success,
                         )
                     return BehaviorTree.NodeState.SUCCESS
 
                 if log:
-                    ConsoleLog(
+                    _log(
                         "WaitForClearEnemiesInArea",
                         f"Waiting for area near ({x}, {y}) to clear: alive_enemies={len(enemies)}, allowed={allowed_alive_enemies}.",
-                        Console.MessageType.Info,
                         log=log,
                     )
                 return BehaviorTree.NodeState.RUNNING
@@ -1108,9 +1101,9 @@ class BTAgents:
                 nearest_item = RoutinesAgents.GetNearestItem(distance)
                 node.blackboard["nearest_item_id"] = nearest_item
                 if nearest_item != 0:
-                    ConsoleLog("TargetNearestItem", f"Found nearest item with ID {nearest_item} within distance {distance}.", Console.MessageType.Info, log=log)
+                    _log("TargetNearestItem", f"Found nearest item with ID {nearest_item} within distance {distance}.", log=log)
                     return BehaviorTree.NodeState.SUCCESS
-                ConsoleLog("TargetNearestItem", f"No item found within distance {distance}.", Console.MessageType.Warning, log=log)
+                _fail_log("TargetNearestItem", f"No item found within distance {distance}.")
                 return BehaviorTree.NodeState.FAILURE
 
             tree = BehaviorTree.SequenceNode(name="TargetNearestItemRoot",
@@ -1151,9 +1144,9 @@ class BTAgents:
                 nearest_chest = RoutinesAgents.GetNearestChest(distance)
                 node.blackboard["nearest_chest_id"] = nearest_chest
                 if nearest_chest != 0:
-                    ConsoleLog("TargetNearestChest", f"Found nearest chest with ID {nearest_chest} within distance {distance}.", Console.MessageType.Info, log=log)
+                    _log("TargetNearestChest", f"Found nearest chest with ID {nearest_chest} within distance {distance}.", log=log)
                     return BehaviorTree.NodeState.SUCCESS
-                ConsoleLog("TargetNearestChest", f"No chest found within distance {distance}.", Console.MessageType.Warning, log=log)
+                _fail_log("TargetNearestChest", f"No chest found within distance {distance}.")
                 return BehaviorTree.NodeState.FAILURE
 
             tree = BehaviorTree.SequenceNode(name="TargetNearestChestRoot",

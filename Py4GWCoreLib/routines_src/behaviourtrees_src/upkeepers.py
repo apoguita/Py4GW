@@ -58,6 +58,14 @@ from .composite import BTComposite
 from .items import BTItems
 
 
+def _log(source: str, message: str, *, log: bool = False, message_type=Console.MessageType.Info) -> None:
+    ConsoleLog(source, message, message_type, log=log)
+
+
+def _fail_log(source: str, message: str, message_type=Console.MessageType.Warning) -> None:
+    ConsoleLog(source, message, message_type, log=True)
+
+
 class BTUpkeepers:
     """
     Public BT helper group for upkeep and background service routines.
@@ -772,10 +780,10 @@ class BTUpkeepers:
                 if _get_imp_item_id() != 0:
                     state["map_processed"] = True
                     if log:
-                        ConsoleLog(
+                        _log(
                             "OutpostImpService",
                             f"Imp model {imp_model_id} already present in bags for map {current_map_id}.",
-                            Console.MessageType.Info,
+                            message_type=Console.MessageType.Info,
                             log=log,
                         )
                     return BehaviorTree.NodeState.RUNNING
@@ -795,21 +803,19 @@ class BTUpkeepers:
 
             if spawn_result == BehaviorTree.NodeState.SUCCESS:
                 if log:
-                    ConsoleLog(
+                    _log(
                         "OutpostImpService",
                         f"Prepared imp model {imp_model_id} in outpost map {current_map_id}.",
-                        Console.MessageType.Success,
+                        message_type=Console.MessageType.Success,
                         log=log,
                     )
                 state["map_processed"] = True
                 state["spawn_tree"].reset()
                 state["spawn_tree"] = None
             elif spawn_result == BehaviorTree.NodeState.FAILURE:
-                ConsoleLog(
+                _fail_log(
                     "OutpostImpService",
                     f"Failed to prepare imp model {imp_model_id} in outpost map {current_map_id}; idling until next map change.",
-                    Console.MessageType.Warning,
-                    log=True,
                 )
                 state["map_processed"] = True
                 state["spawn_tree"].reset()
@@ -914,10 +920,10 @@ class BTUpkeepers:
             GLOBAL_CACHE.Inventory.UseItem(item_id)
             state["last_attempt_ms"] = int(now)
             if log:
-                ConsoleLog(
+                _log(
                     "ExplorableImpService",
                     f"Used imp stone model {imp_model_id} in explorable map {Map.GetMapID()}.",
-                    Console.MessageType.Info,
+                    message_type=Console.MessageType.Info,
                     log=log,
                 )
 

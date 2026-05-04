@@ -66,8 +66,12 @@ from ...py4gwcorelib_src.BehaviorTree import BehaviorTree
 from ...py4gwcorelib_src.Keystroke import Keystroke
 
 
+def _log(source: str, message: str, *, log: bool = False, message_type=Console.MessageType.Info) -> None:
+    ConsoleLog(source, message, message_type, log=log)
 
 
+def _fail_log(source: str, message: str, message_type=Console.MessageType.Warning) -> None:
+    ConsoleLog(source, message, message_type, log=True)
 
 
 if TYPE_CHECKING:
@@ -146,7 +150,7 @@ class BTPlayer:
                   Notes: Returns success immediately after sending the interact request.
                 """
                 Player.Interact(agent_id, False)
-                ConsoleLog("InteractAgent", f"Interacted with agent {agent_id}.", Console.MessageType.Info, log=log)
+                _log("InteractAgent", f"Interacted with agent {agent_id}.", log=log)
                 return BehaviorTree.NodeState.SUCCESS
             
             tree: BehaviorTree.ActionNode = BehaviorTree.ActionNode(name="InteractAgent", action_fn=lambda: _interact_agent(agent_id), aftercast_ms=aftercast_ms)
@@ -179,12 +183,10 @@ class BTPlayer:
                 """
                 node.blackboard["target_id"] = Player.GetTargetID()
                 if node.blackboard["target_id"] == 0:
-                    ConsoleLog("InteractTarget", "No target selected.", Console.MessageType.Error, log=True)
+                    _fail_log("InteractTarget", "No target selected.", Console.MessageType.Error)
                     return BehaviorTree.NodeState.FAILURE
 
-                ConsoleLog("InteractTarget",
-                        f"Target ID obtained: {node.blackboard['target_id']}.",
-                        Console.MessageType.Info, log=log)
+                _log("InteractTarget", f"Target ID obtained: {node.blackboard['target_id']}.", log=log)
                 return BehaviorTree.NodeState.SUCCESS
             
             tree: BehaviorTree.SequenceNode = BehaviorTree.SequenceNode(children=[
@@ -231,10 +233,10 @@ class BTPlayer:
                 """
                 if agent_id != 0:
                     Player.ChangeTarget(agent_id)
-                    ConsoleLog("ChangeTarget", f"Changed target to agent {agent_id}.", Console.MessageType.Info, log=log)
+                    _log("ChangeTarget", f"Changed target to agent {agent_id}.", log=log)
                     return BehaviorTree.NodeState.SUCCESS
                 
-                ConsoleLog("ChangeTarget", "Invalid agent ID provided for targeting.", Console.MessageType.Error, log=log)
+                _fail_log("ChangeTarget", "Invalid agent ID provided for targeting.", Console.MessageType.Error)
                 return BehaviorTree.NodeState.FAILURE
             
             tree: BehaviorTree.ActionNode = BehaviorTree.ActionNode(name="ChangeTarget", action_fn=lambda: _change_target(), aftercast_ms=250)
@@ -266,7 +268,7 @@ class BTPlayer:
                   Notes: Returns success immediately after sending the dialog id.
                 """
                 Player.SendDialog(dialog_id)
-                ConsoleLog("SendDialog", f"Sent dialog {dialog_id}.", Console.MessageType.Info, log=log)
+                _log("SendDialog", f"Sent dialog {dialog_id}.", log=log)
                 return BehaviorTree.NodeState.SUCCESS
             
             tree: BehaviorTree.ActionNode = BehaviorTree.ActionNode(name="SendDialog", action_fn=lambda: _send_dialog(dialog_id), aftercast_ms=300)
@@ -311,11 +313,9 @@ class BTPlayer:
                 try:
                     if not PyDialog.PyDialog.is_dialog_active():
                         if now - int(state["started_ms"]) >= 3000:
-                            ConsoleLog(
+                            _fail_log(
                                 "SendAutomaticDialog",
                                 f"Timed out waiting for dialog/button {button_number}; no dialog became active within 3000ms.",
-                                Console.MessageType.Warning,
-                                log=True,
                             )
                             state["started_ms"] = None
                             return BehaviorTree.NodeState.FAILURE
@@ -324,11 +324,9 @@ class BTPlayer:
                     buttons: list[Any] = list(PyDialog.PyDialog.get_active_dialog_buttons())
                 except Exception:
                     if now - int(state["started_ms"]) >= 3000:
-                        ConsoleLog(
+                        _fail_log(
                             "SendAutomaticDialog",
                             f"Timed out waiting for dialog/button {button_number}; dialog state could not be read within 3000ms.",
-                            Console.MessageType.Warning,
-                            log=True,
                         )
                         state["started_ms"] = None
                         return BehaviorTree.NodeState.FAILURE
@@ -337,11 +335,9 @@ class BTPlayer:
                 available_buttons: list[Any] = [button for button in buttons if getattr(button, "dialog_id", 0) != 0]
                 if button_number >= len(available_buttons):
                     if now - int(state["started_ms"]) >= 3000:
-                        ConsoleLog(
+                        _fail_log(
                             "SendAutomaticDialog",
                             f"Timed out waiting for automatic dialog button {button_number}; available count stayed at {len(available_buttons)} for 3000ms.",
-                            Console.MessageType.Warning,
-                            log=True,
                         )
                         state["started_ms"] = None
                         return BehaviorTree.NodeState.FAILURE
@@ -363,12 +359,7 @@ class BTPlayer:
                   Notes: Returns success immediately after sending the button press.
                 """
                 Player.SendAutomaticDialog(button_number)
-                ConsoleLog(
-                    "SendAutomaticDialog",
-                    f"Sent automatic dialog button {button_number}.",
-                    Console.MessageType.Info,
-                    log=log,
-                )
+                _log("SendAutomaticDialog", f"Sent automatic dialog button {button_number}.", log=log)
                 return BehaviorTree.NodeState.SUCCESS
 
             tree: BehaviorTree.SequenceNode = BehaviorTree.SequenceNode(
@@ -479,7 +470,7 @@ class BTPlayer:
                   Notes: Logs the resolved title name when available.
                 """
                 Player.SetActiveTitle(title_id)
-                ConsoleLog("SetTitle", f"Set title to {TITLE_NAME.get(title_id, 'Invalid')}.", Console.MessageType.Info, log=log)
+                _log("SetTitle", f"Set title to {TITLE_NAME.get(title_id, 'Invalid')}.", log=log)
                 return BehaviorTree.NodeState.SUCCESS
             
             tree: BehaviorTree.ActionNode = BehaviorTree.ActionNode(name="SetTitle", action_fn=lambda: _set_title(title_id), aftercast_ms=300)
@@ -511,7 +502,7 @@ class BTPlayer:
                   Notes: Returns success immediately after sending the command.
                 """
                 Player.SendChatCommand(command)
-                ConsoleLog("SendChatCommand", f"Sent chat command: {command}.", Console.MessageType.Info, log=log)
+                _log("SendChatCommand", f"Sent chat command: {command}.", log=log)
                 return BehaviorTree.NodeState.SUCCESS
             
             tree: BehaviorTree.ActionNode = BehaviorTree.ActionNode(name="SendChatCommand", action_fn=lambda: _send_chat_command(command), aftercast_ms=300)
@@ -543,7 +534,7 @@ class BTPlayer:
                   Notes: Returns success immediately after sending the purchase action.
                 """
                 Player.BuySkill(skill_id)
-                ConsoleLog("BuySkill", f"Buying skill {skill_id}.", Console.MessageType.Info, log=log)
+                _log("BuySkill", f"Buying skill {skill_id}.", log=log)
                 return BehaviorTree.NodeState.SUCCESS
 
             tree: BehaviorTree.ActionNode = BehaviorTree.ActionNode(name="BuySkill", action_fn=lambda: _buy_skill(skill_id), aftercast_ms=300)
@@ -575,10 +566,9 @@ class BTPlayer:
                   Notes: Preserves the requested PvP remap behavior from the enclosing routine.
                 """
                 Player.UnlockBalthazarSkill(skill_id, use_pvp_remap=use_pvp_remap)
-                ConsoleLog(
+                _log(
                     "UnlockBalthazarSkill",
                     f"Unlocking Balthazar skill {skill_id} (use_pvp_remap={use_pvp_remap}).",
-                    Console.MessageType.Info,
                     log=log,
                 )
                 return BehaviorTree.NodeState.SUCCESS
@@ -616,7 +606,7 @@ class BTPlayer:
                   Notes: Returns success immediately after sending the command.
                 """
                 Player.SendChatCommand("resign")
-                ConsoleLog("Resign", "Resigned from party.", Console.MessageType.Info, log=log)
+                _log("Resign", "Resigned from party.", log=log)
                 return BehaviorTree.NodeState.SUCCESS
 
             tree: BehaviorTree.ActionNode = BehaviorTree.ActionNode(name="Resign", action_fn=lambda: _resign(), aftercast_ms=250)
@@ -648,7 +638,7 @@ class BTPlayer:
                   Notes: Returns success immediately after sending the message.
                 """
                 Player.SendChat(channel, message)
-                ConsoleLog("SendChatMessage", f"Sent chat message to {channel}: {message}.", Console.MessageType.Info, log=log)
+                _log("SendChatMessage", f"Sent chat message to {channel}: {message}.", log=log)
                 return BehaviorTree.NodeState.SUCCESS
             
             tree: BehaviorTree.ActionNode = BehaviorTree.ActionNode(name="SendChatMessage", action_fn=lambda: _send_chat_message(channel, message), aftercast_ms=300)
@@ -679,7 +669,7 @@ class BTPlayer:
                   UserDescription: Internal support routine.
                   Notes: Always logs to console and returns success immediately.
                 """
-                ConsoleLog(source, message, message_type, log=True)
+                _fail_log(source, message, message_type)
                 return BehaviorTree.NodeState.SUCCESS
              
             tree: BehaviorTree.ActionNode = BehaviorTree.ActionNode(name="PrintMessageToConsole", action_fn=lambda: _print_message_to_console(source, message, message_type), aftercast_ms=100)
@@ -825,7 +815,7 @@ class BTPlayer:
                 formatted_timestamp: str = _format_timestamp(timestamp)
                 should_print_to_console: bool = to_console() if callable(to_console) else to_console
                 if should_print_to_console:
-                    ConsoleLog(source, message, message_type, log=True)
+                    _fail_log(source, message, message_type)
                 if to_blackboard:
                     body: str = f"[{source}] {message}" if include_source_in_blackboard_message and source else message
                     full_message: str = f"[{formatted_timestamp}] {body}"
@@ -891,18 +881,15 @@ class BTPlayer:
                 node.blackboard[blackboard_secondary_key] = secondary_name
 
                 if not primary_name:
-                    ConsoleLog(
+                    _fail_log(
                         "StoreProfessionNames",
                         "Failed to resolve player primary profession name.",
-                        Console.MessageType.Warning,
-                        log=True if log else False,
                     )
                     return BehaviorTree.NodeState.FAILURE
 
-                ConsoleLog(
+                _log(
                     "StoreProfessionNames",
                     f"Stored primary profession '{primary_name}' in blackboard key '{blackboard_primary_key}'.",
-                    Console.MessageType.Info,
                     log=log,
                 )
                 return BehaviorTree.NodeState.SUCCESS
@@ -946,12 +933,7 @@ class BTPlayer:
                 """
                 resolved_value: Any = value() if callable(value) else value
                 node.blackboard[key] = resolved_value
-                ConsoleLog(
-                    "SaveBlackboardValue",
-                    f"Stored blackboard key '{key}'.",
-                    Console.MessageType.Info,
-                    log=log,
-                )
+                _log("SaveBlackboardValue", f"Stored blackboard key '{key}'.", log=log)
                 return BehaviorTree.NodeState.SUCCESS
 
             return BehaviorTree(
@@ -993,12 +975,10 @@ class BTPlayer:
                   Notes: Reads from the current shared blackboard at runtime.
                 """
                 if source_key not in node.blackboard:
-                    ConsoleLog(
-                        "LoadBlackboardValue",
-                        f"Blackboard key '{source_key}' is missing.",
-                        Console.MessageType.Warning,
-                        log=log or fail_if_missing,
-                    )
+                    if fail_if_missing:
+                        _fail_log("LoadBlackboardValue", f"Blackboard key '{source_key}' is missing.")
+                    else:
+                        _log("LoadBlackboardValue", f"Blackboard key '{source_key}' is missing.", log=log)
                     return (
                         BehaviorTree.NodeState.FAILURE
                         if fail_if_missing
@@ -1006,10 +986,9 @@ class BTPlayer:
                     )
 
                 node.blackboard[target_key] = node.blackboard[source_key]
-                ConsoleLog(
+                _log(
                     "LoadBlackboardValue",
                     f"Copied blackboard key '{source_key}' to '{target_key}'.",
-                    Console.MessageType.Info,
                     log=log,
                 )
                 return BehaviorTree.NodeState.SUCCESS
@@ -1040,12 +1019,7 @@ class BTPlayer:
             """
             def _check_blackboard_value(node: BehaviorTree.Node) -> bool:
                 exists: bool = key in node.blackboard
-                ConsoleLog(
-                    "HasBlackboardValue",
-                    f"Blackboard key '{key}' exists={exists}.",
-                    Console.MessageType.Info,
-                    log=log,
-                )
+                _log("HasBlackboardValue", f"Blackboard key '{key}' exists={exists}.", log=log)
                 return exists
 
             return BehaviorTree(
@@ -1075,10 +1049,9 @@ class BTPlayer:
             def _blackboard_value_equals(node: BehaviorTree.Node) -> bool:
                 current_value = node.blackboard.get(key)
                 matches = current_value == value
-                ConsoleLog(
+                _log(
                     "BlackboardValueEquals",
                     f"Blackboard key '{key}' value={current_value!r} expected={value!r} matches={matches}.",
-                    Console.MessageType.Info,
                     log=log,
                 )
                 return matches
@@ -1108,12 +1081,7 @@ class BTPlayer:
             """
             def _clear_blackboard_value(node: BehaviorTree.Node) -> BehaviorTree.NodeState:
                 node.blackboard.pop(key, None)
-                ConsoleLog(
-                    "ClearBlackboardValue",
-                    f"Cleared blackboard key '{key}'.",
-                    Console.MessageType.Info,
-                    log=log,
-                )
+                _log("ClearBlackboardValue", f"Cleared blackboard key '{key}'.", log=log)
                 return BehaviorTree.NodeState.SUCCESS
 
             return BehaviorTree(
@@ -1478,7 +1446,7 @@ class BTPlayer:
                   UserDescription: Internal support routine.
                   Notes: Returns success immediately before the timed wait node begins.
                 """
-                ConsoleLog("Wait", f"Waiting for {duration_ms}ms.", Console.MessageType.Info, log=log)
+                _log("Wait", f"Waiting for {duration_ms}ms.", log=log)
                 return BehaviorTree.NodeState.SUCCESS
 
             tree: BehaviorTree = BehaviorTree(

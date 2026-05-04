@@ -22,6 +22,10 @@ _DESIRED_AUTO_FOLLOWING_KEY = "_modular_desired_auto_following"
 _TOGGLE_RECONCILE_AT_KEY = "_modular_last_toggle_reconcile_at"
 
 
+def _log(message: str, *, message_type=Console.MessageType.Info) -> None:
+    ConsoleLog("ModularBot", message, message_type)
+
+
 def _set_desired_toggle(bot, key: str, enabled: bool) -> None:
     cfg = getattr(bot, "config", None)
     if cfg is not None:
@@ -59,13 +63,12 @@ def _record_toggle_warning(owner, summary: dict, *, reason: str, hero_ai: dict[s
     toggle_name = str(summary.get("toggle", "") or "")
     enabled = bool(summary.get("enabled", False))
     if bool(getattr(owner, "is_debug_logging_enabled", lambda: False)()):
-        ConsoleLog(
-            "ModularBot",
+        _log(
             (
                 f"toggle_warning: {toggle_name} enabled={enabled} had zero HeroAI recipients "
                 f"(selector={hero_ai.get('selector', 'none')})."
             ),
-            Console.MessageType.Warning,
+            message_type=Console.MessageType.Warning,
         )
     owner.record_diagnostics_event(
         "toggle_warning",
@@ -84,10 +87,9 @@ def _record_toggle_reconciled(owner, summary: dict) -> None:
     targeted = int(summary.get("targeted", 0) or 0)
     updated = int(summary.get("updated", 0) or 0)
     if bool(getattr(owner, "is_debug_logging_enabled", lambda: False)()):
-        ConsoleLog(
-            "ModularBot",
+        _log(
             f"toggle_reconciled: {toggle_name} enabled={enabled} updated={updated} targeted={targeted}.",
-            Console.MessageType.Info,
+            message_type=Console.MessageType.Info,
         )
     owner.record_diagnostics_event(
         "toggle_reconciled",

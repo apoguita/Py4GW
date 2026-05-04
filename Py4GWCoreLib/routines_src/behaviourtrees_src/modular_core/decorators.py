@@ -33,6 +33,10 @@ AUTO_STATE_GUARD_STEP_TYPES = {
 }
 
 
+def _fail_log(message: str, *, message_type=Console.MessageType.Error) -> None:
+    ConsoleLog("ModularBot", message, message_type)
+
+
 @dataclass
 class _AutoStateGuardedSubtreeAction:
     """
@@ -92,10 +96,9 @@ class _AutoStateGuardedSubtreeAction:
                 raise TypeError("Guarded subtree returned non-NodeState result.")
         except Exception as exc:
             self._exit()
-            ConsoleLog(
-                "ModularBot",
+            _fail_log(
                 f"Auto-state guard subtree failed for step {self.request.step_type!r}: {exc}",
-                Console.MessageType.Error,
+                message_type=Console.MessageType.Error,
             )
             return BehaviorTree.NodeState.FAILURE
 

@@ -62,6 +62,14 @@ from .composite import BTComposite
 from .player import BTPlayer
 
 
+def _log(source: str, message: str, *, log: bool = False, message_type=Console.MessageType.Info) -> None:
+    ConsoleLog(source, message, message_type, log=log)
+
+
+def _fail_log(source: str, message: str, message_type=Console.MessageType.Warning) -> None:
+    ConsoleLog(source, message, message_type, log=True)
+
+
 class BTItems:
     """
     Public BT helper group for inventory and item-management routines.
@@ -184,12 +192,7 @@ class BTItems:
                 resolved_model_id = BTItems._resolve_model_id_value(modelID_or_encStr)
                 item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(resolved_model_id)
                 if item_id == 0:
-                    ConsoleLog(
-                        "EquipInventoryBag",
-                        f"Item model {resolved_model_id} not found in inventory.",
-                        Console.MessageType.Error,
-                        log=True,
-                    )
+                    _fail_log("EquipInventoryBag", f"Item model {resolved_model_id} not found in inventory.", Console.MessageType.Error)
                     _reset_state()
                     return BehaviorTree.NodeState.FAILURE
 
@@ -213,19 +216,19 @@ class BTItems:
                     return BehaviorTree.NodeState.RUNNING
 
                 if GLOBAL_CACHE.Inventory.MoveModelToBagSlot(int(state["resolved_model_id"]), Bags.Backpack, 0):
-                    ConsoleLog(
+                    _log(
                         "EquipInventoryBag",
                         f"Native UseItem did not populate bag {target_bag}; trying backpack slot double-click fallback for model {int(state['resolved_model_id'])}.",
-                        Console.MessageType.Warning,
+                        message_type=Console.MessageType.Warning,
                         log=log,
                     )
                     state["stage"] = "fallback_wait_before_open"
                     state["next_check_ms"] = now + poll_interval_ms
                 else:
-                    ConsoleLog(
+                    _log(
                         "EquipInventoryBag",
                         f"Fallback move to backpack slot 0 failed for model {int(state['resolved_model_id'])}.",
-                        Console.MessageType.Warning,
+                        message_type=Console.MessageType.Warning,
                         log=log,
                     )
                     state["stage"] = "final_wait"
@@ -262,12 +265,7 @@ class BTItems:
 
                 frame_id = _get_backpack_slot_frame_id()
                 if not UIManager.FrameExists(frame_id):
-                    ConsoleLog(
-                        "EquipInventoryBag",
-                        "Frame does not exist for backpack slot 0.",
-                        Console.MessageType.Error,
-                        log=True,
-                    )
+                    _fail_log("EquipInventoryBag", "Frame does not exist for backpack slot 0.", Console.MessageType.Error)
                     _reset_state()
                     return BehaviorTree.NodeState.FAILURE
 
@@ -282,12 +280,7 @@ class BTItems:
 
                 frame_id = _get_backpack_slot_frame_id()
                 if not UIManager.FrameExists(frame_id):
-                    ConsoleLog(
-                        "EquipInventoryBag",
-                        "Frame does not exist for backpack slot 0.",
-                        Console.MessageType.Error,
-                        log=True,
-                    )
+                    _fail_log("EquipInventoryBag", "Frame does not exist for backpack slot 0.", Console.MessageType.Error)
                     _reset_state()
                     return BehaviorTree.NodeState.FAILURE
 
@@ -308,7 +301,7 @@ class BTItems:
                     state["next_check_ms"] = now + poll_interval_ms
                     return BehaviorTree.NodeState.RUNNING
 
-                ConsoleLog(
+                _fail_log(
                     "EquipInventoryBag",
                     (
                         f"Failed to equip model {int(state['resolved_model_id'])} item {int(state['item_id'])} into bag {target_bag} within {timeout_ms}ms. "
@@ -316,7 +309,6 @@ class BTItems:
                         f"size={GLOBAL_CACHE.Inventory.GetBagSize(target_bag)}."
                     ),
                     Console.MessageType.Error,
-                    log=True,
                 )
                 _reset_state()
                 return BehaviorTree.NodeState.FAILURE
@@ -464,7 +456,7 @@ class BTItems:
               Notes: Returns success immediately after sending the command.
             """
             Player.SendChatCommand("bonus")
-            ConsoleLog("SpawnBonusItems", "Sent /bonus command.", Console.MessageType.Info, log=log)
+            _log("SpawnBonusItems", "Sent /bonus command.", message_type=Console.MessageType.Info, log=log)
             return BehaviorTree.NodeState.SUCCESS
 
         tree = BehaviorTree.ActionNode(
@@ -507,27 +499,20 @@ class BTItems:
             resolved_model_id = BTItems._resolve_model_id_value(modelID_or_encStr)
             item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(resolved_model_id)
             if item_id == 0:
-                ConsoleLog(
+                _fail_log(
                     "DestroyItem",
                     f"Item model {resolved_model_id} was not found in inventory for destruction.",
                     Console.MessageType.Warning if required else Console.MessageType.Info,
-                    log=True,
                 )
                 if required:
-                    ConsoleLog(
-                        "DestroyItem",
-                        f"Item model {resolved_model_id} was not found for destruction.",
-                        Console.MessageType.Warning,
-                        log=True if required else log,
-                    )
                     return BehaviorTree.NodeState.FAILURE
                 return BehaviorTree.NodeState.SUCCESS
 
             GLOBAL_CACHE.Inventory.DestroyItem(item_id)
-            ConsoleLog(
+            _log(
                 "DestroyItem",
                 f"Queued destroy for item model {resolved_model_id} (item_id={item_id}).",
-                Console.MessageType.Info,
+                message_type=Console.MessageType.Info,
                 log=log,
             )
             return BehaviorTree.NodeState.SUCCESS
@@ -658,18 +643,18 @@ class BTItems:
                 state["next_attempt_ms"] = int(now + aftercast_ms)
                 node.blackboard["destroy_items_last_model_id"] = model_id
                 node.blackboard["destroy_items_last_item_id"] = item_id
-                ConsoleLog(
+                _log(
                     "DestroyItems",
                     f"Queued destroy for item model {model_id} (item_id={item_id}).",
-                    Console.MessageType.Info,
+                    message_type=Console.MessageType.Info,
                     log=log,
                 )
                 return BehaviorTree.NodeState.RUNNING
 
-            ConsoleLog(
+            _log(
                 "DestroyItems",
                 f"Destroy pass completed for models: {models_to_destroy}",
-                Console.MessageType.Info,
+                message_type=Console.MessageType.Info,
                 log=log,
             )
             return BehaviorTree.NodeState.SUCCESS
@@ -714,7 +699,7 @@ class BTItems:
             for model_id in model_ids:
                 item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(model_id)
                 if item_id != 0:
-                    ConsoleLog("WaitForAnyModelInInventory", f"Detected inventory model {model_id} as item_id={item_id}.", Console.MessageType.Info, log=log)
+                    _log("WaitForAnyModelInInventory", f"Detected inventory model {model_id} as item_id={item_id}.", message_type=Console.MessageType.Info, log=log)
                     return BehaviorTree.NodeState.SUCCESS
             return BehaviorTree.NodeState.RUNNING
 
@@ -763,19 +748,17 @@ class BTItems:
             moved = GLOBAL_CACHE.Inventory.MoveModelToBagSlot(resolved_model_id, target_bag, slot)
             if not moved:
                 if required:
-                    ConsoleLog(
+                    _fail_log(
                         "MoveModelToBagSlot",
                         f"Failed to move model {resolved_model_id} to bag {target_bag} slot {slot}.",
-                        Console.MessageType.Warning,
-                        log=True if required else log,
                     )
                     return BehaviorTree.NodeState.FAILURE
                 return BehaviorTree.NodeState.SUCCESS
 
-            ConsoleLog(
+            _log(
                 "MoveModelToBagSlot",
                 f"Moved model {resolved_model_id} to bag {target_bag} slot {slot}.",
-                Console.MessageType.Info,
+                message_type=Console.MessageType.Info,
                 log=log,
             )
             return BehaviorTree.NodeState.SUCCESS
@@ -1191,7 +1174,7 @@ class BTItems:
                     if to_deposit > 0:
                         GLOBAL_CACHE.Inventory.DepositGold(to_deposit)
                         if log:
-                            ConsoleLog("WithdrawGold", f"Deposited {to_deposit} gold (excess).", Console.MessageType.Info)
+                            _log("WithdrawGold", f"Deposited {to_deposit} gold (excess).", message_type=Console.MessageType.Info, log=log)
                         state["stage"] = "wait_after_deposit"
                         state["resume_ms"] = now + max(0, int(aftercast_ms))
                         return BehaviorTree.NodeState.RUNNING
@@ -1205,12 +1188,11 @@ class BTItems:
                     if to_withdraw > 0:
                         GLOBAL_CACHE.Inventory.WithdrawGold(to_withdraw)
                         if log:
-                            ConsoleLog("WithdrawGold", f"Withdrew {to_withdraw} gold.", Console.MessageType.Info)
+                            _log("WithdrawGold", f"Withdrew {to_withdraw} gold.", message_type=Console.MessageType.Info, log=log)
                         state["stage"] = "wait_after_withdraw"
                         state["resume_ms"] = now + max(0, int(aftercast_ms))
                         return BehaviorTree.NodeState.RUNNING
-                    if log:
-                        ConsoleLog("WithdrawGold", "Not enough gold in storage to reach target.", Console.MessageType.Warning)
+                    _fail_log("WithdrawGold", "Not enough gold in storage to reach target.")
                 _reset_state()
                 return BehaviorTree.NodeState.SUCCESS
 
@@ -1287,8 +1269,7 @@ class BTItems:
                         break
 
                 if item_id == 0:
-                    if log:
-                        ConsoleLog("BuyMaterial", f"Model {model_id} not sold here.", Console.MessageType.Warning)
+                    _fail_log("BuyMaterial", f"Model {model_id} not sold here.")
                     _reset_state()
                     return BehaviorTree.NodeState.FAILURE
 
@@ -1303,8 +1284,7 @@ class BTItems:
                     return BehaviorTree.NodeState.RUNNING
 
                 if cost == 0:
-                    if log:
-                        ConsoleLog("BuyMaterial", f"Item {state['item_id']} has no price.", Console.MessageType.Warning)
+                    _fail_log("BuyMaterial", f"Item {state['item_id']} has no price.")
                     _reset_state()
                     return BehaviorTree.NodeState.FAILURE
 
@@ -1319,10 +1299,11 @@ class BTItems:
                 state["remaining_batches"] -= 1
                 if log:
                     quantity = 10 if _is_material_trader() else 1
-                    ConsoleLog(
+                    _log(
                         "BuyMaterials",
                         f"Bought batch {target_batches - state['remaining_batches']}/{target_batches} for model {model_id} ({quantity} units).",
-                        Console.MessageType.Success,
+                        message_type=Console.MessageType.Success,
+                        log=log,
                     )
                 if state["remaining_batches"] <= 0:
                     _reset_state()
@@ -1423,8 +1404,7 @@ class BTItems:
                     break
 
                 if item_id == 0 or item_value <= 0:
-                    if log:
-                        ConsoleLog("BuyMerchantItem", f"Model {model_id} not sold here.", Console.MessageType.Warning)
+                    _fail_log("BuyMerchantItem", f"Model {model_id} not sold here.")
                     _reset_state()
                     return BehaviorTree.NodeState.FAILURE
 
@@ -1440,10 +1420,11 @@ class BTItems:
 
                 state["remaining_quantity"] -= 1
                 if log:
-                    ConsoleLog(
+                    _log(
                         "BuyMerchantItem",
                         f"Bought {target_quantity - state['remaining_quantity']}/{target_quantity} of model {model_id}.",
-                        Console.MessageType.Success,
+                        message_type=Console.MessageType.Success,
+                        log=log,
                     )
                 if state["remaining_quantity"] <= 0:
                     _reset_state()
@@ -1676,20 +1657,20 @@ class BTItems:
 
             if not sellable_item_ids:
                 if log:
-                    ConsoleLog(
+                    _log(
                         "SellInventoryItems",
                         "No eligible inventory items found to sell.",
-                        Console.MessageType.Info,
+                        message_type=Console.MessageType.Info,
                         log=True,
                     )
                 return BehaviorTree.NodeState.SUCCESS
 
             if log:
                 excluded_models_text = ", ".join(str(model_id) for model_id in sorted(set(exclude_models or []))) or "none"
-                ConsoleLog(
+                _log(
                     "SellInventoryItems",
                     f"Selling {len(sellable_item_ids)} inventory items. Excluded models: {excluded_models_text}.",
-                    Console.MessageType.Info,
+                    message_type=Console.MessageType.Info,
                     log=True,
                 )
 
@@ -1735,10 +1716,10 @@ class BTItems:
                 return BehaviorTree.NodeState.RUNNING
 
             if log:
-                ConsoleLog(
+                _log(
                     "SellInventoryItems",
                     f"Sold {queued_count} inventory items through merchant queue.",
-                    Console.MessageType.Info,
+                    message_type=Console.MessageType.Info,
                     log=True,
                 )
             return BehaviorTree.NodeState.SUCCESS
@@ -1799,10 +1780,10 @@ class BTItems:
             state["next_attempt_ms"] = int(now + aftercast_ms)
 
             if log:
-                ConsoleLog(
+                _log(
                     "DestroyZeroValueItems",
                     f"Queued destroy for zero-value item model {model_id} (item_id={item_id}).",
-                    Console.MessageType.Info,
+                    message_type=Console.MessageType.Info,
                     log=True,
                 )
 

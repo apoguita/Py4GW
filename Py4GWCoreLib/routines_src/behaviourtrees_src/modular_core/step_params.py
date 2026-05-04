@@ -11,6 +11,10 @@ from Py4GWCoreLib import Console, ConsoleLog
 
 from .contracts import StepNodeRequest
 
+def _log(message: str, *, message_type=Console.MessageType.Warning) -> None:
+    ConsoleLog("ModularBot", message, message_type)
+
+
 COMMON_STEP_KEYS: frozenset[str] = frozenset(
     {
         "type",
@@ -52,7 +56,7 @@ def _warn_unsupported_param(request: StepNodeRequest, key: str) -> None:
         f"Ignored unsupported param {key!r} for step type {request.step_type!r} "
         f"at index {request.step_idx + 1}."
     )
-    ConsoleLog("ModularBot", message, Console.MessageType.Warning)
+    _log(message, message_type=Console.MessageType.Warning)
     request.owner.record_diagnostics_event(
         "step_param_ignored",
         phase=request.phase_name,
@@ -67,7 +71,7 @@ def _warn_coerce(request: StepNodeRequest, key: str, detail: str) -> None:
         f"Param {key!r} for step type {request.step_type!r} at index {request.step_idx + 1} "
         f"used fallback: {detail}"
     )
-    ConsoleLog("ModularBot", message, Console.MessageType.Warning)
+    _log(message, message_type=Console.MessageType.Warning)
     request.owner.record_diagnostics_event(
         "step_param_coerced",
         phase=request.phase_name,
