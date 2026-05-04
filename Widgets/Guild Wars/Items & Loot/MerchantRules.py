@@ -262,7 +262,7 @@ SALVAGE_UPGRADE_OPTIONS: frozenset[str] = frozenset({
     SALVAGE_OPTION_INSCRIPTION,
 })
 SALVAGE_UPGRADE_BACKEND_UNAVAILABLE_REASON = (
-    "upgrade salvage backend unavailable: prefix/suffix/inscription salvage is skipped safely"
+    "exact-upgrade salvage disabled: current backend cannot guarantee the requested upgrade slot"
 )
 SALVAGE_NATIVE_SESSION_UNAVAILABLE_REASON = SALVAGE_UPGRADE_BACKEND_UNAVAILABLE_REASON
 
@@ -1208,6 +1208,10 @@ class _ExactUpgradeSalvageBridgeResult:
 
 
 class _MerchantRulesExactUpgradeSalvageBridge:
+    # The current Frenkey/BT salvage node can choose a broad upgrade entry but does not prove that
+    # Prefix/Suffix/Inscription map to distinct destructive selections before salvage starts.
+    _DETERMINISTIC_SLOT_TARGETING_AVAILABLE = False
+
     def __init__(self, inventory_item_ids_provider: Callable[[], list[int]] | None = None):
         self._inventory_item_ids_provider = inventory_item_ids_provider
         self._load_attempted = False
@@ -1224,6 +1228,11 @@ class _MerchantRulesExactUpgradeSalvageBridge:
             return self._loaded, self._load_reason
 
         self._load_attempted = True
+        if not self._DETERMINISTIC_SLOT_TARGETING_AVAILABLE:
+            self._loaded = False
+            self._load_reason = SALVAGE_UPGRADE_BACKEND_UNAVAILABLE_REASON
+            return False, self._load_reason
+
         try:
             from Py4GWCoreLib.Item import Item
             from Py4GWCoreLib.py4gwcorelib_src.BehaviorTree import BehaviorTree
@@ -23985,7 +23994,7 @@ class MerchantRulesWidget:
             if selected_option not in SALVAGE_UPGRADE_OPTIONS:
                 option_label = f"{option_label} (specific-upgrade targets require prefix/suffix/inscription)"
         if selected_option in SALVAGE_UPGRADE_OPTIONS and not self._has_salvage_upgrade_session_support():
-            option_label = f"{option_label} (backend unavailable)"
+            option_label = f"{option_label} (exact-upgrade disabled)"
         if not selector_parts:
             return f"{option_label} | Choose at least one selector.", False
         return f"{option_label} | {'; '.join(selector_parts)}", True
@@ -24069,7 +24078,7 @@ class MerchantRulesWidget:
 
         self._draw_secondary_text(
             "Targets matching items for Merchant Rules salvage planning/protection. "
-            "Run Salvage extracts only when the upgrade salvage backend is available."
+            "Run Salvage extracts only when a deterministic upgrade-slot backend is available."
         )
         if selected_option not in SALVAGE_UPGRADE_OPTIONS and target_choice_keys:
             PyImGui.text_colored(
@@ -24079,7 +24088,8 @@ class MerchantRulesWidget:
             )
         elif selected_option in SALVAGE_UPGRADE_OPTIONS and not self._has_salvage_upgrade_session_support():
             self._draw_secondary_text(
-                "The upgrade salvage backend is unavailable, so matching items stay protected and Run Salvage skips extraction."
+                "Exact-upgrade extraction is disabled because the current backend cannot guarantee the requested slot. "
+                "Matching items stay protected and Run Salvage skips extraction."
             )
 
         PyImGui.text(f"Target Entries: {len(target_choice_keys)}")
@@ -24224,7 +24234,7 @@ class MerchantRulesWidget:
                 self._draw_secondary_text("Uses a Perfect, Expert, or Superior Salvage Kit when available.")
             else:
                 self._draw_secondary_text(
-                    "Prefix, suffix, and inscription salvage require the upgrade salvage backend. "
+                    "Prefix, suffix, and inscription extraction require deterministic slot targeting. "
                     "Matching items stay protected, but Run Salvage skips them safely."
                 )
         else:

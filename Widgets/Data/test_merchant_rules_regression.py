@@ -1798,6 +1798,75 @@ def _test_specific_upgrade_salvage_backend_unavailable_blocks(module) -> None:
         module.MOD_DB = original_db
 
 
+def _test_specific_upgrade_salvage_current_bridge_disabled_by_default(module) -> None:
+    original_db = _install_weapon_mod_catalog_fixture(module)
+    try:
+        widget = _make_widget(module)
+        widget.salvage_settings = _salvage_settings(
+            module,
+            rules=[_make_specific_suffix_salvage_rule(module, module.SALVAGE_OPTION_SUFFIX)],
+        )
+        item = _make_specific_suffix_item(module)
+
+        reason = widget._get_salvage_candidate_block_reason(
+            item,
+            [],
+            require_salvage_kit=True,
+            salvage_kit_id=1,
+        )
+        bridge = widget._get_exact_upgrade_salvage_bridge()
+
+        _expect(
+            reason == module.SALVAGE_UPGRADE_BACKEND_UNAVAILABLE_REASON,
+            "The current Frenkey/BT bridge should fail closed for exact-upgrade salvage.",
+        )
+        _expect(
+            getattr(bridge, "_load_attempted", False),
+            "Current bridge availability should be checked before exact-upgrade salvage is allowed.",
+        )
+        _expect(
+            not getattr(bridge, "_loaded", True),
+            "Current bridge should not load the destructive BT salvage path without deterministic slot targeting.",
+        )
+        _expect(
+            getattr(bridge, "_BTNodes", None) is None,
+            "Current bridge should not bind BTNodes while exact-upgrade targeting is disabled.",
+        )
+    finally:
+        module.MOD_DB = original_db
+
+
+def _test_specific_upgrade_salvage_current_bridge_blocks_execute_before_node(module) -> None:
+    original_db = _install_weapon_mod_catalog_fixture(module)
+    try:
+        widget = _make_widget(module)
+        item = _make_specific_suffix_item(module)
+        rule = _make_specific_suffix_salvage_rule(module, module.SALVAGE_OPTION_SUFFIX)
+        widget.salvage_settings = _salvage_settings(module, rules=[rule])
+        widget._build_inventory_item_info = lambda item_id: item if int(item_id) == int(item.item_id) else None
+        widget._get_salvage_kit_id_for_option = lambda _option: 777
+
+        status = _drain_generator_return(
+            widget._salvage_one_item_with_rule(
+                _make_salvage_candidate(module, item, rule),
+                [],
+            )
+        )
+        bridge = widget._get_exact_upgrade_salvage_bridge()
+
+        _expect(status == "blocked", "Current exact-upgrade bridge should block execution before any salvage node runs.")
+        _expect(
+            getattr(bridge, "_BTNodes", None) is None,
+            "Blocked current bridge execution should not construct or call Frenkey BTNodes.",
+        )
+        _expect(
+            getattr(bridge, "_load_reason", "") == module.SALVAGE_UPGRADE_BACKEND_UNAVAILABLE_REASON,
+            "Blocked current bridge execution should expose the deterministic-targeting safety reason.",
+        )
+    finally:
+        module.MOD_DB = original_db
+
+
 def _test_specific_upgrade_salvage_protection_blocks_before_bridge(module) -> None:
     original_db = _install_weapon_mod_catalog_fixture(module)
     try:
@@ -1908,7 +1977,7 @@ def _test_specific_upgrade_salvage_bridge_success_returns_processed(module) -> N
         module.MOD_DB = original_db
 
 
-def _test_specific_upgrade_salvage_bridge_verification_failure_returns_failed(module) -> None:
+def _test_specific_upgrade_salvage_wrong_slot_completion_returns_failed(module) -> None:
     original_db = _install_weapon_mod_catalog_fixture(module)
     try:
         widget = _make_widget(module)
@@ -1917,7 +1986,11 @@ def _test_specific_upgrade_salvage_bridge_verification_failure_returns_failed(mo
         fake_bridge = _FakeExactUpgradeSalvageBridge(
             module,
             available=True,
-            result=module._ExactUpgradeSalvageBridgeResult(False, "failed", "verification failed"),
+            result=module._ExactUpgradeSalvageBridgeResult(
+                False,
+                "failed",
+                "backend salvage completed but targeted slot remains and another upgrade was removed",
+            ),
         )
         _install_fake_exact_salvage_bridge(widget, fake_bridge)
         widget.salvage_settings = _salvage_settings(module, rules=[rule])
@@ -1931,8 +2004,11 @@ def _test_specific_upgrade_salvage_bridge_verification_failure_returns_failed(mo
             )
         )
 
-        _expect(status == "failed", "Unverified exact-upgrade bridge result should fail closed.")
-        _expect(len(fake_bridge.calls) == 1, "Verification failure should still reflect one attempted bridge call.")
+        _expect(status == "failed", "Wrong-slot exact-upgrade completion should fail closed.")
+        _expect(
+            len(fake_bridge.calls) == 1,
+            "Only a deliberately injected deterministic fake bridge should reach post-salvage verification.",
+        )
     finally:
         module.MOD_DB = original_db
 
@@ -8400,6 +8476,14 @@ def main() -> int:
                 lambda: _test_specific_upgrade_salvage_backend_unavailable_blocks(module),
             ),
             (
+                "specific_upgrade_salvage_current_bridge_disabled_by_default",
+                lambda: _test_specific_upgrade_salvage_current_bridge_disabled_by_default(module),
+            ),
+            (
+                "specific_upgrade_salvage_current_bridge_blocks_execute_before_node",
+                lambda: _test_specific_upgrade_salvage_current_bridge_blocks_execute_before_node(module),
+            ),
+            (
                 "specific_upgrade_salvage_protection_blocks_before_bridge",
                 lambda: _test_specific_upgrade_salvage_protection_blocks_before_bridge(module),
             ),
@@ -8412,8 +8496,8 @@ def main() -> int:
                 lambda: _test_specific_upgrade_salvage_bridge_success_returns_processed(module),
             ),
             (
-                "specific_upgrade_salvage_bridge_verification_failure_returns_failed",
-                lambda: _test_specific_upgrade_salvage_bridge_verification_failure_returns_failed(module),
+                "specific_upgrade_salvage_wrong_slot_completion_returns_failed",
+                lambda: _test_specific_upgrade_salvage_wrong_slot_completion_returns_failed(module),
             ),
             (
                 "specific_upgrade_salvage_bridge_not_called_for_protected_execute",
