@@ -584,6 +584,7 @@ def _salvage_settings(
     rarities: list[str] | None = None,
     categories: list[str] | None = None,
     on_inventory_change: bool = False,
+    rules: list[object] | None = None,
 ):
     rarity_keys = {str(value or "").strip().lower() for value in (rarities or [])}
     category_keys = {str(value or "").strip().lower() for value in (categories or [])}
@@ -592,6 +593,7 @@ def _salvage_settings(
         rarities={key: key in rarity_keys for key, _label in module.RARITY_OPTION_ORDER},
         categories={key: key in category_keys for key, _label in module.SALVAGE_CATEGORY_ORDER},
         on_inventory_change=on_inventory_change,
+        rules=list(rules or []),
     )
 
 
@@ -1395,56 +1397,56 @@ def _test_salvage_candidate_evaluation_precedence(module) -> None:
     protected_reason = widget._get_salvage_candidate_block_reason(
         protected_item,
         [(0, protected_rule)],
-        require_normal_kit=True,
-        normal_salvage_kit_id=1,
+        require_salvage_kit=True,
+        salvage_kit_id=1,
     )
     _expect(protected_reason.startswith("protected:"), "Protection should be the first salvage block reason.")
 
     unsalvageable_reason = widget._get_salvage_candidate_block_reason(
         replace(selected_item, salvageable=False),
         enabled_sell_rules,
-        require_normal_kit=True,
-        normal_salvage_kit_id=1,
+        require_salvage_kit=True,
+        salvage_kit_id=1,
     )
     _expect(unsalvageable_reason.startswith("unsalvageable:"), "Runtime IsSalvageable should block salvage.")
 
     customized_reason = widget._get_salvage_candidate_block_reason(
         replace(selected_item, is_customized=True),
         enabled_sell_rules,
-        require_normal_kit=True,
-        normal_salvage_kit_id=1,
+        require_salvage_kit=True,
+        salvage_kit_id=1,
     )
     _expect(customized_reason.startswith("customized:"), "Customized items should block salvage.")
 
     unidentified_reason = widget._get_salvage_candidate_block_reason(
         replace(selected_item, identified=False),
         enabled_sell_rules,
-        require_normal_kit=True,
-        normal_salvage_kit_id=1,
+        require_salvage_kit=True,
+        salvage_kit_id=1,
     )
     _expect(unidentified_reason.startswith("unidentified non-white:"), "Unidentified non-white items should block salvage.")
 
     not_selected_reason = widget._get_salvage_candidate_block_reason(
         replace(selected_item, model_id=101),
         enabled_sell_rules,
-        require_normal_kit=True,
-        normal_salvage_kit_id=1,
+        require_salvage_kit=True,
+        salvage_kit_id=1,
     )
     _expect(not_selected_reason == "not selected by salvage settings", "Unselected items should not be salvage candidates.")
 
     no_kit_reason = widget._get_salvage_candidate_block_reason(
         selected_item,
         enabled_sell_rules,
-        require_normal_kit=True,
-        normal_salvage_kit_id=0,
+        require_salvage_kit=True,
+        salvage_kit_id=0,
     )
     _expect(no_kit_reason == "no normal salvage kit", "Missing normal salvage kits should block salvage.")
 
     ok_reason = widget._get_salvage_candidate_block_reason(
         selected_item,
         enabled_sell_rules,
-        require_normal_kit=True,
-        normal_salvage_kit_id=1,
+        require_salvage_kit=True,
+        salvage_kit_id=1,
     )
     _expect(ok_reason == "", "Selected safe items with a normal kit should be salvage candidates.")
 
@@ -1456,11 +1458,11 @@ def _test_salvage_broad_rarity_selection(module) -> None:
     purple_item = _make_item(module, item_id=11, model_id=1001, name="Purple Drop", rarity="Purple", identified=True, salvageable=True)
 
     _expect(
-        widget._get_salvage_candidate_block_reason(gold_item, [], require_normal_kit=True, normal_salvage_kit_id=1) == "",
+        widget._get_salvage_candidate_block_reason(gold_item, [], require_salvage_kit=True, salvage_kit_id=1) == "",
         "Enabled rarity selectors should select matching salvageable items.",
     )
     _expect(
-        widget._get_salvage_candidate_block_reason(purple_item, [], require_normal_kit=True, normal_salvage_kit_id=1)
+        widget._get_salvage_candidate_block_reason(purple_item, [], require_salvage_kit=True, salvage_kit_id=1)
         == "not selected by salvage settings",
         "Disabled rarity selectors should not select other rarities.",
     )
@@ -1491,11 +1493,11 @@ def _test_salvage_category_selection(module) -> None:
     )
 
     _expect(
-        widget._get_salvage_candidate_block_reason(weapon_item, [], require_normal_kit=True, normal_salvage_kit_id=1) == "",
+        widget._get_salvage_candidate_block_reason(weapon_item, [], require_salvage_kit=True, salvage_kit_id=1) == "",
         "Enabled category selectors should select matching salvageable items.",
     )
     _expect(
-        widget._get_salvage_candidate_block_reason(armor_item, [], require_normal_kit=True, normal_salvage_kit_id=1)
+        widget._get_salvage_candidate_block_reason(armor_item, [], require_salvage_kit=True, salvage_kit_id=1)
         == "not selected by salvage settings",
         "Disabled category selectors should not select other categories.",
     )
@@ -1562,25 +1564,25 @@ def _test_salvage_rarity_and_category_filters_combine(module) -> None:
     )
 
     _expect(
-        widget._get_salvage_candidate_block_reason(gold_weapon, [], require_normal_kit=True, normal_salvage_kit_id=1) == "",
+        widget._get_salvage_candidate_block_reason(gold_weapon, [], require_salvage_kit=True, salvage_kit_id=1) == "",
         "Gold weapons should match combined rarity/category salvage filters.",
     )
     _expect(
-        widget._get_salvage_candidate_block_reason(gold_armor, [], require_normal_kit=True, normal_salvage_kit_id=1) == "",
+        widget._get_salvage_candidate_block_reason(gold_armor, [], require_salvage_kit=True, salvage_kit_id=1) == "",
         "Gold armor should match combined rarity/category salvage filters.",
     )
     _expect(
-        widget._get_salvage_candidate_block_reason(white_weapon, [], require_normal_kit=True, normal_salvage_kit_id=1)
+        widget._get_salvage_candidate_block_reason(white_weapon, [], require_salvage_kit=True, salvage_kit_id=1)
         == "not selected by salvage settings",
         "White weapons should not match Gold + Weapons salvage filters.",
     )
     _expect(
-        widget._get_salvage_candidate_block_reason(blue_weapon, [], require_normal_kit=True, normal_salvage_kit_id=1)
+        widget._get_salvage_candidate_block_reason(blue_weapon, [], require_salvage_kit=True, salvage_kit_id=1)
         == "not selected by salvage settings",
         "Blue weapons should not match Gold + Weapons salvage filters.",
     )
     _expect(
-        widget._get_salvage_candidate_block_reason(gold_material, [], require_normal_kit=True, normal_salvage_kit_id=1)
+        widget._get_salvage_candidate_block_reason(gold_material, [], require_salvage_kit=True, salvage_kit_id=1)
         == "not selected by salvage settings",
         "Gold non-selected categories should not match Gold + Weapons/Armor salvage filters.",
     )
@@ -1594,10 +1596,10 @@ def _test_salvage_filter_summary_describes_combined_filters(module) -> None:
         categories=[module.SALVAGE_CATEGORY_WEAPONS, module.SALVAGE_CATEGORY_ARMOR],
     )
 
+    summary = widget._format_salvage_filter_summary(widget.salvage_settings)
     _expect(
-        widget._format_salvage_filter_summary(widget.salvage_settings)
-        == "Current filter: Gold items in these categories: Weapons, Armor",
-        "Salvage filter summary should show that rarity/category selectors combine as filters.",
+        "1 active rule(s)" in summary and "Default (legacy behavior)" in summary,
+        "Salvage filter summary should show the active rule count and salvage option label.",
     )
 
 
@@ -1633,6 +1635,486 @@ def _test_salvage_selected_items_block_destroy(module) -> None:
         any("salvage wins over destroy" in entry.reason for entry in plan.entries if entry.action_type == "destroy"),
         "Destroy planning should explain when MR Salvage claims a matching item first.",
     )
+
+
+def _make_specific_suffix_salvage_rule(module, salvage_option: str):
+    return module._normalize_salvage_rule(
+        module.SalvageRule(
+            enabled=True,
+            salvage_option=salvage_option,
+            target_weapon_mod_variant_thresholds=[
+                module.WeaponModVariantThresholdRule(
+                    identifier="of Defense",
+                    target_item_type="Daggers",
+                    component_kind="DaggerHandle",
+                    min_value=5,
+                )
+            ],
+        )
+    )
+
+
+def _make_specific_suffix_item(module, *, item_id: int = 40):
+    return _make_item(
+        module,
+        item_id=item_id,
+        model_id=4000 + item_id,
+        name="Dagger Handle of Defense",
+        rarity="Gold",
+        identified=True,
+        salvageable=True,
+        is_weapon_like=True,
+        item_type_id=int(module.ItemType.Daggers),
+        item_type_name="Daggers",
+        weapon_mod_identifiers=["of Defense"],
+        weapon_mod_matches=[
+            _make_weapon_mod_match(
+                module,
+                "of Defense",
+                5,
+                target_item_type="Daggers",
+                component_kind="DaggerHandle",
+                mod_type="Suffix",
+            )
+        ],
+    )
+
+
+class _FakeExactUpgradeSalvageBridge:
+    def __init__(
+        self,
+        module,
+        *,
+        available: bool = True,
+        result=None,
+        unavailable_reason: str = "fake backend unavailable",
+    ):
+        self.module = module
+        self.available = bool(available)
+        self.result = (
+            result
+            if result is not None
+            else module._ExactUpgradeSalvageBridgeResult(True, "processed", "")
+        )
+        self.unavailable_reason = unavailable_reason
+        self.availability_checks = 0
+        self.calls: list[dict[str, object]] = []
+
+    def is_available(self):
+        self.availability_checks += 1
+        return self.available, "" if self.available else self.unavailable_reason
+
+    def salvage_exact_upgrade(
+        self,
+        item_id: int,
+        option: object,
+        *,
+        preferred_kit_id: int = 0,
+        timeout_ms: int = 0,
+        debug_enabled: bool = False,
+    ):
+        self.calls.append(
+            {
+                "item_id": int(item_id),
+                "option": option,
+                "preferred_kit_id": int(preferred_kit_id),
+                "timeout_ms": int(timeout_ms),
+                "debug_enabled": bool(debug_enabled),
+            }
+        )
+        if False:
+            yield None
+        return self.result
+
+
+def _install_fake_exact_salvage_bridge(widget, fake_bridge: _FakeExactUpgradeSalvageBridge) -> None:
+    widget._exact_upgrade_salvage_bridge = fake_bridge
+    widget._salvage_upgrade_session_support_cache = None
+
+
+def _make_salvage_candidate(module, item, rule, *, reason: str = "specific upgrade target"):
+    return module.SalvageCandidate(
+        item=item,
+        rule_index=0,
+        rule=rule,
+        reason=reason,
+    )
+
+
+def _test_specific_upgrade_salvage_target_accepts_compatible_option(module) -> None:
+    original_db = _install_weapon_mod_catalog_fixture(module)
+    try:
+        widget = _make_widget(module)
+        fake_bridge = _FakeExactUpgradeSalvageBridge(module, available=True)
+        _install_fake_exact_salvage_bridge(widget, fake_bridge)
+        widget.salvage_settings = _salvage_settings(
+            module,
+            rules=[_make_specific_suffix_salvage_rule(module, module.SALVAGE_OPTION_SUFFIX)],
+        )
+        item = _make_specific_suffix_item(module)
+
+        reason = widget._get_salvage_candidate_block_reason(
+            item,
+            [],
+            require_salvage_kit=True,
+            salvage_kit_id=1,
+        )
+
+        _expect(reason == "", "Specific suffix target should be executable with the suffix salvage option.")
+        _expect(fake_bridge.calls == [], "Candidate evaluation should not execute the salvage bridge.")
+        _expect(
+            "specific upgrade target" in widget._get_salvage_selection_reason(item),
+            "Specific upgrade target should produce a salvage selection reason.",
+        )
+    finally:
+        module.MOD_DB = original_db
+
+
+def _test_specific_upgrade_salvage_backend_unavailable_blocks(module) -> None:
+    original_db = _install_weapon_mod_catalog_fixture(module)
+    try:
+        widget = _make_widget(module)
+        fake_bridge = _FakeExactUpgradeSalvageBridge(module, available=False)
+        _install_fake_exact_salvage_bridge(widget, fake_bridge)
+        widget.salvage_settings = _salvage_settings(
+            module,
+            rules=[_make_specific_suffix_salvage_rule(module, module.SALVAGE_OPTION_SUFFIX)],
+        )
+        item = _make_specific_suffix_item(module)
+
+        reason = widget._get_salvage_candidate_block_reason(
+            item,
+            [],
+            require_salvage_kit=True,
+            salvage_kit_id=1,
+        )
+
+        _expect(
+            reason == module.SALVAGE_UPGRADE_BACKEND_UNAVAILABLE_REASON,
+            "Unavailable exact-upgrade salvage backend should block specific-upgrade salvage.",
+        )
+        _expect(fake_bridge.calls == [], "Backend availability checks should not execute salvage.")
+    finally:
+        module.MOD_DB = original_db
+
+
+def _test_specific_upgrade_salvage_current_bridge_disabled_by_default(module) -> None:
+    original_db = _install_weapon_mod_catalog_fixture(module)
+    try:
+        widget = _make_widget(module)
+        widget.salvage_settings = _salvage_settings(
+            module,
+            rules=[_make_specific_suffix_salvage_rule(module, module.SALVAGE_OPTION_SUFFIX)],
+        )
+        item = _make_specific_suffix_item(module)
+
+        reason = widget._get_salvage_candidate_block_reason(
+            item,
+            [],
+            require_salvage_kit=True,
+            salvage_kit_id=1,
+        )
+        bridge = widget._get_exact_upgrade_salvage_bridge()
+
+        _expect(
+            reason == module.SALVAGE_UPGRADE_BACKEND_UNAVAILABLE_REASON,
+            "The current Frenkey/BT bridge should fail closed for exact-upgrade salvage.",
+        )
+        _expect(
+            getattr(bridge, "_load_attempted", False),
+            "Current bridge availability should be checked before exact-upgrade salvage is allowed.",
+        )
+        _expect(
+            not getattr(bridge, "_loaded", True),
+            "Current bridge should not load the destructive BT salvage path without deterministic slot targeting.",
+        )
+        _expect(
+            getattr(bridge, "_BTNodes", None) is None,
+            "Current bridge should not bind BTNodes while exact-upgrade targeting is disabled.",
+        )
+    finally:
+        module.MOD_DB = original_db
+
+
+def _test_specific_upgrade_salvage_current_bridge_blocks_execute_before_node(module) -> None:
+    original_db = _install_weapon_mod_catalog_fixture(module)
+    try:
+        widget = _make_widget(module)
+        item = _make_specific_suffix_item(module)
+        rule = _make_specific_suffix_salvage_rule(module, module.SALVAGE_OPTION_SUFFIX)
+        widget.salvage_settings = _salvage_settings(module, rules=[rule])
+        widget._build_inventory_item_info = lambda item_id: item if int(item_id) == int(item.item_id) else None
+        widget._get_salvage_kit_id_for_option = lambda _option: 777
+
+        status = _drain_generator_return(
+            widget._salvage_one_item_with_rule(
+                _make_salvage_candidate(module, item, rule),
+                [],
+            )
+        )
+        bridge = widget._get_exact_upgrade_salvage_bridge()
+
+        _expect(status == "blocked", "Current exact-upgrade bridge should block execution before any salvage node runs.")
+        _expect(
+            getattr(bridge, "_BTNodes", None) is None,
+            "Blocked current bridge execution should not construct or call Frenkey BTNodes.",
+        )
+        _expect(
+            getattr(bridge, "_load_reason", "") == module.SALVAGE_UPGRADE_BACKEND_UNAVAILABLE_REASON,
+            "Blocked current bridge execution should expose the deterministic-targeting safety reason.",
+        )
+    finally:
+        module.MOD_DB = original_db
+
+
+def _test_specific_upgrade_salvage_protection_blocks_before_bridge(module) -> None:
+    original_db = _install_weapon_mod_catalog_fixture(module)
+    try:
+        widget = _make_widget(module)
+        fake_bridge = _FakeExactUpgradeSalvageBridge(module, available=True)
+        _install_fake_exact_salvage_bridge(widget, fake_bridge)
+        widget.salvage_settings = _salvage_settings(
+            module,
+            rules=[_make_specific_suffix_salvage_rule(module, module.SALVAGE_OPTION_SUFFIX)],
+        )
+        item = _make_specific_suffix_item(module)
+        protected_rule = module._normalize_sell_rule(
+            module.SellRule(
+                enabled=True,
+                kind=module.SELL_KIND_WEAPONS,
+                rarities=_rarity_flags("gold"),
+                blacklist_model_ids=[int(item.model_id)],
+            )
+        )
+
+        reason = widget._get_salvage_candidate_block_reason(
+            item,
+            [(0, protected_rule)],
+            require_salvage_kit=True,
+            salvage_kit_id=1,
+        )
+
+        _expect(
+            reason.startswith("protected:"),
+            "Protected specific-upgrade targets should block before backend checks.",
+        )
+        _expect(fake_bridge.availability_checks == 0, "Protected items should not check backend availability.")
+        _expect(fake_bridge.calls == [], "Protected items should not execute the salvage bridge.")
+    finally:
+        module.MOD_DB = original_db
+
+
+def _test_specific_upgrade_salvage_target_blocks_mismatched_option(module) -> None:
+    original_db = _install_weapon_mod_catalog_fixture(module)
+    try:
+        widget = _make_widget(module)
+        fake_bridge = _FakeExactUpgradeSalvageBridge(module, available=True)
+        _install_fake_exact_salvage_bridge(widget, fake_bridge)
+        widget.salvage_settings = _salvage_settings(
+            module,
+            rules=[_make_specific_suffix_salvage_rule(module, module.SALVAGE_OPTION_PREFIX)],
+        )
+        item = _make_specific_suffix_item(module)
+
+        reason = widget._get_salvage_candidate_block_reason(
+            item,
+            [],
+            require_salvage_kit=True,
+            salvage_kit_id=1,
+        )
+
+        _expect(
+            reason.startswith("specific upgrade target requires Salvage suffix"),
+            "Specific suffix target should not execute through prefix salvage.",
+        )
+        _expect(
+            "configured for Salvage prefix" in reason,
+            "Mismatched specific-upgrade block should name the configured broad option.",
+        )
+        _expect(
+            fake_bridge.availability_checks == 0,
+            "Mismatched specific-upgrade options should block before backend checks.",
+        )
+        _expect(fake_bridge.calls == [], "Mismatched specific-upgrade options should not execute the bridge.")
+    finally:
+        module.MOD_DB = original_db
+
+
+def _test_specific_upgrade_salvage_bridge_success_returns_processed(module) -> None:
+    original_db = _install_weapon_mod_catalog_fixture(module)
+    try:
+        widget = _make_widget(module)
+        item = _make_specific_suffix_item(module)
+        rule = _make_specific_suffix_salvage_rule(module, module.SALVAGE_OPTION_SUFFIX)
+        fake_bridge = _FakeExactUpgradeSalvageBridge(
+            module,
+            available=True,
+            result=module._ExactUpgradeSalvageBridgeResult(True, "processed", ""),
+        )
+        _install_fake_exact_salvage_bridge(widget, fake_bridge)
+        widget.salvage_settings = _salvage_settings(module, rules=[rule])
+        widget._build_inventory_item_info = lambda item_id: item if int(item_id) == int(item.item_id) else None
+        widget._get_salvage_kit_id_for_option = lambda _option: 777
+
+        status = _drain_generator_return(
+            widget._salvage_one_item_with_rule(
+                _make_salvage_candidate(module, item, rule),
+                [],
+            )
+        )
+
+        _expect(status == "processed", "Verified exact-upgrade bridge success should return processed.")
+        _expect(len(fake_bridge.calls) == 1, "Matching exact-upgrade salvage should execute the bridge once.")
+        _expect(
+            fake_bridge.calls[0]["option"] == module.SALVAGE_OPTION_SUFFIX,
+            "Suffix targets should use suffix salvage.",
+        )
+        _expect(
+            fake_bridge.calls[0]["preferred_kit_id"] == 777,
+            "The selected upgrade salvage kit should be passed through.",
+        )
+    finally:
+        module.MOD_DB = original_db
+
+
+def _test_specific_upgrade_salvage_wrong_slot_completion_returns_failed(module) -> None:
+    original_db = _install_weapon_mod_catalog_fixture(module)
+    try:
+        widget = _make_widget(module)
+        item = _make_specific_suffix_item(module)
+        rule = _make_specific_suffix_salvage_rule(module, module.SALVAGE_OPTION_SUFFIX)
+        fake_bridge = _FakeExactUpgradeSalvageBridge(
+            module,
+            available=True,
+            result=module._ExactUpgradeSalvageBridgeResult(
+                False,
+                "failed",
+                "backend salvage completed but targeted slot remains and another upgrade was removed",
+            ),
+        )
+        _install_fake_exact_salvage_bridge(widget, fake_bridge)
+        widget.salvage_settings = _salvage_settings(module, rules=[rule])
+        widget._build_inventory_item_info = lambda item_id: item if int(item_id) == int(item.item_id) else None
+        widget._get_salvage_kit_id_for_option = lambda _option: 777
+
+        status = _drain_generator_return(
+            widget._salvage_one_item_with_rule(
+                _make_salvage_candidate(module, item, rule),
+                [],
+            )
+        )
+
+        _expect(status == "failed", "Wrong-slot exact-upgrade completion should fail closed.")
+        _expect(
+            len(fake_bridge.calls) == 1,
+            "Only a deliberately injected deterministic fake bridge should reach post-salvage verification.",
+        )
+    finally:
+        module.MOD_DB = original_db
+
+
+def _test_specific_upgrade_salvage_bridge_not_called_for_protected_execute(module) -> None:
+    original_db = _install_weapon_mod_catalog_fixture(module)
+    try:
+        widget = _make_widget(module)
+        item = _make_specific_suffix_item(module)
+        rule = _make_specific_suffix_salvage_rule(module, module.SALVAGE_OPTION_SUFFIX)
+        fake_bridge = _FakeExactUpgradeSalvageBridge(module, available=True)
+        _install_fake_exact_salvage_bridge(widget, fake_bridge)
+        widget.salvage_settings = _salvage_settings(module, rules=[rule])
+        widget._build_inventory_item_info = lambda item_id: item if int(item_id) == int(item.item_id) else None
+        widget._get_salvage_kit_id_for_option = lambda _option: 777
+        protected_rule = module._normalize_sell_rule(
+            module.SellRule(
+                enabled=True,
+                kind=module.SELL_KIND_WEAPONS,
+                rarities=_rarity_flags("gold"),
+                blacklist_model_ids=[int(item.model_id)],
+            )
+        )
+
+        status = _drain_generator_return(
+            widget._salvage_one_item_with_rule(
+                _make_salvage_candidate(module, item, rule),
+                [(0, protected_rule)],
+            )
+        )
+
+        _expect(status == "blocked", "Protected exact-upgrade execution should block before bridge execution.")
+        _expect(fake_bridge.availability_checks == 0, "Protected execution should not check backend availability.")
+        _expect(fake_bridge.calls == [], "Protected execution should not call the bridge.")
+    finally:
+        module.MOD_DB = original_db
+
+
+def _test_specific_upgrade_salvage_target_mismatch_still_blocks_destroy(module) -> None:
+    original_db = _install_weapon_mod_catalog_fixture(module)
+    try:
+        widget = _make_widget(module)
+        widget.salvage_settings = _salvage_settings(
+            module,
+            rules=[_make_specific_suffix_salvage_rule(module, module.SALVAGE_OPTION_PREFIX)],
+        )
+        widget.destroy_rules = [
+            module._normalize_destroy_rule(
+                module.DestroyRule(
+                    enabled=True,
+                    kind=module.DESTROY_KIND_WEAPONS,
+                    rarities=_rarity_flags("gold"),
+                )
+            )
+        ]
+        widget._collect_inventory_items = lambda: [_make_specific_suffix_item(module)]
+
+        plan = widget._build_plan()
+
+        _expect(
+            not plan.destroy_actions,
+            "Mismatched specific-upgrade salvage targets should still reserve matching items from destroy.",
+        )
+        _expect(
+            any(
+                "salvage wins over destroy" in entry.reason
+                for entry in plan.entries
+                if entry.action_type == "destroy"
+            ),
+            "Destroy preview should still explain that the specific-upgrade salvage rule claimed the item.",
+        )
+    finally:
+        module.MOD_DB = original_db
+
+
+def _test_specific_upgrade_salvage_target_blocks_default_and_material_options(module) -> None:
+    original_db = _install_weapon_mod_catalog_fixture(module)
+    try:
+        item = _make_specific_suffix_item(module)
+        for salvage_option in (module.SALVAGE_OPTION_DEFAULT, module.SALVAGE_OPTION_MATERIALS):
+            widget = _make_widget(module)
+            fake_bridge = _FakeExactUpgradeSalvageBridge(module, available=True)
+            _install_fake_exact_salvage_bridge(widget, fake_bridge)
+            widget.salvage_settings = _salvage_settings(
+                module,
+                rules=[_make_specific_suffix_salvage_rule(module, salvage_option)],
+            )
+
+            reason = widget._get_salvage_candidate_block_reason(
+                item,
+                [],
+                require_salvage_kit=True,
+                salvage_kit_id=1,
+            )
+
+            _expect(
+                reason == "specific upgrade target requires prefix, suffix, or inscription salvage option",
+                "Specific-upgrade targets should not execute through default/material salvage.",
+            )
+            _expect(
+                fake_bridge.availability_checks == 0,
+                "Default/material options should block before backend checks.",
+            )
+            _expect(fake_bridge.calls == [], "Default/material options should not call the bridge.")
+    finally:
+        module.MOD_DB = original_db
 
 
 def _test_identify_exact_rarity_claims_before_destroy_and_cleanup(module) -> None:
@@ -1785,8 +2267,8 @@ def _test_protected_salvage_destroy_overlap_blocks_both(module) -> None:
     candidate_reason = widget._get_salvage_candidate_block_reason(
         widget._collect_inventory_items()[0],
         widget._collect_enabled_sell_rules(),
-        require_normal_kit=True,
-        normal_salvage_kit_id=1,
+        require_salvage_kit=True,
+        salvage_kit_id=1,
     )
     _expect(candidate_reason.startswith("protected:"), "Protected items should also block salvage candidate evaluation.")
 
@@ -7985,6 +8467,50 @@ def main() -> int:
             ("salvage_rarity_and_category_filters_combine", lambda: _test_salvage_rarity_and_category_filters_combine(module)),
             ("salvage_filter_summary_describes_combined_filters", lambda: _test_salvage_filter_summary_describes_combined_filters(module)),
             ("salvage_selected_items_block_destroy", lambda: _test_salvage_selected_items_block_destroy(module)),
+            (
+                "specific_upgrade_salvage_target_accepts_compatible_option",
+                lambda: _test_specific_upgrade_salvage_target_accepts_compatible_option(module),
+            ),
+            (
+                "specific_upgrade_salvage_backend_unavailable_blocks",
+                lambda: _test_specific_upgrade_salvage_backend_unavailable_blocks(module),
+            ),
+            (
+                "specific_upgrade_salvage_current_bridge_disabled_by_default",
+                lambda: _test_specific_upgrade_salvage_current_bridge_disabled_by_default(module),
+            ),
+            (
+                "specific_upgrade_salvage_current_bridge_blocks_execute_before_node",
+                lambda: _test_specific_upgrade_salvage_current_bridge_blocks_execute_before_node(module),
+            ),
+            (
+                "specific_upgrade_salvage_protection_blocks_before_bridge",
+                lambda: _test_specific_upgrade_salvage_protection_blocks_before_bridge(module),
+            ),
+            (
+                "specific_upgrade_salvage_target_blocks_mismatched_option",
+                lambda: _test_specific_upgrade_salvage_target_blocks_mismatched_option(module),
+            ),
+            (
+                "specific_upgrade_salvage_bridge_success_returns_processed",
+                lambda: _test_specific_upgrade_salvage_bridge_success_returns_processed(module),
+            ),
+            (
+                "specific_upgrade_salvage_wrong_slot_completion_returns_failed",
+                lambda: _test_specific_upgrade_salvage_wrong_slot_completion_returns_failed(module),
+            ),
+            (
+                "specific_upgrade_salvage_bridge_not_called_for_protected_execute",
+                lambda: _test_specific_upgrade_salvage_bridge_not_called_for_protected_execute(module),
+            ),
+            (
+                "specific_upgrade_salvage_target_mismatch_still_blocks_destroy",
+                lambda: _test_specific_upgrade_salvage_target_mismatch_still_blocks_destroy(module),
+            ),
+            (
+                "specific_upgrade_salvage_target_blocks_default_and_material_options",
+                lambda: _test_specific_upgrade_salvage_target_blocks_default_and_material_options(module),
+            ),
             ("identify_exact_rarity_claims_before_destroy_and_cleanup", lambda: _test_identify_exact_rarity_claims_before_destroy_and_cleanup(module)),
             ("identify_no_kit_still_claims_selected_items", lambda: _test_identify_no_kit_still_claims_selected_items(module)),
             ("identify_on_inventory_change_queues_auto_pass", lambda: _test_identify_on_inventory_change_queues_auto_pass(module)),
