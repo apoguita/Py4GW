@@ -1834,28 +1834,28 @@ ELITE_SKILLS = [
         capture_function="Shove",
         start_map=77,
         icon_filename="[1146] - Shove.jpg",
-#    ),
-#    EliteSkill(
-#        id="skill_329",
-#        display_name="Skull Crack",
-#        skill_id=329,
-#        profession=Profession.WARRIOR,
-#        type=EliteSkillType.ELITE_SKILL,
-#        step_name="[H]Skull Crack",
-#        capture_function="SkullCrack",
-#        start_map=,
-#        icon_filename="[329] - Skull Crack.jpg",
-#    ),
-#    EliteSkill(
-#        id="skill_3156",
-#        display_name="Soldier's Stance",
-#        skill_id=3156,
-#        profession=Profession.WARRIOR,
-#        type=EliteSkillType.ELITE_SKILL,
-#        step_name="[H]Soldier's Stance",
-#        capture_function="SoldiersStance",
-#        start_map=478,
-#        icon_filename="[3156] - Soldier's Stance.jpg",
+    ),
+    EliteSkill(
+        id="skill_329",
+        display_name="Skull Crack",
+        skill_id=329,
+        profession=Profession.WARRIOR,
+        type=EliteSkillType.ELITE_SKILL,
+        step_name="[H]Skull Crack",
+        capture_function="SkullCrack",
+        start_map= 643,
+        icon_filename="[329] - Skull Crack.jpg",
+    ),
+    EliteSkill(
+        id="skill_1698",
+        display_name="Soldier's Stance",
+        skill_id=1698,
+        profession=Profession.WARRIOR,
+        type=EliteSkillType.ELITE_SKILL,
+        step_name="[H]Soldier's Stance",
+        capture_function="SoldiersStance",
+        start_map=545,
+        icon_filename="[1698] - Soldier's Stance.jpg",
     ),
     EliteSkill(
         id="skill_1701",
@@ -1878,17 +1878,17 @@ ELITE_SKILLS = [
         capture_function="TripleChop",
         start_map=303,
         icon_filename="[992] - Triple Chop.jpg",
-#    ),
-#    EliteSkill(
-#        id="skill_374",
-#        display_name="Warrior's Endurance",
-#        skill_id=374,
-#        profession=Profession.WARRIOR,
-#        type=EliteSkillType.ELITE_SKILL,
-#        step_name="[H]Warrior's Endurance",
-#        capture_function="WarriorsEndurance",
-#        start_map=,
-#        icon_filename="[374] - Warrior's Endurance.jpg",
+    ),
+    EliteSkill(
+        id="skill_374",
+        display_name="Warrior's Endurance",
+        skill_id=374,
+        profession=Profession.WARRIOR,
+        type=EliteSkillType.ELITE_SKILL,
+        step_name="[H]Warrior's Endurance",
+        capture_function="WarriorsEndurance",
+        start_map=117,
+        icon_filename="[374] - Warrior's Endurance.jpg",
     ),
     EliteSkill(
         id="skill_888",
@@ -6304,56 +6304,64 @@ def Shove():
     bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
     yield
 
-#def SkullCrack():
-#    bot.States.AddHeader("Skull Crack")
-#    target_prof = Profession.WARRIOR
-#    start_map = 
-#    
-#    bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
-#    bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
-#    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Warrior Build")
-#    bot.Party.LeaveParty()
-#    bot.Travel_To_Random_District(target_map_id=start_map)
-#    bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
-#    bot.Move.XY(,)
-#    bot.Move.XYAndExitMap(,,)
-#    ConfigureAggressiveEnv(bot)
-#    bot.Move.XY(,)
-#    bot.Wait.UntilOutOfCombat()
-#    ConfigurePacifistEnv(bot)
-#    bot.SkillBar.UseSkill(3)
-#    bot.Wait.ForTime(5000)
-#    bot.States.AddCustomState(lambda: ClickSkillFrame(329), "Click Skill Frame")
-#    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
-#    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
-#    yield
-#    
-#def SoldiersStance():
-#    bot.States.AddHeader("Soldier's Stance")
-#    target_prof = Profession.WARRIOR
-#    start_map = 478
-#    
-#    bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
-#    bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
-#    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Warrior Build")
-#    bot.Party.LeaveParty()
-#    bot.Travel_To_Random_District(target_map_id=start_map)
-#    bot.States.AddCustomState(DunkoroHeroTeam, "Dunkoro Hero Team")
-#    bot.Move.XYAndDialog(2388.00, -373.00, 0x81)
-#    bot.Move.XYAndDialog(2388.00, -373.00, 0x84)
-#    ConfigureAggressiveEnv(bot)
-#    bot.Wait.ForTime(10000)
-#    bot.Move.XY(16570.45, -8424.05)
-#    bot.Wait.ForTime(100000)
-#    bot.Wait.UntilOutOfCombat()
-#    ConfigurePacifistEnv(bot)
-#    bot.SkillBar.UseSkill(3)
-#    bot.Wait.ForTime(5000)
-#    bot.States.AddCustomState(lambda: ClickSkillFrame(3156), "Click Skill Frame")
-#    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
-#    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
-#    yield
-#
+def SkullCrack():
+    bot.States.AddHeader("Skull Crack")
+    target_prof = Profession.WARRIOR
+    start_map = 643
+    
+    bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
+    bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
+    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Warrior Build")
+    bot.Party.LeaveParty()
+    bot.Travel_To_Random_District(target_map_id=start_map)
+    bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
+    bot.Move.XYAndExitMap(13656, 19140, 513)
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XY(14398, 9923)
+    bot.Move.XY(14181, 2399)
+    bot.Move.XY(12244.49, -2212.59)
+    bot.Move.XY(12748, -13018)
+    bot.Move.XY(14207, -17051)
+    bot.Move.XYAndExitMap(17143, -16898, 548)
+    bot.Move.XY(-11059.88, 11532.18)
+    bot.Wait.UntilOnCombat() #Wait for Baglorag Grumblesnort
+    bot.Wait.UntilOutOfCombat()
+    ConfigurePacifistEnv(bot)
+    bot.SkillBar.UseSkill(3)
+    bot.Wait.ForTime(5000)
+    bot.States.AddCustomState(lambda: ClickSkillFrame(329), "Click Skill Frame")
+    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
+    yield
+  
+def SoldiersStance():
+    bot.States.AddHeader("Soldier's Stance")
+    target_prof = Profession.WARRIOR
+    start_map = 545
+    
+    bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
+    bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
+    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Warrior Build")
+    bot.Party.LeaveParty()
+    bot.Travel_To_Random_District(target_map_id=start_map)
+    bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
+    bot.Move.XYAndExitMap(1699, 4941, 437)
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XY(-4282.58, -13169.55)
+    bot.Wait.ForTime(5000)
+    bot.Move.XYAndInteractGadget(-4246.00, -12950.00)
+    bot.Move.XY(2645, -17001)
+    bot.Move.XY(7619, -17555)
+    bot.Move.XY(12217, -14581)
+    bot.Wait.UntilOutOfCombat()
+    ConfigurePacifistEnv(bot)
+    bot.SkillBar.UseSkill(3)
+    bot.Wait.ForTime(5000)
+    bot.States.AddCustomState(lambda: ClickSkillFrame(1698), "Click Skill Frame")
+    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
+    yield
+
 def SteadyStance():
     bot.States.AddHeader("Steady Stance")
     target_prof = Profession.WARRIOR
@@ -6400,29 +6408,57 @@ def TripleChop():
     bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
     yield
 
-#def WarriorsEndurance():
-#    bot.States.AddHeader("Warrior's Endurance")
-#    target_prof = Profession.WARRIOR
-#    start_map = 
-#    
-#    bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
-#    bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
-#    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Warrior Build")
-#    bot.Party.LeaveParty()
-#    bot.Travel_To_Random_District(target_map_id=start_map)
-#    bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
-#    bot.Move.XYAndExitMap(,,)
-#    ConfigureAggressiveEnv(bot)
-#    bot.Move.XY(,)
-#    bot.Wait.UntilOutOfCombat()
-#    ConfigurePacifistEnv(bot)
-#    bot.SkillBar.UseSkill(3)
-#    bot.Wait.ForTime(5000)
-#    bot.States.AddCustomState(lambda: ClickSkillFrame(374), "Click Skill Frame")
-#    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
-#    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
-#    yield
-#
+def WarriorsEndurance():
+    bot.States.AddHeader("Warrior's Endurance")
+    target_prof = Profession.WARRIOR
+    start_map = 117
+    
+    bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
+    bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
+    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Warrior Build")
+    bot.Party.LeaveParty()
+    bot.Travel_To_Random_District(target_map_id=117)
+    bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team") 
+    bot.Map.EnterChallenge(delay=1000, target_map_id=117)
+    bot.Wait.ForMapToChange(target_map_id=117) # Thirsty River Mission
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XY(-857, 8546) #Sand Giant 1
+    bot.Move.XY(-2320, 5881)
+    bot.Move.XY(-125.10, 3166.91)
+    bot.Move.XY(-50.19, 103.76)
+    bot.Move.XY(1417.27, -2503.34)
+    bot.Move.XY(4508.23, -3895.00)
+    bot.Move.XY(5735.68, -3615.36) #Ugly Bridge
+    bot.Move.XY(6548.60, -2597.65)
+    bot.Move.XY(6904.65, -1450.62)
+    bot.Move.XY(8282.06, -1424.29)
+    bot.Move.XYAndInteractNPC(8945.00, -2457.00)
+    bot.Wait.ForMapToChange(117) #Cutscene
+    bot.Wait.ForTime(1000)
+    bot.Move.XY(13091.00, -5283.00) #Goss Aleesh Boss and Priest
+    bot.Move.XY(10711.53, -4565.11)
+    bot.Wait.ForTime (7000)
+    bot.Move.XY(8666.88, -6085.35)
+    bot.Move.XY(9782.77, -9098.71)
+    bot.Wait.ForTime (11000)
+    bot.Move.XY(5899, -6912) #Hessper Sasso and Priest
+    bot.Move.XY(6407.00, -11845.00) #Issah Sshay and Priest
+    bot.Move.XY(6505.61, -9512.16)
+    bot.Wait.ForTime (7000)
+    bot.Move.XY(3947.58, -6702.45)
+    bot.Move.XY(1570.69, -7218.57)
+    bot.Wait.ForTime (11000)
+    bot.Move.XY(-1140.90, -7167.44)
+    bot.Move.XY(-1782.84, -6591.11) #Custodian Hulgar  and Priest
+    bot.Wait.UntilOutOfCombat()
+    ConfigurePacifistEnv(bot)
+    bot.SkillBar.UseSkill(3)
+    bot.Wait.ForTime(5000)
+    bot.States.AddCustomState(lambda: ClickSkillFrame(374), "Click Skill Frame")
+    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
+    yield
+
 def WhirlingAxe():
     bot.States.AddHeader("Whirling Axe")
     target_prof = Profession.WARRIOR
@@ -7975,11 +8011,11 @@ bot.States.AddCustomState(MagehuntersSmash, "[H]Magehunter's Smash")
 bot.States.AddCustomState(QuiveringBlade, "[H]Quivering Blade")
 bot.States.AddCustomState(RageoftheNtouka, "[H]Rage of the Ntouka")
 bot.States.AddCustomState(Shove, "[H]Shove")
-#bot.States.AddCustomState(SkullCrack, "[H]Skull Crack")
-#bot.States.AddCustomState(SoldiersStance, "[H]Soldier's Stance")
+bot.States.AddCustomState(SkullCrack, "[H]Skull Crack")
+bot.States.AddCustomState(SoldiersStance, "[H]Soldier's Stance")
 bot.States.AddCustomState(SteadyStance, "[H]Steady Stance")
 bot.States.AddCustomState(TripleChop, "[H]Triple Chop")
-#bot.States.AddCustomState(Warriors Endurance, "[H]Warrior's Endurance")
+bot.States.AddCustomState(WarriorsEndurance, "[H]Warrior's Endurance")
 bot.States.AddCustomState(WhirlingAxe, "[H]Whirling Axe")
 bot.States.AddCustomState(LifeBarrier, "[H]Life Barrier")
 bot.States.AddCustomState(Way_of_the_Assassin, "[H]Way of the Assassin")
