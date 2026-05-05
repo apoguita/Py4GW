@@ -207,7 +207,10 @@ class CacheData:
     def GetActiveScanRange(self) -> float:
         from .settings import Settings
 
-        if Settings().get_combat_range_mode() == Settings.COMBAT_RANGE_MODE_LEGACY:
+        is_party_leader = bool(
+            getattr(getattr(self.account_data, "AgentPartyData", None), "IsPartyLeader", False)
+        )
+        if is_party_leader or Settings().get_combat_range_mode() == Settings.COMBAT_RANGE_MODE_LEGACY:
             return Range.Earshot.value if self.stay_alert_timer.HasElapsed(STAY_ALERT_TIME) else Range.Spellcast.value
 
         HighRange = Range.Longbow.value if not self.data.party_in_aggro else Range.Spellcast.value

@@ -1,3 +1,4 @@
+import random
 from collections.abc import Mapping
 from collections.abc import Sequence
 
@@ -19,6 +20,35 @@ _HEROAI_GUARD_KEY = "__apobottinglib_restore_headless_heroai"
 _heroai_pause_counter = 0
 
 _POST_MOVEMENT_SETTLE_MS = 500
+_WAITSPECIAL_EMOTES: tuple[str, ...] = (
+    "attention",
+    "beckon",
+    "bored",
+    "bowhead",
+    "catchbreath",
+    "dancenew",
+    "doh",
+    "doubletake",
+    "drums",
+    "excited",
+    "fame",
+    "flex",
+    "flute",
+    "guitar",
+    "jump",
+    "kneel",
+    "moan",
+    "paper",
+    "ponder",
+    "ready",
+    "rock",
+    "salute",
+    "scissors",
+    "scratch",
+    "sit",
+    "violin",
+    "yawn",
+)
 
 #helpers
 def PressKeybind(keybind_index: int, duration_ms: int = 75, log: bool = False) -> BehaviorTree:
@@ -181,8 +211,36 @@ def LeaveGH() -> BehaviorTree:
     return RoutinesBT.Map.LeaveGH()
 
 #region Waits
-def Wait(duration_ms: int, log: bool = False) -> BehaviorTree:
+def Wait(duration_ms: int, log: bool = False, emote: bool = False) -> BehaviorTree:
+    if emote:
+        return BehaviorTree(WaitSpecial(duration_ms=duration_ms, log=log))
     return RoutinesBT.Player.Wait(duration_ms=duration_ms, log=log)
+
+def WaitSpecial(duration_ms: int, log: bool = False) -> BehaviorTree:
+    """Randomly performs a safe emote command, then waits for the requested duration."""
+    def _pick_emote(node: BehaviorTree.Node) -> BehaviorTree.NodeState:
+        node.blackboard["waitspecial_emote"] = random.choice(_WAITSPECIAL_EMOTES)
+        return BehaviorTree.NodeState.SUCCESS
+
+    return RoutinesBT.Composite.Sequence(
+        BehaviorTree(
+            BehaviorTree.ActionNode(
+                name="WaitSpecialPickEmote",
+                action_fn=_pick_emote,
+            )
+        ),
+        BehaviorTree(
+            BehaviorTree.SubtreeNode(
+                name="WaitSpecialSendEmote",
+                subtree_fn=lambda node: SendChatCommand(
+                    command=str(node.blackboard.get("waitspecial_emote", "dance")),
+                    log=log,
+                ),
+            )
+        ),
+        RoutinesBT.Player.Wait(duration_ms=duration_ms, log=log),
+        name="WaitSpecial",
+    ) 
 
 def WaitUntilOnExplorable(timeout_ms: int = 15000) -> BehaviorTree:
     return RoutinesBT.Map.WaitUntilOnExplorable(timeout_ms=timeout_ms,)
@@ -279,6 +337,34 @@ def MoveAndInteractByModelID(modelID_or_encStr: int | str, target_distance: floa
         InteractTarget(log=False),
         name="MoveAndInteractByModelID",
     )
+    
+def MoveAndCraftItem(pos: PointOrPath, output_model_id: int,cost: int,trade_model_ids: list[int],quantity_list: list[int]) -> BehaviorTree:
+    return RoutinesBT.Composite.Sequence(
+        MoveAndInteract(pos=pos),
+        _pause_heroai_for_action(
+            RoutinesBT.Items.CraftItem(output_model_id=output_model_id,cost=cost,trade_model_ids=trade_model_ids,quantity_list=quantity_list,)
+         ),
+        name="MoveAndCraftItem",
+     )
+    
+def MoveAndBuyMaterials(pos: PointOrPath, model_id: int, batches:int = 1, log: bool = False) -> BehaviorTree:
+    return RoutinesBT.Composite.Sequence(
+        MoveAndInteract(pos=pos),
+        _pause_heroai_for_action(
+            RoutinesBT.Items.BuyMaterials(model_id=model_id, batches=batches, log=log)
+        ),
+        name="MoveAndBuyMaterials",
+    )
+
+def MoveAndBuyMerchantItem(pos: PointOrPath, model_id: int, quantity: int = 1, log: bool = False) -> BehaviorTree:
+    return RoutinesBT.Composite.Sequence(
+        MoveAndInteract(pos=pos),
+        _pause_heroai_for_action(
+            RoutinesBT.Items.BuyMerchantItem(model_id=model_id, quantity=quantity, log=log)
+        ),
+        name="MoveAndBuyMerchantItem",
+    )
+
 
 #region ClearEnemies
 def ClearEnemiesInArea(pos: PointOrPath, radius: float = Range.Spirit.value, allowed_alive_enemies: int = 0) -> BehaviorTree:
@@ -296,7 +382,7 @@ def IsItemInInventoryBags(modelID_or_encStr: int | str) -> BehaviorTree:
 def IsItemEquipped(modelID_or_encStr: int | str) -> BehaviorTree:
     return RoutinesBT.Items.IsItemEquipped(modelID_or_encStr=modelID_or_encStr)
 
-def EquipItemByModelID(modelID_or_encStr: int | str, aftercast_ms: int = 150) -> BehaviorTree:
+def EquipItemByModelID(modelID_or_encStr: int | str, aftercast_ms: int = 250) -> BehaviorTree:
     return RoutinesBT.Items.EquipItemByModelID(modelID_or_encStr=modelID_or_encStr,aftercast_ms=aftercast_ms,)
 
 def EquipInventoryBag(modelID_or_encStr: int | str,target_bag: int,timeout_ms: int = 2500,poll_interval_ms: int = 125,log: bool = False,) -> BehaviorTree:
@@ -324,6 +410,12 @@ def RestockItems(model_id: int, desired_quantity: int, allow_missing: bool = Fal
     return RoutinesBT.Items.RestockItems(
         model_id=model_id,
         desired_quantity=desired_quantity,
+        allow_missing=allow_missing,
+    )
+
+def RestockItemsFromList(items: Sequence[tuple[int, int]], allow_missing: bool = False) -> BehaviorTree:
+    return RoutinesBT.Items.RestockItemsFromList(
+        items=items,
         allow_missing=allow_missing,
     )
 
@@ -372,7 +464,7 @@ def BuyMaterialsFromList(materials: list[tuple[int, int]], log: bool = False, af
         )
     )
 
-def BuyMerchantItem(model_id: int, quantity: int = 1, log: bool = False, aftercast_ms: int = 250) -> BehaviorTree:
+def BuyMerchantItem(model_id: int, quantity: int = 1, log: bool = False, aftercast_ms: int = 350) -> BehaviorTree:
     return _pause_heroai_for_action(
         RoutinesBT.Items.BuyMerchantItem(
             model_id=model_id,
@@ -536,6 +628,11 @@ def StoreRerollContext(
 
 
 #region misc
+def SendChatMessage(message: str, channel: str = "say", log: bool = False) -> BehaviorTree:
+    return RoutinesBT.Player.SendChatMessage(message=message, channel=channel, log=log,)
+
+def SendChatCommand(command: str, log: bool = False) -> BehaviorTree:
+    return RoutinesBT.Player.SendChatCommand(command=command, log=log,)
 
 def ClickWindowFrame(frame_name: str, aftercast_ms: int = 250) -> BehaviorTree:
     return RoutinesBT.Player.ClickWindowFrame(frame_name=frame_name,aftercast_ms=aftercast_ms,)

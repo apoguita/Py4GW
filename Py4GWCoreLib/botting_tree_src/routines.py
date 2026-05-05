@@ -5,6 +5,7 @@ import Py4GW
 from ..Agent import Agent
 from ..Map import Map
 from ..Player import Player
+from ..Py4GWcorelib import ConsoleLog
 from ..Quest import Quest
 from ..native_src.internals.types import PointOrPath
 from ..native_src.internals.types import PointPath
@@ -31,7 +32,22 @@ class _BottingTreeRoutines:
         multi: int = 0,
         aftercast_ms: int = 125,
         success_map_id: int = 0,
+        log: bool = False,
     ) -> BehaviorTree:
+        """
+        Build a quest-interaction routine that moves to an NPC, interacts, and waits for quest-state progress.
+
+        Accepted `mode` values:
+        - `'accept'`: succeed when `quest_id` becomes the active quest after interaction.
+        - `'complete'`: succeed when `quest_id` is no longer the active quest.
+        - `'step'`: succeed when the active quest changes, the map changes, or the NPC quest marker disappears after an attempt.
+        - `'skip'`: same runtime success rules as `'step'`; intended for dialog branches that advance or skip quest state.
+
+        Notes:
+        - `point_or_path` may be a single point or a full path; the routine always uses the final point as the NPC endpoint.
+        - `success_map_id`, when non-zero, overrides the normal quest-state checks and succeeds as soon as that map is reached.
+        - `multi`, when non-zero, sends a second dialog after `quest_dialog`.
+        """
         final_point = PointPath.final_point(point_or_path)
         if final_point is None:
             raise ValueError('HandleQuest requires a non-empty point_or_path.')
@@ -44,15 +60,25 @@ class _BottingTreeRoutines:
             'initial_npc_has_quest': False,
             'attempt_tree': None,
             'attempt_started': False,
+            'arrived': False,
             'tick_count': 0,
             'last_status_log_tick': -1,
         }
 
         def _log(message: str, message_type=Py4GW.Console.MessageType.Info) -> None:
-            Py4GW.Console.Log(
+            ConsoleLog(
                 'HandleQuest',
                 f'quest={quest_id} mode={mode} {message}',
                 message_type,
+                log=log,
+            )
+
+        def _fail_log(message: str, message_type=Py4GW.Console.MessageType.Warning) -> None:
+            ConsoleLog(
+                'HandleQuest',
+                f'quest={quest_id} mode={mode} {message}',
+                message_type,
+                log=True,
             )
 
         def _format_runtime_snapshot() -> str:
@@ -83,6 +109,7 @@ class _BottingTreeRoutines:
             state['initial_npc_has_quest'] = False
             state['attempt_tree'] = None
             state['attempt_started'] = False
+            state['arrived'] = False
             state['tick_count'] = 0
             state['last_status_log_tick'] = -1
 
@@ -103,7 +130,13 @@ class _BottingTreeRoutines:
             node.blackboard['handlequest_initial_npc_has_quest'] = bool(state['initial_npc_has_quest'])
             node.blackboard['handlequest_success_map_id'] = int(success_map_id)
             node.blackboard['handlequest_attempt_started'] = False
+            node.blackboard['handlequest_arrived'] = False
             _log(f'initialized target. success_map_id={success_map_id} multi={multi} snapshot={_format_runtime_snapshot()}')
+
+        def _has_arrived() -> bool:
+            player_x, player_y = Player.GetXY()
+            endpoint_distance = Utils.Distance((player_x, player_y), (final_point.x, final_point.y))
+            return endpoint_distance <= 150.0
 
         def _success_condition(node: BehaviorTree.Node) -> bool:
             initial_map_id = int(node.blackboard.get('handlequest_initial_map_id', state['current_map']) or 0)
@@ -114,17 +147,22 @@ class _BottingTreeRoutines:
                 node.blackboard.get('handlequest_initial_npc_has_quest', state['initial_npc_has_quest'])
             )
             attempt_started = bool(node.blackboard.get('handlequest_attempt_started', state['attempt_started']))
+            arrived = bool(node.blackboard.get('handlequest_arrived', state['arrived']))
             current_map_id = int(Map.GetMapID() or 0)
             current_active_quest_id = int(Quest.GetActiveQuest() or 0)
             if success_map_id != 0 and int(Map.GetMapID() or 0) == int(success_map_id):
                 return True
+            # Mode semantics:
+            # - complete: the target quest should stop being active
+            # - step/skip: any observed quest progression counts, but only after arrival and an interaction attempt starts
+            # - accept: the target quest should become active, but only after arrival and an interaction attempt starts
+            if not arrived or not attempt_started:
+                return False
             if mode == 'complete':
                 return current_active_quest_id != int(quest_id)
             if mode in ('step', 'skip'):
                 if current_map_id != initial_map_id:
                     return True
-                if not attempt_started:
-                    return False
                 if current_active_quest_id != initial_active_quest_id:
                     return True
                 if state['npc_id'] != 0 and initial_npc_has_quest and not Agent.HasQuest(state['npc_id']):
@@ -174,7 +212,10 @@ class _BottingTreeRoutines:
                 _initialize_target(node)
 
             if _success_condition(node):
-                _log(f'success condition met before/without attempt completion. snapshot={_format_runtime_snapshot()}', Py4GW.Console.MessageType.Success)
+                _log(
+                    f'success condition met before/without attempt completion. snapshot={_format_runtime_snapshot()}',
+                    Py4GW.Console.MessageType.Success,
+                )
                 _reset_state()
                 return BehaviorTree.NodeState.SUCCESS
 
@@ -188,6 +229,10 @@ class _BottingTreeRoutines:
                 raise RuntimeError('QuestLoop attempt tree failed to initialize.')
 
             attempt_tree.blackboard = node.blackboard
+            if not state['arrived'] and _has_arrived():
+                state['arrived'] = True
+                node.blackboard['handlequest_arrived'] = True
+                _log(f'arrived at quest endpoint. snapshot={_format_runtime_snapshot()}')
             attempt_result = BehaviorTree.Node._normalize_state(attempt_tree.tick())
             if attempt_result == BehaviorTree.NodeState.RUNNING:
                 tick_count = int(state['tick_count'])
@@ -197,18 +242,23 @@ class _BottingTreeRoutines:
             if attempt_result == BehaviorTree.NodeState.RUNNING:
                 return BehaviorTree.NodeState.RUNNING
 
-            _log(f'attempt finished with {attempt_result}. snapshot={_format_runtime_snapshot()}')
+            if attempt_result == BehaviorTree.NodeState.FAILURE:
+                _fail_log(f'attempt finished with FAILURE. snapshot={_format_runtime_snapshot()}')
+            else:
+                _log(f'attempt finished with {attempt_result}. snapshot={_format_runtime_snapshot()}')
             state['attempt_tree'] = None
 
             if _success_condition(node):
-                _log(f'success condition met after attempt completion. snapshot={_format_runtime_snapshot()}', Py4GW.Console.MessageType.Success)
+                _log(
+                    f'success condition met after attempt completion. snapshot={_format_runtime_snapshot()}',
+                    Py4GW.Console.MessageType.Success,
+                )
                 _reset_state()
                 return BehaviorTree.NodeState.SUCCESS
 
-            _log(
+            _fail_log(
                 'attempt ended but success condition is still false; resetting attempt state and retrying. '
                 f'snapshot={_format_runtime_snapshot()}',
-                Py4GW.Console.MessageType.Warning,
             )
             state['attempt_tree'] = None
             return BehaviorTree.NodeState.RUNNING

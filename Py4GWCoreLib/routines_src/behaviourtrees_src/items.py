@@ -1054,6 +1054,34 @@ class BTItems:
         )
 
     @staticmethod
+    def RestockItemsFromList(
+        items: Sequence[tuple[int, int]],
+        allow_missing: bool = False,
+    ) -> BehaviorTree:
+        """
+        Build a tree that restocks multiple inventory models from storage up to their requested quantities.
+
+        Meta:
+          Expose: true
+          Audience: intermediate
+          Display: Restock Items From List
+          Purpose: Restock several models from storage in sequence using `(model_id, desired_quantity)` pairs.
+          UserDescription: Use this when a step needs several consumables or items restocked before leaving outpost.
+          Notes: Reuses the single-item restock routine for each list entry and preserves the same allow-missing behavior.
+        """
+        return BTComposite.Sequence(
+            *[
+                BTItems.RestockItems(
+                    model_id=int(model_id),
+                    desired_quantity=int(desired_quantity),
+                    allow_missing=allow_missing,
+                )
+                for model_id, desired_quantity in items
+            ],
+            name="RestockItemsFromList",
+        )
+
+    @staticmethod
     def DepositModelToStorage(model_id: int, aftercast_ms: int = 350) -> BehaviorTree:
         """
         Build a tree that deposits all inventory items of a specific model into storage.
