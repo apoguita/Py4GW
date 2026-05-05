@@ -1,3 +1,4 @@
+import os
 import time
 from datetime import datetime
 from datetime import timezone
@@ -23,6 +24,8 @@ from Py4GWCoreLib import IniHandler
 from Py4GWCoreLib.Py4GWcorelib import Keystroke
 from Py4GWCoreLib.Quest import Quest
 from Py4GWCoreLib.enums_src.Model_enums import ModelID
+from Py4GWCoreLib.enums_src.Multiboxing_enums import ReloadType
+from Py4GWCoreLib.item_data.ItemData import ITEM_DATA
 from Widgets.Automation.Helpers import Pycons as PyconsHelper
 from Widgets.Automation.Helpers.Pycons import resolve_pycons_account_ini_path
 from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
@@ -51,7 +54,6 @@ MERCHANT_RULES_WIDGET_NAME = "Merchant Rules"
 PYCONS_WIDGET_NAME = "Pycons"
 _pcon_last_exec_ms_by_signature: dict[tuple[str, tuple[int, int, int, int]], int] = {}
 PCON_EXEC_DEDUP_MS = 500
-
 
 def _extra_data(message: SharedMessageStruct) -> tuple[str, str, str, str]:
     """Extract the four ExtraData fields from a SharedMessageStruct as plain strings."""
@@ -730,17 +732,6 @@ def MerchantItems(index: int, message: SharedMessageStruct):
         wait_ms += 250
     _merchant_busy = True
 
-    def _extra_data(message: SharedMessageStruct) -> tuple[str, str, str, str]:
-        values: list[str] = []
-        for raw in message.ExtraData:
-            try:
-                values.append(_c_wchar_array_to_str(raw))
-            except Exception:
-                values.append("")
-        while len(values) < 4:
-            values.append("")
-        return tuple(values[:4])
-
     extra0, extra1, extra2, extra3 = _extra_data(message)
     mode = extra0.strip().lower()
 
@@ -816,17 +807,6 @@ def MerchantMaterials(index: int, message: SharedMessageStruct):
         wait_ms += 250
     _merchant_busy = True
 
-    def _extra_data(message: SharedMessageStruct) -> tuple[str, str, str, str]:
-        values: list[str] = []
-        for raw in message.ExtraData:
-            try:
-                values.append(_c_wchar_array_to_str(raw))
-            except Exception:
-                values.append("")
-        while len(values) < 4:
-            values.append("")
-        return tuple(values[:4])
-
     def _parse_selected_models(raw: str) -> set[int] | None:
         if not raw.strip():
             return None
@@ -852,15 +832,17 @@ def MerchantMaterials(index: int, message: SharedMessageStruct):
     mode = extra0.strip().lower()
     selected_models = _parse_selected_models(extra1)
 
-    def _parse_exact_quantity(raw: str, default: int = 250) -> int | None:
+    def _parse_exact_quantity(raw: str, default: int = 250) -> int:
         value = str(raw).strip()
         if value == "":
             return int(default)
         try:
             parsed = int(value)
+            
         except Exception:
             return int(default)
-        return parsed if parsed > 0 else None
+        
+        return parsed
 
     try:
         x = float(message.Params[0])
@@ -2387,16 +2369,6 @@ def InventoryQuery(index: int, message: SharedMessageStruct):
     which is limited to 64 characters per slot (~12 IDs). Extend this handler
     if a real non-contiguous use case arises.
     """
-    def _extra_data(msg: SharedMessageStruct) -> tuple[str, str, str, str]:
-        values: list[str] = []
-        for raw in msg.ExtraData:
-            try:
-                values.append(_c_wchar_array_to_str(raw))
-            except Exception:
-                values.append("")
-        while len(values) < 4:
-            values.append("")
-        return values[0], values[1], values[2], values[3]
     
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     extra0, extra1, extra2, extra3 = _extra_data(message)
@@ -2450,6 +2422,43 @@ def EquipItem(index: int, message: SharedMessageStruct):
     ConsoleLog(MODULE_NAME, f"EquipItem: equipped item_id {item_id} (model {model_id}).", Console.MessageType.Info, False)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
 # endregion
+
+#region Reload
+def Reload(index: int, message: SharedMessageStruct):
+    GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
+    try:
+        config_type = ReloadType(message.Params[0]) if len(message.Params) > 0 else None
+        project_path = Py4GW.Console.get_projects_path()
+        settings_dir = os.path.join(project_path, "Settings", "Global", "Item & Inventory", "Configs")
+        
+        match config_type:
+            case ReloadType.ItemData:
+                ITEM_DATA.load_data()
+                
+            case ReloadType.Crafting:
+                # Coming soon ....
+                pass
+            
+            case ReloadType.Buying:
+                # Coming soon ....
+                pass
+            
+            case ReloadType.Inventory:
+                # Coming soon ....
+                pass
+            
+            case ReloadType.Looting:
+                # Coming soon ....
+                pass
+            
+    except Exception as exc:
+        ConsoleLog(MODULE_NAME, f"ReloadConfig message error: {exc}", Console.MessageType.Error, False)
+    finally:
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        
+    yield None
+
+#endregions
 
 # region ProcessMessages
 def ProcessMessages():
@@ -2570,6 +2579,8 @@ def ProcessMessages():
             GLOBAL_CACHE.Coroutines.append(InventoryQuery(index, message))
         case SharedCommandType.EquipItem:
             GLOBAL_CACHE.Coroutines.append(EquipItem(index, message))
+        case SharedCommandType.Reload:
+            GLOBAL_CACHE.Coroutines.append(Reload(index, message))
         case SharedCommandType.LootEx:
             # privately Handled Command, by frenkey
             pass
