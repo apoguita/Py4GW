@@ -1,4 +1,5 @@
 import random
+from collections.abc import Callable
 from collections.abc import Mapping
 from collections.abc import Sequence
 
@@ -22,13 +23,9 @@ _heroai_pause_counter = 0
 _POST_MOVEMENT_SETTLE_MS = 500
 _WAITSPECIAL_EMOTES: tuple[str, ...] = (
     "attention",
-    "beckon",
-    "bored",
     "bowhead",
     "catchbreath",
     "dancenew",
-    "doh",
-    "doubletake",
     "drums",
     "excited",
     "fame",
@@ -37,17 +34,12 @@ _WAITSPECIAL_EMOTES: tuple[str, ...] = (
     "guitar",
     "jump",
     "kneel",
-    "moan",
     "paper",
-    "ponder",
-    "ready",
     "rock",
     "salute",
     "scissors",
-    "scratch",
     "sit",
     "violin",
-    "yawn",
 )
 
 #helpers
@@ -171,12 +163,12 @@ def _final_point(pos: PointOrPath) -> Vec2f:
         raise ValueError("PointPath cannot be empty.")
     return point
 
-def DialogAtXY(pos: PointOrPath, dialog_id: int | str, target_distance: float = 200.0) -> BehaviorTree:
+def DialogAtXY(pos: PointOrPath, dialog_id: int | str, target_distance: float = 200.0, log: bool = False) -> BehaviorTree:
     point = _final_point(pos)
     return RoutinesBT.Composite.Sequence(
-        TargetNearest(x=point.x, y=point.y, target_distance=target_distance, log=False),
-        InteractTarget(log=False),
-        SendDialog(dialog_id=dialog_id, log=False),
+        TargetNearest(x=point.x, y=point.y, target_distance=target_distance, log=log),
+        InteractTarget(log=log),
+        SendDialog(dialog_id=dialog_id, log=log),
         name="DialogAtXY",
     )
     
@@ -188,11 +180,11 @@ def InteractWithGadgetAtXY(pos: PointOrPath, target_distance: float = 200.0) -> 
         name="InteractWithGadgetAtXY",
     )
     
-def TargetAndDialogByModelID(modelID_or_encStr: int | str, dialog_id: int | str) -> BehaviorTree:
+def TargetAndDialogByModelID(modelID_or_encStr: int | str, dialog_id: int | str, log: bool = False) -> BehaviorTree:
     return RoutinesBT.Composite.Sequence(
-        TargetAgentByModelID(modelID_or_encStr=modelID_or_encStr,log=False,),
-        InteractTarget(log=False),
-        SendDialog(dialog_id=dialog_id, log=False),
+        TargetAgentByModelID(modelID_or_encStr=modelID_or_encStr,log=log,),
+        InteractTarget(log=log),
+        SendDialog(dialog_id=dialog_id, log=log),
         name="TargetAndDialogByModelID",
     )
 
@@ -210,11 +202,36 @@ def TravelGH() -> BehaviorTree:
 def LeaveGH() -> BehaviorTree:
     return RoutinesBT.Map.LeaveGH()
 
+def EnterChallenge(
+    delay_ms: int = 3000,
+    target_map_id: int = 0,
+    target_map_name: str = "",
+    confirm_extra: bool = False,
+) -> BehaviorTree:
+    return RoutinesBT.Map.EnterChallenge(
+        target_map_id=target_map_id,
+        target_map_name=target_map_name,
+        delay_ms=delay_ms,
+        confirm_extra=confirm_extra,
+    )
+
 #region Waits
-def Wait(duration_ms: int, log: bool = False, emote: bool = False) -> BehaviorTree:
-    if emote:
-        return BehaviorTree(WaitSpecial(duration_ms=duration_ms, log=log))
-    return RoutinesBT.Player.Wait(duration_ms=duration_ms, log=log)
+def Wait(duration_ms: int, log: bool = False, emote: bool = False, announce_delay: bool = False) -> BehaviorTree:
+    wait_tree = WaitSpecial(duration_ms=duration_ms, log=log) if emote else RoutinesBT.Player.Wait(duration_ms=duration_ms, log=log)
+    if not announce_delay:
+        return wait_tree
+
+    wait_seconds = max(0.0, float(duration_ms) / 1000.0)
+    return RoutinesBT.Composite.Sequence(
+        LogMessage(
+            message=f"Waiting for {wait_seconds:.1f}s",
+            module_name="ApobottingLib",
+            print_to_console=True,
+            print_to_blackboard=True,
+        ),
+        wait_tree,
+        name="WaitAnnounced",
+    )
 
 def WaitSpecial(duration_ms: int, log: bool = False) -> BehaviorTree:
     """Randomly performs a safe emote command, then waits for the requested duration."""
@@ -265,15 +282,15 @@ def WaitUntilCharacterSelect(timeout_ms: int = 45000) -> BehaviorTree:
 
 
 #region Movement
-def Move(pos: PointOrPath,pause_on_combat: bool = True,tolerance: float = 150.0,) -> BehaviorTree:
-    return RoutinesBT.Movement.MovePath(pos=pos,pause_on_combat=pause_on_combat,tolerance=tolerance,log=False,)
+def Move(pos: PointOrPath,pause_on_combat: bool = True,tolerance: float = 150.0,log: bool = False,) -> BehaviorTree:
+    return RoutinesBT.Movement.MovePath(pos=pos,pause_on_combat=pause_on_combat,tolerance=tolerance,log=log,)
 
-def MoveDirect(pos: PointOrPath, pause_on_combat: bool = True) -> BehaviorTree:
-    return RoutinesBT.Movement.MoveDirect(PointPath.as_path(pos), pause_on_combat=pause_on_combat, log=False)
+def MoveDirect(pos: PointOrPath, pause_on_combat: bool = True, log: bool = False) -> BehaviorTree:
+    return RoutinesBT.Movement.MoveDirect(PointPath.as_path(pos), pause_on_combat=pause_on_combat, log=log)
 
-def MoveAndExitMap(pos: PointOrPath, target_map_id: int = 0, target_map_name: str = "") -> BehaviorTree:
+def MoveAndExitMap(pos: PointOrPath, target_map_id: int = 0, target_map_name: str = "", log: bool = False) -> BehaviorTree:
     return RoutinesBT.Composite.Sequence(
-            Move(pos=pos, pause_on_combat=False, tolerance=150.0),
+            Move(pos=pos, pause_on_combat=False, tolerance=150.0, log=log),
             WaitForMapLoad(map_id=target_map_id, map_name=target_map_name),
     )
 
@@ -283,59 +300,209 @@ def MoveAndKill(pos: PointOrPath, clear_area_radius: float = Range.Spirit.value)
 def MoveAndTarget(pos: PointOrPath,target_distance: float = Range.Adjacent.value,move_tolerance: float = 150.0,log: bool = False,) -> BehaviorTree:
     return RoutinesBT.Movement.MoveAndTargetPath(pos=pos,target_distance=target_distance,move_tolerance=move_tolerance,log=log,)
 
-def MoveAndInteract(pos: PointOrPath,target_distance: float = Range.Area.value,move_tolerance: float = 150.0,) -> BehaviorTree:
+def MoveAndInteract(pos: PointOrPath,target_distance: float = Range.Area.value,move_tolerance: float = 150.0,log: bool = False,) -> BehaviorTree:
     return RoutinesBT.Composite.Sequence(
-        MoveAndTarget(pos=pos,target_distance=target_distance,move_tolerance=move_tolerance,log=False,),
-        Wait(_POST_MOVEMENT_SETTLE_MS, log=False),
-        InteractTarget(log=False),
+        MoveAndTarget(pos=pos,target_distance=target_distance,move_tolerance=move_tolerance,log=log,),
+        Wait(_POST_MOVEMENT_SETTLE_MS, log=log),
+        InteractTarget(log=log),
         name="MoveAndInteract",
     )
         
-def MoveAndAutoDialog(pos: PointOrPath,button_number: int = 0,target_distance: float = Range.Nearby.value,move_tolerance: float = 150.0,) -> BehaviorTree:
+def MoveAndAutoDialog(pos: PointOrPath,button_number: int = 0,target_distance: float = Range.Nearby.value,move_tolerance: float = 150.0,log: bool = False,) -> BehaviorTree:
     return RoutinesBT.Composite.Sequence(
-        MoveAndTarget(pos=pos,target_distance=target_distance,move_tolerance=move_tolerance,log=False,),
-        Wait(_POST_MOVEMENT_SETTLE_MS, log=False),
-        InteractTarget(log=False),
-        AutoDialog(button_number=button_number, log=False),
+        MoveAndTarget(pos=pos,target_distance=target_distance,move_tolerance=move_tolerance,log=log,),
+        Wait(_POST_MOVEMENT_SETTLE_MS, log=log),
+        InteractTarget(log=log),
+        AutoDialog(button_number=button_number, log=log),
         name="MoveAndAutoDialog",
     )
 
-def MoveAndDialog(pos: PointOrPath,dialog_id: int | str,target_distance: float = Range.Nearby.value,move_tolerance: float = 150.0,) -> BehaviorTree:
+def MoveAndDialog(pos: PointOrPath,dialog_id: int | str,target_distance: float = Range.Nearby.value,move_tolerance: float = 150.0,log: bool = False,) -> BehaviorTree:
     return RoutinesBT.Composite.Sequence(
-        MoveAndTarget(pos=pos,target_distance=target_distance,move_tolerance=move_tolerance,log=False,),
-        Wait(_POST_MOVEMENT_SETTLE_MS, log=False),
-        InteractTarget(log=False),
-        SendDialog(dialog_id=dialog_id, log=False),
+        MoveAndTarget(pos=pos,target_distance=target_distance,move_tolerance=move_tolerance,log=log,),
+        Wait(_POST_MOVEMENT_SETTLE_MS, log=log),
+        InteractTarget(log=log),
+        SendDialog(dialog_id=dialog_id, log=log),
         name="MoveAndDialog",
     )
     
 def MoveAndTargetByModelID(modelID_or_encStr: int | str, log: bool = False) -> BehaviorTree:
     return RoutinesBT.Agents.MoveAndTargetByModelID( modelID_or_encStr=modelID_or_encStr,log=log)
     
-def MoveAndAutoDialogByModelID(modelID_or_encStr: int | str, button_number: int = 0) -> BehaviorTree:
+def MoveAndAutoDialogByModelID(modelID_or_encStr: int | str, button_number: int = 0, log: bool = False) -> BehaviorTree:
     return RoutinesBT.Composite.Sequence(
-        MoveAndTargetByModelID(modelID_or_encStr=modelID_or_encStr, log=False),
-        Wait(_POST_MOVEMENT_SETTLE_MS, log=False),
-        InteractTarget(log=False),
-        AutoDialog(button_number=button_number, log=False),
+        MoveAndTargetByModelID(modelID_or_encStr=modelID_or_encStr, log=log),
+        Wait(_POST_MOVEMENT_SETTLE_MS, log=log),
+        InteractTarget(log=log),
+        AutoDialog(button_number=button_number, log=log),
         name="MoveAndAutoDialogByModelID",
     )
 
-def MoveAndDialogByModelID(modelID_or_encStr: int | str, dialog_id: int | str) -> BehaviorTree:
+def MoveAndDialogByModelID(modelID_or_encStr: int | str, dialog_id: int | str, log: bool = False) -> BehaviorTree:
     return RoutinesBT.Composite.Sequence(
-        MoveAndTargetByModelID(modelID_or_encStr=modelID_or_encStr, log=False),
-        Wait(_POST_MOVEMENT_SETTLE_MS, log=False),
-        InteractTarget(log=False),
-        SendDialog(dialog_id=dialog_id, log=False),
+        MoveAndTargetByModelID(modelID_or_encStr=modelID_or_encStr, log=log),
+        Wait(_POST_MOVEMENT_SETTLE_MS, log=log),
+        InteractTarget(log=log),
+        SendDialog(dialog_id=dialog_id, log=log),
         name="MoveAndDialogByModelID",
     )
 
-def MoveAndInteractByModelID(modelID_or_encStr: int | str, target_distance: float = Range.Nearby.value) -> BehaviorTree:
+def MoveAndInteractByModelID(modelID_or_encStr: int | str, target_distance: float = Range.Nearby.value, log: bool = False) -> BehaviorTree:
     return RoutinesBT.Composite.Sequence(
-        MoveAndTargetByModelID(modelID_or_encStr=modelID_or_encStr, log=False),
-        Wait(_POST_MOVEMENT_SETTLE_MS, log=False),
-        InteractTarget(log=False),
+        MoveAndTargetByModelID(modelID_or_encStr=modelID_or_encStr, log=log),
+        Wait(_POST_MOVEMENT_SETTLE_MS, log=log),
+        InteractTarget(log=log),
         name="MoveAndInteractByModelID",
+    )
+
+def FollowModel(
+    modelID_or_encStr: int | str,
+    follow_range: float = Range.Area.value,
+    timeout_ms: int = 30000,
+    repath_interval_ms: int = 500,
+    repath_distance: float = 200.0,
+    exit_condition: Callable[[], bool] | None = None,
+    exit_by_area: tuple[tuple[float, float], float] | None = None,
+    log: bool = False,
+) -> BehaviorTree:
+    from Py4GWCoreLib.AgentArray import AgentArray
+    from Py4GWCoreLib.Agent import Agent
+    from Py4GWCoreLib.Player import Player
+    from Py4GWCoreLib.Py4GWcorelib import Console
+    from Py4GWCoreLib.Py4GWcorelib import ConsoleLog
+    from Py4GWCoreLib.Py4GWcorelib import Utils
+    from Py4GWCoreLib.routines_src.Checks import Checks
+
+    state = {
+        "started_ms": None,
+        "approach_started_ms": None,
+        "last_move_ms": 0,
+        "last_target_xy": None,
+        "last_status": "",
+    }
+
+    def _trace(message: str, message_type=Console.MessageType.Info, log: bool = False) -> None:
+        ConsoleLog("FollowModel", message, message_type, log=log)
+
+    def _resolve_agent_id() -> int:
+        if isinstance(modelID_or_encStr, str):
+            for aid in AgentArray.GetAgentArray():
+                if Agent.GetEncNameStrByID(aid, literal=True) == modelID_or_encStr:
+                    return int(aid)
+            return 0
+
+        model_id = int(modelID_or_encStr)
+        for aid in AgentArray.GetAgentArray():
+            if Agent.GetModelID(aid) == model_id:
+                return int(aid)
+        return 0
+
+    def _follow(node: BehaviorTree.Node) -> BehaviorTree.NodeState:
+        now = int(Utils.GetBaseTimestamp())
+        if state["started_ms"] is None:
+            state["started_ms"] = now
+            _trace(
+                f"Starting follow for model {modelID_or_encStr} with range={float(follow_range):.1f}, timeout_ms={int(timeout_ms)}.",
+                log=log
+            )
+
+        if exit_condition is not None and exit_condition():
+            if state["last_status"] != "exit":
+                _trace("Exit condition satisfied.", log=log)
+                state["last_status"] = "exit"
+            return BehaviorTree.NodeState.SUCCESS
+
+        if exit_by_area is not None:
+            exit_point, exit_range = exit_by_area
+            player_xy = Player.GetXY()
+            exit_distance = float(Utils.Distance(player_xy, exit_point))
+            if exit_distance <= float(exit_range):
+                if state["last_status"] != "exit_area":
+                    _trace(
+                        f"Exit-by-area satisfied at distance {exit_distance:.1f} from {exit_point} within range {float(exit_range):.1f}.",
+                        log=log,
+                    )
+                    state["last_status"] = "exit_area"
+                return BehaviorTree.NodeState.SUCCESS
+
+        if not Checks.Map.MapValid():
+            if state["last_status"] != "invalid_map":
+                _trace("Map became invalid while following target.", Console.MessageType.Warning, log=True)
+                state["last_status"] = "invalid_map"
+            return BehaviorTree.NodeState.FAILURE
+
+        if Checks.Player.IsCasting():
+            if state["last_status"] != "casting":
+                _trace("Pausing follow while player is casting.", log=log)
+                state["last_status"] = "casting"
+            return BehaviorTree.NodeState.RUNNING
+
+        if Checks.Player.IsDead():
+            if state["last_status"] != "dead":
+                _trace("Pausing follow while player is dead.", log=log)
+                state["last_status"] = "dead"
+            return BehaviorTree.NodeState.RUNNING
+
+        agent_id = _resolve_agent_id()
+        if agent_id == 0:
+            if state["last_status"] != "waiting_agent":
+                _trace(f"Waiting for model {modelID_or_encStr} to resolve via AgentArray.GetAgentArray().", log=log)
+                state["last_status"] = "waiting_agent"
+            return BehaviorTree.NodeState.RUNNING
+
+        target_xy = Agent.GetXY(agent_id)
+        player_xy = Player.GetXY()
+        distance = float(Utils.Distance(player_xy, target_xy))
+        node.blackboard["follow_model_last_agent_id"] = agent_id
+        node.blackboard["follow_model_last_distance"] = distance
+        node.blackboard["follow_model_last_xy"] = target_xy
+
+        if distance <= float(follow_range):
+            if state["approach_started_ms"] is not None:
+                state["approach_started_ms"] = None
+                state["last_target_xy"] = None
+                state["last_move_ms"] = 0
+            if state["last_status"] != "within_range":
+                _trace(
+                    f"Tracking agent {agent_id} at distance {distance:.1f}; within follow range, waiting for movement.",
+                    log=log
+                )
+                state["last_status"] = "within_range"
+            return BehaviorTree.NodeState.RUNNING
+
+        if timeout_ms > 0 and state["approach_started_ms"] is not None and now - int(state["approach_started_ms"]) >= int(timeout_ms):
+            if state["last_status"] != "timeout":
+                _trace("Timed out during current approach step.", Console.MessageType.Warning, log=True)
+                state["last_status"] = "timeout"
+            return BehaviorTree.NodeState.FAILURE
+
+        last_target_xy = state["last_target_xy"]
+        target_moved = (
+            last_target_xy is None
+            or float(Utils.Distance(last_target_xy, target_xy)) >= float(repath_distance)
+        )
+        repath_due = now - int(state["last_move_ms"]) >= int(max(50, repath_interval_ms))
+
+        if target_moved or repath_due:
+            if state["approach_started_ms"] is None:
+                state["approach_started_ms"] = now
+                _trace(
+                    f"Starting new approach to agent {agent_id} at distance {distance:.1f}.",
+                    log=log,
+                )
+            Player.Move(float(target_xy[0]), float(target_xy[1]))
+            state["last_move_ms"] = now
+            state["last_target_xy"] = target_xy
+            _trace(f"Chasing agent {agent_id} at {target_xy}; distance={distance:.1f}.", log=log)
+            state["last_status"] = "chasing"
+
+        return BehaviorTree.NodeState.RUNNING
+
+    return BehaviorTree(
+        BehaviorTree.ActionNode(
+            name=f"FollowModel({modelID_or_encStr})",
+            action_fn=_follow,
+        )
     )
     
 def MoveAndCraftItem(pos: PointOrPath, output_model_id: int,cost: int,trade_model_ids: list[int],quantity_list: list[int]) -> BehaviorTree:
@@ -347,20 +514,20 @@ def MoveAndCraftItem(pos: PointOrPath, output_model_id: int,cost: int,trade_mode
         name="MoveAndCraftItem",
      )
     
-def MoveAndBuyMaterials(pos: PointOrPath, model_id: int, batches:int = 1, log: bool = False) -> BehaviorTree:
+def MoveAndBuyMaterials(pos: PointOrPath, model_id: int, batches:int = 1, log: bool = False, aftercast_ms: int = 350) -> BehaviorTree:
     return RoutinesBT.Composite.Sequence(
         MoveAndInteract(pos=pos),
         _pause_heroai_for_action(
-            RoutinesBT.Items.BuyMaterials(model_id=model_id, batches=batches, log=log)
+            RoutinesBT.Items.BuyMaterials(model_id=model_id, batches=batches, log=log, aftercast_ms=aftercast_ms)
         ),
         name="MoveAndBuyMaterials",
     )
 
-def MoveAndBuyMerchantItem(pos: PointOrPath, model_id: int, quantity: int = 1, log: bool = False) -> BehaviorTree:
+def MoveAndBuyMerchantItem(pos: PointOrPath, model_id: int, quantity: int = 1, log: bool = False, aftercast_ms: int = 350) -> BehaviorTree:
     return RoutinesBT.Composite.Sequence(
         MoveAndInteract(pos=pos),
         _pause_heroai_for_action(
-            RoutinesBT.Items.BuyMerchantItem(model_id=model_id, quantity=quantity, log=log)
+            RoutinesBT.Items.BuyMerchantItem(model_id=model_id, quantity=quantity, log=log, aftercast_ms=aftercast_ms)
         ),
         name="MoveAndBuyMerchantItem",
     )
@@ -562,7 +729,7 @@ def WaitForActiveQuest(quest_id: int, timeout_ms: int = 1500, throttle_interval_
     return RoutinesBT.Party.WaitForActiveQuest(quest_id=quest_id,timeout_ms=timeout_ms,throttle_interval_ms=throttle_interval_ms,)
 
 def WaitForQuestCleared(quest_id: int, timeout_ms: int = 1500, throttle_interval_ms: int = 150) -> BehaviorTree:
-    return RoutinesBT.Party.WaitForQuestCleared(quest_id=quest_id,timeout_ms=timeout_ms,throttle_interval_ms=throttle_interval_ms,)
+    return RoutinesBT.Party.WaitForActiveQuestCleared(quest_id=quest_id,timeout_ms=timeout_ms,throttle_interval_ms=throttle_interval_ms,)
 
 def LogoutToCharacterSelect() -> BehaviorTree:
     return RoutinesBT.Player.LogoutToCharacterSelect()
@@ -666,3 +833,240 @@ def DeleteCharacterFromBlackboard(character_name_key: str = "reroll_character_na
 
 def CreateCharacterFromBlackboard(character_name_key: str = "reroll_new_character_name",campaign_key: str = "reroll_campaign",profession_key: str = "reroll_primary_profession",timeout_ms: int = 60000,) -> BehaviorTree:
     return RoutinesBT.Player.CreateCharacterFromBlackboard(character_name_key=character_name_key,campaign_key=campaign_key,profession_key=profession_key,timeout_ms=timeout_ms,)
+
+
+#region compositeRoutines
+
+class Questmode():
+    Accept = "accept"
+    Complete = "complete"
+    Step = "step"
+    Skip = "skip"
+
+
+def HandleQuest(
+    quest_id: int,
+    pos: PointOrPath | None,
+    dialog_id: int,
+    mode: str = Questmode.Accept,
+    multi_dialog_id: int = 0,
+    use_npc_model_or_enc_str: int | str | None = None,
+    require_quest_marker: bool = False,
+    success_map_id: int = 0,
+    log: bool = False,
+) -> BehaviorTree:
+    import Py4GW
+    from Py4GWCoreLib.Map import Map
+    from Py4GWCoreLib.Quest import Quest
+    from Py4GWCoreLib.Agent import Agent
+    from Py4GWCoreLib.routines_src.Agents import Agents as RoutinesAgents
+    from typing import cast
+    
+    MODULE_NAME = "HandleQuest"
+    
+    blackboard_map_key = f"handlequest_initial_map_id_{quest_id}_{mode}"
+    resolved_pos: PointOrPath | None = pos if pos is not None else None
+    post_check_timeout_ms = 10000
+    post_check_throttle_ms = 150
+
+    def _quest_in_log() -> bool:
+        return int(quest_id) in [int(qid) for qid in (Quest.GetQuestLogIds() or [])]
+
+    def _pre_checks(node: BehaviorTree.Node) -> BehaviorTree.NodeState:
+        nonlocal resolved_pos
+        if resolved_pos is None:
+            if use_npc_model_or_enc_str is None:
+                Py4GW.Console.Log(MODULE_NAME, f"HandleQuest failed: no position or NPC model provided for quest {quest_id} in mode {mode}.", Py4GW.Console.MessageType.Warning)
+                return BehaviorTree.NodeState.FAILURE
+
+            agent_id = int(RoutinesAgents.GetAgentIDByModelOrEncStr(use_npc_model_or_enc_str) or 0)
+            if agent_id == 0:
+                Py4GW.Console.Log(MODULE_NAME, f"HandleQuest failed: could not resolve NPC model {use_npc_model_or_enc_str} for quest {quest_id}.", Py4GW.Console.MessageType.Warning)
+                return BehaviorTree.NodeState.FAILURE
+            agent_x, agent_y = Agent.GetXY(agent_id)
+            resolved_pos = (agent_x, agent_y)
+
+        node.blackboard[blackboard_map_key] = int(Map.GetMapID() or 0)
+        if log:
+            Py4GW.Console.Log(
+                MODULE_NAME,
+                f"HandleQuest start: quest={quest_id} mode={mode} pos={resolved_pos} dialog={dialog_id} npc={use_npc_model_or_enc_str}",
+                Py4GW.Console.MessageType.Info,
+            )
+        if mode == Questmode.Accept and _quest_in_log():
+            Py4GW.Console.Log(MODULE_NAME, f"HandleQuest accept failed: quest {quest_id} already in log.", Py4GW.Console.MessageType.Warning)
+            return BehaviorTree.NodeState.FAILURE
+        if mode in (Questmode.Complete, Questmode.Step) and not _quest_in_log():
+            Py4GW.Console.Log(MODULE_NAME, f"HandleQuest {mode} failed: quest {quest_id} not in log.", Py4GW.Console.MessageType.Warning)
+            return BehaviorTree.NodeState.FAILURE
+        return BehaviorTree.NodeState.SUCCESS
+    
+    def _mid_checks() -> BehaviorTree:
+        if not require_quest_marker:
+            return BehaviorTree(
+                BehaviorTree.ActionNode(
+                    name="HandleQuestMidChecksNoop",
+                    action_fn=lambda: BehaviorTree.NodeState.SUCCESS,
+                )
+            )
+
+        def _wait_for_quest_marker() -> BehaviorTree.NodeState:
+            nonlocal resolved_pos
+
+            npc_id = 0
+            if use_npc_model_or_enc_str is not None:
+                npc_id = int(RoutinesAgents.GetAgentIDByModelOrEncStr(use_npc_model_or_enc_str) or 0)
+            elif resolved_pos is not None:
+                final_point = PointPath.final_point(resolved_pos)
+                if final_point is not None:
+                    npc_id = int(RoutinesAgents.GetNearestNPCXY(final_point.x, final_point.y, 200.0) or 0)
+
+            if npc_id != 0 and Agent.HasQuest(npc_id):
+                return BehaviorTree.NodeState.SUCCESS
+            return BehaviorTree.NodeState.RUNNING
+
+        return BehaviorTree(
+            BehaviorTree.WaitUntilNode(
+                name="HandleQuestWaitForQuestMarker",
+                condition_fn=_wait_for_quest_marker,
+                throttle_interval_ms=150,
+                timeout_ms=30000,
+            )
+        )
+    
+
+    def _post_checks() -> BehaviorTree:
+        def _wait_for_result(node: BehaviorTree.Node) -> BehaviorTree.NodeState:
+            current_map_id = int(Map.GetMapID() or 0)
+            initial_map_id = int(node.blackboard.get(blackboard_map_key, 0) or 0)
+
+            if success_map_id != 0 and current_map_id == int(success_map_id):
+                return BehaviorTree.NodeState.SUCCESS
+
+            if mode == Questmode.Accept:
+                return (
+                    BehaviorTree.NodeState.SUCCESS
+                    if _quest_in_log()
+                    else BehaviorTree.NodeState.RUNNING
+                )
+
+            if mode == Questmode.Complete:
+                if current_map_id != initial_map_id:
+                    return BehaviorTree.NodeState.SUCCESS
+                return (
+                    BehaviorTree.NodeState.SUCCESS
+                    if not _quest_in_log()
+                    else BehaviorTree.NodeState.RUNNING
+                )
+
+            if mode == Questmode.Step:
+                if current_map_id != initial_map_id:
+                    return BehaviorTree.NodeState.SUCCESS
+
+                npc_id = 0
+                if use_npc_model_or_enc_str is not None:
+                    npc_id = int(RoutinesAgents.GetAgentIDByModelOrEncStr(use_npc_model_or_enc_str) or 0)
+                elif resolved_pos is not None:
+                    final_point = PointPath.final_point(resolved_pos)
+                    if final_point is not None:
+                        npc_id = int(RoutinesAgents.GetNearestNPCXY(final_point.x, final_point.y, 200.0) or 0)
+
+                if npc_id != 0 and not Agent.HasQuest(npc_id):
+                    return BehaviorTree.NodeState.SUCCESS
+                return BehaviorTree.NodeState.RUNNING
+
+            return BehaviorTree.NodeState.SUCCESS
+
+        return BehaviorTree(
+            BehaviorTree.WaitUntilNode(
+                name="HandleQuestPostChecks",
+                condition_fn=_wait_for_result,
+                throttle_interval_ms=post_check_throttle_ms,
+                timeout_ms=post_check_timeout_ms,
+            )
+        )
+    
+    def _move_node() -> BehaviorTree:
+        nonlocal resolved_pos
+        if resolved_pos is None:
+            raise ValueError("HandleQuest requires a resolved position before movement.")
+        return BehaviorTree(
+                BehaviorTree.SequenceNode(
+                    name="HandleQuestMove",
+                    children=[
+                        Move(pos=cast(PointOrPath, resolved_pos), log=log),
+                        Wait(_POST_MOVEMENT_SETTLE_MS, log=log),
+                    ]
+                )
+        )
+
+    def _move_dialog_node() -> BehaviorTree:
+        nonlocal resolved_pos
+        move_pos = resolved_pos
+        if move_pos is None:
+            raise ValueError("HandleQuest requires a resolved position before movement.")
+        if use_npc_model_or_enc_str is None:
+            return MoveAndDialog(pos=move_pos, dialog_id=dialog_id, log=log)
+        else:
+            return BehaviorTree(
+                BehaviorTree.SequenceNode(
+                    name="Move And Dialog With Model Check",
+                    children=[
+                        MoveAndDialogByModelID(modelID_or_encStr=use_npc_model_or_enc_str, dialog_id=dialog_id, log=log),
+                    ]
+                 )
+             )
+
+    def _move_subtree() -> BehaviorTree.Node:
+        return BehaviorTree.SubtreeNode(
+            name="HandleQuestMoveSubtree",
+            subtree_fn=lambda node: (
+                _move_node()
+                if require_quest_marker
+                else BehaviorTree(
+                    BehaviorTree.ActionNode(
+                        name="HandleQuestMoveNoop",
+                        action_fn=lambda: BehaviorTree.NodeState.SUCCESS,
+                    )
+                )
+            ),
+        )
+
+    def _move_dialog_subtree() -> BehaviorTree.Node:
+        return BehaviorTree.SubtreeNode(
+            name="HandleQuestMoveDialogSubtree",
+            subtree_fn=lambda node: _move_dialog_node(),
+        )
+             
+    def _extra_dialog_node() -> BehaviorTree:
+        if multi_dialog_id == 0:
+            return BehaviorTree(
+                BehaviorTree.ActionNode(
+                    name="HandleQuestNoMultiDialog",
+                    action_fn=lambda: BehaviorTree.NodeState.SUCCESS,
+                )
+            )
+        else:
+            return BehaviorTree(
+                BehaviorTree.SequenceNode(
+                    name="HandleQuestMultiDialog",
+                    children=[
+                        SendDialog(dialog_id=multi_dialog_id, log=log),
+                    ]
+                )
+            )
+        
+    return BehaviorTree(
+        BehaviorTree.SequenceNode(
+            name="Quest Handler",
+            children=[
+                BehaviorTree.ActionNode(name="HandleQuestPreChecks",action_fn=_pre_checks,),
+                _move_subtree(),
+                _mid_checks(),
+                _move_dialog_subtree(),
+                _post_checks(),
+                _extra_dialog_node(),
+            ]
+        )
+    )    
+

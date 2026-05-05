@@ -456,14 +456,14 @@ class BTParty:
         )
 
     @staticmethod
-    def WaitForQuestCleared(quest_id: int, timeout_ms: int = 10000, throttle_interval_ms: int = 250, log: bool = False) -> BehaviorTree:
+    def WaitForActiveQuestCleared(quest_id: int, timeout_ms: int = 10000, throttle_interval_ms: int = 250, log: bool = False) -> BehaviorTree:
         """
         Build a tree that waits until the requested quest is no longer the active quest.
 
         Meta:
           Expose: true
           Audience: intermediate
-          Display: Wait For Quest Cleared
+          Display: Wait For Active Quest Cleared
           Purpose: Wait until a specific quest id is no longer active.
           UserDescription: Use this when quest completion or abandonment should be confirmed by checking that the active quest changed away.
           Notes: Succeeds when the active quest differs from the requested quest before timeout.
@@ -483,5 +483,64 @@ class BTParty:
                 condition_fn=_wait_for_quest_cleared,
                 throttle_interval_ms=max(1, int(throttle_interval_ms)),
                 timeout_ms=max(0, int(timeout_ms)),
+            )
+        )
+
+    @staticmethod
+    def IsQuestInLog(quest_id: int, log: bool = False) -> BehaviorTree:
+        """
+        Build a condition tree that succeeds when the requested quest id is present in the quest log.
+
+        Meta:
+          Expose: true
+          Audience: intermediate
+          Display: Is Quest In Log
+          Purpose: Check whether a specific quest id is currently present in the quest log.
+          UserDescription: Use this when a route needs a direct condition check for whether a quest is currently in the quest log.
+          Notes: Returns failure when the quest id is not found in the quest log ids.
+        """
+
+        def _is_quest_in_log() -> bool:
+            from ...Quest import Quest
+
+
+            quest_log_ids = [int(qid) for qid in (Quest.GetQuestLogIds() or [])]
+            result = int(quest_id) in quest_log_ids
+            _log("BTParty.IsQuestInLog", f"quest_id={int(quest_id)} in_log={result}", log=log)
+            return result
+
+        return BehaviorTree(
+            BehaviorTree.ConditionNode(
+                name=f"IsQuestInLog({int(quest_id)})",
+                condition_fn=_is_quest_in_log,
+            )
+        )
+
+    @staticmethod
+    def IsQuestAbsentFromLog(quest_id: int, log: bool = False) -> BehaviorTree:
+        """
+        Build a condition tree that succeeds when the requested quest id is absent from the quest log.
+
+        Meta:
+          Expose: true
+          Audience: intermediate
+          Display: Is Quest Absent From Log
+          Purpose: Check whether a specific quest id is currently absent from the quest log.
+          UserDescription: Use this when a route needs a direct condition check for whether a quest is currently not in the quest log.
+          Notes: Returns failure when the quest id is still found in the quest log ids.
+        """
+
+        def _is_quest_absent_from_log() -> bool:
+            from ...Quest import Quest
+
+            quest_log_ids = [int(qid) for qid in (Quest.GetQuestLogIds() or [])]
+            result = int(quest_id) not in quest_log_ids
+            _log("BTParty.IsQuestAbsentFromLog", f"quest_id={int(quest_id)} absent_from_log={result}", log=log)
+            return result
+
+        return BehaviorTree(
+            BehaviorTree.ConditionNode(
+                name=f"IsQuestAbsentFromLog({int(quest_id)})",
+                condition_fn=_is_quest_absent_from_log,
             )
         )

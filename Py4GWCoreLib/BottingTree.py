@@ -12,7 +12,6 @@ from .botting_tree_src.heroai import BottingTreeHeroAIMixin
 from .botting_tree_src.isolation import BottingTreeIsolationMixin
 from .botting_tree_src.messaging import BottingTreeMessagingMixin
 from .botting_tree_src.planner import BottingTreePlannerMixin
-from .botting_tree_src.routines import _BottingTreeRoutines
 from .botting_tree_src.services import BottingTreeServicesMixin
 from .botting_tree_src.templates import BottingTreeTemplates, _BottingTreeTemplates
 from .botting_tree_src.ticks import BottingTreeTicksMixin
@@ -90,7 +89,6 @@ class BottingTree(
         self._last_planner_gate_state = None
         self._last_heroai_state = None
         self.Config = _BottingTreeConfig(self)
-        self.Routines = _BottingTreeRoutines(self)
         self.Templates = _BottingTreeTemplates(self)
         self.UI = _BottingTreeUI(self)
 

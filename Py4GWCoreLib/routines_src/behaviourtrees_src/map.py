@@ -54,6 +54,16 @@ from ...Py4GWcorelib import ConsoleLog, Console
 from ...py4gwcorelib_src.BehaviorTree import BehaviorTree
 from ...enums_src.Region_enums import District
 
+_MAPS_REQUIRING_EXTRA_CONFIRM: set[int] = {
+    28,   # The Great Northern Wall
+    29,   # Fort Ranik
+    30,   # Ruins of Surmia
+    32,   # Nolani Academy
+    25,   # Borlis Pass
+    21,   # The Frost Gate
+    14,   # Gates of Kryta
+}
+
 
 def _log(source: str, message: str, *, log: bool = False, message_type=Console.MessageType.Info) -> None:
     ConsoleLog(source, message, message_type, log=log)
@@ -517,6 +527,101 @@ class BTMap:
                                 timeout_ms=timeout,
                             ),
                         ],
+                    ),
+                ],
+            )
+        )
+
+    @staticmethod
+    def EnterChallenge(
+        target_map_id: int = 0,
+        target_map_name: str = "",
+        *,
+        delay_ms: int = 3000,
+        confirm_extra: bool = False,
+        timeout: int = 30000,
+        log: bool = False,
+    ) -> BehaviorTree:
+        """
+        Build a tree that enters the current mission or challenge and waits for the destination map to load.
+
+        Meta:
+          Expose: true
+          Audience: intermediate
+          Display: Enter Challenge
+          Purpose: Trigger the current outpost's enter-mission flow, handle optional confirm dialogs, and wait for the destination map.
+          UserDescription: Use this when a route needs to leave an outpost through the mission or challenge entry dialog.
+          Notes: Accepts a target map id or name and mirrors the legacy EnterChallenge helper's confirm-dialog behavior.
+        """
+        state = {
+            "started": False,
+            "confirm_elapsed_ms": 0,
+        }
+
+        def _enter_challenge_action() -> BehaviorTree.NodeState:
+            needs_confirm = bool(
+                confirm_extra
+                or target_map_id in _MAPS_REQUIRING_EXTRA_CONFIRM
+                or Map.GetMapID() in _MAPS_REQUIRING_EXTRA_CONFIRM
+            )
+
+            if not state["started"]:
+                state["started"] = True
+                state["confirm_elapsed_ms"] = 0
+                _log("EnterChallenge", "Entering challenge.", log=log)
+                Map.EnterChallenge()
+                if not needs_confirm:
+                    return BehaviorTree.NodeState.SUCCESS
+
+            if not needs_confirm:
+                return BehaviorTree.NodeState.SUCCESS
+
+            if not Map.IsOutpost():
+                return BehaviorTree.NodeState.SUCCESS
+
+            if state["confirm_elapsed_ms"] >= 5000:
+                _fail_log("EnterChallenge", "Timed out waiting for the extra confirm dialog.")
+                return BehaviorTree.NodeState.FAILURE
+
+            Map.ConfirmEnterChallenge()
+            state["confirm_elapsed_ms"] += 100
+            return BehaviorTree.NodeState.RUNNING
+
+        def _reset_state(_node: BehaviorTree.Node) -> BehaviorTree.NodeState:
+            state["started"] = False
+            state["confirm_elapsed_ms"] = 0
+            return BehaviorTree.NodeState.SUCCESS
+
+        resolved_target_map_id = BTMap._resolve_map_id(target_map_id, target_map_name)
+
+        return BehaviorTree(
+            BehaviorTree.SequenceNode(
+                name="EnterChallenge",
+                children=[
+                    BehaviorTree.ActionNode(
+                        name="EnterChallengeAction",
+                        action_fn=_enter_challenge_action,
+                        aftercast_ms=100,
+                    ),
+                    BehaviorTree.WaitForTimeNode(
+                        name="EnterChallengeDelay",
+                        duration_ms=max(0, int(delay_ms)),
+                    ),
+                    BehaviorTree.SubtreeNode(
+                        name="WaitForChallengeMapLoad",
+                        subtree_fn=lambda _node: BTMap.WaitforMapLoad(
+                            map_id=resolved_target_map_id,
+                            map_name=target_map_name,
+                            log=log,
+                            timeout=timeout,
+                            player_instance_uptime_ms=500,
+                            throttle_interval_ms=250,
+                            post_arrival_wait_ms=0,
+                        ),
+                    ),
+                    BehaviorTree.ActionNode(
+                        name="EnterChallengeResetState",
+                        action_fn=_reset_state,
                     ),
                 ],
             )

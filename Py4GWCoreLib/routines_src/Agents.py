@@ -58,32 +58,51 @@ class Agents:
     @staticmethod
     def GetAgentIDByModelID(model_id: int) -> int:
         """
-        Purpose: Get the closest agent ID with the given model ID (closest to the player).
+        Purpose: Get the first agent ID with the given model ID from the live agent array.
         Args:
             model_id (int): The model ID of the agent.
         Returns:
-            int: The closest matching agent ID, or 0 if none found.
+            int: The first matching agent ID, or 0 if none found.
         """
-        from ..GlobalCache import GLOBAL_CACHE
-        from ..Py4GWcorelib import Utils
         from ..AgentArray import AgentArray
         from ..Agent import Agent
 
         agent_ids = AgentArray.GetAgentArray()
-        px, py = Player.GetXY()
-
-        best_id = 0
-        best_dist = float("inf")
 
         for agent_id in agent_ids:
             if Agent.GetModelID(agent_id) == model_id:
-                ax, ay = Agent.GetXY(agent_id)
-                d = Utils.Distance((px, py), (ax, ay))
-                if d < best_dist:
-                    best_dist = d
-                    best_id = agent_id
+                return int(agent_id)
 
-        return best_id
+        return 0
+
+    @staticmethod
+    def GetAgentIDByEncStr(enc_str: str) -> int:
+        """
+        Purpose: Resolve an encoded model string to a model id, then get the closest matching agent id.
+        Args:
+            enc_str (str): Encoded model string.
+        Returns:
+            int: The closest matching agent ID, or 0 if none found.
+        """
+        from ..Agent import Agent
+
+        resolved_model_id = int(Agent.GetModelIDByEncString(enc_str) or 0)
+        if resolved_model_id == 0:
+            return 0
+        return Agents.GetAgentIDByModelID(resolved_model_id)
+
+    @staticmethod
+    def GetAgentIDByModelOrEncStr(model_id_or_enc_str: int | str) -> int:
+        """
+        Purpose: Resolve either a numeric model id or an encoded model string to the first matching live agent id.
+        Args:
+            model_id_or_enc_str (int | str): Model id or encoded model string.
+        Returns:
+            int: The first matching agent ID, or 0 if none found.
+        """
+        if isinstance(model_id_or_enc_str, str):
+            return Agents.GetAgentIDByEncStr(model_id_or_enc_str)
+        return Agents.GetAgentIDByModelID(int(model_id_or_enc_str))
 
     @staticmethod
     def GetNearestAliveAgentByModelID(model_id: int, max_distance: float = 4500.0) -> int:

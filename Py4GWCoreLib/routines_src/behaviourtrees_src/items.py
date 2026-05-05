@@ -1238,7 +1238,7 @@ class BTItems:
     def BuyMaterial(
         model_id: int,
         log: bool = False,
-        aftercast_ms: int = 125,
+        aftercast_ms: int = 250,
     ) -> BehaviorTree:
         return BTItems.BuyMaterials(
             model_id=model_id,
@@ -1252,7 +1252,7 @@ class BTItems:
         model_id: int,
         batches: int = 1,
         log: bool = False,
-        aftercast_ms: int = 125,
+        aftercast_ms: int = 250,
     ) -> BehaviorTree:
         """
         Build a tree that buys one or more material-trader batches of the requested material.
@@ -1389,7 +1389,7 @@ class BTItems:
         model_id: int,
         quantity: int = 1,
         log: bool = False,
-        aftercast_ms: int = 125,
+        aftercast_ms: int = 250,
     ) -> BehaviorTree:
         """
         Build a tree that buys one or more copies of a merchant item by model id.

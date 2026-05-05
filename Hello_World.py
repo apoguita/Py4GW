@@ -5,18 +5,16 @@ from Py4GWCoreLib import *
 
 import PyImGui
 
+model= 3093
 
 def main():
     if PyImGui.begin("Hello World"):
-        PyImGui.text("Hello, World!")
-        
-        if Inventory.IsStorageOpen():
-            PyImGui.text("Storage is open.")
-        else:
-            PyImGui.text("Storage is closed.")
-            
-        if PyImGui.button("Open Storage"):
-            Inventory.OpenXunlaiWindow()
+        if PyImGui.button("search model"):
+            array = AgentArray.GetAgentArray()
+            for aid in array:
+                if Agent.GetModelID(aid) == model:
+                    print(f"Found agent with model {model}: {aid}")
+                    break
     
     PyImGui.end()
     

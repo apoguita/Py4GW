@@ -547,7 +547,7 @@ class BTMovement:
                         )
                     _set_blackboard(node, "running")
                 else:
-                    state["path_gen"] = AutoPathing().get_path_to(x, y, margin=150)
+                    state["path_gen"] = AutoPathing().get_path_to(x, y, margin=250)
                     if _debug_enabled(node):
                         _log("Move", f"Starting autopath to ({x}, {y}).", message_type=Console.MessageType.Info, log=True)
                     _set_blackboard(node, "running")
