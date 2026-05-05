@@ -6,6 +6,7 @@ import Py4GW
 from Py4GWCoreLib import Player, GLOBAL_CACHE, SpiritModelID, Timer, Agent, Routines, Range, Allegiance, AgentArray
 from Py4GWCoreLib import Weapon, Effects
 from Py4GWCoreLib.enums import SPIRIT_BUFF_MAP, ModelID
+from Py4GWCoreLib.GlobalCache.HexRemovalPriority import get_hexed_ally_for_removal
 from .custom_skill import CustomSkillClass
 from .targeting import TargetLowestAlly, TargetLowestAllyEnergy, TargetClusteredEnemy, TargetLowestAllyCaster, TargetLowestAllyMartial, TargetLowestAllyMelee, TargetLowestAllyRanged, GetAllAlliesArray, TargetAllyWeaponSpell, TargetMinionOrAllyNonEnchanted, TargetMinionNonEnchanted, TargetAllyNonEnchanted, TargetAllyNonWeaponSpelled, TargetDeadPartyMember, IsResurrectablePartyMember
 from .targeting import GetEnemyAttacking, GetEnemyCasting, GetEnemyCastingSpell, GetEnemyCastingSpellOrChant, GetEnemyInjured, GetEnemyConditioned, GetEnemyHealthy
@@ -758,6 +759,12 @@ class CombatClass:
             v_target = TargetDeadPartyMember(Range.Spellcast.value)
         elif target_allegiance == Skilltarget.ResurrectionAlly:
             v_target = Routines.Agents.GetResurrectionTarget(
+                Range.Spellcast.value,
+                reserve=True,
+                skill_id=self.skills[slot].skill_id,
+            )
+        elif target_allegiance == Skilltarget.HexedAlly:
+            v_target = get_hexed_ally_for_removal(
                 Range.Spellcast.value,
                 reserve=True,
                 skill_id=self.skills[slot].skill_id,
