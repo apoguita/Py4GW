@@ -2875,7 +2875,7 @@ def SpitefulSpirit():
     bot.SkillBar.UseSkill(3)
     bot.Wait.ForTime(5000)
     bot.States.AddCustomState(lambda: ClickSkillFrame(121), "Click Skill Frame")
-    REAL_CAPTURED_SKILLS = [33, 121, 236, 294]
+    REAL_CAPTURED_SKILLS = [121]
     found_real_skill = False
     for slot in range(1, 9):
         skill_data = GLOBAL_CACHE.SkillBar.GetSkillData(slot)
@@ -2883,15 +2883,12 @@ def SpitefulSpirit():
             found_real_skill = True
             break
     if found_real_skill:
-        bot.Party.Resign()
-        bot.Stop()
+        bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+        bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
         yield
     else:
-        bot.Party.Resign()
-        bot.Wait.ForTime(8000)
+        bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
         bot.States.AddCustomState(SpitefulSpirit, "[H]Spiteful Spirit")
-    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
-    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
     yield  
     
 def MistForm():
@@ -2913,7 +2910,7 @@ def MistForm():
     bot.SkillBar.UseSkill(3)
     bot.Wait.ForTime(5000)
     bot.States.AddCustomState(lambda: ClickSkillFrame(236), "Click Skill Frame")
-    REAL_CAPTURED_SKILLS = [33, 121, 236, 294]
+    REAL_CAPTURED_SKILLS = [236]
     found_real_skill = False
     for slot in range(1, 9):
         skill_data = GLOBAL_CACHE.SkillBar.GetSkillData(slot)
@@ -2921,15 +2918,12 @@ def MistForm():
             found_real_skill = True
             break
     if found_real_skill:
-        bot.Party.Resign()
-        bot.Stop()
+        bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+        bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
         yield
     else:
-        bot.Party.Resign()
-        bot.Wait.ForTime(8000)
+        bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
         bot.States.AddCustomState(MistForm, "[H]Mist Form")
-    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
-    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
     yield
 
 def SignetOfJudgement():
@@ -2951,7 +2945,7 @@ def SignetOfJudgement():
     bot.SkillBar.UseSkill(3)
     bot.Wait.ForTime(5000)
     bot.States.AddCustomState(lambda: ClickSkillFrame(294), "Click Skill Frame")
-    REAL_CAPTURED_SKILLS = [33, 121, 236, 294]
+    REAL_CAPTURED_SKILLS = [294]
     found_real_skill = False
     for slot in range(1, 9):
         skill_data = GLOBAL_CACHE.SkillBar.GetSkillData(slot)
@@ -2959,15 +2953,12 @@ def SignetOfJudgement():
             found_real_skill = True
             break
     if found_real_skill:
-        bot.Party.Resign()
-        bot.Stop()
+        bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+        bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
         yield
     else:
-        bot.Party.Resign()
-        bot.Wait.ForTime(8000)
+        bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
         bot.States.AddCustomState(SignetOfJudgement, "[H]Signet of Judgement")
-    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
-    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
     yield
 
 def IllusionaryWeaponry():
@@ -2989,7 +2980,7 @@ def IllusionaryWeaponry():
     bot.SkillBar.UseSkill(3)
     bot.Wait.ForTime(5000)
     bot.States.AddCustomState(lambda: ClickSkillFrame(33), "Click Skill Frame")
-    REAL_CAPTURED_SKILLS = [33, 121, 236, 294]
+    REAL_CAPTURED_SKILLS = [33]
     found_real_skill = False
     for slot in range(1, 9):
         skill_data = GLOBAL_CACHE.SkillBar.GetSkillData(slot)
@@ -2997,15 +2988,12 @@ def IllusionaryWeaponry():
             found_real_skill = True
             break
     if found_real_skill:
-        bot.Party.Resign()
-        bot.Stop()
+        bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+        bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
         yield
     else:
-        bot.Party.Resign()
-        bot.Wait.ForTime(8000)
+        bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
         bot.States.AddCustomState(IllusionaryWeaponry, "[H]Illusionary Weaponry")
-    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
-    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
     yield
 
 def ShadowForm():
@@ -3278,7 +3266,7 @@ def GreaterConflagration():
     bot.Wait.ForTime(5000)
     bot.States.AddCustomState(lambda: ClickSkillFrame(465), "Click Skill Frame")
     bot.Wait.ForTime(1000)
-    REAL_CAPTURED_SKILLS = [465, 114, 52, 185]
+    REAL_CAPTURED_SKILLS = [465]
     found_real_skill = False
     for slot in range(1, 9):
         skill_data = GLOBAL_CACHE.SkillBar.GetSkillData(slot)
@@ -3286,15 +3274,12 @@ def GreaterConflagration():
             found_real_skill = True
             break
     if found_real_skill:
-        bot.Party.Resign()
-        bot.Stop()
+        bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+        bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
         yield
     else:
-        bot.Party.Resign()
-        bot.Wait.ForTime(8000)
+        bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
         bot.States.AddCustomState(GreaterConflagration, "[H]Greater Conflagration")
-    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
-    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
     yield 
 
 def AuraOfTheLich():
@@ -3324,7 +3309,7 @@ def AuraOfTheLich():
     bot.Wait.ForTime(5000)
     bot.States.AddCustomState(lambda: ClickSkillFrame(114), "Click Skill Frame")
     bot.Wait.ForTime(1000)
-    REAL_CAPTURED_SKILLS = [465, 114, 52, 185]
+    REAL_CAPTURED_SKILLS = [114]
     found_real_skill = False
     for slot in range(1, 9):
         skill_data = GLOBAL_CACHE.SkillBar.GetSkillData(slot)
@@ -3340,7 +3325,7 @@ def AuraOfTheLich():
     else:
         # Failure: Return to start map and retry
         ConsoleLog("Capture", "Aura of the Lich capture failed, retrying...", log=True)
-        bot.Travel_To_Random_District(target_map_id=start_map)
+        bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
         bot.States.AddCustomState(AuraOfTheLich, "[H]Aura of the Lich")
     yield 
 
@@ -3371,7 +3356,7 @@ def Panic():
     bot.Wait.ForTime(5000)
     bot.States.AddCustomState(lambda: ClickSkillFrame(52), "Click Skill Frame")
     bot.Wait.ForTime(1000)
-    REAL_CAPTURED_SKILLS = [465, 114, 52, 185]
+    REAL_CAPTURED_SKILLS = [52]
     found_real_skill = False
     for slot in range(1, 9):
         skill_data = GLOBAL_CACHE.SkillBar.GetSkillData(slot)
@@ -3387,7 +3372,7 @@ def Panic():
     else:
         # Failure: Return to start map and retry
         ConsoleLog("Capture", "Panic capture failed, retrying...", log=True)
-        bot.Travel_To_Random_District(target_map_id=start_map)
+        bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
         bot.States.AddCustomState(Panic, "[H]Panic")
     yield 
 
@@ -3418,7 +3403,7 @@ def MindBurn():
     bot.Wait.ForTime(5000)
     bot.States.AddCustomState(lambda: ClickSkillFrame(185), "Click Skill Frame")
     bot.Wait.ForTime(1000)
-    REAL_CAPTURED_SKILLS = [465, 114, 52, 185]
+    REAL_CAPTURED_SKILLS = [185]
     found_real_skill = False
     for slot in range(1, 9):
         skill_data = GLOBAL_CACHE.SkillBar.GetSkillData(slot)
@@ -3434,7 +3419,7 @@ def MindBurn():
     else:
         # Failure: Return to start map and retry
         ConsoleLog("Capture", "Mind Burn capture failed, retrying...", log=True)
-        bot.Travel_To_Random_District(target_map_id=start_map)
+        bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
         bot.States.AddCustomState(MindBurn, "[H]Mind Burn")
     yield 
 
@@ -3486,7 +3471,7 @@ def UnyieldingAura():
     bot.SkillBar.UseSkill(3)
     bot.Wait.ForTime(5000)
     bot.States.AddCustomState(lambda: ClickSkillFrame(268), "Click Skill Frame")
-    REAL_CAPTURED_SKILLS = [268, 365, 404, 132, 227]
+    REAL_CAPTURED_SKILLS = [268]
     found_real_skill = False
     for slot in range(1, 9):
         skill_data = GLOBAL_CACHE.SkillBar.GetSkillData(slot)
@@ -3502,7 +3487,7 @@ def UnyieldingAura():
     else:
         # Failure: Return to start map and retry
         ConsoleLog("Capture", "Unyielding Aura capture failed, retrying...", log=True)
-        bot.Travel_To_Random_District(target_map_id=start_map)
+        bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
         bot.States.AddCustomState(UnyieldingAura, "[H]Unyielding Aura")
     yield 
     
@@ -3526,8 +3511,7 @@ def VictoryIsMine():
     bot.SkillBar.UseSkill(3)
     bot.Wait.ForTime(5000)
     bot.States.AddCustomState(lambda: ClickSkillFrame(365), "Click Skill Frame")
-    #Scan entire skillbar for any captured skills
-    REAL_CAPTURED_SKILLS = [268, 365, 404, 132, 227]  # Unyielding Aura, Victory is Mine, Poison Arrow, Plague Signet, Glimmering Mark
+    REAL_CAPTURED_SKILLS = [365]  
     found_real_skill = False
     for slot in range(1, 9):
         skill_data = GLOBAL_CACHE.SkillBar.GetSkillData(slot)
@@ -3543,7 +3527,7 @@ def VictoryIsMine():
     else:
         # Failure: Return to start map and retry
         ConsoleLog("Capture", "Victory is Mine capture failed, retrying...", log=True)
-        bot.Travel_To_Random_District(target_map_id=start_map)
+        bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
         bot.States.AddCustomState(VictoryIsMine, "[H]Victory is Mine")
     yield     
 
@@ -3567,7 +3551,7 @@ def PoisonArrow():
     bot.SkillBar.UseSkill(3)
     bot.Wait.ForTime(5000)
     bot.States.AddCustomState(lambda: ClickSkillFrame(404), "Click Skill Frame")
-    REAL_CAPTURED_SKILLS = [268, 365, 404, 132, 227]
+    REAL_CAPTURED_SKILLS = [404]
     found_real_skill = False
     for slot in range(1, 9):
         skill_data = GLOBAL_CACHE.SkillBar.GetSkillData(slot)
@@ -3583,7 +3567,7 @@ def PoisonArrow():
     else:
         # Failure: Return to start map and retry
         ConsoleLog("Capture", "Poison Arrow capture failed, retrying...", log=True)
-        bot.Travel_To_Random_District(target_map_id=start_map)
+        bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
         bot.States.AddCustomState(PoisonArrow, "[H]Poison Arrow")
     yield    
 
@@ -3607,7 +3591,7 @@ def PlagueSignet():
     bot.SkillBar.UseSkill(3)
     bot.Wait.ForTime(5000)
     bot.States.AddCustomState(lambda: ClickSkillFrame(132), "Click Skill Frame")
-    REAL_CAPTURED_SKILLS = [268, 365, 404, 132, 227]
+    REAL_CAPTURED_SKILLS = [132]
     found_real_skill = False
     for slot in range(1, 9):
         skill_data = GLOBAL_CACHE.SkillBar.GetSkillData(slot)
@@ -3623,7 +3607,7 @@ def PlagueSignet():
     else:
         # Failure: Return to start map and retry
         ConsoleLog("Capture", "Plague Signet capture failed, retrying...", log=True)
-        bot.Travel_To_Random_District(target_map_id=start_map)
+        bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
         bot.States.AddCustomState(PlagueSignet, "[H]Plague Signet")
     yield  
 
@@ -3647,7 +3631,7 @@ def GlimmeringMark():
     bot.SkillBar.UseSkill(3)
     bot.Wait.ForTime(5000)
     bot.States.AddCustomState(lambda: ClickSkillFrame(227), "Click Skill Frame")
-    REAL_CAPTURED_SKILLS = [268, 365, 404, 132, 227]
+    REAL_CAPTURED_SKILLS = [227]
     found_real_skill = False
     for slot in range(1, 9):
         skill_data = GLOBAL_CACHE.SkillBar.GetSkillData(slot)
@@ -3663,7 +3647,7 @@ def GlimmeringMark():
     else:
         # Failure: Return to start map and retry
         ConsoleLog("Capture", "Glimmering Mark capture failed, retrying...", log=True)
-        bot.Travel_To_Random_District(target_map_id=start_map)
+        bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
         bot.States.AddCustomState(GlimmeringMark, "[H]Glimmering Mark")
     yield  
 
@@ -3690,7 +3674,7 @@ def SpellBreaker():
     bot.SkillBar.UseSkill(3)
     bot.Wait.ForTime(5000)
     bot.States.AddCustomState(lambda: ClickSkillFrame(273), "Click Skill Frame")
-    REAL_CAPTURED_SKILLS = [273, 82, 226]
+    REAL_CAPTURED_SKILLS = [273]
     found_real_skill = False
     for slot in range(1, 9):
         skill_data = GLOBAL_CACHE.SkillBar.GetSkillData(slot)
@@ -3706,7 +3690,7 @@ def SpellBreaker():
     else:
         # Failure: Return to start map and retry
         ConsoleLog("Capture", "Spell Breaker capture failed, retrying...", log=True)
-        bot.Travel_To_Random_District(target_map_id=start_map)
+        bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
         bot.States.AddCustomState(SpellBreaker, "[H]Spell Breaker")
     yield  
 
@@ -3732,7 +3716,7 @@ def MantraOfRecall():
     bot.SkillBar.UseSkill(3)
     bot.Wait.ForTime(5000)
     bot.States.AddCustomState(lambda: ClickSkillFrame(82), "Click Skill Frame")
-    REAL_CAPTURED_SKILLS = [273, 82, 226]
+    REAL_CAPTURED_SKILLS = [82]
     found_real_skill = False
     for slot in range(1, 9):
         skill_data = GLOBAL_CACHE.SkillBar.GetSkillData(slot)
@@ -3748,7 +3732,7 @@ def MantraOfRecall():
     else:
         # Failure: Return to start map and retry
         ConsoleLog("Capture", "Mantra of Recall capture failed, retrying...", log=True)
-        bot.Travel_To_Random_District(target_map_id=start_map)
+        bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
         bot.States.AddCustomState(MantraOfRecall, "[H]Mantra of Recall")
     yield 
 
@@ -3774,7 +3758,7 @@ def MindShock():
     bot.SkillBar.UseSkill(3)
     bot.Wait.ForTime(5000)
     bot.States.AddCustomState(lambda: ClickSkillFrame(226), "Click Skill Frame")
-    REAL_CAPTURED_SKILLS = [273, 82, 226]
+    REAL_CAPTURED_SKILLS = [226]
     found_real_skill = False
     for slot in range(1, 9):
         skill_data = GLOBAL_CACHE.SkillBar.GetSkillData(slot)
@@ -3790,7 +3774,7 @@ def MindShock():
     else:
         # Failure: Return to start map and retry
         ConsoleLog("Capture", "Mind Shock capture failed, retrying...", log=True)
-        bot.Travel_To_Random_District(target_map_id=start_map)
+        bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
         bot.States.AddCustomState(MindShock, "[H]Mind Shock")
     yield   
 
@@ -5156,15 +5140,12 @@ def HealingHands():
             found_real_skill = True
             break
     if found_real_skill:
-        bot.Party.Resign()
-        bot.Stop()
+        bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+        bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
         yield
     else:
-        bot.Party.Resign()
-        bot.Wait.ForTime(8000)
+        bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
         bot.States.AddCustomState(HealingHands, "[H]Healing Hands")
-    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
-    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
     yield    
 
 def LightofDeliverance():
@@ -5267,15 +5248,12 @@ def AuraofFaith():
             found_real_skill = True
             break
     if found_real_skill:
-        bot.Party.Resign()
-        bot.Stop()
+        bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+        bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
         yield
     else:
-        bot.Party.Resign()
-        bot.Wait.ForTime(8000)
+        bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
         bot.States.AddCustomState(AuraofFaith, "[H]Aura of Faith")
-    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
-    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
     yield 
 
 def DivertHexes():
@@ -5789,15 +5767,12 @@ def BullsCharge():
             found_real_skill = True
             break
     if found_real_skill:
-        bot.Party.Resign()
-        bot.Stop()
+        bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+        bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
         yield
     else:
-        bot.Party.Resign()
-        bot.Wait.ForTime(8000)
+        bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
         bot.States.AddCustomState(BullsCharge, "[H]Bull's Charge")
-    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
-    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
     yield 
 
 def ChargingStrike():
@@ -5926,7 +5901,7 @@ def DefyPain():
     bot.Wait.ForTime(5000)
     bot.States.AddCustomState(lambda: ClickSkillFrame(318), "Click Skill Frame")
     bot.Wait.ForTime(1000)
-    REAL_CAPTURED_SKILLS = [318, 270]
+    REAL_CAPTURED_SKILLS = [318]
     found_real_skill = False
     for slot in range(1, 9):
         skill_data = GLOBAL_CACHE.SkillBar.GetSkillData(slot)
@@ -5934,15 +5909,12 @@ def DefyPain():
             found_real_skill = True
             break
     if found_real_skill:
-        bot.Party.Resign()
-        bot.Stop()
+        bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+        bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
         yield
     else:
-        bot.Party.Resign()
-        bot.Wait.ForTime(8000)
+        bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
         bot.States.AddCustomState(DefyPain, "[H]Defy Pain")
-    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
-    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
     yield
 
 def DevastatingHammer():
@@ -6505,7 +6477,7 @@ def LifeBarrier():
     bot.Wait.ForTime(5000)
     bot.States.AddCustomState(lambda: ClickSkillFrame(270), "Click Skill Frame")
     bot.Wait.ForTime(1000)
-    REAL_CAPTURED_SKILLS = [318, 270]
+    REAL_CAPTURED_SKILLS = [270]
     found_real_skill = False
     for slot in range(1, 9):
         skill_data = GLOBAL_CACHE.SkillBar.GetSkillData(slot)
@@ -6513,15 +6485,12 @@ def LifeBarrier():
             found_real_skill = True
             break
     if found_real_skill:
-        bot.Party.Resign()
-        bot.Stop()
+        bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+        bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
         yield
     else:
-        bot.Party.Resign()
-        bot.Wait.ForTime(8000)
+        bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
         bot.States.AddCustomState(LifeBarrier, "[H]Life Barrier")
-    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
-    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
     yield  
 
 def Way_of_the_Assassin():
