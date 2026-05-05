@@ -6430,6 +6430,34 @@ try:
         except Exception as e:
             _debug(f"UseItem broadcast failed: {e}", Console.MessageType.Warning)
 
+    def _broadcast_enabled_request_without_local_item(
+        key: str,
+        spec: dict,
+        model_id: int,
+        effect_id: int,
+        timer: Timer,
+    ) -> bool:
+        if not bool(cfg.team_broadcast):
+            return False
+        if _is_summoning_spec(spec) or bool(spec.get("suppress_team_broadcast", False)):
+            return False
+        if int(model_id or 0) <= 0:
+            return False
+
+        recipients, reason = _get_team_broadcast_recipients()
+        if not recipients:
+            return False
+
+        label = str(spec.get("label", key) or key)
+        _debug(
+            f"Broadcasting {label} request without local inventory; "
+            f"recipients={len(recipients)} reason={reason}."
+        )
+        _broadcast_use(int(model_id), 1, int(effect_id or 0), recipients=recipients)
+        timer.Start()
+        _last_broadcast_ms[str(key)] = _now_ms()
+        return True
+
     def _broadcast_keepalive(key: str, model_id: int, effect_id: int):
         if effect_id <= 0:
             return
@@ -7752,6 +7780,8 @@ try:
 
             item_id = _find_item_id_by_model_id(model_id)
             if item_id <= 0:
+                if _broadcast_enabled_request_without_local_item(key, spec, model_id, effect_id, t):
+                    return True
                 continue
 
             _log(f"Using {spec['label']}.", Console.MessageType.Debug)
