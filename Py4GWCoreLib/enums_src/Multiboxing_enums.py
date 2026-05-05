@@ -68,7 +68,7 @@ class SharedCommandType(IntEnum):
     BroadcastChatCommand = auto() 
     #endregion
 
-    
+    MoveToXY = auto()
 
 
 class CombatPrepSkillsType(IntEnum):
