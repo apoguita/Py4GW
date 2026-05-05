@@ -1,5 +1,6 @@
 #region AutoInventory
 from typing import Optional, Callable
+
 from .Console import ConsoleLog, Console
 from .Timer import ThrottledTimer
 from .ActionQueue import ActionQueueManager
@@ -135,8 +136,8 @@ class AutoInventoryHandler():
         )
 
     def _get_inventory_items(self):
-        from Sources.frenkeyLib.ItemHandling.Items.item_snapshot import ItemSnapshot
-        from Sources.frenkeyLib.ItemHandling.Items.types import INVENTORY_BAGS
+        from Py4GWCoreLib.item_data.item_snapshot import ItemSnapshot
+        from Py4GWCoreLib.enums_src.Item_enums import INVENTORY_BAGS
 
         snapshot = ItemSnapshot.get_bags_snapshot(INVENTORY_BAGS)
         return [
@@ -228,7 +229,7 @@ class AutoInventoryHandler():
     def _get_salvage_modes_for_item(self, item, strategy: Optional[int] = None, allow_unidentified_nonwhite: bool = False, respect_settings: bool = True):
         from ..Item import Item
         from ..enums_src.Item_enums import Rarity
-        from Sources.frenkeyLib.ItemHandling.Rules.types import SalvageMode
+        from Py4GWCoreLib.enums_src.Item_enums import SalvageMode
 
         if item is None or not item.is_valid or not item.is_inventory_item:
             return []

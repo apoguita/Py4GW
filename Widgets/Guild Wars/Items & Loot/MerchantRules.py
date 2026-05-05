@@ -1238,7 +1238,7 @@ class _MerchantRulesExactUpgradeSalvageBridge:
             from Py4GWCoreLib.py4gwcorelib_src.BehaviorTree import BehaviorTree
             from Py4GWCoreLib.routines_src.yield_src.helpers import _run_bt_tree
             from Sources.frenkeyLib.ItemHandling.BTNodes import BTNodes
-            from Sources.frenkeyLib.ItemHandling.Rules.types import SalvageMode
+            from Py4GWCoreLib.enums_src.Item_enums import SalvageMode
 
             get_upgrades = getattr(getattr(Item, "Customization", None), "GetUpgrades", None)
             items_cls = getattr(BTNodes, "Items", None)
