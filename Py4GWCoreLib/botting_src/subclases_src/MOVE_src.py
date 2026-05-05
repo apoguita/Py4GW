@@ -260,7 +260,7 @@ class _MOVE:
         If *on_enemy_detected* is provided, it is called with (x, y) of the
         first enemy each time a new engagement starts.
         
-        BUG FIX: After resume path completes, verify arrival at target waypoint
+        After resume path completes, verify arrival at target waypoint
         before returning to aggro scan. This prevents zigzag behavior when enemies
         are detected during/after resume.
         """
@@ -763,7 +763,7 @@ class _MOVE:
                             yield from wait(250)
 
                         # ╔═══════════════════════════════════════════════════════════╗
-                        # ║ BUG FIX: Check if we reached target waypoint after resume ║
+                        # ║ Check if we reached target waypoint after resume          ║
                         # ╚═══════════════════════════════════════════════════════════╝
                         final_dist = Utils.Distance(Player.GetXY(), (tx, ty))
                         ConsoleLog("FollowPathAggro",
