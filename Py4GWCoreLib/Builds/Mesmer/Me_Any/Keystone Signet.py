@@ -5,9 +5,10 @@ from Py4GWCoreLib import Range
 from Py4GWCoreLib import Routines
 from Py4GWCoreLib.Builds.Any.HeroAI import HeroAI_Build
 from Py4GWCoreLib import BuildMgr
+from Py4GWCoreLib.Agent import Agent
 from Py4GWCoreLib.Player import Player
 from Py4GWCoreLib.Skill import Skill
-from Py4GWCoreLib.Builds.Skills import SkillsTemplate
+from Py4GWCoreLib.Builds.Skills import HexRemovalPriority, SkillsTemplate
 
 Symbolic_Celerity_ID = Skill.GetID("Symbolic_Celerity")
 Keystone_Signet_ID = Skill.GetID("Keystone_Signet")
@@ -82,16 +83,16 @@ class KeystoneSignet(BuildMgr):
             return False
 
         snapshot = self._get_bar_snapshot()
+        player_energy_pct = float(Agent.GetEnergy(Player.GetAgentID()))
+
+        if (yield from self.skills.Monk.SmitingPrayers.Smite_Hex(min_priority=HexRemovalPriority.HIGH)):
+            return True
 
         if snapshot.symbolic_celerity_needed and (yield from self.skills.Mesmer.FastCasting.Symbolic_Celerity()):
             return True
-        
+
         if self.IsSkillEquipped(Hex_Eater_Signet_ID):
             if (yield from self.skills.Mesmer.InspirationMagic.Hex_Eater_Signet()):
-                return True
-
-        if self.IsSkillEquipped(Smite_Hex_ID):
-            if (yield from self.skills.Monk.SmitingPrayers.Smite_Hex()):
                 return True
 
         if self.IsSkillEquipped(Breath_of_the_Great_Dwarf_ID) and (yield from self.skills.Any.NoAttribute.Breath_of_the_Great_Dwarf()):
@@ -101,6 +102,9 @@ class KeystoneSignet(BuildMgr):
             return False
 
         if snapshot.keystone_signet_needed and (yield from self.skills.Mesmer.FastCasting.Keystone_Signet()):
+            return True
+
+        if player_energy_pct >= 0.50 and (yield from self.skills.Monk.SmitingPrayers.Smite_Hex(min_priority=HexRemovalPriority.MEDIUM)):
             return True
 
         if snapshot.enemy_in_spellcast and (yield from self.skills.Mesmer.DominationMagic.Unnatural_Signet()):
@@ -113,6 +117,9 @@ class KeystoneSignet(BuildMgr):
             return True
 
         if self.IsSkillEquipped(Bane_Signet_ID) and snapshot.attacking_enemy_in_spellcast and (yield from self.skills.Monk.SmitingPrayers.Bane_Signet()):
+            return True
+
+        if player_energy_pct >= 0.70 and (yield from self.skills.Monk.SmitingPrayers.Smite_Hex()):
             return True
 
         return False
