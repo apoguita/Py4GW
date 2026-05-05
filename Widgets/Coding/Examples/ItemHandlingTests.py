@@ -1,7 +1,7 @@
 import json
 import os
 import struct
-from typing import NamedTuple
+from typing import NamedTuple, Optional
 
 import Py4GW
 import PyImGui
@@ -11,24 +11,26 @@ from Py4GWCoreLib.ImGui_src.ImGuisrc import ImGui
 from Py4GWCoreLib.ImGui_src.types import Alignment
 from Py4GWCoreLib.IniManager import IniManager
 from Py4GWCoreLib.Inventory import Inventory
+from Py4GWCoreLib.Item import Item
 from Py4GWCoreLib.Map import Map
 from Py4GWCoreLib.Routines import Routines
-from Py4GWCoreLib.enums_src.Item_enums import ItemType, Rarity
+from Py4GWCoreLib.UIManager import UIManager
+from Py4GWCoreLib.enums_src.Item_enums import ItemType, Rarity, SalvageMode
 from Py4GWCoreLib.enums_src.Region_enums import ServerLanguage
 from Py4GWCoreLib.py4gwcorelib_src.BehaviorTree import BehaviorTree
 from Py4GWCoreLib.py4gwcorelib_src.Color import Color
 from Py4GWCoreLib.py4gwcorelib_src.Utils import Utils
 from Py4GWCoreLib.native_src.internals import string_table
-from Sources.frenkeyLib.ItemHandling.ConfigExamples.ExampleGUIs.LootConfigView import draw_loot_config_view
-from Sources.frenkeyLib.ItemHandling.Items.item_snapshot import ItemSnapshot
+from Py4GWCoreLib.item_data.item_snapshot import ItemSnapshot
+from Sources.frenkeyLib.ItemHandling.UIManagerExtensions import UIManagerExtensions
 
 Utils.ClearSubModules("Sources.frenkeyLib.ItemHandling")
 Utils.ClearSubModules("Sources.frenkeyLib.Core")
 from Sources.frenkeyLib.Core.encoded_names import ItemName
-from Py4GWCoreLib.item_mods_src.item_mod import ItemMod
 from Sources.frenkeyLib.ItemHandling.BTNodes import STORAGE_BAGS, BTNodes
-from Sources.frenkeyLib.ItemHandling.Rules.types import SalvageMode
-from Sources.frenkeyLib.ItemHandling.Items.item_collecting import ItemCollector
+from Sources.frenkeyLib.ItemHandling.GlobalConfigs.InventoryConfig import InventoryConfig
+from Sources.frenkeyLib.ItemHandling.InventoryBT import InventoryBT
+from Py4GWCoreLib.item_data.item_data_collecting import ItemDataCollector
 
 
 MODULE_NAME = "Item Handling Tests"
@@ -38,6 +40,7 @@ SALVAGE_MODES = [m.name for m in SalvageMode]
 INI_KEY = ""
 INI_PATH = f"Widgets/{MODULE_NAME}"
 INI_FILENAME = f"{MODULE_NAME}.ini"
+INVENTORY_CONFIG_PATH = os.path.join(Py4GW.Console.get_projects_path(), "Settings", "Global", "Item & Inventory", "Configs", "inventoryconfig.json")
 
 hovered_item_id = 0
 tree : BehaviorTree | None = None
@@ -55,7 +58,7 @@ language : ServerLanguage = ServerLanguage.English
 int_lang = language.value
 language_index = languages.index(language)
 
-ITEM_COLLECTOR = ItemCollector()
+ITEM_COLLECTOR = ItemDataCollector()
 class encoded_strings(NamedTuple):
     item_id: int
     name_enc: list[int]
@@ -77,6 +80,12 @@ fully_decoded = False
 collect = True
 
 show_loot_config_view = False
+inventory_bt_enabled = False
+inventory_bt_runner: InventoryBT | None = None
+
+
+def reload_inventory_config() -> InventoryConfig:
+    return InventoryConfig.Load(INVENTORY_CONFIG_PATH)
 
 # method to convert list of int to hex string
 def int_list_to_hex_string(int_list: list[int]) -> str:
@@ -166,7 +175,7 @@ def dump_string_table_to_json(language: ServerLanguage | int | None = None, outp
         return None
     
 def main():
-    global INI_KEY, hovered_item_id, auto_tick, tree, language, enc_input, decoded_ouput, decoded_name, int_lang, language_index, decoded, encoded, fully_decoded, collect, show_loot_config_view
+    global INI_KEY, hovered_item_id, auto_tick, tree, language, enc_input, decoded_ouput, decoded_name, int_lang, language_index, decoded, encoded, fully_decoded, collect, show_loot_config_view, inventory_bt_enabled, inventory_bt_runner
     
     if not Routines.Checks.Map.IsMapReady():
         encoded = None
@@ -199,6 +208,20 @@ def main():
         except Exception as e:
             Py4GW.Console.Log(MODULE_NAME, f"Error ticking behavior tree: {e}")
 
+    if inventory_bt_enabled:
+        if inventory_bt_runner is None:
+            inventory_bt_runner = InventoryBT(reload_inventory_config())
+
+        try:
+            inventory_bt_runner.tick()
+            
+        except Exception as e:
+            Py4GW.Console.Log(MODULE_NAME, f"Error ticking InventoryBT: {e}", Py4GW.Console.MessageType.Error)
+    
+    elif inventory_bt_runner is not None:
+        inventory_bt_runner.reset()
+        inventory_bt_runner = None
+
     win_open = ImGui.Begin(INI_KEY, MODULE_NAME)
     if win_open:
         ImGui.text_aligned(tree.root.name if tree else "No Tree Loaded", alignment= Alignment.MidCenter, color=GREEN.color_tuple if tree else RED.color_tuple, font_size=16, height=20)
@@ -215,11 +238,29 @@ def main():
         if ImGui.button("Start Tree", (avail - 5) / 2):
             auto_tick = True       
         PyImGui.end_disabled()
+
+        inventory_bt_enabled = ImGui.toggle_button("InventoryBT Enabled", inventory_bt_enabled, -1)
+        if inventory_bt_enabled and inventory_bt_runner is None:
+            inventory_bt_runner = InventoryBT(reload_inventory_config())
+
+        ImGui.text_wrapped(f"InventoryConfig path: {INVENTORY_CONFIG_PATH}")
+        ImGui.text_wrapped(f"Loaded InventoryConfig rules: {len(InventoryConfig())}")
+
+        if ImGui.button("Reload InventoryConfig", -1):
+            reloaded_config = reload_inventory_config()
+            inventory_bt_runner = InventoryBT(reloaded_config) if inventory_bt_enabled else None
+        ImGui.show_tooltip(f"Reload the saved config from {INVENTORY_CONFIG_PATH}")
+
+        if ImGui.button("Reset InventoryBT", -1):
+            if inventory_bt_runner is not None:
+                inventory_bt_runner.reset()
+            inventory_bt_runner = InventoryBT(reload_inventory_config()) if inventory_bt_enabled else None
+        ImGui.show_tooltip("Ticks InventoryBT every frame so you can test the current InventoryConfig against your live inventory.")
         
         PyImGui.separator()
         
         hovered_item_id = Inventory.GetHoveredItemID() or hovered_item_id
-        item = ItemSnapshot.from_item_id(hovered_item_id) if hovered_item_id else None
+        item : Optional[ItemSnapshot] = ItemSnapshot.from_item_id(hovered_item_id) if hovered_item_id else None
         
         if not item or not item.is_valid:
             hovered_item_id = 0
@@ -242,7 +283,7 @@ def main():
                 PyImGui.table_set_column_index(1)
                 PyImGui.text(value)
             
-            add_row("Item Name", item.name if item else "N/A")
+            add_row("Item Name", item.names.singular if item else "N/A")
             add_row("Item Data", item.data.english_name if item and item.data else "N/A")
             add_row("Model ID", str(item.model_id) if item else "N/A")
             add_row("Item Type", str(item.item_type.name) if item else "N/A")
@@ -264,46 +305,57 @@ def main():
                     PyImGui.table_headers_row()
                     
                     if item and item.is_valid:
-                        prefix, suffix, inscription, inherent = ItemMod.get_item_upgrades(item.id)
+                        prefix, suffix, inscription, inherent = Item.Customization.GetUpgrades(item.id)
                         
                         PyImGui.table_next_row()
                         PyImGui.table_set_column_index(0)
                         PyImGui.text("Prefix")
                         PyImGui.table_set_column_index(1)
+                        PyImGui.begin_group()
                         PyImGui.text(str(prefix.display_summary) if prefix else "None")
                         if prefix and prefix.is_inherent:
                             PyImGui.same_line(0, 5)
                             PyImGui.text_colored(" (Inherent)", RED.color_tuple)
-                        
+                        PyImGui.end_group()
+                        ImGui.show_tooltip(str(prefix.__class__.__name__) if prefix else "None")
                         
                         PyImGui.table_next_row()
                         PyImGui.table_set_column_index(0)
                         PyImGui.text("Inscription")
                         PyImGui.table_set_column_index(1)
+                        PyImGui.begin_group()
                         PyImGui.text(str(inscription.display_summary) if inscription else "None")
                         if inscription and inscription.is_inherent:
                             PyImGui.same_line(0, 5)
                             PyImGui.text_colored(" (Inherent)", RED.color_tuple)
-
+                        PyImGui.end_group()
+                        ImGui.show_tooltip(str(inscription.__class__.__name__) if inscription else "None")
+                        
                         PyImGui.table_next_row()
                         PyImGui.table_set_column_index(0)
+                        PyImGui.begin_group()
                         PyImGui.text("Suffix")
                         PyImGui.table_set_column_index(1)
                         PyImGui.text(str(suffix.display_summary) if suffix else "None")
                         if suffix and suffix.is_inherent:
                             PyImGui.same_line(0, 5)
                             PyImGui.text_colored(" (Inherent)", RED.color_tuple)
-            
+                        PyImGui.end_group()
+                        ImGui.show_tooltip(str(suffix.__class__.__name__) if suffix else "None")
+                        
                         for inherent_upgrade in inherent or []:
                             PyImGui.table_next_row()
                             PyImGui.table_set_column_index(0)
                             PyImGui.text("Inherent")
                             PyImGui.table_set_column_index(1)
+                            PyImGui.begin_group()
                             PyImGui.text(str(inherent_upgrade.display_summary) if inherent_upgrade else "None")
                             
                             if inherent_upgrade and inherent_upgrade.is_inherent:                                
                                 PyImGui.same_line(0, 5)
                                 PyImGui.text_colored(" (Inherent)", RED.color_tuple)
+                            PyImGui.end_group()
+                            ImGui.show_tooltip(str(inherent_upgrade.__class__.__name__) if inherent_upgrade else "None")
                 
                     PyImGui.end_table()
                                     
@@ -616,8 +668,66 @@ def main():
                     dump_string_table_to_json(language)
                 ImGui.end_tab_item()
             
+            if ImGui.begin_tab_item("Salvage Debug"):
+                if ImGui.begin_table("Salvage Debug", 3, PyImGui.TableFlags.Borders | PyImGui.TableFlags.Resizable):
+                    PyImGui.table_setup_column("Property", PyImGui.TableColumnFlags.WidthStretch)
+                    PyImGui.table_setup_column("Value", PyImGui.TableColumnFlags.WidthFixed, 100)
+                    PyImGui.table_setup_column("Button", PyImGui.TableColumnFlags.WidthFixed, 100)
+                    PyImGui.table_headers_row()
+                    
+                    entries = [
+                        ("AnySalvageRelatedWindowOpen", UIManagerExtensions.AnySalvageWindowOpen, UIManagerExtensions.CancelAnySalvageRelatedWindow),
+                        ("SalvageOptionsWindow", UIManagerExtensions.SalvageOptionsWindow.IsOpen, UIManagerExtensions.SalvageOptionsWindow.Cancel),
+                        ("SalvageConfirmationPopup", UIManagerExtensions.SalvageConfirmationPopup.IsOpen, UIManagerExtensions.SalvageConfirmationPopup.Cancel),
+                        ("LesserSalvageWindow", UIManagerExtensions.LesserSalvageWindow.IsOpen, UIManagerExtensions.LesserSalvageWindow.Cancel),
+                        ("ExpertSalvageUnidentifiedWindow", UIManagerExtensions.ExpertSalvageUnidentifiedWindow.IsOpen, UIManagerExtensions.ExpertSalvageUnidentifiedWindow.Cancel),
+                    ]
+                    
+                    for name, check_func, cancel_func in entries:
+                        PyImGui.table_next_row()
+                        PyImGui.table_set_column_index(0)
+                        
+                        ImGui.text(name)
+                        PyImGui.table_set_column_index(1)
+                        
+                        is_open = check_func()
+                        ImGui.text_colored("Open" if is_open else "Closed", GREEN.color_tuple if is_open else RED.color_tuple)
+                        
+                        PyImGui.table_set_column_index(2)
+                        PyImGui.begin_disabled(not is_open or cancel_func is None)
+                    
+                        if ImGui.button(f"Cancel##{name}", -1):
+                            if cancel_func is not None:
+                                cancel_func()
+                                Py4GW.Console.Log(MODULE_NAME, f"Called cancel function for {name}")
+                        
+                        PyImGui.end_disabled()
+                    
+                    for mode in SalvageMode:
+                        PyImGui.table_next_row()
+                        PyImGui.table_set_column_index(0)
+                        ImGui.text(f"SalvageMode.{mode.name}")
+                        PyImGui.table_set_column_index(1)
+                        
+                        is_open = UIManagerExtensions.SalvageOptionsWindow.IsOptionVisible(mode)
+                        ImGui.text_colored("Open" if is_open else "Closed", GREEN.color_tuple if is_open else RED.color_tuple)
+                        
+                        
+                        PyImGui.table_set_column_index(2)
+                        PyImGui.begin_disabled(not is_open)
+                        
+                        if ImGui.button(f"Test Salvage##{mode.name}", -1):
+                            UIManagerExtensions.SalvageOptionsWindow.SelectOption(mode)
+                            Py4GW.Console.Log(MODULE_NAME, f"Selected salvage option: {mode.name}")
+                        
+                        PyImGui.end_disabled()
+                    
+                    PyImGui.end_table()
+                ImGui.end_tab_item()
+            
             if ImGui.begin_tab_item("Rule Testing"):
                 ImGui.text_wrapped("Here we present the rule system like it would be used in the loot config or other item handling related systems. This is just a demonstration of how the rules can be created, edited and tested in a simple way.")
+                ImGui.text_wrapped(f"InventoryBT is currently {'enabled' if inventory_bt_enabled else 'disabled'} and uses the shared InventoryConfig singleton with {len(InventoryConfig())} rule(s).")
                 
                 show_loot_config_view = ImGui.toggle_button("Show Loot Config View", show_loot_config_view, -1)
                 ImGui.end_tab_item()
@@ -639,9 +749,3 @@ def main():
             fully_decoded = (not encoded.name_enc or decoded.name_enc != "") and (not encoded.info_string or decoded.info_string != "") and (not encoded.singular_name or decoded.singular_name != "") and (not encoded.complete_name_enc or decoded.complete_name_enc != "")
         except Exception as e:
             Py4GW.Console.Log(MODULE_NAME, f"Error decoding item strings: {e}", Py4GW.Console.MessageType.Error)
-
-    if show_loot_config_view:
-        draw_loot_config_view()
-        
-    if collect:
-        ITEM_COLLECTOR.run()

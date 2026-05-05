@@ -47,27 +47,21 @@ Docstring parsing rules
 from __future__ import annotations
 
 import time
-from enum import IntEnum
-from typing import Any, Callable, Optional, cast
+from typing import Optional, cast
 
 import Py4GW
-import PyInventory
-from PyItem import DyeColor
 
 from Py4GWCoreLib.Inventory import Inventory
-from Py4GWCoreLib.Item import Bag, Item
+from Py4GWCoreLib.Item import Item
 from Py4GWCoreLib.Merchant import Trading
-from Py4GWCoreLib.UIManager import UIManager
-from Py4GWCoreLib.enums_src.Item_enums import MAX_STACK_SIZE, ItemType, Rarity
+from Py4GWCoreLib.enums_src.Item_enums import INVENTORY_BAGS, MAX_STACK_SIZE, STORAGE_BAGS, Bags, ItemType, Rarity, SalvageMode
 from Py4GWCoreLib.enums_src.Item_enums import MAX_STACK_SIZE
 from Py4GWCoreLib.enums_src.Model_enums import ModelID
-from Py4GWCoreLib.enums_src.Region_enums import ServerLanguage
 from Py4GWCoreLib.py4gwcorelib_src.BehaviorTree import BehaviorTree
-from Sources.frenkeyLib.ItemHandling.Items.item_snapshot import ItemSnapshot
-from Sources.frenkeyLib.ItemHandling.Items.types import INVENTORY_BAGS, STORAGE_BAGS
-from Sources.frenkeyLib.ItemHandling.Rules.types import MATERIAL_SLOTS, SalvageMode
+from Py4GWCoreLib.item_data.ItemData import MATERIAL_STORAGE_SLOTS
+from Py4GWCoreLib.item_data.item_snapshot import ItemSnapshot
 from Sources.frenkeyLib.ItemHandling.UIManagerExtensions import UIManagerExtensions
-from Sources.frenkeyLib.ItemHandling.utility import GetDestinationSlots, GetItemsLocations, HasSpaceForItem
+from Sources.frenkeyLib.ItemHandling.utility import HasSpaceForItem
 
 SALVAGE_WINDOW_HASH = 684387150
 LESSER_CONFIRM_HASH = 140452905
@@ -85,6 +79,11 @@ class BTNodes:
       Notes: Discovery should start from this class and then inspect grouped helper surfaces marked for exposure.
     """
     NodeState = BehaviorTree.NodeState
+    
+    @staticmethod
+    def debug(category: str, message: str, log_to_console: bool = True):
+        if log_to_console:
+            Py4GW.Console.Log(category, message)
 
     @staticmethod
     def _success_if(condition: bool) -> BehaviorTree.NodeState:
@@ -131,10 +130,10 @@ class BTNodes:
               Notes: Fails when the merchant window is closed, the item is not offered, there is no space, or the player cannot afford enough stock.
             """
             def _restock(node: BehaviorTree.Node):
-                if not UIManagerExtensions.IsMerchantWindowOpen():
+                if not UIManagerExtensions.MerchantWindow.IsOpen():
                     return BehaviorTree.NodeState.FAILURE
                 
-                inventory_snapshot = ItemSnapshot.get_inventory_snapshot(Bag.Backpack, Bag.Bag_2)
+                inventory_snapshot = ItemSnapshot.get_inventory_snapshot(Bags.Backpack, Bags.Bag2)
                 current_qty = sum(i.quantity for bag in inventory_snapshot.values() for i in bag.values() if i is not None and i.is_valid and i.model_id == model_id and i.item_type == item_type) if inventory_snapshot else 0
                 
                 if current_qty >= quantity:
@@ -151,7 +150,7 @@ class BTNodes:
             
                 price = (Item.Properties.GetValue(item_id) * 2)
                 affordable_qty = available_gold // price if price > 0 else quantity_to_buy
-                has_space, space_for_qty = HasSpaceForItem(item_id, Bag.Backpack, Bag.Bag_2, quantity=affordable_qty)
+                has_space, space_for_qty = HasSpaceForItem(item_id, Bags.Backpack, Bags.Bag2, quantity=affordable_qty)
                 count = min(quantity_to_buy, affordable_qty, space_for_qty)
                 
                 if not has_space or count <= 0:
@@ -181,7 +180,7 @@ class BTNodes:
               Notes: Ignores invalid or non-inventory items and succeeds only if at least one item is sold.
             """
             def _sell(node: BehaviorTree.Node):
-                if not UIManagerExtensions.IsMerchantWindowOpen():
+                if not UIManagerExtensions.MerchantWindow.IsOpen():
                     return BehaviorTree.NodeState.FAILURE
                 
                 items = [ItemSnapshot.from_item_id(iid) for iid in item_ids]
@@ -214,7 +213,7 @@ class BTNodes:
               Notes: Skips items that are unavailable, unaffordable, or cannot fit in inventory, and succeeds only if at least one purchase is made.
             """
             def _buy(node: BehaviorTree.Node):
-                if not UIManagerExtensions.IsMerchantWindowOpen():  
+                if not UIManagerExtensions.MerchantWindow.IsOpen():  
                     return BehaviorTree.NodeState.FAILURE
                 
                 offered_items = Trading.Merchant.GetOfferedItems()
@@ -229,7 +228,7 @@ class BTNodes:
                 for i, (offered_item_id, quantity) in enumerate(item_ids_quantities):
                     price =  (Item.Properties.GetValue(offered_item_id) * 2)
                     affordable_qty = available_gold // price if price > 0 else quantity
-                    has_space, qty = HasSpaceForItem(offered_item_id, Bag.Backpack, Bag.Bag_2, quantity=affordable_qty)
+                    has_space, qty = HasSpaceForItem(offered_item_id, Bags.Backpack, Bags.Bag2, quantity=affordable_qty)
                     count = min(quantity, affordable_qty, qty)
                     
                     if not has_space or count <= 0:
@@ -330,7 +329,7 @@ class BTNodes:
             def _buy(node: BehaviorTree.Node):
                 now = time.monotonic()
                 
-                if not UIManagerExtensions.IsMerchantWindowOpen():
+                if not UIManagerExtensions.MerchantWindow.IsOpen():
                     return BehaviorTree.NodeState.FAILURE
                 
                 offered_items = Trading.Trader.GetOfferedItems()
@@ -347,7 +346,7 @@ class BTNodes:
                 
                 if state is None:
                     state = BTNodes.Trader.TraderProgress()
-                    inventory_snapshot = ItemSnapshot.get_inventory_snapshot(Bag.Backpack, Bag.Bag_2)
+                    inventory_snapshot = ItemSnapshot.get_inventory_snapshot(Bags.Backpack, Bags.Bag2)
                     state.initial_qty = sum(i.quantity for bag in inventory_snapshot.values() for i in bag.values() if i is not None and i.is_valid and i.same_kind_as(item)) if inventory_snapshot else 0
                     state.desired_qty = state.initial_qty + quantity
                     node.blackboard["trader_buy_progress"] = state
@@ -371,7 +370,7 @@ class BTNodes:
                             return BehaviorTree.NodeState.RUNNING
                     
                     if not state.trade_confirmed:
-                        inventory_snapshot = ItemSnapshot.get_inventory_snapshot(Bag.Backpack, Bag.Bag_2)
+                        inventory_snapshot = ItemSnapshot.get_inventory_snapshot(Bags.Backpack, Bags.Bag2)
                         state.current_qty = sum(i.quantity for bag in inventory_snapshot.values() for i in bag.values() if i is not None and i.is_valid and i.same_kind_as(item)) if inventory_snapshot else 0
                         state.trade_confirmed = state.current_qty > state.initial_qty
                         
@@ -424,7 +423,7 @@ class BTNodes:
             def _sell(node: BehaviorTree.Node):
                 now = time.monotonic()
                 
-                if not UIManagerExtensions.IsMerchantWindowOpen():
+                if not UIManagerExtensions.MerchantWindow.IsOpen():
                     return BehaviorTree.NodeState.FAILURE
                                 
                 item = ItemSnapshot.from_item_id(item_id)
@@ -437,7 +436,7 @@ class BTNodes:
                 
                 if state is None:
                     state = BTNodes.Trader.TraderProgress()
-                    inventory_snapshot = ItemSnapshot.get_inventory_snapshot(Bag.Backpack, Bag.Bag_2)
+                    inventory_snapshot = ItemSnapshot.get_inventory_snapshot(Bags.Backpack, Bags.Bag2)
                     state.initial_qty = sum(i.quantity for bag in inventory_snapshot.values() for i in bag.values() if i is not None and i.is_valid and i.same_kind_as(item)) if inventory_snapshot else 0
                     state.current_qty = state.initial_qty
                     state.desired_qty = state.initial_qty - (quantity if not item.is_material or item.is_rare_material else quantity // 10 * 10)
@@ -462,7 +461,7 @@ class BTNodes:
                             return BehaviorTree.NodeState.RUNNING
                     
                     if not state.trade_confirmed:
-                        inventory_snapshot = ItemSnapshot.get_inventory_snapshot(Bag.Backpack, Bag.Bag_2)
+                        inventory_snapshot = ItemSnapshot.get_inventory_snapshot(Bags.Backpack, Bags.Bag2)
                         state.current_qty = sum(i.quantity for bag in inventory_snapshot.values() for i in bag.values() if i is not None and i.is_valid and i.same_kind_as(item)) if inventory_snapshot else 0
                         state.trade_confirmed = state.current_qty < state.initial_qty
                         
@@ -684,6 +683,7 @@ class BTNodes:
                 self.desired_qty = initial_qty - salvage_amount
                 self.salvage_amount = salvage_amount
                 self.confirm_clicked_at = 0.0
+                self.window_detected_at = 0.0
                 self.salvaged_any = False
                 
         @staticmethod
@@ -716,6 +716,8 @@ class BTNodes:
                 if not debug_enabled:
                     return
                 Py4GW.Console.Log("BTNodes.Items.SalvageItem", message, msg_type)
+
+            pop_up_delays = 0
             
             def _resolve_preferred_kit(valid_model_ids: tuple[ModelID, ...]) -> int:
                 if preferred_kit_id is None or preferred_kit_id <= 0:
@@ -737,7 +739,7 @@ class BTNodes:
                 if preferred > 0:
                     return preferred
 
-                inventory_snapshot = ItemSnapshot.get_inventory_snapshot(Bag.Backpack, Bag.Bag_2)
+                inventory_snapshot = ItemSnapshot.get_inventory_snapshot(Bags.Backpack, Bags.Bag2)
                 expert_kits = [i for bag in inventory_snapshot.values() for i in bag.values() if i is not None and i.is_valid and i.is_salvage_kit and i.model_id in (ModelID.Expert_Salvage_Kit, ModelID.Superior_Salvage_Kit)]
                 
                 if not expert_kits:
@@ -750,7 +752,7 @@ class BTNodes:
                 if preferred > 0:
                     return preferred
 
-                inventory_snapshot = ItemSnapshot.get_inventory_snapshot(Bag.Backpack, Bag.Bag_2)
+                inventory_snapshot = ItemSnapshot.get_inventory_snapshot(Bags.Backpack, Bags.Bag2)
                 lesser_kits = [i for bag in inventory_snapshot.values() for i in bag.values() if i is not None and i.is_valid and i.is_salvage_kit and i.model_id == ModelID.Salvage_Kit]
                 
                 if not lesser_kits:
@@ -763,7 +765,7 @@ class BTNodes:
                 if preferred > 0:
                     return preferred
 
-                inventory_snapshot = ItemSnapshot.get_inventory_snapshot(Bag.Backpack, Bag.Bag_2)
+                inventory_snapshot = ItemSnapshot.get_inventory_snapshot(Bags.Backpack, Bags.Bag2)
                 upgrade_kits = [
                     i for bag in inventory_snapshot.values() for i in bag.values()
                     if i is not None and i.is_valid and i.is_salvage_kit and i.model_id in (
@@ -802,53 +804,63 @@ class BTNodes:
                     mode = SalvageMode.NONE
                 
                 if mode == SalvageMode.NONE:
-                    _debug(f"Invalid salvage mode for item_id={item_id}: raw={salvage_mode!r}.")
+                    _debug(f"Invalid salvage mode for item id {item_id}: raw={salvage_mode!r}.")
                     return BehaviorTree.NodeState.FAILURE
                                  
                 state = node.blackboard.get(state_key)
                 state = cast(BTNodes.Items.SavalvageProgress, state) if state else None
                 item = ItemSnapshot.from_item_id(item_id)
+                item_name = {item.complete_name if item else 'Unknown Item'}
                 
                 if state and item_id != state.item_id:
                     _debug(f"State item mismatch: requested={item_id}, state_item={state.item_id}.")
                     return BehaviorTree.NodeState.SUCCESS
 
                 if item is None:
-                    _debug(f"Item {item_id} no longer exists.")
+                    _debug(f"Item {item_name} [{item_id}] no longer exists.")
                     return BehaviorTree.NodeState.SUCCESS
 
                 if not item.is_valid:
-                    _debug(f"Item {item_id} is not valid.")
+                    _debug(f"Item {item_name} [{item_id}] is not valid.")
                     return BehaviorTree.NodeState.SUCCESS
 
                 if not item.is_salvageable:
-                    _debug(f"Item {item.id} is no longer salvageable.")
+                    _debug(f"Item {item_name} [{item_id}] is no longer salvageable.")
                     return BehaviorTree.NodeState.SUCCESS
 
                 if not item.is_inventory_item:
-                    _debug(f"Item {item.id} is no longer in inventory.")
+                    _debug(f"Item {item_name} [{item_id}] is no longer in inventory.")
                     return BehaviorTree.NodeState.SUCCESS
 
                 if _is_mod_salvaged(item, mode):
-                    _debug(f"Requested salvage mode {mode.name} already resolved for item {item.id}.")
+                    _debug(f"Requested salvage mode {mode.name} already resolved for item {item_name} [{item_id}].")
                     return BehaviorTree.NodeState.SUCCESS
                 
                 if state is None:
                     state = BTNodes.Items.SavalvageProgress(item_id=item.id, salvage_started_at=0.0, initial_qty=item.quantity, salvage_amount=min(item.quantity, salvage_amount if salvage_amount else item.quantity))                   
                     node.blackboard[state_key] = state
                     _debug(
-                        f"Initialized salvage state for item={item.id} mode={mode.name} "
+                        f"Initialized salvage state for item={item_name} [{item_id}] mode={mode.name} "
                         f"qty={item.quantity} desired_qty={state.desired_qty} timeout_ms={timeout_ms_per_item}."
                     )
                     
                 now = time.monotonic()
+                salvage_window_open = UIManagerExtensions.AnySalvageWindowOpen()
 
                 if Inventory.GetFreeSlotCount() <= 0:
-                    _debug(f"Cannot salvage item {item.id}: no free inventory slots.", Py4GW.Console.MessageType.Warning)
+                    _debug(f"Cannot salvage item {item_name} [{item_id}]: no free inventory slots.", Py4GW.Console.MessageType.Warning)
                     return BehaviorTree.NodeState.FAILURE
 
                 # Start salvage once per item.
-                if not state.salvage_started_at:                    
+                if not state.salvage_started_at:
+                    if salvage_window_open:
+                        _debug(
+                            f"Cannot start salvage for item={item_name} [{item_id}] while another salvage-related window is open."
+                            f"Closing existing salvage windows and waiting before retrying."
+                        )
+                        UIManagerExtensions.CancelAnySalvageRelatedWindow()
+                        return BehaviorTree.NodeState.RUNNING
+
                     if mode == SalvageMode.LesserCraftingMaterials:
                         kit_id = _get_lesser_salvage_kit()
                         if allow_expert_for_common_materials and kit_id == 0:
@@ -861,7 +873,7 @@ class BTNodes:
                     kit = ItemSnapshot.from_item_id(kit_id)
                     if kit_id <= 0 or (kit is None or kit.model_id == ModelID.Salvage_Kit and (item.rarity > Rarity.White and not item.is_identified)):
                         _debug(
-                            f"Failed to resolve valid salvage kit for item={item.id} mode={mode.name}. "
+                            f"Failed to resolve valid salvage kit for item={item_name} [{item_id}] mode={mode.name}. "
                             f"kit_id={kit_id} kit_model={(kit.model_id if kit else 'None')} "
                             f"item_rarity={item.rarity.name} item_identified={item.is_identified}.",
                             Py4GW.Console.MessageType.Warning,
@@ -869,7 +881,7 @@ class BTNodes:
                         return BehaviorTree.NodeState.FAILURE
 
                     _debug(
-                        f"Starting salvage item={item.id} mode={mode.name} kit_id={kit_id} "
+                        f"Starting salvage item={item_name} [{item_id}] mode={mode.name} kit_id={kit_id} "
                         f"kit_model={kit.model_id if kit else 'None'} item_qty={item.quantity} "
                         f"preferred_kit_id={preferred_kit_id or 0}."
                     )
@@ -878,58 +890,78 @@ class BTNodes:
                     return BehaviorTree.NodeState.RUNNING
 
                 # Handle salvage windows/frames while waiting for completion.
-                if UIManagerExtensions.IsConfirmLesserMaterialsWindowOpen():
-                    _debug(f"Confirm lesser materials window open for item={item.id}.")
-                    if UIManagerExtensions.ConfirmLesserSalvage():
+                if UIManagerExtensions.LesserSalvageWindow.IsOpen():
+                    if not state.window_detected_at:
+                        state.window_detected_at = now
+                    elapsed_ms = int((now - state.window_detected_at) * 1000)
+                    if elapsed_ms < pop_up_delays:
+                        _debug(
+                            f"Confirm lesser materials window open for item={item_name} [{item_id}]; "
+                            f"waiting {elapsed_ms}/{pop_up_delays} ms before confirm."
+                        )
+                        return BehaviorTree.NodeState.RUNNING
+                    if UIManagerExtensions.LesserSalvageWindow.Confirm():
                         state.confirm_clicked_at = now
-                        _debug(f"Confirmed lesser materials salvage for item={item.id}.")
+                        state.window_detected_at = 0.0
+                        _debug(f"Confirmed lesser materials salvage for item={item_name} [{item_id}].")
                         return BehaviorTree.NodeState.RUNNING
                     
-                if UIManagerExtensions.ConfirmModMaterialSalvageVisible():
-                    _debug(f"Confirm mod/material warning visible for item={item.id}.")
-                    if UIManagerExtensions.ConfirmModMaterialSalvage():
+                if UIManagerExtensions.SalvageConfirmationPopup.IsOpen():
+                    if not state.window_detected_at:
+                        state.window_detected_at = now
+                    elapsed_ms = int((now - state.window_detected_at) * 1000)
+                    if elapsed_ms < pop_up_delays:
+                        _debug(
+                            f"Confirm mod/material warning visible for item={item_name} [{item_id}]; "
+                            f"waiting {elapsed_ms}/{pop_up_delays} ms before confirm."
+                        )
+                        return BehaviorTree.NodeState.RUNNING
+                    if UIManagerExtensions.SalvageConfirmationPopup.Confirm():
                         state.confirm_clicked_at = now
-                        _debug(f"Confirmed mod/material warning for item={item.id}.")
+                        state.window_detected_at = 0.0
+                        _debug(f"Confirmed mod/material warning for item={item_name} [{item_id}].")
                         return BehaviorTree.NodeState.RUNNING
                     
-                if UIManagerExtensions.IsSalvageWindowNoIdentifiedOpen():
-                    _debug(f"Unidentified salvage warning open for item={item.id}.")
-                    if UIManagerExtensions.ConfirmSalvageWindowNoIdentified():
+                if UIManagerExtensions.ExpertSalvageUnidentifiedWindow.IsOpen():
+                    if not state.window_detected_at:
+                        state.window_detected_at = now
+                    elapsed_ms = int((now - state.window_detected_at) * 1000)
+                    if elapsed_ms < pop_up_delays:
+                        _debug(
+                            f"Unidentified salvage warning open for item={item_name} [{item_id}]; "
+                            f"waiting {elapsed_ms}/{pop_up_delays} ms before confirm."
+                        )
+                        return BehaviorTree.NodeState.RUNNING
+                    if UIManagerExtensions.ExpertSalvageUnidentifiedWindow.Confirm():
                         state.confirm_clicked_at = now
-                        _debug(f"Confirmed unidentified salvage warning for item={item.id}.")
+                        state.window_detected_at = 0.0
+                        _debug(f"Confirmed unidentified salvage warning for item={item_name} [{item_id}].")
                         return BehaviorTree.NodeState.RUNNING
                     
-                if UIManagerExtensions.IsSalvageWindowOpen():
-                    _debug(f"Salvage choice window open for item={item.id}, selecting mode={mode.name}.")
-                    if UIManagerExtensions.SelectSalvageOptionAndSalvage(mode):
+                if UIManagerExtensions.SalvageOptionsWindow.IsOpen():
+                    if not state.window_detected_at:
+                        state.window_detected_at = now
+                    elapsed_ms = int((now - state.window_detected_at) * 1000)
+                    if elapsed_ms < pop_up_delays:
+                        _debug(
+                            f"Salvage choice window open for item={item_name} [{item_id}], "
+                            f"waiting {elapsed_ms}/{pop_up_delays} ms before selecting mode={mode.name}."
+                        )
+                        return BehaviorTree.NodeState.RUNNING
+                    if UIManagerExtensions.SalvageOptionsWindow.SelectOption(mode):
+                        UIManagerExtensions.SalvageOptionsWindow.Confirm()
                         state.confirm_clicked_at = now
-                        _debug(f"Selected salvage option {mode.name} for item={item.id}.")
+                        state.window_detected_at = 0.0
+                        _debug(f"Selected salvage option {mode.name} for item={item_name} [{item_id}].")
                         return BehaviorTree.NodeState.RUNNING
                     else:
-                        _debug(f"Failed to select salvage option {mode.name} for item={item.id}; cancelling.", Py4GW.Console.MessageType.Warning)
-                        UIManagerExtensions.CancelSalvageOption()
+                        _debug(f"Failed to select salvage option {mode.name} for item={item_name} [{item_id}]; cancelling.", Py4GW.Console.MessageType.Warning)
+                        state.window_detected_at = 0.0
+                        UIManagerExtensions.SalvageOptionsWindow.Cancel()
                         return BehaviorTree.NodeState.FAILURE
 
-                inventory_instance = Inventory.inventory_instance()
-                try:
-                    is_salvaging = bool(inventory_instance.IsSalvaging())
-                except Exception:
-                    is_salvaging = False
-
-                try:
-                    transaction_done = bool(inventory_instance.IsSalvageTransactionDone())
-                except Exception:
-                    transaction_done = False
-
-                if transaction_done:
-                    _debug(f"Salvage transaction done for item={item.id}; calling FinishSalvage().")
-                    try:
-                        inventory_instance.FinishSalvage()
-                    except Exception as exc:
-                        _debug(f"FinishSalvage failed for item={item.id}: {exc!r}.", Py4GW.Console.MessageType.Warning)
-                        return BehaviorTree.NodeState.FAILURE
-                    state.confirm_clicked_at = now
-                    return BehaviorTree.NodeState.RUNNING
+                if state.window_detected_at:
+                    state.window_detected_at = 0.0
 
                 # Completion checks.
                 current_qty = item.quantity
@@ -942,14 +974,28 @@ class BTNodes:
                 mod_salvaged = _is_mod_salvaged(item, mode)
                 windows_closed_after_confirm = (
                     confirm_clicked_at > 0.0
-                    and not UIManagerExtensions.AnySalvageRelatedWindowOpen()
-                    and not is_salvaging
+                    and not salvage_window_open
                     and (now - confirm_clicked_at) >= 0.20
                 )
                 
+                time_since_confirm = (now - confirm_clicked_at) * 1000 if confirm_clicked_at > 0.0 else None
+                if time_since_confirm is not None and time_since_confirm < pop_up_delays:
+                    _debug(
+                        f"Salvage confirm clicked for item={item_name} [{item_id}] but waiting for windows to close..."
+                        f"Elapsed since confirm: {int(time_since_confirm)} ms."
+                    )
+                    return BehaviorTree.NodeState.RUNNING
+                
+                if salvage_window_open:
+                    _debug(
+                        f"Waiting for salvage-related windows to close for item={item_name} [{item_id}] "
+                        f"before restarting or finishing salvage."
+                    )
+                    return BehaviorTree.NodeState.RUNNING
+
                 if not item_gone and item.is_stackable and qty_changed and current_qty > desired_qty:
                     _debug(
-                        f"Partial salvage item={item.id}: initial_qty={initial_qty}, current_qty={current_qty}, "
+                        f"Partial salvage item={item_name} [{item_id}]: initial_qty={initial_qty}, current_qty={current_qty}, "
                         f"desired_qty={desired_qty}. Restarting for remaining quantity."
                     )
                     state.salvage_started_at = 0.0
@@ -959,7 +1005,7 @@ class BTNodes:
 
                 if qty_changed or item_gone or windows_closed_after_confirm or mod_salvaged:
                     _debug(
-                        f"Salvage complete item={item.id} mode={mode.name} "
+                        f"Salvage complete item={item_name} [{item_id}] mode={mode.name} "
                         f"qty_changed={qty_changed} item_gone={item_gone} "
                         f"windows_closed_after_confirm={windows_closed_after_confirm} mod_salvaged={mod_salvaged} "
                         f"initial_qty={initial_qty} current_qty={current_qty} desired_qty={desired_qty}."
@@ -967,15 +1013,18 @@ class BTNodes:
                     return BehaviorTree.NodeState.SUCCESS
 
                 if (now - float(state.salvage_started_at)) * 1000 >= timeout_ms_per_item:
+                    cancelled_window = False
+                    if salvage_window_open:
+                        cancelled_window = UIManagerExtensions.CancelAnySalvageRelatedWindow()
                     _debug(
-                        f"Timeout item={item.id} mode={mode.name} after {timeout_ms_per_item} ms. "
+                        f"Timeout item={item_name} [{item_id}] mode={mode.name} after {timeout_ms_per_item} ms. "
                         f"initial_qty={initial_qty} current_qty={current_qty} desired_qty={desired_qty} "
                         f"confirm_clicked_at={confirm_clicked_at:.3f} "
-                        f"inventory_state={{is_salvaging:{is_salvaging}, transaction_done:{transaction_done}}} "
-                        f"windows={{salvage:{UIManagerExtensions.IsSalvageWindowOpen()}, "
-                        f"lesser_confirm:{UIManagerExtensions.IsConfirmLesserMaterialsWindowOpen()}, "
-                        f"mod_confirm:{UIManagerExtensions.ConfirmModMaterialSalvageVisible()}, "
-                        f"unidentified:{UIManagerExtensions.IsSalvageWindowNoIdentifiedOpen()}}} "
+                        f"windows={{salvage:{UIManagerExtensions.SalvageOptionsWindow.IsOpen()}, "
+                        f"lesser_confirm:{UIManagerExtensions.LesserSalvageWindow.IsOpen()}, "
+                        f"material_confirm:{UIManagerExtensions.SalvageConfirmationPopup.IsOpen()}, "
+                        f"unidentified:{UIManagerExtensions.ExpertSalvageUnidentifiedWindow.IsOpen()}}} "
+                        f"cancelled_window={cancelled_window} "
                         f"free_slots={Inventory.GetFreeSlotCount()}.",
                         Py4GW.Console.MessageType.Warning,
                     )
@@ -983,11 +1032,10 @@ class BTNodes:
                     return BehaviorTree.NodeState.FAILURE
 
                 _debug(
-                    f"Waiting item={item.id} mode={mode.name} "
+                    f"Waiting item={item_name} [{item_id}] mode={mode.name} "
                     f"elapsed_ms={int((now - float(state.salvage_started_at)) * 1000)} "
                     f"initial_qty={initial_qty} current_qty={current_qty} desired_qty={desired_qty} "
                     f"confirm_clicked_at={confirm_clicked_at:.3f} "
-                    f"is_salvaging={is_salvaging} transaction_done={transaction_done}."
                 )
                 return BehaviorTree.NodeState.RUNNING
 
@@ -1005,7 +1053,7 @@ class BTNodes:
               UserDescription: Internal support helper class.
               Notes: Used by storage and inventory transfer planning helpers before actual move actions are issued.
             """
-            def __init__(self, bag: Bag, slot: int, stack_item: Optional[ItemSnapshot], available_space: int = MAX_STACK_SIZE):                
+            def __init__(self, bag: Bags, slot: int, stack_item: Optional[ItemSnapshot], available_space: int = MAX_STACK_SIZE):                
                 """
                 Initialize a transfer instruction for one destination slot.
 
@@ -1023,14 +1071,103 @@ class BTNodes:
                 self.available_space = available_space - stack_item.quantity if stack_item and stack_item.is_stackable else available_space
                 
                 self.items : list[tuple[ItemSnapshot, int]] = []
+
+        @staticmethod
+        def _get_material_storage_capacity(material_storage_snapshot: dict[int, Optional[ItemSnapshot]]) -> int:
+            capacity = (
+                max(
+                    (item.quantity for item in material_storage_snapshot.values() if item),
+                    default=0,
+                )
+                + MAX_STACK_SIZE
+                - 1
+            ) // MAX_STACK_SIZE * MAX_STACK_SIZE
+
+            return capacity if capacity > 0 else MAX_STACK_SIZE
+
+        @staticmethod
+        def _cleanup_empty_transfer_instruction(
+            moving_instructions: dict[Bags, dict[int, "BTNodes.Items.ItemTransferInstructions"]],
+            bag: Bags,
+            slot: int,
+        ) -> None:
+            bag_instructions = moving_instructions.get(bag)
+            if not bag_instructions:
+                return
+
+            instruction = bag_instructions.get(slot)
+            if instruction is not None and not instruction.items:
+                bag_instructions.pop(slot, None)
+
+            if not bag_instructions:
+                moving_instructions.pop(bag, None)
+
+        @staticmethod
+        def _get_planned_transfer_item_ids(
+            moving_instructions: dict[Bags, dict[int, "BTNodes.Items.ItemTransferInstructions"]],
+        ) -> list[int]:
+            planned_item_ids: list[int] = []
+            seen_item_ids: set[int] = set()
+
+            for bag_instructions in moving_instructions.values():
+                for instruction in bag_instructions.values():
+                    for item, _ in instruction.items:
+                        if item.id in seen_item_ids:
+                            continue
+
+                        seen_item_ids.add(item.id)
+                        planned_item_ids.append(item.id)
+
+            return planned_item_ids
+
+        @staticmethod
+        def _format_transfer_destination(bag: Bags, slot: int) -> str:
+            if bag == Bags.MaterialStorage:
+                return f"Material Storage slot {slot}"
+
+            return f"bag {bag.name} slot {slot}"
+
+        @staticmethod
+        def _get_planned_destinations_for_item(
+            moving_instructions: dict[Bags, dict[int, "BTNodes.Items.ItemTransferInstructions"]],
+            item_id: int,
+        ) -> list[str]:
+            destinations: list[str] = []
+
+            for bag, bag_instructions in moving_instructions.items():
+                for slot, instruction in bag_instructions.items():
+                    qty_for_item = sum(qty for planned_item, qty in instruction.items if planned_item.id == item_id)
+                    if qty_for_item <= 0:
+                        continue
+
+                    destinations.append(
+                        f"{qty_for_item} to {BTNodes.Items._format_transfer_destination(bag, slot)}"
+                    )
+
+            return destinations
+
+        @staticmethod
+        def _move_item_to_transfer_destination(
+            item: ItemSnapshot,
+            destination: "BTNodes.Items.ItemTransferInstructions",
+            quantity: int,
+            log_category: str,
+        ) -> None:
+            target_bag = Bags.MaterialStorage if destination.bag == Bags.MaterialStorage else destination.bag.value
+            Inventory.MoveItem(item.id, target_bag, destination.slot, quantity)
+            Py4GW.Console.Log(
+                log_category,
+                f"Moving {quantity} of '{item.names.plain}' (ID: {item.id}) to {BTNodes.Items._format_transfer_destination(destination.bag, destination.slot)}",
+            )
         
         @staticmethod
         def GetTransferInstructions(
             item_ids: list[int],
-            target : list[Bag],
+            target : list[Bags],
             quantities: Optional[list[int]] = None,
             fill_materials_first: bool = False,
-        ) -> dict[Bag, dict[int, BTNodes.Items.ItemTransferInstructions]]:
+            log_plans: bool = False,
+        ) -> dict[Bags, dict[int, BTNodes.Items.ItemTransferInstructions]]:
             """
             Build a destination-slot transfer plan for moving items into target bags.
 
@@ -1042,59 +1179,71 @@ class BTNodes:
               UserDescription: Use this when you need a planning step that figures out where item quantities should move before issuing inventory actions.
               Notes: Supports inventory-to-storage and storage-to-inventory planning, including optional material-storage prefill behavior.
             """
-            
-            locations = GetItemsLocations(item_ids)
-            source = list(set(bag for bag, _ in locations))
-            
             to_inventory = any(bag in INVENTORY_BAGS for bag in target)
-            to_storage = any(bag in STORAGE_BAGS or bag == Bag.Material_Storage for bag in target)
-            
-            from_inventory = any(bag in INVENTORY_BAGS for bag in source)
-            from_storage = any(bag in STORAGE_BAGS or bag == Bag.Material_Storage for bag in source)
+            to_storage = any(bag in STORAGE_BAGS or bag == Bags.MaterialStorage for bag in target)
            
-            material_storage_snapshot = ItemSnapshot.get_bag_snapshot(Bag.Material_Storage) if (from_storage or to_storage) else {}
+            material_storage_snapshot = ItemSnapshot.get_bag_snapshot(Bags.MaterialStorage) if to_storage else {}
             target_snapshot = ItemSnapshot.get_bags_snapshot(target)
-            moving_instructions : dict[Bag, dict[int, BTNodes.Items.ItemTransferInstructions]] = {}
+            moving_instructions : dict[Bags, dict[int, BTNodes.Items.ItemTransferInstructions]] = {}
             
-            #get max quantity from material_storage_snapshot.get(Bag.Material_Storage, {}).values() and ceil to the next MAX_STACK_SIZE to determine the max capacity
-            material_storage_capacity = (
-                max(
-                    (item.quantity for item in material_storage_snapshot.values() if item),
-                    default=0
-                )
-                + MAX_STACK_SIZE - 1
-            ) // MAX_STACK_SIZE * MAX_STACK_SIZE
-            if material_storage_capacity <= 0:
-                material_storage_capacity = MAX_STACK_SIZE
+            material_storage_capacity = BTNodes.Items._get_material_storage_capacity(material_storage_snapshot)
                                             
             for index, item_id in enumerate(item_ids):
                 item = ItemSnapshot.from_item_id(item_id)
-                qty = quantities[index] if quantities and index < len(quantities) else item.quantity if item else 0            
+                qty = quantities[index] if quantities and index < len(quantities) else item.quantity if item else 0
+                requested_qty = qty
+                item_is_inventory = item.is_inventory_item if item is not None else False
+                item_is_storage = item.is_storage_item if item is not None else False
                 
-                if not item or not item.is_valid or (item.is_inventory_item and to_inventory) or (item.is_storage_item and to_storage) or (not item.is_inventory_item and from_inventory) or (not item.is_storage_item and from_storage):
+                if (
+                    not item
+                    or not item.is_valid
+                    or (item_is_inventory and to_inventory)
+                    or (item_is_storage and to_storage)
+                    or (not item_is_inventory and not item_is_storage)
+                ):
                     continue
+
+                def _plan_into_destination(
+                    dest_bag: Bags,
+                    dest_slot: int,
+                    stack_item: Optional[ItemSnapshot],
+                    available_space: int,
+                ) -> None:
+                    nonlocal qty
+                    if qty <= 0:
+                        return
+
+                    moving_instructions.setdefault(dest_bag, {})
+                    dest = moving_instructions[dest_bag].setdefault(
+                        dest_slot,
+                        BTNodes.Items.ItemTransferInstructions(dest_bag, dest_slot, stack_item, available_space=available_space),
+                    )
+
+                    if dest.available_space <= 0:
+                        return
+
+                    qty_to_move = min(dest.available_space, qty)
+                    if qty_to_move <= 0:
+                        return
+
+                    dest.available_space -= qty_to_move
+                    if item is not None:
+                        dest.items.append((item, qty_to_move))
+                    
+                    qty -= qty_to_move
                 
                 if item.is_stackable:
-                    if fill_materials_first and from_inventory and (item.is_material or item.is_rare_material):
-                        for slot, stack_item in material_storage_snapshot.items():
-                            if stack_item and stack_item.is_valid and stack_item.is_stackable and stack_item.same_kind_as(item) and stack_item.quantity < material_storage_capacity:
-                                moving_instructions.setdefault(Bag.Material_Storage, {})
-                                dest = moving_instructions[Bag.Material_Storage].setdefault(slot, BTNodes.Items.ItemTransferInstructions(Bag.Material_Storage, slot, stack_item, available_space=material_storage_capacity))
-                                
-                                if dest.available_space > 0:
-                                    qty_to_move = min(dest.available_space, qty)
-                                    dest.available_space -= qty_to_move
-                                    dest.items.append((item, qty_to_move))
-                                    qty -= qty_to_move
-                                    
-                                    stack_item.quantity += qty_to_move  # simulate the move in the cache to get correct available space for subsequent stacks of the same item
-                                    
-                                    if qty <= 0:
-                                        Py4GW.Console.Log("GetTransferInstructions", f"Planned to move {qty_to_move} of '{item.names.plain}' (ID: {item.id}) to Material Storage bag {Bag.Material_Storage.name} slot {slot}")
-                                        break
-                        
-                        if qty <= 0:
-                            break                                
+                    material_slot = MATERIAL_STORAGE_SLOTS.get(item.model_id)
+                    if fill_materials_first and item_is_inventory and (item.is_material or item.is_rare_material) and material_slot is not None:
+                        stack_item = material_storage_snapshot.get(material_slot)
+                        if stack_item is None or not stack_item.is_valid or stack_item.same_kind_as(item):
+                            _plan_into_destination(
+                                Bags.MaterialStorage,
+                                material_slot,
+                                stack_item,
+                                material_storage_capacity,
+                            )
                         
                     # get all items with the same model and type that have free space in their stacks and add them as potential destinations for the current item until we have found enough space for the whole stack. This way we minimize fragmentation in the bank and maximize the chances of fitting all items. We get them all from bag_enum, bag in inventory_snapshot.items()
                     stacks_of_same_kind_with_space = [(i, bag_id) for bag_id, bag in target_snapshot.items() for i in bag.values() if i and i.is_valid and i.is_stackable and i.same_kind_as(item) and i.quantity < MAX_STACK_SIZE]
@@ -1103,24 +1252,12 @@ class BTNodes:
                     stacks_of_same_kind_with_space.sort(key=lambda x: (-x[0].quantity, x[1].value, x[0].slot))
                     
                     for stack_item, bag in stacks_of_same_kind_with_space:
-                        if stack_item.quantity >= MAX_STACK_SIZE:
+                        if stack_item.quantity >= MAX_STACK_SIZE or (bag == Bags.MaterialStorage and stack_item.slot == material_slot):
                             continue
-                        
-                        moving_instructions.setdefault(bag, {})
-                        dest = moving_instructions[bag].setdefault(stack_item.slot, BTNodes.Items.ItemTransferInstructions(bag, stack_item.slot, stack_item))
-                        if dest.available_space > 0:
-                            qty_to_move = min(dest.available_space, qty)
-                            dest.available_space -= qty_to_move
-                            dest.items.append((item, qty_to_move))
-                            qty -= qty_to_move
-                            
-                            stack_item.quantity += qty_to_move  # simulate the move in the cache to get correct available space for subsequent stacks of the same item
-                            
-                            if qty <= 0:
-                                Py4GW.Console.Log("GetTransferInstructions", f"Item quantity reduced to 0, moving on to next item.")
-                                break
-                    
-                    
+
+                        stack_capacity = material_storage_capacity if bag == Bags.MaterialStorage else MAX_STACK_SIZE
+                        _plan_into_destination(bag, stack_item.slot, stack_item, stack_capacity)
+
                         if qty <= 0:
                             break
                     
@@ -1128,30 +1265,48 @@ class BTNodes:
                     for bag_enum, bag in target_snapshot.items():
                         for slot, stack_item in bag.items():
                             if stack_item is None:
-                                moving_instructions.setdefault(bag_enum, {})
-                                dest = moving_instructions[bag_enum].setdefault(slot, BTNodes.Items.ItemTransferInstructions(bag_enum, slot, None))
-                                
-                                qty_to_move = min(dest.available_space, qty)
-                                dest.available_space -= qty_to_move
-                                dest.items.append((item, qty_to_move))
-                                qty -= qty_to_move
+                                available_space = material_storage_capacity if bag_enum == Bags.MaterialStorage else (MAX_STACK_SIZE if item.is_stackable else 1)
+                                _plan_into_destination(bag_enum, slot, None, available_space)
                                                                 
                                 if qty <= 0:
                                     break
                         
                         if qty <= 0:
                             break
+
+                planned_qty = requested_qty - qty
+                destinations = BTNodes.Items._get_planned_destinations_for_item(moving_instructions, item.id)
+                destination_text = ", ".join(destinations) if destinations else "no destination"
+
+                if log_plans:
+                    if planned_qty <= 0:
+                        Py4GW.Console.Log(
+                            "GetTransferInstructions",
+                            f"Could not plan a move for '{item.names.plain}' (ID: {item.id}).",
+                        )
+                    elif planned_qty < requested_qty:
+                        Py4GW.Console.Log(
+                            "GetTransferInstructions",
+                            f"Planned partial move of {planned_qty}/{requested_qty} for '{item.names.plain}' (ID: {item.id}).\n{destination_text}.",
+                        )
+                        
+                    elif planned_qty == requested_qty:
+                        Py4GW.Console.Log(
+                            "GetTransferInstructions",
+                            f"Planned to move {requested_qty} of '{item.names.plain}' (ID: {item.id}).\n{destination_text}.",
+                        )
                 
             return moving_instructions            
         
         @staticmethod
         def DepositItems(
             item_ids: list[int],
-            target : list[Bag] = STORAGE_BAGS,
+            target : list[Bags] = STORAGE_BAGS,
             anniversary_panel: bool = False,
             fill_materials_first: bool = True,
             fail_if_no_space: bool = True,
             aftercast_ms: int = 25,
+            precomputed_instructions: Optional[dict[Bags, dict[int, "BTNodes.Items.ItemTransferInstructions"]]] = None,
         ):
             """
             Build an action node that deposits items into storage bags using transfer planning.
@@ -1164,11 +1319,11 @@ class BTNodes:
               UserDescription: Use this when you want a BT step that deposits known items into storage automatically.
               Notes: Can optionally fail when no valid storage destination exists and supports anniversary-panel bag filtering.
             """
-            if not anniversary_panel and Bag.Storage_14 in target:
-                target = [b for b in target if b != Bag.Storage_14]
+            if not anniversary_panel and Bags.Storage14 in target:
+                target = [b for b in target if b != Bags.Storage14]
             
             def _deposit(node: BehaviorTree.Node):
-                instructions = BTNodes.Items.GetTransferInstructions(item_ids, target, fill_materials_first=fill_materials_first)
+                instructions = precomputed_instructions if precomputed_instructions is not None else BTNodes.Items.GetTransferInstructions(item_ids, target, fill_materials_first=fill_materials_first)
                 moved_any = False
                 
                 if not instructions:
@@ -1177,18 +1332,37 @@ class BTNodes:
                 for bag in instructions.values():
                     for dest in bag.values():
                         for item, qty in dest.items:
-                            Inventory.MoveItem(item.id, dest.bag.value, dest.slot, qty)
-                            Py4GW.Console.Log(node.name, f"Moving {qty} of '{item.names.plain}' (ID: {item.id}) to bag {dest.bag.name} slot {dest.slot}")
+                            BTNodes.Items._move_item_to_transfer_destination(item, dest, qty, node.name)
                             moved_any = True
                 
                 return BehaviorTree.NodeState.SUCCESS if moved_any else BehaviorTree.NodeState.FAILURE
 
             return BehaviorTree.ActionNode(name="Items.DepositItems", action_fn=_deposit, aftercast_ms=aftercast_ms)
+
+        @staticmethod
+        def GetDepositableItemIds(
+            item_ids: list[int],
+            target: list[Bags] = STORAGE_BAGS,
+            fill_materials_first: bool = True,
+            anniversary_panel: bool = False,
+            log_plans: bool = False,
+        ) -> list[int]:
+            if not anniversary_panel and Bags.Storage14 in target:
+                target = [b for b in target if b != Bags.Storage14]
+
+            instructions = BTNodes.Items.GetTransferInstructions(
+                item_ids,
+                target,
+                fill_materials_first=fill_materials_first,
+                log_plans=log_plans,
+            )
+
+            return BTNodes.Items._get_planned_transfer_item_ids(instructions)
         
         @staticmethod
         def WithdrawItems(
             item_ids: list[int],
-            target : list[Bag] = INVENTORY_BAGS,
+            target : list[Bags] = INVENTORY_BAGS,
             fill_materials_first: bool = True,
             fail_if_no_space: bool = True,
             aftercast_ms: int = 25,
@@ -1214,8 +1388,7 @@ class BTNodes:
                 for bag in instructions.values():
                     for dest in bag.values():
                         for item, qty in dest.items:
-                            Inventory.MoveItem(item.id, dest.bag.value, dest.slot, qty)
-                            Py4GW.Console.Log(node.name, f"Moving {qty} of '{item.names.plain}' (ID: {item.id}) to bag {dest.bag.name} slot {dest.slot}")
+                            BTNodes.Items._move_item_to_transfer_destination(item, dest, qty, node.name)
                             moved_any = True
                 
                 return BehaviorTree.NodeState.SUCCESS if moved_any else BehaviorTree.NodeState.FAILURE
@@ -1252,7 +1425,7 @@ class BTNodes:
               Notes: Fails when matching storage items cannot be found or no valid transfer destinations exist.
             """
             def _restock(node: BehaviorTree.Node):        
-                inventory_snapshot = ItemSnapshot.get_inventory_snapshot(Bag.Backpack, Bag.Bag_2)
+                inventory_snapshot = ItemSnapshot.get_inventory_snapshot(Bags.Backpack, Bags.Bag2)
                 current_qty = sum(i.quantity for bag in inventory_snapshot.values() for i in bag.values() if i is not None and i.is_valid and i.model_id == model_id and i.item_type == item_type) if inventory_snapshot else 0
                 left_to_restock = max(0, quantity - current_qty)
                 
@@ -1273,7 +1446,7 @@ class BTNodes:
                     if item.quantity <= 0:
                         continue
                     
-                    has_space, space_for_qty = HasSpaceForItem(item.id, Bag.Backpack, Bag.Bag_2, quantity=item.quantity)
+                    has_space, space_for_qty = HasSpaceForItem(item.id, Bags.Backpack, Bags.Bag2, quantity=item.quantity)
                     if not has_space or space_for_qty <= 0:
                         continue
                                         
@@ -1294,8 +1467,7 @@ class BTNodes:
                 for bag in instructions.values():
                     for dest in bag.values():
                         for item, qty in dest.items:
-                            Inventory.MoveItem(item.id, dest.bag.value, dest.slot, qty)
-                            Py4GW.Console.Log(node.name, f"Moving {qty} of '{item.names.plain}' (ID: {item.id}) to bag {dest.bag.name} slot {dest.slot}")
+                            BTNodes.Items._move_item_to_transfer_destination(item, dest, qty, node.name)
 
                 return BehaviorTree.NodeState.SUCCESS
 
@@ -1303,7 +1475,7 @@ class BTNodes:
         
         @staticmethod
         def FillMaterialStorage(
-            source : list[Bag] = STORAGE_BAGS,
+            source : list[Bags] = STORAGE_BAGS,
             aftercast_ms: int = 150,
             succeed_if_already_filled: bool = True,
         ):
@@ -1319,12 +1491,12 @@ class BTNodes:
               Notes: Succeeds when any move is made or, optionally, when the storage is already effectively full.
             """
             def _fill_material_storage(node: BehaviorTree.Node):
-                source_bags = [bag for bag in source if bag != Bag.Material_Storage]
+                source_bags = [bag for bag in source if bag != Bags.MaterialStorage]
                 if not source_bags:
                     return BehaviorTree.NodeState.FAILURE
 
                 source_snapshot = ItemSnapshot.get_bags_snapshot(source_bags)
-                material_snapshot = ItemSnapshot.get_bag_snapshot(Bag.Material_Storage)
+                material_snapshot = ItemSnapshot.get_bag_snapshot(Bags.MaterialStorage)
 
                 material_storage_capacity = (
                     max((item.quantity for item in material_snapshot.values() if item), default=0) + MAX_STACK_SIZE - 1
@@ -1334,22 +1506,22 @@ class BTNodes:
 
                 moved_any = False
                 transfer_instructions: dict[int, BTNodes.Items.ItemTransferInstructions] = {}
-                bag_item_map : dict[int, Bag] = {item_id: bag for bag, bag_items in source_snapshot.items() for item_id, item in bag_items.items() if item}
+                bag_item_map : dict[int, Bags] = {item_id: bag for bag, bag_items in source_snapshot.items() for item_id, item in bag_items.items() if item}
                 
                 for _, bag_items in source_snapshot.items():
                     for _, item in bag_items.items():
-                        if item is None or not item.is_valid or not item.is_stackable or bag_item_map.get(item.id) == Bag.Material_Storage:
+                        if item is None or not item.is_valid or not item.is_stackable or bag_item_map.get(item.id) == Bags.MaterialStorage:
                             continue
                         
                         if not (item.is_material or item.is_rare_material):
                             continue
                         
-                        slot = MATERIAL_SLOTS.get(item.model_id, None)
+                        slot = MATERIAL_STORAGE_SLOTS.get(item.model_id, None)
                         if slot is None:
                             continue
                         
                         material = material_snapshot.get(slot, None)
-                        transfer_instructions.setdefault(slot, BTNodes.Items.ItemTransferInstructions(Bag.Material_Storage, slot, material, available_space=material_storage_capacity))
+                        transfer_instructions.setdefault(slot, BTNodes.Items.ItemTransferInstructions(Bags.MaterialStorage, slot, material, available_space=material_storage_capacity))
                         inst = transfer_instructions.get(slot)
                         
                         if inst is None:
@@ -1366,8 +1538,7 @@ class BTNodes:
                 
                 for dest in transfer_instructions.values():
                     for item, qty in dest.items:
-                        Inventory.MoveItem(item.id, dest.bag.value, dest.slot, qty)
-                        Py4GW.Console.Log(node.name, f"Moving {qty} of '{item.names.plain}' (ID: {item.id}) to Material Storage slot {dest.slot}")
+                        BTNodes.Items._move_item_to_transfer_destination(item, dest, qty, node.name)
                         moved_any = True
 
                 return BTNodes._success_if(moved_any or succeed_if_already_filled)
@@ -1375,8 +1546,77 @@ class BTNodes:
             return BehaviorTree.ActionNode(name="Inventory.FillMaterialStorage", action_fn=_fill_material_storage, aftercast_ms=aftercast_ms)
         
         @staticmethod
+        def _get_default_sort_item_type_order() -> list[int]:
+            item_type_order = [
+                int(ItemType.Kit),
+                int(ItemType.Key),
+                int(ItemType.Usable),
+                int(ItemType.Trophy),
+                int(ItemType.Quest_Item),
+                int(ItemType.Materials_Zcoins),
+            ]
+            item_type_order += [int(item_type) for item_type in ItemType if int(item_type) not in item_type_order]
+            return item_type_order
+
+        @staticmethod
+        def GetPlannedBagLayout(
+            bags: list[Bags] = INVENTORY_BAGS,
+        ) -> dict[Bags, dict[int, Optional[ItemSnapshot]]]:
+            """
+            Build the planned bag layout for the current default sort order without moving items.
+
+            Meta:
+              Expose: true
+              Audience: intermediate
+              Display: Get Planned Bag Layout
+              Purpose: Compute the target bag-slot layout that Sort Bags would currently try to produce.
+              UserDescription: Use this when you want to inspect or compare the default planned bag arrangement before executing it.
+              Notes: Returns a slot map using the current live snapshot and the same ordering rules as Sort Bags.
+            """
+            snapshot = ItemSnapshot.get_bags_snapshot(bags)
+            item_type_order = BTNodes.Bags._get_default_sort_item_type_order()
+
+            ordered_slots: list[tuple[Bags, int]] = []
+            planned_layout: dict[Bags, dict[int, Optional[ItemSnapshot]]] = {}
+
+            for bag in bags:
+                planned_layout[bag] = {}
+                for slot in sorted(snapshot.get(bag, {}).keys()):
+                    ordered_slots.append((bag, slot))
+                    planned_layout[bag][slot] = None
+
+            items = [
+                item
+                for bag in bags
+                for _, item in sorted(snapshot.get(bag, {}).items())
+                if item is not None and item.is_valid
+            ]
+            sorted_items = sorted(
+                items,
+                key=lambda item: (
+                    item.item_type == ItemType.Unknown,
+                    item_type_order.index(item.item_type),
+                    item.model_id,
+                    -item.rarity.value,
+                    -item.quantity,
+                    -item.value,
+                    item.color.value,
+                    item.id,
+                ),
+            )
+
+            for index, item in enumerate(sorted_items):
+                if index >= len(ordered_slots):
+                    break
+
+                bag, slot = ordered_slots[index]
+                planned_layout[bag][slot] = item
+
+            return planned_layout
+
+        @staticmethod
         def CompactBags(
-            bags : list[Bag] = INVENTORY_BAGS,         
+            bags : list[Bags] = INVENTORY_BAGS,         
             aftercast_ms: int = 150,
         ):
             """
@@ -1392,7 +1632,7 @@ class BTNodes:
             """
             def _compact(node: BehaviorTree.Node):
                 snapshot = ItemSnapshot.get_bags_snapshot(bags)
-                grouped_items : dict[tuple[ItemType, int, int], list[tuple[Bag, int, ItemSnapshot]]] = {}
+                grouped_items : dict[tuple[ItemType, int, int], list[tuple[Bags, int, ItemSnapshot]]] = {}
                 moved_any = False
                 
                 for bag in bags:
@@ -1428,7 +1668,7 @@ class BTNodes:
 
         @staticmethod
         def SortBags(
-            bags : list[Bag] = INVENTORY_BAGS,         
+            bags : list[Bags] = INVENTORY_BAGS,         
             aftercast_ms: int = 150,
         ):
             """
@@ -1443,54 +1683,21 @@ class BTNodes:
               Notes: The sort configuration is still marked as provisional in the implementation comments.
             """
             def _sort(node: BehaviorTree.Node):
-                snapshot = ItemSnapshot.get_bags_snapshot(bags)
+                planned_layout = BTNodes.Bags.GetPlannedBagLayout(bags)
+                moved_any = False
 
-                # TODO: Here we want to implement our sorting configuration, for now this is just the default behavior
-                item_typeOrder = [
-                    int(ItemType.Kit),
-                    int(ItemType.Key),
-                    int(ItemType.Usable),
-                    int(ItemType.Trophy),
-                    int(ItemType.Quest_Item),
-                    int(ItemType.Materials_Zcoins)
-                ]
-
-                # then everything else
-                item_typeOrder += [int(item)
-                                for item in ItemType if int(item) not in item_typeOrder]
-                
-                index_to_bag_map : dict[int, tuple[Bag, int]] = {}
-                index = 0
-                
                 for bag in bags:
-                    for slot in snapshot.get(bag, {}).keys():
-                        index_to_bag_map[index] = (bag, slot)
-                        index += 1
-                            
-                items = [item for bag in bags for slot, item in snapshot.get(bag, {}).items() if item and item.is_valid]
-                sorted_items = sorted(
-                    items,
-                    key=lambda item: (
-                        item.item_type == ItemType.Unknown,
-                        item_typeOrder.index(item.item_type),
-                        item.model_id,
-                        -item.rarity.value,
-                        -item.quantity,
-                        -item.value,
-                        item.color.value,
-                        item.id
-                    )
-                )
-                
-                for index, item in enumerate(sorted_items):
-                    bag, slot = index_to_bag_map.get(index, (None, None))
-                    
-                    if bag is None or slot is None:
-                        continue
-                
-                    Inventory.MoveItem(item.id, bag.value, slot, item.quantity)
-                
-                return BehaviorTree.NodeState.SUCCESS
+                    for slot, planned_item in sorted(planned_layout.get(bag, {}).items()):
+                        if planned_item is None or not planned_item.is_valid:
+                            continue
+
+                        if planned_item.bag == bag and planned_item.slot == slot:
+                            continue
+
+                        Inventory.MoveItem(planned_item.id, bag.value, slot, planned_item.quantity)
+                        moved_any = True
+
+                return BTNodes._success_if(moved_any)
 
             return BehaviorTree.ActionNode(name="Inventory.SortBags", action_fn=_sort, aftercast_ms=aftercast_ms)
 
