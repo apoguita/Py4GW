@@ -5,6 +5,7 @@ from collections.abc import Sequence
 
 from Py4GWCoreLib.py4gwcorelib_src.BehaviorTree import BehaviorTree
 from Py4GWCoreLib.routines_src.BehaviourTrees import BT as RoutinesBT
+from Py4GWCoreLib.routines_src.behaviourtrees_src.player import BT
 
 def Node(tree_or_node) -> BehaviorTree.Node:
     return BehaviorTree.Node._coerce_node(tree_or_node)
@@ -20,7 +21,7 @@ from Py4GWCoreLib.enums_src.UI_enums import ControlAction
 _HEROAI_GUARD_KEY = "__apobottinglib_restore_headless_heroai"
 _heroai_pause_counter = 0
 
-_POST_MOVEMENT_SETTLE_MS = 500
+_POST_MOVEMENT_SETTLE_MS = 350
 _WAITSPECIAL_EMOTES: tuple[str, ...] = (
     "attention",
     "bowhead",
@@ -151,8 +152,34 @@ def TargetAgentByModelID(modelID_or_encStr: int | str, log: bool = False) -> Beh
 def InteractTarget(log: bool = False) -> BehaviorTree:
     return _pause_heroai_for_action(RoutinesBT.Player.InteractTarget(log=log))
 
-def AutoDialog(button_number: int = 0, log: bool = False) -> BehaviorTree:
-    return _pause_heroai_for_action(RoutinesBT.Player.SendAutomaticDialog(button_number=button_number, log=log))
+def AutoDialog(button_number: int | list[int] = 0, log: bool = False, aftercast_ms: int = 150) -> BehaviorTree:
+    if isinstance(button_number, int):
+        buttons = [button_number]
+    else:
+        buttons = list(button_number)
+
+    if len(buttons) == 1:
+        return _pause_heroai_for_action(
+            RoutinesBT.Player.SendAutomaticDialog(
+                button_number=buttons[0],
+                log=log,
+                aftercast_ms=aftercast_ms,
+            )
+        )
+
+    return _pause_heroai_for_action(
+        RoutinesBT.Composite.Sequence(
+            *[
+                RoutinesBT.Player.SendAutomaticDialog(
+                    button_number=int(button),
+                    log=log,
+                    aftercast_ms=aftercast_ms,
+                )
+                for button in buttons
+            ],
+            name="AutoDialogSequence",
+        )
+    )
 
 def SendDialog(dialog_id: int | str, log: bool = False) -> BehaviorTree:
     return _pause_heroai_for_action(RoutinesBT.Player.SendDialog(dialog_id=dialog_id, log=log))
@@ -550,7 +577,45 @@ def IsItemEquipped(modelID_or_encStr: int | str) -> BehaviorTree:
     return RoutinesBT.Items.IsItemEquipped(modelID_or_encStr=modelID_or_encStr)
 
 def EquipItemByModelID(modelID_or_encStr: int | str, aftercast_ms: int = 250) -> BehaviorTree:
-    return RoutinesBT.Items.EquipItemByModelID(modelID_or_encStr=modelID_or_encStr,aftercast_ms=aftercast_ms,)
+    from Py4GWCoreLib.Agent import Agent
+    from Py4GWCoreLib import GLOBAL_CACHE
+    verify_aftercast_ms = max(250, int(aftercast_ms))
+
+    def _is_item_equipped() -> BehaviorTree.NodeState:
+        resolved_model_id = (
+            Agent.GetModelIDByEncString(modelID_or_encStr)
+            if isinstance(modelID_or_encStr, str)
+            else int(modelID_or_encStr)
+        )
+        return (
+            BehaviorTree.NodeState.SUCCESS
+            if GLOBAL_CACHE.Inventory.GetModelCountInEquipped(resolved_model_id) > 0
+            else BehaviorTree.NodeState.RUNNING
+        )
+
+    return BehaviorTree(
+        BehaviorTree.SelectorNode(
+            name=f"Equip Weapon {modelID_or_encStr}",
+            children=[
+                IsItemEquipped(modelID_or_encStr),
+                BehaviorTree.SequenceNode(
+                    name=f"EquipAndVerify {modelID_or_encStr}",
+                    children=[
+                        RoutinesBT.Items.EquipItemByModelID(
+                            modelID_or_encStr=modelID_or_encStr,
+                            aftercast_ms=aftercast_ms,
+                        ),
+                        BehaviorTree.WaitUntilNode(
+                            name=f"WaitUntilEquipped({modelID_or_encStr})",
+                            condition_fn=_is_item_equipped,
+                            throttle_interval_ms=100,
+                            timeout_ms=verify_aftercast_ms + 1250,
+                        ),
+                    ],
+                ),
+            ],
+        )
+    )
 
 def EquipInventoryBag(modelID_or_encStr: int | str,target_bag: int,timeout_ms: int = 2500,poll_interval_ms: int = 125,log: bool = False,) -> BehaviorTree:
     return RoutinesBT.Items.EquipInventoryBag(modelID_or_encStr=modelID_or_encStr,target_bag=target_bag,timeout_ms=timeout_ms,poll_interval_ms=poll_interval_ms,log=log,)
@@ -710,8 +775,20 @@ def ToggleHeroPanel() -> BehaviorTree:
 def ToggleSkillsAndAttributes() -> BehaviorTree:
     return PressKeybind(ControlAction.ControlAction_OpenSkillsAndAttributes.value)
 
+def PressEsc() -> BehaviorTree:
+    return BehaviorTree(
+        BehaviorTree.SequenceNode(
+            name="PressEsc",
+            children=[
+                Wait(duration_ms=250, log=False),
+                PressKeybind(Key.Escape.value),
+            ],
+        )
+    )
+
+
 def LeaveParty() -> BehaviorTree:
-    return RoutinesBT.Party.LeaveParty(aftercast_ms=250,)
+    return RoutinesBT.Party.LeaveParty(aftercast_ms=350,)
 
 def AddHero(hero_id: int) -> BehaviorTree:
     return RoutinesBT.Party.LoadParty(hero_ids=[hero_id],)
@@ -844,6 +921,169 @@ class Questmode():
     Skip = "skip"
 
 
+def HandleAutoQuest(
+    pos: PointOrPath | None,
+    buttons: int | list[int] = 0,
+    use_npc_model_or_enc_str: int | str | None = None,
+    require_quest_marker: bool = False,
+    success_map_id: int = 0,
+    post_dialog_wait_ms: int = 500,
+    log: bool = False,
+) -> BehaviorTree:
+    import Py4GW
+    from Py4GWCoreLib.Agent import Agent
+    from Py4GWCoreLib.routines_src.Agents import Agents as RoutinesAgents
+    from typing import cast
+
+    module_name = "HandleAutoQuest"
+    resolved_pos: PointOrPath | None = pos if pos is not None else None
+
+    def _resolve_npc_id() -> int:
+        nonlocal resolved_pos
+
+        if use_npc_model_or_enc_str is not None:
+            return int(RoutinesAgents.GetAgentIDByModelOrEncStr(use_npc_model_or_enc_str) or 0)
+
+        if resolved_pos is not None:
+            final_point = PointPath.final_point(resolved_pos)
+            if final_point is not None:
+                return int(RoutinesAgents.GetNearestNPCXY(final_point.x, final_point.y, 200.0) or 0)
+        return 0
+
+    def _pre_checks(node: BehaviorTree.Node) -> BehaviorTree.NodeState:
+        nonlocal resolved_pos
+
+        if resolved_pos is None:
+            if use_npc_model_or_enc_str is None:
+                Py4GW.Console.Log(
+                    module_name,
+                    "HandleAutoQuest failed: no position or NPC model provided.",
+                    Py4GW.Console.MessageType.Warning,
+                )
+                return BehaviorTree.NodeState.FAILURE
+
+            agent_id = _resolve_npc_id()
+            if agent_id == 0:
+                Py4GW.Console.Log(
+                    module_name,
+                    f"HandleAutoQuest failed: could not resolve NPC model {use_npc_model_or_enc_str}.",
+                    Py4GW.Console.MessageType.Warning,
+                )
+                return BehaviorTree.NodeState.FAILURE
+            agent_x, agent_y = Agent.GetXY(agent_id)
+            resolved_pos = (agent_x, agent_y)
+
+        if log:
+            Py4GW.Console.Log(
+                module_name,
+                f"HandleAutoQuest start: pos={resolved_pos} buttons={buttons} npc={use_npc_model_or_enc_str}",
+                Py4GW.Console.MessageType.Info,
+            )
+        return BehaviorTree.NodeState.SUCCESS
+
+    def _single_button_number() -> int:
+        if isinstance(buttons, int):
+            return int(buttons)
+        return int(buttons[0]) if buttons else 0
+
+    def _mid_checks() -> BehaviorTree:
+        if not require_quest_marker:
+            return BehaviorTree(
+                BehaviorTree.ActionNode(
+                    name="HandleAutoQuestMidChecksNoop",
+                    action_fn=lambda: BehaviorTree.NodeState.SUCCESS,
+                )
+            )
+
+        def _wait_for_quest_marker() -> BehaviorTree.NodeState:
+            npc_id = _resolve_npc_id()
+            if npc_id != 0 and Agent.HasQuest(npc_id):
+                return BehaviorTree.NodeState.SUCCESS
+            return BehaviorTree.NodeState.RUNNING
+
+        return BehaviorTree(
+            BehaviorTree.WaitUntilNode(
+                name="HandleAutoQuestWaitForQuestMarker",
+                condition_fn=_wait_for_quest_marker,
+                throttle_interval_ms=150,
+                timeout_ms=30000,
+            )
+        )
+
+    def _move_dialog_node() -> BehaviorTree:
+        nonlocal resolved_pos
+        move_pos = resolved_pos
+        if move_pos is None:
+            raise ValueError("HandleAutoQuest requires a resolved position before movement.")
+        if use_npc_model_or_enc_str is None:
+            if isinstance(buttons, int):
+                return MoveAndAutoDialog(
+                    pos=cast(PointOrPath, move_pos),
+                    button_number=_single_button_number(),
+                    log=log,
+                )
+            return RoutinesBT.Composite.Sequence(
+                MoveAndTarget(pos=cast(PointOrPath, move_pos), target_distance=Range.Nearby.value, move_tolerance=150.0, log=log),
+                Wait(_POST_MOVEMENT_SETTLE_MS, log=log),
+                InteractTarget(log=log),
+                AutoDialog(button_number=buttons, log=log),
+                name="MoveAndAutoDialogSequence",
+            )
+        if isinstance(buttons, int):
+            return MoveAndAutoDialogByModelID(
+                modelID_or_encStr=use_npc_model_or_enc_str,
+                button_number=_single_button_number(),
+                log=log,
+            )
+        return RoutinesBT.Composite.Sequence(
+            MoveAndTargetByModelID(modelID_or_encStr=use_npc_model_or_enc_str, log=log),
+            Wait(_POST_MOVEMENT_SETTLE_MS, log=log),
+            InteractTarget(log=log),
+            AutoDialog(button_number=buttons, log=log),
+            name="MoveAndAutoDialogByModelIDSequence",
+        )
+
+    def _post_checks() -> BehaviorTree:
+        if success_map_id != 0:
+            return WaitForMapLoad(map_id=int(success_map_id), timeout_ms=30000)
+        return Wait(max(0, int(post_dialog_wait_ms)), log=log)
+
+    return BehaviorTree(
+        BehaviorTree.SequenceNode(
+            name="HandleAutoQuest",
+            children=[
+                BehaviorTree.ActionNode(name="HandleAutoQuestPreChecks", action_fn=_pre_checks),
+                _mid_checks(),
+                BehaviorTree.SubtreeNode(
+                    name="HandleAutoQuestMoveDialogSubtree",
+                    subtree_fn=lambda node: _move_dialog_node(),
+                ),
+                _post_checks(),
+            ],
+        )
+    )
+
+
+def HandleQuestAutoDialog(
+    pos: PointOrPath | None,
+    button_number: int | list[int] = 0,
+    use_npc_model_or_enc_str: int | str | None = None,
+    require_quest_marker: bool = False,
+    success_map_id: int = 0,
+    post_dialog_wait_ms: int = 500,
+    log: bool = False,
+) -> BehaviorTree:
+    return HandleAutoQuest(
+        pos=pos,
+        buttons=button_number,
+        use_npc_model_or_enc_str=use_npc_model_or_enc_str,
+        require_quest_marker=require_quest_marker,
+        success_map_id=success_map_id,
+        post_dialog_wait_ms=post_dialog_wait_ms,
+        log=log,
+    )
+
+
 def HandleQuest(
     quest_id: int,
     pos: PointOrPath | None,
@@ -853,6 +1093,7 @@ def HandleQuest(
     use_npc_model_or_enc_str: int | str | None = None,
     require_quest_marker: bool = False,
     success_map_id: int = 0,
+    cancel_skill_reward_window: bool = False,
     log: bool = False,
 ) -> BehaviorTree:
     import Py4GW
@@ -865,12 +1106,36 @@ def HandleQuest(
     MODULE_NAME = "HandleQuest"
     
     blackboard_map_key = f"handlequest_initial_map_id_{quest_id}_{mode}"
+    blackboard_active_quest_key = f"handlequest_initial_active_quest_id_{quest_id}_{mode}"
+    blackboard_completion_key = f"handlequest_initial_completed_{quest_id}_{mode}"
     resolved_pos: PointOrPath | None = pos if pos is not None else None
     post_check_timeout_ms = 10000
     post_check_throttle_ms = 150
 
     def _quest_in_log() -> bool:
         return int(quest_id) in [int(qid) for qid in (Quest.GetQuestLogIds() or [])]
+
+    def _quest_completed() -> bool:
+        try:
+            return bool(Quest.IsQuestCompleted(int(quest_id)))
+        except Exception:
+            return False
+
+    def _current_active_quest_id() -> int:
+        try:
+            return int(Quest.GetActiveQuest() or 0)
+        except Exception:
+            return 0
+
+    def _npc_has_quest_marker() -> bool:
+        npc_id = 0
+        if use_npc_model_or_enc_str is not None:
+            npc_id = int(RoutinesAgents.GetAgentIDByModelOrEncStr(use_npc_model_or_enc_str) or 0)
+        elif resolved_pos is not None:
+            final_point = PointPath.final_point(resolved_pos)
+            if final_point is not None:
+                npc_id = int(RoutinesAgents.GetNearestNPCXY(final_point.x, final_point.y, 200.0) or 0)
+        return bool(npc_id != 0 and Agent.HasQuest(npc_id))
 
     def _pre_checks(node: BehaviorTree.Node) -> BehaviorTree.NodeState:
         nonlocal resolved_pos
@@ -887,6 +1152,9 @@ def HandleQuest(
             resolved_pos = (agent_x, agent_y)
 
         node.blackboard[blackboard_map_key] = int(Map.GetMapID() or 0)
+        node.blackboard[blackboard_active_quest_key] = _current_active_quest_id()
+        node.blackboard[blackboard_completion_key] = _quest_completed()
+        Quest.RequestQuestInfo(int(quest_id), update_marker=True)
         if log:
             Py4GW.Console.Log(
                 MODULE_NAME,
@@ -951,7 +1219,20 @@ def HandleQuest(
                 )
 
             if mode == Questmode.Complete:
+                initial_active_quest_id = int(node.blackboard.get(blackboard_active_quest_key, 0) or 0)
+                initial_completed = bool(node.blackboard.get(blackboard_completion_key, False))
                 if current_map_id != initial_map_id:
+                    return BehaviorTree.NodeState.SUCCESS
+                if _quest_completed() and not initial_completed:
+                    return BehaviorTree.NodeState.SUCCESS
+                if initial_active_quest_id == int(quest_id) and _current_active_quest_id() != int(quest_id):
+                    return BehaviorTree.NodeState.SUCCESS
+                if (
+                    require_quest_marker
+                    and initial_active_quest_id == int(quest_id)
+                    and _current_active_quest_id() != int(quest_id)
+                    and _npc_has_quest_marker()
+                ):
                     return BehaviorTree.NodeState.SUCCESS
                 return (
                     BehaviorTree.NodeState.SUCCESS
@@ -974,7 +1255,7 @@ def HandleQuest(
                 if npc_id != 0 and not Agent.HasQuest(npc_id):
                     return BehaviorTree.NodeState.SUCCESS
                 return BehaviorTree.NodeState.RUNNING
-
+            
             return BehaviorTree.NodeState.SUCCESS
 
         return BehaviorTree(
@@ -1037,7 +1318,24 @@ def HandleQuest(
             name="HandleQuestMoveDialogSubtree",
             subtree_fn=lambda node: _move_dialog_node(),
         )
-             
+
+    def _cancel_skill_reward_window_node() -> BehaviorTree:
+        if not cancel_skill_reward_window:
+            return BehaviorTree(
+                BehaviorTree.ActionNode(
+                    name="HandleQuestCancelSkillRewardWindowNoop",
+                    action_fn=lambda: BehaviorTree.NodeState.SUCCESS,
+                )
+            )
+        return BehaviorTree(
+                BehaviorTree.SequenceNode(
+                    name="Move And Dialog With Model Check",
+                    children=[
+                        Wait(250, log=log),
+                        CancelSkillRewardWindow()]
+                )
+            )
+    
     def _extra_dialog_node() -> BehaviorTree:
         if multi_dialog_id == 0:
             return BehaviorTree(
@@ -1065,6 +1363,7 @@ def HandleQuest(
                 _mid_checks(),
                 _move_dialog_subtree(),
                 _post_checks(),
+                _cancel_skill_reward_window_node(),
                 _extra_dialog_node(),
             ]
         )

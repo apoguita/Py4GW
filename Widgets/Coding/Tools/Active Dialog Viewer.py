@@ -60,6 +60,9 @@ def _draw_buttons() -> None:
         PyImGui.text(f"dialog_id: 0x{button.dialog_id:X} ({button.dialog_id})")
         PyImGui.text(f"button_icon: {button.button_icon}")
         PyImGui.text(f"decode_pending: {button.message_decode_pending}")
+        if  PyImGui.button(f"copy dialog to clipboard##copy_button_{index}"):
+            PyImGui.set_clipboard_text(f"0x{button.dialog_id:X}")
+            
         if PyImGui.button(f"Send##dialog_button_{index}"):
             Player.SendAutomaticDialog(index)
         label = button.message_decoded or button.message
@@ -70,6 +73,10 @@ def _draw_buttons() -> None:
 
 
 def main():
+    from Py4GWCoreLib.Routines import Checks
+    if not Checks.Map.MapValid():
+        return
+    
     global _dialog_was_active
     try:
         dialog_active = PyDialog.PyDialog.is_dialog_active()

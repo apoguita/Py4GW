@@ -9,6 +9,7 @@ from Py4GWCoreLib import ActionQueueManager, LootConfig, Range, SharedCommandTyp
 
 from .cache_data import CacheData
 from .follow.follower_runtime import FollowExecutionState, execute_follower_follow
+from .settings import Settings
 
 
 class HeroAIHeadlessTree:
@@ -22,6 +23,7 @@ class HeroAIHeadlessTree:
     def __init__(self, cached_data: CacheData | None = None, heroai_build: HeroAI_Build | None = None):
         self.cached_data = cached_data or CacheData()
         self.heroai_build = heroai_build or HeroAI_Build(self.cached_data)
+        Settings().AutoCallTargets = True
         self._build_contract_map_signature: tuple[int, int, int, int] | None = None
         self._loot_throttle_check = ThrottledTimer(250)
         self._looting_node: BehaviorTree.ActionNode | None = None

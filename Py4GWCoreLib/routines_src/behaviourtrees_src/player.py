@@ -275,7 +275,7 @@ class BTPlayer:
             return BehaviorTree(tree)
 
         @staticmethod
-        def SendAutomaticDialog(button_number: int, log: bool = False) -> BehaviorTree:
+        def SendAutomaticDialog(button_number: int, log: bool = False, aftercast_ms: int = 250) -> BehaviorTree:
             """
             Build a tree that waits for an automatic dialog and presses a visible button index.
 
@@ -372,7 +372,7 @@ class BTPlayer:
                     BehaviorTree.ActionNode(
                         name="SendAutomaticDialogAction",
                         action_fn=lambda: _send_automatic_dialog(button_number),
-                        aftercast_ms=350,
+                        aftercast_ms=aftercast_ms,
                     ),
                 ],
             )

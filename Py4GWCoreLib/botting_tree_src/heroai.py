@@ -1,14 +1,44 @@
 from ..GlobalCache import GLOBAL_CACHE
 from ..Player import Player
 from ..py4gwcorelib_src.BehaviorTree import BehaviorTree
+from ..py4gwcorelib_src.WidgetManager import get_widget_handler
 from .enums import HeroAIStatus
 
 
 class BottingTreeHeroAIMixin:
+    _HEROAI_WIDGET_NAME = 'HeroAI'
+
+    def _disable_heroai_widget_for_headless(self) -> bool:
+        try:
+            widget_handler = get_widget_handler()
+            if bool(widget_handler.is_widget_enabled(self._HEROAI_WIDGET_NAME)):
+                widget_handler.disable_widget(self._HEROAI_WIDGET_NAME)
+                self._headless_disabled_heroai_widget = True
+                return True
+        except Exception:
+            return False
+        return False
+
+    def _restore_heroai_widget_after_headless(self) -> bool:
+        if not bool(getattr(self, '_headless_disabled_heroai_widget', False)):
+            return False
+        try:
+            widget_handler = get_widget_handler()
+            if not bool(widget_handler.is_widget_enabled(self._HEROAI_WIDGET_NAME)):
+                widget_handler.enable_widget(self._HEROAI_WIDGET_NAME)
+            self._headless_disabled_heroai_widget = False
+            return True
+        except Exception:
+            return False
+
     def SetHeadlessHeroAIEnabled(self, enabled: bool, reset_runtime: bool = True):
         self.headless_heroai_enabled = enabled
         self._last_heroai_state = None
         self.ApplyAccountIsolation()
+        if enabled:
+            self._disable_heroai_widget_for_headless()
+        else:
+            self._restore_heroai_widget_after_headless()
         if reset_runtime:
             self.headless_heroai.reset()
             bb = self.blackboard

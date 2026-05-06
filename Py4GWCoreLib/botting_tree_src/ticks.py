@@ -49,6 +49,7 @@ class BottingTreeTicksMixin:
             self.headless_heroai.reset()
             return BehaviorTree.NodeState.RUNNING
 
+        self._disable_heroai_widget_for_headless()
         self.EnsureHeroAIOptionsEnabled()
 
         if Routines.Checks.Map.IsLoading() or not Routines.Checks.Map.IsExplorable():
