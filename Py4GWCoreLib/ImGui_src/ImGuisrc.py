@@ -1,3 +1,4 @@
+from enum import Enum
 import math
 
 from Py4GWCoreLib.enums_src.IO_enums import Key, ModifierKey
@@ -19,6 +20,7 @@ class ImGui:
     WindowModule: TypeAlias = WindowModule
     ImGuiStyleVar: TypeAlias  = ImGuiStyleVar
     style = PyImGui.StyleConfig()
+    __selectable_stack: list[dict[str, bool]] = []
     
     #region Styles
 
@@ -31,6 +33,16 @@ class ImGui:
     Textured_Themes = [StyleTheme.Guild_Wars,
                        StyleTheme.Minimalus]
     overlay_instance = Overlay()
+    
+    class MARKDOWN_COLORS(Enum):
+        White = Color(255, 255, 255, 255)
+        Blue = Color(153, 238, 255, 255)
+        Green = Color(0, 255, 0, 255)
+        Purple = Color(187, 136, 238, 255)
+        Gold = Color(255, 204, 85, 255)
+        
+        Red = Color(255, 0, 0, 255)
+        Dull = Color(120, 120, 120, 255)
 
     @staticmethod
     def get_style() -> Style:
@@ -375,7 +387,109 @@ class ImGui:
 
     @staticmethod
     def selectable(label: str, selected: bool, flags: PyImGui.SelectableFlags = PyImGui.SelectableFlags.NoFlag, size: Tuple[float, float] = (0.0, 0.0)) : return PyImGui.selectable(label, selected, flags, (int(size[0]), int(size[1])))
+    
+    @staticmethod
+    def begin_selectable(
+        id: str,
+        selected: bool = False,
+        size: Tuple[float, float] = (0.0, 0.0),
+        border: bool = True,
+        child_flags: int = PyImGui.WindowFlags.NoScrollbar | PyImGui.WindowFlags.NoScrollWithMouse,
+        hover_color: tuple[int, int, int, int] | None = None,
+        selected_color: tuple[int, int, int, int] | None = None,
+        border_color: tuple[int, int, int, int]  = (0, 0, 0, 0),
+    ) -> bool:
+        """
+        Begins a selectable child region that can contain arbitrary multi-line content.
+        Call `end_selectable()` afterwards and use its return value to react to clicks.
+        """
+        style = ImGui.get_style()
+        style.WindowPadding.push_style_var_direct(5, 5)
+        width = PyImGui.get_content_region_avail()[0] if size[0] == 0 else size[0]
+        height = size[1] if size[1] > 0 else (PyImGui.get_text_line_height_with_spacing() + (style.FramePadding.value2 or 0) * 2)
+
+        hovered = ImGui.is_mouse_in_rect((*PyImGui.get_cursor_screen_pos(), width, height))
+        pushed_child_bg = False
+        pushed_border = False
+
+        hover_color = hover_color or style.HeaderHovered.rgb_tuple
+        selected_color = selected_color or style.Header.rgb_tuple
+
+        style.Border.push_color_direct(border_color)
+        pushed_border = True
+
+        background = hover_color if hovered else selected_color if selected else None
+        if background is not None:
+            style.ChildBg.push_color_direct(background)
+            pushed_child_bg = True
+
+        ImGui.__selectable_stack.insert(0, {
+            "pushed_child_bg": pushed_child_bg,
+            "pushed_border": pushed_border,
+        })
+        open = PyImGui.begin_child(id, (width, height), border, child_flags)
+        style.WindowPadding.pop_style_var_direct()
+        return open
+
+    @staticmethod
+    def end_selectable() -> bool:
+        """
+        Ends a selectable child region started by `begin_selectable()`.
+        Returns True when the selectable was clicked this frame.
+        """
+        PyImGui.end_child()
+        clicked = PyImGui.is_item_clicked(0)
+
+        if not ImGui.__selectable_stack:
+            return clicked
+
+        state = ImGui.__selectable_stack.pop(0)
+        style = ImGui.get_style()
+
+        if state["pushed_child_bg"]:
+            style.ChildBg.pop_color_direct()
+        if state["pushed_border"]:
+            style.Border.pop_color_direct()
+
+        return clicked
+
+    @staticmethod
+    def custom_selectable(
+        label: str,
+        selected: bool = False,
+        size: Tuple[float, float] = (0.0, 0.0),
+        border: bool = True,
+        child_flags: int = PyImGui.WindowFlags.NoScrollbar | PyImGui.WindowFlags.NoScrollWithMouse,
+        hover_color: tuple[int, int, int, int] | None = None,
+        selected_color: tuple[int, int, int, int] | None = None,
+        border_color: tuple[int, int, int, int]  = (0, 0, 0, 0),
+        draw: Callable[[], None] | None = None,
+    ) -> bool:
+        """
+        Draws a selectable region with either wrapped label text or custom content.
+        Returns True when clicked.
+        """
+        opened = ImGui.begin_selectable(
+            id=label,
+            selected=selected,
+            size=size,
+            border=border,
+            child_flags=child_flags,
+            hover_color=hover_color,
+            selected_color=selected_color,
+            border_color=border_color,
+        )
+
+        if opened:
+            if draw is not None:
+                draw()
+            else:
+                ImGui.text_wrapped(label.split("##", 1)[0])
+
+        return ImGui.end_selectable()
+    
         
+    
     @staticmethod
     def color_edit3(label: str, color: Tuple[float, float, float]) : return PyImGui.color_edit3(label, color)
     
@@ -440,13 +554,48 @@ class ImGui:
     @staticmethod
     def _with_font(fn, text: str, font_size: int | None = None, font_style: str | None = None) -> None:
         if font_style is None: font_style = "Regular"
-        if font_size is not None: ImGui.push_font(font_style, font_size)
+        if font_size is not None: ImGui.push_font(font_style, font_size)            
         fn(text)
         if font_size is not None: ImGui.pop_font()
 
     @staticmethod
-    def text(text: str, font_size: int | None = None, font_style: str | None = None) -> None:
-        ImGui._with_font(PyImGui.text, text, font_size, font_style)
+    def get_markdown_color(text: str) -> Optional[Color]:
+        markdowns = {
+          "<c=@ItemCommon>": ImGui.MARKDOWN_COLORS.White,
+          "<c=@ItemBasic>": ImGui.MARKDOWN_COLORS.White,
+          "<c=@ItemBonus>": ImGui.MARKDOWN_COLORS.Blue,
+          "<c=@ItemEnhance>": ImGui.MARKDOWN_COLORS.Blue,
+          "<c=@ItemUncommon>": ImGui.MARKDOWN_COLORS.Purple,
+          "<c=@ItemRare>": ImGui.MARKDOWN_COLORS.Gold,
+          "<c=@ItemUnique>": ImGui.MARKDOWN_COLORS.Green,
+          "<c=@ItemRestrict>": ImGui.MARKDOWN_COLORS.Red,
+          "<c=@ItemDull>": ImGui.MARKDOWN_COLORS.Dull,
+        }
+        
+        for tag, color in markdowns.items():
+            if text.startswith(tag):
+                return color.value
+            
+    @staticmethod
+    def strip_markdown(text: str) -> str:
+        if text.startswith("<c="):
+            end_tag_index = text.find(">")
+            text = text[end_tag_index + 1:]
+    
+        if text.endswith("</c>"):
+            text = text[:-4]
+        
+        return text
+
+    @staticmethod
+    def text(text: str, font_size: int | None = None, font_style: str | None = None, render_markdown: bool = False) -> None:
+        markdown_color = ImGui.get_markdown_color(text) if render_markdown else None
+        if markdown_color is not None:
+            text = ImGui.strip_markdown(text)
+            ImGui._with_font(lambda t: PyImGui.text_colored(t, markdown_color.color_tuple), text, font_size, font_style)
+        
+        else:
+            ImGui._with_font(PyImGui.text, text, font_size, font_style)
 
     @staticmethod        
     def text_aligned(
@@ -457,6 +606,7 @@ class ImGui:
         font_size: int | None = None,
         font_style: str | None = None,
         color: tuple[float, float, float, float] | None = None,
+        render_markdown: bool = False,
     ):
         """Draws text aligned inside a given width/height box."""
         width = PyImGui.get_content_region_avail()[0] if width == 0 else width
@@ -483,8 +633,12 @@ class ImGui:
             x0, y0 = PyImGui.get_cursor_pos()
             
             PyImGui.set_cursor_pos(x, y)
-            if color is not None:
-                ImGui.text_colored(text, color)
+            markdown_color = ImGui.get_markdown_color(text) if render_markdown and color is None else None
+            render_color = markdown_color.color_tuple if markdown_color is not None else color
+            
+            if render_color is not None:
+                text = ImGui.strip_markdown(text) if markdown_color else text
+                ImGui.text_colored(text, render_color)
             else:
                 PyImGui.text(text)
             _, _, item_rect_size = ImGui.get_item_rect()
