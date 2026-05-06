@@ -11,6 +11,8 @@ from Py4GWCoreLib.ImGui_src.ImGuisrc import ImGui
 from Py4GWCoreLib.enums_src.Hero_enums import HeroType
 from Py4GW import Game
 
+from Widgets.Automation.Helpers.Pycons import TEAM_SETTINGS_CACHE_MS
+
 BOT_NAME = "Elite Skills Capture"
 MODULE_NAME = BOT_NAME
 MODULE_ICON = "Textures\\Module_Icons\\elite_skills_capture.png"
@@ -311,21 +313,21 @@ SECONDARY_BUILDS = {
         Profession.MESMER:       "OwUUMsG/E4SNgbE3N3ETfQgAADAA",   # Mo/Me
         Profession.ELEMENTALIST: "OwYUosG/E4SNgbE3N3ETfQgFDDAA",   # Mo/E
         Profession.ASSASSIN:     "OwcU04nA3vRNgbE3N3ETfQguMDAA",   # Mo/A
-        Profession.RITUALIST:    "Owgk0wPC0GaUD4GxdzNx0HEYGzAA",   # Mo/Rt
+        Profession.RITUALIST:    "OAhjQwGcYMZC3wjoqyJGErwBAA",   # Mo/Rt
         Profession.PARAGON:      "Owkk0wPC0eaUD4GxdzNx0HEoK2AA",   # Mo/P
-        Profession.DERVISH:      "Owok0wPC0uaUD4GxdzNx0HEo41AA",   # Mo/D
+        Profession.DERVISH:      "OApjQwG8aMZC3wjoqyJGErwBAA",   # Mo/D
     },
     Profession.NECROMANCER: {
-        Profession.WARRIOR:      "OAFUQkCbYZQZCuBPCVV7i2kAADAA",    # N/W
-        Profession.RANGER:       "OAJUQkCbYcQZCuBPCVV7i2kAADAA",    # N/R
-        Profession.MONK:         "OANEQSxG7BlJ4G8IUVtLaTCAMAA",     # N/Mo
-        Profession.NECROMANCER:  "OAVEIBJFbMlJ4G8IUVtLaTCAMAA",     # N
-        Profession.MESMER:       "OAVEIBJFbMlJ4G8IUVtLaTCAMAA",     # N/Me
-        Profession.ELEMENTALIST: "OAZEQSxGnBlJ4G8IUVtLaTCAMAA",     # N/E
-        Profession.ASSASSIN:     "OAdUQkCb4fQZCuBPCVV7i2kAADAA",   # N/A
-        Profession.RITUALIST:    "OAhkQIFsBHGUmgbwjQV1uoNJAwAA",   # N/Rt
-        Profession.PARAGON:      "OAlkQIFsBbGUmgbwjQV1uoNJAwAA",   # N/P
-        Profession.DERVISH:      "OApkQIFsBrGUmgbwjQV1uoNJAwAA",   # N/D
+        Profession.WARRIOR:      "OAFTQYDTjJT4GeEVVOxgYFOAAA",    # N/W
+        Profession.RANGER:       "OAJTQYDnjJT4GeEVVOxgYFOAAA",    # N/R
+        Profession.MONK:         "OANDQsxfMZC3wjoqyJGErwBA",     # N/Mo
+        Profession.NECROMANCER:  "OAVDIBxGPZC3wjoqyJGErwBA",     # N
+        Profession.MESMER:       "OAVDIBxGPZC3wjoqyJGErwBA",     # N/Me
+        Profession.ELEMENTALIST: "OAZDQsxYMZC3wjoqyJGErwBA",     # N/E
+        Profession.ASSASSIN:     "OAdTQYD3jJT4GeEVVOxgYFOAAA",   # N/A
+        Profession.RITUALIST:    "OAhjQwGcYMZC3wjoqyJGErwBAA",   # N/Rt
+        Profession.PARAGON:      "OAljQwGcZMZC3wjoqyJGErwBAA",   # N/P
+        Profession.DERVISH:      "OApjQwGcaMZC3wjoqyJGErwBAA",   # N/D
     },
     Profession.ELEMENTALIST: {
         Profession.WARRIOR:      "OgFToYGXHaX0msYQYgWAZIAYAAA",    # E/W
@@ -420,7 +422,7 @@ ELITE_SKILLS = [
         profession=Profession.MESMER,
         type=EliteSkillType.ELITE_SKILL,
         step_name="[H]Energy Surge",
-        capture_function="EnergySurge",
+        capture_function="Energy_Surge",
         start_map=414,
         icon_filename="[39] - Energy Surge.jpg",
         
@@ -432,7 +434,7 @@ ELITE_SKILLS = [
         profession=Profession.DERVISH,
         type=EliteSkillType.ELITE_SKILL,
         step_name="[H]Pious Renewal",
-        capture_function="PiousRenewal",
+        capture_function="Pious_Renewal",
         start_map=493,
         icon_filename="[1499] - Pious Renewal.jpg",
     ),
@@ -443,7 +445,7 @@ ELITE_SKILLS = [
         profession=Profession.NECROMANCER,
         type=EliteSkillType.ELITE_SKILL,
         step_name="[H]Blood is Power",
-        capture_function="BloodIsPower",
+        capture_function="Blood_is_Power",
         start_map=393,
         icon_filename="[119] - Blood is Power.jpg",
     ),
@@ -487,7 +489,7 @@ ELITE_SKILLS = [
         profession=Profession.NECROMANCER,
         type=EliteSkillType.ELITE_SKILL,
         step_name="[H]Spoil Victor",
-        capture_function="SpoilVictor",
+        capture_function="Spoil_Victor",
         start_map=230,
         icon_filename="[1066] - Spoil Victor.jpg",
     ),
@@ -498,18 +500,62 @@ ELITE_SKILLS = [
         profession=Profession.RITUALIST,
         type=EliteSkillType.ELITE_SKILL,
         step_name="[H]Signet of Spirits",
-        capture_function="SignetOfSpirits",
+        capture_function="Signet_of_Spirits",
         start_map=388,
         icon_filename="[1239] - Signet of Spirits.jpg",
     ),
     EliteSkill(
+        id="skill_1220",
+        display_name="Attuned Was Songkai",
+        skill_id=1220,
+        profession=Profession.RITUALIST,
+        type=EliteSkillType.ELITE_SKILL,
+        step_name="[H]Attuned Was Songkai",
+        capture_function="Attuned_Was_Songkai",
+        start_map=222,
+        icon_filename="[1220] - Attuned Was Songkai.jpg",
+    ),
+    EliteSkill(
+        id="skill_1215",
+        display_name="Clamor of Souls",
+        skill_id=1215,
+        profession=Profession.RITUALIST,
+        type=EliteSkillType.ELITE_SKILL,
+        step_name="[H]Clamor of Souls",
+        capture_function="Clamor_of_Souls",
+        start_map=222,
+        icon_filename="[1215] - Clamor of Souls.jpg",
+    ),
+    EliteSkill(
+        id="skill_1744",
+        display_name="Caretaker's Charge",
+        skill_id=1744,
+        profession=Profession.RITUALIST,
+        type=EliteSkillType.ELITE_SKILL,
+        step_name="[H]Caretaker's Charge",
+        capture_function="Caretakers_Charge",
+        start_map=473,
+        icon_filename="[1744] - Caretaker's Charge.jpg",
+    ),
+    EliteSkill(
+        id="skill_914",
+        display_name="Consume Soul",
+        skill_id=914,
+        profession=Profession.RITUALIST,
+        type=EliteSkillType.ELITE_SKILL,
+        step_name="[H]Consume Soul",
+        capture_function="Consume_Soul",
+        start_map=389,
+        icon_filename="[914] - Consume Soul.jpg",
+    ),
+    EliteSkill(
         id="skill_121",
-        display_name="Spiteful Spirit   ",
+        display_name="Spiteful Spirit",
         skill_id=121,
         profession=Profession.NECROMANCER,
         type=EliteSkillType.ELITE_SKILL,
         step_name="[H]Spiteful Spirit",
-        capture_function="SpitefulSpirit",
+        capture_function="Spiteful_Spirit",
         start_map=155,
         icon_filename="[121] - Spiteful Spirit.jpg",
     ),
@@ -520,7 +566,7 @@ ELITE_SKILLS = [
         profession=Profession.ELEMENTALIST,
         type=EliteSkillType.ELITE_SKILL,
         step_name="[H]Mist Form",
-        capture_function="MistForm",
+        capture_function="Mist_Form",
         start_map=155,
         icon_filename="[236] - Mist Form.jpg",
     ),
@@ -531,7 +577,7 @@ ELITE_SKILLS = [
         profession=Profession.MONK,
         type=EliteSkillType.ELITE_SKILL,
         step_name="[H]Signet of Judgement",
-        capture_function="SignetOfJudgement",
+        capture_function="Signet_of_Judgement",
         start_map=155,
         icon_filename="[294] - Signet of Judgment.jpg",
     ),
@@ -542,7 +588,7 @@ ELITE_SKILLS = [
         profession=Profession.MESMER,
         type=EliteSkillType.ELITE_SKILL,
         step_name="[H]Illusionary Weaponry",
-        capture_function="IllusionaryWeaponry",
+        capture_function="Illusionary_Weaponry",
         start_map=155,
         icon_filename="[33] - Illusionary Weaponry.jpg",
     ),
@@ -553,7 +599,7 @@ ELITE_SKILLS = [
         profession=Profession.ASSASSIN,
         type=EliteSkillType.ELITE_SKILL,
         step_name="[H]Shadow Form",
-        capture_function="ShadowForm",
+        capture_function="Shadow_Form",
         start_map=284,
         icon_filename="[826] - Shadow Form.jpg",
     ),
@@ -564,7 +610,7 @@ ELITE_SKILLS = [
         profession=Profession.ASSASSIN,
         type=EliteSkillType.ELITE_SKILL,
         step_name="[H]Shadow Form - WoC",
-        capture_function="ShadowFormWoC",
+        capture_function="Shadow_Form_WoC",
         start_map=284,
         icon_filename="[826] - Shadow Form.jpg",
     ),
@@ -578,6 +624,17 @@ ELITE_SKILLS = [
         capture_function="BroadHeadArrow",
         start_map=284,
         icon_filename="[1198] - Broad Head Arrow.jpg",
+    ),
+    EliteSkill(
+        id="skill_1200",
+        display_name="Archer's Signet",
+        skill_id=1200,
+        profession=Profession.RANGER,
+        type=EliteSkillType.ELITE_SKILL,
+        step_name="[H]Archer's Signet",
+        capture_function="Archers_Signet",
+        start_map=129,
+        icon_filename="[1200] - Archer's Signet.jpg",
     ),
     EliteSkill(
         id="skill_1240",
@@ -752,7 +809,7 @@ ELITE_SKILLS = [
         type=EliteSkillType.ELITE_SKILL,
         step_name="[H]Plague Signet",
         capture_function="PlagueSignet",
-        start_map=158,
+        start_map=640,
         icon_filename="[132] - Plague Signet.jpg",
     ),
     EliteSkill(
@@ -1502,7 +1559,7 @@ ELITE_SKILLS = [
         type=EliteSkillType.ELITE_SKILL,
         step_name="[H]Martyr",
         capture_function="Martyr",
-        start_map=129,
+        start_map=442,
         icon_filename="[298] - Martyr.jpg",
     ),
     EliteSkill(
@@ -2143,6 +2200,281 @@ ELITE_SKILLS = [
         start_map=287,
         icon_filename="[799] - Beguiling Haze.jpg",
     ),
+    EliteSkill(
+        id="skill_832",
+        display_name="Animate Flesh Golem",
+        skill_id=832,
+        profession=Profession.NECROMANCER,
+        type=EliteSkillType.ELITE_SKILL,
+        step_name="[H]Animate Flesh Golem",
+        capture_function="Animate_Flesh_Golem",
+        start_map=51,
+        icon_filename="[832] - Animate Flesh Golem.jpg",
+    ), 
+    EliteSkill(
+        id="skill_1356",
+        display_name="Contagion",
+        skill_id=1356,
+        profession=Profession.NECROMANCER,
+        type=EliteSkillType.ELITE_SKILL,
+        step_name="[H]Contagion",
+        capture_function="Contagion",
+        start_map=425,
+        icon_filename="[1356] - Contagion.jpg",
+    ), 
+    EliteSkill(
+        id="skill_1362",
+        display_name="Corrupt Enchantment",
+        skill_id=1362,
+        profession=Profession.NECROMANCER,
+        type=EliteSkillType.ELITE_SKILL,
+        step_name="[H]Corrupt Enchantment",
+        capture_function="Corrupt_Enchantment",
+        start_map=393,
+        icon_filename="[1362] - Corrupt Enchantment.jpg",
+    ), 
+    EliteSkill(
+        id="skill_1342",
+        display_name="Tease",
+        skill_id=1342,
+        profession=Profession.MESMER,
+        type=EliteSkillType.ELITE_SKILL,
+        step_name="[H]Tease",
+        capture_function="Tease",
+        start_map=393,
+        icon_filename="[1342] - Tease.jpg",
+    ), 
+    EliteSkill(
+        id="skill_1378",
+        display_name="Master of Magic",
+        skill_id=1378,
+        profession=Profession.ELEMENTALIST,
+        type=EliteSkillType.ELITE_SKILL,
+        step_name="[H]Master of Magic",
+        capture_function="Master_of_Magic",
+        start_map=393,
+        icon_filename="[1378] - Master of Magic.jpg",
+    ), 
+    EliteSkill(
+        id="skill_1664",
+        display_name="Invoke Lightning",
+        skill_id=1664,
+        profession=Profession.ELEMENTALIST,
+        type=EliteSkillType.ELITE_SKILL,
+        step_name="[H]Invoke Lightning",
+        capture_function="Invoke_Lightning",
+        start_map=393,
+        icon_filename="[1664] - Invoke Lightning.jpg",
+    ),
+    EliteSkill(
+        id="skill_806",
+        display_name="Cultist's Fervor",
+        skill_id=806,
+        profession=Profession.NECROMANCER,
+        type=EliteSkillType.ELITE_SKILL,
+        step_name="[H]Cultist's Fervor",
+        capture_function="Cultists_Fervor",
+        start_map=234,
+        icon_filename="[806] - Cultist's Fervor.jpg",
+    ), 
+    EliteSkill(
+        id="skill_113",
+        display_name="Tainted Flesh",
+        skill_id=113,
+        profession=Profession.NECROMANCER,
+        type=EliteSkillType.ELITE_SKILL,
+        step_name="[H]Tainted Flesh",
+        capture_function="Tainted_Flesh",
+        start_map=287,
+        icon_filename="[113] - Tainted Flesh.jpg",
+    ),
+    EliteSkill(
+        id="skill_820",
+        display_name="Depravity",
+        skill_id=820,
+        profession=Profession.NECROMANCER,
+        type=EliteSkillType.ELITE_SKILL,
+        step_name="[H]Depravity",
+        capture_function="Depravity",
+        start_map=381,
+        icon_filename="[820] - Depravity.jpg",
+    ), 
+    EliteSkill(
+        id="skill-817",
+        display_name="Discord",
+        skill_id=817,
+        profession=Profession.NECROMANCER,
+        type=EliteSkillType.ELITE_SKILL,
+        step_name="[H]Discord",
+        capture_function="Discord",
+        start_map=350,
+        icon_filename="[817] - Discord.jpg"
+    ), 
+    EliteSkill(
+        id="skill-821",
+        display_name="Icy Veins",
+        skill_id=821,
+        profession=Profession.NECROMANCER,
+        type=EliteSkillType.ELITE_SKILL,
+        step_name="[H]Icy Veins",
+        capture_function="Icy_Veins",
+        start_map=222,
+        icon_filename="[821] - Icy Veins.jpg"
+    ), 
+    EliteSkill(
+        id="skill-54",
+        display_name="Crippling Anguish",
+        skill_id=54,
+        profession=Profession.MESMER,
+        type=EliteSkillType.ELITE_SKILL,
+        step_name="[H]Crippling Anguish",
+        capture_function="Crippling_Anguish",
+        start_map=222,
+        icon_filename="[54] - Crippling Anguish.jpg"
+    ),
+    EliteSkill(
+        id="skill-862",
+        display_name="Ravenous Gaze",
+        skill_id=862,
+        profession=Profession.NECROMANCER,
+        type=EliteSkillType.ELITE_SKILL,
+        step_name="[H]Ravenous Gaze",
+        capture_function="Ravenous_Gaze",
+        start_map=424,
+        icon_filename="[862] - Ravenous Gaze.jpg"
+    ),
+    EliteSkill(
+        id="skill-1364",
+        display_name="Signet of Suffering",
+        skill_id=1364,
+        profession=Profession.NECROMANCER,
+        type=EliteSkillType.ELITE_SKILL,
+        step_name="[H]Signet of Suffering",
+        capture_function="Signet_of_Suffering",
+        start_map=442,
+        icon_filename="[1364] - Signet of Suffering.jpg"
+    ),
+    EliteSkill(
+        id="skill-142",
+        display_name="Lingering Curse",
+        skill_id=142,
+        profession=Profession.NECROMANCER,
+        type=EliteSkillType.ELITE_SKILL,
+        step_name="[H]Lingering Curse",
+        capture_function="Lingering_Curse",
+        start_map=272,
+        icon_filename="[142] - Lingering Curse.jpg"
+    ),
+    EliteSkill(
+        id="skill-901",
+        display_name="Soul Bind",
+        skill_id=901,
+        profession=Profession.NECROMANCER,
+        type=EliteSkillType.ELITE_SKILL,
+        step_name="[H]Soul Bind",
+        capture_function="Soul_Bind",
+        start_map=284,
+        icon_filename="[901] - Soul Bind.jpg"
+    ),
+    EliteSkill(
+        id="skill-819",
+        display_name="Vampiric Spirit",
+        skill_id=819,
+        profession=Profession.NECROMANCER,
+        type=EliteSkillType.ELITE_SKILL,
+        step_name="[H]Vampiric Spirit",
+        capture_function="Vampiric_Spirit",
+        start_map=272,
+        icon_filename="[819] - Vampiric Spirit.jpg"
+    ),
+    EliteSkill(
+        id="skill-937",
+        display_name="Shockwave",
+        skill_id=937,
+        profession=Profession.ELEMENTALIST,
+        type=EliteSkillType.ELITE_SKILL,
+        step_name="[H]Shockwave",
+        capture_function="Shockwave",
+        start_map=272,
+        icon_filename="[937] - Shockwave.jpg"
+    ), 
+    EliteSkill(
+        id="skill-86",
+        display_name="Grenth's Balance",
+        skill_id=86,
+        profession=Profession.NECROMANCER,
+        type=EliteSkillType.ELITE_SKILL,
+        step_name="[H]Grenth's Balance",
+        capture_function="Grenths_Balance",
+        start_map=378,
+        icon_filename="[86] - Grenth's Balance.jpg"
+    ), 
+    EliteSkill(
+        id="skill-1355",
+        display_name="Jagged Bones",
+        skill_id=1355,
+        profession=Profession.NECROMANCER,
+        type=EliteSkillType.ELITE_SKILL,
+        step_name="[H]Jagged Bones",
+        capture_function="Jagged_Bones",
+        start_map=643,
+        icon_filename="[1355] - Jagged Bones.jpg"
+    ), 
+    EliteSkill(
+        id="skill-146",
+        display_name="Offering of Blood",
+        skill_id=146,
+        profession=Profession.NECROMANCER,
+        type=EliteSkillType.ELITE_SKILL,
+        step_name="[H]Offering of Blood",
+        capture_function="Offering_of_Blood",
+        start_map=22,
+        icon_filename="[146] - Offering of Blood.jpg"
+    ), 
+    EliteSkill(
+        id="skill-148",
+        display_name="Order of the Vampire",
+        skill_id=148,
+        profession=Profession.NECROMANCER,
+        type=EliteSkillType.ELITE_SKILL,
+        step_name="[H]Order of the Vampire",
+        capture_function="Order_of_the_Vampire",
+        start_map=117,
+        icon_filename="[148] - Order of the Vampire.jpg"
+    ), 
+    EliteSkill(
+        id="skill-1659",
+        display_name="Toxic Chill",
+        skill_id=1659,
+        profession=Profession.NECROMANCER,
+        type=EliteSkillType.ELITE_SKILL,
+        step_name="[H]Toxic Chill",
+        capture_function="Toxic_Chill",
+        start_map=433,
+        icon_filename="[1659] - Toxic Chill.jpg"
+    ), 
+    EliteSkill(
+        id="skill-764",
+        display_name="Wail of Doom",
+        skill_id=764,
+        profession=Profession.NECROMANCER,
+        type=EliteSkillType.ELITE_SKILL,
+        step_name="[H]Wail of Doom",
+        capture_function="Wail_of_Doom",
+        start_map=226,
+        icon_filename="[764] - Wail of Doom.jpg"
+    ), 
+    EliteSkill(
+        id="skill-822",
+        display_name="Weaken Knees",
+        skill_id=822,
+        profession=Profession.NECROMANCER,
+        type=EliteSkillType.ELITE_SKILL,
+        step_name="[H]Weaken Knees",
+        capture_function="Weaken_Knees",
+        start_map=129,
+        icon_filename="[822] - Weaken Knees.jpg"
+    )
 ]
 
 def get_elite_skill_by_id(skill_id: str) -> Optional[EliteSkill]:
@@ -2590,7 +2922,7 @@ def DunkoroHeroTeam():
             yield from Routines.Yield.wait(100)
 
 # ============================================================================
-#region ELITE SKILL CAPTURE FUNCTIONS
+#region CAPTURE FUNCTIONS
 # ============================================================================
 
 def get_skill_attribute_offset(skill_id: int) -> int:
@@ -2638,8 +2970,8 @@ def ClickSkillFrame(skill_id: int):
             ConsoleLog("ClickSkillFrame", f"ERROR: Capture button (frame 0) not found!", log=True)
     else:
         ConsoleLog("ClickSkillFrame", f"ERROR: Skill frame {skill_id} not found! Check if Signet of Capture UI is open", log=True)
-
-def EnergySurge():
+#region Elite Skill Functions
+def Energy_Surge():
     bot.States.AddHeader("Energy Surge")
     target_prof = Profession.MESMER
     start_map = 414
@@ -2666,7 +2998,7 @@ def EnergySurge():
     bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
     yield
 
-def PiousRenewal():
+def Pious_Renewal():
     bot.States.AddHeader("Pious Renewal")
     target_prof = Profession.DERVISH
     start_map = 493
@@ -2698,7 +3030,7 @@ def PiousRenewal():
     bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
     yield
 
-def BloodIsPower():
+def Blood_is_Power():
     bot.States.AddHeader("Blood is Power")
     target_prof = Profession.NECROMANCER
     start_map = 393
@@ -2804,7 +3136,7 @@ def Migraine():
     bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
     yield
 
-def SpoilVictor():
+def Spoil_Victor():
     bot.States.AddHeader("Spoil Victor")
     target_prof = Profession.NECROMANCER
     start_map = 230
@@ -2830,7 +3162,7 @@ def SpoilVictor():
     bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
     yield
 
-def SignetOfSpirits():
+def Signet_of_Spirits():
     bot.States.AddHeader("Signet of Spirits")
     target_prof = Profession.RITUALIST
     start_map = 388
@@ -2845,8 +3177,7 @@ def SignetOfSpirits():
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(10536, 17699)
     bot.Move.XY(3726, 7910)
-    bot.Move.XY(-10086.13, -6514.95)
-    bot.Move.XY(6051.00, 4126.00)
+    bot.Move.XY(6946, 4113)
     bot.Wait.UntilOutOfCombat()
     ConfigurePacifistEnv(bot)
     bot.SkillBar.UseSkill(3)
@@ -2856,7 +3187,7 @@ def SignetOfSpirits():
     bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
     yield
 
-def SpitefulSpirit():
+def Spiteful_Spirit():
     bot.States.AddHeader("Spiteful Spirit")
     target_prof = Profession.NECROMANCER
     start_map = 155
@@ -2875,6 +3206,7 @@ def SpitefulSpirit():
     bot.SkillBar.UseSkill(3)
     bot.Wait.ForTime(5000)
     bot.States.AddCustomState(lambda: ClickSkillFrame(121), "Click Skill Frame")
+    bot.Wait.ForTime(2000)
     REAL_CAPTURED_SKILLS = [121]
     found_real_skill = False
     for slot in range(1, 9):
@@ -2888,10 +3220,10 @@ def SpitefulSpirit():
         yield
     else:
         bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
-        bot.States.AddCustomState(SpitefulSpirit, "[H]Spiteful Spirit")
+        bot.States.AddCustomState(Spiteful_Spirit, "[H]Spiteful Spirit")
     yield  
     
-def MistForm():
+def Mist_Form():
     bot.States.AddHeader("Mist Form")
     target_prof = Profession.ELEMENTALIST
     start_map = 155
@@ -2910,6 +3242,7 @@ def MistForm():
     bot.SkillBar.UseSkill(3)
     bot.Wait.ForTime(5000)
     bot.States.AddCustomState(lambda: ClickSkillFrame(236), "Click Skill Frame")
+    bot.Wait.ForTime(2000)
     REAL_CAPTURED_SKILLS = [236]
     found_real_skill = False
     for slot in range(1, 9):
@@ -2923,10 +3256,10 @@ def MistForm():
         yield
     else:
         bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
-        bot.States.AddCustomState(MistForm, "[H]Mist Form")
+        bot.States.AddCustomState(Mist_Form, "[H]Mist Form")
     yield
 
-def SignetOfJudgement():
+def Signet_of_Judgement():
     bot.States.AddHeader("Signet of Judgement")
     target_prof = Profession.MONK
     start_map = 155
@@ -2945,6 +3278,7 @@ def SignetOfJudgement():
     bot.SkillBar.UseSkill(3)
     bot.Wait.ForTime(5000)
     bot.States.AddCustomState(lambda: ClickSkillFrame(294), "Click Skill Frame")
+    bot.Wait.ForTime(2000)
     REAL_CAPTURED_SKILLS = [294]
     found_real_skill = False
     for slot in range(1, 9):
@@ -2958,10 +3292,10 @@ def SignetOfJudgement():
         yield
     else:
         bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
-        bot.States.AddCustomState(SignetOfJudgement, "[H]Signet of Judgement")
+        bot.States.AddCustomState(Signet_of_Judgement, "[H]Signet of Judgement")
     yield
 
-def IllusionaryWeaponry():
+def Illusionary_Weaponry():
     bot.States.AddHeader("Illusionary Weaponry")
     target_prof = Profession.MESMER
     start_map = 155
@@ -2980,6 +3314,7 @@ def IllusionaryWeaponry():
     bot.SkillBar.UseSkill(3)
     bot.Wait.ForTime(5000)
     bot.States.AddCustomState(lambda: ClickSkillFrame(33), "Click Skill Frame")
+    bot.Wait.ForTime(2000)
     REAL_CAPTURED_SKILLS = [33]
     found_real_skill = False
     for slot in range(1, 9):
@@ -2993,10 +3328,10 @@ def IllusionaryWeaponry():
         yield
     else:
         bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
-        bot.States.AddCustomState(IllusionaryWeaponry, "[H]Illusionary Weaponry")
+        bot.States.AddCustomState(Illusionary_Weaponry, "[H]Illusionary Weaponry")
     yield
 
-def ShadowForm():
+def Shadow_Form():
     bot.States.AddHeader("Shadow Form")
     target_prof = Profession.ASSASSIN
     start_map = 284
@@ -3021,7 +3356,7 @@ def ShadowForm():
     bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
     yield
 
-def ShadowFormWoC():
+def Shadow_Form_WoC():
     bot.States.AddHeader("Shadow Form - WoC")
     target_prof = Profession.ASSASSIN
     start_map = 284
@@ -3265,7 +3600,7 @@ def GreaterConflagration():
     bot.SkillBar.UseSkill(3)
     bot.Wait.ForTime(5000)
     bot.States.AddCustomState(lambda: ClickSkillFrame(465), "Click Skill Frame")
-    bot.Wait.ForTime(1000)
+    bot.Wait.ForTime(2000)
     REAL_CAPTURED_SKILLS = [465]
     found_real_skill = False
     for slot in range(1, 9):
@@ -3308,7 +3643,7 @@ def AuraOfTheLich():
     bot.SkillBar.UseSkill(3)
     bot.Wait.ForTime(5000)
     bot.States.AddCustomState(lambda: ClickSkillFrame(114), "Click Skill Frame")
-    bot.Wait.ForTime(1000)
+    bot.Wait.ForTime(2000)
     REAL_CAPTURED_SKILLS = [114]
     found_real_skill = False
     for slot in range(1, 9):
@@ -3355,7 +3690,7 @@ def Panic():
     bot.SkillBar.UseSkill(3)
     bot.Wait.ForTime(5000)
     bot.States.AddCustomState(lambda: ClickSkillFrame(52), "Click Skill Frame")
-    bot.Wait.ForTime(1000)
+    bot.Wait.ForTime(2000)
     REAL_CAPTURED_SKILLS = [52]
     found_real_skill = False
     for slot in range(1, 9):
@@ -3402,7 +3737,7 @@ def MindBurn():
     bot.SkillBar.UseSkill(3)
     bot.Wait.ForTime(5000)
     bot.States.AddCustomState(lambda: ClickSkillFrame(185), "Click Skill Frame")
-    bot.Wait.ForTime(1000)
+    bot.Wait.ForTime(2000)
     REAL_CAPTURED_SKILLS = [185]
     found_real_skill = False
     for slot in range(1, 9):
@@ -3471,6 +3806,7 @@ def UnyieldingAura():
     bot.SkillBar.UseSkill(3)
     bot.Wait.ForTime(5000)
     bot.States.AddCustomState(lambda: ClickSkillFrame(268), "Click Skill Frame")
+    bot.Wait.ForTime(2000)
     REAL_CAPTURED_SKILLS = [268]
     found_real_skill = False
     for slot in range(1, 9):
@@ -3511,6 +3847,7 @@ def VictoryIsMine():
     bot.SkillBar.UseSkill(3)
     bot.Wait.ForTime(5000)
     bot.States.AddCustomState(lambda: ClickSkillFrame(365), "Click Skill Frame")
+    bot.Wait.ForTime(2000)
     REAL_CAPTURED_SKILLS = [365]  
     found_real_skill = False
     for slot in range(1, 9):
@@ -3551,6 +3888,7 @@ def PoisonArrow():
     bot.SkillBar.UseSkill(3)
     bot.Wait.ForTime(5000)
     bot.States.AddCustomState(lambda: ClickSkillFrame(404), "Click Skill Frame")
+    bot.Wait.ForTime(2000)
     REAL_CAPTURED_SKILLS = [404]
     found_real_skill = False
     for slot in range(1, 9):
@@ -3574,7 +3912,7 @@ def PoisonArrow():
 def PlagueSignet():
     bot.States.AddHeader("Plague Signet")
     target_prof = Profession.NECROMANCER
-    start_map = 158
+    start_map = 640
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -3582,34 +3920,20 @@ def PlagueSignet():
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
-    bot.Move.XYAndExitMap(-7392, -2618, 95)
+    bot.Move.XYAndExitMap(16363, 13124, 569)
     ConfigureAggressiveEnv(bot)
-    bot.Move.XY(-3347.47, 2503.66)
-    bot.Move.XY(-4790.01, 2923.01)
+    bot.Move.XY(12400, 9817)
+    bot.Move.XY(8632, 6437)
+    bot.Move.XY(8268, -1725)
     bot.Wait.UntilOutOfCombat()
     ConfigurePacifistEnv(bot)
     bot.SkillBar.UseSkill(3)
     bot.Wait.ForTime(5000)
     bot.States.AddCustomState(lambda: ClickSkillFrame(132), "Click Skill Frame")
-    REAL_CAPTURED_SKILLS = [132]
-    found_real_skill = False
-    for slot in range(1, 9):
-        skill_data = GLOBAL_CACHE.SkillBar.GetSkillData(slot)
-        if skill_data and skill_data.id in REAL_CAPTURED_SKILLS:
-            found_real_skill = True
-            break
-    if found_real_skill:
-        # Success: Return to outpost normally like other skills
-        ConsoleLog("Capture", "Plague Signet captured successfully!", log=True)
-        bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
-        bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
-        yield
-    else:
-        # Failure: Return to start map and retry
-        ConsoleLog("Capture", "Plague Signet capture failed, retrying...", log=True)
-        bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
-        bot.States.AddCustomState(PlagueSignet, "[H]Plague Signet")
-    yield  
+    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
+    yield
+
 
 def GlimmeringMark():
     bot.States.AddHeader("Glimmering Mark")
@@ -3631,6 +3955,7 @@ def GlimmeringMark():
     bot.SkillBar.UseSkill(3)
     bot.Wait.ForTime(5000)
     bot.States.AddCustomState(lambda: ClickSkillFrame(227), "Click Skill Frame")
+    bot.Wait.ForTime(2000)
     REAL_CAPTURED_SKILLS = [227]
     found_real_skill = False
     for slot in range(1, 9):
@@ -3674,6 +3999,7 @@ def SpellBreaker():
     bot.SkillBar.UseSkill(3)
     bot.Wait.ForTime(5000)
     bot.States.AddCustomState(lambda: ClickSkillFrame(273), "Click Skill Frame")
+    bot.Wait.ForTime(2000)
     REAL_CAPTURED_SKILLS = [273]
     found_real_skill = False
     for slot in range(1, 9):
@@ -3716,6 +4042,7 @@ def MantraOfRecall():
     bot.SkillBar.UseSkill(3)
     bot.Wait.ForTime(5000)
     bot.States.AddCustomState(lambda: ClickSkillFrame(82), "Click Skill Frame")
+    bot.Wait.ForTime(2000)
     REAL_CAPTURED_SKILLS = [82]
     found_real_skill = False
     for slot in range(1, 9):
@@ -3758,6 +4085,7 @@ def MindShock():
     bot.SkillBar.UseSkill(3)
     bot.Wait.ForTime(5000)
     bot.States.AddCustomState(lambda: ClickSkillFrame(226), "Click Skill Frame")
+    bot.Wait.ForTime(2000)
     REAL_CAPTURED_SKILLS = [226]
     found_real_skill = False
     for slot in range(1, 9):
@@ -5132,6 +5460,7 @@ def HealingHands():
     bot.SkillBar.UseSkill(3)
     bot.Wait.ForTime(5000)
     bot.States.AddCustomState(lambda: ClickSkillFrame(285), "Click Skill Frame")
+    bot.Wait.ForTime(2000)
     REAL_CAPTURED_SKILLS = [285]
     found_real_skill = False
     for slot in range(1, 9):
@@ -5240,6 +5569,7 @@ def AuraofFaith():
     bot.SkillBar.UseSkill(3)
     bot.Wait.ForTime(5000)
     bot.States.AddCustomState(lambda: ClickSkillFrame(260), "Click Skill Frame")
+    bot.Wait.ForTime(2000)
     REAL_CAPTURED_SKILLS = [260]
     found_real_skill = False
     for slot in range(1, 9):
@@ -5758,7 +6088,7 @@ def BullsCharge():
     bot.SkillBar.UseSkill(3)
     bot.Wait.ForTime(5000)
     bot.States.AddCustomState(lambda: ClickSkillFrame(379), "Click Skill Frame")
-    bot.Wait.ForTime(1000)
+    bot.Wait.ForTime(2000)
     REAL_CAPTURED_SKILLS = [379]
     found_real_skill = False
     for slot in range(1, 9):
@@ -5900,7 +6230,7 @@ def DefyPain():
     bot.SkillBar.UseSkill(3)
     bot.Wait.ForTime(5000)
     bot.States.AddCustomState(lambda: ClickSkillFrame(318), "Click Skill Frame")
-    bot.Wait.ForTime(1000)
+    bot.Wait.ForTime(2000)
     REAL_CAPTURED_SKILLS = [318]
     found_real_skill = False
     for slot in range(1, 9):
@@ -6476,7 +6806,7 @@ def LifeBarrier():
     bot.SkillBar.UseSkill(3)
     bot.Wait.ForTime(5000)
     bot.States.AddCustomState(lambda: ClickSkillFrame(270), "Click Skill Frame")
-    bot.Wait.ForTime(1000)
+    bot.Wait.ForTime(2000)
     REAL_CAPTURED_SKILLS = [270]
     found_real_skill = False
     for slot in range(1, 9):
@@ -7084,6 +7414,762 @@ def Beguiling_Haze():
     bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
     bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
     yield 
+
+def Animate_Flesh_Golem():
+    bot.States.AddHeader("Animate Flesh Golem")
+    target_prof = Profession.NECROMANCER
+    start_map = 51
+    
+    bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
+    bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
+    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Necromancer Build")
+    bot.Party.LeaveParty()
+    bot.Travel_To_Random_District(target_map_id=start_map)
+    bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
+    bot.Move.XYAndExitMap(5363, -12211, 31)
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XY(5179, 2952)
+    bot.Move.XY(3615, 7450)
+    bot.Move.XY(3807, 14506)
+    bot.Wait.UntilOutOfCombat()
+    ConfigurePacifistEnv(bot)
+    bot.SkillBar.UseSkill(3)
+    bot.Wait.ForTime(5000)
+    bot.States.AddCustomState(lambda: ClickSkillFrame(832), "Click Skill Frame")
+    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
+    yield 
+
+def Contagion():
+    bot.States.AddHeader("Contagion")
+    target_prof = Profession.NECROMANCER
+    start_map = 425
+    
+    bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
+    bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
+    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Necromancer Build")
+    bot.Party.LeaveParty()
+    bot.Travel_To_Random_District(target_map_id=start_map)
+    bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
+    bot.Move.XYAndExitMap(-15149, 8672, 384)
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XY(-17954, 4393)
+    bot.Wait.UntilOutOfCombat()
+    ConfigurePacifistEnv(bot)
+    bot.SkillBar.UseSkill(3)
+    bot.Wait.ForTime(5000)
+    bot.States.AddCustomState(lambda: ClickSkillFrame(1356), "Click Skill Frame")
+    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
+    yield 
+
+def Corrupt_Enchantment():
+    bot.States.AddHeader("Corrupt Enchantment")
+    target_prof = Profession.NECROMANCER
+    start_map = 393
+    
+    bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
+    bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
+    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Necromancer Build")
+    bot.Party.LeaveParty()
+    bot.Travel_To_Random_District(target_map_id=start_map)
+    bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
+    bot.Move.XYAndExitMap(-6041, -1493, 392)
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XY(-11689, -11432)
+    bot.Wait.UntilOutOfCombat()
+    ConfigurePacifistEnv(bot)
+    bot.SkillBar.UseSkill(3)
+    bot.Wait.ForTime(5000)
+    bot.States.AddCustomState(lambda: ClickSkillFrame(1362), "Click Skill Frame")
+    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
+    yield 
+
+def Tease():
+    bot.States.AddHeader("Tease")
+    target_prof = Profession.MESMER
+    start_map = 393
+    
+    bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
+    bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
+    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Mesmer Build")
+    bot.Party.LeaveParty()
+    bot.Travel_To_Random_District(target_map_id=start_map)
+    bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
+    bot.Move.XYAndExitMap(-6041, -1493, 392)
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XY(-10388, -7828)
+    bot.Wait.UntilOutOfCombat()
+    ConfigurePacifistEnv(bot)
+    bot.SkillBar.UseSkill(3)
+    bot.Wait.ForTime(5000)
+    bot.States.AddCustomState(lambda: ClickSkillFrame(1342), "Click Skill Frame")
+    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
+    yield 
+
+def Master_of_Magic():
+    bot.States.AddHeader("Master of Magic")
+    target_prof = Profession.ELEMENTALIST
+    start_map = 393
+    
+    bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
+    bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
+    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Elementalist Build")
+    bot.Party.LeaveParty()
+    bot.Travel_To_Random_District(target_map_id=start_map)
+    bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
+    bot.Move.XYAndExitMap(-6041, -1493, 392)
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XY(-6279, -8739)
+    bot.Move.XY(-7868, -9560)
+    bot.Wait.UntilOutOfCombat()
+    ConfigurePacifistEnv(bot)
+    bot.SkillBar.UseSkill(3)
+    bot.Wait.ForTime(5000)
+    bot.States.AddCustomState(lambda: ClickSkillFrame(1378), "Click Skill Frame")
+    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
+    yield 
+
+def Invoke_Lightning():
+    bot.States.AddHeader("Invoke Lightning")
+    target_prof = Profession.ELEMENTALIST
+    start_map = 393
+    
+    bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
+    bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
+    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Elementalist Build")
+    bot.Party.LeaveParty()
+    bot.Travel_To_Random_District(target_map_id=start_map)
+    bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
+    bot.Move.XYAndExitMap(-6041, -1493, 392)
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XY(-13913, -17200)
+    bot.Wait.UntilOutOfCombat()
+    ConfigurePacifistEnv(bot)
+    bot.SkillBar.UseSkill(3)
+    bot.Wait.ForTime(5000)
+    bot.States.AddCustomState(lambda: ClickSkillFrame(1664), "Click Skill Frame")
+    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
+    yield 
+
+def Cultists_Fervor():
+    bot.States.AddHeader("Cultist's Fervor")
+    target_prof = Profession.NECROMANCER
+    start_map = 234
+    
+    bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
+    bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
+    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Necromancer Build")
+    bot.Party.LeaveParty()
+    bot.Travel_To_Random_District(target_map_id=start_map)
+    bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
+    bot.Move.XYAndExitMap(-6654, 7301, 202)
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XY(10855, -978)
+    bot.Wait.UntilOutOfCombat()
+    ConfigurePacifistEnv(bot)
+    bot.SkillBar.UseSkill(3)
+    bot.Wait.ForTime(5000)
+    bot.States.AddCustomState(lambda: ClickSkillFrame(806), "Click Skill Frame")
+    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
+    yield 
+
+def Tainted_Flesh(): 
+    bot.States.AddHeader("Tainted Flesh")
+    target_prof = Profession.NECROMANCER
+    start_map = 287
+    
+    bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
+    bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
+    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Necromancer Build")
+    bot.Party.LeaveParty()
+    bot.Travel_To_Random_District(target_map_id=start_map)
+    bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
+    bot.Move.XYAndExitMap(32765, 10871, 205)
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XY(-3359, -4976)
+    bot.Wait.UntilOutOfCombat()
+    ConfigurePacifistEnv(bot)
+    bot.SkillBar.UseSkill(3)
+    bot.Wait.ForTime(5000)
+    bot.States.AddCustomState(lambda: ClickSkillFrame(113), "Click Skill Frame")
+    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
+    yield 
+
+def Depravity():
+    bot.States.AddHeader("Depravity")
+    target_prof = Profession.NECROMANCER
+    start_map = 381
+    
+    bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
+    bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
+    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Necromancer Build")
+    bot.Party.LeaveParty()
+    bot.Travel_To_Random_District(target_map_id=start_map)
+    bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
+    bot.Move.XY(-1401, 1675)
+    bot.Move.XYAndExitMap(4805, 943, 380)
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XY(1550, -11990)
+    bot.Wait.UntilOutOfCombat()
+    ConfigurePacifistEnv(bot)
+    bot.SkillBar.UseSkill(3)
+    bot.Wait.ForTime(5000)
+    bot.States.AddCustomState(lambda: ClickSkillFrame(820), "Click Skill Frame")
+    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
+    yield 
+
+def Discord():
+    bot.States.AddHeader("Discord")
+    target_prof = Profession.NECROMANCER
+    start_map = 350
+    
+    bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
+    bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
+    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Necromancer Build")
+    bot.Party.LeaveParty()
+    bot.Travel_To_Random_District(target_map_id=start_map)
+    bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
+    bot.Move.XYAndExitMap(18483, 11343, 199)
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XY(18504, 332)
+    bot.Wait.UntilOutOfCombat()
+    ConfigurePacifistEnv(bot)
+    bot.SkillBar.UseSkill(3)
+    bot.Wait.ForTime(5000)
+    bot.States.AddCustomState(lambda: ClickSkillFrame(817), "Click Skill Frame")
+    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
+    yield 
+
+def Icy_Veins():
+    bot.States.AddHeader("Icy Veins")
+    target_prof = Profession.NECROMANCER
+    start_map = 222
+    
+    bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
+    bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
+    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Necromancer Build")
+    bot.Party.LeaveParty()
+    bot.Travel_To_Random_District(target_map_id=start_map)
+    bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
+    bot.Move.XYAndExitMap(-6840, 14641, 195)
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XY(-11535, -8301)
+    bot.Wait.UntilOutOfCombat()
+    ConfigurePacifistEnv(bot)
+    bot.SkillBar.UseSkill(3)
+    bot.Wait.ForTime(5000)
+    bot.States.AddCustomState(lambda: ClickSkillFrame(821), "Click Skill Frame")
+    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
+    yield     
+
+def Crippling_Anguish():
+    bot.States.AddHeader("Crippling Anguish")
+    target_prof = Profession.MESMER
+    start_map = 222
+    
+    bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
+    bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
+    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Necromancer Build")
+    bot.Party.LeaveParty()
+    bot.Travel_To_Random_District(target_map_id=start_map)
+    bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
+    bot.Move.XYAndExitMap(-6840, 14641, 195)
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XY(-6719, -8760)
+    bot.Wait.UntilOutOfCombat()
+    ConfigurePacifistEnv(bot)
+    bot.SkillBar.UseSkill(3)
+    bot.Wait.ForTime(5000)
+    bot.States.AddCustomState(lambda: ClickSkillFrame(54), "Click Skill Frame")
+    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
+    yield  
+
+def Ravenous_Gaze():
+    bot.States.AddHeader("Ravenous Gaze")
+    target_prof = Profession.NECROMANCER
+    start_map = 424
+    
+    bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
+    bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
+    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Necromancer Build")
+    bot.Party.LeaveParty()
+    bot.Travel_To_Random_District(target_map_id=start_map)
+    bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
+    bot.Move.XYAndExitMap(-5400, 5435, 369)
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XY(16919, -7990)
+    bot.Move.XY(10437, -5898)
+    bot.Wait.UntilOutOfCombat()
+    ConfigurePacifistEnv(bot)
+    bot.SkillBar.UseSkill(3)
+    bot.Wait.ForTime(5000)
+    bot.States.AddCustomState(lambda: ClickSkillFrame(862), "Click Skill Frame")
+    bot.Wait.ForTime(2000)
+    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
+    yield
+
+def Signet_of_Suffering():
+    bot.States.AddHeader("Signet of Suffering")
+    target_prof = Profession.NECROMANCER
+    start_map = 442
+    
+    bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
+    bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
+    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Necromancer Build")
+    bot.Party.LeaveParty()
+    bot.Travel_To_Random_District(target_map_id=start_map)
+    bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
+    bot.Move.XYAndExitMap(3146, 5326, 443)
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XY(26837, -9576)
+    bot.Wait.UntilOutOfCombat()
+    ConfigurePacifistEnv(bot)
+    bot.SkillBar.UseSkill(3)
+    bot.Wait.ForTime(5000)
+    bot.States.AddCustomState(lambda: ClickSkillFrame(1364), "Click Skill Frame")
+    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
+    yield
+
+def Lingering_Curse():
+    bot.States.AddHeader("Lingering Curse")
+    target_prof = Profession.NECROMANCER
+    start_map = 272
+    
+    bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
+    bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
+    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Necromancer Build")
+    bot.Party.LeaveParty()
+    bot.Travel_To_Random_District(target_map_id=start_map)
+    bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
+    bot.Move.XYAndExitMap(6741, 8137, 244)
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XY(1670, -16662)
+    bot.Wait.UntilOutOfCombat()
+    ConfigurePacifistEnv(bot)
+    bot.SkillBar.UseSkill(3)
+    bot.Wait.ForTime(5000)
+    bot.States.AddCustomState(lambda: ClickSkillFrame(142), "Click Skill Frame")
+    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
+    yield
+
+def Soul_Bind():
+    bot.States.AddHeader("Soul Bind")
+    target_prof = Profession.NECROMANCER
+    start_map = 284
+    
+    bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
+    bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
+    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Necromancer Build")
+    bot.Party.LeaveParty()
+    bot.Travel_To_Random_District(target_map_id=start_map)
+    bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
+    bot.Move.XY(11722, -18582)
+    bot.Move.XYAndExitMap(11699, -20253, 256)
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XY(-268, -3164)
+    bot.Wait.UntilOutOfCombat()
+    ConfigurePacifistEnv(bot)
+    bot.SkillBar.UseSkill(3)
+    bot.Wait.ForTime(5000)
+    bot.States.AddCustomState(lambda: ClickSkillFrame(901), "Click Skill Frame")
+    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
+    yield
+
+def Vampiric_Spirit():
+    bot.States.AddHeader("Vampiric Spirit")
+    target_prof = Profession.NECROMANCER
+    start_map = 272
+    
+    bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
+    bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
+    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Necromancer Build")
+    bot.Party.LeaveParty()
+    bot.Travel_To_Random_District(target_map_id=start_map)
+    bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
+    bot.Move.XYAndExitMap(6741, 8137, 244)
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XY(1670, -16662)
+    bot.Move.XY(-504.80, -16517.78)
+    bot.Move.XY(-2798.65, -14165.61)
+    bot.Move.XY(-3806.34, -11823.33)
+    bot.Move.XY(-3814.97, -9261.53)
+    bot.Move.XY(-5226.15, -7235.82)
+    bot.Move.XY(-4634.54, -4265.22)
+    bot.Move.XY(-5148.32, -561.04)
+    bot.Move.XY(-8040.69, 1808.49)
+    bot.Move.XY(-10270.11, 1419.24)
+    bot.Move.XY(-10349.71, -1068.52)
+    bot.Move.XY(-12137.71, -3830.18)
+    bot.Move.XY(-12871.10, -7120.67)
+    bot.Move.XY(-11126.82, -8543.61)
+    bot.Move.XY(-12697.35, -10302.01)
+    bot.Wait.UntilOutOfCombat()
+    ConfigurePacifistEnv(bot)
+    bot.SkillBar.UseSkill(3)
+    bot.Wait.ForTime(5000)
+    bot.States.AddCustomState(lambda: ClickSkillFrame(819), "Click Skill Frame")
+    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
+    yield
+
+def Shockwave():
+    bot.States.AddHeader("Shockwave")
+    target_prof = Profession.ELEMENTALIST
+    start_map = 272
+    
+    bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
+    bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
+    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Elementalist Build")
+    bot.Party.LeaveParty()
+    bot.Travel_To_Random_District(target_map_id=start_map)
+    bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
+    bot.Move.XYAndExitMap(6741, 8137, 244)
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XY(1670, -16662)
+    bot.Move.XY(-261, -16661) 
+    bot.Move.XY(-1637, -15269) 
+    bot.Wait.UntilOutOfCombat()
+    ConfigurePacifistEnv(bot)
+    bot.SkillBar.UseSkill(3)
+    bot.Wait.ForTime(5000)
+    bot.States.AddCustomState(lambda: ClickSkillFrame(937), "Click Skill Frame")
+    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
+    yield
+
+def Grenths_Balance():
+    bot.States.AddHeader("Grenth's Balance")
+    target_prof = Profession.NECROMANCER
+    start_map = 378
+    
+    bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
+    bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
+    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Necromancer Build")
+    bot.Party.LeaveParty()
+    bot.Travel_To_Random_District(target_map_id=start_map)
+    bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
+    bot.Move.XYAndExitMap(5113, 3280, 377)
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XY(-13774, 15792)
+    bot.Move.XY(-10455, 13159)
+    bot.Move.XY(-7383, 13899)
+    bot.Move.XY(-5354, 6658)
+    bot.Move.XY(-2508, 12905)
+    bot.Move.XY(5144, 12110)
+    bot.Move.XY(9696, 1088)
+    bot.Move.XY(7632, -1551)
+    bot.Move.XY(6514, -4133)
+    bot.Wait.UntilOutOfCombat()
+    ConfigurePacifistEnv(bot)
+    bot.SkillBar.UseSkill(3)
+    bot.Wait.ForTime(5000)
+    bot.States.AddCustomState(lambda: ClickSkillFrame(86), "Click Skill Frame")
+    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
+    yield  
+
+def Jagged_Bones():
+    bot.States.AddHeader("Jagged Bones")
+    target_prof = Profession.NECROMANCER
+    start_map = 643
+
+    bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
+    bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
+    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Necromancer Build")
+    bot.Party.LeaveParty()
+    bot.Travel_To_Random_District(target_map_id=start_map)
+    bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team")
+    bot.Move.XY(14682, 22900)
+    bot.Move.XYAndExitMap(17000, 22872, 546)
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XY(-9431, -20124)
+    bot.Move.XY(-8441, -13685)
+    bot.Move.XY(-9743, -6744)
+    bot.Move.XY(-10672, 4815) 
+    bot.Move.XY(-8464, 17239) 
+    bot.Move.XY(-11761, 24520) 
+    bot.Wait.UntilOutOfCombat()
+    ConfigurePacifistEnv(bot)
+    bot.SkillBar.UseSkill(3)
+    bot.Wait.ForTime(5000)
+    bot.States.AddCustomState(lambda: ClickSkillFrame(1355), "Click Skill Frame")
+    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
+    yield  
+
+def Offering_of_Blood():
+    bot.States.AddHeader("Offering of Blood")
+    target_prof = Profession.NECROMANCER
+    start_map = 22
+
+    bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
+    bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
+    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Necromancer Build")
+    bot.Party.LeaveParty()
+    bot.Travel_To_Random_District(target_map_id=start_map)
+    bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
+    bot.Map.EnterChallenge(6000, target_map_id=22)
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XY(-11206.22, -8611.91)
+    bot.Move.XY(-9682.32, -7021.72)
+    bot.Move.XY(-8752.07, -4005.16)
+    bot.Move.XY(-7490.79, -2338.30) 
+    bot.Move.XY(-8756.21, -1456.15)
+    bot.Move.XY(-12159, -893)  
+    bot.Wait.UntilOutOfCombat()
+    ConfigurePacifistEnv(bot)
+    bot.SkillBar.UseSkill(3)
+    bot.Wait.ForTime(5000)
+    bot.States.AddCustomState(lambda: ClickSkillFrame(146), "Click Skill Frame")
+    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
+    yield  
+  
+def Order_of_the_Vampire(): 
+    bot.States.AddHeader("Order of the Vampire")
+    target_prof = Profession.NECROMANCER
+    start_map = 117
+    
+    bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
+    bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
+    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Necromancer Build")
+    bot.Party.LeaveParty()
+    bot.Travel_To_Random_District(target_map_id=117)
+    bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team") 
+    bot.Map.EnterChallenge(delay=1000, target_map_id=117)
+    bot.Wait.ForMapToChange(target_map_id=117) # Thirsty River Mission
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XY(-857, 8546) #Sand Giant 1
+    bot.Move.XY(-2320, 5881)
+    bot.Move.XY(-125.10, 3166.91)
+    bot.Move.XY(-50.19, 103.76)
+    bot.Move.XY(1417.27, -2503.34)
+    bot.Move.XY(4508.23, -3895.00)
+    bot.Move.XY(5735.68, -3615.36) #Ugly Bridge
+    bot.Move.XY(6548.60, -2597.65)
+    bot.Move.XY(6904.65, -1450.62)
+    bot.Move.XY(8282.06, -1424.29)
+    bot.Move.XYAndInteractNPC(8945.00, -2457.00)
+    bot.Wait.ForMapToChange(117) #Cutscene
+    bot.Wait.ForTime(1000)
+    bot.Move.XY(13091.00, -5283.00) #Goss Aleesh Boss and Priest
+    bot.Move.XY(10711.53, -4565.11)
+    bot.Wait.ForTime (7000)
+    bot.Move.XY(8666.88, -6085.35)
+    bot.Move.XY(9782.77, -9098.71)
+    bot.Wait.ForTime (11000)
+    bot.Move.XY(5899, -6912) #Hessper Sasso and Priest  
+    bot.Wait.UntilOutOfCombat()
+    ConfigurePacifistEnv(bot)
+    bot.SkillBar.UseSkill(3)
+    bot.Wait.ForTime(5000)
+    bot.States.AddCustomState(lambda: ClickSkillFrame(148), "Click Skill Frame")
+    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
+    yield  
+
+def Toxic_Chill(): 
+    bot.States.AddHeader("Toxic Chill")
+    target_prof = Profession.NECROMANCER
+    start_map = 433
+    
+    bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
+    bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
+    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Necromancer Build")
+    bot.Party.LeaveParty()
+    bot.Travel_To_Random_District(target_map_id=start_map)
+    bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team") 
+    bot.Move.XYAndExitMap(5067, 1018, 404)
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XY(659, 1838) 
+    bot.Wait.UntilOutOfCombat()
+    ConfigurePacifistEnv(bot)
+    bot.SkillBar.UseSkill(3)
+    bot.Wait.ForTime(5000)
+    bot.States.AddCustomState(lambda: ClickSkillFrame(1659), "Click Skill Frame")
+    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
+    yield  
+
+def Wail_of_Doom():
+    bot.States.AddHeader("Wail of Doom")
+    target_prof = Profession.NECROMANCER
+    start_map = 226
+    
+    bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
+    bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
+    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Necromancer Build")
+    bot.Party.LeaveParty()
+    bot.Travel_To_Random_District(target_map_id=start_map)
+    bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team") 
+    bot.Move.XYAndExitMap(-9625, 3076, 233)
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XY(8310, -7070) 
+    bot.Move.XY(10629, -7757)
+    bot.Wait.UntilOutOfCombat()
+    ConfigurePacifistEnv(bot)
+    bot.SkillBar.UseSkill(3)
+    bot.Wait.ForTime(5000)
+    bot.States.AddCustomState(lambda: ClickSkillFrame(764), "Click Skill Frame")
+    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
+    yield  
+
+def Weaken_Knees():
+    bot.States.AddHeader("Weaken Knees")
+    target_prof = Profession.NECROMANCER
+    start_map = 129
+    
+    bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
+    bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
+    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Necromancer Build")
+    bot.Party.LeaveParty()
+    bot.Travel_To_Random_District(target_map_id=start_map)
+    bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team") 
+    bot.Move.XYAndExitMap(-7622, 1811, 201)
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XY(7851, -7812)
+    bot.Wait.ForTime(25000) 
+    bot.Wait.UntilOutOfCombat()
+    ConfigurePacifistEnv(bot)
+    bot.SkillBar.UseSkill(3)
+    bot.Wait.ForTime(5000)
+    bot.States.AddCustomState(lambda: ClickSkillFrame(764), "Click Skill Frame")
+    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
+    yield  
+
+def Archers_Signet():
+    bot.States.AddHeader("Archer's Signet")
+    target_prof = Profession.RANGER
+    start_map = 129
+    
+    bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
+    bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
+    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Ranger Build")
+    bot.Party.LeaveParty()
+    bot.Travel_To_Random_District(target_map_id=start_map)
+    bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team") 
+    bot.Move.XYAndExitMap(-7622, 1811, 201)
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XY(7851, -7812)
+    bot.Wait.ForTime(25000) 
+    bot.Wait.UntilOutOfCombat()
+    ConfigurePacifistEnv(bot)
+    bot.SkillBar.UseSkill(3)
+    bot.Wait.ForTime(5000)
+    bot.States.AddCustomState(lambda: ClickSkillFrame(1200), "Click Skill Frame")
+    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
+    yield  
+
+def Attuned_Was_Songkai():
+    bot.States.AddHeader("Attuned Was Songkai")
+    target_prof = Profession.RITUALIST
+    start_map = 222
+    
+    bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
+    bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
+    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Warrior Build")
+    bot.Party.LeaveParty()
+    bot.Travel_To_Random_District(target_map_id=start_map)
+    bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
+    bot.Move.XYAndExitMap(-6866, 14696, 195)
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XY(2686, -9323)
+    bot.Wait.UntilOutOfCombat()
+    ConfigurePacifistEnv(bot)
+    bot.SkillBar.UseSkill(3)
+    bot.Wait.ForTime(5000)
+    bot.States.AddCustomState(lambda: ClickSkillFrame(1220), "Click Skill Frame")
+    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
+    yield
+
+def Clamor_of_Souls():
+    bot.States.AddHeader("Clamor of Souls")
+    target_prof = Profession.RITUALIST
+    start_map = 222
+    
+    bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
+    bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
+    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Warrior Build")
+    bot.Party.LeaveParty()
+    bot.Travel_To_Random_District(target_map_id=start_map)
+    bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
+    bot.Move.XYAndExitMap(-6866, 14696, 195)
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XY(2686, -9323)
+    bot.Wait.UntilOutOfCombat()
+    ConfigurePacifistEnv(bot)
+    bot.SkillBar.UseSkill(3)
+    bot.Wait.ForTime(5000)
+    bot.States.AddCustomState(lambda: ClickSkillFrame(1215), "Click Skill Frame")
+    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
+    yield
+
+def Caretakers_Charge():
+    bot.States.AddHeader("Caretaker's Charge")
+    target_prof = Profession.RITUALIST
+    start_map = 473
+    
+    bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
+    bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
+    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Ritualist Build")
+    bot.Party.LeaveParty()
+    bot.Travel_To_Random_District(target_map_id=start_map)
+    bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team") 
+    bot.Move.XYAndExitMap(11591, -1382, 472)
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XY(1670, 10780)
+    bot.Wait.UntilOutOfCombat()
+    ConfigurePacifistEnv(bot)
+    bot.SkillBar.UseSkill(3)
+    bot.Wait.ForTime(5000)
+    bot.States.AddCustomState(lambda: ClickSkillFrame(1744), "Click Skill Frame")
+    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
+    yield
+
+def Consume_Soul():
+    bot.States.AddHeader("Consume Soul")
+    target_prof = Profession.RITUALIST
+    start_map = 389
+    
+    bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
+    bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
+    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Ritualist Build")
+    bot.Party.LeaveParty()
+    bot.Travel_To_Random_District(target_map_id=start_map)
+    bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team") 
+    bot.Move.XYAndExitMap(-5411, 13654, 200)
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XY(-14256, -2242)
+    bot.Wait.UntilOutOfCombat()
+    ConfigurePacifistEnv(bot)
+    bot.SkillBar.UseSkill(3)
+    bot.Wait.ForTime(5000)
+    bot.States.AddCustomState(lambda: ClickSkillFrame(914), "Click Skill Frame")
+    bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+    bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
+    yield
+
 # ============================================================================
 #region ADVANCED GUI CLASS
 # ============================================================================
@@ -7853,20 +8939,20 @@ gui = EliteSkillsGUI(bot)
 
 
 # Register all elite skill builders as base FSM states (PvE-bot style)
-bot.States.AddCustomState(EnergySurge, "[H]Energy Surge")
-bot.States.AddCustomState(PiousRenewal, "[H]Pious Renewal")
-bot.States.AddCustomState(BloodIsPower, "[H]Blood is Power")
+bot.States.AddCustomState(Energy_Surge, "[H]Energy Surge")
+bot.States.AddCustomState(Pious_Renewal, "[H]Pious Renewal")
+bot.States.AddCustomState(Blood_is_Power, "[H]Blood is Power")
 bot.States.AddCustomState(VowOfStrengthLocals, "[H]Vow of Strength Locals")
 bot.States.AddCustomState(Ineptitude, "[H]Ineptitude")
 bot.States.AddCustomState(Migraine, "[H]Migraine")
-bot.States.AddCustomState(SpoilVictor, "[H]Spoil Victor")
-bot.States.AddCustomState(SignetOfSpirits, "[H]Signet of Spirits")
-bot.States.AddCustomState(SpitefulSpirit, "[H]Spiteful Spirit")
-bot.States.AddCustomState(MistForm, "[H]Mist Form")
-bot.States.AddCustomState(SignetOfJudgement, "[H]Signet of Judgement")
-bot.States.AddCustomState(IllusionaryWeaponry, "[H]Illusionary Weaponry")
-bot.States.AddCustomState(ShadowForm, "[H]Shadow Form")
-bot.States.AddCustomState(ShadowFormWoC, "[H]Shadow Form - WoC")
+bot.States.AddCustomState(Spoil_Victor, "[H]Spoil Victor")
+bot.States.AddCustomState(Signet_of_Spirits, "[H]Signet of Spirits")
+bot.States.AddCustomState(Spiteful_Spirit, "[H]Spiteful Spirit")
+bot.States.AddCustomState(Mist_Form, "[H]Mist Form")
+bot.States.AddCustomState(Signet_of_Judgement, "[H]Signet of Judgement")
+bot.States.AddCustomState(Illusionary_Weaponry, "[H]Illusionary Weaponry")
+bot.States.AddCustomState(Shadow_Form, "[H]Shadow Form")
+bot.States.AddCustomState(Shadow_Form_WoC, "[H]Shadow Form - WoC")
 bot.States.AddCustomState(BroadHeadArrow, "[H]Broad Head Arrow")
 bot.States.AddCustomState(SoulTwisting, "[H]Soul Twisting")
 bot.States.AddCustomState(PrimalRage, "[H]Primal Rage")
@@ -8010,6 +9096,39 @@ bot.States.AddCustomState(Shroud_of_Silence, "[H]Shroud of Silence")
 bot.States.AddCustomState(Siphon_Strength, "[H]Siphon Strength")
 bot.States.AddCustomState(Way_of_the_Empty_Palm, "[H]Way of the Empty Palm")
 bot.States.AddCustomState(Beguiling_Haze, "[H]Beguiling Haze")
+bot.States.AddCustomState(Animate_Flesh_Golem, "[H]Animate Flesh Golem")
+bot.States.AddCustomState(Contagion, "[H]Contagion")
+bot.States.AddCustomState(Corrupt_Enchantment, "[H]Corrupt Enchantment")
+bot.States.AddCustomState(Tease, "[H]Tease")
+bot.States.AddCustomState(Master_of_Magic, "[H]Master of Magic")
+bot.States.AddCustomState(Invoke_Lightning, "[H]Invoke Lightning")
+bot.States.AddCustomState(Cultists_Fervor, "[H]Cultist's Fervor")
+bot.States.AddCustomState(Tainted_Flesh, "[H]Tainted Flesh")
+bot.States.AddCustomState(Depravity, "[H]Depravity")
+bot.States.AddCustomState(Discord, "[H]Discord")
+bot.States.AddCustomState(Icy_Veins, "[H]Icy Veins")
+bot.States.AddCustomState(Crippling_Anguish, "[H]Crippling Anguish")
+bot.States.AddCustomState(Ravenous_Gaze, "[H]Ravenous Gaze")
+bot.States.AddCustomState(Signet_of_Suffering, "[H]Signet of Suffering")
+bot.States.AddCustomState(Lingering_Curse, "[H]Lingering Curse")
+bot.States.AddCustomState(Vampiric_Spirit, "[H]Vampiric Spirit")
+bot.States.AddCustomState(Shockwave, "[H]Shockwave")
+bot.States.AddCustomState(Soul_Bind, "[H]Soul Bind")
+bot.States.AddCustomState(Grenths_Balance, "[H]Grenth's Balance")
+bot.States.AddCustomState(Jagged_Bones, "[H]Jagged Bones")
+bot.States.AddCustomState(Offering_of_Blood, "[H]Offering of Blood")
+bot.States.AddCustomState(Order_of_the_Vampire, "[H]Order of the Vampire")
+bot.States.AddCustomState(Toxic_Chill, "[H]Toxic Chill")
+bot.States.AddCustomState(Wail_of_Doom, "[H]Wail of Doom")
+bot.States.AddCustomState(Weaken_Knees, "[H]Weaken Knees")
+bot.States.AddCustomState(Archers_Signet, "[H]Archer's Signet")
+bot.States.AddCustomState(Attuned_Was_Songkai, "[H]Attuned Was Songkai")
+bot.States.AddCustomState(Clamor_of_Souls, "[H]Clamor of Souls")
+bot.States.AddCustomState(Caretakers_Charge, "[H]Caretaker's Charge")
+bot.States.AddCustomState(Consume_Soul, "[H]Consume Soul")
+
+
+
 # Record base builder state count (used to append/remove dynamic sub-steps)
 gui._original_state_count = len(bot.config.FSM.states)
 gui._last_original_next = bot.config.FSM.states[-1].next_state if bot.config.FSM.states else None
