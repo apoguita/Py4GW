@@ -121,7 +121,7 @@ class GWStringEncoded:
             if not decoded:
                 return self.fallback
             
-            if '[s]' in decoded or '[pl:' in decoded:
+            if '[f:' not in decoded and GWStringEncoded.__has_bracket_pair(decoded):
                 decoded = self.decode_with_amount(1)
             
             self.__singular = self.remove_placeholder(decoded)
@@ -132,6 +132,17 @@ class GWStringEncoded:
         ''' Returns the decoded string with the specified amount inserted, if the encoded string is designed to include an amount. This is useful for item names that include a quantity (e.g., "137 Birthday Cupcakes") and allows you to get the correctly formatted string for any given amount.
         \nIf the encoded string does not support amounts, it will simply return the plain decoded string with the amount prefixed. '''
         return self.decode_with_amount(amount) or f"{amount} {self.plain}"
+    
+    @staticmethod
+    def __has_bracket_pair(s: str) -> bool:
+        try:
+            start = s.index('[')
+            end = s.index(']', start + 1)
+            # if the brackets are more than 3 characters apart, it's unlikely to be a valid item name format, so we can assume it's not meant to be singularized unless it contains the plural indicator '[pl:'
+            return end - start < 3 or '[pl:' in s
+        except ValueError:
+            return False
+
 
 
 
