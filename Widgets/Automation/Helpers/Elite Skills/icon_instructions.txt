@@ -1,0 +1,16 @@
+ICON PLACEHOLDER INSTRUCTIONS
+===============================
+
+Replace elite_skills_capture.png with an actual icon file.
+
+Recommended icon specifications:
+- Size: 32x32 or 64x64 pixels
+- Format: PNG with transparency
+- Theme: Guild Wars elite skill capture theme
+- Suggested content: Skill capture icon, boss icon, or Guild Wars themed image
+
+The icon should represent elite skill capture functionality.
+You can use any image editor to create the icon and save it as:
+elite_skills_capture.png
+
+Current file is just a placeholder and won't display properly.
