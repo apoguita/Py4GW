@@ -1,4 +1,6 @@
 from __future__ import annotations
+from collections.abc import Generator
+from typing import Any, Callable
 import re
 import unicodedata
 
@@ -7,7 +9,6 @@ from Py4GWCoreLib import (
     Agent,
     AgentArray,
     AutoInventoryHandler,
-    Botting,
     BuildMgr,
     ConsoleLog,
     GLOBAL_CACHE,
@@ -22,9 +23,14 @@ from Py4GWCoreLib import (
     Routines,
     Utils,
 )
+from Py4GWCoreLib.BottingTree import BottingTree
 from Py4GWCoreLib.enums import ModelID, Range
 from Py4GWCoreLib.enums_src.IO_enums import Key
+from Py4GWCoreLib.native_src.internals.types import Vec2f
+from Py4GWCoreLib.py4gwcorelib_src.BehaviorTree import BehaviorTree
 from Py4GWCoreLib.py4gwcorelib_src.Keystroke import Keystroke
+from Py4GWCoreLib.routines_src.BehaviourTrees import BT as RoutinesBT
+from Sources.ApoSource.ApoBottingLib import wrappers as BT
 import PyImGui
 
 BOT_NAME = "Dragon Moss Fiber Farmer"
@@ -225,168 +231,120 @@ class DragonMossRangerAssassin(BuildMgr):
 runtime = FarmRuntime()
 rotation_settings = CraftingRotationSettings()
 build = DragonMossRangerAssassin()
-bot = Botting(
-    BOT_NAME,
-    custom_build=build,
-    config_movement_timeout=MOVEMENT_TIMEOUT_MS,
-    config_movement_tolerance=MOVE_TOLERANCE,
-    upkeep_auto_inventory_management_active=False,
-    upkeep_auto_loot_active=False,
-    upkeep_identify_kits_active=True,
-    upkeep_identify_kits_restock=1,
-    upkeep_salvage_kits_active=True,
-    upkeep_salvage_kits_restock=1,
-)
+initialized = False
+botting_tree: BottingTree | None = None
 
 
-def initialize_bot(bot_instance: Botting) -> None:
-    bot_instance.Events.OnDeathCallback(lambda: on_death(bot_instance))
-    bot_instance.Events.OnPartyWipeCallback(lambda: on_party_wipe(bot_instance))
-    bot_instance.Events.OnPartyDefeatedCallback(lambda: on_party_defeated(bot_instance))
-    bot_instance.States.AddHeader("Initialize Bot")
-    bot_instance.Properties.Disable("auto_inventory_management")
-    bot_instance.Properties.Disable("auto_loot")
-    bot_instance.Properties.Disable("hero_ai")
-    bot_instance.Properties.Enable("hero_ai")
-    bot_instance.Properties.Disable("pause_on_danger")
-    bot_instance.Properties.Enable("halt_on_death")
-    bot_instance.Properties.Enable("identify_kits")
-    bot_instance.Properties.Enable("salvage_kits")
+class GeneratorActionNode(BehaviorTree.ActionNode):
+    def __init__(
+        self,
+        name: str,
+        generator_factory: Callable[[], Generator[Any, None, Any] | None],
+        *,
+        interpret_result: Callable[[Any], BehaviorTree.NodeState] | None = None,
+    ):
+        self._generator_factory = generator_factory
+        self._generator: Generator[Any, None, Any] | None = None
+        self._interpret_result = interpret_result or self._default_result
+        super().__init__(action_fn=self._tick_generator, aftercast_ms=0, name=name)
+
+    @staticmethod
+    def _default_result(result: Any) -> BehaviorTree.NodeState:
+        return BehaviorTree.NodeState.FAILURE if result is False else BehaviorTree.NodeState.SUCCESS
+
+    def _tick_generator(self, node: BehaviorTree.Node) -> BehaviorTree.NodeState:
+        del node
+        if self._generator is None:
+            self._generator = self._generator_factory()
+            if self._generator is None:
+                return BehaviorTree.NodeState.SUCCESS
+
+        try:
+            next(self._generator)
+            return BehaviorTree.NodeState.RUNNING
+        except StopIteration as stop:
+            self._generator = None
+            return self._interpret_result(stop.value)
+        except Exception as exc:
+            self._generator = None
+            ConsoleLog(
+                BOT_NAME,
+                f"Behavior tree generator step '{self.name}' failed: {exc}",
+                Py4GW.Console.MessageType.Error,
+            )
+            return BehaviorTree.NodeState.FAILURE
+
+    def reset(self) -> None:
+        super().reset()
+        self._generator = None
 
 
-def create_bot_routine(bot_instance: Botting) -> None:
-    initialize_bot(bot_instance)
-
-    bot_instance.States.AddHeader("Main Loop")
-    bot_instance.States.AddCustomState(lambda: ensure_anjekas_shrine(bot_instance), "Ensure Anjeka")
-    bot_instance.States.AddCustomState(check_inventory_gate, "Check Inventory")
-
-    bot_instance.States.AddHeader("Inventory Management")
-    bot_instance.Map.Travel(target_map_id=MAATU_KEEP)
-    bot_instance.Move.XYAndInteractNPC(*MAATU_XUNLAI_COORD)
-    bot_instance.Wait.ForTime(500)
-    bot_instance.Items.AutoIDAndSalvageAndDepositItems()
-    bot_instance.States.AddCustomState(ensure_merchant_gold, "Ensure Merchant Gold")
-    bot_instance.Move.XYAndInteractNPC(*MAATU_MERCHANT_COORD)
-    bot_instance.Wait.ForTime(500)
-    bot_instance.Merchant.SellMaterialsToMerchant()
-    bot_instance.Merchant.Restock.IdentifyKits()
-    bot_instance.Merchant.Restock.SalvageKits()
-    bot_instance.Items.AutoIDAndSalvageAndDepositItems()
-    bot_instance.Merchant.SellMaterialsToMerchant()
-    bot_instance.States.AddCustomState(lambda: salvage_dragon_root_on_town_return(bot_instance), "Salvage Dragon Root")
-    bot_instance.States.AddCustomState(lambda: maybe_run_crafting_rotation(bot_instance), "Crafting Rotation Check")
-    bot_instance.States.AddCustomState(lambda: return_from_inventory(bot_instance), "Return From Inventory")
-
-    bot_instance.States.AddHeader("Prepare Run")
-    bot_instance.States.AddCustomState(deposit_excess_gold, "Deposit Excess Gold")
-    bot_instance.States.AddCustomState(lambda: load_skillbar(bot_instance), "Load Skillbar")
-    bot_instance.Party.SetHardMode(True)
-    bot_instance.Move.XYAndExitMap(*OUTPOST_EXIT_COORD, target_map_id=DRAZACH_THICKET)
-    bot_instance.States.AddCustomState(lambda: run_dragon_moss_farm(bot_instance), "Farm Dragon Moss")
-    bot_instance.States.AddCustomState(reset_run, "Reset Run")
-    bot_instance.States.JumpToStepName("Ensure Anjeka")
-
-
-def on_death(bot_instance: Botting) -> None:
-    _begin_failure_recovery(bot_instance, "death")
-
-
-def on_party_wipe(bot_instance: Botting) -> None:
-    _begin_failure_recovery(bot_instance, "party wipe")
-
-
-def on_party_defeated(bot_instance: Botting) -> None:
-    _begin_failure_recovery(bot_instance, "party defeat")
-
-
-def _is_normal_reset_in_progress(bot_instance: Botting) -> bool:
-    current_state = bot_instance.config.FSM.current_state
-    return bool(current_state and current_state.name == "Reset Run")
-
-
-def _begin_failure_recovery(bot_instance: Botting, reason: str) -> None:
-    if _is_normal_reset_in_progress(bot_instance):
-        ConsoleLog(
-            BOT_NAME,
-            f"Ignoring {reason} because the normal reset flow is already in progress.",
-            Py4GW.Console.MessageType.Info,
+def generator_step(
+    name: str,
+    generator_factory: Callable[[], Generator[Any, None, Any] | None],
+    *,
+    interpret_result: Callable[[Any], BehaviorTree.NodeState] | None = None,
+) -> BehaviorTree:
+    return BehaviorTree(
+        GeneratorActionNode(
+            name=name,
+            generator_factory=generator_factory,
+            interpret_result=interpret_result,
         )
-        return
-    if runtime.recovery_coroutine is not None:
-        ConsoleLog(
-            BOT_NAME,
-            f"{reason.capitalize()} detected while recovery is already in progress; ignoring duplicate trigger.",
-            Py4GW.Console.MessageType.Info,
-        )
-        return
-
-    runtime.last_run_succeeded = False
-    runtime.failed_loot_agent_ids.clear()
-    runtime.failed_runs += 1
-    ConsoleLog(
-        BOT_NAME,
-        f"Run failed ({runtime.failed_runs} total failures). Recovering from {reason}.",
-        Py4GW.Console.MessageType.Warning,
     )
-    ActionQueueManager().ResetAllQueues()
-    build.EnableUpkeep(False)
-    fsm = bot_instance.config.FSM
-    if not bot_instance.config.fsm_running:
-        bot_instance.config.fsm_running = True
-    if not fsm.current_state or fsm.is_finished():
-        fsm.jump_to_state_by_name("Ensure Anjeka")
-    fsm.pause()
-    ConsoleLog(BOT_NAME, f"Starting recovery sequence for {reason}.", Py4GW.Console.MessageType.Info)
-    runtime.recovery_coroutine = _recover_from_failure(bot_instance, reason)
 
 
-def _recover_from_failure(bot_instance: Botting, reason: str):
-    ConsoleLog(BOT_NAME, f"Recovery coroutine started for {reason}.", Py4GW.Console.MessageType.Info)
-    yield from Routines.Yield.wait(DEATH_RECOVERY_SETTLE_MS)
-    ConsoleLog(BOT_NAME, f"Recovery settle wait finished for {reason}.", Py4GW.Console.MessageType.Info)
-    yield from recover_to_anjekas(resign_if_alive=False)
-    ConsoleLog(BOT_NAME, f"Recovery path returned to outpost for {reason}; jumping to Ensure Anjeka.", Py4GW.Console.MessageType.Info)
-    bot_instance.config.FSM.jump_to_state_by_name("Ensure Anjeka")
-    ConsoleLog(BOT_NAME, f"Resuming FSM after recovery for {reason}.", Py4GW.Console.MessageType.Info)
-    bot_instance.config.FSM.resume()
-    ConsoleLog(BOT_NAME, f"FSM resumed after recovery for {reason}.", Py4GW.Console.MessageType.Info)
-    yield
+def action_step(
+    name: str,
+    action_fn: Callable[[], Any],
+    *,
+    interpret_result: Callable[[Any], BehaviorTree.NodeState] | None = None,
+) -> BehaviorTree:
+    def _run_action() -> BehaviorTree.NodeState:
+        result = action_fn()
+        if interpret_result is not None:
+            return interpret_result(result)
+        return BehaviorTree.NodeState.FAILURE if result is False else BehaviorTree.NodeState.SUCCESS
+
+    return BehaviorTree(
+        BehaviorTree.ActionNode(
+            name=name,
+            action_fn=_run_action,
+            aftercast_ms=0,
+        )
+    )
 
 
-def advance_failure_recovery(bot_instance: Botting) -> None:
-    if runtime.recovery_coroutine is None:
-        return
+class BuildUpkeepServiceNode(BehaviorTree.ActionNode):
+    def __init__(self):
+        self._generator: Generator[Any, None, Any] | None = None
+        super().__init__(action_fn=self._tick_service, aftercast_ms=0, name="BuildUpkeepService")
 
-    try:
-        next(runtime.recovery_coroutine)
-    except StopIteration:
-        ConsoleLog(BOT_NAME, "Recovery sequence finished.", Py4GW.Console.MessageType.Info)
-        runtime.recovery_coroutine = None
-    except Exception as exc:
-        ConsoleLog(BOT_NAME, f"Recovery sequence failed: {exc}", Py4GW.Console.MessageType.Error)
-        runtime.recovery_coroutine = None
-        bot_instance.config.FSM.resume()
+    def _tick_service(self, node: BehaviorTree.Node) -> BehaviorTree.NodeState:
+        del node
+        if not build.upkeep_enabled:
+            self._generator = None
+            return BehaviorTree.NodeState.RUNNING
 
+        if self._generator is None:
+            self._generator = build.ProcessSkillCasting()
 
-def run_failure_watchdog(bot_instance: Botting) -> None:
-    if runtime.recovery_coroutine is not None or _is_normal_reset_in_progress(bot_instance):
-        return
+        try:
+            next(self._generator)
+        except StopIteration:
+            self._generator = None
+        except Exception as exc:
+            self._generator = None
+            ConsoleLog(
+                BOT_NAME,
+                f"Build upkeep service failed: {exc}",
+                Py4GW.Console.MessageType.Warning,
+            )
+        return BehaviorTree.NodeState.RUNNING
 
-    player_id = Player.GetAgentID()
-    if player_id and Agent.IsDead(player_id):
-        _begin_failure_recovery(bot_instance, "death watchdog")
-        return
-
-    if not Routines.Checks.Map.MapValid():
-        return
-
-    if GLOBAL_CACHE.Party.IsPartyDefeated():
-        _begin_failure_recovery(bot_instance, "party defeat watchdog")
-        return
-
-    if Routines.Checks.Party.IsPartyWiped():
-        _begin_failure_recovery(bot_instance, "party wipe watchdog")
+    def reset(self) -> None:
+        super().reset()
+        self._generator = None
 
 
 def recover_to_anjekas(resign_if_alive: bool):
@@ -488,16 +446,13 @@ def recover_to_anjekas(resign_if_alive: bool):
         )
 
 
-def ensure_anjekas_shrine(bot_instance: Botting):
-    del bot_instance
+def ensure_anjekas_shrine():
     build.EnableUpkeep(False)
     yield from recover_to_anjekas(resign_if_alive=True)
 
 
-def check_inventory_gate():
-    if not needs_inventory_management() and not requires_town_checkpoint():
-        bot.config.FSM.jump_to_state_by_name("Deposit Excess Gold")
-    yield
+def needs_town_checkpoint() -> bool:
+    return needs_inventory_management() or requires_town_checkpoint()
 
 
 def needs_inventory_management() -> bool:
@@ -712,8 +667,51 @@ def auto_deposit_items_and_gold() -> None:
         inventory_handler.module_active = current_state
 
 
-def salvage_dragon_root_on_town_return(bot_instance: Botting):
-    del bot_instance
+def auto_id_salvage_and_deposit_items() -> bool:
+    inventory_handler = AutoInventoryHandler()
+    current_state = inventory_handler.module_active
+    inventory_handler.module_active = False
+    try:
+        yield from inventory_handler.IdentifyItems()
+        yield from inventory_handler.SalvageItems()
+        yield from inventory_handler.DepositItemsAuto()
+        yield from Routines.Yield.Items.DepositGold(inventory_handler.keep_gold, log=False)
+    finally:
+        inventory_handler.module_active = current_state
+    return True
+
+
+def run_inventory_management() -> bool:
+    if not needs_town_checkpoint():
+        return True
+
+    yield from Routines.Yield.Map.TravelToOutpost(MAATU_KEEP, log=True, timeout=MAP_LOAD_TIMEOUT_MS)
+    if not (yield from interact_with_maatu_xunlai()):
+        return False
+
+    yield from auto_id_salvage_and_deposit_items()
+    yield from ensure_merchant_gold()
+    yield from Routines.Yield.Merchant.SellMaterialsAtTrader(
+        MAATU_MERCHANT_COORD[0],
+        MAATU_MERCHANT_COORD[1],
+    )
+    yield from Routines.Yield.Agents.InteractWithAgentXY(
+        MAATU_MERCHANT_COORD[0],
+        MAATU_MERCHANT_COORD[1],
+        timeout_ms=6000,
+        tolerance=MOVE_TOLERANCE,
+    )
+    yield from Routines.Yield.wait(500)
+    yield from Routines.Yield.Merchant.RestockKitsToTarget(1, 1)
+    yield from auto_id_salvage_and_deposit_items()
+    yield from Routines.Yield.Merchant.SellMaterialsAtTrader(
+        MAATU_MERCHANT_COORD[0],
+        MAATU_MERCHANT_COORD[1],
+    )
+    return True
+
+
+def salvage_dragon_root_on_town_return():
     ensure_rotation_settings_loaded()
     if not rotation_settings.auto_salvage_dragon_root_on_town_return:
         yield
@@ -1434,7 +1432,7 @@ def reach_and_interact_kwat() -> bool:
     return False
 
 
-def run_scroll_crafting_rotation(bot_instance: Botting) -> bool:
+def run_scroll_crafting_rotation() -> bool:
     ensure_rotation_settings_loaded()
     crafter_name = rotation_settings.crafter_character.strip()
     if not crafter_name:
@@ -1610,7 +1608,7 @@ def run_scroll_crafting_rotation(bot_instance: Botting) -> bool:
                 "Crafting rotation finished on the crafter character. Stopping the bot because switch-back is disabled.",
                 Py4GW.Console.MessageType.Info,
             )
-            bot_instance.Stop()
+            return False
 
         set_crafting_rotation_status("Idle")
         return True
@@ -1628,11 +1626,11 @@ def run_scroll_crafting_rotation(bot_instance: Botting) -> bool:
                 Py4GW.Console.MessageType.Warning,
             )
             switched_back_to_farmer = yield from switch_back_to_farmer_after_crafting("Craft failure recovery")
-        if runtime.crafting_rotation_status != "Idle" and not bot_instance.config.fsm_running:
+        if runtime.crafting_rotation_status != "Idle":
             set_crafting_rotation_status("Idle")
 
 
-def maybe_run_crafting_rotation(bot_instance: Botting):
+def maybe_run_crafting_rotation():
     if not should_start_crafting_rotation():
         yield
         return
@@ -1646,7 +1644,7 @@ def maybe_run_crafting_rotation(bot_instance: Botting):
         ),
         Py4GW.Console.MessageType.Info,
     )
-    rotation_succeeded = yield from run_scroll_crafting_rotation(bot_instance)
+    rotation_succeeded = yield from run_scroll_crafting_rotation()
     if not rotation_succeeded:
         farmer_restored = (
             bool(runtime.farmer_character_name)
@@ -1666,8 +1664,8 @@ def maybe_run_crafting_rotation(bot_instance: Botting):
                 Py4GW.Console.MessageType.Warning,
             )
             set_crafting_rotation_status("Failed")
-            bot_instance.Stop()
-    yield
+            return False
+    return True
 
 
 def ensure_merchant_gold():
@@ -1680,8 +1678,7 @@ def ensure_merchant_gold():
     yield
 
 
-def return_from_inventory(bot_instance: Botting):
-    del bot_instance
+def return_from_inventory():
     yield from Routines.Yield.Map.TravelToOutpost(ANJEKAS_SHRINE, log=True, timeout=MAP_LOAD_TIMEOUT_MS)
 
 
@@ -1693,7 +1690,7 @@ def deposit_excess_gold():
     yield
 
 
-def load_skillbar(bot_instance: Botting):
+def load_skillbar():
     primary, secondary = Agent.GetProfessionNames(Player.GetAgentID())
     if primary != "Ranger" or secondary != "Assassin":
         ConsoleLog(
@@ -1701,16 +1698,14 @@ def load_skillbar(bot_instance: Botting):
             f"Unsupported profession combo: {primary}/{secondary}. Expected Ranger/Assassin.",
             Py4GW.Console.MessageType.Error,
         )
-        bot_instance.Stop()
-        yield
-        return
+        return False
 
     build.EnableUpkeep(False)
     yield from build.LoadSkillBar()
+    return True
 
 
-def run_dragon_moss_farm(bot_instance: Botting):
-    del bot_instance
+def run_dragon_moss_farm():
     runtime.last_run_succeeded = False
     runtime.failed_loot_agent_ids.clear()
 
@@ -2237,8 +2232,154 @@ def should_pick_up(agent_id: int) -> bool:
 
     return False
 
+def initialize_run_context() -> bool:
+    ensure_rotation_settings_loaded()
+    build.EnableUpkeep(False)
+    runtime.failed_loot_agent_ids.clear()
+    current_name = Player.GetName() or ""
+    if current_name:
+        runtime.farmer_character_name = current_name
+    set_crafting_rotation_status("Idle")
+    return True
 
-create_bot_routine(bot)
+
+def record_town_checkpoint_state() -> bool:
+    tree = botting_tree
+    if tree is None:
+        return True
+    tree.SetBlackboardValue("dragon_moss_needs_inventory_management", needs_inventory_management())
+    tree.SetBlackboardValue("dragon_moss_needs_town_checkpoint", needs_town_checkpoint())
+    return True
+
+
+def inventory_handling_step():
+    if not needs_town_checkpoint():
+        return True
+    return (yield from run_inventory_management())
+
+
+def dragon_root_salvage_step():
+    if not needs_town_checkpoint():
+        return True
+    yield from salvage_dragon_root_on_town_return()
+    return True
+
+
+def return_from_inventory_step():
+    if not needs_town_checkpoint():
+        return True
+    yield from return_from_inventory()
+    return True
+
+
+def prepare_run():
+    ensure_rotation_settings_loaded()
+    build.EnableUpkeep(False)
+    current_name = Player.GetName() or ""
+    if current_name:
+        runtime.farmer_character_name = current_name
+    yield from deposit_excess_gold()
+    Party.SetHardMode()
+    return (yield from load_skillbar())
+
+
+def build_upkeep_service() -> BehaviorTree:
+    return BehaviorTree(BuildUpkeepServiceNode())
+
+
+def town_inventory_check_step() -> BehaviorTree:
+    return action_step("Town Inventory Check", record_town_checkpoint_state)
+
+
+def inventory_handling_tree() -> BehaviorTree:
+    return generator_step("Inventory Handling", inventory_handling_step)
+
+
+def dragon_root_salvage_tree() -> BehaviorTree:
+    return generator_step("Dragon Root Salvage", dragon_root_salvage_step)
+
+
+def crafting_rotation_check_tree() -> BehaviorTree:
+    return generator_step("Crafting Rotation Check", maybe_run_crafting_rotation)
+
+
+def return_from_inventory_tree() -> BehaviorTree:
+    return generator_step("Return From Inventory", return_from_inventory_step)
+
+
+def prepare_run_tree() -> BehaviorTree:
+    return generator_step("Prepare Run", prepare_run)
+
+
+def travel_to_farm_tree() -> BehaviorTree:
+    if Map.IsMapIDMatch(Map.GetMapID(), DRAZACH_THICKET):
+        return action_step("Already In Drazach", lambda: True)
+    return BehaviorTree(
+        BehaviorTree.SequenceNode(
+            name="Travel To Farm",
+            children=[
+                BT.MoveAndExitMap(
+                    Vec2f(*OUTPOST_EXIT_COORD),
+                    target_map_id=DRAZACH_THICKET,
+                ).root,
+            ],
+        )
+    )
+
+
+def farm_dragon_moss_tree() -> BehaviorTree:
+    return generator_step(
+        "Kill Dragon Moss",
+        run_dragon_moss_farm,
+        interpret_result=lambda _result: BehaviorTree.NodeState.SUCCESS,
+    )
+
+
+def return_to_outpost_tree() -> BehaviorTree:
+    return generator_step("Return To Outpost", reset_run)
+
+
+def get_execution_steps():
+    return [
+        ("Initialize", lambda: action_step("Initialize", initialize_run_context)),
+        ("Ensure Anjeka", lambda: generator_step("Ensure Anjeka", ensure_anjekas_shrine)),
+        ("Town Inventory Check", town_inventory_check_step),
+        ("Inventory Handling", inventory_handling_tree),
+        ("Dragon Root Salvage", dragon_root_salvage_tree),
+        ("Crafting Rotation Check", crafting_rotation_check_tree),
+        ("Return From Inventory", return_from_inventory_tree),
+        ("Prepare Run", prepare_run_tree),
+        ("Travel To Farm", travel_to_farm_tree),
+        ("Kill Dragon Moss", farm_dragon_moss_tree),
+        ("Return To Outpost", return_to_outpost_tree),
+    ]
+
+
+def configure_botting_tree(tree: BottingTree) -> BottingTree:
+    tree.DisableHeadlessHeroAI()
+    tree.DisableLooting()
+    tree.SetRestoreIsolationOnStop(True)
+    tree.SetUpkeepTrees([
+        ("Dragon Moss Build Upkeep", build_upkeep_service),
+    ])
+    tree.SetMainRoutine(
+        get_execution_steps(),
+        name="Dragon Moss Fiber Loop",
+        repeat=True,
+        reset=False,
+    )
+    tree.UI.override_draw_config(draw_rotation_settings)
+    tree.UI.override_draw_help(tooltip)
+    return tree
+
+
+def ensure_botting_tree() -> BottingTree:
+    global botting_tree
+
+    if botting_tree is None:
+        botting_tree = configure_botting_tree(BottingTree(BOT_NAME, pause_on_combat=False))
+
+    return botting_tree
 
 def tooltip():
     from Py4GWCoreLib import ImGui, Color
@@ -2289,15 +2430,17 @@ def tooltip():
     PyImGui.text_colored("Credits", title_color.to_tuple_normalized())
     PyImGui.bullet_text("Developed by XLeek")
 
-bot.UI.override_draw_config(draw_rotation_settings)
-bot.UI.override_draw_help(tooltip)
-
 def main():
-    ensure_rotation_settings_loaded()
-    advance_failure_recovery(bot)
-    run_failure_watchdog(bot)
-    bot.Update()
-    bot.UI.draw_window()
+    global initialized
+
+    if not initialized:
+        ensure_rotation_settings_loaded()
+        ensure_botting_tree()
+        initialized = True
+
+    tree = ensure_botting_tree()
+    tree.tick()
+    tree.UI.draw_window(icon_path=MODULE_ICON)
 
 
 if __name__ == "__main__":
