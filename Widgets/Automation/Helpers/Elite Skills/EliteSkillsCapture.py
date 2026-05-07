@@ -2705,9 +2705,14 @@ def IsSignetUnlocked() -> bool:
 
 def BuySignetOfCapture():
     """Travel to Eye of the North and buy Signet of Capture."""
+    # Check if player already has a signet equipped
+    if HasSignetOfCapture():
+        ConsoleLog("Signet", "Signet of Capture already equipped - skipping purchase", log=True)
+        return
+    
     # Note: Allow buying even if unlocked - players can stack signets
     if IsSignetUnlocked():
-        ConsoleLog("Signet", "Signet of Capture already unlocked - buying another...", log=True)
+        ConsoleLog("Signet", "Signet of Capture unlocked but not equipped - buying one...", log=True)
     
     # Record current map before traveling
     starting_map = Map.GetMapID()
@@ -2975,6 +2980,9 @@ def Energy_Surge():
     bot.States.AddHeader("Energy Surge")
     target_prof = Profession.MESMER
     start_map = 414
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -3002,6 +3010,9 @@ def Pious_Renewal():
     bot.States.AddHeader("Pious Renewal")
     target_prof = Profession.DERVISH
     start_map = 493
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -3034,6 +3045,9 @@ def Blood_is_Power():
     bot.States.AddHeader("Blood is Power")
     target_prof = Profession.NECROMANCER
     start_map = 393
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -3059,6 +3073,9 @@ def VowOfStrengthLocals():
     bot.States.AddHeader("Vow of Strength Locals")
     target_prof = Profession.DERVISH
     start_map = 479
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -3087,6 +3104,9 @@ def Ineptitude():
     bot.States.AddHeader("Ineptitude")
     target_prof = Profession.MESMER
     start_map = 641
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -3113,6 +3133,9 @@ def Migraine():
     bot.States.AddHeader("Migraine")
     target_prof = Profession.MESMER
     start_map = 638
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -3140,6 +3163,9 @@ def Spoil_Victor():
     bot.States.AddHeader("Spoil Victor")
     target_prof = Profession.NECROMANCER
     start_map = 230
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -3166,6 +3192,9 @@ def Signet_of_Spirits():
     bot.States.AddHeader("Signet of Spirits")
     target_prof = Profession.RITUALIST
     start_map = 388
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -3191,6 +3220,9 @@ def Spiteful_Spirit():
     bot.States.AddHeader("Spiteful Spirit")
     target_prof = Profession.NECROMANCER
     start_map = 155
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -3227,6 +3259,9 @@ def Mist_Form():
     bot.States.AddHeader("Mist Form")
     target_prof = Profession.ELEMENTALIST
     start_map = 155
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -3263,6 +3298,9 @@ def Signet_of_Judgement():
     bot.States.AddHeader("Signet of Judgement")
     target_prof = Profession.MONK
     start_map = 155
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -3299,6 +3337,9 @@ def Illusionary_Weaponry():
     bot.States.AddHeader("Illusionary Weaponry")
     target_prof = Profession.MESMER
     start_map = 155
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -3335,6 +3376,9 @@ def Shadow_Form():
     bot.States.AddHeader("Shadow Form")
     target_prof = Profession.ASSASSIN
     start_map = 284
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -3360,6 +3404,9 @@ def Shadow_Form_WoC():
     bot.States.AddHeader("Shadow Form - WoC")
     target_prof = Profession.ASSASSIN
     start_map = 284
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -3388,6 +3435,9 @@ def BroadHeadArrow():
     bot.States.AddHeader("Broadhead Arrow")
     target_prof = Profession.RANGER
     start_map = 284
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -3415,6 +3465,9 @@ def SoulTwisting():
     bot.States.AddHeader("Soul Twisting")
     target_prof = Profession.RITUALIST
     start_map = 298
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -3439,6 +3492,9 @@ def PrimalRage():
     bot.States.AddHeader("Primal Rage")
     target_prof = Profession.WARRIOR
     start_map = 298
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -3464,6 +3520,9 @@ def ShadowPrison():
     bot.States.AddHeader("Shadow Prison")
     target_prof = Profession.ASSASSIN
     start_map = 398
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -3491,6 +3550,9 @@ def SoldiersFury():
     bot.States.AddHeader("Soldier's Fury")
     target_prof = Profession.PARAGON
     start_map = 438
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -3520,6 +3582,9 @@ def ObsidianFlesh():
     bot.States.AddHeader("Obsidian Flesh")
     target_prof = Profession.ELEMENTALIST
     start_map = 438
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -3529,7 +3594,7 @@ def ObsidianFlesh():
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-14638, 2927, 437)
     ConfigureAggressiveEnv(bot)
-    bot.Move.XY(-11118, 3848)
+    bot.Move.XY(-10867.00, 4322.00)
     bot.Wait.ForTime(5000)
     bot.Move.XYAndInteractGadget(-10867.00, 4322.00)
     bot.Wait.ForTime(2000)
@@ -3549,6 +3614,9 @@ def Eviscerate():
     bot.States.AddHeader("Eviscerate")
     target_prof = Profession.WARRIOR
     start_map = 650
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -3578,6 +3646,9 @@ def GreaterConflagration():
     bot.States.AddHeader("Greater Conflagration")
     target_prof = Profession.RANGER
     start_map = 124
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -3621,6 +3692,9 @@ def AuraOfTheLich():
     bot.States.AddHeader("Aura of the Lich")
     target_prof = Profession.NECROMANCER
     start_map = 124
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -3668,6 +3742,9 @@ def Panic():
     bot.States.AddHeader("Panic")
     target_prof = Profession.MESMER
     start_map = 124
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -3715,6 +3792,9 @@ def MindBurn():
     bot.States.AddHeader("Mind Burn")
     target_prof = Profession.ELEMENTALIST
     start_map = 124
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -3762,6 +3842,9 @@ def AssassinsPromise():
     bot.States.AddHeader("Assassin's Promise")
     target_prof = Profession.ASSASSIN
     start_map = 640
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -3790,6 +3873,9 @@ def UnyieldingAura():
     bot.States.AddHeader("Unyielding Aura")
     target_prof = Profession.MONK
     start_map = 158
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -3831,6 +3917,9 @@ def VictoryIsMine():
     bot.States.AddHeader("Victory is Mine")
     target_prof = Profession.WARRIOR
     start_map = 158
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -3872,6 +3961,9 @@ def PoisonArrow():
     bot.States.AddHeader("Poison Arrow")
     target_prof = Profession.RANGER
     start_map = 158
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -3913,6 +4005,9 @@ def PlagueSignet():
     bot.States.AddHeader("Plague Signet")
     target_prof = Profession.NECROMANCER
     start_map = 640
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -3939,6 +4034,9 @@ def GlimmeringMark():
     bot.States.AddHeader("Glimmering Mark")
     target_prof = Profession.ELEMENTALIST
     start_map = 158
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -3981,6 +4079,9 @@ def SpellBreaker():
     bot.States.AddHeader("Spell Breaker")
     target_prof = Profession.MONK
     start_map = 155
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -4024,6 +4125,9 @@ def MantraOfRecall():
     bot.States.AddHeader("Mantra of Recall")
     target_prof = Profession.MESMER
     start_map = 155
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -4067,6 +4171,9 @@ def MindShock():
     bot.States.AddHeader("Mind Shock")
     target_prof = Profession.ELEMENTALIST
     start_map = 155
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -4110,6 +4217,9 @@ def VowOfSilence():
     bot.States.AddHeader("Vow of Silence")
     target_prof = Profession.DERVISH
     start_map = 478
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -4134,6 +4244,9 @@ def GlimmerOfLight():
     bot.States.AddHeader("Glimmer of Light")
     target_prof = Profession.MONK
     start_map = 421
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -4157,6 +4270,9 @@ def Onslaught():
     bot.States.AddHeader("Onslaught")
     target_prof = Profession.DERVISH
     start_map = 643
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -4186,6 +4302,9 @@ def EbonDustAura():
     bot.States.AddHeader("Ebon Dust Aura")
     target_prof = Profession.DERVISH
     start_map = 414
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -4209,6 +4328,9 @@ def AvatarOfBalthazar():
     bot.States.AddHeader("Avatar of Balthazar")
     target_prof = Profession.DERVISH
     start_map = 387
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -4237,6 +4359,9 @@ def AvatarOfMelandru():
     bot.States.AddHeader("Avatar of Melandru")
     target_prof = Profession.DERVISH
     start_map = 477
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -4263,6 +4388,9 @@ def AvatarOfDwayna():
     bot.States.AddHeader("Avatar of Dwayna")
     target_prof = Profession.DERVISH
     start_map = 424
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -4290,6 +4418,9 @@ def AvatarOfLyssa():
     bot.States.AddHeader("Avatar of Lyssa")
     target_prof = Profession.DERVISH
     start_map = 554
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -4316,6 +4447,9 @@ def AvatarOfGrenth():
     bot.States.AddHeader("Avatar of Grenth")
     target_prof = Profession.DERVISH
     start_map = 426
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -4340,6 +4474,9 @@ def XinraesWeapon():
     bot.States.AddHeader("Xinrae's Weapon")
     target_prof = Profession.RITUALIST
     start_map = 496
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -4370,6 +4507,9 @@ def Incoming():
     bot.States.AddHeader("Incoming!")
     target_prof = Profession.PARAGON
     start_map = 414
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -4395,6 +4535,9 @@ def FocusedAnger():
     bot.States.AddHeader("Focused Anger")
     target_prof = Profession.PARAGON
     start_map = 427
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -4424,6 +4567,9 @@ def MarkOfProtection():
     bot.States.AddHeader("Mark of Protection")
     target_prof = Profession.MONK
     start_map = 38
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -4447,6 +4593,9 @@ def PreparedShot():
     bot.States.AddHeader("Prepared Shot")
     target_prof = Profession.RANGER
     start_map = 642
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -4470,6 +4619,9 @@ def TogetherAsOne():
     bot.States.AddHeader("Together as One")
     target_prof = Profession.RANGER
     start_map = 650
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -4512,6 +4664,9 @@ def HeroicRefrain():
     bot.States.AddHeader("Heroic Refrain")
     target_prof = Profession.PARAGON
     start_map = 440
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -4543,6 +4698,9 @@ def SoulTaker():
     bot.States.AddHeader("Soul Taker")
     target_prof = Profession.NECROMANCER
     start_map = 35
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -4573,6 +4731,9 @@ def OverTheLimit():
     bot.States.AddHeader("Over The Limit")
     target_prof = Profession.ELEMENTALIST
     start_map = 35
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -4603,6 +4764,9 @@ def JudgmentStrike():
     bot.States.AddHeader("Judgment Strike")
     target_prof = Profession.MONK
     start_map = 440
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -4634,6 +4798,9 @@ def TimeWard():
     bot.States.AddHeader("Time Ward")
     target_prof = Profession.MESMER
     start_map = 650
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -4677,6 +4844,9 @@ def VowOfRevolution():
     bot.States.AddHeader("Vow of Revolution")
     target_prof = Profession.DERVISH
     start_map = 440
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -4708,6 +4878,9 @@ def SevenWeaponStance():
     bot.States.AddHeader("Seven Weapon Stance")
     target_prof = Profession.WARRIOR
     start_map = 226
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -4739,6 +4912,9 @@ def WeaponsOfThreeForges():
     bot.States.AddHeader("Weapons of Three Forges")
     target_prof = Profession.RITUALIST
     start_map = 226
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -4771,6 +4947,9 @@ def ShadowTheft():
     bot.States.AddHeader("Shadow Theft")
     target_prof = Profession.ASSASSIN
     start_map = 226
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -4803,6 +4982,9 @@ def AnthemofGuidance():
     bot.States.AddHeader("Anthem of Guidance")
     target_prof = Profession.PARAGON
     start_map = 403
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -4829,6 +5011,9 @@ def CripplingAnthem():
     bot.States.AddHeader("Crippling Anthem")
     target_prof = Profession.PARAGON
     start_map = 376
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -4859,6 +5044,9 @@ def AngelicBond():
     bot.States.AddHeader("Angelic Bond")
     target_prof = Profession.PARAGON
     start_map = 434
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -4893,6 +5081,9 @@ def AnthemofFury():
     bot.States.AddHeader("Anthem of Fury")
     target_prof = Profession.PARAGON
     start_map = 450
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -4920,6 +5111,9 @@ def DefensiveAnthem():
     bot.States.AddHeader("Defensive Anthem")
     target_prof = Profession.PARAGON
     start_map = 387
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -4946,6 +5140,9 @@ def ItsJustaFleshWound():
     bot.States.AddHeader("It's Just a Flesh Wound.")
     target_prof = Profession.PARAGON
     start_map = 480
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -4971,6 +5168,9 @@ def ThePowerIsYours():
     bot.States.AddHeader("The Power Is Yours!")
     target_prof = Profession.PARAGON
     start_map = 440
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -4994,6 +5194,9 @@ def SongofPurification():
     bot.States.AddHeader("Song of Purification")
     target_prof = Profession.PARAGON
     start_map = 403
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -5017,6 +5220,9 @@ def SongofRestoration():
     bot.States.AddHeader("Song of Restoration")
     target_prof = Profession.PARAGON
     start_map = 428
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -5043,6 +5249,9 @@ def CruelSpear():
     bot.States.AddHeader("Cruel Spear")
     target_prof = Profession.PARAGON
     start_map = 427
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -5072,6 +5281,9 @@ def StunningStrike():
     bot.States.AddHeader("Stunning Strike")
     target_prof = Profession.PARAGON
     start_map = 469
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -5095,6 +5307,9 @@ def CauterySignet():
     bot.States.AddHeader("Cautery Signet")
     target_prof = Profession.PARAGON
     start_map = 424
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -5120,6 +5335,9 @@ def ArcaneZeal():
     bot.States.AddHeader("Arcane Zeal")
     target_prof = Profession.DERVISH
     start_map = 450
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -5149,6 +5367,9 @@ def GrenthsGrasp():
     bot.States.AddHeader("Grenth's Grasp")
     target_prof = Profession.DERVISH
     start_map = 477
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -5172,6 +5393,9 @@ def ReapersSweep():
     bot.States.AddHeader("Reaper's Sweep")
     target_prof = Profession.DERVISH
     start_map = 421
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -5195,6 +5419,9 @@ def VowofStrength():
     bot.States.AddHeader("Vow of Strength")
     target_prof = Profession.DERVISH
     start_map = 376
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -5243,6 +5470,9 @@ def ZealousVow():
     bot.States.AddHeader("Zealous Vow")
     target_prof = Profession.DERVISH
     start_map = 378
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -5265,6 +5495,9 @@ def BlessedLight():
     bot.States.AddHeader("Blessed Light")
     target_prof = Profession.MONK
     start_map = 193
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -5293,6 +5526,9 @@ def HealingLight():
     bot.States.AddHeader("Healing Light")
     target_prof = Profession.MONK
     start_map = 193
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -5318,6 +5554,9 @@ def BoonSignet():
     bot.States.AddHeader("Boon Signet")
     target_prof = Profession.MONK
     start_map = 388
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -5344,6 +5583,9 @@ def HealersBoon():
     bot.States.AddHeader("Healer's Boon")
     target_prof = Profession.MONK
     start_map = 403
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -5371,6 +5613,9 @@ def PeaceandHarmony():
     bot.States.AddHeader("Peace and Harmony")
     target_prof = Profession.MONK
     start_map = 155
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -5397,6 +5642,9 @@ def WithdrawHexes():
     bot.States.AddHeader("Withdraw Hexes")
     target_prof = Profession.MONK
     start_map = 389
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -5421,6 +5669,9 @@ def HealingBurst():
     bot.States.AddHeader("Healing Burst")
     target_prof = Profession.MONK
     start_map = 130
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -5444,6 +5695,9 @@ def HealingHands():
     bot.States.AddHeader("Healing Hands")
     target_prof = Profession.MONK
     start_map = 35
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -5481,6 +5735,9 @@ def LightofDeliverance():
     bot.States.AddHeader("Light of Deliverance")
     target_prof = Profession.MONK
     start_map = 554
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -5504,6 +5761,9 @@ def WordofHealing():
     bot.States.AddHeader("Word of Healing")
     target_prof = Profession.MONK
     start_map = 303
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -5531,6 +5791,9 @@ def AirofEnchantment():
     bot.States.AddHeader("Air of Enchantment")
     target_prof = Profession.MONK
     start_map = 297
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -5554,6 +5817,9 @@ def AuraofFaith():
     bot.States.AddHeader("Aura of Faith")
     target_prof = Profession.MONK
     start_map = 23
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -5590,6 +5856,9 @@ def DivertHexes():
     bot.States.AddHeader("Divert Hexes")
     target_prof = Profession.MONK
     start_map = 480
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -5617,6 +5886,9 @@ def LifeSheath():
     bot.States.AddHeader("Life Sheath")
     target_prof = Profession.MONK
     start_map = 284
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -5641,6 +5913,9 @@ def ShieldOfRegeneration():
     bot.States.AddHeader("Shield of Regeneration")
     target_prof = Profession.MONK
     start_map = 648
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -5665,6 +5940,9 @@ def ZealousBenediction():
     bot.States.AddHeader("Zealous Benediction")
     target_prof = Profession.MONK
     start_map = 428
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -5691,6 +5969,9 @@ def DefendersZeal():
     bot.States.AddHeader("Defender's Zeal")
     target_prof = Profession.MONK
     start_map = 469
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -5714,6 +5995,9 @@ def RayofJudgment():
     bot.States.AddHeader("Ray of Judgment")
     target_prof = Profession.MONK
     start_map = 303
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -5743,6 +6027,9 @@ def WordOfCensure():
     bot.States.AddHeader("Word of Censure")
     target_prof = Profession.MONK
     start_map = 303
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -5771,6 +6058,9 @@ def EmpathicRemoval():
     bot.States.AddHeader("Empathic Removal")
     target_prof = Profession.MONK
     start_map = 129
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -5794,6 +6084,9 @@ def Martyr():
     bot.States.AddHeader("Martyr")
     target_prof = Profession.MONK
     start_map = 442
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -5819,6 +6112,9 @@ def SignetOfRemoval():
     bot.States.AddHeader("Signet of Removal")
     target_prof = Profession.MONK
     start_map = 427
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -5844,6 +6140,9 @@ def BalthazarsPendulum():
     bot.States.AddHeader("Balthazar's Pendulum")
     target_prof = Profession.MONK
     start_map = 378
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -5871,6 +6170,9 @@ def ReapersMark():
     bot.States.AddHeader("Reaper's Mark")
     target_prof = Profession.NECROMANCER
     start_map = 378
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -5897,6 +6199,9 @@ def Charge():
     bot.States.AddHeader("Charge!")
     target_prof = Profession.WARRIOR
     start_map = 277
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -5921,6 +6226,9 @@ def Coward():
     bot.States.AddHeader("Coward!")
     target_prof = Profession.WARRIOR
     start_map = 278
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -5944,6 +6252,9 @@ def YoureAllAlone():
     bot.States.AddHeader("You're All Alone!")
     target_prof = Profession.WARRIOR
     start_map = 376
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -5976,6 +6287,9 @@ def AuspiciousParry():
     bot.States.AddHeader("Auspicious Parry")
     target_prof = Profession.WARRIOR
     start_map = 225
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -6004,6 +6318,9 @@ def Backbreaker():
     bot.States.AddHeader("Backbreaker")
     target_prof = Profession.WARRIOR
     start_map = 638
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -6049,6 +6366,9 @@ def BattleRage():
     bot.States.AddHeader("Battle Rage")
     target_prof = Profession.WARRIOR
     start_map = 219
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -6072,6 +6392,9 @@ def BullsCharge():
     bot.States.AddHeader("Bull's Charge")
     target_prof = Profession.WARRIOR
     start_map = 35
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -6109,6 +6432,9 @@ def ChargingStrike():
     bot.States.AddHeader("Charging Strike")
     target_prof = Profession.WARRIOR
     start_map = 435
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -6132,6 +6458,9 @@ def Cleave():
     bot.States.AddHeader("Cleave")
     target_prof = Profession.WARRIOR
     start_map = 289
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -6155,6 +6484,9 @@ def CripplingSlash():
     bot.States.AddHeader("Crippling Slash")
     target_prof = Profession.WARRIOR
     start_map = 644
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -6185,6 +6517,9 @@ def Decapitate():
     bot.States.AddHeader("Decapitate")
     target_prof = Profession.WARRIOR
     start_map = 424
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -6212,6 +6547,9 @@ def DefyPain():
     bot.States.AddHeader("Defy Pain")
     target_prof = Profession.WARRIOR
     start_map = 24
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -6219,6 +6557,7 @@ def DefyPain():
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
+    bot.Move.XY(-5062, -31650) #Anti Evenia stuck
     bot.Move.XYAndExitMap(-7469,-31762,98)
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(13171,13137)
@@ -6251,6 +6590,9 @@ def DevastatingHammer():
     bot.States.AddHeader("Devastating Hammer")
     target_prof = Profession.WARRIOR
     start_map = 279
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -6274,6 +6616,9 @@ def DragonSlash():
     bot.States.AddHeader("Dragon Slash")
     target_prof = Profession.WARRIOR
     start_map = 273
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -6298,6 +6643,9 @@ def DwarvenBattleStance():
     bot.States.AddHeader("Dwarven Battle Stance")
     target_prof = Profession.WARRIOR
     start_map = 639
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -6347,6 +6695,9 @@ def EnragedSmash():
     bot.States.AddHeader("Enraged Smash")
     target_prof = Profession.WARRIOR
     start_map = 274
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -6394,6 +6745,9 @@ def ForcefulBlow():
     bot.States.AddHeader("Forceful Blow")
     target_prof = Profession.WARRIOR
     start_map = 272
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -6445,6 +6799,9 @@ def Headbutt():
     bot.States.AddHeader("Headbutt")
     target_prof = Profession.WARRIOR
     start_map = 381
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -6468,6 +6825,9 @@ def HundredBlades():
     bot.States.AddHeader("Hundred Blades")
     target_prof = Profession.WARRIOR
     start_map = 284
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -6491,6 +6851,9 @@ def MagehunterStrike():
     bot.States.AddHeader("Magehunter Strike")
     target_prof = Profession.WARRIOR
     start_map = 424
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -6514,6 +6877,9 @@ def MagehuntersSmash():
     bot.States.AddHeader("Magehunter's Smash")
     target_prof = Profession.WARRIOR
     start_map = 476
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -6540,6 +6906,9 @@ def QuiveringBlade():
     bot.States.AddHeader("Quivering Blade")
     target_prof = Profession.WARRIOR
     start_map = 303
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -6563,6 +6932,9 @@ def RageoftheNtouka():
     bot.States.AddHeader("Rage of the Ntouka")
     target_prof = Profession.WARRIOR
     start_map = 387
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -6587,6 +6959,9 @@ def Shove():
     bot.States.AddHeader("Shove")
     target_prof = Profession.WARRIOR
     start_map = 77
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -6610,6 +6985,9 @@ def SkullCrack():
     bot.States.AddHeader("Skull Crack")
     target_prof = Profession.WARRIOR
     start_map = 643
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -6640,6 +7018,9 @@ def SoldiersStance():
     bot.States.AddHeader("Soldier's Stance")
     target_prof = Profession.WARRIOR
     start_map = 545
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -6668,6 +7049,9 @@ def SteadyStance():
     bot.States.AddHeader("Steady Stance")
     target_prof = Profession.WARRIOR
     start_map = 407
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -6691,6 +7075,9 @@ def TripleChop():
     bot.States.AddHeader("Triple Chop")
     target_prof = Profession.WARRIOR
     start_map = 303
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -6714,6 +7101,9 @@ def WarriorsEndurance():
     bot.States.AddHeader("Warrior's Endurance")
     target_prof = Profession.WARRIOR
     start_map = 117
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -6765,6 +7155,9 @@ def WhirlingAxe():
     bot.States.AddHeader("Whirling Axe")
     target_prof = Profession.WARRIOR
     start_map = 273
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -6788,6 +7181,9 @@ def LifeBarrier():
     bot.States.AddHeader("Life Barrier")
     target_prof = Profession.MONK
     start_map = 24
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -6827,6 +7223,9 @@ def Way_of_the_Assassin():
     bot.States.AddHeader("Way of the Assassin")
     target_prof = Profession.ASSASSIN
     start_map = 424
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -6851,6 +7250,9 @@ def Dark_Apostasy():
     bot.States.AddHeader("Dark Apostasy")
     target_prof = Profession.ASSASSIN
     start_map = 230
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -6874,6 +7276,9 @@ def Locusts_Fury():
     bot.States.AddHeader("Locust's Fury")
     target_prof = Profession.ASSASSIN
     start_map = 129
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -6897,6 +7302,9 @@ def Palm_Strike():
     bot.States.AddHeader("Palm Strike")
     target_prof = Profession.ASSASSIN
     start_map = 303
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -6926,6 +7334,9 @@ def Seeping_Wound():
     bot.States.AddHeader("Seeping Wound")
     target_prof = Profession.ASSASSIN
     start_map = 51
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -6950,6 +7361,9 @@ def Flashing_Blades():
     bot.States.AddHeader("Flashing Blades")
     target_prof = Profession.ASSASSIN
     start_map = 220
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -6977,6 +7391,9 @@ def Foxs_Promise():
     bot.States.AddHeader("Fox's Promise")
     target_prof = Profession.ASSASSIN
     start_map = 396
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -7003,6 +7420,9 @@ def Psychic_Instability():
     bot.States.AddHeader("Psychic Instability")
     target_prof = Profession.MESMER
     start_map = 277
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
 
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -7036,6 +7456,9 @@ def Shadow_Shroud():
     bot.States.AddHeader("Shadow Shroud")
     target_prof = Profession.ASSASSIN
     start_map = 277
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
 
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -7068,6 +7491,9 @@ def Shattering_Assault():
     bot.States.AddHeader("Shattering Assault")
     target_prof = Profession.ASSASSIN
     start_map = 480
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
 
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -7100,6 +7526,9 @@ def AuraofDisplacement():
     bot.States.AddHeader("Aura of Displacement")
     target_prof = Profession.ASSASSIN
     start_map = 77
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
 
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -7125,6 +7554,9 @@ def MarkofInsecurity():
     bot.States.AddHeader("Mark of Insecurity")
     target_prof = Profession.ASSASSIN
     start_map = 559
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
 
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -7149,6 +7581,9 @@ def HiddenCaltrops():
     bot.States.AddHeader("Hidden Caltrops")
     target_prof = Profession.ASSASSIN
     start_map = 424
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
 
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -7172,6 +7607,9 @@ def AssaultEnchantments():
     bot.States.AddHeader("Assault Enchantments")
     target_prof = Profession.ASSASSIN
     start_map = 450
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
 
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -7198,6 +7636,9 @@ def ShadowMeld():
     bot.States.AddHeader("Shadow Meld")
     target_prof = Profession.ASSASSIN
     start_map = 477
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
 
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -7221,6 +7662,9 @@ def WastrelsCollapse():
     bot.States.AddHeader("Wastrel's Collapse")
     target_prof = Profession.ASSASSIN
     start_map = 407
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
 
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -7244,6 +7688,9 @@ def GoldenSkullStrike():
     bot.States.AddHeader("Golden Skull Strike")
     target_prof = Profession.ASSASSIN
     start_map = 496
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -7271,6 +7718,9 @@ def Temple_Strike():
     bot.States.AddHeader("Temple Strike")
     target_prof = Profession.ASSASSIN
     start_map = 289
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -7297,6 +7747,9 @@ def Moebius_Strike():
     bot.States.AddHeader("Moebius Strike")
     target_prof = Profession.ASSASSIN
     start_map = 130
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -7321,6 +7774,9 @@ def Shroud_of_Silence():
     bot.States.AddHeader("Shroud of Silence")
     target_prof = Profession.ASSASSIN
     start_map = 226
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -7345,6 +7801,9 @@ def Siphon_Strength():
     bot.States.AddHeader("Siphon Strength")
     target_prof = Profession.ASSASSIN
     start_map = 288
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -7369,6 +7828,9 @@ def Way_of_the_Empty_Palm():
     bot.States.AddHeader("Way of the Empty Palm")
     target_prof = Profession.ASSASSIN
     start_map = 273
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -7394,6 +7856,9 @@ def Beguiling_Haze():
     bot.States.AddHeader("Beguiling Haze")
     target_prof = Profession.ASSASSIN
     start_map = 287
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -7419,6 +7884,9 @@ def Animate_Flesh_Golem():
     bot.States.AddHeader("Animate Flesh Golem")
     target_prof = Profession.NECROMANCER
     start_map = 51
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -7444,6 +7912,9 @@ def Contagion():
     bot.States.AddHeader("Contagion")
     target_prof = Profession.NECROMANCER
     start_map = 425
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -7467,6 +7938,9 @@ def Corrupt_Enchantment():
     bot.States.AddHeader("Corrupt Enchantment")
     target_prof = Profession.NECROMANCER
     start_map = 393
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -7490,6 +7964,9 @@ def Tease():
     bot.States.AddHeader("Tease")
     target_prof = Profession.MESMER
     start_map = 393
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -7513,6 +7990,9 @@ def Master_of_Magic():
     bot.States.AddHeader("Master of Magic")
     target_prof = Profession.ELEMENTALIST
     start_map = 393
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -7537,6 +8017,9 @@ def Invoke_Lightning():
     bot.States.AddHeader("Invoke Lightning")
     target_prof = Profession.ELEMENTALIST
     start_map = 393
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -7560,6 +8043,9 @@ def Cultists_Fervor():
     bot.States.AddHeader("Cultist's Fervor")
     target_prof = Profession.NECROMANCER
     start_map = 234
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -7583,6 +8069,9 @@ def Tainted_Flesh():
     bot.States.AddHeader("Tainted Flesh")
     target_prof = Profession.NECROMANCER
     start_map = 287
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -7606,6 +8095,9 @@ def Depravity():
     bot.States.AddHeader("Depravity")
     target_prof = Profession.NECROMANCER
     start_map = 381
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -7630,6 +8122,9 @@ def Discord():
     bot.States.AddHeader("Discord")
     target_prof = Profession.NECROMANCER
     start_map = 350
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -7653,6 +8148,9 @@ def Icy_Veins():
     bot.States.AddHeader("Icy Veins")
     target_prof = Profession.NECROMANCER
     start_map = 222
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -7676,6 +8174,9 @@ def Crippling_Anguish():
     bot.States.AddHeader("Crippling Anguish")
     target_prof = Profession.MESMER
     start_map = 222
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -7699,6 +8200,9 @@ def Ravenous_Gaze():
     bot.States.AddHeader("Ravenous Gaze")
     target_prof = Profession.NECROMANCER
     start_map = 424
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -7724,6 +8228,9 @@ def Signet_of_Suffering():
     bot.States.AddHeader("Signet of Suffering")
     target_prof = Profession.NECROMANCER
     start_map = 442
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -7747,6 +8254,9 @@ def Lingering_Curse():
     bot.States.AddHeader("Lingering Curse")
     target_prof = Profession.NECROMANCER
     start_map = 272
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -7770,6 +8280,9 @@ def Soul_Bind():
     bot.States.AddHeader("Soul Bind")
     target_prof = Profession.NECROMANCER
     start_map = 284
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -7794,6 +8307,9 @@ def Vampiric_Spirit():
     bot.States.AddHeader("Vampiric Spirit")
     target_prof = Profession.NECROMANCER
     start_map = 272
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -7831,6 +8347,9 @@ def Shockwave():
     bot.States.AddHeader("Shockwave")
     target_prof = Profession.ELEMENTALIST
     start_map = 272
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -7856,6 +8375,9 @@ def Grenths_Balance():
     bot.States.AddHeader("Grenth's Balance")
     target_prof = Profession.NECROMANCER
     start_map = 378
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -7887,6 +8409,9 @@ def Jagged_Bones():
     bot.States.AddHeader("Jagged Bones")
     target_prof = Profession.NECROMANCER
     start_map = 643
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
 
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -7916,6 +8441,9 @@ def Offering_of_Blood():
     bot.States.AddHeader("Offering of Blood")
     target_prof = Profession.NECROMANCER
     start_map = 22
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
 
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -7944,6 +8472,9 @@ def Order_of_the_Vampire():
     bot.States.AddHeader("Order of the Vampire")
     target_prof = Profession.NECROMANCER
     start_map = 117
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -7987,6 +8518,9 @@ def Toxic_Chill():
     bot.States.AddHeader("Toxic Chill")
     target_prof = Profession.NECROMANCER
     start_map = 433
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -8010,6 +8544,9 @@ def Wail_of_Doom():
     bot.States.AddHeader("Wail of Doom")
     target_prof = Profession.NECROMANCER
     start_map = 226
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -8034,6 +8571,9 @@ def Weaken_Knees():
     bot.States.AddHeader("Weaken Knees")
     target_prof = Profession.NECROMANCER
     start_map = 129
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -8058,6 +8598,9 @@ def Archers_Signet():
     bot.States.AddHeader("Archer's Signet")
     target_prof = Profession.RANGER
     start_map = 129
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -8082,6 +8625,9 @@ def Attuned_Was_Songkai():
     bot.States.AddHeader("Attuned Was Songkai")
     target_prof = Profession.RITUALIST
     start_map = 222
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -8105,6 +8651,9 @@ def Clamor_of_Souls():
     bot.States.AddHeader("Clamor of Souls")
     target_prof = Profession.RITUALIST
     start_map = 222
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -8128,6 +8677,9 @@ def Caretakers_Charge():
     bot.States.AddHeader("Caretaker's Charge")
     target_prof = Profession.RITUALIST
     start_map = 473
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -8151,6 +8703,9 @@ def Consume_Soul():
     bot.States.AddHeader("Consume Soul")
     target_prof = Profession.RITUALIST
     start_map = 389
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -8194,17 +8749,25 @@ class EliteSkillsGUI:
         
         # UI State
         self.show_window = True
-        self.window_size_set = True
+        self.window_size_set = False
         self.current_profession = Profession.MESMER
         self.selected_skill = None
         self.capture_running = False
+        self.individual_capture_running = False  # Separate flag for individual skill capture
         self.capture_start_time = None
         self.last_known_state = "Ready"
         
         # Batch capture state
         self.batch_skills = []
         self.current_batch_index = 0
-
+        
+        # Outpost Runner-style chaining state
+        self.skill_chain: List[str] = []
+        self.chain_running: bool = False
+        self._chain_all_done: bool = False
+        self._chain_skill_ranges: List[Tuple[int, int]] = []
+        self._active_step_names: List[str] = []
+        
         # Settings state
         self.show_settings = False
         self.settings = {
@@ -8283,14 +8846,19 @@ class EliteSkillsGUI:
             return
 
         if not self.window_size_set:
-            PyImGui.set_next_window_size(540, 545)
+            # Calculate dynamic size based on content
+            window_width = 540  # Increased width for better button layout
+            # Base height + space for skills list + chain management + status info
+            window_height = 750  # Increased height for all new content sections
+            
+            PyImGui.set_next_window_size(window_width, window_height)
             self.window_size_set = True
 
         # Set window background color based on selected profession
         bg_color = self.get_profession_color(self.current_profession)
         PyImGui.push_style_color(PyImGui.ImGuiCol.WindowBg, bg_color)
 
-        if PyImGui.begin("Elite Skills Capper", True, PyImGui.WindowFlags.NoFlag):
+        if PyImGui.begin("Elite Skills Capper", True, PyImGui.WindowFlags.NoResize):
             self.draw_header()
             PyImGui.separator()
             self.draw_profession_tabs()
@@ -8324,9 +8892,49 @@ class EliteSkillsGUI:
                 PyImGui.text_colored("• Red Start", (0.8, 0.2, 0.2, 1.0))
                 PyImGui.text("  - Required map is not unlocked")
                 PyImGui.end_tooltip()
+        # Main Capture All/Start Chain button at top
+        if self.skill_chain:
+            if not self.chain_running and not self.capture_running:
+                if PyImGui.button(IconsFontAwesome5.ICON_PLAY + " Start Chain", 140, 30):
+                    # Convert chain step names back to EliteSkill objects
+                    chain_skills = []
+                    for step_name in self.skill_chain:
+                        skill = next((s for s in ELITE_SKILLS if s.step_name == step_name), None)
+                        if skill:
+                            chain_skills.append(skill)
+                    self.start_skill_chain(chain_skills)
+            elif self.chain_running:
+                PyImGui.push_style_color(PyImGui.ImGuiCol.Button, (0.7, 0.2, 0.2, 1.0))
+                PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (0.8, 0.3, 0.3, 1.0))
+                PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, (0.6, 0.1, 0.1, 1.0))
+                if PyImGui.button(IconsFontAwesome5.ICON_STOP_CIRCLE + " Stop Chain", 140, 30):
+                    self.bot.Stop()
+                    self._clean_chain_states()
+                    self.chain_running = False
+                    self._chain_all_done = False
+                    self.skill_chain = []
+                    self._chain_skill_ranges = []
+                    self._active_step_names = []
+                PyImGui.pop_style_color(3)
+        else:
+            # Show Capture All button when no chain exists - capture ALL professions
+            available_skills = [s for s in ELITE_SKILLS 
+                              if not is_skill_unlocked(s.skill_id) 
+                              and can_learn_skill(s.skill_id)
+                              and can_access_skill_map(s)]
+            available_skills = sorted(available_skills, key=lambda s: s.skill_id)
+            
+            if available_skills and not self.capture_running and not self.chain_running:
+                if PyImGui.button(IconsFontAwesome5.ICON_PLAY + " Capture All", 140, 30):
+                    self.start_skill_chain(available_skills)
+            elif not available_skills:
+                PyImGui.push_style_color(PyImGui.ImGuiCol.Button, (0.5, 0.5, 0.5, 1.0))
+                PyImGui.button(IconsFontAwesome5.ICON_PLAY + " Capture All", 140, 30)
+                PyImGui.pop_style_color(1)
+        
         PyImGui.same_line(0, 10)
         
-        # Buy Signet button - always visible
+        # Move Buy Signet and Settings to the right
         if not IsSignetUnlocked():
             PyImGui.push_style_color(PyImGui.ImGuiCol.Button, (0.9, 0.3, 0.1, 1.0))
         if PyImGui.button(IconsFontAwesome5.ICON_SHOPPING_CART + " Buy Signet", 120, 25):
@@ -8509,6 +9117,21 @@ class EliteSkillsGUI:
             if self.capture_running:
                 PyImGui.end_disabled()
             
+            PyImGui.same_line(0, 5)
+            
+            # Add to Chain button
+            if not is_unlocked and can_access_map:
+                if PyImGui.button(f"Add##{skill.id}", 80, 30):
+                    self.add_skill_to_chain(skill)
+            elif is_unlocked:
+                PyImGui.push_style_color(PyImGui.ImGuiCol.Button, (0.5, 0.5, 0.5, 1.0))
+                PyImGui.button(f"Add##{skill.id}", 80, 30)
+                PyImGui.pop_style_color(1)
+            elif not can_access_map:
+                PyImGui.push_style_color(PyImGui.ImGuiCol.Button, (0.5, 0.5, 0.5, 1.0))
+                PyImGui.button(f"Add##{skill.id}", 80, 30)
+                PyImGui.pop_style_color(1)
+            
             # Add tooltip for button color explanation
             if PyImGui.is_item_hovered():
                 if PyImGui.begin_tooltip():
@@ -8534,15 +9157,14 @@ class EliteSkillsGUI:
     def draw_controls(self):
         """Draw control buttons - simplified since selection is no longer needed"""
         
-        # Always show Capture All button first (most important feature)
+                
+        # Available Skills Information Box
         available_skills = [s for s in ELITE_SKILLS if s.profession == self.current_profession 
                           and not is_skill_unlocked(s.skill_id) 
                           and can_learn_skill(s.skill_id)
                           and can_access_skill_map(s)]
-        # Sort by skill_id to match GUI display order
         available_skills = sorted(available_skills, key=lambda s: s.skill_id)
         
-        # Available Skills Information Box
         PyImGui.push_style_color(PyImGui.ImGuiCol.ChildBg, (0.1, 0.1, 0.1, 0.8))
         PyImGui.begin_child("available_skills_info", (0, 60), True)
         PyImGui.text(f"Available Skills: {len(available_skills)}")
@@ -8552,27 +9174,57 @@ class EliteSkillsGUI:
         
         PyImGui.same_line(0, 10)
         
+        # Clear Chain button - always available for clearing unwanted skills
+        if self.skill_chain:
+            if PyImGui.button(IconsFontAwesome5.ICON_TRASH + " Clear Chain", 120, 25):
+                self.skill_chain = []
+                ConsoleLog("SkillChain", "Chain cleared", log=True)
+        
         PyImGui.same_line(0, 10)
         
         # Show individual skill controls only when a skill is selected
         if not self.selected_skill:
             PyImGui.text("Select a skill from the list above for individual capture")
-            return
-        
-        PyImGui.text(f"Selected: {self.selected_skill.display_name} (ID: {self.selected_skill.skill_id})")
-        
-        if self.capture_running:
-            # Show Stop button while capture is running
-            PyImGui.push_style_color(PyImGui.ImGuiCol.Button, (0.7, 0.2, 0.2, 1.0))
-            PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonHovered, (0.8, 0.3, 0.3, 1.0))
-            PyImGui.push_style_color(PyImGui.ImGuiCol.ButtonActive, (0.6, 0.1, 0.1, 1.0))
-            if PyImGui.button(IconsFontAwesome5.ICON_STOP_CIRCLE + " Stop Capture", 140, 30):
-                self.stop_capture()
-            PyImGui.pop_style_color(3)
         else:
-            # Show Start button when idle
-            if PyImGui.button(IconsFontAwesome5.ICON_PLAY_CIRCLE + " Start Capture", 140, 30):
-                self._start_capture()
+            PyImGui.text(f"Selected: {self.selected_skill.display_name} (ID: {self.selected_skill.skill_id})")
+        
+                
+        # Chain Management Section - always show when we have skills in chain or when chain is running
+        if self.skill_chain or self.chain_running:
+            PyImGui.separator()
+            PyImGui.text("Chain Management:")
+            
+            # Chain status
+            PyImGui.push_style_color(PyImGui.ImGuiCol.ChildBg, (0.1, 0.1, 0.1, 0.8))
+            PyImGui.begin_child("chain_status", (0, 60), True)
+            PyImGui.text(f"Chain: {len(self.skill_chain)} skills")
+            if self.chain_running:
+                PyImGui.text_colored("Chain Running", (0.2, 0.8, 0.2, 1.0))
+            elif self.skill_chain:
+                PyImGui.text_colored("Chain Ready", (0.2, 0.6, 0.8, 1.0))
+            else:
+                PyImGui.text_colored("Chain Empty", (0.5, 0.5, 0.5, 1.0))
+            PyImGui.end_child()
+            PyImGui.pop_style_color(1)
+            
+            PyImGui.same_line(0, 10)
+            
+            # Chain control buttons
+            if self.skill_chain:
+                if not self.chain_running and not self.capture_running:
+                    if PyImGui.button(IconsFontAwesome5.ICON_PLAY + " Start Chain", 120, 25):
+                    # Convert chain step names back to EliteSkill objects
+                        chain_skills = []
+                        for step_name in self.skill_chain:
+                            skill = next((s for s in ELITE_SKILLS if s.step_name == step_name), None)
+                            if skill:
+                                chain_skills.append(skill)
+                        self.start_skill_chain(chain_skills)
+            PyImGui.same_line(0, 5)
+            
+            if PyImGui.button(IconsFontAwesome5.ICON_TRASH + " Clear Chain", 120, 25):
+                self.skill_chain = []
+                ConsoleLog("SkillChain", "Chain cleared", log=True)
         
             
     def draw_status(self):
@@ -8580,13 +9232,18 @@ class EliteSkillsGUI:
         PyImGui.separator()
         PyImGui.text("Status Information:")
         
-        if self.capture_running:
+        if self.chain_running or self.capture_running:
             # Status indicator
-            PyImGui.text("Status: " + self._get_capture_status())
-            
-            # Current skill info
-            if self.selected_skill:
-                PyImGui.text(f"Skill: {self.selected_skill.display_name} ({self.selected_skill.profession.value})")
+            if self.chain_running:
+                PyImGui.text("Status: Chain Running")
+                current_skill = self._get_current_chain_skill()
+                if current_skill:
+                    PyImGui.text(f"Current Skill: {current_skill.display_name} ({current_skill.profession.value})")
+                PyImGui.text(f"Chain Progress: {len(self._active_step_names)} / {len(self.skill_chain)} skills")
+            else:
+                PyImGui.text("Status: " + self._get_capture_status())
+                if self.selected_skill:
+                    PyImGui.text(f"Skill: {self.selected_skill.display_name} ({self.selected_skill.profession.value})")
             
             # Progress information
             progress_text = self._get_progress_text()
@@ -8605,12 +9262,120 @@ class EliteSkillsGUI:
         else:
             PyImGui.text("Status: Idle")
             PyImGui.text("Progress: Ready to capture")
-            if self.selected_skill:
+            if self.skill_chain:
+                PyImGui.text(f"Chain: {len(self.skill_chain)} skills ready")
+            elif self.selected_skill:
                 PyImGui.text(f"Selected: {self.selected_skill.display_name}")
         
         # Bot state information
         current_state = self._get_current_state_info()
         PyImGui.text(f"Current State: {current_state}")
+    
+    def _find_skill_builder_fn(self, step_name: str):
+        """Find the skill builder function by step name"""
+        for state in self.bot.config.FSM.states[:self._original_state_count]:
+            if state.name == step_name and hasattr(state, "coroutine_fn"):
+                return state.coroutine_fn
+        return None
+    
+    def _run_skill_builder(self, builder_fn) -> None:
+        """Run a skill builder function to add its states to FSM"""
+        gen = builder_fn()
+        try:
+            while True:
+                next(gen)
+        except StopIteration:
+            pass
+    
+    def _clean_chain_states(self):
+        """Clean up dynamic chain states from FSM"""
+        fsm = self.bot.config.FSM
+        if len(fsm.states) > self._original_state_count:
+            if self._original_state_count > 0:
+                fsm.states[self._original_state_count - 1].next_state = self._last_original_next
+            del fsm.states[self._original_state_count:]
+        fsm.RemoveAllManagedCoroutines()
+        if fsm.current_state and fsm.current_state not in fsm.states:
+            fsm.current_state = None
+    
+    def _start_dynamic_states(self) -> bool:
+        """Start the dynamic states execution"""
+        fsm = self.bot.config.FSM
+        if len(fsm.states) <= self._original_state_count:
+            return False
+
+        if self._original_state_count > 0:
+            fsm.states[self._original_state_count - 1].next_state = self._last_original_next
+
+        fsm.states[-1].next_state = None
+
+        first_dynamic = fsm.states[self._original_state_count]
+        self.bot.config.fsm_running = True
+        fsm.finished = False
+        fsm.paused = False
+        fsm._cleanup_coroutines()
+        fsm.current_state = first_dynamic
+        first_dynamic.reset()
+        first_dynamic.enter()
+        return True
+    
+    def add_skill_to_chain(self, skill: 'EliteSkill'):
+        """Add a single skill to the chain"""
+        if is_skill_unlocked(skill.skill_id):
+            ConsoleLog("SkillChain", f"Skill {skill.display_name} already captured, skipping", log=True)
+            return
+        
+        if skill.step_name not in self.skill_chain:
+            self.skill_chain.append(skill.step_name)
+            ConsoleLog("SkillChain", f"Added {skill.display_name} to chain ({len(self.skill_chain)} skills total)", log=True)
+        else:
+            ConsoleLog("SkillChain", f"{skill.display_name} already in chain", log=True)
+    
+    def start_skill_chain(self, skills: List['EliteSkill']):
+        """Start chained capture for multiple skills using Outpost Runner approach"""
+        if not skills:
+            ConsoleLog("SkillChain", "No available skills to capture", log=True)
+            return
+        
+        ConsoleLog("SkillChain", f"Starting skill chain for {len(skills)} skills", log=True)
+        
+        # Convert skills to step names
+        self.skill_chain = [skill.step_name for skill in skills]
+        
+        self.bot.Stop()
+        self._clean_chain_states()
+        self.chain_running = False
+        self._chain_all_done = False
+        self._chain_skill_ranges = []
+        self._active_step_names = list(self.skill_chain)
+
+        fsm = self.bot.config.FSM
+        built_any = False
+
+        for step_name in self.skill_chain:
+            skill = next((s for s in ELITE_SKILLS if s.step_name == step_name), None)
+            if skill and is_skill_unlocked(skill.skill_id):
+                self._chain_skill_ranges.append((-1, -1))
+                continue
+
+            builder_fn = self._find_skill_builder_fn(step_name)
+            if builder_fn is None:
+                self._chain_skill_ranges.append((-1, -1))
+                continue
+
+            range_start = len(fsm.states)
+            self.bot.States.AddHeader(skill.display_name if skill else step_name)
+            self._run_skill_builder(builder_fn)
+            range_end = len(fsm.states) - 1
+            self._chain_skill_ranges.append((range_start, range_end))
+            built_any = True
+
+        if not built_any:
+            self._chain_all_done = True
+            return
+
+        if self._start_dynamic_states():
+            self.chain_running = True
     
     def _get_capture_status(self) -> str:
         """Get current capture status based on bot state"""
@@ -8688,18 +9453,26 @@ class EliteSkillsGUI:
         
         return "Unknown location"
     
-    def _get_current_state_info(self) -> str:
+    def _get_current_chain_skill(self):
+        """Get the current skill being captured in the chain"""
+        if not self.chain_running or not self._active_step_names:
+            return None
+        
+        # Find the current step from active step names
+        current_step = None
+        for step_name in self._active_step_names:
+            skill = next((s for s in ELITE_SKILLS if s.step_name == step_name), None)
+            if skill:
+                current_step = skill
+                break
+        
+        return current_step
+    
+    def _get_current_state_info(self):
         """Get current bot state information"""
         try:
-            # Try to get current FSM state
-            if hasattr(self.bot, 'config') and hasattr(self.bot.config, 'FSM'):
-                fsm = self.bot.config.FSM
-                if hasattr(fsm, 'current_state') and fsm.current_state:
-                    return fsm.current_state.name or str(fsm.current_state)
-            
-            # Try to get from bot states using alternative methods
-            if hasattr(self.bot, 'States'):
-                states = self.bot.States
+            if self.bot and hasattr(self.bot, 'config') and self.bot.config.FSM.current_state:
+                return self.bot.config.FSM.current_state.name or "Unknown"
                 # Try multiple possible methods
                 for method_name in ['GetCurrentStepName', 'get_current_step', 'current_step', 'get_step']:
                     if hasattr(states, method_name):
@@ -9126,8 +9899,6 @@ bot.States.AddCustomState(Attuned_Was_Songkai, "[H]Attuned Was Songkai")
 bot.States.AddCustomState(Clamor_of_Souls, "[H]Clamor of Souls")
 bot.States.AddCustomState(Caretakers_Charge, "[H]Caretaker's Charge")
 bot.States.AddCustomState(Consume_Soul, "[H]Consume Soul")
-
-
 
 # Record base builder state count (used to append/remove dynamic sub-steps)
 gui._original_state_count = len(bot.config.FSM.states)
