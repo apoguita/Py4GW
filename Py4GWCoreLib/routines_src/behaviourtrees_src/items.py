@@ -100,7 +100,7 @@ class BTItems:
         return int(modelID_or_encStr)
 
     @staticmethod
-    def EquipItemByModelID(modelID_or_encStr: int | str, aftercast_ms: int = 750) -> BehaviorTree:
+    def EquipItemByModelID(modelID_or_encStr: int | str, aftercast_ms: int = 750, log: bool = False) -> BehaviorTree:
         """
         Build a tree that equips an item by its model ID.
 
@@ -114,11 +114,36 @@ class BTItems:
         """
         def _equip_item() -> BehaviorTree.NodeState:
             resolved_model_id = BTItems._resolve_model_id_value(modelID_or_encStr)
+            equipped_count = GLOBAL_CACHE.Inventory.GetModelCountInEquipped(resolved_model_id)
+            inventory_count = GLOBAL_CACHE.Inventory.GetModelCount(resolved_model_id)
+            _log(
+                "EquipItemByModelID",
+                (
+                    f"Resolved model {modelID_or_encStr!r} -> {resolved_model_id}. "
+                    f"inventory_count={inventory_count}, equipped_count={equipped_count}."
+                ),
+                log=log,
+            )
             item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(resolved_model_id)
             if item_id == 0:
+                _fail_log(
+                    "EquipItemByModelID",
+                    f"Item model {resolved_model_id} not found in inventory.",
+                    Console.MessageType.Error,
+                )
                 return BehaviorTree.NodeState.FAILURE
 
+            _log(
+                "EquipItemByModelID",
+                f"Equipping item_id={item_id} for model {resolved_model_id} on player {Player.GetAgentID()}.",
+                log=log,
+            )
             GLOBAL_CACHE.Inventory.EquipItem(item_id, Player.GetAgentID())
+            _log(
+                "EquipItemByModelID",
+                f"Equip request sent for item_id={item_id}.",
+                log=log,
+            )
             return BehaviorTree.NodeState.SUCCESS
 
         return BehaviorTree(

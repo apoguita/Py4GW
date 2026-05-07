@@ -1,6 +1,7 @@
 from collections.abc import Mapping
 from collections.abc import Sequence
 from typing import Any
+from typing import Optional
 from typing import TYPE_CHECKING
 
 from ..py4gwcorelib_src.BehaviorTree import BehaviorTree
@@ -19,9 +20,9 @@ class _BottingTreeConfig:
         *,
         name: str,
         hero_ai: bool,
-        looting: bool,
         isolation: bool,
-        pause_on_combat: bool,
+        looting: Optional[bool] = None,
+        pause_on_combat: Optional[bool] = None,
         reset_hero_ai: bool = True,
     ) -> BehaviorTree:
         state = {'requested': False}
@@ -42,9 +43,11 @@ class _BottingTreeConfig:
 
             node.blackboard['headless_heroai_enabled_request'] = bool(hero_ai)
             node.blackboard['headless_heroai_reset_runtime_request'] = bool(reset_hero_ai)
-            node.blackboard['looting_enabled_request'] = bool(looting)
+            if looting is not None:
+                node.blackboard['looting_enabled_request'] = bool(looting)
             node.blackboard['account_isolation_enabled_request'] = bool(isolation)
-            node.blackboard['pause_on_combat_request'] = bool(pause_on_combat)
+            if pause_on_combat is not None:
+                node.blackboard['pause_on_combat_request'] = bool(pause_on_combat)
             node.blackboard['botting_tree_template'] = name
             state['requested'] = True
             return BehaviorTree.NodeState.RUNNING
@@ -62,24 +65,30 @@ class _BottingTreeConfig:
         *,
         account_isolation: bool = True,
         reset_hero_ai: bool = True,
+        pause_on_danger: Optional[bool] = None,
+        auto_loot: Optional[bool] = None,
         name: str = 'ConfigurePacifistEnv',
     ) -> BehaviorTree:
         return self._request_template_state(
             name=name,
             hero_ai=False,
-            looting=False,
             isolation=account_isolation,
-            pause_on_combat=False,
             reset_hero_ai=reset_hero_ai,
+            pause_on_combat=pause_on_danger,
+            looting=auto_loot,
         )
 
     def PacifistForceHeroAITree(
         self,
         *,
+        pause_on_danger: Optional[bool] = None,
+        auto_loot: Optional[bool] = None,
         reset_hero_ai: bool = True,
         name: str = 'ConfigurePacifistForceHeroAIEnv',
     ) -> BehaviorTree:
         return self.PacifistTree(
+            pause_on_danger=pause_on_danger,
+            auto_loot=auto_loot,
             account_isolation=False,
             reset_hero_ai=reset_hero_ai,
             name=name,
@@ -88,17 +97,17 @@ class _BottingTreeConfig:
     def AggressiveTree(
         self,
         *,
-        pause_on_danger: bool = True,
+        pause_on_danger: Optional[bool] = None,
         account_isolation: bool = True,
-        auto_loot: bool = True,
+        auto_loot: Optional[bool] = None,
         reset_hero_ai: bool = True,
         name: str = 'ConfigureAggressiveEnv',
     ) -> BehaviorTree:
         return self._request_template_state(
             name=name,
             hero_ai=True,
-            looting=auto_loot,
             isolation=account_isolation,
+            looting=auto_loot,
             pause_on_combat=pause_on_danger,
             reset_hero_ai=reset_hero_ai,
         )
@@ -106,8 +115,8 @@ class _BottingTreeConfig:
     def AggressiveForceHeroAITree(
         self,
         *,
-        pause_on_danger: bool = True,
-        auto_loot: bool = True,
+        pause_on_danger: Optional[bool] = None,
+        auto_loot: Optional[bool] = None,
         reset_hero_ai: bool = True,
         name: str = 'ConfigureAggressiveForceHeroAIEnv',
     ) -> BehaviorTree:
@@ -122,12 +131,13 @@ class _BottingTreeConfig:
     def MultiboxAggressiveTree(
         self,
         *,
-        auto_loot: bool = True,
+        auto_loot: Optional[bool] = None,
         reset_hero_ai: bool = True,
+        pause_on_danger: Optional[bool] = None,
         name: str = 'ConfigureMultiboxAggressiveEnv',
     ) -> BehaviorTree:
         return self.AggressiveTree(
-            pause_on_danger=True,
+            pause_on_danger=pause_on_danger,
             account_isolation=False,
             auto_loot=auto_loot,
             reset_hero_ai=reset_hero_ai,
@@ -139,19 +149,27 @@ class _BottingTreeConfig:
         *,
         account_isolation: bool = True,
         reset_hero_ai: bool = True,
+        pause_on_danger: bool = False,
+        auto_loot: Optional[bool] = None,
     ) -> BehaviorTree:
         return self.PacifistTree(
             account_isolation=account_isolation,
             reset_hero_ai=reset_hero_ai,
+            pause_on_danger=pause_on_danger,
+            auto_loot=auto_loot,
         )
 
     def PacifistForceHeroAI(
         self,
         *,
         reset_hero_ai: bool = True,
+        pause_on_danger: Optional[bool] = None,
+        auto_loot: Optional[bool] = None,
     ) -> BehaviorTree:
         return self.PacifistForceHeroAITree(
             reset_hero_ai=reset_hero_ai,
+            pause_on_danger=pause_on_danger,
+            auto_loot=auto_loot,
         )
 
     def Aggressive(
@@ -159,7 +177,7 @@ class _BottingTreeConfig:
         *,
         pause_on_danger: bool = True,
         account_isolation: bool = True,
-        auto_loot: bool = True,
+        auto_loot: Optional[bool] = None,
         reset_hero_ai: bool = True,
     ) -> BehaviorTree:
         return self.AggressiveTree(
@@ -172,8 +190,8 @@ class _BottingTreeConfig:
     def AggressiveForceHeroAI(
         self,
         *,
-        pause_on_danger: bool = True,
-        auto_loot: bool = True,
+        pause_on_danger: Optional[bool] = None,
+        auto_loot: Optional[bool] = None,
         reset_hero_ai: bool = True,
     ) -> BehaviorTree:
         return self.AggressiveForceHeroAITree(
@@ -185,10 +203,12 @@ class _BottingTreeConfig:
     def Multibox_Aggressive(
         self,
         *,
-        auto_loot: bool = True,
+        pause_on_danger: Optional[bool] = None,
+        auto_loot: Optional[bool] = None,
         reset_hero_ai: bool = True,
     ) -> BehaviorTree:
         return self.MultiboxAggressiveTree(
+            pause_on_danger=pause_on_danger,
             auto_loot=auto_loot,
             reset_hero_ai=reset_hero_ai,
         )

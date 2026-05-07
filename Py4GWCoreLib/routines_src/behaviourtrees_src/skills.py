@@ -158,7 +158,7 @@ class BTSkills:
           Display: Load Skillbar From Map
           Purpose: Select a player skillbar template automatically from a profession and level mapping.
           UserDescription: Use this when different professions or level bands should load different templates without local selection code.
-          Notes: Each profession maps to ordered `(max_level_exclusive, template)` pairs. Use `None` for the final fallback pair. A `"default"` mapping key or `default_template` is used when no profession-specific entry matches.
+          Notes: Each profession maps to ordered `(max_level_inclusive, template)` pairs. The first entry whose level is greater than or equal to the player's current level is selected. Use `None` for the final fallback pair. A `"default"` mapping key or `default_template` is used when no profession-specific entry matches.
         """
         state = {
             "template": "",
@@ -175,11 +175,11 @@ class BTSkills:
                 return str(default_template or "")
 
             fallback_template = str(default_template or "")
-            for max_level_exclusive, template in candidates:
-                if max_level_exclusive is None:
+            for max_level_inclusive, template in candidates:
+                if max_level_inclusive is None:
                     fallback_template = str(template)
                     continue
-                if current_level < int(max_level_exclusive):
+                if current_level <= int(max_level_inclusive):
                     return str(template)
 
             return fallback_template
