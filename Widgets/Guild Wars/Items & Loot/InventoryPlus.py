@@ -960,6 +960,9 @@ class InventoryPlusWidget:
         self.hovered_item: ItemSlotData | None = None
         self.selected_item: ItemSlotData | None = None
         self._i_window_was_forced_closed: bool = False
+        self._destroy_confirm_pending: bool = False
+        self._destroy_confirm_item_id: int = 0
+        self._destroy_confirm_label: str = ""
         # The I-window wraps bag slots in extra containers, so remember the working prefix after the first hit.
         self.i_inventory_slot_prefix_cache: list[tuple[int, ...]] = []
         self.pop_up_open: bool = False
@@ -1688,16 +1691,6 @@ class InventoryPlusWidget:
                 self._invalidate_context_cache()
                 PyImGui.close_current_popup()
             PyImGui.separator()
-
-            destroy_label = "Destroy Item"
-            if selected_item.Quantity > 1:
-                destroy_label = f"Destroy Stack ({selected_item.Quantity})"
-
-            if PyImGui.menu_item(destroy_label):
-                GLOBAL_CACHE.Inventory.DestroyItem(selected_item.ItemID)
-                self._invalidate_context_cache()
-                PyImGui.close_current_popup()
-            PyImGui.separator()
         if not GLOBAL_CACHE.Inventory.IsStorageOpen():
             if PyImGui.menu_item("Open Xunlai Vault"):
                 GLOBAL_CACHE.Inventory.OpenXunlaiWindow()
@@ -1719,7 +1712,21 @@ class InventoryPlusWidget:
         if PyImGui.menu_item("Config Window"):
             self.show_config_window = True
             PyImGui.close_current_popup()
-        
+
+        if selected_item:
+            PyImGui.separator()
+            destroy_label = "Destroy Item"
+            if selected_item.Quantity > 1:
+                destroy_label = f"Destroy Stack ({selected_item.Quantity})"
+            PyImGui.push_style_color(PyImGui.ImGuiCol.Text, ColorPalette.GetColor("red").to_tuple_normalized())
+            destroy_clicked = PyImGui.menu_item(destroy_label)
+            PyImGui.pop_style_color(1)
+            if destroy_clicked:
+                self._destroy_confirm_pending = True
+                self._destroy_confirm_item_id = selected_item.ItemID
+                self._destroy_confirm_label = destroy_label
+                PyImGui.close_current_popup()
+
     #region id_kit_menu_items
     def _draw_id_kit_menu_item(self, selected_item: ItemSlotData):
         cfg = self.identification_settings
@@ -2289,9 +2296,45 @@ class InventoryPlusWidget:
 
             PyImGui.end_popup()
 
-        else:
-            # popup is not open -> clear selection
+        elif not self._destroy_confirm_pending:
+            # popup is not open and no destroy modal queued -> clear selection
             self.selected_item = None
+
+        self._draw_destroy_confirmation_modal()
+
+    def _draw_destroy_confirmation_modal(self) -> None:
+        from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
+
+        if self._destroy_confirm_pending:
+            PyImGui.open_popup("DestroyItemConfirm")
+            self._destroy_confirm_pending = False
+
+        if not PyImGui.begin_popup_modal(
+            "DestroyItemConfirm", True, PyImGui.WindowFlags.AlwaysAutoResize
+        ):
+            return
+
+        PyImGui.text("Are you sure to destroy this item?")
+        if self._destroy_confirm_label:
+            PyImGui.text_colored(self._destroy_confirm_label, ColorPalette.GetColor("red").to_tuple_normalized())
+        PyImGui.separator()
+
+        if PyImGui.button("Yes", 80, 0):
+            if self._destroy_confirm_item_id:
+                GLOBAL_CACHE.Inventory.DestroyItem(self._destroy_confirm_item_id)
+                self._invalidate_context_cache()
+            self._destroy_confirm_item_id = 0
+            self._destroy_confirm_label = ""
+            self.selected_item = None
+            PyImGui.close_current_popup()
+        PyImGui.same_line(0, -1)
+        if PyImGui.button("No", 80, 0):
+            self._destroy_confirm_item_id = 0
+            self._destroy_confirm_label = ""
+            self.selected_item = None
+            PyImGui.close_current_popup()
+
+        PyImGui.end_popup()
 
     #region ShowConfigWindow
     def DrawPopUps(self):
