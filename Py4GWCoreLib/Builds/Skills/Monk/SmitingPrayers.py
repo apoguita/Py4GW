@@ -6,6 +6,7 @@ from Py4GWCoreLib.BuildMgr import BuildCoroutine
 from Py4GWCoreLib import AgentArray, Range, Routines
 from Py4GWCoreLib.Agent import Agent
 from Py4GWCoreLib.Skill import Skill
+from Py4GWCoreLib.GlobalCache.HexRemovalPriority import HexRemovalPriority, cast_hex_removal_and_track, get_hexed_ally_for_removal
 
 if TYPE_CHECKING:
     from HeroAI.custom_skill_src.skill_types import CustomSkill
@@ -83,21 +84,25 @@ class SmitingPrayers:
     #endregion
 
     #region S
-    def Smite_Hex(self) -> BuildCoroutine:
+    def Smite_Hex(self, min_priority: int = HexRemovalPriority.LOW) -> BuildCoroutine:
         smite_hex_id: int = Skill.GetID("Smite_Hex")
-        smite_hex = self.build.GetCustomSkill(smite_hex_id)
 
-        target_agent_id = self.build.ResolveAllyTarget(
-            smite_hex_id,
-            smite_hex,
+        if not self.build.IsSkillEquipped(smite_hex_id):
+            return False
+
+        target_agent_id = get_hexed_ally_for_removal(
+            Range.Spellcast.value,
+            reserve=True,
+            skill_id=smite_hex_id,
+            min_priority=min_priority,
         )
         if not target_agent_id:
             return False
 
-        return (yield from self.build.CastSkillIDAndRestoreTarget(
+        return (yield from cast_hex_removal_and_track(
+            self.build,
             skill_id=smite_hex_id,
             target_agent_id=target_agent_id,
-            log=False,
             aftercast_delay=250,
         ))
     #endregion
