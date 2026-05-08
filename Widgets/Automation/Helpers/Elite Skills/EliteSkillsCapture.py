@@ -2638,6 +2638,8 @@ def LoadSecondaryBuild(profession: Profession):
             else:
                 ConsoleLog("Build", f"Loaded {current_primary.value}/{profession.value} build", log=True)
             yield from Routines.Yield.wait(2000)  # Wait for skillbar to load
+            # Buy Signet of Capture after loading build
+            yield from BuySignetOfCapture()
         except Exception as e:
             ConsoleLog("Build", f"Failed to load build: {e}", log=True)
             yield
@@ -3002,7 +3004,6 @@ def Energy_Surge():
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Mesmer Build")
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
@@ -3029,7 +3030,6 @@ def Pious_Renewal():
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Dervish Build")
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(DunkoroHeroTeam, "Dunkoro Hero Team")
     ConfigureAggressiveEnv(bot)
@@ -3060,7 +3060,6 @@ def Blood_is_Power():
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Necro Build")
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
@@ -3085,7 +3084,6 @@ def VowOfStrengthLocals():
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Dervish Build")
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
@@ -3113,7 +3111,6 @@ def Ineptitude():
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Mesmer Build")
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
@@ -3139,7 +3136,6 @@ def Migraine():
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Mesmer Build")
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
@@ -3166,7 +3162,6 @@ def Spoil_Victor():
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Necro Build")
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
@@ -3192,7 +3187,6 @@ def Signet_of_Spirits():
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Ritualist Build")
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
@@ -3217,7 +3211,6 @@ def Spiteful_Spirit():
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Necro Build")
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
@@ -3253,7 +3246,6 @@ def Mist_Form():
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Ele Build")
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
@@ -3289,7 +3281,6 @@ def Signet_of_Judgement():
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Monk Build")
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
@@ -3325,7 +3316,6 @@ def Illusionary_Weaponry():
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Mesmer Build")
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
@@ -3361,7 +3351,6 @@ def Shadow_Form():
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Sin Build")
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
@@ -3386,7 +3375,6 @@ def Shadow_Form_WoC():
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Sin Build")
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
@@ -3414,7 +3402,6 @@ def BroadHeadArrow():
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Ranger Build")
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
@@ -3441,7 +3428,6 @@ def SoulTwisting():
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof),"Load Ritualist Build")
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
@@ -3465,7 +3451,6 @@ def PrimalRage():
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof),"Load Warrior Build")
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
@@ -3490,7 +3475,6 @@ def ShadowPrison():
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof),"Load Sin Build")
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
@@ -3517,7 +3501,6 @@ def SoldiersFury():
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof),"Load Paragon Build")
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
@@ -3546,7 +3529,6 @@ def ObsidianFlesh():
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof),"Load Ele Build")
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
@@ -3575,7 +3557,6 @@ def Eviscerate():
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof),"Load Warrior Build")
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
@@ -3604,7 +3585,6 @@ def GreaterConflagration():
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof),"Load Ranger Build")
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
@@ -3647,7 +3627,6 @@ def AuraOfTheLich():
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof),"Load Necro Build")
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
@@ -3694,7 +3673,6 @@ def Panic():
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Mesmer Build")
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
@@ -3788,7 +3766,6 @@ def AssassinsPromise():
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof),"Load Sin Build")
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
@@ -3816,7 +3793,6 @@ def UnyieldingAura():
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof),"Load Monk Build")
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
@@ -3857,7 +3833,6 @@ def VictoryIsMine():
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof),"Load Warrior Build")
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
@@ -3898,7 +3873,6 @@ def PoisonArrow():
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof),"Load Ranger Build")
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
@@ -3939,7 +3913,6 @@ def PlagueSignet():
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof),"Load Necro Build")
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
@@ -3965,7 +3938,6 @@ def GlimmeringMark():
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof),"Load Ele Build")
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
@@ -4007,7 +3979,6 @@ def SpellBreaker():
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof),"Load Monk Build")
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
@@ -4050,7 +4021,6 @@ def MantraOfRecall():
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Mesmer Build")
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
@@ -4093,7 +4063,6 @@ def MindShock():
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof),"Load Ele Build")
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
@@ -4136,7 +4105,6 @@ def Life_Transfer():
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof),"Load Necromancer Build")
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
@@ -4174,7 +4142,6 @@ def Thunderclap():
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof),"Load Elementalist Build")
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
@@ -4212,7 +4179,6 @@ def VowOfSilence():
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof),"Load Dervish Build")
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
@@ -4236,7 +4202,6 @@ def GlimmerOfLight():
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof),"Load Monk Build")
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
@@ -4719,7 +4684,6 @@ def TimeWard():
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Mesmer")
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture") 
     ConfigureAggressiveEnv(bot)
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.Party.LeaveParty()
@@ -6165,10 +6129,6 @@ def Cleave():
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof),"Load Warrior Build")
-    # Always buy a signet before each capture to ensure we have one
-    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
-    
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
@@ -6192,10 +6152,6 @@ def CripplingSlash():
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof),"Load Warrior Build")
-    # Always buy a signet before each capture to ensure we have one
-    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
-    
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
@@ -6226,10 +6182,6 @@ def Decapitate():
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof),"Load Warrior Build")
-    # Always buy a signet before each capture to ensure we have one
-    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
-    
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
@@ -6257,10 +6209,6 @@ def DefyPain():
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof),"Load Warrior Build")
-    # Always buy a signet before each capture to ensure we have one
-    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
-    
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
@@ -6301,10 +6249,6 @@ def DevastatingHammer():
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof),"Load Warrior Build")
-    # Always buy a signet before each capture to ensure we have one
-    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
-    
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
@@ -6328,10 +6272,6 @@ def DragonSlash():
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof),"Load Warrior Build")
-    # Always buy a signet before each capture to ensure we have one
-    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
-    
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
@@ -6356,10 +6296,6 @@ def DwarvenBattleStance():
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof),"Load Warrior Build")
-    # Always buy a signet before each capture to ensure we have one
-    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
-    
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
@@ -6385,10 +6321,6 @@ def EnragedSmash():
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof),"Load Warrior Build")
-    # Always buy a signet before each capture to ensure we have one
-    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
-    
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
@@ -6412,10 +6344,6 @@ def ForcefulBlow():
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof),"Load Warrior Build")
-    # Always buy a signet before each capture to ensure we have one
-    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
-    
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
@@ -6443,10 +6371,6 @@ def Headbutt():
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof),"Load Warrior Build")
-    # Always buy a signet before each capture to ensure we have one
-    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
-    
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
@@ -6470,10 +6394,6 @@ def HundredBlades():
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof),"Load Warrior Build")
-    # Always buy a signet before each capture to ensure we have one
-    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
-    
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
@@ -6497,10 +6417,6 @@ def MagehunterStrike():
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof),"Load Warrior Build")
-    # Always buy a signet before each capture to ensure we have one
-    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
-    
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
@@ -6524,10 +6440,6 @@ def MagehuntersSmash():
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof),"Load Warrior Build")
-    # Always buy a signet before each capture to ensure we have one
-    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
-    
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
@@ -6554,10 +6466,6 @@ def QuiveringBlade():
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof),"Load Warrior Build")
-    # Always buy a signet before each capture to ensure we have one
-    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
-    
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
@@ -6580,11 +6488,7 @@ def RageoftheNtouka():
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
-    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof),"Load Warrior Build")
-    # Always buy a signet before each capture to ensure we have one
-    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
-    
+    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof),"Load Warrior Build")   
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
@@ -6608,11 +6512,7 @@ def Shove():
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
-    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof),"Load Warrior Build")
-    # Always buy a signet before each capture to ensure we have one
-    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
-    
+    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof),"Load Warrior Build")   
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
@@ -6636,10 +6536,6 @@ def SkullCrack():
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof),"Load Warrior Build")
-    # Always buy a signet before each capture to ensure we have one
-    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
-    
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
@@ -6669,11 +6565,7 @@ def SoldiersStance():
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
-    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof),"Load Warrior Build")
-    # Always buy a signet before each capture to ensure we have one
-    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
-    
+    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof),"Load Warrior Build")   
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
@@ -6701,11 +6593,7 @@ def SteadyStance():
     
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
-    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof),"Load Warrior Build")
-    # Always buy a signet before each capture to ensure we have one
-    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
-    
+    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof),"Load Warrior Build") 
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
@@ -7026,14 +6914,10 @@ def Psychic_Instability():
     bot.States.AddHeader("Psychic Instability")
     target_prof = Profession.MESMER
     start_map = 277
-    # Always buy a signet before each capture to ensure we have one
-    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
 
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Mesmer Build")
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
@@ -7063,9 +6947,6 @@ def Shadow_Shroud():
     bot.States.AddHeader("Shadow Shroud")
     target_prof = Profession.ASSASSIN
     start_map = 277
-    # Always buy a signet before each capture to ensure we have one
-    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
 
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -7098,9 +6979,6 @@ def Shattering_Assault():
     bot.States.AddHeader("Shattering Assault")
     target_prof = Profession.ASSASSIN
     start_map = 480
-    # Always buy a signet before each capture to ensure we have one
-    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
 
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -7133,9 +7011,6 @@ def AuraofDisplacement():
     bot.States.AddHeader("Aura of Displacement")
     target_prof = Profession.ASSASSIN
     start_map = 77
-    # Always buy a signet before each capture to ensure we have one
-    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
 
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -7161,9 +7036,6 @@ def MarkofInsecurity():
     bot.States.AddHeader("Mark of Insecurity")
     target_prof = Profession.ASSASSIN
     start_map = 559
-    # Always buy a signet before each capture to ensure we have one
-    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
 
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -7188,9 +7060,6 @@ def HiddenCaltrops():
     bot.States.AddHeader("Hidden Caltrops")
     target_prof = Profession.ASSASSIN
     start_map = 424
-    # Always buy a signet before each capture to ensure we have one
-    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
 
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -7214,9 +7083,6 @@ def AssaultEnchantments():
     bot.States.AddHeader("Assault Enchantments")
     target_prof = Profession.ASSASSIN
     start_map = 450
-    # Always buy a signet before each capture to ensure we have one
-    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
 
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -7243,9 +7109,6 @@ def ShadowMeld():
     bot.States.AddHeader("Shadow Meld")
     target_prof = Profession.ASSASSIN
     start_map = 477
-    # Always buy a signet before each capture to ensure we have one
-    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
 
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -7269,9 +7132,6 @@ def WastrelsCollapse():
     bot.States.AddHeader("Wastrel's Collapse")
     target_prof = Profession.ASSASSIN
     start_map = 407
-    # Always buy a signet before each capture to ensure we have one
-    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
 
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -7534,7 +7394,6 @@ def Tease():
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Mesmer Build")
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
@@ -7713,9 +7572,6 @@ def Crippling_Anguish():
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof),"Load Necromancer Build")
-
-    ConsoleLog("Signet", "Checking for Signet of Capture after loading build", log=True)
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
@@ -7738,9 +7594,6 @@ def Ravenous_Gaze():
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof),"Load Necromancer Build")
-
-    ConsoleLog("Signet", "Checking for Signet of Capture after loading build", log=True)
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
@@ -7765,9 +7618,6 @@ def Signet_of_Suffering():
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof),"Load Necromancer Build")
-
-    ConsoleLog("Signet", "Checking for Signet of Capture after loading build", log=True)
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
@@ -7922,9 +7772,6 @@ def Jagged_Bones():
     bot.States.AddHeader("Jagged Bones")
     target_prof = Profession.NECROMANCER
     start_map = 643
-    # Always buy a signet before each capture to ensure we have one
-    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
 
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -7954,9 +7801,6 @@ def Offering_of_Blood():
     bot.States.AddHeader("Offering of Blood")
     target_prof = Profession.NECROMANCER
     start_map = 22
-    # Always buy a signet before each capture to ensure we have one
-    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
-    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
 
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
@@ -8645,6 +8489,11 @@ class EliteSkillsGUI:
                         PyImGui.text_colored("Status: Map Locked", (0.8, 0.2, 0.2, 1.0))
                         PyImGui.text(f"Required Map: {Map.GetMapName(skill.start_map)} (ID: {skill.start_map})")
                         PyImGui.text("You need to unlock this outpost to capture this skill.")
+                    elif not skill.allow_chain:
+                        PyImGui.text_colored("Status: Manual Only", (0.8, 0.4, 0.1, 1.0))
+                        PyImGui.text("This skill has retry logic and cannot be chained.")
+                        PyImGui.text("It can only be captured individually.")
+                        PyImGui.text("Chaining it would break progression.")
                     else:
                         PyImGui.text_colored("Status: Available", (0.2, 0.6, 0.8, 1.0))
                         PyImGui.text("This skill is ready to be captured.")
