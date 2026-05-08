@@ -28,6 +28,7 @@ from Widgets.Automation.Helpers.Pycons import resolve_pycons_account_ini_path
 from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
 from Py4GWCoreLib.GlobalCache.shared_memory_src.SharedMessageStruct import SharedMessageStruct
 from Py4GWCoreLib.GlobalCache.shared_memory_src.Globals import SHMEM_MAX_NUMBER_OF_SKILLS
+from Py4GWCoreLib.Item import has_active_party_summon, has_summoning_sickness
 
 cached_data = CacheData()
 
@@ -1156,38 +1157,7 @@ def UseSummoningStone(index: int, message: SharedMessageStruct):
     # Guard against summon spam:
     # - Summoning Sickness already active
     # - summon ally already alive nearby/party-side
-    summoning_sickness_effect_id = 2886
-    has_summoning_sickness = False
-    try:
-        has_summoning_sickness = bool(GLOBAL_CACHE.Effects.HasEffect(Player.GetAgentID(), summoning_sickness_effect_id))
-    except Exception:
-        has_summoning_sickness = False
-
-    summon_creature_model_ids = {
-        513,         # Fire Imp
-        8028,        # Legionnaire
-        9055, 9076,  # Tengu Support Flare - Warrior
-        9056, 9077,  # Tengu Support Flare - Ranger
-        9058, 9079,  # Tengu Support Flare - Monk
-        9060, 9081,  # Tengu Support Flare - Mesmer
-        9062, 9083,  # Tengu Support Flare - Ritualist
-        9065, 9086,  # Tengu Support Flare - Assassin
-        9067, 9088,  # Tengu Support Flare - Elementalist
-        9069, 9090,  # Tengu Support Flare - Necromancer
-    }
-    has_alive_summon = False
-    try:
-        others = GLOBAL_CACHE.Party.GetOthers()
-        for other in others:
-            if Agent.IsAlive(other):
-                model_id = Agent.GetModelID(other)
-                if model_id in summon_creature_model_ids:
-                    has_alive_summon = True
-                    break
-    except Exception:
-        has_alive_summon = False
-
-    if has_summoning_sickness or has_alive_summon:
+    if has_summoning_sickness(Player.GetAgentID()) or has_active_party_summon(GLOBAL_CACHE.Party.GetOthers()):
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
 
@@ -1274,6 +1244,7 @@ def DonateToGuild(index: int, message: SharedMessageStruct):
 
     map_id = Map.GetMapID()
     TITLE_CAP = 10_000_000
+    MATERIAL_EXCHANGE_DIALOG = 0x800101
     TOTAL_CUMULATIVE = 0
     if map_id == 77:  # House zu Heltzer
         faction = 0  # Kurzick
@@ -1310,7 +1281,7 @@ def DonateToGuild(index: int, message: SharedMessageStruct):
     yield from Routines.Yield.Agents.InteractWithAgentXY(*npc_pos)
     yield from Routines.Yield.wait(400)
 
-    if TOTAL_CUMULATIVE <= TITLE_CAP:  # donate faction points if title is not maxed
+    if TOTAL_CUMULATIVE < TITLE_CAP:  # donate faction points if title is not maxed
         # --- Donation loop ---
         chunks = CURRENT_FACTION // CHUNK
         for _ in range(chunks):
@@ -1330,9 +1301,7 @@ def DonateToGuild(index: int, message: SharedMessageStruct):
                 yield from Routines.Yield.wait(250)
                 if not UIManager.IsNPCDialogVisible():
                     break
-            UIManager.ClickDialogButton(1)  # exchange
-            yield from Routines.Yield.wait(250)
-            UIManager.ClickDialogButton(2)  # confirm
+            Player.SendDialog(MATERIAL_EXCHANGE_DIALOG)
             yield from Routines.Yield.wait(300)
             swapped += 1
 

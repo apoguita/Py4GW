@@ -781,10 +781,19 @@ class _Items:
         from ...Player import Player
         from ...Map import Map
         from ...Py4GWcorelib import ConsoleLog
+        from ...Item import has_active_party_summon, has_summoning_sickness
         import Py4GW
 
         # Never use summoning stones in The Norn Fighting Tournament.
         if Map.GetMapID() == 700:
+            return
+
+        if has_summoning_sickness():
+            ConsoleLog("UseSummoningStone", "Skipped: Summoning Sickness is active", Py4GW.Console.MessageType.Debug, log=False)
+            return
+
+        if has_active_party_summon():
+            ConsoleLog("UseSummoningStone", "Skipped: summoned ally already active", Py4GW.Console.MessageType.Debug, log=False)
             return
         
         # Priority 1: Legionnaire Summoning Crystal

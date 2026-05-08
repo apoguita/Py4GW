@@ -3,6 +3,12 @@ from typing import TYPE_CHECKING
 
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib import ConsoleLog, Console, Agent, Player
+from Py4GWCoreLib.Item import (
+    SUMMONING_RESTRICTED_MAP_IDS,
+    SUMMONING_RESTRICTED_QUEST_IDS,
+    has_active_party_summon,
+    has_summoning_sickness,
+)
 
 if TYPE_CHECKING:
     from Py4GWCoreLib.botting_src.helpers import BottingHelpers
@@ -354,31 +360,6 @@ class _Upkeepers:
         from ...Map import Map
         from ...Quest import Quest
         
-        # Quest IDs where summoning stones should NOT be used
-        excluded_quest_ids = [
-            490,  # The Council is Called
-            503,  # All's Well That Ends Well
-            504,  # Warning Kehanni
-            505,  # Calling the Order
-            507,  # Pledge of the Merchant Princes
-            581,  # Heart or Mind: Garden in Danger
-            586,  # Heart or Mind: Ronjok in Danger
-            683,  # Securing_Champions_Dawn
-            730,  # Gain Goren
-            737,  # Battle Preparations
-        ]
-        
-        # Map IDs where summoning stones should NOT be used
-        excluded_map_ids = [
-            351,  # Divine Path
-            423,  # The Tribunal
-            436,  # Command Post
-            503,  # Throne of Secrets
-            700,  # The Norn Fighting Tournament
-            710,  # Epilogue
-            840,  # Lion's Arch Keep
-        ]
-        
         # Priority list for summoning stones (items)
         priority_stones = [
             ModelID.Legionnaire_Summoning_Crystal.value,  # Priority 1: Legionnaire
@@ -407,26 +388,7 @@ class _Upkeepers:
             ModelID.Tengu_Summon.value,
             ModelID.Zaishen_Summon.value,
         ]
-        
-        # Known summon creature model IDs (the actual spawned allies, not the items)
-        # Tengu summons have two model IDs per profession (two variants)
-        summon_creature_model_ids = {
-            513,         # Fire Imp
-            8028,        # Legionnaire
-            9055, 9076,  # Tengu Support Flare - Warrior
-            9056, 9077,  # Tengu Support Flare - Ranger
-            9058, 9079,  # Tengu Support Flare - Monk
-            9060, 9081,  # Tengu Support Flare - Mesmer
-            9062, 9083,  # Tengu Support Flare - Ritualist
-            9065, 9086,  # Tengu Support Flare - Assassin
-            9067, 9088,  # Tengu Support Flare - Elementalist
-            9069, 9090,  # Tengu Support Flare - Necromancer
-            # Add more as discovered via summon_model_id_detector.py
-        }
-        
-        # Summoning Sickness effect ID - applies to all summons
-        summoning_sickness_effect_id = 2886
-        
+
         while True:
             if self._config.upkeep.summoning_stone.is_active():
                 # Check if we're in an explorable area
@@ -436,12 +398,12 @@ class _Upkeepers:
                 
                 # Skip if an excluded quest is in the quest log
                 active_quests = Quest.GetQuestLogIds()
-                if any(qid in excluded_quest_ids for qid in active_quests):
+                if any(qid in SUMMONING_RESTRICTED_QUEST_IDS for qid in active_quests):
                     yield from Routines.Yield.wait(1000)
                     continue
                 
                 # Skip if in an excluded map
-                if Map.GetMapID() in excluded_map_ids:
+                if Map.GetMapID() in SUMMONING_RESTRICTED_MAP_IDS:
                     yield from Routines.Yield.wait(1000)
                     continue
                 
@@ -457,20 +419,11 @@ class _Upkeepers:
                     continue
 
                 # Check if player has Summoning Sickness effect
-                has_summoning_sickness = GLOBAL_CACHE.Effects.HasEffect(Player.GetAgentID(), summoning_sickness_effect_id)
-                
-                # Check if there's already a summon alive in party by checking model IDs
-                has_alive_summon = False
-                others = GLOBAL_CACHE.Party.GetOthers()
-                for other in others:
-                    if Agent.IsAlive(other):
-                        model_id = Agent.GetModelID(other)
-                        if model_id in summon_creature_model_ids:
-                            has_alive_summon = True
-                            break
+                has_summoning_sickness_active = has_summoning_sickness(Player.GetAgentID())
+                has_alive_summon = has_active_party_summon(GLOBAL_CACHE.Party.GetOthers())
                 
                 # Only use stone if no summoning sickness AND no alive summon exists
-                if not has_summoning_sickness and not has_alive_summon:
+                if not has_summoning_sickness_active and not has_alive_summon:
                     # Try Legionnaire first
                     stone_id = GLOBAL_CACHE.Inventory.GetFirstModelID(priority_stones[0])
                     if stone_id:
