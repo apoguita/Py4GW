@@ -19,6 +19,8 @@ class NoAttribute:
         self.build: BuildMgr = build
         self._save_yourselves_throttle: ThrottledTimer = ThrottledTimer(4000)
         self._save_yourselves_throttle.Stop()
+        self._iau_last_kd_ms: int = 0
+        self._iau_recent_kd_window_ms: int = 1500
 
     #region B
     def Breath_of_the_Great_Dwarf(self) -> BuildCoroutine:
@@ -301,12 +303,25 @@ class NoAttribute:
     def I_Am_Unstoppable(self) -> BuildCoroutine:
         i_am_unstoppable_id: int = Skill.GetID("I_Am_Unstoppable")
         player_agent_id = Player.GetAgentID()
+        now_ms = int(Utils.GetBaseTimestamp())
+        is_currently_knocked_down = Agent.IsKnockedDown(player_agent_id)
 
         if not self.build.IsSkillEquipped(i_am_unstoppable_id):
             return False
         if not self.build.IsInAggro():
             return False
-        if Agent.GetHealth(player_agent_id) > 0.70 and not Agent.IsKnockedDown(player_agent_id):
+        if is_currently_knocked_down:
+            self._iau_last_kd_ms = now_ms
+
+        had_recent_knockdown = (
+            self._iau_last_kd_ms > 0
+            and (now_ms - self._iau_last_kd_ms) <= self._iau_recent_kd_window_ms
+        )
+        if (
+            Agent.GetHealth(player_agent_id) > 0.70
+            and not had_recent_knockdown
+            and not Agent.IsCrippled(player_agent_id)
+        ):
             return False
 
         return (yield from self.build.CastSkillID(

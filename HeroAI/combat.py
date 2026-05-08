@@ -7,7 +7,7 @@ from Py4GWCoreLib import Player, GLOBAL_CACHE, SpiritModelID, Timer, Agent, Rout
 from Py4GWCoreLib import Weapon, Effects
 from Py4GWCoreLib.enums import SPIRIT_BUFF_MAP, ModelID
 from .custom_skill import CustomSkillClass
-from .targeting import TargetLowestAlly, TargetLowestAllyEnergy, TargetClusteredEnemy, TargetLowestAllyCaster, TargetLowestAllyMartial, TargetLowestAllyMelee, TargetLowestAllyRanged, GetAllAlliesArray, TargetAllyWeaponSpell, TargetMinionOrAllyNonEnchanted, TargetMinionNonEnchanted, TargetAllyNonEnchanted, TargetAllyNonWeaponSpelled, TargetDeadPartyMember, IsResurrectablePartyMember
+from .targeting import TargetLowestAlly, TargetLowestAllyEnergy, TargetClusteredEnemy, TargetLowestAllyCaster, TargetLowestAllyMartial, TargetLowestAllyMelee, TargetLowestAllyRanged, TargetNecromancerWithSkill, GetAllAlliesArray, TargetAllyWeaponSpell, TargetMinionOrAllyNonEnchanted, TargetMinionNonEnchanted, TargetAllyNonEnchanted, TargetAllyNonWeaponSpelled, TargetDeadPartyMember, IsResurrectablePartyMember
 from .targeting import GetEnemyAttacking, GetEnemyCasting, GetEnemyCastingSpell, GetEnemyCastingSpellOrChant, GetEnemyInjured, GetEnemyConditioned, GetEnemyHealthy
 from .targeting import GetEnemyHexed, GetEnemyDegenHexed, GetEnemyEnchanted, GetEnemyMoving, GetEnemyKnockedDown
 from .targeting import GetEnemyBleeding, GetEnemyPoisoned, GetEnemyCrippled
@@ -745,7 +745,13 @@ class CombatClass:
             if v_target == 0 and not targeting_strict:
                 v_target = get_lowest_ally()
         elif target_allegiance == Skilltarget.OtherAlly:
-            if self.skills[slot].custom_skill_data.Nature == SkillNature.EnergyBuff.value:
+            if self.skills[slot].skill_id == GLOBAL_CACHE.Skill.GetID("Dark_Aura"):
+                v_target = TargetNecromancerWithSkill(
+                    GLOBAL_CACHE.Skill.GetID("Soul_Taker"),
+                    other_ally=True,
+                    filter_skill_id=self.skills[slot].skill_id,
+                )
+            elif self.skills[slot].custom_skill_data.Nature == SkillNature.EnergyBuff.value:
                 v_target = TargetLowestAllyEnergy(other_ally=True, filter_skill_id=self.skills[slot].skill_id, less_energy=self.skills[slot].custom_skill_data.Conditions.LessEnergy)
                 #print("Energy Buff Target: ", RawAgentArray().get_name(v_target))
             else:
