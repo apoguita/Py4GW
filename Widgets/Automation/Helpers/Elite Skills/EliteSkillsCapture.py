@@ -3908,7 +3908,7 @@ def UnyieldingAura():
     bot.Move.XYAndExitMap(-7392, -2618, 95)
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-3347.47, 2503.66)
-    bot.Move.XY(-4790.01, 2923.01)
+    bot.Move.XY(-4966, 3103)
     bot.Wait.UntilOutOfCombat()
     ConfigurePacifistEnv(bot)
     bot.SkillBar.UseSkill(3)
@@ -3952,7 +3952,7 @@ def VictoryIsMine():
     bot.Move.XYAndExitMap(-7392, -2618, 95)
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-3347.47, 2503.66)
-    bot.Move.XY(-4790.01, 2923.01)
+    bot.Move.XY(-4966, 3103)
     bot.Wait.UntilOutOfCombat()
     ConfigurePacifistEnv(bot)
     bot.SkillBar.UseSkill(3)
@@ -3996,7 +3996,7 @@ def PoisonArrow():
     bot.Move.XYAndExitMap(-7392, -2618, 95)
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-3347.47, 2503.66)
-    bot.Move.XY(-4790.01, 2923.01)
+    bot.Move.XY(-4966, 3103)
     bot.Wait.UntilOutOfCombat()
     ConfigurePacifistEnv(bot)
     bot.SkillBar.UseSkill(3)
@@ -4069,7 +4069,7 @@ def GlimmeringMark():
     bot.Move.XYAndExitMap(-7392, -2618, 95)
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-3347.47, 2503.66)
-    bot.Move.XY(-4790.01, 2923.01)
+    bot.Move.XY(-4966, 3103)
     bot.Wait.UntilOutOfCombat()
     ConfigurePacifistEnv(bot)
     bot.SkillBar.UseSkill(3)
@@ -9435,17 +9435,92 @@ class EliteSkillsGUI:
         else:
             ConsoleLog("SkillChain", f"{skill.display_name} already in chain", log=True)
     
+    def _build_single_skill(self, step_name: str) -> bool:
+        """Build a single skill's states into the FSM. Returns True if built."""
+        skill = next((s for s in ELITE_SKILLS if s.step_name == step_name), None)
+        if skill and is_skill_unlocked(skill.skill_id):
+            ConsoleLog("SkillChain", f"Skill {skill.display_name} already captured, skipping", log=True)
+            return False
+
+        builder_fn = self._find_skill_builder_fn(step_name)
+        if builder_fn is None:
+            ConsoleLog("SkillChain", f"No builder found for {step_name}, skipping", log=True)
+            return False
+
+        fsm = self.bot.config.FSM
+        range_start = len(fsm.states)
+        self.bot.States.AddHeader(skill.display_name if skill else step_name)
+        self._run_skill_builder(builder_fn)
+        range_end = len(fsm.states) - 1
+
+        # Store/extend ranges tracking
+        if len(self._chain_skill_ranges) < len(self.skill_chain):
+            self._chain_skill_ranges.append((range_start, range_end))
+        else:
+            # Update existing range for retry
+            idx = self.skill_chain.index(step_name)
+            self._chain_skill_ranges[idx] = (range_start, range_end)
+
+        return True
+
+    def _advance_chain(self):
+        """Advance to the next skill in the chain when current skill completes."""
+        if not self.chain_running or not self.skill_chain:
+            return
+
+        # Check if current skill was captured
+        current_step = self.skill_chain[0] if self.skill_chain else None
+        if current_step:
+            skill = next((s for s in ELITE_SKILLS if s.step_name == current_step), None)
+            if skill and is_skill_unlocked(skill.skill_id):
+                ConsoleLog("SkillChain", f"Skill {skill.display_name} captured successfully, advancing chain", log=True)
+                # Remove from active list and chain
+                if current_step in self._active_step_names:
+                    self._active_step_names.remove(current_step)
+                self.skill_chain.pop(0)
+            else:
+                # Not captured - retry the same skill
+                ConsoleLog("SkillChain", f"Skill {skill.display_name if skill else current_step} not captured, will retry", log=True)
+                # Keep it at the front of the chain for retry
+        else:
+            self.skill_chain.pop(0)
+
+        # Clean and build next skill
+        self._clean_chain_states()
+
+        if not self.skill_chain:
+            ConsoleLog("SkillChain", "All skills in chain completed", log=True)
+            self._chain_all_done = True
+            self.chain_running = False
+            return
+
+        # Build the next skill (or retry current)
+        next_step = self.skill_chain[0]
+        if self._build_single_skill(next_step):
+            if self._start_dynamic_states():
+                ConsoleLog("SkillChain", f"Started skill: {next_step}", log=True)
+            else:
+                ConsoleLog("SkillChain", f"Failed to start skill: {next_step}", log=True)
+                self.chain_running = False
+        else:
+            # Skill was already captured or no builder - skip it
+            if next_step in self._active_step_names:
+                self._active_step_names.remove(next_step)
+            self.skill_chain.pop(0)
+            # Try next skill recursively
+            self._advance_chain()
+
     def start_skill_chain(self, skills: List['EliteSkill']):
-        """Start chained capture for multiple skills using Outpost Runner approach"""
+        """Start chained capture for multiple skills, running one at a time."""
         if not skills:
             ConsoleLog("SkillChain", "No available skills to capture", log=True)
             return
-        
+
         ConsoleLog("SkillChain", f"Starting skill chain for {len(skills)} skills", log=True)
-        
+
         # Convert skills to step names
         self.skill_chain = [skill.step_name for skill in skills]
-        
+
         self.bot.Stop()
         self._clean_chain_states()
         self.chain_running = False
@@ -9453,33 +9528,25 @@ class EliteSkillsGUI:
         self._chain_skill_ranges = []
         self._active_step_names = list(self.skill_chain)
 
-        fsm = self.bot.config.FSM
-        built_any = False
-
-        for step_name in self.skill_chain:
-            skill = next((s for s in ELITE_SKILLS if s.step_name == step_name), None)
-            if skill and is_skill_unlocked(skill.skill_id):
-                self._chain_skill_ranges.append((-1, -1))
-                continue
-
-            builder_fn = self._find_skill_builder_fn(step_name)
-            if builder_fn is None:
-                self._chain_skill_ranges.append((-1, -1))
-                continue
-
-            range_start = len(fsm.states)
-            self.bot.States.AddHeader(skill.display_name if skill else step_name)
-            self._run_skill_builder(builder_fn)
-            range_end = len(fsm.states) - 1
-            self._chain_skill_ranges.append((range_start, range_end))
-            built_any = True
-
-        if not built_any:
-            self._chain_all_done = True
-            return
-
-        if self._start_dynamic_states():
-            self.chain_running = True
+        # Build and start only the first skill
+        first_step = self.skill_chain[0] if self.skill_chain else None
+        if first_step and self._build_single_skill(first_step):
+            if self._start_dynamic_states():
+                self.chain_running = True
+                ConsoleLog("SkillChain", f"Chain started with {first_step}", log=True)
+            else:
+                ConsoleLog("SkillChain", "Failed to start first skill in chain", log=True)
+        elif first_step:
+            # First skill already captured, skip and try next
+            if first_step in self._active_step_names:
+                self._active_step_names.remove(first_step)
+            self.skill_chain.pop(0)
+            if self.skill_chain:
+                next_skills = [s for s in (next((e for e in ELITE_SKILLS if e.step_name == sn), None) for sn in self.skill_chain) if s is not None]
+                if next_skills:
+                    self.start_skill_chain(next_skills)
+            else:
+                self._chain_all_done = True
     
     def _get_capture_status(self) -> str:
         """Get current capture status based on bot state"""
@@ -9562,21 +9629,40 @@ class EliteSkillsGUI:
         if not self.chain_running or not self._active_step_names:
             return None
         
-        # Get current FSM state to identify the actual current skill
+        # Use _chain_skill_ranges to find which skill's state range contains the current FSM state
+        try:
+            fsm = self.bot.config.FSM
+            if fsm.current_state and fsm.states:
+                try:
+                    current_idx = fsm.states.index(fsm.current_state)
+                except ValueError:
+                    current_idx = -1
+                
+                if current_idx >= 0:
+                    # Find which skill's range contains this state index
+                    for i, step_name in enumerate(self.skill_chain):
+                        if i < len(self._chain_skill_ranges):
+                            range_start, range_end = self._chain_skill_ranges[i]
+                            if range_start >= 0 and range_start <= current_idx <= range_end:
+                                skill = next((s for s in ELITE_SKILLS if s.step_name == step_name), None)
+                                if skill:
+                                    return skill
+        except:
+            pass
+        
+        # Fallback to header state check
         try:
             if self.bot and hasattr(self.bot, 'config') and self.bot.config.FSM.current_state:
                 current_state_name = self.bot.config.FSM.current_state.name or ""
-                # Look for header states that start with "[H]" - these indicate the current skill
                 if current_state_name.startswith("[H]"):
-                    skill_name_from_state = current_state_name[3:]  # Remove "[H]" prefix
-                    # Find the skill matching this state name
+                    skill_name_from_state = current_state_name[3:]
                     for skill in ELITE_SKILLS:
                         if skill.display_name == skill_name_from_state:
                             return skill
         except:
             pass
         
-        # Fallback: try to find the first remaining skill (original behavior)
+        # Final fallback: first remaining skill
         for step_name in self._active_step_names:
             skill = next((s for s in ELITE_SKILLS if s.step_name == step_name), None)
             if skill:
@@ -10030,7 +10116,7 @@ def Draw_Window():
 def main():
     bot.Update()
     Draw_Window()
-    
+
     # Check if capture completed and reset flag
     if gui.capture_running:
         try:
@@ -10043,6 +10129,22 @@ def main():
                 gui.capture_running = False
                 gui.capture_start_time = None
                 print(f"Capture completed for {gui.selected_skill.display_name if gui.selected_skill else 'unknown skill'}")
+        except:
+            pass
+
+    # Check if chain mode skill completed and advance to next
+    if gui.chain_running:
+        try:
+            fsm = bot.config.FSM
+            chain_finished = False
+            if hasattr(fsm, 'finished') and fsm.finished:
+                chain_finished = True
+            elif hasattr(fsm, 'current_state') and fsm.current_state is None:
+                chain_finished = True
+
+            if chain_finished:
+                ConsoleLog("SkillChain", "Current skill chain step completed, advancing...", log=True)
+                gui._advance_chain()
         except:
             pass
 
