@@ -2364,6 +2364,28 @@ ELITE_SKILLS = [
         capture_function="Lingering_Curse",
         start_map=272,
         icon_filename="[142] - Lingering Curse.jpg"
+    ),  
+    EliteSkill(
+        id="skill-126",
+        display_name="Life Transfer",
+        skill_id=126,
+        profession=Profession.NECROMANCER,
+        type=EliteSkillType.ELITE_SKILL,
+        step_name="[H]Life Transfer",
+        capture_function="Life_Transfer",
+        start_map=23,
+        icon_filename="[126] - Life Transfer.jpg"
+    ),
+    EliteSkill(
+        id="skill-228",
+        display_name="Thunderclap",
+        skill_id=228,
+        profession=Profession.ELEMENTALIST,
+        type=EliteSkillType.ELITE_SKILL,
+        step_name="[H]Thunderclap",
+        capture_function="Thunderclap",
+        start_map=23,
+        icon_filename="[228] - Thunderclap.jpg"
     ),
     EliteSkill(
         id="skill-901",
@@ -4212,6 +4234,84 @@ def MindShock():
         bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
         bot.States.AddCustomState(MindShock, "[H]Mind Shock")
     yield   
+
+def Life_Transfer():
+    bot.States.AddHeader("Life Transfer")
+    target_prof = Profession.NECROMANCER
+    start_map = 23
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
+    
+    bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
+    bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
+    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Necromancer Build")
+    bot.Party.LeaveParty()
+    bot.Travel_To_Random_District(target_map_id=start_map)
+    bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
+    bot.Move.XYAndExitMap(-12507, -23517, 94)
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XY(7408, 15741)
+    bot.Wait.UntilOutOfCombat()
+    ConfigurePacifistEnv(bot)
+    bot.SkillBar.UseSkill(3)
+    bot.Wait.ForTime(5000)
+    bot.States.AddCustomState(lambda: ClickSkillFrame(126), "Click Skill Frame")
+    bot.Wait.ForTime(2000)
+    REAL_CAPTURED_SKILLS = [260]
+    found_real_skill = False
+    for slot in range(1, 9):
+        skill_data = GLOBAL_CACHE.SkillBar.GetSkillData(slot)
+        if skill_data and skill_data.id in REAL_CAPTURED_SKILLS:
+            found_real_skill = True
+            break
+    if found_real_skill:
+        bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+        bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
+        yield
+    else:
+        bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+        bot.States.AddCustomState(AuraofFaith, "[H]Aura of Faith")
+    yield 
+
+def Thunderclap():
+    bot.States.AddHeader("Thunderclap")
+    target_prof = Profession.ELEMENTALIST
+    start_map = 23
+    # Always buy a signet before each capture to ensure we have one
+    ConsoleLog("Signet", "Buying Signet of Capture before skill capture", log=True)
+    bot.States.AddCustomState(lambda: BuySignetOfCapture(), "Buy Signet of Capture")
+    
+    bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
+    bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
+    bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof), "Load Elementalist Build")
+    bot.Party.LeaveParty()
+    bot.Travel_To_Random_District(target_map_id=start_map)
+    bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
+    bot.Move.XYAndExitMap(-12507, -23517, 94)
+    ConfigureAggressiveEnv(bot)
+    bot.Move.XY(7408, 15741)
+    bot.Wait.UntilOutOfCombat()
+    ConfigurePacifistEnv(bot)
+    bot.SkillBar.UseSkill(3)
+    bot.Wait.ForTime(5000)
+    bot.States.AddCustomState(lambda: ClickSkillFrame(228), "Click Skill Frame")
+    bot.Wait.ForTime(2000)
+    REAL_CAPTURED_SKILLS = [260]
+    found_real_skill = False
+    for slot in range(1, 9):
+        skill_data = GLOBAL_CACHE.SkillBar.GetSkillData(slot)
+        if skill_data and skill_data.id in REAL_CAPTURED_SKILLS:
+            found_real_skill = True
+            break
+    if found_real_skill:
+        bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+        bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
+        yield
+    else:
+        bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
+        bot.States.AddCustomState(AuraofFaith, "[H]Aura of Faith")
+    yield     
 
 def VowOfSilence():
     bot.States.AddHeader("Vow of Silence")
@@ -9458,15 +9558,27 @@ class EliteSkillsGUI:
         if not self.chain_running or not self._active_step_names:
             return None
         
-        # Find the current step from active step names
-        current_step = None
+        # Get current FSM state to identify the actual current skill
+        try:
+            if self.bot and hasattr(self.bot, 'config') and self.bot.config.FSM.current_state:
+                current_state_name = self.bot.config.FSM.current_state.name or ""
+                # Look for header states that start with "[H]" - these indicate the current skill
+                if current_state_name.startswith("[H]"):
+                    skill_name_from_state = current_state_name[3:]  # Remove "[H]" prefix
+                    # Find the skill matching this state name
+                    for skill in ELITE_SKILLS:
+                        if skill.display_name == skill_name_from_state:
+                            return skill
+        except:
+            pass
+        
+        # Fallback: try to find the first remaining skill (original behavior)
         for step_name in self._active_step_names:
             skill = next((s for s in ELITE_SKILLS if s.step_name == step_name), None)
             if skill:
-                current_step = skill
-                break
+                return skill
         
-        return current_step
+        return None
     
     def _get_current_state_info(self):
         """Get current bot state information"""
@@ -9884,6 +9996,8 @@ bot.States.AddCustomState(Crippling_Anguish, "[H]Crippling Anguish")
 bot.States.AddCustomState(Ravenous_Gaze, "[H]Ravenous Gaze")
 bot.States.AddCustomState(Signet_of_Suffering, "[H]Signet of Suffering")
 bot.States.AddCustomState(Lingering_Curse, "[H]Lingering Curse")
+bot.States.AddCustomState(Life_Transfer, "[H]Life Transfer")
+bot.States.AddCustomState(Thunderclap, "[H]Thunderclap")
 bot.States.AddCustomState(Vampiric_Spirit, "[H]Vampiric Spirit")
 bot.States.AddCustomState(Shockwave, "[H]Shockwave")
 bot.States.AddCustomState(Soul_Bind, "[H]Soul Bind")
