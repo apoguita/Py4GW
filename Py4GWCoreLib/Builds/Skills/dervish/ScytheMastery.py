@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from Py4GWCoreLib import GLOBAL_CACHE, Range, Routines, SkillBar, Utils
+from Py4GWCoreLib import GLOBAL_CACHE, Range, Routines, Utils
 from Py4GWCoreLib.Agent import Agent
 from Py4GWCoreLib.BuildMgr import BuildCoroutine
 from Py4GWCoreLib.Player import Player
@@ -32,12 +32,6 @@ class ScytheMastery:
             if skill_type_name == "Enchantment" and profession_name == "Dervish":
                 count += 1
         return count
-
-    def Has_Enough_Adrenaline(self, skill_id: int) -> bool:
-        slot = SkillBar.GetSlotBySkillID(skill_id)
-        if not (1 <= slot <= 8):
-            return False
-        return bool(Routines.Checks.Skills.HasEnoughAdrenalineBySlot(slot))
 
     def _resolve_attack_target(self, target_agent_id: int = 0) -> int:
         return int(target_agent_id or self.build.current_target_id or Player.GetTargetID() or 0)

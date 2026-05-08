@@ -138,7 +138,7 @@ class Soul_Taker_Scythe(BuildMgr):
         # - with only 1 enchant up, spend it on Eremite for blob AoE when the
         #   player is already in the middle of a pack; otherwise Twin still gets
         #   the better single-target compression.
-        twin_ready = self.skillbook.Dervish.ScytheMastery.Has_Enough_Adrenaline(TWIN_MOON_SWEEP_ID)
+        twin_ready = self.CanCastSkillID(TWIN_MOON_SWEEP_ID)
         prefer_eremites_first = (
             not twin_ready
             or (active_flash_enchants == 1 and cluster_size >= 3)
