@@ -1,4 +1,4 @@
-from Py4GWCoreLib import Botting, Routines, GLOBAL_CACHE, ModelID, Map, Agent, ConsoleLog, Player, Timer, IniManager
+from Py4GWCoreLib import Botting, Routines, GLOBAL_CACHE, ModelID, Map, Agent, ConsoleLog, Player, Timer, IniManager, SharedCommandType
 from Py4GWCoreLib.enums_src.Title_enums import TitleID, TITLE_TIERS
 import Py4GW
 import PyImGui
@@ -82,7 +82,8 @@ Vanquish_Path:list[tuple[float, float]] = [
     ]
 
 bot = Botting(BOT_NAME,
-              upkeep_honeycomb_active=True)
+              upkeep_honeycomb_active=True,
+              upkeep_hero_ai_active=True)
 
 _load_resume_timer = Timer()
 _loading_pause_active = False
@@ -122,10 +123,10 @@ def bot_routine(bot: Botting) -> None:
     current_luxon = Player.GetLuxonData()[0]
     current_kurzick = Player.GetKurzickData()[0]
     
-    bot.Move.XYAndInteractNPC(-8394, -9801)
-    if current_kurzick >= current_luxon:
-        bot.Multibox.SendDialogToTarget(0x84) # This will bribe the priest in case kurzick is greater or equal than luxon
-    bot.Multibox.SendDialogToTarget(0x86) #Get Bounty
+    bot.States.AddCustomState(
+        lambda bribe=current_kurzick >= current_luxon: _take_luxon_blessing(bot, bribe),
+        "Take Luxon Blessing",
+    )
     bot.States.AddHeader("Start Combat") #3
     if _restock_use_conset:
         bot.Multibox.UseConset()
@@ -167,6 +168,77 @@ def _disable_looting(bot: "Botting"):
         options.Looting = False
         GLOBAL_CACHE.ShMem.SetHeroAIOptionsByEmail(account_email, options)
     yield
+
+
+def _dispatch_dialog_to_alts_only(dialog_id: int) -> list[tuple[str, int]]:
+    sender_email = Player.GetAccountEmail()
+    target = Player.GetTargetID()
+    if not sender_email or target == 0:
+        return []
+
+    refs: list[tuple[str, int]] = []
+    for account in GLOBAL_CACHE.ShMem.GetAllAccountData():
+        account_email = getattr(account, "AccountEmail", "")
+        if not account_email or account_email == sender_email:
+            continue
+        idx = int(GLOBAL_CACHE.ShMem.SendMessage(
+            sender_email,
+            account_email,
+            SharedCommandType.SendDialogToTarget,
+            (target, dialog_id, 0, 0),
+        ))
+        refs.append((account_email, idx))
+    return refs
+
+
+def _wait_for_alt_dialogs(message_refs: list[tuple[str, int]], timeout_ms: int = 5000):
+    pending = {(email, idx) for email, idx in message_refs if idx >= 0}
+    elapsed = 0
+    while pending and elapsed < timeout_ms:
+        completed: list[tuple[str, int]] = []
+        for account_email, message_index in pending:
+            message = GLOBAL_CACHE.ShMem.GetInbox(message_index)
+            if not getattr(message, "Active", False):
+                completed.append((account_email, message_index))
+        for key in completed:
+            pending.discard(key)
+        if pending:
+            yield from Routines.Yield.wait(250)
+            elapsed += 250
+
+
+def _reset_hero_ai_after_blessing(bot: "Botting") -> None:
+    bot.ResetHeroAICombatState(
+        active=True,
+        following=True,
+        avoidance=True,
+        looting=False,
+        targeting=True,
+        combat=True,
+        skills=True,
+    )
+
+
+def _send_priest_dialog(bot: "Botting", dialog_id: int):
+    target = Player.GetTargetID()
+    if target == 0:
+        return
+    alt_refs = _dispatch_dialog_to_alts_only(dialog_id)
+    yield from Routines.Yield.Player.InteractAgent(target)
+    yield from bot.Wait._coro_for_time(500)
+    Player.SendDialog(dialog_id)
+    yield from _wait_for_alt_dialogs(alt_refs)
+    yield from bot.Wait._coro_for_time(500)
+
+
+def _take_luxon_blessing(bot: "Botting", bribe_priest: bool):
+    yield from bot.Move._coro_xy_and_interact_npc(-8394, -9801)
+    yield from bot.Wait._coro_for_time(500)
+    if bribe_priest:
+        yield from _send_priest_dialog(bot, 0x84)  # Bribe if Kurzick faction is greater or equal to Luxon.
+    yield from _send_priest_dialog(bot, 0x86)      # Get bounty.
+    _reset_hero_ai_after_blessing(bot)
+    yield from bot.Wait._coro_for_time(500)
 
 
 def _coro_travel_random_district(bot: Botting, target_map_id: int):
