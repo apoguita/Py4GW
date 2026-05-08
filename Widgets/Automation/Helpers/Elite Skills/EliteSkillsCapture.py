@@ -4258,7 +4258,7 @@ def Life_Transfer():
     bot.Wait.ForTime(5000)
     bot.States.AddCustomState(lambda: ClickSkillFrame(126), "Click Skill Frame")
     bot.Wait.ForTime(2000)
-    REAL_CAPTURED_SKILLS = [260]
+    REAL_CAPTURED_SKILLS = [126] # Life Transfer skill ID
     found_real_skill = False
     for slot in range(1, 9):
         skill_data = GLOBAL_CACHE.SkillBar.GetSkillData(slot)
@@ -4266,12 +4266,14 @@ def Life_Transfer():
             found_real_skill = True
             break
     if found_real_skill:
+        ConsoleLog("Capture", "Life Transfer captured successfully!", log=True)
         bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
         bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
         yield
     else:
+        ConsoleLog("Capture", "Life Transfer capture failed, retrying...", log=True)
         bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
-        bot.States.AddCustomState(AuraofFaith, "[H]Aura of Faith")
+        bot.States.AddCustomState(Life_Transfer, "[H]Life Transfer")
     yield 
 
 def Thunderclap():
@@ -4297,7 +4299,7 @@ def Thunderclap():
     bot.Wait.ForTime(5000)
     bot.States.AddCustomState(lambda: ClickSkillFrame(228), "Click Skill Frame")
     bot.Wait.ForTime(2000)
-    REAL_CAPTURED_SKILLS = [260]
+    REAL_CAPTURED_SKILLS = [228] # Thunderclap skill ID
     found_real_skill = False
     for slot in range(1, 9):
         skill_data = GLOBAL_CACHE.SkillBar.GetSkillData(slot)
@@ -4305,12 +4307,14 @@ def Thunderclap():
             found_real_skill = True
             break
     if found_real_skill:
+        ConsoleLog("Capture", "Thunderclap captured successfully!", log=True)
         bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
         bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
         yield
     else:
+        ConsoleLog("Capture", "Thunderclap capture failed, retrying...", log=True)
         bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
-        bot.States.AddCustomState(AuraofFaith, "[H]Aura of Faith")
+        bot.States.AddCustomState(Thunderclap, "[H]Thunderclap")
     yield     
 
 def VowOfSilence():
