@@ -1233,6 +1233,7 @@ def PressKey(index: int, message: SharedMessageStruct):
 def DonateToGuild(index: int, message: SharedMessageStruct):
     MODULE = "DonateFaction"
     CHUNK = 5000
+    STARTING_THRESHOLD = 10_000
 
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
 
@@ -1281,9 +1282,19 @@ def DonateToGuild(index: int, message: SharedMessageStruct):
     yield from Routines.Yield.Agents.InteractWithAgentXY(*npc_pos)
     yield from Routines.Yield.wait(400)
 
+    if CURRENT_FACTION < STARTING_THRESHOLD:
+        ConsoleLog(
+            MODULE,
+            f"Skipping donation/conversion: current faction {CURRENT_FACTION:,} below {STARTING_THRESHOLD:,}.",
+            Console.MessageType.Info,
+        )
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+
+    chunks = CURRENT_FACTION // CHUNK
+
     if TOTAL_CUMULATIVE < TITLE_CAP:  # donate faction points if title is not maxed
         # --- Donation loop ---
-        chunks = CURRENT_FACTION // CHUNK
         for _ in range(chunks):
             if not UIManager.IsNPCDialogVisible():
                 yield from Routines.Yield.Player.InteractTarget()
@@ -1294,7 +1305,6 @@ def DonateToGuild(index: int, message: SharedMessageStruct):
             yield from Routines.Yield.wait(300)
     else:  # swap faction points for mats if title is maxed
         swapped = 0
-        chunks = CURRENT_FACTION // CHUNK
         while swapped < chunks:
             if not UIManager.IsNPCDialogVisible():
                 yield from Routines.Yield.Player.InteractTarget()
