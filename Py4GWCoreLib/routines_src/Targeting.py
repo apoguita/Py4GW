@@ -82,6 +82,42 @@ class Targeting:
         
         
         return ally_array   
+
+    @staticmethod
+    def SortAlliesByPartyPosition(agent_array):
+        from ..Party import Party
+
+        player_order = {}
+        for index, player in enumerate(Party.GetPlayers() or []):
+            agent_id = int(Party.Players.GetAgentIDByLoginNumber(player.login_number) or 0)
+            if agent_id:
+                player_order[agent_id] = index
+
+        hero_order = {}
+        hero_start = len(player_order)
+        for index, hero in enumerate(Party.GetHeroes() or []):
+            agent_id = int(getattr(hero, "agent_id", 0) or 0)
+            if agent_id:
+                hero_order[agent_id] = hero_start + index
+
+        pet_owner_order = {}
+        for owner_agent_id, order in player_order.items():
+            pet_id = int(Party.Pets.GetPetID(owner_agent_id) or 0)
+            if pet_id:
+                pet_owner_order[pet_id] = order
+
+        fallback_index = hero_start + len(hero_order)
+
+        def sort_key(agent_id):
+            if agent_id in player_order:
+                return (0, player_order[agent_id], agent_id)
+            if agent_id in hero_order:
+                return (1, hero_order[agent_id], agent_id)
+            if agent_id in pet_owner_order:
+                return (2, pet_owner_order[agent_id], agent_id)
+            return (3, fallback_index, agent_id)
+
+        return sorted(agent_array or [], key=sort_key)
     
     @staticmethod
     def GetNearestSpirit(distance=Range.Earshot.value):
@@ -219,6 +255,74 @@ class Targeting:
         
         ally_array = AgentArray.Sort.ByHealth(ally_array)
         return Utils.GetFirstFromArray(ally_array)
+
+    @staticmethod
+    def TargetAllyByProfession(
+        profession,
+        *,
+        required_skill_id: int = 0,
+        include_secondary: bool = False,
+        other_ally: bool = False,
+        filter_skill_id: int = 0,
+        distance=Range.Spellcast.value,
+    ):
+        from ..Agent import Agent
+        from ..AgentArray import AgentArray
+        from ..GlobalCache import GLOBAL_CACHE
+        from ..Py4GWcorelib import Utils
+        from ..enums_src.GameData_enums import Profession
+
+        try:
+            profession_id = int(profession)
+        except (TypeError, ValueError):
+            profession_id = int(Profession[profession].value)
+
+        ally_array = AgentArray.GetAllyArray()
+        ally_array = Targeting.FilterAllyArray(ally_array, distance, other_ally, filter_skill_id)
+        if not ally_array:
+            return 0
+
+        def _has_profession(agent_id: int) -> bool:
+            primary_profession, secondary_profession = Agent.GetProfessions(agent_id)
+            if int(primary_profession or 0) == profession_id:
+                return True
+            return bool(include_secondary and int(secondary_profession or 0) == profession_id)
+
+        matching_allies = [
+            agent_id
+            for agent_id in ally_array
+            if Agent.IsValid(agent_id) and Agent.IsAlive(agent_id) and _has_profession(agent_id)
+        ]
+        if not matching_allies:
+            return 0
+
+        if required_skill_id:
+            required_skill_id = int(required_skill_id)
+            skillbar_by_agent_id: dict[int, set[int]] = {}
+            for account in GLOBAL_CACHE.ShMem.GetAllActiveSlotsData() or []:
+                agent_id = int(getattr(account.AgentData, "AgentID", 0) or 0)
+                if not agent_id:
+                    continue
+
+                try:
+                    skill_ids = {
+                        int(skill.Id)
+                        for skill in account.AgentData.Skillbar.Skills
+                        if int(skill.Id) != 0
+                    }
+                except Exception:
+                    skill_ids = set()
+
+                skillbar_by_agent_id[agent_id] = skill_ids
+
+            matching_allies = [
+                agent_id
+                for agent_id in matching_allies
+                if required_skill_id in skillbar_by_agent_id.get(agent_id, set())
+            ]
+
+        matching_allies = Targeting.SortAlliesByPartyPosition(matching_allies)
+        return Utils.GetFirstFromArray(matching_allies)
 
     @staticmethod  
     def TargetNearestItem():

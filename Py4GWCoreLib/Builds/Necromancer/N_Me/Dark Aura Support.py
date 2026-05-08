@@ -4,7 +4,6 @@ from Py4GWCoreLib import BuildMgr, Profession, Routines
 from Py4GWCoreLib.Builds.Any.HeroAI import HeroAI_Build
 from Py4GWCoreLib.Builds.Skills import SkillsTemplate
 from Py4GWCoreLib.Skill import Skill
-from HeroAI.targeting import TargetNecromancerWithSkill
 
 
 DARK_AURA_ID = Skill.GetID("Dark_Aura")
@@ -43,49 +42,6 @@ class Dark_Aura_Support(BuildMgr):
         self.SetSkillCastingFn(self._run_local_skill_logic)
         self.skills: SkillsTemplate = SkillsTemplate(self)
 
-    def _cast_ally_skill(self, skill_id: int):
-        if False:
-            yield
-
-        custom_skill = self.GetCustomSkill(skill_id)
-        target_agent_id = self.ResolveAllyTarget(skill_id, custom_skill)
-        if not target_agent_id:
-            return False
-        return (
-            yield from self.CastSkillIDAndRestoreTarget(
-                skill_id=skill_id,
-                target_agent_id=target_agent_id,
-                log=False,
-                aftercast_delay=250,
-            )
-        )
-
-    def _cast_dark_aura(self):
-        if False:
-            yield
-
-        if not self.IsSkillEquipped(DARK_AURA_ID):
-            return False
-        if not (self.IsInAggro() or self.IsCloseToAggro()):
-            return False
-
-        target_agent_id = TargetNecromancerWithSkill(
-            SOUL_TAKER_ID,
-            other_ally=True,
-            filter_skill_id=DARK_AURA_ID,
-        )
-        if not target_agent_id:
-            return False
-
-        return (
-            yield from self.CastSkillIDAndRestoreTarget(
-                skill_id=DARK_AURA_ID,
-                target_agent_id=target_agent_id,
-                log=False,
-                aftercast_delay=250,
-            )
-        )
-
     def _run_local_skill_logic(self):
         if not Routines.Checks.Skills.CanCast():
             return False
@@ -95,16 +51,21 @@ class Dark_Aura_Support(BuildMgr):
         ):
             return True
 
-        if (yield from self._cast_dark_aura()):
+        if self.IsSkillEquipped(DARK_AURA_ID) and (
+            yield from self.skills.Necromancer.DeathMagic.Dark_Aura(
+                required_skill_id=SOUL_TAKER_ID,
+                other_ally=True,
+            )
+        ):
             return True
 
         if self.IsSkillEquipped(FOUL_FEAST_ID) and (
-            yield from self._cast_ally_skill(FOUL_FEAST_ID)
+            yield from self.skills.Necromancer.SoulReaping.Foul_Feast()
         ):
             return True
 
         if self.IsSkillEquipped(EXPEL_HEXES_ID) and (
-            yield from self._cast_ally_skill(EXPEL_HEXES_ID)
+            yield from self.skills.Mesmer.NoAttribute.Expel_Hexes()
         ):
             return True
 

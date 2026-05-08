@@ -300,7 +300,14 @@ class NoAttribute:
     #endregion
 
     #region I
-    def I_Am_Unstoppable(self) -> BuildCoroutine:
+    def I_Am_Unstoppable(
+        self,
+        *,
+        contact_count: int | None = None,
+        min_adjacent_enemies: int = 0,
+        refresh_window_ms: int = 1000,
+        aftercast_delay: int = 250,
+    ) -> BuildCoroutine:
         i_am_unstoppable_id: int = Skill.GetID("I_Am_Unstoppable")
         player_agent_id = Player.GetAgentID()
         now_ms = int(Utils.GetBaseTimestamp())
@@ -310,6 +317,13 @@ class NoAttribute:
             return False
         if not self.build.IsInAggro():
             return False
+        if Routines.Checks.Agents.HasEffect(player_agent_id, i_am_unstoppable_id):
+            remaining_ms = int(GLOBAL_CACHE.Effects.GetEffectTimeRemaining(
+                player_agent_id,
+                i_am_unstoppable_id,
+            ) or 0)
+            if remaining_ms > refresh_window_ms:
+                return False
         if is_currently_knocked_down:
             self._iau_last_kd_ms = now_ms
 
@@ -317,17 +331,33 @@ class NoAttribute:
             self._iau_last_kd_ms > 0
             and (now_ms - self._iau_last_kd_ms) <= self._iau_recent_kd_window_ms
         )
-        if (
-            Agent.GetHealth(player_agent_id) > 0.70
-            and not had_recent_knockdown
-            and not Agent.IsCrippled(player_agent_id)
-        ):
+
+        if contact_count is None and min_adjacent_enemies > 0:
+            player_x, player_y = Player.GetXY()
+            enemy_array = Routines.Agents.GetFilteredEnemyArray(player_x, player_y, Range.Adjacent.value)
+            enemy_array = AgentArray.Filter.ByCondition(
+                enemy_array,
+                lambda agent_id: Agent.IsValid(agent_id) and not Agent.IsDead(agent_id),
+            )
+            contact_count = len(enemy_array or [])
+
+        should_cast = (
+            is_currently_knocked_down
+            or had_recent_knockdown
+            or Agent.IsCrippled(player_agent_id)
+            or Agent.GetHealth(player_agent_id) <= 0.70
+            or (
+                min_adjacent_enemies > 0
+                and int(contact_count or 0) >= min_adjacent_enemies
+            )
+        )
+        if not should_cast:
             return False
 
         return (yield from self.build.CastSkillID(
             skill_id=i_am_unstoppable_id,
             log=False,
-            aftercast_delay=250,
+            aftercast_delay=aftercast_delay,
         ))
     #endregion
 
