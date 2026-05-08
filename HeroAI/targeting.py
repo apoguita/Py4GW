@@ -225,44 +225,6 @@ def TargetLowestAllyCaster(other_ally=False, filter_skill_id=0):
     return Utils.GetFirstFromArray(ally_array)
 
 
-def TargetNecromancerWithSkill(
-    required_skill_id: int,
-    *,
-    other_ally: bool = False,
-    filter_skill_id: int = 0,
-    distance=Range.Spellcast.value,
-):
-    from Py4GWCoreLib.enums_src.GameData_enums import Profession
-
-    ally_array = AgentArray.GetAllyArray()
-    ally_array = FilterAllyArray(ally_array, distance, other_ally, filter_skill_id)
-    if not ally_array:
-        return 0
-
-    ally_ids = set(ally_array)
-    matching_allies: list[int] = []
-
-    for account in GLOBAL_CACHE.ShMem.GetAllActiveSlotsData() or []:
-        agent_id = int(getattr(account.AgentData, "AgentID", 0) or 0)
-        if agent_id == 0 or agent_id not in ally_ids:
-            continue
-
-        primary_profession = int(account.AgentData.Profession[0] or 0)
-        if primary_profession != Profession.Necromancer.value:
-            continue
-
-        skill_ids = {
-            int(skill.Id)
-            for skill in account.AgentData.Skillbar.Skills
-            if int(skill.Id) != 0
-        }
-        if required_skill_id in skill_ids:
-            matching_allies.append(agent_id)
-
-    matching_allies = SortAlliesByPartyPosition(matching_allies)
-    return Utils.GetFirstFromArray(matching_allies)
-
-
 def TargetLowestAllyMartial(other_ally=False, filter_skill_id=0):
     from Py4GWCoreLib import Routines
     from .utils import HasIllusionaryWeaponry
