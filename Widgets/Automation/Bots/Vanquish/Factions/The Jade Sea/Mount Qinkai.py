@@ -157,15 +157,15 @@ def _leave_party_before_start(bot: "Botting"):
 
 def _disable_looting(bot: "Botting"):
     bot.Properties.ApplyNow("auto_loot", "active", False)
-    bot.ResetHeroAICombatState(
-        active=True,
-        following=True,
-        avoidance=True,
-        looting=False,
-        targeting=True,
-        combat=True,
-        skills=True,
-    )
+    for account in GLOBAL_CACHE.ShMem.GetAllAccountData():
+        account_email = getattr(account, "AccountEmail", "")
+        if not account_email:
+            continue
+        options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsFromEmail(account_email)
+        if options is None:
+            continue
+        options.Looting = False
+        GLOBAL_CACHE.ShMem.SetHeroAIOptionsByEmail(account_email, options)
     yield
 
 
