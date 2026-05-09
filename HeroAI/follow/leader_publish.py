@@ -6,11 +6,27 @@ from typing import Protocol
 from Py4GWCoreLib import Agent, Party, Player, Range, ThrottledTimer
 from Py4GWCoreLib.IniManager import IniManager
 from Py4GWCoreLib.Map import Map
+from Py4GWCoreLib.Pathing import AutoPathing
 from Py4GWCoreLib.py4gwcorelib_src.Utils import Utils
 from Py4GWCoreLib.GlobalCache.shared_memory_src.AccountStruct import AccountStruct
 from Py4GWCoreLib.GlobalCache.shared_memory_src.AllAccounts import AllAccounts
 from Py4GWCoreLib.GlobalCache.shared_memory_src.HeroAIOptionStruct import HeroAIOptionStruct
 from Py4GWCoreLib.native_src.internals.types import Vec2f
+
+
+# Force-load the navmesh on first call. AutoPathing's cache is normally
+# populated by get_path() coroutine pumps; leader-side validation skips that.
+def _get_navmesh():
+    autopath = AutoPathing()
+    nav = autopath.get_navmesh()
+    if nav is not None:
+        return nav
+    try:
+        for _ in autopath.load_pathing_maps():
+            pass
+    except Exception:
+        return None
+    return autopath.get_navmesh()
 
 
 class SharedMemoryManagerProtocol(Protocol):
@@ -54,6 +70,10 @@ class FollowThresholdConfig:
 class FollowTuningConfig:
     nonzero_epsilon: float = 0.001
     leader_move_release_distance: float = 1.0
+    # Off-mesh snap distance cap. Snaps farther than this fall back to anchor.
+    followpos_max_reach: float = field(default_factory=lambda: float(Range.Area.value))
+    # NavMesh.contains margin — points just barely off-mesh still count as on.
+    followpos_contains_margin: float = 20.0
 
 
 @dataclass(slots=True)
@@ -446,6 +466,42 @@ class FollowFormationPublisher:
             self.thresholds.combat_follow_threshold,
         )
 
+    def _validate_followpos(
+        self,
+        raw_x: float,
+        raw_y: float,
+        fallback_x: float,
+        fallback_y: float,
+        leader_zplane: int,
+    ) -> tuple[float, float]:
+        """Snap raw FollowPos to navmesh, or fall back to anchor.
+
+        On elevated terrain (zplane > 1) returns anchor immediately so the
+        follower's cross-layer keypress fallback handles stair traversal.
+        """
+        if leader_zplane > 1:
+            return (fallback_x, fallback_y)
+
+        navmesh = _get_navmesh()
+        if navmesh is None:
+            return (raw_x, raw_y)
+
+        try:
+            if navmesh.contains(raw_x, raw_y, self.tuning.followpos_contains_margin):
+                return (raw_x, raw_y)
+            snapped = navmesh.find_nearest_reachable((raw_x, raw_y))
+        except Exception:
+            return (raw_x, raw_y)
+        if snapped is None:
+            return (fallback_x, fallback_y)
+
+        snap_x = float(snapped[0])
+        snap_y = float(snapped[1])
+        displacement = math.hypot(snap_x - raw_x, snap_y - raw_y)
+        if displacement <= self.tuning.followpos_max_reach:
+            return (snap_x, snap_y)
+        return (fallback_x, fallback_y)
+
     def _publish_active_slot(
         self,
         options: HeroAIOptionStruct,
@@ -463,8 +519,16 @@ class FollowFormationPublisher:
         options.FollowMoveThreshold = float(move_threshold)
         options.FollowMoveThresholdCombat = float(combat_threshold)
         rx, ry = self._rotate_local_to_world(local_x, local_y, facing)
-        options.FollowPos.x = anchor_x + rx
-        options.FollowPos.y = anchor_y + ry
+        # Snap-or-fallback against navmesh; bails to anchor on elevated terrain.
+        pos_x, pos_y = self._validate_followpos(
+            float(anchor_x + rx),
+            float(anchor_y + ry),
+            float(anchor_x),
+            float(anchor_y),
+            int(leader_zplane),
+        )
+        options.FollowPos.x = pos_x
+        options.FollowPos.y = pos_y
         options.FollowPos.z = float(leader_zplane)
         options.LeaderFollowReady = True
 
@@ -494,7 +558,6 @@ class FollowFormationPublisher:
         if (not Map.IsMapReady()) or Map.IsMapLoading() or (not Map.IsExplorable()):
             self._clear_follow_publish_state(all_accounts, leader_index, invalidate_flags=True)
             return
-        
 
         if not Party.IsPartyLoaded():
             return
