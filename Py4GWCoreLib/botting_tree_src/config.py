@@ -319,11 +319,10 @@ class _BottingTreeConfig:
         self.parent.SetUpkeepTrees(upkeep_steps)
 
         if enable_party_wipe_recovery:
-            default_step_name = party_wipe_default_step_name
+            default_step_name: str | Callable[[], str | None] | None = party_wipe_default_step_name
             if default_step_name is None:
-                planner_steps = self.parent.GetNamedPlannerStepNames()
-                default_step_name = planner_steps[0] if planner_steps else None
-            self.parent.AddPartyWipeRecoveryService(
+                default_step_name = lambda: (self.parent.GetNamedPlannerStepNames() or [None])[0]
+            self.parent.EnsurePartyWipeRecoveryService(
                 default_step_name=default_step_name,
                 return_interval_ms=party_wipe_return_interval_ms,
             )

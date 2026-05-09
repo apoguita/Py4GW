@@ -193,7 +193,7 @@ class BTPlayer:
                 BehaviorTree.ActionNode(
                     name="GetTargetID",
                     action_fn=lambda node:_get_target_id(node),
-                    aftercast_ms=25
+                    aftercast_ms=100
                 ),
                 BehaviorTree.SubtreeNode(
                     name="InteractAgentSubtree",
