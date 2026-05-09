@@ -54,7 +54,6 @@ SHARED_PROFILES_DIR = os.path.join(CONFIG_DIR, "Profiles")
 RECOVERY_DIR = os.path.join(CONFIG_DIR, "Recovery")
 DATA_DIR = os.path.join(Py4GW.Console.get_projects_path(), "Widgets", "Data")
 CATALOG_PATH = os.path.join(DATA_DIR, "merchant_rules_catalog.json")
-ITEMS_CATALOG_PATH = os.path.join(DATA_DIR, "merchant_rules_items_catalog.json")
 DROP_DATA_PATH = os.path.join(DATA_DIR, "modelid_drop_data.json")
 ITEM_HANDLING_ITEMS_CATALOG_PATH = os.path.join(
     Py4GW.Console.get_projects_path(),
@@ -5712,9 +5711,6 @@ class MerchantRulesWidget:
         curated_essentials = int(self.catalog_stats.get("curated_essentials", 0) or 0)
         item_handling_present = bool(self.catalog_stats.get("item_handling_present", False))
         item_handling_items = int(self.catalog_stats.get("item_handling_items", 0) or 0)
-        mirrored_present = bool(self.catalog_stats.get("mirrored_present", False))
-        mirrored_items = int(self.catalog_stats.get("mirrored_items", 0) or 0)
-        mirrored_fallback_used = bool(self.catalog_stats.get("mirrored_deprecated_fallback_used", False))
         drop_data = int(self.catalog_stats.get("drop_data", 0) or 0)
         modelid_fallback_items = int(self.catalog_stats.get("modelid_fallback_items", 0) or 0)
         final_models = int(self.catalog_stats.get("final_models", len(self.catalog_by_model_id)) or 0)
@@ -5722,7 +5718,7 @@ class MerchantRulesWidget:
         self._debug_log(
             f"{prefix}: curated={curated_total} (common={curated_common}, rare={curated_rare}, essentials={curated_essentials}) | "
             f"item_handling_present={item_handling_present} item_handling_items={item_handling_items} | "
-            f"mirrored_present={mirrored_present} mirrored_items={mirrored_items} fallback_used={mirrored_fallback_used} | drop_data={drop_data} | "
+            f"drop_data={drop_data} | "
             f"modelid_fallback_items={modelid_fallback_items} | "
             f"final_models={final_models} | alias_groups={alias_groups}"
         )
@@ -6004,47 +6000,6 @@ class MerchantRulesWidget:
             loaded_count += 1
         return loaded_count
 
-    def _load_mirrored_item_catalog(self) -> int:
-        if not os.path.exists(ITEMS_CATALOG_PATH):
-            return 0
-
-        with open(ITEMS_CATALOG_PATH, "r", encoding="utf-8") as file:
-            raw_catalog = json.load(file)
-
-        loaded_count = 0
-        for entry in list(raw_catalog.get("items", [])):
-            model_id = max(0, _safe_int(entry.get("model_id", 0), 0))
-            name = str(entry.get("name", "")).strip()
-            if model_id <= 0 or not name:
-                continue
-
-            item_type = str(entry.get("item_type", "")).strip()
-            skin = str(entry.get("skin", "")).strip()
-            wiki_url = str(entry.get("wiki_url", "")).strip()
-            attributes = entry.get("attributes", [])
-            alias_labels = _build_catalog_alias_labels(name, skin, wiki_url)
-
-            extra: dict[str, object] = {
-                "alias_labels": alias_labels,
-            }
-            if skin:
-                extra["skin"] = skin
-            if wiki_url:
-                extra["wiki_url"] = wiki_url
-            if isinstance(attributes, list) and attributes:
-                extra["attributes"] = [str(attribute).strip() for attribute in attributes if str(attribute or "").strip()]
-
-            self._register_catalog_entry(
-                model_id=model_id,
-                name=name,
-                item_type=item_type,
-                source="merchant_rules_items_catalog",
-                priority=_get_catalog_entry_priority(model_id, item_type),
-                extra=extra,
-            )
-            loaded_count += 1
-        return loaded_count
-
     def _load_model_id_fallback_catalog(self) -> int:
         enum_names_by_model_id: dict[int, list[str]] = {}
         for enum_name, model_id in _iter_model_id_enum_members():
@@ -6125,11 +6080,9 @@ class MerchantRulesWidget:
         rare_entries: list[dict[str, object]] = []
         merchant_entries: list[dict[str, object]] = []
         item_handling_items_count = 0
-        mirrored_items_count = 0
         drop_data_count = 0
         model_id_fallback_count = 0
         item_handling_present = os.path.exists(ITEM_HANDLING_ITEMS_CATALOG_PATH)
-        mirrored_present = os.path.exists(ITEMS_CATALOG_PATH)
 
         try:
             with open(CATALOG_PATH, "r", encoding="utf-8") as file:
@@ -6169,15 +6122,6 @@ class MerchantRulesWidget:
         except Exception as exc:
             load_errors.append(f"ItemHandling item catalog load failed: {exc}")
 
-        # Deprecated compatibility fallback. The ItemHandling catalog is the
-        # primary broad item catalog; only read the old MR mirror if it failed
-        # to contribute any searchable entries.
-        if item_handling_items_count <= 0:
-            try:
-                mirrored_items_count = self._load_mirrored_item_catalog()
-            except Exception as exc:
-                load_errors.append(f"Deprecated mirrored item catalog load failed: {exc}")
-
         try:
             drop_data_count = self._load_drop_data_catalog()
         except Exception as exc:
@@ -6209,9 +6153,6 @@ class MerchantRulesWidget:
             "curated_total": len(common_entries) + len(rare_entries) + len(merchant_entries),
             "item_handling_present": item_handling_present,
             "item_handling_items": item_handling_items_count,
-            "mirrored_present": mirrored_present,
-            "mirrored_items": mirrored_items_count,
-            "mirrored_deprecated_fallback_used": item_handling_items_count <= 0 and mirrored_items_count > 0,
             "drop_data": drop_data_count,
             "modelid_fallback_items": model_id_fallback_count,
             "final_models": len(self.catalog_by_model_id),

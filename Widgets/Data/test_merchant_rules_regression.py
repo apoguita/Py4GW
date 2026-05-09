@@ -6818,14 +6818,12 @@ def _test_rule_custom_names_persist_and_fallback_cleanly(module, temp_root: Path
 def _test_item_handling_catalog_migration_loads_primary_catalog_and_modelid_fallback(module) -> None:
     original_paths = {
         "CATALOG_PATH": module.CATALOG_PATH,
-        "ITEMS_CATALOG_PATH": module.ITEMS_CATALOG_PATH,
         "DROP_DATA_PATH": module.DROP_DATA_PATH,
         "ITEM_HANDLING_ITEMS_CATALOG_PATH": module.ITEM_HANDLING_ITEMS_CATALOG_PATH,
         "RUNES_CATALOG_PATH": module.RUNES_CATALOG_PATH,
     }
     try:
         module.CATALOG_PATH = str(REPO_ROOT / "Widgets" / "Data" / "merchant_rules_catalog.json")
-        module.ITEMS_CATALOG_PATH = str(REPO_ROOT / "Widgets" / "Data" / "merchant_rules_items_catalog.json")
         module.DROP_DATA_PATH = str(REPO_ROOT / "Widgets" / "Data" / "modelid_drop_data.json")
         module.ITEM_HANDLING_ITEMS_CATALOG_PATH = str(REPO_ROOT / "Sources" / "frenkeyLib" / "ItemHandling" / "Items" / "items.json")
         module.RUNES_CATALOG_PATH = str(REPO_ROOT / "Sources" / "marks_sources" / "mods_data" / "runes.json")
@@ -6847,19 +6845,6 @@ def _test_item_handling_catalog_migration_loads_primary_catalog_and_modelid_fall
             "Crystalline Sword should remain a ModelID-fallback case until richer catalog metadata is added.",
         )
 
-        legacy_catalog_path = Path(module.ITEMS_CATALOG_PATH)
-        if legacy_catalog_path.exists():
-            legacy_catalog = json.loads(legacy_catalog_path.read_text(encoding="utf-8"))
-            legacy_model_ids = _catalog_model_ids(list(legacy_catalog.get("items", [])))
-            _expect(
-                len(item_handling_model_ids) > len(legacy_model_ids),
-                "ItemHandling items.json should contribute more unique model ids than the deprecated Merchant Rules item mirror.",
-            )
-            _expect(
-                legacy_model_ids.issubset(item_handling_model_ids),
-                "The deprecated Merchant Rules item mirror should remain covered by ItemHandling items.json while it exists.",
-            )
-
         widget = _make_widget(module)
         widget._load_catalog()
 
@@ -6868,17 +6853,9 @@ def _test_item_handling_catalog_migration_loads_primary_catalog_and_modelid_fall
             int(widget.catalog_stats.get("item_handling_items", 0)) > 3600,
             "Merchant Rules should load the broader ItemHandling catalog as the primary searchable catalog.",
         )
-        _expect(
-            int(widget.catalog_stats.get("mirrored_items", 0)) == 0,
-            "Merchant Rules should not load the deprecated mirror during normal catalog loading.",
-        )
-        _expect(
-            widget.catalog_stats.get("mirrored_deprecated_fallback_used") is False,
-            "The deprecated mirror fallback should remain idle when items.json loads successfully.",
-        )
 
         fellblade_entry = widget.catalog_by_model_id.get(400, {})
-        _expect(fellblade_entry.get("source") == "item_handling_items_catalog", "ItemHandling entries should win over the legacy mirror for shared model ids.")
+        _expect(fellblade_entry.get("source") == "item_handling_items_catalog", "ItemHandling entries should provide shared broad-catalog model ids.")
         _expect(fellblade_entry.get("name") == "Fellblade", "ItemHandling entries should preserve display names.")
         _expect(fellblade_entry.get("item_type") == "Sword", "ItemHandling entries should preserve item types.")
         _expect(fellblade_entry.get("skin") == "Fellblade.png", "ItemHandling entries should preserve skin names for search aliases.")
@@ -6921,36 +6898,26 @@ def _test_item_handling_catalog_migration_loads_primary_catalog_and_modelid_fall
             setattr(module, name, value)
 
 
-def _test_catalog_loads_without_deprecated_mirrored_item_catalog(module, temp_root: Path) -> None:
+def _test_catalog_loads_without_deprecated_item_mirror(module) -> None:
     original_paths = {
         "CATALOG_PATH": module.CATALOG_PATH,
-        "ITEMS_CATALOG_PATH": module.ITEMS_CATALOG_PATH,
         "DROP_DATA_PATH": module.DROP_DATA_PATH,
         "ITEM_HANDLING_ITEMS_CATALOG_PATH": module.ITEM_HANDLING_ITEMS_CATALOG_PATH,
         "RUNES_CATALOG_PATH": module.RUNES_CATALOG_PATH,
     }
     try:
         module.CATALOG_PATH = str(REPO_ROOT / "Widgets" / "Data" / "merchant_rules_catalog.json")
-        module.ITEMS_CATALOG_PATH = str(temp_root / "missing" / "merchant_rules_items_catalog.json")
         module.DROP_DATA_PATH = str(REPO_ROOT / "Widgets" / "Data" / "modelid_drop_data.json")
         module.ITEM_HANDLING_ITEMS_CATALOG_PATH = str(REPO_ROOT / "Sources" / "frenkeyLib" / "ItemHandling" / "Items" / "items.json")
         module.RUNES_CATALOG_PATH = str(REPO_ROOT / "Sources" / "marks_sources" / "mods_data" / "runes.json")
-
-        _expect(not Path(module.ITEMS_CATALOG_PATH).exists(), "The deprecated mirror path should be missing for this regression check.")
 
         widget = _make_widget(module)
         widget._load_catalog()
 
         _expect(widget.catalog_stats.get("item_handling_present") is True, "items.json should still be present for the missing-mirror test.")
-        _expect(widget.catalog_stats.get("mirrored_present") is False, "The deprecated mirror should be reported missing when the file is absent.")
-        _expect(int(widget.catalog_stats.get("mirrored_items", 0)) == 0, "A missing deprecated mirror should not add catalog entries.")
         _expect(
-            widget.catalog_stats.get("mirrored_deprecated_fallback_used") is False,
-            "A missing deprecated mirror should not be treated as a used fallback when items.json loads.",
-        )
-        _expect(
-            all(entry.get("source") != "merchant_rules_items_catalog" for entry in widget.catalog_by_model_id.values()),
-            "Catalog contents should not depend on the deprecated Merchant Rules mirror.",
+            int(widget.catalog_stats.get("item_handling_items", 0)) > 3600,
+            "items.json should provide the broad item catalog after the old mirror is removed.",
         )
 
         for query, expected_model_id in (
@@ -6966,7 +6933,7 @@ def _test_catalog_loads_without_deprecated_mirrored_item_catalog(module, temp_ro
             matches = widget._search_catalog(query, limit=max(1, len(widget.catalog_by_model_id)))
             _expect(
                 expected_model_id in {int(entry.get("model_id", 0)) for entry in matches},
-                f"Catalog search should find model {expected_model_id} by {query!r} without the deprecated mirror.",
+                f"Catalog search should find model {expected_model_id} by {query!r} after mirror removal.",
             )
 
         _expect(
@@ -6975,7 +6942,7 @@ def _test_catalog_loads_without_deprecated_mirrored_item_catalog(module, temp_ro
         )
         _expect(
             widget.catalog_by_model_id.get(400, {}).get("source") == "item_handling_items_catalog",
-            "items.json should provide Fellblade without the deprecated mirror.",
+            "items.json should provide Fellblade after mirror removal.",
         )
     finally:
         for name, value in original_paths.items():
@@ -6985,14 +6952,12 @@ def _test_catalog_loads_without_deprecated_mirrored_item_catalog(module, temp_ro
 def _test_scroll_of_heros_insight_wins_duplicate_model_id_and_searches(module) -> None:
     original_paths = {
         "CATALOG_PATH": module.CATALOG_PATH,
-        "ITEMS_CATALOG_PATH": module.ITEMS_CATALOG_PATH,
         "DROP_DATA_PATH": module.DROP_DATA_PATH,
         "ITEM_HANDLING_ITEMS_CATALOG_PATH": module.ITEM_HANDLING_ITEMS_CATALOG_PATH,
         "RUNES_CATALOG_PATH": module.RUNES_CATALOG_PATH,
     }
     try:
         module.CATALOG_PATH = str(REPO_ROOT / "Widgets" / "Data" / "merchant_rules_catalog.json")
-        module.ITEMS_CATALOG_PATH = str(REPO_ROOT / "Widgets" / "Data" / "merchant_rules_items_catalog.json")
         module.DROP_DATA_PATH = str(REPO_ROOT / "Widgets" / "Data" / "modelid_drop_data.json")
         module.ITEM_HANDLING_ITEMS_CATALOG_PATH = str(REPO_ROOT / "Sources" / "frenkeyLib" / "ItemHandling" / "Items" / "items.json")
         module.RUNES_CATALOG_PATH = str(REPO_ROOT / "Sources" / "marks_sources" / "mods_data" / "runes.json")
@@ -8659,8 +8624,8 @@ def main() -> int:
                 lambda: _test_item_handling_catalog_migration_loads_primary_catalog_and_modelid_fallback(module),
             ),
             (
-                "catalog_loads_without_deprecated_mirrored_item_catalog",
-                lambda: _test_catalog_loads_without_deprecated_mirrored_item_catalog(module, temp_root),
+                "catalog_loads_without_deprecated_item_mirror",
+                lambda: _test_catalog_loads_without_deprecated_item_mirror(module),
             ),
             (
                 "scroll_of_heros_insight_wins_duplicate_model_id_and_searches",
