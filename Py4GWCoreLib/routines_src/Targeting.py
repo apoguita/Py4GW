@@ -66,7 +66,7 @@ class Targeting:
         return Utils.Distance((player_x, player_y), (target_x, target_y)) < 100
     
     @staticmethod
-    def GetAllAlliesArray(distance=Range.SafeCompass.value):
+    def GetAllAlliesArray(distance=Range.SafeCompass.value, ordered=True):
         from ..AgentArray import AgentArray
         from ..GlobalCache import GLOBAL_CACHE
         from ..Agent import Agent
@@ -80,44 +80,42 @@ class Targeting:
         spirit_pet_array = AgentArray.Filter.ByCondition(spirit_pet_array, lambda agent_id: not Agent.IsSpawned(agent_id)) #filter spirits
         ally_array = AgentArray.Manipulation.Merge(ally_array, spirit_pet_array) #added Pets
         
-        
-        return ally_array   
+        if ordered:
+            from ..Party import Party
 
-    @staticmethod
-    def SortAlliesByPartyPosition(agent_array):
-        from ..Party import Party
+            player_order = {}
+            for index, player in enumerate(Party.GetPlayers() or []):
+                agent_id = int(Party.Players.GetAgentIDByLoginNumber(player.login_number) or 0)
+                if agent_id:
+                    player_order[agent_id] = index
 
-        player_order = {}
-        for index, player in enumerate(Party.GetPlayers() or []):
-            agent_id = int(Party.Players.GetAgentIDByLoginNumber(player.login_number) or 0)
-            if agent_id:
-                player_order[agent_id] = index
+            hero_order = {}
+            hero_start = len(player_order)
+            for index, hero in enumerate(Party.GetHeroes() or []):
+                agent_id = int(getattr(hero, "agent_id", 0) or 0)
+                if agent_id:
+                    hero_order[agent_id] = hero_start + index
 
-        hero_order = {}
-        hero_start = len(player_order)
-        for index, hero in enumerate(Party.GetHeroes() or []):
-            agent_id = int(getattr(hero, "agent_id", 0) or 0)
-            if agent_id:
-                hero_order[agent_id] = hero_start + index
+            pet_owner_order = {}
+            for owner_agent_id, order in player_order.items():
+                pet_id = int(Party.Pets.GetPetID(owner_agent_id) or 0)
+                if pet_id:
+                    pet_owner_order[pet_id] = order
 
-        pet_owner_order = {}
-        for owner_agent_id, order in player_order.items():
-            pet_id = int(Party.Pets.GetPetID(owner_agent_id) or 0)
-            if pet_id:
-                pet_owner_order[pet_id] = order
+            fallback_index = hero_start + len(hero_order)
 
-        fallback_index = hero_start + len(hero_order)
+            def sort_key(agent_id):
+                if agent_id in player_order:
+                    return (0, player_order[agent_id], agent_id)
+                if agent_id in hero_order:
+                    return (1, hero_order[agent_id], agent_id)
+                if agent_id in pet_owner_order:
+                    return (2, pet_owner_order[agent_id], agent_id)
+                return (3, fallback_index, agent_id)
 
-        def sort_key(agent_id):
-            if agent_id in player_order:
-                return (0, player_order[agent_id], agent_id)
-            if agent_id in hero_order:
-                return (1, hero_order[agent_id], agent_id)
-            if agent_id in pet_owner_order:
-                return (2, pet_owner_order[agent_id], agent_id)
-            return (3, fallback_index, agent_id)
+            ally_array = sorted(ally_array or [], key=sort_key)
 
-        return sorted(agent_array or [], key=sort_key)
+        return ally_array
     
     @staticmethod
     def GetNearestSpirit(distance=Range.Earshot.value):
@@ -267,7 +265,6 @@ class Targeting:
         distance=Range.Spellcast.value,
     ):
         from ..Agent import Agent
-        from ..AgentArray import AgentArray
         from ..GlobalCache import GLOBAL_CACHE
         from ..Py4GWcorelib import Utils
         from ..enums_src.GameData_enums import Profession
@@ -277,7 +274,7 @@ class Targeting:
         except (TypeError, ValueError):
             profession_id = int(Profession[profession].value)
 
-        ally_array = AgentArray.GetAllyArray()
+        ally_array = Targeting.GetAllAlliesArray(distance, ordered=True)
         ally_array = Targeting.FilterAllyArray(ally_array, distance, other_ally, filter_skill_id)
         if not ally_array:
             return 0
@@ -321,7 +318,6 @@ class Targeting:
                 if required_skill_id in skillbar_by_agent_id.get(agent_id, set())
             ]
 
-        matching_allies = Targeting.SortAlliesByPartyPosition(matching_allies)
         return Utils.GetFirstFromArray(matching_allies)
 
     @staticmethod  
