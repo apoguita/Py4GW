@@ -27,7 +27,6 @@
     {"type": "auto_path", "name": "Path", "points": [[-15439, -7585], [-17060, -8484], [-21180, -8247], [-22540, -8289]]},
     {"type": "wait", "ms": 11200},
     {"type": "interact_npc", "name": "Interact Margrid The Sly", "npc": "MARGRID_THE_SLY"},
-    {"type": "skip_cutscene"},
     {"type": "wait_for_map_load", "map_id": 449}
   ]
 }

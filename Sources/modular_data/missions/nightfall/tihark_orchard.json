@@ -32,7 +32,7 @@
     {"type": "dialog", "id": "0x84", "npc": "PRINCE_MEHTU_THE_WISE", "name": "Dialog - Prince Mehtu The Wise"},
     {"type": "auto_path", "name": "Path", "points": [[-10894, 272]]},
     {"type": "interact_npc", "name": "Interact Prince Ahmtur The Mighty", "npc": "PRINCE_AHMTUR_THE_MIGHTY"},
-    {"type": "skip_cutscene"},
+    {"type": "wait_for_map_load", "map_id": 428},
     {"type": "auto_path", "name": "Path", "points": [[-8434, 2667], [-5798, 3613], [-8276, 1944], [-8477, 158], [-4896, -2769]]},
     {"type": "wait_for_map_load", "map_id": 414}
   ]

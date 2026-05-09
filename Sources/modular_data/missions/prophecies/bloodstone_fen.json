@@ -56,9 +56,8 @@
     {"type": "auto_path", "name": "Where to spread this seed", "points": [[-5869, 4917], [-4071, 7803], [-726, 9393], [3139, 7455]]},
     {"type": "drop_bundle", "ms": 1000},
     {"type": "auto_path", "name": "Let's get this over with", "points": [[4538, 8874], [8321, 9547], [9521, 9992], [8020, 5566], [5941, 4925], [4788, 2637], [4467, -563]]},
-    {"type": "skip_cutscene", "wait_ms": 1500},
+    {"type": "wait_for_map_load", "map_id": 10},
     {"type": "auto_path", "name": "Kill em all", "points": [[5498, -297], [7159, 794], [8445, 2874]]},
-    {"type": "skip_cutscene", "wait_ms": 5000},
     {"type": "wait_map_change", "target_map_id": 142}
   ]
 }

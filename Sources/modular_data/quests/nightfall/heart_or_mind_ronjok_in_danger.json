@@ -14,9 +14,6 @@
     {"type": "auto_path", "name": "Path", "points": [[7582, 3151], [2453, 8712], [-112, 14255], [-1526, 12747], [-225, 13442], [-216, 14584]]},
     {"type": "wait", "ms": 10000},
     {"type": "dialogs", "id": ["0x824A04", "0x84", "0x85"], "npc": "DREAMER_HAHLA", "name": "Dialog - Dreamer Hahla"},
-    {"type": "skip_cutscene"},
-    {"type": "skip_cutscene"},
-    {"type": "skip_cutscene"},
     {"type": "wait_for_map_load", "map_id": 477},
     {"type": "auto_path", "name": "Path", "points": [[-15821, -7587]]},
     {"type": "dialog", "id": "0x824A07", "npc": "DREAMER_RAJA", "name": "Dialog - Dreamer Raja"}

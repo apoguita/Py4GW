@@ -43,7 +43,7 @@ class Config:
         return PropheciesCampaignOptions(
             start_phase_index=int(self.start_phase_index),
             loop=bool(self.loop),
-            template="multibox_aggressive",
+            template="multibox_aggressive_no_inventory",
             debug_logging=bool(self.debug_logging),
         )
 

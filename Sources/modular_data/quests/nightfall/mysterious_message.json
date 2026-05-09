@@ -10,7 +10,7 @@
     {"type": "auto_path", "name": "To Exit", "points": [[4443, 7496]]},
     {"type": "exit_map", "name": "Leave Command Post", "point": [5239, 7534], "target_map_id": 369},
     {"type": "auto_path", "name": "Path", "points": [[-4325, 14179]]},
-    {"type": "skip_cutscene"},
+    {"type": "wait_for_map_load", "map_id": 369},
     {"type": "auto_path", "name": "Path", "points": [[-4325, 14179]]},
     {"type": "wait", "ms": 60000},
     {"type": "dialog", "id": "0x822907", "npc": "WHISPERS_ADEPT", "name": "Dialog - Whispers Adept"}

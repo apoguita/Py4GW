@@ -237,13 +237,20 @@ class CacheData:
             
             if not self.ini_key or not self.consumables_ini_key or not self.formation_window_ini_key or not self.flagging_window_ini_key:
                 return
+
+            if not Routines.Checks.Map.MapValid():
+                self.data.reset()
+                self.party.reset()
+                return
             
 
             if self.game_throttle_timer.HasElapsed(self.game_throttle_time):
                 self.game_throttle_timer.Reset()
                 self.account_email = Player.GetAccountEmail()
                 self.data.reset()
-                self.data.update()
+                if self.data.update() is False:
+                    self.party.reset()
+                    return
                 
                 self.party.reset()
                 self.party.update()

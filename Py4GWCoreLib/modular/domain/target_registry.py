@@ -91,6 +91,19 @@ NPC_TARGETS: dict[str, AgentTargetValue] = {
     "DINJA": (((1, 129, 61, 75, 24, 159, 133, 218, 48, 105, 0, 0),), "Dinja"),
     "IMPERIAL_GUARDSMAN_LINRO": (((1, 129, 13, 79, 157, 162, 185, 247, 94, 101, 0, 0),), "Imperial Guardsman Linro"),
     "ZENMAI": (((1, 129, 17, 57, 0, 0),), "Zenmai"),
+    "DUKE_BARRADIN": (((69, 55, 177, 159, 114, 249, 72, 33, 0, 0),), "Duke Barradin"),
+    "DUKE_WILLGROVE": (((2, 129, 235, 60, 199, 175, 6, 141, 186, 93, 0, 0),), "Duke Willgrove"),
+    "GHOST_OF_ALTHEA": (
+        (
+            (62, 27, 203, 196, 52, 150, 74, 72, 0, 0),
+            (2, 129, 108, 59, 0, 0),
+            (2, 129, 233, 60, 0, 0),
+        ),
+        "Ghost of Althea",
+    ),
+    "KOPP_THE_QUICK": (((2, 129, 234, 60, 21, 146, 19, 221, 238, 23, 0, 0),), "Kopp the Quick"),
+    "OLD_ASCALON_SPIRIT": (((205, 54, 211, 160, 203, 197, 36, 15, 0, 0),), "Old Ascalon Spirit"),
+    "VIGGO": (((83, 55, 31, 173, 152, 207, 20, 15, 0, 0),), "Viggo"),
     "CASTELLAN_PUUBA": (((1, 129, 82, 32, 155, 168, 95, 159, 72, 69, 0, 0),), "Castellan Puuba"),
     "FIELD_GENERAL_HAYAO": (((1, 129, 55, 56, 139, 170, 251, 224, 167, 63, 0, 0),), "Field General Hayao"),
     "GENERAL_YURUKARO": (((1, 129, 53, 56, 201, 154, 61, 191, 33, 5, 0, 0),), "General Yurukaro"),
@@ -292,10 +305,13 @@ ENEMY_TARGETS: dict[str, AgentTargetValue] = {
 }
 
 GADGET_TARGETS: dict[str, AgentTargetValue] = {
+    "CHARR_ALTAR": (((48, 33, 40, 149, 70, 253, 11, 73, 0, 0),), "Charr Altar"),
     "CHEST": (((123, 32, 56, 239, 111, 184, 88, 49, 0, 0),), "Chest"),
     "CHEST_OF_WOE": (((2, 129, 148, 49, 154, 172, 124, 229, 33, 98, 0, 0),), "Chest of Woe"),
     "CHEST_OF_BURROWS": (((2, 129, 87, 40, 105, 234, 7, 193, 85, 122, 0, 0),), "Chest of Burrows"),
     "MAZ_S_CHEST": (((2, 129, 115, 60, 0, 0),), "Maz's Chest"),
+    "ZEALOT_S_CHEST": (((2, 129, 217, 61, 0, 0),), "Zealot's Chest"),
+    "TOME_PEDESTAL": (((47, 33, 132, 139, 29, 194, 165, 113, 0, 0),), "Tome Pedestal"),
     "CELL_LOCK": (((1, 129, 84, 25, 121, 157, 164, 216, 47, 4, 0, 0),), "Cell Lock"),
     "MONUMENT_TO_THE_DEFEAT_OF_PALAWA_JOKO": (((1, 129, 215, 34, 159, 146, 43, 245, 183, 58, 0, 0),), "Monument to the Defeat of Palawa Joko"),
     "WURM_SPOOR": (((1, 129, 13, 38, 234, 223, 171, 254, 11, 49, 0, 0),), "Wurm Spoor"),

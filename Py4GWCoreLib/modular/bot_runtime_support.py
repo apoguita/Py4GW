@@ -56,7 +56,7 @@ def tick_cinematic_guard(self) -> None:
             return
         setattr(self, "_cinematic_skip_queued", True)
         if not bool(getattr(self, "_cinematic_guard_auto_skip", False)):
-            self._debug_log("Cinematic detected; waiting for explicit skip_cutscene step.")
+            self._debug_log("Cinematic detected; waiting for scripted map-load recovery.")
             return
         self._debug_log("Cinematic detected; queueing guard skip.")
         request_skip_cinematic()
@@ -234,19 +234,50 @@ def update_impl(self) -> None:
         raise
 
 
+def _tick_bot_managed_coroutines(self) -> None:
+    fsm = self._bot.config.FSM
+    for routine in list(getattr(fsm, "managed_coroutines", []) or []):
+        try:
+            next(routine)
+        except StopIteration:
+            try:
+                fsm.managed_coroutines.remove(routine)
+            except ValueError:
+                pass
+        except Exception as exc:
+            tb = traceback.format_exc()
+            ConsoleLog(
+                "ModularBot",
+                f"Managed coroutine failed: {exc}\nTraceback:\n{tb}",
+                Console.MessageType.Error,
+            )
+            try:
+                fsm.managed_coroutines.remove(routine)
+            except ValueError:
+                pass
+
+
 def tick_bot_coroutines(self) -> None:
     if self._enforce_local_native_engine:
         self._suppress_keep_hero_ai_coroutine()
+    if not self._manage_auto_inventory_management:
+        self._suppress_auto_inventory_management_coroutine()
     if self._start_coroutines_once:
         if self._bot_coroutines_started:
             if self._enforce_local_native_engine:
                 self._suppress_keep_hero_ai_coroutine()
+            if not self._manage_auto_inventory_management:
+                self._suppress_auto_inventory_management_coroutine()
+            _tick_bot_managed_coroutines(self)
             return
         try:
             self._bot._start_coroutines()
             if self._enforce_local_native_engine:
                 self._suppress_keep_hero_ai_coroutine()
+            if not self._manage_auto_inventory_management:
+                self._suppress_auto_inventory_management_coroutine()
             self._bot_coroutines_started = True
+            _tick_bot_managed_coroutines(self)
         except Exception:
             return
         return
@@ -255,6 +286,9 @@ def tick_bot_coroutines(self) -> None:
         self._bot._start_coroutines()
         if self._enforce_local_native_engine:
             self._suppress_keep_hero_ai_coroutine()
+        if not self._manage_auto_inventory_management:
+            self._suppress_auto_inventory_management_coroutine()
+        _tick_bot_managed_coroutines(self)
     except Exception:
         return
 

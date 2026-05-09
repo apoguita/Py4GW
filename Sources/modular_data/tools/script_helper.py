@@ -873,11 +873,6 @@ def main():
                 step = {"type": "wait_for_map_load", "map_id": int(current_map_id)}
                 _add_recorded_step(step)
                 _dialog_recorder_status = f"Recorded wait_for_map_load for map_id {int(current_map_id)}."
-        if _grid_button("Record skip_cutscene", 2, help_text="Add skip_cutscene step."):
-            step = {"type": "skip_cutscene"}
-            _add_recorded_step(step)
-            _dialog_recorder_status = "Recorded skip_cutscene."
-
         PyImGui.text("Interactions")
         if _grid_button("Record Interact NPC", 0, help_text="Requires targeted NPC/ally. Records interact_npc using captured NPC selector."):
             target_id = int(Player.GetTargetID() or 0)
