@@ -1372,6 +1372,7 @@ class BuildMgr:
     def _validate_target_for_skill_cast(self, skill_id: int, target_agent_id: int) -> bool:
         from HeroAI.types import Skilltarget, SkillType
         from Py4GWCoreLib import Routines
+        from Py4GWCoreLib.Agent import Agent
 
         if not target_agent_id:
             return True
@@ -1379,6 +1380,10 @@ class BuildMgr:
         custom_skill = self.GetCustomSkill(skill_id)
         if custom_skill is None:
             return True
+
+        # Hex spells must never be cast on spirits.
+        if custom_skill.SkillType == SkillType.Hex.value and Agent.IsSpirit(target_agent_id):
+            return False
 
         target_allegiance = custom_skill.TargetAllegiance
         if target_allegiance == Skilltarget.NonWeaponSpelledAlly.value:
