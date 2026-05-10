@@ -16,7 +16,8 @@ class Vec2f(Structure):
     def to_list(self) -> list[float]: ...
 
 Point2D = tuple[float, float]
-PointOrPath: TypeAlias = Vec2f | Point2D | list[Vec2f] | list[Point2D]
+Point2DInt = tuple[int, int]
+PointOrPath: TypeAlias = Vec2f | Point2D | Point2DInt | list[Vec2f] | list[Point2D] | list[Point2DInt]
 
 class PointPath:
     Value: TypeAlias = PointOrPath

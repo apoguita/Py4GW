@@ -18,6 +18,7 @@ from .botting_tree_src.ticks import BottingTreeTicksMixin
 from .botting_tree_src.ui import BottingTreeUIMovePathMixin, _BottingTreeUI
 from .botting_tree_src.upkeep import BottingTreeUpkeepMixin
 from .py4gwcorelib_src.BehaviorTree import BehaviorTree
+from .routines_src.behaviourtrees_src import constants
 
 
 class BottingTree(
@@ -203,4 +204,5 @@ __all__ = [
     '_BottingTreeConfig',
     '_BottingTreeTemplates',
     '_BottingTreeUI',
+    'constants',
 ]
