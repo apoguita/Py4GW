@@ -393,7 +393,7 @@ class NoAttribute:
         else:
             travel_pull = False
 
-        needs_heal = any(Agent.GetHealth(spirit_id) < 0.9 for spirit_id in owned_spirits)
+        needs_heal = any(Agent.GetHealth(spirit_id) < 0.3 for spirit_id in owned_spirits)
 
         if not (combat_pull or travel_pull or needs_heal):
             return False

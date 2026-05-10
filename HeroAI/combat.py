@@ -1473,9 +1473,14 @@ class CombatClass:
             return False, 0
 
         # Hex spells must never be cast on spirits.
-        if skill_type == SkillType.Hex.value and Agent.IsSpirit(v_target):
-            self.in_casting_routine = False
-            return False, 0
+        if skill_type == SkillType.Hex.value:
+            v_target_allegiance, _ = Agent.GetAllegiance(v_target)
+            if Agent.IsSpirit(v_target) or (
+                v_target_allegiance == Allegiance.Enemy.value
+                and Agent.IsSpawned(v_target)
+            ):
+                self.in_casting_routine = False
+                return False, 0
 
         # --- Target-dependent checks ---
 

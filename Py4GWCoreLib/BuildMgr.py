@@ -1373,6 +1373,7 @@ class BuildMgr:
         from HeroAI.types import Skilltarget, SkillType
         from Py4GWCoreLib import Routines
         from Py4GWCoreLib.Agent import Agent
+        from Py4GWCoreLib.enums_src.GameData_enums import Allegiance
 
         if not target_agent_id:
             return True
@@ -1382,8 +1383,13 @@ class BuildMgr:
             return True
 
         # Hex spells must never be cast on spirits.
-        if custom_skill.SkillType == SkillType.Hex.value and Agent.IsSpirit(target_agent_id):
-            return False
+        if custom_skill.SkillType == SkillType.Hex.value:
+            target_allegiance_value, _ = Agent.GetAllegiance(target_agent_id)
+            if Agent.IsSpirit(target_agent_id) or (
+                target_allegiance_value == Allegiance.Enemy.value
+                and Agent.IsSpawned(target_agent_id)
+            ):
+                return False
 
         target_allegiance = custom_skill.TargetAllegiance
         if target_allegiance == Skilltarget.NonWeaponSpelledAlly.value:
