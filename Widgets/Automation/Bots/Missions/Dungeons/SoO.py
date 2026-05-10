@@ -156,6 +156,10 @@ DWARVEN_BLESSING_DIALOG = 0x84
 SHANDRA_TAKE_DIALOGS = 0x832401
 SHANDRA_QUEST_REWARD_DIALOG = 0x832407
 
+# Arbor Bay Asura blessing skip
+ASURAN_R10_POINTS = 160_000
+ARBOR_BAY_ASURA_BLESSING_DONE_STEP = "Arbor Bay Asura Blessing Done"
+
 # Coordinates
 FENDI_CHEST_POSITION = (-15800.98,16901.23)
 SHANDRA_POSITION = (14067.01, -17253.24)
@@ -219,10 +223,12 @@ def farm_bds_routine(bot: Botting) -> None:
     bot.Wait.ForTime(2000)
     
     # First blessing in Arbor Bay
+    bot.States.AddCustomState(_skip_arbor_bay_asura_blessing_if_all_r10, "Check Arbor Bay Asura Rank")
     bot.Move.XYAndInteractNPC(16327, 11607)
     bot.Wait.ForTime(4000)
     bot.Multibox.SendDialogToTarget(DWARVEN_BLESSING_DIALOG)
     bot.Wait.ForTime(4000)
+    bot.States.AddCustomState(_step_anchor, ARBOR_BAY_ASURA_BLESSING_DONE_STEP)
     bot.Multibox.UseAllConsumables()
 
     # Path to Shandra
@@ -640,6 +646,49 @@ def farm_bds_routine(bot: Botting) -> None:
     # ===== LOOP =====
     bot.States.JumpToStepName("LOOP_RESTART_POINT")
 # ==================== CUSTOM HELPERS ====================
+
+
+def _skip_arbor_bay_asura_blessing_if_all_r10() -> Generator:
+    title_idx = int(TitleID.Asuran)
+    local_email = str(Player.GetAccountEmail() or "").strip()
+    checked_accounts = 1
+    all_r10 = True
+
+    local_title = Player.GetTitle(TitleID.Asuran)
+    if local_title is None or int(local_title.current_points) < ASURAN_R10_POINTS:
+        all_r10 = False
+
+    for account in GLOBAL_CACHE.ShMem.GetAllAccountData() or []:
+        email = str(getattr(account, "AccountEmail", "") or "").strip()
+        if email and email == local_email:
+            continue
+
+        checked_accounts += 1
+        try:
+            points = int(account.TitlesData.Titles[title_idx].CurrentPoints)
+        except Exception:
+            all_r10 = False
+            break
+        if points < ASURAN_R10_POINTS:
+            all_r10 = False
+            break
+
+    if all_r10:
+        ConsoleLog(
+            BOT_NAME,
+            f"[Arbor Bay] {checked_accounts} account(s) r10 Asura; skipping Arbor Bay Asura blessing.",
+            log=True,
+        )
+        bot.config.FSM.jump_to_state_by_name(ARBOR_BAY_ASURA_BLESSING_DONE_STEP)
+        yield
+        return
+
+    ConsoleLog(
+        BOT_NAME,
+        "[Arbor Bay] Taking Arbor Bay Asura blessing; at least one account is below r10 or unreadable.",
+        log=True,
+    )
+    yield
 
 
 # --- Merchant Setup and Inventory Helpers ---
