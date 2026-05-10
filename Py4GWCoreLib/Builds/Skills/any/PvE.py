@@ -132,6 +132,8 @@ class PvE:
 
         if not self.build.IsSkillEquipped(technobabble_id):
             return False
+        if not self.build.CanCastSkillID(technobabble_id):
+            return False
         if not self.build.IsInAggro():
             return False
 

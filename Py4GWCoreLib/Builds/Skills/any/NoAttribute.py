@@ -106,6 +106,8 @@ class NoAttribute:
 
         if not self.build.IsSkillEquipped(you_move_id):
             return False
+        if not self.build.CanCastSkillID(you_move_id):
+            return False
         if not self.build.IsInAggro():
             return False
 
@@ -276,6 +278,8 @@ class NoAttribute:
         player_agent_id = Player.GetAgentID()
 
         if not self.build.IsSkillEquipped(ebon_battle_standard_of_wisdom_id):
+            return False
+        if not self.build.CanCastSkillID(ebon_battle_standard_of_wisdom_id):
             return False
         if not self.build.IsInAggro():
             return False
