@@ -1262,12 +1262,14 @@ class BTItems:
     @staticmethod
     def BuyMaterial(
         model_id: int,
+        rare_trader: bool = False,
         log: bool = False,
         aftercast_ms: int = 250,
     ) -> BehaviorTree:
         return BTItems.BuyMaterials(
             model_id=model_id,
             batches=1,
+            rare_trader=rare_trader,
             log=log,
             aftercast_ms=aftercast_ms,
         )
@@ -1276,6 +1278,7 @@ class BTItems:
     def BuyMaterials(
         model_id: int,
         batches: int = 1,
+        rare_trader: bool = False,
         log: bool = False,
         aftercast_ms: int = 250,
     ) -> BehaviorTree:
@@ -1302,13 +1305,6 @@ class BTItems:
             state["item_id"] = 0
             state["remaining_batches"] = target_batches
 
-        def _is_material_trader() -> bool:
-            merchant_models = [
-                GLOBAL_CACHE.Item.GetModelID(item_id)
-                for item_id in GLOBAL_CACHE.Trading.Trader.GetOfferedItems()
-            ]
-            return ModelID.Wood_Plank.value in merchant_models
-
         def _buy_material() -> BehaviorTree.NodeState:
             if state["remaining_batches"] <= 0:
                 _reset_state()
@@ -1332,8 +1328,9 @@ class BTItems:
                 return BehaviorTree.NodeState.RUNNING
 
             if state["stage"] == "wait_for_quote":
+                quoted_item_id = int(GLOBAL_CACHE.Trading.Trader.GetQuotedItemID() or 0)
                 cost = int(GLOBAL_CACHE.Trading.Trader.GetQuotedValue() or -1)
-                if cost < 0:
+                if quoted_item_id != int(state["item_id"]) or cost < 0:
                     return BehaviorTree.NodeState.RUNNING
 
                 if cost == 0:
@@ -1351,7 +1348,7 @@ class BTItems:
 
                 state["remaining_batches"] -= 1
                 if log:
-                    quantity = 10 if _is_material_trader() else 1
+                    quantity = 1 if rare_trader else 10
                     _log(
                         "BuyMaterials",
                         f"Bought batch {target_batches - state['remaining_batches']}/{target_batches} for model {model_id} ({quantity} units).",
@@ -1371,7 +1368,7 @@ class BTItems:
 
         return BehaviorTree(
             BehaviorTree.ActionNode(
-                name=f"BuyMaterials({model_id}, {target_batches})",
+                name=f"BuyMaterials({model_id}, {target_batches}, rare_trader={rare_trader})",
                 action_fn=_buy_material,
                 aftercast_ms=aftercast_ms,
             )
@@ -1380,6 +1377,7 @@ class BTItems:
     @staticmethod
     def BuyMaterialsFromList(
         materials: list[tuple[int, int]],
+        rare_trader: bool = False,
         log: bool = False,
         aftercast_ms: int = 125,
     ) -> BehaviorTree:
@@ -1401,6 +1399,7 @@ class BTItems:
                     BTItems.BuyMaterials(
                         model_id=model_id,
                         batches=batches,
+                        rare_trader=rare_trader,
                         log=log,
                         aftercast_ms=aftercast_ms,
                     ).root

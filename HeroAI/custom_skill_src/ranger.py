@@ -19,6 +19,7 @@ class RangerSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.EnemyCasting.value
         skill.Nature = SkillNature.Interrupt.value
+        skill.Conditions.RequireWeapon = "Bow"
         skill.Conditions.IsCasting = True
         skill_data[skill.SkillID] = skill
 
@@ -84,6 +85,7 @@ class RangerSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Bow"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -91,6 +93,7 @@ class RangerSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Bow"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -143,6 +146,7 @@ class RangerSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Bow"
         skill_data[skill.SkillID] = skill
 
         #region BEAST_MASTERY
@@ -457,6 +461,7 @@ class RangerSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Bow"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -464,6 +469,7 @@ class RangerSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.EnemyClustered.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Bow"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -471,6 +477,7 @@ class RangerSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Bow"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -478,6 +485,7 @@ class RangerSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.EnemyCasting.value
         skill.Nature = SkillNature.Interrupt.value
+        skill.Conditions.RequireWeapon = "Bow"
         skill.Conditions.IsCasting = True
         skill_data[skill.SkillID] = skill
 
@@ -486,6 +494,7 @@ class RangerSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Bow"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -493,6 +502,7 @@ class RangerSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.EnemyCasting.value
         skill.Nature = SkillNature.Interrupt.value
+        skill.Conditions.RequireWeapon = "Bow"
         skill.Conditions.IsCasting = True
         skill_data[skill.SkillID] = skill
 
@@ -501,6 +511,7 @@ class RangerSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Bow"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -508,6 +519,7 @@ class RangerSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Bow"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -515,6 +527,7 @@ class RangerSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Bow"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -522,6 +535,7 @@ class RangerSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Bow"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -529,6 +543,7 @@ class RangerSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Bow"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -536,6 +551,7 @@ class RangerSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.EnemyCasting.value
         skill.Nature = SkillNature.Interrupt.value
+        skill.Conditions.RequireWeapon = "Bow"
         skill.Conditions.IsCasting = True
         skill_data[skill.SkillID] = skill
 
@@ -551,6 +567,7 @@ class RangerSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Bow"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -558,6 +575,7 @@ class RangerSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Bow"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -565,6 +583,7 @@ class RangerSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Bow"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -572,6 +591,7 @@ class RangerSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Bow"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -579,6 +599,7 @@ class RangerSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Bow"
         skill.Conditions.IsMoving = True
         skill_data[skill.SkillID] = skill
 
@@ -587,6 +608,7 @@ class RangerSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Bow"
         skill.Conditions.LessLife = 0.5
         skill_data[skill.SkillID] = skill
 
@@ -595,6 +617,7 @@ class RangerSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Bow"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -602,6 +625,7 @@ class RangerSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Bow"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -609,6 +633,7 @@ class RangerSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Bow"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -616,6 +641,7 @@ class RangerSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Bow"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -623,6 +649,7 @@ class RangerSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Bow"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -630,6 +657,7 @@ class RangerSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.EnemyAttacking.value
         skill.Nature = SkillNature.Interrupt.value
+        skill.Conditions.RequireWeapon = "Bow"
         skill.Conditions.IsAttacking = True
         skill_data[skill.SkillID] = skill
 
@@ -653,6 +681,7 @@ class RangerSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.EnemyCastingSpell.value
         skill.Nature = SkillNature.Interrupt.value
+        skill.Conditions.RequireWeapon = "Bow"
         skill.Conditions.IsCasting = True
         skill_data[skill.SkillID] = skill
 
@@ -661,6 +690,7 @@ class RangerSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Bow"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -675,6 +705,7 @@ class RangerSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Bow"
         skill.Conditions.IsCasting = False
         skill_data[skill.SkillID] = skill
 
@@ -683,6 +714,7 @@ class RangerSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Bow"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -690,6 +722,7 @@ class RangerSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Bow"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -697,6 +730,7 @@ class RangerSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Bow"
         skill_data[skill.SkillID] = skill
 
         #region WILDERNESS_SURVIVAL
@@ -815,6 +849,7 @@ class RangerSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Bow"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -880,6 +915,7 @@ class RangerSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Bow"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -1005,6 +1041,7 @@ class RangerSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Bow"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -1012,6 +1049,7 @@ class RangerSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Bow"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -1019,6 +1057,7 @@ class RangerSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Bow"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -1026,6 +1065,7 @@ class RangerSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.EnemyCasting.value
         skill.Nature = SkillNature.Interrupt.value
+        skill.Conditions.RequireWeapon = "Bow"
         skill.Conditions.IsCasting = True
         skill_data[skill.SkillID] = skill
 
@@ -1034,6 +1074,7 @@ class RangerSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Bow"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
