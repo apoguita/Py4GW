@@ -274,28 +274,28 @@ SECONDARY_BUILDS = {
         Profession.DERVISH:      "OQBDArwjRoAaAXADBEB9A2gDAA",     # Me/D
     }, 
     Profession.MONK: {
-        Profession.WARRIOR:      "OwEU04nA3qRNgbE3N3ETfQgBADAA",   # Mo/W
-        Profession.RANGER:       "OwIU04nAXsRNgbE3N3ETfQg+GDAA",   # Mo/R
-        Profession.MONK:         "OwUUMsG/E4SNgbE3N3ETfQgAADAA",   # Mo
-        Profession.NECROMANCER:  "OwQUcsG/E4SNgbE3N3ETfQgfCDAA",   # Mo/N
-        Profession.MESMER:       "OwUUMsG/E4SNgbE3N3ETfQgAADAA",   # Mo/Me
-        Profession.ELEMENTALIST: "OwYUosG/E4SNgbE3N3ETfQgFDDAA",   # Mo/E
-        Profession.ASSASSIN:     "OwcU04nA3vRNgbE3N3ETfQguMDAA",   # Mo/A
-        Profession.RITUALIST:    "OAhjQwGcYMZC3wjoqyJGErwBAA",   # Mo/Rt
-        Profession.PARAGON:      "Owkk0wPC0eaUD4GxdzNx0HEoK2AA",   # Mo/P
-        Profession.DERVISH:      "OApjQwG8aMZC3wjoqyJGErwBAA",   # Mo/D
+        Profession.WARRIOR:      "OwEU04nA5aQNgbE3N3ETfQgdRDAA",   # Mo/W
+        Profession.RANGER:       "OwIU04nA5cQNgbE3N3ETfQgdRDAA",   # Mo/R
+        Profession.MONK:         "OwQUciG/EITNgbE3N3ETfQgdRDAA",   # Mo
+        Profession.NECROMANCER:  "OwQUciG/EITNgbE3N3ETfQgdRDAA",   # Mo/N
+        Profession.MESMER:       "OwUUMiG/EITNgbE3N3ETfQgdRDAA",   # Mo/Me
+        Profession.ELEMENTALIST: "OwYUsiG/EITNgbE3N3ETfQgdRDAA",   # Mo/E
+        Profession.ASSASSIN:     "OwcU04nA5fQNgbE3N3ETfQgdRDAA",   # Mo/A
+        Profession.RITUALIST:    "Owgk0wPCEDGUD4GxdzNx0HEYX0AA",   # Mo/Rt
+        Profession.PARAGON:      "Owkk0wPCEXGUD4GxdzNx0HEYX0AA",   # Mo/P
+        Profession.DERVISH:      "Owok0wPCEnGUD4GxdzNx0HEYX0AA",   # Mo/D
     },
     Profession.NECROMANCER: {
-        Profession.WARRIOR:      "OAFTQYDTjJT4GeEVVOxgYFOAAA",    # N/W
-        Profession.RANGER:       "OAJTQYDnjJT4GeEVVOxgYFOAAA",    # N/R
-        Profession.MONK:         "OANDQsxfMZC3wjoqyJGErwBA",     # N/Mo
-        Profession.NECROMANCER:  "OAVDIBxGPZC3wjoqyJGErwBA",     # N
-        Profession.MESMER:       "OAVDIBxGPZC3wjoqyJGErwBA",     # N/Me
-        Profession.ELEMENTALIST: "OAZDQsxYMZC3wjoqyJGErwBA",     # N/E
-        Profession.ASSASSIN:     "OAdTQYD3jJT4GeEVVOxgYFOAAA",   # N/A
-        Profession.RITUALIST:    "OAhjQwGcYMZC3wjoqyJGErwBAA",   # N/Rt
-        Profession.PARAGON:      "OAljQwGcZMZC3wjoqyJGErwBAA",   # N/P
-        Profession.DERVISH:      "OApjQwGcaMZC3wjoqyJGErwBAA",   # N/D
+        Profession.WARRIOR:      "OAFUQ0ia2aQ0Bf1VVqiDC2QuBDAA",    # N/W
+        Profession.RANGER:       "OAJUQ0iaWcQ0Bf1VVqiDC2QuBDAA",    # N/R
+        Profession.MONK:         "OANEQap22BRH8VXVpKOIYD5GMAA",     # N/Mo
+        Profession.NECROMANCER:  "OAVEIBplaLRH8VXVpKOIYD5GMAA",     # N
+        Profession.MESMER:       "OAVEIBplaLRH8VXVpKOIYD5GMAA",     # N/Me
+        Profession.ELEMENTALIST: "OAZEQap2qBRH8VXVpKOIYD5GMAA",     # N/E
+        Profession.ASSASSIN:     "OAdUQ0ia2fQ0Bf1VVqiDC2QuBDAA",   # N/A
+        Profession.RITUALIST:    "OAhkQoFqxKGEdwXdVlq4ggNkbwAA",   # N/Rt
+        Profession.PARAGON:      "OAlkQoFqxWGEdwXdVlq4ggNkbwAA",   # N/P
+        Profession.DERVISH:      "OApkQoFqxmGEdwXdVlq4ggNkbwAA",   # N/D
     },
     Profession.ELEMENTALIST: {
         Profession.WARRIOR:      "OgFToYGXHaX0msYQYgWAZIAYAAA",    # E/W
@@ -3050,9 +3050,9 @@ def BuySignetOfCapture():
     
     # Reload skill bar to include the newly purchased Signet of Capture
     ConsoleLog("Signet", "Reloading skill bar to include Signet of Capture...", log=True)
-    from Py4GWCoreLib.py4gwcorelib_src.Utils import Utils
-    current_template = Utils.GenerateSkillbarTemplate()
-    SkillBar.LoadSkillTemplate(current_template)
+    # Load the current profession build that includes Signet of Capture
+    current_primary = GetPrimaryProfession()
+    yield from LoadSecondaryBuild(current_primary)
     yield from Routines.Yield.wait(2000)  # Increased wait time to ensure skill bar loads properly
     
     # Travel back to starting map
@@ -5157,10 +5157,8 @@ def AnthemofGuidance():
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(-19999, 20176, 419)
     ConfigureAggressiveEnv(bot)
-    bot.Move.XY(21678,-15544)
-    bot.Move.XY(18450,-15850)
-    bot.Move.XY(13733,-14403)
-    bot.Move.XY(10751,-15017)
+    bot.Move.XY(21678, -15544)
+    bot.Move.XY(10490, -14547)
     bot.Wait.UntilOutOfCombat()
     ConfigurePacifistEnv(bot)
     bot.SkillBar.UseSkill(3)
@@ -5248,7 +5246,7 @@ def AnthemofFury():
     bot.Move.XY(-1780,-7409)   
     bot.Move.XY(1456,-7825)   
     bot.Move.XY(5413,-13296)
-    bot.Move.XY(4737,-114213)    
+    bot.Move.XY(4591, -14059)    
     bot.Wait.UntilOutOfCombat()
     ConfigurePacifistEnv(bot)
     bot.SkillBar.UseSkill(3)
@@ -5563,7 +5561,7 @@ def WieldersZeal():
     bot.Items.UseAllConsumables()
     bot.Move.XY(-14487,14623)
     bot.Move.XY(-16605,1454)
-    bot.Move.XY(-10633, -11610)
+    bot.Move.XY(-8890, -12943)
     bot.Wait.UntilOutOfCombat()
     ConfigurePacifistEnv(bot)
     bot.SkillBar.UseSkill(3)
@@ -6044,7 +6042,7 @@ def ZealousBenediction():
     bot.Move.XY(-6079, 4930)
     bot.Move.XY(-7671, -3974)
     bot.Move.XY(-8311, -8169)
-    bot.Move.XY(2497, -12151)
+    bot.Move.XY(3971, -12376)
     bot.Wait.UntilOutOfCombat()
     ConfigurePacifistEnv(bot)
     bot.SkillBar.UseSkill(3)
@@ -8692,7 +8690,7 @@ def OfferingOfSpirit():
     bot.Move.XYAndExitMap(-16837, -13647, 472)
     ConfigureAggressiveEnv(bot)
     bot.Items.UseAllConsumables()
-    bot.Move.XY(12329, -17917)
+    bot.Move.XY(12048, -18141)
     bot.Wait.UntilOutOfCombat()
     ConfigurePacifistEnv(bot)
     bot.SkillBar.UseSkill(3)
@@ -8737,8 +8735,8 @@ def ReclaimEssence():
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
     bot.Move.XYAndExitMap(3078, 5274, 443)
     ConfigureAggressiveEnv(bot)
-    #bot.Items.UseAllConsumables()
-    bot.Move.XY(7335, -5359)
+    bot.Items.UseAllConsumables()
+    bot.Move.XY(7213, -5869)
     bot.Wait.UntilOutOfCombat()
     ConfigurePacifistEnv(bot)
     bot.SkillBar.UseSkill(3)
@@ -8775,26 +8773,34 @@ def RitualLord():
 def SignetOfGhostlyMight():
     bot.States.AddHeader("Signet of Ghostly Might")
     target_prof = Profession.RITUALIST
-    start_map = 427
+    start_map = 480
     bot.States.AddCustomState(lambda: RecordStartingMap(start_map), "Record Start")
     bot.States.AddCustomState(lambda: SaveCurrentBuild(), "Save Build")
     bot.States.AddCustomState(lambda: LoadSecondaryBuild(target_prof),"Load Ritualist Build")
     bot.Party.LeaveParty()
     bot.Travel_To_Random_District(target_map_id=start_map)
     bot.States.AddCustomState(AdvancedHeroTeam, "Advanced Hero Team")
-    bot.Move.XYAndExitMap(0, 0, 0)
+    bot.Move.XY(-3006.40, 13672.54)
+    bot.Move.XYAndExitMap(-3042, 11398, target_map_id=446)
     ConfigureAggressiveEnv(bot)
-    #bot.Items.UseAllConsumables()
-    bot.Move.XY(0, 0)
-    bot.Move.XY(0, 0)
+    bot.Items.UseAllConsumables()
+    bot.Move.XY(-2385.10, 5693.95)
+    bot.Move.XY(-5785.96, 4816.62)
+    bot.Move.XY(-9790.39, -6153.40)
+    bot.Move.XY(-14231.77, -5938.61)
+    bot.Move.XY(-18997.60, -1960.05)
+    bot.Move.XYAndExitMap(-19988, -3069, target_map_id=448)
+    bot.Move.XY(8516.31, -21069.59)
+    bot.Move.XY(5215.24, -21435.55)
+    bot.Move.XY(-7342.22, -18174.64)
     bot.Wait.UntilOutOfCombat()
     ConfigurePacifistEnv(bot)
     bot.SkillBar.UseSkill(3)
     bot.Wait.ForTime(5000)
-    bot.States.AddCustomState(lambda: ClickSkillFrame(1742), "Click Skill Frame")
+    bot.States.AddCustomState(lambda: ClickSkillFrame(1634), "Click Skill Frame")
     bot.States.AddCustomState(lambda: ReturnToStartingMap(), "Return to Outpost")
     bot.States.AddCustomState(lambda: RestoreSavedBuild(), "Restore Build")
-    yield
+    yield   
 
 def SpiritChanneling():
     bot.States.AddHeader("Spirit Channeling")
@@ -8810,7 +8816,7 @@ def SpiritChanneling():
     ConfigureAggressiveEnv(bot)
     #bot.Items.UseAllConsumables()
     bot.Move.XY(4786, -14399)
-    bot.Move.XY(-5115, -16154)
+    bot.Move.XY(-6533, -16982)
     bot.Wait.UntilOutOfCombat()
     ConfigurePacifistEnv(bot)
     bot.SkillBar.UseSkill(3)
@@ -8833,7 +8839,8 @@ def SpiritLightWeapon():
     bot.Move.XYAndExitMap(-7023, -10645, 201)
     ConfigureAggressiveEnv(bot)
     #bot.Items.UseAllConsumables()
-    bot.Move.XY(2705, 19753)
+    bot.Move.XY(12634, 20424)
+    bot.Move.XY(3329, 20174)
     bot.Wait.UntilOutOfCombat()
     ConfigurePacifistEnv(bot)
     bot.SkillBar.UseSkill(3)
@@ -8927,9 +8934,10 @@ def Wanderlust():
     bot.Move.XYAndExitMap(2770, -15781, 269)
     ConfigureAggressiveEnv(bot)
     #bot.Items.UseAllConsumables()
+    bot.Move.XY(2916, -12704)
     bot.Move.XY(189, -7370)
     bot.Move.XY(5309, 3700)
-    bot.Move.XY(-386, 14917)
+    bot.Move.XY(1018, 11378)
     bot.Wait.UntilOutOfCombat()
     ConfigurePacifistEnv(bot)
     bot.SkillBar.UseSkill(3)
@@ -8976,7 +8984,8 @@ def WeaponOfQuickening():
     bot.Move.XYAndExitMap(-26272, 2836, 211)
     ConfigureAggressiveEnv(bot)
     #bot.Items.UseAllConsumables()
-    bot.Move.XY(12849, 7380)
+    bot.Move.XY(22084, 1779)
+    bot.Move.XY(13527, 9125)
     bot.Wait.UntilOutOfCombat()
     ConfigurePacifistEnv(bot)
     bot.SkillBar.UseSkill(3)
@@ -10371,7 +10380,7 @@ bot.States.AddCustomState(OfferingOfSpirit, "[H]Offering of Spirit")
 bot.States.AddCustomState(Preservation, "[H]Preservation")
 bot.States.AddCustomState(ReclaimEssence, "[H]Reclaim Essence")
 bot.States.AddCustomState(RitualLord, "[H]Ritual Lord")
-#bot.States.AddCustomState(SignetOfGhostlyMight, "[H]Signet of Ghostly Might")
+bot.States.AddCustomState(SignetOfGhostlyMight, "[H]Signet of Ghostly Might")
 bot.States.AddCustomState(SpiritChanneling, "[H]Spirit Channeling")
 bot.States.AddCustomState(SpiritLightWeapon, "[H]Spirit Light Weapon")
 bot.States.AddCustomState(SpiritsStrength, "[H]Spirit's Strength")
@@ -10398,14 +10407,23 @@ def main():
     if gui.capture_running:
         try:
             fsm = bot.config.FSM
+            capture_done = False
             if hasattr(fsm, 'finished') and fsm.finished:
-                gui.capture_running = False
-                gui.capture_start_time = None
-                print(f"Capture completed for {gui.selected_skill.display_name if gui.selected_skill else 'unknown skill'}")
+                capture_done = True
             elif hasattr(fsm, 'current_state') and fsm.current_state is None:
-                gui.capture_running = False
-                gui.capture_start_time = None
-                print(f"Capture completed for {gui.selected_skill.display_name if gui.selected_skill else 'unknown skill'}")
+                capture_done = True
+
+            if capture_done:
+                # Verify skill was actually captured; retry if not
+                if gui.selected_skill and not gui._is_skill_captured(gui.selected_skill.skill_id):
+                    ConsoleLog("Capture", f"{gui.selected_skill.display_name} not captured, retrying...", log=True)
+                    print(f"{gui.selected_skill.display_name} not captured, retrying...")
+                    gui.capture_running = False
+                    gui._start_capture()
+                else:
+                    gui.capture_running = False
+                    gui.capture_start_time = None
+                    print(f"Capture completed for {gui.selected_skill.display_name if gui.selected_skill else 'unknown skill'}")
         except:
             pass
 
