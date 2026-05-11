@@ -97,6 +97,8 @@ class PvE:
 
         if not self.build.IsSkillEquipped(evas_id):
             return False
+        if not self.build.CanCastSkillID(evas_id):
+            return False
 
         # Optional caster-energy gate. When set, fire only if the caster's
         # energy fraction is at or above the threshold. Mirrors the

@@ -19,7 +19,7 @@ Arcane_Echo_ID = Skill.GetID("Arcane_Echo")
 You_Move_Like_a_Dwarf_ID = Skill.GetID("You_Move_Like_a_Dwarf")
 Smite_Condition_ID = Skill.GetID("Smite_Condition")
 Ebon_Battle_Standard_of_Wisdom_ID = Skill.GetID("Ebon_Battle_Standard_of_Wisdom")
-Glyph_of_Lesser_Energy_ID = Skill.GetID("Glyph_of_Lesser_Energy")
+Ebon_Vanguard_Assassin_Support_ID = Skill.GetID("Ebon_Vanguard_Assassin_Support")
 Smiters_Boon_ID = Skill.GetID("Smiters_Boon")
 Reversal_of_Damage_ID = Skill.GetID("Reversal_of_Damage")
 Technobabble_ID = Skill.GetID("Technobabble")
@@ -42,7 +42,7 @@ class Ray_of_Judgment(BuildMgr):
                 You_Move_Like_a_Dwarf_ID,
                 Smite_Condition_ID,
                 Ebon_Battle_Standard_of_Wisdom_ID,
-                Glyph_of_Lesser_Energy_ID,
+                Ebon_Vanguard_Assassin_Support_ID,
                 Smiters_Boon_ID,
                 Reversal_of_Damage_ID,
                 Technobabble_ID,
@@ -147,6 +147,10 @@ class Ray_of_Judgment(BuildMgr):
 
         # Smite Condition: offensive cleanse — conditioned ally with most enemies in AoE.
         if not arcane_echo_active and self.IsSkillEquipped(Smite_Condition_ID) and (yield from self.skills.Monk.SmitingPrayers.Smite_Condition()):
+            return True
+
+        # Ebon Vanguard Assassin Support on a clustered hexed/conditioned foe.
+        if not arcane_echo_active and self.IsSkillEquipped(Ebon_Vanguard_Assassin_Support_ID) and (yield from self.skills.Any.PvE.Ebon_Vanguard_Assassin_Support()):
             return True
 
         # Technobabble on a caster cluster.
