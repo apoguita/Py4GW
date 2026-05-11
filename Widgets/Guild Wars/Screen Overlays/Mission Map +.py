@@ -17,6 +17,7 @@ from Py4GWCoreLib.routines_src.BehaviourTrees import BT as RoutinesBT
 from Py4GWCoreLib.py4gwcorelib_src.BehaviorTree import BehaviorTree
 from Py4GWCoreLib.Pathing import NavMesh
 from Py4GWCoreLib.native_src.context.AgentContext import AgentStruct
+from Py4GWCoreLib.native_src.internals.types import Vec2f
 
 from typing import Any, Union, cast
 import math
@@ -398,27 +399,48 @@ def _snap_launch_path_coroutine(goal_x: float, goal_y: float, mm: "MissionMap"):
 
 
 def _snap_launch_bt_move_coroutine(goal_x: float, goal_y: float, mm: "MissionMap", generation: int):
-    """Coroutine: run BottingTree MoveTo and allow cancellation via generation token."""
+    """Coroutine: wait for path computation, then drive movement via BT MoveDirect."""
     mm.snap_move_running = True
-    move_tree = RoutinesBT.Player.Move(goal_x, goal_y, log=False)
-    mm.snap_bt_move_tree = move_tree
+    move_tree = None
+    mm.snap_bt_move_tree = None
     try:
+        # Wait for the path coroutine to finish computing before starting BT.
+        while generation == mm.snap_move_generation and mm.snap_path_computing:
+            yield from Routines.Yield.wait(50)
+
+        if generation != mm.snap_move_generation:
+            return
+
+        raw_path = list(mm.snap_current_path) or [(float(goal_x), float(goal_y))]
+        path_to_use: list[Vec2f] = [Vec2f(float(px), float(py)) for px, py in raw_path]
+
+        # Use MoveDirect (pre-supplied waypoints) so the BT never computes a second path.
+        move_tree = RoutinesBT.Movement.MoveDirect(
+            path_points=path_to_use,
+            tolerance=_SNAP_WAYPOINT_RADIUS,
+            timeout_ms=60000,
+            pause_flag_key="PAUSE_MOVEMENT",
+            log=False,
+        )
+        mm.snap_bt_move_tree = move_tree
+
         while generation == mm.snap_move_generation:
             pause_for_danger = mm._snap_is_danger_nearby()
-            move_tree.blackboard["PAUSE_MOVEMENT"] = pause_for_danger
             if pause_for_danger != mm.snap_paused_for_danger:
                 mm.snap_paused_for_danger = pause_for_danger
-            state = BehaviorTree.Node._normalize_state(move_tree.tick())
+            move_tree.blackboard["PAUSE_MOVEMENT"] = pause_for_danger
+            state = move_tree.tick()
             if state in (RoutinesBT.NodeState.SUCCESS, RoutinesBT.NodeState.FAILURE):
                 break
             yield from Routines.Yield.wait(100)
-    except Exception:
-        pass
+    except Exception as e:
+        import Py4GW
+        Py4GW.Console.Log(MODULE_NAME, f"BT snap move error: {e}", Py4GW.Console.MessageType.Error)
     finally:
-        move_tree.blackboard["PAUSE_MOVEMENT"] = False
+        if move_tree is not None:
+            move_tree.blackboard["PAUSE_MOVEMENT"] = False
         if generation == mm.snap_move_generation:
             mm.snap_bt_move_tree = None
-        if generation == mm.snap_move_generation:
             mm.snap_move_running = False
             mm.snap_paused_for_danger = False
 
