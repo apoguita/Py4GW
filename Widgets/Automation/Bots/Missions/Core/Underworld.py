@@ -513,15 +513,13 @@ def _unblacklist(bot_instance: Botting, name: str) -> None:
 
 
 def _enqueue_spread_flags(bot_instance: Botting, flag_points: list[tuple[int, int]]) -> None:
-    """Clear flags, auto-assign emails, then set adapter flags for each position.
-    Only heroes are flagged (player/party leader is excluded automatically)."""
+    """Clear flags then set adapter flags for each position.
+    set_flag(index, x, y) computes party_pos = index + 1.
+    Followers have PartyPosition 1..N (leader = 0), so index 0 → PartyPosition 1
+    (first follower/hero), index N-1 → PartyPosition N (last follower/hero)."""
     bot_instance.States.AddCustomState(
         lambda: _get_adapter().clear_flags(),
         "Clear Flags",
-    )
-    bot_instance.States.AddCustomState(
-        lambda: _get_adapter().auto_assign_flag_emails(),
-        "Assign Flag Emails",
     )
     for idx, (flag_x, flag_y) in enumerate(flag_points):
         bot_instance.States.AddCustomState(
@@ -1637,6 +1635,7 @@ def Imprisoned_Spirits(bot_instance: Botting):
     )
     bot_instance.States.AddCustomState(lambda: _get_adapter().set_looting_enabled(False), "Disable Looting")
     bot_instance.Move.XY(13212, 4978)
+    bot_instance.Wait.ForTime(7000)
     _enqueue_imprisoned_spirits_flags(bot_instance)
     bot_instance.Move.XY(8692, 6292, "go to NPC")
     bot_instance.Move.XY(8666, 6308, "go to NPC")
@@ -1649,7 +1648,7 @@ def Imprisoned_Spirits(bot_instance: Botting):
     )
     bot_instance.Move.XY(13652, 6117)  # Run down towards the left team
     bot_instance.Wait.UntilCondition(
-        lambda: time.monotonic() - _is_timer[0] >= 28.0
+        lambda: time.monotonic() - _is_timer[0] >= 34.0
     )
     bot_instance.States.AddCustomState(
         lambda: _get_adapter().clear_flags(),
@@ -1698,7 +1697,7 @@ def Wrathfull_Spirits(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
     bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(True), "Enable MoveToPartyMemberIfDead")
-    bot_instance.Move.XY(5755, 12769, "go to NPC")
+    bot_instance.Move.XY(-13217, 5167, "go to NPC")
     bot_instance.Dialogs.WithModel(UWNpcModelID.ReaperOfTheForgottenVale,0x806E03, "take quest")
     EnqueueDialogUntilQuestActive(bot_instance, 0x806E01, int(UWQuestID.WrathfulSpirits), int(UWNpcModelID.ReaperOfTheLabyrinth), "take Wrathfull Spirits quest")
     _uw_pacifist(bot_instance)
@@ -1728,7 +1727,7 @@ def Wrathfull_Spirits(bot_instance: Botting):
     bot_instance.Move.XY(-14184, 7279, "Wrathfull Spirits 12")
     bot_instance.Move.XY(-15055, 3755, "Wrathfull Spirits 13")
     bot_instance.Move.XY(-13409, 4933, "Wrathfull Spirits 14")
-    bot_instance.Move.XY(5755, 12769, "go to NPC")
+    bot_instance.Move.XY(-13217, 5167, "go to NPC")
     bot_instance.Dialogs.WithModel(UWNpcModelID.ReaperOfTheLabyrinth,0x806E07, "Take Reward")
     bot_instance.Dialogs.WithModel(UWNpcModelID.ReaperOfTheLabyrinth,0x8D, "Back to Chamber")
     bot_instance.Wait.ForTime(3000)
@@ -1826,6 +1825,10 @@ def Servants_of_Grenth(bot_instance: Botting):
     bot_instance.States.AddCustomState(lambda: _toggle_wait_if_aggro(True), "Enable WaitIfInAggro")
     bot_instance.States.AddCustomState(lambda: _toggle_wait_for_party(True), "Enable WaitIfPartyMemberTooFar")
     bot_instance.States.AddCustomState(lambda: _toggle_move_to_party_member_if_dead(True), "Enable MoveToPartyMemberIfDead")
+    bot_instance.States.AddCustomState(
+        lambda: bot_instance.Properties.ApplyNow("pause_on_danger", "active", False),
+        "Disable PauseOnDanger for Servants of Grenth",
+    )
     _uw_aggressive(bot_instance)
     bot_instance.Move.XY(2700, 19952, "Servants of Grenth 1")
     SERVANTS_OF_GRENTH_FLAG_POINTS = [
@@ -1866,6 +1869,10 @@ def Servants_of_Grenth(bot_instance: Botting):
     bot_instance.Wait.ForTime(3000)
     bot_instance.Multibox.SendDialogToTarget(0x806607)
     bot_instance.States.AddCustomState(lambda: _record_quest_done("Servants of Grenth"), "Record Servants of Grenth done")
+    bot_instance.States.AddCustomState(
+        lambda: bot_instance.Properties.ApplyNow("pause_on_danger", "active", True),
+        "Re-enable PauseOnDanger after Servants of Grenth",
+    )
 
 
 def Dhuum(bot_instance: Botting):
@@ -2008,6 +2015,10 @@ def Dhuum(bot_instance: Botting):
         if _slot_map:
             bot_instance.Multibox.EquipItemOnAllAccounts(_slot_map)
 
+    bot_instance.States.AddCustomState(
+        lambda: bot_instance.Properties.ApplyNow("pause_on_danger", "active", False),
+        "Disable PauseOnDanger for Dhuum",
+    )
     bot_instance.Wait.ForTime(1000)  # wait for armor switch to complete before moving
     bot_instance.Move.XY(-11278, 17297, "Wait For the King")
     bot_instance.Wait.UntilCondition(
@@ -2180,6 +2191,10 @@ def Dhuum(bot_instance: Botting):
     bot_instance.Wait.ForTime(2000)
     bot_instance.Multibox.SendDialogToTarget(0x846907)
     bot_instance.Wait.ForTime(2000)
+    bot_instance.States.AddCustomState(
+        lambda: bot_instance.Properties.ApplyNow("pause_on_danger", "active", True),
+        "Re-enable PauseOnDanger after Dhuum",
+    )
 
 
 
@@ -2470,7 +2485,7 @@ def _log_successful_run() -> None:
     ConsoleLog(BOT_NAME, "[Run] Successful run logged.", Py4GW.Console.MessageType.Info)
 
 def Wait_for_Spawns(bot_instance: Botting, x, y):
-    _TIMEOUT_S = 20.0
+    _TIMEOUT_S = 40.0
 
     bot_instance.Move.XY(x, y, "To the Vale")
 
