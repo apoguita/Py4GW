@@ -41,6 +41,9 @@ def _draw_active_dialog() -> None:
         PyImGui.text_wrapped(active.message)
     else:
         PyImGui.text("<empty>")
+        
+    if PyImGui.button("print active dialog to console"):
+        Py4GW.Console.Log(MODULE_NAME, f"{active.message}", Py4GW.Console.MessageType.Info)
 
 
 def _draw_buttons() -> None:

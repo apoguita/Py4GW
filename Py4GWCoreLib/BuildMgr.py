@@ -225,6 +225,48 @@ class BuildMgr:
             return None
         return self.GetCustomSkill(skill_id)
 
+    @staticmethod
+    def _normalize_weapon_requirement_name(value: str) -> str:
+        text = ''.join(ch for ch in str(value or '') if ch.isalnum()).lower()
+        if text.startswith('weapon'):
+            text = text[6:]
+        return text
+
+    def _matches_required_weapon(self, required_weapon: str) -> bool:
+        from Py4GWCoreLib import Agent, Player
+
+        normalized_required_weapon = self._normalize_weapon_requirement_name(required_weapon)
+        if not normalized_required_weapon:
+            return True
+
+        player_id = Player.GetAgentID()
+        if Agent.IsHoldingItem(player_id):
+            return False
+
+        if normalized_required_weapon in {"melee", "closecombat", "close"}:
+            return Agent.IsMelee(player_id)
+
+        if normalized_required_weapon in {"rangedmelee", "rangedmartial", "martialranged"}:
+            return Agent.IsRanged(player_id)
+
+        if normalized_required_weapon == "caster":
+            return Agent.IsCaster(player_id)
+
+        if normalized_required_weapon == "ranged":
+            return Agent.IsRanged(player_id) or Agent.IsCaster(player_id)
+
+        _, current_weapon_name = Agent.GetWeaponType(player_id)
+        return self._normalize_weapon_requirement_name(current_weapon_name) == normalized_required_weapon
+
+    def _meets_custom_skill_weapon_requirement(self, skill_id: int) -> bool:
+        custom_skill = self.GetCustomSkill(skill_id)
+        if custom_skill is None:
+            return True
+        required_weapon = str(getattr(custom_skill.Conditions, "RequireWeapon", "") or "").strip()
+        if not required_weapon:
+            return True
+        return self._matches_required_weapon(required_weapon)
+
     def _get_shared_skill_toggle(self, slot: int) -> bool:
         if not (1 <= int(slot) <= 8):
             return False
@@ -1536,6 +1578,8 @@ class BuildMgr:
             return False
         if not self.IsSharedSkillToggleEnabled(slot):
             return False
+        if not self._meets_custom_skill_weapon_requirement(skill_id):
+            return False
         if not Routines.Checks.Skills.HasEnoughAdrenalineBySlot(slot):
             return False
         if self.SpiritBuffExists(skill_id):
@@ -1564,6 +1608,8 @@ class BuildMgr:
             return False
         if not self.IsSharedSkillToggleEnabled(slot):
             return False
+        if not self._meets_custom_skill_weapon_requirement(skill_id):
+            return False
         if not Routines.Checks.Skills.HasEnoughEnergy(Player.GetAgentID(), skill_id):
             return False
         if not Routines.Checks.Skills.IsSkillSlotReady(slot):
@@ -1588,6 +1634,8 @@ class BuildMgr:
             yield
 
         if not self.CanCastSkillID(skill_id, extra_condition=extra_condition):
+            return False
+        if not self._meets_custom_skill_weapon_requirement(skill_id):
             return False
         if not self._validate_target_for_skill_cast(skill_id, target_agent_id):
             return False
@@ -1663,6 +1711,8 @@ class BuildMgr:
         if not target_agent_id:
             return False
         if not self.CanCastSkillID(skill_id, extra_condition=extra_condition):
+            return False
+        if not self._meets_custom_skill_weapon_requirement(skill_id):
             return False
 
         previous_enemy_target = Player.GetTargetID()

@@ -144,6 +144,7 @@ class AssassinSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Daggers"
         skill.Conditions.HasHex = True
         skill_data[skill.SkillID] = skill
 
@@ -152,6 +153,7 @@ class AssassinSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Daggers"
         skill.Conditions.HasHex = True
         skill_data[skill.SkillID] = skill
 
@@ -160,6 +162,7 @@ class AssassinSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Daggers"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -167,6 +170,7 @@ class AssassinSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Daggers"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -174,6 +178,7 @@ class AssassinSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Daggers"
         skill.Conditions.LessLife = 0.8
         skill.Conditions.UniqueProperty = True
         skill_data[skill.SkillID] = skill
@@ -183,6 +188,7 @@ class AssassinSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.EnemyCastingSpell.value
         skill.Nature = SkillNature.Interrupt.value
+        skill.Conditions.RequireWeapon = "Daggers"
         skill.Conditions.IsCasting = True
         skill_data[skill.SkillID] = skill
 
@@ -191,6 +197,7 @@ class AssassinSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.EnemyCasting.value
         skill.Nature = SkillNature.Interrupt.value
+        skill.Conditions.RequireWeapon = "Daggers"
         skill.Conditions.IsCasting = True
         skill_data[skill.SkillID] = skill
 
@@ -199,6 +206,7 @@ class AssassinSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Daggers"
         skill.Conditions.IsKnockedDown = True
         skill_data[skill.SkillID] = skill
 
@@ -207,6 +215,7 @@ class AssassinSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Daggers"
         skill.Conditions.IsKnockedDown = True
         skill_data[skill.SkillID] = skill
 
@@ -222,6 +231,7 @@ class AssassinSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Daggers"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -236,6 +246,7 @@ class AssassinSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Daggers"
         skill.Conditions.UniqueProperty = True
         skill_data[skill.SkillID] = skill
 
@@ -244,6 +255,7 @@ class AssassinSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Daggers"
         skill.Conditions.UniqueProperty = True
         skill_data[skill.SkillID] = skill
 
@@ -252,6 +264,7 @@ class AssassinSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Daggers"
         skill.Conditions.UniqueProperty = True
         skill_data[skill.SkillID] = skill
 
@@ -260,6 +273,7 @@ class AssassinSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Daggers"
         skill.Conditions.UniqueProperty = True
         skill_data[skill.SkillID] = skill
 
@@ -268,6 +282,7 @@ class AssassinSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Daggers"
         skill.Conditions.UniqueProperty = True
         skill_data[skill.SkillID] = skill
 
@@ -276,6 +291,7 @@ class AssassinSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Daggers"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -283,6 +299,7 @@ class AssassinSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Daggers"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -290,6 +307,7 @@ class AssassinSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Daggers"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -297,6 +315,7 @@ class AssassinSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Daggers"
         skill.Conditions.IsMoving = True
         skill_data[skill.SkillID] = skill
 
@@ -305,6 +324,7 @@ class AssassinSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Daggers"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -312,6 +332,7 @@ class AssassinSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Daggers"
         skill.Conditions.LessLife = 0.5
         skill_data[skill.SkillID] = skill
 
@@ -320,6 +341,7 @@ class AssassinSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Daggers"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -327,6 +349,7 @@ class AssassinSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Daggers"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -334,6 +357,7 @@ class AssassinSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.EnemyCastingSpell.value
         skill.Nature = SkillNature.Interrupt.value
+        skill.Conditions.RequireWeapon = "Daggers"
         skill.Conditions.IsCasting = True
         skill_data[skill.SkillID] = skill
 
@@ -342,6 +366,7 @@ class AssassinSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Daggers"
         skill.Conditions.HasCrippled = True
         skill_data[skill.SkillID] = skill
 
@@ -350,6 +375,7 @@ class AssassinSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Daggers"
         skill_data[skill.SkillID] = skill
 
         #region DEADLY_ARTS
