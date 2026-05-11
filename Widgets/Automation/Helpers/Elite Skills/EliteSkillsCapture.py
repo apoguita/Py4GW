@@ -251,16 +251,16 @@ SECONDARY_BUILDS = {
         Profession.DERVISH:      "OQoREZaX0mEAAAAAAAAAYAA",        # W/D
     },
     Profession.RANGER: {
-        Profession.WARRIOR:      "OgEUUDLe1MHKOA+W4AYA0WAA",       # R/W 
-        Profession.RANGER:       "OgUUIELe1MHKWD+W4AYA0WAA",       # R 
-        Profession.MONK:         "OgMU4ELe1MHKGl+W4AYA0WAA",       # R/Mo 
-        Profession.NECROMANCER:  "OgQUUELe1MHKON+W4AYA0WAA",       # R/N 
-        Profession.MESMER:       "OgUUIELe1MHKWD+W4AYA0WAA",       # R/Me
-        Profession.ELEMENTALIST: "OgYUoELe1MHKuY+W4AYA0WAA",       # R/E 
-        Profession.ASSASSIN:     "OgcUYxrm5vIKmL7bCHAMA0mAAA",     # R/A 
-        Profession.RITUALIST:    "OggkYhXXGDijiRd6bEOAgBAtRAA",    # R/Rt
-        Profession.PARAGON:      "OgkkYhXaGfKjiRF7bEOAgBAtRAA",    # R/P 
-        Profession.DERVISH:      "OgokYhXaGrKjip66bEOAgBAtRAA",    # R/D 
+        Profession.WARRIOR:      "OgEUUDLe1MTKGj1ghMGoSUNDA0GA",       # R/W 
+        Profession.RANGER:       "OgEUUDLe1MTKGj1ghMGoSUNDA0GA",       # R 
+        Profession.MONK:         "OgMU8CLe1MTKGj1ghMGoSUNDA0GA",       # R/Mo 
+        Profession.NECROMANCER:  "OgQUcCLe1MTKGj1ghMGoSUNDA0GA",       # R/N 
+        Profession.MESMER:       "OgUUMCLe1MTKGj1ghMGoSUNDA0GA",       # R/Me
+        Profession.ELEMENTALIST: "OgYUsCLe1MTKGj1ghMGoSUNDA0GA",       # R/E 
+        Profession.ASSASSIN:     "OgATYxrmZSxYsGMkxAViqZAg2AA",     # R/A 
+        Profession.RITUALIST:    "OggkYhXaGDGkixYNYIjBqEVzAAtB",    # R/Rt
+        Profession.PARAGON:      "OgkkYhXaGXGkixYNYIjBqEVzAAtB",    # R/P 
+        Profession.DERVISH:      "OgokYhXaGnGkixYNYIjBqEVzAAtB",    # R/D 
     },
     Profession.MESMER: {
         Profession.WARRIOR:      "OQFUAWBPsaQoAaAXADBEB9A2gDAA",       # Me/W
@@ -2830,7 +2830,7 @@ ELITE_SKILLS = [
         type=EliteSkillType.ELITE_SKILL,
         step_name="[H]Ritual Lord",
         capture_function="RitualLord",
-        start_map=428927,
+        start_map=289,
         icon_filename="[1217] - Ritual Lord.jpg"
     ),
     EliteSkill(
@@ -9868,7 +9868,7 @@ class EliteSkillsGUI:
             "use_war_supplies": True,
             "use_conset": False,
             "pause_on_danger": True,
-            "halt_on_death": False,
+            "halt_on_death": True,
             "auto_deposit_gold": True,
         }
 
