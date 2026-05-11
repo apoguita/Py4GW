@@ -400,9 +400,10 @@ def _snap_launch_path_coroutine(goal_x: float, goal_y: float, mm: "MissionMap"):
 def _snap_launch_bt_move_coroutine(goal_x: float, goal_y: float, mm: "MissionMap", generation: int):
     """Coroutine: run BottingTree MoveTo and allow cancellation via generation token."""
     mm.snap_move_running = True
-    move_tree = RoutinesBT.Player.Move(goal_x, goal_y, log=False)
-    mm.snap_bt_move_tree = move_tree
+    move_tree = None
     try:
+        move_tree = RoutinesBT.Movement.Move(goal_x, goal_y, log=False)
+        mm.snap_bt_move_tree = move_tree
         while generation == mm.snap_move_generation:
             pause_for_danger = mm._snap_is_danger_nearby()
             move_tree.blackboard["PAUSE_MOVEMENT"] = pause_for_danger
@@ -412,10 +413,16 @@ def _snap_launch_bt_move_coroutine(goal_x: float, goal_y: float, mm: "MissionMap
             if state in (RoutinesBT.NodeState.SUCCESS, RoutinesBT.NodeState.FAILURE):
                 break
             yield from Routines.Yield.wait(100)
-    except Exception:
-        pass
+    except Exception as e:
+        import Py4GW
+        Py4GW.Console.Log(
+            MODULE_NAME,
+            f"Snap movement failed to start or tick ({goal_x:.1f}, {goal_y:.1f}): {e}",
+            Py4GW.Console.MessageType.Error,
+        )
     finally:
-        move_tree.blackboard["PAUSE_MOVEMENT"] = False
+        if move_tree is not None:
+            move_tree.blackboard["PAUSE_MOVEMENT"] = False
         if generation == mm.snap_move_generation:
             mm.snap_bt_move_tree = None
         if generation == mm.snap_move_generation:
