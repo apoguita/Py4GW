@@ -4,9 +4,8 @@ MODULE_ICON = "Textures/Module_Icons/Script Runner.png"
 import traceback
 
 import Py4GW
-import PyDialog
 import PyImGui
-from Py4GWCoreLib import Player
+from Py4GWCoreLib import Dialog
 
 _dialog_was_active = False
 
@@ -24,10 +23,22 @@ def tooltip():
 
 
 def _draw_active_dialog() -> None:
-    active = PyDialog.PyDialog.get_active_dialog()
+    active = Dialog.get_active_dialog()
+    if active is None:
+        PyImGui.text("Dialog active: False")
+        PyImGui.text("Last selected dialog id: 0x0")
+        PyImGui.separator()
+        PyImGui.text("<no active dialog>")
+        return
 
-    PyImGui.text(f"Dialog active: {PyDialog.PyDialog.is_dialog_active()}")
-    PyImGui.text(f"Last selected dialog id: 0x{PyDialog.PyDialog.get_last_selected_dialog_id():X}")
+    last_selected_dialog_id = 0
+    try:
+        last_selected_dialog_id = int(Dialog._call_native_dialog_method("get_last_selected_dialog_id", 0) or 0)
+    except Exception:
+        last_selected_dialog_id = 0
+
+    PyImGui.text("Dialog active: True")
+    PyImGui.text(f"Last selected dialog id: 0x{last_selected_dialog_id:X}")
     PyImGui.separator()
 
     PyImGui.text("Active dialog")
@@ -47,7 +58,7 @@ def _draw_active_dialog() -> None:
 
 
 def _draw_buttons() -> None:
-    buttons = PyDialog.PyDialog.get_active_dialog_buttons()
+    buttons = Dialog.get_active_dialog_buttons()
     visible_buttons = [button for button in buttons if getattr(button, "dialog_id", 0) != 0]
 
     PyImGui.separator()
@@ -67,6 +78,7 @@ def _draw_buttons() -> None:
             PyImGui.set_clipboard_text(f"0x{button.dialog_id:X}")
             
         if PyImGui.button(f"Send##dialog_button_{index}"):
+            from Py4GWCoreLib.Player import Player
             Player.SendAutomaticDialog(index)
         label = button.message_decoded or button.message
         if label:
@@ -82,9 +94,13 @@ def main():
     
     global _dialog_was_active
     try:
-        dialog_active = PyDialog.PyDialog.is_dialog_active()
+        dialog_active = Dialog.get_active_dialog() is not None
         if _dialog_was_active and not dialog_active:
-            PyDialog.PyDialog.clear_cache()
+            try:
+                import PyDialog
+                PyDialog.PyDialog.clear_cache()
+            except Exception:
+                pass
         _dialog_was_active = dialog_active
 
         if PyImGui.begin(MODULE_NAME, PyImGui.WindowFlags.AlwaysAutoResize):

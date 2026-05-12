@@ -309,7 +309,7 @@ TSUMEI_VILLAGE_WEAPON_COMMON_MATERIALS_DATA = {
 
 HEADMASTER_ZHAN_COORDS = (-7039.83, 7325.59)
 HEADMASTER_GREICO_COORDS = (-7714.79, 6727.62)
-HEADMASTER_AMARA_COORDS = (-7092.22, 7497.88),
+HEADMASTER_AMARA_COORDS = (-7092.22, 7497.88)
 HEADMASTER_KUJU_COORDS = (-7101.96, 7125.17)
 HEADMASTER_KAA_COORDS = (-7351.34, 7584.09)
 HEADMASTER_VHANG_COORDS = (-7892.99, 6928.65)
@@ -339,23 +339,6 @@ def _trace_step(name: str, tree: BehaviorTree) -> BehaviorTree:
                 BT.LogMessage(f"OK: {name}", module_name=MODULE_NAME, print_to_console=True, print_to_blackboard=False),
             ],
         )
-    )
-
-
-def _handle_primary_or_secondary_intro(
-    node: BehaviorTree.Node,
-    pos: PointOrPath,
-    primary_profession_name: str,
-) -> BehaviorTree:
-    if node.blackboard.get("player_primary_profession_name") == primary_profession_name:
-        return BT.HandleAutoQuest(pos, buttons=[0, 0])
-    return BT.Sequence(
-        name=f"{primary_profession_name} Secondary Intro",
-        children=[
-            BT.HandleAutoQuest(pos, buttons=[0, 0]),
-            BT.Wait(100),
-            BT.AutoDialog(0),
-        ],
     )
 
 
@@ -481,9 +464,6 @@ def WarriorPrimaryStarterQuestsPart1() -> BehaviorTree:
             return BT.Move(TO_TALON_SILVERWING_COORDS)
         return BehaviorTree(BehaviorTree.SucceederNode(name="SkipExitToTsumei"))
     
-    def _talon_silverwing_intro(node: BehaviorTree.Node) -> BehaviorTree:
-        return _handle_primary_or_secondary_intro(node, TALON_SILVERWING_COORDS, "Warrior")
-        
     def _exit_to_tsumei_if_warrior(node: BehaviorTree.Node) -> BehaviorTree:
         if node.blackboard.get("player_primary_profession_name") == "Warrior":
             return BT.Sequence(
@@ -511,7 +491,10 @@ def WarriorPrimaryStarterQuestsPart1() -> BehaviorTree:
                 ),
                 BehaviorTree.SubtreeNode(
                     name="Talon Silverwing Intro Quest",
-                    subtree_fn=_talon_silverwing_intro,
+                    subtree_fn=lambda node: BT.HandleAutoQuest(
+                        TALON_SILVERWING_COORDS,
+                        buttons=[0, 0] if node.blackboard.get("player_primary_profession_name") == "Warrior" else [0, 0, 0],
+                    ),
                 ),
                 BT.EquipItemByModelID(STARTER_AXE_MODEL_ID),
                 BT.HandleAutoQuest(TALON_SILVERWING_COORDS),
@@ -528,7 +511,7 @@ def WarriorPrimaryStarterQuestsPart1() -> BehaviorTree:
 
 def WarriorPrimaryStarterQuestsPart2() -> BehaviorTree:
     WENG_GAH_COORDS = (6678.91, 6318.28)
-    KILLSPOT_COORDS = (10727.69, 10571.04)
+    KILLSPOT_COORDS = (10887.11, 12441.24)
     return BT.Sequence(
             name="Warrior Primary Starter Quests Part 2",
             map_id_or_name=TSUMEI_VILLAGE,
@@ -556,9 +539,6 @@ def RangerPrimaryStarterQuestsPart1() -> BehaviorTree:
             return BT.Move(TO_SUJUN_COORDS)
         return BehaviorTree(BehaviorTree.SucceederNode(name="SkipApproachSujun"))
     
-    def _sujun_intro(node: BehaviorTree.Node) -> BehaviorTree:
-        return _handle_primary_or_secondary_intro(node, SUJUN_COORDS, "Ranger")
-    
     return BT.Sequence(
             name="Ranger Primary Starter Quests Part 1",
             children=[
@@ -569,7 +549,10 @@ def RangerPrimaryStarterQuestsPart1() -> BehaviorTree:
                 ),
                 BehaviorTree.SubtreeNode(
                     name="Sujun Intro",
-                    subtree_fn=_sujun_intro,
+                    subtree_fn=lambda node: BT.HandleAutoQuest(
+                        SUJUN_COORDS,
+                        buttons=[0, 0] if node.blackboard.get("player_primary_profession_name") == "Ranger" else [0, 0, 0],
+                    ),
                 ),
                 BT.HandleAutoQuest(pos=SUJUN_COORDS),
                 bot.Config.Aggressive(),
@@ -628,9 +611,6 @@ def MonkPrimaryStarterQuestsPart1() -> BehaviorTree:
             return BT.Move(TO_SISTER_TAI_COORDS)
         return BehaviorTree(BehaviorTree.SucceederNode(name="SkipApproachSisterTai"))
     
-    def _sister_tai_intro(node: BehaviorTree.Node) -> BehaviorTree:
-        return _handle_primary_or_secondary_intro(node, SISTER_TAI_COORDS, "Monk")
-        
     def _exit_to_tsumei_if_monk(node: BehaviorTree.Node) -> BehaviorTree:
         if node.blackboard.get("player_primary_profession_name") == "Monk":
             return BT.MoveAndExitMap(FROM_SUNQUA_VALE_TO_TSUMEI_VILLAGE, target_map_id=TSUMEI_VILLAGE)
@@ -647,7 +627,10 @@ def MonkPrimaryStarterQuestsPart1() -> BehaviorTree:
                 ),
                 BehaviorTree.SubtreeNode(
                     name="Sister Tai Intro Quest",
-                    subtree_fn=_sister_tai_intro,
+                    subtree_fn=lambda node: BT.HandleAutoQuest(
+                        SISTER_TAI_COORDS,
+                        buttons=[0, 0] if node.blackboard.get("player_primary_profession_name") == "Monk" else [0, 0, 0],
+                    ),
                 ),
                 BT.HandleAutoQuest(pos=SISTER_TAI_COORDS[0],),
                 bot.Config.Aggressive(),
@@ -687,9 +670,6 @@ def NecromancerPrimaryStarterQuestsPart1() -> BehaviorTree:
     KILLSPOT_COORDS = (20268.91, 8145.42)
     bot = ensure_botting_tree()
 
-    def _reng_ku_intro(node: BehaviorTree.Node) -> BehaviorTree:
-        return _handle_primary_or_secondary_intro(node, RENG_KU_COORDS, "Necromancer")
-
     def _exit_to_tsumei_if_necromancer(node: BehaviorTree.Node) -> BehaviorTree:
         if node.blackboard.get("player_primary_profession_name") == "Necromancer":
             return BT.MoveAndExitMap(FROM_SUNQUA_VALE_TO_TSUMEI_VILLAGE, target_map_id=TSUMEI_VILLAGE)
@@ -703,7 +683,10 @@ def NecromancerPrimaryStarterQuestsPart1() -> BehaviorTree:
                 BT.StoreProfessionNames(),
                 BehaviorTree.SubtreeNode(
                     name="Reng Ku Intro Quest",
-                    subtree_fn=_reng_ku_intro,
+                    subtree_fn=lambda node: BT.HandleAutoQuest(
+                        RENG_KU_COORDS,
+                        buttons=[0, 0],
+                    ),
                 ),
                 bot.Config.Aggressive(),
                 BT.MoveAndKill(KILLSPOT_COORDS),
@@ -762,9 +745,6 @@ def MesmerPrimaryStarterQuestsPart1() -> BehaviorTree:
             return BT.Move(TO_MEI_LING_COORDS)
         return BehaviorTree(BehaviorTree.SucceederNode(name="SkipApproachMeiLing"))
     
-    def _mei_ling_intro(node: BehaviorTree.Node) -> BehaviorTree:
-        return _handle_primary_or_secondary_intro(node, MEI_LING_COORDS, "Mesmer")
-    
     def _exit_to_tsumei_if_mesmer(node: BehaviorTree.Node) -> BehaviorTree:
         if node.blackboard.get("player_primary_profession_name") == "Mesmer":
             return BT.MoveAndExitMap(FROM_SUNQUA_VALE_TO_TSUMEI_VILLAGE, target_map_id=TSUMEI_VILLAGE)
@@ -781,7 +761,10 @@ def MesmerPrimaryStarterQuestsPart1() -> BehaviorTree:
                 ),
                 BehaviorTree.SubtreeNode(
                     name="Mei Ling Intro Quest",
-                    subtree_fn=_mei_ling_intro,
+                    subtree_fn=lambda node: BT.HandleAutoQuest(
+                        MEI_LING_COORDS,
+                        buttons=[0, 0] if node.blackboard.get("player_primary_profession_name") == "Mesmer" else [0, 0, 0],
+                    ),
                 ),
                 bot.Config.Aggressive(),
                 BT.Move(KILLSPOT_COORDS),
@@ -826,9 +809,6 @@ def ElementalistPrimaryStarterQuestsPart1() -> BehaviorTree:
     BACK_TO_RONSU_COORDS = [(14614.99, -15139.23),(12895.58, -11721.12)] + RONSU_COORDS
     
     
-    def _ronsu_intro(node: BehaviorTree.Node) -> BehaviorTree:
-        return _handle_primary_or_secondary_intro(node, RONSU_COORDS, "Elementalist")
-        
     def _exit_to_tsumei_if_elementalist(node: BehaviorTree.Node) -> BehaviorTree:
         if node.blackboard.get("player_primary_profession_name") == "Elementalist":
             return BT.MoveAndExitMap(FROM_SUNQUA_VALE_TO_TSUMEI_VILLAGE, target_map_id=TSUMEI_VILLAGE)
@@ -841,7 +821,10 @@ def ElementalistPrimaryStarterQuestsPart1() -> BehaviorTree:
                 BT.StoreProfessionNames(),
                 BehaviorTree.SubtreeNode(
                     name="Ronsu Intro Quest",
-                    subtree_fn=_ronsu_intro,
+                    subtree_fn=lambda node: BT.HandleAutoQuest(
+                        RONSU_COORDS,
+                        buttons=[0, 0] if node.blackboard.get("player_primary_profession_name") == "Elementalist" else [0, 0, 0],
+                    ),
                 ),
                 bot.Config.Aggressive(),
                 BT.MoveAndKill(KILLSPOT_COORDS),
@@ -874,15 +857,12 @@ def ElementalistPrimaryStarterQuestsPart2() -> BehaviorTree:
 def AssassinPrimaryStarterQuestsPart1() -> BehaviorTree:
     bot = ensure_botting_tree()
     TO_JINZO_COORDS = [(17065.27, -7227.24),(15051.48, -1352.39),]
-    JINZO_COORDS = (11398.17, 7258.22)
+    JINZO_COORDS = (13882.44, 4427.73)
     
     def _approach_jinzo(node: BehaviorTree.Node) -> BehaviorTree:
         if node.blackboard.get("player_primary_profession_name") in ("Assassin", "Necromancer"):
             return BT.Move(TO_JINZO_COORDS)
         return BehaviorTree(BehaviorTree.SucceederNode(name="SkipApproachJinzo"))
-    
-    def _jinzo_intro(node: BehaviorTree.Node) -> BehaviorTree:
-        return _handle_primary_or_secondary_intro(node, JINZO_COORDS, "Assassin")
     
     def _exit_to_tsumei_if_assassin(node: BehaviorTree.Node) -> BehaviorTree:
         if node.blackboard.get("player_primary_profession_name") == "Assassin":
@@ -909,7 +889,10 @@ def AssassinPrimaryStarterQuestsPart1() -> BehaviorTree:
                 ),
                 BehaviorTree.SubtreeNode(
                     name="Jinzo Intro Quest",
-                    subtree_fn=_jinzo_intro,
+                    subtree_fn=lambda node: BT.HandleAutoQuest(
+                        JINZO_COORDS,
+                        buttons=[0, 0] if node.blackboard.get("player_primary_profession_name") in ("Assassin", "Necromancer") else [0, 0, 0],
+                    ),
                 ),
                 BT.HandleAutoQuest(JINZO_COORDS,buttons=[0]),
                 bot.Config.Aggressive(),
@@ -962,9 +945,6 @@ def RitualistPrimaryStarterQuestsPart1() -> BehaviorTree:
     PROFESSOR_GAI_COORDS = (9037.29, -12521.27)
     KILLSPOT_COORDS = (8566.58, -13654.18)
     
-    def _professor_gai_intro(node: BehaviorTree.Node) -> BehaviorTree:
-        return _handle_primary_or_secondary_intro(node, PROFESSOR_GAI_COORDS, "Ritualist")
-        
     def _exit_to_tsumei_if_ritualist(node: BehaviorTree.Node) -> BehaviorTree:
         if node.blackboard.get("player_primary_profession_name") in ("Ritualist", "Ranger"):
             return BT.MoveAndExitMap(FROM_SUNQUA_VALE_TO_TSUMEI_VILLAGE, target_map_id=TSUMEI_VILLAGE)
@@ -976,7 +956,10 @@ def RitualistPrimaryStarterQuestsPart1() -> BehaviorTree:
                 bot.Config.Pacifist(),
                 BehaviorTree.SubtreeNode(
                     name="Professor Gai Intro Quest",
-                    subtree_fn=_professor_gai_intro,
+                    subtree_fn=lambda node: BT.HandleAutoQuest(
+                        PROFESSOR_GAI_COORDS,
+                        buttons=[0, 0] if node.blackboard.get("player_primary_profession_name") == "Ritualist" else [0, 0, 0],
+                    ),
                 ),
                 BT.HandleAutoQuest(PROFESSOR_GAI_COORDS,buttons=[0]),
                 bot.Config.Aggressive(),
@@ -1206,10 +1189,7 @@ def _build_tsumei_weapon_craft_routine(profession: str) -> BehaviorTree:
             )
         )
         craft_and_equip_steps.append(
-            _trace_step(
-                f"Equip Weapon {model_id}",
-                BT.EquipItemByModelID(model_id),
-            )
+            BT.EquipItemByModelID(model_id),
         )
 
     return BT.Sequence(
@@ -1256,7 +1236,7 @@ def BuyAndCraftMonasteryArmor() -> BehaviorTree:
                 DestroyTrash(),
                 BT.Travel(TSUMEI_VILLAGE),
                 BT.MoveAndInteract(WEAPON_CRAFTER_COORDS),
-                _trace_step("Tsumei Weapon Craft", BT.GetNodeByProfession(**_build_tsumei_weapon_nodes())),
+                BT.GetNodeByProfession(**_build_tsumei_weapon_nodes()),
             ],
         )
 
@@ -1271,64 +1251,12 @@ OTHER_MASTER_COORDS_BY_PROFESSION: dict[str, list[PointOrPath]] = {
 
 
 def _talk_with_other_masters(node: BehaviorTree.Node) -> BehaviorTree:
-    def _log_active_dialog_state(_node: BehaviorTree.Node) -> BehaviorTree.NodeState:
-        import Py4GW
-        import PyDialog
-
-        try:
-            is_active = PyDialog.PyDialog.is_dialog_active()
-            active = PyDialog.PyDialog.get_active_dialog()
-            buttons = list(PyDialog.PyDialog.get_active_dialog_buttons()) if is_active else []
-            visible_buttons = [button for button in buttons if getattr(button, "dialog_id", 0) != 0]
-            dialog_ids = [getattr(button, "dialog_id", 0) for button in visible_buttons]
-            labels = [getattr(button, "message_decoded", "") or getattr(button, "message", "") for button in visible_buttons]
-            Py4GW.Console.Log(
-                MODULE_NAME,
-                (
-                    "TalkWithOtherMasters dialog_state: "
-                    f"active={is_active} "
-                    f"dialog_id=0x{getattr(active, 'dialog_id', 0):X} "
-                    f"context_dialog_id=0x{getattr(active, 'context_dialog_id', 0):X} "
-                    f"authoritative={getattr(active, 'dialog_id_authoritative', False)} "
-                    f"raw_count={len(buttons)} visible_count={len(visible_buttons)} "
-                    f"dialog_ids={dialog_ids} labels={labels}"
-                ),
-                Py4GW.Console.MessageType.Info,
-            )
-        except Exception as e:
-            Py4GW.Console.Log(
-                MODULE_NAME,
-                f"TalkWithOtherMasters dialog_state read failed: {e}",
-                Py4GW.Console.MessageType.Warning,
-            )
-        return BehaviorTree.NodeState.SUCCESS
-
     master_coords = node.blackboard["other_master_coords"]
     
     return BT.Sequence(
         name="Talk With Other Masters",
         children=[
-            BT.HandleAutoQuest(pos=coords, buttons=[0, 0])
-            if index == 0
-            else BT.Sequence(
-                name=f"Talk With Master {index}",
-                children=[
-                    BT.LogMessage(
-                        f"TalkWithOtherMasters: master_index={index} sending [0, 0] then AutoDialog(0)",
-                        module_name=MODULE_NAME,
-                        print_to_console=True,
-                        print_to_blackboard=False,
-                    ),
-                    BT.HandleAutoQuest(pos=coords, buttons=[0, 0], log=True),
-                    BT.Wait(100),
-                    BehaviorTree.ActionNode(
-                        name=f"LogDialogStateBeforeAutoDialog{index}",
-                        action_fn=_log_active_dialog_state,
-                        aftercast_ms=0,
-                    ),
-                    BT.AutoDialog(0, log=True),
-                ],
-            )
+            BT.HandleAutoQuest(pos=coords, buttons=[0, 0] if index == 0 else [0, 0, 0])
             for index, coords in enumerate(master_coords)
         ],
     )
@@ -1373,76 +1301,151 @@ def Talk_With_Masters() -> BehaviorTree:
             DestroyTrash(),
             BT.HandleAutoQuest(NEING_THE_TANNER_COORDS), #a blet pouch
             BT.HandleAutoQuest(CAPTAIN_ZINGHU_COORDS), #appearance of the naga
+            PrepareForBattle(),
             BT.MoveAndExitMap(FROM_SHING_JEA_MONASTERY_TO_SUNQUA_VALE, target_map_id=SUNQUA_VALE),
         ],
     )
 
-#region Secondary Profession
-def _run_or_skip_for_profession(
-    profession_name: str,
-    subtree: BehaviorTree | BehaviorTree.Node,
-    name: str | None = None,
-) -> BehaviorTree:
-    return BT.Sequence(
-        name=name or f"Run Or Skip {profession_name}",
-        children=[
-            BT.StoreProfessionNames(),
-            BehaviorTree.SelectorNode(
-                name=f"Skip If {profession_name}",
-                children=[
-                    BT.Node(BT.BlackboardValueEquals("player_primary_profession_name", profession_name)),
-                    BT.Node(subtree),
-                ],
-            ),
-        ],
-    )
-
-
 def FirstSecondaryBlock() -> BehaviorTree:
     return BT.Sequence(
             name="First Secondary Profession Block",
-            map_id_or_name=SHING_JEA_MONASTERY,
-            map_prep=PrepareForBattle(),
             children=[
-                _run_or_skip_for_profession(
-                    "Necromancer",
-                    subtree=NecromancerPrimaryStarterQuestsPart1(),
-                    name="Skip Necromancer Or Run First Secondary Step",
+                BT.StoreProfessionNames(),
+                BehaviorTree.SubtreeNode(
+                    name="Necromancer Secondary Branch",
+                    subtree_fn=lambda node: BT.Sequence(
+                        name="Necromancer Secondary Branch Decision",
+                        children=[
+                            BT.LogMessage(
+                                f"FirstSecondaryBlock: player={node.blackboard.get('player_primary_profession_name', '')} branch=Necromancer action={'skipped' if node.blackboard.get('player_primary_profession_name') == 'Necromancer' else 'entered'}",
+                                module_name=MODULE_NAME,
+                                print_to_console=True,
+                                print_to_blackboard=False,
+                            ),
+                            BehaviorTree(BehaviorTree.SucceederNode(name="SkipNecromancerSecondaryBranch"))
+                            if node.blackboard.get("player_primary_profession_name") == "Necromancer"
+                            else NecromancerPrimaryStarterQuestsPart1(),
+                        ],
+                    ),
                 ),
-                _run_or_skip_for_profession(
-                    "Assassin",
-                    subtree=AssassinPrimaryStarterQuestsPart1(),
-                    name="Skip Assassin Or Run First Secondary Step",
+                BehaviorTree.SubtreeNode(
+                    name="Assassin Secondary Branch",
+                    subtree_fn=lambda node: BT.Sequence(
+                        name="Assassin Secondary Branch Decision",
+                        children=[
+                            BT.LogMessage(
+                                f"FirstSecondaryBlock: player={node.blackboard.get('player_primary_profession_name', '')} branch=Assassin action={'skipped' if node.blackboard.get('player_primary_profession_name') == 'Assassin' else 'entered'}",
+                                module_name=MODULE_NAME,
+                                print_to_console=True,
+                                print_to_blackboard=False,
+                            ),
+                            BehaviorTree(BehaviorTree.SucceederNode(name="SkipAssassinSecondaryBranch"))
+                            if node.blackboard.get("player_primary_profession_name") == "Assassin"
+                            else AssassinPrimaryStarterQuestsPart1(),
+                        ],
+                    ),
                 ),
-                _run_or_skip_for_profession(
-                    "Warrior",
-                    subtree=WarriorPrimaryStarterQuestsPart1(),
-                    name="Skip Warrior Or Run First Secondary Step",
+                BehaviorTree.SubtreeNode(
+                    name="Warrior Secondary Branch",
+                    subtree_fn=lambda node: BT.Sequence(
+                        name="Warrior Secondary Branch Decision",
+                        children=[
+                            BT.LogMessage(
+                                f"FirstSecondaryBlock: player={node.blackboard.get('player_primary_profession_name', '')} branch=Warrior action={'skipped' if node.blackboard.get('player_primary_profession_name') == 'Warrior' else 'entered'}",
+                                module_name=MODULE_NAME,
+                                print_to_console=True,
+                                print_to_blackboard=False,
+                            ),
+                            BehaviorTree(BehaviorTree.SucceederNode(name="SkipWarriorSecondaryBranch"))
+                            if node.blackboard.get("player_primary_profession_name") == "Warrior"
+                            else WarriorPrimaryStarterQuestsPart1(),
+                        ],
+                    ),
                 ),
-                _run_or_skip_for_profession(
-                    "Monk",
-                    subtree=MonkPrimaryStarterQuestsPart1(),
-                    name="Skip Monk Or Run First Secondary Step",
+                BehaviorTree.SubtreeNode(
+                    name="Monk Secondary Branch",
+                    subtree_fn=lambda node: BT.Sequence(
+                        name="Monk Secondary Branch Decision",
+                        children=[
+                            BT.LogMessage(
+                                f"FirstSecondaryBlock: player={node.blackboard.get('player_primary_profession_name', '')} branch=Monk action={'skipped' if node.blackboard.get('player_primary_profession_name') == 'Monk' else 'entered'}",
+                                module_name=MODULE_NAME,
+                                print_to_console=True,
+                                print_to_blackboard=False,
+                            ),
+                            BehaviorTree(BehaviorTree.SucceederNode(name="SkipMonkSecondaryBranch"))
+                            if node.blackboard.get("player_primary_profession_name") == "Monk"
+                            else MonkPrimaryStarterQuestsPart1(),
+                        ],
+                    ),
                 ),
-                _run_or_skip_for_profession(
-                    "Mesmer",
-                    subtree=MesmerPrimaryStarterQuestsPart1(),
-                    name="Skip Mesmer Or Run First Secondary Step",
+                BehaviorTree.SubtreeNode(
+                    name="Mesmer Secondary Branch",
+                    subtree_fn=lambda node: BT.Sequence(
+                        name="Mesmer Secondary Branch Decision",
+                        children=[
+                            BT.LogMessage(
+                                f"FirstSecondaryBlock: player={node.blackboard.get('player_primary_profession_name', '')} branch=Mesmer action={'skipped' if node.blackboard.get('player_primary_profession_name') == 'Mesmer' else 'entered'}",
+                                module_name=MODULE_NAME,
+                                print_to_console=True,
+                                print_to_blackboard=False,
+                            ),
+                            BehaviorTree(BehaviorTree.SucceederNode(name="SkipMesmerSecondaryBranch"))
+                            if node.blackboard.get("player_primary_profession_name") == "Mesmer"
+                            else MesmerPrimaryStarterQuestsPart1(),
+                        ],
+                    ),
                 ),
-                _run_or_skip_for_profession(
-                    "Elementalist",
-                    subtree=ElementalistPrimaryStarterQuestsPart1(),
-                    name="Skip Elementalist Or Run First Secondary Step",
+                BehaviorTree.SubtreeNode(
+                    name="Elementalist Secondary Branch",
+                    subtree_fn=lambda node: BT.Sequence(
+                        name="Elementalist Secondary Branch Decision",
+                        children=[
+                            BT.LogMessage(
+                                f"FirstSecondaryBlock: player={node.blackboard.get('player_primary_profession_name', '')} branch=Elementalist action={'skipped' if node.blackboard.get('player_primary_profession_name') == 'Elementalist' else 'entered'}",
+                                module_name=MODULE_NAME,
+                                print_to_console=True,
+                                print_to_blackboard=False,
+                            ),
+                            BehaviorTree(BehaviorTree.SucceederNode(name="SkipElementalistSecondaryBranch"))
+                            if node.blackboard.get("player_primary_profession_name") == "Elementalist"
+                            else ElementalistPrimaryStarterQuestsPart1(),
+                        ],
+                    ),
                 ),
-                _run_or_skip_for_profession(
-                    "Ritualist",
-                    subtree=RitualistPrimaryStarterQuestsPart1(),
-                    name="Skip Ritualist Or Run First Secondary Step",
+                BehaviorTree.SubtreeNode(
+                    name="Ritualist Secondary Branch",
+                    subtree_fn=lambda node: BT.Sequence(
+                        name="Ritualist Secondary Branch Decision",
+                        children=[
+                            BT.LogMessage(
+                                f"FirstSecondaryBlock: player={node.blackboard.get('player_primary_profession_name', '')} branch=Ritualist action={'skipped' if node.blackboard.get('player_primary_profession_name') == 'Ritualist' else 'entered'}",
+                                module_name=MODULE_NAME,
+                                print_to_console=True,
+                                print_to_blackboard=False,
+                            ),
+                            BehaviorTree(BehaviorTree.SucceederNode(name="SkipRitualistSecondaryBranch"))
+                            if node.blackboard.get("player_primary_profession_name") == "Ritualist"
+                            else RitualistPrimaryStarterQuestsPart1(),
+                        ],
+                    ),
                 ),
-                _run_or_skip_for_profession(
-                    "Ranger",
-                    subtree=RangerPrimaryStarterQuestsPart1(),
-                    name="Skip Ranger Or Run First Secondary Step",
+                BehaviorTree.SubtreeNode(
+                    name="Ranger Secondary Branch",
+                    subtree_fn=lambda node: BT.Sequence(
+                        name="Ranger Secondary Branch Decision",
+                        children=[
+                            BT.LogMessage(
+                                f"FirstSecondaryBlock: player={node.blackboard.get('player_primary_profession_name', '')} branch=Ranger action={'skipped' if node.blackboard.get('player_primary_profession_name') == 'Ranger' else 'entered'}",
+                                module_name=MODULE_NAME,
+                                print_to_console=True,
+                                print_to_blackboard=False,
+                            ),
+                            BehaviorTree(BehaviorTree.SucceederNode(name="SkipRangerSecondaryBranch"))
+                            if node.blackboard.get("player_primary_profession_name") == "Ranger"
+                            else RangerPrimaryStarterQuestsPart1(),
+                        ],
+                    ),
                 ),
             ],
         )

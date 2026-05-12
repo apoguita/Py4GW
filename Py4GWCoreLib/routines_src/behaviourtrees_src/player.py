@@ -287,7 +287,7 @@ class BTPlayer:
               UserDescription: Use this when dialog options appear dynamically and you want to choose by visible button index.
               Notes: Waits up to 3000ms for dialog state and fails if the requested button never becomes available.
             """
-            import PyDialog
+            from ... import Dialog
             from ...Py4GWcorelib import Utils
 
             state: dict[str, int | None] = {
@@ -311,7 +311,8 @@ class BTPlayer:
                     state["started_ms"] = now
 
                 try:
-                    if not PyDialog.PyDialog.is_dialog_active():
+                    active_dialog = Dialog.get_active_dialog()
+                    if active_dialog is None:
                         if now - int(state["started_ms"]) >= 3000:
                             _fail_log(
                                 "SendAutomaticDialog",
@@ -321,7 +322,7 @@ class BTPlayer:
                             return BehaviorTree.NodeState.FAILURE
                         return BehaviorTree.NodeState.RUNNING
 
-                    buttons: list[Any] = list(PyDialog.PyDialog.get_active_dialog_buttons())
+                    buttons: list[Any] = list(Dialog.get_active_dialog_buttons())
                 except Exception:
                     if now - int(state["started_ms"]) >= 3000:
                         _fail_log(
