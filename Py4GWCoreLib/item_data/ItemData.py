@@ -413,7 +413,12 @@ class ItemDataContainer():
     
     def save_data(self):
         try:
-            with open(get_local_item_json_path(), "w", encoding="utf-8") as f:
+            item_json_path = get_local_item_json_path()
+            item_json_dir = os.path.dirname(item_json_path)
+            if item_json_dir:
+                os.makedirs(item_json_dir, exist_ok=True)
+
+            with open(item_json_path, "w", encoding="utf-8") as f:
                 json_data = {item_type.name: {str(item_data.model_id): item_data.to_json() for item_data in items.values()} for item_type, items in self.data.items()}
                 json.dump(json_data, f, indent=4, ensure_ascii=False)
                 Console.Log("ItemDataContainer", f"Saved item data for {sum(len(items) for items in self.data.values())} items across {len(self.data)} item types.", Console.MessageType.Success)
