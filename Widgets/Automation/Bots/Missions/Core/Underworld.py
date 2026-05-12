@@ -704,6 +704,11 @@ def _coro_hold_horsemen_position() -> Generator[Any, Any, None]:
     the player leaves the UW, or the player is dead (e.g. party wipe).
     This prevents a stale generator from issuing spurious Move commands
     during subsequent quest steps after a wipe recovery.
+
+    Target-clearing runs every frame (not every 250 ms) to minimise the
+    window between a Horseman despawning and the GW client trying to look
+    up its agent, which would crash AvSelect.cpp with:
+        !(manualAgentId && !ManagerFindAgent(manualAgentId))
     """
     from Py4GWCoreLib.Quest import Quest
     _HOLD_X, _HOLD_Y = 11510, -18234
@@ -716,15 +721,22 @@ def _coro_hold_horsemen_position() -> Generator[Any, Any, None]:
         player_id = Player.GetAgentID()
         if player_id and Agent.IsValid(player_id) and Agent.IsDead(player_id):
             return
+
+        # Proactively clear a stale target every frame: if the current target
+        # is no longer valid or is already dead (e.g. a despawning Horseman),
+        # retarget the player immediately so AvSelect never sees a removed agent.
+        target_id = Player.GetTargetID()
+        if target_id and (not Agent.IsValid(target_id) or Agent.IsDead(target_id)):
+            Player.ChangeTarget(Player.GetAgentID())
+
         if (Quest.GetActiveQuest() > 0) and Quest.IsQuestCompleted(Quest.GetActiveQuest()):
-            # Clear the player's target immediately so the GW client does not
-            # try to render a despawning Horsemen agent in AvSelect, which
-            # would crash with: !(manualAgentId && !ManagerFindAgent(manualAgentId))
-            yield from Routines.Yield.Keybinds.ClearTarget()
+            # Ensure the target is cleared before returning so the GW client
+            # cannot crash on the now-despawned Horsemen agent.
+            Player.ChangeTarget(Player.GetAgentID())
             return
         if Utils.Distance(Player.GetXY(), (_HOLD_X, _HOLD_Y)) > _MAX_DISTANCE:
             Player.Move(_HOLD_X, _HOLD_Y)
-        yield from Routines.Yield.wait(250)
+        yield  # one frame between checks; keeps target validation tight
 
 
 def _move_with_unstuck(
