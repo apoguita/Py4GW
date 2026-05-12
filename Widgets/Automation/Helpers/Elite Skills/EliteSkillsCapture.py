@@ -257,7 +257,7 @@ SECONDARY_BUILDS = {
         Profession.NECROMANCER:  "OgQUcCLe1MTKGj1ghMGoSUNDA0GA",       # R/N 
         Profession.MESMER:       "OgUUMCLe1MTKGj1ghMGoSUNDA0GA",       # R/Me
         Profession.ELEMENTALIST: "OgYUsCLe1MTKGj1ghMGoSUNDA0GA",       # R/E 
-        Profession.ASSASSIN:     "OgATYxrmZSxYsGMkxAViqZAg2AA",     # R/A 
+        Profession.ASSASSIN:     "OgcUYxrm5fQKGj1ghMGoSUNDA0GA",     # R/A 
         Profession.RITUALIST:    "OggkYhXaGDGkixYNYIjBqEVzAAtB",    # R/Rt
         Profession.PARAGON:      "OgkkYhXaGXGkixYNYIjBqEVzAAtB",    # R/P 
         Profession.DERVISH:      "OgokYhXaGnGkixYNYIjBqEVzAAtB",    # R/D 
