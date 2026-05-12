@@ -4,8 +4,6 @@ from typing import TYPE_CHECKING
 from Py4GWCoreLib.GlobalCache import GLOBAL_CACHE
 from Py4GWCoreLib import ConsoleLog, Console, Agent, Player
 from Py4GWCoreLib.Item import (
-    SUMMONING_RESTRICTED_MAP_IDS,
-    SUMMONING_RESTRICTED_QUEST_IDS,
     has_active_party_summon,
     has_summoning_sickness,
 )
@@ -358,7 +356,6 @@ class _Upkeepers:
         from ...GlobalCache import GLOBAL_CACHE
         from ...enums import ModelID
         from ...Map import Map
-        from ...Quest import Quest
         
         # Priority list for summoning stones (items)
         priority_stones = [
@@ -393,17 +390,6 @@ class _Upkeepers:
             if self._config.upkeep.summoning_stone.is_active():
                 # Check if we're in an explorable area
                 if not Map.IsExplorable():
-                    yield from Routines.Yield.wait(1000)
-                    continue
-                
-                # Skip if an excluded quest is in the quest log
-                active_quests = Quest.GetQuestLogIds()
-                if any(qid in SUMMONING_RESTRICTED_QUEST_IDS for qid in active_quests):
-                    yield from Routines.Yield.wait(1000)
-                    continue
-                
-                # Skip if in an excluded map
-                if Map.GetMapID() in SUMMONING_RESTRICTED_MAP_IDS:
                     yield from Routines.Yield.wait(1000)
                     continue
                 

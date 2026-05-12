@@ -1149,11 +1149,6 @@ def UsePcon(index: int, message: SharedMessageStruct):
 def UseSummoningStone(index: int, message: SharedMessageStruct):
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
 
-    # Never use summoning stones in The Norn Fighting Tournament.
-    if Map.GetMapID() == 700:
-        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
-        return
-
     # Guard against summon spam:
     # - Summoning Sickness already active
     # - summon ally already alive nearby/party-side

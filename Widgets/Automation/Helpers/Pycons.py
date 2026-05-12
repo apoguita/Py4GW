@@ -85,11 +85,9 @@ try:
         ImGui,          # NEW: needed for persisted windows
         SharedCommandType,
     )
-    from Py4GWCoreLib import ItemArray, Bag, Item, Effects, Player, Party, Bags, Agent, Quest
+    from Py4GWCoreLib import ItemArray, Bag, Item, Effects, Player, Party, Bags, Agent
     from Py4GWCoreLib.Item import (
         KNOWN_SUMMONING_STONE_CREATURE_MODEL_IDS,
-        SUMMONING_RESTRICTED_MAP_IDS as CORE_SUMMONING_RESTRICTED_MAP_IDS,
-        SUMMONING_RESTRICTED_QUEST_IDS as CORE_SUMMONING_RESTRICTED_QUEST_IDS,
         SUMMONING_SICKNESS_EFFECT_ID as CORE_SUMMONING_SICKNESS_EFFECT_ID,
         has_active_party_summon as core_has_active_party_summon,
     )
@@ -164,8 +162,6 @@ try:
     SUMMONING_STONE_DURATION_MS = 30 * 60 * 1000
     IGNEOUS_SUMMON_DURATION_MS = 60 * 60 * 1000
     SUMMONING_SICKNESS_EFFECT_ID = CORE_SUMMONING_SICKNESS_EFFECT_ID
-    SUMMONING_RESTRICTED_QUEST_IDS = CORE_SUMMONING_RESTRICTED_QUEST_IDS
-    SUMMONING_RESTRICTED_MAP_IDS = CORE_SUMMONING_RESTRICTED_MAP_IDS
     SUMMONING_UNIQUE_PARTY_MODEL_IDS = KNOWN_SUMMONING_STONE_CREATURE_MODEL_IDS
 
     # Scan only these bags, and only on-demand
@@ -4936,19 +4932,6 @@ try:
             current_sp, _ = Player.GetSkillPointData()
             if int(current_sp or 0) <= 0:
                 return "no skill points available for summoning"
-        except Exception:
-            pass
-
-        try:
-            if int(Map.GetMapID() or 0) in SUMMONING_RESTRICTED_MAP_IDS:
-                return "summoning items are blocked in this area"
-        except Exception:
-            pass
-
-        try:
-            active_quests = set(int(qid) for qid in (Quest.GetQuestLogIds() or []))
-            if active_quests.intersection(SUMMONING_RESTRICTED_QUEST_IDS):
-                return "summoning items are blocked in this quest context"
         except Exception:
             pass
 

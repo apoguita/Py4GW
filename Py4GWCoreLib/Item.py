@@ -586,30 +586,6 @@ class Item:
 
 SUMMONING_SICKNESS_EFFECT_ID = 2886
 
-SUMMONING_RESTRICTED_QUEST_IDS = frozenset({
-    490,  # The Council is Called
-    503,  # All's Well That Ends Well
-    504,  # Warning Kehanni
-    505,  # Calling the Order
-    507,  # Pledge of the Merchant Princes
-    581,  # Heart or Mind: Garden in Danger
-    586,  # Heart or Mind: Ronjok in Danger
-    683,  # Securing Champions Dawn
-    730,  # Gain Goren
-    737,  # Battle Preparations
-})
-
-SUMMONING_RESTRICTED_MAP_IDS = frozenset({
-    119,  # Augury Rock mission
-    351,  # Divine Path
-    423,  # The Tribunal
-    436,  # Command Post
-    503,  # Throne of Secrets
-    700,  # The Norn Fighting Tournament
-    710,  # Epilogue
-    840,  # Lion's Arch Keep
-})
-
 KNOWN_SUMMONING_STONE_CREATURE_MODEL_IDS = frozenset({
     513,         # Fire Imp
     1726,        # Fire Imp variant
@@ -669,26 +645,6 @@ def has_summoning_sickness(agent_id: int | None = None) -> bool:
         return bool(Effects.HasEffect(target_agent_id, SUMMONING_SICKNESS_EFFECT_ID))
     except Exception:
         return False
-
-
-def has_restricted_summoning_context() -> bool:
-    from .Map import Map
-    from .Quest import Quest
-
-    try:
-        if int(Map.GetMapID() or 0) in SUMMONING_RESTRICTED_MAP_IDS:
-            return True
-    except Exception:
-        pass
-
-    try:
-        active_quests = {int(qid) for qid in (Quest.GetQuestLogIds() or [])}
-        if active_quests.intersection(SUMMONING_RESTRICTED_QUEST_IDS):
-            return True
-    except Exception:
-        pass
-
-    return False
 
 
 def is_active_summoning_stone_ally(agent_id: int, owner_ids: set[int] | None = None) -> bool:
