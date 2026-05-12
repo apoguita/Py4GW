@@ -14,6 +14,7 @@ class WhiteboardLockKind(IntEnum):
     BUFF_TARGET = 10
     INTERRUPT_TARGET = 11
     COOLDOWN = 12
+    HEX_REMOVAL_TARGET = 13
 
 
 class WhiteboardLockMode(IntEnum):

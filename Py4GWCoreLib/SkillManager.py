@@ -94,6 +94,36 @@ class UniqueSkills:
         self.ursan_roar = 2395  # Ursan Roar (Blood Washes Blood)
         self.ursan_force = 2396  # Ursan Force (Blood Washes Blood)
         
+def _normalize_weapon_requirement_name(value: str) -> str:
+        text = ''.join(ch for ch in str(value or '') if ch.isalnum()).lower()
+        if text.startswith('weapon'):
+            text = text[6:]
+        return text
+
+def _matches_required_weapon(required_weapon: str) -> bool:
+        normalized_required_weapon = _normalize_weapon_requirement_name(required_weapon)
+        if not normalized_required_weapon:
+            return True
+
+        player_id = Player.GetAgentID()
+        if Agent.IsHoldingItem(player_id):
+            return False
+
+        if normalized_required_weapon in {"melee", "closecombat", "close"}:
+            return Agent.IsMelee(player_id)
+
+        if normalized_required_weapon in {"rangedmelee", "rangedmartial", "martialranged"}:
+            return Agent.IsRanged(player_id)
+
+        if normalized_required_weapon == "caster":
+            return Agent.IsCaster(player_id)
+
+        if normalized_required_weapon == "ranged":
+            return Agent.IsRanged(player_id) or Agent.IsCaster(player_id)
+
+        _, current_weapon_name = Agent.GetWeaponType(player_id)
+        return _normalize_weapon_requirement_name(current_weapon_name) == normalized_required_weapon
+
 def _PrioritizeSkills(Skill_Data, Skill_Order):
         """
         Create a priority-based skill execution order.
@@ -663,6 +693,7 @@ def _AreCastConditionsMet(slot,
         feature_count += (1 if Conditions.AlliesInRange > 0 else 0)
         feature_count += (1 if Conditions.SpiritsInRange > 0 else 0)
         feature_count += (1 if Conditions.MinionsInRange > 0 else 0)
+        feature_count += (1 if str(getattr(Conditions, "RequireWeapon", "") or "").strip() else 0)
 
         if Conditions.IsAlive:
             if Agent.IsAlive(vTarget):
@@ -917,6 +948,12 @@ def _AreCastConditionsMet(slot,
                 number_of_features += 1
             else:
                 number_of_features = 0
+
+        if str(getattr(Conditions, "RequireWeapon", "") or "").strip():
+            if _matches_required_weapon(Conditions.RequireWeapon):
+                number_of_features += 1
+            else:
+                return False
             
 
         #Py4GW.Console.Log("AreCastConditionsMet", f"feature count: {feature_count}, No of features {number_of_features}", Py4GW.Console.MessageType.Info)
@@ -1242,6 +1279,38 @@ class SkillManager:
                 if attribute.GetName() == "Expertise":
                     self.expertise_exists = True
                     self.expertise_level = attribute.level
+
+        @staticmethod
+        def _normalize_weapon_requirement_name(value: str) -> str:
+            text = ''.join(ch for ch in str(value or '') if ch.isalnum()).lower()
+            if text.startswith('weapon'):
+                text = text[6:]
+            return text
+
+        @classmethod
+        def _matches_required_weapon(cls, required_weapon: str) -> bool:
+            normalized_required_weapon = cls._normalize_weapon_requirement_name(required_weapon)
+            if not normalized_required_weapon:
+                return True
+
+            player_id = Player.GetAgentID()
+            if Agent.IsHoldingItem(player_id):
+                return False
+
+            if normalized_required_weapon in {"melee", "closecombat", "close"}:
+                return Agent.IsMelee(player_id)
+
+            if normalized_required_weapon in {"rangedmelee", "rangedmartial", "martialranged"}:
+                return Agent.IsRanged(player_id)
+
+            if normalized_required_weapon == "caster":
+                return Agent.IsCaster(player_id)
+
+            if normalized_required_weapon == "ranged":
+                return Agent.IsRanged(player_id) or Agent.IsCaster(player_id)
+
+            _, current_weapon_name = Agent.GetWeaponType(player_id)
+            return cls._normalize_weapon_requirement_name(current_weapon_name) == normalized_required_weapon
                     
         def SetWeaponAttackAftercast(self):
             if not self.weapon_aftercast_initialized:
@@ -1713,6 +1782,7 @@ class SkillManager:
             feature_count += (1 if Conditions.AlliesInRange > 0 else 0)
             feature_count += (1 if Conditions.SpiritsInRange > 0 else 0)
             feature_count += (1 if Conditions.MinionsInRange > 0 else 0)
+            feature_count += (1 if str(getattr(Conditions, "RequireWeapon", "") or "").strip() else 0)
 
             if Conditions.IsAlive:
                 if Agent.IsAlive(vTarget):
@@ -1961,6 +2031,12 @@ class SkillManager:
                     number_of_features += 1
                 else:
                     number_of_features = 0
+
+            if str(getattr(Conditions, "RequireWeapon", "") or "").strip():
+                if self._matches_required_weapon(Conditions.RequireWeapon):
+                    number_of_features += 1
+                else:
+                    return False
 
 
             if feature_count == number_of_features:
@@ -2257,9 +2333,15 @@ class SkillManager:
                     return
                 
                 if self.auto_attack_timer.IsExpired():
+                    player_id = Player.GetAgentID()
+                    if Agent.IsHoldingItem(player_id):
+                        self.auto_attack_timer.Reset()
+                        self.ResetSkillPointer()
+                        return
+
                     if (
-                        not Agent.IsAttacking(Player.GetAgentID()) and
-                        not Agent.IsCasting(Player.GetAgentID()) #and
+                        not Agent.IsAttacking(player_id) and
+                        not Agent.IsCasting(player_id) #and
                         #not Agent.IsMoving(Player.GetAgentID())    
                     ):
                         self.ChooseTarget()

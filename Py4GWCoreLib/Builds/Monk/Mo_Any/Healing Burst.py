@@ -5,9 +5,10 @@ from Py4GWCoreLib import Routines
 from Py4GWCoreLib.Builds.Any.HeroAI import HeroAI_Build
 from Py4GWCoreLib import BuildMgr
 from Py4GWCoreLib import Range
+from Py4GWCoreLib.Agent import Agent
 from Py4GWCoreLib.Player import Player
 from Py4GWCoreLib.Skill import Skill
-from Py4GWCoreLib.Builds.Skills import SkillsTemplate
+from Py4GWCoreLib.Builds.Skills import HexRemovalPriority, SkillsTemplate
 from HeroAI.targeting import GetAllAlliesArray
 from HeroAI.types import Skilltarget
 
@@ -17,6 +18,8 @@ Dwaynas_Kiss_ID = Skill.GetID("Dwaynas_Kiss")
 Seed_of_Life_ID = Skill.GetID("Seed_of_Life")
 Draw_Conditions_ID = Skill.GetID("Draw_Conditions")
 Vigorous_Spirit_ID = Skill.GetID("Vigorous_Spirit")
+Remove_Hex_ID = Skill.GetID("Remove_Hex")
+Cure_Hex_ID = Skill.GetID("Cure_Hex")
 
 
 @dataclass(slots=True)
@@ -48,8 +51,10 @@ class Healing_Burst(BuildMgr):
                 Seed_of_Life_ID,
                 Draw_Conditions_ID,
             ],
-            optional_skills=[ 
+            optional_skills=[
                 Vigorous_Spirit_ID,
+                Remove_Hex_ID,
+                Cure_Hex_ID,
             ],
         )
         if match_only:
@@ -172,7 +177,15 @@ class Healing_Burst(BuildMgr):
         if not support_snapshot.any_required_support_needed:
             return False
 
+        player_energy_pct = float(Agent.GetEnergy(Player.GetAgentID()))
+
         if support_snapshot.healing_burst_needed and (yield from self.skills.Monk.HealingPrayers.Healing_Burst()):
+            return True
+
+        if (yield from self.skills.Monk.NoAttribute.Remove_Hex(min_priority=HexRemovalPriority.HIGH)):
+            return True
+
+        if (yield from self.skills.Monk.HealingPrayers.Cure_Hex(min_priority=HexRemovalPriority.HIGH)):
             return True
 
         if support_snapshot.dwaynas_kiss_needed and (yield from self.skills.Monk.HealingPrayers.Dwaynas_Kiss()):
@@ -181,12 +194,24 @@ class Healing_Burst(BuildMgr):
         if support_snapshot.seed_of_life_needed and (yield from self.skills.Monk.NoAttribute.Seed_of_Life()):
             return True
 
+        if player_energy_pct >= 0.50 and (yield from self.skills.Monk.NoAttribute.Remove_Hex(min_priority=HexRemovalPriority.MEDIUM)):
+            return True
+
+        if player_energy_pct >= 0.50 and (yield from self.skills.Monk.HealingPrayers.Cure_Hex(min_priority=HexRemovalPriority.MEDIUM)):
+            return True
+
         if support_snapshot.draw_conditions_needed and (yield from self.skills.Monk.ProtectionPrayers.Draw_Conditions()):
             return True
-        
+
+        if player_energy_pct >= 0.70 and (yield from self.skills.Monk.NoAttribute.Remove_Hex()):
+            return True
+
+        if player_energy_pct >= 0.70 and (yield from self.skills.Monk.HealingPrayers.Cure_Hex()):
+            return True
+
         if not (self.IsInAggro()):
             return False
-        
+
         if self.IsSkillEquipped(Vigorous_Spirit_ID) and (yield from self.skills.Monk.HealingPrayers.Vigorous_Spirit()):
             return True
 
