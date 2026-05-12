@@ -394,6 +394,7 @@ def tooltip():
     PyImGui.text_colored("Features:", title_color.to_tuple_normalized())
     PyImGui.bullet_text("Multibox Logic: Synchronizes actions across multiple game clients")
     PyImGui.bullet_text("Advanced AI: Replaces standard hero behavior with custom combat routines")
+    PyImGui.bullet_text("Intelligent interrupt logic, hex removal, enemy tracking, and more")
     PyImGui.bullet_text("Formation Control: Dynamic follower distancing and tactical positioning")
     PyImGui.bullet_text("Automation Suite: Integrated auto-looting, salvaging, and cutscene skipping")
     PyImGui.bullet_text("Behavior Trees: Complex decision-making for combat and out-of-combat states")
@@ -407,7 +408,7 @@ def tooltip():
     PyImGui.text_colored("Credits:", title_color.to_tuple_normalized())
     PyImGui.bullet_text("Developed by Apo")
     PyImGui.bullet_text("Contributors: Mark, frenkey, Dharmantrix, aC, Greg-76, ")
-    PyImGui.bullet_text("Wick-Divinus, LLYANL, Zilvereyes, valkogw")
+    PyImGui.bullet_text("Sloppynacho, Wick-Divinus, LLYANL, Zilvereyes, valkogw")
 
     PyImGui.end_tooltip()
 

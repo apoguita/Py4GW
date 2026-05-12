@@ -1,4 +1,5 @@
 import time
+from typing import Callable
 
 from ..GlobalCache import GLOBAL_CACHE
 from ..Routines import Routines
@@ -8,7 +9,7 @@ from ..py4gwcorelib_src.BehaviorTree import BehaviorTree
 class BottingTreeServicesMixin:
     @staticmethod
     def PartyWipeRecoveryServiceTree(
-        default_step_name: str | None = None,
+        default_step_name: str | Callable[[], str | None] | None = None,
         return_interval_ms: float = 1000.0,
     ) -> BehaviorTree:
         state = {
@@ -16,6 +17,16 @@ class BottingTreeServicesMixin:
             'step_name': '',
             'last_return_ms': 0.0,
         }
+
+        def _resolve_default_step_name() -> str:
+            if callable(default_step_name):
+                try:
+                    resolved = default_step_name()
+                except Exception:
+                    resolved = None
+            else:
+                resolved = default_step_name
+            return str(resolved or '')
 
         def _reset_state(node: BehaviorTree.Node) -> None:
             state['active'] = False
@@ -37,7 +48,7 @@ class BottingTreeServicesMixin:
 
                 step_name = str(node.blackboard.get('current_step_name', '') or '')
                 if not step_name:
-                    step_name = str(default_step_name or '')
+                    step_name = _resolve_default_step_name()
 
                 state['active'] = True
                 state['step_name'] = step_name
@@ -51,6 +62,8 @@ class BottingTreeServicesMixin:
             node.blackboard['party_wipe_recovery_step_name'] = state['step_name']
 
             if Map.IsMapReady() and Map.IsOutpost() and GLOBAL_CACHE.Party.IsPartyLoaded():
+                if not state['step_name']:
+                    state['step_name'] = _resolve_default_step_name()
                 if state['step_name']:
                     node.blackboard['restart_step_name_request'] = state['step_name']
                 _reset_state(node)

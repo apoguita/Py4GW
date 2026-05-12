@@ -108,6 +108,8 @@ class NoAttribute:
 
         if not self.build.IsSkillEquipped(you_move_id):
             return False
+        if not self.build.CanCastSkillID(you_move_id):
+            return False
         if not self.build.IsInAggro():
             return False
 
@@ -279,6 +281,8 @@ class NoAttribute:
 
         if not self.build.IsSkillEquipped(ebon_battle_standard_of_wisdom_id):
             return False
+        if not self.build.CanCastSkillID(ebon_battle_standard_of_wisdom_id):
+            return False
         if not self.build.IsInAggro():
             return False
         if Routines.Checks.Agents.HasEffect(player_agent_id, ebon_battle_standard_of_wisdom_id):
@@ -438,7 +442,7 @@ class NoAttribute:
         else:
             travel_pull = False
 
-        needs_heal = any(Agent.GetHealth(spirit_id) < 0.9 for spirit_id in owned_spirits)
+        needs_heal = any(Agent.GetHealth(spirit_id) < 0.3 for spirit_id in owned_spirits)
 
         if not (combat_pull or travel_pull or needs_heal):
             return False

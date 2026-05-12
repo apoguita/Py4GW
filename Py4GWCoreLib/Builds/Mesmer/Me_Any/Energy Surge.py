@@ -1,9 +1,9 @@
 from dataclasses import dataclass
 
-from Py4GWCoreLib import Profession, Range, Routines, BuildMgr
+from Py4GWCoreLib import Agent, Player, Profession, Range, Routines, BuildMgr
 from Py4GWCoreLib.Skill import Skill
 from Py4GWCoreLib.Builds.Any.HeroAI import HeroAI as HeroAIBuild
-from Py4GWCoreLib.Builds.Skills import SkillsTemplate
+from Py4GWCoreLib.Builds.Skills import HexRemovalPriority, SkillsTemplate
 
 
 Air_of_Superiority_ID = Skill.GetID("Air_of_Superiority")
@@ -28,6 +28,7 @@ class _EnergySurgeBarSnapshot:
     enemy_casting_spell: bool = False
     enemy_casting_spell_or_chant: bool = False
     dead_ally_in_spellcast: int = 0
+    player_energy_pct: float = 1.0
 
 
 class Energy_Surge(BuildMgr):
@@ -76,6 +77,7 @@ class Energy_Surge(BuildMgr):
         snapshot = _EnergySurgeBarSnapshot()
         snapshot.in_aggro = bool(self.IsInAggro())
         snapshot.dead_ally_in_spellcast = int(Routines.Agents.GetDeadAlly(Range.Spellcast.value) or 0)
+        snapshot.player_energy_pct = float(Agent.GetEnergy(Player.GetAgentID()))
 
         if not snapshot.in_aggro:
             return snapshot
@@ -116,10 +118,13 @@ class Energy_Surge(BuildMgr):
 
         if snapshot.enemy_casting_spell_or_chant and (yield from self.skills.Mesmer.InspirationMagic.Power_Drain(energy_threshold_pct=0.30)):
             return True
-        
+
+        if (yield from self.skills.Mesmer.DominationMagic.Shatter_Hex(min_priority=HexRemovalPriority.HIGH)):
+            return True
+
         if snapshot.enemy_in_spellcast and (yield from self.skills.Any.PvE.Ebon_Vanguard_Assassin_Support()):
             return True
-        
+
         if snapshot.enemy_in_spellcast and (yield from self.skills.Mesmer.DominationMagic.Energy_Surge()):
             return True
 
@@ -127,6 +132,9 @@ class Energy_Surge(BuildMgr):
             return True
 
         if snapshot.enemy_casting_spell_or_chant and (yield from self.skills.Mesmer.InspirationMagic.Power_Drain()):
+            return True
+
+        if snapshot.player_energy_pct >= 0.50 and (yield from self.skills.Mesmer.DominationMagic.Shatter_Hex(min_priority=HexRemovalPriority.MEDIUM)):
             return True
 
         if snapshot.enemy_casting and (yield from self.skills.Mesmer.DominationMagic.Overload()):
@@ -138,13 +146,13 @@ class Energy_Surge(BuildMgr):
         if snapshot.enemy_casting_spell and (yield from self.skills.Mesmer.DominationMagic.Mistrust()):
             return True
 
-        if (yield from self.skills.Mesmer.DominationMagic.Shatter_Hex()):
-            return True
-
         if snapshot.enemy_in_spellcast and (yield from self.skills.Mesmer.DominationMagic.Unnatural_Signet()):
             return True
 
         if snapshot.enemy_in_spellcast and (yield from self.skills.Any.PvE.Cry_of_Pain()):
+            return True
+
+        if snapshot.player_energy_pct >= 0.70 and (yield from self.skills.Mesmer.DominationMagic.Shatter_Hex()):
             return True
 
         yield

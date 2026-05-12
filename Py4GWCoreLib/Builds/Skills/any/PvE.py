@@ -171,6 +171,8 @@ class PvE:
 
         if not self.build.IsSkillEquipped(evas_id):
             return False
+        if not self.build.CanCastSkillID(evas_id):
+            return False
 
         # Optional caster-energy gate. When set, fire only if the caster's
         # energy fraction is at or above the threshold. Mirrors the
@@ -205,6 +207,8 @@ class PvE:
         technobabble_id: int = Skill.GetID("Technobabble")
 
         if not self.build.IsSkillEquipped(technobabble_id):
+            return False
+        if not self.build.CanCastSkillID(technobabble_id):
             return False
         if not self.build.IsInAggro():
             return False

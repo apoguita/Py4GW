@@ -234,7 +234,7 @@ class Py4GWSharedMemoryManager:
     def AccountHasEffect(self, account_email: str, effect_id: int) -> bool:
         """Check if the account with the given email has the specified effect."""
         return self.GetAllAccounts().AccountHasEffect(account_email, effect_id)
-    
+
     #region HeroAI
     @frame_cache(category="SharedMemory", source_lib="GetAllAccountHeroAIOptions")
     def GetAllAccountHeroAIOptions(self) -> list[HeroAIOptionStruct]:

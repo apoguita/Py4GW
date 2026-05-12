@@ -1399,6 +1399,11 @@ class HeroAI_BaseUI:
                     HeroAI_BaseUI._draw_team_viewer_tab(cached_data)
                     PyImGui.end_tab_item()
 
+                if PyImGui.begin_tab_item("Hex Removal"):
+                    from HeroAI.hex_removal_src.hex_removal_ui import draw_tab as _draw_hex_removal_tab
+                    _draw_hex_removal_tab()
+                    PyImGui.end_tab_item()
+
                 PyImGui.end_tab_bar()
 
         ImGui.End(cached_data.ini_key)
