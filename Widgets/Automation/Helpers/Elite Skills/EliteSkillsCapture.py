@@ -9248,7 +9248,8 @@ def QuickShot():
     bot.States.AddCustomState(AdvancedHeroTeam, name="Advanced Hero Team") 
     bot.Move.XYAndExitMap(-15203, 8909, 384)
     ConfigureAggressiveEnv(bot)
-    bot.Move.XY(-5821, 12702)
+    bot.Move.XY(-14169, 8080)
+    bot.Move.XY(-4754, 12871)
     bot.Wait.UntilOutOfCombat()
     ConfigurePacifistEnv(bot)
     bot.SkillBar.UseSkill(3)
@@ -9868,7 +9869,7 @@ class EliteSkillsGUI:
             "use_war_supplies": True,
             "use_conset": False,
             "pause_on_danger": True,
-            "halt_on_death": True,
+            "halt_on_death": False,
             "auto_deposit_gold": True,
         }
 
