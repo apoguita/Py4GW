@@ -30,7 +30,6 @@ from Sources.frenkeyLib.Core.encoded_names import ItemName
 from Sources.frenkeyLib.ItemHandling.BTNodes import STORAGE_BAGS, BTNodes
 from Sources.frenkeyLib.ItemHandling.GlobalConfigs.InventoryConfig import InventoryConfig
 from Sources.frenkeyLib.ItemHandling.InventoryBT import InventoryBT
-from Py4GWCoreLib.item_data.item_data_collecting import ItemDataCollector
 
 
 MODULE_NAME = "Item Handling Tests"
@@ -58,7 +57,6 @@ language : ServerLanguage = ServerLanguage.English
 int_lang = language.value
 language_index = languages.index(language)
 
-ITEM_COLLECTOR = ItemDataCollector()
 class encoded_strings(NamedTuple):
     item_id: int
     name_enc: list[int]

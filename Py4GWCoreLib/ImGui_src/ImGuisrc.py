@@ -34,16 +34,6 @@ class ImGui:
                        StyleTheme.Minimalus]
     overlay_instance = Overlay()
     
-    class MARKDOWN_COLORS(Enum):
-        White = Color(255, 255, 255, 255)
-        Blue = Color(153, 238, 255, 255)
-        Green = Color(0, 255, 0, 255)
-        Purple = Color(187, 136, 238, 255)
-        Gold = Color(255, 204, 85, 255)
-        
-        Red = Color(255, 0, 0, 255)
-        Dull = Color(120, 120, 120, 255)
-
     @staticmethod
     def get_style() -> Style:
         return ImGui.__style_stack[0] if ImGui.__style_stack else ImGui.Selected_Style
@@ -561,15 +551,15 @@ class ImGui:
     @staticmethod
     def get_markdown_color(text: str) -> Optional[Color]:
         markdowns = {
-          "<c=@ItemCommon>": ImGui.MARKDOWN_COLORS.White,
-          "<c=@ItemBasic>": ImGui.MARKDOWN_COLORS.White,
-          "<c=@ItemBonus>": ImGui.MARKDOWN_COLORS.Blue,
-          "<c=@ItemEnhance>": ImGui.MARKDOWN_COLORS.Blue,
-          "<c=@ItemUncommon>": ImGui.MARKDOWN_COLORS.Purple,
-          "<c=@ItemRare>": ImGui.MARKDOWN_COLORS.Gold,
-          "<c=@ItemUnique>": ImGui.MARKDOWN_COLORS.Green,
-          "<c=@ItemRestrict>": ImGui.MARKDOWN_COLORS.Red,
-          "<c=@ItemDull>": ImGui.MARKDOWN_COLORS.Dull,
+          "<c=@ItemCommon>": ColorPalette.Markdown_White,
+          "<c=@ItemBasic>": ColorPalette.Markdown_White,
+          "<c=@ItemBonus>": ColorPalette.Markdown_Blue,
+          "<c=@ItemEnhance>": ColorPalette.Markdown_Blue,
+          "<c=@ItemUncommon>": ColorPalette.Markdown_Purple,
+          "<c=@ItemRare>": ColorPalette.Markdown_Gold,
+          "<c=@ItemUnique>": ColorPalette.Markdown_Green,
+          "<c=@ItemRestrict>": ColorPalette.Markdown_Red,
+          "<c=@ItemDull>": ColorPalette.Markdown_Dull,
         }
         
         for tag, color in markdowns.items():

@@ -1,8 +1,6 @@
 import PyImGui
 from Py4GWCoreLib import *
 from Py4GWCoreLib.HotkeyManager import HOTKEY_MANAGER
-from Py4GWCoreLib.item_data.item_data_collecting import ITEM_DATA_COLLECTOR
-
 
 #do not ever disable this module, it is the main module for everything
 MODULE_NAME = "Environment Upkeeper"
@@ -113,9 +111,7 @@ def main():
     
     if not Routines.Checks.Map.MapValid():
         return
-    
-    ITEM_DATA_COLLECTOR.run()
-    
+        
     if widget_config.throttle_action_queue.IsExpired():
         widget_config.action_queue_manager.ProcessQueue("ACTION")
         widget_config.throttle_action_queue.Reset()
