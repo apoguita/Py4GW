@@ -1,0 +1,19 @@
+{
+  "name": "The Hero's Challenge",
+  "steps": [
+    {"type": "travel", "name": "Travel to Droknar's Forge", "target_map_id": 20},
+    {"type": "load_party", "name": "Load Party", "max_heroes": 8, "team": "heroes_7"},
+    {"type": "auto_path", "name": "To Vanyi", "points": [[-2122, 7481]]},
+    {"type": "dialogs", "id": ["0x80C303", "0x80C301"], "npc": "VANYI", "name": "Dialog - Vanyi"},
+    {"type": "travel", "name": "Travel to Iron Mines of Moladune outpost", "target_map_id": 24},
+    {"type": "load_party", "name": "Load Party", "max_heroes": 8, "team": "heroes_7"},
+    {"type": "auto_path", "name": "To Exit", "points": [[-6535, -31856]]},
+    {"type": "exit_map", "name": "Leave Iron Mines of Moladune outpost", "point": [-7355, -31759], "target_map_id": 98},
+    {"type": "auto_path", "name": "Path", "points": [[-18119, 8968], [-10243, 12232]]},
+    {"type": "wait", "ms": 99999},
+    {"type": "auto_path", "name": "To Travel", "points": [[-9511, 11986], [-10163, 11753], [-10036, 12274]]},
+    {"type": "travel", "name": "Travel to Droknar's Forge", "target_map_id": 20},
+    {"type": "auto_path", "name": "To Vanyi", "points": [[-2102, 7486]]},
+    {"type": "dialog", "id": "0x80C307", "npc": "VANYI", "name": "Dialog - Vanyi"}
+  ]
+}

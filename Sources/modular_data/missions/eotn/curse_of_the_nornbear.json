@@ -1,0 +1,23 @@
+{
+  "name": "Curse of the Nornbear",
+  "steps": [
+    {"type": "travel", "name": "Travel to Sifhalla", "target_map_id": 643},
+    {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true},
+    {"type": "dialogs", "id": ["0x81", "0x86"], "npc": "SIF_SHADOWHUNTER", "name": "Dialog - Sif Shadowhunter"},
+    {"type": "wait_for_map_load", "map_id": 653},
+    {"type": "auto_path", "name": "Path", "points": [[7227, 23631]]},
+    {"type": "wait", "ms": 600},
+    {"type": "wait", "ms": 100},
+    {"type": "auto_path", "name": "Path", "points": [[-5735, 15902]]},
+    {"type": "wait", "ms": 24000},
+    {"type": "auto_path", "name": "Path", "points": [[8023, 14368]]},
+    {"type": "wait", "ms": 400},
+    {"type": "auto_path", "name": "Path", "points": [[4136, 15376]]},
+    {"type": "wait", "ms": 400},
+    {"type": "auto_path", "name": "Path", "points": [[3831, 5747]]},
+    {"type": "wait", "ms": 900},
+    {"type": "wait", "ms": 100},
+    {"type": "auto_path", "name": "Path", "points": [[4765, 6711]]},
+    {"type": "wait_for_map_load", "map_id": 643}
+  ]
+}
