@@ -1,4 +1,4 @@
-﻿# region Imports & Config
+# region Imports & Config
 from Py4GWCoreLib import Botting, Routines, GLOBAL_CACHE, ModelID, Agent, Player, ConsoleLog, IniManager, HeroType, AgentArray, SharedCommandType
 from Py4GWCoreLib.Map import Map
 from Py4GWCoreLib.enums_src.Title_enums import TitleID, TITLE_TIERS
@@ -21,6 +21,7 @@ TEXTURE = os.path.join(Py4GW.Console.get_projects_path(), "Bots", "Vanquish", "V
 RATASUM = 640
 ZONING_STEP_NAME = "[H]Zoning into explorable area_2"
 START_COMBAT_STEP_NAME = "[H]Start Combat_3"
+RETURN_TO_OUTPOST_STEP_NAME = "[H]Return to Outpost_4"
 
 _MULTIBOX_ALTS_KEY = "use_multibox_alts"
 _party_mode: int = 0  # 0 = Single Account with Heroes, 1 = Multiboxing
@@ -37,26 +38,38 @@ bot = Botting(BOT_NAME,
               upkeep_honeycomb_restock=20,
               upkeep_hero_ai_active=True,
               upkeep_auto_inventory_management_active=True,
-              upkeep_auto_loot_active=True)
+              upkeep_auto_loot_active=False)
 
 bot.config.config_properties.use_conset = Property(bot.config, "use_conset", active=False)
 bot.config.config_properties.use_pcons = Property(bot.config, "use_pcons", active=False)
+bot.config.config_properties.use_summoning_stones = Property(bot.config, "use_summoning_stones", active=False)
 
 _SETTINGS_SECTION = "TitleBotSettings"
 _USE_CONSET_KEY = "use_conset"
 _USE_PCONS_KEY = "use_pcons"
+_USE_SUMMONING_STONES_KEY = "use_summoning_stones"
+_CONSET_RESTOCK_TARGET_KEY = "conset_restock_target"
+_PCON_RESTOCK_TARGET_KEY = "pcon_restock_target"
+_SUMMONING_STONES_RESTOCK_TARGET_KEY = "summoning_stones_restock_target"
 _USE_RESTOCK_KITS_KEY = "use_restock_kits"
 _ID_KITS_TARGET_KEY = "id_kits_target"
 _SALVAGE_KITS_TARGET_KEY = "salvage_kits_target"
 _MERCHANT_SELL_MATERIALS_KEY = "merchant_sell_materials"
 _MERCHANT_ALT_WAIT_MS_KEY = "merchant_alt_wait_ms"
 _RANDOMIZE_DISTRICT_KEY = "randomize_district"
+_DEFAULT_CONSET_RESTOCK_TARGET = 250
+_DEFAULT_PCON_RESTOCK_TARGET = 250
+_DEFAULT_SUMMONING_STONES_RESTOCK_TARGET = 10
 _DEFAULT_ID_KITS_TARGET = 2
 _DEFAULT_SALVAGE_KITS_TARGET = 5
 _DEFAULT_ALT_SETTLE_WAIT_MS = 2000
+_MAX_CONSUMABLE_RESTOCK_TARGET = 999
 _MAX_ALT_SETTLE_WAIT_MS = 5000
 
 _restock_kits_enabled: bool = False
+_conset_restock_target: int = _DEFAULT_CONSET_RESTOCK_TARGET
+_pcon_restock_target: int = _DEFAULT_PCON_RESTOCK_TARGET
+_summoning_stones_restock_target: int = _DEFAULT_SUMMONING_STONES_RESTOCK_TARGET
 _id_kits_target: int = _DEFAULT_ID_KITS_TARGET
 _salvage_kits_target: int = _DEFAULT_SALVAGE_KITS_TARGET
 _merchant_sell_materials: bool = False
@@ -164,9 +177,25 @@ def ConfigureAggressiveEnv(bot: Botting) -> None:
     if _party_mode == 1:
         bot.Templates.Multibox_Aggressive()
     else:
-        bot.Templates.Aggressive()
+        bot.Templates.Aggressive(auto_loot=False)
+    bot.Properties.Disable("auto_loot")
+    bot.States.AddCustomState(lambda: _disable_looting(bot), "Disable Looting")
     _apply_combat_backend_local_now(bot)
     bot.Properties.Enable("auto_inventory_management")
+
+
+def _disable_looting(bot: Botting):
+    bot.Properties.ApplyNow("auto_loot", "active", False)
+    bot.ResetHeroAICombatState(
+        active=True,
+        following=True,
+        avoidance=True,
+        looting=False,
+        targeting=True,
+        combat=True,
+        skills=True,
+    )
+    yield
 # endregion
 
 
@@ -182,7 +211,7 @@ def PrepareForCombat(bot: Botting) -> None:
     _load_consumable_settings(bot)
     _load_kit_restock_settings(bot)
     _sync_consumable_toggles(bot)
-    bot.States.AddCustomState(lambda: _kick_accounts_if_multibox(bot), "Kick Accounts If Multibox")
+    bot.States.AddCustomState(lambda: _leave_party_if_multibox(bot), "Leave Party If Multibox")
     bot.States.AddCustomState(lambda: _gh_merchant_setup_if_enabled(bot, RATASUM), "GH Merchant Setup If Enabled")
     bot.States.AddCustomState(lambda: _coro_travel_random_district(bot, RATASUM), "Travel to Rata Sum")
     bot.States.AddCustomState(lambda: _maybe_setup_heroes(bot), "Setup Heroes")
@@ -204,6 +233,7 @@ def Fight(bot: Botting) -> None:
     bot.Wait.ForMapLoad(target_map_name="Magus Stones")
     ConfigureAggressiveEnv(bot)
     bot.States.AddHeader("Start Combat")
+    bot.States.AddManagedCoroutine("AsuraVanquishWatchdog", lambda: _vanquish_watchdog(bot))
     bot.States.AddCustomState(lambda: PrepareForBattle(bot), "Use Consumables If Enabled")
     bot.States.AddCustomState(lambda x=14778.00, y=13178.00: _take_asura_blessing_at(bot, x, y), "Take Blessing")
 
@@ -326,6 +356,7 @@ def Fight(bot: Botting) -> None:
     bot.Move.XY(-1018, -1235, "Moving Back")
     bot.Move.XY(-6322, -2565, "Krait Group")
     bot.Move.XY(-8760, -9933, "Krait Boss Warrior")
+    bot.States.AddHeader("Return to Outpost")
     if _party_mode == 1:
         bot.Multibox.ResignParty()
         bot.Wait.UntilOnOutpost()
@@ -535,21 +566,10 @@ def _wait_for_alts_on_current_map(stage_name: str, expected_alts: int, target_ma
     ConsoleLog(BOT_NAME, f"[Merchant] {stage_name}: alt arrival timeout on map {target_map_id}", Py4GW.Console.MessageType.Warning)
 
 
-def _kick_current_party_accounts():
-    own_login = int(Player.GetLoginNumber() or 0)
-    for member in list(GLOBAL_CACHE.Party.GetPlayers()):
-        login_number = int(getattr(member, "login_number", 0) or 0)
-        if login_number <= 0 or login_number == own_login:
-            continue
-        player_name = GLOBAL_CACHE.Party.Players.GetPlayerNameByLoginNumber(login_number)
-        if player_name:
-            GLOBAL_CACHE.Party.Players.KickPlayer(str(player_name))
-
-
-def _kick_accounts_if_multibox(bot: Botting):
+def _leave_party_if_multibox(bot: Botting):
     if _party_mode != 1:
         return
-    _kick_current_party_accounts()
+    yield from bot.helpers.Multibox._leave_party_on_all_accounts()
     for _ in range(20):
         yield from bot.Wait._coro_for_time(250)
         if GLOBAL_CACHE.Party.GetPlayerCount() <= 1:
@@ -645,14 +665,18 @@ def _restock_consumables_if_enabled(bot: Botting):
     _sync_consumable_toggles(bot)
     if _party_mode == 1:
         if _as_bool(bot.Properties.Get("use_conset", "active")):
-            yield from bot.helpers.Multibox._restock_conset_message(250)
+            yield from bot.helpers.Multibox._restock_conset_message(_conset_restock_target)
         if _as_bool(bot.Properties.Get("use_pcons", "active")):
-            yield from bot.helpers.Multibox._restock_all_pcons_message(250)
+            yield from bot.helpers.Multibox._restock_all_pcons_message(_pcon_restock_target)
+        if _as_bool(bot.Properties.Get("use_summoning_stones", "active")):
+            yield from bot.helpers.Multibox._restock_summoning_stones_message(_summoning_stones_restock_target)
         return
     if _as_bool(bot.Properties.Get("use_conset", "active")):
-        yield from _restock_models_locally(CONSET_RESTOCK_MODELS, 250)
+        yield from _restock_models_locally(CONSET_RESTOCK_MODELS, _conset_restock_target)
     if _as_bool(bot.Properties.Get("use_pcons", "active")):
-        yield from _restock_models_locally(PCON_RESTOCK_MODELS, 250)
+        yield from _restock_models_locally(PCON_RESTOCK_MODELS, _pcon_restock_target)
+    if _as_bool(bot.Properties.Get("use_summoning_stones", "active")):
+        yield from bot.helpers.Restock._restock_summoning_stones_impl(_summoning_stones_restock_target)
 
 
 def _use_consumables_if_enabled(bot: Botting):
@@ -664,6 +688,8 @@ def _use_consumables_if_enabled(bot: Botting):
         yield from bot.helpers.Items.use_conset()
     if _as_bool(bot.Properties.Get("use_pcons", "active")):
         yield from bot.helpers.Items.use_pcons()
+    if _as_bool(bot.Properties.Get("use_summoning_stones", "active")):
+        yield from bot.helpers.Items.use_summoning_stone()
 
 
 def _restock_models_locally(model_ids: list[int], quantity: int):
@@ -694,6 +720,8 @@ def _use_multibox_consumables(bot: Botting):
             0,
             0,
         ))
+    if _as_bool(bot.Properties.Get("use_summoning_stones", "active")):
+        yield from bot.helpers.Multibox._use_summoning_stone_message()
 # endregion
 
 
@@ -720,6 +748,29 @@ def _upkeep_consumables(bot: "Botting"):
 
 
 # region Events
+def _vanquish_watchdog(bot: "Botting"):
+    while True:
+        yield from Routines.Yield.wait(1000)
+
+        if not Routines.Checks.Map.MapValid() or not Routines.Checks.Map.IsExplorable():
+            continue
+        if Map.GetMapID() != 569 or not Map.IsVanquishable():
+            continue
+        if Map.GetInstanceUptime() < 10000 or Map.GetFoesKilled() <= 0:
+            continue
+
+        if Map.IsVanquishComplete():
+            ConsoleLog(BOT_NAME, "Vanquish complete. Returning to outpost.")
+            bot.Events.OnPartyWipeCallback(None)
+            bot.config.FSM.pause()
+            yield from Routines.Yield.Movement.StopMovement()
+            if bot.config.FSM.current_state:
+                bot.config.FSM.current_state.reset()
+            bot.config.FSM.jump_to_state_by_name(RETURN_TO_OUTPOST_STEP_NAME)
+            bot.config.FSM.resume()
+            return
+
+
 def _on_party_wipe(bot: "Botting"):
     if not Routines.Checks.Map.MapValid() or not Routines.Checks.Map.IsExplorable():
         bot.config.FSM.resume()
@@ -770,6 +821,7 @@ def _ensure_bot_ini(bot: Botting) -> str:
 
 
 def _load_consumable_settings(bot: Botting) -> None:
+    global _conset_restock_target, _pcon_restock_target, _summoning_stones_restock_target
     ini_key = _ensure_bot_ini(bot)
     if not ini_key:
         return
@@ -785,8 +837,33 @@ def _load_consumable_settings(bot: Botting) -> None:
         _USE_PCONS_KEY,
         _as_bool(bot.Properties.Get("use_pcons", "active")),
     )
+    saved_use_summoning_stones = IniManager().read_bool(
+        ini_key,
+        _SETTINGS_SECTION,
+        _USE_SUMMONING_STONES_KEY,
+        _as_bool(bot.Properties.Get("use_summoning_stones", "active")),
+    )
     bot.Properties.ApplyNow("use_conset", "active", _as_bool(saved_use_conset))
     bot.Properties.ApplyNow("use_pcons", "active", _as_bool(saved_use_pcons))
+    bot.Properties.ApplyNow("use_summoning_stones", "active", _as_bool(saved_use_summoning_stones))
+    _conset_restock_target = max(0, min(_MAX_CONSUMABLE_RESTOCK_TARGET, int(IniManager().read_int(
+        ini_key,
+        _SETTINGS_SECTION,
+        _CONSET_RESTOCK_TARGET_KEY,
+        _conset_restock_target,
+    ))))
+    _pcon_restock_target = max(0, min(_MAX_CONSUMABLE_RESTOCK_TARGET, int(IniManager().read_int(
+        ini_key,
+        _SETTINGS_SECTION,
+        _PCON_RESTOCK_TARGET_KEY,
+        _pcon_restock_target,
+    ))))
+    _summoning_stones_restock_target = max(0, min(_MAX_CONSUMABLE_RESTOCK_TARGET, int(IniManager().read_int(
+        ini_key,
+        _SETTINGS_SECTION,
+        _SUMMONING_STONES_RESTOCK_TARGET_KEY,
+        _summoning_stones_restock_target,
+    ))))
 
 
 def _load_kit_restock_settings(bot: Botting) -> None:
@@ -841,6 +918,30 @@ def _save_consumable_settings(bot: Botting) -> None:
         _SETTINGS_SECTION,
         _USE_PCONS_KEY,
         _as_bool(bot.Properties.Get("use_pcons", "active")),
+    )
+    IniManager().write_key(
+        ini_key,
+        _SETTINGS_SECTION,
+        _USE_SUMMONING_STONES_KEY,
+        _as_bool(bot.Properties.Get("use_summoning_stones", "active")),
+    )
+    IniManager().write_key(
+        ini_key,
+        _SETTINGS_SECTION,
+        _CONSET_RESTOCK_TARGET_KEY,
+        int(_conset_restock_target),
+    )
+    IniManager().write_key(
+        ini_key,
+        _SETTINGS_SECTION,
+        _PCON_RESTOCK_TARGET_KEY,
+        int(_pcon_restock_target),
+    )
+    IniManager().write_key(
+        ini_key,
+        _SETTINGS_SECTION,
+        _SUMMONING_STONES_RESTOCK_TARGET_KEY,
+        int(_summoning_stones_restock_target),
     )
 
 
@@ -1075,7 +1176,7 @@ def _draw_hero_settings_tab():
 def _setup_heroes(bot: Botting):
     global _hero_slots
     if _party_mode == 1:
-        _kick_current_party_accounts()
+        yield from bot.helpers.Multibox._leave_party_on_all_accounts()
     else:
         GLOBAL_CACHE.Party.LeaveParty()
     for _ in range(8):
@@ -1163,6 +1264,7 @@ def _resign(bot: Botting):
 def _sync_consumable_toggles(bot: Botting) -> None:
     use_conset = _as_bool(bot.Properties.Get("use_conset", "active"))
     use_pcons = _as_bool(bot.Properties.Get("use_pcons", "active"))
+    use_summoning_stones = _as_bool(bot.Properties.Get("use_summoning_stones", "active"))
 
     for key in ("armor_of_salvation", "essence_of_celerity", "grail_of_might"):
         bot.Properties.ApplyNow(key, "active", use_conset)
@@ -1180,6 +1282,8 @@ def _sync_consumable_toggles(bot: Botting) -> None:
         "honeycomb",
     ):
         bot.Properties.ApplyNow(key, "active", use_pcons)
+
+    bot.Properties.ApplyNow("summoning_stone", "active", use_summoning_stones)
 
 
 # endregion
@@ -1277,10 +1381,32 @@ def _draw_settings(bot: Botting):
     if new_use_pcons != use_pcons:
         bot.Properties.ApplyNow("use_pcons", "active", new_use_pcons)
         _save_consumable_settings(bot)
+
+    use_summoning_stones = _as_bool(bot.Properties.Get("use_summoning_stones", "active"))
+    new_use_summoning_stones = PyImGui.checkbox("Restock & use Summoning Stones", use_summoning_stones)
+    if new_use_summoning_stones != use_summoning_stones:
+        bot.Properties.ApplyNow("use_summoning_stones", "active", new_use_summoning_stones)
+        _save_consumable_settings(bot)
     _sync_consumable_toggles(bot)
 
-    global _restock_kits_enabled, _id_kits_target, _salvage_kits_target, _merchant_sell_materials, _merchant_alt_wait_ms
+    global _restock_kits_enabled, _conset_restock_target, _pcon_restock_target, _summoning_stones_restock_target, _id_kits_target, _salvage_kits_target, _merchant_sell_materials, _merchant_alt_wait_ms
     PyImGui.separator()
+
+    new_conset_target = PyImGui.input_int("Conset restock target##asura_conset_target", _conset_restock_target)
+    if new_conset_target != _conset_restock_target:
+        _conset_restock_target = max(0, min(_MAX_CONSUMABLE_RESTOCK_TARGET, new_conset_target))
+        _save_consumable_settings(bot)
+
+    new_pcon_target = PyImGui.input_int("Pcons restock target##asura_pcon_target", _pcon_restock_target)
+    if new_pcon_target != _pcon_restock_target:
+        _pcon_restock_target = max(0, min(_MAX_CONSUMABLE_RESTOCK_TARGET, new_pcon_target))
+        _save_consumable_settings(bot)
+
+    new_summoning_target = PyImGui.input_int("Summoning Stones restock target##asura_summoning_stones_target", _summoning_stones_restock_target)
+    if new_summoning_target != _summoning_stones_restock_target:
+        _summoning_stones_restock_target = max(0, min(_MAX_CONSUMABLE_RESTOCK_TARGET, new_summoning_target))
+        _save_consumable_settings(bot)
+
     new_restock_kits = PyImGui.checkbox("Guild Hall merchant on startup", _restock_kits_enabled)
     if new_restock_kits != _restock_kits_enabled:
         _restock_kits_enabled = new_restock_kits
