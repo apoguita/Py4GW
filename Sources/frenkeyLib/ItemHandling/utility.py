@@ -1,19 +1,14 @@
 
 from typing import Optional
 
-import Py4GW
 import PyInventory
 
 import Py4GWCoreLib
-from Py4GWCoreLib.Inventory import Inventory
-from Py4GWCoreLib.Item import Bag, Item
-from Py4GWCoreLib.enums_src.Item_enums import MAX_STACK_SIZE, ItemType, Rarity
-from Sources.frenkeyLib.ItemHandling.Items.item_snapshot import ItemSnapshot
-from Sources.frenkeyLib.ItemHandling.Rules.profile import RuleProfile
-from Sources.frenkeyLib.ItemHandling.Rules.types import ItemAction
+from Py4GWCoreLib.enums_src.Item_enums import MAX_STACK_SIZE, Bags, ItemType
+from Py4GWCoreLib.item_data.item_snapshot import ItemSnapshot
 
 @staticmethod
-def GetZeroFilledBags(start_bag: Bag, end_bag: Bag) -> tuple[list[int], dict[Bag, int]]:
+def GetZeroFilledBags(start_bag: Bags, end_bag: Bags) -> tuple[list[int], dict[Bags, int]]:
     inventory = []
     bag_sizes = {}
 
@@ -22,7 +17,7 @@ def GetZeroFilledBags(start_bag: Bag, end_bag: Bag) -> tuple[list[int], dict[Bag
         if bag_id is None:
             continue
         
-        bag_enum = Py4GWCoreLib.Bag(bag_id)
+        bag_enum = Py4GWCoreLib.Bags(bag_id)
         if bag_enum is None:
             continue
         
@@ -44,7 +39,7 @@ def GetZeroFilledBags(start_bag: Bag, end_bag: Bag) -> tuple[list[int], dict[Bag
     return inventory, bag_sizes
 
 @staticmethod
-def HasSpaceForItem(item_id: int, start_bag: Bag, end_bag: Bag, quantity: Optional[int] = None) -> tuple[bool, int]:
+def HasSpaceForItem(item_id: int, start_bag: Bags, end_bag: Bags, quantity: Optional[int] = None) -> tuple[bool, int]:
     item = ItemSnapshot.from_item_id(item_id)
     qty = quantity if quantity is not None else item.quantity if item else 0
     
@@ -67,14 +62,14 @@ def HasSpaceForItem(item_id: int, start_bag: Bag, end_bag: Bag, quantity: Option
     return free_slots > 0, free_slots
 
 @staticmethod
-def GetDestinationSlots(item_id: int, start_bag: Bag, end_bag: Bag) -> list[tuple[Bag, int, Optional[ItemSnapshot]]]:
+def GetDestinationSlots(item_id: int, start_bag: Bags, end_bag: Bags) -> list[tuple[Bags, int, Optional[ItemSnapshot]]]:
     item = ItemSnapshot.from_item_id(item_id)
     
     if not item or not item.is_valid:
         return []
     
     inventory_snapshot = ItemSnapshot.get_inventory_snapshot(start_bag, end_bag)
-    destination_slots : list[tuple[Bag, int, Optional[ItemSnapshot]]] = []
+    destination_slots : list[tuple[Bags, int, Optional[ItemSnapshot]]] = []
     
     if item.is_stackable:
         for bag_enum, bag in inventory_snapshot.items():
@@ -94,8 +89,8 @@ def GetDestinationSlots(item_id: int, start_bag: Bag, end_bag: Bag) -> list[tupl
     return destination_slots
 
 @staticmethod
-def GetItemLocation(item_id: int) -> Optional[tuple[Bag, int]]:
-    inventory_snapshot = ItemSnapshot.get_inventory_snapshot(Bag.Backpack, Bag.Max)
+def GetItemLocation(item_id: int) -> Optional[tuple[Bags, int]]:
+    inventory_snapshot = ItemSnapshot.get_inventory_snapshot(Bags.Backpack, Bags.Max)
     
     for bag_enum, bag in inventory_snapshot.items():
         for slot, item in bag.items():
@@ -105,8 +100,8 @@ def GetItemLocation(item_id: int) -> Optional[tuple[Bag, int]]:
     return None
 
 @staticmethod
-def GetItemsLocations(item_ids: list[int]) -> list[tuple[Bag, int]]:
-    inventory_snapshot = ItemSnapshot.get_inventory_snapshot(Bag.Backpack, Bag.Max)
+def GetItemsLocations(item_ids: list[int]) -> list[tuple[Bags, int]]:
+    inventory_snapshot = ItemSnapshot.get_inventory_snapshot(Bags.Backpack, Bags.Max)
     locations = []
     
     for bag_enum, bag in inventory_snapshot.items():

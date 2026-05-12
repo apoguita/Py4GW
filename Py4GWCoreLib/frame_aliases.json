@@ -1162,5 +1162,14 @@
     "3332025202,1,8,0,0,0,0,7": "PartyMember7",
     "3332025202,1,8,0,0,0,0,1,1": "PartyReadyToggle",
     "3332025202,0,0,0,0": "PartyMembersParentExplorable",
-    "731118013": "Merchant.CustomizeWeaponButton"
+    "731118013": "Merchant.CustomizeWeaponButton",
+    "140452905,6,111,4": "SalvageWithLesserKit_Cancel",
+    "140452905,6,111,6": "SalvageWithLesserKit_Confirm",
+    "140452905,6,111": "LesserSalvageWindow",
+    "140452905,6,112": "Expert Salvage - Unidentified Item",
+    "140452905,6,112,6": "Expert Salvage - Unidentified Item CONFIRM",
+    "140452905,6,112,4": "Expert Salvage - Unidentified Item CANCEL",
+    "684387150,0": "SalvageOptionsWindowConfirmMaterialsWindow",
+    "684387150,0,4": "SalvageOptionsWindowConfirmMaterialsWindow CANCEL",
+    "684387150,0,6": "SalvageOptionsWindowConfirmMaterialsWindow CONFIRM"
 }
