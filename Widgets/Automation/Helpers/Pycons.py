@@ -143,6 +143,7 @@ try:
     # Brief cache so multiple "due" items don't rescan bags back-to-back
     INVENTORY_CACHE_MS = 1500
     BROADCAST_KEEPALIVE_MS = 5000
+    CONSET_REMOTE_EFFECT_WAIT_MS = 1200
     TEAM_SETTINGS_CACHE_MS = 3000
 
     # In-town speed effects use explicit ids so fallback timing matches the visible effect.
@@ -2815,6 +2816,11 @@ try:
     PARTY_ITEMS_BY_KEY = {c["key"]: c for c in PARTY_ITEMS}
     MB_DP_BY_KEY = {c["key"]: c for c in MB_DP_ITEMS}
     CONSET_KEYS = {"armor_of_salvation", "essence_of_celerity", "grail_of_might"}
+    CONSET_MODEL_IDS = frozenset(
+        int(ALL_BY_KEY[key].get("model_id", 0) or 0)
+        for key in CONSET_KEYS
+        if key in ALL_BY_KEY and int(ALL_BY_KEY[key].get("model_id", 0) or 0) > 0
+    )
     MBDP_PARTY_KEYS = frozenset({
         "elixir_of_valor",
         "four_leaf_clover",
@@ -4003,6 +4009,7 @@ try:
     _blocked_actions = {}
     _last_used_ms = {}
     _last_broadcast_ms = {}
+    _conset_remote_fallback_state = {}
     _team_flags_cache = {}
     _last_mbdp_party_ms = 0
     _movement_last_xy = None
@@ -6346,6 +6353,15 @@ try:
     # -------------------------
     # Team broadcast helper
     # -------------------------
+    def _is_conset_key(key: str) -> bool:
+        return str(key or "") in CONSET_KEYS
+
+    def _is_conset_model_id(model_id: int) -> bool:
+        try:
+            return int(model_id or 0) in CONSET_MODEL_IDS
+        except Exception:
+            return False
+
     def _get_team_broadcast_recipients():
         sender = str(Player.GetAccountEmail() or "")
         if not sender:
@@ -6392,12 +6408,165 @@ try:
         except Exception as e:
             return [], f"recipient_query_error={e}"
 
+    def _get_conset_fallback_recipients():
+        recipients, reason = _get_team_broadcast_recipients()
+        if not recipients:
+            return [], reason
+
+        def sort_key(email: str):
+            try:
+                acc = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(str(email or ""))
+            except Exception:
+                acc = None
+            return (
+                _acc_party_position(acc) if acc is not None else 9999,
+                str(_acc_name(acc) if acc is not None else "").lower(),
+                str(email or "").lower(),
+            )
+
+        return sorted(list(dict.fromkeys(str(email) for email in recipients if str(email or ""))), key=sort_key), reason
+
+    def _clear_conset_remote_fallback_state(key: str):
+        _conset_remote_fallback_state.pop(str(key or ""), None)
+
+    def _send_conset_remote_use(
+        key: str,
+        label: str,
+        model_id: int,
+        effect_id: int,
+        receiver_email: str,
+    ) -> bool:
+        try:
+            sender = str(Player.GetAccountEmail() or "")
+            receiver = str(receiver_email or "")
+            if not sender or not receiver or receiver == sender:
+                return False
+            message_index = GLOBAL_CACHE.ShMem.SendMessage(
+                sender,
+                receiver,
+                SharedCommandType.UseItem,
+                (float(model_id), 1.0, float(effect_id), 0.0),
+            )
+            if int(message_index) == -1:
+                _debug(f"Conset fallback: could not ask {receiver} to use {label}.", Console.MessageType.Warning)
+                return False
+            _debug(f"Conset fallback: asked {receiver} to use {label}; waiting for the party effect.")
+            return True
+        except Exception as e:
+            _debug(f"Conset fallback send failed for {label}: {e}", Console.MessageType.Warning)
+            return False
+
+    def _try_conset_remote_fallback(
+        key: str,
+        spec: dict,
+        model_id: int,
+        effect_id: int,
+        timer: Timer,
+    ) -> bool:
+        key = str(key or "")
+        if not _is_conset_key(key):
+            return False
+
+        label = str(spec.get("label", key) or key)
+        model_id = int(model_id or 0)
+        effect_id = int(effect_id or 0)
+
+        if _has_effect(effect_id):
+            _clear_conset_remote_fallback_state(key)
+            return False
+
+        if not bool(cfg.team_broadcast):
+            _clear_conset_remote_fallback_state(key)
+            return False
+
+        if model_id <= 0:
+            _clear_conset_remote_fallback_state(key)
+            return False
+
+        if effect_id <= 0:
+            _clear_conset_remote_fallback_state(key)
+            wt = _warn_timer_for(f"conset_missing_effect_id_{key}")
+            if wt.IsStopped() or wt.HasElapsed(8000):
+                wt.Start()
+                _record_blocked_action(f"conset_missing_effect_id_{key}", f"{label}: effect id unavailable")
+                _debug(f"Skipping remote fallback for {label}: effect id is unavailable.", Console.MessageType.Warning)
+            return False
+
+        recipients, reason = _get_conset_fallback_recipients()
+        if not recipients:
+            _clear_conset_remote_fallback_state(key)
+            return False
+
+        state = _conset_remote_fallback_state.get(key)
+        if (
+            not isinstance(state, dict)
+            or int(state.get("model_id", 0) or 0) != model_id
+            or int(state.get("effect_id", 0) or 0) != effect_id
+        ):
+            state = {
+                "model_id": int(model_id),
+                "effect_id": int(effect_id),
+                "recipients": list(recipients),
+                "next_index": 0,
+                "waiting_for": "",
+                "sent_ms": 0,
+            }
+            _conset_remote_fallback_state[key] = state
+            _debug(
+                f"Conset fallback: {label} is not in local inventory; "
+                f"trying opted-in accounts one at a time ({reason})."
+            )
+        elif not str(state.get("waiting_for", "") or ""):
+            state["recipients"] = list(recipients)
+            state["next_index"] = min(int(state.get("next_index", 0) or 0), len(recipients))
+
+        now = _now_ms()
+        waiting_for = str(state.get("waiting_for", "") or "")
+        if waiting_for:
+            if _has_effect(effect_id):
+                _debug(f"Conset fallback: {label} effect appeared after trying {waiting_for}; stopping.")
+                _clear_conset_remote_fallback_state(key)
+                return False
+            sent_ms = int(state.get("sent_ms", 0) or 0)
+            if sent_ms > 0 and (now - sent_ms) < int(CONSET_REMOTE_EFFECT_WAIT_MS):
+                return True
+            _debug(f"Conset fallback: no {label} effect after trying {waiting_for}; trying the next account.")
+            state["waiting_for"] = ""
+            state["sent_ms"] = 0
+
+        recipients = list(state.get("recipients", []) or [])
+        next_index = int(state.get("next_index", 0) or 0)
+        while next_index < len(recipients):
+            receiver_email = str(recipients[next_index] or "")
+            state["next_index"] = int(next_index + 1)
+            next_index += 1
+            if not receiver_email:
+                continue
+            if _send_conset_remote_use(key, label, model_id, effect_id, receiver_email):
+                state["waiting_for"] = receiver_email
+                state["sent_ms"] = int(_now_ms())
+                return True
+
+        _debug(f"Conset fallback: no opted-in account produced {label}; stopping this cycle.")
+        _clear_conset_remote_fallback_state(key)
+        try:
+            timer.Start()
+        except Exception:
+            pass
+        return False
+
     def _broadcast_use(model_id: int, repeat: int = 1, effect_id: int = 0, recipients=None):
         try:
             if not bool(cfg.team_broadcast):
                 return
             sender = str(Player.GetAccountEmail() or "")
             if not sender:
+                return
+            if _is_conset_model_id(int(model_id or 0)):
+                _debug(
+                    f"UseItem broadcast skip model={int(model_id)}; "
+                    "consets are sent to one account at a time."
+                )
                 return
 
             if recipients is None:
@@ -6439,6 +6608,8 @@ try:
     ) -> bool:
         if not bool(cfg.team_broadcast):
             return False
+        if _is_conset_key(key):
+            return False
         if _is_summoning_spec(spec) or bool(spec.get("suppress_team_broadcast", False)):
             return False
         if int(model_id or 0) <= 0:
@@ -6460,6 +6631,8 @@ try:
 
     def _broadcast_keepalive(key: str, model_id: int, effect_id: int):
         if effect_id <= 0:
+            return
+        if _is_conset_key(key):
             return
         if not bool(cfg.team_broadcast):
             return
@@ -7746,6 +7919,9 @@ try:
             effect_id = _resolve_effect_id_for(key, spec)
 
             if effect_id and _has_effect(effect_id):
+                if _is_conset_key(key):
+                    _clear_conset_remote_fallback_state(key)
+                    continue
                 model_id = int(spec.get("model_id", 0))
                 if model_id > 0:
                     _broadcast_keepalive(key, model_id, effect_id)
@@ -7779,7 +7955,17 @@ try:
                 continue
 
             item_id = _find_item_id_by_model_id(model_id)
+            if _is_conset_key(key) and key in _conset_remote_fallback_state:
+                if _try_conset_remote_fallback(key, spec, model_id, effect_id, t):
+                    return True
+                if effect_id > 0 and _has_effect(effect_id):
+                    continue
+
             if item_id <= 0:
+                if _is_conset_key(key):
+                    if _try_conset_remote_fallback(key, spec, model_id, effect_id, t):
+                        return True
+                    continue
                 if _broadcast_enabled_request_without_local_item(key, spec, model_id, effect_id, t):
                     return True
                 continue
@@ -7789,7 +7975,11 @@ try:
                 t.Start()
                 aftercast_timer.Start()
                 _last_used_ms[key] = _now_ms()
-                if not _is_summoning_spec(spec) and not bool(spec.get("suppress_team_broadcast", False)):
+                if (
+                    not _is_conset_key(key)
+                    and not _is_summoning_spec(spec)
+                    and not bool(spec.get("suppress_team_broadcast", False))
+                ):
                     try:
                         _broadcast_use(model_id, 1, effect_id)
                     except Exception:
