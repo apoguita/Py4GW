@@ -18,6 +18,7 @@ MODULE_NAME = "Pycons"
 MODULE_ICON = "Textures\\Module_Icons\\Pycons.png"
 PYCONS_SYNC_OPCODE_RELOAD_CONFIG = 1
 PYCONS_SYNC_OPCODE_RELOAD_RESULT = 2
+PYCONS_SYNC_OPCODE_SET_SELF_MBDP_TARGET = 3
 PYCONS_SYNC_SELECTION_ENABLED_STATE_ONCE_KEY = "sync_selection_enabled_state_once"
 
 _PYCONS_CONFIG_DIR = os.path.normpath(os.path.join("Widgets", "Config", "Pycons"))
@@ -145,6 +146,7 @@ try:
     BROADCAST_KEEPALIVE_MS = 5000
     CONSET_REMOTE_EFFECT_WAIT_MS = 1200
     TEAM_SETTINGS_CACHE_MS = 3000
+    MBDP_SELF_TARGET_SETTLE_MS = 1200
 
     # In-town speed effects use explicit ids so fallback timing matches the visible effect.
     SUGAR_JOLT_SHORT_EFFECT_ID = 1916
@@ -353,6 +355,88 @@ try:
         idx = max(0, min(max_idx, idx))
         return (idx != int(current_index)), idx
 
+    def ui_combo_fixed(label: str, current_index: int, items: list[str], width: float = 220.0):
+        try:
+            if hasattr(PyImGui, "push_item_width"):
+                PyImGui.push_item_width(float(width))
+            return ui_combo(label, int(current_index), items)
+        finally:
+            try:
+                if hasattr(PyImGui, "pop_item_width"):
+                    PyImGui.pop_item_width()
+            except Exception:
+                pass
+
+    def ui_combo_fixed_with_item_tooltips(
+        label: str,
+        current_index: int,
+        items: list[str],
+        item_tooltips: dict[int, str],
+        width: float = 220.0,
+    ):
+        if not (
+            hasattr(PyImGui, "begin_combo")
+            and hasattr(PyImGui, "end_combo")
+            and hasattr(PyImGui, "selectable")
+        ):
+            return ui_combo_fixed(label, int(current_index), items, width=float(width))
+
+        max_idx = max(0, len(items) - 1)
+        idx = max(0, min(max_idx, int(current_index)))
+        preview = str(items[idx]) if items else ""
+        pushed = False
+        opened = False
+        fallback_needed = False
+        try:
+            if hasattr(PyImGui, "push_item_width"):
+                PyImGui.push_item_width(float(width))
+                pushed = True
+
+            combo_flags_obj = getattr(PyImGui, "ImGuiComboFlags", None)
+            combo_flags = getattr(combo_flags_obj, "NoFlag", 0) if combo_flags_obj is not None else 0
+            opened = bool(PyImGui.begin_combo(label, preview, combo_flags))
+            if not opened:
+                return False, int(idx)
+
+            selectable_flags_obj = getattr(PyImGui, "SelectableFlags", None)
+            selectable_flags = (
+                getattr(selectable_flags_obj, "NoFlag", 0)
+                if selectable_flags_obj is not None
+                else 0
+            )
+            changed = False
+            next_idx = int(idx)
+            for option_idx, option_label in enumerate(list(items or [])):
+                selected = int(option_idx) == int(idx)
+                if PyImGui.selectable(
+                    f"{option_label}##{label}_option_{option_idx}",
+                    bool(selected),
+                    selectable_flags,
+                    (0.0, 0.0),
+                ):
+                    next_idx = int(option_idx)
+                    changed = int(next_idx) != int(idx)
+                tooltip_text = str(item_tooltips.get(int(option_idx), "") or "").strip()
+                if tooltip_text:
+                    _tooltip_if_hovered(tooltip_text)
+            return bool(changed), int(next_idx)
+        except Exception:
+            fallback_needed = True
+        finally:
+            if opened:
+                try:
+                    PyImGui.end_combo()
+                except Exception:
+                    pass
+            if pushed:
+                try:
+                    PyImGui.pop_item_width()
+                except Exception:
+                    pass
+        if fallback_needed:
+            return ui_combo_fixed(label, int(current_index), items, width=float(width))
+        return False, int(idx)
+
     def ui_collapsing_header(label: str, default_open: bool):
         try:
             return bool(PyImGui.collapsing_header(label, bool(default_open)))
@@ -364,6 +448,12 @@ try:
 
     def _same_line(spacing=8.0):
         PyImGui.same_line(0.0, float(spacing))
+
+    def _same_line_at(offset_from_start_x: float, spacing=8.0):
+        try:
+            PyImGui.same_line(float(offset_from_start_x), float(spacing))
+        except Exception:
+            _same_line(spacing)
 
     def _collapsing_header_force(label: str, force_open, default_open: bool):
         # force_open: True/False/None
@@ -513,6 +603,14 @@ try:
             "header_hovered": (0.88, 0.10, 0.10, 0.94),
             "header_active": (0.94, 0.20, 0.20, 1.00),
             "header_text": (0.96, 0.96, 0.96, 1.00),
+            "text": (1.00, 0.92, 0.24, 1.00),
+            "meta": (0.96, 0.82, 0.36, 1.00),
+        },
+        "settings_mbdp_legacy": {
+            "header": (0.92, 0.30, 0.30, 0.78),
+            "header_hovered": (0.96, 0.40, 0.40, 0.88),
+            "header_active": (1.00, 0.50, 0.50, 0.94),
+            "header_text": (0.98, 0.94, 0.94, 1.00),
             "text": (0.96, 0.88, 0.72, 1.00),
             "meta": (0.88, 0.76, 0.54, 1.00),
         },
@@ -744,6 +842,88 @@ try:
     ALCOHOL_PREFERENCE_OPTIONS = ["Smooth", "Strong-first", "Weak-first"]
     RESTOCK_MODE_OPTIONS = ["Balanced", "Withdraw only", "Deposit only"]
     RESTOCK_SCOPE_OPTIONS = ["Account-wide", "Allow list", "Block list"]
+    TEAM_ITEM_PRIORITY_OPTIONS = [
+        "Preserve items",
+        "Conservative",
+        "Balanced",
+        "Aggressive",
+        "Reach target",
+        "Force target",
+        "Custom",
+    ]
+    TEAM_ITEM_PRIORITY_FORCE_INDEX = TEAM_ITEM_PRIORITY_OPTIONS.index("Force target")
+    TEAM_ITEM_PRIORITY_CUSTOM_INDEX = len(TEAM_ITEM_PRIORITY_OPTIONS) - 1
+    # gain before +5, gain before +10, light DP, heavy DP, Powerstone DP.
+    TEAM_ITEM_PRIORITY_PRESETS = {
+        0: (24, 40, -30, -45, -60),
+        1: (12, 24, -25, -40, -55),
+        2: (8, 12, -15, -30, -45),
+        3: (4, 8, -10, -25, -40),
+        4: (1, 6, -5, -20, -35),
+    }
+    TEAM_ITEM_PRIORITY_FORCE_TUNING = (1, 1, -5, -15, -30)
+    TEAM_ITEM_PRIORITY_SCORING = {
+        0: {
+            "dp_member_ratio": 0.75,
+            "powerstone_member_ratio": 1.00,
+            "min_dp_target_gain": 40,
+            "min_powerstone_target_gain": 90,
+            "waste_penalty": 55,
+            "rare_penalty": 220,
+        },
+        1: {
+            "dp_member_ratio": 0.50,
+            "powerstone_member_ratio": 0.75,
+            "min_dp_target_gain": 24,
+            "min_powerstone_target_gain": 70,
+            "waste_penalty": 45,
+            "rare_penalty": 170,
+        },
+        2: {
+            "dp_member_ratio": 0.25,
+            "powerstone_member_ratio": 0.50,
+            "min_dp_target_gain": 12,
+            "min_powerstone_target_gain": 45,
+            "waste_penalty": 35,
+            "rare_penalty": 130,
+        },
+        3: {
+            "dp_member_ratio": 0.25,
+            "powerstone_member_ratio": 0.40,
+            "min_dp_target_gain": 8,
+            "min_powerstone_target_gain": 35,
+            "waste_penalty": 28,
+            "rare_penalty": 100,
+        },
+        4: {
+            "dp_member_ratio": 0.00,
+            "powerstone_member_ratio": 0.25,
+            "min_dp_target_gain": 1,
+            "min_powerstone_target_gain": 20,
+            "waste_penalty": 18,
+            "rare_penalty": 70,
+        },
+        5: {
+            "dp_member_ratio": 0.00,
+            "powerstone_member_ratio": 0.25,
+            "min_dp_target_gain": 1,
+            "min_powerstone_target_gain": 10,
+            "waste_penalty": 12,
+            "rare_penalty": 50,
+        },
+    }
+    TEAM_ITEM_PRIORITY_HELP = {
+        0: "Uses team MB/DP items only when the benefit is very high. Best when saving rare items matters most.",
+        1: "Avoids small gains and waits until several party members benefit. Good for long runs with limited stock.",
+        2: "Uses team MB/DP items when they reasonably help the team without obvious waste. Best default.",
+        3: "Uses team MB/DP items for smaller gains when they move the team toward the target. Spends faster.",
+        4: "Prioritizes getting closer to the party morale target, even if some item value may be wasted.",
+        5: (
+            "Maintains the party morale target whenever possible. Shows Team morale leader so one account can "
+            "coordinate team MB/DP item use."
+        ),
+        6: "Uses the manual legacy team MB/DP thresholds from the advanced tuning sections.",
+    }
     SETTINGS_CONSUMABLE_CATEGORY_ORDER = ["explorable", "summoning", "mbdp", "outpost", "alcohol", "party_items"]
 
     _TOOLTIP_TEXTS = {
@@ -993,9 +1173,38 @@ try:
             "why": "Usually set lower (more negative) than minor so it acts like escalation.",
         },
         "mbdp_self_morale_target_effective": {
-            "short": "Morale level Pycons tries to keep on you.",
-            "long": "Target morale for yourself, from -60 DP to +10 morale boost. 0 means neutral. Higher values use morale items more aggressively.",
-            "why": "Use this to control how aggressively self morale is topped up.",
+            "short": "Self target morale/DP.",
+            "long": "Each account uses only its own enabled self-use MB/DP items to move toward this value. Party-wide items are not used by this setting.",
+            "why": "Set this per account when you want each character to spend only its own morale and DP items.",
+        },
+        "mbdp_apply_self_target_to_party": {
+            "short": "Copy this self target to opted-in party accounts.",
+            "long": "Copies only this target value to opted-in Pycons party accounts. Each account still uses only its own selected and ON self-use MB/DP items.",
+            "why": "This is settings sync, not item-use broadcast.",
+        },
+        "mbdp_legacy_self_tuning": {
+            "short": "Older self-use tuning kept for compatibility.",
+            "long": (
+                "These older self-use tuning options are kept for compatibility. Self target morale/DP now covers "
+                "most normal self-use MB/DP behavior with automatic item choice and waste protection. These legacy "
+                "options will be removed later once the new target-based behavior fully covers them."
+            ),
+            "why": (
+                "Most players should use Self target morale/DP first and only change these if they rely on older "
+                "tuning behavior."
+            ),
+        },
+        "mbdp_legacy_team_item_tuning": {
+            "short": "Older team MB/DP thresholds kept for compatibility.",
+            "long": (
+                "These older team morale and party DP cleanup thresholds are kept for compatibility and still affect "
+                "team item decisions. Team item use priority sets these values for normal use. These legacy options "
+                "will be removed later once the new easier team controls fully cover them."
+            ),
+            "why": (
+                "Most players should use Team item use priority first and only edit these thresholds when they need "
+                "manual compatibility tuning. Editing them manually shows the priority as Custom."
+            ),
         },
         "mbdp_self_min_morale_gain": {
             "short": "Minimum self gain required before morale item use.",
@@ -1014,12 +1223,33 @@ try:
         },
         "mbdp_party_target_effective": {
             "short": "Morale level Pycons tries to keep for the party.",
-            "long": "Party morale target used when deciding if team morale items are worth using. +10 means try to keep the party near maximum morale boost.",
-            "why": "This affects when party morale options are considered worth using.",
+            "long": "Party morale target used when deciding if team morale and party DP cleanup items are worth using. +10 means try to keep the party near maximum morale boost.",
+            "why": "This affects when party-wide MB/DP options are considered worth using.",
+        },
+        "mbdp_team_item_use_priority": {
+            "short": "Preset for team morale and DP item conservation.",
+            "long": (
+                "Choose how aggressively team morale and party DP cleanup items are used. Preserve items waits for "
+                "very high value. Conservative avoids small gains. Balanced is the default. Aggressive spends sooner. "
+                "Reach target pushes closer to the target. Force target maintains the target whenever possible and "
+                "shows Team morale leader. Custom means the legacy thresholds do not match a preset."
+            ),
+            "why": (
+                "This is a simpler way to tune party-wide MB/DP item use while keeping the existing numeric settings "
+                "available for compatibility."
+            ),
+        },
+        "mbdp_team_morale_leader": {
+            "short": "Make this account coordinate Force target morale.",
+            "long": (
+                "ON makes this account the team morale coordinator for Force target. It enables team calls, applies "
+                "safe leader defaults, and keeps follower item safety on. Followers should opt in separately."
+            ),
+            "why": "Use this only on the account that should manage party morale for the team.",
         },
         "mbdp_strict_party_plus10": {
             "short": "Aggressively maintain +10 party morale.",
-            "long": "When enabled, party morale decisions ignore minimum party-gain limits and try to top up morale whenever any checked party member is below +10. DP cleanup still runs first.",
+            "long": "When enabled, party morale decisions try to top up morale whenever any checked party member is below the target. Party DP cleanup is scored with the same Force target priority.",
             "why": "Use this when your goal is to keep party morale as close to +10 as possible instead of conserving morale consumables.",
         },
         "mbdp_party_min_total_gain_5": {
@@ -1034,17 +1264,17 @@ try:
         },
         "mbdp_party_light_dp_threshold": {
             "short": "Party DP level where light cleanup starts.",
-            "long": "DP value for lighter party DP recovery items, such as Four-Leaf Clover. Example: -15 means this cleanup can start when party members reach -15 DP, if enough members qualify.",
+            "long": "DP value for lighter party DP recovery items, such as Four-Leaf Clover. Example: -15 means this cleanup can start when party members reach -15 DP, if enough members qualify. Team item use priority sets this for normal preset use.",
             "why": "Use this as the earlier, softer party DP response. If stronger items are unavailable, Pycons can still use lower options when valid.",
         },
         "mbdp_party_heavy_dp_threshold": {
             "short": "Party DP level where stronger cleanup starts.",
-            "long": "DP value for stronger party DP recovery items, such as Oath of Purity. Example: -30 means this cleanup can start when party members reach -30 DP, if enough members qualify.",
+            "long": "DP value for stronger party DP recovery items, such as Oath of Purity. Example: -30 means this cleanup can start when party members reach -30 DP, if enough members qualify. Team item use priority sets this for normal preset use.",
             "why": "Usually set lower, meaning more negative, than light cleanup so it acts as escalation. If stronger items are unavailable, Pycons can fall back to lower valid options.",
         },
         "mbdp_powerstone_dp_threshold": {
             "short": "Party DP level where Powerstone emergency starts.",
-            "long": "Severe DP value for emergency cleanup. Example: -45 means emergency cleanup can start when party members reach -45 DP, if enough members qualify.",
+            "long": "Severe DP value for emergency cleanup. Example: -45 means emergency cleanup can start when party members reach -45 DP, if enough members qualify. Team item use priority sets this for normal preset use.",
             "why": "Use this for severe DP only. If unavailable, Pycons tries lower DP cleanup and then valid morale options instead of stalling.",
         },
         "filter_search": {
@@ -1093,9 +1323,9 @@ try:
             "why": "Use this when one leader account should manage party morale without turning off the rest of morale/DP behavior.",
         },
         "preset_solo_safe": {
-            "short": "Safe single-account preset with local-only behavior.",
-            "long": "Applies a conservative solo profile: no team calls, morale/DP enabled with safe defaults, and follower safety protections kept on.",
-            "why": "Good baseline when you are not coordinating consumables across accounts.",
+            "short": "Restore local-only MB/DP defaults.",
+            "long": "Turns off team MB/DP coordination and restores conservative local-only MB/DP defaults. Kept for compatibility and may be removed or simplified later.",
+            "why": "Use this as a recovery/reset action when an account should stop team morale/DP coordination.",
         },
         "profile_save_new": {
             "short": "Save the current settings as a new named profile.",
@@ -1144,6 +1374,89 @@ try:
             return int(getattr(cfg, name, default))
         except Exception:
             return int(default)
+
+    def _mbdp_team_item_priority_index() -> int:
+        if bool(getattr(cfg, "mbdp_strict_party_plus10", False)):
+            return int(TEAM_ITEM_PRIORITY_FORCE_INDEX)
+        try:
+            current = (
+                max(0, min(60, int(getattr(cfg, "mbdp_party_min_total_gain_5", 0) or 0))),
+                max(0, min(120, int(getattr(cfg, "mbdp_party_min_total_gain_10", 0) or 0))),
+                max(-60, min(0, int(getattr(cfg, "mbdp_party_light_dp_threshold", 0) or 0))),
+                max(-60, min(0, int(getattr(cfg, "mbdp_party_heavy_dp_threshold", 0) or 0))),
+                max(-60, min(0, int(getattr(cfg, "mbdp_powerstone_dp_threshold", 0) or 0))),
+            )
+        except Exception:
+            return int(TEAM_ITEM_PRIORITY_CUSTOM_INDEX)
+        for idx, values in TEAM_ITEM_PRIORITY_PRESETS.items():
+            if tuple(values) == tuple(current):
+                return int(idx)
+        return int(TEAM_ITEM_PRIORITY_CUSTOM_INDEX)
+
+    def _mbdp_team_item_priority_tuning(index: int):
+        idx = int(index)
+        if idx == int(TEAM_ITEM_PRIORITY_FORCE_INDEX):
+            return tuple(TEAM_ITEM_PRIORITY_FORCE_TUNING)
+        return TEAM_ITEM_PRIORITY_PRESETS.get(idx)
+
+    def _apply_mbdp_team_item_priority(index: int) -> bool:
+        values = _mbdp_team_item_priority_tuning(int(index))
+        if not values:
+            return False
+        gain5, gain10, light_dp, heavy_dp, powerstone_dp = values
+        new_gain5 = max(0, min(60, int(gain5)))
+        new_gain10 = max(0, min(120, int(gain10)))
+        new_light_dp = max(-60, min(0, int(light_dp)))
+        new_heavy_dp = max(-60, min(0, int(heavy_dp)))
+        new_powerstone_dp = max(-60, min(0, int(powerstone_dp)))
+        changed = (
+            int(getattr(cfg, "mbdp_party_min_total_gain_5", 0) or 0) != int(new_gain5)
+            or int(getattr(cfg, "mbdp_party_min_total_gain_10", 0) or 0) != int(new_gain10)
+            or int(getattr(cfg, "mbdp_party_light_dp_threshold", 0) or 0) != int(new_light_dp)
+            or int(getattr(cfg, "mbdp_party_heavy_dp_threshold", 0) or 0) != int(new_heavy_dp)
+            or int(getattr(cfg, "mbdp_powerstone_dp_threshold", 0) or 0) != int(new_powerstone_dp)
+        )
+        cfg.mbdp_party_min_total_gain_5 = int(new_gain5)
+        cfg.mbdp_party_min_total_gain_10 = int(new_gain10)
+        cfg.mbdp_party_light_dp_threshold = int(new_light_dp)
+        cfg.mbdp_party_heavy_dp_threshold = int(new_heavy_dp)
+        cfg.mbdp_powerstone_dp_threshold = int(new_powerstone_dp)
+        return bool(changed)
+
+    def _team_item_priority_help_text(index: int) -> str:
+        return str(TEAM_ITEM_PRIORITY_HELP.get(int(index), TEAM_ITEM_PRIORITY_HELP[TEAM_ITEM_PRIORITY_CUSTOM_INDEX]))
+
+    def _is_team_morale_leader_active() -> bool:
+        if not cfg:
+            return False
+        return (
+            bool(getattr(cfg, "mbdp_enabled", False))
+            and bool(getattr(cfg, "team_broadcast", False))
+            and (not bool(getattr(cfg, "team_consume_opt_in", False)))
+            and bool(getattr(cfg, "mbdp_strict_party_plus10", False))
+        )
+
+    def _apply_team_morale_leader_on() -> None:
+        global _last_mbdp_party_ms
+        cfg.mbdp_enabled = True
+        cfg.team_broadcast = True
+        cfg.team_consume_opt_in = False
+        cfg.mbdp_allow_partywide_in_human_parties = False
+        cfg.mbdp_receiver_require_enabled = True
+        cfg.mbdp_strict_party_plus10 = True
+        _apply_mbdp_team_item_priority(TEAM_ITEM_PRIORITY_FORCE_INDEX)
+        cfg.mbdp_party_min_members = 2
+        cfg.mbdp_party_min_interval_ms = 12000
+        cfg.force_team_morale_value = max(-60, min(10, int(getattr(cfg, "mbdp_party_target_effective", 0) or 0)))
+        cfg.last_applied_preset = "Leader - Force Team Morale"
+        _last_mbdp_party_ms = 0
+        cfg.mark_dirty()
+
+    def _apply_team_morale_leader_off() -> None:
+        cfg.team_broadcast = False
+        cfg.mbdp_strict_party_plus10 = False
+        _mark_mbdp_preset_custom()
+        cfg.mark_dirty()
 
     def _tooltip_text_for(setting_key: str, fallback: str = "") -> str:
         def _sentence_lines(text: str) -> str:
@@ -2835,6 +3148,24 @@ try:
         "refined_jelly",
         "seal_of_the_dragon_empire",
         "wintergreen_candy_cane",
+    })
+    MBDP_SELF_TARGET_KEYS = (
+        "peppermint_candy_cane",
+        "refined_jelly",
+        "wintergreen_candy_cane",
+        "pumpkin_cookie",
+        "seal_of_the_dragon_empire",
+    )
+    MBDP_SELF_MORALE_KEYS = frozenset({
+        "pumpkin_cookie",
+        "seal_of_the_dragon_empire",
+    })
+    MBDP_SELF_LIGHT_DP_KEYS = frozenset({
+        "refined_jelly",
+        "wintergreen_candy_cane",
+    })
+    MBDP_SELF_STRONG_DP_KEYS = frozenset({
+        "peppermint_candy_cane",
     })
 
     # Central MB/DP defaults (player-friendly effective scale)
@@ -6943,6 +7274,22 @@ try:
             _rt.sync_summary_text = "No other-accounts action run yet."
             return
 
+        target_states = {str(status.get("state", "")) for status in statuses}
+        if any(state.startswith("target_") for state in target_states):
+            sent_count = sum(
+                1
+                for status in statuses
+                if str(status.get("state", "")) in ("target_sent", "target_applied", "target_skipped")
+            )
+            applied_count = sum(1 for status in statuses if str(status.get("state", "")) == "target_applied")
+            skipped_count = sum(1 for status in statuses if str(status.get("state", "")) == "target_skipped")
+            issue_count = sum(1 for status in statuses if str(status.get("state", "")) == "target_failed")
+            _rt.sync_summary_text = (
+                f"Last self-target sync: {sent_count} sent | {applied_count} applied | "
+                f"{skipped_count} skipped | {issue_count} issue(s)."
+            )
+            return
+
         written_count = sum(1 for status in statuses if str(status.get("state", "")) != "write_failed")
         requested_count = sum(1 for status in statuses if str(status.get("state", "")) == "reload_requested")
         reloaded_count = sum(1 for status in statuses if str(status.get("state", "")) == "reloaded")
@@ -7119,6 +7466,219 @@ try:
         )
         return bool(message_index != -1)
 
+    def _pycons_self_target_value_from_message(message) -> int:
+        try:
+            params = getattr(message, "Params", [0, 0, 0, 0]) or [0, 0, 0, 0]
+            return max(-60, min(10, int(float(params[1]))))
+        except Exception:
+            return 0
+
+    def _pycons_self_target_party_accounts() -> list[object]:
+        try:
+            self_email = str(Player.GetAccountEmail() or "").strip()
+            if not self_email:
+                return []
+            accounts, _my_party_id_unused, _party_rows_count_unused = _resolve_same_party_accounts_for_opt_toggle(self_email)
+        except Exception:
+            return []
+
+        self_norm = _normalize_sync_account_email(self_email)
+        out = []
+        seen = set()
+        for acc in list(accounts or []):
+            raw_email = str(_acc_email(acc) or "").strip()
+            email_norm = _normalize_sync_account_email(raw_email)
+            if not raw_email or not email_norm or email_norm == self_norm or email_norm in seen:
+                continue
+            seen.add(email_norm)
+            if not bool(getattr(acc, "IsSlotActive", False)):
+                continue
+            if not bool(getattr(acc, "IsAccount", False)):
+                continue
+            if bool(getattr(acc, "IsHero", False)):
+                continue
+            _is_broadcaster, is_optin = _load_team_flags_for_email(raw_email)
+            if not bool(is_optin):
+                continue
+            out.append(acc)
+        out.sort(key=lambda acc: (_acc_party_position(acc), _pycons_sync_account_display_name(acc).lower(), _normalize_sync_account_email(_acc_email(acc))))
+        return out
+
+    def _pycons_sync_send_self_target_request(account_email: str, request_id: str, target_eff: int) -> bool:
+        sender_email = str(Player.GetAccountEmail() or "").strip()
+        receiver_email = str(account_email or "").strip()
+        if not sender_email or not receiver_email:
+            return False
+        target_eff = max(-60, min(10, int(target_eff)))
+        message_index = GLOBAL_CACHE.ShMem.SendMessage(
+            sender_email,
+            receiver_email,
+            SharedCommandType.Pycons,
+            (float(PYCONS_SYNC_OPCODE_SET_SELF_MBDP_TARGET), float(target_eff), 0.0, 0.0),
+            (
+                str(request_id or ""),
+                "Self target morale/DP",
+                f"Apply self target {_fmt_effective(target_eff)}.",
+                "",
+            ),
+        )
+        return bool(message_index != -1)
+
+    def _pycons_sender_is_same_party(sender_email: str) -> bool:
+        sender = str(sender_email or "").strip()
+        if not sender:
+            return False
+        try:
+            sender_acc = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(sender)
+        except Exception:
+            sender_acc = None
+
+        try:
+            self_email = str(Player.GetAccountEmail() or "").strip()
+        except Exception:
+            self_email = ""
+        try:
+            self_acc = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(self_email) if self_email else None
+        except Exception:
+            self_acc = None
+
+        sender_party_id = _acc_party_id(sender_acc) if sender_acc is not None else 0
+        self_party_id = _acc_party_id(self_acc) if self_acc is not None else 0
+        if self_party_id <= 0:
+            try:
+                self_party_id = int(GLOBAL_CACHE.Party.GetPartyID() or 0)
+            except Exception:
+                self_party_id = 0
+        if sender_party_id > 0 and self_party_id > 0:
+            return bool(int(sender_party_id) == int(self_party_id))
+
+        sender_name_norm = _normalize_name(_acc_name(sender_acc)) if sender_acc is not None else ""
+        if not sender_name_norm:
+            return False
+        try:
+            party_names = {str(row.get("name_norm", "") or "") for row in _get_party_player_rows()}
+        except Exception:
+            party_names = set()
+        return bool(sender_name_norm in party_names)
+
+    def _pycons_handle_self_target_request(message, sender_email: str, receiver_email: str, request_id: str) -> bool:
+        try:
+            local_email = str(Player.GetAccountEmail() or "").strip()
+        except Exception:
+            local_email = ""
+
+        def send_result(status_label: str, summary: str, detail: str = "", success: bool = False) -> None:
+            try:
+                if local_email and sender_email:
+                    pycons_send_sync_result_message(
+                        local_email,
+                        sender_email,
+                        request_id=request_id,
+                        status_label=status_label,
+                        summary=summary,
+                        detail=detail,
+                        success_flag=bool(success),
+                    )
+            except Exception:
+                pass
+
+        if not sender_email or not local_email:
+            send_result(
+                "Target Failed",
+                "Self target could not be applied because sender or receiver account email was unavailable.",
+                success=False,
+            )
+            return False
+
+        if receiver_email and _normalize_sync_account_email(receiver_email) != _normalize_sync_account_email(local_email):
+            send_result(
+                "Target Skipped",
+                "Self target message was not addressed to this account.",
+                success=False,
+            )
+            return False
+
+        if not bool(getattr(cfg, "team_consume_opt_in", False)):
+            send_result(
+                "Target Skipped",
+                "Self target was ignored because this account is not opted in.",
+                success=False,
+            )
+            return False
+
+        if not _pycons_sender_is_same_party(sender_email):
+            send_result(
+                "Target Skipped",
+                "Self target was ignored because the sender is not in this account's party.",
+                success=False,
+            )
+            return False
+
+        target_eff = _pycons_self_target_value_from_message(message)
+        previous_target = max(-60, min(10, int(getattr(cfg, "mbdp_self_morale_target_effective", 0) or 0)))
+        if int(previous_target) != int(target_eff):
+            cfg.mbdp_self_morale_target_effective = int(target_eff)
+            _mark_mbdp_preset_custom()
+            cfg.mark_dirty()
+            cfg.save_if_dirty_throttled(0)
+
+        send_result(
+            "Target Applied",
+            f"Self target morale/DP set to {_fmt_effective(target_eff)}.",
+            detail="No item was used; local Pycons logic will act on the next normal tick.",
+            success=True,
+        )
+        _debug(
+            f"Applied self target morale/DP {_fmt_effective(target_eff)} from {sender_email}; "
+            f"previous={_fmt_effective(previous_target)}."
+        )
+        return True
+
+    def _pycons_start_apply_self_target_to_party():
+        try:
+            target_eff = max(-60, min(10, int(getattr(cfg, "mbdp_self_morale_target_effective", 0) or 0)))
+            target_accounts = _pycons_self_target_party_accounts()
+            if not target_accounts:
+                _rt.sync_summary_text = "No opted-in Pycons party accounts found for self-target sync."
+                _log("No opted-in Pycons party accounts found for self-target sync.", Console.MessageType.Warning)
+                return
+
+            _rt.sync_statuses = {}
+            _rt.sync_active_request_id = _pycons_sync_next_request_id()
+            request_id = str(_rt.sync_active_request_id or "")
+            sent_count = 0
+
+            for acc in target_accounts:
+                account_email = str(_acc_email(acc) or "").strip()
+                if not account_email:
+                    continue
+                if _pycons_sync_send_self_target_request(account_email, request_id, target_eff):
+                    sent_count += 1
+                    _pycons_sync_set_status(
+                        account_email,
+                        state="target_sent",
+                        status_label="Target Sent",
+                        summary=f"Self target {_fmt_effective(target_eff)} sent; waiting for result.",
+                        success=False,
+                    )
+                else:
+                    _pycons_sync_set_status(
+                        account_email,
+                        state="target_failed",
+                        status_label="Target Failed",
+                        summary=f"Self target {_fmt_effective(target_eff)} could not be sent.",
+                        detail="The target account may not have Pycons loaded.",
+                        success=False,
+                    )
+
+            message_type = Console.MessageType.Info if sent_count > 0 else Console.MessageType.Warning
+            _log(
+                f"Sent self target {_fmt_effective(target_eff)} to {sent_count}/{len(target_accounts)} opted-in party account(s).",
+                message_type,
+            )
+        except Exception as exc:
+            _log(f"Self target sync failed: {exc}", Console.MessageType.Warning)
+
     def pycons_reply_reload_unavailable_for_message(message) -> bool:
         if _pycons_message_opcode(message) != PYCONS_SYNC_OPCODE_RELOAD_CONFIG:
             return False
@@ -7154,6 +7714,9 @@ try:
                         success_flag=success_flag,
                     )
                 )
+
+            if opcode == PYCONS_SYNC_OPCODE_SET_SELF_MBDP_TARGET:
+                return _pycons_handle_self_target_request(message, sender_email, receiver_email, request_id)
 
             if opcode != PYCONS_SYNC_OPCODE_RELOAD_CONFIG:
                 ConsoleLog(
@@ -7328,6 +7891,12 @@ try:
             state = "reload_unavailable"
         elif status_label_clean == "Reload Failed":
             state = "reload_failed"
+        elif status_label_clean == "Target Applied":
+            state = "target_applied"
+        elif status_label_clean == "Target Skipped":
+            state = "target_skipped"
+        elif status_label_clean == "Target Failed":
+            state = "target_failed"
         else:
             state = "reloaded" if bool(success_flag) else "reload_failed"
 
@@ -7517,6 +8086,139 @@ try:
             return None, 0
         return spec, item_id
 
+    def _mbdp_project_self_item_effective(key: str, current_eff: int) -> int:
+        cur = max(-60, min(10, int(current_eff)))
+        key = str(key or "")
+        if key in MBDP_SELF_MORALE_KEYS:
+            return min(10, cur + 10)
+        if key in MBDP_SELF_LIGHT_DP_KEYS:
+            if cur >= 0:
+                return cur
+            return min(0, cur + 15)
+        if key in MBDP_SELF_STRONG_DP_KEYS:
+            if cur >= 0:
+                return cur
+            return 0
+        return cur
+
+    def _mbdp_self_item_rank(key: str) -> int:
+        key = str(key or "")
+        morale_order = (
+            ("seal_of_the_dragon_empire", "pumpkin_cookie")
+            if bool(getattr(cfg, "mbdp_prefer_seal_for_recharge", False))
+            else ("pumpkin_cookie", "seal_of_the_dragon_empire")
+        )
+        rank = {
+            "refined_jelly": 10,
+            "wintergreen_candy_cane": 11,
+            "peppermint_candy_cane": 30,
+        }
+        for idx, morale_key in enumerate(morale_order):
+            rank[str(morale_key)] = 20 + int(idx)
+        return int(rank.get(key, 99))
+
+    def _mbdp_self_target_candidates() -> list[dict]:
+        candidates = []
+        for key in MBDP_SELF_TARGET_KEYS:
+            spec, item_id = _find_item_enabled_and_available(key)
+            if not spec or item_id <= 0:
+                continue
+            t = _timer_for(key)
+            cd = _cooldown_for_key(key, spec)
+            if not (t.IsStopped() or t.HasElapsed(int(cd))):
+                continue
+            model_id = int(spec.get("model_id", 0) or 0)
+            known, count = _stock_status_for_model_id(model_id)
+            if bool(known) and int(count) <= 0:
+                continue
+            if int(count) <= 0:
+                count = 1
+            candidates.append({
+                "key": str(key),
+                "spec": spec,
+                "item_id": int(item_id),
+                "count": int(max(1, min(8, int(count)))),
+                "rank": _mbdp_self_item_rank(key),
+            })
+        return candidates
+
+    def _mbdp_self_plan_score(final_eff: int, target_eff: int, plan: list[str]) -> tuple:
+        final_eff = max(-60, min(10, int(final_eff)))
+        target_eff = max(-60, min(10, int(target_eff)))
+        strong_count = sum(1 for key in plan if str(key) in MBDP_SELF_STRONG_DP_KEYS)
+        first_rank = _mbdp_self_item_rank(plan[0]) if plan else 999
+        return (
+            abs(int(target_eff) - int(final_eff)),
+            max(0, int(target_eff) - int(final_eff)),
+            max(0, int(final_eff) - int(target_eff)),
+            int(strong_count),
+            len(plan),
+            int(first_rank),
+            tuple(_mbdp_self_item_rank(k) for k in plan),
+        )
+
+    def _mbdp_find_self_target_plan(current_eff: int, target_eff: int, candidates: list[dict]) -> list[str]:
+        current_eff = max(-60, min(10, int(current_eff)))
+        target_eff = max(-60, min(10, int(target_eff)))
+        if current_eff >= target_eff or not candidates:
+            return []
+
+        by_key = {str(c.get("key", "") or ""): c for c in candidates if str(c.get("key", "") or "")}
+        counts = {key: int(max(0, int(c.get("count", 0) or 0))) for key, c in by_key.items()}
+        ordered_keys = sorted(by_key.keys(), key=_mbdp_self_item_rank)
+        max_depth = int(min(8, max(1, sum(counts.values()))))
+        min_morale_gain = max(0, min(10, int(getattr(cfg, "mbdp_self_min_morale_gain", 0) or 0)))
+        baseline_score = _mbdp_self_plan_score(current_eff, target_eff, [])
+        best_score = None
+        best_plan: list[str] = []
+
+        def consider(eff: int, plan: list[str]):
+            nonlocal best_score, best_plan
+            if not plan:
+                return
+            score = _mbdp_self_plan_score(eff, target_eff, plan)
+            if score >= baseline_score:
+                return
+            if best_score is None or score < best_score:
+                best_score = score
+                best_plan = list(plan)
+
+        def dfs(eff: int, plan: list[str]):
+            consider(eff, plan)
+            if len(plan) >= max_depth or eff >= target_eff:
+                return
+
+            for key in ordered_keys:
+                if int(counts.get(key, 0) or 0) <= 0:
+                    continue
+                projected = _mbdp_project_self_item_effective(key, eff)
+                if projected <= eff:
+                    continue
+
+                if key in MBDP_SELF_MORALE_KEYS:
+                    useful_gain = max(0, min(int(projected), int(target_eff)) - int(eff))
+                    if int(useful_gain) < int(min_morale_gain):
+                        continue
+
+                if key in MBDP_SELF_LIGHT_DP_KEYS:
+                    light_gain = max(0, int(projected) - int(eff))
+                    if int(light_gain) < 15:
+                        continue
+
+                if key in MBDP_SELF_STRONG_DP_KEYS:
+                    strong_gain = max(0, int(projected) - int(eff))
+                    if int(strong_gain) < 15:
+                        continue
+
+                counts[key] = int(counts.get(key, 0) or 0) - 1
+                plan.append(key)
+                dfs(int(projected), plan)
+                plan.pop()
+                counts[key] = int(counts.get(key, 0) or 0) + 1
+
+        dfs(current_eff, [])
+        return list(best_plan)
+
     def _compute_party_morale_states(eligible_name_norms: set, party_rows: list, same_party_accounts: list):
         morale_by_agent = {}
         try:
@@ -7603,52 +8305,50 @@ try:
             st.Start()
             _debug(f"MB/DP SELF state: raw={self_state['raw']} effective={_fmt_effective(self_eff)} dp={self_dp}")
 
-        # Self DP upkeep: remove-all first if high DP.
-        self_major_dp_threshold = max(0, -int(cfg.mbdp_self_dp_major_threshold))
-        self_minor_dp_threshold = max(0, -int(cfg.mbdp_self_dp_minor_threshold))
+        if str(self_state.get("format", "")) == "unknown":
+            _debug("MB/DP SELF skip: morale state is unavailable.")
+            return False
 
-        if self_dp >= self_major_dp_threshold:
-            spec, item_id = _find_item_enabled_and_available("peppermint_candy_cane")
-            if spec and item_id > 0:
-                _debug(
-                    f"MB/DP SELF fire {spec['label']}: raw={self_state['raw']} eff={_fmt_effective(self_eff)} "
-                    f"dp={self_dp} trigger={_fmt_effective(cfg.mbdp_self_dp_major_threshold)} (~{self_major_dp_threshold}% DP)"
-                )
-                if _use_item_id(item_id, spec["key"]):
-                    aftercast_timer.Start()
-                    _last_used_ms[spec["key"]] = _now_ms()
-                    return True
+        target_eff = max(-60, min(10, int(getattr(cfg, "mbdp_self_morale_target_effective", 0) or 0)))
+        if self_eff >= target_eff:
+            return False
 
-        if self_dp >= self_minor_dp_threshold:
-            for key in ("refined_jelly", "wintergreen_candy_cane"):
-                spec, item_id = _find_item_enabled_and_available(key)
-                if spec and item_id > 0:
-                    _debug(
-                        f"MB/DP SELF fire {spec['label']}: raw={self_state['raw']} eff={_fmt_effective(self_eff)} "
-                        f"dp={self_dp} trigger={_fmt_effective(cfg.mbdp_self_dp_minor_threshold)} (~{self_minor_dp_threshold}% DP)"
-                    )
-                    if _use_item_id(item_id, spec["key"]):
-                        aftercast_timer.Start()
-                        _last_used_ms[spec["key"]] = _now_ms()
-                        return True
-                    break
+        now = _now_ms()
+        last_self_use = int(_last_used_ms.get("mbdp_self_target_any", 0) or 0)
+        if last_self_use > 0 and (int(now) - int(last_self_use)) < int(MBDP_SELF_TARGET_SETTLE_MS):
+            return False
 
-        # Self morale upkeep: only fire if gain would not be mostly wasted.
-        gain_if_10 = max(0, min(10, 10 - self_eff))
-        if self_eff < int(cfg.mbdp_self_morale_target_effective) and gain_if_10 >= int(cfg.mbdp_self_min_morale_gain):
-            order = ("seal_of_the_dragon_empire", "pumpkin_cookie") if bool(cfg.mbdp_prefer_seal_for_recharge) else ("pumpkin_cookie", "seal_of_the_dragon_empire")
-            for key in order:
-                spec, item_id = _find_item_enabled_and_available(key)
-                if spec and item_id > 0:
-                    _debug(
-                        f"MB/DP SELF fire {spec['label']}: raw={self_state['raw']} eff={_fmt_effective(self_eff)} dp={self_dp} "
-                        f"target={_fmt_effective(cfg.mbdp_self_morale_target_effective)} gain10={gain_if_10}"
-                    )
-                    if _use_item_id(item_id, spec["key"]):
-                        aftercast_timer.Start()
-                        _last_used_ms[spec["key"]] = _now_ms()
-                        return True
-                    break
+        candidates = _mbdp_self_target_candidates()
+        plan = _mbdp_find_self_target_plan(self_eff, target_eff, candidates)
+        if not plan:
+            _debug(
+                f"MB/DP SELF skip: no safe self-use item moves eff={_fmt_effective(self_eff)} "
+                f"toward target={_fmt_effective(target_eff)}."
+            )
+            return False
+
+        chosen_key = str(plan[0])
+        chosen = next((c for c in candidates if str(c.get("key", "") or "") == chosen_key), None)
+        if not chosen:
+            return False
+        spec = chosen.get("spec")
+        item_id = int(chosen.get("item_id", 0) or 0)
+        if not spec or item_id <= 0:
+            return False
+
+        projected = _mbdp_project_self_item_effective(chosen_key, self_eff)
+        plan_text = " -> ".join(str(k) for k in plan)
+        _debug(
+            f"MB/DP SELF fire {spec['label']}: eff={_fmt_effective(self_eff)} "
+            f"target={_fmt_effective(target_eff)} projected={_fmt_effective(projected)} plan={plan_text}"
+        )
+        if _use_item_id(item_id, spec["key"]):
+            t = _timer_for(spec["key"])
+            t.Start()
+            aftercast_timer.Start()
+            _last_used_ms[spec["key"]] = int(now)
+            _last_used_ms["mbdp_self_target_any"] = int(now)
+            return True
         return False
 
     def _mbdp_prepare_party_context():
@@ -7736,9 +8436,17 @@ try:
             _debug(f"MB/DP PARTY sample: {states[0]['name']} raw={states[0]['raw']} effective={_fmt_effective(states[0]['effective'])} dp={states[0]['dp']}")
 
         total_dp = sum(int(s["dp"]) for s in states)
-        party_light_dp_threshold = max(0, -int(cfg.mbdp_party_light_dp_threshold))
-        party_heavy_dp_threshold = max(0, -int(cfg.mbdp_party_heavy_dp_threshold))
-        party_emergency_dp_threshold = max(0, -int(cfg.mbdp_powerstone_dp_threshold))
+        priority_idx = _mbdp_team_item_priority_index()
+        priority_tuning = _mbdp_team_item_priority_tuning(int(priority_idx))
+        if priority_tuning and int(priority_idx) != int(TEAM_ITEM_PRIORITY_CUSTOM_INDEX):
+            _gain5_tuning, _gain10_tuning, light_tuning, heavy_tuning, emergency_tuning = priority_tuning
+            party_light_dp_threshold = max(0, -int(light_tuning))
+            party_heavy_dp_threshold = max(0, -int(heavy_tuning))
+            party_emergency_dp_threshold = max(0, -int(emergency_tuning))
+        else:
+            party_light_dp_threshold = max(0, -int(cfg.mbdp_party_light_dp_threshold))
+            party_heavy_dp_threshold = max(0, -int(cfg.mbdp_party_heavy_dp_threshold))
+            party_emergency_dp_threshold = max(0, -int(cfg.mbdp_powerstone_dp_threshold))
         light_cnt = sum(1 for s in states if int(s["dp"]) >= party_light_dp_threshold)
         heavy_cnt = sum(1 for s in states if int(s["dp"]) >= party_heavy_dp_threshold)
         emergency_cnt = sum(1 for s in states if int(s["dp"]) >= party_emergency_dp_threshold)
@@ -7755,6 +8463,8 @@ try:
             "party_rows": party_rows,
             "party_counts": party_counts,
             "states": states,
+            "target_states": list(target_states),
+            "priority_idx": int(priority_idx),
             "total_dp": int(total_dp),
             "light_cnt": int(light_cnt),
             "heavy_cnt": int(heavy_cnt),
@@ -7771,7 +8481,7 @@ try:
             "now": int(now),
         }
 
-    def _mbdp_build_party_candidates(ctx: dict) -> list[tuple[str, str]]:
+    def _mbdp_build_legacy_party_candidates(ctx: dict) -> list[tuple[str, str]]:
         candidate_choices = []
         if int(ctx["emergency_cnt"]) >= int(cfg.mbdp_party_min_members):
             candidate_choices.append(
@@ -7808,6 +8518,152 @@ try:
                     candidate_choices.append(("rainbow_candy_cane", gain5_reason))
                 candidate_choices.append(("honeycomb", gain5_reason))
         return candidate_choices
+
+    def _mbdp_party_projected_effective(key: str, effective: int) -> int:
+        eff = max(-60, min(10, int(effective)))
+        item_key = str(key or "")
+        if item_key in ("honeycomb", "rainbow_candy_cane"):
+            return min(10, eff + 5)
+        if item_key == "elixir_of_valor":
+            return min(10, eff + 10)
+        if item_key == "four_leaf_clover":
+            if eff >= 0:
+                return eff
+            # Four-Leaf Clover removes a random 5-15 DP; score it at the middle value.
+            return min(0, eff + 10)
+        if item_key == "oath_of_purity":
+            if eff >= 0:
+                return eff
+            return min(0, eff + 15)
+        if item_key == "powerstone_of_courage":
+            return 10
+        return eff
+
+    def _mbdp_party_candidate_stats(key: str, ctx: dict) -> dict:
+        target_eff = max(-60, min(10, int(cfg.mbdp_party_target_effective)))
+        target_states = list(ctx.get("target_states") or _morale_states_for_targeting(ctx.get("states", [])))
+        raw_gain = 0
+        target_gain = 0
+        waste = 0
+        dp_removed = 0
+        helped_members = 0
+        for state in target_states:
+            eff = max(-60, min(10, int(state.get("effective", 0) or 0)))
+            dp_before = max(0, int(state.get("dp", max(0, -eff)) or 0))
+            projected = _mbdp_party_projected_effective(key, eff)
+            projected_dp = max(0, -min(0, int(projected)))
+            member_raw_gain = max(0, int(projected) - int(eff))
+            before_missing = max(0, int(target_eff) - int(eff))
+            after_missing = max(0, int(target_eff) - int(projected))
+            member_target_gain = max(0, int(before_missing) - int(after_missing))
+            raw_gain += int(member_raw_gain)
+            target_gain += int(member_target_gain)
+            waste += max(0, int(member_raw_gain) - int(member_target_gain))
+            dp_removed += max(0, int(dp_before) - int(projected_dp))
+            if int(member_target_gain) > 0:
+                helped_members += 1
+        return {
+            "raw_gain": int(raw_gain),
+            "target_gain": int(target_gain),
+            "waste": int(waste),
+            "dp_removed": int(dp_removed),
+            "helped_members": int(helped_members),
+            "target_eff": int(target_eff),
+        }
+
+    def _mbdp_party_dp_trigger_count(key: str, ctx: dict) -> int:
+        item_key = str(key or "")
+        if item_key == "powerstone_of_courage":
+            return int(ctx.get("emergency_cnt", 0) or 0)
+        if item_key == "oath_of_purity":
+            return int(ctx.get("heavy_cnt", 0) or 0)
+        if item_key == "four_leaf_clover":
+            return int(ctx.get("light_cnt", 0) or 0)
+        return 0
+
+    def _mbdp_priority_required_members(ctx: dict, priority_idx: int, key: str) -> int:
+        rule = TEAM_ITEM_PRIORITY_SCORING.get(int(priority_idx), TEAM_ITEM_PRIORITY_SCORING[2])
+        state_count = max(1, len(ctx.get("target_states") or ctx.get("states") or []))
+        ratio_name = "powerstone_member_ratio" if str(key or "") == "powerstone_of_courage" else "dp_member_ratio"
+        ratio = max(0.0, min(1.0, float(rule.get(ratio_name, 0.0) or 0.0)))
+        ratio_count = int((float(state_count) * ratio) + 0.999)
+        return max(int(cfg.mbdp_party_min_members), int(ratio_count))
+
+    def _mbdp_party_candidate_score(key: str, ctx: dict, priority_idx: int) -> tuple[bool, int, str]:
+        item_key = str(key or "")
+        stats = _mbdp_party_candidate_stats(item_key, ctx)
+        target_gain = int(stats["target_gain"])
+        if target_gain <= 0:
+            return False, 0, "no target gain"
+
+        rule = TEAM_ITEM_PRIORITY_SCORING.get(int(priority_idx), TEAM_ITEM_PRIORITY_SCORING[2])
+        is_force = int(priority_idx) == int(TEAM_ITEM_PRIORITY_FORCE_INDEX)
+        is_morale_item = item_key in ("honeycomb", "rainbow_candy_cane", "elixir_of_valor")
+        is_dp_item = item_key in ("four_leaf_clover", "oath_of_purity", "powerstone_of_courage")
+
+        if is_morale_item and not is_force:
+            min_gain = int(cfg.mbdp_party_min_total_gain_10)
+            if item_key in ("honeycomb", "rainbow_candy_cane"):
+                min_gain = int(cfg.mbdp_party_min_total_gain_5)
+            if target_gain < int(min_gain):
+                return False, 0, f"target_gain={target_gain} min={min_gain}"
+
+        if is_dp_item:
+            trigger_count = _mbdp_party_dp_trigger_count(item_key, ctx)
+            required_members = _mbdp_priority_required_members(ctx, int(priority_idx), item_key)
+            if int(trigger_count) < int(required_members):
+                return False, 0, f"dp_members={trigger_count} need={required_members}"
+            min_dp_gain = int(rule.get("min_dp_target_gain", 1) or 1)
+            if item_key == "powerstone_of_courage":
+                min_dp_gain = int(rule.get("min_powerstone_target_gain", min_dp_gain) or min_dp_gain)
+            if target_gain < int(min_dp_gain):
+                return False, 0, f"target_gain={target_gain} min_dp_gain={min_dp_gain}"
+
+        rarity_penalty = {
+            "honeycomb": 8,
+            "rainbow_candy_cane": 10,
+            "elixir_of_valor": 18,
+            "four_leaf_clover": 16,
+            "oath_of_purity": 36,
+            "powerstone_of_courage": int(rule.get("rare_penalty", 130) or 130),
+        }.get(item_key, 20)
+        waste_penalty = int(rule.get("waste_penalty", 35) or 35)
+        score = (
+            (target_gain * 100)
+            + (int(stats["dp_removed"]) * 10)
+            + (int(stats["helped_members"]) * 25)
+            - (int(stats["waste"]) * int(waste_penalty))
+            - int(rarity_penalty)
+        )
+        reason = (
+            f"target={_fmt_effective(int(stats['target_eff']))} target_gain={target_gain} "
+            f"raw_gain={stats['raw_gain']} waste={stats['waste']} dp_removed={stats['dp_removed']} "
+            f"helped={stats['helped_members']} priority={TEAM_ITEM_PRIORITY_OPTIONS[int(priority_idx)]} "
+            f"score={score}"
+        )
+        return True, int(score), reason
+
+    def _mbdp_build_party_candidates(ctx: dict) -> list[tuple[str, str]]:
+        priority_idx = _mbdp_team_item_priority_index()
+        if int(priority_idx) == int(TEAM_ITEM_PRIORITY_CUSTOM_INDEX):
+            return _mbdp_build_legacy_party_candidates(ctx)
+
+        candidates = []
+        item_order = (
+            "powerstone_of_courage",
+            "oath_of_purity",
+            "four_leaf_clover",
+            "elixir_of_valor",
+            "rainbow_candy_cane",
+            "honeycomb",
+        )
+        for order, key in enumerate(item_order):
+            valid, score, reason = _mbdp_party_candidate_score(key, ctx, int(priority_idx))
+            if valid:
+                candidates.append((int(score), int(order), key, reason))
+
+        candidates.sort(key=lambda row: (-int(row[0]), int(row[1])))
+        return [(str(key), str(reason)) for _score, _order, key, reason in candidates]
 
     def _mbdp_select_candidate_item(candidate_choices: list[tuple[str, str]]):
         chosen_key = None
@@ -10250,6 +11106,10 @@ try:
                 _mark_mbdp_preset_custom()
             _show_setting_tooltip("mbdp_enabled")
 
+            PyImGui.separator()
+
+            _section_text("Team safety:", "settings_mbdp")
+
             changed, v = ui_checkbox("Allow party-wide items with extra human players##pycons_mbdp_human", bool(cfg.mbdp_allow_partywide_in_human_parties))
             if changed:
                 cfg.mbdp_allow_partywide_in_human_parties = bool(v)
@@ -10263,102 +11123,6 @@ try:
                 cfg.mark_dirty()
                 _mark_mbdp_preset_custom()
             _show_setting_tooltip("mbdp_receiver_require_enabled")
-
-            changed, v = ui_checkbox("Prefer Seal over Pumpkin for self +10 morale##pycons_mbdp_prefer_seal", bool(cfg.mbdp_prefer_seal_for_recharge))
-            if changed:
-                cfg.mbdp_prefer_seal_for_recharge = bool(v)
-                cfg.mark_dirty()
-                _mark_mbdp_preset_custom()
-            _show_setting_tooltip("mbdp_prefer_seal_for_recharge")
-
-            if PyImGui.button("Restore default morale/DP settings##pycons_mbdp_restore_defaults"):
-                _apply_mbdp_defaults()
-                _mark_mbdp_preset_custom()
-                _debug("MB/DP settings restored to defaults.", Console.MessageType.Info)
-                cfg.save_if_dirty_throttled(0)
-            _show_setting_tooltip("mbdp_restore_defaults")
-
-            PyImGui.separator()
-            PyImGui.text("Quick role presets:")
-
-            if PyImGui.button("Apply: Solo Safe##pycons_preset_apply_solo_safe"):
-                _apply_builtin_preset("solo_safe")
-            _show_setting_tooltip("preset_solo_safe")
-
-            if PyImGui.button("Apply: Leader - Force Team Morale##pycons_preset_apply_leader_force"):
-                _apply_builtin_preset(LEADER_FORCE_PRESET_KEY)
-            _show_setting_tooltip("preset_leader_force_plus10_team")
-            _same_line(10)
-            PyImGui.text("Value:")
-            _same_line(6)
-            changed_force_val, force_val = ui_input_int_fixed(
-                "##pycons_preset_force_team_morale_value",
-                int(getattr(cfg, "force_team_morale_value", 0)),
-                width=110.0,
-            )
-            if changed_force_val:
-                new_force = max(-60, min(10, int(force_val)))
-                if int(getattr(cfg, "force_team_morale_value", 0)) != int(new_force):
-                    cfg.force_team_morale_value = int(new_force)
-                    cfg.mark_dirty()
-                    # Keep live-apply behavior only when strict mode is currently active.
-                    if bool(cfg.mbdp_strict_party_plus10):
-                        _apply_builtin_preset(LEADER_FORCE_PRESET_KEY, announce=False)
-                    else:
-                        _mark_mbdp_preset_custom()
-            _show_setting_tooltip("preset_leader_force_plus10_team")
-            _same_line(8)
-            leader_force_active = _is_leader_force_team_morale_active()
-            if _badge_button(
-                "ON" if leader_force_active else "OFF",
-                enabled=leader_force_active,
-                id_suffix="pycons_preset_leader_force_strict_toggle",
-            ):
-                if leader_force_active:
-                    cfg.mbdp_strict_party_plus10 = False
-                    _mark_mbdp_preset_custom()
-                    cfg.mark_dirty()
-                else:
-                    _apply_builtin_preset(LEADER_FORCE_PRESET_KEY, announce=False)
-            _show_setting_tooltip("preset_leader_force_plus10_team")
-
-            PyImGui.separator()
-
-            PyImGui.text(f"Your light DP cleanup starts at ({_fmt_effective(cfg.mbdp_self_dp_minor_threshold)}):")
-            _same_line(10)
-            changed, val = ui_input_int_fixed("##pycons_mbdp_self_minor", int(cfg.mbdp_self_dp_minor_threshold))
-            if changed:
-                cfg.mbdp_self_dp_minor_threshold = max(-60, min(0, int(val)))
-                cfg.mark_dirty()
-                _mark_mbdp_preset_custom()
-            _show_setting_tooltip("mbdp_self_dp_minor_threshold")
-
-            PyImGui.text(f"Your stronger DP cleanup starts at ({_fmt_effective(cfg.mbdp_self_dp_major_threshold)}):")
-            _same_line(10)
-            changed, val = ui_input_int_fixed("##pycons_mbdp_self_major", int(cfg.mbdp_self_dp_major_threshold))
-            if changed:
-                cfg.mbdp_self_dp_major_threshold = max(-60, min(0, int(val)))
-                cfg.mark_dirty()
-                _mark_mbdp_preset_custom()
-            _show_setting_tooltip("mbdp_self_dp_major_threshold")
-
-            PyImGui.text(f"Your morale target ({_fmt_effective(cfg.mbdp_self_morale_target_effective)}):")
-            _same_line(10)
-            changed, val = ui_input_int_fixed("##pycons_mbdp_self_target", int(cfg.mbdp_self_morale_target_effective))
-            if changed:
-                cfg.mbdp_self_morale_target_effective = max(-60, min(10, int(val)))
-                cfg.mark_dirty()
-                _mark_mbdp_preset_custom()
-            _show_setting_tooltip("mbdp_self_morale_target_effective")
-
-            PyImGui.text("Minimum useful morale gain for you:")
-            _same_line(10)
-            changed, val = ui_input_int_fixed("##pycons_mbdp_self_gain", int(cfg.mbdp_self_min_morale_gain))
-            if changed:
-                cfg.mbdp_self_min_morale_gain = max(0, min(10, int(val)))
-                cfg.mark_dirty()
-                _mark_mbdp_preset_custom()
-            _show_setting_tooltip("mbdp_self_min_morale_gain")
 
             PyImGui.text("Party members needed before team items:")
             _same_line(10)
@@ -10378,59 +11142,224 @@ try:
                 _mark_mbdp_preset_custom()
             _show_setting_tooltip("mbdp_party_min_interval_ms")
 
-            PyImGui.text(f"Party morale target ({_fmt_effective(cfg.mbdp_party_target_effective)}):")
+            if PyImGui.button("Restore default morale/DP settings##pycons_mbdp_restore_defaults"):
+                _apply_mbdp_defaults()
+                _mark_mbdp_preset_custom()
+                _debug("MB/DP settings restored to defaults.", Console.MessageType.Info)
+                cfg.save_if_dirty_throttled(0)
+            _show_setting_tooltip("mbdp_restore_defaults")
+
+            PyImGui.separator()
+            _section_text("Self and team controls:", "settings_mbdp")
+
+            key_control_label_x = 190.0
+            key_control_input_width = 96.0
+            key_control_combo_width = 250.0
+            key_control_label_color = (0.68, 0.96, 0.66, 1.00)
+
+            _text_with_color(
+                f"Self target morale/DP ({_fmt_effective(cfg.mbdp_self_morale_target_effective)}):",
+                key_control_label_color,
+            )
+            _same_line_at(key_control_label_x, 10)
+            changed, val = ui_input_int_fixed(
+                "##pycons_mbdp_self_target",
+                int(cfg.mbdp_self_morale_target_effective),
+                width=key_control_input_width,
+            )
+            if changed:
+                cfg.mbdp_self_morale_target_effective = max(-60, min(10, int(val)))
+                cfg.mark_dirty()
+                _mark_mbdp_preset_custom()
+            _show_setting_tooltip("mbdp_self_morale_target_effective")
             _same_line(10)
-            changed, val = ui_input_int_fixed("##pycons_mbdp_party_target", int(cfg.mbdp_party_target_effective))
+            if PyImGui.button("Apply target to party##pycons_mbdp_self_target_apply_party"):
+                _pycons_start_apply_self_target_to_party()
+            _show_setting_tooltip("mbdp_apply_self_target_to_party")
+
+            _text_with_color(
+                f"Party morale target ({_fmt_effective(cfg.mbdp_party_target_effective)}):",
+                key_control_label_color,
+            )
+            _same_line_at(key_control_label_x, 10)
+            changed, val = ui_input_int_fixed(
+                "##pycons_mbdp_party_target",
+                int(cfg.mbdp_party_target_effective),
+                width=key_control_input_width,
+            )
             if changed:
                 cfg.mbdp_party_target_effective = max(-60, min(10, int(val)))
                 cfg.mark_dirty()
                 _mark_mbdp_preset_custom()
             _show_setting_tooltip("mbdp_party_target_effective")
 
-            PyImGui.text("Minimum party gain before +5 item:")
-            _same_line(10)
-            changed, val = ui_input_int_fixed("##pycons_mbdp_party_gain5", int(cfg.mbdp_party_min_total_gain_5))
+            _text_with_color("Team item use priority:", key_control_label_color)
+            _same_line_at(key_control_label_x, 10)
+            current_priority = _mbdp_team_item_priority_index()
+            changed, priority_idx = ui_combo_fixed_with_item_tooltips(
+                "##pycons_mbdp_team_item_priority",
+                int(current_priority),
+                TEAM_ITEM_PRIORITY_OPTIONS,
+                TEAM_ITEM_PRIORITY_HELP,
+                width=key_control_combo_width,
+            )
             if changed:
-                cfg.mbdp_party_min_total_gain_5 = max(0, min(60, int(val)))
-                cfg.mark_dirty()
-                _mark_mbdp_preset_custom()
-            _show_setting_tooltip("mbdp_party_min_total_gain_5")
+                if int(priority_idx) == int(TEAM_ITEM_PRIORITY_FORCE_INDEX):
+                    priority_changed = _apply_mbdp_team_item_priority(int(priority_idx))
+                    if not bool(getattr(cfg, "mbdp_strict_party_plus10", False)):
+                        cfg.mbdp_strict_party_plus10 = True
+                        priority_changed = True
+                    if priority_changed:
+                        cfg.mark_dirty()
+                        _mark_mbdp_preset_custom()
+                elif int(priority_idx) != int(TEAM_ITEM_PRIORITY_CUSTOM_INDEX):
+                    priority_changed = _apply_mbdp_team_item_priority(int(priority_idx))
+                    if bool(getattr(cfg, "mbdp_strict_party_plus10", False)):
+                        cfg.mbdp_strict_party_plus10 = False
+                        priority_changed = True
+                    if priority_changed:
+                        cfg.mark_dirty()
+                        _mark_mbdp_preset_custom()
+            _show_setting_tooltip("mbdp_team_item_use_priority")
+            selected_priority_idx = _mbdp_team_item_priority_index()
+            _text_meta_wrapped(_team_item_priority_help_text(int(selected_priority_idx)))
+            if int(selected_priority_idx) == int(TEAM_ITEM_PRIORITY_FORCE_INDEX):
+                _text_with_color("Team morale leader:", key_control_label_color)
+                _same_line_at(key_control_label_x, 10)
+                team_morale_leader_active = _is_team_morale_leader_active()
+                if _badge_button(
+                    "ON" if team_morale_leader_active else "OFF",
+                    enabled=team_morale_leader_active,
+                    id_suffix="pycons_team_morale_leader_toggle",
+                ):
+                    if team_morale_leader_active:
+                        _apply_team_morale_leader_off()
+                    else:
+                        _apply_team_morale_leader_on()
+                _show_setting_tooltip("mbdp_team_morale_leader")
 
-            PyImGui.text("Minimum party gain before +10 item:")
-            _same_line(10)
-            changed, val = ui_input_int_fixed("##pycons_mbdp_party_gain10", int(cfg.mbdp_party_min_total_gain_10))
-            if changed:
-                cfg.mbdp_party_min_total_gain_10 = max(0, min(120, int(val)))
-                cfg.mark_dirty()
-                _mark_mbdp_preset_custom()
-            _show_setting_tooltip("mbdp_party_min_total_gain_10")
+            PyImGui.separator()
 
-            PyImGui.text(f"Party light DP cleanup starts at ({_fmt_effective(cfg.mbdp_party_light_dp_threshold)}):")
-            _same_line(10)
-            changed, val = ui_input_int_fixed("##pycons_mbdp_party_light", int(cfg.mbdp_party_light_dp_threshold))
-            if changed:
-                cfg.mbdp_party_light_dp_threshold = max(-60, min(0, int(val)))
-                cfg.mark_dirty()
-                _mark_mbdp_preset_custom()
-            _show_setting_tooltip("mbdp_party_light_dp_threshold")
+            legacy_self_open = _styled_collapsing_header(
+                "Advanced / legacy self-use tuning##pycons_mbdp_legacy_self_tuning",
+                False,
+                "settings_mbdp_legacy",
+            )
+            _show_setting_tooltip("mbdp_legacy_self_tuning")
+            if legacy_self_open:
+                legacy_note = (
+                    "These older self-use tuning options are kept for compatibility. Self target morale/DP now "
+                    "covers most normal self-use MB/DP behavior with automatic item choice and waste protection. "
+                    "These legacy options will be removed later once the new target-based behavior fully covers them."
+                )
+                _text_meta_wrapped(legacy_note)
 
-            PyImGui.text(f"Party heavy DP cleanup starts at ({_fmt_effective(cfg.mbdp_party_heavy_dp_threshold)}):")
-            _same_line(10)
-            changed, val = ui_input_int_fixed("##pycons_mbdp_party_heavy", int(cfg.mbdp_party_heavy_dp_threshold))
-            if changed:
-                cfg.mbdp_party_heavy_dp_threshold = max(-60, min(0, int(val)))
-                cfg.mark_dirty()
-                _mark_mbdp_preset_custom()
-            _show_setting_tooltip("mbdp_party_heavy_dp_threshold")
+                _section_text("Reset action:", "settings_mbdp_legacy", secondary=True)
+                if PyImGui.button("Local-only defaults##pycons_preset_apply_solo_safe"):
+                    _apply_builtin_preset("solo_safe")
+                _show_setting_tooltip("preset_solo_safe")
 
-            PyImGui.text(f"Powerstone emergency starts at ({_fmt_effective(cfg.mbdp_powerstone_dp_threshold)}):")
-            _same_line(10)
-            changed, val = ui_input_int_fixed("##pycons_mbdp_party_powerstone", int(cfg.mbdp_powerstone_dp_threshold))
-            if changed:
-                cfg.mbdp_powerstone_dp_threshold = max(-60, min(0, int(val)))
-                cfg.mark_dirty()
-                _mark_mbdp_preset_custom()
-            _show_setting_tooltip("mbdp_powerstone_dp_threshold")
+                PyImGui.text("Minimum useful self morale gain:")
+                _same_line(10)
+                changed, val = ui_input_int_fixed("##pycons_mbdp_self_gain", int(cfg.mbdp_self_min_morale_gain))
+                if changed:
+                    cfg.mbdp_self_min_morale_gain = max(0, min(10, int(val)))
+                    cfg.mark_dirty()
+                    _mark_mbdp_preset_custom()
+                _show_setting_tooltip("mbdp_self_min_morale_gain")
+
+                changed, v = ui_checkbox(
+                    "Prefer Seal over Pumpkin for self +10 morale##pycons_mbdp_prefer_seal",
+                    bool(cfg.mbdp_prefer_seal_for_recharge),
+                )
+                if changed:
+                    cfg.mbdp_prefer_seal_for_recharge = bool(v)
+                    cfg.mark_dirty()
+                    _mark_mbdp_preset_custom()
+                _show_setting_tooltip("mbdp_prefer_seal_for_recharge")
+
+                PyImGui.text(f"Your light DP cleanup starts at ({_fmt_effective(cfg.mbdp_self_dp_minor_threshold)}):")
+                _same_line(10)
+                changed, val = ui_input_int_fixed("##pycons_mbdp_self_minor", int(cfg.mbdp_self_dp_minor_threshold))
+                if changed:
+                    cfg.mbdp_self_dp_minor_threshold = max(-60, min(0, int(val)))
+                    cfg.mark_dirty()
+                    _mark_mbdp_preset_custom()
+                _show_setting_tooltip("mbdp_self_dp_minor_threshold")
+
+                PyImGui.text(
+                    f"Your stronger DP cleanup starts at ({_fmt_effective(cfg.mbdp_self_dp_major_threshold)}):"
+                )
+                _same_line(10)
+                changed, val = ui_input_int_fixed("##pycons_mbdp_self_major", int(cfg.mbdp_self_dp_major_threshold))
+                if changed:
+                    cfg.mbdp_self_dp_major_threshold = max(-60, min(0, int(val)))
+                    cfg.mark_dirty()
+                    _mark_mbdp_preset_custom()
+                _show_setting_tooltip("mbdp_self_dp_major_threshold")
+
+            PyImGui.separator()
+
+            legacy_team_item_open = _styled_collapsing_header(
+                "Advanced / legacy team item tuning##pycons_mbdp_legacy_team_item_tuning",
+                False,
+                "settings_mbdp_legacy",
+            )
+            _show_setting_tooltip("mbdp_legacy_team_item_tuning")
+            if legacy_team_item_open:
+                legacy_team_item_note = (
+                    "These older team morale and party DP cleanup thresholds are kept for compatibility and still "
+                    "affect team item decisions. Team item use priority sets these values for normal use. Editing "
+                    "them manually will show the priority as Custom."
+                )
+                _text_meta_wrapped(legacy_team_item_note)
+
+                PyImGui.text("Minimum party gain before +5 item:")
+                _same_line(10)
+                changed, val = ui_input_int_fixed("##pycons_mbdp_party_gain5", int(cfg.mbdp_party_min_total_gain_5))
+                if changed:
+                    cfg.mbdp_party_min_total_gain_5 = max(0, min(60, int(val)))
+                    cfg.mark_dirty()
+                    _mark_mbdp_preset_custom()
+                _show_setting_tooltip("mbdp_party_min_total_gain_5")
+
+                PyImGui.text("Minimum party gain before +10 item:")
+                _same_line(10)
+                changed, val = ui_input_int_fixed("##pycons_mbdp_party_gain10", int(cfg.mbdp_party_min_total_gain_10))
+                if changed:
+                    cfg.mbdp_party_min_total_gain_10 = max(0, min(120, int(val)))
+                    cfg.mark_dirty()
+                    _mark_mbdp_preset_custom()
+                _show_setting_tooltip("mbdp_party_min_total_gain_10")
+
+                PyImGui.separator()
+
+                PyImGui.text(f"Party light DP cleanup starts at ({_fmt_effective(cfg.mbdp_party_light_dp_threshold)}):")
+                _same_line(10)
+                changed, val = ui_input_int_fixed("##pycons_mbdp_party_light", int(cfg.mbdp_party_light_dp_threshold))
+                if changed:
+                    cfg.mbdp_party_light_dp_threshold = max(-60, min(0, int(val)))
+                    cfg.mark_dirty()
+                    _mark_mbdp_preset_custom()
+                _show_setting_tooltip("mbdp_party_light_dp_threshold")
+
+                PyImGui.text(f"Party heavy DP cleanup starts at ({_fmt_effective(cfg.mbdp_party_heavy_dp_threshold)}):")
+                _same_line(10)
+                changed, val = ui_input_int_fixed("##pycons_mbdp_party_heavy", int(cfg.mbdp_party_heavy_dp_threshold))
+                if changed:
+                    cfg.mbdp_party_heavy_dp_threshold = max(-60, min(0, int(val)))
+                    cfg.mark_dirty()
+                    _mark_mbdp_preset_custom()
+                _show_setting_tooltip("mbdp_party_heavy_dp_threshold")
+
+                PyImGui.text(f"Powerstone emergency starts at ({_fmt_effective(cfg.mbdp_powerstone_dp_threshold)}):")
+                _same_line(10)
+                changed, val = ui_input_int_fixed("##pycons_mbdp_party_powerstone", int(cfg.mbdp_powerstone_dp_threshold))
+                if changed:
+                    cfg.mbdp_powerstone_dp_threshold = max(-60, min(0, int(val)))
+                    cfg.mark_dirty()
+                    _mark_mbdp_preset_custom()
+                _show_setting_tooltip("mbdp_powerstone_dp_threshold")
 
             PyImGui.separator()
 
