@@ -3,12 +3,13 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from Py4GWCoreLib.BuildMgr import BuildCoroutine
-from Py4GWCoreLib import AgentArray, GLOBAL_CACHE, Range, Routines
+from Py4GWCoreLib import AgentArray, GLOBAL_CACHE, Range, Routines, Utils
 from Py4GWCoreLib.Agent import Agent
 from Py4GWCoreLib.Player import Player
 from Py4GWCoreLib.Skill import Skill
 
 if TYPE_CHECKING:
+    from HeroAI.custom_skill_src.skill_types import CustomSkill
     from Py4GWCoreLib.BuildMgr import BuildMgr
 
 __all__ = ["SoulReaping"]
@@ -18,8 +19,31 @@ class SoulReaping:
     def __init__(self, build: BuildMgr) -> None:
         self.build: BuildMgr = build
 
+    #region F
+    def Foul_Feast(self) -> BuildCoroutine:
+        foul_feast_id: int = Skill.GetID("Foul_Feast")
+        foul_feast: CustomSkill = self.build.GetCustomSkill(foul_feast_id)
+
+        if not self.build.IsSkillEquipped(foul_feast_id):
+            return False
+
+        target_agent_id = self.build.ResolveAllyTarget(
+            foul_feast_id,
+            foul_feast,
+        )
+        if not target_agent_id:
+            return False
+
+        return (yield from self.build.CastSkillIDAndRestoreTarget(
+            skill_id=foul_feast_id,
+            target_agent_id=target_agent_id,
+            log=False,
+            aftercast_delay=250,
+        ))
+    #endregion
+
     #region M
-    def Masochism(self) -> BuildCoroutine:
+    def Masochism(self, assume_active_ms: int = 25000) -> BuildCoroutine:
         masochism_id: int = Skill.GetID("Masochism")
 
         if not self.build.IsSkillEquipped(masochism_id):
@@ -30,6 +54,11 @@ class SoulReaping:
             return False
 
         player_agent_id = Player.GetAgentID()
+        now_ms = int(Utils.GetBaseTimestamp())
+        assumed_effects = getattr(self.build, "_self_effect_assumed_until", {})
+
+        if int(assumed_effects.get(masochism_id, 0) or 0) > now_ms:
+            return False
 
         # Refresh window: skip when Masochism is already up with more than
         # 2 seconds remaining. Cast otherwise — initial application when
@@ -39,16 +68,45 @@ class SoulReaping:
                 player_agent_id, masochism_id
             )
             if remaining_ms > 2000:
+                assumed_effects.pop(masochism_id, None)
                 return False
 
-        return (yield from self.build.CastSkillID(
+        cast_result = yield from self.build.CastSkillID(
             skill_id=masochism_id,
             log=False,
             aftercast_delay=250,
-        ))
+        )
+        if cast_result:
+            assumed_effects[masochism_id] = now_ms + max(0, int(assume_active_ms))
+            setattr(self.build, "_self_effect_assumed_until", assumed_effects)
+            return True
+
+        return False
     #endregion
 
     #region S
+    def Soul_Taker(self, refresh_window_ms: int = 2000) -> BuildCoroutine:
+        soul_taker_id: int = Skill.GetID("Soul_Taker")
+        player_agent_id = Player.GetAgentID()
+
+        if not self.build.IsSkillEquipped(soul_taker_id):
+            return False
+        if not (self.build.IsInAggro() or self.build.IsCloseToAggro()):
+            return False
+        if Routines.Checks.Agents.HasEffect(player_agent_id, soul_taker_id):
+            remaining_ms = int(GLOBAL_CACHE.Effects.GetEffectTimeRemaining(
+                player_agent_id,
+                soul_taker_id,
+            ) or 0)
+            if remaining_ms > refresh_window_ms:
+                return False
+
+        return (yield from self.build.CastSkillID(
+            skill_id=soul_taker_id,
+            log=False,
+            aftercast_delay=250,
+        ))
+
     def Signet_of_Lost_Souls(
         self,
         *,

@@ -118,6 +118,7 @@ class CombatClass:
         self.is_targeting_enabled: bool = False
         self.is_combat_enabled: bool = False
         self.is_skill_enabled: list[bool] = []
+
         self.blocked_skill_ids: set[int] = set()
         self.fast_casting_exists: bool = False
         self.fast_casting_level: int = 0
@@ -232,6 +233,38 @@ class CombatClass:
         self.unknown_junundu_ability = GLOBAL_CACHE.Skill.GetID("Unknown_Junundu_Ability")
         self.leave_junundu = GLOBAL_CACHE.Skill.GetID("Leave_Junundu")
         self.junundu_tunnel = GLOBAL_CACHE.Skill.GetID("Junundu_Tunnel")
+
+    @staticmethod
+    def _normalize_weapon_requirement_name(value: str) -> str:
+        text = ''.join(ch for ch in str(value or '') if ch.isalnum()).lower()
+        if text.startswith('weapon'):
+            text = text[6:]
+        return text
+
+    @classmethod
+    def _matches_required_weapon(cls, required_weapon: str) -> bool:
+        normalized_required_weapon = cls._normalize_weapon_requirement_name(required_weapon)
+        if not normalized_required_weapon:
+            return True
+
+        player_id = Player.GetAgentID()
+        if Agent.IsHoldingItem(player_id):
+            return False
+
+        if normalized_required_weapon in {"melee"}:
+            return Agent.IsMelee(player_id)
+
+        if normalized_required_weapon in {"rangedmartial"}:
+            return Agent.IsRanged(player_id)
+
+        if normalized_required_weapon == "caster":
+            return Agent.IsCaster(player_id)
+
+        if normalized_required_weapon == "ranged":
+            return Agent.IsRanged(player_id) or Agent.IsCaster(player_id)
+
+        _, current_weapon_name = Agent.GetWeaponType(player_id)
+        return cls._normalize_weapon_requirement_name(current_weapon_name) == normalized_required_weapon
         
     def Update(self, cached_data: CacheData) -> None:
         self.cached_data = cached_data
@@ -1056,6 +1089,7 @@ class CombatClass:
         feature_count += (1 if Conditions.SpiritsInRange > 0 else 0)
         feature_count += (1 if Conditions.MinionsInRange > 0 else 0)
         feature_count += (1 if Conditions.CloseToAggro else 0)
+        feature_count += (1 if str(Conditions.RequireWeapon or '').strip() else 0)
 
         if Conditions.IsAlive:
             if Routines.Checks.Agents.IsAlive(vTarget):
@@ -1363,7 +1397,13 @@ class CombatClass:
                 number_of_features += 1
             else:
                 return False
-            
+
+        if str(Conditions.RequireWeapon or '').strip():
+            if self._matches_required_weapon(Conditions.RequireWeapon):
+                number_of_features += 1
+            else:
+                return False
+             
 
         #Py4GW.Console.Log("AreCastConditionsMet", f"feature count: {feature_count}, No of features {number_of_features}", Py4GW.Console.MessageType.Info)
         
@@ -1471,6 +1511,16 @@ class CombatClass:
         if v_target is None or v_target == 0:
             self.in_casting_routine = False
             return False, 0
+
+        # Hex spells must never be cast on spirits.
+        if skill_type == SkillType.Hex.value:
+            v_target_allegiance, _ = Agent.GetAllegiance(v_target)
+            if Agent.IsSpirit(v_target) or (
+                v_target_allegiance == Allegiance.Enemy.value
+                and Agent.IsSpawned(v_target)
+            ):
+                self.in_casting_routine = False
+                return False, 0
 
         # --- Target-dependent checks ---
 

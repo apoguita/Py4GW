@@ -88,6 +88,7 @@ class Yield:
         @staticmethod
         def Upkeep_Imp():
             from .Checks import Checks
+            from ..Item import has_active_party_summon, has_summoning_sickness
             
             if ((not Checks.Map.MapValid())):
                 yield from Yield.wait(500)
@@ -109,19 +110,10 @@ class Yield:
 
             summoning_stone = ModelID.Igneous_Summoning_Stone.value
             stone_id = GLOBAL_CACHE.Inventory.GetFirstModelID(summoning_stone)
-            imp_effect_id = 2886
-            has_effect = GLOBAL_CACHE.Effects.HasEffect(Player.GetAgentID(), imp_effect_id)
+            has_effect = has_summoning_sickness(Player.GetAgentID())
 
-            imp_model_id = 513
             others = GLOBAL_CACHE.Party.GetOthers()
-            cast_imp = True  # Assume we should cast
-
-            for other in others:
-                if Agent.GetModelID(other) == imp_model_id:
-                    if not Agent.IsDead(other):
-                        # Imp is alive — no need to cast
-                        cast_imp = False
-                    break  # Found the imp, no need to keep checking
+            cast_imp = not has_active_party_summon(others)
 
             if stone_id and not has_effect and cast_imp:
                 GLOBAL_CACHE.Inventory.UseItem(stone_id)

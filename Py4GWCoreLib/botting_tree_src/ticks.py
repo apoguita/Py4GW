@@ -19,6 +19,8 @@ class BottingTreeTicksMixin:
         if isinstance(requested_enabled, bool):
             self.SetHeadlessHeroAIEnabled(requested_enabled, reset_runtime=requested_reset_runtime)
         bb['headless_heroai_enabled'] = self.IsHeadlessHeroAIEnabled()
+        if self.started and not self.paused and self.IsHeadlessHeroAIEnabled():
+            self._disable_heroai_widget_for_headless()
 
         requested_looting_enabled = bb.pop('looting_enabled_request', None)
         if isinstance(requested_looting_enabled, bool):
@@ -49,7 +51,6 @@ class BottingTreeTicksMixin:
             self.headless_heroai.reset()
             return BehaviorTree.NodeState.RUNNING
 
-        self._disable_heroai_widget_for_headless()
         self.EnsureHeroAIOptionsEnabled()
 
         if Routines.Checks.Map.IsLoading() or not Routines.Checks.Map.IsExplorable():

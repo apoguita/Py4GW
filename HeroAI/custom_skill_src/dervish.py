@@ -358,6 +358,7 @@ class DervishSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Scythe"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -365,6 +366,7 @@ class DervishSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Scythe"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -372,6 +374,7 @@ class DervishSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Scythe"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -379,6 +382,7 @@ class DervishSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Scythe"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -386,6 +390,7 @@ class DervishSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Scythe"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -393,6 +398,7 @@ class DervishSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Scythe"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -400,6 +406,7 @@ class DervishSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.EnemyCasting.value
         skill.Nature = SkillNature.Interrupt.value
+        skill.Conditions.RequireWeapon = "Scythe"
         skill.Conditions.IsCasting = True
         skill_data[skill.SkillID] = skill
 
@@ -408,6 +415,7 @@ class DervishSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Scythe"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -415,6 +423,7 @@ class DervishSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Scythe"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -422,6 +431,7 @@ class DervishSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Scythe"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -429,6 +439,7 @@ class DervishSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Scythe"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -436,6 +447,7 @@ class DervishSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Scythe"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -443,6 +455,7 @@ class DervishSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Scythe"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -450,6 +463,7 @@ class DervishSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Scythe"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -457,6 +471,7 @@ class DervishSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Scythe"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -464,6 +479,7 @@ class DervishSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Scythe"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -471,6 +487,7 @@ class DervishSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Scythe"
         skill_data[skill.SkillID] = skill
 
         #region WIND_PRAYERS

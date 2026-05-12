@@ -86,7 +86,12 @@ try:
         ImGui,          # NEW: needed for persisted windows
         SharedCommandType,
     )
-    from Py4GWCoreLib import ItemArray, Bag, Item, Effects, Player, Party, Bags, Agent, Quest
+    from Py4GWCoreLib import ItemArray, Bag, Item, Effects, Player, Party, Bags, Agent
+    from Py4GWCoreLib.Item import (
+        KNOWN_SUMMONING_STONE_CREATURE_MODEL_IDS,
+        SUMMONING_SICKNESS_EFFECT_ID as CORE_SUMMONING_SICKNESS_EFFECT_ID,
+        has_active_party_summon as core_has_active_party_summon,
+    )
     from Py4GWCoreLib.IniManager import IniManager  # NEW: persisted windows
     import threading
 
@@ -159,42 +164,8 @@ try:
     SUGAR_RUSH_LONG_MS = 5 * 60 * 1000
     SUMMONING_STONE_DURATION_MS = 30 * 60 * 1000
     IGNEOUS_SUMMON_DURATION_MS = 60 * 60 * 1000
-    SUMMONING_SICKNESS_EFFECT_ID = 2886
-    SUMMONING_RESTRICTED_QUEST_IDS = frozenset({
-        490,  # The Council is Called
-        503,  # All's Well That Ends Well
-        504,  # Warning Kehanni
-        505,  # Calling the Order
-        507,  # Pledge of the Merchant Princes
-        581,  # Heart or Mind: Garden in Danger
-        586,  # Heart or Mind: Ronjok in Danger
-        683,  # Securing Champions Dawn
-        730,  # Gain Goren
-        737,  # Battle Preparations
-    })
-    SUMMONING_RESTRICTED_MAP_IDS = frozenset({
-        119,  # Augury Rock mission
-        351,  # Divine Path
-        423,  # The Tribunal
-        436,  # Command Post
-        503,  # Throne of Secrets
-        700,  # The Norn Fighting Tournament
-        710,  # Epilogue
-        840,  # Lion's Arch Keep
-    })
-    SUMMONING_UNIQUE_PARTY_MODEL_IDS = frozenset({
-        513,         # Fire Imp (existing summon detection path)
-        1726,        # Fire Imp (model data variant)
-        8028,        # Legionnaire
-        9055, 9076,  # Tengu Support Flare - Warrior
-        9056, 9077,  # Tengu Support Flare - Ranger
-        9058, 9079,  # Tengu Support Flare - Monk
-        9060, 9081,  # Tengu Support Flare - Mesmer
-        9062, 9083,  # Tengu Support Flare - Ritualist
-        9065, 9086,  # Tengu Support Flare - Assassin
-        9067, 9088,  # Tengu Support Flare - Elementalist
-        9069, 9090,  # Tengu Support Flare - Necromancer
-    })
+    SUMMONING_SICKNESS_EFFECT_ID = CORE_SUMMONING_SICKNESS_EFFECT_ID
+    SUMMONING_UNIQUE_PARTY_MODEL_IDS = KNOWN_SUMMONING_STONE_CREATURE_MODEL_IDS
 
     # Scan only these bags, and only on-demand
     SCAN_BAGS = [Bag.Backpack, Bag.Belt_Pouch, Bag.Bag_1, Bag.Bag_2]
@@ -5280,73 +5251,11 @@ try:
         _record_blocked_action(f"party_item_block_{key}", f"{label}: {clean_reason}")
         _debug(f"Skipping {label}: {clean_reason}.", Console.MessageType.Debug)
 
-    def _party_player_agent_ids() -> set[int]:
-        out = set()
-        try:
-            me = int(Player.GetAgentID() or 0)
-            if me > 0:
-                out.add(me)
-        except Exception:
-            pass
-        try:
-            for player in Party.GetPlayers() or []:
-                try:
-                    login_number = int(getattr(player, "login_number", 0) or 0)
-                    if login_number <= 0:
-                        continue
-                    agent_id = int(Party.Players.GetAgentIDByLoginNumber(login_number) or 0)
-                    if agent_id > 0:
-                        out.add(agent_id)
-                except Exception:
-                    continue
-        except Exception:
-            pass
-        return out
-
     def _has_active_party_summon() -> bool:
-        owner_ids = _party_player_agent_ids()
         try:
-            others = Party.GetOthers() or []
+            return bool(core_has_active_party_summon())
         except Exception:
-            others = []
-
-        for other in others:
-            try:
-                agent_id = int(other or 0)
-            except Exception:
-                agent_id = 0
-            if agent_id <= 0:
-                continue
-            try:
-                if not Agent.IsAlive(agent_id):
-                    continue
-            except Exception:
-                continue
-            try:
-                if Agent.IsSpirit(agent_id) or Agent.IsMinion(agent_id):
-                    continue
-            except Exception:
-                pass
-
-            try:
-                model_id = int(Agent.GetModelID(agent_id) or 0)
-            except Exception:
-                model_id = 0
-            if model_id in SUMMONING_UNIQUE_PARTY_MODEL_IDS:
-                return True
-
-            try:
-                owner_id = int(Agent.GetOwnerID(agent_id) or 0)
-            except Exception:
-                owner_id = 0
-            if owner_id > 0 and owner_id in owner_ids:
-                try:
-                    if Agent.IsNPC(agent_id):
-                        return True
-                except Exception:
-                    return True
-
-        return False
+            return False
 
     def _summoning_block_reason(key: str, in_explorable: bool) -> str:
         if not bool(in_explorable):
@@ -5363,19 +5272,6 @@ try:
             current_sp, _ = Player.GetSkillPointData()
             if int(current_sp or 0) <= 0:
                 return "no skill points available for summoning"
-        except Exception:
-            pass
-
-        try:
-            if int(Map.GetMapID() or 0) in SUMMONING_RESTRICTED_MAP_IDS:
-                return "summoning items are blocked in this area"
-        except Exception:
-            pass
-
-        try:
-            active_quests = set(int(qid) for qid in (Quest.GetQuestLogIds() or []))
-            if active_quests.intersection(SUMMONING_RESTRICTED_QUEST_IDS):
-                return "summoning items are blocked in this quest context"
         except Exception:
             pass
 
