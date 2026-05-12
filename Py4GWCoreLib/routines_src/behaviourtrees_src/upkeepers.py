@@ -636,7 +636,7 @@ class BTUpkeepers:
         slot: int = 0,
         exclude_list: list[int] | None = None,
         log: bool = False,
-        spawn_settle_ms: int = 250,
+        spawn_settle_ms: int = 300,
         move_to_slot: bool = True,
     ) -> BehaviorTree:
         """

@@ -10,11 +10,9 @@ model= 3093
 def main():
     if PyImGui.begin("Hello World"):
         if PyImGui.button("search model"):
-            array = AgentArray.GetAgentArray()
-            for aid in array:
-                if Agent.GetModelID(aid) == model:
-                    print(f"Found agent with model {model}: {aid}")
-                    break
+             _, current_weapon_name = Agent.GetWeaponType(Player.GetAgentID())
+             print(f"Current weapon: {current_weapon_name}")
+
     
     PyImGui.end()
     

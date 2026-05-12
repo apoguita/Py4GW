@@ -16,6 +16,8 @@ from Py4GWCoreLib import GLOBAL_CACHE
 from Py4GWCoreLib import Trading
 from Py4GWCoreLib import Utils
 from Py4GWCoreLib import ConsoleLog
+from Py4GWCoreLib import Player
+from Py4GWCoreLib import Map
 from Sources.ApoSource.InvPlus.GUI_Helpers import (TabIcon,
                                          Frame,
                                             floating_game_button,   
@@ -42,6 +44,7 @@ class MerchantModule:
         self.selected_combo_merchant = 0
         self.merchant_buy_quantity = 0
         self.merchant_frame_exists = False
+        self._trader_agent_ids_by_map: Dict[tuple[int, int, int, int], Dict[str, int]] = {}
 
     def _is_merchant(self):
         merchant_item_list = Trading.Trader.GetOfferedItems()
@@ -52,24 +55,72 @@ class MerchantModule:
         if salvage_kit in merchant_item_models:
             return True
         return False
+
+    def _current_map_signature(self) -> tuple[int, int, int, int]:
+        map_id = int(Map.GetMapID() or 0)
+        region_id = int(Map.GetRegion()[0] or 0)
+        district_id = int(Map.GetDistrict() or 0)
+        language_id = int(Map.GetLanguage()[0] or 0)
+        return (map_id, region_id, district_id, language_id)
+
+    def _current_target_agent_id(self) -> int:
+        return int(Player.GetTargetID() or 0)
+
+    def _matches_cached_trader_agent(self, trader_kind: str) -> bool:
+        current_map_signature = self._current_map_signature()
+        current_agent_id = self._current_target_agent_id()
+        if current_map_signature[0] <= 0 or current_agent_id <= 0:
+            return True
+
+        map_cache = self._trader_agent_ids_by_map.setdefault(current_map_signature, {})
+        cached_agent_id = int(map_cache.get(trader_kind, 0) or 0)
+        if cached_agent_id == 0:
+            map_cache[trader_kind] = current_agent_id
+            return True
+
+        return cached_agent_id == current_agent_id
+
+    def _is_collector_open(self):
+        exchange_collector_button = UIManager.GetChildFrameID(3613855137, [0, 0, 6])
+        sell_tab = UIManager.GetChildFrameID(3613855137, [0, 4294967294])
+        return UIManager.FrameExists(exchange_collector_button) and not UIManager.FrameExists(sell_tab)
+
+    def _is_skill_trainer_open(self):
+        display_type_button_id = UIManager.GetChildFrameID(1746895597, [3])
+        sell_tab = UIManager.GetChildFrameID(3613855137, [0, 4294967294])
+        return UIManager.FrameExists(display_type_button_id) and not UIManager.FrameExists(sell_tab)
+
+    def _is_crafter_open(self):
+        crafter_craft_button_id = UIManager.GetFrameIDByHash(1517397806)
+        return UIManager.FrameExists(crafter_craft_button_id)
     
     def _is_material_trader(self):
         merchant_item_list = Trading.Trader.GetOfferedItems()
         merchant_item_models = [Item.GetModelID(item_id) for item_id in merchant_item_list]
+
+        if self._is_crafter_open() or self._is_collector_open() or self._is_skill_trainer_open():
+            return False
+        if self._is_merchant():
+            return False
         
         wood_planks = ModelID.Wood_Plank.value
 
-        if wood_planks in merchant_item_models:
+        if wood_planks in merchant_item_models and self._matches_cached_trader_agent("common_material_trader"):
             return True
         return False
     
     def _is_rare_material_trader(self):
         merchant_item_list = Trading.Trader.GetOfferedItems()
         merchant_item_models = [Item.GetModelID(item_id) for item_id in merchant_item_list]
+
+        if self._is_crafter_open() or self._is_collector_open() or self._is_skill_trainer_open():
+            return False
+        if self._is_merchant():
+            return False
         
         glob_of_ectoplasm = ModelID.Glob_Of_Ectoplasm.value
 
-        if glob_of_ectoplasm in merchant_item_models:
+        if glob_of_ectoplasm in merchant_item_models and self._matches_cached_trader_agent("rare_material_trader"):
             return True
         return False
     

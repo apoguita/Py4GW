@@ -9,6 +9,7 @@ from Py4GWCoreLib import ActionQueueManager, LootConfig, Range, SharedCommandTyp
 
 from .cache_data import CacheData
 from .follow.follower_runtime import FollowExecutionState, execute_follower_follow
+from .settings import Settings
 
 
 class HeroAIHeadlessTree:
@@ -22,11 +23,13 @@ class HeroAIHeadlessTree:
     def __init__(self, cached_data: CacheData | None = None, heroai_build: HeroAI_Build | None = None):
         self.cached_data = cached_data or CacheData()
         self.heroai_build = heroai_build or HeroAI_Build(self.cached_data)
+        Settings().AutoCallTargets = True
         self._build_contract_map_signature: tuple[int, int, int, int] | None = None
         self._loot_throttle_check = ThrottledTimer(250)
         self._looting_node: BehaviorTree.ActionNode | None = None
         self._status_selector: BehaviorTree.SelectorNode | None = None
         self._follow_state = FollowExecutionState()
+        self._headless_looting_enabled = True
         self.tree = self._build_tree()
 
     def _has_active_pick_up_loot_message(self) -> bool:
@@ -160,7 +163,7 @@ class HeroAIHeadlessTree:
         return execute_follower_follow(self.cached_data, self._follow_state)
 
     def IsLootingActive(self) -> bool:
-        return self._is_looting_routine_active()
+        return bool(self._headless_looting_enabled) and self._is_looting_routine_active()
 
     def IsLootingNodeRunning(self) -> bool:
         if self._looting_node is None:
@@ -218,7 +221,7 @@ class HeroAIHeadlessTree:
     def _build_tree(self):
         self._looting_node = BehaviorTree.ActionNode(
             name="LootingRoutine",
-            action_fn=lambda: self._handle_looting(),
+            action_fn=lambda: self._handle_looting() if self._headless_looting_enabled else BehaviorTree.NodeState.FAILURE,
         )
         self._status_selector = BehaviorTree.SelectorNode(
             name="HeadlessHeroAI_UpdateStatusSelector",

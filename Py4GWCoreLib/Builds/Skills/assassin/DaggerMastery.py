@@ -16,7 +16,9 @@ class DaggerMastery:
     def __init__(self, build: BuildMgr) -> None:
         self.build: BuildMgr = build
 
-    def _resolve_dagger_target(self) -> int:
+    def _resolve_dagger_target(self, skill_id: int) -> int:
+        if not self.build.CanCastSkillID(skill_id):
+            return 0
         target_type = getattr(self.build, "dagger_target_type", "EnemyInjured")
         target_acquired, _ = self.build._resolve_target(target_type)
         if not target_acquired:
@@ -26,7 +28,7 @@ class DaggerMastery:
     #region D
     def Death_Blossom(self) -> BuildCoroutine:
         death_blossom_id: int = Skill.GetID("Death_Blossom")
-        target_agent_id = self._resolve_dagger_target()
+        target_agent_id = self._resolve_dagger_target(death_blossom_id)
         if not target_agent_id:
             return False
 
@@ -46,7 +48,7 @@ class DaggerMastery:
     #region F
     def Fox_Fangs(self) -> BuildCoroutine:
         fox_fangs_id: int = Skill.GetID("Fox_Fangs")
-        target_agent_id = self._resolve_dagger_target()
+        target_agent_id = self._resolve_dagger_target(fox_fangs_id)
         if not target_agent_id:
             return False
 
@@ -66,7 +68,7 @@ class DaggerMastery:
     #region J
     def Jagged_Strike(self) -> BuildCoroutine:
         jagged_strike_id: int = Skill.GetID("Jagged_Strike")
-        target_agent_id = self._resolve_dagger_target()
+        target_agent_id = self._resolve_dagger_target(jagged_strike_id)
         if not target_agent_id:
             return False
 

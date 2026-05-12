@@ -15,7 +15,9 @@ class AxeMastery:
     def __init__(self, build: BuildMgr) -> None:
         self.build: BuildMgr = build
 
-    def _resolve_axe_target(self) -> int:
+    def _resolve_axe_target(self, skill_id: int) -> int:
+        if not self.build.CanCastSkillID(skill_id):
+            return 0
         target_acquired, _ = self.build._resolve_target("EnemyClustered")
         if not target_acquired:
             return 0
@@ -24,7 +26,7 @@ class AxeMastery:
     #region C
     def Cyclone_Axe(self) -> BuildCoroutine:
         cyclone_axe_id: int = Skill.GetID("Cyclone_Axe")
-        target_agent_id = self._resolve_axe_target()
+        target_agent_id = self._resolve_axe_target(cyclone_axe_id)
         if not target_agent_id:
             return False
 
@@ -39,7 +41,7 @@ class AxeMastery:
     #region E
     def Executioners_Strike(self) -> BuildCoroutine:
         executioners_strike_id: int = Skill.GetID("Executioners_Strike")
-        target_agent_id = self._resolve_axe_target()
+        target_agent_id = self._resolve_axe_target(executioners_strike_id)
         if not target_agent_id:
             return False
 

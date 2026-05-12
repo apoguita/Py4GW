@@ -17,7 +17,9 @@ class NoAttribute:
     def __init__(self, build: BuildMgr) -> None:
         self.build: BuildMgr = build
 
-    def _resolve_warrior_target(self) -> int:
+    def _resolve_warrior_target(self, skill_id: int) -> int:
+        if not self.build.CanCastSkillID(skill_id):
+            return 0
         target_acquired, _ = self.build._resolve_target("EnemyClustered")
         if not target_acquired:
             return 0
@@ -26,7 +28,7 @@ class NoAttribute:
     #region W
     def Whirlwind_Attack(self) -> BuildCoroutine:
         whirlwind_attack_id: int = Skill.GetID("Whirlwind_Attack")
-        target_agent_id = self._resolve_warrior_target()
+        target_agent_id = self._resolve_warrior_target(whirlwind_attack_id)
         if not target_agent_id:
             return False
 

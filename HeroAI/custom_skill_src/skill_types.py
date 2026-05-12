@@ -39,6 +39,7 @@ class CastConditions:
         self.IsHoldingItem = False
         self.RequiresSpiritInEarshot = False
         self.SharedEffects = []
+        self.RequireWeapon = ""
 
         # Targeting Rules
         self.TargetingStrict = True

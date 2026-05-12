@@ -1,5 +1,6 @@
 BahdokCaverns = [
     {
+        "map": 377,
         "bless": (-9443.0, -7763.0),
         "path": [
             (-7575.0, -6450.0),
@@ -128,11 +129,16 @@ BahdokCaverns = [
     },
 ]
 
-BahdokCaverns_outpost_path = [
-    (-13756, -11190), (-13647, -10442)
+BahdokCaverns_transit_path = [
+    {
+        "npc":  (-13641.00, -10375.00),
+        "dialog": 0x81,
+    },
+    {
+        "dialog": 0x84,
+    },
 ]
 
 BahdokCaverns_ids = {
     "outpost_id": 427,
-    "map_id": 377
 }

@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from Py4GWCoreLib import Routines
+from Py4GWCoreLib import Range, Routines
 from Py4GWCoreLib.BuildMgr import BuildCoroutine
 from Py4GWCoreLib.Skill import Skill
 from Py4GWCoreLib.Builds.Skills._whiteboard import coordinates_whiteboard_skill_target
+from Py4GWCoreLib.GlobalCache.HexRemovalPriority import HexRemovalPriority, cast_hex_removal_and_track, get_hexed_ally_for_removal
 
 if TYPE_CHECKING:
-    from HeroAI.custom_skill_src.skill_types import CustomSkill
     from Py4GWCoreLib.BuildMgr import BuildMgr
 
 __all__ = ["DominationMagic"]
@@ -201,24 +201,25 @@ class DominationMagic:
     #endregion
 
     #region S
-    def Shatter_Hex(self) -> BuildCoroutine:
+    def Shatter_Hex(self, min_priority: int = HexRemovalPriority.LOW) -> BuildCoroutine:
         shatter_hex_id: int = Skill.GetID("Shatter_Hex")
-        shatter_hex: CustomSkill = self.build.GetCustomSkill(shatter_hex_id)
 
         if not self.build.IsSkillEquipped(shatter_hex_id):
             return False
 
-        target_agent_id = self.build.ResolveAllyTarget(
-            shatter_hex_id,
-            shatter_hex,
+        target_agent_id = get_hexed_ally_for_removal(
+            Range.Spellcast.value,
+            reserve=True,
+            skill_id=shatter_hex_id,
+            min_priority=min_priority,
         )
         if not target_agent_id:
             return False
 
-        return (yield from self.build.CastSkillIDAndRestoreTarget(
+        return (yield from cast_hex_removal_and_track(
+            self.build,
             skill_id=shatter_hex_id,
             target_agent_id=target_agent_id,
-            log=False,
             aftercast_delay=250,
         ))
     #endregion

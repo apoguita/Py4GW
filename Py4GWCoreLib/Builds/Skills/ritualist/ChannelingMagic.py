@@ -116,9 +116,12 @@ class ChannelingMagic:
 
         target_agent_id = Routines.Targeting.PickClusteredTarget(
             cluster_radius=aoe_range,
+            preferred_condition=lambda agent_id: not Routines.Checks.Agents.HasEffect(agent_id, painful_bond_id),
             filter_radius=Range.Spellcast.value,
         )
         if not target_agent_id:
+            return False
+        if Routines.Checks.Agents.HasEffect(target_agent_id, painful_bond_id):
             return False
 
         return (yield from self.build.CastSkillIDAndRestoreTarget(

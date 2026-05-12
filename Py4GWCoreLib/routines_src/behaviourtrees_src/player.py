@@ -123,6 +123,41 @@ class BTPlayer:
           Notes: Public `PascalCase` methods in this class are discovery candidates when marked exposed.
         """
         @staticmethod
+        def Move(
+            x: float,
+            y: float,
+            tolerance: float = 50.0,
+            timeout_ms: int = 15000,
+            stall_threshold_ms: int = 500,
+            pause_on_combat: bool = True,
+            pause_flag_key: str = "PAUSE_MOVEMENT",
+            log: bool = False,
+            path_points_override: list[tuple[float, float]] | None = None,
+        ) -> BehaviorTree:
+            """
+            Compatibility alias for the canonical movement routine.
+
+            Meta:
+              Expose: false
+              Audience: advanced
+              Display: Move
+              Purpose: Preserve existing `BT.Player.Move` callers after movement routines moved under `BT.Movement`.
+              UserDescription: Internal compatibility wrapper.
+              Notes: New code should call `BT.Movement.Move`.
+            """
+            return BT.Movement.Move(
+                x=x,
+                y=y,
+                tolerance=tolerance,
+                timeout_ms=timeout_ms,
+                stall_threshold_ms=stall_threshold_ms,
+                pause_on_combat=pause_on_combat,
+                pause_flag_key=pause_flag_key,
+                log=log,
+                path_points_override=path_points_override,
+            )
+
+        @staticmethod
         def InteractAgent(agent_id: int, log: bool = False) -> BehaviorTree:
             """
             Build a tree that interacts with a specific agent id.
@@ -193,7 +228,7 @@ class BTPlayer:
                 BehaviorTree.ActionNode(
                     name="GetTargetID",
                     action_fn=lambda node:_get_target_id(node),
-                    aftercast_ms=25
+                    aftercast_ms=100
                 ),
                 BehaviorTree.SubtreeNode(
                     name="InteractAgentSubtree",
@@ -275,7 +310,7 @@ class BTPlayer:
             return BehaviorTree(tree)
 
         @staticmethod
-        def SendAutomaticDialog(button_number: int, log: bool = False) -> BehaviorTree:
+        def SendAutomaticDialog(button_number: int, log: bool = False, aftercast_ms: int = 250) -> BehaviorTree:
             """
             Build a tree that waits for an automatic dialog and presses a visible button index.
 
@@ -287,7 +322,7 @@ class BTPlayer:
               UserDescription: Use this when dialog options appear dynamically and you want to choose by visible button index.
               Notes: Waits up to 3000ms for dialog state and fails if the requested button never becomes available.
             """
-            import PyDialog
+            from ... import Dialog
             from ...Py4GWcorelib import Utils
 
             state: dict[str, int | None] = {
@@ -311,7 +346,8 @@ class BTPlayer:
                     state["started_ms"] = now
 
                 try:
-                    if not PyDialog.PyDialog.is_dialog_active():
+                    active_dialog = Dialog.get_active_dialog()
+                    if active_dialog is None:
                         if now - int(state["started_ms"]) >= 3000:
                             _fail_log(
                                 "SendAutomaticDialog",
@@ -321,7 +357,7 @@ class BTPlayer:
                             return BehaviorTree.NodeState.FAILURE
                         return BehaviorTree.NodeState.RUNNING
 
-                    buttons: list[Any] = list(PyDialog.PyDialog.get_active_dialog_buttons())
+                    buttons: list[Any] = list(Dialog.get_active_dialog_buttons())
                 except Exception:
                     if now - int(state["started_ms"]) >= 3000:
                         _fail_log(
@@ -372,7 +408,7 @@ class BTPlayer:
                     BehaviorTree.ActionNode(
                         name="SendAutomaticDialogAction",
                         action_fn=lambda: _send_automatic_dialog(button_number),
-                        aftercast_ms=350,
+                        aftercast_ms=aftercast_ms,
                     ),
                 ],
             )

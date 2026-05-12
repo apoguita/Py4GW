@@ -259,6 +259,10 @@ class _MOVE:
 
         If *on_enemy_detected* is provided, it is called with (x, y) of the
         first enemy each time a new engagement starts.
+        
+        After resume path completes, verify arrival at target waypoint
+        before returning to aggro scan. This prevents zigzag behavior when enemies
+        are detected during/after resume.
         """
         import random
         from ...Routines import Routines
@@ -758,15 +762,32 @@ class _MOVE:
                             Player.Move(tx, ty)
                             yield from wait(250)
 
+                        # ╔═══════════════════════════════════════════════════════════╗
+                        # ║ Check if we reached target waypoint after resume          ║
+                        # ╚═══════════════════════════════════════════════════════════╝
+                        final_dist = Utils.Distance(Player.GetXY(), (tx, ty))
+                        ConsoleLog("FollowPathAggro",
+                                   f"Resume complete. Distance to wp {idx+1}: {final_dist:.0f}.",
+                                   Console.MessageType.Info, log=log)
+                        
+                        if final_dist <= tolerance:
+                            # ✓ Successfully reached waypoint after resume
+                            ConsoleLog("FollowPathAggro",
+                                       f"Reached wp {idx+1}/{len(path_points)} after resume.",
+                                       Console.MessageType.Success, log=log)
+                            break  # ← EXIT inner while, advance to next waypoint
+                        
+                        # ✗ Did not reach waypoint yet, reset timers and retry
                         prev_dist = Utils.Distance(Player.GetXY(), (tx, ty))
                         retries = 0
                         stuck_count = 0
                         t0 = Utils.GetBaseTimestamp()
+                        # ← CONTINUE inner while to retry reaching waypoint
                         continue
 
-                # ══════════════════════════════════════════════════
+                # ══════════════════════════════════════════════════════════════════════════
                 # PATH PROGRESS (standard FollowPath logic)
-                # ══════════════════════════════════════════════════
+                # ══════════════════════════════════════════════════════════════════════════
                 if _map_changed():
                     return _abort("Map changed before finishing waypoint.")
 

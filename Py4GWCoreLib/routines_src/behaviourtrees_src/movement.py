@@ -1004,11 +1004,15 @@ class BTMovement:
         )
         
     @staticmethod
-    def MoveAndKill(coords: Vec2f, clear_area_radius: float = Range.Spirit.value) -> BehaviorTree:
+    def MoveAndKill(
+        coords: Vec2f,
+        clear_area_radius: float = Range.Spirit.value,
+        pause_on_combat: bool = True,
+    ) -> BehaviorTree:
         from .agents import BTAgents
 
         return BTComposite.Sequence(
-            BTMovement.Move(x=coords.x, y=coords.y),
+            BTMovement.Move(x=coords.x, y=coords.y, pause_on_combat=pause_on_combat),
             BTAgents.ClearEnemiesInArea(x=coords.x, y=coords.y, radius=clear_area_radius),
             name="MoveAndKill",
         )
@@ -1016,7 +1020,11 @@ class BTMovement:
         
 
     @staticmethod
-    def _move_to_model_id(modelID_or_encStr: int | str, log: bool = False) -> BehaviorTree:
+    def _move_to_model_id(
+        modelID_or_encStr: int | str,
+        pause_on_combat: bool = True,
+        log: bool = False,
+    ) -> BehaviorTree:
         """
         Build an internal support tree that resolves an agent by model id and moves to its coordinates.
 
@@ -1050,7 +1058,13 @@ class BTMovement:
             agent_x, agent_y = Agent.GetXY(agent_id)
             node.blackboard["resolved_agent_id"] = agent_id
             node.blackboard["resolved_agent_xy"] = (agent_x, agent_y)
-            return BTMovement.Move(x=agent_x, y=agent_y, tolerance=Range.Adjacent.value, log=log)
+            return BTMovement.Move(
+                x=agent_x,
+                y=agent_y,
+                tolerance=Range.Adjacent.value,
+                pause_on_combat=pause_on_combat,
+                log=log,
+            )
 
         return BehaviorTree(
             BehaviorTree.SequenceNode(
@@ -1073,6 +1087,7 @@ class BTMovement:
         x: float,
         y: float,
         target_distance: float = Range.Adjacent.value,
+        pause_on_combat: bool = True,
         log: bool = False,
     ) -> BehaviorTree:
         """
@@ -1090,7 +1105,7 @@ class BTMovement:
         from .player import BTPlayer
 
         return BTCompositeHelpers.move_and_target(
-            move_tree=BTMovement.Move(x=x, y=y, log=log),
+            move_tree=BTMovement.Move(x=x, y=y, pause_on_combat=pause_on_combat, log=log),
             target_tree=BTAgents.TargetNearestNPC(distance=target_distance, log=log),
         )
 
@@ -1131,6 +1146,7 @@ class BTMovement:
         x: float,
         y: float,
         target_distance: float = Range.Nearby.value,
+        pause_on_combat: bool = True,
         log: bool = False,
     ) -> BehaviorTree:
         """
@@ -1148,7 +1164,7 @@ class BTMovement:
         from .player import BTPlayer
 
         return BTCompositeHelpers.move_target_and_interact(
-            move_tree=BTMovement.Move(x=x, y=y, log=log),
+            move_tree=BTMovement.Move(x=x, y=y, pause_on_combat=pause_on_combat, log=log),
             target_tree=BTAgents.TargetNearestNPC(distance=target_distance, log=log),
             log=log,
         )
@@ -1157,6 +1173,7 @@ class BTMovement:
     def MoveAndKillPath(
         pos: PointOrPath,
         clear_area_radius: float = Range.Spirit.value,
+        pause_on_combat: bool = True,
     ) -> BehaviorTree:
         """
         Build a tree that walks a path and clears enemies around each point.
@@ -1177,6 +1194,7 @@ class BTMovement:
             lambda point: BTMovement.MoveAndKill(
                 coords=point,
                 clear_area_radius=clear_area_radius,
+                pause_on_combat=pause_on_combat,
             ),
         )
 
@@ -1185,6 +1203,7 @@ class BTMovement:
         pos: PointOrPath,
         target_distance: float = Range.Adjacent.value,
         move_tolerance: float = DEFAULT_MOVE_TOLERANCE,
+        pause_on_combat: bool = True,
         log: bool = False,
     ) -> BehaviorTree:
         """
@@ -1211,6 +1230,7 @@ class BTMovement:
                     x=point.x,
                     y=point.y,
                     tolerance=move_tolerance,
+                    pause_on_combat=pause_on_combat,
                     log=False,
                 )
                 for point in points
@@ -1225,10 +1245,56 @@ class BTMovement:
         )
 
     @staticmethod
+    def MoveAndTargetGadgetPath(
+        pos: PointOrPath,
+        target_distance: float = Range.Adjacent.value,
+        move_tolerance: float = DEFAULT_MOVE_TOLERANCE,
+        pause_on_combat: bool = True,
+        log: bool = False,
+    ) -> BehaviorTree:
+        """
+        Build a tree that walks a path and targets the nearest gadget at the final point.
+
+        Meta:
+          Expose: true
+          Audience: intermediate
+          Display: Move And Target Gadget Path
+          Purpose: Walk through path points and then target a nearby gadget at the final point.
+          UserDescription: Use this when you want multi-point movement before targeting a gadget near the destination.
+          Notes: Intermediate points only move; gadget targeting happens at the final point.
+        """
+        from .agents import BTAgents
+
+        points = BTMovement._as_path(pos)
+        if not points:
+            return BehaviorTree(BehaviorTree.SucceederNode(name="MoveAndTargetGadgetPathEmptyPath"))
+        final_point = points[-1]
+        return BTComposite.Sequence(
+            *[
+                BTMovement.Move(
+                    x=point.x,
+                    y=point.y,
+                    tolerance=move_tolerance,
+                    pause_on_combat=pause_on_combat,
+                    log=False,
+                )
+                for point in points
+            ],
+            BTAgents.TargetNearestGadgetXY(
+                x=final_point.x,
+                y=final_point.y,
+                distance=target_distance,
+                log=log,
+            ),
+            name="MoveAndTargetGadgetPath",
+        )
+
+    @staticmethod
     def MoveTargetAndInteractPath(
         pos: PointOrPath,
         target_distance: float = Range.Area.value,
         move_tolerance: float = DEFAULT_MOVE_TOLERANCE,
+        pause_on_combat: bool = True,
         log: bool = False,
     ) -> BehaviorTree:
         """
@@ -1255,6 +1321,7 @@ class BTMovement:
                     x=point.x,
                     y=point.y,
                     tolerance=move_tolerance,
+                    pause_on_combat=pause_on_combat,
                     log=False,
                 )
                 for point in points
@@ -1276,6 +1343,7 @@ class BTMovement:
         y: float,
         target_distance: float = Range.Nearby.value,
         dialog_id: str | int = 0,
+        pause_on_combat: bool = True,
         log: bool = False,
     ) -> BehaviorTree:
         """
@@ -1293,7 +1361,7 @@ class BTMovement:
         from .player import BTPlayer
 
         return BTCompositeHelpers.move_target_interact_and_dialog(
-            move_tree=BTMovement.Move(x=x, y=y, log=log),
+            move_tree=BTMovement.Move(x=x, y=y, pause_on_combat=pause_on_combat, log=log),
             target_tree=BTAgents.TargetNearestNPC(distance=target_distance, log=log),
             dialog_id=dialog_id,
             log=log,
@@ -1305,6 +1373,7 @@ class BTMovement:
         dialog_id: str | int,
         target_distance: float = Range.Nearby.value,
         move_tolerance: float = DEFAULT_MOVE_TOLERANCE,
+        pause_on_combat: bool = True,
         log: bool = False,
     ) -> BehaviorTree:
         """
@@ -1331,6 +1400,7 @@ class BTMovement:
                     x=point.x,
                     y=point.y,
                     tolerance=move_tolerance,
+                    pause_on_combat=pause_on_combat,
                     log=False,
                 )
                 for point in points
@@ -1353,6 +1423,7 @@ class BTMovement:
         y: float,
         target_distance: float = Range.Nearby.value,
         button_number: int = 0,
+        pause_on_combat: bool = True,
         log: bool = False,
     ) -> BehaviorTree:
         """
@@ -1370,7 +1441,7 @@ class BTMovement:
         from .player import BTPlayer
 
         return BTCompositeHelpers._interact_and_automatic_dialog(
-            move_tree=BTMovement.Move(x=x, y=y, log=log),
+            move_tree=BTMovement.Move(x=x, y=y, pause_on_combat=pause_on_combat, log=log),
             target_tree=BTAgents.TargetNearestNPC(distance=target_distance, log=log),
             button_number=button_number,
             log=log,
@@ -1382,6 +1453,7 @@ class BTMovement:
         button_number: int = 0,
         target_distance: float = Range.Nearby.value,
         move_tolerance: float = DEFAULT_MOVE_TOLERANCE,
+        pause_on_combat: bool = True,
         log: bool = False,
     ) -> BehaviorTree:
         """
@@ -1408,6 +1480,7 @@ class BTMovement:
                     x=point.x,
                     y=point.y,
                     tolerance=move_tolerance,
+                    pause_on_combat=pause_on_combat,
                     log=False,
                 )
                 for point in points
@@ -1489,6 +1562,7 @@ class BTMovement:
         target_map_id: int = 0,
         target_map_name: str = "",
         move_tolerance: float = DEFAULT_MOVE_TOLERANCE,
+        pause_on_combat: bool = True,
         log: bool = False,
     ) -> BehaviorTree:
         """
@@ -1511,6 +1585,7 @@ class BTMovement:
                 x=x,
                 y=y,
                 tolerance=move_tolerance,
+                pause_on_combat=pause_on_combat,
                 log=log,
             ),
             BTMap.WaitforMapLoad(
@@ -1522,6 +1597,7 @@ class BTMovement:
     @staticmethod
     def MoveAndTargetByModelID(
         modelID_or_encStr: int | str,
+        pause_on_combat: bool = True,
         log: bool = False,
     ) -> BehaviorTree:
         """
@@ -1538,13 +1614,18 @@ class BTMovement:
         from .agents import BTAgents
 
         return BTCompositeHelpers.move_and_target(
-            move_tree=BTMovement._move_to_model_id(modelID_or_encStr=modelID_or_encStr, log=log),
+            move_tree=BTMovement._move_to_model_id(
+                modelID_or_encStr=modelID_or_encStr,
+                pause_on_combat=pause_on_combat,
+                log=log,
+            ),
             target_tree=BTAgents.TargetAgentByModelID(modelID_or_encStr=modelID_or_encStr, log=log),
         )
 
     @staticmethod
     def MoveTargetAndInteractByModelID(
         modelID_or_encStr: int | str,
+        pause_on_combat: bool = True,
         log: bool = False,
     ) -> BehaviorTree:
         """
@@ -1561,7 +1642,11 @@ class BTMovement:
         from .agents import BTAgents
 
         return BTCompositeHelpers.move_target_and_interact(
-            move_tree=BTMovement._move_to_model_id(modelID_or_encStr=modelID_or_encStr, log=log),
+            move_tree=BTMovement._move_to_model_id(
+                modelID_or_encStr=modelID_or_encStr,
+                pause_on_combat=pause_on_combat,
+                log=log,
+            ),
             target_tree=BTAgents.TargetAgentByModelID(modelID_or_encStr=modelID_or_encStr, log=log),
             log=log,
         )
@@ -1570,6 +1655,7 @@ class BTMovement:
     def MoveTargetInteractAndDialogByModelID(
         modelID_or_encStr: int | str,
         dialog_id: str | int = 0,
+        pause_on_combat: bool = True,
         log: bool = False,
     ) -> BehaviorTree:
         """
@@ -1586,7 +1672,11 @@ class BTMovement:
         from .agents import BTAgents
 
         return BTCompositeHelpers.move_target_interact_and_dialog(
-            move_tree=BTMovement._move_to_model_id(modelID_or_encStr=modelID_or_encStr, log=log),
+            move_tree=BTMovement._move_to_model_id(
+                modelID_or_encStr=modelID_or_encStr,
+                pause_on_combat=pause_on_combat,
+                log=log,
+            ),
             target_tree=BTAgents.TargetAgentByModelID(modelID_or_encStr=modelID_or_encStr, log=log),
             dialog_id=dialog_id,
             log=log,
@@ -1596,6 +1686,7 @@ class BTMovement:
     def MoveTargetInteractAndAutomaticDialogByModelID(
         modelID_or_encStr: int | str,
         button_number: int = 0,
+        pause_on_combat: bool = True,
         log: bool = False,
     ) -> BehaviorTree:
         """
@@ -1612,7 +1703,11 @@ class BTMovement:
         from .agents import BTAgents
 
         return BTCompositeHelpers._interact_and_automatic_dialog(
-            move_tree=BTMovement._move_to_model_id(modelID_or_encStr=modelID_or_encStr, log=log),
+            move_tree=BTMovement._move_to_model_id(
+                modelID_or_encStr=modelID_or_encStr,
+                pause_on_combat=pause_on_combat,
+                log=log,
+            ),
             target_tree=BTAgents.TargetAgentByModelID(modelID_or_encStr=modelID_or_encStr, log=log),
             button_number=button_number,
             log=log,

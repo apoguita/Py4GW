@@ -93,6 +93,14 @@ bot.config.config_properties.use_pcons = Property(bot.config, "use_pcons", activ
 _SETTINGS_SECTION = "TitleBotSettings"
 _USE_CONSET_KEY = "use_conset"
 _USE_PCONS_KEY = "use_pcons"
+_CONSET_RESTOCK_TARGET_KEY = "conset_restock_target"
+_PCON_RESTOCK_TARGET_KEY = "pcon_restock_target"
+_DEFAULT_CONSET_RESTOCK_TARGET = 250
+_DEFAULT_PCON_RESTOCK_TARGET = 250
+_MAX_CONSUMABLE_RESTOCK_TARGET = 999
+
+_conset_restock_target: int = _DEFAULT_CONSET_RESTOCK_TARGET
+_pcon_restock_target: int = _DEFAULT_PCON_RESTOCK_TARGET
 
 # Hero config
 _BOT_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__)) if "__file__" in globals() else os.getcwd()
@@ -272,14 +280,14 @@ def _restock_consumables_if_enabled(bot: Botting):
     _sync_consumable_toggles(bot)
     if _party_mode == 1:
         if _as_bool(bot.Properties.Get("use_conset", "active")):
-            yield from bot.helpers.Multibox._restock_conset_message(250)
+            yield from bot.helpers.Multibox._restock_conset_message(_conset_restock_target)
         if _as_bool(bot.Properties.Get("use_pcons", "active")):
-            yield from bot.helpers.Multibox._restock_all_pcons_message(250)
+            yield from bot.helpers.Multibox._restock_all_pcons_message(_pcon_restock_target)
         return
     if _as_bool(bot.Properties.Get("use_conset", "active")):
-        yield from _restock_models_locally(CONSET_RESTOCK_MODELS, 250)
+        yield from _restock_models_locally(CONSET_RESTOCK_MODELS, _conset_restock_target)
     if _as_bool(bot.Properties.Get("use_pcons", "active")):
-        yield from _restock_models_locally(PCON_RESTOCK_MODELS, 250)
+        yield from _restock_models_locally(PCON_RESTOCK_MODELS, _pcon_restock_target)
 
 
 def _use_consumables_if_enabled(bot: Botting):
@@ -638,6 +646,7 @@ def _resign(bot: Botting):
 
 
 def _load_consumable_settings(bot: Botting) -> None:
+    global _conset_restock_target, _pcon_restock_target
     ini_key = _ensure_bot_ini(bot)
     if not ini_key:
         return
@@ -655,6 +664,18 @@ def _load_consumable_settings(bot: Botting) -> None:
     )
     bot.Properties.ApplyNow("use_conset", "active", _as_bool(saved_use_conset))
     bot.Properties.ApplyNow("use_pcons", "active", _as_bool(saved_use_pcons))
+    _conset_restock_target = max(0, min(_MAX_CONSUMABLE_RESTOCK_TARGET, int(IniManager().read_int(
+        ini_key,
+        _SETTINGS_SECTION,
+        _CONSET_RESTOCK_TARGET_KEY,
+        _conset_restock_target,
+    ))))
+    _pcon_restock_target = max(0, min(_MAX_CONSUMABLE_RESTOCK_TARGET, int(IniManager().read_int(
+        ini_key,
+        _SETTINGS_SECTION,
+        _PCON_RESTOCK_TARGET_KEY,
+        _pcon_restock_target,
+    ))))
 
 
 def _save_consumable_settings(bot: Botting) -> None:
@@ -672,6 +693,18 @@ def _save_consumable_settings(bot: Botting) -> None:
         _SETTINGS_SECTION,
         _USE_PCONS_KEY,
         _as_bool(bot.Properties.Get("use_pcons", "active")),
+    )
+    IniManager().write_key(
+        ini_key,
+        _SETTINGS_SECTION,
+        _CONSET_RESTOCK_TARGET_KEY,
+        int(_conset_restock_target),
+    )
+    IniManager().write_key(
+        ini_key,
+        _SETTINGS_SECTION,
+        _PCON_RESTOCK_TARGET_KEY,
+        int(_pcon_restock_target),
     )
 
 
@@ -766,6 +799,19 @@ def _draw_settings(bot: Botting):
         bot.Properties.ApplyNow("use_pcons", "active", new_use_pcons)
         _save_consumable_settings(bot)
     _sync_consumable_toggles(bot)
+
+    global _conset_restock_target, _pcon_restock_target
+    PyImGui.separator()
+
+    new_conset_target = PyImGui.input_int("Conset restock target##vanguard_conset_target", _conset_restock_target)
+    if new_conset_target != _conset_restock_target:
+        _conset_restock_target = max(0, min(_MAX_CONSUMABLE_RESTOCK_TARGET, new_conset_target))
+        _save_consumable_settings(bot)
+
+    new_pcon_target = PyImGui.input_int("Pcons restock target##vanguard_pcon_target", _pcon_restock_target)
+    if new_pcon_target != _pcon_restock_target:
+        _pcon_restock_target = max(0, min(_MAX_CONSUMABLE_RESTOCK_TARGET, new_pcon_target))
+        _save_consumable_settings(bot)
 
 
 def tooltip():

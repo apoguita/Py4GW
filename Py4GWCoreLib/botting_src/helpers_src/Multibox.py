@@ -428,8 +428,9 @@ class _Multibox:
         yield
 
     @staticmethod
-    def _is_partywide_conset(params: tuple) -> bool:
+    def _is_partywide_consumable(params: tuple) -> bool:
         from ...GlobalCache import GLOBAL_CACHE
+        from ...enums import ModelID
 
         if len(params) < 4:
             return False
@@ -441,7 +442,12 @@ class _Multibox:
         }
         effect_ids = {int(params[1]), int(params[3])}
         effect_ids.discard(0)
-        return any(effect_id in conset_effect_ids for effect_id in effect_ids)
+        if any(effect_id in conset_effect_ids for effect_id in effect_ids):
+            return True
+
+        model_ids = {int(params[0]), int(params[2])}
+        model_ids.discard(0)
+        return int(ModelID.Honeycomb.value) in model_ids
 
     def _use_partywide_consumable_message(self, params):
         from ...GlobalCache import GLOBAL_CACHE
@@ -455,6 +461,8 @@ class _Multibox:
         secondary_skill_id = int(params[3]) if len(params) > 3 else 0
         effect_ids = [skill_id for skill_id in (primary_skill_id, secondary_skill_id) if skill_id != 0]
         sender_agent_id = Player.GetAgentID()
+        is_partywide_consumable = self._is_partywide_consumable(params)
+        remote_wait_ms = 1200 if is_partywide_consumable else 150
 
         if effect_ids and any(GLOBAL_CACHE.Effects.HasEffect(sender_agent_id, effect_id) for effect_id in effect_ids):
             return
@@ -476,28 +484,44 @@ class _Multibox:
 
             ConsoleLog("Messaging", f"Sending party-wide consumable message to {account.AccountEmail}", log=False)
             GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.PCon, params)
-            yield from Routines.Yield.wait(1200)
+            yield from Routines.Yield.wait(remote_wait_ms)
+
+            # Party-wide consumables without a reliable visible effect check
+            # (for example Honeycomb) should not be sprayed across every alt.
+            if is_partywide_consumable and not effect_ids:
+                return
 
             if effect_ids and any(GLOBAL_CACHE.Effects.HasEffect(sender_agent_id, effect_id) for effect_id in effect_ids):
                 return
         
     def _use_consumable_message(self, params):
+        from ...GlobalCache import GLOBAL_CACHE
+        from ...Routines import Routines
+
         primary_model_id = int(params[0]) if len(params) > 0 else 0
         primary_skill_id = int(params[1]) if len(params) > 1 else 0
         secondary_model_id = int(params[2]) if len(params) > 2 else 0
         secondary_skill_id = int(params[3]) if len(params) > 3 else 0
 
-        if self._is_partywide_conset(params):
+        if self._is_partywide_consumable(params):
             yield from self._use_partywide_consumable_message(params)
             return
 
         if primary_model_id or secondary_model_id:
             ConsoleLog(
                 "Messaging",
-                f"Using local consumable from models {(primary_model_id, secondary_model_id)}",
+                f"Using personal consumable from models {(primary_model_id, secondary_model_id)} on leader and followers",
                 log=False,
             )
             yield from self._use_local_consumable_models(primary_model_id, secondary_model_id)
+
+            sender_email = Player.GetAccountEmail()
+            accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+            for account in accounts:
+                if account.AccountEmail == sender_email:
+                    continue
+                GLOBAL_CACHE.ShMem.SendMessage(sender_email, account.AccountEmail, SharedCommandType.PCon, params)
+            yield from Routines.Yield.wait(100)
 
     def _can_use_local_consumable_model(self, model_id: int) -> bool:
         from ...GlobalCache import GLOBAL_CACHE

@@ -1,4 +1,3 @@
-import os
 import time
 from datetime import datetime
 from datetime import timezone
@@ -24,13 +23,12 @@ from Py4GWCoreLib import IniHandler
 from Py4GWCoreLib.Py4GWcorelib import Keystroke
 from Py4GWCoreLib.Quest import Quest
 from Py4GWCoreLib.enums_src.Model_enums import ModelID
-from Py4GWCoreLib.enums_src.Multiboxing_enums import ReloadType
-from Py4GWCoreLib.item_data.ItemData import ITEM_DATA
 from Widgets.Automation.Helpers import Pycons as PyconsHelper
 from Widgets.Automation.Helpers.Pycons import resolve_pycons_account_ini_path
 from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
 from Py4GWCoreLib.GlobalCache.shared_memory_src.SharedMessageStruct import SharedMessageStruct
 from Py4GWCoreLib.GlobalCache.shared_memory_src.Globals import SHMEM_MAX_NUMBER_OF_SKILLS
+from Py4GWCoreLib.Item import has_active_party_summon, has_summoning_sickness
 
 cached_data = CacheData()
 
@@ -54,6 +52,7 @@ MERCHANT_RULES_WIDGET_NAME = "Merchant Rules"
 PYCONS_WIDGET_NAME = "Pycons"
 _pcon_last_exec_ms_by_signature: dict[tuple[str, tuple[int, int, int, int]], int] = {}
 PCON_EXEC_DEDUP_MS = 500
+
 
 def _extra_data(message: SharedMessageStruct) -> tuple[str, str, str, str]:
     """Extract the four ExtraData fields from a SharedMessageStruct as plain strings."""
@@ -732,6 +731,17 @@ def MerchantItems(index: int, message: SharedMessageStruct):
         wait_ms += 250
     _merchant_busy = True
 
+    def _extra_data(message: SharedMessageStruct) -> tuple[str, str, str, str]:
+        values: list[str] = []
+        for raw in message.ExtraData:
+            try:
+                values.append(_c_wchar_array_to_str(raw))
+            except Exception:
+                values.append("")
+        while len(values) < 4:
+            values.append("")
+        return tuple(values[:4])
+
     extra0, extra1, extra2, extra3 = _extra_data(message)
     mode = extra0.strip().lower()
 
@@ -807,6 +817,17 @@ def MerchantMaterials(index: int, message: SharedMessageStruct):
         wait_ms += 250
     _merchant_busy = True
 
+    def _extra_data(message: SharedMessageStruct) -> tuple[str, str, str, str]:
+        values: list[str] = []
+        for raw in message.ExtraData:
+            try:
+                values.append(_c_wchar_array_to_str(raw))
+            except Exception:
+                values.append("")
+        while len(values) < 4:
+            values.append("")
+        return tuple(values[:4])
+
     def _parse_selected_models(raw: str) -> set[int] | None:
         if not raw.strip():
             return None
@@ -832,17 +853,15 @@ def MerchantMaterials(index: int, message: SharedMessageStruct):
     mode = extra0.strip().lower()
     selected_models = _parse_selected_models(extra1)
 
-    def _parse_exact_quantity(raw: str, default: int = 250) -> int:
+    def _parse_exact_quantity(raw: str, default: int = 250) -> int | None:
         value = str(raw).strip()
         if value == "":
             return int(default)
         try:
             parsed = int(value)
-            
         except Exception:
             return int(default)
-        
-        return parsed
+        return parsed if parsed > 0 else None
 
     try:
         x = float(message.Params[0])
@@ -1130,46 +1149,10 @@ def UsePcon(index: int, message: SharedMessageStruct):
 def UseSummoningStone(index: int, message: SharedMessageStruct):
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
 
-    # Never use summoning stones in The Norn Fighting Tournament.
-    if Map.GetMapID() == 700:
-        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
-        return
-
     # Guard against summon spam:
     # - Summoning Sickness already active
     # - summon ally already alive nearby/party-side
-    summoning_sickness_effect_id = 2886
-    has_summoning_sickness = False
-    try:
-        has_summoning_sickness = bool(GLOBAL_CACHE.Effects.HasEffect(Player.GetAgentID(), summoning_sickness_effect_id))
-    except Exception:
-        has_summoning_sickness = False
-
-    summon_creature_model_ids = {
-        513,         # Fire Imp
-        8028,        # Legionnaire
-        9055, 9076,  # Tengu Support Flare - Warrior
-        9056, 9077,  # Tengu Support Flare - Ranger
-        9058, 9079,  # Tengu Support Flare - Monk
-        9060, 9081,  # Tengu Support Flare - Mesmer
-        9062, 9083,  # Tengu Support Flare - Ritualist
-        9065, 9086,  # Tengu Support Flare - Assassin
-        9067, 9088,  # Tengu Support Flare - Elementalist
-        9069, 9090,  # Tengu Support Flare - Necromancer
-    }
-    has_alive_summon = False
-    try:
-        others = GLOBAL_CACHE.Party.GetOthers()
-        for other in others:
-            if Agent.IsAlive(other):
-                model_id = Agent.GetModelID(other)
-                if model_id in summon_creature_model_ids:
-                    has_alive_summon = True
-                    break
-    except Exception:
-        has_alive_summon = False
-
-    if has_summoning_sickness or has_alive_summon:
+    if has_summoning_sickness(Player.GetAgentID()) or has_active_party_summon(GLOBAL_CACHE.Party.GetOthers()):
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
 
@@ -1245,6 +1228,7 @@ def PressKey(index: int, message: SharedMessageStruct):
 def DonateToGuild(index: int, message: SharedMessageStruct):
     MODULE = "DonateFaction"
     CHUNK = 5000
+    STARTING_THRESHOLD = 10_000
 
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
 
@@ -1256,6 +1240,7 @@ def DonateToGuild(index: int, message: SharedMessageStruct):
 
     map_id = Map.GetMapID()
     TITLE_CAP = 10_000_000
+    MATERIAL_EXCHANGE_DIALOG = 0x800101
     TOTAL_CUMULATIVE = 0
     if map_id == 77:  # House zu Heltzer
         faction = 0  # Kurzick
@@ -1292,9 +1277,19 @@ def DonateToGuild(index: int, message: SharedMessageStruct):
     yield from Routines.Yield.Agents.InteractWithAgentXY(*npc_pos)
     yield from Routines.Yield.wait(400)
 
-    if TOTAL_CUMULATIVE <= TITLE_CAP:  # donate faction points if title is not maxed
+    if CURRENT_FACTION < STARTING_THRESHOLD:
+        ConsoleLog(
+            MODULE,
+            f"Skipping donation/conversion: current faction {CURRENT_FACTION:,} below {STARTING_THRESHOLD:,}.",
+            Console.MessageType.Info,
+        )
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+
+    chunks = CURRENT_FACTION // CHUNK
+
+    if TOTAL_CUMULATIVE < TITLE_CAP:  # donate faction points if title is not maxed
         # --- Donation loop ---
-        chunks = CURRENT_FACTION // CHUNK
         for _ in range(chunks):
             if not UIManager.IsNPCDialogVisible():
                 yield from Routines.Yield.Player.InteractTarget()
@@ -1305,16 +1300,13 @@ def DonateToGuild(index: int, message: SharedMessageStruct):
             yield from Routines.Yield.wait(300)
     else:  # swap faction points for mats if title is maxed
         swapped = 0
-        chunks = CURRENT_FACTION // CHUNK
         while swapped < chunks:
             if not UIManager.IsNPCDialogVisible():
                 yield from Routines.Yield.Player.InteractTarget()
                 yield from Routines.Yield.wait(250)
                 if not UIManager.IsNPCDialogVisible():
                     break
-            UIManager.ClickDialogButton(1)  # exchange
-            yield from Routines.Yield.wait(250)
-            UIManager.ClickDialogButton(2)  # confirm
+            Player.SendDialog(MATERIAL_EXCHANGE_DIALOG)
             yield from Routines.Yield.wait(300)
             swapped += 1
 
@@ -2369,6 +2361,16 @@ def InventoryQuery(index: int, message: SharedMessageStruct):
     which is limited to 64 characters per slot (~12 IDs). Extend this handler
     if a real non-contiguous use case arises.
     """
+    def _extra_data(msg: SharedMessageStruct) -> tuple[str, str, str, str]:
+        values: list[str] = []
+        for raw in msg.ExtraData:
+            try:
+                values.append(_c_wchar_array_to_str(raw))
+            except Exception:
+                values.append("")
+        while len(values) < 4:
+            values.append("")
+        return values[0], values[1], values[2], values[3]
     
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
     extra0, extra1, extra2, extra3 = _extra_data(message)
@@ -2422,43 +2424,6 @@ def EquipItem(index: int, message: SharedMessageStruct):
     ConsoleLog(MODULE_NAME, f"EquipItem: equipped item_id {item_id} (model {model_id}).", Console.MessageType.Info, False)
     GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
 # endregion
-
-#region Reload
-def Reload(index: int, message: SharedMessageStruct):
-    GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
-    try:
-        config_type = ReloadType(message.Params[0]) if len(message.Params) > 0 else None
-        project_path = Py4GW.Console.get_projects_path()
-        settings_dir = os.path.join(project_path, "Settings", "Global", "Item & Inventory", "Configs")
-        
-        match config_type:
-            case ReloadType.ItemData:
-                ITEM_DATA.load_data()
-                
-            case ReloadType.Crafting:
-                # Coming soon ....
-                pass
-            
-            case ReloadType.Buying:
-                # Coming soon ....
-                pass
-            
-            case ReloadType.Inventory:
-                # Coming soon ....
-                pass
-            
-            case ReloadType.Looting:
-                # Coming soon ....
-                pass
-            
-    except Exception as exc:
-        ConsoleLog(MODULE_NAME, f"ReloadConfig message error: {exc}", Console.MessageType.Error, False)
-    finally:
-        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
-        
-    yield None
-
-#endregions
 
 # region ProcessMessages
 def ProcessMessages():
@@ -2579,8 +2544,6 @@ def ProcessMessages():
             GLOBAL_CACHE.Coroutines.append(InventoryQuery(index, message))
         case SharedCommandType.EquipItem:
             GLOBAL_CACHE.Coroutines.append(EquipItem(index, message))
-        case SharedCommandType.Reload:
-            GLOBAL_CACHE.Coroutines.append(Reload(index, message))
         case SharedCommandType.LootEx:
             # privately Handled Command, by frenkey
             pass

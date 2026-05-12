@@ -450,6 +450,7 @@ class _BottingTreeUI:
         self._colored_bool('Headless HeroAI', self.parent.IsHeadlessHeroAIEnabled())
         self._colored_bool('Looting', self.parent.IsLootingEnabled())
         self._colored_bool('Account Isolation', self.parent.IsIsolationEnabled())
+        self._colored_bool('Pause On Combat', bool(self.parent.GetBlackboardValue('pause_on_combat', self.parent.pause_on_combat)))
         self._colored_bool('Combat Active', bool(self.parent.GetBlackboardValue('COMBAT_ACTIVE', False)))
         self._colored_bool('Looting Active', bool(self.parent.GetBlackboardValue('LOOTING_ACTIVE', False)))
 

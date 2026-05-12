@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from Py4GWCoreLib.BuildMgr import BuildCoroutine
-from Py4GWCoreLib import Range, Routines
+from Py4GWCoreLib import Effects, GLOBAL_CACHE, ModelID, Player, Range, Routines
 from Py4GWCoreLib.Skill import Skill
 from Py4GWCoreLib.Builds.Skills._whiteboard import coordinates_whiteboard_skill_target
 
@@ -13,9 +13,49 @@ if TYPE_CHECKING:
 __all__ = ["PvE"]
 
 
+ALCOHOL_MODEL_IDS = (
+    ModelID.Aged_Dwarven_Ale.value,
+    ModelID.Aged_Hunters_Ale.value,
+    ModelID.Bottle_Of_Grog.value,
+    ModelID.Flask_Of_Firewater.value,
+    ModelID.Keg_Of_Aged_Hunters_Ale.value,
+    ModelID.Krytan_Brandy.value,
+    ModelID.Spiked_Eggnog.value,
+    ModelID.Bottle_Of_Rice_Wine.value,
+    ModelID.Eggnog.value,
+    ModelID.Dwarven_Ale.value,
+    ModelID.Hard_Apple_Cider.value,
+    ModelID.Hunters_Ale.value,
+    ModelID.Bottle_Of_Juniberry_Gin.value,
+    ModelID.Shamrock_Ale.value,
+    ModelID.Bottle_Of_Vabbian_Wine.value,
+    ModelID.Vial_Of_Absinthe.value,
+    ModelID.Witchs_Brew.value,
+    ModelID.Zehtukas_Jug.value,
+)
+
+
 class PvE:
     def __init__(self, build: BuildMgr) -> None:
         self.build: BuildMgr = build
+
+    def _get_drunk_level(self) -> int:
+        try:
+            return max(0, min(5, int(Effects.GetAlcoholLevel() or 0)))
+        except Exception:
+            return 0
+
+    def _use_alcohol_if_needed(self, target_level: int = 1) -> int:
+        if self._get_drunk_level() >= target_level:
+            return 0
+
+        for model_id in ALCOHOL_MODEL_IDS:
+            item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(int(model_id))
+            if item_id:
+                GLOBAL_CACHE.Inventory.UseItem(item_id)
+                return 500
+
+        return 0
 
     def Air_of_Superiority(self) -> BuildCoroutine:
         from Py4GWCoreLib import Player, GLOBAL_CACHE
@@ -85,6 +125,40 @@ class PvE:
             aftercast_delay=250,
         ))
 
+    #region D
+    def Drunken_Master(
+        self,
+        *,
+        refresh_window_ms: int = 2000,
+        target_drunk_level: int = 1,
+        require_aggro_or_close: bool = True,
+    ) -> BuildCoroutine:
+        drunken_master_id: int = Skill.GetID("Drunken_Master")
+        player_agent_id = Player.GetAgentID()
+
+        if not self.build.IsSkillEquipped(drunken_master_id):
+            return False
+        if require_aggro_or_close and not (self.build.IsInAggro() or self.build.IsCloseToAggro()):
+            return False
+        if Routines.Checks.Agents.HasEffect(player_agent_id, drunken_master_id):
+            remaining_ms = int(GLOBAL_CACHE.Effects.GetEffectTimeRemaining(
+                player_agent_id,
+                drunken_master_id,
+            ) or 0)
+            if remaining_ms > refresh_window_ms:
+                return False
+
+        wait_ms = self._use_alcohol_if_needed(target_drunk_level)
+        if wait_ms > 0:
+            yield from Routines.Yield.wait(wait_ms)
+
+        return (yield from self.build.CastSkillID(
+            skill_id=drunken_master_id,
+            log=False,
+            aftercast_delay=250,
+        ))
+    #endregion
+
     def Ebon_Vanguard_Assassin_Support(
         self,
         *,
@@ -96,6 +170,8 @@ class PvE:
         cluster_radius = Range.Nearby.value
 
         if not self.build.IsSkillEquipped(evas_id):
+            return False
+        if not self.build.CanCastSkillID(evas_id):
             return False
 
         # Optional caster-energy gate. When set, fire only if the caster's
@@ -131,6 +207,8 @@ class PvE:
         technobabble_id: int = Skill.GetID("Technobabble")
 
         if not self.build.IsSkillEquipped(technobabble_id):
+            return False
+        if not self.build.CanCastSkillID(technobabble_id):
             return False
         if not self.build.IsInAggro():
             return False
