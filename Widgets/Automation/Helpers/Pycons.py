@@ -1158,8 +1158,8 @@ try:
             "why": "This is a preference/order setting only.",
         },
         "mbdp_restore_defaults": {
-            "short": "Reset morale/DP settings in this section to defaults.",
-            "long": "Restores only morale and death penalty values in this section to balanced defaults. Does not change general, alcohol, or consumable selection settings.",
+            "short": "Restore safe balanced MB/DP defaults.",
+            "long": "Restores the built-in safe MB/DP defaults, including targets, priority, safety settings, and legacy compatibility values. Does not change general, alcohol, or consumable selection settings.",
             "why": "Fast recovery if experimentation made morale/DP behavior unpredictable.",
         },
         "mbdp_self_dp_minor_threshold": {
@@ -1232,7 +1232,8 @@ try:
                 "Choose how aggressively team morale and party DP cleanup items are used. Preserve items waits for "
                 "very high value. Conservative avoids small gains. Balanced is the default. Aggressive spends sooner. "
                 "Reach target pushes closer to the target. Force target maintains the target whenever possible and "
-                "shows Team morale leader. Custom means the legacy thresholds do not match a preset."
+                "shows Team morale leader. Party-wide MB/DP items are used by the coordinator only and are not "
+                "broadcast to followers. Custom means the legacy thresholds do not match a preset."
             ),
             "why": (
                 "This is a simpler way to tune party-wide MB/DP item use while keeping the existing numeric settings "
@@ -1243,7 +1244,8 @@ try:
             "short": "Make this account coordinate Force target morale.",
             "long": (
                 "ON makes this account the team morale coordinator for Force target. It enables team calls, applies "
-                "safe leader defaults, and keeps follower item safety on. Followers should opt in separately."
+                "safe leader defaults, and keeps follower item safety on. Party-wide MB/DP items used by this planner "
+                "are not broadcast to followers, which prevents duplicate spending."
             ),
             "why": "Use this only on the account that should manage party morale for the team.",
         },
@@ -8710,16 +8712,12 @@ try:
 
         _debug(
             f"MB/DP PARTY fire {spec['label']}: {chosen_reason}; members={len(ctx['states'])} total_dp={ctx['total_dp']} "
-            f"gain5={ctx['gain_5']} gain10={ctx['gain_10']} recipients={len(ctx['recipients_emails'])}"
+            f"gain5={ctx['gain_5']} gain10={ctx['gain_10']} coordinator_only=True"
         )
         if _use_item_id(item_id, spec["key"]):
             _last_mbdp_party_ms = int(ctx["now"])
             _last_used_ms[spec["key"]] = int(ctx["now"])
             aftercast_timer.Start()
-            try:
-                _broadcast_use(int(spec.get("model_id", 0)), 1, 0, recipients=ctx["recipients_emails"])
-            except Exception:
-                pass
             return True
         return False
 
@@ -11142,13 +11140,6 @@ try:
                 _mark_mbdp_preset_custom()
             _show_setting_tooltip("mbdp_party_min_interval_ms")
 
-            if PyImGui.button("Restore default morale/DP settings##pycons_mbdp_restore_defaults"):
-                _apply_mbdp_defaults()
-                _mark_mbdp_preset_custom()
-                _debug("MB/DP settings restored to defaults.", Console.MessageType.Info)
-                cfg.save_if_dirty_throttled(0)
-            _show_setting_tooltip("mbdp_restore_defaults")
-
             PyImGui.separator()
             _section_text("Self and team controls:", "settings_mbdp")
 
@@ -11237,6 +11228,15 @@ try:
                     else:
                         _apply_team_morale_leader_on()
                 _show_setting_tooltip("mbdp_team_morale_leader")
+
+            PyImGui.separator()
+            _section_text("Reset:", "settings_mbdp", secondary=True)
+            if PyImGui.button("Restore safe MB/DP defaults##pycons_mbdp_restore_defaults"):
+                _apply_mbdp_defaults()
+                _mark_mbdp_preset_custom()
+                _debug("MB/DP settings restored to safe defaults.", Console.MessageType.Info)
+                cfg.save_if_dirty_throttled(0)
+            _show_setting_tooltip("mbdp_restore_defaults")
 
             PyImGui.separator()
 
