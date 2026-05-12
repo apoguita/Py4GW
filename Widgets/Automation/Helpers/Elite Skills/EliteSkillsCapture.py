@@ -9250,6 +9250,7 @@ def QuickShot():
     ConfigureAggressiveEnv(bot)
     bot.Move.XY(-14169, 8080)
     bot.Move.XY(-4754, 12871)
+    bot.Move.XY(-6485.16, 11917.93)
     bot.Wait.UntilOutOfCombat()
     ConfigurePacifistEnv(bot)
     bot.SkillBar.UseSkill(3)
