@@ -1755,7 +1755,7 @@ class ModelID(IntEnum):
     Victory_Token = 18345
     Vizu_Mini = 22196
     Voltaic_Spear = 2071
-    Wand = 15552
+    WandWrapping = 15552
     War_Supplies = 35121
     Warden_Horn = 822
     Warrior_Elite_Tome = 21791

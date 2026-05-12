@@ -2,7 +2,6 @@ import PyImGui
 from Py4GWCoreLib import *
 from Py4GWCoreLib.HotkeyManager import HOTKEY_MANAGER
 
-
 #do not ever disable this module, it is the main module for everything
 MODULE_NAME = "Environment Upkeeper"
 MODULE_ICON = "Textures/Module_Icons/Environment Upkeeper.png"
@@ -112,7 +111,7 @@ def main():
     
     if not Routines.Checks.Map.MapValid():
         return
-    
+        
     if widget_config.throttle_action_queue.IsExpired():
         widget_config.action_queue_manager.ProcessQueue("ACTION")
         widget_config.throttle_action_queue.Reset()
