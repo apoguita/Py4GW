@@ -59,6 +59,7 @@ class BuildMgr:
         self.is_combat_automator_compatible = is_combat_automator_compatible
         self.is_template_only = is_template_only
         self.blocked_skills: list[int] = []
+        self._applied_blocked_skill_ids: set[int] = set()
         self.priority_target = 0
         self._local_skill_casting_handler: BuildHandler | None = None
         self._local_ooc_handler: BuildHandler | None = None
@@ -184,7 +185,9 @@ class BuildMgr:
         return blocked_skills
 
     def ApplyBlockedSkillIDs(self, blocked_skill_ids: list[int] | None = None) -> None:
-        pass
+        self._applied_blocked_skill_ids = {
+            int(skill_id) for skill_id in (blocked_skill_ids or []) if int(skill_id) != 0
+        }
 
     def SetOOCFn(self, handler: BuildHandler | None) -> None:
         self._local_ooc_handler = handler
@@ -1582,6 +1585,8 @@ class BuildMgr:
         if not Routines.Checks.Skills.HasEnoughEnergy(Player.GetAgentID(), skill_id):
             return False
         if not Routines.Checks.Skills.IsSkillIDReady(skill_id):
+            return False
+        if skill_id in self._applied_blocked_skill_ids:
             return False
 
         slot = SkillBar.GetSlotBySkillID(skill_id)
