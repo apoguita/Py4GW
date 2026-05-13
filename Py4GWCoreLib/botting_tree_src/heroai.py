@@ -2,17 +2,44 @@ from ..GlobalCache import GLOBAL_CACHE
 from ..Player import Player
 from ..py4gwcorelib_src.BehaviorTree import BehaviorTree
 from ..py4gwcorelib_src.WidgetManager import get_widget_handler
+from ..py4gwcorelib_src.WidgetManager import WidgetCatalog
 from .enums import HeroAIStatus
 
 
 class BottingTreeHeroAIMixin:
     _HEROAI_WIDGET_NAME = 'HeroAI'
+    _HEROAI_WIDGET_ID = 'Automation/Multiboxing/HeroAI.py'
+
+    def _get_heroai_widget(self):
+        try:
+            widget_handler = get_widget_handler()
+            snapshot = WidgetCatalog.snapshot_from_handler(widget_handler)
+            widget = snapshot.widgets_by_id.get(self._HEROAI_WIDGET_ID)
+            if widget is not None:
+                return widget
+            widget = widget_handler.get_widget_info(self._HEROAI_WIDGET_ID)
+            if widget is not None:
+                return widget
+            return widget_handler.get_widget_info(self._HEROAI_WIDGET_NAME)
+        except Exception:
+            return None
+
+    def _get_heroai_widget_toggle_name(self) -> str:
+        widget = self._get_heroai_widget()
+        if widget is not None and widget.plain_name:
+            return widget.plain_name
+        return self._HEROAI_WIDGET_NAME
+
+    def _is_heroai_widget_enabled(self) -> bool:
+        widget = self._get_heroai_widget()
+        return bool(widget and widget.enabled)
 
     def _disable_heroai_widget_for_headless(self) -> bool:
         try:
             widget_handler = get_widget_handler()
-            if bool(widget_handler.is_widget_enabled(self._HEROAI_WIDGET_NAME)):
-                widget_handler.disable_widget(self._HEROAI_WIDGET_NAME)
+            widget = self._get_heroai_widget()
+            if widget is not None and bool(widget.enabled):
+                widget_handler.disable_widget(self._get_heroai_widget_toggle_name())
                 self._headless_disabled_heroai_widget = True
                 return True
         except Exception:
@@ -24,8 +51,9 @@ class BottingTreeHeroAIMixin:
             return False
         try:
             widget_handler = get_widget_handler()
-            if not bool(widget_handler.is_widget_enabled(self._HEROAI_WIDGET_NAME)):
-                widget_handler.enable_widget(self._HEROAI_WIDGET_NAME)
+            widget = self._get_heroai_widget()
+            if widget is not None and not bool(widget.enabled):
+                widget_handler.enable_widget(self._get_heroai_widget_toggle_name())
             self._headless_disabled_heroai_widget = False
             return True
         except Exception:
@@ -35,10 +63,6 @@ class BottingTreeHeroAIMixin:
         self.headless_heroai_enabled = enabled
         self._last_heroai_state = None
         self.ApplyAccountIsolation()
-        if enabled:
-            self._disable_heroai_widget_for_headless()
-        else:
-            self._restore_heroai_widget_after_headless()
         if reset_runtime:
             self.headless_heroai.reset()
             bb = self.blackboard

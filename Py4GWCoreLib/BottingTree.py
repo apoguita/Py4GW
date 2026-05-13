@@ -114,14 +114,14 @@ class BottingTree(
 
     def Start(self):
         self.Reset()
-        if self.IsHeadlessHeroAIEnabled():
-            self._disable_heroai_widget_for_headless()
-            self.RestoreHeroAIOptions()
         self.ClearPendingMessages()
         self._capture_isolation_state_for_restore()
         self.ApplyAccountIsolation()
         self.started = True
         self.paused = False
+        if self.IsHeadlessHeroAIEnabled():
+            self._disable_heroai_widget_for_headless()
+            self.RestoreHeroAIOptions()
 
         Py4GW.Console.Log('BottingTree', 'Botting tree started.', Py4GW.Console.MessageType.Info)
 
@@ -152,11 +152,9 @@ class BottingTree(
         self.tree.blackboard.clear()
         self._last_planner_gate_state = None
         self._last_heroai_state = None
-        if self.IsHeadlessHeroAIEnabled():
+        if self.IsHeadlessHeroAIEnabled() and self.started and not self.paused:
             self._disable_heroai_widget_for_headless()
             self.RestoreHeroAIOptions()
-        else:
-            self._restore_heroai_widget_after_headless()
         self.ClearPendingMessages()
 
         Py4GW.Console.Log('BottingTree', 'Botting tree reset.', Py4GW.Console.MessageType.Info)
@@ -164,9 +162,12 @@ class BottingTree(
     def Pause(self, pause: bool = True):
         if pause and not self.paused:
             self.paused = True
+            self._restore_heroai_widget_after_headless()
             Py4GW.Console.Log('BottingTree', 'Botting tree paused.', Py4GW.Console.MessageType.Info)
         elif not pause and self.paused:
             self.paused = False
+            if self.started and self.IsHeadlessHeroAIEnabled():
+                self._disable_heroai_widget_for_headless()
             Py4GW.Console.Log('BottingTree', 'Botting tree unpaused.', Py4GW.Console.MessageType.Info)
 
     def IsPaused(self) -> bool:

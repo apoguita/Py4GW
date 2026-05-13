@@ -1,4 +1,4 @@
-﻿# region Imports & Config
+# region Imports & Config
 from Py4GWCoreLib import Botting, Routines, GLOBAL_CACHE, ModelID, Agent, Player, ConsoleLog, IniManager, HeroType, AgentArray, SharedCommandType
 from Py4GWCoreLib.Map import Map
 from Py4GWCoreLib.enums_src.Title_enums import TitleID, TITLE_TIERS
@@ -26,6 +26,7 @@ KERRSH_XY = (25203.0, -10694.0)
 PATH_TO_REVELATIONS_DIALOG = 0x837D01
 ZONING_STEP_NAME = "[H]Zoning into explorable area_2"
 START_COMBAT_STEP_NAME = "[H]Start Combat_3"
+PATH_TO_REVELATIONS_CHECK_STEP_NAME = "[H]Path to Revelations Quest Check_2"
 
 _MULTIBOX_ALTS_KEY = "use_multibox_alts"
 _party_mode: int = 0  # 0 = Single Account with Heroes, 1 = Multiboxing
@@ -107,18 +108,26 @@ bot.config.config_properties.use_pcons = Property(bot.config, "use_pcons", activ
 _SETTINGS_SECTION = "TitleBotSettings"
 _USE_CONSET_KEY = "use_conset"
 _USE_PCONS_KEY = "use_pcons"
+_CONSET_RESTOCK_TARGET_KEY = "conset_restock_target"
+_PCON_RESTOCK_TARGET_KEY = "pcon_restock_target"
 _USE_RESTOCK_KITS_KEY = "use_restock_kits"
 _ID_KITS_TARGET_KEY = "id_kits_target"
 _SALVAGE_KITS_TARGET_KEY = "salvage_kits_target"
 _MERCHANT_SELL_MATERIALS_KEY = "merchant_sell_materials"
 _MERCHANT_ALT_WAIT_MS_KEY = "merchant_alt_wait_ms"
 _RANDOMIZE_DISTRICT_KEY = "randomize_district"
+_DEFAULT_CONSET_RESTOCK_TARGET = 250
+_DEFAULT_PCON_RESTOCK_TARGET = 250
 _DEFAULT_ID_KITS_TARGET = 2
 _DEFAULT_SALVAGE_KITS_TARGET = 5
 _DEFAULT_ALT_SETTLE_WAIT_MS = 2000
 _MAX_ALT_SETTLE_WAIT_MS = 5000
+_MAX_CONSUMABLE_RESTOCK_TARGET = 999
+_HONEYCOMB_TARGET_MORALE = 110
 
 _restock_kits_enabled: bool = False
+_conset_restock_target: int = _DEFAULT_CONSET_RESTOCK_TARGET
+_pcon_restock_target: int = _DEFAULT_PCON_RESTOCK_TARGET
 _id_kits_target: int = _DEFAULT_ID_KITS_TARGET
 _salvage_kits_target: int = _DEFAULT_SALVAGE_KITS_TARGET
 _merchant_sell_materials: bool = False
@@ -248,12 +257,14 @@ def bot_routine(bot: Botting) -> None:
     _load_kit_restock_settings(bot)
     _sync_consumable_toggles(bot)
     bot.States.AddCustomState(lambda: _gh_merchant_setup_if_enabled(bot, OLAFSTEAD), "GH Merchant Setup If Enabled")
+    bot.States.AddHeader("Path to Revelations Quest Check")
     bot.States.AddCustomState(lambda: _refresh_path_to_revelations_if_completed(bot), "Refresh Path to Revelations If Completed")
+    bot.States.AddCustomState(lambda: _leave_party_before_olafstead_travel(bot), "Leave Party Before Olafstead")
     bot.States.AddCustomState(lambda: _coro_travel_random_district(bot, OLAFSTEAD), "Travel to Olafstead")
     bot.States.AddCustomState(lambda: _maybe_setup_heroes(bot), "Setup Heroes")
-    bot.States.AddCustomState(lambda: _restock_consumables_if_enabled(bot), "Restock Consumables If Enabled")
 
     bot.States.AddHeader("Zoning into explorable area")
+    bot.States.AddCustomState(lambda: _restock_consumables_if_enabled(bot), "Restock Consumables If Enabled")
     bot.Party.SetHardMode(True)
     auto_path_list = [(-328.0, 1240.0), (-1500.0, 1250.0)]
     bot.Move.FollowPath(auto_path_list)
@@ -441,7 +452,7 @@ def bot_routine(bot: Botting) -> None:
         bot.Wait.UntilOnOutpost()
     else:
         bot.Map.Travel(target_map_id=OLAFSTEAD)
-    bot.States.JumpToStepName(ZONING_STEP_NAME)
+    bot.States.JumpToStepName(PATH_TO_REVELATIONS_CHECK_STEP_NAME)
 
 
 bot.UI.override_draw_config(lambda: _draw_settings(bot))
@@ -481,6 +492,10 @@ def _restock_kits_if_enabled(bot: Botting):
 
 
 def _coro_travel_random_district(bot: Botting, target_map_id: int):
+    if target_map_id == OLAFSTEAD and getattr(bot.config, "_skip_next_olafstead_travel", False):
+        bot.config._skip_next_olafstead_travel = False
+        return
+
     if _randomize_district:
         district = random.choice(_RANDOM_DISTRICTS)
         ConsoleLog(BOT_NAME, f"Traveling to map {target_map_id} with random EU district {district}")
@@ -491,28 +506,135 @@ def _coro_travel_random_district(bot: Botting, target_map_id: int):
     yield from bot.Map._coro_travel(target_map_id, "")
 
 
-def _refresh_path_to_revelations_if_completed(bot: Botting):
-    if not bot.Quest.IsQuestCompleted(PATH_TO_REVELATIONS_QUEST_ID):
+def _leave_party_before_olafstead_travel(bot: Botting):
+    if getattr(bot.config, "_skip_next_olafstead_travel_prep", False):
+        bot.config._skip_next_olafstead_travel_prep = False
         return
 
     if _party_mode == 1:
-        _kick_current_party_accounts()
-        for _ in range(20):
-            yield from bot.Wait._coro_for_time(250)
-            if GLOBAL_CACHE.Party.GetPlayerCount() <= 1:
-                break
+        leave_refs = _dispatch_to_alts(SharedCommandType.LeaveParty, (0, 0, 0, 0))
+        yield from _wait_for_alt_dispatch_completion("leave_party", leave_refs, SharedCommandType.LeaveParty, timeout_ms=5000)
 
-    yield from _coro_travel_random_district(bot, TARNISHED_HAVEN)
-    bot.Quest.AbandonQuest(PATH_TO_REVELATIONS_QUEST_ID)
-    yield from bot.Wait._coro_for_time(500)
-    yield from bot.Move._coro_xy_and_dialog(
-        KERRSH_XY[0],
-        KERRSH_XY[1],
-        PATH_TO_REVELATIONS_DIALOG,
-        "Take Path to Revelations",
+    if GLOBAL_CACHE.Party.GetPlayerCount() > 1:
+        GLOBAL_CACHE.Party.LeaveParty()
+
+    for _ in range(20):
+        yield from bot.Wait._coro_for_time(250)
+        if GLOBAL_CACHE.Party.GetPlayerCount() <= 1:
+            break
+
+
+def _account_has_completed_quest(account_data, quest_id: int) -> bool:
+    quest_log = getattr(account_data, "QuestLog", None)
+    if quest_log is None:
+        return False
+    quests = getattr(quest_log, "Quests", ())
+    for quest in quests:
+        if int(getattr(quest, "QuestID", 0) or 0) != int(quest_id):
+            continue
+        return bool(getattr(quest, "IsCompleted", False))
+    return False
+
+
+def _get_completed_path_to_revelations_emails() -> list[str]:
+    completed: list[str] = []
+    for account in GLOBAL_CACHE.ShMem.GetAllAccountData():
+        email = str(getattr(account, "AccountEmail", "") or "")
+        if not email:
+            continue
+        if _account_has_completed_quest(account, PATH_TO_REVELATIONS_QUEST_ID):
+            completed.append(email)
+    return completed
+
+
+def _dispatch_to_account_emails(account_emails: list[str], command, params, extra_data=("", "", "", "")) -> list[tuple[str, int]]:
+    my_email = Player.GetAccountEmail()
+    refs: list[tuple[str, int]] = []
+    for email in account_emails:
+        email = str(email or "").strip()
+        if not email or email == my_email:
+            continue
+        idx = int(GLOBAL_CACHE.ShMem.SendMessage(my_email, email, command, params, extra_data))
+        refs.append((email, idx))
+    return refs
+
+
+def _travel_all_accounts_to_outpost(bot: Botting, target_map_id: int):
+    yield from _coro_travel_random_district(bot, target_map_id)
+    if _party_mode != 1:
+        return
+    my_email = Player.GetAccountEmail()
+    expected_alts = len([acc for acc in GLOBAL_CACHE.ShMem.GetAllAccountData() if acc.AccountEmail != my_email])
+    yield from bot.helpers.Multibox._summon_all_accounts()
+    yield from _wait_for_alts_on_current_map("travel_outpost_arrival", expected_alts, target_map_id, timeout_ms=60000)
+
+
+def _get_kerrsh_target_id():
+    if False:
+        yield
+
+    yield from Routines.Yield.Agents.TargetNearestNPCXY(KERRSH_XY[0], KERRSH_XY[1], 600.0)
+    return int(Player.GetTargetID() or 0)
+
+
+def _refresh_path_to_revelations_if_completed(bot: Botting):
+    completed_emails = (
+        _get_completed_path_to_revelations_emails()
+        if _party_mode == 1
+        else ([Player.GetAccountEmail()] if bot.Quest.IsQuestCompleted(PATH_TO_REVELATIONS_QUEST_ID) else [])
     )
+    if not completed_emails:
+        return
+
+    yield from _leave_party_before_olafstead_travel(bot)
+    yield from _travel_all_accounts_to_outpost(bot, TARNISHED_HAVEN)
+
+    own_email = Player.GetAccountEmail()
+    if own_email in completed_emails:
+        bot.Quest.AbandonQuest(PATH_TO_REVELATIONS_QUEST_ID)
+
+    alt_completed_emails = [email for email in completed_emails if email != own_email]
+    if alt_completed_emails:
+        abandon_refs = _dispatch_to_account_emails(
+            alt_completed_emails,
+            SharedCommandType.AbandonQuest,
+            (float(PATH_TO_REVELATIONS_QUEST_ID), 0.0, 0.0, 0.0),
+        )
+        yield from _wait_for_alt_dispatch_completion(
+            "abandon_path_to_revelations",
+            abandon_refs,
+            SharedCommandType.AbandonQuest,
+            timeout_ms=10000,
+        )
+
     yield from bot.Wait._coro_for_time(500)
-    yield from _coro_travel_random_district(bot, OLAFSTEAD)
+    kerrsh_target_id = yield from _get_kerrsh_target_id()
+
+    if own_email in completed_emails:
+        yield from bot.Move._coro_xy_and_dialog(
+            KERRSH_XY[0],
+            KERRSH_XY[1],
+            PATH_TO_REVELATIONS_DIALOG,
+            "Take Path to Revelations",
+        )
+
+    if alt_completed_emails and kerrsh_target_id:
+        take_refs = _dispatch_to_account_emails(
+            alt_completed_emails,
+            SharedCommandType.SendDialogToTarget,
+            (float(kerrsh_target_id), float(PATH_TO_REVELATIONS_DIALOG), 0.0, 0.0),
+        )
+        yield from _wait_for_alt_dispatch_completion(
+            "retake_path_to_revelations",
+            take_refs,
+            SharedCommandType.SendDialogToTarget,
+            timeout_ms=30000,
+        )
+
+    yield from bot.Wait._coro_for_time(500)
+    yield from _travel_all_accounts_to_outpost(bot, OLAFSTEAD)
+    bot.config._skip_next_olafstead_travel_prep = True
+    bot.config._skip_next_olafstead_travel = True
 
 
 def _get_leftover_material_item_ids(batch_size: int = 10) -> list[int]:
@@ -680,11 +802,7 @@ def _gh_merchant_setup_if_enabled(bot: Botting, outpost_id: int):
         return
 
     if _party_mode == 1:
-        _kick_current_party_accounts()
-        for _ in range(20):
-            yield from bot.Wait._coro_for_time(250)
-            if GLOBAL_CACHE.Party.GetPlayerCount() <= 1:
-                break
+        yield from _leave_party_before_olafstead_travel(bot)
 
     yield from _disable_inventoryplus_pretravel()
 
@@ -771,14 +889,14 @@ def _restock_consumables_if_enabled(bot: Botting):
     _sync_consumable_toggles(bot)
     if _party_mode == 1:
         if _as_bool(bot.Properties.Get("use_conset", "active")):
-            yield from bot.helpers.Multibox._restock_conset_message(250)
+            yield from bot.helpers.Multibox._restock_conset_message(_conset_restock_target)
         if _as_bool(bot.Properties.Get("use_pcons", "active")):
-            yield from bot.helpers.Multibox._restock_all_pcons_message(250)
+            yield from bot.helpers.Multibox._restock_all_pcons_message(_pcon_restock_target)
         return
     if _as_bool(bot.Properties.Get("use_conset", "active")):
-        yield from _restock_models_locally(CONSET_RESTOCK_MODELS, 250)
+        yield from _restock_models_locally(CONSET_RESTOCK_MODELS, _conset_restock_target)
     if _as_bool(bot.Properties.Get("use_pcons", "active")):
-        yield from _restock_models_locally(PCON_RESTOCK_MODELS, 250)
+        yield from _restock_models_locally(PCON_RESTOCK_MODELS, _pcon_restock_target)
 
 
 def _use_consumables_if_enabled(bot: Botting):
@@ -795,6 +913,29 @@ def _use_consumables_if_enabled(bot: Botting):
 def _restock_models_locally(model_ids: list[int], quantity: int):
     for model_id in model_ids:
         yield from Routines.Yield.Items.RestockItems(model_id, quantity)
+
+
+def _min_party_morale(target_morale: int = _HONEYCOMB_TARGET_MORALE) -> int:
+    try:
+        morale_values = [
+            int(morale)
+            for _, morale in (GLOBAL_CACHE.Party.GetPartyMorale() or [])
+            if int(morale or 0) > 0
+        ]
+        if morale_values:
+            return min(morale_values)
+    except Exception:
+        pass
+
+    try:
+        player_morale = int(Player.GetMorale() or 0)
+        return player_morale if player_morale > 0 else target_morale
+    except Exception:
+        return target_morale
+
+
+def _party_needs_honeycomb(target_morale: int = _HONEYCOMB_TARGET_MORALE) -> bool:
+    return _min_party_morale(target_morale) < target_morale
 
 
 def _use_multibox_consumables(bot: Botting):
@@ -837,6 +978,8 @@ def _upkeep_consumables(bot: "Botting"):
         if _as_bool(bot.Properties.Get("use_pcons", "active")):
             yield from bot.helpers.Items.use_pcons()
             for _ in range(4):
+                if not _party_needs_honeycomb():
+                    break
                 honeycomb_item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(ModelID.Honeycomb.value)
                 if not honeycomb_item_id:
                     break
@@ -917,6 +1060,7 @@ def _ensure_bot_ini(bot: Botting) -> str:
 
 
 def _load_consumable_settings(bot: Botting) -> None:
+    global _conset_restock_target, _pcon_restock_target
     ini_key = _ensure_bot_ini(bot)
     if not ini_key:
         return
@@ -934,6 +1078,18 @@ def _load_consumable_settings(bot: Botting) -> None:
     )
     bot.Properties.ApplyNow("use_conset", "active", _as_bool(saved_use_conset))
     bot.Properties.ApplyNow("use_pcons", "active", _as_bool(saved_use_pcons))
+    _conset_restock_target = max(0, min(_MAX_CONSUMABLE_RESTOCK_TARGET, int(IniManager().read_int(
+        ini_key,
+        _SETTINGS_SECTION,
+        _CONSET_RESTOCK_TARGET_KEY,
+        _conset_restock_target,
+    ))))
+    _pcon_restock_target = max(0, min(_MAX_CONSUMABLE_RESTOCK_TARGET, int(IniManager().read_int(
+        ini_key,
+        _SETTINGS_SECTION,
+        _PCON_RESTOCK_TARGET_KEY,
+        _pcon_restock_target,
+    ))))
 
 
 def _load_kit_restock_settings(bot: Botting) -> None:
@@ -988,6 +1144,18 @@ def _save_consumable_settings(bot: Botting) -> None:
         _SETTINGS_SECTION,
         _USE_PCONS_KEY,
         _as_bool(bot.Properties.Get("use_pcons", "active")),
+    )
+    IniManager().write_key(
+        ini_key,
+        _SETTINGS_SECTION,
+        _CONSET_RESTOCK_TARGET_KEY,
+        int(_conset_restock_target),
+    )
+    IniManager().write_key(
+        ini_key,
+        _SETTINGS_SECTION,
+        _PCON_RESTOCK_TARGET_KEY,
+        int(_pcon_restock_target),
     )
 
 
@@ -1254,6 +1422,10 @@ def _setup_heroes(bot: Botting):
 
 
 def _maybe_setup_heroes(bot: Botting):
+    if getattr(bot.config, "_skip_next_olafstead_setup", False):
+        bot.config._skip_next_olafstead_setup = False
+        return
+
     if _party_mode == 1:
         yield from bot.helpers.Multibox._summon_all_accounts()
         yield from bot.Wait._coro_for_time(4000)
@@ -1373,8 +1545,19 @@ def _draw_settings(bot: Botting):
         _save_consumable_settings(bot)
     _sync_consumable_toggles(bot)
 
-    global _restock_kits_enabled, _id_kits_target, _salvage_kits_target, _merchant_sell_materials, _merchant_alt_wait_ms
+    global _restock_kits_enabled, _conset_restock_target, _pcon_restock_target, _id_kits_target, _salvage_kits_target, _merchant_sell_materials, _merchant_alt_wait_ms
     PyImGui.separator()
+
+    new_conset_target = PyImGui.input_int("Conset restock target##norn_conset_target", _conset_restock_target)
+    if new_conset_target != _conset_restock_target:
+        _conset_restock_target = max(0, min(_MAX_CONSUMABLE_RESTOCK_TARGET, new_conset_target))
+        _save_consumable_settings(bot)
+
+    new_pcon_target = PyImGui.input_int("Pcons restock target##norn_pcon_target", _pcon_restock_target)
+    if new_pcon_target != _pcon_restock_target:
+        _pcon_restock_target = max(0, min(_MAX_CONSUMABLE_RESTOCK_TARGET, new_pcon_target))
+        _save_consumable_settings(bot)
+
     new_restock_kits = PyImGui.checkbox("Guild Hall merchant on startup", _restock_kits_enabled)
     if new_restock_kits != _restock_kits_enabled:
         _restock_kits_enabled = new_restock_kits

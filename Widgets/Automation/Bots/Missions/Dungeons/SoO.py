@@ -156,6 +156,10 @@ DWARVEN_BLESSING_DIALOG = 0x84
 SHANDRA_TAKE_DIALOGS = 0x832401
 SHANDRA_QUEST_REWARD_DIALOG = 0x832407
 
+# Arbor Bay Asura blessing skip
+ASURAN_R10_POINTS = 160_000
+ARBOR_BAY_ASURA_BLESSING_DONE_STEP = "Arbor Bay Asura Blessing Done"
+
 # Coordinates
 FENDI_CHEST_POSITION = (-15800.98,16901.23)
 SHANDRA_POSITION = (14067.01, -17253.24)
@@ -168,6 +172,11 @@ bot = Botting(
     upkeep_morale_active=True,
     upkeep_auto_inventory_management_active=True,
 )
+
+
+def _enable_hero_ai_combat() -> None:
+    """Use explicit HeroAI combat orchestration now that CB custom behavior is gone."""
+    bot.Templates.AggressiveForceHeroAI(enable_imp=False)
 
 # ==================== CORE ROUTINE ====================
 def farm_bds_routine(bot: Botting) -> None:
@@ -183,7 +192,7 @@ def farm_bds_routine(bot: Botting) -> None:
     bot.Properties.Enable("pause_on_danger")
     bot.States.AddCustomState(apply_widget_policy_step, "Apply widget policy")
     bot.States.AddCustomState(lambda: _gh_merchant_setup(leave_party=True), "GH Merchant Setup")
-    bot.Templates.Aggressive()
+    _enable_hero_ai_combat()
     bot.Multibox.AbandonQuest(LOST_SOULS_QUEST_ID)
     bot.States.AddHeader("Startup - Party Setup")
     bot.Events.OnPartyMemberBehindCallback(lambda: bot.Templates.Routines.OnPartyMemberBehind())
@@ -214,10 +223,12 @@ def farm_bds_routine(bot: Botting) -> None:
     bot.Wait.ForTime(2000)
     
     # First blessing in Arbor Bay
+    bot.States.AddCustomState(_skip_arbor_bay_asura_blessing_if_all_r10, "Check Arbor Bay Asura Rank")
     bot.Move.XYAndInteractNPC(16327, 11607)
     bot.Wait.ForTime(4000)
     bot.Multibox.SendDialogToTarget(DWARVEN_BLESSING_DIALOG)
     bot.Wait.ForTime(4000)
+    bot.States.AddCustomState(_step_anchor, ARBOR_BAY_ASURA_BLESSING_DONE_STEP)
     bot.Multibox.UseAllConsumables()
 
     # Path to Shandra
@@ -278,7 +289,7 @@ def farm_bds_routine(bot: Botting) -> None:
     
     # Use consumables
     bot.States.AddCustomState(UseSummons, "Use Summons")
-    bot.Templates.Aggressive()
+    _enable_hero_ai_combat()
 
     path_before_bridgant = [
         (-11685.5,10475.5),
@@ -305,7 +316,7 @@ def farm_bds_routine(bot: Botting) -> None:
         (8503.9,12143.5),
         (7496.9,11676.0),
         (6494.3,10739.2)]
-    bot.Templates.Aggressive()
+    _enable_hero_ai_combat()
     bot.Wait.UntilOutOfCombat()
     bot.Move.FollowAutoPath(path_before_bridgant)
 
@@ -326,7 +337,7 @@ def farm_bds_routine(bot: Botting) -> None:
         (17115.6,13405.6),
         (16689.2,12400.4),
         ]
-    bot.Templates.Aggressive()
+    _enable_hero_ai_combat()
     bot.Move.FollowAutoPath(path_before_door)
     bot.Wait.UntilOutOfCombat()
     bot.Move.XY(15953, 11902)
@@ -343,7 +354,7 @@ def farm_bds_routine(bot: Botting) -> None:
         (14951.6,5657.9),
     ]
 
-    bot.Templates.Aggressive()
+    _enable_hero_ai_combat()
     bot.Move.FollowAutoPath(path_before_door2)
     bot.Wait.UntilOutOfCombat()
     # Door gadget
@@ -364,7 +375,7 @@ def farm_bds_routine(bot: Botting) -> None:
 
 
     ]
-    bot.Templates.Aggressive()
+    _enable_hero_ai_combat()
     bot.Move.FollowAutoPath(path_after_door)
     bot.Wait.UntilOutOfCombat()
 
@@ -391,14 +402,14 @@ def farm_bds_routine(bot: Botting) -> None:
     # Use consumables
     bot.States.AddCustomState(UseSummons, "Use Summons")
     bot.Multibox.UseAllConsumables()
-    bot.Templates.Aggressive()
+    _enable_hero_ai_combat()
     # --- Path to torch area (atomisÃ©) ---
     path_before_torch = [
         (-14977.9,-16480.2),
         (-15985.6,-16838.1),
         (-16985.9,-16929.4),
     ]
-    bot.Templates.Aggressive()
+    _enable_hero_ai_combat()
     bot.Move.FollowAutoPath(path_before_torch)
     bot.Wait.UntilOutOfCombat()
 
@@ -447,7 +458,7 @@ def farm_bds_routine(bot: Botting) -> None:
     (-9069.4,-4301.1),
     (-8066.1,-4222.4),
     (-7058.8,-4191.0)]
-    bot.Templates.Aggressive()
+    _enable_hero_ai_combat()
     bot.Move.FollowAutoPath(path_room2)
     bot.Wait.UntilOutOfCombat()
 
@@ -482,7 +493,7 @@ def farm_bds_routine(bot: Botting) -> None:
         
 
     ]
-    bot.Templates.Aggressive()
+    _enable_hero_ai_combat()
     bot.Move.FollowAutoPath(path_after_second_room)
     bot.Wait.UntilOutOfCombat()
 
@@ -513,7 +524,7 @@ def farm_bds_routine(bot: Botting) -> None:
 
     bot.States.AddCustomState(UseSummons, "Use Summons")
     bot.Multibox.UseAllConsumables()
-    bot.Templates.Aggressive()
+    _enable_hero_ai_combat()
 
     bot.States.AddHeader("Level 3 - Clear Main Path")
     path_before_flag = [
@@ -544,7 +555,7 @@ def farm_bds_routine(bot: Botting) -> None:
         (619.8,7044.0),
         (-385.8,6478.3),
         (-1123.5,7481.9)]
-    bot.Templates.Aggressive()
+    _enable_hero_ai_combat()
     bot.Move.FollowAutoPath(path_before_flag)
     bot.Wait.UntilOutOfCombat()
 
@@ -564,7 +575,7 @@ def farm_bds_routine(bot: Botting) -> None:
         (-11057.4,4039.1),
         (-10381.7,3037.7),
     ]
-    bot.Templates.Aggressive()
+    _enable_hero_ai_combat()
     bot.Move.FollowAutoPath(path2)
     bot.Wait.UntilOutOfCombat()
 
@@ -579,7 +590,7 @@ def farm_bds_routine(bot: Botting) -> None:
         (16111.00, 17556.00),
     ]
 
-    bot.Templates.Aggressive()
+    _enable_hero_ai_combat()
     bot.Move.FollowAutoPath(path_to_take_torch)
     bot.Wait.UntilOutOfCombat()
 
@@ -616,7 +627,7 @@ def farm_bds_routine(bot: Botting) -> None:
         (-15000, 16850),
     ]
 
-    bot.Templates.Aggressive()
+    _enable_hero_ai_combat()
     bot.Move.FollowAutoPath(path_bds)
     bot.States.AddCustomState(resolve_fendi_fight, "Resolve Fendi Fight")
     bot.States.AddCustomState(_record_run_end, "Record Run End")
@@ -635,6 +646,49 @@ def farm_bds_routine(bot: Botting) -> None:
     # ===== LOOP =====
     bot.States.JumpToStepName("LOOP_RESTART_POINT")
 # ==================== CUSTOM HELPERS ====================
+
+
+def _skip_arbor_bay_asura_blessing_if_all_r10() -> Generator:
+    title_idx = int(TitleID.Asuran)
+    local_email = str(Player.GetAccountEmail() or "").strip()
+    checked_accounts = 1
+    all_r10 = True
+
+    local_title = Player.GetTitle(TitleID.Asuran)
+    if local_title is None or int(local_title.current_points) < ASURAN_R10_POINTS:
+        all_r10 = False
+
+    for account in GLOBAL_CACHE.ShMem.GetAllAccountData() or []:
+        email = str(getattr(account, "AccountEmail", "") or "").strip()
+        if email and email == local_email:
+            continue
+
+        checked_accounts += 1
+        try:
+            points = int(account.TitlesData.Titles[title_idx].CurrentPoints)
+        except Exception:
+            all_r10 = False
+            break
+        if points < ASURAN_R10_POINTS:
+            all_r10 = False
+            break
+
+    if all_r10:
+        ConsoleLog(
+            BOT_NAME,
+            f"[Arbor Bay] {checked_accounts} account(s) r10 Asura; skipping Arbor Bay Asura blessing.",
+            log=True,
+        )
+        bot.config.FSM.jump_to_state_by_name(ARBOR_BAY_ASURA_BLESSING_DONE_STEP)
+        yield
+        return
+
+    ConsoleLog(
+        BOT_NAME,
+        "[Arbor Bay] Taking Arbor Bay Asura blessing; at least one account is below r10 or unreadable.",
+        log=True,
+    )
+    yield
 
 
 # --- Merchant Setup and Inventory Helpers ---

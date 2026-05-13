@@ -287,6 +287,10 @@ class BTMap:
           UserDescription: Use this when you need to travel to a map with a specific region, district, or language.
           Notes: Treats matching map id, region, district, and language as early success.
         """
+        target_region = int(region)
+        target_district = int(district) + 1
+        target_language = int(language)
+
         # 1. EARLY ARRIVAL CHECK
         def arrived_early() -> bool:
             """
@@ -301,9 +305,9 @@ class BTMap:
               Notes: Logs the destination on early success.
             """
             if (Map.IsMapIDMatch(0, outpost_id) and
-                Map.GetRegion() == region and
-                Map.GetDistrict() == district and
-                Map.GetLanguage() == language):
+                int(Map.GetRegion()[0]) == target_region and
+                int(Map.GetDistrict()) == target_district and
+                int(Map.GetLanguage()[0]) == target_language):
 
                 _log("TravelToRegion", f"Already at {Map.GetMapName(outpost_id)}", log=log)
                 return True
@@ -341,9 +345,9 @@ class BTMap:
             if (Map.IsMapReady() and
                 GLOBAL_CACHE.Party.IsPartyLoaded() and
                 Map.IsMapIDMatch(0, outpost_id) and
-                Map.GetRegion() == region and
-                Map.GetDistrict() == district and
-                Map.GetLanguage() == language):
+                int(Map.GetRegion()[0]) == target_region and
+                int(Map.GetDistrict()) == target_district and
+                int(Map.GetLanguage()[0]) == target_language):
 
                 _log("TravelToRegion", f"Arrived at {Map.GetMapName(outpost_id)}", log=log)
                 return BehaviorTree.NodeState.SUCCESS

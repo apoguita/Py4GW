@@ -140,7 +140,7 @@ class BTSkills:
             _log("LoadSkillbar", "Loaded skillbar template.", log=log)
             return BehaviorTree.NodeState.SUCCESS
         
-        tree = BehaviorTree.ActionNode(name="LoadSkillbar", action_fn=lambda: _load_skillbar(template), aftercast_ms=250)
+        tree = BehaviorTree.ActionNode(name="LoadSkillbar", action_fn=lambda: _load_skillbar(template), aftercast_ms=100)
         return BehaviorTree(tree)
 
     @staticmethod

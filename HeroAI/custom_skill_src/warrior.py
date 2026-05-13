@@ -294,6 +294,7 @@ class WarriorSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.EnemyCasting.value
         skill.Nature = SkillNature.Interrupt.value
+        skill.Conditions.RequireWeapon = "Axe"
         skill.Conditions.HasDeepWound = True
         skill.Conditions.IsCasting = True
         skill_data[skill.SkillID] = skill
@@ -303,6 +304,7 @@ class WarriorSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Axe"
         skill.Conditions.HasDeepWound = True
         skill_data[skill.SkillID] = skill
 
@@ -311,6 +313,7 @@ class WarriorSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Axe"
         skill.Conditions.HasDeepWound = True
         skill_data[skill.SkillID] = skill
 
@@ -319,6 +322,7 @@ class WarriorSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Axe"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -326,6 +330,7 @@ class WarriorSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Axe"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -333,6 +338,7 @@ class WarriorSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Axe"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -340,6 +346,7 @@ class WarriorSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Axe"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -347,6 +354,7 @@ class WarriorSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Axe"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -354,6 +362,7 @@ class WarriorSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.EnemyCasting.value
         skill.Nature = SkillNature.Interrupt.value
+        skill.Conditions.RequireWeapon = "Axe"
         skill.Conditions.IsCasting = True
         skill_data[skill.SkillID] = skill
 
@@ -362,6 +371,7 @@ class WarriorSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Axe"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -369,6 +379,7 @@ class WarriorSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Axe"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -376,6 +387,7 @@ class WarriorSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Axe"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -383,6 +395,7 @@ class WarriorSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Axe"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -390,6 +403,7 @@ class WarriorSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Axe"
         skill.Conditions.IsKnockedDown = True
         skill_data[skill.SkillID] = skill
 
@@ -398,6 +412,7 @@ class WarriorSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Axe"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -405,6 +420,7 @@ class WarriorSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Axe"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -412,6 +428,7 @@ class WarriorSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Axe"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -419,6 +436,7 @@ class WarriorSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Axe"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -426,6 +444,7 @@ class WarriorSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Axe"
         skill_data[skill.SkillID] = skill
 
         #region HAMMER_MASTERY
@@ -435,6 +454,7 @@ class WarriorSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Hammer"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -442,6 +462,7 @@ class WarriorSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Hammer"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -449,6 +470,7 @@ class WarriorSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Hammer"
         skill.Conditions.IsKnockedDown = True
         skill_data[skill.SkillID] = skill
 
@@ -457,6 +479,7 @@ class WarriorSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.EnemyAttacking.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Hammer"
         skill.Conditions.IsAttacking = True
         skill_data[skill.SkillID] = skill
 
@@ -465,6 +488,7 @@ class WarriorSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Hammer"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -472,6 +496,7 @@ class WarriorSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Hammer"
         skill.Conditions.IsKnockedDown = True
         skill_data[skill.SkillID] = skill
 
@@ -480,6 +505,7 @@ class WarriorSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Hammer"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -487,6 +513,7 @@ class WarriorSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Hammer"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -494,6 +521,7 @@ class WarriorSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Hammer"
         skill.Conditions.IsMoving = True
         skill_data[skill.SkillID] = skill
 
@@ -502,6 +530,7 @@ class WarriorSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Hammer"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -509,6 +538,7 @@ class WarriorSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Hammer"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -516,6 +546,7 @@ class WarriorSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Hammer"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -523,6 +554,7 @@ class WarriorSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Hammer"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -530,6 +562,7 @@ class WarriorSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Hammer"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -537,6 +570,7 @@ class WarriorSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Hammer"
         skill.Conditions.HasEnchantment = True
         skill_data[skill.SkillID] = skill
 
@@ -545,6 +579,7 @@ class WarriorSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Hammer"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -552,6 +587,7 @@ class WarriorSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Hammer"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -559,6 +595,7 @@ class WarriorSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Hammer"
         skill.Conditions.IsKnockedDown = True
         skill_data[skill.SkillID] = skill
 
@@ -567,6 +604,7 @@ class WarriorSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Hammer"
         skill.Conditions.IsKnockedDown = True
         skill_data[skill.SkillID] = skill
 
@@ -575,6 +613,7 @@ class WarriorSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Hammer"
         skill.Conditions.IsKnockedDown = True
         skill_data[skill.SkillID] = skill
 
@@ -583,6 +622,7 @@ class WarriorSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Hammer"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -590,6 +630,7 @@ class WarriorSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Hammer"
         skill.Conditions.HasCondition = True
         skill_data[skill.SkillID] = skill
 
@@ -600,6 +641,7 @@ class WarriorSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Sword"
         skill.Conditions.UniqueProperty = True
         skill_data[skill.SkillID] = skill
 
@@ -608,6 +650,7 @@ class WarriorSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Sword"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -615,6 +658,7 @@ class WarriorSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Sword"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -622,6 +666,7 @@ class WarriorSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Sword"
         skill.Conditions.LessLife = 0.5
         skill_data[skill.SkillID] = skill
 
@@ -630,6 +675,7 @@ class WarriorSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Sword"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -637,6 +683,7 @@ class WarriorSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Sword"
         skill.Conditions.HasBleeding = True
         skill_data[skill.SkillID] = skill
 
@@ -645,6 +692,7 @@ class WarriorSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Sword"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -659,6 +707,7 @@ class WarriorSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Sword"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -666,6 +715,7 @@ class WarriorSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Sword"
         skill.Conditions.HasCrippled = True
         skill_data[skill.SkillID] = skill
 
@@ -674,6 +724,7 @@ class WarriorSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Sword"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -681,6 +732,7 @@ class WarriorSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Sword"
         skill.Conditions.IsMoving = True
         skill_data[skill.SkillID] = skill
 
@@ -689,6 +741,7 @@ class WarriorSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.EnemyCastingSpell.value
         skill.Nature = SkillNature.Interrupt.value
+        skill.Conditions.RequireWeapon = "Sword"
         skill.Conditions.IsCasting = True
         skill_data[skill.SkillID] = skill
 
@@ -697,6 +750,7 @@ class WarriorSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Sword"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -704,6 +758,7 @@ class WarriorSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Sword"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -711,6 +766,7 @@ class WarriorSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Sword"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -718,6 +774,7 @@ class WarriorSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Sword"
         skill_data[skill.SkillID] = skill
 
         skill = CustomSkill()
@@ -725,6 +782,7 @@ class WarriorSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Sword"
         skill.Conditions.IsKnockedDown = True
         skill_data[skill.SkillID] = skill
 
@@ -733,6 +791,7 @@ class WarriorSkills:
         skill.SkillType = SkillType.Attack.value
         skill.TargetAllegiance = Skilltarget.Enemy.value
         skill.Nature = SkillNature.Offensive.value
+        skill.Conditions.RequireWeapon = "Sword"
         skill_data[skill.SkillID] = skill
 
         #region TACTICS

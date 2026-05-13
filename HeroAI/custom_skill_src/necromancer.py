@@ -845,7 +845,7 @@ class NecromancerSkills:
         skill = CustomSkill()
         skill.SkillID = GLOBAL_CACHE.Skill.GetID("Dark_Aura")
         skill.SkillType = SkillType.Enchantment.value
-        skill.TargetAllegiance = Skilltarget.Self.value
+        skill.TargetAllegiance = Skilltarget.OtherAlly.value
         skill.Nature = SkillNature.Buff.value
         skill.Conditions.IsOutOfCombat = True
         skill_data[skill.SkillID] = skill

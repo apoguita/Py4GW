@@ -257,16 +257,8 @@ def GetValuesByProfession(
         )
 
 
-#helpers
-def PressKeybind(keybind_index: int, duration_ms: int = 75, log: bool = False) -> BehaviorTree:
-    return RoutinesBT.Keybinds.PressKeybind(
-        keybind_index=keybind_index,
-        duration_ms=duration_ms,
-        log=log,
-    )
 
-
-#region HeroAI helpers
+#region HeroAI internal helpers
 def _save_headless_heroai_state() -> BehaviorTree:
     started = {"value": False}
 
@@ -432,7 +424,7 @@ def TargetAgentByModelID(modelID_or_encStr: int | str, log: bool = False) -> Beh
 def InteractTarget(log: bool = False) -> BehaviorTree:
     return _pause_heroai_for_action(RoutinesBT.Player.InteractTarget(log=log))
 
-def AutoDialog(buttons: int | list[int] = 0, log: bool = False, aftercast_ms: int = 250) -> BehaviorTree:
+def AutoDialog(buttons: int | list[int] = 0, log: bool = False, aftercast_ms: int = 200) -> BehaviorTree:
     if isinstance(buttons, int):
         buttons = [buttons]
     else:
@@ -674,7 +666,7 @@ def EnterChallenge(
 def Wait(duration_ms: int, log: bool = False, emote: bool | str = False, announce_delay: bool = False) -> BehaviorTree:
     
     emote_str = str(emote) if isinstance(emote, str) else None
-    wait_tree = WaitSpecial(emote=emote_str, duration_ms=duration_ms, log=log) if emote else RoutinesBT.Player.Wait(duration_ms=duration_ms, log=log)
+    wait_tree = _wait_special(emote=emote_str, duration_ms=duration_ms, log=log) if emote else RoutinesBT.Player.Wait(duration_ms=duration_ms, log=log)
     if not announce_delay:
         return wait_tree
 
@@ -690,7 +682,7 @@ def Wait(duration_ms: int, log: bool = False, emote: bool | str = False, announc
         name="WaitAnnounced",
     )
 
-def WaitSpecial(emote: str | None = None, duration_ms: int = 0, log: bool = False) -> BehaviorTree:
+def _wait_special(emote: str | None = None, duration_ms: int = 0, log: bool = False) -> BehaviorTree:
     """Randomly performs a safe emote command, then waits for the requested duration."""
     def _pick_emote(node: BehaviorTree.Node) -> BehaviorTree.NodeState:
         node.blackboard["waitspecial_emote"] = emote or random.choice(_WAITSPECIAL_EMOTES)
@@ -737,7 +729,7 @@ def WaitForMapToChange(map_id: int, timeout_ms: int = 30000, map_name: str = "")
 def WaitUntilCharacterSelect(timeout_ms: int = 45000) -> BehaviorTree:
     return RoutinesBT.Player.WaitUntilCharacterSelect(timeout_ms=timeout_ms,)
 
-def WaitUntilPlayerStopsMoving(
+def _wait_until_player_stops_moving(
     timeout_ms: int = 2000,
     throttle_interval_ms: int = 100,
     log: bool = False,
@@ -835,7 +827,7 @@ def MoveAndInteract(
 ) -> BehaviorTree:
     return RoutinesBT.Composite.Sequence(
         Move(pos=pos, tolerance=move_tolerance, pause_on_combat=pause_on_combat, log=log),
-        WaitUntilPlayerStopsMoving(log=log),
+        _wait_until_player_stops_moving(log=log),
         Wait(_POST_MOVEMENT_SETTLE_MS, log=log),
         TargetNearestAndInteract(pos=pos, target_distance=target_distance, log=log),
         name="MoveAndInteract",
@@ -857,7 +849,7 @@ def MoveAndInteractWithGadget(
                 tolerance=move_tolerance,
                 log=log,
             ),
-            WaitUntilPlayerStopsMoving(log=log),
+            _wait_until_player_stops_moving(log=log),
             Wait(_POST_MOVEMENT_SETTLE_MS, log=log),
             TargetNearestGadgetAndInteract(pos=pos, target_distance=target_distance, log=log),
             name="MoveAndInteractWithGadget",
@@ -875,7 +867,7 @@ def MoveAndAutoDialog(
 ) -> BehaviorTree:
     return RoutinesBT.Composite.Sequence(
         Move(pos=pos, tolerance=move_tolerance, pause_on_combat=pause_on_combat, log=log),
-        WaitUntilPlayerStopsMoving(log=log),
+        _wait_until_player_stops_moving(log=log),
         Wait(_POST_MOVEMENT_SETTLE_MS, log=log),
         TargetNearestAndAutoDialog(pos=pos, buttons=buttons, target_distance=target_distance, log=log),
         name="MoveAndAutoDialog",
@@ -891,7 +883,7 @@ def MoveAndDialog(
 ) -> BehaviorTree:
     return RoutinesBT.Composite.Sequence(
         Move(pos=pos, tolerance=move_tolerance, pause_on_combat=pause_on_combat, log=log),
-        WaitUntilPlayerStopsMoving(log=log),
+        _wait_until_player_stops_moving(log=log),
         Wait(_POST_MOVEMENT_SETTLE_MS, log=log),
         TargetNearestAndSendDialog(pos=pos, dialog_id=dialog_id, target_distance=target_distance, log=log),
         name="MoveAndDialog",
@@ -931,7 +923,7 @@ def MoveToModelID(
 def MoveAndAutoDialogByModelID(modelID_or_encStr: int | str, button_number: int = 0, log: bool = False) -> BehaviorTree:
     return RoutinesBT.Composite.Sequence(
         MoveToModelID(modelID_or_encStr=modelID_or_encStr, log=log),
-        WaitUntilPlayerStopsMoving(log=log),
+        _wait_until_player_stops_moving(log=log),
         Wait(_POST_MOVEMENT_SETTLE_MS, log=log),
         TargetAgentByModelIDAndAutoDialog(modelID_or_encStr=modelID_or_encStr, buttons=button_number, log=log),
         name="MoveAndAutoDialogByModelID",
@@ -940,7 +932,7 @@ def MoveAndAutoDialogByModelID(modelID_or_encStr: int | str, button_number: int 
 def MoveAndDialogByModelID(modelID_or_encStr: int | str, dialog_id: int | str, log: bool = False) -> BehaviorTree:
     return RoutinesBT.Composite.Sequence(
         MoveToModelID(modelID_or_encStr=modelID_or_encStr, log=log),
-        WaitUntilPlayerStopsMoving(log=log),
+        _wait_until_player_stops_moving(log=log),
         Wait(_POST_MOVEMENT_SETTLE_MS, log=log),
         TargetAgentByModelIDAndSendDialog(modelID_or_encStr=modelID_or_encStr, dialog_id=dialog_id, log=log),
         name="MoveAndDialogByModelID",
@@ -949,7 +941,7 @@ def MoveAndDialogByModelID(modelID_or_encStr: int | str, dialog_id: int | str, l
 def MoveAndInteractByModelID(modelID_or_encStr: int | str, target_distance: float = Range.Nearby.value, log: bool = False) -> BehaviorTree:
     return RoutinesBT.Composite.Sequence(
         MoveToModelID(modelID_or_encStr=modelID_or_encStr, log=log),
-        WaitUntilPlayerStopsMoving(log=log),
+        _wait_until_player_stops_moving(log=log),
         Wait(_POST_MOVEMENT_SETTLE_MS, log=log),
         TargetAgentByModelIDAndInteract(modelID_or_encStr=modelID_or_encStr, log=log),
         name="MoveAndInteractByModelID",
@@ -1257,29 +1249,43 @@ def EqualizeGold(target_gold: int, deposit_all: bool = True, log: bool = False, 
         aftercast_ms=aftercast_ms,
     )
 
-def BuyMaterial(model_id: int, log: bool = False, aftercast_ms: int = 125) -> BehaviorTree:
+def BuyMaterial(model_id: int, rare_trader: bool = False, log: bool = False, aftercast_ms: int = 125) -> BehaviorTree:
     return _pause_heroai_for_action(
         RoutinesBT.Items.BuyMaterial(
             model_id=model_id,
+            rare_trader=rare_trader,
             log=log,
             aftercast_ms=aftercast_ms,
         )
     )
 
-def BuyMaterials(model_id: int, batches: int = 1, log: bool = False, aftercast_ms: int = 125) -> BehaviorTree:
+def BuyMaterials(
+    model_id: int,
+    batches: int = 1,
+    rare_trader: bool = False,
+    log: bool = False,
+    aftercast_ms: int = 125,
+) -> BehaviorTree:
     return _pause_heroai_for_action(
         RoutinesBT.Items.BuyMaterials(
             model_id=model_id,
             batches=batches,
+            rare_trader=rare_trader,
             log=log,
             aftercast_ms=aftercast_ms,
         )
     )
 
-def BuyMaterialsFromList(materials: list[tuple[int, int]], log: bool = False, aftercast_ms: int = 125) -> BehaviorTree:
+def BuyMaterialsFromList(
+    materials: list[tuple[int, int]],
+    rare_trader: bool = False,
+    log: bool = False,
+    aftercast_ms: int = 125,
+) -> BehaviorTree:
     return _pause_heroai_for_action(
         RoutinesBT.Items.BuyMaterialsFromList(
             materials=materials,
+            rare_trader=rare_trader,
             log=log,
             aftercast_ms=aftercast_ms,
         )
@@ -1461,6 +1467,14 @@ def StoreRerollContext(
 
 
 #region misc
+#helpers
+def PressKeybind(keybind_index: int, duration_ms: int = 75, log: bool = False) -> BehaviorTree:
+    return RoutinesBT.Keybinds.PressKeybind(
+        keybind_index=keybind_index,
+        duration_ms=duration_ms,
+        log=log,
+    )
+    
 def SendChatMessage(message: str, channel: str = "say", log: bool = False) -> BehaviorTree:
     return RoutinesBT.Player.SendChatMessage(message=message, channel=channel, log=log,)
 
@@ -1613,7 +1627,7 @@ def HandleAutoQuest(
                 )
             return RoutinesBT.Composite.Sequence(
                 Move(pos=cast(PointOrPath, move_pos), tolerance=150.0, log=log),
-                WaitUntilPlayerStopsMoving(log=log),
+                _wait_until_player_stops_moving(log=log),
                 Wait(_POST_MOVEMENT_SETTLE_MS, log=log),
                 TargetNearestAndAutoDialog(pos=cast(PointOrPath, move_pos), buttons=buttons, target_distance=Range.Nearby.value, log=log),
                 name="MoveAndAutoDialogSequence",
@@ -1626,7 +1640,7 @@ def HandleAutoQuest(
             )
         return RoutinesBT.Composite.Sequence(
             MoveToModelID(modelID_or_encStr=use_npc_model_or_enc_str, log=log),
-            WaitUntilPlayerStopsMoving(log=log),
+            _wait_until_player_stops_moving(log=log),
             Wait(_POST_MOVEMENT_SETTLE_MS, log=log),
             TargetAgentByModelIDAndAutoDialog(modelID_or_encStr=use_npc_model_or_enc_str, buttons=buttons, log=log),
             name="MoveAndAutoDialogByModelIDSequence",
