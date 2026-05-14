@@ -19,7 +19,7 @@
     {"type": "auto_path", "name": "To Khilbron", "points": [[3437, -9554], [5154, -12934]]},
     {"type": "wait", "ms": 60000},
     {"type": "interact_nearest_npc", "ms": 1000},
-    {"type": "skip_cutscene"},
+    {"type": "wait_for_map_load", "map_id": 19},
     {"type": "auto_path", "name": "restless Ghost", "points": [[5118, -12706]]},
     {"type": "interact_nearest_npc", "ms": 1000},
     {"type": "wait", "ms": 10000},

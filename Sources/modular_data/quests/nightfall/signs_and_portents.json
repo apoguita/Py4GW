@@ -14,11 +14,9 @@
     {"type": "dialog", "id": "0x827A04", "npc": "EMISSARY_DAJMIR", "name": "Dialog - Emissary Dajmir"},
     {"type": "auto_path", "name": "To Melonni", "points": [[-2004, -13641]]},
     {"type": "dialogs", "id": ["0x827A04", "0x84"], "npc": "MELONNI", "name": "Dialog - Melonni"},
-    {"type": "skip_cutscene"},
+    {"type": "wait_for_map_load", "map_id": 483},
     {"type": "auto_path", "name": "To Inscribed Wall", "points": [[-17887, -17582]]},
     {"type": "dialogs", "id": ["0x827A04", "0x84", "0x85"], "npc": "INSCRIBED_WALL", "name": "Dialog - Inscribed Wall"},
-    {"type": "skip_cutscene"},
-    {"type": "skip_cutscene"},
     {"type": "wait_for_map_load", "map_id": 491},
     {"type": "auto_path", "name": "To Digmaster Gatah", "points": [[2943, 2079]]},
     {"type": "dialog", "id": "0x827A07", "npc": "DIGMASTER_GATAH", "name": "Dialog - Digmaster Gatah"}

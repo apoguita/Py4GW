@@ -23,9 +23,6 @@
     {"type": "auto_path", "name": "Path", "points": [[6326, 3262], [7956, 2979]]},
     {"type": "wait", "ms": 2600},
     {"type": "dialogs", "id": ["0x81FB04", "0x84", "0x85"], "npc": "MORGAHN", "name": "Dialog - Morgahn"},
-    {"type": "skip_cutscene"},
-    {"type": "skip_cutscene"},
-    {"type": "skip_cutscene"},
     {"type": "wait_for_map_load", "map_id": 435},
     {"type": "auto_path", "name": "To Head Priest Vahmani", "points": [[1489, 6756]]},
     {"type": "dialog", "id": "0x81FB07", "npc": "HEAD_PRIEST_VAHMANI", "name": "Dialog - Head Priest Vahmani"}

@@ -359,8 +359,17 @@ class AccountStruct(Structure):
             self.AccountName = Player.GetAccountName() if Player.IsPlayerLoaded() else ""
 
         agent_id = hero_data.agent_id
+        hero_morale = 0
+        try:
+            for morale_agent_id, morale_value in Party.GetPartyMorale() or []:
+                if int(morale_agent_id or 0) == int(agent_id):
+                    hero_morale = int(morale_value or 0)
+                    break
+        except Exception:
+            hero_morale = 0
+
         self.AgentData.from_context(agent_id, throttle_key=slot_index)
-        self.AgentData.Morale = 100
+        self.AgentData.Morale = hero_morale
         self.AgentData.TargetID = 0
         self.AgentData.LoginNumber = 0
         self.AgentData.AgentID = agent_id

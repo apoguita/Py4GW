@@ -1,9 +1,7 @@
 
-from typing import Optional, Tuple
+from typing import Tuple
 
 import importlib
-
-from Py4GWCoreLib.enums_src.GameData_enums import Range
 
 class _RProxy:
     def __getattr__(self, name: str):
@@ -55,7 +53,7 @@ class Checks:
 #region Party
     class Party:
         @staticmethod
-        def GetPartyMemberInDangerID(aggro_area : Optional[Range | float] = None, aggressive_only: bool = False):
+        def GetPartyMemberInDangerID(aggro_area=None, aggressive_only: bool = False):
             from ..GlobalCache import GLOBAL_CACHE
             from ..AgentArray import AgentArray
             from ..Agent import Agent
@@ -73,7 +71,7 @@ class Checks:
             if not enemy_array:
                 return 0
 
-            radius = aggro_area.value if isinstance(aggro_area, Range) else float(aggro_area)
+            radius = aggro_area.value if hasattr(aggro_area, "value") else float(aggro_area)
             radius_sq = radius * radius
             self_agent_id = Player.GetAgentID()
             shared_in_aggro_by_agent: dict[int, bool] = {}
@@ -722,7 +720,7 @@ class Checks:
 
         @staticmethod
         @frame_cache(category="Checks.Agents", source_lib="InDanger")
-        def InDanger(aggro_area : Range | float = Range.Earshot, aggressive_only = False):
+        def InDanger(aggro_area=Range.Earshot, aggressive_only = False):
             from ..AgentArray import AgentArray
             from ..Agent import Agent
             from ..EnemyBlacklist import EnemyBlacklist
@@ -738,7 +736,7 @@ class Checks:
             if not player_pos:
                 return False
 
-            radius = aggro_area.value if isinstance(aggro_area, Range) else aggro_area
+            radius = aggro_area.value if hasattr(aggro_area, "value") else float(aggro_area)
             radius_sq = radius * radius
             px, py = player_pos
 

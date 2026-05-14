@@ -1,5 +1,43 @@
 {
   "enemies": {
+    "enc:\\\\x0BAA\\\\x010A\\\\x8101\\\\x45DA\\\\x830A\\\\xC1B2\\\\x2D6D\\\\x0001": {
+      "encoded_names": [
+        "\\\\x0BAA\\\\x010A\\\\x8101\\\\x45DA\\\\x830A\\\\xC1B2\\\\x2D6D\\\\x0001"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        4309
+      ],
+      "observed_maps": {
+        "386": {
+          "base_id": 386,
+          "id": 386,
+          "instance_type": "Explorable",
+          "name": "Turai's Procession"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x0BAA\\\\x010A\\\\x8101\\\\x5DCF\\\\xC6E5\\\\x1747\\\\x0001": {
+      "encoded_names": [
+        "\\\\x0BAA\\\\x010A\\\\x8101\\\\x5DCF\\\\xC6E5\\\\x1747\\\\x0001"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        4319
+      ],
+      "observed_maps": {
+        "386": {
+          "base_id": 386,
+          "id": 386,
+          "instance_type": "Explorable",
+          "name": "Turai's Procession"
+        }
+      },
+      "observed_skills": {}
+    },
     "enc:\\\\x0F95\\\\xF318\\\\x6CFE": {
       "encoded_names": [
         "\\\\x0F95\\\\xF318\\\\x6CFE"
@@ -38,6 +76,689 @@
       },
       "observed_skills": {}
     },
+    "enc:\\\\x3F30\\\\xF41F\\\\x88CC\\\\x5048": {
+      "encoded_names": [
+        "\\\\x3F30\\\\xF41F\\\\x88CC\\\\x5048"
+      ],
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "",
+      "model_ids": [
+        4050
+      ],
+      "observed_maps": {
+        "200": {
+          "base_id": 200,
+          "id": 200,
+          "instance_type": "Explorable",
+          "name": "Mount Qinkai"
+        }
+      },
+      "observed_skills": {
+        "1": {
+          "id": 1,
+          "name": "Healing Signet",
+          "profession": "Warrior",
+          "profession_id": 1
+        }
+      }
+    },
+    "enc:\\\\x40A4\\\\xA54C\\\\xB187\\\\x4F59": {
+      "encoded_names": [
+        "\\\\x40A4\\\\xA54C\\\\xB187\\\\x4F59"
+      ],
+      "inferred_primary": "Necromancer",
+      "inferred_secondary": "",
+      "model_ids": [
+        4076
+      ],
+      "observed_maps": {
+        "200": {
+          "base_id": 200,
+          "id": 200,
+          "instance_type": "Explorable",
+          "name": "Mount Qinkai"
+        }
+      },
+      "observed_skills": {
+        "1077": {
+          "id": 1077,
+          "name": "Vampiric Bite",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "153": {
+          "id": 153,
+          "name": "Vampiric Gaze",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "822": {
+          "id": 822,
+          "name": "Weaken Knees",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "841": {
+          "id": 841,
+          "name": "Fetid Ground",
+          "profession": "Necromancer",
+          "profession_id": 4
+        }
+      }
+    },
+    "enc:\\\\x40AB\\\\xA9A5\\\\xE023\\\\x1A85": {
+      "encoded_names": [
+        "\\\\x40AB\\\\xA9A5\\\\xE023\\\\x1A85"
+      ],
+      "inferred_primary": "Assassin",
+      "inferred_secondary": "None",
+      "model_ids": [
+        4081
+      ],
+      "observed_maps": {
+        "200": {
+          "base_id": 200,
+          "id": 200,
+          "instance_type": "Explorable",
+          "name": "Mount Qinkai"
+        }
+      },
+      "observed_skills": {
+        "1152": {
+          "id": 1152,
+          "name": "Demonic_Agility",
+          "profession": "None",
+          "profession_id": 0
+        },
+        "814": {
+          "id": 814,
+          "name": "Shadow Refuge",
+          "profession": "Assassin",
+          "profession_id": 7
+        },
+        "815": {
+          "id": 815,
+          "name": "Scorpion Wire",
+          "profession": "Assassin",
+          "profession_id": 7
+        },
+        "928": {
+          "id": 928,
+          "name": "Shadow Shroud",
+          "profession": "Assassin",
+          "profession_id": 7
+        }
+      }
+    },
+    "enc:\\\\x40B5\\\\xF50F\\\\xFAA1\\\\x040A": {
+      "encoded_names": [
+        "\\\\x40B5\\\\xF50F\\\\xFAA1\\\\x040A"
+      ],
+      "inferred_primary": "Monk",
+      "inferred_secondary": "",
+      "model_ids": [
+        4037
+      ],
+      "observed_maps": {
+        "200": {
+          "base_id": 200,
+          "id": 200,
+          "instance_type": "Explorable",
+          "name": "Mount Qinkai"
+        }
+      },
+      "observed_skills": {
+        "1121": {
+          "id": 1121,
+          "name": "Gift of Health",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "243": {
+          "id": 243,
+          "name": "Strength of Honor",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "252": {
+          "id": 252,
+          "name": "Banish",
+          "profession": "Monk",
+          "profession_id": 3
+        }
+      }
+    },
+    "enc:\\\\x40B7\\\\xF090\\\\x95A8\\\\x3126": {
+      "encoded_names": [
+        "\\\\x40B7\\\\xF090\\\\x95A8\\\\x3126"
+      ],
+      "inferred_primary": "Ranger",
+      "inferred_secondary": "",
+      "model_ids": [
+        4039
+      ],
+      "observed_maps": {
+        "200": {
+          "base_id": 200,
+          "id": 200,
+          "instance_type": "Explorable",
+          "name": "Mount Qinkai"
+        }
+      },
+      "observed_skills": {
+        "946": {
+          "id": 946,
+          "name": "Trapper's Focus",
+          "profession": "Ranger",
+          "profession_id": 2
+        }
+      }
+    },
+    "enc:\\\\x40B8\\\\xB9AD\\\\xC16E\\\\x073E": {
+      "encoded_names": [
+        "\\\\x40B8\\\\xB9AD\\\\xC16E\\\\x073E"
+      ],
+      "inferred_primary": "Ritualist",
+      "inferred_secondary": "",
+      "model_ids": [
+        4040
+      ],
+      "observed_maps": {
+        "200": {
+          "base_id": 200,
+          "id": 200,
+          "instance_type": "Explorable",
+          "name": "Mount Qinkai"
+        }
+      },
+      "observed_skills": {
+        "1258": {
+          "id": 1258,
+          "name": "Brutal Weapon",
+          "profession": "Ritualist",
+          "profession_id": 8
+        },
+        "871": {
+          "id": 871,
+          "name": "Shadowsong",
+          "profession": "Ritualist",
+          "profession_id": 8
+        },
+        "914": {
+          "id": 914,
+          "name": "Consume Soul",
+          "profession": "Ritualist",
+          "profession_id": 8
+        },
+        "964": {
+          "id": 964,
+          "name": "Vengeful Weapon",
+          "profession": "Ritualist",
+          "profession_id": 8
+        }
+      }
+    },
+    "enc:\\\\x40B9\\\\xBE3B\\\\xF3C3\\\\x5C86": {
+      "encoded_names": [
+        "\\\\x40B9\\\\xBE3B\\\\xF3C3\\\\x5C86"
+      ],
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "",
+      "model_ids": [
+        4073
+      ],
+      "observed_maps": {
+        "200": {
+          "base_id": 200,
+          "id": 200,
+          "instance_type": "Explorable",
+          "name": "Mount Qinkai"
+        }
+      },
+      "observed_skills": {
+        "1": {
+          "id": 1,
+          "name": "Healing Signet",
+          "profession": "Warrior",
+          "profession_id": 1
+        }
+      }
+    },
+    "enc:\\\\x40BA\\\\xF11E\\\\xAE9E\\\\x7218": {
+      "encoded_names": [
+        "\\\\x40BA\\\\xF11E\\\\xAE9E\\\\x7218"
+      ],
+      "inferred_primary": "Ranger",
+      "inferred_secondary": "",
+      "model_ids": [
+        4074
+      ],
+      "observed_maps": {
+        "200": {
+          "base_id": 200,
+          "id": 200,
+          "instance_type": "Explorable",
+          "name": "Mount Qinkai"
+        }
+      },
+      "observed_skills": {
+        "1211": {
+          "id": 1211,
+          "name": "Viper's Nest",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "854": {
+          "id": 854,
+          "name": "Snare",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "946": {
+          "id": 946,
+          "name": "Trapper's Focus",
+          "profession": "Ranger",
+          "profession_id": 2
+        }
+      }
+    },
+    "enc:\\\\x40BB\\\\x9CFE\\\\xB332\\\\x28A3": {
+      "encoded_names": [
+        "\\\\x40BB\\\\x9CFE\\\\xB332\\\\x28A3"
+      ],
+      "inferred_primary": "Ritualist",
+      "inferred_secondary": "",
+      "model_ids": [
+        4075
+      ],
+      "observed_maps": {
+        "200": {
+          "base_id": 200,
+          "id": 200,
+          "instance_type": "Explorable",
+          "name": "Mount Qinkai"
+        }
+      },
+      "observed_skills": {
+        "1247": {
+          "id": 1247,
+          "name": "Pain",
+          "profession": "Ritualist",
+          "profession_id": 8
+        },
+        "1258": {
+          "id": 1258,
+          "name": "Brutal Weapon",
+          "profession": "Ritualist",
+          "profession_id": 8
+        },
+        "871": {
+          "id": 871,
+          "name": "Shadowsong",
+          "profession": "Ritualist",
+          "profession_id": 8
+        },
+        "914": {
+          "id": 914,
+          "name": "Consume Soul",
+          "profession": "Ritualist",
+          "profession_id": 8
+        },
+        "964": {
+          "id": 964,
+          "name": "Vengeful Weapon",
+          "profession": "Ritualist",
+          "profession_id": 8
+        }
+      }
+    },
+    "enc:\\\\x40C6\\\\xC3F1\\\\x90F7\\\\x050A": {
+      "encoded_names": [
+        "\\\\x40C6\\\\xC3F1\\\\x90F7\\\\x050A"
+      ],
+      "inferred_primary": "Necromancer",
+      "inferred_secondary": "",
+      "model_ids": [
+        4087
+      ],
+      "observed_maps": {
+        "200": {
+          "base_id": 200,
+          "id": 200,
+          "instance_type": "Explorable",
+          "name": "Mount Qinkai"
+        }
+      },
+      "observed_skills": {
+        "110": {
+          "id": 110,
+          "name": "Unholy Feast",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "144": {
+          "id": 144,
+          "name": "Chilblains",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "154": {
+          "id": 154,
+          "name": "Plague Touch",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "92": {
+          "id": 92,
+          "name": "Well of Blood",
+          "profession": "Necromancer",
+          "profession_id": 4
+        }
+      }
+    },
+    "enc:\\\\x40C7\\\\x87BA\\\\xE33A\\\\x4D94": {
+      "encoded_names": [
+        "\\\\x40C7\\\\x87BA\\\\xE33A\\\\x4D94"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        4088
+      ],
+      "observed_maps": {
+        "200": {
+          "base_id": 200,
+          "id": 200,
+          "instance_type": "Explorable",
+          "name": "Mount Qinkai"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x40C8\\\\x9AFB\\\\xCE4F\\\\x1ADE": {
+      "encoded_names": [
+        "\\\\x40C8\\\\x9AFB\\\\xCE4F\\\\x1ADE"
+      ],
+      "inferred_primary": "Ritualist",
+      "inferred_secondary": "",
+      "model_ids": [
+        4090
+      ],
+      "observed_maps": {
+        "200": {
+          "base_id": 200,
+          "id": 200,
+          "instance_type": "Explorable",
+          "name": "Mount Qinkai"
+        }
+      },
+      "observed_skills": {
+        "1236": {
+          "id": 1236,
+          "name": "Binding Chains",
+          "profession": "Ritualist",
+          "profession_id": 8
+        },
+        "1249": {
+          "id": 1249,
+          "name": "Displacement",
+          "profession": "Ritualist",
+          "profession_id": 8
+        },
+        "790": {
+          "id": 790,
+          "name": "Vengeful Was Khanhei",
+          "profession": "Ritualist",
+          "profession_id": 8
+        },
+        "794": {
+          "id": 794,
+          "name": "Wailing Weapon",
+          "profession": "Ritualist",
+          "profession_id": 8
+        },
+        "795": {
+          "id": 795,
+          "name": "Nightmare Weapon",
+          "profession": "Ritualist",
+          "profession_id": 8
+        }
+      }
+    },
+    "enc:\\\\x40D5\\\\xF293\\\\xA099\\\\x6268": {
+      "encoded_names": [
+        "\\\\x40D5\\\\xF293\\\\xA099\\\\x6268"
+      ],
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "",
+      "model_ids": [
+        4093
+      ],
+      "observed_maps": {
+        "200": {
+          "base_id": 200,
+          "id": 200,
+          "instance_type": "Explorable",
+          "name": "Mount Qinkai"
+        }
+      },
+      "observed_skills": {
+        "944": {
+          "id": 944,
+          "name": "Signet of Strength",
+          "profession": "Warrior",
+          "profession_id": 1
+        }
+      }
+    },
+    "enc:\\\\x40D6\\\\xBEA6\\\\x9D1A\\\\x4544": {
+      "encoded_names": [
+        "\\\\x40D6\\\\xBEA6\\\\x9D1A\\\\x4544"
+      ],
+      "inferred_primary": "Ranger",
+      "inferred_secondary": "",
+      "model_ids": [
+        4094
+      ],
+      "observed_maps": {
+        "200": {
+          "base_id": 200,
+          "id": 200,
+          "instance_type": "Explorable",
+          "name": "Mount Qinkai"
+        }
+      },
+      "observed_skills": {
+        "446": {
+          "id": 446,
+          "name": "Troll Unguent",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "893": {
+          "id": 893,
+          "name": "Seeking Arrows",
+          "profession": "Ranger",
+          "profession_id": 2
+        }
+      }
+    },
+    "enc:\\\\x40D7\\\\xCE5A\\\\xD087\\\\x4A21": {
+      "encoded_names": [
+        "\\\\x40D7\\\\xCE5A\\\\xD087\\\\x4A21"
+      ],
+      "inferred_primary": "Ritualist",
+      "inferred_secondary": "",
+      "model_ids": [
+        4095
+      ],
+      "observed_maps": {
+        "200": {
+          "base_id": 200,
+          "id": 200,
+          "instance_type": "Explorable",
+          "name": "Mount Qinkai"
+        }
+      },
+      "observed_skills": {
+        "1224": {
+          "id": 1224,
+          "name": "Draw Spirit",
+          "profession": "Ritualist",
+          "profession_id": 8
+        },
+        "1246": {
+          "id": 1246,
+          "name": "Ancestors' Rage",
+          "profession": "Ritualist",
+          "profession_id": 8
+        },
+        "789": {
+          "id": 789,
+          "name": "Grasping Was Kuurong",
+          "profession": "Ritualist",
+          "profession_id": 8
+        },
+        "795": {
+          "id": 795,
+          "name": "Nightmare Weapon",
+          "profession": "Ritualist",
+          "profession_id": 8
+        },
+        "920": {
+          "id": 920,
+          "name": "Destruction",
+          "profession": "Ritualist",
+          "profession_id": 8
+        }
+      }
+    },
+    "enc:\\\\x40D8\\\\x946E\\\\xD769\\\\x5B43": {
+      "encoded_names": [
+        "\\\\x40D8\\\\x946E\\\\xD769\\\\x5B43"
+      ],
+      "inferred_primary": "Monk",
+      "inferred_secondary": "",
+      "model_ids": [
+        4096
+      ],
+      "observed_maps": {
+        "200": {
+          "base_id": 200,
+          "id": 200,
+          "instance_type": "Explorable",
+          "name": "Mount Qinkai"
+        }
+      },
+      "observed_skills": {
+        "1130": {
+          "id": 1130,
+          "name": "Spear of Light",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "246": {
+          "id": 246,
+          "name": "Divine Intervention",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "274": {
+          "id": 274,
+          "name": "Healing Seed",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "288": {
+          "id": 288,
+          "name": "Healing Breeze",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "294": {
+          "id": 294,
+          "name": "Signet of Judgment",
+          "profession": "Monk",
+          "profession_id": 3
+        }
+      }
+    },
+    "enc:\\\\x4163\\\\x8C20\\\\xFD77\\\\x39DC": {
+      "encoded_names": [
+        "\\\\x4163\\\\x8C20\\\\xFD77\\\\x39DC"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        4264
+      ],
+      "observed_maps": {
+        "200": {
+          "base_id": 200,
+          "id": 200,
+          "instance_type": "Explorable",
+          "name": "Mount Qinkai"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x4164\\\\x825C\\\\xA2F2\\\\x1235": {
+      "encoded_names": [
+        "\\\\x4164\\\\x825C\\\\xA2F2\\\\x1235"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        4265
+      ],
+      "observed_maps": {
+        "200": {
+          "base_id": 200,
+          "id": 200,
+          "instance_type": "Explorable",
+          "name": "Mount Qinkai"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x4165\\\\xAA52\\\\x6E73": {
+      "encoded_names": [
+        "\\\\x4165\\\\xAA52\\\\x6E73"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        4266
+      ],
+      "observed_maps": {
+        "200": {
+          "base_id": 200,
+          "id": 200,
+          "instance_type": "Explorable",
+          "name": "Mount Qinkai"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x4167\\\\x8FC3\\\\x08B6": {
+      "encoded_names": [
+        "\\\\x4167\\\\x8FC3\\\\x08B6"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        4268
+      ],
+      "observed_maps": {
+        "200": {
+          "base_id": 200,
+          "id": 200,
+          "instance_type": "Explorable",
+          "name": "Mount Qinkai"
+        }
+      },
+      "observed_skills": {}
+    },
     "enc:\\\\x7B64\\\\x95DB\\\\xAB29\\\\x1430": {
       "encoded_names": [
         "\\\\x7B64\\\\x95DB\\\\xAB29\\\\x1430"
@@ -48,6 +769,12 @@
         5370
       ],
       "observed_maps": {
+        "386": {
+          "base_id": 386,
+          "id": 386,
+          "instance_type": "Explorable",
+          "name": "Turai's Procession"
+        },
         "392": {
           "base_id": 392,
           "id": 392,
@@ -92,6 +819,12 @@
         5374
       ],
       "observed_maps": {
+        "386": {
+          "base_id": 386,
+          "id": 386,
+          "instance_type": "Explorable",
+          "name": "Turai's Procession"
+        },
         "392": {
           "base_id": 392,
           "id": 392,
@@ -124,6 +857,12 @@
         5378
       ],
       "observed_maps": {
+        "386": {
+          "base_id": 386,
+          "id": 386,
+          "instance_type": "Explorable",
+          "name": "Turai's Procession"
+        },
         "392": {
           "base_id": 392,
           "id": 392,
@@ -168,6 +907,12 @@
         5382
       ],
       "observed_maps": {
+        "386": {
+          "base_id": 386,
+          "id": 386,
+          "instance_type": "Explorable",
+          "name": "Turai's Procession"
+        },
         "392": {
           "base_id": 392,
           "id": 392,
@@ -206,6 +951,12 @@
         5387
       ],
       "observed_maps": {
+        "386": {
+          "base_id": 386,
+          "id": 386,
+          "instance_type": "Explorable",
+          "name": "Turai's Procession"
+        },
         "392": {
           "base_id": 392,
           "id": 392,
@@ -225,6 +976,12 @@
         5394
       ],
       "observed_maps": {
+        "386": {
+          "base_id": 386,
+          "id": 386,
+          "instance_type": "Explorable",
+          "name": "Turai's Procession"
+        },
         "392": {
           "base_id": 392,
           "id": 392,
@@ -257,6 +1014,12 @@
         5398
       ],
       "observed_maps": {
+        "386": {
+          "base_id": 386,
+          "id": 386,
+          "instance_type": "Explorable",
+          "name": "Turai's Procession"
+        },
         "392": {
           "base_id": 392,
           "id": 392,
@@ -283,6 +1046,12 @@
         5402
       ],
       "observed_maps": {
+        "386": {
+          "base_id": 386,
+          "id": 386,
+          "instance_type": "Explorable",
+          "name": "Turai's Procession"
+        },
         "392": {
           "base_id": 392,
           "id": 392,
@@ -298,6 +1067,44 @@
           "profession_id": 9
         }
       }
+    },
+    "enc:\\\\x8101\\\\x0752\\\\x8B99\\\\xF1D7\\\\x287F": {
+      "encoded_names": [
+        "\\\\x8101\\\\x0752\\\\x8B99\\\\xF1D7\\\\x287F"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        4994
+      ],
+      "observed_maps": {
+        "386": {
+          "base_id": 386,
+          "id": 386,
+          "instance_type": "Explorable",
+          "name": "Turai's Procession"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8101\\\\x0753\\\\x8FD6\\\\x9344\\\\x3906": {
+      "encoded_names": [
+        "\\\\x8101\\\\x0753\\\\x8FD6\\\\x9344\\\\x3906"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        4995
+      ],
+      "observed_maps": {
+        "386": {
+          "base_id": 386,
+          "id": 386,
+          "instance_type": "Explorable",
+          "name": "Turai's Procession"
+        }
+      },
+      "observed_skills": {}
     },
     "enc:\\\\x8101\\\\x09C2\\\\x8FDA\\\\x911A\\\\x46E7": {
       "encoded_names": [
@@ -685,6 +1492,341 @@
         }
       }
     },
+    "enc:\\\\x8101\\\\x0E2D\\\\xC0F3\\\\xEC40\\\\x2F3D": {
+      "encoded_names": [
+        "\\\\x8101\\\\x0E2D\\\\xC0F3\\\\xEC40\\\\x2F3D"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        4928
+      ],
+      "observed_maps": {
+        "386": {
+          "base_id": 386,
+          "id": 386,
+          "instance_type": "Explorable",
+          "name": "Turai's Procession"
+        }
+      },
+      "observed_skills": {
+        "1379": {
+          "id": 1379,
+          "name": "Glowing Gaze",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "191": {
+          "id": 191,
+          "name": "Immolate",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "845": {
+          "id": 845,
+          "name": "Liquid Flame",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "884": {
+          "id": 884,
+          "name": "Searing Flames",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x1186\\\\xB16E\\\\xB9F1\\\\x3BAD": {
+      "encoded_names": [
+        "\\\\x8101\\\\x1186\\\\xB16E\\\\xB9F1\\\\x3BAD"
+      ],
+      "inferred_primary": "Monk",
+      "inferred_secondary": "",
+      "model_ids": [
+        4965
+      ],
+      "observed_maps": {
+        "386": {
+          "base_id": 386,
+          "id": 386,
+          "instance_type": "Explorable",
+          "name": "Turai's Procession"
+        }
+      },
+      "observed_skills": {
+        "1391": {
+          "id": 1391,
+          "name": "Supportive Spirit",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "1686": {
+          "id": 1686,
+          "name": "Glimmer of Light",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "288": {
+          "id": 288,
+          "name": "Healing Breeze",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "886": {
+          "id": 886,
+          "name": "Restful Breeze",
+          "profession": "Monk",
+          "profession_id": 3
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x1187\\\\xE433\\\\x93A6\\\\x47E1": {
+      "encoded_names": [
+        "\\\\x8101\\\\x1187\\\\xE433\\\\x93A6\\\\x47E1"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        4966
+      ],
+      "observed_maps": {
+        "386": {
+          "base_id": 386,
+          "id": 386,
+          "instance_type": "Explorable",
+          "name": "Turai's Procession"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8101\\\\x1554\\\\xA7EB\\\\x3D37": {
+      "encoded_names": [
+        "\\\\x8101\\\\x1554\\\\xA7EB\\\\x3D37"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        4957
+      ],
+      "observed_maps": {
+        "386": {
+          "base_id": 386,
+          "id": 386,
+          "instance_type": "Explorable",
+          "name": "Turai's Procession"
+        }
+      },
+      "observed_skills": {
+        "1379": {
+          "id": 1379,
+          "name": "Glowing Gaze",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "191": {
+          "id": 191,
+          "name": "Immolate",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "845": {
+          "id": 845,
+          "name": "Liquid Flame",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "884": {
+          "id": 884,
+          "name": "Searing Flames",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x1555\\\\xB996\\\\xBF2B\\\\x3F18": {
+      "encoded_names": [
+        "\\\\x8101\\\\x1555\\\\xB996\\\\xBF2B\\\\x3F18"
+      ],
+      "inferred_primary": "Dervish",
+      "inferred_secondary": "",
+      "model_ids": [
+        4958
+      ],
+      "observed_maps": {
+        "386": {
+          "base_id": 386,
+          "id": 386,
+          "instance_type": "Explorable",
+          "name": "Turai's Procession"
+        }
+      },
+      "observed_skills": {
+        "1761": {
+          "id": 1761,
+          "name": "Zealous Vow",
+          "profession": "Dervish",
+          "profession_id": 10
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x1556\\\\xB306\\\\xE2DB\\\\x64CB": {
+      "encoded_names": [
+        "\\\\x8101\\\\x1556\\\\xB306\\\\xE2DB\\\\x64CB"
+      ],
+      "inferred_primary": "Dervish",
+      "inferred_secondary": "",
+      "model_ids": [
+        4959
+      ],
+      "observed_maps": {
+        "386": {
+          "base_id": 386,
+          "id": 386,
+          "instance_type": "Explorable",
+          "name": "Turai's Procession"
+        }
+      },
+      "observed_skills": {
+        "1503": {
+          "id": 1503,
+          "name": "Mystic Vigor",
+          "profession": "Dervish",
+          "profession_id": 10
+        },
+        "1761": {
+          "id": 1761,
+          "name": "Zealous Vow",
+          "profession": "Dervish",
+          "profession_id": 10
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x1952\\\\xE06F\\\\xB81B\\\\x5E5E": {
+      "encoded_names": [
+        "\\\\x8101\\\\x1952\\\\xE06F\\\\xB81B\\\\x5E5E"
+      ],
+      "inferred_primary": "Monk",
+      "inferred_secondary": "",
+      "model_ids": [
+        4961
+      ],
+      "observed_maps": {
+        "386": {
+          "base_id": 386,
+          "id": 386,
+          "instance_type": "Explorable",
+          "name": "Turai's Procession"
+        }
+      },
+      "observed_skills": {
+        "1392": {
+          "id": 1392,
+          "name": "Watchful Healing",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "282": {
+          "id": 282,
+          "name": "Word of Healing",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "313": {
+          "id": 313,
+          "name": "Healing Touch",
+          "profession": "Monk",
+          "profession_id": 3
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x1953\\\\xFAFB\\\\xC8A5\\\\x5B16": {
+      "encoded_names": [
+        "\\\\x8101\\\\x1953\\\\xFAFB\\\\xC8A5\\\\x5B16"
+      ],
+      "inferred_primary": "Necromancer",
+      "inferred_secondary": "",
+      "model_ids": [
+        4960
+      ],
+      "observed_maps": {
+        "386": {
+          "base_id": 386,
+          "id": 386,
+          "instance_type": "Explorable",
+          "name": "Turai's Procession"
+        }
+      },
+      "observed_skills": {
+        "134": {
+          "id": 134,
+          "name": "Order of Pain",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "1356": {
+          "id": 1356,
+          "name": "Contagion",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "1360": {
+          "id": 1360,
+          "name": "Mark of Fury",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "145": {
+          "id": 145,
+          "name": "Signet of Agony",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "96": {
+          "id": 96,
+          "name": "Soul Feast",
+          "profession": "Necromancer",
+          "profession_id": 4
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x19E2\\\\xCFFF\\\\xBF56\\\\x3D43": {
+      "encoded_names": [
+        "\\\\x8101\\\\x19E2\\\\xCFFF\\\\xBF56\\\\x3D43"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        4962
+      ],
+      "observed_maps": {
+        "386": {
+          "base_id": 386,
+          "id": 386,
+          "instance_type": "Explorable",
+          "name": "Turai's Procession"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8101\\\\x1A94\\\\xAC7F\\\\xF190\\\\x7563": {
+      "encoded_names": [
+        "\\\\x8101\\\\x1A94\\\\xAC7F\\\\xF190\\\\x7563"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        4963
+      ],
+      "observed_maps": {
+        "386": {
+          "base_id": 386,
+          "id": 386,
+          "instance_type": "Explorable",
+          "name": "Turai's Procession"
+        }
+      },
+      "observed_skills": {}
+    },
     "enc:\\\\x8101\\\\x1CE3\\\\xA10F\\\\x9001\\\\x49F3": {
       "encoded_names": [
         "\\\\x8101\\\\x1CE3\\\\xA10F\\\\x9001\\\\x49F3"
@@ -723,6 +1865,25 @@
         }
       }
     },
+    "enc:\\\\x8101\\\\x46AB\\\\xB705\\\\x0EB7": {
+      "encoded_names": [
+        "\\\\x8101\\\\x46AB\\\\xB705\\\\x0EB7"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        4969
+      ],
+      "observed_maps": {
+        "386": {
+          "base_id": 386,
+          "id": 386,
+          "instance_type": "Explorable",
+          "name": "Turai's Procession"
+        }
+      },
+      "observed_skills": {}
+    },
     "enc:\\\\x8101\\\\x4731\\\\x9857\\\\x863A\\\\x3B88": {
       "encoded_names": [
         "\\\\x8101\\\\x4731\\\\x9857\\\\x863A\\\\x3B88"
@@ -733,6 +1894,12 @@
         5766
       ],
       "observed_maps": {
+        "386": {
+          "base_id": 386,
+          "id": 386,
+          "instance_type": "Explorable",
+          "name": "Turai's Procession"
+        },
         "392": {
           "base_id": 392,
           "id": 392,
@@ -752,11 +1919,182 @@
         5388
       ],
       "observed_maps": {
+        "386": {
+          "base_id": 386,
+          "id": 386,
+          "instance_type": "Explorable",
+          "name": "Turai's Procession"
+        },
         "392": {
           "base_id": 392,
           "id": 392,
           "instance_type": "Explorable",
           "name": "Yatendi Canyons"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8101\\\\x4CA1\\\\xC6FE\\\\x8123\\\\x663C": {
+      "encoded_names": [
+        "\\\\x8101\\\\x4CA1\\\\xC6FE\\\\x8123\\\\x663C"
+      ],
+      "inferred_primary": "Mesmer",
+      "inferred_secondary": "",
+      "model_ids": [
+        4964
+      ],
+      "observed_maps": {
+        "386": {
+          "base_id": 386,
+          "id": 386,
+          "instance_type": "Explorable",
+          "name": "Turai's Procession"
+        }
+      },
+      "observed_skills": {
+        "31": {
+          "id": 31,
+          "name": "Conjure Phantasm",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "36": {
+          "id": 36,
+          "name": "Arcane Conundrum",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "43": {
+          "id": 43,
+          "name": "Clumsiness",
+          "profession": "Mesmer",
+          "profession_id": 5
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x4D78\\\\xA585\\\\xA6F7\\\\x555D": {
+      "encoded_names": [
+        "\\\\x8101\\\\x4D78\\\\xA585\\\\xA6F7\\\\x555D"
+      ],
+      "inferred_primary": "Monk",
+      "inferred_secondary": "",
+      "model_ids": [
+        4922
+      ],
+      "observed_maps": {
+        "386": {
+          "base_id": 386,
+          "id": 386,
+          "instance_type": "Explorable",
+          "name": "Turai's Procession"
+        }
+      },
+      "observed_skills": {
+        "1391": {
+          "id": 1391,
+          "name": "Supportive Spirit",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "1686": {
+          "id": 1686,
+          "name": "Glimmer of Light",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "288": {
+          "id": 288,
+          "name": "Healing Breeze",
+          "profession": "Monk",
+          "profession_id": 3
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x4D97\\\\xC3B0\\\\xB479\\\\x5CE2": {
+      "encoded_names": [
+        "\\\\x8101\\\\x4D97\\\\xC3B0\\\\xB479\\\\x5CE2"
+      ],
+      "inferred_primary": "Ranger",
+      "inferred_secondary": "",
+      "model_ids": [
+        5286
+      ],
+      "observed_maps": {
+        "386": {
+          "base_id": 386,
+          "id": 386,
+          "instance_type": "Explorable",
+          "name": "Turai's Procession"
+        }
+      },
+      "observed_skills": {
+        "446": {
+          "id": 446,
+          "name": "Troll Unguent",
+          "profession": "Ranger",
+          "profession_id": 2
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x4E0C\\\\xB42D\\\\x879D\\\\x53A9": {
+      "encoded_names": [
+        "\\\\x8101\\\\x4E0C\\\\xB42D\\\\x879D\\\\x53A9"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        4956
+      ],
+      "observed_maps": {
+        "386": {
+          "base_id": 386,
+          "id": 386,
+          "instance_type": "Explorable",
+          "name": "Turai's Procession"
+        }
+      },
+      "observed_skills": {
+        "1372": {
+          "id": 1372,
+          "name": "Sandstorm",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "1374": {
+          "id": 1374,
+          "name": "Ebon Hawk",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "171": {
+          "id": 171,
+          "name": "Stoning",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "174": {
+          "id": 174,
+          "name": "Aftershock",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x4E0D\\\\xCA0F\\\\xF04C\\\\x3AE0": {
+      "encoded_names": [
+        "\\\\x8101\\\\x4E0D\\\\xCA0F\\\\xF04C\\\\x3AE0"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        4955
+      ],
+      "observed_maps": {
+        "386": {
+          "base_id": 386,
+          "id": 386,
+          "instance_type": "Explorable",
+          "name": "Turai's Procession"
         }
       },
       "observed_skills": {}
@@ -1083,6 +2421,25 @@
           "profession_id": 10
         }
       }
+    },
+    "enc:\\\\x8101\\\\x5DCF\\\\xC6E5\\\\x1747": {
+      "encoded_names": [
+        "\\\\x8101\\\\x5DCF\\\\xC6E5\\\\x1747"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        4319
+      ],
+      "observed_maps": {
+        "386": {
+          "base_id": 386,
+          "id": 386,
+          "instance_type": "Explorable",
+          "name": "Turai's Procession"
+        }
+      },
+      "observed_skills": {}
     },
     "enc:\\\\x8101\\\\x7F4D\\\\xFC50\\\\xD378\\\\x2E42": {
       "encoded_names": [

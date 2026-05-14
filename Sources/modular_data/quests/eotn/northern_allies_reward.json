@@ -1,0 +1,6 @@
+{
+  "name": "Northern Allies reward",
+  "steps": [
+    {"type": "dialog", "id": "0x838907", "npc": "JALIS_IRONHAMMER", "name": "Dialog - Jalis Ironhammer"}
+  ]
+}

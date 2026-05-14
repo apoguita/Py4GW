@@ -16,7 +16,6 @@
     {"type": "auto_path", "name": "To Haroj Firemane", "points": [[21040, -15935]]},
     {"type": "dialogs", "id": ["0x822804", "0x84", "0x85"], "npc": "HAROJ_FIREMANE", "name": "Dialog - Haroj Firemane"},
     {"type": "wait", "ms": 10000},
-    {"type": "skip_cutscene"},
     {"type": "wait_for_map_load", "map_id": 424},
     {"type": "auto_path", "name": "To Estate Guard Rikesh", "points": [[-872, 2644]]},
     {"type": "dialog", "id": "0x822807", "npc": "ESTATE_GUARD_RIKESH", "name": "Dialog - Estate Guard Rikesh"}

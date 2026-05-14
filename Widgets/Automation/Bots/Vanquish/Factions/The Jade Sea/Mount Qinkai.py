@@ -1,4 +1,4 @@
-from Py4GWCoreLib import Botting, Routines, GLOBAL_CACHE, ModelID, Map, Agent, ConsoleLog, Player, Timer, IniManager, SharedCommandType
+from Py4GWCoreLib import Botting, Routines, GLOBAL_CACHE, ModelID, Map, Agent, AgentArray, ConsoleLog, Player, Timer, IniManager, SharedCommandType
 from Py4GWCoreLib.enums_src.Title_enums import TitleID, TITLE_TIERS
 import Py4GW
 import PyImGui
@@ -19,6 +19,15 @@ SUMMONING_STONES_RESTOCK_TARGET = 10
 _restock_use_conset = True
 _restock_use_pcons = True
 _restock_use_summoning_stones = True
+_restock_kits_enabled = False
+_id_kits_target = 2
+_salvage_kits_target = 5
+_merchant_sell_materials = False
+_merchant_sell_jadeite_shards = False
+_merchant_buy_ectos = False
+_merchant_ecto_threshold = 800_000
+_merchant_alt_wait_ms = 2000
+_donation_min_luxon_points = 10_000
 _randomize_district = True
 _RANDOM_DISTRICTS = [6, 7, 8, 9]
 _settings_loaded = False
@@ -27,10 +36,28 @@ _RANDOMIZE_DISTRICT_KEY = "randomize_district"
 _USE_CONSET_KEY = "use_conset"
 _USE_PCONS_KEY = "use_pcons"
 _USE_SUMMONING_STONES_KEY = "use_summoning_stones"
+_USE_RESTOCK_KITS_KEY = "use_restock_kits"
+_ID_KITS_TARGET_KEY = "id_kits_target"
+_SALVAGE_KITS_TARGET_KEY = "salvage_kits_target"
+_MERCHANT_SELL_MATERIALS_KEY = "merchant_sell_materials"
+_MERCHANT_SELL_JADEITE_SHARDS_KEY = "merchant_sell_jadeite_shards"
+_MERCHANT_BUY_ECTOS_KEY = "merchant_buy_ectos"
+_MERCHANT_ECTO_THRESHOLD_KEY = "merchant_ecto_threshold"
+_MERCHANT_ALT_WAIT_MS_KEY = "merchant_alt_wait_ms"
+_DONATION_MIN_LUXON_POINTS_KEY = "donation_min_luxon_points"
 _CONSET_RESTOCK_TARGET_KEY = "conset_restock_target"
 _PCON_RESTOCK_TARGET_KEY = "pcon_restock_target"
 _SUMMONING_STONES_RESTOCK_TARGET_KEY = "summoning_stones_restock_target"
 _MAX_RESTOCK_TARGET = 999
+_MAX_ALT_SETTLE_WAIT_MS = 5000
+_MIN_DONATION_THRESHOLD = 10_000
+_MAX_DONATION_THRESHOLD = 10_000_000
+_SCROLL_MODEL_IDS = {5594, 5595, 5611, 5853, 5975, 5976, 21233}
+_SCROLL_MODEL_FILTER = "5594,5595,5611,5853,5975,5976,21233"
+_JADEITE_SHARD_MODELS = {int(ModelID.Jadeite_Shard.value)}
+_JADEITE_SHARD_FILTER = str(int(ModelID.Jadeite_Shard.value))
+_MERCHANT_MANAGED_WIDGETS = ("InventoryPlus",)
+_PRETRAVEL_DISABLE_WIDGETS = ("InventoryPlus",)
 
 Vanquish_Path:list[tuple[float, float]] = [
       (-13384.42, -9866.60), #snake yetis  
@@ -83,7 +110,8 @@ Vanquish_Path:list[tuple[float, float]] = [
 
 bot = Botting(BOT_NAME,
               upkeep_honeycomb_active=True,
-              upkeep_hero_ai_active=True)
+              upkeep_hero_ai_active=True,
+              upkeep_auto_loot_active=True)
 
 _load_resume_timer = Timer()
 _loading_pause_active = False
@@ -101,9 +129,10 @@ def bot_routine(bot: Botting) -> None:
     
     bot.States.AddHeader(BOT_NAME)
     bot.Templates.Multibox_Aggressive()
-    bot.Properties.Disable("auto_loot")
-    bot.States.AddCustomState(lambda: _disable_looting(bot), "Disable Looting")
+    bot.Properties.Enable("auto_loot")
+    bot.States.AddCustomState(lambda: _enable_looting(bot), "Enable Looting")
     bot.States.AddCustomState(lambda: _leave_party_before_start(bot), "Leave Party Before Start")
+    bot.States.AddCustomState(lambda: _gh_merchant_setup_if_enabled(bot, OUTPOST_TO_TRAVEL), "GH Merchant Setup If Enabled")
     bot.States.AddCustomState(lambda: _coro_travel_random_district(bot, OUTPOST_TO_TRAVEL), "Travel to Mount Qinkai")
     bot.Multibox.SummonAllAccounts()
     bot.Wait.ForTime(4000)
@@ -141,12 +170,7 @@ def bot_routine(bot: Botting) -> None:
 
     bot.Multibox.ResignParty()
     bot.Wait.UntilOnOutpost()
-    bot.States.AddCustomState(lambda: _leave_party_before_start(bot), "Leave Party Before Cavalon")
-    bot.States.AddCustomState(lambda: _coro_travel_random_district(bot, CAVALON), "Travel to Cavalon")
-    bot.Multibox.SummonAllAccounts()
-    bot.Wait.ForTime(4000)
-    bot.Multibox.DonateFaction()
-    bot.Wait.ForTime(30000)
+    bot.States.AddCustomState(lambda: _donate_luxon_if_threshold_met(bot), "Donate Luxon Faction If Threshold Met")
     bot.States.JumpToStepName("[H]VQ Mount Qinkai_1")
     
     
@@ -156,8 +180,8 @@ def _leave_party_before_start(bot: "Botting"):
     yield from bot.Wait._coro_for_time(1000)
 
 
-def _disable_looting(bot: "Botting"):
-    bot.Properties.ApplyNow("auto_loot", "active", False)
+def _enable_looting(bot: "Botting"):
+    bot.Properties.ApplyNow("auto_loot", "active", True)
     for account in GLOBAL_CACHE.ShMem.GetAllAccountData():
         account_email = getattr(account, "AccountEmail", "")
         if not account_email:
@@ -165,8 +189,17 @@ def _disable_looting(bot: "Botting"):
         options = GLOBAL_CACHE.ShMem.GetHeroAIOptionsFromEmail(account_email)
         if options is None:
             continue
-        options.Looting = False
+        options.Looting = True
         GLOBAL_CACHE.ShMem.SetHeroAIOptionsByEmail(account_email, options)
+    bot.ResetHeroAICombatState(
+        active=True,
+        following=True,
+        avoidance=True,
+        looting=True,
+        targeting=True,
+        combat=True,
+        skills=True,
+    )
     yield
 
 
@@ -212,7 +245,7 @@ def _reset_hero_ai_after_blessing(bot: "Botting") -> None:
         active=True,
         following=True,
         avoidance=True,
-        looting=False,
+        looting=True,
         targeting=True,
         combat=True,
         skills=True,
@@ -239,6 +272,430 @@ def _take_luxon_blessing(bot: "Botting", bribe_priest: bool):
     yield from _send_priest_dialog(bot, 0x86)      # Get bounty.
     _reset_hero_ai_after_blessing(bot)
     yield from bot.Wait._coro_for_time(500)
+
+
+def _find_npc_xy_by_name(name_fragment: str, max_dist: float = 15000.0):
+    npcs = AgentArray.GetNPCMinipetArray()
+    npcs = AgentArray.Filter.ByDistance(npcs, Player.GetXY(), max_dist)
+    for npc_id in npcs:
+        npc_name = Agent.GetNameByID(int(npc_id))
+        if name_fragment.lower() in npc_name.lower():
+            return Agent.GetXY(int(npc_id))
+    return None
+
+
+def _restock_kits_locally(bot: Botting, x: float, y: float):
+    yield from bot.Move._coro_xy_and_interact_npc(x, y)
+    yield from bot.Wait._coro_for_time(1200)
+
+    id_kits = int(GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Identification_Kit.value))
+    sup_id_kits = int(GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Superior_Identification_Kit.value))
+    salvage_kits = int(GLOBAL_CACHE.Inventory.GetModelCount(ModelID.Salvage_Kit.value))
+
+    id_to_buy = max(0, _id_kits_target - (id_kits + sup_id_kits))
+    salvage_to_buy = max(0, _salvage_kits_target - salvage_kits)
+
+    yield from Routines.Yield.Merchant.BuyIDKits(id_to_buy, log=True)
+    yield from Routines.Yield.Merchant.BuySalvageKits(salvage_to_buy, log=True)
+
+
+def _get_leftover_material_item_ids(batch_size: int = 10) -> list[int]:
+    bag_list = GLOBAL_CACHE.ItemArray.CreateBagList(1, 2, 3, 4)
+    item_array = GLOBAL_CACHE.ItemArray.GetItemArray(bag_list)
+    leftovers: list[int] = []
+    for item_id in item_array:
+        if not GLOBAL_CACHE.Item.Type.IsMaterial(item_id):
+            continue
+        if GLOBAL_CACHE.Item.Type.IsRareMaterial(item_id):
+            continue
+        qty = int(GLOBAL_CACHE.Item.Properties.GetQuantity(item_id))
+        if 0 < qty < batch_size:
+            leftovers.append(int(item_id))
+    return leftovers
+
+
+def _coro_sell_scrolls(bot: Botting, mx: float, my: float):
+    bag_list = GLOBAL_CACHE.ItemArray.CreateBagList(1, 2, 3, 4)
+    item_array = GLOBAL_CACHE.ItemArray.GetItemArray(bag_list)
+    sell_ids = [int(item_id) for item_id in item_array if int(GLOBAL_CACHE.Item.GetModelID(item_id)) in _SCROLL_MODEL_IDS]
+    if not sell_ids:
+        return
+    yield from bot.Move._coro_xy_and_interact_npc(mx, my, "GH Merchant (scrolls)")
+    yield from Routines.Yield.wait(1200)
+    yield from Routines.Yield.Merchant.SellItems(sell_ids, log=True)
+    yield from Routines.Yield.wait(300)
+
+
+def _coro_sell_nonsalvageable_golds(bot: Botting, mx: float, my: float):
+    bag_list = GLOBAL_CACHE.ItemArray.CreateBagList(1, 2, 3, 4)
+    item_array = GLOBAL_CACHE.ItemArray.GetItemArray(bag_list)
+    sell_ids = []
+    for item_id in item_array:
+        _, rarity = GLOBAL_CACHE.Item.Rarity.GetRarity(item_id)
+        if rarity != "Gold":
+            continue
+        if not GLOBAL_CACHE.Item.Usage.IsIdentified(item_id):
+            continue
+        if GLOBAL_CACHE.Item.Usage.IsSalvageable(item_id):
+            continue
+        sell_ids.append(int(item_id))
+    if not sell_ids:
+        return
+    yield from bot.Move._coro_xy_and_interact_npc(mx, my, "GH Merchant (non-salvageable golds)")
+    yield from Routines.Yield.wait(1200)
+    yield from Routines.Yield.Merchant.SellItems(sell_ids, log=True)
+    yield from Routines.Yield.wait(300)
+
+
+def _coro_sell_rare_mats_at_trader(x: float, y: float, model_ids: set[int]):
+    yield from Routines.Yield.Movement.FollowPath([(x, y)])
+    yield from Routines.Yield.wait(100)
+    yield from Routines.Yield.Agents.InteractWithAgentXY(x, y)
+    yield from Routines.Yield.wait(1000)
+
+    bag_list = GLOBAL_CACHE.ItemArray.CreateBagList(1, 2, 3, 4)
+    item_array = GLOBAL_CACHE.ItemArray.GetItemArray(bag_list)
+    sold_total = 0
+    for item_id in item_array:
+        if int(GLOBAL_CACHE.Item.GetModelID(item_id)) not in model_ids:
+            continue
+        stack_qty = int(GLOBAL_CACHE.Item.Properties.GetQuantity(item_id))
+        while stack_qty > 0:
+            quoted = yield from Routines.Yield.Merchant._wait_for_quote(
+                GLOBAL_CACHE.Trading.Trader.RequestSellQuote,
+                item_id,
+                timeout_ms=750,
+                step_ms=10,
+            )
+            if quoted <= 0:
+                break
+            GLOBAL_CACHE.Trading.Trader.SellItem(item_id, quoted)
+            new_qty = yield from Routines.Yield.Merchant._wait_for_stack_quantity_drop(
+                item_id,
+                stack_qty,
+                timeout_ms=750,
+                step_ms=10,
+            )
+            if new_qty >= stack_qty:
+                break
+            sold_total += stack_qty - new_qty
+            stack_qty = new_qty
+    ConsoleLog(BOT_NAME, f"[Merchant] Sold {sold_total} Jadeite Shard(s) at Rare Material Trader")
+
+
+def _disable_inventoryplus_pretravel():
+    from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler as _get_wh
+    wh = _get_wh()
+    for name in _PRETRAVEL_DISABLE_WIDGETS:
+        wh.disable_widget(name)
+    my_email = Player.GetAccountEmail()
+    for acc in GLOBAL_CACHE.ShMem.GetAllAccountData():
+        account_email = getattr(acc, "AccountEmail", "")
+        if account_email and account_email != my_email:
+            for name in _PRETRAVEL_DISABLE_WIDGETS:
+                GLOBAL_CACHE.ShMem.SendMessage(
+                    my_email,
+                    account_email,
+                    SharedCommandType.DisableWidget,
+                    (0, 0, 0, 0),
+                    (name, "", "", ""),
+                )
+    yield from Routines.Yield.wait(1500)
+
+
+def _disable_merchant_widgets():
+    from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler as _get_wh
+    wh = _get_wh()
+    for name in _MERCHANT_MANAGED_WIDGETS:
+        wh.disable_widget(name)
+    my_email = Player.GetAccountEmail()
+    for acc in GLOBAL_CACHE.ShMem.GetAllAccountData():
+        account_email = getattr(acc, "AccountEmail", "")
+        if account_email and account_email != my_email:
+            for name in _MERCHANT_MANAGED_WIDGETS:
+                GLOBAL_CACHE.ShMem.SendMessage(
+                    my_email,
+                    account_email,
+                    SharedCommandType.DisableWidget,
+                    (0, 0, 0, 0),
+                    (name, "", "", ""),
+                )
+    yield
+
+
+def _reenable_merchant_widgets():
+    from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler as _get_wh
+    wh = _get_wh()
+    for name in _MERCHANT_MANAGED_WIDGETS:
+        wh.enable_widget(name)
+
+    my_email = Player.GetAccountEmail()
+    refs: list[tuple[str, int]] = []
+    for acc in GLOBAL_CACHE.ShMem.GetAllAccountData():
+        account_email = getattr(acc, "AccountEmail", "")
+        if account_email and account_email != my_email:
+            for name in _MERCHANT_MANAGED_WIDGETS:
+                idx = int(GLOBAL_CACHE.ShMem.SendMessage(
+                    my_email,
+                    account_email,
+                    SharedCommandType.EnableWidget,
+                    (0, 0, 0, 0),
+                    (name, "", "", ""),
+                ))
+                if idx >= 0:
+                    refs.append((account_email, idx))
+    yield from _wait_for_alt_dispatch_completion("enable_widgets", refs, SharedCommandType.EnableWidget, timeout_ms=15000)
+
+
+def _dispatch_to_alts(command, params, extra_data=("", "", "", "")) -> list[tuple[str, int]]:
+    my_email = Player.GetAccountEmail()
+    refs: list[tuple[str, int]] = []
+    for acc in GLOBAL_CACHE.ShMem.GetAllAccountData():
+        account_email = getattr(acc, "AccountEmail", "")
+        if account_email and account_email != my_email:
+            idx = int(GLOBAL_CACHE.ShMem.SendMessage(my_email, account_email, command, params, extra_data))
+            refs.append((account_email, idx))
+    return refs
+
+
+def _wait_for_alt_dispatch_completion(stage_name: str, message_refs: list[tuple[str, int]], command, timeout_ms: int = 30000):
+    if not message_refs:
+        return
+    pending = {(email, idx): None for email, idx in message_refs if int(idx) >= 0}
+    if not pending:
+        return
+    deadline = time.monotonic() + (max(0, int(timeout_ms)) / 1000.0)
+    my_email = Player.GetAccountEmail()
+    while pending and time.monotonic() < deadline:
+        completed: list[tuple[str, int]] = []
+        for email, idx in list(pending.keys()):
+            message = GLOBAL_CACHE.ShMem.GetInbox(idx)
+            is_same_message = (
+                bool(getattr(message, "Active", False))
+                and str(getattr(message, "ReceiverEmail", "") or "") == email
+                and str(getattr(message, "SenderEmail", "") or "") == my_email
+                and int(getattr(message, "Command", -1)) == int(command)
+            )
+            if not is_same_message:
+                completed.append((email, idx))
+        for key in completed:
+            pending.pop(key, None)
+        if pending:
+            yield from Routines.Yield.wait(50)
+    if pending:
+        pending_accounts = ", ".join(sorted({email for email, _ in pending}))
+        ConsoleLog(BOT_NAME, f"[Merchant] {stage_name}: timeout waiting for alt completion. Pending: {pending_accounts}", Py4GW.Console.MessageType.Warning)
+
+
+def _wait_for_alts_on_current_map(stage_name: str, expected_alts: int, target_map_id: int, timeout_ms: int = 30000):
+    if expected_alts <= 0:
+        return
+    my_email = Player.GetAccountEmail()
+    deadline = time.time() + (max(0, int(timeout_ms)) / 1000.0)
+    while time.time() < deadline:
+        accounts = GLOBAL_CACHE.ShMem.GetAllAccountData()
+        arrived = sum(
+            1 for acc in accounts
+            if getattr(acc, "AccountEmail", "") != my_email
+            and int(getattr(acc.AgentData.Map, "MapID", 0) or 0) == target_map_id
+        )
+        if arrived >= expected_alts:
+            yield from Routines.Yield.wait(1000)
+            return
+        yield from Routines.Yield.wait(500)
+    ConsoleLog(BOT_NAME, f"[Merchant] {stage_name}: alt arrival timeout on map {target_map_id}", Py4GW.Console.MessageType.Warning)
+
+
+def _gh_merchant_setup_if_enabled(bot: Botting, outpost_id: int):
+    if not _restock_kits_enabled:
+        return
+
+    yield from _disable_inventoryplus_pretravel()
+
+    my_email = Player.GetAccountEmail()
+    expected_gh_alts = len([
+        acc for acc in GLOBAL_CACHE.ShMem.GetAllAccountData()
+        if getattr(acc, "AccountEmail", "") and getattr(acc, "AccountEmail", "") != my_email
+    ])
+    travel_refs = _dispatch_to_alts(SharedCommandType.TravelToGuildHall, (0, 0, 0, 0))
+
+    if not Map.IsGuildHall():
+        Map.TravelGH()
+    yield from bot.Wait._coro_until_on_outpost()
+    yield from _wait_for_alt_dispatch_completion("travel_gh", travel_refs, SharedCommandType.TravelToGuildHall, timeout_ms=10000)
+
+    gh_deadline = time.time() + 30.0
+    while not Map.IsGuildHall() and time.time() < gh_deadline:
+        yield from Routines.Yield.wait(500)
+    if not Map.IsGuildHall():
+        ConsoleLog(BOT_NAME, "[Merchant] Failed to reach Guild Hall, skipping merchant setup", Py4GW.Console.MessageType.Warning)
+        return
+
+    yield from _wait_for_alts_on_current_map("travel_gh_arrival", expected_gh_alts, int(Map.GetMapID()), timeout_ms=60000)
+
+    npc_deadline = time.time() + 20.0
+    while _find_npc_xy_by_name("Merchant", max_dist=30000.0) is None and time.time() < npc_deadline:
+        yield from Routines.Yield.wait(500)
+
+    yield from _disable_merchant_widgets()
+
+    merchant_xy = _find_npc_xy_by_name("Merchant", max_dist=30000.0)
+    mat_xy = _find_npc_xy_by_name("Material Trader", max_dist=30000.0) if _merchant_sell_materials else None
+    rare_xy = _find_npc_xy_by_name("Rare", max_dist=30000.0) if (_merchant_sell_jadeite_shards or _merchant_buy_ectos) else None
+
+    if _merchant_sell_materials and mat_xy:
+        tmx, tmy = mat_xy
+        sell_mat_refs = _dispatch_to_alts(SharedCommandType.MerchantMaterials, (tmx, tmy, 0, 0), ("sell", "", "", ""))
+        yield from Routines.Yield.Merchant.SellMaterialsAtTrader(tmx, tmy)
+        yield from _wait_for_alt_dispatch_completion("sell_materials", sell_mat_refs, SharedCommandType.MerchantMaterials)
+
+        if merchant_xy:
+            mx, my = merchant_xy
+            leftover_refs = _dispatch_to_alts(
+                SharedCommandType.MerchantMaterials,
+                (mx, my, 0, 0),
+                ("sell_merchant_leftovers", "", "10", ""),
+            )
+            leftover_ids = _get_leftover_material_item_ids()
+            if leftover_ids:
+                yield from bot.Move._coro_xy_and_interact_npc(mx, my, "GH Merchant (leftovers)")
+                yield from Routines.Yield.wait(1200)
+                yield from Routines.Yield.Merchant.SellItems(leftover_ids, log=True)
+                yield from Routines.Yield.wait(300)
+            yield from _wait_for_alt_dispatch_completion("sell_merchant_leftovers", leftover_refs, SharedCommandType.MerchantMaterials)
+
+    if merchant_xy:
+        mx, my = merchant_xy
+        sell_gold_refs = _dispatch_to_alts(
+            SharedCommandType.MerchantMaterials,
+            (mx, my, 0, 0),
+            ("sell_nonsalvageable_golds", "", "", ""),
+        )
+        yield from _coro_sell_nonsalvageable_golds(bot, mx, my)
+        yield from _wait_for_alt_dispatch_completion("sell_nonsalvageable_golds", sell_gold_refs, SharedCommandType.MerchantMaterials)
+
+        sell_scroll_refs = _dispatch_to_alts(
+            SharedCommandType.MerchantMaterials,
+            (mx, my, 0, 0),
+            ("sell_scrolls", _SCROLL_MODEL_FILTER, "", ""),
+        )
+        yield from _coro_sell_scrolls(bot, mx, my)
+        yield from _wait_for_alt_dispatch_completion("sell_scrolls", sell_scroll_refs, SharedCommandType.MerchantMaterials)
+
+        kit_refs = _dispatch_to_alts(SharedCommandType.MerchantItems, (mx, my, _id_kits_target, _salvage_kits_target))
+        yield from _restock_kits_locally(bot, mx, my)
+        yield from _wait_for_alt_dispatch_completion("restock_kits", kit_refs, SharedCommandType.MerchantItems)
+
+    if _merchant_sell_jadeite_shards:
+        if rare_xy:
+            rx, ry = rare_xy
+            jadeite_refs = _dispatch_to_alts(
+                SharedCommandType.MerchantMaterials,
+                (rx, ry, 0, 0),
+                ("sell_rare_mats", _JADEITE_SHARD_FILTER, "", ""),
+            )
+            yield from _coro_sell_rare_mats_at_trader(rx, ry, _JADEITE_SHARD_MODELS)
+            yield from _wait_for_alt_dispatch_completion("sell_jadeite_shards", jadeite_refs, SharedCommandType.MerchantMaterials)
+        else:
+            ConsoleLog(BOT_NAME, "[Merchant] No Rare Material Trader found - skipping Jadeite Shard sale", Py4GW.Console.MessageType.Warning)
+
+    if _merchant_buy_ectos:
+        if rare_xy:
+            rx, ry = rare_xy
+            buy_ecto_refs = _dispatch_to_alts(
+                SharedCommandType.MerchantMaterials,
+                (rx, ry, _merchant_ecto_threshold, _merchant_ecto_threshold),
+                ("buy_ectoplasm", "1", "0", ""),
+            )
+            leader_storage = int(GLOBAL_CACHE.Inventory.GetGoldInStorage())
+            if leader_storage > _merchant_ecto_threshold:
+                ConsoleLog(
+                    BOT_NAME,
+                    f"[Merchant] Leader buying ectos (storage={leader_storage:,}, threshold={_merchant_ecto_threshold:,})",
+                )
+                yield from Routines.Yield.Merchant.BuyEctoplasm(
+                    rx,
+                    ry,
+                    use_storage_gold=True,
+                    start_threshold=_merchant_ecto_threshold,
+                    stop_threshold=_merchant_ecto_threshold,
+                )
+            else:
+                ConsoleLog(
+                    BOT_NAME,
+                    f"[Merchant] Leader storage ({leader_storage:,}) at/below threshold - skipping leader ecto buy",
+                )
+            yield from _wait_for_alt_dispatch_completion("buy_ectoplasm", buy_ecto_refs, SharedCommandType.MerchantMaterials)
+        else:
+            ConsoleLog(BOT_NAME, "[Merchant] Ecto buy skipped - no Rare Material Trader found", Py4GW.Console.MessageType.Warning)
+
+    if _merchant_alt_wait_ms > 0:
+        yield from Routines.Yield.wait(_merchant_alt_wait_ms)
+
+    yield from _reenable_merchant_widgets()
+
+
+def _get_account_luxon_points(account, own_email: str) -> int:
+    account_email = getattr(account, "AccountEmail", "")
+    if account_email == own_email:
+        return int(Player.GetLuxonData()[0])
+    try:
+        return int(account.FactionData.Luxon.Current)
+    except Exception:
+        return 0
+
+
+def _get_luxon_donation_candidates() -> list[tuple[str, str, int]]:
+    own_email = Player.GetAccountEmail()
+    accounts = list(GLOBAL_CACHE.ShMem.GetAllAccountData())
+    if not accounts:
+        return [(own_email, Player.GetName(), int(Player.GetLuxonData()[0]))] if own_email else []
+
+    candidates: list[tuple[str, str, int]] = []
+    for account in accounts:
+        account_email = getattr(account, "AccountEmail", "")
+        if not account_email:
+            continue
+        character_name = getattr(account.AgentData, "CharacterName", "") or account_email
+        luxon_points = _get_account_luxon_points(account, own_email)
+        candidates.append((account_email, character_name, luxon_points))
+    return candidates
+
+
+def _donate_luxon_if_threshold_met(bot: Botting):
+    threshold = max(_MIN_DONATION_THRESHOLD, min(_MAX_DONATION_THRESHOLD, int(_donation_min_luxon_points)))
+    yield from Routines.Yield.wait(1000)
+
+    candidates = _get_luxon_donation_candidates()
+    eligible = [(email, name, points) for email, name, points in candidates if points >= threshold]
+    if not eligible:
+        highest = max((points for _, _, points in candidates), default=0)
+        ConsoleLog(
+            BOT_NAME,
+            f"[Donation] Skipping Cavalon: highest Luxon faction is {highest:,}, threshold is {threshold:,}.",
+        )
+        return
+
+    ConsoleLog(BOT_NAME, f"[Donation] {len(eligible)} account(s) meet Luxon donation threshold {threshold:,}.")
+    yield from _leave_party_before_start(bot)
+    yield from _coro_travel_random_district(bot, CAVALON)
+    yield from bot.helpers.Multibox._summon_all_accounts()
+    yield from bot.Wait._coro_for_time(4000)
+
+    sender_email = Player.GetAccountEmail()
+    refs: list[tuple[str, int]] = []
+    for account_email, character_name, points in eligible:
+        idx = int(GLOBAL_CACHE.ShMem.SendMessage(
+            sender_email,
+            account_email,
+            SharedCommandType.DonateToGuild,
+            (0, 0, 0, 0),
+        ))
+        refs.append((account_email, idx))
+        ConsoleLog(BOT_NAME, f"[Donation] Queued {character_name} ({points:,} Luxon).", log=False)
+
+    yield from _wait_for_alt_dispatch_completion("donate_luxon", refs, SharedCommandType.DonateToGuild, timeout_ms=90000)
+    yield from Routines.Yield.wait(1000)
 
 
 def _coro_travel_random_district(bot: Botting, target_map_id: int):
@@ -359,6 +816,10 @@ def _ensure_bot_ini(bot: Botting) -> str:
 def _load_settings(bot: Botting) -> None:
     global _randomize_district, _restock_use_conset, _restock_use_pcons, _restock_use_summoning_stones
     global CONSET_RESTOCK_TARGET, PCON_RESTOCK_TARGET, SUMMONING_STONES_RESTOCK_TARGET
+    global _restock_kits_enabled, _id_kits_target, _salvage_kits_target
+    global _merchant_sell_materials, _merchant_sell_jadeite_shards
+    global _merchant_buy_ectos, _merchant_ecto_threshold, _merchant_alt_wait_ms
+    global _donation_min_luxon_points
 
     ini_key = _ensure_bot_ini(bot)
     if not ini_key:
@@ -376,6 +837,36 @@ def _load_settings(bot: Botting) -> None:
     _restock_use_summoning_stones = IniManager().read_bool(
         ini_key, _SETTINGS_SECTION, _USE_SUMMONING_STONES_KEY, _restock_use_summoning_stones
     )
+    _restock_kits_enabled = IniManager().read_bool(
+        ini_key, _SETTINGS_SECTION, _USE_RESTOCK_KITS_KEY, _restock_kits_enabled
+    )
+    _id_kits_target = max(0, int(IniManager().read_int(
+        ini_key, _SETTINGS_SECTION, _ID_KITS_TARGET_KEY, _id_kits_target
+    )))
+    _salvage_kits_target = max(0, int(IniManager().read_int(
+        ini_key, _SETTINGS_SECTION, _SALVAGE_KITS_TARGET_KEY, _salvage_kits_target
+    )))
+    _merchant_sell_materials = IniManager().read_bool(
+        ini_key, _SETTINGS_SECTION, _MERCHANT_SELL_MATERIALS_KEY, _merchant_sell_materials
+    )
+    _merchant_sell_jadeite_shards = IniManager().read_bool(
+        ini_key,
+        _SETTINGS_SECTION,
+        _MERCHANT_SELL_JADEITE_SHARDS_KEY,
+        _merchant_sell_jadeite_shards,
+    )
+    _merchant_buy_ectos = IniManager().read_bool(
+        ini_key, _SETTINGS_SECTION, _MERCHANT_BUY_ECTOS_KEY, _merchant_buy_ectos
+    )
+    _merchant_ecto_threshold = max(0, int(IniManager().read_int(
+        ini_key, _SETTINGS_SECTION, _MERCHANT_ECTO_THRESHOLD_KEY, _merchant_ecto_threshold
+    )))
+    _merchant_alt_wait_ms = max(0, min(_MAX_ALT_SETTLE_WAIT_MS, int(IniManager().read_int(
+        ini_key, _SETTINGS_SECTION, _MERCHANT_ALT_WAIT_MS_KEY, _merchant_alt_wait_ms
+    ))))
+    _donation_min_luxon_points = max(_MIN_DONATION_THRESHOLD, min(_MAX_DONATION_THRESHOLD, int(IniManager().read_int(
+        ini_key, _SETTINGS_SECTION, _DONATION_MIN_LUXON_POINTS_KEY, _donation_min_luxon_points
+    ))))
     CONSET_RESTOCK_TARGET = max(0, min(_MAX_RESTOCK_TARGET, int(IniManager().read_int(
         ini_key, _SETTINGS_SECTION, _CONSET_RESTOCK_TARGET_KEY, CONSET_RESTOCK_TARGET
     ))))
@@ -409,6 +900,15 @@ def _save_settings(bot: Botting) -> None:
         _USE_SUMMONING_STONES_KEY,
         bool(_restock_use_summoning_stones),
     )
+    IniManager().write_key(ini_key, _SETTINGS_SECTION, _USE_RESTOCK_KITS_KEY, bool(_restock_kits_enabled))
+    IniManager().write_key(ini_key, _SETTINGS_SECTION, _ID_KITS_TARGET_KEY, int(_id_kits_target))
+    IniManager().write_key(ini_key, _SETTINGS_SECTION, _SALVAGE_KITS_TARGET_KEY, int(_salvage_kits_target))
+    IniManager().write_key(ini_key, _SETTINGS_SECTION, _MERCHANT_SELL_MATERIALS_KEY, bool(_merchant_sell_materials))
+    IniManager().write_key(ini_key, _SETTINGS_SECTION, _MERCHANT_SELL_JADEITE_SHARDS_KEY, bool(_merchant_sell_jadeite_shards))
+    IniManager().write_key(ini_key, _SETTINGS_SECTION, _MERCHANT_BUY_ECTOS_KEY, bool(_merchant_buy_ectos))
+    IniManager().write_key(ini_key, _SETTINGS_SECTION, _MERCHANT_ECTO_THRESHOLD_KEY, int(_merchant_ecto_threshold))
+    IniManager().write_key(ini_key, _SETTINGS_SECTION, _MERCHANT_ALT_WAIT_MS_KEY, int(_merchant_alt_wait_ms))
+    IniManager().write_key(ini_key, _SETTINGS_SECTION, _DONATION_MIN_LUXON_POINTS_KEY, int(_donation_min_luxon_points))
     IniManager().write_key(ini_key, _SETTINGS_SECTION, _CONSET_RESTOCK_TARGET_KEY, int(CONSET_RESTOCK_TARGET))
     IniManager().write_key(ini_key, _SETTINGS_SECTION, _PCON_RESTOCK_TARGET_KEY, int(PCON_RESTOCK_TARGET))
     IniManager().write_key(
@@ -422,7 +922,10 @@ def _save_settings(bot: Botting) -> None:
 def _draw_settings():
     global _restock_use_conset, _restock_use_pcons, _restock_use_summoning_stones
     global CONSET_RESTOCK_TARGET, PCON_RESTOCK_TARGET, SUMMONING_STONES_RESTOCK_TARGET
-    global _randomize_district
+    global _randomize_district, _restock_kits_enabled, _id_kits_target, _salvage_kits_target
+    global _merchant_sell_materials, _merchant_sell_jadeite_shards
+    global _merchant_buy_ectos, _merchant_ecto_threshold, _merchant_alt_wait_ms
+    global _donation_min_luxon_points
 
     _ensure_settings_loaded(bot)
 
@@ -433,6 +936,15 @@ def _draw_settings():
     new_randomize = PyImGui.checkbox("Randomize EU District", _randomize_district)
     if new_randomize != _randomize_district:
         _randomize_district = new_randomize
+        changed = True
+
+    PyImGui.separator()
+    PyImGui.text("Faction Donation")
+
+    new_donation_threshold = PyImGui.input_int("Donate at Luxon faction >=##mount_qinkai_donate_threshold", _donation_min_luxon_points)
+    new_donation_threshold = max(_MIN_DONATION_THRESHOLD, min(_MAX_DONATION_THRESHOLD, new_donation_threshold))
+    if new_donation_threshold != _donation_min_luxon_points:
+        _donation_min_luxon_points = new_donation_threshold
         changed = True
 
     PyImGui.separator()
@@ -468,6 +980,51 @@ def _draw_settings():
     if new_summoning_target != SUMMONING_STONES_RESTOCK_TARGET:
         SUMMONING_STONES_RESTOCK_TARGET = new_summoning_target
         changed = True
+
+    PyImGui.separator()
+    PyImGui.text("Guild Hall Merchant")
+
+    new_restock_kits = PyImGui.checkbox("Guild Hall merchant on startup", _restock_kits_enabled)
+    if new_restock_kits != _restock_kits_enabled:
+        _restock_kits_enabled = new_restock_kits
+        changed = True
+
+    if _restock_kits_enabled:
+        new_id_target = PyImGui.input_int("ID Kits target##mount_qinkai_id", _id_kits_target)
+        if new_id_target != _id_kits_target:
+            _id_kits_target = max(0, new_id_target)
+            changed = True
+
+        new_salvage_target = PyImGui.input_int("Salvage Kits target##mount_qinkai_salvage", _salvage_kits_target)
+        if new_salvage_target != _salvage_kits_target:
+            _salvage_kits_target = max(0, new_salvage_target)
+            changed = True
+
+        new_sell_materials = PyImGui.checkbox("Sell common materials##mount_qinkai_sell_materials", _merchant_sell_materials)
+        if new_sell_materials != _merchant_sell_materials:
+            _merchant_sell_materials = new_sell_materials
+            changed = True
+
+        new_sell_jadeite = PyImGui.checkbox("Sell Jadeite Shards to Rare Material Trader##mount_qinkai_jadeite", _merchant_sell_jadeite_shards)
+        if new_sell_jadeite != _merchant_sell_jadeite_shards:
+            _merchant_sell_jadeite_shards = new_sell_jadeite
+            changed = True
+
+        new_buy_ectos = PyImGui.checkbox("Buy Glob of Ectoplasm when storage over threshold##mount_qinkai_ectos", _merchant_buy_ectos)
+        if new_buy_ectos != _merchant_buy_ectos:
+            _merchant_buy_ectos = new_buy_ectos
+            changed = True
+
+        if _merchant_buy_ectos:
+            new_ecto_threshold = PyImGui.input_int("Storage threshold (gold)##mount_qinkai_ecto_threshold", _merchant_ecto_threshold)
+            if new_ecto_threshold != _merchant_ecto_threshold:
+                _merchant_ecto_threshold = max(0, new_ecto_threshold)
+                changed = True
+
+        new_wait = PyImGui.input_int("Alt settle wait (ms)##mount_qinkai_alt_wait", _merchant_alt_wait_ms)
+        if new_wait != _merchant_alt_wait_ms:
+            _merchant_alt_wait_ms = max(0, min(_MAX_ALT_SETTLE_WAIT_MS, new_wait))
+            changed = True
 
     if changed:
         _save_settings(bot)
