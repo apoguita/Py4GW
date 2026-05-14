@@ -1,0 +1,19 @@
+{
+  "name": "What lies Beneath",
+  "steps": [
+    {"type": "travel", "name": "Travel to Lions Arch", "target_map_id": 55},
+    {"type": "auto_path", "name": "To Len Caldoron", "points": [[6251, 9421]]},
+    {"type": "dialog", "id": "0x833701", "npc": "LEN_CALDORON", "name": "Dialog - Len Caldoron"},
+    {"type": "load_party", "name": "Load Party", "max_heroes": 6, "use_priority": true},
+    {"type": "auto_path", "name": "To Exit", "points": [[636, 11736]]},
+    {"type": "exit_map", "name": "Leave Lions Arch", "point": [310, 12279], "target_map_id": 58},
+    {"type": "auto_path", "name": "To Crevasse", "points": [[10129, -11419], [8213, -9498]]},
+    {"type": "dialogs", "id": ["0x86", "0x84"], "npc": "CREVASSE", "name": "Dialog - Crevasse"},
+    {"type": "wait_for_map_load", "map_id": 691},
+    {"type": "auto_path", "name": "Path", "points": [[2940, 8744], [3024, 12659], [6464, 14161], [9997, 14424], [10128, 17026]]},
+    {"type": "wait", "ms": 3100},
+    {"type": "wait_for_map_load", "map_id": 691},
+    {"type": "auto_path", "name": "To Exit", "points": [[4544, 15271], [238, 18431], [-5223, 17352], [-10128, 16472], [-14250, 18795], [-18206, 18636], [-18709, 19068]]},
+    {"type": "wait_for_map_load", "map_id": 675}
+  ]
+}

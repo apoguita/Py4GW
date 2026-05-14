@@ -1,0 +1,17 @@
+{
+  "name": "Vision of the Raven Spirit",
+  "steps": [
+    {"type": "travel", "name": "Travel to Olafstead", "target_map_id": 645},
+    {"type": "auto_path", "name": "To Olaf Olafson", "points": [[276, -631]]},
+    {"type": "dialog", "id": "0x832E01", "npc": "OLAF_OLAFSON", "name": "Dialog - Olaf Olafson"},
+    {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true},
+    {"type": "auto_path", "name": "To Exit", "points": [[-873, 1194]]},
+    {"type": "exit_map", "name": "Leave Olafstead", "point": [-1427, 1185], "target_map_id": 553},
+    {"type": "auto_path", "name": "To Olaf Olafson", "points": [[-15505, 8669]]},
+    {"type": "dialogs", "id": ["0x832E04", "0x85"], "npc": "OLAF_OLAFSON", "name": "Dialog - Olaf Olafson"},
+    {"type": "auto_path", "name": "Patrol Bears", "points": [[-15630, 7992], [-14808, 8584], [-15645, 9041]]},
+    {"type": "wait", "ms": 60000},
+    {"type": "auto_path", "name": "Patrol Destroyers", "points": [[-15431, 7350], [-14077, 8356], [-15203, 8677]]},
+    {"type": "dialog", "id": "0x832E07", "npc": "OLAF_OLAFSON", "name": "Dialog - Olaf Olafson"}
+  ]
+}
