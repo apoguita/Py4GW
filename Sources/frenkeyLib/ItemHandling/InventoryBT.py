@@ -7,11 +7,11 @@ import Py4GW
 
 from Py4GWCoreLib.Item import Bag
 from Py4GWCoreLib.Map import Map
+from Py4GWCoreLib.UIManager import MerchantWindow
 from Py4GWCoreLib.enums_src.Item_enums import INVENTORY_BAGS, STORAGE_BAGS, Bags, ItemAction, ItemType, SalvageMode
 from Py4GWCoreLib.enums_src.Model_enums import ModelID
 from Py4GWCoreLib.py4gwcorelib_src.BehaviorTree import BehaviorTree
 from Py4GWCoreLib.py4gwcorelib_src.FrameCache import frame_cache
-from Sources.frenkeyLib.ItemHandling.UIManagerExtensions import UIManagerExtensions
 from Sources.frenkeyLib.ItemHandling.BTNodes import BTNodes
 from Sources.frenkeyLib.ItemHandling.GlobalConfigs.InventoryConfig import InventoryConfig
 from Sources.frenkeyLib.ItemHandling.GlobalConfigs.Rule import ExtractUpgradeRule, Rule
@@ -414,11 +414,11 @@ class InventoryBT:
                         ), depositable_item_ids
             
             case ItemAction.Sell_To_Merchant:
-                if UIManagerExtensions.MerchantWindow.IsOpen():
+                if MerchantWindow.IsOpen():
                     return BTNodes.Merchant.SellItems(item_ids), item_ids
                 
             case ItemAction.Sell_To_Trader:
-                if UIManagerExtensions.MerchantWindow.IsOpen():
+                if MerchantWindow.IsOpen():
                     item_id = cls._get_first_valid_item_id(item_ids)
                     if item_id is not None:
                         return BTNodes.Trader.SellItem(item_id), [item_id]
@@ -479,7 +479,7 @@ class InventoryBT:
             case ItemAction.Stash:
                 return Map.IsOutpost() or Map.IsGuildHall()
             case ItemAction.Sell_To_Merchant | ItemAction.Sell_To_Trader:
-                return UIManagerExtensions.MerchantWindow.IsOpen()
+                return MerchantWindow.IsOpen()
             case _:
                 return True
 

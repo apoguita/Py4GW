@@ -54,13 +54,20 @@ import Py4GW
 from Py4GWCoreLib.Inventory import Inventory
 from Py4GWCoreLib.Item import Item
 from Py4GWCoreLib.Merchant import Trading
+from Py4GWCoreLib.UIManager import (
+    AnySalvageWindow,
+    ExpertSalvageUnidentifiedWindow,
+    LesserSalvageWindow,
+    MerchantWindow,
+    SalvageConfirmationPopup,
+    SalvageOptionsWindow,
+)
 from Py4GWCoreLib.enums_src.Item_enums import INVENTORY_BAGS, MAX_STACK_SIZE, STORAGE_BAGS, Bags, ItemType, Rarity, SalvageMode
 from Py4GWCoreLib.enums_src.Item_enums import MAX_STACK_SIZE
 from Py4GWCoreLib.enums_src.Model_enums import ModelID
 from Py4GWCoreLib.py4gwcorelib_src.BehaviorTree import BehaviorTree
 from Py4GWCoreLib.item_data.ItemData import MATERIAL_STORAGE_SLOTS
 from Py4GWCoreLib.item_data.item_snapshot import ItemSnapshot
-from Sources.frenkeyLib.ItemHandling.UIManagerExtensions import UIManagerExtensions
 from Sources.frenkeyLib.ItemHandling.utility import HasSpaceForItem
 
 SALVAGE_WINDOW_HASH = 684387150
@@ -130,7 +137,7 @@ class BTNodes:
               Notes: Fails when the merchant window is closed, the item is not offered, there is no space, or the player cannot afford enough stock.
             """
             def _restock(node: BehaviorTree.Node):
-                if not UIManagerExtensions.MerchantWindow.IsOpen():
+                if not MerchantWindow.IsOpen():
                     return BehaviorTree.NodeState.FAILURE
                 
                 inventory_snapshot = ItemSnapshot.get_inventory_snapshot(Bags.Backpack, Bags.Bag2)
@@ -180,7 +187,7 @@ class BTNodes:
               Notes: Ignores invalid or non-inventory items and succeeds only if at least one item is sold.
             """
             def _sell(node: BehaviorTree.Node):
-                if not UIManagerExtensions.MerchantWindow.IsOpen():
+                if not MerchantWindow.IsOpen():
                     return BehaviorTree.NodeState.FAILURE
                 
                 items = [ItemSnapshot.from_item_id(iid) for iid in item_ids]
@@ -213,7 +220,7 @@ class BTNodes:
               Notes: Skips items that are unavailable, unaffordable, or cannot fit in inventory, and succeeds only if at least one purchase is made.
             """
             def _buy(node: BehaviorTree.Node):
-                if not UIManagerExtensions.MerchantWindow.IsOpen():  
+                if not MerchantWindow.IsOpen():  
                     return BehaviorTree.NodeState.FAILURE
                 
                 offered_items = Trading.Merchant.GetOfferedItems()
@@ -329,7 +336,7 @@ class BTNodes:
             def _buy(node: BehaviorTree.Node):
                 now = time.monotonic()
                 
-                if not UIManagerExtensions.MerchantWindow.IsOpen():
+                if not MerchantWindow.IsOpen():
                     return BehaviorTree.NodeState.FAILURE
                 
                 offered_items = Trading.Trader.GetOfferedItems()
@@ -423,7 +430,7 @@ class BTNodes:
             def _sell(node: BehaviorTree.Node):
                 now = time.monotonic()
                 
-                if not UIManagerExtensions.MerchantWindow.IsOpen():
+                if not MerchantWindow.IsOpen():
                     return BehaviorTree.NodeState.FAILURE
                                 
                 item = ItemSnapshot.from_item_id(item_id)
@@ -845,7 +852,7 @@ class BTNodes:
                     )
                     
                 now = time.monotonic()
-                salvage_window_open = UIManagerExtensions.AnySalvageWindowOpen()
+                salvage_window_open = AnySalvageWindow.IsOpen()
 
                 if Inventory.GetFreeSlotCount() <= 0:
                     _debug(f"Cannot salvage item {item_name} [{item_id}]: no free inventory slots.", Py4GW.Console.MessageType.Warning)
@@ -858,7 +865,7 @@ class BTNodes:
                             f"Cannot start salvage for item={item_name} [{item_id}] while another salvage-related window is open."
                             f"Closing existing salvage windows and waiting before retrying."
                         )
-                        UIManagerExtensions.CancelAnySalvageRelatedWindow()
+                        AnySalvageWindow.Cancel()
                         return BehaviorTree.NodeState.RUNNING
 
                     if mode == SalvageMode.LesserCraftingMaterials:
@@ -890,7 +897,7 @@ class BTNodes:
                     return BehaviorTree.NodeState.RUNNING
 
                 # Handle salvage windows/frames while waiting for completion.
-                if UIManagerExtensions.LesserSalvageWindow.IsOpen():
+                if LesserSalvageWindow.IsOpen():
                     if not state.window_detected_at:
                         state.window_detected_at = now
                     elapsed_ms = int((now - state.window_detected_at) * 1000)
@@ -900,13 +907,13 @@ class BTNodes:
                             f"waiting {elapsed_ms}/{pop_up_delays} ms before confirm."
                         )
                         return BehaviorTree.NodeState.RUNNING
-                    if UIManagerExtensions.LesserSalvageWindow.Confirm():
+                    if LesserSalvageWindow.Confirm():
                         state.confirm_clicked_at = now
                         state.window_detected_at = 0.0
                         _debug(f"Confirmed lesser materials salvage for item={item_name} [{item_id}].")
                         return BehaviorTree.NodeState.RUNNING
                     
-                if UIManagerExtensions.SalvageConfirmationPopup.IsOpen():
+                if SalvageConfirmationPopup.IsOpen():
                     if not state.window_detected_at:
                         state.window_detected_at = now
                     elapsed_ms = int((now - state.window_detected_at) * 1000)
@@ -916,13 +923,13 @@ class BTNodes:
                             f"waiting {elapsed_ms}/{pop_up_delays} ms before confirm."
                         )
                         return BehaviorTree.NodeState.RUNNING
-                    if UIManagerExtensions.SalvageConfirmationPopup.Confirm():
+                    if SalvageConfirmationPopup.Confirm():
                         state.confirm_clicked_at = now
                         state.window_detected_at = 0.0
                         _debug(f"Confirmed mod/material warning for item={item_name} [{item_id}].")
                         return BehaviorTree.NodeState.RUNNING
                     
-                if UIManagerExtensions.ExpertSalvageUnidentifiedWindow.IsOpen():
+                if ExpertSalvageUnidentifiedWindow.IsOpen():
                     if not state.window_detected_at:
                         state.window_detected_at = now
                     elapsed_ms = int((now - state.window_detected_at) * 1000)
@@ -932,13 +939,13 @@ class BTNodes:
                             f"waiting {elapsed_ms}/{pop_up_delays} ms before confirm."
                         )
                         return BehaviorTree.NodeState.RUNNING
-                    if UIManagerExtensions.ExpertSalvageUnidentifiedWindow.Confirm():
+                    if ExpertSalvageUnidentifiedWindow.Confirm():
                         state.confirm_clicked_at = now
                         state.window_detected_at = 0.0
                         _debug(f"Confirmed unidentified salvage warning for item={item_name} [{item_id}].")
                         return BehaviorTree.NodeState.RUNNING
                     
-                if UIManagerExtensions.SalvageOptionsWindow.IsOpen():
+                if SalvageOptionsWindow.IsOpen():
                     if not state.window_detected_at:
                         state.window_detected_at = now
                     elapsed_ms = int((now - state.window_detected_at) * 1000)
@@ -948,8 +955,8 @@ class BTNodes:
                             f"waiting {elapsed_ms}/{pop_up_delays} ms before selecting mode={mode.name}."
                         )
                         return BehaviorTree.NodeState.RUNNING
-                    if UIManagerExtensions.SalvageOptionsWindow.SelectOption(mode):
-                        UIManagerExtensions.SalvageOptionsWindow.Confirm()
+                    if SalvageOptionsWindow.SelectOption(mode):
+                        SalvageOptionsWindow.Confirm()
                         state.confirm_clicked_at = now
                         state.window_detected_at = 0.0
                         _debug(f"Selected salvage option {mode.name} for item={item_name} [{item_id}].")
@@ -957,7 +964,7 @@ class BTNodes:
                     else:
                         _debug(f"Failed to select salvage option {mode.name} for item={item_name} [{item_id}]; cancelling.", Py4GW.Console.MessageType.Warning)
                         state.window_detected_at = 0.0
-                        UIManagerExtensions.SalvageOptionsWindow.Cancel()
+                        SalvageOptionsWindow.Cancel()
                         return BehaviorTree.NodeState.FAILURE
 
                 if state.window_detected_at:
@@ -1015,15 +1022,15 @@ class BTNodes:
                 if (now - float(state.salvage_started_at)) * 1000 >= timeout_ms_per_item:
                     cancelled_window = False
                     if salvage_window_open:
-                        cancelled_window = UIManagerExtensions.CancelAnySalvageRelatedWindow()
+                        cancelled_window = AnySalvageWindow.Cancel()
                     _debug(
                         f"Timeout item={item_name} [{item_id}] mode={mode.name} after {timeout_ms_per_item} ms. "
                         f"initial_qty={initial_qty} current_qty={current_qty} desired_qty={desired_qty} "
                         f"confirm_clicked_at={confirm_clicked_at:.3f} "
-                        f"windows={{salvage:{UIManagerExtensions.SalvageOptionsWindow.IsOpen()}, "
-                        f"lesser_confirm:{UIManagerExtensions.LesserSalvageWindow.IsOpen()}, "
-                        f"material_confirm:{UIManagerExtensions.SalvageConfirmationPopup.IsOpen()}, "
-                        f"unidentified:{UIManagerExtensions.ExpertSalvageUnidentifiedWindow.IsOpen()}}} "
+                        f"windows={{salvage:{SalvageOptionsWindow.IsOpen()}, "
+                        f"lesser_confirm:{LesserSalvageWindow.IsOpen()}, "
+                        f"material_confirm:{SalvageConfirmationPopup.IsOpen()}, "
+                        f"unidentified:{ExpertSalvageUnidentifiedWindow.IsOpen()}}} "
                         f"cancelled_window={cancelled_window} "
                         f"free_slots={Inventory.GetFreeSlotCount()}.",
                         Py4GW.Console.MessageType.Warning,

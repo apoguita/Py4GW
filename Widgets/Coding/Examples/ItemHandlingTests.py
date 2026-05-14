@@ -7,6 +7,7 @@ import Py4GW
 import PyImGui
 from PyItem import PyItem
 
+from Py4GWCoreLib.HotkeyManager import HOTKEY_MANAGER
 from Py4GWCoreLib.ImGui_src.ImGuisrc import ImGui
 from Py4GWCoreLib.ImGui_src.types import Alignment
 from Py4GWCoreLib.IniManager import IniManager
@@ -14,23 +15,56 @@ from Py4GWCoreLib.Inventory import Inventory
 from Py4GWCoreLib.Item import Item
 from Py4GWCoreLib.Map import Map
 from Py4GWCoreLib.Routines import Routines
-from Py4GWCoreLib.UIManager import UIManager
-from Py4GWCoreLib.enums_src.Item_enums import ItemType, Rarity, SalvageMode
+from Py4GWCoreLib.UIManager import (
+    AnySalvageWindow,
+    ExpertSalvageUnidentifiedWindow,
+    InventoryBagWindow,
+    InventoryBagsWindow,
+    LesserSalvageWindow,
+    CollectorWindow,
+    CrafterWindow,
+    MerchantWindow,
+    SalvageConfirmationPopup,
+    SalvageOptionsWindow,
+    SkillTrainerWindow,
+    UIManager,
+    WindowFrame,
+    UpgradeWindow,
+    XunlaiStorageWindow,
+)
+from Py4GWCoreLib.enums_src.IO_enums import Key, ModifierKey
+from Py4GWCoreLib.enums_src.Item_enums import INVENTORY_BAGS, INVENTORY_WITH_EQUIPMENT_BAGS, STORAGE_BAGS, Bags, ItemType, Rarity, SalvageMode
 from Py4GWCoreLib.enums_src.Region_enums import ServerLanguage
 from Py4GWCoreLib.py4gwcorelib_src.BehaviorTree import BehaviorTree
 from Py4GWCoreLib.py4gwcorelib_src.Color import Color
 from Py4GWCoreLib.py4gwcorelib_src.Utils import Utils
 from Py4GWCoreLib.native_src.internals import string_table
 from Py4GWCoreLib.item_data.item_snapshot import ItemSnapshot
-from Sources.frenkeyLib.ItemHandling.UIManagerExtensions import UIManagerExtensions
-
 Utils.ClearSubModules("Sources.frenkeyLib.ItemHandling")
 Utils.ClearSubModules("Sources.frenkeyLib.Core")
-from Sources.frenkeyLib.Core.encoded_names import ItemName
 from Sources.frenkeyLib.ItemHandling.BTNodes import STORAGE_BAGS, BTNodes
 from Sources.frenkeyLib.ItemHandling.GlobalConfigs.InventoryConfig import InventoryConfig
 from Sources.frenkeyLib.ItemHandling.InventoryBT import InventoryBT
 
+
+@staticmethod
+def ClickDepositAllMaterials() -> bool:
+    if not XunlaiStorageWindow.IsOpen():
+        return False
+    
+    frame = WindowFrame.Xunlai_DepositAllMaterialsButton
+    if not frame.FrameExists():
+        Py4GW.Console.Log(MODULE_NAME, "Deposit All Materials button frame not found in Xunlai Storage", Py4GW.Console.MessageType.Error)
+        return False
+    
+    Py4GW.Console.Log(MODULE_NAME, "Clicking Xunlai Storage 'Deposit All Materials' button")
+    Py4GW.Console.Log(MODULE_NAME, f"Button Frame Info - ID: {frame.GetFrameID()}, Offsets: {frame.ChildOffsets}, Coords: {frame.GetCoords()}")
+    
+    frame.FrameClick()
+
+    return True
+
+XunlaiStorageWindow.ClickDepositAllMaterials = ClickDepositAllMaterials
 
 MODULE_NAME = "Item Handling Tests"
 MODULE_ICON = "Textures/Module_Icons/Coding.png"
@@ -50,6 +84,7 @@ decoded_name = ""
 
 RED = Color(255, 0, 0, 255)
 GREEN = Color(0, 255, 0, 255)
+YELLOW = Color(255, 255, 0, 255)
 
 lang_names = [lang.name for lang in ServerLanguage]
 languages = [lang for lang in ServerLanguage]
@@ -80,6 +115,102 @@ collect = True
 show_loot_config_view = False
 inventory_bt_enabled = False
 inventory_bt_runner: InventoryBT | None = None
+
+   
+def _draw_frame_info_row(label: str, frame, allow_click: bool = False, allow_highlight: bool = False) -> None:
+    PyImGui.table_next_row()
+    PyImGui.table_set_column_index(0)
+    ImGui.text(label)
+    PyImGui.table_set_column_index(1)
+
+    frame_exists = frame.FrameExists() if frame else False
+    ImGui.text_colored("Open" if frame_exists else "Closed", GREEN.color_tuple if frame_exists else RED.color_tuple)
+
+    PyImGui.table_set_column_index(2)
+    frame_id = frame.GetFrameID() if frame else 0
+    ImGui.text(str(frame_id))
+
+    PyImGui.table_set_column_index(3)
+    child_offsets = getattr(frame, "ChildOffsets", []) if frame else []
+    ImGui.text(str(child_offsets))
+
+    PyImGui.table_set_column_index(4)
+    left, top, right, bottom = frame.GetCoords() if frame_exists else (0, 0, 0, 0)
+    ImGui.text(f"{left}, {top}, {right}, {bottom}")
+
+    PyImGui.table_set_column_index(5)
+    if allow_highlight:
+        PyImGui.begin_disabled(not frame_exists)
+        if ImGui.button(f"Highlight##{label}", -1):
+            frame.DrawFrameOutline(YELLOW.to_color(), 2.0)
+        PyImGui.end_disabled()
+    else:
+        ImGui.text("-")
+
+    PyImGui.table_set_column_index(6)
+    if allow_click:
+        PyImGui.begin_disabled(not frame_exists)
+        if ImGui.button(f"Click##{label}", -1):
+            frame.FrameClick()
+            Py4GW.Console.Log(MODULE_NAME, f"Clicked frame '{label}' ({frame_id})")
+        PyImGui.end_disabled()
+    else:
+        ImGui.text("-")
+
+
+def _draw_inventory_slots_table(table_id: str, bags: list[Bags], slot_provider) -> None:
+    flags = PyImGui.TableFlags.Borders | PyImGui.TableFlags.Resizable | PyImGui.TableFlags.RowBg
+    if not PyImGui.begin_table(table_id, 6, flags):
+        return
+
+    PyImGui.table_setup_column("Bag", PyImGui.TableColumnFlags.WidthFixed, 120)
+    PyImGui.table_setup_column("Slot", PyImGui.TableColumnFlags.WidthFixed, 50)
+    PyImGui.table_setup_column("State", PyImGui.TableColumnFlags.WidthFixed, 60)
+    PyImGui.table_setup_column("Frame ID", PyImGui.TableColumnFlags.WidthFixed, 80)
+    PyImGui.table_setup_column("Offsets", PyImGui.TableColumnFlags.WidthStretch)
+    PyImGui.table_setup_column("Action", PyImGui.TableColumnFlags.WidthFixed, 90)
+    PyImGui.table_headers_row()
+
+    for bag in bags:
+        frames = slot_provider(bag)
+        for slot_index, frame in enumerate(frames):
+            frame_exists = frame.FrameExists() and XunlaiStorageWindow.GetActiveTabBag() == bag if bag in [*STORAGE_BAGS, Bags.MaterialStorage] else frame.FrameExists()
+            PyImGui.table_next_row()
+            PyImGui.table_set_column_index(0)
+            ImGui.text(bag.name)
+            PyImGui.table_set_column_index(1)
+            ImGui.text(str(slot_index))
+            PyImGui.table_set_column_index(2)
+            ImGui.text_colored("Open" if frame_exists else "Closed", GREEN.color_tuple if frame_exists else RED.color_tuple)
+            PyImGui.table_set_column_index(3)
+            ImGui.text(str(frame.GetFrameID()))
+            PyImGui.table_set_column_index(4)
+            ImGui.text(str(frame.ChildOffsets))
+            PyImGui.table_set_column_index(5)
+            PyImGui.begin_disabled(not frame_exists)
+            if ImGui.button(f"Highlight##{table_id}_{bag.name}_{slot_index}", -1):
+                frame.DrawFrameOutline(YELLOW.to_color(), 2.0)
+            PyImGui.end_disabled()
+
+    PyImGui.end_table()
+
+
+def _draw_simple_state_row(label: str, is_open: bool, action_label: str | None = None, action=None) -> None:
+    PyImGui.table_next_row()
+    PyImGui.table_set_column_index(0)
+    ImGui.text(label)
+    PyImGui.table_set_column_index(1)
+    ImGui.text_colored("Open" if is_open else "Closed", GREEN.color_tuple if is_open else RED.color_tuple)
+    PyImGui.table_set_column_index(2)
+
+    if action_label and action is not None:
+        PyImGui.begin_disabled(not is_open)
+        if ImGui.button(f"{action_label}##{label}", -1):
+            action()
+            Py4GW.Console.Log(MODULE_NAME, f"Called action '{action_label}' for {label}")
+        PyImGui.end_disabled()
+    else:
+        ImGui.text("-")
 
 
 def reload_inventory_config() -> InventoryConfig:
@@ -674,11 +805,11 @@ def main():
                     PyImGui.table_headers_row()
                     
                     entries = [
-                        ("AnySalvageRelatedWindowOpen", UIManagerExtensions.AnySalvageWindowOpen, UIManagerExtensions.CancelAnySalvageRelatedWindow),
-                        ("SalvageOptionsWindow", UIManagerExtensions.SalvageOptionsWindow.IsOpen, UIManagerExtensions.SalvageOptionsWindow.Cancel),
-                        ("SalvageConfirmationPopup", UIManagerExtensions.SalvageConfirmationPopup.IsOpen, UIManagerExtensions.SalvageConfirmationPopup.Cancel),
-                        ("LesserSalvageWindow", UIManagerExtensions.LesserSalvageWindow.IsOpen, UIManagerExtensions.LesserSalvageWindow.Cancel),
-                        ("ExpertSalvageUnidentifiedWindow", UIManagerExtensions.ExpertSalvageUnidentifiedWindow.IsOpen, UIManagerExtensions.ExpertSalvageUnidentifiedWindow.Cancel),
+                        ("AnySalvageRelatedWindowOpen", AnySalvageWindow.IsOpen, AnySalvageWindow.Cancel),
+                        ("SalvageOptionsWindow", SalvageOptionsWindow.IsOpen, SalvageOptionsWindow.Cancel),
+                        ("SalvageConfirmationPopup", SalvageConfirmationPopup.IsOpen, SalvageConfirmationPopup.Cancel),
+                        ("LesserSalvageWindow", LesserSalvageWindow.IsOpen, LesserSalvageWindow.Cancel),
+                        ("ExpertSalvageUnidentifiedWindow", ExpertSalvageUnidentifiedWindow.IsOpen, ExpertSalvageUnidentifiedWindow.Cancel),
                     ]
                     
                     for name, check_func, cancel_func in entries:
@@ -707,7 +838,7 @@ def main():
                         ImGui.text(f"SalvageMode.{mode.name}")
                         PyImGui.table_set_column_index(1)
                         
-                        is_open = UIManagerExtensions.SalvageOptionsWindow.IsOptionVisible(mode)
+                        is_open = SalvageOptionsWindow.IsOptionVisible(mode)
                         ImGui.text_colored("Open" if is_open else "Closed", GREEN.color_tuple if is_open else RED.color_tuple)
                         
                         
@@ -715,12 +846,159 @@ def main():
                         PyImGui.begin_disabled(not is_open)
                         
                         if ImGui.button(f"Test Salvage##{mode.name}", -1):
-                            UIManagerExtensions.SalvageOptionsWindow.SelectOption(mode)
+                            SalvageOptionsWindow.SelectOption(mode)
                             Py4GW.Console.Log(MODULE_NAME, f"Selected salvage option: {mode.name}")
                         
                         PyImGui.end_disabled()
                     
                     PyImGui.end_table()
+                ImGui.end_tab_item()
+
+            if ImGui.begin_tab_item("Inventory UI Debug"):
+                ImGui.text_wrapped("Live UIManager frame checks for inventory, storage, merchant, trainer, crafter and upgrade windows. Highlight draws an outline around the resolved frame so you can verify the alias/path mapping in-client.")
+
+                if ImGui.collapsing_header("InventoryBagsWindow.Aggregate"):
+                    if ImGui.begin_table("Inventory Aggregate Debug", 7, PyImGui.TableFlags.Borders | PyImGui.TableFlags.Resizable | PyImGui.TableFlags.RowBg):
+                        PyImGui.table_setup_column("Property", PyImGui.TableColumnFlags.WidthFixed, 180)
+                        PyImGui.table_setup_column("State", PyImGui.TableColumnFlags.WidthFixed, 60)
+                        PyImGui.table_setup_column("Frame ID", PyImGui.TableColumnFlags.WidthFixed, 80)
+                        PyImGui.table_setup_column("Offsets", PyImGui.TableColumnFlags.WidthStretch)
+                        PyImGui.table_setup_column("Coords", PyImGui.TableColumnFlags.WidthStretch)
+                        PyImGui.table_setup_column("Highlight", PyImGui.TableColumnFlags.WidthFixed, 90)
+                        PyImGui.table_setup_column("Click", PyImGui.TableColumnFlags.WidthFixed, 90)
+                        PyImGui.table_headers_row()
+
+                        _draw_frame_info_row(
+                            "InventoryBagsWindow.Aggregate",
+                            WindowFrame.InventoryBags,
+                            allow_highlight=True,
+                        )
+
+                        for bag in INVENTORY_WITH_EQUIPMENT_BAGS:
+                            _draw_frame_info_row(
+                                f"InventoryBagWindow.{bag.name}",
+                                InventoryBagWindow.GetBagFrame(bag),
+                                allow_highlight=True,
+                                allow_click=True,
+                            )
+
+                        PyImGui.end_table()
+
+                ImGui.separator()
+                if ImGui.collapsing_header("InventoryBagWindow Slot Frames"):
+                    _draw_inventory_slots_table(
+                        "InventoryBagWindow Slots",
+                        INVENTORY_WITH_EQUIPMENT_BAGS,
+                        lambda bag: InventoryBagWindow.GetBagSlotFrames(bag),
+                    )
+
+                ImGui.separator()
+                if ImGui.collapsing_header("InventoryBagsWindow Slot Frames"):
+                    _draw_inventory_slots_table(
+                        "InventoryBagsWindow Slots",
+                        INVENTORY_BAGS,
+                    lambda bag: InventoryBagsWindow.GetBagSlotFrames(bag),
+                )
+
+                total_inventory_slots = len(InventoryBagsWindow.GetInventorySlotFrames())
+                ImGui.text_wrapped(f"InventoryBagsWindow.GetInventorySlotFrames() resolved {total_inventory_slots} slot frame(s).")
+
+                ImGui.separator()
+                if ImGui.collapsing_header("XunlaiStorageWindow"):
+                    if ImGui.begin_table("Xunlai Aggregate Debug", 7, PyImGui.TableFlags.Borders | PyImGui.TableFlags.Resizable | PyImGui.TableFlags.RowBg):
+                        PyImGui.table_setup_column("Property", PyImGui.TableColumnFlags.WidthFixed, 180)
+                        PyImGui.table_setup_column("State", PyImGui.TableColumnFlags.WidthFixed, 60)
+                        PyImGui.table_setup_column("Frame ID", PyImGui.TableColumnFlags.WidthFixed, 80)
+                        PyImGui.table_setup_column("Offsets", PyImGui.TableColumnFlags.WidthStretch)
+                        PyImGui.table_setup_column("Coords", PyImGui.TableColumnFlags.WidthStretch)
+                        PyImGui.table_setup_column("Highlight", PyImGui.TableColumnFlags.WidthFixed, 90)
+                        PyImGui.table_setup_column("Click", PyImGui.TableColumnFlags.WidthFixed, 90)
+                        PyImGui.table_headers_row()
+
+                        _draw_frame_info_row("XunlaiStorageWindow.Root", WindowFrame.Xunlai_Window, allow_highlight=True)
+                        _draw_frame_info_row("XunlaiStorageWindow.StorageRoot", WindowFrame.Xunlai_Storage, allow_highlight=True)
+                        _draw_frame_info_row("XunlaiStorageWindow.FundsFrame", WindowFrame.Xunlai_FundsFrame, allow_highlight=True)
+                        _draw_frame_info_row("XunlaiStorageWindow.DepositAllMaterials", WindowFrame.Xunlai_DepositAllMaterialsButton, allow_highlight=True, allow_click=True)
+
+                        for bag in [*STORAGE_BAGS, Bags.MaterialStorage]:
+                            _draw_frame_info_row(
+                                f"XunlaiStorageWindow.{bag.name}.Tab",
+                                XunlaiStorageWindow.GetTabFrame(bag),
+                                allow_highlight=True,
+                                allow_click=True,
+                            )
+                            _draw_frame_info_row(
+                                f"XunlaiStorageWindow.{bag.name}.Content",
+                                XunlaiStorageWindow.GetTabContentFrame(bag),
+                                allow_highlight=True,
+                            )
+
+                        PyImGui.end_table()
+
+                active_storage_bag = XunlaiStorageWindow.GetActiveTabBag()
+
+                if ImGui.collapsing_header("XunlaiStorageWindow Actions"):
+                    ImGui.text_wrapped(f"Active storage tab: {active_storage_bag.name if active_storage_bag else 'None'}")
+                    if ImGui.begin_table("Xunlai Window Actions", 3, PyImGui.TableFlags.Borders | PyImGui.TableFlags.Resizable | PyImGui.TableFlags.RowBg):
+                        PyImGui.table_setup_column("Window", PyImGui.TableColumnFlags.WidthStretch)
+                        PyImGui.table_setup_column("State", PyImGui.TableColumnFlags.WidthFixed, 60)
+                        PyImGui.table_setup_column("Action", PyImGui.TableColumnFlags.WidthFixed, 140)
+                        PyImGui.table_headers_row()
+                        
+                        _draw_simple_state_row("XunlaiStorageWindow", WindowFrame.Xunlai_DepositAllMaterialsButton.FrameExists(), "Deposit Materials", XunlaiStorageWindow.ClickDepositAllMaterials)
+
+                        PyImGui.end_table()
+
+                ImGui.separator()
+                ImGui.text("Storage Slot Frames", 16)
+                _draw_inventory_slots_table(
+                    "XunlaiStorageWindow Slots",
+                    STORAGE_BAGS,
+                    lambda bag: XunlaiStorageWindow.GetTabSlotFrames(bag),
+                )
+                _draw_inventory_slots_table(
+                    "Material Storage Slots",
+                    [Bags.MaterialStorage],
+                    lambda bag: XunlaiStorageWindow.GetMaterialSlotFrames() if bag == Bags.MaterialStorage else [],
+                )
+
+                ImGui.separator()
+                if ImGui.collapsing_header("Other Windows"):
+                    
+                    if ImGui.begin_table("Other UI Windows", 7, PyImGui.TableFlags.Borders | PyImGui.TableFlags.Resizable | PyImGui.TableFlags.RowBg):
+                        PyImGui.table_setup_column("Property", PyImGui.TableColumnFlags.WidthFixed, 180)
+                        PyImGui.table_setup_column("State", PyImGui.TableColumnFlags.WidthFixed, 60)
+                        PyImGui.table_setup_column("Frame ID", PyImGui.TableColumnFlags.WidthFixed, 80)
+                        PyImGui.table_setup_column("Offsets", PyImGui.TableColumnFlags.WidthStretch)
+                        PyImGui.table_setup_column("Coords", PyImGui.TableColumnFlags.WidthStretch)
+                        PyImGui.table_setup_column("Highlight", PyImGui.TableColumnFlags.WidthFixed, 90)
+                        PyImGui.table_setup_column("Click", PyImGui.TableColumnFlags.WidthFixed, 90)
+                        PyImGui.table_headers_row()
+
+                        _draw_frame_info_row("SkillTrainerWindow", WindowFrame.SkillTrainerWindowFrame, allow_highlight=True)
+                        _draw_frame_info_row("MerchantWindow", WindowFrame.MerchantWindowFrame, allow_highlight=True)
+                        _draw_frame_info_row("CollectorWindow", WindowFrame.CollectorWindowFrame, allow_highlight=True)
+                        _draw_frame_info_row("CrafterWindow", WindowFrame.CrafterWindowFrame, allow_highlight=True)
+                        _draw_frame_info_row("UpgradeWindow", WindowFrame.UpgradeWindowFrame, allow_highlight=True)
+                        _draw_frame_info_row("UpgradeWindow.Cancel", WindowFrame.UpgradeWindowCancelButton, allow_highlight=True, allow_click=True)
+                        _draw_frame_info_row("UpgradeWindow.Confirm", WindowFrame.UpgradeWindowConfirmButton, allow_highlight=True, allow_click=True)
+
+                        PyImGui.end_table()
+
+                    if ImGui.begin_table("Other Window Actions", 3, PyImGui.TableFlags.Borders | PyImGui.TableFlags.Resizable | PyImGui.TableFlags.RowBg):
+                        PyImGui.table_setup_column("Window", PyImGui.TableColumnFlags.WidthStretch)
+                        PyImGui.table_setup_column("State", PyImGui.TableColumnFlags.WidthFixed, 60)
+                        PyImGui.table_setup_column("Action", PyImGui.TableColumnFlags.WidthFixed, 140)
+                        PyImGui.table_headers_row()
+
+                        _draw_simple_state_row("SkillTrainerWindow", SkillTrainerWindow.IsOpen())
+                        _draw_simple_state_row("MerchantWindow", MerchantWindow.IsOpen())
+                        _draw_simple_state_row("CollectorWindow", CollectorWindow.IsOpen())
+                        _draw_simple_state_row("CrafterWindow", CrafterWindow.IsOpen())
+                        _draw_simple_state_row("UpgradeWindow", UpgradeWindow.IsOpen(), "Cancel", UpgradeWindow.Cancel)
+                        _draw_simple_state_row("UpgradeWindow Confirm", UpgradeWindow.IsOpen(), "Confirm", UpgradeWindow.Confirm)
+
+                        PyImGui.end_table()
                 ImGui.end_tab_item()
             
             if ImGui.begin_tab_item("Rule Testing"):

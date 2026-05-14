@@ -17413,9 +17413,9 @@ class MerchantRulesWidget:
 
     def _any_salvage_related_window_open(self) -> bool:
         try:
-            from Sources.frenkeyLib.ItemHandling.UIManagerExtensions import UIManagerExtensions
+            from Py4GWCoreLib.UIManager import AnySalvageWindow
 
-            return bool(UIManagerExtensions.AnySalvageRelatedWindowOpen())
+            return bool(AnySalvageWindow.IsOpen())
         except Exception:
             return False
 
@@ -17603,9 +17603,9 @@ class MerchantRulesWidget:
 
     def _cancel_active_salvage_choice_dialog(self) -> bool:
         try:
-            from Sources.frenkeyLib.ItemHandling.UIManagerExtensions import UIManagerExtensions
+            from Py4GWCoreLib.UIManager import AnySalvageWindow
 
-            return bool(UIManagerExtensions.CancelSalvageOption())
+            return bool(AnySalvageWindow.Cancel())
         except Exception:
             return False
 

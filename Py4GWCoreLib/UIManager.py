@@ -1,4 +1,6 @@
 
+from enum import Enum
+
 import PyImGui
 import PyUIManager
 import time
@@ -6,7 +8,10 @@ from typing import Dict, List, Optional
 import json
 import PyOverlay
 from collections import deque, defaultdict
+
+from Py4GWCoreLib.py4gwcorelib_src.FrameCache import frame_cache
 from .Py4GWcorelib import ConsoleLog, Console
+from .enums_src.Item_enums import INVENTORY_BAGS, INVENTORY_WITH_EQUIPMENT_BAGS, STORAGE_BAGS, Bags, SalvageMode
 from .enums_src.UI_enums import WindowID
 from dataclasses import dataclass, field
 from .native_src.internals.types import Vec2f
@@ -566,6 +571,7 @@ class UIManager:
 
         if not UIManager.FrameExists(frame_id):
             return
+        
         PyUIManager.UIManager.button_click(frame_id)    
         
     @staticmethod
@@ -1228,6 +1234,7 @@ class FrameInfo:
         if self.FrameID_source != 0:
             self.FrameID = self.FrameID_source
             return
+        
         if self.WindowLabel:
             _hash = UIManager.GetHashByLabel(self.WindowLabel)
             self.FrameID = UIManager.GetFrameIDByHash(_hash)
@@ -1255,9 +1262,12 @@ class FrameInfo:
         if self.FrameExists():
             UIManager().DrawFrameOutline(self.FrameID, color, thickness)
             
-    def FrameClick(self):
+    def FrameClick(self, current_state: Optional[int] = None, wparam_value: Optional[int] = None, lparam_value: Optional[int] = None):
         if self.FrameExists():
             UIManager.FrameClick(self.FrameID)
+    
+            if current_state is not None:
+                UIManager.TestMouseAction(self.FrameID, current_state, wparam_value or 0, lparam_value or 0)
             
     def GetCoords(self):
         if self.FrameExists():
@@ -1290,92 +1300,932 @@ class FrameInfo:
         return []
             
 #region WindowFrames
+
 WindowFrames:dict[str, FrameInfo] = {}
 
-InventoryBags = FrameInfo(
-    WindowID = WindowID.WindowID_InventoryBags,
-    WindowName = "Inventory Bags",
-    WindowLabel = "InvAggregate",
-    FrameHash = 291586130
-)
+class WindowFrame():
+    #region Character Creation
+    CharacterDeleteButtonFrame = FrameInfo(
+        WindowName="DeleteCharacterButton",
+        FrameHash=3379687503
+    )
 
-MiniMapFrame = FrameInfo(
-                WindowName="MiniMap",
-                WindowLabel="compass",
-)
+    CharacterFinalDeleteButtonFrame = FrameInfo(
+        WindowName="FinalDeleteCharacterButton",
+        ParentFrameHash=140452905,
+        ChildOffsets=[5,1,15,2]
+    )
 
-PartyWindowFrame = FrameInfo(
-    WindowName="PartyWindow",
-    FrameHash=3332025202,
-    ChildOffsets=[1]
-)
+    CreateCharacterButtonFrame1 = FrameInfo(
+        WindowName="CreateCharacterButton1",
+        FrameHash=3372446797
+    )
 
-CancelEnterMissionButton = FrameInfo(
-    WindowName="CancelEnterMissionButton",
-    ParentFrameHash=2209443298,
-    ChildOffsets=[0,1,1]
-)
+    CreateCharacterButtonFrame2 = FrameInfo(
+        WindowName="CreateCharacterButton2",
+        FrameHash=3973689736,
+    )
 
-ConfirmEnterMissionButton = FrameInfo(
-    WindowName="ConfirmEnterMissionButton",
-    ParentFrameHash=3617868957,
-    ChildOffsets=[2, 6, 100, 2, 6]
-)
+    CreateCharacterTypeNextButtonFrame = FrameInfo(
+        WindowName="CreateCharacterTypeNextButton",
+        FrameHash=3110341991
+    )
 
-CharacterDeleteButtonFrame = FrameInfo(
-    WindowName="DeleteCharacterButton",
-    FrameHash=3379687503
-)
+    CreateCharacterNextButtonGenericFrame = FrameInfo(
+        WindowName="CreateCharacterNextButtonGeneric",
+        FrameHash=1102119410
+    )
 
-CharacterFinalDeleteButtonFrame = FrameInfo(
-    WindowName="FinalDeleteCharacterButton",
-    ParentFrameHash=140452905,
-    ChildOffsets=[5,1,15,2]
-)
+    FinalCreateCharacterButtonFrame = FrameInfo(
+        WindowName="FinalCreateCharacterButton",
+        FrameHash=3856299307
+    )    
+    #endregion Character Creation
+       
+    MiniMapFrame = FrameInfo(
+                    WindowName="MiniMap",
+                    WindowLabel="compass",
+    )
 
-CreateCharacterButtonFrame1 = FrameInfo(
-    WindowName="CreateCharacterButton1",
-    FrameHash=3372446797
-)
+    PartyWindowFrame = FrameInfo(
+        WindowName="PartyWindow",
+        FrameHash=3332025202,
+        ChildOffsets=[1]
+    )
 
-CreateCharacterButtonFrame2 = FrameInfo(
-    WindowName="CreateCharacterButton2",
-    FrameHash=3973689736,
-)
+    CancelEnterMissionButton = FrameInfo(
+        WindowName="CancelEnterMissionButton",
+        ParentFrameHash=2209443298,
+        ChildOffsets=[0,1,1]
+    )
 
-CreateCharacterTypeNextButtonFrame = FrameInfo(
-    WindowName="CreateCharacterTypeNextButton",
-    FrameHash=3110341991
-)
+    ConfirmEnterMissionButton = FrameInfo(
+        WindowName="ConfirmEnterMissionButton",
+        ParentFrameHash=3617868957,
+        ChildOffsets=[2, 6, 100, 2, 6]
+    )
 
-CreateCharacterNextButtonGenericFrame = FrameInfo(
-    WindowName="CreateCharacterNextButtonGeneric",
-    FrameHash=1102119410
-)
+    #region Inventory
+    InventoryIdentifyAllButton = FrameInfo(
+        WindowName = "Inventory",
+        FrameHash = 3316689063
+    )
+    
+    InventoryBags = FrameInfo(
+        WindowID = WindowID.WindowID_InventoryBags,
+        WindowName = "Inventory Bags",
+        FrameHash = 291586130
+    )
+    
+    InventoryBackpack = FrameInfo(
+        WindowID = WindowID.WindowID_Inventory,
+        WindowName = "Inventory Bags",
+        ParentFrameHash = 2874675009,
+        ChildOffsets = [0]
+    )
+    
+    #endregion Inventory
+    
+    #region Xunlai Storage
+    Xunlai_Window = FrameInfo(
+        WindowName = "Xunlai Storage",
+        FrameHash = 2315448754
+    )
+    
+    Xunlai_Storage = FrameInfo(
+        WindowName = "Xunlai Storage",
+        ParentFrameHash = 2315448754,
+        ChildOffsets = [0]
+    )
+    
+    Xunlai_FundsFrame = FrameInfo(
+        ParentFrameHash = 2315448754,
+        ChildOffsets = [2]
+    )
+    
+    Xunlai_DepositFundsButton = FrameInfo(
+        ParentFrameHash = 2315448754,
+        ChildOffsets = [3]
+    )
+    
+    Xunlai_WithdrawFundsButton = FrameInfo(
+        ParentFrameHash = 2315448754,
+        ChildOffsets = [4]
+    )
+    
+    # "2315448754,5": "Xunlai Window.Deposit All Materials",
+    Xunlai_DepositAllMaterialsButton = FrameInfo(
+        ParentFrameHash = 2315448754,
+        ChildOffsets = [5]
+    )
+    
+    Xunlai_GoldValue = FrameInfo(
+        ParentFrameHash = 2315448754,
+        ChildOffsets = [2, 2]
+    )
+    
+    Xunlai_PlatinumValue = FrameInfo(
+        ParentFrameHash = 2315448754,
+        ChildOffsets = [2, 3]
+    )
+    
+    Xunlai_GoldIcon = FrameInfo(
+        ParentFrameHash = 2315448754,
+        ChildOffsets = [2, 0]
+    )
+    
+    Xunlai_PlatinumIcon = FrameInfo(
+        ParentFrameHash = 2315448754,
+        ChildOffsets = [2, 1]
+    )
+    
+    Xunlai_Tab1 = FrameInfo(
+        ParentFrameHash = 2315448754,
+        ChildOffsets = [0, 4294967295]
+    )
+    
+    Xunlai_Tab1_Content = FrameInfo(
+        ParentFrameHash = 2315448754,
+        ChildOffsets = [0, 0]
+    )
+    
+    #endregion Xunlai Storage
+    
+    #region Salvage
+    SalvageOptionsFrame = FrameInfo(
+        WindowName="SalvageOptionsFrame",
+        FrameHash=684387150
+    )
+    
+    SalvageOptionCancelButton = FrameInfo(
+        WindowName="CancelSalvageOptionsButton",
+        ParentFrameHash=684387150,
+        ChildOffsets=[1]
+    )
+    
+    SalvageOptionConfirmButton = FrameInfo(
+        WindowName="ConfirmSalvageOptionsButton",
+        ParentFrameHash=684387150,
+        ChildOffsets=[2]
+    )
+    
+    OptionsSalvageOptionsFrame = FrameInfo(
+        WindowName="OptionsSalvageOptionsFrame",
+        ParentFrameHash=684387150,
+        ChildOffsets=[5]
+    )
 
-FinalCreateCharacterButtonFrame = FrameInfo(
-    WindowName="FinalCreateCharacterButton",
-    FrameHash=3856299307
-)
+    SalvageOptionPrefixButton = FrameInfo(
+        WindowName="SalvageOptionPrefixButton",
+        ParentFrameHash=684387150,
+        ChildOffsets=[5, 0]
+    )
 
+    SalvageOptionSuffixButton = FrameInfo(
+        WindowName="SalvageOptionSuffixButton",
+        ParentFrameHash=684387150,
+        ChildOffsets=[5, 1]
+    )
+
+    SalvageOptionInscriptionButton = FrameInfo(
+        WindowName="SalvageOptionInscriptionButton",
+        ParentFrameHash=684387150,
+        ChildOffsets=[5, 2]
+    )
+
+    SalvageOptionMaterialsButton = FrameInfo(
+        WindowName="SalvageOptionMaterialsButton",
+        ParentFrameHash=684387150,
+        ChildOffsets=[5, 3]
+    )
+
+    MaterialOptionConfirmationFrame = FrameInfo(
+        WindowName="MaterialOptionConfirmationFrame",
+        ParentFrameHash=684387150,
+        ChildOffsets=[0]
+    )
+
+    MaterialOptionConfirmationCancelButton = FrameInfo(
+        WindowName="MaterialOptionConfirmationCancelButton",
+        ParentFrameHash=684387150,
+        ChildOffsets=[0, 4]
+    )
+
+    MaterialOptionConfirmationConfirmButton = FrameInfo(
+        WindowName="MaterialOptionConfirmationConfirmButton",
+        ParentFrameHash=684387150,
+        ChildOffsets=[0, 6]
+    )
+
+    LesserSalvageFrame = FrameInfo(
+        WindowName="LesserSalvageFrame",
+        ParentFrameHash=140452905,
+        ChildOffsets=[6, 111]
+    )
+
+    LesserSalvageCancelButton = FrameInfo(
+        WindowName="LesserSalvageCancelButton",
+        ParentFrameHash=140452905,
+        ChildOffsets=[6, 111, 4]
+    )
+
+    LesserSalvageConfirmButton = FrameInfo(
+        WindowName="LesserSalvageConfirmButton",
+        ParentFrameHash=140452905,
+        ChildOffsets=[6, 111, 6]
+    )
+
+    ExpertSalvageUnidentifiedFrame = FrameInfo(
+        WindowName="ExpertSalvageUnidentifiedFrame",
+        ParentFrameHash=140452905,
+        ChildOffsets=[6, 112]
+    )
+
+    ExpertSalvageUnidentifiedCancelButton = FrameInfo(
+        WindowName="ExpertSalvageUnidentifiedCancelButton",
+        ParentFrameHash=140452905,
+        ChildOffsets=[6, 112, 4]
+    )
+
+    ExpertSalvageUnidentifiedConfirmButton = FrameInfo(
+        WindowName="ExpertSalvageUnidentifiedConfirmButton",
+        ParentFrameHash=140452905,
+        ChildOffsets=[6, 112, 6]
+    )
+
+    #endregion Salvage
+    
+    #region Upgrade
+    UpgradeWindowFrame = FrameInfo(
+        WindowName="UpgradeWindowFrame",
+        FrameHash=2612519688
+    )
+
+    UpgradeWindowCancelButton = FrameInfo(
+        WindowName="UpgradeWindowCancelButton",
+        ParentFrameHash=2612519688,
+        ChildOffsets=[0]
+    )
+
+    UpgradeWindowConfirmButton = FrameInfo(
+        WindowName="UpgradeWindowConfirmButton",
+        ParentFrameHash=2612519688,
+        ChildOffsets=[1]
+    )
+
+    #endregion Upgrade
+    
+    MerchantWindowFrame = FrameInfo(
+        WindowName="MerchantWindowFrame",
+        FrameHash=3613855137
+    )
+
+    CollectorWindowFrame = FrameInfo(
+        WindowName="CollectorWindowFrame",
+        ParentFrameHash=3613855137,
+        ChildOffsets=[0, 0, 6]
+    )
+
+    SkillTrainerWindowFrame = FrameInfo(
+        WindowName="SkillTrainerWindowFrame",
+        ParentFrameHash=1746895597,
+        ChildOffsets=[3]
+    )
+
+    CrafterWindowFrame = FrameInfo(
+        WindowName="CrafterWindowFrame",
+        FrameHash=1517397806
+    )
+    
+    
 
 
    
-WindowFrames["Inventory Bags"] = InventoryBags
-WindowFrames["MiniMap"] = MiniMapFrame
-WindowFrames["PartyWindow"] = PartyWindowFrame
-WindowFrames["CancelEnterMissionButton"] = CancelEnterMissionButton
-WindowFrames["ConfirmEnterMissionButton"] = ConfirmEnterMissionButton
-WindowFrames["DeleteCharacterButton"] = CharacterDeleteButtonFrame
-WindowFrames["FinalDeleteCharacterButton"] = CharacterFinalDeleteButtonFrame
-WindowFrames["CreateCharacterButton1"] = CreateCharacterButtonFrame1
-WindowFrames["CreateCharacterButton2"] = CreateCharacterButtonFrame2
-WindowFrames["CreateCharacterTypeNextButton"] = CreateCharacterTypeNextButtonFrame
-WindowFrames["CreateCharacterNextButtonGeneric"] = CreateCharacterNextButtonGenericFrame
-WindowFrames["FinalCreateCharacterButton"] = FinalCreateCharacterButtonFrame
+WindowFrames["Inventory Bags"] = WindowFrame.InventoryBags
+WindowFrames["MiniMap"] = WindowFrame.MiniMapFrame
+WindowFrames["PartyWindow"] = WindowFrame.PartyWindowFrame
+WindowFrames["CancelEnterMissionButton"] = WindowFrame.CancelEnterMissionButton
+WindowFrames["ConfirmEnterMissionButton"] = WindowFrame.ConfirmEnterMissionButton
+WindowFrames["DeleteCharacterButton"] = WindowFrame.CharacterDeleteButtonFrame
+WindowFrames["FinalDeleteCharacterButton"] = WindowFrame.CharacterFinalDeleteButtonFrame
+WindowFrames["CreateCharacterButton1"] = WindowFrame.CreateCharacterButtonFrame1
+WindowFrames["CreateCharacterButton2"] = WindowFrame.CreateCharacterButtonFrame2
+WindowFrames["CreateCharacterTypeNextButton"] = WindowFrame.CreateCharacterTypeNextButtonFrame
+WindowFrames["CreateCharacterNextButtonGeneric"] = WindowFrame.CreateCharacterNextButtonGenericFrame
+WindowFrames["FinalCreateCharacterButton"] = WindowFrame.FinalCreateCharacterButtonFrame
 
 
 #region Callbacks
 #autiomatic IO events was deactivated due to instability over long sessions
 #use this feature on demand
 #UIManager.RegisterFrameIOCallbacks()
+    
+class InventoryBagWindow:
+    @staticmethod
+    def _get_bag_offset(bag: Bags) -> int:
+        return bag.value - Bags.Backpack.value
+    
+    @staticmethod
+    @frame_cache(category="InventoryBagWindow", source_lib="IsOpen")
+    def IsOpen(bag : Bags) -> bool:
+        bag_frame = InventoryBagWindow.GetBagFrame(bag)
+        return bag_frame.FrameExists() if bag_frame else False
+    
+    @staticmethod
+    @frame_cache(category="InventoryBagWindow", source_lib="GetBagFrame")
+    def GetBagFrame(bag : Bags) -> Optional[FrameInfo]:
+        if not bag in INVENTORY_WITH_EQUIPMENT_BAGS:
+            return None
+        
+        offset = InventoryBagWindow._get_bag_offset(bag)
+        if offset < 0:
+            return None
+        
+        return FrameInfo(
+            WindowName=f"{bag.name} Frame",
+            ParentFrameHash=WindowFrame.InventoryBackpack.FrameHash,
+            ChildOffsets=[offset]
+        )
+        
+    @staticmethod
+    @frame_cache(category="InventoryBagWindow", source_lib="GetBagSlotFrames")
+    def GetBagSlotFrames(bag : Bags, bag_size: Optional[int] = None) -> list[FrameInfo]:
+        if not bag in INVENTORY_WITH_EQUIPMENT_BAGS:
+            return []
+        
+        offset = InventoryBagWindow._get_bag_offset(bag)
+        if offset < 0:
+            return []
+                
+        if bag_size is None:
+            from PyInventory import Bag
+            bag_instance = Bag(bag.value, bag.name)
+            bag_size = bag_instance.GetSize()
+            
+        frames = []
+        for slot in range(bag_size):
+            frames.append(FrameInfo(
+                WindowName=f"{bag.name} Slot {slot}",
+                ParentFrameHash=WindowFrame.InventoryBackpack.FrameHash,
+                ChildOffsets=[offset, 2 + slot]
+            ))
+        
+        return frames
+    
+class InventoryBagsWindow:
+    @staticmethod
+    def _get_bag_offset(bag: Bags) -> int:
+        return bag.value - Bags.Backpack.value
+    
+    @staticmethod
+    @frame_cache(category="InventoryBagsWindow", source_lib="IsOpen")
+    def IsOpen() -> bool:
+        return WindowFrame.InventoryBags.FrameExists()
+    
+    @staticmethod
+    @frame_cache(category="InventoryBagsWindow", source_lib="GetBagFrame")
+    def GetBagSlotFrames(bag : Bags, bag_size: Optional[int] = None) -> list[FrameInfo]:
+        if not bag in INVENTORY_BAGS:
+            return []
+                        
+        if bag_size is None:
+            from PyInventory import Bag
+            bag_instance = Bag(bag.value, bag.name)
+            bag_size = bag_instance.GetSize()
+            
+        frames = []
+        for slot in range(bag_size):
+            frames.append(FrameInfo(
+                WindowName=f"{bag.name} Slot {slot}",
+                ParentFrameHash=WindowFrame.InventoryBags.FrameHash,
+                ChildOffsets=[0, 0, 0, InventoryBagsWindow._get_bag_offset(bag), 2 + slot]
+            ))
+                
+        return frames
+    
+    @staticmethod
+    @frame_cache(category="InventoryBagsWindow", source_lib="GetAllInventorySlotFrames")
+    def GetInventorySlotFrames() -> list[FrameInfo]:
+        frames = []
+        
+        for bag in INVENTORY_BAGS:
+            frames.extend(InventoryBagsWindow.GetBagSlotFrames(bag))
+            
+        return frames
+
+class XunlaiStorageWindow:
+    from .enums_src.Model_enums import ModelID
+    MATERIAL_FRAME_OFFSETS : dict[ModelID, int] = {
+        ModelID.Bone: 8,
+        ModelID.Iron_Ingot: 1,
+        ModelID.Tanned_Hide_Square: 3,
+        
+        ModelID.Scale: 6,
+        ModelID.Chitin_Fragment: 7,
+        ModelID.Bolt_Of_Cloth: 2,
+        
+        ModelID.Wood_Plank: 4,
+        ModelID.Granite_Slab: 9,
+        ModelID.Pile_Of_Glittering_Dust: 5,
+        
+        ModelID.Plant_Fiber: 10,
+        ModelID.Feather: 11,
+        ModelID.Fur_Square: 12,
+        
+        ModelID.Bolt_Of_Linen: 13,
+        ModelID.Bolt_Of_Damask: 14,
+        ModelID.Bolt_Of_Silk: 15,  
+        
+        ModelID.Glob_Of_Ectoplasm: 16,
+        ModelID.Steel_Ingot: 17,
+        ModelID.Deldrimor_Steel_Ingot: 18,
+        
+        ModelID.Monstrous_Claw: 19,
+        ModelID.Monstrous_Eye: 20,
+        ModelID.Monstrous_Fang: 21,
+        
+        ModelID.Ruby: 23,
+        ModelID.Sapphire: 24,
+        ModelID.Diamond: 22,
+        
+        ModelID.Onyx_Gemstone: 36,
+        ModelID.Lump_Of_Charcoal: 28,
+        ModelID.Obsidian_Shard: 25,
+        
+        ModelID.Tempered_Glass_Vial: 29,
+        ModelID.Leather_Square: 30,
+        ModelID.Elonian_Leather_Square: 31,
+        
+        ModelID.Vial_Of_Ink: 32,
+        ModelID.Roll_Of_Parchment: 33,
+        ModelID.Roll_Of_Vellum: 34,
+        
+        ModelID.Spiritwood_Plank: 35,
+        ModelID.Amber_Chunk: 26,
+        ModelID.Jadeite_Shard: 27,
+    }
+    
+    MAX_TABS = 14
+    @staticmethod
+    def _get_bag_offset(bag: Bags) -> int:
+        if bag == Bags.MaterialStorage:
+            return XunlaiStorageWindow.MAX_TABS
+        
+        return bag.value - Bags.Storage1.value
+    
+    @staticmethod
+    @frame_cache(category="XunlaiStorageWindow", source_lib="IsOpen")
+    def IsOpen() -> bool:
+        return WindowFrame.Xunlai_Window.FrameExists()
+        
+    @staticmethod
+    @frame_cache(category="XunlaiStorageWindow", source_lib="GetTabContentFrame")
+    def GetTabFrame(bag: Bags) -> Optional[FrameInfo]:
+        if not bag in STORAGE_BAGS and bag != Bags.MaterialStorage:
+            return None
+        
+        def get_offset_for_bag(bag: Bags) -> int:
+            base_offset = WindowFrame.Xunlai_Tab1.ChildOffsets[1]
+            return base_offset - XunlaiStorageWindow._get_bag_offset(bag)             
+        
+        return FrameInfo(
+            WindowName=f"{bag.name} Tab",
+            ParentFrameHash=WindowFrame.Xunlai_Window.FrameHash,
+            ChildOffsets=[0, get_offset_for_bag(bag)]
+        )
+        
+    @staticmethod
+    @frame_cache(category="XunlaiStorageWindow", source_lib="GetTabContentFrame")
+    def GetTabContentFrame(bag: Bags) -> Optional[FrameInfo]:
+        if not bag in STORAGE_BAGS and bag != Bags.MaterialStorage:
+            return None
+        
+        def get_offset_for_bag(bag: Bags) -> int:
+            base_offset = WindowFrame.Xunlai_Tab1_Content.ChildOffsets[1]            
+            return base_offset + XunlaiStorageWindow._get_bag_offset(bag)             
+        
+        return FrameInfo(
+            WindowName=f"{bag.name} Tab Content",
+            ParentFrameHash=WindowFrame.Xunlai_Window.FrameHash,
+            ChildOffsets=[0, get_offset_for_bag(bag)]
+        )
+    
+    @staticmethod
+    @frame_cache(category="XunlaiStorageWindow", source_lib="GetActiveTabFrame")
+    def GetActiveTabFrame() -> Optional[FrameInfo]:
+        for bag in STORAGE_BAGS:
+            tab_frame = XunlaiStorageWindow.GetTabContentFrame(bag)
+            if tab_frame and tab_frame.FrameExists():
+                return tab_frame
+        
+        material_tab_frame = XunlaiStorageWindow.GetTabContentFrame(Bags.MaterialStorage)
+        if material_tab_frame and material_tab_frame.FrameExists():
+            return material_tab_frame
+        
+        return None
+    
+    @staticmethod
+    @frame_cache(category="XunlaiStorageWindow", source_lib="GetActiveTabBag")
+    def GetActiveTabBag() -> Optional[Bags]:
+        for bag in [*STORAGE_BAGS, Bags.MaterialStorage]:
+            tab_frame = XunlaiStorageWindow.GetTabContentFrame(bag)
+            if tab_frame and tab_frame.FrameExists():
+                return bag
+        
+        return None
+    
+    @staticmethod
+    @frame_cache(category="XunlaiStorageWindow", source_lib="GetActiveTabSlotFrames")
+    def GetActiveTabSlotFrames() -> list[FrameInfo]:
+        active_tab = XunlaiStorageWindow.GetActiveTabBag()
+        if not active_tab:
+            return []
+        
+        if active_tab == Bags.MaterialStorage:
+            return XunlaiStorageWindow.GetMaterialSlotFrames()
+        
+        return XunlaiStorageWindow.GetTabSlotFrames(active_tab)
+    
+    @staticmethod
+    @frame_cache(category="XunlaiStorageWindow", source_lib="GetTabSlotFrames")
+    def GetTabSlotFrames(bag : Bags, bag_size: Optional[int] = 25) -> list[FrameInfo]:
+        if not bag in STORAGE_BAGS:
+            return []
+                
+        if bag_size is None:
+            from PyInventory import Bag
+            bag_instance = Bag(bag.value, bag.name)
+            bag_size = bag_instance.GetSize()
+        
+        frames = []
+        for slot in range(bag_size):
+            frames.append(FrameInfo(
+                WindowName=f"{bag.name} Slot {slot}",
+                ParentFrameHash=WindowFrame.Xunlai_Window.FrameHash,
+                ChildOffsets=[0, XunlaiStorageWindow._get_bag_offset(bag), 2 + slot]
+            ))
+                
+        return frames
+    
+    @staticmethod
+    def GetMaterialFrame(material: ModelID) -> Optional[FrameInfo]:
+        slot = XunlaiStorageWindow.MATERIAL_FRAME_OFFSETS.get(material)
+        if slot is None:
+            return None
+        
+        return FrameInfo(
+            WindowName=f"Xunlai Window.Tab Material Storage.{material.name} Slot",
+            ParentFrameHash=WindowFrame.Xunlai_Window.FrameHash,
+            ChildOffsets=[0, XunlaiStorageWindow.MAX_TABS, 2 + slot]
+        )
+
+    @staticmethod
+    @frame_cache(category="XunlaiStorageWindow", source_lib="GetMaterialSlotFrames")
+    def GetMaterialSlotFrames() -> list[FrameInfo]:       
+        
+        frames = []
+        for material, slot in XunlaiStorageWindow.MATERIAL_FRAME_OFFSETS.items():
+            frames.append(FrameInfo(
+                WindowName=f"Xunlai Window.Tab Material Storage.{material.name}",
+                ParentFrameHash=WindowFrame.Xunlai_Window.FrameHash,
+                ChildOffsets=[0, XunlaiStorageWindow.MAX_TABS, slot]
+            ))
+                
+        return frames
+    
+    @staticmethod
+    @frame_cache(category="XunlaiStorageWindow", source_lib="GetAllStorageSlotFrames")
+    def GetStorageSlotFrames() -> list[FrameInfo]:
+        frames = []
+        
+        for bag in STORAGE_BAGS:
+            frames.extend(XunlaiStorageWindow.GetTabSlotFrames(bag))
+            
+        frames.extend(XunlaiStorageWindow.GetMaterialSlotFrames())
+        return frames
+
+    @staticmethod
+    def ClickDepositAllMaterials() -> bool:
+        if not XunlaiStorageWindow.IsOpen():
+            return False
+        
+        frame = WindowFrame.Xunlai_DepositAllMaterialsButton
+        if not frame.FrameExists():
+            return False
+                
+        frame.FrameClick(current_state=7)
+        return True
+
+class SkillTrainerWindow:
+    @staticmethod
+    @frame_cache(category="SkillTrainerWindow", source_lib="IsOpen")
+    def IsOpen() -> bool:
+        return WindowFrame.SkillTrainerWindowFrame.FrameExists()
+
+class MerchantWindow:
+    @staticmethod
+    @frame_cache(category="MerchantWindow", source_lib="IsOpen")
+    def IsOpen() -> bool:
+        return WindowFrame.MerchantWindowFrame.FrameExists()
+    
+class CollectorWindow:
+    @staticmethod
+    @frame_cache(category="CollectorWindow", source_lib="IsOpen")
+    def IsOpen() -> bool:
+        return WindowFrame.CollectorWindowFrame.FrameExists()
+    
+class CrafterWindow:
+    @staticmethod
+    @frame_cache(category="CrafterWindow", source_lib="IsOpen")
+    def IsOpen() -> bool:
+        return WindowFrame.CrafterWindowFrame.FrameExists()
+
+class UpgradeWindow:
+    '''
+    Utility class to check for and interact with the Upgrade Window that appears when using an upgrade extract on items with multiple upgrade options.
+    '''
+    
+    @staticmethod
+    @frame_cache(category="UpgradeWindow", source_lib="IsOpen")
+    def IsOpen() -> bool:
+        '''Return True if the Upgrade Window is open.'''
+        return WindowFrame.UpgradeWindowFrame.FrameExists()
+    
+    @staticmethod
+    def Cancel() -> bool:
+        '''Cancel the Upgrade Window by clicking the relevant button. Returns True if the button was found and clicked, False otherwise.'''
+        if not UpgradeWindow.IsOpen():
+            return False
+        
+        frame = WindowFrame.UpgradeWindowCancelButton
+        frame.FrameClick()
+        return True
+    
+    @staticmethod
+    def Confirm() -> bool:
+        '''Confirm the currently selected Upgrade Option by clicking the relevant button. Returns True if the button was found and clicked, False otherwise.'''
+        if not UpgradeWindow.IsOpen():
+            return False
+        
+        frame = WindowFrame.UpgradeWindowConfirmButton
+        frame.FrameClick()
+        return True
+
+class SalvageOptionsWindow:
+    '''
+    Utility class to check for and interact with the Salvage Options Window that appears when using an expert salvage kit on items with multiple salvage options.
+    '''    
+    @staticmethod
+    @frame_cache(category="SalvageOptionsWindow", source_lib="IsOpen")
+    def IsOpen() -> bool:
+        '''Return True if the Salvage Options Window is open.'''
+        
+        return WindowFrame.SalvageOptionsFrame.FrameExists()
+    
+    @staticmethod
+    def Cancel() -> bool:
+        '''Cancel the Salvage Options Window by clicking the relevant button. Returns True if the button was found and clicked, False otherwise.'''
+        if not SalvageOptionsWindow.IsOpen():
+            return False
+
+        frame = WindowFrame.SalvageOptionCancelButton
+        frame.FrameClick()
+        return True
+    
+    @staticmethod
+    def Confirm() -> bool:
+        '''Confirm the currently selected Salvage Option by clicking the relevant button. Returns True if the button was found and clicked, False otherwise.'''
+        if not SalvageOptionsWindow.IsOpen():
+            return False
+
+        frame = WindowFrame.SalvageOptionConfirmButton
+        frame.FrameClick()
+        return True
+    
+    @staticmethod
+    def GetSalvageOptionFrame(mode: SalvageMode) -> Optional[FrameInfo]:
+        '''Return the frame corresponding to the given salvage mode.'''
+        if not SalvageOptionsWindow.IsOpen():
+            return None
+        
+        match mode:
+            case SalvageMode.Prefix:
+                return WindowFrame.SalvageOptionPrefixButton
+            
+            case SalvageMode.Suffix:
+                return WindowFrame.SalvageOptionSuffixButton
+            
+            case SalvageMode.Inscription:
+                return WindowFrame.SalvageOptionInscriptionButton
+            
+            case SalvageMode.RareCraftingMaterials | SalvageMode.LesserCraftingMaterials:
+                return WindowFrame.SalvageOptionMaterialsButton
+            
+            case _:
+                return None
+    
+    @staticmethod
+    @frame_cache(category="SalvageOptionsWindow", source_lib="IsOptionVisible")
+    def IsOptionVisible(mode: SalvageMode) -> bool:
+        '''Return True if the given salvage option is visible.'''
+        option_frame = SalvageOptionsWindow.GetSalvageOptionFrame(mode)
+        if option_frame is None:
+            return False
+        
+        return option_frame.FrameExists()
+    
+    @staticmethod
+    def SelectOption(mode: SalvageMode) -> bool:
+        '''Select the given salvage option by clicking the relevant button. Returns True if the button was found and clicked, False otherwise.'''
+        if not SalvageOptionsWindow.IsOptionVisible(mode):
+            return False
+        
+        option_frame = SalvageOptionsWindow.GetSalvageOptionFrame(mode)
+        if option_frame is None:
+            return False
+        
+        option_frame.FrameClick(current_state=8)
+        return True
+    
+    @staticmethod
+    def SelectAndConfirmOption(mode: SalvageMode) -> bool:
+        '''Select and confirm the given salvage option by clicking the relevant buttons. Returns True if the buttons were found and clicked, False otherwise.'''
+        if not SalvageOptionsWindow.SelectOption(mode):
+            return False
+        
+        if not SalvageOptionsWindow.Confirm():
+            return False
+        
+        return True
+
+class SalvageConfirmationPopup:
+    '''
+    Utility class to check for and interact with the confirmation pop up for salvaging with a salvage kit.
+    '''
+    
+    @staticmethod
+    @frame_cache(category="SalvageConfirmationPopup", source_lib="IsOpen")
+    def IsOpen() -> bool:
+        '''
+        Return True if the confirmation pop up for salvaging with a salvage kit is open.
+        '''
+        return WindowFrame.MaterialOptionConfirmationFrame.FrameExists()
+    
+    @staticmethod
+    def Cancel() -> bool:
+        '''
+        Cancel the confirmation pop up for salvaging with a salvage kit by clicking the relevant button. Returns True if the button was found and clicked, False otherwise.
+        '''
+        if not SalvageConfirmationPopup.IsOpen():
+            return False
+        
+        frame = WindowFrame.MaterialOptionConfirmationCancelButton
+        frame.FrameClick()
+        return True
+    
+    @staticmethod
+    def Confirm() -> bool:
+        '''
+        Confirm the confirmation pop up for salvaging with a salvage kit by clicking the relevant button. Returns True if the button was found and clicked, False otherwise.
+        '''
+        if not SalvageConfirmationPopup.IsOpen():
+            return False
+        
+        frame = WindowFrame.MaterialOptionConfirmationConfirmButton
+        frame.FrameClick()
+        return True
+
+class LesserSalvageWindow:
+    '''
+    Utility class to check for and interact with the confirmation pop up for salvaging with a normal salvage kit.
+    '''
+    @staticmethod
+    @frame_cache(category="LesserSalvageWindow", source_lib="IsOpen")
+    def IsOpen() -> bool:
+        '''
+        Return True if the confirmation pop up for salvaging with a normal salvage kit is open.
+        '''
+        return WindowFrame.LesserSalvageFrame.FrameExists()
+    
+    @staticmethod
+    def Cancel() -> bool:
+        '''
+        Cancel the confirmation pop up for salvaging with a normal salvage kit by clicking the relevant button. Returns True if the button was found and clicked, False otherwise.
+        '''
+        if not LesserSalvageWindow.IsOpen():
+            return False
+        
+        frame = WindowFrame.LesserSalvageCancelButton
+        frame.FrameClick()
+        return True
+    
+    @staticmethod
+    def Confirm() -> bool:
+        '''
+        Confirm the confirmation pop up for salvaging with a normal salvage kit by clicking the relevant button. Returns True if the button was found and clicked, False otherwise.
+        '''
+        if not LesserSalvageWindow.IsOpen():
+            return False
+        
+        frame = WindowFrame.LesserSalvageConfirmButton
+        frame.FrameClick()
+        return True
+
+class ExpertSalvageUnidentifiedWindow:
+    '''
+    Utility class to check for and interact with the Salvage Window from using Expert Salvage Kits on Unidentified Items.
+    '''
+    
+    @staticmethod
+    @frame_cache(category="ExpertSalvageUnidentifiedWindow", source_lib="IsOpen")
+    def IsOpen() -> bool:
+        '''
+        Return True if the Expert Salvage Unidentified Window is open.
+        '''
+                
+        return WindowFrame.ExpertSalvageUnidentifiedFrame.FrameExists()
+    
+    @staticmethod
+    def Cancel() -> bool:
+        '''
+        Cancel the Expert Salvage Unidentified Window by clicking the relevant button. Returns True if the button was found and clicked, False otherwise.
+        '''
+        if not ExpertSalvageUnidentifiedWindow.IsOpen():
+            return False
+        
+        frame = WindowFrame.ExpertSalvageUnidentifiedCancelButton
+        frame.FrameClick()
+        return True
+    
+    @staticmethod
+    def Confirm() -> bool:
+        '''
+        Confirm the Expert Salvage Unidentified Window by clicking the relevant button. Returns True if the button was found and clicked, False otherwise.
+        '''        
+        if not ExpertSalvageUnidentifiedWindow.IsOpen():
+            return False
+        
+        frame = WindowFrame.ExpertSalvageUnidentifiedConfirmButton
+        frame.FrameClick()
+        return True
+
+class AnySalvageWindow:
+    '''
+    Utility class to check for and interact with any salvage-related window, including SalvageOptionsWindow, SalvageConfirmationPopup, LesserSalvageWindow, and ExpertSalvageUnidentifiedWindow.
+    '''
+    
+    @staticmethod
+    @frame_cache(category="AnySalvageWindow", source_lib="AnySalvageWindowOpen")
+    def IsOpen() -> bool:
+        '''
+        Return True if any salvage-related window is open, including SalvageOptionsWindow, SalvageConfirmationPopup, LesserSalvageWindow, or ExpertSalvageUnidentifiedWindow.
+        '''
+        
+        return (
+            SalvageConfirmationPopup.IsOpen()
+            or SalvageOptionsWindow.IsOpen()
+            or LesserSalvageWindow.IsOpen()
+            or ExpertSalvageUnidentifiedWindow.IsOpen()
+        )
+
+    @staticmethod
+    def Cancel() -> bool:
+        '''
+        Cancel any open salvage-related window, including SalvageOptionsWindow, SalvageConfirmationPopup, LesserSalvageWindow, or ExpertSalvageUnidentifiedWindow. Returns True if a salvage-related window was found and cancelled, False otherwise.
+        '''
+        
+        if SalvageOptionsWindow.IsOpen():
+            return SalvageOptionsWindow.Cancel()
+
+        if LesserSalvageWindow.IsOpen():
+            return LesserSalvageWindow.Cancel()
+
+        if ExpertSalvageUnidentifiedWindow.IsOpen():
+            return ExpertSalvageUnidentifiedWindow.Cancel()
+
+        if SalvageConfirmationPopup.IsOpen():
+            return SalvageConfirmationPopup.Cancel()
+
+        return False
+
+
+    @staticmethod
+    def Confirm() -> bool:
+        '''
+        WARNING: This will irreversibly confirm salvage actions. Use the more specific Confirm methods if possible to avoid unintended consequences.\n
+        Confirm any open salvage-related window, including SalvageOptionsWindow, SalvageConfirmationPopup, LesserSalvageWindow, or ExpertSalvageUnidentifiedWindow.
+        Returns True if a salvage-related window was found and confirmed, False otherwise.
+        '''
+        if SalvageConfirmationPopup.IsOpen():
+            return SalvageConfirmationPopup.Confirm()
+
+        if SalvageOptionsWindow.IsOpen():
+            return SalvageOptionsWindow.Confirm()
+
+        if LesserSalvageWindow.IsOpen():
+            return LesserSalvageWindow.Confirm()
+
+        if ExpertSalvageUnidentifiedWindow.IsOpen():
+            return ExpertSalvageUnidentifiedWindow.Confirm()
+
+        return False
