@@ -1498,7 +1498,13 @@ class BuildMgr:
         if skill_id <= 0 or target_agent_id <= 0:
             return False
         try:
-            from Py4GWCoreLib import GLOBAL_CACHE, Player
+            from Py4GWCoreLib import Agent, GLOBAL_CACHE, Player, Routines
+
+            if not Routines.Checks.Map.MapValid():
+                return False
+            if not Agent.IsValid(target_agent_id) or Agent.IsDead(target_agent_id):
+                return False
+
             email = Player.GetAccountEmail() or ""
             if not email:
                 return False
@@ -1519,10 +1525,16 @@ class BuildMgr:
         if skill_id <= 0 or target_agent_id <= 0:
             return
         try:
-            from Py4GWCoreLib import GLOBAL_CACHE, Player
+            from Py4GWCoreLib import Agent, GLOBAL_CACHE, Player, Routines
             from Py4GWCoreLib.GlobalCache.shared_memory_src.Globals import (
                 SHMEM_INTENT_DEFAULT_PING_BUDGET_MS,
             )
+
+            if not Routines.Checks.Map.MapValid():
+                return
+            if not Agent.IsValid(target_agent_id) or Agent.IsDead(target_agent_id):
+                return
+
             email = Player.GetAccountEmail() or ""
             if not email:
                 return
