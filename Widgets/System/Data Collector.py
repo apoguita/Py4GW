@@ -15,7 +15,7 @@ from Py4GWCoreLib.enums_src.Region_enums import ServerLanguage
 from Py4GWCoreLib.item_data.ItemData import ITEM_DATA, ItemData
 from Py4GWCoreLib.item_data.item_snapshot import ItemSnapshot
 from Py4GWCoreLib.native_src.internals import string_table
-from Py4GWCoreLib.py4gwcorelib_src.Color import Color
+from Py4GWCoreLib.py4gwcorelib_src.Color import Color, ColorPalette
 from Py4GWCoreLib.py4gwcorelib_src.Timer import ThrottledTimer
 from Py4GWCoreLib.py4gwcorelib_src.WidgetManager import get_widget_handler
 
@@ -42,11 +42,11 @@ class DataCollectorConfig:
             return True
 
         ini = IniManager()
-        self.main_ini_key = ini.ensure_key(
+        self.main_ini_key = ini.ensure_global_key(
             self.ini_path,
             self.main_ini_filename,
         )
-        self.floating_ini_key = ini.ensure_key(
+        self.floating_ini_key = ini.ensure_global_key(
             self.ini_path,
             self.floating_ini_filename,
         )
@@ -288,24 +288,51 @@ class DataCollector:
         self.item_data_collector = ItemDataCollector()
         
         self.collector_enabled = True
-        self.floating_button : ImGui.FloatingIcon
-        self._load_settings()
+        self.floating_button: ImGui.FloatingIcon | None = None
+        self._settings_loaded = False
+        self._startup_sync_done = False
+
+    def _apply_startup_enabled_state(self):
+        if self._startup_sync_done:
+            return
+
+        self._startup_sync_done = True
+        if not self.collector_enabled:
+            widget_handler.disable_widget(MODULE_NAME)
+
+    def _sync_manual_widget_enable(self):
+        if not self._startup_sync_done or self.collector_enabled:
+            return
+
+        info = widget_handler.get_widget_info(MODULE_NAME)
+        if info is None or not info.enabled:
+            return
+
+        self.set_collector_enabled(True)
 
     def _ensure_state(self) -> bool:
         if not self.config._ensure_ini():
             return False
-        
-        self.floating_button = ImGui.FloatingIcon(
-            icon_path=MODULE_ICON,
-            window_id='##floating_icon_data_collector_button',
-            window_name='Data Collector Toggle',
-            tooltip_visible='Hide data collector window',
-            tooltip_hidden='Show data collector window',
-            toggle_ini_key=self.config.floating_ini_key,
-            toggle_var_name='show_main_window',
-            toggle_default=True,
-            draw_callback=self.draw_window,
-        )
+
+        if not self._settings_loaded:
+            self._load_settings()
+            self._settings_loaded = True
+            self._apply_startup_enabled_state()
+        else:
+            self._sync_manual_widget_enable()
+
+        if self.floating_button is None:
+            self.floating_button = ImGui.FloatingIcon(
+                icon_path=MODULE_ICON,
+                window_id='##floating_icon_data_collector_button',
+                window_name='Data Collector Toggle',
+                tooltip_visible='Hide data collector window',
+                tooltip_hidden='Show data collector window',
+                toggle_ini_key=self.config.floating_ini_key,
+                toggle_var_name='show_main_window',
+                toggle_default=True,
+                draw_callback=self.draw_window,
+            )
             
         return True
     
@@ -338,12 +365,16 @@ class DataCollector:
         self._save_settings()
         
         if not self.collector_enabled:
-            Py4GW.Console.Log(MODULE_NAME, 'Data collector is disabled. Enable it in the widget settings to start collecting item data.', Py4GW.Console.MessageType.Warning)
+            Py4GW.Console.Log(MODULE_NAME, 'Data collector is disabled. Enable the widgete again to start contributing by collecting data.', Py4GW.Console.MessageType.Warning)
             widget_handler.disable_widget(MODULE_NAME)
         else:
+            Py4GW.Console.Log(MODULE_NAME, 'Data collector is enabled. Thank you for contributing by collecting data!', Py4GW.Console.MessageType.Success)
             widget_handler.enable_widget(MODULE_NAME)
 
     def draw_window(self):
+        if not self._ensure_state() or not self.floating_button:
+            return
+        
         PyImGui.set_next_window_size((400, 0), PyImGui.ImGuiCond.FirstUseEver)
         expanded, open_ = ImGui.BeginWithClose(
             ini_key=self.config.main_ini_key,
@@ -354,10 +385,19 @@ class DataCollector:
         self.floating_button.sync_begin_with_close(open_)
 
         if expanded:
-            enabled = PyImGui.checkbox('Enable item data collection', self.collector_enabled)
-            if enabled != self.collector_enabled:
-                self.set_collector_enabled(enabled)
-
+            style = ImGui.get_style()
+            color = ColorPalette.DarkGreen.value if self.collector_enabled else ColorPalette.DarkRed.value
+            
+            style.Button.push_color_direct(color.opacity(0.6).rgb_tuple)
+            style.ButtonActive.push_color_direct(color.opacity(0.7).rgb_tuple)
+            style.ButtonHovered.push_color_direct(color.opacity(0.8).rgb_tuple)            
+            if ImGui.button("Collecting data ..." if self.collector_enabled else "Stopped!", width=-1):
+                self.set_collector_enabled(not self.collector_enabled)
+                
+            style.Button.pop_color_direct()
+            style.ButtonActive.pop_color_direct()
+            style.ButtonHovered.pop_color_direct()
+            
             PyImGui.separator()
             PyImGui.text(f'Collector status: {"Running" if self.collector_enabled else "Paused"}')
             PyImGui.text(f'Map ready: {"Yes" if Map.IsMapReady() else "No"}')
@@ -373,7 +413,8 @@ class DataCollector:
         if not self._ensure_state():
             return
         
-        self.floating_button.draw(self.config.floating_ini_key)
+        if self.floating_button is not None:
+            self.floating_button.draw(self.config.floating_ini_key)
     
     def run(self):
         if not self._ensure_state():
@@ -394,6 +435,9 @@ class DataCollector:
         self.item_data_collector.flush_pending_save()
 
 DATA_COLLECTOR = DataCollector()
+    
+def on_disable():
+    DATA_COLLECTOR.set_collector_enabled(False)
 
 def tooltip():
     PyImGui.set_next_window_size((600, 0))
@@ -421,19 +465,11 @@ def tooltip():
     PyImGui.bullet_text('Developed by frenkey')
     PyImGui.end_tooltip()
 
-
-def configure():
-    info = widget_handler.get_widget_info(MODULE_NAME)
-    if info is None:
-        return
-    
-    DATA_COLLECTOR.collector_enabled = info.enabled
-    
-    DATA_COLLECTOR.draw()
-
-
 def main():
     try:
+        if not DATA_COLLECTOR._ensure_state():
+            return
+        
         if not Routines.Checks.Map.MapValid():
             return
         
@@ -444,7 +480,7 @@ def main():
         raise
 
 
-__all__ = ['main', 'configure']
+__all__ = ['main']
 
 
 if __name__ == '__main__':
