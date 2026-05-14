@@ -468,16 +468,20 @@ class BTParty:
           Expose: true
           Audience: intermediate
           Display: Drop Bundle
-          Purpose: Press the standard keys used to drop a held bundle.
+          Purpose: Press the configured drop-item control action used to drop a held bundle.
           UserDescription: Use this when a route needs to release a bundle before continuing.
-          Notes: Sends F2 then F1 with short waits between key presses.
+          Notes: Uses the native drop-item keybind action instead of raw function keys.
         """
-        from ...enums_src.IO_enums import Key
-        from ...py4gwcorelib_src.Keystroke import Keystroke
+        from ...UIManager import UIManager
+        from ...enums_src.UI_enums import ControlAction
 
-        def _press(key_value: int, label: str) -> BehaviorTree.NodeState:
-            Keystroke.PressAndRelease(key_value)
-            _log("BTParty.DropBundle", f"Pressed {label}.", log=log)
+        def _keydown() -> BehaviorTree.NodeState:
+            UIManager.Keydown(ControlAction.ControlAction_DropItem.value, 0)
+            _log("BTParty.DropBundle", "Pressed drop-item control action.", log=log)
+            return BehaviorTree.NodeState.SUCCESS
+
+        def _keyup() -> BehaviorTree.NodeState:
+            UIManager.Keyup(ControlAction.ControlAction_DropItem.value, 0)
             return BehaviorTree.NodeState.SUCCESS
 
         return BehaviorTree(
@@ -485,14 +489,14 @@ class BTParty:
                 name="DropBundle",
                 children=[
                     BehaviorTree.ActionNode(
-                        name="DropBundleF2",
-                        action_fn=lambda: _press(getattr(Key, "F2").value, "F2"),
-                        aftercast_ms=200,
+                        name="DropBundleKeyDown",
+                        action_fn=_keydown,
+                        aftercast_ms=75,
                     ),
                     BehaviorTree.ActionNode(
-                        name="DropBundleF1",
-                        action_fn=lambda: _press(getattr(Key, "F1").value, "F1"),
-                        aftercast_ms=200,
+                        name="DropBundleKeyUp",
+                        action_fn=_keyup,
+                        aftercast_ms=50,
                     ),
                 ],
             )

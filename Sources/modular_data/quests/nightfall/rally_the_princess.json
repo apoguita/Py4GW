@@ -22,7 +22,6 @@
     {"type": "auto_path", "name": "Path", "points": [[19661, -8567], [17652, -1076], [11606, 951], [11993, 11414]]},
     {"type": "dialog", "id": "0x85", "npc": "PRIESTESS_HAILA", "name": "Dialog - Priestess Haila"},
     {"type": "wait", "ms": 9400},
-    {"type": "skip_cutscene"},
     {"type": "wait_for_map_load", "map_id": 428},
     {"type": "auto_path", "name": "Path", "points": [[-1362, 13992]]},
     {"type": "dialog", "id": "0x81F607", "npc": "EVENT_PLANNER_KAZSHA", "name": "Dialog - Event Planner Kazsha"}

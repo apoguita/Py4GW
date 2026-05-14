@@ -48,6 +48,7 @@ PARAM_HINTS = {
     "mode": "conset or pcons",
     "multibox": "true/false",
     "timeout_ms": "ms",
+    "timeout_s": "seconds",
     "wait_ms": "ms",
     "x": "current x",
     "y": "current y",
@@ -117,7 +118,6 @@ STEP_DEFAULTS: dict[str, dict[str, str]] = {
     "set_auto_following": {"enabled": "true"},
     "set_auto_looting": {"enabled": "true"},
     "set_combat_engine": {"engine": "hero_ai"},
-    "skip_cutscene": {"timeout_ms": "10000", "wait_ms": "1500"},
     "target_enemy": {"nearest": "true", "max_dist": "5000", "set_party_target": "true"},
     "travel": {"leave_party": "true"},
     "travel_gh": {"multibox": "true", "ms": "5000", "per_account_delay_ms": "500"},
@@ -127,9 +127,9 @@ STEP_DEFAULTS: dict[str, dict[str, str]] = {
     "use_consumables": {"mode": "pcons", "multibox": "true"},
     "wait": {"ms": "1000", "anchor": "true"},
     "wait_all_accounts_same_map": {"timeout_ms": "60000", "poll_ms": "500", "require_same_district": "false"},
-    "wait_for_map_load": {"target_map_id": ""},
+    "wait_for_map_load": {"target_map_id": "", "timeout_ms": "60000"},
     "wait_map_change": {"target_map_id": ""},
-    "wait_map_load": {"target_map_id": ""},
+    "wait_map_load": {"target_map_id": "", "timeout_ms": "60000"},
     "wait_out_of_combat": {"ms": "1000"},
 }
 

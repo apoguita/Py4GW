@@ -23,7 +23,6 @@
     {"type": "exit_map", "name": "Leave Grand Court of Sebelkeh outpost", "point": [2667, 8076], "target_map_id": 419},
     {"type": "auto_path", "name": "To Prince Ahmtur The Mighty", "points": [[20457, 10274]]},
     {"type": "dialogs", "id": ["0x81F904", "0x84", "0x85"], "npc": "PRINCE_AHMTUR_THE_MIGHTY", "name": "Dialog - Prince Ahmtur the Mighty"},
-    {"type": "skip_cutscene"},
     {"type": "wait_for_map_load", "map_id": 433},
     {"type": "auto_path", "name": "To Lieutenant Murunda", "points": [[1713, 2500]]},
     {"type": "dialog", "id": "0x81F907", "npc": "LIEUTENANT_MURUNDA", "name": "Dialog - Lieutenant  Murunda"}

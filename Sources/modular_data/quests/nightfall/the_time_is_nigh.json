@@ -16,10 +16,8 @@
     {"type": "exit_map", "name": "Leave Kamadan Jewel of Istan", "point": [-5954, 16721], "target_map_id": 429},
     {"type": "auto_path", "name": "To Assistant Hahnna", "points": [[-4746, 16739]]},
     {"type": "dialogs", "id": ["0x828504", "0x84", "0x85"], "npc": "ASSISTANT_HAHNNA", "name": "Dialog - Assistant Hahnna"},
-    {"type": "skip_cutscene"},
     {"type": "wait_for_map_load", "map_id": 493},
     {"type": "auto_path", "name": "To Raidmarshal Mehdara", "points": [[-1631, 16737]]},
-    {"type": "dialog", "id": "0x828507", "npc": "RAIDMARSHAL_MEHDARA", "name": "Dialog - Raidmarshal Mehdara"}
+    {"type": "dialog", "id": "0x82E207", "npc": "RAIDMARSHAL_MEHDARA", "name": "Dialog - Raidmarshal Mehdara"}
   ]
 }
-

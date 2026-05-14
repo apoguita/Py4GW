@@ -12,11 +12,6 @@
     {"type": "exit_map", "name": "Leave Command Post", "point": [-3393, 9260], "target_map_id": 373},
     {"type": "auto_path", "name": "To Commander Suha", "points": [[21494, 13243]]},
     {"type": "dialogs", "id": ["0x84", "0x85"], "npc": "COMMANDER_SUHA", "name": "Dialog - Commander Suha"},
-    {"type": "skip_cutscene"},
-    {"type": "wait", "ms": 2300},
-    {"type": "skip_cutscene"},
-    {"type": "wait", "ms": 1300},
-    {"type": "skip_cutscene"},
     {"type": "wait_for_map_load", "map_id": 421},
     {"type": "auto_path", "name": "To Rojis", "points": [[25434, 14990]]},
     {"type": "dialog", "id": "0x822607", "npc": "ROJIS", "name": "Dialog - Rojis"}

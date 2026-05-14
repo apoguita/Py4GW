@@ -18,18 +18,16 @@ def _noop_log(_message: str) -> None:
 
 
 def add_drop_bundle_state(bot, name: str = "Drop Bundle") -> None:
-    from Py4GWCoreLib import Key, Keystroke
+    from ...UIManager import UIManager
+    from ...enums_src.UI_enums import ControlAction
 
-    bot.States.AddCustomState(
-        lambda: Keystroke.PressAndRelease(getattr(Key, "F2").value),
-        f"{name}: F2",
-    )
-    bot.Wait.ForTime(200)
-    bot.States.AddCustomState(
-        lambda: Keystroke.PressAndRelease(getattr(Key, "F1").value),
-        f"{name}: F1",
-    )
-    bot.Wait.ForTime(200)
+    def _drop_bundle():
+        action = ControlAction.ControlAction_DropItem.value
+        UIManager.Keydown(action, 0)
+        yield from bot.Wait._coro_for_time(75)
+        UIManager.Keyup(action, 0)
+
+    bot.States.AddCustomState(_drop_bundle, str(name))
 
 
 def add_flag_heroes_state(

@@ -1,0 +1,16 @@
+﻿{
+  "name": "Althea's Ashes",
+  "steps": [
+    {"type": "travel", "name": "Travel to Piken Square", "target_map_id": 40},
+    {"type": "dialogs", "id": ["0x807B03", "0x807B01"], "npc": "DUKE_BARRADIN", "name": "Dialog - Duke Barradin"},
+    {"type": "travel", "name": "Travel to Grendich Courthouse", "target_map_id": 36},
+    {"type": "exit_map", "name": "Leave Grendich Courthouse", "point": [1854, 13590], "target_map_id": 13},
+    {"type": "auto_path", "name": "To Exit", "points": [[6190, 9828], [15764, 7523], [21129, 15655], [21431, 16614]]},
+    {"type": "exit_map", "name": "Leave Diessa Lowlands", "point": [21365, 17259], "target_map_id": 106},
+    {"type": "auto_path", "name": "To Charr Altar", "points": [[-15736, -6954], [-5938, -2411], [-5984, -2488]]},
+    {"type": "interact_gadget", "name": "Interact Charr Altar", "gadget": "CHARR_ALTAR", "point": [-6041, -2480]},
+    {"type": "travel", "name": "Travel to Piken Square", "target_map_id": 40},
+    {"type": "auto_path", "name": "To Duke Barradin", "points": [[20667, 9084]]},
+    {"type": "dialog", "id": "0x807B07", "npc": "DUKE_BARRADIN", "name": "Dialog - Duke Barradin"}
+  ]
+}

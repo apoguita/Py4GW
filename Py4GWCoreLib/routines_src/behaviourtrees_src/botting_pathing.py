@@ -20,6 +20,15 @@ def _noop_log(_message: str) -> None:
     return
 
 
+def _cinematic_active() -> bool:
+    try:
+        from Py4GWCoreLib import Map
+
+        return bool(Map.IsInCinematic())
+    except Exception:
+        return cutscene_active()
+
+
 def add_pre_movement_loot_wait_state(
     bot,
     *,
@@ -41,7 +50,7 @@ def add_pre_movement_loot_wait_state(
 
         deadline = monotonic() + (max(0, int(timeout_ms)) / 1000.0)
         while monotonic() < deadline and loot_wait_required(search_range=float(loot_range), bot=bot):
-            if cutscene_active():
+            if _cinematic_active():
                 return
             yield from Routines.Yield.wait(max(50, int(poll_ms)))
 
@@ -81,7 +90,7 @@ def add_path_to_target_state(
 
         Player.ChangeTarget(target_agent_id)
         yield from bot.Move._coro_xy(tx, ty, name, forced_timeout=max(3000, int(distance * 4)))
-        if cutscene_active():
+        if _cinematic_active():
             return
         yield from bot.Wait._coro_until_condition(_target_invalid, duration=100)
 
@@ -148,7 +157,7 @@ def add_auto_path_state(
 
     def _map_transition_detected() -> bool:
         try:
-            if cutscene_active() or not Routines.Checks.Map.MapValid() or Map.IsMapLoading():
+            if _cinematic_active() or not Routines.Checks.Map.MapValid() or Map.IsMapLoading():
                 return True
         except Exception:
             return True
@@ -157,15 +166,15 @@ def add_auto_path_state(
     def _run_auto_path():
         map_transition_logged = False
         for point_i, (target_x, target_y) in enumerate(path_points):
-            if cutscene_active():
+            if _cinematic_active():
                 return
             attempts = 0
             while True:
-                if cutscene_active():
+                if _cinematic_active():
                     return
                 recovery_waited = False
                 while _recovery_blocking():
-                    if cutscene_active():
+                    if _cinematic_active():
                         return
                     recovery_waited = True
                     yield from bot.Wait._coro_for_time(max(50, int(retry_delay_ms)))
@@ -183,14 +192,14 @@ def add_auto_path_state(
                     step_name=point_step_name,
                     fail_on_unmanaged=False,
                 )
-                if cutscene_active():
+                if _cinematic_active():
                     return
 
                 if not movement_ok and _map_transition_detected():
                     return
 
                 if _map_transition_detected():
-                    if allow_map_transition or cutscene_active():
+                    if allow_map_transition or _cinematic_active():
                         return
                     if not map_transition_logged:
                         log_fn(
@@ -199,7 +208,7 @@ def add_auto_path_state(
                         )
                         map_transition_logged = True
                     while _map_transition_detected():
-                        if cutscene_active():
+                        if _cinematic_active():
                             return
                         yield from bot.Wait._coro_for_time(max(50, int(retry_delay_ms)))
                     attempts = 0
@@ -253,11 +262,11 @@ def add_auto_path_delayed_state(
 
     def _run_delayed_path():
         for point_i, (x, y) in enumerate(path_points):
-            if cutscene_active():
+            if _cinematic_active():
                 return
             step_name = f"{name} [{point_i + 1}/{len(path_points)}]"
             yield from bot.Move._coro_xy(float(x), float(y), step_name=step_name)
-            if cutscene_active():
+            if _cinematic_active():
                 return
             if point_i < len(path_points) - 1 and delay > 0:
                 yield from bot.Wait._coro_for_time(delay)
@@ -288,7 +297,7 @@ def add_patrol_until_enemy_state(
         completed_laps = 0
 
         while True:
-            if cutscene_active():
+            if _cinematic_active():
                 return
             detected_enemy = enemy_resolver()
             if detected_enemy is not None:
@@ -309,7 +318,7 @@ def add_patrol_until_enemy_state(
                     f"{name} [{completed_laps + 1}.{point_idx + 1}]",
                     fail_on_unmanaged=False,
                 )
-                if cutscene_active():
+                if _cinematic_active():
                     return
                 detected_enemy = enemy_resolver()
                 if detected_enemy is not None:
@@ -347,7 +356,7 @@ def add_auto_path_till_timeout_state(
         started_at = monotonic()
         lap_idx = 0
         while True:
-            if cutscene_active():
+            if _cinematic_active():
                 return
             elapsed_ms = (monotonic() - started_at) * 1000.0
             if elapsed_ms >= timeout_ms:
@@ -365,7 +374,7 @@ def add_auto_path_till_timeout_state(
                     forced_timeout=remaining_ms,
                     fail_on_unmanaged=False,
                 )
-                if cutscene_active():
+                if _cinematic_active():
                     return
                 elapsed_ms = (monotonic() - started_at) * 1000.0
                 if elapsed_ms >= timeout_ms:

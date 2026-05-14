@@ -1,0 +1,29 @@
+{
+  "name": "The Cost of Survival",
+  "steps": [
+    {"type": "travel", "name": "Travel to Piken Square", "target_map_id": 40},
+    {"type": "auto_path", "name": "To Kopp The Quick", "points": [[22634, 10267]]},
+    {"type": "dialog", "id": "0x85B301", "npc": "KOPP_THE_QUICK", "name": "Dialog - Kopp the Quick"},
+    {"type": "auto_path", "name": "To Exit", "points": [[20222, 8212]]},
+    {"type": "exit_map", "name": "Leave Piken Square", "point": [20218, 7644], "target_map_id": 102},
+    {"type": "auto_path", "name": "To Exit", "points": [[18144, -1984]]},
+    {"type": "exit_map", "name": "Leave The Breach", "point": [17759, -1435], "target_map_id": 880},
+    {"type": "auto_path", "name": "To Ghost Of Althea", "points": [[-7426, -9351]]},
+    {"type": "dialogs", "id": ["0x85B304", "0x85B304"], "npc": "GHOST_OF_ALTHEA", "name": "Dialog - Ghost of Althea"},
+    {"type": "auto_path", "name": "To Item", "points": [[-8760, -6086]]},
+    {"type": "interact_item", "name": "Pick Elemental Keystone", "model_id": 38301},
+    {"type": "auto_path", "name": "To Exit", "points": [[-8654, 3322], [-8621, 4130]]},
+    {"type": "exit_map", "name": "Leave Unknown Map ID", "point": [-8645, 4672], "target_map_id": 881},
+    {"type": "auto_path", "name": "To Duke Willgrove", "points": [[1408, 16426], [-7437, 20924], [-16195, 19388], [-19326, 16501], [-6780, 17707], [-10618, 16002], [-16598, 9208]]},
+    {"type": "dialog", "id": "0x85B304", "npc": "DUKE_WILLGROVE", "name": "Dialog - Duke Willgrove"},
+    {"type": "travel", "name": "Travel to Piken Square", "target_map_id": 40},
+    {"type": "load_party", "name": "Load Party", "max_heroes": 4, "team": "heroes_3"},
+    {"type": "exit_map", "name": "Leave Piken Square", "point": [20206, 7645], "target_map_id": 102},
+    {"type": "auto_path", "name": "To Exit", "points": [[18213, -2167]]},
+    {"type": "exit_map", "name": "Leave The Breach", "point": [17765, -1422], "target_map_id": 880},
+    {"type": "auto_path", "name": "To Ghost Of Althea", "points": [[-7471, -9318]]},
+    {"type": "dialog", "id": "0x85B304", "npc": "GHOST_OF_ALTHEA", "name": "Dialog - Ghost of Althea"},
+    {"type": "auto_path", "name": "To Ghost Of Althea", "points": [[-7614, -9268]]},
+    {"type": "dialog", "id": "0x85B307", "npc": "GHOST_OF_ALTHEA", "name": "Dialog - Ghost of Althea"}
+  ]
+}

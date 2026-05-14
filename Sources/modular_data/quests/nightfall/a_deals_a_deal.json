@@ -33,7 +33,6 @@
     {"type": "interact_gadget", "name": "Interact Wurm Spoor", "gadget": "WURM_SPOOR", "point": [-1999, 10578]},
     {"type": "interact_gadget", "name": "Interact Wurm Spoor", "gadget": "WURM_SPOOR", "point": [-1999, 10578]},
     {"type": "auto_path", "name": "Path", "points": [[-7653, 4806], [-8458, 5193], [-10596, 4977]]},
-    {"type": "skip_cutscene"},
     {"type": "wait_for_map_load", "map_id": 438},
     {"type": "auto_path", "name": "To Priest Kehmtut", "points": [[-14281, 6755]]},
     {"type": "dialog", "id": "0x824707", "npc": "PRIEST_KEHMTUT", "name": "Dialog - Priest Kehmtut"}
