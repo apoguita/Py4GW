@@ -288,27 +288,8 @@ class DataCollector:
         self.item_data_collector = ItemDataCollector()
         
         self.collector_enabled = True
-        self.floating_button: ImGui.FloatingIcon | None = None
         self._settings_loaded = False
-        self._startup_sync_done = False
-
-    def _apply_startup_enabled_state(self):
-        if self._startup_sync_done:
-            return
-
-        self._startup_sync_done = True
-        if not self.collector_enabled:
-            widget_handler.disable_widget(MODULE_NAME)
-
-    def _sync_manual_widget_enable(self):
-        if not self._startup_sync_done or self.collector_enabled:
-            return
-
-        info = widget_handler.get_widget_info(MODULE_NAME)
-        if info is None or not info.enabled:
-            return
-
-        self.set_collector_enabled(True)
+        self._runtime_entered = False
 
     def _ensure_state(self) -> bool:
         if not self.config._ensure_ini():
@@ -317,23 +298,10 @@ class DataCollector:
         if not self._settings_loaded:
             self._load_settings()
             self._settings_loaded = True
-            self._apply_startup_enabled_state()
-        else:
-            self._sync_manual_widget_enable()
 
-        if self.floating_button is None:
-            self.floating_button = ImGui.FloatingIcon(
-                icon_path=MODULE_ICON,
-                window_id='##floating_icon_data_collector_button',
-                window_name='Data Collector Toggle',
-                tooltip_visible='Hide data collector window',
-                tooltip_hidden='Show data collector window',
-                toggle_ini_key=self.config.floating_ini_key,
-                toggle_var_name='show_main_window',
-                toggle_default=True,
-                draw_callback=self.draw_window,
-            )
-            
+        if not self.collector_enabled:
+            widget_handler.disable_widget(MODULE_NAME)            
+
         return True
     
     def _load_settings(self):
@@ -358,64 +326,23 @@ class DataCollector:
 
     def set_collector_enabled(self, enabled: bool):
         enabled = bool(enabled)
-        if self.collector_enabled == enabled:
-            return
-
+        if enabled:
+            Py4GW.Console.Log(
+                MODULE_NAME,
+                'Data collector is enabled. Thank you for contributing by collecting data!',
+                Py4GW.Console.MessageType.Success,
+            )
+        else:
+            Py4GW.Console.Log(
+                MODULE_NAME,
+                'Data collector is disabled. Enable the collector again to start contributing by collecting data.',
+                Py4GW.Console.MessageType.Warning,
+            )
+            
         self.collector_enabled = enabled
         self._save_settings()
         
-        if not self.collector_enabled:
-            Py4GW.Console.Log(MODULE_NAME, 'Data collector is disabled. Enable the widgete again to start contributing by collecting data.', Py4GW.Console.MessageType.Warning)
-            widget_handler.disable_widget(MODULE_NAME)
-        else:
-            Py4GW.Console.Log(MODULE_NAME, 'Data collector is enabled. Thank you for contributing by collecting data!', Py4GW.Console.MessageType.Success)
-            widget_handler.enable_widget(MODULE_NAME)
-
-    def draw_window(self):
-        if not self._ensure_state() or not self.floating_button:
-            return
-        
-        PyImGui.set_next_window_size((400, 0), PyImGui.ImGuiCond.FirstUseEver)
-        expanded, open_ = ImGui.BeginWithClose(
-            ini_key=self.config.main_ini_key,
-            name=MODULE_NAME,
-            p_open=self.floating_button.visible,
-            flags=PyImGui.WindowFlags.NoFlag,
-        )
-        self.floating_button.sync_begin_with_close(open_)
-
-        if expanded:
-            style = ImGui.get_style()
-            color = ColorPalette.DarkGreen.value if self.collector_enabled else ColorPalette.DarkRed.value
             
-            style.Button.push_color_direct(color.opacity(0.6).rgb_tuple)
-            style.ButtonActive.push_color_direct(color.opacity(0.7).rgb_tuple)
-            style.ButtonHovered.push_color_direct(color.opacity(0.8).rgb_tuple)            
-            if ImGui.button("Collecting data ..." if self.collector_enabled else "Stopped!", width=-1):
-                self.set_collector_enabled(not self.collector_enabled)
-                
-            style.Button.pop_color_direct()
-            style.ButtonActive.pop_color_direct()
-            style.ButtonHovered.pop_color_direct()
-            
-            PyImGui.separator()
-            PyImGui.text(f'Collector status: {"Running" if self.collector_enabled else "Paused"}')
-            PyImGui.text(f'Map ready: {"Yes" if Map.IsMapReady() else "No"}')
-            PyImGui.text(f'Player loaded: {"Yes" if Player.IsPlayerLoaded() else "No"}')
-            PyImGui.text(f'Current context: {self.item_data_collector.current_context_key or "-"}')
-            PyImGui.text(f'Collected item ids: {len(self.item_data_collector.checked_item_ids)}')
-            PyImGui.text(f'Collected models: {len(self.item_data_collector.checked_model_keys)}')
-            PyImGui.text(f'Pending item-data save: {"Yes" if ITEM_DATA.requires_save else "No"}')
-
-        ImGui.End(self.config.main_ini_key)
-
-    def draw(self):
-        if not self._ensure_state():
-            return
-        
-        if self.floating_button is not None:
-            self.floating_button.draw(self.config.floating_ini_key)
-    
     def run(self):
         if not self._ensure_state():
             return
@@ -436,7 +363,16 @@ class DataCollector:
 
 DATA_COLLECTOR = DataCollector()
     
-def on_disable():
+def on_enable():
+    if not widget_handler.discovered:
+        return
+    
+    DATA_COLLECTOR.set_collector_enabled(True)
+
+def on_disable():    
+    if not widget_handler.discovered:
+        return
+    
     DATA_COLLECTOR.set_collector_enabled(False)
 
 def tooltip():
@@ -469,7 +405,7 @@ def main():
     try:
         if not DATA_COLLECTOR._ensure_state():
             return
-        
+                
         if not Routines.Checks.Map.MapValid():
             return
         
