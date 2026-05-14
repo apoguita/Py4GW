@@ -1,5 +1,43 @@
 {
   "enemies": {
+    "enc:\\\\x0BAA\\\\x010A\\\\x8101\\\\x45DA\\\\x830A\\\\xC1B2\\\\x2D6D\\\\x0001": {
+      "encoded_names": [
+        "\\\\x0BAA\\\\x010A\\\\x8101\\\\x45DA\\\\x830A\\\\xC1B2\\\\x2D6D\\\\x0001"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        4309
+      ],
+      "observed_maps": {
+        "386": {
+          "base_id": 386,
+          "id": 386,
+          "instance_type": "Explorable",
+          "name": "Turai's Procession"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x0BAA\\\\x010A\\\\x8101\\\\x5DCF\\\\xC6E5\\\\x1747\\\\x0001": {
+      "encoded_names": [
+        "\\\\x0BAA\\\\x010A\\\\x8101\\\\x5DCF\\\\xC6E5\\\\x1747\\\\x0001"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        4319
+      ],
+      "observed_maps": {
+        "386": {
+          "base_id": 386,
+          "id": 386,
+          "instance_type": "Explorable",
+          "name": "Turai's Procession"
+        }
+      },
+      "observed_skills": {}
+    },
     "enc:\\\\x0F95\\\\xF318\\\\x6CFE": {
       "encoded_names": [
         "\\\\x0F95\\\\xF318\\\\x6CFE"
@@ -48,6 +86,12 @@
         5370
       ],
       "observed_maps": {
+        "386": {
+          "base_id": 386,
+          "id": 386,
+          "instance_type": "Explorable",
+          "name": "Turai's Procession"
+        },
         "392": {
           "base_id": 392,
           "id": 392,
@@ -92,6 +136,12 @@
         5374
       ],
       "observed_maps": {
+        "386": {
+          "base_id": 386,
+          "id": 386,
+          "instance_type": "Explorable",
+          "name": "Turai's Procession"
+        },
         "392": {
           "base_id": 392,
           "id": 392,
@@ -124,6 +174,12 @@
         5378
       ],
       "observed_maps": {
+        "386": {
+          "base_id": 386,
+          "id": 386,
+          "instance_type": "Explorable",
+          "name": "Turai's Procession"
+        },
         "392": {
           "base_id": 392,
           "id": 392,
@@ -168,6 +224,12 @@
         5382
       ],
       "observed_maps": {
+        "386": {
+          "base_id": 386,
+          "id": 386,
+          "instance_type": "Explorable",
+          "name": "Turai's Procession"
+        },
         "392": {
           "base_id": 392,
           "id": 392,
@@ -206,6 +268,12 @@
         5387
       ],
       "observed_maps": {
+        "386": {
+          "base_id": 386,
+          "id": 386,
+          "instance_type": "Explorable",
+          "name": "Turai's Procession"
+        },
         "392": {
           "base_id": 392,
           "id": 392,
@@ -225,6 +293,12 @@
         5394
       ],
       "observed_maps": {
+        "386": {
+          "base_id": 386,
+          "id": 386,
+          "instance_type": "Explorable",
+          "name": "Turai's Procession"
+        },
         "392": {
           "base_id": 392,
           "id": 392,
@@ -257,6 +331,12 @@
         5398
       ],
       "observed_maps": {
+        "386": {
+          "base_id": 386,
+          "id": 386,
+          "instance_type": "Explorable",
+          "name": "Turai's Procession"
+        },
         "392": {
           "base_id": 392,
           "id": 392,
@@ -283,6 +363,12 @@
         5402
       ],
       "observed_maps": {
+        "386": {
+          "base_id": 386,
+          "id": 386,
+          "instance_type": "Explorable",
+          "name": "Turai's Procession"
+        },
         "392": {
           "base_id": 392,
           "id": 392,
@@ -298,6 +384,44 @@
           "profession_id": 9
         }
       }
+    },
+    "enc:\\\\x8101\\\\x0752\\\\x8B99\\\\xF1D7\\\\x287F": {
+      "encoded_names": [
+        "\\\\x8101\\\\x0752\\\\x8B99\\\\xF1D7\\\\x287F"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        4994
+      ],
+      "observed_maps": {
+        "386": {
+          "base_id": 386,
+          "id": 386,
+          "instance_type": "Explorable",
+          "name": "Turai's Procession"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8101\\\\x0753\\\\x8FD6\\\\x9344\\\\x3906": {
+      "encoded_names": [
+        "\\\\x8101\\\\x0753\\\\x8FD6\\\\x9344\\\\x3906"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        4995
+      ],
+      "observed_maps": {
+        "386": {
+          "base_id": 386,
+          "id": 386,
+          "instance_type": "Explorable",
+          "name": "Turai's Procession"
+        }
+      },
+      "observed_skills": {}
     },
     "enc:\\\\x8101\\\\x09C2\\\\x8FDA\\\\x911A\\\\x46E7": {
       "encoded_names": [
@@ -685,6 +809,341 @@
         }
       }
     },
+    "enc:\\\\x8101\\\\x0E2D\\\\xC0F3\\\\xEC40\\\\x2F3D": {
+      "encoded_names": [
+        "\\\\x8101\\\\x0E2D\\\\xC0F3\\\\xEC40\\\\x2F3D"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        4928
+      ],
+      "observed_maps": {
+        "386": {
+          "base_id": 386,
+          "id": 386,
+          "instance_type": "Explorable",
+          "name": "Turai's Procession"
+        }
+      },
+      "observed_skills": {
+        "1379": {
+          "id": 1379,
+          "name": "Glowing Gaze",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "191": {
+          "id": 191,
+          "name": "Immolate",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "845": {
+          "id": 845,
+          "name": "Liquid Flame",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "884": {
+          "id": 884,
+          "name": "Searing Flames",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x1186\\\\xB16E\\\\xB9F1\\\\x3BAD": {
+      "encoded_names": [
+        "\\\\x8101\\\\x1186\\\\xB16E\\\\xB9F1\\\\x3BAD"
+      ],
+      "inferred_primary": "Monk",
+      "inferred_secondary": "",
+      "model_ids": [
+        4965
+      ],
+      "observed_maps": {
+        "386": {
+          "base_id": 386,
+          "id": 386,
+          "instance_type": "Explorable",
+          "name": "Turai's Procession"
+        }
+      },
+      "observed_skills": {
+        "1391": {
+          "id": 1391,
+          "name": "Supportive Spirit",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "1686": {
+          "id": 1686,
+          "name": "Glimmer of Light",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "288": {
+          "id": 288,
+          "name": "Healing Breeze",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "886": {
+          "id": 886,
+          "name": "Restful Breeze",
+          "profession": "Monk",
+          "profession_id": 3
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x1187\\\\xE433\\\\x93A6\\\\x47E1": {
+      "encoded_names": [
+        "\\\\x8101\\\\x1187\\\\xE433\\\\x93A6\\\\x47E1"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        4966
+      ],
+      "observed_maps": {
+        "386": {
+          "base_id": 386,
+          "id": 386,
+          "instance_type": "Explorable",
+          "name": "Turai's Procession"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8101\\\\x1554\\\\xA7EB\\\\x3D37": {
+      "encoded_names": [
+        "\\\\x8101\\\\x1554\\\\xA7EB\\\\x3D37"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        4957
+      ],
+      "observed_maps": {
+        "386": {
+          "base_id": 386,
+          "id": 386,
+          "instance_type": "Explorable",
+          "name": "Turai's Procession"
+        }
+      },
+      "observed_skills": {
+        "1379": {
+          "id": 1379,
+          "name": "Glowing Gaze",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "191": {
+          "id": 191,
+          "name": "Immolate",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "845": {
+          "id": 845,
+          "name": "Liquid Flame",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "884": {
+          "id": 884,
+          "name": "Searing Flames",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x1555\\\\xB996\\\\xBF2B\\\\x3F18": {
+      "encoded_names": [
+        "\\\\x8101\\\\x1555\\\\xB996\\\\xBF2B\\\\x3F18"
+      ],
+      "inferred_primary": "Dervish",
+      "inferred_secondary": "",
+      "model_ids": [
+        4958
+      ],
+      "observed_maps": {
+        "386": {
+          "base_id": 386,
+          "id": 386,
+          "instance_type": "Explorable",
+          "name": "Turai's Procession"
+        }
+      },
+      "observed_skills": {
+        "1761": {
+          "id": 1761,
+          "name": "Zealous Vow",
+          "profession": "Dervish",
+          "profession_id": 10
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x1556\\\\xB306\\\\xE2DB\\\\x64CB": {
+      "encoded_names": [
+        "\\\\x8101\\\\x1556\\\\xB306\\\\xE2DB\\\\x64CB"
+      ],
+      "inferred_primary": "Dervish",
+      "inferred_secondary": "",
+      "model_ids": [
+        4959
+      ],
+      "observed_maps": {
+        "386": {
+          "base_id": 386,
+          "id": 386,
+          "instance_type": "Explorable",
+          "name": "Turai's Procession"
+        }
+      },
+      "observed_skills": {
+        "1503": {
+          "id": 1503,
+          "name": "Mystic Vigor",
+          "profession": "Dervish",
+          "profession_id": 10
+        },
+        "1761": {
+          "id": 1761,
+          "name": "Zealous Vow",
+          "profession": "Dervish",
+          "profession_id": 10
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x1952\\\\xE06F\\\\xB81B\\\\x5E5E": {
+      "encoded_names": [
+        "\\\\x8101\\\\x1952\\\\xE06F\\\\xB81B\\\\x5E5E"
+      ],
+      "inferred_primary": "Monk",
+      "inferred_secondary": "",
+      "model_ids": [
+        4961
+      ],
+      "observed_maps": {
+        "386": {
+          "base_id": 386,
+          "id": 386,
+          "instance_type": "Explorable",
+          "name": "Turai's Procession"
+        }
+      },
+      "observed_skills": {
+        "1392": {
+          "id": 1392,
+          "name": "Watchful Healing",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "282": {
+          "id": 282,
+          "name": "Word of Healing",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "313": {
+          "id": 313,
+          "name": "Healing Touch",
+          "profession": "Monk",
+          "profession_id": 3
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x1953\\\\xFAFB\\\\xC8A5\\\\x5B16": {
+      "encoded_names": [
+        "\\\\x8101\\\\x1953\\\\xFAFB\\\\xC8A5\\\\x5B16"
+      ],
+      "inferred_primary": "Necromancer",
+      "inferred_secondary": "",
+      "model_ids": [
+        4960
+      ],
+      "observed_maps": {
+        "386": {
+          "base_id": 386,
+          "id": 386,
+          "instance_type": "Explorable",
+          "name": "Turai's Procession"
+        }
+      },
+      "observed_skills": {
+        "134": {
+          "id": 134,
+          "name": "Order of Pain",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "1356": {
+          "id": 1356,
+          "name": "Contagion",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "1360": {
+          "id": 1360,
+          "name": "Mark of Fury",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "145": {
+          "id": 145,
+          "name": "Signet of Agony",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "96": {
+          "id": 96,
+          "name": "Soul Feast",
+          "profession": "Necromancer",
+          "profession_id": 4
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x19E2\\\\xCFFF\\\\xBF56\\\\x3D43": {
+      "encoded_names": [
+        "\\\\x8101\\\\x19E2\\\\xCFFF\\\\xBF56\\\\x3D43"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        4962
+      ],
+      "observed_maps": {
+        "386": {
+          "base_id": 386,
+          "id": 386,
+          "instance_type": "Explorable",
+          "name": "Turai's Procession"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8101\\\\x1A94\\\\xAC7F\\\\xF190\\\\x7563": {
+      "encoded_names": [
+        "\\\\x8101\\\\x1A94\\\\xAC7F\\\\xF190\\\\x7563"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        4963
+      ],
+      "observed_maps": {
+        "386": {
+          "base_id": 386,
+          "id": 386,
+          "instance_type": "Explorable",
+          "name": "Turai's Procession"
+        }
+      },
+      "observed_skills": {}
+    },
     "enc:\\\\x8101\\\\x1CE3\\\\xA10F\\\\x9001\\\\x49F3": {
       "encoded_names": [
         "\\\\x8101\\\\x1CE3\\\\xA10F\\\\x9001\\\\x49F3"
@@ -723,6 +1182,25 @@
         }
       }
     },
+    "enc:\\\\x8101\\\\x46AB\\\\xB705\\\\x0EB7": {
+      "encoded_names": [
+        "\\\\x8101\\\\x46AB\\\\xB705\\\\x0EB7"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        4969
+      ],
+      "observed_maps": {
+        "386": {
+          "base_id": 386,
+          "id": 386,
+          "instance_type": "Explorable",
+          "name": "Turai's Procession"
+        }
+      },
+      "observed_skills": {}
+    },
     "enc:\\\\x8101\\\\x4731\\\\x9857\\\\x863A\\\\x3B88": {
       "encoded_names": [
         "\\\\x8101\\\\x4731\\\\x9857\\\\x863A\\\\x3B88"
@@ -733,6 +1211,12 @@
         5766
       ],
       "observed_maps": {
+        "386": {
+          "base_id": 386,
+          "id": 386,
+          "instance_type": "Explorable",
+          "name": "Turai's Procession"
+        },
         "392": {
           "base_id": 392,
           "id": 392,
@@ -752,11 +1236,182 @@
         5388
       ],
       "observed_maps": {
+        "386": {
+          "base_id": 386,
+          "id": 386,
+          "instance_type": "Explorable",
+          "name": "Turai's Procession"
+        },
         "392": {
           "base_id": 392,
           "id": 392,
           "instance_type": "Explorable",
           "name": "Yatendi Canyons"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8101\\\\x4CA1\\\\xC6FE\\\\x8123\\\\x663C": {
+      "encoded_names": [
+        "\\\\x8101\\\\x4CA1\\\\xC6FE\\\\x8123\\\\x663C"
+      ],
+      "inferred_primary": "Mesmer",
+      "inferred_secondary": "",
+      "model_ids": [
+        4964
+      ],
+      "observed_maps": {
+        "386": {
+          "base_id": 386,
+          "id": 386,
+          "instance_type": "Explorable",
+          "name": "Turai's Procession"
+        }
+      },
+      "observed_skills": {
+        "31": {
+          "id": 31,
+          "name": "Conjure Phantasm",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "36": {
+          "id": 36,
+          "name": "Arcane Conundrum",
+          "profession": "Mesmer",
+          "profession_id": 5
+        },
+        "43": {
+          "id": 43,
+          "name": "Clumsiness",
+          "profession": "Mesmer",
+          "profession_id": 5
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x4D78\\\\xA585\\\\xA6F7\\\\x555D": {
+      "encoded_names": [
+        "\\\\x8101\\\\x4D78\\\\xA585\\\\xA6F7\\\\x555D"
+      ],
+      "inferred_primary": "Monk",
+      "inferred_secondary": "",
+      "model_ids": [
+        4922
+      ],
+      "observed_maps": {
+        "386": {
+          "base_id": 386,
+          "id": 386,
+          "instance_type": "Explorable",
+          "name": "Turai's Procession"
+        }
+      },
+      "observed_skills": {
+        "1391": {
+          "id": 1391,
+          "name": "Supportive Spirit",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "1686": {
+          "id": 1686,
+          "name": "Glimmer of Light",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "288": {
+          "id": 288,
+          "name": "Healing Breeze",
+          "profession": "Monk",
+          "profession_id": 3
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x4D97\\\\xC3B0\\\\xB479\\\\x5CE2": {
+      "encoded_names": [
+        "\\\\x8101\\\\x4D97\\\\xC3B0\\\\xB479\\\\x5CE2"
+      ],
+      "inferred_primary": "Ranger",
+      "inferred_secondary": "",
+      "model_ids": [
+        5286
+      ],
+      "observed_maps": {
+        "386": {
+          "base_id": 386,
+          "id": 386,
+          "instance_type": "Explorable",
+          "name": "Turai's Procession"
+        }
+      },
+      "observed_skills": {
+        "446": {
+          "id": 446,
+          "name": "Troll Unguent",
+          "profession": "Ranger",
+          "profession_id": 2
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x4E0C\\\\xB42D\\\\x879D\\\\x53A9": {
+      "encoded_names": [
+        "\\\\x8101\\\\x4E0C\\\\xB42D\\\\x879D\\\\x53A9"
+      ],
+      "inferred_primary": "Elementalist",
+      "inferred_secondary": "",
+      "model_ids": [
+        4956
+      ],
+      "observed_maps": {
+        "386": {
+          "base_id": 386,
+          "id": 386,
+          "instance_type": "Explorable",
+          "name": "Turai's Procession"
+        }
+      },
+      "observed_skills": {
+        "1372": {
+          "id": 1372,
+          "name": "Sandstorm",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "1374": {
+          "id": 1374,
+          "name": "Ebon Hawk",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "171": {
+          "id": 171,
+          "name": "Stoning",
+          "profession": "Elementalist",
+          "profession_id": 6
+        },
+        "174": {
+          "id": 174,
+          "name": "Aftershock",
+          "profession": "Elementalist",
+          "profession_id": 6
+        }
+      }
+    },
+    "enc:\\\\x8101\\\\x4E0D\\\\xCA0F\\\\xF04C\\\\x3AE0": {
+      "encoded_names": [
+        "\\\\x8101\\\\x4E0D\\\\xCA0F\\\\xF04C\\\\x3AE0"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        4955
+      ],
+      "observed_maps": {
+        "386": {
+          "base_id": 386,
+          "id": 386,
+          "instance_type": "Explorable",
+          "name": "Turai's Procession"
         }
       },
       "observed_skills": {}
@@ -1083,6 +1738,25 @@
           "profession_id": 10
         }
       }
+    },
+    "enc:\\\\x8101\\\\x5DCF\\\\xC6E5\\\\x1747": {
+      "encoded_names": [
+        "\\\\x8101\\\\x5DCF\\\\xC6E5\\\\x1747"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        4319
+      ],
+      "observed_maps": {
+        "386": {
+          "base_id": 386,
+          "id": 386,
+          "instance_type": "Explorable",
+          "name": "Turai's Procession"
+        }
+      },
+      "observed_skills": {}
     },
     "enc:\\\\x8101\\\\x7F4D\\\\xFC50\\\\xD378\\\\x2E42": {
       "encoded_names": [

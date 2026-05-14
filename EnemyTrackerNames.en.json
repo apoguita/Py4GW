@@ -1,6 +1,12 @@
 {
   "language": "en",
   "names": {
+    "enc:\\\\x0BAA\\\\x010A\\\\x8101\\\\x45DA\\\\x830A\\\\xC1B2\\\\x2D6D\\\\x0001": [
+      "Pet - Elder Hyena"
+    ],
+    "enc:\\\\x0BAA\\\\x010A\\\\x8101\\\\x5DCF\\\\xC6E5\\\\x1747\\\\x0001": [
+      "Pet - Elder Crocodile"
+    ],
     "enc:\\\\x0F95\\\\xF318\\\\x6CFE": [
       "Spirit of Favorable Winds"
     ],
@@ -32,6 +38,12 @@
     ],
     "enc:\\\\x7D54\\\\xF46D\\\\xEC6C\\\\x721C": [
       "Kournan Phalanx"
+    ],
+    "enc:\\\\x8101\\\\x0752\\\\x8B99\\\\xF1D7\\\\x287F": [
+      "Tormented Land"
+    ],
+    "enc:\\\\x8101\\\\x0753\\\\x8FD6\\\\x9344\\\\x3906": [
+      "Earthen Abomination"
     ],
     "enc:\\\\x8101\\\\x09C2\\\\x8FDA\\\\x911A\\\\x46E7": [
       "Skree Griffin"
@@ -66,14 +78,62 @@
     "enc:\\\\x8101\\\\x09CE\\\\x8C33\\\\x4349": [
       "Margonite Reaper"
     ],
+    "enc:\\\\x8101\\\\x0E2D\\\\xC0F3\\\\xEC40\\\\x2F3D": [
+      "Korr, Living Flame"
+    ],
+    "enc:\\\\x8101\\\\x1186\\\\xB16E\\\\xB9F1\\\\x3BAD": [
+      "Ntouka Bird"
+    ],
+    "enc:\\\\x8101\\\\x1187\\\\xE433\\\\x93A6\\\\x47E1": [
+      "Rampaging Ntouka"
+    ],
+    "enc:\\\\x8101\\\\x1554\\\\xA7EB\\\\x3D37": [
+      "Immolated Djinn"
+    ],
+    "enc:\\\\x8101\\\\x1555\\\\xB996\\\\xBF2B\\\\x3F18": [
+      "Water Djinn"
+    ],
+    "enc:\\\\x8101\\\\x1556\\\\xB306\\\\xE2DB\\\\x64CB": [
+      "Maelstrom Djinn"
+    ],
+    "enc:\\\\x8101\\\\x1952\\\\xE06F\\\\xB81B\\\\x5E5E": [
+      "Blue Tongue Heket"
+    ],
+    "enc:\\\\x8101\\\\x1953\\\\xFAFB\\\\xC8A5\\\\x5B16": [
+      "Blood Cowl Heket"
+    ],
+    "enc:\\\\x8101\\\\x19E2\\\\xCFFF\\\\xBF56\\\\x3D43": [
+      "Stoneaxe Heket"
+    ],
+    "enc:\\\\x8101\\\\x1A94\\\\xAC7F\\\\xF190\\\\x7563": [
+      "Beast Sworn Heket"
+    ],
     "enc:\\\\x8101\\\\x1CE3\\\\xA10F\\\\x9001\\\\x49F3": [
       "Makdeh the Aggravating"
+    ],
+    "enc:\\\\x8101\\\\x46AB\\\\xB705\\\\x0EB7": [
+      "Steelfang Drake"
     ],
     "enc:\\\\x8101\\\\x4731\\\\x9857\\\\x863A\\\\x3B88": [
       "Spirit of Infuriating Heat"
     ],
     "enc:\\\\x8101\\\\x4C88\\\\xB01C\\\\xF31C\\\\x3879": [
       "Kournan Guard"
+    ],
+    "enc:\\\\x8101\\\\x4CA1\\\\xC6FE\\\\x8123\\\\x663C": [
+      "Crested Ntouka Bird"
+    ],
+    "enc:\\\\x8101\\\\x4D78\\\\xA585\\\\xA6F7\\\\x555D": [
+      "Chiossen, Soothing Breeze"
+    ],
+    "enc:\\\\x8101\\\\x4D97\\\\xC3B0\\\\xB479\\\\x5CE2": [
+      "Sergeant Behnwa"
+    ],
+    "enc:\\\\x8101\\\\x4E0C\\\\xB42D\\\\x879D\\\\x53A9": [
+      "Stone Shard Crag"
+    ],
+    "enc:\\\\x8101\\\\x4E0D\\\\xCA0F\\\\xF04C\\\\x3AE0": [
+      "Cracked Mesa"
     ],
     "enc:\\\\x8101\\\\x5134\\\\x877B\\\\x8D12\\\\x7167": [
       "Behemoth Gravebane"
@@ -101,6 +161,9 @@
     ],
     "enc:\\\\x8101\\\\x571D\\\\xBFC6\\\\xE2B5\\\\x6324": [
       "Corporal Suli"
+    ],
+    "enc:\\\\x8101\\\\x5DCF\\\\xC6E5\\\\x1747": [
+      "Elder Crocodile"
     ],
     "enc:\\\\x8101\\\\x7F4D\\\\xFC50\\\\xD378\\\\x2E42": [
       "Mandragor Smoke Devil"

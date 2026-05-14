@@ -9,11 +9,14 @@ This file is both:
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 from ...Map import Map
 from ...Party import Party
 from ...Player import Player
 from ...Py4GWcorelib import ConsoleLog, Console
 from ...py4gwcorelib_src.BehaviorTree import BehaviorTree
+from .composite import BTComposite
 
 
 def _log(source: str, message: str, *, log: bool = False, message_type=Console.MessageType.Info) -> None:
@@ -91,6 +94,53 @@ class BTParty:
         )
 
     @staticmethod
+    def FlagHero(hero_position: int, x: float, y: float, log: bool = False, aftercast_ms: int = 125) -> BehaviorTree:
+        """
+        Build an action tree that flags one hero at a world coordinate.
+
+        Meta:
+          Expose: true
+          Audience: intermediate
+          Display: Flag Hero
+          Purpose: Flag a single local hero at a given position.
+          UserDescription: Use this when you need to place one hero at a specific flag position.
+          Notes: The hero selector uses party position and resolves to the current hero agent id at runtime.
+        """
+
+        def _flag_hero() -> BehaviorTree.NodeState:
+            resolved_position = int(hero_position)
+            if resolved_position <= 0:
+                _fail_log(
+                    "BTParty.FlagHero",
+                    f"Failed to flag hero: invalid party position {resolved_position}.",
+                )
+                return BehaviorTree.NodeState.FAILURE
+
+            hero_agent_id = int(Party.Heroes.GetHeroAgentIDByPartyPosition(resolved_position) or 0)
+            if hero_agent_id <= 0:
+                _fail_log(
+                    "BTParty.FlagHero",
+                    f"Failed to flag hero: no hero found at party position {resolved_position}.",
+                )
+                return BehaviorTree.NodeState.FAILURE
+
+            Party.Heroes.FlagHero(hero_agent_id, float(x), float(y))
+            _log(
+                "BTParty.FlagHero",
+                f"FlagHero party_position={resolved_position}, agent_id={hero_agent_id}, x={x:.2f}, y={y:.2f}",
+                log=log,
+            )
+            return BehaviorTree.NodeState.SUCCESS
+
+        return BehaviorTree(
+            BehaviorTree.ActionNode(
+                name="FlagHero",
+                action_fn=_flag_hero,
+                aftercast_ms=max(0, int(aftercast_ms)),
+            )
+        )
+
+    @staticmethod
     def FlagAllHeroes(x: float, y: float, log: bool = False, aftercast_ms: int = 125) -> BehaviorTree:
         """
         Build an action tree that flags all heroes at a world coordinate.
@@ -115,6 +165,63 @@ class BTParty:
                 action_fn=_flag_all_heroes,
                 aftercast_ms=max(0, int(aftercast_ms)),
             )
+        )
+
+    @staticmethod
+    def FlagHeroesFromList(
+        hero_positions: Sequence[int | str] | None,
+        x: float,
+        y: float,
+        flag_all: bool = False,
+        log: bool = False,
+        aftercast_ms: int = 125,
+    ) -> BehaviorTree:
+        """
+        Build a composite tree that flags selected heroes at a world coordinate.
+
+        Meta:
+          Expose: true
+          Audience: intermediate
+          Display: Flag Heroes From List
+          Purpose: Flag several local heroes in sequence using party positions, or all heroes with an explicit flag.
+          UserDescription: Use this when a step should flag one hero, many heroes, or all heroes through one shared entrypoint.
+          Notes: When `flag_all` is true, the composite collapses to the all-heroes flag routine and ignores `hero_positions`.
+        """
+        normalized_positions: list[int] = []
+        if flag_all:
+            return BTParty.FlagAllHeroes(x=float(x), y=float(y), log=log, aftercast_ms=aftercast_ms)
+
+        for raw_value in hero_positions or []:
+            if isinstance(raw_value, str):
+                stripped_value = raw_value.strip()
+                if not stripped_value:
+                    continue
+                try:
+                    resolved_position = int(stripped_value)
+                except ValueError as exc:
+                    raise ValueError(f"Invalid hero position value {raw_value!r}; expected positive integer.") from exc
+            else:
+                resolved_position = int(raw_value)
+
+            if resolved_position <= 0:
+                raise ValueError(f"Invalid hero position value {raw_value!r}; expected positive integer.")
+            normalized_positions.append(resolved_position)
+
+        if not normalized_positions:
+            raise ValueError("FlagHeroesFromList requires at least one hero position unless flag_all is true.")
+
+        return BTComposite.Sequence(
+            *[
+                BTParty.FlagHero(
+                    hero_position=hero_position,
+                    x=float(x),
+                    y=float(y),
+                    log=log,
+                    aftercast_ms=aftercast_ms,
+                )
+                for hero_position in normalized_positions
+            ],
+            name="FlagHeroesFromList",
         )
 
     @staticmethod

@@ -159,6 +159,7 @@ class BTMovement:
         stall_threshold_ms: int = 500,
         pause_on_combat: bool = True,
         pause_flag_key: str = "PAUSE_MOVEMENT",
+        flag_heroes_to_waypoint: bool = False,
         log: bool = False,
         path_points_override: list[tuple[float, float]] | None = None,
     ) -> BehaviorTree:
@@ -171,7 +172,7 @@ class BTMovement:
             Display: Move
             Purpose: Move the player to target coordinates with waypoint tracking, pause handling, and timeout protection.
             UserDescription: Use this when you want a robust movement routine that can pause, recover, and report progress through the blackboard.
-            Notes: Writes movement state to the blackboard and uses a parallel runtime with move, timeout, and map-transition watchers.
+            Notes: Writes movement state to the blackboard and uses a parallel runtime with move, timeout, and map-transition watchers. Optionally flags all heroes to each dispatched waypoint.
         """
         state: BTMovement._MoveState = {
             "path_gen": None,
@@ -415,6 +416,8 @@ class BTMovement:
                     move_x += random.uniform(-10.0, 10.0)
                     move_y += random.uniform(-10.0, 10.0)
             Player.Move(move_x, move_y)
+            if flag_heroes_to_waypoint and Map.IsExplorable() and Party.IsPartyLeader() and int(Party.GetHeroCount() or 0) > 0:
+                Party.Heroes.FlagAllHeroes(float(target_x), float(target_y))
             state["last_move_point"] = (move_x, move_y)
             from ...Py4GWcorelib import Utils
             state["last_move_command_ms"] = Utils.GetBaseTimestamp()
@@ -967,6 +970,7 @@ class BTMovement:
         stall_threshold_ms: int = 500,
         pause_on_combat: bool = True,
         pause_flag_key: str = "PAUSE_MOVEMENT",
+        flag_heroes_to_waypoint: bool = False,
         log: bool = False,
     ) -> BehaviorTree:
         """
@@ -996,6 +1000,7 @@ class BTMovement:
             stall_threshold_ms=stall_threshold_ms,
             pause_on_combat=pause_on_combat,
             pause_flag_key=pause_flag_key,
+            flag_heroes_to_waypoint=flag_heroes_to_waypoint,
             log=log,
             path_points_override=[
                 (float(path_point.x), float(path_point.y))
@@ -1008,11 +1013,17 @@ class BTMovement:
         coords: Vec2f,
         clear_area_radius: float = Range.Spirit.value,
         pause_on_combat: bool = True,
+        flag_heroes_to_waypoint: bool = False,
     ) -> BehaviorTree:
         from .agents import BTAgents
 
         return BTComposite.Sequence(
-            BTMovement.Move(x=coords.x, y=coords.y, pause_on_combat=pause_on_combat),
+            BTMovement.Move(
+                x=coords.x,
+                y=coords.y,
+                pause_on_combat=pause_on_combat,
+                flag_heroes_to_waypoint=flag_heroes_to_waypoint,
+            ),
             BTAgents.ClearEnemiesInArea(x=coords.x, y=coords.y, radius=clear_area_radius),
             name="MoveAndKill",
         )
@@ -1023,6 +1034,7 @@ class BTMovement:
     def _move_to_model_id(
         modelID_or_encStr: int | str,
         pause_on_combat: bool = True,
+        flag_heroes_to_waypoint: bool = False,
         log: bool = False,
     ) -> BehaviorTree:
         """
@@ -1063,6 +1075,7 @@ class BTMovement:
                 y=agent_y,
                 tolerance=Range.Adjacent.value,
                 pause_on_combat=pause_on_combat,
+                flag_heroes_to_waypoint=flag_heroes_to_waypoint,
                 log=log,
             )
 
@@ -1088,6 +1101,7 @@ class BTMovement:
         y: float,
         target_distance: float = Range.Adjacent.value,
         pause_on_combat: bool = True,
+        flag_heroes_to_waypoint: bool = False,
         log: bool = False,
     ) -> BehaviorTree:
         """
@@ -1105,7 +1119,13 @@ class BTMovement:
         from .player import BTPlayer
 
         return BTCompositeHelpers.move_and_target(
-            move_tree=BTMovement.Move(x=x, y=y, pause_on_combat=pause_on_combat, log=log),
+            move_tree=BTMovement.Move(
+                x=x,
+                y=y,
+                pause_on_combat=pause_on_combat,
+                flag_heroes_to_waypoint=flag_heroes_to_waypoint,
+                log=log,
+            ),
             target_tree=BTAgents.TargetNearestNPC(distance=target_distance, log=log),
         )
 
@@ -1114,6 +1134,7 @@ class BTMovement:
         pos: PointOrPath,
         pause_on_combat: bool = True,
         tolerance: float = DEFAULT_MOVE_TOLERANCE,
+        flag_heroes_to_waypoint: bool = False,
         log: bool = False,
     ) -> BehaviorTree:
         """
@@ -1137,6 +1158,7 @@ class BTMovement:
                 y=point.y,
                 tolerance=tolerance,
                 pause_on_combat=pause_on_combat,
+                flag_heroes_to_waypoint=flag_heroes_to_waypoint,
                 log=log,
             ),
         )
@@ -1147,6 +1169,7 @@ class BTMovement:
         y: float,
         target_distance: float = Range.Nearby.value,
         pause_on_combat: bool = True,
+        flag_heroes_to_waypoint: bool = False,
         log: bool = False,
     ) -> BehaviorTree:
         """
@@ -1164,7 +1187,13 @@ class BTMovement:
         from .player import BTPlayer
 
         return BTCompositeHelpers.move_target_and_interact(
-            move_tree=BTMovement.Move(x=x, y=y, pause_on_combat=pause_on_combat, log=log),
+            move_tree=BTMovement.Move(
+                x=x,
+                y=y,
+                pause_on_combat=pause_on_combat,
+                flag_heroes_to_waypoint=flag_heroes_to_waypoint,
+                log=log,
+            ),
             target_tree=BTAgents.TargetNearestNPC(distance=target_distance, log=log),
             log=log,
         )
@@ -1174,6 +1203,7 @@ class BTMovement:
         pos: PointOrPath,
         clear_area_radius: float = Range.Spirit.value,
         pause_on_combat: bool = True,
+        flag_heroes_to_waypoint: bool = False,
     ) -> BehaviorTree:
         """
         Build a tree that walks a path and clears enemies around each point.
@@ -1195,6 +1225,7 @@ class BTMovement:
                 coords=point,
                 clear_area_radius=clear_area_radius,
                 pause_on_combat=pause_on_combat,
+                flag_heroes_to_waypoint=flag_heroes_to_waypoint,
             ),
         )
 
@@ -1204,6 +1235,7 @@ class BTMovement:
         target_distance: float = Range.Adjacent.value,
         move_tolerance: float = DEFAULT_MOVE_TOLERANCE,
         pause_on_combat: bool = True,
+        flag_heroes_to_waypoint: bool = False,
         log: bool = False,
     ) -> BehaviorTree:
         """
@@ -1231,6 +1263,7 @@ class BTMovement:
                     y=point.y,
                     tolerance=move_tolerance,
                     pause_on_combat=pause_on_combat,
+                    flag_heroes_to_waypoint=flag_heroes_to_waypoint,
                     log=False,
                 )
                 for point in points
@@ -1250,6 +1283,7 @@ class BTMovement:
         target_distance: float = Range.Adjacent.value,
         move_tolerance: float = DEFAULT_MOVE_TOLERANCE,
         pause_on_combat: bool = True,
+        flag_heroes_to_waypoint: bool = False,
         log: bool = False,
     ) -> BehaviorTree:
         """
@@ -1276,6 +1310,7 @@ class BTMovement:
                     y=point.y,
                     tolerance=move_tolerance,
                     pause_on_combat=pause_on_combat,
+                    flag_heroes_to_waypoint=flag_heroes_to_waypoint,
                     log=False,
                 )
                 for point in points
@@ -1295,6 +1330,7 @@ class BTMovement:
         target_distance: float = Range.Area.value,
         move_tolerance: float = DEFAULT_MOVE_TOLERANCE,
         pause_on_combat: bool = True,
+        flag_heroes_to_waypoint: bool = False,
         log: bool = False,
     ) -> BehaviorTree:
         """
@@ -1322,6 +1358,7 @@ class BTMovement:
                     y=point.y,
                     tolerance=move_tolerance,
                     pause_on_combat=pause_on_combat,
+                    flag_heroes_to_waypoint=flag_heroes_to_waypoint,
                     log=False,
                 )
                 for point in points
@@ -1344,6 +1381,7 @@ class BTMovement:
         target_distance: float = Range.Nearby.value,
         dialog_id: str | int = 0,
         pause_on_combat: bool = True,
+        flag_heroes_to_waypoint: bool = False,
         log: bool = False,
     ) -> BehaviorTree:
         """
@@ -1361,7 +1399,13 @@ class BTMovement:
         from .player import BTPlayer
 
         return BTCompositeHelpers.move_target_interact_and_dialog(
-            move_tree=BTMovement.Move(x=x, y=y, pause_on_combat=pause_on_combat, log=log),
+            move_tree=BTMovement.Move(
+                x=x,
+                y=y,
+                pause_on_combat=pause_on_combat,
+                flag_heroes_to_waypoint=flag_heroes_to_waypoint,
+                log=log,
+            ),
             target_tree=BTAgents.TargetNearestNPC(distance=target_distance, log=log),
             dialog_id=dialog_id,
             log=log,
@@ -1374,6 +1418,7 @@ class BTMovement:
         target_distance: float = Range.Nearby.value,
         move_tolerance: float = DEFAULT_MOVE_TOLERANCE,
         pause_on_combat: bool = True,
+        flag_heroes_to_waypoint: bool = False,
         log: bool = False,
     ) -> BehaviorTree:
         """
@@ -1401,6 +1446,7 @@ class BTMovement:
                     y=point.y,
                     tolerance=move_tolerance,
                     pause_on_combat=pause_on_combat,
+                    flag_heroes_to_waypoint=flag_heroes_to_waypoint,
                     log=False,
                 )
                 for point in points
@@ -1424,6 +1470,7 @@ class BTMovement:
         target_distance: float = Range.Nearby.value,
         button_number: int = 0,
         pause_on_combat: bool = True,
+        flag_heroes_to_waypoint: bool = False,
         log: bool = False,
     ) -> BehaviorTree:
         """
@@ -1441,7 +1488,13 @@ class BTMovement:
         from .player import BTPlayer
 
         return BTCompositeHelpers._interact_and_automatic_dialog(
-            move_tree=BTMovement.Move(x=x, y=y, pause_on_combat=pause_on_combat, log=log),
+            move_tree=BTMovement.Move(
+                x=x,
+                y=y,
+                pause_on_combat=pause_on_combat,
+                flag_heroes_to_waypoint=flag_heroes_to_waypoint,
+                log=log,
+            ),
             target_tree=BTAgents.TargetNearestNPC(distance=target_distance, log=log),
             button_number=button_number,
             log=log,
@@ -1454,6 +1507,7 @@ class BTMovement:
         target_distance: float = Range.Nearby.value,
         move_tolerance: float = DEFAULT_MOVE_TOLERANCE,
         pause_on_combat: bool = True,
+        flag_heroes_to_waypoint: bool = False,
         log: bool = False,
     ) -> BehaviorTree:
         """
@@ -1481,6 +1535,7 @@ class BTMovement:
                     y=point.y,
                     tolerance=move_tolerance,
                     pause_on_combat=pause_on_combat,
+                    flag_heroes_to_waypoint=flag_heroes_to_waypoint,
                     log=False,
                 )
                 for point in points
@@ -1563,6 +1618,7 @@ class BTMovement:
         target_map_name: str = "",
         move_tolerance: float = DEFAULT_MOVE_TOLERANCE,
         pause_on_combat: bool = True,
+        flag_heroes_to_waypoint: bool = False,
         log: bool = False,
     ) -> BehaviorTree:
         """
@@ -1586,6 +1642,7 @@ class BTMovement:
                 y=y,
                 tolerance=move_tolerance,
                 pause_on_combat=pause_on_combat,
+                flag_heroes_to_waypoint=flag_heroes_to_waypoint,
                 log=log,
             ),
             BTMap.WaitforMapLoad(
@@ -1598,6 +1655,7 @@ class BTMovement:
     def MoveAndTargetByModelID(
         modelID_or_encStr: int | str,
         pause_on_combat: bool = True,
+        flag_heroes_to_waypoint: bool = False,
         log: bool = False,
     ) -> BehaviorTree:
         """
@@ -1617,6 +1675,7 @@ class BTMovement:
             move_tree=BTMovement._move_to_model_id(
                 modelID_or_encStr=modelID_or_encStr,
                 pause_on_combat=pause_on_combat,
+                flag_heroes_to_waypoint=flag_heroes_to_waypoint,
                 log=log,
             ),
             target_tree=BTAgents.TargetAgentByModelID(modelID_or_encStr=modelID_or_encStr, log=log),
@@ -1626,6 +1685,7 @@ class BTMovement:
     def MoveTargetAndInteractByModelID(
         modelID_or_encStr: int | str,
         pause_on_combat: bool = True,
+        flag_heroes_to_waypoint: bool = False,
         log: bool = False,
     ) -> BehaviorTree:
         """
@@ -1645,6 +1705,7 @@ class BTMovement:
             move_tree=BTMovement._move_to_model_id(
                 modelID_or_encStr=modelID_or_encStr,
                 pause_on_combat=pause_on_combat,
+                flag_heroes_to_waypoint=flag_heroes_to_waypoint,
                 log=log,
             ),
             target_tree=BTAgents.TargetAgentByModelID(modelID_or_encStr=modelID_or_encStr, log=log),
@@ -1656,6 +1717,7 @@ class BTMovement:
         modelID_or_encStr: int | str,
         dialog_id: str | int = 0,
         pause_on_combat: bool = True,
+        flag_heroes_to_waypoint: bool = False,
         log: bool = False,
     ) -> BehaviorTree:
         """
@@ -1675,6 +1737,7 @@ class BTMovement:
             move_tree=BTMovement._move_to_model_id(
                 modelID_or_encStr=modelID_or_encStr,
                 pause_on_combat=pause_on_combat,
+                flag_heroes_to_waypoint=flag_heroes_to_waypoint,
                 log=log,
             ),
             target_tree=BTAgents.TargetAgentByModelID(modelID_or_encStr=modelID_or_encStr, log=log),
@@ -1687,6 +1750,7 @@ class BTMovement:
         modelID_or_encStr: int | str,
         button_number: int = 0,
         pause_on_combat: bool = True,
+        flag_heroes_to_waypoint: bool = False,
         log: bool = False,
     ) -> BehaviorTree:
         """
@@ -1706,6 +1770,7 @@ class BTMovement:
             move_tree=BTMovement._move_to_model_id(
                 modelID_or_encStr=modelID_or_encStr,
                 pause_on_combat=pause_on_combat,
+                flag_heroes_to_waypoint=flag_heroes_to_waypoint,
                 log=log,
             ),
             target_tree=BTAgents.TargetAgentByModelID(modelID_or_encStr=modelID_or_encStr, log=log),
