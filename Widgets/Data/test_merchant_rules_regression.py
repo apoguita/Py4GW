@@ -1790,8 +1790,8 @@ def _test_specific_upgrade_salvage_backend_unavailable_blocks(module) -> None:
         )
 
         _expect(
-            reason == module.SALVAGE_UPGRADE_BACKEND_UNAVAILABLE_REASON,
-            "Unavailable exact-upgrade salvage backend should block specific-upgrade salvage.",
+            reason == fake_bridge.unavailable_reason,
+            "Unavailable exact-upgrade salvage backend should block specific-upgrade salvage with its reason.",
         )
         _expect(fake_bridge.calls == [], "Backend availability checks should not execute salvage.")
     finally:
@@ -1817,8 +1817,8 @@ def _test_specific_upgrade_salvage_current_bridge_disabled_by_default(module) ->
         bridge = widget._get_exact_upgrade_salvage_bridge()
 
         _expect(
-            reason == module.SALVAGE_UPGRADE_BACKEND_UNAVAILABLE_REASON,
-            "The current Frenkey/BT bridge should fail closed for exact-upgrade salvage.",
+            str(reason).startswith(module.SALVAGE_UPGRADE_BACKEND_UNAVAILABLE_REASON),
+            "The current native exact-upgrade bridge should fail closed when deterministic APIs are unavailable.",
         )
         _expect(
             getattr(bridge, "_load_attempted", False),
@@ -1860,10 +1860,219 @@ def _test_specific_upgrade_salvage_current_bridge_blocks_execute_before_node(mod
             "Blocked current bridge execution should not construct or call Frenkey BTNodes.",
         )
         _expect(
-            getattr(bridge, "_load_reason", "") == module.SALVAGE_UPGRADE_BACKEND_UNAVAILABLE_REASON,
-            "Blocked current bridge execution should expose the deterministic-targeting safety reason.",
+            str(getattr(bridge, "_load_reason", "")).startswith(module.SALVAGE_UPGRADE_BACKEND_UNAVAILABLE_REASON),
+            "Blocked current bridge execution should expose the deterministic-session safety reason.",
         )
     finally:
+        module.MOD_DB = original_db
+
+
+class _FakeNativeUpgrade:
+    def __init__(self, name: str):
+        self.name = str(name)
+
+    def equals(self, other: object) -> bool:
+        return isinstance(other, _FakeNativeUpgrade) and self.name == other.name
+
+    def matches(self, other: object) -> bool:
+        return self.equals(other)
+
+
+class _FakeNativeSalvageState:
+    def __init__(self, *, available_options: dict[str, bool] | None = None):
+        self.available_options = dict(available_options or {})
+        self.option_item_ids = {key: index + 1000 for index, key in enumerate(self.available_options)}
+        self.active = False
+        self.item_id = 0
+        self.kit_id = 0
+        self.chosen_option = ""
+        self.transaction_done = False
+        self.slot_removed = False
+        self.start_calls: list[tuple[int, int]] = []
+        self.select_calls: list[str] = []
+        self.finish_calls = 0
+        self.cancel_calls = 0
+        self.confirm_calls = 0
+
+
+def _install_fake_native_salvage_runtime(module, state: _FakeNativeSalvageState):
+    original_pyinventory = sys.modules.get("PyInventory")
+    original_item_module = sys.modules.get("Py4GWCoreLib.Item")
+
+    class FakeNativeInventory:
+        def StartSalvage(self, kit_id: int, item_id: int) -> bool:
+            state.kit_id = int(kit_id)
+            state.item_id = int(item_id)
+            state.active = True
+            state.transaction_done = False
+            state.start_calls.append((int(kit_id), int(item_id)))
+            return True
+
+        def GetSalvageSessionInfo(self):
+            return {
+                "active": state.active,
+                "item_id": state.item_id,
+                "kit_id": state.kit_id,
+                "available_options": dict(state.available_options),
+                "available_option_names": [key for key, available in state.available_options.items() if available],
+                "option_item_ids": dict(state.option_item_ids),
+                "chosen_option": state.chosen_option,
+            }
+
+        def SelectSalvageSessionOption(self, option: str) -> bool:
+            safe_option = str(option or "").strip().lower()
+            state.select_calls.append(safe_option)
+            if not state.available_options.get(safe_option, False):
+                return False
+            state.chosen_option = safe_option
+            return True
+
+        def IsSalvageTransactionDone(self) -> bool:
+            return bool(state.transaction_done)
+
+        def FinishSalvage(self) -> None:
+            state.finish_calls += 1
+            state.slot_removed = True
+            state.active = False
+            state.transaction_done = False
+
+    class FakeCustomization:
+        @staticmethod
+        def GetUpgrades(item_id: int):
+            if int(item_id) != int(state.item_id or 1001):
+                return None, None, None, []
+            suffix = None if state.slot_removed else _FakeNativeUpgrade("of Defense +5")
+            return None, suffix, None, []
+
+    fake_pyinventory = types.ModuleType("PyInventory")
+    fake_pyinventory.PyInventory = FakeNativeInventory
+    fake_item_module = types.ModuleType("Py4GWCoreLib.Item")
+    fake_item_module.Item = types.SimpleNamespace(Customization=FakeCustomization)
+    sys.modules["PyInventory"] = fake_pyinventory
+    sys.modules["Py4GWCoreLib.Item"] = fake_item_module
+
+    def _restore() -> None:
+        if original_pyinventory is None:
+            sys.modules.pop("PyInventory", None)
+        else:
+            sys.modules["PyInventory"] = original_pyinventory
+        if original_item_module is None:
+            sys.modules.pop("Py4GWCoreLib.Item", None)
+        else:
+            sys.modules["Py4GWCoreLib.Item"] = original_item_module
+
+    return _restore
+
+
+def _install_fake_native_bridge_widget_hooks(widget, state: _FakeNativeSalvageState) -> None:
+    def _confirm(_item_id: int, **_kwargs):
+        state.confirm_calls += 1
+        state.transaction_done = True
+        if False:
+            yield None
+        return "handled"
+
+    widget._confirm_salvage_choice_dialog = _confirm
+    widget._cancel_active_salvage_choice_dialog = lambda: setattr(state, "cancel_calls", state.cancel_calls + 1) or True
+
+
+def _test_specific_upgrade_native_bridge_salvages_selected_slot(module) -> None:
+    original_db = _install_weapon_mod_catalog_fixture(module)
+    state = _FakeNativeSalvageState(
+        available_options={
+            module.SALVAGE_OPTION_SUFFIX: True,
+            module.SALVAGE_OPTION_MATERIALS: True,
+        }
+    )
+    restore_runtime = _install_fake_native_salvage_runtime(module, state)
+    try:
+        widget = _make_widget(module)
+        item = _make_specific_suffix_item(module)
+        rule = _make_specific_suffix_salvage_rule(module, module.SALVAGE_OPTION_SUFFIX)
+        state.item_id = int(item.item_id)
+        widget.salvage_settings = _salvage_settings(module, rules=[rule])
+        widget._build_inventory_item_info = lambda item_id: item if int(item_id) == int(item.item_id) else None
+        widget._get_inventory_item_ids = lambda: [int(item.item_id)]
+        widget._get_salvage_kit_id_for_option = lambda _option: 777
+        _install_fake_native_bridge_widget_hooks(widget, state)
+
+        status = _drain_generator_return(
+            widget._salvage_one_item_with_rule(
+                _make_salvage_candidate(module, item, rule),
+                [],
+            )
+        )
+
+        _expect(
+            status == "processed",
+            "Native exact-upgrade bridge should return processed after verified slot removal.",
+        )
+        _expect(
+            state.start_calls == [(777, int(item.item_id))],
+            "Native bridge should start salvage with the selected kit and item.",
+        )
+        _expect(
+            state.select_calls == [module.SALVAGE_OPTION_SUFFIX],
+            "Native bridge should select the requested suffix option.",
+        )
+        _expect(
+            state.chosen_option == module.SALVAGE_OPTION_SUFFIX,
+            "Native bridge should leave the requested option selected before confirm.",
+        )
+        _expect(state.confirm_calls == 1, "Native bridge should confirm only after selected option is readable.")
+        _expect(state.finish_calls == 1, "Native bridge should finish the salvage transaction once.")
+        _expect(state.slot_removed, "Native bridge should verify that the targeted slot was removed.")
+        _expect(state.cancel_calls == 0, "Successful native exact-upgrade salvage should not cancel the dialog.")
+    finally:
+        restore_runtime()
+        module.MOD_DB = original_db
+
+
+def _test_specific_upgrade_native_bridge_rejects_missing_requested_option(module) -> None:
+    original_db = _install_weapon_mod_catalog_fixture(module)
+    state = _FakeNativeSalvageState(
+        available_options={
+            module.SALVAGE_OPTION_INSCRIPTION: True,
+            module.SALVAGE_OPTION_MATERIALS: True,
+        }
+    )
+    restore_runtime = _install_fake_native_salvage_runtime(module, state)
+    try:
+        widget = _make_widget(module)
+        item = _make_specific_suffix_item(module)
+        rule = _make_specific_suffix_salvage_rule(module, module.SALVAGE_OPTION_SUFFIX)
+        state.item_id = int(item.item_id)
+        widget.salvage_settings = _salvage_settings(module, rules=[rule])
+        widget._build_inventory_item_info = lambda item_id: item if int(item_id) == int(item.item_id) else None
+        widget._get_inventory_item_ids = lambda: [int(item.item_id)]
+        widget._get_salvage_kit_id_for_option = lambda _option: 777
+        _install_fake_native_bridge_widget_hooks(widget, state)
+
+        status = _drain_generator_return(
+            widget._salvage_one_item_with_rule(
+                _make_salvage_candidate(module, item, rule),
+                [],
+            )
+        )
+
+        _expect(status == "blocked", "Native bridge should block when the requested slot option is unavailable.")
+        _expect(
+            state.start_calls == [(777, int(item.item_id))],
+            "Native bridge may start only to read the deterministic session.",
+        )
+        _expect(
+            state.select_calls == [],
+            "Native bridge must not select inscription/materials when suffix is requested.",
+        )
+        _expect(state.confirm_calls == 0, "Native bridge must not confirm when the requested option is unavailable.")
+        _expect(state.finish_calls == 0, "Native bridge must not finish a rejected exact-upgrade salvage.")
+        _expect(not state.slot_removed, "Rejected exact-upgrade salvage must not remove any upgrade slot.")
+        _expect(
+            state.cancel_calls == 1,
+            "Native bridge should cancel the active choice dialog after an unavailable option.",
+        )
+    finally:
+        restore_runtime()
         module.MOD_DB = original_db
 
 
@@ -8447,6 +8656,14 @@ def main() -> int:
             (
                 "specific_upgrade_salvage_current_bridge_blocks_execute_before_node",
                 lambda: _test_specific_upgrade_salvage_current_bridge_blocks_execute_before_node(module),
+            ),
+            (
+                "specific_upgrade_native_bridge_salvages_selected_slot",
+                lambda: _test_specific_upgrade_native_bridge_salvages_selected_slot(module),
+            ),
+            (
+                "specific_upgrade_native_bridge_rejects_missing_requested_option",
+                lambda: _test_specific_upgrade_native_bridge_rejects_missing_requested_option(module),
             ),
             (
                 "specific_upgrade_salvage_protection_blocks_before_bridge",
