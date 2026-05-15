@@ -50,6 +50,7 @@ import random
 from typing import Any, TYPE_CHECKING, Callable, TypedDict, cast
 
 from ...Agent import Agent
+
 from ...Map import Map
 from ...enums_src.GameData_enums import Range
 from ...native_src.internals.types import Point2D
@@ -407,6 +408,7 @@ class BTMovement:
                 UserDescription: Internal support routine.
                 Notes: Records the last issued move point so repeated nudges can avoid exact duplicates.
             """
+            from ...Party import Party
             move_x: float = target_x
             move_y: float = target_y
             last_move_point: Point2D | None = state["last_move_point"]

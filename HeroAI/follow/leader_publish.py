@@ -72,6 +72,9 @@ class FollowTuningConfig:
     leader_move_release_distance: float = 1.0
     # Off-mesh snap distance cap. Snaps farther than this fall back to anchor.
     followpos_max_reach: float = field(default_factory=lambda: float(Range.Area.value))
+    # Allow a small amount of extra distance from the leader beyond the
+    # intended formation radius before we give up and stack at the anchor.
+    followpos_anchor_slack: float = 50.0
     # NavMesh.contains margin — points just barely off-mesh still count as on.
     followpos_contains_margin: float = 20.0
 
@@ -473,6 +476,7 @@ class FollowFormationPublisher:
         fallback_x: float,
         fallback_y: float,
         leader_zplane: int,
+        fallback_candidates: list[tuple[float, float]] | None = None,
     ) -> tuple[float, float]:
         """Snap raw FollowPos to navmesh, or fall back to anchor.
 
@@ -499,7 +503,47 @@ class FollowFormationPublisher:
         snap_y = float(snapped[1])
         displacement = math.hypot(snap_x - raw_x, snap_y - raw_y)
         if displacement <= self.tuning.followpos_max_reach:
-            return (snap_x, snap_y)
+            # Prefer stacking on the leader anchor over publishing a reachable
+            # point that drifts too far away from the intended formation slot.
+            desired_anchor_distance = math.hypot(raw_x - fallback_x, raw_y - fallback_y)
+            snapped_anchor_distance = math.hypot(snap_x - fallback_x, snap_y - fallback_y)
+            if snapped_anchor_distance <= desired_anchor_distance + self.tuning.followpos_anchor_slack:
+                return (snap_x, snap_y)
+
+        # The anchor itself can be the bad point that forced repositioning.
+        # When the desired slot is invalid, prefer another clear point that is
+        # still close to the intended formation position before collapsing all
+        # the way back to the anchor stack.
+        candidate_points: list[tuple[float, float]] = []
+        if fallback_candidates:
+            candidate_points.extend(
+                (float(candidate_x), float(candidate_y))
+                for candidate_x, candidate_y in fallback_candidates
+            )
+        candidate_points.append((float(fallback_x), float(fallback_y)))
+        desired_anchor_distance = math.hypot(raw_x - fallback_x, raw_y - fallback_y)
+
+        best_candidate: tuple[float, float] | None = None
+        best_distance = float("inf")
+        for candidate_x, candidate_y in candidate_points:
+            try:
+                if not navmesh.contains(candidate_x, candidate_y, self.tuning.followpos_contains_margin):
+                    continue
+            except Exception:
+                continue
+
+            candidate_anchor_distance = math.hypot(candidate_x - fallback_x, candidate_y - fallback_y)
+            if candidate_anchor_distance > desired_anchor_distance + self.tuning.followpos_anchor_slack:
+                continue
+
+            candidate_distance = math.hypot(candidate_x - raw_x, candidate_y - raw_y)
+            if candidate_distance < best_distance:
+                best_distance = candidate_distance
+                best_candidate = (candidate_x, candidate_y)
+
+        if best_candidate is not None:
+            return best_candidate
+
         return (fallback_x, fallback_y)
 
     def _publish_active_slot(
@@ -513,6 +557,7 @@ class FollowFormationPublisher:
         leader_zplane: int,
         move_threshold: float,
         combat_threshold: float,
+        fallback_candidates: list[tuple[float, float]] | None = None,
     ) -> None:
         options.FollowOffset.x = float(local_x)
         options.FollowOffset.y = float(local_y)
@@ -526,6 +571,7 @@ class FollowFormationPublisher:
             float(anchor_x),
             float(anchor_y),
             int(leader_zplane),
+            fallback_candidates=fallback_candidates,
         )
         options.FollowPos.x = pos_x
         options.FollowPos.y = pos_y
@@ -602,6 +648,15 @@ class FollowFormationPublisher:
             leader_facing,
             leader_in_combat,
         )
+        party_positions: list[tuple[float, float]] = []
+        for index in range(self.shared_memory_manager.max_num_players):
+            account = all_accounts.AccountData[index]
+            if not (account.IsSlotActive and account.IsAccount) or all_accounts._is_slot_isolated_from_viewer(index, leader_index):
+                continue
+            if not self._same_party_and_map(leader_account, account):
+                continue
+            party_positions.append((float(account.AgentData.Pos.x), float(account.AgentData.Pos.y)))
+
         for index in range(self.shared_memory_manager.max_num_players):
             account: AccountStruct = all_accounts.AccountData[index]
             if not (account.IsSlotActive and account.IsAccount) or all_accounts._is_slot_isolated_from_viewer(index, leader_index):
@@ -628,6 +683,19 @@ class FollowFormationPublisher:
             options.FollowMoveThresholdCombat = float(self.thresholds.combat_follow_threshold)
             options.LeaderFollowReady = False
 
+            opposite_local_x = -float(local_x)
+            opposite_local_y = -float(local_y)
+            opposite_rx, opposite_ry = self._rotate_local_to_world(
+                opposite_local_x,
+                opposite_local_y,
+                anchor_facing,
+            )
+            fallback_candidates: list[tuple[float, float]] = [
+                (float(anchor_x + opposite_rx), float(anchor_y + opposite_ry)),
+                (float(leader_x), float(leader_y)),
+            ]
+            fallback_candidates.extend(party_positions)
+
             if self.state.hold_until_leader_moves:
                 self._apply_held_slot(options, account, leader_zplane)
                 continue
@@ -647,6 +715,7 @@ class FollowFormationPublisher:
                     leader_zplane,
                     move_threshold,
                     combat_threshold,
+                    fallback_candidates=fallback_candidates,
                 )
                 continue
 
@@ -660,4 +729,5 @@ class FollowFormationPublisher:
                 leader_zplane,
                 move_threshold,
                 combat_threshold,
+                fallback_candidates=fallback_candidates,
             )

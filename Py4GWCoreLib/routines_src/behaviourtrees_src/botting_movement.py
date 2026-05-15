@@ -100,11 +100,18 @@ def add_wait_out_of_combat_state(bot, name: str = "Wait Out Of Combat") -> None:
     bot.States.AddCustomState(_wait_out_of_combat, str(name))
 
 
-def add_wait_map_load_state(bot, *, target_map_id: int = 0, name: str = "Wait Map Load") -> None:
+def add_wait_map_load_state(
+    bot,
+    *,
+    target_map_id: int = 0,
+    timeout_ms: int = 10000,
+    name: str = "Wait Map Load",
+) -> None:
     def _wait_map_load():
-        if cutscene_active():
-            return
-        yield from bot.Wait._coro_for_map_load(target_map_id=int(target_map_id or 0))
+        yield from bot.Wait._coro_for_map_load(
+            target_map_id=int(target_map_id or 0),
+            timeout_ms=max(0, int(timeout_ms)),
+        )
 
     bot.States.AddCustomState(_wait_map_load, str(name))
 
@@ -125,6 +132,25 @@ def dispatch_travel(bot, *, target_map_id: int = 0, target_map_name: str = "", l
     if leave_party:
         bot.Party.LeaveParty()
     bot.Map.Travel(target_map_id=int(target_map_id or 0), target_map_name=str(target_map_name or ""))
+
+
+def add_travel_state(
+    bot,
+    *,
+    target_map_id: int = 0,
+    target_map_name: str = "",
+    leave_party: bool = True,
+    name: str = "Travel",
+) -> None:
+    def _travel():
+        if leave_party:
+            bot.Party.LeaveParty()
+        yield from bot.Map._coro_travel(
+            target_map_id=int(target_map_id or 0),
+            target_map_name=str(target_map_name or ""),
+        )
+
+    bot.States.AddCustomState(_travel, str(name))
 
 
 def _resolve_map_id(target_map_id: int, target_map_name: str) -> int:
@@ -201,11 +227,11 @@ def add_random_travel_state(
     def _travel() -> None:
         from Py4GWCoreLib import Map
 
+        if leave_party:
+            bot.Party.LeaveParty()
         district = int(random.choice(allowed_districts))
         Map.TravelToDistrict(resolved_map_id, district=district)
 
-    if leave_party:
-        bot.Party.LeaveParty()
     bot.States.AddCustomState(_travel, str(name))
     if settle_wait_ms > 0:
         bot.Wait.ForTime(int(settle_wait_ms))

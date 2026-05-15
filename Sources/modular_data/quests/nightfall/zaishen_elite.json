@@ -12,7 +12,7 @@
     {"type": "exit_map", "name": "Leave Kamadan Jewel of Istan", "point": [-9242, 16816], "target_map_id": 430},
     {"type": "auto_path", "name": "Path", "points": [[13488, 3279]]},
     {"type": "wait", "ms": 10000},
-    {"type": "skip_cutscene"},
+    {"type": "wait_for_map_load", "map_id": 430},
     {"type": "auto_path", "name": "To Field General Hayao", "points": [[13033, 3537]]},
     {"type": "dialog", "id": "0x826607", "npc": "FIELD_GENERAL_HAYAO", "name": "Dialog - Field General Hayao"}
   ]

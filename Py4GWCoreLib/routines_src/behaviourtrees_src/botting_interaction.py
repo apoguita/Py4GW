@@ -387,7 +387,7 @@ def add_interact_quest_npc_state(bot, *, name: str = "Interact Quest NPC") -> No
 def add_skip_cutscene_state(
     bot,
     *,
-    wait_ms: int = 10000,
+    wait_ms: int = 5000,
     poll_ms: int = 250,
     pre_skip_delay_ms: int = 3000,
     name: str = "Skip Cutscene",
@@ -405,6 +405,7 @@ def add_skip_cutscene_state(
 
         poll = max(50, int(poll_ms))
         deadline = monotonic() + (max(0, int(wait_ms)) / 1000.0)
+        skip_requested = False
         while monotonic() < deadline:
             if cutscene_active():
                 delay_ms = max(0, int(pre_skip_delay_ms))
@@ -412,9 +413,11 @@ def add_skip_cutscene_state(
                     yield from _wait_without_transition_break(delay_ms)
                     if not cutscene_active():
                         return
-                request_skip_cinematic()
+                skip_requested = request_skip_cinematic()
                 break
             yield from bot.Wait._coro_for_time(poll)
+        if not skip_requested:
+            return
         while cutscene_active() or Map.IsMapLoading():
             yield from bot.Wait._coro_for_time(poll)
 

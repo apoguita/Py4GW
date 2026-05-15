@@ -76,6 +76,689 @@
       },
       "observed_skills": {}
     },
+    "enc:\\\\x3F30\\\\xF41F\\\\x88CC\\\\x5048": {
+      "encoded_names": [
+        "\\\\x3F30\\\\xF41F\\\\x88CC\\\\x5048"
+      ],
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "",
+      "model_ids": [
+        4050
+      ],
+      "observed_maps": {
+        "200": {
+          "base_id": 200,
+          "id": 200,
+          "instance_type": "Explorable",
+          "name": "Mount Qinkai"
+        }
+      },
+      "observed_skills": {
+        "1": {
+          "id": 1,
+          "name": "Healing Signet",
+          "profession": "Warrior",
+          "profession_id": 1
+        }
+      }
+    },
+    "enc:\\\\x40A4\\\\xA54C\\\\xB187\\\\x4F59": {
+      "encoded_names": [
+        "\\\\x40A4\\\\xA54C\\\\xB187\\\\x4F59"
+      ],
+      "inferred_primary": "Necromancer",
+      "inferred_secondary": "",
+      "model_ids": [
+        4076
+      ],
+      "observed_maps": {
+        "200": {
+          "base_id": 200,
+          "id": 200,
+          "instance_type": "Explorable",
+          "name": "Mount Qinkai"
+        }
+      },
+      "observed_skills": {
+        "1077": {
+          "id": 1077,
+          "name": "Vampiric Bite",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "153": {
+          "id": 153,
+          "name": "Vampiric Gaze",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "822": {
+          "id": 822,
+          "name": "Weaken Knees",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "841": {
+          "id": 841,
+          "name": "Fetid Ground",
+          "profession": "Necromancer",
+          "profession_id": 4
+        }
+      }
+    },
+    "enc:\\\\x40AB\\\\xA9A5\\\\xE023\\\\x1A85": {
+      "encoded_names": [
+        "\\\\x40AB\\\\xA9A5\\\\xE023\\\\x1A85"
+      ],
+      "inferred_primary": "Assassin",
+      "inferred_secondary": "None",
+      "model_ids": [
+        4081
+      ],
+      "observed_maps": {
+        "200": {
+          "base_id": 200,
+          "id": 200,
+          "instance_type": "Explorable",
+          "name": "Mount Qinkai"
+        }
+      },
+      "observed_skills": {
+        "1152": {
+          "id": 1152,
+          "name": "Demonic_Agility",
+          "profession": "None",
+          "profession_id": 0
+        },
+        "814": {
+          "id": 814,
+          "name": "Shadow Refuge",
+          "profession": "Assassin",
+          "profession_id": 7
+        },
+        "815": {
+          "id": 815,
+          "name": "Scorpion Wire",
+          "profession": "Assassin",
+          "profession_id": 7
+        },
+        "928": {
+          "id": 928,
+          "name": "Shadow Shroud",
+          "profession": "Assassin",
+          "profession_id": 7
+        }
+      }
+    },
+    "enc:\\\\x40B5\\\\xF50F\\\\xFAA1\\\\x040A": {
+      "encoded_names": [
+        "\\\\x40B5\\\\xF50F\\\\xFAA1\\\\x040A"
+      ],
+      "inferred_primary": "Monk",
+      "inferred_secondary": "",
+      "model_ids": [
+        4037
+      ],
+      "observed_maps": {
+        "200": {
+          "base_id": 200,
+          "id": 200,
+          "instance_type": "Explorable",
+          "name": "Mount Qinkai"
+        }
+      },
+      "observed_skills": {
+        "1121": {
+          "id": 1121,
+          "name": "Gift of Health",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "243": {
+          "id": 243,
+          "name": "Strength of Honor",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "252": {
+          "id": 252,
+          "name": "Banish",
+          "profession": "Monk",
+          "profession_id": 3
+        }
+      }
+    },
+    "enc:\\\\x40B7\\\\xF090\\\\x95A8\\\\x3126": {
+      "encoded_names": [
+        "\\\\x40B7\\\\xF090\\\\x95A8\\\\x3126"
+      ],
+      "inferred_primary": "Ranger",
+      "inferred_secondary": "",
+      "model_ids": [
+        4039
+      ],
+      "observed_maps": {
+        "200": {
+          "base_id": 200,
+          "id": 200,
+          "instance_type": "Explorable",
+          "name": "Mount Qinkai"
+        }
+      },
+      "observed_skills": {
+        "946": {
+          "id": 946,
+          "name": "Trapper's Focus",
+          "profession": "Ranger",
+          "profession_id": 2
+        }
+      }
+    },
+    "enc:\\\\x40B8\\\\xB9AD\\\\xC16E\\\\x073E": {
+      "encoded_names": [
+        "\\\\x40B8\\\\xB9AD\\\\xC16E\\\\x073E"
+      ],
+      "inferred_primary": "Ritualist",
+      "inferred_secondary": "",
+      "model_ids": [
+        4040
+      ],
+      "observed_maps": {
+        "200": {
+          "base_id": 200,
+          "id": 200,
+          "instance_type": "Explorable",
+          "name": "Mount Qinkai"
+        }
+      },
+      "observed_skills": {
+        "1258": {
+          "id": 1258,
+          "name": "Brutal Weapon",
+          "profession": "Ritualist",
+          "profession_id": 8
+        },
+        "871": {
+          "id": 871,
+          "name": "Shadowsong",
+          "profession": "Ritualist",
+          "profession_id": 8
+        },
+        "914": {
+          "id": 914,
+          "name": "Consume Soul",
+          "profession": "Ritualist",
+          "profession_id": 8
+        },
+        "964": {
+          "id": 964,
+          "name": "Vengeful Weapon",
+          "profession": "Ritualist",
+          "profession_id": 8
+        }
+      }
+    },
+    "enc:\\\\x40B9\\\\xBE3B\\\\xF3C3\\\\x5C86": {
+      "encoded_names": [
+        "\\\\x40B9\\\\xBE3B\\\\xF3C3\\\\x5C86"
+      ],
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "",
+      "model_ids": [
+        4073
+      ],
+      "observed_maps": {
+        "200": {
+          "base_id": 200,
+          "id": 200,
+          "instance_type": "Explorable",
+          "name": "Mount Qinkai"
+        }
+      },
+      "observed_skills": {
+        "1": {
+          "id": 1,
+          "name": "Healing Signet",
+          "profession": "Warrior",
+          "profession_id": 1
+        }
+      }
+    },
+    "enc:\\\\x40BA\\\\xF11E\\\\xAE9E\\\\x7218": {
+      "encoded_names": [
+        "\\\\x40BA\\\\xF11E\\\\xAE9E\\\\x7218"
+      ],
+      "inferred_primary": "Ranger",
+      "inferred_secondary": "",
+      "model_ids": [
+        4074
+      ],
+      "observed_maps": {
+        "200": {
+          "base_id": 200,
+          "id": 200,
+          "instance_type": "Explorable",
+          "name": "Mount Qinkai"
+        }
+      },
+      "observed_skills": {
+        "1211": {
+          "id": 1211,
+          "name": "Viper's Nest",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "854": {
+          "id": 854,
+          "name": "Snare",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "946": {
+          "id": 946,
+          "name": "Trapper's Focus",
+          "profession": "Ranger",
+          "profession_id": 2
+        }
+      }
+    },
+    "enc:\\\\x40BB\\\\x9CFE\\\\xB332\\\\x28A3": {
+      "encoded_names": [
+        "\\\\x40BB\\\\x9CFE\\\\xB332\\\\x28A3"
+      ],
+      "inferred_primary": "Ritualist",
+      "inferred_secondary": "",
+      "model_ids": [
+        4075
+      ],
+      "observed_maps": {
+        "200": {
+          "base_id": 200,
+          "id": 200,
+          "instance_type": "Explorable",
+          "name": "Mount Qinkai"
+        }
+      },
+      "observed_skills": {
+        "1247": {
+          "id": 1247,
+          "name": "Pain",
+          "profession": "Ritualist",
+          "profession_id": 8
+        },
+        "1258": {
+          "id": 1258,
+          "name": "Brutal Weapon",
+          "profession": "Ritualist",
+          "profession_id": 8
+        },
+        "871": {
+          "id": 871,
+          "name": "Shadowsong",
+          "profession": "Ritualist",
+          "profession_id": 8
+        },
+        "914": {
+          "id": 914,
+          "name": "Consume Soul",
+          "profession": "Ritualist",
+          "profession_id": 8
+        },
+        "964": {
+          "id": 964,
+          "name": "Vengeful Weapon",
+          "profession": "Ritualist",
+          "profession_id": 8
+        }
+      }
+    },
+    "enc:\\\\x40C6\\\\xC3F1\\\\x90F7\\\\x050A": {
+      "encoded_names": [
+        "\\\\x40C6\\\\xC3F1\\\\x90F7\\\\x050A"
+      ],
+      "inferred_primary": "Necromancer",
+      "inferred_secondary": "",
+      "model_ids": [
+        4087
+      ],
+      "observed_maps": {
+        "200": {
+          "base_id": 200,
+          "id": 200,
+          "instance_type": "Explorable",
+          "name": "Mount Qinkai"
+        }
+      },
+      "observed_skills": {
+        "110": {
+          "id": 110,
+          "name": "Unholy Feast",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "144": {
+          "id": 144,
+          "name": "Chilblains",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "154": {
+          "id": 154,
+          "name": "Plague Touch",
+          "profession": "Necromancer",
+          "profession_id": 4
+        },
+        "92": {
+          "id": 92,
+          "name": "Well of Blood",
+          "profession": "Necromancer",
+          "profession_id": 4
+        }
+      }
+    },
+    "enc:\\\\x40C7\\\\x87BA\\\\xE33A\\\\x4D94": {
+      "encoded_names": [
+        "\\\\x40C7\\\\x87BA\\\\xE33A\\\\x4D94"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        4088
+      ],
+      "observed_maps": {
+        "200": {
+          "base_id": 200,
+          "id": 200,
+          "instance_type": "Explorable",
+          "name": "Mount Qinkai"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x40C8\\\\x9AFB\\\\xCE4F\\\\x1ADE": {
+      "encoded_names": [
+        "\\\\x40C8\\\\x9AFB\\\\xCE4F\\\\x1ADE"
+      ],
+      "inferred_primary": "Ritualist",
+      "inferred_secondary": "",
+      "model_ids": [
+        4090
+      ],
+      "observed_maps": {
+        "200": {
+          "base_id": 200,
+          "id": 200,
+          "instance_type": "Explorable",
+          "name": "Mount Qinkai"
+        }
+      },
+      "observed_skills": {
+        "1236": {
+          "id": 1236,
+          "name": "Binding Chains",
+          "profession": "Ritualist",
+          "profession_id": 8
+        },
+        "1249": {
+          "id": 1249,
+          "name": "Displacement",
+          "profession": "Ritualist",
+          "profession_id": 8
+        },
+        "790": {
+          "id": 790,
+          "name": "Vengeful Was Khanhei",
+          "profession": "Ritualist",
+          "profession_id": 8
+        },
+        "794": {
+          "id": 794,
+          "name": "Wailing Weapon",
+          "profession": "Ritualist",
+          "profession_id": 8
+        },
+        "795": {
+          "id": 795,
+          "name": "Nightmare Weapon",
+          "profession": "Ritualist",
+          "profession_id": 8
+        }
+      }
+    },
+    "enc:\\\\x40D5\\\\xF293\\\\xA099\\\\x6268": {
+      "encoded_names": [
+        "\\\\x40D5\\\\xF293\\\\xA099\\\\x6268"
+      ],
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "",
+      "model_ids": [
+        4093
+      ],
+      "observed_maps": {
+        "200": {
+          "base_id": 200,
+          "id": 200,
+          "instance_type": "Explorable",
+          "name": "Mount Qinkai"
+        }
+      },
+      "observed_skills": {
+        "944": {
+          "id": 944,
+          "name": "Signet of Strength",
+          "profession": "Warrior",
+          "profession_id": 1
+        }
+      }
+    },
+    "enc:\\\\x40D6\\\\xBEA6\\\\x9D1A\\\\x4544": {
+      "encoded_names": [
+        "\\\\x40D6\\\\xBEA6\\\\x9D1A\\\\x4544"
+      ],
+      "inferred_primary": "Ranger",
+      "inferred_secondary": "",
+      "model_ids": [
+        4094
+      ],
+      "observed_maps": {
+        "200": {
+          "base_id": 200,
+          "id": 200,
+          "instance_type": "Explorable",
+          "name": "Mount Qinkai"
+        }
+      },
+      "observed_skills": {
+        "446": {
+          "id": 446,
+          "name": "Troll Unguent",
+          "profession": "Ranger",
+          "profession_id": 2
+        },
+        "893": {
+          "id": 893,
+          "name": "Seeking Arrows",
+          "profession": "Ranger",
+          "profession_id": 2
+        }
+      }
+    },
+    "enc:\\\\x40D7\\\\xCE5A\\\\xD087\\\\x4A21": {
+      "encoded_names": [
+        "\\\\x40D7\\\\xCE5A\\\\xD087\\\\x4A21"
+      ],
+      "inferred_primary": "Ritualist",
+      "inferred_secondary": "",
+      "model_ids": [
+        4095
+      ],
+      "observed_maps": {
+        "200": {
+          "base_id": 200,
+          "id": 200,
+          "instance_type": "Explorable",
+          "name": "Mount Qinkai"
+        }
+      },
+      "observed_skills": {
+        "1224": {
+          "id": 1224,
+          "name": "Draw Spirit",
+          "profession": "Ritualist",
+          "profession_id": 8
+        },
+        "1246": {
+          "id": 1246,
+          "name": "Ancestors' Rage",
+          "profession": "Ritualist",
+          "profession_id": 8
+        },
+        "789": {
+          "id": 789,
+          "name": "Grasping Was Kuurong",
+          "profession": "Ritualist",
+          "profession_id": 8
+        },
+        "795": {
+          "id": 795,
+          "name": "Nightmare Weapon",
+          "profession": "Ritualist",
+          "profession_id": 8
+        },
+        "920": {
+          "id": 920,
+          "name": "Destruction",
+          "profession": "Ritualist",
+          "profession_id": 8
+        }
+      }
+    },
+    "enc:\\\\x40D8\\\\x946E\\\\xD769\\\\x5B43": {
+      "encoded_names": [
+        "\\\\x40D8\\\\x946E\\\\xD769\\\\x5B43"
+      ],
+      "inferred_primary": "Monk",
+      "inferred_secondary": "",
+      "model_ids": [
+        4096
+      ],
+      "observed_maps": {
+        "200": {
+          "base_id": 200,
+          "id": 200,
+          "instance_type": "Explorable",
+          "name": "Mount Qinkai"
+        }
+      },
+      "observed_skills": {
+        "1130": {
+          "id": 1130,
+          "name": "Spear of Light",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "246": {
+          "id": 246,
+          "name": "Divine Intervention",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "274": {
+          "id": 274,
+          "name": "Healing Seed",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "288": {
+          "id": 288,
+          "name": "Healing Breeze",
+          "profession": "Monk",
+          "profession_id": 3
+        },
+        "294": {
+          "id": 294,
+          "name": "Signet of Judgment",
+          "profession": "Monk",
+          "profession_id": 3
+        }
+      }
+    },
+    "enc:\\\\x4163\\\\x8C20\\\\xFD77\\\\x39DC": {
+      "encoded_names": [
+        "\\\\x4163\\\\x8C20\\\\xFD77\\\\x39DC"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        4264
+      ],
+      "observed_maps": {
+        "200": {
+          "base_id": 200,
+          "id": 200,
+          "instance_type": "Explorable",
+          "name": "Mount Qinkai"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x4164\\\\x825C\\\\xA2F2\\\\x1235": {
+      "encoded_names": [
+        "\\\\x4164\\\\x825C\\\\xA2F2\\\\x1235"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        4265
+      ],
+      "observed_maps": {
+        "200": {
+          "base_id": 200,
+          "id": 200,
+          "instance_type": "Explorable",
+          "name": "Mount Qinkai"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x4165\\\\xAA52\\\\x6E73": {
+      "encoded_names": [
+        "\\\\x4165\\\\xAA52\\\\x6E73"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        4266
+      ],
+      "observed_maps": {
+        "200": {
+          "base_id": 200,
+          "id": 200,
+          "instance_type": "Explorable",
+          "name": "Mount Qinkai"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x4167\\\\x8FC3\\\\x08B6": {
+      "encoded_names": [
+        "\\\\x4167\\\\x8FC3\\\\x08B6"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        4268
+      ],
+      "observed_maps": {
+        "200": {
+          "base_id": 200,
+          "id": 200,
+          "instance_type": "Explorable",
+          "name": "Mount Qinkai"
+        }
+      },
+      "observed_skills": {}
+    },
     "enc:\\\\x7B64\\\\x95DB\\\\xAB29\\\\x1430": {
       "encoded_names": [
         "\\\\x7B64\\\\x95DB\\\\xAB29\\\\x1430"

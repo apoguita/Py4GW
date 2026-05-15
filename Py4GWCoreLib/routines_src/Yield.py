@@ -224,6 +224,25 @@ class Yield:
                 (m.value if hasattr(m, "value") else int(m))
                 for m in Yield.Upkeepers.MORALE_ITEMS
             ]
+            party_morale_models = [
+                model_id for model_id in morale_models if model_id in PARTY_MORALE_MODELS
+            ]
+            self_morale_models = [
+                model_id for model_id in morale_models if model_id not in PARTY_MORALE_MODELS
+            ]
+
+            # First clear personal DP with clovers when available; they are the
+            # highest-priority self-morale item in this upkeep flow.
+            clover_model_id = int(ModelID.Four_Leaf_Clover.value)
+            if clover_model_id in self_morale_models:
+                self_morale_models.remove(clover_model_id)
+                self_morale_models.insert(0, clover_model_id)
+
+            # Honeycomb is the last-choice party-wide morale consumable here.
+            honeycomb_model_id = int(ModelID.Honeycomb.value)
+            if honeycomb_model_id in party_morale_models:
+                party_morale_models.remove(honeycomb_model_id)
+                party_morale_models.append(honeycomb_model_id)
 
             if not (Checks.Map.MapValid() and Map.IsExplorable()):
                 yield from Yield.wait(500)
@@ -235,7 +254,7 @@ class Yield:
 
             def _min_party_morale():
                 try:
-                    entries = GLOBAL_CACHE.Party.GetPartyMorale() or []
+                    entries = GLOBAL_CACHE.ShMem.GetSharedPartyMorale() or []
                     if not entries:
                         return Player.GetMorale()
                     return min(int(m) for _, m in entries)
@@ -250,17 +269,19 @@ class Yield:
                 need_player_morale = player_morale < target_morale
                 need_party_morale = min_party < target_morale
 
-                # If any party member is below target, only party-wide morale items can help.
-                if need_party_morale:
-                    for model_id in morale_models:
-                        if model_id in PARTY_MORALE_MODELS:
-                            item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(model_id)
-                            if item_id:
-                                break
+                # First clear personal DP / morale deficits using self-only
+                # morale items, with clovers first.
+                if need_player_morale:
+                    for model_id in self_morale_models:
+                        item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(model_id)
+                        if item_id:
+                            break
 
-                # Only use player-only morale items when the player still needs morale.
-                if not item_id and need_player_morale:
-                    for model_id in morale_models:
+                # If any party member is still below target after the personal
+                # morale pass, use party-wide morale items, keeping honeycomb as
+                # the last fallback choice.
+                if not item_id and need_party_morale:
+                    for model_id in party_morale_models:
                         item_id = GLOBAL_CACHE.Inventory.GetFirstModelID(model_id)
                         if item_id:
                             break

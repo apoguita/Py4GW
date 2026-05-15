@@ -10,7 +10,7 @@
     {"type": "wait_for_map_load", "map_id": 492},
     {"type": "auto_path", "name": "Path", "points": [[-2506, 13286]]},
     {"type": "interact_item", "name": "Interact Item 17054", "model_id": 17054},
-    {"type": "skip_cutscene"},
+    {"type": "wait_for_map_load", "map_id": 492},
     {"type": "auto_path", "name": "Path", "points": [[-2567, 12200]]},
     {"type": "path_to_target", "name": "Target Rinkhal Monitor", "enemy": "RINKHAL_MONITOR"},
     {"type": "path_to_target", "name": "Target Rinkhal Monitor", "enemy": "RINKHAL_MONITOR"},

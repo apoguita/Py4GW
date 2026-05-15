@@ -15,7 +15,7 @@
     {"type": "auto_path", "name": "SPath 4", "points": [[5058, -6409], [423, -6364], [-2423, -3094], [-3549, -2917], [-4815, -6523], [-5994, -8280], [-3733, -8425]]},
     {"type": "interact_nearest_npc", "ms": 5000},
     {"type": "auto_path", "name": "Path 5", "points": [[-5959, -7940], [-3211, -2798], [-2144, -3333], [216, -6443], [609, -7518]]},
-    {"type": "skip_cutscene", "wait_ms": 1500},
+    {"type": "wait_for_map_load", "map_id": 21},
     {"type": "auto_path", "name": "Path 6", "points": [[4612, -11827], [5586, -15381], [5010, -14724]]},
     {"type": "interact_item", "ms": 5000},
     {"type": "interact_gadget", "ms": 15000},
@@ -33,7 +33,6 @@
     {"type": "auto_path", "name": "Path 9", "points": [[854, -21383], [-925, -20509], [-1917, -19896], [-2181, -20154]]},
     {"type": "interact_gadget", "ms": 15000},
     {"type": "interact_item", "ms": 2000},
-    {"type": "skip_cutscene", "wait_ms": 1500},
     {"type": "wait_map_change", "target_map_id": 133}
   ]
 }

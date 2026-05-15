@@ -14,6 +14,7 @@ TEMPLATE_MAP: dict[str, str] = {
     "aggressive": "Aggressive",
     "pacifist": "Pacifist",
     "multibox_aggressive": "Multibox_Aggressive",
+    "multibox_aggressive_no_inventory": "Multibox_Aggressive_No_Inventory",
     "preserve": "",
 }
 

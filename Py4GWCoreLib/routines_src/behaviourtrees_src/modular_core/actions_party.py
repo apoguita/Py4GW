@@ -76,7 +76,15 @@ def _resolve_summoning_stone_models(raw_value) -> list[int]:
 
 
 def handle_set_title(ctx: StepContext) -> None:
-    ctx.bot.Player.SetTitle(ctx.step["id"])
+    title_id = ctx.step["id"]
+
+    def _set_title() -> None:
+        ctx.bot.Player.SetTitle(title_id)
+
+    ctx.bot.States.AddCustomState(
+        _set_title,
+        str(ctx.step.get("name", "Set Title") or "Set Title"),
+    )
     wait_after_step(ctx.bot, ctx.step)
 
 
@@ -186,12 +194,18 @@ def handle_unflag_all_accounts(ctx: StepContext) -> None:
 
 
 def handle_resign(ctx: StepContext) -> None:
-    ctx.bot.Multibox.ResignParty()
+    ctx.bot.States.AddCustomState(
+        lambda: ctx.bot.Multibox.ResignParty(),
+        str(ctx.step.get("name", "Resign Party") or "Resign Party"),
+    )
     wait_after_step(ctx.bot, ctx.step)
 
 
 def handle_summon_all_accounts(ctx: StepContext) -> None:
-    ctx.bot.Multibox.SummonAllAccounts()
+    ctx.bot.States.AddCustomState(
+        lambda: ctx.bot.Multibox.SummonAllAccounts(),
+        str(ctx.step.get("name", "Summon All Accounts") or "Summon All Accounts"),
+    )
     wait_after_step(ctx.bot, ctx.step)
 
 
@@ -212,7 +226,10 @@ def handle_wait_all_accounts_same_map(ctx: StepContext) -> None:
 
 
 def handle_invite_all_accounts(ctx: StepContext) -> None:
-    ctx.bot.Multibox.InviteAllAccounts()
+    ctx.bot.States.AddCustomState(
+        lambda: ctx.bot.Multibox.InviteAllAccounts(),
+        str(ctx.step.get("name", "Invite All Accounts") or "Invite All Accounts"),
+    )
     wait_after_step(ctx.bot, ctx.step)
 
 
@@ -274,7 +291,14 @@ def handle_set_anchor(ctx: StepContext) -> None:
 
 def handle_set_hard_mode(ctx: StepContext) -> None:
     enabled = parse_step_bool(ctx.step.get("enabled", True), True)
-    ctx.bot.Party.SetHardMode(enabled)
+
+    def _set_hard_mode() -> None:
+        ctx.bot.Party.SetHardMode(enabled)
+
+    ctx.bot.States.AddCustomState(
+        _set_hard_mode,
+        str(ctx.step.get("name", "Set Hard Mode") or "Set Hard Mode"),
+    )
     wait_after_step(ctx.bot, ctx.step)
 
 

@@ -5,7 +5,7 @@
     {"type": "auto_path", "name": "To Dinja", "points": [[-2489, 16783]]},
     {"type": "dialog", "id": "0x830F01", "npc": "DINJA", "name": "Dialog - Dinja"},
     {"type": "dialog", "id": "0x88", "npc": "MHENLO", "name": "Dialog - Mhenlo"},
-    {"type": "skip_cutscene"},
+    {"type": "wait_for_map_load", "map_id": 493},
     {"type": "travel", "name": "Travel to Kaineng Center", "target_map_id": 194},
     {"type": "auto_path", "name": "To Imperial Guardsman Linro", "points": [[-1227, 864]]},
     {"type": "dialog", "id": "0x830F04", "npc": "IMPERIAL_GUARDSMAN_LINRO", "name": "Dialog - Imperial Guardsman Linro"},

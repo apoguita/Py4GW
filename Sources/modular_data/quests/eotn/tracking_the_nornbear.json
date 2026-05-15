@@ -1,0 +1,19 @@
+{
+  "name": "Tracking the Nornbear",
+  "steps": [
+    {"type": "travel", "name": "Travel to Gunnar's Hold", "target_map_id": 644},
+    {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true},
+    {"type": "auto_path", "name": "To Gunnar Poundfist", "points": [[24014, -7458]]},
+    {"type": "dialog", "id": "0x832804", "npc": "GUNNAR_POUNDFIST", "name": "Dialog - Gunnar Poundfist"},
+    {"type": "travel", "name": "Travel to Sifhalla", "target_map_id": 643},
+    {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true},
+    {"type": "auto_path", "name": "To Sif Shadowhunter", "points": [[14297, 23859]]},
+    {"type": "dialogs", "id": ["0x832804", "0x84"], "npc": "SIF_SHADOWHUNTER", "name": "Dialog - Sif Shadowhunter"},
+    {"type": "wait_for_map_load", "map_id": 678},
+    {"type": "auto_path", "name": "Path", "points": [[10413, 23949]]},
+    {"type": "wait", "ms": 6200},
+    {"type": "wait_for_map_load", "map_id": 643},
+    {"type": "auto_path", "name": "To Sif Shadowhunter", "points": [[14356, 23862]]},
+    {"type": "dialog", "id": "0x832807", "npc": "SIF_SHADOWHUNTER", "name": "Dialog - Sif Shadowhunter"}
+  ]
+}

@@ -9,6 +9,8 @@ model= 3093
 
 def main():
     if PyImGui.begin("Hello World"):
+        party_morale = Party.GetPartyMorale()
+        PyImGui.text(f"Party Morale: {party_morale}")
         if PyImGui.button("search model"):
              _, current_weapon_name = Agent.GetWeaponType(Player.GetAgentID())
              print(f"Current weapon: {current_weapon_name}")

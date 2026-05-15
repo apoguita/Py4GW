@@ -35,10 +35,11 @@
     {"type": "interact_gadget", "name": "Interact Cell Lock", "gadget": "CELL_LOCK", "point": [-14667, 13701]},
     {"type": "auto_path", "name": "Path", "points": [[-8308, 15648], [-4176, 16628]]},
     {"type": "path_to_target", "name": "Target Kournan Taskmaster", "enemy": "KOURNAN_TASKMASTER"},
-    {"type": "path_to_target", "name": "Target Kournan Taskmaster", "enemy": "KOURNAN_TASKMASTER"},
-    {"type": "auto_path", "name": "Path", "points": [[-861, 10587]]},
     {"type": "interact_item", "name": "Interact Item 15565", "model_id": 15565},
-    {"type": "auto_path", "name": "Path", "points": [[-3093, 15697], [-1250, 10408]]},
+    {"type": "path_to_target", "name": "Target Kournan Taskmaster", "enemy": "KOURNAN_TASKMASTER"},
+    {"type": "interact_item", "name": "Interact Item 15565", "model_id": 15565},
+    {"type": "auto_path", "name": "Path", "points": [[-4172, 16305], [-1250, 10408]]},
+    {"type": "path_to_target", "name": "Target Kournan Taskmaster", "enemy": "KOURNAN_TASKMASTER"},
     {"type": "interact_item", "name": "Interact Item 15565", "model_id": 15565},
     {"type": "auto_path", "name": "", "points": [[-1722, 7317], [1958, 7730]]},
     {"type": "path_to_target", "name": "Target Taskmaster Sadi Belai", "enemy": "TASKMASTER_SADI_BELAI"},
@@ -65,7 +66,6 @@
     {"type": "path_to_target", "name": "Target Overseer Haubeh", "enemy": "OVERSEER_HAUBEH"},
     {"type": "path_to_target", "name": "Target Overseer Haubeh", "enemy": "OVERSEER_HAUBEH"},
     {"type": "wait", "ms": 3000},
-    {"type": "skip_cutscene"},
     {"type": "wait_for_map_load", "map_id": 387}
   ]
 }

@@ -1,0 +1,13 @@
+{
+  "name": "Gunnar's Hold to Longeyes Ledge",
+  "steps": [
+    {"type": "travel", "name": "Travel to Route Outpost", "target_map_id": 644},
+    {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true},
+    {"type": "auto_path", "name": "To Exit", "points": [[15886, -6688]]},
+    {"type": "exit_map", "name": "Leave Gunnar's Hold", "point": [15183, -6382], "target_map_id": 548},
+    {"type": "auto_path", "name": "Norrhart Domains to Bjora Marches", "points": [[14234, -3639], [14945, 1198], [14856, 4450], [16039, 5238], [17835, 6892], [19469, 7258], [19128, 10532], [22362, 13906], [20039, 15751], [16295, 16370]]},
+    {"type": "exit_map", "name": "Leave Norrhart Domains", "point": [16392, 16769], "target_map_id": 482},
+    {"type": "auto_path", "name": "Bjora Marches to Longeyes Ledge", "points": [[-11233, -16723], [-7656, -13250], [-6672, -13081], [-5498, -11905], [-3598, -11163], [-3014, -9265], [-1002, -8065], [3533, -9983], [7472, -10943], [12985, -15342], [17306, -17686], [19048, -18814]]},
+    {"type": "exit_map", "name": "Leave Bjora Marches", "point": [19634, -19119], "target_map_id": 650}
+  ]
+}

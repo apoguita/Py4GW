@@ -24,9 +24,6 @@
     {"type": "path_to_target", "name": "Target Solitary Colossus", "enemy": "SOLITARY_COLOSSUS"},
     {"type": "auto_path", "name": "To Captain Mehhan", "points": [[563, 6305], [-2805, 11512]]},
     {"type": "dialogs", "id": ["0x824804", "0x84", "0x85"], "npc": "CAPTAIN_MEHHAN", "name": "Dialog - Captain Mehhan"},
-    {"type": "skip_cutscene"},
-    {"type": "skip_cutscene"},
-    {"type": "skip_cutscene"},
     {"type": "wait_for_map_load", "map_id": 480},
     {"type": "auto_path", "name": "", "points": [[-3068, 13507], [-4747, 13034]]},
     {"type": "dialogs", "id": ["0x824807"], "npc": "CAPTAIN_MEHHAN", "name": "Dialog - Captain Mehhan"}

@@ -290,6 +290,11 @@ class CombatClass:
         self.blocked_skill_ids = {
             int(skill_id) for skill_id in (blocked_skill_ids or []) if int(skill_id) != 0
         }
+
+    def _clear_auto_call_target_state(self) -> None:
+        self.auto_call_target_id = 0
+        self.auto_call_target_called = False
+        self.auto_call_target_source = ""
             
     def _get_active_spirit_buff_skill_ids(self) -> set[int]:
         spirit_array = AgentArray.GetSpiritPetArray()
@@ -526,15 +531,20 @@ class CombatClass:
         source: str = "auto",
     ) -> None:
         if cached_data is None or not Settings().AutoCallTargets:
+            self._clear_auto_call_target_state()
             return
 
-        if not cached_data.account_data.AgentPartyData.IsPartyLeader:
+        if (
+            not cached_data.account_data.AgentPartyData.IsPartyLeader
+            or not Agent.IsAlive(Player.GetAgentID())
+            or Routines.Checks.Party.IsPartyWiped()
+            or GLOBAL_CACHE.Party.IsPartyDefeated()
+        ):
+            self._clear_auto_call_target_state()
             return
 
         if not self._is_valid_call_target(self.auto_call_target_id):
-            self.auto_call_target_id = 0
-            self.auto_call_target_called = False
-            self.auto_call_target_source = ""
+            self._clear_auto_call_target_state()
 
         if (
             self.auto_call_target_id != 0
@@ -569,7 +579,13 @@ class CombatClass:
     def _post_spike_lock(self, skill: SkillData, target_id: int) -> None:
         if not self._spike_lock_enabled(skill):
             return
-        if target_id == 0 or not Agent.IsValid(target_id) or Agent.IsDead(target_id):
+        if (
+            target_id == 0
+            or not Routines.Checks.Map.MapValid()
+            or not Agent.IsValid(target_id)
+            or Agent.IsDead(target_id)
+            or not Agent.IsLiving(target_id)
+        ):
             return
         try:
             from Py4GWCoreLib.enums_src.Whiteboard_enums import (
@@ -602,7 +618,13 @@ class CombatClass:
     def _apply_spike_lock(self, skill: SkillData, target_id: int) -> None:
         if not self._spike_lock_enabled(skill):
             return
-        if target_id == 0 or not Agent.IsValid(target_id) or Agent.IsDead(target_id):
+        if (
+            target_id == 0
+            or not Routines.Checks.Map.MapValid()
+            or not Agent.IsValid(target_id)
+            or Agent.IsDead(target_id)
+            or not Agent.IsLiving(target_id)
+        ):
             return
         _, target_allegiance = Agent.GetAllegiance(target_id)
         if target_allegiance != "Enemy":

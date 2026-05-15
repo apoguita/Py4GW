@@ -33,9 +33,6 @@
     {"type": "unflag_heroes"},
     {"type": "enable_party_member_hooks"},
     {"type": "auto_path", "name": "Path", "points": [[1634, -11180]]},
-    {"type": "skip_cutscene"},
-    {"type": "skip_cutscene"},
-    {"type": "skip_cutscene"},
     {"type": "wait_for_map_load", "map_id": 496}
   ]
 }
