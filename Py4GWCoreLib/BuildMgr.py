@@ -295,6 +295,8 @@ class BuildMgr:
             return True
 
     def IsSharedSkillToggleEnabled(self, slot: int) -> bool:
+        if not self.is_combat_automator_compatible:
+            return True
         return self._get_shared_skill_toggle(slot)
     
     def GetActiveScanRange(self) -> float:
