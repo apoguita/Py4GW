@@ -1,0 +1,20 @@
+{
+  "name": "Boreal to EotN",
+  "steps": [
+    {"type": "travel", "name": "Travel to Boreal Station", "target_map_id": 675},
+    {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true},
+    {"type": "auto_path", "name": "To Exit", "points": [[5330, -27919]]},
+    {"type": "exit_map", "name": "Leave Boreal Station", "point": [4799, -27876], "target_map_id": 499},
+    {"type": "auto_path", "name": "Path", "points": [[3136, -24396]]},
+    {"type": "wait", "ms": 200, "anchor": true},
+    {"type": "auto_path", "name": "Path", "points": [[3542, -22151]]},
+    {"type": "wait", "ms": 16100},
+    {"type": "dialog", "id": "0x839104", "npc": "JORA", "name": "Dialog - Jora"},
+    {"type": "auto_path", "name": "Path", "points": [[-2188, -14339], [2404, -15330]]},
+    {"type": "wait", "ms": 200, "anchor": true},
+    {"type": "auto_path", "name": "Path", "points": [[6162, -12536], [7751, -11407], [7406, -9367]]},
+    {"type": "wait", "ms": 200, "anchor": true},
+    {"type": "auto_path", "name": "Path", "points": [[4863, -7815], [4042, -4044], [2636, -275]]},
+    {"type": "wait_for_map_load", "map_id": 642}
+  ]
+}

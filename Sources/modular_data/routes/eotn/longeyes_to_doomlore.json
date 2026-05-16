@@ -1,0 +1,13 @@
+{
+  "name": "Longeyes Ledge to Doomlore Shrine",
+  "steps": [
+    {"type": "travel", "name": "Travel to Route Outpost", "target_map_id": 650},
+    {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true},
+    {"type": "auto_path", "name": "To Exit", "points": [[-22469, 13328]]},
+    {"type": "exit_map", "name": "Leave Longeyes Ledge", "point": [-21791, 12596], "target_map_id": 649},
+    {"type": "auto_path", "name": "Grothmar Wardowns to Dalada Uplands", "points": [[-18582, 10400], [-13987, 10079], [-10701, 9980], [-7341, 9354], [-4437, 8519], [-446, 8262], [3324, 8156], [7149, 8495], [11734, 7775], [15031, 9168], [18175, 10690], [20370, 12353], [22427, 14882], [24355, 15175]]},
+    {"type": "exit_map", "name": "Leave Grothmar Wardowns", "point": [25188, 15229], "target_map_id": 647},
+    {"type": "auto_path", "name": "Dalada Uplands to Doomlore Shrine", "points": [[-16293, -716], [-13618, 405], [-13257, 2634], [-15959, 6655], [-14466, 9742], [-13779, 11592], [-14930, 13146]]},
+    {"type": "exit_map", "name": "Leave Dalada Uplands", "point": [-15582, 13866], "target_map_id": 648}
+  ]
+}

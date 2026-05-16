@@ -14,7 +14,7 @@
     {"type": "interact_npc", "name": "Interact Nerashi", "npc": "NERASHI"},
     {"type": "auto_path", "name": "Path", "points": [[-8194, -3511], [-3867, -4301], [-1001, -5759], [-480, -7011], [1090, -7631], [236, -9489]]},
     {"type": "wait", "ms": 5000},
-    {"type": "skip_cutscene"},
+    {"type": "wait_for_map_load", "map_id": 493},
     {"type": "auto_path", "name": "Path", "points": [[1509, -11013]]},
     {"type": "path_to_target", "name": "Target Kournan Field Commander", "enemy": "KOURNAN_FIELD_COMMANDER"},
     {"type": "auto_path", "name": "Path", "points": [[1321, -8309], [3440, -6005], [5094, -3933]]},

@@ -202,6 +202,62 @@ class Py4GWSharedMemoryManager:
     def GetAllActiveSlotsData(self) -> list[AccountStruct]:
         """Get all active slot data, ordered by PartyID, PartyPosition, PlayerLoginNumber, CharacterName."""
         return self.GetAllAccounts().GetAllActiveSlotsData()
+
+    @frame_cache(category="SharedMemory", source_lib="GetSharedPartyMorale")
+    def GetSharedPartyMorale(self, party_id: int | None = None) -> list[tuple[int, int]]:
+        """
+        Return morale entries from shared memory for one party, using player-account and hero slots.
+
+        Entries are returned as `(agent_id, morale)` for active player-account and hero slots.
+        Pets and NPCs are excluded.
+        """
+        resolved_party_id = int(Party.GetPartyID() if party_id is None else party_id or 0)
+        if resolved_party_id <= 0:
+            return []
+
+        entries: list[tuple[int, int]] = []
+        seen_keys: set[tuple[str, int, int]] = set()
+        for account in self.GetAllActiveSlotsData():
+            if not account or not account.IsSlotActive:
+                continue
+            if account.IsPet or account.IsNPC:
+                continue
+            if not (account.IsAccount or account.IsHero):
+                continue
+            if int(getattr(account.AgentPartyData, "PartyID", 0) or 0) != resolved_party_id:
+                continue
+
+            agent_id = int(getattr(account.AgentData, "AgentID", 0) or 0)
+            morale = int(getattr(account.AgentData, "Morale", 0) or 0)
+            if agent_id <= 0 or morale <= 0:
+                continue
+
+            if account.IsHero:
+                dedupe_key = (
+                    "hero",
+                    int(getattr(account.AgentData, "HeroID", 0) or 0),
+                    int(getattr(account.AgentData, "OwnerAgentID", 0) or 0),
+                )
+            else:
+                dedupe_key = (
+                    "account",
+                    int(getattr(account.AgentData, "LoginNumber", 0) or 0),
+                    agent_id,
+                )
+            if dedupe_key in seen_keys:
+                continue
+            seen_keys.add(dedupe_key)
+            entries.append((agent_id, morale))
+
+        return entries
+
+    @frame_cache(category="SharedMemory", source_lib="GetSharedPartyMinMorale")
+    def GetSharedPartyMinMorale(self, party_id: int | None = None) -> int:
+        """Return the minimum shared-memory morale for current-party players and heroes only."""
+        entries = self.GetSharedPartyMorale(party_id=party_id)
+        if not entries:
+            return int(Player.GetMorale() or 0)
+        return min(int(morale) for _, morale in entries)
     
     @frame_cache(category="SharedMemory", source_lib="GetAllActivePlayers")
     def GetAllAccountData(self, sort_results: bool = True, include_isolated: bool = False) -> list[AccountStruct]:

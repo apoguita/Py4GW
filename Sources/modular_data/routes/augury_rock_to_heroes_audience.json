@@ -1,0 +1,10 @@
+{
+  "name": "Augury Rock to Heroes Audience",
+  "steps": [
+    {"type": "travel", "name": "Travel to Augury Rock outpost", "target_map_id": 38},
+    {"type": "auto_path", "name": "To Exit", "points": [[-18484, -489]]},
+    {"type": "exit_map", "name": "Leave Augury Rock outpost", "point": [-19968, -448], "target_map_id": 113},
+    {"type": "auto_path", "name": "To Exit", "points": [[-14603, -14507]]},
+    {"type": "exit_map", "name": "Leave Prophet's Path", "point": [-14947, -14569], "target_map_id": 152}
+  ]
+}

@@ -755,32 +755,34 @@ def _wait_until_player_stops_moving(
 
 
 #region Movement
-def Move(pos: PointOrPath,pause_on_combat: bool | None = None,tolerance: float = 150.0,log: bool = False,) -> BehaviorTree:
+def Move(pos: PointOrPath,pause_on_combat: bool | None = None,tolerance: float = 150.0,flag_heroes_to_waypoint: bool = False,log: bool = False,) -> BehaviorTree:
     return _movement_with_runtime_pause(
         "Move",
         lambda resolved_pause: RoutinesBT.Movement.MovePath(
             pos=pos,
             pause_on_combat=resolved_pause,
             tolerance=tolerance,
+            flag_heroes_to_waypoint=flag_heroes_to_waypoint,
             log=log,
         ),
         pause_on_combat=pause_on_combat,
     )
 
-def MoveDirect(pos: PointOrPath, pause_on_combat: bool | None = None, log: bool = False) -> BehaviorTree:
+def MoveDirect(pos: PointOrPath, pause_on_combat: bool | None = None, flag_heroes_to_waypoint: bool = False, log: bool = False) -> BehaviorTree:
     return _movement_with_runtime_pause(
         "MoveDirect",
         lambda resolved_pause: RoutinesBT.Movement.MoveDirect(
             PointPath.as_path(pos),
             pause_on_combat=resolved_pause,
+            flag_heroes_to_waypoint=flag_heroes_to_waypoint,
             log=log,
         ),
         pause_on_combat=pause_on_combat,
     )
 
-def MoveAndExitMap(pos: PointOrPath, target_map_id: int = 0, target_map_name: str = "", log: bool = False) -> BehaviorTree:
+def MoveAndExitMap(pos: PointOrPath, target_map_id: int = 0, target_map_name: str = "", flag_heroes_to_waypoint: bool = False, log: bool = False) -> BehaviorTree:
     return RoutinesBT.Composite.Sequence(
-            Move(pos=pos, tolerance=150.0, log=log),
+            Move(pos=pos, tolerance=150.0, flag_heroes_to_waypoint=flag_heroes_to_waypoint, log=log),
             WaitForMapLoad(map_id=target_map_id, map_name=target_map_name),
     )
 
@@ -788,6 +790,7 @@ def MoveAndKill(
     pos: PointOrPath,
     clear_area_radius: float = Range.Spirit.value,
     pause_on_combat: bool | None = None,
+    flag_heroes_to_waypoint: bool = False,
 ) -> BehaviorTree:
     return _movement_with_runtime_pause(
         "MoveAndKill",
@@ -795,6 +798,7 @@ def MoveAndKill(
             pos=pos,
             clear_area_radius=clear_area_radius,
             pause_on_combat=resolved_pause,
+            flag_heroes_to_waypoint=flag_heroes_to_waypoint,
         ),
         pause_on_combat=pause_on_combat,
     )
@@ -804,6 +808,7 @@ def MoveAndTarget(
     target_distance: float = Range.Adjacent.value,
     move_tolerance: float = 150.0,
     pause_on_combat: bool | None = None,
+    flag_heroes_to_waypoint: bool = False,
     log: bool = False,
 ) -> BehaviorTree:
     return _movement_with_runtime_pause(
@@ -813,6 +818,7 @@ def MoveAndTarget(
             target_distance=target_distance,
             move_tolerance=move_tolerance,
             pause_on_combat=resolved_pause,
+            flag_heroes_to_waypoint=flag_heroes_to_waypoint,
             log=log,
         ),
         pause_on_combat=pause_on_combat,
@@ -823,10 +829,11 @@ def MoveAndInteract(
     target_distance: float = Range.Area.value,
     move_tolerance: float = 150.0,
     pause_on_combat: bool | None = None,
+    flag_heroes_to_waypoint: bool = False,
     log: bool = False,
 ) -> BehaviorTree:
     return RoutinesBT.Composite.Sequence(
-        Move(pos=pos, tolerance=move_tolerance, pause_on_combat=pause_on_combat, log=log),
+        Move(pos=pos, tolerance=move_tolerance, pause_on_combat=pause_on_combat, flag_heroes_to_waypoint=flag_heroes_to_waypoint, log=log),
         _wait_until_player_stops_moving(log=log),
         Wait(_POST_MOVEMENT_SETTLE_MS, log=log),
         TargetNearestAndInteract(pos=pos, target_distance=target_distance, log=log),
@@ -838,6 +845,7 @@ def MoveAndInteractWithGadget(
     target_distance: float = Range.Area.value,
     move_tolerance: float = 150.0,
     pause_on_combat: bool | None = None,
+    flag_heroes_to_waypoint: bool = False,
     log: bool = False,
 ) -> BehaviorTree:
     return _movement_with_runtime_pause(
@@ -847,6 +855,7 @@ def MoveAndInteractWithGadget(
                 pos=pos,
                 pause_on_combat=resolved_pause,
                 tolerance=move_tolerance,
+                flag_heroes_to_waypoint=flag_heroes_to_waypoint,
                 log=log,
             ),
             _wait_until_player_stops_moving(log=log),
@@ -863,10 +872,11 @@ def MoveAndAutoDialog(
     target_distance: float = Range.Nearby.value,
     move_tolerance: float = 150.0,
     pause_on_combat: bool | None = None,
+    flag_heroes_to_waypoint: bool = False,
     log: bool = False,
 ) -> BehaviorTree:
     return RoutinesBT.Composite.Sequence(
-        Move(pos=pos, tolerance=move_tolerance, pause_on_combat=pause_on_combat, log=log),
+        Move(pos=pos, tolerance=move_tolerance, pause_on_combat=pause_on_combat, flag_heroes_to_waypoint=flag_heroes_to_waypoint, log=log),
         _wait_until_player_stops_moving(log=log),
         Wait(_POST_MOVEMENT_SETTLE_MS, log=log),
         TargetNearestAndAutoDialog(pos=pos, buttons=buttons, target_distance=target_distance, log=log),
@@ -879,10 +889,11 @@ def MoveAndDialog(
     target_distance: float = Range.Nearby.value,
     move_tolerance: float = 150.0,
     pause_on_combat: bool | None = None,
+    flag_heroes_to_waypoint: bool = False,
     log: bool = False,
 ) -> BehaviorTree:
     return RoutinesBT.Composite.Sequence(
-        Move(pos=pos, tolerance=move_tolerance, pause_on_combat=pause_on_combat, log=log),
+        Move(pos=pos, tolerance=move_tolerance, pause_on_combat=pause_on_combat, flag_heroes_to_waypoint=flag_heroes_to_waypoint, log=log),
         _wait_until_player_stops_moving(log=log),
         Wait(_POST_MOVEMENT_SETTLE_MS, log=log),
         TargetNearestAndSendDialog(pos=pos, dialog_id=dialog_id, target_distance=target_distance, log=log),
@@ -892,6 +903,7 @@ def MoveAndDialog(
 def MoveAndTargetByModelID(
     modelID_or_encStr: int | str,
     pause_on_combat: bool | None = None,
+    flag_heroes_to_waypoint: bool = False,
     log: bool = False,
 ) -> BehaviorTree:
     return _movement_with_runtime_pause(
@@ -899,6 +911,7 @@ def MoveAndTargetByModelID(
         lambda resolved_pause: RoutinesBT.Movement.MoveAndTargetByModelID(
             modelID_or_encStr=modelID_or_encStr,
             pause_on_combat=resolved_pause,
+            flag_heroes_to_waypoint=flag_heroes_to_waypoint,
             log=log,
         ),
         pause_on_combat=pause_on_combat,
@@ -908,6 +921,7 @@ def MoveAndTargetByModelID(
 def MoveToModelID(
     modelID_or_encStr: int | str,
     pause_on_combat: bool | None = None,
+    flag_heroes_to_waypoint: bool = False,
     log: bool = False,
 ) -> BehaviorTree:
     return _movement_with_runtime_pause(
@@ -915,32 +929,33 @@ def MoveToModelID(
         lambda resolved_pause: RoutinesBT.Movement._move_to_model_id(
             modelID_or_encStr=modelID_or_encStr,
             pause_on_combat=resolved_pause,
+            flag_heroes_to_waypoint=flag_heroes_to_waypoint,
             log=log,
         ),
         pause_on_combat=pause_on_combat,
     )
     
-def MoveAndAutoDialogByModelID(modelID_or_encStr: int | str, button_number: int = 0, log: bool = False) -> BehaviorTree:
+def MoveAndAutoDialogByModelID(modelID_or_encStr: int | str, button_number: int = 0, flag_heroes_to_waypoint: bool = False, log: bool = False) -> BehaviorTree:
     return RoutinesBT.Composite.Sequence(
-        MoveToModelID(modelID_or_encStr=modelID_or_encStr, log=log),
+        MoveToModelID(modelID_or_encStr=modelID_or_encStr, flag_heroes_to_waypoint=flag_heroes_to_waypoint, log=log),
         _wait_until_player_stops_moving(log=log),
         Wait(_POST_MOVEMENT_SETTLE_MS, log=log),
         TargetAgentByModelIDAndAutoDialog(modelID_or_encStr=modelID_or_encStr, buttons=button_number, log=log),
         name="MoveAndAutoDialogByModelID",
     )
 
-def MoveAndDialogByModelID(modelID_or_encStr: int | str, dialog_id: int | str, log: bool = False) -> BehaviorTree:
+def MoveAndDialogByModelID(modelID_or_encStr: int | str, dialog_id: int | str, flag_heroes_to_waypoint: bool = False, log: bool = False) -> BehaviorTree:
     return RoutinesBT.Composite.Sequence(
-        MoveToModelID(modelID_or_encStr=modelID_or_encStr, log=log),
+        MoveToModelID(modelID_or_encStr=modelID_or_encStr, flag_heroes_to_waypoint=flag_heroes_to_waypoint, log=log),
         _wait_until_player_stops_moving(log=log),
         Wait(_POST_MOVEMENT_SETTLE_MS, log=log),
         TargetAgentByModelIDAndSendDialog(modelID_or_encStr=modelID_or_encStr, dialog_id=dialog_id, log=log),
         name="MoveAndDialogByModelID",
     )
 
-def MoveAndInteractByModelID(modelID_or_encStr: int | str, target_distance: float = Range.Nearby.value, log: bool = False) -> BehaviorTree:
+def MoveAndInteractByModelID(modelID_or_encStr: int | str, target_distance: float = Range.Nearby.value, flag_heroes_to_waypoint: bool = False, log: bool = False) -> BehaviorTree:
     return RoutinesBT.Composite.Sequence(
-        MoveToModelID(modelID_or_encStr=modelID_or_encStr, log=log),
+        MoveToModelID(modelID_or_encStr=modelID_or_encStr, flag_heroes_to_waypoint=flag_heroes_to_waypoint, log=log),
         _wait_until_player_stops_moving(log=log),
         Wait(_POST_MOVEMENT_SETTLE_MS, log=log),
         TargetAgentByModelIDAndInteract(modelID_or_encStr=modelID_or_encStr, log=log),
@@ -1396,6 +1411,15 @@ def AddHenchman(henchman_id: int) -> BehaviorTree:
 
 def AddHenchmanList(henchman_ids: list[int]) -> BehaviorTree:
     return RoutinesBT.Party.LoadParty(henchman_ids=henchman_ids,)
+
+def FlagHero(hero_position: int, x: float, y: float) -> BehaviorTree:
+    return RoutinesBT.Party.FlagHero(hero_position=hero_position, x=x, y=y,)
+
+def FlagAllHeroes(x: float, y: float) -> BehaviorTree:
+    return RoutinesBT.Party.FlagAllHeroes(x=x, y=y,)
+
+def FlagHeroesFromList(hero_positions: list[int | str] | None, x: float, y: float, flag_all: bool = False) -> BehaviorTree:
+    return RoutinesBT.Party.FlagHeroesFromList(hero_positions=hero_positions, x=x, y=y, flag_all=flag_all,)
 
 def WaitForActiveQuest(quest_id: int, timeout_ms: int = 1500, throttle_interval_ms: int = 150) -> BehaviorTree:
     return RoutinesBT.Party.WaitForActiveQuest(quest_id=quest_id,timeout_ms=timeout_ms,throttle_interval_ms=throttle_interval_ms,)

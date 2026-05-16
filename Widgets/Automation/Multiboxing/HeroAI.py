@@ -339,15 +339,15 @@ HeroAI_BT = BehaviorTree.SequenceNode(name="HeroAI_Main_BT",
                     action_fn=lambda: user_interrupt(),
                 ),
 
-                BehaviorTree.ActionNode(
-                    name="MovementInterrupt",
-                    action_fn=lambda: movement_interrupt(),
-                ),
-
                 # Follow
                 BehaviorTree.ActionNode(
                     name="Follow",
                     action_fn=lambda: Follow(cached_data),
+                ),
+
+                BehaviorTree.ActionNode(
+                    name="MovementInterrupt",
+                    action_fn=lambda: movement_interrupt(),
                 ),
 
                 # Combat

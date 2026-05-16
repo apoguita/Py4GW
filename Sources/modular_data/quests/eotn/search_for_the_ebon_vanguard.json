@@ -1,0 +1,14 @@
+{
+  "name": "Search for the Ebon Vanguard",
+  "steps": [
+    {"type": "travel", "name": "Travel to Longeyes Ledge", "target_map_id": 650},
+    {"type": "auto_path", "name": "To Olfun Longeye", "points": [[-25104, 13667]]},
+    {"type": "dialog", "id": "0x831801", "npc": "OLFUN_LONGEYE", "name": "Dialog - Olfun Longeye"},
+    {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true},
+    {"type": "auto_path", "name": "To Exit", "points": [[-22533, 13311]]},
+    {"type": "exit_map", "name": "Leave Longeyes Ledge", "point": [-22051, 12850], "target_map_id": 649},
+    {"type": "auto_path", "name": "To Vanguard Helmet", "points": [[-9598, -2985]]},
+    {"type": "interact_npc", "name": "Interact Vanguard Helmet", "npc": "VANGUARD_HELMET"},
+    {"type": "dialog", "id": "0x831807", "npc": "VANGUARD_HELMET", "name": "Dialog - Vanguard Helmet"}
+  ]
+}

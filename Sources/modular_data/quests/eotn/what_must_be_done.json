@@ -1,0 +1,27 @@
+{
+  "name": "What Must be Done",
+  "steps": [
+    {"type": "travel", "name": "Travel to Doomlore Shrine", "target_map_id": 648},
+    {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true},
+    {"type": "auto_path", "name": "To Bonwor Fierceblade", "points": [[-14462, 17060]]},
+    {"type": "dialog", "id": "0x838D01", "npc": "BONWOR_FIERCEBLADE", "name": "Dialog - Bonwor Fierceblade"},
+    {"type": "auto_path", "name": "To Exit", "points": [[-15842, 14281]]},
+    {"type": "exit_map", "name": "Leave Doomlore Shrine", "point": [-15303, 13602], "target_map_id": 647},
+    {"type": "auto_path", "name": "To Seer Fiercereign", "points": [[-2616, 6456]]},
+    {"type": "dialog", "id": "0x838D04", "npc": "SEER_FIERCEREIGN", "name": "Dialog - Seer Fiercereign"},
+    {"type": "auto_path", "name": "Path", "points": [[8888, 6497], [9995, 4300], [10755, 8875], [14723, 5059]]},
+    {"type": "wait", "ms": 30300},
+    {"type": "auto_path", "name": "To Gron Fierceclaw", "points": [[-9201, -662]]},
+    {"type": "dialog", "id": "0x838D04", "npc": "GRON_FIERCECLAW", "name": "Dialog - Gron Fierceclaw"},
+    {"type": "auto_path", "name": "To Target Armored Saurus", "points": [[-6579, -7723]]},
+    {"type": "path_to_target", "name": "Target Armored Saurus", "enemy": "ARMORED_SAURUS"},
+    {"type": "travel", "name": "Travel to Doomlore Shrine", "target_map_id": 648},
+    {"type": "auto_path", "name": "To Bonwor Fierceblade", "points": [[-14384, 17107]]},
+    {"type": "dialogs", "id": ["0x838D04", "0x84"], "npc": "BONWOR_FIERCEBLADE", "name": "Dialog - Bonwor Fierceblade"},
+    {"type": "wait_for_map_load", "map_id": 674},
+    {"type": "auto_path", "name": "Path", "points": [[-16532, 16929]]},
+    {"type": "wait_for_map_load", "map_id": 648},
+    {"type": "auto_path", "name": "To Bonwor Fierceblade", "points": [[-14397, 17097]]},
+    {"type": "dialog", "id": "0x838D07", "npc": "BONWOR_FIERCEBLADE", "name": "Dialog - Bonwor Fierceblade"}
+  ]
+}

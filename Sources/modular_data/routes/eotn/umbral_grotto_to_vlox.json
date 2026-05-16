@@ -1,0 +1,11 @@
+{
+  "name": "Umbral Grotto to Vlox's Falls",
+  "steps": [
+    {"type": "travel", "name": "Travel to Route Outpost", "target_map_id": 639},
+    {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true},
+    {"type": "auto_path", "name": "To Exit", "points": [[-22642, 10693], [-24541, 11572]]},
+    {"type": "exit_map", "name": "Leave Umbral Grotto", "point": [-26044, 10600], "target_map_id": 604},
+    {"type": "auto_path", "name": "Vloxen Excavations to Vlox's Falls", "points": [[-13779, 18460], [-13808, 16443], [-14953, 13219], [-17230, 9955], [-16309, 7242], [-16267, 5037], [-17457, 1883], [-17889, -1213], [-16952, -3971], [-17606, -7403], [-16885, -10820], [-18921, -11643], [-19455, -11828]]},
+    {"type": "exit_map", "name": "Leave Vloxen Excavations", "point": [-19922, -11963], "target_map_id": 624}
+  ]
+}

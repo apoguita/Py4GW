@@ -698,6 +698,12 @@ def GetBlessing(index: int, message: SharedMessageStruct):
         GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
         return
 
+    dialog_button = int(message.Params[1])
+    if dialog_button < 0:
+        ConsoleLog(MODULE_NAME, "Invalid blessing dialog button index.", Console.MessageType.Warning)
+        GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+        return
+
     SnapshotHeroAIOptions(message.ReceiverEmail)
     try:
         DisableHeroAIOptions(message.ReceiverEmail)
@@ -706,10 +712,8 @@ def GetBlessing(index: int, message: SharedMessageStruct):
         yield from Routines.Yield.Movement.FollowPath([(x, y)])
         yield from Routines.Yield.wait(100)
         yield from Routines.Yield.Player.InteractAgent(target)
-        yield from Routines.Yield.wait(500)
-        if UIManager.IsNPCDialogVisible():
-            UIManager.ClickDialogButton(message.Params[1])
-            yield from Routines.Yield.wait(200)
+        yield from Routines.Yield.wait(250)
+        yield from Routines.Yield.Player.SendAutomaticDialog(dialog_button)
 
         ConsoleLog(MODULE_NAME, "GetBlessing message processed and finished.", Console.MessageType.Info, False)
     finally:

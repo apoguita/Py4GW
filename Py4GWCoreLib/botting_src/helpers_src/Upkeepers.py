@@ -336,12 +336,17 @@ class _Upkeepers:
                 yield from Routines.Yield.wait(500)
 
     def upkeep_morale(self):
+        from ...Map import Map
         from ...Routines import Routines
         while True:
-            if self._config.upkeep.honeycomb.is_active():
-                yield from Routines.Yield.Upkeepers.Upkeep_Morale(110)
-            elif (self._config.upkeep.four_leaf_clover.is_active()):
+            # Morale/death-penalty upkeep is explorable-only. Do not even enter
+            # the morale consumable flow while idling in outposts.
+            if not Map.IsExplorable():
+                yield from Routines.Yield.wait(500)
+            elif self._config.upkeep.four_leaf_clover.is_active():
                 yield from Routines.Yield.Upkeepers.Upkeep_Morale(100)
+            elif self._config.upkeep.honeycomb.is_active():
+                yield from Routines.Yield.Upkeepers.Upkeep_Morale(110)
             elif self._config.upkeep.morale.is_active():
                 target_morale = int(self._config.upkeep.morale.get("target_morale"))
                 target_morale = max(0, min(110, target_morale))

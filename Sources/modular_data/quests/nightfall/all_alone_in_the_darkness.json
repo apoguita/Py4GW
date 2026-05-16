@@ -10,7 +10,6 @@
     {"type": "dialog", "id": "0x82BF04", "npc": "KORMIR", "name": "Dialog - Kormir"},
     {"type": "auto_path", "name": "To Scout Ahtok", "points": [[-13159, -11636], [-11746, -11708]]},
     {"type": "dialogs", "id": ["0x82BF04", "0x84", "0x85"], "npc": "SCOUT_AHTOK", "name": "Dialog - Scout Ahtok"},
-    {"type": "skip_cutscene"},
     {"type": "wait_for_map_load", "map_id": 495},
     {"type": "auto_path", "name": "To Runic Oracle", "points": [[-11265, -9877]]},
     {"type": "dialog", "id": "0x82BF07", "npc": "RUNIC_ORACLE", "name": "Dialog - Runic Oracle"}

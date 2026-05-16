@@ -12,6 +12,15 @@ from .fow import (
     build_fow_phases,
     create_modular_fow_bot,
 )
+from .modular_eotn import (
+    EOTN_PHASE_SPECS,
+    EOTN_REGION_SPANS,
+    EotnCampaignOptions,
+    apply_eotn_start_index,
+    build_eotn_campaign_phases,
+    create_eotn_campaign_bot,
+    derive_eotn_region_spans,
+)
 from .modular_nightfall import (
     NIGHTFALL_PHASE_SPECS,
     NIGHTFALL_REGION_SPANS,
@@ -39,6 +48,13 @@ __all__ = [
     "apply_fow_runtime_properties",
     "build_fow_phases",
     "create_modular_fow_bot",
+    "EOTN_PHASE_SPECS",
+    "EOTN_REGION_SPANS",
+    "EotnCampaignOptions",
+    "apply_eotn_start_index",
+    "build_eotn_campaign_phases",
+    "create_eotn_campaign_bot",
+    "derive_eotn_region_spans",
     "NIGHTFALL_PHASE_SPECS",
     "NIGHTFALL_REGION_SPANS",
     "NightfallCampaignOptions",

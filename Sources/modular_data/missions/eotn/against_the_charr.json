@@ -1,0 +1,10 @@
+{
+  "name": "Against the Charr",
+  "steps": [
+    {"type": "auto_path", "name": "To Vanguard Helmet", "points": [[-9660, -2967]]},
+    {"type": "dialog", "id": "0x84", "npc": "VANGUARD_HELMET", "name": "Dialog - Vanguard Helmet"},
+    {"type": "wait_for_map_load", "map_id": 665},
+    {"type": "auto_path", "name": "Path", "points": [[12464, -8850], [18008, -2874], [17836, 2958], [19851, 3696]]},
+    {"type": "wait_for_map_load", "map_id": 649}
+  ]
+}

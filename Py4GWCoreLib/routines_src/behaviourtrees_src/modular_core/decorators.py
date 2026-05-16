@@ -30,6 +30,9 @@ AUTO_STATE_GUARD_STEP_TYPES = {
     "dialogs",
     "dialog_multibox",
     "exit_map",
+    "interact_npc",
+    "random_travel",
+    "travel",
 }
 
 

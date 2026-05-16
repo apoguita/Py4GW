@@ -1,0 +1,17 @@
+{
+  "name": "dialog_recorded",
+  "steps": [
+    {"type": "travel", "name": "Travel to Sifhalla", "target_map_id": 643},
+    {"type": "load_party", "name": "Load Party", "max_heroes": 8, "use_priority": true},
+    {"type": "auto_path", "name": "To Exit", "points": [[15958, 22933]]},
+    {"type": "exit_map", "name": "Leave Sifhalla", "point": [16690, 22876], "target_map_id": 546},
+    {"type": "auto_path", "name": "To Egil Fireteller", "points": [[4450, 5881]]},
+    {"type": "dialogs", "id": ["0x832003", "0x832001"], "npc": "EGIL_FIRETELLER", "name": "Dialog - Egil Fireteller"},
+    {"type": "auto_path", "name": "Path", "points": [[9551, -21100]]},
+    {"type": "flag_heroes", "ms": 25000, "point": [9415, -21413]},
+    {"type": "wait", "ms": 100000},
+    {"type": "wait_for_map_load", "map_id": 546},
+    {"type": "auto_path", "name": "To Egil Fireteller", "points": [[9459, -21539]]},
+    {"type": "dialog", "id": "0x832007", "npc": "EGIL_FIRETELLER", "name": "Dialog - Egil Fireteller"}
+  ]
+}

@@ -77,9 +77,8 @@
     {"type": "interact_gadget", "ms": 100},
     {"type": "auto_path", "name": "To Right Depo", "points": [[1818, 9743], [545, 6588], [1647, 4648]]},
     {"type": "interact_gadget", "ms": 1000},
-    {"type": "skip_cutscene", "wait_ms": 1500},
+    {"type": "wait_for_map_load", "map_id": 12},
     {"type": "auto_path", "name": "Finish up", "points": [[6785, -12243], [6006, -9919], [9027, -9206], [10604, -8765], [10604, -8765], [15915, -7475], [18842, -12537]]},
-    {"type": "skip_cutscene", "wait_ms": 1500},
     {"type": "wait_map_change", "target_map_id": 49}
   ]
 }

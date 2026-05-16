@@ -43,6 +43,7 @@ class ModularBot:
         diagnostics_enabled: bool = False, diagnostics_label: Optional[str] = None,
         debug_logging: bool = False,
         disable_headless_hero_ai_on_init: bool = False, manage_hero_ai_widget: bool = False,
+        manage_auto_inventory_management: bool = True,
         enforce_local_native_engine: bool = True, **botting_kwargs: Any,
     ) -> None:
         debug_logging = bool(debug_logging or botting_kwargs.get("debug_logging", False))
@@ -64,6 +65,7 @@ class ModularBot:
             debug_logging=debug_logging,
             disable_headless_hero_ai_on_init=disable_headless_hero_ai_on_init,
             manage_hero_ai_widget=manage_hero_ai_widget,
+            manage_auto_inventory_management=manage_auto_inventory_management,
         )
         self._init_runtime_state()
         self._init_diagnostics_state()
@@ -100,6 +102,7 @@ class ModularBot:
         debug_logging: bool,
         disable_headless_hero_ai_on_init: bool,
         manage_hero_ai_widget: bool,
+        manage_auto_inventory_management: bool,
     ) -> None:
         self._name = str(name)
         self._phases = list(phases or [])
@@ -122,6 +125,7 @@ class ModularBot:
         self._diagnostics_label = str(diagnostics_label or name or "ModularBot")
         self._disable_headless_hero_ai_on_init = bool(disable_headless_hero_ai_on_init)
         self._manage_hero_ai_widget = bool(manage_hero_ai_widget)
+        self._manage_auto_inventory_management = bool(manage_auto_inventory_management)
         self._failure_mode = _FAILURE_MODE_FAIL
 
     def _init_runtime_state(self) -> None:
@@ -163,12 +167,22 @@ class ModularBot:
                 self._bot.config.FSM.RemoveManagedCoroutine("keep_hero_ai")
             except Exception:
                 pass
+        if not self._manage_auto_inventory_management:
+            try:
+                self._bot.config.FSM.RemoveManagedCoroutine("keep_auto_inventory_management")
+            except Exception:
+                pass
         setattr(self._bot, "_modular_owner", self)
         if self._settings_ui is not None:
             self._bot.UI.override_draw_config(self._settings_ui)
         if self._help_ui is not None:
             self._bot.UI.override_draw_help(self._help_ui)
         self._botting_tree = resolve_botting_tree_ctor()(pause_on_combat=False, isolation_enabled=False)
+        if self._enforce_local_native_engine:
+            try:
+                self._botting_tree.SetHeroAIStateLogging(False)
+            except Exception:
+                pass
         if self._disable_headless_hero_ai_on_init:
             try:
                 self._botting_tree.DisableHeadlessHeroAI(reset_runtime=True)
@@ -190,6 +204,21 @@ class ModularBot:
             self.record_diagnostics_event(
                 "native_policy_warning",
                 message=f"keep_hero_ai suppression failed: {exc}",
+            )
+            return False
+
+    def _suppress_auto_inventory_management_coroutine(self) -> bool:
+        try:
+            fsm = self._bot.config.FSM
+            removed = bool(fsm.RemoveManagedCoroutine("keep_auto_inventory_management"))
+            if bool(fsm.HasManagedCoroutine("keep_auto_inventory_management")):
+                removed = bool(fsm.RemoveManagedCoroutine("keep_auto_inventory_management")) or removed
+            return bool(removed or (not bool(fsm.HasManagedCoroutine("keep_auto_inventory_management"))))
+        except Exception as exc:
+            ConsoleLog("ModularBot", f"Auto inventory ownership warning: upkeep suppression failed: {exc}", Console.MessageType.Warning)
+            self.record_diagnostics_event(
+                "auto_inventory_policy_warning",
+                message=f"auto inventory upkeep suppression failed: {exc}",
             )
             return False
 

@@ -15,10 +15,10 @@ from Py4GWCoreLib.routines_src.behaviourtrees_src.botting_movement import (
     add_nudge_move_state,
     add_path_state,
     add_random_travel_state,
+    add_travel_state,
     add_wait_map_change_state,
     add_wait_map_load_state,
     add_wait_out_of_combat_state,
-    dispatch_travel,
 )
 from Py4GWCoreLib.routines_src.behaviourtrees_src.botting_multibox import (
     add_leave_party_state,
@@ -103,8 +103,22 @@ def handle_wait_out_of_combat(ctx: StepContext) -> None:
 
 def handle_wait_map_load(ctx: StepContext) -> None:
     map_id = int(ctx.step.get("map_id", ctx.step.get("target_map_id", 0)) or 0)
-    add_wait_map_load_state(ctx.bot, target_map_id=map_id, name=str(ctx.step.get("name", "Wait Map Load")))
+    timeout_ms = _wait_map_load_timeout_ms(ctx)
+    add_wait_map_load_state(
+        ctx.bot,
+        target_map_id=map_id,
+        timeout_ms=timeout_ms,
+        name=str(ctx.step.get("name", "Wait Map Load")),
+    )
     wait_after_step(ctx.bot, ctx.step)
+
+
+def _wait_map_load_timeout_ms(ctx: StepContext) -> int:
+    if "timeout_s" in ctx.step:
+        timeout_ms = int(parse_step_float(ctx.step.get("timeout_s"), 60.0) * 1000.0)
+    else:
+        timeout_ms = parse_step_int(ctx.step.get("timeout_ms", 60_000), 60_000)
+    return min(60_000, max(0, timeout_ms))
 
 
 def handle_move(ctx: StepContext) -> None:
@@ -171,7 +185,13 @@ def handle_travel(ctx: StepContext) -> None:
     target_map_id = int(ctx.step.get("target_map_id", 0))
     target_map_name = str(ctx.step.get("target_map_name", "") or "")
     leave_party = parse_step_bool(ctx.step.get("leave_party", True), True)
-    dispatch_travel(ctx.bot, target_map_id=target_map_id, target_map_name=target_map_name, leave_party=leave_party)
+    add_travel_state(
+        ctx.bot,
+        target_map_id=target_map_id,
+        target_map_name=target_map_name,
+        leave_party=leave_party,
+        name=str(ctx.step.get("name", "Travel") or "Travel"),
+    )
     wait_after_step(ctx.bot, ctx.step)
 
 
@@ -492,7 +512,7 @@ modular_step(
 modular_step(
     step_type="wait_for_map_load",
     category="movement",
-    allowed_params=("map_id", "target_map_id"),
+    allowed_params=("map_id", "name", "target_map_id", "timeout_ms", "timeout_s"),
     node_class_name="WaitForMapLoadNode",
 )(handle_wait_map_load)
 modular_step(
@@ -504,7 +524,7 @@ modular_step(
 modular_step(
     step_type="wait_map_load",
     category="movement",
-    allowed_params=("map_id", "target_map_id"),
+    allowed_params=("map_id", "name", "target_map_id", "timeout_ms", "timeout_s"),
     node_class_name="WaitMapLoadNode",
 )(handle_wait_map_load)
 modular_step(
