@@ -1604,6 +1604,31 @@ def MessageEnableHeroAI(index: int, message: SharedMessageStruct):
     
 # endregion
 
+
+# region ConsoleMessage
+def ConsoleMessage(index: int, message: SharedMessageStruct):
+    GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
+
+    sender_name = str(message.SenderEmail or "").strip()
+    sender_data = GLOBAL_CACHE.ShMem.GetAccountDataFromEmail(message.SenderEmail)
+    if sender_data is not None:
+        resolved_name = str(getattr(sender_data.AgentData, "CharacterName", "") or "").strip()
+        if resolved_name:
+            sender_name = resolved_name
+
+    console_message = str(GLOBAL_CACHE.ShMem.GetAllAccounts()._c_wchar_array_to_str(message.ExtraData[0]) or "").strip()
+
+    if not sender_name:
+        sender_name = "HeroAI"
+    if not console_message:
+        console_message = "message received"
+
+    ConsoleLog(sender_name, console_message, Console.MessageType.Info, True)
+    GLOBAL_CACHE.ShMem.MarkMessageAsFinished(message.ReceiverEmail, index)
+    yield
+
+# endregion
+
 # region SetWindowGeometry
 def SetWindowGeometry(index: int, message: SharedMessageStruct):
     GLOBAL_CACHE.ShMem.MarkMessageAsRunning(message.ReceiverEmail, index)
@@ -2522,6 +2547,8 @@ def ProcessMessages():
             GLOBAL_CACHE.Coroutines.append(MessageDisableHeroAI(index, message))
         case SharedCommandType.EnableHeroAI:
             GLOBAL_CACHE.Coroutines.append(MessageEnableHeroAI(index, message))
+        case SharedCommandType.ConsoleMessage:
+            GLOBAL_CACHE.Coroutines.append(ConsoleMessage(index, message))
         case SharedCommandType.PressKey:
             GLOBAL_CACHE.Coroutines.append(PressKey(index, message))
         case SharedCommandType.DonateToGuild:

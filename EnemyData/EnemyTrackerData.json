@@ -44,6 +44,317 @@
       },
       "observed_skills": {}
     },
+    "enc:\\\\x0BD7\\\\x82CB\\\\x0528": {
+      "encoded_names": [
+        "\\\\x0BD7\\\\x82CB\\\\x0528"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        154
+      ],
+      "observed_maps": {
+        "280": {
+          "base_id": 280,
+          "id": 280,
+          "instance_type": "Explorable",
+          "name": "Isle of the Nameless"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x0BD8\\\\xA06E\\\\xC195\\\\x4292": {
+      "encoded_names": [
+        "\\\\x0BD8\\\\xA06E\\\\xC195\\\\x4292"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        152
+      ],
+      "observed_maps": {
+        "280": {
+          "base_id": 280,
+          "id": 280,
+          "instance_type": "Explorable",
+          "name": "Isle of the Nameless"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x0BD9\\\\xE564\\\\x5BF4": {
+      "encoded_names": [
+        "\\\\x0BD9\\\\xE564\\\\x5BF4"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        153
+      ],
+      "observed_maps": {
+        "280": {
+          "base_id": 280,
+          "id": 280,
+          "instance_type": "Explorable",
+          "name": "Isle of the Nameless"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x0BDA\\\\x8F1B\\\\xCCCF\\\\x7F30": {
+      "encoded_names": [
+        "\\\\x0BDA\\\\x8F1B\\\\xCCCF\\\\x7F30"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        155
+      ],
+      "observed_maps": {
+        "280": {
+          "base_id": 280,
+          "id": 280,
+          "instance_type": "Explorable",
+          "name": "Isle of the Nameless"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x0BDC\\\\xF8B5\\\\xCE9B\\\\x6BFE": {
+      "encoded_names": [
+        "\\\\x0BDC\\\\xF8B5\\\\xCE9B\\\\x6BFE"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        157
+      ],
+      "observed_maps": {
+        "280": {
+          "base_id": 280,
+          "id": 280,
+          "instance_type": "Explorable",
+          "name": "Isle of the Nameless"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x0BDF\\\\xFB0B\\\\xF320\\\\x3739": {
+      "encoded_names": [
+        "\\\\x0BDF\\\\xFB0B\\\\xF320\\\\x3739"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        160
+      ],
+      "observed_maps": {
+        "280": {
+          "base_id": 280,
+          "id": 280,
+          "instance_type": "Explorable",
+          "name": "Isle of the Nameless"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x0BE0\\\\x8D50\\\\xD487\\\\x7295": {
+      "encoded_names": [
+        "\\\\x0BE0\\\\x8D50\\\\xD487\\\\x7295"
+      ],
+      "inferred_primary": "Warrior",
+      "inferred_secondary": "",
+      "model_ids": [
+        161
+      ],
+      "observed_maps": {
+        "280": {
+          "base_id": 280,
+          "id": 280,
+          "instance_type": "Explorable",
+          "name": "Isle of the Nameless"
+        }
+      },
+      "observed_skills": {
+        "1": {
+          "id": 1,
+          "name": "Healing Signet",
+          "profession": "Warrior",
+          "profession_id": 1
+        }
+      }
+    },
+    "enc:\\\\x0BE2\\\\x9F4A\\\\xCAE8\\\\x0687": {
+      "encoded_names": [
+        "\\\\x0BE2\\\\x9F4A\\\\xCAE8\\\\x0687"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        163
+      ],
+      "observed_maps": {
+        "280": {
+          "base_id": 280,
+          "id": 280,
+          "instance_type": "Explorable",
+          "name": "Isle of the Nameless"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x0D39\\\\xCF3B\\\\xED6E\\\\x4EF1": {
+      "encoded_names": [
+        "\\\\x0D39\\\\xCF3B\\\\xED6E\\\\x4EF1"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        149
+      ],
+      "observed_maps": {
+        "280": {
+          "base_id": 280,
+          "id": 280,
+          "instance_type": "Explorable",
+          "name": "Isle of the Nameless"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x0D7F\\\\xB5A9\\\\x3373": {
+      "encoded_names": [
+        "\\\\x0D7F\\\\xB5A9\\\\x3373"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        155
+      ],
+      "observed_maps": {
+        "280": {
+          "base_id": 280,
+          "id": 280,
+          "instance_type": "Explorable",
+          "name": "Isle of the Nameless"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x0D80\\\\xD7E3\\\\x96FB\\\\x5C39": {
+      "encoded_names": [
+        "\\\\x0D80\\\\xD7E3\\\\x96FB\\\\x5C39"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        155
+      ],
+      "observed_maps": {
+        "280": {
+          "base_id": 280,
+          "id": 280,
+          "instance_type": "Explorable",
+          "name": "Isle of the Nameless"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x0D82\\\\xFDF3\\\\x95B0\\\\x4670": {
+      "encoded_names": [
+        "\\\\x0D82\\\\xFDF3\\\\x95B0\\\\x4670"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        155
+      ],
+      "observed_maps": {
+        "280": {
+          "base_id": 280,
+          "id": 280,
+          "instance_type": "Explorable",
+          "name": "Isle of the Nameless"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x0D83\\\\x8FB5\\\\xFA35\\\\x771A": {
+      "encoded_names": [
+        "\\\\x0D83\\\\x8FB5\\\\xFA35\\\\x771A"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        155
+      ],
+      "observed_maps": {
+        "280": {
+          "base_id": 280,
+          "id": 280,
+          "instance_type": "Explorable",
+          "name": "Isle of the Nameless"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x0D84\\\\xD392\\\\xA3B2\\\\x5FA9": {
+      "encoded_names": [
+        "\\\\x0D84\\\\xD392\\\\xA3B2\\\\x5FA9"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        155
+      ],
+      "observed_maps": {
+        "280": {
+          "base_id": 280,
+          "id": 280,
+          "instance_type": "Explorable",
+          "name": "Isle of the Nameless"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x0D85\\\\xA4DF\\\\xAC95\\\\x3211": {
+      "encoded_names": [
+        "\\\\x0D85\\\\xA4DF\\\\xAC95\\\\x3211"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        155
+      ],
+      "observed_maps": {
+        "280": {
+          "base_id": 280,
+          "id": 280,
+          "instance_type": "Explorable",
+          "name": "Isle of the Nameless"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x0D86\\\\xEAEA\\\\xAF17\\\\x3173": {
+      "encoded_names": [
+        "\\\\x0D86\\\\xEAEA\\\\xAF17\\\\x3173"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        155
+      ],
+      "observed_maps": {
+        "280": {
+          "base_id": 280,
+          "id": 280,
+          "instance_type": "Explorable",
+          "name": "Isle of the Nameless"
+        }
+      },
+      "observed_skills": {}
+    },
     "enc:\\\\x0F95\\\\xF318\\\\x6CFE": {
       "encoded_names": [
         "\\\\x0F95\\\\xF318\\\\x6CFE"
@@ -2057,6 +2368,25 @@
           "id": 386,
           "instance_type": "Explorable",
           "name": "Turai's Procession"
+        }
+      },
+      "observed_skills": {}
+    },
+    "enc:\\\\x8101\\\\x07C9\\\\xB3FA\\\\x9C14\\\\x5D72": {
+      "encoded_names": [
+        "\\\\x8101\\\\x07C9\\\\xB3FA\\\\x9C14\\\\x5D72"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        144
+      ],
+      "observed_maps": {
+        "280": {
+          "base_id": 280,
+          "id": 280,
+          "instance_type": "Explorable",
+          "name": "Isle of the Nameless"
         }
       },
       "observed_skills": {}
@@ -4408,6 +4738,25 @@
           "profession_id": 2
         }
       }
+    },
+    "enc:\\\\x8103\\\\x073F\\\\x8210\\\\xAE49\\\\x48D5": {
+      "encoded_names": [
+        "\\\\x8103\\\\x073F\\\\x8210\\\\xAE49\\\\x48D5"
+      ],
+      "inferred_primary": "",
+      "inferred_secondary": "",
+      "model_ids": [
+        165
+      ],
+      "observed_maps": {
+        "280": {
+          "base_id": 280,
+          "id": 280,
+          "instance_type": "Explorable",
+          "name": "Isle of the Nameless"
+        }
+      },
+      "observed_skills": {}
     }
   },
   "schema": "py4gw_enemy_tracker",

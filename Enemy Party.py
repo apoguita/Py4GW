@@ -1,8 +1,11 @@
+import builtins
 import json
 import math
 import os
 import sys
+import tkinter as tk
 from dataclasses import dataclass, field
+from tkinter import filedialog
 from typing import ClassVar
 
 import PyImGui
@@ -23,10 +26,11 @@ from Py4GWCoreLib.py4gwcorelib_src.Utils import Utils
 
 @dataclass
 class EnemyTrackerConfig:
-    MODULE_NAME: str = "Enemy Tracker"
+    MODULE_NAME: str = "Enemy Party"
     INI_PATH: str = "Widgets/Automation/Helpers/EnemyTracker"
     MAIN_INI_FILENAME: str = "EnemyTracker.ini"
     FLOATING_INI_FILENAME: str = "EnemyTrackerFloating.ini"
+    DATA_DIRNAME: str = "EnemyData"
     DATA_FILENAME: str = "EnemyTrackerData.json"
     NAME_DATA_PREFIX: str = "EnemyTrackerNames"
 
@@ -48,6 +52,17 @@ class EnemyTrackerConfig:
         10: "ru",
         17: "bork",
     }
+
+
+ENEMY_TRACKER_SHARED_VARS_ATTR = "_py4gw_enemy_tracker_shared_vars"
+ENEMY_BAR_DEBUG = False
+ENEMY_BAR_DEBUG_STARTUP_LOGGED = False
+
+
+def _enemy_bar_debug(message: str) -> None:
+    if not ENEMY_BAR_DEBUG:
+        return
+    Py4GW.Console.Log(EnemyTrackerConfig.MODULE_NAME, f"[EnemyBarDebug] {message}", Py4GW.Console.MessageType.Warning)
 
 
 @dataclass
@@ -102,30 +117,104 @@ class EnemyTrackerVars:
     atlas_selected_skill_id: int = 0
 
 
-class HealthBar:
+@dataclass
+class EnemyBarInteraction:
+    rect: tuple[float, float, float, float]
+    hovered: bool = False
+    clicked: bool = False
+    double_clicked: bool = False
+
+
+class EnemyBarWidget:
     def __init__(self, width: float = 280.0, height: float = 18.0) -> None:
         self.width = width
         self.height = height
-        self.progress = 0.0
         self.empty_color = Utils.RGBToColor(70, 70, 70, 230)
         self.text_color = Utils.RGBToColor(245, 245, 245, 255)
         self.text_shadow_color = Utils.RGBToColor(0, 0, 0, 220)
-        
-    def draw(self, progress: float, label: str, fill_color: int) -> bool:
-        self.progress = max(0.0, min(1.0, float(progress)))
+        self.double_click_ms = 350
+        self.double_click_max_move = 8.0
+        self._last_click_by_id: dict[int, tuple[int, float, float]] = {}
+        self._hover_state_by_id: dict[int, bool] = {}
 
-        ImGui.dummy(self.width, self.height)
+    def _debug_log(self, row_id: int, event: str, **data: object) -> None:
+        details = ", ".join(f"{key}={value}" for key, value in data.items())
+        message = f"row={row_id} event={event}"
+        if details:
+            message = f"{message} {details}"
+        _enemy_bar_debug(message)
+
+    def draw(self, row_id: int, progress: float, label: str, fill_color: int) -> EnemyBarInteraction:
+        progress = max(0.0, min(1.0, float(progress)))
+
+        ImGui.invisible_button(f"##enemy_bar_{row_id}", self.width, self.height)
+        hovered = PyImGui.is_item_hovered()
+        clicked = PyImGui.is_item_clicked(0)
+        io = PyImGui.get_io()
+        now = int(Py4GW.Game.get_tick_count64())
+        mouse_x = float(getattr(io, "mouse_pos_x", 0.0))
+        mouse_y = float(getattr(io, "mouse_pos_y", 0.0))
+        double_clicked = False
+        was_hovered = bool(self._hover_state_by_id.get(int(row_id), False))
+        if hovered != was_hovered:
+            self._hover_state_by_id[int(row_id)] = hovered
+            self._debug_log(
+                row_id,
+                "hover_on" if hovered else "hover_off",
+                mouse_x=round(mouse_x, 1),
+                mouse_y=round(mouse_y, 1),
+            )
+        if clicked:
+            self._debug_log(
+                row_id,
+                "clicked",
+                mouse_x=round(mouse_x, 1),
+                mouse_y=round(mouse_y, 1),
+                label=label,
+            )
+            last_click = self._last_click_by_id.get(int(row_id))
+            if last_click is not None:
+                last_ms, last_x, last_y = last_click
+                dx = mouse_x - last_x
+                dy = mouse_y - last_y
+                moved_too_far = (dx * dx + dy * dy) > (self.double_click_max_move * self.double_click_max_move)
+                if (now - last_ms) <= self.double_click_ms and not moved_too_far:
+                    double_clicked = True
+                    self._last_click_by_id.pop(int(row_id), None)
+                    self._debug_log(
+                        row_id,
+                        "double_clicked",
+                        dt_ms=now - last_ms,
+                        move_px=round((dx * dx + dy * dy) ** 0.5, 2),
+                    )
+                else:
+                    self._last_click_by_id[int(row_id)] = (now, mouse_x, mouse_y)
+                    self._debug_log(
+                        row_id,
+                        "click_rearmed",
+                        dt_ms=now - last_ms,
+                        move_px=round((dx * dx + dy * dy) ** 0.5, 2),
+                        moved_too_far=moved_too_far,
+                    )
+            else:
+                self._last_click_by_id[int(row_id)] = (now, mouse_x, mouse_y)
+                self._debug_log(row_id, "click_armed", at_ms=now)
 
         item_min, item_max, item_size = ImGui.get_item_rect()
         x1, y1 = item_min
         x2, y2 = item_max
 
+        _enemy_bar_debug(
+            f"bar draw row={row_id} hovered={hovered} clicked={clicked} "
+            f"double_clicked={double_clicked} rect=({round(x1,1)},{round(y1,1)},{round(x2,1)},{round(y2,1)}) "
+            f"mouse=({round(mouse_x,1)},{round(mouse_y,1)})"
+        )
+
         width = x2 - x1
         height = y2 - y1
 
-        fill_x2 = x1 + (width * self.progress)
+        fill_x2 = x1 + (width * progress)
 
-        # 100% background / empty bar
         PyImGui.draw_list_add_rect_filled(
             x1, y1,
             x2, y2,
@@ -134,8 +223,7 @@ class HealthBar:
             0
         )
 
-        # Remaining life fill
-        if self.progress > 0.0:
+        if progress > 0.0:
             PyImGui.draw_list_add_rect_filled(
                 x1, y1,
                 fill_x2, y2,
@@ -160,7 +248,12 @@ class HealthBar:
             PyImGui.draw_list_add_text(text_x + 1.0, text_y + 1.0, self.text_shadow_color, text)
             PyImGui.draw_list_add_text(text_x, text_y, self.text_color, text)
 
-        return PyImGui.is_item_clicked(0)
+        return EnemyBarInteraction(
+            rect=(x1, y1, x2, y2),
+            hovered=hovered,
+            clicked=clicked,
+            double_clicked=double_clicked,
+        )
 
 
 PROFESSION_ABBREVIATIONS = {
@@ -195,6 +288,7 @@ class EnemyTracker:
         (range_value.name, int(range_value.value))
         for range_value in sorted(Range, key=lambda value: float(value.value))
     ]
+    SCANNER_RADIUS = float(Range.SafeCompass.value)
 
     def __init__(self) -> None:
         self.floating_button = ImGui.FloatingIcon(
@@ -209,11 +303,29 @@ class EnemyTracker:
             draw_callback=self.draw_window,
         )
         self.vars = EnemyTrackerVars()
+        shared_vars = _get_shared_vars()
+        if shared_vars is not None:
+            # Enemy Party keeps its own widget/runtime state and only reads shared enemy data.
+            self.vars.enemy_array = shared_vars.enemy_array
+            self.vars.live_rows = shared_vars.live_rows
+            self.vars.last_cast_skill_by_agent = shared_vars.last_cast_skill_by_agent
+            self.vars.observed_agent_map_keys = shared_vars.observed_agent_map_keys
+            self.vars.current_map_id = shared_vars.current_map_id
+            self.vars.records = shared_vars.records
+            self.vars.name_records = shared_vars.name_records
         self._sync_range_preset_from_filter()
-        self.health_bar = HealthBar(width=220.0, height=18.0)
-        self.data_path = os.path.join(Py4GW.Console.get_projects_path(), EnemyTrackerConfig.DATA_FILENAME)
+        self.enemy_bar = EnemyBarWidget(width=220.0, height=18.0)
+        self.data_root = os.path.join(Py4GW.Console.get_projects_path(), EnemyTrackerConfig.DATA_DIRNAME)
+        self.data_path = os.path.join(self.data_root, EnemyTrackerConfig.DATA_FILENAME)
         self.data_dir = os.path.dirname(self.data_path)
-        self._load_data()
+        if not self.vars.records and not self.vars.name_records:
+            self._load_data()
+
+    def _legacy_data_root(self) -> str:
+        return Py4GW.Console.get_projects_path()
+
+    def _legacy_data_path(self) -> str:
+        return os.path.join(self._legacy_data_root(), EnemyTrackerConfig.DATA_FILENAME)
 
     def _sync_range_preset_from_filter(self) -> None:
         self.vars.range_preset_index = 0
@@ -224,8 +336,9 @@ class EnemyTracker:
 
     def _load_data(self) -> None:
         try:
-            if os.path.exists(self.data_path):
-                with open(self.data_path, "r", encoding="utf-8") as handle:
+            load_path = self.data_path if os.path.exists(self.data_path) else self._legacy_data_path()
+            if os.path.exists(load_path):
+                with open(load_path, "r", encoding="utf-8") as handle:
                     data = json.load(handle)
                 self.vars.records = self._normalize_records(dict(data.get("enemies", {})))
                 if int(data.get("schema_version", 1) or 1) < 2:
@@ -241,21 +354,22 @@ class EnemyTracker:
     def _load_name_data(self) -> None:
         prefix = f"{EnemyTrackerConfig.NAME_DATA_PREFIX}."
         suffix = ".json"
-        if not os.path.isdir(self.data_dir):
-            return
-        for filename in os.listdir(self.data_dir):
-            if not filename.startswith(prefix) or not filename.endswith(suffix):
+        for candidate_dir in (self.data_dir, self._legacy_data_root()):
+            if not os.path.isdir(candidate_dir):
                 continue
-            language = filename[len(prefix):-len(suffix)].strip().lower()
-            if not language:
-                continue
-            path = os.path.join(self.data_dir, filename)
-            try:
-                with open(path, "r", encoding="utf-8") as handle:
-                    data = json.load(handle)
-                self.vars.name_records[language] = self._normalize_name_records(dict(data.get("names", {})))
-            except Exception as exc:
-                Py4GW.Console.Log(EnemyTrackerConfig.MODULE_NAME, f"Failed to load {filename}: {exc}", Py4GW.Console.MessageType.Warning)
+            for filename in os.listdir(candidate_dir):
+                if not filename.startswith(prefix) or not filename.endswith(suffix):
+                    continue
+                language = filename[len(prefix):-len(suffix)].strip().lower()
+                if not language or language in self.vars.name_records:
+                    continue
+                path = os.path.join(candidate_dir, filename)
+                try:
+                    with open(path, "r", encoding="utf-8") as handle:
+                        data = json.load(handle)
+                    self.vars.name_records[language] = self._normalize_name_records(dict(data.get("names", {})))
+                except Exception as exc:
+                    Py4GW.Console.Log(EnemyTrackerConfig.MODULE_NAME, f"Failed to load {filename}: {exc}", Py4GW.Console.MessageType.Warning)
 
     def _save_data_if_needed(self, force: bool = False) -> None:
         if not self.vars.data_dirty and not self.vars.names_dirty and not force:
@@ -264,6 +378,7 @@ class EnemyTracker:
         if not force and now - self.vars.last_save_ms < 2000:
             return
         try:
+            os.makedirs(self.data_dir, exist_ok=True)
             if self.vars.data_dirty or force:
                 payload = {
                     "schema": "py4gw_enemy_tracker",
@@ -281,6 +396,7 @@ class EnemyTracker:
             Py4GW.Console.Log(EnemyTrackerConfig.MODULE_NAME, f"Failed to save data: {exc}", Py4GW.Console.MessageType.Warning)
 
     def _save_name_data(self) -> None:
+        os.makedirs(self.data_dir, exist_ok=True)
         for language, names in self.vars.name_records.items():
             payload = {
                 "schema": "py4gw_enemy_tracker_names",
@@ -378,6 +494,94 @@ class EnemyTracker:
         record.setdefault("inferred_primary", "")
         record.setdefault("inferred_secondary", "")
         return record
+
+    def _merge_record(self, key: str, incoming: dict) -> None:
+        incoming_record = self._normalize_record(str(key), dict(incoming))
+        existing = self.vars.records.get(str(key))
+        if existing is None:
+            self.vars.records[str(key)] = incoming_record
+            self.vars.data_dirty = True
+            return
+
+        changed = False
+        for field_name in ("encoded_names", "model_ids"):
+            existing_values = list(existing.get(field_name, []))
+            for value in incoming_record.get(field_name, []):
+                if value not in existing_values:
+                    existing_values.append(value)
+                    changed = True
+            existing[field_name] = existing_values
+
+        for map_key, map_entry in incoming_record.get("observed_maps", {}).items():
+            if map_key not in existing.setdefault("observed_maps", {}):
+                existing["observed_maps"][map_key] = map_entry
+                changed = True
+
+        for skill_key, skill_entry in incoming_record.get("observed_skills", {}).items():
+            if skill_key not in existing.setdefault("observed_skills", {}):
+                existing["observed_skills"][skill_key] = skill_entry
+                changed = True
+
+        previous_primary = str(existing.get("inferred_primary", "") or "")
+        previous_secondary = str(existing.get("inferred_secondary", "") or "")
+        primary, secondary = self._infer_professions(existing)
+        changed = changed or primary != previous_primary or secondary != previous_secondary
+
+        if changed:
+            self.vars.data_dirty = True
+
+    def _export_payload(self) -> dict:
+        return {
+            "schema": "py4gw_enemy_tracker_bundle",
+            "schema_version": 1,
+            "enemies": self.vars.records,
+            "names_by_language": self.vars.name_records,
+        }
+
+    def export_bundle_to(self, path: str) -> bool:
+        try:
+            if not path:
+                return False
+            payload = self._export_payload()
+            with open(path, "w", encoding="utf-8") as handle:
+                json.dump(payload, handle, indent=2, sort_keys=True)
+            return True
+        except Exception as exc:
+            Py4GW.Console.Log(EnemyTrackerConfig.MODULE_NAME, f"Export failed: {exc}", Py4GW.Console.MessageType.Warning)
+            return False
+
+    def import_bundle_from(self, path: str) -> bool:
+        try:
+            if not path or not os.path.exists(path):
+                return False
+            with open(path, "r", encoding="utf-8") as handle:
+                payload = json.load(handle)
+
+            imported_any = False
+            incoming_records = dict(payload.get("enemies", {}))
+            for key, record in incoming_records.items():
+                if isinstance(record, dict):
+                    self._merge_record(str(key), record)
+                    imported_any = True
+
+            incoming_names = payload.get("names_by_language", {})
+            if isinstance(incoming_names, dict):
+                for language, names_by_key in incoming_names.items():
+                    language_key = str(language or EnemyTrackerConfig.DEFAULT_NAME_LANGUAGE).strip().lower()
+                    if not isinstance(names_by_key, dict):
+                        continue
+                    for key, names in names_by_key.items():
+                        for name in self._clean_name_values(names):
+                            if self._add_name_record(str(key), language_key, name):
+                                self.vars.names_dirty = True
+                                imported_any = True
+
+            if imported_any:
+                self._save_data_if_needed(force=True)
+            return imported_any
+        except Exception as exc:
+            Py4GW.Console.Log(EnemyTrackerConfig.MODULE_NAME, f"Import failed: {exc}", Py4GW.Console.MessageType.Warning)
+            return False
 
     def _normalize_records(self, records: dict[str, dict]) -> dict[str, dict]:
         normalized: dict[str, dict] = {}
@@ -576,7 +780,7 @@ class EnemyTracker:
             if Agent.IsDead(agent_id) and not self.vars.include_dead:
                 continue
             distance = Utils.Distance(player_xy, Agent.GetXY(agent_id))
-            if not self._is_inside_scan_frustum(player_xy, Agent.GetXY(agent_id), distance):
+            if distance > self.SCANNER_RADIUS:
                 continue
 
             name = Agent.GetNameByID(agent_id) or f"Agent {agent_id}"
@@ -739,10 +943,15 @@ class EnemyTracker:
         filters = self._profession_filters()
         self.vars.profession_filter_index = max(0, min(self.vars.profession_filter_index, len(filters) - 1))
         prof_filter = filters[self.vars.profession_filter_index]
+        rows = [
+            row
+            for row in self.vars.live_rows
+            if self._is_inside_scan_frustum(Player.GetXY(), Agent.GetXY(row.agent_id), row.distance)
+        ]
         if prof_filter == "All":
-            return self.vars.live_rows
+            return rows
         return [
-            row for row in self.vars.live_rows
+            row for row in rows
             if row.inferred_primary == prof_filter or row.inferred_secondary == prof_filter
         ]
 
@@ -780,25 +989,54 @@ class EnemyTracker:
             skill_name, _, _ = self._skill_info(row.casting_skill_id)
             skill_text = skill_name
 
+        _enemy_bar_debug(f"draw_row start agent_id={row.agent_id} name={row.name} distance={int(row.distance)}")
+
         PyImGui.table_next_row()
         PyImGui.table_next_column()
         if PyImGui.button(f"Call##call_{row.agent_id}"):
+            _enemy_bar_debug(f"call button clicked agent_id={row.agent_id} name={row.name}")
             CallTarget(row.agent_id, interact=False)
+        call_hovered = PyImGui.is_item_hovered()
+        call_item_min, call_item_max, _ = ImGui.get_item_rect()
+        call_x1, call_y1 = call_item_min
+        call_x2, call_y2 = call_item_max
+        if call_hovered:
+            self.vars.hovered_agent_id = row.agent_id
+            _enemy_bar_debug(f"call button hovered agent_id={row.agent_id} name={row.name}")
         PyImGui.table_next_column()
-        self.health_bar.draw(row.health, self._health_label(row), self._health_color(row))
-        hovered = PyImGui.is_item_hovered()
+        bar_state = self.enemy_bar.draw(
+            row.agent_id,
+            row.health,
+            self._health_label(row),
+            self._health_color(row),
+        )
+        x1, y1, x2, y2 = bar_state.rect
+        row_x1 = min(call_x1, x1)
+        row_y1 = min(call_y1, y1)
+        row_x2 = max(call_x2, x2)
+        row_y2 = max(call_y2, y2)
+        row_hovered = ImGui.is_mouse_in_rect((row_x1, row_y1, row_x2 - row_x1, row_y2 - row_y1))
+        _enemy_bar_debug(
+            f"row geometry agent_id={row.agent_id} "
+            f"call_rect=({round(call_x1,1)},{round(call_y1,1)},{round(call_x2,1)},{round(call_y2,1)}) "
+            f"bar_rect=({round(x1,1)},{round(y1,1)},{round(x2,1)},{round(y2,1)}) "
+            f"row_rect=({round(row_x1,1)},{round(row_y1,1)},{round(row_x2,1)},{round(row_y2,1)}) "
+            f"row_hovered={row_hovered}"
+        )
+        if bar_state.double_clicked:
+            _enemy_bar_debug(f"row handler double click agent_id={row.agent_id} name={row.name}")
+            CallTarget(row.agent_id, interact=False)
+        hovered = call_hovered or bar_state.hovered or row_hovered
         if hovered:
             self.vars.hovered_agent_id = row.agent_id
+            _enemy_bar_debug(
+                f"row hovered agent_id={row.agent_id} name={row.name} "
+                f"call_hovered={call_hovered} bar_hovered={bar_state.hovered} row_hovered={row_hovered}"
+            )
         if hovered and self.vars.draw_hover_row_outline:
-            item_min, item_max, _ = ImGui.get_item_rect()
-            x1, y1 = item_min
-            x2, y2 = item_max
-            PyImGui.draw_list_add_rect(x1 - 2.0, y1 - 2.0, x2 + 2.0, y2 + 2.0, self._magenta_color(), 0.0, 0, 2.0)
+            PyImGui.draw_list_add_rect(row_x1 - 2.0, row_y1 - 2.0, row_x2 + 2.0, row_y2 + 2.0, self._magenta_color(), 0.0, 0, 2.0)
         if row.agent_id == self.vars.called_target_id:
-            item_min, item_max, _ = ImGui.get_item_rect()
-            x1, y1 = item_min
-            x2, y2 = item_max
-            PyImGui.draw_list_add_rect(x1 - 1.0, y1 - 1.0, x2 + 1.0, y2 + 1.0, self._yellow_color(), 0.0, 0, 2.0)
+            PyImGui.draw_list_add_rect(row_x1 - 1.0, row_y1 - 1.0, row_x2 + 1.0, row_y2 + 1.0, self._yellow_color(), 0.0, 0, 2.0)
         if hovered:
             PyImGui.begin_tooltip()
             PyImGui.text(f"HP: {int(row.health * 100)}%")
@@ -884,7 +1122,8 @@ class EnemyTracker:
 
         PyImGui.separator()
         PyImGui.text(f"Visible: {len(rows)} / Polled: {len(self.vars.live_rows)}")
-        PyImGui.separator()
+
+    def _draw_config_tab(self) -> None:
         self._draw_controls()
 
     def _record_label(self, key: str, record: dict) -> str:
@@ -1042,6 +1281,44 @@ class EnemyTracker:
                 self._draw_atlas_skills(record)
             PyImGui.end_table()
 
+    def draw_scanner_config(self) -> None:
+        PyImGui.text(f"Data folder: {self.data_root}")
+        PyImGui.text(f"Known enemies: {len(self.vars.records)}")
+        PyImGui.text(f"Languages: {len(self.vars.name_records)}")
+        PyImGui.separator()
+
+        if PyImGui.button("Import / Merge JSON"):
+            root = tk.Tk()
+            root.withdraw()
+            root.attributes("-topmost", True)
+            try:
+                path = filedialog.askopenfilename(
+                    title="Import Enemy Tracker Data",
+                    initialdir=self.data_root,
+                    filetypes=[("JSON Files", "*.json"), ("All files", "*.*")],
+                )
+            finally:
+                root.destroy()
+            if path:
+                self.import_bundle_from(path)
+
+        PyImGui.same_line(0, 8)
+        if PyImGui.button("Export JSON"):
+            root = tk.Tk()
+            root.withdraw()
+            root.attributes("-topmost", True)
+            try:
+                path = filedialog.asksaveasfilename(
+                    title="Export Enemy Tracker Data",
+                    initialdir=self.data_root,
+                    defaultextension=".json",
+                    filetypes=[("JSON Files", "*.json"), ("All files", "*.*")],
+                )
+            finally:
+                root.destroy()
+            if path:
+                self.export_bundle_to(path)
+
     def draw_window(self) -> None:
         expanded, open_ = ImGui.BeginWithClose(
             ini_key=EnemyTrackerConfig.MAIN_INI_KEY,
@@ -1052,13 +1329,15 @@ class EnemyTracker:
         self.floating_button.sync_begin_with_close(open_)
 
         if expanded:
-            self._poll()
             rows = self._filtered_rows()
             self.vars.hovered_agent_id = 0
 
             if PyImGui.begin_tab_bar("EnemyTrackerTabs"):
                 if PyImGui.begin_tab_item("Tracker"):
                     self._draw_tracker_tab(rows)
+                    PyImGui.end_tab_item()
+                if PyImGui.begin_tab_item("Config"):
+                    self._draw_config_tab()
                     PyImGui.end_tab_item()
                 if PyImGui.begin_tab_item("Enemy Atlas"):
                     self._draw_enemy_atlas()
@@ -1201,6 +1480,16 @@ class EnemyTracker:
 FloatingButton: EnemyTracker | None = None
 
 
+def _get_shared_vars() -> EnemyTrackerVars | None:
+    state = getattr(builtins, ENEMY_TRACKER_SHARED_VARS_ATTR, None)
+    return state if state is not None else None
+
+
+def _set_shared_vars(state: EnemyTrackerVars) -> EnemyTrackerVars:
+    setattr(builtins, ENEMY_TRACKER_SHARED_VARS_ATTR, state)
+    return state
+
+
 def _ensure_ini() -> bool:
     if EnemyTrackerConfig.INI_INIT:
         return True
@@ -1231,11 +1520,32 @@ def GetCurrentRangeFilter() -> int:
     return int(FloatingButton.vars.range_filter)
 
 
-def main():
+def scanner_main():
+    try:
+        if not _ensure_ini():
+            return
+        state = _ensure_state()
+        state._poll()
+    except Exception as exc:
+        Py4GW.Console.Log(EnemyTrackerConfig.MODULE_NAME, f"Scanner error: {exc}", Py4GW.Console.MessageType.Error)
+        raise
+
+
+def configure():
+    if not _ensure_ini():
+        return
+    _ensure_state().draw_scanner_config()
+
+
+def ui_main():
     try:
         if not _ensure_ini():
             return
 
+        global ENEMY_BAR_DEBUG_STARTUP_LOGGED
+        if ENEMY_BAR_DEBUG and not ENEMY_BAR_DEBUG_STARTUP_LOGGED:
+            ENEMY_BAR_DEBUG_STARTUP_LOGGED = True
+            _enemy_bar_debug("Enemy Party ui_main started")
         state = _ensure_state()
         state.floating_button.draw(EnemyTrackerConfig.FLOATING_INI_KEY)
         state.draw_world_agent_markers()
@@ -1243,6 +1553,10 @@ def main():
     except Exception as exc:
         Py4GW.Console.Log(EnemyTrackerConfig.MODULE_NAME, f"Error: {exc}", Py4GW.Console.MessageType.Error)
         raise
+
+
+def main():
+    ui_main()
 
 
 if __name__ == "__main__":
